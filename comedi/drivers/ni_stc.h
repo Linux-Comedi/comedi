@@ -597,7 +597,10 @@ static ni_board ni_boards[];
 	unsigned long serial_interval_ns;                       \
 	unsigned char serial_hw_mode;                           \
 	unsigned short clock_and_fout;				\
-
+								\
+	unsigned short int_a_enable_reg;			\
+	unsigned short int_b_enable_reg;			\
+	unsigned short io_bidirection_pin_reg;			\
 
 #endif /* _COMEDI_NI_STC_H */
 

@@ -229,6 +229,50 @@ are important to us */
 static void mite_handle_interrupt(comedi_device *dev,unsigned long status);
 #endif
 
+/* ni_set_bits( ) allows different parts of the ni_mio_common driver to 
+* share registers (such as Interrupt_A_Register) without interfering with
+* each other.  Use comedi_spin_lock_irqsave() and comedi_spin_unlock_irqrestore()
+* if you use this to modify the interrupt enable registers...which are sometimes
+* changed in ISRs
+*
+* NOTE: the switch/case statements are optimized out for a constant argument
+* so this is actually quite fast---  If you must wrap another function around this
+* make it inline to avoid a large speed penalty.
+*
+* value should only be 1 or 0.
+*/
+void inline ni_set_bits(comedi_device *dev, int reg, int bits, int value) {
+	
+	switch (reg){
+		case Interrupt_A_Enable_Register:
+			if(value)
+				devpriv->int_a_enable_reg |= bits;
+			else
+				devpriv->int_a_enable_reg &= ~bits;
+			win_out(devpriv->int_a_enable_reg,Interrupt_A_Enable_Register);
+			break;
+		case Interrupt_B_Enable_Register:
+			if(value)
+				devpriv->int_b_enable_reg |= bits;
+			else
+				devpriv->int_b_enable_reg &= ~bits;
+			win_out(devpriv->int_b_enable_reg,Interrupt_B_Enable_Register);
+			break;
+		case IO_Bidirection_Pin_Register:
+			if(value)
+				devpriv->io_bidirection_pin_reg |= bits;
+			else
+				devpriv->io_bidirection_pin_reg &= ~bits;
+			win_out(devpriv->io_bidirection_pin_reg,IO_Bidirection_Pin_Register);
+			break;
+		default:
+			printk("Warning ni_set_bits() called with invalid arguments\n");
+			printk("reg is %d\n",reg);
+			break;
+	}
+}
+
+
 static
 void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
@@ -320,7 +364,14 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 				status);
 			ni_mio_print_status_a(status);
 			ni_handle_fifo_dregs(dev);
-			win_out(0x0000,Interrupt_A_Enable_Register);
+			//TIM 4/17/01
+			//win_out(0x0000,Interrupt_A_Enable_Register);
+			//turn off all AI interrupts
+			ni_set_bits(dev, Interrupt_A_Enable_Register,
+				AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+				AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+				AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
+				AI_FIFO_Interrupt_Enable,0);
 			ni_ai_reset(dev,dev->subdevices);//added by tim
 			comedi_done(dev,s);
 			return;
@@ -340,7 +391,13 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 #else
 			if(!devpriv->ai_continuous){
 				ni_handle_fifo_dregs(dev);
-				win_out(0x0000,Interrupt_A_Enable_Register);
+				//win_out(0x0000,Interrupt_A_Enable_Register); TIM 4/17/01
+				ni_set_bits(dev, Interrupt_A_Enable_Register,
+				AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+				AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+				AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
+				AI_FIFO_Interrupt_Enable,0);
+
 				comedi_done(dev,s);
 			}
 #endif
@@ -473,7 +530,13 @@ static void ni_handle_block_dma(comedi_device *dev)
 	MDPRINTK("ni_handle_block_dma\n");
 	//mite_dump_regs(devpriv->mite);
 	mite_dma_disarm(devpriv->mite);
-	win_out(0x0000,Interrupt_A_Enable_Register);
+	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
+	ni_set_bits(dev, Interrupt_A_Enable_Register,
+		AI_SC_TC_Interrupt_Enable | AI_Start1_Interrupt_Enable|
+		AI_Start2_Interrupt_Enable| AI_Start_Interrupt_Enable|
+		AI_Stop_Interrupt_Enable| AI_Error_Interrupt_Enable|
+		AI_FIFO_Interrupt_Enable,0);
+
 	ni_ai_reset(dev,dev->subdevices);
 	comedi_done(dev,dev->subdevices);
 	MDPRINTK("exit ni_handle_block_dma\n");
@@ -495,7 +558,12 @@ static void ni_handle_block(comedi_device *dev)
 		if(devpriv->n_left==0){
 			ni_handle_fifo_dregs(dev);
 			printk("end\n");
-			win_out(0x0000,Interrupt_A_Enable_Register);
+			//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
+			ni_set_bits(dev, Interrupt_A_Enable_Register,
+				AI_SC_TC_Interrupt_Enable | AI_Start1_Interrupt_Enable|
+				AI_Start2_Interrupt_Enable| AI_Start_Interrupt_Enable|
+				AI_Stop_Interrupt_Enable| AI_Error_Interrupt_Enable|
+				AI_FIFO_Interrupt_Enable,0);
 			ni_ai_reset(dev,dev->subdevices);
 			comedi_done(dev,dev->subdevices);
 		}else if(devpriv->n_left<=devpriv->blocksize){
@@ -749,7 +817,12 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #ifdef PCIDMA
 	mite_dma_disarm(devpriv->mite);
 #endif
-	win_out(0x0000,Interrupt_A_Enable_Register);
+	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
+	ni_set_bits(dev, Interrupt_A_Enable_Register,
+		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+		AI_STOP_Interrupt_Enable|   AI_Error_Interrupt_Enable|
+		AI_FIFO_Interrupt_Enable,0);
 
 	win_out(AI_Reset,Joint_Reset_Register);
 
@@ -807,7 +880,9 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	win_out(1,ADC_FIFO_Clear);
 
 	/* interrupt on errors */
-	win_out(0x0020,Interrupt_A_Enable_Register) ;
+	//TIM 4/17/01 win_out(0x0020,Interrupt_A_Enable_Register);
+	ni_set_bits(dev, Interrupt_A_Enable_Register, AI_Error_Interrupt_Enable,1);
+
 
 	//ni_load_channelgain_list(dev,1,&insn->chanspec,(insn->flags&TRIG_DITHER)==TRIG_DITHER);
 	ni_load_channelgain_list(dev,1,&insn->chanspec,0);
@@ -1256,7 +1331,9 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
 
-		win_out(bits,Interrupt_A_Enable_Register) ;
+		//TIM 4/17/01 win_out(bits,Interrupt_A_Enable_Register) ;
+		ni_set_bits(dev, Interrupt_A_Enable_Register, bits, 1);
+		
 		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",bits);
 	}else{
 		/* interrupt on nothing */
@@ -1544,8 +1621,9 @@ devpriv->ao_mode2|=AO_FIFO_Mode(1);
 	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
 		AO_Command_1_Register);
 
-	win_out(AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable,Interrupt_B_Enable_Register);
-
+	//TIM 4/17/01 win_out(AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable,Interrupt_B_Enable_Register);
+	ni_set_bits(dev, Interrupt_B_Enable_Register,
+		AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 1);
 
 	ni_writew(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2);
 	
@@ -2062,7 +2140,8 @@ static void pfi_setup(comedi_device *dev)
 	/* currently, we don't output any signals, thus, all
 	   the PFI's are input */
 	
-	win_out(0,IO_Bidirection_Pin_Register);
+	//TIM 4/17/01 win_out(0,IO_Bidirection_Pin_Register);
+	ni_set_bits(dev, IO_Bidirection_Pin_Register, 0x03ff, 0);
 }
 
 
@@ -2339,12 +2418,12 @@ static int gpct_sp(comedi_device *dev,comedi_param *it)
 * it easier to access them.
 */
 void GPCTR_Load_A(comedi_device *dev, int chan, long value){
-	win_out( G_Load_A_Register_High(0), (value>>16) & 0x00ff);
-	win_out( G_Load_A_Register_Low(0), value & 0xffff);
+	win_out( (value>>16) & 0x00ff, G_Load_A_Register_High(0));
+	win_out( value & 0xffff, G_Load_A_Register_Low(0));
 }
 void GPCTR_Load_B(comedi_device *dev, int chan, long value){
-	win_out( G_Load_B_Register_High(0), (value>>16) & 0x00ff);
-	win_out( G_Load_B_Register_Low(0), value & 0xffff);
+	win_out( (value>>16) & 0x00ff, G_Load_B_Register_High(0));
+	win_out( value & 0xffff, G_Load_B_Register_Low(0));
 }
 
 /*  Load a value into the counter, using register A as the intermediate step.
@@ -2353,9 +2432,9 @@ void GPCTR_Load_B(comedi_device *dev, int chan, long value){
 */
 void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
 	devpriv->gpctr_mode[chan] &= (~G_Load_Source_Select);
-	win_out( G_Mode_Register(chan),devpriv->gpctr_mode[chan]);
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
 	GPCTR_Load_A(dev,chan,value);
-	win_out( G_Command_Register(chan), devpriv->gpctr_mode[chan]|G_Load);
+	win_out( devpriv->gpctr_mode[chan]|G_Load,G_Command_Register(chan));
 }
 
 /*
@@ -2369,9 +2448,9 @@ int GPCTR_Begin_Event_Counting(comedi_device *dev, comedi_subdevice *s,int chan,
 	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
 	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 			
-	win_out( G_Mode_Register(chan), devpriv->gpctr_mode[chan]);
-	win_out( G_Command_Register(chan), devpriv->gpctr_command[chan]);
-	win_out( G_Input_Select_Register(chan), devpriv->gpctr_input_select[chan]);
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
 	
 	return 0;
 }
@@ -2394,10 +2473,10 @@ int GPCTR_G_Watch(comedi_device *dev, int chan) {
 	int save1,save2;
 	
 	devpriv->gpctr_command[chan] &= ~G_Save_Trace;
-	win_out( G_Command_Register(chan), devpriv->gpctr_command[chan]);
+	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
 	
 	devpriv->gpctr_command[chan] |= G_Save_Trace;
-	win_out( G_Command_Register(chan), devpriv->gpctr_command[chan]);
+	win_out( devpriv->gpctr_command[chan], G_Command_Register(chan));
 
 	save1 = GPCTR_G_Read(dev,chan);
 	save2 = GPCTR_G_Read(dev,chan);
@@ -2409,9 +2488,64 @@ int GPCTR_G_Watch(comedi_device *dev, int chan) {
 	return save1;
 }
 
+
+void GPCTR_Disarm(comedi_device *dev, int chan){
+	win_out( G_Disarm,G_Command_Register(chan));
+}
+void GPCTR_Arm(comedi_device *dev, int chan){
+	win_out( G_Arm,G_Command_Register(chan));
+}
+void GPCTR_Reset(comedi_device *dev, int chan){
+	unsigned long irqflags;
+	int temp_ack_reg=0;
+	
+	switch (chan) {
+		case 0:
+			//note: I need to share the soft copies of the Enable Register with the ISRs.
+			// so I'm using comedi_spin_lock_irqsave() to guard this section of code
+			win_out(G0_Reset,Joint_Reset_Register);
+			comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
+			ni_set_bits(dev,Interrupt_A_Enable_Register,G0_TC_Interrupt_Enable,  0);
+			ni_set_bits(dev,Interrupt_A_Enable_Register,G0_Gate_Interrupt_Enable,0);
+			comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
+			temp_ack_reg |= G0_Gate_Error_Confirm;
+			temp_ack_reg |= G0_TC_Error_Confirm;
+			temp_ack_reg |= G1_TC_Interrupt_Ack;
+			temp_ack_reg |= G0_Gate_Interrupt_Ack;
+			win_out(temp_ack_reg,Interrupt_A_Ack_Register);
+			break;
+		case 1:
+			win_out(G1_Reset,Joint_Reset_Register);
+			comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
+			ni_set_bits(dev,Interrupt_B_Enable_Register,G1_TC_Interrupt_Enable,  0);
+			ni_set_bits(dev,Interrupt_B_Enable_Register,G0_Gate_Interrupt_Enable,0);
+			comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
+			temp_ack_reg |= G1_Gate_Error_Confirm;
+			temp_ack_reg |= G1_TC_Error_Confirm;
+			temp_ack_reg |= G1_TC_Interrupt_Ack;
+			temp_ack_reg |= G1_Gate_Interrupt_Ack;
+			win_out(temp_ack_reg,Interrupt_B_Ack_Register);
+			break;
+	};
+	
+	devpriv->gpctr_mode[chan] = 0;
+	devpriv->gpctr_input_select[chan] = 0;
+	devpriv->gpctr_command[chan] = 0;
+	
+	devpriv->gpctr_command[chan] |= G_Synchronized_Gate;
+	
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
+	win_out( 0,G_Autoincrement_Register(chan)); 
+}
 //note: EXPORT_SYMTAB must have been defined for this to work.
+//this is mostly for testing inside the kernel
+EXPORT_SYMBOL(GPCTR_Load_Using_A);
 EXPORT_SYMBOL(GPCTR_G_Watch);
 EXPORT_SYMBOL(GPCTR_Begin_Event_Counting);
+EXPORT_SYMBOL(GPCTR_Arm);
+EXPORT_SYMBOL(GPCTR_Disarm);
+EXPORT_SYMBOL(GPCTR_Reset);
 
 #endif
 
