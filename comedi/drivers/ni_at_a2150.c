@@ -851,22 +851,22 @@ static int a2150_set_chanlist(comedi_device *dev, unsigned int start_channel, un
 	switch(num_channels)
 	{
 		case 1:
-			devpriv->config_bits |= CHANNEL_BITS(0x100 | start_channel);
+			devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
 			break;
 		case 2:
 			if(start_channel == 0)
 			{
-				devpriv->config_bits |= CHANNEL_BITS(0x010);
+				devpriv->config_bits |= CHANNEL_BITS(0x2);
 			}else if(start_channel == 2)
 			{
-				devpriv->config_bits |= CHANNEL_BITS(0x011);
+				devpriv->config_bits |= CHANNEL_BITS(0x3);
 			}else
 			{
 				return -1;
 			}
 			break;
 		case 4:
-			devpriv->config_bits |= CHANNEL_BITS(0x001);
+			devpriv->config_bits |= CHANNEL_BITS(0x1);
 			break;
 		default:
 			return -1;
