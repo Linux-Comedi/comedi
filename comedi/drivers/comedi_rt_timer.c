@@ -162,6 +162,17 @@ static void timer_ai_task_func(int d)
 	s->async->events = 0;
 
 	for(n=0;n<cmd->stop_arg;n++){
+		/* pause goes at beginning so task can not be interrupted between
+		 * writing last point to buffer (buf_add()) and comedi_done()
+		 */
+		if(n != 0){
+#ifdef CONFIG_COMEDI_RTL
+			rt_task_wait();
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+			rt_task_wait_period();
+#endif
+		}
 		for(i=0;i<cmd->scan_end_arg;i++){
 			ret = comedi_data_read(devpriv->device,devpriv->subd,
 				CR_CHAN(cmd->chanlist[i]),
@@ -176,12 +187,6 @@ static void timer_ai_task_func(int d)
 		s->async->events |= COMEDI_CB_EOS;
 		comedi_event(dev,s,s->async->events);
 		s->async->events = 0;
-#ifdef CONFIG_COMEDI_RTL
-		rt_task_wait();
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-		rt_task_wait_period();
-#endif
 	}
 	comedi_done(dev,s);
 #ifdef CONFIG_COMEDI_RTL
@@ -299,8 +304,9 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	int err = 0;
 	int stop_src = TRIG_COUNT;
 
-	if(s == dev->write_subdev)
-		stop_src |= TRIG_NONE;
+// stop_src TRIG_NONE does not work yet
+//	if(s == dev->write_subdev)
+//		stop_src |= TRIG_NONE;
 
 	err = cmdtest_helper(cmd,
 		TRIG_NOW,	/* start_src */
