@@ -21,8 +21,6 @@ ni_mio_common: doesn't do 2-chan ao.
 
 das6402 needs cleanup
 
-check each driver init for stuff
-
 register_symtab
 
 fix PCI code, use pci_find_device()
@@ -53,5 +51,5 @@ das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
 das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
-check for pci_enable_device()
+check for SA_SHIRQ in drivers
 
