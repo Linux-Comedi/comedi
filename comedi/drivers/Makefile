@@ -62,7 +62,7 @@ include $(TOPDIR)/Rules.make
 drivers.o:	$(obj-y)
 	$(LD) -r -o $@ $(obj-y)
 
-ni_pcimio.c:	ni_mio_common.c
-ni_atmio.c:	ni_mio_common.c
+ni_pcimio.o:	ni_mio_common.c
+ni_atmio.o:	ni_mio_common.c
 
 

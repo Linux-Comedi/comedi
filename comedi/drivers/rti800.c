@@ -77,25 +77,24 @@
 
 #include <am9513.h>
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_rti800_ai_10_bipolar
-        -10     10
-        -1      1
-        -0.1    0.1
-        -0.02   0.02
-RANGE_rti800_ai_5_bipolar
-        -5      5
-        -0.5    0.5
-        -0.05   0.05
-        -0.01   0.01
-RANGE_rti800_ai_10_unipolar
-        0       10
-        0       1
-        0       0.1
-        0       0.02
----END-RANGE-DEFS---
-*/
+static comedi_lrange range_rti800_ai_10_bipolar = { 4, {
+	BIP_RANGE( 10 ),
+	BIP_RANGE( 1 ),
+	BIP_RANGE( 0.1 ),
+	BIP_RANGE( 0.02 )
+}};
+static comedi_lrange range_rti800_ai_5_bipolar = { 4, {
+	BIP_RANGE( 5 ),
+	BIP_RANGE( 0.5 ),
+	BIP_RANGE( 0.05 ),
+	BIP_RANGE( 0.01 )
+}};
+static comedi_lrange range_rti800_ai_unipolar = { 4, {
+	UNI_RANGE( 10 ),
+	UNI_RANGE( 1 ),
+	UNI_RANGE( 0.1 ),
+	UNI_RANGE( 0.02 )
+}};
 
 static int rti800_attach(comedi_device *dev,comedi_devconfig *it);
 static int rti800_detach(comedi_device *dev);
@@ -126,7 +125,7 @@ typedef struct {
 	enum {
 		dac_2comp, dac_straight
 	} dac0_coding, dac1_coding;
-	int ao_range_type_list[2];
+	comedi_lrange * ao_range_type_list[2];
 } rti800_private;
 
 #define devpriv ((rti800_private *)dev->private)
@@ -353,13 +352,13 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata=0xfff;
 	switch (devpriv->adc_range) {
 	case adc_bipolar10:
-		s->range_type = RANGE_rti800_ai_10_bipolar;
+		s->range_table = &range_rti800_ai_10_bipolar;
 		break;
 	case adc_bipolar5:
-		s->range_type = RANGE_rti800_ai_5_bipolar;
+		s->range_table = &range_rti800_ai_5_bipolar;
 		break;
 	case adc_unipolar10:
-		s->range_type = RANGE_rti800_ai_10_unipolar;
+		s->range_table = &range_rti800_ai_unipolar;
 		break;
 	}
 
@@ -371,22 +370,21 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		s->n_chan=2;
 		s->trig[0]=rti800_ao;
 		s->maxdata=0xfff;
-		s->range_type=0;
-		s->range_type_list=devpriv->ao_range_type_list;
+		s->range_table_list=devpriv->ao_range_type_list;
 		switch (devpriv->dac0_range) {
 		case dac_bipolar10:
-			devpriv->ao_range_type_list[0] = RANGE_bipolar10;
+			devpriv->ao_range_type_list[0] = &range_bipolar10;
 			break;
 		case dac_unipolar10:
-			devpriv->ao_range_type_list[0] = RANGE_unipolar10;
+			devpriv->ao_range_type_list[0] = &range_unipolar10;
 			break;
 		}
 		switch (devpriv->dac1_range) {
 		case dac_bipolar10:
-			devpriv->ao_range_type_list[1] = RANGE_bipolar10;
+			devpriv->ao_range_type_list[1] = &range_bipolar10;
 			break;
 		case dac_unipolar10:
-			devpriv->ao_range_type_list[1] = RANGE_unipolar10;
+			devpriv->ao_range_type_list[1] = &range_unipolar10;
 			break;
 		}
 	}
@@ -398,7 +396,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan=8;
 	s->trig[0]=rti800_di;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 	s++;
 	/* do */
@@ -407,7 +405,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan=8;
 	s->trig[0]=rti800_do;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 
 /* don't yet know how to deal with counter/timers */

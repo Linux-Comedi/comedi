@@ -21,31 +21,18 @@
 
 */
 
-#define RANGE_C
-
 #include <comedi_module.h>
 #ifdef LINUX_V22
 #include <asm/uaccess.h>
 #endif
 
 
-
-/*
---BEGIN-RANGE-DEFS--
-RANGE_bipolar10
-	-10	10
-RANGE_bipolar5
-	-5	5
-RANGE_bipolar2_5
-	-2.5	2.5
-RANGE_unipolar10
-	0	10
-RANGE_unipolar5
-	0	5
-RANGE_unknown
-	0	1	unitless
----END-RANGE-DEFS---
-*/
+comedi_lrange range_bipolar10={ 1, {BIP_RANGE(10)}};
+comedi_lrange range_bipolar5={ 1, {BIP_RANGE(5)}};
+comedi_lrange range_bipolar2_5={ 1, {BIP_RANGE(2.5)}};
+comedi_lrange range_unipolar10={ 1, {UNI_RANGE(10)}};
+comedi_lrange range_unipolar5={ 1, {UNI_RANGE(5)}};
+comedi_lrange range_unknown={ 1, {0,1,0}};	/* XXX */
 
 /*
    	COMEDI_RANGEINFO
@@ -63,15 +50,34 @@ RANGE_unknown
 int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
 {
 	comedi_rangeinfo it;
+	int minor,subd,chan;
+	comedi_lrange *lr;
+	comedi_subdevice *s;
 
 	if(copy_from_user(&it,arg,sizeof(comedi_rangeinfo)))
 		return -EFAULT;
 
-	if(RANGE_OFFSET(it.range_type)+RANGE_LENGTH(it.range_type)>comedi_max_range)
-		return -EINVAL;
+	minor=(it.range_type>>24)&0xf;
+	subd=(it.range_type>>20)&0xf;
+	chan=(it.range_type>>16)&0xff;
 
-	if(copy_to_user(it.range_ptr,comedi_kranges+RANGE_OFFSET(it.range_type),
-		sizeof(comedi_krange)*RANGE_LENGTH(it.range_type)))
+	if(minor>COMEDI_NDEVICES)
+		return -EINVAL;
+	dev=comedi_devices+minor;
+	if(!dev->attached)return -EINVAL;
+	if(subd>=dev->n_subdevices)return -EINVAL;
+	s=dev->subdevices+subd;
+	if(s->range_table){
+		lr=s->range_table;
+	}else if(s->range_table_list){
+		if(chan>=s->n_chan)return -EINVAL;
+		lr=s->range_table_list[chan];
+	}else{
+		return -EINVAL;
+	}
+
+	if(copy_to_user(it.range_ptr,lr->range,
+		sizeof(comedi_krange)*lr->length))
 		return -EFAULT;
 	
 	return 0;
@@ -88,12 +94,12 @@ int check_chanlist(comedi_subdevice *s,int n,unsigned int *chanlist)
 	int chan;
 
 
-	if(s->range_type){
+	if(s->range_table){
 		for(i=0;i<n;i++)
 		   	if(CR_CHAN(chanlist[i])>=s->n_chan || 
-			   CR_RANGE(chanlist[i])>=RANGE_LENGTH(s->range_type)){
+			   CR_RANGE(chanlist[i])>=s->range_table->length){
 				rt_printk("bad chanlist[%d]=0x%08x n_chan=%d range length=%d\n",
-					i,chanlist[i],s->n_chan,RANGE_LENGTH(s->range_type));
+					i,chanlist[i],s->n_chan,s->range_table->length);
 #if 0
 for(i=0;i<n;i++){
 	printk("[%d]=0x%08x\n",i,chanlist[i]);
@@ -101,11 +107,11 @@ for(i=0;i<n;i++){
 #endif
 				return -EINVAL;
 			}
-	}else if(s->range_type_list){
+	}else if(s->range_table_list){
 		for(i=0;i<n;i++){
 			chan=CR_CHAN(chanlist[i]);
 			if(chan>=s->n_chan ||
-			   CR_RANGE(chanlist[i])>=RANGE_LENGTH(s->range_type_list[chan])){
+			   CR_RANGE(chanlist[i])>=s->range_table_list[chan]->length){
 				rt_printk("bad chanlist[%d]=0x%08x\n",i,chanlist[i]);
 				return -EINVAL;
 			}

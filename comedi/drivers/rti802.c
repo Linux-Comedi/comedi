@@ -57,7 +57,7 @@ typedef struct {
 	enum {
 		dac_2comp, dac_straight
 	} dac_coding[8];
-	unsigned int range_type_list[8];
+	comedi_lrange * range_type_list[8];
 } rti802_private;
 
 #define devpriv ((rti802_private *)dev->private)
@@ -117,15 +117,15 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata=0xfff;
 	s->n_chan=8;
 	s->trig[0] = rti802_ao;
-	s->range_type_list=devpriv->range_type_list;
+	s->range_table_list=devpriv->range_type_list;
 
 	for (i = 0; i < 8; i++) {
 		devpriv->dac_coding[i] = (it->options[3 + 2 * i])
 		    ? (dac_straight)
 		    : (dac_2comp);
 		devpriv->range_type_list[i] = (it->options[2 + 2 * i])
-			? RANGE_unipolar10
-			: RANGE_bipolar10;
+			? &range_unipolar10
+			: &range_bipolar10;
 	}
 
 	printk("\n");

@@ -82,7 +82,7 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->n_chan=8;
 	s->trig[0]=pcl725_do;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 	s=dev->subdevices+1;
 	/* do */
@@ -91,7 +91,7 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->n_chan=8;
 	s->trig[0]=pcl725_di;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 	printk("\n");
 

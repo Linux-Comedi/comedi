@@ -38,6 +38,10 @@
 #include <asm/io.h>
 
 static void postconfig(comedi_device *dev);
+#ifdef CONFIG_COMEDI_VER08
+static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
+#endif
 
 comedi_driver *comedi_drivers;
 
@@ -163,6 +167,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 static void postconfig(comedi_device *dev)
 {
 	int i;
+	int have_trig;
 	comedi_subdevice *s;
 
 	for(i=0;i<dev->n_subdevices;i++){
@@ -174,8 +179,17 @@ static void postconfig(comedi_device *dev)
 		if(s->len_chanlist==0)
 			s->len_chanlist=1;
 
-		/* XXX */
-		if(s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4]){
+		have_trig=0;
+		if(s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4])
+			have_trig=1;
+
+		if(s->do_cmd && !have_trig){
+			s->trig[1]=command_trig;
+			s->trig[2]=command_trig;
+			s->trig[3]=command_trig;
+			s->trig[4]=command_trig;
+		}
+		if(s->do_cmd || have_trig){
 			s->prealloc_bufsz=1024*128;
 		}else{
 			s->prealloc_bufsz=0;
@@ -189,11 +203,122 @@ static void postconfig(comedi_device *dev)
 			}
 		}
 
-		if(!s->range_type && !s->range_type_list)
-			s->range_type=RANGE_unknown;
+		if(!s->range_table && !s->range_table_list)
+			s->range_table=&range_unknown;
 	}
 
 }
+
+/* helper functions for drivers */
+
+int di_unpack(unsigned int bits,comedi_trig *it)
+{
+	int chan;
+	int i;
+
+	for(i=0;i<it->n_chan;i++){
+		chan=CR_CHAN(it->chanlist[i]);
+		it->data[i]=(bits>>chan)&1;
+	}
+
+	return i;
+}
+
+int do_pack(unsigned int *bits,comedi_trig *it)
+{
+	int chan;
+	int mask;
+	int i;
+
+	for(i=0;i<it->n_chan;i++){
+		chan=CR_CHAN(it->chanlist[i]);
+		mask=1<<chan;
+		(*bits) &= ~mask;
+		if(it->data[i])
+			(*bits) |=mask;
+	}
+
+	return i;
+}
+
+#ifdef CONFIG_COMEDI_VER08
+static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+{
+	int ret;
+
+	ret=mode_to_command(&s->cmd,it);
+	if(ret)return ret;
+
+	ret=s->do_cmdtest(dev,s,&s->cmd);
+	if(ret)return ret;
+
+	ret=s->do_cmd(dev,s);
+	if(ret)return ret;
+
+	return ret;
+}
+
+static int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
+{
+	memset(cmd,0,sizeof(comedi_cmd));
+	cmd->subdev=it->subdev;
+	cmd->chanlist_len=it->n_chan;
+	cmd->chanlist=it->chanlist;
+	cmd->data=it->data;
+	cmd->data_len=it->data_len;
+
+	cmd->start_src=TRIG_NOW;
+
+	switch(it->mode){
+	case 1:
+		cmd->scan_begin_src=TRIG_FOLLOW;
+		cmd->convert_src=TRIG_TIMER;
+		cmd->convert_arg=it->trigvar;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+		
+		break;
+	case 2:
+		cmd->scan_begin_src=TRIG_TIMER;
+		cmd->scan_begin_arg=it->trigvar;
+		cmd->convert_src=TRIG_TIMER;
+		cmd->convert_arg=it->trigvar1;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+		
+		break;
+	case 3:
+		cmd->scan_begin_src=TRIG_FOLLOW;
+		cmd->convert_src=TRIG_EXT;
+		cmd->convert_arg=it->trigvar;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+
+		break;
+	case 4:
+		cmd->scan_begin_src=TRIG_EXT;
+		cmd->scan_begin_arg=it->trigvar;
+		cmd->convert_src=TRIG_TIMER;
+		cmd->convert_arg=it->trigvar1;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
 
 
 #define REG(x) {extern comedi_driver (x);comedi_driver_register(&(x));}

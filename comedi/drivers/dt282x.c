@@ -129,46 +129,50 @@
 #define DT2821_XCLK	0x0002	/* (R/W) external clock enable            */
 #define DT2821_BDINIT	0x0001	/* (W)   initialize board         */
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_dt282x_ai_lo_bipolar
-        -10     10
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-RANGE_dt282x_ai_lo_unipolar
-        0       10
-        0       5
-        0       2.5
-        0       1.25
-RANGE_dt282x_ai_5_bipolar
-       -5      5
-       -2.5    2.5
-       -1.25   1.25
-       -0.625  0.625
-RANGE_dt282x_ai_5_unipolar
-        0       5
-        0       2.5
-        0       1.25
-        0       0.625
-RANGE_dt282x_ai_hi_bipolar
-        -10     10
-        -1      1
-        -0.1    0.1
-        -0.02   0.02
-RANGE_dt282x_ai_hi_unipolar
-        0       10
-        0       1
-        0       0.1
-        0       0.02
----END-RANGE-DEFS---
-*/
+static comedi_lrange range_dt282x_ai_lo_bipolar = { 4, {
+	RANGE( -10,	10 ),
+	RANGE( -5,	5 ),
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 )
+}};
+static comedi_lrange range_dt282x_ai_lo_unipolar = { 4, {
+	RANGE( 0,	10 ),
+	RANGE( 0,	5 ),
+	RANGE( 0,	2.5 ),
+	RANGE( 0,	1.25 )
+}};
+static comedi_lrange range_dt282x_ai_5_bipolar = { 4, {
+	RANGE( -5,	5 ),
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 ),
+	RANGE( -0.625,	0.625 ),
+}};
+static comedi_lrange range_dt282x_ai_5_unipolar = { 4, {
+	RANGE( 0,	5 ),
+	RANGE( 0,	2.5 ),
+	RANGE( 0,	1.25 ),
+	RANGE( 0,	0.625 ),
+}};
+static comedi_lrange range_dt282x_ai_hi_bipolar = { 4, {
+	RANGE( -10,	10 ),
+	RANGE( -1,	1 ),
+	RANGE( -0.1,	0.1 ),
+	RANGE( -0.02,	0.02 )
+}};
+static comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
+	RANGE( 0,	10 ),
+	RANGE( 0,	1 ),
+	RANGE( 0,	0.1 ),
+	RANGE( 0,	0.02 )
+}};
+
 
 typedef struct {
 	char *name;
 	int adbits;
 	int adchan_se;
 	int adchan_di;
+	int ai_speed;
 	int ispgl;
 	int dachan;
 	int dabits;
@@ -180,6 +184,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -188,6 +193,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	0,
 		adchan_di:	4,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		16,
@@ -196,6 +202,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		0,
 		dabits:		0,
@@ -204,6 +211,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		1,
 		dachan:		0,
 		dabits:		0,
@@ -212,6 +220,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -220,6 +229,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	0,
 		adchan_di:	4,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -228,6 +238,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	4,
 		adchan_di:	0,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -236,6 +247,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -244,6 +256,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		0,
 		dabits:		0,
@@ -252,6 +265,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		0,
 		dabits:		0,
@@ -260,6 +274,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	4000,
 		ispgl:		1,
 		dachan:		0,
 		dabits:		0,
@@ -273,7 +288,7 @@ typedef struct {
 	int da0_2scomp;		/* same, for DAC0               */
 	int da1_2scomp;		/* same, for DAC1               */
 
-	int darangelist[2];
+	comedi_lrange *darangelist[2];
 
 	int dacsr;		/* software copies of registers */
 	int adcsr;
@@ -336,7 +351,7 @@ static int prep_ai_dma(comedi_device * dev,int chan,int size);
 static int prep_ao_dma(comedi_device * dev,int chan,int size);
 static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s);
-static int dt282x_ns_to_timer(int *nanosec);
+static int dt282x_ns_to_timer(int *nanosec,int round_mode);
 
 
 static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2);
@@ -657,34 +672,95 @@ static int dt282x_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
 static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,comedi_cmd *cmd)
 {
 	int err=0;
+	int tmp;
 
-	if(cmd->start_src!=TRIG_NOW ||
-	   cmd->start_arg!=0 ||
-	   cmd->scan_begin_arg!=0 ||
-	   cmd->convert_src!=TRIG_TIMER ||
-	   cmd->scan_end_src!=TRIG_COUNT ||
-	   cmd->scan_end_arg!=cmd->chanlist_len){
-		err=1;
-		cmd->start_src=TRIG_NOW;
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_FOLLOW|TRIG_EXT;
+	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER;
+	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	/* note that mutual compatiblity is not an issue here */
+	if(cmd->scan_begin_src!=TRIG_FOLLOW &&
+	   cmd->scan_begin_src!=TRIG_EXT)err++;
+	if(cmd->stop_src!=TRIG_COUNT &&
+	   cmd->stop_src!=TRIG_NONE)err++;
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0){
 		cmd->start_arg=0;
-		cmd->scan_begin_arg=0;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->scan_end_src=TRIG_COUNT;
-	   	cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
 	}
-	if(cmd->scan_begin_src!=TRIG_FOLLOW && cmd->scan_begin_src!=TRIG_EXT){
-		err=1;
-		cmd->scan_begin_src=TRIG_INVAL;
+	if(cmd->scan_begin_src==TRIG_FOLLOW){
+		/* internal trigger */
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;
+			err++;
+		}
+	}else{
+		/* external trigger */
+		/* should be level/edge, hi/lo specification here */
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;
+			err++;
+		}
 	}
 	if(cmd->convert_arg<4000){
-		err=1;
+		/* XXX board dependent */
 		cmd->convert_arg=4000;
+		err++;
 	}
-	if(cmd->stop_src!=TRIG_COUNT && cmd->stop_src!=TRIG_NONE){
-		err=1;
+#define SLOWEST_TIMER	(250*(1<<15)*255)
+	if(cmd->convert_arg>SLOWEST_TIMER){
+		cmd->convert_arg=SLOWEST_TIMER;
+		err++;
+	}
+	if(cmd->scan_end_arg!=cmd->chanlist_len){
+		cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_COUNT){
+		/* any count is allowed */
+	}else{
+		/* TRIG_NONE */
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
 	}
 
-	if(err)return -EINVAL;
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	tmp=cmd->convert_arg;
+	dt282x_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+	if(tmp!=cmd->convert_arg)err++;
+
+	if(err)return 4;
 
 	return 0;
 }
@@ -694,7 +770,7 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd=&s->cmd;
 	int timer;
 
-	timer=dt282x_ns_to_timer(&cmd->convert_arg);
+	timer=dt282x_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
 	if(cmd->scan_begin_src==TRIG_FOLLOW){
@@ -756,7 +832,7 @@ static int dt282x_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 		devpriv->ntrig=it->n*it->n_chan;
 		devpriv->nread=devpriv->ntrig;
 
-		timer=dt282x_ns_to_timer(&it->trigvar);
+		timer=dt282x_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
 		outw(timer, dev->iobase + DT2821_TMRCTR);
 
 		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
@@ -773,7 +849,7 @@ static int dt282x_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 
 		return 0;
 	} else {
-		timer=dt282x_ns_to_timer(&it->trigvar);
+		timer=dt282x_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
 		outw(timer, dev->iobase + DT2821_TMRCTR);
 
 		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0;
@@ -823,7 +899,7 @@ static int dt282x_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_tri
 		devpriv->ntrig=it->n*it->n_chan;
 		devpriv->nread=devpriv->ntrig;
 
-		timer=dt282x_ns_to_timer(&it->trigvar1);
+		timer=dt282x_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
 		outw(timer, dev->iobase + DT2821_TMRCTR);
 
 		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
@@ -840,7 +916,7 @@ static int dt282x_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_tri
 
 		return 0;
 	} else {
-		timer=dt282x_ns_to_timer(&it->trigvar1);
+		timer=dt282x_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
 		outw(timer, dev->iobase + DT2821_TMRCTR);
 
 		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0 | DT2821_DS1;
@@ -893,14 +969,25 @@ static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 }
 
 
-static int dt282x_ns_to_timer(int *nanosec)
+static int dt282x_ns_to_timer(int *nanosec,int round_mode)
 {
 	int prescale,base,divider;
 
 	for(prescale=0;prescale<16;prescale++){
 		if(prescale==1)continue;
 		base=250*(1<<prescale);
-		divider=(*nanosec+base/2)/base;
+		switch(round_mode){
+		case TRIG_ROUND_NEAREST:
+		default:
+			divider=(*nanosec+base/2)/base;
+			break;
+		case TRIG_ROUND_DOWN:
+			divider=(*nanosec)/base;
+			break;
+		case TRIG_ROUND_UP:
+			divider=(*nanosec+base-1)/base;
+			break;
+		}
 		if(divider<256){
 			*nanosec=divider*base;
 			return (prescale<<8)|(255-divider);
@@ -971,7 +1058,7 @@ static int dt282x_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *i
 	prep_ao_dma(dev,1,size/2);
 	enable_dma(devpriv->dma[1].chan);
 	
-	timer=dt282x_ns_to_timer(&it->trigvar);
+	timer=dt282x_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
 	devpriv->dacsr = DT2821_SSEL| DT2821_DACLK | DT2821_IDARDY;
@@ -1025,25 +1112,35 @@ static int dt282x_dio(comedi_device * dev, comedi_subdevice * s, comedi_trig * i
 }
 
 
-static int ai_range_table[]={ RANGE_dt282x_ai_lo_bipolar,
-	RANGE_dt282x_ai_lo_unipolar, RANGE_dt282x_ai_5_bipolar,
-	RANGE_dt282x_ai_5_unipolar };
-static int ai_range_pgl_table[]={ RANGE_dt282x_ai_hi_bipolar,
-	RANGE_dt282x_ai_hi_unipolar };
-static inline int opt_ai_range_lkup(int ispgl,int x)
+static comedi_lrange *ai_range_table[]={
+	&range_dt282x_ai_lo_bipolar,
+	&range_dt282x_ai_lo_unipolar,
+	&range_dt282x_ai_5_bipolar,
+	&range_dt282x_ai_5_unipolar };
+static comedi_lrange *ai_range_pgl_table[]={
+	&range_dt282x_ai_hi_bipolar,
+	&range_dt282x_ai_hi_unipolar };
+static comedi_lrange *opt_ai_range_lkup(int ispgl,int x)
 {
 	if(ispgl){
-		if(x<0 || x>=2)return RANGE_unknown;
+		if(x<0 || x>=2)return &range_unknown;
 		return ai_range_pgl_table[x];
 	}else{
-		if(x<0 || x>=4)return RANGE_unknown;
+		if(x<0 || x>=4)return &range_unknown;
 		return ai_range_table[x];
 	}
 }
-static int ao_range_table[]={ RANGE_bipolar10, RANGE_unipolar10, RANGE_bipolar5,
-	RANGE_unipolar5, RANGE_bipolar2_5 };
-static inline int opt_ao_range_lkup(int x)
-	{ if(x<0)x=0; if(x>=5)x=0; return ao_range_table[x]; }
+static comedi_lrange *ao_range_table[]={
+	&range_bipolar10,
+	&range_unipolar10,
+	&range_bipolar5,
+	&range_unipolar5,
+	&range_bipolar2_5 };
+static comedi_lrange *opt_ao_range_lkup(int x)
+{
+	if(x<0 || x>=5)return &range_unknown;
+	return ao_range_table[x];
+}
 
 enum{	opt_iobase=0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channels */
 	opt_diff,					/* differential */
@@ -1182,7 +1279,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->cancel=dt282x_ai_cancel;
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->len_chanlist=16;
-	s->range_type = opt_ai_range_lkup(boardtype.ispgl,it->options[opt_ai_range]);
+	s->range_table = opt_ai_range_lkup(boardtype.ispgl,it->options[opt_ai_range]);
 	s->timer_type=TIMER_nanosec;
 	devpriv->ad_2scomp=it->options[opt_ai_twos];
 
@@ -1196,7 +1293,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		s->cancel=dt282x_ao_cancel;
 		s->maxdata=(1<<boardtype.dabits)-1;
 		s->len_chanlist=1;			/* XXX could do 2 */
-		s->range_type_list=devpriv->darangelist;
+		s->range_table_list=devpriv->darangelist;
 		s->timer_type=TIMER_nanosec;
 		devpriv->darangelist[0]=
 			opt_ao_range_lkup(it->options[opt_ao0_range]);
@@ -1215,7 +1312,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan=16;
 	s->trig[0]=dt282x_dio;
 	s->maxdata=1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 
 	printk("\n");
 

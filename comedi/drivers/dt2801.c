@@ -77,30 +77,30 @@ comedi_driver driver_dt2801={
 	detach:		dt2801_detach,
 };
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_dt2801_ai_pgh_bipolar
-	-10	10
-	-5	5
-	-2.5	2.5
-	-1.25	1.25
-RANGE_dt2801_ai_pgl_bipolar
-	-10	10
-	-1	1
-	-0.1	0.1
-	-0.02	0.02
-RANGE_dt2801_ai_pgh_unipolar
-	0	10
-	0	5
-	0	2.5
-	0	1.25
-RANGE_dt2801_ai_pgl_unipolar
-	0	10
-	0	1
-	0	0.1
-	0	0.02
----END-RANGE-DEFS---
-*/
+static comedi_lrange range_dt2801_ai_pgh_bipolar={ 4, {
+	RANGE( -10,	10 ),
+	RANGE( -5,	5 ),
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 ),
+}};
+static comedi_lrange range_dt2801_ai_pgl_bipolar={ 4, {
+	RANGE( -10,	10 ),
+	RANGE( -1,	1 ),
+	RANGE( -0.1,	0.1 ),
+	RANGE( -0.02,	0.02 ),
+}};
+static comedi_lrange range_dt2801_ai_pgh_unipolar={ 4, {
+	RANGE( 0,	10 ),
+	RANGE( 0,	5 ),
+	RANGE( 0,	2.5 ),
+	RANGE( 0,	1.25 ),
+}};
+static comedi_lrange range_dt2801_ai_pgl_unipolar={ 4, {
+	RANGE( 0,	10 ),
+	RANGE( 0,	1 ),
+	RANGE( 0,	0.1 ),
+	RANGE( 0,	0.02 ),
+}};
 
 typedef struct{
 	char *name;
@@ -195,7 +195,7 @@ static boardtype_t boardtypes[] =
 
 typedef struct{
 	boardtype_t *board;
-	unsigned int dac_range_types[2];
+	comedi_lrange *dac_range_types[2];
 }dt2801_private;
 #define devpriv ((dt2801_private *)dev->private)
 #define boardtype (*devpriv->board)
@@ -406,42 +406,42 @@ static int probe_number_of_ai_chans(comedi_device *dev)
 }
 
 
-int dac_range_table[]={
-	RANGE_bipolar10,
-	RANGE_bipolar5,
-	RANGE_bipolar2_5,
-	RANGE_unipolar10,
-	RANGE_unipolar5
+comedi_lrange *dac_range_table[]={
+	&range_bipolar10,
+	&range_bipolar5,
+	&range_bipolar2_5,
+	&range_unipolar10,
+	&range_unipolar5
 };
 
-int dac_range_lkup(int opt)
+comedi_lrange *dac_range_lkup(int opt)
 {
-	if(opt<0 || opt>5)return RANGE_unknown;
+	if(opt<0 || opt>5)return &range_unknown;
 	return dac_range_table[opt];
 }
 
-int ai_range_table[]={
-	RANGE_dt2801_ai_pgl_bipolar,
-	RANGE_bipolar5,
-	RANGE_bipolar2_5,
-	RANGE_unipolar10,
-	RANGE_unipolar5
+comedi_lrange *ai_range_table[]={
+	&range_dt2801_ai_pgl_bipolar,
+	&range_bipolar5,
+	&range_bipolar2_5,
+	&range_unipolar10,
+	&range_unipolar5
 };
-int ai_range_lkup(int type,int opt)
+comedi_lrange *ai_range_lkup(int type,int opt)
 {
 	switch(type){
 	case 0:
 		return (opt)?
-			RANGE_dt2801_ai_pgl_unipolar:
-			RANGE_dt2801_ai_pgl_bipolar;
+			&range_dt2801_ai_pgl_unipolar:
+			&range_dt2801_ai_pgl_bipolar;
 	case 1:
 		return (opt)?
-			RANGE_unipolar10:
-			RANGE_bipolar10;
+			&range_unipolar10:
+			&range_bipolar10;
 	case 2:
-		return RANGE_unipolar5;
+		return &range_unipolar5;
 	}
-	return RANGE_unknown;
+	return &range_unknown;
 }
 
 
@@ -513,7 +513,7 @@ havetype:
 	else s->n_chan=boardtype.ad_chan/2;
 #endif
 	s->maxdata=(1<<boardtype.adbits)-1;
-	s->range_type=ai_range_lkup(boardtype.adrangetype,it->options[3]);
+	s->range_table=ai_range_lkup(boardtype.adrangetype,it->options[3]);
 	s->trig[0]=dt2801_ai_mode0;
 
 	s++;
@@ -522,7 +522,7 @@ havetype:
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=2;
 	s->maxdata=(1<<boardtype.dabits)-1;
-	s->range_type_list=devpriv->dac_range_types;
+	s->range_table_list=devpriv->dac_range_types;
 	devpriv->dac_range_types[0]=dac_range_lkup(it->options[4]);
 	devpriv->dac_range_types[1]=dac_range_lkup(it->options[5]);
 	s->trig[0]=dt2801_ao_mode0;
@@ -533,7 +533,7 @@ havetype:
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->n_chan=8;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=dt2801_dio;
 
 	s++;
@@ -542,7 +542,7 @@ havetype:
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->n_chan=8;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=dt2801_dio;
 
 	ret = 0;

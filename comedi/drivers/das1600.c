@@ -68,34 +68,48 @@
 
 static void das1600_release_resources(comedi_device * dev);
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_das1601_ai_10_bipolar
-        -10     10
-        -1      1
-        -0.1    0.1
-        -0.01   0.01
-RANGE_das1601_ai_10_unipolar
-        0       10
-        0       1
-        0       0.1
-        0       0.01
-RANGE_das1602_ai_10_bipolar
-        -10     10
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-RANGE_das1602_ai_10_unipolar
-        0       10
-        0       5
-        0       2.5
-        0       1.25
-RANGE_das1600_ao_extern_bipolar
-	-1	1	ext
-RANGE_das1600_ao_extern_unipolar
-	0	1	ext
----END-RANGE-DEFS---
-*/
+static comedi_lrange range_das1601_ai_10_bipolar = { 4, {
+	RANGE( -10,	10 ),
+	RANGE( -1,	1 ),
+	RANGE( -0.1,	0.1 ),
+	RANGE( -0.01,	0.01 )
+}};
+static comedi_lrange range_das1601_ai_10_unipolar = { 4, {
+	RANGE( 0,	10 ),
+	RANGE( 0,	1 ),
+	RANGE( 0,	0.1 ),
+	RANGE( 0,	0.01 )
+}};
+static comedi_lrange range_das1602_ai_10_bipolar = { 4, {
+	RANGE( -10,	10 ),
+	RANGE( -5,	5 ),
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 )
+}};
+static comedi_lrange range_das1602_ai_10_unipolar = { 4, {
+	RANGE( 0,	10 ),
+	RANGE( 0,	5 ),
+	RANGE( 0,	2.5 ),
+	RANGE( 0,	1.25 )
+}};
+static comedi_lrange range_das1600_ao_extern_bipolar = { 1, {
+	RANGE_ext( -1,	1 )
+}};
+static comedi_lrange range_das1600_ao_extern_unipolar = { 1, {
+	RANGE_ext( -1,	1 )
+}};
+static comedi_lrange _range_bipolar10 = { 1, {
+	RANGE( -10,	10 )
+}};
+static comedi_lrange _range_bipolar5 = { 1, {
+	RANGE( -5,	5 )
+}};
+static comedi_lrange _range_unipolar10 = { 1, {
+	RANGE( 0,	10 )
+}};
+static comedi_lrange _range_unipolar5 = { 1, {
+	RANGE( 0,	5 )
+}};
 
 static int das1600_attach(comedi_device *dev,comedi_devconfig *it);
 static int das1600_detach(comedi_device *dev);
@@ -125,19 +139,19 @@ typedef struct {
 		dac_bipolar10, dac_bipolar5, dac_bipolaruser,
 		dac_unipolar10, dac_unipolar5, dac_unipolaruser,
 	} dac_range[2];
-	int range_type_list[2];
+	comedi_lrange *range_type_list[2];
 } das1600_private;
 
 #define devpriv ((das1600_private *)dev->private)
 
-static int range_types[] =
+static comedi_lrange *range_types[] =
 {
-	RANGE_bipolar10,
-	RANGE_bipolar5,
-	RANGE_das1600_ao_extern_bipolar,
-	RANGE_unipolar10,
-	RANGE_unipolar5,
-	RANGE_das1600_ao_extern_unipolar
+	&_range_bipolar10,
+	&_range_bipolar5,
+	&range_das1600_ao_extern_bipolar,
+	&_range_unipolar10,
+	&_range_unipolar5,
+	&range_das1600_ao_extern_unipolar
 };
 
 #define DAS1600_TIMEOUT 100
@@ -365,10 +379,10 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	case card_1601_12:
 		switch (devpriv->adc_range) {
 		case adc_bipolar10:
-			s->range_type = RANGE_das1601_ai_10_bipolar;
+			s->range_table = &range_das1601_ai_10_bipolar;
 			break;
 		case adc_unipolar10:
-			s->range_type = RANGE_das1601_ai_10_unipolar;
+			s->range_table = &range_das1601_ai_10_unipolar;
 			break;
 		};
 		break;
@@ -376,10 +390,10 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	case card_1602_16:
 		switch (devpriv->adc_range) {
 		case adc_bipolar10:
-			s->range_type = RANGE_das1602_ai_10_bipolar;
+			s->range_table = &range_das1602_ai_10_bipolar;
 			break;
 		case adc_unipolar10:
-			s->range_type = RANGE_das1602_ai_10_unipolar;
+			s->range_table = &range_das1602_ai_10_unipolar;
 			break;
 		};
 		break;
@@ -392,7 +406,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 2;
 	s->maxdata = 0xfff;
 	s->trig[0] = das1600_ao;
-	s->range_type_list = devpriv->range_type_list;
+	s->range_table_list = devpriv->range_type_list;
 	devpriv->range_type_list[0] = range_types[devpriv->dac_range[0]];
 	devpriv->range_type_list[1] = range_types[devpriv->dac_range[1]];
 
@@ -403,7 +417,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[0] = das1600_di;
 	s->n_chan = 4;
 	s->maxdata = 1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 
 	s++;
 	/* do subdevice */
@@ -412,7 +426,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[0] = das1600_do;
 	s->n_chan = 4;
 	s->maxdata = 1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 
 	s++;
 	/* 8255 subdevice */

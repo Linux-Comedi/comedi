@@ -362,7 +362,7 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 	s->cancel=das6402_ai_cancel;
 	s->maxdata=(1<<12)-1;
 	s->len_chanlist=16;	/* ? */
-	s->range_type = RANGE_unknown;
+	s->range_table = &range_unknown;
 	s->timer_type = TIMER_nanosec;
 
 	board_init(dev);

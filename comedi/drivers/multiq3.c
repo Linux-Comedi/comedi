@@ -243,7 +243,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->n_chan = 8;
       s->trig[0] = multiq3_ai;
       s->maxdata = 0x1fff;
-      s->range_type = RANGE_bipolar5;
+      s->range_table = &range_bipolar5;
 
       s = dev->subdevices + 1;
       /* ao subdevice */
@@ -252,7 +252,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->n_chan = 8;
       s->trig[0] = multiq3_ao;
       s->maxdata = 0xfff;
-      s->range_type = RANGE_bipolar5;
+      s->range_table = &range_bipolar5;
 
       s = dev->subdevices + 2;
       /* di subdevice */
@@ -261,7 +261,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->n_chan = 16;
       s->trig[0] = multiq3_di;
       s->maxdata = 1;
-      s->range_type = RANGE_digital;
+      s->range_table = &range_digital;
 
       s = dev->subdevices + 3;
       /* do subdevice */
@@ -270,7 +270,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->n_chan = 16;
       s->trig[0] = multiq3_do;
       s->maxdata = 1;
-      s->range_type = RANGE_digital;
+      s->range_table = &range_digital;
       s->state = 0;
 
       s = dev->subdevices + 4;
@@ -280,7 +280,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->n_chan = it->options[2] * 2;
       s->trig[0] = multiq3_ei;
       s->maxdata = 0xffffff;
-      s->range_type = RANGE_unknown;
+      s->range_table = &range_unknown;
 
       encoder_reset(dev);
 

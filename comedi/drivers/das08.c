@@ -325,7 +325,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=8;
 	s->maxdata=0xfff;
-	s->range_type=RANGE_unknown;	/* XXX */
+	s->range_table=&range_unknown;	/* XXX */
 	s->trig[0]=das08_ai;
 
 	s=dev->subdevices+1;
@@ -335,7 +335,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		s->subdev_flags=SDF_WRITEABLE;
 		s->n_chan=2;
 		s->maxdata=0xfff;
-		s->range_type=RANGE_unknown;	/* XXX */
+		s->range_table=&range_unknown;	/* XXX */
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
@@ -350,7 +350,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=3;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=das08_di;
 
 	s=dev->subdevices+4;
@@ -359,7 +359,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=4;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=das08_do;
 
 	devpriv->dio=0;

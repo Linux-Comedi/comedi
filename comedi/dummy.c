@@ -86,7 +86,7 @@ static int dummy_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=1;
 	s->maxdata=0xffff;
-	s->range_type=RANGE_unknown;
+	s->range_table=&range_unknown;
 	s->trig[0]=dummy_ai;
 	
 	/* analog output subdevice */
@@ -95,7 +95,7 @@ static int dummy_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=1;
 	s->maxdata=0xffff;
-	s->range_type=RANGE_unknown;
+	s->range_table=&range_unknown;
 	s->trig[0]=dummy_ao;
 	
 	return 1;

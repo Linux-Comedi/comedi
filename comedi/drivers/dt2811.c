@@ -40,46 +40,42 @@
 
 static char *driver_name = "dt2811";
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_dt2811_pgh_ai_5_unipolar
-        0         5
-        0         2.5
-        0         1.25
-        0         0.625
-RANGE_dt2811_pgh_ai_2_5_bipolar
-        -2.5      2.5
-        -1.25     1.25
-        -0.625    0.625
-        -0.3125   0.3125
-RANGE_dt2811_pgh_ai_5_bipolar
-        -5        5
-        -2.5      2.5
-        -1.25     1.25
-        -0.625    0.625
-RANGE_dt2811_pgl_ai_5_unipolar
-        0         5
-        0         0.5
-        0         0.05
-        0         0.01
-RANGE_dt2811_pgl_ai_2_5_bipolar
-        -2.5      2.5
-        -0.25     0.25
-        -0.025    0.025
-        -0.005    0.005
-RANGE_dt2811_pgl_ai_5_bipolar
-        -5        5
-        -0.5      0.5
-        -0.05     0.05
-        -0.01     0.01
-RANGE_dt2811_ao_5_bipolar
-        -5        5
-RANGE_dt2811_ao_2_5_bipolar
-        -2.5      2.5
-RANGE_dt2811_ao_5_uniipolar
-        0         5
----END-RANGE-DEFS---
-*/
+comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
+	RANGE( 0,	5 ),
+	RANGE( 0,	2.5 ),
+	RANGE( 0,	1.25 ),
+	RANGE( 0,	0.625 )
+}};
+comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 ),
+	RANGE( -0.625,	0.625 ),
+	RANGE( -0.3125,	0.3125 )
+}};
+comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
+	RANGE( -5,	5 ),
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 ),
+	RANGE( -0.625,	0.625 )
+}};
+comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
+	RANGE( 0,	5 ),
+	RANGE( 0,	0.5 ),
+	RANGE( 0,	0.05 ),
+	RANGE( 0,	0.01 )
+}};
+comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
+	RANGE( -2.5,	2.5 ),
+	RANGE( -0.25,	0.25 ),
+	RANGE( -0.025,	0.025 ),
+	RANGE( -0.005,	0.005 )
+}};
+comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
+	RANGE( -5,	5 ),
+	RANGE( -0.5,	0.5 ),
+	RANGE( -0.05,	0.05 ),
+	RANGE( -0.01,	0.01 )
+}};
 
 /*
 
@@ -208,23 +204,23 @@ typedef struct {
         enum {
 	  dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
 	} dac_range[2];
-        int range_type_list[2];
+        comedi_lrange * range_type_list[2];
 } dt2811_private;
 
 #define devpriv ((dt2811_private *)dev->private)
 
-static int adc_range_types[][2] =
+static comedi_lrange *adc_range_types[][2] =
 {
   /*     dt2811-pgh                       dt2811-pgl */
-  { RANGE_dt2811_pgh_ai_5_bipolar,   RANGE_dt2811_pgl_ai_5_bipolar },
-  { RANGE_dt2811_pgh_ai_2_5_bipolar, RANGE_dt2811_pgl_ai_2_5_bipolar },
-  { RANGE_dt2811_pgh_ai_5_unipolar,  RANGE_dt2811_pgl_ai_5_unipolar }
+  { &range_dt2811_pgh_ai_5_bipolar,   &range_dt2811_pgl_ai_5_bipolar },
+  { &range_dt2811_pgh_ai_2_5_bipolar, &range_dt2811_pgl_ai_2_5_bipolar },
+  { &range_dt2811_pgh_ai_5_unipolar,  &range_dt2811_pgl_ai_5_unipolar }
 };
-static int dac_range_types[] =
+static comedi_lrange *dac_range_types[] =
 {
-  RANGE_dt2811_ao_5_bipolar,
-  RANGE_dt2811_ao_2_5_bipolar,
-  RANGE_dt2811_ao_5_uniipolar
+  &range_bipolar5,
+  &range_bipolar2_5,
+  &range_unipolar5
 };
 
 #define DT2811_TIMEOUT 5
@@ -378,7 +374,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = devpriv->adc_mux == adc_diff ? 8 : 16;
 	s->trig[0] = dt2811_ai;
 	s->maxdata = 0xfff;
-	s->range_type = adc_range_types[devpriv->adc_range][board];
+	s->range_table = adc_range_types[devpriv->adc_range][board];
 
 	s = dev->subdevices + 1;
 	/* ao subdevice */
@@ -387,7 +383,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 2;
 	s->trig[0] = dt2811_ao;
 	s->maxdata = 0xfff;
-        s->range_type_list = devpriv->range_type_list;
+        s->range_table_list = devpriv->range_type_list;
         devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
         devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
 
@@ -398,7 +394,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 8;
 	s->trig[0] = dt2811_di;
 	s->maxdata = 1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 
 	s = dev->subdevices + 3;
 	/* do subdevice */
@@ -408,7 +404,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[0] = dt2811_do;
 	s->maxdata = 1;
 	s->state = 0;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 
 	return 0;
 }

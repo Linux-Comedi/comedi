@@ -261,7 +261,7 @@ static int das08jr_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 8;
 	s->maxdata = 0xfff;
-	s->range_type = RANGE_unknown;
+	s->range_table = &range_unknown;
 	s->trig[0] = das08jr_ai;
 
 	s = dev->subdevices + 1;
@@ -270,7 +270,7 @@ static int das08jr_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 2;
 	s->maxdata = 0xfff;
-	s->range_type = RANGE_unknown;
+	s->range_table = &range_unknown;
 	s->trig[0] = das08jr_ao;
 
 	s = dev->subdevices + 2;
@@ -279,7 +279,7 @@ static int das08jr_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 8;
 	s->maxdata = 1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 	s->trig[0] = das08jr_di;
 
 	s = dev->subdevices + 3;
@@ -288,7 +288,7 @@ static int das08jr_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 8;
 	s->maxdata = 1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 	s->trig[0] = das08jr_do;
 
 	return 0;

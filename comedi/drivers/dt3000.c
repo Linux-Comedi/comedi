@@ -46,12 +46,25 @@
 
 #define PCI_VENDOR_ID_DT	0x1116
 
+static comedi_lrange range_dt3000_ai = { 4, {
+	RANGE( -10,	10 ),
+	RANGE( -5,	5 ),
+	RANGE( -2.5,	2.5 ),
+	RANGE( -1.25,	1.25 )
+}};
+static comedi_lrange range_dt3000_ai_pgl = { 4, {
+	RANGE( -10,	10 ),
+	RANGE( -1,	1 ),
+	RANGE( -0.1,	0.1 ),
+	RANGE( -0.02,	0.02 )
+}};
+
 typedef struct{
 	char *name;
 	unsigned int device_id;
 	int adchan;
 	int adbits;
-	int adrange;
+	comedi_lrange *adrange;
 	int dachan;
 	int dabits;
 }dt3k_boardtype;
@@ -61,7 +74,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x22,
 		adchan:		16,
 		adbits:		12,
-		adrange:	RANGE_dt3000_ai,
+		adrange:	&range_dt3000_ai,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -69,7 +82,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x27,
 		adchan:		16,
 		adbits:		12,
-		adrange:	RANGE_dt3000_ai_pgl,
+		adrange:	&range_dt3000_ai_pgl,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -77,7 +90,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x23,
 		adchan:		32,
 		adbits:		12,
-		adrange:	RANGE_dt3000_ai,
+		adrange:	&range_dt3000_ai,
 		dachan:		0,
 		dabits:		0,
 	},
@@ -85,7 +98,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x24,
 		adchan:		64,
 		adbits:		12,
-		adrange:	RANGE_dt3000_ai,
+		adrange:	&range_dt3000_ai,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -93,7 +106,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x28,
 		adchan:		64,
 		adbits:		12,
-		adrange:	RANGE_dt3000_ai_pgl,
+		adrange:	&range_dt3000_ai_pgl,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -101,7 +114,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x25,
 		adchan:		16,
 		adbits:		16,
-		adrange:	RANGE_dt3000_ai,
+		adrange:	&range_dt3000_ai,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -109,7 +122,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		device_id:	0x26,
 		adchan:		16,
 		adbits:		16,
-		adrange:	RANGE_dt3000_ai,
+		adrange:	&range_dt3000_ai,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -199,21 +212,6 @@ static int n_dt3k_boards=sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype);
 
 #define DT3000_CHANNEL_MODE_SE		0
 #define DT3000_CHANNEL_MODE_DI		1
-
-/*
---BEGIN-RANGE-DEFS--
-RANGE_dt3000_ai
-	-10	10
-	-5	5
-	-2.5	2.5
-	-1.25	1.25
-RANGE_dt3000_ai_pgl
-	-10	10
-	-1	1
-	-0.1	0.1
-	-0.02	0.02
----END-RANGE-DEFS---
-*/
 
 typedef struct{
 	struct pci_dev *pci_dev;
@@ -440,7 +438,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->trig[0]=dt3k_ai_mode0;
 	s->maxdata=(1<<dt3k_boardtypes[dev->board].adbits)-1;
 	s->len_chanlist=512;
-	s->range_type=RANGE_dt3000_ai;
+	s->range_table=&range_dt3000_ai; /* XXX */
 	s->timer_type=TIMER_nanosec;
 
 	s++;
@@ -451,7 +449,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->trig[0]=dt3k_ao_mode0;
 	s->maxdata=(1<<dt3k_boardtypes[dev->board].dabits)-1;
 	s->len_chanlist=1;
-	s->range_type=RANGE_bipolar10;
+	s->range_table=&range_bipolar10;
 
 	s++;
 	/* dio subsystem */
@@ -461,7 +459,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->trig[0]=dt3k_dio;
 	s->maxdata=1;
 	s->len_chanlist=8;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 	s++;
 	/* mem subsystem */
@@ -471,7 +469,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->trig[0]=dt3k_readmem;
 	s->maxdata=0xff;
 	s->len_chanlist=1;
-	s->range_type=RANGE_unknown;
+	s->range_table=&range_unknown;
 
 #if 0
 	s++;

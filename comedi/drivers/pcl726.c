@@ -160,7 +160,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=6;
 	s->maxdata=0xfff;
 	s->trig[0]=pcl726_ao;
-	s->range_type=RANGE_unknown;	/* XXX */
+	s->range_table=&range_unknown;	/* XXX */
 
 	s=dev->subdevices+1;
 	/* di */
@@ -169,7 +169,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=16;
 	s->maxdata=1;
 	s->trig[0]=pcl726_di;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 	s=dev->subdevices+2;
 	/* do */
@@ -178,7 +178,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=16;
 	s->maxdata=1;
 	s->trig[0]=pcl726_do;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 
 	printk("\n");
 	

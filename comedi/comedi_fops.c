@@ -43,7 +43,6 @@
 
 comedi_device *comedi_devices;
 
-
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor);
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
@@ -201,7 +200,8 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->timer_type		= s->timer_type;
 		us->len_chanlist	= s->len_chanlist;
 		us->maxdata		= s->maxdata;
-		us->range_type		= s->range_type;
+		us->range_type		= (dev->minor<<24)|(i<<20)|(0<<16)|
+			(s->range_table->length);
 		us->flags		= s->flags;
 		
 		if(s->busy)
@@ -216,7 +216,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->subd_flags |= SDF_MAXDATA;
 		if(s->flaglist)
 			us->subd_flags |= SDF_FLAGS;
-		if(s->range_type_list)
+		if(s->range_table_list)
 			us->subd_flags |= SDF_RANGETYPE;
 		if(s->trig[0])
 			us->subd_flags |= SDF_MODE0;
@@ -278,9 +278,18 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 	}
 			
 	if(it.rangelist){
-		if(!s->range_type_list)return -EINVAL;
-		if(copy_to_user(it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
-			return -EFAULT;
+		int i;
+
+		if(!s->range_table_list)return -EINVAL;
+		for(i=0;i<s->n_chan;i++){
+			int x;
+
+			x=(dev->minor<<24)|(it.subdev<<20)|(i<<16)|
+				(s->range_table_list[i]->length);
+			put_user(x,it.rangelist+i);
+		}
+		//if(copy_to_user(it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
+		//	return -EFAULT;
 	}
 	
 	return 0;
@@ -1343,163 +1352,5 @@ void comedi_eobuf(comedi_device *dev,comedi_subdevice *s)
 	if(s->cb_mask&COMEDI_CB_EOBUF){
 		s->cb_func(COMEDI_CB_EOBUF,s->cb_arg);
 	}
-}
-
-
-int di_unpack(unsigned int bits,comedi_trig *it)
-{
-	int chan;
-	int i;
-
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		it->data[i]=(bits>>chan)&1;
-	}
-
-	return i;
-}
-
-int do_pack(unsigned int *bits,comedi_trig *it)
-{
-	int chan;
-	int mask;
-	int i;
-
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		mask=1<<chan;
-		(*bits) &= ~mask;
-		if(it->data[i])
-			(*bits) |=mask;
-	}
-
-	return i;
-}
-
-int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
-{
-	memset(cmd,0,sizeof(comedi_cmd));
-	cmd->subdev=it->subdev;
-	cmd->chanlist_len=it->n_chan;
-	cmd->chanlist=it->chanlist;
-	cmd->data=it->data;
-	cmd->data_len=it->data_len;
-
-	cmd->start_src=TRIG_NOW;
-
-	switch(it->mode){
-	case 1:
-		cmd->scan_begin_src=TRIG_FOLLOW;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->convert_arg=it->trigvar;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-		
-		break;
-	case 2:
-		cmd->scan_begin_src=TRIG_TIMER;
-		cmd->scan_begin_arg=it->trigvar;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->convert_arg=it->trigvar1;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-		
-		break;
-	case 3:
-		cmd->scan_begin_src=TRIG_FOLLOW;
-		cmd->convert_src=TRIG_EXT;
-		cmd->convert_arg=it->trigvar;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-
-		break;
-	case 4:
-		cmd->scan_begin_src=TRIG_EXT;
-		cmd->scan_begin_arg=it->trigvar;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->convert_arg=it->trigvar1;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int command_to_mode(comedi_trig *it,comedi_cmd *cmd)
-{
-	it->subdev=cmd->subdev;
-	it->flags=0;
-	it->n_chan=cmd->chanlist_len;
-	it->chanlist=cmd->chanlist;
-	it->data=cmd->data;
-	it->data_len=cmd->data_len;
-
-	if(cmd->start_src==TRIG_NOW &&
-	   cmd->scan_begin_src==TRIG_FOLLOW &&
-	   cmd->convert_src==TRIG_TIMER &&
-	   cmd->scan_end_src==TRIG_COUNT &&
-	   cmd->stop_src==TRIG_COUNT){
-		/* mode 1 */
-
-		it->mode=1;
-		it->trigsrc=0;
-		it->trigvar=0;
-		it->n=cmd->stop_arg;
-
-		return 0;
-	}
-	if(cmd->start_src==TRIG_NOW &&
-	   cmd->scan_begin_src==TRIG_TIMER &&
-	   cmd->convert_src==TRIG_TIMER &&
-	   cmd->scan_end_src==TRIG_COUNT &&
-	   cmd->stop_src==TRIG_COUNT){
-		/* mode 2 */
-
-		it->mode=2;
-		it->trigsrc=0;
-		it->trigvar=cmd->scan_begin_arg;
-		it->trigvar1=cmd->convert_arg;
-		it->n=cmd->stop_arg;
-
-		return 0;
-	}
-	if(cmd->start_src==TRIG_NOW &&
-	   cmd->scan_begin_src==TRIG_FOLLOW &&
-	   cmd->convert_src==TRIG_EXT &&
-	   cmd->scan_end_src==TRIG_COUNT &&
-	   cmd->stop_src==TRIG_COUNT){
-		/* mode 3 */
-		/* nobody actually uses mode 3, so... */
-
-		return -EINVAL;
-	}
-	if(cmd->start_src==TRIG_NOW &&
-	   cmd->scan_begin_src==TRIG_EXT &&
-	   cmd->convert_src==TRIG_TIMER &&
-	   cmd->scan_end_src==TRIG_COUNT &&
-	   cmd->stop_src==TRIG_COUNT){
-		/* mode 4 */
-
-		it->mode=4;
-		it->trigsrc=0;
-		it->trigvar=cmd->scan_begin_arg;
-		it->trigvar1=cmd->convert_arg;
-		it->n=cmd->stop_arg;
-
-		return 0;
-	}
-	return -EINVAL;
 }
 

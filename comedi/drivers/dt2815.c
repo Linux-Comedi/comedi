@@ -36,17 +36,12 @@
 #include <comedi_module.h>
 
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_dt2815_ao_32_current
-        0         32       mA
-RANGE_dt2815_ao_20_current
-        4         20       mA
----END-RANGE-DEFS---
-*/
-
-#define RANGE_dt2815_ao_5_unipolar	RANGE_unipolar5
-#define RANGE_dt2815_ao_5_bipolar	RANGE_bipolar5
+static comedi_lrange range_dt2815_ao_32_current = { 1, {
+	RANGE( 0,	32 )	/* XXX mA */
+}};
+static comedi_lrange range_dt2815_ao_20_current = { 1, {
+	RANGE( 4,	20 )
+}};
 
 #define DT2815_SIZE 2
 
@@ -65,7 +60,7 @@ comedi_driver driver_dt2815={
 static void dt2815_free_resources(comedi_device * dev);
 
 typedef struct {
-  unsigned int range_type_list[8];
+  comedi_lrange * range_type_list[8];
 } dt2815_private;
 
 #define devpriv ((dt2815_private *)dev->private)
@@ -138,7 +133,7 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 {
   comedi_subdevice *s;
   int i;
-  unsigned int current_range_type,voltage_range_type;
+  comedi_lrange *current_range_type, *voltage_range_type;
 
   dev->iobase = it->options[0];
   printk("comedi%d: dt2815: 0x%04x ", dev->minor, dev->iobase);
@@ -163,14 +158,14 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
   s->maxdata=0xfff;
   s->n_chan=8;
   s->trig[0] = dt2815_ao;
-  s->range_type_list=devpriv->range_type_list;
+  s->range_table_list=devpriv->range_type_list;
 
   current_range_type = (it->options[3])
-	      ? RANGE_dt2815_ao_20_current
-	      : RANGE_dt2815_ao_32_current;
+	      ? &range_dt2815_ao_20_current
+	      : &range_dt2815_ao_32_current;
   voltage_range_type = (it->options[2])
-	      ? RANGE_dt2815_ao_5_bipolar
-	      : RANGE_dt2815_ao_5_unipolar;
+	      ? &range_bipolar5
+	      : &range_unipolar5;
   for (i = 0; i < 8; i++) {
     devpriv->range_type_list[i] = (it->options[5+i])
 	    ? current_range_type

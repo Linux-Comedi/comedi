@@ -96,6 +96,7 @@ void comedi_rtl_v1_cleanup(void);
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
 typedef struct comedi_driver_struct comedi_driver;
+typedef struct comedi_lrange_struct comedi_lrange;
 
 
 struct comedi_subdevice_struct{
@@ -119,8 +120,8 @@ struct comedi_subdevice_struct{
 	unsigned int flags;
 	unsigned int *flaglist;
 
-	unsigned int range_type;
-	unsigned int *range_type_list;
+	comedi_lrange *range_table;
+	comedi_lrange **range_table_list;
 	
 	unsigned int *chanlist;		/* driver-owned chanlist (not used) */
 	
@@ -240,12 +241,26 @@ extern int rtcomedi_lock_semaphore;
 
 /* range stuff */
 
-#include <range.h>
 
-#define RANGE_digital			RANGE_unipolar5
+#define RANGE(a,b)		{(a)*1e6,(b)*1e6,0}
+#define RANGE_ext(a,b)		{(a)*1e6,(b)*1e6,RF_EXTERNAL}
+#define RANGE_unitless(a,b)	{(a)*1e6,(b)*1e6,0}	/* XXX */
+#define BIP_RANGE(a)		{-(a)*1e6,(a)*1e6,0}
+#define UNI_RANGE(a)		{0,(a)*1e6,0}
 
-extern unsigned int comedi_max_range;
-extern comedi_krange comedi_kranges[];
+extern comedi_lrange range_bipolar10;
+extern comedi_lrange range_bipolar5;
+extern comedi_lrange range_bipolar2_5;
+extern comedi_lrange range_unipolar10;
+extern comedi_lrange range_unipolar5;
+extern comedi_lrange range_unknown;
+
+#define range_digital		range_unipolar5
+
+struct comedi_lrange_struct{
+	int length;
+	comedi_krange range[0];
+};
 
 
 /* timer types */

@@ -177,7 +177,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	s->trig[0]=dt2814_ai_mode0;
 	s->trig[1]=dt2814_ai_mode1;
 	s->maxdata=0xfff;
-	s->range_type=RANGE_unknown;	/* XXX */
+	s->range_table=&range_unknown;	/* XXX */
 	s->timer_type=0;		/* XXX */
 
 	return 0;

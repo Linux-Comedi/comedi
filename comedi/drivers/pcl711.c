@@ -84,39 +84,38 @@
 #define PCL711_DO_LO 13
 #define PCL711_DO_HI 14
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_pcl711b_ai
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-        -0.625  0.625
-        -0.3125 0.3125
-RANGE_acl8112hg_ai
-        -5      5
-        -0.5    0.5
-        -0.05   0.05
-        -0.005  0.005
-        0       10
-        0       1
-        0       0.1
-        0       0.01
-        -10     10
-        -1      1
-        -0.1    0.1
-        -0.01   0.01
-RANGE_acl8112dg_ai
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-        -0.625  0.625
-        0       10
-        0       5
-        0       2.5
-        0       1.25
-        -10     10
----END-RANGE-DEFS---
-*/
+static comedi_lrange range_pcl711b_ai = { 5, {
+        BIP_RANGE( 5 ),
+        BIP_RANGE( 2.5 ),
+        BIP_RANGE( 1.25 ),
+        BIP_RANGE( 0.625 ),
+        BIP_RANGE( 0.3125 )
+}};
+static comedi_lrange range_acl8112hg_ai = { 12, {
+	BIP_RANGE( 5 ),
+	BIP_RANGE( 0.5 ),
+	BIP_RANGE( 0.05 ),
+	BIP_RANGE( 0.005 ),
+	UNI_RANGE( 10 ),
+	UNI_RANGE( 1 ),
+	UNI_RANGE( 0.1 ),
+	UNI_RANGE( 0.01 ),
+	BIP_RANGE( 10 ),
+	BIP_RANGE( 1 ),
+	BIP_RANGE( 0.1 ),
+	BIP_RANGE( 0.01 )
+}};
+static comedi_lrange range_acl8112dg_ai = { 9, {
+        BIP_RANGE( 5 ),
+        BIP_RANGE( 2.5 ),
+        BIP_RANGE( 1.25 ),
+        BIP_RANGE( 0.625 ),
+	UNI_RANGE( 10 ),
+	UNI_RANGE( 5 ),
+	UNI_RANGE( 2.5 ),
+	UNI_RANGE( 1.25 ),
+	BIP_RANGE( 10 )
+}};
 
 static int pcl711_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl711_detach(comedi_device *dev);
@@ -148,18 +147,18 @@ typedef struct {
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
-	int ai_range_type;
+	comedi_lrange * ai_range_type;
 	int ai_timer_type;
 } boardtype;
 
 static boardtype boardtypes[] =
 {
-	{"pcl711", 0, 0, 0, 5, 8, 1, 0, RANGE_bipolar5, 0},
-	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, RANGE_pcl711b_ai,
+	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5, 0},
+	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai,
 	 TIMER_acl8112},
-	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, RANGE_acl8112hg_ai,
+	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai,
 	 TIMER_acl8112},
-	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, RANGE_acl8112dg_ai,
+	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai,
 	 TIMER_acl8112},
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
@@ -459,7 +458,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
 	s->timer_type = this_board->ai_timer_type;
-	s->range_type = this_board->ai_range_type;
+	s->range_table = this_board->ai_range_type;
 	s->trig[0] = pcl711_ai_mode0;
 	s->trig[1] = pcl711_ai_mode1;
 	s->trig[4] = pcl711_ai_mode4;
@@ -471,7 +470,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = this_board->n_aochan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
-	s->range_type = RANGE_bipolar5;
+	s->range_table = &range_bipolar5;
 	s->trig[0] = pcl711_ao;
 
 	s++;
@@ -481,7 +480,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->len_chanlist = 16;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 	s->trig[0] = pcl711_di;
 
 	s++;
@@ -491,7 +490,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->len_chanlist = 16;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 	s->state=0;
 	s->trig[0] = pcl711_do;
 

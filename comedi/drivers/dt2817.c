@@ -127,7 +127,7 @@ static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=32;
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->maxdata=1;
 	s->trig[0]=dt2817_dio;
 

@@ -109,7 +109,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=8;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=parport_dio_a;
 
 	s=dev->subdevices+1;
@@ -117,7 +117,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=4;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=parport_dio_b;
 
 	s=dev->subdevices+2;
@@ -125,7 +125,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=4;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->trig[0]=parport_dio_c;
 
 	printk("\n");

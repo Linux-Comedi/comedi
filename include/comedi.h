@@ -72,6 +72,12 @@ typedef unsigned short sampl_t;
 #define TRIG_WAKE_EOS	0x0020		/* wake up on end-of-scan events */
 #define TRIG_WRITE	0x0040		/* write to bidirectional devices */
 
+#define TRIG_ROUND_MASK		0x00030000
+#define TRIG_ROUND_NEAREST	0x00000000
+#define TRIG_ROUND_DOWN		0x00010000
+#define TRIG_ROUND_UP		0x00020000
+#define TRIG_ROUND_UP_NEXT	0x00030000
+
 /* trigger sources */
 
 #define TRIG_ANY	0xffffffff
