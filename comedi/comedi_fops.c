@@ -171,14 +171,17 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
+	if(dev->read_subdev >= 0)
+		rsd = &dev->subdevices[dev->read_subdev];
+	if(dev->write_subdev >= 0)
+		wsd = &dev->subdevices[dev->write_subdev];
+
 	if(bc.read_size){
-		if(dev->read_subdev < 0)
+		if(rsd == NULL)
 		{
 			DPRINTK("device has no read subdevice, buffer resize failed\n");
 			return -ENODEV;
 		}
-
-		rsd = &dev->subdevices[dev->read_subdev];
 
 		if(rsd->busy)
 			return -EBUSY;
@@ -192,13 +195,11 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 			return -EINVAL;
 	}
 	if(bc.write_size){
-		if(dev->write_subdev < 0)
+		if(wsd == NULL)
 		{
 			DPRINTK("device has no write subdevice, buffer resize failed\n");
 			return -ENODEV;
 		}
-
-		wsd = &dev->subdevices[dev->write_subdev];
 
 		if(wsd->busy)
 			return -EBUSY;
@@ -219,8 +220,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		if(ret < 0)
 			return ret;
 
-		bc.read_size = rsd->prealloc_bufsz;
-		DPRINTK("comedi%i read buffer resized to %i bytes\n", dev->minor, bc.read_size);
+		DPRINTK("comedi%i read buffer resized to %i bytes\n", dev->minor, rsd->prealloc_bufsz);
 	}
 	if(bc.write_size){
 		ret = resize_buf(dev,wsd,bc.write_size);
@@ -228,9 +228,16 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		if(ret < 0)
 			return ret;
 
-		bc.write_size = wsd->prealloc_bufsz;
-		DPRINTK("comedi%i write buffer resized to %i bytes\n", dev->minor, bc.write_size);
+		DPRINTK("comedi%i write buffer resized to %i bytes\n", dev->minor, wsd->prealloc_bufsz);
 	}
+
+	// write back buffer sizes
+	if(rsd){
+		bc.read_size = rsd->prealloc_bufsz;
+	} else bc.read_size = 0;
+	if(wsd){
+		bc.write_size = wsd->prealloc_bufsz;
+	} else bc.write_size = 0;
 
 	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
 		return -EFAULT;
