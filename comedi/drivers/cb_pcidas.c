@@ -737,16 +737,17 @@ found:
 
 	// make sure mailbox 4 is empty
 	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4 );
-	/* Set bits to enable incoming mailbox interrupts on amcc s5933.
-	 * They don't actually get sent here, but in cmd code. */
+	/* Set bits to enable incoming mailbox interrupts on amcc s5933. */
 	devpriv->s5933_intcsr_bits = INTCSR_INBOX_BYTE(3) | INTCSR_INBOX_SELECT(3) | INTCSR_INBOX_FULL_INT;
+	// clear and enable interrupt on amcc s5933
+	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
 	return 1;
 }
 
 
 /*
- * _detach is called to deconfigure a device.  It should deallocate
+ * cb_pcidas_detach is called to deconfigure a device.  It should deallocate
  * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
@@ -880,12 +881,15 @@ static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int channel;
+	unsigned long flags;
 
 	// set channel and range
 	channel = CR_CHAN(insn->chanspec);
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK( channel );
 	devpriv->ao_control_bits |= DACEN | DAC_RANGE( channel, CR_RANGE( insn->chanspec ) );
 	outw( devpriv->ao_control_bits, devpriv->control_status + DAC_CSR );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// remember value for readback
 	devpriv->ao_value[channel] = data[0];
@@ -1182,6 +1186,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int bits;
+	unsigned long flags;
 
 	// make sure CAL_EN_BIT is disabled
 	outw(0, devpriv->control_status + CALIBRATION_REG);
@@ -1224,6 +1229,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	// enable interrupts
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->adc_fifo_bits |= INTE;
 	devpriv->adc_fifo_bits &= ~INT_MASK;
 	if(cmd->flags & TRIG_WAKE_EOS)
@@ -1241,11 +1247,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 #endif
 	// enable (and clear) interrupts
 	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL, devpriv->control_status + INT_ADCFIFO);
-	// enable s5933 interrupt
-	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-	// make sure mailbox 4 is empty
-	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
-
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// set start trigger and burst mode
 	bits = 0;
@@ -1389,21 +1391,24 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	unsigned int ao_control_bits = 0;
 	unsigned int i;
+	unsigned long flags;
 
 	// set channel limits, gain
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	for(i = 0; i < cmd->chanlist_len; i++)
 	{
 		// enable channel
-		ao_control_bits |= DAC_CHAN_EN(CR_CHAN(cmd->chanlist[i]));
+		devpriv->ao_control_bits |= DAC_CHAN_EN(CR_CHAN(cmd->chanlist[i]));
 		// set range
-		ao_control_bits |= DAC_RANGE(CR_CHAN(cmd->chanlist[i]),
+		devpriv->ao_control_bits |= DAC_RANGE(CR_CHAN(cmd->chanlist[i]),
 			CR_RANGE(cmd->chanlist[i]));
 	}
 
 	// disable analog out before settings pacer source and count values
-	outw(ao_control_bits, devpriv->control_status + DAC_CSR);
+	outw( devpriv->ao_control_bits, devpriv->control_status + DAC_CSR );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
 	// clear fifo
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
@@ -1426,21 +1431,23 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	// set pacer source
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	switch(cmd->scan_begin_src)
 	{
 		case TRIG_TIMER:
-			ao_control_bits |= DAC_PACER_INT;
+			devpriv->ao_control_bits |= DAC_PACER_INT;
 			break;
 		case TRIG_EXT:
-			ao_control_bits |= DAC_PACER_EXT_RISE;
+			devpriv->ao_control_bits |= DAC_PACER_EXT_RISE;
 			break;
 		default:
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 			comedi_error(dev, "error setting dac pacer source");
 			return -1;
 			break;
 	}
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
-	devpriv->ao_control_bits = ao_control_bits;
 	async->inttrig = cb_pcidas_ao_inttrig;
 
 	return 0;
@@ -1451,6 +1458,7 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	unsigned int num_bytes, num_points = thisboard->fifo_size;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &s->async->cmd;
+	unsigned long flags;
 
 	if(trig_num != 0)
 		return -EINVAL;
@@ -1473,16 +1481,13 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	outsw( devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_bytes );
 
 	// enable dac half-full and empty interrupts
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
 #ifdef CB_PCIDAS_DEBUG
 	rt_printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
 #endif
 	// enable and clear interrupts
 	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI, devpriv->control_status + INT_ADCFIFO);
-	// enable s5933 interrupt
-	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-	// make sure mailbox 4 is empty
-	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
 
 	// start dac
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
@@ -1490,6 +1495,7 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 #ifdef CB_PCIDAS_DEBUG
 	rt_printk("comedi: sent 0x%x to dac control\n", devpriv->ao_control_bits);
 #endif
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	async->inttrig = NULL;
 
@@ -1505,7 +1511,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	int half_fifo = thisboard->fifo_size / 2;
 	unsigned int num_samples, i;
 	static const int timeout = 10000;
-
+	unsigned long flags;
+	
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
@@ -1563,7 +1570,9 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			cb_pcidas_cancel(dev, s);
 		}
 		// clear half-full interrupt latch
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	// else if fifo not empty
 	}else if(status & (ADNEI | EOBI))
 	{
@@ -1582,19 +1591,25 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		// clear not-empty interrupt latch
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}else if(status & EOAI)
 	{
 		comedi_error(dev, "bug! encountered end of aquisition interrupt?");
 		// clear EOA interrupt latch
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		outw(devpriv->adc_fifo_bits | EOAI, devpriv->control_status + INT_ADCFIFO);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}
 	//check for fifo overflow
 	if(status & LADFUL)
 	{
 		comedi_error(dev, "fifo overflow");
 		// clear overflow interrupt latch
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		outw(devpriv->adc_fifo_bits | LADFUL, devpriv->control_status + INT_ADCFIFO);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		cb_pcidas_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
@@ -1611,13 +1626,16 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int half_fifo = thisboard->fifo_size / 2;
 	unsigned int num_points;
+	unsigned int flags;
 
 	async->events = 0;
 
 	if(status & DAEMI)
 	{
 		// clear dac empty interrupt latch
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		outw(devpriv->adc_fifo_bits | DAEMI, devpriv->control_status + INT_ADCFIFO);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		if(inw(devpriv->ao_registers + DAC_CSR) & DAC_EMPTY)
 		{
 			if(cmd->stop_src == TRIG_NONE ||
@@ -1648,7 +1666,9 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 		// write data to board's fifo
 		outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_points);
 		// clear half-full interrupt latch
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		outw(devpriv->adc_fifo_bits | DAHFI, devpriv->control_status + INT_ADCFIFO);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}
 
 	comedi_event(dev, s, async->events);
@@ -1657,9 +1677,14 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 // cancel analog input command
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	// disable interrupts
 	devpriv->adc_fifo_bits &= ~INTE & ~EOAIE;
 	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
 	// disable start trigger source and burst mode
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
 	// software pacer source
@@ -1672,12 +1697,17 @@ static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 // cancel analog output command
 static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	// disable interrupts
 	devpriv->adc_fifo_bits &= ~DAHFIE & ~DAEMIE;
 	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
+
 	// disable output
 	devpriv->ao_control_bits &= ~DACEN & ~DAC_PACER_MASK;
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	return 0;
 }
