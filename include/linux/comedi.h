@@ -211,6 +211,7 @@ typedef unsigned short sampl_t;
 //#define INSN_CONFIG_WAVEFORM		0x11
 //#define INSN_CONFIG_TRIG		0x12
 //#define INSN_CONFIG_COUNTER		0x13
+#define INSN_CONFIG_ALT_SOURCE		0x14
 
 /* ioctls */
 
