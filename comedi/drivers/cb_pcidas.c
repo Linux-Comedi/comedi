@@ -1520,13 +1520,13 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	rt_printk("mbef 0x%x\n", inl(devpriv->s5933_config + AMCC_OP_REG_MBEF));
 #endif
 
-	if(INTCSR_INTR_ASSERTED & s5933_status)
-	{
-		// clear interrupt on amcc s5933
-		outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
-		// make sure mailbox 4 is empty
-		inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
-	}
+	if( ( INTCSR_INTR_ASSERTED & s5933_status ) == 0 )
+		return;
+
+	// make sure mailbox 4 is empty
+	inl_p(devpriv->s5933_config + AMCC_OP_REG_IMB4);
+	// clear interrupt on amcc s5933
+	outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
 #ifdef CB_PCIDAS_DEBUG
