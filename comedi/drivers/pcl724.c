@@ -20,6 +20,10 @@
               0, 144: 144 DIO configuration
 	      1,  96:  96 DIO configuration
 */
+/*
+ * check_driver overrides:
+ *   comedi_insn
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
