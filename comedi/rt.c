@@ -174,6 +174,7 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q)
 /* RTAI section */
 #ifdef CONFIG_COMEDI_RTAI
 
+#if 0
 #define DECLARE_VOID_IRQ(irq) \
 static void handle_void_irq_ ## irq (void){ handle_void_irq(irq);}
 
@@ -251,6 +252,25 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 	rt_free_global_irq(it->irq);
 	return 0;
 }
+#else
+
+static int rt_get_irq(struct comedi_irq_struct *it)
+{
+	rt_request_global_irq_arg(it->irq,it->handler,it->flags,
+			it->device,it->dev_id);
+	rt_startup_irq(it->irq);
+	
+	return 0;
+}
+
+static int rt_release_irq(struct comedi_irq_struct *it)
+{
+	rt_shutdown_irq(it->irq);
+	rt_free_global_irq(it->irq);
+	return 0;
+}
+#endif
+
 
 void comedi_rt_init(void)
 {
