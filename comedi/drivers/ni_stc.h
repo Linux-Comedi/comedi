@@ -746,6 +746,8 @@ static ni_board ni_boards[];
 	unsigned short ao[2];					\
 	unsigned short caldacs[MAX_N_CALDACS];				\
 								\
+	unsigned short ai_cmd2;	\
+								\
 	unsigned short ao_conf[2];				\
 	unsigned short ao_mode1;				\
 	unsigned short ao_mode2;				\

@@ -477,6 +477,26 @@ static int ni_ao_wait_for_dma_load( comedi_device *dev )
 
 #endif //PCIDMA
 
+static void shutdown_ai_command( comedi_device *dev )
+{
+	comedi_subdevice *s = dev->subdevices + 0;
+
+#ifdef PCIDMA
+	ni_ai_drain_dma( dev );
+	mite_dma_disarm(devpriv->mite, AI_DMA_CHAN);
+#endif
+	ni_handle_fifo_dregs(dev);
+	get_last_sample_611x(dev);
+
+	ni_set_bits(dev, Interrupt_A_Enable_Register,
+		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+		AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
+		AI_FIFO_Interrupt_Enable,0);
+
+	s->async->events |= COMEDI_CB_EOA;
+}
+
 static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	unsigned int m_status)
 {
@@ -535,22 +555,9 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 
 			win_out(AI_Error_Interrupt_Ack, Interrupt_A_Ack_Register);
 
-#ifdef PCIDMA
-			ni_ai_drain_dma( dev );
-			mite_dma_disarm(devpriv->mite, AI_DMA_CHAN);
-#endif
+			shutdown_ai_command( dev );
 
-			ni_handle_fifo_dregs(dev);
-			get_last_sample_611x(dev);
-
-			/* turn off all AI interrupts */
-			ni_set_bits(dev, Interrupt_A_Enable_Register,
-				AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
-				AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
-				AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
-				AI_FIFO_Interrupt_Enable,0);
-
-			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev,s,s->async->events);
 
 			return;
@@ -560,20 +567,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			rt_printk("ni_mio_common: SC_TC interrupt\n");
 #endif
 			if(!devpriv->ai_continuous){
-#ifdef PCIDMA
-				ni_ai_drain_dma( dev );
-				mite_dma_disarm(devpriv->mite, AI_DMA_CHAN);
-#endif
-				ni_handle_fifo_dregs(dev);
-				get_last_sample_611x(dev);
-
-				ni_set_bits(dev, Interrupt_A_Enable_Register,
-					AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
-					AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
-					AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
-					AI_FIFO_Interrupt_Enable,0);
-
-				s->async->events |= COMEDI_CB_EOA;
+				shutdown_ai_command( dev );
 			}
 			ack|=AI_SC_TC_Interrupt_Ack;
 		}
@@ -587,19 +581,25 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	}
 #endif // !PCIDMA
 
-	if(devpriv->aimode==AIMODE_SCAN && (status & AI_STOP_St)){
+	if( (status & AI_STOP_St) ){
+		if(devpriv->aimode==AIMODE_SCAN){
 #ifdef PCIDMA
-		int bytes_in_transit;
+			int bytes_in_transit;
 
-		do{
-			bytes_in_transit = mite_bytes_in_transit( devpriv->mite, AI_DMA_CHAN );
-			ni_sync_ai_dma(devpriv->mite, dev);
-		}while( ( s->async->events & COMEDI_CB_EOS ) == 0 &&
-			bytes_in_transit );
+			do{
+				bytes_in_transit = mite_bytes_in_transit( devpriv->mite, AI_DMA_CHAN );
+				ni_sync_ai_dma(devpriv->mite, dev);
+			}while( ( s->async->events & COMEDI_CB_EOS ) == 0 &&
+				bytes_in_transit );
 #else
-		ni_handle_fifo_dregs(dev);
-		s->async->events |= COMEDI_CB_EOS;
+			ni_handle_fifo_dregs(dev);
+			s->async->events |= COMEDI_CB_EOS;
 #endif
+		}
+		/* handle special case of single scan using AI_End_On_End_Of_Scan */
+		if( s->async->cmd.stop_src == TRIG_COUNT && s->async->cmd.stop_arg == 1 ){
+			shutdown_ai_command( dev );
+		}
 
 		/* we need to ack the START, also */
 		ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
@@ -918,7 +918,7 @@ static int ni_ai_drain_dma(comedi_device *dev )
 
 	for( i = 0; i < timeout; i++ )
 	{
-		if( win_in( AI_Status_1_Register ) & AI_FIFO_Empty_St &&
+		if( ( win_in( AI_Status_1_Register ) & AI_FIFO_Empty_St ) &&
 			mite_bytes_in_transit( mite, AI_DMA_CHAN ) == 0 )
 			break;
 		comedi_udelay( 1 );
@@ -1499,12 +1499,12 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		err++;
 	}
 	if(cmd->stop_src==TRIG_COUNT){
-		if(cmd->stop_arg>0x00ffffff){
-			cmd->stop_arg=0x00ffffff;
-			err++;
-		}
-		if(cmd->stop_arg < 2){
-			cmd->stop_arg = 2;
+		unsigned int max_count = 0x01000000;
+
+		if( boardtype.reg_611x )
+			max_count -= num_adc_stages_611x;
+		if(cmd->stop_arg > max_count){
+			cmd->stop_arg = max_count;
 			err++;
 		}
 	}else{
@@ -1550,7 +1550,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	int mode2=0;
 	int start_stop_select=0;
 	unsigned int stop_count;
-
+	int interrupt_a_enable=0;
+	
 	MDPRINTK("ni_ai_cmd\n");
 
 	win_out(1,ADC_FIFO_Clear);
@@ -1593,6 +1594,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 	win_out(start_stop_select, AI_START_STOP_Select_Register);
 
+	devpriv->ai_cmd2 = 0;
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
 		stop_count = cmd->stop_arg - 1;
@@ -1610,7 +1612,10 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
 		devpriv->ai_continuous = 0;
-
+		if( stop_count == 0 ){
+			devpriv->ai_cmd2 |= AI_End_On_End_Of_Scan;
+			interrupt_a_enable|=AI_STOP_Interrupt_Enable;
+		}
 		break;
 	case TRIG_NONE:
 		/* stage number of scans */
@@ -1712,14 +1717,13 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	if(dev->irq){
-		int bits;
 
 		/* interrupt on FIFO, errors, SC_TC */
-		bits= AI_Error_Interrupt_Enable|
+		interrupt_a_enable |= AI_Error_Interrupt_Enable|
 			AI_SC_TC_Interrupt_Enable;
 
 #ifndef PCIDMA
-		bits|=AI_FIFO_Interrupt_Enable;
+		interrupt_a_enable|=AI_FIFO_Interrupt_Enable;
 #endif
 
 		if(s->async->cb_mask&COMEDI_CB_EOS){
@@ -1748,7 +1752,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 #else
 			win_out(AI_FIFO_Mode_HF, AI_Mode_3_Register);
 #endif
-			bits|=AI_STOP_Interrupt_Enable;
+			interrupt_a_enable|=AI_STOP_Interrupt_Enable;
 			break;
 		default:
 			break;
@@ -1756,8 +1760,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
 
-		//TIM 4/17/01 win_out(bits,Interrupt_A_Enable_Register) ;
-		ni_set_bits(dev, Interrupt_A_Enable_Register, bits, 1);
+		ni_set_bits(dev, Interrupt_A_Enable_Register, interrupt_a_enable, 1);
 
 		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",devpriv->int_a_enable_reg);
 	}else{
@@ -1791,7 +1794,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	switch(cmd->start_src){
 	case TRIG_NOW:
 		/* AI_START1_Pulse */
-		win_out(AI_START1_Pulse,AI_Command_2_Register);
+		win_out( AI_START1_Pulse | devpriv->ai_cmd2, AI_Command_2_Register );
 		s->async->inttrig=NULL;
 		break;
 	case TRIG_EXT:
@@ -1812,7 +1815,7 @@ static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 {
 	if(trignum!=0)return -EINVAL;
 
-	win_out(AI_START1_Pulse,AI_Command_2_Register);
+	win_out( AI_START1_Pulse | devpriv->ai_cmd2, AI_Command_2_Register );
 	s->async->inttrig=NULL;
 
 	return 1;
@@ -2151,7 +2154,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	case TRIG_COUNT:
 		win_out2(cmd->stop_arg,AO_UC_Load_A_Register);
 		win_out(AO_UC_Load,AO_Command_1_Register);
-		win_out2(cmd->stop_arg,AO_UC_Load_A_Register);
+		win_out2(cmd->stop_arg - 1,AO_UC_Load_A_Register);
 		break;
 	case TRIG_NONE:
 		win_out2(0xffffff,AO_UC_Load_A_Register);
@@ -2288,10 +2291,6 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(cmd->stop_src==TRIG_COUNT){ /* XXX check */
 		if(cmd->stop_arg>0x00ffffff){
 			cmd->stop_arg=0x00ffffff;
-			err++;
-		}
-		if(cmd->stop_arg < 2){
-			cmd->stop_arg = 2;
 			err++;
 		}
 	}else{
