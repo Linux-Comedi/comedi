@@ -2,8 +2,8 @@
 This file contains information about specific drivers, their
 features, and limitation.
 
-8255.o:
-
+Driver: 8255.o
+Description: generic 8255 support
 Author: ds
 Status: only mode 0 supported
 
@@ -22,8 +22,8 @@ configure the 8255 subdevice automatically.
 
 
 
-ni-atmio.o: National Instruments AT-MIO-E series  (all boards)
-
+Driver: ni-atmio.o
+Description: National Instruments AT-MIO-E series  (all boards)
 Author: ds
 Status: mainly limited by Comedi infrastructure
 
@@ -45,30 +45,29 @@ is terrible.  Calibration at boot is strongly encouraged.
 
 
 
-das08.o: ComputerBoards, Keithley Metrabyte DAS-08
-
+Driver: das08.o
+Description: ComputerBoards, Keithley Metrabyte DAS-08
 Authors: Warren Jasper, ds
 Status: unknown
 
 
 
-das08jr.o: ComputerBoards DAS-08jr-AO
-
+Driver: das08jr.o
+Description: ComputerBoards DAS-08jr-AO
 Authors: Jochen Küpper <jochen@pc1.uni-duesseldorf.de>, ds
 Status: unknown
 
 
 
-
-das16.o: CIO-DAS16 (& compatibles)
-
+Driver: das16.o
+Description: CIO-DAS16 (& compatibles)
 Authors: Sam Moore, Warren Jasper, ds
 Status: unknown
 
 
 
-das1600.o: Keithley Metrabyte DAS1600 (& compatibles)
-
+Driver: das1600.o
+Description: Keithley Metrabyte DAS1600 (& compatibles)
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 
 The driver recognizes the following board names:
@@ -112,8 +111,8 @@ Options (probably wrong, verify with source):
 
 
 
-das6402.o: Keithley Metrabyte DAS6402 (& compatibles)
-
+Driver: das6402.o
+Description: Keithley Metrabyte DAS6402 (& compatibles)
 Author: Oystein Svendsen <svendsen@pvv.org>
 Status: unknown
 
@@ -122,9 +121,8 @@ Status: unknown
 
 
 
-dt2801.o: Data Translation DT2801 series
-	  (2801, 2805, 2808, 2809, 2818, and DT01-EZ)
-
+Driver: dt2801.o
+Description: Data Translation DT2801 series (2801, 2805, 2808, 2809, 2818, and DT01-EZ)
 Author: ds
 Status: works
 
@@ -132,15 +130,15 @@ Status: works
 
 
 
-dt2811.o: Data Translation DT2811
-
+Driver: dt2811.o
+Description: Data Translation DT2811
 Author: ds
 Status: might work
 
 
 
-dt2814.o: Data Translation DT2814
-
+Driver: dt2814.o
+Description: Data Translation DT2814
 Author: ds
 Status: complete
 
@@ -156,8 +154,8 @@ is not supported.
 
 
 
-dt2815.o: Data Translation DT2815
-
+Driver: dt2815.o
+Description: Data Translation DT2815
 Author: ds
 Status: mostly complete, untested
 
@@ -205,8 +203,8 @@ Options
 
 
 
-dt2817.o: Data Translation DT2817
-
+Driver: dt2817.o
+Description: Data Translation DT2817
 Author: ds
 Status: complete
 
@@ -219,9 +217,8 @@ with 32 channels, configurable in groups of 8.
 
 
 
-dt282x.o: Data Translation DT2821 series
-	(including DT-EZ)
-
+Driver: dt282x.o
+Description: Data Translation DT2821 series (including DT-EZ)
 Author: ds
 Status: complete
 
@@ -243,15 +240,15 @@ in the source, as well as the file etc/dt282x.conf.
 
 
 
-dt3000.o: Data Translation DT3000 series
-
+Driver: dt3000.o
+Description: Data Translation DT3000 series
 Author: ds
 Status: untested
 
 
 
-ii_pci20kc.o: Intelligent Instruments PCI-20001C carrier board
-
+Driver: ii_pci20kc.o
+Description: Intelligent Instruments PCI-20001C carrier board
 Author: Markus Kempf <kempf@matsci.uni-sb.de>
 Status: works
 
@@ -287,16 +284,16 @@ options for PCI-20341M:
 
 
 
-multiq3.o: Quanser Consulting MultiQ-3
-
+Driver: multiq3.o
+Description: Quanser Consulting MultiQ-3
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
 
 
 
 
-ni_pcidio.o: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
-
+Driver: ni_pcidio.o
+Description: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
 Author: ds
 Status: works in immediate mode
 
@@ -314,8 +311,8 @@ AT-MIO96.
 
 
 
-comedi_parport.o: Standard PC parallel port
-
+Driver: comedi_parport.o
+Description: Standard PC parallel port
 Author: ds
 Status: works in immediate mode
 
@@ -364,8 +361,8 @@ Please report any sucesses/failures.
 
 
 
-ni_pcimio.o: National Instruments PCI-MIO-E series (all boards)
-
+Driver: ni_pcimio.o
+Description: National Instruments PCI-MIO-E series (all boards)
 Author: ds
 Status: mainly limited by Comedi infrastructure
 
@@ -385,8 +382,8 @@ DMA is halfway completed, but not yet operational.
 
 
 
-pcl711.o: Advantech PCL-711 and 711b, ADLink ACL-8112
-
+Driver: pcl711.o
+Description: Advantech PCL-711 and 711b, ADLink ACL-8112
 Authors: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
 Status: mostly complete
 
@@ -402,9 +399,8 @@ supported.
 
 
 
-pcl724.o: Advantech PCL-724, PCL-722, PCL-731
-          ADLink ACL-7122, ACL-7124, PET-48DIO
-
+Driver: pcl724.o
+Description: Advantech PCL-724, PCL-722, PCL-731 ADLink ACL-7122, ACL-7124, PET-48DIO
 Author: Michal Dobes <majkl@tesnet.cz>
 Status: untested
 
@@ -415,18 +411,16 @@ See the source for configuration details.
 
 
 
-pcl725.o: PC-LabCard PCL-725 (& compatibles)
-
+Driver: pcl725.o
+Description: PC-LabCard PCL-725 (& compatibles)
 Author: ds
 Status: unknown
 
 
 
 
-pcl726.o: PC-LabCard PCL-726 (& compatibles)
-	Advantech PCL-726
-	ADLink Technology ACL-6126
-
+Driver: pcl726.o
+Description: PC-LabCard PCL-726 (& compatibles), Advantech PCL-726, ADLink Technology ACL-6126
 Author: ds
 Status: untested
 
@@ -435,8 +429,8 @@ Interrupts are not supported.
 
 
 
-pcl812.o: Advantech PCL-812PG, Advantech PCL-813B and ADLink ACL-8113
-
+Driver: pcl812.o
+Description: Advantech PCL-812PG, Advantech PCL-813B and ADLink ACL-8113
 Author: Michal Dobes <majkl@tesnet.cz>
 Status: works (I hope. My board fire up under my hands 
                and I haven't time to finish tests.)
@@ -471,9 +465,8 @@ Options:
     [2] - max number of samples in ai_mode0 (defaul=1scan)
 
 
-pcl818.o: Advantech PCL-818 cards (818, 818L, 818H, 818HD, 818HG)
-          Advantech PCL-718
-
+Driver: pcl818.o
+Description: Advantech PCL-818 cards (818, 818L, 818H, 818HD, 818HG), Advantech PCL-718
 Author: Michal Dobes <majkl@tesnet.cz>
 Status: works 
 
@@ -503,8 +496,8 @@ A word or two about DMA. Driver support DMA operations at two ways:
 See the head of the source file pcl818.c for configuration options.
 
 
-rti800.o: Analog Devices RTI-800/815
-
+Driver: rti800.o
+Description: Analog Devices RTI-800/815
 Author: ds
 Status: unknown
 
@@ -512,14 +505,14 @@ See the source for configuration details.
 
 
 
-rti802.o: Analog Devices RTI-802
-
+Driver: rti802.o
+Description: Analog Devices RTI-802
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
 
 
-adl_pci9118.o: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
-
+Driver: adl_pci9118.o
+Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
 Author: Michal Dobes <majkl@tesnet.cz>
 Status works
 
