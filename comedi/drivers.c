@@ -107,6 +107,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	minor = dev->minor;
 	use_count = dev->use_count;
 	memset(dev,0,sizeof(comedi_device));
+	spin_lock_init(&dev->spinlock);
 	dev->minor=minor;
 	dev->use_count = use_count;
 

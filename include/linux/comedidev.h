@@ -162,6 +162,7 @@ struct comedi_device_struct{
 	int attached;
 	int rt;
 	spinlock_t spinlock;
+	int in_request_module;
 
 	int n_subdevices;
 	comedi_subdevice *subdevices;

@@ -1621,25 +1621,40 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 {
 	kdev_t minor=MINOR(inode->i_rdev);
 	comedi_device *dev;
-	static int in_comedi_open=0;
 	char mod[32];
 
 	if(minor>=COMEDI_NDEVICES)return -ENODEV;
 
 	dev=comedi_get_device_by_minor(minor);
+
+	/* This is slightly hacky, but we want module autoloading
+	 * to work for root. 
+	 * case: user opens device, attached -> ok
+	 * case: user opens device, unattached, in_request_module=0 -> autoload
+	 * case: user opens device, unattached, in_request_module=1 -> fail
+	 * case: root opens device, attached -> ok
+	 * case: root opens device, unattached, in_request_module=1 -> ok
+	 *   (typically called from modprobe)
+	 * case: root opens device, unattached, in_request_module=0 -> autoload
+	 *
+	 * The last could be changed to "-> ok", which would deny root
+	 * autoloading.
+	 */
 	if(dev->attached)
 		goto ok;
-	if(in_comedi_open && suser())
+	if(!suser() && dev->in_request_module)
+		return -ENODEV;
+	if(suser() && dev->in_request_module)
 		goto ok;
 
-	in_comedi_open=1;
+	dev->in_request_module=1;
 
 	sprintf(mod,"char-major-%i-%i",COMEDI_MAJOR,minor);
 #ifdef CONFIG_KMOD
 	request_module(mod);
 #endif
 
-	in_comedi_open=0;
+	dev->in_request_module=0;
 
 	if(dev->attached || suser())
 		goto ok;
@@ -1775,6 +1790,7 @@ int comedi_init(void)
 	memset(comedi_devices,0,sizeof(comedi_device)*COMEDI_NDEVICES);
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		comedi_devices[i].minor=i;
+		spin_lock_init(&(comedi_devices[i].spinlock));
 	}
 #if 0
 	init_polling();
