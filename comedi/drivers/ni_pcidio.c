@@ -168,6 +168,12 @@ static nidio_board nidio_boards[]={
 	is_diodaq:	1,
 	},
 	{
+	dev_id:		0x1320,
+	name:		"pxi-6533",
+	n_8255:		0,
+	is_diodaq:	1,
+	},
+	{
 	dev_id:		0x0160,
 	name:		"pci-dio-96",
 	n_8255:		4,
