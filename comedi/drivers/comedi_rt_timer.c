@@ -35,6 +35,26 @@
 #include <rtl.h>
 #include <rtl_sched.h>
 #include <rtl_compat.h>
+
+// begin hack to fix HRT_TO_8254() function on rtlinux
+#undef HRT_TO_8254(x)
+#define HRT_TO_8254(x) nano2tick_hack(x)
+long long nano2tick_hack(long long ns)
+{
+	unsigned long most = ns >> 32;
+	unsigned long least = ns;
+	unsigned long denom = 838;
+	unsigned long remainder = (most % denom);
+
+	most /= denom;
+	least = remainder * (0xffffffff / denom) + (remainder + least) / denom;
+
+	ns = (long long) most * (long long) 0x100000000 + (long long) least;
+
+	return ns;
+}
+// end hack
+
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
@@ -43,7 +63,6 @@
 
 /* Change this if you need more channels */
 #define N_CHANLIST 16
-
 
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
@@ -335,7 +354,6 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "error initalizing task");
 		return ret;
 	}
-
 	now=rt_get_time();
 	ret = rt_task_make_periodic(&devpriv->rt_task,now+delay,period);
 	if(ret < 0)
