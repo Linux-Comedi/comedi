@@ -25,7 +25,6 @@
 
    TODO:
 
-   - support bit mask ioctl
    - EPP/ECP support
 
    see http://www.beyondlogic.org/ for information.
@@ -55,7 +54,7 @@
 static int parport_attach(comedi_device *dev,comedi_devconfig *it);
 static int parport_detach(comedi_device *dev);
 comedi_driver driver_parport={
-	driver_name:	"parport",
+	driver_name:	"comedi_parport",
 	module:		THIS_MODULE,
 	attach:		parport_attach,
 	detach:		parport_detach,
@@ -64,6 +63,7 @@ comedi_driver driver_parport={
 typedef struct parport_private_struct{
 	unsigned int a_data;
 	unsigned int c_data;
+	int enable_irq;
 }parport_private;
 #define devpriv ((parport_private *)(dev->private))
 
@@ -97,6 +97,7 @@ static int parport_insn_b(comedi_device *dev,comedi_subdevice *s,
 static int parport_insn_c(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+	data[0] &= 0x0f;
 	if(data[0]){
 		devpriv->c_data &= ~data[0];
 		devpriv->c_data |= (data[0]&data[1]);
@@ -104,29 +105,158 @@ static int parport_insn_c(comedi_device *dev,comedi_subdevice *s,
 		outb(devpriv->c_data,dev->iobase+PARPORT_C);
 	}
 
-	data[1] = devpriv->c_data;
+	data[1] = devpriv->c_data & 0xf;
 
 	return 2;
 }
+
+static int parport_intr_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	data[1] = 0;
+	return 2;
+}
+
+static int parport_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* step 1 */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_EXT;
+	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_FOLLOW;
+	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_NONE;
+	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: ignored */
+
+	if(err)return 2;
+
+	/* step 3: */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg = 0;
+		err++;
+	}
+	if(cmd->scan_begin_arg!=0){
+		cmd->scan_begin_arg = 0;
+		err++;
+	}
+	if(cmd->convert_arg!=0){
+		cmd->convert_arg = 0;
+		err++;
+	}
+	if(cmd->scan_end_arg!=1){
+		cmd->scan_end_arg = 1;
+		err++;
+	}
+	if(cmd->stop_arg!=0){
+		cmd->stop_arg = 0;
+		err++;
+	}
+
+	if(err)return 3;
+
+	/* step 4: ignored */
+
+	if(err)return 4;
+
+	return 0;
+}
+
+static int parport_intr_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	devpriv->c_data |= 0x10;
+	outb(devpriv->c_data,dev->iobase+PARPORT_C);
+
+	devpriv->enable_irq = 1;
+
+	return 0;
+}
+
+static int parport_intr_cancel(comedi_device *dev,comedi_subdevice *s)
+{
+	printk("parport_intr_cancel()\n");
+
+	devpriv->c_data &= ~0x10;
+	outb(devpriv->c_data,dev->iobase+PARPORT_C);
+
+	devpriv->enable_irq = 0;
+
+	return 0;
+}
+
+static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
+{
+	comedi_device *dev=d;
+	comedi_subdevice *s=dev->subdevices+3;
+
+	if(!devpriv->enable_irq){
+		printk("comedi_parport: bogus irq, ignored\n");
+		return;
+	}
+
+	*(sampl_t *)(((void *)s->cur_trig.data)+s->buf_int_ptr)=0;
+	s->buf_int_ptr+=sizeof(sampl_t);
+	s->buf_int_count+=sizeof(sampl_t);
+	if(s->buf_int_ptr>=s->cur_trig.data_len){
+		s->buf_int_ptr=0;
+		comedi_eobuf(dev,s);
+	}
 	
+	comedi_bufcheck(dev,s);
+}
 
 static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
+	int irq;
+	int iobase;
 	comedi_subdevice *s;
 
-	dev->iobase=it->options[0];
-	printk("comedi%d: parport: 0x%04x ",dev->minor,dev->iobase);
-	if(check_region(dev->iobase,PARPORT_SIZE)<0){
+	iobase=it->options[0];
+	printk("comedi%d: parport: 0x%04x ",dev->minor,iobase);
+	if(check_region(iobase,PARPORT_SIZE)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase,PARPORT_SIZE,"parport (comedi)");
+	request_region(iobase,PARPORT_SIZE,"parport (comedi)");
+	dev->iobase=iobase;
 	dev->iosize=PARPORT_SIZE;
-	dev->irq=0;
+
+	irq=it->options[1];
+	if(irq){
+		printk(" irq=%d",irq);
+		ret = comedi_request_irq(irq,parport_interrupt,0,
+			"comedi_parport",dev);
+		if(ret<0){
+			printk(" irq not available\n");
+			return -EINVAL;
+		}
+		dev->irq=irq;
+	}
 	dev->board_name="parport";
 
-	dev->n_subdevices=3;
+	dev->n_subdevices=4;
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(parport_private)))<0)
@@ -156,6 +286,27 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->range_table=&range_digital;
 	s->insn_bits = parport_insn_c;
 
+	s=dev->subdevices+3;
+	dev->read_subdev=3;
+	if(irq){
+		s->type=COMEDI_SUBD_DI;
+		s->subdev_flags=SDF_READABLE;
+		s->n_chan=1;
+		s->maxdata=1;
+		s->range_table=&range_digital;
+		s->insn_bits = parport_intr_insn;
+		s->do_cmdtest = parport_intr_cmdtest;
+		s->do_cmd = parport_intr_cmd;
+		s->cancel = parport_intr_cancel;
+	}else{
+		s->type=COMEDI_SUBD_UNUSED;
+	}
+
+	devpriv->a_data = 0;
+	outb(devpriv->a_data,dev->iobase+PARPORT_A);
+	devpriv->c_data = 0;
+	outb(devpriv->c_data,dev->iobase+PARPORT_C);
+
 	printk("\n");
 	return 1;
 }
@@ -165,7 +316,9 @@ static int parport_detach(comedi_device *dev)
 {
 	printk("comedi%d: parport: remove\n",dev->minor);
 	
-	release_region(dev->iobase,dev->iosize);
+	if(dev->iobase)release_region(dev->iobase,dev->iosize);
+
+	if(dev->irq)comedi_free_irq(dev->irq,dev);
 
 	return 0;
 }
