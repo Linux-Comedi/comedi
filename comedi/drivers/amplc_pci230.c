@@ -149,6 +149,7 @@ fix pci autodetection, add support for bus/slot config options
  */
 typedef struct pci230_board_struct{
 	char *name;
+	unsigned short id;
 	int ai_chans;
 	int ai_bits;
 	int have_ao;
@@ -159,6 +160,7 @@ typedef struct pci230_board_struct{
 pci230_board pci230_boards[] = {
 	{
 	name:		"Amplicon PCI230",
+	id:		PCI_DEVICE_ID_PCI230,
 	ai_chans:	16,
 	ai_bits:	12,
 	have_ao:	1,
@@ -168,6 +170,7 @@ pci230_board pci230_boards[] = {
 	},
 	{
 	name:		"Amplicon PCI260",
+	id:		PCI_DEVICE_ID_PCI260,
 	ai_chans:	16,
 	ai_bits:	12,
 	have_ao:	0,
@@ -179,6 +182,7 @@ pci230_board pci230_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
+#define n_pci230_boards (sizeof(pci230_boards)/sizeof(pci230_boards[0]))
 #define thisboard ((pci230_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
@@ -230,28 +234,8 @@ comedi_driver driver_amplc_pci230={
 	module:		THIS_MODULE,
 	attach:		pci230_attach,
 	detach:		pci230_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in pci230_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-	board_name:	pci230_boards,
-	offset:		sizeof(pci230_board),
-	num_names:	sizeof(pci230_boards) / sizeof(pci230_board),
 };
+COMEDI_INITCLEANUP(driver_amplc_pci230);
 
 static int pci230_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int pci230_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -284,21 +268,26 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int pci_iobase, iobase = 0;		/* PCI230's I/O spaces 1 and 2 */
 	struct pci_dev *pci_dev;
+	int i=0,ret;
 
 	printk("comedi%d: amplc_pci230\n",dev->minor);
 
 	/* Find card */
 	pci_for_each_dev(pci_dev){
-		if(pci_dev->vendor == PCI_VENDOR_ID_AMPLICON &&
-			pci_dev->device == PCI_DEVICE_ID_PCI230){
- 			printk("comedi%d: amplc_pci230: found a PCI230\n",dev->minor);
-			break;
+		if(pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
+			continue;
+		for(i=0;i<n_pci230_boards;i++){
+			if(pci_dev->device == pci230_boards[i].id)break;
 		}
+		if(i<n_pci230_boards)break;
+ 		printk("comedi%d: found an unknown Amplicon board, dev id=0x%04x\n",
+			dev->minor,pci_dev->device);
 	}
 	if(!pci_dev){
 		printk("comedi%d: amplc_pci230: No PCI230 found\n",dev->minor);
 		return -EIO;
 	}
+	dev->board_ptr = pci230_boards+i;
 	
 	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
@@ -382,10 +371,11 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	/* Register the interrupt handler. */
-	if(comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt, 0, "PCI230", dev ))
+	ret = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt, 0, "PCI230", dev );
+	if(ret<0)
 	{
 		printk("comedi%d: amplc_pci230: unable to register irq %d\n", dev->minor, devpriv->pci_dev->irq);
-		return -EINVAL;
+		return ret;
 	}
 	dev->irq = devpriv->pci_dev->irq;
 	printk("comedi%d: amplc_pci230: registered irq %d\n", dev->minor, devpriv->pci_dev->irq);
@@ -408,7 +398,7 @@ static int pci230_detach(comedi_device *dev)
 {
 	printk("comedi%d: amplc_pci230: remove\n",dev->minor);
 
-	if(dev->subdevices)
+	if(dev->subdevices && thisboard->have_dio)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);	/* Clean up dio subdevice. */
 
 	if(dev->iobase)
@@ -555,12 +545,17 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	 * "source conflict" returned by comedilib to user mode process 
 	 * if this fails. */
 
+	if(cmd->start_src!=TRIG_NOW &&
+	   cmd->start_src!=TRIG_EXT)err++;
 	if(cmd->scan_begin_src!=TRIG_TIMER &&
 	   cmd->scan_begin_src!=TRIG_EXT)err++;
 	if(cmd->convert_src!=TRIG_TIMER &&
 	   cmd->convert_src!=TRIG_EXT)err++;
 	if(cmd->stop_src!=TRIG_COUNT &&
 	   cmd->stop_src!=TRIG_NONE)err++;
+	
+	/* XXX Should check here if we aren't able to have multiple
+	 * sources as TRIG_EXT */
 
 	if(err)return 2;
 
@@ -589,6 +584,7 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
+		/* XXX Do you really have 10 available triggering channels? */
 		if(cmd->scan_begin_arg>9){
 			cmd->scan_begin_arg=9;
 			err++;
@@ -679,6 +675,8 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if(!dev->irq)
 	{
+		/* XXX Instead of checking here, just don't set do_cmd in
+		 * _attach() */
 		comedi_error(dev, "no irq assigned for PCI230, cannot do hardware conversions");
 		return -1;
 	}
@@ -711,8 +709,9 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	adcen = 0;
 
 	/* If bit 2 of range unset, range is referring to bipolar element in range table */
+	/* XXX set range? */
 	range = CR_RANGE(cmd->chanlist[0]);
-	devpriv->bipolar = !PCI230_TEST_BIT(range, 2);
+	devpriv->bipolar = !PCI230_TEST_BIT(range, 2);	
 	if (devpriv->bipolar) {
 		adccon |= PCI230_ADC_IR_BIP;
 		for (i = 0; i < cmd->chanlist_len; i++) {
@@ -876,10 +875,13 @@ static int pci230_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
    		outw(d, dev->iobase + (((chan) == 0) ? PCI230_DACOUT1 : PCI230_DACOUT2));
 		printk("comedi%d: amplc_pci230::pci230_ao_rinsn() wrote PCI230_DACOUTx 0x%04x\n",dev->minor, d);
 
+#if 0
+		/* XXX screw the user.  Only do this if the board gets upset if you don't */
 		/* If we're writing more than one sample, wait for output to settle between successive writes */
 		if (insn->n > 1) {
 	    	udelay(PCI230_DAC_SETTLE);
 		}
+#endif
 	}
 
 	/* return the number of samples read/written */
@@ -916,6 +918,8 @@ static void pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 	 * we can't even talk to the board (base addresses for native
 	 * IO regions aren't set...)
 	 */
+	/* XXX doesn't make sense, since interrupt is allocated in the
+	 * _attach function, _after_ the IO regions are allocated */
 	if(dev->attached == 0) {
 		comedi_error(dev, "premature interrupt");
 		return;
@@ -1089,9 +1093,4 @@ static int pci230__cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-COMEDI_INITCLEANUP(driver_amplc_pci230);
 
