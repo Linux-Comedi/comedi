@@ -1,4 +1,81 @@
 
+A counter is an input device, "counting" the number of triggers
+that occur while the gate is enabled.  A timer is an output
+device.
+
+counter "command"
+
+{
+	unsigned int	mode;
+
+	unsigned int	src1_src;
+	unsigned int	src1_arg;
+
+	unsigned int	src2_src;
+	unsigned int	src2_arg;
+
+	unsigned int	gate_src;
+	unsigned int	gate_arg;
+}
+
+Counter examples:
+
+  (Unless otherwise specified, _src's are TRIG_NONE.)
+
+  Counting up at a rate of 1/ms:
+
+    mode = UP_COUNTER;
+    src1_src = TRIG_TIMER;
+    src1_arg = 1000000;
+
+  Counting down at a rate of 1/ms:
+
+    mode = DOWN_COUNTER;
+    arg1_src = TRIG_TIMER;
+    arg1_arg = 1000000;
+
+  Counting up at each rising transition of digital input 4:
+
+    mode = UP_COUNTER;
+    src1_src = TRIG_EXT;
+    src1_arg = 4 | TRIG_EXT_RISING;
+
+  Quadrature counting on di 0,1:
+  
+    mode = QUADRATURE;
+    src1_src = TRIG_EXT;
+    src1_arg = 0;
+    src2_src = TRIG_EXT;
+    src1_arg = 1;
+
+  Interval timing of digital input 4:
+
+    Counter setup:
+
+      mode = UP_COUNTER;
+      src1_src = TRIG_TIMER;
+      gate_src = TRIG_EXT;
+      gate_arg = 4 | LEVEL_1;
+      event_src = TRIG_EXT;
+      event_arg = 4 | FALLING_EDGE;
+
+      flags = COUNT_RESET; /* counter resets at every event */
+
+    Command setup:
+
+      start_src = TRIG_NOW;
+      scan_begin_src = TRIG_NOW;
+      convert_src = TRIG_FOLLOW;
+      scan_end_src = TRIG_COUNT;
+      scan_end_arg = 1;
+      stop_src = whatever;
+  
+
+Timer examples:
+
+
+
+
 Counters are based on a number of digital inputs, typically
 2 or 3, and the count is changed due to the transition of
 one line and the status of other lines.
