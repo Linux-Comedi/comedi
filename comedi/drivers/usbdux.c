@@ -751,6 +751,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb, struct pt_regs *regs) {
 		((uint8_t*)(urb->transfer_buffer))[0]=
 			s->async->cmd.chanlist_len;
 		for(i=0;i<s->async->cmd.chanlist_len;i++) {
+			sampl_t temp;
 			if (i>=NUMOUTCHANNELS) {
 				break;
 			}
@@ -758,9 +759,9 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb, struct pt_regs *regs) {
 			datap=&(((int8_t*)urb->transfer_buffer)[i*3+1]);
 			// get the data from comedi
 			ret=comedi_buf_get
-				(s->async, 
-				 ((sampl_t*)datap));
-			(uint16_t)(datap[0])=cpu_to_le16((uint16_t)(datap[0]));
+				(s->async, &temp);
+			datap[0]=temp;
+			datap[1]=temp >> 8;
 			datap[2]=this_usbduxsub->dac_commands[i];
 			/*printk("data[0]=%x, data[1]=%x, data[2]=%x\n",
 			  datap[0],datap[1],datap[2]);*/
