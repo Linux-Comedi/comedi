@@ -135,6 +135,7 @@ TODO:
 #define    EXT_QUEUE_BIT	0x200	// use external channel/gain queue (more versatile than internal queue)
 #define    SLOW_DAC_BIT	0x400	// use 225 nanosec strobe when loading dac instead of 50 nanosec
 #define    HW_CONFIG_DUMMY_BITS	0x2000	// bit with unknown function yet given as default value in pci-das64 manual
+#define    DMA_CH_SELECT_BIT	0x8000	// bit selects channels 1/0 for analog input/output, otherwise 0/1
 #define FIFO_SIZE_REG	0x4	// allows adjustment of fifo sizes, we will always use maximum
 #define    ADC_FIFO_SIZE_MASK	0x7f	// bits that set adc fifo size
 #define    ADC_FIFO_60XX_BITS	0x78	// 8 kilosample adc fifo for 60xx boards
@@ -1069,7 +1070,7 @@ found:
 		private(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
-	private(dev)->hw_config_bits = SLOW_DAC_BIT;
+	private(dev)->hw_config_bits = SLOW_DAC_BIT | DMA_CH_SELECT_BIT;
 	if(board(dev)->layout == LAYOUT_4020)
 		private(dev)->hw_config_bits |= INTERNAL_CLOCK_4020_BITS;
 	writew(private(dev)->hw_config_bits, private(dev)->main_iobase + HW_CONFIG_REG);
@@ -1866,7 +1867,7 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 	}
 	if(i == timeout)
 	{
-		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done clear", channel);
+		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done clear\n", channel);
 		return;
 	}
 	// disable channel
@@ -1881,7 +1882,7 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 		dma_status = readb(dma_cs_addr);
 	}
 	if(i == timeout)
-		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done set", channel);
+		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done set\n", channel);
 }
 
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
@@ -1892,7 +1893,6 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 		~ADC_INTR_SRC_MASK;
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 
-	abort_dma(dev, 0);
 	abort_dma(dev, 1);
 
 	/* disable pacing, triggering, etc */
