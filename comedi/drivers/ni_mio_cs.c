@@ -98,8 +98,8 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 		caldac:		type1, /* or ad8804 */
 	},
-	{	device_id:	0x0000,
-		name:		"DAQCard-6062E", /* specs incorrect! */
+	{	device_id:	0x02c4,
+		name:		"DAQCard-6062E",
 		n_adchan:	16,
 		adbits:		12,
 		ai_fifo_depth:	1024,
@@ -108,7 +108,7 @@ static ni_board ni_boards[]={
 		ai_speed:	2000,
 		n_aochan:	2,
 		aobits:		12,
-		ao_fifo_depth:	0,
+		ao_fifo_depth:	2048,
 		ao_unipolar:	0,
 		has_8255:	0,
 		caldac:		type2,
