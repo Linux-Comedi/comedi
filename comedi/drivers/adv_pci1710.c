@@ -461,10 +461,10 @@ static int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s, come
 	return n;
 }
 
-/* 
+/*
 ==============================================================================
 */
-static void interrupt_pci1710_every_sample(void *d) 
+static void interrupt_pci1710_every_sample(void *d)
 {
 	comedi_device 	*dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -505,29 +505,17 @@ static void interrupt_pci1710_every_sample(void *d)
 				comedi_event(dev,s,s->async->events);
 				return;
 			}
-		*(sampl_t *)((void *)(devpriv->ai_data)+s->async->buf_int_ptr)=sampl & 0x0fff;
 		DPRINTK("%8d %2d %8d~",s->async->buf_int_ptr,s->async->cur_chan,s->async->buf_int_count);
+		comedi_buf_put( s->async, sampl & 0x0fff);
 #else
-		*(sampl_t *)((void *)(devpriv->ai_data)+s->async->buf_int_ptr)=inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff;
+		comedi_buf_put( s->async, inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff);
 #endif
-		s->async->buf_int_count+=sizeof(sampl_t);
-		s->async->buf_int_ptr+=sizeof(sampl_t);
-		s->async->cur_chan++;
 
-		if (s->async->buf_int_ptr>=devpriv->ai_data_len) {	// buffer rollover
-			s->async->buf_int_ptr = 0;
-        		DPRINTK("adv_pci1710 EDBG: EOBUF1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-			s->async->events |= COMEDI_CB_BLOCK;
-        		DPRINTK("adv_pci1710 EDBG: EOBUF2\n");
-		}
-
-		if(s->async->cur_chan>=devpriv->ai_n_chan){	// one scan done
-			s->async->cur_chan=0;
+		if(s->async->cur_chan == 0){	// one scan done
 		        devpriv->ai_act_scan++;
         		DPRINTK("adv_pci1710 EDBG: EOS1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-			s->async->events |= COMEDI_CB_EOS;
         		DPRINTK("adv_pci1710 EDBG: EOS2\n");
-    			if ((!devpriv->neverending_ai)&&(devpriv->ai_act_scan>=devpriv->ai_scans)) { // all data sampled 
+    			if ((!devpriv->neverending_ai)&&(devpriv->ai_act_scan>=devpriv->ai_scans)) { // all data sampled
 		    		pci171x_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev,s,s->async->events);
@@ -545,7 +533,7 @@ static void interrupt_pci1710_every_sample(void *d)
 /* 
 ==============================================================================
 */
-static int move_block_from_fifo(comedi_device *dev,comedi_subdevice *s,sampl_t *data,int n,int turn)
+static int move_block_from_fifo(comedi_device *dev,comedi_subdevice *s, int n, int turn)
 {
 	int i,j;
 #ifdef PCI171x_PARANOIDCHECK
@@ -560,26 +548,21 @@ static int move_block_from_fifo(comedi_device *dev,comedi_subdevice *s,sampl_t *
 			if ((sampl & 0xf000)!=devpriv->act_chanlist[j]) {
 	    			rt_printk("comedi%d: A/D  FIFO data dropout: received data from channel %d, expected %d! (%d/%d/%d/%d/%d/%4x)\n",
 					 dev->minor, (sampl & 0xf000)>>12,(devpriv->act_chanlist[j] & 0xf000)>>12, i, j, devpriv->ai_act_scan, n, turn, sampl);
-				s->async->buf_int_count+=i*sizeof(sampl_t);
-				s->async->buf_int_ptr+=i*sizeof(sampl_t);
-				s->async->cur_chan=j;
 	    			pci171x_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 				comedi_event(dev,s,s->async->events);
 				return 1;
 			}
-		*data=sampl & 0x0fff;
+		comedi_buf_put( s->async, sampl & 0x0fff );
 #else
-		*data=inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff;
+		comedi_buf_put( s->async, inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff );
 #endif
-		data++;
 		j++;
 		if(j>=devpriv->ai_n_chan){
 			j=0;
 		        devpriv->ai_act_scan++;
 		}
 	}
-	s->async->cur_chan=j;
 	DPRINTK("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
 	return 0;
 }
@@ -611,28 +594,16 @@ static void interrupt_pci1710_half_fifo(void *d)
 	}
 
 	samplesinbuf=this_board->fifo_half_size;
-	if(s->async->buf_int_ptr+samplesinbuf*sizeof(sampl_t)>=devpriv->ai_data_len){
-		m=(devpriv->ai_data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		if (move_block_from_fifo(dev,s,((void *)(devpriv->ai_data))+s->async->buf_int_ptr,m,0))
+	if(samplesinbuf*sizeof(sampl_t)>=devpriv->ai_data_len){
+		m=devpriv->ai_data_len/sizeof(sampl_t);
+		if (move_block_from_fifo(dev,s,m,0))
 			return;
-		s->async->buf_int_count+=m*sizeof(sampl_t);
 		samplesinbuf-=m;
-		s->async->buf_int_ptr=0;
-    		DPRINTK("adv_pci1710 EDBG: EOBUF1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-		s->async->events |= COMEDI_CB_EOBUF;
-    		DPRINTK("adv_pci1710 EDBG: EOBUF2\n");
 	}
 
 	if (samplesinbuf) {
-		if (move_block_from_fifo(dev,s,((void *)(devpriv->ai_data))+s->async->buf_int_ptr,samplesinbuf,1))
+		if (move_block_from_fifo(dev,s,samplesinbuf,1))
 			return;
-
-		s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
-		s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
-
-		DPRINTK("adv_pci1710 EDBG: BUFCHECK1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-		s->async->events |= COMEDI_CB_BLOCK;
-		DPRINTK("adv_pci1710 EDBG: BUFCHECK2\n");
 	}
 
 	if (!devpriv->neverending_ai)
