@@ -699,14 +699,13 @@ struct das16_private_struct {
 	unsigned int	ai_unipolar;	// unipolar flag
 	unsigned int	ai_singleended;	// single ended flag
 	unsigned int	clockbase;	// master clock speed in ns
-	unsigned int	control_state;	// dma, interrupt and trigger control bits
-	unsigned int	adc_count;	// number of samples remaining
-	unsigned int	do_bits;	// digital output bits
+	volatile unsigned int	control_state;	// dma, interrupt and trigger control bits
+	volatile unsigned int	adc_count;	// number of samples remaining
 	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
 	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
 	unsigned int dma_chan;	// dma channel
 	sampl_t *dma_buffer;
-	unsigned int dma_transfer_size;	// number of bytes transfered per dma shot
+	volatile unsigned int dma_transfer_size;	// number of bytes transfered per dma shot
 	// user-defined analog input and output ranges defined from config options
 	comedi_lrange *user_ai_range_table;
 	comedi_lrange *user_ao_range_table;
@@ -998,30 +997,34 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
 	chan |= CR_CHAN(insn->chanspec) << 4;
-	outb(chan,dev->iobase+DAS16_MUX);
+	outb(chan, dev->iobase + DAS16_MUX);
 
 	/* set gain */
-	if(thisboard->ai_pg != das16_pg_none){
+	if(thisboard->ai_pg != das16_pg_none)
+	{
 		range = CR_RANGE(insn->chanspec);
 		outb((das16_gainlists[thisboard->ai_pg])[range],
 			dev->iobase+DAS16_GAIN);
 	}
 
-	for(n=0;n<insn->n;n++){
+	for(n = 0; n < insn->n; n++)
+	{
 		/* trigger conversion */
-		outb_p(0,dev->iobase+DAS16_TRIG);
+		outb_p(0, dev->iobase + DAS16_TRIG);
 
-		for(i=0;i<DAS16_TIMEOUT;i++){
+		for(i = 0; i < DAS16_TIMEOUT; i++)
+		{
 			if(!(inb(dev->iobase + DAS16_STATUS) & BUSY))
 				break;
 		}
-		if(i==DAS16_TIMEOUT){
+		if(i == DAS16_TIMEOUT)
+		{
 			rt_printk("das16: timeout\n");
 			return -ETIME;
 		}
 		msb = inb(dev->iobase + DAS16_AI_MSB);
 		lsb = inb(dev->iobase + DAS16_AI_LSB);
-		if(thisboard->ai_nbits==12){
+		if(thisboard->ai_nbits == 12){
 			data[n] = ((lsb >> 4) & 0xf) | (msb << 4);
 		}else{
 			data[n] = lsb | (msb << 8);
@@ -1035,7 +1038,7 @@ static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 {
 	lsampl_t bits;
 
-	bits = inb(dev->iobase+DAS16_DIO) & 0xf;
+	bits = inb(dev->iobase + DAS16_DIO) & 0xf;
 	data[1] = bits;
 	data[0] = 0;
 
@@ -1048,15 +1051,15 @@ static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 
 	// only set bits that have been masked
 	data[0] &= 0xf;
-	wbits = devpriv->do_bits;
+	wbits = s->state;
 	// zero bits that have been masked
 	wbits &= ~data[0];
 	// set masked bits
 	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits;
+	s->state = wbits;
 	data[1] = wbits;
 
-	outb(devpriv->do_bits, dev->iobase + DAS16_DIO);
+	outb(s->state, dev->iobase + DAS16_DIO);
 
 	return 2;
 }
@@ -1067,24 +1070,21 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	int lsb,msb;
 	int chan;
 
-	chan=CR_CHAN(insn->chanspec);
+	chan = CR_CHAN(insn->chanspec);
 
-	for(i=0;i<insn->n;i++){
-		if(thisboard->ao_nbits==12){
-			lsb=(data[i]<<4)&0xff;
-			msb=(data[i]>>4)&0xff;
-		}else{
-			lsb=data[i]&0xff;
-			msb=(data[i]>>8)&0xff;
+	for(i = 0; i < insn->n; i++)
+	{
+		if(thisboard->ao_nbits == 12)
+		{
+			lsb = (data[i] << 4) & 0xff;
+			msb = (data[i] >> 4) & 0xff;
+		}else
+		{
+			lsb = data[i] & 0xff;
+			msb = (data[i] >> 8) & 0xff;
 		}
-
-#if 0
-		outb(lsb,dev->iobase+devpriv->ao_offset_lsb[chan]);
-		outb(msb,dev->iobase+devpriv->ao_offset_msb[chan]);
-#else
 		outb(lsb,dev->iobase+DAS16_AO_LSB(chan));
 		outb(msb,dev->iobase+DAS16_AO_MSB(chan));
-#endif
 	}
 
 	return i;
@@ -1107,7 +1107,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "premature interrupt");
 		return;
 	}
-	// initialize async here to make sure s is not NULL
+	// initialize async here to make sure it is not NULL
 	async = s->async;
 	async->events = 0;
 
@@ -1135,6 +1135,12 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	 * the stop_src is set to external triggering.
 	 */
 	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
+	if(residue > max_points)
+	{
+		comedi_error(dev, "residue > max_points!\n");
+		async->events |= COMEDI_CB_ERROR;
+		residue = max_points;
+	}
 	num_points = max_points - residue;
 	if(devpriv->adc_count < num_points &&
 		async->cmd.stop_src == TRIG_COUNT)
@@ -1142,7 +1148,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	// figure out how many points will be stored next time
 	leftover = 0;
-	if(async->cmd.stop_src != TRIG_COUNT)
+	if(async->cmd.stop_src == TRIG_NONE)
 	{
 		leftover = devpriv->dma_transfer_size / sample_size;
 	}else if(devpriv->adc_count > num_points)
@@ -1151,12 +1157,6 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(leftover > max_points)
 			leftover = max_points;
 	}
-	/* there should only be a residue if collection was stopped by having
-	 * the stop_src set to an external trigger, in which case there
-	 * will be no more data
-	 */
-	if(residue)
-		leftover = 0;
 
 	for(i = 0; i < num_points; i++)
 	{
@@ -1168,9 +1168,12 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->adc_count > 0) devpriv->adc_count--;
 	}
 	// re-enable  dma
-	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
-	set_dma_count(devpriv->dma_chan, leftover * sample_size);
-	enable_dma(devpriv->dma_chan);
+	if(leftover)
+	{
+		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+		set_dma_count(devpriv->dma_chan, leftover * sample_size);
+		enable_dma(devpriv->dma_chan);
+	}
 	release_dma_lock(flags);
 
 	async->events |= COMEDI_CB_BLOCK;
@@ -1357,12 +1360,12 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	/* now for the irq */
-	irq=it->options[1];
+	irq = it->options[1];
 	if(irq > 1 && irq < 8)
 	{
-		if((ret=comedi_request_irq(irq,das16_interrupt,0,"das16",dev))<0)
+		if((ret=comedi_request_irq(irq, das16_interrupt, 0, "das16",dev)) < 0)
 			return ret;
-		dev->irq=irq;
+		dev->irq = irq;
 		printk(" ( irq = %d )",irq);
 	}else if(irq == 0){
 		printk(" ( no irq )");
@@ -1504,6 +1507,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = thisboard->do_;
+		// initialize digital output lines
+		outb(s->state, dev->iobase + DAS16_DIO);
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -1518,9 +1523,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	das16_reset(dev);
-	// initialize digital output lines
-	outb(devpriv->do_bits, dev->iobase + DAS16_DIO);
-	/* set the interrupt level,enable pacer clock */
+	/* set the interrupt level */
 	devpriv->control_state = DAS16_IRQ(dev->irq);
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
