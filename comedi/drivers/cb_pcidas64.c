@@ -37,8 +37,12 @@ TODO:
 	command support
 	calibration subdevice
 	user counter subdevice
-	there are a number of boards this driver could support, but does not since
-		I don't know the pci device id numbers
+	there are a number of boards this driver will support when they are
+		fully released, but does not since yet since the pci device id numbers
+		are not yet available.
+	add plx9080 stuff to make interrupts work
+	need to take care to prevent ai and ao from affecting each others register bits
+	support prescaled 100khz for slow pacing
 */
 
 #include <linux/kernel.h>
@@ -58,6 +62,7 @@ TODO:
 #include <linux/comedidev.h>
 #include "8253.h"
 #include "8255.h"
+#include "plx9060.h"
 
 #define PCIDAS64_DEBUG	// enable debugging code
 //#undef PCIDAS64_DEBUG	// disable debugging code
@@ -65,6 +70,7 @@ TODO:
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 25	// 40MHz master clock
+#define PRESCALED_TIMER_BASE	10000	// 100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday
 
 /* PCI-DAS64xxx base addresses */
 
@@ -77,18 +83,37 @@ TODO:
 #define MAIN_IOSIZE 0x302
 #define DIO_COUNTER_IOSIZE 0x29
 
-// plx pci9080 configuration registers
-// XXX could steal plx9060 header file from kernel
-
 // devpriv->main_iobase registers
 // write-only
 #define INTR_ENABLE_REG	0x0	// interrupt enable register
+#define    EN_ADC_OVERRUN_BIT	0x8000	// enable adc overrun status bit
+#define    EN_DAC_UNDERRUN_BIT	0x4000	// enable dac underrun status bit
+#define    EN_ADC_DONE_INTR_BIT	0x8	// enable adc aquisition done interrupt
+#define    EN_ADC_INTR_SRC_BIT	0x4	// enable adc interrupt source
+#define    ADC_INTR_SRC_MASK	0x3	// bits that set adc interrupt source
+#define    ADC_INTR_QFULL_BITS	0x0	// interrupt fifo quater full
+#define    ADC_INTR_EOC_BITS	0x1	// interrupt end of conversion
+#define    ADC_INTR_EOSCAN_BITS	0x2	// interrupt end of scan
+#define    ADC_INTR_EOSEQ_BITS	0x3	// interrupt end of sequence (probably wont use this it's pretty fancy)
 #define HW_CONFIG_REG	0x2	// hardware config register
 #define    HW_CONFIG_DUMMY_BITS	0x2400	// bits that don't do anything yet but are given default values
+#define    HW_CONFIG_DUMMY_BITS_6402	0x0400	// dummy bits in 6402 manual are slightly different, probably doesn't matter
+#define    EXT_QUEUE	0x200	// use external channel/gain queue (more versatile than internal queue)
+#define FIFO_SIZE_REG	0x4	// allows adjustment of fifo sizes, we will always use maximum
+#define    FIFO_SIZE_DUMMY_BITS	0xf038	// bits that don't do anything yet but are given default values
+#define    ADC_FIFO_SIZE_MASK	0x7	// bits that set adc fifo size
+#define    ADC_FIFO_8K_BITS	0x0	// 8 kilosample adc fifo
+#define    DAC_FIFO_SIZE_MASK	0xf00	// bits that set dac fifo size
+#define    DAC_FIFO_16K_BITS 0x0
 #define ADC_CONTROL0_REG	0x10	// adc control register 0
+#define    TRIG1_FALLING_BIT	0x20	// trig 1 uses falling edge
+#define    ADC_EXT_CONV_FALLING_BIT	0x800	// external pacing uses falling edge
 #define    ADC_ENABLE_BIT	0x8000	// master adc enable
 #define ADC_CONTROL1_REG	0x12	// adc control register 1
 #define    SW_NOGATE_BIT	0x40	// disables software gate of adc
+#define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
+#define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
+#define ADC_SAMPLE_INTERVAL_UPPER_REG	0x18	// upper 8 bits of sample interval counter
 #define ADC_CONVERT_REG	0x24	// initiates single conversion
 #define ADC_QUEUE_CLEAR_REG	0x26	// clears adc queue
 #define ADC_QUEUE_LOAD_REG	0x28	// loads adc queue
@@ -337,17 +362,19 @@ comedi_driver driver_cb_pcidas={
 static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-//static int ai_cmd(comedi_device *dev,comedi_subdevice *s);
-//static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
+static int ai_cmd(comedi_device *dev,comedi_subdevice *s);
+static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 //static int ao_cmd(comedi_device *dev,comedi_subdevice *s);
 //static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
 //static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
-//static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
-//static int ai_cancel(comedi_device *dev, comedi_subdevice *s);
+static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
+static int ai_cancel(comedi_device *dev, comedi_subdevice *s);
 //static int ao_cancel(comedi_device *dev, comedi_subdevice *s);
 static int dio_callback(int dir, int port, int data, void *arg);
 static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static void check_adc_timing(comedi_cmd *cmd);
+static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -584,7 +611,7 @@ printk(" stc hardware revision %i\n", devpriv->hw_revision);
 
 	// calibration subd XXX
 	s = dev->subdevices + 6;
-	s->type = COMEDI_SUBD_UNUSED;
+	s->type = COMEDI_SUBD_UNUSED; 
 
 	return 0;
 }
@@ -635,12 +662,12 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	// disable card's interrupt sources
 	writew(0, devpriv->main_iobase + INTR_ENABLE_REG);
 
-	// use internal queue
-	writew(HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
-
 	/* disable pacing, triggering, etc */
 	writew(ADC_ENABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
 	writew(0, devpriv->main_iobase + ADC_CONTROL1_REG);
+
+	// use internal queue
+	writew(HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
 
 	// load internal queue
 	bits = 0;
@@ -681,6 +708,239 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	}
 
 	return n;
+}
+
+static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
+{	int err = 0;
+	int tmp;
+	unsigned int tmp_arg, tmp_arg2;
+	int i;
+	int aref;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp = cmd->start_src;
+	cmd->start_src &= TRIG_NOW | TRIG_EXT;
+	if(!cmd->start_src || tmp != cmd->start_src) err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
+	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
+
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
+	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
+	if(!cmd->stop_src || tmp != cmd->stop_src) err++;
+
+	if(err) return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	// uniqueness check
+	if(cmd->start_src != TRIG_NOW &&
+		cmd->start_src != TRIG_EXT) err++;
+	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_FOLLOW) err++;
+	if(cmd->convert_src != TRIG_TIMER &&
+		cmd->convert_src != TRIG_EXT) err++;
+	if(cmd->stop_src != TRIG_COUNT &&
+		cmd->stop_src != TRIG_NONE &&
+		cmd->stop_src != TRIG_EXT) err++;
+
+	// compatibility check
+	if(cmd->convert_src == TRIG_EXT &&
+		cmd->scan_begin_src == TRIG_TIMER)
+		err++;
+
+	if(err) return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg != 0)
+	{
+		cmd->start_arg = 0;
+		err++;
+	}
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		if(cmd->convert_arg < thisboard->ai_speed)
+		{
+			cmd->convert_arg = thisboard->ai_speed;
+			err++;
+		}
+		if(cmd->scan_begin_src == TRIG_TIMER)
+		{
+			// if scans are timed faster than conversion rate allows
+			if(cmd->convert_arg * cmd->chanlist_len > cmd->scan_begin_arg)
+			{
+				cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+				err++;
+			}
+		}
+	}
+
+	if(!cmd->chanlist_len)
+	{
+		cmd->chanlist_len = 1;
+		err++;
+	}
+	if(cmd->scan_end_arg != cmd->chanlist_len)
+	{
+		cmd->scan_end_arg = cmd->chanlist_len;
+		err++;
+	}
+
+	switch(cmd->stop_src)
+	{
+		case TRIG_EXT:
+			if(cmd->stop_arg)
+			{
+				cmd->stop_arg = 0;
+				err++;
+			}
+			break;
+		case TRIG_COUNT:
+			if(!cmd->stop_arg)
+			{
+				cmd->stop_arg = 1;
+				err++;
+			}
+			break;
+		case TRIG_NONE:
+			if(cmd->stop_arg != 0)
+			{
+				cmd->stop_arg = 0;
+				err++;
+			}
+			break;
+		default:
+			break;
+	}
+
+	if(err) return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		tmp_arg = cmd->convert_arg;
+		tmp_arg2 = cmd->scan_begin_arg;
+		check_adc_timing(cmd);
+		if(tmp_arg != cmd->convert_arg) err++;
+		if(tmp_arg2 != cmd->scan_begin_arg) err++;
+	}
+
+	if(err) return 4;
+
+	// make sure user is doesn't change analog reference mid chanlist
+	if(cmd->chanlist)
+	{
+		aref = CR_AREF(cmd->chanlist[0]);
+		for(i = 1; i < cmd->chanlist_len; i++)
+		{
+			if(aref != CR_AREF(cmd->chanlist[i]))
+			{
+				comedi_error(dev, "all elements in chanlist must use the same analog reference");
+				err++;
+				break;
+			}
+		}
+	}
+
+	if(err) return 5;
+
+	return 0;
+}
+
+static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int bits;
+	unsigned int counter_value;
+
+	// disable card's interrupt sources
+	writew(0, devpriv->main_iobase + INTR_ENABLE_REG);
+
+	/* disable pacing, triggering, etc */
+	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
+	writew(0, devpriv->main_iobase + ADC_CONTROL1_REG);
+
+	// use external queue
+	writew(EXT_QUEUE | HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
+
+	// set fifo size
+	writew(ADC_FIFO_8K_BITS | FIFO_SIZE_DUMMY_BITS, devpriv->main_iobase + FIFO_SIZE_REG);
+
+	// set conversion pacing
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		check_adc_timing(cmd);
+		// supposed to load counter with desired divisor minus 3
+		counter_value = cmd->scan_begin_arg / TIMER_BASE - 3;
+		// load lower 16 bits
+		writew(counter_value & 0xffff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
+		// load upper 8 bits
+		writew((counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+	}
+
+#if 0
+	// load external queue
+	bits = 0;
+	// set channel
+	bits |= CHAN_BITS(CR_CHAN(insn->chanspec));
+	// set gain
+	bits |= GAIN_BITS(CR_RANGE(insn->chanspec));
+	// set unipolar / bipolar
+	bits |= UNIP_BIT(CR_RANGE(insn->chanspec));
+	// set single-ended / differential
+	if(CR_AREF(insn->chanspec) != AREF_DIFF)
+		bits |= SE_BIT;
+	// set stop channel
+	writew(CHAN_BITS(CR_CHAN(insn->chanspec)), devpriv->main_iobase + ADC_QUEUE_HIGH_REG);
+	// set start channel, and rest of settings
+	writew(bits, devpriv->main_iobase + ADC_QUEUE_LOAD_REG);
+#endif
+
+	// clear adc buffer
+	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
+
+	// enable interrupts
+	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT;
+	if(cmd->flags & TRIG_WAKE_EOS)
+		bits |= ADC_INTR_EOSCAN_BITS;
+	writew(bits, devpriv->main_iobase + INTR_ENABLE_REG);
+
+	/* set mode, disable software conversion gate */
+	bits = SW_NOGATE_BIT;
+	if(cmd->convert_src == TRIG_EXT)
+		bits |= ADC_MODE_BITS(13);	// good old mode 13
+	else
+		bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
+	writew(bits, devpriv->main_iobase + ADC_CONTROL1_REG);
+
+	/* enable pacing, triggering, etc */
+	bits = ADC_ENABLE_BIT;
+	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
+
+	return 0;
+}
+
+static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
+{
+	return;
+}
+
+static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	return 0;
 }
 
 static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
@@ -762,3 +1022,56 @@ static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 	return 2;
 }
 
+// utility function that rounds desired timing to an achievable time.
+// adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
+static void check_adc_timing(comedi_cmd *cmd)
+{
+	unsigned int convert_divisor, scan_divisor;
+	const int min_convert_divisor = 3;
+	const int max_convert_divisor = 0xffffff + min_convert_divisor;
+	unsigned long long max_scan_divisor, min_scan_divisor;
+
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		convert_divisor = get_divisor(cmd->convert_arg, cmd->flags);
+		if(convert_divisor > max_convert_divisor) convert_divisor = max_convert_divisor;
+		if(convert_divisor < min_convert_divisor) convert_divisor = min_convert_divisor;
+		cmd->convert_arg = convert_divisor * TIMER_BASE;
+
+		if(cmd->scan_begin_src == TRIG_TIMER)
+		{
+			scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
+			min_scan_divisor = convert_divisor * cmd->chanlist_len;
+			max_scan_divisor = min_scan_divisor + 0xffffff;
+			if(scan_divisor > max_scan_divisor) scan_divisor = max_scan_divisor;
+			if(scan_divisor < min_scan_divisor) scan_divisor = min_scan_divisor;
+			cmd->scan_begin_arg = scan_divisor * TIMER_BASE;
+		}
+	}
+
+	return;
+}
+
+/* Gets nearest achievable timing given master clock speed, does not
+ * take into account possible minimum/maximum divisor values.  Used
+ * by other timing checking functions. */
+static unsigned int get_divisor(unsigned int ns, unsigned int flags)
+{
+	unsigned int divisor;
+
+	switch(flags & TRIG_ROUND_MASK)
+	{
+		case TRIG_ROUND_UP:
+			divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
+			break;
+		case TRIG_ROUND_DOWN:
+			divisor = ns / TIMER_BASE;
+			break;
+		case TRIG_ROUND_NEAREST:
+		default:
+			divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
+			break;
+	}
+
+	return divisor;
+}
