@@ -26,7 +26,7 @@
 
 #include <comedi_module.h>
 
-#ifdef CONFIG_8255
+#ifdef CONFIG_COMEDI_8255
 
 int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,void *),void *arg);
 
