@@ -74,17 +74,19 @@ int rt_pend_tq_init(void)
 #endif
 #ifdef CONFIG_COMEDI_RTL
 	rt_pend_tq_irq=rtl_get_soft_irq(rt_pend_irq_handler,"rt_pend_irq");
+#endif
 	if(rt_pend_tq_irq>0) 
 		printk("rt_pend_tq: RT bottom half scheduler initialized OK\n");
 	else
 		printk("rt_pend_tq: rtl_get_soft_irq failed\n");
-#endif
 	return 0;
 }
 
 void rt_pend_tq_cleanup(void)
 {
 	printk("rt_pend_tq: unloading\n");
-	free_irq(rt_pend_tq_irq,NULL);
+#ifdef CONFIG_COMEDI_RTAI
+	rt_free_srq(rt_pend_tq_irq);
+#endif
 }
 

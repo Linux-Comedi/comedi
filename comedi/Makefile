@@ -13,8 +13,8 @@ ifneq ($(CONFIG_COMEDI_KLIB),)
 endif
 
 ifeq ($(CONFIG_COMEDI_RT),y)
-	MOD_SUB_DIRS += realtime rt_pend_tq
-	SUB_DIRS += realtime rt_pend_tq
+	MOD_SUB_DIRS += realtime
+	SUB_DIRS += realtime
 endif
 
 MOD_LIST_NAME := MISC_MODULES
@@ -33,7 +33,7 @@ endif
 
 
 ifeq ($(CONFIG_COMEDI_RT),y)
-MI_OBJS += rt.o
+MI_OBJS += rt.o rt_pend_tq/rt_pend_tq.o
 endif
 
 

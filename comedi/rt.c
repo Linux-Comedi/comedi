@@ -154,18 +154,14 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 	RT_spin_unlock_irq(&dev->spinlock);
 }
 
-#ifdef HAVE_RT_PEND_TQ
 void wake_up_int_handler(int arg1, void * arg2)
 {
 	wake_up_interruptible((wait_queue_head_t*)arg2);
 }
-#endif
 
 void comedi_rt_pend_wakeup(wait_queue_head_t *q)
 {
-#ifdef HAVE_RT_PEND_TQ
 	rt_pend_call(wake_up_int_handler,0,q);
-#endif
 }
 
 
@@ -253,11 +249,13 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 void comedi_rt_init(void)
 {
 	rt_mount_rtai();
+	rt_pend_tq_init();
 }
 
 void comedi_rt_cleanup(void)
 {
 	rt_umount_rtai();
+	rt_pend_tq_cleanup();
 }
 
 #endif
@@ -286,8 +284,15 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 	return 0;
 }
 
-void comedi_rt_init(void) { }
-void comedi_rt_cleanup(void) { }
+void comedi_rt_init(void)
+{
+	rt_pend_tq_init();
+}
+
+void comedi_rt_cleanup(void)
+{
+	rt_pend_tq_cleanup();
+}
 
 #endif
 
