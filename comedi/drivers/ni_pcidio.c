@@ -499,7 +499,7 @@ static int nidio_detach(comedi_device *dev)
 {
 	int i;
 
-	if(!this_board->is_diodaq){
+	if(this_board && !this_board->is_diodaq){
 		for(i=0;i<this_board->n_8255;i++){
 			subdev_8255_cleanup(dev,dev->subdevices+i);
 		}
