@@ -76,9 +76,9 @@ int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
 		return -EINVAL;
 	}
 
-	if( (it.range_type&0xffff) != lr->length){
+	if( RANGE_LENGTH(it.range_type) != lr->length){
 		DPRINTK("wrong length %d should be %d (0x%08x)\n",
-			it.range_type&0xffff,lr->length,it.range_type);
+			RANGE_LENGTH(it.range_type),lr->length,it.range_type);
 		return -EINVAL;
 	}
 
