@@ -1,0 +1,22 @@
+
+Hard-coded config options:
+
+(might be ahead of the code in some cases)
+
+
+CONFIG_COMEDI_MODE_CORE
+
+  This option enables mode support in the core.  If disabled,
+  CONFIG_COMEDI_MODE_INTERFACE and CONFIG_COMEDI_MODE_DRIVER are
+  also disabled.
+
+CONFIG_COMEDI_MODE_DRIVER
+
+  Disabling this option causes drivers not to register mode
+  support.
+
+CONFIG_COMEDI_MODE_INTERFACE
+
+  This option enables the old mode0-4 interface.  If disabled,
+  the mode ioctl is turned off.
+
