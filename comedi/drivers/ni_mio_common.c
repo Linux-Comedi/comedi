@@ -839,16 +839,22 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 
 			/* This may get the hi/lo data in the wrong order */
 			data = (dl>>16) & 0xffff;
+			data += devpriv->ai_offset[ async->cur_chan++ ];
 			err &= comedi_buf_put(s->async, data);
+			async->cur_chan %= async->cmd.chanlist_len;
 			data = dl & 0xffff;
+			data += devpriv->ai_offset[ async->cur_chan++ ];
 			err &= comedi_buf_put(s->async, data);
+			async->cur_chan %= async->cmd.chanlist_len;
 		}
 
 		/* Check if there's a single sample stuck in the FIFO */
 		if( n % 2){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 			data = dl & 0xffff;
+			data += devpriv->ai_offset[ async->cur_chan++ ];
 			err &= comedi_buf_put(s->async, data);
+			async->cur_chan %= async->cmd.chanlist_len;
 		}
 	}else{
 		for(i=0;i<n;i++){
