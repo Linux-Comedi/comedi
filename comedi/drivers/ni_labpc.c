@@ -32,6 +32,9 @@ Configuration options:
   [0] - I/O port base address
   [1] - IRQ (optional, required for timed or externally triggered conversions)
   [2] - DMA channel (optional, required for timed or externally triggered conversions)
+
+Board has quirky chanlist when scanning multiple channels.  Scan sequence must start
+at highest channel, then decrement down to channel 0.
 */
 
 /*
@@ -39,6 +42,7 @@ TODO:
 	command support
 	additional boards
 */
+//XXX stop_src TRIG_EXT is _not_ supported by the hardware, at least not in combination with dma transfers
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -53,6 +57,7 @@ TODO:
 #include <linux/timer.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
+#include <asm/dma.h>
 #include "8253.h"
 #include "8255.h"
 
@@ -63,9 +68,9 @@ TODO:
 
 //write-only registers
 #define COMMAND1_REG	0x0
-#define   ADC_SCAN_EN_BIT	// enables multi channel scans
 #define   ADC_GAIN_BITS(x)	(((x) & 0x7) << 4)
 #define   ADC_CHAN_BITS(x)	((x) & 0x7)
+#define   ADC_SCAN_EN_BIT	80	// enables multi channel scans
 #define COMMAND2_REG	0x1
 #define   PRETRIG_BIT	0x1	// enable pretriggering (used in conjunction with SWTRIG)
 #define   HWTRIG_BIT	0x2	// enable paced conversions on external trigger
@@ -73,19 +78,36 @@ TODO:
 #define   CASCADE_BIT	0x8	// use two cascaded counters for pacing
 #define   DAC_PACED_BIT(channel)	(0x40 << ((channel) & 0x1))
 #define COMMAND3_REG	0x2
+#define   DMA_EN_BIT	0x1	// enable dma transfers
+#define   DIO_INTR_EN_BIT	0x2	// enable interrupts for 8255
+#define   DMATC_INTR_EN_BIT	0x4	// enable dma terminal count interrupt
+#define   TIMER_INTR_EN_BIT	0x8	// enable timer interrupt
+#define   ERR_INTR_EN_BIT	0x10	// enable error interrupt
+#define   FNE_INTR_EN_BIT	0x20	// enable fifo not empty interrupt
 #define ADC_CONVERT_REG	0x3
 #define DAC_LSB_REG(channel)	(0x4 + 2 * ((channel) & 0x1))
 #define DAC_MSB_REG(channel)	(0x5 + 2 * ((channel) & 0x1))
 #define ADC_CLEAR_REG	0x8
 #define DMATC_CLEAR_REG	0xa
+#define TIMER_CLEAR_REG	0xc
 #define COMMAND4_REG            0xf
+#define   EXT_SCAN_MASTER_EN_BIT	0x1	// enables 'interval' scanning
+#define   EXT_SCAN_EN_BIT	0x2	// enables external signal on counter b1 output to trigger scan
+#define   EXT_CONVERT_OUT_BIT	0x4	// chooses direction (output or input) for EXTCONV* line
+#define   ADC_DIFF_BIT	0x8	// chooses differential inputs for adc (in conjunction with board jumper)
+#define   EXT_CONVERT_DISABLE_BIT	0x10
 #define INTERVAL_COUNT_REG	0x1e
 #define INTERVAL_LOAD_REG	0x1f
 
 // read-only registers
 #define STATUS_REG	0x0
-#define   DATA_AVAIL_BIT	0x1
-#define   NOT_PCPLUS_BIT	0x80
+#define   DATA_AVAIL_BIT	0x1	// data is available in fifo
+#define   OVERRUN_BIT	0x2	// overrun has occurred
+#define   OVERFLOW_BIT	0x4	// fifo overflow
+#define   TIMER_BIT	0x8	// timer interrupt has occured
+#define   DMATC_BIT	0x10	// dma terminal count has occured
+#define   EXT_TRIG_BIT	0x40	// external trigger has occured
+#define   NOT_PCPLUS_BIT	0x80	// no a lab-pc+
 #define ADC_FIFO_REG	0xa
 
 #define DIO_BASE_REG	0x10
@@ -146,6 +168,9 @@ static labpc_board labpc_boards[] =
  */
 #define thisboard ((labpc_board *)dev->board_ptr)
 
+static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
+const int sample_size = 2;	// 2 bytes per sample
+
 typedef struct{
 	volatile unsigned int count;  /* number of data points left to be taken */
 	unsigned int ao_value[2];	// software copy of analog output values
@@ -154,8 +179,11 @@ typedef struct{
 	unsigned int command2_bits;
 	unsigned int command3_bits;
 	unsigned int command4_bits;
-	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
-	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
+	unsigned int divisor1;	/* value to load into board's counter a0 for timed conversions */
+	unsigned int divisor2; 	/* value to load into board's counter b0 for timed conversions */
+	unsigned int dma_chan;	// dma channel to use
+	u16 *dma_buffer;	// buffer ai will dma into
+	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
 }labpc_private;
 
 #define devpriv ((labpc_private *)dev->private)
@@ -169,6 +197,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 
 static comedi_driver driver_labpc={
 	driver_name:	"ni_labpc",
@@ -189,109 +218,113 @@ COMEDI_INITCLEANUP(driver_labpc);
 /* interrupt service routine */
 static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-#if 0
-	short i;		/* loop index */
-	sampl_t dataPoint = 0;
-	comedi_device *dev = d;
-	comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
-	comedi_async *async;
+	int i;
 	int status;
-	unsigned long irq_flags;
-	static const int max_loops = 128;	// half-fifo size for cio-das802/16
-	// flags
-	int fifo_empty = 0;
-	int fifo_overflow = 0;
+	unsigned long flags;
+	comedi_device *dev = d;
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async;
+	unsigned int max_points, num_points, residue, leftover;
 
-	status = inb(dev->iobase + DAS800_STATUS);
-	/* if interrupt was not generated by board or driver not attached, quit */
-	if(!(status & IRQ) || !(dev->attached))
+// XXX deal with stop_src TRIG_EXT
+
+	if(dev->attached == 0)
 	{
+		comedi_error(dev, "premature interrupt");
 		return;
 	}
-
-	/* wait until here to initialize async, since we will get null dereference
-	 * if interrupt occurs before driver is fully attached!
-	 */
+	// initialize async here to make sure s is not NULL
 	async = s->async;
+	async->events = 0;
 
-	// if hardware conversions are not enabled, then quit
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be STATUS2 register */
-	status = inb(dev->iobase + DAS800_STATUS2) & STATUS2_HCEN;
-	/* don't release spinlock yet since we want to make sure noone else disables hardware conversions */
-	if(status == 0)
+	status = inb(dev->iobase + STATUS_REG);
+
+	if((status & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT | OVERRUN_BIT /*| DATA_AVAIL_BIT*/)) == 0)
 	{
-		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+		comedi_error(dev, "spurious interrupt");
 		return;
 	}
 
-	/* loop while card's fifo is not empty (and limit to half fifo for cio-das802/16) */
-	for(i = 0; i < max_loops; i++)
+	if(status & OVERRUN_BIT)
 	{
-		/* read 16 bits from dev->iobase and dev->iobase + 1 */
-		dataPoint = inb(dev->iobase + DAS800_LSB);
-		dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
-		if(thisboard->resolution == 12)
-		{
-			fifo_empty = dataPoint & FIFO_EMPTY;
-			fifo_overflow = dataPoint & FIFO_OVF;
-			if(fifo_overflow) break;
-		}else
-		{
-			fifo_empty = 0;	// cio-das802/16 has no fifo empty status bit
-		}
-		if(fifo_empty)
-		{
-			break;
-		}
-		/* strip off extraneous bits for 12 bit cards*/
-		if(thisboard->resolution == 12)
-			dataPoint = (dataPoint >> 4) & 0xfff;
-		/* if there are more data points to collect */
-		if(devpriv->count > 0 || devpriv->forever == 1)
-		{
-			/* write data point to buffer */
-			comedi_buf_put(async, dataPoint);
-			if(devpriv->count > 0) devpriv->count--;
-		}
-	}
-	async->events |= COMEDI_CB_BLOCK;
-	/* check for fifo overflow */
-	if(thisboard->resolution == 12)
-	{
-		fifo_overflow = dataPoint & FIFO_OVF;
-	// else cio-das802/16
-	}else
-	{
-		fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
-	}
-	if(fifo_overflow)
-	{
-		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		comedi_error(dev, "DAS800 FIFO overflow");
-		das800_cancel(dev, dev->subdevices + 0);
+		// clear error interrupt
+		outb(0x1, dev->iobase + ADC_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_event(dev, s, async->events);
-		async->events = 0;
+		comedi_error(dev, "overrun");
 		return;
 	}
-	if(devpriv->count > 0 || devpriv->forever == 1)
+
+	if(status & DMATC_BIT)
 	{
-		/* Re-enable card's interrupt.
-		 * We already have spinlock, so indirect addressing is safe */
-		outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
-		outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
-	/* otherwise, stop taking data */
-	} else
-	{
-		disable_das800(dev);		/* diable hardware triggered conversions */
-		async->events |= COMEDI_CB_EOA;
+		flags = claim_dma_lock();
+		disable_dma(devpriv->dma_chan);
+		/* clear flip-flop to make sure 2-byte registers for
+		* count and address get set correctly */
+		clear_dma_ff(devpriv->dma_chan);
+
+		// figure out how many points to read
+		max_points = devpriv->dma_transfer_size  / sample_size;
+		/* residue is the number of points left to be done on the dma
+		* transfer.  It should always be zero at this point unless
+		* the stop_src is set to external triggering.
+		*/
+		residue = get_dma_residue(devpriv->dma_chan) / sample_size;
+		num_points = max_points - residue;
+		if(devpriv->count < num_points &&
+			async->cmd.stop_src == TRIG_COUNT)
+			num_points = devpriv->count;
+
+		// figure out how many points will be stored next time
+		leftover = 0;
+		if(async->cmd.stop_src != TRIG_COUNT)
+		{
+			leftover = devpriv->dma_transfer_size / sample_size;
+		}else if(devpriv->count > num_points)
+		{
+			leftover = devpriv->count - num_points;
+			if(leftover > max_points)
+				leftover = max_points;
+		}
+
+		for(i = 0; i < num_points; i++)
+		{
+			/* write data point to comedi buffer */
+			comedi_buf_put(async, devpriv->dma_buffer[i]);
+			if(async->cmd.stop_src == TRIG_COUNT) devpriv->count--;
+		}
+		// re-enable  dma
+		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+		set_dma_count(devpriv->dma_chan, leftover * sample_size);
+		enable_dma(devpriv->dma_chan);
+		release_dma_lock(flags);
+
+		async->events |= COMEDI_CB_BLOCK;
+
+		if(devpriv->count == 0)
+		{	/* end of acquisition */
+			labpc_cancel(dev, s);
+			async->events |= COMEDI_CB_EOA;
+		}
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+
+	if(status & TIMER_BIT)
+	{
+		comedi_error(dev, "handled timer interrupt?");
+		// clear it
+		outb(0x1, dev->iobase + TIMER_CLEAR_REG);
+	}
+
+	if(status & OVERFLOW_BIT)
+	{
+		// clear error interrupt
+		outb(0x1, dev->iobase + ADC_CLEAR_REG);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_error(dev, "overflow");
+		return;
+	}
+
 	comedi_event(dev, s, async->events);
-	async->events = 0;
-	return;
-#endif
 }
 
 static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
@@ -303,6 +336,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	int status;
 	int lsb, msb;
 	int i;
+	unsigned long flags;
 
 	printk("comedi%d: ni_labpc: io 0x%x", dev->minor, iobase);
 	if(irq)
@@ -363,6 +397,32 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	dev->irq = irq;
 
+	// grab dma channel
+	if(dma_chan < 0 || dma_chan > 3)
+	{
+		printk(" invalid dma channel\n");
+		return -EINVAL;
+	}else if(dma_chan)
+	{
+		// allocate dma buffer
+		devpriv->dma_buffer = kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
+		if(devpriv->dma_buffer == NULL)
+		{
+			printk(" failed to allocate dma buffer\n");
+			return -ENOMEM;
+		}
+		if(request_dma(dma_chan, driver_labpc.driver_name))
+		{
+			printk(" failed to allocate dma channel %i\n", dma_chan);
+			return -EINVAL;
+		}
+		devpriv->dma_chan = dma_chan;
+		flags = claim_dma_lock();
+		disable_dma(devpriv->dma_chan);
+		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
+		release_dma_lock(flags);
+	}
+
 	dev->board_name = thisboard->name;
 
 	dev->n_subdevices = 3;
@@ -386,8 +446,9 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	/* analog output */
 	s = dev->subdevices + 1;
-/* XXX could provide command support, except it doesn't seem to have a hardware
- * buffer for analog output so speed would be very limited unless using RT interrupt */
+/* XXX could provide command support, except it doesn't have a hardware
+ * buffer for analog output and no underrun flag so speed would be very
+ * limited unless using RT interrupt */
 	s->type=COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
 	s->n_chan = 2;
@@ -421,6 +482,8 @@ static int labpc_detach(comedi_device *dev)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);
 
 	/* only free stuff if it has been allocated by _attach */
+	if(devpriv->dma_buffer)
+		kfree(devpriv->dma_buffer);
 	if(dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
 	if(dev->irq)
@@ -437,10 +500,9 @@ static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 
 static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
-#if 0
 	int err = 0;
 	int tmp;
-	int gain, startChan;
+	int gain;
 	int i;
 
 	/* step 1: make sure trigger sources are trivially valid */
@@ -450,7 +512,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	if(!cmd->start_src || tmp != cmd->start_src) err++;
 
 	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
+	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_EXT;
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
@@ -462,7 +524,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
 	if(!cmd->stop_src || tmp!=cmd->stop_src) err++;
 
 	if(err) return 1;
@@ -471,16 +533,23 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 	if(cmd->start_src != TRIG_NOW &&
 		cmd->start_src != TRIG_EXT) err++;
+	if(cmd->scan_begin_src != TRIG_FOLLOW &&
+	   cmd->scan_begin_src != TRIG_EXT) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
 	   cmd->convert_src != TRIG_EXT) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
+		cmd->stop_src != TRIG_EXT &&
 		cmd->stop_src != TRIG_NONE) err++;
+
+	// can't have external stop and start triggers at once
+	if(cmd->start_src == TRIG_EXT &&
+		cmd->stop_src == TRIG_EXT) err++;
 
 	if(err)return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg != 0)
+	if(cmd->start_arg == TRIG_NOW && cmd->start_arg != 0)
 	{
 		cmd->start_arg = 0;
 		err++;
@@ -495,7 +564,6 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	}
 	if(!cmd->chanlist_len)
 	{
-		cmd->chanlist_len = 1;
 		err++;
 	}
 	if(cmd->scan_end_arg != cmd->chanlist_len)
@@ -503,20 +571,27 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src == TRIG_COUNT)
+
+	// stop source
+	switch(cmd->stop_src)
 	{
-		if(!cmd->stop_arg)
-		{
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else
-	{ /* TRIG_NONE */
-		if(cmd->stop_arg != 0)
-		{
-			cmd->stop_arg = 0;
-			err++;
-		}
+		case TRIG_COUNT:
+			if(!cmd->stop_arg)
+			{
+				cmd->stop_arg = 1;
+				err++;
+			}
+			break;
+		case TRIG_NONE:
+			if(cmd->stop_arg != 0)
+			{
+				cmd->stop_arg = 0;
+				err++;
+			}
+			break;
+		// TRIG_EXT doesn't care since it doesn't trigger of a numbered channel
+		default:
+			break;
 	}
 
 	if(err)return 3;
@@ -527,22 +602,21 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	{
 		tmp = cmd->convert_arg;
 		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
 		if(tmp != cmd->convert_arg) err++;
 	}
 
 	if(err)return 4;
 
 	// check channel/gain list against card's limitations
-	if(cmd->chanlist)
+	if(cmd->chanlist && cmd->chanlist_len > 1)
 	{
 		gain = CR_RANGE(cmd->chanlist[0]);
-		startChan = CR_CHAN(cmd->chanlist[0]);
 		for(i = 1; i < cmd->chanlist_len; i++)
 		{
-			if(CR_CHAN(cmd->chanlist[i]) != (startChan + i) % N_CHAN_AI)
+			if(CR_CHAN(cmd->chanlist[i]) != cmd->chanlist_len - i - 1)
 			{
-				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+				comedi_error(dev, "entries in multiple channel chanlist must start high then decrement down to channel 0.\n");
 				err++;
 			}
 			if(CR_RANGE(cmd->chanlist[i]) != gain)
@@ -555,89 +629,160 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 	if(err)return 5;
 
-#endif
 	return 0;
 }
 
 static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 {
-#if 0
-	int startChan, endChan, scan, gain;
-	int conv_bits;
+	int endChan, range;
 	unsigned long irq_flags;
+	int ret;
 	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 
 	if(!dev->irq)
 	{
-		comedi_error(dev, "no irq assigned for das-800, cannot do hardware conversions");
+		comedi_error(dev, "no irq assigned, cannot perform command");
 		return -1;
 	}
 
-	disable_das800(dev);
-
-	/* set channel scan limits */
-	startChan = CR_CHAN(async->cmd.chanlist[0]);
-	endChan = (startChan + async->cmd.chanlist_len - 1) % 8;
-	scan = (endChan << 3) | startChan;
-
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(SCAN_LIMITS, dev->iobase + DAS800_GAIN);	/* select base address + 2 to be scan limits register */
-	outb(scan, dev->iobase + DAS800_SCAN_LIMITS); /* set scan limits */
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
-	/* set gain */
-	gain = CR_RANGE(async->cmd.chanlist[0]);
-	if( thisboard->resolution == 12 && gain > 0)
-		gain += 0x7;
-	gain &= 0xf;
-	outb(gain, dev->iobase + DAS800_GAIN);
-
-	switch(async->cmd.stop_src)
+	if(!devpriv->dma_chan)
 	{
-		case TRIG_COUNT:
-			devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
-			devpriv->forever = 0;
-			break;
-		case TRIG_NONE:
-			devpriv->forever = 1;
-			devpriv->count = 0;
-			break;
-		default :
-			break;
+		comedi_error(dev, "no dma channel assigned, cannot perform command");
+		return -1;
 	}
 
-	/* enable auto channel scan, send interrupts on end of conversion
-	 * and set clock source to internal or external
-	 */
-	conv_bits = 0;
-	conv_bits |= EACS | IEOC;
-	if(async->cmd.start_src == TRIG_EXT)
-		conv_bits |= DTEN;
-	switch(async->cmd.convert_src)
+	if(cmd->flags & TRIG_RT)
 	{
-		case TRIG_TIMER:
-			conv_bits |= CASC | ITE;
-			/* set conversion frequency */
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(async->cmd.convert_arg), async->cmd.flags & TRIG_ROUND_MASK);
-			if(das800_set_frequency(dev) < 0)
-			{
-				comedi_error(dev, "Error setting up counters");
-				return -1;
-			}
-			break;
+		comedi_error(dev, "ISA DMA is unsafe at RT priority (TRIG_RT flag), aborting");
+		return -1;
+	}
+
+	// make sure board is disabled before setting up aquisition
+	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
+	outb(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	devpriv->command3_bits = 0;
+	outb(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+
+	/* setup channel list, etc (command1 register) */
+	devpriv->command1_bits = 0;
+	endChan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	devpriv->command1_bits |= ADC_CHAN_BITS(endChan);
+	range = CR_RANGE(cmd->chanlist[0]);
+	devpriv->command1_bits |= ADC_GAIN_BITS(range);
+	outb(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	// manual says to set scan enable bit on second pass
+	if(cmd->chanlist_len > 1)
+	{
+		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
+		outb(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	}
+
+	// setup any external triggering/pacing (command4 register)
+	devpriv->command4_bits = 0;
+	if(cmd->convert_src != TRIG_EXT)
+		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
+	if(cmd->scan_begin_src == TRIG_EXT)
+		devpriv->command4_bits |= EXT_SCAN_MASTER_EN_BIT | EXT_SCAN_EN_BIT;
+	// single-ended/differential
+	if(CR_AREF(cmd->chanlist[0]) == AREF_DIFF)
+		devpriv->command4_bits |= ADC_DIFF_BIT;
+	outb(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
+//XXX interval counter register for single channel
+
+	// initialize software conversion count
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
+	}
+
+	// set up conversion pacing
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		/* set conversion frequency */
+		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor1),
+			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+		// load counter b0 in mode 2 (manual says mode 3 but I don't see any reason)
+		ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 0, devpriv->divisor2, 2);
+		if(ret < 0)
+		{
+			comedi_error(dev, "error loading counter");
+			return -1;
+		}
+		// load counter a0 in mode 2
+		ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 0, devpriv->divisor1, 2);
+		if(ret < 0)
+		{
+			comedi_error(dev, "error loading counter");
+			return -1;
+		}
+	}
+
+	// clear adc fifo
+	outb(0x1, dev->iobase + ADC_CLEAR_REG);
+	inb(dev->iobase + ADC_FIFO_REG);
+	inb(dev->iobase + ADC_FIFO_REG);
+
+	// set up dma transfer
+	irq_flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma_chan);
+	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+	// set appropriate size of transfer
+	devpriv->dma_transfer_size = labpc_suggest_transfer_size(*cmd);
+	if(cmd->stop_src == TRIG_COUNT &&
+		devpriv->count * sample_size < devpriv->dma_transfer_size)
+	{
+		devpriv->dma_transfer_size = devpriv->count * sample_size;
+	}
+	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+ 	enable_dma(devpriv->dma_chan);
+	release_dma_lock(irq_flags);
+
+	// enable board's dma and interrupts
+	devpriv->command3_bits |= DMA_EN_BIT | DMATC_INTR_EN_BIT | ERR_INTR_EN_BIT;
+	// disable fifo not empty interrupt
+	devpriv->command3_bits &= ~FNE_INTR_EN_BIT;
+	outb(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+
+// XXX setup counter a1 for external stop trigger, or just to prevent it from messing us up
+
+	// startup aquisition
+
+	// command2 reg
+	// use 2 cascaded counters for pacing
+	devpriv->command2_bits |= CASCADE_BIT;
+	switch(cmd->start_src)
+	{
 		case TRIG_EXT:
+			devpriv->command2_bits |= HWTRIG_BIT;
+			devpriv->command2_bits &= ~PRETRIG_BIT & SWTRIG_BIT;
+			break;
+		case TRIG_NOW:
+			devpriv->command2_bits |= SWTRIG_BIT;
+			devpriv->command2_bits &= ~PRETRIG_BIT & ~HWTRIG_BIT;
 			break;
 		default:
+			comedi_error(dev, "bug with start_src");
+			return -1;
 			break;
 	}
+	switch(cmd->stop_src)
+	{
+		case TRIG_EXT:
+			devpriv->command2_bits |= HWTRIG_BIT | PRETRIG_BIT;
+			break;
+		case TRIG_COUNT:
+		case TRIG_NONE:
+			break;
+		default:
+			comedi_error(dev, "bug with stop_src");
+			return -1;
+	}
+	outb(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
-	outb(conv_bits, dev->iobase + DAS800_CONV_CONTROL);
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-	async->events = 0;
-	enable_das800(dev);
-#endif
 	return 0;
 }
 
@@ -668,6 +813,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 
 	// XXX init counter a0 to high state
 
+	//XXX command4 set se/diff
 	// clear adc fifo
 	outb(0x1, dev->iobase + ADC_CLEAR_REG);
 	inb(dev->iobase + ADC_FIFO_REG);
@@ -732,4 +878,35 @@ static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
+}
+
+// utility function that suggests a dma transfer size in bytes
+static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
+{
+	unsigned int size;
+	unsigned int freq;
+
+	if(cmd.convert_src == TRIG_TIMER)
+		freq = 1000000000 / cmd.convert_arg;
+	// return some default value
+	else
+		freq = 0xffffffff;
+
+	// XXX this is a hack I should use pio from TRIG_WAKE_EOS
+	if(cmd.flags & TRIG_WAKE_EOS)
+	{
+		size = sample_size * cmd.chanlist_len;
+	}else
+	{
+		// make buffer fill in no more than 1/3 second
+		size = (freq / 3) * sample_size;
+	}
+
+	// set a minimum and maximum size allowed
+	if(size > dma_buffer_size)
+		size = dma_buffer_size - dma_buffer_size % sample_size;
+	else if(size < sample_size)
+		size = sample_size;
+
+	return size;
 }
