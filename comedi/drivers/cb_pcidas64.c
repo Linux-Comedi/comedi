@@ -28,36 +28,39 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-************************************************************************
-*/
+************************************************************************/
+
 /*
+
 Driver: cb_pcidas64.o
 Description: Driver for the ComputerBoards/MeasurementComputing
-  PCI-DAS64xxx series with the PLX 9080 PCI controller.
+   PCI-DAS64xxx series with the PLX 9080 PCI controller.
 Author: Frank Mori Hess <fmhess@uiuc.edu>
 Status: Experimental
 Updated: 2001-8-27
-
 Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
+   [0] - PCI bus of device (optional)
+   [1] - PCI slot of device (optional)
 
 Basic insn support should work, but untested as far as I know.
-  Feel free to send and success/failure reports to author.  No
-  command support yet.
+Has command support for analog input, which may also work.  Still
+needs dma support to be added to support very fast aquisition rates.
+This driver is in need of stout-hearted testers who aren't afraid to
+crash their computers in the name of progress.
+Feel free to send and success/failure reports to author.
+
 */
+
 /*
-STATUS:
-	insn supported
 
 TODO:
-	command support
+	command support for ao
+	pci-dma support
 	calibration subdevice
 	user counter subdevice
 	there are a number of boards this driver will support when they are
 		fully released, but does not since yet since the pci device id numbers
 		are not yet available.
-	add plx9080 stuff to make interrupts and dma work
 	need to take care to prevent ai and ao from affecting each others register bits
 	support prescaled 100khz clock for slow pacing
 */
@@ -88,6 +91,7 @@ TODO:
 #define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 25	// 40MHz master clock
 #define PRESCALED_TIMER_BASE	10000	// 100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday
+#define QUARTER_AI_FIFO_SIZE 2048	// 1/4 analog input fifo size
 
 /* PCI-DAS64xxx base addresses */
 
@@ -127,6 +131,7 @@ TODO:
 #define    ADC_EXT_CONV_FALLING_BIT	0x800	// external pacing uses falling edge
 #define    ADC_ENABLE_BIT	0x8000	// master adc enable
 #define ADC_CONTROL1_REG	0x12	// adc control register 1
+#define    ADC_CONTROL1_DUMMY_BITS	0x1	// dummy bits for adc control register 1
 #define    SW_NOGATE_BIT	0x40	// disables software gate of adc
 #define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
 #define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
@@ -155,12 +160,23 @@ TODO:
 #define DAC_BUFFER_CLEAR_REG 0x66	// clear dac buffer
 #define DAC_CONVERT_REG(channel)	((0x70) + (2 * ((channel) & 0x1)))
 // read-only
-#define HW_STATUS_REG	0x0
-#define   ADC_BUSY_BIT	0x8
+#define HW_STATUS_REG	0x0	// hardware status register, reading this apparently clears pending interrupts as well
+#define   DAC_UNDERRUN_BIT	0x1
+#define   ADC_OVERRUN_BIT 0x2
+#define   DAC_ACTIVE_BIT	0x4
+#define   ADC_ACTIVE_BIT	0x8
+#define   DAC_INTR_PENDING_BIT	0x10
+#define   ADC_INTR_PENDING_BIT	0x20
+#define   DAC_DONE_BIT	0x40
+#define   ADC_DONE_BIT	0x80
+#define   EXT_INTR_PENDING_BIT	0x100
+#define   ADC_STOP_BIT	0x200
+#define   PIPE_FULL_BIT(x)	(0x400 << ((x) & 0x1))
 #define   HW_REVISION(x)	(((x) >> 12) & 0xf)
 #define PIPE1_READ_REG	0x4
 // read-write
 #define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
+#define ADC_FIFO_REG 0x200	// adc data fifo
 
 // devpriv->dio_counter_iobase registers
 #define DIO_8255_OFFSET	0x0
@@ -519,7 +535,7 @@ found:
 		return -EIO;
 	}
 
-	request_mem_region(plx9080_iobase, PLX9080_IOSIZE, "cb_pcidas64");
+	request_mem_region(plx_iobase, PLX9080_IOSIZE, "cb_pcidas64");
 	devpriv->plx9080_phys_iobase = dio_counter_iobase;
 	request_mem_region(main_iobase, MAIN_IOSIZE, "cb_pcidas64");
 	devpriv->main_phys_iobase = dio_counter_iobase;
@@ -536,13 +552,13 @@ found:
 	devpriv->hw_revision = HW_REVISION(readw(devpriv->main_iobase + HW_STATUS_REG));
 
 	// get irq
-/*	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
+	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
 	{
 		printk(" unable to allocate irq %d\n", pcidev->irq);
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
-*/
+
 #ifdef PCIDAS64_DEBUG
 
 printk(" plx9080 phys io addr 0x%lx\n", devpriv->plx9080_phys_iobase);
@@ -590,9 +606,9 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &ai_ranges;
 	s->insn_read = ai_rinsn;
-	//s->do_cmd = ai_cmd;
-	//s->do_cmdtest = ai_cmdtest;
-	//s->cancel = ai_cancel;
+	s->do_cmd = ai_cmd;
+	s->do_cmdtest = ai_cmdtest;
+	s->cancel = ai_cancel;
 
 	/* analog output subdevice */
 	s = dev->subdevices + 1;
@@ -696,7 +712,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 
 	/* disable pacing, triggering, etc */
 	writew(ADC_ENABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
-	writew(0, devpriv->main_iobase + ADC_CONTROL1_REG);
+	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	// use internal queue
 	writew(HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
@@ -728,7 +744,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// wait for data
 		for(i = 0; i < timeout; i++)
 		{
-			if(!(readw(devpriv->main_iobase + HW_STATUS_REG) & ADC_BUSY_BIT))
+			if(!(readw(devpriv->main_iobase + HW_STATUS_REG) & ADC_ACTIVE_BIT))
 				break;
 		}
 		if(i == timeout)
@@ -788,7 +804,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 
 	// compatibility check
 	if(cmd->convert_src == TRIG_EXT &&
-		cmd->scan_begin_src == TRIG_TIMER)
+		cmd->scan_begin_src == TRIG_TIMER)
 		err++;
 
 	if(err) return 2;
@@ -807,9 +823,9 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 			cmd->convert_arg = thisboard->ai_speed;
 			err++;
 		}
-		if(cmd->scan_begin_src == TRIG_TIMER)
+		if(cmd->scan_begin_src == TRIG_TIMER)
 		{
-			// if scans are timed faster than conversion rate allows
+			// if scans are timed faster than conversion rate allows
 			if(cmd->convert_arg * cmd->chanlist_len > cmd->scan_begin_arg)
 			{
 				cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
@@ -905,7 +921,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* disable pacing, triggering, etc */
 	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
-	writew(0, devpriv->main_iobase + ADC_CONTROL1_REG);
+	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	// use external queue
 	writew(EXT_QUEUE | HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
@@ -927,7 +943,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		if(cmd->convert_src == TRIG_TIMER)
 		{
 			// figure out how long we need to delay at end of scan
-			scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * cmd->chanlist_len))
+			scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * (cmd->chanlist_len - 1)))
 				/ TIMER_BASE;
 			// load lower 16 bits
 			writew(scan_counter_value & 0xffff, devpriv->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
@@ -971,10 +987,19 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT;
 	if(cmd->flags & TRIG_WAKE_EOS)
 		bits |= ADC_INTR_EOSCAN_BITS;
+	else
+		bits |= ADC_INTR_QFULL_BITS;	// for clairity only, since quarter-full bits are zero
 	writew(bits, devpriv->main_iobase + INTR_ENABLE_REG);
+	// enable interrupts on plx 9080 XXX enabling more interrupt sources than are actually used
+	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E;
+	writel(bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+
+	// disable dma for now XXX
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
 
 	/* set mode, disable software conversion gate */
-	bits = SW_NOGATE_BIT;
+	bits = ADC_CONTROL1_DUMMY_BITS | SW_NOGATE_BIT;
 	if(cmd->convert_src == TRIG_EXT)
 		bits |= ADC_MODE_BITS(13);	// good old mode 13
 	else
@@ -993,11 +1018,102 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 {
+#ifdef PCIDAS64_DEBUG
+#endif
+	comedi_device *dev = d;
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int num_samples = 0;
+	unsigned int i;
+	u16 data;
+	unsigned int status;
+	u32 plx_status;
+	u32 plx_bits;
+#ifdef PCIDAS64_DEBUG
+	static unsigned int intr_count = 0;
+	const int debug_count = 10;
+#endif
+
+	status = readw(devpriv->main_iobase + HW_STATUS_REG);
+	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	if((status &
+		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
+		DAC_INTR_PENDING_BIT | DAC_DONE_BIT | EXT_INTR_PENDING_BIT)) == 0 &&
+		(plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA)) == 0)
+	{
+#ifdef PCIDAS64_DEBUG
+		rt_printk(" cb_pcidas64 spurious interrupt");
+#endif
+		return;
+	}
+#ifdef PCIDAS64_DEBUG
+	intr_count++;
+	if(intr_count < debug_count)
+	{
+		rt_printk(" cb_pcidas64 interrupt status 0x%x\n", status);
+		rt_printk(" plx status 0x%x\n", plx_status);
+	}
+#endif
+
+	async->events = 0;
+
+	// if interrupt was due to analog input data being available
+	if(status & ADC_INTR_PENDING_BIT)
+	{
+		// figure out how many samples we should read from board's fifo
+		/* XXX should use ADC read/write pointer registers to figure out
+		 * how many samples are actually in fifo */
+		if(cmd->flags & TRIG_WAKE_EOS)
+			num_samples = cmd->chanlist_len;
+		else
+			num_samples = QUARTER_AI_FIFO_SIZE;
+		// read samples
+		for(i = 0; i < num_samples; i++)
+		{
+			data = readw(devpriv->main_iobase + ADC_FIFO_REG);
+			comedi_buf_put(async, data);
+		}
+		async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	}
+
+	// clear possible plx9080 interrupt sources
+	if(plx_status & ICS_LDIA)
+	{ // clear local doorbell interrupt
+		plx_bits = readl(devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
+		writel(plx_bits, devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
+#ifdef PCIDAS64_DEBUG
+		if(intr_count < debug_count)
+			rt_printk(" cleared local doorbell bits 0x%x\n", plx_bits);
+#endif
+	}
+	if(plx_status & ICS_DMA0_A)
+	{	// dma chan 0 interrupt
+		writeb(PLX_CLEAR_DMA_INTR_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+#ifdef PCIDAS64_DEBUG
+		if(intr_count < debug_count)
+			rt_printk(" cleared dma ch0 interrupt\n");
+#endif
+	}
+	if(plx_status & ICS_DMA1_A)
+	{	// dma chan 1 interrupt
+		writeb(PLX_CLEAR_DMA_INTR_BIT, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+#ifdef PCIDAS64_DEBUG
+		if(intr_count < debug_count)
+			rt_printk(" cleared dma ch1 interrupt\n");
+#endif
+	}
+
+	comedi_event(dev, s, async->events);
 	return;
 }
 
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	/* disable pacing, triggering, etc */
+	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
+	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
+
 	return 0;
 }
 
@@ -1080,13 +1196,16 @@ static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 	return 2;
 }
 
-// utility function that rounds desired timing to an achievable time.
-// adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
+/* utility function that rounds desired timing to an achievable time, and
+ * sets cmd members appropriately.
+ * adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
+ */
 static void check_adc_timing(comedi_cmd *cmd)
 {
 	unsigned int convert_divisor, scan_divisor;
+	const int max_counter_value = 0xffffff;	// board uses 24 bit counters for pacing
 	const int min_convert_divisor = 3;
-	const int max_convert_divisor = 0xffffff + min_convert_divisor;
+	const int max_convert_divisor = max_counter_value + min_convert_divisor;
 	unsigned long long max_scan_divisor, min_scan_divisor;
 
 	if(cmd->convert_src == TRIG_TIMER)
@@ -1099,8 +1218,9 @@ static void check_adc_timing(comedi_cmd *cmd)
 		if(cmd->scan_begin_src == TRIG_TIMER)
 		{
 			scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
+			// XXX check for integer overflows
 			min_scan_divisor = convert_divisor * cmd->chanlist_len;
-			max_scan_divisor = min_scan_divisor + 0xffffff;
+			max_scan_divisor = (convert_divisor * cmd->chanlist_len - 1) + max_counter_value;
 			if(scan_divisor > max_scan_divisor) scan_divisor = max_scan_divisor;
 			if(scan_divisor < min_scan_divisor) scan_divisor = min_scan_divisor;
 			cmd->scan_begin_arg = scan_divisor * TIMER_BASE;

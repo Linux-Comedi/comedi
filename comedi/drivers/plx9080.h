@@ -179,6 +179,8 @@
 #define PLX_DMA0_DESCRIPTOR_REG	0x90	// descriptor pointer register
 
 #define PLX_DMA0_CS_REG	0xa8	// command status register
+#define PLX_DMA1_CS_REG	0xa9
+#define  PLX_CLEAR_DMA_INTR_BIT	0x8
 
 #define PLX_DMA0_THRESHOLD_REG	0xb0	// command status register
 
