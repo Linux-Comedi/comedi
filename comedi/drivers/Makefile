@@ -29,7 +29,7 @@ obj-$(CONFIG_COMEDI_DT2817)		+= dt2817.o
 obj-$(CONFIG_COMEDI_DT282x)		+= dt282x.o
 obj-$(CONFIG_COMEDI_DT3000)		+= dt3000.o
 
-obj-$(CONFIG_COMEDI_II_PCI20KC)		+= ii_pci2kc.o
+obj-$(CONFIG_COMEDI_II_PCI20KC)		+= ii_pci20kc.o
 
 obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
 
