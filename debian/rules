@@ -6,27 +6,40 @@
 # architecture-dependant package, as well as an architecture-independent
 # package.
 
+#p_mod=comedi-modules-$(KVERS)
+p_mod=comedi-modules
+d_mod=debian/$(p_mod)
 
 kdist_image:	checkroot
 	$(RM) debian/files
-	for CONFLOC in ~/.kernel-pkg.conf /etc/kernel-pkg.conf; \
-	do test -f $$CONFLOC && break; done; \
-	 $(MAKE) -f debian/rules \
-	  MOD_DIR=$(KSRC) CONFLOC=$$CONFLOC \
-	  clean-modules binary-modules
+	yes "" | ./configure --linuxdir $(KSRC) --non-interactive --reconf
+	$(MAKE)
+	$(RM) -rf $(d_mod)
+	install -d $(d_mod) $(d_mod)/DEBIAN
+	install -d "$(d_mod)/usr/share/doc/$(p_mod)"
+	install debian/comedi-modules.postinst $(d_mod)/DEBIAN/postinst
+	install debian/comedi-modules.prerm $(d_mod)/DEBIAN/prerm
+	$(MAKE) INSTALL_MOD_PATH=`pwd`/$(d_mod) install
+	install -m644 debian/changelog \
+	  $(d_mod)/usr/share/doc/$(p_mod)/changelog.Debian
+	gzip -9v $(d_mod)/usr/share/doc/$(p_mod)/*
+	install -m644 debian/copyright \
+	  $(d_mod)/usr/share/doc/$(p_mod)/copyright
+	chown -R root.root $(d_mod)
+	chmod -R g-ws $(d_mod)
+	dpkg-gencontrol -p$(p_mod) -P$(d_mod) -isp
+	dpkg-deb --build $(d_mod) $(KSRC)/..
 
 kdist_changes:
 
 kdist_configure:
-	./configure --linuxdir $(KSRC)
 	
 kdist: kdist_image
-	KSRC="$(KSRC)" KMAINT="$(KMAINT)" KEMAIL="$(KEMAIL)" \
-	 sh -v debian/genchanges.sh
+	#$(RM) -r $(d_mod)
 
 kdist_clean clean:
 	$(MAKE) distclean
-	$(RM) -r debian/tmp debian/src debian/*~ \
+	$(RM) -r debian/tmp $(d_mod) debian/src debian/*~ \
 	  debian/files debian/control.tmp debian/substvars
 
 build:
@@ -34,28 +47,6 @@ build:
 clean-modules:
 	-umask 022; $(MAKE) DEB_MOD=yes clean
 	$(RM) build-modules
-
-binary-modules:
-	$(RM) -r debian/tmp-modules
-	install -d debian/tmp-modules debian/tmp-modules/DEBIAN
-	KSRC="$(KSRC)" KVERS="$(KVERS)" KDREV="$(KDREV)" \
-	 sh -v debian/setvers.sh
-	cat debian/comedi.templates >>debian/tmp-modules/DEBIAN/templates
-	install -d "debian/tmp-modules/usr/share/doc/comedi-modules-$(kvers)"
-	install debian/comedi-modules.postrm debian/tmp-modules/DEBIAN/postrm
-	umask 022; $(MAKE) \
-	  DEB_MOD=yes PREFIX=`pwd`/debian/tmp-modules install
-	install -m644 debian/changelog \
-	  debian/tmp-modules/usr/share/doc/comedi-modules-$(kvers)/changelog.Debian
-	gzip -9v debian/tmp-modules/usr/share/doc/comedi-modules-*/*
-	install -m644 debian/copyright \
-	  debian/tmp-modules/usr/share/doc/comedi-modules-$(kvers)/copyright
-	cat COPYING \
-	  >> debian/tmp-modules/usr/share/doc/comedi-modules-$(kvers)/copyright
-	chown -R root.root debian/tmp-modules
-	chmod -R g-ws debian/tmp-modules
-	if test -d debian/tmp-modules/lib/modules; then \
-	  dpkg-deb --build debian/tmp-modules $(MOD_DIR)/..; fi
 
 binary-source: checkroot
 	$(RM) -r debian/src

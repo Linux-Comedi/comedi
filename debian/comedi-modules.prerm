@@ -1,0 +1,5 @@
+#!/bin/sh
+
+if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/comedi-modules ]; then
+	rm -f /usr/doc/comedi-modules
+fi

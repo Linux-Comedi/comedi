@@ -1,0 +1,7 @@
+Package: comedi-modules-${kvers}
+Section: admin
+Architecture: any
+Description: Comedi modules
+ This package provides the source code for Comedi.  The kernel source
+ is required to compile these modules.
+
