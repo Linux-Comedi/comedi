@@ -335,8 +335,8 @@ int comedi_lock(comedi_t *d,unsigned int subdevice)
 	if(s->busy){
 		ret = -EBUSY;
 	}else{
-		if(s->lock && s->lock!=d){
-			ret = -EACCES;
+		if(s->lock){
+			ret = -EBUSY;
 		}else{
 			s->lock = d;
 		}

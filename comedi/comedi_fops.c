@@ -1084,17 +1084,17 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 		return -EINVAL;
 	s=dev->subdevices+arg;
 
-	if(s->busy)
-		return -EBUSY;
-
 	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
-
-	if(s->lock && s->lock!=file){
-		ret=-EACCES;
+	if(s->busy)
+	{
+		comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
+		return -EBUSY;
+	}
+	if(s->lock){
+		ret=-EBUSY;
 	}else{
 		s->lock=file;
 	}
-
 	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
 
 	if(ret<0)
