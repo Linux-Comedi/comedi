@@ -225,12 +225,12 @@ CONFIG_COMEDI_DAQBOARD2000
   Includes support for IOtech DaqBoard/2000.
 
 Command emulator (timer)
-CONFIG_COMEDI_VD_TIMER
+CONFIG_COMEDI_RT_TIMER
   Comedi virtual device drivers use RTLinux or RTAI to emulate features
   that are found on advanced data acquisition hardware.  The timer
-  virtual driver (vd_timer.o) uses a real-time task and the real-time
-  scheduler to emulate asynchronous acquisition on a selected analog
-  input channel.
+  virtual driver (comedi_rt_timer.o) uses a real-time task and the real-time
+  scheduler to emulate asynchronous commands for a selected analog
+  input or analog output subdevice.
 
 Direct Digital Synthesis
 CONFIG_COMEDI_VD_DDS
