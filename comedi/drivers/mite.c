@@ -161,20 +161,10 @@ void mite_unsetup(struct mite_struct *mite)
 	if(mite->mite_io_addr){
 		iounmap(mite->mite_io_addr);
 		mite->mite_io_addr=NULL;
-		// release io memory region
-		offset = mite->mite_phys_addr & ~PAGE_MASK;
-		start = mite->mite_phys_addr & PAGE_MASK;
-		length = PCI_MITE_SIZE + offset;
-		release_mem_region(start, length);
 	}
 	if(mite->daq_io_addr){
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr=NULL;
-		// release io memory region
-		offset = mite->daq_phys_addr & ~PAGE_MASK;
-		start = mite->daq_phys_addr & PAGE_MASK;
-		length = PCI_DAQ_SIZE + offset;
-		release_mem_region(start, length);
 	}
 
 	mite->used = 0;
