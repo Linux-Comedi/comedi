@@ -137,7 +137,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-#define DIO_SDIN        			_bit4
 
 #define AI_Command_1_Register		8
 #define AI_Analog_Trigger_Reset			_bit14
@@ -179,6 +178,7 @@
 #define DIO_Parallel_Data_Out(a)                ((a)&0xff)
 #define DIO_Parallel_Data_Mask                  0xff
 #define DIO_SDOUT                               _bit0
+#define DIO_SDIN                                _bit4
 #define DIO_Serial_Data_Out(a)                  (((a)&0xff)<<8)
 #define DIO_Serial_Data_Mask                    0xff00
 
@@ -582,7 +582,6 @@ enum AO_Personal_Bits
 #define Configuration_Memory_Clear	82
 #define ADC_FIFO_Clear			83
 #define DAC_FIFO_Clear			84
-
 
 /* i/o port offsets */
 

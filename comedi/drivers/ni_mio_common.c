@@ -169,6 +169,13 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
+static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int ni_serial_hw_readwrite8(comedi_device *dev,comedi_subdevice *s,
+	unsigned char data_out, unsigned char *data_in);
+static int ni_serial_sw_readwrite8(comedi_device *dev,comedi_subdevice *s,
+	unsigned char data_out, unsigned char *data_in);
+
 static int ni_calib_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
@@ -244,6 +251,11 @@ enum aimodes
 	AIMODE_SCAN = 2,
 	AIMODE_SAMPLE = 3,
 };
+
+#define SERIAL_DISABLED		0
+#define SERIAL_600NS		600
+#define SERIAL_1_2US		1200
+#define SERIAL_10US			10000
 
 static const int num_adc_stages_611x = 3;
 
@@ -1166,7 +1178,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	/* the following registers should not be changed, because there
 	 * are no backup registers in devpriv.  If you want to change
 	 * any of these, add a backup register and other appropriate code:
-	 *	Clock_and_FOUT_Register
 	 *	AI_Mode_1_Register
 	 *	AI_Mode_3_Register
 	 *	AI_Personal_Register
@@ -2177,7 +2188,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	int trigvar;
 	int bits;
 	int i;
-	
+
 	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
@@ -2385,7 +2396,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	tmp = cmd->scan_begin_arg;
 	ni_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
 	if(tmp!=cmd->scan_begin_arg)err++;
-	
+
 	if(err)return 4;
 
 	/* step 5: fix up chanlist */
@@ -2439,7 +2450,6 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
-
 static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -2474,6 +2484,11 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 #endif
 	if(insn->n!=2)return -EINVAL;
 	if(data[0]){
+		/* Perform check to make sure we're not using the
+		   serial part of the dio */
+		if((data[0] & (DIO_SDIN | DIO_SDOUT)) && devpriv->serial_interval_ns)
+			return -EBUSY;
+
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
 		devpriv->dio_output &= ~DIO_Parallel_Data_Mask;
@@ -2483,6 +2498,202 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	data[1] = win_in(DIO_Parallel_Input_Register);
 
 	return 2;
+}
+
+static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
+				 comedi_insn *insn,lsampl_t *data)
+{
+	int err = insn->n;
+	unsigned char byte_out, byte_in;
+
+	if(insn->n!=2)return -EINVAL;
+
+	switch(data[0]) {
+	case INSN_CONFIG_SERIAL_CLOCK:
+
+#ifdef DEBUG_DIO
+		printk("SPI serial clock Config cd\n", data[1]);
+#endif
+		devpriv->serial_hw_mode = 1;
+		devpriv->dio_control |= DIO_HW_Serial_Enable;
+
+		if(data[1] == SERIAL_DISABLED) {
+			devpriv->serial_hw_mode = 0;
+			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
+						  DIO_Software_Serial_Control);
+			data[1] = SERIAL_DISABLED;
+			devpriv->serial_interval_ns = data[1];
+		}
+		else if(data[1] <= SERIAL_600NS) {
+			/* Warning: this clock speed is too fast to reliably
+			control SCXI. */
+			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
+			devpriv->clock_and_fout |= Slow_Internal_Timebase;
+			devpriv->clock_and_fout &= ~DIO_Serial_Out_Divide_By_2;
+			data[1] = SERIAL_600NS;
+			devpriv->serial_interval_ns = data[1];
+		}
+		else if(data[1] <= SERIAL_1_2US) {
+			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
+			devpriv->clock_and_fout |= Slow_Internal_Timebase |
+				DIO_Serial_Out_Divide_By_2;
+			data[1] = SERIAL_1_2US;
+			devpriv->serial_interval_ns = data[1];
+		}
+		else if(data[1] <= SERIAL_10US) {
+			devpriv->dio_control |= DIO_HW_Serial_Timebase;
+			devpriv->clock_and_fout |= Slow_Internal_Timebase |
+				DIO_Serial_Out_Divide_By_2;
+			/* Note: DIO_Serial_Out_Divide_By_2 only affects
+			600ns/1.2us. If you turn divide_by_2 off with the
+			slow clock, you will still get 10us, except then
+			all your delays are wrong. */
+			data[1] = SERIAL_10US;
+			devpriv->serial_interval_ns = data[1];
+		}
+		else {
+			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
+						  DIO_Software_Serial_Control);
+			devpriv->serial_hw_mode = 0;
+			data[1] = (data[1] / 1000) * 1000;
+			devpriv->serial_interval_ns = data[1];
+		}
+
+		win_out(devpriv->dio_control,DIO_Control_Register);
+		win_out(devpriv->clock_and_fout,Clock_and_FOUT_Register);
+		return 1;
+
+	break;
+
+	case INSN_CONFIG_BIDIRECTIONAL_DATA:
+
+		if(devpriv->serial_interval_ns == 0) {
+			return -EINVAL;
+		}
+
+		byte_out = data[1] & 0xFF;
+
+		if(devpriv->serial_hw_mode) {
+			err = ni_serial_hw_readwrite8(dev,s,byte_out,&byte_in);
+		} else if(devpriv->serial_interval_ns > 0) {
+			err = ni_serial_sw_readwrite8(dev,s,byte_out,&byte_in);
+		} else {
+			printk("ni_serial_insn_config: serial disabled!\n");
+			return -EINVAL;
+		}
+		if(err < 0) return err;
+		data[1] = byte_in & 0xFF;
+		return insn->n;
+
+	break;
+	default:
+		return -EINVAL;
+	}
+
+}
+
+static int ni_serial_hw_readwrite8(comedi_device *dev,comedi_subdevice *s,
+				   unsigned char data_out,
+				   unsigned char *data_in)
+{
+	unsigned int status1;
+	int err = 0, count = 20;
+
+#ifdef DEBUG_DIO
+	printk("ni_serial_hw_readwrite8: outputting 0x%x\n", data_out);
+#endif
+
+	devpriv->dio_output &= ~DIO_Serial_Data_Mask;
+	devpriv->dio_output |= DIO_Serial_Data_Out(data_out);
+	win_out(devpriv->dio_output,DIO_Output_Register);
+
+	status1 = win_in(Joint_Status_1_Register);
+	if(status1 & DIO_Serial_IO_In_Progress_St) {
+		err = -EBUSY;
+		goto Error;
+	}
+
+	devpriv->dio_control |= DIO_HW_Serial_Start;
+	win_out(devpriv->dio_control,DIO_Control_Register);
+	devpriv->dio_control &= ~DIO_HW_Serial_Start;
+
+	/* Wait until STC says we're done, but don't loop infinitely. Also,
+	   we don't have to keep updating the window address for this. */
+
+	while((status1 = win_in(Joint_Status_1_Register)) & DIO_Serial_IO_In_Progress_St) {
+		/* Delay one bit per loop */
+		comedi_udelay((devpriv->serial_interval_ns + 999) / 1000);
+		if(--count < 0) {
+			printk("ni_serial_hw_readwrite8: SPI serial I/O didn't finish in time!\n");
+			err = -ETIME;
+			goto Error;
+		}
+	}
+
+	/* Delay for last bit. This delay is absolutely necessary, because
+	   DIO_Serial_IO_In_Progress_St goes high one bit too early. */
+	comedi_udelay((devpriv->serial_interval_ns + 999) / 1000);
+
+	if(data_in != NULL) {
+		*data_in = win_in(DIO_Serial_Input_Register);
+#ifdef DEBUG_DIO
+		printk("ni_serial_hw_readwrite8: inputted 0x%x\n", *data_in);
+#endif
+	}
+
+ Error:
+	win_out(devpriv->dio_control,DIO_Control_Register);
+
+	return err;
+}
+
+static int ni_serial_sw_readwrite8(comedi_device *dev,comedi_subdevice *s,
+				   unsigned char data_out,
+				   unsigned char *data_in)
+{
+	unsigned char mask, input = 0;
+
+#ifdef DEBUG_DIO
+	printk("ni_serial_sw_readwrite8: outputting 0x%x\n", data_out);
+#endif
+
+	/* Wait for one bit before transfer */
+	comedi_udelay((devpriv->serial_interval_ns + 999) / 1000);
+
+	for(mask = 0x80; mask; mask >>= 1) {
+		/* Output current bit; note that we cannot touch s->state
+	   because it is a per-subdevice field, and serial is
+		   a separate subdevice from DIO. */
+		devpriv->dio_output &= ~DIO_SDOUT;
+		if(data_out & mask) {
+			devpriv->dio_output |= DIO_SDOUT;
+		}
+		win_out(devpriv->dio_output,DIO_Output_Register);
+
+		/* Assert SDCLK (active low, inverted), wait for half of
+		   the delay, deassert SDCLK, and wait for the other half. */
+		devpriv->dio_control |= DIO_Software_Serial_Control;
+		win_out(devpriv->dio_control,DIO_Control_Register);
+
+		comedi_udelay((devpriv->serial_interval_ns + 999) / 2000);
+
+		devpriv->dio_control &= ~DIO_Software_Serial_Control;
+		win_out(devpriv->dio_control,DIO_Control_Register);
+
+		comedi_udelay((devpriv->serial_interval_ns + 999) / 2000);
+
+		/* Input current bit */
+		if(win_in(DIO_Parallel_Input_Register) & DIO_SDIN) {
+			printk("DIO_P_I_R: 0x%x\n", win_in(DIO_Parallel_Input_Register));
+			input |= mask;
+		}
+	}
+#ifdef DEBUG_DIO
+	printk("ni_serial_sw_readwrite8: inputted 0x%x\n", input);
+#endif
+	if(data_in) *data_in = input;
+
+	return 0;
 }
 
 static void mio_common_detach(comedi_device *dev)
@@ -2496,7 +2707,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int bits;
 
-	if(alloc_subdevices(dev, 9)<0)
+	if(alloc_subdevices(dev, 10) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */
@@ -2649,21 +2860,35 @@ win_out(0x100, AO_Calibration_Channel_Select_67xx);
 		s->type=COMEDI_SUBD_UNUSED;
 	}
 #endif
+
+	/* Serial */
+	s=dev->subdevices+9;
+	s->type=COMEDI_SUBD_SERIAL;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
+	s->n_chan=1;
+	s->maxdata=0xff;
+	s->insn_config = ni_serial_insn_config;
+	devpriv->serial_interval_ns = 0;
+	devpriv->serial_hw_mode = 0;
+
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
 	if(boardtype.reg_type == ni_reg_normal){
-		win_out(Slow_Internal_Time_Divide_By_2 |
+		devpriv->clock_and_fout =
+			Slow_Internal_Time_Divide_By_2 |
 			Slow_Internal_Timebase |
 			Clock_To_Board_Divide_By_2 |
 			Clock_To_Board |
 			AI_Output_Divide_By_2 |
-			AO_Output_Divide_By_2, Clock_and_FOUT_Register);
+			AO_Output_Divide_By_2;
 	}else{
-		win_out(Slow_Internal_Time_Divide_By_2 |
+		devpriv->clock_and_fout =
+			Slow_Internal_Time_Divide_By_2 |
 			Slow_Internal_Timebase |
 			Clock_To_Board_Divide_By_2 |
-			Clock_To_Board, Clock_and_FOUT_Register);
+			Clock_To_Board;
 	}
+	win_out(devpriv->clock_and_fout, Clock_and_FOUT_Register);
 
 	/* analog output configuration */
 	ni_ao_reset(dev,dev->subdevices + 1);
