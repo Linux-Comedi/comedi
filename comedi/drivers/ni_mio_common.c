@@ -340,14 +340,14 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	int i;
 	sampl_t d;
 	int j;
-	int range;
+	unsigned int mask;
 
+	mask=(1<<boardtype.adbits)-1;
 	j=devpriv->ai_chanlistptr;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
-		range=CR_RANGE(devpriv->ai_chanlist[j]);
-		if(range>=8)d^=0x800;
-		d&=0xfff;
+		d^=devpriv->ai_xorlist[j];
+		d&=mask;
 		data[i]=d;
 		j++;
 		if(j>=s->cur_trig.n_chan)j=0;
@@ -517,15 +517,8 @@ static int ni_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(!(ni_readw(AI_Status_1)&AI_FIFO_Empty_St)){
 				it->data[chan]=ni_readw(ADC_FIFO_Data_Register);
-				if(boardtype.adbits==12){
-					if(CR_RANGE(it->chanlist[chan])<8)
-						it->data[chan]^=0x800;
-					it->data[chan]&=0xfff;
-				}else{
-					if(CR_RANGE(it->chanlist[chan])<8)
-						it->data[chan]^=0x8000;
-					it->data[chan]&=0xffff;
-				}
+				it->data[chan]^=devpriv->ai_xorlist[0];
+				it->data[chan]&=(1<<boardtype.adbits)-1;
 				break;
 			}
 			/*udelay(25);*/
@@ -542,14 +535,55 @@ timeout:
 }
 
 
+static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	int i,n;
+	int wsave;
+	unsigned int mask,sign;
+	
+	wsave=win_save();
+
+	win_out(1,ADC_FIFO_Clear);
+
+	/* interrupt on errors */
+	win_out(0x0020,Interrupt_A_Enable_Register) ;
+	
+	//ni_load_channelgain_list(dev,1,&insn->chanspec,(insn->flags&TRIG_DITHER)==TRIG_DITHER);
+	ni_load_channelgain_list(dev,1,&insn->chanspec,0);
+
+#if 0
+#define NI_TIMEOUT 1000
+#endif
+	mask=(1<<boardtype.adbits)-1;
+	sign=devpriv->ai_xorlist[0];
+	for(n=0;n<insn->n;n++){
+		win_out(1,AI_Command_1_Register);
+		for(i=0;i<NI_TIMEOUT;i++){
+			if(!(ni_readw(AI_Status_1)&AI_FIFO_Empty_St))
+				break;
+		}
+		if(i==NI_TIMEOUT){
+			rt_printk("ni_E: timeout 2\n");
+			win_restore(wsave);
+			return -ETIME;
+		}
+		data[n]=(ni_readw(ADC_FIFO_Data_Register)&mask)^sign;
+	}
+	win_restore(wsave);
+	return insn->n;
+}
+
+
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsigned int *list,int dither)
 {
 	unsigned int chan,range,aref;
 	unsigned int i;
 	unsigned int hi,lo;
+	unsigned short sign;
 
 	win_out(1,Configuration_Memory_Clear);
 
+	sign=1<<(boardtype.adbits-1);
 	for(i=0;i<n_chan;i++){
 		chan=CR_CHAN(list[i]);
 		range=CR_RANGE(list[i]);
@@ -557,7 +591,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 		
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
-		devpriv->ai_chanlist[i]=CR_PACK(chan,range,aref);
+		devpriv->ai_xorlist[i]=(range<8)?sign:0;
 
 		hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		ni_writew(hi,Configuration_Memory_High);
@@ -1290,7 +1324,7 @@ for(i=0;i<it->n_chan;i++){
 
 	ni_writew(conf,AO_Configuration);
 
-	if(range&1 || !boardtype.ao_unipolar)
+	if(((range&1)==0) || !boardtype.ao_unipolar)
 		data^=(1<<(boardtype.aobits-1));
 	
 	ni_writew(data,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
@@ -1526,6 +1560,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->trig[0]=ni_ai_mode0;
 	s->trig[2]=ni_ai_mode2;
 	s->trig[4]=ni_ai_mode4;
+	s->insn_read=ni_ai_insn_read;
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
 	s->cancel=ni_ai_reset;

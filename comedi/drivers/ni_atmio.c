@@ -270,8 +270,8 @@ typedef struct{
 	unsigned short gpct_input_select0;
 	unsigned short gpct_input_select1;
 
-	int ai_chanlistptr;
-	int ai_chanlist[512];
+	unsigned int ai_chanlistptr;
+	unsigned short ai_xorlist[512];
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 
