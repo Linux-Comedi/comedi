@@ -60,6 +60,8 @@ static int hpdi_cmd_test( comedi_device *dev, comedi_subdevice *s, comedi_cmd *c
 static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
+static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
+	void *data, unsigned int num_bytes );
 
 #undef HPDI_DEBUG	// disable debugging messages
 //#define HPDI_DEBUG	// enable debugging code
@@ -72,9 +74,8 @@ static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 
 #define TIMER_BASE 50	// 20MHz master clock
 #define DMA_BUFFER_SIZE 0x1000
-/* maximum number of dma transfers we will chain together into a ring
- * (and the maximum number of dma buffers we maintain) */
-#define DMA_RING_COUNT 64
+#define NUM_DMA_BUFFERS 64
+#define NUM_DMA_DESCRIPTORS 256
 
 // indices of base address regions
 enum base_address_regions
@@ -312,15 +313,20 @@ typedef struct
 	// base addresses (ioremapped)
 	unsigned long plx9080_iobase;
 	unsigned long hpdi_iobase;
-	uint16_t *dio_buffer[ DMA_RING_COUNT ];	// dma buffers
-	dma_addr_t dio_buffer_phys_addr[ DMA_RING_COUNT ];	// physical addresses of dma buffers
+	uint32_t *dio_buffer[ NUM_DMA_BUFFERS ];	// dma buffers
+	dma_addr_t dio_buffer_phys_addr[ NUM_DMA_BUFFERS ];	// physical addresses of dma buffers
 	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
 	dma_addr_t dma_desc_phys_addr;	// physical address of dma descriptor array
-	volatile unsigned int dma_index;	// index of the dma descriptor/buffer that is currently being used
+	unsigned int num_dma_descriptors;
+	uint32_t *desc_dio_buffer[ NUM_DMA_DESCRIPTORS ];	// pointer to start of buffers indexed by descriptor
+	volatile unsigned int dma_buf_index;	// index of the dma buffer that is currently being used
+	volatile unsigned int dma_desc_index;	// index of the dma descriptor that is currently being used
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
 	volatile unsigned long dio_count;
 	volatile uint32_t bits[ 24 ];	// software copies of values written to hpdi registers
+	volatile unsigned int block_size;	// number of bytes at which to generate COMEDI_CB_BLOCK events
+	volatile unsigned int block_progress;	// number of bytes since last COMEDI_CB_BLOCK event
 	unsigned dio_config_output : 1;
 } hpdi_private;
 
@@ -426,7 +432,7 @@ static int setup_subdevices(comedi_device *dev)
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
-	dev->read_subdev = s;
+	dev->read_subdev = dev->write_subdev = s;
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL;
 	s->n_chan = 32;
@@ -459,6 +465,60 @@ static int init_hpdi( comedi_device *dev )
 	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 
 	return 0;
+}
+
+// setup dma descriptors so a link completes every 'transfer_size' bytes
+static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size )
+{
+	unsigned int buffer_index, buffer_offset;
+	uint32_t next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
+		PLX_XFER_LOCAL_TO_PCI;
+	unsigned int i;
+	int remainder;
+
+	transfer_size -= transfer_size % sizeof( uint32_t );
+
+	if( transfer_size == 0 ) return -1;
+
+	buffer_offset = 0;
+	remainder = transfer_size;
+	for( i = 0, buffer_index = 0; i < NUM_DMA_DESCRIPTORS &&
+		buffer_index < NUM_DMA_BUFFERS; i++ )
+	{
+		unsigned int size;
+
+		size = remainder;
+		if( size + buffer_offset > DMA_BUFFER_SIZE )
+			size = DMA_BUFFER_SIZE - buffer_offset;
+		remainder -= size;
+		if( remainder == 0 )
+			remainder = transfer_size;
+		else if( remainder < 0 )
+		{
+			rt_printk( "gsc_hpdi: bug! negative remainder\n" );
+			return -1;
+		}
+
+		priv(dev)->dma_desc[ i ].pci_start_addr = priv(dev)->dio_buffer_phys_addr[ buffer_index ] +
+			buffer_offset;
+		priv(dev)->dma_desc[ i ].local_start_addr = FIFO_REG;
+		priv(dev)->dma_desc[ i ].transfer_size = size;
+		priv(dev)->dma_desc[ i ].next = ( priv(dev)->dma_desc_phys_addr +
+			( i + 1 ) * sizeof( priv(dev)->dma_desc[ 0 ] ) ) | next_bits;
+
+		priv(dev)->desc_dio_buffer[ i ] = priv(dev)->dio_buffer[ buffer_index ] +
+			( buffer_offset / sizeof( uint32_t ) );
+
+		buffer_offset += size;
+		if( buffer_offset >= DMA_BUFFER_SIZE )
+			buffer_index++;
+		buffer_offset %= DMA_BUFFER_SIZE;
+	}
+	priv(dev)->num_dma_descriptors = i - 1;
+	// fix last descriptor to point back to first
+	priv(dev)->dma_desc[ priv(dev)->num_dma_descriptors ].next =
+		priv(dev)->dma_desc_phys_addr | next_bits;
+	return transfer_size;
 }
 
 static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
@@ -545,25 +605,16 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	init_plx9080(dev);
 
 	// alocate pci dma buffers
-	for( i = 0; i < DMA_RING_COUNT; i++ )
+	for( i = 0; i < NUM_DMA_BUFFERS; i++ )
 	{
 		priv(dev)->dio_buffer[ i ] = pci_alloc_consistent( priv(dev)->hw_dev,
 			DMA_BUFFER_SIZE, &priv(dev)->dio_buffer_phys_addr[ i ] );
 	}
 	// allocate dma descriptors
 	priv(dev)->dma_desc = pci_alloc_consistent( priv(dev)->hw_dev,
-		sizeof( struct plx_dma_desc ) * DMA_RING_COUNT,
+		sizeof( struct plx_dma_desc ) * NUM_DMA_DESCRIPTORS,
 		&priv(dev)->dma_desc_phys_addr);
-	// initialize dma descriptors
-	for( i = 0; i < DMA_RING_COUNT; i++ )
-	{
-		priv(dev)->dma_desc[ i ].pci_start_addr = priv(dev)->dio_buffer_phys_addr[ i ];
-		priv(dev)->dma_desc[ i ].local_start_addr = FIFO_REG;
-		priv(dev)->dma_desc[ i ].transfer_size = DMA_BUFFER_SIZE;
-		priv(dev)->dma_desc[ i ].next = ( priv(dev)->dma_desc_phys_addr +
-			( ( i + 1 ) % ( DMA_RING_COUNT ) ) * sizeof( priv(dev)->dma_desc[ 0 ] ) ) |
-			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
-	}
+	setup_dma_descriptors( dev, DMA_BUFFER_SIZE );
 
 	retval = setup_subdevices( dev );
 	if( retval < 0 )
@@ -595,7 +646,7 @@ static int hpdi_detach(comedi_device *dev)
 				priv(dev)->hpdi_phys_iobase )
 				pci_release_regions( priv(dev)->hw_dev );
 			// free pci dma buffers
-			for( i = 0; i < DMA_RING_COUNT; i++ )
+			for( i = 0; i < NUM_DMA_BUFFERS; i++ )
 			{
 				if( priv(dev)->dio_buffer[ i ] )
 					pci_free_consistent( priv(dev)->hw_dev, DMA_BUFFER_SIZE,
@@ -604,7 +655,7 @@ static int hpdi_detach(comedi_device *dev)
 			// free dma descriptors
 			if( priv(dev)->dma_desc )
 				pci_free_consistent( priv(dev)->hw_dev, sizeof( struct plx_dma_desc ) *
-				DMA_RING_COUNT, priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
+				NUM_DMA_DESCRIPTORS, priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
 			pci_disable_device( priv(dev)->hw_dev );
 		}
 	}
@@ -614,13 +665,16 @@ static int hpdi_detach(comedi_device *dev)
 
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data )
 {
-	unsigned int block_size, requested_block_size;
+	unsigned int requested_block_size;
+	int retval;
 
 	requested_block_size = data[ 1 ];
 
-	block_size = requested_block_size;
+	priv(dev)->block_size = requested_block_size - ( requested_block_size % sizeof( uint32_t ) );
+	retval = setup_dma_descriptors( dev, priv(dev)->block_size );
+	if( retval < 0 ) return retval;
 
-	data[ 1 ] = block_size;
+	data[ 1 ] = priv(dev)->block_size;
 
 	return 2;
 }
@@ -745,9 +799,11 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	hpdi_writel( dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG );
 
-	priv(dev)->dma_index = 0;
-
 	abort_dma(dev, 0);
+
+	priv(dev)->dma_buf_index = 0;
+	priv(dev)->dma_desc_index = 0;
+	priv(dev)->block_progress = 0;
 
 	// give location of first dma descriptor
 	bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
@@ -763,7 +819,7 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 		priv(dev)->dio_count = cmd->stop_arg;
 	else
 		priv(dev)->dio_count = 1;
-		
+
 	hpdi_writel( dev, RX_ENABLE_BIT, BOARD_CONTROL_REG );
 
 	return 0;
@@ -794,22 +850,24 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	// loop until we have read all the full buffers
 	j = 0;
 	for(next_transfer_addr = readl(pci_addr_reg);
-		(next_transfer_addr < priv(dev)->dio_buffer_phys_addr[priv(dev)->dma_index] ||
-		next_transfer_addr >= priv(dev)->dio_buffer_phys_addr[priv(dev)->dma_index] + DMA_BUFFER_SIZE) &&
-		j < DMA_RING_COUNT;
+		(next_transfer_addr < priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr ||
+		next_transfer_addr >= priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr +
+		priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].transfer_size ) &&
+		j < priv(dev)->num_dma_descriptors;
 		j++ )
 	{
 		// transfer data from dma buffer to comedi buffer
-		num_samples = DMA_BUFFER_SIZE / sizeof( uint32_t );
+		num_samples = priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].transfer_size / sizeof( uint32_t );
 		if( async->cmd.stop_src == TRIG_COUNT )
 		{
 			if(num_samples > priv(dev)->dio_count)
 				num_samples = priv(dev)->dio_count;
 			priv(dev)->dio_count -= num_samples;
 		}
-		cfc_write_array_to_buffer( dev->read_subdev,
-			priv(dev)->dio_buffer[ priv(dev)->dma_index ], num_samples * sizeof( uint32_t ) );
-		priv(dev)->dma_index = (priv(dev)->dma_index + 1) % DMA_RING_COUNT;
+		hpdi_write_array_to_buffer( dev, priv(dev)->desc_dio_buffer[ priv(dev)->dma_desc_index ],
+			num_samples * sizeof( uint32_t ) );
+		priv(dev)->dma_desc_index++;
+		priv(dev)->dma_desc_index %= priv(dev)->num_dma_descriptors;
 
 		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->dio_buffer_phys_addr[priv(dev)->dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
@@ -912,4 +970,20 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s )
 	return 0;
 }
 
+// fix up event handling
+static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
+	void *data, unsigned int num_bytes )
+{
+	unsigned int retval;
+	comedi_subdevice *s = dev->read_subdev;
 
+	retval = cfc_write_array_to_buffer( s, data, num_bytes );
+	priv(dev)->block_progress += retval;
+	if( priv(dev)->block_progress >= priv(dev)->block_size )
+		s->async->events |= COMEDI_CB_BLOCK;
+	else
+		s->async->events &= ~COMEDI_CB_BLOCK;
+	priv(dev)->block_progress %= priv(dev)->block_size;
+
+	return retval;
+}
