@@ -930,8 +930,9 @@ static void das1800_ai_handler(comedi_device *dev)
 		{
 			// clear DMATC interrupt bit
 			outb(CLEAR_INTR_MASK & ~DMATC, dev->iobase + DAS1800_STATUS);
-			das1800_handle_dma(dev, s);
 		}
+		// look for data from dma transfer even if dma terminal count hasn't happened yet
+		das1800_handle_dma(dev, s);
 	}else if(status & FHF)
 	{	// if fifo half full
 		das1800_handle_fifo_half_full(dev, s);
