@@ -888,58 +888,21 @@ static int setup_pci(comedi_device *dev)
 	return 0;
 }
 
-#if LINUX_VERSION_CODE < 0x020300
 static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board)
 {
 	int i;
 	
-	if(!from){
-		from=pci_devices;
-	}else{
-		from=from->next;
-	}
-	while(from){
-		if(from->vendor == PCI_VENDOR_ID_DT){
-			for(i=0;i<n_dt3k_boards;i++){
-				if(from->device == dt3k_boardtypes[i].device_id){
-					*board=i;
-					return from;
-				}
+	for(from=pci_find_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from); from!=NULL;
+			from=pci_find_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from)){
+		for(i=0;i<n_dt3k_boards;i++){
+			if(from->device == dt3k_boardtypes[i].device_id){
+				*board=i;
+				return from;
 			}
-			printk("unknown Data Translation PCI device found with device_id=0x%04x\n",from->device);
 		}
-		from=from->next;
+		printk("unknown Data Translation PCI device found with device_id=0x%04x\n",from->device);
 	}
 	*board=-1;
 	return from;
 }
-
-#else
-
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board)
-{
-	int i;
-	
-	if(!from){
-		from=(struct pci_dev *)(pci_devices.next);
-	}else{
-		from=(struct pci_dev *)(from->global_list.next);
-	}
-	while(from){
-		if(from->vendor == PCI_VENDOR_ID_DT){
-			for(i=0;i<n_dt3k_boards;i++){
-				if(from->device == dt3k_boardtypes[i].device_id){
-					*board=i;
-					return from;
-				}
-			}
-			printk("unknown Data Translation PCI device found with device_id=0x%04x\n",from->device);
-		}
-		from=(struct pci_dev *)(from->global_list.next);
-	}
-	*board=-1;
-	return from;
-}
-
-#endif
 
