@@ -86,6 +86,7 @@ TODO:
 #include <linux/comedidev.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <asm/system.h>
 
 #include "8253.h"
 #include "8255.h"
@@ -1700,15 +1701,16 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	if(retval < 0) return retval;
 
 	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
-
 	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
-
 	retval = setup_subdevices(dev);
 	if(retval < 0)
 	{
 		return retval;
 	}
-
+	/* make sure everything is written out to memory before there is a possibility
+	 * of the interrupt handler executing (trying to fix mysterious pci-das6402/16
+	 * crash during attach) */
+	mb();
 	// get irq
 	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
 	{
