@@ -37,7 +37,7 @@ extern "C" {
    kernel structures are currently statically allocated, thus you
    don't want this to be much more than you actually use.
  */
-#define COMEDI_NDEVICES 4
+#define COMEDI_NDEVICES 16
 
 /* number of config options in the config structure */
 #define COMEDI_NDEVCONFOPTS 32
