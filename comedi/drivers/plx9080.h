@@ -185,12 +185,15 @@ struct plx_dma_desc
 #define PLX_REVISION_REG	0x74	// silicon revision
 
 #define PLX_DMA0_MODE_REG	0x80	// dma channel 0 mode register
+#define PLX_DMA1_MODE_REG	0x94	// dma channel 0 mode register
 #define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
 #define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
 #define  PLX_DMA_EN_READYIN_BIT	0x40	// enable ready in input
+#define  PLX_EN_BTERM_BIT	0x80	// enable BTERM# input
 #define  PLX_EN_CHAIN_BIT	0x200	// enables chaining
 #define  PLX_EN_DMA_DONE_INTR_BIT	0x400	// enables interrupt on dma done
 #define  PLX_LOCAL_ADDR_CONST_BIT	0x800	// hold local address constant (don't increment)
+#define  PLX_DEMAND_MODE_BIT	0x1000	// enables demand-mode for dma transfer
 #define  PLX_DMA_INTR_PCI_BIT	0x20000	// routes dma interrupt to pci bus (instead of local bus)
 
 #define PLX_DMA0_PCI_ADDRESS_REG	0x84	// pci address that dma transfers start at
