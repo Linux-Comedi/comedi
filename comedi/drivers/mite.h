@@ -33,7 +33,8 @@
 
 #define PCI_VENDOR_ID_NATINST		0x1093
 
-//#define DEBUG_MITE
+#define DEBUG_MITE
+#define PCIMIO_COMPAT
 
 #ifdef DEBUG_MITE
 #define MDPRINTK(format,args...)	printk(format , ## args )
@@ -41,11 +42,16 @@
 #define MDPRINTK(format,args...)
 #endif
 
-#define MITE_RING_SIZE 3000
+#ifdef PCIMIO_COMPAT
+#define MITE_RING_SIZE 16
+#endif
 struct mite_dma_chain{
 	u32 count;
 	u32 addr;
 	u32 next;
+#ifndef PCIMIO_COMPAT
+	u32 dar;
+#endif
 };
 
 struct mite_struct{
@@ -67,7 +73,16 @@ struct mite_struct{
 	
 	int DMA_CheckNearEnd;
 
+#ifdef PCIMIO_COMPAT
 	struct mite_dma_chain ring[MITE_RING_SIZE];
+#else
+	int dir;
+	int chan;
+	unsigned int current_link;
+	unsigned int n_links;
+
+	struct mite_dma_chain *ring;
+#endif
 };
 
 extern struct mite_struct *mite_devices;
@@ -104,18 +119,23 @@ int mite_setup(struct mite_struct *mite);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
 
-void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s);
-
 int mite_dma_tcr(struct mite_struct *mite);
 
 void mite_dma_arm(struct mite_struct *mite);
 void mite_dma_disarm(struct mite_struct *mite);
 	
-//unsigned long mite_ll_from_user(comedi_device *dev, comedi_cmd *cmd);//obsolete
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);
 void mite_dump_regs(struct mite_struct *mite);
 void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan, int dir);
 int mite_bytes_transferred(struct mite_struct *mite, int chan);
+
+void mite_prep_dma(struct mite_struct *mite);
+int mite_buf_alloc(struct mite_struct *mite, comedi_async *async,
+	unsigned long new_size);
+
+#ifdef DEBUG_MITE
+void mite_print_chsr(unsigned int chsr);
+#endif
 
 #define CHAN_OFFSET(x)			(0x100*(x))
 
@@ -233,9 +253,38 @@ int mite_bytes_transferred(struct mite_struct *mite, int chan);
 #define CR_PORTMXI			(3<<6)
 #define CR_AMDEVICE			(1<<0)
 
-#define CHSR_INT			0x80000000
-#define CHSR_DONE			0x02000000
-#define CHSR_LINKC			0x00080000
+#define CHSR_INT			(1<<31)
+#define CHSR_LPAUSES			(1<<29)
+#define CHSR_SARS			(1<<27)
+#define CHSR_DONE			(1<<25)
+#define CHSR_MRDY			(1<<23)
+#define CHSR_DRDY			(1<<21)
+#define CHSR_LINKC			(1<<19)
+#define CHSR_CONTS_RB			(1<<17)
+#define CHSR_ERROR			(1<<15)
+#define CHSR_SABORT			(1<<14)
+#define CHSR_HABORT			(1<<13)
+#define CHSR_STOPS			(1<<12)
+#define CHSR_OPERR_mask			(3<<10)
+#define CHSR_OPERR_NOERROR	(0<<10)
+#define CHSR_OPERR_FIFOERROR	(1<<10)
+#define CHSR_OPERR_LINKERROR	(1<<10) /* ??? */
+#define CHSR_XFERR			(1<<9)
+#define CHSR_END			(1<<8)
+#define CHSR_DRQ1			(1<<7)
+#define CHSR_DRQ0			(1<<6)
+#define CHSR_LxERR_mask			(3<<4)
+#define CHSR_LBERR		(1<<4)
+#define CHSR_LRERR		(2<<4)
+#define CHSR_LOERR		(3<<4)
+#define CHSR_MxERR_mask			(3<<2)
+#define CHSR_MBERR		(1<<2)
+#define CHSR_MRERR		(2<<2)
+#define CHSR_MOERR		(3<<2)
+#define CHSR_DxERR_mask			(3<<0)
+#define CHSR_DBERR		(1<<0)
+#define CHSR_DRERR		(2<<0)
+#define CHSR_DOERR		(3<<0)
 
 #define MITE_MCR		0x50c
 #define	MCRPON				0
