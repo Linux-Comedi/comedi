@@ -162,16 +162,33 @@ analog triggering on 1602 series
 #define   SERIAL_DATA_IN_BIT	0x8000	// serial data stream going to 8800 and 7376
 
 #define DAC_CSR	0x8	// dac control and status register
-#define   DACEN	0x2	// dac enable
-#define   DAC_RANGE(channel, range)	(((range) & 0x3) << (8 + 2 * channel) )	// dac range
+enum dac_csr_bits
+{
+	DACEN = 0x2,	// dac enable
+	DAC_MODE_UPDATE_BOTH = 0x80,	// update both dacs when dac0 is written
+};
+static inline unsigned int DAC_RANGE( unsigned int channel, unsigned int range)
+{
+	return ( range & 0x3 ) << ( 8 + 2 * ( channel & 0x1 ) );
+}
+static inline unsigned int DAC_RANGE_MASK( unsigned int channel )
+{
+	return 0x3 << ( 8 + 2 * ( channel & 0x1 ) );
+};
 // bits for 1602 series only
-#define   DAC_EMPTY	0x1	// dac fifo empty, read, write clear
-#define   DAC_START	0x4	// start/arm dac fifo operations
-#define   DAC_PACER_MASK	0x18	// bits that set dac pacer source
-#define   DAC_PACER_INT	0x8	// dac internal pacing
-#define   DAC_PACER_EXT_FALL	0x10	// dac external pacing, falling edge
-#define   DAC_PACER_EXT_RISE	0x18	// dac external pacing, rising edge
-#define   DAC_CHAN_EN(x)		(1 << (5 + ((x) & 0x1)))	// enable channel 0 or 1
+enum dac_csr_bits_1602
+{
+	DAC_EMPTY = 0x1,	// dac fifo empty, read, write clear
+	DAC_START = 0x4,	// start/arm dac fifo operations
+	DAC_PACER_MASK = 0x18,	// bits that set dac pacer source
+	DAC_PACER_INT = 0x8,	// dac internal pacing
+	DAC_PACER_EXT_FALL = 0x10,	// dac external pacing, falling edge
+	DAC_PACER_EXT_RISE = 0x18,	// dac external pacing, rising edge
+};
+static inline unsigned int DAC_CHAN_EN( unsigned int channel )
+{
+	return 1 << ( 5 + ( channel & 0x1 ) );	// enable channel 0 or 1
+};
 
 /* analog input fifo */
 #define ADCDATA	0	// ADC DATA register
@@ -862,13 +879,13 @@ static int ai_config_insn( comedi_device *dev, comedi_subdevice *s,
 static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	int bits, channel;
+	int channel;
 
 	// set channel and range
 	channel = CR_CHAN(insn->chanspec);
-	bits = DACEN;
-	bits |= DAC_RANGE(channel, CR_RANGE(insn->chanspec));
-	outw(bits, devpriv->control_status + DAC_CSR);
+	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK( channel );
+	devpriv->ao_control_bits |= DACEN | DAC_RANGE( channel, CR_RANGE( insn->chanspec ) );
+	outw( devpriv->ao_control_bits, devpriv->control_status + DAC_CSR );
 
 	// remember value for readback
 	devpriv->ao_value[channel] = data[0];
