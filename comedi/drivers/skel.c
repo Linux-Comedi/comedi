@@ -61,6 +61,15 @@ Configuration Options:
  *     Comedi interface features.
  *   untested - author probably wrote it "blind", and is believed to
  *     work, but no confirmation.
+ *
+ * These headers should be followed by a blank line, and any comments
+ * you wish to say about the driver.  The comment area is the place
+ * to put any known bugs, limitations, unsupported features, supported
+ * command triggers, whether or not commands are supported on particular
+ * subdevices, etc.
+ *
+ * Somewhere in the comment should be information about configuration
+ * options that are used with comedi_config.
  */
 
 #include <linux/kernel.h>
