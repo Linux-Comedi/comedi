@@ -834,7 +834,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 	if(!s->do_cmd || !s->async){
-		DPRINTK("subdevice does not support commands\n");
+		DPRINTK("subdevice %i does not support commands\n", user_cmd.subdev);
 		return -EIO;
 	}
 
@@ -995,7 +995,7 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 	if(!s->do_cmd){
-		DPRINTK("subdevice does not support commands\n");
+		DPRINTK("subdevice %i does not support commands\n", user_cmd.subdev);
 		return -EIO;
 	}
 
