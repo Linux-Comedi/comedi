@@ -86,7 +86,7 @@
 static short ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
 static short ni_modebits2[4]={ 0x3f, 0x3f, 0x37, 0x37 };
 
-static unsigned int ni_gainlkup[][16]={
+static short ni_gainlkup[][16]={
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 0x100, 0x101, 0x102, 0x103, 0x104, 0x105,
 		0x106, 0x107 },
 	{ 1, 2, 4, 7, 0x101, 0x102, 0x104, 0x107 },
@@ -960,7 +960,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
-		devpriv->ai_xorlist[i]=(range&0x100)?offset:0;
+		devpriv->ai_xorlist[i]=(range&0x100)?0:offset;
 
 		hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		ni_writew(hi,Configuration_Memory_High);
