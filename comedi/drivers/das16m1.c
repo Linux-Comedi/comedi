@@ -527,8 +527,11 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 		num_samples = - hw_counter - devpriv->adc_count;
 	}
 	// check if we only need some of the points
-	if(num_samples > cmd->stop_arg * cmd->chanlist_len)
-		num_samples = cmd->stop_arg * cmd->chanlist_len;
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		if(num_samples > cmd->stop_arg * cmd->chanlist_len)
+			num_samples = cmd->stop_arg * cmd->chanlist_len;
+	}
 	// make sure we dont try to get too many points if fifo has overrun
 	if(num_samples > FIFO_SIZE)
 		num_samples = FIFO_SIZE;
