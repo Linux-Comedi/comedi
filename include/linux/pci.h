@@ -142,15 +142,35 @@ static inline void pci_release_regions(struct pci_dev *dev)
 	}
 }
 
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,15)
 static inline struct pci_dev* pci_find_subsys( unsigned int vendor, unsigned int device,
 	unsigned int ss_vendor, unsigned int ss_device,
 	const struct pci_dev *from)
 {
-	rt_printk( "pci_find_subsys() not supported in kernels older than 2.4!\n" );
-	return NULL;
-}
+	struct pci_dev *dev = (struct pci_dev *)from;	/* ignore const */
 
-#endif
+	while((dev=pci_find_device(vendor,device,dev))!=NULL){
+		if(ss_vendor!=PCI_ANY_ID){
+			u16 temp;
+			pci_read_config_word(dev,PCI_SUBSYSTEM_VENDOR_ID,&temp);
+			if(ss_vendor!=temp){
+				continue;
+			}
+		}
+		if(ss_device!=PCI_ANY_ID){
+			u16 temp;
+			pci_read_config_word(dev,PCI_SUBSYSTEM_ID,&temp);
+			if(ss_device!=temp){
+				continue;
+			}
+		}
+		break;	/* match */
+	}
+	return dev;
+}
+#endif	// <2.3.15
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,14)
 static inline void pci_set_master(struct pci_dev *dev)
@@ -161,6 +181,11 @@ static inline void pci_set_master(struct pci_dev *dev)
 static inline unsigned long pci_resource_len (struct pci_dev *dev, int n_base)
 { return 0; }
 #endif	// 2.2.18
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#define pci_get_subsys pci_find_subsys
+#define pci_dev_put(x)
+#endif
 
 #endif
 
