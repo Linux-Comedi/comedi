@@ -334,7 +334,7 @@ static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn
 		}
 	}
 
-	return -EINVAL;
+	return insn->n;
 }
 
 
