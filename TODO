@@ -1,4 +1,6 @@
 
+Doesn't get the right RTL flags
+
 das6402 needs cleanup
 
 check each driver init for stuff
@@ -7,14 +9,9 @@ grep XXX
 
 register_symtab
 
-allocate subdevice
-allocate private
-
 fix PCI code, use pci_find_device()
 
 standardize error codes
-
-implement ioctl for comedi_dio_bitfield()
 
 verify PCI-6503 code
 
@@ -30,9 +27,16 @@ different error code for board error vs buffer overflow
 
 change _recognize to const char *
 
-implement comedi_poll
-
 implement poll/select
 
 fix mmap
+
+ni_mio_common: gpct code broken
+
+ni_mio_common: external trigger doesn't work
+
+spinlocks
+
+ni_mio_common: subd 5 fails test_insn with -EINVAL -- should support
+  readback, and/or should return -EIO (?)
 
