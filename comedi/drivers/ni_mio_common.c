@@ -342,7 +342,7 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 
 	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
 	if( (int)(nbytes - old_alloc_count) > 0 ){
-		printk("ni_mio_common: BUG: DMA overwrite of free area\n");
+		printk("ni_mio_common: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
 		return;
