@@ -880,7 +880,7 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 		devpriv->ai_unipolar = 0;
 	}
 
-	if((status & DAS16_MUX)){
+	if((status & DAS16_MUXBIT)){
 		devpriv->ai_singleended = 1;
 	}else{
 		devpriv->ai_singleended = 0;
