@@ -466,12 +466,12 @@ typedef struct{
 	unsigned int ao_range[NUM_AO_CHAN];	// current ao range settings
 	unsigned int ao_value[NUM_AO_CHAN];	// software copy of analog output values
 	// software copys of bits written to command registers
-	unsigned int command1_bits;
-	unsigned int command2_bits;
-	unsigned int command3_bits;
-	unsigned int command4_bits;
-	unsigned int command5_bits;
-	unsigned int command6_bits;
+	volatile unsigned int command1_bits;
+	volatile unsigned int command2_bits;
+	volatile unsigned int command3_bits;
+	volatile unsigned int command4_bits;
+	volatile unsigned int command5_bits;
+	volatile unsigned int command6_bits;
 	// store last read of board status registers
 	volatile unsigned int status1_bits;
 	volatile unsigned int status2_bits;
@@ -1534,7 +1534,7 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	channel = CR_CHAN(insn->chanspec);
 
 	// turn off pacing of analog output channel
-	devpriv->command2_bits &= DAC_PACED_BIT(channel);
+	devpriv->command2_bits &= ~DAC_PACED_BIT(channel);
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
 	// set range
