@@ -61,28 +61,54 @@ comedi_driver driver_parport={
 	detach:		parport_detach,
 };
 
+typedef struct parport_private_struct{
+	unsigned int a_data;
+	unsigned int c_data;
+}parport_private;
+#define devpriv ((parport_private *)(dev->private))
 
-static int parport_dio_a(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int parport_insn_a(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	outb(it->data[0],dev->iobase+PARPORT_A);
+	if(data[0]){
+		devpriv->a_data &= ~data[0];
+		devpriv->a_data |= (data[0]&data[1]);
 
-	return 1;
+		outb(devpriv->a_data,dev->iobase+PARPORT_A);
+	}
+
+	data[1] = devpriv->a_data;
+
+	return 2;
+}
+	
+static int parport_insn_b(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(data[0]){
+		// should writes be ignored?
+	}
+
+	data[1] = (inb(dev->iobase+PARPORT_B)>>3);
+
+	return 2;
 }
 
-static int parport_dio_b(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int parport_insn_c(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	it->data[0]=(inb(dev->iobase+PARPORT_B)>>3);
+	if(data[0]){
+		devpriv->c_data &= ~data[0];
+		devpriv->c_data |= (data[0]&data[1]);
 
-	return 1;
+		outb(devpriv->c_data,dev->iobase+PARPORT_C);
+	}
+
+	data[1] = devpriv->c_data;
+
+	return 2;
 }
-
-static int parport_dio_c(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	outb(it->data[0],dev->iobase+PARPORT_C);
-
-	return 1;
-}
-
+	
 
 static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -103,6 +129,8 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->n_subdevices=3;
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
+	if((ret=alloc_private(dev,sizeof(parport_private)))<0)
+		return ret;
 
 	s=dev->subdevices+0;
 	s->type=COMEDI_SUBD_DO;
@@ -110,7 +138,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
-	s->trig[0]=parport_dio_a;
+	s->insn_bits = parport_insn_a;
 
 	s=dev->subdevices+1;
 	s->type=COMEDI_SUBD_DI;
@@ -118,7 +146,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=4;
 	s->maxdata=1;
 	s->range_table=&range_digital;
-	s->trig[0]=parport_dio_b;
+	s->insn_bits = parport_insn_b;
 
 	s=dev->subdevices+2;
 	s->type=COMEDI_SUBD_DO;
@@ -126,7 +154,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=4;
 	s->maxdata=1;
 	s->range_table=&range_digital;
-	s->trig[0]=parport_dio_c;
+	s->insn_bits = parport_insn_c;
 
 	printk("\n");
 	return 1;
@@ -142,17 +170,5 @@ static int parport_detach(comedi_device *dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_parport);
-
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_parport);
-}
-#endif
+COMEDI_INITCLEANUP(driver_parport);
 
