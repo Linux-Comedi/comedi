@@ -2444,10 +2444,6 @@ static void labpc_config(dev_link_t *link)
 	link->io.NumPorts1 = link->io.NumPorts2 = 0;
 	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
 	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	    if (!(io->flags & CISTPL_IO_8BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	    if (!(io->flags & CISTPL_IO_16BIT))
 		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 	    link->io.BasePort1 = io->win[0].base;
