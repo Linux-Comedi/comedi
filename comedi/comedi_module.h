@@ -3,7 +3,7 @@
     header file for kernel-only structures, variables, and constants
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1997-2000 David A. Schleef <ds@stm.lbl.gov>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,54 +36,7 @@
 #include <kern_compat.h>
 
 #ifdef CONFIG_COMEDI_RT
-
-struct comedi_irq_struct{
-	struct comedi_irq_struct *next;
-
-	int irq;
-	void *dev_id;
-	unsigned long flags;
-	void (*handler)(int,void *,struct pt_regs *);
-	char *device;
-};
-
-int get_priority_irq(struct comedi_irq_struct *);
-int free_priority_irq(struct comedi_irq_struct *);
-struct comedi_irq_struct * get_irq_struct(unsigned int);
-
-#ifndef SA_PRIORITY
-#define SA_PRIORITY 0x08000000
-#endif
-
-#ifdef CONFIG_COMEDI_RTL
-void comedi_rtl_init(void);
-void comedi_rtl_cleanup(void);
-
-#include <rtl_printf.h>
-#endif
-
-#ifdef CONFIG_COMEDI_RTAI
-void comedi_rtai_init(void);
-void comedi_rtai_cleanup(void);
-#define rt_printk(format,args...)	printk(format,##args)
-#define rt_printk_init()		
-#define rt_printk_cleanup()		
-#endif
-
-#ifdef CONFIG_COMEDI_RTL_V1
-void comedi_rtl_v1_init(void);
-void comedi_rtl_v1_cleanup(void);
-#define rt_printk(format,args...)	printk(format,##args)
-#define rt_printk_init()		
-#define rt_printk_cleanup()		
-#endif
-
-#else /* !CONFIG_COMEDI_RT */
-
-#define rt_printk(format,args...)	printk(format,##args)
-#define rt_printk_init()		
-#define rt_printk_cleanup()		
-
+#include <comedi_rt.h>
 #endif
 
 #ifdef CONFIG_COMEDI_DEBUG
@@ -228,15 +181,16 @@ void comedi_proc_cleanup(void);
 int di_unpack(unsigned int bits,comedi_trig *it);
 int do_pack(unsigned int *bits,comedi_trig *it);
 
-#ifdef CONFIG_COMEDI_RT
-int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,struct pt_regs *),
-		unsigned long flags,const char *device,void *dev_id);
-int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long new_flags);
-void comedi_free_irq(unsigned int irq,void *dev_id);
-#else
+#ifndef CONFIG_COMEDI_RT
+
+#define rt_printk(format,args...)	printk(format,##args)
+#define rt_printk_init()
+#define rt_printk_cleanup()
+
 #define comedi_request_irq		request_irq
 #define comedi_change_irq_flags(a,b,c)	/* */
 #define comedi_free_irq			free_irq
+
 #endif
 
 
@@ -248,7 +202,7 @@ void comedi_free_irq(unsigned int irq,void *dev_id);
 int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg);
 int check_chanlist(comedi_subdevice *s,int n,unsigned int *chanlist);
 
-extern int rtcomedi_lock_semaphore;
+extern volatile int rtcomedi_lock_semaphore;
 
 /* range stuff */
 

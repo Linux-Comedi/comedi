@@ -8,11 +8,12 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <asm/irq.h>
-#include <asm/ptrace.h>
 #include <linux/rtl.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+
+#include <asm/irq.h>
+#include <asm/ptrace.h>
 
 #include <rtl_core.h>
 #if 0
@@ -210,16 +211,67 @@ int free_priority_irq(struct comedi_irq_struct *it)
 	return 0;
 }
 
+#ifdef NEED_RT_PEND_TQ
+
+volatile static struct rt_pend_tq rt_pend_tq[RT_PEND_TQ_SIZE]; 
+volatile static struct rt_pend_tq * volatile rt_pend_head= rt_pend_tq,
+	* volatile rt_pend_tail = rt_pend_tq;
+int rt_pend_tq_irq=0;
+
+// WARNING: following code not checked against race conditions yet.
+#define INC_CIRCULAR_PTR(ptr,begin,size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
+#define DEC_CIRCULAR_PTR(ptr,begin,size) do {if(--(ptr)<(begin)) (ptr)=(begin)+(size)-1; } while(0)
+
+int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
+{
+	if(func==NULL)
+		return -EINVAL;
+	if(rt_pend_tq_irq<=0)
+		return -ENODEV;
+	INC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
+	if(rt_pend_head==rt_pend_tail) {
+		// overflow, we just refuse to take this request
+		DEC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
+		return -EAGAIN;
+	}
+	rt_pend_head->func=func;
+	rt_pend_head->arg1=arg1;
+	rt_pend_head->arg2=arg2;
+	rtl_global_pend_irq(rt_pend_tq_irq);
+	return 0;
+}
+
+void rt_pend_irq_handler(int irq, void *dev, struct pt_regs * regs)
+{
+	while(rt_pend_head!=rt_pend_tail) {
+		INC_CIRCULAR_PTR(rt_pend_tail,rt_pend_tq,RT_PEND_TQ_SIZE);
+		rt_pend_tail->func(rt_pend_tail->arg1,rt_pend_tail->arg2);
+	}
+}
+
+int rt_pend_tq_init()
+{
+	rt_pend_head=rt_pend_tail=rt_pend_tq;
+	return rt_pend_tq_irq=rtl_get_soft_irq(rt_pend_irq_handler,"rt_pend_irq");
+}
+
+void rt_pend_tq_cleanup()
+{
+	free_irq(rt_pend_tq_irq,NULL);
+}
+#endif
 
 void comedi_rtl_init(void)
 {
 	//rt_printk_init();
 	//rtl_register_chardev(COMEDI_MAJOR,"comedi",&comedi_rtl_fops);
+	rt_pend_tq_init();
 }
 
 void comedi_rtl_cleanup(void)
 {
 	//rt_printk_cleanup();
 	//rtl_unregister_chardev(COMEDI_MAJOR);
+	rt_pend_tq_cleanup();
 }
 

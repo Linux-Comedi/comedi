@@ -53,6 +53,7 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 	it->irq=irq;
 	it->dev_id=dev_id;
 	it->flags=flags;
+	it->device=device;
 
 	ret=request_irq(irq,handler,flags&~SA_PRIORITY,device,dev_id);
 	if(ret<0){
@@ -73,6 +74,7 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long flags)
 {
 	struct comedi_irq_struct *it;
+	int ret;
 
 	it=get_irq_struct(irq);
 	if(it){
@@ -84,9 +86,12 @@ int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long flags)
 
 		it->flags=flags;
 		if(flags&SA_PRIORITY){
+			free_irq(it->irq,it->dev_id);
 			return get_priority_irq(it);
 		}else{
-			return free_priority_irq(it);
+			ret=free_priority_irq(it);
+			request_irq(it->irq,it->handler,it->flags,it->device,it->dev_id);
+			return ret;
 		}
 	}
 
@@ -127,3 +132,9 @@ struct comedi_irq_struct *get_irq_struct(unsigned int irq)
 	return NULL;
 }
 
+#ifdef HAVE_RT_PEND_TQ
+void wake_up_int_handler(int arg1, void * arg2)
+{
+	wake_up_interruptible((wait_queue_head_t*)arg2);
+}
+#endif
