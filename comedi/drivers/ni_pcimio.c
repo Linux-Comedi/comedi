@@ -596,7 +596,10 @@ COMEDI_INITCLEANUP(driver_pcimio);
  * PCIMIO devices map the low 8 STC registers to iobase+addr*2.
  * The 611x devices map the write registers to iobase+addr*2, and
  * the read registers to iobase+(addr-1)*2. */
+/* However, the 611x boards still aren't working, so I'm disabling
+ * non-windowed STC access temporarily */
 
+#if 0
 #define win_out(data,addr) do{ \
 	if((addr)<8){ \
 		ni_writew((data),(addr)*2); \
@@ -605,16 +608,26 @@ COMEDI_INITCLEANUP(driver_pcimio);
 		ni_writew((data),Window_Data); \
 	} \
 }while(0)
+#else
+#define win_out(data,addr) do{ \
+	ni_writew((addr),Window_Address); \
+	ni_writew((data),Window_Data); \
+}while(0)
+#endif
 
 #define win_out2(data,addr) do{ \
 	win_out((data)>>16, (addr)); \
 	win_out((data)&0xffff, (addr)+1); \
 }while(0)
 
+#if 0
 #define win_in(addr) ( \
 	((addr)<7) \
 	? (ni_readw(((addr) - boardtype.reg_611x)*2)) \
 	: (ni_writew((addr),Window_Address),ni_readw(Window_Data)))
+#else
+#define win_in(addr) (ni_writew((addr),Window_Address),ni_readw(Window_Data))
+#endif
 
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
