@@ -270,7 +270,6 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev* pcidev;
 	int index;
-	unsigned int dac, digitalio;
 
 	printk("comedi%d: cb_pcidda: ",dev->minor);
 
@@ -309,7 +308,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 		}
 	}
 	printk("Not a supported ComputerBoards/MeasurementComputing card on "
-		"requested position\n");			
+		"requested position\n");
 	return -EIO;
 
 found:
@@ -324,29 +323,17 @@ found:
 	 */
 	if(pci_enable_device(devpriv->pci_dev))
 		return -EIO;
-	digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX); 
-	dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX); 
 
 /*
  * Allocate the I/O ports.
  */
-	if (check_region(digitalio, DIGITALIO_SIZE) < 0)
+	if (pci_request_regions(devpriv->pci_dev, thisboard->name))
 	{
-		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
-			digitalio, digitalio + DIGITALIO_SIZE - 1);
+		printk("cb_pcidda: I/O port conflict\n");
 		return -EIO;
 	}
-	if (check_region(dac, 8 + thisboard->ao_chans*2) < 0)
-	{
-		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
-			dac, dac + 7 + thisboard->ao_chans*2);
-		return -EIO;
-	}
-	request_region(digitalio, DIGITALIO_SIZE, thisboard->name);
-	devpriv->digitalio = digitalio;
-	request_region(dac, 8 + thisboard->ao_chans*2,
-		thisboard->name);
-	devpriv->dac = dac;
+	devpriv->digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
+	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
 
 /*
  * Warn about the status of the driver.
@@ -729,7 +716,7 @@ static unsigned int cb_pcidda_read_eeprom(comedi_device *dev, unsigned int addre
 	const int address_length = 8;
 
 	// send serial output stream to eeprom
-	cal2_bits = SELECT_EEPROM_BIT | DESELECT_REF_DAC_BIT;
+	cal2_bits = SELECT_EEPROM_BIT | DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	// deactivate caldacs (one caldac for every two channels)
 	for(i = 0; i < max_num_caldacs; i++)
 	{
@@ -768,7 +755,7 @@ static void cb_pcidda_write_caldac(comedi_device *dev, unsigned int caldac,
 
 	// latch stream into appropriate caldac
 	// deselect reference dac
-	cal2_bits = DESELECT_REF_DAC_BIT;
+	cal2_bits = DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	// deactivate caldacs (one caldac for every two channels)
 	for(i = 0; i < max_num_caldacs; i++)
 	{

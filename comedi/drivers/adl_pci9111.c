@@ -1261,33 +1261,24 @@ found:
 	  dev->minor,
 	  lcr_io_base,
 	  lcr_io_range);
-  
-  if (check_region (lcr_io_base, lcr_io_range) < 0) 
-  {
-    printk("comedi%d: I/O port conflict\n",dev->minor);
-    return -EIO;
-  }
-  
+
   // Read PCI6308 register base address [PCI_BASE_ADDRESS #2].
-  
+
   io_base = pci_resource_start (pci_device, 2);
   io_range = pci_resource_end (pci_device, 2) - io_base +1;
-  
+
   printk ("comedi%d: 6503 registers at address 0x%4x [0x%4x]\n",
 	  dev->minor,
 	  io_base,
 	  io_range);
 
-  if (check_region (io_base, io_range) < 0)
-  {
-    printk("comedi%d: I/O port conflict\n",dev->minor);
-    return -EIO;
-  }
-  
   // Allocate IO ressources
-  
-  pci_request_regions(pci_device, PCI9111_DRIVER_NAME);
-  
+	if(pci_request_regions(pci_device, PCI9111_DRIVER_NAME))
+	{
+		printk("comedi%d: I/O port conflict\n",dev->minor);
+		return -EIO;
+	}
+
   dev->iobase=io_base;
   dev->board_name = board->name;
   
