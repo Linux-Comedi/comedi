@@ -103,6 +103,7 @@ install:	dummy
 	install -d ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
 	install ${MODULES_MISC} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
 ifneq ($(MODULES_PCMCIA),)
+	mkdir -p ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/pcmcia
 	install ${MODULES_PCMCIA} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/pcmcia
 endif
 ifeq (${MOD_INSTALL_PATH},)
