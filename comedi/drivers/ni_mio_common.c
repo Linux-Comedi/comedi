@@ -1819,18 +1819,22 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* analog input subdevice */
 
 	s=dev->subdevices+0;
-	dev->read_subdev=s;
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
-	s->subdev_flags|=SDF_DITHER;
-	s->n_chan=boardtype.n_adchan;
-	s->len_chanlist=512;	/* XXX is this the same for PCI-MIO ? */
-	s->maxdata=(1<<boardtype.adbits)-1;
-	s->range_table=ni_range_lkup[boardtype.gainlkup];
-	s->insn_read=ni_ai_insn_read;
-	s->do_cmdtest=ni_ai_cmdtest;
-	s->do_cmd=ni_ai_cmd;
-	s->cancel=ni_ai_reset;
+	if(boardtype.n_adchan){
+		dev->read_subdev=s;
+		s->type=COMEDI_SUBD_AI;
+		s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
+		s->subdev_flags|=SDF_DITHER;
+		s->n_chan=boardtype.n_adchan;
+		s->len_chanlist=512;	/* XXX is this the same for PCI-MIO ? */
+		s->maxdata=(1<<boardtype.adbits)-1;
+		s->range_table=ni_range_lkup[boardtype.gainlkup];
+		s->insn_read=ni_ai_insn_read;
+		s->do_cmdtest=ni_ai_cmdtest;
+		s->do_cmd=ni_ai_cmd;
+		s->cancel=ni_ai_reset;
+	}else{
+		s->type=COMEDI_SUBD_UNUSED;
+	}
 
 	/* analog output subdevice */
 
@@ -1850,7 +1854,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_write=ni_ao_insn_write;
 		s->do_cmd=ni_ao_cmd;
 		s->do_cmdtest=ni_ao_cmdtest;
-		s->len_chanlist = 2;
+		s->len_chanlist = boardtype.n_aochan;
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}

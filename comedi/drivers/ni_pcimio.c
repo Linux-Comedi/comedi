@@ -301,6 +301,7 @@ static ni_board ni_boards[]={
 		alwaysdither:   1,
 		gainlkup:       ai_gain_16,
 		ai_speed:	3000,
+		n_aochan:       2,
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
@@ -327,11 +328,41 @@ static ni_board ni_boards[]={
 		alwaysdither:   0,
 		gainlkup:       ai_gain_14,
 		ai_speed:	200,
+		n_aochan:       2,
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
 		caldac:         type4,		/* XXX */
 	},
+#if 0
+	{       device_id:      0x0000,		/* unknown */
+		name:           "pci-6711",
+		n_adchan:       0, 
+		adbits:         0,
+		ai_fifo_depth:  0,
+		alwaysdither:   0,
+		gainlkup:       0,
+		ai_speed:	0,
+		ao_chan:	4,
+		aobits:         12,
+		ao_unipolar:    0,
+		ao_fifo_depth:  8192,
+		caldac:         type4,		/* XXX */
+	},
+#endif
+	{       device_id:      0x1870,
+		name:           "pci-6713",
+		n_adchan:       0, 
+		adbits:         0,
+		ai_fifo_depth:  0,
+		alwaysdither:   0,
+		gainlkup:       0,
+		ai_speed:	0,
+		ao_chan:	8,
+		aobits:         12,
+		ao_unipolar:    0,
+		ao_fifo_depth:  16384,
+		caldac:         type4,		/* XXX */
 #if 0
 	{       device_id:      0x0000,		/* unknown */
 		name:           "pci-6040e",
