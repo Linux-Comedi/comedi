@@ -65,6 +65,12 @@ Configuration options:
 
 #undef PCI171X_EXTDEBUG
 
+#ifdef PCI171X_EXTDEBUG
+#define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
+#else
+#define DPRINTK(fmt, args...)
+#endif
+
 // hardware types of the cards
 #define TYPE_PCI171X	0
 #define TYPE_PCI1713	2
@@ -302,9 +308,7 @@ int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn 
 	unsigned int idata;
 #endif
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_insn_read_ai(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_insn_read_ai(...)\n");
 	devpriv->CntrlReg&=Control_CNT0;
 	devpriv->CntrlReg|=Control_SW;  // set software trigger
 	outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
@@ -313,34 +317,23 @@ int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn 
 	
 	setup_channel_list(dev,s,&insn->chanspec, 1, 1);
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 A ST=%4x IO=%x\n",inw(dev->iobase+PCI171x_STATUS), dev->iobase+PCI171x_STATUS);
-#endif
+	DPRINTK("adv_pci1710 A ST=%4x IO=%x\n",inw(dev->iobase+PCI171x_STATUS), dev->iobase+PCI171x_STATUS);
 	for (n=0; n<insn->n; n++) {
 		outw(0, dev->iobase+PCI171x_SOFTTRG); /* start conversion */
-#ifdef PCI171X_EXTDEBUG
-    		rt_printk("adv_pci1710 B n=%d ST=%4x\n",n,inw(dev->iobase+PCI171x_STATUS));
-#endif
-		udelay(1);
-#ifdef PCI171X_EXTDEBUG
-    		rt_printk("adv_pci1710 C n=%d ST=%4x\n",n,inw(dev->iobase+PCI171x_STATUS));
-#endif
+    		DPRINTK("adv_pci1710 B n=%d ST=%4x\n",n,inw(dev->iobase+PCI171x_STATUS));
+		//udelay(1);
+    		DPRINTK("adv_pci1710 C n=%d ST=%4x\n",n,inw(dev->iobase+PCI171x_STATUS));
     		timeout=100;
     		while (timeout--) {
 			if (!(inw(dev->iobase+PCI171x_STATUS) & Status_FE)) goto conv_finish;
-#ifdef PCI171X_EXTDEBUG
 			if (!(timeout%10))
-				rt_printk("adv_pci1710 D n=%d tm=%d ST=%4x\n",n,timeout,inw(dev->iobase+PCI171x_STATUS));
-#endif
-			udelay(1);
+				DPRINTK("adv_pci1710 D n=%d tm=%d ST=%4x\n",n,timeout,inw(dev->iobase+PCI171x_STATUS));
     		}
     		comedi_error(dev,"A/D insn timeout");
 		outb(0,dev->iobase + PCI171x_CLRFIFO);
 		outb(0,dev->iobase + PCI171x_CLRINT);
     		data[n]=0;
-#ifdef PCI171X_EXTDEBUG
-		rt_printk("adv_pci1710 EDBG: END: pci171x_insn_read_ai(...) n=%d\n",n);
-#endif
+		DPRINTK("adv_pci1710 EDBG: END: pci171x_insn_read_ai(...) n=%d\n",n);
     		return -ETIME;
 
 conv_finish:
@@ -361,9 +354,7 @@ conv_finish:
 	outb(0,dev->iobase + PCI171x_CLRFIFO);
 	outb(0,dev->iobase + PCI171x_CLRINT);
 
-#ifdef PCI171X_EXTDEBUG
-		rt_printk("adv_pci1710 EDBG: END: pci171x_insn_read_ai(...) n=%d\n",n);
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: pci171x_insn_read_ai(...) n=%d\n",n);
 	return n;
 }
 
@@ -474,9 +465,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	sampl_t sampl;
 #endif
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: interrupt_pci1710_every_sample(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_pci1710_every_sample(...)\n");
 	m=inw(dev->iobase+PCI171x_STATUS);
 	if (m & Status_FE) {
 		rt_printk("comedi%d: A/D FIFO empty (%4x)\n", dev->minor, m);
@@ -493,15 +482,11 @@ static void interrupt_pci1710_every_sample(void *d)
 
 	outb(0, dev->iobase + PCI171x_CLRINT);			// clear our INT request
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("FOR ");
-#endif
+	DPRINTK("FOR ");
 	for (;!(inw(dev->iobase+PCI171x_STATUS)&Status_FE);) {
 #ifdef PCI171x_PARANOIDCHECK
 		sampl=inw(dev->iobase+PCI171x_AD_DATA);
-#ifdef PCI171X_EXTDEBUG
-    		rt_printk("%04x:",sampl);
-#endif
+    		DPRINTK("%04x:",sampl);
 		if (this_board->cardtype!=TYPE_PCI1713)
 			if ((sampl & 0xf000)!=devpriv->act_chanlist[s->async->cur_chan]) {
 	    			rt_printk("comedi: A/D data dropout: received data from channel %d, expected %d!\n",(sampl & 0xf000)>>12,(devpriv->act_chanlist[s->async->cur_chan] & 0xf000)>>12);
@@ -510,9 +495,7 @@ static void interrupt_pci1710_every_sample(void *d)
 				return;
 			}
 		*(sampl_t *)((void *)(devpriv->ai_data)+s->async->buf_int_ptr)=sampl & 0x0fff;
-#ifdef PCI171X_EXTDEBUG
-    		rt_printk("%8d %2d %8d~",s->async->buf_int_ptr,s->async->cur_chan,s->async->buf_int_count);
-#endif
+		DPRINTK("%8d %2d %8d~",s->async->buf_int_ptr,s->async->cur_chan,s->async->buf_int_count);
 #else
 		*(sampl_t *)((void *)(devpriv->ai_data)+s->async->buf_int_ptr)=inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff;
 #endif
@@ -522,25 +505,17 @@ static void interrupt_pci1710_every_sample(void *d)
 
 		if (s->async->buf_int_ptr>=devpriv->ai_data_len) {	// buffer rollover
 			s->async->buf_int_ptr = 0;
-#ifdef PCI171X_EXTDEBUG
-        		rt_printk("adv_pci1710 EDBG: EOBUF1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-#endif
+        		DPRINTK("adv_pci1710 EDBG: EOBUF1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
 			comedi_eobuf(dev, s);
-#ifdef PCI171X_EXTDEBUG
-        		rt_printk("adv_pci1710 EDBG: EOBUF2\n");
-#endif
+        		DPRINTK("adv_pci1710 EDBG: EOBUF2\n");
 		}
 
 		if(s->async->cur_chan>=devpriv->ai_n_chan){	// one scan done
 			s->async->cur_chan=0;
 		        devpriv->ai_act_scan++;
-#ifdef PCI171X_EXTDEBUG
-        		rt_printk("adv_pci1710 EDBG: EOS1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-#endif
+        		DPRINTK("adv_pci1710 EDBG: EOS1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
 			comedi_eos(dev, s);
-#ifdef PCI171X_EXTDEBUG
-        		rt_printk("adv_pci1710 EDBG: EOS2\n");
-#endif
+        		DPRINTK("adv_pci1710 EDBG: EOS2\n");
     			if ((!devpriv->neverending_ai)&&(devpriv->ai_act_scan>=devpriv->ai_scans)) { // all data sampled 
 		    		pci171x_ai_cancel(dev,s);
 				comedi_done(dev,s); 
@@ -550,9 +525,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	}
 
 	outb(0, dev->iobase + PCI171x_CLRINT);			// clear our INT request
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: interrupt_pci1710_every_sample(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: interrupt_pci1710_every_sample(...)\n");
 }
 
 /* 
@@ -564,9 +537,7 @@ static int move_block_from_fifo(comedi_device *dev,comedi_subdevice *s,sampl_t *
 #ifdef PCI171x_PARANOIDCHECK
 	int sampl;
 #endif
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: move_block_from_fifo(...,%d,%d)\n",n,turn);
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: move_block_from_fifo(...,%d,%d)\n",n,turn);
 	j=s->async->cur_chan;
 	for(i=0;i<n;i++) {
 #ifdef PCI171x_PARANOIDCHECK
@@ -594,9 +565,7 @@ static int move_block_from_fifo(comedi_device *dev,comedi_subdevice *s,sampl_t *
 		}
 	}
 	s->async->cur_chan=j;
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
 	return 0;
 }
 
@@ -609,9 +578,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 	comedi_subdevice *s = dev->subdevices + 0;
 	int		m,samplesinbuf;
 	
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: interrupt_pci1710_half_fifo(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_pci1710_half_fifo(...)\n");
 	m=inw(dev->iobase+PCI171x_STATUS);
 	if (!(m & Status_FH)) {
 		rt_printk("comedi%d: A/D FIFO not half full! (%4x)\n", dev->minor, m);
@@ -634,13 +601,9 @@ static void interrupt_pci1710_half_fifo(void *d)
 		s->async->buf_int_count+=m*sizeof(sampl_t);
 		samplesinbuf-=m;
 		s->async->buf_int_ptr=0;
-#ifdef PCI171X_EXTDEBUG
-    		rt_printk("adv_pci1710 EDBG: EOBUF1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-#endif
+    		DPRINTK("adv_pci1710 EDBG: EOBUF1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
 		comedi_eobuf(dev,s);
-#ifdef PCI171X_EXTDEBUG
-    		rt_printk("adv_pci1710 EDBG: EOBUF2\n");
-#endif
+    		DPRINTK("adv_pci1710 EDBG: EOBUF2\n");
 	}
 
 	if (samplesinbuf) {
@@ -650,13 +613,9 @@ static void interrupt_pci1710_half_fifo(void *d)
 		s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
 		s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
 
-#ifdef PCI171X_EXTDEBUG
-		rt_printk("adv_pci1710 EDBG: BUFCHECK1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
-#endif
+		DPRINTK("adv_pci1710 EDBG: BUFCHECK1 bic %d bip %d buc %d bup %d\n",s->async->buf_int_count,s->async->buf_int_ptr, s->async->buf_user_count, s->async->buf_user_ptr);
 		comedi_bufcheck(dev,s);
-#ifdef PCI171X_EXTDEBUG
-		rt_printk("adv_pci1710 EDBG: BUFCHECK2\n");
-#endif
+		DPRINTK("adv_pci1710 EDBG: BUFCHECK2\n");
 	}
 
 	if (!devpriv->neverending_ai)
@@ -666,9 +625,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 			return;
 		}
 	outb(0, dev->iobase + PCI171x_CLRINT);			// clear our INT request
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: interrupt_pci1710_half_fifo(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: interrupt_pci1710_half_fifo(...)\n");
 }
 
 /* 
@@ -678,24 +635,18 @@ static void interrupt_service_pci1710(int irq, void *d, struct pt_regs *regs)
 {
         comedi_device *dev = d;
 	
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: interrupt_service_pci1710(%d,...)\n",irq);
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_service_pci1710(%d,...)\n",irq);
 	if (!(inw(dev->iobase + PCI171x_STATUS) & Status_IRQ)) 	// is this interrupt from our board?
 	    return;						// no, exit
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: interrupt_service_pci1710() ST: %4x\n",inw(dev->iobase + PCI171x_STATUS));
-#endif
+	DPRINTK("adv_pci1710 EDBG: interrupt_service_pci1710() ST: %4x\n",inw(dev->iobase + PCI171x_STATUS));
 
 	if (devpriv->ai_eos) {  // We use FIFO half full INT or not?
 		interrupt_pci1710_every_sample(d);
 	} else {
 		interrupt_pci1710_half_fifo(d);
 	}
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: interrupt_service_pci1710(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: interrupt_service_pci1710(...)\n");
 }
 
 /* 
@@ -706,9 +657,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
         unsigned int divisor1, divisor2;
 	unsigned int seglen;
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_docmd_and_mode(%d,...)\n",mode);
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_docmd_and_mode(%d,...)\n",mode);
 	start_pacer(dev, -1, 0, 0); // stop pacer
 
         seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
@@ -716,7 +665,6 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 	if(seglen<1)return -EINVAL;
         setup_channel_list(dev, s, devpriv->ai_chanlist,
 		devpriv->ai_n_chan,seglen);
-	udelay(1);
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
@@ -743,9 +691,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 		if (devpriv->ai_timer1<this_board->ai_ns_min) devpriv->ai_timer1=this_board->ai_ns_min;
 		devpriv->CntrlReg|=Control_PACER|Control_IRQEN;
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,&divisor1,&divisor2,&devpriv->ai_timer1,devpriv->ai_flags&TRIG_ROUND_MASK);
-#ifdef PCI171X_EXTDEBUG
-                rt_printk("adv_pci1710 EDBG: OSC base=%u div1=%u div2=%u timer=%u\n",devpriv->i8254_osc_base,divisor1,divisor2,devpriv->ai_timer1);
-#endif
+                DPRINTK("adv_pci1710 EDBG: OSC base=%u div1=%u div2=%u timer=%u\n",devpriv->i8254_osc_base,divisor1,divisor2,devpriv->ai_timer1);
 		outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
     		start_pacer(dev, mode, divisor1, divisor2);	// start pacer
 		break;
@@ -756,9 +702,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 	}
 	
     
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: pci171x_ai_docmd_and_mode(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: pci171x_ai_docmd_and_mode(...)\n");
 	return 0;
 }
 
@@ -783,8 +727,8 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 	int err=0;
 	int tmp,divisor1,divisor2;
 
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 #ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 	pci171x_cmdtest_out(-1, cmd);
 #endif
 	/* step 1: make sure trigger sources are trivially valid */
@@ -812,8 +756,8 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 	if(err) {
 #ifdef PCI171X_EXTDEBUG
 		pci171x_cmdtest_out(1, cmd);
-		rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=1\n",err);
 #endif
+		DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=1\n",err);
 		return 1;
 	}
 
@@ -843,8 +787,8 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 	if(err) {
 #ifdef PCI171X_EXTDEBUG
 		pci171x_cmdtest_out(2, cmd);
-		rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=2\n",err);
 #endif
+		DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=2\n",err);
 		return 2;
 	}
 
@@ -899,8 +843,8 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 	if(err) {
 #ifdef PCI171X_EXTDEBUG
 		pci171x_cmdtest_out(3, cmd);
-		rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=3\n",err);
 #endif
+		DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=3\n",err);
 		return 3;
 	}
 
@@ -915,9 +859,7 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 	}
 
 	if(err) {
-#ifdef PCI171X_EXTDEBUG
-		rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=4\n",err);
-#endif
+		DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=4\n",err);
 		return 4;
 	}
 
@@ -928,9 +870,7 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 			cmd->chanlist_len)) return 5; // incorrect channels list
 	}
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) ret=0\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) ret=0\n");
 	return 0;
 }
 
@@ -941,9 +881,7 @@ static int pci171x_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd=&s->async->cmd;
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmd(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmd(...)\n");
 	devpriv->ai_n_chan=cmd->chanlist_len;
 	devpriv->ai_chanlist=cmd->chanlist;
 	devpriv->ai_flags=cmd->flags;
@@ -979,9 +917,7 @@ int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *
         unsigned int chansegment[32];  
         unsigned int i, nowmustbechan, seglen, segpos;
     
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG:  check_channel_list(...,%d)\n",n_chan);
-#endif
+	DPRINTK("adv_pci1710 EDBG:  check_channel_list(...,%d)\n",n_chan);
     /* correct channel and range number check itself comedi/range.c */
 	if (n_chan<1) {
 		comedi_error(dev,"range/channel list is empty!");
@@ -1028,15 +964,11 @@ void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int 
 {
 	unsigned int i, range, chanprog;
 	
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG:  setup_channel_list(...,%d,%d)\n",n_chan,seglen);
-#endif
+	DPRINTK("adv_pci1710 EDBG:  setup_channel_list(...,%d,%d)\n",n_chan,seglen);
 	devpriv->act_chanlist_len=seglen;
 	devpriv->act_chanlist_pos=0;
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("SegLen: %d\n", seglen);
-#endif
+	DPRINTK("SegLen: %d\n", seglen);
  	for (i=0; i<seglen; i++) {  // store range list to card
 		chanprog=muxonechan[CR_CHAN(chanlist[i])];
 		outw(chanprog, dev->iobase+PCI171x_MUX); /* select channel */
@@ -1046,17 +978,11 @@ void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int 
 #ifdef PCI171x_PARANOIDCHECK
 		devpriv->act_chanlist[i]=(CR_CHAN(chanlist[i])<<12) & 0xf000;
 #endif
-#ifdef PCI171X_EXTDEBUG
-		rt_printk("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range, devpriv->act_chanlist[i]);
-#endif
+		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range, devpriv->act_chanlist[i]);
 	}
 
-	udelay(1);
-
 	outw(CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8) , dev->iobase+PCI171x_MUX); /* select channel interval to scan */
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("MUX: %4x L%4x.H%4x\n", CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8), CR_CHAN(chanlist[0]), CR_CHAN(chanlist[seglen-1]));
-#endif
+	DPRINTK("MUX: %4x L%4x.H%4x\n", CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8), CR_CHAN(chanlist[0]), CR_CHAN(chanlist[seglen-1]));
 }
 
 /*
@@ -1064,12 +990,9 @@ void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int 
 */
 void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
 {
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: start_pacer(%d,%u,%u)\n",mode,divisor1,divisor2);
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: start_pacer(%d,%u,%u)\n",mode,divisor1,divisor2);
         outw(0xb4, dev->iobase + PCI171x_CNTCTRL);
         outw(0x74, dev->iobase + PCI171x_CNTCTRL);
-        udelay(1);
   
         if (mode==1) {
 		outw(divisor2 & 0xff, dev->iobase + PCI171x_CNT2);
@@ -1077,9 +1000,7 @@ void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned 
 		outw(divisor1  & 0xff, dev->iobase + PCI171x_CNT1);
 		outw((divisor1 >> 8) & 0xff, dev->iobase + PCI171x_CNT1);
         }
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: start_pacer(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: start_pacer(...)\n");
 }
 
 /* 
@@ -1087,9 +1008,7 @@ void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned 
 */
 int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cancel(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cancel(...)\n");
 
 	switch (this_board->cardtype) {
 	default:
@@ -1109,9 +1028,7 @@ int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
         devpriv->ai_buf_ptr=0;
         devpriv->neverending_ai=0;
 
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: pci171x_ai_cancel(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: pci171x_ai_cancel(...)\n");
 	return 0;
 }
 
@@ -1120,9 +1037,7 @@ int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 */
 static int pci171x_reset(comedi_device *dev)
 {
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci171x_reset(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_reset(...)\n");
 	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
 	devpriv->CntrlReg=Control_SW;	// Software trigger, CNT0=100kHz
 	outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);	// reset any operations
@@ -1143,9 +1058,7 @@ static int pci171x_reset(comedi_device *dev)
 	outb(0, dev->iobase + PCI171x_CLRFIFO);		// clear FIFO
 	outb(0, dev->iobase + PCI171x_CLRINT);		// clear INT request
 	
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: pci171x_reset(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: pci171x_reset(...)\n");
 	return 0;
 }
 
@@ -1154,9 +1067,7 @@ static int pci171x_reset(comedi_device *dev)
 */
 static int pci1720_reset(comedi_device *dev)
 {
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci1720_reset(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci1720_reset(...)\n");
 	outb(Syncont_SC0, dev->iobase + PCI1720_SYNCONT); // set synchronous output mode
 	devpriv->da_ranges=0xAA;
 	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE); // set all ranges to +/-5V 
@@ -1167,9 +1078,7 @@ static int pci1720_reset(comedi_device *dev)
 	outb(0, dev->iobase + PCI1720_SYNCOUT); // update outputs
 	devpriv->ao_data[0]=0x0800; devpriv->ao_data[1]=0x0800;
 	devpriv->ao_data[2]=0x0800; devpriv->ao_data[3]=0x0800;
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: pci1720_reset(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: pci1720_reset(...)\n");
 	return 0;
 }
 
@@ -1178,18 +1087,14 @@ static int pci1720_reset(comedi_device *dev)
 */
 static int pci1710_reset(comedi_device *dev)
 {
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: BGN: pci1710_reset(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: BGN: pci1710_reset(...)\n");
         switch (this_board->cardtype) {
 	case TYPE_PCI1720:
 		return pci1720_reset(dev);
 	default:
 		return pci171x_reset(dev);
 	}
-#ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG: END: pci1710_reset(...)\n");
-#endif
+	DPRINTK("adv_pci1710 EDBG: END: pci1710_reset(...)\n");
 }
 
 /* 
@@ -1207,10 +1112,11 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 	if (!pci_list_builded) {
 		pci_card_list_init(ADVANTECH_VENDOR,
 #ifdef PCI171X_EXTDEBUG
-						    1);
+						    1
 #else
-						    0);
+						    0
 #endif
+		);
 		pci_list_builded=1;
 	}
 
