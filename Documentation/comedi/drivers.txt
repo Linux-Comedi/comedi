@@ -87,15 +87,13 @@ Description: Driver for the ComputerBoards/MeasurementComputing cards
 Author: Ivan Martinez <ivanmr@altavista.com>,
   Frank Mori Hess <fmhess@uiuc.edu>
 Status:
-  - PCI-DAS1602/16, 16jr: Manual of these cards hasn't been read.
-    Driver will work as far as they are compatible with the other
-    supported cards. Please report usage.
-  - PCI-DAS1602/12: Same as before.
-  - PCI-DAS1200, 1200jr: Simple analog input reading has been tested
-    enough. Commands testing is in progress, and may be finished when
-    you read this (check mailing list archive for latest news).
-  - PCI-DAS1000, 1001, 1002: Manual of these cards has been read,
-    but they haven't been tested at all. Please report usage.
+  - PCI-DAS1602/16, 16jr: Driver should work, but untested.  Please
+      report usage.
+  - PCI-DAS1602/12: Same as above.
+  - PCI-DAS1200, 1200jr: Tested, works.
+  - PCI-DAS1000, 1001, 1002: Should work, but untested.  Please report
+    usage.
+Updated: 2001-8-27
 
 This driver originally intended to support the whole PCI-DAS series,
 but cards based on the PLX PCI controller are excluded for being
@@ -107,8 +105,26 @@ Configuration options:
   If bus/slot is not specified, the first available PCI
   device will be used.
 
-For commands, the scaned channels must be consecutive
-(i.e. 4-5-6-7, 2-3-4,...).
+For commands, the scanned channels must be consecutive
+(i.e. 4-5-6-7, 2-3-4,...), and must all have the same
+range and aref.
+
+
+
+Driver: cb_pcidas64.o
+Description: Driver for the ComputerBoards/MeasurementComputing
+  PCI-DAS64xxx series with the PLX 9080 PCI controller.
+Author: Frank Mori Hess <fmhess@uiuc.edu>
+Status: Experimental
+Updated: 2001-8-27
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+
+Basic insn support should work, but untested as far as I know.
+  Feel free to send and success/failure reports to author.  No
+  command support yet.
 
 
 
@@ -257,14 +273,23 @@ Device Names: das-16, das-16g, das-16f, cio-das16/jr, pc104-das16jr,
   das-1602, cio-das1401/12, cio-das1402/12, cio-das1402/16,
   cio-das1601/12, cio-das1602/12, cio-das1602/16, cio-das16/330
 Status: works in das16 mode, das-1600 enhanced mode features untested.
+Updated: 2001-8-27
 
 A rewrite of the das16 and das1600 drivers.
 Options:
 	[0] - base io address
 	[1] - irq (optional)
 	[2] - dma (optional)
-	[3] - master clock speed in MHz (1 or 10, ignored if board can
+	[3] - master clock speed in MHz (optional, 1 or 10, ignored if board can
 		probe clock, defaults to 1)
+	[4] - analog input range lowest voltage (optional, only useful if your
+		board does not have software programmable gain)
+	[5] - analog input range highest voltage (optional, only useful if your
+		board does not have software programmable gain)
+	[6] - analog output range lowest voltage (optional)
+	[7] - analog output range highest voltage (optional)
+
+Passing a zero for an option is the same as leaving it unspecified.
 
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
