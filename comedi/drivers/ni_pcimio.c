@@ -413,7 +413,7 @@ static ni_board ni_boards[]={
 		adbits:         12,
 		ai_fifo_depth:  512,
 		alwaysdither:   0,
-		gainlkup:       ai_gain_14,	/* wrong */
+		gainlkup:       ai_gain_611x,
 		ai_speed:	200,
 		aobits:         16,
 		ao_unipolar:    0,
@@ -426,7 +426,7 @@ static ni_board ni_boards[]={
 		adbits:         12,
 		ai_fifo_depth:  512,
 		alwaysdither:   0,
-		gainlkup:       ai_gain_14,
+		gainlkup:       ai_gain_611x,
 		ai_speed:	200,
 		n_aochan:       2,
 		aobits:         12,

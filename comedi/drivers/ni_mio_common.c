@@ -86,14 +86,19 @@
 static short ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
 static short ni_modebits2[4]={ 0x3f, 0x3f, 0x37, 0x37 };
 
+/* Note: this table must match the ai_gain_* definitions */
 static short ni_gainlkup[][16]={
+	/* ai_gain_16 */
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 0x100, 0x101, 0x102, 0x103, 0x104, 0x105,
 		0x106, 0x107 },
+	/* ai_gain_8 */
 	{ 1, 2, 4, 7, 0x101, 0x102, 0x104, 0x107 },
+	/* ai_gain_14 */
 	{ 1, 2, 3, 4, 5, 6, 7, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106,
-		0x107, 0,0 },
-	//{ 0, 1, 4, 7, 0x100, 0x101, 0x104, 0x107 },
+		0x107 },
+	/* ai_gain_4 */
 	{ 0, 1, 4, 7 },
+	/* ai_gain_611x */
 	{ 9, 10, 11, 1, 2, 3, 4, 5, 6 },
 };
 
