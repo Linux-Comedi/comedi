@@ -39,13 +39,13 @@ Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
   CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
   CIO-DAS1602/16 (cio-das1602/16), CIO-DAS16/330 (cio-das16/330)
 Status: works
-Updated: 2002-09-30
+Updated: 2003-10-12
 
 A rewrite of the das16 and das1600 drivers.
 Options:
 	[0] - base io address
-	[1] - irq (optional)
-	[2] - dma (optional)
+	[1] - irq (does nothing, irq is not used anymore)
+	[2] - dma (optional, required for comedi_command support)
 	[3] - master clock speed in MHz (optional, 1 or 10, ignored if
 		board can probe clock, defaults to 1)
 	[4] - analog input range lowest voltage in microvolts (optional,
@@ -56,17 +56,12 @@ Options:
 		gain)
 	[6] - analog output range lowest voltage in microvolts (optional)
 	[7] - analog output range highest voltage in microvolts (optional)
-	[8] - use timer mode for DMA, needed e.g. for buggy DMA controller
-		in NS CS5530A (Geode Companion), and for 'jr' cards that
-		lack a hardware fifo.  If set, also allows
-		comedi_command() to be run without an irq.
+	[8] - use timer mode for DMA.  Timer mode is needed e.g. for
+		buggy DMA controllers in NS CS5530A (Geode Companion), and for
+		'jr' cards that lack a hardware fifo.  This option is no
+		longer needed, since timer mode is _always_ used.
 
 Passing a zero for an option is the same as leaving it unspecified.
-
-Both a dma channel and an irq (or use of 'timer mode', option 8) are required
-for timed or externally triggered conversions.  The JR versions of the boards
-should use 'timer mode' instead of an irq, due to their lack of a hardware
-fifo.
 
 */
 /*
@@ -713,7 +708,8 @@ static comedi_driver driver_das16={
 
 #define DAS16_TIMEOUT 1000
 
-static const int timer_period = HZ / 20 + 1;	// period for timer interrupt in jiffies (about 1/20 of a second)
+/* period for timer interrupt in jiffies */
+static const int timer_period = HZ / 20;
 
 struct das16_private_struct
 {
@@ -1159,7 +1155,6 @@ static irqreturn_t das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* clear interrupt */
 	outb(0x00, dev->iobase + DAS16_STATUS);
 	das16_interrupt(dev);
-
 	return IRQ_HANDLED;
 }
 
@@ -1226,7 +1221,7 @@ static void das16_interrupt( comedi_device *dev )
 		num_bytes = devpriv->dma_transfer_size - residue;
 
 	if(cmd->stop_src == TRIG_COUNT &&
-		num_bytes > devpriv->adc_byte_count)
+		num_bytes >= devpriv->adc_byte_count)
 	{
 		num_bytes = devpriv->adc_byte_count;
 		async->events |= COMEDI_CB_EOA;
@@ -1248,6 +1243,11 @@ static void das16_interrupt( comedi_device *dev )
 			devpriv->dma_buffer_addr[ devpriv->current_buffer ] );
 		set_dma_count( devpriv->dma_chan, devpriv->dma_transfer_size );
 		enable_dma(devpriv->dma_chan);
+		/* reenable conversions for das1600 mode, (stupid hardware) */
+		if(thisboard->size > 0x400 && devpriv->timer_mode == 0)
+		{
+			outb(0x00, dev->iobase + DAS1600_CONV);
+		}
 	}
 	release_dma_lock(dma_flags);
 
@@ -1361,8 +1361,14 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_krange *user_ai_range, *user_ao_range;
 
 	iobase = it->options[0];
+#if 0
 	irq = it->options[1];
 	timer_mode = it->options[8];
+#endif
+	/* always use time_mode since using irq can drop samples while
+	 * waiting for dma done interrupt (due to hardware limitations) */
+	irq = 0;
+	timer_mode = 1;
 	if( timer_mode ) irq = 0;
 
 	printk("comedi%d: das16:",dev->minor);
