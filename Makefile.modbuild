@@ -62,10 +62,11 @@ all:	config
 endif
 
 oldconfig:	dummy
-	$(CONFIG_SHELL) ./configure --old
+	env -i $(CONFIG_SHELL) ./configure --old
 
+#configure is called through env -i to prevent loading of variables from stale LINUXDIR
 config:	dummy
-	$(CONFIG_SHELL) ./configure
+	env -i $(CONFIG_SHELL) ./configure --linuxdir $(LINUXDIR)
 
 modules_install:	$(patsubst %, _modinst_%, $(SUBDIRS))
 	depmod -a
