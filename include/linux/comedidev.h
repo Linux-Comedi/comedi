@@ -69,6 +69,7 @@
 #define PCI_VENDOR_ID_AMPLICON		0x14dc
 #define PCI_VENDOR_ID_ADLINK		0x144a
 #define PCI_VENDOR_ID_ICP		0x104c
+#define PCI_VENDOR_ID_CONTEC		0x1221
 
 
 typedef struct comedi_device_struct comedi_device;
