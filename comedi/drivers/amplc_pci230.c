@@ -33,9 +33,12 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
 #include <linux/pci.h>
+#include <linux/init.h>
+
+#include <asm/io.h>
+
 #include "8253.h"
 #include "8255.h"
 
