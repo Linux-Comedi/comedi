@@ -1,6 +1,5 @@
 /* rt_pend_tq.c */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include "rt_pend_tq.h"
@@ -8,11 +7,11 @@
 #include <rtai.h>
 #endif
 #ifdef CONFIG_COMEDI_RTL
-#include <rtl.h>
 #include <rtl_core.h>
 #endif
 
 #ifdef standalone
+#include <linux/module.h>
 #define rt_pend_tq_init init_module
 #define rt_pend_tq_cleanup cleanup_module
 #endif
