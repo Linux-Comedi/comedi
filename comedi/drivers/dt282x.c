@@ -1108,10 +1108,10 @@ static comedi_lrange *ai_range_pgl_table[]={
 static comedi_lrange *opt_ai_range_lkup(int ispgl,int x)
 {
 	if(ispgl){
-		if(x<0 || x>=2)return &range_unknown;
+		if(x<0 || x>=2)x=0;
 		return ai_range_pgl_table[x];
 	}else{
-		if(x<0 || x>=4)return &range_unknown;
+		if(x<0 || x>=4)x=0;
 		return ai_range_table[x];
 	}
 }
@@ -1123,7 +1123,7 @@ static comedi_lrange *ao_range_table[]={
 	&range_bipolar2_5 };
 static comedi_lrange *opt_ao_range_lkup(int x)
 {
-	if(x<0 || x>=5)return &range_unknown;
+	if(x<0 || x>=5)x=0;
 	return ao_range_table[x];
 }
 
