@@ -615,8 +615,12 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	if(irq)
 	{
 		isr_flags = 0;
-		if((thisboard->bustype == pci_bustype) ||
-		   (thisboard->bustype == pcmcia_bustype))
+		if((thisboard->bustype == pci_bustype)
+#if 0
+				// I'm fairly sure the daqcard-1200 interrupt cannot be shared
+				|| (thisboard->bustype == pcmcia_bustype)
+#endif
+				)
 			isr_flags |= SA_SHIRQ;
 		if(comedi_request_irq( irq, labpc_interrupt, isr_flags, driver_labpc.driver_name, dev))
 		{
