@@ -84,7 +84,7 @@ fi
 topdir=$(pwd)
 if (( $LINUX_VERSION_CODE >= 0x20500 )); then
 	FLAGDIR=${topdir}/scripts/linux_flags-2.6
-	make -C ${LINUXDIR} V=1 SUBDIRS=${FLAGDIR} LINUXDIR=${LINUXDIR} modules
+	make -C ${LINUXDIR} V=1 SUBDIRS=${FLAGDIR} LINUXDIR=${LINUXDIR} MODVERDIR=${FLAGDIR} modules
 else
 	FLAGDIR=${topdir}/scripts/linux_flags
 	make -C ${FLAGDIR} LINUXDIR=${LINUXDIR}
