@@ -218,6 +218,10 @@ static void amcc_cleanup(void)
 
 }
 
+MODULE_AUTHOR("Michal Dobes <majkl@tesnet.cz>");
+MODULE_DESCRIPTION("Driver for AMCC 5933 PCI controller");
+MODULE_LICENSE("GPL");
+
 module_init(amcc_init);
 module_exit(amcc_cleanup);
 
