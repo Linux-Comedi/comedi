@@ -1167,9 +1167,10 @@ static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(cmd->chanlist &&
 		cmd->chanlist_len > 1)
 	{
-		if(CR_CHAN(cmd->chanlist[0]) != CR_CHAN(cmd->chanlist[1]))
+		if(CR_CHAN(cmd->chanlist[0]) != 0 ||
+			CR_CHAN(cmd->chanlist[1]) != 1)
 		{
-			comedi_error(dev, "entries in chanlist must be unique\n");
+			comedi_error(dev, "channels must be ordered channel 0, channel 1 in chanlist\n");
 			err++;
 		}
 	}
