@@ -40,12 +40,20 @@ ID=3: open drain output
   Errors: none
 
   Notes:
-    - does open drain input make sense?
+    - does "open drain input" make sense? (no)
 
 
 ID=xxx:  analog output waveform generation
 
   Specify the number of samples in buffer.
+
+
+ID=xxx:  analog output deglitch configuration
+ID=xxx:  analog input dithering configuration
+  
+  Also could put AO range configuration here.  (ds: that would be
+  dumb.)
+
 
 ID=xxx:  analog triggering
 
@@ -60,6 +68,7 @@ ID=xxx:  analog triggering
           slope/level
 	  hysteresis
   [3] - high
+  [4] - low
 
   Modifications: ?
   Errors:
@@ -70,6 +79,7 @@ ID=xxx:  analog triggering
     - are there devices that can specify debouncing?
     - are there devices that can specify a time value after
       which the analog trigger resets?
+    - has to account for hysteresis
 
 
 ID=xxx: simple digital triggering
