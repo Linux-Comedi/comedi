@@ -194,7 +194,7 @@ struct comedi_device_struct{
 	int use_count;
 	comedi_driver *driver;
 	void *private;
-	kdev_t minor;
+	unsigned int minor;
 	char *board_name;
 	const void * board_ptr;
 	int attached;
@@ -240,11 +240,9 @@ static const int comedi_debug = 0;
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
 void comedi_error(const comedi_device *dev,const char *s);
 
-comedi_device * comedi_get_device_by_minor(kdev_t minor);
-
-extern inline comedi_device * comedi_get_device_by_minor(kdev_t minor)
+static inline comedi_device * comedi_get_device_by_minor( unsigned int minor )
 {
-	return comedi_devices+minor;
+	return comedi_devices + minor;
 }
 
 int comedi_device_detach(comedi_device *dev);

@@ -62,7 +62,7 @@ MODULE_PARM(comedi_debug, "i");
 comedi_device *comedi_devices;
 spinlock_t big_comedi_lock = SPIN_LOCK_UNLOCKED;
 
-static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor);
+static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,unsigned int minor);
 static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
@@ -88,7 +88,7 @@ static void init_async_buf( comedi_async *async );
 static int comedi_ioctl(struct inode * inode,struct file * file,
 	unsigned int cmd,unsigned long arg)
 {
-	kdev_t minor=MINOR(inode->i_rdev);
+	unsigned int minor=minor(inode->i_rdev);
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 
 	/* Device config is special, because it must work on
@@ -151,14 +151,14 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 	writes:
 		none
 */
-static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor)
+static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg, unsigned int minor)
 {
 	comedi_devconfig it;
 	int ret;
 	unsigned char *aux_data = NULL;
 	int aux_len;
 
-	if(!suser())
+	if(!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	if(arg==NULL){
@@ -232,7 +232,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	}
 
 	if(bc.maximum_size){
-		if(!suser())return -EPERM;
+		if(!capable(CAP_SYS_ADMIN))return -EPERM;
 
 		async->max_bufsize = bc.maximum_size;
 	}
@@ -1249,7 +1249,7 @@ static struct vm_operations_struct comedi_vm_ops={
 
 static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 {
-	kdev_t minor=MINOR(RDEV_OF_FILE(file));
+	unsigned int minor=minor(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 	comedi_async *async = NULL;
 	unsigned long start = vma->vm_start;
@@ -1321,7 +1321,7 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	comedi_async *async;
 	unsigned int mask;
 
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	dev=comedi_get_device_by_minor(minor(RDEV_OF_FILE(file)));
 
 	if(!dev->attached)
 	{
@@ -1363,7 +1363,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
 
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	dev=comedi_get_device_by_minor(minor(RDEV_OF_FILE(file)));
 
 	if(!dev->attached)
 	{
@@ -1449,7 +1449,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
 
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	dev=comedi_get_device_by_minor(minor(RDEV_OF_FILE(file)));
 
 	if(!dev->attached)
 	{
@@ -1567,7 +1567,7 @@ static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
 	comedi_device *dev;
 	loff_t new_offset;
 
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	dev=comedi_get_device_by_minor(minor(RDEV_OF_FILE(file)));
 
 	switch(origin){
 	case SEEK_SET:
@@ -1590,7 +1590,7 @@ static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
 
 static int comedi_fop_open(struct inode *inode,struct file *file)
 {
-	kdev_t minor=MINOR(inode->i_rdev);
+	unsigned int minor=minor(inode->i_rdev);
 	comedi_device *dev;
 	char mod[32];
 
@@ -1613,9 +1613,9 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	 */
 	if(dev->attached)
 		goto ok;
-	if(!suser() && dev->in_request_module)
+	if(!capable(CAP_SYS_ADMIN) && dev->in_request_module)
 		return -ENODEV;
-	if(suser() && dev->in_request_module)
+	if(capable(CAP_SYS_ADMIN) && dev->in_request_module)
 		goto ok;
 
 	dev->in_request_module=1;
@@ -1627,7 +1627,7 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 
 	dev->in_request_module=0;
 
-	if(dev->attached || suser())
+	if(dev->attached || capable(CAP_SYS_ADMIN))
 		goto ok;
 	return -ENODEV;
 
@@ -1649,7 +1649,7 @@ ok:
 
 static int comedi_close_v22(struct inode *inode,struct file *file)
 {
-	comedi_device *dev=comedi_get_device_by_minor(MINOR(inode->i_rdev));
+	comedi_device *dev=comedi_get_device_by_minor(minor(inode->i_rdev));
 	comedi_subdevice *s = NULL;
 	int i;
 
@@ -1687,7 +1687,7 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 #if LINUX_VERSION_CODE >= 0x020100
 static int comedi_fasync (int fd, struct file *file, int on)
 {
-	comedi_device *dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	comedi_device *dev=comedi_get_device_by_minor(minor(RDEV_OF_FILE(file)));
 
 	return fasync_helper(fd,file,on,&dev->async_queue);
 }
