@@ -1489,7 +1489,11 @@ printk("m is %d\n",m);
 		if(n==0){
 			if(!(s->subdev_flags&SDF_RUNNING)){
 				do_become_nonbusy(dev,s);
-				retval=-EINVAL;
+				if(s->runflags & SRF_ERROR){
+					retval = -EIO;
+				}else{
+					retval = 0;
+				}
 				break;
 			}
 			if(file->f_flags&O_NONBLOCK){
@@ -1511,7 +1515,7 @@ printk("m is %d\n",m);
 		if(async->buf_int_count - async->buf_user_count > async->data_len){
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
-			retval=-EINVAL;
+			retval=-EIO;
 			do_cancel(dev, dev->read_subdev);
 			DPRINTK("buffer overrun\n");
 			break;
@@ -1529,7 +1533,9 @@ printk("m is %d\n",m);
 		buf+=n;
 		break;	/* makes device work like a pipe */
 	}
-	if(!(s->subdev_flags&SDF_RUNNING) && async->buf_int_count-async->buf_user_count==0){
+	if(!(s->subdev_flags&SDF_RUNNING) &&
+		!(s->runflags & SRF_ERROR))
+	{
 		do_become_nonbusy(dev,s);
 	}
 	current->state=TASK_RUNNING;
@@ -1875,6 +1881,12 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 
 	if(mask&COMEDI_CB_EOA){
 		s->subdev_flags &= ~SDF_RUNNING;
+	}
+
+	/* remember if an error event has occured, so an error
+	 * can be returned the next time the user does a read() */
+	if(mask & COMEDI_CB_ERROR){
+		s->runflags |= SRF_ERROR;
 	}
 }
 

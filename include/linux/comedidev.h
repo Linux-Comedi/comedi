@@ -215,10 +215,11 @@ void stop_polling(comedi_device *);
 void comedi_proc_init(void);
 void comedi_proc_cleanup(void);
 
-
+// subdevice runflags
 #define SRF_USER		0x00000001
 #define SRF_RT			0x00000002
-
+// indicates an COMEDI_CB_ERROR event has occurred since the last command was started
+#define SRF_ERROR		0x00000004
 
 /*
    various internal comedi functions
