@@ -222,7 +222,7 @@ typedef struct {
 	int 		n_ranges;	// len of range list
 	int 		n_aichan_se;	// num of A/D chans in single ended  mode
 	int 		n_aichan_diff;	// num of A/D chans in diferencial mode
-	unsigned int 	ns_min;		// minimal alllowed delay between samples (in us)
+	unsigned int 	ns_min;		// minimal alllowed delay between samples (in ns)
 	int 		n_aochan;	// num of D/A chans
 	int 		n_dichan;	// num of DI chans
 	int 		n_dochan;	// num of DO chans
@@ -240,17 +240,17 @@ typedef struct {
 
 static boardtype boardtypes[] =
 {
-	{"pcl818l",   4, 16, 8, 25, 1, 16, 16, &range_pcl818l_l_ai, &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl818l",   4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai, &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 0 },
-	{"pcl818h",   9, 16, 8, 10, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl818h",   9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 0 },
-	{"pcl818hd",  9, 16, 8, 10, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl818hd",  9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 1 },
-	{"pcl818hg", 12, 16, 8, 10, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 1 },
-	{"pcl818",    9, 16, 8, 10, 2, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl818",    9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 2, 0 },
-	{"pcl718",    1, 16, 8, 16, 2, 16, 16, &range_unipolar5,    &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl718",    1, 16, 8, 16000, 2, 16, 16, &range_unipolar5,    &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 2, 0 },
 };
 
@@ -434,7 +434,7 @@ static void interrupt_pcl818_ai_mode13_int(int irq, void *d, struct pt_regs *reg
         outb(0,dev->iobase+PCL818_STATUS); /* clear INT request */
         comedi_error(dev,"A/D mode1/3 IRQ without DRDY!");
 	pcl818_ai_cancel(dev,s);
-        comedi_done(dev,s);
+        comedi_error_done(dev,s);
 	return;
 
 conv_finish:
@@ -445,7 +445,7 @@ conv_finish:
         if ((low & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 		rt_printk("comedi: A/D mode1/3 IRQ - channel dropout %x!=%x !\n",(low & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		pcl818_ai_cancel(dev,s);
-		comedi_done(dev,s);
+		comedi_error_done(dev,s);
 		return;
         }
         s->buf_int_ptr+=sizeof(sampl_t);
@@ -512,7 +512,7 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 		if ((ptr[bufptr] & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 		        rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d!=%d !\n",(ptr[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		        pcl818_ai_cancel(dev,s);
-			comedi_done(dev,s);
+			comedi_error_done(dev,s);
 			return;
 		}
 
@@ -587,7 +587,7 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			comedi_error(dev,"A/D mode1/3 DMA buffer overflow!");
 			//rt_printk("I %d dmabuf[i] %d %d\n",i,dmabuf[i],devpriv->dmasamplsize);
 			pcl818_ai_cancel(dev,s);
-			comedi_done(dev,s);
+			comedi_error_done(dev,s);
 			return;
 		}
 		//rt_printk("r %ld ",ofs_dats);
@@ -598,7 +598,7 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			if ((dmabuf[bufptr] & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 				rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d!=%d !\n",(dmabuf[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 				pcl818_ai_cancel(dev,s);
-				comedi_done(dev,s);
+				comedi_error_done(dev,s);
 				return;
 			}
 	 
@@ -661,14 +661,14 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
         if (lo&4) {
 		comedi_error(dev,"A/D mode1/3 FIFO overflow!");
 		pcl818_ai_cancel(dev,s);
-		comedi_done(dev,s);
+		comedi_error_done(dev,s);
 		return;
         }
 
         if (lo&1) {
 		comedi_error(dev,"A/D mode1/3 FIFO interrupt without data!");
 		pcl818_ai_cancel(dev,s);
-		comedi_done(dev,s);
+		comedi_error_done(dev,s);
 		return;
 	}
    
@@ -680,7 +680,7 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 		if ((lo & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 			rt_printk("comedi: A/D mode1/3 FIFO - channel dropout %d!=%d !\n",(lo & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 			pcl818_ai_cancel(dev,s);
-			comedi_done(dev,s);
+			comedi_error_done(dev,s);
 			return;
 		}
 
@@ -1576,7 +1576,7 @@ no_dma:
         switch (dev->board) {
     	case boardPCL718: 
 		if ((it->options[6]==1)||(it->options[6]==100)) 
-			devpriv->ns_min=10;  /* extended PCL718 to 100kHz DAC */
+			devpriv->ns_min=10000;  /* extended PCL718 to 100kHz DAC */
         	break;
 	}
 

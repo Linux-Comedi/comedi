@@ -67,8 +67,10 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base, unsigned i
 		}
 	}
 
+	*nanosec = div1_lub * div2_lub * i8253_osc_base;
 	*d1 = div1_lub;
 	*d2 = div2_lub;
+	return;
 }
 
 static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
