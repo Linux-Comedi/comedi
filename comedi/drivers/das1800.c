@@ -169,7 +169,6 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
 static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s);
 static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *s);
 static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *s);
-inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point);
 void disable_das1800(comedi_device *dev);
 static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
@@ -875,6 +874,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned long irq_flags;
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
+	comedi_async *async;
 
 	status = inb(dev->iobase + DAS1800_STATUS);
 	/* if interrupt was not caused by das-1800 */
@@ -882,6 +882,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		return;
 	}
+	async = s->async;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(ADC, dev->iobase + DAS1800_SELECT);
 	// dma buffer full or about-triggering (stop_src == TRIG_EXT)
@@ -904,13 +905,15 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	outb(FNE, dev->iobase + DAS1800_STATUS);
 
 	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-	comedi_bufcheck(dev, s);
+	async->events |= COMEDI_CB_BLOCK;
 	/* if the card's fifo has overflowed */
 	if(status & OVF)
 	{
 		comedi_error(dev, "DAS1800 FIFO overflow");
 		das1800_cancel(dev, s);
-		comedi_error_done(dev, s);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev, s, async->events);
+		async->events = 0;
 		return;
 	}
 	// if stop_src TRIG_EXT has occurred
@@ -919,8 +922,11 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(devpriv->count == 0 && devpriv->forever == 0)
 	{
 		disable_das1800(dev);		/* disable hardware conversions */
-		comedi_done(dev, s);
+		async->events |= COMEDI_CB_EOA;
 	}
+
+	comedi_event(dev, s, async->events);
+	async->events = 0;
 
 	return;
 }
@@ -1008,7 +1014,7 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 		/* convert to unsigned type if we are in a bipolar mode */
 		if(!unipolar);
 			dpnt += 1 << (thisboard->resolution - 1);
-		write_to_buffer(dev, s, dpnt);
+		comedi_buf_put(s->async, dpnt);
 		if(devpriv->count > 0) devpriv->count--;
 	}
 
@@ -1056,7 +1062,8 @@ static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *
 		/* convert to unsigned type if we are in a bipolar mode */
 		if(!unipolar);
 			dpnt += 1 << (thisboard->resolution - 1);
-		write_to_buffer(dev, s, dpnt);
+		comedi_buf_put(s->async, dpnt);
+		if(devpriv->count > 0) devpriv->count--;
 	}
 	return;
 }
@@ -1076,30 +1083,11 @@ static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *
 		/* convert to unsigned type if we are in a bipolar mode */
 		if(!unipolar);
 			dpnt += 1 << (thisboard->resolution - 1);
-		write_to_buffer(dev, s, dpnt);
+		comedi_buf_put(s->async, dpnt);
+		if(devpriv->count > 0) devpriv->count--;
 	}
 
 	return;
-}
-
-/* utility function used by das1800 interrupt service routines */
-inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point)
-{
-	if(s->async->buf_int_ptr >= s->async->data_len )
-	{
-		s->async->buf_int_ptr = 0;
-		comedi_eobuf(dev, s);
-	}
-	*((sampl_t *)((void *)s->async->data + s->async->buf_int_ptr)) = data_point;
-	s->async->cur_chan++;
-	if(s->async->cur_chan >= s->async->cur_chanlist_len)
-	{
-		s->async->cur_chan = 0;
-		comedi_eos(dev, s);
-	}
-	s->async->buf_int_count += sizeof(sampl_t);
-	s->async->buf_int_ptr += sizeof(sampl_t);
-	if(devpriv->count > 0) devpriv->count--;
 }
 
 void disable_das1800(comedi_device *dev)
