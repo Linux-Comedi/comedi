@@ -370,7 +370,7 @@ typedef struct {
 
 static int dt282x_attach(comedi_device * dev, comedi_devconfig * it);
 static int dt282x_detach(comedi_device * dev);
-comedi_driver driver_dt282x={
+static comedi_driver driver_dt282x={
 	driver_name:	"dt282x",
 	module:		THIS_MODULE,
 	attach:		dt282x_attach,
@@ -1328,7 +1328,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 static void free_resources(comedi_device *dev)
 {
 	if (dev->irq) {
-		free_irq(dev->irq, dev);
+		comedi_free_irq(dev->irq, dev);
 	}
 	if(dev->iobase)
 		release_region(dev->iobase, DT2821_SIZE);

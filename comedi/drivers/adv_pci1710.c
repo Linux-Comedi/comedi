@@ -65,6 +65,7 @@ Configuration options:
 
 #undef PCI171X_EXTDEBUG
 
+#undef DPRINTK
 #ifdef PCI171X_EXTDEBUG
 #define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
 #else
@@ -206,6 +207,16 @@ typedef struct {
 	unsigned int	ai_ns_min;	// max sample speed of card v ns
 	unsigned int	fifo_half_size;	// size of FIFO/2
 } boardtype;
+
+static struct pci_device_id pci1710_pci_table[] = __devinitdata {
+	{ ADVANTECH_VENDOR, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ ADVANTECH_VENDOR, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ ADVANTECH_VENDOR, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ ADVANTECH_VENDOR, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ ADVANTECH_VENDOR, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
 
 static boardtype boardtypes[] =
 {
@@ -1271,7 +1282,7 @@ static int pci1710_detach(comedi_device *dev)
 	if (dev->private) 
 		if (devpriv->valid) pci1710_reset(dev);
 	
-	if (dev->irq) free_irq(dev->irq,dev);
+	if (dev->irq) comedi_free_irq(dev->irq,dev);
 	if (dev->iobase) release_region(dev->iobase,this_board->iorange);
 
 	if (pci_list_builded) {

@@ -208,3 +208,30 @@ struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsign
 	return card;
 }
 
+
+static int amcc_init(void)
+{
+	return 0;
+}
+
+static void amcc_cleanup(void)
+{
+
+}
+
+module_init(amcc_init);
+module_exit(amcc_cleanup);
+
+EXPORT_SYMBOL(pci_card_alloc);
+EXPORT_SYMBOL(pci_card_data);
+EXPORT_SYMBOL(pci_card_free);
+EXPORT_SYMBOL(pci_card_list_cleanup);
+EXPORT_SYMBOL(pci_card_list_display);
+EXPORT_SYMBOL(pci_card_list_init);
+EXPORT_SYMBOL(select_and_alloc_pci_card);
+EXPORT_SYMBOL(find_free_pci_card_by_device);
+EXPORT_SYMBOL(find_free_pci_card_by_position);
+EXPORT_SYMBOL(amcc_devices);
+
+
+

@@ -1136,7 +1136,7 @@ static void free_resources(comedi_device * dev)
 			free_dma(devpriv->dma);
 	}
 	if (dev->irq)
-		free_irq(dev->irq, dev);
+		comedi_free_irq(dev->irq, dev);
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
 }

@@ -73,7 +73,7 @@ to change this, at least on a standard parallel port.
 Subdevice 3 pretends to be a digital input subdevice, but it always
 returns 0 when read.  However, if you run a command with
 scan_begin_src=TRIG_EXT, it uses pin 13 as a external triggering
-pin, which can be used to wake up tasks.
+pin, which can be used to wake up tasks.  (or is that pin 10. --ds)
 */
 /*
 
@@ -107,7 +107,7 @@ pin, which can be used to wake up tasks.
 
 static int parport_attach(comedi_device *dev,comedi_devconfig *it);
 static int parport_detach(comedi_device *dev);
-comedi_driver driver_parport={
+static comedi_driver driver_parport={
 	driver_name:	"comedi_parport",
 	module:		THIS_MODULE,
 	attach:		parport_attach,
@@ -328,7 +328,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+1;
 	s->type=COMEDI_SUBD_DI;
 	s->subdev_flags=SDF_READABLE;
-	s->n_chan=4;
+	s->n_chan=5;
 	s->maxdata=1;
 	s->range_table=&range_digital;
 	s->insn_bits = parport_insn_b;

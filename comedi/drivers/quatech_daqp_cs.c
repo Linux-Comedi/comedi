@@ -238,7 +238,7 @@ static comedi_lrange range_daqp_ai = { 4, {
 
 static int daqp_attach(comedi_device *dev,comedi_devconfig *it);
 static int daqp_detach(comedi_device *dev);
-comedi_driver driver_daqp={
+static comedi_driver driver_daqp={
 	driver_name:	"daqp",
 	module:		THIS_MODULE,
 	attach:		daqp_attach,

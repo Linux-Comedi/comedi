@@ -72,7 +72,7 @@ typedef struct ni_670x_board_struct
 	unsigned short ao_chans;
 	unsigned short ao_bits;
 }ni_670x_board;
-ni_670x_board ni_670x_boards[] = 
+static ni_670x_board ni_670x_boards[] = 
 {
 	{
 	dev_id		: 0x2c90,

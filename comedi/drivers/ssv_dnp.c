@@ -72,7 +72,7 @@ typedef struct dnp_board_struct{
 	int have_dio;
 } dnp_board;
 
-dnp_board dnp_boards[] = {              /* we only support one DNP 'board'   */
+static dnp_board dnp_boards[] = {              /* we only support one DNP 'board'   */
 	{                               /* variant at the moment             */
 	name:		"dnp-1486",
 	ai_chans:	16,
@@ -106,7 +106,7 @@ typedef struct{
 static int dnp_attach(comedi_device *dev,comedi_devconfig *it);
 static int dnp_detach(comedi_device *dev);
 
-comedi_driver driver_dnp = {
+static comedi_driver driver_dnp = {
   driver_name:  "ssv_dnp",
   module:       THIS_MODULE,
   attach:       dnp_attach,
@@ -200,10 +200,6 @@ static int dnp_attach(comedi_device *dev,comedi_devconfig *it)
 static int dnp_detach(comedi_device *dev)
 {
 
-  /* deallocate I/O ports:                                                   */
-# warning region should be released here!
-  /*release_region(0x22,2);*/
-  
   /* configure all ports as input (default)                                  */
   outb(PAMR,CSCIR); outb(0x00,CSCDR);
   outb(PBMR,CSCIR); outb(0x00,CSCDR);

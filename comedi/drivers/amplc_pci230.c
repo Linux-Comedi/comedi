@@ -369,7 +369,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	/* Register the interrupt handler. */
-	irq_hdl = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt, 0, "PCI230", dev );
+	irq_hdl = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt, SA_SHIRQ, "amplc_pci230", dev);
 	if(irq_hdl<0) {
 		printk("comedi%d: amplc_pci230: unable to register irq, commands will not be available %d\n", dev->minor, devpriv->pci_dev->irq);
 	}

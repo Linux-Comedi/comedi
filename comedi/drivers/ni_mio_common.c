@@ -1728,7 +1728,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		}
 
 		/* not all boards can deglitch, but this shouldn't hurt */
-		if(cmd->flags & TRIG_DEGLITCH) /* XXX ? */
+		if(cmd->chanlist[i] & CR_DITHER)
 			conf |= AO_Deglitch;
 
 		/* analog reference */

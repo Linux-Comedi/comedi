@@ -179,7 +179,7 @@ struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, uns
 int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card);
 struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot);
 
-int pci_card_alloc(struct pcilst_struct *amcc);
+//int pci_card_alloc(struct pcilst_struct *amcc);
 int pci_card_free(struct pcilst_struct *amcc);
 void pci_card_list_display(void);
 int pci_card_data(struct pcilst_struct *amcc,

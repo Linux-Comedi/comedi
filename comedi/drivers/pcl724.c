@@ -90,7 +90,7 @@ static boardtype boardtypes[] =
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((boardtype *)dev->board_ptr)
 
-comedi_driver driver_pcl724={
+static comedi_driver driver_pcl724={
 	driver_name:	"pcl724",
 	module:		THIS_MODULE,
 	attach:		pcl724_attach,
@@ -207,7 +207,7 @@ static int pcl724_detach(comedi_device *dev)
 
 #ifdef PCL724_IRQ
 	if(dev->irq){
-		free_irq(dev->irq,dev);
+		comedi_free_irq(dev->irq,dev);
 	}
 #endif
 

@@ -49,7 +49,7 @@ static comedi_lrange range_fl512 =
 static int fl512_attach(comedi_device *dev,comedi_devconfig *it);
 static int fl512_detach(comedi_device *dev);
 
-comedi_driver driver_fl512 = {
+static comedi_driver driver_fl512 = {
  driver_name: "fl512",
  module:  THIS_MODULE,
  attach:  fl512_attach,

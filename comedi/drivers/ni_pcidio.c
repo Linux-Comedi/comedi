@@ -173,7 +173,7 @@ AT-MIO96.
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
-comedi_driver driver_pcidio={
+static comedi_driver driver_pcidio={
 	driver_name:	"ni_pcidio",
 	module:		THIS_MODULE,
 	attach:		nidio_attach,

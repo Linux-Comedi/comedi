@@ -62,7 +62,7 @@ Configuration options:
 
 static int dt2817_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2817_detach(comedi_device *dev);
-comedi_driver driver_dt2817={
+static comedi_driver driver_dt2817={
 	driver_name:	"dt2817",
 	module:		THIS_MODULE,
 	attach:		dt2817_attach,

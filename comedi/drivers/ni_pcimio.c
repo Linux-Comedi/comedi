@@ -525,7 +525,7 @@ static ni_board ni_boards[]={
 
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcimio_detach(comedi_device *dev);
-comedi_driver driver_pcimio={
+static comedi_driver driver_pcimio={
 	driver_name:	"ni_pcimio",
 	module:		THIS_MODULE,
 	attach:		pcimio_attach,

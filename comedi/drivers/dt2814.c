@@ -73,7 +73,7 @@ addition, the clock does not seem to be very accurate.
 
 static int dt2814_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2814_detach(comedi_device *dev);
-comedi_driver driver_dt2814={
+static comedi_driver driver_dt2814={
 	driver_name:	"dt2814",
 	module:		THIS_MODULE,
 	attach:		dt2814_attach,
@@ -328,7 +328,7 @@ static int dt2814_detach(comedi_device *dev)
 	printk("comedi%d: dt2814: remove\n",dev->minor);
 	
 	if(dev->irq){
-		free_irq(dev->irq,dev);
+		comedi_free_irq(dev->irq,dev);
 	}
 	if(dev->iobase){
 		release_region(dev->iobase,DT2814_SIZE);

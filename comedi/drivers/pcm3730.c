@@ -40,7 +40,7 @@ Configuration options:
 
 static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcm3730_detach(comedi_device *dev);
-comedi_driver driver_pcm3730={
+static comedi_driver driver_pcm3730={
 	driver_name:	"pcm3730",
 	module:		THIS_MODULE,
 	attach:		pcm3730_attach,

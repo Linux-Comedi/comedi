@@ -275,7 +275,7 @@ typedef struct{
 
 static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_atmio_detach(comedi_device *dev);
-comedi_driver driver_atmio={
+static comedi_driver driver_atmio={
 	driver_name:	"ni_atmio",
 	module:		THIS_MODULE,
 	attach:		ni_atmio_attach,

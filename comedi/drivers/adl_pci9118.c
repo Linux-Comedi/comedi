@@ -133,7 +133,7 @@ multiplexer.
 #define START_AI_EXT	0x01		/* start measure on external trigger */
 #define STOP_AI_EXT	0x02		/* stop measure on external trigger */
 
-comedi_lrange range_pci9118dg_hr={ 8, {
+static comedi_lrange range_pci9118dg_hr={ 8, {
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
 	BIP_RANGE(1.25),
@@ -145,7 +145,7 @@ comedi_lrange range_pci9118dg_hr={ 8, {
 	}
 };
 
-comedi_lrange range_pci9118hg={ 8, {
+static comedi_lrange range_pci9118hg={ 8, {
 	BIP_RANGE(5),
 	BIP_RANGE(0.5),
 	BIP_RANGE(0.05),
@@ -183,6 +183,12 @@ typedef struct {
 	unsigned int	ai_pacer_min;	// minimal pacer value (c1*c2 or c1 in burst)
 	
 } boardtype;
+
+static struct pci_device_id pci9118_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_AMCC, 0x80d9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
 
 static boardtype boardtypes[] =
 {
@@ -1376,7 +1382,7 @@ static int pci9118_detach(comedi_device *dev)
 		if (devpriv->dmabuf_virt[1]) free_pages(devpriv->dmabuf_virt[1],devpriv->dmabuf_pages[1]);
 	}
 
-	if(dev->irq) free_irq(dev->irq,dev);
+	if(dev->irq) comedi_free_irq(dev->irq,dev);
 
 	if(dev->iobase)	release_region(dev->iobase,this_board->iorange_9118);
 		

@@ -82,6 +82,8 @@ static skel_board skel_boards[] = {
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
+/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
+ * upstream. */
 #define PCI_VENDOR_ID_SKEL 0xdafe
 static struct pci_device_id skel_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },

@@ -33,7 +33,7 @@ Devices: [Advantech] PCL-725 (pcl725)
 
 static int pcl725_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl725_detach(comedi_device *dev);
-comedi_driver driver_pcl725={
+static comedi_driver driver_pcl725={
 	driver_name:	"pcl725",
 	module:		THIS_MODULE,
 	attach:		pcl725_attach,

@@ -1392,7 +1392,7 @@ static void free_resources(comedi_device * dev)
 		if (devpriv->dma) free_dma(devpriv->dma);
 		if (devpriv->dmabuf[0]) free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
 		if (devpriv->dmabuf[1]) free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
-		if (devpriv->rtc_irq) free_irq(devpriv->rtc_irq, dev);
+		if (devpriv->rtc_irq) comedi_free_irq(devpriv->rtc_irq, dev);
 		if ((devpriv->dma_rtc)&&(RTC_lock==1)) {
 			if (devpriv->rtc_iobase)
 				release_region(devpriv->rtc_iobase, devpriv->rtc_iosize);
@@ -1483,7 +1483,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->rtc_iobase=RTC_PORT(0);
 		devpriv->rtc_iosize=RTC_IO_EXTENT;
 		RTC_lock++;
-		if (!comedi_request_irq(RTC_IRQ, interrupt_pcl818_ai_mode13_dma_rtc, SA_SHIRQ, "pcl818 DMA (RTC)", dev)) {
+		if (!comedi_request_irq(RTC_IRQ, interrupt_pcl818_ai_mode13_dma_rtc, 0, "pcl818 DMA (RTC)", dev)) {
 			devpriv->dma_rtc=1;
 			devpriv->rtc_irq=RTC_IRQ;
 			rt_printk(", dma_irq=%d", devpriv->rtc_irq);

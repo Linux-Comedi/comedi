@@ -136,7 +136,7 @@ static int timer_detach(comedi_device *dev);
 static int timer_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num);
 static int timer_start_cmd(comedi_device *dev, comedi_subdevice *s);
 
-comedi_driver driver_timer={
+static comedi_driver driver_timer={
 	module:		THIS_MODULE,
 	driver_name:	"comedi_rt_timer",
 	attach:		timer_attach,

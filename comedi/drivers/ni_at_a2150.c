@@ -178,7 +178,7 @@ static int a2150_attach(comedi_device *dev,comedi_devconfig *it);
 static int a2150_detach(comedi_device *dev);
 static int a2150_cancel(comedi_device *dev, comedi_subdevice *s);
 
-comedi_driver driver_a2150={
+static comedi_driver driver_a2150={
 	driver_name:	"ni_at_a2150",
 	module:		THIS_MODULE,
 	attach:		a2150_attach,

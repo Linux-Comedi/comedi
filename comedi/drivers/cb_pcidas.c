@@ -430,7 +430,7 @@ typedef struct
  */
 static int cb_pcidas_attach(comedi_device *dev,comedi_devconfig *it);
 static int cb_pcidas_detach(comedi_device *dev);
-comedi_driver driver_cb_pcidas={
+static comedi_driver driver_cb_pcidas={
 	driver_name:	"cb_pcidas",
 	module:		THIS_MODULE,
 	attach:		cb_pcidas_attach,

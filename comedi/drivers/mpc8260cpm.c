@@ -55,7 +55,7 @@ typedef struct{
 
 static int mpc8260cpm_attach(comedi_device *dev,comedi_devconfig *it);
 static int mpc8260cpm_detach(comedi_device *dev);
-comedi_driver driver_mpc8260cpm={
+static comedi_driver driver_mpc8260cpm={
 	driver_name:	"dummy",
 	module:		THIS_MODULE,
 	attach:		mpc8260cpm_attach,

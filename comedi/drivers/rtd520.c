@@ -709,7 +709,7 @@ static int rtd_attach (
     dev->irq = devpriv->pci_dev->irq;
     if(dev->irq>0){
 	if((ret=comedi_request_irq (dev->irq, rtd_interrupt,
-				    0, "rtd520", dev))<0)
+				    SA_SHIRQ, "rtd520", dev))<0)
 	    return ret;
 	printk("( irq = %d )\n", dev->irq);
     } else {

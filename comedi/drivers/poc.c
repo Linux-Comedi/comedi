@@ -87,7 +87,7 @@ static struct boarddef_struct boards[]={
 #define n_boards (sizeof(boards)/sizeof(boards[0]))
 #define this_board ((struct boarddef_struct *)dev->board_ptr)
 
-comedi_driver driver_poc=
+static comedi_driver driver_poc=
 {
 	driver_name:	"poc",
 	module:		THIS_MODULE,

@@ -452,7 +452,7 @@ static int dt2811_detach(comedi_device * dev)
 	printk("comedi%d: dt2811: remove\n", dev->minor);
 
 	if (dev->irq) {
-		free_irq(dev->irq, dev);
+		comedi_free_irq(dev->irq, dev);
 	}
 	if(dev->iobase){
 		release_region(dev->iobase, DT2811_SIZE);

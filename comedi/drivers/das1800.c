@@ -501,7 +501,7 @@ static comedi_lrange range_ao_2 = {
 };
 */
 
-comedi_driver driver_das1800={
+static comedi_driver driver_das1800={
 	driver_name:	"das1800",
 	module:		THIS_MODULE,
 	attach:		das1800_attach,

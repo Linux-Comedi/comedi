@@ -247,7 +247,7 @@ typedef struct{
 
 static int dt3000_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt3000_detach(comedi_device *dev);
-comedi_driver driver_dt3000={
+static comedi_driver driver_dt3000={
 	driver_name:	"dt3000",
 	module:		THIS_MODULE,
 	attach:		dt3000_attach,
@@ -461,11 +461,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret=0;
 	
 	printk("dt3000:");
-#ifdef PCI_SUPPORT_VER1
-	if(!pcibios_present()){
-#else
 	if(!pci_present()){
-#endif
 		printk(" no PCI bus\n");
 		return -EINVAL;
 	}
@@ -547,68 +543,6 @@ static int dt3000_detach(comedi_device *dev)
 	return 0;
 }
 
-
-#ifdef PCI_SUPPORT_VER1
-static int dt_pci_find_device(comedi_device *dev);
-static int setup_pci(comedi_device *dev);
-
-static int dt_pci_probe(comedi_device *dev)
-{
-	int board;
-	int ret;
-
-	ret=dt_pci_find_device(NULL,&board);
-	if(ret==0)
-		return 0;
-
-	setup_pci(dev);
-
-	return 1;
-}
-
-static int dt_pci_find_device(comedi_device *dev)
-{
-	int i;
-	unsigned char	pci_bus;
-	unsigned char	pci_dev_fn;
-	
-	for(i=0;i<n_dt3k_boards;i++){
-		if(pcibios_find_device(PCI_VENDOR_ID_DT,
-			dt3k_boardtypes[i].device_id,
-			0,
-			&pci_bus,
-			&pci_dev_fn) == PCIBIOS_SUCCESSFUL)
-		{
-			devpriv->pci_bus=pci_bus;
-			devpriv->pci_dev_fn=pci_dev_fn;
-			dev->board_ptr=dt3k_boards+i;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-static int setup_pci(comedi_device *dev)
-{
-	unsigned long		offset;
-	u32			addr;
-
-	pcibios_read_config_dword(devpriv->pci_bus,devpriv->pci_device_fn,
-			PCI_BASE_ADDRESS_0,&addr);
-	devpriv->phys_addr=addr;
-	offset=devpriv->phys_addr & ~PAGE_MASK;
-	devpriv->io_addr=ioremap(devpriv->phys_addr&PAGE_MASK,DT3000_SIZE+offset)
-		+offset;
-#if DEBUG
-	printk("0x%08lx mapped to %p, ",devpriv->phys_addr,devpriv->io_addr);
-#endif
-
-	dev->iobase = (int)devpriv->io_addr;
-
-	return 0;
-}
-
-#else
 
 static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board);
 static int setup_pci(comedi_device *dev);
@@ -709,5 +643,4 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board)
 }
 
 #endif
-#endif /* PCI_SUPPORT_VER1 */
 

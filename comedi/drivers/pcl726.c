@@ -368,7 +368,7 @@ static int pcl726_detach(comedi_device *dev)
 	
 #ifdef ACL6126_IRQ
 	if(dev->irq){
-		free_irq(dev->irq,dev);
+		comedi_free_irq(dev->irq,dev);
 	}
 #endif
 

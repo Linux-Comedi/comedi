@@ -443,7 +443,7 @@ static int rti800_detach(comedi_device * dev)
 		release_region(dev->iobase, RTI800_SIZE);
 
 	if(dev->irq)
-		free_irq(dev->irq,dev);
+		comedi_free_irq(dev->irq,dev);
 
 	return 0;
 }

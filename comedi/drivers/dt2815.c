@@ -85,7 +85,7 @@ static comedi_lrange range_dt2815_ao_20_current = { 1, {
 
 static int dt2815_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2815_detach(comedi_device *dev);
-comedi_driver driver_dt2815={
+static comedi_driver driver_dt2815={
 	driver_name:	"dt2815",
 	module:		THIS_MODULE,
 	attach:		dt2815_attach,

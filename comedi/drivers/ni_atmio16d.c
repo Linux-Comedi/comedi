@@ -144,7 +144,7 @@ static void reset_counters(comedi_device *dev);
 static void reset_atmio16d(comedi_device *dev);
 
 /* main driver struct */
-comedi_driver driver_atmio16d={
+static comedi_driver driver_atmio16d={
 	driver_name:    "atmio16",
 	module:     THIS_MODULE,
 	attach:     atmio16d_attach,
@@ -867,7 +867,7 @@ static int atmio16d_detach(comedi_device * dev)
 		subdev_8255_cleanup(dev,dev->subdevices + 3);
 
 	if(dev->irq)
-		free_irq(dev->irq,dev);
+		comedi_free_irq(dev->irq,dev);
 
 	reset_atmio16d(dev);
 	
