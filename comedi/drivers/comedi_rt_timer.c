@@ -55,6 +55,9 @@ TODO:
 
 #include <linux/comedidev.h>
 #include <linux/comedilib.h>
+
+#include "comedi_fc.h"
+
 #ifdef CONFIG_COMEDI_RTL_V1
 #include <rtl_sched.h>
 #include <asm/rt_irq.h>
@@ -64,6 +67,7 @@ TODO:
 #include <rtl_sched.h>
 #include <rtl_compat.h>
 #include <asm/div64.h>
+
 
 #ifndef RTLINUX_VERSION_CODE
 #define RTLINUX_VERSION_CODE 0
@@ -124,7 +128,7 @@ static comedi_driver driver_timer={
 	driver_name:	"comedi_rt_timer",
 	attach:		timer_attach,
 	detach:		timer_detach,
-	open:		timer_open,
+//	open:		timer_open,
 };
 COMEDI_INITCLEANUP(driver_timer);
 
@@ -210,10 +214,11 @@ static int timer_data_read(comedi_device *dev, comedi_cmd *cmd,
 		comedi_error(dev, "read error");
 		return -EIO;
 	}
-	if( s->flags & SDF_LSAMPL )
+	if( s->flags & SDF_LSAMPL ){
 		cfc_write_long_to_buffer( s, data );
-	else
-		cfc_write_to_buffer( s, data );
+	}else{
+		comedi_buf_put( s->async, data );
+	}
 
 	return 0;
 }
@@ -226,11 +231,11 @@ static int timer_data_write(comedi_device *dev, comedi_cmd *cmd,
 	unsigned int num_bytes;
 	sampl_t data;
 	lsampl_t long_data;
+	int ret;
 
-	if( s->flags & SDF_LSAMPL )
-	{
+	if( s->flags & SDF_LSAMPL ) {
 		num_bytes = cfc_read_array_from_buffer( s, &long_data, sizeof( long_data ) );
-	}else
+	}else{
 		num_bytes = cfc_read_array_from_buffer( s, &data, sizeof( data ) );
 		long_data = data;
 	}
