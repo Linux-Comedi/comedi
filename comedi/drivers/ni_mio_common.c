@@ -1583,7 +1583,7 @@ static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
 
 	a=data[3];
 	b=data[4];
-	modebits=data[1]=0xff;
+	modebits=data[1]&0xff;
 	if(modebits&0xf0){
 		/* two level mode */
 		if(b<a){
