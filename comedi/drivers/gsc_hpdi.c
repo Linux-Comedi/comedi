@@ -548,7 +548,7 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		do
 		{
-			pcidev = pci_find_subsys( PCI_VENDOR_ID_PLX, hpdi_boards[ i ].device_id,
+			pcidev = pci_get_subsys( PCI_VENDOR_ID_PLX, hpdi_boards[ i ].device_id,
 				PCI_VENDOR_ID_PLX, hpdi_boards[ i ].subdevice_id, pcidev );
 			// was a particular bus/slot requested?
 			if( it->options[0] || it->options[1] )
@@ -678,9 +678,9 @@ static int hpdi_detach(comedi_device *dev)
 				pci_free_consistent( priv(dev)->hw_dev, sizeof( struct plx_dma_desc ) *
 				NUM_DMA_DESCRIPTORS, priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
 			pci_disable_device( priv(dev)->hw_dev );
+			pci_dev_put(priv(dev)->hw_dev);
 		}
 	}
-
 	return 0;
 }
 
