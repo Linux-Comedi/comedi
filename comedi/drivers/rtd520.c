@@ -281,7 +281,7 @@ typedef struct{
     void	*lcfg;
 
     unsigned long	intCount;	/* interrupt count */
-    unsigned long	aiCount;	/* total transfer size (samples) */
+    long		aiCount;	/* total transfer size (samples) */
     unsigned long	aiExtraInt;	/* ints but no data */
     int			transCount;	/* # to tranfer data. 0->1/2FIFO*/
     int			aboutWrap;	/* number of about overflows needed */
@@ -966,10 +966,9 @@ static void ai_read_n (
 	s16 d = RtdAdcFifoGet (dev);	/* get 2s comp value */
 	d = d >> 3;			/* low 3 bits are marker lines */
 
-	if (devpriv->aiCount <= 0) {
-					/* should never happen */
+	if (0 == devpriv->aiCount) {	/* done */
 	    devpriv->aiExtraInt++;
-	    continue;
+	    return;
 	}
 
 					/* check and deal with buffer wrap */
@@ -982,7 +981,8 @@ static void ai_read_n (
 	    = d + 2048;		/* convert to comedi unsigned data */
 	s->async->buf_int_count += sizeof(sampl_t);
 	s->async->buf_int_ptr += sizeof(sampl_t);
-	devpriv->aiCount--;
+	if (devpriv->aiCount > 0)	/* < 0, means read forever */
+	    devpriv->aiCount--;
     }
 }
 
@@ -998,10 +998,11 @@ static void ai_read_dregs (
 
 	d = d >> 3;		/* low 3 bits are marker lines */
 
-	if (devpriv->aiCount <= 0) {
-					/* should never happen */
-	    devpriv->aiExtraInt++;
-	    continue;
+	if (0 == devpriv->aiCount) {	/* done */
+	    while (RtdFifoStatus (dev) & FS_ADC_EMPTY) { /* read rest */
+		d = RtdAdcFifoGet (dev);
+	    }
+	    return;
 	}
 
 					/* check and deal with buffer wrap */
@@ -1014,7 +1015,8 @@ static void ai_read_dregs (
 	    = d + 2048;		/* convert to comedi unsigned data */
 	s->async->buf_int_count += sizeof(sampl_t);
 	s->async->buf_int_ptr += sizeof(sampl_t);
-	devpriv->aiCount--;
+	if (devpriv->aiCount > 0)	/* < 0, means read forever */
+	    devpriv->aiCount--;
     }
 }
 
@@ -1060,12 +1062,13 @@ static void rtd_interrupt (
 	    }
 	}
 
-	if (0 == devpriv->aiCount) { /* done! stop! */
-	    RtdInterruptMask (dev, 0);		/* mask out ABOUT and SAMPLE */
-	    RtdPacerStop (dev);			/* Stop PACER */
+	if (0 == devpriv->aiCount) {	/* done! stop! */
+	    RtdInterruptMask (dev, 0);	/* mask out ABOUT and SAMPLE */
+	    RtdPacerStop (dev);		/* Stop PACER */
 	    s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
-	} else if (status & IRQM_ADC_ABOUT_CNT) { /* about cnt terminated */
-	    if (devpriv->aboutWrap) { /* multi-count wraps */
+	} else if ((devpriv->aiCount > 0) /* finite acquisition */
+		   && (status & IRQM_ADC_ABOUT_CNT)) { /* about counter */
+	    if (devpriv->aboutWrap) {	/* multi-count wraps */
 		if (devpriv->aiCount < devpriv->aboutWrap) {
 		    RtdAboutStopEnable (dev, 0); /* enable stop */
 		    devpriv->aboutWrap = 0;
@@ -1172,14 +1175,12 @@ static int rtd_ai_cmdtest (
     if (cmd->scan_begin_src == TRIG_TIMER){
 	if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
 	    cmd->scan_begin_arg = RTD_MAX_SPEED;
-	    rtd_ns_to_timer(&cmd->scan_begin_arg,
-			    cmd->flags&TRIG_ROUND_MASK);
+	    rtd_ns_to_timer(&cmd->scan_begin_arg, TRIG_ROUND_UP);
 	    err++;
 	}
 	if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
 	    cmd->scan_begin_arg = RTD_MIN_SPEED;
-	    rtd_ns_to_timer(&cmd->scan_begin_arg,
-			    cmd->flags&TRIG_ROUND_MASK);
+	    rtd_ns_to_timer(&cmd->scan_begin_arg, TRIG_ROUND_DOWN);
 	    err++;
 	}
     } else {
@@ -1194,14 +1195,12 @@ static int rtd_ai_cmdtest (
     if (cmd->convert_src==TRIG_TIMER) {
 	if (cmd->convert_arg < RTD_MAX_SPEED) {
 	    cmd->convert_arg = RTD_MAX_SPEED;
-	    rtd_ns_to_timer(&cmd->convert_arg,
-			    cmd->flags&TRIG_ROUND_MASK);
+	    rtd_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_UP);
 	    err++;
 	}
 	if (cmd->convert_arg > RTD_MIN_SPEED) {
 	    cmd->convert_arg = RTD_MIN_SPEED;
-	    rtd_ns_to_timer(&cmd->convert_arg,
-			    cmd->flags&TRIG_ROUND_MASK);
+	    rtd_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_DOWN);
 	    err++;
 	}
     } else {
@@ -1380,7 +1379,10 @@ static int rtd_ai_cmd (
 	break;
 
     case TRIG_NONE:			/* stop when cancel is called */
+	devpriv->aiCount = -1;		/* read forever */
 	RtdPacerStopSource (dev, 0);	/* stop on SOFTWARE stop */
+	RtdAboutStopEnable (dev, 1);	/* just interrupt. needed??? */
+	RtdAboutCounter (dev, ~0);	/* minimize interrupts. needed??? */
 	break;
 
     default:
@@ -1498,7 +1500,7 @@ static int rtd_ai_cmd (
 	/*DEBUG RtdInterruptOverrunClear(dev);*/
 
 	/* TODO: allow multiple interrupt sources */
-	if (devpriv->aiCount > 512) {
+	if ((devpriv->transCount > 0) || (devpriv->aiCount > 512)) {
 	    RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT | IRQM_ADC_SAMPLE_CNT );
 	} else {
 	    RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT);
