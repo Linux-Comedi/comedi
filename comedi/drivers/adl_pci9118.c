@@ -76,7 +76,7 @@ Configuration options:
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <asm/byteorder.h>
+//#include <asm/byteorder.h>
 #include <linux/comedidev.h>
 #include "amcc_s5933.h"
 #include "8253.h"
