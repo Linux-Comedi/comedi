@@ -65,7 +65,7 @@ comedi_t *comedi_open(const char *filename)
 	if(!dev->attached)
 		return NULL;
 
-	/* XXX need reference counting */
+	__MOD_INC_USE_COUNT(dev->driver->module);
 
 	return (comedi_t *)dev;
 }
@@ -87,7 +87,9 @@ comedi_t *comedi_open_old(unsigned int minor)
 
 int comedi_close(comedi_t *d)
 {
-	/* XXX reference counting */
+	comedi_device *dev = (comedi_device *) d;
+
+	__MOD_DEC_USE_COUNT(dev->driver->module);
 
 	return 0;
 }
@@ -278,13 +280,13 @@ error:
 /*
 	COMEDI_LOCK
 	lock subdevice
-	
+
 	arg:
 		subdevice number
 
 	reads:
 		none
-	
+
 	writes:
 		none
 
@@ -292,7 +294,7 @@ error:
 	- ioctl/rt lock  (this type)
 	- lock while subdevice busy
 	- lock while subdevice being programmed
-	
+
 */
 int comedi_lock(comedi_t *d,unsigned int subdevice)
 {
@@ -302,20 +304,19 @@ int comedi_lock(comedi_t *d,unsigned int subdevice)
 	int ret=0;
 
 	comedi_spin_lock_irqsave(&big_comedi_lock,flags);
-	
+
 	if(s->busy){
 		ret = -EBUSY;
 	}else{
 		if(s->lock && s->lock!=d){
 			ret = -EACCES;
 		}else{
-			__MOD_INC_USE_COUNT(dev->driver->module);
 			s->lock = d;
 		}
 	}
 
 	comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
-	
+
 	return ret;
 }
 
@@ -323,13 +324,13 @@ int comedi_lock(comedi_t *d,unsigned int subdevice)
 /*
 	COMEDI_UNLOCK
 	unlock subdevice
-	
+
 	arg:
 		subdevice number
-	
+
 	reads:
 		none
-	
+
 	writes:
 		none
 
@@ -362,7 +363,6 @@ int comedi_unlock(comedi_t *d,unsigned int subdevice)
 		async->cb_func=NULL;
 		async->cb_arg=NULL;
 	}
-	__MOD_DEC_USE_COUNT(dev->driver->module);
 
 	comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
 
@@ -391,7 +391,7 @@ int comedi_cancel(comedi_t *d,unsigned int subdevice)
 
 	if(s->lock && s->lock!=d)
 		return -EACCES;
-	
+
 #if 0
 	if(!s->busy)
 		return 0;
@@ -406,11 +406,18 @@ int comedi_cancel(comedi_t *d,unsigned int subdevice)
 	if((ret=s->cancel(dev,s)))
 		return ret;
 
+	if( s->runflags & SRF_RT )
+	{
+		// XXX race
+		s->runflags &= ~SRF_RT;
+		comedi_switch_to_non_rt(dev);
+	}
+
 	s->busy=NULL;
 
 	return 0;
 }
-	
+
 /*
    registration of callback functions
  */
