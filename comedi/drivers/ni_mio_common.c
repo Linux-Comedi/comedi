@@ -3,7 +3,7 @@
     Hardware driver for NI E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-9 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,10 +22,11 @@
 */
 
 /*
-	This file needs to be included by another file, e.g.,
-	atmio-E.c.
+	This file is meant to be included by another file, e.g.,
+	ni_atmio.c or ni_pcimio.c.
 
-	Interrupt support added by Truxton Fulton <trux@truxton.com>
+	Interrupt support originally added by Truxton Fulton
+	<trux@truxton.com>
 
 	References (from ftp://ftp.natinst.com/support/manuals):
 	
@@ -47,12 +48,14 @@
 	
 	ISSUES:
 
-	deal with at-mio-16de-10 revision D to N changes, etc.
-	
+	 - the interrupt routine needs to be cleaned up
+	 - many printk's need to be changed to rt_printk()
 */
 
 //#define DEBUG_INTERRUPT
 //#define TRY_DMA
+//#define DEBUG_STATUS_A
+//#define DEBUG_STATUS_B
 
 #include <8255.h>
 
@@ -168,9 +171,15 @@ static int ni_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
 
+#ifdef DEBUG_STATUS_A
 static void ni_mio_print_status_a(int status);
-#ifdef DEBUG_INTERRUPT
+#else
+#define ni_mio_print_status_a(a)
+#endif
+#ifdef DEBUG_STATUS_B
 static void ni_mio_print_status_b(int status);
+#else
+#define ni_mio_print_status_b(a)
 #endif
 
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
@@ -201,15 +210,15 @@ static void pfi_setup(comedi_device *dev);
 #define AIMODE_SCAN		2
 #define AIMODE_SAMPLE		3
 
+static void handle_a_interrupt(comedi_device *dev,unsigned short status);
+static void handle_b_interrupt(comedi_device *dev,unsigned short status);
 
 static
 void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
 	comedi_device *dev=d;
-	comedi_subdevice *s=dev->subdevices;
-	int status;
+	unsigned short a_status;
 	unsigned short b_status;
-	int ack=0;
 	int wsave;
 
 /*
@@ -220,111 +229,117 @@ void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 */
 	wsave=win_save();
 	
+	a_status=ni_readw(AI_Status_1);
 	b_status=ni_readw(AO_Status_1);
-	status=ni_readw(AI_Status_1);
 #ifdef DEBUG_INTERRUPT
-printk("ni_mio_common interrupt: ");
-ni_mio_print_status_a(status);
-ni_mio_print_status_b(b_status);
-printk("\n");
+	rt_printk("ni_mio_common: interrupt: a_status=%04x b_status=%04x\n",
+		a_status,b_status);
+	ni_mio_print_status_a(a_status);
+	ni_mio_print_status_b(b_status);
 #endif
 #ifdef PCIDMA
-printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
+	rt_printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 #endif
 
-	if(status&(AI_Overrun_St|AI_Overflow_St)){
-		if(status==0xffff){
-			printk("ni_mio_common: status=0xffff.  Card removed?\n");
-		}else{
-			printk("ni_mio_common: error ");
-			ni_mio_print_status_a(status);
-			printk("\n");
-		}
-		win_out(0x0000,Interrupt_A_Enable_Register);
-		comedi_done(dev,s);
-		return;
-	}
-
-	if(status&AI_SC_TC_St){
-#ifdef DEBUG_INTERRUPT
-printk("ni_mio_common: SC_TC interrupt\n");
-#endif
-#ifdef TRY_DMA
-		ni_handle_block(dev);
-#else
-		if(!devpriv->n_left){
-			ni_handle_fifo_dregs(dev);
-			win_out(0x0000,Interrupt_A_Enable_Register);
-			comedi_done(dev,s);
-		}
-#endif
-
-		ack|=AI_SC_TC_Interrupt_Ack;
-	}
-	switch(devpriv->aimode){
-	default:
-		break;
-	case AIMODE_HALF_FULL:
-		if(status&AI_FIFO_Half_Full_St){
-			ni_handle_fifo_half_full(dev);
-		}
-		break;
-	case AIMODE_SCAN:
-#if 0
-		if(status&AI_START_St){
-			/* just ack it */
-			ack|=AI_START_Interrupt_Ack;
-		}
-#endif
-		if(status&AI_STOP_St){
-			ni_handle_fifo_dregs(dev);
-	
-			comedi_eos(dev,dev->subdevices+0);
-	
-			/* we need to ack the START, also */
-			ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
-		}
-		break;
-	case AIMODE_SAMPLE:
-		ni_handle_fifo_dregs(dev);
-#if 0
-		if(s->event_mask&COMEDI_CB_EOS){
-			comedi_eos(dev,dev->subdevices+0);
-		}
-#endif
-		break;
-	}
-
-	if(ack){
-		ack|=AI_START1_Interrupt_Ack;
-		ni_writew(ack,Interrupt_A_Ack);
-	}
-
-	if(b_status&Interrupt_B_St){
-		if(b_status&AO_Overrun_St){
-			printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
-		}
-	
-		if(b_status&AO_BC_TC_St){
-			printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
-		}
-	
-		if(b_status&AO_FIFO_Request_St)
-			ni_ao_fifo_half_empty(dev,dev->subdevices+1);
-	
-		b_status=ni_readw(AO_Status_1);
-		if(b_status&Interrupt_B_St){
-			if(b_status&AO_FIFO_Request_St){
-				printk("AO buffer underrun\n");
-			}
-			printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
-			win_out(0,Interrupt_B_Enable_Register);
-		}
-	}
+	if(a_status&Interrupt_A_St)handle_a_interrupt(dev,a_status);
+	if(b_status&Interrupt_B_St)handle_b_interrupt(dev,b_status);
 
 	win_restore(wsave);
 }
 
+void handle_a_interrupt(comedi_device *dev,unsigned short status)
+{
+	comedi_subdevice *s=dev->subdevices+0;
+	unsigned short ack=0;
+	unsigned int events = 0;
+
+	/* uncommon interrupt events */
+	if(status&(AI_Overrun_St|AI_Overflow_St|AI_SC_TC_Error_St|AI_SC_TC_St|AI_START1_St)){
+		if(status==0xffff){
+			rt_printk("ni_mio_common: a_status=0xffff.  Card removed?\n");
+			/* we probably aren't even running a command now,
+			 * so it's a good idea to be careful. */
+			if(s->subdev_flags&SDF_RUNNING)comedi_done(dev,s);
+			return;
+		}
+		if(status&(AI_Overrun_St|AI_Overflow_St|AI_SC_TC_Error_St)){
+			rt_printk("ni_mio_common: ai error a_status=%04x\n",
+				status);
+			ni_mio_print_status_a(status);
+			ni_handle_fifo_dregs(dev);
+			win_out(0x0000,Interrupt_A_Enable_Register);
+			comedi_done(dev,s);
+			return;
+		}
+		if(status&AI_SC_TC_St){
+#ifdef DEBUG_INTERRUPT
+			rt_printk("ni_mio_common: SC_TC interrupt\n");
+#endif
+#ifdef TRY_DMA
+			ni_handle_block(dev);
+#else
+			if(!devpriv->ai_continuous){
+				ni_handle_fifo_dregs(dev);
+				win_out(0x0000,Interrupt_A_Enable_Register);
+				comedi_done(dev,s);
+			}
+#endif
+			ack|=AI_SC_TC_Interrupt_Ack;
+		}
+		if(status&AI_START1_St){
+			ack|=AI_START1_Interrupt_Ack;
+		}
+	}
+	if(status&AI_FIFO_Half_Full_St){
+		ni_handle_fifo_half_full(dev);
+	}
+	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
+		ni_handle_fifo_dregs(dev);
+
+		events |= COMEDI_CB_EOS;
+
+		/* we need to ack the START, also */
+		ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
+	}
+	if(devpriv->aimode==AIMODE_SAMPLE){
+		ni_handle_fifo_dregs(dev);
+
+		//events |= COMEDI_CB_SAMPLE;
+	}
+
+	if(ack) ni_writew(ack,Interrupt_A_Ack);
+
+	comedi_event(dev,s,events);
+}
+
+static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
+{
+	comedi_subdevice *s=dev->subdevices+1;
+	//unsigned short ack=0;
+
+	if(b_status==0xffff)return;
+	if(b_status&AO_Overrun_St){
+		rt_printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
+	}
+
+	if(b_status&AO_BC_TC_St){
+		rt_printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
+	}
+
+	if(b_status&AO_FIFO_Request_St)
+		ni_ao_fifo_half_empty(dev,s);
+
+	b_status=ni_readw(AO_Status_1);
+	if(b_status&Interrupt_B_St){
+		if(b_status&AO_FIFO_Request_St){
+			rt_printk("ni_mio_common: AO buffer underrun\n");
+		}
+		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
+		win_out(0,Interrupt_B_Enable_Register);
+	}
+}
+
+#ifdef DEBUG_STATUS_A
 static char *status_a_strings[]={
 	"passthru0","fifo","G0_gate","G0_TC",
 	"stop","start","sc_tc","start1",
@@ -336,15 +351,17 @@ static void ni_mio_print_status_a(int status)
 {
 	int i;
 
-	printk("status=0x%04x",status);
+	rt_printk("A status:");
 	for(i=15;i>=0;i--){
 		if(status&(1<<i)){
-			printk(" %s",status_a_strings[i]);
+			rt_printk(" %s",status_a_strings[i]);
 		}
 	}
+	rt_printk("\n");
 }
+#endif
 
-#ifdef DEBUG_INTERRUPT
+#ifdef DEBUG_STATUS_B
 static char *status_b_strings[]={
 	"passthru1","fifo","G1_gate","G1_TC",
 	"UI2_TC","UPDATE","UC_TC","BC_TC",
@@ -356,12 +373,13 @@ static void ni_mio_print_status_b(int status)
 {
 	int i;
 
-	printk("b_status=0x%04x",status);
+	rt_printk("B status:");
 	for(i=15;i>=0;i--){
 		if(status&(1<<i)){
-			printk(" %s",status_b_strings[i]);
+			rt_printk(" %s",status_b_strings[i]);
 		}
 	}
+	rt_printk("\n");
 }
 #endif
 
@@ -396,21 +414,29 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
  */
 static void ni_handle_block(comedi_device *dev)
 {
+	int n;
+
 #ifdef PCIDMA
 	mite_dma_tcr(devpriv->mite);
 #endif
-	if(devpriv->n_left==0){
-		ni_handle_fifo_dregs(dev);
-		printk("end\n");
-		win_out(0x0000,Interrupt_A_Enable_Register);
-		ni_ai_reset(dev,dev->subdevices);
-		comedi_done(dev,dev->subdevices);
-	}else if(devpriv->n_left<=devpriv->blocksize){
-		printk("last block %d\n",devpriv->n_left);
-		devpriv->n_left = 0;
+	if(devpriv->ai_continuous){
+		n = devpriv->blocksize;
 	}else{
-		printk("block %d\n",devpriv->n_left);
-		devpriv->n_left -= devpriv->blocksize;
+		if(devpriv->n_left==0){
+			ni_handle_fifo_dregs(dev);
+			printk("end\n");
+			win_out(0x0000,Interrupt_A_Enable_Register);
+			ni_ai_reset(dev,dev->subdevices);
+			comedi_done(dev,dev->subdevices);
+		}else if(devpriv->n_left<=devpriv->blocksize){
+			printk("last block %d\n",devpriv->n_left);
+			n = devpriv->n_left;
+			devpriv->n_left = 0;
+		}else{
+			printk("block %d\n",devpriv->n_left);
+			n = devpriv->blocksize;
+			devpriv->n_left -= devpriv->blocksize;
+		}
 	}
 #if 0
 	{
@@ -520,14 +546,19 @@ int ni_ai_setup_block(comedi_device *dev,int frob,int mode1)
 	int last=0;
 
 printk("n_left = %d\n",devpriv->n_left);
-	n=devpriv->n_left;
-	if(n>devpriv->blocksize){
+	if(devpriv->ai_continuous){
 		n=devpriv->blocksize;
 		last=0;
 	}else{
-		last=1;
+		n=devpriv->n_left;
+		if(n>devpriv->blocksize){
+			n=devpriv->blocksize;
+			last=0;
+		}else{
+			last=1;
+		}
+		devpriv->n_left -= n;
 	}
-	devpriv->n_left -= n;
 
 	if(frob){
 		/* stage number of scans */
@@ -889,8 +920,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
-/* hack */
-devpriv->n_left = 0;
+		devpriv->ai_continuous = 0;
 
 		break;
 	case TRIG_NONE:
@@ -904,15 +934,23 @@ devpriv->n_left = 0;
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
-/* hack */
-devpriv->n_left = 1;
+		devpriv->ai_continuous = 1;
 
 		break;
 	}
 #else
 
 	devpriv->blocksize = 0x4000;
-	devpriv->n_left = cmd->stop_arg;
+	switch(cmd->stop_src){
+	case TRIG_COUNT:
+		devpriv->ai_continuous = 0;
+		devpriv->n_left = cmd->stop_arg;
+		break;
+	case TRIG_NONE:
+		devpriv->ai_continuous = 1;
+		devpriv->n_left = 0;
+		break;
+	}
 
 	mode1 = ni_ai_setup_block(dev,1,mode1);
 #endif
@@ -943,6 +981,7 @@ devpriv->n_left = 1;
 
 		/* AI_SI_Initial_Load_Source=A */
 		mode2 |= AI_SI_Initial_Load_Source&0;
+//mode2 |= AI_SC_Reload_Mode;
 		win_out(mode2,AI_Mode_2_Register);
 
 		/* load SI */
