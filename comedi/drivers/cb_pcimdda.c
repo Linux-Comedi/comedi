@@ -476,7 +476,8 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 			pci_enable_device(devpriv->pci_dev); /* make sure board is on */
 			dev->board_ptr = boards + index;
 			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);
-			if (!request_region(registers, REG_SZ,thisboard->name))
+			request_region(registers, REG_SZ,thisboard->name);
+#if 0
 			{
 			  printk("cb_pcimdda: "
 				 "I/O port conflict failed to allocate ports "
@@ -484,6 +485,7 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 				 registers + REG_SZ - 1);
 			  return -EBUSY;
 			}
+#endif
 			devpriv->registers = registers;                        
 			devpriv->dio_registers 
 			  = devpriv->registers + thisboard->dio_offset;
