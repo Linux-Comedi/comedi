@@ -69,8 +69,6 @@ at least 1 and no more than 0x10000 == 65536
 NOTES:
 Only the DAS-1801ST has been tested by me.
 Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
-For safety reasons, the driver disables dma transfers if you enable
-	real-time support in comedi.
 
 TODO:
 	Add support for analog out on 'ao' cards.
@@ -498,20 +496,10 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	unsigned long flags;
 	int iobase = it->options[0];
 	int irq = it->options[1];
-	int dma0, dma1;
+	int dma0 = it->options[2];
+	int dma1 = it->options[3];
 	int iobase2;
 	int board;
-
-// disable unsafe isa dma if comedi real time kernel support is on
-#ifdef CONFIG_COMEDI_RT
-	dma0 = 0;
-	dma1 = 0;
-	if(it->options[2] || it->options[3])
-		printk("%s: dma disabled to avoid conflicts with RT support\n", driver_das1800.driver_name);
-#else
-	dma0 = it->options[2];
-	dma1 = it->options[3];
-#endif
 
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(das1800_private)) < 0)
@@ -1472,20 +1460,25 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 		return -1;
 	}
 
+	/* disable dma on TRIG_WAKE_EOS (to reduce latency) or TRIG_RT
+	 * (because dma in handler is unsafe at hard real-time priority) */
+	if(cmd.flags & (TRIG_WAKE_EOS | TRIG_RT))
+	{
+		devpriv->irq_dma_bits &= ~DMA_ENABLED;
+	}else
+	{
+		devpriv->irq_dma_bits |= devpriv->dma_bits;
+	}
+	// interrupt on end of conversion for TRIG_WAKE_EOS
 	if(cmd.flags & TRIG_WAKE_EOS)
 	{
 		// interrupt fifo not empty
 		devpriv->irq_dma_bits &= ~FIMD;
-		// turn off dma
-		devpriv->irq_dma_bits &= ~DMA_ENABLED;
 	}else
 	{
 		// interrupt fifo half full
 		devpriv->irq_dma_bits |= FIMD;
-		// turn on dma if configured
-		devpriv->irq_dma_bits |= devpriv->dma_bits;
 	}
-
 	// determine how many conversions we need
 	if(cmd.stop_src == TRIG_COUNT)
 	{

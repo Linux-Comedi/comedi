@@ -333,8 +333,7 @@ Device Names: das-1701st, das-1701st-da, das-1701ao, das-1702st,
   das-1802hr, das-1802hr-da, das-1802hc, das-1802ao
 Status: works
 
-Presently, DMA is disabled if you enable hard real-time support for
-Comedi.  The waveform analog output on the 'ao' cards is not supported.
+The waveform analog output on the 'ao' cards is not supported.
 If you need it, send me (Frank Hess) an email.
 
 Configuration options:
