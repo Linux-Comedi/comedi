@@ -4,8 +4,9 @@
 In order to compile the Comedi modules, you will need to have
 a correctly configured Linux kernel source tree.  The best
 way to get one is to download a tarball from kernel.org and
-compile your own kernel.  Comedi should work with most 2.2 and
-2.4 Linux kernels.  Support for 2.0.3x is not actively maintained,
+compile your own kernel.  Comedi should work with most 2.2, 
+2.4, and 2.6 Linux kernels.  2.6.x kernels older than 2.6.6 are
+not supported.  Support for 2.0.3x is not actively maintained,
 but it should work and bugs will be fixed as they are reported.
 
 You can also prepare a kernel source tree that matches
@@ -26,8 +27,9 @@ source into a directory you own.
 	'uname -r' produces "2.4.16-386" then your EXTRAVERSION should be
 	set as 'EXTRAVERSION=-386'.
 3) Run 'make oldconfig' in your kernel source directory.
-4) Run 'make dep' (or 'make prepare' for 2.6 kernels) in the kernel
-	source directory and you are done.
+4) Run 'make dep' (for 2.6 kernels, do a 'make modules_prepare' instead 
+	or even better a full 'make') in the kernel source directory and 
+	you are done.
 
 Red Hat users note: Kernel sources that are distributed with Red
 Hat Linux are not supported, because they are too heavily
