@@ -40,6 +40,7 @@
 static void postconfig(comedi_device *dev);
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
+static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 comedi_driver *comedi_drivers;
 
@@ -220,6 +221,9 @@ static void postconfig(comedi_device *dev)
 
 		if(!s->range_table && !s->range_table_list)
 			s->range_table=&range_unknown;
+
+		if(!s->insn_read)s->insn_read=insn_emulate;
+		if(!s->insn_write)s->insn_write=insn_emulate;
 	}
 
 }
@@ -254,6 +258,53 @@ int do_pack(unsigned int *bits,comedi_trig *it)
 	}
 
 	return i;
+}
+
+static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	comedi_trig trig;
+	int i;
+	int ret;
+
+	switch(insn->insn){
+	case INSN_WRITE:
+		if(!(s->subdev_flags & SDF_WRITEABLE))
+			return -EINVAL;
+		trig.flags=TRIG_WRITE;
+		break;
+	case INSN_READ:
+		if(!(s->subdev_flags & SDF_READABLE))
+			return -EINVAL;
+		trig.flags=0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	trig.subdev=insn->subdev;
+	trig.mode=0;
+	trig.n_chan=1;
+	trig.chanlist=&insn->chanspec;
+	trig.n=1;
+
+	if(s->subdev_flags & SDF_LSAMPL){
+		for(i=0;i<insn->n;i++){
+			trig.data=(void *)(data+i);
+			ret=s->trig[0](dev,s,&trig);
+			if(ret<0)return ret;
+		}
+	}else{
+		sampl_t sdata;
+
+		trig.data=&sdata;
+		for(i=0;i<insn->n;i++){
+			ret=s->trig[0](dev,s,&trig);
+			if(ret<0)return ret;
+			data[i]=sdata;
+		}
+	}
+
+	return -EINVAL;
 }
 
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)

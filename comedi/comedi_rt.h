@@ -43,7 +43,7 @@ struct comedi_irq_struct{
 	void *dev_id;
 	unsigned long flags;
 	void (*handler)(int,void *,struct pt_regs *);
-	char *device;
+	const char *device;
 };
 
 int get_priority_irq(struct comedi_irq_struct *);
@@ -97,9 +97,11 @@ extern void wake_up_int_handler(int arg1, void * arg2);
 #define rt_printk_cleanup()		
 #endif
 
-int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,struct pt_reg
-	unsigned long flags,const char *device,void *dev_id);
-int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long new_flag
+int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,
+	struct pt_regs *regs),unsigned long flags,const char *device,
+	void *dev_id);
+int comedi_change_irq_flags(unsigned int irq,void *dev_id,
+	unsigned long new_flags);
 void comedi_free_irq(unsigned int irq,void *dev_id);
 
 

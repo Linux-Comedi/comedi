@@ -53,6 +53,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file);
 static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
+static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
 
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 
@@ -85,6 +86,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 		return do_cmd_ioctl(dev,(void *)arg,file);
 	case COMEDI_CMDTEST:
 		return do_cmdtest_ioctl(dev,(void *)arg,file);
+	case COMEDI_INSNLIST:
+		return do_insnlist_ioctl(dev,(void *)arg,file);
 	default:
 		return -EIO;
 	}
@@ -349,7 +352,7 @@ DPRINTK("entering do_trig_ioctl()\n");
 
 	s=dev->subdevices+user_trig.subdev;
 	if(s->type==COMEDI_SUBD_UNUSED){
-		DPRINTK("%d not used device\n",user_trig.subdev);
+		DPRINTK("%d not useable subdevice\n",user_trig.subdev);
 		return -EIO;
 	}
 	
@@ -458,20 +461,7 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		}
 	}
 
-	if(s->cur_trig.mode>=5 || s->trig[s->cur_trig.mode]==NULL){
-		DPRINTK("bad mode %d\n",s->cur_trig.mode);
-		ret=-EINVAL;
-		goto cleanup;
-	}
-
-	/* mark as non-RT operation */
-	s->cur_trig.flags &= ~TRIG_RT;
-
-	s->subdev_flags|=SDF_RUNNING;
-
-	ret=s->trig[s->cur_trig.mode](dev,s,&s->cur_trig);
-
-	if(ret==0)return 0;
+	ret=s->trig[0](dev,s,&s->cur_trig);
 
 	if(ret<0)goto cleanup;
 
@@ -562,6 +552,146 @@ cleanup:
 	return ret;
 }
 
+
+/*
+ * 	COMEDI_INSNLIST
+ * 	synchronous instructions
+ *
+ * 	arg:
+ * 		pointer to sync cmd structure
+ *
+ * 	reads:
+ * 		sync cmd struct at arg
+ * 		instruction list
+ * 		data (for writes)
+ *
+ * 	writes:
+ * 		data (for reads)
+ */
+static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
+{
+	comedi_insnlist insnlist;
+	comedi_insn	insn;
+	comedi_subdevice *s;
+	lsampl_t	*data;
+	int i;
+	int ret=0;
+
+	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
+		return -EFAULT;
+	
+	if(insnlist.n_insns>=10)
+		return -EINVAL;
+
+	data=kmalloc(sizeof(lsampl_t)*256,GFP_KERNEL);
+	if(!data)
+		return -ENOMEM;
+
+	for(i=0;i<insnlist.n_insns;i++){
+		if(copy_from_user(&insn,insnlist.insns+i,sizeof(comedi_insn))){
+			ret=-EFAULT;
+			break;
+		}
+		if(insn.n>256){
+			ret=-EINVAL;
+			break;
+		}
+		if(insn.insn&INSN_MASK_WRITE){
+			if(copy_from_user(data,insn.data,insn.n*sizeof(lsampl_t))){
+				ret=-EFAULT;
+				break;
+			}
+		}
+		if(insn.insn&INSN_MASK_SPECIAL){
+			/* a non-subdevice instruction */
+
+			switch(insn.insn){
+			case INSN_GTOD:
+			{
+				struct timeval tv;
+
+				do_gettimeofday(&tv);
+				data[0]=tv.tv_sec;
+				data[1]=tv.tv_usec;
+				ret=2;
+				
+				break;
+			}
+			case INSN_WAIT:
+				if(insn.n<1 || data[0]>=100){
+					ret=-EINVAL;
+					break;
+				}
+				udelay(data[0]);
+				ret=1;
+				break;
+			default:
+				ret=-EINVAL;
+			}
+		}else{
+			/* a subdevice instruction */
+			if(insn.subdev>=dev->n_subdevices){
+				ret=-EINVAL;
+				break;
+			}
+			s=dev->subdevices+insn.subdev;
+	
+			if(s->type==COMEDI_SUBD_UNUSED){
+				DPRINTK("%d not useable subdevice\n",insn.subdev);
+				return -EIO;
+			}
+		
+			/* are we locked? (ioctl lock) */
+			if(s->lock && s->lock!=file){
+				DPRINTK("device locked\n");
+				return -EACCES;
+			}
+	
+			if(s->busy){
+				ret=-EBUSY;
+				break;
+			}
+			s->busy=file;
+	
+			if((ret=check_chanlist(s,1,&insn.chanspec))<0){
+				ret=-EINVAL;
+				DPRINTK("bad chanspec\n");
+				break;
+			}
+
+			switch(insn.insn){
+				case INSN_READ:
+					ret=s->insn_read(dev,s,&insn,data);
+					break;
+				case INSN_WRITE:
+					ret=s->insn_write(dev,s,&insn,data);
+					break;
+				default:
+					ret=-EINVAL;
+					break;
+			}
+
+			s->busy=NULL;
+		}
+		if(ret<0)break;
+		if(ret!=insn.n){
+			printk("result of insn != insn.n\n");
+			ret=-EINVAL;
+			break;
+		}
+		if(insn.insn&INSN_MASK_READ){
+			if(copy_to_user(insn.data,data,insn.n*sizeof(lsampl_t))){
+				ret=-EFAULT;
+				break;
+			}
+		}
+	}
+
+	kfree(data);
+
+	if(i==0)return ret;
+	return i;
+}
 
 /*
 	COMEDI_CMD
@@ -1409,19 +1539,8 @@ int init_module(void)
 	/* XXX requires /proc interface */
 	comedi_proc_init();
 	
-#ifdef CONFIG_COMEDI_RTL
-	comedi_rtl_init();
-#endif
-#ifdef CONFIG_COMEDI_RTL_V1
-	comedi_rtlv1_init();
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-	comedi_rtai_init();
-#endif
-#if 0
-#ifdef CONFIG_COMEDI_MITE
-	mite_init();
-#endif
+#ifdef CONFIG_COMEDI_RT
+	comedi_rt_init();
 #endif
 	init_drivers();
 
@@ -1450,19 +1569,8 @@ void cleanup_module(void)
 	}
 	kfree(comedi_devices);
 
-#ifdef CONFIG_COMEDI_RTL
-	comedi_rtl_cleanup();
-#endif
-#ifdef CONFIG_COMEDI_RTL_V1
-	comedi_rtlv1_cleanup();
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-	comedi_rtai_cleanup();
-#endif
-#if 0
-#ifdef CONFIG_COMEDI_MITE
-	mite_cleanup();
-#endif
+#ifdef CONFIG_COMEDI_RT
+	comedi_rt_cleanup();
 #endif
 
 }

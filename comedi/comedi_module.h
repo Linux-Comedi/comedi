@@ -65,6 +65,7 @@ struct comedi_subdevice_struct{
 
 	void *lock;
 	void *busy;
+	unsigned int runflags;
 	
 	int io_bits;
 	
@@ -88,11 +89,10 @@ struct comedi_subdevice_struct{
 	unsigned int buf_user_count;		/* byte count for read() and write() */
 	unsigned int cur_chan;		/* useless channel marker for interrupt */
 	
-#if 0
-	unsigned int *range_list;	/* is this necessary? */
-#endif
-	
 	int (*trig[5])(comedi_device *,comedi_subdevice *,comedi_trig *);
+
+	int (*insn_read)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *data);
+	int (*insn_write)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *data);
 
 	int (*do_cmd)(comedi_device *,comedi_subdevice *);
 	int (*do_cmdtest)(comedi_device *,comedi_subdevice *,comedi_cmd *);
@@ -193,6 +193,10 @@ int do_pack(unsigned int *bits,comedi_trig *it);
 
 #endif
 
+
+#define SRF_USER		0x00000001
+#define SRF_RT			0x00000002
+#define SRF_RTIRQ		0x00000004
 
 
 /*
