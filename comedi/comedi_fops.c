@@ -461,31 +461,15 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	}
 
 	if(bi.bytes_read){
+		comedi_buf_read_free(async, bi.bytes_read);
 
-		// check for buffer underflow
-		m = async->buf_write_count - async->buf_read_count;
-		if(bi.bytes_read > m)
-		{
-			DPRINTK("buffer underflow\n");
-			return -EIO;
-		}
-
-		async->buf_read_ptr += bi.bytes_read;
-		if( async->buf_read_ptr >= async->prealloc_bufsz )
-			async->buf_read_ptr %= async->prealloc_bufsz;
-		async->buf_read_count += bi.bytes_read;
-
-		// check for buffer overflow
-		if( m > async->prealloc_bufsz )
-		{
-			do_cancel(dev, dev->read_subdev);
-			DPRINTK("buffer overflow\n");
-			return -EIO;
-		}
-		if(!(s->subdev_flags&SDF_RUNNING) && async->buf_write_count==async->buf_read_count){
+		if(!(s->subdev_flags&SDF_RUNNING) &&
+		   !(s->runflags & SRF_ERROR) &&
+		   async->buf_write_count==async->buf_read_count){
 			do_become_nonbusy(dev,s);
 		}
 	}
+
 	// XXX fix bufinfo struct
 	bi.buf_int_count = async->buf_write_count;
 	bi.buf_int_ptr = async->buf_write_ptr;
