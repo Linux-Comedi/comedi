@@ -1,16 +1,10 @@
 /*
     cb_pcidda.c
     This intends to be a driver for the ComputerBoards / MeasurementComputing
-    PCI-DDA series. SO FAR IT HAS ONLY BEEN TESTED WITH:
-    - PCI-DDA08/12
-    PLEASE REPORT IF YOU ARE USING IT WITH A DIFFERENT CARD
-		<ivanmr@altavista.com>.
+    PCI-DDA series.
 
-		Options:
-		[0] - PCI bus number
-		[1] - PCI slot number
-
-    Developed by Ivan Martinez <ivanmr@altavista.com>.
+	 Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
+    Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
@@ -33,7 +27,7 @@
 /*
 Driver: cb_pcidda.o
 Description: ComputerBoards/MeasurementComputing PCI-DDA series
-Author: Ivan Martinez <ivanmr@altavista.com>
+Author: Ivan Martinez <ivanmr@altavista.com>, Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: Supports 08/16, 04/16, 02/16, 08/12, 04/12, and 02/12
 Devices: [Measurement Computing] PCI-DDA08/12 (cb_pcidda), PCI-DDA04/12,
   PCI-DDA02/12, PCI-DDA08/16, PCI-DDA04/16, PCI-DDA02/16
@@ -45,6 +39,11 @@ Configuration options:
   device will be used.
 
 Only simple analog output writing is supported.
+
+SO FAR IT HAS ONLY BEEN TESTED WITH:
+  - PCI-DDA08/12
+PLEASE REPORT IF YOU ARE USING IT WITH A DIFFERENT CARD
+<ivanmr@altavista.com>.
 */
 
 #include <linux/kernel.h>
@@ -67,6 +66,7 @@ Only simple analog output writing is supported.
 
 #define PCI_VENDOR_ID_CB	0x1307	// PCI vendor number of ComputerBoards
 #define N_BOARDS	10	// Number of boards in cb_pcidda_boards
+#define EEPROM_SIZE	128	// number of entries in eeprom
 
 /* PCI-DDA base addresses */
 #define DIGITALIO_BADRINDEX	2
@@ -106,8 +106,21 @@ Only simple analog output writing is supported.
 #define BIP	0000000	// Bipolar outputs
 
 #define DACALIBRATION1	4	// D/A CALIBRATION REGISTER 1
+//write bits
+#define	SERIAL_IN_BIT	0x1	// serial data input for eeprom, caldacs, reference dac
+#define	CAL_CHANNEL_MASK	(0x7 << 1)
+#define	CAL_CHANNEL_BITS(channel)	(((channel) << 1) & CAL_CHANNEL_MASK)
+//read bits
+#define	CAL_COUNTER_MASK	0x1f
+#define	CAL_COUNTER_OVERFLOW_BIT	0x20	// calibration counter overflow status bit
+#define	AO_BELOW_REF_BIT	0x40	// analog output is less than reference dac voltage
+#define	SERIAL_OUT_BIT	0x80	// serial data out, for reading from eeprom
 
 #define DACALIBRATION2	6 // D/A CALIBRATION REGISTER 2
+#define	SELECT_EEPROM_BIT	0x1	// send serial data in to eeprom
+#define	DESELECT_REF_DAC_BIT	0x2	// don't send serial data to MAX542 reference dac
+#define	DESELECT_CALDAC_BIT(n)	(0x4 << (n))	// don't send serial data to caldac n
+#define	DUMMY_BIT	0x40	// manual says to set this bit with no explanation
 
 #define DADATA	8	// FIRST D/A DATA REGISTER (0)
 
@@ -223,7 +236,8 @@ typedef struct
 	unsigned long dac;
 	//unsigned long control_status;
 	//unsigned long adc_fifo;
-
+	unsigned int dac_cal1_bits;	// bits last written to da calibration register 1
+	u16 eeprom_data[EEPROM_SIZE];	// software copy of board's eeprom
 } cb_pcidda_private;
 
 /*
@@ -232,27 +246,28 @@ typedef struct
  */
 #define devpriv ((cb_pcidda_private *)dev->private)
 
-/*
- * The comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
 static int cb_pcidda_attach(comedi_device *dev,comedi_devconfig *it);
 static int cb_pcidda_detach(comedi_device *dev);
-static comedi_driver driver_cb_pcidda={
-	driver_name:	"cb_pcidda",
-	module:		THIS_MODULE,
-	attach:		cb_pcidda_attach,
-	detach:		cb_pcidda_detach,
-};
-
 //static int cb_pcidda_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 //static int cb_pcidda_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
+static unsigned int cb_pcidda_read_eeprom(comedi_device *dev, unsigned int address);
+
+/*
+ * The comedi_driver structure tells the Comedi core module
+ * which functions to call to configure/deconfigure (attach/detach)
+ * the board, and also about the kernel module that contains
+ * the device code.
+ */
+static comedi_driver driver_cb_pcidda={
+	driver_name:	"cb_pcidda",
+	module:		THIS_MODULE,
+	attach:		cb_pcidda_attach,
+	detach:		cb_pcidda_detach,
+};
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -370,8 +385,8 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	dev->n_subdevices=3;
-	if(alloc_subdevices(dev)<0)
+	dev->n_subdevices = 3;
+	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;
@@ -391,6 +406,14 @@ found:
 	s = dev->subdevices + 2;
 	subdev_8255_init(dev, s, NULL,
 		(void *)(devpriv->digitalio + PORT2A));
+
+	printk(" eeprom:");
+	for(index = 0; index < EEPROM_SIZE; index++)
+	{
+		devpriv->eeprom_data[index] = cb_pcidda_read_eeprom(dev, index);
+		printk(" %i:0x%x ", index, devpriv->eeprom_data[index]);
+	}
+	printk("\n");
 
 	return 1;
 }
@@ -666,6 +689,76 @@ static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn
 
 	/* return the number of samples read/written */
 	return 1;
+}
+
+// lowlevel read from eeprom
+static unsigned int cb_pcidda_serial_in(comedi_device *dev)
+{
+	unsigned int value = 0;
+	int i;
+	const int value_width = 16;	// number of bits wide values are
+
+	for(i = 1; i <= value_width; i++)
+	{
+		// read bits most significant bit first
+		if(inw_p(devpriv->dac + DACALIBRATION1) & SERIAL_OUT_BIT)
+		{
+			value |= 1 << (value_width - i);
+		}
+	}
+
+	return value;
+}
+
+// lowlevel write to eeprom/dac
+static void cb_pcidda_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits)
+{
+	int i;
+
+	for(i = 1; i <= num_bits; i++)
+	{
+		// send bits most significant bit first
+		if(value & (1 << (num_bits - i)))
+			devpriv->dac_cal1_bits |= SERIAL_IN_BIT;
+		else
+			devpriv->dac_cal1_bits &= ~SERIAL_IN_BIT;
+		outw_p(devpriv->dac_cal1_bits, devpriv->dac + DACALIBRATION1);
+	}
+}
+
+
+// reads a 16 bit value from board's eeprom
+static unsigned int cb_pcidda_read_eeprom(comedi_device *dev, unsigned int address)
+{
+	unsigned int i;
+	unsigned int cal2_bits;
+	unsigned int value;
+	const int max_num_caldacs = 4;	// one caldac for every two dac channels
+	const int read_instruction = 0x6;	// bits to send to tell eeprom we want to read
+	const int instruction_length = 3;
+	const int address_length = 8;
+
+	// send serial output stream to eeprom
+	cal2_bits = SELECT_EEPROM_BIT | DESELECT_REF_DAC_BIT;
+	// deactivate caldacs (one caldac for every two channels)
+	for(i = 0; i < max_num_caldacs; i++)
+	{
+		cal2_bits |= DESELECT_CALDAC_BIT(i);
+	}
+	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
+
+	// tell eeprom we want to read
+	cb_pcidda_serial_out(dev, read_instruction, instruction_length);
+	// send address we want to read from
+	cb_pcidda_serial_out(dev, address, address_length);
+
+	value = cb_pcidda_serial_in(dev);
+
+	// deactivate eeprom
+	cal2_bits &= ~SELECT_EEPROM_BIT;
+	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
+
+	return value;
 }
 
 /*
