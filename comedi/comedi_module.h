@@ -214,6 +214,9 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it);
 int comedi_driver_register(comedi_driver *);
 int comedi_driver_unregister(comedi_driver *);
 
+comedi_device *comedi_allocate_dev(comedi_driver *);
+void comedi_deallocate_dev(comedi_device *);
+
 void init_polling(void);
 void cleanup_polling(void);
 void start_polling(comedi_device *);

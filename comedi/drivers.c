@@ -163,6 +163,21 @@ int comedi_driver_unregister(comedi_driver *driver)
 	return -EINVAL;
 }
 
+comedi_device *comedi_allocate_dev(comedi_driver *driver)
+{
+	comedi_device *dev;
+
+	dev=comedi_get_device_by_minor(0);
+
+	dev->driver=driver;
+
+	return dev;
+}
+
+void comedi_deallocate_dev(comedi_device *dev)
+{
+
+}
 
 static void postconfig(comedi_device *dev)
 {

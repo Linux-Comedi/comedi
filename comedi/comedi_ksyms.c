@@ -50,6 +50,8 @@ struct symbol_table comedi_syms = {
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
+EXPORT_SYMBOL(comedi_allocate_dev);
+EXPORT_SYMBOL(comedi_deallocate_dev);
 EXPORT_SYMBOL(comedi_bufcheck);
 EXPORT_SYMBOL(comedi_done);
 EXPORT_SYMBOL(comedi_error_done);
