@@ -1375,6 +1375,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			n -= m;
 			retval = -EFAULT;
 		}
+		comedi_buf_write_free(async, n);
 
 		count+=n;
 		nbytes-=n;
