@@ -60,7 +60,6 @@
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <mite.h>
-#include <ni_stc.h>
 #include <kvmem.h>
 
 
@@ -294,7 +293,7 @@ void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s)
  */
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len)
 {
-	int i,size_so_far;
+	int i,size_so_far, continuous_aq;
 	unsigned long nup;
 	unsigned long prealloc_buf,prealloc_bufsz; 
 	//comedi_subdevice *s;
@@ -307,6 +306,11 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	//mite=devpriv->mite;
 	prealloc_buf=(unsigned long)async->prealloc_buf;
 	prealloc_bufsz=async->prealloc_bufsz;
+	
+	continuous_aq = (async->cmd.stop_src == TRIG_NONE? 1:0);
+	if(continuous_aq) {
+		len = prealloc_bufsz;
+	}
 	
 	//len = min(cmd->scan_end_arg*cmd->stop_arg*sizeof(sampl_t), async->data_len);
 	if(async->data_len<len) {
@@ -332,7 +336,14 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	To make a looping ring for continuous acquisition, 
 	mite->ring[i-1].next = virt_to_bus(mite->ring);
 	*/
-	mite->ring[i].count=0;
+	//mite->ring[i].count=0;
+	
+	if (continuous_aq&&(i>0)) {
+		mite->ring[i-1].next = virt_to_bus(mite->ring+0); 
+	}else {
+		mite->ring[i].count=0;
+	}
+
 	
 	MDPRINTK("i was %d, size_so_far was %d\n",i,size_so_far);
 	if(size_so_far<len) {
