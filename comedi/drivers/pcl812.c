@@ -282,7 +282,7 @@ static int pcl812_ao_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
 		data = it->data[i];
 
 		outb((data & 0xff), dev->iobase + (chan ? PCL812_DA2_LO : PCL812_DA1_LO));
-		outb(((data & 0xf) >> 8), dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
+		outb((data >> 8) & 0x0f, dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
 	}
 
 	return i;
@@ -358,7 +358,7 @@ static void interrupt_pcl812_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 		if (s->cur_trig.flags & TRIG_WAKE_EOS) {
 			comedi_eos(dev, s);
 		} else {
-			comedi_eobuf(dev, s);
+			comedi_bufcheck(dev, s);
 		}
 		devpriv->int13_act_scan++;
 	} else {

@@ -3,6 +3,8 @@
  *
  */
 
+#define __NO_VERSION__
+
 #include <comedi_module.h>
 
 #include <linux/kernel.h>

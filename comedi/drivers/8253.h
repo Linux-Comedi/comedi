@@ -78,7 +78,7 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 	int div1, div2;
 	int base;
 
-	for (div1 = 1; div1 <= (1 << 16); div1 <<= 1) {
+	for (div1 = 2; div1 <= (1 << 16); div1 <<= 1) {
 		base = i8253_osc_base * div1;
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
@@ -92,6 +92,7 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 			div2 = (*nanosec + base - 1) / base;
 			break;
 		}
+		if (div2 < 2) div2 = 2;
 		if (div2 <= 65536) {
 			*nanosec = div2 * base;
 			*d1 = div1 & 0xffff;
