@@ -527,7 +527,7 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 		}
 	}
 
-	printk("unknown board -- pretend it is a ");
+	printk("unknown board 0x%04x -- pretend it is a ",id);
 
 	return 0;
 }
