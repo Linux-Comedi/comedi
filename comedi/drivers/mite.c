@@ -59,6 +59,7 @@
 
 #define PCI_MITE_SIZE		4096
 #define PCI_DAQ_SIZE		4096
+#define PCI_DAQ_SIZE_660X       8192
 
 MODULE_LICENSE("GPL");
 
@@ -120,11 +121,24 @@ int mite_setup(struct mite_struct *mite)
 	mite->daq_phys_addr=addr;
 	offset = mite->daq_phys_addr & ~PAGE_MASK;
 	start = mite->daq_phys_addr & PAGE_MASK;
-	length = PCI_DAQ_SIZE + offset;
+
+	// In case of a 660x board, DAQ size is 8k instead of 4k (see as shown by lspci output)
+	if ((mite->pcidev->device == 0x1310) || (mite->pcidev->device == 0x2c60)){
+	        length = PCI_DAQ_SIZE_660X + offset;
+		printk("mite: detected NI660X board, using PCI DAQ SIZE of 8k\n");
+	}
+        else length = PCI_DAQ_SIZE + offset;
 	mite->daq_io_addr = ioremap(start, length) + offset;
 	printk("DAQ:0x%08lx mapped to %p\n",mite->daq_phys_addr,mite->daq_io_addr);
 
-	writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
+	// The 6602 board needs different initalisation, see the
+	// _updated_ (nov 2002) reg. Level Manual (filename 370505b.pdf) p. 3.55
+	if (mite->pcidev->device == 0x1310 ){
+	        printk("mite: detected NI6602, using other I/O Window Base Size register\n");
+	        writel((mite->daq_phys_addr & 0xffffff00L) | WENAB_6602 , mite->mite_io_addr + MITE_IODWBSR_NI6602);
+	        writel(0 , mite->mite_io_addr + MITE_IODWCR_NI6602);
+	}
+	else writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
 
 	for( i = 0; i < NUM_MITE_DMA_CHANNELS; i++ ) {
 		writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(i));

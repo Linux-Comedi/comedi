@@ -124,6 +124,8 @@ enum mite_registers
 {
 	MITE_IODWBSR = 0xc0, //IO Device Window Base Size Register
 	MITE_CSIGR = 0x460,	//chip signature
+	MITE_IODWBSR_NI6602 = 0xc4, // IODWBSR for 6602 boards
+	MITE_IODWCR_NI6602 = 0xf4
 };
 static inline int MITE_CHOR(int channel)	// channel operation
 {
@@ -197,6 +199,7 @@ static inline int MITE_FCR(int channel)	// fifo count
 enum MITE_IODWBSR_bits
 {
 	WENAB = 0x80,	// window enable
+	WENAB_6602 = 0x8c // window enable for 6602 boards
 };
 enum MITE_MCR_bits
 {

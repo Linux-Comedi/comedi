@@ -777,6 +777,15 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config  = ni_660x_dio_insn_config;
 	s->io_bits      = 0;     /* all bits default to input */
 
+	// Enabling the second chip:  This "hardcodes" the counter
+	// outputs 5 to 8 to use the second TIO in case of a NI6602
+	// board.
+	if (thisboard->name == "PCI-6602" )
+	  {
+	    printk("NI6602: Setting Counterswap on second TIO\n");
+	    enable_chip(dev);
+	  }
+
 	printk("attached\n");
 
 	/* What does this "return value" mean?  Is this fixed by API??
@@ -812,7 +821,6 @@ static int GPCT_check_chipset_from_channel(comedi_device *dev, int channel)
 	}else if ( (channel >= CTRS_PER_CHIP) && (channel < thisboard->n_ctrs) )
 	{
 		chipset = 1;
-		// DPRINTK("NI_660x: Moving to chipset 1\n");
 	}else
 	{
 		DPRINTK("NI_660x: Channel specification not between limits\n");
@@ -844,8 +852,6 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 
 	/* ============================================================ */
 	/* 1 subdevice with 8 channels, differentation based on channel */
-	DPRINTK("NI_660x: INSN_READ on channel %d\n", subdev_channel);
-
 	// Check what Application of Counter this channel is configured for
 	switch(ni_660x_gpct_config[subdev_channel].App)
 	{
@@ -888,23 +894,15 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 }
 
 static void
-enable_chip(comedi_device *dev, int chipset)
+enable_chip(comedi_device *dev)
 {
 	/* See P. 3.5 of the Register-Level Programming manual.  This
 		bit has to be set, otherwise, you can't use the second chip.
 	*/
-	if ( chipset == 1)
-	{
-		writel(CounterSwap,dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[ClockConfigRegister].offset);
-	}else
-	{
-		writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[ClockConfigRegister].offset);
-	}
+        writel(CounterSwap,dev->iobase + GPCT_OFFSET[1]
+	       + registerData[ClockConfigRegister].offset);
+	return 0;
 }
-
-
 
 static int
 ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
@@ -915,7 +913,6 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 	int counter_channel = GPCT_check_counter_channel_from_subdev_channel(subdev_channel);
 
 	DPRINTK("NI_660x: INSN_CONFIG: Configuring Channel %d\n", subdev_channel);
-	enable_chip(dev, chipset);
 
 	// Check what type of Counter the user requested, data[0] contains
 	// the Application type
@@ -979,13 +976,13 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		// Load (latch) this value into the counter
 		writew(Load,dev->iobase + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
-		/* - Set Counting Mode into GPCT_X1 / 2 / 4 (as set by user
-		- Take into account Z pulse (index pulse) only when both
-		channel A and B are high (arbitrary choice)
+		/* - Set Counting Mode into GPCT_X1 / 2 / 4 (as set by user)
+		   - When to take into account index pulse (as set by user)
+		   - Take into account index pulse (as set by user)
 		*/
 		writew(((ni_660x_gpct_config[subdev_channel]).data[0] |
 			(ni_660x_gpct_config[subdev_channel]).data[1] |
-			(ni_660x_gpct_config[subdev_channel]).data[1] ),
+			(ni_660x_gpct_config[subdev_channel]).data[2] ),
 			dev->iobase + GPCT_OFFSET[chipset]
 			+ registerData[GxCountingModeRegister(counter_channel)].offset);
 		// Put counter in input mode
@@ -1122,7 +1119,6 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		break;
 	case GPCT_SIMPLE_EVENT:
 		DPRINTK("NI_660x: INSN_CONFIG: Config Simple Event Counter\n");
-		//printk("NI_660x: INSN_CONFIG: Config Simple Event Counter\n");
 		ni_660x_gpct_config[subdev_channel].App = 
 			CountingAndTimeMeasurement;
 		// Reset the counter
@@ -1257,7 +1253,6 @@ static int ni_660x_GPCT_inttrig(comedi_device *dev,
 	int counter_channel = GPCT_check_counter_channel_from_subdev_channel(subdev_channel);
 
 	DPRINTK("Triggering channel %d\n", subdev_channel);
-  enable_chip(dev, chipset);
 
 	// Reset the counter
 	writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
