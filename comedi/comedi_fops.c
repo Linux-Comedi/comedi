@@ -432,8 +432,6 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	comedi_bufinfo bi;
 	comedi_subdevice *s;
 	comedi_async *async;
-	static spinlock_t bufinfo_lock = SPIN_LOCK_UNLOCKED;
-	unsigned long irq_flags;
 	int m;
 
 	if(copy_from_user(&bi,arg, sizeof(comedi_bufinfo)))
@@ -479,11 +477,9 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 			do_become_nonbusy(dev,s);
 		}
 	}
-
-	comedi_spin_lock_irqsave(&bufinfo_lock, irq_flags);
 	bi.buf_int_count = async->buf_int_count;
+	// XXX why why report the pointer values, they are useless to the user
 	bi.buf_int_ptr = async->buf_int_ptr;
-	comedi_spin_unlock_irqrestore(&bufinfo_lock, irq_flags);
 	bi.buf_user_count = async->buf_user_count;
 	bi.buf_user_ptr = async->buf_user_ptr;
 
