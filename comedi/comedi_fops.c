@@ -1812,6 +1812,9 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 
 	//DPRINTK("comedi_event %x\n",mask);
 
+	if( (s->subdev_flags & SDF_RUNNING) == 0)
+		return;
+
 	if(mask&COMEDI_CB_EOA){
 		s->subdev_flags &= ~SDF_RUNNING;
 	}
