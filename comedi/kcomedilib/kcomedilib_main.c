@@ -199,7 +199,7 @@ int comedi_find_subdevice_by_type(unsigned int minor,int type,unsigned int subd)
 	comedi_device *dev;
 	int ret;
 
-	if ((ret=minor_to_dev(minor, &dev))!=0) 
+	if ((ret=minor_to_dev(minor, &dev))!=0)
 		return ret;
 
         if (subd>dev->n_subdevices)
@@ -277,7 +277,7 @@ int comedi_get_rangetype(unsigned int minor,unsigned int subdevice,unsigned int 
 	}
 	
 	ret=ret|(minor<<28)|(subdevice<<24)|(chan<<16);
-		
+
 	return ret;
 }
 
@@ -395,8 +395,12 @@ int comedi_command(unsigned int minor,comedi_cmd *cmd)
 	async->buf_int_ptr=0;
 	async->buf_int_count=0;
 
-	s->cur_trig.data_len = async->cmd.data_len;
-	s->cur_trig.data = async->cmd.data;
+//	cur_trig deprecated, looks like all drivers have abandoned it by now - FMH
+//	s->cur_trig.data_len = async->cmd.data_len;
+//	s->cur_trig.data = async->cmd.data;
+
+	async->data = cmd->data;
+	async->data_len = cmd->data_len;
 
 	return s->do_cmd(dev,s);
 }
@@ -505,7 +509,7 @@ static int comedi_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi
 #endif
 	}
 
-	s->cur_trig=*it;
+	//s->cur_trig=*it;
 
 	ret=s->trig[0](dev,s,it);
 
@@ -571,7 +575,9 @@ static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi
 		goto cleanup;
 	}
 
-	s->cur_trig=*it;
+//	s->cur_trig=*it;
+	async->data = it->data;
+	async->data_len = it->data_len;
 
 	ret=s->trig[it->mode](dev,s,it);
 
@@ -597,10 +603,10 @@ int __comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it)
 	dev=comedi_get_device_by_minor(minor);
 	s=dev->subdevices+subdev;
 
-	s->cur_trig=*it;
-	
+//	s->cur_trig=*it;
+
 	ret=s->trig[it->mode](dev,s,it);
-	
+
 	return ret;
 }
 
