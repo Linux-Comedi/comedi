@@ -686,6 +686,7 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 	}else{
 		/* a subdevice instruction */
 		if(insn->subdev>=dev->n_subdevices){
+			DPRINTK("subdevice %d out of range\n",insn->subdev);
 			ret=-EINVAL;
 			goto out;
 		}
