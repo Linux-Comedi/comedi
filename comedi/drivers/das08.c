@@ -65,6 +65,14 @@ driver.
 
 #include "8255.h"
 
+// pcmcia includes
+#ifdef CONFIG_PCMCIA
+#include <pcmcia/version.h>
+#include <pcmcia/cs_types.h>
+#include <pcmcia/cs.h>
+#include <pcmcia/cistpl.h>
+#include <pcmcia/ds.h>
+#endif	// CONFIG_PCMCIA
 
 #define PCI_VENDOR_ID_COMPUTERBOARDS 0x1307
 #define PCI_DEVICE_ID_PCIDAS08 0x29
@@ -222,7 +230,7 @@ static comedi_lrange range_das08_pgm = { 9, {
 */
 
 
-enum { das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl, das08_pgm};
+enum das08_lrange {das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl, das08_pgm};
 
 static comedi_lrange *das08_ai_lranges[]={
 	&range_unknown,
@@ -244,15 +252,18 @@ static int *das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
+enum das08_bustype {isa, pci, pcmcia, pc104};
 // different ways ai data is encoded in first two registers
-enum {das08_encode12, das08_encode16, das08_pcm_encode12};
+enum das08_ai_encoding {das08_encode12, das08_encode16, das08_pcm_encode12};
 
 typedef struct das08_board_struct{
 	char		*name;
+	unsigned int	id;	// id for pci/pcmcia boards
+	enum das08_bustype	bustype;
 	void		*ai;
 	unsigned int	ai_nbits;
-	unsigned int	ai_pg;
-	unsigned int	ai_encoding;
+	enum das08_lrange	ai_pg;
+	enum das08_ai_encoding	ai_encoding;
 	void		*ao;
 	unsigned int	ao_nbits;
 	void		*di;
@@ -265,6 +276,7 @@ typedef struct das08_board_struct{
 static struct das08_board_struct das08_boards[]={
 	{
 	name:		"das08",		// cio-das08.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pg_none,
@@ -279,6 +291,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08-pgm",		// cio-das08pgx.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pgm,
@@ -292,6 +305,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08-pgh",		// cio-das08pgx.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pgh,
@@ -305,6 +319,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08-pgl",		// cio-das08pgx.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pgl,
@@ -318,6 +333,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08-aoh",		// cio-das08_aox.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pgh,
@@ -332,6 +348,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08-aol",		// cio-das08_aox.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pgl,
@@ -346,6 +363,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08-aom",		// cio-das08_aox.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pgm,
@@ -360,6 +378,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08/jr-ao",		// cio-das08-jr-ao.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pg_none,
@@ -374,6 +393,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"das08jr-16-ao",	// cio-das08jr-16-ao.pdf
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	16,
 	ai_pg:		das08_pg_none,
@@ -388,6 +408,8 @@ static struct das08_board_struct das08_boards[]={
 	},
 	{
 	name:		"pci-das08",
+	id:	PCI_DEVICE_ID_PCIDAS08,
+	bustype:	pci,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_bipolar5,
@@ -400,8 +422,11 @@ static struct das08_board_struct das08_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	4,
 	},
+#ifdef CONFIG_PCMCIA
 	{
 	name:		"pcm-das08",
+	id:	0x0,	// XXX
+	bustype:	pcmcia,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_bipolar5,
@@ -414,8 +439,10 @@ static struct das08_board_struct das08_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0,
 	},
+#endif // CONFIG_PCMCIA
 	{
 	name:		"pc104-das08",
+	bustype:	pc104,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	12,
 	ai_pg:		das08_pg_none,
@@ -438,6 +465,7 @@ static struct das08_board_struct das08_boards[]={
 #endif
 	{
 	name:		"das08jr/16",
+	bustype:	isa,
 	ai:		das08_ai_rinsn,
 	ai_nbits:	16,
 	ai_pg:		das08_pg_none,
@@ -663,7 +691,7 @@ static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static int das08_attach(comedi_device *dev,comedi_devconfig *it);
 static int das08_detach(comedi_device *dev);
 
-comedi_driver driver_das08={
+static comedi_driver driver_das08={
 	driver_name:	"das08",
 	module:		THIS_MODULE,
 	attach:		das08_attach,
@@ -685,7 +713,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("comedi%d: das08", dev->minor);
 	// deal with a pci board
-	if(strcmp(thisboard->name, "pci-das08") == 0)
+	if(thisboard->bustype == pci)
 	{
 		if(it->options[0] || it->options[1]){
 			printk(": bus %i, slot %i",
@@ -707,7 +735,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 			}
 		}
 		if(!pdev){
-			printk("No pci-das08 card found\n");
+			printk("No pci das08 cards found\n");
 			return -EIO;
 		}
 		devpriv->pdev = pdev;
@@ -742,9 +770,14 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR );
 #endif
 
+#ifdef CONFIG_PCMCIA
+	}else if(thisboard->bustype == pcmcia)
+	{
+		// XXX deal with pcmcia board
+#endif // CONFIG_PCMCIA
 	}else{
-		iobase=it->options[0];
-		printk(": 0x%04x\n",iobase);
+		iobase = it->options[0];
+		printk(": 0x%04x\n", iobase);
 	}
 
 
