@@ -1,11 +1,13 @@
 dnl as-modtool.m4 0.0.1
 dnl autostars m4 macro for building modtool, a linker for Linux kernel
 dnl modules
-dnl
+
 dnl David Schleef <ds@schleef.org>
 dnl Frank Mori Hess <fmhess@users.sourceforge.net>
-dnl thomas@apestaart.org
-dnl
+dnl Thomas Vander Stichele <thomas@apestaart.org>
+
+dnl $Id$
+
 dnl AS_LINUX_MODTOOL()
 dnl
 dnl this macro defines:
@@ -21,11 +23,18 @@ dnl  How do you specify that the building of modtool should go to the
 dnl  end of the configure script?
 dnl
 
+dnl SYMVERS_INCLUDES can be used to add additional .symvers files to the
+dnl modpost step
+
 AC_DEFUN([AS_LINUX_MODTOOL],
 [
-	#AS_LINUX()
+	AC_PATH_PROG(STRIP, strip)
+	AC_PATH_PROG([DEPMOD], [depmod], [no], [$PATH:/sbin:/usr/sbin:/usr/local/sbin])
 
-	moduledir="\$(libdir)/modules/\$(LINUX_KERNELRELEASE)/comedi"
+	dnl this can be overridden in Makefile.am
+	dnl FIXME: it'd be nice if we could specify different target_PROGRAMS
+	dnl and different targetdir
+	moduledir="\$(modulesdir)/\$(PACKAGE)"
 	modulePROGRAMS_INSTALL="\$(top_builddir)/modtool --install"
 	modulePROGRAMS_UNINSTALL="\$(top_builddir)/modtool --uninstall"
 	AC_SUBST(moduledir)
@@ -35,19 +44,74 @@ AC_DEFUN([AS_LINUX_MODTOOL],
 	cat >modtool <<EOF
 #!/bin/sh
 
+set -e
+#set -x
+
 LINUX_LD="$LINUX_LD"
+LINUX_MODPOST="$LINUX_MODPOST"
 CC="$LINUX_CC"
 INSTALL="$INSTALL"
 LINUX_MODULE_EXT="$LINUX_MODULE_EXT"
 STRIP="$STRIP"
+CFLAGS="$CFLAGS $LINUX_CFLAGS"
+LINUX_DIR="$LINUX_DIR"
 
 mode=\$[1]
 shift
 
 case \$mode in
 --link)
-	echo \$LINUX_LD -r \$[*]
-	\$LINUX_LD -r \$[*]
+	# we accept -i (symvers) and -o (target) as options
+	# at least -o (target) needs to be specified
+	SYMVERS_INCLUDES=""
+	done=false
+	while test ! -z "\$[0]" -a "\$done" = "false"
+	do
+		case \$[1] in
+		-i)
+                        SYMVERS_INCLUDES="\$SYMVERS_INCLUDES \$[2]"
+                        shift 2
+                        ;;
+                -o)
+                        target=\$(echo \$[2] | sed s/.ko$//)
+                        shift 2
+                        ;;
+                *)
+                        done=true
+                        ;;
+                esac
+        done
+
+	if test "\$LINUX_MODULE_EXT" = .ko ; then
+		set -x
+		mkdir -p .mods
+
+		echo \$LINUX_LD -r -o .mods/\$target.o \$[*]
+		\$LINUX_LD -r -o .mods/\$target.o \$[*]
+
+		echo "cat \$LINUX_DIR/Module.symvers \$SYMVERS_INCLUDES >.mods/symvers.tmp"
+		cat \$LINUX_DIR/Module.symvers \$SYMVERS_INCLUDES >.mods/symvers.tmp
+
+		echo "\$LINUX_MODPOST -o .mods/\$target.o.symvers.tmp -i .mods/symvers.tmp \$target.o"
+		\$LINUX_MODPOST -o .mods/\$target.o.symvers.tmp -i .mods/symvers.tmp .mods/\$target.o
+
+		echo "grep .mods/\$target .mods/\$target.o.symvers.tmp >.mods/\$target.o.symvers || true"
+		grep .mods/\$target .mods/\$target.o.symvers.tmp >.mods/\$target.o.symvers || true
+
+		echo "rm -f .mods/\$target.o.symvers.tmp .mods/symvers.tmp"
+		rm -f .mods/\$target.o.symvers.tmp .mods/symvers.tmp
+		
+		echo \$CC \$CFLAGS -DKBUILD_MODNAME=\$target -c -o .mods/\$target.mod.o .mods/\$target.mod.c
+		\$CC \$CFLAGS -DKBUILD_MODNAME=\$target -c -o .mods/\$target.mod.o .mods/\$target.mod.c
+
+		echo \$LINUX_LD -r -o \$target.ko .mods/\$target.mod.o .mods/\$target.o
+		\$LINUX_LD -r -o \$target.ko .mods/\$target.mod.o .mods/\$target.o
+		set +x
+	else
+		echo \$LINUX_LD -r -o \$target.ko \$[*]
+		\$LINUX_LD -r -o \$target.ko \$[*]
+	fi
+
 	;;
 --install)
 	module_src=\$[1]
@@ -69,6 +133,7 @@ esac
 
 EOF
 	chmod +x modtool
+
 
 ])
 

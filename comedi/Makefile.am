@@ -1,5 +1,5 @@
 
-SUBDIRS = kcomedilib drivers
+SUBDIRS = . kcomedilib drivers
 
 module_PROGRAMS = comedi.ko
 

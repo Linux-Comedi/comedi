@@ -2,7 +2,36 @@
 #SUBDIRS = addi-data
 
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
-LINK = $(top_builddir)/modtool --link -o $@
+LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers \
+	-i .mods/8255.o.symvers \
+	-i .mods/amcc_s5933.o.symvers \
+	-i .mods/comedi_fc.o.symvers \
+	-i .mods/das08.o.symvers \
+	-i .mods/mite.o.symvers \
+	-i .mods/ni_labpc.o.symvers
+
+8255_ko_LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
+amcc_s5933_ko_LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
+comedi_fc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
+das08_ko_CFLAGS = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
+mite_ko_LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
+ni_labpc_ko_CFLAGS = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
+
+8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+amcc_s5933_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+comedi_fc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+das08_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+ni_labpc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+
+
 
 EXTRA_DIST = \
  8253.h \
@@ -48,11 +77,16 @@ else
 usb_modules=
 endif
 
-module_PROGRAMS = 8255.ko \
+module_PROGRAMS = \
+ 8255.ko \
+ amcc_s5933.ko \
+ comedi_fc.ko \
+ das08.ko \
+ mite.ko \
+ ni_labpc.ko \
  adl_pci9111.ko \
  adl_pci9118.ko \
  adv_pci1710.ko \
- amcc_s5933.ko \
  adv_pci_dio.ko \
  amplc_pci230.ko \
  amplc_pc236.ko \
@@ -62,10 +96,8 @@ module_PROGRAMS = 8255.ko \
  cb_pcidda.ko \
  cb_pcimdas.ko \
  cb_pcimdda.ko \
- comedi_fc.ko \
  contec_pci_dio.ko \
  daqboard2000.ko \
- das08.ko \
  das16.ko \
  das16m1.ko \
  das6402.ko \
@@ -85,7 +117,6 @@ module_PROGRAMS = 8255.ko \
  ke_counter.ko \
  me_daq.ko \
  me4000.ko \
- mite.ko \
  multiq3.ko \
  ni_660x.ko \
  ni_670x.ko \
@@ -95,7 +126,6 @@ module_PROGRAMS = 8255.ko \
  ni_6527.ko \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
- ni_labpc.ko \
  ni_at_ao.ko \
  pcm3730.ko \
  pcmad.ko \
@@ -192,11 +222,4 @@ skel_ko_SOURCES = skel.c
 ssv_dnp_ko_SOURCES = ssv_dnp.c
 comedi_test_ko_SOURCES = comedi_test.c
 usbdux_ko_SOURCES = usbdux.c
-
-mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-amcc_s5933_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-comedi_fc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-ni_labpc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-das08_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 
