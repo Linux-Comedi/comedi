@@ -89,6 +89,7 @@ module_PROGRAMS = \
  adl_pci9118.ko \
  adv_pci1710.ko \
  adv_pci_dio.ko \
+ amplc_pci224.ko \
  amplc_pci230.ko \
  amplc_pc236.ko \
  amplc_pc263.ko \
@@ -159,6 +160,7 @@ adl_pci9118_ko_SOURCES = adl_pci9118.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
 amcc_s5933_ko_SOURCES = amcc_s5933.c
 adv_pci_dio_ko_SOURCES = adv_pci_dio.c
+amplc_pci224_ko_SOURCES = amplc_pci224.c
 amplc_pci230_ko_SOURCES = amplc_pci230.c
 amplc_pc236_ko_SOURCES = amplc_pc236.c
 amplc_pc263_ko_SOURCES = amplc_pc263.c
