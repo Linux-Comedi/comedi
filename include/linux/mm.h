@@ -9,6 +9,7 @@
 
 #if LINUX_VERSION_CODE < 0x020300
 #define VM_OFFSET(a)	((a)->vm_offset)
+#define page_address(page) page
 #else
 #define VM_OFFSET(a)	((a)->vm_pgoff * PAGE_SIZE)
 #endif
