@@ -244,14 +244,6 @@ CONFIG_COMEDI_RT_TIMER
   scheduler to emulate asynchronous commands for a selected analog
   input or analog output subdevice.
 
-Direct Digital Synthesis
-CONFIG_COMEDI_VD_DDS
-  Comedi virtual device drivers use RTLinux or RTAI to emulate features
-  that are found on advanced data acquisition hardware.  The DDS
-  (direct digital synthesis) virtual driver uses a real-time task and
-  the real-time scheduler to create a waveform on a selected analog
-  output channel.
-
 Measurement Computing (Computer Boards) PCI-DAS
 CONFIG_COMEDI_CB_PCIDAS
   Includes support for Measurement Computing (Computer Boards) PCI-DAS1000,
