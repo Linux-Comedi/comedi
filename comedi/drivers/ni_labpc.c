@@ -969,7 +969,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		{
 			scan_up = 1;
 		}
-		for(i = 1; i < cmd->chanlist_len; i++)
+		for(i = 0; i < cmd->chanlist_len; i++)
 		{
 			if(scan_up == 0)
 			{
