@@ -345,7 +345,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(" %s",dev->board_name);
 
 	if(!nidio_boards[dev->board].is_diodaq){
-		dev->n_subdevices=4;
+		dev->n_subdevices=nidio_boards[dev->board].n_8255;
 	}else{
 		dev->n_subdevices=1;
 	}
