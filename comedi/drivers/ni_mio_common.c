@@ -1403,10 +1403,9 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		/* external trigger */
 		unsigned int tmp = CR_CHAN(cmd->start_arg);
 
-		if(tmp>9)tmp=9;
-		/* XXX for now, use the top bit to invert the signal */
-		tmp |= (cmd->start_arg&0x80000000);
-		if(cmd->start_arg!=tmp){
+		if(tmp > 9) tmp = 9;
+		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
+		if(cmd->start_arg != tmp){
 			cmd->start_arg = tmp;
 			err++;
 		}
@@ -1549,22 +1548,26 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(devpriv->an_trig_etc_reg, Analog_Trigger_Etc_Register);
 
 	switch(cmd->start_src){
-	case TRIG_INT:
-	case TRIG_NOW:
-		win_out(AI_START2_Select(0)|
-			AI_START1_Sync|AI_START1_Edge|AI_START1_Select(0),
-			AI_Trigger_Select_Register);
-		break;
-	case TRIG_EXT:
-	{
-		int chan = CR_CHAN(cmd->start_arg);
-
-		win_out(AI_START2_Select(0)|
-			AI_START1_Sync | AI_START1_Edge |
-			AI_START1_Select(chan + 1),
-			AI_Trigger_Select_Register);
-		break;
-	}
+		case TRIG_INT:
+		case TRIG_NOW:
+			win_out(AI_START2_Select(0)|
+				AI_START1_Sync|AI_START1_Edge|AI_START1_Select(0),
+				AI_Trigger_Select_Register);
+			break;
+		case TRIG_EXT:
+		{
+			int chan = CR_CHAN(cmd->start_arg);
+			unsigned int bits = AI_START2_Select(0)|
+				AI_START1_Sync |
+				AI_START1_Select(chan + 1);
+				
+			if(cmd->start_arg & CR_INVERT)
+				bits |= AI_START1_Polarity;
+			if(cmd->start_arg & CR_EDGE)
+				bits |= AI_START1_Edge;
+			win_out(bits, AI_Trigger_Select_Register);
+			break;
+		}
 	}
 
 	mode2 &= ~AI_Pre_Trigger;
