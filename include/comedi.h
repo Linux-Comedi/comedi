@@ -1,0 +1,295 @@
+/*
+    include/comedi.h (installed as /usr/include/comedi.h)
+    header file for comedi
+
+    COMEDI - Linux Control and Measurement Device Interface
+    Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
+
+
+#ifndef _COMEDI_H
+#define _COMEDI_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* comedi's major device number */
+#define COMEDI_MAJOR 98
+
+/*
+   maximum number of minor devices.  This can be increased, although
+   kernel structures are currently statically allocated, thus you
+   don't want this to be much more than you actually use.
+ */
+#define COMEDI_NDEVICES 4
+
+/* number of config options in the config structure */
+#define COMEDI_NDEVCONFOPTS 32
+
+/* max length of device and driver names */
+#define COMEDI_NAMELEN 20
+
+
+typedef unsigned int lsampl_t;
+typedef unsigned short sampl_t;
+
+/* packs and unpacks a channel/range number */
+
+#define CR_PACK(chan,rng,aref)		( (((aref)&0x3)<<24) | (((rng)&0xff)<<16) | ((chan)&0xffff) )
+
+#define CR_CHAN(a)	((a)&0xffff)
+#define CR_RANGE(a)	(((a)>>16)&0xff)
+#define CR_AREF(a)	(((a)>>24)&0x03)
+
+#define AREF_GROUND	0x00		/* analog ref = analog ground */
+#define AREF_COMMON	0x01		/* analog ref = analog common */
+#define AREF_DIFF	0x02		/* analog ref = differential */
+#define AREF_OTHER	0x03		/* analog ref = other (undefined) */
+
+/* trigger flags */
+
+#define TRIG_BOGUS	0x0001		/* do the motions */
+#define TRIG_DITHER	0x0002		/* enable dithering */
+#define TRIG_DEGLITCH	0x0004		/* enable deglitching */
+#define TRIG_RT		0x0008		/* perform op in real time */
+#define TRIG_CONFIG	0x0010		/* perform configuration, not triggering */
+#define TRIG_WAKE_EOS	0x0020		/* wake up on end-of-scan events */
+#define TRIG_WRITE	0x0040		/* write to bidirectional devices */
+
+/* trigger sources */
+
+#define TRIG_ANY	0		
+#define TRIG_NONE	0		/* never trigger */
+#define TRIG_NOW	1		/* trigger now + N ns */
+#define TRIG_FOLLOW	2		/* trigger on next lower level trig */
+#define TRIG_TIME	3		/* trigger at time N ns */
+#define TRIG_TIMER	4		/* trigger at rate N ns */
+#define TRIG_COUNT	5		/* trigger when count reaches N */
+#define TRIG_EXT	6		/* trigger on external signal N */
+#define TRIG_INT	7		/* trigger on comedi-internal signal N */
+
+#define TRIG_INVAL	8		/* choice was invalid */
+
+/* subdevice flags */
+
+#define SDF_BUSY	0x0001		/* device is busy */
+#define SDF_BUSY_OWNER	0x0002		/* device is busy with your job */
+#define SDF_LOCKED	0x0004		/* subdevice is locked */
+#define SDF_LOCK_OWNER	0x0008		/* you own lock */
+#define SDF_MAXDATA	0x0010		/* maxdata depends on channel */
+#define SDF_FLAGS	0x0020		/* flags depend on channel */
+#define SDF_RANGETYPE	0x0040		/* range type depends on channel */
+#define SDF_MODE0	0x0080		/* can do mode 0 */
+#define SDF_MODE1	0x0100		/* can do mode 1 */
+#define SDF_MODE2	0x0200		/* can do mode 2 */
+#define SDF_MODE3	0x0400		/* can do mode 3 */
+#define SDF_MODE4	0x0800		/* can do mode 4 */
+
+#define SDF_READABLE	0x00010000	/* subdevice can be read (e.g. analog input) */
+#define SDF_WRITEABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
+#define SDF_INTERNAL	0x00040000	/* subdevice does not have externally visible lines */
+#define SDF_RT		0x00080000	/* subdevice is RT capable */
+#define SDF_GROUND	0x00100000	/* can do aref=ground */
+#define SDF_COMMON	0x00200000	/* can do aref=common */
+#define SDF_DIFF	0x00400000	/* can do aref=diff */
+#define SDF_OTHER	0x00800000	/* can do aref=other */
+#define SDF_DITHER	0x01000000	/* can do dithering */
+#define SDF_DEGLITCH	0x02000000	/* can do deglitching */
+#define SDF_MMAP	0x04000000	/* can do mmap() */
+#define SDF_RUNNING	0x08000000	/* subdevice is acquiring data */
+#define SDF_LSAMPL	0x10000000	/* subdevice uses 32-bit samples */
+
+
+/* subdevice types */
+
+#define COMEDI_SUBD_UNUSED              0	/* unused */
+#define COMEDI_SUBD_AI                  1	/* analog input */
+#define COMEDI_SUBD_AO                  2	/* analog output */
+#define COMEDI_SUBD_DI                  3	/* digital input */
+#define COMEDI_SUBD_DO                  4	/* digital output */
+#define COMEDI_SUBD_DIO                 5	/* digital input/output */
+#define COMEDI_SUBD_COUNTER             6	/* counter */
+#define COMEDI_SUBD_TIMER               7	/* timer */
+#define COMEDI_SUBD_MEMORY              8	/* memory, EEPROM, DPRAM */
+#define COMEDI_SUBD_CALIB               9	/* calibration DACs */
+#define COMEDI_SUBD_PROC                10	/* processor, DSP */
+
+
+#define COMEDI_INPUT			0
+#define COMEDI_OUTPUT			1
+
+/* ioctls */
+
+#define CIO 'd'
+#define COMEDI_DEVCONFIG _IOW(CIO,0,comedi_devconfig)
+#define COMEDI_DEVINFO _IOR(CIO,1,comedi_devinfo)
+#define COMEDI_SUBDINFO _IOR(CIO,2,comedi_subdinfo)
+#define COMEDI_CHANINFO _IOR(CIO,3,comedi_chaninfo)
+#define COMEDI_TRIG _IOWR(CIO,4,comedi_trig)
+#define COMEDI_LOCK _IO(CIO,5)
+#define COMEDI_UNLOCK _IO(CIO,6)
+#define COMEDI_CANCEL _IO(CIO,7)
+#define COMEDI_RANGEINFO _IOR(CIO,8,comedi_rangeinfo)
+#define COMEDI_CMD _IOR(CIO,9,comedi_cmd)
+
+
+
+/* structures */
+
+typedef struct comedi_trig_struct comedi_trig;
+typedef struct comedi_cmd_struct comedi_cmd;
+typedef struct comedi_chaninfo_struct comedi_chaninfo;
+typedef struct comedi_subdinfo_struct comedi_subdinfo;
+typedef struct comedi_devinfo_struct comedi_devinfo;
+typedef struct comedi_devconfig_struct comedi_devconfig;
+typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
+typedef struct comedi_krange_struct comedi_krange;
+
+struct comedi_trig_struct{
+	unsigned int subdev;		/* subdevice */
+	unsigned int mode;		/* mode */
+	unsigned int flags;
+	unsigned int n_chan;		/* number of channels */
+	unsigned int *chanlist; 	/* channel/range list */
+	sampl_t *data;			/* data list, size depends on subd flags */
+	unsigned int n;			/* number of scans */
+	unsigned int trigsrc;
+	unsigned int trigvar;
+	unsigned int trigvar1;
+	unsigned int data_len;
+	unsigned int unused[3];
+};
+
+struct comedi_cmd_struct{
+	unsigned int subdev;
+	unsigned int flags;
+
+	unsigned int start_src;
+	unsigned int start_arg;
+
+	unsigned int scan_begin_src;
+	unsigned int scan_begin_arg;
+
+	unsigned int convert_src;
+	unsigned int convert_arg;
+
+	unsigned int scan_end_src;
+	unsigned int scan_end_arg;
+
+	unsigned int stop_src;
+	unsigned int stop_arg;
+
+	unsigned int *chanlist; 	/* channel/range list */
+	unsigned int chanlist_len;
+
+	sampl_t *data;			/* data list, size depends on subd flags */
+	unsigned int data_len;
+};
+
+struct comedi_chaninfo_struct{
+	unsigned int subdev;
+	lsampl_t *maxdata_list;
+	unsigned int *flaglist;
+	unsigned int *rangelist;
+	unsigned int unused[4];
+};
+
+struct comedi_rangeinfo_struct{
+	unsigned int range_type;
+	void *range_ptr;
+};
+
+struct comedi_krange_struct{
+	int min;	/* fixed point, multiply by 1e-6 */
+	int max;	/* fixed point, multiply by 1e-6 */
+	unsigned int flags;
+};
+
+struct comedi_subdinfo_struct{
+	unsigned int type;
+	unsigned int n_chan;
+	unsigned int subd_flags;
+	unsigned int timer_type;
+	unsigned int len_chanlist;
+	lsampl_t	maxdata;
+	unsigned int	flags;		/* channel flags */
+	unsigned int	range_type;	/* lookup in kernel */
+	unsigned int unused[10];
+};
+
+struct comedi_devinfo_struct{
+	unsigned int version_code;
+	unsigned int n_subdevs;
+	char driver_name[COMEDI_NAMELEN];
+	char board_name[COMEDI_NAMELEN];
+	int options[COMEDI_NDEVCONFOPTS];
+};
+
+struct comedi_devconfig_struct{
+	char board_name[COMEDI_NAMELEN];
+	int options[COMEDI_NDEVCONFOPTS];
+};
+
+
+/* range stuff */
+
+#define __RANGE(a,b)	((((a)&0xffff)<<16)|((b)&0xffff))
+
+#define RANGE_OFFSET(a)		(((a)>>16)&0xffff)
+#define RANGE_LENGTH(b)		((b)&0xffff)
+
+#define RF_UNIT(flags)		((flags)&0xff)
+#define RF_EXTERNAL		(1<<8)
+
+#define UNIT_volt		0
+#define UNIT_mA			1
+#define UNIT_none		2
+
+
+/* Kernel internal stuff.  Needed by RTLinux modules and such. */
+
+#ifdef __KERNEL__
+
+/* callback stuff */
+
+#define COMEDI_CB_EOS		1	/* end of scan */
+#define COMEDI_CB_EOA		2	/* end of acquisition */
+#define COMEDI_CB_BLOCK		4	/* convenient block size */
+#define COMEDI_CB_EOBUF		8	/* end of buffer */
+
+/* exported functions */
+
+int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it);
+int __comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it);
+int comedi_lock_ioctl(unsigned int minor,unsigned int subdev);
+int comedi_unlock_ioctl(unsigned int minor,unsigned int subdev);
+int comedi_cancel_ioctl(unsigned int minor,unsigned int subdev);
+int comedi_register_callback(unsigned int minor,unsigned int subdev,
+		unsigned int mask,int (*cb)(unsigned int,void *),void *arg);
+
+#endif
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _COMEDI_H */
+

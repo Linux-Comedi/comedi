@@ -1,0 +1,1598 @@
+/*
+    module/module.c
+    comedi kernel module
+
+    COMEDI - Linux Control and Measurement Device Interface
+    Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
+
+#undef DEBUG
+
+#include <comedi_module.h>
+
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/fcntl.h>
+#include <linux/delay.h>
+#include <linux/ioport.h>
+#include <linux/mm.h>
+#include <linux/malloc.h>
+#include <linux/kmod.h>
+#include <asm/io.h>
+#ifdef LINUX_V22
+#include <asm/uaccess.h>
+#endif
+
+comedi_device *comedi_devices;
+
+
+static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor);
+static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
+static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
+static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg);
+static int do_trig_ioctl(comedi_device *dev,void *arg,void *file);
+static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file);
+static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file);
+static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file);
+static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file);
+
+static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
+
+static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
+{
+	kdev_t minor=MINOR(inode->i_rdev);
+	comedi_device *dev=comedi_devices+minor;
+
+	
+	switch(cmd)
+	{
+	case COMEDI_DEVCONFIG:
+		return do_devconfig_ioctl(dev,(void *)arg,minor);
+	case COMEDI_DEVINFO:
+		return do_devinfo_ioctl(dev,(void *)arg);
+	case COMEDI_SUBDINFO:
+		return do_subdinfo_ioctl(dev,(void *)arg,file);
+	case COMEDI_CHANINFO:
+		return do_chaninfo_ioctl(dev,(void *)arg);
+	case COMEDI_RANGEINFO:
+		return do_rangeinfo_ioctl(dev,(void *)arg);
+	case COMEDI_TRIG:
+		return do_trig_ioctl(dev,(void *)arg,file);
+	case COMEDI_LOCK:
+		return do_lock_ioctl(dev,arg,file);
+	case COMEDI_UNLOCK:
+		return do_unlock_ioctl(dev,arg,file);
+	case COMEDI_CANCEL:
+		return do_cancel_ioctl(dev,arg,file);
+	case COMEDI_CMD:
+		return do_cmd_ioctl(dev,(void *)arg,file);
+	default:
+		return -EIO;
+	}
+}
+
+
+/*
+	COMEDI_DEVCONFIG
+	device config ioctl
+	
+	arg:
+		pointer to devconfig structure
+	
+	reads:
+		devconfig structure at arg
+	
+	writes:
+		none
+*/
+static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor)
+{
+	comedi_devconfig it;
+	
+	if(!suser())
+		return -EPERM;
+	
+	if(arg==NULL){
+		return comedi_device_detach(dev);
+	}
+
+	if(copy_from_user(&it,arg,sizeof(comedi_devconfig)))
+		return -EFAULT;
+	
+	it.board_name[COMEDI_NAMELEN-1]=0;
+	
+	return comedi_device_attach(dev,&it);
+}
+
+
+/*
+	COMEDI_DEVINFO
+	device info ioctl
+	
+	arg:
+		pointer to devinfo structure
+	
+	reads:
+		none
+	
+	writes:
+		devinfo structure
+		
+*/
+static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
+{
+	comedi_devinfo devinfo;
+	
+	
+	/* fill devinfo structure */
+	devinfo.version_code=COMEDI_VERSION_CODE;
+	devinfo.n_subdevs=dev->n_subdevices;
+#if 1
+	if(!dev->board_name){
+		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
+		return -EFAULT;
+	}
+#endif
+	memcpy(devinfo.driver_name,dev->driver->driver_name,COMEDI_NAMELEN);
+	memcpy(devinfo.board_name,dev->board_name,COMEDI_NAMELEN);
+	memcpy(devinfo.options,dev->options,COMEDI_NDEVCONFOPTS*sizeof(int));
+	
+
+	if(copy_to_user(arg,&devinfo,sizeof(comedi_devinfo)))
+		return -EFAULT;
+
+	return 0;
+}
+
+
+/*
+	COMEDI_SUBDINFO
+	subdevice info ioctl
+	
+	arg:
+		pointer to array of subdevice info structures
+	
+	reads:
+		none
+	
+	writes:
+		array of subdevice info structures at arg
+		
+*/
+static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
+{
+	int ret,i;
+	comedi_subdinfo *tmp,*us;
+	comedi_subdevice *s;
+	
+
+	tmp=kmalloc(dev->n_subdevices*sizeof(comedi_subdinfo),GFP_KERNEL);
+	if(!tmp)
+		return -ENOMEM;
+	
+	memset(tmp,0,sizeof(comedi_subdinfo)*dev->n_subdevices);
+
+	/* fill subdinfo structs */
+	for(i=0;i<dev->n_subdevices;i++){
+		s=dev->subdevices+i;
+		us=tmp+i;
+		
+		us->type		= s->type;
+		us->n_chan		= s->n_chan;
+		us->subd_flags		= s->subdev_flags;
+		us->timer_type		= s->timer_type;
+		us->len_chanlist	= s->len_chanlist;
+		us->maxdata		= s->maxdata;
+		us->range_type		= s->range_type;
+		us->flags		= s->flags;
+		
+		if(s->busy)
+			us->subd_flags |= SDF_BUSY;
+		if(s->busy == file)
+			us->subd_flags |= SDF_BUSY_OWNER;
+		if(s->lock)
+			us->subd_flags |= SDF_LOCKED;
+		if(s->lock == file)
+			us->subd_flags |= SDF_LOCK_OWNER;
+		if(!s->maxdata && s->maxdata_list)
+			us->subd_flags |= SDF_MAXDATA;
+		if(s->flaglist)
+			us->subd_flags |= SDF_FLAGS;
+		if(s->range_type_list)
+			us->subd_flags |= SDF_RANGETYPE;
+		if(s->trig[0])
+			us->subd_flags |= SDF_MODE0;
+		if(s->trig[1])
+			us->subd_flags |= SDF_MODE1;
+		if(s->trig[2])
+			us->subd_flags |= SDF_MODE2;
+		if(s->trig[3])
+			us->subd_flags |= SDF_MODE3;
+		if(s->trig[4])
+			us->subd_flags |= SDF_MODE4;
+	}
+	
+	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));
+	
+	kfree(tmp);
+	
+	return ret?-EFAULT:0;
+}
+
+
+/*
+	COMEDI_CHANINFO
+	subdevice info ioctl
+	
+	arg:
+		pointer to chaninfo structure
+	
+	reads:
+		chaninfo structure at arg
+	
+	writes:
+		arrays at elements of chaninfo structure
+	
+*/
+static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
+{
+	comedi_subdevice *s;
+	comedi_chaninfo it;
+	
+	if(copy_from_user(&it,arg,sizeof(comedi_chaninfo)))
+		return -EFAULT;
+	
+	if(it.subdev>=dev->n_subdevices)
+		return -EINVAL;
+	s=dev->subdevices+it.subdev;
+	
+	if(it.maxdata_list){
+		if(s->maxdata || !s->maxdata_list)
+			return -EINVAL;
+		if(copy_to_user(it.maxdata_list,s->maxdata_list,s->n_chan*sizeof(lsampl_t)))
+			return -EFAULT;
+	}
+
+	if(it.flaglist){
+		if(!s->flaglist)return -EINVAL;
+		if(copy_to_user(it.flaglist,s->flaglist,s->n_chan*sizeof(unsigned int)))
+			return -EFAULT;
+	}
+			
+	if(it.rangelist){
+		if(!s->range_type_list)return -EINVAL;
+		if(copy_to_user(it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
+			return -EFAULT;
+	}
+	
+	return 0;
+}
+
+
+/*
+	COMEDI_TRIG
+	trigger ioctl
+	
+	arg:
+		pointer to trig structure
+	
+	reads:
+		trig structure at arg
+		channel/range list
+	
+	writes:
+		modified trig structure at arg
+		data list
+
+	this function is too complicated
+*/
+static int do_trig_ioctl(comedi_device *dev,void *arg,void *file)
+{
+	comedi_trig user_trig;
+	comedi_subdevice *s;
+	int ret=0,i,bufsz;
+	int reading;
+	
+#if 0
+DPRINTK("entering do_trig_ioctl()\n");
+#endif
+	if(copy_from_user(&user_trig,arg,sizeof(comedi_trig))){
+		DPRINTK("bad trig address\n");
+		return -EFAULT;
+	}
+	
+#if 0
+	/* this appears to be the only way to check if we are allowed
+	   to write to an area. */
+	if(copy_to_user(arg,&user_trig,sizeof(comedi_trig)))
+		return -EFAULT;
+#endif
+	
+	if(user_trig.subdev>=dev->n_subdevices){
+		DPRINTK("%d no such subdevice\n",user_trig.subdev);
+		return -ENODEV;
+	}
+
+	s=dev->subdevices+user_trig.subdev;
+	if(s->type==COMEDI_SUBD_UNUSED){
+		DPRINTK("%d not used device\n",user_trig.subdev);
+		return -EIO;
+	}
+	
+	/* are we locked? (ioctl lock) */
+	if(s->lock && s->lock!=file){
+		DPRINTK("device locked\n");
+		return -EACCES;
+	}
+
+	/* are we busy? */
+	if(s->busy){
+		DPRINTK("device busy\n");
+		return -EBUSY;
+	}
+	s->busy=file;
+
+	/* make sure channel/gain list isn't too long */
+	if(user_trig.n_chan > s->len_chanlist){
+		DPRINTK("channel/gain list too long %d > %d\n",user_trig.n_chan,s->len_chanlist);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	
+	s->cur_trig=user_trig;
+	s->cur_trig.chanlist=NULL;
+	s->cur_trig.data=NULL;
+
+	/* load channel/gain list */
+	s->cur_trig.chanlist=kmalloc(s->cur_trig.n_chan*sizeof(int),GFP_KERNEL);
+	if(!s->cur_trig.chanlist){
+		DPRINTK("allocation failed\n");
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+	
+	if(copy_from_user(s->cur_trig.chanlist,user_trig.chanlist,s->cur_trig.n_chan*sizeof(int))){
+		DPRINTK("fault reading chanlist\n");
+		ret = -EFAULT;
+		goto cleanup;
+	}
+	
+	/* make sure each element in channel/gain list is valid */
+	if((ret=check_chanlist(s,s->cur_trig.n_chan,s->cur_trig.chanlist))<0){
+		DPRINTK("bad chanlist\n");
+		goto cleanup;
+	}
+	
+	if(!s->prealloc_bufsz){
+		/* allocate temporary buffer */
+
+		if(s->subdev_flags&SDF_LSAMPL){
+			bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
+		}else{
+			bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
+		}
+
+		if(!(s->cur_trig.data=kmalloc(bufsz,GFP_KERNEL))){
+			DPRINTK("failed to allocate buffer\n");
+			ret=-ENOMEM;
+			goto cleanup;
+		}
+	}else{
+		bufsz=s->prealloc_bufsz;
+		if(!s->prealloc_buf){
+			printk("comedi: bug: s->prealloc_buf=NULL\n");
+		}
+		s->cur_trig.data=s->prealloc_buf;
+	}
+	s->cur_trig.data_len=bufsz;
+
+#if 0
+/* debugging */
+memset(s->cur_trig.data,0xef,bufsz);
+#endif
+
+	s->buf_int_ptr=0;
+	s->buf_int_count=0;
+if(s->subdev_flags & SDF_READABLE){
+	s->buf_user_ptr=0;
+	s->buf_user_count=0;
+}
+	
+#if 0
+	if(user_trig.data==NULL){
+		/* XXX this *should* indicate that we want to transfer via read/write */
+		ret=-EINVAL;
+		goto cleanup;
+	}
+#endif
+
+	if(s->subdev_flags & SDF_WRITEABLE){
+		if(s->subdev_flags & SDF_READABLE){
+			/* bidirectional, so we defer to trig structure */
+			if(user_trig.flags&TRIG_WRITE){
+				reading=0;
+			}else{
+				reading=1;
+			}
+		}else{
+			reading=0;
+		}
+	}else{
+		/* subdev is read-only */
+		reading=1;
+	}
+	if(!reading && user_trig.data){
+		if(s->subdev_flags&SDF_LSAMPL){
+			i=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
+		}else{
+			i=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
+		}
+		if(copy_from_user(s->cur_trig.data,user_trig.data,i)){
+			DPRINTK("bad address %p,%p (%d)\n",s->cur_trig.data,user_trig.data,i);
+			ret=-EFAULT;
+			goto cleanup;
+		}
+	}
+
+	if(s->cur_trig.mode>=5 || s->trig[s->cur_trig.mode]==NULL){
+		DPRINTK("bad mode %d\n",s->cur_trig.mode);
+		ret=-EINVAL;
+		goto cleanup;
+	}
+
+	/* mark as non-RT operation */
+	s->cur_trig.flags &= ~TRIG_RT;
+
+	s->subdev_flags|=SDF_RUNNING;
+
+	ret=s->trig[s->cur_trig.mode](dev,s,&s->cur_trig);
+	
+	if(ret==0)return 0;
+
+	if(ret<0)goto cleanup;
+
+	if(s->subdev_flags&SDF_LSAMPL){
+		i=ret*sizeof(lsampl_t);
+	}else{
+		i=ret*sizeof(sampl_t);
+	}
+	if(i>bufsz){
+		printk("comedi: (bug) trig returned too many samples\n");
+		i=bufsz;
+	}
+	if(reading){
+		if(copy_to_user(user_trig.data,s->cur_trig.data,i)){
+			ret=-EFAULT;
+			goto cleanup;
+		}
+	}
+cleanup:
+
+	do_become_nonbusy(dev,s);
+	
+	return ret;
+}
+
+/*
+	COMEDI_CMD
+	command ioctl
+	
+	arg:
+		pointer to cmd structure
+	
+	reads:
+		cmd structure at arg
+		channel/range list
+	
+	writes:
+		modified cmd structure at arg
+
+*/
+static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
+{
+	comedi_cmd user_cmd;
+	comedi_subdevice *s;
+	int ret=0;
+	
+DPRINTK("entering do_cmd_ioctl()\n");
+	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
+		DPRINTK("bad cmd address\n");
+		return -EFAULT;
+	}
+	
+	if(user_cmd.subdev>=dev->n_subdevices){
+		DPRINTK("%d no such subdevice\n",user_cmd.subdev);
+		return -ENODEV;
+	}
+
+	s=dev->subdevices+user_cmd.subdev;
+	if(s->type==COMEDI_SUBD_UNUSED){
+		DPRINTK("%d not valid subdevice\n",user_cmd.subdev);
+		return -EIO;
+	}
+	
+	if(!s->do_cmd){
+		DPRINTK("subdevice does not support commands\n");
+		return -EIO;
+	}
+	
+	/* are we locked? (ioctl lock) */
+	if(s->lock && s->lock!=file){
+		DPRINTK("subdevice locked\n");
+		return -EACCES;
+	}
+
+	/* are we busy? */
+	if(s->busy){
+		DPRINTK("subdevice busy\n");
+		return -EBUSY;
+	}
+	s->busy=file;
+
+	/* make sure channel/gain list isn't too long */
+	if(user_cmd.chanlist_len > s->len_chanlist){
+		DPRINTK("channel/gain list too long %d > %d\n",user_cmd.chanlist_len,s->len_chanlist);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	s->cmd=user_cmd;
+	s->cmd.chanlist=NULL;
+	s->cmd.data=NULL;
+
+	/* load channel/gain list */
+	/* we should have this already allocated */
+	s->cmd.chanlist=kmalloc(s->cmd.chanlist_len*sizeof(int),GFP_KERNEL);
+	if(!s->cmd.chanlist){
+		DPRINTK("allocation failed\n");
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+	
+	if(copy_from_user(s->cmd.chanlist,user_cmd.chanlist,s->cmd.chanlist_len*sizeof(int))){
+		DPRINTK("fault reading chanlist\n");
+		ret = -EFAULT;
+		goto cleanup;
+	}
+	
+	/* make sure each element in channel/gain list is valid */
+	if((ret=check_chanlist(s,s->cmd.chanlist_len,s->cmd.chanlist))<0){
+		DPRINTK("bad chanlist\n");
+		goto cleanup;
+	}
+	
+	if(!s->prealloc_bufsz){
+		ret=-ENOMEM;
+		DPRINTK("no buffer (?)\n");
+		goto cleanup;
+	}
+	s->cmd.data_len=s->prealloc_bufsz;
+
+	s->buf_int_ptr=0;
+	s->buf_int_count=0;
+if(s->subdev_flags & SDF_READABLE){
+	s->buf_user_ptr=0;
+	s->buf_user_count=0;
+}
+	
+	/* mark as non-RT operation */
+	s->cmd.flags &= ~TRIG_RT;
+
+	s->subdev_flags|=SDF_RUNNING;
+
+	ret=s->do_cmd(dev,s);
+	
+	if(ret==0)return 0;
+
+cleanup:
+	do_become_nonbusy(dev,s);
+	
+	return ret;
+}
+
+
+/*
+	COMEDI_LOCK
+	lock subdevice
+	
+	arg:
+		subdevice number
+	
+	reads:
+		none
+	
+	writes:
+		none
+
+	non-RT linux always controls rtcomedi_lock_semaphore.  If an
+	RT-linux process wants the lock, it first checks rtcomedi_lock_semaphore.
+	If it is 1, it knows it is pre-empting this function, and fails.
+	Obviously, if RT-linux fails to get a lock, it *must* allow
+	linux to run, since that is the only way to free the lock.
+	
+	This function is not SMP compatible.
+
+	necessary locking:
+	- ioctl/rt lock  (this type)
+	- lock while subdevice busy
+	- lock while subdevice being programmed
+	
+*/
+
+volatile int rtcomedi_lock_semaphore=0;
+
+static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
+{
+	int ret=0;
+	comedi_subdevice *s;
+	
+	if(arg>=dev->n_subdevices)
+		return -EINVAL;
+	s=dev->subdevices+arg;
+	
+	if(s->busy)
+		return -EBUSY;
+
+	rtcomedi_lock_semaphore=1;
+	
+	if(s->lock && s->lock!=file){
+		ret=-EACCES;
+	}else{
+		s->lock=file;
+	}
+	
+	rtcomedi_lock_semaphore=0;
+
+	if(ret<0)
+		return ret;
+
+#if 0
+	if(s->lock_f)
+		ret=s->lock_f(dev,s);
+#endif
+
+	return ret;
+}
+
+
+/*
+	COMEDI_UNLOCK
+	unlock subdevice
+	
+	arg:
+		subdevice number
+	
+	reads:
+		none
+	
+	writes:
+		none
+
+	This function isn't protected by the semaphore, since
+	we already own the lock.
+*/
+static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file)
+{
+	comedi_subdevice *s;
+	
+	if(arg>=dev->n_subdevices)
+		return -EINVAL;
+	s=dev->subdevices+arg;
+	
+	if(s->busy)
+		return -EBUSY;
+
+	if(s->lock && s->lock!=file)
+		return -EACCES;
+	
+	if(s->lock==file){
+#if 0
+		if(s->unlock)
+			s->unlock(dev,s);
+#endif
+
+		s->lock=NULL;
+	}
+
+	return 0;
+}
+
+static int do_cancel(comedi_device *dev,comedi_subdevice *s);
+/*
+	COMEDI_CANCEL
+	cancel acquisition ioctl
+	
+	arg:
+		subdevice number
+	
+	reads:
+		nothing
+	
+	writes:
+		nothing
+
+*/
+static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
+{
+	comedi_subdevice *s;
+	
+	if(arg>=dev->n_subdevices)
+		return -EINVAL;
+	s=dev->subdevices+arg;
+	
+	if(s->lock && s->lock!=file)
+		return -EACCES;
+	
+	if(!s->busy)
+		return 0;
+
+	if(s->busy!=file)
+		return -EBUSY;
+
+	return do_cancel(dev,s);
+}
+	
+static int do_cancel(comedi_device *dev,comedi_subdevice *s)
+{
+	int ret=0;
+
+	if((s->subdev_flags&SDF_RUNNING) && s->cancel)
+		ret=s->cancel(dev,s);
+
+	do_become_nonbusy(dev,s);
+
+	return ret;
+}
+
+#ifdef LINUX_V22
+/*
+   comedi_mmap_v22
+
+   mmap issues:
+   	- mmap has issues with lock and busy
+	- mmap has issues with reference counting
+	- RT issues?
+
+   unmapping:
+   	vm_ops->unmap()
+	- this needs to call comedi_cancel, or whatever.
+ */
+static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
+{
+	kdev_t minor=MINOR(RDEV_OF_FILE(file));
+	comedi_device *dev=comedi_devices+minor;
+	comedi_subdevice *s;
+	int size;
+	unsigned long offset;
+
+#if LINUX_VERSION_CODE < 0x020300
+	offset=vma->vm_offset;
+#else
+	offset=0;	/* XXX */
+#endif
+	if(offset >= dev->n_subdevices)
+		return -EIO;
+	s=dev->subdevices+offset;
+
+	if((vma->vm_flags & VM_WRITE) && !(s->subdev_flags & SDF_WRITEABLE))
+		return -EINVAL;
+
+	if((vma->vm_flags & VM_READ) && !(s->subdev_flags & SDF_READABLE))
+		return -EINVAL;
+
+	size = vma->vm_end - vma->vm_start;
+	if(size>(1<<16))
+		return -EINVAL;
+
+	if(remap_page_range(vma->vm_start, virt_to_phys(s->prealloc_buf),
+		size,vma->vm_page_prot))
+		return -EAGAIN;
+	
+	vma->vm_file=file;
+#if 0
+	file->f_count++;
+#else
+	file_atomic_inc(&file->f_count);
+#endif
+
+	/* mark subdev as mapped */
+	
+	/* call subdev about mmap, if necessary */
+printk("mmap done\n");
+
+	return 0;
+}
+
+#if 0
+/*
+   I can't find a driver that notices when it gets unmapped.
+ */
+static void *comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
+{
+	printk("comedi unmap\n");
+
+	return NULL;
+}
+#endif
+
+#endif
+
+
+static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,loff_t *offset)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int n,m,count=0,retval=0;
+	DECLARE_WAITQUEUE(wait,current);
+	int sample_size;
+	void *buf_ptr;
+	unsigned int buf_len;
+
+	dev=comedi_devices+MINOR(RDEV_OF_FILE(file));
+	s=dev->subdevices+file->f_pos;
+
+	if(s->subdev_flags&SDF_LSAMPL){
+		sample_size=sizeof(lsampl_t);
+	}else{
+		sample_size=sizeof(sampl_t);
+	}
+	if(nbytes%sample_size)
+		nbytes-=nbytes%sample_size;
+
+	if(!nbytes)return 0;
+
+	if(!(s->subdev_flags&SDF_WRITEABLE))
+		return -EIO;
+
+	if(!s->busy){
+		buf_ptr=s->prealloc_buf;
+		buf_len=s->prealloc_bufsz;
+	}else{
+		if(s->busy != file)
+			return -EACCES;
+
+		buf_ptr=s->cur_trig.data;
+		buf_len=s->cur_trig.data_len;
+	}
+
+	if(!buf_ptr)
+		return -EIO;
+
+	add_wait_queue(&dev->wait,&wait);
+	while(nbytes>0 && !retval){
+		current->state=TASK_INTERRUPTIBLE;
+
+		n=nbytes;
+
+		m=buf_len-(s->buf_user_count-s->buf_int_count);
+		if(s->buf_user_ptr+m > buf_len){
+			m=buf_len - s->buf_user_ptr;
+		}
+		if(m<n)n=m;
+
+		if(n==0){
+			if(file->f_flags&O_NONBLOCK){
+				retval=-EAGAIN;
+				break;
+			}
+			if(signal_pending(current)){
+				retval=-ERESTARTSYS;
+				break;
+			}
+			if(!(s->subdev_flags&SDF_RUNNING)){
+				do_become_nonbusy(dev,s);
+				break;
+			}
+			schedule();
+			continue;
+		}
+		m=copy_from_user(buf_ptr+s->buf_user_ptr,buf,n);
+		if(m) retval=-EFAULT;
+		n-=m;
+		
+		count+=n;
+		nbytes-=n;
+		s->buf_user_ptr+=n;
+		s->buf_user_count+=n;
+
+		if(s->buf_user_ptr>=buf_len ){
+			s->buf_user_ptr=0;
+		}
+
+		buf+=n;
+		break;	/* makes device work like a pipe */
+	}
+	current->state=TASK_RUNNING;
+	remove_wait_queue(&dev->wait,&wait);
+
+	return (count ? count : retval);
+}
+
+
+static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t *offset)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int n,m,count=0,retval=0;
+	DECLARE_WAITQUEUE(wait,current);
+	int sample_size;
+
+	dev=comedi_devices+MINOR(RDEV_OF_FILE(file));
+	if(file->f_pos>=dev->n_subdevices)
+		return -EIO;
+	s=dev->subdevices+file->f_pos;
+
+	if(s->subdev_flags&SDF_LSAMPL){
+		sample_size=sizeof(lsampl_t);
+	}else{
+		sample_size=sizeof(sampl_t);
+	}
+	if(nbytes%sample_size)
+		nbytes-=nbytes%sample_size;
+
+	if(!nbytes)return 0;
+
+	if(!s->busy)
+		return 0;
+
+	if(!s->cur_trig.data || !(s->subdev_flags&SDF_READABLE))
+		return -EIO;
+
+	if(s->busy != file)
+		return -EACCES;
+
+	add_wait_queue(&dev->wait,&wait);
+	while(nbytes>0 && !retval){
+		current->state=TASK_INTERRUPTIBLE;
+
+		n=nbytes;
+
+		m=s->buf_int_count-s->buf_user_count;
+		if(m>s->cur_trig.data_len){
+			s->buf_user_count=s->buf_int_count;
+			s->buf_user_ptr=s->buf_int_ptr;
+			retval=-EINVAL; /* OVERRUN */
+			break;
+		}
+		if(s->buf_user_ptr+m > s->cur_trig.data_len){
+			m=s->cur_trig.data_len - s->buf_user_ptr;
+#if 0
+printk("m is %d\n",m);
+#endif
+		}
+		if(m<n)n=m;
+
+		if(n==0){
+			if(!(s->subdev_flags&SDF_RUNNING)){
+				do_become_nonbusy(dev,s);
+				retval=-EINVAL;
+				break;
+			}
+			if(file->f_flags&O_NONBLOCK){
+				retval=-EAGAIN;
+				break;
+			}
+			if(signal_pending(current)){
+				retval=-ERESTARTSYS;
+				break;
+			}
+			schedule();
+			continue;
+		}
+		m=copy_to_user(buf,((void *)(s->cur_trig.data))+s->buf_user_ptr,n);
+		if(m) retval=-EFAULT;
+		n-=m;
+		
+		count+=n;
+		nbytes-=n;
+		s->buf_user_ptr+=n;
+		s->buf_user_count+=n;
+
+		if(s->buf_user_ptr>=s->cur_trig.data_len ){
+			s->buf_user_ptr=0;
+		}
+
+		buf+=n;
+		break;	/* makes device work like a pipe */
+	}
+	if(!(s->subdev_flags&SDF_RUNNING) && s->buf_int_count-s->buf_user_count==0){
+		do_become_nonbusy(dev,s);
+	}
+	current->state=TASK_RUNNING;
+	remove_wait_queue(&dev->wait,&wait);
+
+	return (count ? count : retval);
+}
+
+/*
+   This function restores a subdevice to an idle state.
+ */
+static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
+{
+#if 0
+	printk("becoming non-busy\n");
+#endif
+	/* we do this because it's useful for the non-standard cases */
+	s->subdev_flags &= ~SDF_RUNNING;
+
+	if(s->cur_trig.chanlist){
+		kfree(s->cur_trig.chanlist);
+		s->cur_trig.chanlist=NULL;
+	}
+
+	if(s->cur_trig.data){
+		if(s->cur_trig.data != s->prealloc_buf)
+			kfree(s->cur_trig.data);
+
+		s->cur_trig.data=NULL;
+	}
+
+	s->buf_user_ptr=0;
+	s->buf_int_ptr=0;
+	s->buf_user_count=0;
+	s->buf_int_count=0;
+
+	s->busy=NULL;
+}
+
+/* no chance that these will change soon */
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
+static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
+{
+	comedi_device *dev;
+	loff_t new_offset;
+	
+	dev=comedi_devices+MINOR(RDEV_OF_FILE(file));
+
+	switch(origin){
+	case SEEK_SET:
+		new_offset = offset;
+		break;
+	case SEEK_CUR:
+		new_offset = file->f_pos + offset;
+		break;
+	case SEEK_END:
+		new_offset = dev->n_subdevices + offset;
+		break;
+	default:
+		return -EINVAL;
+	}
+	if(new_offset<0 || new_offset >= dev->n_subdevices)
+		return -EINVAL;
+
+	return file->f_pos=new_offset;
+}
+
+static int comedi_open(struct inode *inode,struct file *file)
+{
+	kdev_t minor=MINOR(inode->i_rdev);
+	comedi_device *dev;
+	static int in_comedi_open=0;
+	char mod[32];
+
+	if(minor>=COMEDI_NDEVICES)return -ENODEV;
+
+	dev=comedi_devices+minor;
+	if(dev->attached)
+		goto ok;
+	if(in_comedi_open && suser())
+		goto ok;
+
+	in_comedi_open=1;
+
+	sprintf(mod,"char-major-%i-%i",COMEDI_MAJOR,minor);
+	request_module(mod);
+
+	in_comedi_open=0;
+
+	if(dev->attached || suser())
+		goto ok;
+	return -ENODEV;
+
+ok:
+	MOD_INC_USE_COUNT;
+	if(dev->attached){
+		__MOD_INC_USE_COUNT(dev->driver->module);
+	}
+	dev->use_count++;
+
+	return 0;
+}
+
+static int comedi_close_v22(struct inode *inode,struct file *file)
+{
+	comedi_device *dev=comedi_devices+MINOR(inode->i_rdev);
+	comedi_subdevice *s;
+	int i;
+
+	for(i=0;i<dev->n_subdevices;i++){
+		s=dev->subdevices+i;
+
+		if(s->busy==file){
+			do_cancel(dev,s);
+		}
+		if(s->lock==file){
+			s->lock=NULL;
+		}
+	}
+
+	MOD_DEC_USE_COUNT;
+	if(dev->attached){
+		__MOD_DEC_USE_COUNT(dev->driver->module);
+	}
+
+	dev->use_count--;
+	
+	return 0;
+}
+
+
+/*
+	kernel compatibility
+*/
+
+#ifdef LINUX_V20
+
+static int comedi_write_v20(struct inode *inode,struct file *file,const char *buf,int nbytes)
+{
+	return comedi_write_v22(file,buf,nbytes,NULL);
+}
+
+static int comedi_read_v20(struct inode *inode,struct file *file,char *buf,int nbytes)
+{
+	return comedi_read_v22(file,buf,nbytes,NULL);
+}
+
+static int comedi_lseek_v20(struct inode * inode,struct file *file,off_t offset,int origin)
+{
+	return comedi_lseek_v22(file,offset,origin);
+}
+
+static void comedi_close_v20(struct inode *inode,struct file *file)
+{
+	comedi_close_v22(inode,file);
+}
+
+#define comedi_ioctl_v20 comedi_ioctl
+#define comedi_open_v20 comedi_open
+
+static struct file_operations comedi_fops={
+	lseek		: comedi_lseek_v20,
+	ioctl		: comedi_ioctl_v20,
+	open		: comedi_open_v20,
+	release		: comedi_close_v20,
+	read		: comedi_read_v20,
+	write		: comedi_write_v20,
+};
+
+#endif
+
+#ifdef LINUX_V22
+
+#define comedi_ioctl_v22 comedi_ioctl
+#define comedi_open_v22 comedi_open
+
+static struct file_operations comedi_fops={
+	llseek		: comedi_lseek_v22,
+	ioctl		: comedi_ioctl_v22,
+	open		: comedi_open_v22,
+	release		: comedi_close_v22,
+	read		: comedi_read_v22,
+	write		: comedi_write_v22,
+	mmap		: comedi_mmap_v22,
+};
+#endif
+
+void mite_init(void);
+void mite_cleanup(void);
+void init_drivers(void);
+
+
+int init_module(void)
+{
+	printk("comedi: version " COMEDI_VERSION " - David Schleef <ds@stm.lbl.gov>\n");
+	if(register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
+		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
+		return -EIO;
+	}
+	comedi_devices=(comedi_device *)kmalloc(sizeof(comedi_device)*COMEDI_NDEVICES,GFP_KERNEL);
+	if(!comedi_devices)
+		return -ENOMEM;
+	memset(comedi_devices,0,sizeof(comedi_device)*COMEDI_NDEVICES);
+#if 0
+	init_polling();
+#endif
+
+	/* XXX requires /proc interface */
+	comedi_proc_init();
+	
+#ifdef CONFIG_COMEDI_RTL
+	comedi_rtl_init();
+#endif
+#ifdef CONFIG_COMEDI_RTL_V1
+	comedi_rtlv1_init();
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	comedi_rtai_init();
+#endif
+#if 0
+#ifdef CONFIG_COMEDI_MITE
+	mite_init();
+#endif
+#endif
+	init_drivers();
+
+	return 0;
+}
+
+void cleanup_module(void)
+{
+	int i;
+
+	if(MOD_IN_USE)
+		printk("comedi: module in use -- remove delayed\n");
+
+	unregister_chrdev(COMEDI_MAJOR,"comedi");
+
+	comedi_proc_cleanup();
+#if 0
+	comedi_polling_cleanup();
+#endif
+	for(i=0;i<COMEDI_NDEVICES;i++){
+		if(comedi_devices[i].attached)
+			comedi_device_detach(comedi_devices+i);
+	}
+	kfree(comedi_devices);
+
+#ifdef CONFIG_COMEDI_RTL
+	comedi_rtl_cleanup();
+#endif
+#ifdef CONFIG_COMEDI_RTL_V1
+	comedi_rtlv1_cleanup();
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	comedi_rtai_cleanup();
+#endif
+#if 0
+#ifdef CONFIG_COMEDI_MITE
+	mite_cleanup();
+#endif
+#endif
+
+}
+
+
+void comedi_error(comedi_device *dev,const char *s)
+{
+	rt_printk("comedi%d: %s: %s\n",dev->minor,dev->driver->driver_name,s);
+}
+
+void comedi_done(comedi_device *dev,comedi_subdevice *s)
+{
+#if 0
+	DPRINTK("comedi_done\n");
+#endif
+
+	if(!(s->cur_trig.flags&TRIG_RT))
+		wake_up_interruptible(&dev->wait);
+	else if(s->cb_mask&COMEDI_CB_EOA)
+		s->cb_func(COMEDI_CB_EOA,s->cb_arg);
+
+	s->subdev_flags &= ~SDF_RUNNING;
+}
+
+void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s)
+{
+#if 0
+	DPRINTK("comedi_bufcheck\n");
+#endif
+
+#if 0
+	if((!(s->cur_trig.flags&TRIG_RT)) &&
+	   (s->buf_int_count-s->buf_user_count >= 16))
+		wake_up_interruptible(&dev->wait);
+#else
+	if(!(s->cur_trig.flags&TRIG_RT))
+		wake_up_interruptible(&dev->wait);
+#endif
+}
+
+/*
+   this function should be called by your interrupt routine
+   at end-of-scan events
+ */
+void comedi_eos(comedi_device *dev,comedi_subdevice *s)
+{
+	if(s->cb_mask&COMEDI_CB_EOS){
+		s->cb_func(COMEDI_CB_EOS,s->cb_arg);
+		return;
+	}
+	if((s->cur_trig.flags&TRIG_WAKE_EOS)){
+		wake_up_interruptible(&dev->wait);
+	}
+}
+
+/*
+   this function should be called by your interrupt routine
+   at buffer rollover events
+ */
+void comedi_eobuf(comedi_device *dev,comedi_subdevice *s)
+{
+	if(s->cb_mask&COMEDI_CB_EOBUF){
+		s->cb_func(COMEDI_CB_EOBUF,s->cb_arg);
+	}
+}
+
+
+int di_unpack(unsigned int bits,comedi_trig *it)
+{
+	int chan;
+	int i;
+
+	for(i=0;i<it->n_chan;i++){
+		chan=CR_CHAN(it->chanlist[i]);
+		it->data[i]=(bits>>chan)&1;
+	}
+
+	return i;
+}
+
+int do_pack(unsigned int *bits,comedi_trig *it)
+{
+	int chan;
+	int mask;
+	int i;
+
+	for(i=0;i<it->n_chan;i++){
+		chan=CR_CHAN(it->chanlist[i]);
+		mask=1<<chan;
+		(*bits) &= ~mask;
+		if(it->data[i])
+			(*bits) |=mask;
+	}
+
+	return i;
+}
+
+int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
+{
+	memset(cmd,0,sizeof(comedi_cmd));
+	cmd->subdev=it->subdev;
+	cmd->chanlist_len=it->n_chan;
+	cmd->chanlist=it->chanlist;
+	cmd->data=it->data;
+	cmd->data_len=it->data_len;
+
+	cmd->start_src=TRIG_NOW;
+
+	switch(it->mode){
+	case 1:
+		cmd->scan_begin_src=TRIG_FOLLOW;
+		cmd->convert_src=TRIG_TIMER;
+		cmd->convert_arg=it->trigvar;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+		
+		break;
+	case 2:
+		cmd->scan_begin_src=TRIG_TIMER;
+		cmd->scan_begin_arg=it->trigvar;
+		cmd->convert_src=TRIG_TIMER;
+		cmd->convert_arg=it->trigvar1;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+		
+		break;
+	case 3:
+		cmd->scan_begin_src=TRIG_FOLLOW;
+		cmd->convert_src=TRIG_EXT;
+		cmd->convert_arg=it->trigvar;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+
+		break;
+	case 4:
+		cmd->scan_begin_src=TRIG_EXT;
+		cmd->scan_begin_arg=it->trigvar;
+		cmd->convert_src=TRIG_TIMER;
+		cmd->convert_arg=it->trigvar1;
+		cmd->scan_end_src=TRIG_COUNT;
+		cmd->scan_end_arg=it->n_chan;
+		cmd->stop_src=TRIG_COUNT;
+		cmd->stop_arg=it->n;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int command_to_mode(comedi_trig *it,comedi_cmd *cmd)
+{
+	it->subdev=cmd->subdev;
+	it->flags=0;
+	it->n_chan=cmd->chanlist_len;
+	it->chanlist=cmd->chanlist;
+	it->data=cmd->data;
+	it->data_len=cmd->data_len;
+
+	if(cmd->start_src==TRIG_NOW &&
+	   cmd->scan_begin_src==TRIG_FOLLOW &&
+	   cmd->convert_src==TRIG_TIMER &&
+	   cmd->scan_end_src==TRIG_COUNT &&
+	   cmd->stop_src==TRIG_COUNT){
+		/* mode 1 */
+
+		it->mode=1;
+		it->trigsrc=0;
+		it->trigvar=0;
+		it->n=cmd->stop_arg;
+
+		return 0;
+	}
+	if(cmd->start_src==TRIG_NOW &&
+	   cmd->scan_begin_src==TRIG_TIMER &&
+	   cmd->convert_src==TRIG_TIMER &&
+	   cmd->scan_end_src==TRIG_COUNT &&
+	   cmd->stop_src==TRIG_COUNT){
+		/* mode 2 */
+
+		it->mode=2;
+		it->trigsrc=0;
+		it->trigvar=cmd->scan_begin_arg;
+		it->trigvar1=cmd->convert_arg;
+		it->n=cmd->stop_arg;
+
+		return 0;
+	}
+	if(cmd->start_src==TRIG_NOW &&
+	   cmd->scan_begin_src==TRIG_FOLLOW &&
+	   cmd->convert_src==TRIG_EXT &&
+	   cmd->scan_end_src==TRIG_COUNT &&
+	   cmd->stop_src==TRIG_COUNT){
+		/* mode 3 */
+		/* nobody actually uses mode 3, so... */
+
+		return -EINVAL;
+	}
+	if(cmd->start_src==TRIG_NOW &&
+	   cmd->scan_begin_src==TRIG_EXT &&
+	   cmd->convert_src==TRIG_TIMER &&
+	   cmd->scan_end_src==TRIG_COUNT &&
+	   cmd->stop_src==TRIG_COUNT){
+		/* mode 4 */
+
+		it->mode=4;
+		it->trigsrc=0;
+		it->trigvar=cmd->scan_begin_arg;
+		it->trigvar1=cmd->convert_arg;
+		it->n=cmd->stop_arg;
+
+		return 0;
+	}
+	return -EINVAL;
+}
+
+#ifdef CONFIG_COMEDI_RT
+
+static struct comedi_irq_struct *comedi_irqs;
+
+int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *),
+		unsigned long flags,const char *device,void *dev_id)
+{
+	struct comedi_irq_struct *it;
+	int ret;
+
+	it=kmalloc(sizeof(*it),GFP_KERNEL);
+	if(!it)
+		return -ENOMEM;
+
+	it->handler=handler;
+	it->irq=irq;
+	it->dev_id=dev_id;
+	it->flags=flags;
+
+	ret=request_irq(irq,handler,flags&~SA_PRIORITY,device,dev_id);
+	if(ret<0){
+		kfree(it);
+		return ret;
+	}
+
+	if(flags&SA_PRIORITY){
+		get_priority_irq(it);
+	}
+
+	it->next=comedi_irqs;
+	comedi_irqs=it;
+
+	return 0;
+}
+
+int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long flags)
+{
+	struct comedi_irq_struct *it;
+
+	it=get_irq_struct(irq);
+	if(it){
+		if((it->flags&~SA_PRIORITY)!=(flags&~SA_PRIORITY))
+			return -EINVAL;
+
+		if((it->flags&SA_PRIORITY)==(flags&SA_PRIORITY))
+			return 0;
+
+		it->flags=flags;
+		if(flags&SA_PRIORITY){
+			return get_priority_irq(it);
+		}else{
+			return free_priority_irq(it);
+		}
+	}
+
+	return -EINVAL;
+}
+
+void comedi_free_irq(unsigned int irq,void *dev_id)
+{
+	struct comedi_irq_struct *it,*prev;
+
+	prev=NULL;
+	for(it=comedi_irqs;it;it=it->next){
+		if(it->irq==irq){
+			break;
+		}
+		prev=it;
+	}
+	if(it->flags&SA_PRIORITY)
+		free_priority_irq(it);
+
+	free_irq(it->irq,it->dev_id);
+
+	if(prev) prev->next=it->next;
+	else comedi_irqs=it->next;
+
+	kfree(it);
+}
+
+struct comedi_irq_struct *get_irq_struct(unsigned int irq)
+{
+	struct comedi_irq_struct *it;
+
+	for(it=comedi_irqs;it;it=it->next){
+		if(it->irq==irq){
+			return it;
+		}
+	}
+	return NULL;
+}
+
+#endif
+

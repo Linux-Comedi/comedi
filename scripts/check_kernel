@@ -1,0 +1,18 @@
+#!/bin/bash
+
+
+
+if [ $(grep -c "$(uname -r)" /usr/include/linux/version.h) != 0 ]
+then
+	echo <<EOF
+ *****
+ *****    WARNING!!!
+ *****
+ *****    The kernel that is currently running is a different
+ *****    version than the source in /usr/src/linux.  The current
+ *****    compile will create a module that is *incompatible*
+ *****    with the running kernel.
+ *****
+EOF
+fi
+

@@ -1,0 +1,405 @@
+
+This file contains information about specific drivers, their
+features, and limitation.
+
+8255.o:
+
+Author: ds
+Status: only mode 0 supported
+
+The classic in digital I/O.  Three channels of 8 bit digital I/O,
+each channel is I/O configurable, channels 0 and 1 in 8 bit units,
+channel 2 in 4 bit units.  The driver does not support modes 1 or 2
+yet, since I don't really understand how they would potentially be used.
+(Send me email if you want to use these modes.)  If and when
+modes 1 and 2 are supported, there is a strong possibility that the
+3rd channel will be split into two 4-bit channels.  (Refer to the
+8255 spec for clues as to why.)
+
+You should configure this driver if you plan to use a board that
+has an 8255 chip.  For multifunction boards, the main driver will
+configure the 8255 subdevice automatically.
+
+
+
+ni-atmio.o: National Instruments AT-MIO-E series  (all boards)
+
+Author: ds
+Status: mainly limited by Comedi infrastructure
+
+The isapnptools package is required to use this board.  Use isapnp to
+configure the I/O base for the board, and then pass the same value as
+a parameter in comedi_config.  A sample isapnp.conf file is included
+in the etc/ directory.
+
+Assuming that the NI spec is correct, the driver should correctly
+identify every board in the series.  Each channel should have the
+appropriate parameters, i.e., input/output ranges, number of bits,
+etc.  If the driver fails to recognize your card or does not have
+the correct parameters, please contact me.
+
+Comedilib includes a utility to autocalibrate these boards.  The
+boards seem to boot into a state where the all calibration DACs
+are at one extreme of their range, thus the default calibration
+is terrible.  Calibration at boot is strongly encouraged.
+
+
+
+das08.o: ComputerBoards, Keithley Metrabyte DAS-08
+
+Authors: Warren Jasper, ds
+Status: unknown
+
+
+
+das08jr.o: ComputerBoards DAS-08jr-AO
+
+Authors: Jochen Küpper <jochen@pc1.uni-duesseldorf.de>, ds
+Status: unknown
+
+
+
+
+das16.o: CIO-DAS16 (& compatibles)
+
+Authors: Sam Moore, Warren Jasper, ds
+Status: unknown
+
+
+
+das1600.o: Keithley Metrabyte DAS1600 (& compatibles)
+
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+
+The driver recognizes the following board names:
+	das1601/12
+	das1602/12
+	das1602/16
+
+The file etc/das1600.conf is useful for configuring this board.
+
+Options (probably wrong, verify with source):
+  1   Board base address
+  2   IRQ
+  3   DMA level select configuration
+       0 == DMA level 1
+       1 == DMA level 1
+        3 == DMA level 3
+  4   Crystal select configuration
+        0 == 1 MHz
+        1 == 1 MHz
+        10 == 10 MHz
+  5   Input configuration
+        0 == differential
+        1 == single-ended
+  6   Analog input range configuration
+        0 == bipolar 10V  (-10V -- +10V)
+        1 == unipolar 10V  (0V -- +10V)
+  7   Analog output 0 range configuration
+        0 == bipolar 10V  (-10V -- +10V)
+        1 == bipolar 5V  (-5V -- +5V)
+        2 == bipolar user supplied  (-xV -- +xV)
+        3 == unipolar 10V  (0V -- +10V)
+        4 == unipolar 5V  (0V -- +5V)
+        5 == unipolar user supplied  (0V -- +xV)
+  8   Analog output 1 range configuration
+        0 == bipolar 10V  (-10V -- +10V)
+        1 == bipolar 5V  (-5V -- +5V)
+        2 == bipolar user supplied  (-xV -- +xV)
+        3 == unipolar 10V  (0V -- +10V)
+        4 == unipolar 5V  (0V -- +5V)
+        5 == unipolar user supplied  (0V -- +xV)
+
+
+
+das6402.o: Keithley Metrabyte DAS6402 (& compatibles)
+
+Author: Oystein Svendsen <svendsen@pvv.org>
+Status: unknown
+
+
+
+
+
+
+dt2801.o: Data Translation DT2801 series
+	  (2801, 2805, 2808, 2809, 2818, and DT01-EZ)
+
+Author: ds
+Status: might work
+
+
+
+
+
+dt2811.o: Data Translation DT2811
+
+Author: ds
+Status: might work
+
+
+
+dt2814.o: Data Translation DT2814
+
+Author: ds
+Status: complete
+
+This card has 16 analog inputs multiplexed onto a 12 bit ADC.  There
+is a minimally useful onboard clock.  The base frequency for the
+clock is selected by jumpers, and the clock divider can be selected
+via programmed I/O.  Unfortunately, the clock divider can only be
+a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
+addition, the clock does not seem to be very accurate.
+
+Also, the board does not have a fifo or do DMA, so timed mode
+is not supported.
+
+
+
+dt2815.o: Data Translation DT2815
+
+Author: ds
+Status: mostly complete, untested
+
+I'm not sure anyone has ever tested this board.  If you have information
+contrary, please update.
+
+Options
+  1   Board base address
+  2   IRQ (not applicable)
+  3   Voltage unipolar/bipolar configuration
+        0 == unipolar 5V  (0V -- +5V)
+	1 == bipolar 5V  (-5V -- +5V)
+  4   Current offset configuration
+        0 == disabled  (0mA -- +32mAV)
+        1 == enabled  (+4mA -- +20mAV)
+  5   Firmware program configuration
+        0 == program 1 (see manual table 5-4)
+        1 == program 2 (see manual table 5-4)
+        2 == program 3 (see manual table 5-4)
+        3 == program 4 (see manual table 5-4)
+  6   Analog output 0 range configuration
+        0 == voltage
+        1 == current
+  7   Analog output 1 range configuration
+        0 == voltage
+        1 == current
+  8   Analog output 2 range configuration
+        0 == voltage
+        1 == current
+  9   Analog output 3 range configuration
+        0 == voltage
+        1 == current
+  10  Analog output 4 range configuration
+        0 == voltage
+        1 == current
+  11  Analog output 5 range configuration
+        0 == voltage
+        1 == current
+  12  Analog output 6 range configuration
+        0 == voltage
+        1 == current
+  13  Analog output 7 range configuration
+        0 == voltage
+        1 == current
+
+
+
+dt2817.o: Data Translation DT2817
+
+Author: ds
+Status: complete
+
+A very simple digital I/O card.  Four banks of 8 lines, each bank
+is configurable for input or output.  One wonders why it takes a
+50 page manual to describe this thing.
+
+The driver (which, btw, is much less than 50 pages) has 1 subdevice
+with 32 channels, configurable in groups of 8.
+
+
+
+dt282x.o: Data Translation DT2821 series
+	(including DT-EZ)
+
+Author: ds
+Status: complete
+
+This driver recognizes the following board names:
+	dt2821
+	dt2823
+	dt2824-pgh
+	dt2824-pgl
+	dt2825
+	dt2827
+	dt2828
+	dt21-ez
+	dt23-ez
+	dt24-ez
+	dt24-ez-pgl
+
+The driver supports numerous options, which are documented
+in the source, as well as the file etc/dt282x.conf.
+
+
+
+dt3000.o: Data Translation DT3000 series
+
+Author: ds
+Status: untested
+
+
+
+
+multiq3.o: Quanser Consulting MultiQ-3
+
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+
+
+
+
+ni_pcidio.o: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533
+
+Author: ds
+Status: works in immediate mode
+
+The DIO-96 appears as four 8255 subdevices.  See the 8255
+driver notes for details.
+
+The DIO32HS board appears as one subdevice, with 32 channels.
+Each channel is individually I/O configurable.  The channel order,
+as one might guess, is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.
+
+DMA is halfway completed, but not operational, for the PCI-DIO32HS.
+This driver could be easily modified to support AT-MIO32HS and
+AT-MIO96.
+
+
+
+
+parport.o: Standard PC parallel port
+
+Author: ds
+Status: works in immediate mode
+
+A cheap and easy way to get a few more digital I/O lines.  Steal
+additional parallel ports from old computers or your neighbors'
+computers.
+
+
+Parallel Output Port Lines:
+
+pin	subdev	chan	aka
+---	------	----	---
+1	2	0	strobe
+2	0	0	data 0
+3	0	1	data 1
+4	0	2	data 2
+5	0	3	data 3
+6	0	4	data 4
+7	0	5	data 5
+8	0	6	data 6
+9	0	7	data 7
+10	1	3	acknowledge
+11	1	4	busy
+12	1	2	output
+13	1	1	printer selected
+14	2	1	auto LF
+15	1	0	error
+16	2	2	init
+17	2	3	select printer
+18-25	ground
+
+
+Notes:
+
+Channel 0 and 2 are output, channel 1 is input.  I know that it
+is possible to change this with ECP/EPP parallel ports, but this
+driver is a cheap hack.
+
+Pins 13 and 14 are inverted once by comedi and once by the
+hardware, thus cancelling the effect.
+
+Pin 1 is a strobe, thus acts like one.  There's no way in software
+to change this, at least on a standard parallel port.
+
+Please report any sucesses/failures.
+
+
+
+ni_pcimio.o: National Instruments PCI-MIO-E series (all boards)
+
+Author: ds
+Status: mainly limited by Comedi infrastructure
+
+These boards are almost identical to the AT-MIO E series, except that
+they use the PCI bus instead of ISA (i.e., AT).  See the notes above for
+ni_atmio.o for additional information about these boards.
+
+Comedi knows the PCI ID codes for many of the boards in this series,
+but the NI documentation is incomplete in this matter.  If you have
+a PCI-MIO board that Comedi doesn't recognize, send me the PCI device
+ID, as can be found in /proc/pci or the output of lspci.  The vendor
+code for National Instruments is 0x1093.  I will include the ID in
+the next version.
+
+DMA is halfway completed, but not yet operational.
+
+
+
+
+pcl711.o: PC-LabCard PCL-711 and 711b, AdSys ACL-8112
+
+Authors: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
+Status: mostly complete
+
+This driver recognizes the following board names:
+
+	pcl711		PCL-711
+	pcl711b		PCL-711B
+	acl8112dg	ACL-8112DG
+	acl8112hg	ACL-8112HG
+
+Since these boards do not have DMA or FIFOs, only immediate mode is
+supported.
+
+
+
+pcl725.o: PC-LabCard PCL-725 (& compatibles)
+
+Author: ds
+Status: unknown
+
+
+
+
+pcl726.o: PC-LabCard PCL-726 (& compatibles)
+	Advantech PCL-726
+	ADLink Technology ACL-6126
+
+Author: ds
+Status: untested
+
+Currently, the driver doesn't recognize bipolar operation of DAC's.
+Interrupts are not supported.
+
+
+
+rti800.o: Analog Devices RTI-800/815
+
+Author: ds
+Status: unknown
+
+See the source for configuration details.
+
+
+
+rti802.o: Analog Devices RTI-802
+
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+
+
+
+

@@ -1,0 +1,64 @@
+
+define_bool CONFIG_COMEDI m
+
+comment 'Comedi Features'
+
+#bool 'Backwards compatibility' CONFIG_BACKWARDS
+
+tristate 'Kernel Comedilib' CONFIG_COMEDI_KLIB
+if [ "$CONFIG_RTL" = "y" ];then
+	define_bool CONFIG_COMEDI_RT y
+	define_bool CONFIG_COMEDI_RTL y
+fi
+if [ "$CONFIG_RTAI" = "y" ];then
+	bool 'Real-time support' CONFIG_COMEDI_RT
+	if [ "$CONFIG_RTAI" = "y" ];then
+		define_bool CONFIG_COMEDI_RTAI y
+	fi
+fi
+
+bool 'Verbose Debugging' CONFIG_COMEDI_DEBUG
+
+comment 'Hardware device drivers'
+
+
+bool 'Data Translation boards' CONFIG_COMEDI_DT
+if [ "$CONFIG_DT" = "y" ];then
+	tristate 'DT 2801' CONFIG_COMEDI_DT2801
+	tristate 'DT 2811' CONFIG_COMEDI_DT2811
+	tristate 'DT 2814' CONFIG_COMEDI_DT2814
+	tristate 'DT 2815' CONFIG_COMEDI_DT2815
+	tristate 'DT 2817' CONFIG_COMEDI_DT2817
+	tristate 'DT 2821 series' CONFIG_COMEDI_DT282x
+	if [ "$CONFIG_EXPERIMENTAL" = "y" ];then
+		tristate 'DT3000' CONFIG_COMEDI_DT3000
+	fi
+fi
+
+bool 'National Instruments boards' CONFIG_COMEDI_NI
+if [ "$CONFIG_NI" = "y" ];then
+	tristate 'AT-MIO E series' CONFIG_COMEDI_NI_ATMIO
+	if [ "$CONFIG_PCI" = "y" ];then
+		tristate 'PCI-MIO E series' CONFIG_COMEDI_NI_PCIMIO
+		tristate 'NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO
+		if [ "$CONFIG_COMEDI_NI_PCIMIO" = "y" -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" ];then
+			define_bool CONFIG_COMEDI_MITE y
+		fi
+	fi
+fi
+
+tristate 'Computer Boards DAS-08 series' CONFIG_COMEDI_DAS08
+tristate 'Computer Boards DAS-08jr' CONFIG_COMEDI_DAS08JR
+tristate 'Keithley Metrabyte DAS-1600 and compatibles' CONFIG_COMEDI_DAS1600
+tristate 'DAS16' CONFIG_COMEDI_DAS16
+tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402
+tristate 'Generic 8255 support' CONFIG_COMEDI_8255
+tristate 'Quanser Consulting MultiQ-3' CONFIG_COMEDI_MULTIQ3
+tristate 'Generic parallel port support' CONFIG_COMEDI_PARPORT
+tristate 'PCL-711, PCL-711b, ACL-8112, and compatibles' CONFIG_COMEDI_PCL711
+tristate 'PCL-725' CONFIG_COMEDI_PCL725
+tristate 'PCL-726' CONFIG_COMEDI_PCL726
+tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
+tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
+
+

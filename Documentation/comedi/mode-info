@@ -1,0 +1,168 @@
+From owner-comedi@stm.lbl.gov  Tue Jun 29 00:56:15 1999
+Received: (from majordom@localhost)
+	by stm.lbl.gov (8.8.7/8.8.7) id AAA29747
+	for comedi-list; Tue, 29 Jun 1999 00:56:15 -0700
+Received: (from ds@localhost)
+	by stm.lbl.gov (8.8.7/8.8.7) id AAA29742;
+	Tue, 29 Jun 1999 00:56:14 -0700
+Message-ID: <19990629005613.A29725@stm.lbl.gov>
+Date: Tue, 29 Jun 1999 00:56:13 -0700
+From: David Schleef <ds@stm.lbl.gov>
+To: Tomasz Motylewski <motyl@stan.chemie.unibas.ch>
+Cc: comedi@stm.lbl.gov
+Subject: Re: pcl-711 driver ISR.
+References: <Pine.LNX.3.96.990629020900.18849h-100000@crds.chemie.unibas.ch>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-Mailer: Mutt 0.91.1
+In-Reply-To: <Pine.LNX.3.96.990629020900.18849h-100000@crds.chemie.unibas.ch>; from Tomasz Motylewski on Tue, Jun 29, 1999 at 02:22:26AM +0200
+Sender: owner-comedi@stm.lbl.gov
+Precedence: bulk
+Status: RO
+Content-Length: 5035
+Lines: 143
+
+On Tue, Jun 29, 1999 at 02:22:26AM +0200, Tomasz Motylewski wrote:
+> 
+> Is there any documentation for _ai_mode0, 1 2 3 4 etc? Do they mean
+> the same for different cards ?
+
+Found it.  It has a little extra info, but that shouldn't hurt.
+Here it is:
+
+-----
+> 
+> 1. What are the different modes?  2, 3, and 4 seem pretty well
+> explained, but I guess mode 0 is a one-shot sample, and mode is 1...
+> what?
+
+0 is one-shot.  Actually, some of the drivers will return as many
+samples as you ask (i.e., trig.n), for the channels you specify.  Others
+will limit it to a reasonable number that will finish in 1-10 ms, and
+the rest only return 1, for the first channel specified.  The idea here
+is "at the convenience of the driver, preferably fast."
+
+mode 1 is timed acquisition, with a single timer.  For example, if
+you request channels 2, 4, and 6, in mode 1, with the number of samples
+(trig.n) = 2, and a timer value that corresponds to 100 us, the driver
+programs the device to measure inputs at these times:
+	time		chan
+	+0 us		2
+	+100 us		4
+	+200		6
+	+300		2
+	+400		4
+	+500		6
+If you board can support mode 2, mode 1 is not necessary.  Comedilib
+will eventually emulate it.
+
+mode 2 is similar, but has 2 timers, a major timer (trig.timeval)
+and a minor timer (trig.timeval1).  Taking the previous example, but
+with a major timer of 1000 us and a minor timer of 100 us, inputs
+are measured at these times:
+	time		chan
+	+0 us		2
+	+100 us		4
+	+200		6
+	+1000		2
+	+1100		4
+	+1200		6
+
+mode 3 is like mode 1, except that an external trigger is used.  If
+t(n) represents the time of the nth trigger, inputs are measured at
+the following times:
+	time		chan
+	t(1)		2
+	t(2)		4
+	t(3)		6
+	t(4)		2
+	t(5)		4
+	t(6)		6
+
+mode 4 uses an external trigger and a minor timer.  With a minor
+timer of 100 us, we get:
+	time		chan
+	t(1)		2
+	t(1)+100 us	4
+	t(1)+200 us	6
+	t(2)		2
+	t(2)+100 us	4
+	t(2)+200 us	6
+
+As a bit of background, mode 2 & 4 are the most useful.  Mode 1
+is the only supported by many boards.  Mode 3 is the only supported
+by a few boards.  Mode 3 could be useful to synchronize multiple
+boards, if the master board is capable of exporting a trigger signal.
+
+If you have an application that doesn't fit into the existing
+modes, and your board supports it, I'm content with adding more
+modes.
+
+> 
+> 2. How is the channel mask to be interpreted?  If multiple channels are
+> specified in the mask, should successive bytes in the data array match
+> to different channels?
+
+CR_MASK() packs range, analog reference, and channel information into
+a 32-bit integer.  An array of these integers are passed from the program
+to comedi, to be used as mentioned above.  Samples are put into the
+data array in time order.
+
+> 
+> 3. If ntrig is zero, does that mean sample nothing, or keep sampling
+> forever?
+
+I haven't decided.  Since comedi doesn't currently support continuous
+acquisition, I have time to decide.  It did previously, but I never
+wrote buffer streaming code for the 0.6 series.  It's on my list.
+The alternative to specifying continuous is ((unsigned int)(-1)).
+
+> 
+> 4. How should a card like mine be handled, where there's a single A/D
+> converter servicing multiple channels?  Should the driver attempt to
+> multiplex everything together, and then finally return an error if a
+> request is made that just can't be squeezed in?
+
+If I understand what you are saying, yes.  I.e., if in mode 2, you ask
+for 10 channels, major timer 50 us, minor timer of 10 us, then yes,
+you should return an error.  In actuality, most drivers aren't that
+mature yet.
+
+> 
+> 5. Anything else you can send me that's useful?  I've got comedi and
+> comedilib 0.7.0.
+
+Not really.  I'm trying to pause comedi/comedilib development for
+a little while so I can write documentation, so maybe soon there'll
+be more info.
+
+Timer values are currently board dependent.  Most boards use dividers
+off a frequency like 20 Mhz, but some have multiple clocks and/or
+prescalers.  I'd like to just specify timers as (say) nanoseconds,
+and let the boards do the division, but that limits timers to ~4.29
+seconds.
+
+About ranges, range info, range types, etc.:  Typical boards allow
+you to specify an input gain on the A/D converter, and possibly
+also unipolar/bipolar.  Collectively, these are "input ranges".  A
+board that allows 4 different gain settings, and unipolar/bipolar
+setting, would have 8 available ranges, numbered 0-7.  This range
+specification is what you give to CR_PACK().  Not all boards are
+identical, so each subdevice (or channel, sometimes) has a
+range_type, to determine what voltages your range specification
+cooresponds to.  The low bits of range_type give the number
+of ranges available.  The high bits are used by the comedi module
+when it is asked to return an array of comedi_krange structures;
+these structures contain the max and min voltages and a unit
+specification for each range.
+
+
+
+
+dave...
+
+
+****
+Sent by the Comedi mailing list - <comedi@stm.lbl.gov>  To unsubscribe,
+send mail to <comedi-request@stm.lbl.gov> with "unsubscribe" in the body.
+

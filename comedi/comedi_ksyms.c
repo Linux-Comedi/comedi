@@ -1,0 +1,67 @@
+/*
+    module/exp_ioctl.c
+    exported comedi functions
+
+    COMEDI - Linux Control and Measurement Device Interface
+    Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
+
+
+#include <comedi_module.h>
+
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+
+
+
+#ifdef LINUX_V20
+
+struct symbol_table comedi_syms = {
+#include <linux/symtab_begin.h>
+	X(comedi_trig_ioctl),
+	X(__comedi_trig_ioctl),
+	X(comedi_lock_ioctl),
+	X(comedi_unlock_ioctl),
+	X(comedi_cancel_ioctl),
+	X(comedi_register_callback),
+#include <linux/symtab_end.h>
+};
+
+#endif
+
+#ifdef LINUX_V22
+
+#if 0
+EXPORT_SYMBOL(comedi_trig_ioctl);
+EXPORT_SYMBOL(__comedi_trig_ioctl);
+EXPORT_SYMBOL(comedi_lock_ioctl);
+EXPORT_SYMBOL(comedi_unlock_ioctl);
+EXPORT_SYMBOL(comedi_cancel_ioctl);
+EXPORT_SYMBOL(comedi_register_callback);
+#endif
+EXPORT_SYMBOL(comedi_driver_register);
+EXPORT_SYMBOL(comedi_driver_unregister);
+EXPORT_SYMBOL(comedi_bufcheck);
+EXPORT_SYMBOL(comedi_done);
+EXPORT_SYMBOL(comedi_error);
+
+#endif
+
+
+

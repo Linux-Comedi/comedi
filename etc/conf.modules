@@ -1,0 +1,8 @@
+
+#
+# add these lines to /etc/conf.modules
+#
+
+alias char-major-98 comedi
+post-install comedi /etc/comedi.conf
+

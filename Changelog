@@ -1,0 +1,20 @@
+
+0.7.36
+
+ - Rearranged most files
+ - changed Makefiles to work the same as Linux-2.2.13
+ - moved all drivers to attach/detach methods
+ - made all drivers modular
+ - changed exp_ioctl to kcomedilib
+ - fixed NI pcidio 96 probing problems
+
+0.7.31
+
+ - Added etc/das1600.conf, etc/dt282x.conf
+ - Start of new attach/detach methods
+ - dt282x: uses new attach/detach methods
+ - das1600: changed comments to reflect actual code
+ - dt282x: DMA code rewritten
+ - dt282x: ao mode2 support added, with DMA
+ - ni_E: removed non-functional code
+

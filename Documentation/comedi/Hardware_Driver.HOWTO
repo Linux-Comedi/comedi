@@ -1,0 +1,206 @@
+
+Hardware driver interface
+
+
+[ this is a little outdated -ds ]
+
+
+1. Introduction
+
+This comedi hardware driver writing HOWTO is written to help you
+write a driver for your particular choice of hardware.  You should
+be familiar with how comedi works from the user's point of view,
+i.e., from a process that is utilizing the comedi driver.
+
+This guide does not explain the details of things like reading
+and writing I/O ports, Linux kernel internals, or interrupt
+processing.  These issues are covered in other documents,
+specifically, the IO-Port-Programming mini-HOWTO, the Kernel
+Hacker's Guide, and the Linux source.
+
+
+2. The source tree
+
+As of comedi-0.5.0, hardware drivers need to be part of the
+source tree and be compiled with the rest of the comedi driver
+into the module comedi.o.  Later versions will hopefully support
+separate compiling/separate modules, etc.
+
+The source for the comedi module is located in module/, including
+the device independent part and each hardware driver.  A hardware
+driver, such as the "dt282x" driver, is typically located in the
+C source file of the same name.
+
+The hardware driver "dummy" is a stripped-down example that may be
+a good starting point for new hardware drivers.
+
+
+3. comedi_config and *_init()
+
+The file "module/comeditypes.c" has a list of the initialization
+functions for all the drivers.  You should add your init function
+to this list.  The top level Makefile and scripts/configure
+take care of all the defines.
+
+The purpose of comeditypes.c is to keep a list of available
+hardware drivers by keeping a list of available initialization
+functions.  Thus, when comedi_config is run, it issues the
+COMEDI_CONFIG ioctl() with the name of the driver and
+configuration parameters (I/O port address, irq, dma, etc.).
+The comedi driver then calls the initialization function of
+each hardware driver on the list.
+
+Inside the initialization function, you should perform the
+following tasks:
+
+   o  Check to see if you are the correct hardware driver
+      for the name specified in the comedi_devconfig structure.
+      Your hardware driver may consider several names as
+      "correct", and even behave differently depending on
+      the name given.  The idea here is to support different
+      cards in a series using different names, but using the
+      same hardware driver.  If you are not the correct
+      hardware driver, return a 0.
+
+   o  Announce that the hardware driver has begun initialization
+      by a printk("comedi%d: driver: ",minor);
+
+   o  Check and request the I/O port region, IRQ, DMA, and other
+      hardware resources.  It is convenient here if you verify the
+      existence of the hardware and the correctness of the other
+      information given.  Sometimes, unfortunately, this cannot
+      be done.
+
+   o  Fill in the comedi_device structure.
+
+   o  Allocate your private data structure and space for channel
+      configuration.
+
+   o  Configure each channel.  Each channel has three function
+      pointers:  one for triggering a single conversion (itrig),
+      one for triggering general conversions (trig), and one
+      for setting channel parameters (sp).  Each channel also has
+      a parameter linked list.
+      Parameters are added to this list via addparam().  All the
+      parameter routines are in param.c.  They are currently not
+      very efficient, so if you know of a better algorithm...
+      Look at the header files for parameter types that you may
+      wish to include.
+
+   o  Initialize the read buffer via comedi_initbuf().  The buffering
+      routines are in buffer.c, and support multiple processes
+      reading the same device.  The buffers are also dynamic, so
+      you don't have to worry about the hardware driver collecting
+      1M of data before the controlling process reads it.  I've been
+      using these routines for a while--they appear to be pretty
+      stable.  Most of the error messages you get from the buffer
+      routines indicate memory leaks.
+
+   o  Set mtrig in the comedi_device structure to the function that
+      is called for a channel scan trigger.
+
+   o  Tell the comedi driver the function to call when your driver
+      needs to be removed.
+
+   o  Return a 1.  If there were any errors along the way, you
+      should return the appropriate error number, but don't forget
+      to release any resources that you allocated.  (It will only
+      take one time to realize that if you don't release an I/O region,
+      you have to reboot to get it back.  (Or write a hack, as I did.))
+
+
+4. Set Parameter routines
+
+When the COMEDI_SETPARAM ioctl() is called, the comedi driver
+calls the setparameter routine of the channel involved.  Common
+settable parameters are input gain (input range) and setting bits
+on digital I/O lines as input or output.  The setparameter
+function should check the validity of the parameter type and
+value, and then call changeparam() to update the parameter
+linked lists.  If necessary, calls to update the hardware
+should be made.
+
+
+5. Triggering routines
+
+Like the setparameter routines, each channel has a trigger
+function that is called for a COMEDI_TRIG ioctl().  The trigger
+function is called with the comedi_trig structure, which
+includes the trigger type, number of samples, and one sample value
+(which may be read or written, depending on context).
+
+As of 0.5.0, there are two triggering routines per channel, one
+for TRIGNOW, and one for all the rest.  The reason this was done
+is because the TRIGNOW functions are exported to the rest of the
+kernel (i.e., for RTLinux).
+
+Trigger types are accompanied by the trigger variable, which
+is interpreted based on the trigger type.  The types of triggers
+(currently) available are:
+
+   o  COMEDI_TRIGNOW - causes one sample conversion to be
+      completed immediately.  The trigger variable and number of
+      samples are ignored.
+
+   o  COMEDI_TRIGCLK - causes conversions timed by a clock on
+      the hardware.  The trigger variable determines the clock
+      speed.
+
+   o  COMEDI_TRIGEXT - causes conversions to be triggered by
+      an external trigger provided by the hardware.  The trigger
+      variable determines the particular choice, if there is
+      more than one choice.
+ 
+Other trigger sources that may be defined in the future are
+analog triggers and comedi triggers.  Comedi triggers could include
+the 100 Hz interrupt, the rtc interrupt, general timing triggers,
+signals generated by other boards, etc.
+
+Except for COMEDI_TRIGNOW, your triggering routine should return
+after telling the hardware to perform the requested task.  For
+COMEDI_TRIGNOW on input, you should wait for the conversion to
+finish and return it in the ioctl structure, but do *NOT* report
+the sample via report_sample().
+
+Typically, you will poll the hardware or the hardware will
+generate interrupts to tell you when samples are ready.  The
+samples should be reported via report_sample().
+
+
+6. The remove function
+
+A driver is removed from service via a call to dev->rem().  The driver
+is expected to halt all conversions, put the hardware in a sane,
+off-line state, delete all channel parameters, free all allocated memory,
+and release any irq's and port addresses held.  If these things are
+not all done, there will be memory leaks, and more importantly, the
+driver will not configure properly if reused.
+
+
+A. Goals
+
+A few things to strive for:
+
+   o  Your hardware driver should be functional appropriate to
+      the resources allocated.  I.e., if the driver is fully
+      functional when configured with an IRQ and DMA, it should
+      still function moderately well with just an IRQ, or still
+      do minor tasks without IRQ or DMA.  Does your driver really
+      require an IRQ to do digital I/O?  Maybe someone will want
+      to use your driver *just* to do digital I/O and has no
+      interrupts available.
+
+   o  Drivers are to have absolutely *NO* global variables, mainly
+      because the existence of global variables immediately negates
+      any possibility of using the driver for two devices.  The
+      pointer dev->private should be used to point to a structure
+      containing any additional variables needed by a driver/device
+      combination.
+
+   o  Drivers should report errors and warnings via a printk line
+      that starts with "comedi%d: driver_name:" where %d is the
+      minor number of the device.
+
+
+
+

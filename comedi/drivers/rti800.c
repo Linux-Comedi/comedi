@@ -1,0 +1,454 @@
+/*
+   module/rti800.c
+   hardware driver for Analog Devices RTI-800/815 board
+
+   COMEDI - Linux Control and Measurement Device Interface
+   Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+ */
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/mm.h>
+#include <linux/malloc.h>
+#include <linux/errno.h>
+#include <linux/ioport.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/timex.h>
+#include <linux/timer.h>
+#include <asm/io.h>
+#include <comedi_module.h>
+
+
+#define RTI800_SIZE 16
+
+#define RTI800_CSR 0
+#define RTI800_MUXGAIN 1
+#define RTI800_CONVERT 2
+#define RTI800_ADCLO 3
+#define RTI800_ADCHI 4
+#define RTI800_DAC0LO 5
+#define RTI800_DAC0HI 6
+#define RTI800_DAC1LO 7
+#define RTI800_DAC1HI 8
+#define RTI800_CLRFLAGS 9
+#define RTI800_DI 10
+#define RTI800_DO 11
+#define RTI800_9513A_DATA 12
+#define RTI800_9513A_CNTRL 13
+#define RTI800_9513A_STATUS 13
+
+
+/*
+ * flags for CSR register
+ */
+
+#define RTI800_BUSY		0x80
+#define RTI800_DONE		0x40
+#define RTI800_OVERRUN		0x20
+#define RTI800_TCR		0x10
+#define RTI800_DMA_ENAB		0x08
+#define RTI800_INTR_TC		0x04
+#define RTI800_INTR_EC		0x02
+#define RTI800_INTR_OVRN	0x01
+
+#define Am9513_8BITBUS
+
+#define Am9513_output_control(a)	outb(a,dev->iobase+RTI800_9513A_CNTRL)
+#define Am9513_output_data(a)		outb(a,dev->iobase+RTI800_9513A_DATA)
+#define Am9513_input_data()		inb(dev->iobase+RTI800_9513A_DATA)
+#define Am9513_input_status()		inb(dev->iobase+RTI800_9513A_STATUS)
+
+#include <am9513.h>
+
+/*
+--BEGIN-RANGE-DEFS--
+RANGE_rti800_ai_10_bipolar
+        -10     10
+        -1      1
+        -0.1    0.1
+        -0.02   0.02
+RANGE_rti800_ai_5_bipolar
+        -5      5
+        -0.5    0.5
+        -0.05   0.05
+        -0.01   0.01
+RANGE_rti800_ai_10_unipolar
+        0       10
+        0       1
+        0       0.1
+        0       0.02
+---END-RANGE-DEFS---
+*/
+
+static int rti800_attach(comedi_device *dev,comedi_devconfig *it);
+static int rti800_detach(comedi_device *dev);
+static int rti800_recognize(char *name);
+comedi_driver driver_rti800={
+	driver_name:	"rti800",
+	module:		&__this_module,
+	attach:		rti800_attach,
+	detach:		rti800_detach,
+	recognize:	rti800_recognize,
+};
+
+static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs);
+
+typedef struct {
+	enum {
+		adc_diff, adc_pseudodiff, adc_singleended
+	} adc_mux;
+	enum {
+		adc_bipolar10, adc_bipolar5, adc_unipolar10
+	} adc_range;
+	enum {
+		adc_2comp, adc_straight
+	} adc_coding;
+	enum {
+		dac_bipolar10, dac_unipolar10
+	} dac0_range, dac1_range;
+	enum {
+		dac_2comp, dac_straight
+	} dac0_coding, dac1_coding;
+	int ao_range_type_list[2];
+} rti800_private;
+
+#define devpriv ((rti800_private *)dev->private)
+
+#define RTI800_TIMEOUT 10
+
+static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
+{
+
+
+}
+
+static int gaindelay[]={10,20,40,80};
+
+static int rti800_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+{
+  int i;
+  for(i=0 ; i < it->n_chan ; i++) {
+    int t, hi, lo, gain;
+	int chan;
+	int data;
+	int status;
+
+    chan = CR_CHAN(it->chanlist[i]);
+    gain = CR_RANGE(it->chanlist[i]);
+
+	inb(dev->iobase + RTI800_ADCHI);
+	outb(0,dev->iobase+RTI800_CLRFLAGS);
+
+	outb(chan | (gain << 5), dev->iobase + RTI800_MUXGAIN);
+
+	/* contrary to the docs, there needs to be a delay here */
+	udelay(gaindelay[gain]);
+
+	outb(0, dev->iobase + RTI800_CONVERT);
+    for (t = 0; t < RTI800_TIMEOUT; t++) {
+		status=inb(dev->iobase+RTI800_CSR);
+#if DEBUG
+      rt_printk("status=%x\n",status);
+#endif
+		if(status & RTI800_OVERRUN){
+			rt_printk("rti800: a/d overflow\n");
+			outb(0,dev->iobase+RTI800_CLRFLAGS);
+
+			return -ETIME;
+		}
+		if (status & RTI800_DONE)
+			break;
+      udelay(8);
+	}
+    if(t==RTI800_TIMEOUT){
+		rt_printk("rti800: timeout\n");
+
+		return -ETIME;
+	}
+	lo = inb(dev->iobase + RTI800_ADCLO);
+	hi = inb(dev->iobase + RTI800_ADCHI);
+
+	data = (hi << 8) | lo;
+	data &= 0xfff;
+	if (devpriv->adc_coding == adc_2comp) {
+		data ^= 0x800;
+	}
+    it->data[i]=data;
+  }
+  return i;
+
+}
+
+static int rti800_ai_mode1(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+{
+	return -EINVAL;
+}
+
+
+static int rti800_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+{
+  int i;
+  for(i=0 ; i < it->n_chan ; i++) {
+	int chan;
+	int data;
+
+    chan=CR_CHAN(it->chanlist[i]);
+    data=it->data[i];
+
+	switch(chan){
+	case 0:
+		if (devpriv->dac0_coding == dac_2comp) {
+			data ^= 0x800;
+		}
+		outb(data & 0xff, dev->iobase + RTI800_DAC0LO);
+		outb(data >> 8, dev->iobase + RTI800_DAC0HI);
+       break;
+	case 1:
+		if (devpriv->dac1_coding == dac_2comp) {
+			data ^= 0x800;
+		}
+		outb(data & 0xff, dev->iobase + RTI800_DAC1LO);
+		outb(data >> 8, dev->iobase + RTI800_DAC1HI);
+       break;
+	default:
+		return -EINVAL;
+	}
+  }
+  return i;
+}
+
+static int rti800_di(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+{
+	unsigned int bits;
+	
+	bits = inb(dev->iobase + RTI800_DI);
+
+	return di_unpack(bits,it);
+}
+
+static int rti800_do(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+{
+	do_pack(&s->state,it);
+
+       /* Outputs are inverted... */
+       outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
+
+	return it->n_chan;
+}
+
+
+/*
+   options[0] - I/O port
+   options[1] - irq
+   options[2] - a/d mux
+   	0=differential, 1=pseudodiff, 2=single
+   options[3] - a/d range
+   	0=bipolar10, 1=bipolar5, 2=unipolar10
+   options[4] - a/d coding
+   	0=2's comp, 1=straight binary
+   options[5] - dac0 range
+   	0=bipolar10, 1=unipolar10
+   options[6] - dac0 coding
+   	0=2's comp, 1=straight binary
+   options[7] - dac1 range
+   options[8] - dac1 coding
+ */
+
+static int rti800_recognize(char *name)
+{
+	if (!strcmp("rti800", name))return 0;
+	if (!strcmp("rti815", name))return 0;
+
+	return -1;
+}
+
+static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
+{
+	int irq;
+	int iobase;
+	int ret;
+	comedi_subdevice *s;
+
+	iobase = it->options[0];
+	printk("comedi%d: rti800: 0x%04x ", dev->minor, iobase);
+	if (check_region(iobase, RTI800_SIZE) < 0) {
+		printk("I/O port conflict\n");
+		return -EIO;
+	}
+	request_region(dev->iobase, RTI800_SIZE, "rti800");
+	dev->iobase = iobase;
+	dev->iosize = RTI800_SIZE;
+
+#ifdef DEBUG
+	printk("fingerprint=%x,%x,%x,%x,%x ",
+		inb(dev->iobase + 0),
+		inb(dev->iobase + 1),
+		inb(dev->iobase + 2),
+		inb(dev->iobase + 3),
+		inb(dev->iobase + 4));
+#endif
+
+	outb(0,dev->iobase+RTI800_CSR);
+	inb(dev->iobase+RTI800_ADCHI);
+	outb(0,dev->iobase+RTI800_CLRFLAGS);
+
+	irq=it->options[1];
+	if(irq>0){
+		printk("( irq = %d )\n",irq);
+		if((ret=request_irq(irq,rti800_interrupt, SA_INTERRUPT, "rti800", dev))<0)
+			return ret;
+		dev->irq=irq;
+	}else if(irq == 0){
+		printk("( no irq )");
+	}
+
+	if (dev->board == 0)
+		dev->board_name = "rti800";
+	else
+		dev->board_name = "rti815";
+
+
+	if (dev->board != 0) {
+		dev->n_subdevices=4;
+	}else{
+		dev->n_subdevices=3;
+	}
+	if((ret=alloc_subdevices(dev))<0)
+		return ret;
+	if((ret=alloc_private(dev,sizeof(rti800_private)))<0)
+		return ret;
+	
+	devpriv->adc_mux = it->options[2];
+	devpriv->adc_range = it->options[3];
+	devpriv->adc_coding = it->options[4];
+	devpriv->dac0_range = it->options[5];
+	devpriv->dac0_coding = it->options[6];
+	devpriv->dac1_range = it->options[7];
+	devpriv->dac1_coding = it->options[8];
+
+	s=dev->subdevices+0;
+	/* ai subdevice */
+	s->type=COMEDI_SUBD_AI;
+	s->subdev_flags=SDF_READABLE;
+	s->n_chan=(devpriv->adc_mux? 16 : 8);
+	s->trig[0]=rti800_ai_mode0;
+	s->trig[1]=rti800_ai_mode1;
+	s->maxdata=0xfff;
+	switch (devpriv->adc_range) {
+	case adc_bipolar10:
+		s->range_type = RANGE_rti800_ai_10_bipolar;
+		break;
+	case adc_bipolar5:
+		s->range_type = RANGE_rti800_ai_5_bipolar;
+		break;
+	case adc_unipolar10:
+		s->range_type = RANGE_rti800_ai_10_unipolar;
+		break;
+	}
+
+	if (dev->board == 1) {
+		s++;
+		/* ao subdevice (only on rti815) */
+		s->type=COMEDI_SUBD_AO;
+		s->subdev_flags=SDF_WRITEABLE;
+		s->n_chan=2;
+		s->trig[0]=rti800_ao;
+		s->maxdata=0xfff;
+		s->range_type=0;
+		s->range_type_list=devpriv->ao_range_type_list;
+		switch (devpriv->dac0_range) {
+		case dac_bipolar10:
+			devpriv->ao_range_type_list[0] = RANGE_bipolar10;
+			break;
+		case dac_unipolar10:
+			devpriv->ao_range_type_list[0] = RANGE_unipolar10;
+			break;
+		}
+		switch (devpriv->dac1_range) {
+		case dac_bipolar10:
+			devpriv->ao_range_type_list[1] = RANGE_bipolar10;
+			break;
+		case dac_unipolar10:
+			devpriv->ao_range_type_list[1] = RANGE_unipolar10;
+			break;
+		}
+	}
+
+	s++;
+	/* di */
+	s->type=COMEDI_SUBD_DI;
+	s->subdev_flags=SDF_READABLE;
+	s->n_chan=8;
+	s->trig[0]=rti800_di;
+	s->maxdata=1;
+	s->range_type=RANGE_digital;
+
+	s++;
+	/* do */
+	s->type=COMEDI_SUBD_DO;
+	s->subdev_flags=SDF_WRITEABLE;
+	s->n_chan=8;
+	s->trig[0]=rti800_do;
+	s->maxdata=1;
+	s->range_type=RANGE_digital;
+
+
+/* don't yet know how to deal with counter/timers */
+#if 0
+	s++;
+	/* do */
+	s->type=COMEDI_SUBD_TIMER;
+	s->n_chan=0;
+	s->trig[0]=NULL;
+	s->maxdata=0
+#endif
+
+	printk("\n");
+
+	return 0;
+}
+
+
+static int rti800_detach(comedi_device * dev)
+{
+	printk("comedi%d: rti800: remove\n", dev->minor);
+
+	if(dev->iobase)
+		release_region(dev->iobase, dev->iosize);
+
+	if(dev->irq)
+		free_irq(dev->irq,dev);
+
+	return 0;
+}
+
+#ifdef MODULE
+int init_module(void)
+{
+	comedi_driver_register(&driver_rti800);
+	
+	return 0;
+}
+
+void cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_rti800);
+}
+#endif

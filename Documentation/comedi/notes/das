@@ -1,0 +1,146 @@
+
+
+/* cio-dac08 */
+/* cio-dac16 */
+
+/*
+	08 has 8 channels, 16 has 16
+	can do simultaneous update
+ */
+
+#define DAC08_LSB(a)		(2*(a)+0)
+#define DAC08_MSB(a)		(2*(a)+1)
+
+
+
+
+/* cio-das16jr */
+
+/*
+	has a 8254
+*/
+
+read
+
+0	a/d low
+1	a/d hi
+2	mux settings
+3	digital 4 in
+4-7	unused
+8	a/d status
+9	control settings
+10	unused
+11	gain and range
+12	counter 0
+13	counter 1
+14	counter 2
+15	unused
+
+write
+
+0	start a/d
+1	unused
+2	mux scan ctrl
+3	digital 4 out
+4-7	unused
+8	unused
+9	control
+10	counter source control
+11	gain and range
+12	ctr 0 load
+13	ctr 1 load
+14	ctr 2 load
+15	8254 counter control
+
+
+
+
+
+computer boards current list of products:
+
+ISA:
+
+(dio)
+CIO-DI48
+CIO-DI96
+CIO-DI192
+CIO-DIO24
+CIO-DIO24H
+CIO-DIO/CTR3
+CIO-DIO48
+CIO-DIO48H
+CIO-DIO96
+CIO-DIO192
+CIO-DO24DD
+CIO-DO48DD
+CIO-DO48H
+CIO-DO96H
+CIO-DO192H
+CIO-PDMA16
+
+(ao)
+CIO-DAC02
+CIO-DAC02/16
+CIO-DAC08
+CIO-DAC16
+CIO-DDA06/16
+CIO-DDA06/JR
+CIO-DDA06/JR/16
+
+(ai)
+CIO-DAS08		*
+CIO-DAS08-AO
+CIO-DAS08/JR/16-AO
+CIO-DAS08PGH		*
+CIO-DAS08PGL		*
+CIO-DAS802/16
+CIO-DAS1402/16
+CIO-DAS16
+CIO-DAS16F
+CIO-DAS16/330
+CIO-DAS16/JR
+CIO-DAS16/M1
+CIO-DAS6402/12
+CIO-DAS6402/16
+
+
+
+PCI:
+
+(dio)
+PCI-DIO24
+PCI-DIO24H
+PCI-DIO24H/CTR3
+PCI-DIO48H/CTR15
+PCI-DIO48H
+PCI-DIO96H
+PCI-PDISO8
+PCI-PDISO16
+
+(ao)
+PCI-DDA08/12
+PCI-DDA04/12
+PCI-DDA02/12
+
+(ai)
+PCI-DAS1200
+PCI-DAS1001
+PCI-DAS1002
+PCI-DAS1200/JR
+PCI-DAS1602/12
+PCI-DAS1602/16
+PCI-DAS1602/16/JR
+PCI-DDA02/12
+PCI-DDA04/12
+PCI-DDA08/12
+PCI-DAS64/M3/16
+PCI-DAS64/M3/16/JR
+PCI-DAS64/M2/16
+PCI-DAS64/M2/16/JR
+PCI-DAS64/M1/16
+PCI-DAS64/M1/16/JR
+PCI-DAS6402/16
+PCI-DAS6402/16/JR
+PCI-DAS08
+
+

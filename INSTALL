@@ -1,0 +1,90 @@
+
+Prerequisites:
+	- a machine capable of compiling Linux modules
+	- a correctly installed kernel source tree.  Specifically,
+	  you need to have the file /usr/src/linux/.config and
+	  /usr/src/linux/include/linux/autoconf.h.  If these are
+	  not present, you can create them by compiling a new
+	  kernel.  Some distributions don't provide these by
+	  default.
+	- a 2.0, 2.2, or 2.3 series kernel.  Some development
+	  kernels may not work, since I don't keep very good
+	  track of them.
+
+Configure using 'make'.  The first time you run make, it will take
+you through configuration options similar to compiling a linux
+kernel.  If you need to run the configuration again, use 'make config'.
+
+Compile using 'make'.  If this doesn't work, make sure you have the
+basic tools installed to compile.  If you can successfully compile
+other things, consult the author, as he has probably made a mistake.
+
+Install using 'make install' as root.  This installs the files:
+	/lib/modules/<<kernel version>>/misc/comedi.o
+	/lib/modules/<<kernel version>>/misc/<<driver files>>.o
+	/usr/sbin/comedi_config
+	/usr/include/comedi.h
+If you chose to install in /usr/local instead, it will, of course,
+install in /usr/local instead of /usr.  The modules are still installed
+in /lib/modules.
+
+You need to create device files to access the hardware from a
+user process.  These can be created using 'make dev'.  The following
+special files will be created:
+	/dev/comedi0
+	/dev/comedi1
+	/dev/comedi2
+	/dev/comedi3
+
+To use comedi, the driver module must be loaded into the kernel.
+In general, this is done by a command similar to
+
+	/sbin/modprobe <<driver>>.o
+
+If your module dependencies are set up correctly, this will load
+both comedi.o and your driver.
+
+In this version, the default behavior when the module is loaded is
+to _not_ configure it automatically.  This may change soon.  For
+many boards, you need to supply additional information, such as
+I/O address, IRQ, and possibly DMA channels.  The following commands
+are examples:
+
+	/usr/sbin/comedi_config /dev/comedi0 dt282x 0x240,3
+	/usr/sbin/comedi_config /dev/comedi1 atmio-E 0x260,4
+	/usr/sbin/comedi_config /dev/comedi2 dt2817 0x228
+	/usr/sbin/comedi_config /dev/comedi0 pcimio-E
+
+Try a 'man comedi_config' for information on how to use
+this utility.  IRQs can be automatically detected for some hardware,
+although this is not recommended, for the same reasons as other
+hardware.
+
+If you like to autoload your modules, put the lines
+
+	alias char-major-98 comedi
+	post-install comedi /etc/comedi.conf
+
+and create a script /etc/comedi.conf, which can be a list of commands
+to configure the board.  If you have a National Instruments AT-MIO or
+PCI-MIO board, you probably will want to run the autocalibration tool
+that is part of comedilib in this script.
+
+To write programs that use comedi, there are demo programs included
+with comedilib.
+
+
+Upgrading:
+
+From versions prior to 0.6.0, you will need to edit and recompile
+all programs that use comedi or comedilib, since the names of
+functions and ioctls have changed.
+
+From versions prior to 0.5.0, you will need to recompile all programs
+that use comedi or comedilib, since the interface to both of these has
+changed.  No changes should need to be made to the source of the
+programs.  The format for parameters of comedi_config has changed.
+
+From versions prior to 0.4.0, you will need to run 'make dev' again
+to recreate /dev/comedi*, since the major number has changed.
+

@@ -1,0 +1,14 @@
+
+das6402 needs cleanup
+
+check each driver init for stuff
+
+grep XXX
+
+register_symtab
+
+allocate subdevice
+allocate private
+
+fix PCI code, use pci_find_device()
+
