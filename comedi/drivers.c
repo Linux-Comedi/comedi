@@ -144,7 +144,13 @@ attached:
 	/* do a little post-config cleanup */
 	ret = postconfig(dev);
 	if(ret < 0)
+	{
+		driv->detach(dev);
+		if(dev->subdevices)kfree(dev->subdevices);
+		if(dev->private)kfree(dev->private);
+
 		return ret;
+	}
 
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
