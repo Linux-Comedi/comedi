@@ -424,7 +424,7 @@ int comedi_command_test(unsigned int minor,comedi_cmd *cmd)
 	return s->do_cmdtest(dev,s,cmd);
 }
 
-#ifdef CONFIG_COMEDI_TRIG
+#ifdef unused
 /*
 	COMEDI_TRIG
 	trigger ioctl
