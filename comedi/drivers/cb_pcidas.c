@@ -43,7 +43,9 @@ TODO:
 
 add a calibration subdevice
 
-add analog out support
+add analog out support for 1600 series
+
+fix pci detection to ignore unsupported boards from computerboards
 */
 
 #include <linux/kernel.h>
@@ -136,16 +138,16 @@ add analog out support
 #define   DACEN	0x2	// dac enable
 #define   DAC_RANGE(channel, range)	(((range) & 0x3) << (8 + 2 * channel) )	// dac range
 
-/* ADC data, FIFO clear registers */
+// analog output registers for 100x, 1200 series
+#define DAC_DATA_REG(channel)	((channel) & 0x1)
+
+/* analog output registers for 1602 series*/
 #define ADCDATA	0	// ADC DATA register
 #define ADCFIFOCLR	2	// ADC FIFO CLEAR
 
 // pacer, counter, dio registers
 #define ADC8254 0
 #define DIO_8255 4
-
-// analog output registers
-#define DAC_DATA_REG(channel)	((channel) & 0x1)
 
 // bit in hexadecimal representation of range index that indicates unipolar input range
 #define IS_UNIPOLAR 0x4
@@ -395,40 +397,40 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	pci_for_each_dev(pcidev){
-		if(pcidev->vendor==PCI_VENDOR_CB){
-			if(it->options[0] || it->options[1]){
-				if(pcidev->bus->number==it->options[0] &&
-				   PCI_SLOT(pcidev->devfn)==it->options[1]){
-					break;
+	pci_for_each_dev(pcidev)
+	{
+		// is it not a computer boards card?
+		if(pcidev->vendor != PCI_VENDOR_CB)
+			continue;
+		// loop through cards supported by this driver
+		for(index = 0; index < N_BOARDS; index++)
+		{
+			if(cb_pcidas_boards[index].device_id != pcidev->device)
+				continue;
+			// was a particular bus/slot requested?
+			if(it->options[0] || it->options[1])
+			{
+				// are we on the wrong bus/slot?
+				if(pcidev->bus->number != it->options[0] ||
+				   PCI_SLOT(pcidev->devfn) != it->options[1])
+				{
+					continue;
 				}
-			}else{
-				break;
 			}
-		}
-	}
-
-	if(!pcidev){
-		printk("Not a ComputerBoards/MeasurementComputing card on requested "
-			"position\n");
-		return -EIO;
-	}
-
-	for(index=0;index<N_BOARDS;index++){
-		if(cb_pcidas_boards[index].device_id == pcidev->device){
+			devpriv->pci_dev = pcidev;
+			dev->board_ptr = cb_pcidas_boards + index;
 			goto found;
 		}
 	}
-	printk("Not a supported ComputerBoards/MeasurementComputing card on "
+
+	printk("No supported ComputerBoards/MeasurementComputing card found on "
 		"requested position\n");
 	return -EIO;
 
 found:
-	devpriv->pci_dev = pcidev;
-	dev->board_ptr = cb_pcidas_boards+index;
-	// thisboard macro can be used from here
 
-	printk("Found %s at requested position\n",cb_pcidas_boards[index].name);
+	printk("Found %s on bus %i, slot %i\n", cb_pcidas_boards[index].name,
+		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
 
 	// Warn about non-tested features
 	switch(thisboard->device_id)
