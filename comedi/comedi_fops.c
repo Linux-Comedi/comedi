@@ -590,7 +590,7 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
 	
-	if(insnlist.n_insns>=10)
+	if(insnlist.n_insns>=10)	/* XXX */
 		return -EINVAL;
 
 	data=kmalloc(sizeof(lsampl_t)*256,GFP_KERNEL);
@@ -1537,7 +1537,7 @@ void mite_cleanup(void);
 void init_drivers(void);
 
 
-int init_module(void)
+void comedi_init(void)
 {
 	int i;
 
@@ -1564,11 +1564,9 @@ int init_module(void)
 	comedi_rt_init();
 #endif
 	init_drivers();
-
-	return 0;
 }
 
-void cleanup_module(void)
+void comedi_cleanup(void)
 {
 	int i;
 
@@ -1596,6 +1594,19 @@ void cleanup_module(void)
 
 }
 
+#ifdef MODULE
+int init_module(void)
+{
+	comedi_init();
+
+	return 0;
+}
+
+int cleanup_module(void)
+{
+	comedi_cleanup();
+}
+#endif
 
 void comedi_error(comedi_device *dev,const char *s)
 {
