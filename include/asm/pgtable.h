@@ -19,15 +19,11 @@
 #ifndef __COMPAT_ASM_PGTABLE_H_
 #define __COMPAT_ASM_PGTABLE_H_
 
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
-#define pte_offset_kernel(dir,address) pte_offset(dir,address)
-
-#endif
-
 #include_next <asm/pgtable.h>
+
+#ifndef pte_offset_kernel
+#define pte_offset_kernel(dir,address) pte_offset(dir,address)
+#endif
 
 #endif /* __COMPAT_ASM_PGTABLE_H_ */
 
