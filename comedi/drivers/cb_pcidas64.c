@@ -184,7 +184,7 @@ TODO:
  *  6 : dac channel 0
  *  7 : dac channel 1
  */
-#define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)	// XXX 60xx only
+#define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)
 #define    CAL_EN_64XX_BIT	0x40	// calibration enable for 64xx series
 #define    SERIAL_DATA_IN_BIT	0x80
 #define    SERIAL_CLOCK_BIT	0x100
@@ -753,6 +753,8 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 //static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
 static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, unsigned int value);
 static void abort_dma(comedi_device *dev, unsigned int channel);
+static void disable_plx_interrupts( comedi_device *dev );
+
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
@@ -781,6 +783,8 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 descriptor 0x%x\n", readl(plx_iobase + PLX_DMA0_DESCRIPTOR_REG));
 	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(plx_iobase + PLX_DMA0_CS_REG));
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
+
+	disable_plx_interrupts( dev );
 
 	abort_dma(dev, 0);
 	abort_dma(dev, 1);
@@ -819,7 +823,7 @@ static void init_plx9080(comedi_device *dev)
 static int setup_subdevices(comedi_device *dev)
 {
 	comedi_subdevice *s;
-	unsigned long dio_8255_iobase;	
+	unsigned long dio_8255_iobase;
 
 	dev->n_subdevices = 10;
 	if(alloc_subdevices(dev)<0)
@@ -974,6 +978,12 @@ static int setup_subdevices(comedi_device *dev)
 	return 0;
 }
 
+static void disable_plx_interrupts( comedi_device *dev )
+{
+	private(dev)->plx_intcsr_bits = 0;
+	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -997,52 +1007,51 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	pci_for_each_dev(pcidev)
+	pci_for_each_dev( pcidev )
 	{
 		// is it not a computer boards card?
-		if(pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+		if( pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS )
 			continue;
-#ifdef PCIDAS64_DEBUG
-		printk(" found computer boards device id 0x%x on bus %i slot %i\n",
-			pcidev->device, pcidev->bus->number, PCI_SLOT(pcidev->devfn));
-#endif
 		// loop through cards supported by this driver
 		for(index = 0; index < N_BOARDS; index++)
 		{
-			if(pcidas64_boards[index].device_id != pcidev->device)
+			if( pcidas64_boards[index].device_id != pcidev->device )
 				continue;
 			// was a particular bus/slot requested?
-			if(it->options[0] || it->options[1])
+			if( it->options[0] || it->options[1] )
 			{
 				// are we on the wrong bus/slot?
-				if(pcidev->bus->number != it->options[0] ||
-				   PCI_SLOT(pcidev->devfn) != it->options[1])
+				if( pcidev->bus->number != it->options[0] ||
+				   PCI_SLOT( pcidev->devfn ) != it->options[1] )
 				{
 					continue;
 				}
 			}
 			dev->board_ptr = pcidas64_boards + index;
-			goto found;
+			break;
 		}
+		if( dev->board_ptr ) break;
 	}
 
-	printk("No supported ComputerBoards/MeasurementComputing card found\n");
-	return -EIO;
+	if( dev->board_ptr == NULL )
+	{
+		printk("No supported ComputerBoards/MeasurementComputing card found\n");
+		return -EIO;
+	}
 
-found:
-
-	printk("Found %s on bus %i, slot %i\n", pcidas64_boards[index].name,
+	printk("Found %s on bus %i, slot %i\n", board(dev)->name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+
+	if( pci_enable_device( pcidev ) )
+		return -EIO;
+	pci_set_master( pcidev );
+
 	private(dev)->hw_dev = pcidev;
 
 	//Initialize dev->board_name
 	dev->board_name = board(dev)->name;
 
-	if(pci_enable_device(pcidev))
-		return -EIO;
-	pci_set_master(pcidev);
-
-	if(pci_request_regions(pcidev, driver_cb_pcidas.driver_name))
+	if( pci_request_regions( pcidev, driver_cb_pcidas.driver_name ) )
 	{
 		/* Couldn't allocate io space */
 		printk(KERN_WARNING " failed to allocate io memory\n");
@@ -1065,6 +1074,16 @@ found:
 	DEBUG_PRINT(" main remapped to 0x%lx\n", private(dev)->main_iobase);
 	DEBUG_PRINT(" diocounter remapped to 0x%lx\n", private(dev)->dio_counter_iobase);
 
+	// get irq
+	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
+	{
+		printk(" unable to allocate irq %d\n", pcidev->irq);
+		return -EINVAL;
+	}
+	dev->irq = pcidev->irq;
+
+	printk(" irq %i\n", dev->irq);
+
 	// figure out what local addresses are
 	local_range = readl(private(dev)->plx9080_iobase + PLX_LAS0RNG_REG) & LRNG_MEM_MASK;
 	local_decode = readl(private(dev)->plx9080_iobase + PLX_LAS0MAP_REG) & local_range & LMAP_MEM_MASK ;
@@ -1083,16 +1102,6 @@ found:
 	printk(" stc hardware revision %i\n", private(dev)->hw_revision);
 
 	init_plx9080(dev);
-
-	// get irq
-	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
-	{
-		printk(" unable to allocate irq %d\n", pcidev->irq);
-		return -EINVAL;
-	}
-	dev->irq = pcidev->irq;
-
-	printk(" irq %i\n", dev->irq);
 
 	// alocate pci dma buffers
 	for(index = 0; index < DMA_RING_COUNT; index++)
@@ -1180,27 +1189,33 @@ static int detach(comedi_device *dev)
 		comedi_free_irq(dev->irq, dev);
 	if(private(dev))
 	{
-		if(private(dev)->plx9080_iobase)
-			iounmap((void*)private(dev)->plx9080_iobase);
-		if(private(dev)->main_iobase)
-			iounmap((void*)private(dev)->main_iobase);
-		if(private(dev)->dio_counter_iobase)
-			iounmap((void*)private(dev)->dio_counter_iobase);
-		if(private(dev)->plx9080_phys_iobase ||
-			private(dev)->main_phys_iobase || private(dev)->dio_counter_phys_iobase)
-			pci_release_regions(private(dev)->hw_dev);
-		// free pci dma buffers
-		for(i = 0; i < DMA_RING_COUNT; i++)
+		if( private(dev)->hw_dev )
 		{
-			if(private(dev)->ai_buffer[i])
-				pci_free_consistent(private(dev)->hw_dev, DMA_TRANSFER_SIZE,
-					private(dev)->ai_buffer[i], private(dev)->ai_buffer_phys_addr[i]);
+			if(private(dev)->plx9080_iobase)
+			{
+				disable_plx_interrupts( dev );
+				iounmap((void*)private(dev)->plx9080_iobase);
+			}
+			if(private(dev)->main_iobase)
+				iounmap((void*)private(dev)->main_iobase);
+			if(private(dev)->dio_counter_iobase)
+				iounmap((void*)private(dev)->dio_counter_iobase);
+			if(private(dev)->plx9080_phys_iobase ||
+				private(dev)->main_phys_iobase || private(dev)->dio_counter_phys_iobase)
+				pci_release_regions( private(dev)->hw_dev );
+			// free pci dma buffers
+			for(i = 0; i < DMA_RING_COUNT; i++)
+			{
+				if( private(dev)->ai_buffer[i] )
+					pci_free_consistent( private(dev)->hw_dev, DMA_TRANSFER_SIZE,
+						private(dev)->ai_buffer[i], private(dev)->ai_buffer_phys_addr[i] );
+			}
+			// free dma descriptors
+			if(private(dev)->dma_desc)
+				pci_free_consistent( private(dev)->hw_dev, sizeof( struct plx_dma_desc ) * DMA_RING_COUNT,
+					private(dev)->dma_desc, private(dev)->dma_desc_phys_addr );
+			pci_disable_device( private(dev)->hw_dev );
 		}
-		// free dma descriptors
-		if(private(dev)->dma_desc)
-			pci_free_consistent(private(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
-				private(dev)->dma_desc, private(dev)->dma_desc_phys_addr);
-		pci_disable_device(private(dev)->hw_dev);
 	}
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 4);
@@ -1874,8 +1889,6 @@ static void pio_drain_ai_fifo_32(comedi_device *dev)
 // empty fifo
 static void pio_drain_ai_fifo(comedi_device *dev)
 {
-	comedi_async *async = dev->read_subdev->async;
-
 	if(board(dev)->layout == LAYOUT_4020)
 	{
 		pio_drain_ai_fifo_32(dev);
@@ -1929,9 +1942,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int status;
 	uint32_t plx_status;
-	static const uint32_t plx_interrupt_status_mask = ICS_DMA0_A |
-		ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA |
-		ICS_MBIA(0) | ICS_MBIA(1) |ICS_MBIA(2) | ICS_MBIA(3);
 	uint32_t plx_bits;
 	uint8_t dma0_status, dma1_status;
 
@@ -1941,23 +1951,13 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	DEBUG_PRINT("cb_pcidas64: hw status 0x%x ", status);
 	DEBUG_PRINT("plx status 0x%x\n", plx_status);
 
-	if((status &
-		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
-		DAC_INTR_PENDING_BIT | DAC_DONE_BIT | EXT_INTR_PENDING_BIT)) == 0 &&
-		(plx_status & plx_interrupt_status_mask) == 0)
-	{
-		return;
-	}
-
-	if( (s->subdev_flags & SDF_RUNNING) == 0 ) return;
-
 	async->events = 0;
 
 	// check for fifo overrun
 	if(status & ADC_OVERRUN_BIT)
 	{
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_error(dev, "fifo overrun");
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
 	dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
@@ -1995,8 +1995,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	// clean up dregs if we were stopped by hardware sample counter
 	if( status & ADC_DONE_BIT )
 	{
+		DEBUG_PRINT("adc done interrupt\n");
 		pio_drain_ai_fifo(dev);
-		async->events |= COMEDI_CB_EOA;
 	}
 
 	// if we are have all the data, then quit
@@ -2006,7 +2006,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	if(async->events & COMEDI_CB_EOA)
+	if( ( async->events & COMEDI_CB_EOA) && ( status & ADC_ACTIVE_BIT ) )
 		ai_cancel(dev, s);
 
 	comedi_event(dev, s, async->events);
