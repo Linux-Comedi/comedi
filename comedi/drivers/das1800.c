@@ -103,7 +103,7 @@ TODO:
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
+#include <linux/malloc.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -897,18 +897,19 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	spin_lock(&dev->spinlock);
 	status = inb(dev->iobase + DAS1800_STATUS);
 
+	/* clear interrupt */
+	outb(FNE, dev->iobase + DAS1800_STATUS);
+
 	/* if interrupt was not caused by das-1800 */
 	if(!(status & INT))
 	{
 		comedi_error(dev, "spurious interrupt");
+		rt_printk("status 0x%x\n", status);
 		spin_unlock(&dev->spinlock);
 		return;
 	}
 
 	das1800_ai_handler(dev, status);
-
-	/* clear interrupt */
-	outb(FNE, dev->iobase + DAS1800_STATUS);
 
 	spin_unlock(&dev->spinlock);
 }
