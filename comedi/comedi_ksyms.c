@@ -22,11 +22,8 @@
 */
 
 
+#define __NO_VERSION__
 #include <linux/comedidev.h>
-
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
 
 
 

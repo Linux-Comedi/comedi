@@ -98,12 +98,13 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 */
 
+#include <linux/comedidev.h>
+
 #include <linux/ioport.h>
-#include <linux/module.h>
 #include <linux/mc146818rtc.h>
 #include <linux/delay.h>
 #include <asm/dma.h>
-#include <linux/comedidev.h>
+
 #include "8253.h"
 
 // #define PCL818_MODE13_AO 1

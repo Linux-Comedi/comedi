@@ -50,18 +50,10 @@ zero volts).
 
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
-#include <linux/time.h>
-#include <linux/init.h>
 #include <linux/comedidev.h>
+
 #include <asm/div64.h>
+
 #include "comedi_fc.h"
 
 /* Board descriptions */

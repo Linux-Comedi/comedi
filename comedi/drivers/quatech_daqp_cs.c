@@ -35,19 +35,7 @@ Status: unkown
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
-//#include <pcmcia/config.h>
-//#include <pcmcia/k_compat.h>
-
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/timer.h>
-#include <asm/io.h>
-#include <asm/system.h>
+#include <linux/comedidev.h>
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
@@ -56,7 +44,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-#include <linux/comedidev.h>
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If

@@ -40,21 +40,10 @@ No interrupts, multi channel or FIFO AI, although the card looks like it could s
 See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more details.
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/pci.h>
+
 #include "plx9052.h"
 
 //#define CBPCIMDAS_DEBUG

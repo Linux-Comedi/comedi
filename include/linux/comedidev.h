@@ -24,6 +24,8 @@
 #ifndef _COMEDIDEV_H
 #define _COMEDIDEV_H
 
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/version.h>
 #include <linux/config.h>
 #include <linux/kdev_t.h>
@@ -35,7 +37,9 @@
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+
 #include <asm/uaccess.h>
+#include <asm/io.h>
 
 #include <linux/comedi.h>
 

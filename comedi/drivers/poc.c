@@ -38,19 +38,9 @@ Configuration options:
   [0] - I/O port base
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/ioport.h>
 
 static int poc_attach(comedi_device *dev,comedi_devconfig *it);
 static int poc_detach(comedi_device *dev);

@@ -38,13 +38,9 @@ Devices: [Keithley Metrabyte] DAS6402 (das6402)
 This driver has suffered bitrot.
 */
 
-#include <linux/module.h>
 #include <linux/comedidev.h>
-#include <asm/io.h>
-#include <linux/kernel.h>
+
 #include <linux/ioport.h>
-#include <linux/sched.h>
-#include <linux/time.h>
 
 #define DAS6402_SIZE 16
 

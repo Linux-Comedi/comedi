@@ -24,10 +24,9 @@
 
 ************************************************************************/
 
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/comedidev.h>
+
 #include "comedi_fc.h"
-#include "linux/comedidev.h"
 
 static inline unsigned int bytes_per_scan( comedi_subdevice *subd )
 {

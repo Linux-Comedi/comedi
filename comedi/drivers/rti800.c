@@ -51,19 +51,9 @@ Configuration options:
   [7] - DAC 1 encoding (same as DAC 0)
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/ioport.h>
 
 
 #define RTI800_SIZE 16

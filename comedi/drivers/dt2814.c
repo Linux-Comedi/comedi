@@ -39,21 +39,10 @@ a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
 addition, the clock does not seem to be very accurate.
 */
 
-
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
 
+#include <linux/ioport.h>
+#include <linux/delay.h>
 
 
 #define DT2814_SIZE 2

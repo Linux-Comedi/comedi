@@ -81,19 +81,8 @@ pin, which can be used to wake up tasks.
    or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+#include <linux/ioport.h>
 
 
 #define PARPORT_SIZE 3

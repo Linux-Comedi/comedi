@@ -64,17 +64,10 @@ AT-MIO96.
 #define DEBUG 1
 #define DEBUG_FLAGS
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/comedidev.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/irq.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
+#include <linux/irq.h> /* for disable_irq */
+
 #include "mite.h"
 #include "8255.h"
 

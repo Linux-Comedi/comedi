@@ -56,19 +56,10 @@ Configuration options:
   [12] - Analog output 7 range configuration (same options)
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/comedidev.h>
+
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
-#include <linux/comedidev.h>
 
 
 static comedi_lrange range_dt2815_ao_32_current = { 1, {

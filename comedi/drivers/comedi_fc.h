@@ -26,7 +26,7 @@
 
 ************************************************************************/
 
-#include "linux/comedidev.h"
+#include <linux/comedidev.h>
 
 /* Writes an array of data points to comedi's buffer */
 extern unsigned int cfc_write_array_to_buffer( comedi_subdevice *subd, void *data,

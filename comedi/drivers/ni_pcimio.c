@@ -93,18 +93,9 @@ Bugs:
 
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/comedidev.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
+#include <linux/delay.h>
 
 #include "ni_stc.h"
 #include "mite.h"

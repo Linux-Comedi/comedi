@@ -38,19 +38,8 @@ Commands are not supported.
 	Bart Joris <bjoris@advalvas.be> Last updated on 20/08/2001
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h> 
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
-
-#include <asm/io.h>
-
 #include <linux/comedidev.h>
+
 #include "mite.h"
 
 #define PCI_VENDOR_ID_NATINST	0x1093

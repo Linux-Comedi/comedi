@@ -58,14 +58,9 @@ Options:
 irq can be omitted, although the cmd interface will not work without it.
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/comedidev.h>
-#include <linux/errno.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
+
 #include "8255.h"
 #include "8253.h"
 #include "comedi_fc.h"

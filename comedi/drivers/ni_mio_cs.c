@@ -41,19 +41,10 @@ See the notes in the ni_atmio.o driver.
 	
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <asm/io.h>
-#include <linux/slab.h>
-#ifdef CONFIG_COMEDI_RTL
-#include <linux/rtl.h>
-#endif
 #include <linux/comedidev.h>
+
+#include <linux/delay.h>
+
 #include "ni_stc.h"
 #include "8255.h"
 

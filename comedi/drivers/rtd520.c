@@ -101,23 +101,11 @@ Configuration options:
 
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/pci.h>
-#include <linux/init.h>
-
-#include <asm/io.h>
-#include <asm/dma.h>
 #include <linux/comedidev.h>
+
+#include <linux/delay.h>
+#include <linux/pci.h>
+
 
 
 /*======================================================================
@@ -1036,7 +1024,7 @@ static int rtd_attach (
     return 1;
 
     /* hit an error, clean up memory and return ret */
-rtd_attach_die_error:
+//rtd_attach_die_error:
 #ifdef USE_DMA
     for(index = 0; index < DMA_CHAIN_COUNT; index++) {
 	if (NULL != devpriv->dma0Buff[index]) {	/* free buffer memory*/

@@ -72,21 +72,9 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/pci.h> /* for PCI devices */
 
 
 /* Imaginary registers for the imaginary board */

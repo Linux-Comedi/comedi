@@ -67,19 +67,9 @@ Interrupts are not supported.
     their web page.  (http://www.cir.com/)
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/ioport.h>
 
 
 #undef ACL6126_IRQ	/* no interrupt support (yet) */

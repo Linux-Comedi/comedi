@@ -82,20 +82,14 @@ are not supported.
 	
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <asm/io.h>
-#include <linux/slab.h>
 #include <linux/comedidev.h>
+
+#include <linux/delay.h>
 #ifdef HAVE_ISAPNP
-#include <linux/isapnp.h>
-#include <linux/pci.h>
+//#include <linux/isapnp.h>
+//#include <linux/pci.h>
 #endif
+
 #include "ni_stc.h"
 #include "8255.h"
 

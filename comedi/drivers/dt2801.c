@@ -29,10 +29,8 @@ Configuration options:
 */
 
 #include <linux/comedidev.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
 
 
 #define DT2801_TIMEOUT 1000

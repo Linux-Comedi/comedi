@@ -83,16 +83,10 @@ Computer boards manuals also available from their website www.measurementcomputi
 
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/comedidev.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <asm/io.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
 #include <asm/dma.h>
+
 #include "8253.h"
 #include "8255.h"
 #include "comedi_fc.h"

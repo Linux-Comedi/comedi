@@ -15,8 +15,8 @@
 #ifndef _AMCC_S5933_H_
 #define _AMCC_S5933_H_
 
-#include <linux/pci.h>
 #include <linux/comedidev.h>
+#include <linux/pci.h>
 
 
 /****************************************************************************/

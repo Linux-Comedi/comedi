@@ -81,13 +81,6 @@ options for PCI-20341M:
 
 #include <linux/comedidev.h>
 
-#include <linux/module.h>	/* modularer Kernel */
-#include <linux/kernel.h>	/* printk() */
-#include <linux/errno.h>	/* error codes */
-#include <linux/delay.h>	/* udelay() */
-
-#include <asm/io.h>		/* readb() ... */
-
 
 #define PCI20000_ID			0x1d
 #define PCI20341_ID    			0x77

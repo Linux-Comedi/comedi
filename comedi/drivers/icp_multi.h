@@ -10,8 +10,8 @@
 #ifndef _ICP_MULTI_H_
 #define _ICP_MULTI_H_
 
-#include <linux/pci.h>
 #include <linux/comedidev.h>
+#include <linux/pci.h>
 
 
 

@@ -45,19 +45,9 @@ Configuration options:
   [4] - D/A 1 range (same choices)
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/timer.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/ioport.h>
 
 static char *driver_name = "dt2811";
 

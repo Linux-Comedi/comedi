@@ -110,20 +110,12 @@ See the head of the source file pcl812.c for configuration options.
  *     
  */
 
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <asm/io.h>
-#include <asm/dma.h>
 #include <linux/comedidev.h>
+
+#include <linux/delay.h>
+#include <linux/ioport.h>
+#include <asm/dma.h>
+
 #include "8253.h"
 
 

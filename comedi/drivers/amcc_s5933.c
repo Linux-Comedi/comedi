@@ -12,11 +12,9 @@
     example.
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/comedidev.h>
 
 #include <linux/pci.h>
-#include <linux/comedidev.h>
 
 #include "amcc_s5933.h"
 

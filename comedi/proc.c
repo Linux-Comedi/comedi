@@ -29,9 +29,10 @@
 */
 
 
+#define __NO_VERSION__
 #include <linux/comedidev.h>
 #include <linux/proc_fs.h>
-#include <linux/string.h>
+//#include <linux/string.h>
 
 
 #if LINUX_VERSION_CODE < 0x020100

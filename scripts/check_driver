@@ -403,3 +403,18 @@ if grep 'COMEDI_SUBD_AI' ${driver} &>/dev/null;then
 	fi
 fi
 
+if grep -e 'include..linux.version.h' \
+        -e 'include..linux.config.h' \
+        -e 'include..linux.kdev_t.h' \
+        -e 'include..linux.slab.h' \
+        -e 'include..linux.errno.h' \
+        -e 'include..linux.spinlock.h' \
+        -e 'include..linux.wait.h' \
+        -e 'include..linux.mm.h' \
+        -e 'include..linux.init.h' \
+        -e 'include..linux.vmalloc.h' \
+        -e 'include..asm.uaccess.h' \
+	${driver} &>/dev/null;then
+	echo "W: Driver #includes headers included by comedidev.h"
+fi
+

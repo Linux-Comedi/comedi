@@ -40,26 +40,11 @@ the PCMCIA interface.
 //#define LABPC_DEBUG	// enable debugging messages
 #undef LABPC_DEBUG
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/init.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
-#include "8255.h"
 
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <asm/system.h>
+#include <linux/ioport.h>
+
+#include "8255.h"
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>

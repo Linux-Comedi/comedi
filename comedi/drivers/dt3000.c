@@ -53,12 +53,10 @@ AO commands are not supported.
 #define DEBUG 1
 
 #include <linux/comedidev.h>
-#include <linux/module.h>
+
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
 
 #define PCI_VENDOR_ID_DT	0x1116
 

@@ -32,21 +32,9 @@ This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
 */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <asm/io.h>
 #include <linux/comedidev.h>
+
+#include <linux/pci.h>
 
 #define CNT_DRIVER_NAME         "ke_counter"
 #define PCI_VENDOR_ID_KOLTER    0x1001
