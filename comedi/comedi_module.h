@@ -30,9 +30,7 @@
 #include <linux/malloc.h>
 #include <linux/errno.h>
 #include <comedi.h>
-#ifdef __MODBUILD__
-#include <config.h>
-#endif
+#include <linux/config.h>
 
 
 #include "kern_compat.h"
