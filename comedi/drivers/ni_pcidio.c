@@ -31,10 +31,9 @@
    Manuals (available from ftp://ftp.natinst.com/support/manuals)
 
 	320938c.pdf	PCI-DIO-96/PXI-6508/PCI-6503 User Manual
-	321464a.pdf	AT/PCI-DIO-32HS User Manual
 	321464b.pdf	AT/PCI-DIO-32HS User Manual
-	321329A.pdf	PCI-6533 Register-Level Programmer Manual
-	321330A.pdf	DAQ-DIO Technical Reference Manual
+	341329A.pdf	PCI-6533 Register-Level Programmer Manual
+	341330A.pdf	DAQ-DIO Technical Reference Manual
 
  */
 
