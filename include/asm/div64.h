@@ -23,7 +23,7 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 0)
 
-extern inline u64 my_ull_div(u64 numerator, unsigned long denominator)
+static inline u64 my_ull_div(u64 numerator, unsigned long denominator)
 {
 	u32 value;
 	u64 remainder, temp, answer = 0;
@@ -37,13 +37,20 @@ extern inline u64 my_ull_div(u64 numerator, unsigned long denominator)
 		shift = 0;
 		numerator = remainder;
 		// shift most significant bits into 32 bit variable
-		while(numerator > max_u32)
+		while( numerator > max_u32 )
 		{
 			numerator >>= 1;
 			shift++;
 		}
-		value = numerator;
-		value /= denominator;
+		if( numerator < denominator )
+		{
+			shift--;
+			value = 1;
+		}else
+		{
+			value = numerator;
+			value /= denominator;
+		}
 		temp = ((u64) value) << shift;
 		answer += temp;
 		remainder -= temp * denominator;
