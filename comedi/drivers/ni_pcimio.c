@@ -167,8 +167,7 @@ static ni_board ni_boards[]={
 		caldac:         type2,
 		has_8255:       0,
 	},
-#if 0
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x1270,
 		name:           "pci-6032e",
 		n_adchan:       16,
 		adbits:         16,
@@ -183,9 +182,7 @@ static ni_board ni_boards[]={
 		caldac:         type2,
 		has_8255:       0,
 	},
-#endif
-#if 0
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x1340,
 		name:           "pci-6033e",
 		n_adchan:       64,
 		adbits:         16,
@@ -200,7 +197,6 @@ static ni_board ni_boards[]={
 		caldac:         type2,
 		has_8255:       0,
 	},
-#endif
 	{       device_id:      0x1350,
 		name:           "pci-6071e",
 		n_adchan:       64,
@@ -245,7 +241,7 @@ static ni_board ni_boards[]={
 		caldac:         type3,
 		has_8255:	0,
 	},
-	{       device_id:      0x2a80,		/* unknown */
+	{       device_id:      0x2a80,
 		name:           "pci-6025e",
 		n_adchan:       16,
 		adbits:         12,
