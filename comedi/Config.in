@@ -40,7 +40,9 @@ if [ "$CONFIG_COMEDI_DT" = "y" ];then
 	tristate '  DT 2815' CONFIG_COMEDI_DT2815
 	tristate '  DT 2817' CONFIG_COMEDI_DT2817
 	tristate '  DT 2821 series' CONFIG_COMEDI_DT282x
-	tristate '  DT3000' CONFIG_COMEDI_DT3000
+	if [ "$CONFIG_PCI" = "y" ];then
+		tristate '  DT3000' CONFIG_COMEDI_DT3000
+	fi
 fi
 
 bool 'National Instruments boards' CONFIG_COMEDI_NI
@@ -79,7 +81,9 @@ tristate 'Advantech PCL-818/L/H/HD/HG, PCL-718' CONFIG_COMEDI_PCL818
 tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
 tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
 tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC
-tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000
+if [ "$CONFIG_PCI" = "y" ];then
+	tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000
+fi
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	comment 'Virtual device drivers'
