@@ -191,7 +191,6 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
-static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 #ifdef DEBUG_STATUS_A
 static void ni_mio_print_status_a(int status);
@@ -244,6 +243,12 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
+
+static int init_cs5529(comedi_device *dev);
+static int cs5529_do_conversion(comedi_device *dev, unsigned short *data);
+static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_select_bits);
+static void cs5529_config_write(comedi_device *dev, unsigned int value, unsigned int reg_select_bits);
 
 enum aimodes
 {
@@ -1891,6 +1896,8 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 		}
 		return 2;
 		}
+	default:
+		break;
 	}
 
 	return -EINVAL;
@@ -2793,31 +2800,17 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	{
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_INTERNAL;
-		s->n_chan = 1;
+		// one channel for each analog output channel
+		s->n_chan = boardtype.n_aochan;
 		s->maxdata = (1 << 16) - 1;
 		s->range_table = &range_unknown; /* XXX */
 		s->insn_read=cs5529_ai_insn_read;
-		s->insn_config=NULL; /* XXX */
+		s->insn_config=NULL;
+		init_cs5529(dev);
 	}else
 	{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
-#if 0
-/* set calibration source to ref = ground, dac = 0*/
-win_out(0x100, AO_Calibration_Channel_Select_67xx);
-	/* calibration subdevice for cs5529 adc*/
-	s = dev->subdevices + 9;
-	if(boardtype.reg_type & ni_reg_67xx_mask)
-	{
-		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_WRITABLE | SDF_INTERNAL;
-		s->insn_read = NULL; /* XXX */
-		s->insn_write = NULL; /* XXX */
-	}else
-	{
-		s->type=COMEDI_SUBD_UNUSED;
-	}
-#endif
 
 	/* Serial */
 	s=dev->subdevices+9;
@@ -3712,8 +3705,30 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
+static void cs5529_command(comedi_device *dev, unsigned short value)
+{
+	static const int timeout = 100;
+	int i;
+
+	ni_ao_win_outw(dev, value, CAL_ADC_Command_67xx);
+	/* give time for command to start being serially clocked into cs5529.
+	 * this insures that the CSS_ADC_BUSY bit will get properly
+	 * set before we exit this function.
+	*/
+	for(i = 0; i < timeout; i++)
+	{
+		if((ni_ao_win_inw(dev, CAL_ADC_Status_67xx) & CSS_ADC_BUSY))
+			break;
+		comedi_udelay(1);
+	}
+	if(i == timeout)
+	{
+//		comedi_error(dev, "possible problem - never saw adc go busy?");
+	}
+}
+
 /* write to cs5529 register */
-static void cs5529_config_write(comedi_device *dev, unsigned int reg_select_bits, unsigned int value)
+static void cs5529_config_write(comedi_device *dev, unsigned int value, unsigned int reg_select_bits)
 {
 	int i;
 	unsigned short status;
@@ -3722,7 +3737,7 @@ static void cs5529_config_write(comedi_device *dev, unsigned int reg_select_bits
 	ni_ao_win_outw(dev, ((value >> 16) & 0xff), CAL_ADC_Config_Data_High_Word_67xx);
 	ni_ao_win_outw(dev, (value & 0xffff), CAL_ADC_Config_Data_Low_Word_67xx);
 	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
-	ni_ao_win_outw(dev, CSCMD_COMMAND | reg_select_bits, CAL_ADC_Command_67xx);
+	cs5529_command(dev, CSCMD_COMMAND | reg_select_bits);
 	for(i = 0; i < timeout; i++)
 	{
 			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
@@ -3731,12 +3746,13 @@ static void cs5529_config_write(comedi_device *dev, unsigned int reg_select_bits
 			set_current_state(TASK_INTERRUPTIBLE);
 			if(schedule_timeout(1))
 			{
-				comedi_error(dev, "interrupted in cs5529_config_write()\n");
+				comedi_error(dev, "interrupted in cs5529_config_write()");
 				return;
 			}
 	}
 	if(i == timeout)
-		comedi_error(dev, "timed out in cs5529_config_write()\n");
+		comedi_error(dev, "timed out in cs5529_config_write()");
+//printk("looped %i times writing to cs5529\n", i);
 }
 
 /* read from cs5529 register */
@@ -3748,7 +3764,7 @@ static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_sele
 	static const int timeout = HZ;
 
 	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
-	ni_ao_win_outw(dev, CSCMD_COMMAND | CSCMD_READ | reg_select_bits, CAL_ADC_Command_67xx);
+	cs5529_command(dev, CSCMD_COMMAND | CSCMD_READ | reg_select_bits);
 	for(i = 0; i < timeout; i++)
 	{
 			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
@@ -3757,58 +3773,93 @@ static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_sele
 			set_current_state(TASK_INTERRUPTIBLE);
 			if(schedule_timeout(1))
 			{
-				return -EIO;
+				comedi_error(dev, "interrupted in cs5529_config_read()");
+				return 0;
 			}
 	}
 	if(i == timeout)
-		comedi_error(dev, "timed out in cs5529_config_write()\n");
+		comedi_error(dev, "timed out in cs5529_config_read()");
+//printk("looped %i times reading from cs5529\n", i);
 	value = (ni_ao_win_inw(dev, CAL_ADC_Config_Data_High_Word_67xx) << 16) & 0xff0000;
 	value |= ni_ao_win_inw(dev, CAL_ADC_Config_Data_Low_Word_67xx) & 0xffff;
 	return value;
 }
 
+static int cs5529_do_conversion(comedi_device *dev, unsigned short *data)
+{
+	int i;
+	static const int timeout = HZ;
+	unsigned int status;
+
+	cs5529_command(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION);
+	for(i = 0; i < timeout; i++)
+	{
+		status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+		if((status & CSS_ADC_BUSY) == 0)
+		{
+			break;
+		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		if(schedule_timeout(1))
+		{
+			return -EIO;
+		}
+	}
+	if(i == timeout)
+	{
+		rt_printk("ni_mio_common: timeout in cs5529_do_conversion()\n");
+		return -ETIME;
+	}
+	if(status & (CSS_OSC_DETECT | CSS_OVERRANGE))
+	{
+		rt_printk("ni_mio_common: cs5529 conversion error, status 0x%x\n", status);
+		return -EIO;
+	}
+//rt_printk("looped %i times waiting for data\n", i);
+	if(data)
+	{
+		*data = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
+		/* cs5529 returns 16 bit signed data in bipolar mode */
+		*data ^= (1 << 15);
+	}
+	return 0;
+}
+
 static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	int i, n;
-	static const int timeout = HZ;
-	unsigned short status;
+	int n, retval;
+	unsigned short sample;
+	unsigned int channel;
+
+	channel = CR_CHAN(insn->chanspec);
+	/* Set calibration adc source.  Docs lie, reference select bits 8 to 11
+	 * do nothing. */
+	ni_ao_win_outw(dev, channel, AO_Calibration_Channel_Select_67xx);
 
 	for(n = 0; n < insn->n; n++)
 	{
-		ni_ao_win_outw(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION, CAL_ADC_Command_67xx);
-		for(i = 0; i < timeout; i++)
-		{
-			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-			if((status & CSS_ADC_BUSY) == 0)
-			{
-				break;
-			}
-			/* this can't be called from RT, but why would someone want to mess with
-			 * this calibration adc from RT priority? */
-			set_current_state(TASK_INTERRUPTIBLE);
-			if(schedule_timeout(1))
-			{
-				return -EIO;
-			}
-		}
-		if(i == timeout)
-		{
-			rt_printk("ni_mio_common: timeout in cs5529_ai_insn_read\n");
-			return -ETIME;
-		}
-		if(status & (CSS_OSC_DETECT | CSS_OVERRANGE))
-		{
-			rt_printk("ni_mio_common: cs5529 conversion error, status 0x%x\n", status);
-			return -EIO;
-		}
-#if 0
-rt_printk("looped %i times\n", i);
-#endif
-		/*XXX cs5529 returns signed data in bipolar mode */
-		data[n] = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
+		retval = cs5529_do_conversion(dev, &sample);
+		if(retval < 0) return retval;
+		data[n] = sample;
 	}
 	return insn->n;
 }
 
+static int init_cs5529(comedi_device *dev)
+{
+	unsigned int config_bits = CSCFG_PORT_MODE | CSCFG_WORD_RATE_2180_CYCLES;
+
+	/* do self-calibration */
+	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET_GAIN, CSCMD_CONFIG_REGISTER);
+	/* need to force a conversion for calibration to run */
+	cs5529_do_conversion(dev, NULL);
+	if(0)
+	{
+		rt_printk("config: 0x%x\n", cs5529_config_read(dev, CSCMD_CONFIG_REGISTER));
+		rt_printk("gain: 0x%x\n", cs5529_config_read(dev, CSCMD_GAIN_REGISTER));
+		rt_printk("offset: 0x%x\n", cs5529_config_read(dev, CSCMD_OFFSET_REGISTER));
+	}
+	return 0;
+}
 
 
