@@ -797,6 +797,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
+s->cur_trig.n=1; /* XXX */
+
 		break;
 	case TRIG_NONE:
 		/* stage number of scans */
@@ -809,6 +811,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
+
+s->cur_trig.n=0; /* XXX */
 
 		break;
 	}
