@@ -47,6 +47,7 @@
 
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
+#include <rtl_sync.h>
 
 #define RT_protect()	rtl_make_rt_system_active()
 #define RT_unprotect()	rtl_make_rt_system_idle()
