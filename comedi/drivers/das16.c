@@ -1344,7 +1344,10 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_krange *user_ai_range, *user_ao_range;
 
 	iobase = it->options[0];
-
+	irq = it->options[1];
+	timer_mode = it->options[8];
+	if( timer_mode ) irq = 0;
+	
 	printk("comedi%d: das16:",dev->minor);
 
 	// check that clock setting is valid
@@ -1415,8 +1418,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	/* now for the irq */
-	irq = it->options[1];
-	if(irq > 1 && irq < 8)
+	if( irq > 1 && irq < 8 )
 	{
 		if((ret=comedi_request_irq(irq, das16_dma_interrupt, 0, "das16",dev)) < 0)
 			return ret;
@@ -1490,7 +1492,6 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		user_ao_range->flags = UNIT_volt;
 	}
 
-	timer_mode = it->options[8];
 	if(timer_mode)
 	{
 		init_timer(&(devpriv->timer));
