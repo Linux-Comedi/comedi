@@ -108,6 +108,7 @@ dep_tristate 'Generic ISA driver for simple boards' CONFIG_COMEDI_POC $CONFIG_CO
 dep_tristate 'PCM3730' CONFIG_COMEDI_PCM3730 $CONFIG_COMEDI
 dep_tristate 'Winsystems PCM-A/D' CONFIG_COMEDI_PCMAD $CONFIG_COMEDI
 dep_tristate 'Amplicon PCI230' CONFIG_COMEDI_AMPLC_PCI230 $CONFIG_COMEDI
+dep_tristate 'SSV DIL/Net PC driver' CONFIG_COMEDI_SSV_DNP $CONFIG_COMEDI
 dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then

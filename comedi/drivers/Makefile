@@ -88,6 +88,8 @@ obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 
 obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
 
+obj-$(CONFIG_COMEDI_SSV_DNP)            += ssv_dnp.o
+
 #obj-m += $(obj-y)
 
 O_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
