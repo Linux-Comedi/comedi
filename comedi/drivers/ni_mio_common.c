@@ -409,10 +409,12 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
 	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
-	/* XXX should use mite_bytes_read() for the overrun check
-	 * since mite_bytes_transferred returns a conservative
-	 * lower bound */
-	if( (int)(nbytes - old_alloc_count) > 0 ){
+	rmb();
+	/* We use mite_bytes_read() for the overrun check
+	 * because it returns an upper board, and mite_bytes_transferred
+	 * returns a lower bound on the number of bytes actually
+	 * transferred */
+	if( (int)(mite_bytes_read(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
 		printk("ni_mio_common: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
@@ -420,12 +422,12 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	}
 
 	count = nbytes - async->buf_write_count;
-	if( count < 0 ){
+	if( count <= 0 ){
 		/* it's possible count will be negative due to
 		 * conservative value returned by mite_bytes_transferred */
 		return;
 	}
-
+	mb();
 	comedi_buf_write_free(async, count);
 
 	async->scan_progress += count;
@@ -470,57 +472,6 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 
 	async->events |= COMEDI_CB_BLOCK;
 }
-
-#if 0
-static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
-{
-	int len;
-	comedi_subdevice *s = dev->subdevices+0;
-	comedi_async *async = s->async;
-	struct mite_struct *mite = devpriv->mite;
-
-	async->events |= COMEDI_CB_BLOCK;
-
-	MDPRINTK("mite_handle_interrupt: m_status=%08x\n",m_status);
-	if(m_status & CHSR_DONE){
-		writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(0));
-	}
-
-#if 0
-	len = sizeof(sampl_t)*async->cmd.stop_arg*async->cmd.scan_end_arg;
-	if((devpriv->mite->DMA_CheckNearEnd) &&
-			(s->async->buf_int_count > (len - s->async->prealloc_bufsz))) {
-		long offset;
-		int i;
-
-		offset = len % async->prealloc_bufsz;
-		if(offset < mite->ring[0].count) {
-			mite->ring[0].count = offset;
-			mite->ring[1].count = 0;
-		}else{
-			offset -= mite->ring[0].count;
-			i = offset >> PAGE_SHIFT;
-			mite->ring[i].count = offset & ~PAGE_MASK;
-			mite->ring[(i+1)%mite->n_links].count = 0;
-		}
-		mite->DMA_CheckNearEnd = 0;
-	}
-#endif
-
-#if  0
-	MDPRINTK("CHSR is 0x%08x, count is %d\n",m_status,async->buf_int_count);
-	if(m_status&CHSR_DONE){
-		writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(mite->chan));
-		//printk("buf_int_count is %d, buf_int_ptr is %d\n",
-		//		s->async->buf_int_count,s->async->buf_int_ptr);
-		ni_handle_block_dma(dev);
-	}
-	MDPRINTK("exit mite_handle_interrupt\n");
-#endif
-
-	//comedi_event(dev,s,async->events);
-}
-#endif
 
 static int ni_ao_wait_for_dma_load( comedi_device *dev )
 {
@@ -1180,14 +1131,16 @@ static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 	int count;
 
 	// lock to avoid race with interrupt handler
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	if(in_interrupt() == 0)
+		comedi_spin_lock_irqsave(&dev->spinlock, flags);
 #ifndef PCIDMA
 	ni_handle_fifo_dregs(dev);
 #else
 	ni_sync_ai_dma(devpriv->mite, dev);
 #endif
 	count = s->async->buf_write_count - s->async->buf_read_count;
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	if(in_interrupt() == 0)
+		comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return count;
 }
