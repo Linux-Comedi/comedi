@@ -31,8 +31,8 @@ Driver: gsc_hpdi.o
 Description: Driver for the General Standards Corporation High
     Speed Parallel Digital Interface rs485 boards.
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Status: in development
-Updated: 2003-02-14
+Status: only receive mode works, transmit not supported
+Updated: 2003-02-20
 Devices: [General Standards Corporation] PCI-HPDI32 (gsc_hpdi),
   PMC-HPDI32
 
@@ -914,6 +914,9 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
 		writel( hpdi_intr_status, priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
+	}else if( ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA ) ) == 0 )
+	{
+		return;
 	}
 
 	// spin lock makes sure noone else changes plx dma control reg
@@ -968,13 +971,10 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if( priv(dev)->dio_count == 0 )
 		async->events |= COMEDI_CB_EOA;
 
-	if( hpdi_intr_status || ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA ) ) )
-	{
-		DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
-		DEBUG_PRINT("plx status 0x%x\n", plx_status);
-		if( async->events )
-			DEBUG_PRINT( " events 0x%x\n", async->events );
-	}
+	DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
+	DEBUG_PRINT("plx status 0x%x\n", plx_status);
+	if( async->events )
+		DEBUG_PRINT( " events 0x%x\n", async->events );
 
 	cfc_handle_events( dev, s );
 
