@@ -1363,8 +1363,6 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
 	int sample_size;
-	void *buf_ptr;
-	unsigned int buf_len;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
@@ -1388,24 +1386,11 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 	if(!nbytes)return 0;
 
-	if(!(s->subdev_flags&SDF_WRITEABLE))
-		return -EIO;
+	if(!s->busy)
+		return 0;
 
-	if(!s->busy){
-		/* XXX this is going to change soon -- write cmds
-		 * will require start_src=TRIG_FOLLOW */
-		buf_ptr=async->prealloc_buf;
-		buf_len=async->prealloc_bufsz;
-	}else{
-		if(s->busy != file)
-			return -EACCES;
-
-		buf_ptr=async->data;
-		buf_len=async->data_len;
-	}
-
-	if(!buf_ptr)
-		return -EIO;
+	if(s->busy != file)
+		return -EACCES;
 
 	add_wait_queue(&dev->write_wait,&wait);
 	while(nbytes>0 && !retval){
@@ -1413,10 +1398,12 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		m=buf_len-(async->buf_user_count-async->buf_int_count);
-		if(async->buf_user_ptr+m > buf_len){
-			m=buf_len - async->buf_user_ptr;
+		m=async->data_len+async->buf_int_count-async->buf_user_count;
+
+		if(async->buf_user_ptr+m > async->data_len){
+			m=async->data_len - async->buf_user_ptr;
 		}
+
 		if(m<n)n=m;
 
 		if(n==0){
@@ -1435,7 +1422,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			schedule();
 			continue;
 		}
-		m=copy_from_user(buf_ptr+async->buf_user_ptr,buf,n);
+		m=copy_from_user(async->data+async->buf_user_ptr,buf,n);
 		if(m) retval=-EFAULT;
 		n-=m;
 		
@@ -1444,7 +1431,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		async->buf_user_ptr+=n;
 		async->buf_user_count+=n;
 
-		if(async->buf_user_ptr>=buf_len ){
+		if(async->buf_user_ptr>=async->data_len ){
 			async->buf_user_ptr=0;
 		}
 
