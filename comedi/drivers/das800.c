@@ -101,6 +101,7 @@ NOTES:
 
 typedef struct das800_board_struct{
 	char *name;
+	int id;
 	int ai_speed;
 }das800_board;
 
@@ -110,26 +111,32 @@ das800_board das800_boards[] =
 {
 	{
 		name:	"das-800",
+		id:	das800,
 		ai_speed:	25000,
 	},
 	{
 		name:	"cio-das800",
+		id:	ciodas800,
 		ai_speed:	20000,
 	},
 	{
 		name:		"das-801",
+		id:	das801,
 		ai_speed:	25000,
 	},
 	{
 		name:	"cio-das801",
+		id:	ciodas801,
 		ai_speed:	20000,
 	},
 	{
 		name:		"das-802",
+		id:	das802,
 		ai_speed:	25000,
 	},
 	{
 		name:	"cio-das802",
+		id:	ciodas802,
 		ai_speed:	20000,
 	},
 };
@@ -213,6 +220,7 @@ static comedi_lrange *das800_range_lkup[] = {
 static int das800_attach(comedi_device *dev,comedi_devconfig *it);
 static int das800_detach(comedi_device *dev);
 static int das800_recognize(char *name);
+static int das800_register_boards(void);
 static int das800_cancel(comedi_device *dev, comedi_subdevice *s);
 
 comedi_driver driver_das800={
@@ -221,6 +229,7 @@ comedi_driver driver_das800={
 	attach:		das800_attach,
 	detach:		das800_detach,
 	recognize:		das800_recognize,
+	register_boards:		das800_register_boards,
 };
 
 static void das800_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -236,6 +245,37 @@ static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 int das800_probe(comedi_device *dev);
 int das800_set_frequency(comedi_device *dev);
 int das800_load_counter(unsigned int counterNumber, unsigned int counterValue, comedi_device *dev);
+
+static int das800_register_boards(void)
+{
+	unsigned int i;
+	unsigned int num_boards = sizeof(das800_boards) / sizeof(das800_boards[0]);
+	char **board_name;
+	int *board_id;
+
+	board_name = kmalloc(num_boards * sizeof(char*), GFP_KERNEL);
+	if(board_name == NULL)
+		return -ENOMEM;
+
+	board_id = kmalloc(num_boards * sizeof(int), GFP_KERNEL);
+	if(board_id == NULL)
+	{
+		kfree(board_name);
+		return -ENOMEM;
+	}
+
+	for(i = 0; i < num_boards; i++)
+	{
+		board_name[i] = das800_boards[i].name;
+		board_id[i] = das800_boards[i].id;
+	}
+
+	driver_das800.num_boards = num_boards;
+	driver_das800.board_name = board_name;
+	driver_das800.board_id = board_id;
+
+	return 0;
+}
 
 static int das800_recognize(char *name)
 {
@@ -417,6 +457,13 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	printk("\n");
 
+	dev->board = das800_probe(dev);
+	if(dev->board < 0)
+	{
+		printk("unable to determine board type\n");
+		return -ENODEV;
+	}
+
 	if(iobase == 0)
 	{
 		printk("io base address required for das800\n");
@@ -448,13 +495,6 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 		}
 	}
 	dev->irq = irq;
-
-	dev->board = das800_probe(dev);
-	if(dev->board < 0)
-	{
-		printk("unable to determine board type\n");
-		return -ENODEV;
-	}
 
 	dev->board_ptr = das800_boards + dev->board;
 	dev->board_name = thisboard->name;
@@ -815,11 +855,9 @@ static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 
 static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-	int mux_bits;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long irq_flags;
 
-	mux_bits = inb(dev->iobase + DAS800_STATUS) & 0x7;
 	// set channel to 1
 	if(data[0])
 		devpriv->do_bits |= (1 << (chan + 4)) & 0xf0;
@@ -829,7 +867,7 @@ static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
-	outb(devpriv->do_bits | CONTROL1_INTE | mux_bits, dev->iobase + DAS800_CONTROL1);
+	outb(devpriv->do_bits | CONTROL1_INTE, dev->iobase + DAS800_CONTROL1);
 	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	return 1;
@@ -837,11 +875,9 @@ static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 
 static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-	int mux_bits;
 	int wbits;
 	unsigned long irq_flags;
 
-	mux_bits = inb(dev->iobase + DAS800_STATUS) & 0x7;
 
 	// only set bits that have been masked
 	data[0] &= 0xf;
@@ -852,7 +888,7 @@ static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
-	outb(devpriv->do_bits | CONTROL1_INTE | mux_bits, dev->iobase + DAS800_CONTROL1);
+	outb(devpriv->do_bits | CONTROL1_INTE, dev->iobase + DAS800_CONTROL1);
 	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	data[1] = wbits;

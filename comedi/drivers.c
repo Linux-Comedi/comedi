@@ -46,6 +46,8 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
+static int comedi_recognize(comedi_driver *driv, const char *name);
+static void comedi_report_boards(comedi_driver *driv);
 
 comedi_driver *comedi_drivers;
 
@@ -106,7 +108,10 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->write_subdev=-1;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
-		if(driv->recognize){
+		if(driv->register_boards && driv->num_boards){
+			i=comedi_recognize(driv, it->board_name);
+			if(i < 0) continue;
+		}else if(driv->recognize){
 			i=driv->recognize(it->board_name);
 			if(i<0)continue;
 		}else{
@@ -125,6 +130,11 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 		goto attached;
 	}
 
+	// recognize has failed if we get here
+	// report valid board names before returning error
+	for(driv=comedi_drivers;driv;driv=driv->next){
+		comedi_report_boards(driv);
+	}
 	return -EIO;
 
 attached:
@@ -150,8 +160,20 @@ attached:
 
 int comedi_driver_register(comedi_driver *driver)
 {
+	int ret;
+
 	driver->next=comedi_drivers;
 	comedi_drivers=driver;
+
+	if(driver->register_boards)
+	{
+		ret = driver->register_boards();
+		if(ret < 0)
+		{
+			DPRINTK("failed to register supported board names\n");
+			driver->num_boards = 0;
+		}
+	}
 
 	return 0;
 }
@@ -171,6 +193,14 @@ int comedi_driver_unregister(comedi_driver *driver)
 				printk("BUG! detaching device with use_count=%d\n",dev->use_count);
 			comedi_device_detach(dev);
 		}
+	}
+
+	// deallocate arrays
+	if(driver->board_name){
+		kfree(driver->board_name);
+	}
+	if(driver->board_id){
+		kfree(driver->board_id);
 	}
 
 	if(comedi_drivers==driver){
@@ -289,6 +319,35 @@ static void postconfig(comedi_device *dev)
 		}
 	}
 
+}
+
+// generic recognize function for drivers that register their supported board names
+int comedi_recognize(comedi_driver *driv, const char *name)
+{
+	unsigned int i = 0;
+
+	for(i = 0; i < driv->num_boards; i++)
+	{
+		if(strcmp(driv->board_name[i], name) == 0)
+			return driv->board_id[i];
+	}
+
+	return -1;
+}
+
+void comedi_report_boards(comedi_driver *driv)
+{
+	unsigned int i;
+
+	if(driv->num_boards == 0) return;
+
+	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
+	for(i = 0; i < driv->num_boards; i++)
+	{
+		printk(" %s\n", driv->board_name[i]);
+	}
+
+	return;
 }
 
 /* helper functions for drivers */

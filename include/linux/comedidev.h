@@ -131,6 +131,15 @@ struct comedi_driver_struct{
 	int (*attach)(comedi_device *,comedi_devconfig *);
 	int (*detach)(comedi_device *);
 	int (*recognize)(char *name);
+
+	/* register_boards, board_name, board_id, num_boards provide alternative
+	 * to recognize which allows reporting back to user recognized board
+	 * names
+	 */
+	int (*register_boards)(void);	// initializes board_name and board_id arrays
+	char **board_name;
+	int *board_id;
+	unsigned int num_boards;	// number of elements in board_name and board_id arrays
 };
 
 struct comedi_device_struct{
