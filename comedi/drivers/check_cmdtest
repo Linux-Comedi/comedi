@@ -114,9 +114,11 @@ sub check_cmdtest_func
 	$func eq "rtd_ai_cmdtest" && grab_def("RTD_MAX_SPEED");
 	$func eq "rtd_ai_cmdtest" && grab_def("RTD_MIN_SPEED");
 	$func eq "rtd_ai_cmdtest" && grab_def("RTD_CLOCK_BASE");
+	$func eq "pci230_ai_cmdtest" && grab_function("PCI230_TIMEBASE_10MHZ");
 
 	$func eq "pci9118_ai_cmdtest" && grab_function("check_channel_list");
 	$func eq "pci171x_ai_cmdtest" && grab_function("check_channel_list");
+	$func eq "pci230_ai_cmdtest" && grab_function("pci230_ns_to_timer");
 	$func eq "cb_pcidda_ai_cmdtest" && grab_function("cb_pcidda_ns_to_timer");
 	$func eq "timer_cmdtest" && grab_function("cmdtest_helper");
 	$func eq "das1800_ai_do_cmdtest" && grab_function("burst_convert_arg");
@@ -212,7 +214,7 @@ struct comedi_device_struct{
 	int use_count;
 	comedi_driver *driver;
 	void *private;
-	//kdev_t minor;
+	int minor;
 	char *board_name;
 	//int board;
 	void *board_ptr;
