@@ -15,6 +15,7 @@ endif
 ifeq ($(CONFIG_COMEDI_RT),y)
 	MOD_SUB_DIRS += rt_pend_tq
 	SUB_DIRS += rt_pend_tq
+	EXTRA_OBJS := rt_pend_tq/rt_pend_tq.o
 endif
 
 MOD_LIST_NAME := MISC_MODULES
@@ -42,7 +43,7 @@ include $(TOPDIR)/Rules.make
 
 
 ifeq ($(CONFIG_COMEDI),m)
-comedi.o: $(MI_OBJS) $(MIX_OBJS) rt_pend_tq/rt_pend_tq.o
-	$(LD) -r -o $@ $(MI_OBJS) $(MIX_OBJS) rt_pend_tq/rt_pend_tq.o
+comedi.o: $(MI_OBJS) $(MIX_OBJS) $(EXTRA_OBJS)
+	$(LD) -r -o $@ $(MI_OBJS) $(MIX_OBJS) $(EXTRA_OBJS)
 endif
 
