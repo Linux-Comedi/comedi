@@ -1349,11 +1349,10 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		m=async->data_len+async->buf_int_count-async->buf_user_count;
-
-		if(async->buf_user_ptr+m > async->data_len){
-			m=async->data_len - async->buf_user_ptr;
-		}
+		if( async->buf_user_ptr < async->buf_int_ptr)
+			m = async->buf_int_ptr - async->buf_user_ptr;
+		else
+			m = async->data_len - async->buf_user_count;
 
 		if(m<n)n=m;
 
@@ -1444,14 +1443,14 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		n=nbytes;
 
-		m=async->buf_int_count-async->buf_user_count;
+		if(async->buf_int_ptr >= async->buf_user_ptr)
+			m = async->buf_int_ptr - async->buf_user_ptr;
+		else
+			m = async->data_len - async->buf_user_ptr;
 
-		if(async->buf_user_ptr+m > async->data_len){
-			m=async->data_len - async->buf_user_ptr;
 #if 0
 printk("m is %d\n",m);
 #endif
-		}
 		if(m<n)n=m;
 
 		if(n==0){
