@@ -86,7 +86,7 @@ EXPORT_SYMBOL(comedi_get_n_ranges);
 //EXPORT_SYMBOL(comedi_find_range);
 
 /* buffer queries */
-//EXPORT_SYMBOL(comedi_get_buffer_size);
+EXPORT_SYMBOL(comedi_get_buffer_size);
 //EXPORT_SYMBOL(comedi_get_max_buffer_size);
 //EXPORT_SYMBOL(comedi_set_buffer_size);
 
@@ -103,6 +103,8 @@ EXPORT_SYMBOL(comedi_unlock);
 
 /* synchronous stuff */
 EXPORT_SYMBOL(comedi_data_read);
+EXPORT_SYMBOL(comedi_data_read_hint);
+EXPORT_SYMBOL(comedi_data_read_delayed);
 EXPORT_SYMBOL(comedi_data_write);
 EXPORT_SYMBOL(comedi_dio_config);
 EXPORT_SYMBOL(comedi_dio_read);
@@ -134,7 +136,6 @@ EXPORT_SYMBOL(comedi_get_len_chanlist);
 
 /* alpha */
 //EXPORT_SYMBOL(comedi_set_global_oor_behavior);
-EXPORT_SYMBOL(comedi_get_buffer_size);
 
 
 #endif
