@@ -321,7 +321,7 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	writel(0, mite->mite_io_addr + MITE_DAR(channel));
 
 	/* the link is 32bits */
-	lkcr = CR_RL(64) | CR_ASEQUP | CR_PSIZE16;
+	lkcr = CR_RL(64) | CR_ASEQUP | CR_PSIZE32;
 	writel(lkcr, mite->mite_io_addr + MITE_LKCR(channel));
 
 	/* starting address for link chaining */

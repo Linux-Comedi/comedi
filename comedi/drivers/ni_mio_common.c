@@ -427,7 +427,6 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 		 * conservative value returned by mite_bytes_transferred */
 		return;
 	}
-	mb();
 	comedi_buf_write_free(async, count);
 
 	async->scan_progress += count;
@@ -1127,11 +1126,11 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 
 static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	int count;
 
 	// lock to avoid race with interrupt handler
-	if(in_interrupt() == 0)
+ if(in_interrupt() == 0)
 		comedi_spin_lock_irqsave(&dev->spinlock, flags);
 #ifndef PCIDMA
 	ni_handle_fifo_dregs(dev);
