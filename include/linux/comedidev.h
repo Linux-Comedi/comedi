@@ -165,7 +165,6 @@ struct comedi_device_struct{
 
 	/* dumb */
 	int iobase;
-	int iosize;
 	int irq;
 
 	comedi_subdevice *read_subdev;
