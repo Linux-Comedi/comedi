@@ -23,18 +23,17 @@ Driver: poc.o
 Description: Generic driver for very simple devices
 Device names: dac02
 Author: ds
-Devices: [Keithley Metrabyte] DAC-02 (dac02)
+Devices: [Keithley Metrabyte] DAC-02 (dac02), [Advantech] PCL-733 (pcl733),
+  PCL-734 (pcl734)
 
 This driver is indended to support very simple ISA-based devices,
 including:
   dac02 - Keithley DAC-02 analog output board
+  pcl733 - Advantech PCL-733
+  pcl734 - Advantech PCL-734
 
 Configuration options:
   [0] - I/O port base
-*/
-/*
-    dac02 - Keithley DAC-02 analog output board driver
-
 */
 
 #include <linux/kernel.h>
@@ -51,14 +50,15 @@ Configuration options:
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
-/* DAC-02 registers */
-#define DAC02_LSB(a)	(2 * a)
-#define DAC02_MSB(a)	(2 * a + 1)
-
 static int poc_attach(comedi_device *dev,comedi_devconfig *it);
 static int poc_detach(comedi_device *dev);
-static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+
+static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int pcl733_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 
 struct boarddef_struct{
 	char *name;
@@ -69,6 +69,7 @@ struct boarddef_struct{
 	int n_bits;
 	int (*winsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*rinsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
+	int (*insnbits)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	comedi_lrange* range;
 };
 static struct boarddef_struct boards[]={
@@ -82,7 +83,25 @@ static struct boarddef_struct boards[]={
 	winsn:		dac02_ao_winsn,
 	rinsn:		readback_insn,
 	range:		&range_unknown,
-	}
+	},
+	{
+	name:		"pcl733",
+	iosize:		4,
+	type:		COMEDI_SUBD_DI,
+	n_chan:		32,
+	n_bits:		1,
+	insnbits:	pcl733_insn_bits,
+	range:		&range_digital,
+	},
+	{
+	name:		"pcl734",
+	iosize:		4,
+	type:		COMEDI_SUBD_DO,
+	n_chan:		32,
+	n_bits:		1,
+	insnbits:	pcl734_insn_bits,
+	range:		&range_digital,
+	},
 };
 #define n_boards (sizeof(boards)/sizeof(boards[0]))
 #define this_board ((struct boarddef_struct *)dev->board_ptr)
@@ -140,6 +159,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	s->range_table = this_board->range;
 	s->insn_write = this_board->winsn;
 	s->insn_read = this_board->rinsn;
+	s->insn_bits = this_board->insnbits;
 	if(s->type==COMEDI_SUBD_AO || s->type==COMEDI_SUBD_DO){
 		s->subdev_flags = SDF_WRITEABLE;
 	}
@@ -168,6 +188,10 @@ static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	return 1;
 }
 
+/* DAC-02 registers */
+#define DAC02_LSB(a)	(2 * a)
+#define DAC02_MSB(a)	(2 * a + 1)
+
 static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int temp;
@@ -188,6 +212,40 @@ static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	outb(temp, dev->iobase + DAC02_MSB(chan));
 
 	return 1;
+}
+
+static int pcl733_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
+	
+	data[1] = inb(dev->iobase + 0);
+	data[1] |= (inb(dev->iobase + 1) << 8);
+	data[1] |= (inb(dev->iobase + 2) << 16);
+	data[1] |= (inb(dev->iobase + 3) << 24);
+
+	return 2;
+}
+
+static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		if((data[0]>>0)&0xff)
+			outb(dev->iobase+0,(s->state>>0)&0xff);
+		if((data[0]>>8)&0xff)
+			outb(dev->iobase+1,(s->state>>8)&0xff);
+		if((data[0]>>16)&0xff)
+			outb(dev->iobase+2,(s->state>>16)&0xff);
+		if((data[0]>>24)&0xff)
+			outb(dev->iobase+3,(s->state>>24)&0xff);
+	}
+	data[1] = s->state;
+
+	return 2;
 }
 
 COMEDI_INITCLEANUP(driver_poc);
