@@ -30,6 +30,7 @@
 #include <linux/config.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
+#include <linux/spinlock.h>
 
 #ifdef CONFIG_COMEDI_RT
 
@@ -69,31 +70,50 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 #endif
 
 
-// define a spin_lock_irqsave function that will work with rt or without
+/* Define a spin_lock_irqsave function that will work with rt or without.
+ * Use inline functions instead of just macros to enforce some type checking.
+ */
+#define comedi_spin_lock_irqsave(lock_ptr, flags) \
+	(flags = __comedi_spin_lock_irqsave(lock_ptr))
+
+static inline unsigned long __comedi_spin_lock_irqsave(spinlock_t *lock_ptr)
+{
+	unsigned long flags;
 
 #if defined(CONFIG_COMEDI_RTAI)
-#define comedi_spin_lock_irqsave(x, flags)		\
-	(flags = rt_spin_lock_irqsave(x))
-#define comedi_spin_unlock_irqrestore(x, flags)		\
-	rt_spin_unlock_irqrestore(flags, x)
+	flags = rt_spin_lock_irqsave(lock_ptr);
 
 #elif defined(CONFIG_COMEDI_RTL)
-#define comedi_spin_lock_irqsave(x, flags)		\
-	rtl_spin_lock_irqsave(x, flags)
-#define comedi_spin_unlock_irqrestore(x, flags)		\
-	rtl_spin_unlock_irqrestore(x, flags)
+	rtl_spin_lock_irqsave(lock_ptr, flags);
 
 #elif defined(CONFIG_COMEDI_RTL_V1)
-#define comedi_spin_lock_irqsave(x, flags)		\
-	rtl_spin_lock_irqsave(x, flags)
-#define comedi_spin_unlock_irqrestore(x, flags)		\
-	rtl_spin_unlock_irqrestore(x, flags)
+	rtl_spin_lock_irqsave(lock_ptr, flags);
 
 #else
-#define comedi_spin_lock_irqsave(x, flags)	spin_lock_irqsave(x, flags)
-#define comedi_spin_unlock_irqrestore(x, flags)	spin_unlock_irqrestore(x, flags)
+	spin_lock_irqsave(lock_ptr, flags);
 
 #endif
 
+	return flags;
+}
+
+static inline void comedi_spin_unlock_irqrestore(spinlock_t *lock_ptr, unsigned long flags)
+{
+
+#if defined(CONFIG_COMEDI_RTAI)
+	rt_spin_unlock_irqrestore(flags, lock_ptr);
+
+#elif defined(CONFIG_COMEDI_RTL)
+	rtl_spin_unlock_irqrestore(lock_ptr, flags);
+
+#elif defined(CONFIG_COMEDI_RTL_V1)
+	rtl_spin_unlock_irqrestore(lock_ptr, flags);
+
+#else
+	spin_unlock_irqrestore(lock_ptr, flags);
+
+#endif
+
+}
 
 #endif
