@@ -5,7 +5,7 @@
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
     Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
-    Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
+    Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
   CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
   CIO-DAS1602/16 (cio-das1602/16), CIO-DAS16/330 (cio-das16/330)
 Status: works
-Updated: 2002-04-17
+Updated: 2002-09-30
 
 A rewrite of the das16 and das1600 drivers.
 Options:
@@ -57,13 +57,17 @@ Options:
 	[6] - analog output range lowest voltage in microvolts (optional)
 	[7] - analog output range highest voltage in microvolts (optional)
 	[8] - use timer mode for DMA, needed e.g. for buggy DMA controller
-		in NS CS5530A (Geode Companion).  If set, also allows
+		in NS CS5530A (Geode Companion), and for 'jr' cards that
+		lack a hardware fifo.  If set, also allows
 		comedi_command() to be run without an irq.
 
 Passing a zero for an option is the same as leaving it unspecified.
 
 Both a dma channel and an irq (or use of 'timer mode', option 8) are required
-for timed or externally triggered conversions.
+for timed or externally triggered conversions.  The JR versions of the boards
+should use 'timer mode' instead of an irq, due to their lack of a hardware
+fifo.
+
 */
 /*
 
@@ -87,6 +91,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 #include <asm/io.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/pci.h>
 #include <asm/dma.h>
 #include "8253.h"
 #include "8255.h"
@@ -724,11 +729,13 @@ struct das16_private_struct
 	unsigned int	ai_singleended;	// single ended flag
 	unsigned int	clockbase;	// master clock speed in ns
 	volatile unsigned int	control_state;	// dma, interrupt and trigger control bits
-	volatile unsigned int	adc_byte_count;	// number of samples remaining
+	volatile unsigned long	adc_byte_count;	// number of samples remaining
 	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
 	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
 	unsigned int dma_chan;	// dma channel
-	uint16_t *dma_buffer;
+	uint16_t *dma_buffer[2];
+	dma_addr_t dma_buffer_addr[2];
+	unsigned int current_buffer;
 	volatile unsigned int dma_transfer_size;	// target number of bytes to transfer per dma shot
 	// user-defined analog input and output ranges defined from config options
 	comedi_lrange *user_ai_range_table;
@@ -962,7 +969,9 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma_chan);
-	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+	devpriv->current_buffer = 0;
+	set_dma_addr( devpriv->dma_chan,
+		devpriv->dma_buffer_addr[ devpriv->current_buffer ] );
 	// set appropriate size of transfer
 	devpriv->dma_transfer_size = das16_suggest_transfer_size(dev, *cmd);
 	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
@@ -1171,6 +1180,7 @@ static void das16_interrupt( comedi_device *dev )
 	comedi_async *async;
 	comedi_cmd *cmd;
 	int num_bytes, residue;
+	int buffer_index;
 
 	if(dev->attached == 0)
 	{
@@ -1209,7 +1219,8 @@ static void das16_interrupt( comedi_device *dev )
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	das16_write_array_to_buffer( dev, devpriv->dma_buffer, num_bytes );
+	buffer_index = devpriv->current_buffer;
+	devpriv->current_buffer = ( devpriv->current_buffer + 1 ) % 2;
 	devpriv->adc_byte_count -= num_bytes;
 
 	// figure out how many bytes for next transfer
@@ -1220,13 +1231,15 @@ static void das16_interrupt( comedi_device *dev )
 	// re-enable  dma
 	if(( async->events & COMEDI_CB_EOA ) == 0)
 	{
-		set_dma_addr( devpriv->dma_chan, virt_to_bus( devpriv->dma_buffer ) );
+		set_dma_addr( devpriv->dma_chan,
+			devpriv->dma_buffer_addr[ devpriv->current_buffer ] );
 		set_dma_count( devpriv->dma_chan, devpriv->dma_transfer_size );
 		enable_dma(devpriv->dma_chan);
 	}
 	release_dma_lock(flags);
 
-	async->events |= COMEDI_CB_BLOCK;
+	das16_write_array_to_buffer( dev,
+		devpriv->dma_buffer[ buffer_index ], num_bytes );
 
 	cfc_handle_events( dev, s );
 }
@@ -1423,10 +1436,15 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	dma_chan = it->options[2];
 	if(dma_chan == 1 || dma_chan == 3)
 	{
-		// allocate dma buffer
-		devpriv->dma_buffer = kmalloc(DAS16_DMA_SIZE, GFP_KERNEL | GFP_DMA);
-		if(devpriv->dma_buffer == NULL)
-			return -ENOMEM;
+		// allocate dma buffers
+		int i;
+		for( i = 0; i < 2; i++)
+		{
+			devpriv->dma_buffer[i] = pci_alloc_consistent( NULL,
+				DAS16_DMA_SIZE, &devpriv->dma_buffer_addr[i] );
+			if( devpriv->dma_buffer[i] == NULL )
+				return -ENOMEM;
+		}
 		if(request_dma(dma_chan, "das16"))
 		{
 			printk(" failed to allocate dma channel %i\n", dma_chan);
@@ -1603,8 +1621,13 @@ static int das16_detach(comedi_device *dev)
 
 	if(devpriv)
 	{
-		if(devpriv->dma_buffer)
-			kfree(devpriv->dma_buffer);
+		int i;
+		for( i = 0; i < 2; i++ )
+		{
+			if( devpriv->dma_buffer[i] )
+				pci_free_consistent( NULL, DAS16_DMA_SIZE, devpriv->dma_buffer[i],
+					devpriv->dma_buffer_addr[i] );
+		}
 		if(devpriv->dma_chan)
 			free_dma(devpriv->dma_chan);
 		if(devpriv->user_ai_range_table)
