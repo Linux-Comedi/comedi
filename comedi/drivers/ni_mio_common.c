@@ -77,6 +77,10 @@
 #define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
+#define ao_win_out(a,b) do{ \
+		ni_writew((b),AO_Window_Address_671x); \
+		ni_writew((a),AO_Window_Data_671x); \
+	}while(0)
 
 /* A timeout count */
 
@@ -1641,7 +1645,7 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 		}
 
 		/* not all boards can deglitch, but this shouldn't hurt */
-		if(chanspec[i] & CR_DITHER)
+		if(chanspec[i] & CR_DEGLITCH)
 			conf |= AO_Deglitch;
 
 		/* analog reference */
@@ -1675,6 +1679,19 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	ni_writew(data[0] ^ invert,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 
 	return 1;
+}
+
+static int ni_ao_insn_write_671x(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+
+	ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
+
+	devpriv->ao[chan] = data[insn->n-1];
+	ao_win_out(data[insn->n-1],DACx_Direct_Data_671x(chan));
+
+	return insn->n;
 }
 
 static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
@@ -1943,19 +1960,23 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+0;
 	dev->read_subdev=s;
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
-	s->subdev_flags|=SDF_DITHER;
-	s->n_chan=boardtype.n_adchan;
-	s->len_chanlist=512;
-	s->maxdata=(1<<boardtype.adbits)-1;
-	s->range_table=ni_range_lkup[boardtype.gainlkup];
-	s->insn_read=ni_ai_insn_read;
-	s->insn_config=ni_ai_insn_config;
-	s->do_cmdtest=ni_ai_cmdtest;
-	s->do_cmd=ni_ai_cmd;
-	s->cancel=ni_ai_reset;
-	s->poll=ni_ai_poll;
+	if(boardtype.n_adchan){
+		s->type=COMEDI_SUBD_AI;
+		s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
+		s->subdev_flags|=SDF_DITHER;
+		s->n_chan=boardtype.n_adchan;
+		s->len_chanlist=512;
+		s->maxdata=(1<<boardtype.adbits)-1;
+		s->range_table=ni_range_lkup[boardtype.gainlkup];
+		s->insn_read=ni_ai_insn_read;
+		s->insn_config=ni_ai_insn_config;
+		s->do_cmdtest=ni_ai_cmdtest;
+		s->do_cmd=ni_ai_cmd;
+		s->cancel=ni_ai_reset;
+		s->poll=ni_ai_poll;
+	}else{
+		s->type=COMEDI_SUBD_UNUSED;
+	}
 
 	/* analog output subdevice */
 
@@ -1972,11 +1993,15 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->range_table=&range_bipolar10;
 		}
 		s->insn_read=ni_ao_insn_read;
-		s->insn_write=ni_ao_insn_write;
-		if(boardtype.ao_fifo_depth){
-			s->do_cmd=ni_ao_cmd;
-			s->do_cmdtest=ni_ao_cmdtest;
-			s->len_chanlist = 2;
+		if(boardtype.ao_671x){
+			s->insn_write=ni_ao_insn_write_671x;
+		}else{
+			s->insn_write=ni_ao_insn_write;
+			if(boardtype.ao_fifo_depth){
+				s->do_cmd=ni_ao_cmd;
+				s->do_cmdtest=ni_ao_cmdtest;
+				s->len_chanlist = 2;
+			}
 		}
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
@@ -2061,6 +2086,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	devpriv->ao_mode2=0;
 	devpriv->ao_mode3=0;
 	devpriv->ao_trigger_select=0;
+	if(boardtype.ao_671x){
+		ao_win_out(0xff,AO_Immediate_671x);
+	}
 
         if(dev->irq){
                 win_out((IRQ_POLARITY<<0) |  /* polarity : active high */
@@ -2157,6 +2185,7 @@ static int pack_mb88341(int addr,int val,int *bitstring);
 static int pack_dac8800(int addr,int val,int *bitstring);
 static int pack_dac8043(int addr,int val,int *bitstring);
 static int pack_ad8522(int addr,int val,int *bitstring);
+static int pack_ad8804(int addr,int val,int *bitstring);
 
 struct caldac_struct{
 	int n_chans;
@@ -2165,10 +2194,12 @@ struct caldac_struct{
 };
 
 static struct caldac_struct caldacs[] = {
-	[mb88341] = { 12, 8, pack_mb88341 },
+	//[mb88341] = { 12, 8, pack_mb88341 },
+	[mb88341] = { 16, 8, pack_mb88341 },
 	[dac8800] = { 8, 8, pack_dac8800 },
 	[dac8043] = { 1, 12, pack_dac8043 },
 	[ad8522]  = { 2, 12, pack_ad8522 },
+	[ad8804] = { 12, 8, pack_ad8804 },
 };
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
@@ -2236,9 +2267,12 @@ static void ni_write_caldac(comedi_device *dev,int addr,int val)
 
 	for(bit=1<<(bits-1);bit;bit>>=1){
 		ni_writeb(((bit&bitstring)?0x02:0),Serial_Command);
+		udelay(1);
 		ni_writeb(1|((bit&bitstring)?0x02:0),Serial_Command);
+		udelay(1);
 	}
 	ni_writeb(loadbit,Serial_Command);
+	udelay(1);
 	ni_writeb(0,Serial_Command);
 }
 
@@ -2280,6 +2314,12 @@ static int pack_ad8522(int addr,int val,int *bitstring)
 {
 	*bitstring=(val&0xfff)|(addr ? 0xc000:0xa000);
 	return 16;
+}
+
+static int pack_ad8804(int addr,int val,int *bitstring)
+{
+	*bitstring=((addr&0xf)<<8) | (val&0xff);
+	return 12;
 }
 
 

@@ -559,6 +559,16 @@
 #define DAC0_Direct_Data		0x18
 #define DAC1_Direct_Data		0x1a
 
+/* 671x registers */
+
+#define AO_Window_Address_671x		0x18 /* W 16 */
+#define AO_Window_Data_671x		0x1e /* W 16 */
+
+/* 671x windowed registers */
+
+#define DACx_Direct_Data_671x(x)	(x) /* W 16 */
+#define AO_Immediate_671x		0x11 /* W 16 */
+
 
 #define SerDacLd(x)			(0x08<<(x))
 
@@ -568,7 +578,7 @@
 */
 
 enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x };
-enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522 };
+enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522, ad8804 };
 
 typedef struct ni_board_struct{
 	int device_id;
@@ -593,6 +603,8 @@ typedef struct ni_board_struct{
 	int has_8255 : 1;
 
 	int has_analog_trig : 1;
+
+	int ao_671x : 1;
 
 	enum caldac_enum caldac[3];
 }ni_board;

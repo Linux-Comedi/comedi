@@ -59,13 +59,8 @@ DMA is halfway completed, but not yet operational.
 	
 	   320517c.pdf  User manual (obsolete)
 	   320517f.pdf  User manual (new)
-	   320889a.pdf  delete
-	   320906c.pdf  maximum signal ratings
-	   321066a.pdf  about 16x
-	   321791a.pdf  discontinuation of at-mio-16e-10 rev. c
-	   321808a.pdf  about at-mio-16e-10 rev P
-	   321837a.pdf  discontinuation of at-mio-16de-10 rev d
-	   321838a.pdf  about at-mio-16de-10 rev N
+
+	   322080b.pdf  6711/6713/6715 User Manual
 	
 	ISSUES:
 
@@ -104,7 +99,7 @@ DMA is halfway completed, but not yet operational.
 
 #define PCI_DEBUG
 
-#define PCIDMA
+//#define PCIDMA
 
 #define PCIMIO 1
 #undef ATMIO
@@ -440,6 +435,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
+		ao_671x:	1,
 		caldac:         {mb88341,mb88341,ad8522},/* XXX */
 	},
 	{       device_id:      0x1870,
@@ -454,6 +450,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
+		ao_671x:	1,
 		caldac:         {mb88341,mb88341,ad8522},/* XXX */
 	},
         {       device_id:      0x15b0,
