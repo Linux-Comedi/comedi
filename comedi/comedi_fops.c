@@ -1677,6 +1677,7 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 		s = dev->subdevices + dev->write_subdev;
 		s->mmap_count -= cfp->write_mmap_count;
 	}
+	kfree(cfp);
 
 	return 0;
 }
