@@ -64,9 +64,6 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 #include <linux/malloc.h>
-#ifdef CONFIG_COMEDI_RTL
-#include <linux/rtl.h>
-#endif
 #include <linux/comedidev.h>
 #include <ni_stc.h>
 #include <8255.h>
