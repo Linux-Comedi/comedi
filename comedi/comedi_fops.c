@@ -1440,7 +1440,7 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 
 ok:
 	MOD_INC_USE_COUNT;
-	if(dev->attached){
+	if(dev->attached && dev->driver->module){
 		__MOD_INC_USE_COUNT(dev->driver->module);
 	}
 	dev->use_count++;
@@ -1466,7 +1466,7 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 	}
 
 	MOD_DEC_USE_COUNT;
-	if(dev->attached){
+	if(dev->attached && dev->driver->module){
 		__MOD_DEC_USE_COUNT(dev->driver->module);
 	}
 
