@@ -93,11 +93,13 @@ MX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-m)))
 
 
 
-include $(TOPDIR)/Rules.make
+-include $(TOPDIR)/Rules.make
 
 
 ni_pcimio.o:	ni_mio_common.c
 ni_atmio.o:	ni_mio_common.c
 ni_mio_cs.o:	ni_mio_common.c
 
+check:
+	(for each in *.c;do ./check_driver $$each;done >ack)
 
