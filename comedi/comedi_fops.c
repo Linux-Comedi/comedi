@@ -62,6 +62,7 @@ static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file);
 static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
+static int do_poll_ioctl(comedi_device *dev,unsigned int subd,void *file);
 
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 int resize_buf(comedi_device *dev,comedi_async *s, unsigned int size);
@@ -69,15 +70,25 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
 static int comedi_fasync (int fd, struct file *file, int on);
 
-static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
+static int comedi_ioctl(struct inode * inode,struct file * file,
+	unsigned int cmd,unsigned long arg)
 {
 	kdev_t minor=MINOR(inode->i_rdev);
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 
+	/* Device config is special, because it must work on
+	 * an unconfigured device. */
+	if(cmd==COMEDI_DEVCONFIG){
+		return do_devconfig_ioctl(dev,(void *)arg,minor);
+	}
+
+	if(!dev->attached){
+		DPRINTK("no driver configured on /dev/comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	switch(cmd)
 	{
-	case COMEDI_DEVCONFIG:
-		return do_devconfig_ioctl(dev,(void *)arg,minor);
 	case COMEDI_BUFCONFIG:
 		return do_bufconfig_ioctl(dev,(void*)arg);
 	case COMEDI_DEVINFO:
@@ -106,6 +117,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 		return do_cmdtest_ioctl(dev,(void *)arg,file);
 	case COMEDI_INSNLIST:
 		return do_insnlist_ioctl(dev,(void *)arg,file);
+	case COMEDI_POLL:
+		return do_poll_ioctl(dev,arg,file);
 	default:
 		return -EIO;
 	}
@@ -164,13 +177,6 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	comedi_async *async;
 	comedi_subdevice *s;
 	int ret = 0;
-
-	// perform sanity checks
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
 
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
@@ -469,13 +475,6 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	unsigned long irq_flags;
 	int m;
 
-	// perform sanity checks
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
-
 	if(copy_from_user(&bi,arg, sizeof(comedi_bufinfo)))
 		return -EFAULT;
 
@@ -508,7 +507,7 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		async->buf_user_count += bi.bytes_read;
 
 		// check for buffer overrun
-		if(m > async->data_len){	/* XXX MODE */
+		if(m > async->data_len){
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
 			do_cancel(dev, dev->read_subdev);
@@ -555,12 +554,6 @@ static int do_trig_ioctl(comedi_device *dev,void *arg,void *file)
 {
 	comedi_trig user_trig;
 	comedi_subdevice *s;
-
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
 
 #if 0
 DPRINTK("entering do_trig_ioctl()\n");
@@ -831,12 +824,6 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 	int i;
 	int ret=0;
 
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
-
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
 
@@ -985,12 +972,6 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	int ret=0;
 	unsigned int *chanlist_saver=NULL;
 
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
-
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
@@ -1085,9 +1066,12 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 
+#if 0
 	/* XXX this needs to be removed when the drivers are ready */
+	/* They should be ready now. */
 	async->cmd.data = async->prealloc_buf;
 	async->cmd.data_len=async->prealloc_bufsz;
+#endif
 
 	async->data = async->prealloc_buf;
 	async->data_len=async->prealloc_bufsz;
@@ -1150,12 +1134,6 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 	int ret=0;
 	unsigned int *chanlist=NULL;
 	unsigned int *chanlist_saver=NULL;
-
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
 
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
@@ -1264,12 +1242,6 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 	int ret=0;
 	comedi_subdevice *s;
 
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
-
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+arg;
@@ -1319,12 +1291,6 @@ static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 {
 	comedi_subdevice *s;
 
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
-
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+arg;
@@ -1365,12 +1331,6 @@ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 {
 	comedi_subdevice *s;
 
-	if(!dev->attached)
-	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
-	}
-
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+arg;
@@ -1385,6 +1345,42 @@ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 		return -EBUSY;
 
 	return do_cancel(dev,s);
+}
+
+/*
+	COMEDI_POLL ioctl
+	instructs driver to synchronize buffers
+	
+	arg:
+		subdevice number
+	
+	reads:
+		nothing
+	
+	writes:
+		nothing
+
+*/
+static int do_poll_ioctl(comedi_device *dev,unsigned int arg,void *file)
+{
+	comedi_subdevice *s;
+
+	if(arg>=dev->n_subdevices)
+		return -EINVAL;
+	s=dev->subdevices+arg;
+
+	if(s->lock && s->lock!=file)
+		return -EACCES;
+
+	if(!s->busy)
+		return 0;
+
+	if(s->busy!=file)
+		return -EBUSY;
+
+	if(s->poll)return s->poll(dev,s);
+
+	return -EINVAL;
 }
 
 static int do_cancel(comedi_device *dev,comedi_subdevice *s)
@@ -1542,7 +1538,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 	if(!s->busy){
 		/* XXX this is going to change soon -- write cmds
-		 * will require start_src=TRIG_READY */
+		 * will require start_src=TRIG_FOLLOW */
 		buf_ptr=async->prealloc_buf;
 		buf_len=async->prealloc_bufsz;
 	}else{
