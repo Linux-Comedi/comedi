@@ -3,7 +3,7 @@
 
 VERS1 = 0
 VERS2 = 7
-VERS3 = 37
+VERS3 = 38
 
 INSTALLDIR=/usr
 
