@@ -25,7 +25,7 @@
 typedef void irqreturn_t;
 #define IRQ_NONE
 #define IRQ_HANDLED
-#define IRQ_RETVAL(x)
+#define IRQ_RETVAL(x) (void)(x)
 #endif
 
 #include_next <linux/interrupt.h>

@@ -55,7 +55,7 @@
 #define rt_printk printk
 #endif
 
-int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,
+int comedi_request_irq(unsigned int irq,irqreturn_t (*handler)(int,void *,
 	struct pt_regs *regs),unsigned long flags,const char *device,
 	comedi_device *dev_id);
 void comedi_free_irq(unsigned int irq,comedi_device *dev_id);
