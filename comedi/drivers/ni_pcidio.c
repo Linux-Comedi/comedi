@@ -45,8 +45,10 @@ DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
 
-The PCI-6534 requires a firmware upload after power-up to work, but support for this
-has not been added yet.
+The PCI-6534 requires a firmware upload after power-up to work, the
+firmware data and instructions for loading it with comedi_config
+it are contained in the
+comedi_firmware tarball available from http://www.comedi.org
 */
 
 /*
@@ -244,6 +246,35 @@ has not been added yet.
 #define Protocol_Register_8		88 /* 32 bit */
 #define StartDelay			Protocol_Register_8
 
+enum pci_6534_firmware_registers	/* 16 bit */
+{
+	Firmware_Control_Register = 0x100,
+	Firmware_Status_Register = 0x104,
+	Firmware_Data_Register = 0x108,
+	Firmware_Mask_Register = 0x10c,
+	Firmware_Debug_Register = 0x110,
+};
+/* main fpga registers (32 bit)*/
+enum pci_6534_fpga_registers
+{
+	FPGA_Control1_Register = 0x200,
+	FPGA_Control2_Register = 0x204,
+	FPGA_Irq_Mask_Register = 0x208,
+	FPGA_Status_Register = 0x20c,
+	FPGA_Signature_Register = 0x210,
+	FPGA_SCALS_Counter_Register = 0x280,	/*write-clear*/
+	FPGA_SCAMS_Counter_Register = 0x284,	/*write-clear*/
+	FPGA_SCBLS_Counter_Register = 0x288,	/*write-clear*/
+	FPGA_SCBMS_Counter_Register = 0x28c,	/*write-clear*/
+	FPGA_Temp_Control_Register = 0x2a0,
+	FPGA_DAR_Register = 0x2a8,
+	FPGA_ELC_Read_Register = 0x2b8,
+	FPGA_ELC_Write_Register = 0x2bc,
+};
+enum FPGA_Control_Bits
+{
+	FPGA_Enable_Bit = 0x8000,
+};
 
 #define TIMER_BASE 50		/* nanoseconds */
 
@@ -273,6 +304,7 @@ typedef struct{
 	char *name;
 	int n_8255;
 	unsigned int is_diodaq : 1;
+	unsigned int uses_firmware : 1;
 }nidio_board;
 static nidio_board nidio_boards[]={
 	{
@@ -292,6 +324,7 @@ static nidio_board nidio_boards[]={
 	name:		"pci-6534",
 	n_8255:		0,
 	is_diodaq:	1,
+	uses_firmware:	1,
 	},
 	{
 	dev_id:		0x0160,
@@ -928,6 +961,103 @@ static int ni_pcidio_change(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
+static int pci_6534_load_fpga(comedi_device *dev, int fpga_index, u8 *data, int data_len)
+{
+	static const int timeout = 1000;
+	int i, j;
+	writew(0x80 | fpga_index, dev->iobase + Firmware_Control_Register);
+	writew(0xc0 | fpga_index, dev->iobase + Firmware_Control_Register);
+	for(i = 0; (readw(dev->iobase + Firmware_Status_Register) & 0x2) == 0 && i < timeout; ++i)
+	{
+		comedi_udelay(1);
+	}
+	if(i == timeout)
+	{
+		printk("ni_pcidio: failed to load fpga %i, waiting for status 0x2\n", fpga_index);
+		return -EIO;
+	}
+	writew(0x80 | fpga_index, dev->iobase + Firmware_Control_Register);
+	for(i = 0; readw(dev->iobase + Firmware_Status_Register) != 0x3 && i < timeout; ++i)
+	{
+		comedi_udelay(1);
+	}
+	if(i == timeout)
+	{
+		printk("ni_pcidio: failed to load fpga %i, waiting for status 0x3\n", fpga_index);
+		return -EIO;
+	}
+	for(j = 0; j + 1 < data_len;)
+	{
+		unsigned int value = data[j++];
+		value |= data[j++] << 8;
+		writew(value, dev->iobase + Firmware_Data_Register);
+		for(i = 0; (readw(dev->iobase + Firmware_Status_Register) & 0x2) == 0 && i < timeout; ++i)
+		{
+			comedi_udelay(1);
+		}
+		if(i == timeout)
+		{
+			printk("ni_pcidio: failed to load word into fpga %i\n", fpga_index);
+			return -EIO;
+		}
+	}
+	writew(0x0, dev->iobase + Firmware_Control_Register);
+	return 0;
+}
+
+static int pci_6534_reset_fpga(comedi_device *dev, int fpga_index)
+{
+	return pci_6534_load_fpga(dev, fpga_index, NULL, 0);
+}
+
+static int pci_6534_reset_fpgas(comedi_device *dev)
+{
+	int ret;
+	int i;
+	writew(0x0, dev->iobase + Firmware_Control_Register);
+	for(i = 0; i < 3; ++i)
+	{
+		ret = pci_6534_reset_fpga(dev, i);
+		if(ret < 0) break;
+	}
+	writew(0x0, dev->iobase + Firmware_Mask_Register);
+	return ret;
+}
+
+static void pci_6534_init_main_fpga(comedi_device *dev)	
+{
+	writel(0, dev->iobase + FPGA_Control1_Register);
+	writel(0, dev->iobase + FPGA_Control2_Register);
+	writel(0, dev->iobase + FPGA_SCALS_Counter_Register);
+	writel(0, dev->iobase + FPGA_SCAMS_Counter_Register);
+	writel(0, dev->iobase + FPGA_SCBLS_Counter_Register);
+	writel(0, dev->iobase + FPGA_SCBMS_Counter_Register);
+}
+
+static int pci_6534_upload_firmware(comedi_device *dev, int options[])
+{
+	int ret;
+	void *main_fpga_data, *scarab_a_data, *scarab_b_data;
+	int main_fpga_data_len, scarab_a_data_len, scarab_b_data_len;
+	
+	if(options[COMEDI_DEVCONF_AUX_DATA_LENGTH] == 0) return 0;
+	ret = pci_6534_reset_fpgas(dev);
+	if(ret < 0) return ret;
+	main_fpga_data = comedi_aux_data(options, 0);
+	main_fpga_data_len = options[COMEDI_DEVCONF_AUX_DATA0_LENGTH];
+	ret = pci_6534_load_fpga(dev, 2, main_fpga_data, main_fpga_data_len);
+	if(ret < 0) return ret;
+	pci_6534_init_main_fpga(dev);
+	scarab_a_data = comedi_aux_data(options, 1);
+	scarab_a_data_len = options[COMEDI_DEVCONF_AUX_DATA1_LENGTH];	
+	ret = pci_6534_load_fpga(dev, 0, scarab_a_data, scarab_a_data_len);
+	if(ret < 0) return ret;
+	scarab_b_data = comedi_aux_data(options, 2);
+	scarab_b_data_len = options[COMEDI_DEVCONF_AUX_DATA2_LENGTH];	
+	ret = pci_6534_load_fpga(dev, 1, scarab_b_data, scarab_b_data_len);
+	if(ret < 0) return ret;	
+	return 0;
+}
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -955,7 +1085,12 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name=this_board->name;
 	dev->irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);
-
+	if(this_board->uses_firmware)
+	{
+		ret = pci_6534_upload_firmware(dev, it->options);
+		if(ret < 0)
+			return ret;
+	}
 	if(!this_board->is_diodaq){
 		n_subdevices=this_board->n_8255;
 	}else{
