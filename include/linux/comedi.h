@@ -95,7 +95,6 @@ typedef unsigned short sampl_t;
 #define GPCT_CONT_PULSE_OUT	0x0200
 #define GPCT_SINGLE_PULSE_OUT	0x0400
 
-
 /* instructions */
 
 #define INSN_MASK_WRITE		0x8000000
@@ -412,6 +411,31 @@ struct comedi_bufinfo_struct{
 #define COMEDI_CB_ERROR		16	/* card error during acquisition */
 #define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
 
+/**********************************************************/
+/* everything after this line is ALPHA */
+/**********************************************************/
+
+/*
+	Added by Klaas Gadeyne after implementation of driver for comedi NI
+	660x counter card.
+	Please see
+	<http://people.mech.kuleuven.ac.be/~kgadeyne/linux/> for more
+	information about their use
+*/
+#define INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR 1001 // Use CTR as single pulsegenerator
+#define INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR 1002 // Use CTR as pulsetraingenerator
+#define INSN_CONFIG_GPCT_QUADRATURE_ENCODER 1003 // Use the counter as encoder
+
+#define GPCT_X1                 0x01 // X1 encoding
+#define GPCT_X2                 0x02 // X2 encoding
+#define GPCT_X4                 0x04 // X3 encoding
+// When to take into account the indexpulse:
+#define GPCT_IndexPhaseHighHigh 0
+#define GPCT_IndexPhaseLowHigh 1
+#define GPCT_IndexPhaseLowLow 2
+#define GPCT_IndexPhaseHighLow 3
+// Reset when index pulse arrives?
+#define GPCT_RESET_COUNTER_ON_INDEX 1
 
 #ifdef __cplusplus
 }

@@ -62,88 +62,88 @@ Measurement, ...)
 
 /* See Register-Level Programmer Manual page 3.1 */
 typedef enum
-  {
-    G0InterruptAcknowledge,
-    G0StatusRegister,
-    G1InterruptAcknowledge,
-    G1StatusRegister,
-    G01StatusRegister,
-    G0CommandRegister,
-    G1CommandRegister,
-    G0HWSaveRegister,
-    G1HWSaveRegister,
-    G0SWSaveRegister,
-    G1SWSaveRegister,
-    G0ModeRegister,
-    G01JointStatus1Register,
-    G1ModeRegister,
-    G0LoadARegister,
-    G01JointStatus2Register,
-    G0LoadBRegister,
-    G1LoadARegister,
-    G1LoadBRegister,
-    G0InputSelectRegister,
-    G1InputSelectRegister,
-    G01JointResetRegister,
-    G0InterruptEnable,
-    G1InterruptEnable,
-    G0CountingModeRegister,
-    G1CountingModeRegister,
-    G0SecondGateRegister,
-    G1SecondGateRegister,
-    G0DMAConfigRegister,
-    G0DMAStatusRegister,
-    G1DMAConfigRegister,
-    G1DMAStatusRegister,
-    G2InterruptAcknowledge,
-    G2StatusRegister,
-    G3InterruptAcknowledge,
-    G3StatusRegister,
-    G23StatusRegister,
-    G2CommandRegister,
-    G3CommandRegister,
-    G2HWSaveRegister,
-    G3HWSaveRegister,
-    G2SWSaveRegister,
-    G3SWSaveRegister,
-    G2ModeRegister,
-    G23JointStatus1Register,
-    G3ModeRegister,
-    G2LoadARegister,
-    G23JointStatus2Register,
-    G2LoadBRegister,
-    G3LoadARegister,
-    G3LoadBRegister,
-    G2InputSelectRegister,
-    G3InputSelectRegister,
-    G23JointResetRegister,
-    G2InterruptEnable,
-    G3InterruptEnable,
-    G2CountingModeRegister,
-    G3CountingModeRegister,
-    G3SecondGateRegister,
-    G2SecondGateRegister,
-    G2DMAConfigRegister,
-    G2DMAStatusRegister,
-    G3DMAConfigRegister,
-    G3DMAStatusRegister,
-    ClockConfigRegister,
-    IOConfigReg0_3,
-    IOConfigReg4_7,
-    IOConfigReg8_11,
-    IOConfigReg12_15,
-    IOConfigReg16_19,
-    IOConfigReg20_23,
-    IOConfigReg24_27,
-    IOConfigReg28_31,
-    IOConfigReg32_35,
-    IOConfigReg36_39,
-    STCDIOParallelInput,
-    STCDIOOutput,
-    STCDIOControl,
-    STCDIOSerialInput,
-    NumRegisters,
-  } NI_660xRegisters;
+{
+	G0InterruptAcknowledge,
+	G0StatusRegister,
+	G1InterruptAcknowledge,
+	G1StatusRegister,
+	G01StatusRegister,
+	G0CommandRegister,
+	G1CommandRegister,
+	G0HWSaveRegister,
+	G1HWSaveRegister,
+	G0SWSaveRegister,
+	G1SWSaveRegister,
+	G0ModeRegister,
+	G01JointStatus1Register,
+	G1ModeRegister,
+	G0LoadARegister,
+	G01JointStatus2Register,
+	G0LoadBRegister,
+	G1LoadARegister,
+	G1LoadBRegister,
+	G0InputSelectRegister,
+	G1InputSelectRegister,
+	G01JointResetRegister,
+	G0InterruptEnable,
+	G1InterruptEnable,
+	G0CountingModeRegister,
+	G1CountingModeRegister,
+	G0SecondGateRegister,
+	G1SecondGateRegister,
+	G0DMAConfigRegister,
+	G0DMAStatusRegister,
+	G1DMAConfigRegister,
+	G1DMAStatusRegister,
+	G2InterruptAcknowledge,
+	G2StatusRegister,
+	G3InterruptAcknowledge,
+	G3StatusRegister,
+	G23StatusRegister,
+	G2CommandRegister,
+	G3CommandRegister,
+	G2HWSaveRegister,
+	G3HWSaveRegister,
+	G2SWSaveRegister,
+	G3SWSaveRegister,
+	G2ModeRegister,
+	G23JointStatus1Register,
+	G3ModeRegister,
+	G2LoadARegister,
+	G23JointStatus2Register,
+	G2LoadBRegister,
+	G3LoadARegister,
+	G3LoadBRegister,
+	G2InputSelectRegister,
+	G3InputSelectRegister,
+	G23JointResetRegister,
+	G2InterruptEnable,
+	G3InterruptEnable,
+	G2CountingModeRegister,
+	G3CountingModeRegister,
+	G3SecondGateRegister,
+	G2SecondGateRegister,
+	G2DMAConfigRegister,
+	G2DMAStatusRegister,
+	G3DMAConfigRegister,
+	G3DMAStatusRegister,
+	ClockConfigRegister,
+	IOConfigReg0_3,
+	IOConfigReg4_7,
+	IOConfigReg8_11,
+	IOConfigReg12_15,
+	IOConfigReg16_19,
+	IOConfigReg20_23,
+	IOConfigReg24_27,
+	IOConfigReg28_31,
+	IOConfigReg32_35,
+	IOConfigReg36_39,
+	STCDIOParallelInput,
+	STCDIOOutput,
+	STCDIOControl,
+	STCDIOSerialInput,
+	NumRegisters,
+} NI_660xRegisters;
 static inline int GxCommandRegister(int counter_channel)
 {
 	switch(counter_channel)
@@ -364,123 +364,123 @@ static inline int IOConfigReg(int chipset, int counter_channel)
 
 typedef struct
 {
-  char *name; // Register Name
-  int offset; // Offset from base address from GPCT chip
-  int direction; // read or write, ie INSN_READ or ...
-  int size; // 1 byte, 2 bytes, or 4 bytes
+	char *name; // Register Name
+	int offset; // Offset from base address from GPCT chip
+	int direction; // read or write, ie INSN_READ or ...
+	int size; // 1 byte, 2 bytes, or 4 bytes
 } NI_660xRegisterData;
 
 #define INSN_RW 3 // Unused, could be used to check that register can
 		  // both be written or read
 
 const NI_660xRegisterData registerData[NumRegisters] =
-  {
-    {"G0 Interrupt Acknowledge", 0x004, INSN_WRITE, DATA_2B},
-    {"G0 Status Register", 0x004, INSN_READ, DATA_2B},
-    {"G1 Interrupt Acknowledge", 0x006, INSN_WRITE, DATA_2B},
-    {"G1 Status Register", 0x006, INSN_READ, DATA_2B},
-    {"G01 Status Register ", 0x008, INSN_READ, DATA_2B},
-    {"G0 Command Register", 0x00C, INSN_WRITE, DATA_2B},
-    {"G1 Command Register", 0x00E, INSN_WRITE, DATA_2B},
-    {"G0 HW Save Register", 0x010, INSN_READ, DATA_4B},
-    {"G1 HW Save Register", 0x014, INSN_READ, DATA_4B},
-    {"G0 SW Save Register", 0x018, INSN_READ, DATA_4B},
-    {"G1 SW Save Register", 0x01C, INSN_READ, DATA_4B},
-    {"G0 Mode Register", 0x034, INSN_WRITE, DATA_2B},
-    {"G01 Joint Status 1 Register", 0x036, INSN_READ, DATA_2B},
-    {"G1 Mode Register", 0x036, INSN_WRITE, DATA_2B},
-    {"G0 Load A Register", 0x038, INSN_WRITE, DATA_4B},
-    {"G01 Joint Status 2 Register", 0x03A, INSN_READ, DATA_2B},
-    {"G0 Load B Register", 0x03C, INSN_WRITE, DATA_4B},
-    {"G1 Load A Register", 0x040, INSN_WRITE, DATA_4B},
-    {"G1 Load B Register", 0x044, INSN_WRITE, DATA_4B},
-    {"G0 Input Select Register", 0x048, INSN_WRITE, DATA_2B},
-    {"G1 Input Select Register", 0x04A, INSN_WRITE, DATA_2B},
-    {"G01 Joint Reset Register", 0x090, INSN_WRITE, DATA_2B},
-    {"G0 Interrupt Enable", 0x092, INSN_WRITE, DATA_2B},
-    {"G1 Interrupt Enable", 0x096, INSN_WRITE, DATA_2B},
-    {"G0 Counting Mode Register", 0x0B0, INSN_WRITE, DATA_2B},
-    {"G1 Counting Mode Register", 0x0B2, INSN_WRITE, DATA_2B},
-    {"G0 Second Gate Register", 0x0B4, INSN_WRITE, DATA_2B},
-    {"G1 Second Gate Register", 0x0B6, INSN_WRITE, DATA_2B},
-    {"G0 DMA Config Register", 0x0B8, INSN_WRITE, DATA_2B},
-    {"G0 DMA Status Register", 0x0B8, INSN_READ, DATA_2B},
-    {"G1 DMA Config Register", 0x0BA, INSN_WRITE, DATA_2B},
-    {"G1 DMA Status Register", 0x0BA, INSN_READ, DATA_2B},
-    {"G2 Interrupt Acknowledge", 0x104, INSN_WRITE, DATA_2B},
-    {"G2 Status Register", 0x104, INSN_READ, DATA_2B},
-    {"G3 Interrupt Acknowledge", 0x106, INSN_WRITE, DATA_2B},
-    {"G3 Status Register", 0x106, INSN_READ, DATA_2B},
-    {"G23 Status Register", 0x108, INSN_READ, DATA_2B},
-    {"G2 Command Register", 0x10C, INSN_WRITE, DATA_2B},
-    {"G3 Command Register", 0x10E, INSN_WRITE, DATA_2B},
-    {"G2 HW Save Register", 0x110, INSN_READ, DATA_4B},
-    {"G3 HW Save Register", 0x114, INSN_READ, DATA_4B},
-    {"G2 SW Save Register", 0x118, INSN_READ, DATA_4B},
-    {"G3 SW Save Register", 0x11C, INSN_READ, DATA_4B},
-    {"G2 Mode Register", 0x134, INSN_WRITE, DATA_2B},
-    {"G23 Joint Status 1 Register", 0x136, INSN_READ, DATA_2B},
-    {"G3 Mode Register", 0x136, INSN_WRITE, DATA_2B},
-    {"G2 Load A Register", 0x138, INSN_WRITE, DATA_4B},
-    {"G23 Joint Status 2 Register", 0x13A, INSN_READ, DATA_2B},
-    {"G2 Load B Register", 0x13C, INSN_WRITE, DATA_4B},
-    {"G3 Load A Register", 0x140, INSN_WRITE, DATA_4B},
-    {"G3 Load B Register", 0x144, INSN_WRITE, DATA_4B},
-    {"G2 Input Select Register", 0x148, INSN_WRITE, DATA_2B},
-    {"G3 Input Select Register", 0x14A, INSN_WRITE, DATA_2B},
-    {"G23 Joint Reset Register", 0x190, INSN_WRITE, DATA_2B},
-    {"G2 Interrupt Enable", 0x192, INSN_WRITE, DATA_2B},
-    {"G3 Interrupt Enable", 0x196, INSN_WRITE, DATA_2B},
-    {"G2 Counting Mode Register", 0x1B0, INSN_WRITE, DATA_2B},
-    {"G3 Counting Mode Register", 0x1B2, INSN_WRITE, DATA_2B},
-    {"G3 Second Gate Register", 0x1B6, INSN_WRITE, DATA_2B},
-    {"G2 Second Gate Register", 0x1B4, INSN_WRITE, DATA_2B},
+{
+	{"G0 Interrupt Acknowledge", 0x004, INSN_WRITE, DATA_2B},
+	{"G0 Status Register", 0x004, INSN_READ, DATA_2B},
+	{"G1 Interrupt Acknowledge", 0x006, INSN_WRITE, DATA_2B},
+	{"G1 Status Register", 0x006, INSN_READ, DATA_2B},
+	{"G01 Status Register ", 0x008, INSN_READ, DATA_2B},
+	{"G0 Command Register", 0x00C, INSN_WRITE, DATA_2B},
+	{"G1 Command Register", 0x00E, INSN_WRITE, DATA_2B},
+	{"G0 HW Save Register", 0x010, INSN_READ, DATA_4B},
+	{"G1 HW Save Register", 0x014, INSN_READ, DATA_4B},
+	{"G0 SW Save Register", 0x018, INSN_READ, DATA_4B},
+	{"G1 SW Save Register", 0x01C, INSN_READ, DATA_4B},
+	{"G0 Mode Register", 0x034, INSN_WRITE, DATA_2B},
+	{"G01 Joint Status 1 Register", 0x036, INSN_READ, DATA_2B},
+	{"G1 Mode Register", 0x036, INSN_WRITE, DATA_2B},
+	{"G0 Load A Register", 0x038, INSN_WRITE, DATA_4B},
+	{"G01 Joint Status 2 Register", 0x03A, INSN_READ, DATA_2B},
+	{"G0 Load B Register", 0x03C, INSN_WRITE, DATA_4B},
+	{"G1 Load A Register", 0x040, INSN_WRITE, DATA_4B},
+	{"G1 Load B Register", 0x044, INSN_WRITE, DATA_4B},
+	{"G0 Input Select Register", 0x048, INSN_WRITE, DATA_2B},
+	{"G1 Input Select Register", 0x04A, INSN_WRITE, DATA_2B},
+	{"G01 Joint Reset Register", 0x090, INSN_WRITE, DATA_2B},
+	{"G0 Interrupt Enable", 0x092, INSN_WRITE, DATA_2B},
+	{"G1 Interrupt Enable", 0x096, INSN_WRITE, DATA_2B},
+	{"G0 Counting Mode Register", 0x0B0, INSN_WRITE, DATA_2B},
+	{"G1 Counting Mode Register", 0x0B2, INSN_WRITE, DATA_2B},
+	{"G0 Second Gate Register", 0x0B4, INSN_WRITE, DATA_2B},
+	{"G1 Second Gate Register", 0x0B6, INSN_WRITE, DATA_2B},
+	{"G0 DMA Config Register", 0x0B8, INSN_WRITE, DATA_2B},
+	{"G0 DMA Status Register", 0x0B8, INSN_READ, DATA_2B},
+	{"G1 DMA Config Register", 0x0BA, INSN_WRITE, DATA_2B},
+	{"G1 DMA Status Register", 0x0BA, INSN_READ, DATA_2B},
+	{"G2 Interrupt Acknowledge", 0x104, INSN_WRITE, DATA_2B},
+	{"G2 Status Register", 0x104, INSN_READ, DATA_2B},
+	{"G3 Interrupt Acknowledge", 0x106, INSN_WRITE, DATA_2B},
+	{"G3 Status Register", 0x106, INSN_READ, DATA_2B},
+	{"G23 Status Register", 0x108, INSN_READ, DATA_2B},
+	{"G2 Command Register", 0x10C, INSN_WRITE, DATA_2B},
+	{"G3 Command Register", 0x10E, INSN_WRITE, DATA_2B},
+	{"G2 HW Save Register", 0x110, INSN_READ, DATA_4B},
+	{"G3 HW Save Register", 0x114, INSN_READ, DATA_4B},
+	{"G2 SW Save Register", 0x118, INSN_READ, DATA_4B},
+	{"G3 SW Save Register", 0x11C, INSN_READ, DATA_4B},
+	{"G2 Mode Register", 0x134, INSN_WRITE, DATA_2B},
+	{"G23 Joint Status 1 Register", 0x136, INSN_READ, DATA_2B},
+	{"G3 Mode Register", 0x136, INSN_WRITE, DATA_2B},
+	{"G2 Load A Register", 0x138, INSN_WRITE, DATA_4B},
+	{"G23 Joint Status 2 Register", 0x13A, INSN_READ, DATA_2B},
+	{"G2 Load B Register", 0x13C, INSN_WRITE, DATA_4B},
+	{"G3 Load A Register", 0x140, INSN_WRITE, DATA_4B},
+	{"G3 Load B Register", 0x144, INSN_WRITE, DATA_4B},
+	{"G2 Input Select Register", 0x148, INSN_WRITE, DATA_2B},
+	{"G3 Input Select Register", 0x14A, INSN_WRITE, DATA_2B},
+	{"G23 Joint Reset Register", 0x190, INSN_WRITE, DATA_2B},
+	{"G2 Interrupt Enable", 0x192, INSN_WRITE, DATA_2B},
+	{"G3 Interrupt Enable", 0x196, INSN_WRITE, DATA_2B},
+	{"G2 Counting Mode Register", 0x1B0, INSN_WRITE, DATA_2B},
+	{"G3 Counting Mode Register", 0x1B2, INSN_WRITE, DATA_2B},
+	{"G3 Second Gate Register", 0x1B6, INSN_WRITE, DATA_2B},
+	{"G2 Second Gate Register", 0x1B4, INSN_WRITE, DATA_2B},
 
-    {"G2 DMA Config Register", 0x1B8, INSN_WRITE, DATA_2B},
-    {"G2 DMA Status Register", 0x1B8, INSN_READ, DATA_2B},
-    {"G3 DMA Config Register", 0x1BA, INSN_WRITE, DATA_2B},
-    {"G3 DMA Status Register", 0x1BA, INSN_READ, DATA_2B},
-    {"Clock Config Register", 0x73C, INSN_WRITE, DATA_4B},
-    {"IO Config Register 0-3", 0x77C, INSN_RW, DATA_4B}, // READWRITE
-    {"IO Config Register 4-7", 0x780, INSN_RW, DATA_4B},
-    {"IO Config Register 8-11", 0x784, INSN_RW, DATA_4B},
-    {"IO Config Register 12-15", 0x788, INSN_RW, DATA_4B},
-    {"IO Config Register 16-19", 0x78C, INSN_RW, DATA_4B},
-    {"IO Config Register 20-23", 0x790, INSN_RW, DATA_4B},
-    {"IO Config Register 24-27", 0x794, INSN_RW, DATA_4B},
-    {"IO Config Register 28-31", 0x798, INSN_RW, DATA_4B},
-    {"IO Config Register 32-35", 0x79C, INSN_RW, DATA_4B},
-    {"IO Config Register 36-39", 0x7A0, INSN_RW, DATA_4B},
-    {"STD DIO Parallel Input", 0x00E, INSN_READ, DATA_2B},
-    {"STD DIO Output", 0x014, INSN_WRITE, DATA_2B},
-    {"STD DIO Control", 0x016, INSN_WRITE, DATA_2B},
-    {"STD DIO Serial Input", 0x038, INSN_READ, DATA_2B},
-  };
+	{"G2 DMA Config Register", 0x1B8, INSN_WRITE, DATA_2B},
+	{"G2 DMA Status Register", 0x1B8, INSN_READ, DATA_2B},
+	{"G3 DMA Config Register", 0x1BA, INSN_WRITE, DATA_2B},
+	{"G3 DMA Status Register", 0x1BA, INSN_READ, DATA_2B},
+	{"Clock Config Register", 0x73C, INSN_WRITE, DATA_4B},
+	{"IO Config Register 0-3", 0x77C, INSN_RW, DATA_4B}, // READWRITE
+	{"IO Config Register 4-7", 0x780, INSN_RW, DATA_4B},
+	{"IO Config Register 8-11", 0x784, INSN_RW, DATA_4B},
+	{"IO Config Register 12-15", 0x788, INSN_RW, DATA_4B},
+	{"IO Config Register 16-19", 0x78C, INSN_RW, DATA_4B},
+	{"IO Config Register 20-23", 0x790, INSN_RW, DATA_4B},
+	{"IO Config Register 24-27", 0x794, INSN_RW, DATA_4B},
+	{"IO Config Register 28-31", 0x798, INSN_RW, DATA_4B},
+	{"IO Config Register 32-35", 0x79C, INSN_RW, DATA_4B},
+	{"IO Config Register 36-39", 0x7A0, INSN_RW, DATA_4B},
+	{"STD DIO Parallel Input", 0x00E, INSN_READ, DATA_2B},
+	{"STD DIO Output", 0x014, INSN_WRITE, DATA_2B},
+	{"STD DIO Control", 0x016, INSN_WRITE, DATA_2B},
+	{"STD DIO Serial Input", 0x038, INSN_READ, DATA_2B},
+};
 
 
 /* Different Application Classes for GPCT Subdevices */
 /* The list is not exhaustive and needs discussion! */
 typedef enum
-  {
-    CountingAndTimeMeasurement,
-    SinglePulseGeneration,
-    PulseTrainGeneration,
-    PositionMeasurement,
-    Miscellaneous
-  } NI_660x_GPCT_AppClass;
+{
+	CountingAndTimeMeasurement,
+	SinglePulseGeneration,
+	PulseTrainGeneration,
+	PositionMeasurement,
+	Miscellaneous
+} NI_660x_GPCT_AppClass;
 
 
 /* Config struct for different GPCT subdevice Application Classes and
-   their options 
+   their options
 */
 typedef struct
 {
-  NI_660x_GPCT_AppClass App;
-  /* Application dependent data, eg. for encoders, See mail Herman Bruyninckx
-  <https://cvs.comedi.org/pipermail/comedi/2003-April/004381.html>
-   and Adapted by Klaas Gadeyne with real-life experience :-)
-  */
-  int data[6];
+	NI_660x_GPCT_AppClass App;
+	/* Application dependent data, eg. for encoders, See mail Herman Bruyninckx
+	<https://cvs.comedi.org/pipermail/comedi/2003-April/004381.html>
+	and Adapted by Klaas Gadeyne with real-life experience :-)
+	*/
+	int data[6];
 } NI_660x_GPCT_Config;
 
 #define NI_660X_GPCT_MAXCHANNELS 8 // To avoid dyn. mem. allocation
@@ -608,32 +608,32 @@ const int GPCT_OFFSET[2] = {0x0,0x800}; /* First chip is at base-adress +
 /* Board description*/
 typedef struct
 {
-  unsigned short dev_id; /* `lspci` will show you this */
-  char *name;
-  int n_ctrs; /* total number of counters */
-  int cnt_bits; /* number of bits in each counter */
+	unsigned short dev_id; /* `lspci` will show you this */
+	char *name;
+	int n_ctrs; /* total number of counters */
+	int cnt_bits; /* number of bits in each counter */
 } ni_660x_board;
 
-static ni_660x_board ni_660x_boards[] = 
-  {
-    {
-      dev_id       : 0x2c60,
-      name         : "PCI-6601",
-      n_ctrs       : 1*CTRS_PER_CHIP,
-      cnt_bits     : 32,
-    },
-    {
-      dev_id       : 0x1310,
-      name         : "PCI-6602",
-      n_ctrs       : 2*CTRS_PER_CHIP,
-      cnt_bits     : 32,
-    },
-  };
+static ni_660x_board ni_660x_boards[] =
+{
+	{
+		dev_id       : 0x2c60,
+		name         : "PCI-6601",
+		n_ctrs       : 1*CTRS_PER_CHIP,
+		cnt_bits     : 32,
+	},
+	{
+		dev_id       : 0x1310,
+		name         : "PCI-6602",
+		n_ctrs       : 2*CTRS_PER_CHIP,
+		cnt_bits     : 32,
+	},
+};
 
 static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
-  { PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-  { PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-  { 0 }
+	{ PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 
@@ -642,8 +642,8 @@ MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 
 typedef struct
 {
-  struct mite_struct *mite;
-  int boardtype;
+	struct mite_struct *mite;
+	int boardtype;
 }ni_660x_private;
 
 #define devpriv ((ni_660x_private *)dev->private)
@@ -653,12 +653,12 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_660x_detach(comedi_device *dev);
 
 static comedi_driver driver_ni_660x=
-  {
-    driver_name:	"ni_660x",
-    module:		THIS_MODULE,
-    attach:		ni_660x_attach,
-    detach:		ni_660x_detach,
-  };
+{
+	driver_name:	"ni_660x",
+	module:		THIS_MODULE,
+	attach:		ni_660x_attach,
+	detach:		ni_660x_detach,
+};
 
 COMEDI_INITCLEANUP(driver_ni_660x);
 
@@ -701,14 +701,14 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
 static int ni_660x_GPCT_cmdtest(comedi_device *dev,comedi_subdevice *s,
 				comedi_cmd *cmd)
 {
-  DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
-  return -EINVAL;
+	DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
+	return -EINVAL;
 }
 
 static int ni_660x_GPCT_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-  DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
-  return -EINVAL;
+	DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
+	return -EINVAL;
 }
 
 static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
@@ -730,8 +730,8 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	dev->iobase = mite_iobase(devpriv->mite);
 	dev->board_name = thisboard->name;
-/* we don't support the interrupt yet */
-//	dev->irq = mite_irq(devpriv->mite);
+	/* we don't support the interrupt yet */
+	//dev->irq = mite_irq(devpriv->mite);
 
 	printk(" %s ", dev->board_name);
 
@@ -789,38 +789,36 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 static int
 ni_660x_detach(comedi_device *dev)
 {
-  printk("comedi%d: ni_660x: remove\n",dev->minor);
+	printk("comedi%d: ni_660x: remove\n",dev->minor);
 
-  if (dev->private && devpriv->mite)
-    mite_unsetup(devpriv->mite);
+	if (dev->private && devpriv->mite)
+		mite_unsetup(devpriv->mite);
 
-  /* Free irq */
+	/* Free irq */
 
-  if(dev->irq) comedi_free_irq(dev->irq,dev);
+	if(dev->irq) comedi_free_irq(dev->irq,dev);
 
-  /* Same question as with attach ... */
-  return 0;
+	/* Same question as with attach ... */
+	return 0;
 }
 
 // Help function: Check what chipset the counter channel is on
 static int GPCT_check_chipset_from_channel(comedi_device *dev, int channel)
 {
-  int chipset;
-  if ( (channel >= 0) && (channel < CTRS_PER_CHIP) )
-    {
-      chipset = 0;
-    }
-  else if ( (channel >= CTRS_PER_CHIP) && (channel < thisboard->n_ctrs) )
-    {
-      chipset = 1;
-      // DPRINTK("NI_660x: Moving to chipset 1\n");
-    }
-  else
-    {
-      DPRINTK("NI_660x: Channel specification not between limits\n");
-      return -EINVAL;
-    }
-  return chipset;
+	int chipset;
+	if ( (channel >= 0) && (channel < CTRS_PER_CHIP) )
+	{
+		chipset = 0;
+	}else if ( (channel >= CTRS_PER_CHIP) && (channel < thisboard->n_ctrs) )
+	{
+		chipset = 1;
+		// DPRINTK("NI_660x: Moving to chipset 1\n");
+	}else
+	{
+		DPRINTK("NI_660x: Channel specification not between limits\n");
+		return -EINVAL;
+	}
+	return chipset;
 }
 int GPCT_check_counter_channel_from_subdev_channel(int channel)
 {
@@ -836,11 +834,11 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 	int counter_channel = GPCT_check_counter_channel_from_subdev_channel(subdev_channel);// Unpack chanspec
 	int chipset = GPCT_check_chipset_from_channel(dev, subdev_channel);
 
-  /* See Chapter 2.2 Reading Counter Value of the NI Register Level
-     Programming Manual: "Reading counter values of armed counters".
-     We need to take several measurements to be sure what the counter
-     value is
-  */
+	/* See Chapter 2.2 Reading Counter Value of the NI Register Level
+		Programming Manual: "Reading counter values of armed counters".
+		We need to take several measurements to be sure what the counter
+		value is
+	*/
 	int tmpdata[2];
 	int address;
 
@@ -886,314 +884,122 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 		DPRINTK("NI_660x: INSN_READ: Functionality not implemented\n");
 		return -EINVAL;
 		break;
-	}// End switch(ni_660x_gpct_config[channel].App)
+    }
 }
 
-static inline int z_reload_trigger(int a_state, int b_state)
+static void
+enable_chip(comedi_device *dev, int chipset)
 {
-	int bits = comedi_counter_trigger_bits(2, 0);
-
-	if(a_state)
-		bits |= comedi_counter_trigger_bits(0, 0);
-	else
-		bits |= comedi_counter_trigger_bits(0, CR_INVERT);
-	if(b_state)
-		bits |= comedi_counter_trigger_bits(1, 0);
-	else
-		bits |= comedi_counter_trigger_bits(1, CR_INVERT);
-	return bits;
-}
-
-static int ni_660x_find_counter_trigger(const comedi_insn *insn, const lsampl_t *data,
-	lsampl_t trigger, lsampl_t action)
-{
-	static const int first_trigger_index = 1;
-	int i;
-
-	for(i = first_trigger_index; i + 1 < insn->n; i += 2)
-	{
-		if(data[i] == trigger && data[i + 1] == action)
-		{
-			return 1;
-		}
-	}
-	return 0;
-}
-
-static int find_z_reload_trigger(const comedi_insn *insn, const lsampl_t *data)
-{
-	int retval;
-
-	retval = ni_660x_find_counter_trigger(insn, data, z_reload_trigger(0, 0), COMEDI_RESET_ACCUMULATOR);
-	if(retval)
-		return 0x0;
-	retval = ni_660x_find_counter_trigger(insn, data, z_reload_trigger(0, 1), COMEDI_RESET_ACCUMULATOR);
-	if(retval)
-		return 0x1;
-	retval = ni_660x_find_counter_trigger(insn, data, z_reload_trigger(1, 0), COMEDI_RESET_ACCUMULATOR);
-	if(retval)
-		return 0x2;
-	retval = ni_660x_find_counter_trigger(insn, data, z_reload_trigger(1, 1), COMEDI_RESET_ACCUMULATOR);
-	if(retval)
-		return 0x3;
-	return -1;
-}
-
-static int ni_660x_find_quad_encoding(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
-{
-	int quad1_inc_trigger = comedi_counter_trigger_bits(0, CR_EDGE) |
-		comedi_counter_trigger_bits(1, CR_INVERT);
-	int quad1_dec_trigger = comedi_counter_trigger_bits(0, CR_EDGE | CR_INVERT) |
-		comedi_counter_trigger_bits(1, CR_INVERT);
-	int quad2_inc_trigger = comedi_counter_trigger_bits(0, CR_EDGE | CR_INVERT) |
-		comedi_counter_trigger_bits(1, 0);
-	int quad2_dec_trigger = comedi_counter_trigger_bits(0, CR_EDGE) |
-		comedi_counter_trigger_bits(1, 0);
-	int quad4_inc_trigger0 = comedi_counter_trigger_bits(1, CR_EDGE | CR_INVERT) |
-		comedi_counter_trigger_bits(0, CR_INVERT);
-	int quad4_dec_trigger0 = comedi_counter_trigger_bits(1, CR_EDGE) |
-		comedi_counter_trigger_bits(0, CR_INVERT);
-	int quad4_inc_trigger1 = comedi_counter_trigger_bits(1, CR_EDGE) |
-		comedi_counter_trigger_bits(0, 0);
-	int quad4_dec_trigger1 = comedi_counter_trigger_bits(1, CR_EDGE | CR_INVERT) |
-		comedi_counter_trigger_bits(0, 0);
-	static const int first_trigger_index = 1;
-	int triggers_remaining = insn->n - first_trigger_index;
-	int z_reload_phase;
-	int retval;
-
-	/* look for z index reload */
-	z_reload_phase = find_z_reload_trigger(insn, data);
-	if(z_reload_phase >= 0)
-	{
-		triggers_remaining--;
-	}
-	/* look for quad x1 triggers */
-	retval = ni_660x_find_counter_trigger(insn, data, quad1_inc_trigger, COMEDI_INC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x1 inc trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	retval = ni_660x_find_counter_trigger(insn, data, quad1_dec_trigger, COMEDI_DEC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x1 dec trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	if(triggers_remaining == 0)
-	{
-		return 1;
-	}
-	/* look for quad x2 triggers */
-	retval = ni_660x_find_counter_trigger(insn, data, quad2_inc_trigger, COMEDI_INC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x2 inc trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	retval = ni_660x_find_counter_trigger(insn, data, quad2_dec_trigger, COMEDI_DEC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x2 dec trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	if(triggers_remaining == 0)
-	{
-		return 2;
-	}
-	/* look for quad x4 triggers */
-	retval = ni_660x_find_counter_trigger(insn, data, quad4_inc_trigger0, COMEDI_INC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x4 inc trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	retval = ni_660x_find_counter_trigger(insn, data, quad4_dec_trigger0, COMEDI_DEC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x4 dec trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	retval = ni_660x_find_counter_trigger(insn, data, quad4_inc_trigger1, COMEDI_INC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x4 inc trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	retval = ni_660x_find_counter_trigger(insn, data, quad4_dec_trigger1, COMEDI_DEC_ACCUMULATOR);
-	if(retval == 0)
-	{
-		DPRINTK("NI_660x: INSN_CONFIG: no good quad x4 dec trigger found\n");
-		return -EINVAL;
-	}
-	triggers_remaining--;
-	if(triggers_remaining == 0)
-	{
-		return 4;
-	}
-	return -EINVAL;
-}
-
-static void ni_660x_program_quad_encoder(comedi_device *dev, int subdev_channel)
-{
-	int chipset = GPCT_check_chipset_from_channel(dev,subdev_channel);
-	int counter_channel = GPCT_check_counter_channel_from_subdev_channel(subdev_channel);
-
-	// Reset the counter
-	writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
-	+ registerData[GxxJointResetRegister(counter_channel)].offset);
-	// Disarm
-	writew(Disarm,dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[GxCommandRegister(counter_channel)].offset);
-	// Put 0 as initial counter value in the load register
-	writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[GxLoadARegister(counter_channel)].offset);
-	// Load (latch) this value into the counter
-	writew(Load,dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[GxCommandRegister(counter_channel)].offset);
-	/* - Set Counting Mode into GPCT_X1 / 2 / 4 (as set by user
-		- Take into account Z pulse if set by user (index pulse)
-		- When to take into account the Z pulse
-		TODO: Make this latter an option
-		TODO: See p. 3.10 of the Register Level Programming
-		Manual.  Find out how bit 4 (Gi Index mode) really
-		works.  I think this bit determines if the counter is
-		reset
+	/* See P. 3.5 of the Register-Level Programming manual.  This
+		bit has to be set, otherwise, you can't use the second chip.
 	*/
-	writew(((ni_660x_gpct_config[subdev_channel]).data[0] | (ni_660x_gpct_config[subdev_channel]).data[1] |
-		(ni_660x_gpct_config[subdev_channel]).data[1]), dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[GxCountingModeRegister(counter_channel)].offset);
-	// Put counter in input mode
-	// Not necessary at this point, since this is the default ...
-
-/* 	  writel(0, dev->iobase
-	+ GPCT_OFFSET[chipset]
-	+ registerData[IOConfigReg(chipset, counter_channel)].offset);
-*/
-	// Arm the counter and put it into Hardware UpDown mode (depending
-	// on the UP/DOWN IO pin: 0 = down
-	writew(UpDownHardware | Arm, dev->iobase + GPCT_OFFSET[chipset]
-		+ registerData[GxCommandRegister(counter_channel)].offset);
-}
-
-static int ni_660x_setup_quad_encoder(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
-{
-	int z_reload_phase;
-	int retval;
-	int channel = CR_CHAN(insn->chanspec);// Unpack chanspec
-
-	DPRINTK("NI_660x: INSN_CONFIG: Configuring Encoder\n");
-
-	retval = ni_660x_find_quad_encoding(dev, s, insn, data);
-	switch(retval)
+	if ( chipset == 1)
 	{
-	case 1:
-		/* quad x1 encoding*/
-		(ni_660x_gpct_config[channel]).data[0] = CountingModeQuadX1;
-		break;
-	case 2:
-		/* quad x2 encoding*/
-		(ni_660x_gpct_config[channel]).data[0] = CountingModeQuadX2;
-		break;
-	case 4:
-		/* quad x4 encoding*/
-		(ni_660x_gpct_config[channel]).data[0] = CountingModeQuadX4;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-
-	ni_660x_gpct_config[channel].App = PositionMeasurement;
-	/* look for z index reload */
-	z_reload_phase = find_z_reload_trigger(insn, data);
-	// When to take into account the indexpulse:
-	switch(z_reload_phase)
+		writel(CounterSwap,dev->iobase + GPCT_OFFSET[chipset]
+		+ registerData[ClockConfigRegister].offset);
+	}else
 	{
-	case 0x0:
-		(ni_660x_gpct_config[channel]).data[1] = IndexPhaseLowLow;
-		break;
-	case 0x1:
-		(ni_660x_gpct_config[channel]).data[1] = IndexPhaseLowHigh;
-		break;
-	case 0x2:
-		(ni_660x_gpct_config[channel]).data[1] = IndexPhaseHighLow;
-		break;
-	case 0x3:
-		(ni_660x_gpct_config[channel]).data[1] = IndexPhaseHighHigh;
-		break;
-	default:
-		break;
+		writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
+		+ registerData[ClockConfigRegister].offset);
 	}
-	if(z_reload_phase >= 0)
-		(ni_660x_gpct_config[channel]).data[2] = IndexMode;
-	else
-		(ni_660x_gpct_config[channel]).data[2] = 0;
-
-	ni_660x_program_quad_encoder(dev, channel);
-	return 0;
 }
 
-static int ni_660x_setup_counter(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
-{
-	int retval;
 
-	retval = ni_660x_setup_quad_encoder(dev, s, insn, data);
-	if(retval == 0) return 0;
-	comedi_error(dev, "unsupported INSN_CONFIG_COUNTER mode");
-	return -EINVAL;
-}
 
 static int
 ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
-	 comedi_insn *insn, lsampl_t *data)
+	comedi_insn *insn, lsampl_t *data)
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);// Unpack chanspec
 	int chipset = GPCT_check_chipset_from_channel(dev, subdev_channel);
 	int counter_channel = GPCT_check_counter_channel_from_subdev_channel(subdev_channel);
-	int retval;
 
 	DPRINTK("NI_660x: INSN_CONFIG: Configuring Channel %d\n", subdev_channel);
+	enable_chip(dev, chipset);
 
-	/* See P. 3.5 of the Register-Level Programming manual.  This
-		bit has to be set, otherwise, you can't use the second chip.
-	*/
-	/* XXX this should be done in attach */
-	if ( chipset == 1)
-	{
-		writel(CounterSwap,dev->iobase + GPCT_OFFSET[chipset]
-			+ registerData[ClockConfigRegister].offset);
-    }
-	else
-	{
-		writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
-			+ registerData[ClockConfigRegister].offset);
-	}
-
+	// Check what type of Counter the user requested, data[0] contains
+	// the Application type
 	switch(insn->data[0])
 	{
-	case INSN_CONFIG_COUNTER_ALPHA:
-		retval = ni_660x_setup_counter(dev, s, insn, data);
-		if(retval < 0) return retval;
+	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
+		DPRINTK("NI_660x: INSN_CONFIG: Configuring Encoder\n");
+		ni_660x_gpct_config[subdev_channel].App = PositionMeasurement;
+		/* data[1] contains GPCT_X1, GPCT_X2 or GPCT_X4 */
+		switch(insn->data[1])
+		{
+		case GPCT_X1:
+			(ni_660x_gpct_config[subdev_channel]).data[0] = CountingModeQuadX1;
+			break;
+		case GPCT_X2:
+			(ni_660x_gpct_config[subdev_channel]).data[0] = CountingModeQuadX2;
+			break;
+		case GPCT_X4:
+			(ni_660x_gpct_config[subdev_channel]).data[0] = CountingModeQuadX4;
+			break;
+		default:
+			DPRINTK("NI_660x: INSN_CONFIG: Wrong Counting mode\n");
+			return -EINVAL;
+			break;
+		}
+			// When to take into account the indexpulse:
+		switch(insn->data[2])
+		{
+		case GPCT_IndexPhaseHighHigh:
+			(ni_660x_gpct_config[subdev_channel]).data[1] = IndexPhaseHighHigh;
+			break;
+		case GPCT_IndexPhaseLowHigh:
+			(ni_660x_gpct_config[subdev_channel]).data[1] = IndexPhaseLowHigh;
+			break;
+		case GPCT_IndexPhaseLowLow:
+			(ni_660x_gpct_config[subdev_channel]).data[1] = IndexPhaseLowLow;
+			break;
+		case GPCT_IndexPhaseHighLow:
+			(ni_660x_gpct_config[subdev_channel]).data[1] = IndexPhaseHighLow;
+			break;
+		default:
+			DPRINTK("NI_660x: INSN_CONFIG: Wrong value for taking into account index pulse\n");
+			return -EINVAL;
+			break;
+		}
+		// Take into account the index pulse?
+		if(insn->data[3] == GPCT_RESET_COUNTER_ON_INDEX)
+			(ni_660x_gpct_config[subdev_channel]).data[2] = IndexMode;
+		else
+			(ni_660x_gpct_config[subdev_channel]).data[2] = 0;
+
+		// Reset the counter
+		writew(G0Reset,dev->iobase + GPCT_OFFSET[chipset]
+		+ registerData[GxxJointResetRegister(counter_channel)].offset);
+		// Disarm
+		writew(Disarm,dev->iobase + GPCT_OFFSET[chipset]
+			+ registerData[GxCommandRegister(counter_channel)].offset);
+		// Put 0 as initial counter value in the load register
+		writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
+			+ registerData[GxLoadARegister(counter_channel)].offset);
+		// Load (latch) this value into the counter
+		writew(Load,dev->iobase + GPCT_OFFSET[chipset]
+			+ registerData[GxCommandRegister(counter_channel)].offset);
+		/* - Set Counting Mode into GPCT_X1 / 2 / 4 (as set by user
+		- Take into account Z pulse (index pulse) only when both
+		channel A and B are high (arbitrary choice)
+		*/
+		writew(((ni_660x_gpct_config[subdev_channel]).data[0] |
+			(ni_660x_gpct_config[subdev_channel]).data[1] |
+			(ni_660x_gpct_config[subdev_channel]).data[1] ),
+			dev->iobase + GPCT_OFFSET[chipset]
+			+ registerData[GxCountingModeRegister(counter_channel)].offset);
+		// Put counter in input mode
+		// Not necessary since this is the default ...
+		/*  writel(Counter_A_Is_Input, dev->iobase
+			+ GPCT_OFFSET[chipset]
+			+ registerData[IOConfigReg36_39].offset);
+		*/
+		// Arm the counter and put it into Hardware UpDown mode (depending
+		// on the UP/DOWN IO pin: 0 = down
+		writew(UpDownHardware|Arm,dev->iobase + GPCT_OFFSET[chipset]
+			+ registerData[GxCommandRegister(counter_channel)].offset);
 		break;
-#if 0
-/* XXX not sure about pulse generation API yet */
-#define GPCT_CONT_PULSE_OUT     0x0200
-#define GPCT_SINGLE_PULSE_OUT   0x0400
-#define GPCT_SINGLE_PULSE_GENERATOR 1 // Use CTR as single pulsegenerator
-#define GPCT_PULSE_TRAIN_GENERATOR 2 // Use CTR as pulsetraingenerator
-	case GPCT_SINGLE_PULSE_GENERATOR:
+	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
 		DPRINTK("NI_660x: INSN_CONFIG: Configuring SPG\n");
 		ni_660x_gpct_config[subdev_channel].App = SinglePulseGeneration;
 		/* data[1] contains the PULSE_WIDTH
@@ -1207,8 +1013,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		{
 			(ni_660x_gpct_config[subdev_channel]).data[0] = insn->data[1];
 			(ni_660x_gpct_config[subdev_channel]).data[1] = insn->data[2];
-		}
-		else
+		}else
 		{
 			DPRINTK("NI_660x: INSN_CONFIG: SPG: Problem with Pulse params\n");
 			return -EINVAL;
@@ -1250,7 +1055,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		writel(pin_is_output(0), dev->iobase
 			+ GPCT_OFFSET[chipset]
 			+ registerData[IOConfigReg(chipset, counter_channel)].offset);
-	case GPCT_PULSE_TRAIN_GENERATOR:
+	case INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR:
 		DPRINTK("NI_660x: INSN_CONFIG: PTG linking inttrig\n");
 		s->async->inttrig = ni_660x_GPCT_inttrig;
 		DPRINTK("NI_660x: INSN_CONFIG: Configuring PTG\n");
@@ -1268,8 +1073,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		{
 			(ni_660x_gpct_config[subdev_channel]).data[0] = insn->data[1];
 			(ni_660x_gpct_config[subdev_channel]).data[1] = insn->data[2];
-		}
-		else
+		}else
 		{
 			DPRINTK("%d \t %d\n",insn->data[1],insn->data[2]);
 			DPRINTK("NI_660x: INSN_CONFIG: PTG: Problem with Pulse params\n");
@@ -1316,7 +1120,6 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		writew(Arm|UpDownDown,dev->iobase + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		break;
-#endif
 	default:
 		DPRINTK("NI_660x: unsupported insn_config\n");
 		return -EINVAL;
@@ -1410,16 +1213,7 @@ static int ni_660x_GPCT_inttrig(comedi_device *dev,
 	int counter_channel = GPCT_check_counter_channel_from_subdev_channel(subdev_channel);
 
 	DPRINTK("Triggering channel %d\n", subdev_channel);
-	if ( chipset == 1)
-	{
-		writel(CounterSwap,dev->iobase + GPCT_OFFSET[chipset]
-			+ registerData[ClockConfigRegister].offset);
-	}
-	else
-	{
-		writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
-			+ registerData[ClockConfigRegister].offset);
-	}
+  enable_chip(dev, chipset);
 
 	// Reset the counter
 	writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
