@@ -151,7 +151,10 @@ static comedi_lrange *ni_range_lkup[]={
 
 static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int ni_eeprom(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int ni_calib(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+static int ni_calib_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
@@ -1650,7 +1653,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->range_table=&range_digital;
 	s->io_bits=0;		/* all bits input */
-	s->insn_read=ni_dio_insn_bits;
+	s->insn_bits=ni_dio_insn_bits;
 	s->trig[0]=ni_dio;
 
 	/* dio setup */
@@ -1668,17 +1671,20 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	
 	/* general purpose counter/timer device */
 	s=dev->subdevices+4;
-	gpct_setup(dev,s);
 	s->type=COMEDI_SUBD_COUNTER;
+	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->trig[0]=ni_gpct;
-	/* XXX */
+	s->n_chan=1; /* XXX */
+	s->maxdata=1;
+	gpct_setup(dev,s);
 	
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_CALIB;
 	s->subdev_flags=SDF_WRITEABLE|SDF_INTERNAL;
 	caldac_setup(dev,s);
-	s->trig[0]=ni_calib;
+	s->insn_read=ni_calib_insn_read;
+	s->insn_write=ni_calib_insn_write;
 	
 	/* EEPROM */
 	s=dev->subdevices+6;
@@ -1778,9 +1784,19 @@ static void ni_write_caldac(comedi_device *dev,int addr,int val);
 /*
 	calibration subdevice
 */
-static int ni_calib(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	ni_write_caldac(dev,CR_CHAN(it->chanlist[0]),it->data[0]);
+	ni_write_caldac(dev,CR_CHAN(insn->chanspec),data[0]);
+	devpriv->caldacs[CR_CHAN(insn->chanspec)] = data[0];
+
+	return 1;
+}
+
+static int ni_calib_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
 
 	return 1;
 }

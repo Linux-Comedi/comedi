@@ -284,7 +284,7 @@ static ni_board ni_boards[]={
 		caldac:         type3,
 		has_8255:	0,
 	},
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x18b0,
 		name:           "pci-6052e",
 		n_adchan:       16,
 		adbits:         16,
