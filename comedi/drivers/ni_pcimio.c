@@ -79,6 +79,7 @@
 #undef DEBUG
 #define PCI_DEBUG
 
+//#define PCIDMA
 
 #define PCIMIO 1
 #undef ATMIO
