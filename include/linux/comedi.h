@@ -117,7 +117,7 @@ typedef unsigned short sampl_t;
 #define TRIG_DEGLITCH	0x0004		/* enable deglitching */
 //#define TRIG_RT	0x0008		/* perform op in real time */
 #define TRIG_CONFIG	0x0010		/* perform configuration, not triggering */
-//#define TRIG_WAKE_EOS	0x0020		/* wake up on end-of-scan events */
+#define TRIG_WAKE_EOS	0x0020		/* wake up on end-of-scan events */
 //#define TRIG_WRITE	0x0040		/* write to bidirectional devices */
 
 /* command flags */
@@ -126,7 +126,6 @@ typedef unsigned short sampl_t;
 #define CMDF_PRIORITY		0x00000008 /* try to use a real-time interrupt while performing command */
 
 #define TRIG_RT		CMDF_PRIORITY /* compatibility definition */
-#define TRIG_WAKE_EOS		0x00000020 /* legacy definition for COMEDI_EV_SCAN_END */
 
 #define CMDF_WRITE		0x00000040
 #define TRIG_WRITE	CMDF_WRITE /* compatibility definition */
