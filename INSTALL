@@ -14,6 +14,12 @@ Prerequisites:
 Configure using 'make'.  The first time you run make, it will take
 you through configuration options similar to compiling a linux
 kernel.  If you need to run the configuration again, use 'make config'.
+Red Hat users note: Red Hat does not ship with kernel headers
+capable of compiling Comedi.  You either need to install the
+kernel source RPMs, or download a kernel tarball and build a
+new kernel.
+
+Make the dependency list by running 'make' again.
 
 Compile using 'make'.  If this doesn't work, make sure you have the
 basic tools installed to compile.  If you can successfully compile
@@ -23,11 +29,6 @@ Install using 'make install' as root.  This installs the files:
 	/lib/modules/<<kernel version>>/misc/comedi.o
 	/lib/modules/<<kernel version>>/misc/kcomedilib.o
 	/lib/modules/<<kernel version>>/misc/<<driver files>>.o
-	/usr/sbin/comedi_config
-	/usr/include/comedi.h
-If you chose to install in /usr/local instead, it will, of course,
-install in /usr/local instead of /usr.  The modules are still installed
-in /lib/modules.
 
 You need to create device files to access the hardware from a
 user process.  These can be created using 'make dev'.  The following
@@ -50,14 +51,15 @@ The default behavior when the module is loaded is to _not_ configure
 it automatically, i.e., you have a device file (/dev/comedi0) associated
 with a driver, but the driver is not associated with a device.  To
 associate a device file/driver with a device, you need to run the
-command /usr/sbin/comedi_config, and supply additional information,
+command /usr/sbin/comedi_config, which is part of the comedilib
+distribution.  This is also used to supply additional information,
 such as I/O address, IRQ, and possibly DMA channels.  The following
 commands are examples:
 
 	/usr/sbin/comedi_config /dev/comedi0 dt282x 0x240,3
-	/usr/sbin/comedi_config /dev/comedi1 atmio-E 0x260,4
+	/usr/sbin/comedi_config /dev/comedi1 ni_atmio 0x260,4
 	/usr/sbin/comedi_config /dev/comedi2 dt2817 0x228
-	/usr/sbin/comedi_config /dev/comedi0 pcimio-E
+	/usr/sbin/comedi_config /dev/comedi0 ni_pcimio
 
 Try a 'man comedi_config' for information on how to use
 this utility.  The options (numbers at the end, above) have
