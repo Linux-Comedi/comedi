@@ -51,6 +51,7 @@
 	if(comedi_debug)printk("comedi: " format , ## args );		\
 } while(0)
 
+#define COMEDI_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION,COMEDI_MINORVERSION,COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
