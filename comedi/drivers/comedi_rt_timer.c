@@ -127,6 +127,7 @@ static comedi_driver driver_timer={
 	driver_name:	"comedi_rt_timer",
 	attach:		timer_attach,
 	detach:		timer_detach,
+	open:		timer_open,
 };
 COMEDI_INITCLEANUP(driver_timer);
 
