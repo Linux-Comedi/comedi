@@ -24,7 +24,11 @@
 #ifndef _8253_H
 #define _8253_H
 
+#ifndef CMDTEST
 #include <linux/comedi.h>
+#else
+#include <comedi.h>
+#endif
 
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
@@ -194,6 +198,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	return;
 }
 
+#ifndef CMDTEST
 /* Programs 8254 counter chip.  It should also work for the 8253.
  * base_address is the lowest io address for the chip (the address of counter 0).
  * counter_number is the counter you want to load (0,1 or 2)
@@ -248,6 +253,7 @@ static inline int i8254_mm_load(unsigned int base_address,
 
 	return 0;
 }
+#endif
 
 #endif
 
