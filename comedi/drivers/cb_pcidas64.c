@@ -508,7 +508,7 @@ static pcidas64_board pcidas64_boards[] =
 		ai_speed:	50,
 		ao_nchan:	2,
 		ao_scan_speed:	0,	// no hardware pacing on ao
-		fifo_depth: 0x10000,	// 2 fifos * 32K * 2 samples entries = 128K samples
+		fifo_depth: 0x20000,	// 2 fifos * 32K * 2 samples entries = 128K samples
 		layout:	LAYOUT_4020,
 		ai_range_table:	&ai_ranges_4020,
 		ai_range_bits:	NULL,
@@ -773,10 +773,13 @@ void init_plx9080(comedi_device *dev)
 	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
 	// 4020 uses 32 bit dma
 	if(board(dev)->layout == LAYOUT_4020)
+	{
 		bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
-	else
-		// localspace0 bus is 16 bits wide
+		writel(bits, plx_iobase + PLX_DMA1_MODE_REG);	// XXX
+	}else
+	{	// localspace0 bus is 16 bits wide
 		bits |= PLX_LOCAL_BUS_16_WIDE_BITS;
+	}
 	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
 }
 
@@ -1233,7 +1236,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		if(i == timeout)
 		{
 			comedi_error(dev, " analog input read insn timed out");
-			printk(" status 0x%x\n", bits);
+			rt_printk(" status 0x%x\n", bits);
 			return -ETIME;
 		}
 		if(board(dev)->layout == LAYOUT_4020)
@@ -1573,14 +1576,19 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	DEBUG_PRINT("control1 bits 0x%x\n", private(dev)->adc_control1_bits);
 
 	if(cmd->flags & TRIG_WAKE_EOS)
+	{
 		writeb(0, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	else
+		writeb(0, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);	// XXX
+	} else
 	{
 		// give location of first dma descriptor
 		bits = private(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
 		writel(bits, private(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 		// enable dma transfer
 		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+		//XXX
+		writel(bits, private(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
+		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	}
 
 	/* enable pacing, triggering, etc */
@@ -1646,31 +1654,31 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int read_segment, read_index, write_segment, write_index;
-	const int num_fifo_segments = 4;
-	unsigned int num_samples;
+	int num_fifo_segments;
+	int num_samples;
+	uint16_t prepost_bits;
 
 	// figure out how many samples we should read from board's fifo
+
+	if(board(dev)->layout == LAYOUT_4020)
+		num_fifo_segments = 2;
+	else
+		num_fifo_segments = 4;
 
 	do
 	{
 		/* Get most significant bits.  Different boards encode the meaning of these bits
 		* differently, so use a scheme that doesn't depend on encoding */
-		if(board(dev)->layout == LAYOUT_4020)
-		{
-			read_segment = write_segment = 0;
-		} else
-		{
-			read_segment = ADC_UPP_READ_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
-			write_segment = ADC_UPP_WRITE_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
-		}
+		prepost_bits = readw(private(dev)->main_iobase + PREPOST_REG);
+		read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
+		write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
 		// get least significant 15 bits
 		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG);
 		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG);
 
-		DEBUG_PRINT("rd seg 0x%x\n", read_segment);
-		DEBUG_PRINT("rd inx 0x%x\n", read_index);
-		DEBUG_PRINT("wrt seg 0x%x\n", write_segment);
-		DEBUG_PRINT("wrt inx 0x%x\n", write_index);
+		DEBUG_PRINT(" prepost 0x%x\n", prepost_bits);
+		DEBUG_PRINT(" rd inx 0x%x\n", read_index);
+		DEBUG_PRINT(" wrt inx 0x%x\n", write_index);
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
@@ -1679,16 +1687,18 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		else
 			num_samples = write_index - read_index;
 
-		// 4020 stores two samples per 32 bit fifo entry
-		if(board(dev)->layout == LAYOUT_4020)
-			num_samples *= 2;
-
 		if(cmd->stop_src == TRIG_COUNT)
 		{
 			if(num_samples > private(dev)->ai_count)
 			{
 				num_samples = private(dev)->ai_count;
 			}
+		}
+
+		if(num_samples < 0)
+		{
+			rt_printk(" cb_pcidas64: bug! num_samples < 0\n");
+			break;
 		}
 
 		if(board(dev)->layout == LAYOUT_4020)
@@ -1702,8 +1712,60 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 			break;
 		}
 
+		if(board(dev)->layout == 4020)
+		{
+			prepost_bits = readw(private(dev)->main_iobase + PREPOST_REG);
+			read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
+			write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
+			if( read_segment != write_segment )
+			{
+				DEBUG_PRINT(" drained prepost 0x%x\n", prepost_bits);
+				break;
+			}
+		}
 	} while (read_segment != write_segment);
 
+	async->events |= COMEDI_CB_BLOCK;
+}
+
+static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
+{
+	comedi_async *async = dev->read_subdev->async;
+	uint32_t next_transfer_addr;
+	static const int timeout = 1000;
+	int i, j;
+	int num_samples = 0;
+	unsigned long pci_addr_reg;
+
+	if(channel)
+		pci_addr_reg = private(dev)->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;
+	else
+		pci_addr_reg = private(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+
+	// loop until we have read all the full buffers
+	j = 0;
+	for(next_transfer_addr = readl(pci_addr_reg);
+		next_transfer_addr < private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] &&
+		next_transfer_addr >= private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] + DMA_TRANSFER_SIZE &&
+		j < timeout;
+		j++ )
+	{
+		// transfer data from dma buffer to comedi buffer
+		num_samples = DMA_TRANSFER_SIZE / sizeof(private(dev)->ai_buffer[0][0]);
+		if(async->cmd.stop_src == TRIG_COUNT)
+		{
+			if(num_samples > private(dev)->ai_count)
+				num_samples = private(dev)->ai_count;
+			private(dev)->ai_count -= num_samples;
+		}
+		for(i = 0; i < num_samples; i++)
+		{
+			comedi_buf_put(async, private(dev)->ai_buffer[private(dev)->dma_index][i]);
+		}
+		private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
+		DEBUG_PRINT("next buffer addr 0x%x\n", private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
+		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
+	}
 	async->events |= COMEDI_CB_BLOCK;
 }
 
@@ -1713,20 +1775,14 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	int num_samples = 0;
-	unsigned int i;
 	unsigned int status;
 	uint32_t plx_status;
 	uint32_t plx_bits;
-	unsigned int dma0_status;
+	uint8_t dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+	uint8_t dma1_status = readb(private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 
 	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(private(dev)->main_iobase + HW_STATUS_REG);
-	dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-
-	DEBUG_PRINT(" isr hw status 0x%x\n", status);
-	DEBUG_PRINT(" plx status 0x%x\n", plx_status);
-	DEBUG_PRINT(" user counter 0x%x\n", readw(private(dev)->main_iobase + LOWER_XFER_REG));
 
 	if((status &
 		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
@@ -1736,6 +1792,10 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		return;
 	}
+
+	DEBUG_PRINT(" isr hw status 0x%x\n", status);
+	DEBUG_PRINT(" plx status 0x%x\n", plx_status);
+	DEBUG_PRINT(" user counter 0x%x\n", readw(private(dev)->main_iobase + LOWER_XFER_REG));
 
 	async->events = 0;
 
@@ -1755,37 +1815,26 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 		if(dma0_status & PLX_DMA_EN_BIT)
 		{
-			uint32_t next_transfer_addr;
-			static const int timeout = 1000;
-			int j;
-			// loop until we have read all the transferred data
-			for(next_transfer_addr = readl(private(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG), j = 0;
-				next_transfer_addr != private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] && j < timeout;
-				j++ )
-			{
-				// transfer data from dma buffer to comedi buffer
-				num_samples = DMA_TRANSFER_SIZE / sizeof(private(dev)->ai_buffer[0][0]);
-				if(cmd->stop_src == TRIG_COUNT)
-				{
-					if(num_samples > private(dev)->ai_count)
-						num_samples = private(dev)->ai_count;
-					private(dev)->ai_count -= num_samples;
-				}
-				for(i = 0; i < num_samples; i++)
-				{
-					comedi_buf_put(async, private(dev)->ai_buffer[private(dev)->dma_index][i]);
-				}
-				private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
-				DEBUG_PRINT("next buffer addr 0x%x\n", private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
-				DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
-			}
-			async->events |= COMEDI_CB_BLOCK;
+			drain_dma_buffers(dev, 0);
 		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
 
-	// pio transfer
-	if((status & ADC_INTR_PENDING_BIT) && (dma0_status & PLX_DMA_EN_BIT) == 0)
+	if(plx_status & ICS_DMA1_A)	// XXX
+	{	// dma chan 1 interrupt
+		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
+		// XXX possible race
+		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+
+		if(dma1_status & PLX_DMA_EN_BIT)
+		{
+			drain_dma_buffers(dev, 1);
+		}
+		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
+	}
+
+	// pio transfer XXX
+	if((status & ADC_INTR_PENDING_BIT) && (dma0_status & PLX_DMA_EN_BIT) == 0 && (dma1_status & PLX_DMA_EN_BIT) == 0)
 	{
 		pio_drain_ai_fifo(dev);
 	}
@@ -1796,11 +1845,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		plx_bits = readl(private(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		writel(plx_bits, private(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
-	}
-	if(plx_status & ICS_DMA1_A)
-	{	// dma chan 1 interrupt
-		writeb(PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
-		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
 
 	// if we are have all the data, then quit
@@ -1815,51 +1859,65 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	return;
 }
 
+void abort_dma(comedi_device *dev, unsigned int channel)
+{
+	unsigned long dma_cs_addr;
+	uint8_t dma_status;
+	const int timeout = 10000;
+	unsigned int i;
+
+
+	if(channel)
+		dma_cs_addr = private(dev)->plx9080_iobase + PLX_DMA1_CS_REG;
+	else
+		dma_cs_addr = private(dev)->plx9080_iobase + PLX_DMA0_CS_REG;
+
+	// abort dma transfer if necessary
+	dma_status = readb(dma_cs_addr);
+	if((dma_status & PLX_DMA_EN_BIT) == 0)
+		return;
+
+	// wait to make sure done bit is zero
+	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++)
+	{
+		dma_status = readb(dma_cs_addr);
+		udelay(1);
+	}
+	if(i == timeout)
+	{
+		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done clear", channel);
+		return;
+	}
+	// disable channel
+	writeb(0, dma_cs_addr);
+	// abort channel
+	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
+	// wait for dma done bit
+	dma_status = readb(dma_cs_addr);
+	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) == 0 && i < timeout; i++)
+	{
+		udelay(1);
+		dma_status = readb(dma_cs_addr);
+	}
+	if(i == timeout)
+		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done set", channel);
+}
+
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	const int timeout = 10000;
-	unsigned int dma_status, i;
-
 	// disable ai interrupts
 	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
 		~ADC_INTR_SRC_MASK;
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 
+	abort_dma(dev, 0);
+	abort_dma(dev, 1);
+
 	/* disable pacing, triggering, etc */
 	writew(ADC_DMA_DISABLE_BIT, private(dev)->main_iobase + ADC_CONTROL0_REG);
 	private(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
-
-	// abort dma transfer if necessary XXX
-	dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	if((dma_status & PLX_DMA_EN_BIT) == 0)
-		return 0;
-
-	// wait to make sure done bit is zero
-	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++)
-	{
-		dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-		udelay(1);
-	}
-	if(i == timeout)
-	{
-		comedi_error(dev, "cancel() timed out waiting for dma done clear");
-		return 0;
-	}
-	// disable channel
-	writeb(0, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	// abort channel
-	writeb(PLX_DMA_ABORT_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	// wait for dma done bit
-	dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) == 0 && i < timeout; i++)
-	{
-		udelay(1);
-		dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	}
-	if(i == timeout)
-		comedi_error(dev, "cancel() timed out waiting for dma done set");
 
 	return 0;
 }
