@@ -150,7 +150,10 @@ int mite_setup(struct mite_struct *mite)
 #if LINUX_VERSION_CODE < 0x020300
 	addr=mite->pcidev->base_address[0];
 #else
-	pci_enable_device(mite->pcidev);
+	if(pci_enable_device(mite->pcidev)){
+		printk("error enabling mite\n");
+		return -EIO;
+	}
 	pci_set_master(mite->pcidev);
 	addr=mite->pcidev->resource[0].start;
 #endif
