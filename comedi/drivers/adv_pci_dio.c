@@ -93,15 +93,15 @@ typedef enum {
 #define PCI1751_ICR	  32		/* W:   Interrupt control register */
 #define PCI1751_ISR	  32		/* R:   Interrupt status register */
 #define PCI1753_DIO	   0		/* R/W: begin of 8255 registers block */
-#define PCI1753_ICR0	  17		/* R/W: Interrupt control register group 0 */
-#define PCI1753_ICR1	  18		/* R/W: Interrupt control register group 0 */
-#define PCI1753_ICR2	  19		/* R/W: Interrupt control register group 0 */
-#define PCI1753_ICR3	  48		/* R/W: Interrupt control register group 0 */
+#define PCI1753_ICR0	  16		/* R/W: Interrupt control register group 0 */
+#define PCI1753_ICR1	  17		/* R/W: Interrupt control register group 1 */
+#define PCI1753_ICR2	  18		/* R/W: Interrupt control register group 2 */
+#define PCI1753_ICR3	  19		/* R/W: Interrupt control register group 3 */
 #define PCI1753E_DIO	  32		/* R/W: begin of 8255 registers block */
-#define PCI1753E_ICR0	  49		/* R/W: Interrupt control register group 0 */
-#define PCI1753E_ICR1	  50		/* R/W: Interrupt control register group 0 */
-#define PCI1753E_ICR2	  51		/* R/W: Interrupt control register group 0 */
-#define PCI1753E_ICR3	  52		/* R/W: Interrupt control register group 0 */
+#define PCI1753E_ICR0	  48		/* R/W: Interrupt control register group 0 */
+#define PCI1753E_ICR1	  49		/* R/W: Interrupt control register group 1 */
+#define PCI1753E_ICR2	  50		/* R/W: Interrupt control register group 2 */
+#define PCI1753E_ICR3	  51		/* R/W: Interrupt control register group 3 */
 
 
 // Advantech PCI-1752/4/6
