@@ -1,5 +1,6 @@
 BUG in do_test_for_insn_bits() (due to -EACCES)
 
+ni_mio_common: doesn't do 2-chan ao.
 
 das6402 needs cleanup
 
@@ -36,4 +37,6 @@ fix pcmcia dep
 add pci_enable_device where appropriate
 
 autoloading causes BUG on failure.
+
+should insn_config be a bitfield?
 
