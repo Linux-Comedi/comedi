@@ -1848,9 +1848,7 @@ int comedi_init(void)
 	/* XXX requires /proc interface */
 	comedi_proc_init();
 	
-#ifdef CONFIG_COMEDI_RT
-//	comedi_rt_init();
-#endif
+	comedi_rt_init();
 	init_drivers();
 
 	return 0;
@@ -1878,10 +1876,7 @@ void comedi_cleanup(void)
 	}
 	kfree(comedi_devices);
 
-#ifdef CONFIG_COMEDI_RT
-//	comedi_rt_cleanup();
-#endif
-
+	comedi_rt_cleanup();
 }
 
 #ifdef MODULE
@@ -1903,6 +1898,8 @@ void comedi_error(comedi_device *dev,const char *s)
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 {
+	//DPRINTK("comedi_event %x\n",mask);
+
 	if(s->cb_mask&mask){
 		if(s->runflags&SRF_USER){
 			unsigned int subdev;
@@ -1915,6 +1912,8 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 					comedi_rt_pend_wakeup(&dev->read_wait);
 				if(subdev==dev->write_subdev)
 					comedi_rt_pend_wakeup(&dev->write_wait);
+#else
+				printk("BUG: comedi_event() code unreachable\n");
 #endif
 			}else{
 				if(subdev==dev->read_subdev)
@@ -1923,15 +1922,12 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 					wake_up_interruptible(&dev->write_wait);
 			}
 		}else{
-			if(s->runflags&SRF_RT){
-				s->cb_func(mask,s->cb_arg);
-			}else{
+			if(s->cb_func)s->cb_func(mask,s->cb_arg);
 			/* XXX bug here.  If subdevice A is rt, and
 			 * subdevice B tries to callback to a normal
 			 * linux kernel function, it will be at the
 			 * wrong priority.  Since this isn't very
 			 * common, I'm not going to worry about it. */
-			}
 		}
 	}
 	
