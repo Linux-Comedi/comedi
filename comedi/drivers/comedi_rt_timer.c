@@ -145,9 +145,15 @@ static void timer_ai_task_func(int d)
 	/* eek! */
 }
 
-static int timer_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int timer_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	return comedi_trig_ioctl(devpriv->device,devpriv->subd,it);
+	comedi_insn xinsn = *insn;
+
+	xinsn.data = data;
+	xinsn.subd = depvriv->subd;
+
+	return comedi_insn(devpriv->device,devpriv->subd,insn);
 }
 
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
@@ -293,8 +299,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=devpriv->s->n_chan;
 	s->len_chanlist=1024;
-	s->trig[0]=timer_ai_mode0;
-	s->trig[2]=timer_ai_mode2;
+	s->insn_read=timer_insn_read;
 	s->do_cmd=timer_cmd;
 	s->do_cmdtest=timer_cmdtest;
 	s->cancel=timer_cancel;

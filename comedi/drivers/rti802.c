@@ -52,33 +52,43 @@ comedi_driver driver_rti802={
 };
 COMEDI_INITCLEANUP(driver_rti802);
 
-static void rti802_free_resources(comedi_device * dev);
-
 typedef struct {
 	enum {
 		dac_2comp, dac_straight
 	} dac_coding[8];
 	comedi_lrange * range_type_list[8];
+	lsampl_t ao_readback[8];
 } rti802_private;
 
 #define devpriv ((rti802_private *)dev->private)
 
-static int rti802_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int rti802_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-  int i;
-  for(i=0 ; i < it->n_chan ; i++) {
-    int chan = CR_CHAN(it->chanlist[i]);
-    int data = it->data[i];
+	int i;
 
-	if (devpriv->dac_coding[chan] == dac_2comp) {
-		data ^= 0x800;
-	}
-	outb(chan, dev->iobase + RTI802_SELECT);
-	outb(data & 0xff, dev->iobase + RTI802_DATALOW);
-	outb(data >> 8, dev->iobase + RTI802_DATAHIGH);
-  }
-  return i;
+	for(i=0;i<insn->n;i++)
+		data[i]=devpriv->ao_readback[CR_CHAN(insn->chanspec)];
+
+	return i;
 }
+
+static int rti802_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	int i,d;
+	int chan = CR_CHAN(insn->chanspec);
+
+	for(i=0;i<insn->n;i++){
+		d = devpriv->ao_readback[chan] = data[i];
+		if (devpriv->dac_coding[chan] == dac_2comp) d ^= 0x800;
+		outb(chan, dev->iobase + RTI802_SELECT);
+		outb(d & 0xff, dev->iobase + RTI802_DATALOW);
+		outb(d >> 8, dev->iobase + RTI802_DATAHIGH);
+	}
+	return i;
+}
+
 
 /*
    options:
@@ -117,7 +127,8 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->maxdata=0xfff;
 	s->n_chan=8;
-	s->trig[0] = rti802_ao;
+	s->insn_read = rti802_ao_insn_read;
+	s->insn_write = rti802_ao_insn_write;
 	s->range_table_list=devpriv->range_type_list;
 
 	for (i = 0; i < 8; i++) {
@@ -134,17 +145,12 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
-static void rti802_free_resources(comedi_device * dev)
-{
-	if(dev->iobase)
-		release_region(dev->iobase, RTI802_SIZE);
-}
-
 static int rti802_detach(comedi_device * dev)
 {
 	printk("comedi%d: rti802: remove\n", dev->minor);
 
-	rti802_free_resources(dev);
+	if(dev->iobase)
+		release_region(dev->iobase, RTI802_SIZE);
 
 	return 0;
 }

@@ -245,12 +245,12 @@ static void daqp_dump(comedi_device *dev)
 	       inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
 }
 
-static int daqp_ai_a(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
 	local_info_t *local;
 	int i;
 	int v;
-	int data;
 	int counter=10000;
 #ifdef USE_INTERRUPTS
 	int threshold;
@@ -274,24 +274,19 @@ static int daqp_ai_a(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	outb(DAQP_COMMAND_RSTQ,
 	     dev->iobase+DAQP_COMMAND);
 
-	for (i=0; i < it->n_chan; i++) {
+	/* Program one scan list entry */
 
-		/* Program one scan list entry */
+	v = DAQP_SCANLIST_CHANNEL(CR_CHAN(insn->chanspec))
+		| DAQP_SCANLIST_GAIN(CR_RANGE(insn->chanspec));
 
-		v = DAQP_SCANLIST_CHANNEL(CR_CHAN(it->chanlist[i]))
-			| DAQP_SCANLIST_GAIN(CR_RANGE(it->chanlist[i]));
-
-		if (CR_AREF(it->chanlist[i]) == AREF_DIFF) {
-			v |= DAQP_SCANLIST_DIFFERENTIAL;
-		}
-
-		if (i==0) {
-			v |= DAQP_SCANLIST_START;
-		}
-
-		outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
-		outb(v >> 8, dev->iobase + DAQP_SCANLIST);
+	if (CR_AREF(insn->chanspec) == AREF_DIFF) {
+		v |= DAQP_SCANLIST_DIFFERENTIAL;
 	}
+
+	v |= DAQP_SCANLIST_START;
+
+	outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
+	outb(v >> 8, dev->iobase + DAQP_SCANLIST);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 	outb(DAQP_COMMAND_RSTF,
@@ -332,26 +327,25 @@ static int daqp_ai_a(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	printk("timeout: %d\n", timeout);
 #endif
 
-	for (i=0; i < it->n_chan; i++) {
+	i=0;
 
-		/* Wait for data in FIFO */
-		while (--counter
-		       && (inb(dev->iobase + DAQP_STATUS)
-			   & DAQP_STATUS_FIFO_EMPTY));
+	/* Wait for data in FIFO */
+	while (--counter
+	       && (inb(dev->iobase + DAQP_STATUS)
+		   & DAQP_STATUS_FIFO_EMPTY));
 
-		if (!counter) {
-			printk("DAQP FIFO never got data!\n");
-			daqp_dump(dev);
-			break;
-		} else {
-			data = inb(dev->iobase + DAQP_FIFO);
-			data |= inb(dev->iobase + DAQP_FIFO) << 8;
-			data ^= 0x8000;
-			it->data[i] = data;
-		}
+	if (!counter) {
+		printk("DAQP FIFO never got data!\n");
+		daqp_dump(dev);
+		return -EIO;
+	} else {
+		data[i] = inb(dev->iobase + DAQP_FIFO);
+		data[i] |= inb(dev->iobase + DAQP_FIFO) << 8;
+		data[i] ^= 0x8000;
 	}
 
-	return i;
+	/* XXX wrong, but I don't know how to fix it --ds */
+	return 1;
 }
 
 static void daqp_interrupt(int irq, void * dev_id, struct pt_regs *regs)
@@ -409,7 +403,7 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan=8;
 	s->maxdata=0xffff;
 	s->range_table=&range_daqp_ai;
-	s->trig[0]=daqp_ai_a;
+	s->insn_read=daqp_ai_insn_read;
 
 	return 1;
 }

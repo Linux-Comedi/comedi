@@ -138,6 +138,7 @@ typedef struct {
 		dac_2comp, dac_straight
 	} dac0_coding, dac1_coding;
 	comedi_lrange * ao_range_type_list[2];
+	lsampl_t ao_readback[2];
 } rti800_private;
 
 #define devpriv ((rti800_private *)dev->private)
@@ -152,17 +153,13 @@ static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
 
 static int gaindelay[]={10,20,40,80};
 
-static int rti800_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-  int i;
-  for(i=0 ; i < it->n_chan ; i++) {
-    int t, hi, lo, gain;
-	int chan;
-	int data;
+	int i,t;
 	int status;
-
-    chan = CR_CHAN(it->chanlist[i]);
-    gain = CR_RANGE(it->chanlist[i]);
+	int chan = CR_CHAN(insn->chanspec);
+	int gain = CR_RANGE(insn->chanspec);
 
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0,dev->iobase+RTI800_CLRFLAGS);
@@ -172,96 +169,84 @@ static int rti800_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_trig
 	/* contrary to the docs, there needs to be a delay here */
 	udelay(gaindelay[gain]);
 
-	outb(0, dev->iobase + RTI800_CONVERT);
-    for (t = 0; t < RTI800_TIMEOUT; t++) {
-		status=inb(dev->iobase+RTI800_CSR);
-#if DEBUG
-      rt_printk("status=%x\n",status);
-#endif
-		if(status & RTI800_OVERRUN){
-			rt_printk("rti800: a/d overflow\n");
-			outb(0,dev->iobase+RTI800_CLRFLAGS);
-
+	for(i=0;i<insn->n;i++){
+		outb(0, dev->iobase + RTI800_CONVERT);
+    		for (t = RTI800_TIMEOUT; t; t--) {
+			status=inb(dev->iobase+RTI800_CSR);
+			if(status & RTI800_OVERRUN){
+				rt_printk("rti800: a/d overflow\n");
+				outb(0,dev->iobase+RTI800_CLRFLAGS);
+				return -EIO;
+			}
+			if (status & RTI800_DONE)break;
+		}
+		if(t){
+			rt_printk("rti800: timeout\n");
 			return -ETIME;
 		}
-		if (status & RTI800_DONE)
-			break;
-      udelay(8);
-	}
-    if(t==RTI800_TIMEOUT){
-		rt_printk("rti800: timeout\n");
+		data[i] = inb(dev->iobase + RTI800_ADCLO);
+		data[i] = (0xf & inb(dev->iobase + RTI800_ADCHI))<<8;
 
-		return -ETIME;
+		if (devpriv->adc_coding == adc_2comp) {
+			data[i] ^= 0x800;
+		}
 	}
-	lo = inb(dev->iobase + RTI800_ADCLO);
-	hi = inb(dev->iobase + RTI800_ADCHI);
 
-	data = (hi << 8) | lo;
-	data &= 0xfff;
-	if (devpriv->adc_coding == adc_2comp) {
-		data ^= 0x800;
-	}
-    it->data[i]=data;
-  }
-  return i;
-
+	return i;
 }
 
-static int rti800_ai_mode1(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int rti800_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	return -EINVAL;
+	int i;
+	int chan=CR_CHAN(insn->chanspec);
+
+	for(i=0;i<insn->n;i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return i;
 }
 
-
-static int rti800_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int rti800_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-  int i;
-  for(i=0 ; i < it->n_chan ; i++) {
-	int chan;
-	int data;
+	int chan=CR_CHAN(insn->chanspec);
+	int d;
+	int i;
 
-    chan=CR_CHAN(it->chanlist[i]);
-    data=it->data[i];
-
-	switch(chan){
-	case 0:
+	for(i=0;i<insn->n;i++){
+		devpriv->ao_readback[chan] = d = data[i];
 		if (devpriv->dac0_coding == dac_2comp) {
-			data ^= 0x800;
+			d ^= 0x800;
 		}
-		outb(data & 0xff, dev->iobase + RTI800_DAC0LO);
-		outb(data >> 8, dev->iobase + RTI800_DAC0HI);
-       break;
-	case 1:
-		if (devpriv->dac1_coding == dac_2comp) {
-			data ^= 0x800;
-		}
-		outb(data & 0xff, dev->iobase + RTI800_DAC1LO);
-		outb(data >> 8, dev->iobase + RTI800_DAC1HI);
-       break;
-	default:
-		return -EINVAL;
+		outb(d & 0xff, dev->iobase + chan?RTI800_DAC1LO:RTI800_DAC0LO);
+		outb(d >> 8, dev->iobase + chan?RTI800_DAC1HI:RTI800_DAC0HI);
 	}
-  }
-  return i;
+	return i;
 }
 
-static int rti800_di(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int rti800_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int bits;
-	
-	bits = inb(dev->iobase + RTI800_DI);
+	if(insn->n!=2)return -EINVAL;
+	data[1] = inb(dev->iobase + RTI800_DI);
 
-	return di_unpack(bits,it);
+	return 2;
 }
 
-static int rti800_do(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int rti800_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
+	if(insn->n!=2)return -EINVAL;
 
-       /* Outputs are inverted... */
-       outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state &= data[0]&data[1];
+		/* Outputs are inverted... */
+		outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
+	}
 
-	return it->n_chan;
+	return 2;
 }
 
 
@@ -342,8 +327,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=(devpriv->adc_mux? 16 : 8);
-	s->trig[0]=rti800_ai_mode0;
-	s->trig[1]=rti800_ai_mode1;
+	s->insn_read=rti800_ai_insn_read;
 	s->maxdata=0xfff;
 	switch (devpriv->adc_range) {
 	case adc_bipolar10:
@@ -363,7 +347,8 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITEABLE;
 		s->n_chan=2;
-		s->trig[0]=rti800_ao;
+		s->insn_read=rti800_ao_insn_read;
+		s->insn_write=rti800_ao_insn_write;
 		s->maxdata=0xfff;
 		s->range_table_list=devpriv->ao_range_type_list;
 		switch (devpriv->dac0_range) {
@@ -391,7 +376,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_DI;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=8;
-	s->trig[0]=rti800_di;
+	s->insn_bits=rti800_di_insn_bits;
 	s->maxdata=1;
 	s->range_table=&range_digital;
 
@@ -400,7 +385,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_DO;
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=8;
-	s->trig[0]=rti800_do;
+	s->insn_bits=rti800_do_insn_bits;
 	s->maxdata=1;
 	s->range_table=&range_digital;
 
@@ -410,9 +395,6 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* do */
 	s->type=COMEDI_SUBD_TIMER;
-	s->n_chan=0;
-	s->trig[0]=NULL;
-	s->maxdata=0
 #endif
 
 	printk("\n");

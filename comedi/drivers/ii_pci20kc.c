@@ -410,10 +410,9 @@ static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
 /* native DIO */
 
 static void pci20xxx_dio_config(comedi_device * dev,comedi_subdevice *s);
-static void pci20xxx_do(comedi_device * dev,comedi_subdevice *s);
-static unsigned int pci20xxx_di(comedi_device * dev,comedi_subdevice *s);
-static int pci20xxx_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int pci20xxx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+static int pci20xxx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
 /* initialize pci20xxx_private */
@@ -423,8 +422,8 @@ static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s)
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
 	s->n_chan = 32;
-	s->trig[0] = pci20xxx_dio;
 	s->insn_bits = pci20xxx_dio_insn_bits;
+	s->insn_config = pci20xxx_dio_insn_config;
 	s->maxdata = 1;
 	s->len_chanlist = 32;
 	s->range_table = &range_digital;
@@ -436,45 +435,29 @@ static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s)
 	return 0;
 }
 
-static int pci20xxx_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pci20xxx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-	int mask,data_in;
-	int i;
+	int mask,bits;
 
-	if(it->flags & TRIG_CONFIG){
-		int bits;
-
-		for(i=0;i<it->n_chan;i++){
-			mask = 1<<CR_CHAN(it->chanlist[i]);
-			if(mask&0x000000ff){
-				bits = 0x000000ff;
-			}else if(mask & 0x0000ff00){
-				bits = 0x0000ff00;
-			}else if(mask & 0x00ff0000){
-				bits = 0x00ff0000;
-			}else {
-				bits = 0xff000000;
-			}
-			if(it->data[i]){
-				s->io_bits |= bits;
-			}else{
-				s->io_bits &= ~bits;
-			}
-		}
-		pci20xxx_dio_config(dev,s);
-	}else{
-		if(it->flags&TRIG_WRITE){
-			do_pack(&s->state,it);
-
-			pci20xxx_do(dev,s);
-		}else{
-			data_in = pci20xxx_di(dev,s);
-
-			di_unpack(data_in,it);
-		}
+	mask = 1<<CR_CHAN(insn->chanspec);
+	if(mask&0x000000ff){
+		bits = 0x000000ff;
+	}else if(mask & 0x0000ff00){
+		bits = 0x0000ff00;
+	}else if(mask & 0x00ff0000){
+		bits = 0x00ff0000;
+	}else {
+		bits = 0xff000000;
 	}
+	if(data[0]){
+		s->io_bits |= bits;
+	}else{
+		s->io_bits &= ~bits;
+	}
+	pci20xxx_dio_config(dev,s);
 
-	return it->n_chan;
+	return 1;
 }
 
 static int pci20xxx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
@@ -554,6 +537,7 @@ static void pci20xxx_dio_config(comedi_device * dev,comedi_subdevice *s)
 	writeb(buffer, dev->iobase + PCI20000_DIO_BUFFER);	
 }
 
+#if 0
 static void pci20xxx_do(comedi_device * dev, comedi_subdevice * s)
 {
 	/* XXX if the channel is configured for input, does this
@@ -579,6 +563,7 @@ static unsigned int pci20xxx_di(comedi_device * dev, comedi_subdevice * s)
 
 	return bits;
 }
+#endif
 
 COMEDI_INITCLEANUP(driver_pci20xxx);
 

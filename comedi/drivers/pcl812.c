@@ -140,8 +140,6 @@ typedef struct {
 #ifdef USE_DMA
 	unsigned int DMAbits;
 #endif
-/*	void *ai_mode[4];*/
-	
 } boardtype;
 
 static boardtype boardtypes[] =
@@ -217,6 +215,8 @@ typedef struct {
 	//int int13_act_ptr;
 	int int13_act_scan;
 	unsigned int chanlist[AI_LEN_CHANLIST];
+	lsampl_t ao_readback[2];
+	
 } pcl812_private;
 
 #define devpriv ((pcl812_private *)dev->private)
@@ -226,52 +226,39 @@ typedef struct {
 ==============================================================================
    ANALOG INPUT MODE0, 812pg and 813b card
 */
-static int pcl812_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl812_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int nmax;
-	int i, n, p;
+	int n;
 	int timeout, hi;
-
-	nmax = devpriv->max_812_ai_mode0_samples;	/* block for max cca 1ms  (812) */
-
-	if ((it->n * it->n_chan) <= nmax)
-		nmax = it->n * it->n_chan;
-
-	nmax = nmax / it->n_chan;
-	if (!nmax)
-		nmax++;
 
 	outb(1, dev->iobase + PCL812_MODE);	/* select software trigger */
 
-	p = 0;			/* ptr to buff */
-
-	for (n = 0; n < nmax; n++) {
-		for (i = 0; i < it->n_chan; i++) {
-			outb(CR_RANGE(it->chanlist[i]), dev->iobase + PCL812_GAIN);	/* select gain */
-			udelay(devpriv->max_812_ai_mode0_rangewait);
-			outb(CR_CHAN(it->chanlist[i]), dev->iobase + PCL812_MUX);	/* select channel */
-			udelay(devpriv->max_812_ai_mode0_chanset);
-			outb(255, dev->iobase + PCL812_SOFTTRIG);	/* start conversion */
-			udelay(devpriv->max_812_ai_mode0_convstart);
-			timeout = 20;	/* wait max 100us, it must finish under 33us */
-			while (timeout--) {
-				hi = inb(dev->iobase + PCL812_AD_HI);
-				if (!(hi & PCL812_DRDY))
-					goto conv_finish;
-				udelay(5);
-			}
-			rt_printk("comedi%d: pcl812: (%s at 0x%x) A/D mode0 timeout\n", dev->minor, dev->board_name, dev->iobase);
-			it->data[p++] = 0;
-			outb(0, dev->iobase + PCL812_MODE);
-			return -ETIME;
-
-		      conv_finish:
-			it->data[p++] = ((hi & 0xf) << 8) | inb(dev->iobase + PCL812_AD_LO);;
+	/* select gain */
+	outb(CR_RANGE(insn->chanspec), dev->iobase + PCL812_GAIN);
+	/* select channel */
+	outb(CR_CHAN(insn->chanspec), dev->iobase + PCL812_MUX);
+#define max(a,b) ((a>b)?(a):(b))
+	udelay(max(devpriv->max_812_ai_mode0_rangewait,
+		devpriv->max_812_ai_mode0_chanset));
+	for(n=0;n<insn->n;n++){
+		outb(255, dev->iobase + PCL812_SOFTTRIG);	/* start conversion */
+		udelay(devpriv->max_812_ai_mode0_convstart);
+		timeout = 20;	/* wait max 100us, it must finish under 33us */
+		while (timeout--) {
+			hi = inb(dev->iobase + PCL812_AD_HI);
+			if (!(hi & PCL812_DRDY))
+				goto conv_finish;
 		}
-	}
+		rt_printk("comedi%d: pcl812: (%s at 0x%x) A/D mode0 timeout\n", dev->minor, dev->board_name, dev->iobase);
+		outb(0, dev->iobase + PCL812_MODE);
+		return -ETIME;
 
+	      conv_finish:
+		data[n] = ((hi & 0xf) << 8) | inb(dev->iobase + PCL812_AD_LO);
+	}
 	outb(0, dev->iobase + PCL812_MODE);
-	return p;
+	return n;
 }
 
 /* 
@@ -279,18 +266,29 @@ static int pcl812_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
    ANALOG OUTPUT MODE0, 812pg card
    only one sample per call is supported
 */
-static int pcl812_ao_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl812_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int chan;
-	sampl_t data;
+	int chan = CR_CHAN(insn->chanspec);
 	int i;
 
-	for(i=0;i<it->n_chan;i++){
-		chan = CR_CHAN(it->chanlist[i]);
-		data = it->data[i];
+	for(i=0;i<insn->n;i++){
+		outb((data[i] & 0xff), dev->iobase + (chan ? PCL812_DA2_LO : PCL812_DA1_LO));
+		outb((data[i] >> 8) & 0x0f, dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
+		devpriv->ao_readback[chan]=data[i];
+	}
 
-		outb((data & 0xff), dev->iobase + (chan ? PCL812_DA2_LO : PCL812_DA1_LO));
-		outb((data >> 8) & 0x0f, dev->iobase + (chan ? PCL812_DA2_HI : PCL812_DA1_HI));
+	return i;
+}
+
+static int pcl812_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for(i=0;i<insn->n;i++){
+		data[i] = devpriv->ao_readback[chan];
 	}
 
 	return i;
@@ -302,13 +300,15 @@ static int pcl812_ao_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
    
    only one sample per call is supported
 */
-static int pcl812_di_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl812_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int data;
+	if(insn->n!=2)return -EINVAL;
 
-	data = inb(dev->iobase + PCL812_DI_LO) | (inb(dev->iobase + PCL812_DI_HI) << 8);
+	data[1] = inb(dev->iobase + PCL812_DI_LO);
+	data[1] |= inb(dev->iobase + PCL812_DI_HI) << 8;
 
-	return di_unpack(data,it);
+	return 2;
 }
 
 /* 
@@ -317,13 +317,20 @@ static int pcl812_di_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
    
    only one sample per call is supported
 */
-static int pcl812_do_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl812_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
-	outb(s->state & 0xff, dev->iobase + PCL812_DO_LO);
-	outb((s->state >> 8), dev->iobase + PCL812_DO_HI);
+	if(insn->n!=2)return -EINVAL;
 
-	return it->n_chan;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= data[0]&data[1];
+		outb(s->state & 0xff, dev->iobase + PCL812_DO_LO);
+		outb((s->state >> 8), dev->iobase + PCL812_DO_HI);
+	}
+	data[1]=s->state;
+
+	return 2;
 }
 
 /* 
@@ -737,7 +744,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->len_chanlist = AI_LEN_CHANLIST;
 		s->range_table = this_board->ai_range_type;
 		s->subdev_flags |= SDF_GROUND;
-		s->trig[0] = pcl812_ai_mode0;
+		s->insn_read = pcl812_ai_insn_read;
 		if(this_board->is_812pg){
 			if (it->options[3] == 1)
 				s->range_table = &range_pcl812pg2_ai;
@@ -767,8 +774,8 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->range_table = this_board->ao_range_type;
 		if(this_board->is_812pg){
 			s->subdev_flags |= SDF_GROUND;
-			s->trig[0] = pcl812_ao_mode0;
-			//s->trig[1] = pcl812_ao_mode1;
+			s->insn_read = pcl812_ao_insn_read;
+			s->insn_write = pcl812_ao_insn_write;
 			if (it->options[4] == 1)
 				s->range_table = &range_unipolar5;
 			if (it->options[4] == 2)
@@ -787,7 +794,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dichan;
 		s->range_table = &range_digital;
-		s->trig[0] = pcl812_di_mode0;
+		s->insn_bits = pcl812_di_insn_bits;
 	}
 
 	/* digital output */
@@ -801,7 +808,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;
 		s->range_table = &range_digital;
-		s->trig[0] = pcl812_do_mode0;
+		s->insn_bits = pcl812_do_insn_bits;
 	}
 
 	pcl812_reset(dev);
