@@ -113,7 +113,7 @@ $(patsubst %, _mod_%, $(SUBDIRS)) : dummy
 	-mkdir modules
 	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
 
-dep-files: scripts/mkdep archdep include/$(project)/version.h new-genksyms
+dep-files: scripts/mkdep archdep include/modbuild/version.h new-genksyms
 #	scripts/mkdep init/*.c >.depend
 	echo >.depend
 	scripts/mkdep `find $(FINDHPATH) -follow -name \*.h ! -name modversions.h -print` > .hdepend
@@ -121,7 +121,7 @@ dep-files: scripts/mkdep archdep include/$(project)/version.h new-genksyms
 # let this be made through the fastdep rule in Rules.make
 	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
 
-include/$(project)/version.h: ./Makefile
+include/modbuild/version.h: ./Makefile
 	@echo \#define $(PROJECT)_RELEASE \"$(PROJECTRELEASE)\" > .ver
 	@echo \#define $(PROJECT)_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
 	@echo '#define $(PROJECT)_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))' >>.ver
@@ -144,7 +144,7 @@ distclean:	clean
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
 	-rm -rf modules
-	rm -f .config .uts_version include/modbuild/config.h .config.old
+	rm -f .config .uts_version include/modbuild/config.h .config.old include/modbuild/version.h
 	rm -f scripts/mkdep
 	rm -f .sourcedirs
 
