@@ -109,27 +109,27 @@ enum{das800, ciodas800, das801, ciodas801, das802, ciodas802};
 das800_board das800_boards[] =
 {
 	{
-		name:	"DAS-800",
+		name:	"das-800",
 		ai_speed:	25000,
 	},
 	{
-		name:	"CIO-DAS800",
+		name:	"cio-das800",
 		ai_speed:	20000,
 	},
 	{
-		name:		"DAS-801",
+		name:		"das-801",
 		ai_speed:	25000,
 	},
 	{
-		name:	"CIO-DAS801",
+		name:	"cio-das801",
 		ai_speed:	20000,
 	},
 	{
-		name:		"DAS-802",
+		name:		"das-802",
 		ai_speed:	25000,
 	},
 	{
-		name:	"CIO-DAS802",
+		name:	"cio-das802",
 		ai_speed:	20000,
 	},
 };
@@ -230,7 +230,9 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 int das800_probe(comedi_device *dev);
 int das800_set_frequency(comedi_device *dev);
 int das800_load_counter(unsigned int counterNumber, unsigned int counterValue, comedi_device *dev);
@@ -487,6 +489,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_read = das800_di_rinsn;
+	s->insn_bits = das800_di_rbits;
 
 	/* do */
 	s = dev->subdevices + 2;
@@ -496,6 +499,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_write = das800_do_winsn;
+	s->insn_bits = das800_do_wbits;
 
 	disable_das800(dev);
 
@@ -797,6 +801,18 @@ static int das800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	return 1;
 }
 
+static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	lsampl_t bits;
+
+	bits = inb(dev->iobase + DAS800_STATUS) >> 4;
+	bits &= 0x7;
+	data[1] = bits;
+	data[0] = 0;
+
+	return 2;
+}
+
 static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int mux_bits;
@@ -817,6 +833,31 @@ static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	return 1;
+}
+
+static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int mux_bits;
+	int wbits;
+	unsigned long irq_flags;
+
+	mux_bits = inb(dev->iobase + DAS800_STATUS) & 0x7;
+
+	// only set bits that have been masked
+	wbits = devpriv->do_bits >> 4;
+	wbits &= ~data[0];
+	wbits |= data[0] & data[1];
+	wbits &= 0xf;
+	devpriv->do_bits = wbits << 4;
+
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
+	outb(devpriv->do_bits | CONTROL1_INTE | mux_bits, dev->iobase + DAS800_CONTROL1);
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+
+	data[1] = wbits;
+
+	return 2;
 }
 
 /* loads counters with divisor1, divisor2 from private structure */
