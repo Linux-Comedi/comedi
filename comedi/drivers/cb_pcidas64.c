@@ -43,7 +43,8 @@ Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
-  PCI-DAS64/M2/14, PCI-DAS64/M3/14
+  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6025E, PCI-DAS6034E,
+  PCI-DAS6035E
 Configuration options:
    [0] - PCI bus of device (optional)
    [1] - PCI slot of device (optional)
@@ -294,7 +295,33 @@ static pcidas64_board pcidas64_boards[] =
 		ao_nchan: 2,
 		ao_scan_speed:	10000,
 	},
-
+	{
+		name:		"pci-das6025e",
+		device_id:	0x5e,
+		ai_se_chans:	16,
+		ai_bits:	12,
+		ai_speed:	5000,
+		ao_nchan: 2,
+		ao_scan_speed:	100000,
+	},
+	{
+		name:		"pci-das6034e",
+		device_id:	0x63,
+		ai_se_chans:	16,
+		ai_bits:	16,
+		ai_speed:	5000,
+		ao_nchan: 0,
+		ao_scan_speed:	0,
+	},
+	{
+		name:		"pci-das6035e",
+		device_id:	0x64,
+		ai_se_chans:	16,
+		ai_bits:	16,
+		ai_speed:	5000,
+		ao_nchan:	2,
+		ao_scan_speed:	100000,
+	},
 #if 0
 	{
 		name:		"pci-das6402/16/jr",
