@@ -71,8 +71,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #include <linux/comedidev.h>
 
-#include <linux/irq.h> /* for disable_irq */
-
 #include "mite.h"
 #include "8255.h"
 
