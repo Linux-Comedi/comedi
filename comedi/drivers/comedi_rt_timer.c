@@ -129,8 +129,8 @@ COMEDI_INITCLEANUP(driver_timer);
 
 
 typedef struct{
-	int device;	// device we are emulating commands for
-	int subd;	// subdevice we are emulating commands for
+	comedi_t *device;	// device we are emulating commands for
+	int subd;		// subdevice we are emulating commands for
 	RT_TASK *rt_task;	// rt task that starts scans
 	RT_TASK *scan_task;	// rt task that controls conversion timing in a scan
 	/* io_function can point to either an input or output function
@@ -583,6 +583,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	/* These should probably be devconfig options[] */
 	const int timer_priority = 4;
 	const int scan_priority = timer_priority + 1;
+	char path[20];
 
 	printk("comedi%d: timer: ",dev->minor);
 
@@ -594,13 +595,14 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(timer_private)))<0)
 		return ret;
 
-	devpriv->device=it->options[0];
+	sprintf(path,"/dev/comedi%d",it->options[0]);
+	devpriv->device = comedi_open(path);
 	devpriv->subd=it->options[1];
 
-	printk("device %d, subdevice %d\n", devpriv->device, devpriv->subd);
+	printk("device %p, subdevice %d\n", devpriv->device, devpriv->subd);
 
-	emul_dev=comedi_get_device_by_minor(devpriv->device);
-	emul_s=emul_dev->subdevices+devpriv->subd;
+	emul_dev = (comedi_device *)devpriv->device;
+	emul_s = emul_dev->subdevices+devpriv->subd;
 
 	// input or output subdevice
 	s=dev->subdevices+0;
