@@ -1482,6 +1482,20 @@ void comedi_done(comedi_device *dev,comedi_subdevice *s)
 	s->subdev_flags &= ~SDF_RUNNING;
 }
 
+void comedi_error_done(comedi_device *dev,comedi_subdevice *s)
+{
+#if 0
+	DPRINTK("comedi_error_done\n");
+#endif
+
+	if(!(s->cur_trig.flags&TRIG_RT))
+		wake_up_interruptible(&dev->wait);
+	else if(s->cb_mask&(COMEDI_CB_ERROR|COMEDI_CB_EOA))
+		s->cb_func(COMEDI_CB_ERROR|COMEDI_CB_EOA,s->cb_arg);
+
+	s->subdev_flags &= ~SDF_RUNNING;
+}
+
 void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s)
 {
 #if 0
@@ -1493,8 +1507,12 @@ void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s)
 	   (s->buf_int_count-s->buf_user_count >= 16))
 		wake_up_interruptible(&dev->wait);
 #else
-	if(!(s->cur_trig.flags&TRIG_RT))
+	if(!(s->cur_trig.flags&TRIG_RT)) {
 		wake_up_interruptible(&dev->wait);
+	}else{
+		if(s->cb_mask&COMEDI_CB_BLOCK)
+			s->cb_func(COMEDI_CB_BLOCK,s->cb_arg);
+	}
 #endif
 }
 

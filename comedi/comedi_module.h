@@ -197,6 +197,7 @@ extern comedi_device *comedi_devices;
 
 void comedi_error(comedi_device *dev,const char *s);
 void comedi_done(comedi_device *dev,comedi_subdevice *s);
+void comedi_error_done(comedi_device *dev,comedi_subdevice *s);
 void comedi_eos(comedi_device *dev,comedi_subdevice *s);
 void comedi_eobuf(comedi_device *dev,comedi_subdevice *s);
 void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s);
