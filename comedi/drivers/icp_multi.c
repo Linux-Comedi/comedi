@@ -33,7 +33,6 @@
 #include "icp_multi.h"
 
 
-#define VENDOR_ID	0x104C	/* PCI vendor ID */
 #define DEVICE_ID	0x8000	/* Device ID */
 
 #define ICP_MULTI_EXTDEBUG
@@ -115,7 +114,6 @@ static unsigned short	pci_list_builded=0;	/*=1 list of card is know */
 
 typedef struct {
 	char 		*name;		// driver name
-	int		vendor_id;	// PCI vendor a device ID of card
 	int		device_id;
 	int		iorange;	// I/O range len
 	char		have_irq;	// 1=card support IRQ
@@ -136,7 +134,6 @@ typedef struct {
 static boardtype boardtypes[] =
 {
 	{"icp_multi",		// Driver name
-	 VENDOR_ID,		// PCI vendor ID
 	 DEVICE_ID,		// PCI device ID
 	 IORANGE_ICP_MULTI,	// I/O range length
 	 1,			// 1=Card supports interrupts
@@ -847,18 +844,19 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 
 	// Initialise list of PCI cards in system, if not already done so
 	if (!pci_list_builded) {
-		pci_card_list_init(VENDOR_ID,
+		pci_card_list_init(PCI_VENDOR_ID_ICP,
 #ifdef ICP_MULTI_EXTDEBUG
-						    1);
+						    1
 #else
-						    0);
+						    0
 #endif
+			);
 			pci_list_builded=1;
 	}
 
 	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor, this_board->name);
 
-	if ((card=select_and_alloc_pci_card(VENDOR_ID, this_board->device_id, it->options[0], it->options[1]))==NULL)
+	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ICP, this_board->device_id, it->options[0], it->options[1]))==NULL)
 		return -EIO;
 	
 	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0], &irq, &master))<0) {
@@ -1039,7 +1037,7 @@ static int icp_multi_detach(comedi_device *dev)
 	}
 
 	if (pci_list_builded) {
-	    	pci_card_list_cleanup(VENDOR_ID);
+	    	pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
 		pci_list_builded=0;
 	}
 

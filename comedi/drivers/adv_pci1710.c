@@ -59,8 +59,6 @@ Configuration options:
 #include "amcc_s5933.h"
 
 
-#define ADVANTECH_VENDOR	0x13fe	/* Advantech PCI vendor ID */
-
 #define PCI171x_PARANOIDCHECK		/* if defined, then is used code which control correct channel number on every 12 bit sample */
 
 #undef PCI171X_EXTDEBUG
@@ -189,7 +187,6 @@ static unsigned short	pci_list_builded=0;	/*=1 list of card is know */
 
 typedef struct {
 	char 		*name;		// driver name
-	int		vendor_id;	// PCI vendor a device ID of card
 	int		device_id;
 	int		iorange;	// I/O range len
 	char		have_irq;	// 1=card support IRQ
@@ -209,43 +206,43 @@ typedef struct {
 } boardtype;
 
 static struct pci_device_id pci1710_pci_table[] = __devinitdata {
-	{ ADVANTECH_VENDOR, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ ADVANTECH_VENDOR, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ ADVANTECH_VENDOR, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ ADVANTECH_VENDOR, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ ADVANTECH_VENDOR, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_ADVANTECH, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_ADVANTECH, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_ADVANTECH, 0x1720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_ADVANTECH, 0x1731, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
 
 static boardtype boardtypes[] =
 {
-	{"pci1710", ADVANTECH_VENDOR, 0x1710,
+	{"pci1710", 0x1710,
 	 IORANGE_171x, 1, TYPE_PCI171X,
 	 16, 8, 2, 16, 16,  0x0fff, 0x0fff,
 	 &range_pci1710_3, range_codes_pci1710_3, &range_pci171x_da,
 	 10000, 2048 },
-	{"pci1710hg", ADVANTECH_VENDOR, 0x1710,
+	{"pci1710hg", 0x1710,
 	 IORANGE_171x, 1, TYPE_PCI171X,
 	 16, 8, 2, 16, 16,  0x0fff, 0x0fff,
 	 &range_pci1710hg, range_codes_pci1710hg, &range_pci171x_da,
 	 10000, 2048 },
-	{"pci1711", ADVANTECH_VENDOR, 0x1711,
+	{"pci1711", 0x1711,
 	 IORANGE_171x, 1, TYPE_PCI171X,
 	 16, 0, 2, 16, 16,  0x0fff, 0x0fff,
 	 &range_pci17x1, range_codes_pci17x1, &range_pci171x_da,
 	 10000, 512 },
-	{"pci1713", ADVANTECH_VENDOR, 0x1713,
+	{"pci1713", 0x1713,
 	 IORANGE_171x, 1, TYPE_PCI1713,
 	 32,16, 0,  0,  0,  0x0fff, 0x0000,
 	 &range_pci17x1, range_codes_pci1710_3, NULL,
 	 10000, 2048 },
-	{"pci1720", ADVANTECH_VENDOR, 0x1720,
+	{"pci1720", 0x1720,
 	 IORANGE_1720, 0, TYPE_PCI1720,
 	 0, 0, 4, 0, 0,  0x0000, 0x0fff,
 	 NULL, NULL, &range_pci1720,
 	 0, 0 },
-	{"pci1731", ADVANTECH_VENDOR, 0x1731,
+	{"pci1731", 0x1731,
 	 IORANGE_171x, 1, TYPE_PCI171X,
 	 16, 0, 0, 16, 16,  0x0fff, 0x0000,
 	 &range_pci17x1, range_codes_pci17x1, NULL,
@@ -1133,7 +1130,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 	unsigned char pci_bus,pci_slot,pci_func;
 	
 	if (!pci_list_builded) {
-		pci_card_list_init(ADVANTECH_VENDOR,
+		pci_card_list_init(PCI_VENDOR_ID_ADVANTECH,
 #ifdef PCI171X_EXTDEBUG
 						    1
 #else
@@ -1145,7 +1142,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 
 	rt_printk("comedi%d: adv_pci1710: board=%s",dev->minor,this_board->name);
 
-	if ((card=select_and_alloc_pci_card(ADVANTECH_VENDOR, this_board->device_id, it->options[0], it->options[1]))==NULL) 
+	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ADVANTECH, this_board->device_id, it->options[0], it->options[1]))==NULL) 
 		return -EIO;
 	
 	if ((pci_card_data(card,&pci_bus,&pci_slot,&pci_func,
@@ -1298,7 +1295,7 @@ static int pci1710_detach(comedi_device *dev)
 	if (dev->iobase) release_region(dev->iobase,this_board->iorange);
 
 	if (pci_list_builded) {
-	    	pci_card_list_cleanup(ADVANTECH_VENDOR);
+	    	pci_card_list_cleanup(PCI_VENDOR_ID_ADVANTECH);
 		pci_list_builded=0;
 	}
 
