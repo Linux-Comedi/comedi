@@ -76,6 +76,12 @@ int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
 		return -EINVAL;
 	}
 
+	if( (it.range_type&0xffff) != lr->length){
+		DPRINTK("wrong length %d should be %d (0x%08lx)\n",
+			it.range_type&0xffff,lr->length,it.range_type);
+		return -EINVAL;
+	}
+
 	if(copy_to_user(it.range_ptr,lr->range,
 		sizeof(comedi_krange)*lr->length))
 		return -EFAULT;
