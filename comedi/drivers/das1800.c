@@ -169,6 +169,7 @@ TODO:
 #define   OVF                     0x10
 #define   FHF                     0x20
 #define   FNE                     0x40
+#define   CVEN_MASK               0x40
 #define   CVEN                    0x80
 #define DAS1800_BURST_LENGTH    0x8
 #define DAS1800_BURST_RATE      0x9
@@ -884,7 +885,7 @@ static int das1800_ai_poll(comedi_device *dev,comedi_subdevice *s)
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
-	int status;
+	unsigned int status;
 
 	if(dev->attached == 0)
 	{
@@ -897,18 +898,15 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	spin_lock(&dev->spinlock);
 	status = inb(dev->iobase + DAS1800_STATUS);
 
-	/* clear interrupt */
-	outb(FNE, dev->iobase + DAS1800_STATUS);
-
 	/* if interrupt was not caused by das-1800 */
 	if(!(status & INT))
 	{
-		comedi_error(dev, "spurious interrupt");
-		rt_printk("status 0x%x\n", status);
 		spin_unlock(&dev->spinlock);
 		return;
 	}
-
+	/* clear the interrupt status bits */
+	outb(CVEN_MASK, dev->iobase + DAS1800_STATUS);
+	// handle interrupt
 	das1800_ai_handler(dev, status);
 
 	spin_unlock(&dev->spinlock);
@@ -1446,7 +1444,6 @@ static void setup_dma(comedi_device *dev, comedi_cmd cmd)
 
 	/* determine a reasonable dma transfer size */
 	devpriv->dma_transfer_size = suggest_transfer_size(&cmd);
-
 	lock_flags = claim_dma_lock();
 	disable_dma(devpriv->dma0);
 	/* clear flip-flop to make sure 2-byte registers for
@@ -1748,10 +1745,10 @@ static unsigned int suggest_transfer_size(comedi_cmd *cmd)
 	{
 		case TRIG_FOLLOW:	// not in burst mode
 			if(cmd->convert_src == TRIG_TIMER)
-				size = fill_time / cmd->convert_arg;
+				size = (fill_time / cmd->convert_arg) * sample_size;
 			break;
 		case TRIG_TIMER:
-			size = fill_time / (cmd->scan_begin_arg * cmd->chanlist_len);
+			size = (fill_time / (cmd->scan_begin_arg * cmd->chanlist_len)) * sample_size;
 			break;
 		default:
 			size = DMA_BUF_SIZE;
@@ -1762,11 +1759,11 @@ static unsigned int suggest_transfer_size(comedi_cmd *cmd)
 	max_size = DMA_BUF_SIZE;
 	// if we are taking limited number of conversions, limit transfer size to that
 	if(cmd->stop_src == TRIG_COUNT &&
-		cmd->stop_arg * cmd->chanlist_len < max_size)
-		max_size = cmd->stop_arg * cmd->chanlist_len;
+		cmd->stop_arg * cmd->chanlist_len * sample_size < max_size)
+		max_size = cmd->stop_arg * cmd->chanlist_len * sample_size;
 
 	if(size > max_size)
-		size = max_size - max_size % sample_size;
+		size = max_size;
 	if(size < sample_size)
 		size = sample_size;
 
