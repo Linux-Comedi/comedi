@@ -23,9 +23,6 @@
 #define pci_enable_device(x) 0
 
 #define PCI_ANY_ID (~0)
-#ifndef PCI_VENDOR_ID_ICP
-#define PCI_VENDOR_ID_ICP 0x104c
-#endif
 
 struct pci_device_id {
 	unsigned int vendor, device;
