@@ -1,4 +1,6 @@
 
+fix INSTALL.RTLinux, INSTALL.RTAI
+
 BUG in do_test_for_insn_bits() (due to -EACCES)
 
 ni_mio_common: doesn't do 2-chan ao.
