@@ -695,8 +695,9 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	clear_dma_ff(devpriv->dma);
 	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
 	// set size of transfer to fill in 1/3 second
+#define ONE_THIRD_SECOND 333333333
 	devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
-		(1000000000.0 / 3.0 ) / cmd->scan_begin_arg;
+		ONE_THIRD_SECOND / cmd->scan_begin_arg;
 	if(devpriv->dma_transfer_size > A2150_DMA_BUFFER_SIZE)
 		devpriv->dma_transfer_size = A2150_DMA_BUFFER_SIZE;
 	if(devpriv->dma_transfer_size < sizeof(devpriv->dma_buffer[0]))

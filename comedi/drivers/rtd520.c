@@ -1491,7 +1491,7 @@ static int rtd_ai_cancel (
 static int rtd_ns_to_timer_base (
     unsigned int *nanosec,		/* desired period (in ns) */
     int round_mode,
-    double base)			/* clock period (in ns) */
+    int base)			/* clock period (in ns) */
 {
     int divider;
 
