@@ -1026,7 +1026,7 @@ static int nidio_find_device(comedi_device *dev,int bus,int slot)
 	for(mite=mite_devices;mite;mite=mite->next){
 		if(mite->used)continue;
 		if(bus || slot){
-			if(bus!=(mite->pcidev->bus->number<<8) ||
+			if(bus!=mite->pcidev->bus->number ||
 			   slot!=PCI_SLOT(mite->pcidev->devfn))
 				continue;
 		}
