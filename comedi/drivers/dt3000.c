@@ -44,7 +44,11 @@ Status: untested
    Data Translation originally wanted an NDA for the documentation
    for the 3k series.  However, if you ask nicely, they might send
    you the docs without one, also.
+
+   Streaming I/O is not supported.
 */
+
+#define DEBUG 1
 
 #include <linux/comedidev.h>
 #include <linux/module.h>
@@ -74,6 +78,7 @@ typedef struct{
 	unsigned int device_id;
 	int adchan;
 	int adbits;
+	int ai_speed;
 	comedi_lrange *adrange;
 	int dachan;
 	int dabits;
@@ -85,6 +90,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		16,
 		adbits:		12,
 		adrange:	&range_dt3000_ai,
+		ai_speed:	3000,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -93,6 +99,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		16,
 		adbits:		12,
 		adrange:	&range_dt3000_ai_pgl,
+		ai_speed:	3000,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -101,6 +108,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		32,
 		adbits:		12,
 		adrange:	&range_dt3000_ai,
+		ai_speed:	3000,
 		dachan:		0,
 		dabits:		0,
 	},
@@ -109,6 +117,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		64,
 		adbits:		12,
 		adrange:	&range_dt3000_ai,
+		ai_speed:	3000,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -117,6 +126,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		64,
 		adbits:		12,
 		adrange:	&range_dt3000_ai_pgl,
+		ai_speed:	3000,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -125,6 +135,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		16,
 		adbits:		16,
 		adrange:	&range_dt3000_ai,
+		ai_speed:	10000,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -133,6 +144,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		adchan:		16,
 		adbits:		16,
 		adrange:	&range_dt3000_ai,
+		ai_speed:	5000,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -172,6 +184,9 @@ MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
 #define DPR_Intr_Flag		(4*0xffc)
 #define DPR_Response_Mbx	(4*0xffe)
 #define DPR_Command_Mbx		(4*0xfff)
+
+#define AI_FIFO_DEPTH	2003
+#define AO_FIFO_DEPTH	2048
 
 /* command list */
 
@@ -242,6 +257,8 @@ typedef struct{
 	void *io_addr;
 	unsigned int lock;
 	lsampl_t ao_readback[2];
+	unsigned int ai_front;
+	unsigned int ai_rear;
 }dt3k_private;
 #define devpriv ((dt3k_private *)dev->private)
 
@@ -256,16 +273,21 @@ static comedi_driver driver_dt3000={
 COMEDI_INITCLEANUP(driver_dt3000);
 
 
+static void dt3k_ai_empty_fifo(comedi_device *dev,comedi_subdevice *s);
+static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *arg,
+	unsigned int round_mode);
+static int dt3k_ai_cancel(comedi_device *dev,comedi_subdevice *s);
+#ifdef DEBUG
+static void debug_intr_flags(unsigned int flags);
+#endif
+
+
 #define TIMEOUT 100
 
 static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 {
 	int i;
-	unsigned int status;
-	
-	/* XXX my gcc has a bug that causes a warning if the following
-	 * is not there */
-	status = 0;
+	unsigned int status = 0;
 
 	writew(cmd,dev->iobase+DPR_Command_Mbx);
 	
@@ -309,37 +331,311 @@ static void dt3k_writesingle(comedi_device *dev,unsigned int subsys,
 	dt3k_send_cmd(dev,CMD_WRITESINGLE);
 }
 
+static int debug_n_ints = 0;
 
+static void dt3k_interrupt(int irq, void *d, struct pt_regs *regs)
+{
+	comedi_device *dev = d;
+	comedi_subdevice *s = dev->subdevices + 0;
+	unsigned int status;
 
-#if 0
-static int dt3k_ai_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+	status = readw(dev->iobase+DPR_Intr_Flag);
+	debug_intr_flags(status);
+
+	if(status & DT3000_ADFULL){
+		dt3k_ai_empty_fifo(dev,s);
+		s->async->events |= COMEDI_CB_BLOCK;
+	}
+
+	if(status & (DT3000_ADSWERR | DT3000_ADHWERR)){
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+	}
+
+	debug_n_ints++;
+	if(debug_n_ints>=10){
+		dt3k_ai_cancel(dev,s);
+		s->async->events |= COMEDI_CB_EOA;
+	}
+
+	comedi_event(dev,s,s->async->events);
+}
+
+#ifdef DEBUG
+static char *intr_flags[] = {
+	"AdFull", "AdSwError", "AdHwError", "DaEmpty",
+	"DaSwError", "DaHwError", "CtDone", "CmDone",
+};
+static void debug_intr_flags(unsigned int flags)
 {
 	int i;
-	unsigned int chan,range,aref;
+	printk("dt3k: intr_flags:");
+	for(i=0;i<8;i++){
+		if(flags & (1<<i)){
+			printk(" %s",intr_flags[i]);
+		}
+	}
+	printk("\n");
+}
+#endif
+
+static void dt3k_ai_empty_fifo(comedi_device *dev,comedi_subdevice *s)
+{
+	int front;
+	int rear;
+	int count;
+	int i;
+	sampl_t data;
+
+	front = readw(dev->iobase + DPR_AD_Buf_Front);
+	count = front - devpriv->ai_front;
+	if(count<0)count += AI_FIFO_DEPTH;
+
+printk("reading %d samples\n",count);
+
+	rear = devpriv->ai_rear;
+
+	for(i=0;i<count;i++){
+		data = readw(dev->iobase + DPR_ADC_buffer + rear);
+		comedi_buf_put(s->async, data);
+		rear++;
+		if(rear>=AI_FIFO_DEPTH)rear = 0;
+	}
 	
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		range=CR_RANGE(it->chanlist[i]);
+	devpriv->ai_rear = rear;
+	writew(rear,dev->iobase + DPR_AD_Buf_Rear);
+}
+
+
+static int dt3k_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg=0;
+		err++;
+	}
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		if(cmd->scan_begin_arg < this_board->ai_speed){
+			cmd->scan_begin_arg = this_board->ai_speed;
+			err++;
+		}
+		if(cmd->scan_begin_arg > 100*16*65535){
+			cmd->scan_begin_arg = 100*16*65535;
+			err++;
+		}
+	}else{
+		/* not supported */
+	}
+	if(cmd->convert_src==TRIG_TIMER){
+		if(cmd->convert_arg < this_board->ai_speed){
+			cmd->convert_arg = this_board->ai_speed;
+			err++;
+		}
+		if(cmd->convert_arg > 50*16*65535){
+			cmd->convert_arg = 50*16*65535;
+			err++;
+		}
+	}else{
+		/* not supported */
+	}
+
+	if(cmd->scan_end_arg!=cmd->chanlist_len){
+		cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_COUNT){
+		if(cmd->stop_arg>0x00ffffff){
+			cmd->stop_arg=0x00ffffff;
+			err++;
+		}
+	}else{
+		/* TRIG_NONE */
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		tmp=cmd->scan_begin_arg;
+		dt3k_ns_to_timer(100,&cmd->scan_begin_arg,
+				cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->scan_begin_arg)err++;
+	}else{
+		/* not supported */
+	}
+	if(cmd->convert_src==TRIG_TIMER){
+		tmp=cmd->convert_arg;
+		dt3k_ns_to_timer(50,&cmd->convert_arg,
+				cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->convert_arg)err++;
+		if(cmd->scan_begin_src==TRIG_TIMER &&
+		  cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
+			cmd->scan_begin_arg = cmd->convert_arg * cmd->scan_end_arg;
+			err++;
+		}
+	}else{
+		/* not supported */
+	}
+
+	if(err)return 4;
+
+	return 0;
+}
+
+
+static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
+	unsigned int round_mode)
+{
+	int divider, base, prescale;
+
+	/* This function needs improvment */
+	/* Don't know if divider==0 works. */
+
+	for(prescale=0;prescale<16;prescale++){
+		base = timer_base * (prescale+1);
+		switch(round_mode){
+		case TRIG_ROUND_NEAREST:
+		default:
+			divider = (*nanosec+base/2)/base;
+			break;
+		case TRIG_ROUND_DOWN:
+			divider = (*nanosec)/base;
+			break;
+		case TRIG_ROUND_UP:
+			divider = (*nanosec)/base;
+			break;
+		}
+		if(divider<65536){
+			*nanosec = divider*base;
+			return (prescale<<16)|(divider);
+		}
+	}
+	
+	prescale = 15;
+	base = timer_base * (1<<prescale);
+	divider = 65535;
+	*nanosec = divider*base;
+	return (prescale<<16)|(divider);
+}
+
+
+static int dt3k_ai_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	comedi_cmd *cmd = &s->async->cmd;
+	int i;
+	unsigned int chan,range,aref;
+	unsigned int divider;
+	unsigned int tscandiv;
+	int ret;
+	unsigned int mode;
+
+printk("dt3k_ai_cmd:\n");
+	for(i=0;i<cmd->chanlist_len;i++){
+		chan=CR_CHAN(cmd->chanlist[i]);
+		range=CR_RANGE(cmd->chanlist[i]);
 		
 		writew((range<<6)|chan,dev->iobase+DPR_ADC_buffer+i);
 	}
-	aref=CR_AREF(it->chanlist[0]);
+	aref=CR_AREF(cmd->chanlist[0]);
 	
-	writew(it->n_chan,dev->iobase+DPR_Params(0));
-#if 0
-	writew(clkprescale,dev->iobase+DPR_Params(1));
-	writew(clkdivider,dev->iobase+DPR_Params(2));
-	writew(tscanprescale,dev->iobase+DPR_Params(3));
-	writew(tscandiv,dev->iobase+DPR_Params(4));
-	writew(triggerclockmode,dev->iobase+DPR_Params(5));
-#endif
+	writew(cmd->scan_end_arg,dev->iobase+DPR_Params(0));
+printk("param[0]=0x%04x\n",cmd->scan_end_arg);
+
+	if(cmd->convert_src==TRIG_TIMER){
+		divider = dt3k_ns_to_timer(50,&cmd->convert_arg,
+			cmd->flags&TRIG_ROUND_MASK);
+		writew((divider>>16),dev->iobase+DPR_Params(1));
+printk("param[1]=0x%04x\n",divider>>16);
+		writew((divider&0xffff),dev->iobase+DPR_Params(2));
+printk("param[2]=0x%04x\n",divider&0xffff);
+	}else{
+		/* not supported */
+	}
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		tscandiv = dt3k_ns_to_timer(100,&cmd->scan_begin_arg,
+			cmd->flags&TRIG_ROUND_MASK);
+		writew((tscandiv>>16),dev->iobase+DPR_Params(3));
+printk("param[3]=0x%04x\n",tscandiv>>16);
+		writew((tscandiv&0xffff),dev->iobase+DPR_Params(4));
+printk("param[4]=0x%04x\n",tscandiv&0xffff);
+	}else{
+		/* not supported */
+	}
+	
+	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
+	writew(mode,dev->iobase+DPR_Params(5));
+printk("param[5]=0x%04x\n",mode);
 	writew(aref==AREF_DIFF,dev->iobase+DPR_Params(6));
-	writew(0,dev->iobase+DPR_Params(7));
+printk("param[6]=0x%04x\n",aref==AREF_DIFF);
+
+	writew(AI_FIFO_DEPTH/2,dev->iobase+DPR_Params(7));
+printk("param[7]=0x%04x\n",AI_FIFO_DEPTH/2);
 	
-	return dt3k_send_cmd(dev,CMD_CONFIG);
+	writew(SUBS_AI,dev->iobase+DPR_SubSys);
+	ret = dt3k_send_cmd(dev,CMD_CONFIG);
+
+	writew(DT3000_ADFULL | DT3000_ADSWERR | DT3000_ADHWERR,
+		dev->iobase + DPR_Int_Mask);
+
+debug_n_ints = 0;
+
+	writew(SUBS_AI,dev->iobase+DPR_SubSys);
+	ret = dt3k_send_cmd(dev,CMD_START);
+
+	return 0;
 }
-#endif
-	
+
+static int dt3k_ai_cancel(comedi_device *dev,comedi_subdevice *s)
+{
+	int ret;
+
+	writew(SUBS_AI,dev->iobase+DPR_SubSys);
+	ret = dt3k_send_cmd(dev,CMD_STOP);
+
+	writew(0, dev->iobase + DPR_Int_Mask);
+
+	return 0;
+}
+
 static int dt3k_ai_insn(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -476,10 +772,17 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 		return -ENODEV;
 	}
 
-	dev->board_name=this_board->name;
+	dev->board_name = this_board->name;
 
-	dev->n_subdevices=4;
-	if((ret=alloc_subdevices(dev))<0)
+	if(comedi_request_irq(devpriv->pci_dev->irq, dt3k_interrupt,
+			SA_SHIRQ, "dt3000", dev)){
+		printk(" unable to allocate IRQ %d\n", devpriv->pci_dev->irq);
+		return -EINVAL;
+	}
+	dev->irq = devpriv->pci_dev->irq;
+
+	dev->n_subdevices = 4;
+	if( (ret = alloc_subdevices(dev)) <0)
 		return ret;
 
 	s=dev->subdevices;
@@ -492,6 +795,9 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=(1<<this_board->adbits)-1;
 	s->len_chanlist=512;
 	s->range_table=&range_dt3000_ai; /* XXX */
+	s->do_cmd = dt3k_ai_cmd;
+	s->do_cmdtest = dt3k_ai_cmdtest;
+	s->cancel = dt3k_ai_cancel;
 
 	s++;
 	/* ao subsystem */
