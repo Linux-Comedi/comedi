@@ -2222,12 +2222,13 @@ int GPCT_Arm(comedi_device *dev, int chan){
 		g_status=win_in(G_Status_Register);
 		
 		if(chan == 0){
-			if(G0_Counting_St & g_status) {
+			//TIM 5/2/01 possible error with very short pulses
+			if((G0_Counting_St & g_status)|| !(G0_Armed_St&g_status)) {
 				//error: we missed the beginning of the pulse
 				return -EINVAL; //there is probably a more accurate error code...
 			}
 		}else{
-			if(G1_Counting_St & g_status) {
+			if((G1_Counting_St & g_status)|| !(G1_Armed_St&g_status)) {
 				//error: we missed the beginning of the pulse
 				return -EINVAL;
 			}
@@ -2649,7 +2650,11 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	if(retval==0){
 		return insn->n;
 	}else{
-		printk("error: retval was %d\n",retval);
+		if(data[0]!=GPCT_ARM){ 
+			printk("error: retval was %d\n",retval);
+			printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
+		}
+
 		return retval;
 	}
 }
