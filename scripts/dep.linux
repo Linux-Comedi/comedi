@@ -38,22 +38,27 @@ fi
 #
 # check running kernel vs. /usr/src/linux and warn if necessary
 #
-read dummy dummy dummy2 <$LINUXDIR/include/linux/version.h
-UTS_VERSION=`echo $dummy2|sed 's/"//g'`
-
+UTS_VERSION=$(grep UTS_RELEASE ${LINUXDIR}/include/linux/version.h| \
+	sed 's/[^"]*"\(.*\)\{1\}"/\1/')
 echo UTS_VERSION=$UTS_VERSION >.uts_version
 
-if [ "$(uname -r)" != "$UTS_VERSION" ]
+echo "Kernel source version is ${UTS_VERSION}"
+
+UNAME=$(uname -r)
+
+if [ "${UNAME}" != "${UTS_VERSION}" ]
 then
 	cat <<EOF
- *****
- *****    WARNING!!!
- *****
- *****    The kernel that is currently running is a different
- *****    version than the source in $LINUXDIR.  The current
- *****    compile will create a module that is *incompatible*
- *****    with the running kernel.
- *****
+ ***
+ ***    WARNING!!!
+ ***
+ ***    The kernel that is currently running ($UNAME)
+ ***    appears to be a different version than the source in
+ ***    $LINUXDIR ($UTS_VERSION).
+ ***    If so, the current compile will create a module that is
+ ***    INCOMPATIBLE with the running kernel.  (This could be
+ ***    what you want, however.)
+ ***
 EOF
 fi
 
