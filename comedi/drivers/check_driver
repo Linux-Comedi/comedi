@@ -207,3 +207,9 @@ if grep 'if.*cmd.*&&.*err..;' ${driver} &>/dev/null;then
 	echo "E: Probable logic error in cmdtest"
 fi
 
+if grep 'subdev_8255_init' ${driver} &>/dev/null;then
+	if ! grep 'subdev_8255_cleanup' ${driver} &>/dev/null;then
+		echo "E: doesn't call subdev_8255_cleanup()"
+	fi
+fi
+
