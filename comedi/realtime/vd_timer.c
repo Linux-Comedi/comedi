@@ -36,14 +36,14 @@
 #include <comedi_module.h>
 
 #ifdef CONFIG_COMEDI_RTL_V1
-#include <rtlinux/rtl_sched.h>
+#include <rtl_sched.h>
 #include <asm/rt_irq.h>
 #endif
 
 #ifdef CONFIG_COMEDI_RTL
-#include <linux/rtl.h>
-#include <rtlinux/rtl_sched.h>
-#include <rtlinux/rtl_compat.h>
+#include <rtl.h>
+#include <rtl_sched.h>
+#include <rtl_compat.h>
 #endif
 
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);

@@ -35,18 +35,18 @@
 #include <asm/io.h>
 #include <comedi_module.h>
 #ifdef CONFIG_COMEDI_RTL_V1
-#include <rtlinux/rtl_sched.h>
+#include <rtl_sched.h>
 #endif
 #ifdef CONFIG_COMEDI_RTL
-#include <linux/rtl.h>
-#include <rtlinux/rtl_sched.h>
-#include <rtlinux/rtl_compat.h>
+#include <rtl.h>
+#include <rtl_sched.h>
+#include <rtl_compat.h>
 #endif
 
 static int dds_attach(comedi_device *dev,comedi_devconfig *it);
 static int dds_detach(comedi_device *dev);
 comedi_driver driver_={
-	driver_name:	"dds",
+	driver_name:		"dds",
 	attach:		dds_attach,
 	detach:		dds_detach,
 };
@@ -156,7 +156,7 @@ static int dds_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	ts.tv_nsec=it->trigvar;
 	period=timespec_to_RTIME(ts);
 
-	rt_task_init(&devpriv->rt_task,dds_ai_task_func,(int)dev,3000,4);
+	rt_task_init(&devpriv->rt_task,dds_ao_task_func,(int)dev,3000,4);
 
 	now=rt_get_time();
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
@@ -183,12 +183,8 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 	comedi_subdevice *s;
 
-	if(strcmp("dds",it->board_name))
-		return 0;
-
 	printk("comedi%d: dds: ",dev->minor);
 	dev->board_name="dds";
-	dev->driver_name="dds";
 
 	dev->n_subdevices=1;
 	if((ret=alloc_subdevices(dev))<0)
