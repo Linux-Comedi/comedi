@@ -21,12 +21,9 @@
 
 */
 
-#include <linux/comedidev.h>
-#include <kvmem.h>
 
 #define __NO_VERSION__
 #include <linux/module.h>
-
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -35,7 +32,11 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/malloc.h>
+#include <linux/comedidev.h>
+
 #include <asm/io.h>
+
+#include "kvmem.h"
 
 #ifdef CONFIG_COMEDI_TRIG
 /* in comedi/trig.c */

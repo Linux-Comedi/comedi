@@ -23,7 +23,6 @@
 
 #undef DEBUG
 
-#include <linux/comedi_rt.h>
 
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -35,15 +34,16 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/malloc.h>
-#include <asm/io.h>
-#ifdef LINUX_V22
 #include <linux/kmod.h>
-#include <asm/uaccess.h>
-#endif
-#if LINUX_VERSION_CODE >= 0x020100
 #include <linux/poll.h>
-#endif
-#include <kvmem.h>
+
+#include <linux/comedidev.h>
+
+#include <asm/io.h>
+#include <asm/uaccess.h>
+
+#include "kvmem.h"
+
 
 comedi_device *comedi_devices;
 
@@ -1235,7 +1235,14 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 	return ret;
 }
 
-#ifdef LINUX_V22
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)  /* XXX */
+#define RDEV_OF_FILE(x)        ((x)->f_inode->i_rdev)
+#else
+#define RDEV_OF_FILE(x)        ((x)->f_dentry->d_inode->i_rdev)
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,0)
 void comedi_unmap(struct vm_area_struct *area)
 {
 	comedi_async *async;
@@ -1280,7 +1287,11 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	if(VM_OFFSET(vma) != 0){
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
+	if(vma->vm_offset != 0){
+#else
+	if(vma->vm_pgoff != 0){
+#endif
 		DPRINTK("comedi: mmap() offset must be 0.\n");
 		return -EINVAL;
 	}
@@ -1713,7 +1724,7 @@ static int comedi_fasync (int fd, struct file *file, int on)
 	kernel compatibility
 */
 
-#ifdef LINUX_V20
+#if LINUX_VERSION_CODE < 0x020100
 
 static int comedi_write_v20(struct inode *inode,struct file *file,const char *buf,int nbytes)
 {
@@ -1749,7 +1760,7 @@ static struct file_operations comedi_fops={
 
 #endif
 
-#ifdef LINUX_V22
+#if LINUX_VERSION_CODE >= 0x020200
 
 #define comedi_ioctl_v22 comedi_ioctl
 #define comedi_open_v22 comedi_fop_open

@@ -31,7 +31,7 @@
 
 
 
-#ifdef LINUX_V22
+#if LINUX_VERSION_CODE >= 0x020200
 
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);

@@ -22,9 +22,7 @@
 */
 
 #include <linux/comedidev.h>
-#ifdef LINUX_V22
 #include <asm/uaccess.h>
-#endif
 
 
 comedi_lrange range_bipolar10={ 1, {BIP_RANGE(10)}};
