@@ -47,15 +47,6 @@ struct symbol_table comedi_syms = {
 
 #ifdef LINUX_V22
 
-#if 0
-EXPORT_SYMBOL(comedi_trig_ioctl);
-EXPORT_SYMBOL(__comedi_trig_ioctl);
-EXPORT_SYMBOL(comedi_lock_ioctl);
-EXPORT_SYMBOL(comedi_unlock_ioctl);
-EXPORT_SYMBOL(comedi_cancel_ioctl);
-EXPORT_SYMBOL(comedi_register_callback);
-#endif
-
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
