@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.99"
+#define DRIVER_VERSION "v0.99b"
 #define DRIVER_AUTHOR "Bernd Porr, Bernd.Porr@cn.stir.ac.uk"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@cn.stir.ac.uk"
 /*
@@ -25,7 +25,7 @@ Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <Bernd.Porr@cn.stir.ac.uk>
-Updated: 25 Jan 2004
+Updated: 4 Mar 2004
 Status: testing
 
 */
@@ -53,17 +53,16 @@ Status: testing
  * 0.99: USB 2.0: changed protocol to isochronous transfer
  *                IRQ transfer is too buggy and too risky in 2.0
  *                for the high speed ISO transfer is now a working version available
+ * 0.99b: Increased the iso transfer buffer for high sp.to 10 buffers. Some VIA
+ *        chipsets miss out IRQs. Deeper buffering is needed.
  *
  *
  *
  * Todo:
- * - use gpif of the FX2 to transfer digital data to the host
- * - use EP1in/out for control messages and leave the "better ones" for
- *   digital I/O
+ * - use EP1in/out for sync digital I/O
  */
 
 
-//#define  COMEDI_IN_KERNEL_PATH
 //#define  CONFIG_COMEDI_DEBUG
 
 
@@ -77,18 +76,13 @@ Status: testing
 #include <linux/smp_lock.h>
 #include <linux/fcntl.h>
 
-#ifdef COMEDI_IN_KERNEL_PATH
-#include <comedi/comedidev.h>
-#include <comedi/usb.h>
-#else
 #include <linux/comedidev.h>
 #include <linux/usb.h>
-#endif
 
 #define BOARDNAME "usbdux"
 
 // timeout for the USB-transfer
-#define EZTIMEOUT 10
+#define EZTIMEOUT 3
 
 // constants for "firmware" upload and download
 #define USBDUXSUB_FIRMWARE 0xA0
@@ -153,10 +147,16 @@ Status: testing
 #define SIZEOFDUXBUFFER    ((8*SIZEDAOUT+2))
 
 // Number of in-URBs which receive the data: min=2
-#define NUMOFINBUFFERSFULL     4
+#define NUMOFINBUFFERSFULL     5
 
 // Number of out-URBs which send the data: min=2
-#define NUMOFOUTBUFFERSFULL    4
+#define NUMOFOUTBUFFERSFULL    5
+
+// Number of in-URBs which receive the data: min=5
+#define NUMOFINBUFFERSHIGH     10
+
+// Number of out-URBs which send the data: min=5
+#define NUMOFOUTBUFFERSHIGH    10
 
 // Total number of usbdux devices
 #define NUMUSBDUX             16
@@ -2318,7 +2318,11 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		up(&start_stop_sem);
 		return PROBE_ERR_RETURN( -ENODEV);
 	}
-	usbduxsub[index].numOfInBuffers=NUMOFINBUFFERSFULL;
+	if (usbduxsub[index].high_speed) {
+		usbduxsub[index].numOfInBuffers=NUMOFINBUFFERSHIGH;
+	} else {
+		usbduxsub[index].numOfInBuffers=NUMOFINBUFFERSFULL;
+	}		
 	usbduxsub[index].urbIn=kmalloc(sizeof(struct urb*)*usbduxsub[index].numOfInBuffers,
 				       GFP_KERNEL);
 	if (!(usbduxsub[index].urbIn)) {
@@ -2367,7 +2371,11 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 
 
 	// out
-	usbduxsub[index].numOfOutBuffers=NUMOFOUTBUFFERSFULL;	
+	if (usbduxsub[index].high_speed) {
+		usbduxsub[index].numOfOutBuffers=NUMOFOUTBUFFERSHIGH;
+	} else {
+		usbduxsub[index].numOfOutBuffers=NUMOFOUTBUFFERSFULL;
+	}
 	usbduxsub[index].urbOut=
 		kmalloc(sizeof(struct urb*)*usbduxsub[index].numOfOutBuffers,
 			GFP_KERNEL);
@@ -2498,14 +2506,6 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 	// trying to upload the firmware into the chip
 	if(it->options[COMEDI_DEVCONF_AUX_DATA] && 
 	   it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
-		// the firmware upload here will go away as soon as
-		// the firmware has to renumerate. This can't be done here.
-		// it must be performed by the underlying usb system before this
-		// function will be reached.
-		printk("comedi%d: Firmware upload is deprecated through comedi. Use fxload.\n",
-		       dev->minor);
-		printk("comedi%d: Only firmware works here which does not renumerate on the USB.\n",
-		       dev->minor);
 		read_firmware(usbduxsub,
 			      it->options[COMEDI_DEVCONF_AUX_DATA],
 			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
