@@ -51,8 +51,6 @@ NOTES:
 	I've never tested the gain setting stuff since I only have a
 	DAS-800 board with fixed gain.
 
-//FIXME need to protect indirect addressing from interrupt
-
 */
 
 #include <linux/kernel.h>
