@@ -113,7 +113,6 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s);
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s);
 
-static void das16m1_reset(comedi_device *dev);
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs);
 
 static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int round_flag);
@@ -151,6 +150,7 @@ comedi_driver driver_das16m1={
 struct das16m1_private_struct {
 	unsigned int	control_state;
 	volatile unsigned int	adc_count;
+	unsigned int do_bits;	// saves status of digital output bits
 	unsigned int divisor1;	// divides master clock to obtain conversion speed
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
 };
@@ -161,7 +161,7 @@ COMEDI_INITCLEANUP(driver_das16m1);
 
 static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 {
-	unsigned int err=0, tmp;
+	unsigned int err=0, tmp, i;
 
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
@@ -230,6 +230,25 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 			err++;
 		}
 	}
+	// check chanlist agains board's peculiarities
+	if(cmd->chanlist_len > 1)
+	{
+		for(i = 0; i < cmd->chanlist_len; i++)
+		{
+			// even/odd channels must go into even/odd queue addresses
+			if((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2))
+			{
+				comedi_error(dev, "bad chanlist:\n"
+					" even/odd channels must go have even/odd chanlist indices");
+				err++;
+			}
+		}
+		if((cmd->chanlist_len % 2) != 0)
+		{
+			comedi_error(dev, "chanlist must be of even length or length 1");
+			err++;
+		}
+	}
 
 	if(err) return 3;
 
@@ -243,7 +262,6 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
 		if(tmp != cmd->convert_arg) err++;
 	}
-	// XXX we need to check constraints on chanlist here
 
 	if(err) return 4;
 
@@ -264,17 +282,15 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 		byte = Q_CHAN(CR_CHAN(cmd->chanlist[i])) | Q_RANGE(CR_RANGE(cmd->chanlist[i]));
 		outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
 	}
-	outb(0, dev->iobase + DAS16M1_QUEUE_ADDR);
 
 	/* set counter mode and counts */
 	das16m1_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
 
-	/* clear interrupt bit */
-	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
-
 	// set control & status register
 	byte = 0;
 	outb(byte, dev->iobase + DAS16M1_CS);
+	/* clear interrupt bit */
+	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 	/* enable interrupts and internal pacer */
 	devpriv->control_state |= INTE | INT_PACER;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
@@ -284,58 +300,52 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	devpriv->adc_count = 0;
 	devpriv->control_state &= ~INTE;
 	devpriv->control_state &= ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
+	devpriv->adc_count = 0;
 
 	return 0;
 }
 
-#if 0	// insns haven't been converted from das16 driver yet
 static int das16m1_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	int i,n;
-	int range;
-	int chan;
-	int msb,lsb;
+	int i, n;
+	int byte;
+	int data_point;
+	const int timeout = 1000;
 
-	/* clear crap */
-	inb(dev->iobase+DAS16M1_AI_LSB);
-	inb(dev->iobase+DAS16M1_AI_MSB);
+	/* disable interrupts and internal pacer */
+	devpriv->control_state &= ~INTE & ~PACER_MASK;
+	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
-	/* set multiplexer */
-	chan = CR_CHAN(insn->chanspec);
-	outb_p(chan,dev->iobase+DAS16M1_MUX);
+	/* setup channel/gain queue */
+	outb(0, dev->iobase + DAS16M1_QUEUE_ADDR);
+	byte = Q_CHAN(CR_CHAN(insn->chanspec)) | Q_RANGE(CR_RANGE(insn->chanspec));
+	outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
 
-	/* set gain */
-	if(thisboard->ai_pg != das16m1_pg_none){
-		range = CR_RANGE(insn->chanspec);
-		outb((das16m1_gainlists[thisboard->ai_pg])[range],
-			dev->iobase+DAS16M1_GAIN);
-	}
-
-	/* How long should we wait for MUX to settle? */
-	//udelay(5);
-
-	for(n=0;n<insn->n;n++){
+	for(n = 0; n < insn->n; n++)
+	{
 		/* trigger conversion */
-		outb_p(0,dev->iobase+DAS16M1_TRIG);
+		outb(0, dev->iobase);
 
-		for(i=0;i<DAS16M1_TIMEOUT;i++){
-			if(!(inb(DAS16M1_STATUS)&DAS16M1_EOC))
+		for(i = 0; i < timeout; i++)
+		{
+			if(inb(dev->iobase + DAS16M1_CS) & IRQDATA)
 				break;
 		}
-		if(i==DAS16M1_TIMEOUT){
-			rt_printk("das16m1: timeout\n");
+		if(i == timeout)
+		{
+			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-		msb = inb(dev->iobase + DAS16M1_AI_MSB);
-		lsb = inb(dev->iobase + DAS16M1_AI_LSB);
-		if(thisboard->ai_nbits==12){
-			data[n] = (lsb>>4) | (msb << 4);
-		}else{
-			data[n] = lsb | (msb << 8);
+		data_point = inw(dev->iobase);
+		if(thisboard->n_bits == 12)
+		{
+			data[n] = AI_DATA(data_point);
+		}else
+		{
+			data[n] = data_point;
 		}
 	}
 
@@ -344,80 +354,64 @@ static int das16m1_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 static int das16m1_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	data[0]=inb(dev->iobase+DAS16M1_DIO)&0xf;
+	lsampl_t bits;
 
-	return 1;
+	bits = inb(dev->iobase + DAS16M1_DIO) & 0xf;
+	data[1] = bits;
+	data[0] = 0;
+
+	return 2;
 }
 
 static int das16m1_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	outb(data[0],dev->iobase+DAS16M1_DIO);
+	lsampl_t wbits;
 
-	return 1;
+	// only set bits that have been masked
+	data[0] &= 0xf;
+	wbits = devpriv->do_bits;
+	// zero bits that have been masked
+	wbits &= ~data[0];
+	// set masked bits
+	wbits |= data[0] & data[1];
+	devpriv->do_bits = wbits;
+	data[1] = wbits;
+
+	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
+
+	return 2;
 }
-
-static int das16m1_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
-{
-	int i;
-	int lsb,msb;
-	int chan;
-
-	chan=CR_CHAN(insn->chanspec);
-
-	for(i=0;i<insn->n;i++){
-		if(thisboard->ao_nbits==12){
-			lsb=(data[i]<<4)&0xff;
-			msb=(data[i]>>4)&0xff;
-		}else{
-			lsb=data[i]&0xff;
-			msb=(data[i]>>8)&0xff;
-		}
-
-#if 0
-		outb(lsb,dev->iobase+devpriv->ao_offset_lsb[chan]);
-		outb(msb,dev->iobase+devpriv->ao_offset_msb[chan]);
-#else
-		outb(lsb,dev->iobase+DAS16M1_AO_LSB(chan));
-		outb(msb,dev->iobase+DAS16M1_AO_MSB(chan));
-#endif
-	}
-
-	return i;
-}
-
-#endif	// insns haven't been converted from das16 driver yet
 
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int i, status;
 	sampl_t data_point;
-
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices;
-	comedi_async *async = s->async;
+	comedi_async *async;
+
+	if(dev->attached == 0)
+	{
+		comedi_error(dev, "premature interrupt");
+		return;
+	}
 
 	status = inb(dev->iobase + DAS16M1_CS);
 
-	if((status & IRQDATA) == 0)
+	if((status & (IRQDATA | OVRUN)) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
 		return;
 	}
-	if(dev->attached == 0)
-	{
-		comedi_error(dev, "premature interrupt");
-		/* clear interrupt */
-		outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
-		return;
-	}
+	// initialize async here to avoid freak out on premature interrupt
+	async = s->async;
 
 	for(i = 0; i < HALF_FIFO; i++)
 	{
-		data_point = inw(dev->iobase + DAS16M1_AI);
-		data_point = AI_DATA(data_point);
+		data_point = AI_DATA(inw(dev->iobase + DAS16M1_AI));
 		comedi_buf_put(async, data_point);
 
-		if(--devpriv->adc_count <= 0) {		/* end of acquisition */
+		if(--devpriv->adc_count == 0) {		/* end of acquisition */
 				das16m1_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
@@ -428,6 +422,7 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		das16m1_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_error(dev, "fifo overflow");
 	}
 
 	async->events |= COMEDI_CB_BLOCK;
@@ -562,7 +557,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s->len_chanlist = 256;
 	s->maxdata = (1 << 12) - 1;
 	s->range_table = &range_das16m1;
-//	s->insn_read = das16m1_ai_rinsn;
+	s->insn_read = das16m1_ai_rinsn;
 	s->do_cmdtest = das16m1_cmd_test;
 	s->do_cmd = das16m1_cmd_exec;
 	s->cancel = das16m1_cancel;
@@ -574,7 +569,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-//	s->insn_bits = das16m1_di_rbits;
+	s->insn_bits = das16m1_di_rbits;
 
 	s = dev->subdevices + 2;
 	/* do */
@@ -583,13 +578,15 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-//	s->insn_write = das16m1_do_wbits;
+	s->insn_bits = das16m1_do_wbits;
 
 	s = dev->subdevices + 3;
 	/* 8255 */
 	subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DAS16M1_82C55));
 
-	// XXX should init digital output levels here also
+	// initialize digital output lines
+	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
+
 	/* set the interrupt level */
 	devpriv->control_state = das16m1_irq_bits(dev->irq);
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
