@@ -673,7 +673,7 @@ int comedi_do_insn(unsigned int minor,comedi_insn *insn)
 				ret = s->insn_read(dev,s,insn,insn->data);
 				break;
 			case INSN_WRITE:
-				ret = s->insn_read(dev,s,insn,insn->data);
+				ret = s->insn_write(dev,s,insn,insn->data);
 				break;
 			case INSN_BITS:
 				ret = s->insn_bits(dev,s,insn,insn->data);
