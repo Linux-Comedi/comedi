@@ -735,9 +735,9 @@ static int pcimio_detach(comedi_device *dev)
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int		ret;
-	
+
 	printk("comedi%d: ni_pcimio:",dev->minor);
-	
+
 	ret=alloc_private(dev,sizeof(ni_private));
 	if(ret<0)return ret;
 
@@ -746,7 +746,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
-	
+
 	ret = mite_setup(devpriv->mite);
 	if(ret < 0)
 	{
@@ -757,14 +757,14 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->irq=mite_irq(devpriv->mite);
 
-        if(dev->irq==0){
+	if(dev->irq==0){
 		printk(" unknown irq (bad)\n");
 	}else{
-        	printk(" ( irq = %d )",dev->irq);
-        	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_pcimio",dev))<0 ){
-                	printk(" irq not available\n");
+		printk(" ( irq = %d )",dev->irq);
+		if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_pcimio",dev))<0 ){
+			printk(" irq not available\n");
 			dev->irq=0;
-        	}
+		}
 	}
 
 	ret = ni_E_init(dev,it);

@@ -961,7 +961,7 @@ static void get_last_sample_611x( comedi_device *dev )
 	if( boardtype.reg_611x == 0 ) return;
 
 	/* Check if there's a single sample stuck in the FIFO */
-	if(ni_readb(Status_611x)&0x80){
+	if(ni_readb(XXX_Status)&0x80){
 		dl=ni_readl(ADC_FIFO_Data_611x);
 		data = (dl&0xffff) + devpriv->ai_offset[async->cur_chan++];
 		async->cur_chan %= async->cmd.chanlist_len;
@@ -1064,17 +1064,14 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #ifdef PCIDMA
 	mite_dma_disarm(devpriv->mite, AI_DMA_CHAN);
 #endif
-	win_out(AI_Reset,Joint_Reset_Register);
 	/* ai configuration */
-	win_out(AI_Configuration_Start,Joint_Reset_Register);
+	win_out( AI_Configuration_Start | AI_Reset, Joint_Reset_Register );
 
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
 		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
 		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
 		AI_STOP_Interrupt_Enable|   AI_Error_Interrupt_Enable|
 		AI_FIFO_Interrupt_Enable,0);
-
-	// XXX do interrupt ack
 
 	win_out(1,ADC_FIFO_Clear);
 
@@ -1166,7 +1163,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			/* The 611x has screwy 32-bit FIFOs. */
 			d = 0;
 			for(i=0; i<NI_TIMEOUT; i++){
-				if(ni_readb(Status_611x)&0x80)
+				if(ni_readb(XXX_Status)&0x80)
 				{
 					d = ( ni_readl(ADC_FIFO_Data_611x) >> 16 ) & 0xffff;
 					break;
@@ -2553,6 +2550,12 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	bits |= 1 << ( GPC1_DMA_CHAN + 4 );
 	ni_writeb( bits, G0_G1_Select);
 
+	/* 611x init */
+	if( boardtype.reg_611x )
+	{
+		ni_writeb( 0, Magic_611x );
+	}
+
 	printk("\n");
 
 	return 0;
@@ -2603,7 +2606,7 @@ static int ni_read_eeprom(comedi_device *dev,int addr)
 	for(bit=0x80;bit;bit>>=1){
 		ni_writeb(0x04,Serial_Command);
 		ni_writeb(0x05,Serial_Command);
-		bitstring|=((ni_readb(XXX_Status)&0x01)?bit:0);
+		bitstring|=((ni_readb(XXX_Status)&PROMOUT)?bit:0);
 	}
 	ni_writeb(0x00,Serial_Command);
 	

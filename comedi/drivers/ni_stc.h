@@ -361,6 +361,8 @@ enum AO_FIFO_Mode_Bits
 #define AI_Configuration_End			_bit8
 #define AO_Configuration_Start			_bit5
 #define AI_Configuration_Start			_bit4
+#define G1_Reset				_bit3
+#define G0_Reset				_bit2
 #define AO_Reset				_bit1
 #define AI_Reset				_bit0
 
@@ -531,8 +533,6 @@ enum AO_Personal_Bits
 #define G0_Save_St			_bit0
 
 /* general purpose counter timer */
-#define G0_Reset                        _bit2
-#define G1_Reset                        _bit3
 #define G0_TC_Interrupt_Enable          _bit6
 #define G1_TC_Interrupt_Enable          _bit9
 #define G0_Gate_Interrupt_Enable        _bit8
@@ -588,6 +588,11 @@ enum AO_Personal_Bits
 
 /* 8 bit registers */
 #define XXX_Status			0x01
+enum XXX_Status_Bits
+{
+	PROMOUT = 0x1,
+	AI_FIFO_LOWER_NOT_EMPTY = 0x8,
+};
 #define Serial_Command			0x0d
 #define Misc_Command			0x0f
 #define Port_A				0x19
@@ -639,16 +644,10 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 /* 611x registers (these boards differ from the e-series) */
 
 #define Magic_611x			0x19 /* w8 (new) */
-#define Status_611x			0x01 /* r8 (additional bits) */
-enum Status_611x_Bits
-{
-	AI_FIFO_LOWER_NOT_EMPTY = 0x8,
-};
 #define Calibration_Channel_Select_611x	0x1a /* w16 (new) */
 #define ADC_FIFO_Data_611x		0x1c /* r32 (incompatible) */
 #define AI_FIFO_Offset_Load_611x	0x05 /* r8 (new) */
 #define AO_FIFO_Offset_Load_611x       0x13 /* W32? */
-#define AO_Configuration_611x		0x16 /* w16 */
 #define DAC_FIFO_Data_611x		0x14 /* w32 (incompatible) */
 #define AO_Window_Addr_611x		0x18 /* w16 */
 #define AO_Window_Data_611x		0x1e /* w16 */
