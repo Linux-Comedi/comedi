@@ -745,7 +745,7 @@ static ni_board ni_boards[];
 								\
 	unsigned int caldac_maxdata_list[MAX_N_CALDACS];	\
 	unsigned short ao[2];					\
-	unsigned short caldacs[12];				\
+	unsigned short caldacs[MAX_N_CALDACS];				\
 								\
 	unsigned short ao_conf[2];				\
 	unsigned short ao_mode1;				\
