@@ -13,10 +13,6 @@
 #define MODULE_PARM(a,b)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
-#define MODULE_LICENSE(x)
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)		/* ? */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
   #ifdef MODULE
@@ -39,6 +35,7 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
 #define MODULE_DEVICE_TABLE(a,b)
+#define MODULE_LICENSE(x)
 #endif
 
 #include_next <linux/module.h>
