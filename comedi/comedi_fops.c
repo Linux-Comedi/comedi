@@ -770,8 +770,11 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	if(!s->async->prealloc_buf){
 		printk("comedi: bug: s->async->prealloc_buf==NULL\n");
 	}
-	s->cur_trig.data=async->prealloc_buf;
-	s->cur_trig.data_len=async->prealloc_bufsz;
+
+//	s->cur_trig.data=async->prealloc_buf;
+//	s->cur_trig.data_len=async->prealloc_bufsz;
+	async->data=async->prealloc_buf;
+	async->data_len=async->prealloc_bufsz;
 
 	async->buf_int_ptr=0;
 	async->buf_int_count=0;
@@ -905,7 +908,7 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 				ret = -EACCES;
 				goto error;
 			}
-	
+
 			if((ret=check_chanlist(s,1,&insn.chanspec))<0){
 				ret=-EINVAL;
 				DPRINTK("bad chanspec\n");
