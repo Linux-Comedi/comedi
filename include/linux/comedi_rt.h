@@ -30,7 +30,6 @@
 #include <linux/config.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
-#include <linux/comedidev.h>
 
 #ifdef CONFIG_COMEDI_RT
 
