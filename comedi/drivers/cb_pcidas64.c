@@ -215,6 +215,8 @@ TODO:
 #define    DAC_OUTPUT_ENABLE_BIT	0x80	// dac output enable bit
 #define DAC_BUFFER_CLEAR_REG 0x66	// clear dac buffer
 #define DAC_CONVERT_REG(channel)	((0x70) + (2 * ((channel) & 0x1)))
+#define DAC_LSB_4020_REG( channel )	((0x70) + (4 * ((channel) & 0x1)))
+#define DAC_MSB_4020_REG( channel )	((0x72) + (4 * ((channel) & 0x1)))
 // read-only
 #define HW_STATUS_REG	0x0	// hardware status register, reading this apparently clears pending interrupts as well
 #define   DAC_UNDERRUN_BIT	0x1
@@ -2066,7 +2068,14 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	writew(0, private(dev)->main_iobase + DAC_BUFFER_CLEAR_REG);
 
 	// write to channel
-	writew(data[0], private(dev)->main_iobase + DAC_CONVERT_REG(chan));
+	if( board(dev)->layout == LAYOUT_4020 )
+	{
+		writew( data[0] & 0xff , private(dev)->main_iobase + DAC_LSB_4020_REG(chan));
+		writew( (data[0] >> 8) & 0xf , private(dev)->main_iobase + DAC_MSB_4020_REG(chan));
+	}else
+	{
+		writew(data[0], private(dev)->main_iobase + DAC_CONVERT_REG(chan));
+	}
 
 	// remember output value
 	private(dev)->ao_value[chan] = data[0];
