@@ -617,7 +617,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	// input or output subdevice
 	s=dev->subdevices+0;
 	s->type=emul_s->type;
-	s->subdev_flags = emul_s->subdev_flags;
+	s->subdev_flags = emul_s->subdev_flags; /* SDF_GROUND (to fool check_driver) */
 	s->n_chan=emul_s->n_chan;
 	s->len_chanlist=1024;
 	s->do_cmd=timer_cmd;

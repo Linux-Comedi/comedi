@@ -386,7 +386,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 0;
 	/* initialize the ADC subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE|SDF_GROUND;
 	s->n_chan = devpriv->adc_mux == adc_diff ? 8 : 16;
 	s->insn_read = dt2811_ai_insn;
 	s->maxdata = 0xfff;

@@ -380,7 +380,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	/* analog input subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|SDF_DIFF|SDF_GROUND;
 	s->n_chan=thisboard->ai_chans;
 	s->maxdata=(1<<thisboard->ai_bits)-1;
 	s->range_table=&pci230_ai_range;

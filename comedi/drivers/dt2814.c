@@ -299,7 +299,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	dev->read_subdev = s;
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|SDF_GROUND;
 	s->n_chan=16;			/* XXX */
 	s->len_chanlist=1;
 	s->insn_read = dt2814_ai_insn_read;

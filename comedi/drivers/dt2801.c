@@ -533,7 +533,7 @@ havetype:
 	s=dev->subdevices+0;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|SDF_GROUND;
 #if 1
 	s->n_chan=n_ai_chans;
 #else

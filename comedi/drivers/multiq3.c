@@ -260,7 +260,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s = dev->subdevices + 0;
       /* ai subdevice */
       s->type = COMEDI_SUBD_AI;
-      s->subdev_flags = SDF_READABLE;
+      s->subdev_flags = SDF_READABLE|SDF_GROUND;
       s->n_chan = 8;
       s->insn_read = multiq3_ai_insn_read;
       s->maxdata = 0x1fff;

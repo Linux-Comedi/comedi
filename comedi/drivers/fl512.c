@@ -165,7 +165,7 @@ static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
   /* Analog indput */
   s                = dev->subdevices+0;
   s->type          = COMEDI_SUBD_AI;         /* define subdevice as Analog In   */
-  s->subdev_flags  = SDF_READABLE;           /* you can read it from userspace  */
+  s->subdev_flags  = SDF_READABLE|SDF_GROUND;/* you can read it from userspace  */
   s->n_chan        = 16;                     /* Number of Analog input channels */
   s->maxdata       = 0x0fff;                 /* accept only 12 bits of data     */
   s->range_table   = &range_fl512;           /* device use one of the ranges    */

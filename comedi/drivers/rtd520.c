@@ -875,7 +875,7 @@ static int rtd_attach (
     dev->read_subdev=s;
     /* analog input subdevice */
     s->type=COMEDI_SUBD_AI;
-    s->subdev_flags=SDF_READABLE;
+    s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_COMMON|SDF_DIFF;
     s->n_chan=thisboard->aiChans;
     s->maxdata=(1<<thisboard->aiBits)-1;
     if (thisboard->aiMaxGain <= 32) {

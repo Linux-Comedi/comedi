@@ -152,7 +152,7 @@ static int pcmad_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+0;
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|AREF_GROUND;
 	s->n_chan=16;			/* XXX */
 	s->len_chanlist=1;
 	s->insn_read=pcmad_ai_insn_read;

@@ -574,7 +574,7 @@ static int serial2002_attach(comedi_device *dev,comedi_devconfig *it)
   /* analog input subdevice */
   s=dev->subdevices+2;
   s->type = COMEDI_SUBD_AI;
-  s->subdev_flags = SDF_READABLE;
+  s->subdev_flags = SDF_READABLE|SDF_GROUND;
   s->n_chan = 0;
   s->maxdata = 1;
   s->range_table = 0;

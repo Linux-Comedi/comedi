@@ -393,7 +393,7 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 
 	s=dev->subdevices+0;
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|AREF_GROUND|AREF_DIFF;
 	s->n_chan=8;
 	s->maxdata=0xffff;
 	s->range_table=&range_daqp_ai;

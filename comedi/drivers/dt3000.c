@@ -789,7 +789,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_DIFF;
 	s->n_chan=this_board->adchan;
 	s->insn_read=dt3k_ai_insn;
 	s->maxdata=(1<<this_board->adbits)-1;

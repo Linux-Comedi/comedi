@@ -535,7 +535,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 0;
 	/* AI subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE|SDF_GROUND;
 	s->n_chan = this_board->n_aichan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;

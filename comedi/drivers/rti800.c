@@ -345,7 +345,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s=dev->subdevices+0;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|SDF_GROUND;
 	s->n_chan=(devpriv->adc_mux? 16 : 8);
 	s->insn_read=rti800_ai_insn_read;
 	s->maxdata=0xfff;

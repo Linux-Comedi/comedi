@@ -206,7 +206,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev=s;
 	/* analog input subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_DIFF;
 	s->n_chan=16;
 	s->maxdata=0xffff;
 	s->range_table=&das16cs_ai_range;
