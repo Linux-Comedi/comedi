@@ -1,0 +1,259 @@
+
+
+Comedi support
+CONFIG_COMEDI
+  If you want to use data acquisition hardware with Linux, you
+  should enable this option.
+  
+  COMEDI stands for Control and Measurement Interface.  More
+  information about Comedi can be found in Documentation/comedi
+  or at http://stm.lbl.gov/comedi.
+
+Backwards compatibility
+CONFIG_COMEDI_BACKWARDS
+  This option enables a few features that were standard in older
+  versions of Comedi, but are currently deprecated and scheduled
+  to be removed.  This option is meant to be a convenience for
+  quick upgrading.  If you use a feature that requires this option
+  to be enabled, you are stongly encouraged to fix your application.
+
+Kernel Comedilib
+CONFIG_COMEDI_KLIB
+  Comedi can be accessed from kernel modules, as well as from
+  user-space applications.  The Kernel Comedilib (also known
+  as kcomedilib) provides a similar interface for kernel modules
+  as comedilib does for user space applications.  Selecting this
+  option creates a module called kcomedilib.o which can then be
+  used by other modules.
+
+  If you want to use Comedi from a kernel module, select yes.
+  RTLinux, RTAI tasks, and Comedi virtual devices require this
+  option to be selected.  If in doubt, select yes.
+
+Real Time Support
+CONFIG_COMEDI_RT
+  This selection requires that you have an RTLinux or RTAI enabled
+  kernel, and also requires RTLinux or RTAI header files.  If this
+  option is selected, all the functions exported by the kernel
+  comedilib are real-time-safe, i.e., they can be called from a
+  real-time task or interrupt.
+
+  This function is not very useful without also selecting Kernel
+  Comedilib.  This option only appears if you have a real-time
+  kernel, so you probably want to select yes.
+
+Verbose Debugging
+CONFIG_COMEDI_DEBUG
+  Selecting yes here will cause Comedi to print error messages to
+  syslog at every opportunity.  This can be useful when you are
+  writing programs that use comedi.
+
+Data Translation DT2801 driver
+CONFIG_COMEDI_DT2801
+  Includes support for DT2801-compatible boards, including the DT2801
+  and DT01-EZ series boards.
+
+Data Translation DT2811 driver
+CONFIG_COMEDI_DT2811
+  Includes support for DT2811.
+
+Data Translation DT2814 driver
+CONFIG_COMEDI_DT2814
+  Includes support for DT2814.
+
+Data Translation DT2815 driver
+CONFIG_COMEDI_DT2815
+  Includes support for DT2815.
+
+Data Translation DT2817 driver
+CONFIG_COMEDI_DT2817
+  Includes support for DT2817.
+
+Data Translation DT2821 series driver
+CONFIG_COMEDI_DT282x
+  Includes support for DT2821 series hardware.
+
+Data Translation DT3000 series driver
+CONFIG_COMEDI_DT3000
+  Includes support for DT3001 series hardware.
+
+National Instruments AT-MIO E series driver
+CONFIG_COMEDI_NI_ATMIO
+  Includes support for National Instruments AT-MIO E series hardware.
+  If you have an E series board with an 8255 chip, you also need to
+  select the 8255 driver below.  To use this driver, you will also
+  need the isapnptools package, which is included with many current
+  Linux distributions.
+  
+  Support for the PCI-MIO E series is in a separate driver -- you
+  should select N here.
+
+National Instruments PCMCIA E series driver
+CONFIG_COMEDI_NI_MIO_CS
+  Includes support for National Instruments PCMCIA E series hardware.
+  If you have an E series board with an 8255 chip, you also need to
+  select the 8255 driver below.
+  
+National Instruments PCI-MIO E series driver
+CONFIG_COMEDI_NI_PCIMIO
+  Includes support for National Instruments PCI-MIO E series hardware.
+  If you have an E series board with an 8255 chip, you also need to
+  select the 8255 driver below.
+
+National Instruments PCI-DIO driver
+CONFIG_COMEDI_NI_PCIDIO
+  Includes support for National Instruments PCI-based digital I/O
+  hardware, including the PCI-DIO-96, PCI-DIO-32HS, and PCI-6533.
+  If you have a DIO board with an 8255 chip, you also need to
+  select the 8255 driver below.
+
+National Instruments AT-MIO-16D driver
+CONFIG_COMEDI_NI_ATMIO16D
+  Includes support for National Instruments AT-MIO-16D hardware.
+  If you have a board with an 8255 chip, you also need to select
+  the 8255 driver below.
+
+National Instruments AT-A2150 driver
+CONFIG_COMEDI_NI_AT_A2150
+  Includes support for National Instruments AT-A2150 hardware.
+ 
+DAS08 driver
+CONFIG_COMEDI_DAS08
+  Includes support for Keithley Metrabye DAS08 and compatibles.
+
+DAS08jr driver
+CONFIG_COMEDI_DAS08JR
+  Includes support for Computer Boards DAS08jr and compatibles.
+
+DAS1600 driver
+CONFIG_COMEDI_DAS1600
+  Includes support for Keithley Metrabyte DAS1600, DAS1608 and
+  compatibles.  To use the digital I/O provided by the 8255 chip
+  on these boards, you need to include the 8255 driver above.
+
+DAS1800 driver
+CONFIG_COMEDI_DAS1800
+  Includes support for Keithley Metrabye DAS-1700 and DAS-1800
+  series.
+
+DAS16 driver
+CONFIG_COMEDI_DAS16
+  Includes support for Keithley Metrabye DAS-16, DAS-1200,
+  DAS-1400, DAS-1600 and compatibles.
+
+DAS16M1 driver
+CONFIG_COMEDI_DAS16M1
+  Includes support for the Measurement Computing (Computer Boards)
+  CIO-DAS16/M1.  Does not support CIO-DAS16/M1/16.
+
+DAS6402 driver
+CONFIG_COMEDI_DAS6402
+  Includes support for Keithley Metrabye DAS6402 and compatibles.
+
+DAS800 driver
+CONFIG_COMEDI_DAS800
+  Includes support for Keithley Metrabye DAS800 series and
+  compatibles such as Measurement Computing (Computer Boards)
+  CIO-DAS800 series.
+
+Support for 8255
+CONFIG_COMEDI_8255
+  Includes support for 8255 chip.  This is necessary any board
+  that use an 8255 for digital I/O.
+
+Quanser Consulting MultiQ-3
+CONFIG_COMEDI_MULTIQ3
+  Includes support for Quanser Consulting MultiQ-3 boards.
+
+Support for Comedi controlling a standard PC parallel port
+CONFIG_COMEDI_PARPORT
+  If you want to use your PC's parallel port for additional
+  digital I/O channels, select Y here.  This driver is not activated
+  automatically, so you don't have to fear that Comedi will
+  cause your printer to stop working.  This driver is not
+  compatible with the generic Linux parallel port interface.
+
+ADLink PCI-9118DG/HR/HG driver
+CONFIG_COMEDI_ADLPCI9118
+  Includes support for these ADLink cards:
+    ADLink PCI-9118DG
+    ADLink PCI-9118HR
+    ADLink PCI-9118HG
+
+Advantech PCI-1710 and clones
+CONFIG_COMEDI_ADV_PCI1710
+  Includes support for these cards:
+     Advantech PCI-1710
+     Advantech PCI-1710HG
+     Advantech PCI-1711
+     Advantech PCI-1713
+     Advantech PCI-1720
+     Advantech PCI-1731
+     
+PCL 711 driver
+CONFIG_COMEDI_PCL711
+  Includes support for PCL 711, 711b and ACL 8112.
+
+Advantech PCL-722/724/731 and ADLink ACL-7122/7124/PET-48DIO driver
+CONFIG_COMEDI_PCL724
+  Includes support for Advantech DIO boards PCL-722, PCL-724 and PCL-731.
+  Includes support for ADLink DIO boards ACL-7122, ACL-7124 and PET-48DIO.
+  This driver need 8255 chip support for correct work.
+
+PCL 725 driver
+CONFIG_COMEDI_PCL725
+  Includes support for PCL 725.
+
+PCL 726 driver
+CONFIG_COMEDI_PCL726
+  Includes support for PCL 726.
+
+Advantech PCL-812PG, PCL-813B, ADLink ACL-8113
+CONFIG_COMEDI_PCL812
+  Includes support for these boards:
+    Advantech PCL-812/PG, PCL-813/B,
+    ADLink ACL-8112DG/HG/PG, ACL-8113, ACL-8216,
+    ICP DAS A-821PGH/PGL/PGL-NDA, A-822PGH/PGL, A-823PGH/PGL, A-826PG, ISO-813
+
+Advantech PCL-818, PCL-718
+CONFIG_COMEDI_PCL818
+  Includes support for PCL-818, PCL-718.
+
+Analog Devices RI800 driver
+CONFIG_COMEDI_RTI800
+  Includes support for RTI800 and RTI815 boards.
+
+Analog Devices RI802 driver
+CONFIG_COMEDI_RTI802
+  Includes support for RTI802.
+
+Intelligent Instrumentation PCI-20001C
+CONFIG_COMEDI_II_PCI20KC
+  Includes support for Intelligent Instrumentation PCI-20001C and some
+  of the add-on modules.
+
+IOtech DaqBoard/2000
+CONFIG_COMEDI_DAQBOARD2000
+  Includes support for IOtech DaqBoard/2000.
+
+Command emulator (timer)
+CONFIG_COMEDI_RT_TIMER
+  Comedi virtual device drivers use RTLinux or RTAI to emulate features
+  that are found on advanced data acquisition hardware.  The timer
+  virtual driver (comedi_rt_timer.o) uses a real-time task and the real-time
+  scheduler to emulate asynchronous commands for a selected analog
+  input or analog output subdevice.
+
+Direct Digital Synthesis
+CONFIG_COMEDI_VD_DDS
+  Comedi virtual device drivers use RTLinux or RTAI to emulate features
+  that are found on advanced data acquisition hardware.  The DDS
+  (direct digital synthesis) virtual driver uses a real-time task and
+  the real-time scheduler to create a waveform on a selected analog
+  output channel.
+
+Measurement Computing (Computer Boards) PCI-DAS
+CONFIG_COMEDI_CB_PCIDAS
+  Includes support for Measurement Computing (Computer Boards) PCI-DAS1000,
+  PCI-DAS1200, PCI-DAS1600 and other compatible PCI-DAS cards.
+
