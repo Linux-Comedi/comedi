@@ -146,6 +146,8 @@ comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 
  */
 
+#define TIMEOUT 10000
+
 #define DT2811_SIZE 8
 
 #define DT2811_ADCSR 0
@@ -205,13 +207,16 @@ comedi_driver driver_dt2811={
 };
 COMEDI_INITCLEANUP(driver_dt2811);
 
-static int dt2811_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
-#if 0
-static int dt2811_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
-#endif
-static int dt2811_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
-static int dt2811_di(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
-static int dt2811_do(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
+static int dt2811_ai_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2811_ao_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2811_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2811_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2811_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 
 enum { card_2811_pgh, card_2811_pgl };
 typedef struct {
@@ -224,6 +229,7 @@ typedef struct {
 	  dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
 	} dac_range[2];
         comedi_lrange * range_type_list[2];
+	lsampl_t ao_readback[2];
 } dt2811_private;
 
 #define devpriv ((dt2811_private *)dev->private)
@@ -237,6 +243,7 @@ static comedi_lrange *dac_range_types[] =
 
 #define DT2811_TIMEOUT 5
 
+#if 0
 static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int lo, hi;
@@ -254,6 +261,7 @@ static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_done(dev, dev->subdevices + 0);
 	}
 }
+#endif
 
 /*
   options[0]   Board base address
@@ -278,8 +286,8 @@ static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
 
 static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	int i, irq, irqs;
-	long flags;
+	//int i, irq, irqs;
+	//long flags;
 	int ret;
 	comedi_subdevice *s;
 
@@ -302,7 +310,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	i = inb(dev->iobase + DT2811_ADDATHI);
 #endif
 
-#if 1
+#if 0
 	irq = it->options[1];
 	if (irq < 0) {
 		save_flags(flags);
@@ -367,7 +375,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = devpriv->adc_mux == adc_diff ? 8 : 16;
-	s->trig[0] = dt2811_ai;
+	s->insn_read = dt2811_ai_insn;
 	s->maxdata = 0xfff;
 	switch(it->options[3]){
 		case 0:
@@ -387,7 +395,8 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 2;
-	s->trig[0] = dt2811_ao;
+	s->insn_write = dt2811_ao_insn;
+	s->insn_read = dt2811_ao_insn_read;
 	s->maxdata = 0xfff;
         s->range_table_list = devpriv->range_type_list;
         devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
@@ -398,7 +407,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 8;
-	s->trig[0] = dt2811_di;
+	s->insn_bits = dt2811_di_insn_bits;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
@@ -407,7 +416,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 8;
-	s->trig[0] = dt2811_do;
+	s->insn_bits = dt2811_do_insn_bits;
 	s->maxdata = 1;
 	s->state = 0;
 	s->range_table = &range_digital;
@@ -431,63 +440,32 @@ static int dt2811_detach(comedi_device * dev)
 }
 
 
-static int dt2811_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int dt2811_ai_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-  int i;
-  for(i=0 ; i < it->n_chan ; i++) {
-    int lo, hi;
-    int chan;
+	int chan = CR_CHAN(insn->chanspec);
+	int timeout = DT2811_TIMEOUT;
+	int i;
 
-    chan = CR_CHAN(it->chanlist[i]);
+	for(i=0;i<insn->n;i++){
+		outb(chan, dev->iobase + DT2811_ADGCR);
 
-    outb(chan, dev->iobase + DT2811_ADGCR);
-    while (inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
-      udelay(25);
-    lo = inb(dev->iobase + DT2811_ADDATLO);
-    hi = inb(dev->iobase + DT2811_ADDATHI);
+		while (timeout && inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
+			timeout--;
+		if(!timeout)return -ETIME;
 
-    it->data[i] = lo + 0x100 * hi;
-  }
-  return i;
-}
-
-#if 0
-static int dt2811_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-
-	switch (it->mode) {
-	case 0:
-		return dt2811_ai_mode0(dev, s, it);
-	case 1:
-#if defined(FROM_DT2814)
-		outb(it->chan | DT2814_ENB | (it->trigvar << 5), dev->iobase + DT2814_CSR);
-#endif
-	default:
-		return -EINVAL;
+		data[i] = inb(dev->iobase + DT2811_ADDATLO);
+		data[i] |= inb(dev->iobase + DT2811_ADDATHI)<<8;
+		data[i]&=0xfff;
 	}
+
+	return i;
 }
-
-static int dt2811_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-	int lo, hi;
-	int chan;
-
-	chan = CR_CHAN(it->chanlist[0]);
-
-	outb(chan, dev->iobase + DT2811_ADGCR);
-	while (inb(dev->iobase + DT2811_ADCSR) & DT2811_ADBUSY)
-		udelay(25);
-	lo = inb(dev->iobase + DT2811_ADDATLO);
-	hi = inb(dev->iobase + DT2811_ADDATHI);
-
-	it->data[0] = lo + 0x100 * hi;
-
-	return 0;
-}
-#endif
 
 
 #if 0
+/* Wow.  This is code from the Comedi stone age.  But it hasn't been
+ * replaced, so I'll let it stay. */
 int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
 {
 	comedi_device *dev = comedi_devices + minor;
@@ -512,47 +490,57 @@ int dt2811_adtrig(kdev_t minor, comedi_adtrig * adtrig)
 }
 #endif
 
-static int dt2811_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int dt2811_ao_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-  int i;
-  for(i=0 ; i < it->n_chan ; i++) {
-	int lo, hi;
+	int i;
 	int chan;
 
-    chan = CR_CHAN(it->chanlist[i]);
+	chan = CR_CHAN(insn->chanspec);
 
-    lo = (it->data[i] & 0xff);
-    hi = (it->data[i] >> 8) & 0x0f;
-
-	switch (chan) {
-	case 0:
-		outb(lo, dev->iobase + DT2811_DADAT0LO);
-		outb(hi, dev->iobase + DT2811_DADAT0HI);
-		break;
-	case 1:
-		outb(lo, dev->iobase + DT2811_DADAT1LO);
-		outb(hi, dev->iobase + DT2811_DADAT1HI);
-		break;
+	for(i=0;i<insn->n;i++){
+		outb(data[i]&0xff, dev->iobase + DT2811_DADAT0LO + 2*chan);
+		outb((data[i]>>8)&0xff, dev->iobase + DT2811_DADAT0HI + 2*chan);
+		devpriv->ao_readback[chan]=data[i];
 	}
-  }
-  return i;
+
+	return i;
 }
 
-static int dt2811_di(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int dt2811_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int bits;
-	
-	bits=inb(dev->iobase + DT2811_DIO);
+	int i;
+	int chan;
 
-	return di_unpack(bits,it);
+	chan = CR_CHAN(insn->chanspec);
+
+	for(i=0;i<insn->n;i++){
+		data[i]=devpriv->ao_readback[chan];
+	}
+
+	return i;
 }
 
-static int dt2811_do(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int dt2811_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
-	
+	if(insn->n!=2)return -EINVAL;
+
+	data[1] = inb(dev->iobase + DT2811_DIO);
+
+	return 2;
+}
+
+static int dt2811_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
+
+	s->state &= ~data[0];
+	s->state |= data[1];
 	outb(s->state, dev->iobase + DT2811_DIO);
 
-	return it->n_chan;
+	return 2;
 }
 
