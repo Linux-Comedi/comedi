@@ -662,6 +662,7 @@ typedef struct
 	volatile unsigned int intr_enable_bits;	// bits to send to INTR_ENABLE_REG register
 	volatile uint16_t adc_control1_bits;	// bits to send to ADC_CONTROL1_REG register
 	volatile uint16_t fifo_size_bits;	// bits to send to FIFO_SIZE_REG register
+	volatile uint16_t hw_config_bits;	// bits to send to HW_CONFIG_REG register
 	volatile uint32_t plx_control_bits;	// bits written to plx9080 control register
 	volatile int calibration_source;	// index of calibration source readable through ai ch0
 } pcidas64_private;
@@ -775,12 +776,11 @@ void init_plx9080(comedi_device *dev)
 	if(board(dev)->layout == LAYOUT_4020)
 	{
 		bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
-		writel(bits, plx_iobase + PLX_DMA1_MODE_REG);	// XXX
 	}else
 	{	// localspace0 bus is 16 bits wide
 		bits |= PLX_LOCAL_BUS_16_WIDE_BITS;
 	}
-	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
+	writel(bits, plx_iobase + PLX_DMA1_MODE_REG);
 }
 
 /*
@@ -1061,13 +1061,19 @@ found:
 	s->type = COMEDI_SUBD_UNUSED;
 
 
+	// initialize various registers
+
 	// manual says to set this bit for boards with > 16 channels
 //	if(board(dev)->ai_se_chans > 16)
 	if(1)	// bit should be set for 6025, although docs say 6034 and 6035 should be cleared XXX
 		private(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
-	// initialize various registers
+	private(dev)->hw_config_bits = SLOW_DAC_BIT;
+	if(board(dev)->layout == LAYOUT_4020)
+		private(dev)->hw_config_bits |= INTERNAL_CLOCK_4020_BITS;
+	writew(private(dev)->hw_config_bits, private(dev)->main_iobase + HW_CONFIG_REG);
+
 	writew(0, private(dev)->main_iobase + DAQ_SYNC_REG);
 	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
 
@@ -1175,7 +1181,8 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	if(board(dev)->layout != LAYOUT_4020)
 	{
 		// use internal queue
-		writew(SLOW_DAC_BIT, private(dev)->main_iobase + HW_CONFIG_REG);
+		private(dev)->hw_config_bits &= ~EXT_QUEUE_BIT;
+		writew(private(dev)->hw_config_bits, private(dev)->main_iobase + HW_CONFIG_REG);
 
 		// load internal queue
 		bits = 0;
@@ -1447,14 +1454,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// make sure internal calibration source is turned off
 	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
 
-	// set hardware configuration register
-	bits = 0;
-	if(board(dev)->layout == LAYOUT_4020)
-		bits |= INTERNAL_CLOCK_4020_BITS;
-	// use external queue
-	else bits |= EXT_QUEUE_BIT | SLOW_DAC_BIT;
-	writew(bits, private(dev)->main_iobase + HW_CONFIG_REG);
-
 	// set conversion pacing
 	check_adc_timing(cmd);
 	if(cmd->convert_src == TRIG_TIMER)
@@ -1499,6 +1498,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if(board(dev)->layout != LAYOUT_4020)
 	{
+		// use external queue
+		private(dev)->hw_config_bits |= EXT_QUEUE_BIT;
+		writew(private(dev)->hw_config_bits, private(dev)->main_iobase + HW_CONFIG_REG);
+
 		/* XXX cannot write to queue fifo while dac fifo is being written to
 		* ( need spinlock, or try to use internal queue instead */
 		// clear queue pointer
@@ -1545,7 +1548,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
 		if(board(dev)->layout == LAYOUT_4020)
-			private(dev)->intr_enable_bits |= EN_ADC_INTR_SRC_BIT;	// XXX
+			private(dev)->intr_enable_bits |= ADC_INTR_EOC_BITS | EN_ADC_INTR_SRC_BIT;
 		else
 			private(dev)->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
 	}
@@ -1577,17 +1580,13 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
-		writeb(0, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-		writeb(0, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);	// XXX
+		writeb(0, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	} else
 	{
 		// give location of first dma descriptor
 		bits = private(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
-		writel(bits, private(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
-		// enable dma transfer
-		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-		//XXX
 		writel(bits, private(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
+		// enable dma transfer
 		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	}
 
@@ -1654,38 +1653,40 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	int read_segment, read_index, write_segment, write_index;
-	int num_fifo_segments;
+	static const int num_fifo_segments = 4;
 	int num_samples;
 	uint16_t prepost_bits;
 
 	// figure out how many samples we should read from board's fifo
-
-	if(board(dev)->layout == LAYOUT_4020)
-		num_fifo_segments = 2;
-	else
-		num_fifo_segments = 4;
 
 	do
 	{
 		/* Get most significant bits.  Different boards encode the meaning of these bits
 		* differently, so use a scheme that doesn't depend on encoding */
 		prepost_bits = readw(private(dev)->main_iobase + PREPOST_REG);
-		read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
-		write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
 		// get least significant 15 bits
-		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG);
-		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG);
-
-		DEBUG_PRINT(" prepost 0x%x\n", prepost_bits);
-		DEBUG_PRINT(" rd inx 0x%x\n", read_index);
-		DEBUG_PRINT(" wrt inx 0x%x\n", write_index);
+		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
+		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
-		if(read_segment != write_segment)
-			num_samples = (board(dev)->fifo_depth / num_fifo_segments) - read_index;
-		else
+		if(board(dev)->layout != LAYOUT_4020)
+		{
+			read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
+			write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
+			if(read_segment != write_segment)
+				num_samples = (board(dev)->fifo_depth / num_fifo_segments) - read_index;
+			else
+				num_samples = write_index - read_index;
+		} else
+		{
+			static const int fifo_ptr_limit = 1 << 15;
+			read_segment = write_segment = 0;
 			num_samples = write_index - read_index;
+			if(num_samples < 0) num_samples += fifo_ptr_limit;
+			// 4020 stores two samples per fifo entry
+			num_samples *= 2;
+		}
 
 		if(cmd->stop_src == TRIG_COUNT)
 		{
@@ -1712,17 +1713,6 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 			break;
 		}
 
-		if(board(dev)->layout == 4020)
-		{
-			prepost_bits = readw(private(dev)->main_iobase + PREPOST_REG);
-			read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
-			write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
-			if( read_segment != write_segment )
-			{
-				DEBUG_PRINT(" drained prepost 0x%x\n", prepost_bits);
-				break;
-			}
-		}
 	} while (read_segment != write_segment);
 
 	async->events |= COMEDI_CB_BLOCK;
@@ -1745,8 +1735,8 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	// loop until we have read all the full buffers
 	j = 0;
 	for(next_transfer_addr = readl(pci_addr_reg);
-		next_transfer_addr < private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] &&
-		next_transfer_addr >= private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] + DMA_TRANSFER_SIZE &&
+		(next_transfer_addr < private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] ||
+		next_transfer_addr >= private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] + DMA_TRANSFER_SIZE) &&
 		j < timeout;
 		j++ )
 	{
@@ -1813,10 +1803,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		// XXX possible race
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
-		if(dma0_status & PLX_DMA_EN_BIT)
-		{
-			drain_dma_buffers(dev, 0);
-		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
 
