@@ -921,7 +921,7 @@ found:
 	{
 		private(dev)->dma_desc[index].pci_start_addr = private(dev)->ai_buffer_phys_addr[index];
 		if(board(dev)->layout == LAYOUT_4020)
-			private(dev)->dma_desc[index].local_start_addr = private(dev)->local1_iobase;
+			private(dev)->dma_desc[index].local_start_addr = private(dev)->local1_iobase + ADC_FIFO_REG;
 		else
 			private(dev)->dma_desc[index].local_start_addr = private(dev)->local0_iobase + ADC_FIFO_REG;
 		private(dev)->dma_desc[index].transfer_size = DMA_TRANSFER_SIZE;
@@ -1631,7 +1631,7 @@ static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
 
 	for(i = 0; i < num_samples / 2; i++)
 	{
-		fifo_data = readl(private(dev)->dio_counter_iobase);
+		fifo_data = readl(private(dev)->dio_counter_iobase + ADC_FIFO_REG);
 		comedi_buf_put(async, fifo_data & 0xffff);
 		comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
 	}
