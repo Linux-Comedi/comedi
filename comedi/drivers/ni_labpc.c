@@ -219,7 +219,7 @@ static unsigned int labpc_inb(unsigned int address);
 static void labpc_outb(unsigned int byte, unsigned int address);
 static unsigned int labpc_readb(unsigned int address);
 static void labpc_writeb(unsigned int byte, unsigned int address);
-static int labpc_dio_mem_callback(int dir, int port, int data, void *arg);
+static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long arg);
 static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range);
 static void labpc_load_ao_calibration(comedi_device *dev, unsigned int channel, unsigned int range);
 static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
@@ -699,7 +699,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	if(thisboard->write_byte == labpc_writeb)
 		subdev_8255_init(dev, s, labpc_dio_mem_callback, (unsigned long)(dev->iobase + DIO_BASE_REG));
 	else
-		subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DIO_BASE_REG));
+		subdev_8255_init(dev, s, NULL, dev->iobase + DIO_BASE_REG);
 
 	// calibration subdevices for boards that have one
 	s = dev->subdevices + 3;
