@@ -1,5 +1,5 @@
 Source: comedi
-Priority: optional
+Priority: extra
 Maintainer: David Schleef <ds@schleef.org>
 Build-Depends: debhelper (>> 2.0.0)
 Standards-Version: 3.5.6
@@ -7,7 +7,22 @@ Standards-Version: 3.5.6
 Package: comedi-modules-$KVERS
 Section: admin
 Architecture: any
-Description: Comedi modules
- This package provides the modules for Comedi for a specific kernel
- version.
+Recommends: libcomedi0
+Description: Comedi kernel modules
+ Comedi (Control and Measurement Device Interface) is a collection
+ of device drivers for data acquisition devices.  This includes
+ most devices that have analog-to-digital (A/D) converters,
+ digital-to-analog (D/A) converters, raw digital I/O, digital
+ counters, and timers.  Well-known manufacturers include National
+ Instruments, Data Translation, and Measurement Computing.  A list
+ of supported devices can be found in /usr/share/doc/comedi-source/.
+ These drivers are not included in the Linux kernel package, so if
+ you want to use these devices with Debian, you should install this
+ package.
+ .
+ The packages libcomedi0 and libcomedi-dev contain documentation
+ about Comedi and Comedilib.
+ .
+ This package provides the Comedi kernel modules for a particular
+ kernel version.
 

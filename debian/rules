@@ -23,6 +23,10 @@ kdist_image:	checkroot
 	$(MAKE) INSTALL_MOD_PATH=`pwd`/$(d_mod) install
 	install -m644 debian/changelog \
 	  $(d_mod)/usr/share/doc/$(p_mod)/changelog.Debian
+	install -m 644 Documentation/comedi/devices.txt \
+	  debian/src/usr/share/doc/comedi-source/
+	install -m 644 Documentation/comedi/drivers.txt \
+	  debian/src/usr/share/doc/comedi-source/
 	gzip -9v $(d_mod)/usr/share/doc/$(p_mod)/*
 	install -m644 debian/copyright \
 	  $(d_mod)/usr/share/doc/$(p_mod)/copyright
@@ -74,6 +78,10 @@ binary-source: checkroot
 	  debian/src/usr/share/doc/comedi-source/README
 	install -m 644 debian/changelog \
 	  debian/src/usr/share/doc/comedi-source/changelog.Debian
+	install -m 644 Documentation/comedi/devices.txt \
+	  debian/src/usr/share/doc/comedi-source/
+	install -m 644 Documentation/comedi/drivers.txt \
+	  debian/src/usr/share/doc/comedi-source/
 	gzip -9v debian/src/usr/share/doc/comedi-source/*
 	install -m 644 debian/copyright \
 	  debian/src/usr/share/doc/comedi-source/copyright
