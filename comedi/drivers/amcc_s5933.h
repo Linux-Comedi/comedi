@@ -229,7 +229,6 @@ void amcc_init(void)
 			amcc->daq_io_addr=pcidev->resource[2].start & ~3UL;
 			amcc->irq=pcidev->irq;
 #endif
-#endif
 			
 		}
 	}
