@@ -33,6 +33,12 @@ Commands are not supported.
 
 /*
 	Bart Joris <bjoris@advalvas.be> Last updated on 20/08/2001
+
+	Manuals:
+
+	322110a.pdf	PCI/PXI-6704 User Manual
+	322110b.pdf	PCI/PXI-6703/6704 User Manual
+
 */
 
 #include <linux/comedidev.h>
