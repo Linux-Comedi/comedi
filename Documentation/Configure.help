@@ -113,6 +113,10 @@ CONFIG_COMEDI_NI_ATMIO16D
   If you have a board with an 8255 chip, you also need to select
   the 8255 driver below.
 
+National Instruments AT-A2150 driver
+CONFIG_COMEDI_NI_AT_A2150
+  Includes support for National Instruments AT-A2150 hardware.
+ 
 DAS08 driver
 CONFIG_COMEDI_DAS08
   Includes support for Keithley Metrabye DAS08 and compatibles.
@@ -134,7 +138,8 @@ CONFIG_COMEDI_DAS1800
 
 DAS16 driver
 CONFIG_COMEDI_DAS16
-  Includes support for Keithley Metrabye DAS16 and compatibles.
+  Includes support for Keithley Metrabye DAS-16, DAS-1200,
+  DAS-1400, DAS-1600 and compatibles.
 
 DAS16M1 driver
 CONFIG_COMEDI_DAS16M1
@@ -244,4 +249,9 @@ CONFIG_COMEDI_VD_DDS
   (direct digital synthesis) virtual driver uses a real-time task and
   the real-time scheduler to create a waveform on a selected analog
   output channel.
+
+Measurement Computing (Computer Boards) PCI-DAS
+CONFIG_COMEDI_CB_PCIDAS
+  Includes support for Measurement Computing (Computer Boards) PCI-DAS1000,
+  PCI-DAS1200, PCI-DAS1600 and other compatible PCI-DAS cards.
 
