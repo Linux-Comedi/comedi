@@ -150,17 +150,17 @@ int comedi_command(comedi_t *d,comedi_cmd *cmd)
 	if(async == NULL)
 		return -ENODEV;
 
+	if(s->busy)
+		return -EBUSY;
+	s->busy = d;
+
 	if(async->cb_mask & COMEDI_CB_EOS)
 		cmd->flags |= TRIG_WAKE_EOS;
 
 	async->cmd=*cmd;
 
-#if 0
-	s->runflags=0;
-#else
-	s->runflags=SRF_RT;
+	s->runflags |= SRF_RT;
 	comedi_switch_to_rt(dev);
-#endif
 
 	s->subdev_flags |= SDF_RUNNING;
 
