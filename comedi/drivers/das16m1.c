@@ -39,8 +39,6 @@ TODO: add cio-das16/m1/16 support
 #include <8255.h>
 #include <8253.h>
 
-//#define DEBUG
-
 #define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
 
@@ -68,7 +66,6 @@ TODO: add cio-das16/m1/16 support
 
 */
 
-#define DAS16M1_TRIG           0
 #define DAS16M1_AI             0	// 16-bit wide register
 #define   AI_CHAN(x)             ((x) & 0xf)
 #define   AI_DATA(x)             (((x) >> 4) & 0xfff)
@@ -82,7 +79,6 @@ TODO: add cio-das16/m1/16 support
 #define DAS16M1_INTR_CONTROL   5
 #define   INT_PACER              0x3
 #define   PACER_MASK             0x3
-#define   IRQ(x)                 (((x) & 0x7) << 4)
 #define   INTE                   0x80
 #define DAS16M1_QUEUE_ADDR     6
 #define DAS16M1_QUEUE_DATA     7
@@ -121,19 +117,20 @@ static void das16m1_reset(comedi_device *dev);
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs);
 
 static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int round_flag);
-#ifdef DEBUG
-static void reg_dump(comedi_device *dev);
-#endif
+
+static int das16m1_irq_bits(unsigned int irq);
 
 typedef struct das16m1_board_struct{
 	char *name;
 	unsigned int ai_speed;
+	unsigned int n_bits;
 }das16m1_board;
 
 static das16m1_board das16m1_boards[]={
 	{
-	name:		"das16m1",	// CIO-DAS16_M1.pdf
+	name:		"cio-das16/m1",	// CIO-DAS16_M1.pdf
 	ai_speed:	1000,		// 1MHz max speed
+	n_bits:	12,	// 12 bit resolution
 	},
 };
 
@@ -267,15 +264,17 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 		byte = Q_CHAN(CR_CHAN(cmd->chanlist[i])) | Q_RANGE(CR_RANGE(cmd->chanlist[i]));
 		outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
 	}
-
-	/* enable pacer clocked conversions */
-	devpriv->control_state |= INT_PACER;
+	outb(0, dev->iobase + DAS16M1_QUEUE_ADDR);
 
 	/* set counter mode and counts */
-	das16m1_set_pacer(dev, cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+	das16m1_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
 
 	/* clear interrupt bit */
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+
+	// set control & status register
+	byte = 0;
+	outb(byte, dev->iobase + DAS16M1_CS);
 	/* enable interrupts and internal pacer */
 	devpriv->control_state |= INTE | INT_PACER;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
@@ -286,6 +285,9 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	devpriv->adc_count = 0;
+	devpriv->control_state &= ~INTE;
+	devpriv->control_state &= ~PACER_MASK;
+	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
 	return 0;
 }
@@ -396,9 +398,16 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	status = inb(dev->iobase + DAS16M1_CS);
 
-	if((status & IRQDATA) == 0 || dev->attached == 0)
+	if((status & IRQDATA) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
+		return;
+	}
+	if(dev->attached == 0)
+	{
+		comedi_error(dev, "premature interrupt");
+		/* clear interrupt */
+		outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 		return;
 	}
 
@@ -409,14 +418,19 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_buf_put(async, data_point);
 
 		if(--devpriv->adc_count <= 0) {		/* end of acquisition */
-				devpriv->control_state &= ~INTE;
-				devpriv->control_state &= ~PACER_MASK;
-				outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
+				das16m1_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
 	}
 
+	if(status & OVRUN)
+	{
+		das16m1_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+	}
+
+	async->events |= COMEDI_CB_BLOCK;
 	comedi_event(dev, s, async->events);
 	async->events = 0;
 
@@ -439,23 +453,42 @@ static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int r
 	return ns;
 }
 
-#ifdef DEBUG
-static void reg_dump(comedi_device *dev)
+static int das16m1_irq_bits(unsigned int irq)
 {
-	printk("********DAS16M100 REGISTER DUMP********\n");
-	printk("DAS16M1_MUX: %x\n", inb(dev->iobase+DAS16M1_MUX) );
-	printk("DAS16M1_DIO: %x\n", inb(dev->iobase+DAS16M1_DIO) );
-	printk("DAS16M1_STATUS: %x\n", inb(dev->iobase+DAS16M1_STATUS) );
-	printk("DAS16M1_CONTROL: %x\n", inb(dev->iobase+DAS16M1_CONTROL) );
-	printk("DAS16M1_PACER: %x\n", inb(dev->iobase+DAS16M1_PACER) );
-	printk("DAS16M1_GAIN: %x\n", inb(dev->iobase+DAS16M1_GAIN) );
-	printk("DAS16M1_CNTR_CONTROL: %x\n", inb(dev->iobase+DAS16M1_CNTR_CONTROL) );
-	printk("DAS16M100_CONV: %x\n", inb(dev->iobase+DAS16M100_CONV) );
-	printk("DAS16M100_BURST: %x\n", inb(dev->iobase+DAS16M100_BURST) );
-	printk("DAS16M100_ENABLE: %x\n", inb(dev->iobase+DAS16M100_ENABLE) );
-	printk("DAS16M100_STATUS_B: %x\n", inb(dev->iobase+DAS16M100_STATUS_B) );
+	int ret;
+
+	switch(irq)
+	{
+		case 10:
+			ret = 0x0;
+			break;
+		case 11:
+			ret = 0x1;
+			break;
+		case 12:
+			ret = 0x2;
+			break;
+		case 15:
+			ret = 0x3;
+			break;
+		case 2:
+			ret = 0x4;
+			break;
+		case 3:
+			ret = 0x5;
+			break;
+		case 5:
+			ret = 0x6;
+			break;
+		case 7:
+			ret = 0x7;
+			break;
+		default:
+			return -1;
+			break;
+	}
+	return (ret << 4);
 }
-#endif
 
 /*
  * Options list:
@@ -478,7 +511,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	printk(" io= 0x%04x-0x%04x 0x%04x-0x%04x",
+	printk(" io 0x%x-0x%x 0x%x-0x%x",
 		   iobase, iobase + DAS16M1_SIZE,
 		   iobase + DAS16M1_82C55, iobase + DAS16M1_82C55 + DAS16M1_SIZE2);
 	if(check_region(iobase, DAS16M1_SIZE) < 0) {
@@ -496,18 +529,22 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	/* now for the irq */
 	irq = it->options[1];
 	// make sure it is valid
-	if(irq == 2 || irq == 3 || irq == 5 || irq == 7 ||
-		irq == 10 || irq == 11 || irq == 12 || irq == 15)
+	if(das16m1_irq_bits(irq) >= 0)
 	{
-		if((ret = comedi_request_irq(irq, das16m1_interrupt, 0,
-			driver_das16m1.driver_name,dev)) < 0)
+		ret = comedi_request_irq(irq, das16m1_interrupt, 0,
+			driver_das16m1.driver_name, dev);
+		if(ret < 0)
+		{
+			printk(", irq unavailable\n");
 			return ret;
+		}
 		dev->irq = irq;
-		printk(" irq = %d\n", irq);
+		printk(", irq %d\n", irq);
 	}else if(irq == 0){
-		printk(" irq = none\n");
+		printk(", no irq\n");
 	}else {
-		printk(" invalid irq\n");
+		printk(", invalid irq\n"
+			" valid irqs are 2, 3, 5, 7, 10, 11, 12, or 15\n");
 		return -EINVAL;
 	}
 
@@ -554,7 +591,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 
 	// XXX should init digital output levels here also
 	/* set the interrupt level */
-	devpriv->control_state = IRQ(dev->irq);
+	devpriv->control_state = das16m1_irq_bits(dev->irq);
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
 	return 0;
@@ -568,10 +605,10 @@ static int das16m1_detach(comedi_device *dev)
 //	das16m1_reset(dev);
 
 	if(dev->subdevices)
-		subdev_8255_cleanup(dev,dev->subdevices+4);
+		subdev_8255_cleanup(dev,dev->subdevices + 3);
 
 	if(dev->irq)
-		free_irq(dev->irq, dev);
+		comedi_free_irq(dev->irq, dev);
 
 	if(dev->iobase){
 		release_region(dev->iobase , DAS16M1_SIZE);
