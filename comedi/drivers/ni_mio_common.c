@@ -1081,7 +1081,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	ni_writeb(0, Misc_Command);
 
 	win_out(AI_Disarm, AI_Command_1_Register); /* reset pulses */
-	win_out(AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once,
+	win_out(AI_Start_Stop | AI_Mode_1_Reserved /*| AI_Trigger_Once */,
 		AI_Mode_1_Register);
 	win_out(0x0000,AI_Mode_2_Register);
 #if 0
@@ -1111,9 +1111,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 			AI_SC_TC_Output_Select(3) |
 			AI_CONVERT_Output_Select(3),AI_Output_Control_Register);
 	}
-
-	/* this should be done in _ai_modeX() */
-	win_out(0x29e0,AI_START_STOP_Select_Register);
 
 	/* the following registers should not be changed, because there
 	 * are no backup registers in devpriv.  If you want to change
@@ -1613,7 +1610,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	switch(cmd->scan_begin_src){
 	case TRIG_TIMER:
 		/*
-			stop stop bits for non 611x boards
+			stop bits for non 611x boards
 			AI_SI_Special_Trigger_Delay=0
 			AI_Pre_Trigger=0
 			AI_START_STOP_Select_Register:
@@ -1629,21 +1626,16 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		start_stop_select |= AI_START_Edge | AI_START_Sync;
 		win_out(start_stop_select, AI_START_STOP_Select_Register);
 
-		timer=ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
-		win_out2(timer,AI_SI_Load_A_Registers);
-
-		//mode2 |= AI_SI_Reload_Mode(0);
-		mode2 |= AI_SI_Reload_Mode(1);
+		mode2 |= AI_SI_Reload_Mode(0);
 		/* AI_SI_Initial_Load_Source=A */
 		mode2 &= ~AI_SI_Initial_Load_Source;
 		//mode2 |= AI_SC_Reload_Mode;
 		win_out(mode2, AI_Mode_2_Register);
 
 		/* load SI */
+		timer=ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
+		win_out2(timer,AI_SI_Load_A_Registers);
 		win_out(AI_SI_Load,AI_Command_1_Register);
-
-		/* stage freq. counter into SI B */
-		win_out2(timer,AI_SI_Load_B_Registers);
 		break;
 	case TRIG_EXT:
 
@@ -1685,8 +1677,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			AI_CONVERT_Source_Polarity;
 		win_out(mode1,AI_Mode_1_Register);
 
-		mode2 |= AI_SI_Reload_Mode(0);
-		mode2 &= ~AI_SI_Initial_Load_Source;
 		mode2 |= AI_SI2_Reload_Mode; // alternate
 		mode2 |= AI_SI2_Initial_Load_Source; // B
 
@@ -2105,7 +2095,13 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	ni_ao_config_chanlist(dev,s,cmd->chanlist,cmd->chanlist_len);
 
-	devpriv->ao_mode1|=AO_Trigger_Once;
+	if(cmd->stop_src==TRIG_NONE){
+		devpriv->ao_mode1|=AO_Continuous;
+		devpriv->ao_mode1&=~AO_Trigger_Once;
+	}else{
+		devpriv->ao_mode1&=~AO_Continuous;
+		devpriv->ao_mode1|=AO_Trigger_Once;
+	}
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
 	devpriv->ao_trigger_select&=~(AO_START1_Polarity|AO_START1_Select(-1));
 	devpriv->ao_trigger_select|=AO_START1_Edge|AO_START1_Sync;
@@ -2113,11 +2109,6 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ao_mode3&=~AO_Trigger_Length;
 	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
 
-	if(cmd->stop_src==TRIG_NONE){
-		devpriv->ao_mode1|=AO_Continuous;
-	}else{
-		devpriv->ao_mode1&=~AO_Continuous;
-	}
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
 	devpriv->ao_mode2&=~AO_BC_Initial_Load_Source;
 	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
