@@ -213,7 +213,7 @@ static int timer_data_read(comedi_device *dev, comedi_cmd *cmd,
 		comedi_error(dev, "read error");
 		return -EIO;
 	}
-	if( s->flags % SDF_LSAMPL )
+	if( s->flags & SDF_LSAMPL )
 		cfc_write_long_to_buffer( s, data );
 	else
 		cfc_write_to_buffer( s, data );
@@ -270,7 +270,7 @@ static int timer_dio_read(comedi_device *dev, comedi_cmd *cmd,
 		return -EIO;
 	}
 
-	if( s->flags % SDF_LSAMPL )
+	if( s->flags & SDF_LSAMPL )
 		cfc_write_long_to_buffer( s, data );
 	else
 		cfc_write_to_buffer( s, data );
