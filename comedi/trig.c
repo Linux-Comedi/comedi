@@ -69,20 +69,10 @@ int do_trig_ioctl(comedi_device *dev,void *arg,void *file)
 	comedi_trig user_trig;
 	comedi_subdevice *s;
 
-#if 0
-DPRINTK("entering do_trig_ioctl()\n");
-#endif
 	if(copy_from_user(&user_trig,arg,sizeof(comedi_trig))){
 		DPRINTK("bad trig address\n");
 		return -EFAULT;
 	}
-
-#if 0
-	/* this appears to be the only way to check if we are allowed
-	   to write to an area. */
-	if(copy_to_user(arg,&user_trig,sizeof(comedi_trig)))
-		return -EFAULT;
-#endif
 
 	if(user_trig.subdev>=dev->n_subdevices){
 		DPRINTK("%d no such subdevice\n",user_trig.subdev);
@@ -95,23 +85,6 @@ DPRINTK("entering do_trig_ioctl()\n");
 		return -EIO;
 	}
 
-	/* are we locked? (ioctl lock) */
-	if(s->lock && s->lock!=file){
-		DPRINTK("device locked\n");
-		return -EACCES;
-	}
-
-	/* are we busy? */
-	if(s->busy){
-		DPRINTK("device busy\n");
-		return -EBUSY;
-	}
-	s->busy=file;
-
-	s->cur_trig=user_trig;
-	s->cur_trig.chanlist=NULL;
-	s->cur_trig.data=NULL;
-
 	if(user_trig.mode == 0){
 		return do_trig_ioctl_mode0(dev,s,&user_trig);
 	}else{
@@ -121,110 +94,74 @@ DPRINTK("entering do_trig_ioctl()\n");
 
 static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig)
 {
-	int reading;
-	int bufsz;
-	int ret=0,i;
-//	comedi_async *async = s->async;
+	int ret=0;
+	lsampl_t ldata;
+	comedi_insn insn;
 
-	/* make sure channel/gain list isn't too long */
-	if(user_trig->n_chan > s->len_chanlist){
-		DPRINTK("channel/gain list too long %d > %d\n",user_trig->n_chan,s->len_chanlist);
-		ret = -EINVAL;
-		goto cleanup;
-	}
+	insn.subdev = user_trig->subdev;
+	insn.data = &ldata;
+	insn.n = 1;
 
-	/* load channel/gain list */
-	s->cur_trig.chanlist=kmalloc(s->cur_trig.n_chan*sizeof(int),GFP_KERNEL);
-	if(!s->cur_trig.chanlist){
-		DPRINTK("allocation failed\n");
-		ret = -ENOMEM;
-		goto cleanup;
-	}
-
-	if(copy_from_user(s->cur_trig.chanlist,user_trig->chanlist,s->cur_trig.n_chan*sizeof(int))){
+	if(copy_from_user(&insn.chanspec,user_trig->chanlist,sizeof(int))){
 		DPRINTK("fault reading chanlist\n");
-		ret = -EFAULT;
-		goto cleanup;
+		return -EFAULT;
 	}
 	
-	/* make sure each element in channel/gain list is valid */
-	if((ret=check_chanlist(s,s->cur_trig.n_chan,s->cur_trig.chanlist))<0){
-		DPRINTK("bad chanlist\n");
-		goto cleanup;
-	}
-
-	/* allocate temporary buffer */
-	if(s->subdev_flags&SDF_LSAMPL){
-		bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
-	}else{
-		bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
-	}
-
-	if(!(s->cur_trig.data=kmalloc(bufsz,GFP_KERNEL))){
-		DPRINTK("failed to allocate buffer\n");
-		ret=-ENOMEM;
-		goto cleanup;
-	}
-
-// this stuff isn't used in mode0
-//	async->buf_int_ptr=0;
-//	async->buf_int_count=0;
-//	if(s->subdev_flags & SDF_READABLE){
-//		async->buf_user_ptr=0;
-//		async->buf_user_count=0;
-//	}
-
-	if(s->subdev_flags & SDF_WRITEABLE){
+	if(user_trig->flags & TRIG_CONFIG){
+		insn.insn = INSN_CONFIG;
+	}else if(s->subdev_flags & SDF_WRITEABLE){
 		if(s->subdev_flags & SDF_READABLE){
 			/* bidirectional, so we defer to trig structure */
 			if(user_trig->flags&TRIG_WRITE){
-				reading=0;
+				insn.insn=INSN_WRITE;
 			}else{
-				reading=1;
+				insn.insn=INSN_READ;
 			}
 		}else{
-			reading=0;
+			insn.insn=INSN_WRITE;
 		}
 	}else{
 		/* subdev is read-only */
-		reading=1;
+		insn.insn=INSN_READ;
 	}
-	if(!reading && user_trig->data){
+
+	switch(insn.insn){
+	case INSN_READ:
+		ret = s->insn_read(dev,s,&insn,&ldata);
+		if(ret<0)return ret;
+		if(ret!=1){
+			return -EINVAL;
+		}
 		if(s->subdev_flags&SDF_LSAMPL){
-			i=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
+			if(copy_to_user(user_trig->data,&ldata,sizeof(ldata))){
+				return -EFAULT;
+			}
 		}else{
-			i=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
+			sampl_t sdata=ldata;
+			if(copy_to_user(user_trig->data,&sdata,sizeof(sdata))){
+				return -EFAULT;
+			}
 		}
-		if(copy_from_user(s->cur_trig.data,user_trig->data,i)){
-			DPRINTK("bad address %p,%p (%d)\n",s->cur_trig.data,user_trig->data,i);
-			ret=-EFAULT;
-			goto cleanup;
+		return ret;
+	case INSN_WRITE:
+	case INSN_CONFIG:
+	{
+		sampl_t sdata;
+		if(copy_from_user(&sdata,user_trig->data,sizeof(sdata))){
+			DPRINTK("bad address %p,%p\n",s->cur_trig.data,user_trig->data);
+			return -EFAULT;
 		}
-	}
-
-	ret = mode0_emulate(dev,s,&s->cur_trig);
-
-	if(ret<0)goto cleanup;
-
-	if(s->subdev_flags&SDF_LSAMPL){
-		i=ret*sizeof(lsampl_t);
-	}else{
-		i=ret*sizeof(sampl_t);
-	}
-	if(i>bufsz){
-		printk("comedi: (bug) trig returned too many samples\n");
-		i=bufsz;
-	}
-	if(reading){
-		if(copy_to_user(user_trig->data,s->cur_trig.data,i)){
-			ret=-EFAULT;
-			goto cleanup;
+		ldata=sdata;
+		if(insn.insn==INSN_WRITE){
+			ret = s->insn_write(dev,s,&insn,&ldata);
+		}else{
+			ret = s->insn_config(dev,s,&insn,&ldata);
 		}
+		if(ret<0)return ret;
+		if(ret!=1)return -EINVAL;
+		return ret;
 	}
-cleanup:
-
-	s->busy=NULL;
-	//do_become_nonbusy(dev,s);
+	}
 
 	return ret;
 }
@@ -310,71 +247,6 @@ cleanup:
 	do_become_nonbusy(dev,s);
 
 	return ret;
-}
-
-int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
-{
-	comedi_insn insn;
-	lsampl_t ldata;
-	int ret;
-
-	insn.subdev=trig->subdev;
-	insn.data=&ldata;
-	insn.n=1;
-	insn.chanspec=trig->chanlist[0];
-
-	if(trig->flags&TRIG_CONFIG)
-		return mode0_emulate_config(dev,s,trig);
-
-	if(s->subdev_flags & SDF_WRITEABLE){
-		if(s->subdev_flags & SDF_READABLE){
-			if(trig->flags&TRIG_WRITE){
-				insn.insn=INSN_WRITE;
-			}else{
-				insn.insn=INSN_READ;
-			}
-		}else{
-			insn.insn=INSN_WRITE;
-		}
-	}else{
-		insn.insn=INSN_READ;
-	}
-
-	switch(insn.insn){
-	case INSN_READ:
-		ret=s->insn_read(dev,s,&insn,&ldata);
-		if(s->subdev_flags&SDF_LSAMPL){
-			*(lsampl_t *)trig->data=ldata;
-		}else{
-			trig->data[0]=ldata;
-		}
-		return ret;
-	case INSN_WRITE:
-		if(s->subdev_flags&SDF_LSAMPL){
-			ldata=*(lsampl_t *)trig->data;
-		}else{
-			ldata=trig->data[0];
-		}
-		return s->insn_write(dev,s,&insn,&ldata);
-	default:
-	}
-
-	return -EINVAL;
-}
-
-int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
-{
-	comedi_insn insn;
-	lsampl_t ldata;
-
-	insn.subdev=trig->subdev;
-	insn.data=&ldata;
-	insn.n=1;
-	insn.chanspec=trig->chanlist[0];
-
-	ldata = trig->data[0];
-
-	return s->insn_config(dev,s,&insn,&ldata);
 }
 
 int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
