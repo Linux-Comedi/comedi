@@ -255,6 +255,11 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 
 #define NI_E_IRQ_FLAGS		0
 
+typedef struct{
+	struct pci_dev *isapnp_dev;
+	NI_PRIVATE_COMMON
+}ni_private;
+#define devpriv ((ni_private *)dev->private)
 
 /* How we access registers */
 
@@ -276,14 +281,14 @@ static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	if((addr)<8){
 		ni_writew(data,addr*2);
 	}else{
 		ni_writew(addr,Window_Address);
 		ni_writew(data,Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 }
 
 #define win_in(addr) __win_in(dev,addr)
@@ -292,14 +297,14 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 	unsigned long flags;
 	int ret;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	if(addr<8){
 		ret = ni_readw(addr*2);
 	}else{
 		ni_writew(addr,Window_Address);
 		ret = ni_readw(Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 
 	return ret;
 }
@@ -313,12 +318,6 @@ static struct isapnp_device_id device_ids[] = {
 };
 MODULE_DEVICE_TABLE(isapnp, device_ids);
 #endif
-
-typedef struct{
-	struct pci_dev *isapnp_dev;
-	NI_PRIVATE_COMMON
-}ni_private;
-#define devpriv ((ni_private *)dev->private)
 
 static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_atmio_detach(comedi_device *dev);

@@ -162,6 +162,12 @@ static ni_board ni_boards[]={
 
 #define NI_E_IRQ_FLAGS		SA_SHIRQ
 
+typedef struct{
+	dev_link_t *link;
+
+	NI_PRIVATE_COMMON
+}ni_private;
+#define devpriv ((ni_private *)dev->private)
 
 /* How we access registers */
 
@@ -183,14 +189,14 @@ static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	if(addr<8){
 		ni_writew(data,addr*2);
 	}else{
 		ni_writew(addr,Window_Address);
 		ni_writew(data,Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 }
 
 #define win_in(addr) __win_in(dev,addr)
@@ -199,24 +205,17 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 	unsigned long flags;
 	int ret;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	if(addr<8){
 		ret = ni_readw(addr*2);
 	}else{
 		ni_writew(addr,Window_Address);
 		ret = ni_readw(Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 
 	return ret;
 }
-
-typedef struct{
-	dev_link_t *link;
-
-	NI_PRIVATE_COMMON
-}ni_private;
-#define devpriv ((ni_private *)dev->private)
 
 static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it);
 static int mio_cs_detach(comedi_device *dev);

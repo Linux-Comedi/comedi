@@ -666,6 +666,14 @@ static comedi_driver driver_pcimio={
 };
 COMEDI_INITCLEANUP(driver_pcimio);
 
+typedef struct{
+	struct mite_struct *mite;
+
+	NI_PRIVATE_COMMON
+
+	unsigned int last_buf_write_count;
+}ni_private;
+#define devpriv ((ni_private *)dev->private)
 
 /* How we access registers */
 
@@ -691,10 +699,10 @@ static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	ni_writew(addr,Window_Address);
 	ni_writew(data,Window_Data);
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 }
 
 #define win_in(addr) __win_in(dev,addr)
@@ -703,10 +711,10 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 	unsigned long flags;
 	int ret;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	ni_writew(addr,Window_Address);
 	ret = ni_readw(Window_Data);
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 
 	return ret;
 }
@@ -715,17 +723,6 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 #define IRQ_POLARITY 1
 
 #define NI_E_IRQ_FLAGS		SA_SHIRQ
-
-
-typedef struct{
-	struct mite_struct *mite;
-
-	NI_PRIVATE_COMMON
-
-	unsigned int last_buf_write_count;
-}ni_private;
-#define devpriv ((ni_private *)dev->private)
-
 
 #include "ni_mio_common.c"
 
