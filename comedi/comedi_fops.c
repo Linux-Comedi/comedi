@@ -619,6 +619,27 @@ error:
 	return i;
 }
 
+static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
+{
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
+	case INSN_CONFIG_DIO_INPUT:
+		if(insn->n == 1) return 0;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		if(insn->n == 2) return 0;
+		break;
+	case INSN_CONFIG_BLOCK_SIZE:
+		if( insn->n == 2 ) return 0;
+	//by default we allow the insn since we don't have checks for all possible cases yet 
+	default:
+		return 0;
+		break;
+	}
+	return -EINVAL;
+}
+
 static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *file)
 {
 	comedi_subdevice *s;
@@ -727,6 +748,8 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 				ret=s->insn_bits(dev,s,insn,data);
 				break;
 			case INSN_CONFIG:
+				ret=check_insn_config_length(insn);
+				if(ret) break;
 				ret=s->insn_config(dev,s,insn,data);
 				break;
 			default:
