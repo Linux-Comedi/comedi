@@ -54,7 +54,7 @@ Configuration options:
     These boards can support external multiplexors and multi-board
     synchronization, but this driver doesn't support that.
 
-    Board docs: http://www.rtdusa.com/dm7520.htm
+    Board docs: http://www.rtdusa.com/PC104/DM/analog%20IO/dm7520.htm
     Data sheet: http://www.rtdusa.com/pdf/dm7520.pdf
     Example source: http://www.rtdusa.com/examples/dm/dm7520.zip
     Call them and ask for the register level manual.
@@ -137,25 +137,34 @@ Configuration options:
 /*
   The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
 */
-static comedi_lrange rtd_ai_7520_range = { 6, {
+static comedi_lrange rtd_ai_7520_range = { 18, {
+					/* +-5V input range gain steps */
     BIP_RANGE(5.0),
     BIP_RANGE(5.0/2),
     BIP_RANGE(5.0/4),
     BIP_RANGE(5.0/8),
     BIP_RANGE(5.0/16),
     BIP_RANGE(5.0/32),
-#if 0					/* until we can handle 10V mode */
+					/* +-10V input range gain steps */
+    BIP_RANGE(10.0),
+    BIP_RANGE(10.0/2),
+    BIP_RANGE(10.0/4),
+    BIP_RANGE(10.0/8),
+    BIP_RANGE(10.0/16),
+    BIP_RANGE(10.0/32),
+					/* +10V input range gain steps */
     UNI_RANGE(10.0),
     UNI_RANGE(10.0/2),
     UNI_RANGE(10.0/4),
     UNI_RANGE(10.0/8),
     UNI_RANGE(10.0/16),
     UNI_RANGE(10.0/32),
-#endif
+
 }};
 
 /* PCI4520 has two more gains (6 more entries) */
-static comedi_lrange rtd_ai_4520_range = { 8, {
+static comedi_lrange rtd_ai_4520_range = { 24, {
+					/* +-5V input range gain steps */
     BIP_RANGE(5.0),
     BIP_RANGE(5.0/2),
     BIP_RANGE(5.0/4),
@@ -164,7 +173,16 @@ static comedi_lrange rtd_ai_4520_range = { 8, {
     BIP_RANGE(5.0/32),
     BIP_RANGE(5.0/64),
     BIP_RANGE(5.0/128),
-#if 0					/* until we can handle 10V mode */
+					/* +-10V input range gain steps */
+    BIP_RANGE(10.0),
+    BIP_RANGE(10.0/2),
+    BIP_RANGE(10.0/4),
+    BIP_RANGE(10.0/8),
+    BIP_RANGE(10.0/16),
+    BIP_RANGE(10.0/32),
+    BIP_RANGE(10.0/64),
+    BIP_RANGE(10.0/128),
+					/* +10V input range gain steps */
     UNI_RANGE(10.0),
     UNI_RANGE(10.0/2),
     UNI_RANGE(10.0/4),
@@ -173,7 +191,6 @@ static comedi_lrange rtd_ai_4520_range = { 8, {
     UNI_RANGE(10.0/32),
     UNI_RANGE(10.0/64),
     UNI_RANGE(10.0/128),
-#endif
 }};
 
 /* Table order matches range values */
@@ -194,6 +211,8 @@ typedef struct rtdBoard_struct{
     int		aiBits;
     int		aiMaxGain;
     int		fifoLen;
+    int		range10Start;		/* start of +-10V range */
+    int		rangeUniStart;		/* start of +10V range */
 } rtdBoard;
 
 static rtdBoard rtd520Boards[] = {
@@ -204,6 +223,8 @@ static rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	32,
 	fifoLen:	1024,
+	range10Start:	6,
+	rangeUniStart:	12,
     },
     {
 	name:		"DM7520-8",
@@ -212,6 +233,8 @@ static rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	32,
 	fifoLen:	8192,
+	range10Start:	6,
+	rangeUniStart:	12,
     },
     {
 	name:		"PCI4520",
@@ -220,6 +243,8 @@ static rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	128,
 	fifoLen:	1024,
+	range10Start:	8,
+	rangeUniStart:	16,
     },
     {
 	name:		"PCI4520-8",
@@ -228,6 +253,8 @@ static rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	128,
 	fifoLen:	8192,
+	range10Start:	8,
+	rangeUniStart:	16,
     },
 };
 
@@ -256,7 +283,8 @@ typedef struct{
     unsigned long	intCount;	/* interrupt count */
     unsigned long	aiCount;	/* total transfer size (samples) */
     unsigned long	aiExtraInt;	/* ints but no data */
-    int			aboutWrap;
+    int			transCount;	/* # to tranfer data. 0->1/2FIFO*/
+    int			aboutWrap;	/* number of about overflows needed */
 
 					/* PCI device info */
     struct pci_dev *pci_dev;
@@ -695,13 +723,10 @@ static int rtd_attach (
     s->insn_bits = rtd_dio_insn_bits;
     s->insn_config = rtd_dio_insn_config;
 
-    /* timer/counter subdevices */
+    /* timer/counter subdevices (not currently supported) */
     s=dev->subdevices+3;
     s->type = COMEDI_SUBD_COUNTER;
     s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
-    //s->insn_read=  rtd_gpct_insn_read;
-    //s->insn_write= rtd_gpct_insn_write;
-    //s->insn_config=rtd_gpct_insn_config;
     s->n_chan=3;
     s->maxdata=0xffff;
 
@@ -733,7 +758,7 @@ static int rtd_attach (
     RtdUtcCtrlPut (dev, 1, 0x30);	/* safe state, set shadow */
     RtdUtcCtrlPut (dev, 2, 0x30);	/* safe state, set shadow */
     RtdUtcCtrlPut (dev, 3, 0);		/* safe state, set shadow */
-    /* todo: set user out source ??? */
+    /* TODO: set user out source ??? */
 
     if (dev->irq) {			/* enable interrupt controller */
 	RtdPLXInterruptWrite (dev,
@@ -799,6 +824,7 @@ static int rtd_detach (
   Convert a single comedi channel-gain entry to a RTD520 table entry
 */
 static unsigned short rtdConvertChanGain (
+    comedi_device *dev,
     unsigned int	comediChan)
 {
     unsigned int chan, range, aref;
@@ -810,14 +836,15 @@ static unsigned short rtdConvertChanGain (
 
     r |= chan & 0xf;
 
-    /* TODO: Should also be able to switch into +-=10 range */
-    /* HACK!!! should not use a constant here */
-    if (range < 6) {		/* first 6 are bipolar */
+    if (range < thisboard->range10Start) {/* first batch are +-5 */
 	r |= 0x000;			/* +-5 range */
 	r |= (range & 0x7) << 4;	/* gain */
-    } else {
+    } else if (range < thisboard->rangeUniStart) {/* second batch are +-10 */
+	r |= 0x100;			/* +-10 range */
+	r |= ((range - thisboard->range10Start) & 0x7) << 4;	/* gain */
+    } else {				/* last batch is +10 */
 	r |= 0x200;			/* +10 range */
-	r |= ((range-6) & 0x7) << 4;	/* gain */
+	r |= ((range-thisboard->rangeUniStart) & 0x7) << 4;	/* gain */
     }
 
     switch (aref) {
@@ -853,11 +880,11 @@ static void rtd_load_channelgain_list (
 	RtdClearCGT (dev);
 	RtdEnableCGT(dev, 1);		/* enable table */
 	for(ii=0; ii < n_chan; ii++){
-	    RtdWriteCGTable (dev, rtdConvertChanGain (list[ii]));
+	    RtdWriteCGTable (dev, rtdConvertChanGain (dev, list[ii]));
 	}
     } else {				/* just use the channel gain latch */
 	RtdEnableCGT(dev, 0);		/* disable table, enable latch */
-	RtdWriteCGLatch (dev, rtdConvertChanGain (list[0]));
+	RtdWriteCGLatch (dev, rtdConvertChanGain (dev, list[0]));
     }
 }
 
@@ -926,18 +953,19 @@ static int rtd_ai_rinsn (
 }
 
 /*
-  Fifo is a least half full.  Get what we know is there.... Fast!
+  Get what we know is there.... Fast!
   This uses 1/2 the bus cycles of read_dregs (below).
 
   The manual claims that we can do a lword read, but it doesn't work here.
 */
-static void ai_read_half_fifo (
+static void ai_read_n (
     comedi_device *dev,
-    comedi_subdevice *s)
+    comedi_subdevice *s,
+    int	count)
 {
     int ii;
 
-    for (ii = 0; ii < thisboard->fifoLen / 2; ii++) {
+    for (ii = 0; ii < count; ii++) {
 	s16 d = RtdAdcFifoGet (dev);	/* get 2s comp value */
 	d = d >> 3;			/* low 3 bits are marker lines */
 
@@ -1022,13 +1050,17 @@ static void rtd_interrupt (
     if (status & (IRQM_ADC_ABOUT_CNT | IRQM_ADC_SAMPLE_CNT)) {
 	comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
 
-	/* Check for any ready data */
-	if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) { /* read 1/2 fifo worth */
-	    ai_read_half_fifo (dev, s);
-	    s->async->events |= COMEDI_CB_BLOCK; /* signal something there */
-	} else {
-	    /* for slow transfers, we should read whatever is there */
-	    /*s->async->events |= COMEDI_CB_EOS;*/
+	if (devpriv->transCount > 0) {	/* read often */
+	    if (status & IRQM_ADC_SAMPLE_CNT) {
+		ai_read_n (dev, s, devpriv->transCount);
+		s->async->events |= COMEDI_CB_BLOCK;
+		/*s->async->events |= COMEDI_CB_EOS;*/
+	    }
+	} else {			/* wait for 1/2 FIFO */
+	    if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) {
+		ai_read_n (dev, s, thisboard->fifoLen / 2);
+		s->async->events |= COMEDI_CB_BLOCK;
+	    }
 	}
 
 	if (0 == devpriv->aiCount) { /* done! stop! */
@@ -1051,7 +1083,7 @@ static void rtd_interrupt (
 	    }
 	}
 
-	/* check for fifo over-run */
+	/* TODO: check for fifo over-run */
 	
 	comedi_event (dev, s, s->async->events);
     }
@@ -1137,19 +1169,16 @@ static int rtd_ai_cmdtest (
 
     if (cmd->start_arg != 0) {
 	cmd->start_arg = 0;
-	DPRINTK ("rtd520: cmdtest: start_arg not 0\n");
 	err++;
     }
 
     if (cmd->scan_begin_src == TRIG_TIMER){
 	if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
 	    cmd->scan_begin_arg = RTD_MAX_SPEED;
-	    DPRINTK ("rtd520: cmdtest: scan rate greater than max.\n");
 	    err++;
 	}
 	if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
 	    cmd->scan_begin_arg = RTD_MIN_SPEED;
-	    DPRINTK ("rtd520: cmdtest: scan rate lower than min.\n");
 	    err++;
 	}
     } else {
@@ -1158,19 +1187,16 @@ static int rtd_ai_cmdtest (
 	/* should specify multiple external triggers */
 	if (cmd->scan_begin_arg > 9) {
 	    cmd->scan_begin_arg = 9;
-	    DPRINTK ("rtd520: cmdtest: scan_begin_arg out of range\n");
 	    err++;
 	}
     }
     if (cmd->convert_src==TRIG_TIMER) {
 	if (cmd->convert_arg < RTD_MAX_SPEED) {
 	    cmd->convert_arg = RTD_MAX_SPEED;
-	    DPRINTK ("rtd520: cmdtest: convert rate greater than max.\n");
 	    err++;
 	}
 	if (cmd->convert_arg > RTD_MIN_SPEED) {
 	    cmd->convert_arg = RTD_MIN_SPEED;
-	    DPRINTK ("rtd520: cmdtest: convert rate lower than min.\n");
 	    err++;
 	}
     } else {
@@ -1178,7 +1204,6 @@ static int rtd_ai_cmdtest (
 	/* see above */
 	if (cmd->convert_arg > 9) {
 	    cmd->convert_arg = 9;
-	    DPRINTK ("rtd520: cmdtest: convert_arg out of range\n");
 	    err++;
 	}
     }
@@ -1196,13 +1221,11 @@ static int rtd_ai_cmdtest (
 	/* TRIG_NONE */
 	if (cmd->stop_arg!=0) {
 	    cmd->stop_arg=0;
-	    DPRINTK ("rtd520: cmdtest: stop_arg not 0\n");
 	    err++;
 	}
     }
 
     if (err) {
-	DPRINTK ("rtd520: cmdtest error! Some argument compatibility test failed.\n");
 	return 3;
     }
 
@@ -1232,7 +1255,6 @@ static int rtd_ai_cmdtest (
     }
 
     if (err) {
-	DPRINTK ("rtd520: cmdtest error! Some timer value was altered.\n");
 	return 4;
     }
 
@@ -1272,8 +1294,31 @@ static int rtd_ai_cmd (
 	RtdAdcConversionSource (dev, 1); /* PACER triggers ADC */
     }
 
-    RtdAdcSampleCounter (dev,		/* setup a periodic interrupt */
-			 (thisboard->fifoLen > 1024) ? 1023 : 511);
+    /* arrange to transfer data about every 10ms */
+    if (TRIG_TIMER == cmd->scan_begin_src) {
+					/* scan_begin_arg is in nanoseconds */
+	/* find out how many samples to wait before transferring */
+	devpriv->transCount = (10000000*cmd->chanlist_len)/cmd->scan_begin_arg;
+	if (devpriv->transCount < cmd->chanlist_len) {
+	    /* tranfer after each scan (and avoid 0) */
+	    devpriv->transCount = cmd->chanlist_len;
+	}
+	DPRINTK ("rtd520: tranferCount=%d scanTime(ns)=%d scanLen=%d\n",
+		 devpriv->transCount, cmd->scan_begin_arg, cmd->chanlist_len);
+	if (devpriv->transCount > ((thisboard->fifoLen > 1024) ? 1024 : 512)) {
+	    /* out of counter range, use 1/2 fifo instead */
+	    devpriv->transCount = 0;
+	    RtdAdcSampleCounter (dev,
+				 (thisboard->fifoLen > 1024) ? 1023 : 511);
+	} else {
+	    /* interupt for each tranfer */
+	    RtdAdcSampleCounter (dev, devpriv->transCount-1);
+	}
+    } else {
+	devpriv->transCount = 0;
+	RtdAdcSampleCounter (dev,	/* setup a periodic interrupt */
+			     (thisboard->fifoLen > 1024) ? 1023 : 511);
+    }
     RtdPacerStopSource (dev, 3);	/* stop on ABOUT count down*/
     RtdAboutStopEnable (dev, 0);	/* actually stop (see below) */
     RtdPacerClockSource (dev, 1);	/* use INTERNAL 8Mhz clock source */
@@ -1415,7 +1460,7 @@ static int rtd_ai_cmd (
 		break;
 	}
 	if (ii >= RTD_ADC_TIMEOUT) {
-	    DPRINTK ("rtd520: ai_cmd Error: Never got data in FIFO! FifoStatus=0x%x\n",
+	    DPRINTK ("rtd520 ai_cmd Error! Never got data in FIFO! FifoStatus=0x%x\n",
 		    stat);
 	    return -ETIMEDOUT;
 	}
