@@ -41,7 +41,7 @@ export MODLIB
 
 export FLAT_MODULES
 
-CFLAGS := -I $(TOPDIR)/include $(CFLAGS)
+CFLAGS := -I $(TOPDIR)/include -D__KERNEL__ -I $(LINUXDIR)/include $(CFLAGS) 
 
 CFLAGS += -nostdinc -I $(shell $(CC) -print-search-dirs|grep ^install:|sed 's/^install: //')include
 

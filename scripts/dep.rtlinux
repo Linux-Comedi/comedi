@@ -16,6 +16,6 @@ if [ "$CONFIG_RTL" != "" -o "$CONFIG_RTL_V1" = "y" ]; then
 	fi
 	: ${RTLDIR:=$default}
 	echo RTLDIR=$RTLDIR >>.buildvars
-	echo CFLAGS += -I $RTLDIR/include -I $RTLDIR/include/compat -D__RT__ >>.buildvars
+	echo CFLAGS += -I $RTLDIR/include -I $RTLDIR/include/compat -I $RTLDIR/include/posix -D__RT__ >>.buildvars
 	export RTLDIR
 fi

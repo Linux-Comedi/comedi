@@ -30,6 +30,8 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
+#include <linux/mm.h>
 
 #include <linux/comedi.h>
 
