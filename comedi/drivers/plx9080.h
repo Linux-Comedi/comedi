@@ -357,9 +357,4 @@ struct plx_dma_desc
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
 #define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
 
-// I2O registers
-#define PLX_INBOUND_QUEUE_PORT_REG	0x40	// inbound queue port
-#define PLX_QUEUE_CONFIG_REG	0xc0	// messaging queue configuration register
-#define PLX_QUEUE_SC_REG	0xe8	// queue status and control
-
 #endif /* __COMEDI_PLX9080_H */

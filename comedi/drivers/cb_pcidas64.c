@@ -104,7 +104,7 @@ TODO:
 // size in bytes of transfers used for dma transfers, also size of buffers that make up dma ring
 #define DMA_TRANSFER_SIZE 0x1000
 // number of dma transfers we will chain together into a ring (and the number of dma buffers we maintain)
-#define DMA_RING_COUNT 32
+#define DMA_RING_COUNT 64
 
 /* PCI-DAS64xxx base addresses */
 
@@ -173,7 +173,8 @@ TODO:
 #define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
 #define CALIBRATION_REG	0x14
 #define    SELECT_8800_BIT	0x1
-#define    SELECT_1590_BIT	0x2	// XXX 60xx only
+#define    SELECT_8402_64XX_BIT	0x1
+#define    SELECT_1590_60XX_BIT	0x2
 /* calibration sources for 6025 appear to be:
  *  0 : ground
  *  1 : 10V
@@ -185,10 +186,11 @@ TODO:
  *  7 : dac channel 1
  */
 #define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)	// XXX 60xx only
+#define    CAL_EN_64XX_BIT	0x40	// calibration enable XXX 0x40 for 6402?
 #define    SERIAL_DATA_IN_BIT	0x80
 #define    SERIAL_CLOCK_BIT	0x100
+#define    CAL_EN_60XX_BIT	0x200	// calibration enable XXX 0x40 for 6402?
 #define    CAL_GAIN_BIT	0x800
-#define    CAL_EN_BIT	0x200	// calibration enable XXX 0x40 for 6402?
 #define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
 #define ADC_SAMPLE_INTERVAL_UPPER_REG	0x18	// upper 8 bits of sample interval counter
 #define ADC_DELAY_INTERVAL_LOWER_REG	0x1a	// lower 16 bits of delay interval counter
@@ -237,24 +239,25 @@ TODO:
 #define   ADC_UPP_READ_PNTR_CODE(x)	(((x) >> 12) & 0x3)
 #define   ADC_UPP_WRITE_PNTR_CODE(x)	(((x) >> 14) & 0x3)
 #define   CHAIN_FLAG_BITS(x)	(((x) >> 6) & 0x3)
+
 // read-write
+
+// I2C addresses for 4020
+#define I2C_REG	0x40
+#define   RANGE_CAL_I2C_ADDR	0x40
+#define   CALDAC0_I2C_ADDR	0x18
+#define   CALDAC1_I2C_ADDR	0x1a
+
 #define I8255_4020_REG 0x48	// 8255 offset, for 4020 only
 #define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
 #define ADC_FIFO_REG 0x200	// adc data fifo
 
 // private(dev)->dio_counter_iobase registers
-// XXX board dependent
 #define DIO_8255_OFFSET	0x0
 #define DO_REG	0x20
 #define DI_REG	0x28
 #define DIO_DIRECTION_60XX_REG	0x40
 #define DIO_DATA_60XX_REG	0x48
-
-// I2C addresses for 4020
-#define RANGE_CAL_I2C_ADDR	0x40
-#define CALDAC0_I2C_ADDR	0x18
-#define CALDAC1_I2C_ADDR	0x1a
-// XXX fix ranges for 60xx
 
 // analog input ranges for 64xx boards
 static comedi_lrange ai_ranges_64xx =
@@ -713,8 +716,10 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
+static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, unsigned int length);
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
 //static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
+static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, unsigned int value);
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -723,7 +728,7 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 COMEDI_INITCLEANUP(driver_cb_pcidas);
 
 // initialize plx9080 chip
-void init_plx9080(comedi_device *dev)
+static void init_plx9080(comedi_device *dev)
 {
 	uint32_t bits;
 	unsigned long plx_iobase = private(dev)->plx9080_iobase;
@@ -793,10 +798,6 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev* pcidev;
 	int index;
-	// base addresses
-	unsigned long plx9080_iobase;
-	unsigned long main_iobase;
-	unsigned long dio_counter_iobase;
 	uint32_t local_range, local_decode;
 	unsigned long dio_8255_iobase;
 
@@ -857,10 +858,6 @@ found:
 		return -EIO;
 	pci_set_master(pcidev);
 
-	plx9080_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX);
-	main_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX);
-	dio_counter_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX);
-
 	if(pci_request_regions(pcidev, driver_cb_pcidas.driver_name))
 	{
 		/* Couldn't allocate io space */
@@ -868,14 +865,17 @@ found:
 		return -EIO;
 	}
 
-	private(dev)->plx9080_phys_iobase = plx9080_iobase;
-	private(dev)->main_phys_iobase = main_iobase;
-	private(dev)->dio_counter_phys_iobase = dio_counter_iobase;
+	private(dev)->plx9080_phys_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX);
+	private(dev)->main_phys_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX);
+	private(dev)->dio_counter_phys_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX);
 
 	// remap, won't work with 2.0 kernels but who cares
-	private(dev)->plx9080_iobase = (unsigned long)ioremap(plx9080_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
-	private(dev)->main_iobase = (unsigned long)ioremap(main_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
-	private(dev)->dio_counter_iobase = (unsigned long)ioremap(dio_counter_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
+	private(dev)->plx9080_iobase = (unsigned long)ioremap(private(dev)->plx9080_phys_iobase,
+		pci_resource_len(pcidev, PLX9080_BADRINDEX));
+	private(dev)->main_iobase = (unsigned long)ioremap(private(dev)->main_phys_iobase,
+		pci_resource_len(pcidev, PLX9080_BADRINDEX));
+	private(dev)->dio_counter_iobase = (unsigned long)ioremap(private(dev)->dio_counter_phys_iobase,
+		pci_resource_len(pcidev, PLX9080_BADRINDEX));
 
 	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", private(dev)->plx9080_iobase);
 	DEBUG_PRINT(" main remapped to 0x%lx\n", private(dev)->main_iobase);
@@ -1035,16 +1035,15 @@ found:
 
 	// calibration subd XXX
 	s = dev->subdevices + 6;
-	if(board(dev)->layout == LAYOUT_60XX)
-	{
-		s->type=COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
-		s->n_chan = 8;	// XXX
+	s->type=COMEDI_SUBD_CALIB;
+	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+	s->n_chan = 8;	// XXX
+	if(board(dev)->layout == LAYOUT_4020)
+		s->maxdata = 0xfff;
+	else
 		s->maxdata = 0xff;
-//		s->insn_read = calib_read_insn;
-		s->insn_write = calib_write_insn;
-	}else
-		s->type = COMEDI_SUBD_UNUSED;
+//	s->insn_read = calib_read_insn;
+	s->insn_write = calib_write_insn;
 
 	//serial EEPROM, if present
 	s = dev->subdevices + 7;
@@ -1197,12 +1196,18 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// ALT_SOURCE is internal calibration reference
 		if(insn->chanspec & CR_ALT_SOURCE)
 		{
+			unsigned int cal_en_bit;
+
 			DEBUG_PRINT("reading calibration source\n");
+			if( board(dev)->layout == LAYOUT_60XX)
+				cal_en_bit = CAL_EN_60XX_BIT;
+			else
+				cal_en_bit = CAL_EN_64XX_BIT;
 			// internal reference reads on channel 0
 			bits |= CHAN_BITS(0);
 			writew(CHAN_BITS(0), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
 			// channel selects internal reference source to connect to channel 0
-			writew(CAL_EN_BIT | CAL_SRC_BITS(private(dev)->calibration_source),
+			writew(cal_en_bit | CAL_SRC_BITS(private(dev)->calibration_source),
 				private(dev)->main_iobase + CALIBRATION_REG);
 		} else	// set channel
 		{
@@ -1718,8 +1723,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 {
 	comedi_async *async = dev->read_subdev->async;
 	uint32_t next_transfer_addr;
-	static const int timeout = 1000;
-	int i, j;
+	int j;
 	int num_samples = 0;
 	unsigned long pci_addr_reg;
 
@@ -1733,7 +1737,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	for(next_transfer_addr = readl(pci_addr_reg);
 		(next_transfer_addr < private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] ||
 		next_transfer_addr >= private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] + DMA_TRANSFER_SIZE) &&
-		j < timeout;
+		j < DMA_RING_COUNT;
 		j++ )
 	{
 		// transfer data from dma buffer to comedi buffer
@@ -1744,14 +1748,12 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 				num_samples = private(dev)->ai_count;
 			private(dev)->ai_count -= num_samples;
 		}
-		for(i = 0; i < num_samples; i++)
-		{
-			comedi_buf_put(async, private(dev)->ai_buffer[private(dev)->dma_index][i]);
-		}
+		comedi_buf_put_array(async, private(dev)->ai_buffer[private(dev)->dma_index], num_samples);
 		private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
 		DEBUG_PRINT("next buffer addr 0x%x\n", private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
+	// XXX check for buffer overrun somehow
 	async->events |= COMEDI_CB_BLOCK;
 }
 
@@ -1838,6 +1840,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	comedi_event(dev, s, async->events);
+
 	return;
 }
 
@@ -2030,10 +2033,20 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 {
 	int channel = CR_CHAN(insn->chanspec);
 
-	caldac_8800_write(dev, channel, data[0]);
+	switch(board(dev)->layout)
+	{
+		case LAYOUT_60XX:
+		case LAYOUT_64XX:
+			caldac_8800_write(dev, channel, data[0]);
+			break;
+		case LAYOUT_4020:
+			caldac_i2c_write(dev, channel, data[0]);
+			break;
+		default:
+			break;
+	}
 
 	return 1;
-
 }
 
 // XXX
@@ -2221,6 +2234,64 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	return 0;
 }
 
+// 4020 caldacs
+static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, unsigned int value)
+{
+	uint8_t serial_bytes[3];
+	uint8_t i2c_addr;
+	enum pointer_bits
+	{
+		GAIN_0_2 = 0x1,
+		OFFSET_0_2 = 0x2,
+		GAIN_1_3 = 0x4,
+		OFFSET_1_3 = 0x8,
+	};
+
+	switch(caldac_channel)
+	{
+		case 0:	// chan 0 offset
+			i2c_addr = CALDAC0_I2C_ADDR;
+			serial_bytes[0] = OFFSET_0_2;
+			break;
+		case 1:	// chan 1 offset
+			i2c_addr = CALDAC0_I2C_ADDR;
+			serial_bytes[0] = OFFSET_1_3;
+			break;
+		case 2:	// chan 2 offset
+			i2c_addr = CALDAC1_I2C_ADDR;
+			serial_bytes[0] = OFFSET_0_2;
+			break;
+		case 3:	// chan 3 offset
+			i2c_addr = CALDAC1_I2C_ADDR;
+			serial_bytes[0] = OFFSET_1_3;
+			break;
+		case 4:	// chan 0 gain
+			i2c_addr = CALDAC0_I2C_ADDR;
+			serial_bytes[0] = GAIN_0_2;
+			break;
+		case 5:	// chan 1 gain
+			i2c_addr = CALDAC0_I2C_ADDR;
+			serial_bytes[0] = GAIN_1_3;
+			break;
+		case 6:	// chan 2 gain
+			i2c_addr = CALDAC1_I2C_ADDR;
+			serial_bytes[0] = GAIN_0_2;
+			break;
+		case 7:	// chan 3 gain
+			i2c_addr = CALDAC1_I2C_ADDR;
+			serial_bytes[0] = GAIN_1_3;
+			break;
+		default:
+			comedi_error(dev, "invalid caldac channel\n");
+			return -1;
+			break;
+	}
+	serial_bytes[1] = (value >> 8) & 0xf;
+	serial_bytes[2] = value & 0xff;
+	i2c_write(dev, i2c_addr, serial_bytes, 3);
+	return 0;
+}
+
 #if 0
 // 1590 doesn't seem to do anything.  Perhaps it is the actual primary ao chip.
 static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b)
@@ -2251,3 +2322,15 @@ static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int d
 	return 0;
 }
 #endif
+
+static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, unsigned int length)
+{
+	unsigned int i2c_reg = private(dev)->main_iobase + I2C_REG;
+	unsigned int i;
+
+	writeb(address, i2c_reg);
+	for(i = 0; i < length; i++)
+	{
+		writeb(data[i], i2c_reg);
+	}
+}
