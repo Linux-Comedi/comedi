@@ -1,4 +1,4 @@
- /*
+/*
     comedi/drivers/amplc_pci230.c
     Driver for Amplicon PCI230 and PCI260 Multifunction I/O boards.
 
@@ -20,6 +20,11 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+************************************************************************
+
+TODO:
+fix pci autodetection, add support for bus/slot config options
 
 */
 
@@ -167,7 +172,7 @@ pci230_board pci230_boards[] = {
 	ai_bits:	12,
 	have_ao:	0,
 	ao_chans:	0,
-	ao_bits:	0,	
+	ao_bits:	0,
 	have_dio:	0,
 	},
 };
@@ -281,7 +286,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	struct pci_dev *pci_dev;
 
 	printk("comedi%d: amplc_pci230\n",dev->minor);
-	
+
 	/* Find card */
 	pci_for_each_dev(pci_dev){
 		if(pci_dev->vendor == PCI_VENDOR_ID_AMPLICON &&
@@ -300,8 +305,10 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	pci_iobase = pci_dev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK;
 	iobase = pci_dev->base_address[3] & PCI_BASE_ADDRESS_IO_MASK;
 #else
-	pci_iobase = pci_dev->resource[2].start;
-	iobase = pci_dev->resource[3].start;
+	if(pci_enable_device(pci_dev))
+		return -EIO;
+	pci_iobase = pci_dev->resource[2].start & PCI_BASE_ADDRESS_IO_MASK;
+	iobase = pci_dev->resource[3].start & PCI_BASE_ADDRESS_IO_MASK;
 #endif
 
 	printk("comedi%d: amplc_pci230: I/O region 1 0x%04x I/O region 2 0x%04x\n",dev->minor, pci_iobase, iobase);
@@ -653,7 +660,7 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int i, chan, range, aref;
 	unsigned int adccon, adcen, adcg;
-	
+
 	/* Get the command. */
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -684,7 +691,7 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	else {
 		devpriv->count = 0;
 	}
-	
+
 	/* Steps;
 	 * - Disable board interrupts.
 	 * - Reset FIFO, specify uni/bip, se/diff, and start conversion source to none.
@@ -692,7 +699,7 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	 * - Set channel gains.
 	 * - Set the counter timers to the specified sampling frequency.
 	 * - Enable conversion complete interrupt.
-	 * - Enable FIFO, set FIFO interrupt trigger level, set start conversion source to counter 1. 
+	 * - Enable FIFO, set FIFO interrupt trigger level, set start conversion source to counter 1.
 	 */
 
 	/* Disable interrupts. */
@@ -704,7 +711,8 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	adcen = 0;
 
 	/* If bit 2 of range unset, range is referring to bipolar element in range table */
-	devpriv->bipolar = !PCI230_TEST_BIT(range, 2);	
+	range = CR_RANGE(cmd->chanlist[0]);
+	devpriv->bipolar = !PCI230_TEST_BIT(range, 2);
 	if (devpriv->bipolar) {
 		adccon |= PCI230_ADC_IR_BIP;
 		for (i = 0; i < cmd->chanlist_len; i++) {
