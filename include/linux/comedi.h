@@ -195,6 +195,7 @@ typedef unsigned short sampl_t;
 #define COMEDI_INSN _IOR(CIO,12,comedi_insn)
 #define COMEDI_BUFCONFIG _IOR(CIO,13,comedi_bufconfig)
 #define COMEDI_BUFINFO _IOWR(CIO,14,comedi_bufinfo)
+#define COMEDI_POLL _IO(CIO,15)
 
 
 /* structures */

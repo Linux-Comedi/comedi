@@ -89,6 +89,7 @@ lsampl_t comedi_get_maxdata(unsigned int minor,unsigned int subdevice,unsigned
 int comedi_get_n_ranges(unsigned int minor,unsigned int subdevice,unsigned int
 	chan);
 int comedi_do_insn(unsigned int minor,comedi_insn *insn);
+int comedi_poll(unsigned int minor, unsigned int subdev);
 
 
 /* DEPRECATED functions */
@@ -105,6 +106,8 @@ unsigned int comedi_get_buf_head_pos(unsigned int minor,unsigned int
 	subdevice);
 int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,
 	unsigned int buf_user_count);
+int comedi_map(unsigned int minor, unsigned int subdev, void **ptr);
+int comedi_unmap(unsigned int minor, unsigned int subdev);
 
 #endif
 
