@@ -549,7 +549,7 @@ havetype:
 	s++;
 	/* ao subdevice */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=2;
 	s->maxdata=(1<<boardtype.dabits)-1;
 	s->range_table_list=devpriv->dac_range_types;
@@ -561,7 +561,7 @@ havetype:
 	s++;
 	/* 1st digital subdevice */
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
@@ -571,7 +571,7 @@ havetype:
 	s++;
 	/* 2nd digital subdevice */
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;

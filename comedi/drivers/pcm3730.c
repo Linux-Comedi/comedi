@@ -95,7 +95,7 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+0;
 	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->maxdata=1;
 	s->n_chan=8;
 	s->insn_bits = pcm3730_do_insn_bits;
@@ -104,7 +104,7 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+1;
 	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->maxdata=1;
 	s->n_chan=8;
 	s->insn_bits = pcm3730_do_insn_bits;
@@ -113,7 +113,7 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+2;
 	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->maxdata=1;
 	s->n_chan=8;
 	s->insn_bits = pcm3730_do_insn_bits;

@@ -1597,7 +1597,7 @@ no_dma:
 	}else{
 		dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_RT;
+		s->subdev_flags = SDF_WRITABLE|SDF_GROUND|SDF_RT;
 		s->n_chan = this_board->n_aochan;
 		s->maxdata = this_board->ao_maxdata;
 		s->len_chanlist = this_board->ao_chanlist;
@@ -1643,7 +1643,7 @@ no_dma:
 		s->type = COMEDI_SUBD_UNUSED;
 	}else{
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE|SDF_RT;
+		s->subdev_flags = SDF_WRITABLE|SDF_RT;
 		s->n_chan = this_board->n_dochan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;

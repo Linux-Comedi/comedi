@@ -802,7 +802,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* ao subdevice */
 	s++;
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=2;
 	s->insn_read=atmio16d_ao_insn_read;
 	s->insn_write=atmio16d_ao_insn_write;
@@ -829,7 +829,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* Digital I/O */
 	s++;
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE;
+	s->subdev_flags=SDF_WRITABLE|SDF_READABLE;
 	s->n_chan=8;
 	s->insn_bits = atmio16d_dio_insn_bits;
 	s->insn_config = atmio16d_dio_insn_config;

@@ -91,7 +91,7 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	/* do */
 	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->maxdata=1;
 	s->n_chan=8;
 	s->insn_bits = pcl725_do_insn;

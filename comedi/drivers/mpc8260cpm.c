@@ -91,7 +91,7 @@ static int mpc8260cpm_attach(comedi_device *dev,comedi_devconfig *it)
 	for(i=0;i<4;i++){
 		s=dev->subdevices+i;
 		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 		s->n_chan=32;
 		s->maxdata=1;
 		s->range_table=&range_digital;

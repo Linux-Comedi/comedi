@@ -850,7 +850,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	if(thisboard->ao){
 		s->type=COMEDI_SUBD_AO;
 // XXX lacks read-back insn
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
 		s->maxdata = (1<<thisboard->ao_nbits)-1;
 		s->range_table = &range_bipolar5;
@@ -876,7 +876,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	/* do */
 	if(thisboard->do_){
 		s->type=COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = thisboard->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;

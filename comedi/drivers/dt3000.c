@@ -804,7 +804,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s++;
 	/* ao subsystem */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=2;
 	s->insn_read=dt3k_ao_insn_read;
 	s->insn_write=dt3k_ao_insn;
@@ -815,7 +815,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s++;
 	/* dio subsystem */
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=8;
 	s->insn_config=dt3k_dio_insn_config;
 	s->insn_bits=dt3k_dio_insn_bits;

@@ -702,7 +702,7 @@ static int rtd_attach (
     s=dev->subdevices+1;
     /* analog output subdevice */
     s->type=COMEDI_SUBD_AO;
-    s->subdev_flags=SDF_WRITEABLE;
+    s->subdev_flags=SDF_WRITABLE;
     s->n_chan = 2;
     s->maxdata =(1<<thisboard->aiBits)-1;
     s->range_table = &rtd_ao_range;
@@ -712,7 +712,7 @@ static int rtd_attach (
     s=dev->subdevices+2;
     /* digital i/o subdevice */
     s->type=COMEDI_SUBD_DIO;
-    s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+    s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
     /* we only support port 0 right now.  Ignoring port 1 and user IO */
     s->n_chan=8;
     s->maxdata=1;
@@ -723,7 +723,7 @@ static int rtd_attach (
     /* timer/counter subdevices (not currently supported) */
     s=dev->subdevices+3;
     s->type = COMEDI_SUBD_COUNTER;
-    s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+    s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
     s->n_chan=3;
     s->maxdata=0xffff;
 

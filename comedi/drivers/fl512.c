@@ -183,7 +183,7 @@ static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
   /* Analog output */
   s                = dev->subdevices+1;
   s->type          = COMEDI_SUBD_AO;         /* define subdevice as Analog OUT   */
-  s->subdev_flags  = SDF_WRITEABLE;          /* you can write it from userspace  */
+  s->subdev_flags  = SDF_WRITABLE;          /* you can write it from userspace  */
   s->n_chan        = 2;                      /* Number of Analog output channels */
   s->maxdata       = 0x0fff;                 /* accept only 12 bits of data      */
   s->range_table   = &range_fl512;           /* device use one of the ranges     */

@@ -1411,7 +1411,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	if (this_board->n_aochan>0) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE|SDF_GROUND;
+		s->subdev_flags = SDF_WRITABLE|SDF_GROUND;
 		s->n_chan = this_board->n_aochan;
 		s->maxdata = 0xfff;
 		s->len_chanlist = 1;
@@ -1453,7 +1453,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	if (this_board->n_dochan>0) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = this_board->n_dochan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;

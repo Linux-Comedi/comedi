@@ -338,7 +338,7 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	new_insn.subdev = insn->subdev;
 
 	if(insn->insn == INSN_WRITE){
-		if(!(s->subdev_flags & SDF_WRITEABLE))
+		if(!(s->subdev_flags & SDF_WRITABLE))
 			return -EINVAL;
 		new_data[0] = 1<<chan; /* mask */
 		new_data[1] = data[0]?(1<<chan):0; /* bits */

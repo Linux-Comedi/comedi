@@ -384,7 +384,7 @@ found:
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = thisboard->ranges;

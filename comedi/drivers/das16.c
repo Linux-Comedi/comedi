@@ -1532,7 +1532,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	/* ao */
 	if(thisboard->ao){
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		if(devpriv->user_ao_range_table)
@@ -1564,7 +1564,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	/* do */
 	if(thisboard->do_){
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;

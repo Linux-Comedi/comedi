@@ -166,7 +166,7 @@ static int dnp_attach(comedi_device *dev,comedi_devconfig *it)
   s=dev->subdevices+0;
   /* digital i/o subdevice                                                   */
   s->type         =  COMEDI_SUBD_DIO;
-  s->subdev_flags =  SDF_READABLE|SDF_WRITEABLE;
+  s->subdev_flags =  SDF_READABLE|SDF_WRITABLE;
   s->n_chan       =  20;
   s->maxdata      =  1;
   s->range_table  =& range_digital;

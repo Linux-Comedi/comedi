@@ -375,7 +375,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	if (this_board->has_ao){
 		/* ao subdevice (only on rti815) */
 		s->type=COMEDI_SUBD_AO;
-		s->subdev_flags=SDF_WRITEABLE;
+		s->subdev_flags=SDF_WRITABLE;
 		s->n_chan=2;
 		s->insn_read=rti800_ao_insn_read;
 		s->insn_write=rti800_ao_insn_write;
@@ -413,7 +413,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* do */
 	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=8;
 	s->insn_bits=rti800_do_insn_bits;
 	s->maxdata=1;

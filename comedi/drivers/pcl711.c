@@ -557,7 +557,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* AO subdevice */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = this_board->n_aochan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
@@ -578,7 +578,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* 16-bit digital out */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->len_chanlist = 16;

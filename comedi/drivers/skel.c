@@ -262,7 +262,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+1;
 	/* analog output subdevice */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=1;
 	s->maxdata=0xffff;
 	s->range_table=&range_bipolar5;
@@ -273,7 +273,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	/* digital i/o subdevice */
 	if(thisboard->have_dio){
 		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 		s->n_chan=16;
 		s->maxdata=1;
 		s->range_table=&range_digital;

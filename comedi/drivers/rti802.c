@@ -132,7 +132,7 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 	s=dev->subdevices;
 	/* ao subdevice */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->maxdata=0xfff;
 	s->n_chan=8;
 	s->insn_read = rti802_ao_insn_read;

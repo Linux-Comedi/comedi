@@ -416,7 +416,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 1;
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
 	s->insn_write = dt2811_ao_insn;
 	s->insn_read = dt2811_ao_insn_read;
@@ -437,7 +437,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 3;
 	/* do subdevice */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 8;
 	s->insn_bits = dt2811_do_insn_bits;
 	s->maxdata = 1;

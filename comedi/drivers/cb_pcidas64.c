@@ -843,7 +843,7 @@ static int setup_subdevices(comedi_device *dev)
 	{
 	//	dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board(dev)->ao_nchan;
 		// analog out resolution is the same as analog input resolution, so use ai_bits
 		s->maxdata = (1 << board(dev)->ai_bits) - 1;
@@ -878,7 +878,7 @@ static int setup_subdevices(comedi_device *dev)
 	{
 		s = dev->subdevices + 3;
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
@@ -903,7 +903,7 @@ static int setup_subdevices(comedi_device *dev)
 	if(board(dev)->layout == LAYOUT_60XX)
 	{
 		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = 8;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
@@ -915,7 +915,7 @@ static int setup_subdevices(comedi_device *dev)
 	// 8 channel 8800 caldac
 	s = dev->subdevices + 6;
 	s->type=COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 8;
 	if(board(dev)->layout == LAYOUT_4020)
 		s->maxdata = 0xfff;
@@ -929,7 +929,7 @@ static int setup_subdevices(comedi_device *dev)
 	if(board(dev)->layout == LAYOUT_64XX)
 	{
 		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = 2;
 		s->insn_read = ad8402_read_insn;
 		s->insn_write = ad8402_write_insn;

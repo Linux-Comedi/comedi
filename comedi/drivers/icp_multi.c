@@ -967,7 +967,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_aochan) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_COMMON;
+		s->subdev_flags = SDF_WRITABLE|SDF_GROUND|SDF_COMMON;
 		s->n_chan = this_board->n_aochan;
 		s->maxdata = this_board->ao_maxdata;
 		s->len_chanlist = this_board->n_aochan;
@@ -993,7 +993,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_dochan) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = this_board->n_dochan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;
@@ -1007,7 +1007,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_ctrs) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_COMMON;
+		s->subdev_flags = SDF_WRITABLE|SDF_GROUND|SDF_COMMON;
 		s->n_chan = this_board->n_ctrs;
 		s->maxdata = 0xffff;
 		s->len_chanlist = this_board->n_ctrs;

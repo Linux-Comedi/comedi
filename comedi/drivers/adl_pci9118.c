@@ -2150,7 +2150,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s = dev->subdevices + 1;
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE|SDF_GROUND|SDF_COMMON;
 	s->n_chan = this_board->n_aochan;
 	s->maxdata = this_board->ao_maxdata;
 	s->len_chanlist = this_board->n_aochan;
@@ -2170,7 +2170,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s = dev->subdevices + 3;
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE|SDF_GROUND|SDF_COMMON;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->len_chanlist = 4;

@@ -163,7 +163,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	s->insn_read = this_board->rinsn;
 	s->insn_bits = this_board->insnbits;
 	if(s->type==COMEDI_SUBD_AO || s->type==COMEDI_SUBD_DO){
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = SDF_WRITABLE;
 	}
 
 	return 0;

@@ -683,7 +683,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 /* Could provide command support, except it only has a one sample
  * hardware buffer for analog output and no underrun flag. */
 		s->type=COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = NUM_AO_CHAN;
 		s->maxdata = (1 << 12) - 1;	// 12 bit resolution
 		s->range_table = &range_labpc_ao;
@@ -716,7 +716,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
 		s->type=COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		if(thisboard->has_ao)
 			s->n_chan = 8;
 		else
@@ -732,7 +732,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
 		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan = EEPROM_SIZE;
 		s->maxdata = 0xff;
 		s->insn_read = labpc_eeprom_read_insn;

@@ -808,7 +808,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   s = dev->subdevices + 1;
   /* ao subdevice */
   s->type = COMEDI_SUBD_AO;
-  s->subdev_flags = SDF_WRITEABLE|SDF_RT;
+  s->subdev_flags = SDF_WRITABLE|SDF_RT;
   s->n_chan = 2;
   s->maxdata = 0xffff;
   s->insn_read = daqboard2000_ao_insn_read;

@@ -240,7 +240,7 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	/* analog output subdevice */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=thisboard->n_ao_chans;
 	s->maxdata=(1<<12)-1;
 	s->range_table=&range_bipolar10;
@@ -250,7 +250,7 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+1;
 	/* digital i/o subdevice */
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
@@ -260,7 +260,7 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+2;
 	/* caldac subdevice */
 	s->type=COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_WRITEABLE|SDF_INTERNAL;
+	s->subdev_flags = SDF_WRITABLE|SDF_INTERNAL;
 	s->n_chan = 21;
 	s->maxdata = 0xff;
 	s->insn_read = atao_calib_insn_read;

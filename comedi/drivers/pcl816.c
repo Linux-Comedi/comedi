@@ -1205,7 +1205,7 @@ no_dma:
 
 #if 0
 	case COMEDI_SUBD_AO:
-	  s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_RT;
+	  s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_RT;
 	  s->n_chan = this_board->n_aochan;
 	  s->maxdata = this_board->ao_maxdata;
 	  s->len_chanlist = this_board->ao_chanlist;
@@ -1221,7 +1221,7 @@ no_dma:
 	  break;
 
 	case COMEDI_SUBD_DO:
-	  s->subdev_flags = SDF_WRITEABLE | SDF_RT;
+	  s->subdev_flags = SDF_WRITABLE | SDF_RT;
 	  s->n_chan = this_board->n_dochan;
 	  s->maxdata = 1;
 	  s->len_chanlist = this_board->n_dochan;

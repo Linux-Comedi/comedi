@@ -1296,7 +1296,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		/* ao subsystem */
 		s->type=COMEDI_SUBD_AO;
 		dev->write_subdev=s;
-		s->subdev_flags=SDF_WRITEABLE;
+		s->subdev_flags=SDF_WRITABLE;
 		s->insn_read=dt282x_ao_insn_read;
 		s->insn_write=dt282x_ao_insn_write;
 		s->do_cmdtest=dt282x_ao_cmdtest;
@@ -1318,7 +1318,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* dio subsystem */
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=16;
 	s->insn_bits = dt282x_dio_insn_bits;
 	s->insn_config = dt282x_dio_insn_config;

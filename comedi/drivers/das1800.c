@@ -722,7 +722,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	if(thisboard->ao_ability == 1)
 	{
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = thisboard->ao_n_chan;
 		s->maxdata = (1 << thisboard->resolution) - 1;
 		s->range_table = &range_ao_1;
@@ -745,7 +745,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	/* do */
 	s = dev->subdevices + 3;
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = thisboard->do_n_chan;
 	s->maxdata = 1;
 	s->range_table = &range_digital;

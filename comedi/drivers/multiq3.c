@@ -279,7 +279,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s = dev->subdevices + 1;
       /* ao subdevice */
       s->type = COMEDI_SUBD_AO;
-      s->subdev_flags = SDF_WRITEABLE;
+      s->subdev_flags = SDF_WRITABLE;
       s->n_chan = 8;
       s->insn_read = multiq3_ao_insn_read;
       s->insn_write = multiq3_ao_insn_write;
@@ -298,7 +298,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s = dev->subdevices + 3;
       /* do subdevice */
       s->type = COMEDI_SUBD_DO;
-      s->subdev_flags = SDF_WRITEABLE;
+      s->subdev_flags = SDF_WRITABLE;
       s->n_chan = 16;
       s->insn_bits = multiq3_do_insn_bits;
       s->maxdata = 1;

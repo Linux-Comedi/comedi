@@ -306,7 +306,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	/* ao */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE|SDF_GROUND;
+	s->subdev_flags=SDF_WRITABLE|SDF_GROUND;
 	s->n_chan=this_board->n_aochan;
 	s->maxdata=0xfff;
 	s->len_chanlist=1;
@@ -347,7 +347,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}else{
 		s->type=COMEDI_SUBD_DO;
-		s->subdev_flags=SDF_WRITEABLE|SDF_GROUND;
+		s->subdev_flags=SDF_WRITABLE|SDF_GROUND;
 		s->n_chan=16;
 		s->maxdata=1;
 		s->len_chanlist=1;

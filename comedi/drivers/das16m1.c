@@ -707,7 +707,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 2;
 	/* do */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;

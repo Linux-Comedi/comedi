@@ -407,7 +407,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+1;
 	/* analog output subdevice */
 	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
+	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=thisboard->ao_chans;;
 	s->maxdata=(1<<thisboard->ao_bits)-1;
 	s->range_table=&pci230_ao_range;

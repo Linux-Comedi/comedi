@@ -1379,7 +1379,7 @@ found:
 
   subdevice 			= dev->subdevices + 1;
   subdevice->type 		= COMEDI_SUBD_AO;
-  subdevice->subdev_flags	= SDF_WRITEABLE|SDF_COMMON; 
+  subdevice->subdev_flags	= SDF_WRITABLE|SDF_COMMON; 
   subdevice->n_chan		= board->ao_channel_nbr;
   subdevice->maxdata		= board->ao_resolution_mask;
   subdevice->len_chanlist	= board->ao_channel_nbr;
@@ -1397,7 +1397,7 @@ found:
 	
   subdevice 			= dev->subdevices + 3;
   subdevice->type 		= COMEDI_SUBD_DO;
-  subdevice->subdev_flags 	= SDF_READABLE|SDF_WRITEABLE;
+  subdevice->subdev_flags 	= SDF_READABLE|SDF_WRITABLE;
   subdevice->n_chan 		= PCI9111_DO_CHANNEL_NBR;
   subdevice->maxdata 		= 1;
   subdevice->range_table 	= &range_digital;

@@ -610,7 +610,7 @@ found:
 	if(thisboard->ao_nchan)
 	{
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = thisboard->ao_nchan;
 		// analog out resolution is the same as analog input resolution, so use ai_bits
 		s->maxdata = (1 << thisboard->ai_bits) - 1;
