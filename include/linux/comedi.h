@@ -60,6 +60,7 @@ typedef unsigned short sampl_t;
 #define CR_ALT_FILTER	(1<<26)
 #define CR_DITHER		CR_ALT_FILTER
 #define CR_DEGLITCH		CR_ALT_FILTER
+#define CR_ALT_SOURCE	(1<<27)
 #define CR_INVERT	(1<<31)
 
 #define AREF_GROUND	0x00		/* analog ref = analog ground */
