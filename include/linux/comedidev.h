@@ -213,7 +213,7 @@ struct comedi_device_struct{
 	int options[COMEDI_NDEVCONFOPTS];
 
 	/* dumb */
-	int iobase;
+	unsigned long iobase;
 	int irq;
 
 	comedi_subdevice *read_subdev;

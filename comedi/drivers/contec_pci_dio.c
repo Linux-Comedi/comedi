@@ -112,7 +112,7 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 		if ( pcidev->vendor == PCI_VENDOR_ID_CONTEC && 
 		     pcidev->device == PCI_DEVICE_ID_PIO1616L ) {
 			dev->iobase = pci_resource_start ( pcidev, 0 );
-			printk ( " base addr %x ", dev->iobase );
+			printk ( " base addr %lx ", dev->iobase );
 
 			dev->board_ptr = contec_boards + 0;
 
@@ -175,7 +175,7 @@ static int contec_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= data[0]&data[1];
-		printk ( "  out: %d on %x\n", s->state, dev->iobase + thisboard->out_offs );
+		rt_printk ( "  out: %d on %lx\n", s->state, dev->iobase + thisboard->out_offs );
 		outw(s->state, dev->iobase + thisboard->out_offs );
 	}
 	return 2;
@@ -185,8 +185,8 @@ static int contec_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 
-	printk ( "contec_di_insn_bits called\n" );
-	printk ( " data: %d %d\n", data[0], data[1] );
+	rt_printk ( "contec_di_insn_bits called\n" );
+	rt_printk ( " data: %d %d\n", data[0], data[1] );
 	
 	if(insn->n!=2)return -EINVAL;
 

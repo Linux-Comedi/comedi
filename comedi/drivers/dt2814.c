@@ -240,7 +240,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	int iobase;
 
 	iobase=it->options[0];
-	printk("comedi%d: dt2814: 0x%04x ",dev->minor,dev->iobase);
+	printk("comedi%d: dt2814: 0x%04lx ",dev->minor,dev->iobase);
 	if(check_region(iobase,DT2814_SIZE)<0){
 		printk("I/O port conflict\n");
 		return -EIO;

@@ -268,7 +268,7 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
 	setup_channel_list(dev, s, &insn->chanspec, 1);
 
 #ifdef ICP_MULTI_EXTDEBUG
-	printk("icp_multi A ST=%4x IO=%x\n",readw(dev->iobase+ICP_MULTI_ADC_CSR), dev->iobase+ICP_MULTI_ADC_CSR);
+	printk("icp_multi A ST=%4x IO=%lx\n",readw(dev->iobase+ICP_MULTI_ADC_CSR), dev->iobase+ICP_MULTI_ADC_CSR);
 #endif
 
 	for (n=0; n<insn->n; n++) {

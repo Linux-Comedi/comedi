@@ -521,7 +521,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->irq=link->irq.AssignedIRQ;
 
-	printk("comedi%d: %s: DAQCard: io 0x%04x, irq %d, ",
+	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %d, ",
 		dev->minor,dev->driver->driver_name,dev->iobase,
 		dev->irq);
 

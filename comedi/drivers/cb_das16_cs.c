@@ -174,7 +174,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	if(!link)return -EIO;
 
 	dev->iobase = link->io.BasePort1;
-	printk("I/O base=0x%04x ",dev->iobase);
+	printk("I/O base=0x%04lx ",dev->iobase);
 
 	printk("fingerprint:\n");
 	for(i=0;i<48;i+=2){

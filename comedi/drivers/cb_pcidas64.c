@@ -1485,7 +1485,7 @@ static void init_stc_registers( comedi_device *dev )
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
 	// bit should be set for 6025, although docs say boards with <= 16 chans should be cleared XXX
-	if( 1 )
+	if(1)
 		priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 
@@ -1817,14 +1817,6 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		priv(dev)->hw_config_bits &= ~EXT_QUEUE_BIT;
 		writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
 
-		// load internal queue
-		bits = 0;
-		// set gain
-		bits |= ai_range_bits_6xxx( dev, CR_RANGE(insn->chanspec) );
-		// set single-ended / differential
-		bits |= se_diff_bit_6xxx(dev, aref == AREF_DIFF);
-		if( aref == AREF_COMMON)
-			bits |= ADC_COMMON_BIT;
 		// ALT_SOURCE is internal calibration reference
 		if(insn->chanspec & CR_ALT_SOURCE)
 		{
@@ -1843,6 +1835,14 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			// make sure internal calibration source is turned off
 			writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
 		}
+		// load internal queue
+		bits = 0;
+		// set gain
+		bits |= ai_range_bits_6xxx( dev, CR_RANGE(insn->chanspec) );
+		// set single-ended / differential
+		bits |= se_diff_bit_6xxx(dev, aref == AREF_DIFF);
+		if(aref == AREF_COMMON)
+			bits |= ADC_COMMON_BIT;
 		bits |= adc_chan_bits( channel );
 		// set stop channel
 		writew( adc_chan_bits( channel ), priv(dev)->main_iobase + ADC_QUEUE_HIGH_REG );
@@ -2986,8 +2986,8 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned short status,
 		async->events |= COMEDI_CB_EOA;
 		if(ao_stopped_by_error(dev, cmd))
 			async->events |= COMEDI_CB_ERROR;
-printk("plx dma0 desc reg 0x%x\n", readl(priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG));
-printk("plx dma0 address reg 0x%x\n", readl(priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG));
+		DEBUG_PRINT("plx dma0 desc reg 0x%x\n", readl(priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG));
+		DEBUG_PRINT("plx dma0 address reg 0x%x\n", readl(priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG));
 	}
 	cfc_handle_events( dev, s );
 }

@@ -220,11 +220,11 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	/* Check PCI-20001 C-2A Carrier Board ID */
 	if ((readb(dev->iobase) & PCI20000_ID) != PCI20000_ID) {
 		printk("comedi%d: ii_pci20kc", dev->minor);
-		printk(" PCI-20001 C-2A Carrier Board at base=0x%05x not found !\n", dev->iobase);
+		printk(" PCI-20001 C-2A Carrier Board at base=0x%05lx not found !\n", dev->iobase);
 		return -EINVAL;
 	}
 	printk("comedi%d:\n", dev->minor);
-	printk("ii_pci20kc: PCI-20001 C-2A at base=0x%05x\n", dev->iobase);
+	printk("ii_pci20kc: PCI-20001 C-2A at base=0x%05lx\n", dev->iobase);
 
 	for (i = 0; i < PCI20000_MODULES; i++) {
 		s = dev->subdevices + i;

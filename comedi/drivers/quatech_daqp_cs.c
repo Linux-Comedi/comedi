@@ -954,7 +954,7 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 	if((ret=alloc_subdevices(dev,4))<0)
 		return ret;
 
-	printk("comedi%d: attaching daqp%d (io 0x%04x)\n",
+	printk("comedi%d: attaching daqp%d (io 0x%04lx)\n",
 	       dev->minor, it->options[0], dev->iobase);
 
 	s=dev->subdevices+0;
