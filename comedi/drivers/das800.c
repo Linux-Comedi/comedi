@@ -397,6 +397,8 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(thisboard->resolution == 12)
 		{
 			fifo_empty = dataPoint & FIFO_EMPTY;
+			fifo_overflow = dataPoint & FIFO_OVF;
+			if(fifo_overflow) break;
 		}else
 		{
 			fifo_empty = 0;	// cio-das802/16 has no fifo empty status bit
