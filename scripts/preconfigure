@@ -1,8 +1,0 @@
-#!/bin/sh
-
-. scripts/dep.linux
-
-. scripts/dep.rtai
-. scripts/dep.rtlinux
-
-#. scripts/dep.pcmcia
