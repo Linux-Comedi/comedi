@@ -12,8 +12,9 @@
 Driver: pcl816.o
 Description: Advantech PCL-816 cards, PCL-814
 Author: Juan Grigera <juan@grigera.com.ar>
-Devices: [Advantech] PCL-816, PCL-814B
+Devices: [Advantech] PCL-816 (pcl816), PCL-814B (pcl814b)
 Status: works
+Updated: Tue,  2 Apr 2002 23:15:21 -0800
 
 PCL 816 and 814B have 16 SE/DIFF ADCs, 16 DACs, 16 DI and 16 DO.
 Differences are at resolution (16 vs 12 bits).
@@ -154,7 +155,7 @@ static int pcl816_detach (comedi_device * dev);
 static int RTC_lock = 0;	/* RTC lock */
 static int RTC_timer_lock = 0;	/* RTC int lock */
 
-comedi_driver driver_pcl816 = {
+static comedi_driver driver_pcl816 = {
   driver_name: "pcl816",
   module:       THIS_MODULE,
   attach:       pcl816_attach,
@@ -764,7 +765,7 @@ static int pcl816_ai_poll(comedi_device *dev,comedi_subdevice *s)
 ==============================================================================
  cancel any mode 1-4 AI
 */
-int
+static int
 pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 {
 //  DEBUG(rt_printk("pcl816_ai_cancel()\n");)
@@ -807,7 +808,7 @@ pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 ==============================================================================
  chech for PCL816
 */
-int pcl816_check (int iobase)
+static int pcl816_check (int iobase)
 {
   outb (0x00, iobase + PCL816_MUX);
   udelay (1);
@@ -830,7 +831,7 @@ int pcl816_check (int iobase)
 ==============================================================================
  reset whole PCL-816 cards
 */
-void
+static void
 pcl816_reset (comedi_device * dev)
 {
 //  outb (0, dev->iobase + PCL818_DA_LO);	// DAC=0V
@@ -997,7 +998,7 @@ free_resources (comedi_device * dev)
       if (devpriv->dmabuf[1])
 	free_pages (devpriv->dmabuf[1], devpriv->dmapages[1]);
       if (devpriv->rtc_irq)
-	free_irq (devpriv->rtc_irq, dev);
+	comedi_free_irq (devpriv->rtc_irq, dev);
       if ((devpriv->dma_rtc) && (RTC_lock == 1))
 	{
 	  if (devpriv->rtc_iobase)
@@ -1028,7 +1029,6 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
   unsigned long pages;
   int i;
   comedi_subdevice *s;
-  int num_of_subdevs, subdevs[5];
 
   /* claim our I/O space */
   iobase = it->options[0];
@@ -1067,7 +1067,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
 	    }
 	  else
 	    {
-	      if (request_irq(irq, interrupt_pcl816, SA_INTERRUPT, "pcl816", dev)) {
+	      if (comedi_request_irq(irq, interrupt_pcl816, 0, "pcl816", dev)) {
 			 rt_printk (", unable to allocate IRQ %d, DISABLING IT",irq);
   			 irq = 0;	/* Can't use IRQ */
 			}
@@ -1102,8 +1102,8 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
       devpriv->rtc_iosize = RTC_IO_EXTENT;
       RTC_lock++;
 #ifdef UNTESTED_CODE
-      if (!request_irq (RTC_IRQ, interrupt_pcl816_ai_mode13_dma_rtc,
-	   SA_INTERRUPT | SA_SHIRQ, "pcl816 DMA (RTC)", dev))	{
+      if (!comedi_request_irq (RTC_IRQ, interrupt_pcl816_ai_mode13_dma_rtc,
+	   0, "pcl816 DMA (RTC)", dev))	{
 		  devpriv->dma_rtc = 1;
 		  devpriv->rtc_irq = RTC_IRQ;
 		  rt_printk (", dma_irq=%d", devpriv->rtc_irq);
@@ -1174,43 +1174,39 @@ no_rtc:
 
 no_dma:
 
-  num_of_subdevs = 0;
-
-  if (this_board->n_aichan > 0)
-    subdevs[num_of_subdevs++] = COMEDI_SUBD_AI;
 /*  if (this_board->n_aochan > 0)
-    subdevs[num_of_subdevs++] = COMEDI_SUBD_AO;
+    subdevs[1] = COMEDI_SUBD_AO;
   if (this_board->n_dichan > 0)
-    subdevs[num_of_subdevs++] = COMEDI_SUBD_DI;
+    subdevs[2] = COMEDI_SUBD_DI;
   if (this_board->n_dochan > 0)
-    subdevs[num_of_subdevs++] = COMEDI_SUBD_DO;
+    subdevs[3] = COMEDI_SUBD_DO;
 */
-  dev->n_subdevices = num_of_subdevs;
+  dev->n_subdevices = 1;
   if ((ret = alloc_subdevices (dev)) < 0)
     return ret;
 
   s = dev->subdevices + 0;
-  for (i = 0; i < num_of_subdevs; i++) {
-      s->type = subdevs[i];
-      switch (s->type) {
+  if (this_board->n_aichan > 0){
+    s->type = COMEDI_SUBD_AI;
+    devpriv->sub_ai = s;
+    dev->read_subdev = s;
+    s->subdev_flags = SDF_READABLE | SDF_RT;
+    s->n_chan = this_board->n_aichan;
+    s->subdev_flags |= SDF_DIFF;
+    printk (", %dchans DIFF DAC - %d", s->n_chan, i);
+    s->maxdata = this_board->ai_maxdata;
+    s->len_chanlist = this_board->ai_chanlist;
+    s->range_table = this_board->ai_range_type;
+    s->cancel = pcl816_ai_cancel;
+    s->do_cmdtest = pcl816_ai_cmdtest;
+    s->do_cmd = pcl816_ai_cmd;
+    s->poll = pcl816_ai_poll;
+    s->insn_read = pcl816_ai_insn_read;
+  }else{
+    s->type = COMEDI_SUBD_UNUSED;
+  }
 
-		case COMEDI_SUBD_AI:
-			devpriv->sub_ai = s;
-			dev->read_subdev = s;
-			s->subdev_flags = SDF_READABLE | SDF_RT;
-			s->n_chan = this_board->n_aichan;
-			s->subdev_flags |= SDF_DIFF;
-			rt_printk (", %dchans DIFF DAC - %d", s->n_chan, i);
-			s->maxdata = this_board->ai_maxdata;
-			s->len_chanlist = this_board->ai_chanlist;
-			s->range_table = this_board->ai_range_type;
-			s->cancel = pcl816_ai_cancel;
-			s->do_cmdtest = pcl816_ai_cmdtest;
-			s->do_cmd = pcl816_ai_cmd;
-			s->poll = pcl816_ai_poll;
-			s->insn_read = pcl816_ai_insn_read;
-			break;
-
+#if 0
 	case COMEDI_SUBD_AO:
 	  s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_RT;
 	  s->n_chan = this_board->n_aochan;
@@ -1237,8 +1233,7 @@ no_dma:
 	}
       s++;
     }
-
-
+#endif
 
   pcl816_reset (dev);
 
