@@ -340,7 +340,6 @@ unsigned int comedi_buf_write_alloc_strict(comedi_async *async, unsigned int nby
 void comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
 void comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
 unsigned int comedi_buf_read_n_available(comedi_async *async);
-void comedi_buf_copy_from(comedi_async *async, void *dest, int nbytes);
 void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *source,
 	unsigned int num_bytes );
 void comedi_buf_memcpy_from( comedi_async *async, unsigned int offset, void *destination,
