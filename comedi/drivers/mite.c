@@ -481,10 +481,10 @@ void mite_prep_dma(struct mite_struct *mite)
 }
 
 
-int mite_bytes_transferred(struct mite_struct *mite, int chan)
+unsigned int mite_bytes_transferred(struct mite_struct *mite, int chan)
 {
-	int dar, fcr;
-	
+	unsigned int dar, fcr;
+
 	dar = readl(mite->mite_io_addr+MITE_DAR+CHAN_OFFSET(chan));
 	fcr = readl(mite->mite_io_addr+MITE_FCR+CHAN_OFFSET(chan)) & 0x000000FF;
 	return dar-fcr;

@@ -346,7 +346,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 #ifdef PCIDMA
 static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 {
-	int count;
+	unsigned int count;
 	comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
 
@@ -357,6 +357,8 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 		printk("BUG: too many samples in interrupt (%d)\n",count);
 		return;
 	}
+	// XXX buf_dirty_count should really be incremented earlier...
+	async->buf_dirty_count += count;
 	async->buf_write_count += count;
 
 	if(async->cmd.flags & CMDF_RAWDATA){

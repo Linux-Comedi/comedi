@@ -92,7 +92,7 @@ void mite_list_devices(void);
 int mite_dma_tcr(struct mite_struct *mite);
 void mite_dma_arm(struct mite_struct *mite);
 void mite_dma_disarm(struct mite_struct *mite);
-int mite_bytes_transferred(struct mite_struct *mite, int chan);
+unsigned int mite_bytes_transferred(struct mite_struct *mite, int chan);
 
 #if 0
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);
