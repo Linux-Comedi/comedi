@@ -116,7 +116,6 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 	*d2 = div2 & 0xffff;
 }
 
-
 static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
 {
@@ -127,16 +126,16 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	unsigned int ns;
 	unsigned int start;
 	unsigned int ns_low, ns_high;
-
+	static const unsigned int max_count = 0x10000;
 	/* exit early if everything is already correct (this can save time
 	 * since this function may be called repeatedly during command tests
 	 * and execution) */
-	div1 = *d1 ? *d1 : 0x10000;
-	div2 = *d2 ? *d2 : 0x10000;
+	div1 = *d1 ? *d1 : max_count;
+	div2 = *d2 ? *d2 : max_count;
 	divider = div1 * div2;
 	if(div1 * div2 * i8253_osc_base == *nanosec &&
-		div1 > 1 && div1 <= 0x10000 &&
-		div2 > 1 && div2 <= 0x10000 &&
+		div1 > 1 && div1 <= max_count &&
+		div2 > 1 && div2 <= max_count &&
 		/* check for overflow */
 		divider > div1 && divider > div2 &&
 		divider * i8253_osc_base > divider &&
@@ -153,23 +152,21 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	ns_glb = 0;
 	ns_lub = 0xffffffff;
 
-	div2 = 0x10000;
+	div2 = max_count;
 	start = divider / div2;
 	if(start < 2) start = 2;
-	for (div1 = start; div1 <= divider / div1 + 1; div1++) {
-		for(div2 = divider / div1; div1 * div2 <= divider + div1 + 1; div2++) {
+	for (div1 = start; div1 <= divider / div1 + 1 && div1 <= max_count; div1++) {
+		for(div2 = divider / div1; div1 * div2 <= divider + div1 + 1 && div2 <= max_count; div2++) {
 			ns = i8253_osc_base * div1 * div2;
 			if (ns <= *nanosec && ns > ns_glb) {
 				ns_glb = ns;
 				div1_glb = div1;
 				div2_glb = div2;
 			}
-			if (div2 <= 0x10000) {
-				if (ns >= *nanosec && ns < ns_lub) {
-					ns_lub = ns;
-					div1_lub = div1;
-					div2_lub = div2;
-				}
+			if (ns >= *nanosec && ns < ns_lub) {
+				ns_lub = ns;
+				div1_lub = div1;
+				div2_lub = div2;
 			}
 		}
 	}
