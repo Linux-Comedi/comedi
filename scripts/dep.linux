@@ -13,8 +13,18 @@ fi
 : ${LINUXDIR:=$default}
 
 if [ ! -f "$LINUXDIR/.config" ];then
+	echo
 	echo Kernel source tree at $LINUXDIR is not configured
 	echo Fix before continuing
+	echo
+	exit 1
+fi
+
+if [ ! -f "$LINUXDIR/.hdepend" ];then
+	echo
+	echo You need to run \'make dep\' on the kernel source before
+	echo continuing.
+	echo
 	exit 1
 fi
 
