@@ -30,8 +30,8 @@
 
 	References for specifications:
 	
-	   321747b.pdf  Register Level Programmer Manual (obsolete)
-	   321747c.pdf  Register Level Programmer Manual (new)
+	   340747b.pdf  Register Level Programmer Manual (obsolete)
+	   340747c.pdf  Register Level Programmer Manual (new)
 	   DAQ-STC reference manual
 
 	Other possibly relevant info:
