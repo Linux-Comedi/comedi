@@ -3,7 +3,7 @@
     functions for manipulating drivers
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1997-2000 David A. Schleef <ds@stm.lbl.gov>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@ static void postconfig(comedi_device *dev);
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
 static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 
 comedi_driver *comedi_drivers;
 
@@ -222,8 +224,24 @@ static void postconfig(comedi_device *dev)
 		if(!s->range_table && !s->range_table_list)
 			s->range_table=&range_unknown;
 
-		if(!s->insn_read)s->insn_read=insn_emulate;
-		if(!s->insn_write)s->insn_write=insn_emulate;
+		if(!s->insn_read){
+			if(s->subdev_flags & SDF_READABLE){
+				s->insn_read=insn_emulate;
+			}else{
+				s->insn_read=insn_inval;
+			}
+		}
+		if(!s->insn_write){
+			if(s->subdev_flags & SDF_WRITEABLE){
+				s->insn_write=insn_emulate;
+			}else{
+				s->insn_write=insn_inval;
+			}
+		}
+
+		if(!s->trig[0]){
+			s->trig[0]=mode0_emulate;
+		}
 	}
 
 }
@@ -258,6 +276,11 @@ int do_pack(unsigned int *bits,comedi_trig *it)
 	}
 
 	return i;
+}
+
+static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	return -EINVAL;
 }
 
 static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
@@ -307,6 +330,53 @@ static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn
 	return -EINVAL;
 }
 
+static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
+{
+	comedi_insn insn;
+	lsampl_t ldata;
+	int ret;
+
+	insn.subdev=trig->subdev;
+	insn.data=&ldata;
+	insn.n=1;
+	insn.chanspec=trig->chanlist[0];
+
+	if(s->subdev_flags & SDF_WRITEABLE){
+		if(s->subdev_flags & SDF_READABLE){
+			if(trig->flags&TRIG_WRITE){
+				insn.insn=INSN_WRITE;
+			}else{
+				insn.insn=INSN_READ;
+			}
+		}else{
+			insn.insn=INSN_WRITE;
+		}
+	}else{
+		insn.insn=INSN_READ;
+	}
+
+	switch(insn.insn){
+	case INSN_READ:
+		ret=s->insn_read(dev,s,&insn,&ldata);
+		if(s->subdev_flags&SDF_LSAMPL){
+			*(lsampl_t *)trig->data=ldata;
+		}else{
+			trig->data[0]=ldata;
+		}
+		return ret;
+	case INSN_WRITE:
+		if(s->subdev_flags&SDF_LSAMPL){
+			ldata=*(lsampl_t *)trig->data;
+		}else{
+			ldata=trig->data[0];
+		}
+		return s->insn_write(dev,s,&insn,&ldata);
+	default:
+	}
+
+	return -EINVAL;
+}
+
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int ret;
@@ -315,11 +385,10 @@ static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	if(ret)return ret;
 
 	ret=s->do_cmdtest(dev,s,&s->cmd);
-	if(ret)return ret;
+	if(ret)return -EINVAL;
 
 	ret=s->do_cmd(dev,s);
-	if(ret)return ret;
-
+	if(ret>0)return -EINVAL;
 	return ret;
 }
 
