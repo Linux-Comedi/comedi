@@ -603,6 +603,9 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			shutdown_ai_command( dev );
 
 			s->async->events |= COMEDI_CB_ERROR;
+			if(status & (AI_Overrun_St | AI_Overflow_St))
+				s->async->events |= COMEDI_CB_OVERFLOW;
+			
 			comedi_event(dev,s,s->async->events);
 
 			return;
