@@ -144,9 +144,9 @@ following lines into /etc/conf.modules:
   alias char-major-98-0 dt282x
   post-install dt282x /etc/dt282x.conf
 
-If you have a National Instruments AT-MIO or PCI-MIO board, you probably
+If your board has self-calibration capabilities,
 will want to run comedi_calibrate, an autocalibration tool that is part
-of comedilib in a bootup script.
+of comedilib, in a bootup script.
 
 * PCMCIA:
 
