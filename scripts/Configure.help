@@ -152,6 +152,13 @@ CONFIG_COMEDI_PARPORT
   cause your printer to stop working.  This driver is not
   compatible with the generic Linux parallel port interface.
 
+ADLink PCI-9118DG/HR/HG driver
+CONFIG_COMEDI_ADLPCI9118
+  Includes support for these ADLink cards:
+    ADLink PCI-9118DG
+    ADLink PCI-9118HR
+    ADLink PCI-9118HG
+  
 PCL 711 driver
 CONFIG_COMEDI_PCL711
   Includes support for PCL 711, 711b and ACL 8112.
@@ -170,9 +177,10 @@ PCL 726 driver
 CONFIG_COMEDI_PCL726
   Includes support for PCL 726.
 
-Advantech PCL-812PG, PCL-813B
+Advantech PCL-812PG, PCL-813B, ADLink ACL-8113
 CONFIG_COMEDI_PCL812
-  Includes support for PCL-812PG and PCL813B.
+  Includes support for Advantech PCL-812PG, Advantech PCL-813B
+  and ADLink ACL-8113.
 
 Advantech PCL-818, PCL-718
 CONFIG_COMEDI_PCL818

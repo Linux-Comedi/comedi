@@ -435,7 +435,7 @@ Interrupts are not supported.
 
 
 
-pcl812.o: Advantech PCL-812PG and Advantech PCL-813B
+pcl812.o: Advantech PCL-812PG, Advantech PCL-813B and ADLink ACL-8113
 
 Author: Michal Dobes <majkl@tesnet.cz>
 Status: works (I hope. My board fire up under my hands 
@@ -458,8 +458,8 @@ Options:
           1=D/A outputs 0-10V (internal reference -10V)
 	  2=D/A outputs unknow (external reference)
 
-Card: Advantech PCL-813B
-  This card have integrated 32SE A/D 25kHz.
+Card: Advantech PCL-813B, ADLink ACL-8113
+  These cards have integrated 32SE A/D 25kHz.
   Driver support only mode0 A/D becouse construction of this card 
   don't allow anything else.
   
@@ -516,6 +516,21 @@ rti802.o: Analog Devices RTI-802
 
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
+
+
+adl_pci9118.o: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
+
+Author: Michal Dobes <majkl@tesnet.cz>
+Status works
+
+This driver supports AI, AO, DI and DO subdevices.
+AI subdevice support cmd, insn and mode0-4 interface,
+other subdevices support insn and mode0 interface.
+For AI:
+- If cmd->scan_begin_src=TRIG_EXT (or trigger mode4) then trigger input 
+  is TGIN (pin 46).
+- If cmd->convert_src=TRIG_EXT (or trigger mode3) then trigger input 
+  is EXTTRG (pin 44).
 
 
 
