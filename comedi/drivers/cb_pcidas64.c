@@ -3010,7 +3010,7 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(dev->attached == 0)
 	{
 		DEBUG_PRINT("cb_pcidas64: premature interrupt, ignoring", status);
-		return;
+		return IRQ_HANDLED;
 	}
 	handle_ai_interrupt(dev, status, plx_status);
 	handle_ao_interrupt(dev, status, plx_status);
