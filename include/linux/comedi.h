@@ -205,6 +205,7 @@ typedef unsigned short sampl_t;
 #define COMEDI_SUBD_MEMORY              8	/* memory, EEPROM, DPRAM */
 #define COMEDI_SUBD_CALIB               9	/* calibration DACs */
 #define COMEDI_SUBD_PROC                10	/* processor, DSP */
+#define COMEDI_SUBD_SERIAL              11	/* serial IO */
 
 /* configuration instructions */
 
@@ -226,7 +227,10 @@ enum configuration_ids
 	INSN_CONFIG_TIMER_1 = 23,
 	INSN_CONFIG_FILTER = 24,
 	INSN_CONFIG_CHANGE_NOTIFY = 25,
+
 	/*ALPHA*/
+	INSN_CONFIG_SERIAL_CLOCK = 26,
+	INSN_CONFIG_BIDIRECTIONAL_DATA = 27,
 	INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001, // Use CTR as single pulsegenerator
 	INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002, // Use CTR as pulsetraingenerator
 	INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003, // Use the counter as encoder
