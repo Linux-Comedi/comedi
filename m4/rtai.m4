@@ -9,13 +9,13 @@ AC_DEFUN([DS_RTAI],
 
 	AS_LINUX_CONFIG_OPTION_MODULE([CONFIG_RTHAL])
 
-	if test "${CONFIG_RTHAL}" != "no" ; then
+	if test "${CONFIG_RTHAL}" != "no" -o "${CONFIG_ADEOS} != "no" ; then
 		AC_MSG_CHECKING([RTAI directory ${RTAI_DIR}])
 		if [[ -d ${RTAI_DIR}/include ]] ; then
 			RTAI_CFLAGS="-I${RTAI_DIR}/include"
 		else
 			if [[ -d ${RTAI_DIR}/rtai-core/include ]] ; then
-				RTAI_CFLAGS=" -I{RTAI_DIR} -I${RTAI_DIR}/rtai-core/include"
+				RTAI_CFLAGS=" -I${RTAI_DIR} -I${RTAI_DIR}/rtai-core/include"
 			else
 				AC_MSG_ERROR([incorrect RTAI directory?])
 			fi
