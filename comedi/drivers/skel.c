@@ -82,6 +82,8 @@ typedef struct{
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 
+	/* Used for AO readback */
+	lsampl_t ao_readback[2];
 }skel_private;
 /*
  * most drivers define the following macro to make it easy to
@@ -127,6 +129,11 @@ comedi_driver driver_skel={
 
 static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int skel_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int skel_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int skel_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int skel_ns_to_timer(unsigned int *ns,int round);
@@ -192,6 +199,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=0xffff;
 	s->range_table=&range_bipolar5;
 	s->insn_write = &skel_ao_winsn;
+	s->insn_read = &skel_ao_rinsn;
 
 	s=dev->subdevices+2;
 	/* digital i/o subdevice */
@@ -201,8 +209,8 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=16;
 		s->maxdata=1;
 		s->range_table=&range_digital;
-		//s->r_insn = skel_dio_rinsn;
-		//s->w_insn = skel_dio_winsn;
+		s->insn_bits = skel_dio_insn_bits;
+		s->insn_config = skel_dio_insn_config;
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -417,14 +425,80 @@ static int skel_ns_to_timer(unsigned int *ns,int round)
 
 static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	/* a typical programming sequence */
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
-	//outw(data[0],dev->iobase + SKEL_DA0);
+	/* Writing a list of values to an AO channel is probably not
+	 * very useful, but that's how the interface is defined. */
+	for(i=0;i<insn->n;i++){
+		/* a typical programming sequence */
+		//outw(data[i],dev->iobase + SKEL_DA0 + chan);
+		devpriv->ao_readback[chan] = data[i];
+	}
 
 	/* return the number of samples read/written */
-	return 1;
+	return i;
 }
 
+/* AO subdevices should have a read insn as well as a write insn.
+ * Usually this means copying a value stored in devpriv. */
+static int skel_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
+
+	for(i=0;i<insn->n;i++)
+		data[i] = devpriv->ao_readback[chan];
+
+	return i;
+}
+
+/* DIO devices are slightly special.  Although it is possible to
+ * implement the insn_read/insn_write interface, it is much more
+ * useful to applications if you implement the insn_bits interface.
+ * This allows packed reading/writing of the DIO channels.  The
+ * comedi core can convert between insn_bits and insn_read/write */
+static int skel_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
+
+	/* The insn data is a mask in data[0] and the new data
+	 * in data[1], each channel cooresponding to a bit. */
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= data[0]&data[1];
+		/* Write out the new digital output lines */
+		//outw(s->state,dev->iobase + SKEL_DIO);
+	}
+	/* on return, data[1] contains the value of the digital
+	 * input lines. */
+	//data[1]=inw(dev->iobase + SKEL_DIO);
+
+	return 2;
+}
+
+static int skel_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	int chan=CR_CHAN(insn->chanspec);
+
+	if(insn->n!=1)return -EINVAL;
+
+	/* The input or output configuration of each digital line is
+	 * configured by a special insn_config instruction.  chanspec
+	 * contains the channel to be changed, and data[0] contains the 
+	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	
+	if(data[0]==COMEDI_OUTPUT){
+		s->io_bits |= 1<<chan;
+	}else{
+		s->io_bits &= ~(1<<chan);
+	}
+	//outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG);
+
+	return 1;
+}
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
