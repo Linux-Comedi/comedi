@@ -275,7 +275,7 @@ static irqreturn_t parport_interrupt(int irq,void *d,struct pt_regs *regs)
 	}
 
 	comedi_buf_put( s->async, 0 );
-	s->async->events |= COMEDI_CB_EOS;
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 
 	comedi_event(dev,s,s->async->events);
 	return IRQ_HANDLED;

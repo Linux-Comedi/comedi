@@ -545,7 +545,7 @@ static irqreturn_t pc236_interrupt(int irq,void *d,struct pt_regs *regs)
 		return IRQ_RETVAL(retval);
 
 	comedi_buf_put(s->async,0);
-	s->async->events |= COMEDI_CB_EOS;
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 
 	comedi_event(dev,s,s->async->events);
 	return IRQ_RETVAL(retval);
