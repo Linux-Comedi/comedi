@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 #include <mite.h>
 #include <8255.h>
 
