@@ -54,7 +54,7 @@ ID=xxx: counter configuration
 
     DOWN_COUNTER:
       acc-- on source1
-    
+
     QUADRATURE:
       acc+=atan(source1,source2)
 
@@ -97,7 +97,7 @@ Applications:
 
  - Pulse counting with gate:
    (STC: simple gated event counting)
-    
+
     mode - up counter
     primary source - external line
     gate source - external line
@@ -131,7 +131,7 @@ Applications:
     when(P)acc+=S?+1:-1
 
  - Quadrature counting:
-    
+
     mode - quadrature
     primary source - external line 1
     secondary source - external line 2
@@ -140,11 +140,11 @@ Applications:
 
     mode - up counter
     primary source - timer
-    
+
     invert output on primary source trigger
 
  - Pulse generation
-    
+
     (XXX needs work)
     mode - dual up counter
     primary source - timer
@@ -167,10 +167,17 @@ Applications:
 
     invert output on gate?primary:secondary source trigger
 
-  - 
+  -
 
 ID=INSN_CONFIG_ALT_SOURCE: select alternate input source (internal calibration reference)
 
   [0] - ID
   [1] - source
 
+ID=INSN_CONFIG_TIMER_1
+
+  [0] - ID
+  [1] - trigger configuration (COMEDI_EV_SCAN_BEGIN, COMEDI_EV_CONVERT, etc.)
+  [2] - primary input chanspec (also specifies polarity and edge/level )
+  [3] - primary combining machine configuration (should always be 0x04)
+  [4] - divisor
