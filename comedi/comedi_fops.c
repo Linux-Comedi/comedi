@@ -80,7 +80,9 @@ static int do_poll_ioctl(comedi_device *dev,unsigned int subd,void *file);
 void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
+#if LINUX_VERSION_CODE >= 0x020100
 static int comedi_fasync (int fd, struct file *file, int on);
+#endif
 static void init_async_buf( comedi_async *async );
 
 static int comedi_ioctl(struct inode * inode,struct file * file,
