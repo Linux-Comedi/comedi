@@ -52,8 +52,8 @@
 */
 
 //#define USE_TRIG
-#define DEBUG_INTERRUPT
-#define TRY_DMA
+//#define DEBUG_INTERRUPT
+//#define TRY_DMA
 
 #include <8255.h>
 
@@ -231,7 +231,9 @@ printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 #endif
 
 	if(status&(AI_Overrun_St|AI_Overflow_St)){
+		printk("ni_mio_common: error ");
 		ni_mio_print_status_a(status);
+		printk("\n");
 		win_out(0x0000,Interrupt_A_Enable_Register);
 		comedi_done(dev,s);
 		return;
@@ -241,14 +243,15 @@ printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 #ifdef DEBUG_INTERRUPT
 printk("ni-E: SC_TC interrupt\n");
 #endif
-#if 0
-		if(s->cur_trig.n){	/* XXX fix */
+#ifdef TRY_DMA
+		ni_handle_block(dev);
+#else
+		if(!devpriv->n_left){
 			ni_handle_fifo_dregs(dev);
 			win_out(0x0000,Interrupt_A_Enable_Register);
 			comedi_done(dev,s);
 		}
 #endif
-		ni_handle_block(dev);
 
 		ack|=AI_SC_TC_Interrupt_Ack;
 	}
@@ -898,6 +901,9 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
+/* hack */
+devpriv->n_left = 0;
+
 		break;
 	case TRIG_NONE:
 		/* stage number of scans */
@@ -909,6 +915,9 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
+
+/* hack */
+devpriv->n_left = 1;
 
 		break;
 	}

@@ -76,7 +76,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	1024,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
-		ai_speed:	50000,
+		ai_speed:	5000,
 		n_aochan:	0,
 		aobits:		0,
 		ao_fifo_depth:	0,
