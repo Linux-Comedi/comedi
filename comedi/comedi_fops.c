@@ -123,9 +123,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 	case COMEDI_POLL:
 		return do_poll_ioctl(dev,arg,file);
 	default:
-		return -EIO;
+		return -ENOTTY;
 	}
-	return -EIO;
 }
 
 
