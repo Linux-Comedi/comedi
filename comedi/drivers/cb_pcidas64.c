@@ -400,6 +400,7 @@ typedef struct
 	u16 *ai_buffer[DMA_RING_COUNT];	// dma buffers for analog input
 	dma_addr_t ai_buffer_phys_addr[DMA_RING_COUNT];	// physical addresses of ai dma buffers
 	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
+	dma_addr_t dma_desc_phys_addr;	// physical address of dma descriptor array
 	volatile unsigned int dma_index;	// index of the dma descriptor/buffer that is currently being used
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	unsigned int ao_value[2];	// remember what the analog outputs are set to, to allow readback
@@ -639,7 +640,9 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 			pci_alloc_consistent(devpriv->hw_dev, DMA_TRANSFER_SIZE, &devpriv->ai_buffer_phys_addr[index]);
 	}
 	// allocate dma descriptors
-	devpriv->dma_desc = kmalloc(sizeof(struct plx_dma_desc) * DMA_RING_COUNT, GFP_KERNEL);
+	devpriv->dma_desc =
+		pci_alloc_consistent(devpriv->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+		&devpriv->dma_desc_phys_addr);
 	// initialize dma descriptors
 	for(index = 0; index < DMA_RING_COUNT; index++)
 	{
@@ -793,7 +796,9 @@ static int detach(comedi_device *dev)
 					devpriv->ai_buffer[i], devpriv->ai_buffer_phys_addr[i]);
 		}
 		// free dma descriptors
-		kfree(devpriv->dma_desc);
+		if(devpriv->dma_desc)
+			pci_free_consistent(devpriv->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+				devpriv->dma_desc, devpriv->dma_desc_phys_addr);
 #endif
 	}
 	if(dev->subdevices)
@@ -1194,8 +1199,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		ai_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s, async->events);
-		return;
+		comedi_error(dev, "fifo overrun");
 	}
 
 	// if interrupt was due to analog input data being available
