@@ -37,6 +37,19 @@
 #endif
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)		/* ? */
+  typedef int (*__init_module_func_t)(void);
+  typedef void (*__cleanup_module_func_t)(void);
+  #define module_init(x) \
+	int init_module(void) __attribute__((alias(#x))); \
+	static inline __init_module_func_t __init_module_inline(void) \
+	{ return x; }
+  #define module_exit(x) \
+	void cleanup_module(void) __attribute__((alias(#x))); \
+	static inline __cleanup_module_func_t __cleanup_module_inline(void) \
+	{ return x; }
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
 #define MODULE_DEVICE_TABLE(a,b)
 #endif

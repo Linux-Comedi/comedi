@@ -16,6 +16,9 @@
 #define PCI_SUPPORT_VER2
 
 #if LINUX_VERSION_CODE < 0x020300 /* XXX */
+#include <linux/types.h>
+
+typedef u64 dma_addr_t;
 
 #define pci_for_each_dev(x)	\
 	for((x)=pci_devices;(x);(x)=(x)->next)

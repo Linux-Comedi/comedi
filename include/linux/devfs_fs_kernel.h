@@ -9,6 +9,9 @@
 
 #if LINUX_VERSION_CODE < 0x020400
 
+#define DEVFS_FL_DEFAULT 0
+#define DEVFS_SPECIAL_CHR 0
+
 typedef struct devfs_entry * devfs_handle_t;
 
 static inline int devfs_register_chrdev (unsigned int major, const char *name,
@@ -40,9 +43,9 @@ static inline devfs_handle_t devfs_get_handle (devfs_handle_t dir,
 	    return NULL;
 }
 
-#endif
-
+#else
 #include_next <linux/devfs_fs_kernel.h>
+#endif
 
 #endif
 
