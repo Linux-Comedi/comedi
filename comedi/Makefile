@@ -34,6 +34,7 @@ MI_OBJS += rtl_v1.o
 endif
 
 range-y := range.c
+range-$(CONFIG_COMEDI_DT2801)		+= drivers/dt2801.c
 range-$(CONFIG_COMEDI_DT2811)		+= drivers/dt2811.c
 range-$(CONFIG_COMEDI_DT2815)		+= drivers/dt2815.c
 range-$(CONFIG_COMEDI_DT282x)		+= drivers/dt282x.c

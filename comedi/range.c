@@ -36,6 +36,8 @@ RANGE_bipolar10
 	-10	10
 RANGE_bipolar5
 	-5	5
+RANGE_bipolar2_5
+	-5	5
 RANGE_unipolar10
 	0	10
 RANGE_unipolar5

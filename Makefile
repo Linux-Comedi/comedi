@@ -7,8 +7,8 @@ VERS3 = 39
 
 INSTALLDIR=/usr
 
-#LINUXDIR = /usr/src/linux
-LINUXDIR = /d/ds/cvs/rtl/linux22
+LINUXDIR = /usr/src/linux
+#LINUXDIR = /d/ds/cvs/rtl/linux22
 #LINUXDIR = /d/ds/cvs/linux22
 
 # define the following if you want to compile using RTL
@@ -111,6 +111,7 @@ endif
 modules:	$(patsubst %, _mod_%, $(SUBDIRS))
 
 $(patsubst %, _mod_%, $(SUBDIRS)) : dummy
+	-mkdir modules
 	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
 
 clean:
@@ -124,7 +125,7 @@ distclean:	clean
 	rm -f core `find . \( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
-	-rm -f modules/*
+	-rm -rf modules
 	rm -f .config .uts_version include/config.h
 
 include $(TOPDIR)/Rules.make
