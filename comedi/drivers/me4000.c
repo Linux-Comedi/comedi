@@ -178,7 +178,7 @@ static int ai_write_chanlist(
 	comedi_subdevice *s,
 	comedi_cmd *cmd);
 
-static void me4000_ai_isr(
+static irqreturn_t me4000_ai_isr(
 	int irq,
 	void *dev_id,
 	struct pt_regs *regs);
@@ -277,8 +277,7 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it){
      * convenient macro defined in comedidev.h.  It relies on
      * n_subdevices being set correctly.
      */
-    dev->n_subdevices = 4;
-    if(alloc_subdevices(dev) < 0)
+    if(alloc_subdevices(dev, 4) < 0)
 	return -ENOMEM;
 
     /*=========================================================================
@@ -566,8 +565,8 @@ static int init_board_info(comedi_device *dev, struct pci_dev *pci_dev_p){
     CALL_PDEBUG("In init_board_info()\n");
 
     /* Init spin locks */
-    spin_lock_init(&info->preload_lock);
-    spin_lock_init(&info->ai_ctrl_lock);
+    //spin_lock_init(&info->preload_lock);
+    //spin_lock_init(&info->ai_ctrl_lock);
 
     /* Get the serial number */
     result = pci_read_config_dword(pci_dev_p, 0x2C, &info->serial_no);
@@ -601,7 +600,7 @@ static int init_ao_context(comedi_device *dev){
     CALL_PDEBUG("In init_ao_context()\n");
 
     for(i = 0; i < thisboard->ao.count; i++){
-	spin_lock_init(&info->ao_context.use_lock);
+	//spin_lock_init(&info->ao_context[i].use_lock);
 	info->ao_context[i].irq = info->irq;
 
 	switch(i){
@@ -1658,7 +1657,7 @@ static int me4000_ai_do_cmd_test(
 
 
 
-static void me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
+static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
     unsigned int tmp;
     comedi_device *dev = dev_id;
     comedi_subdevice *s = dev->subdevices;
@@ -1675,7 +1674,7 @@ static void me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
     /* Check if irq number is right */
     if(irq != ai_context->irq){
 	printk(KERN_ERR"comedi%d: me4000: me4000_ai_isr(): Incorrect interrupt num: %d\n", dev->minor, irq);
-	return;
+	return IRQ_HANDLED;
     }
 
     if(me4000_inl(dev, ai_context->irq_status_reg) & ME4000_IRQ_STATUS_BIT_AI_HF){
@@ -1788,7 +1787,7 @@ static void me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
     if(s->async->events)
 	comedi_event(dev, s, s->async->events);
 
-    return;
+    return IRQ_HANDLED;
 } 
 
 
