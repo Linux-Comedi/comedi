@@ -204,8 +204,8 @@ static irqreturn_t ni6527_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned int status;
 
 	status = readb(dev->iobase + Change_Status);
-	if(!status&MasterInterruptStatus)return IRQ_NONE;
-	if(!status&EdgeStatus)return IRQ_NONE;
+	if((status & MasterInterruptStatus) == 0) return IRQ_NONE;
+	if((status & EdgeStatus) == 0) return IRQ_NONE;
 
 	writeb(ClrEdge | ClrOverflow, dev->iobase + Clear_Register);
 
