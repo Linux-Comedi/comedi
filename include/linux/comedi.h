@@ -97,6 +97,7 @@ typedef unsigned short sampl_t;
 #define INSN_CONFIG		( 3 | INSN_MASK_READ|INSN_MASK_WRITE)
 #define INSN_GTOD		( 4 | INSN_MASK_READ|INSN_MASK_SPECIAL)
 #define INSN_WAIT		( 5 | INSN_MASK_WRITE|INSN_MASK_SPECIAL)
+#define INSN_INTTRIG		( 6 | INSN_MASK_WRITE|INSN_MASK_SPECIAL)
 
 /* trigger flags */
 
@@ -125,8 +126,6 @@ typedef unsigned short sampl_t;
 #define TRIG_COUNT	0x00000020	/* trigger when count reaches N */
 #define TRIG_EXT	0x00000040	/* trigger on external signal N */
 #define TRIG_INT	0x00000080	/* trigger on comedi-internal signal N */
-
-#define TRIG_INVAL	0x00000100	/* choice was invalid */
 
 /* subdevice flags */
 

@@ -593,6 +593,11 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 			{
 				struct timeval tv;
 
+				if(insn.n!=2){
+					ret=-EINVAL;
+					goto error;
+				}
+
 				do_gettimeofday(&tv);
 				data[0]=tv.tv_sec;
 				data[1]=tv.tv_usec;
@@ -601,14 +606,29 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 				break;
 			}
 			case INSN_WAIT:
-				if(insn.n<1 || data[0]>=100000){
+				if(insn.n!=1 || data[0]>=100000){
 					ret=-EINVAL;
 					break;
 				}
 				udelay(data[0]/1000);
 				ret=1;
 				break;
+			case INSN_INTTRIG:
+				if(insn.subdev>=dev->n_subdevices){
+					DPRINTK("%d not useable subdevice\n",insn.subdev);
+					ret=-EINVAL;
+					goto error;
+				}
+				s=dev->subdevices+insn.subdev;
+				if(!s->async || !s->async->inttrig){
+					DPRINTK("no async or no inttrig\n");
+					ret=-EINVAL;
+					goto error;
+				}
+				ret = s->async->inttrig(dev,s,0);
+				break;
 			default:
+				DPRINTK("invalid insn\n");
 				ret=-EINVAL;
 			}
 		}else{

@@ -103,6 +103,8 @@ struct comedi_subdevice_struct{
 	int (*do_lock)(comedi_device *,comedi_subdevice *);
 	int (*do_unlock)(comedi_device *,comedi_subdevice *);
 
+	int (*buf_change)(comedi_device *,comedi_subdevice *s);
+
 	unsigned int state;
 };
 
@@ -130,6 +132,8 @@ struct comedi_async_struct{
 	unsigned int cb_mask;
 	int (*cb_func)(unsigned int flags,void *);
 	void *cb_arg;
+
+	int (*inttrig)(comedi_device *dev,comedi_subdevice *s,unsigned int x);
 };
 
 struct comedi_driver_struct{
