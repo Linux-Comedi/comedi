@@ -598,7 +598,6 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 
 			ni_ai_reset(dev,dev->subdevices);
 
-			win_out(AI_Error_Interrupt_Ack, Interrupt_A_Ack_Register);
 
 			shutdown_ai_command( dev );
 
@@ -1454,8 +1453,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 				cmd->convert_arg=boardtype.ai_speed;
 				err++;
 			}
-			if(cmd->convert_arg>TIMER_BASE*0xffff){
-				cmd->convert_arg=TIMER_BASE*0xffff;
+			if(cmd->convert_arg>TIMER_BASE*0xffffff){
+				cmd->convert_arg=TIMER_BASE*0xffffff;
 				err++;
 			}
 		}
@@ -2054,20 +2053,14 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum)
 {
 	int ret;
-	int bits;
-
+	int interrupt_b_bits;
+	int i;
+	static const int timeout = 1000;
+	
 	if(trignum!=0)return -EINVAL;
 
-	win_out(devpriv->ao_mode3|AO_Not_An_UPDATE,AO_Mode_3_Register);
-	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
-
-	/* wait for DACs to be loaded */
-	comedi_udelay(100);
-
-	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
-		AO_Command_1_Register);
-
-	bits = AO_Error_Interrupt_Enable;
+	ni_set_bits(dev, Interrupt_B_Enable_Register, AO_FIFO_Interrupt_Enable | AO_Error_Interrupt_Enable, 0);
+	interrupt_b_bits = AO_Error_Interrupt_Enable;
 #ifdef PCIDMA
 	win_out(0, DAC_FIFO_Clear);
 	if(boardtype.reg_type & ni_reg_6xxx_mask)
@@ -2076,14 +2069,34 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	ret = ni_ao_wait_for_dma_load(dev);
 	if(ret < 0) return ret;
 
-	ni_set_bits(dev, Interrupt_B_Enable_Register, AO_FIFO_Interrupt_Enable, 0);
 #else
 	ret = ni_ao_prep_fifo(dev,s);
 	if(ret==0)return -EPIPE;
 
-	bits |= AO_FIFO_Interrupt_Enable;
+	interrupt_b_bits |= AO_FIFO_Interrupt_Enable;
 #endif
-	ni_set_bits(dev, Interrupt_B_Enable_Register, bits, 1);
+	
+	win_out(devpriv->ao_mode3|AO_Not_An_UPDATE,AO_Mode_3_Register);
+	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
+	/* wait for DACs to be loaded */
+	for(i = 0; i < timeout; i++)
+	{
+		comedi_udelay(10);
+		if((win_in(Joint_Status_2_Register) & AO_TMRDACWRs_In_Progress_St) == 0)
+			break;
+	}
+	if(i == timeout)
+	{
+		comedi_error(dev, "timed out waiting for AO_TMRDACWRs_In_Progress_St to clear");
+		return -EIO;
+	}
+	// stc manual says we are need to clear error interrupt after AO_TMRDACWRs_In_Progress_St clears
+	win_out(AO_Error_Interrupt_Ack, Interrupt_B_Ack_Register);
+	
+	ni_set_bits(dev, Interrupt_B_Enable_Register, interrupt_b_bits, 1);
+
+	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
+		AO_Command_1_Register);
 
 	win_out(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2_Register);
 

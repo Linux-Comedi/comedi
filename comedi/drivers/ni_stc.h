@@ -82,7 +82,11 @@
 #define AI_Status_2_Register		5
 
 #define Interrupt_B_Ack_Register	3
-#define AO_BC_TC_Interrupt_Ack _bit8
+enum Interrupt_B_Ack_Bits
+{
+	AO_BC_TC_Interrupt_Ack = _bit8,
+	AO_Error_Interrupt_Ack = _bit13,
+};
 
 #define AO_Status_1_Register		3
 #define Interrupt_B_St				_bit15
@@ -225,6 +229,10 @@
 
 #define DIO_Serial_Input_Register       28
 #define Joint_Status_2_Register         29
+enum Joint_Status_2_Bits
+{
+	AO_TMRDACWRs_In_Progress_St = 0x20,
+};
 
 #define AO_Mode_1_Register		38
 #define AO_UPDATE_Source_Select(x)		(((x)&0x1f)<<11)
