@@ -2195,6 +2195,7 @@ static struct caldac_struct caldacs[] = {
 	[dac8043] = { 1, 12, pack_dac8043 },
 	[ad8522]  = { 2, 12, pack_ad8522 },
 	[ad8804] = { 12, 8, pack_ad8804 },
+	[ad8804_debug] = { 16, 8, pack_ad8804 },
 };
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
