@@ -61,7 +61,6 @@ int comedi_device_detach(comedi_device *dev)
 {
 	int i;
 	comedi_subdevice *s;
-	comedi_async *async;
 
 	if(!dev->attached)
 		return 0;
@@ -74,11 +73,9 @@ int comedi_device_detach(comedi_device *dev)
 
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
-		if(s->async)
-		{
-			async = s->async;
-			rvfree(async->prealloc_buf,async->prealloc_bufsz);
-			kfree(async);
+		if(s->async){
+			rvfree(s->async->prealloc_buf,s->async->prealloc_bufsz);
+			kfree(s->async);
 		}
 	}
 
@@ -356,38 +353,6 @@ void comedi_report_boards(comedi_driver *driv)
 static int poll_invalid(comedi_device *dev,comedi_subdevice *s)
 {
 	return -EINVAL;
-}
-
-/* helper functions for drivers */
-
-int di_unpack(unsigned int bits,comedi_trig *it)
-{
-	int chan;
-	int i;
-
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		it->data[i]=(bits>>chan)&1;
-	}
-
-	return i;
-}
-
-int do_pack(unsigned int *bits,comedi_trig *it)
-{
-	int chan;
-	int mask;
-	int i;
-
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		mask=1<<chan;
-		(*bits) &= ~mask;
-		if(it->data[i])
-			(*bits) |=mask;
-	}
-
-	return i;
 }
 
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)

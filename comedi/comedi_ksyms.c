@@ -45,8 +45,6 @@ EXPORT_SYMBOL(comedi_error);
 EXPORT_SYMBOL(comedi_eobuf);
 EXPORT_SYMBOL(comedi_eos);
 EXPORT_SYMBOL(comedi_event);
-EXPORT_SYMBOL(do_pack);
-EXPORT_SYMBOL(di_unpack);
 EXPORT_SYMBOL(range_bipolar10);
 EXPORT_SYMBOL(range_bipolar5);
 EXPORT_SYMBOL(range_bipolar2_5);
