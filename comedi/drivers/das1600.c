@@ -1,6 +1,6 @@
 /*
    module/das1600.c
-   hardware driver for Keithley Metrabyte DAS1600 and compatibles
+   hardware driver for Keithley Metrabyte DAS16, DAS1600 and compatibles
 
    COMEDI - Linux Control and Measurement Device Interface
    Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
@@ -65,6 +65,25 @@
 #define DAS1600_Burst_Enable    0x406	// Enable burst mode
 #define DAS1600_Burst_Status    0x407	// Burst mode status
 
+/* Some (or all?) K. M. das16/1600 boards have a bug, apparently due to the 
+ * sample/hold amplifier being slower than the a/d converter.  This causes rapid 
+ * succesive a/d conversions on different channels to return wrong values.
+ * Sampling each channel twice and discarding the first reading seems to get
+ * around this.  Define SLOW_SH_BUG to use this work-around.
+ *
+ * It is also reported to be helpful to ground any ai channels that are not in
+ * use. 
+ *
+ * Thanks to Anders Blomdell for pointing this out.*/
+
+#define SLOW_SH_BUG
+
+/* Old, 1980's vintage K. M. das16 and das16F cards do not have software
+ * adjustable input gains.  Defining NO_SOFT_RANGE will prevent the driver from
+ * attmpting to set the gain.
+ */
+
+/*#define NO_SOFT_RANGE*/
 
 static void das1600_release_resources(comedi_device * dev);
 
@@ -160,28 +179,55 @@ static comedi_lrange *range_types[] =
 static int das1600_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
   int i;
+
+#ifdef SLOW_SH_BUG
+  int j;
+#endif
+  
   for(i=0 ; i < it->n_chan ; i++) {
     int t, gain, hi, lo, chan;
 
 	if (it->mode != 0)
 		return -EINVAL;
 
-    gain = CR_RANGE(it->chanlist[i]);
-    chan = CR_CHAN(it->chanlist[i]);
-
+#ifndef NO_SOFT_RANGE 
+	gain = CR_RANGE(it->chanlist[i]);
 	outb(gain, dev->iobase + DAS1600_Gain_Control);
+#endif
+
+	chan = CR_CHAN(it->chanlist[i]);
+	
+#ifdef SLOW_SH_BUG
+	
+	for (j=0 ; j < 2 ; j++) {
+		outb(chan + (chan << 4), dev->iobase + DAS1600_Channel_Mux);
+		outb(0, dev->iobase + DAS1600_ADC_Low);
+   		for (t = 0; t < DAS1600_TIMEOUT; t++) {
+			if ((inb(dev->iobase + DAS1600_Status) & 0x80) == 0) {
+				break;
+			}
+		}
+		lo = inb(dev->iobase + DAS1600_ADC_Low);
+		hi = inb(dev->iobase + DAS1600_ADC_High);
+	}
+	
+#else
+	
 	outb(chan + (chan << 4), dev->iobase + DAS1600_Channel_Mux);
 	outb(0, dev->iobase + DAS1600_ADC_Low);
-    for (t = 0; t < DAS1600_TIMEOUT; t++) {
+	for (t = 0; t < DAS1600_TIMEOUT; t++) {
 		if ((inb(dev->iobase + DAS1600_Status) & 0x80) == 0) {
 			break;
 		}
 	}
-    if (t == DAS1600_TIMEOUT) {
-		rt_printk("das1600: timeout\n");
-	}
 	lo = inb(dev->iobase + DAS1600_ADC_Low);
-	hi = inb(dev->iobase + DAS1600_ADC_High);
+	hi = inb(dev->iobase + DAS1600_ADC_High); 
+
+#endif
+
+	if (t == DAS1600_TIMEOUT) {
+		rt_printk("das1600: timeout\n");
+	} 
 
 	switch (devpriv->card) {
 	case card_1601_12:
@@ -325,7 +371,6 @@ static int das1600_recognize(char *name)
 static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int result = 1;
-	int board = -1;
 	comedi_subdevice *s;
 
 	dev->iobase = it->options[0];
@@ -359,7 +404,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	if((result=alloc_subdevices(dev))<0)
 		return result;
 
-	devpriv->card = board;
+	devpriv->card = dev->board;
 	devpriv->dma = it->options[2];
 	devpriv->crystal = it->options[3];
 	devpriv->adc_mux = (it->options[4] == 1) ? adc_singleended : adc_diff;
@@ -370,11 +415,11 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 0;
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE|SDF_RT;
 	s->n_chan = (devpriv->adc_mux == adc_singleended) ? 16 : 8;
-	s->maxdata = (board == card_1602_16) ? 0xffff : 0xfff;
+	s->maxdata = (dev->board == card_1602_16) ? 0xffff : 0xfff;
 	s->trig[0] = das1600_ai;
-	switch (board) {
+	switch (dev->board) {
 	case card_1601_12:
 		switch (devpriv->adc_range) {
 		case adc_bipolar10:
@@ -401,7 +446,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITEABLE|SDF_RT;
 	s->n_chan = 2;
 	s->maxdata = 0xfff;
 	s->trig[0] = das1600_ao;
@@ -412,7 +457,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* di subdevice */
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE|SDF_RT;
 	s->trig[0] = das1600_di;
 	s->n_chan = 4;
 	s->maxdata = 1;
@@ -421,7 +466,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s++;
 	/* do subdevice */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITEABLE|SDF_RT;
 	s->trig[0] = das1600_do;
 	s->n_chan = 4;
 	s->maxdata = 1;
