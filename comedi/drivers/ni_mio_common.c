@@ -621,7 +621,16 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	}
 #ifndef PCIDMA
 	if(status&AI_FIFO_Half_Full_St){
-		ni_handle_fifo_half_full(dev);
+		int i;
+		static const int timeout = 10;
+		/* pcmcia cards (at least 6036) seem to stop producing interrupts if we 
+		 *fail to get the fifo less than half full, so loop to be sure.*/
+		for(i = 0; i < timeout; ++i)
+		{
+			ni_handle_fifo_half_full(dev);
+			if((win_in(AI_Status_1_Register) & AI_FIFO_Half_Full_St) == 0)
+				break;
+		}
 	}
 #endif // !PCIDMA
 
@@ -644,7 +653,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #ifdef DEBUG_INTERRUPT
 	status=win_in(AI_Status_1_Register);
 	if(status&Interrupt_A_St){
-		printk("handle_a_interrupt: BUG, didn't clear interrupt. disabling.\n");
+		printk("handle_a_interrupt: BUG, didn't clear interrupt. disabling. status=0x%x\n", status);
                 win_out(0,Interrupt_Control_Register);
 	}
 #endif
