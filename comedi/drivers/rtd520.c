@@ -1127,8 +1127,8 @@ static int rtd_ai_cmdtest (
 	cmd->convert_src !=TRIG_EXT) {
 	err++;
     }
-    if (cmd->stop_src != TRIG_TIMER &&
-	cmd->stop_src != TRIG_EXT) {
+    if (cmd->stop_src != TRIG_COUNT &&
+	cmd->stop_src != TRIG_NONE) {
 	err++;
     }
 
