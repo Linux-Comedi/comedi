@@ -57,6 +57,7 @@ endif
 ifdef RTAIDIR
 CFLAGS += -I $(TOPDIR)/include/rtai
 endif
+CFLAGS += -nostdinc -I $(shell $(CC) -print-search-dirs|grep ^install:|sed 's/^install: //')include
 
 CONFIG_SHELL := sh
 
@@ -151,6 +152,7 @@ clean:
 
 distclean:	clean
 	rm -f .depend `find . -name .depend -print`
+	rm -f .hdepend
 	rm -f core `find . \( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
