@@ -1,6 +1,4 @@
 
-define_bool CONFIG_COMEDI m
-
 comment 'Comedi Features'
 
 bool 'Trig compatibility (say yes)' CONFIG_COMEDI_TRIG
@@ -21,6 +19,12 @@ if [ "$CONFIG_RTHAL" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
 	if [ "$CONFIG_COMEDI_RT" = "y" ];then
 		define_bool CONFIG_COMEDI_RTAI y
+	fi
+fi
+if [ "$CONFIG_PRIORITY_IRQ" = "y" ];then
+	bool 'Real-time support' CONFIG_COMEDI_RT
+	if [ "$CONFIG_COMEDI_RT" = "y" ];then
+		define_bool CONFIG_COMEDI_PIRQ y
 	fi
 fi
 
