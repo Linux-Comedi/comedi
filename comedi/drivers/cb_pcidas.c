@@ -136,8 +136,8 @@ analog triggering on 1602 series
 #define   BEGIN_SCAN(x)	((x) & 0xf)
 #define   END_SCAN(x)	(((x) & 0xf) << 4)
 #define   GAIN_BITS(x)	(((x) & 0x3) << 8)
-#define   UNIP	0004000	// Analog front-end unipolar for range
-#define   SE	0002000	// Inputs in single-ended mode
+#define   UNIP	0x800	// Analog front-end unipolar for range
+#define   SE	0x400	// Inputs in single-ended mode
 #define   PACER_MASK	0x3000	// pacer source bits
 #define   PACER_INT 0x1000	// internal pacer
 #define   PACER_EXT_FALL	0x2000	// external falling edge
@@ -628,7 +628,7 @@ found:
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	/* WARNING: Number of inputs in differential mode is ignored */
 	s->n_chan = thisboard->ai_se_chans;
 	s->len_chanlist = thisboard->ai_se_chans;
@@ -676,7 +676,7 @@ found:
 	s = dev->subdevices + 3;
 	s->type = COMEDI_SUBD_MEMORY;
 	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-	s->n_chan = 128;	// XXX may have more
+	s->n_chan = 256;
 	s->maxdata = 0xff;
 	s->insn_read = eeprom_read_insn;
 
@@ -796,10 +796,7 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	// set singleended/differential
 	if(CR_AREF(insn->chanspec) != AREF_DIFF)
 		bits |= SE;
-	outw_p(bits, devpriv->control_status + ADCMUX_CONT);
-
-	/* wait for mux to settle */
-	/* I suppose I made it with outw_p... */
+	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 	/* clear fifo */
 	outw(0, devpriv->adc_fifo + ADCFIFOCLR);
