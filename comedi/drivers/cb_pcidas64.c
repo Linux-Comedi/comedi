@@ -1567,7 +1567,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	{
 		if(cmd->chanlist_len == 4)
 			private(dev)->adc_control1_bits |= FOUR_CHANNEL_4020_BITS;
-		else
+		else if(cmd->chanlist_len == 2)
 			private(dev)->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
 		private(dev)->adc_control1_bits |= LO_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[0]));
 		private(dev)->adc_control1_bits |= HI_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]));
