@@ -2619,7 +2619,6 @@ static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	ni_write_caldac(dev,CR_CHAN(insn->chanspec),data[0]);
-	devpriv->caldacs[CR_CHAN(insn->chanspec)] = data[0];
 
 	return 1;
 }
@@ -2663,7 +2662,8 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 	int n_bits;
 	int diffbits=0;
 	int type;
-	
+	int chan;
+
 	type = boardtype.caldac[0];
 	if(type==caldac_none)return;
 	n_bits=caldacs[type].n_bits;
@@ -2677,7 +2677,6 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 	s->n_chan=n_chans;
 
 	if(diffbits){
-		int chan;
 
 		if(n_chans>MAX_N_CALDACS){
 			printk("BUG! MAX_N_CALDACS too small\n");
@@ -2692,9 +2691,15 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 				chan++;
 			}
 		}
+
+		for( chan = 0; chan < s->n_chan; chan++ )
+			ni_write_caldac( dev, i, s->maxdata_list[ i ] / 2 );
 	}else{
 		type = boardtype.caldac[0];
 		s->maxdata=(1<<caldacs[type].n_bits)-1;
+
+		for( chan = 0; chan < s->n_chan; chan++ )
+			ni_write_caldac( dev, i, s->maxdata / 2 );
 	}
 }
 
@@ -2705,6 +2710,8 @@ static void ni_write_caldac(comedi_device *dev,int addr,int val)
 	int type;
 
 	//printk("ni_write_caldac: chan=%d val=%d\n",addr,val);
+	if( devpriv->caldacs[ addr ] == val ) return;
+	devpriv->caldacs[ addr ] = val;
 
 	for(i=0;i<3;i++){
 		type = boardtype.caldac[i];

@@ -480,10 +480,13 @@ static int caldac_write_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
 static int trimpot_read_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
+static int cb_pcidas_trimpot_write( comedi_device *dev,
+	unsigned int channel, lsampl_t value );
 static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
 static int dac08_read_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
+static int dac08_write( comedi_device *dev, lsampl_t value );
 static int dac08_write_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
@@ -503,6 +506,7 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 	unsigned long s5933_config, control_status, adc_fifo,
 		pacer_counter_dio, ao_registers;
 	int err;
+	int i;
 
 	printk("comedi%d: cb_pcidas: ",dev->minor);
 
@@ -677,6 +681,8 @@ found:
 	s->maxdata = 0xff;
 	s->insn_read = caldac_read_insn;
 	s->insn_write = caldac_write_insn;
+	for( i = 0; i < s->n_chan; i++ )
+		caldac_8800_write( dev, i, s->maxdata / 2 );
 
 	// trim potentiometer
 	s = dev->subdevices + 5;
@@ -693,6 +699,8 @@ found:
 	}
 	s->insn_read = trimpot_read_insn;
 	s->insn_write = trimpot_write_insn;
+	for( i = 0; i < s->n_chan; i++ )
+		cb_pcidas_trimpot_write( dev, i, s->maxdata / 2 );
 
 	// dac08 caldac
 	s = dev->subdevices + 6;
@@ -704,6 +712,7 @@ found:
 		s->insn_read = dac08_read_insn;
 		s->insn_write = dac08_write_insn;
 		s->maxdata = 0xff;
+		dac08_write( dev, s->maxdata / 2 );
 	}else
 		s->type = COMEDI_SUBD_UNUSED;
 
@@ -926,10 +935,7 @@ static int caldac_write_insn( comedi_device *dev, comedi_subdevice *s,
 {
 	const unsigned int channel = CR_CHAN( insn->chanspec );
 
-	devpriv->caldac_value[ channel ] = data[0];
-	caldac_8800_write( dev, channel, data[0] );
-
-	return 1;
+	return caldac_8800_write( dev, channel, data[0] );
 }
 
 static int caldac_read_insn( comedi_device *dev, comedi_subdevice *s,
@@ -940,15 +946,22 @@ static int caldac_read_insn( comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-// 1602/16 pregain offset
+/* 1602/16 pregain offset */
+static int dac08_write( comedi_device *dev, lsampl_t value )
+{
+	if( devpriv->dac08_value == value ) return 1;
+
+	devpriv->dac08_value = value;
+
+	outw( SELECT_DAC08_BIT | ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+
+	return 1;
+}
+
 static int dac08_write_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data )
 {
-	devpriv->dac08_value = data[0];
-
-	outw( SELECT_DAC08_BIT | ( data[0] & 0xff ), devpriv->control_status + CALIBRATION_REG );
-
-	return 1;
+	return dac08_write( dev, data[ 0 ] );
 }
 
 static int dac08_read_insn( comedi_device *dev, comedi_subdevice *s,
@@ -959,26 +972,35 @@ static int dac08_read_insn( comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
-static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data )
+static int cb_pcidas_trimpot_write( comedi_device *dev,
+	unsigned int channel, lsampl_t value )
 {
-	unsigned int channel = CR_CHAN( insn->chanspec );
+	if( devpriv->trimpot_value[ channel ] == value ) return 1;
 
-	devpriv->trimpot_value[ channel ] = data[0];
+	devpriv->trimpot_value[ channel ] = value;
 	switch( thisboard->trimpot )
 	{
 		case AD7376:
-			trimpot_7376_write( dev, data[0] );
+			trimpot_7376_write( dev, value );
 			break;
 		case AD8402:
-			trimpot_8402_write( dev, channel, data[0] );
+			trimpot_8402_write( dev, channel, value );
 			break;
 		default:
+			comedi_error( dev, "driver bug?" );
 			return -1;
 			break;
 	}
 
 	return 1;
+}
+
+static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	unsigned int channel = CR_CHAN( insn->chanspec );
+
+	return cb_pcidas_trimpot_write( dev, channel, data[ 0 ] );
 }
 
 static int trimpot_read_insn( comedi_device *dev, comedi_subdevice *s,
@@ -1724,6 +1746,10 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 		return -1;
 	}
 
+	if( value == devpriv->caldac_value[ address ] ) return 1;
+
+	devpriv->caldac_value[ address ] = value;
+
 	write_calibration_bitstream( dev, 0, bitstream, bitstream_length );
 
 	comedi_udelay(caldac_8800_comedi_udelay);
@@ -1731,7 +1757,7 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	comedi_udelay(caldac_8800_comedi_udelay);
 	outw(0, devpriv->control_status + CALIBRATION_REG);
 
-	return 0;
+	return 1;
 }
 
 static int trimpot_7376_write(comedi_device *dev, uint8_t value)
