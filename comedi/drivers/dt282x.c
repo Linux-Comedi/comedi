@@ -449,7 +449,7 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev,s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_OVERFLOW;
 		comedi_event(dev,s,s->async->events);
 		return;
 	}
@@ -488,7 +488,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 	ret = comedi_buf_write_alloc(s->async, size);
 	if(!ret){
 		rt_printk("dt282x: AI buffer overflow\n");
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_OVERFLOW;
 		comedi_event(dev,s,s->async->events);
 		return;
 	}
@@ -582,6 +582,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices+0;
+	comedi_subdevice *s_ao = dev->subdevices+1;
 	unsigned int supcsr, adcsr, dacsr;
 	sampl_t data;
 	int ret;
@@ -590,7 +591,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	if (adcsr & DT2821_ADERR) {
 		comedi_error(dev, "A/D error");
 		dt282x_ai_cancel(dev,s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev,s,s->async->events);	
 		return;
 	}
@@ -612,9 +613,9 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 #endif
 		comedi_error(dev, "D/A error");
-		dt282x_ao_cancel(dev,s);
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);	
+		dt282x_ao_cancel(dev,s_ao);
+		s->async->events |= COMEDI_CB_ERROR;
+		comedi_event(dev,s_ao,s->async->events);	
 		return;
 	}
 	if (adcsr & DT2821_ADDONE) {
@@ -625,7 +626,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 		ret = comedi_buf_put( s->async, data );
 		if(ret==0){
-			s->async->events |= COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 
 		devpriv->nread--;
