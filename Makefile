@@ -91,11 +91,11 @@ else
 	# *** Please install by hand.
 	# ***
 endif
-	install -m 755 comedi_config/comedi_config ${INSTALLDIR}/sbin
-	install -d ${INSTALLDIR}/include
-	(cd include;install -m 644 comedi.h ${INSTALLDIR}/include)
-	install man/comedi.7 ${INSTALLDIR}/man/man7
-	install man/comedi_config.8 ${INSTALLDIR}/man/man8
+#	install -m 755 comedi_config/comedi_config ${INSTALLDIR}/sbin
+#	install -d ${INSTALLDIR}/include
+#	(cd include;install -m 644 comedi.h ${INSTALLDIR}/include)
+#	install man/comedi.7 ${INSTALLDIR}/man/man7
+#	install man/comedi_config.8 ${INSTALLDIR}/man/man8
 #	install -d ${INSTALLDIR}/doc/comedi
 #	install ${DOCFILES} ${INSTALLDIR}/doc/comedi
 
