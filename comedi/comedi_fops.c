@@ -1261,7 +1261,7 @@ static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
 	return file->f_pos=new_offset;
 }
 
-static int comedi_open(struct inode *inode,struct file *file)
+static int comedi_fop_open(struct inode *inode,struct file *file)
 {
 	kdev_t minor=MINOR(inode->i_rdev);
 	comedi_device *dev;
@@ -1352,7 +1352,7 @@ static void comedi_close_v20(struct inode *inode,struct file *file)
 }
 
 #define comedi_ioctl_v20 comedi_ioctl
-#define comedi_open_v20 comedi_open
+#define comedi_open_v20 comedi_fop_open
 
 static struct file_operations comedi_fops={
 	lseek		: comedi_lseek_v20,
@@ -1368,7 +1368,7 @@ static struct file_operations comedi_fops={
 #ifdef LINUX_V22
 
 #define comedi_ioctl_v22 comedi_ioctl
-#define comedi_open_v22 comedi_open
+#define comedi_open_v22 comedi_fop_open
 
 static struct file_operations comedi_fops={
 	llseek		: comedi_lseek_v22,

@@ -67,6 +67,25 @@ static inline int minor_to_dev(unsigned int minor,comedi_device **dev)
 }
 
 
+int comedi_open(unsigned int minor)
+{
+	comedi_device *dev;
+
+	if(minor>=COMEDI_NDEVICES)
+		return -ENODEV;
+
+	dev=comedi_get_device_by_minor(minor);
+
+	if(!dev->attached)
+		return -ENODEV;
+
+	return minor;
+}
+
+void comedi_close(unsigned int minor)
+{
+}
+
 /*
    These functions are #if 0'd because they aren't appropriate
    inside RTLinux, at least, not in this form.  Interface needs
@@ -236,11 +255,13 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 
 	this function is too complicated
 */
+static int comedi_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
-	int ret=0;
+	int ret;
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
@@ -252,6 +273,68 @@ int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
 	if(s->type==COMEDI_SUBD_UNUSED)
 		return -EIO;
 	
+	if(it->mode==0)
+		return comedi_trig_ioctl_mode0(dev,s,it);
+	
+	return comedi_trig_ioctl_modeN(dev,s,it);
+}
+
+static int comedi_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+{
+	int ret=0;
+
+	/* are we locked? (ioctl lock) */
+	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
+		return -EACCES;
+
+	/* are we busy? */
+	if(s->busy)
+		return -EBUSY;
+	s->busy=(void *)&rtcomedi_lock_semaphore;
+
+	/* make sure channel/gain list isn't too long */
+	if(it->n_chan > s->len_chanlist){
+		ret = -EINVAL;
+		goto cleanup;
+	}
+	
+	/* make sure each element in channel/gain list is valid */
+	if((ret=check_chanlist(s,it->n_chan,it->chanlist))<0)
+		goto cleanup;
+	
+	if(it->data==NULL){
+		ret=-EINVAL;
+		goto cleanup;
+	}
+
+	if(!it->data_len){
+#if 0
+		ret=-EINVAL;
+		goto cleanup;
+#else
+		it->data_len=it->n_chan*it->n;
+		rt_printk("comedi: warning: trig->data_len not set\n");
+#endif
+	}
+
+	s->cur_trig=*it;
+	
+	ret=s->trig[0](dev,s,it);
+	
+	if(ret>it->n*it->n_chan){
+		rt_printk("comedi: (bug) trig returned too many samples\n");
+	}
+
+cleanup:
+	s->busy=NULL;
+
+	return ret;
+}
+
+static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+{
+	int ret=0;
+
 	/* is subdevice RT capable? (important!) */
 	if(!(s->subdev_flags&SDF_RT)){
 		ret=-EINVAL;
@@ -307,11 +390,6 @@ int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
 	ret=s->trig[it->mode](dev,s,it);
 	
 	if(ret==0)return 0;
-	if(ret<0)goto cleanup;
-
-	if(ret>it->n*it->n_chan){
-		rt_printk("comedi: (bug) trig returned too many samples\n");
-	}
 
 cleanup:
 	s->busy=NULL;

@@ -282,13 +282,39 @@ struct comedi_devconfig_struct{
 
 /* exported functions */
 
-int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it);
-int __comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it);
+/* these functions may not be called at real-time priority */
+
+int comedi_open(unsigned int minor);
+void comedi_close(unsigned int minor);
+
+/* these functions may be called at any priority, but may fail at
+   real-time priority */
+
 int comedi_lock_ioctl(unsigned int minor,unsigned int subdev);
 int comedi_unlock_ioctl(unsigned int minor,unsigned int subdev);
+
+/* these functions may be called at any priority, but you must hold
+   the lock for the subdevice */
+
 int comedi_cancel_ioctl(unsigned int minor,unsigned int subdev);
 int comedi_register_callback(unsigned int minor,unsigned int subdev,
 		unsigned int mask,int (*cb)(unsigned int,void *),void *arg);
+
+int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it);
+int __comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it);
+int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int range,unsigned int aref,lsampl_t data);
+int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int range,unsigned int aref,lsampl_t *data);
+int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int io);
+int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int *val);
+int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int val);
+int comedi_dio_bitfield(unsigned int dev,unsigned int subdev,unsigned int mask,
+	unsigned int *bits);
+
 
 #endif
 
