@@ -57,6 +57,9 @@ typedef unsigned short sampl_t;
 #define CR_RANGE(a)	(((a)>>16)&0xff)
 #define CR_AREF(a)	(((a)>>24)&0x03)
 
+#define CR_DITHER	(1<<26)
+#define CR_INVERT	(1<<31)
+
 #define AREF_GROUND	0x00		/* analog ref = analog ground */
 #define AREF_COMMON	0x01		/* analog ref = analog common */
 #define AREF_DIFF	0x02		/* analog ref = differential */
