@@ -668,7 +668,7 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT|TRIG_NONE;  
+	cmd->scan_end_src &= TRIG_COUNT;  
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
