@@ -25,6 +25,8 @@ Driver: 8255.o
 Description: generic 8255 support
 Devices: [standard] 8255 (8255)
 Author: ds
+Status: works
+Updated: Fri,  7 Jun 2002 12:56:45 -0700
 
 The classic in digital I/O.  The 8255 appears in Comedi as a single
 digital I/O subdevice with 24 channels.  The channel 0 corresponds
