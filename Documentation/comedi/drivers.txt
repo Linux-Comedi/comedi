@@ -30,12 +30,33 @@ Status works
 This driver supports AI, AO, DI and DO subdevices.
 AI subdevice support cmd, insn and mode0-4 interface,
 other subdevices support insn and mode0 interface.
+See the head of the source file adv_pci1710.c for configuration options.
 For AI:
 - If cmd->scan_begin_src=TRIG_EXT (or trigger mode4) then trigger input 
   is TGIN (pin 46).
 - If cmd->convert_src=TRIG_EXT (or trigger mode3) then trigger input 
   is EXTTRG (pin 44).
+- If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
+- It is not neccessary to have cmd.scan_end_arg=cmd.chanlist_len but 
+  cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
+- If return value of cmdtest is 5 then you've bad channel list 
+  (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
+  ranges).
+There is know problem with this driver:
+- If you use trigger mode4 (scan_begin_src=TRIG_EXT&convert_src=TRIG_TIMER)
+  then this mode sometimes discards some samples. :-((
 
+
+Driver: adv_pci1710.o
+Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, 
+             Advantech PCI-1720, PCI-1731
+Author: Michal Dobes <majkl@tesnet.cz>
+Status: works
+
+This driver supports AI, AO, DI and DO subdevices.
+AI subdevice supports cmd, insn, mode0, mode1 and mode3 interface,
+other subdevices support insn and mode0 interface.
+See the head of the source file adv_pci1710.c for configuration options.
 
 
 Driver: cb_pcidas.o

@@ -9,6 +9,12 @@ ADLink				PCI-9118DG			adl_pci9118
 ADLink				PCI-9118HG			adl_pci9118
 ADLink				PCI-9118HR			adl_pci9118
 ADLink				PET-48DIO			pcl724
+Advantech			PCI-1710			adv_pci1710
+Advantech			PCI-1710HG			adv_pci1710
+Advantech			PCI-1711			adv_pci1710
+Advantech			PCI-1713			adv_pci1710
+Advantech			PCI-1720			adv_pci1710
+Advantech			PCI-1731			adv_pci1710
 Advantech			PCL-711				pcl711
 Advantech			PCL-711B			pcl711
 Advantech			PCL-718				pcl818

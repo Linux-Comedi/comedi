@@ -158,7 +158,17 @@ CONFIG_COMEDI_ADLPCI9118
     ADLink PCI-9118DG
     ADLink PCI-9118HR
     ADLink PCI-9118HG
-  
+
+Advantech PCI-1710 and clones
+CONFIG_COMEDI_ADV_PCI1710
+  Includes support for these cards:
+     Advantech PCI-1710
+     Advantech PCI-1710HG
+     Advantech PCI-1711
+     Advantech PCI-1713
+     Advantech PCI-1720
+     Advantech PCI-1731
+     
 PCL 711 driver
 CONFIG_COMEDI_PCL711
   Includes support for PCL 711, 711b and ACL 8112.
