@@ -160,7 +160,7 @@ typedef struct{
 
 static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it);
 static int mio_cs_detach(comedi_device *dev);
-comedi_driver driver_atmio={
+comedi_driver driver_mio_cs={
 	driver_name:	"mio-cs",
 	module:		&__this_module,
 	attach:		mio_cs_attach,
@@ -171,7 +171,6 @@ comedi_driver driver_atmio={
 #include "ni_mio_common.c"
 
 
-static int init_stage2(comedi_device *dev,comedi_devconfig *it);
 static int ni_getboardtype(comedi_device *dev);
 
 /* clean up allocated resources */
@@ -350,7 +349,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 		return 0;
 	}
 
-	return init_stage2(dev,it);
+	return 0;
 }
 
 
@@ -362,6 +361,7 @@ void mio_cs_config(dev_link_t *link)
 	cisparse_t parse;
 	int manfid = 0, prodid = 0;
 	int ret;
+	comedi_device *dev;
 
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleOffset = 0;
@@ -399,41 +399,17 @@ void mio_cs_config(dev_link_t *link)
 	CardServices(RequestIRQ, handle, &link->irq);
 	CardServices(RequestConfiguration, handle, &link->conf);
 
-	printk("irq = %d\n",link->irq.AssignedIRQ);
-	printk("iobase = 0x%04x\n",link->io.BasePort1);
+	dev=comedi_allocate_dev(&driver_mio_cs);
+	dev->iobase=link->io.BasePort1;
+	dev->iosize=link->io.NumPorts1;
+	dev->irq=link->irq.AssignedIRQ;
+
+	printk("comedi%d: %s: DAQCard: io %#3lx, irq %d, ",
+		dev->minor,dev->driver->driver_name,dev->iobase,
+		dev->irq);
 	printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
-	
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY
-	
-}
 
-static int init_stage2(comedi_device *dev,comedi_devconfig *it)
-{
-	int		ret;
-	int		iobase;
-	int		board;
-	int		irq;
-
-	
-	/* reserve our I/O region */
-
-	iobase=0x200;
-	if(it->options[0])iobase=it->options[0];
-	
-	printk("comedi%d: ni_E: 0x%04x",dev->minor,iobase);
-	if(check_region(iobase,NI_SIZE)<0){
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	request_region(iobase,NI_SIZE,"ni_E");
-
-	dev->iobase=iobase;
-	dev->iosize=NI_SIZE;
-	
-	
-	/* board existence sanity check */
-	
-#ifdef DEBUG
+#if 1
        {
                int i;
 
@@ -443,17 +419,20 @@ static int init_stage2(comedi_device *dev,comedi_devconfig *it)
                }
        }
 #endif
-	
-	/* get board type */
 
+#if 0
 	board=ni_getboardtype(dev);
 	if(board<0)return -EIO;
+#else
+	dev->board=0;
+#endif
 	
+#if 0
 	printk(" %s",ni_boards[board].name);
 	dev->board_name=ni_boards[board].name;
+#endif
 
-	/* irq stuff */
-
+#if 0
 	irq=it->options[1];
 	if(irq!=0){
 		if(irq<0 || irq>15 || ni_irqpin[irq]==-1){
@@ -467,24 +446,29 @@ static int init_stage2(comedi_device *dev,comedi_devconfig *it)
 		}
 		dev->irq=irq;
 	}
+#endif
 	
+#if 0
 	/* allocate private area */
-	
 	if((ret=alloc_private(dev,sizeof(ni_private)))<0)
 		return ret;
 	
 	dev->board=board;
 
-	/* generic E series stuff in ni-E.c */
-
 	if( (ret=ni_E_init(dev,it))<0 ){
 		return ret;
 	}
-	
-	return 0;
+#endif
+
+#if 0
+	link->state &= ~DEV_CONFIG_PENDING;
+	//link->dev = &info->node;
+#endif
+
 }
 
 
+#if 0
 static int ni_getboardtype(comedi_device *dev)
 {
 	int device_id=ni_read_eeprom(dev,511);
@@ -504,6 +488,7 @@ static int ni_getboardtype(comedi_device *dev)
 	}
 	return -1;
 }
+#endif
 
 
 #ifdef MODULE
@@ -511,7 +496,7 @@ int init_module(void)
 {
 	servinfo_t serv;
 
-	comedi_driver_register(&driver_atmio);
+	comedi_driver_register(&driver_mio_cs);
 	CardServices(GetCardServicesInfo, &serv);
 	if(serv.Revision != CS_RELEASE_CODE){
 		printk(KERN_NOTICE "mio_cs: Card Services release "
@@ -529,6 +514,6 @@ void cleanup_module(void)
 	while(dev_list != NULL)
 		cs_detach(dev_list);
 #endif
-	comedi_driver_unregister(&driver_atmio);
+	comedi_driver_unregister(&driver_mio_cs);
 }
 #endif
