@@ -7,7 +7,6 @@ all:
 modules:
 	echo LINUXDIR=$(LINUXDIR) >flags
 	echo ARCH=$(ARCH) >>flags
-	echo CFLAGS="$(CFLAGS)" >>flags
 	echo AFLAGS="$(AFLAGS)" >>flags
 	echo LDFLAGS="$(LDFLAGS)" >>flags
 	echo ARFLAGS="$(ARFLAGS)" >>flags
@@ -18,6 +17,7 @@ ifneq (,$(findstring __KERNEL__,$(CC)))
 	echo CFLAGS="$(wordlist 2,100,$(CC)) $(CFLAGS)" >>flags
 	echo CC=$(word 1,$(CC)) >>flags
 else
+	echo CFLAGS="$(CFLAGS)" >>flags
 	echo CC="$(CC)" >>flags
 endif
 	echo LD="$(LD)" >>flags
