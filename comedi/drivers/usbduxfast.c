@@ -54,6 +54,7 @@ Status: testing
 #include <linux/usb.h>
 #include <linux/smp_lock.h>
 #include <linux/fcntl.h>
+#include <linux/compiler.h>
 #include "comedi_fc.h"
 #include <linux/comedidev.h>
 #include <linux/usb.h>
