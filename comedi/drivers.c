@@ -363,8 +363,6 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	if(ret<0)return ret;
 
 	if(insn->insn == INSN_READ){
-		if(!(s->subdev_flags & SDF_READABLE))
-			return -EINVAL;
 		data[0] = (new_data[1]>>chan)&1;
 	}
 
