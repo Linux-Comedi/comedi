@@ -81,7 +81,7 @@ int comedi_data_read_delayed(comedi_t *dev,unsigned int subdev,unsigned int chan
 	retval = comedi_data_read_hint( dev, subdev, chan, range, aref );
 	if( retval < 0 ) return retval;
 
-	udelay( ( nano_sec + 999 ) / 1000 );
+	comedi_udelay( ( nano_sec + 999 ) / 1000 );
 
 	return comedi_data_read( dev, subdev, chan, range, aref, data );
 }

@@ -211,7 +211,7 @@ int comedi_do_insn(comedi_t *d,comedi_insn *insn)
 				ret = -EINVAL;
 				break;
 			}
-			udelay(insn->data[0]);
+			comedi_udelay(insn->data[0]);
 			ret=1;
 			break;
 		case INSN_INTTRIG:
