@@ -330,8 +330,8 @@ static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	   cmd->scan_begin_src!=TRIG_EXT)err++;
 	if(cmd->convert_src!=TRIG_TIMER &&
 	   cmd->convert_src!=TRIG_EXT)err++;
-	if(cmd->stop_src!=TRIG_TIMER &&
-	   cmd->stop_src!=TRIG_EXT)err++;
+	if(cmd->stop_src!=TRIG_COUNT &&
+	   cmd->stop_src!=TRIG_NONE)err++;
 
 	if(err)return 2;
 
@@ -431,6 +431,12 @@ static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 static int skel_ns_to_timer(unsigned int *ns,int round)
 {
 	/* trivial timer */
+	/* if your timing is done through two cascaded timers, the
+	 * i8253_cascade_ns_to_timer() function in 8253.h can be
+	 * very helpful.  There are also i8254_load() and i8254_mm_load()
+	 * which can be used to load values into the ubiquitous 8254 counters
+	 */
+
 	return *ns;
 }
 
