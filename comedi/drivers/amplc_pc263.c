@@ -192,6 +192,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 				continue;
 			if (pci_dev->device != pci_id->device)
 				continue;
+#if 0
 			if (pci_id->subvendor != PCI_ANY_ID) {
 				if (pci_dev->subsystem_vendor != pci_id->subvendor)
 					continue;
@@ -200,6 +201,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 				if (pci_dev->subsystem_device != pci_id->subdevice)
 					continue;
 			}
+#endif
 			if (((pci_dev->class ^ pci_id->class) & pci_id->class_mask) != 0)
 				continue;
 			/* Found a match. */
