@@ -158,6 +158,8 @@ static ni_board ni_boards[]={
 
 /* How we access registers */
 
+#define ni_writel(a,b)		(outl((a),(b)+dev->iobase))
+#define ni_readl(a)		(inl((a)+dev->iobase))
 #define ni_writew(a,b)		(outw((a),(b)+dev->iobase))
 #define ni_readw(a)		(inw((a)+dev->iobase))
 #define ni_writeb(a,b)		(outb((a),(b)+dev->iobase))

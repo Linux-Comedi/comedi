@@ -26,17 +26,13 @@ Author: ds
 Devices: [National Instruments] AT-MIO-16E-1 (ni_atmio),
   AT-MIO-16E-2, AT-MIO-16E-10, AT-MIO-16DE-10, AT-MIO-64E-3,
   AT-MIO-16XE-50, AT-MIO-16XE-10, AT-AI-16XE-10
+Status: works
+Updated: Sat, 16 Mar 2002 17:34:48 -0800
 
 The isapnptools package is required to use this board.  Use isapnp to
 configure the I/O base for the board, and then pass the same value as
 a parameter in comedi_config.  A sample isapnp.conf file is included
-in the etc/ directory.
-
-Assuming that the NI spec is correct, the driver should correctly
-identify every board in the series.  Each channel should have the
-appropriate parameters, i.e., input/output ranges, number of bits,
-etc.  If the driver fails to recognize your card or does not have
-the correct parameters, please contact me.
+in the etc/ directory of Comedilib.
 
 Comedilib includes a utility to autocalibrate these boards.  The
 boards seem to boot into a state where the all calibration DACs
@@ -45,6 +41,9 @@ is terrible.  Calibration at boot is strongly encouraged.
 
 External triggering is supported for some events.  The channel index
 (scan_begin_arg, etc.) maps to PFI0 - PFI9.
+
+Some of the more esoteric triggering possibilities of these boards
+are not supported.
 */
 /*
 	The real guts of the driver is in ni_mio_common.c, which is included
@@ -246,6 +245,8 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 
 /* How we access registers */
 
+#define ni_writel(a,b)		(outl((a),(b)+dev->iobase))
+#define ni_readl(a)		(inl((a)+dev->iobase))
 #define ni_writew(a,b)		(outw((a),(b)+dev->iobase))
 #define ni_readw(a)		(inw((a)+dev->iobase))
 #define ni_writeb(a,b)		(outb((a),(b)+dev->iobase))

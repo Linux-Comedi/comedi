@@ -711,10 +711,59 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	int i,n;
 	int j;
 	unsigned int mask;
+	unsigned int dl;
 
 	mask=(1<<boardtype.adbits)-1;
 	j=s->async->cur_chan;
 	data=s->async->data+s->async->buf_int_ptr;
+	if(boardtype.reg_611x){
+	while(1){
+		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		for(i=0;i<n;i++){
+			if(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St){
+				/* Check if there's a single sample stuck in the FIFO */
+				if(ni_readb(Status_611x)&0x80){
+					dl=ni_readl(ADC_FIFO_Data_611x);
+					*data = (dl&0xffff) + devpriv->ai_xorlist[j];
+					j++;
+					if(j>=s->async->cmd.chanlist_len){
+						j=0;
+					}
+					data++;
+					s->async->buf_int_ptr+=sizeof(sampl_t);
+					s->async->buf_int_count+=sizeof(sampl_t);
+				}
+				s->async->cur_chan=j;
+				return;
+			}
+			dl=ni_readl(ADC_FIFO_Data_611x);
+
+			/* This may get the hi/lo data in the wrong order */
+			*data = (dl>>16) + devpriv->ai_xorlist[j];
+			j++;
+			if(j>=s->async->cmd.chanlist_len){
+				j=0;
+				//s->events |= COMEDI_CB_EOS;
+			}
+			data++;
+			s->async->buf_int_ptr+=sizeof(sampl_t);
+			s->async->buf_int_count+=sizeof(sampl_t);
+
+			*data = (dl&0xffff) + devpriv->ai_xorlist[j];
+			j++;
+			if(j>=s->async->cmd.chanlist_len){
+				j=0;
+				//s->events |= COMEDI_CB_EOS;
+			}
+			data++;
+			s->async->buf_int_ptr+=sizeof(sampl_t);
+			s->async->buf_int_count+=sizeof(sampl_t);
+		}
+		s->async->buf_int_ptr=0;
+		data=s->async->data;
+		s->async->events |= COMEDI_CB_EOBUF;
+	}
+	}else{
 	while(1){
 		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
@@ -737,6 +786,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		s->async->buf_int_ptr=0;
 		data=s->async->data;
 		s->async->events |= COMEDI_CB_EOBUF;
+	}
 	}
 }
 
@@ -786,10 +836,6 @@ static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	mite->chan = 0;
 	mite->dir = COMEDI_INPUT;
 	mite_prep_dma(mite);
-
-	/*tell the STC to use DMA0 for AI.
-	Select the MITE DMA channel to use, 0x01=A*/
-	ni_writeb(0x01,AI_AO_Select);
 
 	/*start the MITE*/
 	mite_dma_arm(mite);
@@ -892,17 +938,29 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	signbits=devpriv->ai_xorlist[0];
 	for(n=0;n<insn->n;n++){
 		win_out(1,AI_Command_1_Register);
-		for(i=0;i<NI_TIMEOUT;i++){
-			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St))
-				break;
+		if(boardtype.reg_611x){
+			/* The 611x has screwy 32-bit FIFOs. */
+			for(i=0;i<NI_TIMEOUT;i++){
+				if(ni_readb(Status_611x)&0x80)
+					break;
+			}
+		}else{
+			for(i=0;i<NI_TIMEOUT;i++){
+				if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St))
+					break;
+			}
 		}
 		if(i==NI_TIMEOUT){
 			rt_printk("ni_E: timeout 2\n");
 			win_restore(wsave);
 			return -ETIME;
 		}
-		d = ni_readw(ADC_FIFO_Data_Register)+signbits;
-		data[n] = d;
+		if(boardtype.reg_611x){
+			d = ni_readl(ADC_FIFO_Data_611x)&0xffff;
+		}else{
+			d = ni_readw(ADC_FIFO_Data_Register);
+		}
+		data[n] = d + signbits;
 	}
 	win_restore(wsave);
 	return insn->n;
@@ -2141,6 +2199,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
                 );
         }
 
+	/* DMA setup */
+	/* tell the STC to use DMA0 for AI, DMA1 for AO */
+	ni_writeb(0x21,AI_AO_Select);
+
+	/* PFI setup */
 	pfi_setup(dev);
 
 	printk("\n");

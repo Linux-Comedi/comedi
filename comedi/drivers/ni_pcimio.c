@@ -24,17 +24,18 @@
 Driver: ni_pcimio.o
 Description: National Instruments PCI-MIO-E series (all boards)
 Author: ds
-Status: mainly limited by Comedi infrastructure
+Status: works
 Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6040E,
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
   PCI-6110E, PCI-6111E, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733
+Updated: Sat, 16 Mar 2002 17:34:48 -0800
 
 These boards are almost identical to the AT-MIO E series, except that
-they use the PCI bus instead of ISA (i.e., AT).  See the notes above for
-ni_atmio.o for additional information about these boards.
+they use the PCI bus instead of ISA (i.e., AT).  See the notes for
+the ni_atmio.o driver for additional information about these boards.
 
 Autocalibration is supported on many of the devices, using the
 calibration utility in Comedilib.
@@ -49,10 +50,13 @@ PCI IDs are not known for PCI-6731 and PCI-6733.  Digital I/O may not
 work on 673x.
 
 Information (number of channels, bits, etc.) for some devices may be
-incorrect.
+incorrect.  Please check this and submit a bug if there are problems
+for your device.
 
 Bugs:
- - Driver doesn't stop correctly when DMA is enabled.
+ - When DMA is enabled, COMEDI_EV_SCAN_END and COMEDI_EV_CONVERT do
+   not work correctly.
+ - There are reported problems with the 61xx and 67xx boards.
 
 */
 /*
@@ -584,6 +588,8 @@ COMEDI_INITCLEANUP(driver_pcimio);
 
 /* How we access registers */
 
+#define ni_writel(a,b)		(writel((a),dev->iobase+(b)))
+#define ni_readl(a)		(readl(dev->iobase+(a)))
 #define ni_writew(a,b)		(writew((a),dev->iobase+(b)))
 #define ni_readw(a)		(readw(dev->iobase+(a)))
 #define ni_writeb(a,b)		(writeb((a),dev->iobase+(b)))
