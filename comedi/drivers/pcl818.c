@@ -1451,7 +1451,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->rtc_iobase=RTC_PORT(0);
 		devpriv->rtc_iosize=RTC_IO_EXTENT;
 		RTC_lock++;
-		if (!comedi_request_irq(RTC_IRQ, interrupt_pcl818_ai_mode13_dma_rtc, 0, "pcl818 DMA (RTC)", dev)) {
+		if (!comedi_request_irq(RTC_IRQ, interrupt_pcl818_ai_mode13_dma_rtc, SA_SHIRQ, "pcl818 DMA (RTC)", dev)) {
 			devpriv->dma_rtc=1;
 			devpriv->rtc_irq=RTC_IRQ;
 			rt_printk(", dma_irq=%d", devpriv->rtc_irq);
