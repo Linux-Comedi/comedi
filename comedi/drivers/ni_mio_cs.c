@@ -155,6 +155,8 @@ static ni_board ni_boards[]={
 
 
 typedef struct{
+	dev_link_t *link;
+
 	int dio;
 	int ao0p,ao1p;
 	int lastchan;
@@ -178,6 +180,7 @@ typedef struct{
 	unsigned short gpct_input_select0;
 	unsigned short gpct_input_select1;
 
+	unsigned int ai_n_chans;
 	unsigned int ai_chanlistptr;
 	unsigned short ai_xorlist[512];
 }ni_private;
@@ -187,7 +190,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it);
 static int mio_cs_detach(comedi_device *dev);
 comedi_driver driver_ni_mio_cs={
 	driver_name:	"ni_mio_cs",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		mio_cs_attach,
 	detach:		mio_cs_detach,
 };
@@ -196,10 +199,10 @@ comedi_driver driver_ni_mio_cs={
 #include "ni_mio_common.c"
 
 
-static int ni_getboardtype(comedi_device *dev);
+static int ni_getboardtype(comedi_device *dev,dev_link_t *link);
 
 /* clean up allocated resources */
-int atmio_E_free(comedi_device *dev)
+static int mio_cs_free(comedi_device *dev)
 {
 	if(dev->iobase)
 		release_region(dev->iobase,NI_SIZE);
@@ -213,7 +216,7 @@ int atmio_E_free(comedi_device *dev)
 /* called when driver is removed */
 static int mio_cs_detach(comedi_device *dev)
 {
-	return atmio_E_free(dev);
+	return mio_cs_free(dev);
 }
 
 void mio_cs_config(dev_link_t *link);
@@ -297,8 +300,6 @@ static void cs_detach(dev_link_t *link)
 	
 	dev_link_t **linkp;
 	
-	printk("cs_detach\n");
-	
 	for(linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 		if (*linkp == link) break;
 	if (*linkp==NULL)
@@ -334,7 +335,6 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 
 	switch(event){
 	case CS_EVENT_CARD_REMOVAL:
-printk("removal event\n");
 		link->state &= ~DEV_PRESENT;
 		if(link->state & DEV_CONFIG) {
 			link->release.expires = jiffies+HZ/20;
@@ -343,25 +343,20 @@ printk("removal event\n");
 		}
 		break;
 	case CS_EVENT_CARD_INSERTION:
-printk("insertion event\n");
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		mio_cs_config(link);
 		break;
 	case CS_EVENT_PM_SUSPEND:
-printk("suspend event\n");
 		link->state |= DEV_SUSPEND;
 		/* fall through */
 	case CS_EVENT_RESET_PHYSICAL:
-printk("physreset event\n");
 		if(link->state & DEV_CONFIG)
 			CardServices(ReleaseConfiguration, link->handle);
 		break;
 	case CS_EVENT_PM_RESUME:
-printk("resume event\n");
 		link->state &= ~DEV_SUSPEND;
 		/* fall through */
 	case CS_EVENT_CARD_RESET:
-printk("reset event\n");
 		if(DEV_OK(link))
 			CardServices(RequestConfiguration, link->handle, &link->conf);
 		break;
@@ -379,7 +374,6 @@ void mio_cs_config(dev_link_t *link)
 	cisparse_t parse;
 	int manfid = 0, prodid = 0;
 	int ret;
-	comedi_device *dev;
 	config_info_t conf;
 
 	tuple.TupleData = (cisdata_t *)buf;
@@ -389,13 +383,9 @@ void mio_cs_config(dev_link_t *link)
 	
 	tuple.DesiredTuple = CISTPL_CONFIG;
 	ret=CardServices(GetFirstTuple, handle, &tuple);
-	printk("GFT %d\n",ret);
 	ret=CardServices(GetTupleData, handle, &tuple);
-	printk("GTD %d\n",ret);
 	ret=CardServices(ParseTuple, handle, &tuple, &parse);
-	printk("PT %d\n",ret);
 	link->conf.ConfigBase = parse.config.base;
-	printk("config_base: 0x%x\n",parse.config.base);
 	link->conf.Present = parse.config.rmask[0];
 
 	link->state |= DEV_CONFIG;
@@ -415,18 +405,14 @@ void mio_cs_config(dev_link_t *link)
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
-	printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
+	//printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
 	ret=CardServices(GetFirstTuple, handle, &tuple);
-	printk("GFT %d\n",ret);
 	ret=CardServices(GetTupleData, handle, &tuple);
-	printk("GTD %d\n",ret);
 	ret=CardServices(ParseTuple, handle, &tuple, &parse);
-	printk("PT %d\n",ret);
 
-	printk("cftable:\n");
 #if 0
 	printk(" index: 0x%x\n",parse.cftable_entry.index);
 	printk(" flags: 0x%x\n",parse.cftable_entry.flags);
@@ -441,8 +427,6 @@ void mio_cs_config(dev_link_t *link)
 	printk(" subtuples: 0x%x\n",parse.cftable_entry.subtuples);
 #endif
 
-{
-	int base;
 
 #if 0
 	link->io.NumPorts1=0x20;
@@ -453,23 +437,25 @@ void mio_cs_config(dev_link_t *link)
 	link->io.IOAddrLines=parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
 	link->io.NumPorts2=0;
 
-	for(base=0x300;base<0x400;base+=0x20){
-		link->io.BasePort1=base;
-		ret=CardServices(RequestIO, handle, &link->io);
-		printk("RequestIO 0x%02x\n",ret);
-		if(!ret)break;
+	{
+		int base;
+		for(base=0x300;base<0x400;base+=0x20){
+			link->io.BasePort1=base;
+			ret=CardServices(RequestIO, handle, &link->io);
+			//printk("RequestIO 0x%02x\n",ret);
+			if(!ret)break;
+		}
 	}
-}
 
 	link->irq.IRQInfo1=parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2=parse.cftable_entry.irq.IRQInfo2;
 	ret=CardServices(RequestIRQ, handle, &link->irq);
-	printk("RequestIRQ 0x%02x\n",ret);
+	//printk("RequestIRQ 0x%02x\n",ret);
 
 	link->conf.ConfigIndex=1;
 
 	ret=CardServices(RequestConfiguration, handle, &link->conf);
-	printk("RequestConfiguration %d\n",ret);
+	//printk("RequestConfiguration %d\n",ret);
 
 	link->dev = &dev_node;
 	link->state &= ~DEV_CONFIG_PENDING;
@@ -489,7 +475,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->irq=link->irq.AssignedIRQ;
 
-	printk("comedi%d: %s: DAQCard: io %#3lx, irq %d, ",
+	printk("comedi%d: %s: DAQCard: io 0x%04x, irq %d, ",
 		dev->minor,dev->driver->driver_name,dev->iobase,
 		dev->irq);
 
@@ -510,9 +496,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 #endif
 
-	//printk("boardtype=%d\n",ni_getboardtype(dev));
-	//if(board<0)return -EIO;
-	dev->board=0;
+	dev->board=ni_getboardtype(dev,link);
 	
 	printk(" %s",ni_boards[dev->board].name);
 	dev->board_name=ni_boards[dev->board].name;
@@ -534,24 +518,40 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 }
 
 
-
-static int ni_getboardtype(comedi_device *dev)
+static int get_prodid(comedi_device *dev,dev_link_t *link)
 {
-	int device_id=ni_read_eeprom(dev,511);
+	client_handle_t handle = link->handle;
+	tuple_t tuple;
+	u_short buf[128];
+	int prodid = 0;
+
+	tuple.TupleData = (cisdata_t *)buf;
+	tuple.TupleOffset = 0;
+	tuple.TupleDataMax = 255;
+	tuple.DesiredTuple = CISTPL_MANFID;
+	tuple.Attributes = TUPLE_RETURN_COMMON;
+	if((CardServices(GetFirstTuple,handle, &tuple) == CS_SUCCESS) &&
+	   (CardServices(GetTupleData,handle,&tuple) == CS_SUCCESS)){
+		prodid = le16_to_cpu(buf[1]);
+	}
+	//printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
+	
+	return prodid;
+}
+
+static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
+{
+	int id;
 	int i;
 	
+	id = get_prodid(dev,link);
+
 	for(i=0;i<n_ni_boards;i++){
-		if(ni_boards[i].device_id==device_id){
+		if(ni_boards[i].device_id==id){
 			return i;
 		}
 	}
-	if(device_id==255){
-		printk(" can't find board\n");
-	}else if(device_id == 0){
-		printk(" EEPROM read error (?) or device not found\n");
-	}else{
-		printk(" unknown device ID %d -- contact author\n",device_id);
-	}
+
 	return -1;
 }
 

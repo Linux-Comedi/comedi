@@ -243,11 +243,9 @@ mite_dma_tcr(devpriv->mite);
 #ifdef DEBUG
 rt_printk("ni-E: SC_TC interrupt\n");
 #endif
-		if(s->cur_trig.n!=0){
-			ni_handle_fifo_dregs(dev);
-			win_out(0x0000,Interrupt_A_Enable_Register);
-			comedi_done(dev,s);
-		}
+		ni_handle_fifo_dregs(dev);
+		win_out(0x0000,Interrupt_A_Enable_Register);
+		comedi_done(dev,s);
 
 		ack|=AI_SC_TC_Interrupt_Ack;
 	}
@@ -913,6 +911,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	/* AI_START1_Pulse */
 	win_out(AI_START1_Pulse,AI_Command_2_Register);
 
+	devpriv->ai_n_chans = s->cur_trig.n_chan;
 #if 0
 	/* XXX hack alert */
 	s->cur_chan=s->cur_trig.n_chan*sizeof(sampl_t);
