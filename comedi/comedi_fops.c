@@ -1758,7 +1758,7 @@ static int __init comedi_init(void)
 		char name[20];
 		sprintf(name, "comedi%d", i);
 		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
-			COMEDI_MAJOR, i, 0660 | S_IFCHR, &comedi_fops, NULL);
+			COMEDI_MAJOR, i, 0666 | S_IFCHR, &comedi_fops, NULL);
 	}
 	
 	comedi_rt_init();
