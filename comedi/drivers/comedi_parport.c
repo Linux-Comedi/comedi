@@ -26,6 +26,7 @@ Description: Standard PC parallel port
 Author: ds
 Status: works in immediate mode
 Devices: [standard] parallel port (comedi_parport)
+Updated: Tue, 30 Apr 2002 21:11:45 -0700
 
 A cheap and easy way to get a few more digital I/O lines.  Steal
 additional parallel ports from old computers or your neighbors'
@@ -60,11 +61,11 @@ pin     subdev  chan    aka
 
 Notes:
 
-Channel 0 and 2 are output, channel 1 is input.  I know that it
-is possible to change this with ECP/EPP parallel ports, but this
-driver is a cheap hack.
+Subdevices 0 and 2 are digital output, subdevice 1 is digital
+input.  I know that it is possible to change this with ECP/EPP
+parallel ports, but this driver is a cheap hack.
 
-Pins 13 and 14 are inverted once by comedi and once by the
+Pins 13 and 14 are inverted once by Comedi and once by the
 hardware, thus cancelling the effect.
 
 Pin 1 is a strobe, thus acts like one.  There's no way in software
