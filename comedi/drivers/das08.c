@@ -780,21 +780,22 @@ static int das08_counter_write(comedi_device *dev,comedi_subdevice *s, comedi_in
 
 static int das08_counter_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-        int chan=insn->chanspec;
+	int chan=insn->chanspec;
 
 	if(insn->n != 2)return -EINVAL;
 
-        switch (data[0]){
-                case INSN_CONFIG_8254_SET_MODE:
-                        i8254_set_mode(&devpriv->i8254,chan,data[1]);
-                        break;
-                case INSN_CONFIG_8254_READ_STATUS:
-                        data[1]=i8254_read_status(&devpriv->i8254,chan);
-                        break;
-                default:
-                        return -EINVAL;
-        }
-        return 1;
+	switch (data[0]){
+	case INSN_CONFIG_8254_SET_MODE:
+		i8254_set_mode(&devpriv->i8254,chan,data[1]);
+		break;
+	case INSN_CONFIG_8254_READ_STATUS:
+		data[1]=i8254_read_status(&devpriv->i8254,chan);
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 2;
 }
 
 static int das08_attach(comedi_device *dev,comedi_devconfig *it);
