@@ -1152,7 +1152,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	const int timeout = 100;
 
 	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
-	
+
 	// disable interrupts on plx 9080 XXX
 	writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
@@ -1226,6 +1226,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			if(PIPE_FULL_BITS(bits))
 				break;
 			udelay(1);
+			if(board(dev)->layout == LAYOUT_4020) break;	// XXX
 		}
 		DEBUG_PRINT(" looped %i times waiting for data\n", i);
 		if(i == timeout)
@@ -1275,16 +1276,17 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	if(!cmd->start_src || tmp != cmd->start_src) err++;
 
 	tmp = cmd->scan_begin_src;
-	triggers = TRIG_FOLLOW;
+	triggers = TRIG_TIMER;
 	if(board(dev)->layout != LAYOUT_4020)
-		triggers |= TRIG_TIMER;
+		triggers |= TRIG_FOLLOW;;
 	cmd->scan_begin_src &= triggers;
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
-	triggers = TRIG_TIMER;
-	if(board(dev)->layout != LAYOUT_4020)
-		triggers |= TRIG_EXT;
+	if(board(dev)->layout == LAYOUT_4020)
+		triggers = TRIG_NOW;
+	else
+		triggers = TRIG_TIMER | TRIG_EXT;
 	cmd->convert_src &= triggers;
 	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
 
@@ -1421,8 +1423,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	u32 bits;
-	unsigned int convert_counter_value;
-	unsigned int scan_counter_value;
+	unsigned int convert_counter_value = 0;
+	unsigned int scan_counter_value = 0;
 	unsigned int i;
 
 	// disable card's analog input interrupt sources
@@ -1448,41 +1450,39 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew(bits, private(dev)->main_iobase + HW_CONFIG_REG);
 
 	// set conversion pacing
+	check_adc_timing(cmd);
 	if(cmd->convert_src == TRIG_TIMER)
 	{
-		check_adc_timing(cmd);
-
-		// supposed to load counter with desired divisor minus 2 or 3 depending on board
-		if(board(dev)->layout == LAYOUT_4020)
-			convert_counter_value = cmd->convert_arg / TIMER_BASE - 2;
-		else
-			convert_counter_value = cmd->convert_arg / TIMER_BASE - 3;
-		// load lower 16 bits
-		writew(convert_counter_value & 0xffff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
-		DEBUG_PRINT("convert counter 0x%x\n", convert_counter_value);
-		// load upper 8 bits
-		writew((convert_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+		// supposed to load counter with desired divisor minus 3
+		convert_counter_value = cmd->convert_arg / TIMER_BASE - 3;
 
 		// set scan pacing
-		if(board(dev)->layout != LAYOUT_4020)
+		if(cmd->scan_begin_src == TRIG_TIMER)
 		{
-			scan_counter_value = 0;
-			if(cmd->scan_begin_src == TRIG_TIMER)
-			{
-				// figure out how long we need to delay at end of scan
-				scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * (cmd->chanlist_len - 1)))
-					/ TIMER_BASE;
-			}else if(cmd->scan_begin_src == TRIG_FOLLOW)
-			{
-				scan_counter_value = cmd->convert_arg / TIMER_BASE;
-			}
-			// load lower 16 bits
-			writew(scan_counter_value & 0xffff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
-			// load upper 8 bits
-			writew((scan_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
-			DEBUG_PRINT("scan counter 0x%x\n", scan_counter_value);
+			// figure out how long we need to delay at end of scan
+			scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * (cmd->chanlist_len - 1)))
+				/ TIMER_BASE;
+		}else if(cmd->scan_begin_src == TRIG_FOLLOW)
+		{
+			scan_counter_value = cmd->convert_arg / TIMER_BASE;
 		}
+	// 4020 pacing
+	}else if(cmd->convert_src == TRIG_NOW && cmd->scan_begin_src == TRIG_TIMER)
+	{
+		// supposed to load counter with desired divisor minus 2 for 4020
+		convert_counter_value = cmd->scan_begin_arg / TIMER_BASE - 2;
+		scan_counter_value = 0;
 	}
+	// load lower 16 bits if convert interval
+	writew(convert_counter_value & 0xffff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
+	DEBUG_PRINT("convert counter 0x%x\n", convert_counter_value);
+	// load upper 8 bits of convert interval
+	writew((convert_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+	// load lower 16 bits of scan delay
+	writew(scan_counter_value & 0xffff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
+	// load upper 8 bits of scan delay
+	writew((scan_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
+	DEBUG_PRINT("scan counter 0x%x\n", scan_counter_value);
 
 	// load hardware conversion counter with non-zero value so it doesn't mess with us
 	writew(1, private(dev)->main_iobase + ADC_COUNT_LOWER_REG);
@@ -1515,7 +1515,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 				bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
 			writew(bits, private(dev)->main_iobase + ADC_QUEUE_FIFO_REG);
 		}
-
 		// prime queue holding register
 		writew(0, private(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 	}
@@ -1538,7 +1537,12 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		private(dev)->intr_enable_bits |= EN_ADC_STOP_INTR_BIT;
 	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
 	if(cmd->flags & TRIG_WAKE_EOS)
-		private(dev)->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
+	{
+		if(board(dev)->layout == LAYOUT_4020)
+			private(dev)->intr_enable_bits |= EN_ADC_INTR_SRC_BIT;	// XXX
+		else
+			private(dev)->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
+	}
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 	DEBUG_PRINT("intr enable bits 0x%x\n", private(dev)->intr_enable_bits);
 
@@ -1627,8 +1631,6 @@ static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
 		fifo_data = readl(private(dev)->dio_counter_iobase);
 		comedi_buf_put(async, fifo_data & 0xffff);
 		comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
-		DEBUG_PRINT(" rptr 0x%i wptr 0x%x\n", readw(private(dev)->main_iobase + ADC_READ_PNTR_REG),
-			readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG));
 	}
 }
 
@@ -2061,10 +2063,11 @@ static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
  */
 static void check_adc_timing(comedi_cmd *cmd)
 {
-	unsigned int convert_divisor, scan_divisor;
-	const int max_counter_value = 0xffffff;	// board uses 24 bit counters for pacing
-	const int min_convert_divisor = 3;
-	const int max_convert_divisor = max_counter_value + min_convert_divisor;
+	unsigned int convert_divisor = 0, scan_divisor;
+	static const int max_counter_value = 0xffffff;	// board uses 24 bit counters for pacing
+	static const int min_convert_divisor = 3;
+	static const int max_convert_divisor = max_counter_value + min_convert_divisor;
+	static const int min_scan_divisor_4020 = 2;
 	unsigned long long max_scan_divisor, min_scan_divisor;
 
 	if(cmd->convert_src == TRIG_TIMER)
@@ -2073,17 +2076,26 @@ static void check_adc_timing(comedi_cmd *cmd)
 		if(convert_divisor > max_convert_divisor) convert_divisor = max_convert_divisor;
 		if(convert_divisor < min_convert_divisor) convert_divisor = min_convert_divisor;
 		cmd->convert_arg = convert_divisor * TIMER_BASE;
+	}else if(cmd->convert_src == TRIG_NOW)
+		cmd->convert_arg = 0;
 
-		if(cmd->scan_begin_src == TRIG_TIMER)
+
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
+		if(cmd->convert_src == TRIG_TIMER)
 		{
-			scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
 			// XXX check for integer overflows
 			min_scan_divisor = convert_divisor * cmd->chanlist_len;
 			max_scan_divisor = (convert_divisor * cmd->chanlist_len - 1) + max_counter_value;
-			if(scan_divisor > max_scan_divisor) scan_divisor = max_scan_divisor;
-			if(scan_divisor < min_scan_divisor) scan_divisor = min_scan_divisor;
-			cmd->scan_begin_arg = scan_divisor * TIMER_BASE;
+		}else
+		{
+			min_scan_divisor = min_scan_divisor_4020;
+			max_scan_divisor = max_counter_value + min_scan_divisor;
 		}
+		if(scan_divisor > max_scan_divisor) scan_divisor = max_scan_divisor;
+		if(scan_divisor < min_scan_divisor) scan_divisor = min_scan_divisor;
+		cmd->scan_begin_arg = scan_divisor * TIMER_BASE;
 	}
 
 	return;
