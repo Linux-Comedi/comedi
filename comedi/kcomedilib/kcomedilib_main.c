@@ -46,8 +46,6 @@ MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 
 
-static spinlock_t lock_spinlock;
-
 
 comedi_t *comedi_open(const char *filename)
 {
@@ -238,7 +236,7 @@ int comedi_do_insn(comedi_t *d,comedi_insn *insn)
 			ret = -EBUSY;
 			goto error;
 		}
-		s->busy = (void *)&rtcomedi_lock_semaphore;
+		s->busy = d;
 
 		switch(insn->insn){
 			case INSN_READ:
@@ -297,7 +295,7 @@ int comedi_lock(comedi_t *d,unsigned int subdevice)
 	unsigned long flags;
 	int ret=0;
 
-	comedi_spin_lock_irqsave(&lock_spinlock,flags);
+	comedi_spin_lock_irqsave(&big_comedi_lock,flags);
 	
 	if(s->busy){
 		ret = -EBUSY;
@@ -306,11 +304,11 @@ int comedi_lock(comedi_t *d,unsigned int subdevice)
 			ret = -EACCES;
 		}else{
 			__MOD_INC_USE_COUNT(dev->driver->module);
-			s->lock=(void *)&rtcomedi_lock_semaphore;
+			s->lock = d;
 		}
 	}
 
-	comedi_spin_unlock_irqrestore(&lock_spinlock,flags);
+	comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
 	
 	return ret;
 }
@@ -339,15 +337,15 @@ int comedi_unlock(comedi_t *d,unsigned int subdevice)
 
 	async = s->async;
 
-	comedi_spin_lock_irqsave(&lock_spinlock,flags);
+	comedi_spin_lock_irqsave(&big_comedi_lock,flags);
 
 	if(s->busy){
-		comedi_spin_unlock_irqrestore(&lock_spinlock,flags);
+		comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
 		return -EBUSY;
 	}
 
 	if(s->lock && s->lock!=(void *)d){
-		comedi_spin_unlock_irqrestore(&lock_spinlock,flags);
+		comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
 		return -EACCES;
 	}
 
@@ -360,7 +358,7 @@ int comedi_unlock(comedi_t *d,unsigned int subdevice)
 	}
 	__MOD_DEC_USE_COUNT(dev->driver->module);
 
-	comedi_spin_unlock_irqrestore(&lock_spinlock,flags);
+	comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
 
 	return 0;
 }

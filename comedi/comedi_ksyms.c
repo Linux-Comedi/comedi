@@ -61,7 +61,7 @@ EXPORT_SYMBOL(rt_pend_call);
 
 /* for kcomedilib */
 EXPORT_SYMBOL(comedi_devices);
-EXPORT_SYMBOL(rtcomedi_lock_semaphore);
+EXPORT_SYMBOL(big_comedi_lock);
 EXPORT_SYMBOL(check_chanlist);
 
 #endif

@@ -54,6 +54,7 @@ MODULE_LICENSE("GPL");
 #endif
 
 comedi_device *comedi_devices;
+spinlock_t big_comedi_lock = SPIN_LOCK_UNLOCKED;
 
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor);
 static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
@@ -1010,26 +1011,12 @@ cleanup:
 	writes:
 		none
 
-	non-RT linux always controls rtcomedi_lock_semaphore.  If an
-	RT-linux process wants the lock, it first checks rtcomedi_lock_semaphore.
-	If it is 1, it knows it is pre-empting this function, and fails.
-	Obviously, if RT-linux fails to get a lock, it *must* allow
-	linux to run, since that is the only way to free the lock.
-
-	This function is not SMP compatible.
-
-	necessary locking:
-	- ioctl/rt lock  (this type)
-	- lock while subdevice busy
-	- lock while subdevice being programmed
-
 */
-
-volatile int rtcomedi_lock_semaphore=0;
 
 static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 {
 	int ret=0;
+	unsigned long flags;
 	comedi_subdevice *s;
 
 	if(arg>=dev->n_subdevices)
@@ -1039,7 +1026,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 	if(s->busy)
 		return -EBUSY;
 
-	rtcomedi_lock_semaphore=1;
+	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
 
 	if(s->lock && s->lock!=file){
 		ret=-EACCES;
@@ -1047,7 +1034,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 		s->lock=file;
 	}
 
-	rtcomedi_lock_semaphore=0;
+	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
 
 	if(ret<0)
 		return ret;

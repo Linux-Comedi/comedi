@@ -214,6 +214,7 @@ struct comedi_device_struct{
 
 
 extern comedi_device *comedi_devices;
+extern spinlock_t big_comedi_lock;
 
 /*
  * function prototypes
@@ -269,8 +270,6 @@ static inline void comedi_proc_cleanup(void) {}
 
 int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg);
 int check_chanlist(comedi_subdevice *s,int n,unsigned int *chanlist);
-
-extern volatile int rtcomedi_lock_semaphore;
 
 /* range stuff */
 
