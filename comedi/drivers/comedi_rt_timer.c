@@ -80,8 +80,6 @@ static void timer_interrupt(void)
 {
 	comedi_device *dev=broken_rt_dev;
 
-	//comedi_done(dev,dev->subdevices+0);
-
 	comedi_unlock(devpriv->device,devpriv->subd);
 }
 
@@ -127,6 +125,8 @@ static void timer_ai_task_func(int d)
 	int i,n,ret;
 	lsampl_t data;
 
+	s->async->events = 0;
+
 	for(n=0;n<cmd->stop_arg;n++){
 		for(i=0;i<cmd->scan_end_arg;i++){
 			ret = comedi_data_read(devpriv->device,devpriv->subd,
@@ -149,9 +149,7 @@ static void timer_ai_task_func(int d)
 		rt_task_wait_period();
 #endif
 	}
-	s->async->events |= COMEDI_CB_EOA;
-	comedi_event(dev,s,s->async->events);
-	s->async->events = 0;
+	comedi_done(dev,s);
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(devpriv->soft_irq);
 #endif
@@ -175,6 +173,8 @@ static void timer_ao_task_func(int d)
 
 	if(cmd->stop_src == TRIG_NONE)
 		ao_repeat_flag = 1;
+
+	s->async->events = 0;
 
 	do{
 		for(n=0;n<cmd->stop_arg;n++){
@@ -203,9 +203,7 @@ static void timer_ao_task_func(int d)
 #endif
 		}
 	}while(ao_repeat_flag);
-	s->async->events |= COMEDI_CB_EOA;
-	comedi_event(dev,s,s->async->events);
-	s->async->events = 0;
+	comedi_done(dev,s);
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(devpriv->soft_irq);
 #endif
@@ -303,38 +301,48 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret;
-	RTIME now,period;
-	struct timespec ts;
+	RTIME now,period,delay;
 	comedi_cmd *cmd = &s->async->cmd;
-
-	s->async->events = 0;
 
 	/* hack attack: drivers are not supposed to do this: */
 	dev->rt = 1;
 
-	ret=comedi_lock(devpriv->device,devpriv->subd);
-	if(ret<0)return ret;
-
-	ts.tv_sec=0;
-	ts.tv_nsec=cmd->scan_begin_arg;
+	ret = comedi_lock(devpriv->device,devpriv->subd);
+	if(ret<0)
+	{
+		comedi_error(dev, "failed to obtain lock");
+		return ret;
+	}
 
 #ifdef CONFIG_COMEDI_RTL
 	period=HRT_TO_8254(cmd->scan_begin_arg);
+	delay=HRT_TO_8254(cmd->start_arg);
 	if(s == dev->read_subdev)
-			rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,1);
 	else
-		rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,4);
+		ret = rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,1);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
+	delay = nano2count(cmd->start_arg);
 	if(s == dev->read_subdev)
-		rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
+		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
 	else
-		rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,0,0,0);
+		ret = rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,0,0,0);
 #endif
+	if(ret < 0)
+	{
+		comedi_error(dev, "error initalizing task");
+		return ret;
+	}
 
 	now=rt_get_time();
-	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
+	ret = rt_task_make_periodic(&devpriv->rt_task,now+delay,period);
+	if(ret < 0)
+	{
+		comedi_error(dev, "error starting task");
+		return ret;
+	}
 
 	return 0;
 }
@@ -424,6 +432,10 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 #ifdef CONFIG_COMEDI_RTAI
 	devpriv->soft_irq=rt_request_srq(0,timer_interrupt,NULL);
 #endif
+	if(devpriv->soft_irq < 0)
+	{
+		return devpriv->soft_irq;
+	}
 	broken_rt_dev=dev;
 
 	printk("\n");
@@ -431,19 +443,24 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	return 1;
 }
 
-
+// free allocated resources
 static int timer_detach(comedi_device *dev)
 {
 	printk("comedi%d: timer: remove\n",dev->minor);
-	
+
+	// make sure dev->private was sucessfully allocated
+	if(devpriv)
+	{
+		if(devpriv->soft_irq > 0)
+		{
 #ifdef CONFIG_COMEDI_RTL
-	if(devpriv->soft_irq)
-		free_irq(devpriv->soft_irq,NULL);
+			rtl_free_soft_irq(devpriv->soft_irq);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-	if(devpriv->soft_irq)
-		rt_free_srq(devpriv->soft_irq);
+			rt_free_srq(devpriv->soft_irq);
 #endif
+		}
+	}
 
 	return 0;
 }
