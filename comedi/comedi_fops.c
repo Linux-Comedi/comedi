@@ -612,22 +612,33 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 			ret=1;
 			break;
 		case INSN_INTTRIG:
+			if(insn->n!=1){
+				ret=-EINVAL;
+				break;
+			}
 			if(insn->subdev>=dev->n_subdevices){
-				DPRINTK("%d not useable subdevice\n",insn->subdev);
+				DPRINTK("%d not usable subdevice\n",insn->subdev);
 				ret=-EINVAL;
 				break;
 			}
 			s=dev->subdevices+insn->subdev;
-			if(!s->async || !s->async->inttrig){
-				DPRINTK("no async or no inttrig\n");
+			if(!s->async){
+				DPRINTK("no async\n");
 				ret=-EINVAL;
 				break;
 			}
-			ret = s->async->inttrig(dev,s,0);
+			if(!s->async->inttrig){
+				DPRINTK("no inttrig\n");
+				ret=-EAGAIN;
+				break;
+			}
+			ret = s->async->inttrig(dev,s,insn->data[0]);
+			if(ret>=0)ret = 1;
 			break;
 		default:
 			DPRINTK("invalid insn\n");
 			ret=-EINVAL;
+			break;
 		}
 	}else{
 		/* a subdevice instruction */
@@ -638,7 +649,7 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 		s=dev->subdevices+insn->subdev;
 
 		if(s->type==COMEDI_SUBD_UNUSED){
-			DPRINTK("%d not useable subdevice\n",insn->subdev);
+			DPRINTK("%d not usable subdevice\n",insn->subdev);
 			ret = -EIO;
 			goto out;
 		}
