@@ -2116,14 +2116,14 @@ static void disable_ai_pacing( comedi_device *dev )
 
 	disable_ai_interrupts( dev );
 
-	/* disable pacing, triggering, etc */
-	writew( ADC_ENABLE_BIT | ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
-		priv(dev)->main_iobase + ADC_CONTROL0_REG );
-
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	priv(dev)->adc_control1_bits &= ~SW_GATE_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
+	/* disable pacing, triggering, etc */
+	writew( ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
+		priv(dev)->main_iobase + ADC_CONTROL0_REG );
 }
 
 static void disable_ai_interrupts( comedi_device *dev )
@@ -2375,6 +2375,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	unsigned long flags;
 
 	disable_ai_pacing( dev );
+
+	/* adc must be enabled or loading of channel queue becomes
+	 * unreliable */
+	writew( ADC_ENABLE_BIT | ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS |
+		ADC_GATE_LEVEL_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG );
 
 	// make sure internal calibration source is turned off
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
