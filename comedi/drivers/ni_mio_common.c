@@ -1518,6 +1518,18 @@ static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	return it->n_chan;
 }
 
+static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		win_out(s->state,DIO_Output_Register);
+	}
+	data[1] = win_in(DIO_Input_Register);
+
+	return 2;
+}
 
 /*
 	HACK! 
@@ -1621,6 +1633,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->range_table=&range_digital;
 	s->io_bits=0;		/* all bits input */
+	s->insn_read=ni_dio_insn_bits;
 	s->trig[0]=ni_dio;
 
 	/* dio setup */

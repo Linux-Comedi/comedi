@@ -1197,6 +1197,20 @@ static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
+static int dt282x_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+
+		outw(s->state, dev->iobase + DT2821_DIODAT);
+	}
+	data[1] = inw(dev->iobase + DT2821_DIODAT);
+
+	return 2;
+}
+
 static int dt282x_dio(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	if(it->flags&TRIG_CONFIG){
@@ -1434,6 +1448,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->n_chan=16;
 	s->trig[0]=dt282x_dio;
+	s->insn_bits = dt282x_dio_insn_bits;
 	s->maxdata=1;
 	s->range_table = &range_digital;
 

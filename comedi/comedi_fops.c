@@ -687,6 +687,9 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 				case INSN_WRITE:
 					ret=s->insn_write(dev,s,&insn,data);
 					break;
+				case INSN_BITS:
+					ret=s->insn_bits(dev,s,&insn,data);
+					break;
 				default:
 					ret=-EINVAL;
 					break;

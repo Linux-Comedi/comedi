@@ -81,7 +81,29 @@ static int subdev_8255_cb(int dir,int port,int data,void *arg)
 	}
 }
 
-int subdev_8255_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int subdev_8255_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		
+		if(data[0]&0xff)
+			CALLBACK_FUNC(1,_8255_DATA,s->state&0xff,CALLBACK_ARG);
+		if(data[0]&0xff00)
+			CALLBACK_FUNC(1,_8255_DATA+1,(s->state>>8)&0xff,CALLBACK_ARG);
+		if(data[0]&0xff0000)
+			CALLBACK_FUNC(1,_8255_DATA+2,(s->state>>16)&0xff,CALLBACK_ARG);
+	}
+
+	data[1]=CALLBACK_FUNC(0,_8255_DATA,0,CALLBACK_ARG);
+	data[1]|=(CALLBACK_FUNC(0,_8255_DATA+1,0,CALLBACK_ARG)<<8);
+	data[1]|=(CALLBACK_FUNC(0,_8255_DATA+2,0,CALLBACK_ARG)<<16);
+
+	return 2;
+}
+
+static int subdev_8255_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int mask,data_in;
 	int i;
@@ -162,6 +184,7 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 		CALLBACK_FUNC=cb;
 	}
 	s->trig[0]=subdev_8255_dio;
+	s->insn_bits = subdev_8255_insn;
 
 	s->state=0;
 	s->io_bits=0;
@@ -242,16 +265,5 @@ static int dev_8255_detach(comedi_device *dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_8255);
-	
-	return 0;
-}
+COMEDI_INITCLEANUP(driver_8255);
 
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_8255);
-}
-#endif

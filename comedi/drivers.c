@@ -172,6 +172,8 @@ comedi_device *comedi_allocate_dev(comedi_driver *driver)
 {
 	comedi_device *dev;
 
+	// XXX we need to do actual allocation here.
+	
 	dev=comedi_get_device_by_minor(0);
 
 	dev->driver=driver;
@@ -239,6 +241,9 @@ static void postconfig(comedi_device *dev)
 			}else{
 				s->insn_write=insn_inval;
 			}
+		}
+		if(!s->insn_bits){
+			s->insn_bits = insn_inval;
 		}
 
 		if(!s->trig[0]){
@@ -331,6 +336,7 @@ static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn
 
 	return -EINVAL;
 }
+
 
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
 {
