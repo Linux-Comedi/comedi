@@ -40,8 +40,8 @@ AS_LINUX_MODTOOL()
 DS_RTAI([USE_RTAI=yes],[USE_RTAI=no])
 DS_RTLINUX([USE_RTLINUX=yes],[USE_RTLINUX=no])
 AM_CONDITIONAL([CONFIG_COMEDI_RT],
-	[test ${USE_RTAI} == "yes" -o ${USE_RTLINUX} == "yes"])
-if test ${USE_RTAI} == "yes" -o ${USE_RTLINUX} == "yes" ; then
+	[test ${USE_RTAI} = "yes" -o ${USE_RTLINUX} = "yes"])
+if test ${USE_RTAI} = "yes" -o ${USE_RTLINUX} = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_RT],[true],[Define to enable Comedi's real-time support])
 fi
 
@@ -54,8 +54,18 @@ CC=$LINUX_CC
 AC_SUBST(COMEDI_CFLAGS)
 
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
-	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="yes"])
-if test "$ENABLE_PCMCIA" == "yes" ; then
+	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="probe"])
+if test "$ENABLE_PCMCIA" = "probe" ; then
+	if test "x$(echo "$LINUX_KERNELRELEASE" | grep '^2.6')" != x ; then
+		AC_MSG_NOTICE([Disabling PCMCIA drivers because they haven't been ported to Linux-2.6])
+		ENABLE_PCMCIA=no
+	else
+		AC_MSG_NOTICE([moo])
+		ENABLE_PCMCIA=yes
+	fi
+
+fi
+if test "$ENABLE_PCMCIA" = "yes" ; then
 	AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
 else
 	AC_MSG_NOTICE([PCMCIA support disabled])
