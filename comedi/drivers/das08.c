@@ -205,7 +205,9 @@ static int das08_ai(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 #endif
 
 	/* set multiplexer */
-	outb_p(chan | devpriv->dio,dev->iobase+STATUS_REG);
+	devpriv->dio &= ~0xf;
+	devpriv->dio |= chan;
+	outb_p(devpriv->dio,dev->iobase+STATUS_REG);
 
 	/* XXX do we have to wait for MUX to settle?  how long? */
 	
@@ -263,7 +265,9 @@ static int das08_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	do_pack(&s->state,it);
 	
-	outb_p(s->state<<4,dev->iobase+STATUS_REG);
+	devpriv->dio &= ~0xf0;
+	devpriv->dio |= s->state << 4;
+	outb_p(devpriv->dio,dev->iobase+STATUS_REG);
 
 	return it->n_chan;
 }
