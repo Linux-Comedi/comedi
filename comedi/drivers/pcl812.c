@@ -453,6 +453,7 @@ static void interrupt_pcl812(int irq, void *d, struct pt_regs *regs)
    ANALOG INPUT MODE 1, 812pg card
    interrupt pacer pooling
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl812_ai_mode1_int(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	int timer1,timer2;
@@ -491,11 +492,13 @@ static int pcl812_ai_mode1_int(comedi_device * dev, comedi_subdevice * s, comedi
 
 	return 0;
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1, 812pg card
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl812_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 
@@ -528,11 +531,13 @@ static int pcl812_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 #endif
 	return pcl812_ai_mode1_int(dev, s, it);	/* no, we can only int driven */
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 3, 812pg card
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl812_ai_mode3_int(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 
@@ -555,6 +560,7 @@ static int pcl812_ai_mode3_int(comedi_device * dev, comedi_subdevice * s, comedi
 
 	return 0;
 }
+#endif
 
 /* 
 ==============================================================================
@@ -748,6 +754,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		if(this_board->is_812pg){
 			if (it->options[3] == 1)
 				s->range_table = &range_pcl812pg2_ai;
+#ifdef CONFIG_COMEDI_TRIG
 			if (dev->irq) {
 				if (it->options[2] != 1) {
 					s->trig[1] = pcl812_ai_mode1;
@@ -755,6 +762,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 					s->trig[3] = pcl812_ai_mode3_int;
 				}
 			}
+#endif
 		}else{
 			if (it->options[1] == 1)
 				s->range_table = &range_pcl813b2_ai;

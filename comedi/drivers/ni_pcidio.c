@@ -303,6 +303,7 @@ static int ni_pcidio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
+#ifdef CONFIG_COMEDI_TRIG
 static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int i;
@@ -381,6 +382,7 @@ static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *i
 
 	return 0;
 }
+#endif
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -426,7 +428,9 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
+#ifdef CONFIG_COMEDI_TRIG
 		s->trig[2]=nidio_dio_mode2;
+#endif
 		s->insn_config = ni_pcidio_insn_config;
 		s->insn_bits = ni_pcidio_insn_bits;
 		s->len_chanlist=32;		/* XXX */

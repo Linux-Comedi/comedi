@@ -271,6 +271,7 @@ ok:
 	return n;
 }
 
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl711_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	if (!this_board->is_pcl711b || dev->irq == 0)
@@ -285,8 +286,10 @@ static int pcl711_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_tri
 
 	return 0;
 }
+#endif
 
 
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	int timer1,timer2;
@@ -325,6 +328,7 @@ static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 
 	return 0;
 }
+#endif
 
 /*
    analog output
@@ -460,8 +464,10 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->len_chanlist = 1;
 	s->range_table = this_board->ai_range_type;
 	s->insn_read = pcl711_ai_insn;
+#ifdef CONFIG_COMEDI_TRIG
 	s->trig[1] = pcl711_ai_mode1;
 	s->trig[4] = pcl711_ai_mode4;
+#endif
 
 	s++;
 	/* AO subdevice */

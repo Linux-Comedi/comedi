@@ -792,6 +792,7 @@ static void interrupt_pcl818(int irq, void *d, struct pt_regs *regs)
 ==============================================================================
    ANALOG INPUT MODE 1 or 3 DMA , 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         unsigned int flags;
@@ -824,11 +825,13 @@ void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s
 		outb(0x86 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Ext trig+IRQ+DMA */ 
         };
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1 or 3 DMA rtc, 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         unsigned int flags;
@@ -860,11 +863,13 @@ void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev, comedi_subdevice * s
 		outb(0x06 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Ext trig+DMA */ 
     };
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1 or 3, 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         int divisor1, divisor2;
@@ -946,30 +951,36 @@ static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
        
 	return 0;
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1, 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ai_mode13(1, dev, s, it);
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 3, 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ai_mode3(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ai_mode13(3, dev, s, it);
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG OUTPUT MODE 1 or 3, 818 cards
 */
 #ifdef PCL818_MODE13_AO
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         int divisor1, divisor2;
@@ -1018,24 +1029,29 @@ static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 
         return 0;
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG OUTPUT MODE 1, 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ao_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ao_mode13(1, dev, s, it);
 }
+#endif
 
 /* 
 ==============================================================================
    ANALOG OUTPUT MODE 3, 818 cards
 */
+#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ao_mode3(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ao_mode13(3, dev, s, it);
 }
+#endif
 #endif
 
 /*
@@ -1507,10 +1523,12 @@ no_dma:
 		s->range_table = this_board->ai_range_type;
 		s->cancel=pcl818_ai_cancel;
 		s->insn_read = pcl818_ai_insn_read;
+#ifdef CONFIG_COMEDI_TRIG
 		if ((irq)||(devpriv->dma_rtc)) {
 			s->trig[1] = pcl818_ai_mode1;
 			s->trig[3] = pcl818_ai_mode3;
 		} 
+#endif
 		if(this_board->is_818){
 			if ((it->options[4]==1)||(it->options[4]==10)) 
 				s->range_table=&range_pcl818l_h_ai; // secondary range list jumper selectable
@@ -1542,11 +1560,13 @@ no_dma:
 		s->range_table = this_board->ao_range_type;
 		s->insn_read = pcl818_ao_insn_read;
 		s->insn_write = pcl818_ao_insn_write;
+#ifdef CONFIG_COMEDI_TRIG
 #ifdef PCL818_MODE13_AO
 		if (irq) {
 		        s->trig[1] = pcl818_ao_mode1;
 			s->trig[3] = pcl818_ao_mode3;
 		} 
+#endif
 #endif
 		if(this_board->is_818){
 			if ((it->options[4]==1)||(it->options[4]==10)) 
