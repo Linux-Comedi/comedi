@@ -94,20 +94,20 @@ static comedi_lrange range_ni_E_ai_limited={	8, {
 	RANGE( 0,	0.2	),
 }};
 static comedi_lrange range_ni_E_ai_limited14={	14, {
+	RANGE( -10,	10	),
 	RANGE( -5,	5	),
-	RANGE( -2.5,	2.5	),
+	RANGE( -2,	2	),
 	RANGE( -1,	1	),
 	RANGE( -0.5,	0.5	),
-	RANGE( -0.25,	0.25	),
+	RANGE( -0.2,	0.2	),
 	RANGE( -0.1,	0.1	),
-	RANGE( -0.05,	0.05	),
+	RANGE( 0,	10	),
 	RANGE( 0,	5	),
-	RANGE( 0,	2.5	),
+	RANGE( 0,	2	),
 	RANGE( 0,	1	),
 	RANGE( 0,	0.5	),
-	RANGE( 0,	0.25	),
+	RANGE( 0,	0.2	),
 	RANGE( 0,	0.1	),
-	RANGE( 0,	0.05	),
 }};
 static comedi_lrange range_ni_E_ai_limited_602x={ 8, {
 	RANGE( -10,	10	),

@@ -224,6 +224,8 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 
 #define IRQ_POLARITY 0
 
+#define NI_E_IRQ_FLAGS		0
+
 
 /* How we access registers */
 

@@ -503,8 +503,6 @@ static ni_board ni_boards[];
 
 #define boardtype ni_boards[dev->board]
 
-#define NI_E_IRQ_FLAGS		0
-
 
 
 #endif /* _COMEDI_NI_STC_H */

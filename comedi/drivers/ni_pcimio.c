@@ -374,6 +374,8 @@ comedi_driver driver_pcimio={
 #define interrupt_pin(a)	0
 #define IRQ_POLARITY 1
 
+#define NI_E_IRQ_FLAGS		SA_SHIRQ
+
 
 typedef struct{
 	int dio;

@@ -131,6 +131,8 @@ static ni_board ni_boards[]={
 
 #define IRQ_POLARITY 1
 
+#define NI_E_IRQ_FLAGS		SA_SHIRQ
+
 
 /* How we access registers */
 
