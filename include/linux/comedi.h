@@ -214,6 +214,9 @@ typedef unsigned short sampl_t;
 //#define INSN_CONFIG_TRIG		0x12
 //#define INSN_CONFIG_COUNTER		0x13
 #define INSN_CONFIG_ALT_SOURCE		0x14
+#define INSN_CONFIG_DIGITAL_TRIG		0x15
+// flags for INSN_CONFIG_DIGITAL_TRIG
+#define  DIGITAL_TRIG_RISING	0x1
 
 /* ioctls */
 

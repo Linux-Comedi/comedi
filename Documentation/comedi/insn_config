@@ -24,7 +24,7 @@ Notes:
     that are tied to start_src, convert_src, etc.?
 
 
-ID=xxx: extended digital triggering
+ID=INSN_CONFIG_DIGITAL_TRIG: extended digital triggering
 
   length =
   chanspec: ignored
@@ -35,7 +35,11 @@ ID=xxx: extended digital triggering
           trigger
 
   Notes:
-    - should this be the same as triggering for counter/timers?
+
+	should this be the same as triggering for counter/timers?
+    
+	flags are:
+		DIGITAL_TRIG_RISING: trigger on rising edge (or falling edge if not set)
 
 
 ID=xxx: counter configuration

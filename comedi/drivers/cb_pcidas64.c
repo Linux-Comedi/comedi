@@ -676,6 +676,7 @@ typedef struct
 	volatile uint32_t plx_intcsr_bits;	// last bits written to plx interrupt control and status register
 	volatile int calibration_source;	// index of calibration source readable through ai ch0
 	volatile uint8_t i2c_cal_range_bits;	// bits written to i2c calibration/range register
+	volatile unsigned int ext_trig_falling;	// configure digital triggers to trigger on falling edge
 	// states of various devices stored to enable read-back
 	unsigned int ad8402_state[2];
 	unsigned int dac8800_state[8];
@@ -1323,13 +1324,10 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	return n;
 }
 
-static int ai_config_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 {
-	int id = data[0];
-	int source = data[1];
 	static const int num_calibration_sources = 8;
-
-	if(id != INSN_CONFIG_ALT_SOURCE) return -EINVAL;
+	lsampl_t source = data[1];
 
 	if(source >= num_calibration_sources)
 		return -EINVAL;
@@ -1338,6 +1336,39 @@ static int ai_config_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	private(dev)->calibration_source = source;
 
 	return 1;
+}
+
+static int ai_config_digital_trigger( comedi_device *dev, lsampl_t *data )
+{
+	lsampl_t flags = data[1];
+
+	if( flags & DIGITAL_TRIG_RISING)
+	{
+		private(dev)->ext_trig_falling = 0;
+	}else
+	{
+		private(dev)->ext_trig_falling = 1;
+	}
+	
+	return 1;
+}
+
+static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int id = data[0];
+
+	switch( id )
+	{
+		case INSN_CONFIG_ALT_SOURCE:
+			ai_config_calibration_source( dev, data );
+			break;
+		case INSN_CONFIG_DIGITAL_TRIG:
+			ai_config_digital_trigger( dev, data );
+		default:
+			return -EINVAL;
+			break;
+	}
+	return -EINVAL;
 }
 
 static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
@@ -1687,6 +1718,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= ADC_START_TRIG_EXT_BITS;
 	else if(cmd->start_src == TRIG_NOW)
 		bits |= ADC_START_TRIG_SOFT_BITS;
+	if( private(dev)->ext_trig_falling )
+		bits |= ADC_START_TRIG_FALLING_BIT;
 	writew(bits, private(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);
 
