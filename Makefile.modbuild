@@ -52,7 +52,7 @@ CFLAGS += $(shell if $(CC) -fno-strict-aliasing -S -o /dev/null -xc /dev/null >/
 CFLAGS += -D__KERNEL__ -I $(TOPDIR)/include -I $(LINUXDIR)/include -I .
 CFLAGS += -D__MODBUILD__
 ifdef RTLDIR
-CFLAGS += -I $(RTLDIR)/include -D__RT__
+CFLAGS += -I $(RTLDIR)/include -I $(RTLDIR)/include/posix -I $(RTLDIR)/include/compat -D__RT__
 endif
 ifdef RTAIDIR
 CFLAGS += -I $(TOPDIR)/include/rtai
