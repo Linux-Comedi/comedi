@@ -69,10 +69,6 @@ struct comedi_subdevice_struct{
 
 	void		*private;
 
-//	asyncronous specific stuff has been moved to comedi_async_struct
-//	void		*prealloc_buf;		/* pre-allocated buffer */
-//	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
-//	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 	comedi_async *async;
 
 	void *lock;
@@ -94,18 +90,6 @@ struct comedi_subdevice_struct{
 
 #ifdef CONFIG_COMEDI_MODE_CORE
 	comedi_trig	cur_trig;	/* current trig structure */
-#endif
-//	asyncronous specific stuff has been moved to comedi_async_struct
-//	comedi_cmd	cmd;
-
-//	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
-//	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */
-//	volatile unsigned int buf_int_count;	/* byte count for interrupt */
-//	unsigned int buf_user_count;		/* byte count for read() and write() */
-//	unsigned int cur_chan;		/* useless channel marker for interrupt */
-//	unsigned int cur_chanlist_len;
-
-#ifdef CONFIG_COMEDI_MODE_CORE
 	int (*trig[5])(comedi_device *,comedi_subdevice *,comedi_trig *);
 #endif
 
@@ -120,11 +104,6 @@ struct comedi_subdevice_struct{
 	int (*cancel)(comedi_device *,comedi_subdevice *);
 	int (*do_lock)(comedi_device *,comedi_subdevice *);
 	int (*do_unlock)(comedi_device *,comedi_subdevice *);
-
-//	asyncronous specific stuff has been moved to comedi_async_struct
-//	unsigned int cb_mask;
-//	int (*cb_func)(unsigned int flags,void *);
-//	void *cb_arg;
 
 	unsigned int state;
 };
@@ -156,20 +135,12 @@ struct comedi_driver_struct{
 	struct module *module;
 	int (*attach)(comedi_device *,comedi_devconfig *);
 	int (*detach)(comedi_device *);
-	int (*recognize)(char *name);
 
-	/* register_boards, board_name, board_id, num_boards provide alternative
-	 * to recognize which allows reporting back to user recognized board
-	 * names
-	 */
-	void (*register_boards)(void);	// initializes board_name and board_id arrays
 	// number of elements in board_name and board_id arrays
 	unsigned int num_names;
-	/* board_name and board_id arrays are allocated by comedi_driver_register()
-	 * using the value of num_boards for the number of elements
-	 */
-	char **board_name;
-	int *board_id;
+	void *board_name;
+	// offset in bytes from one board name pointer to the next
+	int offset;
 };
 
 struct comedi_device_struct{
@@ -178,7 +149,7 @@ struct comedi_device_struct{
 	void *private;
 	kdev_t minor;
 	char *board_name;
-	int board;
+	//int board;
 	void *board_ptr;
 	int attached;
 	int rt;
