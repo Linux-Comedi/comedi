@@ -101,6 +101,7 @@ if [ "$CONFIG_8260" = "y" ];then
 	dep_tristate 'MPC 8260 CPM driver' CONFIG_COMEDI_MPC8260CPM $CONFIG_COMEDI
 fi
 dep_tristate 'Generic ISA driver for simple boards' CONFIG_COMEDI_POC $CONFIG_COMEDI
+dep_tristate 'PCM3730' CONFIG_COMEDI_PCM3730 $CONFIG_COMEDI
 dep_tristate 'Winsystems PCM-A/D' CONFIG_COMEDI_PCMAD $CONFIG_COMEDI
 dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
