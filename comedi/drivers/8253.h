@@ -217,7 +217,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
  *
  * FMH
  */
-static inline int i8254_load(unsigned int base_address,
+static inline int i8254_load(unsigned long base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;
@@ -240,7 +240,7 @@ static inline int i8254_load(unsigned int base_address,
 	return 0;
 }
 
-static inline int i8254_mm_load(unsigned int base_address,
+static inline int i8254_mm_load(unsigned long base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;
@@ -264,7 +264,7 @@ static inline int i8254_mm_load(unsigned int base_address,
 }
 
 /* Returns 16 bit counter value, should work for 8253 also.*/
-static inline int i8254_read(unsigned int base_address, unsigned int counter_number)
+static inline int i8254_read(unsigned long base_address, unsigned int counter_number)
 {
 	unsigned int byte;
 	int ret;
