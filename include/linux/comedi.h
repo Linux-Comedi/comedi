@@ -3,7 +3,7 @@
     header file for comedi
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998-2000 David A. Schleef <ds@schleef.org>
+    Copyright (C) 1998-2001 David A. Schleef <ds@schleef.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -128,6 +128,7 @@ typedef unsigned short sampl_t;
 #define TRIG_COUNT	0x00000020	/* trigger when count reaches N */
 #define TRIG_EXT	0x00000040	/* trigger on external signal N */
 #define TRIG_INT	0x00000080	/* trigger on comedi-internal signal N */
+#define TRIG_OTHER	0x00000100	/* driver defined */
 
 /* subdevice flags */
 
