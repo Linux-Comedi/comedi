@@ -467,12 +467,12 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		async->buf_user_ptr += bi.bytes_read;
 		async->buf_user_count += bi.bytes_read;
 
-		// check for buffer overrun
+		// check for buffer overflow
 		if(m > async->data_len){
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
 			do_cancel(dev, dev->read_subdev);
-			DPRINTK("buffer overrun\n");
+			DPRINTK("buffer overflow\n");
 			return -EIO;
 		}
 		if(!(s->subdev_flags&SDF_RUNNING) && async->buf_int_count==async->buf_user_count){
@@ -1371,6 +1371,11 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 				break;
 			}
 			if(!(s->subdev_flags&SDF_RUNNING)){
+				if(s->runflags & SRF_ERROR){
+					retval = -EPIPE;
+				}else{
+					retval = 0;
+				}
 				do_become_nonbusy(dev,s);
 				break;
 			}
@@ -1457,7 +1462,7 @@ printk("m is %d\n",m);
 			if(!(s->subdev_flags&SDF_RUNNING)){
 				do_become_nonbusy(dev,s);
 				if(s->runflags & SRF_ERROR){
-					retval = -EIO;
+					retval = -EPIPE;
 				}else{
 					retval = 0;
 				}
@@ -1478,13 +1483,13 @@ printk("m is %d\n",m);
 		if(m) retval=-EFAULT;
 		n-=m;
 
-		// check for buffer overrun
+		/* check for buffer overflow */
 		if(async->buf_int_count - async->buf_user_count > async->data_len){
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
 			retval=-EIO;
 			do_cancel(dev, dev->read_subdev);
-			DPRINTK("buffer overrun\n");
+			DPRINTK("buffer overflow\n");
 			break;
 		}
 
