@@ -648,11 +648,11 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 				devpriv->dma1 = dma1;
 			}
 			devpriv->dma_buf_max_size = 0x1ff00;
-			devpriv->dma_buf0 = kmalloc(devpriv->dma_buf_max_size, GFP_BUFFER | GFP_DMA);
+			devpriv->dma_buf0 = kmalloc(devpriv->dma_buf_max_size, GFP_KERNEL | GFP_DMA);
 			if(devpriv->dma_buf0 == NULL)
 				return -ENOMEM;
 			devpriv->dma_current_buf = devpriv->dma_buf0;
-			devpriv->dma_buf1 = kmalloc(devpriv->dma_buf_max_size, GFP_BUFFER | GFP_DMA);
+			devpriv->dma_buf1 = kmalloc(devpriv->dma_buf_max_size, GFP_KERNEL | GFP_DMA);
 			if(devpriv->dma_buf1 == NULL)
 				return -ENOMEM;
 			flags = claim_dma_lock();

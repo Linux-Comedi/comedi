@@ -325,7 +325,7 @@ typedef struct
 	// divisors of master clock for pacing
 	unsigned int divisor1;
 	unsigned int divisor2;
-	unsigned int count;	//number of samples remaining
+	volatile unsigned int count;	//number of samples remaining
 } cb_pcidas_private;
 
 /*

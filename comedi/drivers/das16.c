@@ -1259,7 +1259,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	if(dma_chan == 1 || dma_chan == 3)
 	{
 		// allocate dma buffer
-		devpriv->dma_buffer = kmalloc(DAS16_DMA_SIZE, GFP_BUFFER | GFP_DMA);
+		devpriv->dma_buffer = kmalloc(DAS16_DMA_SIZE, GFP_KERNEL | GFP_DMA);
 		if(devpriv->dma_buffer == NULL)
 			return -ENOMEM;
 		if(request_dma(dma_chan, "das16"))

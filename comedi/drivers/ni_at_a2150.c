@@ -35,6 +35,9 @@ Options:
 	[1] - irq
 	[2] - dma channel
 
+References (from ftp://ftp.natinst.com/support/manuals):
+
+	   320360.pdf  AT-A2150 User Manual
 */
 
 #include <linux/kernel.h>
@@ -360,7 +363,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 			printk(" failed to allocate dma channel %i\n", dma);
 			return -EINVAL;
 		}
-		devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE, GFP_BUFFER | GFP_DMA);
+		devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
 		if(devpriv->dma_buffer == NULL)
 			return -ENOMEM;
 
