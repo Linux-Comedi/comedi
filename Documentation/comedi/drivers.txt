@@ -251,19 +251,6 @@ comedi_rt_timer driver can be used to emulate commands for this
 driver.
 
 
-Driver: das08-old.o
-Description: ComputerBoards, Keithley Metrabyte DAS-08
-Authors: Warren Jasper, ds
-Status: unknown
-
-
-
-Driver: das08jr-old.o
-Description: ComputerBoards DAS-08jr-AO
-Authors: Jochen Küpper <jochen@pc1.uni-duesseldorf.de>, ds
-Status: unknown
-
-
 
 Driver: das16.o
 Description: DAS16 compatible boards
@@ -304,60 +291,6 @@ time in the interrupt handler.
 Options:
 	[0] - base io address
 	[1] - irq (optional, but you probably want it)
-
-
-
-Driver: das16-old.o
-Description: CIO-DAS16 (& compatibles)
-Authors: Sam Moore, Warren Jasper, ds
-Status: unknown
-
-
-
-Driver: das1600-old.o
-Description: Keithley Metrabyte DAS1600 (& compatibles)
-Author: Anders Blomdell <anders.blomdell@control.lth.se>
-
-This driver is obsolete.  Use the das16 driver instead.
-
-The driver recognizes the following board names:
-	das1601/12
-	das1602/12
-	das1602/16
-
-The file etc/das1600.conf is useful for configuring this board.
-
-Options (probably wrong, verify with source):
-  1   Board base address
-  2   IRQ
-  3   DMA level select configuration
-       0 == DMA level 1
-       1 == DMA level 1
-        3 == DMA level 3
-  4   Crystal select configuration
-        0 == 1 MHz
-        1 == 1 MHz
-        10 == 10 MHz
-  5   Input configuration
-        0 == differential
-        1 == single-ended
-  6   Analog input range configuration
-        0 == bipolar 10V  (-10V -- +10V)
-        1 == unipolar 10V  (0V -- +10V)
-  7   Analog output 0 range configuration
-        0 == bipolar 10V  (-10V -- +10V)
-        1 == bipolar 5V  (-5V -- +5V)
-        2 == bipolar user supplied  (-xV -- +xV)
-        3 == unipolar 10V  (0V -- +10V)
-        4 == unipolar 5V  (0V -- +5V)
-        5 == unipolar user supplied  (0V -- +xV)
-  8   Analog output 1 range configuration
-        0 == bipolar 10V  (-10V -- +10V)
-        1 == bipolar 5V  (-5V -- +5V)
-        2 == bipolar user supplied  (-xV -- +xV)
-        3 == unipolar 10V  (0V -- +10V)
-        4 == unipolar 5V  (0V -- +5V)
-        5 == unipolar user supplied  (0V -- +xV)
 
 
 
