@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 02 Jan 2005
+Updated: 03 Jan 2005
 Status: testing
 */
 
@@ -232,10 +232,15 @@ static int usbduxfastsub_unlink_InURBs(usbduxfastsub_t* usbduxfastsub_tmp) {
 
 	if (usbduxfastsub_tmp && usbduxfastsub_tmp->urbIn) {
 		usbduxfastsub_tmp->ai_cmd_running=0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 		j=usb_unlink_urb(usbduxfastsub_tmp->urbIn);
 		if (j<0) {
 			err=j;
 		}
+#else
+		// waits until a running transfer is over
+		usb_kill_urb(usbduxfastsub_tmp->urbIn);
+#endif
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi: usbduxfast: unlinked InURB: res=%d\n",
