@@ -838,7 +838,10 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
-
+		if(dma0_status & PLX_DMA_EN_BIT)
+		{
+			drain_dma_buffers(dev, 0);
+		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
@@ -848,14 +851,9 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	if(plx_status & ICS_DMA1_A)	// XXX
 	{	// dma chan 1 interrupt
-		// XXX possible race
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
 
-		if(dma1_status & PLX_DMA_EN_BIT)
-		{
-			drain_dma_buffers(dev, 1);
-		}
 		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
