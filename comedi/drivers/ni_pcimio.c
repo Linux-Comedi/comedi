@@ -675,6 +675,13 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size)
 {
+	int ret;
+
+	ret = mite_buf_alloc(devpriv->mite, s->async, new_size);
+	if(ret<0)return ret;
+
+	return 0;
+#if 0
 	comedi_async *async = s->async;
 
 	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
@@ -700,6 +707,7 @@ static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
 	async->prealloc_bufsz = new_size;
 
 	return 0;
+#endif
 }
 
 
