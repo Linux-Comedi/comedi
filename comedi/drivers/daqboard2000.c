@@ -107,6 +107,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/comedidev.h>
@@ -308,6 +309,12 @@ static boardtype boardtypes[]={
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((boardtype *)dev->board_ptr)
+
+static struct pci_device_id daqboard2000_pci_table[] __devinitdata = {
+	{ 0x1616, 0x0409, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, daqboard2000_pci_table);
 
 typedef struct {
   enum {
@@ -685,6 +692,10 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   if (!card) {
     printk(" no daqboard2000 found\n");
     result = -EIO;
+    goto out;
+  }
+
+  if((result = pci_enable_device(card))<0){
     goto out;
   }
 
