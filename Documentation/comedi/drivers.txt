@@ -170,6 +170,13 @@ Options (probably wrong, verify with source):
 
 
 
+Driver: das1800.o
+Description: Keithley Metrabyte DAS1800 (& compatibles)
+Author: Frank Mori Hess <fmhess@uiuc.edu>
+Status: in development
+
+
+
 Driver: das6402.o
 Description: Keithley Metrabyte DAS6402 (& compatibles)
 Author: Oystein Svendsen <svendsen@pvv.org>
