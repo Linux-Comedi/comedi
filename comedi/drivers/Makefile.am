@@ -13,6 +13,8 @@ EXTRA_DIST = \
  das08.h \
  icp_multi.h \
  mite.h \
+ me4000.h \
+ me4000_fw.h \
  ni_labpc.h \
  ni_mio_common.c \
  ni_stc.h \
@@ -71,6 +73,7 @@ module_PROGRAMS = 8255.ko \
  icp_multi.ko \
  ke_counter.ko \
  me_daq.ko \
+ me4000.ko \
  mite.ko \
  multiq3.ko \
  ni_660x.ko \
@@ -139,6 +142,7 @@ gsc_hpdi_ko_SOURCES = gsc_hpdi.c
 ii_pci20kc_ko_SOURCES = ii_pci20kc.c
 icp_multi_ko_SOURCES = icp_multi.c
 ke_counter_ko_SOURCES = ke_counter.c
+me4000_ko_SOURCES = me4000.c
 me_daq_ko_SOURCES = me_daq.c
 mite_ko_SOURCES = mite.c
 multiq3_ko_SOURCES = multiq3.c
