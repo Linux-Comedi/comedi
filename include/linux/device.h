@@ -12,7 +12,7 @@
 
 struct device_driver 
 {
-	dev_info_t name;
+	char *name;
 };
 
 typedef void class_simple;

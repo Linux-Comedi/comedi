@@ -20,12 +20,13 @@ struct pcmcia_driver {
 /* driver registration */
 static inline int pcmcia_register_driver(struct pcmcia_driver *driver)
 {
-	return register_pccard_driver(&driver->drv.name, driver->attach, driver->detach);
+	return register_pccard_driver((dev_info_t*)driver->drv.name,
+			driver->attach, driver->detach);
 };
 
 static void inline pcmcia_unregister_driver(struct pcmcia_driver *driver)
 {
-	unregister_pccard_driver(&driver->drv.name);
+	unregister_pccard_driver((dev_info_t*)driver->drv.name);
 };
 
 static void inline cs_error(client_handle_t handle, int func, int ret)
