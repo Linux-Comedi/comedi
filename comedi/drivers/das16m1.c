@@ -23,7 +23,10 @@
 
 ************************************************************************
 
-TODO: add cio-das16/m1/16 support
+This driver is for the (freakish) Measurement Computing (Computer Boards)
+CIO-DAS16/M1 board.  The CIO-DAS16/M1/16 board actually has a different
+register layout and is not supported by this driver (although it might
+go nicely in the das16.c driver.)
 
 */
 
@@ -70,13 +73,13 @@ TODO: add cio-das16/m1/16 support
 #define   AI_CHAN(x)             ((x) & 0xf)
 #define   AI_DATA(x)             (((x) >> 4) & 0xfff)
 #define DAS16M1_CS             2
-#define   EXT_TRIG               0x1
-#define   CLK_SRC                0x2
+#define   EXT_TRIG_BIT           0x1
 #define   OVRUN                  0x20
 #define   IRQDATA                0x80
 #define DAS16M1_DIO            3
 #define DAS16M1_CLEAR_INTR     4
 #define DAS16M1_INTR_CONTROL   5
+#define   EXT_PACER              0x2
 #define   INT_PACER              0x3
 #define   PACER_MASK             0x3
 #define   INTE                   0x80
@@ -122,14 +125,12 @@ static int das16m1_irq_bits(unsigned int irq);
 typedef struct das16m1_board_struct{
 	char *name;
 	unsigned int ai_speed;
-	unsigned int n_bits;
 }das16m1_board;
 
 static das16m1_board das16m1_boards[]={
 	{
 	name:		"cio-das16/m1",	// CIO-DAS16_M1.pdf
 	ai_speed:	1000,		// 1MHz max speed
-	n_bits:	12,	// 12 bit resolution
 	},
 };
 
@@ -149,7 +150,7 @@ comedi_driver driver_das16m1={
 
 struct das16m1_private_struct {
 	unsigned int	control_state;
-	volatile unsigned int	adc_count;
+	volatile unsigned int	adc_count;	// number of samples remaining
 	unsigned int do_bits;	// saves status of digital output bits
 	unsigned int divisor1;	// divides master clock to obtain conversion speed
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
@@ -165,7 +166,7 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_NOW | TRIG_EXT;
 	if(!cmd->start_src || tmp!=cmd->start_src) err++;
 
 	tmp=cmd->scan_begin_src;
@@ -173,7 +174,7 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src) err++;
 
 	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER;
+	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
 	if(!cmd->convert_src || tmp!=cmd->convert_src) err++;
 
 	tmp=cmd->scan_end_src;
@@ -187,9 +188,12 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 	if(err)return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
-	/* note that mutual compatiblity is not an issue here */
 	if(cmd->stop_src != TRIG_COUNT &&
 	   cmd->stop_src != TRIG_NONE) err++;
+	if(cmd->start_src != TRIG_NOW &&
+	   cmd->start_src != TRIG_EXT) err++;
+	if(cmd->convert_src != TRIG_TIMER &&
+	   cmd->convert_src != TRIG_EXT) err++;
 
 	if(err)return 2;
 
@@ -288,11 +292,26 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	// set control & status register
 	byte = 0;
+	/* if we are using external start trigger (also board dislikes having
+	 * both start and conversion triggers external simultaneously) */
+	if(cmd->start_src == TRIG_EXT && cmd->convert_src != TRIG_EXT)
+	{
+		byte |= EXT_TRIG_BIT;
+	}
 	outb(byte, dev->iobase + DAS16M1_CS);
 	/* clear interrupt bit */
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+
 	/* enable interrupts and internal pacer */
-	devpriv->control_state |= INTE | INT_PACER;
+	devpriv->control_state &= ~PACER_MASK;
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		devpriv->control_state |= INT_PACER;
+	}else
+	{
+		devpriv->control_state |= EXT_PACER;
+	}
+	devpriv->control_state |= INTE;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
 	return 0;
@@ -300,10 +319,8 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	devpriv->control_state &= ~INTE;
-	devpriv->control_state &= ~PACER_MASK;
+	devpriv->control_state &= ~INTE & ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
-	devpriv->adc_count = 0;
 
 	return 0;
 }
@@ -312,7 +329,6 @@ static int das16m1_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 {
 	int i, n;
 	int byte;
-	int data_point;
 	const int timeout = 1000;
 
 	/* disable interrupts and internal pacer */
@@ -339,14 +355,7 @@ static int das16m1_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-		data_point = inw(dev->iobase);
-		if(thisboard->n_bits == 12)
-		{
-			data[n] = AI_DATA(data_point);
-		}else
-		{
-			data[n] = data_point;
-		}
+		data[n] = AI_DATA(inw(dev->iobase));
 	}
 
 	return n;
@@ -385,7 +394,7 @@ static int das16m1_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int i, status;
-	sampl_t data_point;
+	sampl_t data[HALF_FIFO];
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices;
 	comedi_async *async;
@@ -406,16 +415,19 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	// initialize async here to avoid freak out on premature interrupt
 	async = s->async;
 
+	insw(dev->iobase, data, HALF_FIFO);
 	for(i = 0; i < HALF_FIFO; i++)
 	{
-		data_point = AI_DATA(inw(dev->iobase + DAS16M1_AI));
-		comedi_buf_put(async, data_point);
-
-		if(--devpriv->adc_count == 0) {		/* end of acquisition */
-				das16m1_cancel(dev, s);
-				async->events |= COMEDI_CB_EOA;
-				break;
+		comedi_buf_put(async, AI_DATA(data[i]));
+		if(async->cmd.stop_src == TRIG_COUNT)
+		{
+			if(--devpriv->adc_count == 0)
+			{		/* end of acquisition */
+					das16m1_cancel(dev, s);
+					async->events |= COMEDI_CB_EOA;
+					break;
 			}
+		}
 	}
 
 	if(status & OVRUN)
