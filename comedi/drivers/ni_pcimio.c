@@ -418,7 +418,7 @@ static ni_board ni_boards[]={
 #endif
 	{       device_id:      0x14e0,
 		name:           "pci-6110",
-		n_adchan:       4, 
+		n_adchan:       4,
 		adbits:         12,
 		ai_fifo_depth:  8192,
 		alwaysdither:   0,
@@ -426,10 +426,9 @@ static ni_board ni_boards[]={
 		ai_speed:	200,
 		n_aochan:       2,
 		aobits:         16,
-		ao_671x:	1,
+		reg_type:	ni_reg_611x,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
-		reg_611x:	1,
 		caldac:         {ad8804,ad8804},
 	},
 	{       device_id:      0x14f0,
@@ -442,10 +441,9 @@ static ni_board ni_boards[]={
 		ai_speed:	200,
 		n_aochan:       2,
 		aobits:         16,
-		ao_671x:	1,
+		reg_type:	ni_reg_611x,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
-		reg_611x:	1,
 		caldac:         {ad8804,ad8804},
 	},
 #if 0
@@ -492,8 +490,8 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
-		ao_671x:	1,
-		caldac:         {mb88341,mb88341},/* XXX */
+		reg_type:	ni_reg_6711,
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
 	{       device_id:      0x1870,
 		name:           "pci-6713",
@@ -502,8 +500,8 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
-		ao_671x:	1,
-		caldac:         {mb88341,mb88341},/* XXX */
+		reg_type:	ni_reg_6713,
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
 	{       device_id:      0x2b80,
 		name:           "pxi-6713",
@@ -512,29 +510,29 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
-		ao_671x:	1,
-		caldac:         {mb88341,mb88341},/* XXX */
+		reg_type:	ni_reg_6713,
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
-#if 0
-	{       device_id:      0x1880,
+#if 0	/* need device ids */
+	{       device_id:      0x0,
 		name:           "pci-6731",
 		n_adchan:       0, /* no analog input */
 		n_aochan:	4,
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
-		ao_671x:	1,
-		caldac:         {mb88341,mb88341},/* XXX */
+		reg_type:	ni_reg_6711,
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
-	{       device_id:      0x1870,
+	{       device_id:      0x0,
 		name:           "pci-6733",
 		n_adchan:       0, /* no analog input */
 		n_aochan:	8,
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
-		ao_671x:	1,
-		caldac:         {mb88341,mb88341},/* XXX */
+		reg_type:	ni_reg_6713,
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
 #endif
 	{	device_id:      0x15b0,

@@ -34,7 +34,9 @@
 	   340747b.pdf  AT-MIO E series Register Level Programmer Manual
 	   341079b.pdf  PCI E Series RLPM
 	   340934b.pdf  DAQ-STC reference manual
-
+	67xx and 611x registers (from http://www.ni.com/pdf/daq/us)
+	release_ni611x.pdf
+	release_ni67xx.pdf
 	Other possibly relevant info:
 
 	   320517c.pdf  User manual (obsolete)
@@ -760,13 +762,18 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 
 		range = CR_RANGE(cmd->chanlist[chan]);
 
-		if( boardtype.ao_671x ){
+		if(boardtype.reg_type & ni_reg_6xxx_mask)
+		{
 			packed_data = d & 0xffff;
-			err &= comedi_buf_get(async, &d);
-			if(err == 0) break;
-			chan++;
-			i++;
-			packed_data |= ( d << 16 ) & 0xffff0000;
+			/* 6711 only has 16 bit wide ao fifo */
+			if(boardtype.reg_type != ni_reg_6711)
+			{
+				err &= comedi_buf_get(async, &d);
+				if(err == 0) break;
+				chan++;
+				i++;
+				packed_data |= ( d << 16 ) & 0xffff0000;
+			}
 			ni_writel( packed_data, DAC_FIFO_Data_611x );
 		}else{
 			ni_writew(d, DAC_FIFO_Data);
@@ -848,7 +855,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	int no_err = 1;
 
 	mask=(1<<boardtype.adbits)-1;
-	if(boardtype.reg_611x){
+	if(boardtype.reg_type == ni_reg_611x){
 		for( i = 0; i < n / 2; i++ ){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
@@ -939,7 +946,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	u32 dl;
 	int err = 1;
 
-	if(boardtype.reg_611x){
+	if(boardtype.reg_type == ni_reg_611x){
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
@@ -968,7 +975,7 @@ static void get_last_sample_611x( comedi_device *dev )
 	u32 dl;
 	int err = 1;
 
-	if( boardtype.reg_611x == 0 ) return;
+	if(boardtype.reg_type != ni_reg_611x) return;
 
 	/* Check if there's a single sample stuck in the FIFO */
 	if(ni_readb(XXX_Status)&0x80){
@@ -1032,7 +1039,7 @@ static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_INPUT;
-	if( boardtype.reg_611x )
+	if(boardtype.reg_type == ni_reg_611x)
 		mite_prep_dma(mite, AI_DMA_CHAN, 32, 16);
 	else
 		mite_prep_dma(mite, AI_DMA_CHAN, 16, 16);
@@ -1051,7 +1058,7 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_OUTPUT;
-	if( boardtype.ao_671x )
+	if(boardtype.reg_type & (ni_reg_611x | ni_reg_6713))
 		mite_prep_dma(mite, AO_DMA_CHAN, 32, 32);
 	else
 		mite_prep_dma(mite, AO_DMA_CHAN, 16, 16);
@@ -1097,7 +1104,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	/* generate FIFO interrupts on non-empty */
 	win_out((0<<6)|0x0000,AI_Mode_3_Register);
 #endif
-	if(!boardtype.reg_611x){
+	if(boardtype.reg_type == ni_reg_normal){
 		win_out(AI_SHIFTIN_Pulse_Width |
 			AI_SOC_Polarity |
 			AI_CONVERT_Pulse_Width |
@@ -1107,7 +1114,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 			AI_LOCALMUX_CLK_Output_Select(2) |
 			AI_SC_TC_Output_Select(3) |
 			AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
-	}else{
+	}else{/* 611x boards */
 		win_out(AI_SHIFTIN_Pulse_Width |
 			AI_SOC_Polarity |
 			AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
@@ -1162,7 +1169,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 
 	mask=(1<<boardtype.adbits)-1;
 	signbits=devpriv->ai_offset[0];
-	if(boardtype.reg_611x){
+	if(boardtype.reg_type == ni_reg_611x){
 		for(n=0; n < num_adc_stages_611x; n++){
 			win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 			comedi_udelay(1);
@@ -1213,8 +1220,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 /*
  * Notes on the 6110 and 6111:
  * These boards a slightly different than the rest of the series, since
- * they have multiple A/D converters.  Register level documentation is
- * not written down for these boards, other than what is here.  If you
+ * they have multiple A/D converters.  If you
  * have any questions, ask Tim Ousley.
  * From the driver side, the configuration memory is a
  * little different.
@@ -1250,7 +1256,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned short offset;
 	unsigned int dither;
 
-	if(n_chan == 1 && boardtype.reg_611x == 0){
+	if(n_chan == 1 && boardtype.reg_type == ni_reg_normal){
 		if(devpriv->changain_state && devpriv->changain_spec==list[0]){
 			// ready to go.
 			return;
@@ -1276,7 +1282,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[boardtype.gainlkup][range];
-		if( boardtype.reg_611x )
+		if(boardtype.reg_type == ni_reg_611x)
 			devpriv->ai_offset[i] = offset;
 		else
 			devpriv->ai_offset[i] = (range&0x100)?0:offset;
@@ -1284,11 +1290,11 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 		hi = 0;
 		if( ( list[i] & CR_ALT_SOURCE ) )
 		{
-			if( boardtype.reg_611x )
+			if(boardtype.reg_type == ni_reg_611x)
 				ni_writew(CR_CHAN(list[i])&0x0003, Calibration_Channel_Select_611x);
 		}else
 		{
-			if( boardtype.reg_611x )
+			if(boardtype.reg_type == ni_reg_611x)
 				aref = AREF_DIFF;
 			switch( aref )
 			{
@@ -1317,7 +1323,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	}
 
 	/* prime the channel/gain list */
-	if(boardtype.reg_611x == 0){
+	if(boardtype.reg_type == ni_reg_normal){
 		win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
@@ -1373,7 +1379,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	tmp=cmd->convert_src;
 	sources = TRIG_TIMER | TRIG_EXT;
-	if( boardtype.reg_611x ) sources |= TRIG_NOW;
+	if(boardtype.reg_type == ni_reg_611x) sources |= TRIG_NOW;
 	cmd->convert_src &= sources;
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
@@ -1451,7 +1457,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		}
 	}
 	if(cmd->convert_src==TRIG_TIMER){
-		if( boardtype.reg_611x ){
+		if(boardtype.reg_type == ni_reg_611x){
 			if(cmd->convert_arg != 0){
 				cmd->convert_arg = 0;
 				err++;
@@ -1490,7 +1496,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(cmd->stop_src==TRIG_COUNT){
 		unsigned int max_count = 0x01000000;
 
-		if( boardtype.reg_611x )
+		if(boardtype.reg_type == ni_reg_611x )
 			max_count -= num_adc_stages_611x;
 		if(cmd->stop_arg > max_count){
 			cmd->stop_arg = max_count;
@@ -1514,7 +1520,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
 	if(cmd->convert_src==TRIG_TIMER){
-		if( boardtype.reg_611x == 0){
+		if(boardtype.reg_type == ni_reg_normal){
 			tmp=cmd->convert_arg;
 			ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
 			if(tmp!=cmd->convert_arg)err++;
@@ -1575,7 +1581,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(mode2, AI_Mode_2_Register);
 
 	start_stop_select |= AI_STOP_Sync;
-	if( boardtype.reg_611x ){
+	if(boardtype.reg_type == ni_reg_611x){
 		start_stop_select |= AI_STOP_Polarity;
 		start_stop_select |= AI_STOP_Select( 31 );
 	}else{
@@ -1588,7 +1594,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	case TRIG_COUNT:
 		stop_count = cmd->stop_arg - 1;
 
-		if( boardtype.reg_611x ){
+		if(boardtype.reg_type == ni_reg_611x){
 			// have to take 3 stage adc pipeline into account
 			stop_count += num_adc_stages_611x;
 		}
@@ -1832,7 +1838,7 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 		if(calib_source >= 8)
 			return -EINVAL;
 		devpriv->ai_calib_source = calib_source;
-		if( boardtype.reg_611x ){
+		if(boardtype.reg_type == ni_reg_611x){
 			ni_writeb( calib_source_adjust, Cal_Gain_Select_611x );
 		}
 		return 2;
@@ -1967,52 +1973,40 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	unsigned int range;
 	unsigned int chan;
 	unsigned int conf;
-	int i, bits;
+	int i;
 	int invert = 0;
 
-	if( boardtype.reg_611x ){
-		ao_win_out( CLEAR_WG, AO_Misc_611x);
+	for(i=0;i<n_chans;i++){
+		chan = CR_CHAN(chanspec[i]);
+		range = CR_RANGE(chanspec[i]);
 
-		bits = 0;
-		for(i = 0; i < n_chans; i++){
-			chan = CR_CHAN( chanspec[i] );
-			bits |= 1 << chan;
-			ao_win_out( chan, AO_Waveform_Generation_611x);
-		}
-		ao_win_out(bits, AO_Timed_611x);
-	}else{
-		for(i=0;i<n_chans;i++){
-			chan = CR_CHAN(chanspec[i]);
-			range = CR_RANGE(chanspec[i]);
+		conf = AO_Channel(chan);
 
-			conf = AO_Channel(chan);
-
-			if(boardtype.ao_unipolar){
-				if((range&1) == 0){
-					conf |= AO_Bipolar;
-					invert = (1<<(boardtype.aobits-1));
-				}else{
-					invert = 0;
-				}
-				if(range&2)
-					conf |= AO_Ext_Ref;
-			}else{
+		if(boardtype.ao_unipolar){
+			if((range&1) == 0){
 				conf |= AO_Bipolar;
 				invert = (1<<(boardtype.aobits-1));
+			}else{
+				invert = 0;
 			}
-
-			/* not all boards can deglitch, but this shouldn't hurt */
-			if(chanspec[i] & CR_DEGLITCH)
-				conf |= AO_Deglitch;
-
-			/* analog reference */
-			/* AREF_OTHER connects AO ground to AI ground, i think */
-			conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
-
-			devpriv->ao_conf[chan] = conf;
-
-			ni_writew(conf,AO_Configuration);
+			if(range&2)
+				conf |= AO_Ext_Ref;
+		}else{
+			conf |= AO_Bipolar;
+			invert = (1<<(boardtype.aobits-1));
 		}
+
+		/* not all boards can deglitch, but this shouldn't hurt */
+		if(chanspec[i] & CR_DEGLITCH)
+			conf |= AO_Deglitch;
+
+		/* analog reference */
+		/* AREF_OTHER connects AO ground to AI ground, i think */
+		conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
+
+		devpriv->ao_conf[chan] = conf;
+
+		ni_writew(conf,AO_Configuration);
 	}
 	return invert;
 }
@@ -2049,8 +2043,7 @@ static int ni_ao_insn_write_671x(comedi_device *dev,comedi_subdevice *s,
 	ao_win_out(1 << chan, AO_Immediate_671x);
 	invert = 1 << (boardtype.aobits - 1);
 
-	if( boardtype.reg_611x == 0 )
-		ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
+	ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
 
 	devpriv->ao[chan] = data[0];
 	ao_win_out(data[0] ^ invert, DACx_Direct_Data_671x(chan));
@@ -2105,12 +2098,29 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_cmd *cmd = &s->async->cmd;
 	int trigvar;
 	int bits;
-
+	int i;
+	
 	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 
 	win_out(AO_Disarm,AO_Command_1_Register);
+
+	if(boardtype.reg_type & ni_reg_6xxx_mask)
+	{
+		ao_win_out(CLEAR_WG, AO_Misc_611x);
+
+		bits = 0;
+		for(i = 0; i < cmd->chanlist_len; i++)
+		{
+			int chan;
+
+			chan = CR_CHAN(cmd->chanlist[i]);
+			bits |= 1 << chan;
+			ao_win_out(chan, AO_Waveform_Generation_611x);
+		}
+		ao_win_out(bits, AO_Timed_611x);
+	}
 
 	ni_ao_config_chanlist(dev,s,cmd->chanlist,cmd->chanlist_len);
 
@@ -2166,7 +2176,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(AO_UI_Load,AO_Command_1_Register);
 	win_out2(trigvar,AO_UI_Load_A_Register);
 
-	if( boardtype.ao_671x == 0 ){
+	if(boardtype.reg_type == ni_reg_normal){
 		if(cmd->scan_end_arg>1){
 			devpriv->ao_mode1|=AO_Multiple_Channels;
 			win_out(AO_Number_Of_Channels(cmd->scan_end_arg-1)|
@@ -2343,7 +2353,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ao_mode2=0;
 	devpriv->ao_mode3=0;
 	devpriv->ao_trigger_select=0;
-	if(boardtype.ao_671x){
+	if(boardtype.reg_type & ni_reg_6xxx_mask){
 		ao_win_out(0x3, AO_Immediate_671x);
 		ao_win_out(CLEAR_WG, AO_Misc_611x);
 	}
@@ -2418,9 +2428,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
 		s->subdev_flags=SDF_READABLE|SDF_DIFF;
-		if( boardtype.reg_611x == 0 )
+		if(boardtype.reg_type == ni_reg_normal)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
-
 		s->subdev_flags|=SDF_DITHER;
 		s->n_chan=boardtype.n_adchan;
 		s->len_chanlist=512;
@@ -2452,7 +2461,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->range_table=&range_bipolar10;
 		}
 		s->insn_read=ni_ao_insn_read;
-		if(boardtype.ao_671x){
+		if(boardtype.reg_type & ni_reg_6xxx_mask){
 			s->insn_write=ni_ao_insn_write_671x;
 		}else{
 			s->insn_write=ni_ao_insn_write;
@@ -2533,7 +2542,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
-	if(!boardtype.reg_611x){
+	if(boardtype.reg_type == ni_reg_normal){
 		win_out(Slow_Internal_Time_Divide_By_2 |
 			Slow_Internal_Timebase |
 			Clock_To_Board_Divide_By_2 |
@@ -2573,7 +2582,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	ni_writeb( bits, G0_G1_Select);
 
 	/* 611x init */
-	if( boardtype.reg_611x )
+	if(boardtype.reg_type != ni_reg_normal)
 	{
 		ni_writeb( 0, Magic_611x );
 	}

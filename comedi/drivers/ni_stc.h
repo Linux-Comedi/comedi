@@ -691,6 +691,14 @@ enum mite_dma_channel{
 enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x };
 enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
 	ad8804, ad8842, ad8804_debug };
+enum ni_reg_type {
+	ni_reg_normal = 0x0,
+	ni_reg_611x = 0x1,
+	ni_reg_6711 = 0x2,
+	ni_reg_6713 = 0x4,
+	ni_reg_67xx_mask = 0x6,
+	ni_reg_6xxx_mask = 0x7,
+};
 
 typedef struct ni_board_struct{
 	int device_id;
@@ -711,11 +719,11 @@ typedef struct ni_board_struct{
 	int ao_fifo_depth;
 	int aorangelkup;
 
+	int reg_type;
+
 	unsigned int ao_unipolar : 1;
 	unsigned int has_8255 : 1;
 	unsigned int has_analog_trig : 1;
-	unsigned int ao_671x : 1;
-	unsigned int reg_611x : 1;
 
 	enum caldac_enum caldac[3];
 }ni_board;
