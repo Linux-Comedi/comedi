@@ -1817,7 +1817,7 @@ static void __exit comedi_cleanup(void)
 module_init(comedi_init);
 module_exit(comedi_cleanup);
 
-void comedi_error(comedi_device *dev,const char *s)
+void comedi_error(const comedi_device *dev,const char *s)
 {
 	rt_printk("comedi%d: %s: %s\n",dev->minor,dev->driver->driver_name,s);
 }

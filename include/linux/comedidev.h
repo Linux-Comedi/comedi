@@ -236,7 +236,7 @@ static const int comedi_debug = 0;
  */
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
-void comedi_error(comedi_device *dev,const char *s);
+void comedi_error(const comedi_device *dev,const char *s);
 
 comedi_device * comedi_get_device_by_minor(kdev_t minor);
 
