@@ -34,6 +34,8 @@ TODO:
 		anyone would want to use them
 	Fix it so more that one comedi_rt_timer can be configured at once
 		(replace broken_rt_dev)
+	What happens if device we are emulating for is de-configured?
+	Make it work from kernel space (fix problems with comedi_switch_to_rt() etc.)
 
 */
 
@@ -85,6 +87,9 @@ static inline RTIME nano2count(long long ns)
 // rtl-rtai compatibility
 #define rt_task_wait_period() rt_task_wait()
 #define rt_pend_linux_srq(irq) rtl_global_pend_irq(irq)
+#define rt_free_srq(irq) rtl_free_soft_irq(irq)
+#define rt_request_srq(x,y,z) rtl_get_soft_irq(y,"timer")
+#define rt_task_init(a,b,c,d,e,f,g) rt_task_init(a,b,c,d,(e)+1)
 
 #endif
 #ifdef CONFIG_COMEDI_RTAI
@@ -388,9 +393,10 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "failed to obtain lock");
 		return ret;
 	}
-
+#ifdef CONFIG_COMEDI_RTAI
+	start_rt_timer(1);
+#endif
 	delay = nano2count(cmd->start_arg);
-#ifdef CONFIG_COMEDI_RTL
 	if(cmd->scan_begin_src == TRIG_TIMER)
 		period = nano2count(cmd->scan_begin_arg);
 	else if(cmd->convert_src == TRIG_TIMER)
@@ -399,31 +405,10 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "bug!");
 		return -1;
 	}
-
-	if(s == dev->read_subdev)
-		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,1);
-	else
-		ret = rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,1);
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-
-	if(cmd->scan_begin_src == TRIG_TIMER)
-	{
-		period = nano2count(cmd->scan_begin_arg);
-// I don't think start_rt_timer() is necessary? - FMH
-//	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
-	}else if(cmd->convert_src == TRIG_TIMER)
-	{
-		period = nano2count(cmd->convert_arg);
-	}else {
-		comedi_error(dev, "bug!");
-		return -1;
-	}
 	if(s == dev->read_subdev)
 		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
 	else
 		ret = rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,0,0,0);
-#endif
 	if(ret < 0)
 	{
 		comedi_error(dev, "error initalizing task");
@@ -519,12 +504,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->type=COMEDI_SUBD_UNUSED;
 	}
 
-#ifdef CONFIG_COMEDI_RTL
-	devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
-#endif
-#ifdef CONFIG_COMEDI_RTAI
 	devpriv->soft_irq=rt_request_srq(0,timer_interrupt,NULL);
-#endif
 	if(devpriv->soft_irq < 0)
 	{
 		return devpriv->soft_irq;
@@ -546,12 +526,7 @@ static int timer_detach(comedi_device *dev)
 	{
 		if(devpriv->soft_irq > 0)
 		{
-#ifdef CONFIG_COMEDI_RTL
-			rtl_free_soft_irq(devpriv->soft_irq);
-#endif
-#ifdef CONFIG_COMEDI_RTAI
 			rt_free_srq(devpriv->soft_irq);
-#endif
 		}
 	}
 
