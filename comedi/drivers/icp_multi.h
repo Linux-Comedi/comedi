@@ -30,7 +30,7 @@ struct pcilst_struct{
 	unsigned char	pci_bus;
 	unsigned char	pci_slot;
 	unsigned char	pci_func;
-	unsigned int	io_addr[5];
+	unsigned long	io_addr[5];
 	unsigned int	irq;
 };
 
@@ -49,7 +49,7 @@ int pci_card_free(struct pcilst_struct *amcc);
 void pci_card_list_display(void);
 int pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned short *io_addr, unsigned short *irq, unsigned short *master);
+	unsigned long *io_addr, unsigned short *irq, unsigned short *master);
 
 /****************************************************************************/
 
@@ -85,7 +85,7 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 			inova->pci_slot=PCI_SLOT(pcidev->devfn);
 			inova->pci_func=PCI_FUNC(pcidev->devfn);
 			for (i=0;i<5;i++)
-				inova->io_addr[i]=pcidev->base_address[i] & ~3UL;
+				inova->io_addr[i]=pcidev->base_address[i] & PCI_BASE_ADDRESS_MEM_MASK;
 			inova->irq=pcidev->irq;
 #else
 			inova->vendor=pcidev->vendor;		
@@ -97,7 +97,7 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 			inova->pci_slot=PCI_SLOT(pcidev->devfn);
 			inova->pci_func=PCI_FUNC(pcidev->devfn);
 			for (i=0;i<5;i++)
-				inova->io_addr[i]=pcidev->resource[i].start & ~3UL;
+				inova->io_addr[i]=pcidev->resource[i].start & PCI_BASE_ADDRESS_MEM_MASK;
 			inova->irq=pcidev->irq;
 #endif
 			
@@ -186,12 +186,12 @@ void pci_card_list_display(void)
 {
 	struct pcilst_struct *inova, *next;
 
-	printk("List of pci cards\n");
+	printk("Anne's List of pci cards\n");
 	printk("bus:slot:func vendor device master io_inova io_daq irq used\n");
 
 	for (inova=inova_devices; inova; inova=next) {
 		next=inova->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%4x 0x%4x  %2d  %2d\n",
+		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%8xl 0x%8xl  %2d  %2d\n",
 			inova->pci_bus,inova->pci_slot,inova->pci_func,inova->vendor,inova->device,inova->master?"yes":"no",
 			inova->io_addr[0],inova->io_addr[2],inova->irq,inova->used);
 		
@@ -202,7 +202,7 @@ void pci_card_list_display(void)
 /* return all card information for driver */
 int pci_card_data(struct pcilst_struct *inova,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned short *io_addr, unsigned short *irq, unsigned short *master)
+	unsigned long *io_addr, unsigned short *irq, unsigned short *master)
 {
 	int	i;
 	

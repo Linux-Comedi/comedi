@@ -14,13 +14,6 @@
  *  [1] - PCI slot number 
  * 
 */
-/*
-Driver: icp_multi.o
-Description: Inova ICP Multi
-Author: Anne Smorthit <anne.smorthit@sfwte.ch>
-Devices: [Inova] ICP Multi (icp_multi)
-
-*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -36,6 +29,7 @@ Devices: [Inova] ICP Multi (icp_multi)
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
+
 #include "icp_multi.h"
 
 
@@ -62,7 +56,7 @@ Devices: [Inova] ICP Multi (icp_multi)
 #define ICP_MULTI_CNTR2		0x14	/* R/W:	Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W:	Counter 3 */
 
-#define ICP_MULTI_PCI_MEM_WINDOW_SIZE		0x10000		/* 64K */
+#define ICP_MULTI_SIZE		0x20	/* 32 bytes */
 
 // Define bits from ADC command/status register
 #define	ADC_ST		0x0001		/* Start ADC */
@@ -162,40 +156,32 @@ static boardtype boardtypes[] =
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-static comedi_driver driver_icp_multi={
+comedi_driver driver_icp_multi={
 	driver_name:	"icp_multi",
 	module:		THIS_MODULE,
 	attach:		icp_multi_attach,
 	detach:		icp_multi_detach,
 	num_names:	n_boardtypes,
 	board_name:	boardtypes,
-	offset:		sizeof(boardtype),
+	offset:		sizeof(boardtype),	
 };
 
 typedef struct{
 	char			valid;			// card is usable
-	char			neverending_ai;		// we do unlimited AI
+	void			*io_addr;		// Pointer to mapped io address
+	unsigned long		phys_iobase;		// Physical io address
 	unsigned int		AdcCmdStatus;		// ADC Command/Status register
 	unsigned int		DacCmdStatus;		// DAC Command/Status register
 	unsigned int		IntEnable;		// Interrupt Enable register
 	unsigned int		IntStatus;		// Interrupt Status register
-	unsigned int		ai_do;			// what do AI? 0=nothing, 1 to 4 mode
-	unsigned int		ai_act_scan;		// how many scans we finished
-	unsigned int		ai_act_chan;		// actual position in actual scan
-	unsigned int 		ai_buf_ptr;		// data buffer ptr in samples
-	unsigned char		ai_eos;			// 1=EOS wake up
 	unsigned int		act_chanlist[32];	// list of scaned channel
 	unsigned char		act_chanlist_len;	// len of scanlist
 	unsigned char 		act_chanlist_pos;	// actual position in MUX list
-	unsigned int		ai_scans;		// len of scanlist
-	unsigned int		ai_n_chan;		// how many channels is measured	
 	unsigned int		*ai_chanlist;		// actaul chanlist
-	unsigned int		ai_flags;		// flaglist
-	unsigned int		ai_data_len;		// len of data buffer
 	sampl_t			*ai_data;		// data buffer
 	sampl_t			ao_data[4];		// data output buffer
 	sampl_t			di_data;		// Digital input data
-	sampl_t			do_data;		// Digital output data
+	unsigned int		do_data;		// Remember digital output data
 } icp_multi_private;
 
 #define devpriv ((icp_multi_private *)dev->private)
@@ -242,48 +228,48 @@ int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_ins
 	int n,timeout;
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG: BGN: icp_multi_insn_read_ai(...)\n");
+	printk("icp multi EDBG: BGN: icp_multi_insn_read_ai(...)\n");
 #endif
 	// Disable A/D conversion ready interrupt
 	devpriv->IntEnable &= ~ADC_READY;
-	outw(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+	writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
 	
 	// Clear interrupt status
 	devpriv->IntStatus |= ADC_READY;
-	outw(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+	writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
 
 	// Set up appropriate channel, mode and range data, for specified channel
 	setup_channel_list(dev, s, &insn->chanspec, 1);
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp_multi A ST=%4x IO=%x\n",inw(dev->iobase+ICP_MULTI_ADC_CSR), dev->iobase+ICP_MULTI_ADC_CSR);
+	printk("icp_multi A ST=%4x IO=%x\n",readw(dev->iobase+ICP_MULTI_ADC_CSR), dev->iobase+ICP_MULTI_ADC_CSR);
 #endif
 
 	for (n=0; n<insn->n; n++) {
 		// Set start ADC bit
 		devpriv->AdcCmdStatus |= ADC_ST;
-		outw(devpriv->AdcCmdStatus, dev->iobase+ICP_MULTI_ADC_CSR);
+		writew(devpriv->AdcCmdStatus, dev->iobase+ICP_MULTI_ADC_CSR);
 		devpriv->AdcCmdStatus &= ~ADC_ST;
 
 #ifdef ICP_MULTI_EXTDEBUG
-    		rt_printk("icp multi B n=%d ST=%4x\n",n,inw(dev->iobase+ICP_MULTI_ADC_CSR));
+    		printk("icp multi B n=%d ST=%4x\n",n,readw(dev->iobase+ICP_MULTI_ADC_CSR));
 #endif
 
 		udelay(1);
 
 #ifdef ICP_MULTI_EXTDEBUG
-    		rt_printk("icp multi C n=%d ST=%4x\n",n,inw(dev->iobase+ICP_MULTI_ADC_CSR));
+    		printk("icp multi C n=%d ST=%4x\n",n,readw(dev->iobase+ICP_MULTI_ADC_CSR));
 #endif
 
 		// Wait for conversion to complete, or get fed up waiting
     		timeout=100;
     		while (timeout--) {
-			if (!(inw(dev->iobase+ICP_MULTI_ADC_CSR) & ADC_BSY))
+			if (!(readw(dev->iobase+ICP_MULTI_ADC_CSR) & ADC_BSY))
 				goto conv_finish;
 
 #ifdef ICP_MULTI_EXTDEBUG
 			if (!(timeout%10))
-				rt_printk("icp multi D n=%d tm=%d ST=%4x\n",n,timeout,inw(dev->iobase+ICP_MULTI_ADC_CSR));
+				printk("icp multi D n=%d tm=%d ST=%4x\n",n,timeout,readw(dev->iobase+ICP_MULTI_ADC_CSR));
 #endif
 
 			udelay(1);
@@ -294,34 +280,34 @@ int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_ins
 
 		// Disable interrupt
 		devpriv->IntEnable &= ~ADC_READY;
-		outw(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+		writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
 
 		// Clear interrupt status
 		devpriv->IntStatus |= ADC_READY;
-		outw(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+		writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
 
 		// Clear data received
     		data[n]=0;
 
 #ifdef ICP_MULTI_EXTDEBUG
-		rt_printk("icp multi EDBG: END: icp_multi_insn_read_ai(...) n=%d\n",n);
+		printk("icp multi EDBG: END: icp_multi_insn_read_ai(...) n=%d\n",n);
 #endif
     		return -ETIME;
 
 conv_finish:
-		data[n] = (inw(dev->iobase+ICP_MULTI_AI) >> 4 ) & 0x0fff;
+		data[n] = (readw(dev->iobase+ICP_MULTI_AI) >> 4 ) & 0x0fff;
 	}
 	
 	// Disable interrupt
 	devpriv->IntEnable &= ~ADC_READY;
-	outw(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+	writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
 
 	// Clear interrupt status
 	devpriv->IntStatus |= ADC_READY;
-	outw(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+	writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
 
 #ifdef ICP_MULTI_EXTDEBUG
-		rt_printk("icp multi EDBG: END: icp_multi_insn_read_ai(...) n=%d\n",n);
+		printk("icp multi EDBG: END: icp_multi_insn_read_ai(...) n=%d\n",n);
 #endif
 	return n;
 }
@@ -349,15 +335,15 @@ int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_in
 	int n, chan, range, timeout;
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG: BGN: icp_multi_insn_write_ao(...)\n");
+	printk("icp multi EDBG: BGN: icp_multi_insn_write_ao(...)\n");
 #endif
 	// Disable D/A conversion ready interrupt
 	devpriv->IntEnable &= ~DAC_READY;
-	outw(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+	writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
 	
 	// Clear interrupt status
 	devpriv->IntStatus |= DAC_READY;
-	outw(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+	writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
 
 	// Get channel number and range
 	chan = CR_CHAN(insn->chanspec);
@@ -372,18 +358,18 @@ int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_in
 	devpriv->DacCmdStatus |= this_board->rangecode[range];
 	devpriv->DacCmdStatus |= (chan << 8);
 	
-	outw(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
+	writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
 
 	for (n=0; n<insn->n; n++) {
 		// Wait for analogue output data register to be ready for new data, or get fed up waiting
     		timeout=100;
     		while (timeout--) {
-			if (!(inw(dev->iobase+ICP_MULTI_DAC_CSR) & DAC_BSY))
+			if (!(readw(dev->iobase+ICP_MULTI_DAC_CSR) & DAC_BSY))
 				goto dac_ready;
 
 #ifdef ICP_MULTI_EXTDEBUG
 			if (!(timeout%10))
-				rt_printk("icp multi A n=%d tm=%d ST=%4x\n",n,timeout,inw(dev->iobase+ICP_MULTI_DAC_CSR));
+				printk("icp multi A n=%d tm=%d ST=%4x\n",n,timeout,readw(dev->iobase+ICP_MULTI_DAC_CSR));
 #endif
 
 			udelay(1);
@@ -394,27 +380,27 @@ int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_in
 
 		// Disable interrupt
 		devpriv->IntEnable &= ~DAC_READY;
-		outw(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+		writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
 
 		// Clear interrupt status
 		devpriv->IntStatus |= DAC_READY;
-		outw(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+		writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
 
 		// Clear data received
     		devpriv->ao_data[chan]=0;
 
 #ifdef ICP_MULTI_EXTDEBUG
-		rt_printk("icp multi EDBG: END: icp_multi_insn_write_ao(...) n=%d\n",n);
+		printk("icp multi EDBG: END: icp_multi_insn_write_ao(...) n=%d\n",n);
 #endif
     		return -ETIME;
 
 dac_ready:
 		// Write data to analogue output data register
-		outw(data[n], dev->iobase + ICP_MULTI_AO);
+		writew(data[n], dev->iobase + ICP_MULTI_AO);
 
 		// Set DAC_ST bit to write the data to selected channel
 		devpriv->DacCmdStatus |= DAC_ST;
-		outw(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
+		writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
 		devpriv->DacCmdStatus &= ~DAC_ST;
 
 		// Save analogue output data
@@ -422,7 +408,7 @@ dac_ready:
 	}
 
 #ifdef ICP_MULTI_EXTDEBUG
-		rt_printk("icp multi EDBG: END: icp_multi_insn_write_ao(...) n=%d\n",n);
+		printk("icp multi EDBG: END: icp_multi_insn_write_ao(...) n=%d\n",n);
 #endif
 		return n;
 }
@@ -479,7 +465,7 @@ int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_ins
 */
 int icp_multi_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-	data[1] = inw(dev->iobase + ICP_MULTI_DI);
+	data[1] = readw(dev->iobase + ICP_MULTI_DI);
 
 	return 2;
 }
@@ -502,15 +488,26 @@ int icp_multi_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *
 
 ==============================================================================
 */
-int icp_multi_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int icp_multi_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
-	if(data[0]){
-		s->state &= ~data[0];
-		s->state |= (data[0]&data[1]);
-		outw(s->state, dev->iobase + ICP_MULTI_DO);
-	}
-	data[1] = inw(dev->iobase + ICP_MULTI_DI);
+#ifdef ICP_MULTI_EXTDEBUG
+	printk("icp multi EDBG: BGN: icp_multi_insn_bits_do(...)\n");
+#endif
 
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+
+		printk("Digital outputs = %4x \n", s->state);
+
+		writew(s->state, dev->iobase + ICP_MULTI_DO);
+	}
+
+	data[1] = readw(dev->iobase + ICP_MULTI_DI);
+
+#ifdef ICP_MULTI_EXTDEBUG
+		printk("icp multi EDBG: END: icp_multi_insn_bits_do(...)\n");
+#endif
 	return 2;
 }
 
@@ -588,17 +585,17 @@ static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 	int	int_no;
 	
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG: BGN: interrupt_service_icp_multi(%d,...)\n",irq);
+	printk("icp multi EDBG: BGN: interrupt_service_icp_multi(%d,...)\n",irq);
 #endif
 
 	// Is this interrupt from our board?
-	int_no = inw(dev->iobase + ICP_MULTI_INT_STAT) & Status_IRQ;
+	int_no = readw(dev->iobase + ICP_MULTI_INT_STAT) & Status_IRQ;
 	if (!int_no) 	
 		// No, exit
 		return;
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG: interrupt_service_icp_multi() ST: %4x\n",inw(dev->iobase + ICP_MULTI_INT_STAT));
+	printk("icp multi EDBG: interrupt_service_icp_multi() ST: %4x\n",readw(dev->iobase + ICP_MULTI_INT_STAT));
 #endif
 
 	// Determine which interrupt is active & handle it
@@ -626,7 +623,7 @@ static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 	}
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG: END: interrupt_service_icp_multi(...)\n");
+	printk("icp multi EDBG: END: interrupt_service_icp_multi(...)\n");
 #endif
 }
 
@@ -656,7 +653,7 @@ int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *
         unsigned int i;
     
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG:  check_channel_list(...,%d)\n",n_chan);
+	printk("icp multi EDBG:  check_channel_list(...,%d)\n",n_chan);
 #endif
     	// Check that we at least have one channel to check
 	if (n_chan<1) {
@@ -712,7 +709,7 @@ void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int 
 	unsigned int diff;
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG:  setup_channel_list(...,%d)\n",n_chan);
+	printk("icp multi EDBG:  setup_channel_list(...,%d)\n",n_chan);
 #endif
 	devpriv->act_chanlist_len=n_chan;
 	devpriv->act_chanlist_pos=0;
@@ -750,10 +747,10 @@ void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int 
 		devpriv->AdcCmdStatus |= range;
 
 		/* Output channel, range, mode to ICP Multi*/
-		outw(devpriv->AdcCmdStatus, dev->iobase+ICP_MULTI_ADC_CSR);
+		writew(devpriv->AdcCmdStatus, dev->iobase+ICP_MULTI_ADC_CSR);
 
 #ifdef ICP_MULTI_EXTDEBUG
-		rt_printk("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range, devpriv->act_chanlist[i]);
+		printk("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range, devpriv->act_chanlist[i]);
 #endif
 	}
 
@@ -780,11 +777,11 @@ static int icp_multi_reset(comedi_device *dev)
         unsigned int    i;
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp_multi EDBG: BGN: icp_multi_reset(...)\n");
+	printk("icp_multi EDBG: BGN: icp_multi_reset(...)\n");
 #endif
 	// Clear INT enables and requests
-	outw(0, dev->iobase + ICP_MULTI_INT_EN);
-	outw(0x00ff, dev->iobase + ICP_MULTI_INT_STAT);
+	writew(0, dev->iobase + ICP_MULTI_INT_EN);
+	writew(0x00ff, dev->iobase + ICP_MULTI_INT_STAT);
 
 	if (this_board->n_aochan)
 		// Set DACs to 0..5V range and 0V output
@@ -795,23 +792,23 @@ static int icp_multi_reset(comedi_device *dev)
 			devpriv->DacCmdStatus |= (i << 8);
 
 			// Output 0V
-			outw(0, dev->iobase+ICP_MULTI_AO);
+			writew(0, dev->iobase+ICP_MULTI_AO);
 
 			// Set start conversion bit
 			devpriv->DacCmdStatus |= DAC_ST;
 
 			// Output to command / status register
-			outw(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
+			writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
 			
 			// Delay to allow DAC time to recover
 			udelay(1);
 		}
 	
 	// Digital outputs to 0
-	outw(0, dev->iobase + ICP_MULTI_DO);
+	writew(0, dev->iobase + ICP_MULTI_DO);
 
 #ifdef ICP_MULTI_EXTDEBUG
-	rt_printk("icp multi EDBG: END: icp_multi_reset(...)\n");
+	printk("icp multi EDBG: END: icp_multi_reset(...)\n");
 #endif
 	return 0;
 }
@@ -835,13 +832,20 @@ static int icp_multi_reset(comedi_device *dev)
 */
 static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	comedi_subdevice *s;
-	int ret, subdev;
-	unsigned short io_addr[5], master,irq;
-	struct pcilst_struct *card=NULL;
-        unsigned int iobase;
-	unsigned char pci_bus, pci_slot, pci_func;
+	comedi_subdevice 	*s;
+	int ret, 		subdev;
+	unsigned short 		master,irq;
+	struct pcilst_struct 	*card=NULL;
+        unsigned long 		io_addr[5], iobase;
+	unsigned char 		pci_bus, pci_slot, pci_func;
 	
+	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
+
+	// Alocate private data storage space
+	if ((ret=alloc_private(dev, sizeof(icp_multi_private)))<0)
+		return ret;
+
+	// Initialise list of PCI cards in system, if not already done so
 	if (!pci_list_builded) {
 		pci_card_list_init(VENDOR_ID,
 #ifdef ICP_MULTI_EXTDEBUG
@@ -849,10 +853,10 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 #else
 						    0);
 #endif
-		pci_list_builded=1;
+			pci_list_builded=1;
 	}
 
-	printk("comedi%d: icp_multi: board=%s",dev->minor,this_board->name);
+	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor, this_board->name);
 
 	if ((card=select_and_alloc_pci_card(VENDOR_ID, this_board->device_id, it->options[0], it->options[1]))==NULL)
 		return -EIO;
@@ -865,25 +869,32 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	iobase=io_addr[2];
 
-	printk(", b:s:f=%d:%d:%d, io=0x%4x \n", pci_bus, pci_slot, pci_func, iobase);
+//	if(check_mem_region(iobase, ICP_MULTI_SIZE))
+//	{
+		/* Couldn't allocate io space */
+//		printk(KERN_WARNING "couldn't allocate IO space\n");
+//		return -EIO;
+//	}
+//	request_mem_region(iobase, ICP_MULTI_SIZE, "icp_multi");
+	devpriv->phys_iobase = iobase;
+
+	printk(", b:s:f=%d:%d:%d, io=0x%8lx \n", pci_bus, pci_slot, pci_func, iobase);
 	
-        if (check_region(iobase, this_board->iorange) < 0) {
-		pci_card_free(card);
-		printk("I/O port conflict\n");
-		return -EIO;
-        }
+	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
 
-        request_region(iobase, this_board->iorange, "Inova Icp Multi");
-        dev->iobase=iobase;
-    
-	dev->board_name = this_board->name;
-
-	if((ret=alloc_private(dev, sizeof(icp_multi_private)))<0) {
-    		release_region(dev->iobase, this_board->iorange);
-		pci_card_free(card);
+	if (devpriv->io_addr == NULL) {
+		printk("ioremap failed.\n");
 		return -ENOMEM;
 	}
-		
+
+#ifdef ICP_MULTI_EXTDEBUG
+	printk("0x%08lx mapped to %p, ", iobase, devpriv->io_addr);
+#endif
+
+	dev->iobase = (int)devpriv->io_addr;
+
+	dev->board_name = this_board->name;
+
         dev->n_subdevices = 0;
 	if (this_board->n_aichan) dev->n_subdevices++;
 	if (this_board->n_aochan) dev->n_subdevices++;
@@ -892,7 +903,6 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_ctrs)	  dev->n_subdevices++;
 	
         if((ret=alloc_subdevices(dev))<0) {
-    		release_region(dev->iobase, this_board->iorange);
 		pci_card_free(card);
     		return ret;
 	}
@@ -902,15 +912,15 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 			if (comedi_request_irq(irq, interrupt_service_icp_multi, SA_SHIRQ, "Inova Icp Multi", dev)) {
 				printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 				irq=0; /* Can't use IRQ */
-			} else {
+			}
+			else
 				printk(", irq=%d", irq);
-			}    
-		} else {
-			printk(", IRQ disabled");
 		}
-	} else {
-		irq=0;
+		else
+			printk(", IRQ disabled");
 	}
+	else
+		irq=0;
 	
         dev->irq = irq;
 
@@ -923,7 +933,8 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE|SDF_COMMON|SDF_GROUND;
-		if (this_board->n_aichand) s->subdev_flags |= SDF_DIFF;
+		if (this_board->n_aichand)
+			s->subdev_flags |= SDF_DIFF;
 		s->n_chan = this_board->n_aichan;
 		s->maxdata = this_board->ai_maxdata;
 		s->len_chanlist = this_board->n_aichan;
@@ -948,12 +959,12 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_dichan) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE|SDF_GROUND|SDF_COMMON;
+		s->subdev_flags = SDF_READABLE;
 		s->n_chan = this_board->n_dichan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dichan;
 		s->range_table = &range_digital;
-		s->io_bits=0;		/* all bits input */
+		s->io_bits=0;
 		s->insn_bits=icp_multi_insn_bits_di;
 		subdev++;
 	}
@@ -961,12 +972,12 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_dochan) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_COMMON;
+		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
 		s->n_chan = this_board->n_dochan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;
 		s->range_table = &range_digital;
-		s->io_bits=(1 << this_board->n_dochan)-1;	/* all bits output */
+		s->io_bits=(1 << this_board->n_dochan)-1;
 		s->state=0;
 		s->insn_bits=icp_multi_insn_bits_do;
 		subdev++;
@@ -985,9 +996,13 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 		subdev++;
 	}
 	
-	devpriv->valid=1;
+	devpriv->valid = 1;
 
 	icp_multi_reset(dev);
+
+#ifdef ICP_MULTI_EXTDEBUG
+	printk("icp multi EDBG: END: icp_multi_attach(...)\n");
+#endif
 
 	return 0;
 }
@@ -1016,10 +1031,12 @@ static int icp_multi_detach(comedi_device *dev)
 			icp_multi_reset(dev);
 	
 	if (dev->irq)
-		comedi_free_irq(dev->irq,dev);
+		free_irq(dev->irq,dev);
 
-	if (dev->iobase)
-		release_region(dev->iobase,this_board->iorange);
+	if (dev->iobase) {
+		iounmap(devpriv->io_addr);
+//		release_mem_region(iobase, ICP_MULTI_SIZE);
+	}
 
 	if (pci_list_builded) {
 	    	pci_card_list_cleanup(VENDOR_ID);
