@@ -20,7 +20,7 @@
 #define pci_for_each_dev(x)	\
 	for((x)=pci_devices;(x);(x)=(x)->next)
 
-#define pci_enable_device(x) 0
+static inline int pci_enable_device(struct pci_dev *dev){return 0;}
 #define pci_disable_device(x)
 
 #define PCI_ANY_ID (~0)
