@@ -36,6 +36,7 @@
 #include <linux/kmod.h>
 #include <linux/poll.h>
 #include <linux/init.h>
+#include <linux/devfs_fs_kernel.h>
 
 #include <linux/comedidev.h>
 
@@ -1730,7 +1731,7 @@ static int __init comedi_init(void)
 	int i;
 
 	printk("comedi: version " COMEDI_RELEASE " - David Schleef <ds@schleef.org>\n");
-	if(register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
+	if(devfs_register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
 		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
 		return -EIO;
 	}
@@ -1745,6 +1746,13 @@ static int __init comedi_init(void)
 
 	/* XXX requires /proc interface */
 	comedi_proc_init();
+
+	for(i=0;i<4;i++){
+		char name[20];
+		sprintf(name, "comedi%d", i);
+		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
+			COMEDI_MAJOR, i, 0660 | S_IFCHR, &comedi_fops, NULL);
+	}
 	
 	comedi_rt_init();
 
@@ -1758,7 +1766,14 @@ static void __exit comedi_cleanup(void)
 	if(MOD_IN_USE)
 		printk("comedi: module in use -- remove delayed\n");
 
-	unregister_chrdev(COMEDI_MAJOR,"comedi");
+	for(i=0;i<4;i++){
+		char name[20];
+		sprintf(name, "comedi%d", i);
+		devfs_unregister(devfs_find_handle(NULL, name,
+			COMEDI_MAJOR, i, DEVFS_SPECIAL_CHR, 0));
+	}
+
+	devfs_unregister_chrdev(COMEDI_MAJOR,"comedi");
 
 	comedi_proc_cleanup();
 
