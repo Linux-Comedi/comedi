@@ -34,6 +34,7 @@ obj-$(CONFIG_COMEDI_II_PCI20KC)		+= ii_pci20kc.o
 obj-$(CONFIG_COMEDI_MULTIQ3)		+= multiq3.o
 
 obj-$(CONFIG_COMEDI_NI_ATMIO)		+= ni_atmio.o
+obj-$(CONFIG_COMEDI_NI_MIO_CS)		+= ni_mio_cs.o
 obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_NI_PCIDIO)		+= ni_pcidio.o
 obj-$(CONFIG_COMEDI_MITE)		+= mite.o

@@ -398,7 +398,7 @@
 /* i/o port offsets */
 
 /* 8 bit registers */
-#define Status				0x01
+#define XXX_Status			0x01
 #define Serial_Command			0x0d
 #define Misc_Command			0x0f
 #define Port_A				0x19

@@ -1246,7 +1246,8 @@ for(i=0;i<it->n_chan;i++){
 
 	ni_writew(conf,AO_Configuration);
 
-	if(range&1)data^=0x800;
+	if(range&1)
+		data^=(1<<(boardtype.aobits-1));
 	
 	ni_writew(data,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 }
@@ -1589,7 +1590,7 @@ static int ni_read_eeprom(comedi_device *dev,int addr)
 	for(bit=0x80;bit;bit>>=1){
 		ni_writeb_p(0x04,Serial_Command);
 		ni_writeb_p(0x05,Serial_Command);
-		bitstring|=((ni_readb_p(Status)&0x01)?bit:0);
+		bitstring|=((ni_readb_p(XXX_Status)&0x01)?bit:0);
 	}
 	ni_writeb_p(0x00,Serial_Command);
 	
