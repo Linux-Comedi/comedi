@@ -392,6 +392,13 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 descriptor 0x%x\n", readl(plx_iobase + PLX_DMA0_DESCRIPTOR_REG));
 	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(plx_iobase + PLX_DMA0_CS_REG));
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
+	DEBUG_PRINT(" plx bigend 0x%x\n", readl(plx_iobase + PLX_BIGEND_REG));
+#ifdef __BIG_ENDIAN
+	bits = BIGEND_DMA0 | BIGEND_DMA1;
+#else
+	bits = 0;
+#endif
+	writel(bits, priv(dev)->plx9080_iobase + PLX_BIGEND_REG);
 
 	disable_plx_interrupts( dev );
 
@@ -491,12 +498,12 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 	for( i = 0; i < NUM_DMA_DESCRIPTORS &&
 		buffer_index < NUM_DMA_BUFFERS; i++ )
 	{
-		priv(dev)->dma_desc[ i ].pci_start_addr = priv(dev)->dio_buffer_phys_addr[ buffer_index ] +
-			buffer_offset;
-		priv(dev)->dma_desc[ i ].local_start_addr = FIFO_REG;
-		priv(dev)->dma_desc[ i ].transfer_size = transfer_size;
-		priv(dev)->dma_desc[ i ].next = ( priv(dev)->dma_desc_phys_addr +
-			( i + 1 ) * sizeof( priv(dev)->dma_desc[ 0 ] ) ) | next_bits;
+		priv(dev)->dma_desc[ i ].pci_start_addr = __cpu_to_le32(priv(dev)->dio_buffer_phys_addr[ buffer_index ] +
+			buffer_offset);
+		priv(dev)->dma_desc[ i ].local_start_addr = __cpu_to_le32(FIFO_REG);
+		priv(dev)->dma_desc[ i ].transfer_size = __cpu_to_le32(transfer_size);
+		priv(dev)->dma_desc[ i ].next = __cpu_to_le32(( priv(dev)->dma_desc_phys_addr +
+			( i + 1 ) * sizeof( priv(dev)->dma_desc[ 0 ] ) ) | next_bits);
 
 		priv(dev)->desc_dio_buffer[ i ] = priv(dev)->dio_buffer[ buffer_index ] +
 			( buffer_offset / sizeof( uint32_t ) );
@@ -516,7 +523,7 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 	priv(dev)->num_dma_descriptors = i;
 	// fix last descriptor to point back to first
 	priv(dev)->dma_desc[ i - 1 ].next =
-		priv(dev)->dma_desc_phys_addr | next_bits;
+		__cpu_to_le32(priv(dev)->dma_desc_phys_addr | next_bits);
 	DEBUG_PRINT(" desc %i next fixup 0x%lx\n", i - 1,
 		(unsigned long) priv(dev)->dma_desc[ i - 1 ].next );
 
@@ -876,8 +883,8 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	// loop until we have read all the full buffers
 	j = 0;
 	for(next_transfer_addr = readl(pci_addr_reg);
-		(next_transfer_addr < priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr ||
-		next_transfer_addr >= priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr +
+		(next_transfer_addr < __le32_to_cpu(priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr) ||
+		next_transfer_addr >= __le32_to_cpu(priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr) +
 		priv(dev)->block_size ) &&
 		j < priv(dev)->num_dma_descriptors;
 		j++ )
