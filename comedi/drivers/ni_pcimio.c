@@ -398,7 +398,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
-		caldac:         {ad8804,mb88341,ad8522}, /* manual is wrong */
+		caldac:         {ad8804_debug,ad8804_debug,ad8522}, /* manual is wrong */
 	},
 #if 0
 	{       device_id:      0x0000, /* unknown */
