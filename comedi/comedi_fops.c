@@ -1657,13 +1657,13 @@ printk("m is %d\n",m);
 		if(m<n)n=m;
 
 		if(n==0){
-			if(file->f_flags&O_NONBLOCK){
-				retval=-EAGAIN;
-				break;
-			}
 			if(!(s->subdev_flags&SDF_RUNNING)){
 				do_become_nonbusy(dev,s);
 				retval=-EINVAL;
+				break;
+			}
+			if(file->f_flags&O_NONBLOCK){
+				retval=-EAGAIN;
 				break;
 			}
 			if(signal_pending(current)){
