@@ -160,9 +160,6 @@ int comedi_command(comedi_t *d,comedi_cmd *cmd)
 
 	init_async_buf( async );
 
-	async->data = cmd->data;
-	async->data_len = cmd->data_len;
-
 	return s->do_cmd(dev,s);
 }
 

@@ -471,12 +471,12 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		}
 
 		async->buf_read_ptr += bi.bytes_read;
-		if( async->buf_read_ptr >= async->data_len )
-			async->buf_read_ptr %= async->data_len;
+		if( async->buf_read_ptr >= async->prealloc_bufsz )
+			async->buf_read_ptr %= async->prealloc_bufsz;
 		async->buf_read_count += bi.bytes_read;
 
 		// check for buffer overflow
-		if( m > async->data_len )
+		if( m > async->prealloc_bufsz )
 		{
 			do_cancel(dev, dev->read_subdev);
 			DPRINTK("buffer overflow\n");
@@ -878,17 +878,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 
-#if 0
-	/* XXX this needs to be removed when the drivers are ready */
-	/* They should be ready now. */
-	async->cmd.data = async->prealloc_buf;
-	async->cmd.data_len=async->prealloc_bufsz;
-#endif
-
 	init_async_buf( async );
-
-	async->data = async->prealloc_buf;
-	async->data_len=async->prealloc_bufsz;
 
 	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(async->cmd.flags & TRIG_WAKE_EOS){
@@ -1343,8 +1333,8 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		n=nbytes;
 
 		m = n;
-		if(async->buf_write_ptr + m > async->data_len){
-			m = async->data_len - async->buf_write_ptr;
+		if(async->buf_write_ptr + m > async->prealloc_bufsz){
+			m = async->prealloc_bufsz - async->buf_write_ptr;
 		}
 		m = comedi_buf_write_alloc(async, m);
 

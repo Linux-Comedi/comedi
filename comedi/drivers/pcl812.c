@@ -772,8 +772,8 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	} else devpriv->ai_dma=0;
 		
 	devpriv->ai_flags=cmd->flags;
-	devpriv->ai_data_len=s->async->data_len;
-	devpriv->ai_data=s->async->data;
+	devpriv->ai_data_len=s->async->prealloc_bufsz;
+	devpriv->ai_data=s->async->prealloc_buf;
 	if (cmd->stop_src==TRIG_COUNT) { devpriv->ai_scans=cmd->stop_arg; devpriv->ai_neverending=0; }
 				else   { devpriv->ai_scans=0; devpriv->ai_neverending=1; }
 

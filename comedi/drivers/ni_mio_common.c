@@ -717,7 +717,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		}
 	}else{
 		while(1){
-			n = s->async->data_len / sizeof(sampl_t);
+			n = s->async->prealloc_bufsz / sizeof(sampl_t);
 			for(i=0;i<n;i++){
 				if(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St){
 					return;

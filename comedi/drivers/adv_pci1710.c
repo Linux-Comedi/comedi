@@ -907,8 +907,8 @@ static int pci171x_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ai_n_chan=cmd->chanlist_len;
 	devpriv->ai_chanlist=cmd->chanlist;
 	devpriv->ai_flags=cmd->flags;
-	devpriv->ai_data_len=s->async->data_len;
-	devpriv->ai_data=s->async->data;
+	devpriv->ai_data_len=s->async->prealloc_bufsz;
+	devpriv->ai_data=s->async->prealloc_buf;
 	devpriv->ai_timer1=0;
 	devpriv->ai_timer2=0;
 

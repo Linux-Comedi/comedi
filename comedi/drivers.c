@@ -394,7 +394,7 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 {
-	unsigned int free_end = async->buf_read_count + async->data_len;
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
 	if((int)(async->buf_free_count + nbytes - free_end) > 0){
 		nbytes = free_end - async->buf_free_count;
@@ -408,7 +408,7 @@ unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
 	unsigned int nbytes)
 {
-	unsigned int free_end = async->buf_read_count + async->data_len;
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
 	if((int)(async->buf_free_count + nbytes - free_end) > 0){
 		nbytes = 0;
@@ -424,8 +424,8 @@ void comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
 {
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
-	if(async->buf_write_ptr >= async->data_len){
-		async->buf_write_ptr -= async->data_len;
+	if(async->buf_write_ptr >= async->prealloc_bufsz){
+		async->buf_write_ptr -= async->prealloc_bufsz;
 		async->events |= COMEDI_CB_EOBUF;
 	}
 }
@@ -435,8 +435,8 @@ void comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
 {
 	async->buf_read_count += nbytes;
 	async->buf_read_ptr += nbytes;
-	if(async->buf_read_ptr >= async->data_len){
-		async->buf_read_ptr -= async->data_len;
+	if(async->buf_read_ptr >= async->prealloc_bufsz){
+		async->buf_read_ptr -= async->prealloc_bufsz;
 	}
 }
 
@@ -445,19 +445,19 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 {
 	unsigned int write_ptr = async->buf_write_ptr + offset;
 
-	if( write_ptr >= async->data_len )
-		write_ptr -= async->data_len;
+	if( write_ptr >= async->prealloc_bufsz )
+		write_ptr -= async->prealloc_bufsz;
 
 	while( num_bytes )
 	{
 		unsigned int block_size;
 
-		if( write_ptr + num_bytes > async->data_len)
-			block_size = async->data_len - write_ptr;
+		if( write_ptr + num_bytes > async->prealloc_bufsz)
+			block_size = async->prealloc_bufsz - write_ptr;
 		else
 			block_size = num_bytes;
 
-		memcpy( async->data + write_ptr, data, block_size );
+		memcpy( async->prealloc_buf + write_ptr, data, block_size );
 
 		data += block_size;
 		num_bytes -= block_size;
@@ -472,17 +472,17 @@ void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	void *src;
 	unsigned int read_ptr = async->buf_read_ptr + offset;
 
-	if( read_ptr >= async->data_len )
-		read_ptr -= async->data_len;
+	if( read_ptr >= async->prealloc_bufsz )
+		read_ptr -= async->prealloc_bufsz;
 
 	while( nbytes )
 	{
 		unsigned int block_size;
 
-		src = async->data + read_ptr;
+		src = async->prealloc_buf + read_ptr;
 
-		if( nbytes >= async->data_len - read_ptr )
-			block_size = async->data_len - read_ptr;
+		if( nbytes >= async->prealloc_bufsz - read_ptr )
+			block_size = async->prealloc_bufsz - read_ptr;
 		else
 			block_size = nbytes;
 

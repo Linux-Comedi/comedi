@@ -1471,8 +1471,8 @@ static int pci9118_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ai_n_chan=cmd->chanlist_len;
 	devpriv->ai_n_scanlen=cmd->scan_end_arg;
 	devpriv->ai_chanlist=cmd->chanlist;
-	devpriv->ai_data=s->async->data;
-	devpriv->ai_data_len=s->async->data_len;
+	devpriv->ai_data=s->async->prealloc_buf;
+	devpriv->ai_data_len=s->async->prealloc_bufsz;
 	devpriv->ai_timer1=0;
 	devpriv->ai_timer2=0;
 	devpriv->ai_add_front=0;

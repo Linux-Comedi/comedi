@@ -434,8 +434,8 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 
 			async->buf_write_count += count;
 			async->buf_write_ptr += count;
-			if(async->buf_write_ptr >= async->data_len){
-				async->buf_write_ptr -= async->data_len;
+			if(async->buf_write_ptr >= async->prealloc_bufsz){
+				async->buf_write_ptr -= async->prealloc_bufsz;
 			}
 			mite->current_link++;
 			if(mite->current_link >= mite->n_links){
