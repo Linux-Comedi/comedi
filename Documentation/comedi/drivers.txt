@@ -278,7 +278,7 @@ AT-MIO96.
 
 
 
-parport.o: Standard PC parallel port
+comedi_parport.o: Standard PC parallel port
 
 Author: ds
 Status: works in immediate mode
