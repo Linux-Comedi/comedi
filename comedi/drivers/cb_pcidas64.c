@@ -43,7 +43,7 @@ Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
-  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6025E, PCI-DAS6034E,
+  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6023E, PCI-DAS6025E, PCI-DAS6034E,
   PCI-DAS6035E, PCI-DAS4020/12
 
 Configuration options:
@@ -465,6 +465,21 @@ static pcidas64_board pcidas64_boards[] =
 		ai_range_bits:	ai_range_bits_64xx,
 		ao_range_table:	&ao_ranges_64xx,
 		ao_range_code:	ao_range_code_64xx,
+	},
+	{
+		name:		"pci-das6023",
+		device_id:	0x5d,
+		ai_se_chans:	16,
+		ai_bits:	12,
+		ai_speed:	5000,
+		ao_nchan: 0,
+		ao_scan_speed:	100000,
+		fifo_depth: 0x2000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_60xx,
+		ai_range_bits:	ai_range_bits_60xx,
+		ao_range_table:	&ao_ranges_60xx,
+		ao_range_code:	ao_range_code_60xx,
 	},
 	{
 		name:		"pci-das6025",
