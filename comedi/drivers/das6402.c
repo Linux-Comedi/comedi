@@ -173,7 +173,7 @@ static void intr_handler(int irq,void *d,struct pt_regs *regs)
 
 	das6402_ai_fifo_dregs(dev,s);
 
-	if(s->async->buf_int_count >= devpriv->ai_bytes_to_read){
+	if(s->async->buf_write_count >= devpriv->ai_bytes_to_read){
 		outw_p(SCANL,dev->iobase+2);  /* clears the fifo */
 		outb(0x07,dev->iobase+8);  /* clears all flip-flops */
 #ifdef DEBUG

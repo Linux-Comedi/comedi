@@ -339,7 +339,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 		handle_a_interrupt(dev,a_status,m0_status);
 	}
 	if(b_status&Interrupt_B_St)handle_b_interrupt(dev,b_status);
-	
+
 	win_restore(wsave);
 }
 
@@ -352,41 +352,41 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 
 	writel(CHOR_CLRLC, mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan));
 
-	count = mite_bytes_transferred(mite, 0) - async->buf_int_count;
+	count = mite_bytes_transferred(mite, 0) - async->buf_write_count;
 	if(count < 0 || count > 100000){
 		printk("BUG: too many samples in interrupt (%d)\n",count);
 		return;
 	}
-	async->buf_int_count += count;
+	async->buf_write_count += count;
 
 	if(async->cmd.flags & CMDF_RAWDATA){
 		/*
 		 * Don't munge the data, just update the user's status
 		 * variables
 		 */
-		async->buf_int_ptr += count;
-		if(async->buf_int_ptr >= async->prealloc_bufsz)
-			async->buf_int_ptr -= async->prealloc_bufsz;
+		async->buf_write_ptr += count;
+		if(async->buf_write_ptr >= async->prealloc_bufsz)
+			async->buf_write_ptr -= async->prealloc_bufsz;
 	}else{
 		/*
 		 * Munge the ADC data to change its format from two's
 		 * complement to unsigned int.  This is slow but makes
 		 * it more compatible with other cards.
 		 */
-		if(async->buf_int_ptr + count >= async->prealloc_bufsz){
+		if(async->buf_write_ptr + count >= async->prealloc_bufsz){
 			ni_munge(dev,s,
-				async->prealloc_buf + async->buf_int_ptr,
+				async->prealloc_buf + async->buf_write_ptr,
 				async->prealloc_buf + async->prealloc_bufsz);
-			async->buf_int_ptr += count;
-			async->buf_int_ptr -= async->prealloc_bufsz;
+			async->buf_write_ptr += count;
+			async->buf_write_ptr -= async->prealloc_bufsz;
 			ni_munge(dev,s,
 				async->prealloc_buf,
-				async->prealloc_buf + async->buf_int_ptr);
+				async->prealloc_buf + async->buf_write_ptr);
 		}else{
 			ni_munge(dev,s,
-				async->prealloc_buf + async->buf_int_ptr,
-				async->prealloc_buf + async->buf_int_ptr + count);
-			async->buf_int_ptr += count;
+				async->prealloc_buf + async->buf_write_ptr,
+				async->prealloc_buf + async->buf_write_ptr + count);
+			async->buf_write_ptr += count;
 		}
 	}
 	s->async->events |= COMEDI_CB_BLOCK;
@@ -399,7 +399,7 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 	comedi_subdevice *s = dev->subdevices+0;
 	comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
-	
+
 	async->events |= COMEDI_CB_BLOCK;
 
 	MDPRINTK("mite_handle_interrupt: m_status=%08x\n",m_status);
@@ -852,7 +852,7 @@ static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 
 	//comedi_event(dev,s,s->async->events);
 
-	return s->async->buf_int_count-s->async->buf_user_count;
+	return s->async->buf_write_count - s->async->buf_read_count;
 #else
 	/* XXX we don't support this yet. */
 	return -EINVAL;
@@ -1647,14 +1647,14 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s,
 	// increment channel index
 	async->cur_chan = (async->cur_chan + n) % async->cmd.chanlist_len;
 	// increment async buf_int_count and buf_int_ptr
-	async->buf_int_count += n * sizeof(sampl_t);
-	async->buf_int_ptr += n * sizeof(sampl_t);
+	async->buf_read_count += n * sizeof(sampl_t);
+	async->buf_read_ptr += n * sizeof(sampl_t);
 	// check if we have reached end of buffer
-	if(async->buf_int_ptr >= async->data_len)
+	if(async->buf_read_ptr >= async->data_len)
 	{
-		async->buf_int_ptr -= async->data_len;
+		async->buf_read_ptr -= async->data_len;
 		// this shouldn't ever happen
-		if(async->buf_int_ptr >= async->data_len)
+		if(async->buf_read_ptr >= async->data_len)
 			comedi_error(dev, "ao bug!");
 	}
 }
@@ -1680,17 +1680,17 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 {
 	int n,m;
 
-	n=(s->async->buf_int_count-s->async->buf_user_count)/sizeof(sampl_t);
+	n=(s->async->buf_read_count - s->async->buf_write_count) / sizeof(sampl_t);
 	if(n==0)return 0;
 	if(n>boardtype.ao_fifo_depth/2)
 		n=boardtype.ao_fifo_depth/2;
 
-	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>s->async->data_len){
-		m=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,m);
+	if(s->async->buf_read_ptr+n*sizeof(sampl_t)>s->async->data_len){
+		m=(s->async->data_len-s->async->buf_read_ptr)/sizeof(sampl_t);
+		ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_read_ptr,m);
 		n-=m;
 	}
-	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
+	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_read_ptr,n);
 
 	s->async->events |= COMEDI_CB_BLOCK;
 
@@ -1705,12 +1705,12 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	win_out(0,DAC_FIFO_Clear);
 
 	/* load some data */
-	n=(s->async->buf_user_count-s->async->buf_int_count)/sizeof(sampl_t);
+	n=(s->async->buf_write_count-s->async->buf_read_count)/sizeof(sampl_t);
 	if(n<0)return 0;
 	if(n>boardtype.ao_fifo_depth)
 		n=boardtype.ao_fifo_depth;
 
-	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
+	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_read_ptr,n);
 
 	return n;
 }

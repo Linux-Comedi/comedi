@@ -283,14 +283,7 @@ static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
 		return;
 	}
 
-	*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=0;
-	s->async->buf_int_ptr+=sizeof(sampl_t);
-	s->async->buf_int_count+=sizeof(sampl_t);
-	if(s->async->buf_int_ptr>=s->async->data_len){
-		s->async->buf_int_ptr=0;
-		s->async->events |= COMEDI_CB_EOBUF;
-	}
-	s->async->events |= COMEDI_CB_EOS;
+	comedi_buf_put( s->async, 0 );
 	
 	comedi_event(dev,s,s->async->events);
 }

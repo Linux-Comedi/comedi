@@ -75,6 +75,7 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
 static int comedi_fasync (int fd, struct file *file, int on);
+static void init_async_buf( comedi_async *async );
 
 static int comedi_ioctl(struct inode * inode,struct file * file,
 	unsigned int cmd,unsigned long arg)
@@ -457,32 +458,34 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	if(bi.bytes_read){
 
 		// check for buffer underflow
-		m = async->buf_int_count - async->buf_user_count;
+		m = async->buf_write_count - async->buf_read_count;
 		if(bi.bytes_read > m)
 		{
 			DPRINTK("buffer underflow\n");
 			return -EIO;
 		}
 
-		async->buf_user_ptr += bi.bytes_read;
-		async->buf_user_count += bi.bytes_read;
+		async->buf_read_ptr += bi.bytes_read;
+		if( async->buf_read_ptr >= async->data_len )
+			async->buf_read_ptr %= async->data_len;
+		async->buf_read_count += bi.bytes_read;
 
 		// check for buffer overflow
-		if(m > async->data_len){
-			async->buf_user_count = async->buf_int_count;
-			async->buf_user_ptr = async->buf_int_ptr;
+		if( m > async->data_len )
+		{
 			do_cancel(dev, dev->read_subdev);
 			DPRINTK("buffer overflow\n");
 			return -EIO;
 		}
-		if(!(s->subdev_flags&SDF_RUNNING) && async->buf_int_count==async->buf_user_count){
+		if(!(s->subdev_flags&SDF_RUNNING) && async->buf_write_count==async->buf_read_count){
 			do_become_nonbusy(dev,s);
 		}
 	}
-	bi.buf_int_count = async->buf_int_count;
-	bi.buf_int_ptr = async->buf_int_ptr;
-	bi.buf_user_count = async->buf_user_count;
-	bi.buf_user_ptr = async->buf_user_ptr;
+	// XXX fix bufinfo struct
+	bi.buf_int_count = async->buf_write_count;
+	bi.buf_int_ptr = async->buf_write_ptr;
+	bi.buf_user_count = async->buf_read_count;
+	bi.buf_user_ptr = async->buf_read_ptr;
 
 copyback:
 	if(copy_to_user(arg, &bi, sizeof(comedi_bufinfo)))
@@ -877,20 +880,18 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	async->cmd.data_len=async->prealloc_bufsz;
 #endif
 
-	async->data = async->prealloc_buf;
-	async->data_len=async->prealloc_bufsz;
-
-	async->buf_int_ptr=0;
-	async->buf_int_count=0;
-	async->buf_user_ptr=0;
-	async->buf_user_count=0;
+	init_async_buf( async );
 
 	async->cur_chan = 0;
+
+	async->data = async->prealloc_buf;
+	async->data_len=async->prealloc_bufsz;
 
 	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(async->cmd.flags & TRIG_WAKE_EOS){
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
+
 	async->events = 0;
 
 	s->runflags=SRF_USER;
@@ -1144,7 +1145,7 @@ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 	
 	reads:
 		nothing
-	
+
 	writes:
 		nothing
 
@@ -1284,7 +1285,7 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 		s = dev->read_subdev;
 		async = s->async;
 		if(!s->busy ||
-		   (async->buf_user_count < async->buf_int_count) ||
+		   (async->buf_read_count < async->buf_write_count) ||
 		   !(s->subdev_flags&SDF_RUNNING)){
 			mask |= POLLIN | POLLRDNORM;
 		}
@@ -1294,7 +1295,7 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 		async = s->async;
 		if(!s->busy ||
 		   !(s->subdev_flags&SDF_RUNNING) ||
-		   (async->buf_user_count < async->buf_int_count +
+		   (async->buf_write_count < async->buf_read_count +
 		    async->prealloc_bufsz)){
 			mask |= POLLOUT | POLLWRNORM;
 		}
@@ -1347,9 +1348,9 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		m = async->data_len + async->buf_int_count - async->buf_user_count;
-		if( async->buf_user_ptr + m > async->data_len )
-			m = async->data_len - async->buf_user_ptr;
+		m = async->data_len + async->buf_read_count - async->buf_write_count;
+		if( async->buf_write_ptr + m > async->data_len )
+			m = async->data_len - async->buf_write_ptr;
 
 		if(m < n) n = m;
 
@@ -1374,18 +1375,16 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			schedule();
 			continue;
 		}
-		m=copy_from_user(async->data+async->buf_user_ptr,buf,n);
-		if(m) retval=-EFAULT;
+		m = 0;
+		if( write_to_async_buffer( async, buf, n, 1 ) )
+		{
+			m = n;
+			retval = -EFAULT;
+		}
 		n-=m;
 
 		count+=n;
 		nbytes-=n;
-		async->buf_user_ptr+=n;
-		async->buf_user_count+=n;
-
-		if(async->buf_user_ptr>=async->data_len ){
-			async->buf_user_ptr=0;
-		}
 
 		buf+=n;
 		break;	/* makes device work like a pipe */
@@ -1440,9 +1439,9 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		n=nbytes;
 
-		m = async->buf_int_ptr - async->buf_user_ptr;
-		if( m < 0 )
-			m = async->data_len - async->buf_user_ptr;
+		m = async->buf_write_count - async->buf_read_count;
+		if( m > async->data_len )
+			m = async->data_len;
 
 #if 0
 printk("m is %d\n",m);
@@ -1470,15 +1469,17 @@ printk("m is %d\n",m);
 			schedule();
 			continue;
 		}
-		m=copy_to_user(buf,async->data+async->buf_user_ptr,n);
-		if(m) retval=-EFAULT;
+		m=0;
+		retval = read_from_async_buffer( async, buf, n, 1 );
+		if( retval )
+		{
+			m = n;
+		}
 		n-=m;
 
 		/* check for buffer overflow */
-		if(async->buf_int_count - async->buf_user_count > async->data_len){
-			async->buf_user_count = async->buf_int_count;
-			async->buf_user_ptr = async->buf_int_ptr;
-			retval=-EIO;
+		if( retval == -EIO )
+		{
 			do_cancel(dev, dev->read_subdev);
 			DPRINTK("buffer overflow\n");
 			break;
@@ -1486,19 +1487,13 @@ printk("m is %d\n",m);
 
 		count+=n;
 		nbytes-=n;
-		async->buf_user_ptr+=n;
-		async->buf_user_count+=n;
-
-		if(async->buf_user_ptr>=async->data_len ){
-			async->buf_user_ptr=0;
-		}
 
 		buf+=n;
 		break;	/* makes device work like a pipe */
 	}
 	if(!(s->subdev_flags&SDF_RUNNING) &&
 		!(s->runflags & SRF_ERROR) &&
-		async->buf_int_count - async->buf_user_count == 0)
+		async->buf_read_count - async->buf_write_count == 0)
 	{
 		do_become_nonbusy(dev,s);
 	}
@@ -1525,10 +1520,7 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 #endif
 
 	if(async){
-		async->buf_user_ptr=0;
-		async->buf_int_ptr=0;
-		async->buf_user_count=0;
-		async->buf_int_count=0;
+		init_async_buf( async );
 	}else{
 		printk("BUG: (?) do_become_nonbusy called with async=0\n");
 	}
@@ -1857,5 +1849,14 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 			 * common, I'm not going to worry about it. */
 		}
 	}
+}
+
+static void init_async_buf( comedi_async *async )
+{
+	async->buf_read_count = 0;
+	async->buf_write_count = 0;
+	async->buf_dirty_count = 0;
+	async->buf_read_ptr = 0;
+	async->buf_write_ptr = 0;
 }
 

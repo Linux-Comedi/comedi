@@ -1187,7 +1187,7 @@ transferDone:
 static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s)
 {
     /* TODO: This needs to mask interrupts, read_dregs, and then re-enable */
-    return s->async->buf_int_count - s->async->buf_user_count;
+    return s->async->buf_write_count - s->async->buf_read_count;
 }
 
 /*

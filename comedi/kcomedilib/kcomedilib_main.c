@@ -105,7 +105,7 @@ void comedi_perror(const char *message)
 char *comedi_strerror(int err)
 {
 	return "unknown error";
-} 
+}
 
 int comedi_fileno(comedi_t *d)
 {
@@ -113,6 +113,15 @@ int comedi_fileno(comedi_t *d)
 
 	/* return something random */
 	return dev->minor;
+}
+
+static void init_async_buf( comedi_async *async )
+{
+	async->buf_read_count = 0;
+	async->buf_write_count = 0;
+	async->buf_dirty_count = 0;
+	async->buf_read_ptr = 0;
+	async->buf_write_ptr = 0;
 }
 
 int comedi_command(comedi_t *d,comedi_cmd *cmd)
@@ -145,10 +154,7 @@ int comedi_command(comedi_t *d,comedi_cmd *cmd)
 
 	s->subdev_flags |= SDF_RUNNING;
 
-	async->buf_user_ptr=0;
-	async->buf_user_count=0;
-	async->buf_int_ptr=0;
-	async->buf_int_count=0;
+	init_async_buf( async );
 
 	async->data = cmd->data;
 	async->data_len = cmd->data_len;

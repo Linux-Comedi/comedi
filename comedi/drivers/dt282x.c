@@ -409,53 +409,6 @@ static void dt282x_cleanup_buffer(comedi_device *dev,unsigned short *buf,unsigne
 	}
 }
 
-static void copy_to_buf(comedi_device *dev,comedi_subdevice *s,void *buf,unsigned int n_bytes)
-{
-	unsigned int n;
-
-	n=n_bytes;
-	if(s->async->buf_int_ptr+n >= s->async->data_len){
-		n=s->async->data_len-s->async->buf_int_ptr;
-		memcpy(s->async->data+s->async->buf_int_ptr,buf,n);
-		buf+=n;
-		s->async->buf_int_count+=n;
-		s->async->buf_int_ptr=0;
-
-		n=n_bytes-n;
-	}
-	memcpy(s->async->data+s->async->buf_int_ptr,buf,n);
-	buf+=n;
-	s->async->buf_int_count+=n;
-	s->async->buf_int_ptr+=n;
-}
-
-static int copy_from_buf(comedi_device *dev,comedi_subdevice *s,void *buf,unsigned int n_bytes)
-{
-	unsigned int n,m;
-
-	n=s->async->buf_int_count-s->async->buf_user_count;
-	if(n==0)return 0;
-	if(n>n_bytes)
-		n=n_bytes;
-
-	n_bytes=n;
-	if(s->async->buf_int_ptr+n >= s->async->data_len){
-		m=s->async->data_len-s->async->buf_int_ptr;
-		memcpy(buf,s->async->data+s->async->buf_int_ptr,m);
-		buf+=m;
-		s->async->buf_int_count+=m;
-		s->async->buf_int_ptr=0;
-
-		n-=m;
-	}
-	memcpy(buf,s->async->data+s->async->buf_int_ptr,n);
-	s->async->buf_int_count+=n;
-	s->async->buf_int_ptr+=n;
-
-	return n_bytes;
-}
-
-
 static void dt282x_ao_dma_interrupt(comedi_device * dev)
 {
 	void *ptr;
@@ -477,19 +430,18 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_chan=1-i;
 
-	size=copy_from_buf(dev,s,ptr,devpriv->dma_maxsize*2);
-	if(!size){
+	size = comedi_buf_get_array( s->async, ptr, devpriv->dma_maxsize );
+	if( size < 0){
 		printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev,s,s->async->events);
 		return;
 	}
-	prep_ao_dma(dev,i,size/2);
+	prep_ao_dma(dev,i,size);
 
 	enable_dma(devpriv->dma[i].chan);
 
-	s->async->events |= COMEDI_CB_BLOCK;
 	comedi_event(dev,s,s->async->events);
 	return;
 }
@@ -516,7 +468,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_chan=1-i;
 	dt282x_cleanup_buffer(dev,ptr,size);
-	copy_to_buf(dev,s,ptr,size*2);
+	comedi_buf_put_array( s->async, ptr, size );
 	devpriv->nread-=size;
 
 	if(devpriv->nread<0){
@@ -535,8 +487,6 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 		comedi_event(dev,s,s->async->events);
 
 		return;
-	}else{
-		s->async->events |= COMEDI_CB_BLOCK;
 	}
 
 #if 1
@@ -646,13 +596,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->ad_2scomp){
 			data^=1<<(boardtype.adbits-1);
 		}
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=data;
-		s->async->buf_int_ptr+=sizeof(sampl_t);
-		s->async->buf_int_count+=sizeof(sampl_t);
-		if(s->async->buf_int_ptr>=s->async->data_len){
-			s->async->buf_int_ptr = 0;
-			s->async->events |= COMEDI_CB_EOBUF;
-		}
+		comedi_buf_put( s->async, data );
 
 		devpriv->nread--;
 		if(!devpriv->nread){
@@ -1049,12 +993,14 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	if(x!=0)return -EINVAL;
 
-	size=copy_from_buf(dev,s,devpriv->dma[0].buf,devpriv->dma_maxsize*2);
-	prep_ao_dma(dev,0,size/2);
+	size=comedi_buf_get_array( s->async, devpriv->dma[0].buf, devpriv->dma_maxsize);
+	if( size < 0 ) return size;
+
+	prep_ao_dma(dev,0,size);
 	enable_dma(devpriv->dma[0].chan);
 
-	size=copy_from_buf(dev,s,devpriv->dma[1].buf,devpriv->dma_maxsize*2);
-	prep_ao_dma(dev,1,size/2);
+	size=comedi_buf_get_array( s->async, devpriv->dma[1].buf, devpriv->dma_maxsize);
+	prep_ao_dma(dev,1,size);
 	enable_dma(devpriv->dma[1].chan);
 	
 	update_supcsr(DT2821_STRIG);

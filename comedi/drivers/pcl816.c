@@ -700,7 +700,7 @@ static int pcl816_ai_poll(comedi_device *dev,comedi_subdevice *s)
     unsigned int top1,top2,i;
 
 	if (!devpriv->dma) return 0; // poll is valid only for DMA transfer
-	
+
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 
 	for (i=0; i<20; i++) {
@@ -723,11 +723,11 @@ static int pcl816_ai_poll(comedi_device *dev,comedi_subdevice *s)
 
 	transfer_from_dma_buf(dev, s, (sampl_t*)devpriv->dmabuf[devpriv->next_dma_buf],
 				devpriv->ai_poll_ptr, top2);
-	
+
 	devpriv->ai_poll_ptr = top1; // new buffer position
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 
-	return s->async->buf_int_count - s->async->buf_user_count;
+	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
 

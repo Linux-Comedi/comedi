@@ -301,7 +301,7 @@ typedef struct{
 	unsigned char		cnt0_users;	// bit field of 8254 CNT0 users (0-unused, 1-AO, 2-DI, 3-DO)
 	unsigned char		exttrg_users;	// bit field of external trigger users (0-AI, 1-AO, 2-DI, 3-DO)
 	unsigned int		cnt0_divisor;	// actual CNT0 divisor
-	int			(*dma_ai_read_block)(comedi_device *, comedi_subdevice *, lsampl_t **, lsampl_t *, unsigned int *, unsigned int *); // ptr to actual transfer function from DMA buffer
+	int			(*dma_ai_read_block)(comedi_device *, comedi_subdevice *, void *, int *, int *); // ptr to actual transfer function from DMA buffer
 	void			(*int_ai_func)(comedi_device *, comedi_subdevice *,unsigned short, unsigned int, unsigned short); // ptr to actual interrupt AI function
 	unsigned char		ai16bits;	// =1 16 bit card
 	unsigned char		usedma;		// =1 use DMA transfer and not INT
@@ -333,7 +333,7 @@ static int pci9118_exttrg_del(comedi_device * dev, unsigned char source);
 static int pci9118_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static void pci9118_calc_divisors(char mode, comedi_device * dev, comedi_subdevice * s, 
 	unsigned int *tim1, unsigned int *tim2, unsigned int flags, 
-	int chans, unsigned int *div1, unsigned int *div2, 
+	int chans, unsigned int *div1, unsigned int *div2,
 	char usessh, unsigned int chnsshfront);
 
 /*
@@ -385,7 +385,7 @@ conv_finish:
 static int pci9118_insn_write_ao(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	int n,chanreg,ch;
-	
+
 	ch=CR_CHAN(insn->chanspec);
 	if (ch) { chanreg=PCI9118_DA2;} 
 	    else { chanreg=PCI9118_DA1; } 
@@ -437,7 +437,7 @@ static int pci9118_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_i
 	return 2;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static void interrupt_pci9118_ai_mode4_switch(comedi_device *dev) 
@@ -481,14 +481,15 @@ static int skip_front_samples_16b(comedi_device *dev, comedi_subdevice *s,
 	return -1;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int move_block_from_dma_12bit_16b(comedi_device *dev, comedi_subdevice *s,
-	sampl_t **dma, sampl_t *data, int *sampls, int *bufs)
+	void *dma_void, int *sampls, int *bufs)
 {
 	unsigned int cc,sp,chans,chns;
 	sampl_t sampl;
+	uint16_t **dma = (uint16_t **) dma_void;
 
 	cc=s->async->cur_chan;
 	sp=devpriv->ai_act_scanpos;
@@ -513,7 +514,7 @@ static int move_block_from_dma_12bit_16b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 #ifdef PCI9118_PARANOIDCHECK
-			if ((sampl & 0x0f00)!=devpriv->chanlist[cc]) { 
+			if ((sampl & 0x0f00)!=devpriv->chanlist[cc]) {
 		    		rt_printk("comedi: A/D  DMA - data dropout: received channel %04x, expected %04x!\n",(sampl & 0x0f00),devpriv->chanlist[cc]);
 	    			DPRINTK("comedi:  bufs=%d cc=%d sp=%d dmapos=%d chans=%d af=%d ab=%d sampls=%d (dma)=%04x dma=%04x!\n",*bufs,cc,sp,devpriv->ai_act_dmapos,chans,devpriv->ai_add_front,devpriv->ai_add_back,*sampls,*(*dma-1),(int)(*dma-1));
 				s->async->events|=COMEDI_CB_ERROR|COMEDI_CB_EOA;
@@ -523,15 +524,14 @@ static int move_block_from_dma_12bit_16b(comedi_device *dev, comedi_subdevice *s
 			}
 #endif
 			sampl=((sampl & 0xff)<<4)|((sampl & 0xf000)>>12); // get one sample
-			*data=sampl; 
-			data++;
+			comedi_buf_put( s->async, sampl);
 		}
 		sp+=cc;
 		if (cc>=chans) {
 			cc=0;
 			devpriv->ai_act_dmapos=0;
 			if (devpriv->ai_add_back)  // drop added one
-				if (*bufs) { 
+				if (*bufs) {
 					(*bufs)--;
 					(*dma)++;
 				}
@@ -539,8 +539,7 @@ static int move_block_from_dma_12bit_16b(comedi_device *dev, comedi_subdevice *s
  		if(sp>=devpriv->ai_n_scanlen) { // is end of one scan?
 			sp=0;
 		        devpriv->ai_act_scan++;
-			s->async->events|=COMEDI_CB_EOS;
-			if (*sampls) 
+			if (*sampls)
 				if (devpriv->ai_flags & TRIG_WAKE_EOS) {
 					comedi_event(dev,s,s->async->events);
 					s->async->events=0;
@@ -549,19 +548,19 @@ static int move_block_from_dma_12bit_16b(comedi_device *dev, comedi_subdevice *s
 	}
 //	DPRINTK("9 cc=%d sp=%d *bufs=%d *sampls=%d chns=%d/%d dmapos=%d\n",cc,sp,*bufs,*sampls,chns,chans,devpriv->ai_act_dmapos);
 	devpriv->ai_act_scanpos=sp;
-	s->async->cur_chan=cc;
 	return 0;
 
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int move_block_from_dma_16bit_16b(comedi_device *dev, comedi_subdevice *s,
-	sampl_t **dma, sampl_t *data, int *sampls, int *bufs)
+	void *dma_void, int *sampls, int *bufs)
 {
 	unsigned int cc,sp,chans,chns;
 	sampl_t sampl;
+	uint16_t **dma = (uint16_t **) dma_void;
 
 	cc=s->async->cur_chan;
 	sp=devpriv->ai_act_scanpos;
@@ -586,15 +585,14 @@ static int move_block_from_dma_16bit_16b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 			sampl=(((sampl & 0xff)<<8)|((sampl & 0xff00)>>8))^0x8000; // get one sample
-			*data=sampl; 
-			data++;
+			comedi_buf_put( s->async, sampl );
 		}
 		sp+=cc;
 		if (cc>=chans) {
 			cc=0;
 			devpriv->ai_act_dmapos=0;
 			if (devpriv->ai_add_back)  // drop added one
-				if (*bufs) { 
+				if (*bufs) {
 					(*bufs)--;
 					(*dma)++;
 				}
@@ -602,8 +600,7 @@ static int move_block_from_dma_16bit_16b(comedi_device *dev, comedi_subdevice *s
  		if(sp>=devpriv->ai_n_scanlen) { // is end of one scan?
 			sp=0;
 		        devpriv->ai_act_scan++;
-			s->async->events|=COMEDI_CB_EOS;
-			if (*sampls) 
+			if (*sampls)
 				if (devpriv->ai_flags & TRIG_WAKE_EOS) {
 					comedi_event(dev,s,s->async->events);
 					s->async->events=0;
@@ -612,12 +609,11 @@ static int move_block_from_dma_16bit_16b(comedi_device *dev, comedi_subdevice *s
 	}
 //	DPRINTK("9 cc=%d sp=%d *bufs=%d *sampls=%d chns=%d/%d dmapos=%d\n",cc,sp,*bufs,*sampls,chns,chans,devpriv->ai_act_dmapos);
 	devpriv->ai_act_scanpos=sp;
-	s->async->cur_chan=cc;
 	return 0;
 
 }
 
-/* 
+/*
 ==============================================================================
   Skip a few samples at begin of every scan if is used software generated
   sample&hold signal
@@ -627,7 +623,7 @@ static int skip_front_samples_32b(comedi_device *dev, comedi_subdevice *s,
 {
 	unsigned int n;
 
-	n=(devpriv->ai_add_front-devpriv->ai_act_dmapos)>>1; 
+	n=(devpriv->ai_add_front-devpriv->ai_act_dmapos)>>1;
 //	DPRINTK("n=%d bufs=%d *dma=0x%08x dmapos=%d %d\n",n,*bufs,*dma,devpriv->ai_act_dmapos,x);
 	if (*bufs>n) {
 		(*bufs)-=n;
@@ -645,17 +641,18 @@ static int skip_front_samples_32b(comedi_device *dev, comedi_subdevice *s,
 	return -1;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s,
-	lsampl_t **dma, lsampl_t *data, int *sampls, int *bufs)
+	void *dma_void, int *sampls, int *bufs)
 {
 	int cc,sp,chans,chns,xx,yy;
 	lsampl_t sampl;
 #ifdef PCI9118_PARANOIDCHECK
 	lsampl_t *chanlist=(lsampl_t *)devpriv->chanlist;
 #endif
+	uint32_t ** dma = ( uint32_t ** ) dma_void;
 
 	cc=s->async->cur_chan;
 	sp=devpriv->ai_act_scanpos;
@@ -674,7 +671,7 @@ static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 #ifdef PCI9118_PARANOIDCHECK
-			if ((sampl & 0x000f000f)!=chanlist[cc]) { 
+			if ((sampl & 0x000f000f)!=chanlist[cc]) {
 		    		rt_printk("comedi: A/D  DMA - data dropout: received channel %08x, expected %08x!\n",(sampl & 0x000f000f),chanlist[cc]);
 		    		DPRINTK("comedi:  bufs=%d cc=%d sp=%d dmapos=%d chns=%d chans=%d af=%d ab=%d sampls=%d (dma)=%08x dma=%08x!\n",*bufs,cc,sp,devpriv->ai_act_dmapos,chns,chans,devpriv->ai_add_front,devpriv->ai_add_back,*sampls,*(*dma-1),(int)(*dma-1));
 				s->async->events|=COMEDI_CB_ERROR|COMEDI_CB_EOA;
@@ -684,8 +681,7 @@ static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s
 			}
 #endif
 			sampl=((sampl & 0xfff0)<<12)|((sampl & 0xfff00000)>>20);
-			*data=sampl; 
-			data++;
+			comedi_buf_put_long( s->async, sampl );
 		}
 		sp+=cc<<1;
 		if (cc>=chans) {
@@ -695,8 +691,7 @@ static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s
 		if(sp>=devpriv->ai_n_scanlen) { // is end of one scan?
 			sp=0;
 		        devpriv->ai_act_scan++;
-			s->async->events|=COMEDI_CB_EOS;
-			if (*sampls) 
+			if (*sampls)
 				if (devpriv->ai_flags & TRIG_WAKE_EOS) {
 					comedi_event(dev,s,s->async->events);
 					s->async->events=0;
@@ -706,18 +701,18 @@ static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s
 	*bufs-=*bufs-(xx<<1);
 	*sampls-=*sampls-(yy<<1);
 	devpriv->ai_act_scanpos=sp;
-	s->async->cur_chan=cc;
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int move_block_from_dma_16bit_32b(comedi_device *dev, comedi_subdevice *s,
-	lsampl_t **dma, lsampl_t *data, int *sampls, int *bufs)
+	void *dma_void, int *sampls, int *bufs)
 {
 	int cc,sp,chans,chns,xx,yy;
 	lsampl_t sampl;
+	uint32_t **dma = ( uint32_t ** ) dma_void;
 
 	cc=s->async->cur_chan;
 	sp=devpriv->ai_act_scanpos;
@@ -736,8 +731,7 @@ static int move_block_from_dma_16bit_32b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 			sampl=(((sampl & 0xffff)<<16)|((sampl & 0xffff0000)>>16))^0x80008000;
-			*data=sampl; 
-			data++;
+			comedi_buf_put_long( s->async, sampl );
 		}
 		sp+=cc<<1;
 		if (cc>=chans) {
@@ -747,8 +741,7 @@ static int move_block_from_dma_16bit_32b(comedi_device *dev, comedi_subdevice *s
 		if(sp>=devpriv->ai_n_scanlen) { // is end of one scan?
 			sp=0;
 		        devpriv->ai_act_scan++;
-			s->async->events|=COMEDI_CB_EOS;
-			if (*sampls) 
+			if (*sampls)
 				if (devpriv->ai_flags & TRIG_WAKE_EOS) {
 					comedi_event(dev,s,s->async->events);
 					s->async->events=0;
@@ -758,7 +751,6 @@ static int move_block_from_dma_16bit_32b(comedi_device *dev, comedi_subdevice *s
 	*bufs-=*bufs-(xx<<1);
 	*sampls-=*sampls-(yy<<1);
 	devpriv->ai_act_scanpos=sp;
-	s->async->cur_chan=cc;
 	return 0;
 }
 
@@ -810,7 +802,7 @@ static void interrupt_pci9118_ai_onesample(comedi_device *dev,comedi_subdevice *
 	sampl=inw(dev->iobase+PCI9118_AD_DATA);
 
 	if (devpriv->ai16bits) {
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=sampl^0x8000;
+		comedi_buf_put( s->async, sampl ^ 0x8000 );
 	} else {
 #ifdef PCI9118_PARANOIDCHECK
 		if ((sampl & 0x000f)!=devpriv->chanlist[s->async->cur_chan]) { // data dropout!
@@ -821,42 +813,31 @@ static void interrupt_pci9118_ai_onesample(comedi_device *dev,comedi_subdevice *
 			return;
 		}
 #endif
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=(sampl>>4) & 0x0fff;
+		comedi_buf_put( s->async, ( sampl >> 4 ) & 0x0fff );
 	}
 
-	s->async->buf_int_ptr+=sizeof(sampl_t);
-	s->async->buf_int_count+=sizeof(sampl_t);
-
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= devpriv->ai_n_scanlen) {	/* one scan done */
-		s->async->cur_chan=0;
+	if (s->async->cur_chan == 0) {	/* one scan done */
 		devpriv->ai_act_scan++;
-		s->async->events |= COMEDI_CB_EOS;
 		if (!(devpriv->ai_neverending))
 			if (devpriv->ai_act_scan>=devpriv->ai_scans) {	/* all data sampled */
 				pci9118_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
 			}
 	}
-	
-	if (s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
-		s->async->buf_int_ptr = 0;
-		s->async->events |= COMEDI_CB_EOBUF;
-	}
 
-	if (s->async->events) 
+	if (s->async->events)
 		comedi_event(dev,s,s->async->events);
 }
 
-/* 
+/*
 ==============================================================================
 */
-static void interrupt_pci9118_ai_dma(comedi_device *dev,comedi_subdevice *s, 
-	unsigned short int_adstat, unsigned int int_amcc, unsigned short int_daq) 
+static void interrupt_pci9118_ai_dma(comedi_device *dev,comedi_subdevice *s,
+	unsigned short int_adstat, unsigned int int_amcc, unsigned short int_daq)
 {
         lsampl_t 	*ptr;
 	unsigned int	next_dma_buf, samplesinbuf, sampls, m;
-	
+
 	s->async->events=0;
 
 	if (int_amcc&MASTER_ABORT_INT) {
@@ -877,54 +858,43 @@ static void interrupt_pci9118_ai_dma(comedi_device *dev,comedi_subdevice *s,
 
 	if (int_adstat & devpriv->ai_maskerr)
 //	if (int_adstat & 0x106)
-		if (pci9118_decode_error_status(dev,s,int_adstat)) 
+		if (pci9118_decode_error_status(dev,s,int_adstat))
 			return;
 
 	samplesinbuf=devpriv->dmabuf_use_size[devpriv->dma_actbuf]>>1; // number of received real samples
 //	DPRINTK("dma_actbuf=%d\n",devpriv->dma_actbuf);
-		
+
 	if (devpriv->dma_doublebuf) {	// switch DMA buffers if is used double buffering
     		next_dma_buf=1-devpriv->dma_actbuf;
 		outl(devpriv->dmabuf_hw[next_dma_buf], devpriv->iobase_a+AMCC_OP_REG_MWAR);
     		outl(devpriv->dmabuf_use_size[next_dma_buf], devpriv->iobase_a+AMCC_OP_REG_MWTC);
 		devpriv->dmabuf_used_size[next_dma_buf]=devpriv->dmabuf_use_size[next_dma_buf];
-		if (devpriv->ai_do==4) 
-			interrupt_pci9118_ai_mode4_switch(dev); 
+		if (devpriv->ai_do==4)
+			interrupt_pci9118_ai_mode4_switch(dev);
 	}
 
         ptr=(lsampl_t *)devpriv->dmabuf_virt[devpriv->dma_actbuf];
 
 	while (samplesinbuf) {
-		m=(devpriv->ai_data_len-s->async->buf_int_ptr)>>1; // how many samples is to end of buffer
+		m = devpriv->ai_data_len >> 1; // how many samples is to end of buffer
 //		DPRINTK("samps=%d m=%d %d %d\n",samplesinbuf,m,s->async->buf_int_count,s->async->buf_int_ptr);
 		sampls=m;
-		if (devpriv->dma_ai_read_block(dev, s, &ptr, 
-		    ((void *)(devpriv->ai_data))+s->async->buf_int_ptr,
+		if (devpriv->dma_ai_read_block(dev, s, &ptr,
 		    &sampls, &samplesinbuf))
 			return; // Uiii, error
 		m=m-sampls; // m= how many samples was transfered
-		s->async->buf_int_count+=m<<1;
-		s->async->buf_int_ptr+=m<<1;
-		s->async->events|=COMEDI_CB_BLOCK;
-		if (s->async->buf_int_ptr>=devpriv->ai_data_len) { // output buffer filled
-//			DPRINTK("EOBUF scans=%d\n",devpriv->ai_act_scan);
-			s->async->events|=COMEDI_CB_EOBUF;
-			s->async->buf_int_ptr=0;
-			comedi_event(dev,s,s->async->events);
-			s->async->events=0;
-		}
 	}
 //	DPRINTK("YYY\n");
-	
+
 	if (!devpriv->ai_neverending)
     		if ( devpriv->ai_act_scan>=devpriv->ai_scans ) { /* all data sampled */
 			pci9118_ai_cancel(dev,s);
 			s->async->events|=COMEDI_CB_EOA;
 		}
-	
+
 
 	if (devpriv->dma_doublebuf) { // switch dma buffers
-		devpriv->dma_actbuf=1-devpriv->dma_actbuf; 
+		devpriv->dma_actbuf=1-devpriv->dma_actbuf;
 	} else { // restart DMA if is not used double buffering
 		outl(devpriv->dmabuf_hw[0], devpriv->iobase_a+AMCC_OP_REG_MWAR);
 		outl(devpriv->dmabuf_use_size[0], devpriv->iobase_a+AMCC_OP_REG_MWTC);
@@ -1450,17 +1420,17 @@ static int pci9118_ai_docmd_dma(comedi_device * dev, comedi_subdevice * s)
 	switch (devpriv->usedma) { 
 	case 2: // 32 bit DMA mode
 		if (devpriv->ai16bits) { // select interrupt function
-			devpriv->dma_ai_read_block=(void *)move_block_from_dma_16bit_32b;
+			devpriv->dma_ai_read_block=move_block_from_dma_16bit_32b;
 		} else {
-			devpriv->dma_ai_read_block=(void *)move_block_from_dma_12bit_32b;
+			devpriv->dma_ai_read_block=move_block_from_dma_12bit_32b;
 		}
 		outl(0x00000000|AINT_WRITE_COMPL, devpriv->iobase_a+AMCC_OP_REG_INTCSR);
 		break;
 	case 1: // 16 bit DMA mode
 		if (devpriv->ai16bits) { // select interrupt function
-			devpriv->dma_ai_read_block=(void *)move_block_from_dma_16bit_16b;
+			devpriv->dma_ai_read_block=move_block_from_dma_16bit_16b;
 		} else {
-			devpriv->dma_ai_read_block=(void *)move_block_from_dma_12bit_16b;
+			devpriv->dma_ai_read_block=move_block_from_dma_12bit_16b;
 		}
 		outl(0x02000000|AINT_WRITE_COMPL, devpriv->iobase_a+AMCC_OP_REG_INTCSR);
 		break;

@@ -178,7 +178,7 @@ unsigned int comedi_get_buf_head_pos(comedi_t *d,unsigned int subdevice)
 	async = s->async;
 	if(async == NULL) return 0;
 
-	return async->buf_int_count;
+	return async->buf_write_count;
 }
 
 /*
@@ -191,7 +191,7 @@ int comedi_set_user_int_count(comedi_t *d,unsigned int subdevice,unsigned int bu
 	comedi_async *async;
 
 	async = s->async;
-	async->buf_user_count = buf_user_count;
+	async->buf_read_count = buf_user_count;
 
 	return 0;
 }

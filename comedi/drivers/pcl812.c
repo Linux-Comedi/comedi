@@ -1029,7 +1029,7 @@ static int pcl812_ai_poll(comedi_device *dev,comedi_subdevice *s)
 
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 
-	return s->async->buf_int_count-s->async->buf_user_count;
+	return s->async->buf_write_count-s->async->buf_read_count;
 }
 
 /*

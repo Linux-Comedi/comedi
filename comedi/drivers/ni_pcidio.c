@@ -403,13 +403,13 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	flags = readb(dev->iobase+Group_1_Flags);
 	m_status = readl(mite->mite_io_addr + MITE_CHSR + CHAN_OFFSET(1));
-	
+
 	//interrupcions parasites
 	if(dev->attached == 0){
 		comedi_error(dev,"premature interrupt");
-		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
+		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;
 	}
-	 
+
 	DPRINTK("ni_pcidio_interrupt: status=0x%02x,flags=0x%02x,m_status=0x%08x\n",
 		status,flags,m_status);
 	ni_pcidio_print_flags(flags);
@@ -432,10 +432,10 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 
 			/* XXX need to byteswap */
 
-			async->buf_int_count += count;
-			async->buf_int_ptr += count;
-			if(async->buf_int_ptr >= async->data_len){
-				async->buf_int_ptr -= async->data_len;
+			async->buf_write_count += count;
+			async->buf_write_ptr += count;
+			if(async->buf_write_ptr >= async->data_len){
+				async->buf_write_ptr -= async->data_len;
 			}
 			mite->current_link++;
 			if(mite->current_link >= mite->n_links){
@@ -454,7 +454,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 		async->events |= COMEDI_CB_BLOCK;
 	}
-	 
+
 	while(status&DataLeft){
 		work++;
 		if(work>20){
@@ -464,7 +464,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 
 		flags &= IntEn;
-  
+
 		if(flags & TransferReady){
 			//DPRINTK("TransferReady\n");
 			while(flags & TransferReady){
@@ -493,7 +493,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			DPRINTK("CountExpired\n");
 			writeb(ClearExpired,dev->iobase+Group_1_Second_Clear);
 			async->events |= COMEDI_CB_EOA;
-			
+
 			writeb(0x00,dev->iobase+OpMode);
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 #ifdef USE_DMA
@@ -838,7 +838,7 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 	}else{
 		/* XXX */
 	}
-  
+
 #ifdef USE_DMA
 	writeb(0x05,dev->iobase+DMA_Line_Control);
 	writeb(0x30,dev->iobase+Group_1_First_Clear);
