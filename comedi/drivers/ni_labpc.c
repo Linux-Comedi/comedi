@@ -22,27 +22,38 @@
 Driver: ni_labpc.o
 Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [National Instruments] Lab-PC+ (lab-pc+),
+Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-1200),
+  Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200,
 Status: In development, probably doesn't work yet.  Initially
   just working on Lab-PC+.  Will adapt for compatible boards later.  Not
   all input ranges and analog references will work, depending on how you
   have configured the jumpers on your board (see your owner's manual)
 
-Configuration options:
+Configuration options - ISA boards:
   [0] - I/O port base address
   [1] - IRQ (optional, required for timed or externally triggered conversions)
-  [2] - DMA channel (optional, required for timed or externally triggered conversions)
+  [2] - DMA channel (optional)
 
-Board has quirky chanlist when scanning multiple channels.  Scan sequence must start
-at highest channel, then decrement down to channel 0.
+Configuration options - PCI boards:
+  [0] - bus (optional)
+  [1] - slot (optional)
+
+Configuration options - PCMCIA boards:
+  none
+
+Lab-pc+ has quirky chanlist when scanning multiple channels.  Scan sequence must start
+at highest channel, then decrement down to channel 0.  1200 series cards can scan down
+like lab-pc+ or scan up from channel zero.
+
 */
 
 /*
 TODO:
-	command support
-	additional boards
+	pcmcia
 */
-//XXX stop_src TRIG_EXT is _not_ supported by the hardware, at least not in combination with dma transfers
+
+#define LABPC_DEBUG	// enable debugging messages
+//#undef LABPC_DEBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,6 +71,7 @@ TODO:
 #include <asm/dma.h>
 #include "8253.h"
 #include "8255.h"
+#include "mite.h"
 
 #define LABPC_SIZE           32	// size of io region used by board
 #define LABPC_TIMER_BASE            500	// 2 MHz master clock
@@ -70,7 +82,7 @@ TODO:
 #define COMMAND1_REG	0x0
 #define   ADC_GAIN_BITS(x)	(((x) & 0x7) << 4)
 #define   ADC_CHAN_BITS(x)	((x) & 0x7)
-#define   ADC_SCAN_EN_BIT	80	// enables multi channel scans
+#define   ADC_SCAN_EN_BIT	0x80	// enables multi channel scans
 #define COMMAND2_REG	0x1
 #define   PRETRIG_BIT	0x1	// enable pretriggering (used in conjunction with SWTRIG)
 #define   HWTRIG_BIT	0x2	// enable paced conversions on external trigger
@@ -83,14 +95,21 @@ TODO:
 #define   DMATC_INTR_EN_BIT	0x4	// enable dma terminal count interrupt
 #define   TIMER_INTR_EN_BIT	0x8	// enable timer interrupt
 #define   ERR_INTR_EN_BIT	0x10	// enable error interrupt
-#define   FNE_INTR_EN_BIT	0x20	// enable fifo not empty interrupt
+#define   ADC_FNE_INTR_EN_BIT	0x20	// enable fifo not empty interrupt
 #define ADC_CONVERT_REG	0x3
 #define DAC_LSB_REG(channel)	(0x4 + 2 * ((channel) & 0x1))
 #define DAC_MSB_REG(channel)	(0x5 + 2 * ((channel) & 0x1))
 #define ADC_CLEAR_REG	0x8
 #define DMATC_CLEAR_REG	0xa
 #define TIMER_CLEAR_REG	0xc
-#define COMMAND4_REG            0xf
+#define COMMAND6_REG	0xe	// 1200 boards only
+#define   ADC_COMMON_BIT	0x1	// select ground or common-mode reference
+#define   ADC_UNIP_BIT	0x2	// adc unipolar
+#define   DAC_UNIP_BIT(channel)	(0x4 << ((channel) & 0x1))	// dac unipolar
+#define   ADC_FHF_INTR_EN_BIT	0x20	// enable fifo half full interrupt
+#define   A1_INTR_EN_BIT	0x40	// enable interrupt on end of hardware count
+#define   ADC_SCAN_UP_BIT 0x80	// scan up from channel zero instead of down to zero
+#define COMMAND4_REG	0xf
 #define   EXT_SCAN_MASTER_EN_BIT	0x1	// enables 'interval' scanning
 #define   EXT_SCAN_EN_BIT	0x2	// enables external signal on counter b1 output to trigger scan
 #define   EXT_CONVERT_OUT_BIT	0x4	// chooses direction (output or input) for EXTCONV* line
@@ -98,28 +117,67 @@ TODO:
 #define   EXT_CONVERT_DISABLE_BIT	0x10
 #define INTERVAL_COUNT_REG	0x1e
 #define INTERVAL_LOAD_REG	0x1f
+#define   INTERVAL_LOAD_BITS	0x1
 
 // read-only registers
-#define STATUS_REG	0x0
+#define STATUS1_REG	0x0
 #define   DATA_AVAIL_BIT	0x1	// data is available in fifo
 #define   OVERRUN_BIT	0x2	// overrun has occurred
 #define   OVERFLOW_BIT	0x4	// fifo overflow
 #define   TIMER_BIT	0x8	// timer interrupt has occured
 #define   DMATC_BIT	0x10	// dma terminal count has occured
 #define   EXT_TRIG_BIT	0x40	// external trigger has occured
-#define   NOT_PCPLUS_BIT	0x80	// no a lab-pc+
+#define STATUS2_REG	0x1d	// 1200 boards only
+#define   EEPROM_OUT_BIT	0x1	// programmable eeprom output
+#define   A1_TC_BIT	0x2	// counter A1 terminal count
+#define   FNHF_BIT	0x4	// fifo not half full
 #define ADC_FIFO_REG	0xa
 
 #define DIO_BASE_REG	0x10
 #define COUNTER_A_BASE_REG	0x14
+#define COUNTER_A_CONTROL_REG	(COUNTER_A_BASE_REG + 0x3)
+#define   INIT_A1_BITS	0x70
 #define COUNTER_B_BASE_REG	0x18
+
+
+static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
+static int labpc_detach(comedi_device *dev);
+static int labpc_cancel(comedi_device *dev, comedi_subdevice *s);
+static void labpc_interrupt(int irq, void *d, struct pt_regs *regs);
+static void handle_isa_dma(comedi_device *dev);
+static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
+static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s);
+static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
+struct mite_struct* pclab_find_device(int bus, int slot);
+unsigned int labpc_inb(unsigned int address);
+void labpc_outb(unsigned int byte, unsigned int address);
+unsigned int labpc_readb(unsigned int address);
+void labpc_writeb(unsigned int byte, unsigned int address);
+
+enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
+enum labpc_register_layout {labpc_plus_layout, labpc_1200_layout};
+enum transfer_type {fifo_not_empty_transfer, fifo_half_full_transfer, isa_dma_transfer};
 
 typedef struct labpc_board_struct{
 	char *name;
+	int device_id;	// device id for pci and pcmcia boards
 	int ai_speed;	// maximum input speed in nanoseconds
+	enum labpc_bustype bustype;	// ISA/PCI/etc.
+	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
+	int has_ao;	// has analog output true/false
+	int fifo_depth;	// number of samples adc fifo can hold
+	// function pointers so we can use inb/outb or readb/writeb as appropriate
+	unsigned int (*read_byte)(unsigned int address);
+	void (*write_byte)(unsigned int byte, unsigned int address);
 }labpc_board;
 
 //analog input ranges
+
+#define RANGE_IS_BIPOLAR 0x10
+
 static comedi_lrange range_labpc_ai = {
 	16,
 	{
@@ -158,8 +216,56 @@ static comedi_lrange range_labpc_ao = {
 static labpc_board labpc_boards[] =
 {
 	{
+		name:	"daqcard-1200",
+		device_id:	0x0,	// XXX
+		ai_speed:	10000,
+		bustype:	pcmcia_bustype,
+		register_layout:	labpc_1200_layout,
+		has_ao:	1,
+		fifo_depth: 2048,
+		read_byte:	labpc_inb,
+		write_byte:	labpc_outb,
+	},
+	{
+		name:	"lab-pc-1200",
+		ai_speed:	10000,
+		bustype:	isa_bustype,
+		register_layout:	labpc_1200_layout,
+		has_ao:	1,
+		fifo_depth: 4096,
+		read_byte:	labpc_inb,
+		write_byte:	labpc_outb,
+	},
+	{
+		name:	"lab-pc-1200ai",
+		ai_speed:	10000,
+		bustype:	isa_bustype,
+		register_layout:	labpc_1200_layout,
+		has_ao:	0,
+		fifo_depth: 4096,
+		read_byte:	labpc_inb,
+		write_byte:	labpc_outb,
+	},
+	{
 		name:	"lab-pc+",
 		ai_speed:	12000,
+		bustype:	isa_bustype,
+		register_layout:	labpc_plus_layout,
+		has_ao:	1,
+		fifo_depth: 512,
+		read_byte:	labpc_inb,
+		write_byte:	labpc_outb,
+	},
+	{
+		name:	"pci-1200",
+		device_id:	0x0,	// XXX
+		ai_speed:	10000,
+		bustype:	pci_bustype,
+		register_layout:	labpc_1200_layout,
+		has_ao:	1,
+		fifo_depth: 4096,
+		read_byte:	labpc_readb,
+		write_byte:	labpc_writeb,
 	},
 };
 
@@ -171,7 +277,12 @@ static labpc_board labpc_boards[] =
 static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
 const int sample_size = 2;	// 2 bytes per sample
 
+// XXX need pci device tables
+
+// XXX need to use outb/inb or readb/writeb appropriately
+
 typedef struct{
+	struct mite_struct *mite;	// for mite chip on pci-1200
 	volatile unsigned int count;  /* number of data points left to be taken */
 	unsigned int ao_value[2];	// software copy of analog output values
 	// software copys of bits written to command registers
@@ -179,25 +290,20 @@ typedef struct{
 	unsigned int command2_bits;
 	unsigned int command3_bits;
 	unsigned int command4_bits;
+	unsigned int command5_bits;
+	unsigned int command6_bits;
+	// store last read of board status registers
+	unsigned int status1_bits;
+	unsigned int status2_bits;
 	unsigned int divisor1;	/* value to load into board's counter a0 for timed conversions */
 	unsigned int divisor2; 	/* value to load into board's counter b0 for timed conversions */
 	unsigned int dma_chan;	// dma channel to use
 	u16 *dma_buffer;	// buffer ai will dma into
 	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
+	enum transfer_type current_transfer;	// we are using dma/fifo-half-full/etc.
 }labpc_private;
 
 #define devpriv ((labpc_private *)dev->private)
-
-static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
-static int labpc_detach(comedi_device *dev);
-static int labpc_cancel(comedi_device *dev, comedi_subdevice *s);
-static void labpc_interrupt(int irq, void *d, struct pt_regs *regs);
-static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
-static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s);
-static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 
 static comedi_driver driver_labpc={
 	driver_name:	"ni_labpc",
@@ -215,129 +321,52 @@ static comedi_driver driver_labpc={
  */
 COMEDI_INITCLEANUP(driver_labpc);
 
-/* interrupt service routine */
-static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
-{
-	int i;
-	int status;
-	unsigned long flags;
-	comedi_device *dev = d;
-	comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async;
-	unsigned int max_points, num_points, residue, leftover;
-
-// XXX deal with stop_src TRIG_EXT
-
-	if(dev->attached == 0)
-	{
-		comedi_error(dev, "premature interrupt");
-		return;
-	}
-	// initialize async here to make sure s is not NULL
-	async = s->async;
-	async->events = 0;
-
-	status = inb(dev->iobase + STATUS_REG);
-
-	if((status & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT | OVERRUN_BIT /*| DATA_AVAIL_BIT*/)) == 0)
-	{
-		comedi_error(dev, "spurious interrupt");
-		return;
-	}
-
-	if(status & OVERRUN_BIT)
-	{
-		// clear error interrupt
-		outb(0x1, dev->iobase + ADC_CLEAR_REG);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s, async->events);
-		comedi_error(dev, "overrun");
-		return;
-	}
-
-	if(status & DMATC_BIT)
-	{
-		flags = claim_dma_lock();
-		disable_dma(devpriv->dma_chan);
-		/* clear flip-flop to make sure 2-byte registers for
-		* count and address get set correctly */
-		clear_dma_ff(devpriv->dma_chan);
-
-		// figure out how many points to read
-		max_points = devpriv->dma_transfer_size  / sample_size;
-		/* residue is the number of points left to be done on the dma
-		* transfer.  It should always be zero at this point unless
-		* the stop_src is set to external triggering.
-		*/
-		residue = get_dma_residue(devpriv->dma_chan) / sample_size;
-		num_points = max_points - residue;
-		if(devpriv->count < num_points &&
-			async->cmd.stop_src == TRIG_COUNT)
-			num_points = devpriv->count;
-
-		// figure out how many points will be stored next time
-		leftover = 0;
-		if(async->cmd.stop_src != TRIG_COUNT)
-		{
-			leftover = devpriv->dma_transfer_size / sample_size;
-		}else if(devpriv->count > num_points)
-		{
-			leftover = devpriv->count - num_points;
-			if(leftover > max_points)
-				leftover = max_points;
-		}
-
-		for(i = 0; i < num_points; i++)
-		{
-			/* write data point to comedi buffer */
-			comedi_buf_put(async, devpriv->dma_buffer[i]);
-			if(async->cmd.stop_src == TRIG_COUNT) devpriv->count--;
-		}
-		// re-enable  dma
-		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
-		set_dma_count(devpriv->dma_chan, leftover * sample_size);
-		enable_dma(devpriv->dma_chan);
-		release_dma_lock(flags);
-
-		async->events |= COMEDI_CB_BLOCK;
-
-		if(devpriv->count == 0)
-		{	/* end of acquisition */
-			labpc_cancel(dev, s);
-			async->events |= COMEDI_CB_EOA;
-		}
-	}
-
-	if(status & TIMER_BIT)
-	{
-		comedi_error(dev, "handled timer interrupt?");
-		// clear it
-		outb(0x1, dev->iobase + TIMER_CLEAR_REG);
-	}
-
-	if(status & OVERFLOW_BIT)
-	{
-		// clear error interrupt
-		outb(0x1, dev->iobase + ADC_CLEAR_REG);
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_error(dev, "overflow");
-		return;
-	}
-
-	comedi_event(dev, s, async->events);
-}
-
 static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase = it->options[0];
-	int irq = it->options[1];
-	int dma_chan = it->options[2];
-	int status;
+	int iobase = 0;
+	int irq = 0;
+	int dma_chan = 0;
 	int lsb, msb;
 	int i;
 	unsigned long flags;
 
+	/* allocate and initialize dev->private */
+	if(alloc_private(dev, sizeof(labpc_private)) < 0)
+		return -ENOMEM;
+
+	// get base address, irq etc. based on bustype
+	switch(thisboard->bustype)
+	{
+		case isa_bustype:
+			iobase = it->options[0];
+			irq = it->options[1];
+			dma_chan = it->options[2];
+			break;
+		case pci_bustype:
+			devpriv->mite = pclab_find_device(it->options[0], it->options[1]);
+			if(devpriv->mite == NULL)
+			{
+				return -EIO;
+			}
+			if(thisboard->device_id != mite_device_id(devpriv->mite))
+			{	// this should never happen since this driver only supports one type of pci board
+				printk("bug! mite device id does not match boardtype definition\n");
+				return -EINVAL;
+			}
+			iobase = mite_setup(devpriv->mite);
+			irq = mite_irq(devpriv->mite);
+			break;
+		case pcmcia_bustype:
+			// XXX
+			printk("TODO: support pcmicia cards\n");
+			return -EINVAL;
+			break;
+		default:
+			printk("bug! couldn't determine board type\n");\
+			return -EINVAL;
+			break;
+	}
 	printk("comedi%d: ni_labpc: io 0x%x", dev->minor, iobase);
 	if(irq)
 	{
@@ -349,40 +378,29 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	printk("\n");
 
-	/* allocate and initialize dev->private */
-	if(alloc_private(dev, sizeof(labpc_private)) < 0)
-		return -ENOMEM;
-
-	// XXX iobase parameter wont be needed for pcmcia cards
 	if(iobase == 0)
 	{
-		printk("io base address required for lab-pc+\n");
+		printk("io base address is zero!\n");
 		return -EINVAL;
 	}
 
-	/* check if io addresses are available */
-	if(check_region(iobase, LABPC_SIZE) < 0)
+	// request io regions for isa boards
+	if(thisboard->bustype == isa_bustype)
 	{
-		printk("I/O port conflict\n");
-		return -EIO;
+		/* check if io addresses are available */
+		if(check_region(iobase, LABPC_SIZE) < 0)
+		{
+			printk("I/O port conflict\n");
+			return -EIO;
+		}
+		request_region(iobase, LABPC_SIZE, driver_labpc.driver_name);
 	}
-	request_region(iobase, LABPC_SIZE, driver_labpc.driver_name);
 	dev->iobase = iobase;
 
-	// check to see if it's a lab-pc or lab-pc+
-	// XXX check against board definitions
-	status = inb(dev->iobase + STATUS_REG);
-	if(status & NOT_PCPLUS_BIT)
-	{
-		printk(" status bit indicates lab pc board\n");
-	}else
-	{
-		printk(" status bit indicates lab pc+ board\n");
-	}
+	// XXX is there any useful board fingerprinting we can do?
 
 	/* grab our IRQ */
-	// XXX boards other than pc+ may have more flexible irq possibilities
-	if(irq == 1 || irq == 2 || irq == 8 || irq > 9 || irq < 0)
+	if(irq < 0)
 	{
 		printk("irq out of range\n");
 		return -EINVAL;
@@ -425,7 +443,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	dev->n_subdevices = 3;
+	dev->n_subdevices = 4;
 	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
@@ -463,16 +481,61 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 		devpriv->ao_value[i] = s->maxdata / 2;	// XXX should init to 0 for unipolar
 		lsb = devpriv->ao_value[i] & 0xff;
 		msb = (devpriv->ao_value[i] >> 8) & 0xff;
-		outb(lsb, dev->iobase + DAC_LSB_REG(i));
-		outb(msb, dev->iobase + DAC_MSB_REG(i));
+		thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
+		thisboard->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
 	}
 
 	/* 8255 dio */
 	s = dev->subdevices + 2;
 	subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DIO_BASE_REG));
 
+	// calibration subdevices for boards that have one
+	s = dev->subdevices + 3;
+	if(thisboard->register_layout == labpc_plus_layout)
+		s->type = COMEDI_SUBD_UNUSED;
+	else if(thisboard->register_layout == labpc_1200_layout)
+	{
+		// XXX implement calibration subdevice
+		s->type = COMEDI_SUBD_UNUSED;
+	}else
+	{
+		printk("calibration subdevice bug!");
+		return -EINVAL;
+	}
+
 	return 0;
 };
+
+// adapted from ni_pcimio for finding mite based boards (pc-1200)
+struct mite_struct* pclab_find_device(int bus, int slot)
+{
+	struct mite_struct *mite;
+	int i;
+	for(mite = mite_devices; mite; mite = mite->next)
+	{
+		if(mite->used) continue;
+		// if bus/slot are specified then make sure we have the right bus/slot
+		if(bus || slot)
+		{
+#ifdef PCI_SUPPORT_VER1
+			if(bus != mite->pci_bus || slot! = PCI_SLOT(mite->pci_device_fn)) continue;
+#else
+			if(bus != mite->pcidev->bus->number || slot != PCI_SLOT(mite->pcidev->devfn)) continue;
+#endif
+		}
+		for(i = 0; i < driver_labpc.num_names; i++)
+		{
+			if(labpc_boards[i].bustype != pci_bustype) continue;
+			if(mite_device_id(mite) == labpc_boards[i].device_id)
+			{
+				 return mite;
+			 }
+		}
+	}
+	printk("no device found\n");
+	mite_list_devices();
+	return NULL;
+}
 
 static int labpc_detach(comedi_device *dev)
 {
@@ -494,7 +557,11 @@ static int labpc_detach(comedi_device *dev)
 
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	// XXX
+	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	devpriv->command3_bits = 0;
+	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+
 	return 0;
 }
 
@@ -504,6 +571,8 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	int tmp;
 	int gain;
 	int i;
+	int scan_up;
+	int stop_mask;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -524,7 +593,10 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
+	stop_mask = TRIG_COUNT | TRIG_NONE;
+	if(thisboard->register_layout == labpc_1200_layout)
+		stop_mask |= TRIG_EXT;
+	cmd->stop_src &= stop_mask;
 	if(!cmd->stop_src || tmp!=cmd->stop_src) err++;
 
 	if(err) return 1;
@@ -612,13 +684,30 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	if(cmd->chanlist && cmd->chanlist_len > 1)
 	{
 		gain = CR_RANGE(cmd->chanlist[0]);
+		// should the scan list counting up or down?
+		scan_up = 0;
+		if(thisboard->register_layout == labpc_1200_layout &&
+			CR_CHAN(cmd->chanlist[0]) == 0)
+		{
+			scan_up = 1;
+		}
 		for(i = 1; i < cmd->chanlist_len; i++)
 		{
-			if(CR_CHAN(cmd->chanlist[i]) != cmd->chanlist_len - i - 1)
+			if(scan_up == 0)
 			{
-				comedi_error(dev, "entries in multiple channel chanlist must start high then decrement down to channel 0.\n");
-				err++;
+				if(CR_CHAN(cmd->chanlist[i]) != cmd->chanlist_len - i - 1)
+				{
+					err++;
+				}
+			}else
+			{
+				if(CR_CHAN(cmd->chanlist[i]) != i)
+				{
+					err++;
+				}
 			}
+			if(err)
+				comedi_error(dev, "channel scanning order specified in chanlist is not supported by hardware.\n");
 			if(CR_RANGE(cmd->chanlist[i]) != gain)
 			{
 				comedi_error(dev, "entries in chanlist must all have the same gain\n");
@@ -639,6 +728,8 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	int ret;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
+	int scan_up;
+	enum transfer_type xfer;
 
 	if(!dev->irq)
 	{
@@ -646,36 +737,109 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		return -1;
 	}
 
-	if(!devpriv->dma_chan)
-	{
-		comedi_error(dev, "no dma channel assigned, cannot perform command");
-		return -1;
-	}
-
-	if(cmd->flags & TRIG_RT)
-	{
-		comedi_error(dev, "ISA DMA is unsafe at RT priority (TRIG_RT flag), aborting");
-		return -1;
-	}
-
 	// make sure board is disabled before setting up aquisition
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	outb(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
 	devpriv->command3_bits = 0;
-	outb(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+
+	// initialize software conversion count
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
+	}
+	// setup hardware conversion counter
+	if(cmd->stop_src == TRIG_EXT)
+	{
+		// load counter a1 with count of 3 (pc+ manual says this is minimum allowed) using mode 0
+		ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 1, 3, 0);
+		if(ret < 0)
+		{
+			comedi_error(dev, "error loading counter a1");
+			return -1;
+		}
+	}else	// otherwise, just put a1 in mode 0 with no count to set its output low
+		thisboard->write_byte(INIT_A1_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
+
+	// figure out if we are scanning upwards or downwards through channels
+	scan_up = 0;
+	if(cmd->chanlist_len > 1 &&
+		thisboard->register_layout == labpc_1200_layout &&
+		CR_CHAN(cmd->chanlist[0]) == 0)
+	{
+		scan_up = 1;
+	}
+
+	// figure out what method we will use to transfer data
+	if(devpriv->dma_chan &&	// need a dma channel allocated
+		// dma unsafe at RT priority, and too much setup time for TRIG_WAKE_EOS for
+		(cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0 &&
+		// only available on the isa boards
+		thisboard->bustype == isa_bustype)
+	{
+		xfer = isa_dma_transfer;
+	}else if(thisboard->register_layout == labpc_1200_layout &&	// pc-plus has no fifo-half full interrupt
+		// wake-end-of-scan should interrupt on fifo not empty
+		(cmd->flags & TRIG_WAKE_EOS) == 0 &&
+		// don't use fifo half full if we are taking just a few points
+		(cmd->stop_src != TRIG_COUNT || devpriv->count > thisboard->fifo_depth / 2))
+	{
+		xfer = fifo_half_full_transfer;
+	}else
+		xfer = fifo_not_empty_transfer;
+	devpriv->current_transfer = xfer;
+
+#ifdef LABPC_DEBUG
+	if(xfer == isa_dma_transfer)
+		comedi_error(dev, "using dma transfer");
+	else if(xfer == fifo_half_full_transfer)
+		comedi_error(dev, "using fifo half full interrupt");
+	else if(xfer == fifo_not_empty_transfer)
+		comedi_error(dev, "using fifo_not_empty interrupt");
+#endif
 
 	/* setup channel list, etc (command1 register) */
 	devpriv->command1_bits = 0;
-	endChan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	if(scan_up)
+		endChan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	else
+		endChan = CR_CHAN(cmd->chanlist[0]);
 	devpriv->command1_bits |= ADC_CHAN_BITS(endChan);
 	range = CR_RANGE(cmd->chanlist[0]);
 	devpriv->command1_bits |= ADC_GAIN_BITS(range);
-	outb(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	// manual says to set scan enable bit on second pass
 	if(cmd->chanlist_len > 1)
 	{
 		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
-		outb(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+		thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	}
+
+	// setup command6 register for 1200 boards
+	if(thisboard->register_layout == labpc_1200_layout)
+	{
+		// reference inputs to ground or common?
+		if(CR_AREF(cmd->chanlist[0]) != AREF_GROUND)
+			devpriv->command6_bits |= ADC_COMMON_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_COMMON_BIT;
+		// bipolar or unipolar range?
+		if(CR_RANGE(cmd->chanlist[0]) & RANGE_IS_BIPOLAR)
+			devpriv->command6_bits &= ~ADC_UNIP_BIT;
+		else
+			devpriv->command6_bits |= ADC_UNIP_BIT;
+		// interrupt on fifo half full?
+		if(xfer == fifo_half_full_transfer)
+			devpriv->command6_bits |= ADC_FHF_INTR_EN_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_FHF_INTR_EN_BIT;
+		// enable interrupt on counter a1 terminal count?
+		if(cmd->stop_src == TRIG_EXT)
+			devpriv->command6_bits |= A1_INTR_EN_BIT;
+		else
+			devpriv->command6_bits &= ~A1_INTR_EN_BIT;
+		// write to register
+		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
 	}
 
 	// setup any external triggering/pacing (command4 register)
@@ -687,13 +851,16 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	// single-ended/differential
 	if(CR_AREF(cmd->chanlist[0]) == AREF_DIFF)
 		devpriv->command4_bits |= ADC_DIFF_BIT;
-	outb(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
-//XXX interval counter register for single channel
+	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
-	// initialize software conversion count
-	if(cmd->stop_src == TRIG_COUNT)
+	// make sure interval counter register doesn't cause problems
+	if(devpriv->command4_bits & EXT_SCAN_MASTER_EN_BIT &&
+		cmd->chanlist_len == 1)
 	{
-		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
+		// set count to one
+		thisboard->write_byte(0x1, dev->iobase + INTERVAL_COUNT_REG);
+		// load count
+		thisboard->write_byte(INTERVAL_LOAD_BITS, dev->iobase + INTERVAL_LOAD_REG);
 	}
 
 	// set up conversion pacing
@@ -702,52 +869,59 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		/* set conversion frequency */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor1),
 			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
-		// load counter b0 in mode 2 (manual says mode 3 but I don't see any reason)
-		ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 0, devpriv->divisor2, 2);
+		// load counter b0 in mode 3
+		ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 0, devpriv->divisor2, 3);
 		if(ret < 0)
 		{
-			comedi_error(dev, "error loading counter");
+			comedi_error(dev, "error loading counter b0");
 			return -1;
 		}
 		// load counter a0 in mode 2
 		ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 0, devpriv->divisor1, 2);
 		if(ret < 0)
 		{
-			comedi_error(dev, "error loading counter");
+			comedi_error(dev, "error loading counter a0");
 			return -1;
 		}
 	}
 
 	// clear adc fifo
-	outb(0x1, dev->iobase + ADC_CLEAR_REG);
-	inb(dev->iobase + ADC_FIFO_REG);
-	inb(dev->iobase + ADC_FIFO_REG);
+	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 
 	// set up dma transfer
-	irq_flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_chan);
-	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
-	// set appropriate size of transfer
-	devpriv->dma_transfer_size = labpc_suggest_transfer_size(*cmd);
-	if(cmd->stop_src == TRIG_COUNT &&
-		devpriv->count * sample_size < devpriv->dma_transfer_size)
+	if(xfer == isa_dma_transfer)
 	{
-		devpriv->dma_transfer_size = devpriv->count * sample_size;
-	}
-	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
- 	enable_dma(devpriv->dma_chan);
-	release_dma_lock(irq_flags);
+		irq_flags = claim_dma_lock();
+		disable_dma(devpriv->dma_chan);
+		/* clear flip-flop to make sure 2-byte registers for
+		* count and address get set correctly */
+		clear_dma_ff(devpriv->dma_chan);
+		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+		// set appropriate size of transfer
+		devpriv->dma_transfer_size = labpc_suggest_transfer_size(*cmd);
+		if(cmd->stop_src == TRIG_COUNT &&
+			devpriv->count * sample_size < devpriv->dma_transfer_size)
+		{
+			devpriv->dma_transfer_size = devpriv->count * sample_size;
+		}
+		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+		enable_dma(devpriv->dma_chan);
+		release_dma_lock(irq_flags);
+		// enable board's dma
+		devpriv->command3_bits |= DMA_EN_BIT | DMATC_INTR_EN_BIT;
+	}else
+		devpriv->command3_bits &= ~DMA_EN_BIT & ~DMATC_INTR_EN_BIT;
 
-	// enable board's dma and interrupts
-	devpriv->command3_bits |= DMA_EN_BIT | DMATC_INTR_EN_BIT | ERR_INTR_EN_BIT;
-	// disable fifo not empty interrupt
-	devpriv->command3_bits &= ~FNE_INTR_EN_BIT;
-	outb(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
-
-// XXX setup counter a1 for external stop trigger, or just to prevent it from messing us up
+	// enable error interrupts
+	devpriv->command3_bits |= ERR_INTR_EN_BIT;
+	// enable fifo not empty interrupt?
+	if(xfer == fifo_not_empty_transfer)
+		devpriv->command3_bits |= ADC_FNE_INTR_EN_BIT;
+	else
+		devpriv->command3_bits &= ~ADC_FNE_INTR_EN_BIT;
+	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
 	// startup aquisition
 
@@ -781,9 +955,168 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			comedi_error(dev, "bug with stop_src");
 			return -1;
 	}
-	outb(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
 	return 0;
+}
+
+/* interrupt service routine */
+static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
+{
+	comedi_device *dev = d;
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async;
+	comedi_cmd *cmd;
+	int lsb, msb, data;
+
+	if(dev->attached == 0)
+	{
+		comedi_error(dev, "premature interrupt");
+		return;
+	}
+
+	async = s->async;
+	cmd = &async->cmd;
+	async->events = 0;
+
+	// read board status
+	devpriv->status1_bits = thisboard->read_byte(dev->iobase + STATUS1_REG);
+	if(thisboard->register_layout == labpc_1200_layout)
+		devpriv->status2_bits = thisboard->read_byte(dev->iobase + STATUS2_REG);
+
+	if((devpriv->status1_bits & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT | OVERRUN_BIT /*| DATA_AVAIL_BIT*/)) == 0 &&
+		(devpriv->status2_bits & A1_TC_BIT) == 0 &&
+		(devpriv->status2_bits & FNHF_BIT))
+	{
+		comedi_error(dev, "spurious interrupt");
+		return;
+	}
+
+	if(devpriv->status1_bits & OVERRUN_BIT)
+	{
+		// clear error interrupt
+		thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev, s, async->events);
+		comedi_error(dev, "overrun");
+		return;
+	}
+
+	if(devpriv->current_transfer == isa_dma_transfer)
+	{
+		// if a dma terminal count of external stop trigger has occurred
+		if(devpriv->status1_bits & DMATC_BIT ||
+			(thisboard->register_layout == labpc_1200_layout && devpriv->status2_bits & A1_TC_BIT))
+		{
+			handle_isa_dma(dev);
+		}
+	}else while(devpriv->status1_bits & DATA_AVAIL_BIT)
+	{	// handle fifo-half-full or fifo-not-empty interrupt
+		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+		msb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+		data = (msb << 8) | lsb;
+		comedi_buf_put(async, data);
+		if(async->cmd.stop_src == TRIG_COUNT)
+		{
+			devpriv->count--;
+			if(devpriv->count == 0) break;
+		}
+		devpriv->status1_bits = thisboard->read_byte(dev->iobase + STATUS1_REG);
+	}
+
+	if(devpriv->status1_bits & TIMER_BIT)
+	{
+		comedi_error(dev, "handled timer interrupt?");
+		// clear it
+		thisboard->write_byte(0x1, dev->iobase + TIMER_CLEAR_REG);
+	}
+
+	if(devpriv->status1_bits & OVERFLOW_BIT)
+	{
+		// clear error interrupt
+		thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_error(dev, "overflow");
+		return;
+	}
+
+	// handle external stop trigger
+	if(cmd->stop_src == TRIG_EXT)
+	{
+		if(devpriv->status2_bits & A1_TC_BIT)
+		{
+			labpc_cancel(dev, s);
+			async->events |= COMEDI_CB_EOA;
+		}
+	}
+
+	/* TRIG_COUNT end of acquisition */
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		if(devpriv->count == 0)
+		{
+			labpc_cancel(dev, s);
+			async->events |= COMEDI_CB_EOA;
+		}
+	}
+
+	comedi_event(dev, s, async->events);
+}
+
+static void handle_isa_dma(comedi_device *dev)
+{
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async = s->async;
+	int i;
+	int status;
+	unsigned long flags;
+	unsigned int max_points, num_points, residue, leftover;
+
+	status = devpriv->status1_bits;
+
+	flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+	/* clear flip-flop to make sure 2-byte registers for
+	* count and address get set correctly */
+	clear_dma_ff(devpriv->dma_chan);
+
+	// figure out how many points to read
+	max_points = devpriv->dma_transfer_size  / sample_size;
+	/* residue is the number of points left to be done on the dma
+	* transfer.  It should always be zero at this point unless
+	* the stop_src is set to external triggering.
+	*/
+	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
+	num_points = max_points - residue;
+	if(devpriv->count < num_points &&
+		async->cmd.stop_src == TRIG_COUNT)
+		num_points = devpriv->count;
+
+	// figure out how many points will be stored next time
+	leftover = 0;
+	if(async->cmd.stop_src != TRIG_COUNT)
+	{
+		leftover = devpriv->dma_transfer_size / sample_size;
+	}else if(devpriv->count > num_points)
+	{
+		leftover = devpriv->count - num_points;
+		if(leftover > max_points)
+			leftover = max_points;
+	}
+
+	for(i = 0; i < num_points; i++)
+	{
+		/* write data point to comedi buffer */
+		comedi_buf_put(async, devpriv->dma_buffer[i]);
+		if(async->cmd.stop_src == TRIG_COUNT) devpriv->count--;
+	}
+	// re-enable  dma
+	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+	set_dma_count(devpriv->dma_chan, leftover * sample_size);
+	enable_dma(devpriv->dma_chan);
+	release_dma_lock(flags);
+
+	async->events |= COMEDI_CB_BLOCK;
 }
 
 static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
@@ -801,23 +1134,23 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	if(CR_AREF(insn->chanspec) == AREF_DIFF)
 		chan *= 2;
 	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
-	outb(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 
 	// disable timed conversions
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	outb(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
 
 	// disable interrupt generation and dma
 	devpriv->command3_bits = 0;
-	outb(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
 	// XXX init counter a0 to high state
 
 	//XXX command4 set se/diff
 	// clear adc fifo
-	outb(0x1, dev->iobase + ADC_CLEAR_REG);
-	inb(dev->iobase + ADC_FIFO_REG);
-	inb(dev->iobase + ADC_FIFO_REG);
+	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 
 	// give it a little settling time
 	udelay(5);
@@ -825,11 +1158,11 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	for(n = 0; n < insn->n; n++)
 	{
 		/* trigger conversion */
-		outb_p(0x1, dev->iobase + ADC_CONVERT_REG);
+		thisboard->write_byte(0x1, dev->iobase + ADC_CONVERT_REG);
 
 		for(i = 0; i < timeout; i++)
 		{
-			if(inb(dev->iobase + STATUS_REG) & DATA_AVAIL_BIT)
+			if(thisboard->read_byte(dev->iobase + STATUS1_REG) & DATA_AVAIL_BIT)
 				break;
 		}
 		if(i == timeout)
@@ -837,8 +1170,8 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-		lsb = inb(dev->iobase + ADC_FIFO_REG);
-		msb = inb(dev->iobase + ADC_FIFO_REG);
+		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+		msb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 		data[n] = (msb << 8) | lsb;
 	}
 
@@ -857,13 +1190,13 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	// turn off pacing of analog output channel
 	// XXX spinlock access (race with analog input)
 	devpriv->command2_bits &= DAC_PACED_BIT(channel);
-	outb(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
 	// send data
 	lsb = data[0] & 0xff;
 	msb = (data[0] >> 8 ) & 0xff;
-	outb(lsb, dev->iobase + DAC_LSB_REG(channel));
-	outb(msb, dev->iobase + DAC_MSB_REG(channel));
+	thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(channel));
+	thisboard->write_byte(msb, dev->iobase + DAC_MSB_REG(channel));
 
 	// remember value for readback
 	devpriv->ao_value[channel] = data[0];
@@ -892,15 +1225,8 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 	else
 		freq = 0xffffffff;
 
-	// XXX this is a hack I should use pio from TRIG_WAKE_EOS
-	if(cmd.flags & TRIG_WAKE_EOS)
-	{
-		size = sample_size * cmd.chanlist_len;
-	}else
-	{
-		// make buffer fill in no more than 1/3 second
-		size = (freq / 3) * sample_size;
-	}
+	// make buffer fill in no more than 1/3 second
+	size = (freq / 3) * sample_size;
 
 	// set a minimum and maximum size allowed
 	if(size > dma_buffer_size)
@@ -909,4 +1235,26 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 		size = sample_size;
 
 	return size;
+}
+
+/* functions that do inb/outb and readb/writeb so we can use
+ * function pointers to decide which to use */
+unsigned int labpc_inb(unsigned int address)
+{
+	return inb(address);
+}
+
+void labpc_outb(unsigned int byte, unsigned int address)
+{
+	outb(byte, address);
+}
+
+unsigned int labpc_readb(unsigned int address)
+{
+	return readb(address);
+}
+
+void labpc_writeb(unsigned int byte, unsigned int address)
+{
+	writeb(byte, address);
 }
