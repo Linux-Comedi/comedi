@@ -47,6 +47,7 @@ DS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
 #AM_CONDITIONAL(CONFIG_PCMCIA,false)
 
 AC_DEFINE(CONFIG_COMEDI_DEBUG, true, [Define if debugging is enabled])
+AC_DEFINE(CONFIG_COMEDI_8255, true, [Define if 8255 support is enabled])
 
 AC_OUTPUT([
 Makefile
