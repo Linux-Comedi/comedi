@@ -1696,6 +1696,7 @@ static void pio_drain_ai_fifo_32(comedi_device *dev)
 		}
 		read_code = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
 	}
+	private(dev)->ai_count -= i;
 }
 
 // empty fifo
