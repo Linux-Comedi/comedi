@@ -33,7 +33,7 @@ Devices: [Keithley Metrabyte] DAS-1701ST (das-1701st),
   DAS-1801ST-DA (das-1801st-da), DAS-1801HC (das-1801hc),
   DAS-1801AO (das-1801ao), DAS-1802ST (das-1802st),
   DAS-1802ST-DA (das-1802st-da), DAS-1802HR (das-1802hr),
-  DAS-1802HR-DA (das-1802hr-da), DAS1802-HC (das-1802hc),
+  DAS-1802HR-DA (das-1802hr-da), DAS-1802HC (das-1802hc),
   DAS-1802AO (das-1802ao)
 Status: works
 
@@ -96,6 +96,7 @@ Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
 TODO:
 	Make it automatically allocate irq and dma channels if they are not specified
 	Add support for analog out on 'ao' cards
+	read insn for analog out
 */
 
 #include <linux/kernel.h>
@@ -203,7 +204,7 @@ static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn
 
 static int das1800_set_frequency(comedi_device *dev);
 static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
-static unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns);
+static unsigned int suggest_transfer_size(comedi_cmd *cmd);
 
 // analog input ranges
 static comedi_lrange range_ai_das1801 = {
@@ -884,11 +885,10 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	int status;
-	unsigned long flags;
 
 	/* Prevent race with das1800_ai_poll() on multi processor systems.
 	 * Also protects indirect addressing in das1800_ai_handler */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock(&dev->spinlock);
 	status = inb(dev->iobase + DAS1800_STATUS);
 
 	if(dev->attached == 0)
@@ -908,7 +908,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* clear interrupt */
 	outb(FNE, dev->iobase + DAS1800_STATUS);
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock(&dev->spinlock);
 }
 
 // the guts of the interrupt handler, that is shared with das1800_ai_poll
@@ -1449,19 +1449,7 @@ static void setup_dma(comedi_device *dev, comedi_cmd cmd)
 		return;
 
 	/* determine a reasonable dma transfer size */
-	switch(cmd.scan_begin_src)
-	{
-		case TRIG_FOLLOW:	// not in burst mode
-			if(cmd.convert_src == TRIG_TIMER)
-				devpriv->dma_transfer_size = suggest_transfer_size(dev, cmd.convert_arg);
-			break;
-		case TRIG_TIMER:
-			devpriv->dma_transfer_size = suggest_transfer_size(dev, cmd.scan_begin_arg / cmd.chanlist_len);
-			break;
-		default:
-			devpriv->dma_transfer_size = DMA_BUF_SIZE;
-			break;
-	}
+	devpriv->dma_transfer_size = suggest_transfer_size(&cmd);
 
 	lock_flags = claim_dma_lock();
 	disable_dma(devpriv->dma0);
@@ -1752,19 +1740,38 @@ static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 }
 
 // utility function that suggests a dma transfer size based on the conversion period 'ns'
-static unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns)
+static unsigned int suggest_transfer_size(comedi_cmd *cmd)
 {
-	unsigned int size;
-	unsigned int freq = 1000000000 / ns;
+	unsigned int size = DMA_BUF_SIZE;
 	static const int sample_size = 2;	// size in bytes of one sample from board
+	unsigned int fill_time = 300000000;	// target time in nanoseconds for filling dma buffer
+	unsigned int max_size;	// maximum size we will allow for a transfer
 
-	// make buffer fill in no more than 1/3 second
-	size = (freq / 3) * sample_size;
+	// make dma buffer fill in 0.3 seconds for timed modes
+	switch(cmd->scan_begin_src)
+	{
+		case TRIG_FOLLOW:	// not in burst mode
+			if(cmd->convert_src == TRIG_TIMER)
+				size = fill_time / cmd->convert_arg;
+			break;
+		case TRIG_TIMER:
+			size = fill_time / (cmd->scan_begin_arg * cmd->chanlist_len);
+			break;
+		default:
+			size = DMA_BUF_SIZE;
+			break;
+	}
 
 	// set a minimum and maximum size allowed
-	if(size > DMA_BUF_SIZE)
-		size = DMA_BUF_SIZE - DMA_BUF_SIZE % sample_size;
-	else if(size < sample_size)
+	max_size = DMA_BUF_SIZE;
+	// if we are taking limited number of conversions, limit transfer size to that
+	if(cmd->stop_src == TRIG_COUNT &&
+		cmd->stop_arg * cmd->chanlist_len < max_size)
+		max_size = cmd->stop_arg * cmd->chanlist_len;
+
+	if(size > max_size)
+		size = max_size - max_size % sample_size;
+	if(size < sample_size)
 		size = sample_size;
 
 	return size;
