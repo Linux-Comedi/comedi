@@ -54,8 +54,6 @@ fi
 # check Makefile.in for the config option
 if [ $(grep "CONFIG.*${basedriver}.o" Makefile &>/dev/null) ];then
 	echo "E: driver missing from Makefile.in"
-else
-	echo config option $config
 fi
 
 # check to see if it uses name recognition
