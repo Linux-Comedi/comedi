@@ -83,6 +83,7 @@ module_PROGRAMS = \
  das08.ko \
  mite.ko \
  ni_labpc.ko \
+ acl7225b.ko \
  adl_pci9111.ko \
  adl_pci9118.ko \
  adv_pci1710.ko \
@@ -133,6 +134,7 @@ module_PROGRAMS = \
  pcl724.ko \
  pcl725.ko \
  pcl726.ko \
+ pcl730.ko \
  pcl812.ko \
  pcl816.ko \
  pcl818.ko \
