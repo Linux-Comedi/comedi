@@ -391,3 +391,247 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
+
+
+#if 0
+int write_to_async_buffer( comedi_async *async, const void *array,
+	unsigned int num_bytes, unsigned int from_user_space )
+{
+	async->buf_dirty_count += num_bytes;
+	while( num_bytes )
+	{
+		unsigned int block_size;
+
+		block_size = num_bytes;
+		if( async->buf_write_ptr + block_size > async->data_len)
+			block_size = async->data_len - async->buf_write_ptr;
+
+		if( from_user_space )
+		{
+			if( copy_from_user( async->data + async->buf_write_ptr, array, block_size ) )
+				return -EFAULT;
+		}else
+			memcpy( async->data + async->buf_write_ptr, array, block_size );
+
+		array += block_size;
+		num_bytes -= block_size;
+		async->buf_write_count += block_size;
+		async->buf_write_ptr += block_size;
+		if( async->buf_write_ptr == async->data_len )
+		{
+			async->buf_write_ptr = 0;
+		}
+	}
+
+	return 0;
+}
+
+int read_from_async_buffer( comedi_async *async, void *destination,
+	unsigned int num_bytes, unsigned int from_user_space )
+{
+	unsigned int bytes_available = async->buf_write_count - async->buf_read_count;
+	unsigned int remaining = bytes_available;
+
+	if( bytes_available == 0 ) return -EAGAIN;
+
+	while( remaining )
+	{
+		unsigned int block_size;
+
+		block_size = remaining;
+		if( async->buf_read_ptr + block_size > async->data_len )
+			block_size = async->data_len - async->buf_read_ptr;
+
+		if( from_user_space )
+		{
+			if( copy_to_user( destination, async->data + async->buf_read_ptr, block_size ) )
+				return -EFAULT;
+		}else
+			memcpy( destination, async->data + async->buf_read_ptr, block_size );
+
+		destination += block_size;
+		remaining -= block_size;
+		async->buf_read_ptr += block_size;
+		if( async->buf_read_ptr == async->data_len )
+		{
+			async->buf_read_ptr = 0;
+		}
+	}
+	// check if buffer has overrun
+	if( async->buf_dirty_count - async->buf_read_count > async->data_len )
+		return -EIO;
+	async->buf_read_count += bytes_available;
+
+	return bytes_available - remaining;
+}
+
+/* Writes an array of data points to comedi's buffer, used for input.
+ * Can be more efficient than putting comedi_buf_put() in a loop. */
+void __comedi_buf_put_array(comedi_async *async, void* array,
+	unsigned int num_bytes, unsigned int bytes_per_sample )
+{
+	if( async->buf_write_ptr + num_bytes  >= async->data_len )
+	{
+		async->events |= COMEDI_CB_EOBUF;
+	}
+
+	write_to_async_buffer( async, array, num_bytes, 0 );
+
+	async->cur_chan += num_bytes / bytes_per_sample;
+	if( async->cur_chan >= async->cmd.chanlist_len )
+	{
+		async->cur_chan %= async->cmd.chanlist_len;
+		async->events |= COMEDI_CB_EOS;
+	}
+	async->events |= COMEDI_CB_BLOCK;
+}
+
+void comedi_buf_put_array(comedi_async *async, sampl_t *array,
+	unsigned int num_samples )
+{
+	__comedi_buf_put_array( async, array, num_samples * sizeof( sampl_t ), sizeof( sampl_t ) );
+}
+
+void comedi_buf_put_long_array(comedi_async *async, lsampl_t *array,
+	unsigned int num_samples )
+{
+	__comedi_buf_put_array( async, array, num_samples * sizeof( lsampl_t ), sizeof( lsampl_t ) );
+}
+
+/* writes a data point to comedi's buffer, used for input */
+void comedi_buf_put(comedi_async *async, sampl_t x)
+{
+	comedi_buf_put_array( async, &x, 1 );
+}
+
+/* writes a long data point to comedi's buffer, used for input */
+void comedi_buf_put_long(comedi_async *async, lsampl_t x)
+{
+	comedi_buf_put_long_array( async, &x, 1 );
+}
+
+/* Reads a data point from comedi's buffer, used for output.
+ * returns negative value on error. */
+int comedi_buf_get_array(comedi_async *async, sampl_t *array, unsigned int num_samples)
+{
+	unsigned int num_bytes = num_samples * sizeof( sampl_t );
+	int retval;
+	unsigned int read_ptr = async->buf_read_ptr;
+
+	retval = read_from_async_buffer( async, array, num_bytes, 0 );
+
+	if( retval < 0 )
+	{
+		async->events |= COMEDI_CB_ERROR;
+		return retval;
+	}
+
+	num_bytes = retval;
+	num_samples = retval / sizeof( sampl_t );
+
+	if( read_ptr + num_bytes >= async->data_len)
+	{
+		async->events |= COMEDI_CB_EOBUF;
+	}
+
+	async->cur_chan += num_samples;
+	if( async->cur_chan >= async->cmd.chanlist_len)
+	{
+		async->cur_chan %= async->cmd.chanlist_len;
+		async->events |= COMEDI_CB_EOS;
+	}
+
+	async->events |= COMEDI_CB_BLOCK;
+
+	return retval / sizeof( sampl_t );
+}
+
+/* Reads a data point from comedi's buffer, used for output.
+ * returns negative value on error. */
+int comedi_buf_get(comedi_async *async, sampl_t *x)
+{
+	return comedi_buf_get_array(async, x, 1);
+}
+#endif
+
+
+/* begin ds */
+
+unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
+{
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+
+	if((int)(async->buf_free_count + nbytes - free_end) > 0){
+		nbytes = free_end - async->buf_free_count;
+	}
+
+	async->buf_free_count += nbytes;
+
+	return nbytes;
+}
+
+unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
+	unsigned int nbytes)
+{
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+
+	if((int)(async->buf_free_count + nbytes - free_end) > 0){
+		nbytes = 0;
+	}
+
+	async->buf_free_count += nbytes;
+
+	return nbytes;
+}
+
+/* transfers control of a chunk from writer to reader */
+void comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
+{
+	async->buf_write_count += nbytes;
+	async->buf_write_ptr += nbytes;
+	if(async->buf_write_ptr >= async->prealloc_bufsz){
+		async->buf_write_ptr -= async->prealloc_bufsz;
+		async->events |= COMEDI_CB_EOBUF;
+	}
+}
+
+/* transfers control of a chunk from  reader to free area */
+void comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
+{
+	async->buf_read_count += nbytes;
+	async->buf_read_ptr += nbytes;
+	if(async->buf_read_ptr >= async->prealloc_bufsz){
+		async->buf_read_ptr -= async->prealloc_bufsz;
+	}
+}
+
+unsigned int comedi_buf_read_n_available(comedi_async *async)
+{
+	unsigned int read_end = async->buf_write_count;
+
+	return read_end - async->buf_read_count;
+}
+
+int comedi_buf_get(comedi_async *async, sampl_t *x)
+{
+	unsigned int n = comedi_buf_read_n_available(async);
+
+	if(n<sizeof(sampl_t))return 0;
+	*x = *(sampl_t *)(async->prealloc_buf + async->buf_read_ptr);
+	comedi_buf_read_free(async, sizeof(sampl_t));
+	return 1;
+}
+
+int comedi_buf_put(comedi_async *async, sampl_t x)
+{
+	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(sampl_t));
+
+	if(n<sizeof(sampl_t)){
+		async->events |= COMEDI_CB_ERROR;
+		return 0;
+	}
+	*(sampl_t *)(async->prealloc_buf + async->buf_write_ptr) = x;
+	comedi_buf_write_free(async, sizeof(sampl_t));
+	return 1;
+}
+

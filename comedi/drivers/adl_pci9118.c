@@ -681,7 +681,7 @@ static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s
 			}
 #endif
 			sampl=((sampl & 0xfff0)<<12)|((sampl & 0xfff00000)>>20);
-			comedi_buf_put_long( s->async, sampl );
+			comedi_buf_put( s->async, sampl );
 		}
 		sp+=cc<<1;
 		if (cc>=chans) {
@@ -731,7 +731,8 @@ static int move_block_from_dma_16bit_32b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 			sampl=(((sampl & 0xffff)<<16)|((sampl & 0xffff0000)>>16))^0x80008000;
-			comedi_buf_put_long( s->async, sampl );
+			/* XXX broken */
+			comedi_buf_put( s->async, sampl );
 		}
 		sp+=cc<<1;
 		if (cc>=chans) {

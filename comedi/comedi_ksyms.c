@@ -64,6 +64,10 @@ EXPORT_SYMBOL(comedi_devices);
 EXPORT_SYMBOL(big_comedi_lock);
 EXPORT_SYMBOL(check_chanlist);
 
+EXPORT_SYMBOL(comedi_buf_put);
+EXPORT_SYMBOL(comedi_buf_get);
+EXPORT_SYMBOL(comedi_buf_read_n_available);
+
 #endif
 
 

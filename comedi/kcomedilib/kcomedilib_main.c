@@ -121,7 +121,7 @@ static void init_async_buf( comedi_async *async )
 {
 	async->buf_read_count = 0;
 	async->buf_write_count = 0;
-	async->buf_dirty_count = 0;
+	async->buf_free_count = 0;
 	async->buf_read_ptr = 0;
 	async->buf_write_ptr = 0;
 }

@@ -346,7 +346,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 #ifdef PCIDMA
 static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 {
-	unsigned int count;
+	int count;
 	comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
 
@@ -357,8 +357,6 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 		printk("BUG: too many samples in interrupt (%d)\n",count);
 		return;
 	}
-	// XXX buf_dirty_count should really be incremented earlier...
-	async->buf_dirty_count += count;
 	async->buf_write_count += count;
 
 	if(async->cmd.flags & CMDF_RAWDATA){
@@ -665,7 +663,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
 		d+=devpriv->ai_xorlist[ async->cur_chan ];
-		comedi_buf_put( async, d );
+		comedi_buf_put(async, d);
 	}
 }
 
@@ -708,16 +706,16 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 
 			/* This may get the hi/lo data in the wrong order */
 			data = (dl>>16) + devpriv->ai_xorlist[async->cur_chan];
-			comedi_buf_put( s->async, data );
+			comedi_buf_put(s->async, data);
 			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
-			comedi_buf_put( s->async, data );
+			comedi_buf_put(s->async, data);
 		}
 
 		/* Check if there's a single sample stuck in the FIFO */
 		if(ni_readb(Status_611x)&0x80){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
-			comedi_buf_put( s->async, data );
+			comedi_buf_put(s->async, data);
 		}
 	}else{
 		while(1){
@@ -728,7 +726,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 				}
 				data=ni_readw(ADC_FIFO_Data_Register);
 				data+=devpriv->ai_xorlist[async->cur_chan];
-				comedi_buf_put( s->async, data );
+				comedi_buf_put(s->async, data);
 			}
 		}
 	}

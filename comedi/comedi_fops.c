@@ -1312,7 +1312,6 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	comedi_async *async;
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
-	int sample_size;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
@@ -1325,14 +1324,6 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	if(dev->write_subdev == NULL)return -EIO;
 	s = dev->write_subdev;
 	async = s->async;
-
-	if(s->subdev_flags&SDF_LSAMPL){
-		sample_size=sizeof(lsampl_t);
-	}else{
-		sample_size=sizeof(sampl_t);
-	}
-	if(nbytes%sample_size)
-		nbytes-=nbytes%sample_size;
 
 	if(!nbytes)return 0;
 
@@ -1348,9 +1339,11 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		m = async->data_len + async->buf_read_count - async->buf_write_count;
-		if( async->buf_write_ptr + m > async->data_len )
+		m = n;
+		if(async->buf_write_ptr + m > async->data_len){
 			m = async->data_len - async->buf_write_ptr;
+		}
+		m = comedi_buf_write_alloc(async, m);
 
 		if(m < n) n = m;
 
@@ -1375,13 +1368,13 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			schedule();
 			continue;
 		}
-		m = 0;
-		if( write_to_async_buffer( async, buf, n, 1 ) )
-		{
-			m = n;
+
+		m = copy_from_user(async->prealloc_buf + async->buf_write_ptr,
+			buf, n);
+		if(m){
+			n -= m;
 			retval = -EFAULT;
 		}
-		n-=m;
 
 		count+=n;
 		nbytes-=n;
@@ -1403,7 +1396,6 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	comedi_async *async;
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
-	int sample_size;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
@@ -1416,14 +1408,6 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	s = dev->read_subdev;
 	if(s == NULL)return -EIO;
 	async = s->async;
-
-	if(s->subdev_flags&SDF_LSAMPL){
-		sample_size=sizeof(lsampl_t);
-	}else{
-		sample_size=sizeof(sampl_t);
-	}
-	if(nbytes%sample_size)
-		nbytes-=nbytes%sample_size;
 
 	if(!nbytes)return 0;
 
@@ -1439,13 +1423,12 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		n=nbytes;
 
-		m = async->buf_write_count - async->buf_read_count;
-		if( m > async->data_len )
-			m = async->data_len;
-
-#if 0
-printk("m is %d\n",m);
-#endif
+		m = comedi_buf_read_n_available(async);
+//printk("%d available\n",m);
+		if(async->buf_read_ptr + m > async->prealloc_bufsz){
+			m = async->prealloc_bufsz - async->buf_read_ptr;
+		}
+//printk("%d contiguous\n",m);
 		if(m<n)n=m;
 
 		if(n==0){
@@ -1469,21 +1452,15 @@ printk("m is %d\n",m);
 			schedule();
 			continue;
 		}
-		m=0;
-		retval = read_from_async_buffer( async, buf, n, 1 );
-		if( retval )
-		{
-			m = n;
-		}
-		n-=m;
 
-		/* check for buffer overflow */
-		if( retval == -EIO )
-		{
-			do_cancel(dev, dev->read_subdev);
-			DPRINTK("buffer overflow\n");
-			break;
+		m = copy_to_user(buf, async->prealloc_buf +
+			async->buf_read_ptr, n);
+		if(m){
+			n -= m;
+			retval = -EFAULT;
 		}
+
+		comedi_buf_read_free(async, n);
 
 		count+=n;
 		nbytes-=n;
@@ -1803,6 +1780,8 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 	mask = s->async->events;
 	s->async->events = 0;
 
+	mask |= COMEDI_CB_BLOCK;
+
 	//DPRINTK("comedi_event %x\n",mask);
 
 	if( (s->subdev_flags & SDF_RUNNING) == 0)
@@ -1853,10 +1832,11 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 
 static void init_async_buf( comedi_async *async )
 {
-	async->buf_read_count = 0;
+	async->buf_free_count = 0;
 	async->buf_write_count = 0;
-	async->buf_dirty_count = 0;
-	async->buf_read_ptr = 0;
+	async->buf_read_count = 0;
+
 	async->buf_write_ptr = 0;
+	async->buf_read_ptr = 0;
 }
 
