@@ -1,4 +1,35 @@
 
+Comedi-0.7.64:
+ 
+ - documentation updates in many drivers
+ - changed stm.lbl.gov to comedi.org or schleef.org
+ - more event bug fixes
+ - made buffer resizing a driver-overridable function
+ - PCI support for 2.0 kernels removed
+ - adl_pci9111.o: new driver from Emmanuel Pacaud <emmanuel.pacaud@free.fr>
+ - adl_pci9118.o: updates from Michal
+ - cb_pcidas64.o: support for additional boards, AI insn and commands
+   working with DMA
+ - various drivers: converted to pci_resource_start()
+ - comedi_rt_timer.o: 64-bit divide code moved to compatibility header
+ - comedi_test.o: new driver from Joachim Wuttke, Frank
+ - das16.o: support for DAS16JR/16
+ - dt3000.o: preliminary AI cmd support.  untested.
+ - icp_multi.o: update from Anne
+ - ni_daq_dio24.o: new driver from Daniel Vecino Castel <dvecino@able.es>
+ - ni_pcidio.o: DMA now works for input streams.
+ - ni_pcimio.o: DMA support mostly rewritten.  AI passes comedi_test with
+   DMA enabled.  Directly accesssing STC registers disabled to better
+   understand problems with 611x boards.  Added CMDF_RAWDATA support.
+   Many fixes for 611x abd 671x boards.
+ - ni_at_ao.o: new driver (ds)
+ - ni_mio_common: made caldacs more flexible.  Added debugging caldac.
+ - rtd520.o: update from Dan
+ - debian/: new Debian packaging
+ - include/linux/pci.h: cleanups of compatiblity macros
+ - rpm/: new RPM packaging
+ - pcl816.o: new driver from Juan Grigera <juan@grigera.com.ar>
+
 Comedi-0.7.63:
 
  - Fix event bug introduced in 0.7.62
