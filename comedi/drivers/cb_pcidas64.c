@@ -2220,17 +2220,23 @@ static void pio_drain_ai_fifo_16(comedi_device *dev)
 
 	do
 	{
-		/* Get most significant bits (grey code).  Different boards use different code
-		* so use a scheme that doesn't depend on encoding */
-		prepost_bits = readw(priv(dev)->main_iobase + PREPOST_REG);
 		// get least significant 15 bits
 		read_index = readw(priv(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
 		write_index = readw(priv(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
+		/* Get most significant bits (grey code).  Different boards use different code
+		 * so use a scheme that doesn't depend on encoding.  This read must
+		 * occur after reading least significant 15 bits to avoid race
+		 * with fifo switching to next segment. */
+		prepost_bits = readw(priv(dev)->main_iobase + PREPOST_REG);
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
 		read_segment = adc_upper_read_ptr_code( prepost_bits );
 		write_segment = adc_upper_write_ptr_code( prepost_bits );
+
+		DEBUG_PRINT( " rd seg %i, wrt seg %i, rd idx %i, wrt idx %i\n",
+			read_segment, write_segment, read_index, write_index );
+
 		if(read_segment != write_segment)
 			num_samples = priv(dev)->ai_fifo_segment_length - read_index;
 		else
@@ -2273,7 +2279,7 @@ static void pio_drain_ai_fifo_32(comedi_device *dev)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int i;
-	unsigned int max_transfer = 1e5;
+	unsigned int max_transfer = 100000;
 	uint32_t fifo_data;
 	int write_code = readw(priv(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 	int read_code = readw(priv(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
@@ -2415,10 +2421,16 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
 	}
 
-	// clean up dregs if we were stopped by hardware sample counter
 	if( status & ADC_DONE_BIT )
-	{
 		DEBUG_PRINT("adc done interrupt\n");
+
+	// drain fifo with pio
+	if( ( status & ADC_DONE_BIT ) ||
+		( ( cmd->flags & TRIG_WAKE_EOS ) &&
+		( status & ADC_INTR_PENDING_BIT ) &&
+		( board(dev)->layout != LAYOUT_4020 ) ) )
+	{
+		DEBUG_PRINT("pio fifo drain\n");
 		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		if( priv(dev)->ai_cmd_running )
 		{
@@ -2893,10 +2905,10 @@ static int set_ai_fifo_segment_length( comedi_device *dev, unsigned int num_entr
 	if( num_entries < increment_size ) num_entries = increment_size;
 	if( num_entries > fifo->max_segment_length ) num_entries = fifo->max_segment_length;
 
-	// 0 -- 256 entries, 1 == 512 entries, etc
-	num_increments = ( num_entries - increment_size / 2 ) / increment_size;
+	// 1 == 256 entries, 2 == 512 entries, etc
+	num_increments = ( num_entries + increment_size / 2 ) / increment_size;
 
-	bits = (~num_entries) & fifo->fifo_size_reg_mask;
+	bits = (~(num_increments - 1)) & fifo->fifo_size_reg_mask;
 	priv(dev)->fifo_size_bits &= ~fifo->fifo_size_reg_mask;
 	priv(dev)->fifo_size_bits |= bits;
 	writew( priv(dev)->fifo_size_bits, priv(dev)->main_iobase + FIFO_SIZE_REG );
