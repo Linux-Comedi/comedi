@@ -49,8 +49,7 @@ like lab-pc+ or scan up from channel zero.
 /*
 TODO:
 	pcmcia
-	be more careful about stop trigger with dma transfers
-	calibration subdevice
+	make more variables volatile as appropriate
 
 NI manuals:
 341309a (labpc-1200 register manual)
@@ -162,7 +161,10 @@ static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
 static int labpc_detach(comedi_device *dev);
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s);
 static void labpc_interrupt(int irq, void *d, struct pt_regs *regs);
+static int labpc_drain_fifo(comedi_device *dev);
+static void labpc_drain_dma(comedi_device *dev);
 static void handle_isa_dma(comedi_device *dev);
+static void labpc_drain_dregs(comedi_device *dev);
 static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
@@ -184,6 +186,7 @@ static void labpc_load_ao_calibration(comedi_device *dev, unsigned int channel, 
 static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int labpc_serial_in(comedi_device *dev);
 static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address);
+static unsigned int labpc_eeprom_read_status(comedi_device *dev);
 static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value);
 static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
@@ -360,7 +363,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	int dma_chan = 0;
 	int lsb, msb;
 	int i;
-	unsigned long flags;
+	unsigned long flags, isr_flags;
 
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(labpc_private)) < 0)
@@ -437,7 +440,10 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	if(irq)
 	{
-		if(comedi_request_irq( irq, labpc_interrupt, 0, driver_labpc.driver_name, dev))
+		isr_flags = 0;
+		if(thisboard->bustype == pci_bustype)
+			isr_flags |= SA_SHIRQ;
+		if(comedi_request_irq( irq, labpc_interrupt, isr_flags, driver_labpc.driver_name, dev))
 		{
 			printk( "unable to allocate irq %d\n", irq);
 			return -EINVAL;
@@ -1057,7 +1063,6 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
-	int lsb, msb, data;
 
 	if(dev->attached == 0)
 	{
@@ -1078,7 +1083,6 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 		(devpriv->status2_bits & A1_TC_BIT) == 0 &&
 		(devpriv->status2_bits & FNHF_BIT))
 	{
-		comedi_error(dev, "spurious interrupt");
 		return;
 	}
 
@@ -1100,19 +1104,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 		{
 			handle_isa_dma(dev);
 		}
-	}else while(devpriv->status1_bits & DATA_AVAIL_BIT)
-	{	// handle fifo-half-full or fifo-not-empty interrupt
-		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
-		msb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
-		data = (msb << 8) | lsb;
-		comedi_buf_put(async, data);
-		if(async->cmd.stop_src == TRIG_COUNT)
-		{
-			devpriv->count--;
-			if(devpriv->count == 0) break;
-		}
-		devpriv->status1_bits = thisboard->read_byte(dev->iobase + STATUS1_REG);
-	}
+	}else labpc_drain_fifo(dev);
 
 	if(devpriv->status1_bits & TIMER_BIT)
 	{
@@ -1135,6 +1127,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		if(devpriv->status2_bits & A1_TC_BIT)
 		{
+			labpc_drain_dregs(dev);
 			labpc_cancel(dev, s);
 			async->events |= COMEDI_CB_EOA;
 		}
@@ -1153,7 +1146,39 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_event(dev, s, async->events);
 }
 
-static void handle_isa_dma(comedi_device *dev)
+// read all available samples from ai fifo
+static int labpc_drain_fifo(comedi_device *dev)
+{
+	unsigned int lsb, msb;
+	sampl_t data;
+	comedi_async *async = dev->read_subdev->async;
+	const int timeout = 10000;
+	unsigned int i;
+
+	for(i = 0; (devpriv->status1_bits & DATA_AVAIL_BIT) && i < timeout; i++)
+	{
+		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+		msb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+		data = (msb << 8) | lsb;
+		comedi_buf_put(async, data);
+		// quit if we have all the data we want
+		if(async->cmd.stop_src == TRIG_COUNT)
+		{
+			devpriv->count--;
+			if(devpriv->count == 0) break;
+		}
+		devpriv->status1_bits = thisboard->read_byte(dev->iobase + STATUS1_REG);
+	}
+	if(i == timeout)
+	{
+		comedi_error(dev, "ai timeout, fifo never empties");
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		return -1;
+	}
+	return 0;
+}
+
+static void labpc_drain_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
@@ -1200,16 +1225,33 @@ static void handle_isa_dma(comedi_device *dev)
 		comedi_buf_put(async, devpriv->dma_buffer[i]);
 		if(async->cmd.stop_src == TRIG_COUNT) devpriv->count--;
 	}
-	// re-enable  dma
+
+	// set address and count for next transfer
 	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	set_dma_count(devpriv->dma_chan, leftover * sample_size);
-	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
+
+	async->events |= COMEDI_CB_BLOCK;
+}
+
+static void handle_isa_dma(comedi_device *dev)
+{
+	labpc_drain_dma(dev);
+
+	enable_dma(devpriv->dma_chan);
 
 	// clear dma tc interrupt
 	thisboard->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
+}
 
-	async->events |= COMEDI_CB_BLOCK;
+/* makes sure all data aquired by board is transfered to comedi (used
+ * when aquisition is terminated by stop_src == TRIG_EXT). */
+static void labpc_drain_dregs(comedi_device *dev)
+{
+	if(devpriv->current_transfer == isa_dma_transfer)
+		labpc_drain_dma(dev);
+
+	labpc_drain_fifo(dev);
 }
 
 static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
@@ -1628,9 +1670,89 @@ static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
 
 static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value)
 {
+	const int write_enable_instruction = 0x6;
+	const int write_instruction = 0x2;
+	const int write_length = 8;	// 8 bit write lengths to eeprom
+	const int write_in_progress_bit = 0x1;
+	const int timeout = 10000;
+	int i;
+
+	// make sure there isn't already a write in progress
+	for(i = 0; i < timeout; i++)
+	{
+		if((labpc_eeprom_read_status(dev) & write_in_progress_bit) == 0)
+			break;
+	}
+	if(i == timeout)
+	{
+		comedi_error(dev, "eeprom write timed out");
+		return -ETIME;
+	}
+
+	// update software copy of eeprom
 	devpriv->eeprom_data[address] = value;
 
+	// enable read/write to eeprom
+	devpriv->command5_bits &= ~EEPROM_EN_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	// send write_enable instruction
+	labpc_serial_out(dev, write_enable_instruction, write_length);
+	devpriv->command5_bits &= ~EEPROM_EN_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+
+	// send write instruction
+	devpriv->command5_bits |= EEPROM_EN_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	labpc_serial_out(dev, write_instruction, write_length);
+	// send 8 bit address to write to
+	labpc_serial_out(dev, address, write_length);
+	// write value
+	labpc_serial_out(dev, value, write_length);
+	devpriv->command5_bits &= ~EEPROM_EN_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	// disable read/write to eeprom
+	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
 	return 0;
+}
+
+static unsigned int labpc_eeprom_read_status(comedi_device *dev)
+{
+	unsigned int value;
+	const int read_status_instruction = 0x5;
+	const int write_length = 8;	// 8 bit write lengths to eeprom
+
+	// enable read/write to eeprom
+	devpriv->command5_bits &= ~EEPROM_EN_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	// send read status instruction
+	labpc_serial_out(dev, read_status_instruction, write_length);
+	// read result
+	value = labpc_serial_in(dev);
+
+	// disable read/write to eeprom
+	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	return value;
 }
 
 // writes to 8 bit calibration dacs
