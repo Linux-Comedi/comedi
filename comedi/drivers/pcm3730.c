@@ -118,7 +118,7 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=8;
 	s->insn_bits = pcm3730_di_insn_bits;
 	s->range_table=&range_digital;
-	s->private = (void *) PCM3730_D!A;
+	s->private = (void *) PCM3730_DIA;
 
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_DI;
