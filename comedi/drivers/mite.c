@@ -146,11 +146,11 @@ int mite_setup(struct mite_struct *mite)
 #ifdef PCI_SUPPORT_VER1
 	pcibios_read_config_dword(mite->pci_bus,mite->pci_device_fn,PCI_BASE_ADDRESS_0,&addr);
 #else
-	pci_enable_device(mite->pcidev);
 
 #if LINUX_VERSION_CODE < 0x020300
 	addr=mite->pcidev->base_address[0];
 #else
+	pci_enable_device(mite->pcidev);
 	addr=mite->pcidev->resource[0].start;
 #endif
 #endif
