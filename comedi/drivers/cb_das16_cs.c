@@ -1135,7 +1135,6 @@ the device state and restart IO.
 } /* das16cs_pcmcia_event */
 
 /*====================================================================*/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 0)
 struct pcmcia_driver das16cs_driver =
 {
 	.attach = das16cs_pcmcia_attach,
@@ -1145,7 +1144,7 @@ struct pcmcia_driver das16cs_driver =
 		.name = "cb_das16_cs",
 	},	
 };
-#endif
+
 static int __init init_das16cs_pcmcia_cs(void)
 {
 	servinfo_t serv;
@@ -1157,22 +1156,14 @@ static int __init init_das16cs_pcmcia_cs(void)
 			"does not match!\n");
 		//return -1;
 	}
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-	register_pccard_driver(&dev_info, &das16cs_pcmcia_attach, &das16cs_pcmcia_detach);
-#else
 	pcmcia_register_driver(&das16cs_driver);
-#endif
 	return 0;
 }
 
 static void __exit exit_das16cs_pcmcia_cs(void)
 {
 	DEBUG(0, "das16cs_pcmcia_cs: unloading\n");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-	unregister_pccard_driver(&dev_info);
-#else
 	pcmcia_unregister_driver(&das16cs_driver);
-#endif
 	while (dev_list != NULL)
 	{
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
