@@ -378,7 +378,6 @@ int comedi_command(unsigned int minor,comedi_cmd *cmd)
 		return -ENODEV;
 
 	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
-	async->cb_mask |= COMEDI_CB_EOS;
 
 	async->cmd=*cmd;
 
