@@ -71,9 +71,9 @@ log, it is impossible to find problems.
 
 Install using 'make install' as root.  This installs the files:
 
-  /lib/modules/<<kernel version>>/misc/comedi.o
-  /lib/modules/<<kernel version>>/misc/kcomedilib.o
-  /lib/modules/<<kernel version>>/misc/<<driver files>>.o
+  /lib/modules/<<kernel version>>/comedi/comedi.o
+  /lib/modules/<<kernel version>>/comedi/kcomedilib.o
+  /lib/modules/<<kernel version>>/comedi/<<driver files>>.o
 
 You need to create device files to access the hardware from a
 user process.  These can be created using 'make dev'.  The following
@@ -82,7 +82,8 @@ special files will be created:
   /dev/comedi0
   /dev/comedi1
   /dev/comedi2
-  /dev/comedi3
+  ...
+  /dev/comedi15
 
 * Comedilib:
 
