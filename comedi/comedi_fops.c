@@ -1347,8 +1347,8 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		m = async->buf_int_ptr - async->buf_user_ptr;
-		if( m < 0 )
+		m = async->data_len + async->buf_int_count - async->buf_user_count;
+		if( async->buf_user_ptr + m > async->data_len )
 			m = async->data_len - async->buf_user_ptr;
 
 		if(m < n) n = m;
