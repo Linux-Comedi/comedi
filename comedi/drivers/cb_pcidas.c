@@ -65,6 +65,9 @@ add analog out support
 #include "8253.h"
 #include "8255.h"
 
+#define CB_PCIDAS_DEBUG	// enable debugging code
+//#undef CB_PCIDAS_DEBUG	// disable debugging code
+
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_CB	0x1307
 #define TIMER_BASE 100	// 10MHz master clock
@@ -78,7 +81,7 @@ add analog out support
 #define PACER_BADRINDEX 3
 #define AO_BADRINDEX 4
 // sizes of io regions
-#define S5933_SIZE 256
+#define S5933_SIZE 128
 #define CONT_STAT_SIZE 10
 #define ADC_FIFO_SIZE 4
 #define PACER_SIZE 12
@@ -86,8 +89,7 @@ add analog out support
 
 // amcc s5933 pci configuration registers
 #define INTCSR	0x38	// interrupt control/status
-#define INTLN 0x3c	// read interrupt line
-#define INTPIN 0x3d	// read interrupt pin
+#define   ADD_INT_EN 0x2000	//enable add-on interrupt
 
 /* Control/Status registers */
 #define INT_ADCFIFO	0	// INTERRUPT / ADC FIFO register
@@ -508,6 +510,12 @@ found:
 	subdev_8255_init(dev, s, NULL,
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
+#ifdef CB_PCIDAS_DEBUG
+	// enable passing of interrupts through amcc s5933 chip
+	outl(ADD_INT_EN, devpriv->s5933_config + INTCSR);
+	rt_printk("finished attach, intcsr register is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+#endif
+
 	return 1;
 }
 
@@ -768,7 +776,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	int bits;
+	unsigned int bits;
 
 	// initialize before settings pacer source and count values
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
