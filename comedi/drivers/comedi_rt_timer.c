@@ -36,11 +36,9 @@
 #include <rtl_sched.h>
 #include <rtl_compat.h>
 
-// begin hack to fix HRT_TO_8254() function on rtlinux
-#undef HRT_TO_8254(x)
-#define HRT_TO_8254(x) nano2tick_hack(x)
+// begin hack to workaround broken HRT_TO_8254() function on rtlinux
 // this function sole purpose is to divide a long long by 838
-inline long long nano2tick_hack(long long ns)
+static inline long long nano2count(long long ns)
 {
 	unsigned long denom = 838;	// divisor
 	long ms32 = ns >> 32;	// most significant 32 bits
@@ -59,11 +57,17 @@ inline long long nano2tick_hack(long long ns)
 	// divide least significant bits
 	ns += ls32 / denom;
 	// add really small correction
-	rem_rem = (ms32rem * (big_rem+1)) % denom;
+	rem_rem = (ms32rem * (big_rem + 1)) % denom;
 	ns += (ls32rem + rem_rem) / denom;
 
 	return ns;
 }
+
+inline RTIME rt_get_time(void)
+{
+        return nano2count(gethrtime());
+}
+
 // end hack
 
 #endif
@@ -344,9 +348,9 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		return ret;
 	}
 
+	delay = nano2count(cmd->start_arg);
 #ifdef CONFIG_COMEDI_RTL
-	period=HRT_TO_8254(cmd->scan_begin_arg);
-	delay=HRT_TO_8254(cmd->start_arg);
+	period = nano2count(cmd->scan_begin_arg);
 	if(s == dev->read_subdev)
 		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,1);
 	else
@@ -354,7 +358,6 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
-	delay = nano2count(cmd->start_arg);
 	if(s == dev->read_subdev)
 		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
 	else
