@@ -16,22 +16,21 @@ AC_SUBST(VERSION)
 
 AC_PROG_CC
 
-LINUX="/home/ds/linux/condor-kernel-2.4.20/linux-2.4.21"
+#DS_LINUX_2_4()
+DS_LINUX_2_6()
 
-LINUX_LD="ld -m elf_i386 -r -e stext"
-LINUX_CFLAGS="-D__KERNEL__ -I/home/ds/linux/condor-kernel-2.4.20/linux-2.4.21/include -Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -pipe -mpreferred-stack-boundary=2 -march=athlon -DMODULE"
+#ERROR_CFLAGS="-Werror"
 
-AC_SUBST(LINUX_LD)
-AC_SUBST(LINUX_CFLAGS)
-
-
-COMEDI_CFLAGS="-Werror -I\$(top_srcdir)/include/"
+COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/"
 AC_SUBST(COMEDI_CFLAGS)
 
-moduledir="\$(libdir)/comedi"
-
+moduledir="/lib/modules/${LINUX_KERNELRELEASE}/comedi"
+modulePROGRAMS_INSTALL="\$(top_srcdir)/modtool --install"
 AC_SUBST(moduledir)
+AC_SUBST(modulePROGRAMS_INSTALL)
 
+#DS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
+AM_CONDITIONAL(CONFIG_PCMCIA,false)
 
 AC_OUTPUT([
 Makefile
