@@ -44,15 +44,15 @@
 
 #include <linux/comedi.h>
 
+#include <config.h>
+
 
 #define DPRINTK(format, args...)	do{				\
 	if(comedi_debug)printk("comedi: " format , ## args );		\
 } while(0)
 
-#ifndef COMEDI_VERSION_CODE
-#define COMEDI_VERSION_CODE 0x10000
-#define COMEDI_RELEASE "1.0.0"
-#endif
+#define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION,COMEDI_MINORVERSION,COMEDI_MICROVERSION)
+#define COMEDI_RELEASE VERSION
 
 #define COMEDI_INITCLEANUP_NOMODULE(x)					\
 	static int __init x ## _init_module(void)			\
