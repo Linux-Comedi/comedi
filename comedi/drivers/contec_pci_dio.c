@@ -20,9 +20,9 @@
 
 */
 /*
-Driver: pio1616l.o
+Driver: contec_pci_dio.o
 Description: Driver for Contec PIO1616L digital io board
-Devices: [Contec] PIO1616L
+Devices: [Contec] PIO1616L (contec_pci_dio)
 Author: Stefano Rivoir <s.rivoir@gts.it>
 Updated: Mon, 18 Mar 2002 15:34:01 -0800
 Status: works
@@ -89,9 +89,6 @@ static comedi_driver driver_contec={
 	module:		THIS_MODULE,
 	attach:		contec_attach,
 	detach:		contec_detach,
-	board_name:	contec_boards,
-	offset:		sizeof(contec_board),
-	num_names:	sizeof(contec_boards) / sizeof(contec_board),
 };
 
 /* Classic digital IO */
