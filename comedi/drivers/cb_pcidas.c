@@ -436,7 +436,7 @@ found:
 		PCI_BASE_ADDRESS_IO_MASK;
 #else
 	s5933_config =
-		devpriv->pci_dev->resource[S5933_BADRINDEX] &
+		devpriv->pci_dev->resource[S5933_BADRINDEX].start &
 		PCI_BASE_ADDRESS_IO_MASK;
 	control_status =
 		devpriv->pci_dev->resource[CONT_STAT_BADRINDEX].start &
@@ -445,10 +445,10 @@ found:
 		devpriv->pci_dev->resource[ADC_FIFO_BADRINDEX].start &
 		PCI_BASE_ADDRESS_IO_MASK;
 	pacer_counter_dio =
-		devpriv->pci_dev->resource[PACER_BADRINDEX] &
+		devpriv->pci_dev->resource[PACER_BADRINDEX].start &
 		PCI_BASE_ADDRESS_IO_MASK;
 	ao_registers =
-		devpriv->pci_dev->resource[AO_BADRINDEX] &
+		devpriv->pci_dev->resource[AO_BADRINDEX].start &
 		PCI_BASE_ADDRESS_IO_MASK;
 #endif
 
