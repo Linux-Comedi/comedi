@@ -105,7 +105,7 @@ are not supported.
 
 static ni_board ni_boards[]={
 	{	device_id:	44,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x0000,	/* XXX unknown */
 		name:		"at-mio-16e-1",
 		n_adchan:	16,
 		adbits:		12,
@@ -121,7 +121,7 @@ static ni_board ni_boards[]={
 		caldac:		{mb88341},
 	},
 	{	device_id:	25,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x1900,
 		name:		"at-mio-16e-2",
 		n_adchan:	16,
 		adbits:		12,
@@ -153,7 +153,7 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 	},
 	{	device_id:	37,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x0000,	/* XXX unknown */
 		name:		"at-mio-16de-10",
 		n_adchan:	16,
 		adbits:		12,
@@ -169,7 +169,7 @@ static ni_board ni_boards[]={
 		has_8255:	1,
 	},
 	{	device_id:	38,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x0000,	/* XXX unknown */
 		name:		"at-mio-64e-3",
 		n_adchan:	64,
 		adbits:		12,
@@ -201,7 +201,7 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 	},
 	{	device_id:	50,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x0000,	/* XXX unknown */
 		name:		"at-mio-16xe-10",
 		n_adchan:	16,
 		adbits:		16,
@@ -217,7 +217,7 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 	},
 	{	device_id:	51,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x0000,	/* XXX unknown */
 		name:		"at-ai-16xe-10",
 		n_adchan:	16,
 		adbits:		16,
@@ -234,7 +234,6 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 	}
 };
-static const int num_ni_boards = sizeof( ni_boards ) / sizeof( ni_board );
 
 static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 
@@ -307,7 +306,8 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 
 #ifdef __ISAPNP__
 static struct isapnp_device_id device_ids[] = {
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x1900), },
+	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x0000), },
+	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2400,'N','I','C',0x2400), },
 	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2700,'N','I','C',0x2700), },
 	{ ISAPNP_DEVICE_SINGLE_END, },
 };
@@ -358,7 +358,7 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 #ifdef __ISAPNP__
 	struct pci_dev *isapnp_dev = NULL;
 
-	for( i = 0; i < num_ni_boards; i++ )
+	for( i = 0; i < n_ni_boards; i++ )
 	{
 		isapnp_dev = isapnp_find_dev(NULL,
 			ISAPNP_VENDOR('N','I','C'),
@@ -390,7 +390,7 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 		}
 		break;
 	}
-	if( i == num_ni_boards ) return -ENODEV;
+	if( i == n_ni_boards ) return -ENODEV;
 	*dev = isapnp_dev;
 	return 0;
 #else
