@@ -1804,11 +1804,12 @@ void comedi_error(comedi_device *dev,const char *s)
 	rt_printk("comedi%d: %s: %s\n",dev->minor,dev->driver->driver_name,s);
 }
 
-void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
+void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 {
 	comedi_async *async = s->async;
 
 	mask = s->async->events;
+	s->async->events = 0;
 
 	//DPRINTK("comedi_event %x\n",mask);
 
@@ -1824,8 +1825,6 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 	if(mask & COMEDI_CB_ERROR){
 		s->runflags |= SRF_ERROR;
 	}
-
-	s->async->events = 0;
 	if(async->cb_mask&mask){
 		if(s->runflags&SRF_USER){
 

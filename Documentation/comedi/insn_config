@@ -24,23 +24,13 @@ Notes:
     that are tied to start_src, convert_src, etc.?
 
 
-ID=INSN_CONFIG_DIGITAL_TRIG: extended digital triggering
+ID=INSN_CONFIG_BLOCK_SIZE: configure size of blocks to transfer during commands
 
-  length =
-  chanspec: ignored
-  type: any with cmd
+	[0] - ID
+	[1] - block size in bytes
 
-  [0] - ID
-  [1] - flags
-          trigger
-
-  Notes:
-
-	should this be the same as triggering for counter/timers?
-    
-	flags are:
-		DIGITAL_TRIG_RISING: trigger on rising edge (or falling edge if not set)
-
+	Writes back actual block size to [1].  Acts as query if block size is
+	set to zero.
 
 ID=xxx: counter configuration
 

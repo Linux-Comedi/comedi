@@ -187,7 +187,7 @@ struct comedi_device_struct{
 	kdev_t minor;
 	char *board_name;
 	//int board;
-	void *board_ptr;
+	const void * board_ptr;
 	int attached;
 	int rt;
 	spinlock_t spinlock;
