@@ -27,7 +27,8 @@
 #include <linux/comedi.h>
 #include <linux/comedilib.h>
 
-//#include <linux/module.h>
+#define __NO_VERSION__
+#include <linux/module.h>
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
