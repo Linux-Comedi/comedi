@@ -54,7 +54,7 @@
 
 //#define DEBUG_INTERRUPT
 //#define TRY_BLOCK
-//#define DEBUG_STATUS_A
+#define DEBUG_STATUS_A
 //#define DEBUG_STATUS_B
 
 #include <8255.h>
@@ -219,7 +219,9 @@ static void pfi_setup(comedi_device *dev);
 static void handle_a_interrupt(comedi_device *dev,unsigned short status);
 static void handle_b_interrupt(comedi_device *dev,unsigned short status);
 #ifdef PCIDMA
-static void mite_handle_interrupt(comedi_device *dev,unsigned short status);
+/*status must be long because the CHSR is 32 bits and the high bits
+are important to us */
+static void mite_handle_interrupt(comedi_device *dev,unsigned long status);
 #endif
 
 static
@@ -230,7 +232,9 @@ void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	unsigned short b_status;
 	int wsave;
 #ifdef PCIDMA
-	unsigned short m_status;
+	/* m_status must be long because the CHSR is a 32 bit register and we are
+	interested in several high bits */
+	unsigned long m_status;
 #endif
 
 	MDPRINTK("ni_E_Interrupt\n");
@@ -254,21 +258,18 @@ void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	ni_mio_print_status_b(b_status);
 #endif
 #ifdef PCIDMA
-	rt_printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
-#endif
-
-#ifdef PCIDMA
+	//rt_printk("mite status=0x%08lx\n",m_status);
 	if(m_status&CHSR_INT)mite_handle_interrupt(dev,m_status);
 #endif
 	if(a_status&Interrupt_A_St)handle_a_interrupt(dev,a_status);
 	if(b_status&Interrupt_B_St)handle_b_interrupt(dev,b_status);
-
+	
 	win_restore(wsave);
 	MDPRINTK("exit ni_E_Interrupt\n");
 }
 
 #ifdef PCIDMA
-static void mite_handle_interrupt(comedi_device *dev,unsigned short m_status)
+static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
 {
 	comedi_subdevice *s=dev->subdevices+0;
 	
@@ -277,19 +278,15 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned short m_status)
 	MDPRINTK("MITE generated an int!!\n");
 	writel(CHOR_CLRLC, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
 	s->async->buf_int_count=mite_bytes_transferred(devpriv->mite, 0);
-	if (s->async->cmd.data ==NULL) {
-		s->async->buf_int_ptr= s->async->buf_int_count % s->async->prealloc_bufsz;
-	} else {
-		s->async->buf_int_ptr= s->async->buf_int_count % s->async->cmd.data_len;
-	}       
-	MDPRINTK("CHSR is 0x%08X, count is %d\n",m_status,s->async->buf_int_count);
+	s->async->buf_int_ptr= s->async->buf_int_count % s->async->prealloc_bufsz;     
+	MDPRINTK("CHSR is 0x%08lx, count is %d\n",m_status,s->async->buf_int_count);
 	if(m_status&CHSR_DONE){
 #ifdef DEBUG_MITE
-		/*mite_printk(devpriv->mite->mite_io_addr);*/
+		mite_dump_regs(devpriv->mite);
 #endif  
 		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
-		printk("buf_int_count is %d, buf_int_ptr is %d\n",
-				s->async->buf_int_count,s->async->buf_int_ptr);
+		//printk("buf_int_count is %d, buf_int_ptr is %d\n",
+		//		s->async->buf_int_count,s->async->buf_int_ptr);
 		ni_handle_block_dma(dev);
 	}       
 	MDPRINTK("exit mite_handle_interrupt\n");
@@ -319,6 +316,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 			ni_mio_print_status_a(status);
 			ni_handle_fifo_dregs(dev);
 			win_out(0x0000,Interrupt_A_Enable_Register);
+			ni_ai_reset(dev,dev->subdevices);//added by tim
 			comedi_done(dev,s);
 			return;
 		}
@@ -328,7 +326,9 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 #endif
 #ifdef TRY_BLOCK
 #ifdef PCIDMA
-			ni_handle_block_dma(dev);
+			//just ignore the terminal count from the STC
+			//instead finish up when the MITE asserts DONE
+			//ni_handle_block_dma(dev);
 #else
 			ni_handle_block(dev);
 #endif
@@ -465,13 +465,13 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 #ifdef PCIDMA
 static void ni_handle_block_dma(comedi_device *dev)
 {
-	MDPRINTK("ni_handle_block\n");
-	mite_dump_regs(devpriv->mite);
+	MDPRINTK("ni_handle_block_dma\n");
+	//mite_dump_regs(devpriv->mite);
 	mite_dma_disarm(devpriv->mite);
 	win_out(0x0000,Interrupt_A_Enable_Register);
 	ni_ai_reset(dev,dev->subdevices);
 	comedi_done(dev,dev->subdevices);
-	MDPRINTK("exit ni_handle_block\n");
+	MDPRINTK("exit ni_handle_block_dma\n");
 }
 #endif
 
@@ -696,6 +696,40 @@ printk("n_left = %d\n",devpriv->n_left);
 
 	}
 
+	return mode1;
+}
+#endif
+
+#ifdef PCIDMA
+int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
+{
+	int n;
+	unsigned long ll_start;
+	comedi_async *async_mite;
+		
+	async_mite=dev->subdevices[cmd->subdev].async;
+	ll_start = mite_ll_from_kvmem(devpriv->mite, async_mite,cmd->stop_arg);
+	mite_setregs(devpriv->mite, ll_start,0,COMEDI_INPUT);
+
+	/*tell the STC to use DMA0 for AI.
+	Select the MITE DMA channel to use, 0x01=A*/
+	ni_writeb(0x01,AI_AO_Select);
+
+	/* stage number of scans */
+	n = cmd->stop_arg;
+	win_out((n-1)>>16,AI_SC_Load_A_Registers);
+	win_out((n-1)&0xffff,AI_SC_Load_A_Registers+1);
+	win_out((n-1)>>16,AI_SC_Load_B_Registers);
+	win_out((n-1)&0xffff,AI_SC_Load_B_Registers+1);
+	
+	/* load SC (Scan Count) */
+	win_out(AI_SC_Load,AI_Command_1_Register);
+
+	mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
+	win_out(mode1,AI_Mode_1_Register);
+	
+	/*start the MITE*/
+	mite_dma_arm(devpriv->mite);
 	return mode1;
 }
 #endif
@@ -1024,6 +1058,9 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
 #ifndef TRY_BLOCK
+	#ifdef PCIDMA
+	ni_ai_setup_MITE_dma(dev,cmd,mode1);	
+	#else
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
 		/* stage number of scans */
@@ -1054,8 +1091,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		break;
 	}
+	#endif
 #else
-
 	devpriv->blocksize = 0x4000;
 	switch(cmd->stop_src){
 	case TRIG_COUNT:

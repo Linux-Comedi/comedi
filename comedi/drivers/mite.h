@@ -41,8 +41,7 @@
 #define MDPRINTK(format,args...)
 #endif
 
-#define MITE_RING_SIZE 3000 
-
+#define MITE_RING_SIZE 3000
 struct mite_dma_chain{
 	u32 count;
 	u32 addr;
@@ -95,7 +94,7 @@ int mite_dma_tcr(struct mite_struct *mite);
 void mite_dma_arm(struct mite_struct *mite);
 void mite_dma_disarm(struct mite_struct *mite);
 	
-unsigned long mite_ll_from_user(comedi_device *dev, comedi_cmd *cmd);
+//unsigned long mite_ll_from_user(comedi_device *dev, comedi_cmd *cmd);//obsolete
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);
 void mite_dump_regs(struct mite_struct *mite);
 void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan, int dir);

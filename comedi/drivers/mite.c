@@ -296,7 +296,7 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 {
 	int i,size_so_far;
 	unsigned long nup;
-	//unsigned long prealloc_buf,prealloc_bufsz; 
+	unsigned long prealloc_buf,prealloc_bufsz; 
 	//comedi_subdevice *s;
 	//struct mite_struct *mite=NULL;
 	//comedi_async *async=NULL;
@@ -305,8 +305,8 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	MDPRINTK("mite_ll_from_kvmem\n");
 	//s=dev->subdevices+cmd->subdev;
 	//mite=devpriv->mite;
-	//prealloc_buf=(unsigned long)s->async->prealloc_buf;
-	//prealloc_bufsz=s->async->prealloc_bufsz;
+	prealloc_buf=(unsigned long)async->prealloc_buf;
+	prealloc_bufsz=async->prealloc_bufsz;
 	
 	//len = min(cmd->scan_end_arg*cmd->stop_arg*sizeof(sampl_t), async->data_len);
 	if(async->data_len<len) {
@@ -316,7 +316,7 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	nup = (unsigned long)async->data;
 	i=0;
 	size_so_far=0;
-	MDPRINTK("buf=0x%08lx bufsz=0x%08x\n",
+	MDPRINTK("buf=0x%08lx bufsz=0x%08lx\n",
 		(unsigned long)prealloc_buf,prealloc_bufsz);
 	
 	while(((void*)nup < (async->data+len))&&(i<(MITE_RING_SIZE-1))) {
@@ -342,6 +342,8 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	return virt_to_bus(&(mite->ring[0]));
 }
 
+/* This function would be used to DMA directly into user memory.
+Since Comedi won't support that for a while, this should probably be removed. --Tim Ousley
 unsigned long mite_ll_from_user(comedi_device *dev, comedi_cmd *cmd)
 {
 	int i,size_so_far,len;
@@ -384,6 +386,7 @@ unsigned long mite_ll_from_user(comedi_device *dev, comedi_cmd *cmd)
 	MDPRINTK("exit mite_ll_from_user\n");
 	return virt_to_bus(&(mite->ring[0]));
 }
+*/
 
 void mite_dma_arm(struct mite_struct *mite)
 {
@@ -480,7 +483,7 @@ void mite_dma_disarm(struct mite_struct *mite)
 
 void mite_dump_regs(struct mite_struct *mite)
 {
-	unsigned long mite_io_addr = mite->mite_io_addr;
+	unsigned long mite_io_addr = (unsigned long) mite->mite_io_addr;
 	unsigned long addr=0;
 	unsigned long temp=0;
 
@@ -566,7 +569,7 @@ EXPORT_SYMBOL(mite_list_devices);
 
 //Tim's debugging function
 EXPORT_SYMBOL(mite_dump_regs);
-EXPORT_SYMBOL(mite_ll_from_user);
+//EXPORT_SYMBOL(mite_ll_from_user); //obsolete
 EXPORT_SYMBOL(mite_ll_from_kvmem);
 EXPORT_SYMBOL(mite_setregs);
 EXPORT_SYMBOL(mite_bytes_transferred);
