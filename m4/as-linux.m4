@@ -558,6 +558,10 @@ modules:
 	@echo LINUX_AS=\"\$(AS)\"
 EOF
 	make -C ${LINUX_DIR} SUBDIRS=${tmpdir} modules | grep ^LINUX_ >${tmpdir}/ack
+	if (($?)); then
+		echo make modules with LINUX_DIR=$(LINUX_DIR) failed.
+		exit 1
+	fi
 	. ${tmpdir}/ack
 	rm -rf ${tmpdir}
 
