@@ -829,14 +829,14 @@ error:
 /*
 	COMEDI_CMD
 	command ioctl
-	
+
 	arg:
 		pointer to cmd structure
-	
+
 	reads:
 		cmd structure at arg
 		channel/range list
-	
+
 	writes:
 		modified cmd structure at arg
 
@@ -846,12 +846,16 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	comedi_cmd user_cmd;
 	comedi_subdevice *s;
 	int ret=0;
-	
+	unsigned int *chanlist_saver=NULL;
+
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
-	
+
+	// save user's chanlist pointer so it can be restored later
+	chanlist_saver = user_cmd.chanlist;
+
 	if(user_cmd.subdev>=dev->n_subdevices){
 		DPRINTK("%d no such subdevice\n",user_cmd.subdev);
 		return -ENODEV;
@@ -862,12 +866,12 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		DPRINTK("%d not valid subdevice\n",user_cmd.subdev);
 		return -EIO;
 	}
-	
+
 	if(!s->do_cmd){
 		DPRINTK("subdevice does not support commands\n");
 		return -EIO;
 	}
-	
+
 	/* are we locked? (ioctl lock) */
 	if(s->lock && s->lock!=file){
 		DPRINTK("subdevice locked\n");
@@ -900,25 +904,26 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		ret = -ENOMEM;
 		goto cleanup;
 	}
-	
+
 	if(copy_from_user(s->cmd.chanlist,user_cmd.chanlist,s->cmd.chanlist_len*sizeof(int))){
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
 		goto cleanup;
 	}
-	
+
 	/* make sure each element in channel/gain list is valid */
 	if((ret=check_chanlist(s,s->cmd.chanlist_len,s->cmd.chanlist))<0){
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
 	}
-	
+
 	ret=s->do_cmdtest(dev,s,&s->cmd);
 
 	if(s->cmd.flags&TRIG_BOGUS || ret){
 		DPRINTK("test returned %d\n",ret);
 		user_cmd=s->cmd;
-		user_cmd.chanlist = NULL;
+		// restore chanlist pointer before copying back
+		user_cmd.chanlist = chanlist_saver;
 		user_cmd.data = NULL;
 		if(copy_to_user(arg,&user_cmd,sizeof(comedi_cmd))){
 			DPRINTK("fault writing cmd\n");
@@ -951,7 +956,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	s->cur_chan = 0;
 	s->cur_chanlist_len = s->cmd.chanlist_len;
-	
+
 	s->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(s->cmd.flags & TRIG_WAKE_EOS){
 		s->cb_mask |= COMEDI_CB_EOS;
@@ -969,12 +974,12 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 #endif
 
 	ret=s->do_cmd(dev,s);
-	
+
 	if(ret==0)return 0;
 
 cleanup:
 	do_become_nonbusy(dev,s);
-	
+
 	return ret;
 }
 
@@ -999,12 +1004,16 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 	comedi_subdevice *s;
 	int ret=0;
 	unsigned int *chanlist=NULL;
-	
+	unsigned int *chanlist_saver=NULL;
+
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
 	}
-	
+
+	// save user's chanlist pointer so it can be restored later
+	chanlist_saver = user_cmd.chanlist;
+
 	if(user_cmd.subdev>=dev->n_subdevices){
 		DPRINTK("%d no such subdevice\n",user_cmd.subdev);
 		return -ENODEV;
@@ -1015,12 +1024,12 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 		DPRINTK("%d not valid subdevice\n",user_cmd.subdev);
 		return -EIO;
 	}
-	
+
 	if(!s->do_cmd){
 		DPRINTK("subdevice does not support commands\n");
 		return -EIO;
 	}
-	
+
 	/* make sure channel/gain list isn't too long */
 	if(user_cmd.chanlist_len > s->len_chanlist){
 		DPRINTK("channel/gain list too long %d > %d\n",user_cmd.chanlist_len,s->len_chanlist);
@@ -1036,13 +1045,13 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 			ret = -ENOMEM;
 			goto cleanup;
 		}
-	
+
 		if(copy_from_user(chanlist,user_cmd.chanlist,user_cmd.chanlist_len*sizeof(int))){
 			DPRINTK("fault reading chanlist\n");
 			ret = -EFAULT;
 			goto cleanup;
 		}
-	
+
 		/* make sure each element in channel/gain list is valid */
 		if((ret=check_chanlist(s,user_cmd.chanlist_len,chanlist))<0){
 			DPRINTK("bad chanlist\n");
@@ -1053,7 +1062,10 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 	ret=s->do_cmdtest(dev,s,&user_cmd);
-	
+
+	// restore chanlist pointer before copying back
+	user_cmd.chanlist = chanlist_saver;
+
 	if(copy_to_user(arg,&user_cmd,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		ret=-EFAULT;
@@ -1062,7 +1074,7 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 cleanup:
 	if(chanlist)
 		kfree(chanlist);
-	
+
 	return ret;
 }
 
