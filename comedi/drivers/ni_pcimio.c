@@ -310,7 +310,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		caldac:         type4,		/* XXX */
 	},
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x14f0,		/* unknown */
 		name:           "pci-6111e",
 		n_adchan:       2, 
 		adbits:         12,
@@ -415,7 +415,7 @@ typedef struct{
 #include "ni_mio_common.c"
 
 
-static int pcimio_find_device(comedi_device *dev);
+static int pcimio_find_device(comedi_device *dev,int bus,int slot);
 
 
 /* cleans up allocated resources */
@@ -452,7 +452,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	ret=alloc_private(dev,sizeof(ni_private));
 	if(ret<0)return ret;
 
-	ret=pcimio_find_device(dev);
+	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
 	printk(" %s",ni_boards[dev->board].name);
@@ -475,13 +475,25 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 }
 
 
-static int pcimio_find_device(comedi_device *dev)
+static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 {
 	struct mite_struct *mite;
 	int i;
 
 	for(mite=mite_devices;mite;mite=mite->next){
 		if(mite->used)continue;
+		if(bus || slot){
+#ifdef PCI_SUPPORT_VER1
+			if(bus!=mite->pci_bus ||
+			   slot!=PCI_SLOT(mite->pci_device_fn))
+				continue;
+#else
+			if(bus!=mite->pcidev->bus->number<<8 ||
+			   slot!=PCI_SLOT(mite->pcidev->devfn))
+				continue;
+#endif
+		}
+
 		for(i=0;i<n_pcimio_boards;i++){
 			if(mite_device_id(mite)==ni_boards[i].device_id){
 				dev->board=i;

@@ -221,7 +221,7 @@ typedef struct{
 }nidio96_private;
 #define devpriv ((nidio96_private *)dev->private)
 
-static int nidio_find_device(comedi_device *dev,comedi_devconfig *it);
+static int nidio_find_device(comedi_device *dev,int bus,int slot);
 #if 0
 static int setup_mite(comedi_device *dev);
 #endif
@@ -386,7 +386,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(nidio96_private)))<0)
 		return ret;
 	
-	ret=nidio_find_device(dev,it);
+	ret=nidio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
 	dev->iobase=mite_setup(devpriv->mite);
@@ -454,13 +454,24 @@ static int nidio_detach(comedi_device *dev)
 }
 
 
-static int nidio_find_device(comedi_device *dev,comedi_devconfig *it)
+static int nidio_find_device(comedi_device *dev,int bus,int slot)
 {
 	struct mite_struct *mite;
 	int i;
 	
 	for(mite=mite_devices;mite;mite=mite->next){
 		if(mite->used)continue;
+		if(bus || slot){
+#ifdef PCI_SUPPORT_VER1
+			if(bus!=(mite->pci_bus<<8) ||
+			   slot!=PCI_SLOT(mite->pci_device_fn))
+				continue;
+#else
+			if(bus!=(mite->pcidev->bus->number<<8) ||
+			   slot!=PCI_SLOT(mite->pcidev->devfn))
+				continue;
+#endif
+		}
 		for(i=0;i<n_nidio_boards;i++){
 			if(mite_device_id(mite)==nidio_boards[i].dev_id){
 				dev->board=i;
