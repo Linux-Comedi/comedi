@@ -367,6 +367,9 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	new_write_count = async->buf_write_count;
 
 	nbytes = mite_bytes_read(mite, AO_DMA_CHAN);
+	if( async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes - async->cmd.stop_arg * sizeof( sampl_t ) ) > 0 )
+		nbytes = async->cmd.stop_arg * sizeof( sampl_t );
 	if( (int)(nbytes - devpriv->last_buf_write_count) > 0 ){
 		rt_printk("ni_mio_common: DMA underrun\n");
 		ni_ao_reset(dev,s);
