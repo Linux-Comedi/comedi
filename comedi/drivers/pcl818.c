@@ -227,7 +227,7 @@ typedef struct {
 	int 		ao_maxdata;	// maxdata for D/A           
 	int 		ai_chanlist;	// allowed len of channel list A/D
 	int 		ao_chanlist;	// allowed len of channel list D/A
-	unsigned char 	fifo;		// 1=board've FIFO
+	unsigned char 	fifo;		// 1=board has FIFO
 	int		is_818;
 } boardtype;
 
@@ -237,9 +237,9 @@ static boardtype boardtypes[] =
 	  0x0a, 0xfff, 0xfff, 1024, 1, 0, 1 },
 	{"pcl818h",   9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 0, 1 },
-	{"pcl818hd",  9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	{"pcl818hd",  9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1xFIFO_RANGE, 0x00fc,
 	  0x0a, 0xfff, 0xfff, 1024, 1, 1, 1 },
-	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1x_RANGE, 0x00fc,
+	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1xFIFO_RANGE, 0x00fc,
 	  0x0a, 0xfff, 0xfff, 1024, 1, 1, 1 },
 	{"pcl818",    9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 2, 0, 1 },
@@ -1350,7 +1350,7 @@ int rtc_setfreq_irq(int freq)
 ==============================================================================
   Free any resources that we have claimed  
 */
-static void free_resources(comedi_device * dev) 
+static void free_resources(comedi_device * dev)
 {
         //rt_printk("free_resource()\n");
         if(dev->private)  {
@@ -1364,7 +1364,9 @@ static void free_resources(comedi_device * dev)
 			if (devpriv->rtc_iobase)
 				release_region(devpriv->rtc_iobase, devpriv->rtc_iosize);
 		} 
-	} 
+        if (devpriv->dma_rtc)
+		RTC_lock--;
+	}
 
 	if (dev->irq) free_irq(dev->irq, dev);
 	if (dev->iobase) release_region(dev->iobase, this_board->io_range);
@@ -1379,39 +1381,38 @@ static void free_resources(comedi_device * dev)
 */
 static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 {
-        int ret;
-        int iobase;
-        int irq,dma;
-        unsigned long pages;
-        int io_range;
-        comedi_subdevice *s;
+	int ret;
+	int iobase;
+	int irq,dma;
+	unsigned long pages;
+	comedi_subdevice *s;
 
-        /* claim our I/O space */
-        iobase = it->options[0];
-        printk("comedi%d: pcl818:  board=%s, ioport=0x%03x",
+	/* claim our I/O space */
+	iobase = it->options[0];
+	printk("comedi%d: pcl818:  board=%s, ioport=0x%03x",
 		dev->minor, this_board->name, iobase);
-        io_range=this_board->io_range;
-        if ((this_board->fifo)&&(it->options[2]==0)) // we've board with FIFO and we want to use FIFO
-		io_range=PCLx1xFIFO_RANGE;
-        if (check_region(iobase, io_range) < 0) {
+	if (check_region(iobase, this_board->io_range) < 0) {
 		rt_printk("I/O port conflict\n");
 		return -EIO;
-        }
+	}
 
-        request_region(iobase, io_range, "pcl818");
-        dev->iobase=iobase;
+	request_region(iobase, this_board->io_range, "pcl818");
+	dev->iobase=iobase;
     
-        if (pcl818_check(iobase)) {
+	if (pcl818_check(iobase)) {
 		rt_printk(", I can't detect board. FAIL!\n");
 		return -EIO;
-        }
+	}
 
-        if((ret=alloc_private(dev,sizeof(pcl818_private)))<0)
+	if ((this_board->fifo)&&(it->options[2]==-1)) { // we've board with FIFO and we want to use FIFO
+		devpriv->usefifo=1;
+	}
+
+	if((ret=alloc_private(dev,sizeof(pcl818_private)))<0)
 		return ret; /* Can't alloc mem */
 
-        /* set up some name stuff */
+	/* set up some name stuff */
 	dev->board_name = this_board->name;
-        if (io_range==PCLx1xFIFO_RANGE) devpriv->usefifo=1; 
         /* grab our IRQ */
         irq=0;
         if (this_board->IRQbits!=0) { /* board support IRQ */
@@ -1420,7 +1421,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		        if (((1<<irq)&this_board->IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
-			} else { 
+			} else {
 				if (comedi_request_irq(irq, interrupt_pcl818, 0, "pcl818", dev)) {
 					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
@@ -1646,8 +1647,6 @@ static int pcl818_detach(comedi_device * dev)
 {
         //  rt_printk("comedi%d: pcl818: remove\n", dev->minor);
         free_resources(dev);
-        if (devpriv->dma_rtc) 
-		RTC_lock--;
         return 0;
 }
 
