@@ -554,11 +554,13 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 }
 
 #ifdef CONFIG_COMEDI_VER08
+#define TIMER_BASE 50 /* 20 Mhz base */
+
 static int ni_ns_to_timer(int *nanosec,int round_mode)
 {
 	int divider,base;
 
-	base=50; /* 20 Mhz base */
+	base=TIMER_BASE;
 
 	switch(round_mode){
 	case TRIG_ROUND_NEAREST:
@@ -625,8 +627,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->scan_begin_arg=boardtype.ai_speed;
 			err++;
 		}
-		if(cmd->scan_begin_arg>1000000000){	/* XXX */
-			cmd->scan_begin_arg=1000000000;
+		if(cmd->scan_begin_arg>TIMER_BASE*0xffff){	/* XXX */
+			cmd->scan_begin_arg=TIMER_BASE*0xffff;
 			err++;
 		}
 	}else{
@@ -638,12 +640,12 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			err++;
 		}
 	}
-	if(cmd->scan_begin_arg<boardtype.ai_speed){
-		cmd->scan_begin_arg=boardtype.ai_speed;
+	if(cmd->convert_arg<boardtype.ai_speed){
+		cmd->convert_arg=boardtype.ai_speed;
 		err++;
 	}
-	if(cmd->scan_begin_arg>1000000000){	/* XXX */
-		cmd->scan_begin_arg=1000000000;
+	if(cmd->convert_arg>TIMER_BASE*0xffff){	/* XXX */
+		cmd->convert_arg=TIMER_BASE*0xffff;
 		err++;
 	}
 
@@ -690,13 +692,151 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int wsave;
+	comedi_cmd *cmd=&s->cmd;
+	int timer;
 
 	wsave = win_save();
 
 	win_out(1,ADC_FIFO_Clear);
 
+	ni_load_channelgain_list(dev,cmd->chanlist_len,cmd->chanlist,
+		(cmd->flags&TRIG_DITHER)==TRIG_DITHER);
 
+	/* start configuration */
+	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
+	switch(cmd->stop_src){
+	case TRIG_COUNT:
+		/* stage number of scans */
+		win_out((cmd->stop_arg-1)>>16,AI_SC_Load_A_Registers);
+		win_out((cmd->stop_arg-1)&0xffff,AI_SC_Load_A_Registers+1);
+	
+		/* load SC (Scan Count) */
+		win_out(0x20,AI_Command_1_Register);
+
+		break;
+	}
+
+	switch(cmd->scan_begin_src){
+	case TRIG_TIMER:
+		/*
+	    	AI_SI_Special_Trigger_Delay=0
+	    	AI_Pre_Trigger=0
+	  	AI_START_STOP_Select_Register:
+		    AI_START_Polarity=0 (?)	rising edge
+		    AI_START_Edge=1		edge triggered
+		    AI_START_Sync=1 (?)		
+		    AI_START_Select=0		SI_TC
+		    AI_STOP_Polarity=0		rising edge
+		    AI_STOP_Edge=0		level
+		    AI_STOP_Sync=1		
+		    AI_STOP_Select=19		external pin (configuration mem)
+		 */
+		win_out(AI_START_Edge|AI_START_Sync|
+			AI_STOP_Select(19)|AI_STOP_Sync,
+			AI_START_STOP_Select_Register);
+
+		timer=ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
+		win_out((timer>>16),AI_SI_Load_A_Registers);
+		win_out((timer&0xffff),AI_SI_Load_A_Registers+1);
+		/* AI_SI_Initial_Load_Source=A */
+		win_out(0,AI_Mode_2_Register);
+		/* load SI */
+		win_out(0x200,AI_Command_1_Register);
+
+		/* stage freq. counter into SI B */
+		win_out((timer>>16),AI_SI_Load_B_Registers);
+		win_out((timer&0xffff),AI_SI_Load_B_Registers+1);
+
+		break;
+	case TRIG_EXT:
+		win_out(AI_START_Edge|AI_START_Sync|AI_START_Select(1)|
+			AI_STOP_Select(19)|AI_STOP_Sync,
+			AI_START_STOP_Select_Register);
+		break;
+	}
+
+	timer=ni_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
+	win_out(timer,AI_SI2_Load_A_Register); /* 0,0 does not work. */
+	win_out(timer,AI_SI2_Load_B_Register);
+
+	/* AI_SI2_Reload_Mode = alternate */
+	/* AI_SI2_Initial_Load_Source = A */
+	win_out(0x0100,AI_Mode_2_Register);
+
+	/* AI_SI2_Load */
+	win_out(0x0800,AI_Command_1_Register);
+
+	/* AI_SI_Initial_Load_Source=0
+	   AI_SI_Reload_Mode(0)
+	   AI_SI2_Reload_Mode = alternate, AI_SI2_Initial_Load_Source = B */
+	win_out(0x0300,AI_Mode_2_Register);
+
+	if(dev->irq){
+		int bits;
+
+		/* interrupt on FIFO, errors, SC_TC */
+		bits=0x00a1;
+
+		if(cmd->flags&TRIG_WAKE_EOS){
+			/* wake on end-of-scan */
+			devpriv->aimode=AIMODE_SCAN;
+		}else if(s->cb_mask&COMEDI_CB_EOS){
+			devpriv->aimode=AIMODE_SAMPLE;
+		}else{
+			devpriv->aimode=AIMODE_HALF_FULL;
+		}
+		switch(devpriv->aimode){
+		case AIMODE_HALF_FULL:
+			/*generate FIFO interrupts on half-full */
+			win_out(AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
+			break;
+		case AIMODE_SAMPLE:
+			/*generate FIFO interrupts on non-empty */
+			win_out(AI_FIFO_Mode_NE|0x0000,AI_Mode_3_Register);
+			break;
+		case AIMODE_SCAN:
+			/*generate FIFO interrupts on half-full */
+			win_out(AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
+			bits|=AI_STOP_Interrupt_Enable;
+			break;
+		default:
+			break;
+		}
+
+		win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
+
+		win_out(bits,Interrupt_A_Enable_Register) ;
+	}else{
+		/* interrupt on nothing */
+		win_out(0x0000,Interrupt_A_Enable_Register) ;
+
+		/* XXX start polling if necessary */
+	}
+
+	/* end configuration */
+	win_out(AI_Configuration_End,Joint_Reset_Register);
+	
+	switch(cmd->scan_begin_src){
+	case TRIG_TIMER:
+		/* AI_SI2_Arm, AI_SI_Arm, AI_DIV_Arm, AI_SC_Arm */
+		win_out(0x1540,AI_Command_1_Register);
+		break;
+	case TRIG_EXT:
+		/* AI_SI2_Arm, AI_DIV_Arm, AI_SC_Arm */
+		win_out(0x1500,AI_Command_1_Register);
+		break;
+	}
+
+	/* AI_START1_Pulse */
+	win_out(AI_START1_Pulse,AI_Command_2_Register);
+
+#if 0
+	/* XXX hack alert */
+	s->cur_chan=s->cur_trig.n_chan*sizeof(sampl_t);
+#endif
+
+	win_restore(wsave);
 	return 0;
 }
 #endif
@@ -1429,7 +1569,9 @@ static int ni_calib(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 static int pack_mb88341(int addr,int val,int *bitstring);
 static int pack_dac8800(int addr,int val,int *bitstring);
 static int pack_dac8043(int addr,int val,int *bitstring);
+#ifdef PCIMIO
 static int pack_ad8522(int addr,int val,int *bitstring);
+#endif
 
 struct caldac_struct{
 	int n_chans;
@@ -1440,7 +1582,9 @@ struct caldac_struct{
 static struct caldac_struct caldac_mb88341={ 12, 8, pack_mb88341 };
 static struct caldac_struct caldac_dac8800={ 8, 8, pack_dac8800 };
 static struct caldac_struct caldac_dac8043={ 1, 12, pack_dac8043 };
+#ifdef PCIMIO
 static struct caldac_struct caldac_ad8522={ 2, 12, pack_ad8522 };
+#endif
 
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
@@ -1535,11 +1679,13 @@ static int pack_dac8043(int addr,int val,int *bitstring)
 	return 12;
 }
 	
+#ifdef PCIMIO
 static int pack_ad8522(int addr,int val,int *bitstring)
 {
 	*bitstring=(val&0xfff)|(addr ? 0xc000:0xa000);
 	return 16;
 }
+#endif
 
 
 

@@ -32,7 +32,7 @@ comedi_lrange range_bipolar5={ 1, {BIP_RANGE(5)}};
 comedi_lrange range_bipolar2_5={ 1, {BIP_RANGE(2.5)}};
 comedi_lrange range_unipolar10={ 1, {UNI_RANGE(10)}};
 comedi_lrange range_unipolar5={ 1, {UNI_RANGE(5)}};
-comedi_lrange range_unknown={ 1, {0,1,0}};	/* XXX */
+comedi_lrange range_unknown={ 1, {{0,1,0}}};	/* XXX */
 
 /*
    	COMEDI_RANGEINFO

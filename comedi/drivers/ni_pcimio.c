@@ -86,7 +86,9 @@
 static struct caldac_struct *type1[]={&caldac_dac8800,&caldac_dac8043,NULL};
 static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,&caldac_ad8522};
 static struct caldac_struct *type3[]={&caldac_mb88341,NULL,NULL};
+#if 0
 static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad8522};
+#endif
 
 
 static ni_board ni_boards[]={

@@ -42,6 +42,10 @@
 #include <rtl_sched.h>
 #include <rtl_compat.h>
 #endif
+#ifdef CONFIG_COMEDI_RTAI
+#include <rtai.h>
+#include <rtai_sched.h>
+#endif
 
 static int dds_attach(comedi_device *dev,comedi_devconfig *it);
 static int dds_detach(comedi_device *dev);
@@ -111,7 +115,12 @@ static void dds_ao_task_func(int d)
 		if(ret<0){
 			/* eek! */
 		}
+#ifdef CONFIG_COMEDI_RTL
 		rt_task_wait();
+#endif
+#ifdef CONFIG_COMEDI_RTL
+		rt_task_yield();
+#endif
 	}
 }
 
@@ -206,18 +215,9 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	s->trig[2]=dds_ao_mode2;
 	s->cancel=dds_ao_cancel;
 	s->maxdata=devpriv->s->maxdata;
-	s->range_type=devpriv->s->range_type;
+	s->range_table=devpriv->s->range_table;
+	s->range_table_list=devpriv->s->range_table_list;
 	s->timer_type=TIMER_nanosec;
-
-	s=dev->subdevices+0;
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_READABLE;
-	s->n_chan=devpriv->s->n_chan;
-	s->len_chanlist=1024;
-	s->trig[2]=dds_ao_mode2;
-	s->cancel=dds_ao_cancel;
-	s->maxdata=devpriv->s->maxdata;
-	s->range_type=devpriv->s->range_type;
 
 	devpriv->soft_irq=rtl_get_soft_irq(dds_interrupt,"dds");
 	broken_rtl_dev=dev;

@@ -34,16 +34,18 @@
 #include <linux/timer.h>
 #include <asm/io.h>
 #include <comedi_module.h>
-
 #ifdef CONFIG_COMEDI_RTL_V1
 #include <rtl_sched.h>
 #include <asm/rt_irq.h>
 #endif
-
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl.h>
 #include <rtl_sched.h>
 #include <rtl_compat.h>
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+#include <rtai.h>
+#include <rtai_sched.h>
 #endif
 
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
@@ -133,11 +135,53 @@ static int timer_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it
 	return comedi_trig_ioctl(devpriv->device,devpriv->subd,it);
 }
 
-static int timer_ai_mode1(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+#ifdef CONFIG_COMEDI_VER08
+static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
-	return -EINVAL;
+	if(cmd->scan_start_arg<100000)	/* 10 khz */
+		cmd->scan_start_arg=100000;
+	if(cmd->scan_start_arg>1e9)	/* 1 hz */
+		cmd->scan_start_arg=1e9;
+
 }
 
+static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	int ret;
+	RTIME now,period;
+	struct timespec ts;
+
+	ret=comedi_lock_ioctl(devpriv->device,devpriv->subd);
+	if(ret<0)return ret;
+
+	/* XXX this does not get freed */
+	devpriv->data=kmalloc(sizeof(sampl_t)*cmd->chanlist_len,GFP_KERNEL);
+	if(!devpriv->data){
+		ret=-ENOMEM;
+		goto unlock;
+	}
+
+	devpriv->trig.subdev=devpriv->subd;
+	devpriv->trig.mode=0;
+	devpriv->trig.flags=0;
+	devpriv->trig.n=1;
+
+	ts.tv_sec=0;
+	ts.tv_nsec=it->trigvar;
+	period=timespec_to_RTIME(ts);
+
+	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+
+	now=rt_get_time();
+	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
+
+	return 0;
+
+unlock:
+	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
+	return ret;
+}
+#endif
 
 static int timer_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
@@ -222,11 +266,15 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=devpriv->s->n_chan;
 	s->len_chanlist=1024;
 	s->trig[0]=timer_ai_mode0;
-	s->trig[1]=timer_ai_mode1;
 	s->trig[2]=timer_ai_mode2;
+#ifdef CONFIG_COMEDI_VER08
+	s->do_cmd=timer_cmd;
+	s->do_cmdtest=timer_cmdtest;
+#endif
 	s->cancel=timer_cancel;
 	s->maxdata=devpriv->s->maxdata;
-	s->range_type=devpriv->s->range_type;
+	s->range_table=devpriv->s->range_table;
+	s->range_table_list=devpriv->s->range_table_list;
 	s->timer_type=TIMER_nanosec;
 
 	devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");

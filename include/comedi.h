@@ -153,6 +153,7 @@ typedef unsigned short sampl_t;
 #define COMEDI_CANCEL _IO(CIO,7)
 #define COMEDI_RANGEINFO _IOR(CIO,8,comedi_rangeinfo)
 #define COMEDI_CMD _IOR(CIO,9,comedi_cmd)
+#define COMEDI_CMDTEST _IOR(CIO,10,comedi_cmd)
 
 
 

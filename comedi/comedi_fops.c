@@ -52,6 +52,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file);
+static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
 
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 
@@ -83,6 +84,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 		return do_cancel_ioctl(dev,arg,file);
 	case COMEDI_CMD:
 		return do_cmd_ioctl(dev,(void *)arg,file);
+	case COMEDI_CMDTEST:
+		return do_cmdtest_ioctl(dev,(void *)arg,file);
 	default:
 		return -EIO;
 	}
@@ -618,6 +621,94 @@ cleanup:
 	return ret;
 }
 
+/*
+	COMEDI_CMDTEST
+	command testing ioctl
+	
+	arg:
+		pointer to cmd structure
+	
+	reads:
+		cmd structure at arg
+		channel/range list
+	
+	writes:
+		modified cmd structure at arg
+
+*/
+static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
+{
+	comedi_cmd user_cmd;
+	comedi_subdevice *s;
+	int ret=0;
+	unsigned int *chanlist=NULL;
+	
+DPRINTK("entering do_cmdtest_ioctl()\n");
+	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
+		DPRINTK("bad cmd address\n");
+		return -EFAULT;
+	}
+	
+	if(user_cmd.subdev>=dev->n_subdevices){
+		DPRINTK("%d no such subdevice\n",user_cmd.subdev);
+		return -ENODEV;
+	}
+
+	s=dev->subdevices+user_cmd.subdev;
+	if(s->type==COMEDI_SUBD_UNUSED){
+		DPRINTK("%d not valid subdevice\n",user_cmd.subdev);
+		return -EIO;
+	}
+	
+	if(!s->do_cmd){
+		DPRINTK("subdevice does not support commands\n");
+		return -EIO;
+	}
+	
+	/* make sure channel/gain list isn't too long */
+	if(user_cmd.chanlist_len > s->len_chanlist){
+		DPRINTK("channel/gain list too long %d > %d\n",user_cmd.chanlist_len,s->len_chanlist);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* load channel/gain list */
+	if(user_cmd.chanlist){
+		chanlist=kmalloc(user_cmd.chanlist_len*sizeof(int),GFP_KERNEL);
+		if(!chanlist){
+			DPRINTK("allocation failed\n");
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+	
+		if(copy_from_user(chanlist,user_cmd.chanlist,user_cmd.chanlist_len*sizeof(int))){
+			DPRINTK("fault reading chanlist\n");
+			ret = -EFAULT;
+			goto cleanup;
+		}
+	
+		/* make sure each element in channel/gain list is valid */
+		if((ret=check_chanlist(s,user_cmd.chanlist_len,chanlist))<0){
+			DPRINTK("bad chanlist\n");
+			goto cleanup;
+		}
+
+		user_cmd.chanlist=chanlist;
+	}
+
+	ret=s->do_cmdtest(dev,s,&user_cmd);
+	
+	if(copy_to_user(arg,&user_cmd,sizeof(comedi_cmd))){
+		DPRINTK("bad cmd address\n");
+		ret=-EFAULT;
+		goto cleanup;
+	}
+cleanup:
+	if(chanlist)
+		kfree(chanlist);
+	
+	return ret;
+}
 
 /*
 	COMEDI_LOCK
