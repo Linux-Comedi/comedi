@@ -1548,7 +1548,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		int chan = CR_CHAN(cmd->start_arg);
 
 		win_out(AI_START2_Select(0)|
-			AI_START1_Sync|AI_START1_Edge|
+			AI_START1_Sync | AI_START1_Edge |
 			AI_START1_Select(chan + 1),
 			AI_Trigger_Select_Register);
 		break;
@@ -1572,7 +1572,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
 		stop_count = cmd->stop_arg - 1;
-	
+
 		if( boardtype.reg_611x ){
 			// have to take 3 stage adc pipeline into account
 			stop_count += num_adc_stages_611x;
@@ -1636,14 +1636,17 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		break;
 	case TRIG_EXT:
 
-		if( cmd->scan_begin_arg & CR_EDGE )
-			start_stop_select |= AI_START_Edge;
+/* Level trigger usually doesn't work, making it the default
+ * doesn't make sense.  Disabling it. */
+/*		if( cmd->scan_begin_arg & CR_EDGE ) */
+		start_stop_select |= AI_START_Edge;
 		/* AI_START_Polarity==1 is falling edge */
 		if( cmd->scan_begin_arg & CR_INVERT )
 			start_stop_select |= AI_START_Polarity;
-		start_stop_select |= AI_START_Sync;
+		if( cmd->scan_begin_src != cmd->convert_src ||
+			( cmd->scan_begin_arg & ~CR_EDGE ) != ( cmd->convert_arg & ~CR_EDGE ) )
+			start_stop_select |= AI_START_Sync;
 		start_stop_select |= AI_START_Select(1+(cmd->scan_begin_arg&0xf));
-
 		win_out(start_stop_select, AI_START_STOP_Select_Register);
 		break;
 	}
@@ -1673,13 +1676,12 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out(mode2,AI_Mode_2_Register);
 		break;
 	case TRIG_EXT:
-		mode1 |= AI_CONVERT_Source_Select(1+cmd->convert_arg) |
-			AI_CONVERT_Source_Polarity;
+		mode1 |= AI_CONVERT_Source_Select(1+cmd->convert_arg);
+		if( ( cmd->convert_arg & CR_INVERT ) == 0 )
+			mode1 |= AI_CONVERT_Source_Polarity;
 		win_out(mode1,AI_Mode_1_Register);
 
-		mode2 |= AI_SI2_Reload_Mode; // alternate
-		mode2 |= AI_SI2_Initial_Load_Source; // B
-
+		mode2 |= AI_Start_Stop_Gate_Enable | AI_SC_Gate_Enable;
 		win_out(mode2, AI_Mode_2_Register);
 
 		break;
