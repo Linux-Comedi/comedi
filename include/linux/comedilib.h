@@ -61,6 +61,12 @@ int comedi_unlock(comedi_t *dev,unsigned int subdev);
 /* these functions may be called at any priority, but you must hold
    the lock for the subdevice */
 
+int comedi_loglevel(int loglevel);
+void comedi_perror(const char *s);
+char *comedi_strerror(int errnum);
+int comedi_errno(void);
+int comedi_fileno(comedi_t *dev);
+
 int comedi_cancel(comedi_t *dev,unsigned int subdev);
 int comedi_register_callback(comedi_t *dev,unsigned int subdev,
 		unsigned int mask,int (*cb)(unsigned int,void *),void *arg);
