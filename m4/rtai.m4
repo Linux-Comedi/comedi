@@ -3,9 +3,9 @@ AC_DEFUN([DS_RTAI],
 [
 	AC_ARG_WITH([rtaidir],
 		[AC_HELP_STRING([--with-rtaidir=DIR],
-			[specify path to RTAI source directory])],
+			[specify path to RTAI installation or build directory])],
 		[RTAI_DIR="${withval}"],
-		[RTAI_DIR=/usr/src/rtai])
+		[RTAI_DIR=/usr/realtime])
 
 	AS_LINUX_CONFIG_OPTION_MODULE([CONFIG_RTHAL])
 	AS_LINUX_CONFIG_OPTION_MODULE([CONFIG_ADEOS])
