@@ -210,6 +210,7 @@ void mite_list_devices(void)
 
 }
 
+#if 0
 int mite_kvmem_segment_load(struct mite_struct *mite,int i,char *kvmem,unsigned int len)
 {
 	int count,offset;
@@ -257,7 +258,8 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 		int count;
 		count = 1+TOP_OF_PAGE(nup)-nup;
 		if(count>len-size_so_far) count = len-size_so_far;
-		mite->ring[i].addr = cpu_to_le32(kvirt_to_bus((void *)nup));// it's already a kernel address :-)
+		// it's already a kernel address :-)
+		mite->ring[i].addr = cpu_to_le32(kvirt_to_bus(nup));
 		mite->ring[i].count = cpu_to_le32(count);
 		mite->ring[i].next = cpu_to_le32(virt_to_bus(mite->ring+i+1));
 		size_so_far += count;
@@ -297,6 +299,7 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	MDPRINTK("exit mite_ll_from_kvmem\n");
 	return virt_to_bus(&(mite->ring[0]));
 }
+#endif
 
 
 void mite_dma_arm(struct mite_struct *mite)
@@ -311,6 +314,7 @@ void mite_dma_arm(struct mite_struct *mite)
 }
 
 
+#if 0
 void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan,int dir)
 {
 	//*mite is the mite to work with
@@ -361,6 +365,7 @@ void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan,int d
 	
 	MDPRINTK("exit mite_setregs\n");
 }
+#endif
 
 
 /**************************************/
@@ -605,13 +610,15 @@ EXPORT_SYMBOL(mite_dma_arm);
 EXPORT_SYMBOL(mite_dma_disarm);
 EXPORT_SYMBOL(mite_setup);
 EXPORT_SYMBOL(mite_unsetup);
+#if 0
 EXPORT_SYMBOL(mite_kvmem_segment_load);
+EXPORT_SYMBOL(mite_ll_from_kvmem);
+EXPORT_SYMBOL(mite_setregs);
+#endif
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_alloc);
-EXPORT_SYMBOL(mite_ll_from_kvmem);
-EXPORT_SYMBOL(mite_setregs);
 EXPORT_SYMBOL(mite_bytes_transferred);
 #ifdef DEBUG_MITE
 EXPORT_SYMBOL(mite_print_chsr);
