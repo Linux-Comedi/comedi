@@ -38,11 +38,9 @@
 #include <linux/comedi.h>
 
 
-#ifdef CONFIG_COMEDI_DEBUG
-#define DPRINTK(format, args...)	printk("comedi: " format , ## args )
-#else
-#define DPRINTK(format, args...)	/* */
-#endif
+#define DPRINTK(format, args...)	do{				\
+	if(comedi_debug)printk("comedi: " format , ## args );		\
+} while(0)
 
 #ifndef COMEDI_VERSION_CODE
 #define COMEDI_VERSION_CODE 0x10000
@@ -208,6 +206,12 @@ struct comedi_device_struct{
 
 extern comedi_device *comedi_devices;
 extern spinlock_t big_comedi_lock;
+
+#ifdef CONFIG_COMEDI_DEBUG
+extern int comedi_debug;
+#else
+const int comedi_debug = 0;
+#endif
 
 /*
  * function prototypes
