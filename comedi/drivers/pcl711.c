@@ -401,6 +401,8 @@ static int pcl711_detach(comedi_device * dev)
 
 	if (dev->iobase)
 		release_region(dev->iobase, PCL711_SIZE);
+
+	return 0;
 }
 
 /*  Initialization */
@@ -431,13 +433,11 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	irq = it->options[1];
 	if (irq < 0 || irq > this_board->maxirq) {
 		printk("irq out of range\n");
-		free_resources(dev);
 		return -EINVAL;
 	}
 	if (irq) {
 		if (comedi_request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
 			printk("unable to allocate irq %d\n", irq);
-			free_resources(dev);
 			return -EINVAL;
 		} else {
 			printk("( irq = %d )\n", irq);
