@@ -1656,8 +1656,8 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if(cmd->stop_src!=TRIG_TIMER &&
-	   cmd->stop_src!=TRIG_EXT)err++;
+	if(cmd->stop_src!=TRIG_COUNT &&
+	   cmd->stop_src!=TRIG_NONE)err++;
 
 	if(err)return 2;
 
