@@ -62,11 +62,11 @@ all:	config
 endif
 
 oldconfig:	dummy
-	env -i $(CONFIG_SHELL) ./configure --old
+	env -i PATH=$(PATH) $(CONFIG_SHELL) ./configure --old
 
 #configure is called through env -i to prevent loading of variables from stale LINUXDIR
 config:	dummy
-	env -i $(CONFIG_SHELL) ./configure --linuxdir $(LINUXDIR)
+	env -i PATH=$(PATH) $(CONFIG_SHELL) ./configure --linuxdir $(LINUXDIR)
 
 modules_install:	$(patsubst %, _modinst_%, $(SUBDIRS))
 ifeq ($(INSTALL_MOD_PATH),)
