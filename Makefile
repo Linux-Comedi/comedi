@@ -8,8 +8,8 @@ VERS3 = 38
 INSTALLDIR=/usr
 
 #LINUXDIR = /usr/src/linux
-#LINUXDIR = /d/ds/cvs/rtl/linux22
-LINUXDIR = /d/ds/cvs/linux22
+LINUXDIR = /d/ds/cvs/rtl/linux22
+#LINUXDIR = /d/ds/cvs/linux22
 
 # define the following if you want to compile using RTL
 # headers that aren't in the default location

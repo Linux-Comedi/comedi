@@ -58,6 +58,8 @@ struct comedi_irq_struct * get_irq_struct(unsigned int);
 #ifdef CONFIG_COMEDI_RTL
 void comedi_rtl_init(void);
 void comedi_rtl_cleanup(void);
+
+#include <rtl_printf.h>
 #endif
 
 #ifdef CONFIG_COMEDI_RTAI
