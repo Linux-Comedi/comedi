@@ -39,3 +39,5 @@ autoloading causes BUG on failure.
 
 should insn_config be a bitfield?
 
+ledclock demo: RT irq allocated at removal
+

@@ -1,6 +1,11 @@
 #!/bin/bash
+# This is the script that I use to make .tgz files for release
+# It's not intended for general use, and if you want to
+# understand how/why it works, read the code, don't ask me.
 
 export LINUXDIR=/d/ds/linux/linux-2.2.17
+
+export CVSROOT=opensource.lineo.com:/var/cvs
 
 if [ ! "$1" ]
 then
@@ -39,18 +44,11 @@ mv comedi comedi-$version
 
 mkdir comedi-$version/include/comedi
 mkdir comedi-$version/include/modbuild
+rm -rf comedi-$version/patches
 
 sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" comedi-$version/Makefile >Makefile.tmp
 mv Makefile.tmp comedi-$version/Makefile
 
 tar -czvf ../comedi-$version.tgz comedi-$version
-
-exit
-
-cd comedi-$version
-
-yes "" | make
-make
-make
 
 
