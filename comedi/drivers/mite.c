@@ -122,9 +122,7 @@ int mite_setup(struct mite_struct *mite)
 	mite->daq_io_addr = ioremap(start, length) + offset;
 	printk("DAQ:0x%08lx mapped to %p\n",mite->daq_phys_addr,mite->daq_io_addr);
 
-	/* XXX don't know what the 0xc0 and 0x80 mean */
-	/* It must be here for the driver to work though */
-	writel(mite->daq_phys_addr | 0x80 , mite->mite_io_addr + 0xc0 );
+	writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
 
 	for( i = 0; i < NUM_MITE_DMA_CHANNELS; i++ ) {
 

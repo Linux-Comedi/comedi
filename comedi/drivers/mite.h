@@ -115,6 +115,16 @@ void mite_print_chsr(unsigned int chsr);
 void mite_dump_regs(struct mite_struct *mite, int channel);
 #endif
 
+enum mite_registers
+{
+	MITE_IODWBSR = 0xc0, //IO Device Window Base Size Register
+};
+
+enum MITE_IODWBSR_bits
+{
+	WENAB = 0x80,	// window enable
+};
+
 #define CHAN_OFFSET(x)			(0x100*(x))
 
 /* DMA base for chan 0 is 0x500, chan 1 is 0x600 */
