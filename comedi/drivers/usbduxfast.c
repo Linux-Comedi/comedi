@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.91"
+#define DRIVER_VERSION "v0.92"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 13 Jan 2005
+Updated: 07 Feb 2005
 Status: testing
 */
 
@@ -41,6 +41,8 @@ Status: testing
  * Revision history:
  * 0.9: Dropping the first data packet which seems to be from the last transfer.
  *      Buffer overflows in the FX2 are handed over to comedi.
+ * 0.92: Dropping now 4 packets. The quad buffer has to be emptied.
+ *       Added insn command basically for testing. Sample rate is 1MHz/16ch=62.5kHz
  */
 
 
@@ -56,6 +58,7 @@ Status: testing
 #include <linux/comedidev.h>
 #include <linux/usb.h>
 
+// (un)comment this if you want to have debug info.
 //#define CONFIG_COMEDI_DEBUG
 #undef  CONFIG_COMEDI_DEBUG
 
@@ -118,7 +121,8 @@ Status: testing
 #define MAX_SAMPLING_PERIOD 500
 
 // Number of received packets to ignore before we start handing data over to comedi.
-#define PACKETS_TO_IGNORE 1
+// It's quad buffering and we have to ignore 4 packets.
+#define PACKETS_TO_IGNORE 4
 
 // Buffer overflow in the FX2 aborts the transmission
 #define BUFFER_OVERFL_ABORTS 1
@@ -240,6 +244,7 @@ static int usbduxfastsub_unlink_InURBs(usbduxfastsub_t* usbduxfastsub_tmp) {
 #else
 		// waits until a running transfer is over
 		usb_kill_urb(usbduxfastsub_tmp->urbIn);
+		j=0;
 #endif
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -845,8 +850,12 @@ static int usbduxfast_ai_inttrig(comedi_device *dev,
 
 
 
-
-
+// offsets for the GPIF bytes
+// the first byte is the command byte
+#define LENBASE 1+0x00
+#define OPBASE  1+0x08
+#define OUTBASE 1+0x10
+#define LOGBASE 1+0x18
 
 
 static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
@@ -935,13 +944,6 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	       cmd->convert_arg,
 	       this_usbduxfastsub->ai_timer);
 #endif
-
-
-	// the first byte is the command byte
-#define LENBASE 1+0x00
-#define OPBASE  1+0x08
-#define OUTBASE 1+0x10
-#define LOGBASE 1+0x18
 
 
 	switch (cmd->chanlist_len) {
@@ -1097,23 +1099,23 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFE & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+1]=0;
 
-		// and the second part
-		this_usbduxfastsub->dux_commands[LENBASE+2]=steps-steps/2;
+		this_usbduxfastsub->dux_commands[LENBASE+2]=1;
 		this_usbduxfastsub->dux_commands[OPBASE+2]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
+		this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFE & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
 		
 		this_usbduxfastsub->dux_commands[LENBASE+3]=1;
 		this_usbduxfastsub->dux_commands[OPBASE+3]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFF & rngmask;
+		this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFE & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+3]=0;
 		
 		this_usbduxfastsub->dux_commands[LENBASE+4]=1;
 		this_usbduxfastsub->dux_commands[OPBASE+4]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFF & rngmask;
+		this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFE & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+4]=0;
 		
-		this_usbduxfastsub->dux_commands[LENBASE+5]=1;
+		// and the second part
+		this_usbduxfastsub->dux_commands[LENBASE+5]=steps-steps/2;
 		this_usbduxfastsub->dux_commands[OPBASE+5]=0;
 		this_usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+5]=0;
@@ -1180,6 +1182,151 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	return 0;
 }
+
+
+
+/* Mode 0 is used to get a single conversion on demand */
+static int usbduxfast_ai_insn_read(comedi_device * dev,
+                               comedi_subdevice *s,
+                               comedi_insn *insn,
+                               lsampl_t *data)
+{
+        int i,j,n,actual_length;
+        int chan,range,rngmask;
+        int err;
+        usbduxfastsub_t* usbduxfastsub=dev->private;
+
+        if (!usbduxfastsub) {
+                printk("comedi%d: ai_insn_read: no usb dev.\n",
+                       dev->minor);
+                return -ENODEV;
+        }
+
+#ifdef CONFIG_COMEDI_DEBUG
+        printk("comedi%d: ai_insn_read, insn->n=%d, insn->subdev=%d\n",
+               dev->minor,
+               insn->n,
+               insn->subdev);
+#endif
+        down(&usbduxfastsub->sem);
+        if (!(usbduxfastsub->probed)) {
+                up(&usbduxfastsub->sem);
+                return -ENODEV;
+        }
+        if (usbduxfastsub->ai_cmd_running) {
+                printk("comedi%d: ai_insn_read not possible. Async Command is running.\n",
+                       dev->minor);
+                up(&usbduxfastsub->sem);
+                return -EBUSY;
+        }
+
+        // sample one channel
+        chan = CR_CHAN(insn->chanspec);
+        range = CR_RANGE(insn->chanspec);
+        // set command for the first channel
+
+	if (range>0) rngmask=0xff-0x04; else rngmask=0xff;
+	// commit data to the FIFO
+	usbduxfastsub->dux_commands[LENBASE+0]=1;
+	usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
+	usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+0]=0;
+	
+	// do the first part of the delay
+	usbduxfastsub->dux_commands[LENBASE+1]=12;
+	usbduxfastsub->dux_commands[OPBASE+1]=0;
+	usbduxfastsub->dux_commands[OUTBASE+1]=0xFE & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+1]=0;
+	
+	usbduxfastsub->dux_commands[LENBASE+2]=1;
+	usbduxfastsub->dux_commands[OPBASE+2]=0;
+	usbduxfastsub->dux_commands[OUTBASE+2]=0xFE & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+2]=0;
+		
+	usbduxfastsub->dux_commands[LENBASE+3]=1;
+	usbduxfastsub->dux_commands[OPBASE+3]=0;
+	usbduxfastsub->dux_commands[OUTBASE+3]=0xFE & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+3]=0;
+		
+	usbduxfastsub->dux_commands[LENBASE+4]=1;
+	usbduxfastsub->dux_commands[OPBASE+4]=0;
+	usbduxfastsub->dux_commands[OUTBASE+4]=0xFE & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+4]=0;
+	
+	// second part
+	usbduxfastsub->dux_commands[LENBASE+5]=12;
+	usbduxfastsub->dux_commands[OPBASE+5]=0;
+	usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+5]=0;
+
+	usbduxfastsub->dux_commands[LENBASE+6]=1;
+	usbduxfastsub->dux_commands[OPBASE+6]=0;
+	usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
+	usbduxfastsub->dux_commands[LOGBASE+0]=0;
+
+#ifdef CONFIG_COMEDI_DEBUG
+	printk("comedi %d: sending commands to the usb device\n",
+	       dev->minor);
+#endif
+	// 0 means that the AD commands are sent
+	err=send_dux_commands(usbduxfastsub,SENDADCOMMANDS);
+	if (err<0) {
+		printk("comedi%d: adc command could not be submitted. Aborting...\n",
+		       dev->minor);
+		up(&usbduxfastsub->sem);
+		return err;
+	}
+
+#ifdef CONFIG_COMEDI_DEBUG
+	printk("comedi%d: usbduxfast: submitting in-urb: %x,%x\n",
+	       usbduxfastsub->comedidev->minor,
+	       (int)(usbduxfastsub->urbIn->context),
+	       (int)(usbduxfastsub->urbIn->dev));
+#endif
+	for(i=0;i<PACKETS_TO_IGNORE;i++) {
+		err=usb_bulk_msg(usbduxfastsub->usbdev, 
+				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
+				 usbduxfastsub->transfer_buffer,
+				 SIZEINBUF,
+				 &actual_length,
+				 10*HZ);
+		if (err<0) {
+			printk("comedi%d: insn timeout. No data.\n",
+			       dev->minor);
+			up(&usbduxfastsub->sem);
+			return err;
+		}
+	}
+	// data points
+	for(i=0;i<insn->n;) {
+		err=usb_bulk_msg(usbduxfastsub->usbdev, 
+				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
+				 usbduxfastsub->transfer_buffer,
+				 SIZEINBUF,
+				 &actual_length,
+				 10*HZ);
+		if (err<0) {
+			printk("comedi%d: insn data error: %d\n",
+			       dev->minor,err);
+			up(&usbduxfastsub->sem);
+			return err;
+		}
+		n=actual_length/sizeof(uint16_t);
+		if ((n%16)!=0) {
+			printk("comedi%d: insn data packet corrupted.\n",
+			       dev->minor);
+			up(&usbduxfastsub->sem);
+			return -EINVAL;
+		}			
+		for(j=chan;(j<n)&&(i<insn->n);j=j+16) {
+			data[i]=((uint16_t*)(usbduxfastsub->transfer_buffer))[j];
+			i++;
+		}
+	}
+	up(&usbduxfastsub->sem);
+	return i;
+}
+
 
 
 
@@ -1582,7 +1729,7 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	// length of the channellist
 	s->len_chanlist=16;
 	// callback functions
-	//s->insn_read = usbduxfast_ai_insn_read;
+	s->insn_read = usbduxfast_ai_insn_read;
 	s->do_cmdtest=usbduxfast_ai_cmdtest;
 	s->do_cmd=usbduxfast_ai_cmd;
 	s->cancel=usbduxfast_ai_cancel;
