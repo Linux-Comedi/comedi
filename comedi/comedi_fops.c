@@ -1594,12 +1594,14 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	comedi_device *dev;
 	char mod[32];
 
-	if(minor>=COMEDI_NDEVICES)return -ENODEV;
-
+	if(minor>=COMEDI_NDEVICES){
+		DPRINTK("invalid minor number\n");
+		return -ENODEV;
+	}
 	dev=comedi_get_device_by_minor(minor);
 
 	/* This is slightly hacky, but we want module autoloading
-	 * to work for root. 
+	 * to work for root.
 	 * case: user opens device, attached -> ok
 	 * case: user opens device, unattached, in_request_module=0 -> autoload
 	 * case: user opens device, unattached, in_request_module=1 -> fail
@@ -1613,8 +1615,10 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	 */
 	if(dev->attached)
 		goto ok;
-	if(!capable(CAP_SYS_ADMIN) && dev->in_request_module)
+	if(!capable(CAP_SYS_ADMIN) && dev->in_request_module){
+		DPRINTK("in request module\n");
 		return -ENODEV;
+	}
 	if(capable(CAP_SYS_ADMIN) && dev->in_request_module)
 		goto ok;
 
@@ -1627,9 +1631,8 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 
 	dev->in_request_module=0;
 
-	if(dev->attached || capable(CAP_SYS_ADMIN))
-		goto ok;
-	return -ENODEV;
+	if(!dev->attached && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 ok:
 	if(!try_module_get(THIS_MODULE))
