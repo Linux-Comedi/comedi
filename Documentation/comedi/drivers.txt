@@ -102,6 +102,19 @@ Configuration options:
 
 
 
+Driver: cb_pcidda.o
+Description: ComputerBoards PCI-DDA series
+Author: Ivan Martinez <ivanmr@altavista.com>
+Status: supports 08/16, 04/16, 02/16, 08/12, 04/12, and 02/12
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+          If bus/slot is not specified, the first available PCI
+	  device will be used.
+  [1] - PCI slot of device (optional)
+
+
+
 Driver: comedi_parport.o
 Description: Standard PC parallel port
 Author: ds

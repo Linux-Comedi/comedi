@@ -24,6 +24,7 @@ obj-$(CONFIG_COMEDI_ADL_PCI9118)	+= adl_pci9118.o
 obj-$(CONFIG_COMEDI_ADV_PCI1710)	+= adv_pci1710.o
 
 obj-$(CONFIG_COMEDI_CB_PCIDAS)		+= cb_pcidas.o
+obj-$(CONFIG_COMEDI_CB_PCIDDA)		+= cb_pcidda.o
 
 obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o
 
