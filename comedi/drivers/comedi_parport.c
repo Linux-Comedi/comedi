@@ -1,9 +1,9 @@
 /*
-    module/parport.c
+    comedi/drivers/comedi_parport.c
     hardware driver for standard parallel port
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1998,2001 David A. Schleef <ds@schleef.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
