@@ -177,9 +177,9 @@ if grep 'pci_dev' ${driver} &>/dev/null;then
 	if ! grep 'pci_find_device' ${driver} &>/dev/null;then
 		echo "W: doesn't use pci_find_device"
 	fi
-	#if ! grep 'pci_enable_device' ${driver} &>/dev/null;then
-	#	echo "W: doesn't use pci_enable_device"
-	#fi
+	if ! grep 'pci_enable_device' ${driver} &>/dev/null;then
+		echo "W: doesn't use pci_enable_device"
+	fi
 	if ! grep 'MODULE_DEVICE_TABLE' ${driver} &>/dev/null;then
 		echo "W: doesn't use MODULE_DEVICE_TABLE"
 	fi
