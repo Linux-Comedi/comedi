@@ -1628,6 +1628,49 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	return n;
 }
 
+static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
+	unsigned int chanspec[], unsigned int n_chans)
+{
+	unsigned int range;
+	unsigned int chan;
+	unsigned int conf;
+	int i;
+	int invert = 0;
+
+	for(i=0;i<n_chans;i++){
+		chan = CR_CHAN(chanspec[i]);
+		range = CR_RANGE(chanspec[i]);
+
+		conf = AO_Channel(chan);
+
+		if(boardtype.ao_unipolar){
+			if((range&1) == 0){
+				conf |= AO_Bipolar;
+				invert = (1<<(boardtype.aobits-1));
+			}else{
+				invert = 0;
+			}
+			if(range&2)
+				conf |= AO_Ext_Ref;
+		}else{
+			conf |= AO_Bipolar;
+			invert = (1<<(boardtype.aobits-1));
+		}
+
+		/* not all boards can deglitch, but this shouldn't hurt */
+		if(chanspec[i] & CR_DITHER)
+			conf |= AO_Deglitch;
+
+		/* analog reference */
+		/* AREF_OTHER connects AO ground to AI ground, i think */
+		conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
+
+		ni_writew(conf,AO_Configuration);
+	}
+
+	return invert;
+}
+
 static int ni_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -1639,39 +1682,14 @@ static int ni_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
 static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int conf;
-	unsigned int chan;
-	unsigned int range;
-	unsigned int dat = data[0];
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int invert;
 
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
+	invert = ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
 
-	devpriv->ao[chan] = dat;
+	devpriv->ao[chan] = data[0];
 
-	conf=AO_Channel(chan);
-	if(boardtype.ao_unipolar){
-		if((range&1) == 0){
-			conf |= AO_Bipolar;
-			dat^=(1<<(boardtype.aobits-1));
-		}
-		if(range&2)
-			conf |= AO_Ext_Ref;
-	}else{
-		conf |= AO_Bipolar;
-		dat^=(1<<(boardtype.aobits-1));
-	}
-
-	/* not all boards can deglitch, but this shouldn't hurt */
-	if((insn->chanspec>>26)&1)conf |= AO_Deglitch;
-
-	/* analog reference */
-	/* AREF_OTHER connects AO ground to AI ground, i think */
-	conf |= (CR_AREF(insn->chanspec)==AREF_OTHER)? AO_Ground_Ref : 0;
-
-	ni_writew(conf,AO_Configuration);
-
-	ni_writew(dat,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
+	ni_writew(data[0] ^ invert,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 
 	return 1;
 }
@@ -1707,44 +1725,13 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
-	unsigned int conf;
-	unsigned int chan;
-	unsigned int range;
 	int trigvar;
-	int i;
 
 	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
 	win_out(AO_Disarm,AO_Command_1_Register);
 
-	for(i=0;i<cmd->chanlist_len;i++){
-		chan=CR_CHAN(cmd->chanlist[i]);
-		/* XXX check range with current range in flaglist[chan] */
-		/* should update calibration if range changes (ick) */
-		range = CR_RANGE(cmd->chanlist[i]);
-
-		conf=AO_Channel(chan);
-
-		if(boardtype.ao_unipolar){
-			if((range&1) == 0){
-				conf |= AO_Bipolar;
-			}
-			if(range&2)
-				conf |= AO_Ext_Ref;
-		}else{
-			conf |= AO_Bipolar;
-		}
-
-		/* not all boards can deglitch, but this shouldn't hurt */
-		if(cmd->chanlist[i] & CR_DITHER)
-			conf |= AO_Deglitch;
-
-		/* analog reference */
-		/* AREF_OTHER connects AO ground to AI ground, i think */
-		conf |= (CR_AREF(cmd->chanlist[i])==AREF_OTHER)? AO_Ground_Ref : 0;
-
-		ni_writew(conf,AO_Configuration);
-	}
+	ni_ao_config_chanlist(dev,s,cmd->chanlist,cmd->chanlist_len);
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 
