@@ -933,6 +933,15 @@ static int labpc_ai_chanlist_invalid( const comedi_device *dev,
 	return 0;
 }
 
+static int labpc_use_continuous_mode( const comedi_cmd *cmd )
+{
+	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN ) return 1;
+
+	if( cmd->scan_begin_src == TRIG_FOLLOW ) return 1;
+
+	return 0;
+}
+
 static unsigned int labpc_ai_convert_period( const comedi_cmd *cmd )
 {
 	if( cmd->convert_src != TRIG_TIMER ) return 0;
@@ -1231,7 +1240,8 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	devpriv->command1_bits |= thisboard->ai_range_code[range];
 	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	// manual says to set scan enable bit on second pass
-	if( labpc_ai_scan_mode( cmd ) != MODE_SINGLE_CHAN )
+	if( labpc_ai_scan_mode( cmd ) == MODE_MULT_CHAN_UP ||
+		labpc_ai_scan_mode( cmd ) == MODE_MULT_CHAN_DOWN )
 	{
 		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
 		/* need a brief delay before enabling scan, or scan list will get screwed when you switch
@@ -1246,7 +1256,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
 	/* XXX should discard first scan when using interval scanning
 	 * since manual says it is not synced with scan clock */
-	if( labpc_ai_scan_mode != MODE_SINGLE_CHAN )
+	if( labpc_use_continuous_mode( cmd ) == 0 )
 	{
 		devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
 		if( cmd->scan_begin_src == TRIG_EXT )
@@ -1257,12 +1267,9 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		devpriv->command4_bits |= ADC_DIFF_BIT;
 	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
-	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN_INTERVAL )
-	{
-		thisboard->write_byte( cmd->chanlist_len, dev->iobase + INTERVAL_COUNT_REG);
-		// load count
-		thisboard->write_byte(INTERVAL_LOAD_BITS, dev->iobase + INTERVAL_LOAD_REG);
-	}
+	thisboard->write_byte( cmd->chanlist_len, dev->iobase + INTERVAL_COUNT_REG);
+	// load count
+	thisboard->write_byte(INTERVAL_LOAD_BITS, dev->iobase + INTERVAL_LOAD_REG);
 
 	if(cmd->convert_src == TRIG_TIMER || cmd->scan_begin_src == TRIG_TIMER)
 	{
