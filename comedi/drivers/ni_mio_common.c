@@ -1935,17 +1935,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
-	/* XXX */
 	
 	/* general purpose counter/timer device */
-	s=dev->subdevices+4;
-	s->type=COMEDI_SUBD_COUNTER;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
-	s->insn_read=ni_gpct_insn_read;
-	s->insn_config=ni_gpct_insn_config;
-	s->n_chan=1; /* XXX */
-	s->maxdata=1;
-	
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
