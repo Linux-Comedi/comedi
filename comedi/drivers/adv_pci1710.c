@@ -1142,7 +1142,8 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 
 	rt_printk("comedi%d: adv_pci1710: board=%s",dev->minor,this_board->name);
 
-	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ADVANTECH, this_board->device_id, it->options[0], it->options[1]))==NULL) 
+	/* this call pci_enable_device() */
+	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ADVANTECH, this_board->device_id, it->options[0], it->options[1], 0))==NULL) 
 		return -EIO;
 	
 	if ((pci_card_data(card,&pci_bus,&pci_slot,&pci_func,
