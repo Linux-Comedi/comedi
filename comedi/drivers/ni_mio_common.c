@@ -1856,7 +1856,7 @@ static void pfi_setup(comedi_device *dev)
 	/* currently, we don't output any signals, thus, all
 	   the PFI's are input */
 	
-	win_out(IO_Bidirection_Pin_Register,0);
+	win_out(0,IO_Bidirection_Pin_Register);
 }
 
 
