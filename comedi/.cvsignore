@@ -1,0 +1,5 @@
+.cvsignore
+.deps
+*.ko
+Makefile
+Makefile.in
