@@ -8,6 +8,10 @@
 #include <linux/version.h>
 #include_next <asm/page.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
+#define virt_to_page(addr) MAP_NR(addr)
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,1)
 /* Pure 2^n version of get_order */
 static __inline__ int get_order(unsigned long size)
