@@ -347,7 +347,7 @@ static boardtype boardtypes[] =
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((boardtype *)dev->board_ptr)
 
-comedi_driver driver_pcl812={
+static comedi_driver driver_pcl812={
 	driver_name:	"pcl812",
 	module:		THIS_MODULE,
 	attach:		pcl812_attach,
@@ -397,10 +397,10 @@ typedef struct {
 /* 
 ==============================================================================
 */
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
-void setup_range_channel(comedi_device * dev, comedi_subdevice * s, 
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
+static void setup_range_channel(comedi_device * dev, comedi_subdevice * s, 
 	unsigned int rangechan, char wait);
-int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 /* 
 ==============================================================================
 */
@@ -535,7 +535,7 @@ static int pcl812_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 /* 
 ==============================================================================
 */
-void pcl812_cmdtest_out(int e,comedi_cmd *cmd) {
+static void pcl812_cmdtest_out(int e,comedi_cmd *cmd) {
 	rt_printk("pcl812 e=%d startsrc=%x scansrc=%x convsrc=%x\n",e,cmd->start_src,cmd->scan_begin_src,cmd->convert_src);
 	rt_printk("pcl812 e=%d startarg=%d scanarg=%d convarg=%d\n",e,cmd->start_arg,cmd->scan_begin_arg,cmd->convert_arg);
 	rt_printk("pcl812 e=%d stopsrc=%x scanend=%x\n",e,cmd->stop_src,cmd->scan_end_src);
@@ -1041,7 +1041,7 @@ static int pcl812_ai_poll(comedi_device *dev,comedi_subdevice *s)
 /*
 ==============================================================================
 */
-void setup_range_channel(comedi_device * dev, comedi_subdevice * s, 
+static void setup_range_channel(comedi_device * dev, comedi_subdevice * s, 
 	unsigned int rangechan, char wait)
 {
 	unsigned char chan_reg=CR_CHAN(rangechan); // normal board
@@ -1077,7 +1077,7 @@ void setup_range_channel(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
 {
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: start_pacer(%d,%u,%u)\n",mode,divisor1,divisor2);
@@ -1120,7 +1120,7 @@ static void free_resources(comedi_device * dev)
 /* 
 ==============================================================================
 */
-int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cancel(...)\n");

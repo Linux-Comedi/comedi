@@ -48,7 +48,7 @@ struct pcmad_board_struct{
 	char *name;
 	int n_ai_bits;
 };
-struct pcmad_board_struct pcmad_boards[]={
+static struct pcmad_board_struct pcmad_boards[]={
 	{
 	name:		"pcmad12",
 	n_ai_bits:	12,
@@ -69,7 +69,7 @@ struct pcmad_priv_struct{
 
 static int pcmad_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcmad_detach(comedi_device *dev);
-comedi_driver driver_pcmad={
+static comedi_driver driver_pcmad={
 	driver_name:	"pcmad",
 	module:		THIS_MODULE,
 	attach:		pcmad_attach,

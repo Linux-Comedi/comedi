@@ -252,7 +252,7 @@ static boardtype boardtypes[] =
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-comedi_driver driver_pcl818={
+static comedi_driver driver_pcl818={
 	driver_name:	"pcl818",
 	module:		THIS_MODULE,
 	attach:		pcl818_attach,
@@ -312,12 +312,12 @@ static unsigned int muxonechan[] ={ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x
 /* 
 ==============================================================================
 */
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
-int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s);
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
-int set_rtc_irq_bit(unsigned char bit);
-void rtc_dropped_irq(unsigned long data);
-int rtc_setfreq_irq(int freq);
+static int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
+static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
+static int set_rtc_irq_bit(unsigned char bit);
+static void rtc_dropped_irq(unsigned long data);
+static int rtc_setfreq_irq(int freq);
 
 /* 
 ==============================================================================
@@ -800,7 +800,7 @@ static void interrupt_pcl818(int irq, void *d, struct pt_regs *regs)
    ANALOG INPUT MODE 1 or 3 DMA , 818 cards
 */
 #ifdef CONFIG_COMEDI_TRIG
-void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+static void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         unsigned int flags;
         unsigned int bytes;
@@ -839,7 +839,7 @@ void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s
    ANALOG INPUT MODE 1 or 3 DMA rtc, 818 cards
 */
 #ifdef CONFIG_COMEDI_TRIG
-void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+static void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         unsigned int flags;
         sampl_t *pole;
@@ -1065,7 +1065,7 @@ static int pcl818_ao_mode3(comedi_device * dev, comedi_subdevice * s, comedi_tri
 ==============================================================================
  Start/stop pacer onboard pacer
 */
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
 {
         outb(0xb4, dev->iobase + PCL818_CTRCTL);
         outb(0x74, dev->iobase + PCL818_CTRCTL);
@@ -1085,7 +1085,7 @@ void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned 
  Check if channel list from user is builded correctly
  If it's ok, then program scan/gain logic
 */
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
         unsigned int chansegment[16];  
         unsigned int i, nowmustbechan, seglen, segpos;
@@ -1158,7 +1158,7 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, come
 ==============================================================================
  Check if board is switched to SE (1) or DIFF(0) mode
 */
-int check_single_ended(unsigned int port)
+static int check_single_ended(unsigned int port)
 {
         if (inb(port+PCL818_STATUS)&0x20) { return 1; }
 					else { return 0; }
@@ -1168,7 +1168,7 @@ int check_single_ended(unsigned int port)
 ==============================================================================
  cancel any mode 1-4 AI
 */
-int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s) 
+static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s) 
 {
         if (devpriv->irq_blocked>0) {
 		// rt_printk("pcl818_ai_cancel()\n");
@@ -1219,7 +1219,7 @@ int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 ==============================================================================
  chech for PCL818
 */
-int pcl818_check(int iobase) 
+static int pcl818_check(int iobase) 
 {
         outb(0x00, iobase + PCL818_MUX);
         udelay(1); 
@@ -1239,7 +1239,7 @@ int pcl818_check(int iobase)
 ==============================================================================
  reset whole PCL-818 cards
 */
-void pcl818_reset(comedi_device * dev) 
+static void pcl818_reset(comedi_device * dev) 
 {
         if (devpriv->usefifo) { // FIFO shutdown
 		outb(0, dev->iobase + PCL818_FI_INTCLR);
@@ -1271,7 +1271,7 @@ void pcl818_reset(comedi_device * dev)
 ==============================================================================
   Enable(1)/disable(0) periodic interrupts from RTC
 */
-int set_rtc_irq_bit(unsigned char bit)
+static int set_rtc_irq_bit(unsigned char bit)
 {
         unsigned char val;
         unsigned long flags;
@@ -1300,7 +1300,7 @@ int set_rtc_irq_bit(unsigned char bit)
 ==============================================================================
   Restart RTC if something stop it (xntpd every 11 mins or large IDE transfers)
 */
-void rtc_dropped_irq(unsigned long data) 
+static void rtc_dropped_irq(unsigned long data) 
 {
         comedi_device *dev = (void *)data;
         unsigned long flags,tmp;
@@ -1322,7 +1322,7 @@ void rtc_dropped_irq(unsigned long data)
 ==============================================================================
   Set frequency of interrupts from RTC
 */
-int rtc_setfreq_irq(int freq) 
+static int rtc_setfreq_irq(int freq) 
 {
         int tmp = 0;
         int rtc_freq;

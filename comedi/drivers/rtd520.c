@@ -182,7 +182,7 @@ typedef struct rtdBoard_struct{
     int		fifoLen;
 } rtdBoard;
 
-rtdBoard rtd520Boards[] = {
+static rtdBoard rtd520Boards[] = {
     {
 	name:		"DM7520",
 	device_id:	0x7520,
@@ -499,33 +499,14 @@ typedef struct{
 static int rtd_attach (comedi_device *dev, comedi_devconfig *it);
 static int rtd_detach (comedi_device *dev);
 
-comedi_driver rtd520Driver={
+static comedi_driver rtd520Driver={
     driver_name:	"rtd520",
     module:		THIS_MODULE,
     attach:		rtd_attach,
     detach:		rtd_detach,
-
-    /* It is not necessary to implement the following members if you are
-     * writing a driver for a ISA PnP or PCI card */
-    /* Most drivers will support multiple types of boards by
-     * having an array of board structures.  These were defined
-     * in rtd520Boards[] above.  Note that the element 'name'
-     * was first in the structure -- Comedi uses this fact to
-     * extract the name of the board without knowing any details
-     * about the structure except for its length.
-     * When a device is attached (by comedi_config), the name
-     * of the device is given to Comedi, and Comedi tries to
-     * match it by going through the list of board names.  If
-     * there is a match, the address of the pointer is put
-     * into dev->board_ptr and driver->attach() is called.
-     *
-     * Note that these are not necessary if you can determine
-     * the type of board in software.  ISA PnP, PCI, and PCMCIA
-     * devices are such boards.
-     */
-    board_name:	rtd520Boards,
+    board_name:		rtd520Boards,
     offset:		sizeof(rtdBoard),
-    num_names:	sizeof(rtd520Boards) / sizeof(rtdBoard),
+    num_names:		sizeof(rtd520Boards) / sizeof(rtdBoard),
 };
 
 static int rtd_ai_rinsn (comedi_device *dev, comedi_subdevice *s,

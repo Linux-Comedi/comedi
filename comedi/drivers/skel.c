@@ -54,7 +54,7 @@ typedef struct skel_board_struct{
 	int ai_bits;
 	int have_dio;
 }skel_board;
-skel_board skel_boards[] = {
+static skel_board skel_boards[] = {
 	{
 	name:		"skel-100",
 	ai_chans:	16,
@@ -99,7 +99,7 @@ typedef struct{
  */
 static int skel_attach(comedi_device *dev,comedi_devconfig *it);
 static int skel_detach(comedi_device *dev);
-comedi_driver driver_skel={
+static comedi_driver driver_skel={
 	driver_name:	"dummy",
 	module:		THIS_MODULE,
 	attach:		skel_attach,

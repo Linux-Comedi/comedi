@@ -94,7 +94,7 @@
 
 #define DADATA	8	// FIRST D/A DATA REGISTER (0)
 
-comedi_lrange cb_pcidda_ranges =
+static comedi_lrange cb_pcidda_ranges =
 {
 	6,
 	{
@@ -212,7 +212,7 @@ typedef struct
  */
 static int cb_pcidda_attach(comedi_device *dev,comedi_devconfig *it);
 static int cb_pcidda_detach(comedi_device *dev);
-comedi_driver driver_cb_pcidda={
+static comedi_driver driver_cb_pcidda={
 	driver_name:	"cb_pcidda",
 	module:		THIS_MODULE,
 	attach:		cb_pcidda_attach,

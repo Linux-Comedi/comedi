@@ -97,8 +97,8 @@
 
 #define RANGE_mA(a,b)		{(a)*1e6,(b)*1e6,UNIT_mA}
 
-comedi_lrange range_4_20mA={ 1, {RANGE_mA(4,20)}};
-comedi_lrange range_0_20mA={ 1, {RANGE_mA(0,20)}};
+static comedi_lrange range_4_20mA={ 1, {RANGE_mA(4,20)}};
+static comedi_lrange range_0_20mA={ 1, {RANGE_mA(0,20)}};
 
 static comedi_lrange *rangelist_726[]={
 	&range_unipolar5, &range_unipolar10, 
@@ -156,7 +156,7 @@ static boardtype boardtypes[] =
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((boardtype *)dev->board_ptr)
 
-comedi_driver driver_pcl726={
+static comedi_driver driver_pcl726={
 	driver_name:	"pcl726",
 	module:		THIS_MODULE,
 	attach:		pcl726_attach,

@@ -40,37 +40,37 @@
 
 static char *driver_name = "dt2811";
 
-comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
+static comedi_lrange range_dt2811_pgh_ai_5_unipolar = { 4, {
 	RANGE( 0,	5 ),
 	RANGE( 0,	2.5 ),
 	RANGE( 0,	1.25 ),
 	RANGE( 0,	0.625 )
 }};
-comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
+static comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = { 4, {
 	RANGE( -2.5,	2.5 ),
 	RANGE( -1.25,	1.25 ),
 	RANGE( -0.625,	0.625 ),
 	RANGE( -0.3125,	0.3125 )
 }};
-comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
+static comedi_lrange range_dt2811_pgh_ai_5_bipolar = { 4, {
 	RANGE( -5,	5 ),
 	RANGE( -2.5,	2.5 ),
 	RANGE( -1.25,	1.25 ),
 	RANGE( -0.625,	0.625 )
 }};
-comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
+static comedi_lrange range_dt2811_pgl_ai_5_unipolar = { 4, {
 	RANGE( 0,	5 ),
 	RANGE( 0,	0.5 ),
 	RANGE( 0,	0.05 ),
 	RANGE( 0,	0.01 )
 }};
-comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
+static comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = { 4, {
 	RANGE( -2.5,	2.5 ),
 	RANGE( -0.25,	0.25 ),
 	RANGE( -0.025,	0.025 ),
 	RANGE( -0.005,	0.005 )
 }};
-comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
+static comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 	RANGE( -5,	5 ),
 	RANGE( -0.5,	0.5 ),
 	RANGE( -0.05,	0.05 ),
@@ -196,7 +196,7 @@ static boardtype boardtypes[]={
 
 static int dt2811_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2811_detach(comedi_device *dev);
-comedi_driver driver_dt2811={
+static comedi_driver driver_dt2811={
 	driver_name:	"dt2811",
 	module:		THIS_MODULE,
 	attach:		dt2811_attach,

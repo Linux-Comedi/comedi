@@ -146,7 +146,7 @@ typedef struct pci230_board_struct{
 	int ao_bits;	
 	int have_dio;
 }pci230_board;
-pci230_board pci230_boards[] = {
+static pci230_board pci230_boards[] = {
 	{
 	name:		"Amplicon PCI230",
 	id:		PCI_DEVICE_ID_PCI230,
@@ -222,7 +222,7 @@ static comedi_lrange pci230_ao_range = { 2, {
  */
 static int pci230_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci230_detach(comedi_device *dev);
-comedi_driver driver_amplc_pci230={
+static comedi_driver driver_amplc_pci230={
 	driver_name:	"amplc_pci230",
 	module:		THIS_MODULE,
 	attach:		pci230_attach,

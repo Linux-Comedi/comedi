@@ -127,7 +127,7 @@ typedef int bool;
 #define PCL711_TIMEOUT 100
 #define PCL711_DRDY 0x10
 
-int i8253_osc_base = 500;	/* 2 Mhz */
+static int i8253_osc_base = 500;	/* 2 Mhz */
 
 typedef struct {
 	char *name;
@@ -153,7 +153,7 @@ static boardtype boardtypes[] =
 
 static int pcl711_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl711_detach(comedi_device *dev);
-comedi_driver driver_pcl711={
+static comedi_driver driver_pcl711={
 	driver_name:	"pcl711",
 	module:		THIS_MODULE,
 	attach:		pcl711_attach,

@@ -70,7 +70,7 @@
 
 static int dt2801_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2801_detach(comedi_device *dev);
-comedi_driver driver_dt2801={
+static comedi_driver driver_dt2801={
 	driver_name:	"dt2801",
 	module:		THIS_MODULE,
 	attach:		dt2801_attach,
@@ -419,7 +419,7 @@ static int probe_number_of_ai_chans(comedi_device *dev)
 }
 
 
-comedi_lrange *dac_range_table[]={
+static comedi_lrange *dac_range_table[]={
 	&range_bipolar10,
 	&range_bipolar5,
 	&range_bipolar2_5,
@@ -427,20 +427,13 @@ comedi_lrange *dac_range_table[]={
 	&range_unipolar5
 };
 
-comedi_lrange *dac_range_lkup(int opt)
+static comedi_lrange *dac_range_lkup(int opt)
 {
 	if(opt<0 || opt>5)return &range_unknown;
 	return dac_range_table[opt];
 }
 
-comedi_lrange *ai_range_table[]={
-	&range_dt2801_ai_pgl_bipolar,
-	&range_bipolar5,
-	&range_bipolar2_5,
-	&range_unipolar10,
-	&range_unipolar5
-};
-comedi_lrange *ai_range_lkup(int type,int opt)
+static comedi_lrange *ai_range_lkup(int type,int opt)
 {
 	switch(type){
 	case 0:
