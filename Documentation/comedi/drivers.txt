@@ -128,29 +128,41 @@ Please report any sucesses/failures.
 
 
 
-Driver: das08-new.o
+Driver: das08.o
 Description: DAS-08 compatible boards
 Authors: Warren Jasper, ds
-Status: in development
+Status: works
 
 This is a rewrite of the das08 and das08jr drivers.
 
+Options (for ISA cards):
+	[0] - base io address
 
-Driver: das08.o
+Options (for pci-das08):
+	[0] - bus  (optional)
+	[1] = slot (optional)
+
+The das08 driver doesn't support asynchronous commands, since
+the el cheapo das08 hardware doesn't really support them.  The
+comedi_rt_timer driver can be used to emulate commands for this
+driver.
+
+
+Driver: das08-old.o
 Description: ComputerBoards, Keithley Metrabyte DAS-08
 Authors: Warren Jasper, ds
 Status: unknown
 
 
 
-Driver: das08jr.o
+Driver: das08jr-old.o
 Description: ComputerBoards DAS-08jr-AO
 Authors: Jochen Küpper <jochen@pc1.uni-duesseldorf.de>, ds
 Status: unknown
 
 
 
-Driver: das16-new.o
+Driver: das16.o
 Description: DAS16 compatible boards
 Authors: Sam Moore, Warren Jasper, ds
 Status: in development
@@ -158,14 +170,14 @@ Status: in development
 A rewrite of the das16 and das1600 drivers.
 
 
-Driver: das16.o
+Driver: das16-old.o
 Description: CIO-DAS16 (& compatibles)
 Authors: Sam Moore, Warren Jasper, ds
 Status: unknown
 
 
 
-Driver: das1600.o
+Driver: das1600-old.o
 Description: Keithley Metrabyte DAS1600 (& compatibles)
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 
@@ -215,8 +227,8 @@ Description: Keithley Metrabyte DAS1800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
 Status: works
 
-Presently it is not safe to run at real-time priority with dma
-enabled. The waveform analog output on the 'ao' cards is not supported.
+Presently dma is disabled if you enable hard real-time support for comedi.
+The waveform analog output on the 'ao' cards is not supported.
 If you need it, send me (Frank Hess) an email. Recognizes the
 following board names:
 
@@ -261,13 +273,12 @@ Status: works
 
 Recognizes the following board names:
 
-das800
 das-800
 das-801
 das-802
 cio-das800
-cio-das800
-cio-das800
+cio-das801
+cio-das802
 
 Configuration options:
 	[0] - base io address
