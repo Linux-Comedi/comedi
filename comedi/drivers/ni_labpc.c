@@ -1252,7 +1252,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	{
 		case TRIG_EXT:
 			devpriv->command2_bits |= HWTRIG_BIT;
-			devpriv->command2_bits &= ~PRETRIG_BIT & SWTRIG_BIT;
+			devpriv->command2_bits &= ~PRETRIG_BIT & ~SWTRIG_BIT;
 			break;
 		case TRIG_NOW:
 			devpriv->command2_bits |= SWTRIG_BIT;
