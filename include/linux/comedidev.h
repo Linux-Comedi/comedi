@@ -33,6 +33,8 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <asm/uaccess.h>
 
 #include <linux/comedi.h>
@@ -341,23 +343,37 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 		return sizeof( sampl_t );
 }
 
-#if 0
-int write_to_async_buffer( comedi_async *async, const void *array,
-	unsigned int num_bytes, unsigned int from_user_space );
-int read_from_async_buffer( comedi_async *async, void *destination,
-	unsigned int num_bytes, unsigned int from_user_space );
-void __comedi_buf_put_array(comedi_async *async, void* array,
-	unsigned int num_bytes, unsigned int bytes_per_sample );
-void comedi_buf_put_array(comedi_async *async, sampl_t *array,
-	unsigned int num_samples );
-void comedi_buf_put_long_array(comedi_async *async, lsampl_t *array,
-	unsigned int num_samples );
-#endif
+static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
+{
+	unsigned long ret = 0UL;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
+
+	if(!pgd_none(*pgd)){
+		pmd = pmd_offset(pgd, adr);
+		if(!pmd_none(*pmd)){
+			ptep = pte_offset(pmd, adr);
+			pte = *ptep;
+			if(pte_present(pte)){
+				ret = (unsigned long) page_address(pte_page(pte));
+				ret |= (adr & (PAGE_SIZE - 1));
+			}
+		}
+	}
+	return ret;
+}
+
+static inline unsigned long kvirt_to_pa(unsigned long adr)
+{
+	unsigned long va, kva, ret;
+
+	va = VMALLOC_VMADDR(adr);
+	kva = uvirt_to_kva(pgd_offset_k(va), va);
+	ret = __pa(kva);
+	return ret;
+}
+
 int comedi_buf_put(comedi_async *async, sampl_t x);
-#if 0
-void comedi_buf_put_long(comedi_async *async, lsampl_t x);
-int comedi_buf_get_array(comedi_async *async, sampl_t *array, unsigned int num_samples);
-#endif
 int comedi_buf_get(comedi_async *async, sampl_t *x);
 
 unsigned int comedi_buf_write_n_available(comedi_async *async);
