@@ -440,7 +440,6 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	comedi_bufinfo bi;
 	comedi_subdevice *s;
 	comedi_async *async;
-	int m;
 
 	if(copy_from_user(&bi,arg, sizeof(comedi_bufinfo)))
 		return -EFAULT;
