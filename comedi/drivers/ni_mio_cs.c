@@ -95,19 +95,34 @@ static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,NULL};
 
 static ni_board ni_boards[]={
 	{	device_id:	52,
-		name:		"xe-50",
+		name:		"DAQCard-ai-16xe-50",
 		n_adchan:	16,
 		adbits:		16,
 		ai_fifo_depth:	8192,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
 		ai_speed:	800,
-		n_aochan:	2,
-		aobits:		12,
-		ao_fifo_depth:	2048,
-		ao_unipolar:	1,
+		n_aochan:	0,
+		aobits:		0,
+		ao_fifo_depth:	0,
+		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		type1,
+		caldac:		type2,
+	},
+	{	device_id:	52,
+		name:		"DAQCard-ai-16e-4",
+		n_adchan:	16,
+		adbits:		16,
+		ai_fifo_depth:	8192,
+		alwaysdither:	0,
+		gainlkup:	ai_gain_16,
+		ai_speed:	800,
+		n_aochan:	0,
+		aobits:		0,
+		ao_fifo_depth:	0,
+		ao_unipolar:	0,
+		has_8255:	0,
+		caldac:		type1, /* or ad8804 */
 	},
 };
 
@@ -272,6 +287,8 @@ static void cs_release(u_long arg)
 	CardServices(ReleaseIRQ, link->handle, &link->irq);
 
 	link->state &= ~DEV_CONFIG;
+
+	//dev->attached=1;
 }
 
 static void cs_detach(dev_link_t *link)
@@ -525,6 +542,9 @@ void mio_cs_config(dev_link_t *link)
 		return;
 	}
 }
+
+	dev->attached=1;
+	postconfig(dev);
 
 	link->dev = &dev_node;
 	link->state &= ~DEV_CONFIG_PENDING;
