@@ -29,9 +29,10 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6040E,
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
-  PCI-6110, PCI-6111, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
-  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733
-Updated: Thu Jan  1 19:38:13 EST 2004
+  PCI-6110, PCI-6111, PCI-6711, PXI-6711, PCI-6713, PXI-6713,
+  PXI-6071E, PXI-6070E,
+  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
+Updated: Mon Jan 19 11:00:27 EST 2004
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes for
@@ -491,6 +492,16 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
+	{       device_id:      0x2b90,
+		name:           "pxi-6711",
+		n_adchan:       0, /* no analog input */
+		n_aochan:	4,
+		aobits:         12,
+		ao_unipolar:    0,
+		ao_fifo_depth:  16384,
+		reg_type:	ni_reg_6711,
+		caldac:         {ad8804_debug,ad8804_debug},
+	},
 	{       device_id:      0x1870,
 		name:           "pci-6713",
 		n_adchan:       0, /* no analog input */
@@ -522,7 +533,8 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
-	{       device_id:      0x0,
+#endif
+	{       device_id:      0x2410,
 		name:           "pci-6733",
 		n_adchan:       0, /* no analog input */
 		n_aochan:	8,
@@ -532,7 +544,16 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
-#endif
+	{       device_id:      0x2420,
+		name:           "pxi-6733",
+		n_adchan:       0, /* no analog input */
+		n_aochan:	8,
+		aobits:         16,
+		ao_unipolar:    0,
+		ao_fifo_depth:  16384,
+		reg_type:	ni_reg_6713,
+		caldac:         {ad8804_debug,ad8804_debug},
+	},
 	{	device_id:      0x15b0,
 		name:           "pxi-6071e",
 		n_adchan:       64,
