@@ -1930,10 +1930,10 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	if(insn->n!=1)return -EINVAL;
 	switch(data[0]){
 	case COMEDI_OUTPUT:
-		s->io_bits &= ~(1<<CR_CHAN(insn->chanspec));
+		s->io_bits |= 1<<CR_CHAN(insn->chanspec);
 		break;
 	case COMEDI_INPUT:
-		s->io_bits |= 1<<CR_CHAN(insn->chanspec);
+		s->io_bits &= ~(1<<CR_CHAN(insn->chanspec));
 		break;
 	default:
 		return -EINVAL;
