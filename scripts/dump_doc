@@ -1,0 +1,28 @@
+#!/usr/bin/perl
+# vi: set ts=4:
+
+@ARGV = ('-') unless @ARGV;
+
+$ARGV=shift @ARGV;
+if(!open(FILE,$ARGV)){
+	warn "Can't open $ARGV: $!\n";
+	exit 1;
+}
+
+$go=0;
+while(<FILE>) {
+	if( m/^Driver: / ){
+		$go=1;
+	}
+	if( m/\*\// ){
+		if($go){
+			print "\n\n\n";
+		}
+		$go=0;
+	}
+	if( $go ){
+		#chomp;
+		print $_;
+	}
+}
+
