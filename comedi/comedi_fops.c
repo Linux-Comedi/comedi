@@ -823,6 +823,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		DPRINTK("no buffer (?)\n");
 		goto cleanup;
 	}
+	s->cmd.data = s->prealloc_buf;
 	s->cmd.data_len=s->prealloc_bufsz;
 
 #ifdef CONFIG_COMEDI_MODE_CORE
