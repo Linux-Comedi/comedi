@@ -200,6 +200,9 @@ static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned int *list);
 
+static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
+	unsigned int trignum);
+
 static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
 
 static int ni_8255_callback(int dir,int port,int data,void *arg);
@@ -772,6 +775,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 
    this is pretty harsh for a cancel, but it works...
  */
+
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 {
 #ifdef PCIDMA
@@ -1527,8 +1531,8 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	win_out(0,DAC_FIFO_Clear);
 
 	/* load some data */
-	n=(s->async->buf_int_count-s->async->buf_user_count)/sizeof(sampl_t);
-	if(n==0)return 0;
+	n=(s->async->buf_user_count-s->async->buf_int_count)/sizeof(sampl_t);
+	if(n<0)return 0;
 	if(n>boardtype.ao_fifo_depth)
 		n=boardtype.ao_fifo_depth;
 
@@ -1538,7 +1542,6 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 
 	return n;
 }
-
 
 static int ni_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -1586,6 +1589,34 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
+static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
+	unsigned int trignum)
+{
+	int ret;
+
+	if(trignum!=0)return -EINVAL;
+
+	ret = ni_ao_prep_fifo(dev,s);
+
+	win_out(devpriv->ao_mode3|AO_Not_An_UPDATE,AO_Mode_3_Register);
+	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
+
+	/* wait for DACs to be loaded */
+	udelay(100);
+
+	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
+		AO_Command_1_Register);
+
+	ni_set_bits(dev, Interrupt_B_Enable_Register,
+		AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 1);
+
+	ni_writew(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2);
+	
+	s->async->inttrig=NULL;
+
+	return 1;
+}
+
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
@@ -1621,10 +1652,6 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		ni_writew(conf,AO_Configuration);
 	}
-
-	/* user is supposed to write() to buffer before triggering */
-	if(ni_ao_prep_fifo(dev,s)==0)
-		return -EIO;
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 
@@ -1696,19 +1723,7 @@ devpriv->ao_mode2|=AO_FIFO_Mode(1);
 
 	win_out(AO_Configuration_End,Joint_Reset_Register);
 
-	win_out(devpriv->ao_mode3|AO_Not_An_UPDATE,AO_Mode_3_Register);
-	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
-
-	/* wait for DACs to be loaded */
-	udelay(100);
-
-	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
-		AO_Command_1_Register);
-
-	ni_set_bits(dev, Interrupt_B_Enable_Register,
-		AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 1);
-
-	ni_writew(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2);
+	s->async->inttrig=ni_ao_inttrig;
 	
 	return 0;
 }
@@ -1721,7 +1736,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_INT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
@@ -1895,9 +1910,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		}
 		s->insn_read=ni_ao_insn_read;
 		s->insn_write=ni_ao_insn_write;
-		s->do_cmd=ni_ao_cmd;
-		s->do_cmdtest=ni_ao_cmdtest;
-		s->len_chanlist = 2;
+		if(boardtype.ao_fifo_depth){
+			s->do_cmd=ni_ao_cmd;
+			s->do_cmdtest=ni_ao_cmdtest;
+			s->len_chanlist = 2;
+		}
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
