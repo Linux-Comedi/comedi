@@ -508,7 +508,7 @@ static pcidas64_board pcidas64_boards[] =
 		ai_speed:	50,
 		ao_nchan:	2,
 		ao_scan_speed:	0,	// no hardware pacing on ao
-		fifo_depth: 0x8000,	// 32K 32bit entries = 64K samples
+		fifo_depth: 0x10000,	// 2 fifos * 32K * 2 samples entries = 128K samples
 		layout:	LAYOUT_4020,
 		ai_range_table:	&ai_ranges_4020,
 		ai_range_bits:	NULL,
@@ -1656,8 +1656,8 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		read_segment = ADC_UPP_READ_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
 		write_segment = ADC_UPP_WRITE_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
 		// get least significant 15 bits
-		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
-		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
+		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG);
+		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG);
 
 		DEBUG_PRINT("rd seg 0x%x\n", read_segment);
 		DEBUG_PRINT("rd inx 0x%x\n", read_index);
@@ -1684,8 +1684,10 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		}
 
 		if(board(dev)->layout == LAYOUT_4020)
-			pio_drain_ai_fifo_32(dev, num_samples);
-		else
+		{
+			pio_drain_ai_fifo_32(dev, 0x4000);
+			break;
+		}else
 			pio_drain_ai_fifo_16(dev, num_samples);
 
 		if(cmd->stop_src == TRIG_COUNT && private(dev)->ai_count <= 0)
