@@ -211,7 +211,7 @@ TODO:
 #define DAC_CONTROL0_REG	0x50	// dac control register 0
 #define    DAC_ENABLE_BIT	0x8000	// dac controller enable bit
 #define DAC_CONTROL1_REG	0x52	// dac control register 0
-#define    DAC_RANGE_BITS(channel, range)	(((range) & 0x3) << (2 * ((channel) & 0x1)))
+#define    DAC_RANGE_BITS(channel, code)	(((code) & 0x3) << (2 * ((channel) & 0x1)))
 #define    DAC_OUTPUT_ENABLE_BIT	0x80	// dac output enable bit
 #define DAC_BUFFER_CLEAR_REG 0x66	// clear dac buffer
 #define DAC_CONVERT_REG(channel)	((0x70) + (2 * ((channel) & 0x1)))
@@ -247,6 +247,8 @@ TODO:
 #define DIO_8255_OFFSET	0x0
 #define DO_REG	0x20
 #define DI_REG	0x28
+#define DIO_DIRECTION_60XX_REG	0x40
+#define DIO_DATA_60XX_REG	0x48
 
 // I2C addresses for 4020
 #define RANGE_CAL_I2C_ADDR	0x40
@@ -309,7 +311,7 @@ static comedi_lrange ai_ranges_4020 =
 };
 
 // analog output ranges
-static comedi_lrange ao_ranges =
+static comedi_lrange ao_ranges_64xx =
 {
 	4,
 	{
@@ -319,8 +321,41 @@ static comedi_lrange ao_ranges =
 		UNI_RANGE(10),
 	}
 };
+static int ao_range_code_64xx[] =
+{
+	0x0,
+	0x1,
+	0x2,
+	0x3,
+};
 
-//XXX 60xx do 10V bipolar only
+static comedi_lrange ao_ranges_60xx =
+{
+	1,
+	{
+		BIP_RANGE(10),
+		UNI_RANGE(10),
+	}
+};
+static int ao_range_code_60xx[] =
+{
+	0x0,
+	0x2,
+};
+
+static comedi_lrange ao_ranges_4020 =
+{
+	2,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+	}
+};
+static int ao_range_code_4020[] =
+{
+	0x1,
+	0x0,
+};
 
 enum register_layout
 {
@@ -336,12 +371,14 @@ typedef struct pcidas64_board_struct
 	int ai_se_chans;	// number of ai inputs in single-ended mode
 	int ai_bits;	// analog input resolution
 	int ai_speed;	// fastest conversion period in ns
-	int ao_nchan;	// number of analog out channels
-	int ao_scan_speed;	// analog output speed (for a scan, not conversion)
-	int fifo_depth;	// number of entries in fifo (may be 32 bit or 16 bit entries)
-	enum register_layout layout;	// different board families have slightly different registers
 	comedi_lrange *ai_range_table;
 	int *ai_range_bits;
+	int ao_nchan;	// number of analog out channels
+	int ao_scan_speed;	// analog output speed (for a scan, not conversion)
+	comedi_lrange *ao_range_table;
+	int *ao_range_code;
+	int fifo_depth;	// number of entries in fifo (may be 32 bit or 16 bit entries)
+	enum register_layout layout;	// different board families have slightly different registers
 } pcidas64_board;
 
 static pcidas64_board pcidas64_boards[] =
@@ -358,6 +395,8 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
 		ai_range_bits:	ai_range_bits_64xx,
+		ao_range_table:	&ao_ranges_64xx,
+		ao_range_code:	ao_range_code_64xx,
 	},
 	{
 		name:		"pci-das6402/12",	// XXX check
@@ -371,6 +410,8 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
 		ai_range_bits:	ai_range_bits_64xx,
+		ao_range_table:	&ao_ranges_64xx,
+		ao_range_code:	ao_range_code_64xx,
 	},
 	{
 		name:		"pci-das64/m1/16",
@@ -384,6 +425,8 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
 		ai_range_bits:	ai_range_bits_64xx,
+		ao_range_table:	&ao_ranges_64xx,
+		ao_range_code:	ao_range_code_64xx,
 	},
 	{
 		name:		"pci-das64/m2/16",
@@ -397,6 +440,8 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
 		ai_range_bits:	ai_range_bits_64xx,
+		ao_range_table:	&ao_ranges_64xx,
+		ao_range_code:	ao_range_code_64xx,
 	},
 	{
 		name:		"pci-das64/m3/16",
@@ -410,9 +455,11 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
 		ai_range_bits:	ai_range_bits_64xx,
+		ao_range_table:	&ao_ranges_64xx,
+		ao_range_code:	ao_range_code_64xx,
 	},
 	{
-		name:		"pci-das6025e",
+		name:		"pci-das6025",
 		device_id:	0x5e,
 		ai_se_chans:	16,
 		ai_bits:	12,
@@ -423,9 +470,11 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
 		ai_range_bits:	ai_range_bits_60xx,
+		ao_range_table:	&ao_ranges_60xx,
+		ao_range_code:	ao_range_code_60xx,
 	},
 	{
-		name:		"pci-das6034e",
+		name:		"pci-das6034",
 		device_id:	0x63,
 		ai_se_chans:	16,
 		ai_bits:	16,
@@ -438,7 +487,7 @@ static pcidas64_board pcidas64_boards[] =
 		ai_range_bits:	ai_range_bits_60xx,
 	},
 	{
-		name:		"pci-das6035e",
+		name:		"pci-das6035",
 		device_id:	0x64,
 		ai_se_chans:	16,
 		ai_bits:	16,
@@ -449,6 +498,8 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
 		ai_range_bits:	ai_range_bits_60xx,
+		ao_range_table:	&ao_ranges_60xx,
+		ao_range_code:	ao_range_code_60xx,
 	},
 	{
 		name:	"pci-das4020/12",
@@ -462,6 +513,8 @@ static pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_4020,
 		ai_range_table:	&ai_ranges_4020,
 		ai_range_bits:	NULL,
+		ao_range_table:	&ao_ranges_4020,
+		ao_range_code:	ao_range_code_4020,
 	},
 #if 0
 	{
@@ -653,6 +706,8 @@ static int dio_callback(int dir, int port, int data, unsigned long arg);
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
 static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int dio_60xx_config_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int dio_60xx_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
@@ -839,7 +894,7 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	dev->n_subdevices = 7;
+	dev->n_subdevices = 8;
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
 
@@ -869,7 +924,7 @@ found:
 		s->n_chan = board(dev)->ao_nchan;
 		// analog out resolution is the same as analog input resolution, so use ai_bits
 		s->maxdata = (1 << board(dev)->ai_bits) - 1;
-		s->range_table = &ao_ranges;
+		s->range_table = board(dev)->ao_range_table;
 		s->insn_read = ao_readback_insn;
 		s->insn_write = ao_winsn;
 //XXX 4020 can't do paced analog output
@@ -882,24 +937,31 @@ found:
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	// XXX 60xxx has dio
 	// digital input
 	s = dev->subdevices + 2;
-	s->type=COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = di_rbits;
+	if(board(dev)->layout == LAYOUT_64XX)
+	{
+		s->type = COMEDI_SUBD_DI;
+		s->subdev_flags = SDF_READABLE;
+		s->n_chan = 4;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = di_rbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	// digital output
-	s = dev->subdevices + 3;
-	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = do_wbits;
+	if(board(dev)->layout == LAYOUT_64XX)
+	{
+		s = dev->subdevices + 3;
+		s->type = COMEDI_SUBD_DO;
+		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->n_chan = 4;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = do_wbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	/* 8255 */
 	s = dev->subdevices + 4;
@@ -913,9 +975,19 @@ found:
 		subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
 	}
 
-	// user counter subd XXX
+	// 8 channel dio for 60xx
 	s = dev->subdevices + 5;
-	s->type = COMEDI_SUBD_UNUSED;
+	if(board(dev)->layout == LAYOUT_60XX)
+	{
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->n_chan = 8;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_config = dio_60xx_config_insn;
+		s->insn_bits = dio_60xx_wbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	// calibration subd XXX
 	s = dev->subdevices + 6;
@@ -929,6 +1001,11 @@ found:
 		s->insn_write = calib_write_insn;
 	}else
 		s->type = COMEDI_SUBD_UNUSED;
+
+	// user counter subd XXX
+	s = dev->subdevices + 7;
+	s->type = COMEDI_SUBD_UNUSED;
+
 
 	// manual says to set this bit for boards with > 16 channels
 //	if(board(dev)->ai_se_chans > 16)
@@ -1744,7 +1821,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 
 	// set range
 	bits = DAC_OUTPUT_ENABLE_BIT;
-	bits |= DAC_RANGE_BITS(chan, range);
+	bits |= DAC_RANGE_BITS(chan, board(dev)->ao_range_code[range]);
 	writew(bits, private(dev)->main_iobase + DAC_CONTROL1_REG);
 
 	// clear buffer
@@ -1818,6 +1895,43 @@ static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 	writeb(private(dev)->do_bits, private(dev)->dio_counter_iobase + DO_REG);
 
 	data[1] = wbits;
+
+	return 2;
+}
+
+static int dio_60xx_config_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	unsigned int mask;
+
+	mask = 1 << CR_CHAN(insn->chanspec);
+
+	switch(insn->data[0])
+	{
+		case COMEDI_INPUT:
+			s->io_bits &= ~mask;
+			break;
+		case COMEDI_OUTPUT:
+			s->io_bits |= mask;
+			break;
+		default:
+			return -EINVAL;
+	}
+
+	writeb(s->io_bits, private(dev)->dio_counter_iobase + DIO_DIRECTION_60XX_REG);
+
+	return 1;
+}
+
+static int dio_60xx_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	if(data[0])
+	{
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+		writeb(s->state, private(dev)->dio_counter_iobase + DIO_DATA_60XX_REG);
+	}
+
+	data[1] = readb( private(dev)->dio_counter_iobase + DIO_DATA_60XX_REG );
 
 	return 2;
 }
