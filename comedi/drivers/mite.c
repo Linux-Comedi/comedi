@@ -150,7 +150,8 @@ int mite_setup(struct mite_struct *mite)
 #if LINUX_VERSION_CODE < 0x020300
 	addr=mite->pcidev->base_address[0];
 #else
-	//pci_enable_device(mite->pcidev);  This is causing a hang when used with PCIDMA -- 7/27/01 Tim
+	pci_enable_device(mite->pcidev);
+	pci_set_master(mite->pcidev);
 	addr=mite->pcidev->resource[0].start;
 #endif
 #endif
