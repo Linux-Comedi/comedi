@@ -1086,7 +1086,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
-		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		// reference inputs to ground or common?
 		if(aref != AREF_GROUND)
 			devpriv->command6_bits |= ADC_COMMON_BIT;
@@ -1114,7 +1113,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			devpriv->command6_bits &= ~ADC_SCAN_UP_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ai_range)
@@ -1522,7 +1520,6 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
-		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		// reference inputs to ground or common?
 		if(CR_AREF(insn->chanspec) != AREF_GROUND)
 			devpriv->command6_bits |= ADC_COMMON_BIT;
@@ -1539,7 +1536,6 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		devpriv->command6_bits &= ~A1_INTR_EN_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ai_range)
@@ -1609,7 +1605,6 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	// set range
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
-		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		range = CR_RANGE(insn->chanspec);
 		if(range & AO_RANGE_IS_UNIPOLAR)
 			devpriv->command6_bits |= DAC_UNIP_BIT(channel);
@@ -1617,7 +1612,6 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 			devpriv->command6_bits &= ~DAC_UNIP_BIT(channel);
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ao_range[channel])
 		{
