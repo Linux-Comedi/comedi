@@ -49,8 +49,6 @@ TRIG_FOLLOW is a special type of trigger for scan_begin events that
 triggers on the next lower level trigger, in this case, the trigger
 for convert events.  It may or may not be supported.  Later, it may
 also be used for start events if you want to chain multiple commands.
-I might also consider using it for convert events, to indicate the
-board maximum rate.
 
 The command strucure is as follows:
 
