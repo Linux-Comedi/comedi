@@ -208,13 +208,13 @@ static ni_board ni_boards[]={
 		n_adchan:	16,
 		adbits:		16,
 		ai_fifo_depth:	512,
-		alwaysdither:	1,	/* unknown */
+		alwaysdither:	1,
 		gainlkup:	ai_gain_14,
 		ai_speed:	10000,
 		n_aochan:	2,
-		aobits:		12,
-		ao_fifo_depth:	0,	/* unknown */
-		ao_unipolar:	0,	/* unknown */
+		aobits:		16,
+		ao_fifo_depth:	2048,
+		ao_unipolar:	1,
 		caldac:		{dac8800,dac8043,ad8522},
 		has_8255:	0,
 	},
