@@ -1,6 +1,6 @@
 /*
     ni_labpc.c driver for National Instruments Lab-PC series boards and compatibles
-    Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
+    Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     PCMCIA crap at end of file is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
     from the pcmcia package.
@@ -32,6 +32,9 @@ Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-
   Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200)
 Status: works
 
+Thanks go to Fredrik Lingvall for much testing and perseverance in
+helping to debug daqcard-1200 support.
+
 Tested with lab-pc-1200.  For the older Lab-PC+, not all input ranges
 and analog references will work, the available ranges/arefs will
 depend on how you have configured the jumpers on your board
@@ -49,15 +52,20 @@ Configuration options - PCI boards:
 Configuration options - PCMCIA boards:
   none
 
-Lab-pc+ has quirky chanlist when scanning multiple channels.  Scan
+The Lab-pc+ and daqcard-1200 have quirky chanlist requirements
+when scanning multiple channels.  Scan
 sequence must start at highest channel, then decrement down to
-channel 0.  1200 series cards can scan down like lab-pc+ or scan
+channel 0.  The rest of the cards can scan down like lab-pc+ or scan
 up from channel zero.
 
 */
 
 /*
 TODO:
+
+Move calibration stuff out of driver and into comedi_calibrate
+(requires more infrastructure for comedi_calibrate and comedilib)
+
 
 NI manuals:
 341309a (labpc-1200 register manual)
@@ -805,8 +813,13 @@ static int labpc_detach(comedi_device *dev)
 
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
 	devpriv->command3_bits = 0;
 	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
@@ -995,6 +1008,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_cmd *cmd = &async->cmd;
 	int scan_up, scan_enable;
 	enum transfer_type xfer;
+	unsigned long flags;
 
 	if(!dev->irq)
 	{
@@ -1006,8 +1020,11 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	aref = CR_AREF(cmd->chanlist[0]);
 
 	// make sure board is disabled before setting up aquisition
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
 	devpriv->command3_bits = 0;
 	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
@@ -1069,6 +1086,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		// reference inputs to ground or common?
 		if(aref != AREF_GROUND)
 			devpriv->command6_bits |= ADC_COMMON_BIT;
@@ -1096,6 +1114,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			devpriv->command6_bits &= ~ADC_SCAN_UP_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ai_range)
@@ -1141,8 +1160,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		default:
 			break;
 	}
-	if(cmd->scan_begin_src == TRIG_EXT)
-		devpriv->command4_bits |= EXT_SCAN_MASTER_EN_BIT | EXT_SCAN_EN_BIT;
 	// single-ended/differential
 	if(aref == AREF_DIFF)
 		devpriv->command4_bits |= ADC_DIFF_BIT;
@@ -1235,6 +1252,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	// command2 reg
 	// use 2 cascaded counters for pacing
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->command2_bits |= CASCADE_BIT;
 	switch(cmd->start_src)
 	{
@@ -1264,6 +1282,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			return -1;
 	}
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	return 0;
 }
@@ -1477,10 +1496,13 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	int chan, range;
 	int lsb, msb;
 	int timeout = 1000;
+	unsigned long flags;
 
 	// disable timed conversions
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// disable interrupt generation and dma
 	devpriv->command3_bits = 0;
@@ -1500,6 +1522,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		// reference inputs to ground or common?
 		if(CR_AREF(insn->chanspec) != AREF_GROUND)
 			devpriv->command6_bits |= ADC_COMMON_BIT;
@@ -1516,6 +1539,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		devpriv->command6_bits &= ~A1_INTR_EN_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ai_range)
@@ -1569,6 +1593,7 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int channel, range;
+	unsigned long flags;
 	int lsb, msb;
 
 	channel = CR_CHAN(insn->chanspec);
@@ -1576,12 +1601,15 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	// turn off pacing of analog output channel
 	/* note: hardware bug in daqcard-1200 means pacing cannot
 	 * be independently enabled/disabled for its the two channels */
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->command2_bits &= ~DAC_PACED_BIT(channel);
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// set range
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		range = CR_RANGE(insn->chanspec);
 		if(range & AO_RANGE_IS_UNIPOLAR)
 			devpriv->command6_bits |= DAC_UNIP_BIT(channel);
@@ -1589,7 +1617,7 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 			devpriv->command6_bits &= ~DAC_UNIP_BIT(channel);
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ao_range[channel])
 		{
