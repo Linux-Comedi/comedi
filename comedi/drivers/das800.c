@@ -185,7 +185,7 @@ static comedi_lrange range_das80216_ai = {
 
 enum{das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216};
 
-das800_board das800_boards[] =
+static das800_board das800_boards[] =
 {
 	{
 		name:	"das-800",
@@ -260,18 +260,18 @@ comedi_driver driver_das800={
 };
 
 static void das800_interrupt(int irq, void *d, struct pt_regs *regs);
-void enable_das800(comedi_device *dev);
-void disable_das800(comedi_device *dev);
+static void enable_das800(comedi_device *dev);
+static void disable_das800(comedi_device *dev);
 static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-int das800_probe(comedi_device *dev);
-int das800_set_frequency(comedi_device *dev);
+static int das800_probe(comedi_device *dev);
+static int das800_set_frequency(comedi_device *dev);
 
 /* checks and probes das-800 series board type */
-int das800_probe(comedi_device *dev)
+static int das800_probe(comedi_device *dev)
 {
 	int id_bits;
 	unsigned long irq_flags;
@@ -582,7 +582,7 @@ static int das800_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* enable_das800 makes the card start taking hardware triggered conversions */
-void enable_das800(comedi_device *dev)
+static void enable_das800(comedi_device *dev)
 {
 	unsigned long irq_flags;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
@@ -597,7 +597,7 @@ void enable_das800(comedi_device *dev)
 }
 
 /* disable_das800 stops hardware triggered conversions */
-void disable_das800(comedi_device *dev)
+static void disable_das800(comedi_device *dev)
 {
 	unsigned long irq_flags;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
@@ -902,7 +902,7 @@ static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 }
 
 /* loads counters with divisor1, divisor2 from private structure */
-int das800_set_frequency(comedi_device *dev)
+static int das800_set_frequency(comedi_device *dev)
 {
 	int err = 0;
 

@@ -167,7 +167,7 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 // bit in hexadecimal representation of range index that indicates unipolar input range
 #define IS_UNIPOLAR 0x4
 // analog input ranges for most boards
-comedi_lrange cb_pcidas_ranges =
+static comedi_lrange cb_pcidas_ranges =
 {
 	8,
 	{
@@ -183,7 +183,7 @@ comedi_lrange cb_pcidas_ranges =
 };
 
 // pci-das1001 input ranges
-comedi_lrange cb_pcidas_alt_ranges =
+static comedi_lrange cb_pcidas_alt_ranges =
 {
 	8,
 	{
@@ -199,7 +199,7 @@ comedi_lrange cb_pcidas_alt_ranges =
 };
 
 // analog output ranges
-comedi_lrange cb_pcidas_ao_ranges =
+static comedi_lrange cb_pcidas_ao_ranges =
 {
 	4,
 	{
@@ -1423,7 +1423,7 @@ static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int rounding_flags)
+static void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
 		&(devpriv->divisor2), ns, rounding_flags & TRIG_ROUND_MASK);

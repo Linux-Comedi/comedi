@@ -66,7 +66,8 @@ TRIG_WAKE_EOS
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	// size in bytes of dma buffer
 
-#define A2150_DEBUG	// enable debugging code
+//#define A2150_DEBUG	// enable debugging code
+#undef A2150_DEBUG	// disable debugging code
 
 /* Registers and bits */
 #define CONFIG_REG		0x0
@@ -126,7 +127,7 @@ static comedi_lrange range_a2150 = {
 
 // enum must match board indices
 enum{a2150_c, a2150_s};
-a2150_board a2150_boards[] =
+static a2150_board a2150_boards[] =
 {
 	{
 		name:	"at-a2150c",
@@ -183,7 +184,7 @@ COMEDI_INITCLEANUP(driver_a2150);
 
 #ifdef A2150_DEBUG
 
-void ni_dump_regs(comedi_device *dev)
+static void ni_dump_regs(comedi_device *dev)
 {
 	rt_printk("config bits 0x%x\n", devpriv->config_bits);
 	rt_printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
@@ -689,6 +690,10 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	enable_dma(devpriv->dma);
 	release_dma_lock(lock_flags);
 
+ 	/* clear dma interrupt before enabling it, to try and get rid of that
+	 * one spurious interrupt that has been happening */
+	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
+
 	// enable dma on card
 	devpriv->irq_dma_bits |= DMA_INTR_EN_BIT | DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
@@ -734,6 +739,7 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
+// XXX doesn't seem to work
 static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	unsigned int i, n;

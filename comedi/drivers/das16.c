@@ -258,7 +258,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs);
 
 static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int flags);
 static int das1600_mode_detect(comedi_device *dev);
-unsigned int das16_suggest_transfer_size(comedi_cmd cmd);
+static unsigned int das16_suggest_transfer_size(comedi_cmd cmd);
 
 #ifdef DEBUG
 static void reg_dump(comedi_device *dev);
@@ -1450,7 +1450,7 @@ static int das16_detach(comedi_device *dev)
 COMEDI_INITCLEANUP(driver_das16);
 
 // utility function that suggests a dma transfer size in bytes
-unsigned int das16_suggest_transfer_size(comedi_cmd cmd)
+static unsigned int das16_suggest_transfer_size(comedi_cmd cmd)
 {
 	unsigned int size;
 	unsigned int freq;

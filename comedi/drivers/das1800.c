@@ -174,9 +174,9 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static int das1800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 
-int das1800_set_frequency(comedi_device *dev);
-unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
-unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns);
+static int das1800_set_frequency(comedi_device *dev);
+static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
+static unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns);
 
 // analog input ranges
 static comedi_lrange range_ai_das1801 = {
@@ -223,7 +223,7 @@ typedef struct das1800_board_struct{
  * not always achievable depending on board setup (see
  * user manual.)
  */
-das1800_board das1800_boards[] =
+static das1800_board das1800_boards[] =
 {
 	{
 		name:	"das-1701st",
@@ -593,7 +593,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 			break;
 	}
 
-//dma stuff
+	//dma stuff
 	// need an irq to do dma
 	if(irq)
 	{
@@ -764,7 +764,7 @@ static int das1800_detach(comedi_device *dev)
 
 /* probes and checks das-1800 series board type
  */
-int das1800_probe(comedi_device *dev)
+static int das1800_probe(comedi_device *dev)
 {
 	int id;
 	int board;
@@ -1297,7 +1297,7 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 // first, some utility functions used in the main ai_do_cmd()
 
 // returns appropriate bits for control register a, depending on command
-int control_a_bits(comedi_cmd cmd)
+static int control_a_bits(comedi_cmd cmd)
 {
 	int control_a;
 
@@ -1322,7 +1322,7 @@ int control_a_bits(comedi_cmd cmd)
 }
 
 // returns appropriate bits for control register c, depending on command
-int control_c_bits(comedi_cmd cmd)
+static int control_c_bits(comedi_cmd cmd)
 {
 	int control_c;
 	int aref;
@@ -1372,7 +1372,7 @@ int control_c_bits(comedi_cmd cmd)
 }
 
 // sets up counters
-int setup_counters(comedi_device *dev, comedi_cmd cmd)
+static int setup_counters(comedi_device *dev, comedi_cmd cmd)
 {
 	// setup cascaded counters for conversion/scan frequency
 	switch(cmd.scan_begin_src)
@@ -1413,7 +1413,7 @@ int setup_counters(comedi_device *dev, comedi_cmd cmd)
 }
 
 // sets up dma
-void setup_dma(comedi_device *dev, comedi_cmd cmd)
+static void setup_dma(comedi_device *dev, comedi_cmd cmd)
 {
 	unsigned long lock_flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
@@ -1465,7 +1465,7 @@ void setup_dma(comedi_device *dev, comedi_cmd cmd)
 }
 
 // programs channel/gain list into card
-void program_chanlist(comedi_device *dev, comedi_cmd cmd)
+static void program_chanlist(comedi_device *dev, comedi_cmd cmd)
 {
 	int i, n, chan_range;
 	unsigned long irq_flags;
@@ -1680,7 +1680,7 @@ static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn
 }
 
 /* loads counters with divisor1, divisor2 from private structure */
-int das1800_set_frequency(comedi_device *dev)
+static int das1800_set_frequency(comedi_device *dev)
 {
 	int err = 0;
 
@@ -1697,7 +1697,7 @@ int das1800_set_frequency(comedi_device *dev)
 /* converts requested conversion timing to timing compatible with
  * hardware, used only when card is in 'burst mode'
  */
-unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
+static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 {
 	unsigned int micro_sec;
 
@@ -1725,7 +1725,7 @@ unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 }
 
 // utility function that suggests a dma transfer size based on the conversion period 'ns'
-unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns)
+static unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns)
 {
 	unsigned int size;
 	unsigned int freq = 1000000000 / ns;
