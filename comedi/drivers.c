@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/comedidev.h>
 #include <linux/wrapper.h>
+#include <linux/highmem.h>  /* for SuSE brokenness */
 
 #include <asm/io.h>
 
