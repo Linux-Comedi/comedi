@@ -1308,7 +1308,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		win_out(AI_START2_Select(0)|
 			AI_START1_Sync|AI_START1_Edge|
-			AI_START1_Select(chan),
+			AI_START1_Select(chan + 1),
 			AI_Trigger_Select_Register);
 		break;
 	}
@@ -1820,6 +1820,8 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 		/* AREF_OTHER connects AO ground to AI ground, i think */
 		conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
 
+		devpriv->ao_conf[chan] = conf;
+
 		ni_writew(conf,AO_Configuration);
 	}
 
@@ -2075,11 +2077,11 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 {
-	devpriv->ao0p=0x0000;
-	ni_writew(devpriv->ao0p,AO_Configuration);
+	//devpriv->ao0p=0x0000;
+	//ni_writew(devpriv->ao0p,AO_Configuration);
 
-	devpriv->ao1p=AO_Channel(1);
-	ni_writew(devpriv->ao1p,AO_Configuration);
+	//devpriv->ao1p=AO_Channel(1);
+	//ni_writew(devpriv->ao1p,AO_Configuration);
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 	win_out(AO_Disarm,AO_Command_1_Register);
@@ -2277,7 +2279,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->insn_bits = ni_pfi_insn_bits;
 	s->insn_config = ni_pfi_insn_config;
-	ni_set_bits(dev, IO_Bidirection_Pin_Register, 0x3ff, 0);
+	s->io_bits = 0;
+	win_out(s->io_bits, IO_Bidirection_Pin_Register);
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
@@ -3122,17 +3125,16 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 	switch(data[0]){
 	case COMEDI_OUTPUT:
-		s->io_bits |= 1<<chan;
-		ni_set_bits(dev, IO_Bidirection_Pin_Register, (1<<chan), 1);
+		s->io_bits |= (1<<chan);
 		break;
 	case COMEDI_INPUT:
 		s->io_bits &= ~(1<<chan);
-		ni_set_bits(dev, IO_Bidirection_Pin_Register, (1<<chan), 0);
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	win_out(s->io_bits, IO_Bidirection_Pin_Register);
 	return 1;
 }
 
