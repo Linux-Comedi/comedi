@@ -30,7 +30,7 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
   PCI-6110E, PCI-6111E, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
-  PXI-6052E
+  PXI-6052E, PCI-6036E
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes above for
@@ -145,6 +145,7 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ NI_VENDOR_ID, 0x11b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ NI_VENDOR_ID, 0x18c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ NI_VENDOR_ID, 0x1580, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2890, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
@@ -519,6 +520,21 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
 		caldac:         type2,
+	},
+	{       device_id:      0x2890,
+		name:           "pci-6036e",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,
+		alwaysdither:   1,
+		gainlkup:       ai_gain_4,
+		ai_speed:	5000,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  0,
+		ao_unipolar:    0,
+		caldac:         type3,
+		has_8255:	0,
 	},
 };
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
