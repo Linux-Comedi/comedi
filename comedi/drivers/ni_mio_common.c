@@ -232,6 +232,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short status);
 /*status must be long because the CHSR is 32 bits and the high bits
 are important to us */
 static void mite_handle_interrupt(comedi_device *dev,unsigned long status);
+void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop);
 #endif
 
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to 
@@ -330,15 +331,30 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
 	comedi_event(dev,s,COMEDI_CB_BLOCK);
 
 	MDPRINTK("mite_handle_interrupt\n");
-	MDPRINTK("MITE generated an int!!\n");
 	writel(CHOR_CLRLC, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
+#if 0
+	//Don't munge the data, just update the user's status variables
 	s->async->buf_int_count=mite_bytes_transferred(devpriv->mite, 0);
 	s->async->buf_int_ptr= s->async->buf_int_count % s->async->prealloc_bufsz;     
+#else
+	//Munge the ADC data to change its format from twos complement to unsigned int
+	//This is slow but makes it more compatible with other cards
+	{ 
+	unsigned int raw_ptr;
+	s->async->buf_int_count = mite_bytes_transferred(devpriv->mite, 0);
+	raw_ptr = s->async->buf_int_count % s->async->prealloc_bufsz;
+	if(s->async->buf_int_ptr > raw_ptr) {
+		ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf, 
+			s->async->prealloc_buf+s->async->prealloc_bufsz);
+		s->async->buf_int_ptr = 0;
+	}
+	ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf, 
+		raw_ptr+s->async->prealloc_buf);
+	s->async->buf_int_ptr = raw_ptr;
+	}
+#endif
 	MDPRINTK("CHSR is 0x%08lx, count is %d\n",m_status,s->async->buf_int_count);
 	if(m_status&CHSR_DONE){
-#ifdef DEBUG_MITE
-		mite_dump_regs(devpriv->mite);
-#endif  
 		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
 		//printk("buf_int_count is %d, buf_int_ptr is %d\n",
 		//		s->async->buf_int_count,s->async->buf_int_ptr);
@@ -346,8 +362,9 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
 	}       
 	MDPRINTK("exit mite_handle_interrupt\n");
 	return; 
-}       
-#endif
+}      
+
+#endif //PCIDMA
 
 static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 {
@@ -420,9 +437,11 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 			ack|=AI_START1_Interrupt_Ack;
 		}
 	}
+#ifndef PCIDMA
 	if(status&AI_FIFO_Half_Full_St){
 		ni_handle_fifo_half_full(dev);
 	}
+#endif //PCIDMA
 	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
 		ni_handle_fifo_dregs(dev);
 
@@ -538,6 +557,24 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 }
 
 #ifdef PCIDMA
+void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop)
+{
+	comedi_async *async = s->async;
+	int j;
+	sampl_t *i;
+	unsigned int mask;
+
+	mask=(1<<boardtype.adbits)-1;
+	j=async->cur_chan;
+	for(i=start;i<stop;i++){
+		*i ^=devpriv->ai_xorlist[j];
+		*i &=mask;
+		j++;
+		j %= async->cur_chanlist_len;
+	}
+	async->cur_chan=j;
+}
+
 static void ni_handle_block_dma(comedi_device *dev)
 {
 	MDPRINTK("ni_handle_block_dma\n");

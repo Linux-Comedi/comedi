@@ -469,11 +469,11 @@ void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan,int d
 
 int mite_bytes_transferred(struct mite_struct *mite, int chan)
 {
-	int bytes;
+	int DAR, FCR;
 	
-	bytes = readl(mite->mite_io_addr+MITE_DAR+CHAN_OFFSET(chan));
-	bytes -= readl(mite->mite_io_addr+MITE_FCR+CHAN_OFFSET(chan)) & 0x000000FF;
-	return bytes;
+	DAR = readl(mite->mite_io_addr+MITE_DAR+CHAN_OFFSET(chan));
+	FCR = readl(mite->mite_io_addr+MITE_FCR+CHAN_OFFSET(chan)) & 0x000000FF;
+	return DAR-FCR;
 }
 
 int mite_dma_tcr(struct mite_struct *mite)
