@@ -875,10 +875,11 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "spurious interrupt");
 		return;
 	}
-	/* clear interrupt */
-	outb(FNE, dev->iobase + DAS1800_STATUS);
 
 	das1800_ai_handler(dev, status);
+
+	/* clear interrupt */
+	outb(FNE, dev->iobase + DAS1800_STATUS);
 
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }

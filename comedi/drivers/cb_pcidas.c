@@ -1281,8 +1281,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	// if fifo half-full
 	if(status & ADHFI)
 	{
-		// clear half-full interrupt latch
-		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		// read data
 		insw(devpriv->adc_fifo + ADCDATA, data, half_fifo);
 		for(i = 0; i < half_fifo; i++)
@@ -1299,11 +1297,11 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		async->events |= COMEDI_CB_BLOCK;
+		// clear half-full interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 	// else if fifo not empty
 	}else if(status & (ADNEI | EOBI))
 	{
-		// clear not-empty interrupt latch
-		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		for(i = 0; i < timeout; i++)
 		{
 			// break if fifo is empty
@@ -1320,6 +1318,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		async->events |= COMEDI_CB_BLOCK;
+		// clear not-empty interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 	}else if(status & EOAI)
 	{
 		comedi_error(dev, "bug! encountered end of aquisition interrupt?");
@@ -1373,8 +1373,6 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 	}
 	if(status & DAHFI)
 	{
-		// clear half-full interrupt latch
-		outw(devpriv->adc_fifo_bits | DAHFI, devpriv->control_status + INT_ADCFIFO);
 		// figure out how many points we are writing to fifo
 		num_points = half_fifo;
 		if(cmd->stop_src == TRIG_COUNT &&
@@ -1392,6 +1390,8 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 		// write data to board's fifo
 		outsw(devpriv->ao_registers + DACDATA, data, i);
 		async->events |= COMEDI_CB_BLOCK;
+		// clear half-full interrupt latch
+		outw(devpriv->adc_fifo_bits | DAHFI, devpriv->control_status + INT_ADCFIFO);
 	}
 }
 
