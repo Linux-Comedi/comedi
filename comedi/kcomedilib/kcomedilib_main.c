@@ -41,6 +41,10 @@
 #include <linux/comedilib.h>
 
 
+MODULE_AUTHOR("David Schleef <ds@schleef.org>");
+MODULE_DESCRIPTION("Comedi kernel library");
+MODULE_LICENSE("GPL");
+
 extern volatile int rtcomedi_lock_semaphore;
 
 
