@@ -409,6 +409,18 @@ int mite_buf_alloc(struct mite_struct *mite, comedi_async *async,
 #ifdef USE_KMALLOC
 		kfree(async->prealloc_buf);
 #else
+		{       
+			unsigned long addr = (unsigned long)async->prealloc_buf;
+			unsigned long size = async->prealloc_bufsz;
+			unsigned long page;
+
+			while(size>0){
+				page = kvirt_to_pa(addr);
+				mem_map_unreserve(virt_to_page(__va(page)));
+				addr += PAGE_SIZE;
+				size -= PAGE_SIZE;
+			}
+		}       
 		vfree(async->prealloc_buf);
 #endif
 		async->prealloc_buf = NULL;
@@ -420,6 +432,18 @@ int mite_buf_alloc(struct mite_struct *mite, comedi_async *async,
 		async->prealloc_buf = kmalloc(new_size, GFP_KERNEL);
 #else
 		async->prealloc_buf = vmalloc_32(new_size);
+		{       
+			unsigned long addr = (unsigned long)async->prealloc_buf;
+			unsigned long size = async->prealloc_bufsz;
+			unsigned long page;
+
+			while(size>0){
+				page = kvirt_to_pa(addr);
+				mem_map_reserve(virt_to_page(__va(page)));
+				addr += PAGE_SIZE;
+				size -= PAGE_SIZE;
+			}
+		}       
 #endif
 		if(async->prealloc_buf == NULL){
 			async->prealloc_bufsz = 0;
