@@ -119,7 +119,7 @@ udelay(10);
 		hi=inb(dev->iobase+DT2814_DATA);
 		lo=inb(dev->iobase+DT2814_DATA);
 
-		data[i]=(hi<<4)|(lo>>4);
+		data[n]=(hi<<4)|(lo>>4);
 	}
 	
 	return n;
