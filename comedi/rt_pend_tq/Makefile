@@ -28,15 +28,3 @@ MX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-m)))
 
 include $(TOPDIR)/Rules.make
 
-ifdef CONFIG_COMEDI_RTL
-#rt_pend_tq.o : rt_pend_tq_rtl.c
-
-endif
-
-ifdef CONFIG_COMEDI_RTAI
-#rt_pend_tq.o : rt_pend_tq_rtai.c
-
-endif
-
-
-
