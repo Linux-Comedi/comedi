@@ -198,38 +198,13 @@ static void das6402_ai_fifo_read(comedi_device *dev,sampl_t *data,int n)
 #endif
 
 
-/*
- *  I know that this looks like terribly complicated code for doing
- *  such a simple task, but it is fast.
- */
 static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s)
 {
-	int n,i;
-	sampl_t *data;
-
 	while(1){
-		data=s->async->data+s->async->buf_int_ptr;
-		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		for(i=0;i<n;i++){
-			if(!(inb(dev->iobase+8)&0x01))
-				return;
-			*data=inw(dev->iobase);
-			data++;
-			s->async->buf_int_ptr+=sizeof(sampl_t);
-			s->async->buf_int_count+=sizeof(sampl_t);
-		}
-		s->async->buf_int_ptr=0;
-		s->async->events |= COMEDI_CB_EOBUF;
+		if(!(inb(dev->iobase+8)&0x01))
+			return;
+		comedi_buf_put( s->async, inw(dev->iobase) );
 	}
-#if 0
-	if (n>1024) {
-		printk("das6402: Someting is very wrong with the card fifo!\n");
-		/*
-		 *  Not really...  Additional samples might be placed into the
-		 *  fifo after the interrupt, but before the last one is read.
-		 */
-	}
-#endif
 }
 
 static int das6402_ai_cancel(comedi_device *dev,comedi_subdevice *s)
