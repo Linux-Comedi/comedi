@@ -55,6 +55,9 @@ LINUX_MODULE_EXT="$LINUX_MODULE_EXT"
 STRIP="$STRIP"
 CFLAGS="$CFLAGS $LINUX_CFLAGS"
 LINUX_DIR="$LINUX_DIR"
+LINUX_MODULE_STYLE="$LINUX_MODULE_STYLE"
+DEPMOD="$DEPMOD"
+LINUX_KERNELRELEASE="$LINUX_KERNELRELEASE"
 
 mode=\$[1]
 shift
@@ -82,7 +85,8 @@ case \$mode in
                 esac
         done
 
-	if test "\$LINUX_MODULE_EXT" = .ko ; then
+	case "\$LINUX_MODULE_STYLE" in
+	2.6.6)
 		set -x
 		mkdir -p .mods
 
@@ -107,10 +111,15 @@ case \$mode in
 		echo \$LINUX_LD -r -o \$target.ko .mods/\$target.mod.o .mods/\$target.o
 		\$LINUX_LD -r -o \$target.ko .mods/\$target.mod.o .mods/\$target.o
 		set +x
-	else
+
+		;;
+	2.6.0)
+		;;
+	2.4.0)
 		echo \$LINUX_LD -r -o \$target.ko \$[*]
 		\$LINUX_LD -r -o \$target.ko \$[*]
-	fi
+		;;
+	esac
 
 	;;
 --install)
@@ -125,6 +134,12 @@ case \$mode in
 	module_dest=\`echo \$[2] | sed "s/\.ko$/\${LINUX_MODULE_EXT}/"\`
 	echo uninstall "\$module_src" "\$module_dest"
 	rm -f "\$module_dest"
+	;;
+--finish)
+	# run depmod here
+	if [ "$prefix" = "/" ] ; then
+		\$DEPMOD -ae \$LINUX_KERNELRELEASE
+	fi
 	;;
 *)
 	echo Unknown mode \$mode >&2

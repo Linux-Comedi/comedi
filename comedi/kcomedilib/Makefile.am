@@ -8,4 +8,7 @@ kcomedilib_ko_LINK = $(top_builddir)/modtool --link -o $@ -i ../.mods/comedi.o.s
 #ksyms.o: ksyms.c
 #	$(CC) -o $@ ksyms.c $(CFLAGS) $(COMEDI_CFLAGS) $(LINUX_CFLAGS) -DEXPORT_SYMTAB
 
+clean-modulePROGRAMS:
+	-test -z "$(module_PROGRAMS)" || rm -f $(module_PROGRAMS)
+	-rm -rf .mods
 

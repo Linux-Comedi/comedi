@@ -48,6 +48,8 @@ dnl LINUX_LD
 dnl   Path to linker (possibly with options) used by Linux.
 dnl LINUX_AS
 dnl   Assembler used by Linux.
+dnl LINUX_MODULE_STYLE
+dnl   Style of module building (2.4.0, 2.6.0, 2.6.6)
 dnl LINUX_MODULE_EXT
 dnl   Module extension (.o or .ko)
 dnl LINUX_MODPOST
@@ -69,10 +71,10 @@ AC_DEFUN([AS_LINUX],
 	AS_LINUX_MACHINE() 	 
 	dnl check if the user supplied an rpm target arch
 	dnl override the LINUX_MACHINE value if he did
-	AS_LINUX_RPM_TARGET($LINUX_KERNEL_RELEASE) 	 
+	AS_LINUX_RPM_TARGET() 	 
   	 
 	dnl find the kernel source tree for the given uname -r 	 
-	AS_LINUX_DIR($LINUX_KERNEL_RELEASE) 	 
+	AS_LINUX_DIR()
 	dnl check if user supplied an EXTRAVERSION, and if not get from uname -r
 	AS_LINUX_EXTRAVERSION($LINUX_KERNEL_RELEASE) 	 
 	dnl check if user supplied a config file; if not, guess a good one
@@ -119,7 +121,7 @@ AC_DEFUN([AS_LINUX_DIR],
 	fi
 
 	if test "${LINUX_DIR}" = "default" ; then
-		dir="/lib/modules/`uname -r`/build";
+		dir="/lib/modules/$LINUX_KERNEL_RELEASE/build";
 		AS_TRY_LINUX_DIR([${dir}], [LINUX_DIR=${dir}], )
 	fi
 	if test "${LINUX_DIR}" = "default" ; then
@@ -198,7 +200,7 @@ dnl this macro possibly overrides LINUX_MACHINE
 dnl first argument is the kernel release building for
 AC_DEFUN([AS_LINUX_RPM_TARGET],
 [
-	RELEASE=$1
+	RELEASE=$LINUX_KERNEL_RELEASE
 	AC_ARG_WITH([rpm-target],
 		[AC_HELP_STRING([--with-rpm-target=TARGET],
 			[specify the target arch to build for])],
@@ -209,13 +211,22 @@ AC_DEFUN([AS_LINUX_RPM_TARGET],
 		dnl if we have rpm, try to guess the target of the kernel
 		dnl we want to build for using rpm
 		AC_PATH_PROG(RPM, rpm, yes, no)
-		if test "x$RPM" = "xyes"
-		then
-			if rpm -q kernel-$RELEASE > /dev/null
-			then
-				LINUX_RPM_TARGET=`rpm -q --queryformat %{arch} kernel-$RELEASE`
+		if test "x$RPM" != "xno" ; then
+			AC_MSG_CHECKING([if rpm can be used to query packages])
+			if rpm -qa >/dev/null 2>/dev/null ; then
+			  rpm_check=yes
 			else
-				AC_MSG_NOTICE([Cannot guess target arch, consider setting it using --with-rpm-target])
+			  rpm_check=no
+			fi
+			AC_MSG_RESULT($rpm_check)
+
+			if test "x$rpm_check" = yes ; then
+			  if rpm -q kernel-$RELEASE > /dev/null
+			  then
+			    LINUX_RPM_TARGET=`rpm -q --queryformat %{arch} kernel-$RELEASE`
+			  else
+			    AC_MSG_NOTICE([Cannot guess target arch, consider setting it using --with-rpm-target])
+			  fi
 			fi
 		fi
 	fi
@@ -494,6 +505,7 @@ EOF
 	rm -rf ${tmpdir}
 
 	LINUX_MODULE_EXT=".ko"
+	LINUX_MODULE_STYLE="2.6.6"
 
 	LINUX_CFLAGS="$LINUX_CFLAGS $LINUX_CFLAGS_MODULE"
 
@@ -508,6 +520,8 @@ EOF
 	AC_SUBST(LINUX_LD)
 	AC_SUBST(LINUX_AS)
 	AC_SUBST(LINUX_MODULE_EXT)
+	AC_SUBST(LINUX_MODULE_STYLE)
+	AC_SUBST(LINUX_MODPOST)
 
 	AC_MSG_RESULT([$LINUX_CFLAGS])
 	
@@ -566,6 +580,7 @@ EOF
 	rm -rf ${tmpdir}
 
 	LINUX_MODULE_EXT=".o"
+	LINUX_MODULE_STYLE="2.4.0"
 
 	LINUX_CFLAGS="$LINUX_CFLAGS $LINUX_MODFLAGS"
 
@@ -585,6 +600,7 @@ EOF
 	AC_SUBST(LINUX_LD)
 	AC_SUBST(LINUX_AS)
 	AC_SUBST(LINUX_MODULE_EXT)
+	AC_SUBST(LINUX_MODULE_STYLE)
 
 	AC_MSG_RESULT([ok])
 

@@ -1,7 +1,11 @@
 
 SUBDIRS = comedi
 
-EXTRA_DIST = Documentation include m4 scripts autogen.sh
+EXTRA_DIST = Documentation include scripts autogen.sh \
+	m4/as-linux.m4 \
+	m4/as-modtool.m4 \
+	m4/rtai.m4 \
+	m4/rtlinux.m4
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -19,8 +23,5 @@ moo:
 	(cd comedi/drivers;for each in *.c;do ../../scripts/check_driver $$each;done >../../drivers.check)
 	(grep '^.:' drivers.check >drivers.summary)
 	
-install-data-hook:
-	if [ -z "$(DESTDIR)" ] ; then \
-		$(DEPMOD) -ae $(LINUX_KERNELRELEASE); \
-	fi
+DISTCLEANFILES = modtool
 

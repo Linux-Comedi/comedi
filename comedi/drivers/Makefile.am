@@ -232,3 +232,8 @@ ssv_dnp_ko_SOURCES = ssv_dnp.c
 comedi_test_ko_SOURCES = comedi_test.c
 usbdux_ko_SOURCES = usbdux.c
 usbduxfast_ko_SOURCES = usbduxfast.c
+
+clean-modulePROGRAMS:
+	-test -z "$(module_PROGRAMS)" || rm -f $(module_PROGRAMS)
+	-rm -rf .mods
+
