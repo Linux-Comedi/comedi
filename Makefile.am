@@ -77,7 +77,7 @@ dev:
 		; \
 	done;
 
-drivers.txt:
+Documentation/comedi/drivers.txt Documentation/comedi/devices.txt:
 	(for each in comedi/drivers/*.c;do scripts/dump_doc $$each;done >Documentation/comedi/drivers.txt)
 	scripts/doc_devlist Documentation/comedi/drivers.txt | sort >Documentation/comedi/devices.txt
 
