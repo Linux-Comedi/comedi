@@ -632,7 +632,7 @@ static int daqboard2000_8255_cb(int dir, int port, int data, void *arg)
   int result = 0;
   unsigned long ioaddr=(unsigned long)arg;
   if(dir){
-    writew(ioaddr+port,data);
+    writew(data,ioaddr+port);
     result = 0;
   }else{
     result = readw(ioaddr+port);
