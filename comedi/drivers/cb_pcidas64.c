@@ -398,6 +398,9 @@ static struct pci_device_id pcidas64_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_CB, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_CB, 0x0036, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_CB, 0x0037, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x005e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0063, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0064, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
@@ -560,34 +563,19 @@ found:
 #ifdef PCIDMA
 	pci_set_master(pcidev);
 #endif
-	plx9080_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX); 
-	main_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX); 
-	dio_counter_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX); 
+	plx9080_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX);
+	main_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX);
+	dio_counter_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX);
 
-	if(check_mem_region(plx9080_iobase, PLX9080_IOSIZE))
+	if(pci_request_regions(pcidev, driver_cb_pcidas.driver_name))
 	{
 		/* Couldn't allocate io space */
-		printk(KERN_WARNING "couldn't allocate IO space\n");
-		return -EIO;
-	}
-	if(check_mem_region(main_iobase, MAIN_IOSIZE))
-	{
-		/* Couldn't allocate io space */
-		printk(KERN_WARNING "couldn't allocate IO space\n");
-		return -EIO;
-	}
-	if(check_mem_region(dio_counter_iobase, DIO_COUNTER_IOSIZE))
-	{
-		/* Couldn't allocate io space */
-		printk(KERN_WARNING "couldn't allocate IO space\n");
+		printk(KERN_WARNING " failed to allocate io memory\n");
 		return -EIO;
 	}
 
-	request_mem_region(plx9080_iobase, PLX9080_IOSIZE, "cb_pcidas64");
 	devpriv->plx9080_phys_iobase = plx9080_iobase;
-	request_mem_region(main_iobase, MAIN_IOSIZE, "cb_pcidas64");
 	devpriv->main_phys_iobase = main_iobase;
-	request_mem_region(dio_counter_iobase, DIO_COUNTER_IOSIZE, "cb_pcidas64");
 	devpriv->dio_counter_phys_iobase = dio_counter_iobase;
 
 	// remap, won't work with 2.0 kernels but who cares
@@ -622,7 +610,7 @@ printk(" main virt io addr 0x%lx\n", devpriv->main_iobase);
 printk(" diocounter virt io addr 0x%lx\n", devpriv->dio_counter_iobase);
 printk(" irq %i\n", dev->irq);
 
-printk(" local main io addr 0x%ulx\n", devpriv->local_main_iobase);
+printk(" local main io addr 0x%x\n", devpriv->local_main_iobase);
 
 printk(" stc hardware revision %i\n", devpriv->hw_revision);
 
@@ -789,12 +777,9 @@ static int detach(comedi_device *dev)
 			iounmap((void*)devpriv->main_iobase);
 		if(devpriv->dio_counter_iobase)
 			iounmap((void*)devpriv->dio_counter_iobase);
-		if(devpriv->plx9080_phys_iobase)
-			release_mem_region(devpriv->plx9080_iobase, PLX9080_IOSIZE);
-		if(devpriv->main_iobase)
-			release_mem_region(devpriv->main_phys_iobase, MAIN_IOSIZE);
-		if(devpriv->dio_counter_iobase)
-			release_mem_region(devpriv->dio_counter_phys_iobase, DIO_COUNTER_IOSIZE);
+		if(devpriv->plx9080_phys_iobase ||
+			devpriv->main_phys_iobase || devpriv->dio_counter_phys_iobase)
+			pci_release_regions(devpriv->hw_dev);
 #ifdef PCIDMA
 		// free pci dma buffers
 		for(i = 0; i < DMA_RING_COUNT; i++)
