@@ -1430,8 +1430,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		unsigned int tmp = CR_CHAN(cmd->scan_begin_arg);
 
 		if(tmp>9)tmp=9;
-		/* XXX for now, use the top bit to invert the signal */
-		tmp |= (cmd->scan_begin_arg&0x80000000);
+		tmp |= (cmd->scan_begin_arg & (CR_INVERT | CR_EDGE));
 		if(cmd->scan_begin_arg!=tmp){
 			cmd->scan_begin_arg = tmp;
 			err++;
@@ -1654,18 +1653,15 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out(AI_SI_Load,AI_Command_1_Register);
 		break;
 	case TRIG_EXT:
-
-/* Level trigger usually doesn't work, making it the default
- * doesn't make sense.  Disabling it. */
-/*		if( cmd->scan_begin_arg & CR_EDGE ) */
-		start_stop_select |= AI_START_Edge;
+		if( cmd->scan_begin_arg & CR_EDGE )
+			start_stop_select |= AI_START_Edge;
 		/* AI_START_Polarity==1 is falling edge */
 		if( cmd->scan_begin_arg & CR_INVERT )
 			start_stop_select |= AI_START_Polarity;
 		if( cmd->scan_begin_src != cmd->convert_src ||
 			( cmd->scan_begin_arg & ~CR_EDGE ) != ( cmd->convert_arg & ~CR_EDGE ) )
 			start_stop_select |= AI_START_Sync;
-		start_stop_select |= AI_START_Select(1+(cmd->scan_begin_arg&0xf));
+		start_stop_select |= AI_START_Select(1 + CR_CHAN(cmd->scan_begin_arg));
 		win_out(start_stop_select, AI_START_STOP_Select_Register);
 		break;
 	}
