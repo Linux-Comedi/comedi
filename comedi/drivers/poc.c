@@ -21,7 +21,6 @@
 /*
 Driver: poc.o
 Description: Generic driver for very simple devices
-Device names: dac02
 Author: ds
 Devices: [Keithley Metrabyte] DAC-02 (dac02), [Advantech] PCL-733 (pcl733),
   PCL-734 (pcl734)

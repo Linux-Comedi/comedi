@@ -21,7 +21,7 @@
 */
 /*
 Driver: contec_pci_dio.o
-Description: Driver for Contec PIO1616L digital io board
+Description: Contec PIO1616L digital I/O board
 Devices: [Contec] PIO1616L (contec_pci_dio)
 Author: Stefano Rivoir <s.rivoir@gts.it>
 Updated: Mon, 18 Mar 2002 15:34:01 -0800

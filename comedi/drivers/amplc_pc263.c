@@ -24,7 +24,7 @@
 */
 /*
 Driver: amplc_pc263.o
-Description: Driver for Amplicon PC263 and PCI263 Relay boards
+Description: Amplicon PC263, PCI263
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC263 (pc263), PCI263 (pci263)
 Updated: Tue, 20 Aug 2002 11:41:01 +0100

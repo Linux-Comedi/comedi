@@ -38,8 +38,7 @@
 /*
 
 Driver: cb_pcidas64.o
-Description: Driver for the ComputerBoards/MeasurementComputing
-   PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller.
+Description: MeasurementComputing PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: works
 Updated: 2002-10-09

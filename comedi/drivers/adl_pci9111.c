@@ -25,7 +25,7 @@
 
 /*
 Driver: adl_pci9111.o
-Description: Driver for the Adlink PCI-9111HR card.
+Description: Adlink PCI-9111HR
 Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
 Devices: [ADLink] PCI-9111HR (adl_pci9111)
 Status: experimental

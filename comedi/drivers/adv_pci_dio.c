@@ -8,7 +8,7 @@
 /*
 Driver: adv_pci_dio.o
 Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1750, PCI-1751,
-             Advantech PCI-1752, PCI-1753/E, PCI-1754, PCI-1756, PCI-1762
+             PCI-1752, PCI-1753/E, PCI-1754, PCI-1756, PCI-1762
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1730 (pci1730), PCI-1733 (pci1733),
   PCI-1734 (pci1734), PCI-1750 (pci1750), PCI-1751 (pci1751),

@@ -26,7 +26,7 @@
 */
 /*
 Driver: cb_pcidda.o
-Description: ComputerBoards/MeasurementComputing PCI-DDA series
+Description: MeasurementComputing PCI-DDA series
 Author: Ivan Martinez <ivanmr@altavista.com>, Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: Supports 08/16, 04/16, 02/16, 08/12, 04/12, and 02/12
 Devices: [Measurement Computing] PCI-DDA08/12 (cb_pcidda), PCI-DDA04/12,

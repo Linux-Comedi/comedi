@@ -28,8 +28,8 @@
 /*
 
 Driver: gsc_hpdi.o
-Description: Driver for the General Standards Corporation High
-    Speed Parallel Digital Interface rs485 boards.
+Description: General Standards Corporation High
+    Speed Parallel Digital Interface rs485 boards
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: only receive mode works, transmit not supported
 Updated: 2003-02-20

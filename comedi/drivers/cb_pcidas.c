@@ -28,8 +28,7 @@
 */
 /*
 Driver: cb_pcidas.o
-Description: Driver for the ComputerBoards/MeasurementComputing cards
-  of the PCI-DAS series with the AMCC S5933 PCI controller.
+Description: MeasurementComputing PCI-DAS series with the AMCC S5933 PCI controller
 Author: Ivan Martinez <imr@oersted.dtu.dk>,
   Frank Mori Hess <fmhess@users.sourceforge.net>
 Updated: 2003-3-11

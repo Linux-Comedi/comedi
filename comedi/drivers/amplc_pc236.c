@@ -24,7 +24,7 @@
 */
 /*
 Driver: amplc_pc236.o
-Description: Driver for Amplicon PC36AT and PCI236 DIO boards
+Description: Amplicon PC36AT, PCI236
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC36AT (pc36at), PCI236 (pci236)
 Updated: Fri, 23 Aug 2002 11:41:11 +0100
