@@ -276,6 +276,40 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		disable_irq(dev->irq);
 }
 
+static int ni_pcidio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=1)return -EINVAL;
+	switch(data[0]){
+	case COMEDI_OUTPUT:
+		s->io_bits |= 1<<CR_CHAN(insn->chanspec);
+		break;
+	case COMEDI_INPUT:
+		s->io_bits &= ~(1<<CR_CHAN(insn->chanspec));
+		break;
+	default:
+		return -EINVAL;
+	}
+	writel(s->io_bits,dev->iobase+Port_Pin_Directions(0));
+
+	return 1;
+}
+
+static int ni_pcidio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		writel(s->state,dev->iobase+Port_IO(0));
+	}
+	data[1] = readl(dev->iobase+Port_IO(0));
+
+	return 2;
+}
+
+#if 0
 static int nidio_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	if(it->flags & TRIG_CONFIG){
@@ -295,6 +329,7 @@ static int nidio_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 	return it->n_chan;
 }
+#endif
 
 static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
@@ -419,8 +454,10 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
-		s->trig[0]=nidio_dio;
+		//s->trig[0]=nidio_dio;
 		s->trig[2]=nidio_dio_mode2;
+		s->insn_config = ni_pcidio_insn_config;
+		s->insn_bits = ni_pcidio_insn_bits;
 		s->len_chanlist=32;		/* XXX */
 
 		writel(0,dev->iobase+Port_IO(0));
