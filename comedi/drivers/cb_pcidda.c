@@ -199,7 +199,7 @@ static cb_pcidda_board cb_pcidda_boards[] =
 	},
 	{
 		name:		"pci-dda08/16",
-		status:		2,
+		status:		0,
 		device_id:	0x25,
 		ao_chans:	8,
 		ao_bits:	16,
@@ -807,9 +807,6 @@ static void cb_pcidda_write_caldac(comedi_device *dev, unsigned int caldac,
 	// deactivate caldac
 	cal2_bits |= DESELECT_CALDAC_BIT(caldac);
 	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
-
-// debug message
-rt_printk("cb_pcidda: cdac %i ch %i: 0x%x\n", caldac, channel, value);
 }
 
 // returns caldac that calibrates given analog out channel
@@ -878,9 +875,6 @@ static void cb_pcidda_calibrate(comedi_device *dev, unsigned int channel, unsign
 	fine_offset = eeprom_fine_byte(devpriv->eeprom_data[offset_eeprom_address(channel, range)]);
 	coarse_gain = eeprom_coarse_byte(devpriv->eeprom_data[gain_eeprom_address(channel, range)]);
 	fine_gain = eeprom_fine_byte(devpriv->eeprom_data[gain_eeprom_address(channel, range)]);
-
-//debug message
-rt_printk("cb_pcidda: range %i\n", range);
 
 	// set caldacs
 	cb_pcidda_write_caldac(dev, caldac_number(channel), coarse_offset_channel(channel), coarse_offset);
