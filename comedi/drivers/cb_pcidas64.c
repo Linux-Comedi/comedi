@@ -89,8 +89,8 @@ TODO:
 #include "8255.h"
 #include "plx9080.h"
 
-//#undef PCIDAS64_DEBUG	// disable debugging code
-#define PCIDAS64_DEBUG	// enable debugging code
+#undef PCIDAS64_DEBUG	// disable debugging code
+//#define PCIDAS64_DEBUG	// enable debugging code
 
 #ifdef PCIDAS64_DEBUG
 #define DEBUG_PRINT(format, args...)  printk("comedi: " format , ## args )
@@ -1610,59 +1610,21 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 }
 
 // read num_samples from 16 bit wide ai fifo
-static void pio_drain_ai_fifo_16(comedi_device *dev, unsigned int num_samples)
-{
-	comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
-	unsigned int i;
-
-	DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
-
-	private(dev)->ai_count -= num_samples;
-
-	for(i = 0; i < num_samples; i++)
-	{
-		comedi_buf_put(async, readw(private(dev)->main_iobase + ADC_FIFO_REG));
-	}
-}
-
-// read num_samples from 32 bit wide ai fifo of 4020
-static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
-{
-	comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async = s->async;
-	unsigned int i;
-	uint32_t fifo_data;
-
-	DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
-
-	private(dev)->ai_count -= num_samples;
-
-	for(i = 0; i < num_samples / 2; i++)
-	{
-		fifo_data = readl(private(dev)->dio_counter_iobase + ADC_FIFO_REG);
-		comedi_buf_put(async, fifo_data & 0xffff);
-		comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
-	}
-}
-
-// figure out how many samples are in fifo and read them
-static void pio_drain_ai_fifo(comedi_device *dev)
+static void pio_drain_ai_fifo_16(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	int read_segment, read_index, write_segment, write_index;
+	unsigned int i;
 	static const int num_fifo_segments = 4;
-	int num_samples;
 	uint16_t prepost_bits;
-
-	// figure out how many samples we should read from board's fifo
+	int read_segment, read_index, write_segment, write_index;
+	int num_samples;
 
 	do
 	{
-		/* Get most significant bits.  Different boards encode the meaning of these bits
-		* differently, so use a scheme that doesn't depend on encoding */
+		/* Get most significant bits (grey code).  Different boards use different code
+		* so use a scheme that doesn't depend on encoding */
 		prepost_bits = readw(private(dev)->main_iobase + PREPOST_REG);
 		// get least significant 15 bits
 		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
@@ -1670,30 +1632,21 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
-		if(board(dev)->layout != LAYOUT_4020)
-		{
-			read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
-			write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
-			if(read_segment != write_segment)
-				num_samples = (board(dev)->fifo_depth / num_fifo_segments) - read_index;
-			else
-				num_samples = write_index - read_index;
-		} else
-		{
-			static const int fifo_ptr_limit = 1 << 15;
-			read_segment = write_segment = 0;
+		read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
+		write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
+		if(read_segment != write_segment)
+			num_samples = (board(dev)->fifo_depth / num_fifo_segments) - read_index;
+		else
 			num_samples = write_index - read_index;
-			if(num_samples < 0) num_samples += fifo_ptr_limit;
-			// 4020 stores two samples per fifo entry
-			num_samples *= 2;
-		}
 
 		if(cmd->stop_src == TRIG_COUNT)
 		{
+			if(private(dev)->ai_count == 0) break;
 			if(num_samples > private(dev)->ai_count)
 			{
 				num_samples = private(dev)->ai_count;
 			}
+			private(dev)->ai_count -= num_samples;
 		}
 
 		if(num_samples < 0)
@@ -1702,18 +1655,59 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 			break;
 		}
 
-		if(board(dev)->layout == LAYOUT_4020)
-		{
-			pio_drain_ai_fifo_32(dev, num_samples);
-		}else
-			pio_drain_ai_fifo_16(dev, num_samples);
+		DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
 
-		if(cmd->stop_src == TRIG_COUNT && private(dev)->ai_count <= 0)
+		for(i = 0; i < num_samples; i++)
 		{
-			break;
+			comedi_buf_put(async, readw(private(dev)->main_iobase + ADC_FIFO_REG));
 		}
 
 	} while (read_segment != write_segment);
+}
+
+// read from 32 bit wide ai fifo of 4020 - deal with insane grey coding of pointers
+static void pio_drain_ai_fifo_32(comedi_device *dev)
+{
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int i;
+	unsigned int max_transfer = 1e5;
+	uint32_t fifo_data;
+	int write_code = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
+	int read_code = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
+
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		if(max_transfer > private(dev)->ai_count)
+		{
+			max_transfer = private(dev)->ai_count;
+		}
+	}
+	for(i = 0; read_code != write_code && i < max_transfer; )
+	{
+		fifo_data = readl(private(dev)->dio_counter_iobase + ADC_FIFO_REG);
+		comedi_buf_put(async, fifo_data & 0xffff);
+		i++;
+		if(i < max_transfer)
+		{
+			comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
+			i++;
+		}
+		read_code = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
+	}
+}
+
+// empty fifo
+static void pio_drain_ai_fifo(comedi_device *dev)
+{
+	comedi_async *async = dev->read_subdev->async;
+
+	if(board(dev)->layout == LAYOUT_4020)
+	{
+		pio_drain_ai_fifo_32(dev);
+	}else
+		pio_drain_ai_fifo_16(dev);
 
 	async->events |= COMEDI_CB_BLOCK;
 }
