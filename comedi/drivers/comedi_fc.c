@@ -30,18 +30,22 @@
 
 static inline unsigned int bytes_per_scan( comedi_subdevice *subd )
 {
+	int num_samples;
+	int bits_per_sample;
+	
 	switch( subd->type )
 	{
 		case COMEDI_SUBD_DI:
 		case COMEDI_SUBD_DO:
 		case COMEDI_SUBD_DIO:
-			return subd->async->cmd.chanlist_len / 8;
+			bits_per_sample = 8 * bytes_per_sample(subd);
+			num_samples = (subd->async->cmd.chanlist_len + bits_per_sample - 1) / bits_per_sample;
 			break;
 		default:
+			num_samples = subd->async->cmd.chanlist_len;
 			break;
 	}
-
-	return subd->async->cmd.chanlist_len * bytes_per_sample( subd );
+	return num_samples * bytes_per_sample( subd );
 }
 
 static void increment_scan_progress( comedi_subdevice *subd, unsigned int num_bytes )
