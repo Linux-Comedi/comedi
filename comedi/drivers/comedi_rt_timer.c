@@ -236,11 +236,11 @@ static void input_scan_task_func(int d)
 				// conversion timing
 				if(cmd->convert_src == TRIG_TIMER && i){
 					rt_task_wait_period();
-				}
-				ret = check_conversion_timing(dev, scan_start, i);
-				if(ret < 0){
-					comedi_error_done(dev,s);
-					goto cleanup;
+					ret = check_conversion_timing(dev, scan_start, i);
+					if(ret < 0){
+						comedi_error_done(dev,s);
+						goto cleanup;
+					}
 				}
 				ret = comedi_data_read(devpriv->device,devpriv->subd,
 					CR_CHAN(cmd->chanlist[i]),
@@ -308,11 +308,11 @@ static void output_scan_task_func(int d)
 				// conversion timing
 				if(cmd->convert_src == TRIG_TIMER && i){
 					rt_task_wait_period();
-				}
-				ret = check_conversion_timing(dev, scan_start, i);
-				if(ret < 0){
-					comedi_error_done(dev,s);
-					goto cleanup;
+					ret = check_conversion_timing(dev, scan_start, i);
+					if(ret < 0){
+						comedi_error_done(dev,s);
+						goto cleanup;
+					}
 				}
 				data = buf_remove(dev, s);
 				if(data < 0) {
