@@ -331,7 +331,6 @@ static int dt2801_wait_for_ready(comedi_device *dev)
 
 	stat = inb_p(dev->iobase+DT2801_STATUS);
 	if(stat & DT_S_READY){
-		DPRINTK("dt2801: board immediately ready\n");
 		return 0;
 	}
 	do{
