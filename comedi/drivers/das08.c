@@ -994,7 +994,7 @@ static void das08_pcmcia_detach(dev_link_t *);
    database.
 */
 
-static dev_info_t dev_info = "das08";
+static dev_info_t dev_info = "pcm-das08";
 
 /*
    A dev_link_t structure has fields for most things that are needed

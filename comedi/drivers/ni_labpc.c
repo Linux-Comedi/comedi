@@ -2295,7 +2295,7 @@ static void labpc_cs_detach(dev_link_t *);
    database.
 */
 
-static dev_info_t dev_info = "ni_labpc";
+static dev_info_t dev_info = "daqcard-1200";
 
 /*
    A dev_link_t structure has fields for most things that are needed
@@ -2376,9 +2376,8 @@ static dev_link_t *labpc_cs_attach(void)
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
     if (irq_list[0] == -1)
-	link->irq.IRQInfo2 = irq_mask;
-    else
-	for (i = 0; i < 4; i++)
+		link->irq.IRQInfo2 = irq_mask;
+    else for (i = 0; i < 4; i++)
 	    link->irq.IRQInfo2 |= 1 << irq_list[i];
     link->irq.Handler = NULL;
 
