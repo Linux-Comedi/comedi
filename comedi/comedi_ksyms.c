@@ -58,6 +58,9 @@ EXPORT_SYMBOL(comedi_switch_to_rt);
 EXPORT_SYMBOL(comedi_switch_to_non_rt);
 EXPORT_SYMBOL(rt_pend_call);
 #endif
+#ifdef CONFIG_COMEDI_DEBUG
+EXPORT_SYMBOL(comedi_debug);
+#endif
 
 /* for kcomedilib */
 EXPORT_SYMBOL(comedi_devices);

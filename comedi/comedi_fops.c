@@ -53,6 +53,11 @@ MODULE_LICENSE("GPL");
 #define KILL_FASYNC(a,b,c) kill_fasync(&(a),(b),(c))
 #endif
 
+#ifdef CONFIG_COMEDI_DEBUG
+int comedi_debug;
+MODULE_PARM(comedi_debug, "i");
+#endif
+
 comedi_device *comedi_devices;
 spinlock_t big_comedi_lock = SPIN_LOCK_UNLOCKED;
 
