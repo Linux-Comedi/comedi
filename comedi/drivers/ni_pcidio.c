@@ -268,7 +268,7 @@ typedef struct{
 	int dev_id;
 	char *name;
 	int n_8255;
-	int is_diodaq;
+	unsigned int is_diodaq : 1;
 }nidio_board;
 static nidio_board nidio_boards[]={
 	{
