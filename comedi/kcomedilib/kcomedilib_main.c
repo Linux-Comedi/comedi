@@ -297,19 +297,21 @@ int comedi_get_krange(unsigned int minor,unsigned int subdevice,unsigned int cha
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_lrange *lr;
 	int ret;
 
 	if ((ret=minor_to_subdevchan(minor,subdevice,&dev,&s,chan))!=0) 
 		return ret;
 		
 	if (s->range_table_list) {
-		if (range>=s->range_table_list[chan]->length) {
-			return -EINVAL;
-		}
-		memcpy(krange,&s->range_table_list[chan]->range[range],sizeof(comedi_krange));
+		lr=s->range_table_list[chan];
 	} else {
-		memcpy(krange,&s->range_table->range[range],sizeof(comedi_krange));
+		lr=s->range_table;
 	}
+	if (range>=lr->length) {
+		return -EINVAL;
+	}
+	memcpy(krange,lr->range+range,sizeof(comedi_krange));
 	
 	return 0;
 }
