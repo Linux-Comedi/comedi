@@ -13,7 +13,8 @@ modules:
 	echo ARFLAGS="$(ARFLAGS)" >>flags
 	echo CROSS_COMPILE="$(CROSS_COMPILE)" >>flags
 	echo KERNELRELEASE="$(KERNELRELEASE)" >>flags
-
-
+	echo CC="$(CC)" >>flags
+	echo LD="$(LD)" >>flags
+	echo AS="$(AS)" >>flags
 
 
