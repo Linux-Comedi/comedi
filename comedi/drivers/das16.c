@@ -704,17 +704,21 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 	// step 4: fix up arguments
 	if(cmd->scan_begin_src == TRIG_TIMER)
 	{
+		unsigned int tmp = cmd->scan_begin_arg;
 		// set divisors, correct timing arguments
-		i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
-			&(devpriv->divisor2), &(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
-		err++;
+		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
+			&(devpriv->divisor1), &(devpriv->divisor2),
+			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+		err += (tmp!=cmd->scan_begin_arg);
 	}
 	if(cmd->convert_src == TRIG_TIMER)
 	{
+		unsigned int tmp = cmd->convert_arg;
 		// set divisors, correct timing arguments
-		i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
-			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
-		err++;
+		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
+			&(devpriv->divisor1), &(devpriv->divisor2),
+			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+		err += (tmp!=cmd->convert_arg);
 	}
 	if(err)return 4;
 
