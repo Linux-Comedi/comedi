@@ -345,12 +345,13 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		return;
 	}
 
-  /* read 16 bits from dev->iobase and dev->iobase + 1 */
-	dataPoint = inb(dev->iobase + DAS800_LSB);
-	dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
 	/* loop while card's fifo is not empty (and make sure loop terminates by limiting to 256 iterations) */
-	for(i = 0; (dataPoint & FIFO_EMPTY) == 0 && i < max_loops; i++)
+	for(i = 0; i < max_loops; i++)
 	{
+		/* read 16 bits from dev->iobase and dev->iobase + 1 */
+		dataPoint = inb(dev->iobase + DAS800_LSB);
+		dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
+		if(dataPoint & FIFO_EMPTY) break;
 		if( dataPoint & FIFO_OVF )
 		{
 			comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
@@ -380,23 +381,12 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 			async->buf_int_ptr += sizeof(sampl_t);
 			if(devpriv->count > 0) devpriv->count--;
 		}
-		/* read 16 bits from dev->iobase and dev->iobase + 1 */
-		dataPoint = inb(dev->iobase + DAS800_LSB);
-		dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
 	}
 	/* we can release spinlock now since we dont case if hardware conversions are enabled anymore */
 	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	if(i == max_loops)
 		comedi_error(dev, "possible problem with loop in interrupt handler");
 
-	/* check for overflow on last data point */
-	if( dataPoint & FIFO_OVF )
-	{
-		comedi_error(dev, "DAS800 FIFO overflow");
-		das800_cancel(dev, dev->subdevices + 0);
-		comedi_error_done(dev, s);
-		return;
-	}
 	comedi_bufcheck(dev,s);
 	if(devpriv->count > 0 || devpriv->forever == 1)
 	{
@@ -408,6 +398,17 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* otherwise, stop taking data */
 	} else
 	{
+		/* read 16 bits from dev->iobase and dev->iobase + 1 */
+		dataPoint = inb(dev->iobase + DAS800_LSB);
+		dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
+		/* check for overflow on last data point */
+		if( dataPoint & FIFO_OVF )
+		{
+			comedi_error(dev, "DAS800 FIFO overflow");
+			das800_cancel(dev, dev->subdevices + 0);
+			comedi_error_done(dev, s);
+			return;
+		}
 		disable_das800(dev);		/* diable hardware triggered conversions */
 		comedi_done(dev, s);
 	}
