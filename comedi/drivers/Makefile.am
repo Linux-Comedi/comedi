@@ -1,10 +1,22 @@
 
 
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS)
-LINK = $(top_builddir)/modtool -o $@
+LINK = $(top_builddir)/modtool --link -o $@
 
 # mpc8260cpm.ko
 # comedi_rt_timer.ko
+
+if CONFIG_PCMCIA
+pcmcia_modules= \
+ cb_das16_cs.ko \
+ das08_cs.ko \
+ ni_daq_dio24.ko \
+ ni_mio_cs.ko \
+ ni_labpc_cs.ko \
+ quatech_daqp_cs.ko \
+else
+pcmcia_modules=
+endif
 
 module_PROGRAMS = 8255.ko \
  adl_pci9111.ko \
@@ -20,12 +32,10 @@ module_PROGRAMS = 8255.ko \
  cb_pcidda.ko \
  cb_pcimdas.ko \
  cb_pcimdda.ko \
- cb_das16_cs.ko \
  comedi_fc.ko \
  contec_pci_dio.ko \
  daqboard2000.ko \
  das08.ko \
- das08_cs.ko \
  das16.ko \
  das16m1.ko \
  das6402.ko \
@@ -49,15 +59,12 @@ module_PROGRAMS = 8255.ko \
  ni_660x.ko \
  ni_670x.ko \
  ni_atmio.ko \
- ni_mio_cs.ko \
  ni_pcimio.ko \
  ni_pcidio.ko \
  ni_6527.ko \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
  ni_labpc.ko \
- ni_labpc_cs.ko \
- ni_daq_dio24.ko \
  ni_at_ao.ko \
  pcm3730.ko \
  pcmad.ko \
@@ -69,7 +76,6 @@ module_PROGRAMS = 8255.ko \
  pcl812.ko \
  pcl816.ko \
  pcl818.ko \
- quatech_daqp_cs.ko \
  comedi_parport.ko \
  rtd520.ko \
  rti800.ko \
