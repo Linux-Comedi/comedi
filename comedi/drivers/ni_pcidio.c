@@ -1,7 +1,8 @@
 /*
     module/ni-dio.c
-    driver for National Instruments PCI-DIO-96
+    driver for National Instruments PCI-DIO-96/PCI-6508
                National Instruments PCI-DIO-32HS
+               National Instruments PCI-6503
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1999 David A. Schleef <ds@stm.lbl.gov>
@@ -51,6 +52,7 @@
 
 /* defines for the PCI-DIO-96 */
 
+#define NIDIO_8255_BASE(x)	((x)*4)
 #define NIDIO_A 0
 #define NIDIO_B 4
 #define NIDIO_C 8
@@ -325,6 +327,7 @@ static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *i
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
+	int i;
 	int ret;
 	
 	printk("comedi%d: nidio:",dev->minor);
@@ -350,10 +353,10 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 
 	if(!nidio_boards[dev->board].is_diodaq){
-		subdev_8255_init(dev,dev->subdevices+0,nidio96_8255_cb,(void *)(dev->iobase+NIDIO_A));
-		subdev_8255_init(dev,dev->subdevices+1,nidio96_8255_cb,(void *)(dev->iobase+NIDIO_B));
-		subdev_8255_init(dev,dev->subdevices+2,nidio96_8255_cb,(void *)(dev->iobase+NIDIO_C));
-		subdev_8255_init(dev,dev->subdevices+3,nidio96_8255_cb,(void *)(dev->iobase+NIDIO_D));
+		for(i=0;i<nidio_boards[dev->board].n_8255;i++){
+			subdev_8255_init(dev,dev->subdevices+i,
+				nidio96_8255_cb,(void *)(dev->iobase+NIDIO_8255_BASE(i)));
+		}
 	}else{
 
 		printk(" rev=%d",readb(dev->iobase+Chip_Version));
