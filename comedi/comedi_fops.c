@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/poll.h>
+#include <linux/init.h>
 
 #include <linux/comedidev.h>
 

@@ -68,6 +68,7 @@ config:	dummy
 	$(CONFIG_SHELL) ./configure
 
 modules_install:	$(patsubst %, _modinst_%, $(SUBDIRS))
+	depmod -a
 
 _modinst_%:
 	$(MAKE) -C $(patsubst _modinst_%, %, $@) modules_install

@@ -36,7 +36,7 @@
 #include <linux/irq.h>
 #include <asm/io.h>
 
-#include "rt_pend_tq/rt_pend_tq.h"
+#include "rt_pend_tq.h"
 
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>

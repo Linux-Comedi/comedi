@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
+#include <linux/init.h>
 
 #include <linux/comedi.h>
 

@@ -9,6 +9,7 @@
 
 #if LINUX_VERSION_CODE < 0x020400
 #define __devinitdata __initdata
+#define __exit
 #endif
 #include_next <linux/init.h>
 
