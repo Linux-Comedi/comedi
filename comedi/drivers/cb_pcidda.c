@@ -233,6 +233,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev* pcidev;
 	int index;
+	unsigned int dac, digitalio;
 
 	printk("comedi%d: cb_pcidda: ",dev->minor);
 	
@@ -285,17 +286,17 @@ found:
 	 * their base address.
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-	devpriv->digitalio =
+	digitalio =
 		devpriv->pci_dev->base_address[DIGITALIO_BADRINDEX] &
 			PCI_BASE_ADDRESS_IO_MASK;
-	devpriv->dac =
+	dac =
 		devpriv->pci_dev->base_address[DAC_BADRINDEX] &
 			PCI_BASE_ADDRESS_IO_MASK;
 #else
-	devpriv->digitalio =
+	digitalio =
 		devpriv->pci_dev->resource[DIGITALIO_BADRINDEX].start &
 			PCI_BASE_ADDRESS_IO_MASK;
-	devpriv->dac =
+	dac =
 		devpriv->pci_dev->resource[DAC_BADRINDEX].start &
 			PCI_BASE_ADDRESS_IO_MASK;
 #endif
@@ -303,24 +304,23 @@ found:
 /*
  * Allocate the I/O ports.
  */
-	if (check_region(devpriv->digitalio, DIGITALIO_SIZE) == 0)
-		request_region(devpriv->digitalio, DIGITALIO_SIZE, thisboard->name);
-	else
+	if (check_region(digitalio, DIGITALIO_SIZE) < 0)
 	{
-		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-			devpriv->digitalio, devpriv->digitalio + DIGITALIO_SIZE - 1);
+		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+			digitalio, digitalio + DIGITALIO_SIZE - 1);
 		return -EIO;
 	}
-
-	if (check_region(devpriv->dac, 8 + thisboard->ao_chans*2) == 0)
-		request_region(devpriv->dac, 8 + thisboard->ao_chans*2,
-			thisboard->name);
-	else
+	if (check_region(dac, 8 + thisboard->ao_chans*2) < 0)
 	{
-		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-			devpriv->dac, devpriv->dac + 7 + thisboard->ao_chans*2);
+		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+			dac, dac + 7 + thisboard->ao_chans*2);
 		return -EIO;
 	}
+	request_region(digitalio, DIGITALIO_SIZE, thisboard->name);
+	devpriv->digitalio = digitalio;
+	request_region(dac, 8 + thisboard->ao_chans*2,
+		thisboard->name);
+	devpriv->dac = dac;
 
 /*
  * Warn about the status of the driver.
@@ -370,9 +370,13 @@ static int cb_pcidda_detach(comedi_device *dev)
 /*
  * Deallocate the I/O ports.
  */
-	release_region(devpriv->digitalio, DIGITALIO_SIZE);
-	release_region(devpriv->dac, 8 + thisboard->ao_chans*2),
-	
+	if(devpriv)
+	{
+		if(devpriv->digitalio)
+			release_region(devpriv->digitalio, DIGITALIO_SIZE);
+		if(devpriv->dac)
+			release_region(devpriv->dac, 8 + thisboard->ao_chans*2);
+	}
 	printk("comedi%d: cb_pcidda: remove\n",dev->minor);
 
 	return 0;
