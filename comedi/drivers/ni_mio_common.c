@@ -660,11 +660,6 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	int j;
 	unsigned int mask;
 
-	/*
-	   We can calculate how many samples to transfer.
-	   This would save a lot of time.
-	*/
-
 	mask=(1<<boardtype.adbits)-1;
 	j=s->async->cur_chan;
 	data=s->async->data+s->async->buf_int_ptr;
@@ -682,7 +677,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			j++;
 			if(j>=s->async->cur_chanlist_len){
 				j=0;
-				//s->event_mask |= COMEDI_CB_EOS;
+				//s->events |= COMEDI_CB_EOS;
 			}
 			data++;
 			s->async->buf_int_ptr+=sizeof(sampl_t);
@@ -690,7 +685,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		}
 		s->async->buf_int_ptr=0;
 		data=s->async->data;
-		comedi_eobuf(dev,s);
+		s->async->events |= COMEDI_CB_EOBUF;
 	}
 }
 
@@ -878,6 +873,19 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	win_out(AI_Configuration_End,Joint_Reset_Register);
 
 	return 0;
+}
+
+static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	ni_handle_fifo_dregs(dev);
+	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+
+	comedi_event(dev,s,s->async->events);
+
+	return s->async->buf_int_count-s->async->buf_user_count;
 }
 
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsigned int *list,int dither);
@@ -1655,23 +1663,23 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_TIMER;
-	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
 	cmd->convert_src &= TRIG_NOW;
-	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
 	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
 
@@ -1804,6 +1812,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
 	s->cancel=ni_ai_reset;
+	s->poll=ni_ai_poll;
 
 	/* analog output subdevice */
 
