@@ -33,6 +33,7 @@ Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
   DAS-1602 (das-1602),
   [ComputerBoards] PC104-DAS16/JR (pc104-das16jr),
   PC104-DAS16JR/16 (pc104-das16jr/16),
+  CIO-DAS16JR/16 (cio-das16jr/16),
   CIO-DAS16/JR (cio-das16/jr), CIO-DAS1401/12 (cio-das1401/12),
   CIO-DAS1402/12 (cio-das1402/12), CIO-DAS1402/16 (cio-das1402/16),
   CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
@@ -147,6 +148,23 @@ Computer boards manuals also available from their website www.measurementcomputi
 
 */
 
+/*
+    cio-das16jr_16.pdf
+
+    "das16jr_16"
+
+  0	a/d bits 0-7		start 16 bit
+  1	a/d bits 8-15		unused
+  2	mux read		mux set
+  3	di 4 bit		do 4 bit
+  4567	unused			unused
+  8	status eoc uni/bip	interrupt reset
+  9	dma, int, trig ctrl	set dma, int
+  a	pacer control		unused
+  b	gain status		gain control
+  cdef	8254
+
+*/
 /*
     cio-das160x-1x.pdf
 
@@ -300,7 +318,7 @@ static comedi_lrange *das16_ai_uni_lranges[]={
 static comedi_lrange *das16_ai_bip_lranges[]={
 	&range_unknown,
 	&range_das16jr,
-	&range_das16jr,
+	&range_das16jr_16,
 	&range_das1x01_bip,
 	&range_das1x02_bip,
 };
@@ -446,6 +464,20 @@ static struct das16_board_struct das16_boards[]={
 	i8254_offset:	0x0c,
 	size:		0x10,
 	id:	0x00,
+	},
+	{
+	name:           "cio-das16jr/16",       // cio-das16jr_16.pdf
+	ai:             das16_ai_rinsn,
+	ai_nbits:       16,
+	ai_speed:       10000,
+	ai_pg:          das16_pg_16jr_16,
+	ao:             NULL,
+	di:             das16_di_rbits,
+	do_:            das16_do_wbits,
+	i8255_offset:   0,
+	i8254_offset:   0x0c,
+	size:           0x10,
+	id:             0x00,
 	},
 	{
 	name:		"pc104-das16jr/16",	// pc104-das16jr_xx.pdf
