@@ -10,6 +10,8 @@ if [ "$CONFIG_RTL" != "" -o "$CONFIG_RTL_V1" = "y" ]; then
 	echo You appear to be running an RTL-patched kernel
 
 	default=${RTLDIR:=/usr/src/rtl}
+STOPASKING=""
+while [ -z "$STOPASKING" ]; do
 	if [ "${interactive}" = "y" ];then
 		echo -n "Enter location of RTL source tree [$default]: "
 		read RTLDIR
@@ -18,6 +20,10 @@ if [ "$CONFIG_RTL" != "" -o "$CONFIG_RTL_V1" = "y" ]; then
 	if [ -d ${RTLDIR}/include ];then
 		echo RTLDIR=$RTLDIR >>.buildvars
 		echo CFLAGS += -I $RTLDIR/include -I $RTLDIR/include/compat -I $RTLDIR/include/posix -D__RT__ >>.buildvars
+		STOPASKING="1"
+        else
+		echo "$RTLDIR does not contain an include/ subdirectory.  Try again!"
 	fi
+done
 	export RTLDIR
 fi
