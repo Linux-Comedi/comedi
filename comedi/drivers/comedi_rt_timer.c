@@ -50,6 +50,13 @@ TODO:
 #include <rtl_sched.h>
 #include <rtl_compat.h>
 
+#ifndef RTLINUX_VERSION_CODE
+#define RTLINUX_VERSION_CODE 0
+#endif
+#ifndef RTLINUX_VERSION
+#define RTLINUX_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+#endif
+
 // begin hack to workaround broken HRT_TO_8254() function on rtlinux
 #if RTLINUX_VERSION_CODE <= RTLINUX_VERSION(3,0,100)
 // this function sole purpose is to divide a long long by 838
@@ -77,6 +84,9 @@ static inline RTIME nano2count(long long ns)
 
 	return ns;
 }
+#ifdef rt_get_time()
+#undef rt_get_time()
+#endif
 #define rt_get_time() nano2count(gethrtime())
 
 #else
@@ -432,7 +442,7 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret;
-	RTIME now, delay;
+	RTIME now, delay, period;
 	comedi_cmd *cmd = &s->async->cmd;
 
 	/* hack attack: drivers are not supposed to do this: */
@@ -478,8 +488,13 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	s->async->events = 0;
 
 	now=rt_get_time();
+	/* Using 'period' this way gets around some weird bug in gcc-2.95.2
+	 * that generates the compile error 'internal error--unrecognizable insn'
+	 * when rt_task_make_period() is called (observed with rtlinux-3.1, linux-2.2.19).
+	 *  - fmhess */
+	period = devpriv->scan_period;
 	ret = rt_task_make_periodic(devpriv->rt_task, now
-		+ delay, devpriv->scan_period);
+		+ delay, period);
 	if(ret < 0)
 	{
 		comedi_error(dev, "error starting rt_task");
