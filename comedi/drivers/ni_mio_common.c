@@ -1599,7 +1599,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	int start_stop_select=0;
 	unsigned int stop_count;
 	int interrupt_a_enable=0;
-	
+
 	MDPRINTK("ni_ai_cmd\n");
 
 	win_out(1,ADC_FIFO_Clear);
@@ -1608,6 +1608,11 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* start configuration */
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
+
+	/* disable analog triggering for now, since it
+	 * interferes with the use of pfi0 */
+	devpriv->an_trig_etc_reg &= ~Analog_Trigger_Enable;
+	win_out(devpriv->an_trig_etc_reg, Analog_Trigger_Etc_Register);
 
 	switch(cmd->start_src){
 	case TRIG_INT:

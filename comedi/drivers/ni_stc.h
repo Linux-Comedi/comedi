@@ -553,11 +553,13 @@ enum AO_Personal_Bits
 #define G1_Arm                          _bit0
 
 /*Analog_Trigger_Etc_Register*/
-/*This is mainly a counter/timer register */
-#define GPFO_1_Output_Enable		_bit15
-#define GPFO_0_Output_Enable		_bit14
-#define GPFO_0_Output_Select(a)		((a)<<11)
+#define Analog_Trigger_Mode(x) ((x) & 0x7)
+#define Analog_Trigger_Enable _bit3
+#define Analog_Trigger_Drive _bit4
 #define GPFO_1_Output_Select		_bit7
+#define GPFO_0_Output_Select(a)		((a)<<11)
+#define GPFO_0_Output_Enable		_bit14
+#define GPFO_1_Output_Enable		_bit15
 
 /* Additional windowed registers unique to E series */
 
