@@ -745,7 +745,7 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 			d -= offset;
 		}
 
-		if( boardtype.reg_611x ){
+		if( boardtype.ao_671x ){
 			packed_data = d & 0xffff;
 			err &= comedi_buf_get(async, &d);
 			if(err == 0) break;
@@ -1031,7 +1031,7 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_OUTPUT;
-	if( boardtype.reg_611x )
+	if( boardtype.ao_671x )
 		mite_prep_dma(mite, AO_DMA_CHAN, 32, 32);
 	else
 		mite_prep_dma(mite, AO_DMA_CHAN, 16, 16);
@@ -1945,7 +1945,7 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	int i, bits;
 	int invert = 0;
 
-	if( boardtype.reg_611x ){
+	if( boardtype.ao_671x ){
 		ao_win_out( CLEAR_WG, AO_Misc_611x);
 
 		bits = 0;
@@ -2131,7 +2131,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(AO_UI_Load,AO_Command_1_Register);
 	win_out2(trigvar,AO_UI_Load_A_Register);
 
-	if( boardtype.reg_611x == 0 ){
+	if( boardtype.ao_671x == 0 ){
 		if(cmd->scan_end_arg>1){
 			devpriv->ao_mode1|=AO_Multiple_Channels;
 			win_out(AO_Number_Of_Channels(cmd->scan_end_arg-1)|
