@@ -1322,12 +1322,13 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->subdev_flags = SDF_READABLE;
 		if(devpriv->ai_singleended){
 			s->n_chan = 16;
+			s->len_chanlist = 16;
 			s->subdev_flags |= SDF_GROUND;
 		}else{
 			s->n_chan = 8;
+			s->len_chanlist = 8;
 			s->subdev_flags |= SDF_DIFF;
 		}
-		s->len_chanlist = 16;
 		s->maxdata = (1 << thisboard->ai_nbits) - 1;
 		if(devpriv->ai_unipolar){
 			s->range_table = das16_ai_uni_lranges[thisboard->ai_pg];
@@ -1372,7 +1373,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	/* do */
 	if(thisboard->do_){
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
