@@ -537,13 +537,13 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 static void ni_handle_block_dma(comedi_device *dev)
 {
 	MDPRINTK("ni_handle_block_dma\n");
-	//mite_dump_regs(devpriv->mite);
+	//mite_dump_regs(devpriv->mite);  
 	mite_dma_disarm(devpriv->mite);
 	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
-		AI_SC_TC_Interrupt_Enable | AI_Start1_Interrupt_Enable|
-		AI_Start2_Interrupt_Enable| AI_Start_Interrupt_Enable|
-		AI_Stop_Interrupt_Enable| AI_Error_Interrupt_Enable|
+		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+		AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
 		AI_FIFO_Interrupt_Enable,0);
 
 	ni_ai_reset(dev,dev->subdevices);
