@@ -68,6 +68,7 @@ TODO:
 	need to take care to prevent ai and ao from affecting each other's register bits
 	support prescaled 100khz clock for slow pacing (not available on 6000 series?)
 	figure out cause of intermittent lockups (pci dma?)
+	false fifo overruns on 4020 after 64k samples
 */
 
 #include <linux/kernel.h>
@@ -89,8 +90,8 @@ TODO:
 #include "8255.h"
 #include "plx9080.h"
 
-#undef PCIDAS64_DEBUG	// disable debugging code
-//#define PCIDAS64_DEBUG	// enable debugging code
+//#undef PCIDAS64_DEBUG	// disable debugging code
+#define PCIDAS64_DEBUG	// enable debugging code
 
 #ifdef PCIDAS64_DEBUG
 #define DEBUG_PRINT(format, args...)  printk("comedi: " format , ## args )
@@ -243,10 +244,9 @@ TODO:
 // read-write
 
 // I2C addresses for 4020
-#define I2C_REG	0x40
-#define   RANGE_CAL_I2C_ADDR	0x40
-#define   CALDAC0_I2C_ADDR	0x18
-#define   CALDAC1_I2C_ADDR	0x1a
+#define   RANGE_CAL_I2C_ADDR	0x20
+#define   CALDAC0_I2C_ADDR	0xc
+#define   CALDAC1_I2C_ADDR	0xd
 
 #define I8255_4020_REG 0x48	// 8255 offset, for 4020 only
 #define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
@@ -750,9 +750,6 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(plx_iobase + PLX_DMA0_CS_REG));
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
 
-	DEBUG_PRINT(" plx queue control/status 0x%x\n", readl(plx_iobase + PLX_QUEUE_SC_REG));
-	DEBUG_PRINT(" plx queue configuration 0x%x\n", readl(plx_iobase + PLX_QUEUE_CONFIG_REG));
-
 	// disable interrupts
 	writel(0, plx_iobase + PLX_INTRCS_REG);
 
@@ -1107,6 +1104,10 @@ for(i = 0; i < 8; i++)
 		caldac_8800_write(dev, i, 128);
 }
 #endif
+{
+uint8_t byte = 0x4f;
+i2c_write(dev, RANGE_CAL_I2C_ADDR, &byte, 1);
+}
 
 	return 0;
 }
@@ -1541,8 +1542,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// enable interrupts on plx 9080
 	// XXX enabling more interrupt sources than are actually used
-	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE
-		| ICS_RAE;	// XXX
+	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE;
 	writel(bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// enable interrupts
@@ -1553,10 +1553,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
-		if(board(dev)->layout == LAYOUT_4020)
-			private(dev)->intr_enable_bits |= ADC_INTR_EOC_BITS | EN_ADC_INTR_SRC_BIT;
-		else
+		if(board(dev)->layout != LAYOUT_4020)
 			private(dev)->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
+		// 4020 doesn't support pio transfers
 	}
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 	DEBUG_PRINT("intr enable bits 0x%x\n", private(dev)->intr_enable_bits);
@@ -1569,6 +1568,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			private(dev)->adc_control1_bits |= ADC_MODE_BITS(13);	// good old mode 13
 		else
 			private(dev)->adc_control1_bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
+#if 0
+		// this causes interrupt on end of scan to be disabled on 60xx?
+		if(cmd->flags & TRIG_WAKE_EOS)
+			private(dev)->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
+#endif
 	} else
 	{
 		if(cmd->chanlist_len == 4)
@@ -1577,14 +1581,13 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			private(dev)->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
 		private(dev)->adc_control1_bits |= LO_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[0]));
 		private(dev)->adc_control1_bits |= HI_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]));
-		// this causes interrupt on end of scan to be disabled on 60xx?
-		if(cmd->flags & TRIG_WAKE_EOS)
-			private(dev)->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
 	}
+
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 	DEBUG_PRINT("control1 bits 0x%x\n", private(dev)->adc_control1_bits);
 
-	if(cmd->flags & TRIG_WAKE_EOS)
+	if((cmd->flags & TRIG_WAKE_EOS) &&
+		board(dev)->layout != LAYOUT_4020)
 	{
 		writeb(0, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	} else
@@ -1671,7 +1674,12 @@ static void pio_drain_ai_fifo_16(comedi_device *dev)
 	} while (read_segment != write_segment);
 }
 
-// read from 32 bit wide ai fifo of 4020 - deal with insane grey coding of pointers
+/* Read from 32 bit wide ai fifo of 4020 - deal with insane grey coding of pointers.
+ * This function isn't used at the moment, since the pci-4020 hardware only supports
+ * dma transfers (it only supports the use of pio for draining the last remaining
+ * points from the fifo when a data aquisition operation has completed).  This function
+ * will be useful in the future if support for hardware stop triggers is added.
+ */
 static void pio_drain_ai_fifo_32(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->read_subdev;
@@ -1750,7 +1758,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 		}
 		comedi_buf_put_array(async, private(dev)->ai_buffer[private(dev)->dma_index], num_samples);
 		private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
-		DEBUG_PRINT("next buffer addr 0x%x\n", private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
+		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
 	// XXX check for buffer overrun somehow
@@ -1764,6 +1772,9 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int status;
 	uint32_t plx_status;
+	static const uint32_t plx_interrupt_status_mask = ICS_DMA0_A | 
+		ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA |
+		ICS_MBIA(0) | ICS_MBIA(1) |ICS_MBIA(2) | ICS_MBIA(3);
 	uint32_t plx_bits;
 	uint8_t dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	uint8_t dma1_status = readb(private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
@@ -1774,8 +1785,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if((status &
 		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
 		DAC_INTR_PENDING_BIT | DAC_DONE_BIT | EXT_INTR_PENDING_BIT)) == 0 &&
-		(plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA |
-		ICS_MBIA(0) | ICS_MBIA(1) |ICS_MBIA(2) | ICS_MBIA(3))) == 0)
+		(plx_status & plx_interrupt_status_mask) == 0)
 	{
 		return;
 	}
@@ -1839,6 +1849,15 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	comedi_event(dev, s, async->events);
+
+	// XXX
+	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	if((plx_status & plx_interrupt_status_mask))
+	{
+		comedi_error(dev, "interrupt didn't clear?  Disabling interrupts!");
+		rt_printk("plx status 0x%x\n", plx_status);
+		writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	}
 
 	return;
 }
@@ -2070,6 +2089,8 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 
 	udelay(1);
 	private(dev)->plx_control_bits &= ~CTL_EE_CLK & ~CTL_EE_CS;
+	// make sure we don't send anything to the i2c bus on 4020
+	private(dev)->plx_control_bits &= ~CTL_USERO;
 	writel(private(dev)->plx_control_bits, plx_control_addr);
 	// activate serial eeprom
 	udelay(1);
@@ -2245,6 +2266,11 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 		GAIN_1_3 = 0x4,
 		OFFSET_1_3 = 0x8,
 	};
+	enum data_bits
+	{
+		NOT_CLEAR_REGISTERS = 0x20,
+		UPDATE_ADDRESSED_DAC_ONLY = 0x10,
+	};
 
 	switch(caldac_channel)
 	{
@@ -2285,7 +2311,7 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 			return -1;
 			break;
 	}
-	serial_bytes[1] = (value >> 8) & 0xf;
+	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
 	serial_bytes[2] = value & 0xff;
 	i2c_write(dev, i2c_addr, serial_bytes, 3);
 	return 0;
@@ -2322,14 +2348,133 @@ static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int d
 }
 #endif
 
-static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, unsigned int length)
-{
-	unsigned int i2c_reg = private(dev)->main_iobase + I2C_REG;
-	unsigned int i;
+/* Requires at least a udelay of 350-400 to work for i2c reg, and even more for calibration registers.
+ * Need to figure out if this can be improved,
+ * since slowest chip (i2c reg!) should only require a delay of about 5 usec */
+static const int i2c_udelay = 1000;
 
-	writeb(address, i2c_reg);
-	for(i = 0; i < length; i++)
+// set i2c data line high or low
+static void i2c_set_sda(comedi_device *dev, int state)
+{
+	static const int data_bit = CTL_EE_W;
+	unsigned long plx_control_addr = private(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	
+	if(state)
 	{
-		writeb(data[i], i2c_reg);
+		// set data line high
+		private(dev)->plx_control_bits &= ~data_bit;
+		DEBUG_PRINT("i2c data high\n");
+	}else // set data line low
+	{
+		private(dev)->plx_control_bits |= data_bit;
+		DEBUG_PRINT("i2c data low\n");
+	}
+
+	writel(private(dev)->plx_control_bits, plx_control_addr);
+	udelay(i2c_udelay);
+}
+
+// set i2c clock line high or low
+static void i2c_set_scl(comedi_device *dev, int state)
+{
+	static const int clock_bit = CTL_USERO;
+	unsigned long plx_control_addr = private(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	
+	if(state)
+	{
+		// set clock line high
+		private(dev)->plx_control_bits &= ~clock_bit;
+		DEBUG_PRINT("i2c clock high\n");
+	}else // set clock line low
+	{
+		private(dev)->plx_control_bits |= clock_bit;
+		DEBUG_PRINT("i2c clock low\n");
+	}
+
+	writel(private(dev)->plx_control_bits, plx_control_addr);
+	udelay(i2c_udelay);
+}
+
+static void i2c_write_byte(comedi_device *dev, uint8_t byte)
+{
+	uint8_t bit;
+	unsigned int num_bits = 8;
+
+	for(bit = 1 << (num_bits - 1); bit; bit >>= 1)
+	{
+		i2c_set_scl(dev, 0);
+		if((byte & bit))
+			i2c_set_sda(dev, 1);
+		else
+			i2c_set_sda(dev, 0);
+		i2c_set_scl(dev, 1);
 	}
 }
+
+// we can't really read the lines, so fake it
+static int i2c_read_ack(comedi_device *dev)
+{
+	i2c_set_scl(dev, 0);
+	i2c_set_sda(dev, 1);
+	i2c_set_scl(dev, 1);
+
+	return 0;	// return fake acknowledge bit
+}
+
+// send start bit
+static void i2c_start(comedi_device *dev)
+{
+	i2c_set_scl(dev, 1);
+	i2c_set_sda(dev, 1);
+	i2c_set_sda(dev, 0);
+}
+
+// send stop bit
+static void i2c_stop(comedi_device *dev)
+{
+	i2c_set_scl(dev, 0);
+	i2c_set_sda(dev, 0);
+	i2c_set_scl(dev, 1);
+	i2c_set_sda(dev, 1);
+}
+
+static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, unsigned int length)
+{
+	unsigned int i;
+	uint8_t bitstream;
+	static const int read_bit = 0x1;
+
+//XXX need mutex to prevent simultaneous attempts to access eeprom and i2c bus
+
+	// make sure we dont send anything to eeprom
+	private(dev)->plx_control_bits &= ~CTL_EE_CS;
+
+	// i2c_stop(dev);
+	i2c_start(dev);
+
+	// send address and write bit
+	bitstream = (address << 1) & ~read_bit;
+	i2c_write_byte(dev, bitstream);
+
+	// get acknowledge
+	if(i2c_read_ack(dev) != 0)
+	{
+		comedi_error(dev, "i2c write failed: no acknowledge");
+		i2c_stop(dev);
+		return;
+	}
+
+	// write data bytes
+	for(i = 0; i < length; i++)
+	{
+		i2c_write_byte(dev, data[i]);
+		if(i2c_read_ack(dev) != 0)
+		{
+			comedi_error(dev, "i2c write failed: no acknowledge");
+			i2c_stop(dev);
+			return;
+		}
+	}
+	i2c_stop(dev);
+}
+
