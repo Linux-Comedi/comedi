@@ -1011,7 +1011,7 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 {
 	int size;
 
-	if(x!=0)return -EVINAL;
+	if(x!=0)return -EINVAL;
 
 	size=copy_from_buf(dev,s,devpriv->dma[0].buf,devpriv->dma_maxsize*2);
 	prep_ao_dma(dev,0,size/2);

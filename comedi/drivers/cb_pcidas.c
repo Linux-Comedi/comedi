@@ -69,6 +69,7 @@ analog triggering on 1602 series
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_CB	0x1307
 #define TIMER_BASE 100	// 10MHz master clock
+static const int max_fifo_size = 1024;	// maximum fifo size of any supported board
 
 /* PCI-DAS base addresses */
 
@@ -1182,8 +1183,6 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 			break;
 	}
 
-	// next time we send these bits, we want aquisiton to actually start
-	ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
 	devpriv->ao_control_bits = ao_control_bits;
 	async->inttrig = cb_pcidas_ao_inttrig;
 
@@ -1192,8 +1191,29 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num)
 {
+	unsigned int i, num_points = thisboard->fifo_size;
+	sampl_t data[max_fifo_size];
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &s->async->cmd;
+
 	if(trig_num != 0)
 		return -EINVAL;
+
+	// load up fifo
+	if(cmd->stop_src == TRIG_COUNT &&
+		devpriv->ao_count < num_points)
+		num_points = devpriv->ao_count;
+	for(i = 0; i < num_points; i++)
+	{
+		if(comedi_buf_get(async, &data[i]))
+			break;
+	}
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		devpriv->ao_count -= i;
+	}
+	// write data to board's fifo
+	outsw(devpriv->ao_registers + DACDATA, data, i);
 
 	// enable dac half-full and empty interrupts
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
@@ -1206,12 +1226,13 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
 
 	// start dac
+	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 #ifdef CB_PCIDAS_DEBUG
 	rt_printk("comedi: sent 0x%x to dac control\n", devpriv->ao_control_bits);
 #endif
 
-	s->async->inttrig = NULL;
+	async->inttrig = NULL;
 
 	return 0;
 }
@@ -1322,13 +1343,14 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	return;
 }
+
 static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 {
 	comedi_subdevice *s = dev->write_subdev;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int half_fifo = thisboard->fifo_size / 2;
-	static const int max_half_fifo = 512;	// maximum possible half-fifo size
+	static const int max_half_fifo = max_fifo_size / 2;	// maximum possible half-fifo size
 	sampl_t data[max_half_fifo];
 	unsigned int num_points, i;
 

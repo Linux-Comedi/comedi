@@ -1,6 +1,6 @@
 /*
     ni_at_a2150.c driver for National Instruments AT-A2150 boards
-    Copyright (C) 2000 Frank Mori Hess <fmhess@uiuc.edu>
+    Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
