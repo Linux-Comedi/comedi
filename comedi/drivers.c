@@ -239,20 +239,8 @@ static int postconfig(comedi_device *dev)
 
 		if(s->len_chanlist==0)
 			s->len_chanlist=1; 
-#ifdef CONFIG_COMEDI_TRIG
-		if(s->do_cmd){
-			s->trig[1]=command_trig;
-			s->trig[2]=command_trig;
-			s->trig[3]=command_trig;
-			s->trig[4]=command_trig;
-		}
-#endif
 
-		if(s->do_cmd
-#ifdef CONFIG_COMEDI_TRIG
-		    || s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4]
-#endif
-		    ){
+		if(s->do_cmd){
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{

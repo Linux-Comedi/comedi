@@ -380,18 +380,6 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->subd_flags |= SDF_FLAGS;
 		if(s->range_table_list)
 			us->subd_flags |= SDF_RANGETYPE;
-#ifdef CONFIG_COMEDI_TRIG
-		if(s->trig[0])
-			us->subd_flags |= SDF_MODE0;
-		if(s->trig[1])
-			us->subd_flags |= SDF_MODE1;
-		if(s->trig[2])
-			us->subd_flags |= SDF_MODE2;
-		if(s->trig[3])
-			us->subd_flags |= SDF_MODE3;
-		if(s->trig[4])
-			us->subd_flags |= SDF_MODE4;
-#endif
 		if(s->do_cmd)
 			us->subd_flags |= SDF_CMD;
 	}
@@ -1566,13 +1554,6 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	if(s->runflags&SRF_RT){
 		comedi_switch_to_non_rt(dev);
 		s->runflags &= ~SRF_RT;
-	}
-#endif
-
-#ifdef CONFIG_COMEDI_TRIG
-	if(s->cur_trig.chanlist){		/* XXX wrong? */
-		kfree(s->cur_trig.chanlist);
-		s->cur_trig.chanlist=NULL;
 	}
 #endif
 
