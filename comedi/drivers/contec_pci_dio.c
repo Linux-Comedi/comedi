@@ -1,5 +1,5 @@
 /*
-    comedi/drivers/pio1616l.c
+    comedi/drivers/contec_pci_dio.c
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -22,7 +22,7 @@
 /*
 Driver: pio1616l.o
 Description: Driver for Contec PIO1616L digital io board
-Devices: PIO1616L
+Devices: [Contec] PIO1616L
 Author: Stefano Rivoir <s.rivoir@gts.it>
 Updated: Mon, 18 Mar 2002 15:34:01 -0800
 Status: works
@@ -64,7 +64,6 @@ static contec_board contec_boards[] = {
 	{ "PIO1616L", PIO1616L, 16, 16, 0, 2, 10 },
 };
 
-#define PCI_VENDOR_ID_CONTEC   0x1221
 #define PCI_DEVICE_ID_PIO1616L 0x8172
 static struct pci_device_id contec_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PIO1616L },
@@ -96,12 +95,9 @@ static comedi_driver driver_contec={
 };
 
 /* Classic digital IO */
-static int contec_dio_insn_read  (comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int contec_dio_insn_write (comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
-static int contec_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+static int contec_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
-static int contec_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+static int contec_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
 static int contec_cmdtest(comedi_device *dev,comedi_subdevice *s,
@@ -121,7 +117,7 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_private(dev,sizeof(contec_private))<0)
 		return -ENOMEM;
 
-	dev->n_subdevices=1;
+	dev->n_subdevices=2;
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
 
@@ -134,17 +130,21 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 
 			s=dev->subdevices+0;
 
-			printk ( "model PIO1616L " );
-			s->type = COMEDI_SUBD_DIO;
-			s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
+			s->type = COMEDI_SUBD_DI;
+			s->subdev_flags = SDF_READABLE;
 			s->n_chan = 16;
 			s->maxdata = 1;
 			s->range_table = &range_digital;
-			s->insn_read = contec_dio_insn_read;
-			s->insn_write= contec_dio_insn_write;
-			s->insn_bits = contec_dio_insn_bits;
-			s->insn_config = contec_dio_insn_config;
-			s->do_cmdtest = contec_cmdtest; 
+			s->insn_bits = contec_di_insn_bits;
+
+			s=dev->subdevices+1;
+			s->type = COMEDI_SUBD_DO;
+			s->subdev_flags = SDF_WRITEABLE;
+			s->n_chan = 16;
+			s->maxdata = 1;
+			s->range_table = &range_digital;
+			s->insn_bits  = contec_do_insn_bits;
+
 		}
 	}
 
@@ -161,38 +161,7 @@ static int contec_detach(comedi_device *dev)
 	return 0;
 }
 
-static int contec_dio_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
-{
-	unsigned int d1, d2, d;
-
-	d1 = inb ( dev->iobase + thisboard->in_offs + 1 ) & 0x0f;
-	d2 = inb ( dev->iobase + thisboard->in_offs + 0 ) & 0x0f;
-
-	d = d1 << 8;
-	d += d2;
-
-	data[0] = d;
-
-	return 1;
-
-}
-
-static int contec_dio_insn_write(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
-{
-	u8 d;
-
-	printk ( "contec_dio_insn_write1 called\n" );
-	
-	d = data[0] & 0x0f;
-	outb ( d, dev->iobase + thisboard->out_offs );
-	
-	d = (data[0] >> 8) & 0x0f;
-	outb ( d, dev->iobase + thisboard->out_offs );
-
-	return 1;
-
-}
-
+#if 0
 static int contec_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd)
 {
@@ -204,12 +173,13 @@ static int contec_ns_to_timer(unsigned int *ns,int round)
 {
 	return *ns;
 }
+#endif
 
-static int contec_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+static int contec_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 
-	printk ( "contec_dio_insn_bits called\n" );
+	printk ( "contec_do_insn_bits called\n" );
 	printk ( " data: %d %d\n", data[0], data[1] );
 	
 	if(insn->n!=2)return -EINVAL;
@@ -217,27 +187,24 @@ static int contec_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= data[0]&data[1];
-		printk ( "  out: %d on %x\n", s->state, dev->iobase+2 );
+		printk ( "  out: %d on %x\n", s->state, dev->iobase + thisboard->out_offs );
 		outw(s->state, dev->iobase + thisboard->out_offs );
 	}
 	return 2;
 }
 
-static int contec_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+static int contec_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	int chan=CR_CHAN(insn->chanspec);
-	printk ( "contec_dio_insn_config called\n" );
 
-	if(insn->n!=1)return -EINVAL;
+	printk ( "contec_di_insn_bits called\n" );
+	printk ( " data: %d %d\n", data[0], data[1] );
+	
+	if(insn->n!=2)return -EINVAL;
 
-	if(data[0]==COMEDI_OUTPUT){
-		s->io_bits |= 1<<chan;
-	}else{
-		s->io_bits &= ~(1<<chan);
-	}
+	data[1] = inw(dev->iobase + thisboard->in_offs );
 
-	return 1;
+	return 2;
 }
 
 COMEDI_INITCLEANUP(driver_contec);
