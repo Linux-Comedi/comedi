@@ -106,6 +106,8 @@ struct comedi_subdevice_struct{
 	int timer_type;
 	int len_chanlist;		/* length of channel/gain list, if available */
 
+	void		*private;
+
 	void		*prealloc_buf;		/* pre-allocated buffer */
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
 
