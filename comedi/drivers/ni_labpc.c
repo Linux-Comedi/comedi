@@ -77,6 +77,7 @@ TODO:
 
 #define LABPC_SIZE           32	// size of io region used by board
 #define LABPC_TIMER_BASE            500	// 2 MHz master clock
+#define EEPROM_SIZE	256	// 256 byte eeprom
 
 /* Registers for the lab-pc+ */
 
@@ -159,6 +160,10 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int labpc_calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int labpc_calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int labpc_eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int labpc_eeprom_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static struct mite_struct* pclab_find_device(int bus, int slot);
 static unsigned int labpc_inb(unsigned int address);
@@ -166,10 +171,11 @@ static void labpc_outb(unsigned int byte, unsigned int address);
 static unsigned int labpc_readb(unsigned int address);
 static void labpc_writeb(unsigned int byte, unsigned int address);
 static int labpc_dio_mem_callback(int dir, int port, int data, void *arg);
-static void labpc_load_factory_calibration(comedi_device *dev);
+static void labpc_load_calibration(comedi_device *dev);
 static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int write_length);
 static unsigned int labpc_serial_in(comedi_device *dev);
 static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address);
+static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value);
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 
 enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
@@ -305,6 +311,8 @@ typedef struct{
 	u16 *dma_buffer;	// buffer ai will dma into
 	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
 	enum transfer_type current_transfer;	// we are using dma/fifo-half-full/etc.
+	unsigned int eeprom_data[EEPROM_SIZE];	// stores contents of board's eeprom
+	unsigned int caldac[8];	// stores settings of calibration dacs
 }labpc_private;
 
 #define devpriv ((labpc_private *)dev->private)
@@ -452,7 +460,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	dev->n_subdevices = 4;
+	dev->n_subdevices = 5;
 	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
@@ -509,22 +517,43 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	// calibration subdevices for boards that have one
 	s = dev->subdevices + 3;
-	if(thisboard->register_layout == labpc_plus_layout)
-		s->type = COMEDI_SUBD_UNUSED;
-	else if(thisboard->register_layout == labpc_1200_layout)
+	if(thisboard->register_layout == labpc_1200_layout)
 	{
-		// XXX implement calibration subdevice
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type=COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		if(thisboard->has_ao)
+			s->n_chan = 8;
+		else
+			s->n_chan = 4;
+		s->maxdata = 0xff;
+		s->insn_read = labpc_calib_read_insn;
+		s->insn_write = labpc_calib_write_insn;
+		labpc_load_calibration(dev);
 	}else
-	{
-		printk("calibration subdevice bug!");
-		return -EINVAL;
-	}
+		s->type = COMEDI_SUBD_UNUSED;
 
-	for(i = 68; i <= 117; i++)
+	/* EEPROM */
+	s = dev->subdevices + 4;
+	if(thisboard->register_layout == labpc_1200_layout)
 	{
-		printk("eeprom %i: 0x%x\n", i, labpc_eeprom_read(dev, i));
-	}
+		s->type = COMEDI_SUBD_MEMORY;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		s->n_chan = EEPROM_SIZE;
+		s->maxdata = 0xff;
+		s->insn_read = labpc_eeprom_read_insn;
+		s->insn_write = labpc_eeprom_write_insn;
+
+#ifdef LABPC_DEBUG
+		printk(" eeprom:");
+		for(i = 0; i < EEPROM_SIZE; i++)
+		{
+			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
+			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
+		}
+		printk("\n");
+#endif
+	}else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
 };
@@ -1282,6 +1311,49 @@ static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
+static int labpc_calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int labpc_calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int channel = CR_CHAN(insn->chanspec);
+
+	devpriv->caldac[channel] = data[0];
+	write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
+
+	return 1;
+}
+
+static int labpc_eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int labpc_eeprom_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int channel = CR_CHAN(insn->chanspec);
+	int ret;
+
+	// only allow writes to user area of eeprom
+	if(channel < 16 || channel > 127)
+	{
+		printk("eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)");
+		return -EINVAL;
+	}
+
+	ret = labpc_eeprom_write(dev, channel, data[0]);
+	if(ret < 0) return ret;
+	devpriv->eeprom_data[channel] = data[0];
+
+	return 1;
+}
+
 // utility function that suggests a dma transfer size in bytes
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 {
@@ -1343,7 +1415,7 @@ static int labpc_dio_mem_callback(int dir, int port, int data, void *arg)
 }
 
 
-static void labpc_load_factory_calibration(comedi_device *dev)
+static void labpc_load_calibration(comedi_device *dev)
 {
 }
 
@@ -1431,11 +1503,16 @@ static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
 	return value;
 }
 
+static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value)
+{
+	return 0;
+}
+
 // writes to 8 bit calibration dacs
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
 {
-	// clear caldac load bit
-	devpriv->command5_bits &= ~CALDAC_LOAD_BIT;
+	// clear caldac load bit and make sure we don't write to eeprom
+	devpriv->command5_bits &= ~CALDAC_LOAD_BIT & ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
 	udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
@@ -1452,3 +1529,4 @@ static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int 
 	udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
+
