@@ -375,7 +375,7 @@ static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi
 		ret=-EINVAL;
 		goto cleanup;
 #else
-		it->data_len=it->n_chan*it->n;
+		it->data_len=it->n_chan*it->n*sizeof(sample_t);
 		rt_printk("comedi: warning: trig->data_len not set\n");
 #endif
 	}

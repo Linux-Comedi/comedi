@@ -56,6 +56,7 @@ int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	chan = CR_PACK(chan,range,aref);
 	cmd.subdev = subdev;
 	cmd.data = &sdata;
+	cmd.data_len = sizeof(sampl_t);
 
 	cmd.chanlist = &chan;
 
@@ -77,6 +78,7 @@ int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	chan = CR_PACK(chan,range,aref);
 	cmd.subdev = subdev;
 	cmd.data = &sdata;
+	cmd.data_len = sizeof(sampl_t);
 
 	cmd.chanlist = &chan;
 
