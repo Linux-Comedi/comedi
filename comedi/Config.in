@@ -1,6 +1,10 @@
 
 comment 'Comedi Features'
 
+define_bool CONFIG_COMEDI_MODES y
+define_bool CONFIG_COMEDI_MODE0 y
+define_bool CONFIG_COMEDI_MODE_CORE y
+
 #bool 'Backwards compatibility' CONFIG_COMEDI_BACKWARDS
 
 if [ "$CONFIG_RTL" = "y" ];then
@@ -77,6 +81,7 @@ dep_tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC $
 if [ "$CONFIG_PCI" = "y" ];then
 	dep_tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000 $CONFIG_COMEDI
 fi
+dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	comment 'Virtual device drivers'
@@ -84,5 +89,4 @@ if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	dep_tristate 'Command emulator (timer)' CONFIG_COMEDI_VD_TIMER $CONFIG_COMEDI
 	dep_tristate 'Direct Digital Synthesis' CONFIG_COMEDI_VD_DDS $CONFIG_COMEDI
 fi
-
 

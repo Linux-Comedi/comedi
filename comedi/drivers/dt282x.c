@@ -820,6 +820,7 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
+#ifdef CONFIG_COMEDI_MODES
 static int dt282x_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	int timer;
@@ -954,6 +955,7 @@ static int dt282x_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_tri
 		return 0;
 	}
 }
+#endif
 
 static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
@@ -1034,6 +1036,122 @@ static int dt282x_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it
 	return 1;
 }
 
+static int dt282x_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER;
+	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_NOW;
+	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	//cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	cmd->stop_src &= TRIG_COUNT;	/* XXX */
+	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	/* note that mutual compatiblity is not an issue here */
+	if(cmd->stop_src!=TRIG_COUNT &&
+	   cmd->stop_src!=TRIG_NONE)err++;
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg=0;
+		err++;
+	}
+	if(cmd->scan_begin_arg <= 5000 /* XXX unknown */){
+		cmd->scan_begin_arg = 5000;
+		err++;
+	}
+	if(cmd->convert_arg != 0){
+		cmd->convert_arg = 0;
+		err++;
+	}
+	if(cmd->scan_end_arg > 2){
+		/* XXX chanlist stuff? */
+		cmd->scan_end_arg = 2;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_COUNT){
+		/* any count is allowed */
+	}else{
+		/* TRIG_NONE */
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	tmp=cmd->scan_begin_arg;
+	dt282x_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+	if(tmp!=cmd->scan_begin_arg)err++;
+
+	if(err)return 4;
+
+	return 0;
+
+}
+
+static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	int size;
+	int timer;
+	comedi_cmd *cmd=&s->cmd;
+
+	devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS1 | DT2821_DDMA;
+	update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_DACINIT);
+
+	devpriv->ntrig=cmd->stop_arg*cmd->chanlist_len;
+	devpriv->nread=devpriv->ntrig;
+
+	devpriv->dma_dir=DMA_MODE_WRITE;
+	devpriv->current_dma_chan=0;
+
+	size=copy_from_buf(dev,s,devpriv->dma[0].buf,devpriv->dma_maxsize*2);
+	prep_ao_dma(dev,0,size/2);
+	enable_dma(devpriv->dma[0].chan);
+
+	size=copy_from_buf(dev,s,devpriv->dma[1].buf,devpriv->dma_maxsize*2);
+	prep_ao_dma(dev,1,size/2);
+	enable_dma(devpriv->dma[1].chan);
+	
+	timer=dt282x_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
+	outw(timer, dev->iobase + DT2821_TMRCTR);
+
+	devpriv->dacsr = DT2821_SSEL| DT2821_DACLK | DT2821_IDARDY;
+	update_dacsr(0);
+
+	update_supcsr(DT2821_STRIG);
+
+	return 0;
+}
+
+#ifdef CONFIG_COMEDI_MODES
 static int dt282x_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int size;
@@ -1066,6 +1184,7 @@ static int dt282x_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *i
 
 	return 0;
 }
+#endif
 
 static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
@@ -1267,9 +1386,13 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|((it->options[opt_diff])?SDF_DIFF:SDF_COMMON);
 	s->n_chan=(it->options[opt_diff])?boardtype.adchan_di:boardtype.adchan_se;
+#ifdef CONFIG_COMEDI_MODE0
 	s->trig[0]=dt282x_ai_mode0;
+#endif
+#ifdef CONFIG_COMEDI_MODES
 	s->trig[1]=dt282x_ai_mode1;
 	s->trig[4]=dt282x_ai_mode4;
+#endif
 	s->do_cmdtest=dt282x_ai_cmdtest;
 	s->do_cmd=dt282x_ai_cmd;
 	s->cancel=dt282x_ai_cancel;
@@ -1283,8 +1406,14 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		/* ao subsystem */
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITEABLE;
+#ifdef CONFIG_COMEDI_MODE0
 		s->trig[0]=dt282x_ao;
+#endif
+#ifdef CONFIG_COMEDI_MODES
 		s->trig[2]=dt282x_ao_mode2;
+#endif
+		s->do_cmdtest=dt282x_ao_cmdtest;
+		s->do_cmd=dt282x_ao_cmd;
 		s->cancel=dt282x_ao_cancel;
 		s->maxdata=(1<<boardtype.dabits)-1;
 		s->len_chanlist=1;			/* XXX could do 2 */

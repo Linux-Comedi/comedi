@@ -1,10 +1,14 @@
-Advantech			ACL-8112-DG			pcl711
-Advantech			ACL-8112-HG			pcl711
+ADLink				ACL-8112-DG			pcl711
+ADLink				ACL-8112-HG			pcl711
+ADLink				ACL-6126			pcl726
+ADLink				ACL-6128			pcl726
 Advantech			PCL-711				pcl711
 Advantech			PCL-711B			pcl711
 Advantech			PCL-718				pcl818
 Advantech			PCL-725				pcl725
 Advantech			PCL-726				pcl726
+Advantech			PCL-727				pcl726
+Advantech			PCL-728				pcl726
 Advantech			PCL-812PG			pcl812
 Advantech			PCL-813B			pcl812
 Advantech			PCL-818				pcl818
@@ -28,6 +32,16 @@ ComputerBoards			CIO-DAS08/JR-16-AO		das08
 ComputerBoards			CIO-DAS08/JR-AO			das08
 ComputerBoards			CIO-DAS08/JR-AO			das08jr
 ComputerBoards			CIO-DAS08/JR/16			das08
+ComputerBoards			CIO-DAS16			das16
+ComputerBoards			CIO-DAS16/F			das16
+ComputerBoards			CIO-DAS16/JR			das16
+ComputerBoards			CIO-DAS1401/12			das16
+ComputerBoards			CIO-DAS1402/12			das16
+ComputerBoards			CIO-DAS1402/16			das16
+ComputerBoards			CIO-DAS1601/12			das16
+ComputerBoards			CIO-DAS1602/12			das16
+ComputerBoards			CIO-DAS1602/16			das16
+ComputerBoards			CIO-DAS16/330			das16
 Data Translation		DT21-EZ				dt282x
 Data Translation		DT23-EZ				dt282x
 Data Translation		DT24-EZ				dt282x
@@ -79,7 +93,7 @@ National Instruments		AT-MIO-16E-2			ni_atmio
 National Instruments		AT-MIO-16XE-10			ni_atmio
 National Instruments		AT-MIO-16XE-50			ni_atmio
 National Instruments		AT-MIO-64E-3			ni_atmio
-National Instruments		DAQCard-AI-16E-4	*	ni_mio_cs
+National Instruments		DAQCard-AI-16E-4		ni_mio_cs
 National Instruments		DAQCard-AI-16XE-50		ni_mio_cs
 National Instruments		PCI-6023E			ni_pcimio
 National Instruments		PCI-6024E			ni_pcimio

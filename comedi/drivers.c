@@ -460,8 +460,6 @@ static int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
 
 void init_drivers(void)
 {
-	REG(driver_dummy);
-#if 0
 #ifdef CONFIG_COMEDI_DT282x
 	REG(driver_dt282x);
 #endif
@@ -539,7 +537,6 @@ void init_drivers(void)
 #endif
 #ifdef CONFIG_COMEDI_DAQBOARD2000
 	REG(driver_daqboard2000);
-#endif
 #endif
 }
 

@@ -47,7 +47,9 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
 static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg);
+#ifdef CONFIG_COMEDI_MODE_CORE
 static int do_trig_ioctl(comedi_device *dev,void *arg,void *file);
+#endif
 static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file);
@@ -74,8 +76,10 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 		return do_chaninfo_ioctl(dev,(void *)arg);
 	case COMEDI_RANGEINFO:
 		return do_rangeinfo_ioctl(dev,(void *)arg);
+#ifdef CONFIG_COMEDI_MODE_CORE
 	case COMEDI_TRIG:
 		return do_trig_ioctl(dev,(void *)arg,file);
+#endif
 	case COMEDI_LOCK:
 		return do_lock_ioctl(dev,arg,file);
 	case COMEDI_UNLOCK:
@@ -228,6 +232,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->subd_flags |= SDF_FLAGS;
 		if(s->range_table_list)
 			us->subd_flags |= SDF_RANGETYPE;
+#ifdef CONFIG_COMEDI_MODE_CORE
 		if(s->trig[0])
 			us->subd_flags |= SDF_MODE0;
 		if(s->trig[1])
@@ -238,6 +243,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->subd_flags |= SDF_MODE3;
 		if(s->trig[4])
 			us->subd_flags |= SDF_MODE4;
+#endif
 	}
 	
 	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));
@@ -306,6 +312,7 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 }
 
 
+#ifdef CONFIG_COMEDI_MODE_CORE
 /*
 	COMEDI_TRIG
 	trigger ioctl
@@ -537,6 +544,9 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		s->buf_user_count=0;
 	}
 
+	s->cur_chan=0;
+	s->cur_chanlist_len=s->cur_trig.n_chan;
+
 	s->cb_mask=COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(s->cur_trig.flags & TRIG_WAKE_EOS){
 		s->cb_mask|=COMEDI_CB_EOS;
@@ -561,6 +571,7 @@ cleanup:
 	
 	return ret;
 }
+#endif
 
 
 /*
@@ -813,8 +824,10 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 	s->cmd.data_len=s->prealloc_bufsz;
 
-	s->cur_trig.data=s->prealloc_buf;
+#ifdef CONFIG_COMEDI_MODE_CORE
+	s->cur_trig.data=s->prealloc_buf;	/* XXX */
 	s->cur_trig.data_len=s->prealloc_bufsz;
+#endif
 
 	s->buf_int_ptr=0;
 	s->buf_int_count=0;
@@ -823,6 +836,11 @@ if(s->subdev_flags & SDF_READABLE){
 	s->buf_user_count=0;
 }
 	
+	s->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	if(s->cmd.flags & TRIG_WAKE_EOS){
+		s->cb_mask |= COMEDI_CB_EOS;
+	}
+
 	s->runflags=SRF_USER;
 #ifdef CONFIG_COMEDI_RT
 	if(s->cmd.flags & TRIG_RT){
@@ -1191,8 +1209,10 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		if(s->busy != file)
 			return -EACCES;
 
-		buf_ptr=s->cur_trig.data;
+#ifdef CONFIG_COMEDI_MODE_CORE
+		buf_ptr=s->cur_trig.data; /* XXX */
 		buf_len=s->cur_trig.data_len;
+#endif
 	}
 
 	if(!buf_ptr)
@@ -1275,8 +1295,10 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	if(!s->busy)
 		return 0;
 
-	if(!s->cur_trig.data || !(s->subdev_flags&SDF_READABLE))
+#ifdef CONFIG_COMEDI_MODE_CORE
+	if(!s->cur_trig.data || !(s->subdev_flags&SDF_READABLE))	/* XXX */
 		return -EIO;
+#endif
 
 	if(s->busy != file)
 		return -EACCES;
@@ -1288,13 +1310,13 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 		n=nbytes;
 
 		m=s->buf_int_count-s->buf_user_count;
-		if(m>s->cur_trig.data_len){
+		if(m>s->cur_trig.data_len){	/* XXX MODE */
 			s->buf_user_count=s->buf_int_count;
 			s->buf_user_ptr=s->buf_int_ptr;
 			retval=-EINVAL; /* OVERRUN */
 			break;
 		}
-		if(s->buf_user_ptr+m > s->cur_trig.data_len){
+		if(s->buf_user_ptr+m > s->cur_trig.data_len){ /* XXX MODE */
 			m=s->cur_trig.data_len - s->buf_user_ptr;
 #if 0
 printk("m is %d\n",m);
@@ -1361,7 +1383,7 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	}
 #endif
 
-	if(s->cur_trig.chanlist){
+	if(s->cur_trig.chanlist){		/* XXX wrong? */
 		kfree(s->cur_trig.chanlist);
 		s->cur_trig.chanlist=NULL;
 	}
@@ -1604,7 +1626,7 @@ int init_module(void)
 	return comedi_init();
 }
 
-int cleanup_module(void)
+void cleanup_module(void)
 {
 	comedi_cleanup();
 }

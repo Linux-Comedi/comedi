@@ -264,9 +264,8 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 	s->buf_int_ptr += sizeof(sampl_t);
 	s->buf_int_count += sizeof(sampl_t);
 	
-	if((++s->cur_chan) >= s->cmd.chanlist_len) {	/* one scan done */
+	if((++s->cur_chan) >= s->cur_chanlist_len) {	/* one scan done */
 		s->cur_chan = 0;
-		s->cur_trig.flags |= TRIG_WAKE_EOS;
 		comedi_eos(dev, s);
 	}
 

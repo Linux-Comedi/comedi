@@ -30,7 +30,7 @@
 #include <linux/malloc.h>
 #include <linux/errno.h>
 #include <comedi.h>
-#ifdef COMEDI_STANDALONE
+#ifdef __MODBUILD__
 #include <config.h>
 #endif
 
@@ -93,7 +93,9 @@ struct comedi_subdevice_struct{
 	
 	unsigned int *chanlist;		/* driver-owned chanlist (not used) */
 	
+#ifdef CONFIG_COMEDI_MODE_CORE
 	comedi_trig	cur_trig;	/* current trig structure */
+#endif
 	comedi_cmd	cmd;
 	
 	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
@@ -101,11 +103,14 @@ struct comedi_subdevice_struct{
 	volatile unsigned int buf_int_count;	/* byte count for interrupt */
 	unsigned int buf_user_count;		/* byte count for read() and write() */
 	unsigned int cur_chan;		/* useless channel marker for interrupt */
+	unsigned int cur_chanlist_len;
 	
+#ifdef CONFIG_COMEDI_MODE_CORE
 	int (*trig[5])(comedi_device *,comedi_subdevice *,comedi_trig *);
+#endif
 
-	int (*insn_read)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *data);
-	int (*insn_write)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *data);
+	int (*insn_read)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
+	int (*insn_write)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 
 	int (*do_cmd)(comedi_device *,comedi_subdevice *);
 	int (*do_cmdtest)(comedi_device *,comedi_subdevice *,comedi_cmd *);
@@ -191,8 +196,10 @@ void stop_polling(comedi_device *);
 void comedi_proc_init(void);
 void comedi_proc_cleanup(void);
 
+#ifdef CONFIG_COMEDI_MODE_CORE
 int di_unpack(unsigned int bits,comedi_trig *it);
 int do_pack(unsigned int *bits,comedi_trig *it);
+#endif
 
 #ifndef CONFIG_COMEDI_RT
 

@@ -22,36 +22,12 @@
 */
 
 /*
-	The real guts of the driver is in ni-E.c, which is included
-	both here and in pcimio-E.c
-
-	
-	Interrupt support added by Truxton Fulton <trux@truxton.com>
+	The real guts of the driver is in ni_mio_common.c, which is
+	included by all the E series drivers.
 
 	References for specifications:
 	
-	   321747b.pdf  Register Level Programmer Manual (obsolete)
-	   321747c.pdf  Register Level Programmer Manual (new)
-	   DAQ-STC reference manual
-
-	Other possibly relevant info:
-	
-	   320517c.pdf  User manual (obsolete)
-	   320517f.pdf  User manual (new)
-	   320889a.pdf  delete
-	   320906c.pdf  maximum signal ratings
-	   321066a.pdf  about 16x
-	   321791a.pdf  discontinuation of at-mio-16e-10 rev. c
-	   321808a.pdf  about at-mio-16e-10 rev P
-	   321837a.pdf  discontinuation of at-mio-16de-10 rev d
-	   321838a.pdf  about at-mio-16de-10 rev N
-	
-	ISSUES:
-
-	need to deal with external reference for DAC, and other DAC
-	properties in board properties
-	
-	deal with at-mio-16de-10 revision D to N changes, etc.
+	   341080a.pdf  DAQCard E Series Register Level Programmer Manual
 	
 */
 
@@ -94,14 +70,15 @@ static struct caldac_struct *type1[]={&caldac_mb88341,NULL,NULL};
 static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,NULL};
 
 static ni_board ni_boards[]={
-	{	device_id:	52,
+	{	device_id:	0x010d,
 		name:		"DAQCard-ai-16xe-50",
+	// This board apparently doesn't have DIO.  Not accounted for.
 		n_adchan:	16,
 		adbits:		16,
 		ai_fifo_depth:	8192,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
-		ai_speed:	800,
+		ai_speed:	50000,
 		n_aochan:	0,
 		aobits:		0,
 		ao_fifo_depth:	0,
@@ -109,14 +86,14 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 		caldac:		type2,
 	},
-	{	device_id:	52,
+	{	device_id:	0x0000,
 		name:		"DAQCard-ai-16e-4",
 		n_adchan:	16,
 		adbits:		16,
 		ai_fifo_depth:	8192,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
-		ai_speed:	800,
+		ai_speed:	4000,
 		n_aochan:	0,
 		aobits:		0,
 		ao_fifo_depth:	0,
@@ -180,8 +157,6 @@ typedef struct{
 	unsigned short gpct_input_select0;
 	unsigned short gpct_input_select1;
 
-	unsigned int ai_n_chans;
-	unsigned int ai_chanlistptr;
 	unsigned short ai_xorlist[512];
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
@@ -500,6 +475,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	printk(" %s",ni_boards[dev->board].name);
 	dev->board_name=ni_boards[dev->board].name;
+	dev->board_ptr = ni_boards+dev->board;
 
 	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_mio_cs",dev))<0 ){
 		printk(" irq not available\n");
@@ -534,7 +510,6 @@ static int get_prodid(comedi_device *dev,dev_link_t *link)
 	   (CardServices(GetTupleData,handle,&tuple) == CS_SUCCESS)){
 		prodid = le16_to_cpu(buf[1]);
 	}
-	//printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
 	
 	return prodid;
 }
@@ -552,7 +527,9 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 		}
 	}
 
-	return -1;
+	printk("unknown board -- pretend it is a ");
+
+	return 0;
 }
 
 

@@ -59,6 +59,8 @@ obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 
+obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
+
 #obj-m += $(obj-y)
 
 O_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
@@ -73,5 +75,6 @@ include $(TOPDIR)/Rules.make
 
 ni_pcimio.o:	ni_mio_common.c
 ni_atmio.o:	ni_mio_common.c
+ni_mio_cs.o:	ni_mio_common.c
 
 

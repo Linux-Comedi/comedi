@@ -1,13 +1,5 @@
 
-1.  Should I use CONFIG_MODVERSIONS when compiling a Linux kernel?
-
-Short answer:  No.  Long answer: MODVERSIONS allows you to safely
-use a module on multiple kernel versions.  However, making comedi
-work with CONFIG_MODVERSIONS is a real pain.  Sometimes it works,
-sometimes it doesn't.
-
-
-2. I get the error message:
+1. I get the error message:
 
 Makefile:14: /usr/src/linux/.config: No such file or directory
 make: *** No rule to make target `/usr/src/linux/.config'.  Stop.
@@ -19,18 +11,5 @@ which comedi needs in order to compile correctly.  Some distributions
 don't contain this file, so you will need to create your own, by
 compiling your own kernel.  This file is automatically created
 when you run 'make config', the first step in compiling a kernel.
-
-
-3. When compiling programs that use libcomedi, I get error message:
-
-/usr/lib/libcomedi.a(range.o): In function `comedi_from_phys':
-range.o(.text+0x169): undefined reference to `floor'
-
-
-This error messsage indicates that the linker cannot resolve the
-reference to floor(), which is a function in the math library
-that is used in the function comedi_from_phys().  This only
-happens when you link statically.  Add '-lm' to your linking
-command.
 
 

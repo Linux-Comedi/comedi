@@ -125,13 +125,13 @@
 
 */
 
-static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das08_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das08_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das08jr_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das08jr_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
+static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das08_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das08_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das08jr_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das08jr_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 static comedi_lrange range_das08_pgl = { 9, {
 	BIP_RANGE(10),
@@ -339,7 +339,7 @@ struct das08_private_struct{
 
 #define TIMEOUT 1000
 
-static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int i,n;
 	int chan;
@@ -389,14 +389,14 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	return n;
 }
 
-static int das08_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	insn->data[0]=DAS08_IP(inb(dev->iobase+DAS08_STATUS));
 
 	return 1;
 }
 
-static int das08_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	/* XXX race with ai */
 
@@ -407,21 +407,21 @@ static int das08_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	return 1;
 }
 
-static int das08jr_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08jr_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	insn->data[0]=inb(dev->iobase+DAS08JR_DIO);
 
 	return 1;
 }
 
-static int das08jr_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08jr_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	outb(insn->data[0],dev->iobase+DAS08JR_DIO);
 
 	return 1;
 }
 
-static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int n;
 	int lsb,msb;
@@ -457,7 +457,7 @@ static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
  * a different method to force an update.
  *
  */
-static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int n;
 	int lsb,msb;

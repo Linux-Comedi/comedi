@@ -29,6 +29,7 @@ TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
 CFLAGS = -Wall -O2 -Wstrict-prototypes
 CFLAGS += -D__KERNEL__ -I $(LINUXDIR)/include -I $(TOPDIR)/include -I .
+CFLAGS += -D__MODBUILD__
 
 CONFIG_SHELL := sh
 

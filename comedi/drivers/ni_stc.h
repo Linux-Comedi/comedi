@@ -131,7 +131,23 @@
 #define AO_START1_Pulse				_bit0
 
 #define DIO_Input_Register		7
+
 #define AI_Command_1_Register		8
+#define AI_Analog_Trigger_Reset			_bit14
+#define AI_Disarm				_bit13
+#define AI_SI2_Arm				_bit12
+#define AI_SI2_Load				_bit11
+#define AI_SI_Arm				_bit10
+#define AI_SI_Load				_bit9
+#define AI_DIV_Arm				_bit8
+#define AI_DIV_Load				_bit7
+#define AI_SC_Arm				_bit6
+#define AI_SC_Load				_bit5
+#define AI_SCAN_IN_PROG_Pulse			_bit4
+#define AI_EXTMUX_CLK_Pulse			_bit3
+#define AI_LOCALMUX_CLK_Pulse			_bit2
+#define AI_SC_TC_Pulse			 	_bit1
+#define AI_CONVERT_Pulse			_bit0
 
 #define AO_Command_1_Register		9
 #define AO_Analog_Trigger_Reset			_bit15
@@ -154,14 +170,22 @@
 
 #define DIO_Output_Register		10
 #define DIO_Control_Register		11
+
 #define AI_Mode_1_Register		12
+#define AI_CONVERT_Source_Select(a)		((a)<<11)
+#define AI_SI_Source_select(a)			((a)<<6)
+#define AI_CONVERT_Source_Polarity		_bit5
+#define AI_Start_Stop				_bit3
+#define AI_Mode_1_Reserved			_bit2
+#define AI_Continuous				_bit1
+#define AI_Trigger_Once				_bit0
 
 #define AI_Mode_2_Register		13
 #define AI_SC_Gate_Enable			_bit15
 #define AI_Start_Stop_Gate_Enable		_bit14
 #define AI_Pre_Trigger				_bit13
 #define AI_External_MUX_Present			_bit12
-#define AI_SI2_Ininial_Load_Source		_bit9
+#define AI_SI2_Initial_Load_Source		_bit9
 #define AI_SI2_Reload_Mode			_bit8
 #define AI_SI_Initial_Load_Source		_bit7
 #define AI_SI_Reload_Mode(a)			((a)<<4)
@@ -226,7 +250,24 @@
 #define AI_START_Select(a)			(a)
 
 #define AI_Trigger_Select_Register	63
+#define AI_START1_Polarity			_bit15
+#define AI_START2_Polarity			_bit14
+#define AI_START2_Sync				_bit13
+#define AI_START2_Edge				_bit12
+#define AI_START2_Select(a)			((a)<<7)
+#define AI_START1_Sync				_bit6
+#define AI_START1_Edge				_bit5
+#define AI_START1_Select(a)			(a)
+
 #define AO_Start_Select_Register	66
+#define AO_UI2_Software_Gate			_bit15
+#define AO_UI2_External_Gate_Polarity		_bit14
+#define AO_START_Polarity			_bit13
+#define AO_AOFREQ_Enable			_bit12
+#define AO_UI2_External_Gate_Select(a)		((a)<<7)
+#define AO_START_Sync				_bit6
+#define AO_START_Edge				_bit5
+#define AO_START_Select(a)			(a)
 
 #define AO_Trigger_Select_Register	67
 #define AO_UI2_External_Gate_Enable		_bit15

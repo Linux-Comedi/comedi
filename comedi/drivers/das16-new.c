@@ -206,10 +206,10 @@ static comedi_lrange *das16_ai_bip_lranges[]={
 	&range_das1x02_bip,
 };
 
-static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
-static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn);
+static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 struct das16_board_struct{
 	char		*name;
@@ -409,7 +409,7 @@ struct das16_private_struct {
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
 
 
-static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int i,n;
 	int range;
@@ -449,41 +449,41 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		msb = inb(dev->iobase + DAS16_AI_MSB);
 		lsb = inb(dev->iobase + DAS16_AI_LSB);
 		if(thisboard->ai_nbits==12){
-			insn->data[n] = (lsb>>4) | (msb << 4);
+			data[n] = (lsb>>4) | (msb << 4);
 		}else{
-			insn->data[n] = lsb | (msb << 8);
+			data[n] = lsb | (msb << 8);
 		}
 	}
 
 	return n;
 }
 
-static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	insn->data[0]=inb(dev->iobase+DAS16_DIO)&0xf;
+	data[0]=inb(dev->iobase+DAS16_DIO)&0xf;
 
 	return 1;
 }
 
-static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	outb(insn->data[0],dev->iobase+DAS16_DIO);
+	outb(data[0],dev->iobase+DAS16_DIO);
 
 	return 1;
 }
 
-static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn)
+static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int n;
 	int lsb,msb;
 	int chan;
 
 	if(thisboard->ao_nbits==12){
-		lsb=(insn->data[0]<<4)&0xff;
-		msb=(insn->data[0]>>4)&0xff;
+		lsb=(data[0]<<4)&0xff;
+		msb=(data[0]>>4)&0xff;
 	}else{
-		lsb=insn->data[0]&0xff;
-		msb=(insn->data[0]>>8)&0xff;
+		lsb=data[0]&0xff;
+		msb=(data[0]>>8)&0xff;
 	}
 
 	chan=CR_CHAN(insn->chanspec);
@@ -505,13 +505,6 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 
 
 
-
-static void das16_init(comedi_device *dev)
-{
-	outb(DAS16_IRQ(dev->irq),dev->iobase+DAS16_CONTROL);
-	outb(0,DAS16_PACER);
-
-}
 
 static int detect_ao(comedi_device *dev)
 {
@@ -635,6 +628,11 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 
 	printk("comedi%d: das16:",dev->minor);
 
+	if((ret=alloc_private(dev,sizeof(struct das16_private_struct)))<0)
+		return ret;
+
+	dev->board = das16_probe(dev);
+
 	dev->board_ptr = das16_boards + dev->board;
 	dev->board_name = thisboard->name;
 
@@ -658,8 +656,6 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->n_subdevices = 5;
 	if((ret=alloc_subdevices(dev))<0)
-		return ret;
-	if((ret=alloc_private(dev,sizeof(struct das16_private_struct)))<0)
 		return ret;
 
 	if(thisboard->size<0x400){
@@ -739,6 +735,9 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
+
+	outb(DAS16_IRQ(dev->irq),dev->iobase+DAS16_CONTROL);
+	outb(0,DAS16_PACER);
 
 	return 0;
 }

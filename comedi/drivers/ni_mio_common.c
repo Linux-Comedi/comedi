@@ -142,11 +142,11 @@ static comedi_lrange *ni_range_lkup[]={
 
 
 static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int ni_read_eeprom(comedi_device *dev,int addr);
-
 static int ni_eeprom(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int ni_calib(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
+static int ni_read_eeprom(comedi_device *dev,int addr);
 
 
 static void ni_handle_fifo_half_full(comedi_device *dev);
@@ -230,15 +230,6 @@ mite_dma_tcr(devpriv->mite);
 		return;
 	}
 
-#if 0
-	/* this is wrong, since we do AO now  */
-	if(!dev->subdevices->cur_trig.data){
-		rt_printk("aiee! cur_trig.data got zapped!\n");
-		comedi_done(dev,s);
-		return;
-	}
-#endif
-
 	if(status&AI_SC_TC_St){
 #ifdef DEBUG
 rt_printk("ni-E: SC_TC interrupt\n");
@@ -249,28 +240,8 @@ rt_printk("ni-E: SC_TC interrupt\n");
 
 		ack|=AI_SC_TC_Interrupt_Ack;
 	}
-	if(status&AI_FIFO_Half_Full_St){
-		ni_handle_fifo_half_full(dev);
-	}
-	if(dev->subdevices->cur_trig.flags&TRIG_WAKE_EOS){
-#if 0
-		if(status&AI_START_St){
-			/* just ack it */
-			ack|=AI_START_Interrupt_Ack;
-		}
-#endif
-		if(status&AI_STOP_St){
-			ni_handle_fifo_dregs(dev);
-	
-			comedi_eos(dev,dev->subdevices+0);
-	
-			/* we need to ack the START, also */
-			ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
-		}
-	}
-#if 0
 	switch(devpriv->aimode){
-	deafult:
+	default:
 		break;
 	case AIMODE_HALF_FULL:
 		if(status&AI_FIFO_Half_Full_St){
@@ -295,14 +266,13 @@ rt_printk("ni-E: SC_TC interrupt\n");
 		break;
 	case AIMODE_SAMPLE:
 		ni_handle_fifo_dregs(dev);
-		if(s->buf_int_count>=s->cur_chan){
-			while(s->buf_int_count>=s->cur_chan)
-				s->cur_chan+=s->cur_trig.n_chan*sizeof(sampl_t);
+#if 0
+		if(s->event_mask&COMEDI_CB_EOS){
 			comedi_eos(dev,dev->subdevices+0);
 		}
+#endif
 		break;
 	}
-#endif
 
 	if(b_status&AO_Overrun_St){
 		printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
@@ -341,16 +311,19 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	unsigned int mask;
 
 	mask=(1<<boardtype.adbits)-1;
-	j=devpriv->ai_chanlistptr;
+	j=s->cur_chan;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
 		d^=devpriv->ai_xorlist[j];
 		d&=mask;
 		data[i]=d;
 		j++;
-		if(j>=s->cur_trig.n_chan)j=0;
+		if(j>=s->cur_chanlist_len){
+			j=0;
+			//s->event_mask |= COMEDI_CB_EOS;
+		}
 	}
-	devpriv->ai_chanlistptr=j;
+	s->cur_chan=j;
 }
 
 
@@ -412,7 +385,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	*/
 
 	mask=(1<<boardtype.adbits)-1;
-	j=devpriv->ai_chanlistptr;
+	j=s->cur_chan;
 	data=((void *)s->cur_trig.data)+s->buf_int_ptr;
 	while(1){
 		n=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
@@ -425,7 +398,10 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			d&=mask;
 			*data=d;
 			j++;
-			if(j>=s->cur_trig.n_chan)j=0;
+			if(j>=s->cur_chanlist_len){
+				j=0;
+				//s->event_mask |= COMEDI_CB_EOS;
+			}
 			data++;
 			s->buf_int_ptr+=sizeof(sampl_t);
 			s->buf_int_count+=sizeof(sampl_t);
@@ -434,7 +410,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		data=s->cur_trig.data;
 		comedi_eobuf(dev,s);
 	}
-	devpriv->ai_chanlistptr=j;
+	s->cur_chan=j;
 }
 
 /*
@@ -662,7 +638,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER;
+	cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
 	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
@@ -680,6 +656,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* note that mutual compatiblity is not an issue here */
 	if(cmd->scan_begin_src!=TRIG_TIMER &&
 	   cmd->scan_begin_src!=TRIG_EXT)err++;
+	if(cmd->convert_src!=TRIG_TIMER &&
+	   cmd->convert_src!=TRIG_EXT)err++;
 
 	if(err)return 2;
 
@@ -694,26 +672,35 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->scan_begin_arg=boardtype.ai_speed;
 			err++;
 		}
-		if(cmd->scan_begin_arg>TIMER_BASE*0xffff){	/* XXX */
-			cmd->scan_begin_arg=TIMER_BASE*0xffff;
+		if(cmd->scan_begin_arg>TIMER_BASE*0xffffff){
+			cmd->scan_begin_arg=TIMER_BASE*0xffffff;
 			err++;
 		}
 	}else{
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if(cmd->scan_begin_arg!=0){
-			cmd->scan_begin_arg=0;
+		if(cmd->scan_begin_arg>9){
+			cmd->scan_begin_arg=9;
 			err++;
 		}
 	}
-	if(cmd->convert_arg<boardtype.ai_speed){
-		cmd->convert_arg=boardtype.ai_speed;
-		err++;
-	}
-	if(cmd->convert_arg>TIMER_BASE*0xffff){	/* XXX */
-		cmd->convert_arg=TIMER_BASE*0xffff;
-		err++;
+	if(cmd->convert_src==TRIG_TIMER){
+		if(cmd->convert_arg<boardtype.ai_speed){
+			cmd->convert_arg=boardtype.ai_speed;
+			err++;
+		}
+		if(cmd->convert_arg>TIMER_BASE*0xffff){
+			cmd->convert_arg=TIMER_BASE*0xffff;
+			err++;
+		}
+	}else{
+		/* external trigger */
+		/* see above */
+		if(cmd->convert_arg>9){
+			cmd->convert_arg=9;
+			err++;
+		}
 	}
 
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
@@ -761,6 +748,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	int wsave;
 	comedi_cmd *cmd=&s->cmd;
 	int timer;
+	int mode1=0; /* mode1 is needed for both stop and convert */
+	int mode2=0;
 
 	wsave = win_save();
 
@@ -777,11 +766,12 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* stage number of scans */
 		win_out((cmd->stop_arg-1)>>16,AI_SC_Load_A_Registers);
 		win_out((cmd->stop_arg-1)&0xffff,AI_SC_Load_A_Registers+1);
+
+		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
+		win_out(mode1,AI_Mode_1_Register);
 	
 		/* load SC (Scan Count) */
-		win_out(0x20,AI_Command_1_Register);
-
-		win_out(0x000d,AI_Mode_1_Register);
+		win_out(AI_SC_Load,AI_Command_1_Register);
 
 		break;
 	case TRIG_NONE:
@@ -789,10 +779,11 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out(0,AI_SC_Load_A_Registers);
 		win_out(0,AI_SC_Load_A_Registers+1);
 	
-		/* load SC (Scan Count) */
-		win_out(0x20,AI_Command_1_Register);
+		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
+		win_out(mode1,AI_Mode_1_Register);
 
-		win_out(0x000e,AI_Mode_1_Register);
+		/* load SC (Scan Count) */
+		win_out(AI_SC_Load,AI_Command_1_Register);
 
 		break;
 	}
@@ -819,10 +810,13 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		timer=ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 		win_out((timer>>16),AI_SI_Load_A_Registers);
 		win_out((timer&0xffff),AI_SI_Load_A_Registers+1);
+
 		/* AI_SI_Initial_Load_Source=A */
-		win_out(0,AI_Mode_2_Register);
+		mode2 |= AI_SI_Initial_Load_Source&0;
+		win_out(mode2,AI_Mode_2_Register);
+
 		/* load SI */
-		win_out(0x200,AI_Command_1_Register);
+		win_out(AI_SI_Load,AI_Command_1_Register);
 
 		/* stage freq. counter into SI B */
 		win_out((timer>>16),AI_SI_Load_B_Registers);
@@ -830,39 +824,65 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		break;
 	case TRIG_EXT:
-		win_out(AI_START_Edge|AI_START_Sync|AI_START_Select(1)|
+		win_out(AI_START_Edge|AI_START_Sync|
+			AI_START_Select(1+cmd->scan_begin_arg)|
 			AI_STOP_Select(19)|AI_STOP_Sync,
 			AI_START_STOP_Select_Register);
 		break;
 	}
 
-	timer=ni_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
-	win_out(timer,AI_SI2_Load_A_Register); /* 0,0 does not work. */
-	win_out(timer,AI_SI2_Load_B_Register);
+	switch(cmd->convert_src){
+	case TRIG_TIMER:
+		timer=ni_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
+		win_out(timer,AI_SI2_Load_A_Register); /* 0,0 does not work. */
+		win_out(timer,AI_SI2_Load_B_Register);
 
-	/* AI_SI2_Reload_Mode = alternate */
-	/* AI_SI2_Initial_Load_Source = A */
-	win_out(0x0100,AI_Mode_2_Register);
+		/* AI_SI2_Reload_Mode = alternate */
+		/* AI_SI2_Initial_Load_Source = A */
+		win_out((AI_SI2_Initial_Load_Source&0)|
+			(AI_SI2_Reload_Mode),
+			AI_Mode_2_Register);
 
-	/* AI_SI2_Load */
-	win_out(0x0800,AI_Command_1_Register);
+		/* AI_SI2_Load */
+		win_out(AI_SI2_Load,AI_Command_1_Register);
 
-	/* AI_SI_Initial_Load_Source=0
-	   AI_SI_Reload_Mode(0)
-	   AI_SI2_Reload_Mode = alternate, AI_SI2_Initial_Load_Source = B */
-	win_out(0x0300,AI_Mode_2_Register);
+		mode2 |= AI_SI_Reload_Mode(0);
+		mode2 |= 0&AI_SI_Initial_Load_Source;
+		mode2 |= AI_SI2_Reload_Mode; // alternate
+		mode2 |= AI_SI2_Initial_Load_Source; // B
+
+		win_out(mode2,AI_Mode_2_Register);
+
+		break;
+	case TRIG_EXT:
+		mode1 |= AI_CONVERT_Source_Select(1+cmd->convert_arg) |
+			AI_CONVERT_Source_Polarity |
+			AI_Start_Stop;
+		win_out(mode1,AI_Mode_1_Register);
+
+		win_out(mode2 | AI_SI2_Reload_Mode,AI_Mode_2_Register);
+
+		mode2 |= AI_SI_Reload_Mode(0);
+		mode2 |= 0&AI_SI_Initial_Load_Source;
+		mode2 |= AI_SI2_Reload_Mode; // alternate
+		mode2 |= AI_SI2_Initial_Load_Source; // B
+
+		win_out(mode2,AI_Mode_2_Register);
+
+		break;
+	}
 
 	if(dev->irq){
 		int bits;
 
 		/* interrupt on FIFO, errors, SC_TC */
-		bits=0x00a1;
+		bits=AI_FIFO_Interrupt_Enable|
+			AI_Error_Interrupt_Enable|
+			AI_SC_TC_Interrupt_Enable;
 
-		if(cmd->flags&TRIG_WAKE_EOS){
+		if(s->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
-		}else if(s->cb_mask&COMEDI_CB_EOS){
-			devpriv->aimode=AIMODE_SAMPLE;
 		}else{
 			devpriv->aimode=AIMODE_HALF_FULL;
 		}
@@ -910,12 +930,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* AI_START1_Pulse */
 	win_out(AI_START1_Pulse,AI_Command_2_Register);
-
-	devpriv->ai_n_chans = s->cur_trig.n_chan;
-#if 0
-	/* XXX hack alert */
-	s->cur_chan=s->cur_trig.n_chan*sizeof(sampl_t);
-#endif
 
 	win_restore(wsave);
 	return 0;
@@ -1008,11 +1022,9 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		     AI_SC_TC_Interrupt_Enable;
 		//bits|=Pass_Thru_0_Interrupt_Enable;
 
-		if(it->flags&TRIG_WAKE_EOS){
+		if(s->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
-		}else if(s->cb_mask&COMEDI_CB_EOS){
-			devpriv->aimode=AIMODE_SAMPLE;
 		}else{
 			devpriv->aimode=AIMODE_HALF_FULL;
 		}
@@ -1071,9 +1083,6 @@ rt_printk("end config\n");
 #ifdef DEBUG
 rt_printk("START1 pulse\n");
 #endif
-
-	/* XXX hack alert */
-	s->cur_chan=s->cur_trig.n_chan*sizeof(sampl_t);
 
 	win_restore(wsave);
 	return 0;
@@ -1164,11 +1173,9 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		/* interrupt on FIFO, errors, SC_TC */
 		bits=0x00a1;
 
-		if(it->flags&TRIG_WAKE_EOS){
+		if(s->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
-		}else if(s->cb_mask&COMEDI_CB_EOS){
-			devpriv->aimode=AIMODE_SAMPLE;
 		}else{
 			devpriv->aimode=AIMODE_HALF_FULL;
 		}
@@ -1209,9 +1216,6 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 	/* AI_START1_Pulse */
 	win_out(AI_START1_Pulse,AI_Command_2_Register);
-
-	/* XXX hack alert */
-	s->cur_chan=s->cur_trig.n_chan*sizeof(sampl_t);
 
 	win_restore(wsave);
 	return 0;

@@ -21,12 +21,12 @@ MOD_LIST_NAME := MISC_MODULES
 
 ifeq ($(CONFIG_COMEDI),y)
   O_TARGET := comedi.o
-  O_OBJS := comedi_fops.o dummy.o proc.o range.o drivers.o kvmem.o
+  O_OBJS := comedi_fops.o proc.o range.o drivers.o kvmem.o
   OX_OBJS := comedi_ksyms.o
 else
   ifeq ($(CONFIG_COMEDI),m)
     M_OBJS := comedi.o
-    MI_OBJS := comedi_fops.o dummy.o proc.o range.o drivers.o kvmem.o
+    MI_OBJS := comedi_fops.o proc.o range.o drivers.o kvmem.o
     MIX_OBJS := comedi_ksyms.o
   endif
 endif
