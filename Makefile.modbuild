@@ -7,8 +7,7 @@
 # headers
 # PCMCIADIR = /home/ds/stuff/pcmcia-cs-3.1.15
 
-#ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
-ARCH := ppc
+ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
 
 .EXPORT_ALL_VARIABLES:
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
@@ -22,7 +21,7 @@ FINDHPATH	= $(HPATH)/$(project)
 HOSTCC		=gcc
 HOSTCFLAGS	=-Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
 
-CROSS_COMPILE	= powerpc-linux-
+CROSS_COMPILE	= 
 
 #
 # Include the make variables (CC, etc...)
