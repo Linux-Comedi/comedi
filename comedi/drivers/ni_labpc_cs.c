@@ -93,39 +93,6 @@ static dev_link_t *pcmcia_dev_list = NULL;
 
 static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
 
-static labpc_board labpc_boards[] =
-{
-	{
-		name:	"daqcard-1200",
-		device_id:	0x103,	// 0x10b is manufacturer id, 0x103 is device id
-		ai_speed:	10000,
-		bustype:	pcmcia_bustype,
-		register_layout:	labpc_1200_layout,
-		has_ao:	1,
-		read_byte:	labpc_inb,
-		write_byte:	labpc_outb,
-		ai_range_table:	&range_labpc_1200_ai,
-		ai_range_code: labpc_1200_ai_gain_bits,
-		ai_range_is_unipolar: labpc_1200_is_unipolar,
-		ai_scan_up: 0,
-	},
-	/* duplicate entry, to support using alternate name */
-	{
-		name:	"ni_labpc_cs",
-		device_id:	0x103,
-		ai_speed:	10000,
-		bustype:	pcmcia_bustype,
-		register_layout:	labpc_1200_layout,
-		has_ao:	1,
-		read_byte:	labpc_inb,
-		write_byte:	labpc_outb,
-		ai_range_table:	&range_labpc_1200_ai,
-		ai_range_code: labpc_1200_ai_gain_bits,
-		ai_range_is_unipolar: labpc_1200_is_unipolar,
-		ai_scan_up: 0,
-	},
-};
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -134,16 +101,14 @@ static labpc_board labpc_boards[] =
 static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
 static const int sample_size = 2;	// 2 bytes per sample
 
-#define devpriv ((labpc_private *)dev->private)
-
 static comedi_driver driver_labpc_cs =
 {
 	driver_name: "ni_labpc_cs",
 	module: THIS_MODULE,
 	attach: labpc_attach,
 	detach: labpc_common_detach,
-	num_names: sizeof(labpc_boards) / sizeof(labpc_board),
-	board_name: (char **)labpc_boards,
+	num_names: sizeof(labpc_cs_boards) / sizeof(labpc_board),
+	board_name: (char **)labpc_cs_boards,
 	offset: sizeof(labpc_board),
 };
 
@@ -766,3 +731,4 @@ void labpc_exit_module(void)
 
 module_init( labpc_init_module );
 module_exit( labpc_exit_module );
+

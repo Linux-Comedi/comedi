@@ -252,8 +252,9 @@ static comedi_lrange range_labpc_plus_ai = {
 	}
 };
 
+#define NUM_LABPC_1200_AI_RANGES 14
 // indicates unipolar ranges
-int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
+static int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
 {
 	0,
 	0,
@@ -271,7 +272,7 @@ int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
 	1,
 };
 // map range index to gain bits
-int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
+static int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
 {
 	0x00,
 	0x20,
@@ -288,7 +289,7 @@ int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
 	0x60,
 	0x70,
 };
-comedi_lrange range_labpc_1200_ai = {
+static comedi_lrange range_labpc_1200_ai = {
 	NUM_LABPC_1200_AI_RANGES,
 	{
 		BIP_RANGE(5),
@@ -317,6 +318,25 @@ comedi_lrange range_labpc_ao = {
 		UNI_RANGE(10),
 	}
 };
+
+/* functions that do inb/outb and readb/writeb so we can use
+ * function pointers to decide which to use */
+static inline unsigned int labpc_inb(unsigned long address)
+{
+	return inb(address);
+}
+static inline void labpc_outb(unsigned int byte, unsigned long address)
+{
+	outb(byte, address);
+}
+static inline unsigned int labpc_readb(unsigned long address)
+{
+	return readb(address);
+}
+static inline void labpc_writeb(unsigned int byte, unsigned long address)
+{
+	writeb(byte, address);
+}
 
 static labpc_board labpc_boards[] =
 {
@@ -372,6 +392,39 @@ static labpc_board labpc_boards[] =
 		ai_range_code: labpc_1200_ai_gain_bits,
 		ai_range_is_unipolar: labpc_1200_is_unipolar,
 		ai_scan_up: 1,
+	},
+};
+
+labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS] =
+{
+	{
+		name:	"daqcard-1200",
+		device_id:	0x103,	// 0x10b is manufacturer id, 0x103 is device id
+		ai_speed:	10000,
+		bustype:	pcmcia_bustype,
+		register_layout:	labpc_1200_layout,
+		has_ao:	1,
+		read_byte:	labpc_inb,
+		write_byte:	labpc_outb,
+		ai_range_table:	&range_labpc_1200_ai,
+		ai_range_code: labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar: labpc_1200_is_unipolar,
+		ai_scan_up: 0,
+	},
+	/* duplicate entry, to support using alternate name */
+	{
+		name:	"ni_labpc_cs",
+		device_id:	0x103,
+		ai_speed:	10000,
+		bustype:	pcmcia_bustype,
+		register_layout:	labpc_1200_layout,
+		has_ao:	1,
+		read_byte:	labpc_inb,
+		write_byte:	labpc_outb,
+		ai_range_table:	&range_labpc_1200_ai,
+		ai_range_code: labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar: labpc_1200_is_unipolar,
+		ai_scan_up: 0,
 	},
 };
 
@@ -1938,8 +1991,5 @@ COMEDI_INITCLEANUP(driver_labpc);
 
 EXPORT_SYMBOL_GPL( labpc_common_attach );
 EXPORT_SYMBOL_GPL( labpc_common_detach );
-EXPORT_SYMBOL_GPL( labpc_1200_is_unipolar );
-EXPORT_SYMBOL_GPL( labpc_1200_ai_gain_bits );
-EXPORT_SYMBOL_GPL( range_labpc_1200_ai );
-EXPORT_SYMBOL_GPL( range_labpc_ao );
+EXPORT_SYMBOL_GPL( labpc_cs_boards );
 

@@ -70,38 +70,12 @@ typedef struct{
 	unsigned int caldac[16];	// stores settings of calibration dacs
 }labpc_private;
 
-//analog input ranges
-// indicates unipolar ranges
-#define NUM_LABPC_1200_AI_RANGES 14
-int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES];
-// map range index to gain bits
-int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES];
-comedi_lrange range_labpc_1200_ai;
-
-//analog output ranges
-comedi_lrange range_labpc_ao;
+#define NUM_LABPC_CS_BOARDS 2
+labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
 
 int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	int irq, int dma );
 int labpc_common_detach( comedi_device *dev );
 
-/* functions that do inb/outb and readb/writeb so we can use
- * function pointers to decide which to use */
-static inline unsigned int labpc_inb(unsigned long address)
-{
-	return inb(address);
-}
-static inline void labpc_outb(unsigned int byte, unsigned long address)
-{
-	outb(byte, address);
-}
-static inline unsigned int labpc_readb(unsigned long address)
-{
-	return readb(address);
-}
-static inline void labpc_writeb(unsigned int byte, unsigned long address)
-{
-	writeb(byte, address);
-}
 
 #endif	/* _NI_LABPC_H */
