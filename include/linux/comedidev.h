@@ -70,6 +70,7 @@ struct comedi_subdevice_struct{
 
 	void		*prealloc_buf;		/* pre-allocated buffer */
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
+	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 
 	void *lock;
 	void *busy;
