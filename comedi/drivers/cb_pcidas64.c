@@ -1018,8 +1018,10 @@ static int setup_subdevices(comedi_device *dev)
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	if(board(dev)->layout != LAYOUT_4020)
+	if(board(dev)->layout == LAYOUT_60XX)
 		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
+	else if(board(dev)->layout == LAYOUT_64XX)
+		s->subdev_flags |= SDF_DIFF;
 	/* XXX Number of inputs in differential mode is ignored */
 	s->n_chan = board(dev)->ai_se_chans;
 	s->len_chanlist = 0x2000;
@@ -1872,7 +1874,8 @@ static void disable_ai_pacing( comedi_device *dev )
 	disable_ai_interrupts( dev );
 
 	/* disable pacing, triggering, etc */
-	writew( ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG );
+	writew( ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
+		priv(dev)->main_iobase + ADC_CONTROL0_REG );
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	priv(dev)->adc_control1_bits &= ~SW_GATE_BIT;
