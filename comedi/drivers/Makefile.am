@@ -13,7 +13,7 @@ pcmcia_modules= \
  ni_daq_dio24.ko \
  ni_mio_cs.ko \
  ni_labpc_cs.ko \
- quatech_daqp_cs.ko \
+ quatech_daqp_cs.ko
 else
 pcmcia_modules=
 endif
