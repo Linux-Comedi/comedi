@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
+#include <linux/comedilib.h>
 #ifdef CONFIG_COMEDI_RTL_V1
 #include <rtl_sched.h>
 #include <asm/rt_irq.h>
@@ -46,16 +47,15 @@
 
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
-comedi_driver driver_timer={
+static comedi_driver driver_timer={
 	module:		THIS_MODULE,
-	driver_name:	"timer",
+	driver_name:	"comedi_rt_timer",
 	attach:		timer_attach,
 	detach:		timer_detach,
 };
 COMEDI_INITCLEANUP(driver_timer);
 
 
-static void timer_interrupt(int irq,void *dev,struct pt_regs * regs);
 
 typedef struct{
 	int device;
@@ -64,34 +64,38 @@ typedef struct{
 	comedi_subdevice *s;
 	RT_TASK rt_task;
 	int soft_irq;
-	int n_chan;
-	int n_samples;
 	int chanlist[N_CHANLIST];
-	lsampl_t data[N_CHANLIST];
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 
 
-static comedi_device *broken_rtl_dev;
+static comedi_device *broken_rt_dev;
 
+#ifdef CONFIG_COMEDI_RTL
 static void timer_interrupt(int irq,void *d,struct pt_regs * regs)
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+static void timer_interrupt(void)
+#endif
 {
-	comedi_device *dev=broken_rtl_dev;
+	comedi_device *dev=broken_rt_dev;
 
-	comedi_done(dev,dev->subdevices+0);
+	//comedi_done(dev,dev->subdevices+0);
 
-	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
+	comedi_unlock(devpriv->device,devpriv->subd);
 }
 
 static inline void buf_add(comedi_device *dev,comedi_subdevice *s,sampl_t x)
 {
-	*(sampl_t *)((s->async->data)+s->buf_int_ptr)=x&0xfff;
-	s->buf_int_ptr+=sizeof(sampl_t);
-	if(s->buf_int_ptr>=s->async->data_len){
-		s->buf_int_ptr=0;
-		comedi_eobuf(dev,s);
+	comedi_async *async = s->async;
+
+	*(sampl_t *)(async->data+async->buf_int_ptr)=x;
+	async->buf_int_ptr+=sizeof(sampl_t);
+	if(async->buf_int_ptr>=async->data_len){
+		async->buf_int_ptr=0;
+		async->events |= COMEDI_CB_EOBUF;
 	}
-	s->buf_int_count+=sizeof(sampl_t);
+	async->buf_int_count+=sizeof(sampl_t);
 }
 
 
@@ -99,18 +103,12 @@ static void timer_ai_task_func(int d)
 {
 	comedi_device *dev=(comedi_device *)d;
 	comedi_subdevice *s=dev->subdevices+0;
-	comedi_trig *it=&devpriv->trig;
+	comedi_cmd *cmd=&s->async->cmd;
 	int i,n,ret;
-	int n_chan;
+	lsampl_t data;
 
-	n_chan=devpriv->n_chan;
-
-	for(n=0;n<devpriv->n;n++){
-		for(i=0;i<n_chan;i++){
-			it->n_chan=1;
-			it->data=devpriv->data+i;
-			it->chanlist=devpriv->chanlist+i;
-
+	for(n=0;n<cmd->stop_arg;n++){
+		for(i=0;i<cmd->scan_end_arg;i++){
 			ret = comedi_data_read(devpriv->device,devpriv->subd,
 				CR_CHAN(devpriv->chanlist[i]),
 				CR_RANGE(devpriv->chanlist[i]),
@@ -119,25 +117,24 @@ static void timer_ai_task_func(int d)
 			if(ret<0){
 				/* eek! */
 			}
-
-			devpriv->data[i]=data;
-
+			buf_add(dev,s,data);
 		}
-		for(i=0;i<n_chan;i++){
-			buf_add(dev,s,devpriv->data[i]);
-		}
+		s->async->events |= COMEDI_CB_EOS;
+		comedi_event(dev,s,s->async->events);
 #ifdef CONFIG_COMEDI_RTL
 		rt_task_wait();
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-		//rt_task_wait();
+		rt_task_wait_period();
 #endif
 	}
+	s->async->events |= COMEDI_CB_EOA;
+	comedi_event(dev,s,s->async->events);
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(devpriv->soft_irq);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-	//rtl_global_pend_irq(devpriv->soft_irq);
+	rt_pend_linux_srq(devpriv->soft_irq);
 #endif
 
 	rt_task_delete(&devpriv->rt_task);
@@ -151,17 +148,75 @@ static int timer_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn xinsn = *insn;
 
 	xinsn.data = data;
-	xinsn.subd = depvriv->subd;
+	xinsn.subdev = devpriv->subd;
 
-	return comedi_insn(devpriv->device,devpriv->subd,insn);
+	return comedi_do_insn(devpriv->device,&xinsn);
+}
+
+static int cmdtest_helper(comedi_cmd *cmd,
+	unsigned int start_src,
+	unsigned int scan_begin_src,
+	unsigned int convert_src,
+	unsigned int scan_end_src,
+	unsigned int stop_src)
+{
+	int err = 0;
+	int tmp;
+
+	tmp = cmd->start_src;
+	cmd->start_src &= start_src;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= scan_begin_src;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+
+	tmp = cmd->convert_src;
+	cmd->convert_src &= convert_src;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= scan_end_src;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+
+	tmp = cmd->stop_src;
+	cmd->stop_src &= stop_src;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+
+	return err;
 }
 
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
-	if(cmd->scan_begin_arg<100000)	/* 10 khz */
+	int err = 0;
+	//int tmp;
+
+	err = cmdtest_helper(cmd,
+		TRIG_NOW,	/* start_src */
+		TRIG_TIMER,	/* scan_begin_src */
+		TRIG_NOW,	/* convert_src */
+		TRIG_COUNT,	/* scan_end_src */
+		TRIG_COUNT);	/* stop_src */
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually
+	 * compatible */
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->scan_begin_arg<100000){	/* 10 khz */
 		cmd->scan_begin_arg=100000;
-	if(cmd->scan_begin_arg>1e9)	/* 1 hz */
+		err++;
+	}
+	if(cmd->scan_begin_arg>1e9){	/* 1 hz */
 		cmd->scan_begin_arg=1e9;
+		err++;
+	}
+	if(err)return 3;
+
+	/* step 4: fix up and arguments */
+
+	/* XXX we don't do this yet, but we should */
 
 	return 0;
 }
@@ -171,22 +226,13 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	int ret;
 	RTIME now,period;
 	struct timespec ts;
-	comedi_cmd *cmd = &s->cmd;
+	comedi_cmd *cmd = &s->async->cmd;
 
-	ret=comedi_lock_ioctl(devpriv->device,devpriv->subd);
+	/* hack attack: drivers are not supposed to do this: */
+	dev->rt = 1;
+
+	ret=comedi_lock(devpriv->device,devpriv->subd);
 	if(ret<0)return ret;
-
-	/* XXX this does not get freed */
-	devpriv->data=kmalloc(sizeof(sampl_t)*cmd->chanlist_len,GFP_KERNEL);
-	if(!devpriv->data){
-		ret=-ENOMEM;
-		goto unlock;
-	}
-
-	devpriv->trig.subdev=devpriv->subd;
-	devpriv->trig.mode=0;
-	devpriv->trig.flags=0;
-	devpriv->trig.n=1;
 
 	ts.tv_sec=0;
 	ts.tv_nsec=cmd->scan_begin_arg;
@@ -196,80 +242,23 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-	period = 0;
-	//period=timespec_to_RTIME(ts);
-	//rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
+	now = rt_get_time();
+	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
+	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
 #endif
 
 	now=rt_get_time();
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
 
 	return 0;
-
-unlock:
-	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
-	return ret;
 }
 
-static int timer_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int ret;
-	RTIME now,period;
-	struct timespec ts;
-
-	//if(it->trigvar1!=0)return -EINVAL;
-	if(it->trigvar<100000)return -EINVAL;	/* 10 khz */
-	
-	ret=comedi_lock_ioctl(devpriv->device,devpriv->subd);
-	if(ret<0)goto out;
-
-#if 0
-	struct timespec ts;
-
-	ts.tv_sec=0;
-	ts.tv_nsec=it->trigvar;
-#endif
-
-	/* XXX this does not get freed */
-	devpriv->data=kmalloc(sizeof(sampl_t)*it->n_chan,GFP_KERNEL);
-	if(!devpriv->data){
-		ret=-ENOMEM;
-		goto unlock;
-	}
-
-	devpriv->trig.subdev=devpriv->subd;
-	devpriv->trig.mode=0;
-	devpriv->trig.flags=0;
-	devpriv->trig.n=1;
-
-	ts.tv_sec=0;
-	ts.tv_nsec=it->trigvar;
-#ifdef CONFIG_COMEDI_RTL
-	period=timespec_to_RTIME(ts);
-	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-	period = 0;
-	//period=timespec_to_RTIME(ts);
-	//rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
-#endif
-
-	now=rt_get_time();
-	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
-
-	return 0;
-
-unlock:
-	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
-out:
-	return ret;
-}
-
-int timer_cancel(comedi_device *dev,comedi_subdevice *s)
+static int timer_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	rt_task_delete(&devpriv->rt_task);
 
-	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
+	comedi_unlock(devpriv->device,devpriv->subd);
 
 	return 0;
 }
@@ -299,7 +288,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=devpriv->s->n_chan;
 	s->len_chanlist=1024;
-	s->insn_read=timer_insn_read;
+	s->insn_read=timer_ai_insn_read;
 	s->do_cmd=timer_cmd;
 	s->do_cmdtest=timer_cmdtest;
 	s->cancel=timer_cancel;
@@ -309,10 +298,11 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 #ifdef CONFIG_COMEDI_RTL
 	devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
-	broken_rtl_dev=dev;
+	broken_rt_dev=dev;
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-	//devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
+	devpriv->soft_irq=rt_request_srq(0,timer_interrupt,NULL);
+	broken_rt_dev=dev;
 #endif
 
 	printk("\n");
@@ -326,7 +316,12 @@ static int timer_detach(comedi_device *dev)
 	printk("comedi%d: timer: remove\n",dev->minor);
 	
 #ifdef CONFIG_COMEDI_RTL
-	free_irq(devpriv->soft_irq,NULL);
+	if(devpriv->soft_irq)
+		free_irq(devpriv->soft_irq,NULL);
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	if(devpriv->soft_irq)
+		rt_free_srq(devpriv->soft_irq);
 #endif
 
 	return 0;
