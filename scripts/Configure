@@ -432,8 +432,11 @@ mv .tmpconfig .config
 mv .tmpconfig.h include/modbuild/config.h
 
 echo 
-echo "Makefiles for ${project} should now be configured.  Run 'make' to compile,"
-echo "and then 'make install' to install."
+echo "Makefiles for ${project} should now be configured."
+echo "Run 'make dep ; make' to compile, and then 'make install' to install."
 echo 
+echo "If ${project} has never been installed on your system,"
+echo "then run 'make dev' to build the device nodes '/dev/comedi*'."
+echo
 
 exit 0
