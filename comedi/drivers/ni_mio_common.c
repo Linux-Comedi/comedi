@@ -338,6 +338,7 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
 {
 	comedi_subdevice *s=dev->subdevices+0;
 	
+	comedi_event(dev,s,COMEDI_CB_BLOCK);
 
 	MDPRINTK("mite_handle_interrupt\n");
 	MDPRINTK("MITE generated an int!!\n");
@@ -397,14 +398,12 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 			rt_printk("ni_mio_common: SC_TC interrupt\n");
 #endif
 #ifdef TRY_BLOCK
-#ifdef PCIDMA
-			//just ignore the terminal count from the STC
-			//instead finish up when the MITE asserts DONE
-			//ni_handle_block_dma(dev);
-#else
 			ni_handle_block(dev);
-#endif
 #else
+			//for MITE DMA ignore the terminal count from the STC
+			//instead finish up when the MITE asserts DONE
+#ifndef PCIDMA
+			
 			if(!devpriv->ai_continuous){
 				ni_handle_fifo_dregs(dev);
 				//win_out(0x0000,Interrupt_A_Enable_Register); TIM 4/17/01
@@ -416,7 +415,8 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 
 				comedi_done(dev,s);
 			}
-#endif
+#endif //PCIDMA
+#endif //TRY_BLOCK
 			ack|=AI_SC_TC_Interrupt_Ack;
 		}
 		if(status&AI_START1_St){
@@ -787,12 +787,13 @@ printk("n_left = %d\n",devpriv->n_left);
 #ifdef PCIDMA
 int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 {
-	int n;
+	int n,len;
 	unsigned long ll_start;
 	comedi_async *async_mite;
-		
+	
+	len = sizeof(sampl_t)*cmd->stop_arg*cmd->scan_end_arg;
 	async_mite=dev->subdevices[cmd->subdev].async;
-	ll_start = mite_ll_from_kvmem(devpriv->mite, async_mite,cmd->stop_arg);
+	ll_start = mite_ll_from_kvmem(devpriv->mite, async_mite,len);
 	mite_setregs(devpriv->mite, ll_start,0,COMEDI_INPUT);
 
 	/*tell the STC to use DMA0 for AI.
