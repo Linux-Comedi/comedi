@@ -246,7 +246,7 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 			err++;
 		}
 	}
-	// check chanlist agains board's peculiarities
+	// check chanlist against board's peculiarities
 	if(cmd->chanlist_len > 1)
 	{
 		for(i = 0; i < cmd->chanlist_len; i++)
@@ -607,7 +607,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 2;
 	/* do */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
