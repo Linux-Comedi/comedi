@@ -180,6 +180,7 @@ typedef struct {
 	enum { dac_internal, dac_external } dac0_reference, dac1_reference;
 	enum { dac_2comp, dac_straight } dac0_coding, dac1_coding;
 	comedi_lrange *ao_range_type_list[2];
+	lsampl_t ao_readback[2];
 	unsigned int com_reg_1_state;	/* current state of command register 1 */
 	unsigned int com_reg_2_state;	/* current state of command register 2 */
 } atmio16d_private;
@@ -527,29 +528,29 @@ static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* Mode 0 is used to get a single conversion on demand */
-static int atmio16d_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	int i, t;
 	int chan;
 	int gain;
 	int status;
-	int data;
 		
 #ifdef DEBUG1
-	printk("atmio16d_ai_mode0\n");
+	printk("atmio16d_ai_insn_read\n");
 #endif
-	for(i=0 ; i < it->n_chan ; i++) {
+	chan = CR_CHAN(insn->chanspec);
+	gain = CR_RANGE(insn->chanspec);
 
-		chan = CR_CHAN(it->chanlist[i]);
-		gain = CR_RANGE(it->chanlist[i]);
-		/* reset the Analog input circuitry */
-		//outw( 0, dev->iobase+AD_CLEAR_REG );
-		/* reset the Analog Input MUX Counter to 0 */
-		//outw( 0, dev->iobase+MUX_CNTR_REG );
+	/* reset the Analog input circuitry */
+	//outw( 0, dev->iobase+AD_CLEAR_REG );
+	/* reset the Analog Input MUX Counter to 0 */
+	//outw( 0, dev->iobase+MUX_CNTR_REG );
 
-		/* set the Input MUX gain */
-		outw( chan|(gain<<6), dev->iobase+MUX_GAIN_REG);
-		
+	/* set the Input MUX gain */
+	outw( chan|(gain<<6), dev->iobase+MUX_GAIN_REG);
+
+	for(i=0 ; i < insn->n ; i++) {
 		/* start the conversion */
 		outw(0, dev->iobase+START_CONVERT_REG);
 		/* wait for it to finish */
@@ -561,12 +562,11 @@ static int atmio16d_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_tr
 #endif
 			if( status&STAT_AD_CONVAVAIL ) {
 				/* read the data now */
-				data = inw( dev->iobase+AD_FIFO_REG );
+				data[i] = inw( dev->iobase+AD_FIFO_REG );
 				/* change to two's complement if need be */
 				if( devpriv->adc_coding == adc_2comp ) {
-					data ^= 0x800;
+					data[i] ^= 0x800;
 				}
-				it->data[i]=data;
 				break;
 			}
 			if( status&STAT_AD_OVERFLOW ){
@@ -587,35 +587,52 @@ static int atmio16d_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_tr
 	return i;
 }
 
-static int atmio16d_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int atmio16d_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int i;
+#ifdef DEBUG1
+	printk("atmio16d_ao_insn_read\n");
+#endif
+
+	for(i=0;i<insn->n;i++){
+		data[i]=devpriv->ao_readback[CR_CHAN(insn->chanspec)];
+	}
+
+	return i;
+}
+
+static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	int i;
 	int chan;
-	int data;
+	int d;
 #ifdef DEBUG1
-	printk("atmio16d_ao\n");
+	printk("atmio16d_ao_insn_write\n");
 #endif
-	for(i=0; i < it->n_chan; i++) {
 
-		chan=CR_CHAN(it->chanlist[i]);
-		data=it->data[i];
+	chan=CR_CHAN(insn->chanspec);
 
+	for(i=0; i < insn->n; i++) {
+		d = data[i];
 		switch(chan){
 		case 0:
 			if (devpriv->dac0_coding == dac_2comp) {
-				data ^= 0x800;
+				d ^= 0x800;
 			}
-			outw(data, dev->iobase + DAC0_REG);
+			outw(d, dev->iobase + DAC0_REG);
 			break;
 		case 1:
 			if (devpriv->dac1_coding == dac_2comp) {
-				data ^= 0x800;
+				d ^= 0x800;
 			}
-			outw(data, dev->iobase + DAC1_REG);
+			outw(d, dev->iobase + DAC1_REG);
 			break;
 		default:
 			return -EINVAL;
 		}
+		devpriv->ao_readback[chan] = data[i];
 	}
 	return i;
 }
@@ -757,8 +774,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=(devpriv->adc_mux? 16 : 8);
 	s->len_chanlist=16;
-	s->trig[0]=atmio16d_ai_mode0;
-	s->trig[1]=NULL;
+	s->insn_read = atmio16d_ai_insn_read;
 	s->do_cmdtest=atmio16d_ai_cmdtest;
 	s->do_cmd=atmio16d_ai_cmd;
 	s->cancel=atmio16d_ai_cancel;
@@ -780,7 +796,8 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_AO;
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=2;
-	s->trig[0]=atmio16d_ao;
+	s->insn_read=atmio16d_ao_insn_read;
+	s->insn_write=atmio16d_ao_insn_write;
 	s->maxdata=0xfff;	/* 4095 decimal */
 	s->range_table_list=devpriv->ao_range_type_list;
 	switch (devpriv->dac0_range) {
@@ -818,7 +835,6 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 		subdev_8255_init(dev,s,NULL,(void *)dev->iobase);
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
-		s->trig[0]=NULL;
 	}
 
 /* don't yet know how to deal with counter/timers */
@@ -827,7 +843,6 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* do */
 	s->type=COMEDI_SUBD_TIMER;
 	s->n_chan=0;
-	s->trig[0]=NULL;
 	s->maxdata=0
 #endif
 

@@ -93,6 +93,7 @@ comedi_driver driver_multiq3={
 	attach:		multiq3_attach,
 	detach:		multiq3_detach,
 };
+COMEDI_INITCLEANUP(driver_multiq3);
 
 struct multiq3_private{
 	lsampl_t ao_readback[2];
@@ -185,26 +186,23 @@ static int multiq3_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
   return 2;
 }
 
-static int multiq3_ei(comedi_device *dev, comedi_subdevice *s, comedi_trig *it)
+static int multiq3_encoder_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-  int b1, b2, b3;
-  int chan;
-  int data;
-  int control;
+	int n;
+	int chan = CR_CHAN(insn->chanspec);
+	int control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3);
 
-  chan = CR_CHAN(it->chanlist[0]);
-  control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3);
-  outw(control, dev->iobase+MULTIQ3_CONTROL);
-  outb(MULTIQ3_BP_RESET, dev->iobase+MULTIQ3_ENC_CONTROL);
-  outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase+MULTIQ3_ENC_CONTROL);
-  b1 = inb(dev->iobase+MULTIQ3_ENC_DATA);
-  b2 = inb(dev->iobase+MULTIQ3_ENC_DATA);
-  b3 = inb(dev->iobase+MULTIQ3_ENC_DATA);
+	for(n=0;n<insn->n;n++){
+		outw(control, dev->iobase+MULTIQ3_CONTROL);
+		outb(MULTIQ3_BP_RESET, dev->iobase+MULTIQ3_ENC_CONTROL);
+		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase+MULTIQ3_ENC_CONTROL);
+		data[n] = inb(dev->iobase+MULTIQ3_ENC_DATA);
+		data[n] |= (inb(dev->iobase+MULTIQ3_ENC_DATA)<<8);
+		data[n] |= (inb(dev->iobase+MULTIQ3_ENC_DATA)<<16);
+	}
 
-  data =  (((b3<<16) | (b2 << 8) | (b1)) + 0x800000) & 0xffffff;
-  ((lsampl_t*)(it->data))[0] = data;
-
-  return 1;
+	return n;
 }
 
 static void encoder_reset(comedi_device *dev) {
@@ -242,7 +240,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       return -EIO;
     }
 
-      request_region(dev->iobase, MULTIQ3_SIZE, "multiq3");
+      request_region(iobase, MULTIQ3_SIZE, "multiq3");
       dev->iobase = iobase;
 
       irq = it->options[1];
@@ -302,7 +300,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->type = COMEDI_SUBD_COUNTER;
       s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
       s->n_chan = it->options[2] * 2;
-      s->trig[0] = multiq3_ei;
+      s->insn_read = multiq3_encoder_insn_read;
       s->maxdata = 0xffffff;
       s->range_table = &range_unknown;
 
@@ -322,17 +320,3 @@ static int multiq3_detach(comedi_device * dev)
   return 0;
 }
 
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_multiq3);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_multiq3);
-}
-#endif

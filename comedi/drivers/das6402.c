@@ -102,7 +102,7 @@ comedi_driver driver_das6402={
 	attach:		das6402_attach,
 	detach:		das6402_detach,
 };
-
+COMEDI_INITCLEANUP(driver_das6402);
 
 typedef struct{
 	int ai_bytes_to_read;
@@ -368,16 +368,3 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_das6402);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_das6402);
-}
-#endif
