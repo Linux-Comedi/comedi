@@ -1937,14 +1937,14 @@ static int me4000_dio_insn_config(
 	comedi_subdevice *s,
 	comedi_insn *insn,
 	lsampl_t *data){
+	unsigned long tmp;
+	int chan = CR_CHAN(insn->chanspec);
 
-    CALL_PDEBUG("In me4000_dio_insn_config()\n");
+	CALL_PDEBUG("In me4000_dio_insn_config()\n");
 
-    unsigned long tmp;
-    int chan = CR_CHAN(insn->chanspec);
 
-    /* Only data[0] is valid */
-    if(insn->n != 1)
+	/* Only data[0] is valid */
+	if(insn->n != 1)
 	return -EINVAL;
 
     /* 
