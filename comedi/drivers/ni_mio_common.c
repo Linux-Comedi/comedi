@@ -211,7 +211,7 @@ static void pfi_setup(comedi_device *dev);
 
 /*GPCTR function def's...*/
 int GPCTR_G_Watch(comedi_device *dev, int chan);
-int GPCTR_Begin_Event_Counting(comedi_device *dev, comedi_subdevice *s,int chan, int value);
+int GPCTR_Begin_Event_Counting(comedi_device *dev,int chan, int value);
 
 
 #undef DEBUG
@@ -2441,13 +2441,21 @@ void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
 *	Begin simple event counting.  This function should eventually do quadrature
 *	encoding too.
 */
-int GPCTR_Begin_Event_Counting(comedi_device *dev, comedi_subdevice *s,int chan,
-		int value) {
+int GPCTR_Begin_Event_Counting(comedi_device *dev, int chan, int value) {
 	
 	GPCTR_Load_Using_A(dev, chan, value);	
+			
 	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
 	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+	devpriv->gpctr_mode[chan] |= G_Gate_Polarity;
+	
+	devpriv->gpctr_input_select[chan] = 0; //reset it
+	devpriv->gpctr_input_select[chan] |= G_Gate_Select(31);
+	
 			
+	devpriv->gpctr_command[chan] = 0; //reset it 
+	devpriv->gpctr_command[chan] = G_Up_Down(1);
+	
 	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
 	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
 	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
