@@ -175,7 +175,8 @@ typedef unsigned short sampl_t;
 #define SDF_CMD		0x1000		/* can do commands */
 
 #define SDF_READABLE	0x00010000	/* subdevice can be read (e.g. analog input) */
-#define SDF_WRITEABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
+#define SDF_WRITABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
+#define SDF_WRITEABLE	SDF_WRITABLE	/* spelling error in API */
 #define SDF_INTERNAL	0x00040000	/* subdevice does not have externally visible lines */
 #define SDF_RT		0x00080000	/* subdevice is RT capable */
 #define SDF_GROUND	0x00100000	/* can do aref=ground */
