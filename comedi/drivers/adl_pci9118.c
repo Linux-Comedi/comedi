@@ -69,6 +69,7 @@ Configuration options:
 
 #include "amcc_s5933.h"
 #include "8253.h"
+#include "comedi_fc.h"
 
 #define PCI9118_PARANOIDCHECK		/* if defined, then is used code which control correct channel number on every 12 bit sample */
 
@@ -513,7 +514,7 @@ static int move_block_from_dma_12bit_16b(comedi_device *dev, comedi_subdevice *s
 			}
 #endif
 			sampl=((sampl & 0xff)<<4)|((sampl & 0xf000)>>12); // get one sample
-			comedi_buf_put( s->async, sampl);
+			cfc_write_to_buffer( s, sampl);
 		}
 		sp+=cc;
 		if (cc>=chans) {
@@ -574,7 +575,7 @@ static int move_block_from_dma_16bit_16b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 			sampl=(((sampl & 0xff)<<8)|((sampl & 0xff00)>>8))^0x8000; // get one sample
-			comedi_buf_put( s->async, sampl );
+			cfc_write_to_buffer( s, sampl );
 		}
 		sp+=cc;
 		if (cc>=chans) {
@@ -670,7 +671,7 @@ static int move_block_from_dma_12bit_32b(comedi_device *dev, comedi_subdevice *s
 			}
 #endif
 			sampl=((sampl & 0xfff0)<<12)|((sampl & 0xfff00000)>>20);
-			comedi_buf_put( s->async, sampl );
+			cfc_write_long_to_buffer( s, sampl );
 		}
 		sp+=cc<<1;
 		if (cc>=chans) {
@@ -720,8 +721,7 @@ static int move_block_from_dma_16bit_32b(comedi_device *dev, comedi_subdevice *s
 		for (;cc<chns;cc++) {
 			sampl=**dma; (*dma)++;
 			sampl=(((sampl & 0xffff)<<16)|((sampl & 0xffff0000)>>16))^0x80008000;
-			/* XXX broken */
-			comedi_buf_put( s->async, sampl );
+			cfc_write_long_to_buffer( s, sampl );
 		}
 		sp+=cc<<1;
 		if (cc>=chans) {
@@ -775,24 +775,24 @@ static char pci9118_decode_error_status(comedi_device *dev,comedi_subdevice *s,u
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
-static void interrupt_pci9118_ai_onesample(comedi_device *dev,comedi_subdevice *s, 
-	unsigned short int_adstat, unsigned int int_amcc, unsigned short int_daq) 
+static void interrupt_pci9118_ai_onesample(comedi_device *dev,comedi_subdevice *s,
+	unsigned short int_adstat, unsigned int int_amcc, unsigned short int_daq)
 {
 	register sampl_t sampl;
 
 	s->async->events=0;
-	
+
 	if (int_adstat & devpriv->ai_maskerr)
-		if (pci9118_decode_error_status(dev,s,int_adstat)) 
+		if (pci9118_decode_error_status(dev,s,int_adstat))
 			return;
 
 	sampl=inw(dev->iobase+PCI9118_AD_DATA);
 
 	if (devpriv->ai16bits) {
-		comedi_buf_put( s->async, sampl ^ 0x8000 );
+		cfc_write_to_buffer( s, sampl ^ 0x8000 );
 	} else {
 #ifdef PCI9118_PARANOIDCHECK
 		if ((sampl & 0x000f)!=devpriv->chanlist[s->async->cur_chan]) { // data dropout!
@@ -803,7 +803,7 @@ static void interrupt_pci9118_ai_onesample(comedi_device *dev,comedi_subdevice *
 			return;
 		}
 #endif
-		comedi_buf_put( s->async, ( sampl >> 4 ) & 0x0fff );
+		cfc_write_to_buffer( s, ( sampl >> 4 ) & 0x0fff );
 	}
 
 	if (s->async->cur_chan == 0) {	/* one scan done */
