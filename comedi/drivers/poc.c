@@ -25,6 +25,8 @@ Device names: dac02
 Author: ds
 Devices: [Keithley Metrabyte] DAC-02 (dac02), [Advantech] PCL-733 (pcl733),
   PCL-734 (pcl734)
+Updated: Sat, 16 Mar 2002 17:34:48 -0800
+Status: unknown
 
 This driver is indended to support very simple ISA-based devices,
 including:

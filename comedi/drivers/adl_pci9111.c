@@ -28,8 +28,7 @@ Driver: adl_pci9111.o
 Description: Driver for the Adlink PCI-9111HR card.
 Author: Emmanuel Pacaud <emmanuel.pacaud@free.fr>
 Devices: [ADLink] PCI-9111HR (adl_pci9111)
-
-Status: alpha - not fully tested.
+Status: experimental
 
 Supports:
 
@@ -284,7 +283,7 @@ typedef enum
 static int pci9111_attach (comedi_device *dev,comedi_devconfig *it);
 static int pci9111_detach (comedi_device *dev);
 
-comedi_lrange pci9111_hr_ai_range=
+static comedi_lrange pci9111_hr_ai_range=
 { 
   5,
   {
@@ -342,7 +341,7 @@ static pci9111_board_struct pci9111_boards[] =
 #define pci9111_board_nbr \
   (sizeof(pci9111_boards)/sizeof(pci9111_board_struct))
 
-comedi_driver pci9111_driver=
+static comedi_driver pci9111_driver=
 {
   driver_name:	PCI9111_DRIVER_NAME,
   module:	THIS_MODULE,
@@ -352,6 +351,7 @@ comedi_driver pci9111_driver=
   board_name:	pci9111_boards,
   offset:	sizeof(pci9111_board_struct),
 };
+COMEDI_INITCLEANUP(pci9111_driver);
 
 //
 // Private data structure
@@ -380,7 +380,6 @@ typedef struct
 } 
 pci9111_private_data_struct;
 
-COMEDI_INITCLEANUP(pci9111_driver);
 
 #define dev_private 	((pci9111_private_data_struct *)dev->private)
 

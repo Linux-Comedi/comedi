@@ -32,8 +32,10 @@
 Driver: das6402.o
 Description: Keithley Metrabyte DAS6402 (& compatibles)
 Author: Oystein Svendsen <svendsen@pvv.org>
-Status: unknown
+Status: bitrotten
 Devices: [Keithley Metrabyte] DAS6402 (das6402)
+
+This driver has suffered bitrot.
 */
 
 #include <linux/module.h>

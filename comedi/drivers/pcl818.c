@@ -39,9 +39,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
    If you've data dropouts with DMA mode 2 then:
     a) disable IDE DMA
     b) switch text mode console to fb.
-See the head of the source file pcl818.c for configuration options.
-*/
-/*
+
    Options for PCL-818L:
     [0] - IO Base
     [1] - IRQ	(0=disable, 2, 3, 4, 5, 6, 7)

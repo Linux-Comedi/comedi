@@ -56,11 +56,10 @@ Interrupts are not supported.
 	       
     Options for ACL-6126:
      [0] - IO Base
-     [1] - IRQ (0=disable, 3, 5, 6, 7, 9, 10, 11, 12, 15)
+     [1] - IRQ (0=disable, 3, 5, 6, 7, 9, 10, 11, 12, 15) (currently ignored)
      [2]...[7] - D/A output range for channel 1-6: 
                0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
 	       4: 4-20mA
-     NOTE: IRQ operations isn't now supported.
 */
 
 /*

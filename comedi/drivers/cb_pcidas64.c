@@ -45,6 +45,7 @@ Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
   PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6025E, PCI-DAS6034E,
   PCI-DAS6035E, PCI-DAS4020/12
+
 Configuration options:
    [0] - PCI bus of device (optional)
    [1] - PCI slot of device (optional)

@@ -25,9 +25,13 @@ Driver: mpc8260cpm.o
 Description: MPC8260 CPM module generic digital I/O lines
 Devices: [Motorola] MPC8260 CPM (mpc8260cpm)
 Author: ds
+Status: experimental
+Updated: Sat, 16 Mar 2002 17:34:48 -0800
 
 This driver is specific to the Motorola MPC8260 processor, allowing
 you to access the processor's generic digital I/O lines.
+
+It is apparently missing some code.
 */
 
 #include <linux/kernel.h>

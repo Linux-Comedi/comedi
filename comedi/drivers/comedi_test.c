@@ -30,10 +30,15 @@
 /*
 Driver: comedi_test.o
 Description: generates fake waveforms
-Author: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess <fmhess@uiuc.edu>
+Author: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess
+  <fmhess@uiuc.edu>, ds
 Devices:
 Status: works
-Updated: 2002-03-05
+Updated: Sat, 16 Mar 2002 17:34:48 -0800
+
+This driver is mainly for testing purposes, but can also be used to
+generate sample waveforms on systems that don't have data acquisition
+hardware.
 
 Configuration options:
   [0] - Amplitude in microvolts for fake waveforms (default 1 volt)

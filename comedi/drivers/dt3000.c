@@ -26,7 +26,11 @@ Description: Data Translation DT3000 series
 Author: ds
 Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,
   DT3003-PGL, DT3004, DT3005, DT3004-200
-Status: untested
+Status: works
+
+There is code to support AI commands, but it may not work.
+
+AO commands are not supported.
 */
 
 /*
@@ -44,8 +48,6 @@ Status: untested
    Data Translation originally wanted an NDA for the documentation
    for the 3k series.  However, if you ask nicely, they might send
    you the docs without one, also.
-
-   Streaming I/O is not supported.
 */
 
 #define DEBUG 1

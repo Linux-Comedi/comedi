@@ -26,9 +26,12 @@ Description: National Instruments 670x
 Author: Bart Joris <bjoris@advalvas.be>
 Updated: Wed, 22 Aug 2001 22:47:32 -0700
 Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704
+Status: unknown
 
 The driver currently does not recognize the 6704, because the PCI
 ID is not known.
+
+Commands are not supported.
 */
 
 /*

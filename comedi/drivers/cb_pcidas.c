@@ -45,6 +45,11 @@ Description: Driver for the ComputerBoards/MeasurementComputing cards
   of the PCI-DAS series with the AMCC S5933 PCI controller.
 Author: Ivan Martinez <ivanmr@altavista.com>,
   Frank Mori Hess <fmhess@uiuc.edu>
+Updated: 2002-1-09
+Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
+  PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
+  PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
+
 Status:
   - PCI-DAS1602/16: Analog input is tested, works.  Analog output untested.
   - PCI-DAS1602/16jr: Driver should work, but untested.  Please
@@ -55,11 +60,6 @@ Status:
     usage.
 
   The boards' autocalibration features are not yet supported.
-
-Updated: 2002-1-09
-Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
-  PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
-  PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
 
 Configuration options:
   [0] - PCI bus of device (optional)

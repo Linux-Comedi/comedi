@@ -30,10 +30,12 @@ Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-1200),
   Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200)
-Status: Works (tested with lab-pc-1200).  For the older Lab-PC+, not all input
-  ranges and analog references will work, the available
-  ranges/arefs will depend on how you have configured
-  the jumpers on your board (see your owner's manual).
+Status: works
+
+Tested with lab-pc-1200.  For the older Lab-PC+, not all input ranges
+and analog references will work, the available ranges/arefs will
+depend on how you have configured the jumpers on your board
+(see your owner's manual).
 
 Configuration options - ISA boards:
   [0] - I/O port base address
@@ -47,9 +49,10 @@ Configuration options - PCI boards:
 Configuration options - PCMCIA boards:
   none
 
-Lab-pc+ has quirky chanlist when scanning multiple channels.  Scan sequence must start
-at highest channel, then decrement down to channel 0.  1200 series cards can scan down
-like lab-pc+ or scan up from channel zero.
+Lab-pc+ has quirky chanlist when scanning multiple channels.  Scan
+sequence must start at highest channel, then decrement down to
+channel 0.  1200 series cards can scan down like lab-pc+ or scan
+up from channel zero.
 
 */
 

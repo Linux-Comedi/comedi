@@ -40,10 +40,10 @@ Configuration options:
 
 Only simple analog output writing is supported.
 
-SO FAR IT HAS ONLY BEEN TESTED WITH:
+So far it has only been tested with:
   - PCI-DDA08/12
-PLEASE REPORT IF YOU ARE USING IT WITH A DIFFERENT CARD
-<ivanmr@altavista.com>.
+Please report sucess/failure with other different cards to
+<comedi@comedi.org>.
 */
 
 #include <linux/kernel.h>
