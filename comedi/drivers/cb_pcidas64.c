@@ -67,8 +67,9 @@ easily added.
 /*
 
 TODO:
-	fix races between interrupt and manipulation of software copies of registers 
 	command support for ao
+	to be safe, should add locking for all manipulation of software copies
+		of registers (before adding ao command support)
 	user counter subdevice
 	there are a number of boards this driver will support when they are
 		fully released, but does not yet since the pci device id numbers
@@ -1179,6 +1180,9 @@ static void disable_plx_interrupts( comedi_device *dev )
 static void init_stc_registers( comedi_device *dev )
 {
 	uint16_t bits;
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
 	// bit should be set for 6025, although docs say boards with <= 16 chans should be cleared XXX
 	if( 1 )
@@ -1193,6 +1197,8 @@ static void init_stc_registers( comedi_device *dev )
 
 	writew(0, priv(dev)->main_iobase + DAQ_SYNC_REG);
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// set fifos to maximum size
 	priv(dev)->fifo_size_bits |= DAC_FIFO_BITS;
@@ -1407,7 +1413,8 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	unsigned int bits = 0, n, i;
 	const int timeout = 100;
 	unsigned int channel, range, aref;
-
+	unsigned long flags;
+	
 	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
 	channel = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
@@ -1417,9 +1424,11 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	// 4020 generates dac done interrupts even though they are disabled
 	disable_ai_pacing( dev );
 
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	if( insn->chanspec & CR_DITHER )
 		priv(dev)->adc_control1_bits |= ADC_DITHER_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	if(board(dev)->layout != LAYOUT_4020)
 	{
@@ -1579,8 +1588,13 @@ static int ai_config_block_size( comedi_device *dev, lsampl_t *data )
 static int ai_config_master_clock_4020( comedi_device *dev, lsampl_t *data )
 {
 	unsigned int divisor = data[4];
+	int retval = 0;
 
-	if( divisor < 2 ) divisor = 2;
+	if( divisor < 2 )
+	{
+		divisor = 2;
+		retval = -EAGAIN;
+	}
 
 	switch( data[1] )
 	{
@@ -1595,7 +1609,7 @@ static int ai_config_master_clock_4020( comedi_device *dev, lsampl_t *data )
 
 	data[4] = divisor;
 
-	return 5;
+	return retval ? retval : 5;
 }
 
 // XXX could add support for 60xx series
@@ -1860,26 +1874,38 @@ static inline unsigned int dma_transfer_size( comedi_device *dev )
 
 static void disable_ai_pacing( comedi_device *dev )
 {
+	unsigned long flags;
+
 	disable_ai_interrupts( dev );
 
 	/* disable pacing, triggering, etc */
 	writew( ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG );
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
 
 static void disable_ai_interrupts( comedi_device *dev )
 {
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	priv(dev)->intr_enable_bits &=
 		~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT & ~EN_ADC_ACTIVE_INTR_BIT
 		& ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT & ~ADC_INTR_SRC_MASK;
 	writew( priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
 	DEBUG_PRINT( "intr enable bits 0x%x\n", priv(dev)->intr_enable_bits );
 }
 
 static void enable_ai_interrupts( comedi_device *dev, const comedi_cmd *cmd )
 {
 	uint32_t bits;
+	unsigned long flags;
+
 
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
 		EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
@@ -1890,9 +1916,11 @@ static void enable_ai_interrupts( comedi_device *dev, const comedi_cmd *cmd )
 		if( board(dev)->layout != LAYOUT_4020 )
 			bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
 	}
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	priv(dev)->intr_enable_bits |= bits;
 	writew( priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG );
 	DEBUG_PRINT( "intr enable bits 0x%x\n", priv(dev)->intr_enable_bits );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
 
 static uint32_t ai_convert_counter_6xxx( const comedi_device *dev, const comedi_cmd *cmd )
@@ -2110,9 +2138,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= adc_lo_chan_4020_bits( CR_CHAN( cmd->chanlist[0] ) );
 		bits |= adc_hi_chan_4020_bits( CR_CHAN( cmd->chanlist[ cmd->chanlist_len - 1 ] ) );
 	}
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	priv(dev)->adc_control1_bits |= bits;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	DEBUG_PRINT("control1 bits 0x%x\n", priv(dev)->adc_control1_bits);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	abort_dma(dev, 1);
 	if((cmd->flags & TRIG_WAKE_EOS) == 0 ||
