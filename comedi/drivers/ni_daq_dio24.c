@@ -28,7 +28,7 @@
 Driver: ni_daq_dio24.o
 Description: National Instruments PCMCIA DAQ-Card DIO-24
 Author: Daniel Vecino Castel <dvecino@able.es>
-Devices: National Instruments PCMCIA DAQ-Card DIO-24
+Devices: [National Instruments] PCMCIA DAQ-Card DIO-24 (ni_daq_dio24)
 Status: ?
 Updated: Thu, 07 Nov 2002 21:53:06 -0800
 

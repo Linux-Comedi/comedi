@@ -23,7 +23,7 @@
 /*
 Driver: me4000.o
 Description: Source code for the Meilhaus ME-4000 board family.
-Devices: ME-4650, ME-4670i, ME-4680, ME-4680i, ME-4680is
+Devices: [Meilhaus] ME-4650 (me4000), ME-4670i, ME-4680, ME-4680i, ME-4680is
 Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)
 Updated: Mon, 18 Mar 2002 15:34:01 -0800
 Status: broken (no support for loading firmware)

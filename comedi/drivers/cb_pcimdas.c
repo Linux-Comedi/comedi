@@ -23,7 +23,7 @@
 /*
 Driver: cb_pcimdas.o
 Description: Computer Boards PCI Migration series boards
-Devices: (Computer Boards) PCIM-DAS1602/16 [cb_pcimdas]
+Devices: [Computer Boards] PCIM-DAS1602/16 (cb_pcimdas)
 Author: Richard Bytheway
 Updated: Wed, 13 Nov 2002 12:34:56 +0000
 Status: experimental
