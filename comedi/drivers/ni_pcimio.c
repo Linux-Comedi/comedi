@@ -107,7 +107,7 @@ Bugs:
 #include "ni_stc.h"
 #include "mite.h"
 
-#define PCI_DEBUG
+//#define PCI_DEBUG
 
 #define PCIDMA
 
