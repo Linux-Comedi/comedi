@@ -618,6 +618,7 @@ static ni_board ni_boards[];
 	unsigned short gpct_command[2];			\
 	unsigned short gpct_input_select[2];			\
 	int gpct_cur_operation[2];				\
+	unsigned short an_trig_etc_reg;				\
 								\
 	unsigned short ai_xorlist[512];				\
 								\

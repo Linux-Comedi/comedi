@@ -1861,9 +1861,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config=ni_gpct_insn_config;
 	s->n_chan=1; /* XXX */
 	s->maxdata=1;
-	//gpct_setup(dev,s);
 	
-	//TIM 5/1/01 #ifdef GPCT
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
@@ -1872,9 +1870,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config=ni_gpct_insn_config;
 	s->n_chan=2;
 	s->maxdata=1;
+	devpriv->an_trig_etc_reg = 0;
 	GPCT_Reset(dev,0);
 	GPCT_Reset(dev,1);
-	//TIM 5/1/01 #endif //GPCT
 	
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
@@ -2310,7 +2308,7 @@ void GPCT_Event_Counting(comedi_device *dev,int chan) {
 	//NOTE: possible residual bits from multibit masks can corrupt
 	//If you config for several measurements between Resets, watch out!
 	
-	printk("GPCT_Event_Counting...");
+	//printk("GPCT_Event_Counting...");
 	
 	devpriv->gpct_cur_operation[chan] = GPCT_SIMPLE_EVENT;
 	
@@ -2323,7 +2321,7 @@ void GPCT_Event_Counting(comedi_device *dev,int chan) {
 	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 
 	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
-	printk("exit GPCT_Event_Counting\n");
+	//printk("exit GPCT_Event_Counting\n");
 }
 
 void GPCT_Period_Meas(comedi_device *dev, int chan) {
@@ -2545,12 +2543,13 @@ void GPCT_Reset(comedi_device *dev, int chan){
 			comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
 			temp_ack_reg |= G0_Gate_Error_Confirm;
 			temp_ack_reg |= G0_TC_Error_Confirm;
-			temp_ack_reg |= G1_TC_Interrupt_Ack;
+			temp_ack_reg |= G0_TC_Interrupt_Ack;
 			temp_ack_reg |= G0_Gate_Interrupt_Ack;
 			win_out(temp_ack_reg,Interrupt_A_Ack_Register);
 		
-			win_out(GPFO_0_Output_Enable|GPFO_0_Output_Select(0),
-				Analog_Trigger_Etc_Register);
+			//problem...this interferes with the other ctr...
+			devpriv->an_trig_etc_reg |= GPFO_0_Output_Enable;
+			win_out(devpriv->an_trig_etc_reg, Analog_Trigger_Etc_Register);
 			break;
 		case 1:
 			win_out(G1_Reset,Joint_Reset_Register);
@@ -2564,7 +2563,8 @@ void GPCT_Reset(comedi_device *dev, int chan){
 			temp_ack_reg |= G1_Gate_Interrupt_Ack;
 			win_out(temp_ack_reg,Interrupt_B_Ack_Register);
 		
-			win_out(GPFO_1_Output_Enable, Analog_Trigger_Etc_Register);
+			devpriv->an_trig_etc_reg |= GPFO_1_Output_Enable;
+			win_out(devpriv->an_trig_etc_reg, Analog_Trigger_Etc_Register);
 			break;
 	};
 	
