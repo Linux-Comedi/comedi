@@ -687,6 +687,9 @@ int comedi_do_insn(unsigned int minor,comedi_insn *insn)
 			case INSN_BITS:
 				ret = s->insn_bits(dev,s,insn,insn->data);
 				break;
+			case INSN_CONFIG:
+				ret = s->insn_config(dev,s,insn,insn->data);
+				break;
 			default:
 				ret=-EINVAL;
 				break;
