@@ -100,8 +100,8 @@ struct comedi_subdevice_struct{
 	int (*do_cmdtest)(comedi_device *,comedi_subdevice *,comedi_cmd *);
 	int (*poll)(comedi_device *,comedi_subdevice *);
 	int (*cancel)(comedi_device *,comedi_subdevice *);
-	int (*do_lock)(comedi_device *,comedi_subdevice *);
-	int (*do_unlock)(comedi_device *,comedi_subdevice *);
+	//int (*do_lock)(comedi_device *,comedi_subdevice *);
+	//int (*do_unlock)(comedi_device *,comedi_subdevice *);
 
 	int (*buf_change)(comedi_device *,comedi_subdevice *s);
 
