@@ -338,6 +338,11 @@ if [ -f "${basedriver}.o" ];then
 	fi
 fi
 
+# Check if the driver contains SDF_RT, which isn't used by the core
+if grep '' ${driver} &>/dev/null;then
+	echo "E: driver uses SDF_RT"
+fi
+
 if [ $irq = yes ];then
 if [ $pci = yes ];then
 	if ! grep SA_SHIRQ ${driver} &>/dev/null;then
