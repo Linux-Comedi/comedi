@@ -311,6 +311,26 @@ if grep "^Driver: ${basedriver}.o$" $driver &>/dev/null;then
 	else
 		echo "E: documentation: no Devices:"
 	fi
+	if grep "^Author:" $driver &>/dev/null;then
+		echo "has author documentation"
+	else
+		echo "E: documentation: no Author:"
+	fi
+	if grep "^Status:" $driver &>/dev/null;then
+		echo "has status documentation"
+	else
+		echo "E: documentation: no Status:"
+	fi
+	if grep "^Updated:" $driver &>/dev/null;then
+		echo "has updated documentation"
+	else
+		echo "E: documentation: no Updated:"
+	fi
+	if grep "^Description:" $driver &>/dev/null;then
+		echo "has description documentation"
+	else
+		echo "E: documentation: no Description:"
+	fi
 else
 	echo "E: not documented in source"
 fi
