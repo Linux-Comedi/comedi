@@ -25,7 +25,7 @@ Description: Real Time Devices PCI4520/DM7520
 Author: Dan Christian
 Devices: [Real Time Devices] DM7520HR-1 (DM7520), DM7520HR-8 (DM7520-8),
   PCI4520 (PCI4520), PCI4520-8 (PCI4520-8)
-Status: unknown
+Status: works.  Only tested on DM7520-8.
 
 Configuration options:
   [0] - PCI bus of device (optional)
@@ -66,10 +66,10 @@ Configuration options:
 
     I use a pretty loose naming style within the driver (rtd_blah).
     All externally visible names should be rtd520_blah.
-    I use camelCase in and for structures.
+    I use camelCase for structures (and inside them).
     I may also use upper CamelCase for function names (old habit).
 
-    This board is somewhat related to the PCI4400 board.  
+    This board is somewhat related to the RTD PCI4400 board.
 
     I borrowed heavily from the ni_mio_common, ni_atmio16d, and das1800,
     since they have the best documented code.
@@ -80,8 +80,11 @@ Configuration options:
   driver status:
 
   Analog in supports instruction and command mode.  I can do 400Khz
-  mutli-channel sampling on 400Mhz K6-2 with 58% idle.
+  mutli-channel sampling on a 400Mhz K6-2 with 58% idle.
+  
+  Digital IO and analog out support instruction mode.
 
+  There was some timer/counter code, but it didn't follow the right API.
 */
 
 #include <linux/kernel.h>
@@ -101,6 +104,29 @@ Configuration options:
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
+
+/*======================================================================
+  Drivier specific stuff (tunable)
+======================================================================*/
+/* Target period for periodic transfers */
+/* if this is too low, efficiency is poor */
+#define TRANS_TARGET_PERIOD 10000000	/* 10ms (in nanoseconds) */
+
+/* The board support a channel list up to the FIFO length (1K or 8K) */
+/* Raising the MAX_CHANLIST uses more memory per board */
+#define RTD_MAX_CHANLIST	128	/* max channel list that we allow */
+
+/* tuning for ai/ao instruction done polling */
+#ifdef FAST_SPIN
+#define WAIT_QUIETLY	/* as nothing, spin on done bit */
+#define RTD_ADC_TIMEOUT	66000		/* 2 msec at 33mhz bus rate */
+#define RTD_DAC_TIMEOUT	66000
+#else
+/* by delaying, power and electrical noise are reduced somewhat */
+#define WAIT_QUIETLY	udelay (1)
+#define RTD_ADC_TIMEOUT	2000		/* in usec */
+#define RTD_DAC_TIMEOUT	2000		/* in usec */
+#endif
 
 /*======================================================================
   Board specific stuff
@@ -125,9 +151,6 @@ Configuration options:
 
 #define RTD_MAX_SPEED	1600		/* in nanoseconds */
 #define RTD_MIN_SPEED	1000000000	/* in nanoseconds ??? */
-#define RTD_SETTLE_DELAY	1	/* in usec */
-#define RTD_ADC_TIMEOUT	1000		/* in usec */
-#define RTD_DAC_DELAY	1		/* in usec */
 
 #include "rtd520.h"
 
@@ -286,9 +309,14 @@ typedef struct{
     unsigned long	aiExtraInt;	/* ints but no data */
     int			transCount;	/* # to tranfer data. 0->1/2FIFO*/
     int			aboutWrap;	/* number of about overflows needed */
+    int			flags;		/* flag event modes */
 
 					/* PCI device info */
     struct pci_dev *pci_dev;
+
+    /* channel list info */
+    /* chanBipolar tracks whether a channel is bipolar (and needs +2048) */
+    unsigned char	chanBipolar[RTD_MAX_CHANLIST/8]; /* bit array */
 
     /* read back data */
     lsampl_t	aoValue[2];		/* Used for AO read back */
@@ -304,6 +332,17 @@ typedef struct{
     u8		dioStatus;		/* could be read back (dio0Ctrl) */
 
 } rtdPrivate;
+
+/* bit defines for "flags" */
+#define SEND_EOS	0x01		/* send End Of Scan events */
+
+/* Macros for accessing channel list bit array */
+#define CHAN_ARRAY_TEST(array,index) \
+	(((array)[(index)/8] >> ((index) & 0x7)) & 0x1)
+#define CHAN_ARRAY_SET(array,index) \
+	(((array)[(index)/8] |= 1 << ((index) & 0x7)))
+#define CHAN_ARRAY_CLEAR(array,index) \
+	(((array)[(index)/8] &= ~(1 << ((index) & 0x7))))
 
 /*
  * most drivers define the following macro to make it easy to
@@ -573,6 +612,7 @@ static int rtd_ai_cmdtest (comedi_device *dev,comedi_subdevice *s,
 			   comedi_cmd *cmd);
 static int rtd_ai_cmd ( comedi_device *dev, comedi_subdevice *s);
 static int rtd_ai_cancel ( comedi_device *dev, comedi_subdevice *s);
+static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
 static int rtd_ns_to_timer (unsigned int *ns, int roundMode);
 static void rtd_interrupt ( int irq, void *d, struct pt_regs *regs);
 
@@ -699,6 +739,7 @@ static int rtd_attach (
     s->do_cmd = rtd_ai_cmd;
     s->do_cmdtest = rtd_ai_cmdtest;
     s->cancel = rtd_ai_cancel;
+    s->poll = rtd_ai_poll;
 
     s=dev->subdevices+1;
     /* analog output subdevice */
@@ -823,7 +864,8 @@ static int rtd_detach (
 */
 static unsigned short rtdConvertChanGain (
     comedi_device *dev,
-    unsigned int	comediChan)
+    unsigned int	comediChan,
+    int			chanIndex)	/* index in channel list */
 {
     unsigned int chan, range, aref;
     unsigned short r=0;
@@ -834,19 +876,23 @@ static unsigned short rtdConvertChanGain (
 
     r |= chan & 0xf;
 
+    /* Note: we also setup the channel list bipolar flag array */
     if (range < thisboard->range10Start) {/* first batch are +-5 */
 	r |= 0x000;			/* +-5 range */
 	r |= (range & 0x7) << 4;	/* gain */
+	CHAN_ARRAY_SET (devpriv->chanBipolar, chanIndex);
     } else if (range < thisboard->rangeUniStart) {/* second batch are +-10 */
 	r |= 0x100;			/* +-10 range */
 	r |= ((range - thisboard->range10Start) & 0x7) << 4;	/* gain */
+	CHAN_ARRAY_SET (devpriv->chanBipolar, chanIndex);
     } else {				/* last batch is +10 */
 	r |= 0x200;			/* +10 range */
 	r |= ((range-thisboard->rangeUniStart) & 0x7) << 4;	/* gain */
+	CHAN_ARRAY_CLEAR (devpriv->chanBipolar, chanIndex);
     }
 
     switch (aref) {
-    case AREF_GROUND:
+    case AREF_GROUND:			/* on-board ground */
 	break;
 
     case AREF_COMMON:
@@ -854,10 +900,10 @@ static unsigned short rtdConvertChanGain (
 	break;
 
     case AREF_DIFF:
-	r |= 0x400;			/* DIFF */
+	r |= 0x400;			/* differential inputs */
 	break;
 
-    case AREF_OTHER:		/* ??? */
+    case AREF_OTHER:			/* ??? */
 	break;
     }
     /*printk ("chan=%d r=%d a=%d -> 0x%x\n",
@@ -878,11 +924,11 @@ static void rtd_load_channelgain_list (
 	RtdClearCGT (dev);
 	RtdEnableCGT(dev, 1);		/* enable table */
 	for(ii=0; ii < n_chan; ii++){
-	    RtdWriteCGTable (dev, rtdConvertChanGain (dev, list[ii]));
+	    RtdWriteCGTable (dev, rtdConvertChanGain (dev, list[ii], ii));
 	}
     } else {				/* just use the channel gain latch */
 	RtdEnableCGT(dev, 0);		/* disable table, enable latch */
-	RtdWriteCGLatch (dev, rtdConvertChanGain (dev, list[0]));
+	RtdWriteCGLatch (dev, rtdConvertChanGain (dev, list[0], 0));
     }
 }
 
@@ -890,6 +936,9 @@ static void rtd_load_channelgain_list (
   "instructions" read/write data in "one-shot" or "software-triggered"
   mode (simplest case).
   This doesnt use interrupts.
+
+  Note, we don't do any settling delays.  Use a instruction list to
+  select, delay, then read.
  */
 static int rtd_ai_rinsn (
     comedi_device *dev,
@@ -906,9 +955,6 @@ static int rtd_ai_rinsn (
 					/* set conversion source */
     RtdAdcConversionSource (dev, 0);	/* software */
 
-					/* wait for mux to settle */
-    udelay (RTD_SETTLE_DELAY);
-
 					/* clear any old fifo data */
     RtdAdcClearFifo (dev);
 
@@ -924,17 +970,14 @@ static int rtd_ai_rinsn (
 	/* trigger conversion */
 	RtdAdcStart (dev);
 
-	/* wait for conversion to end */
-	udelay ((2*RTD_MAX_SPEED + RTD_MAX_SPEED - 1)/1000);
 	for (ii = 0; ii < RTD_ADC_TIMEOUT; ++ii) {
-	    /* by delaying here, we try to reduce system electrical noise */
-	    udelay (1);
 	    stat = RtdFifoStatus (dev);
 	    if (stat & FS_ADC_EMPTY)	/* 1 -> not empty */
 		break;
+	    WAIT_QUIETLY;
 	}
 	if (ii >= RTD_ADC_TIMEOUT) {
-	    printk ("rtd520: Error: Never got ADC done flag! FifoStatus=0x%x\n",
+	    DPRINTK ("rtd520: Error: ADC never finished! FifoStatus=0x%x\n",
 		    stat);
 	    return -ETIMEDOUT;
 	}
@@ -943,7 +986,11 @@ static int rtd_ai_rinsn (
 	d = RtdAdcFifoGet (dev);	/* get 2s comp value */
 	/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1);*/
 	d = d >> 3;			/* low 3 bits are marker lines */
-	data[n] = d + 2048;		/* convert to comedi unsigned data */
+	if (CHAN_ARRAY_TEST (devpriv->chanBipolar,0)) {
+	    data[n] = d + 2048;		/* convert to comedi unsigned data */
+	} else {
+	    data[n] = d;
+	}
     }
 
     /* return the number of samples read/written */
@@ -964,24 +1011,22 @@ static void ai_read_n (
     int ii;
 
     for (ii = 0; ii < count; ii++) {
+	sampl_t	sample;
 	s16 d = RtdAdcFifoGet (dev);	/* get 2s comp value */
-	d = d >> 3;			/* low 3 bits are marker lines */
 
 	if (0 == devpriv->aiCount) {	/* done */
 	    devpriv->aiExtraInt++;
 	    return;
 	}
 
-					/* check and deal with buffer wrap */
-	if (s->async->buf_int_ptr >= s->async->data_len) {
-	    s->async->buf_int_ptr = 0;
-	    s->async->events |= COMEDI_CB_EOBUF;
+	d = d >> 3;			/* low 3 bits are marker lines */
+	if (CHAN_ARRAY_TEST (devpriv->chanBipolar, s->async->cur_chan)) {
+	    sample = d + 2048;	   /* convert to comedi unsigned data */
+	} else {
+	    sample = d;
 	}
-					/* write into buffer */
-	*((sampl_t *)((void *)s->async->data + s->async->buf_int_ptr))
-	    = d + 2048;		/* convert to comedi unsigned data */
-	s->async->buf_int_count += sizeof(sampl_t);
-	s->async->buf_int_ptr += sizeof(sampl_t);
+	comedi_buf_put (s->async, sample);
+
 	if (devpriv->aiCount > 0)	/* < 0, means read forever */
 	    devpriv->aiCount--;
     }
@@ -995,9 +1040,8 @@ static void ai_read_dregs (
     comedi_subdevice *s)
 {
     while (RtdFifoStatus (dev) & FS_ADC_EMPTY) { /* 1 -> not empty */
+	sampl_t	sample;
 	s16 d = RtdAdcFifoGet (dev); /* get 2s comp value */
-
-	d = d >> 3;		/* low 3 bits are marker lines */
 
 	if (0 == devpriv->aiCount) {	/* done */
 	    while (RtdFifoStatus (dev) & FS_ADC_EMPTY) { /* read rest */
@@ -1006,16 +1050,14 @@ static void ai_read_dregs (
 	    return;
 	}
 
-					/* check and deal with buffer wrap */
-	if (s->async->buf_int_ptr >= s->async->data_len) {
-	    s->async->buf_int_ptr = 0;
-	    s->async->events |= COMEDI_CB_EOBUF;
+	d = d >> 3;		/* low 3 bits are marker lines */
+	if (CHAN_ARRAY_TEST (devpriv->chanBipolar, s->async->cur_chan)) {
+	    sample = d + 2048;	   /* convert to comedi unsigned data */
+	} else {
+	    sample = d;
 	}
-					/* write into buffer */
-	*((sampl_t *)((void *)s->async->data + s->async->buf_int_ptr))
-	    = d + 2048;		/* convert to comedi unsigned data */
-	s->async->buf_int_count += sizeof(sampl_t);
-	s->async->buf_int_ptr += sizeof(sampl_t);
+	comedi_buf_put (s->async, sample);
+
 	if (devpriv->aiCount > 0)	/* < 0, means read forever */
 	    devpriv->aiCount--;
     }
@@ -1053,13 +1095,10 @@ static void rtd_interrupt (
 	if (devpriv->transCount > 0) {	/* read often */
 	    if (status & IRQM_ADC_SAMPLE_CNT) {
 		ai_read_n (dev, s, devpriv->transCount);
-		s->async->events |= COMEDI_CB_BLOCK;
-		/*s->async->events |= COMEDI_CB_EOS;*/
 	    }
 	} else {			/* wait for 1/2 FIFO */
 	    if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) {
 		ai_read_n (dev, s, thisboard->fifoLen / 2);
-		s->async->events |= COMEDI_CB_BLOCK;
 	    }
 	}
 
@@ -1092,6 +1131,14 @@ static void rtd_interrupt (
 					/* clear the interrupt */
     RtdInterruptClearMask (dev, status);
     RtdInterruptClear (dev);
+}
+
+/*
+  return the number of samples available
+*/
+static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s)
+{
+    return s->async->buf_int_count - s->async->buf_user_count;
 }
 
 /*
@@ -1236,6 +1283,10 @@ static int rtd_ai_cmdtest (
 
     /* step 4: fix up any arguments */
 
+    if (cmd->chanlist_len > RTD_MAX_CHANLIST) {
+	cmd->chanlist_len = RTD_MAX_CHANLIST;
+	err++;
+    }
     if (cmd->scan_begin_src == TRIG_TIMER) {
 	tmp=cmd->scan_begin_arg;
 	rtd_ns_to_timer(&cmd->scan_begin_arg,
@@ -1299,28 +1350,45 @@ static int rtd_ai_cmd (
 	RtdAdcConversionSource (dev, 1); /* PACER triggers ADC */
     }
 
-    /* arrange to transfer data about every 10ms */
     if (TRIG_TIMER == cmd->scan_begin_src) {
 					/* scan_begin_arg is in nanoseconds */
 	/* find out how many samples to wait before transferring */
-	devpriv->transCount = (10000000*cmd->chanlist_len)/cmd->scan_begin_arg;
-	if (devpriv->transCount < cmd->chanlist_len) {
-	    /* tranfer after each scan (and avoid 0) */
+	if (cmd->flags & COMEDI_EV_SCAN_END) {
+	    /* this may generate un-sustainable interrupt rates */
+	    /* the application is responsible for doing the right thing */
 	    devpriv->transCount = cmd->chanlist_len;
+	    devpriv->flags |= SEND_EOS;
+	} else {
+	    /* arrange to transfer data periodically */
+	    devpriv->transCount
+		= (TRANS_TARGET_PERIOD*cmd->chanlist_len)/cmd->scan_begin_arg;
+	    if (devpriv->transCount < cmd->chanlist_len) {
+		/* tranfer after each scan (and avoid 0) */
+		devpriv->transCount = cmd->chanlist_len;
+	    }
+	    if (devpriv->transCount == cmd->chanlist_len) {
+		devpriv->flags |= SEND_EOS;
+	    } else {
+		devpriv->flags &= ~SEND_EOS;
+	    }
 	}
-	DPRINTK ("rtd520: tranferCount=%d scanTime(ns)=%d scanLen=%d\n",
-		 devpriv->transCount, cmd->scan_begin_arg, cmd->chanlist_len);
 	if (devpriv->transCount > ((thisboard->fifoLen > 1024) ? 1024 : 512)) {
 	    /* out of counter range, use 1/2 fifo instead */
 	    devpriv->transCount = 0;
+	    devpriv->flags &= ~SEND_EOS;
 	    RtdAdcSampleCounter (dev,
 				 (thisboard->fifoLen > 1024) ? 1023 : 511);
 	} else {
-	    /* interupt for each tranfer */
+	    /* interrupt for each tranfer */
 	    RtdAdcSampleCounter (dev, devpriv->transCount-1);
 	}
+
+	DPRINTK ("rtd520: tranferCount=%d scanTime(ns)=%d scanLen=%d flags=0x%x\n",
+		 devpriv->transCount, cmd->scan_begin_arg,
+		 cmd->chanlist_len, devpriv->flags);
     } else {
 	devpriv->transCount = 0;
+	devpriv->flags &= ~SEND_EOS;
 	RtdAdcSampleCounter (dev,	/* setup a periodic interrupt */
 			     (thisboard->fifoLen > 1024) ? 1023 : 511);
     }
@@ -1435,14 +1503,23 @@ static int rtd_ai_cmd (
 
     /* end configuration */
 
-    /* start_src is ASSUMED to be TRIG_NOW */
-    /* initial settling */
-    udelay (RTD_SETTLE_DELAY);
+    /* BUG: start_src is ASSUMED to be TRIG_NOW */
 					/* clear any old data */
     RtdAdcClearFifo (dev);
+    {					/* DEBUG */
+	int clr = 0;
+	while (RtdFifoStatus (dev) & FS_ADC_EMPTY) { /* read rest */
+	    int d = RtdAdcFifoGet (dev);
+	    ++clr;
+	}
+	if (clr > 0) {
+	    DPRINTK ("rtd520: cleared %d after AdcClearFifo\n", clr);
+	}
+    }
 
-    /* see if we can do a simple polled input */
+    /* see if we can do a simple polled input (is this still wanted?) */
     if (justPoll) {
+	sampl_t	sample;
 	int stat = RtdFifoStatus (dev);		/* DEBUG */
 	s16 d;
 	int ii;
@@ -1458,14 +1535,12 @@ static int rtd_ai_cmd (
 	/* trigger conversion */
 	RtdAdcStart (dev);
 
-	udelay ((2*RTD_MAX_SPEED + RTD_MAX_SPEED - 1)/1000);
 	/* right now, this means just 1 sample. emulate ai_rinsn */
 	for (ii = 0; ii < RTD_ADC_TIMEOUT; ++ii) {
-	    /* by delaying here, we try to reduce system electrical noise */
-	    udelay (1);
 	    stat = RtdFifoStatus (dev);
 	    if (stat & FS_ADC_EMPTY)	/* 1 -> not empty */
 		break;
+	    WAIT_QUIETLY;
 	}
 	if (ii >= RTD_ADC_TIMEOUT) {
 	    DPRINTK ("rtd520 ai_cmd Error! Never got data in FIFO! FifoStatus=0x%x\n",
@@ -1477,12 +1552,12 @@ static int rtd_ai_cmd (
 	d = RtdAdcFifoGet (dev);	/* get 2s comp value */
 	/*DPRINTK ("rtd520: Got 0x%x after %d usec\n", d, ii+1);*/
 	d = d >> 3;		/* low 3 bits are marker lines */
-
-					/* write into buffer */
-	*((sampl_t *)((void *)s->async->data + s->async->buf_int_ptr))
-	    = d + 2048;			/* convert to comedi unsigned data */
-	s->async->buf_int_count += sizeof(sampl_t);
-	s->async->buf_int_ptr += sizeof(sampl_t);
+	if (CHAN_ARRAY_TEST (devpriv->chanBipolar, 0)) {
+	    sample = d + 2048;	   /* convert to comedi unsigned data */
+	} else {
+	    sample = d;
+	}
+	comedi_buf_put (s->async, sample);
     } else {
 	/* interrupt setup */
 	if (! dev->irq) {
@@ -1494,7 +1569,7 @@ static int rtd_ai_cmd (
 	       devpriv->intCount, devpriv->aiExtraInt,
 	       0xffff & RtdInterruptStatus (dev),
 	       0xffff & RtdInterruptOverrunStatus (dev),
-	       0xffff & RtdFifoStatus (dev));
+	       (0xffff & RtdFifoStatus (dev)) ^ 0x6666); /*should show all 0s*/
 
 	RtdInterruptClearMask (dev, ~0); /* clear any existing flags */
 	RtdInterruptClear (dev);
@@ -1591,6 +1666,8 @@ static int rtd_ao_winsn (
      * very useful, but that's how the interface is defined. */
     for (i=0; i < insn->n; ++i){
 	int	val = data[i] << 3;
+	int	stat = 0;		/* initialize to avoid bogus warning */
+	int	ii;
 
 	/* VERIFY: comedi range and offset conversions */
 
@@ -1611,8 +1688,17 @@ static int rtd_ao_winsn (
 
 	devpriv->aoValue[chan] = data[i]; /* save for read back */
 
-	if (insn->n > 1) {		/* let DAC finish (TODO poll) */
-	    udelay (RTD_DAC_DELAY);
+	for (ii = 0; ii < RTD_DAC_TIMEOUT; ++ii) {
+	    stat = RtdFifoStatus (dev);
+					/* 1 -> not empty */
+	    if (stat & ((0 == chan) ? FS_DAC1_EMPTY : FS_DAC2_EMPTY))
+		break;
+	    WAIT_QUIETLY;
+	}
+	if (ii >= RTD_DAC_TIMEOUT) {
+	    DPRINTK("rtd520: Error: DAC never finished! FifoStatus=0x%x\n",
+		    stat);
+	    return -ETIMEDOUT;
 	}
     }
 
