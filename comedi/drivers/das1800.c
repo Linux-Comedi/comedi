@@ -171,9 +171,7 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das1800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 
 int das1800_set_frequency(comedi_device *dev);
@@ -710,17 +708,15 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_read = das1800_di_rinsn;
 	s->insn_bits = das1800_di_rbits;
 
 	/* do */
 	s = dev->subdevices + 3;
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
 	s->n_chan = thisboard->do_n_chan;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_write = das1800_do_winsn;
 	s->insn_bits = das1800_do_wbits;
 
 	disable_das1800(dev);
@@ -1165,14 +1161,17 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 	}
 
 	// make sure user is not trying to mix unipolar and bipolar ranges
-	unipolar = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
-	for(i = 1; i < cmd->chanlist_len; i++)
+	if(cmd->chanlist)
 	{
-		if(unipolar != (CR_RANGE(cmd->chanlist[i]) & UNIPOLAR))
+		unipolar = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
+		for(i = 1; i < cmd->chanlist_len; i++)
 		{
-			comedi_error(dev, "unipolar and bipolar ranges cannot be mixed in the chanlist");
-			err++;
-			break;
+			if(unipolar != (CR_RANGE(cmd->chanlist[i]) & UNIPOLAR))
+			{
+				comedi_error(dev, "unipolar and bipolar ranges cannot be mixed in the chanlist");
+				err++;
+				break;
+			}
 		}
 	}
 
@@ -1620,19 +1619,6 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	return 1;
 }
 
-/* reads from a digital input channel */
-static int das1800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
-{
-	int chan = CR_CHAN(insn->chanspec);
-	int ret;
-
-	ret = inb(dev->iobase + DAS1800_DIGITAL) & (1 << chan);
-	if(ret) data[0] = 1;
-	else data[0] = 0;
-
-	return 1;
-}
-
 /* reads from digital input channels */
 static int das1800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
@@ -1641,22 +1627,6 @@ static int das1800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	data[0] = 0;
 
 	return 2;
-}
-
-/* writes to a digital output channel */
-static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
-{
-	int chan = CR_CHAN(insn->chanspec);
-
-	// set channel to 1
-	if(data[0])
-		devpriv->do_bits |= (1 << chan);
-	// set channel to 0
-	else
-		devpriv->do_bits &= ~(1 << chan);
-	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
-
-	return 1;
 }
 
 /* writes to digital output channels */
