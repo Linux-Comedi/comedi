@@ -26,27 +26,27 @@ For installation instructions, look at the file INSTALL.
 * Mailing List:
 
 Questions about Comedi should be sent to the Comedi mailing list,
-<comedi@stm.lbl.gov>.  Mailing the maintainer directly is always
+<comedi@comedi.org>.  Mailing the maintainer directly is always
 acceptable, but since the mailing list is archived and questions
 are often answered more quickly by others, the mailing list is
 preferred.
 
 To subscribe to ans unsubscribe from the mailing list, go to
-http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi.  Alternatively,
-you can send "subscribe comedi" to <comedi-request@stm.lbl.gov>
+http://www.comedi.org/cgi-bin/mailman/listinfo/comedi.  Alternatively,
+you can send "subscribe comedi" to <comedi-request@comedi.org>
 Traffic on the list is light, and mainly questions/answers about
 comedi installation, bugs, and programming.  General questions
 about data acquisition are also welcome.
 
 * More Information:
 
-Comedi also has a web page, at http://stm.lbl.gov/comedi.  New versions
-of comedi can be found on the ftp site ftp://stm.lbl.gov/pub/comedi.
+Comedi also has a web page, at http://www.comedi.org/comedi.  New versions
+of comedi can be found on the ftp site ftp://ftp.comedi.org/pub/comedi.
 
 Often bugfixes and new features that are not in the current release
 can be found in the CVS repository.  Instructions for anonymous CVS
 access to the Comedi and Comedilib repositories are found at
-http://oss.lineo.com/cvs_anon.html.
+http://cvs.comedi.org/cvs_anon.html.
 
 Comedi may be freely distributed and modified in accordance with the
 GNU General Public License.

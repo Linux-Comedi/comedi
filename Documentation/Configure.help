@@ -7,7 +7,7 @@ CONFIG_COMEDI
   
   COMEDI stands for Control and Measurement Interface.  More
   information about Comedi can be found in Documentation/comedi
-  or at http://stm.lbl.gov/comedi.
+  or at http://www.comedi.org/comedi.
 
 Backwards compatibility
 CONFIG_COMEDI_BACKWARDS

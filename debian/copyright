@@ -2,15 +2,15 @@ This package was debianized by David Schleef <ds@schleef.org> on
 Mon, 11 Feb 2002 00:10:56 -0800.
 
 
-Comedi releases can be found at ftp://stm.lbl.gov/pub/comedi.
+Comedi releases can be found at ftp://ftp.comedi.org/pub/comedi.
 
 Comedi CVS is at
 
-  :pserver:oss.lineo.com:/var/cvs
+  :pserver:cvs.comedi.org:/var/cvs
 
 The upstream maintainer is David Schleef <ds@schleef.org>.  Questions
 about Comedi should be addressed to the Comedi mailing list, 
-<comedi@stm.lbl.gov>
+<comedi@comedi.org>
 
 Copyright:
 

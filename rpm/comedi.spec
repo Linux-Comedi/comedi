@@ -4,7 +4,7 @@ Version: 0.7.63
 Release: 2
 Copyright: GPL
 Group: System Environment/Kernel
-Source: http://stm.lbl.gov/comedi/download/comedi-0.7.63.tgz
+Source: http://www.comedi.org/comedi/download/comedi-0.7.63.tgz
 Patch: comedi.patch
 BuildRoot: /var/tmp/%{name}-buildroot
 requires: kernel = 2.4.7, kernel-source = 2.4.7
