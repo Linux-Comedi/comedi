@@ -40,7 +40,7 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 #include <linux/malloc.h>
-#ifdef CONFIG_COMEDI_RT
+#ifdef CONFIG_COMEDI_RTL
 #include <linux/rtl.h>
 #endif
 #include <comedi_module.h>
