@@ -202,11 +202,10 @@ int comedi_do_insn(comedi_t *d,comedi_insn *insn)
 		case INSN_GTOD:
 		{
 			struct timeval tv;
-			lsampl_t data[2];
 
 			do_gettimeofday(&tv);
-			data[0] = tv.tv_sec;
-			data[1] = tv.tv_usec;
+			insn->data[0] = tv.tv_sec;
+			insn->data[1] = tv.tv_usec;
 			ret = 2;
 
 			break;
