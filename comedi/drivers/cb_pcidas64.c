@@ -90,8 +90,8 @@ TODO:
 #include "8255.h"
 #include "plx9080.h"
 
-//#undef PCIDAS64_DEBUG	// disable debugging code
-#define PCIDAS64_DEBUG	// enable debugging code
+#undef PCIDAS64_DEBUG	// disable debugging code
+//#define PCIDAS64_DEBUG	// enable debugging code
 
 #ifdef PCIDAS64_DEBUG
 #define DEBUG_PRINT(format, args...)  printk("comedi: " format , ## args )
@@ -1104,10 +1104,11 @@ for(i = 0; i < 8; i++)
 		caldac_8800_write(dev, i, 128);
 }
 #endif
-{
-uint8_t byte = 0x4f;
-i2c_write(dev, RANGE_CAL_I2C_ADDR, &byte, 1);
-}
+	if(board(dev)->layout == LAYOUT_4020)
+	{	// set adc to read from inputs (not internal calibration sources)
+		uint8_t byte = 0x4f;
+		i2c_write(dev, RANGE_CAL_I2C_ADDR, &byte, 1);
+	}
 
 	return 0;
 }
@@ -1542,7 +1543,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// enable interrupts on plx 9080
 	// XXX enabling more interrupt sources than are actually used
-	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE;
+	bits = ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE;
 	writel(bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// enable interrupts
@@ -2363,11 +2364,9 @@ static void i2c_set_sda(comedi_device *dev, int state)
 	{
 		// set data line high
 		private(dev)->plx_control_bits &= ~data_bit;
-		DEBUG_PRINT("i2c data high\n");
 	}else // set data line low
 	{
 		private(dev)->plx_control_bits |= data_bit;
-		DEBUG_PRINT("i2c data low\n");
 	}
 
 	writel(private(dev)->plx_control_bits, plx_control_addr);
@@ -2384,11 +2383,9 @@ static void i2c_set_scl(comedi_device *dev, int state)
 	{
 		// set clock line high
 		private(dev)->plx_control_bits &= ~clock_bit;
-		DEBUG_PRINT("i2c clock high\n");
-	}else // set clock line low
+	}else
 	{
 		private(dev)->plx_control_bits |= clock_bit;
-		DEBUG_PRINT("i2c clock low\n");
 	}
 
 	writel(private(dev)->plx_control_bits, plx_control_addr);
@@ -2449,7 +2446,7 @@ static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, u
 	// make sure we dont send anything to eeprom
 	private(dev)->plx_control_bits &= ~CTL_EE_CS;
 
-	// i2c_stop(dev);
+	i2c_stop(dev);
 	i2c_start(dev);
 
 	// send address and write bit
