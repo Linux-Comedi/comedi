@@ -139,7 +139,7 @@ if grep 'comedi_insn' ${driver} &>/dev/null;then
 	echo "uses insn"
 	insn=yes
 else
-	echo "W: doesn't use insn"
+	echo "E: doesn't use insn"
 	insn=no
 fi
 
@@ -244,6 +244,7 @@ fi
 
 # ds got it wrong in the first driver, and it was subsequently
 # copied to others.  Use ||.
+# Doesn't check everything.  Use check_cmdtest.
 if grep 'if.*cmd.*&&.*err..;' ${driver} &>/dev/null;then
 	echo "E: Probable logic error in cmdtest"
 fi
