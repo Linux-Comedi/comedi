@@ -104,7 +104,7 @@ int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	return ret;
 }
 
-int comedi_dio_bitfield(unsigned int dev,unsigned int subdev,unsigned int mask,
+int comedi_dio_bitfield(unsigned int minor,unsigned int subdev,unsigned int mask,
 	unsigned int *bits)
 {
 	int ret;
@@ -112,7 +112,7 @@ int comedi_dio_bitfield(unsigned int dev,unsigned int subdev,unsigned int mask,
 	unsigned int m,bit;
 	comedi_subdevice *s;
 
-	s=comedi_devices[dev].subdevices+subdev;
+	s=comedi_get_device_by_minor(minor)->subdevices+subdev;
 
 	n_chan=s->n_chan;
 	if(n_chan>32)n_chan=32;
@@ -120,9 +120,9 @@ int comedi_dio_bitfield(unsigned int dev,unsigned int subdev,unsigned int mask,
 	for(i=0,m=1;i<n_chan;i++,m<<=1){
 		if(mask&m){
 			bit=(*bits&m)?1:0;
-			ret=comedi_dio_write(dev,subdev,i,bit);
+			ret=comedi_dio_write(minor,subdev,i,bit);
 		}else{
-			ret=comedi_dio_read(dev,subdev,i,&bit);
+			ret=comedi_dio_read(minor,subdev,i,&bit);
 			if(bit) *bits|=m;
 			else (*bits)&=~m;
 		}

@@ -70,13 +70,16 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 		"\"%2d: %-20s %-20s %4d\",i,driver_name,board_name,n_subdevices");
 
 	for(i=0;i<COMEDI_NDEVICES;i++){
-		if(comedi_devices[i].attached){
+		comedi_device *dev;
+
+		dev=comedi_get_device_by_minor(i);
+		if(dev->attached){
 			devices_q=1;
 			l+=sprintf(buf+l,"%2d: %-20s %-20s %4d\n",
 				i,
-				comedi_devices[i].driver->driver_name,
-				comedi_devices[i].board_name,
-				comedi_devices[i].n_subdevices
+				dev->driver->driver_name,
+				dev->board_name,
+				dev->n_subdevices
 				);
 		}
 	}

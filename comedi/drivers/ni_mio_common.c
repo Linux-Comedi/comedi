@@ -156,6 +156,8 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
 
 static int ni_8255_callback(int dir,int port,int data,void *arg);
 
+static int ni_ns_to_timer(int *nanosec,int round_mode);
+
 #undef DEBUG
 
 #define AIMODE_NONE		0
@@ -553,7 +555,6 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 	rt_printk("ni_E: timeout 1\n");
 }
 
-#ifdef CONFIG_COMEDI_VER08
 #define TIMER_BASE 50 /* 20 Mhz base */
 
 static int ni_ns_to_timer(int *nanosec,int round_mode)
@@ -839,7 +840,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_restore(wsave);
 	return 0;
 }
-#endif
 
 /*
 	mode 2 is timed, multi-channel
@@ -847,10 +847,15 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int wsave;
+	int trigvar;
+	int trigvar1;
 
 	wsave=win_save();
 
 	win_out(1,ADC_FIFO_Clear);
+
+	trigvar = ni_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
+	trigvar1 = ni_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
 
 	ni_load_channelgain_list(dev,it->n_chan,it->chanlist,(it->flags&TRIG_DITHER)==TRIG_DITHER);
 	
@@ -881,19 +886,19 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		AI_STOP_Select(19)|AI_STOP_Sync,
 		AI_START_STOP_Select_Register);
 
-	win_out((it->trigvar>>16),AI_SI_Load_A_Registers);
-	win_out((it->trigvar&0xffff),AI_SI_Load_A_Registers+1);
+	win_out((trigvar>>16),AI_SI_Load_A_Registers);
+	win_out((trigvar&0xffff),AI_SI_Load_A_Registers+1);
 	/* AI_SI_Initial_Load_Source=A */
 	win_out(0,AI_Mode_2_Register);
 	/* load SI */
 	win_out(0x200,AI_Command_1_Register);
 
 	/* stage freq. counter into SI B */
-	win_out((it->trigvar>>16),AI_SI_Load_B_Registers);
-	win_out((it->trigvar&0xffff),AI_SI_Load_B_Registers+1);
+	win_out((trigvar>>16),AI_SI_Load_B_Registers);
+	win_out((trigvar&0xffff),AI_SI_Load_B_Registers+1);
 
-	win_out(it->trigvar1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
-	win_out(it->trigvar1,AI_SI2_Load_B_Register);
+	win_out(trigvar1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
+	win_out(trigvar1,AI_SI2_Load_B_Register);
 
 	/* AI_SI2_Reload_Mode = alternate */
 	/* AI_SI2_Initial_Load_Source = A */
@@ -978,11 +983,13 @@ rt_printk("START1 pulse\n");
 static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int wsave;
+	int trigvar1;
 
 	wsave=win_save();
 
 	win_out(1,ADC_FIFO_Clear);
 
+	trigvar1 = ni_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
 	ni_load_channelgain_list(dev,it->n_chan,it->chanlist,(it->flags&TRIG_DITHER)==TRIG_DITHER);
 	
 	/* start configuration */
@@ -1025,8 +1032,8 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	win_out((it->trigvar&0xffff),AI_SI_Load_B_Registers+1);
 #endif
 
-	win_out(it->trigvar1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
-	win_out(it->trigvar1,AI_SI2_Load_B_Register);
+	win_out(trigvar1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
+	win_out(trigvar1,AI_SI2_Load_B_Register);
 
 	/* AI_SI2_Reload_Mode = alternate */
 	/* AI_SI2_Initial_Load_Source = A */
@@ -1221,7 +1228,10 @@ static int ni_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	unsigned int conf;
 	unsigned int chan;
 	unsigned int range;
+	int trigvar;
 	
+	trigvar = ni_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
+
 	chan=CR_CHAN(it->chanlist[0]);
 
 	conf=chan<<8;
@@ -1300,8 +1310,8 @@ static int ni_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	win_out(0,AO_UI_Load_A_Register_High);
 	win_out(1,AO_UI_Load_A_Register_Low);
 	win_out(AO_UI_Load,AO_Command_1_Register);
-	win_out((it->trigvar>>16),AO_UI_Load_A_Register_High);
-	win_out((it->trigvar&0xffff),AO_UI_Load_A_Register_Low);
+	win_out((trigvar>>16),AO_UI_Load_A_Register_High);
+	win_out((trigvar&0xffff),AO_UI_Load_A_Register_Low);
 
 	devpriv->ao_mode1&=~AO_Multiple_Channels;
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
@@ -1396,15 +1406,12 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=boardtype.n_adchan;
 	s->len_chanlist=512;	/* XXX is this the same for PCI-MIO ? */
 	s->maxdata=(1<<boardtype.adbits)-1;
-	s->timer_type=TIMER_atmio;
 	s->range_table=ni_range_lkup[boardtype.gainlkup];
 	s->trig[0]=ni_ai_mode0;
 	s->trig[2]=ni_ai_mode2;
 	s->trig[4]=ni_ai_mode4;
-#ifdef CONFIG_COMEDI_VER08
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
-#endif
 	s->cancel=ni_ai_reset;
 	s->do_lock=ni_ai_lock;
 	s->do_unlock=ni_ai_unlock;
@@ -1418,7 +1425,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->subdev_flags=SDF_WRITEABLE|SDF_RT|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
-		s->timer_type=TIMER_atmio;
 		s->range_table=&range_ni_E_ao_ext;	/* XXX wrong for some boards */
 		s->trig[0]=ni_ao_mode0;
 		s->len_chanlist = 2;

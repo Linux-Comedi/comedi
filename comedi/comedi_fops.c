@@ -59,8 +59,7 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
 {
 	kdev_t minor=MINOR(inode->i_rdev);
-	comedi_device *dev=comedi_devices+minor;
-
+	comedi_device *dev=comedi_get_device_by_minor(minor);
 	
 	switch(cmd)
 	{
@@ -200,7 +199,8 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->type		= s->type;
 		us->n_chan		= s->n_chan;
 		us->subd_flags		= s->subdev_flags;
-		us->timer_type		= s->timer_type;
+#define TIMER_nanosec 5	/* backwards compatibility */
+		us->timer_type		= TIMER_nanosec;
 		us->len_chanlist	= s->len_chanlist;
 		us->maxdata		= s->maxdata;
 		us->range_type		= (dev->minor<<24)|(i<<20)|(0<<16)|
@@ -893,7 +893,7 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 {
 	kdev_t minor=MINOR(RDEV_OF_FILE(file));
-	comedi_device *dev=comedi_devices+minor;
+	comedi_device *dev=comedi_get_device_by_minor(minor);
 	comedi_subdevice *s;
 	int size;
 	unsigned long offset;
@@ -961,7 +961,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	void *buf_ptr;
 	unsigned int buf_len;
 
-	dev=comedi_devices+MINOR(RDEV_OF_FILE(file));
+	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 	s=dev->subdevices+file->f_pos;
 
 	if(s->subdev_flags&SDF_LSAMPL){
@@ -1050,7 +1050,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	DECLARE_WAITQUEUE(wait,current);
 	int sample_size;
 
-	dev=comedi_devices+MINOR(RDEV_OF_FILE(file));
+	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 	if(file->f_pos>=dev->n_subdevices)
 		return -EIO;
 	s=dev->subdevices+file->f_pos;
@@ -1178,7 +1178,7 @@ static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
 	comedi_device *dev;
 	loff_t new_offset;
 	
-	dev=comedi_devices+MINOR(RDEV_OF_FILE(file));
+	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
 	switch(origin){
 	case SEEK_SET:
@@ -1208,7 +1208,7 @@ static int comedi_open(struct inode *inode,struct file *file)
 
 	if(minor>=COMEDI_NDEVICES)return -ENODEV;
 
-	dev=comedi_devices+minor;
+	dev=comedi_get_device_by_minor(minor);
 	if(dev->attached)
 		goto ok;
 	if(in_comedi_open && suser())
@@ -1237,7 +1237,7 @@ ok:
 
 static int comedi_close_v22(struct inode *inode,struct file *file)
 {
-	comedi_device *dev=comedi_devices+MINOR(inode->i_rdev);
+	comedi_device *dev=comedi_get_device_by_minor(MINOR(inode->i_rdev));
 	comedi_subdevice *s;
 	int i;
 
@@ -1375,8 +1375,11 @@ void cleanup_module(void)
 	comedi_polling_cleanup();
 #endif
 	for(i=0;i<COMEDI_NDEVICES;i++){
-		if(comedi_devices[i].attached)
-			comedi_device_detach(comedi_devices+i);
+		comedi_device *dev;
+
+		dev=comedi_get_device_by_minor(i);
+		if(dev->attached)
+			comedi_device_detach(dev);
 	}
 	kfree(comedi_devices);
 

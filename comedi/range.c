@@ -63,7 +63,7 @@ int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
 
 	if(minor>COMEDI_NDEVICES)
 		return -EINVAL;
-	dev=comedi_devices+minor;
+	dev=comedi_get_device_by_minor(minor);
 	if(!dev->attached)return -EINVAL;
 	if(subd>=dev->n_subdevices)return -EINVAL;
 	s=dev->subdevices+subd;

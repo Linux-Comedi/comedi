@@ -439,7 +439,6 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=(1<<dt3k_boardtypes[dev->board].adbits)-1;
 	s->len_chanlist=512;
 	s->range_table=&range_dt3000_ai; /* XXX */
-	s->timer_type=TIMER_nanosec;
 
 	s++;
 	/* ao subsystem */

@@ -135,7 +135,6 @@ static int timer_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it
 	return comedi_trig_ioctl(devpriv->device,devpriv->subd,it);
 }
 
-#ifdef CONFIG_COMEDI_VER08
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	if(cmd->scan_start_arg<100000)	/* 10 khz */
@@ -181,7 +180,6 @@ unlock:
 	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
 	return ret;
 }
-#endif
 
 static int timer_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
@@ -257,7 +255,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->device=it->options[0];
 	devpriv->subd=it->options[1];
 
-	devpriv->dev=comedi_devices+devpriv->device;
+	devpriv->dev=comedi_get_device_by_minor(devpriv->device);
 	devpriv->s=devpriv->dev->subdevices+devpriv->subd;
 
 	s=dev->subdevices+0;
@@ -267,15 +265,12 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	s->len_chanlist=1024;
 	s->trig[0]=timer_ai_mode0;
 	s->trig[2]=timer_ai_mode2;
-#ifdef CONFIG_COMEDI_VER08
 	s->do_cmd=timer_cmd;
 	s->do_cmdtest=timer_cmdtest;
-#endif
 	s->cancel=timer_cancel;
 	s->maxdata=devpriv->s->maxdata;
 	s->range_table=devpriv->s->range_table;
 	s->range_table_list=devpriv->s->range_table_list;
-	s->timer_type=TIMER_nanosec;
 
 	devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
 	broken_rtl_dev=dev;

@@ -668,7 +668,6 @@ static int dt282x_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
 	return 1;
 }
 
-#ifdef CONFIG_COMEDI_VER08
 static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,comedi_cmd *cmd)
 {
 	int err=0;
@@ -820,7 +819,6 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	return 0;
 }
-#endif
 
 static int dt282x_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
@@ -1272,15 +1270,12 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[0]=dt282x_ai_mode0;
 	s->trig[1]=dt282x_ai_mode1;
 	s->trig[4]=dt282x_ai_mode4;
-#if CONFIG_COMEDI_VER08
 	s->do_cmdtest=dt282x_ai_cmdtest;
 	s->do_cmd=dt282x_ai_cmd;
-#endif
 	s->cancel=dt282x_ai_cancel;
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->len_chanlist=16;
 	s->range_table = opt_ai_range_lkup(boardtype.ispgl,it->options[opt_ai_range]);
-	s->timer_type=TIMER_nanosec;
 	devpriv->ad_2scomp=it->options[opt_ai_twos];
 
 	s++;
@@ -1294,7 +1289,6 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata=(1<<boardtype.dabits)-1;
 		s->len_chanlist=1;			/* XXX could do 2 */
 		s->range_table_list=devpriv->darangelist;
-		s->timer_type=TIMER_nanosec;
 		devpriv->darangelist[0]=
 			opt_ao_range_lkup(it->options[opt_ao0_range]);
 		devpriv->darangelist[1]=

@@ -115,7 +115,7 @@ static void dds_ao_task_func(int d)
 		if(ret<0){
 			/* eek! */
 		}
-#ifdef CONFIG_COMEDI_RTL
+#ifdef CONFIG_COMEDI_RTAI
 		rt_task_wait();
 #endif
 #ifdef CONFIG_COMEDI_RTL
@@ -204,7 +204,7 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->device=it->options[0];
 	devpriv->subd=it->options[1];
 
-	devpriv->dev=comedi_devices+devpriv->device;
+	devpriv->dev=comedi_get_device_by_minor(devpriv->device);
 	devpriv->s=devpriv->dev->subdevices+devpriv->subd;
 
 	s=dev->subdevices+0;
@@ -217,7 +217,6 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=devpriv->s->maxdata;
 	s->range_table=devpriv->s->range_table;
 	s->range_table_list=devpriv->s->range_table_list;
-	s->timer_type=TIMER_nanosec;
 
 	devpriv->soft_irq=rtl_get_soft_irq(dds_interrupt,"dds");
 	broken_rtl_dev=dev;

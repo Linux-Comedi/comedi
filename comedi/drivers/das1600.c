@@ -373,7 +373,6 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = (devpriv->adc_mux == adc_singleended) ? 16 : 8;
 	s->maxdata = (board == card_1602_16) ? 0xffff : 0xfff;
-	s->timer_type = 0;	/* XXX need timer */
 	s->trig[0] = das1600_ai;
 	switch (board) {
 	case card_1601_12:

@@ -367,7 +367,6 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->maxdata=1;
 		s->trig[0]=nidio_dio;
 		s->trig[2]=nidio_dio_mode2;
-		s->timer_type=TIMER_nanosec;
 		s->len_chanlist=32;		/* XXX */
 
 		writel(0,dev->iobase+Port_IO(0));

@@ -27,7 +27,7 @@ if [ "$CONFIG_RTHAL" = "y" ];then
 fi
 
 bool 'Verbose Debugging' CONFIG_COMEDI_DEBUG
-bool 'Version 0.8 support' CONFIG_COMEDI_VER08
+#bool 'Version 0.8 support' CONFIG_COMEDI_VER08
 
 comment 'Hardware device drivers'
 

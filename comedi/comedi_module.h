@@ -103,7 +103,6 @@ struct comedi_subdevice_struct{
 	int type;
 	int n_chan;
 	int subdev_flags;
-	int timer_type;
 	int len_chanlist;		/* length of channel/gain list, if available */
 
 	void		*private;
@@ -171,7 +170,6 @@ struct comedi_device_struct{
 	comedi_driver *driver;
 	void *private;
 	kdev_t minor;
-	//char *driver_name;
 	char *board_name;
 	int board;
 	void *board_ptr;
@@ -202,6 +200,13 @@ void comedi_done(comedi_device *dev,comedi_subdevice *s);
 void comedi_eos(comedi_device *dev,comedi_subdevice *s);
 void comedi_eobuf(comedi_device *dev,comedi_subdevice *s);
 void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s);
+
+comedi_device * comedi_get_device_by_minor(kdev_t minor);
+
+extern inline comedi_device * comedi_get_device_by_minor(kdev_t minor)
+{
+	return comedi_devices+minor;
+}
 
 int comedi_device_detach(comedi_device *dev);
 int comedi_device_attach(comedi_device *dev,comedi_devconfig *it);
@@ -264,16 +269,6 @@ struct comedi_lrange_struct{
 	comedi_krange range[0];
 };
 
-
-/* timer types */
-/* these *must* agree with lib/timer.c */
-
-#define TIMER_dt282x			1
-#define TIMER_dt2814			2
-#define TIMER_atmio			3
-#define TIMER_acl8112			4
-#define TIMER_nanosec			5
-#define TIMER_pcl812			6	
 
 
 /* some silly little inline functions */

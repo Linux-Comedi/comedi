@@ -38,10 +38,8 @@
 #include <asm/io.h>
 
 static void postconfig(comedi_device *dev);
-#ifdef CONFIG_COMEDI_VER08
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
-#endif
 
 comedi_driver *comedi_drivers;
 
@@ -141,7 +139,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		comedi_device *dev;
 
-		dev=comedi_devices+i;
+		dev=comedi_get_device_by_minor(i);
 		if(dev->attached && dev->driver==driver){
 			if(dev->use_count)
 				printk("BUG! detaching device with use_count=%d\n",dev->use_count);
@@ -183,14 +181,12 @@ static void postconfig(comedi_device *dev)
 		if(s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4])
 			have_trig=1;
 
-#ifdef CONFIG_COMEDI_VER08
 		if(s->do_cmd && !have_trig){
 			s->trig[1]=command_trig;
 			s->trig[2]=command_trig;
 			s->trig[3]=command_trig;
 			s->trig[4]=command_trig;
 		}
-#endif
 		if(s->do_cmd || have_trig){
 			s->prealloc_bufsz=1024*128;
 		}else{
@@ -243,7 +239,6 @@ int do_pack(unsigned int *bits,comedi_trig *it)
 	return i;
 }
 
-#ifdef CONFIG_COMEDI_VER08
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int ret;
@@ -320,7 +315,6 @@ static int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
 
 	return 0;
 }
-#endif
 
 
 #define REG(x) {extern comedi_driver (x);comedi_driver_register(&(x));}

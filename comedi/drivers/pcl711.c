@@ -59,6 +59,7 @@
 #include <linux/timer.h>
 #include <asm/io.h>
 #include <comedi_module.h>
+#include <8253.h>
 
 
 
@@ -137,6 +138,7 @@ typedef int bool;
 #define PCL711_TIMEOUT 100
 #define PCL711_DRDY 0x10
 
+int i8253_osc_base = 500;	/* 2 Mhz */
 
 typedef struct {
 	char *name;
@@ -148,18 +150,14 @@ typedef struct {
 	int n_aochan;
 	int maxirq;
 	comedi_lrange * ai_range_type;
-	int ai_timer_type;
 } boardtype;
 
 static boardtype boardtypes[] =
 {
-	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5, 0},
-	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai,
-	 TIMER_acl8112},
-	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai,
-	 TIMER_acl8112},
-	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai,
-	 TIMER_acl8112},
+	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5},
+	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai},
+	{"acl8112hg", 0, 1, 0, 12, 16, 2, 15, &range_acl8112hg_ai},
+	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
@@ -291,6 +289,8 @@ static int pcl711_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_tri
 
 static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
+	int timer1,timer2;
+
 	if (!dev->irq)
 		return -EINVAL;
 
@@ -306,13 +306,14 @@ static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 	 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
 	 */
 
+	i8253_cascade_ns_to_timer(&timer1,&timer2,&it->trigvar,TRIG_ROUND_NEAREST);
 
 	outb(0x74, dev->iobase + PCL711_CTRCTL);
-	outb((it->trigvar >> 16) & 0xff, dev->iobase + PCL711_CTR1);
-	outb((it->trigvar >> 24) & 0xff, dev->iobase + PCL711_CTR1);
+	outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
+	outb((timer1 >> 8) & 0xff, dev->iobase + PCL711_CTR1);
 	outb(0xb4, dev->iobase + PCL711_CTRCTL);
-	outb(it->trigvar & 0xff, dev->iobase + PCL711_CTR2);
-	outb((it->trigvar >> 8) & 0xff, dev->iobase + PCL711_CTR2);
+	outb(timer2 & 0xff, dev->iobase + PCL711_CTR2);
+	outb((timer2 >> 8) & 0xff, dev->iobase + PCL711_CTR2);
 
 	/* clear pending interrupts (just in case) */
 	outb(0, dev->iobase + PCL711_CLRINTR);
@@ -457,7 +458,6 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = this_board->n_aichan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
-	s->timer_type = this_board->ai_timer_type;
 	s->range_table = this_board->ai_range_type;
 	s->trig[0] = pcl711_ai_mode0;
 	s->trig[1] = pcl711_ai_mode1;

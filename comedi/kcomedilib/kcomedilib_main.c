@@ -58,7 +58,7 @@ static inline int minor_to_dev(unsigned int minor,comedi_device **dev)
 	if(minor>=COMEDI_NDEVICES)
 		return -ENODEV;
 
-	*dev=comedi_devices+minor;
+	*dev=comedi_get_device_by_minor(minor);
 
 	if(!(*dev)->attached)
 		return -ENODEV;
@@ -330,7 +330,7 @@ int __comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
 	comedi_subdevice *s;
 	int ret=0;
 
-	dev=comedi_devices+minor;
+	dev=comedi_get_device_by_minor(minor);
 	s=dev->subdevices+subdev;
 
 	s->cur_trig=*it;
