@@ -524,8 +524,8 @@ AC_DEFUN([AS_LINUX_2_4],
         dnl Makefile variable, which originally points to .config
 
 	if [[ ! -e "${LINUX_DIR}/.hdepend" ]];then
-		AC_MSG_ERROR([
-You need to run 'make dep' on the kernel source before continuing.])
+		AC_MSG_WARN([
+No .hdepend file found, you may need to run 'make dep' on the kernel source before continuing.])
 	fi
 
 	{
