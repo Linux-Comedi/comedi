@@ -97,10 +97,10 @@ fi
 # However, for drivers that handle N identical subdevices, it's better
 # to have a variable number of subdevices.
 tmp=$(cat ${driver}|grep -c 'dev..n_subdevices[[:space:]]*=' 2>/dev/null)
-if [ "$tmp" = 1 ];then
-	echo sets n_subdevices once
+if [ "$tmp" = 0 ];then
+	echo "doesn't set n_subdevices (good)"
 else
-	echo W: sets n_subdevices multiple times: "$tmp"
+	echo "W: sets n_subdevices multiple ($tmp) times"
 fi
 if grep 'dev..n_subdevices[[:space:]]*=[[:space:]]*[^[:digit:][:space:]]' ${driver} &>/dev/null;then
 	echo "W: sets n_subdevices by variable"
