@@ -611,6 +611,10 @@ static int rtd_attach (
      */
     dev->board_name = thisboard->name;
 
+    if((ret=pci_enable_device(dev))<0){
+	return ret;
+    }
+
     /*
      * Initialize base addresses
      */

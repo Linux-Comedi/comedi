@@ -624,6 +624,10 @@ static int setup_pci(comedi_device *dev)
 {
 	unsigned long		offset;
 	u32			addr;
+	int ret;
+
+	ret = pci_enable_device(devpriv->pci_dev);
+	if(ret<0)return ret;
 
 #if LINUX_VERSION_CODE < 0x020300
 	addr=devpriv->pci_dev->base_address[0];
