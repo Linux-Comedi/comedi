@@ -63,6 +63,7 @@ TODO:
 		are not yet available.
 	need to take care to prevent ai and ao from affecting each others register bits
 	support prescaled 100khz clock for slow pacing
+	need to make sure all trigger sources are properly supported (TRIG_EXT)
 */
 
 #include <linux/kernel.h>
@@ -661,7 +662,7 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 
 	// calibration subd XXX
 	s = dev->subdevices + 6;
-	s->type = COMEDI_SUBD_UNUSED; 
+	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
 }
@@ -804,7 +805,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 
 	// compatibility check
 	if(cmd->convert_src == TRIG_EXT &&
-		cmd->scan_begin_src == TRIG_TIMER)
+		cmd->scan_begin_src == TRIG_TIMER)
 		err++;
 
 	if(err) return 2;
@@ -823,9 +824,9 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 			cmd->convert_arg = thisboard->ai_speed;
 			err++;
 		}
-		if(cmd->scan_begin_src == TRIG_TIMER)
+		if(cmd->scan_begin_src == TRIG_TIMER)
 		{
-			// if scans are timed faster than conversion rate allows
+			// if scans are timed faster than conversion rate allows
 			if(cmd->convert_arg * cmd->chanlist_len > cmd->scan_begin_arg)
 			{
 				cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
@@ -955,6 +956,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// load hardware conversion counter with non-zero value so it doesn't mess with us
 	writew(~0, devpriv->main_iobase + ADC_COUNT_LOWER_REG);
 
+	// set software count
+	if(cmd->stop_src == TRIG_COUNT)
+		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
+
 	/* XXX cannot write to queue fifo while dac fifo is being written to
 	 * ( need spinlock, or try to use internal queue instead */
 	// clear queue pointer
@@ -1043,6 +1048,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		(plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA)) == 0)
 	{
 #ifdef PCIDAS64_DEBUG
+		intr_count++;
 		rt_printk(" cb_pcidas64 spurious interrupt");
 #endif
 		return;
@@ -1068,6 +1074,12 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 			num_samples = cmd->chanlist_len;
 		else
 			num_samples = QUARTER_AI_FIFO_SIZE;
+		if(cmd->stop_src == TRIG_COUNT)
+		{
+			if(num_samples > devpriv->ai_count)
+				num_samples = devpriv->ai_count;
+			devpriv->ai_count -= num_samples;
+		}
 		// read samples
 		for(i = 0; i < num_samples; i++)
 		{
@@ -1075,6 +1087,21 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 			comedi_buf_put(async, data);
 		}
 		async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	}
+
+	// check for fifo overrun
+	if(status & ADC_OVERRUN_BIT)
+	{
+		ai_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+	}
+
+	// if we are have all the data, then quit
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		if(devpriv->ai_count <= 0)
+			ai_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA;
 	}
 
 	// clear possible plx9080 interrupt sources
