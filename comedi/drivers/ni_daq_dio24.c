@@ -52,8 +52,6 @@ Status: ?
 #include <linux/comedidev.h>
 #include "8255.h"
 
-#ifdef CONFIG_PCMCIA
-
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -79,8 +77,6 @@ Status: ?
 
 static dev_link_t *pcmcia_dev_list = NULL;
 
-#endif // CONFIG_PCMCIA
-
 #define DIO24_SIZE 4	// size of io region used by board
 
 static int dio24_attach(comedi_device *dev,comedi_devconfig *it);
@@ -104,7 +100,6 @@ typedef struct dio24_board_struct{
 
 static dio24_board dio24_boards[] =
 {
-#ifdef CONFIG_PCMCIA
 	{
 		name:	"daqcard-dio24",
 		device_id:	0x475c,	// 0x10b is manufacturer id, 0x475c is device id
@@ -113,7 +108,6 @@ static dio24_board dio24_boards[] =
 		read_byte:	dio24_inb,
 		write_byte:	dio24_outb,
 	},
-#endif // CONFIG_PCMCIA
 };
 
 /*
@@ -142,9 +136,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	int iobase = 0;
 	int irq = 0;
-#ifdef CONFIG_PCMCIA
 	dev_link_t *link;
-#endif
 
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(dio24_private)) < 0)
@@ -154,15 +146,10 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 	switch(thisboard->bustype)
 	{
 		case pcmcia_bustype:
-#ifdef CONFIG_PCMCIA
 			link = pcmcia_dev_list; /* XXX hack */
 			if(!link) return -EIO;
 			iobase = link->io.BasePort1;
 			irq = link->irq.AssignedIRQ;
-#else
-			printk(" driver was not compiled with pcmcia support\n");
-			return -EINVAL;
-#endif // CONFIG_PCMCIA
 			break;
 		default:
 			printk("bug! couldn't determine board type\n");
@@ -237,7 +224,6 @@ static void dio24_outb(unsigned int byte, unsigned int address)
 
 
 // PCMCIA crap
-#ifdef CONFIG_PCMCIA
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
@@ -844,7 +830,3 @@ void cleanup_module(void)
 	comedi_driver_unregister(&driver_dio24);
 }
 
-#else
-COMEDI_INITCLEANUP(driver_dio24);
-
-#endif // CONFIG_PCMCIA
