@@ -45,30 +45,17 @@ samples from the board.  So at 1 Mhz sampling rate,
 expect your CPU to be spending almost all of its
 time in the interrupt handler.
 
-Options:
-        [0] - base io address
-        [1] - irq (optional, but you probably want it)
-*/
-/*
-This driver is for the (freakish) Measurement Computing (Computer Boards)
-CIO-DAS16/M1 board.  The similarly namced CIO-DAS16/M1/16 board actually
-has a different register layout and is not supported by this driver
-(although it might go nicely in the das16.c driver.)
-
-Options:
-	[0] - base io address
-	[1] - irq (optional, required for timed or externally triggered conversions)
-
-irq can be omitted, although the cmd interface will not work without it.
-
-NOTES:
 This board has some unusual restrictions for its channel/gain list.  If the
 list has 2 or more channels in it, then two conditions must be satisfied:
 (1) - even/odd channels must appear at even/odd indices in the list
 (2) - the list must have an even number of entries.
 
-*/
+Options:
+        [0] - base io address
+        [1] - irq (optional, but you probably want it)
 
+irq can be omitted, although the cmd interface will not work without it.
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -86,7 +73,7 @@ list has 2 or more channels in it, then two conditions must be satisfied:
 
 #define DAS16M1_XTAL 100	//10 MHz master clock
 
-#define HALF_FIFO 512	// 1024 sample fifo
+#define FIFO_SIZE 1024	// 1024 sample fifo
 
 /*
     CIO-DAS16_M1.pdf
@@ -179,7 +166,7 @@ static das16m1_board das16m1_boards[]={
 
 static int das16m1_attach(comedi_device *dev, comedi_devconfig *it);
 static int das16m1_detach(comedi_device *dev);
-comedi_driver driver_das16m1={
+static comedi_driver driver_das16m1={
 	driver_name:	"das16m1",
 	module:		THIS_MODULE,
 	attach:		das16m1_attach,
@@ -191,7 +178,7 @@ comedi_driver driver_das16m1={
 
 struct das16m1_private_struct {
 	unsigned int	control_state;
-	volatile unsigned int	adc_count;	// number of samples remaining
+	volatile unsigned int	adc_count;	// number of samples completed
 	unsigned int do_bits;	// saves status of digital output bits
 	unsigned int divisor1;	// divides master clock to obtain conversion speed
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
@@ -332,7 +319,11 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
-	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
+	// set software count
+	devpriv->adc_count = 0;
+	/* initialize lower half of hardware counter, used to determine how
+	 * many samples are in fifo */
+	i8254_load(dev->iobase + DAS16M1_8254_FIRST, 1, 0, 2);
 
 	/* setup channel/gain queue */
 	for(i = 0; i < cmd->chanlist_len; i++)
@@ -451,10 +442,12 @@ static int das16m1_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int i, status;
-	sampl_t data[HALF_FIFO];
+	sampl_t data[FIFO_SIZE];
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices;
 	comedi_async *async;
+	comedi_cmd *cmd;
+	u16 num_samples;
 
 	if(dev->attached == 0)
 	{
@@ -472,19 +465,28 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	// initialize async here to avoid freak out on premature interrupt
 	async = s->async;
 	async->events = 0;
+	cmd = &async->cmd;
 
-	insw(dev->iobase, data, HALF_FIFO);
-	for(i = 0; i < HALF_FIFO; i++)
+	// figure out how many samples are in fifo
+	num_samples = (0x10000 - i8254_read(dev->iobase + DAS16M1_8254_FIRST, 1)) - devpriv->adc_count;
+	// check if we only need some of the points
+	if(num_samples > cmd->stop_arg * cmd->chanlist_len)
+		num_samples = cmd->stop_arg * cmd->chanlist_len;
+	// make sure we dont try to get too many points if fifo has overrun
+	if(num_samples > FIFO_SIZE)
+		num_samples = FIFO_SIZE;
+	insw(dev->iobase, data, num_samples);
+	for(i = 0; i < num_samples; i++)
 	{
 		comedi_buf_put(async, AI_DATA(data[i]));
-		if(async->cmd.stop_src == TRIG_COUNT)
-		{
-			if(--devpriv->adc_count == 0)
-			{		/* end of acquisition */
-					das16m1_cancel(dev, s);
-					async->events |= COMEDI_CB_EOA;
-					break;
-			}
+		devpriv->adc_count++;
+	}
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		if(devpriv->adc_count >= cmd->stop_arg * cmd->chanlist_len)
+		{		/* end of acquisition */
+				das16m1_cancel(dev, s);
+				async->events |= COMEDI_CB_EOA;
 		}
 	}
 
@@ -499,7 +501,6 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	async->events |= COMEDI_CB_BLOCK;
 	comedi_event(dev, s, async->events);
-	async->events = 0;
 
 	/* clear interrupt */
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
@@ -625,7 +626,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 8;
-	s->subdev_flags |= SDF_DIFF;
+	s->subdev_flags = SDF_DIFF;
 	s->len_chanlist = 256;
 	s->maxdata = (1 << 12) - 1;
 	s->range_table = &range_das16m1;
