@@ -264,20 +264,21 @@ static int parport_intr_cancel(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
-static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
+static irqreturn_t parport_interrupt(int irq,void *d,struct pt_regs *regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices+3;
 
 	if(!devpriv->enable_irq){
 		printk("comedi_parport: bogus irq, ignored\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	comedi_buf_put( s->async, 0 );
 	s->async->events |= COMEDI_CB_EOS;
-	
+
 	comedi_event(dev,s,s->async->events);
+	return IRQ_HANDLED;
 }
 
 static int parport_attach(comedi_device *dev,comedi_devconfig *it)
