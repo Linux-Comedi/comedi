@@ -859,6 +859,8 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	}else{
 		for(i=0;i<n;i++){
 			data=ni_readw(ADC_FIFO_Data_Register);
+			data += devpriv->ai_offset[ async->cur_chan++ ];
+			async->cur_chan %= async->cmd.chanlist_len;
 			err &= comedi_buf_put(async, data);
 		}
 	}
