@@ -14,6 +14,8 @@ fi
 
 echo "I: ${driver}:"
 
+basedriver=$(basename ${driver} .c)
+
 # special cases
 case ${driver} in
 	ni_pcimio.c)
@@ -253,5 +255,12 @@ fi
 if grep 'comedi_\(\(done\)\|\(error_done\)\|\(bufcheck\)\|\(eos\)\|\(eobuf\)\)[[:space:]]*(' \
 	${driver} &>/dev/null;then
 	echo "W: should be using comedi_event()"
+fi
+
+# Drivers should have documentation in Documentation/comedi/drivers.txt
+if grep "^Driver: ${basedriver}.o$" ../../Documentation/comedi/drivers.txt;then
+	echo "entry in drivers.txt"
+else
+	echo "E: not documented in drivers.txt"
 fi
 
