@@ -167,10 +167,10 @@ struct plx_dma_desc
 #define  ICS_MBIA(x)       (0x10000000 << ((x) & 0x3)) // mailbox x is active
 
 #define PLX_CONTROL_REG        0x006C /* L, EEPROM Cntl & PCI Cmd Codes */
-#define  CTL_RDMA          0x0000000F /* DMA Read Command */
-#define  CTL_WDMA          0x000000F0 /* DMA Write Command */
-#define  CTL_RMEM          0x00000F00 /* Memory Read Command */
-#define  CTL_WMEM          0x0000F000 /* Memory Write Command */
+#define  CTL_RDMA          0x0000000E /* DMA Read Command */
+#define  CTL_WDMA          0x00000070 /* DMA Write Command */
+#define  CTL_RMEM          0x00000600 /* Memory Read Command */
+#define  CTL_WMEM          0x00007000 /* Memory Write Command */
 #define  CTL_USER0         0x00010000 /* USER0 pin control bit */
 #define  CTL_USER1         0x00020000 /* USER1 pin control bit */
 #define  CTL_EE_CLK        0x01000000 /* EEPROM Clock line */
