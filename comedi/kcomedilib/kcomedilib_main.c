@@ -657,6 +657,7 @@ int comedi_do_insn(unsigned int minor,comedi_insn *insn)
 
 		if(s->type==COMEDI_SUBD_UNUSED){
 			rt_printk("%d not useable subdevice\n",insn->subdev);
+			/* XXX no return value is set! ret = ? */
 			goto error;
 		}
 
@@ -664,6 +665,7 @@ int comedi_do_insn(unsigned int minor,comedi_insn *insn)
 
 		if((ret=check_chanlist(s,1,&insn->chanspec))<0){
 			rt_printk("bad chanspec\n");
+			/* XXX no return value is set! ret = ? */
 			goto error;
 		}
 
@@ -697,7 +699,7 @@ int comedi_do_insn(unsigned int minor,comedi_insn *insn)
 		goto error;
 	}
 error:
-	
+
 	return ret;
 }
 
