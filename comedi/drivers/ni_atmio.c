@@ -397,6 +397,7 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 	*dev = isapnp_dev;
 	return 0;
 #else
+	comedi_error(dev, "kernel does not have isapnp support available\n");
 	return -EIO;
 #endif
 }
