@@ -227,7 +227,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  512,
 		ao_unipolar:    1,
-		caldac:         {mb88341},
+		caldac:         {ad8804_debug}, // doc says mb88341
 		has_8255:       0,
 	},
 	{       device_id:      0x11c0,
@@ -393,7 +393,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    0,
-		caldac:         {mb88341},
+		caldac:         {ad8804_debug},
 		has_8255:	0,
 	},
 	{       device_id:      0x18b0,
