@@ -476,7 +476,7 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	comedi_bufinfo bi;
 	comedi_subdevice *s;
 	comedi_async *async;
-	spinlock_t bufinfo_lock = SPIN_LOCK_UNLOCKED;
+	static spinlock_t bufinfo_lock = SPIN_LOCK_UNLOCKED;
 	unsigned long irq_flags;
 	int m;
 
