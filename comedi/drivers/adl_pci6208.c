@@ -28,7 +28,7 @@
 /*
 Driver: adl_pci6208.o
 Description: Driver for ADLink PCI-6208A
-Devices: adl_pci6208a
+Devices: [ADLink] PCI-6208A (adl_pci6208)
 Author: nsyeow <nsyeow@pd.jaring.my>
 Updated: Fri, 30 Jan 2004 14:44:27 +0800
 Status: untested
