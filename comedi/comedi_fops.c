@@ -1638,11 +1638,11 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	 */
 	if(dev->attached)
 		goto ok;
-	if(!capable(CAP_SYS_ADMIN) && dev->in_request_module){
+	if(!capable(CAP_SYS_MODULE) && dev->in_request_module){
 		DPRINTK("in request module\n");
 		return -ENODEV;
 	}
-	if(capable(CAP_SYS_ADMIN) && dev->in_request_module)
+	if(capable(CAP_SYS_MODULE) && dev->in_request_module)
 		goto ok;
 
 	dev->in_request_module=1;
@@ -1654,8 +1654,8 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 
 	dev->in_request_module=0;
 
-	if(!dev->attached && !capable(CAP_SYS_ADMIN)){
-		DPRINTK("not attached and not root\n");
+	if(!dev->attached && !capable(CAP_SYS_MODULE)){
+		DPRINTK("not attached and not CAP_SYS_MODULE\n");
 		return -ENODEV;
 	}
 ok:
