@@ -32,8 +32,6 @@
 #include <linux/comedi.h>
 
 
-#include "kern_compat.h"
-
 #ifdef CONFIG_COMEDI_DEBUG
 #define DPRINTK(format, args...)	printk("comedi: " format , ## args )
 #else
@@ -42,7 +40,7 @@
 
 #ifndef COMEDI_VERSION_CODE
 #define COMEDI_VERSION_CODE 0x10000
-#define COMEDI_VERSION "1.0.0"
+#define COMEDI_RELEASE "1.0.0"
 #endif
 
 #ifdef MODULE
