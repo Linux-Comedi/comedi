@@ -49,3 +49,6 @@ rename prealloc_buf and prealloc_bufsz
 
 fix RT interrupts and comedi_irq[] dumbness
 
+ni_mio_common: analog output doesn't work correctly with insns after
+  running a command
+
