@@ -190,7 +190,7 @@ int comedi_get_buffer_contents( comedi_t *d, unsigned int subdevice )
 
 	if( subdevice >= dev->n_subdevices ) return -1;
 	async = s->async;
-
+	if(async == NULL) return 0;
 	num_bytes = comedi_buf_read_n_available(s);
 	comedi_buf_munge( dev, s, async->buf_write_count - async->munge_count );
 	return num_bytes;
