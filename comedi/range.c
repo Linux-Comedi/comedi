@@ -91,6 +91,9 @@ static int aref_invalid( comedi_subdevice *s, unsigned int chanspec )
 {
 	unsigned int aref;
 
+	// disable reporting invalid arefs... maybe someday
+	return 0;
+
 	aref = CR_AREF( chanspec );
 	switch( aref )
 	{
