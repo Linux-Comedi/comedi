@@ -5,13 +5,13 @@
  *   card:   PCI-9118DG, PCI-9118HG, PCI-9118HR
  *   driver: pci9118dg,  pci9118hg,  pci9118hr
  *
- * Author: Michal Dobes <majkl@tesnet.cz>
+ * Author: Michal Dobes <dobes@tesnet.cz>
  *
 */
 /*
 Driver: adl_pci9118.o
 Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
-Author: Michal Dobes <majkl@tesnet.cz>
+Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [ADLink] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),
   PCI-9118HR (pci9118hr)
 Status: works

@@ -2,7 +2,7 @@
    module/pcl816.c
 
    Author:  Juan Grigera <juan@grigera.com.ar>
-            based on pcl818 by Michal Dobes <majkl@tesnet.cz> and bits of pcl812
+            based on pcl818 by Michal Dobes <dobes@tesnet.cz> and bits of pcl812
 
    hardware driver for Advantech cards:
     card:   PCL-816, PCL814B

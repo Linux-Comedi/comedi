@@ -1,7 +1,7 @@
 /*
  * comedi/drivers/pcl812.c
  *
- * Author: Michal Dobes <majkl@tesnet.cz>
+ * Author: Michal Dobes <dobes@tesnet.cz>
  *
  * hardware driver for Advantech cards
  *  card:   PCL-812, PCL-812PG, PCL-813, PCL-813B
@@ -21,7 +21,7 @@ Description: Advantech PCL-812/PG, PCL-813/B,
              ADLink ACL-8112DG/HG/PG, ACL-8113, ACL-8216,
              ICP DAS A-821PGH/PGL/PGL-NDA, A-822PGH/PGL, A-823PGH/PGL, A-826PG,
              ICP DAS ISO-813
-Author: Michal Dobes <majkl@tesnet.cz>
+Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCL-812 (pcl812), PCL-812PG (pcl812pg),
   PCL-813 (pcl813), PCL-813B (pcl813b), [ADLink] ACL-8112DG (acl8112dg),
   ACL-8112HG (acl8112hg), ACL-8113 (acl-8113), ACL-8216 (acl8216),

@@ -1,7 +1,7 @@
 /*
  * comedi/drivers/adv_pci1710.c
  *
- * Author: Michal Dobes <majkl@tesnet.cz>
+ * Author: Michal Dobes <dobes@tesnet.cz>
  *
  * Thanks to ZhenGang Shang <ZhenGang.Shang@Advantech.com.cn>
  * for testing and informations.
@@ -20,7 +20,7 @@
 Driver: adv_pci1710.o
 Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
              Advantech PCI-1720, PCI-1731
-Author: Michal Dobes <majkl@tesnet.cz>
+Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1710 (pci1710), PCI-1710HG (pci1710hg),
   PCI-1711 (pci1711), PCI-1713 (pci1713), PCI-1720 (pci1720),
   PCI-1731 (pci1731)

@@ -26,7 +26,7 @@ Status: unknown
 Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 */
 /*
- * I must give credit here to Michal Dobes <majkl@tesnet.cz> who
+ * I must give credit here to Michal Dobes <dobes@tesnet.cz> who
  * wrote the driver for Advantec's pcl812 boards. I used the interrupt 
  * handling code from his driver as an example for this one.
  * 

@@ -3,7 +3,7 @@
 
     Stuff for AMCC S5933 PCI Controller
     
-    Author: Michal Dobes <majkl@tesnet.cz>
+    Author: Michal Dobes <dobes@tesnet.cz>
 
     Inspirated from general-purpose AMCC S5933 PCI Matchmaker driver  
     made by Andrea Cisternino  <acister@pcape1.pi.infn.it>

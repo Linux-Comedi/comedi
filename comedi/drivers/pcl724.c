@@ -1,7 +1,7 @@
 /*
     module/pcl724.c
 
-    Michal Dobes <majkl@tesnet.cz>  
+    Michal Dobes <dobes@tesnet.cz>  
 
     hardware driver for Advantech cards:
      card:   PCL-724, PCL-722, PCL-731
@@ -24,7 +24,7 @@
 Driver: pcl724.o
 Description: Advantech PCL-724, PCL-722, PCL-731 ADLink ACL-7122, ACL-7124,
   PET-48DIO
-Author: Michal Dobes <majkl@tesnet.cz>
+Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCL-724 (pcl724), PCL-722 (pcl722), PCL-731 (pcl731),
   [ADLink] ACL-7122 (acl7122), ACL-7124 (acl7124), PET-48DIO (pet48dio)
 Status: untested

@@ -1,7 +1,7 @@
 /*
    module/pcl818.c
 
-   Author:  Michal Dobes <majkl@tesnet.cz>  
+   Author:  Michal Dobes <dobes@tesnet.cz>  
 
    hardware driver for Advantech cards:
     card:   PCL-818L, PCL-818H, PCL-818HD, PCL-818HG, PCL-818, PCL-718
@@ -10,7 +10,7 @@
 /*
 Driver: pcl818.o
 Description: Advantech PCL-818 cards, PCL-718
-Author: Michal Dobes <majkl@tesnet.cz>
+Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCL-818L (pcl818l), PCL-818H (pcl818h),
   PCL-818HD (pcl818hd), PCL-818HG (pcl818hg), PCL-818 (pcl818),
   PCL-718 (pcl718)
