@@ -1,9 +1,18 @@
 #!/bin/sh
+if [ ! -f NEWS ] ; then
+        touch NEWS
+fi
+if [ ! -f AUTHORS ] ; then
+        touch AUTHORS
+fi
+if [ ! -f ChangeLog ] ; then
+        touch ChangeLog
+fi
 
-aclocal-1.7 -I m4
+aclocal -I m4
 autoheader
 autoconf
-automake-1.7 --add-missing --copy
+automake --add-missing --copy
 
 rm -f config.cache
 
