@@ -215,6 +215,9 @@ int do_pack(unsigned int *bits,comedi_trig *it);
 #define comedi_change_irq_flags(a,b,c)	/* */
 #define comedi_free_irq			free_irq
 
+#define comedi_spin_lock_irqsave(x, flags)	spin_lock_irqsave(x, flags)
+#define comedi_spin_unlock_irqrestore(x, flags)	spin_unlock_irqrestore(x, flags)
+
 #endif
 
 
@@ -288,7 +291,7 @@ extern struct symbol_table comedi_syms;
 #endif
 
 
-#endif /* _COMEDI_MODULE_H */
+#endif /* _COMEDIDEV_H */
 
 
 
