@@ -432,14 +432,11 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 		rt_printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev,s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
-		comedi_event(dev,s,s->async->events);
 		return;
 	}
 	comedi_buf_memcpy_from(s->async, 0, ptr, size);
 	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,i,size);
-
-	comedi_event(dev,s,s->async->events);
 	return;
 }
 
@@ -485,12 +482,10 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 		update_supcsr(DT2821_ADCINIT);
 
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev,s,s->async->events);
-
 		return;
 	}
 
-#if 1
+#if 0
 	/* clear the dual dma flag, making this the last dma segment */
 	/* XXX probably wrong */
 	if(!devpriv->ntrig){
@@ -500,8 +495,6 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 #endif
 	/* restart the channel */
 	prep_ai_dma(dev,i,0);
-
-	comedi_event(dev,s,s->async->events);
 }
 
 static int prep_ai_dma(comedi_device * dev,int chan,int n)
@@ -563,16 +556,14 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->subdevices+0;
 	comedi_subdevice *s_ao = dev->subdevices+1;
 	unsigned int supcsr, adcsr, dacsr;
-	sampl_t data;
-	int ret;
+	int handled = 0;
 
 	adcsr=inw(dev->iobase + DT2821_ADCSR);
 	if (adcsr & DT2821_ADERR) {
 		comedi_error(dev, "A/D error");
 		dt282x_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);
-		return IRQ_HANDLED;
+		handled = 1;
 	}
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
 	/*printk("supcsr=%02x\n",supcsr);*/
@@ -581,7 +572,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 			dt282x_ai_dma_interrupt(dev);
 		else
 			dt282x_ao_dma_interrupt(dev);
-		return IRQ_HANDLED;
+		handled = 1;
 	}
 	if ((dacsr = inw(dev->iobase + DT2821_DACSR)) & DT2821_DAERR) {
 #if 0
@@ -594,10 +585,13 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "D/A error");
 		dt282x_ao_cancel(dev,s_ao);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev,s_ao,s->async->events);
-		return IRQ_HANDLED;
+		handled = 1;
 	}
+#if 0
 	if (adcsr & DT2821_ADDONE) {
+		int ret;
+		sampl_t data;
+
 		data = (sampl_t) inw(dev->iobase + DT2821_ADDAT);
 		data&=(1<<boardtype.adbits)-1;
 		if(devpriv->ad_2scomp){
@@ -615,11 +609,11 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 			if(supcsr&DT2821_SCDN)
 				update_supcsr(DT2821_STRIG);
 		}
-
-		comedi_event(dev,s,s->async->events);
-		return IRQ_HANDLED;
+		handled = 1;
 	}
-	return IRQ_HANDLED;
+#endif
+	comedi_event(dev, s, s->async->events);
+	return IRQ_RETVAL(handled);
 }
 
 
@@ -801,12 +795,12 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		update_supcsr(0);
 	}
 
-	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
+	devpriv->adcsr = DT2821_ADCLK /*| DT2821_IADDONE*/;
 	update_adcsr(0);
 
 	dt282x_load_changain(dev,cmd->chanlist_len,cmd->chanlist);
 
-	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
+	devpriv->adcsr = DT2821_ADCLK /*| DT2821_IADDONE */;
 	update_adcsr(0);
 
 	update_supcsr(DT2821_PRLD);
