@@ -2,6 +2,7 @@
 expsyms(mite.o 8255.o amcc_s5933.o)
 
 select(CONFIG_COMEDI_8255 8255.o)
+select(CONFIG_COMEDI_ADL_PCI9111 adl_pci9111.o)
 select(CONFIG_COMEDI_ADL_PCI9118 adl_pci9118.o amcc_s5933.o)
 select(CONFIG_COMEDI_ADV_PCI1710 adv_pci1710.o amcc_s5933.o)
 select(CONFIG_COMEDI_AMPLC_PCI230 amplc_pci230.o)
