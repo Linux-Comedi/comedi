@@ -20,10 +20,6 @@
 
 #include "amcc_s5933.h"
 
-#ifdef PCI_SUPPORT_VER1
-#error    Sorry, no support for 2.1.55 and older! :-((((
-#endif
-
 
 /****************************************************************************/
 

@@ -13,9 +13,6 @@
 #include <linux/pci.h>
 #include <linux/comedidev.h>
 
-#ifdef PCI_SUPPORT_VER1
-#error    Sorry, no support for 2.1.55 and older! :-((((
-#endif
 
 
 /****************************************************************************/

@@ -764,11 +764,7 @@ static struct mite_struct* labpc_find_device(int bus, int slot)
 		// if bus/slot are specified then make sure we have the right bus/slot
 		if(bus || slot)
 		{
-#ifdef PCI_SUPPORT_VER1
-			if(bus != mite->pci_bus || slot! = PCI_SLOT(mite->pci_device_fn)) continue;
-#else
 			if(bus != mite->pcidev->bus->number || slot != PCI_SLOT(mite->pcidev->devfn)) continue;
-#endif
 		}
 		for(i = 0; i < driver_labpc.num_names; i++)
 		{
