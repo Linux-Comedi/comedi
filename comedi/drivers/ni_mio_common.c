@@ -1453,8 +1453,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 				cmd->convert_arg=boardtype.ai_speed;
 				err++;
 			}
-			if(cmd->convert_arg>TIMER_BASE*0xffffff){
-				cmd->convert_arg=TIMER_BASE*0xffffff;
+			if(cmd->convert_arg>TIMER_BASE*0xffff){
+				cmd->convert_arg=TIMER_BASE*0xffff;
 				err++;
 			}
 		}
