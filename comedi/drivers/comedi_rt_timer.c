@@ -322,6 +322,8 @@ cleanup:
 static void timer_task_func(int d)
 {
 	comedi_device *dev=(comedi_device *)d;
+	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_cmd *cmd=&s->async->cmd;
 	int ret;
 	unsigned long long n;
 
@@ -331,7 +333,7 @@ static void timer_task_func(int d)
 		devpriv->scan_task_active = 1;
 		devpriv->start = rt_get_time();
 
-		for(n = 0; 1; n++){
+		for(n = 0; n < cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
 			// scan timing
 			if(n)
 				rt_task_wait_period();
