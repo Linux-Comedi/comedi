@@ -9,6 +9,7 @@
 #include <linux/ioport.h>
 #include <asm/io.h>
 
+
 #define DT2801_TIMEOUT 1000
 
 
@@ -76,10 +77,36 @@ comedi_driver driver_dt2801={
 	detach:		dt2801_detach,
 };
 
+/*
+--BEGIN-RANGE-DEFS--
+RANGE_dt2801_ai_pgh_bipolar
+	-10	10
+	-5	5
+	-2.5	2.5
+	-1.25	1.25
+RANGE_dt2801_ai_pgl_bipolar
+	-10	10
+	-1	1
+	-0.1	0.1
+	-0.02	0.02
+RANGE_dt2801_ai_pgh_unipolar
+	0	10
+	0	5
+	0	2.5
+	0	1.25
+RANGE_dt2801_ai_pgl_unipolar
+	0	10
+	0	1
+	0	0.1
+	0	0.02
+---END-RANGE-DEFS---
+*/
 
 typedef struct{
 	char *name;
 	int boardcode;
+	int ad_diff;
+	int ad_chan;
 	int adbits;
 	int adrangetype;
 	int dabits;
@@ -90,14 +117,78 @@ typedef struct{
    */
 static boardtype_t boardtypes[] =
 {
-	{"dt2801",0x09,		12,RANGE_unknown,12},
-	{"dt2801-a",0x52,	12,RANGE_unknown,12},
-	{"dt2801/5716a",0x82,	16,RANGE_unknown,12},
-	{"dt2805",0x12,		12,RANGE_unknown,12},
-	{"dt2805/5716a",0x92,	16,RANGE_unknown,12},
-	{"dt2808",0x20,		12,RANGE_unknown,8},
-	{"dt2818",0xa2,		12,RANGE_unknown,12},
-	{"dt2809",0xb0,		12,RANGE_unknown,12},
+	{
+	name:		"dt2801",
+	boardcode:	0x09,
+	ad_diff:	2,
+	ad_chan:	16,
+	adbits:		12,
+	adrangetype:	0,
+	dabits:		12
+	},
+	{
+	name:		"dt2801-a",
+	boardcode:	0x52,
+	ad_diff:	2,
+	ad_chan:	16,
+	adbits:		12,
+	adrangetype:	0,
+	dabits:		12
+	},
+	{
+	name:		"dt2801/5716a",
+	boardcode:	0x82,
+	ad_diff:	1,
+	ad_chan:	16,
+	adbits:		16,
+	adrangetype:	1,
+	dabits:		12
+	},
+	{
+	name:		"dt2805",
+	boardcode:	0x12,
+	ad_diff:	1,
+	ad_chan:	16,
+	adbits:		12,
+	adrangetype:	0,
+	dabits:		12
+	},
+	{
+	name:		"dt2805/5716a",
+	boardcode:	0x92,
+	ad_diff:	1,
+	ad_chan:	16,
+	adbits:		16,
+	adrangetype:	1,
+	dabits:		12
+	},
+	{
+	name:		"dt2808",
+	boardcode:	0x20,
+	ad_diff:	0,
+	ad_chan:	16,
+	adbits:		12,
+	adrangetype:	2,
+	dabits:		8
+	},
+	{
+	name:		"dt2818",
+	boardcode:	0xa2,
+	ad_diff:	0,
+	ad_chan:	4,
+	adbits:		12,
+	adrangetype:	0,
+	dabits:		12
+	},
+	{
+	name:		"dt2809",
+	boardcode:	0xb0,
+	ad_diff:	0,
+	ad_chan:	8,
+	adbits:		12,
+	adrangetype:	1,
+	dabits:		12
+	},
 };
 #define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
 
@@ -130,22 +221,18 @@ static int dt2801_readdata(comedi_device *dev, int* data)
 
 	do{
 		stat = inb_p(dev->iobase+DT2801_STATUS);
-		if (stat & DT_S_COMPOSITE_ERROR) {
-       			printk("dt2801: composite-error in dt2801_readdata()\n");
-           		return -EIO;
+		if (stat & (DT_S_COMPOSITE_ERROR | DT_S_READY)) {
+			return stat;
 		}
 		if(stat & DT_S_DATA_OUT_READY){
 			*data = inb_p(dev->iobase+DT2801_DATA);
 			return 0;
 		}
-		if(stat & DT_S_READY){
-			printk("dt2801: no data to read in dt2801_readdata()\n");
-			return -EIO;
-		}
 	}while(--timeout>0);
-	printk("dt2801: timeout in dt2801_readdata()\n");
+
 	return -ETIME;
 }
+
 
 static int dt2801_readdata2(comedi_device *dev, int *data)
 {
@@ -153,9 +240,9 @@ static int dt2801_readdata2(comedi_device *dev, int *data)
 	int ret;
 
 	ret=dt2801_readdata(dev, &lb);
-	if(ret<0)return ret;
+	if(ret)return ret;
 	ret=dt2801_readdata(dev, &hb);
-	if(ret<0)return ret;
+	if(ret)return ret;
 
 	*data = (hb<<8)+lb;
 	return 0;
@@ -170,20 +257,19 @@ static int dt2801_writedata(comedi_device *dev, unsigned int data)
 		stat = inb_p(dev->iobase+DT2801_STATUS);
 
 		if (stat & DT_S_COMPOSITE_ERROR) {
-        		printk("dt2801: composite-error in dt2801_writedata()\n");
-            		return -EIO;
+            		return stat;
 		}
 		if (!(stat & DT_S_DATA_IN_FULL)) {
 			outb_p(data & 0xff, dev->iobase+DT2801_DATA);
 			return 0;
 		}
+#if 0
 		if(stat & DT_S_READY){
 			printk("dt2801: ready flag set (bad!) in dt2801_writedata()\n");
 			return -EIO;
 		}
+#endif
 	}while(--timeout>0);
-
-	printk("dt2801: timeout in dt2801_writedata()\n");
 
 	return -ETIME;
 }
@@ -205,26 +291,21 @@ static int dt2801_wait_for_ready(comedi_device *dev)
 	int timeout = DT2801_TIMEOUT;
 	int stat;
 
-	printk("dt2801: dt2801_wait_for_ready()\n");
 	stat = inb_p(dev->iobase+DT2801_STATUS);
 	if(stat & DT_S_READY){
-		printk("dt2801: board immediately ready\n");
+		DPRINTK("dt2801: board immediately ready\n");
 		return 0;
 	}
 	do{
 		stat = inb_p(dev->iobase+DT2801_STATUS);
 
 		if (stat & DT_S_COMPOSITE_ERROR) {
-        		printk("dt2801: composite-error in dt2801_wait_for_ready()\n");
-            		return -EIO;
+            		return stat;
 		}
 		if(stat & DT_S_READY){
-			printk("dt2801: waited %d cycles\n",DT2801_TIMEOUT-timeout);
 			return 0;
 		}
 	}while(--timeout>0);
-
-	printk("dt2801: timeout in dt2801_wait_for_ready() status=0x%02x\n",stat);
 
 	return -ETIME;
 }
@@ -251,50 +332,118 @@ static int dt2801_writecmd(comedi_device * dev, int command)
 static int dt2801_reset(comedi_device *dev)
 {
 	int board_code=0;
-	int i;
+	unsigned int stat;
+	int timeout;
 
-	printk("dt2801: resetting board...\n");
+	DPRINTK("dt2801: resetting board...\n");
+	DPRINTK("fingerprint: 0x%02x 0x%02x\n",inb_p(dev->iobase),inb_p(dev->iobase+1));
 
-	printk("fingerprint: 0x%02x 0x%02x\n",inb_p(dev->iobase),inb_p(dev->iobase+1));
+	/* pull random data from data port */
+	inb_p(dev->iobase+DT2801_DATA);
+	inb_p(dev->iobase+DT2801_DATA);
+	inb_p(dev->iobase+DT2801_DATA);
+	inb_p(dev->iobase+DT2801_DATA);
 
-	printk("dt2801: stop\n");
-	outb_p(DT_C_STOP, dev->iobase+DT2801_CMD);
+	DPRINTK("dt2801: stop\n");
 	//dt2801_writecmd(dev,DT_C_STOP);
+	outb_p(DT_C_STOP, dev->iobase+DT2801_CMD);
 
-	dt2801_wait_for_ready(dev);
+	//dt2801_wait_for_ready(dev);
+	udelay(100);
+	timeout=10000;
+	do{
+		stat = inb_p(dev->iobase+DT2801_STATUS);
+		if(stat & DT_S_READY)break;
+	}while(timeout--);
+	if(!timeout){
+		printk("dt2801: timeout 1 status=0x%02x\n",stat);
+	}
 
 	//printk("dt2801: reading dummy\n");
 	//dt2801_readdata(dev,&board_code);
 
-	printk("dt2801: reset\n");
+	DPRINTK("dt2801: reset\n");
 	outb_p(DT_C_RESET, dev->iobase+DT2801_CMD);
 	//dt2801_writecmd(dev,DT_C_RESET);
 
-	for(i=10000;i>0;i--){
-		if(!(inb_p(dev->iobase+DT2801_STATUS)&DT_S_READY))
-			break;
+	udelay(100);
+	timeout=10000;
+	do{
+		stat = inb_p(dev->iobase+DT2801_STATUS);
+		if(stat & DT_S_READY)break;
+	}while(timeout--);
+	if(!timeout){
+		printk("dt2801: timeout 2 status=0x%02x\n",stat);
 	}
-	printk("dt2801: reset ready wait timeout %d\n",i);
 
-	printk("dt2801: reading code\n");
+	DPRINTK("dt2801: reading code\n");
 	dt2801_readdata(dev,&board_code);
 
-	printk("dt2801: ok.  code=0x%02x\n",board_code);
+	DPRINTK("dt2801: ok.  code=0x%02x\n",board_code);
 
-
-	return 0;
+	return board_code;
 }
 
-static int dac_range_lkup(int bip,int v10)
+static int probe_number_of_ai_chans(comedi_device *dev)
 {
-	if(bip){
-		if(v10)return RANGE_unipolar10;
-		return RANGE_unipolar5;
-	}else{
-		if(v10)return RANGE_bipolar10;
-		return RANGE_bipolar5;
+	int n_chans;
+	int stat;
+	int data;
+
+	for(n_chans=0;n_chans<16;n_chans++){
+        	stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
+        	dt2801_writedata(dev, 0);
+        	dt2801_writedata(dev, n_chans);
+        	stat = dt2801_readdata2(dev, &data);
+
+		if(stat)break;
 	}
+
+	dt2801_reset(dev);
+	dt2801_reset(dev);
+
+	return n_chans;
 }
+
+
+int dac_range_table[]={
+	RANGE_bipolar10,
+	RANGE_bipolar5,
+	RANGE_bipolar2_5,
+	RANGE_unipolar10,
+	RANGE_unipolar5
+};
+
+int dac_range_lkup(int opt)
+{
+	if(opt<0 || opt>5)return RANGE_unknown;
+	return dac_range_table[opt];
+}
+
+int ai_range_table[]={
+	RANGE_dt2801_ai_pgl_bipolar,
+	RANGE_bipolar5,
+	RANGE_bipolar2_5,
+	RANGE_unipolar10,
+	RANGE_unipolar5
+};
+int ai_range_lkup(int type,int opt)
+{
+	switch(type){
+	case 0:
+		return (opt)?
+			RANGE_dt2801_ai_pgl_unipolar:
+			RANGE_dt2801_ai_pgl_bipolar;
+	case 1:
+		return (opt)?
+			RANGE_unipolar10:
+			RANGE_bipolar10;
+	case 2:
+		return RANGE_unipolar5;
+	}
+	return RANGE_unknown;
+}
+
 
 
 /*
@@ -302,10 +451,9 @@ static int dac_range_lkup(int bip,int v10)
 	[0] - i/o base
 	[1] - unused
 	[2] - a/d 0=differential, 1=single-ended
-	[3] - dac0 unipolar=0, bipolar=1
-	[4] - dac0 5 V reference =0, 10 V ref = 1
-	[5] - dac1 unipolar=0, bipolar=1
-	[6] - dac0 5 V reference =0, 10 V ref = 1
+	[3] - a/d range 0=[-10,10], 1=[0,10]
+	[4] - dac0 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
+	[5] - dac1 range 0=[-10,10], 1=[-5,5], 2=[-2.5,2.5] 3=[0,10], 4=[0,5]
 */
 static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -313,6 +461,7 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 	int iobase;
 	int board_code,type;
 	int ret=0;
+	int n_ai_chans;
 
 	iobase=it->options[0];
 	if(check_region(iobase,DT2801_IOSIZE)<0){
@@ -326,6 +475,9 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 
 	board_code=dt2801_reset(dev);
 
+	/* heh.  if it didn't work, try it again. */
+	if(!board_code)board_code=dt2801_reset(dev);
+
 	for(type=0;type<n_boardtypes;type++){
 		if(boardtypes[type].boardcode==board_code)
 			goto havetype;
@@ -334,26 +486,34 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 	type=0;
 
 havetype:
-	printk("dt2801: %s at port 0x%x\n",boardtypes[type].name,iobase);
+	printk("dt2801: %s at port 0x%x",boardtypes[type].name,iobase);
+
+	n_ai_chans=probe_number_of_ai_chans(dev);
+	printk(" (ai channels = %d)",n_ai_chans);
 
 	dev->n_subdevices=4;
 
 	if((ret=alloc_subdevices(dev))<0)
-		return ret;
+		goto out;
 
 	if((ret=alloc_private(dev,sizeof(dt2801_private)))<0)
-		return ret;
+		goto out;
 
 	devpriv->board=boardtypes+type;
+	dev->board_name = devpriv->board->name;
 
 	s=dev->subdevices+0;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
-	if(it->options[2])s->n_chan=16;
-	else s->n_chan=8;
+#if 1
+	s->n_chan=n_ai_chans;
+#else
+	if(it->options[2])s->n_chan=boardtype.ad_chan;
+	else s->n_chan=boardtype.ad_chan/2;
+#endif
 	s->maxdata=(1<<boardtype.adbits)-1;
-	s->range_type=boardtype.adrangetype;
+	s->range_type=ai_range_lkup(boardtype.adrangetype,it->options[3]);
 	s->trig[0]=dt2801_ai_mode0;
 
 	s++;
@@ -363,8 +523,8 @@ havetype:
 	s->n_chan=2;
 	s->maxdata=(1<<boardtype.dabits)-1;
 	s->range_type_list=devpriv->dac_range_types;
-	devpriv->dac_range_types[0]=dac_range_lkup(it->options[3],it->options[4]);
-	devpriv->dac_range_types[1]=dac_range_lkup(it->options[5],it->options[6]);
+	devpriv->dac_range_types[0]=dac_range_lkup(it->options[4]);
+	devpriv->dac_range_types[1]=dac_range_lkup(it->options[5]);
 	s->trig[0]=dt2801_ao_mode0;
 
 	s++;
@@ -385,7 +545,11 @@ havetype:
 	s->range_type=RANGE_digital;
 	s->trig[0]=dt2801_dio;
 
-	return 0;
+	ret = 0;
+out:
+	printk("\n");
+
+	return ret;
 }
 
 static int dt2801_detach(comedi_device *dev)
@@ -394,6 +558,24 @@ static int dt2801_detach(comedi_device *dev)
 		release_region(dev->iobase,DT2801_IOSIZE);
 
 	return 0;
+}
+
+static int dt2801_error(comedi_device *dev,int stat)
+{
+	if(stat<0){
+		if(stat==-ETIME){
+			printk("dt2801: timeout\n");
+		}else{
+			printk("dt2801: error %d\n",stat);
+		}
+		return stat;
+	}
+	printk("dt2801: error status 0x%02x, resetting...\n",stat);
+
+	dt2801_reset(dev);
+	dt2801_reset(dev);
+
+	return -EIO;
 }
 
 static int dt2801_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
@@ -407,10 +589,7 @@ static int dt2801_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *i
         dt2801_writedata(dev, CR_CHAN(it->chanlist[0]));
         stat = dt2801_readdata2(dev, &data);
 
-        if (stat != 0) {
-             printk("dt2801: stat = %x\n", stat);
-             return -EIO;
-        }
+        if (stat != 0) return dt2801_error(dev,stat);
 
 	it->data[0]=data;
 

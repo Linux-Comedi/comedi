@@ -161,8 +161,6 @@ RANGE_dt282x_ai_hi_unipolar
         0       1
         0       0.1
         0       0.02
-RANGE_bipolar2_5
-	-2.5	2.5
 ---END-RANGE-DEFS---
 */
 
