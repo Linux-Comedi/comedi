@@ -459,6 +459,14 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->irq=mite_irq(devpriv->mite);
 
+{
+	int i;
+	printk("\n");
+	for(i=2048;i<4096;i+=2){
+		printk("%04x ",readw(dev->iobase+i));
+		if((i%64)==62)printk("\n");
+	}
+}
         if(dev->irq==0){
 		printk(" unknown irq (bad)\n");
 	}else{

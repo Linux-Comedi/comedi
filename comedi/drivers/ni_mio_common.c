@@ -608,7 +608,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 		ni_writew(lo,Configuration_Memory_Low);
 	}
 
-	 prime the channel/gain list */
+	/* prime the channel/gain list */
 
 	win_out(1,AI_Command_1_Register);
 	for(i=0;i<40;i++){
@@ -1004,7 +1004,9 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		int bits;
 
 		/* interrupt on FIFO, errors, SC_TC */
-		bits=0x00a1;
+		bits=AI_FIFO_Interrupt_Enable|AI_Error_Interrupt_Enable|
+		     AI_SC_TC_Interrupt_Enable;
+		//bits|=Pass_Thru_0_Interrupt_Enable;
 
 		if(it->flags&TRIG_WAKE_EOS){
 			/* wake on end-of-scan */
@@ -1032,9 +1034,6 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 			break;
 		}
 
-bits=AI_SC_TC_Interrupt_Enable;
-bits|=AI_Error_Interrupt_Enable;
-//bits|=Pass_Thru_0_Interrupt_Enable;
 		win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
 
 		win_out(bits,Interrupt_A_Enable_Register) ;
