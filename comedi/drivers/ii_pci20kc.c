@@ -301,7 +301,7 @@ static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
 
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE|SDF_RT;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
 	s->len_chanlist = 2;
 	s->insn_read = pci20006_insn_read;
@@ -384,7 +384,7 @@ static int pci20341_init(comedi_device * dev,comedi_subdevice *s,
 
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE|SDF_RT;
+	s->subdev_flags = SDF_READABLE;
 	s->n_chan = PCI20341_CHAN_NR;
 	s->len_chanlist = PCI20341_SCANLIST;
 	s->insn_read = pci20341_insn_read;

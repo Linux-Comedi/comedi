@@ -799,7 +799,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   s = dev->subdevices + 0;
   /* ai subdevice */
   s->type = COMEDI_SUBD_AI;
-  s->subdev_flags = SDF_READABLE|SDF_RT;
+  s->subdev_flags = SDF_READABLE;
   s->n_chan = 24;
   s->maxdata = 0xffff;
   s->insn_read = daqboard2000_ai_insn_read;
@@ -808,7 +808,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   s = dev->subdevices + 1;
   /* ao subdevice */
   s->type = COMEDI_SUBD_AO;
-  s->subdev_flags = SDF_WRITABLE|SDF_RT;
+  s->subdev_flags = SDF_WRITABLE;
   s->n_chan = 2;
   s->maxdata = 0xffff;
   s->insn_read = daqboard2000_ao_insn_read;

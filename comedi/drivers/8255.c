@@ -195,7 +195,7 @@ static void do_config(comedi_device *dev,comedi_subdevice *s)
 int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,unsigned long),unsigned long arg)
 {
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_RT;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=24;
 	s->range_table=&range_digital;
 	s->maxdata=1;

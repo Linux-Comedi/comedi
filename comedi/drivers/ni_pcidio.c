@@ -965,7 +965,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 		dev->read_subdev = s;
 		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_RT;
+		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
