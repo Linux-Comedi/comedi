@@ -37,9 +37,10 @@ Documentation/comedi/redhat-notes on how to use Red Hat kernels.
 * RTAI support:
 
 If you want to use the real-time capabilities of Comedi with
-RTAI, you need to compile and install RTAI first.  It is
-necessary to use the rthal patch instead of the "copyto"
-scripts.  Known working versions are RTAI-1.6, and RTAI-24.1.4.
+RTAI, you need to compile and install RTAI first.  If you
+don't install the rtai kernel modules, you may get unresolved
+symbols when installing the comedi kernel modules.
+
 * RTLinux support:
 
 If you want to use the real-time capabilities of Comedi with
