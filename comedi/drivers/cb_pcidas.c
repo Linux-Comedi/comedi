@@ -845,8 +845,10 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	bits = INTE;
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
-		bits |= INT_FNE;	//interrupt fifo not empty
-		// for burst mode we will want INT_EOS
+		if(cmd->convert_src == TRIG_NOW)
+			bits |= INT_EOS;	// interrupt end of burst
+		else
+			bits |= INT_FNE;	// interrupt fifo not empty
 	}else
 	{
 		bits |= INT_FHF;	//interrupt fifo half full
@@ -903,7 +905,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			comedi_buf_put(async, data[i]);
 			if(async->cmd.stop_src == TRIG_COUNT)
 			{
-				if(--devpriv->count == 0)
+				if(async->cmd.stop_src == TRIG_COUNT &&
+					--devpriv->count == 0)
 				{		/* end of acquisition */
 					cb_pcidas_cancel(dev, s);
 					async->events |= COMEDI_CB_EOA;
@@ -923,7 +926,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			comedi_buf_put(async, data[0]);
 			if(async->cmd.stop_src == TRIG_COUNT)
 			{
-				if(--devpriv->count == 0)
+				if(async->cmd.stop_src == TRIG_COUNT &&
+					--devpriv->count == 0)
 				{		/* end of acquisition */
 					cb_pcidas_cancel(dev, s);
 					async->events |= COMEDI_CB_EOA;
