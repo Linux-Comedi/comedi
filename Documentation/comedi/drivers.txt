@@ -554,6 +554,16 @@ Status: works
 
 
 
+Driver: ni_670x.c
+Description: National Instruments 670x
+Author: Bart Joris <bjoris@advalvas.be>
+Updated: Wed, 22 Aug 2001 22:47:32 -0700
+
+The driver currently does not recognize the 6704, because the PCI
+ID is not known.
+
+
+
 Driver: ni_at_a2150.o
 Description: National Instruments AT-A2150
 Author: Frank Mori Hess
