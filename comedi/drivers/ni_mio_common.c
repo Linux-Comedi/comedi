@@ -523,7 +523,7 @@ static int ni_ao_wait_for_dma_load( comedi_device *dev )
 		b_status = win_in( AO_Status_1_Register );
 		if( b_status & AO_FIFO_Half_Full_St )
 			break;
-		comedi_udelay(1);
+		comedi_udelay(10);
 	}
 	if( i == timeout )
 	{
