@@ -881,6 +881,16 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 #ifdef CB_PCIDAS_DEBUG
 rt_printk("status bits are 0x%x\n", status);
 rt_printk("intcsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+
+// clear s5933 interrupt
+if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
+{
+	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+	if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
+		rt_printk("manual clear failed, bits are 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+}else{
+	rt_printk("amcc interrupt is already clear\n");
+}
 #endif
 		return;
 	}
