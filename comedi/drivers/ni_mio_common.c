@@ -597,7 +597,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #endif
 		}
 		/* handle special case of single scan using AI_End_On_End_Of_Scan */
-		if( s->async->cmd.stop_src == TRIG_COUNT && s->async->cmd.stop_arg == 1 ){
+		if( ( devpriv->ai_cmd2 & AI_End_On_End_Of_Scan ) ){
 			shutdown_ai_command( dev );
 		}
 
