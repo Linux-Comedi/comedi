@@ -69,6 +69,8 @@ ComputerBoards			PCI-DAS1001			cb_pcidas
 ComputerBoards			PCI-DAS1002			cb_pcidas
 ComputerBoards			PCI-DAS1200			cb_pcidas
 ComputerBoards			PCI-DAS1200/jr			cb_pcidas
+ComputerBoards			PCI-DAS1602/12			cb_pcidas
+ComputerBoards			PCI-DAS1602/16			cb_pcidas
 Data Translation		DT21-EZ				dt282x
 Data Translation		DT23-EZ				dt282x
 Data Translation		DT24-EZ				dt282x
@@ -106,6 +108,7 @@ IOtech				DAQBoard/2000			daqboard2000
 Intelligent Instrumentation	PCI-20001 C-2A		*	ii_pci20kc
 Intelligent Instrumentation	PCI-20006 M-2		*	ii_pci20kc
 Intelligent Instrumentation	PCI-20341 M-1A		*	ii_pci20kc
+Keithley Metrabyte		DAC-02			poc
 Keithley Metrabyte		DAS-1201			das16
 Keithley Metrabyte		DAS-1202			das16
 Keithley Metrabyte		DAS-1401			das16
@@ -138,6 +141,7 @@ Keithley Metrabyte		DAS-1802hr-da			das1800
 Keithley Metrabyte		DAS-1802hc			das1800
 Keithley Metrabyte		DAS-1802ao			das1800
 National Instruments		AT-AI-16XE-10			ni_atmio
+National Instruments		AT-A2150			ni_at_a2150
 National Instruments		AT-MIO-16D			ni_atmio16d
 National Instruments		AT-MIO-16DE-10			ni_atmio
 National Instruments		AT-MIO-16E-1			ni_atmio
