@@ -238,6 +238,8 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 #define AIMODE_SCAN		2
 #define AIMODE_SAMPLE		3
 
+static const int num_adc_stages_611x = 3;
+
 static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	unsigned int m_status);
 static void handle_b_interrupt(comedi_device *dev,unsigned short status,
@@ -1147,40 +1149,57 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 
 	wsave=win_save();
 
-	win_out(1,ADC_FIFO_Clear);
-
 	ni_load_channelgain_list(dev,1,&insn->chanspec);
+
+	win_out(1,ADC_FIFO_Clear);
 
 	mask=(1<<boardtype.adbits)-1;
 	signbits=devpriv->ai_offset[0];
-	for(n=0;n<insn->n;n++){
-		win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
-		if(boardtype.reg_611x){
+	if(boardtype.reg_611x){
+		for(n=0; n < num_adc_stages_611x; n++){
+			win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
+			udelay(1);
+		}
+		for(n=0; n<insn->n; n++){
+			win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 			/* The 611x has screwy 32-bit FIFOs. */
-			for(i=0;i<NI_TIMEOUT;i++){
+			d = 0;
+			for(i=0; i<NI_TIMEOUT; i++){
 				if(ni_readb(Status_611x)&0x80)
+				{
+					d = ( ni_readl(ADC_FIFO_Data_611x) >> 16 ) & 0xffff;
 					break;
+				}
+				if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St))
+				{
+					d = ni_readl(ADC_FIFO_Data_611x) & 0xffff;
+					break;
+				}
 			}
-			rt_printk("ni_mio_common: timeout in ni_ai_insn_read (ignored)\n");
-			i = 0;
-		}else{
+			if(i==NI_TIMEOUT){
+				rt_printk("ni_mio_common: timeout in 611x ni_ai_insn_read\n");
+				win_restore(wsave);
+				return -ETIME;
+			}
+			d += signbits; /* subtle: needs to be short addition */
+			data[ n ] = d;
+		}
+	}else{
+		for(n=0;n<insn->n;n++){
+			win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 			for(i=0;i<NI_TIMEOUT;i++){
 				if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St))
-					break;
+			 		break;
 			}
-		}
-		if(i==NI_TIMEOUT){
-			rt_printk("ni_mio_common: timeout in ni_ai_insn_read\n");
-			win_restore(wsave);
-			return -ETIME;
-		}
-		if(boardtype.reg_611x){
-			d = ni_readl(ADC_FIFO_Data_611x)&0xffff;
-		}else{
+			if(i==NI_TIMEOUT){
+				rt_printk("ni_mio_common: timeout in ni_ai_insn_read\n");
+				win_restore(wsave);
+				return -ETIME;
+			}
 			d = ni_readw(ADC_FIFO_Data_Register);
+			d += signbits; /* subtle: needs to be short addition */
+			data[n] = d;
 		}
-		d += signbits; /* subtle: needs to be short addition */
-		data[n] = d;
 	}
 	win_restore(wsave);
 	return insn->n;
@@ -1294,12 +1313,8 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	}
 
 	/* prime the channel/gain list */
-
-	if(boardtype.reg_611x){
-		win_out(1,AI_Command_1_Register);
-		return;
-	}else{
-		win_out(1,AI_Command_1_Register);
+	if(boardtype.reg_611x == 0){
+		win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
 				win_out(1,ADC_FIFO_Clear);
@@ -1307,8 +1322,8 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 			}
 			udelay(1);
 		}
+		rt_printk("ni_mio_common: timeout loading channel/gain list\n");
 	}
-	rt_printk("ni_mio_common: timeout loading channel/gain list\n");
 }
 
 #define TIMER_BASE 50 /* 20 Mhz base */
@@ -1516,6 +1531,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	int mode1=0; /* mode1 is needed for both stop and convert */
 	int mode2=0;
 	int start_stop_select=0;
+	unsigned int stop_count;
 
 	MDPRINTK("ni_ai_cmd\n");
 	wsave = win_save();
@@ -1562,14 +1578,14 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
+		stop_count = cmd->stop_arg - 1;
+	
 		if( boardtype.reg_611x ){
 			// have to take 3 stage adc pipeline into account
-			win_out2(cmd->stop_arg + 1, AI_SC_Load_A_Registers);
+			stop_count += num_adc_stages_611x;
 		}
-		else{
-			/* stage number of scans */
-			win_out2(cmd->stop_arg-1,AI_SC_Load_A_Registers);
-		}
+		/* stage number of scans */
+		win_out2( stop_count, AI_SC_Load_A_Registers);
 
 		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
 		win_out(mode1,AI_Mode_1_Register);
