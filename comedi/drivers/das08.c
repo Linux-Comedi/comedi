@@ -43,8 +43,12 @@ Options (for pci-das08):
         [1] = slot (optional)
 Use the name 'pci-das08' for the pci-das08, NOT 'das08'.
 
+Options (for pcm-das08):
+        NONE
+
 The das08 driver doesn't support asynchronous commands, since
-the cheap das08 hardware doesn't really support them.  The
+the cheap das08 hardware doesn't really support them (except for
+pcm-das08).  The
 comedi_rt_timer driver can be used to emulate commands for this
 driver.
 */
@@ -725,12 +729,12 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(struct das08_private_struct)))<0)
 		return ret;
 
-	printk("comedi%d: das08", dev->minor);
+	printk("comedi%d: das08: ", dev->minor);
 	// deal with a pci board
 	if(thisboard->bustype == pci)
 	{
 		if(it->options[0] || it->options[1]){
-			printk(": bus %i, slot %i",
+			printk("bus %i slot %i ",
 				it->options[0], it->options[1]);
 		}
 		printk("\n");
@@ -763,7 +767,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		pci_iobase = pdev->resource[1].start & PCI_BASE_ADDRESS_IO_MASK;
 		iobase = pdev->resource[2].start & PCI_BASE_ADDRESS_IO_MASK;
 #endif
-
+		printk("pcibase 0x%x ", pci_iobase);
 		// reserve io ports for 9052 pci chip
 		if(check_region(pci_iobase,PCIDAS08_SIZE)<0){
 			printk(" I/O port conflict\n");
@@ -796,12 +800,12 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 #endif // CONFIG_PCMCIA
 	}else{
 		iobase = it->options[0];
-		printk(": 0x%04x\n", iobase);
 	}
 
 	// allocate ioports for non-pcmcia boards
 	if(thisboard->bustype != pcmcia)
 	{
+		printk("iobase 0x%x ", iobase);
 		if(check_region(iobase,DAS08_SIZE)<0){
 			printk(" I/O port conflict\n");
 			return -EIO;
@@ -809,6 +813,8 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		request_region(iobase,DAS08_SIZE,"das08");
 	}
 	dev->iobase = iobase;
+
+	printk("\n");
 
 	dev->board_name = thisboard->name;
 
