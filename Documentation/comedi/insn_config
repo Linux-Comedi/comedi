@@ -175,4 +175,8 @@ Applications:
 
   - 
 
+ID=INSN_CONFIG_ALT_SOURCE: select alternate input source (internal calibration reference)
+
+  [0] - ID
+  [1] - source
 
