@@ -487,10 +487,10 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 
 	if(!async){
 		DPRINTK("subdevice does not have async capability\n");
-		bi.buf_int_ptr = 0;
-		bi.buf_user_ptr = 0;
-		bi.buf_int_count = 0;
-		bi.buf_user_count = 0;
+		bi.buf_write_ptr = 0;
+		bi.buf_read_ptr = 0;
+		bi.buf_write_count = 0;
+		bi.buf_read_count = 0;
 		goto copyback;
 	}
 
@@ -510,21 +510,15 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		comedi_buf_write_free(async, bi.bytes_written);
 	}
 
+	bi.buf_write_count = async->buf_write_count;
+	bi.buf_write_ptr = async->buf_write_ptr;
+	bi.buf_read_count = async->buf_read_count;
+	bi.buf_read_ptr = async->buf_read_ptr;
 	if(s==dev->read_subdev){
 		unsigned int n_munge_bytes;
-
-		bi.buf_int_count = async->buf_write_count;
-		bi.buf_int_ptr = async->buf_write_ptr;
-		bi.buf_user_count = async->buf_read_count;
-		bi.buf_user_ptr = async->buf_read_ptr;
-
-		n_munge_bytes = bi.buf_int_count - s->async->munge_count;
+		
+		n_munge_bytes = bi.buf_write_count - s->async->munge_count;
 		comedi_buf_munge(dev, s, n_munge_bytes);
-	}else{
-		bi.buf_int_count = async->buf_read_count;
-		bi.buf_int_ptr = async->buf_read_ptr;
-		bi.buf_user_count = async->buf_write_count;
-		bi.buf_user_ptr = async->buf_write_ptr;
 	}
 
 copyback:
