@@ -1810,8 +1810,8 @@ static void __exit comedi_cleanup(void)
 		printk("comedi: module in use -- remove delayed\n");
 
 	for(i=0;i<COMEDI_NDEVICES;i++){
-		class_simple_device_remove(MKDEV(COMEDI_MAJOR, i));
 		char name[20];
+		class_simple_device_remove(MKDEV(COMEDI_MAJOR, i));
 		sprintf(name, "comedi%d", i);
 		devfs_unregister(devfs_find_handle(NULL, name,
 			COMEDI_MAJOR, i, DEVFS_SPECIAL_CHR, 0));
