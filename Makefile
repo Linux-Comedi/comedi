@@ -7,18 +7,17 @@ VERS3 = 39
 
 INSTALLDIR=/usr
 
-#LINUXDIR = /usr/src/linux
-#LINUXDIR = /d/ds/cvs/rtl/linux22
-#LINUXDIR = /d/ds/cvs/linux22
-LINUXDIR = /home/ds/cvs/linux23
+ifndef LINUXDIR
+LINUXDIR = /usr/src/linux
+endif
 
 # define the following if you want to compile using RTL
 # headers that aren't in the default location
-RTLDIR = /d/ds/cvs/rtlinux
+#RTLDIR = /d/ds/cvs/rtlinux
 
 # define the following if you want to compile using RTAI
 # headers that aren't in the default location
-RTAIDIR = /home/ds/cvs/rtai
+#RTAIDIR = /home/ds/cvs/rtai
 
 TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
