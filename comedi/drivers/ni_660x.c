@@ -514,7 +514,12 @@ NI_660x_GPCT_Config ni_660x_gpct_config[NI_660X_GPCT_MAXCHANNELS];
 #define SourceSelectTimebase1	0x0<<2
 #define SourceSelectTimebase2	0x12<<2
 #define SourceSelectTimebase3	0x1e<<2
+#define SourceSelectSourcePinI  0x1<<2
+#define SourceSelectSourcePin0  0x2<<2
 #define GateSelectSource        0x0<<7
+#define GateSelectGatePinI      0x1<<7
+#define GateSelectLogicLow      0x30<<7
+
 
 #define TriggerModeStartStop	0x0<<3
 #define TriggerModeStopStart	0x1<<3
@@ -844,7 +849,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 	// Check what Application of Counter this channel is configured for
 	switch(ni_660x_gpct_config[subdev_channel].App)
 	{
-	case PositionMeasurement:
+	case PositionMeasurement: case CountingAndTimeMeasurement: 
 		// Check if (n > 0)
 		if ( insn->n <= 0 )
 		{
@@ -1114,6 +1119,50 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		// Arm the counter and tell it to count down
 		writew(Arm|UpDownDown,dev->iobase + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
+		break;
+	case GPCT_SIMPLE_EVENT:
+		DPRINTK("NI_660x: INSN_CONFIG: Config Simple Event Counter\n");
+		//printk("NI_660x: INSN_CONFIG: Config Simple Event Counter\n");
+		ni_660x_gpct_config[subdev_channel].App = 
+			CountingAndTimeMeasurement;
+		// Reset the counter
+		writew(GxReset(counter_channel),
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxxJointResetRegister(counter_channel)].offset);
+		// Disarm
+		writew(Disarm,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxCommandRegister(counter_channel)].offset);
+		// Put 0 as initial counter value in the load register
+		writel(0x0,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxLoadARegister(counter_channel)].offset);
+		// Load (latch) this value into the counter
+		writew(Load,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxCommandRegister(counter_channel)].offset);
+		// Set gate logic low, & select source pin dedicated to channel
+		writew(GateSelectLogicLow|SourceSelectSourcePinI,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+		 		GxInputSelectRegister(counter_channel)].offset);
+		// Disable gate for simple event counting
+		writew(GatingModeDisabled,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxModeRegister(counter_channel)].offset);
+		// Use normal counting mode (instead of synchronous)
+		writew(CountingModeNormal,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxCountingModeRegister(counter_channel)].offset
+		);
+		// Put counter in input mode
+		// Not necessary since this is the default ...
+		/* writel(Counter_A_Is_Input, //NOT WORKING -- REFER KG's file.
+		 * 	dev->iobase + GPCT_OFFSET[chipset] + registerData[
+		 * 		IOConfigReg36_39].offset); */
+		// Arm the counter and put it into always counting up mode
+		writew(UpDownUp|Arm,
+			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+				GxCommandRegister(counter_channel)].offset);
 		break;
 	default:
 		DPRINTK("NI_660x: unsupported insn_config\n");
