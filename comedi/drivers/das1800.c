@@ -657,12 +657,10 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 				return -ENOMEM;
 			flags = claim_dma_lock();
 			disable_dma(devpriv->dma0);
-			clear_dma_ff(devpriv->dma0);
 			set_dma_mode(devpriv->dma0, DMA_MODE_READ);
 			if(dma1)
 			{
 				disable_dma(devpriv->dma1);
-				clear_dma_ff(devpriv->dma1);
 				set_dma_mode(devpriv->dma1, DMA_MODE_READ);
 			}
 			release_dma_lock(flags);
@@ -930,6 +928,9 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_current);
+ 	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma_current);
 
 	// figure out how many points to read
 	maxPoints = devpriv->dma_buf_size  / sizeof(short);
@@ -1397,6 +1398,9 @@ void setup_dma(comedi_device *dev, comedi_cmd cmd)
 
 	lock_flags = claim_dma_lock();
 	disable_dma(devpriv->dma0);
+	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma0);
 	set_dma_addr(devpriv->dma0, (unsigned int) devpriv->dma_buf0);
 	// set appropriate size of transfer
 	if(devpriv->count * sizeof(short) >= devpriv->dma_buf_size || devpriv->forever)
@@ -1407,6 +1411,9 @@ void setup_dma(comedi_device *dev, comedi_cmd cmd)
 	if(dual_dma && (devpriv->count * sizeof(short) > devpriv->dma_buf_size || devpriv->forever))
 	{
 		disable_dma(devpriv->dma1);
+		/* clear flip-flop to make sure 2-byte registers for
+		 * count and address get set correctly */
+		clear_dma_ff(devpriv->dma1);
 		set_dma_addr(devpriv->dma1, (unsigned int) devpriv->dma_buf1);
 		// set appropriate size of transfer
 		if(devpriv->count * sizeof(short) >= 2 * devpriv->dma_buf_size || devpriv->forever)
@@ -1452,7 +1459,8 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	int ret;
 	int control_a, control_c;
-	comedi_cmd cmd = s->async->cmd;
+	comedi_async *async = s->async;
+	comedi_cmd cmd = async->cmd;
 
 	if(!dev->irq)
 	{
@@ -1508,6 +1516,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 		return ret;
 	}
 	setup_dma(dev, cmd);
+	async->events = 0;
 	outb(control_c, dev->iobase + DAS1800_CONTROL_C);
 	// set conversion rate and length for burst mode
 	if(control_c & BMDE)
