@@ -265,9 +265,7 @@ void disable_das800(comedi_device *dev);
 static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 int das800_probe(comedi_device *dev);
 int das800_set_frequency(comedi_device *dev);
@@ -541,17 +539,15 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 3;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_read = das800_di_rinsn;
 	s->insn_bits = das800_di_rbits;
 
 	/* do */
 	s = dev->subdevices + 2;
 	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
+	s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_write = das800_do_winsn;
 	s->insn_bits = das800_do_wbits;
 
 	disable_das800(dev);
@@ -693,19 +689,22 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 		}
 	}
 	// check channel/gain list against card's limitations
-	gain = CR_RANGE(cmd->chanlist[0]);
-	startChan = CR_CHAN(cmd->chanlist[0]);
-	for(i = 1; i < cmd->chanlist_len; i++)
+	if(cmd->chanlist)
 	{
-		if(CR_CHAN(cmd->chanlist[i]) != (startChan + i) % N_CHAN_AI)
+		gain = CR_RANGE(cmd->chanlist[0]);
+		startChan = CR_CHAN(cmd->chanlist[0]);
+		for(i = 1; i < cmd->chanlist_len; i++)
 		{
-			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
-			err++;
-		}
-		if(CR_RANGE(cmd->chanlist[i]) != gain)
-		{
-			comedi_error(dev, "entries in chanlist must all have the same gain\n");
-			err++;
+			if(CR_CHAN(cmd->chanlist[i]) != (startChan + i) % N_CHAN_AI)
+			{
+				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+				err++;
+			}
+			if(CR_RANGE(cmd->chanlist[i]) != gain)
+			{
+				comedi_error(dev, "entries in chanlist must all have the same gain\n");
+				err++;
+			}
 		}
 	}
 
@@ -864,18 +863,6 @@ static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	return n;
 }
 
-static int das800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
-{
-	int chan = CR_CHAN(insn->chanspec);
-	int ret;
-
-	ret = inb(dev->iobase + DAS800_STATUS) & (1 << (chan + 4));
-	if(ret) data[0] = 1;
-	else data[0] = 0;
-
-	return 1;
-}
-
 static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	lsampl_t bits;
@@ -886,26 +873,6 @@ static int das800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	data[0] = 0;
 
 	return 2;
-}
-
-static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
-{
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned long irq_flags;
-
-	// set channel to 1
-	if(data[0])
-		devpriv->do_bits |= (1 << (chan + 4)) & 0xf0;
-	// set channel to 0
-	else
-		devpriv->do_bits &= ~(1 << (chan + 4));
-
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
-	outb(devpriv->do_bits | CONTROL1_INTE, dev->iobase + DAS800_CONTROL1);
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
-	return 1;
 }
 
 static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
