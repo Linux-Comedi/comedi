@@ -182,7 +182,8 @@ comedi_driver driver_ni_mio_cs={
 static int ni_getboardtype(comedi_device *dev,dev_link_t *link);
 
 /* clean up allocated resources */
-static int mio_cs_free(comedi_device *dev)
+/* called when driver is removed */
+static int mio_cs_detach(comedi_device *dev)
 {
 #if 0
 	/* PCMCIA layer does this for us */
@@ -194,12 +195,6 @@ static int mio_cs_free(comedi_device *dev)
 	}
 
 	return 0;
-}
-
-/* called when driver is removed */
-static int mio_cs_detach(comedi_device *dev)
-{
-	return mio_cs_free(dev);
 }
 
 void mio_cs_config(dev_link_t *link);
@@ -219,6 +214,9 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 static void cs_error(client_handle_t handle, int func, int ret)
 {
 	error_info_t err = { func, ret };
+
+	DPRINTK("cs_error(handle=%p, func=%d, ret=%d)\n",handle,func,ret);
+
 	CardServices(ReportError, handle, &err);
 }
 
@@ -259,7 +257,7 @@ static dev_link_t *cs_attach(void)
 	ret = CardServices(RegisterClient, &link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-printk("detaching...\n");
+		printk("detaching...\n");
 		cs_detach(link);
 		return NULL;
 	}
@@ -280,8 +278,9 @@ static void cs_release(u_long arg)
 
 static void cs_detach(dev_link_t *link)
 {
-	
 	dev_link_t **linkp;
+	
+	DPRINTK("cs_detach(link=%p)\n",link);
 	
 	for(linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 		if (*linkp == link) break;
@@ -315,34 +314,44 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 {
 	dev_link_t *link = args->client_data;
 
+	DPRINTK("mio_cs_event(event=%x,priority=%d,args=%p)\n",event,priority,args);
 
 	switch(event){
 	case CS_EVENT_CARD_REMOVAL:
+		DPRINTK("removal event\n");
 		link->state &= ~DEV_PRESENT;
 		if(link->state & DEV_CONFIG) {
 			link->release.expires = jiffies+HZ/20;
 			link->state |= DEV_RELEASE_PENDING;
 			add_timer(&link->release);
 		}
+		/* XXX disable irq here, to get rid of spurious interrupts */
 		break;
 	case CS_EVENT_CARD_INSERTION:
+		DPRINTK("card insertion event\n");
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		mio_cs_config(link);
 		break;
 	case CS_EVENT_PM_SUSPEND:
+		DPRINTK("pm suspend event\n");
 		link->state |= DEV_SUSPEND;
 		/* fall through */
 	case CS_EVENT_RESET_PHYSICAL:
+		DPRINTK("reset physical event\n");
 		if(link->state & DEV_CONFIG)
 			CardServices(ReleaseConfiguration, link->handle);
 		break;
 	case CS_EVENT_PM_RESUME:
+		DPRINTK("pm resume event\n");
 		link->state &= ~DEV_SUSPEND;
 		/* fall through */
 	case CS_EVENT_CARD_RESET:
+		DPRINTK("card reset event\n");
 		if(DEV_OK(link))
 			CardServices(RequestConfiguration, link->handle, &link->conf);
 		break;
+	default:
+		DPRINTK("unknown event (ignored)\n");
 	}
 	return 0;
 }
@@ -358,6 +367,8 @@ void mio_cs_config(dev_link_t *link)
 	int manfid = 0, prodid = 0;
 	int ret;
 	config_info_t conf;
+
+	DPRINTK("mio_cs_config(link=%p)\n",link);
 
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleOffset = 0;
@@ -449,6 +460,8 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	dev_link_t *link;
 	int ret;
 	
+	DPRINTK("mio_cs_attach(dev=%p,it=%p)\n",dev,it);
+
 	link = dev_list; /* XXX hack */
 	if(!link)return 0;
 
