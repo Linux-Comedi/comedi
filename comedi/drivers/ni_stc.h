@@ -410,6 +410,7 @@
 #define G_Save_Register_High(a)		(12+(a)*2)
 #define G_Save_Register_Low(a)		(13+(a)*2)
 #define G_Status_Register		4
+#define Analog_Trigger_Etc_Register	61
 
 /* command register */
 #define G_Disarm_Copy			_bit15		/* strobe */
@@ -501,6 +502,13 @@
 #define G_Autoincrement(a)              ((a)<<0)
 #define G0_Arm                          _bit0
 #define G1_Arm                          _bit0
+
+/*Analog_Trigger_Etc_Register*/
+/*This is mainly a counter/timer register */
+#define GPFO_1_Output_Enable		_bit15
+#define GPFO_0_Output_Enable		_bit14
+#define GPFO_0_Output_Select(a)		((a)<<11)
+#define GPFO_1_Output_Select		_bit7
 
 /* Additional windowed registers unique to E series */
 

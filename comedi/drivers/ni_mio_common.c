@@ -2475,7 +2475,6 @@ int inline GPCTR_G_Read(comedi_device *dev, int chan) {
 */
 int GPCTR_G_Watch(comedi_device *dev, int chan) {
 	int save1,save2;
-	int temp;
 	
 	devpriv->gpctr_command[chan] &= ~G_Save_Trace;
 	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
@@ -2490,13 +2489,6 @@ int GPCTR_G_Watch(comedi_device *dev, int chan) {
 	if (save1 != save2) {
 		save1 = GPCTR_G_Read(dev,chan);
 	}
-	
-	//TIM 4/26/01 debugginh
-	temp = win_in(Joint_Status_2_Register);
-	printk("JSR2 = 0x%04x\n",temp);
-
-	
-	
 	return save1;
 }
 
@@ -2712,23 +2704,14 @@ void GPCTR_Pulse_Width_Meas(comedi_device *dev, int chan){
 	//printk("exit GPCTR_Pulse_Width_Meas\n");
 }
 
-/* The Gate acts as a trigger */
-void GPCTR_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){
-	int temp;
-	
-	printk("GPCTR_Gen_Cont...");
+/* GPCTR_Gen_Single_Pulse() creates pulse of length pulsewidth which starts after the Arm
+signal is sent.  The pulse is delayed by the value already in the counter.  This function could
+be modified to send a pulse in response to a trigger event at its gate.*/
+void GPCTR_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){	
+	//printk("GPCTR_Gen_Cont...");
 
 	devpriv->gpctr_cur_operation[chan] = GPCTR_SINGLE_PULSE_OUT;
 
-	//TIM 4/26/01  check current counter value...
-	//This appears to work correctly, except that the output value does
-	//not propogate to the output pin.  This is done in Analog_Trigger_Etc_Register
-	//which isn't #def'd yet...
-	temp = GPCTR_G_Watch(dev,chan);
-	printk("current counter value is %d\n",temp);
-	temp = win_in(Joint_Status_2_Register);
-	printk("JSR2 = 0x%04x\n",temp);
-	
 	// Set length of the pulse
 	GPCTR_Load_B(dev,chan, length-1);
 
@@ -2771,7 +2754,64 @@ void GPCTR_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){
 	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
 	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
 
-	printk("exit GPCTR_Gen_Cont\n");
+	//printk("exit GPCTR_Gen_Cont\n");
+}
+
+void GPCTR_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length){	
+	//printk("GPCTR_Gen_Cont...");
+
+	devpriv->gpctr_cur_operation[chan] = GPCTR_CONT_PULSE_OUT;
+
+	// Set length of the pulse
+	GPCTR_Load_B(dev,chan, length-1);
+
+	//Load next time using B, This is reset by GPCTR_Load_Using_A()
+	devpriv->gpctr_mode[chan] |= G_Load_Source_Select;
+	
+	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+
+	// Output_Mode = 3 
+	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
+	
+	//Gating Mode=0 for untriggered single pulse
+	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Gating_Mode(0); //TIM 4/26/01 was 0
+	
+	// Trigger_Mode_For_Edge_Gate=0
+	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+
+
+	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;
+	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;
+	devpriv->gpctr_mode[chan] |= G_Loading_On_TC; 
+	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+
+	// Stop_Mode = 2
+	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Stop_Mode(0); //TIM 4/26/01
+	
+	// Counting_Once = 2 
+	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpctr_mode[chan] |= G_Counting_Once(0); //TIM 4/26/01
+
+	// Up_Down = 1 
+	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpctr_command[chan] |= G_Up_Down(0); 
+
+	//TIM 4/26/01
+	//This seems pretty unsafe since I don't think it is cleared anywhere.
+	//I don't think this is working
+	//devpriv->gpctr_command[chan] &= ~G_Bank_Switch_Enable;
+	//devpriv->gpctr_command[chan] &= ~G_Bank_Switch_Mode;
+	
+
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+
+	//printk("exit GPCTR_Gen_Cont\n");
 }
 
 void GPCTR_Reset(comedi_device *dev, int chan){
@@ -2795,6 +2835,9 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 			temp_ack_reg |= G1_TC_Interrupt_Ack;
 			temp_ack_reg |= G0_Gate_Interrupt_Ack;
 			win_out(temp_ack_reg,Interrupt_A_Ack_Register);
+		
+			win_out(GPFO_0_Output_Enable|GPFO_0_Output_Select(0),
+				Analog_Trigger_Etc_Register);
 			break;
 		case 1:
 			win_out(G1_Reset,Joint_Reset_Register);
@@ -2807,6 +2850,8 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 			temp_ack_reg |= G1_TC_Interrupt_Ack;
 			temp_ack_reg |= G1_Gate_Interrupt_Ack;
 			win_out(temp_ack_reg,Interrupt_B_Ack_Register);
+		
+			win_out(GPFO_1_Output_Enable, Analog_Trigger_Etc_Register);
 			break;
 	};
 	
@@ -2860,6 +2905,9 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 			case GPCTR_SINGLE_PULSE_OUT:
 				GPCTR_Gen_Single_Pulse(dev,insn->chanspec,data[2]);
 				break;
+			case GPCTR_CONT_PULSE_OUT:
+				GPCTR_Gen_Cont_Pulse(dev,insn->chanspec,data[2]);
+				break;
 			default:
 				printk("unsupported GPCTR operation!\n");
 				return -EINVAL;
@@ -2867,7 +2915,6 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case GPCTR_ARM:
 		if(insn->n!=1)return -EINVAL;
-		printk("arming...\n"); //TIM 4/26/01 debugging
 		retval=GPCTR_Arm(dev,insn->chanspec);
 		break;
 	case GPCTR_DISARM:
