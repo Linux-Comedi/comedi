@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export CVSROOT=ds@oss.lineo.com:/var/cvs
+export CVSROOT=ds@cvs.comedi.org:/var/cvs
 export CVS_RSH=ssh
 
 topdir=$(pwd)
