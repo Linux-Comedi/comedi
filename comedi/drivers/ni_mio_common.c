@@ -1783,9 +1783,6 @@ static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
-#define INSN_CONFIG_ANALOG_TRIG 0x10
-#define INSN_CONFIG_ANALOG_CONV 0x11
-
 static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
@@ -1797,8 +1794,6 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 	switch(data[0]){
 	case INSN_CONFIG_ANALOG_TRIG:
 		return ni_ai_config_analog_trig(dev,s,insn,data);
-	case INSN_CONFIG_ANALOG_CONV:
-		break;
 	case INSN_CONFIG_ALT_SOURCE:
 		{
 		unsigned int calib_source;
