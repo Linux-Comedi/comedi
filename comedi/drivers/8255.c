@@ -37,13 +37,17 @@ You should enable compilation this driver if you plan to use a board
 that has an 8255 chip.  For multifunction boards, the main driver will
 configure the 8255 subdevice automatically.
 
-This driver also works independently with ISA cards that directly
-map the 8255 registers to I/O ports, including cards with multiple
-8255 chips.  To configure the driver for such a card, the option
-list should be a list of the I/O port bases for each of the 8255
-chips.  For example,
+This driver also works independently with ISA and PCI cards that
+directly map the 8255 registers to I/O ports, including cards with
+multiple 8255 chips.  To configure the driver for such a card, the
+option list should be a list of the I/O port bases for each of the
+8255 chips.  For example,
 
   comedi_config /dev/comedi0 8255 0x200,0x204,0x208,0x20c
+
+Note that most PCI 8255 boards do NOT work with this driver, and
+need a separate driver as a wrapper.  For those that do work, the
+I/O port base address can be found in the output of 'lspci -v'.
 
 */
 
