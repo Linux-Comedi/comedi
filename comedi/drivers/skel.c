@@ -108,6 +108,9 @@ comedi_driver driver_skel={
 
 static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd);
+static int skel_ns_to_timer(unsigned int *ns,int round);
 
 /*
  * The function skel_recognize() is called when the Comedi core
@@ -175,6 +178,8 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=(1<<thisboard->ai_bits)-1;
 	s->range_table=&range_bipolar10;
 	s->insn_read = &skel_ai_rinsn;
+	//s->do_cmd = &skel_ai_cmd;
+	s->do_cmdtest = &skel_ai_cmdtest;
 	
 	s=dev->subdevices+1;
 	/* analog output subdevice */
@@ -240,6 +245,7 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 		//outw(0,dev->iobase + SKEL_CONVERT);
 
 		/* wait for conversion to end */
+		/* return -ETIMEDOUT if there is a timeout */
 
 		/* read data */
 		//d = inw(dev->iobase + SKEL_AI_DATA);
@@ -254,6 +260,155 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	/* return the number of samples read/written */
 	return n;
 }
+
+static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* cmdtest tests a particular command to see if it is valid.
+	 * Using the cmdtest ioctl, a user can create a valid cmd
+	 * and then have it executes by the cmd ioctl.
+	 *
+	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
+	 * the command passes. */
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
+	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
+	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	/* note that mutual compatiblity is not an issue here */
+	if(cmd->scan_begin_src!=TRIG_TIMER &&
+	   cmd->scan_begin_src!=TRIG_EXT)err++;
+	if(cmd->convert_src!=TRIG_TIMER &&
+	   cmd->convert_src!=TRIG_EXT)err++;
+	if(cmd->stop_src!=TRIG_TIMER &&
+	   cmd->stop_src!=TRIG_EXT)err++;
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg=0;
+		err++;
+	}
+
+#define MAX_SPEED	10000		/* in nanoseconds */
+#define MIN_SPEED	1000000000	/* in nanoseconds */
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		if(cmd->scan_begin_arg<MAX_SPEED){
+			cmd->scan_begin_arg=MAX_SPEED;
+			err++;
+		}
+		if(cmd->scan_begin_arg>MIN_SPEED){
+			cmd->scan_begin_arg=MIN_SPEED;
+			err++;
+		}
+	}else{
+		/* external trigger */
+		/* should be level/edge, hi/lo specification here */
+		/* should specify multiple external triggers */
+		if(cmd->scan_begin_arg>9){
+			cmd->scan_begin_arg=9;
+			err++;
+		}
+	}
+	if(cmd->convert_src==TRIG_TIMER){
+		if(cmd->convert_arg<MAX_SPEED){
+			cmd->convert_arg=MAX_SPEED;
+			err++;
+		}
+		if(cmd->convert_arg>MIN_SPEED){
+			cmd->convert_arg=MIN_SPEED;
+			err++;
+		}
+	}else{
+		/* external trigger */
+		/* see above */
+		if(cmd->convert_arg>9){
+			cmd->convert_arg=9;
+			err++;
+		}
+	}
+
+	if(cmd->scan_end_arg!=cmd->chanlist_len){
+		cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_COUNT){
+		if(cmd->stop_arg>0x00ffffff){
+			cmd->stop_arg=0x00ffffff;
+			err++;
+		}
+	}else{
+		/* TRIG_NONE */
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		tmp=cmd->scan_begin_arg;
+		skel_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->scan_begin_arg)err++;
+	}
+	if(cmd->convert_src==TRIG_TIMER){
+		tmp=cmd->convert_arg;
+		skel_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->convert_arg)err++;
+		if(cmd->scan_begin_src==TRIG_TIMER &&
+		  cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
+			cmd->scan_begin_arg=cmd->convert_arg*cmd->scan_end_arg;
+			err++;
+		}
+	}
+
+	if(err)return 4;
+
+	return 0;
+}
+
+/* This function doesn't require a particular form, this is just
+ * what happens to be used in some of the drivers.  It should
+ * convert ns nanoseconds to a counter value suitable for programming
+ * the device.  Also, it should adjust ns so that it cooresponds to
+ * the actual time that the device will use. */
+static int skel_ns_to_timer(unsigned int *ns,int round)
+{
+	/* trivial timer */
+	return *ns;
+}
+
 
 static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
