@@ -46,6 +46,7 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 #include <linux/delay.h>
 
 #include "plx9052.h"
+#include "8255.h"
 
 //#define CBPCIMDAS_DEBUG
 #undef CBPCIMDAS_DEBUG
@@ -80,25 +81,6 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 #define USER_COUNTER 12
 #define RESID_COUNT_H 13
 #define RESID_COUNT_L 14
-
-//DIO Offsets
-#define PORT_A 0
-#define PORT_B 1
-#define PORT_C 2
-#define DIO_CONFIG 3
-
-//DIO Constants
-#define ALL_OUTPUT 128
-#define PORT_A_IN 16
-#define PORT_B_IN 2
-#define PORT_CH_IN 8
-#define PORT_CL_IN 1
-#define PORT_A_MASK 0x0000ff
-#define PORT_B_MASK 0x00ff00
-#define PORT_C_MASK 0xff0000
-#define PORT_CL_MASK 0x0f0000
-#define PORT_CH_MASK 0xf00000
-
 
 /* Board description */
 typedef struct cb_pcimdas_board_struct
@@ -205,10 +187,6 @@ static comedi_driver driver_cb_pcimdas={
 static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcimdas_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcimdas_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int cb_pcimdas_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int cb_pcimdas_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -221,9 +199,6 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev* pcidev;
 	int index;
-	//unsigned long BADR0;
-	unsigned long BADR1, BADR2, BADR3, BADR4;
-	int err;
 	//int i;
 
 	printk("comedi%d: cb_pcimdas: ",dev->minor);	
@@ -285,46 +260,19 @@ found:
 				"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
 	};
 
-	if(pci_enable_device(devpriv->pci_dev))
-		return -EIO;
-
-// Since I don't know how large BADR0 is, lets not request it for now.
-// It doesn't appear to be needed for operation of the Board.
-//
-//	BADR0 = pci_resource_start(devpriv->pci_dev, 0); 
-	BADR1 = pci_resource_start(devpriv->pci_dev, 1); 
-	BADR2 = pci_resource_start(devpriv->pci_dev, 2); 
-	BADR3 = pci_resource_start(devpriv->pci_dev, 3); 
-	BADR4 = pci_resource_start(devpriv->pci_dev, 4); 
-
-	// reserve io ports
-	err = 0;
-//	if(check_mem_region(BADR0, BADR0_SIZE) < 0)
-//		err+=1;
-	if(check_region(BADR1, BADR1_SIZE) < 0)
-		err+=2;
-	if(check_region(BADR2, BADR2_SIZE) < 0)
-		err+=4;
-	if(check_region(BADR3, BADR3_SIZE) < 0)
-		err+=8;
-	if(check_region(BADR4, BADR4_SIZE) < 0)
-		err+=16;
-	if(err)
+	if(pci_request_regions(devpriv->pci_dev, "cb_pcimdas"))
 	{
-		printk(" I/O port conflict %d\n",err);
+		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-//	request_mem_region(BADR0, BADR0_SIZE, "cb_pcimdas");
-//	devpriv->BADR0 = BADR0;
-	request_region(BADR1, BADR1_SIZE, "cb_pcimdas");
-	devpriv->BADR1 = BADR1;
-	request_region(BADR2, BADR2_SIZE, "cb_pcimdas");
-	devpriv->BADR2 = BADR2;
-	request_region(BADR3, BADR3_SIZE, "cb_pcimdas");
-	devpriv->BADR3 = BADR3;
-	request_region(BADR4, BADR4_SIZE, "cb_pcimdas");
-	devpriv->BADR4 = BADR4;
+	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0); 
+	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1); 
+	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2); 
+	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3); 
+	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4); 
 
+	if(pci_enable_device(devpriv->pci_dev))
+		return -EIO;
 #ifdef CBPCIMDAS_DEBUG
 	printk("devpriv->BADR0 = %d\n",devpriv->BADR0);
 	printk("devpriv->BADR1 = %d\n",devpriv->BADR1);
@@ -376,16 +324,11 @@ found:
 	s->insn_write = &cb_pcimdas_ao_winsn;
 	s->insn_read = &cb_pcimdas_ao_rinsn;
 
-	s=dev->subdevices+2;
+	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
 	if(thisboard->has_dio){
-		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
-		s->n_chan=thisboard->dio_bits;
-		s->maxdata=1;
-		s->range_table=&range_digital;
-		s->insn_bits = cb_pcimdas_dio_insn_bits;
-		s->insn_config = cb_pcimdas_dio_insn_config;
+		subdev_8255_init(dev, s, NULL,
+			(unsigned long)(devpriv->BADR4));
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -420,15 +363,9 @@ static int cb_pcimdas_detach(comedi_device *dev)
 	if(devpriv)
 	{
 		if(devpriv->BADR0)
-			release_mem_region(devpriv->BADR0, BADR0_SIZE);
-		if(devpriv->BADR1)
-			release_region(devpriv->BADR1, BADR1_SIZE);
-		if(devpriv->BADR2)
-			release_region(devpriv->BADR2, BADR2_SIZE);
-		if(devpriv->BADR3)
-			release_region(devpriv->BADR3, BADR3_SIZE);
-		if(devpriv->BADR4)
-			release_region(devpriv->BADR4, BADR4_SIZE);
+		{
+			pci_release_regions(devpriv->pci_dev);
+		}
 		if(devpriv->pci_dev)
 			pci_dev_put(devpriv->pci_dev);
 	}
@@ -545,89 +482,6 @@ static int cb_pcimdas_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
-static int cb_pcimdas_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-{
-// Much of this based on the 8255 driver.
-
-	if(data[0]){
-		s->state &= ~data[0];
-		s->state |= (data[0]&data[1]);
-		
-		if(data[0]&PORT_A_MASK) {
-			devpriv->port_a=s->state&0xff;
-			outb(devpriv->port_a,devpriv->BADR4+PORT_A);
-		}
-		if(data[0]&PORT_B_MASK) {
-			devpriv->port_b=(s->state>>8)&0xff;
-			outb(devpriv->port_b,devpriv->BADR4+PORT_B);
-		}
-		if(data[0]&PORT_C_MASK) {
-			devpriv->port_c=(s->state>>16)&0xff;
-			outb(devpriv->port_c,devpriv->BADR4+PORT_C);
-		}
-	}
-
-	data[1]=inb(devpriv->BADR4+PORT_A);
-	data[1]|=(inb(devpriv->BADR4+PORT_B)<<8);
-	data[1]|=(inb(devpriv->BADR4+PORT_C)<<16);
-
-	return 2; //should this be 2?
-}
-
-static int cb_pcimdas_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-{
-// DIO config on this card is per port (or half port for port C), not per line.
-
-	unsigned int mask;
-	unsigned int bits;
-	int config;
-
-	mask=1<<CR_CHAN(insn->chanspec);
-	if(mask&PORT_A_MASK){
-		bits=PORT_A_MASK;
-	}else if(mask&PORT_B_MASK){
-		bits=PORT_B_MASK;
-	}else if(mask&PORT_CL_MASK){
-		bits=PORT_CL_MASK;
-	}else{
-		bits=PORT_CH_MASK;
-	}
-
-	switch(data[0]){
-	case COMEDI_INPUT:
-		s->io_bits&=~bits;
-		break;
-	case COMEDI_OUTPUT:
-		s->io_bits|=bits;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	config=ALL_OUTPUT;
-	/* 0 in io_bits indicates output, 1 in config indicates input */
-	if(!(s->io_bits&PORT_A_MASK))
-		config|=PORT_A_IN;
-	if(!(s->io_bits&PORT_B_MASK))
-		config|=PORT_B_IN;
-	if(!(s->io_bits&PORT_CL_MASK))
-		config|=PORT_CL_IN;
-	if(!(s->io_bits&PORT_CH_MASK))
-		config|=PORT_CH_IN;
-
-	outb(config,devpriv->BADR4+DIO_CONFIG);
-	devpriv->dio_mode=config;
-
-	return 1;
-}
- 
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
