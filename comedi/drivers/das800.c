@@ -97,8 +97,8 @@ NOTES:
 #define   IRQ                   0x8
 #define   BUSY                  0x80
 #define DAS800_GAIN           3
-#define   FFOV                  0x8	// fifo overflow for cio-das802/16
-#define   ENHF                  0x90	// interrupt fifo half full for cio-das802/16
+#define   CIO_FFOV              0x8	// fifo overflow for cio-das802/16
+#define   CIO_ENHF              0x90	// interrupt fifo half full for cio-das802/16
 #define   CONTROL1              0x80
 #define   CONV_CONTROL          0xa0
 #define   SCAN_LIMITS           0xc0
@@ -391,7 +391,7 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(thisboard->resolution == 16)
 	{
 		fifo_empty = 0;	// cio-das802/16 has no fifo-empty status bit
-		fifo_overflow = inb(dev->iobase + DAS800_GAIN) & FFOV;
+		fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
 	}
 	/* loop while card's fifo is not empty (and limit to half fifo for cio-das802/16) */
 	for(i = 0; i < max_loops; i++)
@@ -440,8 +440,6 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 			if(devpriv->count > 0) devpriv->count--;
 		}
 	}
-	if(i == max_loops)
-		comedi_error(dev, "possible problem with loop in interrupt handler");
 
 	comedi_bufcheck(dev,s);
 	if(devpriv->count > 0 || devpriv->forever == 1)
@@ -460,7 +458,7 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		// else cio-das802/16
 		}else
 		{
-			fifo_overflow = inb(dev->iobase + DAS800_GAIN) & FFOV;
+			fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
 		}
 		if(fifo_overflow)
 		{
@@ -611,9 +609,9 @@ void enable_das800(comedi_device *dev)
 {
 	unsigned long irq_flags;
 	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
-	// enable fifo-half full interrupts for
+	// enable fifo-half full interrupts for cio-das802/16
 	if(thisboard->resolution == 16)
-		outb(ENHF, dev->iobase + DAS800_GAIN);
+		outb(CIO_ENHF, dev->iobase + DAS800_GAIN);
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
 	outb(CONV_HCEN, dev->iobase + DAS800_CONV_CONTROL);	/* enable hardware triggering */
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
