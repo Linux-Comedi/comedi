@@ -320,6 +320,12 @@ static comedi_lrange *das16_ai_bip_lranges[]={
 	&range_das1x02_bip,
 };
 
+struct munge_info
+{
+	uint8_t byte;
+	unsigned have_byte : 1;
+};
+
 static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -337,6 +343,11 @@ static void das16_interrupt(comedi_device *dev);
 static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int flags);
 static int das1600_mode_detect(comedi_device *dev);
 static unsigned int das16_suggest_transfer_size(comedi_device *dev, comedi_cmd cmd);
+
+static void init_munge_info( struct munge_info *info );
+static void write_byte_to_buffer( comedi_device *dev, comedi_subdevice *subd,
+	uint8_t raw_byte );
+static void das16_write_array_to_buffer( comedi_device *dev, void *data, unsigned int num_bytes );
 
 static void reg_dump(comedi_device *dev);
 
@@ -707,23 +718,23 @@ static comedi_driver driver_das16={
 
 static const int timer_period = HZ / 20 + 1;	// period for timer interrupt in jiffies (about 1/20 of a second)
 
-struct das16_private_struct {
+struct das16_private_struct
+{
 	unsigned int	ai_unipolar;	// unipolar flag
 	unsigned int	ai_singleended;	// single ended flag
 	unsigned int	clockbase;	// master clock speed in ns
 	volatile unsigned int	control_state;	// dma, interrupt and trigger control bits
-	volatile unsigned int	adc_count;	// number of samples remaining
-	volatile unsigned int remains;            // remaining bytes after last irq
+	volatile unsigned int	adc_byte_count;	// number of samples remaining
 	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
 	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
 	unsigned int dma_chan;	// dma channel
-	sampl_t *dma_buffer;
-	volatile unsigned int target_transfer_size;	// target number of bytes to transfer per dma shot
-	volatile unsigned int actual_transfer_size;	// number of bytes in current dma transfer
+	uint16_t *dma_buffer;
+	volatile unsigned int dma_transfer_size;	// target number of bytes to transfer per dma shot
 	// user-defined analog input and output ranges defined from config options
 	comedi_lrange *user_ai_range_table;
 	comedi_lrange *user_ao_range_table;
-	
+	struct munge_info ai_munge_info;
+
 	struct timer_list timer;                // for timed interrupt
 	volatile unsigned int timer_running : 1;
 	volatile unsigned int timer_mode : 1;   // true if using timer mode
@@ -900,8 +911,9 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 		return -1;
 	}
 
-	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
-	devpriv->remains = 0;
+	devpriv->adc_byte_count = cmd->stop_arg * cmd->chanlist_len * sizeof( uint16_t );
+
+	init_munge_info( &devpriv->ai_munge_info );
 
 	// disable conversions for das1600 mode
 	if(thisboard->size > 0x400)
@@ -952,9 +964,8 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	clear_dma_ff(devpriv->dma_chan);
 	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	// set appropriate size of transfer
-	devpriv->target_transfer_size = das16_suggest_transfer_size(dev, *cmd);
-	devpriv->actual_transfer_size = devpriv->target_transfer_size;
-	set_dma_count(devpriv->dma_chan, devpriv->actual_transfer_size);
+	devpriv->dma_transfer_size = das16_suggest_transfer_size(dev, *cmd);
+	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
@@ -1153,27 +1164,13 @@ static void das16_timer_interrupt(unsigned long arg)
 		mod_timer(&devpriv->timer, jiffies + timer_period);
 }
 
-static void munge_ai_data( comedi_device *dev, sampl_t *data, unsigned int num_points)
-{
-	unsigned int i;
-
-	if( thisboard->ai_nbits == 12)
-	{
-		for(i = 0; i < num_points; i++)
-		{
-			data[i] = ( data[i] >> 4 ) & 0xfff;
-		}
-	}
-}
-
 static void das16_interrupt( comedi_device *dev )
 {
 	unsigned long flags;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
-	int num_points, num_bytes, residue;
-	unsigned int target_xfer;
+	int num_bytes, residue;
 
 	if(dev->attached == 0)
 	{
@@ -1183,7 +1180,6 @@ static void das16_interrupt( comedi_device *dev )
 	// initialize async here to make sure it is not NULL
 	async = s->async;
 	cmd = &async->cmd;
-	async->events = 0;
 
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
@@ -1198,52 +1194,41 @@ static void das16_interrupt( comedi_device *dev )
 	 * the stop_src is set to external triggering.
 	 */
 	residue = get_dma_residue(devpriv->dma_chan);
-	if(residue > devpriv->actual_transfer_size)
+	if(residue > devpriv->dma_transfer_size)
 	{
 		comedi_error(dev, "residue > transfer size!\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		num_bytes = 0;
 	}else
-		num_bytes = devpriv->actual_transfer_size + devpriv->remains - residue;
-	num_points = num_bytes / sample_size;
-	devpriv->remains = num_bytes % sample_size;
+		num_bytes = devpriv->dma_transfer_size - residue;
 
 	if(cmd->stop_src == TRIG_COUNT &&
-		num_points > devpriv->adc_count)
+		num_bytes > devpriv->adc_byte_count)
 	{
-		num_points = devpriv->adc_count;
+		num_bytes = devpriv->adc_byte_count;
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	munge_ai_data( dev, devpriv->dma_buffer, num_points );
-	cfc_write_array_to_buffer( s, devpriv->dma_buffer, num_points * sizeof( sampl_t ) );
-	devpriv->adc_count -= num_points;
+	das16_write_array_to_buffer( dev, devpriv->dma_buffer, num_bytes );
+	devpriv->adc_byte_count -= num_bytes;
 
 	// figure out how many bytes for next transfer
-	target_xfer = devpriv->target_transfer_size;
 	if(cmd->stop_src == TRIG_COUNT && devpriv->timer_mode == 0 &&
-		target_xfer > devpriv->adc_count * sample_size)
-		target_xfer = devpriv->adc_count * sample_size;
-
-	devpriv->actual_transfer_size = target_xfer - devpriv->remains;
+		devpriv->dma_transfer_size > devpriv->adc_byte_count )
+		devpriv->dma_transfer_size = devpriv->adc_byte_count;
 
 	// re-enable  dma
 	if(( async->events & COMEDI_CB_EOA ) == 0)
 	{
-		// copy possible leftover byte to beginning of buffer to be read next time
-		devpriv->dma_buffer[0] = devpriv->dma_buffer[num_points];
-		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer) + devpriv->remains);
-		set_dma_count(devpriv->dma_chan, devpriv->actual_transfer_size);
+		set_dma_addr( devpriv->dma_chan, virt_to_bus( devpriv->dma_buffer ) );
+		set_dma_count( devpriv->dma_chan, devpriv->dma_transfer_size );
 		enable_dma(devpriv->dma_chan);
 	}
 	release_dma_lock(flags);
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	if(async->events & COMEDI_CB_EOA)
-		das16_cancel(dev, s);
-
-	comedi_event(dev, s, async->events);
+	cfc_handle_events( dev, s );
 }
 
 static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int rounding_flags)
@@ -1679,10 +1664,50 @@ static unsigned int das16_suggest_transfer_size(comedi_device *dev, comedi_cmd c
 	else if(size < sample_size)
 		size = sample_size;
 
-	if( cmd.stop_src == TRIG_COUNT && size > devpriv->adc_count * sample_size )
-		size = devpriv->adc_count * sample_size;
+	if( cmd.stop_src == TRIG_COUNT && size > devpriv->adc_byte_count )
+		size = devpriv->adc_byte_count;
 	
 	return size;
 }
 
+static void init_munge_info( struct munge_info *info )
+{
+	info->have_byte = 0;
+}
 
+/* we want to be able to write one byte at a time to buffer to deal with
+ * possibility that 8-bit dma transfer will be interrupted inbetween
+ * least significant and most significant byte of a sample */
+static void write_byte_to_buffer( comedi_device *dev, comedi_subdevice *subd, uint8_t raw_byte )
+{
+	sampl_t data;
+	struct munge_info *info = &devpriv->ai_munge_info;
+
+	if( info->have_byte == 0 )
+	{
+		info->byte = raw_byte;
+		info->have_byte = 1;
+	}else
+	{
+		info->have_byte = 0;
+		if( thisboard->ai_nbits == 12 )
+		{
+			data = ( raw_byte << 4 ) & 0xff0;
+			data |= ( info->byte >> 4 ) & 0xf;
+		}else
+		{
+			data = raw_byte << 8 & 0xff00;
+			data |= info->byte & 0xff;
+		}
+		cfc_write_to_buffer( subd, data );
+	}
+}
+
+static void das16_write_array_to_buffer( comedi_device *dev, void *data, unsigned int num_bytes )
+{
+	unsigned int i;
+	uint8_t *array = data;
+
+	for( i = 0; i < num_bytes; i++ )
+		write_byte_to_buffer( dev, dev->read_subdev, array[i] );
+};
