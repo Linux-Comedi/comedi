@@ -45,7 +45,7 @@
 #endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
-#include <time.h>
+#include <rtl_time.h>
 //#ifdef RTLINUX_VERSION_CODE
 #include <rtl_sync.h>
 //#endif
@@ -133,6 +133,8 @@ static inline void comedi_udelay( unsigned int usec )
 #if defined(CONFIG_COMEDI_RTAI)
 	static const int nanosec_per_usec = 1000;
 	rt_busy_sleep( usec * nanosec_per_usec );
+#elif defined(CONFIG_COMEDI_RTL)
+	rtl_delay(usec);
 #else
 	udelay( usec );
 #endif
