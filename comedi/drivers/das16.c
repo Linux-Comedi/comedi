@@ -914,13 +914,11 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	}
 	if(cmd->flags & TRIG_RT)
 	{
-		comedi_error(dev, "dma transfers cannot be performed with TRIG_RT, aborting");
+		comedi_error(dev, "isa dma transfers cannot be performed with TRIG_RT, aborting");
 		return -1;
 	}
 
 	devpriv->adc_byte_count = cmd->stop_arg * cmd->chanlist_len * sizeof( uint16_t );
-
-	init_munge_info( &devpriv->ai_munge_info );
 
 	// disable conversions for das1600 mode
 	if(thisboard->size > 0x400)
@@ -969,6 +967,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma_chan);
+	init_munge_info( &devpriv->ai_munge_info );
 	devpriv->current_buffer = 0;
 	set_dma_addr( devpriv->dma_chan,
 		devpriv->dma_buffer_addr[ devpriv->current_buffer ] );
@@ -979,7 +978,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	release_dma_lock(flags);
 
 	// set up interrupt
-	if (devpriv->timer_mode)
+	if( devpriv->timer_mode )
 	{
 		devpriv->timer_running = 1;
 		devpriv->timer.expires = jiffies + timer_period;
@@ -1191,6 +1190,12 @@ static void das16_interrupt( comedi_device *dev )
 	async = s->async;
 	cmd = &async->cmd;
 
+	if( devpriv->dma_chan == 0 )
+	{
+		comedi_error(dev, "interrupt with no dma channel?");
+		return;
+	}
+
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
 	/* clear flip-flop to make sure 2-byte registers for
@@ -1199,9 +1204,8 @@ static void das16_interrupt( comedi_device *dev )
 
 	// figure out how many points to read
 
-	/* residue is the number of points left to be done on the dma
-	 * transfer.  It should always be zero at this point unless
-	 * the stop_src is set to external triggering.
+	/* residue is the number of bytes left to be done on the dma
+	 * transfer.
 	 */
 	residue = get_dma_residue(devpriv->dma_chan);
 	if(residue > devpriv->dma_transfer_size)
@@ -1635,15 +1639,18 @@ static int das16_detach(comedi_device *dev)
 		if(devpriv->user_ao_range_table)
 			kfree(devpriv->user_ao_range_table);
 	}
-	
+
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
 
-	if(thisboard->size<0x400){
-		release_region(dev->iobase,thisboard->size);
-	}else{
-		release_region(dev->iobase,0x10);
-		release_region(dev->iobase+0x400,thisboard->size&0x3ff);
+	if( dev->iobase )
+	{
+		if(thisboard->size < 0x400){
+			release_region(dev->iobase, thisboard->size);
+		}else{
+			release_region(dev->iobase, 0x10);
+			release_region(dev->iobase + 0x400, thisboard->size&0x3ff);
+		}
 	}
 
 	return 0;
@@ -1719,7 +1726,7 @@ static void write_byte_to_buffer( comedi_device *dev, comedi_subdevice *subd, ui
 			data |= ( info->byte >> 4 ) & 0xf;
 		}else
 		{
-			data = raw_byte << 8 & 0xff00;
+			data = ( raw_byte << 8 ) & 0xff00;
 			data |= info->byte & 0xff;
 		}
 		cfc_write_to_buffer( subd, data );
