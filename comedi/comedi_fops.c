@@ -203,8 +203,12 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->timer_type		= TIMER_nanosec;
 		us->len_chanlist	= s->len_chanlist;
 		us->maxdata		= s->maxdata;
-		us->range_type		= (dev->minor<<24)|(i<<20)|(0<<16)|
-			(s->range_table->length);
+		if(s->range_table){
+			us->range_type	= (dev->minor<<24)|(i<<20)|(0<<16)|
+					(s->range_table->length);
+		}else{
+			us->range_type	= 0; /* XXX */
+		}
 		us->flags		= s->flags;
 		
 		if(s->busy)
