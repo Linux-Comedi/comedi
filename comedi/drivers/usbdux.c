@@ -1,5 +1,5 @@
-#define DRIVER_VERSION "v0.99b"
-#define DRIVER_AUTHOR "Bernd Porr, Bernd.Porr@cn.stir.ac.uk"
+#define DRIVER_VERSION "v1.00pre2"
+#define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@cn.stir.ac.uk"
 /*
    module/usbdux.c
@@ -24,8 +24,8 @@
 Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
-Author: Bernd Porr <Bernd.Porr@cn.stir.ac.uk>
-Updated: 4 Mar 2004
+Author: Bernd Porr <BerndPorr@f2s.com>
+Updated: 24 Jul 2004
 Status: testing
 
 */
@@ -55,6 +55,8 @@ Status: testing
  *                for the high speed ISO transfer is now a working version available
  * 0.99b: Increased the iso transfer buffer for high sp.to 10 buffers. Some VIA
  *        chipsets miss out IRQs. Deeper buffering is needed.
+ * 1.00: full USB 2.0 support for the A/D converter. Now: max 8kHz sampling rate.
+ *       Firmware vers 1.00 is needed for this.
  *
  *
  *
@@ -115,7 +117,7 @@ Status: testing
 // Endpoint for the A/D channellist: bulk OUT
 #define CHANNELLISTEP     4
 
-// Endpoint for a single A/D aquisition: bulk IN
+// Endpoint for a single A/D acquisition: bulk IN
 #define ADSINGLEEP        8
 
 // Number of channels
@@ -143,7 +145,7 @@ Status: testing
 #define SIZEOUTBUF         ((8*SIZEDAOUT))
 
 // Size of the buffer for the dux commands: just now max size is determined
-// by the analogue out + command byte + panic byte...
+// by the analogue out + command byte + panic bytes...
 #define SIZEOFDUXBUFFER    ((8*SIZEDAOUT+2))
 
 // Number of in-URBs which receive the data: min=2
@@ -153,17 +155,16 @@ Status: testing
 #define NUMOFOUTBUFFERSFULL    5
 
 // Number of in-URBs which receive the data: min=5
-#define NUMOFINBUFFERSHIGH     10
+#define NUMOFINBUFFERSHIGH     10 // must have more buffers due to buggy USB ctr
 
 // Number of out-URBs which send the data: min=5
-#define NUMOFOUTBUFFERSHIGH    10
+#define NUMOFOUTBUFFERSHIGH    10 // must have more buffers due to buggy USB ctr
 
 // Total number of usbdux devices
 #define NUMUSBDUX             16
 
-
 // Number of subdevices
-#define N_SUBDEVICES          3
+#define N_SUBDEVICES          4
 
 // Analogue in subdevice
 #define SUBDEV_AD             0
@@ -173,6 +174,9 @@ Status: testing
 
 // Digital I/O
 #define SUBDEV_DIO            2
+
+// counter
+#define SUBDEV_COUNTER        3
 
 
 /////////////////////////////////////////////
@@ -244,15 +248,15 @@ typedef struct {
 	// counter between aquisitions
 	unsigned int ai_counter;
 	unsigned int ao_counter;
+	// interval in frames/uframes
+	unsigned int ai_interval;
 	// A/D commands
 	unsigned char *adc_commands;
 	// D/A commands
 	unsigned char *dac_commands;
 	// commands
 	unsigned char *dux_commands;
-	short int ai_insn_running;
-	short int ao_insn_running;
-	short int dio_insn_running;
+	short int insn_running;
 	struct semaphore sem;
 } usbduxsub_t;
 
@@ -370,7 +374,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 static void usbduxsub_ai_IsocIrq(struct urb *urb, struct pt_regs *regs)
 #endif
 {
-	int i;
+	int i,err;
 	usbduxsub_t* this_usbduxsub;
 	comedi_device *this_comedidev;
 	comedi_subdevice *s;
@@ -514,8 +518,9 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb, struct pt_regs *regs)
 		// command is still running
 		// resubmit urb for ISO transfer
 		urb->dev = this_usbduxsub->usbdev;
-		if (USB_SUBMIT_URB(urb)<0) {
-			printk("comedi_: usbdux_: urb resubmit failed in int-context!\n");
+		if ((err=USB_SUBMIT_URB(urb))<0) {
+			printk("comedi_: usbdux_: urb resubmit failed in int-context! err=%d\n",
+			       err);
 		}
 	}
 }
@@ -912,16 +917,18 @@ int usbduxsub_submit_InURBs(usbduxsub_t* usbduxsub) {
 	/* Submit all URBs and start the transfer on the bus */
 	for (i=0; i < usbduxsub->numOfInBuffers; i++) {
 		// in case of a resubmission after an unlink...
+		usbduxsub->urbIn[i]->interval=usbduxsub->ai_interval;
 		usbduxsub->urbIn[i]->context=usbduxsub->comedidev;
 		usbduxsub->urbIn[i]->dev = usbduxsub->usbdev;
 		usbduxsub->urbIn[i]->status = 0;
 		usbduxsub->urbIn[i]->transfer_flags = URB_ISO_ASAP;
 #ifdef CONFIG_COMEDI_DEBUG
-		printk("comedi%d: usbdux: submitting in-urb[%d]: %p,%p\n",
+		printk("comedi%d: usbdux: submitting in-urb[%d]: %p,%p intv=%d\n",
 		       usbduxsub->comedidev->minor,
 		       i,
 		       (usbduxsub->urbIn[i]->context),
-		       (usbduxsub->urbIn[i]->dev));
+		       (usbduxsub->urbIn[i]->dev),
+		       (usbduxsub->urbIn[i]->interval));
 #endif
 		errFlag = USB_SUBMIT_URB
 			(usbduxsub->urbIn[i]);
@@ -973,7 +980,7 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 			     comedi_subdevice *s, 
 			     comedi_cmd *cmd)
 {
-	int err=0, tmp;
+	int err=0,tmp,i;
 	usbduxsub_t* this_usbduxsub=dev->private;
 	if (!(this_usbduxsub->probed)) {
 		return -ENODEV;
@@ -990,29 +997,13 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 
 	// trigger should happen timed
 	tmp=cmd->scan_begin_src;
-	// fixme
-	// just now also in high speed we sample only every frame
-	if (0) /* (this_usbduxsub->high_speed) */ {
-		// start immidiately a new scan
-		// the sampling rate is set by the coversion rate
-		cmd->scan_begin_src &= TRIG_FOLLOW;
-	} else {
-		// start a new _scan_ with a timer
-		cmd->scan_begin_src &= TRIG_TIMER;
-	}
+	// start a new _scan_ with a timer
+	cmd->scan_begin_src &= TRIG_TIMER;
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	// scanning is continous
 	tmp=cmd->convert_src;
-	// for the host just now the sampling happens at once: every frame
-	// (also for usb 2.0 due to ehci driver limitations)
-	if (0) /* (this_usbduxsub->high_speed) */ {
-		// in usb-2.0 only one conversion it tranmitted but with 8kHz/n
-		cmd->convert_src &= TRIG_TIMER;
-	} else {
-		// all conversion events happen simultaneously with a rate of 1kHz/n
-		cmd->convert_src &= TRIG_NOW;
-	}		
+	cmd->convert_src &= TRIG_NOW;
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	// issue a trigger when scan is finished and start a new scan
@@ -1053,24 +1044,29 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 		}
 	}
 
-	// this is for 8kHz sampling rate (every microframe)
-	// just now it's not supported by the ehci driver
-	if (cmd->convert_src==TRIG_TIMER) {
-		if(cmd->convert_arg<125000){
-			cmd->convert_arg=125000;
-			err++;
-		}
-	}
-
-	// 1kHz scans every USB frame
 	if(cmd->scan_begin_src==TRIG_TIMER){
-		/* timer */
-		if(cmd->scan_begin_arg<1000000){
-			cmd->scan_begin_arg=1000000;
-			err++;
+		if (this_usbduxsub->high_speed) {
+			// In high speed mode microframes are possible.
+			// However, during one microframe we can roughly
+			// sample one channel. Thus, the more channels
+			// are in the channel list the more time we need.
+			i=1;
+			// find a power of 2 for the number of channels
+			while (i<(cmd->chanlist_len)) {
+				i=i*2;
+			}
+			if(cmd->scan_begin_arg<(1000000/8*i)){
+				cmd->scan_begin_arg=1000000/8*i;
+				err++;
+			}
+		} else { // full speed
+			// 1kHz scans every USB frame
+			if(cmd->scan_begin_arg<1000000){
+				cmd->scan_begin_arg=1000000;
+				err++;
+			}
 		}
 	}
-
 	// the same argument
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
 		cmd->scan_end_arg=cmd->chanlist_len;
@@ -1110,15 +1106,20 @@ static unsigned char create_adc_command(unsigned int chan, int polarity, int ran
 #define SENDDACOMMANDS            1
 #define SENDDIOCONFIGCOMMAND      2
 #define SENDDIOBITSCOMMAND        3
+#define SENDSINGLEAD              4
+#define READCOUNTERCOMMAND        5
+#define WRITECOUNTERCOMMAND       6
+
 
 static int send_dux_commands(usbduxsub_t* this_usbduxsub,int cmd_type) {
 	int result,nsent,i;
 	comedi_subdevice *s;
 
+	this_usbduxsub->dux_commands[0]=cmd_type;
 	switch (cmd_type) {
 	case SENDADCOMMANDS:
+	case SENDSINGLEAD:
 		// AD commands
-		this_usbduxsub->dux_commands[0]=cmd_type;
 		memcpy((this_usbduxsub->dux_commands)+1,
 		       this_usbduxsub->adc_commands,
 		       NUMCHANNELS);
@@ -1127,7 +1128,6 @@ static int send_dux_commands(usbduxsub_t* this_usbduxsub,int cmd_type) {
 		// DA commands: send one channel to the USB board
 		// Same format as in the synchronous case:
 		// channel number + 16 bit value
-		this_usbduxsub->dux_commands[0]=cmd_type;
 		// number of channels: 1
 		this_usbduxsub->dux_commands[1]=1;
 		// one 16 bit value
@@ -1141,9 +1141,12 @@ static int send_dux_commands(usbduxsub_t* this_usbduxsub,int cmd_type) {
 	case SENDDIOBITSCOMMAND:
 		// sets the out bits at port B and write the data to it
 		s=this_usbduxsub->comedidev->subdevices+SUBDEV_DIO;
-		this_usbduxsub->dux_commands[0]=cmd_type;
 		this_usbduxsub->dux_commands[1]=s->io_bits;
 		this_usbduxsub->dux_commands[2]=s->state;
+		break;
+	case READCOUNTERCOMMAND:
+		break;
+	case WRITECOUNTERCOMMAND:
 		break;
 	default:
 		printk("comedi%d: usbdux: illegal dux_command.\n",
@@ -1244,7 +1247,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		up(&this_usbduxsub->sem);
 		return -ENODEV;
 	}
-	if (this_usbduxsub->ai_insn_running) {
+	if (this_usbduxsub->insn_running) {
 		printk("comedi%d: ai_cmd not possible. Sync command is running.\n",
 		       dev->minor);
 		up(&this_usbduxsub->sem);
@@ -1260,6 +1263,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	// set current channel of the running aquisition to zero
 	s->async->cur_chan	= 0;
 	
+	this_usbduxsub->adc_commands[0]=cmd->chanlist_len;
 	for(i=0; i < cmd->chanlist_len; ++i ) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		gain = CR_RANGE(cmd->chanlist[i]);
@@ -1267,7 +1271,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			printk("comedi%d: channel list too long\n",dev->minor);
 			break;
 		}
-		this_usbduxsub->adc_commands[i]=create_adc_command(chan,gain<=1,(gain%2)==0);
+		this_usbduxsub->adc_commands[i+1]=create_adc_command(chan,gain<=1,(gain%2)==0);
 #ifdef CONFIG_COMEDI_DEBUG
 		printk("comedi%d: adc command for ch %d is %x\n",
 		       dev->minor,
@@ -1291,38 +1295,34 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		up(&this_usbduxsub->sem);
 		return result;
 	}		
-	// we count in steps of 1ms (also in high speed mode)
-	if (0) /* (this_usbduxsub->high_speed) */ {
-		// 125us
-		// timing of the conversion itself: every 125 us
-		this_usbduxsub->ai_timer = cmd->convert_arg/125000;
+	if (this_usbduxsub->high_speed) {
+		// every channel gets a time window of 125us. Thus, if we
+		// sample all 8 channels we need 1ms. If we sample only
+		// one channel we need only 125us
+		this_usbduxsub->ai_interval=1;
+		// find a power of 2 for the interval
+		while ((this_usbduxsub->ai_interval)<(cmd->chanlist_len)) {
+			this_usbduxsub->ai_interval=(this_usbduxsub->ai_interval)*2;
+		}
+		this_usbduxsub->ai_timer = cmd->scan_begin_arg/(125000*(this_usbduxsub->ai_interval));
       	} else {
-		// 1ms
-		// timing of the scan: we get all channels at once
+		// interval always 1ms
+		this_usbduxsub->ai_interval=1;
 		this_usbduxsub->ai_timer = cmd->scan_begin_arg/1000000;
-                if (this_usbduxsub->ai_timer<1) { 
-		  printk("comedi%d: usbdux: ai_cmd: timer=%d, scan_begin_arg=%d. Not properly tested by cmdtest?\n", 
-			 dev->minor, 
-			 this_usbduxsub->ai_timer,
-			 cmd->scan_begin_arg);
-		  up(&this_usbduxsub->sem);
-		  return -EINVAL;
-                }
+	}
+	if (this_usbduxsub->ai_timer<1) {
+		printk("comedi%d: usbdux: ai_cmd: timer=%d, scan_begin_arg=%d. Not properly tested by cmdtest?\n", 
+		       dev->minor, 
+		       this_usbduxsub->ai_timer,
+		       cmd->scan_begin_arg);
+		up(&this_usbduxsub->sem);
+		return -EINVAL;
 	}
 	this_usbduxsub->ai_counter=this_usbduxsub->ai_timer;
 
 	if(cmd->stop_src==TRIG_COUNT){
-		// not continous
-		// counter
-		if (0) /* (this_usbduxsub->high_speed) */ {
-			this_usbduxsub->ai_sample_count = 
-				(cmd->stop_arg)*(cmd->scan_end_arg);
-		} else {
-			// there's no scan as the scan has been 
-			// perf inside the FX2
-			// data arrives as one packet
-			this_usbduxsub->ai_sample_count = cmd->stop_arg;
-		}		
+		// data arrives as one packet
+		this_usbduxsub->ai_sample_count = cmd->stop_arg;
 		this_usbduxsub->ai_continous=0;		
 	} else {
 		// continous aquisition
@@ -1354,31 +1354,28 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 
 
-static int single_adc_conv(usbduxsub_t* this_usbduxsub,lsampl_t* value,int n) {
+static int single_adc_conv(usbduxsub_t* this_usbduxsub,lsampl_t* value) {
 	int result=-EFAULT;
 	int nrec;
-	int i;
 	
-	for(i=0;i<n;i++) {
-		result = usb_bulk_msg(this_usbduxsub->usbdev,
-				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
-						      ADSINGLEEP),
-				      this_usbduxsub->insnBuffer,
-				      SIZEINSNBUF,
-				      &nrec, 
-				      1*HZ);
-		if (result<0) {
-			printk("comedi%d: insn: USB error %d while requesting AD data.\n",
-			       this_usbduxsub->comedidev->minor,result);
-			return result;
-		}
-		*value=((uint16_t*)(this_usbduxsub->insnBuffer))[0];
-#ifdef CONFIG_COMEDI_DEBUG
-		printk("comedi%d: singleADC: i=%d, value=%d\n",
-		       this_usbduxsub->comedidev->minor,
-		       i,*value);
-#endif
+	result = usb_bulk_msg(this_usbduxsub->usbdev,
+			      usb_rcvbulkpipe(this_usbduxsub->usbdev,
+					      ADSINGLEEP),
+			      this_usbduxsub->insnBuffer,
+			      SIZEINSNBUF,
+			      &nrec, 
+			      1*HZ);
+	if (result<0) {
+		printk("comedi%d: insn: USB error %d while requesting AD data.\n",
+		       this_usbduxsub->comedidev->minor,result);
+		return result;
 	}
+	*value=((uint16_t*)(this_usbduxsub->insnBuffer))[0];
+#ifdef CONFIG_COMEDI_DEBUG
+	printk("comedi%d: singleADC: value=%d\n",
+	       this_usbduxsub->comedidev->minor,
+	       *value);
+#endif
 	return result;
 }
 
@@ -1422,8 +1419,8 @@ static int usbdux_ai_insn_read(comedi_device * dev,
 		up(&this_usbduxsub->sem);
 		return 0;
 	}
-	if (this_usbduxsub->dio_insn_running) {
-		printk("comedi%d:ai_insn_read not possible.dio is running.\n",
+	if (this_usbduxsub->insn_running) {
+		printk("comedi%d: another insn is running.\n",
 		       dev->minor);
 		up(&this_usbduxsub->sem);
 		return 0;
@@ -1440,7 +1437,7 @@ static int usbdux_ai_insn_read(comedi_device * dev,
 	       this_usbduxsub->adc_commands[0]);
 #endif
 	// adc commands
-	err=send_dux_commands(this_usbduxsub,SENDADCOMMANDS);
+	err=send_dux_commands(this_usbduxsub,SENDSINGLEAD);
 	if (err<0) {
 		printk("comedi%d: usb err =%d\n",
 		       dev->minor,err);
@@ -1448,15 +1445,13 @@ static int usbdux_ai_insn_read(comedi_device * dev,
 		return 0;
 	}
 
-	// read the first byte two times
-	twice=3;
-	this_usbduxsub->ai_insn_running=1;
+	this_usbduxsub->insn_running=1;
 	for(i=0 ; i < insn->n ; i++) {
-		err=single_adc_conv(this_usbduxsub,&one,twice);
+		err=single_adc_conv(this_usbduxsub,&one);
 		twice=1;
 		if (err<0) {
 			printk("comedi%d: insn. error: %d\n",dev->minor,err);
-			this_usbduxsub->ai_insn_running=0;
+			this_usbduxsub->insn_running=0;
 			up(&this_usbduxsub->sem);
 			return 0;
 		}
@@ -1465,7 +1460,7 @@ static int usbdux_ai_insn_read(comedi_device * dev,
 		}
 		data[i]=one;
 	}
-	this_usbduxsub->ai_insn_running=0;
+	this_usbduxsub->insn_running=0;
 	up(&this_usbduxsub->sem);
 	return i;
 }
@@ -1531,7 +1526,7 @@ static int usbdux_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
 		return 0;
 	}
 	
-	this_usbduxsub->ao_insn_running=1;
+	this_usbduxsub->insn_running=1;
 	for(i=0;i<insn->n;i++){
 #ifdef CONFIG_COMEDI_DEBUG
 		printk("comedi%d: ao_insn_write: data[chan=%d,i=%d]=%d\n",dev->minor,chan,i,data[i]);
@@ -1541,7 +1536,7 @@ static int usbdux_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
 		this_usbduxsub->outBuffer[1] = data[i];
 		send_dux_commands(this_usbduxsub,SENDDACOMMANDS);
 	}
-	this_usbduxsub->ao_insn_running=0;
+	this_usbduxsub->insn_running=0;
 	up(&this_usbduxsub->sem);
 	
 	return i;
@@ -1754,8 +1749,8 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 	printk("comedi%d: usbdux_ao_cmd\n",dev->minor);
 #endif
 
-	if (this_usbduxsub->ao_insn_running) {
-		printk("comedi%d: ao_cmd: ERROR: synchronous ao_insn is running\n",
+	if (this_usbduxsub->insn_running) {
+		printk("comedi%d: ao_cmd: ERROR: synchronous insn is running\n",
 		       dev->minor
 		       );
 		up(&this_usbduxsub->sem);
@@ -2006,28 +2001,25 @@ static int usbdux_dio_insn_config (comedi_device *dev,
 static int single_dio_read(usbduxsub_t* this_usbduxsub,lsampl_t* value) {
 	int result=-EFAULT;
 	int nrec;
-	int i;
 	
-	for(i=0;i<3;i++) {
-		result = usb_bulk_msg(this_usbduxsub->usbdev,
-				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
-						      ADSINGLEEP),
-				      this_usbduxsub->insnBuffer,
-				      SIZEINSNBUF,
-				      &nrec,
-				      1*HZ);
-		if (result<0) {
-			printk("comedi%d: insn: USB error %d while DIO data.\n",
-			       this_usbduxsub->comedidev->minor,result);
-			return result;
-		}
-#ifdef CONFIG_COMEDI_DEBUG
-		printk("comedi%d: usbdux: dio_read: buffer[0]=%d\n",
-		       this_usbduxsub->comedidev->minor,
-		       this_usbduxsub->insnBuffer[0]);
-#endif
-		*value=(lsampl_t)(this_usbduxsub->insnBuffer[0]);
+	result = usb_bulk_msg(this_usbduxsub->usbdev,
+			      usb_rcvbulkpipe(this_usbduxsub->usbdev,
+					      ADSINGLEEP),
+			      this_usbduxsub->insnBuffer,
+			      SIZEINSNBUF,
+			      &nrec,
+			      1*HZ);
+	if (result<0) {
+		printk("comedi%d: insn: USB error %d while DIO data.\n",
+		       this_usbduxsub->comedidev->minor,result);
+		return result;
 	}
+#ifdef CONFIG_COMEDI_DEBUG
+	printk("comedi%d: usbdux: dio_read: buffer[0]=%d\n",
+	       this_usbduxsub->comedidev->minor,
+	       this_usbduxsub->insnBuffer[0]);
+#endif
+	*value=(lsampl_t)(this_usbduxsub->insnBuffer[0]);
 	return result;
 }
 
@@ -2052,7 +2044,7 @@ static int usbdux_dio_insn_bits (comedi_device *dev,
 
 	if (insn->n!=2) return -EINVAL;
 
-	if (this_usbduxsub->ai_insn_running) {
+	if (this_usbduxsub->insn_running) {
 		printk("comedi%d: dio not possible. Sync command is running.\n",dev->minor);
 		up(&this_usbduxsub->sem);
 		return -EBUSY;
@@ -2063,7 +2055,7 @@ static int usbdux_dio_insn_bits (comedi_device *dev,
 	s->state &= ~data[0];
 	s->state |= data[0]&data[1];
         
-	this_usbduxsub->dio_insn_running=1;
+	this_usbduxsub->insn_running=1;
 
 	/* Write out the new digital output lines */
 	// This command also tells the firmware to return
@@ -2074,11 +2066,121 @@ static int usbdux_dio_insn_bits (comedi_device *dev,
 	 * input/output lines. */
 	single_dio_read(this_usbduxsub,data+1);
 
-	this_usbduxsub->dio_insn_running=0;
+	this_usbduxsub->insn_running=0;
 	up(&this_usbduxsub->sem);
 	
 	return 2;
 }
+
+
+
+static int counter_read(usbduxsub_t* this_usbduxsub,int chan,lsampl_t* value) {
+	int result=-EFAULT;
+	int nrec;
+	
+	result = usb_bulk_msg(this_usbduxsub->usbdev,
+			      usb_rcvbulkpipe(this_usbduxsub->usbdev,
+					      ADSINGLEEP),
+			      this_usbduxsub->insnBuffer,
+			      SIZEINSNBUF,
+			      &nrec,
+			      1*HZ);
+	if (result<0) {
+		printk("comedi%d: insn: USB error %d while counter data rec.\n",
+		       this_usbduxsub->comedidev->minor,result);
+		return result;
+	}
+	*value=(lsampl_t)(((int16_t*)(this_usbduxsub->insnBuffer))[chan]);
+#ifdef CONFIG_COMEDI_DEBUG
+	printk("comedi%d: usbdux: counter #%d read: value=%d\n",
+	       this_usbduxsub->comedidev->minor,
+	       chan,
+	       *value);
+#endif
+	return result;
+}
+
+
+// reads the 4 counters
+// only two are used just now
+static int usbdux_counter_read(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data) {
+	usbduxsub_t* this_usbduxsub=dev->private;
+        int chan=insn->chanspec;
+
+	if (!this_usbduxsub) {
+		return -EFAULT;
+	}
+
+	down(&this_usbduxsub->sem);
+
+	if (!(this_usbduxsub->probed)) {
+		up(&this_usbduxsub->sem);
+		return -ENODEV;
+	}
+
+
+	if (this_usbduxsub->insn_running) {
+		printk("comedi%d: counter read: another sync command is running.\n",dev->minor);
+		up(&this_usbduxsub->sem);
+		return -EBUSY;
+	}	
+
+	this_usbduxsub->insn_running=1;
+
+	send_dux_commands(this_usbduxsub,
+			  READCOUNTERCOMMAND);
+
+	counter_read(this_usbduxsub,chan,data);
+
+	this_usbduxsub->insn_running=0;
+
+	up(&this_usbduxsub->sem);
+	
+        return 1;
+}
+
+
+static int usbdux_counter_write(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data) {
+	usbduxsub_t* this_usbduxsub=dev->private;
+
+	if (!this_usbduxsub) {
+		return -EFAULT;
+	}
+
+	down(&this_usbduxsub->sem);
+
+	if (!(this_usbduxsub->probed)) {
+		up(&this_usbduxsub->sem);
+		return -ENODEV;
+	}
+
+	if (this_usbduxsub->insn_running) {
+		printk("comedi%d: counter write: another sync command is running.\n",dev->minor);
+		up(&this_usbduxsub->sem);
+		return -EBUSY;
+	}
+
+	this_usbduxsub->insn_running=1;
+
+	this_usbduxsub->dux_commands[1]=insn->chanspec;
+	*((int16_t*)(this_usbduxsub->dux_commands+2))=*data;
+
+	send_dux_commands(this_usbduxsub,
+			  WRITECOUNTERCOMMAND);
+
+	this_usbduxsub->insn_running=0;
+
+	up(&this_usbduxsub->sem);
+	
+        return 1;
+}
+
+
+static int usbdux_counter_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) {
+	// nothing to do so far
+        return 2;
+}
+
 
 
 
@@ -2167,9 +2269,7 @@ static void tidy_up(usbduxsub_t* usbduxsub_tmp) {
 	}
 	usbduxsub_tmp->ai_cmd_running=0;
 	usbduxsub_tmp->ao_cmd_running=0;
-	usbduxsub_tmp->ai_insn_running=0;
-	usbduxsub_tmp->ao_insn_running=0;
-	usbduxsub_tmp->dio_insn_running=0;
+	usbduxsub_tmp->insn_running=0;
 }
 
 
@@ -2245,8 +2345,8 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	usbduxsub[index].high_speed=(usbduxsub[index].usbdev->speed==USB_SPEED_HIGH);
 
 
-	// create space for the commands of the AD converter
-	usbduxsub[index].adc_commands=kmalloc(NUMCHANNELS,
+	// create space for the commands of the AD converter: max num of ch plus actual number
+	usbduxsub[index].adc_commands=kmalloc(NUMCHANNELS+1,
 					      GFP_KERNEL);
 	if (!usbduxsub[index].adc_commands) {
 		printk("comedi_: usbdux: error alloc space for adc commands\n");
@@ -2360,13 +2460,6 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		usbduxsub[index].urbIn[i]->transfer_buffer_length = SIZEINBUF;
 		usbduxsub[index].urbIn[i]->iso_frame_desc[0].offset = 0;
 		usbduxsub[index].urbIn[i]->iso_frame_desc[0].length = SIZEINBUF;
-		if (usbduxsub[index].high_speed) {
-			// 8 microframes=1  frame
-			usbduxsub[index].urbIn[i]->interval=8;
-		} else {
-			// 1 frame=1 frame
-			usbduxsub[index].urbIn[i]->interval=1;
-		}
 	}
 
 
@@ -2593,6 +2686,16 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 	s->insn_config = usbdux_dio_insn_config;
 	// we don't use it
 	s->private=NULL;
+
+	//counter
+	s=dev->subdevices + SUBDEV_COUNTER;
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 4;
+	s->maxdata = 0xFFFF;
+	s->insn_read = usbdux_counter_read;
+	s->insn_write = usbdux_counter_write;
+	s->insn_config = usbdux_counter_config;
 
 	// finally decide that it's attached
 	usbduxsub[index].attached=1;
