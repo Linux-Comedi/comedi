@@ -60,7 +60,8 @@ int comedi_device_detach(comedi_device *dev)
 		return 0;
 
 	/* this is not correct for the kmod case */
-	__MOD_DEC_USE_COUNT(dev->driver->module);
+	if(dev->driver->module)
+		__MOD_DEC_USE_COUNT(dev->driver->module);
 
 	dev->attached=0;
 
@@ -122,7 +123,8 @@ attached:
 	dev->attached=1;
 	dev->driver=driv;
 
-	__MOD_INC_USE_COUNT(driv->module);
+	if(dev->driver->module)
+		__MOD_INC_USE_COUNT(driv->module);
 
 	return 0;
 }
