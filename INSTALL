@@ -110,7 +110,7 @@ directory.
 * Module Autoloading:
 
 If you like to autoload your modules, put the following lines
-into /etc/modules.conf:
+into /etc/modules.conf (this does not apply for PCMCIA cards):
 
   alias char-major-98 comedi
   alias char-major-98-0 your_driver
