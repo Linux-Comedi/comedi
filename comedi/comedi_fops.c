@@ -704,7 +704,7 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 			ret = -EIO;
 			goto out;
 		}
-	
+
 		/* are we locked? (ioctl lock) */
 		if(s->lock && s->lock!=file){
 			DPRINTK("device locked\n");
@@ -730,6 +730,7 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 				ret=s->insn_read(dev,s,insn,data);
 				break;
 			case INSN_WRITE:
+				//XXX check against subdevice's maxdata
 				ret=s->insn_write(dev,s,insn,data);
 				break;
 			case INSN_BITS:
