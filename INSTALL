@@ -14,7 +14,7 @@ the Debian distibution the config files for the kernel-image packages
 are installed into the /boot directory).  The following steps will
 (almost) set up your kernel sources correctly.  You will also need
 write permission to the kernel source directory the first time you
-run comedi's 'make config', so you might want to unpack the kernel
+run comedi's configure script, so you might want to unpack the kernel
 source into a directory you own.
 
 1) Get a copy of the kernel source that matches the kernel you are
