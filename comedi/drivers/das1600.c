@@ -325,12 +325,17 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	request_region(dev->iobase, DAS1600_BASE_SIZE, "das1600");
 	request_region(dev->iobase + 0x400, DAS1600_DIO_SIZE, "das1600");
 
-	if (board == card_1601_12) {
-		dev->board_name = "das1601/12";
-	} else if (board == card_1602_12) {
-		dev->board_name = "das1602/12";
-	} else if (board == card_1602_16) {
-		dev->board_name = "das1602/16";
+	switch(dev->board){
+		case card_1601_12:
+		default:
+			dev->board_name = "das1601/12";
+			break;
+		case card_1602_12:
+			dev->board_name = "das1601/12";
+			break;
+		case card_1602_16:
+			dev->board_name = "das1602/16";
+			break;
 	}
 
 	dev->n_subdevices=5;
