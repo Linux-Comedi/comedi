@@ -22,6 +22,7 @@
 ************************************************************************
 
 Yet another driver for obsolete hardware brought to you by Frank Hess.
+Testing and debugging help provided by Dave Andruczyk. 
 
 This driver supports the boards:
 
@@ -73,7 +74,9 @@ References (from ftp://ftp.natinst.com/support/manuals):
 #define   APD_BIT		0x800	// analog power down
 #define   DPD_BIT		0x1000	// digital power down
 #define TRIGGER_REG		0x2	// trigger config register
+#define   POST_TRIGGER_BITS		0x2
 #define   DELAY_TRIGGER_BITS		0x3
+#define   HW_TRIG_EN		0x10	// enable hardware trigger
 #define FIFO_START_REG		0x6	// software start aquistion trigger
 #define FIFO_RESET_REG		0x8	// clears fifo + fifo flags
 #define DMA_TC_CLEAR_REG		0xe	// clear dma terminal count interrupt
@@ -94,6 +97,7 @@ References (from ftp://ftp.natinst.com/support/manuals):
 #define   DMA_DEM_EN_BIT	0x1000	// enables demand mode dma
 #define I8253_BASE_REG		0x14
 #define I8253_MODE_REG		0x17
+#define   HW_COUNT_DISABLE		0x30	// disable hardware counting of conversions
 
 typedef struct a2150_board_struct{
 	char *name;
@@ -199,6 +203,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 	// initialize async here to make sure s is not NULL
 	async = s->async;
+	async->events = 0;
 	cmd = &async->cmd;
 
 	status = inw(dev->iobase + STATUS_REG);
@@ -222,7 +227,6 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_event(dev, s, async->events);
-		async->events = 0;
 		return;
 	}
 
@@ -269,7 +273,15 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		// convert from 2's complement to unsigned coding
 		dpnt += 0x8000;
 		comedi_buf_put(async, dpnt);
-		if(devpriv->count > 0) devpriv->count--;
+		if(cmd->stop_src == TRIG_COUNT)
+		{
+			if(--devpriv->count == 0)
+			{	/* end of acquisition */
+				a2150_cancel(dev, s);
+				async->events |= COMEDI_CB_EOA;
+				break;
+			}
+		}
 	}
 	// re-enable  dma
 	set_dma_addr(devpriv->dma, (unsigned int) devpriv->dma_buffer);
@@ -279,14 +291,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	if(devpriv->count == 0)
-	{	/* end of acquisition */
-		a2150_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA;
-	}
-
 	comedi_event(dev, s, async->events);
-	async->events = 0;
 
 	/* clear interrupt */
 	outb(0x00, dev->iobase + DMA_TC_CLEAR_REG);
@@ -407,6 +412,10 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 //	s->insn_read = a2150_ai_rinsn;	XXX
 	s->cancel = a2150_cancel;
 
+	/* need to do this for software counting of completed conversions, to
+	 * prevent hardware count from stopping aquisition */
+	outw(HW_COUNT_DISABLE, dev->iobase + I8253_MODE_REG);
+
 	// set card's irq and dma levels
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 	// initialize configuration register
@@ -464,7 +473,7 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW; // | TRIG_EXT;
+	cmd->start_src &= TRIG_NOW | TRIG_EXT;
 	if(!cmd->start_src || tmp != cmd->start_src) err++;
 
 	tmp = cmd->scan_begin_src;
@@ -480,7 +489,7 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;// | TRIG_NONE;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
 	if(!cmd->stop_src || tmp!=cmd->stop_src) err++;
 
 	if(err) return 1;
@@ -535,6 +544,19 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		}
 	}
 
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		tmp = cmd->scan_begin_arg;
+		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
+		if(tmp != cmd->scan_begin_arg) err++;
+	}
+
+	if(err)return 4;
+
 	// check channel/gain list against card's limitations
 	if(cmd->chanlist)
 	{
@@ -565,18 +587,7 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		}
 	}
 
-	if(err)return 3;
-
-	/* step 4: fix up any arguments */
-
-	if(cmd->scan_begin_src == TRIG_TIMER)
-	{
-		tmp = cmd->scan_begin_arg;
-		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-		if(tmp != cmd->scan_begin_arg) err++;
-	}
-
-	if(err)return 4;
+	if(err)return 5;
 
 	return 0;
 }
@@ -586,6 +597,8 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned long lock_flags;
+	unsigned int old_config_bits = devpriv->config_bits;
+	unsigned int trigger_bits;
 
 	if(!dev->irq || !devpriv->dma)
 	{
@@ -647,18 +660,39 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	devpriv->irq_dma_bits |= DMA_INTR_EN_BIT | DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
-	// manual says you need to do this for software counting of completed conversions
-	outw(0x30, dev->iobase + I8253_MODE_REG);
-
-	// need to wait 72 sampling periods after changing timing
+	// may need to wait 72 sampling periods if timing was changed
 	i8254_load(dev->iobase + I8253_BASE_REG, 2, 72, 0);
-	// set trigger source to delay trigger
-	outw(DELAY_TRIGGER_BITS, dev->iobase + TRIGGER_REG);
 
-	async->events = 0;
+	// setup start triggering
+	trigger_bits = 0;
+	// decide if we need to wait 72 periods for valid data
+	if(cmd->start_src == TRIG_NOW &&
+		(old_config_bits & CLOCK_MASK) != (devpriv->config_bits & CLOCK_MASK))
+	{
+		// set trigger source to delay trigger
+		trigger_bits |= DELAY_TRIGGER_BITS;
+	}else
+	{
+		// otherwise no delay
+		trigger_bits |= POST_TRIGGER_BITS;
+	}
+	// enable external hardware trigger
+	if(cmd->start_src == TRIG_EXT)
+	{
+		trigger_bits |= HW_TRIG_EN;
+	}else if(cmd->start_src == TRIG_OTHER)
+	{
+		// XXX add support for level/slope start trigger using TRIG_OTHER
+		comedi_error(dev, "you shouldn't see this?");
+	}
+	// send trigger config bits
+	outw(trigger_bits, dev->iobase + TRIGGER_REG);
 
-	// start aquisition
-	outw(0, dev->iobase + FIFO_START_REG);
+	// start aquisition for soft trigger
+	if(cmd->start_src == TRIG_NOW)
+	{
+		outw(0, dev->iobase + FIFO_START_REG);
+	}
 
 #ifdef A2150_DEBUG
 	ni_dump_regs(dev);
