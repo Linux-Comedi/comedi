@@ -1,7 +1,7 @@
 #!/bin/sh
 
 
-topdir=${PWD}
+topdir=$(pwd)
 
 interactive=y
 menu=n

@@ -2,7 +2,7 @@
 #LINUXDIR=/home/ds/linux/linux-2.4.16-rthal5
 
 all:
-	$(MAKE) -C $(LINUXDIR) SUBDIRS=$(PWD) modules
+	$(MAKE) -C $(LINUXDIR) SUBDIRS=$(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi) modules
 
 modules:
 	echo LINUXDIR=$(LINUXDIR) >flags
