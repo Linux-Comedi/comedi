@@ -53,6 +53,7 @@
 #include <linux/comedidev.h>
 
 #include <linux/pci.h>
+#include <linux/wrapper.h>
 
 #include "mite.h"
 
