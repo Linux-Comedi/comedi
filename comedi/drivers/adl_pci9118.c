@@ -324,7 +324,8 @@ static void move_block_from_dma_12bit(comedi_device *dev,comedi_subdevice *s,sam
 		if ((*dma & 0x0f00)!=devpriv->chanlist[j]) { // data dropout!
 	    		rt_printk("comedi: A/D  DMA - data dropout: received channel %d, expected %d!\n",(*dma & 0x0f00)>>8,devpriv->chanlist[j]>>8);
 	    		pci9118_ai_cancel(dev,s);
-			comedi_error_done(dev,s);
+			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			comedi_event(dev,s,s->async->events);
 			return;
 		}
 #endif
@@ -338,7 +339,7 @@ static void move_block_from_dma_12bit(comedi_device *dev,comedi_subdevice *s,sam
 				m=0;
 			        devpriv->ai1234_act_scan++;
 				if (devpriv->ai1234_flags & TRIG_WAKE_EOS) 
-					comedi_eos(dev,s);  
+					s->async->events |= COMEDI_CB_EOS;
 			}
 		}
 	}
@@ -365,8 +366,7 @@ static void move_block_from_dma_16bit(comedi_device *dev,comedi_subdevice *s,sam
 			if(m>=devpriv->ai1234_n_scanlen) {
 				m=0;
 			        devpriv->ai1234_act_scan++;
-				if (devpriv->ai1234_flags & TRIG_WAKE_EOS) 
-					comedi_eos(dev,s);  
+				s->async->events |= COMEDI_CB_EOS;
 			}
 		}
 	}
@@ -396,7 +396,8 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 	if (samplesinbuf & 1) {
 		comedi_error(dev,"Odd count of bytes in DMA ring!");
 	        pci9118_ai_cancel(dev,s);
-		comedi_error_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev,s,s->async->events);
 		return;
 	}
 
@@ -412,7 +413,8 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 			comedi_error(dev,"A/D Overrun Status (Fatal Error!)");
 		if (m & 0x10a) {
 		        pci9118_ai_cancel(dev,s);
-			comedi_error_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			comedi_event(dev,s,s->async->events);
 			return;
 		}
 	}
@@ -436,7 +438,7 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 		samplesinbuf-=m;
 		s->async->buf_int_ptr=0;
 
-		comedi_eobuf(dev,s);
+		s->async->events |= COMEDI_CB_EOBUF;
 	}
 	
 	if (samplesinbuf) {
@@ -445,14 +447,15 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 		s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
 		s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
 		if (!(devpriv->ai1234_flags & TRIG_WAKE_EOS)) {
-			comedi_bufcheck(dev,s);
+			s->async->events |= COMEDI_CB_EOS;
 		}
 	}
 
 	if (!devpriv->neverending_ai)
     		if ( devpriv->ai1234_act_scan>=devpriv->ai1234_scans ) { /* all data sampled */
 		        pci9118_ai_cancel(dev,s);
-			comedi_done(dev,s); 
+			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev,s,s->async->events);
 			return;
 		}
 	
@@ -463,6 +466,8 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 		outl(devpriv->dmabuf_hw[0], devpriv->iobase_a+AMCC_OP_REG_MWAR);
 		outl(devpriv->dmabuf_use_size[0], devpriv->iobase_a+AMCC_OP_REG_MWTC);
 	}
+
+	comedi_event(dev,s,s->async->events);
 }
 
 /* 

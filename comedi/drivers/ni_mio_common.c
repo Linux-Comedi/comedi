@@ -350,7 +350,7 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 	
 	comedi_subdevice *s=dev->subdevices+0;
 	
-	comedi_event(dev,s,COMEDI_CB_BLOCK);
+	s->async->events |= COMEDI_CB_BLOCK;
 
 	MDPRINTK("mite_handle_interrupt\n");
 	writel(CHOR_CLRLC, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
@@ -421,7 +421,10 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 			rt_printk("ni_mio_common: a_status=0xffff.  Card removed?\n");
 			/* we probably aren't even running a command now,
 			 * so it's a good idea to be careful. */
-			if(s->subdev_flags&SDF_RUNNING)comedi_done(dev,s);
+			if(s->subdev_flags&SDF_RUNNING){
+				s->async->events |= COMEDI_CB_EOA;
+				comedi_event(dev,s,s->async->events);
+			}
 			return;
 		}
 		if(status&(AI_Overrun_St|AI_Overflow_St|AI_SC_TC_Error_St)){
@@ -443,7 +446,8 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 				AI_FIFO_Interrupt_Enable,0);
 				
 			ni_ai_reset(dev,dev->subdevices);//added by tim
-			comedi_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev,s,s->async->events);
 			return;
 		}
 		if(status&AI_SC_TC_St){
@@ -461,7 +465,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 					AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
 					AI_FIFO_Interrupt_Enable,0);
 
-				comedi_done(dev,s);
+				s->async->events |= COMEDI_CB_EOA;
 			}
 #endif // !PCIDMA
 			ack|=AI_SC_TC_Interrupt_Ack;
@@ -520,6 +524,8 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
 		win_out(0,Interrupt_B_Enable_Register);
 	}
+
+	comedi_event(dev,s,s->async->events);
 }
 
 #ifdef DEBUG_STATUS_A
@@ -688,6 +694,8 @@ static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start,
 
 static void ni_handle_block_dma(comedi_device *dev)
 {
+	comedi_subdevice *s = dev->subdevices + 0;
+
 	MDPRINTK("ni_handle_block_dma\n");
 	//mite_dump_regs(devpriv->mite);  
 	mite_dma_disarm(devpriv->mite);
@@ -699,7 +707,7 @@ static void ni_handle_block_dma(comedi_device *dev)
 		AI_FIFO_Interrupt_Enable,0);
 
 	ni_ai_reset(dev,dev->subdevices);
-	comedi_done(dev,dev->subdevices);
+	s->async->events |= COMEDI_CB_EOA;
 	MDPRINTK("exit ni_handle_block_dma\n");
 }
 
@@ -1597,7 +1605,7 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 	}
 	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
 
-	comedi_bufcheck(dev,s);
+	s->async->events |= COMEDI_CB_BLOCK;
 
 	return 1;
 }

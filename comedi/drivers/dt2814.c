@@ -342,6 +342,7 @@ static void dt2814_interrupt(int irq,void *d,struct pt_regs * regs)
 {
         int lo,hi;
         comedi_device *dev=d;
+	comedi_subdevice *s = dev->subdevices + 0;
 	int data;
 
         hi=inb(dev->iobase+DT2814_DATA);
@@ -366,7 +367,8 @@ static void dt2814_interrupt(int irq,void *d,struct pt_regs * regs)
 		inb(dev->iobase+DT2814_DATA);
 		restore_flags(flags);
 	
-		comedi_done(dev,dev->subdevices);
+		s->async->events |= COMEDI_CB_EOA;
 	}
+	comedi_event(dev,s,s->async->events);
 }
 

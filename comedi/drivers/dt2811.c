@@ -278,8 +278,9 @@ static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if (!(--devpriv->ntrig)) {
 		/* how to turn off acquisition */
-		comedi_done(dev, dev->subdevices + 0);
+		s->async->events |= COMEDI_SB_EOA;
 	}
+	comedi_event(dev, s, s->async->events);
 }
 #endif
 

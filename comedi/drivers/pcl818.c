@@ -500,7 +500,8 @@ static void interrupt_pcl818_ai_mode13_int(int irq, void *d, struct pt_regs *reg
         outb(0,dev->iobase+PCL818_STATUS); /* clear INT request */
         comedi_error(dev,"A/D mode1/3 IRQ without DRDY!");
 	pcl818_ai_cancel(dev,s);
-        comedi_error_done(dev,s);
+	s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+	comedi_event(dev, s, s->async->events);
 	return;
 
 conv_finish:
@@ -512,7 +513,8 @@ conv_finish:
         if ((low & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 		rt_printk("comedi: A/D mode1/3 IRQ - channel dropout %x!=%x !\n",(low & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		pcl818_ai_cancel(dev,s);
-		comedi_error_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s, s->async->events);
 		return;
         }
         s->async->buf_int_ptr+=sizeof(sampl_t);
@@ -521,15 +523,7 @@ conv_finish:
 	s->async->cur_chan++;
         if (s->async->cur_chan>=s->async->cmd.chanlist_len){
 		s->async->cur_chan=0;
-#if 0
-		if (devpriv->cur_flags & TRIG_WAKE_EOS){
-			comedi_eos(dev,s);
-		} else {
-			comedi_bufcheck(dev,s);
-		}
-#else
-		comedi_bufcheck(dev,s);
-#endif
+		s->async->events |= COMEDI_CB_BLOCK;
 		// rt_printk("E");
 		devpriv->int13_act_scan--;
         }
@@ -538,15 +532,17 @@ conv_finish:
 		s->async->buf_int_ptr=0;
 		devpriv->buf_ptr=0;
 		//printk("B ");
-		comedi_eobuf(dev,s);
+		s->async->events |= COMEDI_CB_EOBUF;
         }
 
-	if (!devpriv->neverending_ai)
+	if (!devpriv->neverending_ai){
 		if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 			pcl818_ai_cancel(dev,s);
-	        	comedi_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA;
 			return;
 		}
+	}
+	comedi_event(dev, s, s->async->events);
 }
 
 /*
@@ -584,7 +580,8 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 		if ((ptr[bufptr] & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 		        rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d!=%d !\n",(ptr[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		        pcl818_ai_cancel(dev,s);
-			comedi_error_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			comedi_event(dev, s, s->async->events);
 			return;
 		}
 
@@ -604,19 +601,20 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 	    		s->async->buf_int_ptr=0;
 			devpriv->buf_ptr=0;
-			comedi_eobuf(dev,s);
+			s->async->events |= COMEDI_CB_EOBUF;
 		}
 
 		if (!devpriv->neverending_ai)
 	    		if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 				pcl818_ai_cancel(dev,s);
-				comedi_done(dev,s);
+				s->async->events |= COMEDI_CB_EOA;
+				comedi_event(dev, s, s->async->events);
 				// printk("done int ai13 dma\n");
 				return;
 			}
 	}
 
-	if (len>0)  comedi_bufcheck(dev,s);
+	if (len>0) comedi_event(dev, s, s->async->events);
 }
 
 /*
@@ -659,7 +657,8 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			comedi_error(dev,"A/D mode1/3 DMA buffer overflow!");
 			//rt_printk("I %d dmabuf[i] %d %d\n",i,dmabuf[i],devpriv->dmasamplsize);
 			pcl818_ai_cancel(dev,s);
-			comedi_error_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			comedi_event(dev, s, s->async->events);
 			return;
 		}
 		//rt_printk("r %ld ",ofs_dats);
@@ -670,7 +669,8 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			if ((dmabuf[bufptr] & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 				rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d!=%d !\n",(dmabuf[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 				pcl818_ai_cancel(dev,s);
-				comedi_error_done(dev,s);
+				s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+				comedi_event(dev, s, s->async->events);
 				return;
 			}
 
@@ -691,13 +691,14 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 				s->async->buf_int_ptr=0;
 				devpriv->buf_ptr=0;
-				comedi_eobuf(dev,s);
+				s->async->events |= COMEDI_CB_EOBUF;
 			}
 
 			if (!devpriv->neverending_ai)
 				if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 					pcl818_ai_cancel(dev,s);
-					comedi_done(dev,s);
+					s->async->events |= COMEDI_CB_EOA;
+					comedi_event(dev, s, s->async->events);
 					//printk("done int ai13 dma\n");
 					return;
 				}
@@ -707,13 +708,12 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 		bufptr--;
 		bufptr&=(devpriv->dmasamplsize-1);
 		dmabuf[bufptr]=MAGIC_DMA_WORD;
-		comedi_bufcheck(dev,s);
+		comedi_event(dev, s, s->async->events);
 		//outb(0,0x378);
 		return;
 	}
 
 	//outb(0,0x378);
-
 }
 
 /*
@@ -733,14 +733,16 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
         if (lo&4) {
 		comedi_error(dev,"A/D mode1/3 FIFO overflow!");
 		pcl818_ai_cancel(dev,s);
-		comedi_error_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s, s->async->events);
 		return;
         }
 
         if (lo&1) {
 		comedi_error(dev,"A/D mode1/3 FIFO interrupt without data!");
 		pcl818_ai_cancel(dev,s);
-		comedi_error_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s, s->async->events);
 		return;
 	}
 
@@ -752,7 +754,8 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 		if ((lo & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 			rt_printk("comedi: A/D mode1/3 FIFO - channel dropout %d!=%d !\n",(lo & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 			pcl818_ai_cancel(dev,s);
-			comedi_error_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			comedi_event(dev, s, s->async->events);
 			return;
 		}
 
@@ -771,19 +774,19 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 			s->async->buf_int_ptr=0;
 			devpriv->buf_ptr=0;
-    			comedi_eobuf(dev,s);
+			s->async->events |= COMEDI_CB_EOBUF;
 		}
 
 		if (!devpriv->neverending_ai)
 			if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
-				comedi_bufcheck(dev,s);
 				pcl818_ai_cancel(dev,s);
-				comedi_done(dev,s);
+				s->async->events |= COMEDI_CB_EOA;
+				comedi_event(dev, s, s->async->events);
 				return;
 			}
 	}
 
-	if (len>0)  comedi_bufcheck(dev,s);
+	if (len>0) comedi_event(dev, s, s->async->events);
 }
 
 /*

@@ -1025,7 +1025,6 @@ static void rtd_interrupt (
 	/* Check for any ready data */
 	if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) { /* read 1/2 fifo worth */
 	    ai_read_half_fifo (dev, s);
-	    /*comedi_bufcheck (dev, s);	*/
 	    s->async->events |= COMEDI_CB_BLOCK; /* signal something there */
 	} else {
 	    /* for slow transfers, we should read whatever is there */
@@ -1035,7 +1034,6 @@ static void rtd_interrupt (
 	if (0 == devpriv->aiCount) { /* done! stop! */
 	    RtdInterruptMask (dev, 0);		/* mask out ABOUT and SAMPLE */
 	    RtdPacerStop (dev);			/* Stop PACER */
-	    /*comedi_done (dev, s);*/
 	    s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
 	} else if (status & IRQM_ADC_ABOUT_CNT) { /* about cnt terminated */
 	    if (devpriv->aboutWrap) { /* multi-count wraps */
@@ -1049,17 +1047,13 @@ static void rtd_interrupt (
 		RtdPacerStop (dev);	/* Stop PACER */
 		ai_read_dregs (dev, s);	/* ready anything in FIFO */
 
-		/*comedi_done (dev, s);*/
 		s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
 	    }
 	}
 
 	/* check for fifo over-run */
 	
-	if (s->async->events != 0) {	/* signal any events */
-	    comedi_event (dev, s, s->async->events);
-	    s->async->events = 0;
-	}
+	comedi_event (dev, s, s->async->events);
     }
 
 					/* clear the interrupt */
@@ -1436,7 +1430,6 @@ static int rtd_ai_cmd (
 	    = d + 2048;			/* convert to comedi unsigned data */
 	s->async->buf_int_count += sizeof(sampl_t);
 	s->async->buf_int_ptr += sizeof(sampl_t);
-	comedi_done (dev, s);
     } else {
 	/* interrupt setup */
 	if (! dev->irq) {

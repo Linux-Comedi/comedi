@@ -276,10 +276,10 @@ static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
 	s->async->buf_int_count+=sizeof(sampl_t);
 	if(s->async->buf_int_ptr>=s->async->data_len){
 		s->async->buf_int_ptr=0;
-		comedi_eobuf(dev,s);
+		s->async->events |= COMEDI_CB_EOBUF;
 	}
 	
-	comedi_bufcheck(dev,s);
+	comedi_event(dev,s,s->async->events);
 }
 
 static int parport_attach(comedi_device *dev,comedi_devconfig *it)

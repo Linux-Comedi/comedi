@@ -177,12 +177,13 @@ static void intr_handler(int irq,void *d,struct pt_regs *regs)
 #ifdef DEBUG
 		printk("das6402: Got %i samples\n\n",devpriv->das6402_wordsread-diff);
 #endif
-		comedi_done(dev,dev->subdevices+0);
+		s->async->events |= COMEDI_CB_EOA;
+		comedi_event(dev,s,s->async->events);
 	}
 
 	outb(0x01,dev->iobase+8);   /* clear only the interrupt flip-flop */
 
-	return;
+	comedi_event(dev,s,s->async->events);
 }
 
 #if 0
@@ -216,7 +217,7 @@ static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s)
 			s->async->buf_int_count+=sizeof(sampl_t);
 		}
 		s->async->buf_int_ptr=0;
-		comedi_eobuf(dev,s);
+		s->async->events |= COMEDI_CB_EOBUF;
 	}
 #if 0
 	if (n>1024) {

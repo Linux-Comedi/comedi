@@ -277,13 +277,14 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if((++s->async->cur_chan) >= s->async->cmd.chanlist_len) {	/* one scan done */
 		s->async->cur_chan = 0;
-		comedi_eos(dev, s);
+		s->async->events |= COMEDI_CB_EOS;
 	}
 
 	if (s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
 		s->async->buf_int_ptr = 0;
-		comedi_eobuf(dev, s);
+		s->async->events |= COMEDI_CB_EOBUF;
 	}
+	comedi_event(dev, s, s->async->events);
 }
 
 static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)

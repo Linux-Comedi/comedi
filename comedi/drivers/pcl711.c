@@ -209,8 +209,9 @@ static void pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
 			outb(0, dev->iobase + PCL711_MODE);
 		}
 
-		comedi_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA;
 	}
+	comedi_event(dev, s, s->async->events);
 }
 
 static void pcl711_set_changain(comedi_device * dev, int chan)

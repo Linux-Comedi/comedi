@@ -481,14 +481,16 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 	if(!size){
 		printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev,s);
-		comedi_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev,s,s->async->events);
 		return;
 	}
 	prep_ao_dma(dev,i,size/2);
 
 	enable_dma(devpriv->dma[i].chan);
 
-	comedi_bufcheck(dev,s);
+	s->async->events |= COMEDI_CB_BLOCK;
+	comedi_event(dev,s,s->async->events);
 	return;
 }
 
@@ -529,11 +531,12 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 		devpriv->supcsr = 0;
 		update_supcsr(DT2821_ADCINIT);
 
-		comedi_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA;
+		comedi_event(dev,s,s->async->events);
 
 		return;
 	}else{
-		comedi_bufcheck(dev,s);
+		s->async->events |= COMEDI_CB_BLOCK;
 	}
 
 #if 1
@@ -549,7 +552,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 
 	enable_dma(devpriv->dma[i].chan);
 
-	return;
+	comedi_event(dev,s,s->async->events);
 }
 
 static int prep_ai_dma(comedi_device * dev,int chan,int n)
@@ -610,7 +613,8 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	if (adcsr & DT2821_ADERR) {
 		comedi_error(dev, "A/D error");
 		dt282x_ai_cancel(dev,s);
-		comedi_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev,s,s->async->events);	
 		return;
 	}
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
@@ -632,7 +636,8 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 #endif
 		comedi_error(dev, "D/A error");
 		dt282x_ao_cancel(dev,s);
-		comedi_done(dev,s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev,s,s->async->events);	
 		return;
 	}
 	if (adcsr & DT2821_ADDONE) {
@@ -646,17 +651,18 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		s->async->buf_int_count+=sizeof(sampl_t);
 		if(s->async->buf_int_ptr>=s->async->data_len){
 			s->async->buf_int_ptr = 0;
-			//s->events |= COMEDI_EOBUF;
+			s->async->events |= COMEDI_CB_EOBUF;
 		}
 
 		devpriv->nread--;
 		if(!devpriv->nread){
-			comedi_done(dev,s);
+			s->async->events |= COMEDI_CB_EOA;
 		}else{
 			if(supcsr&DT2821_SCDN)
 				update_supcsr(DT2821_STRIG);
 		}
 
+		comedi_event(dev,s,s->async->events);	
 		return;
 	}
 }
