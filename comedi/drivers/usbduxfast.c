@@ -114,6 +114,11 @@ Status: testing
 // minimal time in nanoseconds between two samples
 #define MIN_SAMPLING_PERIOD 9 // steps at 30MHz in the FX2
 
+// number of received packets to ignore before we start handing data over to comedi
+// 4 packets because of quad buffering and 1 for the host controller side
+#define PACKETS_TO_IGNORE 5
+
+
 /////////////////////////////////////////////
 // comedi constants
 static comedi_lrange range_usbduxfast_ai_range = { 2, {
@@ -161,7 +166,8 @@ typedef struct {
 	unsigned int ai_counter;
 	// commands
 	uint8_t *dux_commands;
-	short int ai_insn_running;
+	// counter which ignores the first buffers
+	int ignore;
 	struct semaphore sem;
 } usbduxfastsub_t;
 
@@ -403,39 +409,43 @@ static void usbduxfastsub_ai_IsocIrq(struct urb *urb, struct pt_regs *regs)
 	}
 
 
-	// get the data from the USB bus and hand it over
-	// to comedi
-	p=urb->transfer_buffer;
-	if (!(this_usbduxfastsub->ai_continous)) {
-		// not continous, fixed number of samples
-		n=urb->iso_frame_desc[0].actual_length/sizeof(uint16_t);
-		if (unlikely(this_usbduxfastsub->ai_sample_count<n)) {
-			// we have send only a fraction of the bytes received
-			cfc_write_array_to_buffer(s,
-						  urb->transfer_buffer,
-						  this_usbduxfastsub->ai_sample_count*sizeof(uint16_t));
-			usbduxfast_ai_stop(this_usbduxfastsub,
-					   0);
-			// say comedi that the acquistion is over
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(this_usbduxfastsub->comedidev, 
-				     s, 
-				     s->async->events);
-			return;
+	if (!this_usbduxfastsub->ignore) {
+		// get the data from the USB bus and hand it over
+		// to comedi
+		p=urb->transfer_buffer;
+		if (!(this_usbduxfastsub->ai_continous)) {
+			// not continous, fixed number of samples
+			n=urb->iso_frame_desc[0].actual_length/sizeof(uint16_t);
+			if (unlikely(this_usbduxfastsub->ai_sample_count<n)) {
+				// we have send only a fraction of the bytes received
+				cfc_write_array_to_buffer(s,
+							  urb->transfer_buffer,
+							  this_usbduxfastsub->ai_sample_count*sizeof(uint16_t));
+				usbduxfast_ai_stop(this_usbduxfastsub,
+						   0);
+				// say comedi that the acquistion is over
+				s->async->events |= COMEDI_CB_EOA;
+				comedi_event(this_usbduxfastsub->comedidev, 
+					     s, 
+					     s->async->events);
+				return;
+			}
+			this_usbduxfastsub->ai_sample_count-=n;
 		}
-		this_usbduxfastsub->ai_sample_count-=n;
-	}
 	
-	// write the full buffer to comedi
-	cfc_write_array_to_buffer(s,
-				  urb->transfer_buffer,
-				  urb->iso_frame_desc[0].actual_length);
-
-	// tell comedi that data is there
-	comedi_event(this_usbduxfastsub->comedidev, 
-		     s,
-		     s->async->events);
-
+		// write the full buffer to comedi
+		cfc_write_array_to_buffer(s,
+					  urb->transfer_buffer,
+					  urb->iso_frame_desc[0].actual_length);
+		
+		// tell comedi that data is there
+		comedi_event(this_usbduxfastsub->comedidev, 
+			     s,
+			     s->async->events);
+	} else {
+		this_usbduxfastsub->ignore--;
+	}
+		
 	// command is still running
 	// resubmit urb for ISO transfer
 	urb->dev = this_usbduxfastsub->usbdev;
@@ -855,12 +865,6 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		up(&this_usbduxfastsub->sem);
 		return -ENODEV;
 	}
-	if (this_usbduxfastsub->ai_insn_running) {
-		printk("comedi%d: ai_cmd not possible. Sync command is running.\n",
-		       dev->minor);
-		up(&this_usbduxfastsub->sem);
-		return -EBUSY;
-	}	
 	if (this_usbduxfastsub->ai_cmd_running) {
 		printk("comedi%d: ai_cmd not possible. Another ai_cmd is running.\n",
 		       dev->minor);
@@ -870,6 +874,9 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	// set current channel of the running aquisition to zero
 	s->async->cur_chan = 0;
+
+	// ignore the first 5 buffers from the device
+	this_usbduxfastsub->ignore=PACKETS_TO_IGNORE;
 
 	if (cmd->chanlist_len>0) {
 		gain = CR_RANGE(cmd->chanlist[0]);
@@ -1346,7 +1353,6 @@ static void tidy_up(usbduxfastsub_t* usbduxfastsub_tmp) {
 		usbduxfastsub_tmp->dux_commands=NULL;
 	}
 	usbduxfastsub_tmp->ai_cmd_running=0;
-	usbduxfastsub_tmp->ai_insn_running=0;
 }
 
 
