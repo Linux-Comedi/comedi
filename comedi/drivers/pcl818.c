@@ -297,6 +297,7 @@ typedef struct {
 	unsigned char 	usefifo;	// 1=use fifo
 	struct timer_list rtc_irq_timer;// timer for RTC sanity check
 	unsigned long 	rtc_freq;	// RTC int freq
+	lsampl_t	ao_readback[2];
 } pcl818_private;
 
 
@@ -320,31 +321,47 @@ int rtc_setfreq_irq(int freq);
 ==============================================================================
    ANALOG INPUT MODE0, 818 cards, slow version
 */
-static int pcl818_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+static int pcl818_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
+	int n;
         int timeout; 
 
-        outb(0, dev->iobase+PCL818_CONTROL); /* software trigger, DMA and INT off */
-        outb(0, dev->iobase+PCL818_CLRINT); /* clear INT (conversion end) flag */
-        outb(muxonechan[CR_CHAN(it->chanlist[0])], dev->iobase+PCL818_MUX); /* select channel */
-        outb(CR_RANGE(it->chanlist[0]), dev->iobase+PCL818_RANGE); /* select gain */
-        udelay(5);
-	outb(0, dev->iobase+PCL818_AD_LO); /* start conversion */
-        timeout=100;
-        while (timeout--) {
-		if (inb(dev->iobase + PCL818_STATUS) & 0x10) goto conv_finish;
-		udelay(1);
-        }
-        comedi_error(dev,"A/D mode0 timeout");
-        it->data[0]=0;
-        outb(0, dev->iobase+PCL818_CLRINT); /* clear INT (conversion end) flag */
-        return -ETIME;
+	for(n=0;n<insn->n;n++){
+		/* software trigger, DMA and INT off */
+        	outb(0, dev->iobase+PCL818_CONTROL);
+
+		/* clear INT (conversion end) flag */
+        	outb(0, dev->iobase+PCL818_CLRINT);
+
+		/* select channel */
+        	outb(muxonechan[CR_CHAN(insn->chanspec)],
+			dev->iobase+PCL818_MUX);
+
+		/* select gain */
+        	outb(CR_RANGE(insn->chanspec),
+			dev->iobase+PCL818_RANGE);
+
+        	udelay(5);
+		/* start conversion */
+		outb(0, dev->iobase+PCL818_AD_LO);
+
+        	timeout=100;
+        	while (timeout--) {
+			if (inb(dev->iobase + PCL818_STATUS) & 0x10)
+				goto conv_finish;
+        	}
+        	comedi_error(dev,"A/D insn timeout");
+		/* clear INT (conversion end) flag */
+        	outb(0, dev->iobase+PCL818_CLRINT);
+        	return -EIO;
 
 conv_finish:
-        it->data[0] = ((inb(dev->iobase + PCL818_AD_HI) << 4) | (inb(dev->iobase + PCL818_AD_LO) >> 4));
-  
-        outb(0, dev->iobase+PCL818_STATUS); /* clear INT (conversion end) flag */
-        return 1;
+	        data[n] = ((inb(dev->iobase + PCL818_AD_HI) << 4) |
+			(inb(dev->iobase + PCL818_AD_LO) >> 4));
+	}
+
+	return n;
 }
 
 /* 
@@ -352,24 +369,34 @@ conv_finish:
    ANALOG OUTPUT MODE0, 818 cards
    only one sample per call is supported
 */
-static int pcl818_ao_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+static int pcl818_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-        int chan,i;
-        sampl_t data;
- 
-	for (i=0;i<it->n_chan;i++){
-    		data=it->data[i];
-		chan=CR_CHAN(it->chanlist[i]);
-		if (!chan) {
-			outb((data & 0x000f) << 4, dev->iobase+PCL818_DA_LO);
-			outb((data & 0x0ff0) >> 4, dev->iobase+PCL818_DA_HI);
-		} else {
-			outb((data & 0x000f) << 4, dev->iobase+PCL718_DA2_LO);
-			outb((data & 0x0ff0) >> 4, dev->iobase+PCL718_DA2_HI);
-		} 
-        }    
+	int n;
+	int chan = CR_CHAN(insn->chanspec);
 
-        return 0;
+	for(n=0;n<insn->n;n++){
+		data[n] = devpriv->ao_readback[chan];
+	}
+
+	return n;
+}
+
+static int pcl818_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int n;
+	int chan = CR_CHAN(insn->chanspec);
+
+	for(n=0;n<insn->n;n++){
+		devpriv->ao_readback[chan] = data[n];
+		outb((data[n] & 0x000f) << 4, dev->iobase+
+			(chan)?PCL718_DA2_LO:PCL818_DA_LO);
+		outb((data[n] & 0x0ff0) >> 4, dev->iobase+
+			(chan)?PCL718_DA2_HI:PCL818_DA_HI);
+	}
+
+	return n;
 }
 
 /* 
@@ -378,21 +405,15 @@ static int pcl818_ao_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
    
    only one sample per call is supported
 */
-static int pcl818_di_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{ 
-        int data;
-        int chan;
-        int i;
+static int pcl818_di_insn_bits(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
 
-	data = inb(dev->iobase + PCL818_DI_LO) |
+	data[1] = inb(dev->iobase + PCL818_DI_LO) |
 	        (inb(dev->iobase + PCL818_DI_HI) << 8);
 
-        for(i=0;i<it->n_chan;i++) {
-		chan=CR_CHAN(it->chanlist[i]);
-		it->data[i]=(data>>chan)&1;
-        }
-
-	return it->n_chan;
+	return 2;
 }
 
 /* 
@@ -401,25 +422,18 @@ static int pcl818_di_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
    
    only one sample per call is supported
 */
-static int pcl818_do_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+static int pcl818_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-        int mask, data;
-        int chan;
-        int i;
+	if(insn->n!=2)return -EINVAL;
 
-	data=s->state;
-        for(i=0;i<it->n_chan;i++) {
-		chan=CR_CHAN(it->chanlist[i]);
-		mask=(1<<chan);
-		data &= ~mask;
-		if(it->data[i])
-	        data |= mask;
-        }
-	outb(data & 0xff, dev->iobase + PCL818_DO_LO);
-        outb((data >> 8), dev->iobase + PCL818_DO_HI);
-        s->state = data;
+	s->state &= ~data[0];
+	s->state |= (data[0]&data[1]);
 
-	return it->n_chan;
+	outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
+        outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
+
+	return 2;
 }
 
 /* 
@@ -1481,17 +1495,17 @@ no_dma:
 		if (check_single_ended(dev->iobase)) {
 			s->n_chan = this_board->n_aichan_se;
 			s->subdev_flags|=SDF_COMMON|SDF_GROUND;
-			rt_printk(", %dchans S.E. DAC",s->n_chan);
+			printk(", %dchans S.E. DAC",s->n_chan);
 		} else {
 			s->n_chan = this_board->n_aichan_diff;
 			s->subdev_flags|=SDF_DIFF;
-			rt_printk(", %dchans DIFF DAC",s->n_chan);
+			printk(", %dchans DIFF DAC",s->n_chan);
 		}
 		s->maxdata = this_board->ai_maxdata;
 		s->len_chanlist = this_board->ai_chanlist;
 		s->range_table = this_board->ai_range_type;
 		s->cancel=pcl818_ai_cancel;
-		s->trig[0] = pcl818_ai_mode0;
+		s->insn_read = pcl818_ai_insn_read;
 		if ((irq)||(devpriv->dma_rtc)) {
 			s->trig[1] = pcl818_ai_mode1;
 			s->trig[3] = pcl818_ai_mode3;
@@ -1525,7 +1539,8 @@ no_dma:
 		s->maxdata = this_board->ao_maxdata;
 		s->len_chanlist = this_board->ao_chanlist;
 		s->range_table = this_board->ao_range_type;
-		s->trig[0] = pcl818_ao_mode0;
+		s->insn_read = pcl818_ao_insn_read;
+		s->insn_write = pcl818_ao_insn_write;
 #ifdef PCL818_MODE13_AO
 		if (irq) {
 		        s->trig[1] = pcl818_ao_mode1;
@@ -1555,7 +1570,7 @@ no_dma:
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dichan;
 		s->range_table = &range_digital;
-		s->trig[0] = pcl818_di_mode0;
+		s->insn_bits = pcl818_di_insn_bits;
 	}
 
 	s = dev->subdevices + 3;
@@ -1568,7 +1583,7 @@ no_dma:
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;
 		s->range_table = &range_digital;
-		s->trig[0] = pcl818_do_mode0;
+		s->insn_bits = pcl818_do_insn_bits;
 	}
 
 	/* select 1/10MHz oscilator */
