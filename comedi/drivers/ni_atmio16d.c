@@ -41,6 +41,7 @@
 #include <linux/timer.h>
 #include <asm/io.h>
 #include <comedi_module.h>
+#include <8255.h>
 
 
 /* Configuration and Status Registers */
@@ -105,6 +106,26 @@
 #define devpriv ((atmio16d_private *)dev->private)
 #define ATMIO16D_TIMEOUT 10
 
+
+typedef struct{
+	char *name;
+	int has_8255;
+}atmio16_board_t;
+static atmio16_board_t atmio16_boards[]={
+	{
+	name:		"atmio16",
+	has_8255:	0,
+	},
+	{
+	name:		"atmio16d",
+	has_8255:	1,
+	},
+};
+static int n_atmio16_boards=sizeof(atmio16_boards)/sizeof(atmio16_boards[0]);
+
+#define boardtype (atmio16_boards+dev->board)
+
+
 /* function prototypes */
 static int atmio16d_attach(comedi_device *dev,comedi_devconfig *it);
 static int atmio16d_detach(comedi_device *dev);
@@ -113,13 +134,12 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs);
 static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s);
-static int atmio16d_ai_cb_func(unsigned int flags, void *p);
 static void reset_counters(comedi_device *dev);
 static void reset_atmio16d(comedi_device *dev);
 
 /* main driver struct */
 comedi_driver driver_atmio16d={
-	driver_name:    "atmio16d",
+	driver_name:    "atmio16",
 	module:     &__this_module,
 	attach:     atmio16d_attach,
 	detach:     atmio16d_detach,
@@ -240,25 +260,20 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 	
 //	printk("atmio16d_interrupt!\n");
 
-
 	*(sampl_t *)(((void *)s->cur_trig.data)+s->buf_int_ptr) = inw(dev->iobase+AD_FIFO_REG);
 	s->buf_int_ptr += sizeof(sampl_t);
 	s->buf_int_count += sizeof(sampl_t);
-		
+	
 	if((++s->cur_chan) >= s->cmd.chanlist_len) {	/* one scan done */
 		s->cur_chan = 0;
 		s->cur_trig.flags |= TRIG_WAKE_EOS;
 		comedi_eos(dev, s);
 	}
 
-	/* This is strange. If I let s->buf_int_ptr get all the way to
-	 * s->cur_trig.data_len, the kernel crashes. If I let it only 
-	 * get half that far, no problem. */
 	if (s->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
 		s->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
-
 }
 
 static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
@@ -313,28 +328,29 @@ static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_c
 			cmd->scan_begin_arg=0;
 			err++;
 		}
-	}
-//	}else{
+	}else{
+#if 0
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
-//		if(cmd->scan_begin_arg!=0){
-//			cmd->scan_begin_arg=0;
-//			err++;
-//		}
-//	}
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;
+			err++;
+		}
+#endif
+	}
 	
 	if(cmd->convert_arg<10000){
-		/* XXX board dependent */
-	//	cmd->convert_arg=4000;
+		cmd->convert_arg=10000;
 		err++;
 	}
 	
 	
-#define SLOWEST_TIMER	(4294967295)	/* max for 32bit unsigned int */
+#if 0
 	if(cmd->convert_arg>SLOWEST_TIMER){
-	//	cmd->convert_arg=SLOWEST_TIMER;
+		cmd->convert_arg=SLOWEST_TIMER;
 		err++;
 	}
+#endif
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
 		cmd->scan_end_arg=cmd->chanlist_len;
 		err++;
@@ -381,7 +397,7 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	}
 
 	/* Setup the Mux-Gain Counter */
-	for(i=0; i < cmd->scan_end_arg; ++i ) {
+	for(i=0; i < cmd->chanlist_len; ++i ) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		gain = CR_RANGE(cmd->chanlist[i]);
 		outw(i, dev->iobase+MUX_CNTR_REG);
@@ -508,12 +524,6 @@ static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-/* I don't know what this is for */
-static int atmio16d_ai_cb_func(unsigned int flags, void *p)
-{
-	return 0;
-}
-
 /* Mode 0 is used to get a single conversion on demand */
 static int atmio16d_ai_mode0(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
 {
@@ -609,52 +619,53 @@ static int atmio16d_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * i
 }
 
 
-static int atmio16d_di(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int atmio16d_dio(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
 {
-	unsigned int bits;
-#ifdef DEBUG1
-	printk("atmio16d_di\n");
-#endif
-	bits = inw(dev->iobase+MIO_16_DIG_IN_REG) & 0xFF;
-	
-	return di_unpack(bits,it);
-}
+	unsigned int data,mask;
+	int i;
 
-static int atmio16d_do(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
-{
-	unsigned int old_state;
 #ifdef DEBUG1
-	printk("atmio16d_do\n");
+	printk("atmio16d_dio\n");
 #endif
-	/* find out which channel to enable output on */
-	old_state = s->state;
-	do_pack(&s->state,it);
-	if( ( old_state ^ s->state ) & 0x0F ) {
-		/* enable Digital output on port 0 */
-		devpriv->com_reg_2_state |= COMREG2_DOUTEN0;
-		outw( devpriv->com_reg_2_state, dev->iobase+COM_REG_2 );
-		/* send the data to the ports */
-		outw( s->state, dev->iobase+MIO_16_DIG_OUT_REG );
-		/* return port to input mode. 
-		 * THIS MAY NOT BE CORRECT BEHAVIOUR!! */
-		devpriv->com_reg_2_state &= ~COMREG2_DOUTEN0;
-		outw( devpriv->com_reg_2_state, dev->iobase+COM_REG_2 );
-	}
-	if( ( old_state ^ s->state ) & 0xF0 ) {
-		/* enable Digital output on port 1 */
-		devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
-		outw( devpriv->com_reg_2_state, dev->iobase+COM_REG_2 );
-		/* send the data to the ports */
-		outw( s->state, dev->iobase+MIO_16_DIG_OUT_REG );
-		/* return port to input mode.
-		 * THIS MAY NOT BE CORRECT BEHAVIOUR!! */
-		devpriv->com_reg_2_state &= ~COMREG2_DOUTEN1;
-		outw( devpriv->com_reg_2_state, dev->iobase+COM_REG_2 );
+
+	if(it->flags & TRIG_CONFIG){
+		data = s->io_bits;
+		for(i=0;i<it->n_chan;i++){
+			mask=(CR_CHAN(it->chanlist[i])<4)?0x0f:0xf0;
+			data &= ~mask;
+			if(it->data[i])
+				data |= mask;
+		}
+		s->io_bits=data;
+		devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0|COMREG2_DOUTEN1);
+		if(data&0x0f)
+			devpriv->com_reg_2_state |= COMREG2_DOUTEN0;
+		if(data&0xf0)
+			devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
+	}else{
+		if(it->flags & TRIG_WRITE){
+			do_pack(&s->state,it);
+			outw( s->state, dev->iobase+MIO_16_DIG_OUT_REG );
+		}else{
+			data = inw(dev->iobase+MIO_16_DIG_IN_REG);
+			di_unpack(data,it);
+		}
 	}
 
 	return it->n_chan;
 }
 
+
+static int atmio16d_recognize(char *name)
+{
+	int i;
+
+	for(i=0;i<n_atmio16_boards;i++){
+		if(!strcmp(atmio16_boards[i].name,name))return i;
+	}
+
+	return -1;
+}
 
 /*
    options[0] - I/O port
@@ -687,15 +698,6 @@ static int atmio16d_do(comedi_device * dev, comedi_subdevice *s, comedi_trig * i
    options[11] - dac1 reference
    options[12] - dac1 coding
  */
-
-static int atmio16d_recognize(char *name)
-{
-	if (!strcmp("atmio16d", name))return 0;
-	if (!strcmp("at-mio16d", name))return 0;
-	if (!strcmp("mio16d", name))return 0;
-	
-	return -1;
-}
 
 static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -776,7 +778,6 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	s->do_cmdtest=atmio16d_ai_cmdtest;
 	s->do_cmd=atmio16d_ai_cmd;
 	s->cancel=atmio16d_ai_cancel;
-	s->cb_func=atmio16d_ai_cb_func;
 	s->maxdata=0xfff;	/* 4095 decimal */
 	switch (devpriv->adc_range) {
 	case adc_bipolar10:
@@ -816,25 +817,24 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 
-	/* Digital Input */
+	/* Digital I/O */
 	s++;
-	s->type=COMEDI_SUBD_DI;
-	s->subdev_flags=SDF_READABLE;
+	s->type=COMEDI_SUBD_DIO;
+	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE;
 	s->n_chan=8;
-	s->trig[0]=atmio16d_di;
+	s->trig[0]=atmio16d_dio;
 	s->maxdata=1;
 	s->range_table=&range_digital;
 
 	
-	/* Digital Output */
+	/* 8255 subdevice */
 	s++;
-	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
-	s->n_chan=8;
-	s->trig[0]=atmio16d_do;
-	s->maxdata=1;
-	s->range_table=&range_digital;
-
+	if(boardtype->has_8255){
+		subdev_8255_init(dev,s,NULL,(void *)dev->iobase);
+	}else{
+		s->type=COMEDI_SUBD_UNUSED;
+		s->trig[0]=NULL;
+	}
 
 /* don't yet know how to deal with counter/timers */
 #if 0
