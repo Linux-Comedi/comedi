@@ -1,0 +1,108 @@
+/*
+    linux/include/comedilib.h
+    header file for kcomedilib
+
+    COMEDI - Linux Control and Measurement Device Interface
+    Copyright (C) 1998-2001 David A. Schleef <ds@schleef.org>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
+
+
+#ifndef _LINUX_COMEDILIB_H
+#define _LINUX_COMEDILIB_H
+
+#include <linux/comedi.h>
+
+/* Kernel internal stuff.  Needed by real-time modules and such. */
+
+#ifndef __KERNEL__
+#error linux/comedilib.h should not be included by non-kernel-space code
+#endif
+
+/* callback stuff */
+
+#define COMEDI_CB_EOS		1	/* end of scan */
+#define COMEDI_CB_EOA		2	/* end of acquisition */
+#define COMEDI_CB_BLOCK		4	/* convenient block size */
+#define COMEDI_CB_EOBUF		8	/* end of buffer */
+#define COMEDI_CB_ERROR		16	/* card error during acquisition */
+
+/* exported functions */
+
+/* these functions may not be called at real-time priority */
+
+int comedi_open(unsigned int minor);
+void comedi_close(unsigned int minor);
+
+/* these functions may be called at any priority, but may fail at
+   real-time priority */
+
+int comedi_lock(unsigned int minor,unsigned int subdev);
+int comedi_unlock(unsigned int minor,unsigned int subdev);
+
+/* these functions may be called at any priority, but you must hold
+   the lock for the subdevice */
+
+int comedi_cancel(unsigned int minor,unsigned int subdev);
+int comedi_register_callback(unsigned int minor,unsigned int subdev,
+		unsigned int mask,int (*cb)(unsigned int,void *),void *arg);
+
+int comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it);
+int __comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it);
+int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int range,unsigned int aref,lsampl_t data);
+int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int range,unsigned int aref,lsampl_t *data);
+int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int io);
+int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int *val);
+int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
+	unsigned int val);
+int comedi_dio_bitfield(unsigned int dev,unsigned int subdev,unsigned int mask,
+	unsigned int *bits);
+int comedi_get_n_subdevices(unsigned int dev);
+int comedi_get_version_code(unsigned int dev);
+char *comedi_get_driver_name(unsigned int dev);
+char *comedi_get_board_name(unsigned int minor);
+int comedi_get_subdevice_type(unsigned int minor,unsigned int subdevice);
+int comedi_find_subdevice_by_type(unsigned int minor,int type,unsigned int subd);
+int comedi_get_n_channels(unsigned int minor,unsigned int subdevice);
+lsampl_t comedi_get_maxdata(unsigned int minor,unsigned int subdevice,unsigned
+	int chan);
+int comedi_get_n_ranges(unsigned int minor,unsigned int subdevice,unsigned int
+	chan);
+int comedi_do_insn(unsigned int minor,comedi_insn *insn);
+
+
+/* DEPRECATED functions */
+int comedi_get_rangetype(unsigned int minor,unsigned int subdevice,unsigned int chan);
+
+
+/* ALPHA functions */
+unsigned int comedi_get_subdevice_flags(unsigned int minor,unsigned int
+	subdevice);
+int comedi_get_len_chanlist(unsigned int minor,unsigned int subdevice);
+int comedi_get_krange(unsigned int minor,unsigned int subdevice,unsigned int
+	chan, unsigned int range, comedi_krange *krange);
+unsigned int comedi_get_buf_head_pos(unsigned int minor,unsigned int
+	subdevice);
+int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,
+	unsigned int buf_user_count);
+
+#endif
+

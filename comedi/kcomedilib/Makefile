@@ -8,11 +8,11 @@ EXTRA_CFLAGS := -I ../
 
 ifeq ($(CONFIG_COMEDI_KLIB),y)
   O_TARGET := kcomedilib.o
-  OX_OBJS := kcomedilib_main.o
-  O_OBJS := data.o dio.o
+  OX_OBJS := ksyms.o
+  O_OBJS := data.o dio.o kcomedilib_main.o
 else
-  MI_OBJS := data.o dio.o
-  MIX_OBJS := kcomedilib_main.o
+  MI_OBJS := data.o dio.o kcomedilib_main.o
+  MIX_OBJS := ksyms.o
   M_OBJS := kcomedilib.o
 endif
 

@@ -23,7 +23,9 @@
 
 
 
+#include <linux/comedi.h>
 #include <linux/comedidev.h>
+#include <linux/comedilib.h>
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
