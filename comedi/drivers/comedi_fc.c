@@ -118,7 +118,7 @@ unsigned int cfc_handle_events( comedi_device *dev, comedi_subdevice *subd )
 }
 
 MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
-MODULE_DESCRIPTION("Shared functoins for Comedi low-level drivers");
+MODULE_DESCRIPTION("Shared functions for Comedi low-level drivers");
 MODULE_LICENSE("GPL");
 
 static int __init comedi_fc_init_module(void)
