@@ -12,11 +12,11 @@ das6402 needs cleanup
 
 fix PCI code, use pci_find_device()
 
+pci_enable_device() needs to be added to many drivers
+
 standardize error codes
 
 get rid of spurious "char-major-98-0 not found"
-
-different error code for board error vs buffer overflow
 
 spinlocks
 
@@ -33,14 +33,10 @@ Drivers that do DMA need to be fixed for big-endian machines.
 
 Comedi should support devfs
 
-ni_pcimio issues:
+ni_pcimio: doesn't do DMA with AO
 
-- ao dma
+ni_pcimio: ai COMEDI_WAKE_EOS doesn't work with DMA
 
-- ai doesn't stop with DMA
-
-- COMEDI_WAKE_EOS doesn't work with DMA
-
-- ao "write: Invalid argument" for initial write
+ni_pcimio: ao "write: Invalid argument" for initial write
 
 
