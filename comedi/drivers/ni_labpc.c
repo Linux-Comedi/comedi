@@ -55,7 +55,6 @@ like lab-pc+ or scan up from channel zero.
 
 /*
 TODO:
-	pcmcia
 
 NI manuals:
 341309a (labpc-1200 register manual)
@@ -214,6 +213,7 @@ static int labpc_calib_write_insn(comedi_device *dev, comedi_subdevice *s, comed
 static int labpc_eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int labpc_eeprom_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
+static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd);
 static struct mite_struct* pclab_find_device(int bus, int slot);
 static unsigned int labpc_inb(unsigned int address);
 static void labpc_outb(unsigned int byte, unsigned int address);
@@ -475,8 +475,9 @@ typedef struct{
 	// store last read of board status registers
 	volatile unsigned int status1_bits;
 	volatile unsigned int status2_bits;
-	unsigned int divisor1;	/* value to load into board's counter a0 for timed conversions */
-	unsigned int divisor2; 	/* value to load into board's counter b0 for timed conversions */
+	unsigned int divisor_a0;	/* value to load into board's counter a0 (conversion pacing) for timed conversions */
+	unsigned int divisor_b0; 	/* value to load into board's counter b0 (master) for timed conversions */
+	unsigned int divisor_b1; 	/* value to load into board's counter b1 (scan pacing) for timed conversions */
 	unsigned int dma_chan;	// dma channel to use
 	u16 *dma_buffer;	// buffer ai will dma into
 	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
@@ -529,7 +530,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 			dma_chan = it->options[2];
 			break;
 		case pci_bustype:
-			devpriv->mite = pclab_find_device(it->options[0], it->options[1]);
+			devpriv->mite = labpc_find_device(it->options[0], it->options[1]);
 			if(devpriv->mite == NULL)
 			{
 				return -EIO;
@@ -751,7 +752,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 };
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
-static struct mite_struct* pclab_find_device(int bus, int slot)
+static struct mite_struct* labpc_find_device(int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;
@@ -815,7 +816,7 @@ static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp;
+	int tmp, tmp2;
 	int range;
 	int i;
 	int scan_up;
@@ -828,7 +829,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	if(!cmd->start_src || tmp != cmd->start_src) err++;
 
 	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_EXT;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW | TRIG_EXT;
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
@@ -852,8 +853,9 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 	if(cmd->start_src != TRIG_NOW &&
 		cmd->start_src != TRIG_EXT) err++;
-	if(cmd->scan_begin_src != TRIG_FOLLOW &&
-	   cmd->scan_begin_src != TRIG_EXT) err++;
+	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_FOLLOW &&
+		cmd->scan_begin_src != TRIG_EXT) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
 	   cmd->convert_src != TRIG_EXT) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
@@ -873,14 +875,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		cmd->start_arg = 0;
 		err++;
 	}
-	if(cmd->convert_src == TRIG_TIMER)
-	{
-		if(cmd->convert_arg < thisboard->ai_speed)
-		{
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
+
 	if(!cmd->chanlist_len)
 	{
 		err++;
@@ -889,6 +884,21 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	{
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
+	}
+
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		if(cmd->convert_arg < thisboard->ai_speed)
+		{
+			cmd->convert_arg = thisboard->ai_speed;
+			err++;
+		}
+		// make sure scan timing is not too fast
+		if(cmd->scan_begin_src == TRIG_TIMER)
+		{
+			if(cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len)
+				cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+		}
 	}
 
 	// stop source
@@ -908,7 +918,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 				err++;
 			}
 			break;
-		// TRIG_EXT doesn't care since it doesn't trigger of a numbered channel
+		// TRIG_EXT doesn't care since it doesn't trigger off a numbered channel
 		default:
 			break;
 	}
@@ -917,13 +927,11 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 	/* step 4: fix up any arguments */
 
-	if(cmd->convert_src == TRIG_TIMER)
-	{
-		tmp = cmd->convert_arg;
-		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
-		if(tmp != cmd->convert_arg) err++;
-	}
+	tmp = cmd->convert_arg;
+	tmp2 = cmd->scan_begin_arg;
+	labpc_adc_timing(dev, cmd);
+	if(tmp != cmd->convert_arg ||
+		tmp2 != cmd->scan_begin_arg) err++;
 
 	if(err)return 4;
 
@@ -1112,6 +1120,17 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	devpriv->command4_bits = 0;
 	if(cmd->convert_src != TRIG_EXT)
 		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
+	switch(cmd->scan_begin_src)
+	{
+		case TRIG_EXT:
+			devpriv->command4_bits |= EXT_SCAN_EN_BIT | EXT_SCAN_MASTER_EN_BIT;
+			break;
+		case TRIG_TIMER:
+			devpriv->command4_bits |= EXT_SCAN_MASTER_EN_BIT;
+			break;
+		default:
+			break;
+	}
 	if(cmd->scan_begin_src == TRIG_EXT)
 		devpriv->command4_bits |= EXT_SCAN_MASTER_EN_BIT | EXT_SCAN_EN_BIT;
 	// single-ended/differential
@@ -1129,25 +1148,38 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		thisboard->write_byte(INTERVAL_LOAD_BITS, dev->iobase + INTERVAL_LOAD_REG);
 	}
 
-	// set up conversion pacing
-	if(cmd->convert_src == TRIG_TIMER)
+	if(cmd->convert_src == TRIG_TIMER || cmd->scan_begin_src == TRIG_TIMER)
 	{
-		/* set conversion frequency */
-		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor1),
-			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+		// set up pacing
+		labpc_adc_timing(dev, cmd);
 		// load counter b0 in mode 3
-		ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 0, devpriv->divisor2, 3);
+		ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 0, devpriv->divisor_b0, 3);
 		if(ret < 0)
 		{
 			comedi_error(dev, "error loading counter b0");
 			return -1;
 		}
-		// load counter a0 in mode 2
-		ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 0, devpriv->divisor1, 2);
-		if(ret < 0)
+		// set up conversion pacing
+		if(cmd->convert_src == TRIG_TIMER)
 		{
-			comedi_error(dev, "error loading counter a0");
-			return -1;
+			// load counter a0 in mode 2
+			ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 0, devpriv->divisor_a0, 2);
+			if(ret < 0)
+			{
+				comedi_error(dev, "error loading counter a0");
+				return -1;
+			}
+		}
+		// set up scan pacing
+		if(cmd->scan_begin_src == TRIG_TIMER)
+		{
+			// load counter b1 in mode 2
+			ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 1, devpriv->divisor_b1, 2);
+			if(ret < 0)
+			{
+				comedi_error(dev, "error loading counter b1");
+				return -1;
+			}
 		}
 	}
 
@@ -1641,6 +1673,68 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 	return size;
 }
 
+// figures out what counter values to use based on command
+static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
+{
+	const max_counter_value = 0x1000;  // max value for 16 bit counter in mode 2
+	const min_counter_value = 2;  // min value for 16 bit counter in mode 2
+	unsigned int base_period;
+
+	// if both convert and scan triggers are TRIG_TIMER, then they both rely on counter b0
+	if(cmd->convert_src == TRIG_TIMER && cmd->scan_begin_src == TRIG_TIMER)
+	{
+		// pick the lowest b0 divisor value we can (for maximum input clock speed on convert and scan counters)
+		devpriv->divisor_b0 = (cmd->convert_arg - 1) / (LABPC_TIMER_BASE * max_counter_value) + 1;
+		if(devpriv->divisor_b0 < min_counter_value)
+			devpriv->divisor_b0 = min_counter_value;
+		if(devpriv->divisor_b0 > max_counter_value)
+			devpriv->divisor_b0 = max_counter_value;
+
+		base_period = LABPC_TIMER_BASE * devpriv->divisor_b0;
+
+		// set a0 for conversion frequency and b1 for scan frequency
+		switch(cmd->flags & TRIG_ROUND_MASK)
+		{
+			default:
+			case TRIG_ROUND_NEAREST:
+				devpriv->divisor_a0 = cmd->convert_arg + (base_period / 2) / base_period;
+				devpriv->divisor_b1 = cmd->scan_begin_arg + (base_period / 2) / base_period;
+				break;
+			case TRIG_ROUND_UP:
+				devpriv->divisor_a0 = cmd->convert_arg + (base_period - 1) / base_period;
+				devpriv->divisor_b1 = cmd->scan_begin_arg + (base_period - 1) / base_period;
+				break;
+			case TRIG_ROUND_DOWN:
+				devpriv->divisor_a0 = cmd->convert_arg  / base_period;
+				devpriv->divisor_b1 = cmd->scan_begin_arg  / base_period;
+				break;
+		}
+		// make sure a0 and b1 values are acceptable
+		if(devpriv->divisor_a0 < min_counter_value)
+			devpriv->divisor_a0 = min_counter_value;
+		if(devpriv->divisor_a0 > max_counter_value)
+			devpriv->divisor_a0 = max_counter_value;
+		if(devpriv->divisor_b1 < min_counter_value)
+			devpriv->divisor_b1 = min_counter_value;
+		if(devpriv->divisor_b1 > max_counter_value)
+			devpriv->divisor_b1 = max_counter_value;
+		// write corrected timings to command
+		cmd->convert_arg = base_period * devpriv->divisor_a0;
+		cmd->scan_begin_arg = base_period * devpriv->divisor_b1;
+	// if only one TRIG_TIMER is used, we can employ the generic cascaded timing functions
+	}else if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		/* calculate cascaded counter values that give desired scan timing */
+		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor_b1), &(devpriv->divisor_b0),
+			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+	}else if(cmd->convert_src == TRIG_TIMER)
+	{
+		/* calculate cascaded counter values that give desired conversion timing */
+		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor_a0), &(devpriv->divisor_b0),
+			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+	}
+}
+
 /* functions that do inb/outb and readb/writeb so we can use
  * function pointers to decide which to use */
 static unsigned int labpc_inb(unsigned int address)
@@ -1706,20 +1800,20 @@ static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range)
 	// eeprom offsets by range
 	unsigned int range_to_index[NUM_LABPC_1200_AI_RANGES] =
 	{
-		0x0,
-		-0x2,
-		-0x3,
-		-0x4,
-		-0x5,
-		-0x6,
-		-0x7,
-		0x0,
-		-0x2,
-		-0x3,
-		-0x4,
-		-0x5,
-		-0x6,
-		-0x7,
+		0,
+		-2,
+		-3,
+		-4,
+		-5,
+		-6,
+		-7,
+		0,
+		-2,
+		-3,
+		-4,
+		-5,
+		-6,
+		-7,
 	};
 
 
