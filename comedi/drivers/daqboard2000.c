@@ -671,7 +671,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
     pci_read_config_dword(card, PCI_SUBSYSTEM_VENDOR_ID, &id);
     if (id != DAQBOARD2000_SUBSYSTEM_IDS2 &&
 	id != DAQBOARD2000_SUBSYSTEM_IDS4) {
-      printk("daqboard2000: wrong subsystem vendor %8.8x\n ", id);
+      printk("daqboard2000: unknown subsystem vendor %8.8x\n ", id);
       result = -EIO;
     }
   }
@@ -682,8 +682,13 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   
   if (result == 0) {
     int secr;
+#if LINUX_VERSION_CODE < 0x020300
     devpriv->plx = ioremap(card->base_address[0], DAQBOARD2000_PLX_SIZE);
     devpriv->daq = ioremap(card->base_address[2], DAQBOARD2000_DAQ_SIZE);
+#else
+    devpriv->plx = ioremap(card->resource[0].start, DAQBOARD2000_PLX_SIZE);
+    devpriv->daq = ioremap(card->resource[2].start, DAQBOARD2000_DAQ_SIZE);
+#endif
     secr = readl(devpriv->plx + 0x6c); 
   }
 
