@@ -74,10 +74,9 @@ typedef unsigned short sampl_t;
 #define GPCTR_SET_SOURCE	9
 #define GPCTR_SET_GATE		10
 #define GPCTR_SET_DIRECTION	11
-#define GPCTR_SET_VALUE		12
-#define GPCTR_SET_OPERATION	13
-#define GPCTR_ARM		14
-#define GPCTR_DISARM		15
+#define GPCTR_SET_OPERATION	12
+#define GPCTR_ARM		13
+#define GPCTR_DISARM		14
 
 
 /* instructions */
