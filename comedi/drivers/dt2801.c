@@ -76,6 +76,7 @@ comedi_driver driver_dt2801={
 	attach:		dt2801_attach,
 	detach:		dt2801_detach,
 };
+COMEDI_INITCLEANUP(driver_dt2801);
 
 #if 0
 // ignore 'defined but not used' warning
@@ -202,13 +203,20 @@ static boardtype_t boardtypes[] =
 
 typedef struct{
 	comedi_lrange *dac_range_types[2];
+	lsampl_t ao_readback[2];
 }dt2801_private;
 #define devpriv ((dt2801_private *)dev->private)
 
-
-static int dt2801_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int dt2801_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int dt2801_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+static int dt2801_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2801_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2801_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2801_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int dt2801_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 
 /* These are the low-level routines:
    writecommand: write a command to the board
@@ -519,7 +527,7 @@ havetype:
 #endif
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->range_table=ai_range_lkup(boardtype.adrangetype,it->options[3]);
-	s->trig[0]=dt2801_ai_mode0;
+	s->insn_read=dt2801_ai_insn_read;
 
 	s++;
 	/* ao subdevice */
@@ -530,7 +538,8 @@ havetype:
 	s->range_table_list=devpriv->dac_range_types;
 	devpriv->dac_range_types[0]=dac_range_lkup(it->options[4]);
 	devpriv->dac_range_types[1]=dac_range_lkup(it->options[5]);
-	s->trig[0]=dt2801_ao_mode0;
+	s->insn_read=dt2801_ao_insn_read;
+	s->insn_write=dt2801_ao_insn_write;
 
 	s++;
 	/* 1st digital subdevice */
@@ -539,7 +548,8 @@ havetype:
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
-	s->trig[0]=dt2801_dio;
+	s->insn_bits=dt2801_dio_insn_bits;
+	s->insn_config=dt2801_dio_insn_config;
 
 	s++;
 	/* 2nd digital subdevice */
@@ -548,7 +558,8 @@ havetype:
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
-	s->trig[0]=dt2801_dio;
+	s->insn_bits=dt2801_dio_insn_bits;
+	s->insn_config=dt2801_dio_insn_config;
 
 	ret = 0;
 out:
@@ -583,80 +594,86 @@ static int dt2801_error(comedi_device *dev,int stat)
 	return -EIO;
 }
 
-static int dt2801_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt2801_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-        int data;
+        int d;
         int stat;
+	int i;
 
+	for(i=0;i<insn->n;i++){
+        	stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
+        	dt2801_writedata(dev, CR_RANGE(insn->chanspec));
+        	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
+        	stat = dt2801_readdata2(dev, &d);
 
-        stat = dt2801_writecmd(dev, DT_C_READ_ADIM);
-        dt2801_writedata(dev, CR_RANGE(it->chanlist[0]));
-        dt2801_writedata(dev, CR_CHAN(it->chanlist[0]));
-        stat = dt2801_readdata2(dev, &data);
+        	if (stat != 0) return dt2801_error(dev,stat);
 
-        if (stat != 0) return dt2801_error(dev,stat);
+		data[i]=d;
+	}
 
-	it->data[0]=data;
-
-        return 1;
+	return i;
 }
 
-static int dt2801_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt2801_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int chan=CR_CHAN(it->chanlist[0]);
+	data[0]=devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 
-	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
-	dt2801_writedata(dev, chan);
-	dt2801_writedata2(dev, it->data[0]);
-	
 	return 1;
 }
 
-static int dt2801_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt2801_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int bits;
+	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
+	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
+	dt2801_writedata2(dev, data[0]);
+
+	devpriv->ao_readback[CR_CHAN(insn->chanspec)]=data[0];
+
+	return 1;
+}
+
+static int dt2801_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
 	int which=0;
-	
+
 	if(s==dev->subdevices+4)which=1;
-	
-	if(it->flags & TRIG_CONFIG){
-		/* configure */
-		if(it->chanlist[it->n_chan-1]){
-			s->io_bits=0xff;
-			dt2801_writecmd(dev, DT_C_SET_DIGOUT);
-		}else{
-			s->io_bits=0;
-			dt2801_writecmd(dev, DT_C_SET_DIGIN);
-		}
+
+	if(insn->n!=2)return -EINVAL;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		dt2801_writecmd(dev, DT_C_WRITE_DIG);
 		dt2801_writedata(dev, which);
-	}else{
-		if(s->io_bits){
-			do_pack(&s->state,it);
-			dt2801_writecmd(dev, DT_C_WRITE_DIG);
-			dt2801_writedata(dev, which);
-			dt2801_writedata(dev, s->state);
-		}else{
-			dt2801_writecmd(dev, DT_C_READ_DIG);
-			dt2801_writedata(dev, which);
-			dt2801_readdata(dev, &bits);
-			di_unpack(bits,it);
-		}
+		dt2801_writedata(dev, s->state);
 	}
-	return it->n_chan;
+	dt2801_writecmd(dev, DT_C_READ_DIG);
+	dt2801_writedata(dev, which);
+	dt2801_readdata(dev, data+1);
+
+	return 2;
 }
 
-
-
-#ifdef MODULE
-int init_module(void)
+static int dt2801_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	comedi_driver_register(&driver_dt2801);
-	
-	return 0;
+	int which=0;
+
+	if(s==dev->subdevices+4)which=1;
+
+	/* configure */
+	if(data[0]){
+		s->io_bits=0xff;
+		dt2801_writecmd(dev, DT_C_SET_DIGOUT);
+	}else{
+		s->io_bits=0;
+		dt2801_writecmd(dev, DT_C_SET_DIGIN);
+	}
+	dt2801_writedata(dev, which);
+
+	return 1;
 }
 
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2801);
-}
-#endif

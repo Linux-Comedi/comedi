@@ -136,51 +136,6 @@ static int subdev_8255_insn_config(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
-static int subdev_8255_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int mask,data_in;
-	int i;
-
-	if(it->flags & TRIG_CONFIG){
-		int bits;
-
-		for(i=0;i<it->n_chan;i++){
-			mask=1<<CR_CHAN(it->chanlist[i]);
-			if(mask&0x0000ff){
-				bits=0x0000ff;
-			}else if(mask&0x00ff00){
-				bits=0x00ff00;
-			}else if(mask&0x0f0000){
-				bits=0x0f0000;
-			}else{
-				bits=0xf00000;
-			}
-			if(it->data[i]){
-				s->io_bits|=bits;
-			}else{
-				s->io_bits&=~bits;
-			}
-		}
-		do_config(dev,s);
-	}else{
-		if(it->flags&TRIG_WRITE){
-			do_pack(&s->state,it);
-
-			CALLBACK_FUNC(1,_8255_DATA,s->state&0xff,CALLBACK_ARG);
-			CALLBACK_FUNC(1,_8255_DATA+1,(s->state>>8)&0xff,CALLBACK_ARG);
-			CALLBACK_FUNC(1,_8255_DATA+2,(s->state>>16)&0xff,CALLBACK_ARG);
-		}else{
-			data_in=CALLBACK_FUNC(0,_8255_DATA,0,CALLBACK_ARG);
-			data_in|=(CALLBACK_FUNC(0,_8255_DATA+1,0,CALLBACK_ARG)<<8);
-			data_in|=(CALLBACK_FUNC(0,_8255_DATA+2,0,CALLBACK_ARG)<<16);
-
-			di_unpack(data_in,it);
-		}
-	}
-
-	return it->n_chan;
-}
-
 static void do_config(comedi_device *dev,comedi_subdevice *s)
 {
 	int config;
@@ -216,7 +171,6 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	}else{
 		CALLBACK_FUNC=cb;
 	}
-	s->trig[0]=subdev_8255_dio;
 	s->insn_bits = subdev_8255_insn;
 	s->insn_config = subdev_8255_insn_config;
 

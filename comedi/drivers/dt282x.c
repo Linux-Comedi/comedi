@@ -677,32 +677,6 @@ static int dt282x_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	return i;
 }
 
-static int dt282x_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-	devpriv->adcsr = DT2821_ADCLK;
-	update_adcsr(0);
-
-	dt282x_load_changain(dev, 1, it->chanlist);
-
-	update_supcsr(DT2821_PRLD);
-	wait_for(!mux_busy(),
-		 comedi_error(dev, "timeout\n");
-		 return -ETIME;
-	    );
-
-	update_supcsr(DT2821_STRIG);
-	wait_for(ad_done(),
-		 comedi_error(dev, "timeout\n");
-		 return -ETIME;
-	    );
-
-	it->data[0] = inw(dev->iobase + DT2821_ADDAT) & ((1<<boardtype.adbits)-1);
-	if (devpriv->ad_2scomp)
-		it->data[0] ^= (1 << (boardtype.adbits - 1));
-
-	return 1;
-}
-
 static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,comedi_cmd *cmd)
 {
 	int err=0;
@@ -855,143 +829,6 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-#ifdef CONFIG_COMEDI_MODES
-static int dt282x_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-	int timer;
-
-	if (!devpriv->usedma) {
-		dt282x_load_changain(dev,it->n_chan,it->chanlist);
-
-		devpriv->ntrig=it->n*it->n_chan;
-		devpriv->nread=devpriv->ntrig;
-
-		timer=dt282x_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
-		outw(timer, dev->iobase + DT2821_TMRCTR);
-
-		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-		update_adcsr(0);
-
-		devpriv->supcsr = DT2821_ERRINTEN ;
-
-		update_supcsr(DT2821_PRLD);
-		wait_for(!mux_busy(),
-			 comedi_error(dev, "timeout\n");
-			 return -ETIME;
-		    );
-		update_supcsr(DT2821_STRIG);
-
-		return 0;
-	} else {
-		timer=dt282x_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
-		outw(timer, dev->iobase + DT2821_TMRCTR);
-
-		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0;
-		update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_ADCINIT);
-		devpriv->adcsr = 0;
-
-		devpriv->ntrig=it->n*it->n_chan;
-		devpriv->nread=devpriv->ntrig;
-
-		devpriv->dma_dir=DMA_MODE_READ;
-		devpriv->current_dma_chan=0;
-		prep_ai_dma(dev,0,0);
-		enable_dma(devpriv->dma[0].chan);
-		if(devpriv->ntrig){
-			prep_ai_dma(dev,1,0);
-			enable_dma(devpriv->dma[1].chan);
-			devpriv->supcsr |= DT2821_DDMA;
-			update_supcsr(0);
-		}
-
-		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-		update_adcsr(0);
-
-		dt282x_load_changain(dev,it->n_chan,it->chanlist);
-
-		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-		update_adcsr(0);
-
-		update_supcsr(DT2821_PRLD);
-		wait_for(!mux_busy(),
-			 comedi_error(dev, "timeout\n");
-			 return -ETIME;
-		    );
-		update_supcsr(DT2821_STRIG);
-
-		return 0;
-	}
-}
-
-static int dt282x_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-	int timer;
-
-	if (!devpriv->usedma) {
-		dt282x_load_changain(dev,it->n_chan,it->chanlist);
-
-		devpriv->ntrig=it->n*it->n_chan;
-		devpriv->nread=devpriv->ntrig;
-
-		timer=dt282x_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
-		outw(timer, dev->iobase + DT2821_TMRCTR);
-
-		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-		update_adcsr(0);
-
-		devpriv->supcsr = DT2821_ERRINTEN ;
-
-		update_supcsr(DT2821_PRLD);
-		wait_for(!mux_busy(),
-			 comedi_error(dev, "timeout\n");
-			 return -ETIME;
-		    );
-		update_supcsr(DT2821_STRIG);
-
-		return 0;
-	} else {
-		timer=dt282x_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
-		outw(timer, dev->iobase + DT2821_TMRCTR);
-
-		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0 | DT2821_DS1;
-		update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_ADCINIT);
-		devpriv->adcsr = 0;
-
-		devpriv->ntrig=it->n*it->n_chan;
-		devpriv->nread=devpriv->ntrig;
-
-		devpriv->dma_dir=DMA_MODE_READ;
-		devpriv->current_dma_chan=0;
-		prep_ai_dma(dev,0,0);
-		enable_dma(devpriv->dma[0].chan);
-		if(devpriv->ntrig){
-			prep_ai_dma(dev,1,0);
-			enable_dma(devpriv->dma[1].chan);
-			devpriv->supcsr |= DT2821_DDMA;
-			update_supcsr(0);
-		}
-
-		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-		update_adcsr(0);
-
-		dt282x_load_changain(dev,it->n_chan,it->chanlist);
-
-		devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-		update_adcsr(0);
-
-		update_supcsr(DT2821_PRLD);
-		wait_for(!mux_busy(),
-			 comedi_error(dev, "timeout\n");
-			 return -ETIME;
-		    );
-		devpriv->supcsr |= DT2821_XTRIG;
-		update_supcsr(0);
-
-		return 0;
-	}
-}
-#endif
-
 static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->adcsr=0;
@@ -1076,36 +913,6 @@ static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	update_dacsr(0);
 
 	outw(d, dev->iobase + DT2821_DADAT);
-
-	update_supcsr(DT2821_DACON);
-
-	return 1;
-}
-
-static int dt282x_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-	sampl_t data;
-	unsigned int chan;
-
-	data = it->data[0];
-	chan = CR_CHAN(it->chanlist[0]);
-
-	devpriv->dacsr |= DT2821_SSEL;
-
-	if (chan) {
-		/* select channel */
-		devpriv->dacsr |= DT2821_YSEL;
-		if (devpriv->da0_2scomp)
-			data ^= (1<<(boardtype.dabits-1));
-	} else {
-		devpriv->dacsr &= ~DT2821_YSEL;
-		if (devpriv->da1_2scomp)
-			data ^= (1<<(boardtype.dabits-1));
-	}
-
-	update_dacsr(0);
-
-	outw(data, dev->iobase + DT2821_DADAT);
 
 	update_supcsr(DT2821_DACON);
 
@@ -1227,41 +1034,6 @@ static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
-#ifdef CONFIG_COMEDI_MODES
-static int dt282x_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int size;
-	int timer;
-
-	devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS1 | DT2821_DDMA;
-	update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_DACINIT);
-
-	devpriv->ntrig=it->n*it->n_chan;
-	devpriv->nread=devpriv->ntrig;
-
-	devpriv->dma_dir=DMA_MODE_WRITE;
-	devpriv->current_dma_chan=0;
-
-	size=copy_from_buf(dev,s,devpriv->dma[0].buf,devpriv->dma_maxsize*2);
-	prep_ao_dma(dev,0,size/2);
-	enable_dma(devpriv->dma[0].chan);
-
-	size=copy_from_buf(dev,s,devpriv->dma[1].buf,devpriv->dma_maxsize*2);
-	prep_ao_dma(dev,1,size/2);
-	enable_dma(devpriv->dma[1].chan);
-	
-	timer=dt282x_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
-	outw(timer, dev->iobase + DT2821_TMRCTR);
-
-	devpriv->dacsr = DT2821_SSEL| DT2821_DACLK | DT2821_IDARDY;
-	update_dacsr(0);
-
-	update_supcsr(DT2821_STRIG);
-
-	return 0;
-}
-#endif
-
 static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->dacsr=0;
@@ -1287,35 +1059,23 @@ static int dt282x_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-static int dt282x_dio(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int dt282x_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	if(it->flags&TRIG_CONFIG){
-		int mask,i;
+	int mask;
 
-		for(i=0;i<it->n_chan;i++){
-			mask=(CR_CHAN(it->chanlist[i])<8)?0x00ff:0xff00;
-			if(it->data[i])s->io_bits|=mask;
-			else s->io_bits&=~mask;
-		}
-		if(s->io_bits&0x00ff)devpriv->dacsr|=DT2821_LBOE;
-		else devpriv->dacsr&=~DT2821_LBOE;
-		if(s->io_bits&0xff00)devpriv->dacsr|=DT2821_HBOE;
-		else devpriv->dacsr&=~DT2821_HBOE;
+	mask=(CR_CHAN(insn->chanspec)<8)?0x00ff:0xff00;
+	if(data[0])s->io_bits|=mask;
+	else s->io_bits&=~mask;
 
-		outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
-	}else{
-		unsigned int data;
+	if(s->io_bits&0x00ff)devpriv->dacsr|=DT2821_LBOE;
+	else devpriv->dacsr&=~DT2821_LBOE;
+	if(s->io_bits&0xff00)devpriv->dacsr|=DT2821_HBOE;
+	else devpriv->dacsr&=~DT2821_HBOE;
 
-		if(it->flags&TRIG_WRITE){
-			do_pack(&s->state,it);
-			outw(s->state, dev->iobase + DT2821_DIODAT);
-		}else{
-			data = inw(dev->iobase + DT2821_DIODAT);
-			di_unpack(data,it);
-		}
-	}
+	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
 
-	return it->n_chan;
+	return 0;
 }
 
 
@@ -1465,13 +1225,6 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|((it->options[opt_diff])?SDF_DIFF:SDF_COMMON);
 	s->n_chan=(it->options[opt_diff])?boardtype.adchan_di:boardtype.adchan_se;
-#ifdef CONFIG_COMEDI_MODE0
-	s->trig[0]=dt282x_ai_mode0;
-#endif
-#ifdef CONFIG_COMEDI_MODES
-	s->trig[1]=dt282x_ai_mode1;
-	s->trig[4]=dt282x_ai_mode4;
-#endif
 	s->insn_read=dt282x_ai_insn_read;
 	s->do_cmdtest=dt282x_ai_cmdtest;
 	s->do_cmd=dt282x_ai_cmd;
@@ -1487,12 +1240,6 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type=COMEDI_SUBD_AO;
 		dev->write_subdev=s;
 		s->subdev_flags=SDF_WRITEABLE;
-#ifdef CONFIG_COMEDI_MODE0
-		s->trig[0]=dt282x_ao;
-#endif
-#ifdef CONFIG_COMEDI_MODES
-		s->trig[2]=dt282x_ao_mode2;
-#endif
 		s->insn_read=dt282x_ao_insn_read;
 		s->insn_write=dt282x_ao_insn_write;
 		s->do_cmdtest=dt282x_ao_cmdtest;
@@ -1516,8 +1263,8 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->n_chan=16;
-	s->trig[0]=dt282x_dio;
 	s->insn_bits = dt282x_dio_insn_bits;
+	s->insn_config = dt282x_dio_insn_config;
 	s->maxdata=1;
 	s->range_table = &range_digital;
 

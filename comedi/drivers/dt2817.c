@@ -51,56 +51,69 @@ comedi_driver driver_dt2817={
 	attach:		dt2817_attach,
 	detach:		dt2817_detach,
 };
+COMEDI_INITCLEANUP(driver_dt2817);
 
 
-static int dt2817_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt2817_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	if(it->flags & TRIG_CONFIG){
-		int mask,i;
-		int chan;
-		int oe=0;
+	int mask;
+	int chan;
+	int oe=0;
 
-		for(i=0;i<it->n_chan;i++){
-			chan=CR_CHAN(it->chanlist[i]);
-			if(chan<8){
-				mask=0xff;
-			}else if(chan<16){
-				mask=0xff00;
-			}else if(chan<24){
-				mask=0xff0000;
-			}else mask=0xff000000;
-			if(it->data[i])s->io_bits|=mask;
-			else s->io_bits&=~mask;
-		}
-		if(s->io_bits&0x000000ff)oe|=0x1;
-		if(s->io_bits&0x0000ff00)oe|=0x2;
-		if(s->io_bits&0x00ff0000)oe|=0x4;
-		if(s->io_bits&0xff000000)oe|=0x8;
+	if(insn->n!=1)return -EINVAL;
 
-		outb(oe,dev->iobase + DT2817_CR);
-	}else{
-		int data;
+	chan=CR_CHAN(insn->chanspec);
+	if(chan<8){
+		mask=0xff;
+	}else if(chan<16){
+		mask=0xff00;
+	}else if(chan<24){
+		mask=0xff0000;
+	}else mask=0xff000000;
+	if(data[0])s->io_bits|=mask;
+	else s->io_bits&=~mask;
 
-		if(it->flags & TRIG_WRITE){
-			do_pack(&s->state,it);
-			if(s->io_bits&0x000000ff)
-				outb(s->state&0xff, dev->iobase + DT2817_DATA+0);
-			if(s->io_bits&0x0000ff00)
-				outb((s->state>>8)&0xff, dev->iobase + DT2817_DATA+1);
-			if(s->io_bits&0x00ff0000)
-				outb((s->state>>16)&0xff, dev->iobase + DT2817_DATA+2);
-			if(s->io_bits&0xff000000)
-				outb((s->state>>24)&0xff, dev->iobase + DT2817_DATA+3);
-		}else{
-			data = inb(dev->iobase + DT2817_DATA + 0);
-			data |= (inb(dev->iobase + DT2817_DATA + 1)<<8);
-			data |= (inb(dev->iobase + DT2817_DATA + 2)<<16);
-			data |= (inb(dev->iobase + DT2817_DATA + 3)<<24);
-			di_unpack(data,it);
-		}
+	if(s->io_bits&0x000000ff)oe|=0x1;
+	if(s->io_bits&0x0000ff00)oe|=0x2;
+	if(s->io_bits&0x00ff0000)oe|=0x4;
+	if(s->io_bits&0xff000000)oe|=0x8;
+
+	outb(oe,dev->iobase + DT2817_CR);
+
+	return 1;
+}
+
+static int dt2817_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	unsigned int changed;
+
+	/* It's questionable whether it is more important in
+	 * a driver like this to be deterministic or fast. 
+	 * We choose fast. */
+
+	if(data[0]){
+		changed = s->state;
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		changed ^= s->state;
+		changed &= s->io_bits;
+		if(changed&0x000000ff)
+			outb(s->state&0xff, dev->iobase + DT2817_DATA+0);
+		if(changed&0x0000ff00)
+			outb((s->state>>8)&0xff, dev->iobase + DT2817_DATA+1);
+		if(changed&0x00ff0000)
+			outb((s->state>>16)&0xff, dev->iobase + DT2817_DATA+2);
+		if(changed&0xff000000)
+			outb((s->state>>24)&0xff, dev->iobase + DT2817_DATA+3);
 	}
-	
-	return it->n_chan;
+	data[1] = inb(dev->iobase + DT2817_DATA + 0);
+	data[1] |= (inb(dev->iobase + DT2817_DATA + 1)<<8);
+	data[1] |= (inb(dev->iobase + DT2817_DATA + 2)<<16);
+	data[1] |= (inb(dev->iobase + DT2817_DATA + 3)<<24);
+
+	return 2;
 }
 
 static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
@@ -129,7 +142,8 @@ static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->range_table=&range_digital;
 	s->maxdata=1;
-	s->trig[0]=dt2817_dio;
+	s->insn_bits=dt2817_dio_insn_bits;
+	s->insn_config=dt2817_dio_insn_config;
 
 	s->state=0;
 	outb(0,dev->iobase+DT2817_CR);
@@ -149,16 +163,3 @@ static int dt2817_detach(comedi_device *dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_dt2817);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2817);
-}
-#endif

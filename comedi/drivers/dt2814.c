@@ -72,7 +72,7 @@ typedef struct{
 #define devpriv ((dt2814_private *)dev->private)
 
 
-#define DT2814_TIMEOUT 1000
+#define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000 /* XXX 10 khz */
 
 static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -80,16 +80,23 @@ static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 {
 	int n,i,hi,lo;
 	int chan;
+	int status=0;
 
 	for(n=0;n<insn->n;n++){
 		chan=CR_CHAN(insn->chanspec);
 
 		outb(chan,dev->iobase+DT2814_CSR);
 		for(i=0;i<DT2814_TIMEOUT;i++){
-			if(inb(dev->iobase+DT2814_CSR)&DT2814_FINISH)
+			status = inb(dev->iobase+DT2814_CSR);
+printk("dt2814: status: %02x\n",status);
+udelay(10);
+			if(status&DT2814_FINISH)
 				break;
 		}
-		if(i>=DT2814_TIMEOUT)return -ETIMEDOUT;
+		if(i>=DT2814_TIMEOUT){
+			printk("dt2814: status: %02x\n",status);
+			return -ETIMEDOUT;
+		}
 
 		hi=inb(dev->iobase+DT2814_DATA);
 		lo=inb(dev->iobase+DT2814_DATA);
@@ -99,28 +106,6 @@ static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	
 	return n;
 }
-
-#ifdef CONFIG_COMEDI_MODE0
-static int dt2814_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int i,hi,lo;
-	int chan;
-
-	chan=CR_CHAN(it->chanlist[0]);
-
-	outb(chan,dev->iobase+DT2814_CSR);
-	for(i=0;i<DT2814_TIMEOUT;i++){
-		if(inb(dev->iobase+DT2814_CSR)&DT2814_FINISH)
-			break;
-	}
-	hi=inb(dev->iobase+DT2814_DATA);
-	lo=inb(dev->iobase+DT2814_DATA);
-
-	it->data[0]=(hi<<4)|(lo>>4);
-	
-	return 1;
-}
-#endif
 
 static int dt2814_ns_to_timer(unsigned int *ns,unsigned int flags)
 {
@@ -240,21 +225,6 @@ static int dt2814_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 }
 
-#ifdef CONFIG_COMEDI_MODES
-static int dt2814_ai_mode1(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int chan;
-
-	chan=CR_CHAN(it->chanlist[0]);
-
-	devpriv->ntrig=it->n;
-	outb(chan|DT2814_ENB|(it->trigvar<<5),
-		dev->iobase+DT2814_CSR);
-	
-	return 0;
-}
-#endif
-
 static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int i,irq;
@@ -325,12 +295,6 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=16;			/* XXX */
 	s->len_chanlist=1;
-#ifdef CONFIG_COMEDI_MODE0
-	s->trig[0]=dt2814_ai_mode0;
-#endif
-#ifdef CONFIG_COMEDI_MODES
-	s->trig[1]=dt2814_ai_mode1;
-#endif
 	s->insn_read = dt2814_ai_insn_read;
 	s->do_cmd = dt2814_ai_cmd;
 	s->do_cmdtest = dt2814_ai_cmdtest;

@@ -51,7 +51,6 @@
 	
 */
 
-//#define USE_TRIG
 //#define DEBUG_INTERRUPT
 //#define TRY_DMA
 
@@ -157,13 +156,7 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
-#ifdef USE_TRIG
-static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-#endif
 
-#ifdef USE_TRIG
-static int ni_eeprom(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-#endif
 static int ni_calib_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
@@ -616,58 +609,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsigned int *list,int dither);
 
 #define NI_TIMEOUT 1000
-
-#ifdef USE_TRIG
-/*
-	Mode 0 is immediate
-*/
-static int ni_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int i;
-	int chan;
-	int wsave;
-
-	wsave=win_save();
-
-	win_out(1,ADC_FIFO_Clear);
-
-	/* interrupt on errors */
-	win_out(0x0020,Interrupt_A_Enable_Register) ;
-
-	for(chan=0;chan<it->n_chan;chan++){
-		ni_load_channelgain_list(dev,1,it->chanlist+chan,(it->flags&TRIG_DITHER)==TRIG_DITHER);
-#if 0
-	/* needs start configuration */
-	win_out(AI_START_Edge|AI_START_Sync|
-		AI_STOP_Select(19)|AI_STOP_Sync,
-		AI_START_STOP_Select_Register);
-#endif
-
-
-		win_out(1,AI_Command_1_Register);
-
-		/* I don't know how long it takes to access the bus,
-		   so shorter loops might cause timeouts */
-		for(i=0;i<NI_TIMEOUT;i++){
-			if(!(ni_readw(AI_Status_1)&AI_FIFO_Empty_St)){
-				it->data[chan]=ni_readw(ADC_FIFO_Data_Register);
-				it->data[chan]^=devpriv->ai_xorlist[0];
-				it->data[chan]&=(1<<boardtype.adbits)-1;
-				break;
-			}
-			/*udelay(25);*/
-		}
-		if(i==NI_TIMEOUT)goto timeout;
-	}
-	win_restore(wsave);
-	return chan;
-
-timeout:
-	rt_printk("ni_E: timeout 2\n");
-	win_restore(wsave);
-	return -ETIME;
-}
-#endif
 
 
 static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
@@ -1144,296 +1085,6 @@ devpriv->n_left = 1;
 	return 0;
 }
 
-#ifdef USE_TRIG
-/*
-	mode 2 is timed, multi-channel
-*/
-static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int wsave;
-	int trigvar;
-	int trigvar1;
-
-	wsave=win_save();
-
-	win_out(1,ADC_FIFO_Clear);
-
-	trigvar = ni_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
-	trigvar1 = ni_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
-
-	ni_load_channelgain_list(dev,it->n_chan,it->chanlist,(it->flags&TRIG_DITHER)==TRIG_DITHER);
-
-	/* start configuration */
-	win_out(AI_Configuration_Start,Joint_Reset_Register);
-
-	/* stage number of scans */
-	if(it->n==0){
-		/* hack for continuous acquisition */
-		win_out(0,AI_SC_Load_A_Registers);
-		win_out(0,AI_SC_Load_A_Registers+1);
-		win_out(0x000e,AI_Mode_1_Register);
-	}else{
-		win_out((it->n-1)>>16,AI_SC_Load_A_Registers);
-		win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
-		win_out(0x000d,AI_Mode_1_Register);
-	}
-
-	/* load SC (Scan Count) */
-	win_out(0x20,AI_Command_1_Register);
-
-	/*
-	    AI_SI_Special_Trigger_Delay=0
-	    AI_Pre_Trigger=0
-	  AI_START_STOP_Select_Register:
-	    AI_START_Polarity=0 (?)	rising edge
-	    AI_START_Edge=1		edge triggered
-	    AI_START_Sync=1 (?)
-	    AI_START_Select=0		SI_TC
-	    AI_STOP_Polarity=0		rising edge
-	    AI_STOP_Edge=0		level
-	    AI_STOP_Sync=1
-	    AI_STOP_Select=19		external pin (configuration mem)
-	 */
-	win_out(AI_START_Edge|AI_START_Sync|
-		AI_STOP_Select(19)|AI_STOP_Sync,
-		AI_START_STOP_Select_Register);
-
-	win_out((trigvar>>16),AI_SI_Load_A_Registers);
-	win_out((trigvar&0xffff),AI_SI_Load_A_Registers+1);
-	/* AI_SI_Initial_Load_Source=A */
-	win_out(0,AI_Mode_2_Register);
-	/* load SI */
-	win_out(0x200,AI_Command_1_Register);
-
-	/* stage freq. counter into SI B */
-	win_out((trigvar>>16),AI_SI_Load_B_Registers);
-	win_out((trigvar&0xffff),AI_SI_Load_B_Registers+1);
-
-	win_out(trigvar1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
-	win_out(trigvar1,AI_SI2_Load_B_Register);
-
-	/* AI_SI2_Reload_Mode = alternate */
-	/* AI_SI2_Initial_Load_Source = A */
-	win_out(0x0100,AI_Mode_2_Register);
-
-	/* AI_SI2_Load */
-	win_out(0x0800,AI_Command_1_Register);
-
-	/* AI_SI_Initial_Load_Source=0
-	   AI_SI_Reload_Mode(0)
-	   AI_SI2_Reload_Mode = alternate, AI_SI2_Initial_Load_Source = B */
-	win_out(0x0300,AI_Mode_2_Register);
-
-	if(dev->irq){
-		int bits;
-
-		/* interrupt on FIFO, errors, SC_TC */
-		bits=AI_FIFO_Interrupt_Enable|AI_Error_Interrupt_Enable|
-		     AI_SC_TC_Interrupt_Enable;
-		//bits|=Pass_Thru_0_Interrupt_Enable;
-
-		if(s->async->cb_mask&COMEDI_CB_EOS){
-			/* wake on end-of-scan */
-			devpriv->aimode=AIMODE_SCAN;
-		}else{
-			devpriv->aimode=AIMODE_HALF_FULL;
-		}
-		switch(devpriv->aimode){
-		case AIMODE_HALF_FULL:
-			/*generate FIFO interrupts on half-full */
-			win_out(AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
-			break;
-		case AIMODE_SAMPLE:
-			/*generate FIFO interrupts on non-empty */
-			win_out(AI_FIFO_Mode_NE|0x0000,AI_Mode_3_Register);
-			break;
-		case AIMODE_SCAN:
-			/*generate FIFO interrupts on half-full */
-			win_out(AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
-			bits|=AI_STOP_Interrupt_Enable;
-			break;
-		default:
-			break;
-		}
-
-		win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
-
-		win_out(bits,Interrupt_A_Enable_Register) ;
-	}else{
-		/* interrupt on nothing */
-		win_out(0x0000,Interrupt_A_Enable_Register) ;
-
-		/* XXX start polling if necessary */
-	}
-
-#ifdef PCIDMA
-#if 0
-	Strobes_Register
-	AI_AO_Select_Register
-	Interrupt_B_Enable_Register MSC_Pass_thru
-#endif
-
-	ni_writeb(0x01,AI_AO_Select);
-	mite_dma_prep(devpriv->mite, s);
-
-	mite_dma_arm(devpriv->mite);
-#endif
-
-#ifdef DEBUG
-rt_printk("end config\n");
-#endif
-	/* end configuration */
-	win_out(AI_Configuration_End,Joint_Reset_Register);
-
-	/* AI_SI2_Arm, AI_SI_Arm, AI_DIV_Arm, AI_SC_Arm */
-	win_out(0x1540,AI_Command_1_Register);
-
-	/* AI_START1_Pulse */
-	win_out(AI_START1_Pulse,AI_Command_2_Register);
-#ifdef DEBUG
-rt_printk("START1 pulse\n");
-#endif
-
-	win_restore(wsave);
-	return 0;
-}
-#endif
-
-#ifdef USE_TRIG
-/*
-	mode 4 is external trigger for scans, timer for samples
-	in a scan
-*/
-static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int wsave;
-	int trigvar1;
-
-	wsave=win_save();
-
-	win_out(1,ADC_FIFO_Clear);
-
-	trigvar1 = ni_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
-	ni_load_channelgain_list(dev,it->n_chan,it->chanlist,(it->flags&TRIG_DITHER)==TRIG_DITHER);
-
-	/* start configuration */
-	win_out(AI_Configuration_Start,Joint_Reset_Register);
-
-	/* stage number of scans */
-	if(it->n==0){
-		/* hack for continuous acquisition */
-		win_out(0,AI_SC_Load_A_Registers);
-		win_out(0,AI_SC_Load_A_Registers+1);
-		win_out(0x000e,AI_Mode_1_Register);
-	}else{
-		win_out((it->n-1)>>16,AI_SC_Load_A_Registers);
-		win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
-		win_out(0x000d,AI_Mode_1_Register);
-	}
-
-	/* load SC (Scan Count) */
-	win_out(0x20,AI_Command_1_Register);
-
-	/*
-	    AI_SI_Special_Trigger_Delay=0
-	    AI_Pre_Trigger=0
-	  AI_START_STOP_Select_Register:
-	    AI_START_Polarity=0 (?)	rising edge
-	    AI_START_Edge=1		edge triggered
-	    AI_START_Sync=1 (?)
-	    AI_START_Select=1		PFI0
-	    AI_STOP_Polarity=0		rising edge
-	    AI_STOP_Edge=0		level
-	    AI_STOP_Sync=1
-	    AI_STOP_Select=19		external pin (configuration mem)
-	*/
-	win_out(AI_START_Edge|AI_START_Sync|AI_START_Select(1)|
-		AI_STOP_Select(19)|AI_STOP_Sync,
-		AI_START_STOP_Select_Register);
-
-#if 0
-	win_out((it->trigvar>>16),AI_SI_Load_A_Registers);
-	win_out((it->trigvar&0xffff),AI_SI_Load_A_Registers+1);
-	/* AI_SI_Initial_Load_Source=A */
-	win_out(0,AI_Mode_2_Register);
-	/* load SI */
-	win_out(0x200,AI_Command_1_Register);
-
-	/* stage freq. counter into SI B */
-	win_out((it->trigvar>>16),AI_SI_Load_B_Registers);
-	win_out((it->trigvar&0xffff),AI_SI_Load_B_Registers+1);
-#endif
-
-	win_out(trigvar1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
-	win_out(trigvar1,AI_SI2_Load_B_Register);
-
-	/* AI_SI2_Reload_Mode = alternate */
-	/* AI_SI2_Initial_Load_Source = A */
-	win_out(0x0100,AI_Mode_2_Register);
-
-	/* AI_SI2_Load */
-	win_out(0x0800,AI_Command_1_Register);
-
-	/* AI_SI_Initial_Load_Source=0
-	   AI_SI_Reload_Mode(0)
-	   AI_SI2_Reload_Mode = alternate, AI_SI2_Initial_Load_Source = B */
-	win_out(0x0300,AI_Mode_2_Register);
-
-	if(dev->irq){
-		int bits;
-
-		/* interrupt on FIFO, errors, SC_TC */
-		bits=0x00a1;
-
-		if(s->async->cb_mask&COMEDI_CB_EOS){
-			/* wake on end-of-scan */
-			devpriv->aimode=AIMODE_SCAN;
-		}else{
-			devpriv->aimode=AIMODE_HALF_FULL;
-		}
-		switch(devpriv->aimode){
-		case AIMODE_HALF_FULL:
-			/*generate FIFO interrupts on half-full */
-			win_out(AI_SI2_Source_Select|AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
-			break;
-		case AIMODE_SAMPLE:
-			/*generate FIFO interrupts on non-empty */
-			win_out(AI_SI2_Source_Select|AI_FIFO_Mode_NE|0x0000,AI_Mode_3_Register);
-			break;
-		case AIMODE_SCAN:
-			/*generate FIFO interrupts on half-full */
-			win_out(AI_SI2_Source_Select|AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
-			bits|=AI_STOP_Interrupt_Enable;
-			break;
-		default:
-			break;
-		}
-
-		/* clear interrupts */
-		win_out(0x3f80,Interrupt_A_Ack_Register);
-
-		win_out(bits,Interrupt_A_Enable_Register) ;
-	}else{
-		/* interrupt on nothing */
-		win_out(0x0000,Interrupt_A_Enable_Register) ;
-
-		/* XXX start polling if necessary */
-	}
-
-	/* end configuration */
-	win_out(AI_Configuration_End,Joint_Reset_Register);
-
-	/* AI_SI2_Arm, AI_DIV_Arm, AI_SC_Arm */
-	win_out(0x1500,AI_Command_1_Register);
-
-	/* AI_START1_Pulse */
-	win_out(AI_START1_Pulse,AI_Command_2_Register);
-
-	win_restore(wsave);
-	return 0;
-}
-#endif
-
 
 static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
@@ -1782,230 +1433,6 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	return 0;
 }
 
-#ifdef USE_TRIG
-static int ni_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	unsigned int data;
-	unsigned int conf;
-	unsigned int chan;
-	unsigned int range;
-	int i;
-
-	/* XXX this function could use a little cleanup to make sure that it
-	 * gets the range settings correct for every board. */
-	
-for(i=0;i<it->n_chan;i++){
-	data=it->data[i];
-	chan=CR_CHAN(it->chanlist[i]);
-
-	conf=chan<<8;
-	
-	/* XXX check range with current range in flaglist[chan] */
-	/* should update calibration if range changes (ick) */
-
-	range = CR_RANGE(it->chanlist[i]);
-	if(boardtype.ao_unipolar){
-		conf |= (range&1)^1;
-	}
-	conf |= (range&2)<<1;
-	
-	/* not all boards can deglitch, but this shouldn't hurt */
-	if(it->flags & TRIG_DEGLITCH)
-		conf |= 2;
-
-	/* analog reference */
-	/* AREF_OTHER connects AO ground to AI ground, i think */
-	conf |= (CR_AREF(it->chanlist[i])==AREF_OTHER)? 8 : 0;
-
-	ni_writew(conf,AO_Configuration);
-
-	if(((range&1)==0) || !boardtype.ao_unipolar)
-		data^=(1<<(boardtype.aobits-1));
-	
-	ni_writew(data,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
-}
-	
-	return i;
-}
-#endif
-
-#ifdef USE_TRIG
-static int ni_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	unsigned int conf;
-	unsigned int chan;
-	unsigned int range;
-	int trigvar;
-	
-	trigvar = ni_ns_to_timer(&it->trigvar,TRIG_ROUND_NEAREST);
-
-	chan=CR_CHAN(it->chanlist[0]);
-
-	conf=chan<<8;
-	
-	/* XXX check range with current range in flaglist[chan] */
-	/* should update calibration if range changes (ick) */
-
-	range = CR_RANGE(it->chanlist[0]);
-	conf |= (range&1);
-	conf |= (range&2)<<1;
-	
-	/* not all boards can deglitch, but this shouldn't hurt */
-	if(it->flags & TRIG_DEGLITCH)
-		conf |= 2;
-
-	/* analog reference */
-	/* AREF_OTHER connects AO ground to AI ground, i think */
-	conf |= (CR_AREF(it->chanlist[0])==AREF_OTHER)? 8 : 0;
-
-	win_out(AO_Disarm,AO_Command_1_Register);
-
-	ni_writew(conf,AO_Configuration);
-
-	/* user is supposed to write() to buffer before triggering */
-	if(ni_ao_prep_fifo(dev,s)==0)
-		return -EIO;
-
-	win_out(AO_Configuration_Start,Joint_Reset_Register);
-
-	devpriv->ao_mode1|=AO_Trigger_Once;
-	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
-	devpriv->ao_trigger_select&=~(AO_START1_Polarity|AO_START1_Select(-1));
-	devpriv->ao_trigger_select|=AO_START1_Edge|AO_START1_Sync;
-	win_out(devpriv->ao_trigger_select,AO_Trigger_Select_Register);
-	devpriv->ao_mode3&=~AO_Trigger_Length;
-	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
-
-	if(it->n==0){
-		devpriv->ao_mode1|=AO_Continuous;
-	}else{
-		devpriv->ao_mode1&=~AO_Continuous;
-	}
-	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
-	devpriv->ao_mode2&=~AO_BC_Initial_Load_Source;
-	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	if(it->n==0){
-		win_out(0xff,AO_BC_Load_A_Register_High);
-		win_out(0xffff,AO_BC_Load_A_Register_Low);
-	}else{
-		win_out(0,AO_BC_Load_A_Register_High);
-		win_out(0,AO_BC_Load_A_Register_Low);
-	}
-	win_out(AO_BC_Load,AO_Command_1_Register);
-	devpriv->ao_mode2&=~AO_UC_Initial_Load_Source;
-	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	if(it->n==0){
-		win_out(0xff,AO_UC_Load_A_Register_High);
-		win_out(0xffff,AO_UC_Load_A_Register_Low);
-		win_out(AO_UC_Load,AO_Command_1_Register);
-		win_out(0xff,AO_UC_Load_A_Register_High);
-		win_out(0xffff,AO_UC_Load_A_Register_Low);
-	}else{
-		win_out(0,AO_UC_Load_A_Register_High);
-		win_out(0,AO_UC_Load_A_Register_Low);
-		win_out(AO_UC_Load,AO_Command_1_Register);
-		win_out((it->n-1)>>16,AO_UC_Load_A_Register_High);
-		win_out((it->n-1)&0xffff,AO_UC_Load_A_Register_Low);
-	}
-
-	devpriv->ao_cmd2&=~AO_BC_Gate_Enable;
-	ni_writew(devpriv->ao_cmd2,AO_Command_2);
-	devpriv->ao_mode1&=~(AO_UI_Source_Select(0x1f)|AO_UI_Source_Polarity);
-	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
-	devpriv->ao_mode2&=~(AO_UI_Reload_Mode(3)|AO_UI_Initial_Load_Source);
-	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	win_out(0,AO_UI_Load_A_Register_High);
-	win_out(1,AO_UI_Load_A_Register_Low);
-	win_out(AO_UI_Load,AO_Command_1_Register);
-	win_out((trigvar>>16),AO_UI_Load_A_Register_High);
-	win_out((trigvar&0xffff),AO_UI_Load_A_Register_Low);
-
-	devpriv->ao_mode1&=~AO_Multiple_Channels;
-	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
-	win_out(AO_UPDATE_Output_Select(1),AO_Output_Control_Register);
-
-	win_out(AO_DAC0_Update_Mode|AO_DAC1_Update_Mode,AO_Command_1_Register);
-
-	devpriv->ao_mode3|=AO_Stop_On_Overrun_Error;
-	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
-
-devpriv->ao_mode2|=AO_FIFO_Mode(1);
-	devpriv->ao_mode2&=~AO_FIFO_Retransmit_Enable;
-	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-
-	win_out(AO_Configuration_End,Joint_Reset_Register);
-
-	win_out(devpriv->ao_mode3|AO_Not_An_UPDATE,AO_Mode_3_Register);
-	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
-
-	/* wait for DACs to be loaded */
-	udelay(100);
-
-	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
-		AO_Command_1_Register);
-
-	win_out(AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable,Interrupt_B_Enable_Register);
-
-
-	ni_writew(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2);
-	
-	return 0;
-}
-#endif
-
-
-#ifdef USE_TRIG
-/*
-	digital i/o
-
-*/
-static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int data,mask;
-	int i;
-	int temp;
-
-	/* rt stuff */
-	temp=win_save();
-
-	if(it->flags & TRIG_CONFIG){
-		data=s->io_bits;
-		for(i=0;i<it->n_chan;i++){
-			mask=1<<CR_CHAN(it->chanlist[i]);
-			data&= ~mask;
-			if(it->data[i])
-				data|=mask;
-		}
-		s->io_bits=data;
-		devpriv->dio_control &= ~DIO_Pins_Dir_Mask;
-		devpriv->dio_control |= DIO_Pins_Dir(s->io_bits);
-		win_out(devpriv->dio_control,DIO_Control_Register);
-#ifdef DEBUG_DIO
-		printk("Parallel DIO config bits=0x%x\n", s->io_bits);
-#endif
-	}else{
-		if(it->flags & TRIG_WRITE){
-			do_pack(&s->state,it);
-#ifdef DEBUG_DIO
-			printk("Parallel DIO write bits=0x%x\n", s->state);
-#endif
-			devpriv->dio_output &= ~DIO_Parallel_Data_Mask;
-			devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
-			win_out(devpriv->dio_output,DIO_Output_Register);
-		}else{
-			data=ni_readw(DIO_Parallel_Input);
-			di_unpack(data,it);
-#ifdef DEBUG_DIO
-			printk("Parallel DIO read bits=0x%x\n", data);
-#endif
-		}
-	}
-
-	win_restore(temp);
-
-	return it->n_chan;
-}
-#endif
 
 static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -2108,11 +1535,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->len_chanlist=512;	/* XXX is this the same for PCI-MIO ? */
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->range_table=ni_range_lkup[boardtype.gainlkup];
-#ifdef USE_TRIG
-	s->trig[0]=ni_ai_mode0;
-	s->trig[2]=ni_ai_mode2;
-	s->trig[4]=ni_ai_mode4;
-#endif
 	s->insn_read=ni_ai_insn_read;
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
@@ -2136,15 +1558,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_write=ni_ao_insn_write;
 		s->do_cmd=ni_ao_cmd;
 		s->do_cmdtest=ni_ao_cmdtest;
-#ifdef USE_TRIG
-		s->trig[0]=ni_ao_mode0;
-#endif
 		s->len_chanlist = 2;
-#ifdef USE_TRIG
-		if(boardtype.ao_fifo_depth){
-			s->trig[2]=ni_ao_mode2;
-		}
-#endif
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
@@ -2160,9 +1574,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->io_bits=0;		/* all bits input */
 	s->insn_bits=ni_dio_insn_bits;
 	s->insn_config=ni_dio_insn_config;
-#ifdef USE_TRIG
-	s->trig[0]=ni_dio;
-#endif
 
 	/* dio setup */
 	devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
@@ -2202,9 +1613,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=512;
 	s->maxdata=0xff;
 	s->insn_read=ni_eeprom_insn_read;
-#ifdef USE_TRIG
-	s->trig[0]=ni_eeprom;
-#endif
 	
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
@@ -2265,18 +1673,6 @@ static int ni_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	return 1;
 }
-
-#ifdef USE_TRIG
-static int ni_eeprom(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int i;
-	
-	for(i=0;i<it->n_chan;i++)
-		it->data[i]=ni_read_eeprom(dev,CR_CHAN(it->chanlist[i]));
-
-	return i;
-}
-#endif
 
 /*
 	reads bytes out of eeprom
