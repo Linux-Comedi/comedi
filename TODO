@@ -20,3 +20,5 @@ standardize error codes
 
 writes to linux source
 
+implement ioctl for comedi_dio_bitfield()
+
