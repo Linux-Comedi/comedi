@@ -652,34 +652,25 @@ static void ni_mio_print_status_b(int status)
 
 #ifndef PCIDMA
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
-		sampl_t *data,int n)
+	int n)
 {
 	comedi_async *async = s->async;
-	int i,j;
+	int i;
 	sampl_t d;
 	unsigned int mask;
 
 	mask=(1<<boardtype.adbits)-1;
-	j=async->cur_chan;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
-		d+=devpriv->ai_xorlist[j];
-		data[i]=d;
-		j++;
-		if(j>=async->cmd.chanlist_len){
-			j=0;
-			async->events |= COMEDI_CB_EOS;
-		}
+		d+=devpriv->ai_xorlist[ async->cur_chan ];
+		comedi_buf_put( async, d );
 	}
-	async->cur_chan=j;
 }
 
 static void ni_handle_fifo_half_full(comedi_device *dev)
 {
-	int n,m;
+	int n;
 	comedi_subdevice *s=dev->subdevices+0;
-	comedi_async *async=s->async;
-
 	/*
 	   if we got a fifo_half_full interrupt, we can transfer fifo/2
 	   samples without checking the empty flag.  It doesn't matter if
@@ -692,23 +683,7 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 
 	n=boardtype.ai_fifo_depth/2;
 
-	/* this makes the assumption that the buffer length is
-	   greater than the half-fifo depth. */
-
-	if(async->buf_int_ptr+n*sizeof(sampl_t)>=async->data_len){
-		m=(async->data_len-async->buf_int_ptr)/sizeof(sampl_t);
-		ni_ai_fifo_read(dev,s,async->data+async->buf_int_ptr,m);
-		async->buf_int_count+=m*sizeof(sampl_t);
-		n-=m;
-		async->buf_int_ptr=0;
-
-		async->events |= COMEDI_CB_EOBUF;
-	}
-	ni_ai_fifo_read(dev,s,async->data+async->buf_int_ptr,n);
-	async->buf_int_count+=n*sizeof(sampl_t);
-	async->buf_int_ptr+=n*sizeof(sampl_t);
-
-	async->events |= COMEDI_CB_BLOCK;
+	ni_ai_fifo_read(dev,s,n);
 }
 #endif
 
@@ -718,85 +693,42 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 static void ni_handle_fifo_dregs(comedi_device *dev)
 {
 	comedi_subdevice *s=dev->subdevices+0;
-	sampl_t *data,d;
+	comedi_async *async = s->async;
+	sampl_t data;
 	int i,n;
-	int j;
 	unsigned int mask;
 	unsigned int dl;
 
 	mask=(1<<boardtype.adbits)-1;
-	j=s->async->cur_chan;
-	data=s->async->data+s->async->buf_int_ptr;
 	if(boardtype.reg_611x){
 		while(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
-			*data = (dl>>16) + devpriv->ai_xorlist[j];
-			j++;
-			if(j>=s->async->cmd.chanlist_len) j=0;
-			data++;
-			s->async->buf_int_ptr+=sizeof(sampl_t);
-			s->async->buf_int_count+=sizeof(sampl_t);
-			if(s->async->buf_int_ptr>=s->async->data_len){
-				data = s->async->data;
-				s->async->buf_int_ptr = 0;
-				s->async->events |= COMEDI_CB_EOBUF;
-			}
-
-			*data = (dl&0xffff) + devpriv->ai_xorlist[j];
-			j++;
-			if(j>=s->async->cmd.chanlist_len) j=0;
-			data++;
-			s->async->buf_int_ptr+=sizeof(sampl_t);
-			s->async->buf_int_count+=sizeof(sampl_t);
-			if(s->async->buf_int_ptr>=s->async->data_len){
-				data = s->async->data;
-				s->async->buf_int_ptr = 0;
-				s->async->events |= COMEDI_CB_EOBUF;
-			}
+			data = (dl>>16) + devpriv->ai_xorlist[async->cur_chan];
+			comedi_buf_put( s->async, data );
+			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
+			comedi_buf_put( s->async, data );
 		}
 
 		/* Check if there's a single sample stuck in the FIFO */
 		if(ni_readb(Status_611x)&0x80){
 			dl=ni_readl(ADC_FIFO_Data_611x);
-			*data = (dl&0xffff) + devpriv->ai_xorlist[j];
-			j++;
-			if(j>=s->async->cmd.chanlist_len) j=0;
-			data++;
-			s->async->buf_int_ptr+=sizeof(sampl_t);
-			s->async->buf_int_count+=sizeof(sampl_t);
-			if(s->async->buf_int_ptr>=s->async->data_len){
-				data = s->async->data;
-				s->async->buf_int_ptr = 0;
-				s->async->events |= COMEDI_CB_EOBUF;
-			}
+			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
+			comedi_buf_put( s->async, data );
 		}
-		s->async->cur_chan=j;
 	}else{
-	while(1){
-		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		for(i=0;i<n;i++){
-			if(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St){
-				s->async->cur_chan=j;
-				return;
+		while(1){
+			n = s->async->data_len / sizeof(sampl_t);
+			for(i=0;i<n;i++){
+				if(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St){
+					return;
+				}
+				data=ni_readw(ADC_FIFO_Data_Register);
+				data+=devpriv->ai_xorlist[async->cur_chan];
+				comedi_buf_put( s->async, data );
 			}
-			d=ni_readw(ADC_FIFO_Data_Register);
-			d+=devpriv->ai_xorlist[j];
-			*data=d;
-			j++;
-			if(j>=s->async->cmd.chanlist_len){
-				j=0;
-				//s->events |= COMEDI_CB_EOS;
-			}
-			data++;
-			s->async->buf_int_ptr+=sizeof(sampl_t);
-			s->async->buf_int_count+=sizeof(sampl_t);
 		}
-		s->async->buf_int_ptr=0;
-		data=s->async->data;
-		s->async->events |= COMEDI_CB_EOBUF;
-	}
 	}
 }
 
@@ -841,7 +773,7 @@ static void ni_handle_block_dma(comedi_device *dev)
 static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 {
 	struct mite_struct *mite = devpriv->mite;
-	
+
 	mite->current_link = 0;
 	mite->chan = 0;
 	mite->dir = COMEDI_INPUT;
