@@ -2,7 +2,7 @@
     cb_pcidas.c
     This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
     cards using the AMCC S5933 PCI controller:
-    - PCI-DAS1602/12, 16, 16jr
+    - PCI-DAS1602/12, 1602/16, 1602/16/jr
     - PCI-DAS1200, 1200jr
     - PCI-DAS1000, 1001, 1002
 
@@ -805,6 +805,10 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= PACER_INT;
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
+#ifdef CB_PCIDAS_DEBUG
+		rt_printk("comedi: sent 0x%x to adcmux control\n", bits);
+#endif
+
 	// load counters
 	if(cmd->convert_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
@@ -816,11 +820,6 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	{
 		devpriv->count = cmd->chanlist_len * cmd->stop_arg;
 	}
-
-	// clear interrupts
-	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
-	// clear s5933 interrupt
-	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 
 	// enable interrupts
 	devpriv->adc_fifo_bits = INTE;
@@ -834,7 +833,14 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	{
 		devpriv->adc_fifo_bits |= INT_FHF;	//interrupt fifo half full
 	}
-	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
+#ifdef CB_PCIDAS_DEBUG
+		rt_printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
+#endif
+	// enable (and clear) interrupts
+	outw(devpriv->adc_fifo_bits | EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
+	// clear s5933 interrupt
+	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+
 
 	// set start trigger and burst mode
 	bits = 0;
@@ -850,6 +856,9 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if(cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
 		bits |= BURSTE;
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
+#ifdef CB_PCIDAS_DEBUG
+		rt_printk("comedi: sent 0x%x to trig control\n", bits);
+#endif
 
 	return 0;
 }
@@ -875,9 +884,11 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	async->events = 0;
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
-	if((status & (INT | EOAI)) == 0)
+	if((status & (INT | EOAI | LADFUL)) == 0)
 	{
+#ifdef CB_PCIDAS_DEBUG
 		comedi_error(dev, "spurious interrupt");
+#endif
 		// clear s5933 interrupt
 		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 		return;
