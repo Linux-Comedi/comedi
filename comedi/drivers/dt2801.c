@@ -251,6 +251,7 @@ static int dt2801_writecmd(comedi_device * dev, int command)
 static int dt2801_reset(comedi_device *dev)
 {
 	int board_code=0;
+	int i;
 
 	printk("dt2801: resetting board...\n");
 
@@ -270,7 +271,7 @@ static int dt2801_reset(comedi_device *dev)
 	//dt2801_writecmd(dev,DT_C_RESET);
 
 	for(i=10000;i>0;i--){
-		if(!(inb_p(dev->iobase+DT2801_STATUS)&READY_BIT))
+		if(!(inb_p(dev->iobase+DT2801_STATUS)&DT_S_READY))
 			break;
 	}
 	printk("dt2801: reset ready wait timeout %d\n",i);
