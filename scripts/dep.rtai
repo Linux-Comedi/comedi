@@ -10,10 +10,6 @@ if [ "$CONFIG_RTHAL" != "" ];then
 		: ${RTAIDIR:=/usr/src/rtai}
 	fi
 	echo RTAIDIR=$RTAIDIR >>.sourcedirs
-	if [ -d $RTAIDIR/include/rtai ];then
-		(cd include;rm -f rtai;ln -s $RTAIDIR/include/rtai rtai)
-	else
-		(cd include;rm -f rtai;ln -s $RTAIDIR/include rtai)
-	fi
+	(cd include;rm -f rtai;ln -s $RTAIDIR/include rtai)
 fi
 
