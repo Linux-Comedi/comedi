@@ -902,7 +902,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 			cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len)
 		{
 			cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
-			err++
+			err++;
 		}
 		if(cmd->scan_begin_arg < thisboard->ai_speed * cmd->chanlist_len)
 		{
