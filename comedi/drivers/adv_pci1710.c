@@ -271,6 +271,10 @@ typedef struct{
 	unsigned int		ai_act_chan;// actual position in actual scan
 	unsigned int 		ai_buf_ptr;	// data buffer ptr in samples
 	unsigned char		ai_eos;		// 1=EOS wake up
+	unsigned char		ai_et;
+	unsigned int		ai_et_CntrlReg;
+	unsigned int		ai_et_MuxVal;
+	unsigned int		ai_et_div1, ai_et_div2;
 	unsigned int		act_chanlist[32];// list of scaned channel
 	unsigned char		act_chanlist_len;// len of scanlist
 	unsigned char 		act_chanlist_pos;// actual position in MUX list
@@ -632,6 +636,18 @@ static void interrupt_service_pci1710(int irq, void *d, struct pt_regs *regs)
 
 	DPRINTK("adv_pci1710 EDBG: interrupt_service_pci1710() ST: %4x\n",inw(dev->iobase + PCI171x_STATUS));
 
+	if (devpriv->ai_et) {	// Switch from initial TRIG_EXT to TRIG_xxx.
+		devpriv->ai_et = 0;
+		outw(Control_SW, dev->iobase+PCI171x_CONTROL);
+		devpriv->CntrlReg=devpriv->ai_et_CntrlReg;
+		outb(0,dev->iobase + PCI171x_CLRFIFO);
+		outb(0,dev->iobase + PCI171x_CLRINT);
+		outw(devpriv->ai_et_MuxVal, dev->iobase+PCI171x_MUX);
+		outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
+		// start pacer
+		start_pacer(dev, 1, devpriv->ai_et_div1, devpriv->ai_et_div2);
+		return;
+	}
 	if (devpriv->ai_eos) {  // We use FIFO half full INT or not?
 		interrupt_pci1710_every_sample(d);
 	} else {
@@ -679,12 +695,27 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 							else { devpriv->neverending_ai=0; }
 	switch (mode) {
 	case 1:
+	case 2:
 		if (devpriv->ai_timer1<this_board->ai_ns_min) devpriv->ai_timer1=this_board->ai_ns_min;
 		devpriv->CntrlReg|=Control_PACER|Control_IRQEN;
+		if (mode == 2) {
+			devpriv->ai_et_CntrlReg=devpriv->CntrlReg;
+			devpriv->CntrlReg&=~(Control_PACER|Control_ONEFH|Control_GATE);
+			devpriv->CntrlReg|=Control_EXT;
+			devpriv->ai_et=1;
+		} else {
+			devpriv->ai_et=0;
+		}
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base,&divisor1,&divisor2,&devpriv->ai_timer1,devpriv->ai_flags&TRIG_ROUND_MASK);
                 DPRINTK("adv_pci1710 EDBG: OSC base=%u div1=%u div2=%u timer=%u\n",devpriv->i8254_osc_base,divisor1,divisor2,devpriv->ai_timer1);
 		outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
-    		start_pacer(dev, mode, divisor1, divisor2);	// start pacer
+		if (mode != 2) {
+			// start pacer
+			start_pacer(dev, mode, divisor1, divisor2);
+		} else {
+			devpriv->ai_et_div1 = divisor1;
+			devpriv->ai_et_div2 = divisor2;
+		}
 		break;
 	case 3:
 		devpriv->CntrlReg|=Control_EXT|Control_IRQEN;
@@ -725,7 +756,7 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_NOW|TRIG_EXT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
@@ -754,7 +785,7 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if(cmd->start_src!=TRIG_NOW) {
+	if(cmd->start_src!=TRIG_NOW&&cmd->start_src!=TRIG_EXT) {
 		cmd->start_src=TRIG_NOW;
 		err++;
 	}
@@ -884,10 +915,10 @@ static int pci171x_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if (cmd->stop_src==TRIG_COUNT) { devpriv->ai_scans=cmd->stop_arg; }
 				else   { devpriv->ai_scans=0; }
 
-	if(cmd->scan_begin_src==TRIG_FOLLOW){ // mode 1 or 3
-		if (cmd->convert_src==TRIG_TIMER) { // mode 1
+	if(cmd->scan_begin_src==TRIG_FOLLOW){ // mode 1, 2, 3
+		if (cmd->convert_src==TRIG_TIMER) { // mode 1 and 2
 			devpriv->ai_timer1=cmd->convert_arg;
-			return pci171x_ai_docmd_and_mode(1,dev,s);
+			return pci171x_ai_docmd_and_mode(cmd->start_src==TRIG_EXT?2:1,dev,s);
 		}
 		if (cmd->convert_src==TRIG_EXT) { // mode 3
 			return pci171x_ai_docmd_and_mode(3,dev,s);
@@ -972,7 +1003,9 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsign
 		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range, devpriv->act_chanlist[i]);
 	}
 
-	outw(CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8) , dev->iobase+PCI171x_MUX); /* select channel interval to scan */
+	devpriv->ai_et_MuxVal =
+		CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8);
+	outw(devpriv->ai_et_MuxVal, dev->iobase+PCI171x_MUX); /* select channel interval to scan */
 	DPRINTK("MUX: %4x L%4x.H%4x\n", CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8), CR_CHAN(chanlist[0]), CR_CHAN(chanlist[seglen-1]));
 }
 
