@@ -1,4 +1,6 @@
 
+make menuconfig
+
 bug: buffer resize to 0 convinces comedi that buffer doesn't exist
 
 doc: how to use kcomedilib
