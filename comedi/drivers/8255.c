@@ -26,24 +26,25 @@ Description: generic 8255 support
 Devices: [standard] 8255 (8255)
 Author: ds
 
-The classic in digital I/O.  Three channels of 8 bit digital I/O,
-each channel is I/O configurable, channels 0 and 1 in 8 bit units,
-channel 2 in 4 bit units.  The driver does not support modes 1 or 2
-yet, since I don't really understand how they would potentially be used.
-(Send me email if you want to use these modes.)  If and when
-modes 1 and 2 are supported, there is a strong possibility that the
-3rd channel will be split into two 4-bit channels.  (Refer to the
-8255 spec for clues as to why.)
+The classic in digital I/O.  The 8255 appears in Comedi as a single
+digital I/O subdevice with 24 channels.  The channel 0 corresponds
+to the 8255's port A, bit 0; channel 23 corresponds to port C, bit
+7.  Direction configuration is done in blocks, with channels 0-7,
+8-15, 16-19, and 20-23 making up the 4 blocks.  The only 8255 mode
+supported is mode 0.
 
-You should configure this driver if you plan to use a board that
-has an 8255 chip.  For multifunction boards, the main driver will
+You should enable compilation this driver if you plan to use a board
+that has an 8255 chip.  For multifunction boards, the main driver will
 configure the 8255 subdevice automatically.
 
 This driver also works independently with ISA cards that directly
 map the 8255 registers to I/O ports, including cards with multiple
 8255 chips.  To configure the driver for such a card, the option
 list should be a list of the I/O port bases for each of the 8255
-chips.
+chips.  For example,
+
+  comedi_config /dev/comedi0 8255 0x200,0x204,0x208,0x20c
+
 */
 
 /*
