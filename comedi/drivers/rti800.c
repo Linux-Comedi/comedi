@@ -273,7 +273,7 @@ static int rti800_do(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
 static int rti800_recognize(char *name)
 {
 	if (!strcmp("rti800", name))return 0;
-	if (!strcmp("rti815", name))return 0;
+	if (!strcmp("rti815", name))return 1;
 
 	return -1;
 }
