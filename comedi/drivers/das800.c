@@ -354,7 +354,7 @@ COMEDI_INITCLEANUP(driver_das800);
 static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	short i;		/* loop index */
-	sampl_t dataPoint;
+	sampl_t dataPoint = 0;
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
 	comedi_async *async;
@@ -388,11 +388,6 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		return;
 	}
 
-	if(thisboard->resolution == 16)
-	{
-		fifo_empty = 0;	// cio-das802/16 has no fifo-empty status bit
-		fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
-	}
 	/* loop while card's fifo is not empty (and limit to half fifo for cio-das802/16) */
 	for(i = 0; i < max_loops; i++)
 	{
@@ -402,19 +397,13 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(thisboard->resolution == 12)
 		{
 			fifo_empty = dataPoint & FIFO_EMPTY;
-			fifo_overflow = dataPoint & FIFO_OVF;
+		}else
+		{
+			fifo_empty = 0;	// cio-das802/16 has no fifo empty status bit
 		}
 		if(fifo_empty)
 		{
 			break;
-		}
-		if(fifo_overflow)
-		{
-			comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-			comedi_error(dev, "DAS800 FIFO overflow");
-			das800_cancel(dev, dev->subdevices + 0);
-			comedi_error_done(dev, s);
-			return;
 		}
 		/* strip off extraneous bits for 12 bit cards*/
 		if(thisboard->resolution == 12)
@@ -423,25 +412,30 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->count > 0 || devpriv->forever == 1)
 		{
 			/* write data point to buffer */
-			if(async->buf_int_ptr >= async->data_len )
-			{
-				async->buf_int_ptr = 0;
-				comedi_eobuf(dev, s);
-			}
-			*((sampl_t *)((void *)async->data + async->buf_int_ptr)) = dataPoint;
-			async->cur_chan++;
-			if( async->cur_chan >= async->cur_chanlist_len )
-			{
-				async->cur_chan = 0;
-				comedi_eos(dev, s);
-			}
-			async->buf_int_count += sizeof(sampl_t);
-			async->buf_int_ptr += sizeof(sampl_t);
+			comedi_buf_put(async, dataPoint);
 			if(devpriv->count > 0) devpriv->count--;
 		}
 	}
-
-	comedi_bufcheck(dev,s);
+	async->events |= COMEDI_CB_BLOCK;
+	/* check for fifo overflow */
+	if(thisboard->resolution == 12)
+	{
+		fifo_overflow = dataPoint & FIFO_OVF;
+	// else cio-das802/16
+	}else
+	{
+		fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
+	}
+	if(fifo_overflow)
+	{
+		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+		comedi_error(dev, "DAS800 FIFO overflow");
+		das800_cancel(dev, dev->subdevices + 0);
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev, s, async->events);
+		async->events = 0;
+		return;
+	}
 	if(devpriv->count > 0 || devpriv->forever == 1)
 	{
 		/* Re-enable card's interrupt.
@@ -451,27 +445,12 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* otherwise, stop taking data */
 	} else
 	{
-		/* check for overflow on last data point */
-		if(thisboard->resolution == 12)
-		{
-			fifo_overflow = inb(dev->iobase + DAS800_LSB) & FIFO_OVF;
-		// else cio-das802/16
-		}else
-		{
-			fifo_overflow = inb(dev->iobase + DAS800_GAIN) & CIO_FFOV;
-		}
-		if(fifo_overflow)
-		{
-			comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-			comedi_error(dev, "DAS800 FIFO overflow");
-			das800_cancel(dev, dev->subdevices + 0);
-			comedi_error_done(dev, s);
-			return;
-		}
 		disable_das800(dev);		/* diable hardware triggered conversions */
-		comedi_done(dev, s);
+		async->events |= COMEDI_CB_EOA;
 	}
 	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	comedi_event(dev, s, async->events);
+	async->events = 0;
 	return;
 }
 
