@@ -263,6 +263,7 @@ static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE|SDF_RT;
 	s->n_chan = 2;
+	s->len_chanlist = 2;
 	s->insn_read = pci20006_insn_read;
 	s->insn_write = pci20006_insn_write;
 	s->maxdata = 0xffff;
