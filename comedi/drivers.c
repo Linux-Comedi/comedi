@@ -101,7 +101,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	use_count = dev->use_count;
 	memset(dev,0,sizeof(dev));
 	dev->minor=minor;
-	dev->use_count = dev->use_count;
+	dev->use_count = use_count;
 	dev->read_subdev=-1;
 	dev->write_subdev=-1;
 
