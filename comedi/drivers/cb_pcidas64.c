@@ -369,6 +369,7 @@ enum i2c_addresses
 enum range_cal_i2c_contents
 {
 	ADC_SRC_4020_MASK = 0x70,	// bits that set what source the adc converter measures
+	BNC_TRIG_THRESHOLD_0V_BIT = 0x80,	// make bnc trig/ext clock threshold 0V instead of 2.5V
 };
 static inline uint8_t adc_src_4020_bits( unsigned int source )
 {
@@ -1860,6 +1861,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_cmd *cmd = &async->cmd;
 	u32 bits;
 	unsigned int i;
+	unsigned long flags;
 
 	disable_ai_interrupts( dev );
 
@@ -1984,7 +1986,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if((cmd->flags & TRIG_WAKE_EOS) == 0 ||
 		board(dev)->layout == LAYOUT_4020)
 	{
-		unsigned long flags;
 
 		// set dma transfer size
 		for( i = 0; i < DMA_RING_COUNT; i++)
@@ -2007,6 +2008,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		writew( 0, priv(dev)->main_iobase + DAQ_ATRIG_LOW_4020_REG );
 	}
 
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
 	// set start trigger
@@ -2021,6 +2024,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, priv(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);
+	
+	priv(dev)->ai_cmd_running = 1;
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// start aquisition
 	if( cmd->start_src == TRIG_NOW )
@@ -2028,8 +2035,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		writew(0, priv(dev)->main_iobase + ADC_START_REG);
 		DEBUG_PRINT("soft trig\n");
 	}
-
-	priv(dev)->ai_cmd_running = 1;
 
 	return 0;
 }
@@ -2246,8 +2251,13 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if( status & ADC_DONE_BIT )
 	{
 		DEBUG_PRINT("adc done interrupt\n");
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		if( priv(dev)->ai_cmd_running )
+		{
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 			pio_drain_ai_fifo(dev);
+		}else
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}
 
 	// if we are have all the data, then quit
@@ -2320,9 +2330,16 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	if( priv(dev)->ai_cmd_running == 0 ) return 0;
+	unsigned long flags;
 
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	if( priv(dev)->ai_cmd_running == 0 )
+	{
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+		return 0;
+	} 
 	priv(dev)->ai_cmd_running = 0;
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// disable ai interrupts
 	priv(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
