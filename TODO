@@ -19,11 +19,7 @@ driver.
 
 BUG in do_test_for_insn_bits() (due to -EACCES)
 
-ni_mio_common: doesn't do 2-chan ao.
-
 das6402 needs cleanup
-
-register_symtab
 
 fix PCI code, use pci_find_device()
 
@@ -33,13 +29,9 @@ verify PCI-6503 code
 
 get rid of spurious "char-major-98-0 not found"
 
-develop 8253 and Am9513 code
-
 different error code for board error vs buffer overflow
 
 spinlocks
-
-add pci_enable_device where appropriate
 
 autoloading causes BUG on failure.
 
