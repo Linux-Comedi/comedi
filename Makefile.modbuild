@@ -99,14 +99,14 @@ MODULES_PCMCIA	= $(filter %_cs.o, $(MODULES))
 MODULES_MISC	= $(filter-out %_cs.o, $(MODULES))
 
 install:	dummy
-	mkdir -p ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
-	install -d ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
-	install ${MODULES_MISC} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
+	mkdir -p ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/misc
+	install -d ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/misc
+	install ${MODULES_MISC} ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/misc
 ifneq ($(MODULES_PCMCIA),)
-	mkdir -p ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/pcmcia
-	install ${MODULES_PCMCIA} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/pcmcia
+	mkdir -p ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/pcmcia
+	install ${MODULES_PCMCIA} ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/pcmcia
 endif
-ifeq (${MOD_INSTALL_PATH},)
+ifeq (${INSTALL_MOD_PATH},)
 	/sbin/depmod -a ${UTS_VERSION}
 else
 	echo 'depmod -a not run'
