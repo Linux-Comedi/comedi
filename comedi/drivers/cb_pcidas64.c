@@ -59,12 +59,14 @@ Configuration options:
 These boards may be autocalibrated with the comedi_calibrate utility.
 
 To select the bnc trigger input on the 4020 (instead of the dio input),
-specify channel 1000 in the chanspec.
-Feel free to send and success/failure reports to Frank Hess.
+specify channel 1000 in the chanspec.  If you wish to use an external
+master clock on the 4020, you may do so by setting the scan_begin_src
+to TRIG_OTHER, and using an INSN_CONFIG_TIMER_1 configuration insn
+to configure the divisor to use for the external clock.
 
 Some devices are not identified because the PCI device IDs are not yet
-known. If you have such a board, contact Frank Hess and the ID can be
-easily added.
+known. If you have such a board, please file a bug report at
+https://bugs.comedi.org.
 
 */
 
@@ -104,9 +106,6 @@ TODO:
 /* maximum number of dma transfers we will chain together into a ring
  * (and the maximum number of dma buffers we maintain) */
 #define DMA_RING_COUNT 64
-
-// arbitrary channel number used to select bnc trigger input
-static const int bnc_trigger_channel_4020 = 1000;
 
 /* PCI-DAS64xxx base addresses */
 
@@ -987,9 +986,8 @@ static inline pcidas64_board* board( const comedi_device *dev )
 
 struct ext_clock_info
 {
-	unsigned int convert_divisor;	// master clock divisor to use for conversions with external master clock
-	unsigned int scan_divisor;	// master clock divisor to use for scans with external master clock
-	unsigned int chanspec;	// chanspec for master clock input
+	unsigned int divisor;	// master clock divisor to use for scans with external master clock
+	unsigned int chanspec;	// chanspec for master clock input when used as scan begin src
 };
 
 /* this structure is for data unique to this hardware driver. */
@@ -1080,7 +1078,7 @@ static int ad8402_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static void ad8402_write( comedi_device *dev, unsigned int channel, unsigned int value );
 static int ad8402_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static void check_adc_timing(comedi_cmd *cmd);
+static void check_adc_timing( comedi_device *dev, comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static void i2c_write(comedi_device *dev, unsigned int address, const uint8_t *data, unsigned int length);
 static void caldac_write( comedi_device *dev, unsigned int channel, unsigned int value );
@@ -1809,7 +1807,7 @@ static int ai_config_master_clock_4020( comedi_device *dev, lsampl_t *data )
 	switch( data[1] )
 	{
 		case COMEDI_EV_SCAN_BEGIN:
-			priv(dev)->ext_clock.scan_divisor = divisor;
+			priv(dev)->ext_clock.divisor = divisor;
 			priv(dev)->ext_clock.chanspec = data[2];
 			break;
 		default:
@@ -1885,10 +1883,11 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
+	triggers = TRIG_TIMER;
 	if(board(dev)->layout == LAYOUT_4020)
-		triggers = TRIG_NOW | TRIG_OTHER;
+		triggers |= TRIG_NOW;
 	else
-		triggers = TRIG_TIMER | TRIG_EXT;
+		triggers |= TRIG_EXT;
 	cmd->convert_src &= triggers;
 	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
 
@@ -1912,8 +1911,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 		cmd->scan_begin_src != TRIG_FOLLOW) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
 		cmd->convert_src != TRIG_EXT &&
-		cmd->convert_src != TRIG_NOW &&
-		cmd->convert_src != TRIG_OTHER) err++;
+		cmd->convert_src != TRIG_NOW ) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE &&
 		cmd->stop_src != TRIG_EXT) err++;
@@ -1925,27 +1923,35 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE &&
 		cmd->stop_src != TRIG_EXT) err++;
-	if( cmd->convert_src == TRIG_OTHER &&
-		cmd->scan_begin_arg == TRIG_OTHER ) err++;
-		
+
 	if(err) return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
 	if(cmd->convert_src == TRIG_TIMER)
 	{
-		if(cmd->convert_arg < board(dev)->ai_speed)
+		if(board(dev)->layout == LAYOUT_4020)
 		{
-			cmd->convert_arg = board(dev)->ai_speed;
-			err++;
-		}
-		if(cmd->scan_begin_src == TRIG_TIMER)
-		{
-			// if scans are timed faster than conversion rate allows
-			if(cmd->convert_arg * cmd->chanlist_len > cmd->scan_begin_arg)
+			if( cmd->convert_arg )
 			{
-				cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+				cmd->convert_arg = 0;
 				err++;
+			}
+		}else
+		{
+			if(cmd->convert_arg < board(dev)->ai_speed)
+			{
+				cmd->convert_arg = board(dev)->ai_speed;
+				err++;
+			}
+			if(cmd->scan_begin_src == TRIG_TIMER)
+			{
+				// if scans are timed faster than conversion rate allows
+				if(cmd->convert_arg * cmd->chanlist_len > cmd->scan_begin_arg)
+				{
+					cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+					err++;
+				}
 			}
 		}
 	}
@@ -1991,7 +1997,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	{
 		tmp_arg = cmd->convert_arg;
 		tmp_arg2 = cmd->scan_begin_arg;
-		check_adc_timing(cmd);
+		check_adc_timing( dev, cmd);
 		if(tmp_arg != cmd->convert_arg) err++;
 		if(tmp_arg2 != cmd->scan_begin_arg) err++;
 	}
@@ -2145,15 +2151,15 @@ static uint32_t ai_scan_counter_6xxx( comedi_device *dev, comedi_cmd *cmd )
 	// figure out how long we need to delay at end of scan
 	switch( cmd->scan_begin_src )
 	{
-		case TRIG_TIMER:
-			return ( cmd->scan_begin_arg - ( cmd->convert_arg * ( cmd->chanlist_len - 1 ) ) )
-				/ TIMER_BASE;
-			break;
-		case TRIG_FOLLOW:
-			return cmd->convert_arg / TIMER_BASE;
-			break;
-		default:
-			break;
+	case TRIG_TIMER:
+		return ( cmd->scan_begin_arg - ( cmd->convert_arg * ( cmd->chanlist_len - 1 ) ) )
+			/ TIMER_BASE;
+		break;
+	case TRIG_FOLLOW:
+		return cmd->convert_arg / TIMER_BASE;
+		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -2164,31 +2170,31 @@ static uint32_t ai_convert_counter_4020( comedi_device *dev, comedi_cmd *cmd )
 
 	switch( cmd->scan_begin_src )
 	{
-		case TRIG_TIMER:
-			divisor = cmd->scan_begin_arg;
-			break;
-		case TRIG_OTHER:
-			divisor = priv(dev)->ext_clock.scan_divisor;
-			break;
-		default:	// should never happen
-			comedi_error( dev, "bug! failed to set ai pacing!" );
-			divisor = 1000;
-			break;
+	case TRIG_TIMER:
+		divisor = cmd->scan_begin_arg / TIMER_BASE;
+		break;
+	case TRIG_OTHER:
+		divisor = priv(dev)->ext_clock.divisor;
+		break;
+	default:	// should never happen
+		comedi_error( dev, "bug! failed to set ai pacing!" );
+		divisor = 1000;
+		break;
 	}
 
 	// supposed to load counter with desired divisor minus 2 for 4020
-	return divisor / TIMER_BASE - 2;
+	return divisor - 2;
 }
 
 static void select_master_clock_4020( comedi_device *dev, const comedi_cmd *cmd )
 {
-	int chanspec = priv(dev)->ext_clock.chanspec;
-
 	// select internal/external master clock
 	priv(dev)->hw_config_bits &= ~MASTER_CLOCK_4020_MASK;
 	if( cmd->scan_begin_src == TRIG_OTHER )
 	{
-		if( CR_CHAN( chanspec ) == bnc_trigger_channel_4020 )
+		int chanspec = priv(dev)->ext_clock.chanspec;
+
+		if( CR_CHAN( chanspec ) )
 			priv(dev)->hw_config_bits |= BNC_CLOCK_4020_BITS;
 		else
 			priv(dev)->hw_config_bits |= EXT_CLOCK_4020_BITS;
@@ -2215,7 +2221,7 @@ static void set_ai_pacing( comedi_device *dev, comedi_cmd *cmd )
 {
 	uint32_t convert_counter = 0, scan_counter = 0;
 
-	check_adc_timing( cmd );
+	check_adc_timing( dev, cmd );
 
 	select_master_clock( dev, cmd );
 
@@ -2378,10 +2384,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* set source for external triggers */
 		bits = 0;
 		if( cmd->start_src == TRIG_EXT &&
-			CR_CHAN( cmd->start_arg ) == bnc_trigger_channel_4020 )
+			CR_CHAN( cmd->start_arg ) )
 			bits |= EXT_START_TRIG_BNC_BIT;
 		if( cmd->stop_src == TRIG_EXT &&
-			CR_CHAN( cmd->stop_arg ) == bnc_trigger_channel_4020 )
+			CR_CHAN( cmd->stop_arg ) )
 			bits |= EXT_STOP_TRIG_BNC_BIT;
 		writew( bits, priv(dev)->main_iobase + DAQ_ATRIG_LOW_4020_REG );
 	}
@@ -2999,7 +3005,7 @@ static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
  * sets cmd members appropriately.
  * adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
  */
-static void check_adc_timing(comedi_cmd *cmd)
+static void check_adc_timing( comedi_device *dev, comedi_cmd *cmd)
 {
 	unsigned int convert_divisor = 0, scan_divisor;
 	static const int max_counter_value = 0xffffff;	// board uses 24 bit counters for pacing
@@ -3010,10 +3016,16 @@ static void check_adc_timing(comedi_cmd *cmd)
 
 	if(cmd->convert_src == TRIG_TIMER)
 	{
-		convert_divisor = get_divisor(cmd->convert_arg, cmd->flags);
-		if(convert_divisor > max_convert_divisor) convert_divisor = max_convert_divisor;
-		if(convert_divisor < min_convert_divisor) convert_divisor = min_convert_divisor;
-		cmd->convert_arg = convert_divisor * TIMER_BASE;
+		if( board(dev)->layout == LAYOUT_4020 )
+		{
+			cmd->convert_arg = 0;
+		}else
+		{
+			convert_divisor = get_divisor(cmd->convert_arg, cmd->flags);
+			if(convert_divisor > max_convert_divisor) convert_divisor = max_convert_divisor;
+			if(convert_divisor < min_convert_divisor) convert_divisor = min_convert_divisor;
+			cmd->convert_arg = convert_divisor * TIMER_BASE;
+		}
 	}else if(cmd->convert_src == TRIG_NOW)
 		cmd->convert_arg = 0;
 
