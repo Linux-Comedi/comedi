@@ -758,10 +758,6 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret=0;
 	
 	printk("dt3000:");
-	if(!pci_present()){
-		printk(" no PCI bus\n");
-		return -EINVAL;
-	}
 	
 	if((ret=alloc_private(dev,sizeof(dt3k_private)))<0)
 		return ret;
