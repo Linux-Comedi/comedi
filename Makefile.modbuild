@@ -75,7 +75,7 @@ ifeq (.depend,$(wildcard .depend))
 include .depend
 all2:	modules
 else
-all2:	depend
+all2:	depend modules
 endif
 else
 all2:	config
