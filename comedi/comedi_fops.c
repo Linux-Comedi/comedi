@@ -552,7 +552,6 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
  */
 /* arbitrary limits */
 #define MAX_SAMPLES 256
-#define MAX_INSNS 10
 static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 {
 	comedi_insnlist insnlist;
@@ -563,11 +562,6 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
-
-	if(insnlist.n_insns>=MAX_INSNS){
-		DPRINTK("insnlist too long\n");
-		return -EINVAL;
-	}
 
 	data=kmalloc(sizeof(lsampl_t)*MAX_SAMPLES,GFP_KERNEL);
 	if(!data){
@@ -618,6 +612,8 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 				goto error;
 			}
 		}
+		if(need_resched())
+			schedule();
 	}
 
 error:
