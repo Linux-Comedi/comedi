@@ -79,6 +79,7 @@ ComputerBoards			PCI-DAS1200			cb_pcidas
 ComputerBoards			PCI-DAS1200/jr			cb_pcidas
 ComputerBoards			PCI-DAS1602/12			cb_pcidas
 ComputerBoards			PCI-DAS1602/16			cb_pcidas
+ComputerBoards			PCI-DAS1602/16/jr			cb_pcidas
 Data Translation		DT21-EZ				dt282x
 Data Translation		DT23-EZ				dt282x
 Data Translation		DT24-EZ				dt282x
