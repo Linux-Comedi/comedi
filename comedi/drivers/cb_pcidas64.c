@@ -3617,7 +3617,7 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	static const int read_command = 0x6;
 	unsigned int bitstream = (read_command << 8) | address;
 	unsigned int bit;
-	const int plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	const unsigned long plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
 	uint16_t value;
 	static const int value_length = 16;
 	static const int eeprom_comedi_udelay = 1;

@@ -917,11 +917,11 @@ int usbduxsub_submit_InURBs(usbduxsub_t* usbduxsub) {
 		usbduxsub->urbIn[i]->status = 0;
 		usbduxsub->urbIn[i]->transfer_flags = URB_ISO_ASAP;
 #ifdef CONFIG_COMEDI_DEBUG
-		printk("comedi%d: usbdux: submitting in-urb[%d]: %x,%x\n",
+		printk("comedi%d: usbdux: submitting in-urb[%d]: %p,%p\n",
 		       usbduxsub->comedidev->minor,
 		       i,
-		       (int)(usbduxsub->urbIn[i]->context),
-		       (int)(usbduxsub->urbIn[i]->dev));
+		       (usbduxsub->urbIn[i]->context),
+		       (usbduxsub->urbIn[i]->dev));
 #endif
 		errFlag = USB_SUBMIT_URB
 			(usbduxsub->urbIn[i]);

@@ -78,7 +78,7 @@ Configuration options:
 		  |		 | +-------- Simultaneous sample and hold
 		  |		 +---------- Signed data format
 		  +------------------------- Correction offset low
-			       
+
         Word2:
           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
           ! | | | ! | | | ! | | | ! | | | !
@@ -438,7 +438,7 @@ static int daqboard2000_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
   int timeout;
 
   for(i=0;i<insn->n;i++){
-    /*  
+    /*
      * OK, since it works OK without enabling the DAC's, let's keep
      * it as simple as possible...
      */
@@ -546,7 +546,7 @@ static int initialize_daqboard2000(comedi_device *dev,
     daqboard2000_pulseProgPin(dev);
     if(daqboard2000_pollCPLD(dev, DAQBOARD2000_CPLD_INIT)) {
       for (i = 0 ; i < len ; i++) {
-        if (cpld_array[i] == 0xff && cpld_array[i+1] == 0x20) { 
+        if (cpld_array[i] == 0xff && cpld_array[i+1] == 0x20) {
 #ifdef DEBUG_EEPROM
           printk("Preamble found at %d\n", i);
 #endif
@@ -752,8 +752,8 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
     printk("Interrupt after is: %x\n", interrupt);
   */
 
-  dev->iobase = (int)devpriv->daq;
-    
+  dev->iobase = (unsigned long)devpriv->daq;
+
   dev->board_name = this_board->name;
 
   s = dev->subdevices + 0;

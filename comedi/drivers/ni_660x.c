@@ -840,7 +840,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 		value is
 	*/
 	int tmpdata[2];
-	int address;
+	unsigned long address;
 
 	/* ============================================================ */
 	/* 1 subdevice with 8 channels, differentation based on channel */

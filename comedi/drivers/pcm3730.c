@@ -47,7 +47,7 @@ static int pcm3730_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
-		outb(s->state,dev->iobase+(int)(s->private));
+		outb(s->state,dev->iobase+(unsigned long)(s->private));
 	}
 	data[1] = s->state;
 
@@ -58,7 +58,7 @@ static int pcm3730_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	if(insn->n!=2)return -EINVAL;
-	data[1] = inb(dev->iobase+(int)(s->private));
+	data[1] = inb(dev->iobase+(unsigned long)(s->private));
 	return 2;
 }
 

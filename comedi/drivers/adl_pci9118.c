@@ -1873,8 +1873,8 @@ static int pci9118_detach(comedi_device *dev)
 		if (devpriv->valid) pci9118_reset(dev);
 		release_region(devpriv->iobase_a,this_board->iorange_amcc);
 		if (devpriv->allocated)	pci_card_free(devpriv->amcc);
-		if (devpriv->dmabuf_virt[0]) free_pages((unsigned int)devpriv->dmabuf_virt[0],devpriv->dmabuf_pages[0]);
-		if (devpriv->dmabuf_virt[1]) free_pages((unsigned int)devpriv->dmabuf_virt[1],devpriv->dmabuf_pages[1]);
+		if (devpriv->dmabuf_virt[0]) free_pages((unsigned long)devpriv->dmabuf_virt[0],devpriv->dmabuf_pages[0]);
+		if (devpriv->dmabuf_virt[1]) free_pages((unsigned long)devpriv->dmabuf_virt[1],devpriv->dmabuf_pages[1]);
 	}
 
 	if(dev->irq) comedi_free_irq(dev->irq,dev);

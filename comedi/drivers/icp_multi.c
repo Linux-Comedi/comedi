@@ -919,7 +919,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("0x%08lx mapped to %p, ", iobase, devpriv->io_addr);
 #endif
 
-	dev->iobase = (int)devpriv->io_addr;
+	dev->iobase = (unsigned long)devpriv->io_addr;
 
 	dev->board_name = this_board->name;
 

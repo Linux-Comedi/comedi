@@ -883,7 +883,7 @@ static int setup_pci(comedi_device *dev)
 	printk("0x%08lx mapped to %p, ",devpriv->phys_addr,devpriv->io_addr);
 #endif
 
-	dev->iobase = (int)devpriv->io_addr;
+	dev->iobase = (unsigned long)devpriv->io_addr;
 
 	return 0;
 }

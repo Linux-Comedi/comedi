@@ -137,14 +137,14 @@ options for PCI-20341M:
 
 
 typedef union {
-	int iobase;
+	unsigned long iobase;
 	struct {
-		int iobase;
+		unsigned long iobase;
 		comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
 		lsampl_t last_data[2];
 	}pci20006;
 	struct {
-		int iobase;
+		unsigned long iobase;
 		int timebase;
 		int settling_time;
 		int ai_gain;

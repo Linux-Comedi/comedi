@@ -261,8 +261,8 @@ COMEDI_INITCLEANUP(me_driver);
 typedef struct
 {
   struct pci_dev* pci_device;
-  unsigned int plx_regbase;         // PLX configuration base address
-  unsigned int me_regbase;          // Base address of the Meilhaus card
+  unsigned long plx_regbase;         // PLX configuration base address
+  unsigned long me_regbase;          // Base address of the Meilhaus card
   unsigned int plx_regbase_size;    // Size of PLX configuration space
   unsigned int me_regbase_size;     // Size of Meilhaus space
 
