@@ -1,4 +1,20 @@
 
+mode[N] doesn't work until cmd is used.  Works in .57, not in
+CVS.  I know how to fix this, but it needs other changes to
+be done correctly.
+
+mite.c expects that the buffer is vmalloc()ed.  This might not
+be the case with real-time.  The planned fix for this is to
+no longer allow real-time applications to allocate their own
+buffer.
+
+PCMCIA scripts are broken.  Installation documentation isn't correct
+for PCMCIA.  
+
+comedi_rt_timer segfaults when the lower-level driver disappears
+and reappears.  This is a problem with the Comedi core, not the
+driver.
+
 fix INSTALL.RTLinux, INSTALL.RTAI
 
 BUG in do_test_for_insn_bits() (due to -EACCES)
