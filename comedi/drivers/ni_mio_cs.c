@@ -244,6 +244,7 @@ static dev_link_t *cs_attach(void)
 	ret = CardServices(RegisterClient, &link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
+printk("detaching...\n");
 		cs_detach(link);
 		return NULL;
 	}
@@ -264,9 +265,36 @@ static void cs_release(u_long arg)
 
 static void cs_detach(dev_link_t *link)
 {
-	// delete linkp
 	
+	dev_link_t **linkp;
 	
+	printk("cs_detach\n");
+	
+	for(linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
+		if (*linkp == link) break;
+	if (*linkp==NULL)
+		return;
+
+	//save_flags
+	//cli
+	if (link->state & DEV_RELEASE_PENDING){
+		printk("dev release pending bug\n");
+		del_timer(&link->release);
+		link->state &= ~DEV_RELEASE_PENDING;
+	}
+	//restore_flags
+
+	if(link->state & DEV_CONFIG) {
+		cs_release((u_long)link);
+		if(link->state & DEV_STALE_CONFIG) {
+			link->state |= DEV_STALE_LINK;
+			return;
+		}
+	}
+
+	if(link->handle){
+		CardServices(DeregisterClient, link->handle);
+	}
 
 }
 
@@ -277,6 +305,7 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 
 	switch(event){
 	case CS_EVENT_CARD_REMOVAL:
+printk("removal event\n");
 		link->state &= ~DEV_PRESENT;
 		if(link->state & DEV_CONFIG) {
 			link->release.expires = jiffies+HZ/20;
@@ -285,20 +314,25 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 		}
 		break;
 	case CS_EVENT_CARD_INSERTION:
+printk("insertion event\n");
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		mio_cs_config(link);
 		break;
 	case CS_EVENT_PM_SUSPEND:
+printk("suspend event\n");
 		link->state |= DEV_SUSPEND;
 		/* fall through */
 	case CS_EVENT_RESET_PHYSICAL:
+printk("physreset event\n");
 		if(link->state & DEV_CONFIG)
 			CardServices(ReleaseConfiguration, link->handle);
 		break;
 	case CS_EVENT_PM_RESUME:
+printk("resume event\n");
 		link->state &= ~DEV_SUSPEND;
 		/* fall through */
 	case CS_EVENT_CARD_RESET:
+printk("reset event\n");
 		if(DEV_OK(link))
 			CardServices(RequestConfiguration, link->handle, &link->conf);
 		break;
@@ -326,6 +360,7 @@ void mio_cs_config(dev_link_t *link)
 	tuple_t tuple;
 	u_short buf[128];
 	cisparse_t parse;
+	int manfid = 0, prodid = 0;
 	int ret;
 
 	tuple.TupleData = (cisdata_t *)buf;
@@ -346,15 +381,17 @@ void mio_cs_config(dev_link_t *link)
 	info->multi (first_tuple(handle, &tuple, &parse) == CS_SUCCESS);
 #endif
 
-#if 0
 	tuple.DesiredTuple = CISTPL_MANFID;
-	if(first_tuple(handle, &tuple, &parse) == CS_SUCCESS) {
-		info->manfid = le16_to_cpu(buf[0]);
-		// search
+	tuple.Attributes = TUPLE_RETURN_COMMON;
+	if((CardServices(GetFirstTuple,handle, &tuple) == CS_SUCCESS) &&
+	   (CardServices(GetTupleData,handle,&tuple) == CS_SUCCESS)){
+		manfid = le16_to_cpu(buf[0]);
+		prodid = le16_to_cpu(buf[1]);
 	}
-#endif
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	tuple.Attributes = 0;
+	CardServices(GetFirstTuple, handle, &tuple);
 	CardServices(GetTupleData, handle, &tuple);
 	CardServices(ParseTuple, handle, &tuple, &parse);
 	CardServices(RequestIO, handle, &link->io);
@@ -364,7 +401,9 @@ void mio_cs_config(dev_link_t *link)
 
 	printk("irq = %d\n",link->irq.AssignedIRQ);
 	printk("iobase = 0x%04x\n",link->io.BasePort1);
-	//printk("mfr = 0x%04x\n",link->io.BasePort1);
+	printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
+	
+	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY
 	
 }
 
@@ -486,8 +525,10 @@ int init_module(void)
 void cleanup_module(void)
 {
 	unregister_pccard_driver(&dev_info);
+#if 0
 	while(dev_list != NULL)
 		cs_detach(dev_list);
+#endif
 	comedi_driver_unregister(&driver_atmio);
 }
 #endif
