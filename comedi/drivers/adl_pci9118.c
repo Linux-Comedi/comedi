@@ -180,6 +180,7 @@ comedi_driver driver_pci9118={
 	board_name:	boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_pci9118);
 
 typedef struct{
 	int			iobase_a;	// base+size for AMCC chip
@@ -636,191 +637,6 @@ static int pci9118_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 }
 
 
-#ifdef CONFIG_COMEDI_MODES
-
-/* 
-==============================================================================
-*/
-static int pci9118_ai_mode1234(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-	int ret;
-	
-	devpriv->ai1234_n_chan=it->n_chan;
-	devpriv->ai1234_n_scanlen=it->n_chan;
-	devpriv->ai1234_chanlist=it->chanlist;
-	devpriv->ai1234_scans=it->n;
-	devpriv->ai1234_flags=it->flags;
-	devpriv->ai1234_data=it->data;
-	devpriv->ai1234_data_len=it->data_len;
-	devpriv->ai1234_timer1=it->trigvar;
-	devpriv->ai1234_timer2=it->trigvar1;
-
-	ret=pci9118_ai_docmd_and_mode(mode, dev, s,0);
-
-	it->trigvar=devpriv->ai1234_timer1;
-	it->trigvar1=devpriv->ai1234_timer2;
-
-	return ret;
-}
-
-/* 
-==============================================================================
-*/
-static int pci9118_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-        return pci9118_ai_mode1234(1, dev, s, it);
-}
-
-/* 
-==============================================================================
-*/
-static int pci9118_ai_mode2(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
-{
-        return pci9118_ai_mode1234(2, dev, s, it);
-}
-
-/* 
-==============================================================================
-*/
-static int pci9118_ai_mode3(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-        return pci9118_ai_mode1234(3, dev, s, it);
-}
-
-/* 
-==============================================================================
-*/
-static int pci9118_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-        return pci9118_ai_mode1234(4, dev, s, it);
-}
-
-#endif
-
-#ifdef CONFIG_COMEDI_MODE0
-
-/* 
-==============================================================================
-*/
-static int pci9118_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-        int timeout,i;
-#ifdef PCL9118_PARANOIDCHECK
-	unsigned int data,m=0;
-#endif
-
-	devpriv->AdControlReg=AdControl_Int & 0xff;
-	devpriv->AdFunctionReg=AdFunction_PDTrg|AdFunction_PETrg;
-	outl(devpriv->AdFunctionReg,dev->iobase+PCI9118_ADFUNC);// positive triggers, no S&H, no burst, burst stop, no post trigger, no about trigger, trigger stop
-
-	if (!check_and_setup_channel_list(dev,s,it->n_chan, it->chanlist, 0, 0))  return -EINVAL;
-
-	outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
-
-	if (it->n==0) it->n=1;
-	
-	for (i=0; i<(it->n_chan*it->n); i++) {
-		outw(0, dev->iobase+PCI9118_SOFTTRG); /* start conversion */
-		udelay(2);
-    		timeout=100;
-    		while (timeout--) {
-			if (inl(dev->iobase+PCI9118_ADSTAT) & AdStatus_ADrdy) goto conv_finish;
-			udelay(1);
-    		}
-
-    		comedi_error(dev,"A/D mode0 timeout");
-    		it->data[i]=0;
-		outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
-    		return -ETIME;
-
-conv_finish:
-		if (this_board->ai_maxdata==0xfff) {
-#ifdef PCL9118_PARANOIDCHECK
-			data=inw(dev->iobase+PCI9118_AD_DATA);
-			if ((data & 0xf)!=devpriv->chanlist[m++]) {
-    				comedi_error(dev,"A/D mode0 data droput!");
-    				return -ETIME;
-			}
-    			it->data[i] = (data >> 4) & 0xfff; 
-			if (m>=it->n_chan) m=0;
-#else
-    			it->data[i] = (inw(dev->iobase+PCI9118_AD_DATA)>>4) & 0xfff; 
-#endif
-		} else {
-    			it->data[i] = inl(dev->iobase+PCI9118_AD_DATA) & 0xffff;
-		}
-	}
-
-	outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
-
-        return i;
-}
-
-/* 
-==============================================================================
-*/
-static int pci9118_ao_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-        int chan,i;
-        sampl_t data;
- 
-	for (i=0;i<it->n_chan;i++){
-    		data=it->data[i];
-		chan=CR_CHAN(it->chanlist[i]);
-		devpriv->ao_data[0]=data;
-		if (chan) {
-			outl(data, dev->iobase + PCI9118_DA2);
-		} else {
-			outl(data, dev->iobase + PCI9118_DA1);
-		} 
-        }    
-
-        return it->n_chan;
-}
-/* 
-==============================================================================
-*/
-static int pci9118_di_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-        unsigned int data;
-        int chan;
-        int i;
-
-	data = inl(dev->iobase + PCI9118_DI);
-
-        for(i=0;i<it->n_chan;i++) {
-		chan=CR_CHAN(it->chanlist[i]);
-		it->data[i]=(data>>chan)&1;
-        }
-
-	return it->n_chan;
-}
-
-/* 
-==============================================================================
-*/
-static int pci9118_do_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
-{
-        unsigned int mask, data;
-        int chan;
-        int i;
-
-	data=s->state;
-        for(i=0;i<it->n_chan;i++) {
-		chan=CR_CHAN(it->chanlist[i]);
-		mask=(1<<chan);
-		data &= ~mask;
-		if(it->data[i])
-	    		data |= mask;
-        }
-	outl((data & 0xf), dev->iobase + PCI9118_DO);
-        s->state = data;
-
-	return it->n_chan;
-}
-
-#endif
-
 /*
 ==============================================================================
 */
@@ -900,40 +716,11 @@ int pci9118_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn 
 /*
 ==============================================================================
 */
-int pci9118_insn_read_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
-{
-	int n;
-	
-	for (n=0; n<insn->n; n++) {
-		data[n] = inl(dev->iobase + PCI9118_DI) & 0xf;
-	}
-
-	return n;
-}
-
-/*
-==============================================================================
-*/
 int pci9118_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
 
 	return 2;
-}
-
-/*
-==============================================================================
-*/
-int pci9118_insn_write_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
-{
-	int n;
-	
-	for (n=0; n<insn->n; n++) {
-		s->state=data[n]& 0xf;
-		outl(s->state, dev->iobase + PCI9118_DO);
-	}
-	
-	return n;
 }
 
 /*
@@ -949,19 +736,6 @@ int pci9118_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0x0f;
 
 	return 2;
-}
-
-/*
-==============================================================================
-*/
-int pci9118_insn_read_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
-{
-	int n;
-	
-	for (n=0; n<insn->n; n++) 
-		data[n]=s->state & 0x0f;
-
-	return n;
 }
 
 /*
@@ -1493,17 +1267,6 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	s->len_chanlist = this_board->n_aichanlist;
 	s->range_table = this_board->rangelist_ai;
 	s->cancel=pci9118_ai_cancel;
-#ifdef CONFIG_COMEDI_MODE0
-	s->trig[0] = pci9118_ai_mode0;
-#endif
-#ifdef CONFIG_COMEDI_MODES
-	if (irq&&master) {
-		s->trig[1] = pci9118_ai_mode1;
-		s->trig[2] = pci9118_ai_mode2;
-		s->trig[3] = pci9118_ai_mode3;
-		s->trig[4] = pci9118_ai_mode4;
-	} 
-#endif
 	s->insn_read=pci9118_insn_read_ai;
 	s->do_cmdtest=pci9118_ai_cmdtest;
 	s->do_cmd=pci9118_ai_cmd;
@@ -1515,9 +1278,6 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata = this_board->ao_maxdata;
 	s->len_chanlist = this_board->n_aochan;
 	s->range_table = this_board->rangelist_ao;
-#ifdef CONFIG_COMEDI_MODE0
-	s->trig[0] = pci9118_ao_mode0;
-#endif
 	s->insn_write=pci9118_insn_write_ao;
 	s->insn_read=pci9118_insn_read_ao;
 
@@ -1528,11 +1288,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata = 1;
 	s->len_chanlist = 4;
 	s->range_table = &range_digital;
-#ifdef CONFIG_COMEDI_MODE0
-	s->trig[0] = pci9118_di_mode0;
-#endif
 	s->io_bits=0;		/* all bits input */
-	s->insn_read=pci9118_insn_read_di;
 	s->insn_bits=pci9118_insn_bits_di;
 
 	s = dev->subdevices + 3;
@@ -1542,13 +1298,8 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata = 1;
 	s->len_chanlist = 4;
 	s->range_table = &range_digital;
-#ifdef CONFIG_COMEDI_MODE0
-	s->trig[0] = pci9118_do_mode0;
-#endif
 	s->io_bits=0xf;		/* all bits output */
-	s->insn_write=pci9118_insn_write_do;
 	s->insn_bits=pci9118_insn_bits_do;
-	s->insn_read=pci9118_insn_read_do;
 
 	pci9118_reset(dev);
 
@@ -1584,10 +1335,6 @@ static int pci9118_detach(comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-COMEDI_INITCLEANUP(driver_pci9118);
 /*
 ==============================================================================
 */
