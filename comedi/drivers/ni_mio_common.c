@@ -202,7 +202,7 @@ static int ni_8255_callback(int dir,int port,int data,void *arg);
 
 static int ni_ns_to_timer(int *nanosec,int round_mode);
 
-static int gpct_setup(comedi_device *dev,comedi_subdevice *s);
+//static int gpct_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -210,24 +210,24 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 static void pfi_setup(comedi_device *dev);
 
-/*GPCTR function def's*/
-int GPCTR_G_Watch(comedi_device *dev, int chan);
+/*GPCT function def's*/
+int GPCT_G_Watch(comedi_device *dev, int chan);
 
-void GPCTR_Reset(comedi_device *dev, int chan);
-void GPCTR_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length);
-void GPCTR_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length);
-void GPCTR_Period_Meas(comedi_device *dev, int chan);
-void GPCTR_Pulse_Width_Meas(comedi_device *dev, int chan);
-void GPCTR_Event_Counting(comedi_device *dev,int chan);
-int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction);
-int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate);
-int GPCTR_Set_Source(comedi_device *dev,int chan ,int source);
+void GPCT_Reset(comedi_device *dev, int chan);
+void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length);
+void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length);
+void GPCT_Period_Meas(comedi_device *dev, int chan);
+void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan);
+void GPCT_Event_Counting(comedi_device *dev,int chan);
+int GPCT_Set_Direction(comedi_device *dev,int chan,int direction);
+int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate);
+int GPCT_Set_Source(comedi_device *dev,int chan ,int source);
 
-static int ni_gpctr_insn_write(comedi_device *dev,comedi_subdevice *s,
+static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
-static int ni_gpctr_insn_read(comedi_device *dev,comedi_subdevice *s,
+static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
-static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
+static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
 #undef DEBUG
@@ -1779,41 +1779,6 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-/*
-	HACK! 
-
-        general purpose timer counter (CLO)
-        This reads the value of the counter
-
-*/
-/*
- * Each DAQ-STC counters have one transition input, a generic
- * input, and an enable input.
- *
- * 31-30 type
- *   00 disabled
- *   01 transition pin
- *   02 generic pin
- *
- *
- */
-static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-{
-	if(insn->n!=1)return -EINVAL;
-
-	/* transition pin # */
-	/* */
-
-	return 1;
-}
-
-static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-{
-
-	return -EIO;
-}
 
 static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 {
@@ -1896,20 +1861,20 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config=ni_gpct_insn_config;
 	s->n_chan=1; /* XXX */
 	s->maxdata=1;
-	gpct_setup(dev,s);
+	//gpct_setup(dev,s);
 	
-	//TIM 5/1/01 #ifdef GPCTR
+	//TIM 5/1/01 #ifdef GPCT
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
-	s->insn_read=  ni_gpctr_insn_read;
-	s->insn_write= ni_gpctr_insn_write;
-	s->insn_config=ni_gpctr_insn_config;
+	s->insn_read=  ni_gpct_insn_read;
+	s->insn_write= ni_gpct_insn_write;
+	s->insn_config=ni_gpct_insn_config;
 	s->n_chan=2;
 	s->maxdata=1;
-	GPCTR_Reset(dev,0);
-	GPCTR_Reset(dev,1);
-	//TIM 5/1/01 #endif //GPCTR
+	GPCT_Reset(dev,0);
+	GPCT_Reset(dev,1);
+	//TIM 5/1/01 #endif //GPCT
 	
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
@@ -2181,295 +2146,34 @@ static void pfi_setup(comedi_device *dev)
  *
  */
 
-
-/* event counting */
-
-/*
-        Initialize the general purpose counter timers. (CLO)
-
-        Everything after the word HACK is a HACK because I don't
-        properly understand how to work within the comedi
-        architecture!
-
- */
-int gpct_setup(comedi_device *dev,comedi_subdevice *s)
-{
-	unsigned short tmpreg;	/* For handling strobe writes */
-        unsigned short int msb, lsb;
-	unsigned short counter_init = 10000;
-
-        /* basic initialization of both counters, from section 4.6.1.3
-           of the DAQ-STC manul */
-
-	/* we track several write only register values in software */
-
-	/* G(i)_Reset = 1 (strobe) */
-	win_out(G0_Reset,Joint_Reset_Register);
-	win_out(G1_Reset,Joint_Reset_Register);
-
-	/* G(i)_Mode_Register = 0 */
-	devpriv->gpctr_mode[0] = 0x0000;
-	devpriv->gpctr_mode[1] = 0x0000;
-	win_out(devpriv->gpctr_mode[0],G_Mode_Register(0));
-	win_out(devpriv->gpctr_mode[1],G_Mode_Register(1));
-
-	/* G(i)_Command_Register = 0 */
-	devpriv->gpctr_command[0] = 0x0000;
-        devpriv->gpctr_command[1] = 0x0000;
-	win_out(devpriv->gpctr_command[0],G_Command_Register(0));
-	win_out(devpriv->gpctr_command[1],G_Command_Register(1));
-
-	/* G(i)_Input_Select_Register = 0 */
-	devpriv->gpctr_input_select[0] = 0x0000;
-	devpriv->gpctr_input_select[1] = 0x0000;
-	win_out(devpriv->gpctr_input_select[0],G_Input_Select_Register(0));
-	win_out(devpriv->gpctr_input_select[1],G_Input_Select_Register(1));
-
-	/* G(i)_Autoincrement = 0 (write) */
-	/* G(i)_Autoincrement_Register = 0 */
-	win_out(G_Autoincrement(0x00),G_Autoincrement_Register(0));
-	win_out(G_Autoincrement(0x00),G_Autoincrement_Register(1));
-
-	/* XXX - for now we ignore interrupts */
-	/* G(i)_TC_Interrupt_Enable = 0 (write)*/
-	/* G(i)_Gate_Interrupt_Enable = 0 (write) */
-	/* win_out(0x0000,Interrupt_A_Enable_Register); */
-	/* win_out(0x0000,Interrupt_B_Enable_Register); */
-
-	/* G(i)_Synchronized_Gate = 1 (write) */
-	devpriv->gpctr_command[0] |= G_Synchronized_Gate;
-	devpriv->gpctr_command[1] |= G_Synchronized_Gate;
-	win_out(devpriv->gpctr_command[0],G_Command_Register(0));
-	win_out(devpriv->gpctr_command[1],G_Command_Register(1));
-
-	/* XXX - for now we leave this in, but perhaps we could do without
-           if it causes problems elsewhere? */
-	/* G(i)_Gate_Error_Confirm = 1 (strobe) */
-	/* G(i)_TC_Error_Confirm = 1 (strobe) */
-	/* G(i)_TC_Interrupt_Ack = 1 (strobe) */
-	/* G(i)_Gate_Interrupt_Ack = 1 (strobe) */
-	win_out(G0_Gate_Error_Confirm|G0_TC_Error_Confirm|G0_TC_Interrupt_Ack|
-		G0_Gate_Interrupt_Ack,Interrupt_A_Ack_Register);
-	win_out(G1_Gate_Error_Confirm|G1_TC_Error_Confirm|G1_TC_Interrupt_Ack|
-		G1_Gate_Interrupt_Ack,Interrupt_B_Ack_Register);
-
-	/********************************************************************/
-
-	/* HACK - What follows is a hack.  This puts counter #0 in
-           "relative position sensing" mode and then arms it */
-  
-	/* G(i)_Load_Source_Select = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G_Load_Source_Select;
-	win_out(devpriv->gpctr_mode[0],G_Mode_Register(0));
-
-	/* G(i)_Load_A = initial counter value (write) */
-	msb = counter_init>>16;
-	lsb = counter_init - msb;
-	win_out(msb,G_Load_A_Register_High(0));
-	win_out(lsb,G_Load_A_Register_Low(0));
-
-	/* FLUSH */
-
-	/* G(i)_Load = 1 (strobe) */
-	tmpreg = devpriv->gpctr_command[0] | G_Load;
-	win_out(tmpreg,G_Command_Register(0));
-
-	/* FLUSH */
-
-	/* G(i)_Source_Select = PFI0 (write) */
-	devpriv->gpctr_input_select[0] &= (0xffff & G_Source_Select(0x00));
-	devpriv->gpctr_input_select[0] |= G_Source_Select(0x01);
-
-	/* G(i)_Source_Polarity = 0 (count rising edges) (write) */
-	devpriv->gpctr_input_select[0] &= ~G_Source_Polarity;
-
-	/* G(i)_Gate_select = 0 (write) */
-	devpriv->gpctr_input_select[0] &= (0xffff & G_Gate_Select(0x00));
-	devpriv->gpctr_input_select[0] |= G_Gate_Select(0x00);
-
-	/* G(i)_OR_Gate = 0 (write) */
-	devpriv->gpctr_input_select[0] &= ~G_OR_Gate;
-
-	/* G(i)_Output_Polarity = 0 (write) */
-	devpriv->gpctr_input_select[0] &= ~G_Output_Polarity;
-
-	/* G(i)_Gate_Select_Load_Source = 0 (write) */
-	devpriv->gpctr_input_select[0] &= ~G_Gate_Select_Load_Source;
-
-	/* G(i)_Gate_Polarity = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G_Gate_Polarity;
-
-	/* G(i)_Output_Mode = 1 (one clock cycle output) (write) */
-	devpriv->gpctr_mode[0] &= (0xffff & G_Output_Mode(0x00));
-	devpriv->gpctr_mode[0] |= G_Output_Mode(0x01);
-
-	/* G(i)_Reload_Source_Switching = 1 (write) */
-	devpriv->gpctr_mode[0] |= G_Reload_Source_Switching;
-
-	/* G(i)_Loading_On_Gate = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G_Loading_On_Gate;
-
-	/* G(i)_Gating_Mode = 2 (write) */
-	devpriv->gpctr_mode[0] &= (0xffff & G_Gating_Mode(0x00));
-	devpriv->gpctr_mode[0] |= G_Gating_Mode(0x02);
-
-	/* G(i)_Gate_On_Both_Edges = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G_Gate_On_Both_Edges;
-
-	/* G(i)_Trigger_Mode_For_Edge_Gate = 3 (write) */
-	devpriv->gpctr_mode[0] &= (0xffff & G_Trigger_Mode_For_Edge_Gate(0x00));
-	devpriv->gpctr_mode[0] |= G_Trigger_Mode_For_Edge_Gate(0x03);
-
-	/* G(i)_Stop_Mode = 0 */
-	devpriv->gpctr_mode[0] &= (0xffff & G_Stop_Mode(0x00));
-	devpriv->gpctr_mode[0] |= G_Stop_Mode(0x00);
-
-	/* G(i)_Counting_Once = 0 (write) */
-	devpriv->gpctr_mode[0] &= (0xffff & G_Counting_Once(0x00));
-	devpriv->gpctr_mode[0] |= G_Counting_Once(0x00);
-
-	/* G(i)_Up_Down = 2 (hardware controlled) (write) */
-	devpriv->gpctr_command[0] &= (0xffff & G_Up_Down(0x00));
-	devpriv->gpctr_command[0] |= G_Up_Down(0x02);
-
-	/* G(i)_Bank_Switch_Enable = 0 (write) */
-	devpriv->gpctr_command[0] &= ~G_Bank_Switch_Enable;
-
-	/* G(i)_Bank_Switch_Mode = 0 (write) */
-	devpriv->gpctr_command[0] &= ~G_Bank_Switch_Mode;
-
-	/* XXX - for now we ignore interrupts */
-	/* G(i)_TC_Interrupt_Enable = 0 (write) */
-	/* win_out(0x0000,Interrupt_A_Enable_Register); */
-
-	/* XXX - for now we ignore interrupts */
-	/* G(i)_Gate_Interrupt_Enable = 0 (write) */
-	/* win_out(0x0000,Interrupt_A_Enable_Register); */
-
-	/* actually write out the registers */
-	win_out(devpriv->gpctr_input_select[0],G_Input_Select_Register(0));
-	win_out(devpriv->gpctr_mode[0],G_Mode_Register(0));
-	win_out(devpriv->gpctr_command[0],G_Command_Register(0));
-
-	/********************************************************************/
-
-	/* HACK - What follows continues my hack of configuring the
-           counter in a specific mode.  Arming the counter instructs
-           it to start running with our configuration */
-
-	/* Arm the counter 0 (stobe) */
-	tmpreg = devpriv->gpctr_command[0] | G0_Arm;
-	win_out(tmpreg,G_Command_Register(0));
-	
-	return 0;
-}
-
-#if 0
-int gpct_start(comedi_device *dev,int chan)
-{
-	/* select load source */
-	Gi_Load_Source_Select = 0;
-	
-	/* load initial counter value */
-	Gi_Load_A = 0;
-	
-	/* strobe */
-	Gi_Load=1;
-
-/* command reg */
-	Gi_Up_Down = 1; /* up counting */
-	Gi_Bank_Switch_Enable = 0;
-	Gi_Bank_Switch_Mode = 0;
-
-/* input select reg */
-	Gi_Source_Select = PFIn;
-	Gi_Source_Polarity = 0; /* rising edges */
-	Gi_Gate_Select = 31; /* logic low */
-	Gi_OR_Gate = 0;
-	Gi_Output_Polarity = 1; /* active low */
-	Gi_Gate_Select_Load_Source = 0;
-
-/* mode reg */
-	Gi_Gate_Polarity = 0; /* disable inversion */
-	Gi_Loading_On_Gate = 0;
-	Gi_Output_Mode = 1; /* one clock cycle output */
-	Gi_Loading_On_TC = 0;
-	Gi_Gating_Mode = 1;
-	Gi_Gate_On_Both_Edges = 0;
-	Gi_Trigger_Mode_For_Edge_Gate = 2;
-	Gi_Stop_Mode = 0;
-	Gi_Counting_Once = 0;
-	
-	
-/* int enable reg -- ignore */
-	
-/*
-	Gi_TC_Interrupt_Enable = 0;
-	Gi_Gate_Interrupt_Enable = 0;
-*/
-}
-
-static int gpct_sp(comedi_device *dev,comedi_param *it)
-{
-	switch(it->pnum){
-	case COMEDI_CTR_INPUT:
-	{
-		/* which input source? */
-		int pval=it->pval;
-		
-		if(pval<0 || pval>=10)return -EINVAL;
-		changeparam(&dev->chinfo[it->chan].paramlist,COMEDI_CTR_INPUT,
-			0,pval);
-		/* XXX set it */
-		return 0;
-	}
-	case COMEDI_CTR_POLARITY:
-		/* count rising or falling edges? */
-		if(it->pval<0 || it->pval>=4)return -EINVAL;
-		changeparam(&dev->chinfo[it->chan].paramlist,COMEDI_AREF,
-			0,it->pval);
-		/* XXX set it */
-		return 0;
-	case COMEDI_COUNT:
-		changeparam(&dev->chinfo[it->chan].paramlist,COMEDI_COUNT,
-			0,it->pval);  /* irrelevant... */
-	gpctr_command	devpriv->gpct[it->chan-boardtype->counteroffset]=it->pval;
-		return 0;
-	}
-	return -EINVAL;
-}
-#endif
-
-//make -DGPCTR is best way to include this.
-//TIM 5/1/01 #ifdef GPCTR
 /*
 *   Low level stuff...Each STC counter has two 24 bit load registers (A&B).  Just make
 * it easier to access them.
 */
-void GPCTR_Load_A(comedi_device *dev, int chan, long value){
+void GPCT_Load_A(comedi_device *dev, int chan, long value){
 	win_out( (value>>16) & 0x00ff, G_Load_A_Register_High(chan));
 	win_out( value & 0xffff, G_Load_A_Register_Low(chan));
 }
-void GPCTR_Load_B(comedi_device *dev, int chan, long value){
+void GPCT_Load_B(comedi_device *dev, int chan, long value){
 	win_out( (value>>16) & 0x00ff, G_Load_B_Register_High(chan));
 	win_out( value & 0xffff, G_Load_B_Register_Low(chan));
 }
 
 /*  Load a value into the counter, using register A as the intermediate step.
-*  You might use GPCTR_Load_Using_A to load a 0x000000 into a counter
+*  You might use GPCT_Load_Using_A to load a 0x000000 into a counter
 *  reset its value.
 */
-void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
-	devpriv->gpctr_mode[chan] &= (~G_Load_Source_Select);
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	GPCTR_Load_A(dev,chan,value);
-	win_out( devpriv->gpctr_command[chan]|G_Load,G_Command_Register(chan));
+void GPCT_Load_Using_A(comedi_device *dev, int chan, long value){
+	devpriv->gpct_mode[chan] &= (~G_Load_Source_Select);
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	GPCT_Load_A(dev,chan,value);
+	win_out( devpriv->gpct_command[chan]|G_Load,G_Command_Register(chan));
 }
 
 /*	Don't use this by itself!  The read is not atomic and quite unsafe.
-*	If you think you need this function, use GPCTR_G_Watch instead.
+*	If you think you need this function, use GPCT_G_Watch instead.
 */
-int inline GPCTR_G_Read(comedi_device *dev, int chan) {
+int inline GPCT_G_Read(comedi_device *dev, int chan) {
 	int tmp;
 	tmp = win_in( G_Save_Register_High(chan)) << 16;
 	tmp |= win_in(G_Save_Register_Low(chan));
@@ -2477,42 +2181,42 @@ int inline GPCTR_G_Read(comedi_device *dev, int chan) {
 }
 
 /*
-*	Read the GPCTRs current value.  
+*	Read the GPCTs current value.  
 *	This function is actually straight out of the STC RLPM.
 */
-int GPCTR_G_Watch(comedi_device *dev, int chan) {
+int GPCT_G_Watch(comedi_device *dev, int chan) {
 	int save1,save2;
 	
-	devpriv->gpctr_command[chan] &= ~G_Save_Trace;
-	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+	devpriv->gpct_command[chan] &= ~G_Save_Trace;
+	win_out( devpriv->gpct_command[chan],G_Command_Register(chan));
 	
-	devpriv->gpctr_command[chan] |= G_Save_Trace;
-	win_out( devpriv->gpctr_command[chan], G_Command_Register(chan));
+	devpriv->gpct_command[chan] |= G_Save_Trace;
+	win_out( devpriv->gpct_command[chan], G_Command_Register(chan));
 
-	save1 = GPCTR_G_Read(dev,chan);
-	save2 = GPCTR_G_Read(dev,chan);
+	save1 = GPCT_G_Read(dev,chan);
+	save2 = GPCT_G_Read(dev,chan);
 	
 	/*if the value changed during the read, try again*/
 	if (save1 != save2) {
-		save1 = GPCTR_G_Read(dev,chan);
+		save1 = GPCT_G_Read(dev,chan);
 	}
 	return save1;
 }
 
 
-int GPCTR_Disarm(comedi_device *dev, int chan){
-	win_out( devpriv->gpctr_command[chan] | G_Disarm,G_Command_Register(chan));
+int GPCT_Disarm(comedi_device *dev, int chan){
+	win_out( devpriv->gpct_command[chan] | G_Disarm,G_Command_Register(chan));
 	return 0;
 }
 
 
-int GPCTR_Arm(comedi_device *dev, int chan){
-	win_out( devpriv->gpctr_command[chan] | G_Arm,G_Command_Register(chan));
+int GPCT_Arm(comedi_device *dev, int chan){
+	win_out( devpriv->gpct_command[chan] | G_Arm,G_Command_Register(chan));
 	/* If the counter is doing pulse width measurement, then make
 	 sure that the counter did not start counting right away.  This would
 	 indicate that we started acquiring the pulse after it had already 
 	 started and our measurement would be inaccurate */
-	if(devpriv->gpctr_cur_operation[chan] == GPCTR_SINGLE_PW){
+	if(devpriv->gpct_cur_operation[chan] == GPCT_SINGLE_PW){
 		int g_status; 
 
 		g_status=win_in(G_Status_Register);
@@ -2532,302 +2236,302 @@ int GPCTR_Arm(comedi_device *dev, int chan){
 	return 0;
 }
 
-int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
-	//printk("GPCTR_Set_Source...");
-	devpriv->gpctr_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
-	switch(source) {	case GPCTR_INT_CLOCK:
-		devpriv->gpctr_input_select[chan] |= G_Source_Select(0);//INT_TIMEBASE
+int GPCT_Set_Source(comedi_device *dev,int chan ,int source){
+	//printk("GPCT_Set_Source...");
+	devpriv->gpct_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
+	switch(source) {	case GPCT_INT_CLOCK:
+		devpriv->gpct_input_select[chan] |= G_Source_Select(0);//INT_TIMEBASE
 		break;
-	case GPCTR_EXT_PIN:
+	case GPCT_EXT_PIN:
 		if(chan==0)
-			devpriv->gpctr_input_select[chan] |= G_Source_Select(9);//PFI8
+			devpriv->gpct_input_select[chan] |= G_Source_Select(9);//PFI8
 		else
-			devpriv->gpctr_input_select[chan] |= G_Source_Select(4);//PFI3
+			devpriv->gpct_input_select[chan] |= G_Source_Select(4);//PFI3
 		break;
 	default:
 		return -EINVAL;
 	}
-	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
-	//printk("exit GPCTR_Set_Source\n");
+	win_out(devpriv->gpct_input_select[chan], G_Input_Select_Register(chan));
+	//printk("exit GPCT_Set_Source\n");
 	return 0;
 }
 
-int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
-	//printk("GPCTR_Set_Gate...");
-	devpriv->gpctr_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
-	switch(gate) {	case GPCTR_NO_GATE:
-		devpriv->gpctr_input_select[chan] |= G_Gate_Select(31);//Low
-		devpriv->gpctr_mode[chan] |= G_Gate_Polarity;
+int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate){
+	//printk("GPCT_Set_Gate...");
+	devpriv->gpct_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
+	switch(gate) {	case GPCT_NO_GATE:
+		devpriv->gpct_input_select[chan] |= G_Gate_Select(31);//Low
+		devpriv->gpct_mode[chan] |= G_Gate_Polarity;
 		break;
-	case GPCTR_EXT_PIN:
-		devpriv->gpctr_mode[chan] &= ~G_Gate_Polarity;
+	case GPCT_EXT_PIN:
+		devpriv->gpct_mode[chan] &= ~G_Gate_Polarity;
 		if(chan==0){
-			devpriv->gpctr_input_select[chan] |= G_Gate_Select(10);//PFI9
+			devpriv->gpct_input_select[chan] |= G_Gate_Select(10);//PFI9
 		}else{
-			devpriv->gpctr_input_select[chan] |= G_Gate_Select(5);//PFI4
+			devpriv->gpct_input_select[chan] |= G_Gate_Select(5);//PFI4
 		}
 		break;
 	default:
 		return -EINVAL;
 	}
-	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
-	win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
-	//printk("exit GPCTR_Set_Gate\n");
+	win_out(devpriv->gpct_input_select[chan], G_Input_Select_Register(chan));
+	win_out(devpriv->gpct_mode[chan], G_Mode_Register(chan));
+	//printk("exit GPCT_Set_Gate\n");
 	return 0;
 }
 
-int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction) {
-	//printk("GPCTR_Set_Direction...");
+int GPCT_Set_Direction(comedi_device *dev,int chan,int direction) {
+	//printk("GPCT_Set_Direction...");
 	
-	devpriv->gpctr_command[chan] &= ~G_Up_Down(0x3);
+	devpriv->gpct_command[chan] &= ~G_Up_Down(0x3);
 	switch (direction) {
-		case GPCTR_UP:
-			devpriv->gpctr_command[chan] |= G_Up_Down(1);
+		case GPCT_UP:
+			devpriv->gpct_command[chan] |= G_Up_Down(1);
 			break;
-		case GPCTR_DOWN:
-			devpriv->gpctr_command[chan] |= G_Up_Down(0);
+		case GPCT_DOWN:
+			devpriv->gpct_command[chan] |= G_Up_Down(0);
 			break;
-		case GPCTR_HWUD:
-			devpriv->gpctr_command[chan] |= G_Up_Down(2);
+		case GPCT_HWUD:
+			devpriv->gpct_command[chan] |= G_Up_Down(2);
 			break;
 		default:
 			printk("Error direction=0x%08x..",direction);
 			return -EINVAL;
 	}
-	win_out(devpriv->gpctr_command[chan], G_Command_Register(chan));
-	//TIM 4/23/01 win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
-	//printk("exit GPCTR_Set_Direction\n");
+	win_out(devpriv->gpct_command[chan], G_Command_Register(chan));
+	//TIM 4/23/01 win_out(devpriv->gpct_mode[chan], G_Mode_Register(chan));
+	//printk("exit GPCT_Set_Direction\n");
 	return 0;
 }
 
-void GPCTR_Event_Counting(comedi_device *dev,int chan) {
+void GPCT_Event_Counting(comedi_device *dev,int chan) {
 
 	//NOTE: possible residual bits from multibit masks can corrupt
 	//If you config for several measurements between Resets, watch out!
 	
-	printk("GPCTR_Event_Counting...");
+	printk("GPCT_Event_Counting...");
 	
-	devpriv->gpctr_cur_operation[chan] = GPCTR_SIMPLE_EVENT;
+	devpriv->gpct_cur_operation[chan] = GPCT_SIMPLE_EVENT;
 	
 	// Gating_Mode = 1
-	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
+	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Gating_Mode(1);
 	
 	// Trigger_Mode_For_Edge_Gate = 1
-	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
-	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	printk("exit GPCTR_Event_Counting\n");
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	printk("exit GPCT_Event_Counting\n");
 }
 
-void GPCTR_Period_Meas(comedi_device *dev, int chan) {
-	//printk("GPCTR_Period_Meas...");
+void GPCT_Period_Meas(comedi_device *dev, int chan) {
+	//printk("GPCT_Period_Meas...");
 	
-	devpriv->gpctr_cur_operation[chan] = GPCTR_SINGLE_PERIOD;
+	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PERIOD;
 
 	
 	//NOTE: possible residual bits from multibit masks can corrupt
 	//If you config for several measurements between Resets, watch out!	
-	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
-	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 	
 	// Output_Mode = 3 
-	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Output_Mode(3);
+	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Output_Mode(3);
 	
 	
 	//Gating Mode=2
-	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Gating_Mode(2);
+	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Gating_Mode(2);
 	
 	// Trigger_Mode_For_Edge_Gate=0
-	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
-	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(0);
+	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(0);
 
-	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;
-	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;
-	devpriv->gpctr_mode[chan] &= ~G_Loading_On_TC;
-	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+	devpriv->gpct_mode[chan] |= G_Reload_Source_Switching;
+	devpriv->gpct_mode[chan] &= ~G_Loading_On_Gate;
+	devpriv->gpct_mode[chan] &= ~G_Loading_On_TC;
+	devpriv->gpct_mode[chan] &= ~G_Gate_On_Both_Edges;
 
 	// Stop_Mode = 2
-	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Stop_Mode(0);
+	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Stop_Mode(0);
 	
 	// Counting_Once = 2 
-	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
-	devpriv->gpctr_mode[chan] |= G_Counting_Once(2);
+	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpct_mode[chan] |= G_Counting_Once(2);
 
 	// Up_Down = 1 
-	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
-	devpriv->gpctr_command[chan] |= G_Up_Down(1);
+	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpct_command[chan] |= G_Up_Down(1);
 
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
-	//printk("exit GPCTR_Period_Meas\n");
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpct_command[chan],G_Command_Register(chan));
+	//printk("exit GPCT_Period_Meas\n");
 }
 
-void GPCTR_Pulse_Width_Meas(comedi_device *dev, int chan){
-	//printk("GPCTR_Pulse_Width_Meas...");
+void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan){
+	//printk("GPCT_Pulse_Width_Meas...");
 
-	devpriv->gpctr_cur_operation[chan] = GPCTR_SINGLE_PW;
+	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PW;
 
-	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
-	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 
 	// Output_Mode = 3 
-	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Output_Mode(3);
+	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Output_Mode(3);
 	
 	//Gating Mode=1
-	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);//TIM 4/24/01 was 2
+	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Gating_Mode(1);//TIM 4/24/01 was 2
 	
 	// Trigger_Mode_For_Edge_Gate=2
-	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
-	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);//TIM 4/24/01 was 0
+	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);//TIM 4/24/01 was 0
 
 
-	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;//TIM 4/24/01 was 1
-	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;//TIM 4/24/01 was 0
+	devpriv->gpct_mode[chan] |= G_Reload_Source_Switching;//TIM 4/24/01 was 1
+	devpriv->gpct_mode[chan] &= ~G_Loading_On_Gate;//TIM 4/24/01 was 0
 
-	devpriv->gpctr_mode[chan] &= ~G_Loading_On_TC;
-	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+	devpriv->gpct_mode[chan] &= ~G_Loading_On_TC;
+	devpriv->gpct_mode[chan] &= ~G_Gate_On_Both_Edges;
 
 	// Stop_Mode = 0
-	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Stop_Mode(0);
+	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Stop_Mode(0);
 	
 	// Counting_Once = 2 
-	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
-	devpriv->gpctr_mode[chan] |= G_Counting_Once(2);
+	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpct_mode[chan] |= G_Counting_Once(2);
 
 	// Up_Down = 1 
-	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
-	devpriv->gpctr_command[chan] |= G_Up_Down(1);
+	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpct_command[chan] |= G_Up_Down(1);
 
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpct_command[chan],G_Command_Register(chan));
 
-	//printk("exit GPCTR_Pulse_Width_Meas\n");
+	//printk("exit GPCT_Pulse_Width_Meas\n");
 }
 
-/* GPCTR_Gen_Single_Pulse() creates pulse of length pulsewidth which starts after the Arm
+/* GPCT_Gen_Single_Pulse() creates pulse of length pulsewidth which starts after the Arm
 signal is sent.  The pulse is delayed by the value already in the counter.  This function could
 be modified to send a pulse in response to a trigger event at its gate.*/
-void GPCTR_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){	
-	//printk("GPCTR_Gen_Cont...");
+void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){	
+	//printk("GPCT_Gen_Cont...");
 
-	devpriv->gpctr_cur_operation[chan] = GPCTR_SINGLE_PULSE_OUT;
+	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PULSE_OUT;
 
 	// Set length of the pulse
-	GPCTR_Load_B(dev,chan, length-1);
+	GPCT_Load_B(dev,chan, length-1);
 
-	//Load next time using B, This is reset by GPCTR_Load_Using_A()
-	devpriv->gpctr_mode[chan] |= G_Load_Source_Select;
+	//Load next time using B, This is reset by GPCT_Load_Using_A()
+	devpriv->gpct_mode[chan] |= G_Load_Source_Select;
 	
-	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
-	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 
 	// Output_Mode = 3 
-	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
+	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
 	
 	//Gating Mode=0 for untriggered single pulse
-	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Gating_Mode(0); //TIM 4/25/01 was 1
+	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Gating_Mode(0); //TIM 4/25/01 was 1
 	
 	// Trigger_Mode_For_Edge_Gate=0
-	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
-	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 
 
-	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;
-	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;
-	devpriv->gpctr_mode[chan] |= G_Loading_On_TC; //TIM 4/25/01
-	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+	devpriv->gpct_mode[chan] |= G_Reload_Source_Switching;
+	devpriv->gpct_mode[chan] &= ~G_Loading_On_Gate;
+	devpriv->gpct_mode[chan] |= G_Loading_On_TC; //TIM 4/25/01
+	devpriv->gpct_mode[chan] &= ~G_Gate_On_Both_Edges;
 
 	// Stop_Mode = 2
-	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Stop_Mode(2); //TIM 4/25/01
+	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Stop_Mode(2); //TIM 4/25/01
 	
 	// Counting_Once = 2 
-	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
-	devpriv->gpctr_mode[chan] |= G_Counting_Once(1); //TIM 4/25/01
+	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpct_mode[chan] |= G_Counting_Once(1); //TIM 4/25/01
 
 	// Up_Down = 1 
-	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
-	devpriv->gpctr_command[chan] |= G_Up_Down(0); //TIM 4/25/01 was 1
+	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpct_command[chan] |= G_Up_Down(0); //TIM 4/25/01 was 1
 
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpct_command[chan],G_Command_Register(chan));
 
-	//printk("exit GPCTR_Gen_Cont\n");
+	//printk("exit GPCT_Gen_Cont\n");
 }
 
-void GPCTR_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length){	
-	//printk("GPCTR_Gen_Cont...");
+void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length){	
+	//printk("GPCT_Gen_Cont...");
 
-	devpriv->gpctr_cur_operation[chan] = GPCTR_CONT_PULSE_OUT;
+	devpriv->gpct_cur_operation[chan] = GPCT_CONT_PULSE_OUT;
 
 	// Set length of the pulse
-	GPCTR_Load_B(dev,chan, length-1);
+	GPCT_Load_B(dev,chan, length-1);
 
-	//Load next time using B, This is reset by GPCTR_Load_Using_A()
-	devpriv->gpctr_mode[chan] |= G_Load_Source_Select;
+	//Load next time using B, This is reset by GPCT_Load_Using_A()
+	devpriv->gpct_mode[chan] |= G_Load_Source_Select;
 	
-	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
-	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 
 	// Output_Mode = 3 
-	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
+	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
 	
 	//Gating Mode=0 for untriggered single pulse
-	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Gating_Mode(0); //TIM 4/26/01 was 0
+	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Gating_Mode(0); //TIM 4/26/01 was 0
 	
 	// Trigger_Mode_For_Edge_Gate=0
-	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
-	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 
 
-	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;
-	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;
-	devpriv->gpctr_mode[chan] |= G_Loading_On_TC; 
-	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+	devpriv->gpct_mode[chan] |= G_Reload_Source_Switching;
+	devpriv->gpct_mode[chan] &= ~G_Loading_On_Gate;
+	devpriv->gpct_mode[chan] |= G_Loading_On_TC; 
+	devpriv->gpct_mode[chan] &= ~G_Gate_On_Both_Edges;
 
 	// Stop_Mode = 2
-	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
-	devpriv->gpctr_mode[chan] |= G_Stop_Mode(0); //TIM 4/26/01
+	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpct_mode[chan] |= G_Stop_Mode(0); //TIM 4/26/01
 	
 	// Counting_Once = 2 
-	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
-	devpriv->gpctr_mode[chan] |= G_Counting_Once(0); //TIM 4/26/01
+	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpct_mode[chan] |= G_Counting_Once(0); //TIM 4/26/01
 
 	// Up_Down = 1 
-	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
-	devpriv->gpctr_command[chan] |= G_Up_Down(0); 
+	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpct_command[chan] |= G_Up_Down(0); 
 
 	//TIM 4/26/01
 	//This seems pretty unsafe since I don't think it is cleared anywhere.
 	//I don't think this is working
-	//devpriv->gpctr_command[chan] &= ~G_Bank_Switch_Enable;
-	//devpriv->gpctr_command[chan] &= ~G_Bank_Switch_Mode;
+	//devpriv->gpct_command[chan] &= ~G_Bank_Switch_Enable;
+	//devpriv->gpct_command[chan] &= ~G_Bank_Switch_Mode;
 	
 
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpct_command[chan],G_Command_Register(chan));
 
-	//printk("exit GPCTR_Gen_Cont\n");
+	//printk("exit GPCT_Gen_Cont\n");
 }
 
-void GPCTR_Reset(comedi_device *dev, int chan){
+void GPCT_Reset(comedi_device *dev, int chan){
 	unsigned long irqflags;
 	int temp_ack_reg=0;
 	
-	//printk("GPCTR_Reset...");
-	devpriv->gpctr_cur_operation[chan] = GPCTR_RESET;
+	//printk("GPCT_Reset...");
+	devpriv->gpct_cur_operation[chan] = GPCT_RESET;
 
 	switch (chan) {
 		case 0:
@@ -2863,42 +2567,42 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 			break;
 	};
 	
-	devpriv->gpctr_mode[chan] = 0;
-	devpriv->gpctr_input_select[chan] = 0;
-	devpriv->gpctr_command[chan] = 0;
+	devpriv->gpct_mode[chan] = 0;
+	devpriv->gpct_input_select[chan] = 0;
+	devpriv->gpct_command[chan] = 0;
 	
-	devpriv->gpctr_command[chan] |= G_Synchronized_Gate;
+	devpriv->gpct_command[chan] |= G_Synchronized_Gate;
 	
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
+	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpct_input_select[chan],G_Input_Select_Register(chan));
 	win_out( 0,G_Autoincrement_Register(chan)); 
 		
-	//printk("exit GPCTR_Reset\n");
+	//printk("exit GPCT_Reset\n");
 }
 
-static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
+static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	int retval=0;
 	//printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
 	switch(data[0]){
-	case GPCTR_RESET:
+	case GPCT_RESET:
 		if(insn->n!=1)return -EINVAL;
-		GPCTR_Reset(dev,insn->chanspec);
+		GPCT_Reset(dev,insn->chanspec);
 		break;
-	case GPCTR_SET_SOURCE:
+	case GPCT_SET_SOURCE:
 		if(insn->n!=2)return -EINVAL;
-		retval=GPCTR_Set_Source(dev,insn->chanspec,data[1]);
+		retval=GPCT_Set_Source(dev,insn->chanspec,data[1]);
 		break;
-	case GPCTR_SET_GATE:
+	case GPCT_SET_GATE:
 		if(insn->n!=2)return -EINVAL;
-		retval=GPCTR_Set_Gate(dev,insn->chanspec,data[1]);
+		retval=GPCT_Set_Gate(dev,insn->chanspec,data[1]);
 		break;
-	case GPCTR_SET_DIRECTION:
+	case GPCT_SET_DIRECTION:
 		if(insn->n!=2) return -EINVAL;
-		retval=GPCTR_Set_Direction(dev,insn->chanspec,data[1]);
+		retval=GPCT_Set_Direction(dev,insn->chanspec,data[1]);
 		break;
-	case GPCTR_GET_INT_CLK_FRQ:
+	case GPCT_GET_INT_CLK_FRQ:
 		if(insn->n!=2) return -EINVAL;
 		//There are actually 2 internal clocks on the STC, we always
 		//use the fast 20MHz one at this time.  Tim  Ousley 5/1/01
@@ -2906,36 +2610,36 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		//will never need to know the int. clk. freq.
 		data[1]=50;//50ns = 20MHz = internal timebase of STC
 		break;
-	case GPCTR_SET_OPERATION:
+	case GPCT_SET_OPERATION:
 		//TIM 5/1/01 if((insn->n<2)||(insn->n>3))return -EINVAL;
 		switch(data[1]){
-			case GPCTR_SIMPLE_EVENT:
-				GPCTR_Event_Counting(dev,insn->chanspec);
+			case GPCT_SIMPLE_EVENT:
+				GPCT_Event_Counting(dev,insn->chanspec);
 				break;
-			case GPCTR_SINGLE_PERIOD:
-				GPCTR_Period_Meas(dev,insn->chanspec);
+			case GPCT_SINGLE_PERIOD:
+				GPCT_Period_Meas(dev,insn->chanspec);
 				break;
-			case GPCTR_SINGLE_PW:
-				GPCTR_Pulse_Width_Meas(dev,insn->chanspec);
+			case GPCT_SINGLE_PW:
+				GPCT_Pulse_Width_Meas(dev,insn->chanspec);
 				break;
-			case GPCTR_SINGLE_PULSE_OUT:
-				GPCTR_Gen_Single_Pulse(dev,insn->chanspec,data[2]);
+			case GPCT_SINGLE_PULSE_OUT:
+				GPCT_Gen_Single_Pulse(dev,insn->chanspec,data[2]);
 				break;
-			case GPCTR_CONT_PULSE_OUT:
-				GPCTR_Gen_Cont_Pulse(dev,insn->chanspec,data[2]);
+			case GPCT_CONT_PULSE_OUT:
+				GPCT_Gen_Cont_Pulse(dev,insn->chanspec,data[2]);
 				break;
 			default:
-				printk("unsupported GPCTR operation!\n");
+				printk("unsupported GPCT operation!\n");
 				return -EINVAL;
 		}
 		break;
-	case GPCTR_ARM:
+	case GPCT_ARM:
 		if(insn->n!=1)return -EINVAL;
-		retval=GPCTR_Arm(dev,insn->chanspec);
+		retval=GPCT_Arm(dev,insn->chanspec);
 		break;
-	case GPCTR_DISARM:
+	case GPCT_DISARM:
 		if(insn->n!=1)return -EINVAL;
-		retval=GPCTR_Disarm(dev,insn->chanspec);
+		retval=GPCT_Disarm(dev,insn->chanspec);
 		break;
 	default:
 		return -EINVAL;
@@ -2950,21 +2654,21 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 	}
 }
 
-static int ni_gpctr_insn_read(comedi_device *dev,comedi_subdevice *s,
+static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data) {
 
 	int chan=insn->chanspec;
-	int cur_op = devpriv->gpctr_cur_operation[chan];
+	int cur_op = devpriv->gpct_cur_operation[chan];
 		
-	//printk("in ni_gpctr_insn_read, n=%d, data[0]=%d\n",insn->chanspec,data[0]);
+	//printk("in ni_gpct_insn_read, n=%d, data[0]=%d\n",insn->chanspec,data[0]);
 	if(insn->n!=1)return -EINVAL;
 		
-	data[0] = GPCTR_G_Watch(dev,insn->chanspec);
+	data[0] = GPCT_G_Watch(dev,insn->chanspec);
 		
 	/* for certain modes (period and pulse width measurment), the value
 	in the counter is not valid until the counter stops.  If the value is 
 	invalid, return a 0 */
-	if((cur_op == GPCTR_SINGLE_PERIOD) || (cur_op == GPCTR_SINGLE_PW)){
+	if((cur_op == GPCT_SINGLE_PERIOD) || (cur_op == GPCT_SINGLE_PW)){
 		/* is the counter still running? */
 		if(win_in(G_Status_Register) & (chan?G1_Counting_St:G0_Counting_St))
 			data[0]=0;
@@ -2972,29 +2676,14 @@ static int ni_gpctr_insn_read(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
-static int ni_gpctr_insn_write(comedi_device *dev,comedi_subdevice *s,
+static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data) {
 
-	//printk("in ni_gpctr_insn_write");
+	//printk("in ni_gpct_insn_write");
 	if(insn->n!=1)return -EINVAL;
-	GPCTR_Load_Using_A(dev,insn->chanspec,data[0]);
+	GPCT_Load_Using_A(dev,insn->chanspec,data[0]);
 	return 1;
 }
-
-/*TIM 5/1/01
-//note: EXPORT_SYMTAB must have been defined for this to work.
-//this is mostly for testing inside the kernel
-EXPORT_SYMBOL(GPCTR_Load_Using_A);
-EXPORT_SYMBOL(GPCTR_G_Watch);
-EXPORT_SYMBOL(GPCTR_Arm);
-EXPORT_SYMBOL(GPCTR_Disarm);
-EXPORT_SYMBOL(GPCTR_Reset);
-EXPORT_SYMBOL(ni_gpctr_insn_config);
-EXPORT_SYMBOL(ni_gpctr_insn_read);
-EXPORT_SYMBOL(ni_gpctr_insn_write);
-*/
-
-//TIM 5/1/01 #endif
 
 
 static int ni_8255_callback(int dir,int port,int data,void *arg)
