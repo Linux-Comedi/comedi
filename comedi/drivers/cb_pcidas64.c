@@ -134,15 +134,14 @@ TODO:
 #define    EN_DAC_UNDERRUN_BIT	0x4000	// enable dac underrun status bit
 #define    EN_ADC_OVERRUN_BIT	0x8000	// enable adc overrun status bit
 #define HW_CONFIG_REG	0x2	// hardware config register
-#define    HW_CONFIG_DUMMY_BITS	0x2400	// bits that don't do anything yet but are given default values
-#define    HW_CONFIG_DUMMY_BITS_6402	0x0400	// dummy bits in 6402 manual are slightly different, probably doesn't matter
+#define    HW_CONFIG_DUMMY_BITS	0x2000	// bit with unknown function yet given as default value in pci-das64 manual
+#define    SLOW_DAC_BIT	0x400	// use 225 nanosec strobe when loading dac instead of 50 nanosec
 #define    EXT_QUEUE	0x200	// use external channel/gain queue (more versatile than internal queue)
 #define FIFO_SIZE_REG	0x4	// allows adjustment of fifo sizes, we will always use maximum
-#define    FIFO_SIZE_DUMMY_BITS	0xf038	// bits that don't do anything yet but are given default values
-#define    ADC_FIFO_SIZE_MASK	0x7	// bits that set adc fifo size
-#define    ADC_FIFO_8K_BITS	0x0	// 8 kilosample adc fifo
-#define    DAC_FIFO_SIZE_MASK	0xf00	// bits that set dac fifo size
-#define    DAC_FIFO_16K_BITS 0x0
+#define    ADC_FIFO_SIZE_MASK	0x7f	// bits that set adc fifo size
+#define    ADC_FIFO_8K_BITS	0x78	// 8 kilosample adc fifo (pci-das64 manual says 0x38!)
+#define    DAC_FIFO_SIZE_MASK	0xff00	// bits that set dac fifo size
+#define    DAC_FIFO_16K_BITS 0xf000
 #define ADC_CONTROL0_REG	0x10	// adc control register 0
 #define    ADC_START_TRIG_FALLING_BIT	0x20	// trig 1 uses falling edge
 #define    ADC_START_TRIG_SOFT_BITS	0x10
@@ -152,7 +151,7 @@ TODO:
 #define    ADC_EXT_CONV_FALLING_BIT	0x800	// external pacing uses falling edge
 #define    ADC_ENABLE_BIT	0x8000	// master adc enable
 #define ADC_CONTROL1_REG	0x12	// adc control register 1
-#define    ADC_CONTROL1_DUMMY_BITS	0x1	// dummy bits for adc control register 1
+#define    ADC_QUEUE_CONFIG_BIT	0x1	// should be set for boards with > 16 channels
 #define    SW_NOGATE_BIT	0x40	// disables software gate of adc
 #define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
 #define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
@@ -437,6 +436,8 @@ typedef struct
 	unsigned int hw_revision;	// stc chip hardware revision number
 	unsigned int do_bits;	// remember digital ouput levels
 	volatile unsigned int intr_enable_bits;	// bits to send to INTR_ENABLE_REG register
+	volatile u16 adc_control1_bits;	// bits to send to ADC_CONTROL1_REG register
+	volatile u16 fifo_size_bits;	// bits to send to FIFO_SIZE_REG register
 } pcidas64_private;
 
 /*
@@ -623,7 +624,7 @@ printk(" plx dma channel 0 pci address 0x%x\n", readl(devpriv->plx9080_iobase + 
 printk(" plx dma channel 0 local address 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
 printk(" plx dma channel 0 transfer size 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG));
 printk(" plx dma channel 0 descriptor 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG));
-printk(" plx dma channel 0 command status 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_CS_REG));
+printk(" plx dma channel 0 command status 0x%x\n", readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG));
 printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_THRESHOLD_REG));
 
 #endif
@@ -686,7 +687,7 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
 	/* XXX Number of inputs in differential mode is ignored */
 	s->n_chan = thisboard->ai_se_chans;
-	s->len_chanlist = 8092;
+	s->len_chanlist = 0x2000;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &ai_ranges;
 	s->insn_read = ai_rinsn;
@@ -746,6 +747,11 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 	// calibration subd XXX
 	s = dev->subdevices + 6;
 	s->type = COMEDI_SUBD_UNUSED;
+
+	// manual says to set this bit for boards with > 16 channels
+	if(thisboard->ai_se_chans > 16)
+		devpriv->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
+	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	return 0;
 }
@@ -810,12 +816,13 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
 	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
 
-	/* disable pacing, triggering, etc */
-	writew(ADC_ENABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
-	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
+	/* disable pacing, enable software triggering, etc */
+	writew(ADC_ENABLE_BIT | ADC_START_TRIG_SOFT_BITS, devpriv->main_iobase + ADC_CONTROL0_REG);
+	devpriv->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	// use internal queue
-	writew(HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
+	writew(SLOW_DAC_BIT, devpriv->main_iobase + HW_CONFIG_REG);
 
 	// load internal queue
 	bits = 0;
@@ -1024,14 +1031,17 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* disable pacing, triggering, etc */
 	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
-	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
+	devpriv->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	// use external queue
-	writew(EXT_QUEUE | HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
+	writew(EXT_QUEUE | SLOW_DAC_BIT, devpriv->main_iobase + HW_CONFIG_REG);
 
 	// set fifo size
 	// XXX this sets dac fifo size too
-	writew(ADC_FIFO_8K_BITS | FIFO_SIZE_DUMMY_BITS, devpriv->main_iobase + FIFO_SIZE_REG);
+	devpriv->fifo_size_bits &= ADC_FIFO_SIZE_MASK;
+	devpriv->fifo_size_bits |= ADC_FIFO_8K_BITS;
+	writew(devpriv->fifo_size_bits, devpriv->main_iobase + FIFO_SIZE_REG);
 
 	// set conversion pacing
 	if(cmd->convert_src == TRIG_TIMER)
@@ -1122,12 +1132,12 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writel(bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 
 	/* set mode, disable software conversion gate */
-	bits = ADC_CONTROL1_DUMMY_BITS | SW_NOGATE_BIT;
+	devpriv->adc_control1_bits |= SW_NOGATE_BIT;
 	if(cmd->convert_src == TRIG_EXT)
-		bits |= ADC_MODE_BITS(13);	// good old mode 13
+		devpriv->adc_control1_bits |= ADC_MODE_BITS(13);	// good old mode 13
 	else
-		bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
-	writew(bits, devpriv->main_iobase + ADC_CONTROL1_REG);
+		devpriv->adc_control1_bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
+	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT;
@@ -1294,7 +1304,8 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 
 	/* disable pacing, triggering, etc */
 	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
-	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
+	devpriv->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
 
 	// abort dma transfer if necessary
 	dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
