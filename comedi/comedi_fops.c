@@ -45,6 +45,10 @@
 #include "kvmem.h"
 
 
+#ifndef KILL_FASYNC
+#define KILL_FASYNC(a,b,c) kill_fasync(&(a),(b),(c))
+#endif
+
 comedi_device *comedi_devices;
 
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor);
