@@ -59,8 +59,9 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/malloc.h>
-#include <mite.h>
-#include <kvmem.h>
+
+#include "mite.h"
+#include "../kvmem.h"
 
 
 #define PCI_MITE_SIZE		4096
@@ -566,7 +567,7 @@ void cleanup_module(void)
 	mite_cleanup();
 }
 
-#ifdef LINUX_V20
+#if LINUX_VERSION_CODE < 0x020100
 
 struct symbol_table mite_syms = {
 #include <linux/symtab_begin.h>
@@ -581,9 +582,7 @@ struct symbol_table mite_syms = {
 #include <linux/symtab_end.h>
 };
 
-#endif
-
-#ifdef LINUX_V22
+#else
 
 EXPORT_SYMBOL(mite_dma_tcr);
 EXPORT_SYMBOL(mite_dma_arm);
