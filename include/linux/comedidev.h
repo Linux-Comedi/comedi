@@ -286,7 +286,7 @@ extern comedi_lrange range_unknown;
 
 struct comedi_lrange_struct{
 	int length;
-	comedi_krange range[0];
+	comedi_krange range[];
 };
 
 
