@@ -118,7 +118,6 @@ add analog out support
 #define   GAIN_BITS(x)	(((x) & 0x3) << 8)
 #define   UNIP	0004000	// Analog front-end unipolar for range
 #define   SE	0002000	// Inputs in single-ended mode
-#define   EOC	0040000	// End of conversion
 #define   PACER_MASK	0x3000	// pacer source bits
 #define   PACER_INT 0x1000	// internal pacer
 #define   PACER_EXT_FALL	0x2000	// external falling edge
@@ -127,7 +126,9 @@ add analog out support
 #define TRIG_CONTSTAT 4 // TRIGGER CONTROL/STATUS register
 #define   SW_TRIGGER 0x1	// software start trigger
 #define   EXT_TRIGGER 0x2	// external start trigger
+#define   TGEN	0x10	// enable external start trigger
 #define   BURSTE 0x20	// burst mode enable
+#define   XTRCL	0x80	// clear external trigger
 
 #define CALIBRATION	6	// CALIBRATION register
 
@@ -518,9 +519,11 @@ found:
 	subdev_8255_init(dev, s, NULL,
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
-	/* Enable incoming mailbox interrupts on amcc s5933. */
+	// clear interrupts
+	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
+	/* Enable (and clear) incoming mailbox interrupts on amcc s5933. */
 	devpriv->s5933_intcsr_bits = INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT;
-	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
+	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 
 	return 1;
 }
@@ -542,8 +545,8 @@ static int cb_pcidas_detach(comedi_device *dev)
 	{
 		if(devpriv->s5933_config)
 		{
-			// disable interrupts on amcc s5933
-			outl(0, devpriv->s5933_config + INTCSR);
+			// disable and clear interrupts on amcc s5933
+			outl(INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 			release_region(devpriv->s5933_config, S5933_SIZE);
 		}
@@ -572,7 +575,6 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int n,i;
-	unsigned int d;
 	unsigned int bits;
 	static const int timeout = 10000;
 
@@ -586,7 +588,7 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	// set singleended/differential
 	if(CR_AREF(insn->chanspec) != AREF_DIFF)
 		bits |= SE;
-	outw_p(bits,	devpriv->control_status + ADCMUX_CONT);
+	outw_p(bits, devpriv->control_status + ADCMUX_CONT);
 
 	/* wait for mux to settle */
 	/* I suppose I made it with outw_p... */
@@ -604,16 +606,14 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 		/* return -ETIMEDOUT if there is a timeout */
 		for(i = 0; i < timeout; i++)
 		{
-			if (inw(devpriv->control_status + ADCMUX_CONT) & EOC)
+			if (inw(devpriv->control_status + INT_ADCFIFO) & ADNE)
 				break;
 		}
 		if(i == timeout)
 			return -ETIMEDOUT;
 
 		/* read data */
-		d = inw(devpriv->adc_fifo + ADCDATA);
-
-		data[n] = d;
+		data[n] = inw(devpriv->adc_fifo + ADCDATA);
 	}
 
 	/* return the number of samples read/written */
@@ -821,6 +821,8 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// clear interrupts
 	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
+	// clear s5933 interrupt
+	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 
 	// enable interrupts
 	devpriv->adc_fifo_bits = INTE;
@@ -841,7 +843,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if(cmd->start_src == TRIG_NOW)
 		bits |= SW_TRIGGER;
 	else if(cmd->start_src == TRIG_EXT)
-		bits |= EXT_TRIGGER;
+		bits |= EXT_TRIGGER | TGEN | XTRCL;
 	else
 	{
 		comedi_error(dev, "bug!");
@@ -878,20 +880,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	if((status & (INT | EOAI)) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
-#ifdef CB_PCIDAS_DEBUG
-rt_printk("status bits are 0x%x\n", status);
-rt_printk("intcsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
-
-// clear s5933 interrupt
-if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
-{
-	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
-	if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
-		rt_printk("manual clear failed, bits are 0x%x\n", inl(devpriv->s5933_config + INTCSR));
-}else{
-	rt_printk("amcc interrupt is already clear\n");
-}
-#endif
+		// clear s5933 interrupt
+		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 		return;
 	}
 	// if fifo half-full
@@ -903,8 +893,7 @@ if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
 			comedi_buf_put(async, data[i]);
 			if(async->cmd.stop_src == TRIG_COUNT)
 			{
-				if(async->cmd.stop_src == TRIG_COUNT &&
-					--devpriv->count == 0)
+				if(--devpriv->count == 0)
 				{		/* end of acquisition */
 					cb_pcidas_cancel(dev, s);
 					async->events |= COMEDI_CB_EOA;
@@ -952,17 +941,8 @@ if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
-// clear interrupt on amcc s5933
-#ifdef CB_PCIDAS_DEBUG
-if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
-{
+	// clear interrupt on amcc s5933
 	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
-	if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
-		rt_printk("manual clear failed, bits are 0x%x\n", inl(devpriv->s5933_config + INTCSR));
-}else{
-	rt_printk("amcc interrupt is already clear\n");
-}
-#endif
 
 	comedi_event(dev, s, async->events);
 
