@@ -1,0 +1,172 @@
+#!/bin/bash
+#
+# This script shows some of the deficiencies in drivers.  Some
+# of the things that are tested here are only suggestions, and
+# don't necessarily apply to every driver.
+#
+
+if [ "$1" ];then
+	driver=$1
+else
+	echo 'check_driver <filename>'
+	exit 1
+fi
+
+echo "I: ${driver}:"
+
+# special cases
+case ${driver} in
+	ni_pcimio.c)
+		driver="${driver} ni_mio_common.c"
+		;;
+	ni_atmio.c)
+		driver="${driver} ni_mio_common.c"
+		;;
+	ni_mio_cs.c)
+		driver="${driver} ni_mio_common.c"
+		;;
+esac
+
+
+
+# check to see if it is a driver
+if grep '^comedi_driver' ${driver} &>/dev/null;then
+	echo "appears to be a driver"
+else
+	echo "not a driver file"
+	exit 1
+fi
+
+if ! grep '[[:space:]]\+module:[[:space:]]*THIS_MODULE' ${driver} &>/dev/null;then
+	echo "E: doesn't set driver->module to THIS_MODULE"
+fi
+
+# check to see if it uses name recognition
+if grep 'board_name:' ${driver} &>/dev/null;then
+	echo uses recognize to determine type
+	probe=recognize
+else
+	if grep 'dev..board_ptr' ${driver} &>/dev/null;then
+		echo auto-probes type of board
+		probe=auto
+	else
+		echo only supports one type of board
+		probe=one
+	fi
+fi
+
+# auto checks
+if [ "$probe" = auto ];then
+	if grep 'dev..board_ptr[[:space:]]*=' ${driver} &>/dev/null;then
+		echo 'sets dev->board_ptr'
+	else
+		echo "E: doesn't set dev->board_ptr"
+	fi
+fi
+
+# recognize checks
+if [ "$probe" = recognize ];then
+	if ! grep '[[:space:]]\+offset:[[:space:]]*sizeof' ${driver} &>/dev/null;then
+		echo "E: doesn't set driver->offset"
+	fi
+	if ! grep '[[:space:]]\+num_names:[[:space:]]' ${driver} &>/dev/null;then
+		echo "E: doesn't set driver->num_names"
+	fi
+fi
+
+# I would prefer that drivers have a consistent number of subdevices
+# independent of the particular board type.  If a subdevice is not
+# relevant for a board type, the type should be set to COMEDI_SUBD_UNUSED.
+tmp=$(cat ${driver}|grep -c 'dev..n_subdevices[[:space:]]*=' 2>/dev/null)
+if [ "$tmp" = 1 ];then
+	echo sets n_subdevices once
+else
+	echo W: sets n_subdevices multiple times: "$tmp"
+fi
+if grep 'dev..n_subdevices[[:space:]]*=[[:space:]]*[^[:digit:][:space:]]' ${driver} &>/dev/null;then
+	echo "W: sets n_subdevices by variable"
+fi
+
+# Check to see if board_name is set
+if grep 'dev..board_name[[:space:]]*=' ${driver} &>/dev/null;then
+	echo "board_name is set"
+else
+	echo "E: board_name not set"
+fi
+
+# Do we use trig?
+if grep 'trig\[0\]' ${driver} &>/dev/null;then
+	echo "W: uses trig[0]"
+else
+	echo "doesn't use trig[0]"
+fi
+
+if grep 'trig\[[1234]\]' ${driver} &>/dev/null;then
+	echo "W: uses trig[1234]"
+else
+	echo "doesn't use trig[1234]"
+fi
+
+if grep 'comedi_cmd' ${driver} &>/dev/null;then 
+	echo "uses cmd"
+	cmd=yes
+else
+	cmd=no
+fi
+
+if grep 'comedi_insn' ${driver} &>/dev/null;then 
+	echo "uses insn"
+	insn=yes
+else
+	insn=no
+fi
+
+# not comprehensive.
+if ! grep 'rt_printk' ${driver} &>/dev/null;then
+	echo "W: doesn't use rt_printk"
+fi
+
+if grep request_irq ${driver} &>/dev/null;then
+	if ! grep 'comedi_request_irq' ${driver} &>/dev/null;then
+		echo "E: doesn't use comedi_request_irq"
+	fi
+	if ! grep 'free_irq' ${driver} &>/dev/null;then
+		echo "E: doesn't use comedi_free_irq"
+	fi
+fi
+if grep SA_INTERRUPT ${driver} &>/dev/null;then
+	echo "E: uses SA_INTERRUPT"
+fi
+
+if grep 'request_region' ${driver} &>/dev/null;then
+	if ! grep 'release_region' ${driver} &>/dev/null;then
+		echo "E: release_region() not called"
+	fi
+fi
+
+if grep 'pci_dev' ${driver} &>/dev/null;then
+	echo uses pci
+	if ! grep 'pci_find_device' ${driver} &>/dev/null;then
+		echo "W: doesn't use pci_find_device"
+	fi
+	#if ! grep 'pci_enable_device' ${driver} &>/dev/null;then
+	#	echo "W: doesn't use pci_enable_device"
+	#fi
+	if ! grep 'MODULE_DEVICE_TABLE' ${driver} &>/dev/null;then
+		echo "W: doesn't use MODULE_DEVICE_TABLE"
+	fi
+fi
+
+# Who doesn't use comments like this to indicate something needs
+# to be fixed?
+if grep '\(XXX\)\|\(FIX\)' ${driver} &>/dev/null;then
+	echo "W: has FIXME-like comments"
+fi
+
+# COMEDI_INITCLEANUP isn't strictly necessary, but it's a one-stop
+# cleanup to get Comedi to compile as part of the kernel.
+if grep 'int init_module' ${driver} &>/dev/null;then
+	echo "W: suggest using COMEDI_INITCLEANUP"
+fi
+
+
