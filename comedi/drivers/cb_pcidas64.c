@@ -1625,7 +1625,9 @@ static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
 	unsigned int i;
-	u32 fifo_data;
+	uint32_t fifo_data;
+
+	DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
 
 	private(dev)->ai_count -= num_samples;
 
@@ -1653,8 +1655,14 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 	{
 		/* Get most significant bits.  Different boards encode the meaning of these bits
 		* differently, so use a scheme that doesn't depend on encoding */
-		read_segment = ADC_UPP_READ_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
-		write_segment = ADC_UPP_WRITE_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
+		if(board(dev)->layout == LAYOUT_4020)
+		{
+			read_segment = write_segment = 0;
+		} else
+		{
+			read_segment = ADC_UPP_READ_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
+			write_segment = ADC_UPP_WRITE_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
+		}
 		// get least significant 15 bits
 		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG);
 		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG);
@@ -1685,8 +1693,7 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 
 		if(board(dev)->layout == LAYOUT_4020)
 		{
-			pio_drain_ai_fifo_32(dev, 0x4000);
-			break;
+			pio_drain_ai_fifo_32(dev, num_samples);
 		}else
 			pio_drain_ai_fifo_16(dev, num_samples);
 
