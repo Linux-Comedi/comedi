@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020200
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)
 #include <asm/system.h>
 static __inline__ unsigned long claim_dma_lock(void)
 {

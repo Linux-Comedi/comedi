@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020300
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
 #include <asm/irq.h>
 #else
 #include_next <linux/irq.h>

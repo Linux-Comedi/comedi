@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020200
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)
 #define signal_pending(x)	(((x)->signal) & (~(x)->blocked))
 #endif
 

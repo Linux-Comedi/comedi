@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020200
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)
 
 #define mod_timer(a,b)	do{del_timer((a));(a)->expires=(b);add_timer((a));}while(0)
 #endif

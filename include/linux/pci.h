@@ -8,7 +8,7 @@
 #include <linux/version.h>
 
 
-#if LINUX_VERSION_CODE < 0x020155
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,55)
 #include <linux/bios32.h>
 #define PCI_SUPPORT_VER1
 #else

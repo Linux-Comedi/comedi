@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= 0x020300
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
 #include_next <linux/isapnp.h>
 #else
 #include <linux/pci.h>

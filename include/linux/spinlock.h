@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020100
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
 /* no spinlocks */
 typedef int spinlock_t;
 
@@ -27,7 +27,7 @@ typedef int spinlock_t;
 #define SPIN_LOCK_UNLOCKED 0
 
 #else
-#if LINUX_VERSION_CODE < 0x020300
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
 #include <asm/spinlock.h>
 #else
 #include_next <linux/spinlock.h>

@@ -8,7 +8,7 @@
 #include <linux/version.h>
 
 
-#if LINUX_VERSION_CODE < 0x020115
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,19)
 #define MODULE_AUTHOR(a)
 #define MODULE_DESCRIPTION(a)
 #define MODULE_PARM(a,b)

@@ -7,11 +7,11 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020400
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
 #define __devinitdata __initdata
 #define __exit
 #endif
-#if LINUX_VERSION_CODE < 0x020200
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)
 #define __init
 #else
 #include_next <linux/init.h>

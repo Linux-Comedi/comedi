@@ -7,14 +7,14 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020300
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
 #define VM_OFFSET(a)	((a)->vm_offset)
 #define page_address(page) page
 #else
 #define VM_OFFSET(a)	((a)->vm_pgoff * PAGE_SIZE)
 #endif
 
-#if LINUX_VERSION_CODE < 0x020500
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 #define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(b,c,d,e)
 #else
 #define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(a,b,c,d,e)

@@ -7,11 +7,11 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020200
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)
 /* no fasync */
 #define KILL_FASYNC(a,b,c)
 #else
-#if LINUX_VERSION_CODE < 0x020400
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
 #define KILL_FASYNC(a,b,c)	kill_fasync((a),(c))
 #else
 #define KILL_FASYNC(a,b,c)	kill_fasync(&(a),(b),(c))
