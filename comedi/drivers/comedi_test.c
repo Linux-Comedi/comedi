@@ -100,6 +100,7 @@ static comedi_driver driver_waveform={
 	offset:         sizeof(waveform_board),
 	num_names:      sizeof(waveform_boards) / sizeof(waveform_board),
 };
+COMEDI_INITCLEANUP(driver_waveform);
 
 static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
@@ -129,7 +130,7 @@ static comedi_lrange waveform_ai_ranges =
    It should run in the background; therefore it is scheduled by
    a timer mechanism.
 */
-void waveform_ai_interrupt(unsigned long arg)
+static void waveform_ai_interrupt(unsigned long arg)
 {
 	comedi_device *dev = (comedi_device*) arg;
 	comedi_async *async = dev->read_subdev->async;
@@ -395,7 +396,7 @@ static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 // divides an unsigned long long
-unsigned long long my_ull_div(unsigned long long numerator, unsigned long denominator)
+static unsigned long long my_ull_div(unsigned long long numerator, unsigned long denominator)
 {
 	u32 value;
 	unsigned long long remainder;
@@ -501,6 +502,4 @@ static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s, comedi
 
 	return insn->n;
 }
-
-COMEDI_INITCLEANUP(driver_waveform);
 

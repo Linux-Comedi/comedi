@@ -842,7 +842,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int dt3000_detach(comedi_device *dev)
 {
-	if(dev->irq)free_irq(dev->irq,dev);
+	if(dev->irq)comedi_free_irq(dev->irq,dev);
 
 	/* XXX */
 
