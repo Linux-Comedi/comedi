@@ -1506,7 +1506,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 		devpriv->count = cmd.stop_arg * cmd.chanlist_len;
 		devpriv->forever = 0;
 		/* if they want just a few points, interrupt fifo not empty */
-		if(cmd.stop_arg < HALF_FIFO)
+		if(cmd.stop_arg * cmd.scan_end_arg < HALF_FIFO)
 			devpriv->irq_dma_bits &= ~FIMD;
 	}else
 	{
@@ -1768,8 +1768,8 @@ unsigned int suggest_transfer_size(comedi_device *dev, unsigned long ns)
 	float freq = 1000000000.0 / ns;
 	const int min_transfer = 1024;	// minimum transfer size in bytes
 
-	// make buffer fill in no more than 1 second
-	size = (int)freq * sizeof(sampl_t);
+	// make buffer fill in no more than 1/3 second
+	size = ((int)freq * sizeof(sampl_t)) / 3;
 
 	// set a minimum and maximum size allowed
 	if(size > devpriv->dma_buf_max_size)
