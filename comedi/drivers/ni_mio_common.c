@@ -2247,7 +2247,8 @@ int GPCT_Arm(comedi_device *dev, int chan){
 int GPCT_Set_Source(comedi_device *dev,int chan ,int source){
 	//printk("GPCT_Set_Source...");
 	devpriv->gpct_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
-	switch(source) {	case GPCT_INT_CLOCK:
+	switch(source) {
+		case GPCT_INT_CLOCK:
 		devpriv->gpct_input_select[chan] |= G_Source_Select(0);//INT_TIMEBASE
 		break;
 	case GPCT_EXT_PIN:

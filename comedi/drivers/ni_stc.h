@@ -479,8 +479,6 @@
 #define G1_Save_St			_bit1
 #define G0_Save_St			_bit0
 
-
-/* CLO */
 /* general purpose counter timer */
 #define G0_Reset                        _bit2
 #define G1_Reset                        _bit3
