@@ -106,6 +106,9 @@ TODO:
  * (and the maximum number of dma buffers we maintain) */
 #define DMA_RING_COUNT (0x40000 / PAGE_SIZE)
 
+/* maximum value that can be loaded into board's 24-bit counters*/
+static const int max_counter_value = 0xffffff;
+
 /* PCI-DAS64xxx base addresses */
 
 // indices of base address regions
@@ -1037,10 +1040,15 @@ typedef struct
 	uint32_t local1_iobase;
 	volatile unsigned int ai_count;	// number of analog input samples remaining
 	uint16_t *ai_buffer[DMA_RING_COUNT];	// dma buffers for analog input
-	dma_addr_t ai_buffer_phys_addr[DMA_RING_COUNT];	// physical addresses of ai dma buffers
-	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
-	dma_addr_t dma_desc_phys_addr;	// physical address of dma descriptor array
-	volatile unsigned int dma_index;	// index of the dma descriptor/buffer that is currently being used
+	dma_addr_t ai_buffer_bus_addr[DMA_RING_COUNT];	// physical addresses of ai dma buffers
+	struct plx_dma_desc *ai_dma_desc;	// array of ai dma descriptors read by plx9080, allocated to get proper alignment
+	dma_addr_t ai_dma_desc_bus_addr;	// physical address of ai dma descriptor array
+	volatile unsigned int ai_dma_index;	// index of the ai dma descriptor/buffer that is currently being used
+	uint16_t *ao_buffer[DMA_RING_COUNT];	// dma buffers for analog output
+	dma_addr_t ao_buffer_bus_addr[DMA_RING_COUNT];	// physical addresses of ao dma buffers
+	struct plx_dma_desc *ao_dma_desc;
+	dma_addr_t ao_dma_desc_bus_addr;
+	volatile unsigned int ao_dma_index;	// index of the dma descriptor/buffer that is currently being used
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	volatile unsigned int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 	unsigned int hw_revision;	// stc chip hardware revision number
@@ -1124,6 +1132,7 @@ static int set_ai_fifo_segment_length( comedi_device *dev, unsigned int num_entr
 static void disable_ai_pacing( comedi_device *dev );
 static void disable_ai_interrupts( comedi_device *dev );
 static void enable_ai_interrupts( comedi_device *dev, const comedi_cmd *cmd );
+static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 
 COMEDI_INITCLEANUP(driver_cb_pcidas);
 
@@ -1257,6 +1266,10 @@ static void init_plx9080(comedi_device *dev)
 	writel(bits, plx_iobase + PLX_DMA1_MODE_REG);
 }
 
+static inline int ao_cmd_is_supported(const pcidas64_board *board)
+{
+	return board->ao_nchan && board->layout != LAYOUT_4020;
+}
 /* Allocate and initialize the subdevice structures.
  */
 static int setup_subdevices(comedi_device *dev)
@@ -1313,7 +1326,7 @@ static int setup_subdevices(comedi_device *dev)
 		s->range_table = board(dev)->ao_range_table;
 		s->insn_read = ao_readback_insn;
 		s->insn_write = ao_winsn;
-		if(board(dev)->layout != LAYOUT_4020)
+		if(ao_cmd_is_supported(board(dev)))
 		{
 			s->do_cmdtest = ao_cmdtest;
 			s->do_cmd = ao_cmd;
@@ -1465,9 +1478,74 @@ static void init_stc_registers( comedi_device *dev )
 	priv(dev)->fifo_size_bits |= DAC_FIFO_BITS;
 	set_ai_fifo_segment_length( dev, board(dev)->ai_fifo->max_segment_length );
 
+	priv(dev)->dac_control1_bits |= DAC_OUTPUT_ENABLE_BIT;
+
 	disable_ai_pacing(dev);
 };
 
+int alloc_and_init_dma_members(comedi_device *dev)
+{
+	int i;
+
+	// alocate pci dma buffers
+	for(i = 0; i < DMA_RING_COUNT; i++)
+	{
+		priv(dev)->ai_buffer[i] =
+			pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE, &priv(dev)->ai_buffer_bus_addr[i]);
+		if(priv(dev)->ai_buffer[i] == NULL)
+		{
+			return -ENOMEM;
+		}
+		if(ao_cmd_is_supported(board(dev)))
+		{
+			priv(dev)->ao_buffer[i] =
+				pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE, &priv(dev)->ao_buffer_bus_addr[i]);
+			if(priv(dev)->ao_buffer[i] == NULL)
+			{
+				return -ENOMEM;
+			}
+		}
+	}
+	// allocate dma descriptors
+	priv(dev)->ai_dma_desc =
+		pci_alloc_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+		&priv(dev)->ai_dma_desc_bus_addr);
+	if(priv(dev)->ai_dma_desc == NULL)
+	{
+		return -ENOMEM;
+	}
+	if(ao_cmd_is_supported(board(dev)))
+	{
+		priv(dev)->ao_dma_desc =
+			pci_alloc_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+			&priv(dev)->ao_dma_desc_bus_addr);
+		if(priv(dev)->ao_dma_desc == NULL)
+		{
+			return -ENOMEM;
+		}
+	}
+	// initialize dma descriptors
+	for(i = 0; i < DMA_RING_COUNT; i++)
+	{
+		priv(dev)->ai_dma_desc[i].pci_start_addr = __cpu_to_le32(priv(dev)->ai_buffer_bus_addr[i]);
+		if(board(dev)->layout == LAYOUT_4020)
+			priv(dev)->ai_dma_desc[i].local_start_addr = __cpu_to_le32(priv(dev)->local1_iobase + ADC_FIFO_REG);
+		else
+			priv(dev)->ai_dma_desc[i].local_start_addr = __cpu_to_le32(priv(dev)->local0_iobase + ADC_FIFO_REG);
+		priv(dev)->ai_dma_desc[i].transfer_size = __cpu_to_le32(0);
+		priv(dev)->ai_dma_desc[i].next = __cpu_to_le32((priv(dev)->ai_dma_desc_bus_addr + ((i + 1) % (DMA_RING_COUNT)) * sizeof(priv(dev)->ai_dma_desc[0])) |
+			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI);
+		if(ao_cmd_is_supported(board(dev)))
+		{
+			priv(dev)->ao_dma_desc[i].pci_start_addr = __cpu_to_le32(priv(dev)->ao_buffer_bus_addr[i]);
+			priv(dev)->ao_dma_desc[i].local_start_addr = __cpu_to_le32(priv(dev)->local0_iobase + DAC_FIFO_REG);
+			priv(dev)->ao_dma_desc[i].transfer_size = __cpu_to_le32(DMA_BUFFER_SIZE);
+			priv(dev)->ao_dma_desc[i].next = __cpu_to_le32((priv(dev)->ao_dma_desc_bus_addr + ((i + 1) % (DMA_RING_COUNT)) * sizeof(priv(dev)->ao_dma_desc[0])) |
+				PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT);
+		}
+	}
+	return 0;
+}
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -1569,36 +1647,8 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	DEBUG_PRINT(" local 0 io addr 0x%x\n", priv(dev)->local0_iobase);
 	DEBUG_PRINT(" local 1 io addr 0x%x\n", priv(dev)->local1_iobase);
 
-	// alocate pci dma buffers
-	for(index = 0; index < DMA_RING_COUNT; index++)
-	{
-		priv(dev)->ai_buffer[index] =
-			pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE, &priv(dev)->ai_buffer_phys_addr[index]);
-		if(priv(dev)->ai_buffer[index] == NULL)
-		{
-			return -ENOMEM;
-		}
-	}
-	// allocate dma descriptors
-	priv(dev)->dma_desc =
-		pci_alloc_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
-		&priv(dev)->dma_desc_phys_addr);
-	if(priv(dev)->dma_desc == NULL)
-	{
-		return -ENOMEM;
-	}
-	// initialize dma descriptors
-	for(index = 0; index < DMA_RING_COUNT; index++)
-	{
-		priv(dev)->dma_desc[index].pci_start_addr = __cpu_to_le32(priv(dev)->ai_buffer_phys_addr[index]);
-		if(board(dev)->layout == LAYOUT_4020)
-			priv(dev)->dma_desc[index].local_start_addr = __cpu_to_le32(priv(dev)->local1_iobase + ADC_FIFO_REG);
-		else
-			priv(dev)->dma_desc[index].local_start_addr = __cpu_to_le32(priv(dev)->local0_iobase + ADC_FIFO_REG);
-		priv(dev)->dma_desc[index].transfer_size = __cpu_to_le32(0);
-		priv(dev)->dma_desc[index].next = __cpu_to_le32((priv(dev)->dma_desc_phys_addr + ((index + 1) % (DMA_RING_COUNT)) * sizeof(priv(dev)->dma_desc[0])) |
-			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI);
-	}
+	retval = alloc_and_init_dma_members(dev);
+	if(retval < 0) return retval;
 
 	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
 
@@ -1663,14 +1713,20 @@ static int detach(comedi_device *dev)
 			for(i = 0; i < DMA_RING_COUNT; i++)
 			{
 				if( priv(dev)->ai_buffer[i] )
-					pci_free_consistent( priv(dev)->hw_dev, DMA_BUFFER_SIZE,
-						priv(dev)->ai_buffer[i], priv(dev)->ai_buffer_phys_addr[i] );
+					pci_free_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
+						priv(dev)->ai_buffer[i], priv(dev)->ai_buffer_bus_addr[i]);
+				if( priv(dev)->ao_buffer[i] )
+					pci_free_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
+						priv(dev)->ao_buffer[i], priv(dev)->ao_buffer_bus_addr[i]);
 			}
 			// free dma descriptors
-			if(priv(dev)->dma_desc)
-				pci_free_consistent( priv(dev)->hw_dev, sizeof( struct plx_dma_desc ) * DMA_RING_COUNT,
-					priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
-			pci_disable_device( priv(dev)->hw_dev );
+			if(priv(dev)->ai_dma_desc)
+				pci_free_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+					priv(dev)->ai_dma_desc, priv(dev)->ai_dma_desc_bus_addr);
+			if(priv(dev)->ao_dma_desc)
+				pci_free_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+					priv(dev)->ao_dma_desc, priv(dev)->ao_dma_desc_bus_addr );
+			pci_disable_device(priv(dev)->hw_dev);
 		}
 	}
 	if(dev->subdevices)
@@ -1923,7 +1979,8 @@ static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn 
 }
 
 static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
-{	int err = 0;
+{
+	int err = 0;
 	int tmp;
 	unsigned int tmp_arg, tmp_arg2;
 	int i;
@@ -2108,13 +2165,11 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 
 static int use_hw_sample_counter( comedi_cmd *cmd )
 {
-	static const int max_hardware_count = 0xffffff;
-
 // disable for now until I work out a race
 return 0;
 
 	if( cmd->stop_src == TRIG_COUNT &&
-		cmd->stop_arg <= max_hardware_count )
+		cmd->stop_arg <= max_counter_value )
 		return 1;
 	else
 		return 0;
@@ -2467,11 +2522,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if((cmd->flags & TRIG_WAKE_EOS) == 0 ||
 		board(dev)->layout == LAYOUT_4020)
 	{
-		priv(dev)->dma_index = 0;
+		priv(dev)->ai_dma_index = 0;
 
 		// set dma transfer size
 		for(i = 0; i < DMA_RING_COUNT; i++)
-			priv(dev)->dma_desc[i].transfer_size = __cpu_to_le32(dma_transfer_size(dev) * sizeof(uint16_t));
+			priv(dev)->ai_dma_desc[i].transfer_size = __cpu_to_le32(dma_transfer_size(dev) * sizeof(uint16_t));
 
 		/* These register are supposedly unused during chained dma,
 		 * but I have found that left over values from last operation
@@ -2481,7 +2536,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		writel(0, priv(dev)->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG);
 		writel(0, priv(dev)->plx9080_iobase + PLX_DMA1_LOCAL_ADDRESS_REG);
 		// give location of first dma descriptor
-		bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
+		bits = priv(dev)->ai_dma_desc_bus_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 		writel(bits, priv(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
 
 		// spinlock for plx dma control/status reg
@@ -2663,8 +2718,8 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 
 	// loop until we have read all the full buffers
 	for(j = 0, next_transfer_addr = readl(pci_addr_reg);
-		(next_transfer_addr < priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index] ||
-		next_transfer_addr >= priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index] + DMA_BUFFER_SIZE) &&
+		(next_transfer_addr < priv(dev)->ai_buffer_bus_addr[priv(dev)->ai_dma_index] ||
+		next_transfer_addr >= priv(dev)->ai_buffer_bus_addr[priv(dev)->ai_dma_index] + DMA_BUFFER_SIZE) &&
 		j < DMA_RING_COUNT;
 		j++ )
 	{
@@ -2677,10 +2732,10 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 			priv(dev)->ai_count -= num_samples;
 		}
 		cfc_write_array_to_buffer( dev->read_subdev,
-			priv(dev)->ai_buffer[ priv(dev)->dma_index ], num_samples * sizeof( uint16_t ) );
-		priv(dev)->dma_index = (priv(dev)->dma_index + 1) % DMA_RING_COUNT;
+			priv(dev)->ai_buffer[ priv(dev)->ai_dma_index ], num_samples * sizeof( uint16_t ) );
+		priv(dev)->ai_dma_index = (priv(dev)->ai_dma_index + 1) % DMA_RING_COUNT;
 
-		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index]);
+		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->ai_buffer_bus_addr[priv(dev)->ai_dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
 	// XXX check for dma ring buffer overrun somehow
@@ -2820,15 +2875,13 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
-	uint16_t bits;
 
 	// do some initializing
 	writew(0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
 
 	// set range
-	bits = DAC_OUTPUT_ENABLE_BIT;
-	set_dac_range_bits( dev, &bits, chan, range );
-	writew(bits, priv(dev)->main_iobase + DAC_CONTROL1_REG);
+	set_dac_range_bits( dev, &priv(dev)->dac_control1_bits, chan, range );
+	writew(priv(dev)->dac_control1_bits, priv(dev)->main_iobase + DAC_CONTROL1_REG);
 
 	// clear buffer
 	writew(0, priv(dev)->main_iobase + DAC_BUFFER_CLEAR_REG);
@@ -2882,7 +2935,6 @@ static void set_dac_control1_reg(comedi_device *dev, const comedi_cmd *cmd)
 {
 	int i;
 
-	priv(dev)->dac_control1_bits |= DAC_OUTPUT_ENABLE_BIT;
 	for(i = 0; i < cmd->chanlist_len; i++)
 	{
 		int channel, range;
@@ -2909,9 +2961,56 @@ static void set_dac_select_reg(comedi_device *dev, const comedi_cmd *cmd)
 	writew(bits, priv(dev)->main_iobase + DAC_SELECT_REG);
 }
 
+static void set_dac_interval_regs(comedi_device *dev, const comedi_cmd *cmd)
+{
+	unsigned int divisor;
+
+	if(cmd->scan_begin_src != TRIG_TIMER) return;
+
+	divisor = get_ao_divisor(cmd->scan_begin_arg, cmd->flags);
+	if(divisor > max_counter_value)
+	{
+		comedi_error(dev, "bug! ao divisor too big");
+		divisor = max_counter_value;
+	}
+	writew(divisor & 0xffff, priv(dev)->main_iobase + DAC_SAMPLE_INTERVAL_LOWER_REG);
+	writew((divisor >> 16) & 0xff, priv(dev)->main_iobase + DAC_SAMPLE_INTERVAL_UPPER_REG);
+}
+
+static void init_ao_dma_transfer(comedi_device *dev)
+{
+	unsigned int bits;
+
+	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
+	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
+	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
+	// give location of first dma descriptor
+	bits = priv(dev)->ao_dma_desc_bus_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT;
+	writel(bits, priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+}
+
+
 static int ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
+	unsigned long flags;
+	
+	/* disable analog output during setup */
+	writew(0x0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
+
+	set_dac_select_reg(dev, cmd);
+	set_dac_interval_regs(dev, cmd);
+	init_ao_dma_transfer(dev);
+
+	// spinlock for plx dma control/status reg
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	// enable dma transfer
+	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
+	set_dac_control1_reg(dev, cmd);
+	set_dac_control0_reg(dev, cmd);
+/* XXX need to load up and start dma transfer */
 
 	if(cmd->start_src == TRIG_INT)
 		s->async->inttrig = ao_inttrig;
@@ -2933,11 +3032,116 @@ static int ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig
 
 static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 {
+	int err = 0;
+	int tmp;
+	unsigned int tmp_arg;
+	int i;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp = cmd->start_src;
+	cmd->start_src &= TRIG_INT | TRIG_EXT;
+	if(!cmd->start_src || tmp != cmd->start_src) err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
+	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
+
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_NOW;
+	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_NONE;
+	if(!cmd->stop_src || tmp != cmd->stop_src) err++;
+
+	if(err) return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	// uniqueness check
+	if(cmd->start_src != TRIG_INT &&
+		cmd->start_src != TRIG_EXT) err++;
+	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_EXT) err++;
+
+	// compatibility check
+	if(cmd->convert_src == TRIG_EXT &&
+		cmd->scan_begin_src == TRIG_TIMER)
+		err++;
+	if(cmd->stop_src != TRIG_COUNT &&
+		cmd->stop_src != TRIG_NONE &&
+		cmd->stop_src != TRIG_EXT) err++;
+
+	if(err) return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		if(cmd->scan_begin_arg < board(dev)->ao_scan_speed)
+		{
+			cmd->scan_begin_arg = board(dev)->ao_scan_speed;
+			err++;
+		}
+		if(get_ao_divisor(cmd->scan_begin_arg, cmd->flags) > max_counter_value)
+		{
+			cmd->scan_begin_arg = (max_counter_value + 2) * TIMER_BASE;
+			err++;
+		}
+	}
+
+	if(!cmd->chanlist_len)
+	{
+		cmd->chanlist_len = 1;
+		err++;
+	}
+	if(cmd->scan_end_arg != cmd->chanlist_len)
+	{
+		cmd->scan_end_arg = cmd->chanlist_len;
+		err++;
+	}
+
+	if(err) return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		tmp_arg = cmd->scan_begin_arg;
+		cmd->scan_begin_arg = get_divisor(cmd->scan_begin_arg, cmd->flags) * TIMER_BASE;
+		if(tmp_arg != cmd->scan_begin_arg) err++;
+	}
+
+	if(err) return 4;
+
+	if(cmd->chanlist)
+	{
+		unsigned int first_channel = CR_CHAN( cmd->chanlist[0] );
+		for( i = 1; i < cmd->chanlist_len; i++ )
+		{
+			if( CR_CHAN( cmd->chanlist[ i ] ) != first_channel + i )
+			{
+				comedi_error( dev, "chanlist must use consecutive channels" );
+				err++;
+				break;
+			}
+		}
+	}
+
+	if(err) return 5;
+
 	return 0;
 }
 
 static int ao_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	writew(0x0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
+	abort_dma(dev, 0);
 	return 0;
 }
 
@@ -3203,7 +3407,6 @@ static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static void check_adc_timing( comedi_device *dev, comedi_cmd *cmd)
 {
 	unsigned int convert_divisor = 0, scan_divisor;
-	static const int max_counter_value = 0xffffff;	// board uses 24 bit counters for pacing
 	static const int min_convert_divisor = 3;
 	static const int max_convert_divisor = max_counter_value + min_convert_divisor;
 	static const int min_scan_divisor_4020 = 2;
@@ -3266,8 +3469,12 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 			divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
 			break;
 	}
-
 	return divisor;
+}
+
+static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags)
+{
+	return get_divisor(ns, flags) - 2;
 }
 
 // adjusts the size of hardware fifo (which determines block size for dma xfers)
