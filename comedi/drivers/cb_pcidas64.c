@@ -976,13 +976,19 @@ static struct pci_device_id pcidas64_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
 
-/*
- * Useful for shorthand access to the particular board structure
- */
 static inline pcidas64_board* board( const comedi_device *dev )
 {
 	return (pcidas64_board *)dev->board_ptr;
 }
+
+static inline unsigned short se_diff_bit_6xxx(comedi_device *dev, int use_differential)
+{
+	if((board(dev)->layout == LAYOUT_64XX && !use_differential) ||
+		(board(dev)->layout == LAYOUT_60XX && use_differential))
+		return ADC_SE_DIFF_BIT;
+	else
+		return 0;
+};
 
 struct ext_clock_info
 {
@@ -1400,6 +1406,9 @@ static void init_stc_registers( comedi_device *dev )
 		priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 
+	// 6402/16 manual says this register must be initialized to 0xff?
+	writew(0xff, priv(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+
 	bits = SLOW_DAC_BIT | DMA_CH_SELECT_BIT;
 	if(board(dev)->layout == LAYOUT_4020)
 		bits |= INTERNAL_CLOCK_4020_BITS;
@@ -1414,6 +1423,8 @@ static void init_stc_registers( comedi_device *dev )
 	// set fifos to maximum size
 	priv(dev)->fifo_size_bits |= DAC_FIFO_BITS;
 	set_ai_fifo_segment_length( dev, board(dev)->ai_fifo->max_segment_length );
+
+	disable_ai_pacing(dev);
 };
 
 /*
@@ -1662,9 +1673,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// set gain
 		bits |= ai_range_bits_6xxx( dev, CR_RANGE(insn->chanspec) );
 		// set single-ended / differential
-		if( ( board(dev)->layout == LAYOUT_64XX && aref != AREF_DIFF ) ||
-			( board(dev)->layout == LAYOUT_60XX && aref == AREF_DIFF ) )
-			bits |= ADC_SE_DIFF_BIT;
+		bits |= se_diff_bit_6xxx(dev, aref == AREF_DIFF);
 		if( aref == AREF_COMMON)
 			bits |= ADC_COMMON_BIT;
 		// ALT_SOURCE is internal calibration reference
@@ -1686,10 +1695,10 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
 		}
 		bits |= adc_chan_bits( channel );
-		// set start channel, and rest of settings
-		writew(bits, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 		// set stop channel
 		writew( adc_chan_bits( channel ), priv(dev)->main_iobase + ADC_QUEUE_HIGH_REG );
+		// set start channel, and rest of settings
+		writew(bits, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 	}else
 	{
 		uint8_t old_cal_range_bits = priv(dev)->i2c_cal_range_bits;
@@ -2108,7 +2117,7 @@ static void disable_ai_pacing( comedi_device *dev )
 	disable_ai_interrupts( dev );
 
 	/* disable pacing, triggering, etc */
-	writew( ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
+	writew( ADC_ENABLE_BIT | ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
 		priv(dev)->main_iobase + ADC_CONTROL0_REG );
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
@@ -2261,6 +2270,102 @@ static void set_ai_pacing( comedi_device *dev, comedi_cmd *cmd )
 	DEBUG_PRINT("scan counter 0x%x\n", scan_counter );
 }
 
+static int use_internal_queue_6xxx(const comedi_cmd *cmd)
+{
+	int i;
+	for(i = 0; i + 1 < cmd->chanlist_len; i++)
+	{
+		if(CR_CHAN(cmd->chanlist[i + 1]) != CR_CHAN(cmd->chanlist[i]) + 1)
+			return 0;
+		if(CR_RANGE(cmd->chanlist[i + 1]) != CR_RANGE(cmd->chanlist[i]))
+			return 0;
+		if(CR_AREF(cmd->chanlist[i + 1]) != CR_AREF(cmd->chanlist[i]))
+			return 0;
+	}
+	return 1;
+}
+
+static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
+{
+	unsigned short bits;
+	int i;
+
+	if(board(dev)->layout != LAYOUT_4020)
+	{
+		if(use_internal_queue_6xxx(cmd))
+		{
+			priv(dev)->hw_config_bits &= ~EXT_QUEUE_BIT;
+			writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
+			bits = 0;
+			// set channel
+			bits |= adc_chan_bits(CR_CHAN(cmd->chanlist[0]));
+			// set gain
+			bits |= ai_range_bits_6xxx(dev, CR_RANGE(cmd->chanlist[0]));
+			// set single-ended / differential
+			bits |= se_diff_bit_6xxx(dev, CR_AREF(cmd->chanlist[0]) == AREF_DIFF);
+			if(CR_AREF(cmd->chanlist[0]) == AREF_COMMON)
+				bits |= ADC_COMMON_BIT;
+			// set stop channel
+			writew(adc_chan_bits(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1])), priv(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
+			// set start channel, and rest of settings
+			writew(bits, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
+		}else
+		{
+			// use external queue
+			priv(dev)->hw_config_bits |= EXT_QUEUE_BIT;
+			writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
+			/* XXX cannot write to queue fifo while dac fifo is being used
+			* (maybe spinlock?).*/
+			// clear queue pointer
+			writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
+			// load external queue
+			for(i = 0; i < cmd->chanlist_len; i++)
+			{
+				bits = 0;
+				// set channel
+				bits |= adc_chan_bits(CR_CHAN(cmd->chanlist[i]));
+				// set gain
+				bits |= ai_range_bits_6xxx(dev, CR_RANGE(cmd->chanlist[i]));
+				// set single-ended / differential
+				bits |= se_diff_bit_6xxx(dev, CR_AREF(cmd->chanlist[i]) == AREF_DIFF);
+				if(CR_AREF(cmd->chanlist[i]) == AREF_COMMON)
+					bits |= ADC_COMMON_BIT;
+				// mark end of queue
+				if(i == cmd->chanlist_len - 1)
+					bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
+				writew(bits, priv(dev)->main_iobase + ADC_QUEUE_FIFO_REG);
+			}
+			writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
+			// prime queue holding register
+			writew(0, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
+		}
+	}else
+	{
+		unsigned short old_cal_range_bits = priv(dev)->i2c_cal_range_bits;
+
+		priv(dev)->i2c_cal_range_bits &= ~ADC_SRC_4020_MASK;
+		//select BNC inputs
+		priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits(4);
+		// select ranges
+		for(i = 0; i < cmd->chanlist_len; i++)
+		{
+			unsigned int channel = CR_CHAN(cmd->chanlist[i]);
+			unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+			if(ai_range_bits_6xxx(dev, range))
+				priv(dev)->i2c_cal_range_bits |= attenuate_bit(channel);
+			else
+				priv(dev)->i2c_cal_range_bits &= ~attenuate_bit(channel);
+		}
+		// update calibration/range i2c register only if necessary, as it is very slow
+		if(old_cal_range_bits != priv(dev)->i2c_cal_range_bits)
+		{
+			uint8_t i2c_data = priv(dev)->i2c_cal_range_bits;
+			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data, sizeof(i2c_data));
+		}
+	}
+}
+
 static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
@@ -2278,62 +2383,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	setup_sample_counters( dev, cmd );
 
-	if(board(dev)->layout != LAYOUT_4020)
-	{
-		// use external queue
-		priv(dev)->hw_config_bits |= EXT_QUEUE_BIT;
-		writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
-
-		/* XXX cannot write to queue fifo while dac fifo is being written to
-		* ( need spinlock, or try to use internal queue instead */
-		// clear queue pointer
-		writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
-		// load external queue
-		for(i = 0; i < cmd->chanlist_len; i++)
-		{
-			bits = 0;
-			// set channel
-			bits |= adc_chan_bits( CR_CHAN( cmd->chanlist[i] ) );
-			// set gain
-			bits |= ai_range_bits_6xxx( dev, CR_RANGE( cmd->chanlist[i] ) );
-			// set single-ended / differential
-			if( ( board(dev)->layout == LAYOUT_64XX && CR_AREF(cmd->chanlist[i]) != AREF_DIFF ) ||
-				( board(dev)->layout == LAYOUT_60XX && CR_AREF(cmd->chanlist[i]) == AREF_DIFF ) )
-				bits |= ADC_SE_DIFF_BIT;
-			if(CR_AREF(cmd->chanlist[i]) == AREF_COMMON)
-				bits |= ADC_COMMON_BIT;
-			// mark end of queue
-			if(i == cmd->chanlist_len - 1)
-				bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
-			writew(bits, priv(dev)->main_iobase + ADC_QUEUE_FIFO_REG);
-		}
-		// prime queue holding register
-		writew(0, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
-	}else
-	{
-		uint8_t old_cal_range_bits = priv(dev)->i2c_cal_range_bits;
-
-		priv(dev)->i2c_cal_range_bits &= ~ADC_SRC_4020_MASK;
-		//select BNC inputs
-		priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits( 4 );
-		// select ranges
-		for(i = 0; i < cmd->chanlist_len; i++)
-		{
-			unsigned int channel = CR_CHAN(cmd->chanlist[i]);
-			unsigned int range = CR_RANGE(cmd->chanlist[i]);
-
-			if( ai_range_bits_6xxx( dev, range ) ) 
-				priv(dev)->i2c_cal_range_bits |= attenuate_bit( channel );
-			else
-				priv(dev)->i2c_cal_range_bits &= ~attenuate_bit( channel );
-		}
-		// update calibration/range i2c register only if necessary, as it is very slow
-		if(old_cal_range_bits != priv(dev)->i2c_cal_range_bits)
-		{
-			uint8_t i2c_data = priv(dev)->i2c_cal_range_bits;
-			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data, sizeof(i2c_data));
-		}
-	}
+	setup_channel_queue(dev, cmd);
 
 	// clear adc buffer
 	writew(0, priv(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
