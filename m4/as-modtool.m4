@@ -89,8 +89,8 @@ case \$mode in
 		echo \$LINUX_LD -r -o .mods/\$target.o \$[*]
 		\$LINUX_LD -r -o .mods/\$target.o \$[*]
 
-		echo "cat \$LINUX_DIR/Module.symvers \$SYMVERS_INCLUDES >.mods/symvers.tmp"
-		cat \$LINUX_DIR/Module.symvers \$SYMVERS_INCLUDES >.mods/symvers.tmp
+		echo "cat \$LINUX_DIR/Module.symvers \$SYMVERS_INCLUDES >.mods/symvers.tmp || touch .mods/symvers.tmp"
+		cat \$LINUX_DIR/Module.symvers \$SYMVERS_INCLUDES >.mods/symvers.tmp || touch .mods/symvers.tmp
 
 		echo "\$LINUX_MODPOST -o .mods/\$target.o.symvers.tmp -i .mods/symvers.tmp \$target.o"
 		\$LINUX_MODPOST -o .mods/\$target.o.symvers.tmp -i .mods/symvers.tmp .mods/\$target.o
