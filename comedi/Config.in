@@ -77,6 +77,7 @@ dep_tristate 'DAS16' CONFIG_COMEDI_DAS16 $CONFIG_COMEDI
 dep_tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402 $CONFIG_COMEDI
 dep_tristate 'DAS-800 and compatibles' CONFIG_COMEDI_DAS800 $CONFIG_COMEDI
 dep_tristate 'DAS-1800 and compatibles' CONFIG_COMEDI_DAS1800 $CONFIG_COMEDI
+dep_tristate 'Computer Boards PCI-DAS 1200 series' CONFIG_COMEDI_CB_PCIDAS $CONFIG_COMEDI
 dep_tristate 'Generic 8255 support' CONFIG_COMEDI_8255 $CONFIG_COMEDI
 dep_tristate 'Quanser Consulting MultiQ-3' CONFIG_COMEDI_MULTIQ3 $CONFIG_COMEDI
 dep_tristate 'Generic parallel port support' CONFIG_COMEDI_PARPORT $CONFIG_COMEDI
