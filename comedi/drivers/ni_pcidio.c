@@ -147,7 +147,7 @@
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
-static int nidio_recognize(comedi_device *dev,char *name);
+static int nidio_recognize(char *name);
 comedi_driver driver_pcidio={
 	driver_name:	"ni_pcidio",
 	module:		THIS_MODULE,
