@@ -103,8 +103,6 @@ Interrupts are not supported.
 #define PCL727_DI_HI  0
 #define PCL727_DI_LO  1
 
-#define RANGE_mA(a,b)		{(a)*1e6,(b)*1e6,UNIT_mA}
-
 static comedi_lrange range_4_20mA={ 1, {RANGE_mA(4,20)}};
 static comedi_lrange range_0_20mA={ 1, {RANGE_mA(0,20)}};
 
