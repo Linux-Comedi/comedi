@@ -1088,6 +1088,9 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		return;
 	}
 
+	/* clear interrupt */
+	outb(0x00, dev->iobase + DAS16_STATUS);
+
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
 	/* clear flip-flop to make sure 2-byte registers for
@@ -1149,9 +1152,6 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	comedi_event(dev, s, async->events);
-
-	/* clear interrupt */
-	outb(0x00, dev->iobase + DAS16_STATUS);
 }
 
 static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int rounding_flags)
