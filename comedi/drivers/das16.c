@@ -262,29 +262,44 @@ static comedi_lrange range_das16jr = { 9, {
 	UNI_RANGE( 2.5 ),
 	UNI_RANGE( 1.25 ),
 }};
+static comedi_lrange range_das16jr_16 = { 8, {
+	BIP_RANGE( 10 ),
+	BIP_RANGE( 5 ),
+	BIP_RANGE( 2.5 ),
+	BIP_RANGE( 1.25 ),
+	UNI_RANGE( 10 ),
+	UNI_RANGE( 5 ),
+	UNI_RANGE( 2.5 ),
+	UNI_RANGE( 1.25 ),
+}};
 
 static int das16jr_gainlist[] = { 8, 0, 1, 2, 3, 4, 5, 6, 7 };
+static int das16jr_16_gainlist[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 static int das1600_gainlist[] = { 0, 1, 2, 3 };
 enum {
 	das16_pg_none = 0,
 	das16_pg_16jr,
+	das16_pg_16jr_16,
 	das16_pg_1601,
 	das16_pg_1602,
 };
 static int *das16_gainlists[] = {
 	NULL,
 	das16jr_gainlist,
+	das16jr_16_gainlist,
 	das1600_gainlist,
 	das1600_gainlist,
 };
 static comedi_lrange *das16_ai_uni_lranges[]={
 	&range_unknown,
 	&range_das16jr,
+	&range_das16jr_16,
 	&range_das1x01_unip,
 	&range_das1x02_unip,
 };
 static comedi_lrange *das16_ai_bip_lranges[]={
 	&range_unknown,
+	&range_das16jr,
 	&range_das16jr,
 	&range_das1x01_bip,
 	&range_das1x02_bip,
@@ -437,7 +452,7 @@ static struct das16_board_struct das16_boards[]={
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
 	ai_speed:	10000,
-	ai_pg:		das16_pg_16jr,
+	ai_pg:		das16_pg_16jr_16,
 	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
