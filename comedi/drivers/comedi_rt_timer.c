@@ -51,6 +51,7 @@ TODO:
 #include <rtl_compat.h>
 
 // begin hack to workaround broken HRT_TO_8254() function on rtlinux
+#if RTLINUX_VERSION_CODE <= RTLINUX_VERSION(3,0,100)
 // this function sole purpose is to divide a long long by 838
 static inline RTIME nano2count(long long ns)
 {
@@ -76,8 +77,12 @@ static inline RTIME nano2count(long long ns)
 
 	return ns;
 }
-
 #define rt_get_time() nano2count(gethrtime())
+
+#else
+
+#define nano2count(x) HRT_TO_8254(x)
+#endif
 // end hack
 
 // rtl-rtai compatibility
@@ -107,10 +112,7 @@ COMEDI_INITCLEANUP(driver_timer);
 typedef struct{
 	int device;
 	int subd;
-	comedi_device *dev;
-	comedi_subdevice *s;
 	RT_TASK rt_task;
-	int soft_irq;
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 
@@ -417,7 +419,8 @@ static int timer_cancel(comedi_device *dev,comedi_subdevice *s)
 static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
-	comedi_subdevice *s;
+	comedi_subdevice *s, *emul_s;
+	comedi_device *emul_dev;
 
 	printk("comedi%d: timer: ",dev->minor);
 
@@ -434,11 +437,11 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("device %d, subdevice %d\n", devpriv->device, devpriv->subd);
 
-	devpriv->dev=comedi_get_device_by_minor(devpriv->device);
-	devpriv->s=devpriv->dev->subdevices+devpriv->subd;
+	emul_dev=comedi_get_device_by_minor(devpriv->device);
+	emul_s=emul_dev->subdevices+devpriv->subd;
 
-	if(devpriv->s->type != COMEDI_SUBD_AI
-		&& devpriv->s->type != COMEDI_SUBD_AO)
+	if(emul_s->type != COMEDI_SUBD_AI
+		&& emul_s->type != COMEDI_SUBD_AO)
 	{
 		printk("cannot emulate subdevice type\n");
 		return -EINVAL;
@@ -446,18 +449,18 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	// input subdevice
 	s=dev->subdevices+0;
-	if(devpriv->s->subdev_flags & SDF_READABLE)
+	if(emul_s->subdev_flags & SDF_READABLE)
 	{
-		s->type=devpriv->s->type;
+		s->type=emul_s->type;
 		s->subdev_flags = SDF_READABLE;
-		s->n_chan=devpriv->s->n_chan;
+		s->n_chan=emul_s->n_chan;
 		s->len_chanlist=1024;
 		s->do_cmd=timer_cmd;
 		s->do_cmdtest=timer_cmdtest;
 		s->cancel=timer_cancel;
-		s->maxdata=devpriv->s->maxdata;
-		s->range_table=devpriv->s->range_table;
-		s->range_table_list=devpriv->s->range_table_list;
+		s->maxdata=emul_s->maxdata;
+		s->range_table=emul_s->range_table;
+		s->range_table_list=emul_s->range_table_list;
 		s->insn_read=timer_insn;
 		dev->read_subdev = s;
 	}else {
@@ -466,18 +469,18 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	// output subdevice
 	s=dev->subdevices+1;
-	if(devpriv->s->subdev_flags & SDF_WRITEABLE)
+	if(emul_s->subdev_flags & SDF_WRITEABLE)
 	{
-		s->type=devpriv->s->type;
+		s->type=emul_s->type;
 		s->subdev_flags = SDF_WRITEABLE;
-		s->n_chan=devpriv->s->n_chan;
+		s->n_chan=emul_s->n_chan;
 		s->len_chanlist=1024;
 		s->do_cmd=timer_cmd;
 		s->do_cmdtest=timer_cmdtest;
 		s->cancel=timer_cancel;
-		s->maxdata=devpriv->s->maxdata;
-		s->range_table=devpriv->s->range_table;
-		s->range_table_list=devpriv->s->range_table_list;
+		s->maxdata=emul_s->maxdata;
+		s->range_table=emul_s->range_table;
+		s->range_table_list=emul_s->range_table_list;
 		s->insn_write=timer_insn;
 		dev->write_subdev = s;
 	}else {
