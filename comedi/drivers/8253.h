@@ -180,6 +180,35 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	return;
 }
 
+/* Programs 8254 counter chip.  I don't know if this works for 8253.
+ * base_address is the lowest io address for the chip (the address of counter 0).
+ * counter_number is the counter you want to load (0,1 or 2)
+ * count is the number to load into the counter.
+ * You probably want to use mode 2.
+ * FMH
+ */
+static inline int i8254_load(unsigned int base_address,
+	unsigned int counter_number, unsigned int count, unsigned int mode)
+{
+	unsigned char byte;
+	static const int counter_control = 3;
+
+	if(counter_number > 2) return -1;
+	if(count > 0xffff) return -1;
+	if(mode > 5) return -1;
+	if(mode == 2 && count == 1) return -1;
+
+	byte = counter_number << 6;
+	byte |= 0x30;	// load low then high byte
+	byte |= (mode << 1);	// set counter mode
+	outb(byte, base_address + counter_control);
+	byte = count & 0xff;	// lsb of counter value
+	outb(byte, base_address + counter_number);
+	byte = (count >> 8) & 0xff;	// msb of counter value
+	outb(byte, base_address + counter_number);
+
+	return 0;
+}
 
 #endif
 

@@ -150,8 +150,7 @@ TODO:
 #define DAS1800_BURST_LENGTH    0x8
 #define DAS1800_BURST_RATE      0x9
 #define DAS1800_QRAM_ADDRESS    0xa
-#define DAS1800_COUNTER(a)        (0xc + a)
-#define DAS1800_COUNTER_CONTROL 0xf
+#define DAS1800_COUNTER         0xc
 
 #define IOBASE2                   0x400	//offset of additional ioports used on 'ao' cards
 
@@ -180,7 +179,6 @@ static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 
 int das1800_set_frequency(comedi_device *dev);
-int das1800_load_counter(comedi_device *dev, unsigned int counterNumber, unsigned int counterValue, unsigned int mode);
 unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
 unsigned int suggest_transfer_size(comedi_device *dev, unsigned long ns);
 
@@ -1379,7 +1377,7 @@ int setup_counters(comedi_device *dev, comedi_cmd cmd)
 	if(cmd.stop_src == TRIG_EXT)
 	{
 		// load counter 0 in mode 0
-		das1800_load_counter(dev, 0, cmd.stop_arg, 0);
+		i8254_load(dev->iobase + DAS1800_COUNTER, 0, cmd.stop_arg, 0);
 	}
 
 	return 0;
@@ -1690,32 +1688,12 @@ int das1800_set_frequency(comedi_device *dev)
 	int err = 0;
 
 	// counter 1, mode 2
-	if(das1800_load_counter(dev, 1, devpriv->divisor1, 2)) err++;
+	if(i8254_load(dev->iobase + DAS1800_COUNTER, 1, devpriv->divisor1, 2)) err++;
 	// counter 2, mode 2
-	if(das1800_load_counter(dev, 2, devpriv->divisor2, 2)) err++;
+	if(i8254_load(dev->iobase + DAS1800_COUNTER, 2, devpriv->divisor2, 2)) err++;
 	if(err)
 		return -1;
 
-	return 0;
-}
-
-/* programs onboard intel 82c54 counter chip */
-int das1800_load_counter(comedi_device *dev, unsigned int counterNumber, unsigned int counterValue, unsigned int mode)
-{
-	unsigned char byte;
-
-	if(counterNumber > 2) return -1;
-	if(counterValue == 1 || counterValue > 0xffff) return -1;
-	if(mode > 5) return -1;
-
-  byte = counterNumber << 6;
-	byte = byte | 0x30;	// load low then high byte
-	byte = byte | (mode << 1);	// set counter mode
-	outb(byte, dev->iobase + DAS1800_COUNTER_CONTROL);
-	byte = counterValue & 0xff;	// lsb of counter value
-	outb(byte, dev->iobase + DAS1800_COUNTER(counterNumber));
-	byte = counterValue >> 8;	// msb of counter value
-	outb(byte, dev->iobase + DAS1800_COUNTER(counterNumber));
 	return 0;
 }
 

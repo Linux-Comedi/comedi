@@ -103,6 +103,7 @@ NOTES:
 #define   CONV_CONTROL          0xa0
 #define   SCAN_LIMITS           0xc0
 #define   ID                    0xe0
+#define DAS800_8254           4
 #define DAS800_STATUS2        7
 #define   STATUS2_HCEN          0x80
 #define   STATUS2_INTE          0X20
@@ -270,7 +271,6 @@ static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 int das800_probe(comedi_device *dev);
 int das800_set_frequency(comedi_device *dev);
-int das800_load_counter(unsigned int counterNumber, unsigned int counterValue, comedi_device *dev);
 
 /* checks and probes das-800 series board type */
 int das800_probe(comedi_device *dev)
@@ -943,28 +943,10 @@ int das800_set_frequency(comedi_device *dev)
 {
 	int err = 0;
 
-	if(das800_load_counter(1, devpriv->divisor1, dev)) err++;
-	if(das800_load_counter(2, devpriv->divisor2, dev)) err++;
+	if(i8254_load(dev->iobase + DAS800_8254, 1, devpriv->divisor1, 2)) err++;
+	if(i8254_load(dev->iobase + DAS800_8254, 2, devpriv->divisor2, 2)) err++;
 	if(err)
 		return -1;
 
-	return 0;
-}
-
-int das800_load_counter(unsigned int counterNumber, unsigned int counterValue, comedi_device *dev)
-{
-	unsigned char byte;
-
-	if(counterNumber > 2) return -1;
-	if(counterValue == 1 || counterValue > 0xffff) return -1;
-
-  byte = counterNumber << 6;
-	byte = byte | 0x30;	// load low then high byte
-	byte = byte | 0x4;	// set counter mode 2
-	outb(byte, dev->iobase + 0x7);
-	byte = counterValue & 0xff;	// lsb of counter value
-	outb(byte, dev->iobase + 0x4 + counterNumber);
-	byte = counterValue >> 8;	// msb of counter value
-	outb(byte, dev->iobase + 0x4 + counterNumber);
 	return 0;
 }
