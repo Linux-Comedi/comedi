@@ -61,8 +61,8 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 
-#undef HPDI_DEBUG	// disable debugging messages
-//#define HPDI_DEBUG	// enable debugging code
+//#undef HPDI_DEBUG	// disable debugging messages
+#define HPDI_DEBUG	// enable debugging code
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
@@ -739,6 +739,8 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	uint32_t bits;
 	unsigned long flags;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 
 	hpdi_writel( dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG );
 
@@ -756,6 +758,11 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
+	if( cmd->stop_src == TRIG_COUNT )
+		priv(dev)->dio_count = cmd->stop_arg;
+	else
+		priv(dev)->dio_count = 1;
+		
 	hpdi_writel( dev, RX_ENABLE_BIT, BOARD_CONTROL_REG );
 
 	return 0;
@@ -800,10 +807,10 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 			priv(dev)->dio_count -= num_samples;
 		}
 		cfc_write_array_to_buffer( dev->read_subdev,
-			priv(dev)->dio_buffer[ priv(dev)->dma_index ], num_samples * sizeof( sampl_t ) );
+			priv(dev)->dio_buffer[ priv(dev)->dma_index ], num_samples * sizeof( uint32_t ) );
 		priv(dev)->dma_index = (priv(dev)->dma_index + 1) % DMA_RING_COUNT;
 
-		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index]);
+		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->dio_buffer_phys_addr[priv(dev)->dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
 	// XXX check for buffer overrun somehow
@@ -866,6 +873,9 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
 	}
 
+	if( priv(dev)->dio_count == 0 )
+		async->events |= COMEDI_CB_EOA;
+		
 	cfc_handle_events( dev, s );
 
 	DEBUG_PRINT("exiting handler\n");
