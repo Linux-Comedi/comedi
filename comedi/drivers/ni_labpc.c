@@ -151,7 +151,7 @@ static dev_link_t *pcmcia_dev_list = NULL;
 #define   A1_INTR_EN_BIT	0x40	// enable interrupt on end of hardware count
 #define   ADC_SCAN_UP_BIT 0x80	// scan up from channel zero instead of down to zero
 #define COMMAND4_REG	0xf
-#define   EXT_SCAN_MASTER_EN_BIT	0x1	// enables 'interval' scanning
+#define   INTERVAL_SCAN_EN_BIT	0x1	// enables 'interval' scanning
 #define   EXT_SCAN_EN_BIT	0x2	// enables external signal on counter b1 output to trigger scan
 #define   EXT_CONVERT_OUT_BIT	0x4	// chooses direction (output or input) for EXTCONV* line
 #define   ADC_DIFF_BIT	0x8	// chooses differential inputs for adc (in conjunction with board jumper)
@@ -811,6 +811,13 @@ static int labpc_detach(comedi_device *dev)
 	return 0;
 };
 
+static void labpc_clear_adc_fifo( const comedi_device *dev )
+{
+	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
+	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+}
+
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned long flags;
@@ -919,7 +926,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		}
 		if(cmd->scan_begin_arg < thisboard->ai_speed * cmd->chanlist_len)
 		{
-			cmd->convert_arg = thisboard->ai_speed * cmd->chanlist_len;
+			cmd->scan_begin_arg = thisboard->ai_speed * cmd->chanlist_len;
 			err++;
 		}
 	}
@@ -1147,13 +1154,15 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	devpriv->command4_bits = 0;
 	if(cmd->convert_src != TRIG_EXT)
 		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
+	/* XXX should discard first scan when using interval scanning
+	 * since manual says it is not synced with scan clock */
 	switch(cmd->scan_begin_src)
 	{
 		case TRIG_EXT:
-			devpriv->command4_bits |= EXT_SCAN_EN_BIT | EXT_SCAN_MASTER_EN_BIT;
+			devpriv->command4_bits |= EXT_SCAN_EN_BIT | INTERVAL_SCAN_EN_BIT;
 			break;
 		case TRIG_TIMER:
-			devpriv->command4_bits |= EXT_SCAN_MASTER_EN_BIT;
+			devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
 			break;
 		default:
 			break;
@@ -1164,7 +1173,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
 	// make sure interval counter register doesn't cause problems
-	if(devpriv->command4_bits & EXT_SCAN_MASTER_EN_BIT &&
+	if(devpriv->command4_bits & INTERVAL_SCAN_EN_BIT &&
 		cmd->chanlist_len == 1)
 	{
 		// set count to one
@@ -1208,11 +1217,8 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		}
 	}
 
-	// clear adc fifo
-	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
-	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
-
+	labpc_clear_adc_fifo( dev );
+	
 	// set up dma transfer
 	if(xfer == isa_dma_transfer)
 	{
@@ -1555,10 +1561,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	// initialize pacer counter output to make sure it doesn't cause any problems
 	thisboard->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
 
-	// clear adc fifo
-	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
-	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
-	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
+	labpc_clear_adc_fifo( dev );
 
 	for(n = 0; n < insn->n; n++)
 	{
