@@ -7,6 +7,9 @@
  * for the register offsets and bit definitions.  Made minor modifications,
  * added plx9080 registers and
  * stripped out stuff that was specifically for the wanXL driver.
+ * Note: I've only made sure the definitions are correct as far
+ * as I make use of them.  There are still various plx9060-isms
+ * left in this header file.
  *
  ********************************************************************
  *
@@ -60,16 +63,28 @@ struct plx_dma_desc
 #define  LMAP_IO_MASK     0xfffffffa	// bits that specify decode bits for normal io
 
 
-/* Note: The Local Arbitration Register is only present on the 9060ES part.
-**       The 9060 part with DMA does not have this register
+/* Mode/Arbitration Register.
 */
-#define PLX_LCLARB_REG         0x0008 /* L, Local Arbitration Register */
-#define  LARB_LLT          0x0000000F /* Local Bus Latency Timer */
-#define  LARB_LPT          0x000000F0 /* Local Bus Pause Timer */
-#define  LARB_LTEN         0x00000100 /* Latency Timer Enable */
-#define  LARB_LPEN         0x00000200 /* Pause Timer Enable */
-#define  LARB_BREQ         0x00000400 /* Local Bus BREQ Enable */
-
+#define PLX_MARB_REG         0x8 /* L, Local Arbitration Register */
+#define PLX_DMAARB_REG      0xac
+enum marb_bits
+{
+	MARB_LLT_MASK = 0x000000ff, /* Local Bus Latency Timer */
+	MARB_LPT_MASK = 0x0000ff00, /* Local Bus Pause Timer */
+	MARB_LTEN = 0x00010000, /* Latency Timer Enable */
+	MARB_LPEN = 0x00020000, /* Pause Timer Enable */
+	MARB_BREQ = 0x00040000, /* Local Bus BREQ Enable */
+	MARB_DMA_PRIORITY_MASK = 0x00180000,
+	MARB_LBDS_GIVE_UP_BUS_MODE = 0x00200000, /* local bus direct slave give up bus mode */
+	MARB_DS_LLOCK_ENABLE = 0x00400000, /* direct slave LLOCKo# enable */
+	MARB_PCI_REQUEST_MODE = 0x00800000,
+	MARB_PCIv21_MODE = 0x01000000, /* pci specification v2.1 mode */
+	MARB_PCI_READ_NO_WRITE_MODE = 0x02000000,
+	MARB_PCI_READ_WITH_WRITE_FLUSH_MODE = 0x04000000,
+	MARB_GATE_TIMER_WITH_BREQ = 0x08000000, /* gate local bus latency timer with BREQ */
+	MARB_PCI_READ_NO_FLUSH_MODE = 0x10000000,
+	MARB_USE_SUBSYSTEM_IDS = 0x20000000,
+};
 /* Note: The Expansion ROM  stuff is only relevant to the PC environment.
 **       This expansion ROM code is executed by the host CPU at boot time.
 **       For this reason no bit definitions are provided here.
@@ -78,7 +93,7 @@ struct plx_dma_desc
 #define PLX_ROMMAP_REG         0x0014 /* L, Local Addr Space Range Register */
 
 
-#define PLX_REGION_REG         0x0018 /* L, Local Bus Region Descriptor */
+#define PLX_REGION0_REG         0x0018 /* L, Local Bus Region 0 Descriptor */
 #define  RGN_WIDTH         0x00000002 /* Local bus width bits */
 #define  RGN_8BITS         0x00000000 /* 08 bit Local Bus */
 #define  RGN_16BITS        0x00000001 /* 16 bit Local Bus */
@@ -93,6 +108,9 @@ struct plx_dma_desc
 #define  RGN_8MWS          0x00000020
 #define  RGN_MRE           0x00000040 /* Memory Space Ready Input Enable */
 #define  RGN_MBE           0x00000080 /* Memory Space Bterm Input Enable */
+#define  RGN_READ_PREFETCH_DISABLE 0x00000100
+#define  RGN_ROM_PREFETCH_DISABLE 0x00000200
+#define  RGN_READ_PREFETCH_COUNT_ENABLE 0x00000400
 #define  RGN_RWS           0x003C0000 /* Expn ROM Wait States */
 #define  RGN_RRE           0x00400000 /* ROM Space Ready Input Enable */
 #define  RGN_RBE           0x00800000 /* ROM Space Bterm Input Enable */
@@ -101,6 +119,7 @@ struct plx_dma_desc
 #define  RGN_THROT         0x08000000 /* De-assert TRDY when FIFO full */
 #define  RGN_TRD           0xF0000000 /* Target Ready Delay /8 */
 
+#define PLX_REGION1_REG         0x00f8 /* L, Local Bus Region 1 Descriptor */
 
 #define PLX_DMRNG_REG          0x001C /* L, Direct Master Range Register */
 
@@ -197,6 +216,8 @@ struct plx_dma_desc
 #define  PLX_EN_DMA_DONE_INTR_BIT	0x400	// enables interrupt on dma done
 #define  PLX_LOCAL_ADDR_CONST_BIT	0x800	// hold local address constant (don't increment)
 #define  PLX_DEMAND_MODE_BIT	0x1000	// enables demand-mode for dma transfer
+#define  PLX_EOT_ENABLE_BIT	0x4000
+#define  PLX_STOP_MODE_BIT 0x8000
 #define  PLX_DMA_INTR_PCI_BIT	0x20000	// routes dma interrupt to pci bus (instead of local bus)
 
 #define PLX_DMA0_PCI_ADDRESS_REG	0x84	// pci address that dma transfers start at
@@ -378,18 +399,15 @@ static inline int plx9080_abort_dma( unsigned long iobase, unsigned int channel 
 	// wait to make sure done bit is zero
 	for( i = 0; ( dma_status & PLX_DMA_DONE_BIT ) && i < timeout; i++ )
 	{
-		dma_status = readb( dma_cs_addr );
 		comedi_udelay( 1 );
+		dma_status = readb( dma_cs_addr );
 	}
 	if( i == timeout )
 	{
 		rt_printk("plx9080: cancel() timed out waiting for dma %i done clear\n", channel);
 		return -ETIMEDOUT;
 	}
-	// disable channel
-	writeb( 0, dma_cs_addr );
-	comedi_udelay( 1 );
-	// abort channel
+	// disable and abort channel
 	writeb( PLX_DMA_ABORT_BIT, dma_cs_addr );
 	// wait for dma done bit
 	dma_status = readb( dma_cs_addr );
