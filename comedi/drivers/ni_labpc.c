@@ -23,7 +23,7 @@ Driver: ni_labpc.o
 Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-1200),
-  Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200,
+  Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200)
 Status: In development.  For the older Lab-PC+, not all input ranges and analog
   references will work, depending on how you
   have configured the jumpers on your board (see your owner's manual).
