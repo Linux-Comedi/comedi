@@ -328,6 +328,7 @@ static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn
 
 		trig.data=&sdata;
 		for(i=0;i<insn->n;i++){
+			data=data[i];
 			ret=s->trig[0](dev,s,&trig);
 			if(ret<0)return ret;
 			data[i]=sdata;
