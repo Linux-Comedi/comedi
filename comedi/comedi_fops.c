@@ -1534,7 +1534,8 @@ printk("m is %d\n",m);
 		break;	/* makes device work like a pipe */
 	}
 	if(!(s->subdev_flags&SDF_RUNNING) &&
-		!(s->runflags & SRF_ERROR))
+		!(s->runflags & SRF_ERROR) &&
+		async->buf_int_count - async->buf_user_count == 0)
 	{
 		do_become_nonbusy(dev,s);
 	}
