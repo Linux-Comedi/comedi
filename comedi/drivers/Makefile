@@ -108,8 +108,8 @@ check:
 	(for each in *.c;do ./check_driver $$each;done >ack)
 
 drivers.txt: dummy
-	(for each in *.c;do ./dump_doc $$each;done >drivers.txt)
-	./doc_devlist drivers.txt >devlist.txt
+	(for each in *.c;do ../../scripts/dump_doc $$each;done >drivers.txt)
+	../../scripts/doc_devlist drivers.txt >devlist.txt
 
 dummy:
 
