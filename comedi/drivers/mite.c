@@ -53,6 +53,7 @@
 #include <linux/comedidev.h>
 
 #include <linux/pci.h>
+#include <asm/system.h>
 
 #include "mite.h"
 
@@ -348,9 +349,10 @@ unsigned int mite_bytes_transferred(struct mite_struct *mite, unsigned int chan)
 {
 	unsigned int bytes_read;
 
+	bytes_read = mite_bytes_read( mite, chan );
 	/* to avoid race, we want to read bytes read before reading bytes
 	 * in transit */
-	bytes_read = mite_bytes_read( mite, chan );
+	rmb();
 	return bytes_read - mite_bytes_in_transit( mite, chan );
 }
 
