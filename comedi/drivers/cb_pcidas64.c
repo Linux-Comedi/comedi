@@ -573,10 +573,10 @@ found:
 		return -EIO;
 	}
 
-	request_mem_region(plx_iobase, PLX9080_IOSIZE, "cb_pcidas64");
-	devpriv->plx9080_phys_iobase = dio_counter_iobase;
+	request_mem_region(plx9080_iobase, PLX9080_IOSIZE, "cb_pcidas64");
+	devpriv->plx9080_phys_iobase = plx9080_iobase;
 	request_mem_region(main_iobase, MAIN_IOSIZE, "cb_pcidas64");
-	devpriv->main_phys_iobase = dio_counter_iobase;
+	devpriv->main_phys_iobase = main_iobase;
 	request_mem_region(dio_counter_iobase, DIO_COUNTER_IOSIZE, "cb_pcidas64");
 	devpriv->dio_counter_phys_iobase = dio_counter_iobase;
 
