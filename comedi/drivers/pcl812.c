@@ -783,3 +783,55 @@ void cleanup_module(void)
 	comedi_driver_unregister(&driver_pcl812);
 }
 #endif
+
+
+/* pcl812 timer */
+void Zisti_Div8254(long celk, long *d1, long *d2) {
+
+ long minch,chyba,mini,i;
+
+  minch=32000; mini=1;
+  if (celk<=(65536*2)) { i=2;
+ }
+	 	  else { i=celk / 65536; }
+  do
+ {
+    *d1=i;
+    *d2=celk / *d1;
+    if (*d2<65536) {
+      chyba=celk- *d1* *d2;
+      if (chyba<0) { chyba=-chyba; }
+      if (chyba<minch) {
+        minch=chyba;
+        mini=i;
+	if (chyba==0) break;
+       }
+     }
+    i++;
+   } while ((i<65536)&&(*d2>2)&&(*d2> *d1));
+  i=mini;
+  *d1 =i;
+  *d2=celk/ *d1;
+}
+
+#include <math.h>
+
+static int pcl812_timer(double freq,unsigned int *trigvar,double *actual_freq) {
+
+ long divisor1,divisor2,divid;
+ double Oscilator=2e6;
+  
+  if (freq<0.0004) { freq=0.0004; }
+  if (freq>30000) { freq=30000; }
+  divid=rint(Oscilator/freq);
+  Zisti_Div8254(divid,&divisor1,&divisor2);
+  // @@Kluvi: magic crystaline sphere error correction, I hope that work identicaly under C and TP :-) }
+  divid=rint(Oscilator/freq+0.5*
+(divid-divisor1*divisor2));
+  Zisti_Div8254(divid,&divisor1,&divisor2);
+  *actual_freq=Oscilator/(divisor1*divisor2);
+ 
+  *trigvar = (divisor1<<16) | divisor2;
+  return 0;
+}
+
