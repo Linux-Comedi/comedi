@@ -171,8 +171,8 @@ struct plx_dma_desc
 #define  CTL_WDMA          0x00000070 /* DMA Write Command */
 #define  CTL_RMEM          0x00000600 /* Memory Read Command */
 #define  CTL_WMEM          0x00007000 /* Memory Write Command */
-#define  CTL_USER0         0x00010000 /* USER0 pin control bit */
-#define  CTL_USER1         0x00020000 /* USER1 pin control bit */
+#define  CTL_USERO         0x00010000 /* USERO output pin control bit */
+#define  CTL_USERI         0x00020000 /* USERI input pin bit */
 #define  CTL_EE_CLK        0x01000000 /* EEPROM Clock line */
 #define  CTL_EE_CS         0x02000000 /* EEPROM Chip Select */
 #define  CTL_EE_W          0x04000000 /* EEPROM Write bit */
