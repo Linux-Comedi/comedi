@@ -23,7 +23,7 @@ since you will be accessing Comedi from other kernel modules.
 * RTLinux support:
 
 If you want to use the real-time capabilities of Comedi with
-RTAI, you need to compile RTLinux (both the kernel and the
+RTLinux, you need to compile RTLinux (both the kernel and the
 modules) first.  Known working versions are 2.x and 3.0.
 Remember to enable Kcomedilib support, since you will be
 accessing Comedi from other kernel modules.
@@ -107,7 +107,8 @@ directory.
 
 * Module Autoloading:
 
-If you like to autoload your modules, put the lines
+If you like to autoload your modules, put the following lines
+into /etc/conf.modules:
 
   alias char-major-98 comedi
   alias char-major-98-0 your_driver
