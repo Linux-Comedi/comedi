@@ -41,6 +41,8 @@ static void postconfig(comedi_device *dev);
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
 static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 
@@ -115,7 +117,8 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	return -EIO;
 
 attached:
-	init_waitqueue_head(&dev->wait);
+	init_waitqueue_head(&dev->read_wait);
+	init_waitqueue_head(&dev->write_wait);
 
 	/* do a little post-config cleanup */
 	postconfig(dev);
@@ -229,14 +232,18 @@ static void postconfig(comedi_device *dev)
 			s->range_table=&range_unknown;
 
 		if(!s->insn_read){
-			if(s->subdev_flags & SDF_READABLE){
+			if(s->insn_bits){
+				s->insn_read = insn_emulate_bits;
+			}else if(s->subdev_flags & SDF_READABLE){
 				s->insn_read=insn_emulate;
 			}else{
 				s->insn_read=insn_inval;
 			}
 		}
 		if(!s->insn_write){
-			if(s->subdev_flags & SDF_WRITEABLE){
+			if(s->insn_bits){
+				s->insn_write = insn_emulate_bits;
+			}else if(s->subdev_flags & SDF_WRITEABLE){
 				s->insn_write=insn_emulate;
 			}else{
 				s->insn_write=insn_inval;
@@ -328,7 +335,7 @@ static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn
 
 		trig.data=&sdata;
 		for(i=0;i<insn->n;i++){
-			data=data[i];
+			sdata=data[i];
 			ret=s->trig[0](dev,s,&trig);
 			if(ret<0)return ret;
 			data[i]=sdata;
@@ -338,6 +345,43 @@ static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn
 	return insn->n;
 }
 
+static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	comedi_insn new_insn;
+	int ret;
+	lsampl_t new_data[2];
+	unsigned int chan;
+	
+	chan = CR_CHAN(insn->chanspec);
+
+	memset(&new_insn,0,sizeof(new_insn));
+	new_insn.insn = INSN_BITS;
+	new_insn.n = 2;
+	new_insn.data = new_data;
+	new_insn.subdev = insn->subdev;
+
+	if(insn->insn == INSN_WRITE){
+		if(!(s->subdev_flags & SDF_WRITEABLE))
+			return -EINVAL;
+		new_data[0] = 1<<chan; /* mask */
+		new_data[1] = data[0]?(1<<chan):0; /* bits */
+	}else{
+		new_data[0] = 0;
+		new_data[1] = 0;
+	}
+
+	ret = s->insn_bits(dev,s,&new_insn,new_data);
+	if(ret<0)return ret;
+
+	if(insn->insn == INSN_READ){
+		if(!(s->subdev_flags & SDF_WRITEABLE))
+			return -EINVAL;
+		data[0] = (new_data[1]>>chan)&1;
+	}
+
+	return 1;
+}
 
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
 {
