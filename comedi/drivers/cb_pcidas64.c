@@ -583,6 +583,7 @@ typedef struct pcidas64_board_struct
 	int ai_speed;	// fastest conversion period in ns
 	comedi_lrange *ai_range_table;
 	int ao_nchan;	// number of analog out channels
+	int ao_bits;	// analog output resolution
 	int ao_scan_speed;	// analog output speed (for a scan, not conversion)
 	comedi_lrange *ao_range_table;
 	int *ao_range_code;
@@ -639,6 +640,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	5000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
@@ -654,6 +656,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	5000,
 		ao_nchan: 2,
+		ao_bits:	12,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
@@ -669,6 +672,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	1000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
@@ -684,6 +688,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	500,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
@@ -699,6 +704,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	333,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
@@ -714,6 +720,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	5000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
@@ -744,6 +751,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	5000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
@@ -759,6 +767,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	10000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6030,
@@ -774,6 +783,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	10000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6030,
@@ -826,6 +836,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	5000,
 		ao_nchan:	2,
+		ao_bits:	12,
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
@@ -841,6 +852,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	5000,
 		ao_nchan:	2,
+		ao_bits:	16,
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
@@ -856,6 +868,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	2000,
 		ao_nchan: 2,
+		ao_bits:	16,
 		ao_scan_speed:	1000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6052,
@@ -871,6 +884,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	16,
 		ai_speed:	3333,
 		ao_nchan:	2,
+		ao_bits:	16,
 		ao_scan_speed:	3333,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6052,
@@ -886,6 +900,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	800,
 		ao_nchan:	2,
+		ao_bits:	12,
 		ao_scan_speed:	1000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6052,
@@ -901,6 +916,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	800,
 		ao_nchan:	2,
+		ao_bits:	12,
 		ao_scan_speed:	1000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6052,
@@ -915,6 +931,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_se_chans:	4,
 		ai_bits:	12,
 		ai_speed:	50,
+		ao_bits:	12,
 		ao_nchan:	2,
 		ao_scan_speed:	0,	// no hardware pacing on ao
 		layout:	LAYOUT_4020,
@@ -1375,8 +1392,7 @@ static int setup_subdevices(comedi_device *dev)
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board(dev)->ao_nchan;
-		// analog out resolution is the same as analog input resolution, so use ai_bits
-		s->maxdata = (1 << board(dev)->ai_bits) - 1;
+		s->maxdata = (1 << board(dev)->ao_bits) - 1;
 		s->range_table = board(dev)->ao_range_table;
 		s->insn_read = ao_readback_insn;
 		s->insn_write = ao_winsn;
