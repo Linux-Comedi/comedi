@@ -39,7 +39,11 @@
 #endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
+#ifdef RTLINUX_VERSION_CODE
+/* Defined in RTL-3.0pre10, not in RTL-2.2, do not know about RTL-2.3 */
+#else
 #include <asm/rtl_sync.h>
+#endif
 #define rt_printk rtl_printf
 #endif
 
