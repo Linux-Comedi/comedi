@@ -1009,12 +1009,34 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 */
 static int pci_dio_detach(comedi_device *dev)
 {
-	int i;
+	int i, j;
 	comedi_subdevice *s;
+	int subdev;
 		
 	if (dev->private) {
 		if (devpriv->valid) {
 			pci_dio_reset(dev);
+		}
+
+		/* This shows the silliness of using this kind of
+		 * scheme for numbering subdevices.  Don't do it.  --ds */
+		subdev = 0;
+		for (i=0; i<MAX_DI_SUBDEVS; i++){
+			if (this_board->sdi[i].chans) {
+				subdev++;
+			}
+		}
+		for (i=0; i<MAX_DO_SUBDEVS; i++){
+			if (this_board->sdo[i].chans) {
+				subdev++;
+			}
+		}
+		for (i=0; i<MAX_DIO_SUBDEVG; i++){
+			for (j=0; j<this_board->sdio[i].regs; j++) {
+				s = dev->subdevices + subdev;
+				subdev_8255_cleanup(dev, s);
+				subdev++;
+			}
 		}
 
 		for (i=0; i<dev->n_subdevices; i++) {
