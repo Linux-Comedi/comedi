@@ -12,3 +12,4 @@ allocate private
 
 fix PCI code, use pci_find_device()
 
+fix up DAS16 driver
