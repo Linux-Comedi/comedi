@@ -23,6 +23,7 @@
 
 #include <linux/comedi.h>
 #include <linux/comedilib.h>
+#include <linux/comedidev.h> /* for comedi_udelay() */
 
 #include <linux/string.h>
 
