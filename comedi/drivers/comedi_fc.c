@@ -30,6 +30,17 @@
 
 static inline unsigned int bytes_per_scan( comedi_subdevice *subd )
 {
+	switch( subd->type )
+	{
+		case COMEDI_SUBD_DI:
+		case COMEDI_SUBD_DO:
+		case COMEDI_SUBD_DIO:
+			return subd->async->cmd.chanlist_len / 8;
+			break;
+		default:
+			break;
+	}
+
 	return subd->async->cmd.chanlist_len * bytes_per_sample( subd );
 }
 
