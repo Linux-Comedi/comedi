@@ -1791,13 +1791,13 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 	if( (s->subdev_flags & SDF_RUNNING) == 0)
 		return;
 
-	if(mask&COMEDI_CB_EOA){
+	if(mask&(COMEDI_CB_EOA|COMEDI_CB_ERROR|COMEDI_CB_OVERFLOW)){
 		s->subdev_flags &= ~SDF_RUNNING;
 	}
 
 	/* remember if an error event has occured, so an error
 	 * can be returned the next time the user does a read() */
-	if(mask & COMEDI_CB_ERROR){
+	if(mask & (COMEDI_CB_ERROR|COMEDI_CB_OVERFLOW)){
 		s->runflags |= SRF_ERROR;
 	}
 	if(async->cb_mask&mask){
