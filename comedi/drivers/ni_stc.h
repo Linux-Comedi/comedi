@@ -79,6 +79,8 @@
 #define AI_FIFO_Request_St			0x0002
 #define Pass_Thru_0_Interrupt_St		0x0001
 
+#define AI_Status_2_Register		5
+
 #define Interrupt_B_Ack_Register	3
 #define AO_Status_1_Register		3
 #define Interrupt_B_St				_bit15

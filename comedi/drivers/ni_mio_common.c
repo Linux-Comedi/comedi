@@ -380,7 +380,14 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 			rt_printk("ni_mio_common: ai error a_status=%04x\n",
 				status);
 			ni_mio_print_status_a(status);
+			
+			//TIM 5/11/01
+			win_out(AI_Error_Interrupt_Ack, Interrupt_A_Ack_Register);
+			
+			#ifndef PCIDMA
 			ni_handle_fifo_dregs(dev);
+			#endif 
+						
 			//TIM 4/17/01
 			//win_out(0x0000,Interrupt_A_Enable_Register);
 			//turn off all AI interrupts
@@ -389,6 +396,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 				AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
 				AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
 				AI_FIFO_Interrupt_Enable,0);
+				
 			ni_ai_reset(dev,dev->subdevices);//added by tim
 			comedi_done(dev,s);
 			return;
@@ -852,7 +860,14 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #else
 	win_out((0<<6)|0x0000,AI_Mode_3_Register); /* generate FIFO interrupts on non-empty */
 #endif
+	/* TIM 5/11/01 
+	0xA4A0 causes overrun errors at high speeds.  0xA420 fixes it,
+	but I haven't tested to see if it breaks something else. I don't think it would*/
+	#ifdef PCIDMA  
+	win_out(0xA420,AI_Personal_Register); 
+	#else
 	win_out(0xa4a0,AI_Personal_Register); /* ? */
+	#endif
 	win_out(0x032e,AI_Output_Control_Register);
 	win_out(0x0060,AI_Trigger_Select_Register); /* trigger source */
 
