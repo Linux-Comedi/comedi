@@ -434,6 +434,7 @@ static ni_board ni_boards[]={
 		alwaysdither:   0,
 		gainlkup:       ai_gain_611x,
 		ai_speed:	200,
+		n_aochan:       2,
 		aobits:         16,
 		ao_671x:	1,
 		ao_unipolar:    0,
