@@ -523,8 +523,9 @@ Description: PC-LabCard PCL-726 (& compatibles), Advantech PCL-726, ADLink Techn
 Author: ds
 Status: untested
 
-Currently, the driver doesn't recognize bipolar operation of DAC's.
 Interrupts are not supported.
+
+See the driver source code for configuration information.
 
 
 
