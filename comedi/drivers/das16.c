@@ -3,8 +3,10 @@
     DAS16 driver
 
     COMEDI - Linux Control and Measurement Device Interface
+    Copyright (C) 1995,1996  Sam Moore, Warren Jasper
     Copyright (C) 2000 David A. Schleef <ds@stm.lbl.gov>
-	Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
+    Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
+    Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,8 +24,6 @@
 
 */
 
-#undef DEBUG
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/comedidev.h>
@@ -32,10 +32,14 @@
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
+#include <asm/dma.h>
+#include "8253.h"
 #include "8255.h"
 
+#undef DEBUG
 
-#define DAS16_SIZE 20
+#define DAS16_SIZE 20	// number of ioports
+#define DAS16_DMA_SIZE 0xff00 // size in bytes of allocated dma buffer
 
 /*
     cio-das16.pdf
@@ -114,14 +118,14 @@
 #define DAS16_AO_LSB(x)	((x)?6:4)
 #define DAS16_AO_MSB(x)	((x)?7:5)
 #define DAS16_STATUS		8
-#define   DAS16_EOC			(1<<7)
-#define   DAS16_UB			(1<<6)
+#define   BUSY			(1<<7)
+#define   UNIPOLAR			(1<<6)
 #define   DAS16_MUXBIT			(1<<5)
 #define   DAS16_INT			(1<<4)
 #define DAS16_CONTROL		9
 #define   DAS16_INTE			(1<<7)
-#define   DAS16_IRQ(x)			((x)<<4)
-#define   DAS16_DMA			(1<<2)
+#define   DAS16_IRQ(x)			(((x) & 0x7) << 4)
+#define   DMA_ENABLE			(1<<2)
 #define   DAS16_CTR2		0x03
 #define   DAS16_IP0			0x02
 #define   DAS16_SOFT		0x00
@@ -234,7 +238,7 @@ static int das16_cancel(comedi_device *dev, comedi_subdevice *s);
 static void das16_reset(comedi_device *dev);
 static void das16_interrupt(int irq, void *d, struct pt_regs *regs);
 
-static float das16_set_pacer(comedi_device *dev, unsigned int ns);
+static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int flags);
 static int das1600_mode_detect(comedi_device *dev);
 #ifdef DEBUG
 static void reg_dump(comedi_device *dev);
@@ -244,6 +248,7 @@ struct das16_board_struct{
 	char		*name;
 	void		*ai;
 	unsigned int	ai_nbits;
+	unsigned int	ai_speed;	// max conversion speed in nanosec
 	unsigned int	ai_pg;
 	void		*ao;
 	unsigned int	ao_nbits;
@@ -272,6 +277,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16",	// cio-das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_none,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -285,6 +291,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/f",	// das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_none,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -298,6 +305,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/jr",	// cio-das16jr.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_16jr,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -324,6 +332,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1402/12",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -337,6 +346,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1402/16",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -350,6 +360,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1601/12",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_1601,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -363,6 +374,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1602/12",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_1602,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -376,6 +388,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1602/16",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_1602,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -389,6 +402,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/330",	// ?
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	10000,	// 100kHz, I made this up need to check
 	ai_pg:		das16_pg_16jr,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -437,13 +451,17 @@ comedi_driver driver_das16={
 
 
 struct das16_private_struct {
-	unsigned int	ai_unipolar;
-	unsigned int	ai_singleended;
-	unsigned int	clockbase;
-	unsigned char	control_state;
-	volatile unsigned char	cmd_go;
-	unsigned int	adc_count;
-	unsigned int	do_bits;
+	unsigned int	ai_unipolar;	// unipolar flag
+	unsigned int	ai_singleended;	// single ended flag
+	unsigned int	clockbase;	// master clock speed in ns
+	unsigned int	control_state;	// dma, interrupt and trigger control bits
+	unsigned int	adc_count;	// number of samples remaining
+	unsigned int	do_bits;	// digital output bits
+	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
+	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
+	unsigned int dma_chan;	// dma channel
+	sampl_t *dma_buffer;
+	unsigned int dma_transfer_size;	// number of bytes transfered per dma shot
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
@@ -451,138 +469,157 @@ struct das16_private_struct {
 static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 {
 	int err=0, tmp;
-	
+
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
+	/* XXX cards that support burst mode could do scan_begin_src
+	 * TRIG_TIMER and convert_src TRIG_NOW */
 	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW|TRIG_TIMER;
+	cmd->scan_begin_src &= TRIG_FOLLOW;
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
-	/* XXX This must be TRIG_FOLLOW until I figure out a way to *
-	 * time the individual conversions.                         */
+	// XXX add TRIG_EXT
 	tmp=cmd->convert_src;
-	//cmd->convert_src &= TRIG_TIMER;
-	cmd->convert_src &= TRIG_FOLLOW;
+	cmd->convert_src &= TRIG_TIMER;
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
+	// XXX add TRIG_NONE
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	cmd->stop_src &= TRIG_COUNT;
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
-	
+
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 	/* note that mutual compatiblity is not an issue here */
-	if(cmd->scan_begin_src!=TRIG_FOLLOW &&
-	   cmd->scan_begin_src!=TRIG_EXT &&
-	   cmd->scan_begin_src!=TRIG_TIMER)err++;
-	if(cmd->stop_src!=TRIG_COUNT &&
-	   cmd->stop_src!=TRIG_NONE)err++;
 
 	if(err)return 2;
-	
+
 	/* step 3: make sure arguments are trivially compatible */
-	if(cmd->start_arg!=0){
+	if(cmd->start_arg!=0)
+	{
 		cmd->start_arg=0;
 		err++;
 	}
 
-#if 0
-	if(cmd->scan_begin_src==TRIG_FOLLOW){
+	if(cmd->scan_begin_src==TRIG_FOLLOW)
+	{
 		/* internal trigger */
-		if(cmd->scan_begin_arg!=0){
-			cmd->scan_begin_arg=0;
-			err++;
-		}
-	}else{
-		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		if(cmd->scan_begin_arg!=0){
+		if(cmd->scan_begin_arg!=0)
+		{
 			cmd->scan_begin_arg=0;
 			err++;
 		}
 	}
-#endif
-	
-	if(cmd->scan_begin_arg<DAS16_FASTEST_TIMER){
-		cmd->scan_begin_arg=DAS16_FASTEST_TIMER;
+
+	if(cmd->scan_end_arg != cmd->chanlist_len)
+	{
+		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
+	}
+	// check against maximum frequency
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		if(cmd->convert_arg < thisboard->ai_speed)
+		{
+			cmd->convert_arg = thisboard->ai_speed;
+			err++;
+		}
 	}
 
-	if(cmd->scan_begin_arg>DAS16_SLOWEST_TIMER){
-		cmd->scan_begin_arg=DAS16_SLOWEST_TIMER;
-		err++;
-	}
-
-	if(cmd->scan_end_arg!=cmd->chanlist_len){
-		cmd->scan_end_arg=cmd->chanlist_len;
-		err++;
-	}
-	
-	if(cmd->stop_src==TRIG_COUNT){
+	if(cmd->stop_src == TRIG_COUNT)
+	{
 		/* any count is allowed */
-	}else{
+	}else
+	{
 		/* TRIG_NONE */
-		if(cmd->stop_arg!=0){
-			cmd->stop_arg=0;
+		if(cmd->stop_arg != 0)
+		{
+			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
 	if(err)return 3;
-	
+
+	// step 4: fix up arguments
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		// set divisors, correct timing arguments
+		i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
+			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+   }
+
 	return 0;
 }
 
 static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
-	char byte;
-	float freq;
-	
-	devpriv->adc_count = cmd->stop_arg*cmd->chanlist_len;
-	devpriv->cmd_go = 1;
-	
-	/* check if we are scanning multiple channels */
-	if(cmd->chanlist_len < 2) {	/* one channel */
-		byte = CR_CHAN(cmd->chanlist[0]);
-		outb(byte, dev->iobase+DAS16_MUX);
-	} else {	/* multiple channels */
-		byte = CR_CHAN(cmd->chanlist[0]) +
-			(CR_CHAN(cmd->chanlist[cmd->chanlist_len-1]<<4));
-		outb(byte, dev->iobase+DAS16_MUX);
+	unsigned int byte;
+	unsigned long flags;
+
+	if(dev->irq == 0 || devpriv->dma_chan == 0)
+	{
+		comedi_error(dev, "irq and dma required to execute comedi_cmd");
+		return -1;
+	}
+	if(cmd->flags & TRIG_RT)
+	{
+		comedi_error(dev, "dma transfers cannot be performed with TRIG_RT, aborting");
+		return -1;
 	}
 
-	/* enable pacer clocked conversions */
-	devpriv->control_state |= DAS16_CTR2;
-	outb(devpriv->control_state,dev->iobase+DAS16_CONTROL);
+	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
+
+	// set scan limits
+	byte = CR_CHAN(cmd->chanlist[0]);
+	byte |= CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]) << 4;
+	outb(byte, dev->iobase + DAS16_MUX);
+
 
 	/* set counter mode and counts */
-	freq = das16_set_pacer(dev, cmd->scan_begin_arg);
-
-	printk("pacer frequency: %d\n", (int)freq);
+	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
+	rt_printk("pacer period: %d ns\n", cmd->convert_arg);
 	/* enable counters */
-	outb(0x00,dev->iobase+DAS16_PACER);
+	outb(0x00, dev->iobase + DAS16_PACER);
+
+	// set up dma transfer
+	flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+	set_dma_addr(devpriv->dma_chan, (unsigned int) devpriv->dma_buffer);
+	// set appropriate size of transfer
+	if(devpriv->adc_count * sizeof(sampl_t) > devpriv->dma_transfer_size)
+		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+	else
+		set_dma_count(devpriv->dma_chan, devpriv->adc_count * sizeof(sampl_t));
+ 	enable_dma(devpriv->dma_chan);
+	release_dma_lock(flags);
+
 	/* clear interrupt bit */
-	outb(0x00,dev->iobase+DAS16_STATUS);
-	/* enable interrupts */
-	devpriv->control_state |= DAS16_INTE;
-	outb(devpriv->control_state,dev->iobase+DAS16_CONTROL);
+	outb(0x00, dev->iobase + DAS16_STATUS);
+	/* enable interrupts, dma and pacer clocked conversions */
+	devpriv->control_state |= DAS16_INTE | DAS16_CTR2 | DMA_ENABLE;
+	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
 	return 0;
 }
 
 static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	devpriv->cmd_go = 0;
-	
+	/* disable interrupts, dma and pacer clocked conversions */
+	devpriv->control_state &= ~DAS16_INTE & ~DAS16_CTR2 & ~DMA_ENABLE;
+	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
+	if(devpriv->dma_chan)
+		disable_dma(devpriv->dma_chan);
+
 	return 0;
 }
 
@@ -608,7 +645,7 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
 	outb_p(chan,dev->iobase+DAS16_MUX);
-	
+
 	/* set gain */
 	if(thisboard->ai_pg != das16_pg_none){
 		range = CR_RANGE(insn->chanspec);
@@ -618,13 +655,13 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 
 	/* How long should we wait for MUX to settle? */
 	//udelay(5);
-	
+
 	for(n=0;n<insn->n;n++){
 		/* trigger conversion */
 		outb_p(0,dev->iobase+DAS16_TRIG);
 
 		for(i=0;i<DAS16_TIMEOUT;i++){
-			if(!(inb(dev->iobase + DAS16_STATUS) & DAS16_EOC))
+			if(!(inb(dev->iobase + DAS16_STATUS) & BUSY))
 				break;
 		}
 		if(i==DAS16_TIMEOUT){
@@ -705,159 +742,118 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 
 static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-	static int i, j;
-	static char lsb, msb;
-	
+	int i;
+	int status;
+	unsigned long flags;
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices;
-	
-	if(devpriv->cmd_go)	{	/* Are we supposed to be here? */
-		/* check for missed conversions */
-	//	if( CR_CHAN(s->async->cur_chanlist[0]) != inb() )
-	//		printk("Channel MUX sync error\n");
-		
-		for(i=0;i<s->async->cur_chanlist_len;++i) {
-			
-			if(i) {		/* performing multiple conversions */			
-				outb(0x00, dev->iobase+DAS16_TRIG);	/* force a conversion */
-			
-				for(j=0;j<DAS16_TIMEOUT;++j)	/* wait until it's ready */
-					if( !(inb(dev->iobase+DAS16_STATUS)&DAS16_EOC) )
-						break;
-				if(j==DAS16_TIMEOUT)
-					printk("das16 EOC timeout!!");
-			}
-			
-			lsb = inb(dev->iobase+DAS16_AI_LSB);
-			msb = inb(dev->iobase+DAS16_AI_MSB);
-			
-			/* all this just to put data into a buffer! */
-			*(sampl_t *)(s->async->data+s->async->buf_int_ptr) =
-				(lsb>>4) + (msb<<4);
+	comedi_async *async;
+	unsigned int max_points, num_points, residue, leftover;
+	sampl_t dpnt;
 
-			s->async->buf_int_ptr += sizeof(sampl_t);
-			s->async->buf_int_count += sizeof(sampl_t);
-
-			if(s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
-				s->async->buf_int_ptr = 0;
-				comedi_eobuf(dev, s);
-			}
-		
-			if( !(s->async->cmd.flags&TRIG_WAKE_EOS) )
-				comedi_bufcheck(dev, s);	/* wakeup user's read() */
-		
-			if(--devpriv->adc_count <= 0) {		/* end of acquisition */
-				printk("End of acquisition\n");
-				devpriv->cmd_go = 0;
-				devpriv->control_state &= ~DAS16_INTE;
-				outb(devpriv->control_state, dev->iobase+DAS16_CONTROL);
-				comedi_done(dev, s);
-				break;
-			}
-
-		}	/* end of scan loop */
-		
-		comedi_eos(dev, s);
-
-	} else {
-		printk("Acquisition canceled OR Stray interrupt!\n");
-		devpriv->control_state &= ~DAS16_INTE;
-		outb(devpriv->control_state, dev->iobase+DAS16_CONTROL);
-		comedi_error_done(dev, s);
+	if(dev->attached == 0)
+	{
+		comedi_error(dev, "premature interrupt");
+		return;
 	}
-	
+	// initialize async here to make sure s is not NULL
+	async = s->async;
+
+	status = inb(dev->iobase + DAS16_STATUS);
+
+	if((status & DAS16_INT ) == 0)
+	{
+		comedi_error(dev, "spurious interrupt");
+		return;
+	}
+
+	flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+
+	// figure out how many points to read
+	max_points = devpriv->dma_transfer_size  / sizeof(sampl_t);
+	/* residue is the number of points left to be done on the dma
+	 * transfer.  It should always be zero at this point unless
+	 * the stop_src is set to external triggering.
+	 */
+	residue = get_dma_residue(devpriv->dma_chan) / sizeof(sampl_t);
+	num_points = max_points - residue;
+	if(devpriv->adc_count < num_points)
+		num_points = devpriv->adc_count;
+
+	// figure out how many points will be stored next time
+	leftover = 0;
+	if(devpriv->adc_count > max_points)
+	{
+		leftover = devpriv->adc_count - max_points;
+		if(leftover > max_points)
+			leftover = max_points;
+	}
+	/* there should only be a residue if collection was stopped by having
+	 * the stop_src set to an external trigger, in which case there
+	 * will be no more data
+	 */
+	if(residue)
+		leftover = 0;
+
+	for(i = 0; i < num_points; i++)
+	{
+		/* write data point to comedi buffer */
+		dpnt = devpriv->dma_buffer[i];
+		if(thisboard->ai_nbits == 12)
+			dpnt = (dpnt >> 4) & 0xfff;
+		comedi_buf_put(async, dpnt);
+		if(devpriv->adc_count > 0) devpriv->adc_count--;
+	}
+	// re-enable  dma
+	set_dma_addr(devpriv->dma_chan, (unsigned int) devpriv->dma_buffer);
+	set_dma_count(devpriv->dma_chan, leftover * sizeof(sampl_t));
+	enable_dma(devpriv->dma_chan);
+	release_dma_lock(flags);
+
+	async->events |= COMEDI_CB_BLOCK;
+
+	if(devpriv->adc_count == 0)
+	{	/* end of acquisition */
+		rt_printk("End of acquisition\n");
+		das16_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA;
+	}
+
+	comedi_event(dev, s, async->events);
+	async->events = 0;
+
 	/* clear interrupt */
-	outb(0x00,dev->iobase+DAS16_STATUS);
+	outb(0x00, dev->iobase + DAS16_STATUS);
 }
 
-/* This function takes a time in nanoseconds and sets the     *
- * 2 pacer clocks to the closest frequency possible. It also  *
- * returns the actual sampling rate.                          */
-static float das16_set_pacer(comedi_device *dev, unsigned int ns)
+static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int rounding_flags)
 {
-	short unsigned ctr1, ctr2;
-	unsigned int mask;
-	long product, error;
+	i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
+		&(devpriv->divisor2), &ns, rounding_flags & TRIG_ROUND_MASK);
 
-	/* divide 10Mhz by frequency */
-	product = ( devpriv->clockbase/(1000000000.0/ns) ) + 0.5;
-	/* Now the job is to find two 16 bit numbers, that when multiplied
-	   together are approximately equal to product.  Start by setting
-	   one of them, ctr1 to 2 (minimum settable value) and increment until
-	   the error is minimized and ctr2 is less than 32768.
-
-	   NOTE: In Mode 2, a value of 1 is illegal! Therefore, crt1 and crt2
-	   can never be 1.
-
-	 */
-
-	printk("product: %ld\n", product);
-	ctr1 = product / 32768;
-	if (ctr1 < 2)
-		ctr1 = 2;
-	ctr2 = product / ctr1;
-	error = abs(product - (long) ctr2 * (long) ctr1);
-
-	while (error && ctr1 < 32768 && ctr2 > 1) {
-		ctr1++;
-		ctr2 = product / ctr1;
-		error = abs(product - (long) ctr2 * (long) ctr1);
-	}
-
-	/* the frequency is prime, add 1 to it */
-	if (error) {
-		product++;
-		ctr1 = product / 32768;
-		if (ctr1 < 2)
-			ctr1 = 2;
-		ctr2 = product / ctr1;
-		error = abs(product - (long) ctr2 * (long) ctr1);
-
-		while (error && ctr1 < 32768 && ctr2 > 1) {
-			ctr1++;
-			ctr2 = product / ctr1;
-			error = abs(product - (long) ctr2 * (long) ctr1);
-		}
-	}
-	/* we can't have ctr2 equal to 1, or system hangs */
-	if (ctr2 == 1) {
-		ctr2++;
-		ctr1 /= 2;
-	}
-	printk("ctr1: %d, ctr2: %d\n", ctr1, ctr2);
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	mask = DAS16_CNTR2 | DAS16_RATE_GEN | DAS16_CNTR_LSB_MSB;
-	outb(mask, dev->iobase+DAS16_CNTR_CONTROL);
+	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 1, devpriv->divisor1, 2);
+	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 2, devpriv->divisor2, 2);
 
-	outb(ctr2 & 0xFF , dev->iobase + DAS16_CNTR2_DATA);
-	outb(ctr2 >> 8, dev->iobase + DAS16_CNTR2_DATA);
-
-	mask = DAS16_CNTR1 | DAS16_RATE_GEN | DAS16_CNTR_LSB_MSB;
-	outb(mask, dev->iobase+DAS16_CNTR_CONTROL);
-
-	outb(ctr1 & 0xFF, dev->iobase + DAS16_CNTR1_DATA);
-	outb(ctr1 >> 8, dev->iobase + DAS16_CNTR1_DATA);
-	
-//	printk("SetPacerFreq: Pacer Register set to %#x\n", BoardData.pacerReg);
-	
-	return devpriv->clockbase / ((long) ctr1 * (long) ctr2) + 0.5;
+	return ns;
 }
 
 #ifdef DEBUG
 static void reg_dump(comedi_device *dev)
 {
-	printk("********DAS1600 REGISTER DUMP********\n");
-	printk("DAS16_MUX: %x\n", inb(dev->iobase+DAS16_MUX) );
-	printk("DAS16_DIO: %x\n", inb(dev->iobase+DAS16_DIO) );
-	printk("DAS16_STATUS: %x\n", inb(dev->iobase+DAS16_STATUS) );
-	printk("DAS16_CONTROL: %x\n", inb(dev->iobase+DAS16_CONTROL) );
-	printk("DAS16_PACER: %x\n", inb(dev->iobase+DAS16_PACER) );
-	printk("DAS16_GAIN: %x\n", inb(dev->iobase+DAS16_GAIN) );
-	printk("DAS16_CNTR_CONTROL: %x\n", inb(dev->iobase+DAS16_CNTR_CONTROL) );
-	printk("DAS1600_CONV: %x\n", inb(dev->iobase+DAS1600_CONV) );
-	printk("DAS1600_BURST: %x\n", inb(dev->iobase+DAS1600_BURST) );
-	printk("DAS1600_ENABLE: %x\n", inb(dev->iobase+DAS1600_ENABLE) );
-	printk("DAS1600_STATUS_B: %x\n", inb(dev->iobase+DAS1600_STATUS_B) );	
+	rt_printk("********DAS1600 REGISTER DUMP********\n");
+	rt_printk("DAS16_MUX: %x\n", inb(dev->iobase+DAS16_MUX) );
+	rt_printk("DAS16_DIO: %x\n", inb(dev->iobase+DAS16_DIO) );
+	rt_printk("DAS16_STATUS: %x\n", inb(dev->iobase+DAS16_STATUS) );
+	rt_printk("DAS16_CONTROL: %x\n", inb(dev->iobase+DAS16_CONTROL) );
+	rt_printk("DAS16_PACER: %x\n", inb(dev->iobase+DAS16_PACER) );
+	rt_printk("DAS16_GAIN: %x\n", inb(dev->iobase+DAS16_GAIN) );
+	rt_printk("DAS16_CNTR_CONTROL: %x\n", inb(dev->iobase+DAS16_CNTR_CONTROL) );
+	rt_printk("DAS1600_CONV: %x\n", inb(dev->iobase+DAS1600_CONV) );
+	rt_printk("DAS1600_BURST: %x\n", inb(dev->iobase+DAS1600_BURST) );
+	rt_printk("DAS1600_ENABLE: %x\n", inb(dev->iobase+DAS1600_ENABLE) );
+	rt_printk("DAS1600_STATUS_B: %x\n", inb(dev->iobase+DAS1600_STATUS_B) );
 }
 #endif
 
@@ -897,7 +893,7 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 
 	status = inb(dev->iobase + DAS16_STATUS);
 
-	if((status & DAS16_UB)){
+	if((status & UNIPOLAR)){
 		devpriv->ai_unipolar = 1;
 	}else{
 		devpriv->ai_unipolar = 0;
@@ -951,7 +947,7 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 static int das1600_mode_detect(comedi_device *dev)
 {
 	int status=0;
-	
+
 	status = inb(dev->iobase + DAS1600_STATUS_B);
 
 	if(status & DAS1600_CLK_10MHZ) {
@@ -964,7 +960,7 @@ static int das1600_mode_detect(comedi_device *dev)
 
 	/* enable das1400/1600 mode */
 //	outb(DAS1600_ENABLE_VAL, dev->iobase+DAS1600_ENABLE);
-#ifdef DETECT	
+#ifdef DETECT
 	/* burststatus is available on 1600, 1400 */
 	if((burststatus & 0xfc)==0x10){
 		/* true for 1400, 1600 */
@@ -1003,6 +999,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	int ret, irq;
 	int iobase;
+	int dma_chan;
 
 	iobase = it->options[0];
 
@@ -1037,10 +1034,6 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		}
 	}
 
-	dev->n_subdevices = 5;
-	if((ret=alloc_subdevices(dev))<0)
-		return ret;
-
 	if(thisboard->size<0x400){
 		request_region(iobase,thisboard->size,"das16");
 	}else{
@@ -1052,15 +1045,42 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 
 	/* now for the irq */
 	irq=it->options[1];
-	if(irq>0){
+	if(irq > 1)
+	{
 		if((ret=comedi_request_irq(irq,das16_interrupt,0,"das16",dev))<0)
 			return ret;
 		dev->irq=irq;
 		printk(" ( irq = %d )\n",irq);
-	} else if(irq == 0){
+	}else if(irq == 0){
 		printk(" ( no irq )\n");
+	}else
+	{
+		printk(" invalid irq\n");
+		return -EINVAL;
 	}
-	
+
+	dma_chan = it->options[2];
+	if(dma_chan)
+	{
+		// XXX check for valid dma_chan number
+		// allocate dma buffer
+		devpriv->dma_buffer = kmalloc(DAS16_DMA_SIZE, GFP_BUFFER | GFP_DMA);
+		if(devpriv->dma_buffer == NULL)
+			return -ENOMEM;
+		if(request_dma(dma_chan, "das16"))
+		{
+			printk(" failed to allocate dma channel %i\n", dma_chan);
+			return -EINVAL;
+		}
+		devpriv->dma_chan = dma_chan;
+		// XXX arbitrary transfer size, fix later!
+		devpriv->dma_transfer_size = 2048;
+	}
+
+	dev->n_subdevices = 5;
+	if((ret=alloc_subdevices(dev))<0)
+		return ret;
+
 	s=dev->subdevices+0;
 	dev->read_subdev=s;
 	/* ai */
@@ -1085,7 +1105,6 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->do_cmdtest = das16_cmd_test;
 		s->do_cmd = das16_cmd_exec;
 		s->cancel = das16_cancel;
-		s->async->cmd.flags |= TRIG_WAKE_EOS;
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
@@ -1143,7 +1162,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	outb(devpriv->do_bits, dev->iobase + DAS16_DIO);
 	/* set the interrupt level,enable pacer clock */
 	devpriv->control_state = DAS16_IRQ(dev->irq);
-	outb(devpriv->control_state,dev->iobase+DAS16_CONTROL);
+	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
 	return 0;
 }
@@ -1159,15 +1178,23 @@ static int das16_detach(comedi_device *dev)
 		subdev_8255_cleanup(dev,dev->subdevices+4);
 
 	if(dev->irq)
-		free_irq(dev->irq, dev);
-	
+		comedi_free_irq(dev->irq, dev);
+
 	if(thisboard->size<0x400){
 		release_region(dev->iobase,thisboard->size);
 	}else{
 		release_region(dev->iobase,0x10);
 		release_region(dev->iobase+0x400,thisboard->size&0x3ff);
 	}
-	
+
+	if(devpriv)
+	{
+		if(devpriv->dma_buffer)
+			kfree(devpriv->dma_buffer);
+		if(devpriv->dma_chan)
+			free_dma(devpriv->dma_chan);
+	}
+
 	return 0;
 }
 
