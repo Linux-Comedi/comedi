@@ -5,4 +5,4 @@
 . scripts/dep.rtai
 . scripts/dep.rtlinux
 
-. scripts/dep.pcmcia
+#. scripts/dep.pcmcia

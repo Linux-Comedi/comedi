@@ -40,3 +40,5 @@ spinlocks
 ni_mio_common: subd 5 fails test_insn with -EINVAL -- should support
   readback, and/or should return -EIO (?)
 
+fix pcmcia dep
+
