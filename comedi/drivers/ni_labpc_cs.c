@@ -77,7 +77,6 @@ NI manuals:
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/bus_ops.h>
 
 /*
    A linked list of "instances" of the dummy device.  Each actual
@@ -242,13 +241,6 @@ typedef struct local_info_t {
     struct bus_operations *bus;
 } local_info_t;
 
-/*====================================================================*/
-
-static void my_cs_error(client_handle_t handle, int func, int ret)
-{
-    error_info_t err = { func, ret };
-    CardServices(ReportError, handle, &err);
-}
 
 /*======================================================================
 
@@ -277,10 +269,11 @@ static dev_link_t *labpc_cs_attach(void)
     memset(local, 0, sizeof(local_info_t));
     link = &local->link; link->priv = local;
 
-    /* Initialize the dev_link_t structure */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
+   /* Initialize the dev_link_t structure */
     link->release.function = &labpc_release;
     link->release.data = (u_long)link;
-
+#endif
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_FORCED_PULSE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_PULSE_ID;
@@ -313,9 +306,9 @@ static dev_link_t *labpc_cs_attach(void)
     client_reg.event_handler = &labpc_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
-    ret = CardServices(RegisterClient, &link->handle, &client_reg);
+    ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
-	my_cs_error(link->handle, RegisterClient, ret);
+		cs_error(link->handle, RegisterClient, ret);
 	labpc_cs_detach(link);
 	return NULL;
     }
@@ -361,7 +354,7 @@ static void labpc_cs_detach(dev_link_t *link)
 
     /* Break the link with Card Services */
     if (link->handle)
-	CardServices(DeregisterClient, link->handle);
+		pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, and free it */
     *linkp = link->next;
@@ -378,11 +371,6 @@ static void labpc_cs_detach(dev_link_t *link)
 
 ======================================================================*/
 
-#define CS_CHECK(fn, args...) \
-while ((last_ret=CardServices(last_fn=(fn),args))!=0) goto cs_failed
-
-#define CFG_CHECK(fn, args...) \
-if (CardServices(fn, args) != 0) goto next_entry
 
 static void labpc_config(dev_link_t *link)
 {
@@ -390,7 +378,7 @@ static void labpc_config(dev_link_t *link)
     local_info_t *dev = link->priv;
     tuple_t tuple;
     cisparse_t parse;
-    int last_fn, last_ret;
+    int last_ret;
     u_char buf[64];
     config_info_t conf;
     win_req_t req;
@@ -408,9 +396,21 @@ static void labpc_config(dev_link_t *link)
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
-    CS_CHECK(GetTupleData, handle, &tuple);
-    CS_CHECK(ParseTuple, handle, &tuple, &parse);
+	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)))
+	{
+		cs_error(link->handle, GetFirstTuple, last_ret);
+		goto cs_failed;
+	}
+	if((last_ret = pcmcia_get_tuple_data(handle, &tuple)))
+	{
+		cs_error(link->handle, GetTupleData, last_ret);
+		goto cs_failed;
+	}
+	if((last_ret = pcmcia_parse_tuple(handle, &tuple, &parse)))
+	{
+		cs_error(link->handle, ParseTuple, last_ret);
+		goto cs_failed;
+	}
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
 
@@ -418,7 +418,11 @@ static void labpc_config(dev_link_t *link)
     link->state |= DEV_CONFIG;
 
     /* Look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, handle, &conf);
+	if((last_ret = pcmcia_get_configuration_info(handle, &conf)))
+	{
+		cs_error(link->handle, GetConfigurationInfo, last_ret);
+		goto cs_failed;
+	}
     link->conf.Vcc = conf.Vcc;
 
     /*
@@ -434,11 +438,15 @@ static void labpc_config(dev_link_t *link)
       will only use the CIS to fill in implementation-defined details.
     */
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
+	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)))
+	{
+		cs_error(link->handle, GetFirstTuple, last_ret);
+		goto cs_failed;
+	}
     while (1) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	CFG_CHECK(GetTupleData, handle, &tuple);
-	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
+	if(pcmcia_get_tuple_data(handle, &tuple)) goto next_entry;
+	if(pcmcia_parse_tuple(handle, &tuple, &parse)) goto next_entry;
 
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
 	if (cfg->index == 0) goto next_entry;
@@ -485,7 +493,7 @@ static void labpc_config(dev_link_t *link)
 		link->io.NumPorts2 = io->win[1].len;
 	    }
 	    /* This reserves IO space but doesn't actually enable it */
-	    CFG_CHECK(RequestIO, link->handle, &link->io);
+		if(pcmcia_request_io(link->handle, &link->io)) goto next_entry;
 	}
 
 	/*
@@ -510,17 +518,21 @@ static void labpc_config(dev_link_t *link)
 		req.Size = 0x1000;
 	    req.AccessSpeed = 0;
 	    link->win = (window_handle_t)link->handle;
-	    CFG_CHECK(RequestWindow, &link->win, &req);
+		if(pcmcia_request_window(&link->handle, &req, &link->win)) goto next_entry;
 	    map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-	    CFG_CHECK(MapMemPage, link->win, &map);
+	    if(pcmcia_map_mem_page(link->win, &map)) goto next_entry;
 	}
 	/* If we got this far, we're cool! */
 	break;
 
     next_entry:
 	if (link->io.NumPorts1)
-	    CardServices(ReleaseIO, link->handle, &link->io);
-	CS_CHECK(GetNextTuple, handle, &tuple);
+	    pcmcia_release_io(link->handle, &link->io);
+	if((last_ret = pcmcia_get_next_tuple(handle, &tuple)))
+	{
+		cs_error(link->handle, GetNextTuple, last_ret);
+		goto cs_failed;
+	}
     }
 
     /*
@@ -529,14 +541,22 @@ static void labpc_config(dev_link_t *link)
        irq structure is initialized.
     */
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	CS_CHECK(RequestIRQ, link->handle, &link->irq);
+		if((last_ret = pcmcia_request_irq(link->handle, &link->irq)))
+		{
+			cs_error(link->handle, RequestIRQ, last_ret);
+			goto cs_failed;
+		}
 
     /*
        This actually configures the PCMCIA socket -- setting up
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
     */
-    CS_CHECK(RequestConfiguration, link->handle, &link->conf);
+	if((last_ret = pcmcia_request_configuration(link->handle, &link->conf)))
+	{
+		cs_error(link->handle, RequestConfiguration, last_ret);
+		goto cs_failed;
+	}
 
     /*
       At this point, the dev_node_t structure(s) need to be
@@ -569,7 +589,6 @@ static void labpc_config(dev_link_t *link)
     return;
 
 cs_failed:
-    my_cs_error(link->handle, last_fn, last_ret);
     labpc_release((u_long)link);
 
 } /* labpc_config */
@@ -610,12 +629,12 @@ static void labpc_release(u_long arg)
 
     /* Don't bother checking to see if these succeed or not */
     if (link->win)
-	CardServices(ReleaseWindow, link->win);
-    CardServices(ReleaseConfiguration, link->handle);
+		pcmcia_release_window(link->win);
+    pcmcia_release_configuration(link->handle);
     if (link->io.NumPorts1)
-	CardServices(ReleaseIO, link->handle, &link->io);
+		pcmcia_release_io(link->handle, &link->io);
     if (link->irq.AssignedIRQ)
-	CardServices(ReleaseIRQ, link->handle, &link->irq);
+		pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
 
     if (link->state & DEV_STALE_LINK)
@@ -648,12 +667,16 @@ static int labpc_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    ((local_info_t *)link->priv)->stop = 1;
-	    mod_timer(&link->release, jiffies + HZ/20);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
+		mod_timer(&link->release, jiffies + HZ/20);
+#else
+		labpc_release((ulong)link);
+#endif
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	dev->bus = args->bus;
+//	dev->bus = args->bus;
 	labpc_config(link);
 	break;
     case CS_EVENT_PM_SUSPEND:
@@ -663,14 +686,14 @@ static int labpc_event(event_t event, int priority,
 	/* Mark the device as stopped, to block IO until later */
 	dev->stop = 1;
 	if (link->state & DEV_CONFIG)
-	    CardServices(ReleaseConfiguration, link->handle);
+		pcmcia_release_configuration(link->handle);
 	break;
     case CS_EVENT_PM_RESUME:
 	link->state &= ~DEV_SUSPEND;
 	/* Fall through... */
     case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG)
-	    CardServices(RequestConfiguration, link->handle, &link->conf);
+		pcmcia_request_configuration(link->handle, &link->conf);
 	dev->stop = 0;
 	/*
 	  In a normal driver, additional code may go here to restore
@@ -682,27 +705,38 @@ static int labpc_event(event_t event, int priority,
 } /* labpc_event */
 
 /*====================================================================*/
+struct pcmcia_driver labpc_cs_driver =
+{
+	.attach = labpc_cs_attach,
+	.detach = labpc_cs_detach,
+	.owner = THIS_MODULE,
+	.drv = {
+		.name = "daqcard-1200",
+	},	
+};
 
 static int __init init_labpc_cs(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
-    CardServices(GetCardServicesInfo, &serv);
+    pcmcia_get_card_services_info(&serv);
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "ni_labpc: Card Services release "
 	       "does not match!\n");
 	return -1;
     }
-    register_pccard_driver(&dev_info, &labpc_cs_attach, &labpc_cs_detach);
+	pcmcia_register_driver(&labpc_cs_driver);
     return 0;
 }
 
 static void __exit exit_labpc_cs(void)
 {
     DEBUG(0, "ni_labpc: unloading\n");
-    unregister_pccard_driver(&dev_info);
+	pcmcia_unregister_driver(&labpc_cs_driver);
     while (pcmcia_dev_list != NULL) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 	del_timer(&pcmcia_dev_list->release);
+#endif
 	if (pcmcia_dev_list->state & DEV_CONFIG)
 	    labpc_release((u_long)pcmcia_dev_list);
 	labpc_cs_detach(pcmcia_dev_list);
