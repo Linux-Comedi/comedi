@@ -189,9 +189,7 @@ found:
 
   /* read register base address [PCI_BASE_ADDRESS #0] */
   io_base = pci_resource_start(pci_device, 0);
-  if (request_region(io_base & PCI_BASE_ADDRESS_IO_MASK, 0x08, CNT_DRIVER_NAME) == NULL) {
-    return -EIO;
-  }
+  request_region(io_base & PCI_BASE_ADDRESS_IO_MASK, 0x08, CNT_DRIVER_NAME);
   dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
 
   /* allocate the subdevice structures */
