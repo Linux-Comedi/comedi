@@ -505,6 +505,16 @@ static ni_board ni_boards[]={
 		ao_671x:	1,
 		caldac:         {mb88341,mb88341},/* XXX */
 	},
+	{       device_id:      0x2b80,
+		name:           "pxi-6713",
+		n_adchan:       0, /* no analog input */
+		n_aochan:	8,
+		aobits:         12,
+		ao_unipolar:    0,
+		ao_fifo_depth:  16384,
+		ao_671x:	1,
+		caldac:         {mb88341,mb88341},/* XXX */
+	},
 #if 0
 	{       device_id:      0x1880,
 		name:           "pci-6731",
