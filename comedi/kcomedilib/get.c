@@ -187,7 +187,7 @@ int comedi_get_buffer_contents( comedi_t *d, unsigned int subdevice )
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
-	if( subdevice > dev->n_subdevices ) return -1;
+	if( subdevice >= dev->n_subdevices ) return -1;
 	async = s->async;
 	if(async == NULL) return 0;
 
@@ -221,7 +221,7 @@ int comedi_mark_buffer_read( comedi_t *d, unsigned int subdevice,
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
-	if( subdevice > dev->n_subdevices ) return -1;
+	if( subdevice >= dev->n_subdevices ) return -1;
 	async = s->async;
 	if( async == NULL ) return -1;
 
@@ -244,3 +244,15 @@ int comedi_get_buffer_size(comedi_t *d,unsigned int subdev)
 	return async->prealloc_bufsz;
 }
 
+int comedi_get_buffer_offset( comedi_t *d, unsigned int subdevice)
+{
+	comedi_device *dev = (comedi_device *)d;
+	comedi_subdevice *s = dev->subdevices + subdevice;
+	comedi_async *async;
+
+	if( subdevice >= dev->n_subdevices ) return -1;
+	async = s->async;
+	if(async == NULL) return 0;
+
+	return async->buf_read_ptr;
+}

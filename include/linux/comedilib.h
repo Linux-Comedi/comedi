@@ -118,7 +118,7 @@ int comedi_get_buffer_size(comedi_t *dev,unsigned int subdev);
 int comedi_mark_buffer_read( comedi_t *dev, unsigned int subdevice,
 	unsigned int num_bytes );
 int comedi_get_buffer_contents( comedi_t *dev, unsigned int subdevice );
-
+int comedi_get_buffer_offset( comedi_t *dev, unsigned int subdevice );
 
 
 #else

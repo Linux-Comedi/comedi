@@ -90,6 +90,7 @@ EXPORT_SYMBOL(comedi_get_buffer_size);
 //EXPORT_SYMBOL(comedi_get_max_buffer_size);
 //EXPORT_SYMBOL(comedi_set_buffer_size);
 EXPORT_SYMBOL(comedi_get_buffer_contents);
+EXPORT_SYMBOL(comedi_get_buffer_offset);
 
 /* low-level stuff */
 //EXPORT_SYMBOL(comedi_trigger);
