@@ -1066,8 +1066,7 @@ static void rtd_interrupt (
   the command passes.
 */
 
-static int
-rtd_ai_cmdtest (
+static int rtd_ai_cmdtest (
     comedi_device *dev,
     comedi_subdevice *s,
     comedi_cmd *cmd)
@@ -1079,41 +1078,31 @@ rtd_ai_cmdtest (
 
     tmp = cmd->start_src;
     cmd->start_src &= TRIG_NOW;
-    if (!cmd->start_src && tmp != cmd->start_src) {
-	printk ("rtd520: cmdtest error! start_src does not include NOW %x\n",
-		cmd->start_src);
+    if (!cmd->start_src || tmp != cmd->start_src) {
 	err++;
     }
 
     tmp=cmd->scan_begin_src;
     cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
-    if (!cmd->scan_begin_src && tmp != cmd->scan_begin_src) {
-	printk ("rtd520: cmdtest error! scan_begin_src includes neither TIMER or EXT %x\n",
-		cmd->scan_begin_src);
+    if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src) {
 	err++;
     }
 
     tmp=cmd->convert_src;
     cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
-    if (!cmd->convert_src && tmp != cmd->convert_src) {
-	printk ("rtd520: cmdtest error! convert_src includes neither TIMER or EXT %x\n",
-		cmd->convert_src);
+    if (!cmd->convert_src || tmp != cmd->convert_src) {
 	err++;
     }
 
     tmp=cmd->scan_end_src;
     cmd->scan_end_src &= TRIG_COUNT;
-    if (!cmd->scan_end_src && tmp != cmd->scan_end_src) {
-	printk ("rtd520: cmdtest error! scan_end_src does not include COUNT %x\n",
-		cmd->scan_end_src);
+    if (!cmd->scan_end_src || tmp != cmd->scan_end_src) {
 	err++;
     }
 
     tmp=cmd->stop_src;
     cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-    if (!cmd->stop_src && tmp != cmd->stop_src) {
-	printk ("rtd520: cmdtest error! stop_src includes neither COUNT or NONE %x\n",
-		cmd->stop_src);
+    if (!cmd->stop_src || tmp != cmd->stop_src) {
 	err++;
     }
 
@@ -1122,7 +1111,6 @@ rtd_ai_cmdtest (
 
     /* step 2: make sure trigger sources are unique
        and mutually compatible */
-#if 0
     /* note that mutual compatiblity is not an issue here */
     if (cmd->scan_begin_src !=TRIG_TIMER &&
 	cmd->scan_begin_src !=TRIG_EXT) {
@@ -1138,10 +1126,8 @@ rtd_ai_cmdtest (
     }
 
     if (err) {
-	printk ("rtd520: cmdtest error! Some trigger compatibility test failed.\n");
 	return 2;
     }
-#endif
 
     /* step 3: make sure arguments are trivially compatible */
 
