@@ -349,6 +349,7 @@ static void ni_mio_print_status_a(int status)
 	}
 }
 
+#ifdef DEBUG_INTERRUPT
 static char *status_b_strings[]={
 	"passthru1","fifo","G1_gate","G1_TC",
 	"UI2_TC","UPDATE","UC_TC","BC_TC",
@@ -367,6 +368,7 @@ static void ni_mio_print_status_b(int status)
 		}
 	}
 }
+#endif
 
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
