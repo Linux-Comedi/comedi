@@ -2164,6 +2164,7 @@ static int pack_dac8800(int addr,int val,int *bitstring);
 static int pack_dac8043(int addr,int val,int *bitstring);
 static int pack_ad8522(int addr,int val,int *bitstring);
 static int pack_ad8804(int addr,int val,int *bitstring);
+static int pack_ad8842(int addr,int val,int *bitstring);
 
 struct caldac_struct{
 	int n_chans;
@@ -2177,6 +2178,7 @@ static struct caldac_struct caldacs[] = {
 	[dac8043] = { 1, 12, pack_dac8043 },
 	[ad8522]  = { 2, 12, pack_ad8522 },
 	[ad8804] = { 12, 8, pack_ad8804 },
+	[ad8842] = { 8, 8, pack_ad8842 },
 	[ad8804_debug] = { 16, 8, pack_ad8804 },
 };
 
@@ -2300,6 +2302,11 @@ static int pack_ad8804(int addr,int val,int *bitstring)
 	return 12;
 }
 
+static int pack_ad8842(int addr,int val,int *bitstring)
+{
+	*bitstring=((addr+1)<<8) | (val&0xff);
+	return 12;
+}
 
 
 /*
