@@ -62,6 +62,24 @@ typedef unsigned short sampl_t;
 #define AREF_DIFF	0x02		/* analog ref = differential */
 #define AREF_OTHER	0x03		/* analog ref = other (undefined) */
 
+/* counters -- these are arbitrary values */
+#define GPCTR_INT_CLOCK		1
+#define GPCTR_EXT_PIN		2
+#define GPCTR_NO_GATE		3
+#define GPCTR_UP		4
+#define GPCTR_DOWN		5
+#define GPCTR_HWUD		6
+#define GPCTR_INV_HWUD		7
+#define GPCTR_RESET		8
+#define GPCTR_SET_SOURCE	9
+#define GPCTR_SET_GATE		10
+#define GPCTR_SET_DIRECTION	11
+#define GPCTR_SET_VALUE		12
+#define GPCTR_SET_OPERATION	13
+#define GPCTR_ARM		14
+#define GPCTR_DISARM		15
+
+
 /* instructions */
 
 #define INSN_MASK_WRITE		0x8000000

@@ -2503,6 +2503,77 @@ void GPCTR_Disarm(comedi_device *dev, int chan){
 void GPCTR_Arm(comedi_device *dev, int chan){
 	win_out( G_Arm,G_Command_Register(chan));
 }
+int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
+	devpriv->gpctr_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
+	switch(source) {	case GPCTR_INT_CLOCK:
+		devpriv->gpctr_input_select[chan] |= G_Source_Select(0);//INT_TIMEBASE
+		break;
+	case GPCTR_EXT_PIN:
+		if(chan==0)
+			devpriv->gpctr_input_select[chan] |= G_Source_Select(9);//PFI8
+		else
+			devpriv->gpctr_input_select[chan] |= G_Source_Select(4);//PFI3
+		break;
+	default:
+		return -EINVAL;
+	}
+	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
+	return 1;
+}
+int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
+	devpriv->gpctr_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
+	switch(gate) {	case GPCTR_NO_GATE:
+		devpriv->gpctr_input_select[chan] |= G_Gate_Select(31);//Low
+		devpriv->gpctr_mode[chan] |= G_Gate_Polarity;
+		break;
+	case GPCTR_EXT_PIN:
+		devpriv->gpctr_mode[chan] &= ~G_Gate_Polarity;
+		if(chan==0)
+			devpriv->gpctr_input_select[chan] |= G_Gate_Select(10);//PFI9
+		else
+			devpriv->gpctr_input_select[chan] |= G_Gate_Select(5);//PFI4
+		break;
+	default:
+		return -EINVAL;
+	}
+	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
+	win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
+	return 1;
+}
+
+
+int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction) {
+	devpriv->gpctr_command[chan] &= ~G_Up_Down(0x3);
+	switch (direction) {
+		case GPCTR_UP:
+			devpriv->gpctr_command[chan] |= G_Up_Down(1);
+			break;
+		case GPCTR_DOWN:
+			devpriv->gpctr_command[chan] |= G_Up_Down(0);
+			break;
+		case GPCTR_HWUD:
+			devpriv->gpctr_command[chan] |= G_Up_Down(2);
+			break;
+		case GPCTR_INV_HWUD:
+			devpriv->gpctr_command[chan] |= G_Up_Down(2);
+			devpriv->gpctr_mode[chan] |= G_Gate_Polarity;
+			break;
+		default:
+			return -EINVAL;
+	}
+	win_out(devpriv->gpctr_command[chan], G_Command_Register(chan));
+	win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
+	return 1;
+}
+
+void GPCTR_Event_Counting(comedi_device *dev,int chan) {
+	
+	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
+	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
+}
+
 void GPCTR_Reset(comedi_device *dev, int chan){
 	unsigned long irqflags;
 	int temp_ack_reg=0;
@@ -2546,6 +2617,53 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
 	win_out( 0,G_Autoincrement_Register(chan)); 
 }
+
+static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	switch(data[0]){
+	case GPCTR_RESET:
+		if(insn->n!=1)return -EINVAL;
+		GPCTR_Reset(dev,insn->chanspec);
+		break;
+	case GPCTR_SET_SOURCE:
+		if(insn->n!=2)return -EINVAL;
+		GPCTR_Set_Source(dev,insn->chanspec,data[1]);
+		break;
+	case GPCTR_SET_GATE:
+		if(insn->n!=2)return -EINVAL;
+		GPCTR_Set_Gate(dev,insn->chanspec,data[1]);
+		break;
+	case GPCTR_SET_DIRECTION:
+		if(insn->n!=2)return -EINVAL;
+		GPCTR_Set_Direction(dev,insn->chanspec,data[1]);
+		break;
+	case GPCTR_SET_VALUE:
+		if(insn->n!=2)return -EINVAL;
+		GPCTR_Load_Using_A(dev,insn->chanspec,data[1]);
+		break;
+	case GPCTR_SET_OPERATION:
+		if(insn->n!=2)return -EINVAL;
+			//there should be a second switch statement here
+			//to choose the operation
+		GPCTR_Event_Counting(dev,insn->chanspec);
+		break;
+	case GPCTR_ARM:
+		if(insn->n!=1)return -EINVAL;
+		GPCTR_Arm(dev,insn->chanspec);
+		break;
+	case GPCTR_DISARM:
+		if(insn->n!=1)return -EINVAL;
+		GPCTR_Disarm(dev,insn->chanspec);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 1;
+}
+
+
 //note: EXPORT_SYMTAB must have been defined for this to work.
 //this is mostly for testing inside the kernel
 EXPORT_SYMBOL(GPCTR_Load_Using_A);
@@ -2557,14 +2675,6 @@ EXPORT_SYMBOL(GPCTR_Reset);
 
 #endif
 
-/*
-*  This is code from the EDAQ driver NI used to recommend for Linux, I'm using it
-* as a reference to build new GPCTR functions.  Some of it is from the E series RLPM.
-* Ignore the code in the #if 0...#endif
-*
-*/
-#if 0
-#endif
 
 static int ni_8255_callback(int dir,int port,int data,void *arg)
 {
