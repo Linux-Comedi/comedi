@@ -759,7 +759,7 @@ static ni_board ni_boards[];
 	int gpct_cur_operation[2];				\
 	unsigned short an_trig_etc_reg;				\
 								\
-	unsigned short ai_xorlist[512];				\
+	unsigned short ai_offset[512];				\
 								\
 	unsigned long serial_interval_ns;                       \
 	unsigned char serial_hw_mode;                           \

@@ -921,15 +921,18 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
-			data = (dl>>16) + devpriv->ai_xorlist[async->cur_chan];
+			data = (dl>>16) + devpriv->ai_offset[async->cur_chan++];
+			async->cur_chan %= async->cmd.chanlist_len;
 			err &= comedi_buf_put(s->async, data);
-			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
+			data = (dl&0xffff) + devpriv->ai_offset[async->cur_chan++];
+			async->cur_chan %= async->cmd.chanlist_len;
 			err &= comedi_buf_put(s->async, data);
 		}
 	}else{
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
 			data=ni_readw(ADC_FIFO_Data_Register);
-			data+=devpriv->ai_xorlist[async->cur_chan];
+			data+=devpriv->ai_offset[async->cur_chan++];
+			async->cur_chan %= async->cmd.chanlist_len;
 			err &= comedi_buf_put(s->async, data);
 		}
 	}
@@ -951,7 +954,8 @@ static void get_last_sample_611x( comedi_device *dev )
 	/* Check if there's a single sample stuck in the FIFO */
 	if(ni_readb(Status_611x)&0x80){
 		dl=ni_readl(ADC_FIFO_Data_611x);
-		data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
+		data = (dl&0xffff) + devpriv->ai_offset[async->cur_chan++];
+		async->cur_chan %= async->cmd.chanlist_len;
 		err &= comedi_buf_put(s->async, data);
 	}
 	if(err==0){
@@ -972,7 +976,7 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 #ifdef PCIDMA
 		array[i] = __le16_to_cpu(array[i]);
 #endif
-		array[i] ^= devpriv->ai_xorlist[ chan_index ];
+		array[i] += devpriv->ai_offset[ chan_index ];
 		chan_index++;
 		chan_index %= async->cmd.chanlist_len;
 	}
@@ -1148,7 +1152,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	ni_load_channelgain_list(dev,1,&insn->chanspec);
 
 	mask=(1<<boardtype.adbits)-1;
-	signbits=devpriv->ai_xorlist[0];
+	signbits=devpriv->ai_offset[0];
 	for(n=0;n<insn->n;n++){
 		win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 		if(boardtype.reg_611x){
@@ -1250,9 +1254,9 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[boardtype.gainlkup][range];
 		if( boardtype.reg_611x )
-			devpriv->ai_xorlist[i] = offset;
+			devpriv->ai_offset[i] = offset;
 		else
-			devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
+			devpriv->ai_offset[i] = (range&0x100)?0:offset;
 
 		hi = 0;
 		if( ( list[i] & CR_ALT_SOURCE ) )
