@@ -5,7 +5,7 @@
                National Instruments PCI-6503
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1999,2002 David A. Schleef <ds@stm.lbl.gov>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,10 +58,9 @@ AT-MIO96.
 
  */
 
-#define USE_CMD 1
-#undef USEDMA
-//#define DEBUG 1
-//#define DEBUG_FLAGS
+#define USE_DMA
+#define DEBUG 1
+#define DEBUG_FLAGS
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -249,7 +248,11 @@ AT-MIO96.
 
 #define TIMER_BASE 50		/* nanoseconds */
 
+#ifdef USE_DMA
+#define IntEn (CountExpired|Waited|PrimaryTC|SecondaryTC)
+#else
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
+#endif
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
@@ -347,15 +350,14 @@ typedef struct{
 }nidio96_private;
 #define devpriv ((nidio96_private *)dev->private)
 
-#ifdef USE_CMD
 static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 				  comedi_cmd *cmd);
 static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s);
 static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
 	unsigned int trignum);
-#endif
 static int nidio_find_device(comedi_device *dev,int bus,int slot);
 static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
+static void setup_mite_dma(comedi_device *dev,comedi_subdevice *s);
 
 #ifdef DEBUG_FLAGS
 static void ni_pcidio_print_flags(unsigned int flags);
@@ -375,7 +377,6 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 	}
 }
 
-#ifdef USE_CMD
 static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev=d;
@@ -388,9 +389,11 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	int flags;
 	int status;
 	int work = 0;
+	unsigned int m_status;
 
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	flags = readb(dev->iobase+Group_1_Flags);
+	m_status = readl(devpriv->mite->mite_io_addr + MITE_CHSR + CHAN_OFFSET(1));
 	
 	//interrupcions parasites
 	if(dev->attached == 0){
@@ -398,10 +401,25 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
 	}
 	 
-	DPRINTK("ni_pcidio_interrupt: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n",
-		IntEn,flags,status);
+	DPRINTK("ni_pcidio_interrupt: IntEn=0x%02x,flags=0x%02x,status=0x%02x,m_status=0x%08x\n",
+		IntEn,flags,status,m_status);
 	ni_pcidio_print_flags(flags);
 	ni_pcidio_print_status(status);
+	printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(devpriv->mite,1));
+	mite_dump_regs(devpriv->mite);
+
+	printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf);
+
+	if(m_status & CHSR_INT){
+		if(m_status & CHSR_LINKC){
+			writel(CHOR_CLRLC, devpriv->mite->mite_io_addr +
+				MITE_CHOR + CHAN_OFFSET(1));
+		}
+		if(m_status & CHSR_DONE){
+			writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr +
+				MITE_CHOR + CHAN_OFFSET(1));
+		}
+	}
 	 
 	while(status&DataLeft){
 		work++;
@@ -414,7 +432,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		flags &= IntEn;
   
 		if(flags & TransferReady){
-			DPRINTK("TransferReady\n");
+			//DPRINTK("TransferReady\n");
 			while(flags & TransferReady){
 				work++;
 				if(work>100){
@@ -427,13 +445,13 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 				data2 = (AuxData & 0xffff0000) >> 16;
 				comedi_buf_put(async,data1);
 				comedi_buf_put(async,data2);
-				DPRINTK("read:%d, %d\n",data1,data2);
+				//DPRINTK("read:%d, %d\n",data1,data2);
 				flags = readb(dev->iobase+Group_1_Flags);
 			}
-			DPRINTK("buf_int_count: %d\n",async->buf_int_count);
-			DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
-			ni_pcidio_print_flags(flags);
-			ni_pcidio_print_status(status);
+			//DPRINTK("buf_int_count: %d\n",async->buf_int_count);
+			//DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+			//ni_pcidio_print_flags(flags);
+			//ni_pcidio_print_status(status);
 			async->events |= COMEDI_CB_BLOCK;
 		}
 
@@ -444,11 +462,23 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			
 			writeb(0x00,dev->iobase+OpMode);
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+#ifdef USE_DMA
+			mite_dma_disarm(devpriv->mite);
+			writel(CHOR_DMARESET, devpriv->mite->mite_io_addr +
+				MITE_CHOR + CHAN_OFFSET(1));
+#endif
 			break;
 		}else if(flags & Waited){
 			DPRINTK("Waited\n");
 			writeb(ClearWaited,dev->iobase+Group_1_First_Clear);
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+#ifdef USE_DMA
+			mite_dma_disarm(devpriv->mite);
+			writel(CHOR_DMARESET, devpriv->mite->mite_io_addr +
+				MITE_CHOR + CHAN_OFFSET(1));
+#endif
+			break;
 		}else if(flags & PrimaryTC){
 			DPRINTK("PrimaryTC\n");
 			writeb(ClearPrimaryTC,dev->iobase+Group_1_First_Clear);
@@ -469,10 +499,10 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 #endif
 		flags = readb(dev->iobase+Group_1_Flags);
 		status = readb(dev->iobase+Interrupt_And_Window_Status);
-		DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n",
-			IntEn,flags,status);
-		ni_pcidio_print_flags(flags);
-		ni_pcidio_print_status(status);
+		//DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n",
+		//	IntEn,flags,status);
+		//ni_pcidio_print_flags(flags);
+		//ni_pcidio_print_status(status);
 	}
 
 out:
@@ -485,7 +515,6 @@ out:
 #endif
 
 }
-#endif
 
 #ifdef DEBUG_FLAGS
 static char *flags_strings[] = {
@@ -585,7 +614,6 @@ static int ni_pcidio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-#ifdef USE_CMD
 static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd)
 {
@@ -641,13 +669,12 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 			cmd->scan_begin_arg=MAX_SPEED;
 			err++;
 		}
-		/* no minumum */
+		/* no minumum speed */
 	}else{
-		/* external trigger */
+		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
-		/* should specify multiple external triggers */
-		if(cmd->scan_begin_arg>9){
-			cmd->scan_begin_arg=9;
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;
 			err++;
 		}
 	}
@@ -718,11 +745,18 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 	/* XXX configure ports for input*/
 	writel(0x0000,dev->iobase+Port_Pin_Directions(0));
 
-	/* enable fifos A B C D */
-	writeb(0x0F,dev->iobase+Data_Path);
+	if(0){
+		/* enable fifos A B C D */
+		writeb(0x0f,dev->iobase+Data_Path);
 
-	/* set transfer width a 32 bits*/
-	writeb(0x00,dev->iobase+Transfer_Size_Control);
+		/* set transfer width a 32 bits*/
+		writeb(TransferWidth(0) | TransferLength(0),
+			dev->iobase+Transfer_Size_Control);
+	}else{
+		writeb(0x03,dev->iobase+Data_Path);
+		writeb(TransferWidth(3) | TransferLength(0),
+			dev->iobase+Transfer_Size_Control);
+	}
 
 	/* protocol configuration */
 	if(cmd->scan_begin_src == TRIG_TIMER){
@@ -771,11 +805,12 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* XXX */
 	}
   
-#ifdef USEDMA
+#ifdef USE_DMA
 	writeb(0x05,dev->iobase+DMA_Line_Control);
 	writeb(0x30,dev->iobase+Group_1_First_Clear);
 
-	mite_dma_prep(devpriv->mite,s);
+	setup_mite_dma(dev,s);
+	//mite_dma_prep(devpriv->mite,s);
 #else
 	writeb(0x00,dev->iobase+DMA_Line_Control);
 #endif
@@ -801,6 +836,21 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 }
 
 
+static void setup_mite_dma(comedi_device *dev,comedi_subdevice *s)
+{
+	int n,len;
+	unsigned long ll_start;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+
+	len = sizeof(lsampl_t)*cmd->stop_arg;
+	ll_start = mite_ll_from_kvmem(devpriv->mite, async, len);
+	mite_setregs(devpriv->mite, ll_start, 1, COMEDI_INPUT);
+
+	mite_dma_arm(devpriv->mite);
+}
+
+
 static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
 	unsigned int trignum)
 {
@@ -811,87 +861,45 @@ static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
 
 	return 1;
 }
-#endif
 
-#ifdef unused
-static int nidio_dio_cmd(comedi_device *dev,comedi_subdevice *s)
+
+static int ni_pcidio_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	int i;
-
-	writeb(  0 ,dev->iobase+OpMode);
-
-	writel(0xffff,dev->iobase+Port_Pin_Directions(0));
-
-	/* choose chan A,B */
-	writeb(0x83,dev->iobase+Data_Path);
-
-	/* set transfer width */
-	writeb(0x03,dev->iobase+Transfer_Size_Control);
-
-#if 0
-	/* protocol configuration */
-	writeb(0x10,dev->iobase+ClockReg);
-	writeb(  0 ,dev->iobase+Sequence);
-	writeb(0x20,dev->iobase+ReqReg);
-	writeb(  4 ,dev->iobase+BlockMode);
-	writeb(  0 ,dev->iobase+LinePolarities);
-	writeb(0x60,dev->iobase+AckSer);
-	writeb(  1 ,dev->iobase+StartDelay);
-	writeb(  1 ,dev->iobase+ReqDelay);
-	writeb(  1 ,dev->iobase+ReqNotDelay);
-	writeb(  1 ,dev->iobase+AckDelay);
-	writeb(  1 ,dev->iobase+AckNotDelay);
-	writeb(  1 ,dev->iobase+Data1Delay);
-	writew(  0 ,dev->iobase+ClockSpeed);
-	writeb(  0 ,dev->iobase+DAQOptions);
-#else
-	/* protocol configuration */
-	writeb(  0 ,dev->iobase+ClockReg);
-	writeb(  1 ,dev->iobase+Sequence);
-	writeb(  4 ,dev->iobase+ReqReg);
-	writeb(  0 ,dev->iobase+BlockMode);
-	writeb(  3 ,dev->iobase+LinePolarities);
-	writeb(224 ,dev->iobase+AckSer);
-	writeb( 10 ,dev->iobase+StartDelay);
-	writeb(  1 ,dev->iobase+ReqDelay);
-	writeb(  1 ,dev->iobase+ReqNotDelay);
-	writeb(  1 ,dev->iobase+AckDelay);
-	writeb( 11 ,dev->iobase+AckNotDelay);
-	writeb(  1 ,dev->iobase+Data1Delay);
-	writew(  0 ,dev->iobase+ClockSpeed);
-	writeb(10000 ,dev->iobase+DAQOptions);
-#endif
-
-	/* ReadyLevel */
-	writeb(  0 ,dev->iobase+FIFO_Control);
-
-	for(i=0;i<16;i++){
-		writew(i,dev->iobase+Group_1_FIFO);
-	}
-
-	writel(10000 ,dev->iobase+Transfer_Count);
-
-#ifdef USEDMA
-	writeb(0x05,dev->iobase+DMA_Line_Control);
-	writeb(0x30,dev->iobase+Group_1_First_Clear);
-
-	mite_dma_prep(devpriv->mite,s);
-#else
-	writeb(0x00,dev->iobase+DMA_Line_Control);
-#endif
-
-	/* clear and enable interrupts */
-	writeb(0xff,dev->iobase+Group_1_First_Clear);
-	writeb(0xc3,dev->iobase+Interrupt_Control);
-	writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
-
-	/* start */
-
-	writeb(0x0f,dev->iobase+OpMode);
+	writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 
 	return 0;
 }
-#endif
+
+
+static int ni_pcidio_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	comedi_async *async = s->async;
+
+	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
+		return 0;
+	}
+
+	if(async->prealloc_bufsz){
+		kfree(async->prealloc_buf);
+		async->prealloc_buf = NULL;
+		async->prealloc_bufsz = 0;
+	}
+
+	if(new_size){
+		async->prealloc_buf = kmalloc(new_size, GFP_KERNEL);
+		if(async->prealloc_buf == NULL){
+			async->prealloc_bufsz = 0;
+			return -ENOMEM;
+		}
+	}
+	async->prealloc_bufsz = new_size;
+
+	memset(async->prealloc_buf, 0xaa, async->prealloc_bufsz);
+
+	return 0;
+}
+
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -946,17 +954,16 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->maxdata=1;
 		s->insn_config = ni_pcidio_insn_config;
 		s->insn_bits = ni_pcidio_insn_bits;
-#ifdef USE_CMD
 		s->do_cmd = ni_pcidio_cmd;
 		s->do_cmdtest = ni_pcidio_cmdtest;
-#endif
+		s->cancel = ni_pcidio_cancel;
 		s->len_chanlist=32;		/* XXX */
+		s->buf_alloc = ni_pcidio_alloc;
 
 		writel(0,dev->iobase+Port_IO(0));
 		writel(0,dev->iobase+Port_Pin_Directions(0));
 		writel(0,dev->iobase+Port_Pin_Mask(0));
 
-#ifdef USE_CMD
 		/* disable interrupts on board */
 		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 
@@ -965,8 +972,9 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 			dev->irq=0;
 			printk(" irq not available");
 		}
-#endif
 	}
+
+	devpriv->mite->chan = 1;
 
 	printk("\n");
 
