@@ -114,7 +114,10 @@ int comedi_set_user_int_count(comedi_t *dev,unsigned int subdevice,
 	unsigned int buf_user_count);
 int comedi_map(comedi_t *dev, unsigned int subdev, void *ptr);
 int comedi_unmap(comedi_t *dev, unsigned int subdev);
-int comedi_get_buffer_size(comedi_t *it,unsigned int subdev);
+int comedi_get_buffer_size(comedi_t *dev,unsigned int subdev);
+int comedi_mark_buffer_read( comedi_t *dev, unsigned int subdevice,
+	unsigned int num_bytes );
+int comedi_get_buffer_contents( comedi_t *dev, unsigned int subdevice );
 
 
 

@@ -89,6 +89,7 @@ EXPORT_SYMBOL(comedi_get_n_ranges);
 EXPORT_SYMBOL(comedi_get_buffer_size);
 //EXPORT_SYMBOL(comedi_get_max_buffer_size);
 //EXPORT_SYMBOL(comedi_set_buffer_size);
+EXPORT_SYMBOL(comedi_get_buffer_contents);
 
 /* low-level stuff */
 //EXPORT_SYMBOL(comedi_trigger);
@@ -125,6 +126,7 @@ EXPORT_SYMBOL(comedi_command_test);
 EXPORT_SYMBOL(comedi_poll);
 
 /* buffer configuration */
+EXPORT_SYMBOL(comedi_mark_buffer_read);
 
 //EXPORT_SYMBOL(comedi_get_range);
 EXPORT_SYMBOL(comedi_get_len_chanlist);

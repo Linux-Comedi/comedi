@@ -181,6 +181,19 @@ unsigned int comedi_get_buf_head_pos(comedi_t *d,unsigned int subdevice)
 	return async->buf_write_count;
 }
 
+int comedi_get_buffer_contents( comedi_t *d, unsigned int subdevice )
+{
+	comedi_device *dev = (comedi_device *)d;
+	comedi_subdevice *s = dev->subdevices + subdevice;
+	comedi_async *async;
+
+	if( subdevice > dev->n_subdevices ) return -1;
+	async = s->async;
+	if(async == NULL) return 0;
+
+	return async->buf_write_count - async->buf_read_count;
+}
+
 /*
  * ALPHA
 */
@@ -200,6 +213,23 @@ int comedi_set_user_int_count(comedi_t *d,unsigned int subdevice,unsigned int bu
 
 	return 0;
 }
+
+int comedi_mark_buffer_read( comedi_t *d, unsigned int subdevice,
+	unsigned int num_bytes )
+{
+	comedi_device *dev = (comedi_device *)d;
+	comedi_subdevice *s = dev->subdevices + subdevice;
+	comedi_async *async;
+
+	if( subdevice > dev->n_subdevices ) return -1;
+	async = s->async;
+	if( async == NULL ) return -1;
+
+	comedi_buf_read_free( async, num_bytes );
+
+	return 0;
+}
+
 
 int comedi_get_buffer_size(comedi_t *d,unsigned int subdev)
 {
