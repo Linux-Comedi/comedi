@@ -295,7 +295,7 @@ static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 		status=readw(dev->iobase+DPR_Command_Mbx);
 		if((status&DT3000_COMPLETION_MASK)!=DT3000_NOTPROCESSED)
 			break;
-		udelay(1);
+		comedi_udelay(1);
 	}
 	if((status&DT3000_COMPLETION_MASK)==DT3000_NOERROR){
 		return 0;

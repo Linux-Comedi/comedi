@@ -258,7 +258,7 @@ static int pcl711_ai_insn(comedi_device *dev,comedi_subdevice *s,
 			hi = inb(dev->iobase + PCL711_AD_HI);
 			if (!(hi & PCL711_DRDY))
 				goto ok;
-			udelay(1);
+			comedi_udelay(1);
 		}
 		rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;

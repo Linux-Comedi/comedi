@@ -96,7 +96,7 @@ static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 		for(i=0;i<DT2814_TIMEOUT;i++){
 			status = inb(dev->iobase+DT2814_CSR);
 printk("dt2814: status: %02x\n",status);
-udelay(10);
+comedi_udelay(10);
 			if(status&DT2814_FINISH)
 				break;
 		}
@@ -250,7 +250,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = "dt2814";
 
 	outb(0,dev->iobase+DT2814_CSR);
-	udelay(100);
+	comedi_udelay(100);
 	if(inb(dev->iobase+DT2814_CSR)&DT2814_ERR){
 		printk("reset error (fatal)\n");
 		return -EIO;
@@ -267,7 +267,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	
 		outb(0,dev->iobase+DT2814_CSR);
 
-		udelay(100);
+		comedi_udelay(100);
 
 		irq=probe_irq_off(irqs);
 		restore_flags(flags);

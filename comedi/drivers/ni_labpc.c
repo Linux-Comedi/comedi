@@ -1245,7 +1245,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
 		/* need a brief delay before enabling scan, or scan list will get screwed when you switch
 		 * between scan up to scan down mode - dunno why */
-		udelay(1);
+		comedi_udelay(1);
 		thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	}
 
@@ -1660,7 +1660,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		{
 			if(thisboard->read_byte(dev->iobase + STATUS1_REG) & DATA_AVAIL_BIT)
 				break;
-			udelay( 1 );
+			comedi_udelay( 1 );
 		}
 		if(i == timeout)
 		{
@@ -2017,11 +2017,11 @@ static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned in
 			devpriv->command5_bits |= SDATA_BIT;
 		else
 			devpriv->command5_bits &= ~SDATA_BIT;
-		udelay(1);
+		comedi_udelay(1);
 		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 		// set clock to load bit
 		devpriv->command5_bits |= SCLOCK_BIT;
-		udelay(1);
+		comedi_udelay(1);
 		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 	}
 }
@@ -2037,14 +2037,14 @@ static unsigned int labpc_serial_in(comedi_device *dev)
 	{
 		// set serial clock
 		devpriv->command5_bits |= SCLOCK_BIT;
-		udelay(1);
+		comedi_udelay(1);
 		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 		// clear clock bit
 		devpriv->command5_bits &= ~SCLOCK_BIT;
-		udelay(1);
+		comedi_udelay(1);
 		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 		// read bits most significant bit first
-		udelay(1);
+		comedi_udelay(1);
 		devpriv->status2_bits = thisboard->read_byte(dev->iobase + STATUS2_REG);
 		if(devpriv->status2_bits & EEPROM_OUT_BIT)
 		{
@@ -2063,10 +2063,10 @@ static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
 
 	// enable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	// send read instruction
@@ -2078,7 +2078,7 @@ static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
 
 	// disable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	return value;
@@ -2110,22 +2110,22 @@ static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address,
 
 	// enable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	// send write_enable instruction
 	labpc_serial_out(dev, write_enable_instruction, write_length);
 	devpriv->command5_bits &= ~EEPROM_EN_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 
 	// send write instruction
 	devpriv->command5_bits |= EEPROM_EN_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 	labpc_serial_out(dev, write_instruction, write_length);
 	// send 8 bit address to write to
@@ -2133,12 +2133,12 @@ static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address,
 	// write value
 	labpc_serial_out(dev, value, write_length);
 	devpriv->command5_bits &= ~EEPROM_EN_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	// disable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	return 0;
@@ -2152,10 +2152,10 @@ static unsigned int labpc_eeprom_read_status(comedi_device *dev)
 
 	// enable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	// send read status instruction
@@ -2165,7 +2165,7 @@ static unsigned int labpc_eeprom_read_status(comedi_device *dev)
 
 	// disable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	return value;
@@ -2179,7 +2179,7 @@ static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned in
 
 	// clear caldac load bit and make sure we don't write to eeprom
 	devpriv->command5_bits &= ~CALDAC_LOAD_BIT & ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
 	/* write 4 bit channel, LSB first (NI appears to have gotten confused here
@@ -2196,10 +2196,10 @@ static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned in
 
 	// set and clear caldac bit to load caldac value
 	devpriv->command5_bits |= CALDAC_LOAD_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 	devpriv->command5_bits &= ~CALDAC_LOAD_BIT;
-	udelay(1);
+	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 

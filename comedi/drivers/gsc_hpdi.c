@@ -450,7 +450,7 @@ static int init_hpdi( comedi_device *dev )
 	uint32_t plx_intcsr_bits;
 
 	writel( BOARD_RESET_BIT, priv(dev)->hpdi_iobase + BOARD_CONTROL_REG );
-	udelay( 10 );
+	comedi_udelay( 10 );
 
 	writel( almost_empty_bits( 32 ) | almost_full_bits( 32 ),
 		priv(dev)->hpdi_iobase + RX_PROG_ALMOST_REG );

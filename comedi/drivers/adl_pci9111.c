@@ -437,7 +437,7 @@ static void pci9111_timer_set ( comedi_device * dev)
 			     PCI9111_8254_MODE_2|
 			     PCI9111_8254_BINARY_COUNTER);
 
-  udelay(1);
+  comedi_udelay(1);
 
   pci9111_8254_counter_2_set (dev_private->timer_divisor_2);
   pci9111_8254_counter_1_set (dev_private->timer_divisor_1);

@@ -224,7 +224,7 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
     /* This is incredibly slow (approx 20 ms) */
     unsigned int status;
 
-    udelay(1000);
+    comedi_udelay(1000);
     status = inb(dev->iobase + DT2815_STATUS);
     if (status == 4) {
       unsigned int program;

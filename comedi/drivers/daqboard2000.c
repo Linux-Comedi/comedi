@@ -334,9 +334,9 @@ static void writeAcqScanListEntry(comedi_device *dev, u16 entry)
 {
   daqboard2000_hw *fpga = devpriv->daq;
 
-  udelay(4);
+  comedi_udelay(4);
   fpga->acqScanListFIFO = entry & 0x00ff;
-  udelay(4);
+  comedi_udelay(4);
   fpga->acqScanListFIFO = (entry >> 8) & 0x00ff;
 }
 
@@ -396,16 +396,16 @@ static int daqboard2000_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
     fpga->acqControl = DAQBOARD2000_SeqStartScanList;
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqConfigPipeFull) { break; }
-      //udelay(2);
+      //comedi_udelay(2);
     }
     fpga->acqControl = DAQBOARD2000_AdcPacerEnable;
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqLogicScanning) { break; }
-      //udelay(2);
+      //comedi_udelay(2);
     }
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqResultsFIFOHasValidData) { break;}
-      //udelay(2);
+      //comedi_udelay(2);
     }
     data[i] = fpga->acqResultsFIFO;
     fpga->acqControl = DAQBOARD2000_AdcPacerDisable;
@@ -442,16 +442,16 @@ static int daqboard2000_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
      * OK, since it works OK without enabling the DAC's, let's keep
      * it as simple as possible...
      */
-    //fpga->dacControl = (chan + 2) * 0x0010 | 0x0001; udelay(1000);
+    //fpga->dacControl = (chan + 2) * 0x0010 | 0x0001; comedi_udelay(1000);
     fpga->dacSetting[chan] = data[i];
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if ((fpga->dacControl & ((chan + 1) * 0x0010)) == 0) { break; }
-      //udelay(2);
+      //comedi_udelay(2);
     }
     devpriv->ao_readback[chan] = data[i];
   /*  
    * Since we never enabled the DAC's, we don't need to disable it...
-   * fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; udelay(1000);
+   * fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; comedi_udelay(1000);
    */
   }
 
@@ -462,29 +462,29 @@ static void daqboard2000_resetLocalBus(comedi_device *dev)
 {
   printk("daqboard2000_resetLocalBus\n");
   writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
-  udelay(10000);
+  comedi_udelay(10000);
   writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
-  udelay(10000);
+  comedi_udelay(10000);
 }
 
 static void daqboard2000_reloadPLX(comedi_device *dev)
 {
   printk("daqboard2000_reloadPLX\n");
   writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-  udelay(10000);
+  comedi_udelay(10000);
   writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
-  udelay(10000);
+  comedi_udelay(10000);
   writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-  udelay(10000);
+  comedi_udelay(10000);
 }
 
 static void daqboard2000_pulseProgPin(comedi_device *dev)
 {
   printk("daqboard2000_pulseProgPin 1\n");
   writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
-  udelay(10000);
+  comedi_udelay(10000);
   writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
-  udelay(10000); /* Not in the original code, but I like symmetry... */
+  comedi_udelay(10000); /* Not in the original code, but I like symmetry... */
 }
 
 static int daqboard2000_pollCPLD(comedi_device *dev, int mask) {
@@ -499,9 +499,9 @@ static int daqboard2000_pollCPLD(comedi_device *dev, int mask) {
       result=1;
       break;
     }
-    udelay(100);
+    comedi_udelay(100);
   }
-  udelay(5);
+  comedi_udelay(5);
   return result;
 }
 
@@ -509,7 +509,7 @@ static int daqboard2000_writeCPLD(comedi_device *dev, int data)
 {
   int result = 0;
 
-  udelay(10);
+  comedi_udelay(10);
   writew(data, devpriv->daq + 0x1000);
   if ((readw(devpriv->daq + 0x1000) & DAQBOARD2000_CPLD_INIT) == 
       DAQBOARD2000_CPLD_INIT) {
@@ -584,17 +584,17 @@ static void daqboard2000_adcDisarm(comedi_device *dev)
   daqboard2000_hw *fpga = devpriv->daq;
 
   /* Disable hardware triggers */  
-  udelay(2);
+  comedi_udelay(2);
   fpga->trigControl = DAQBOARD2000_TrigAnalog | DAQBOARD2000_TrigDisable;
-  udelay(2);
+  comedi_udelay(2);
   fpga->trigControl = DAQBOARD2000_TrigTTL | DAQBOARD2000_TrigDisable; 
 
   /* Stop the scan list FIFO from loading the configuration pipe */
-  udelay(2);
+  comedi_udelay(2);
   fpga->acqControl = DAQBOARD2000_SeqStopScanList;
 
   /* Stop the pacer clock */
-  udelay(2);
+  comedi_udelay(2);
   fpga->acqControl = DAQBOARD2000_AdcPacerDisable; 
    
   /* Stop the input dma (abort channel 1) */
@@ -610,7 +610,7 @@ static void daqboard2000_activateReferenceDacs(comedi_device *dev)
   fpga->refDacs = 0x80 | DAQBOARD2000_PosRefDacSelect;
   for (timeout = 0 ; timeout < 20 ; timeout++) {
     if ((fpga->dacControl & DAQBOARD2000_RefBusy) == 0) { break; }
-    udelay(2);
+    comedi_udelay(2);
   }
 /*  printk("DAQBOARD2000_PosRefDacSelect %d\n", timeout);*/
 
@@ -618,7 +618,7 @@ static void daqboard2000_activateReferenceDacs(comedi_device *dev)
   fpga->refDacs = 0x80 | DAQBOARD2000_NegRefDacSelect;
   for (timeout = 0 ; timeout < 20 ; timeout++) {
     if ((fpga->dacControl & DAQBOARD2000_RefBusy) == 0) { break; }
-    udelay(2);
+    comedi_udelay(2);
   }
 /*  printk("DAQBOARD2000_NegRefDacSelect %d\n", timeout);*/
 }

@@ -318,7 +318,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
-	udelay(100);
+	comedi_udelay(100);
 	i = inb(dev->iobase + DT2811_ADDATLO);
 	i = inb(dev->iobase + DT2811_ADDATHI);
 #endif
@@ -333,7 +333,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 		outb(DT2811_CLRERROR | DT2811_INTENB, dev->iobase + DT2811_ADCSR);
 		outb(0, dev->iobase + DT2811_ADGCR);
 
-		udelay(100);
+		comedi_udelay(100);
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);

@@ -391,7 +391,7 @@ static int pcl818_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
         	while (timeout--) {
 			if (inb(dev->iobase + PCL818_STATUS) & 0x10)
 				goto conv_finish;
-			udelay(1);
+			comedi_udelay(1);
         	}
         	comedi_error(dev,"A/D insn timeout");
 		/* clear INT (conversion end) flag */
@@ -494,7 +494,7 @@ static void interrupt_pcl818_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 
 	while (timeout--) {
 		if (inb(dev->iobase + PCL818_STATUS) & 0x10) goto conv_finish;
-		udelay(1);
+		comedi_udelay(1);
         }
         outb(0,dev->iobase+PCL818_STATUS); /* clear INT request */
         comedi_error(dev,"A/D mode1/3 IRQ without DRDY!");
@@ -880,7 +880,7 @@ static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 	start_pacer(dev, -1, 0, 0); // stop pacer
 
         if (!check_and_setup_channel_list(dev, s, it)) return -EINVAL;
-	udelay(1);
+	comedi_udelay(1);
 
         devpriv->int13_act_scan=it->n;
         devpriv->int13_act_chan=0;
@@ -1049,7 +1049,7 @@ static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, un
         outb(0xb4, dev->iobase + PCL818_CTRCTL);
         outb(0x74, dev->iobase + PCL818_CTRCTL);
 	outb(0x30, dev->iobase + PCL818_CTRCTL);
-        udelay(1);
+        comedi_udelay(1);
   
         if (mode==1) {
 		outb(divisor2 & 0xff, dev->iobase + PCL818_CTR2);
@@ -1122,7 +1122,7 @@ static int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * 
 		outb(CR_RANGE(it->chanlist[i]), dev->iobase+PCL818_RANGE); /* select gain */
 	}
 
-	udelay(1);
+	comedi_udelay(1);
 
 	/* select channel interval to sca n*/
 	outb(devpriv->act_chanlist[0] | (devpriv->act_chanlist[seglen-1] << 4),
@@ -1169,7 +1169,7 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 		case INT_TYPE_AO3_INT:
 #endif
 			outb(inb(dev->iobase+PCL818_CONTROL)& 0x73, dev->iobase+PCL818_CONTROL); /* Stop A/D */
-			udelay(1);
+			comedi_udelay(1);
 			outb(0, dev->iobase+PCL818_CONTROL); /* Stop A/D */
 			outb(0xb4, dev->iobase + PCL818_CTRCTL);/* Stop pacer */
 			outb(0x74, dev->iobase + PCL818_CTRCTL);
@@ -1202,15 +1202,15 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 static int pcl818_check(int iobase) 
 {
         outb(0x00, iobase + PCL818_MUX);
-        udelay(1); 
+        comedi_udelay(1); 
         if (inb(iobase + PCL818_MUX)!=0x00) return 1; //there isn't card
         outb(0x55, iobase + PCL818_MUX);
-        udelay(1); 
+        comedi_udelay(1); 
         if (inb(iobase + PCL818_MUX)!=0x55) return 1; //there isn't card
         outb(0x00, iobase + PCL818_MUX);
-        udelay(1); 
+        comedi_udelay(1); 
         outb(0x18, iobase + PCL818_CONTROL); 
-        udelay(1); 
+        comedi_udelay(1); 
         if (inb(iobase + PCL818_CONTROL)!=0x18) return 1; //there isn't card
         return 0; // ok, card exist
 }
@@ -1228,10 +1228,10 @@ static void pcl818_reset(comedi_device * dev)
         }
         outb(0, dev->iobase + PCL818_DA_LO); // DAC=0V
         outb(0, dev->iobase + PCL818_DA_HI);
-        udelay(1);
+        comedi_udelay(1);
         outb(0, dev->iobase + PCL818_DO_HI); // DO=$0000
         outb(0, dev->iobase + PCL818_DO_LO);
-        udelay(1);
+        comedi_udelay(1);
         outb(0, dev->iobase + PCL818_CONTROL);
         outb(0, dev->iobase + PCL818_CNTENABLE);
         outb(0, dev->iobase + PCL818_MUX);

@@ -430,13 +430,13 @@ static int pcl812_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	setup_range_channel(dev, s, insn->chanspec, 1); // select channel and renge
 	for(n=0;n<insn->n;n++){
 		outb(255, dev->iobase + PCL812_SOFTTRIG);	/* start conversion */
-		udelay(5);
+		comedi_udelay(5);
 		timeout = 50;	/* wait max 50us, it must finish under 33us */
 		while (timeout--) {
 			hi = inb(dev->iobase + PCL812_AD_HI);
 			if (!(hi & PCL812_DRDY))
 				goto conv_finish;
-			udelay(1);
+			comedi_udelay(1);
 		}
 		rt_printk("comedi%d: pcl812: (%s at 0x%x) A/D insn read timeout\n", dev->minor, dev->board_name, dev->iobase);
 		outb(devpriv->mode_reg_int|0, dev->iobase + PCL812_MODE);
@@ -462,12 +462,12 @@ static int acl8216_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	setup_range_channel(dev, s, insn->chanspec, 1); // select channel and renge
 	for(n=0;n<insn->n;n++){
 		outb(255, dev->iobase + PCL812_SOFTTRIG);	/* start conversion */
-		udelay(5);
+		comedi_udelay(5);
 		timeout = 50;	/* wait max 50us, it must finish under 33us */
 		while (timeout--) {
 			if (!(inb(dev->iobase + ACL8216_STATUS) & ACL8216_DRDY))
 				goto conv_finish;
-			udelay(1);
+			comedi_udelay(1);
 		}
 		rt_printk("comedi%d: pcl812: (%s at 0x%x) A/D insn read timeout\n", dev->minor, dev->board_name, dev->iobase);
 		outb(0, dev->iobase + PCL812_MODE);
@@ -864,7 +864,7 @@ static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 			if (!(inb(dev->iobase + ACL8216_STATUS) & ACL8216_DRDY)) {
 			    err=0; break;
 			}
-			udelay(1);
+			comedi_udelay(1);
 		}
 	} else {
 		mask=0x0fff;
@@ -872,7 +872,7 @@ static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 			if (!(inb(dev->iobase + PCL812_AD_HI) & PCL812_DRDY)) {
 			    err=0; break;
 			}
-			udelay(1);
+			comedi_udelay(1);
 		}
 	}
 	
@@ -1055,7 +1055,7 @@ static void setup_range_channel(comedi_device * dev, comedi_subdevice * s,
 	outb(gain_reg, dev->iobase + PCL812_GAIN); /* select gain */
 
         if (wait) {
-		udelay(devpriv->max_812_ai_mode0_rangewait); // XXX this depends on selected range and can be very long for some high gain ranges!
+		comedi_udelay(devpriv->max_812_ai_mode0_rangewait); // XXX this depends on selected range and can be very long for some high gain ranges!
         }
 }
 
@@ -1070,7 +1070,7 @@ static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, un
 #endif
         outb(0xb4, dev->iobase + PCL812_CTRCTL);
         outb(0x74, dev->iobase + PCL812_CTRCTL);
-        udelay(1);
+        comedi_udelay(1);
   
         if (mode==1) {
 		outb(divisor2 & 0xff, dev->iobase + PCL812_CTR2);
@@ -1155,10 +1155,10 @@ static void pcl812_reset(comedi_device * dev)
 	case boardPCL813:
 	case boardISO813:
 	case boardACL8113:
-		udelay(5);
+		comedi_udelay(5);
 		break;
 	}
-	udelay(5);
+	comedi_udelay(5);
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: END: pcl812_reset(...)\n");
 #endif

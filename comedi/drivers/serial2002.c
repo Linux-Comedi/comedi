@@ -154,7 +154,7 @@ static int tty_read(struct file *f, int timeout)
 	if (count == 1) {	result = ch; }
 	break;
       }
-      udelay(100);
+      comedi_udelay(100);
     }
     set_fs(oldfs);
   }

@@ -35,14 +35,17 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
+#include <linux/delay.h>
 
 #ifdef CONFIG_COMEDI_RT
 
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
+#include <rtai_sched.h>
 #endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
+#include <time.h>
 //#ifdef RTLINUX_VERSION_CODE
 #include <rtl_sync.h>
 //#endif
@@ -122,6 +125,19 @@ static inline void comedi_spin_unlock_irqrestore(spinlock_t *lock_ptr, unsigned 
 
 #endif
 
+}
+
+/* define a RT safe udelay */
+static inline void comedi_udelay( unsigned int usec )
+{
+#if defined(CONFIG_COMEDI_RTAI)
+	static const int nanosec_per_usec = 1000;
+	rt_busy_sleep( usec * nanosec_per_usec );
+#elif defined(CONFIG_COMEDI_RTL)
+	usleep( usec );
+#else
+	udelay( usec );
+#endif
 }
 
 #endif

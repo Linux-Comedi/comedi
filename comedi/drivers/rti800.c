@@ -197,7 +197,7 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 				return -EIO;
 			}
 			if (status & RTI800_DONE)break;
-			//udelay(8);
+			//comedi_udelay(8);
 		}
 		if(t == 0){
 			rt_printk("rti800: timeout\n");

@@ -354,7 +354,7 @@ typedef struct {
 		int _i;					\
 		for(_i=0;_i<DT2821_TIMEOUT;_i++){	\
 			if(a){_i=0;break;}		\
-			udelay(5);			\
+			comedi_udelay(5);			\
 		}					\
 		if(_i){b}				\
 	}while(0)
@@ -1220,7 +1220,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 
 		/* trigger interrupt */
 
-		udelay(100);
+		comedi_udelay(100);
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);

@@ -893,7 +893,7 @@ static int ni_ai_drain_dma(comedi_device *dev )
 		if( win_in( AI_Status_1_Register ) & AI_FIFO_Empty_St &&
 			mite_bytes_in_transit( mite, AI_DMA_CHAN ) == 0 )
 			break;
-		udelay( 1 );
+		comedi_udelay( 1 );
 	}
 	if( i == timeout )
 	{
@@ -1154,7 +1154,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	if(boardtype.reg_611x){
 		for(n=0; n < num_adc_stages_611x; n++){
 			win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
-			udelay(1);
+			comedi_udelay(1);
 		}
 		for(n=0; n<insn->n; n++){
 			win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
@@ -1313,7 +1313,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 				win_out(1,ADC_FIFO_Clear);
 				return;
 			}
-			udelay(1);
+			comedi_udelay(1);
 		}
 		rt_printk("ni_mio_common: timeout loading channel/gain list\n");
 	}
@@ -2053,7 +2053,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
 
 	/* wait for DACs to be loaded */
-	udelay(100);
+	comedi_udelay(100);
 
 	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
 		AO_Command_1_Register);
@@ -2720,12 +2720,12 @@ static void ni_write_caldac(comedi_device *dev,int addr,int val)
 
 	for(bit=1<<(bits-1);bit;bit>>=1){
 		ni_writeb(((bit&bitstring)?0x02:0),Serial_Command);
-		udelay(1);
+		comedi_udelay(1);
 		ni_writeb(1|((bit&bitstring)?0x02:0),Serial_Command);
-		udelay(1);
+		comedi_udelay(1);
 	}
 	ni_writeb(loadbit,Serial_Command);
-	udelay(1);
+	comedi_udelay(1);
 	ni_writeb(0,Serial_Command);
 }
 

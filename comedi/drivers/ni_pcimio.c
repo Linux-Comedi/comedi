@@ -85,7 +85,7 @@ Bugs:
 
 	need to slow down DAC loading.  I don't trust NI's claim that
 	two writes to the PCI bus slows IO enough.  I would prefer to
-	use udelay().  Timing specs: (clock)
+	use comedi_udelay().  Timing specs: (clock)
 		AD8522		30ns
 		DAC8043		120ns
 		DAC8800		60ns

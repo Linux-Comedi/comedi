@@ -483,7 +483,7 @@ static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 		//devpriv->status1 |= 0x0009;
 		outw(devpriv->status1, dev->iobase + 4);
-		udelay(1);
+		comedi_udelay(1);
 
 		status1 = devpriv->status1;
 		//if(chan)status1 &= ~0x0008;
@@ -493,17 +493,17 @@ static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 		printk("0x%04x\n",status1);
 		outw(status1, dev->iobase + 4);
-		udelay(1);
+		comedi_udelay(1);
 
 		for(bit=15;bit>=0;bit--){
 			int b = (d>>bit)&1;
 
 			printk("0x%04x\n",status1 | b | 0x0000);
 			outw(status1 | b | 0x0000, dev->iobase + 4);
-			udelay(1);
+			comedi_udelay(1);
 			printk("0x%04x\n",status1 | b | 0x0004);
 			outw(status1 | b | 0x0004, dev->iobase + 4);
-			udelay(1);
+			comedi_udelay(1);
 		}
 
 		outw(devpriv->status1, dev->iobase + 4);

@@ -344,11 +344,11 @@ static int pci9118_insn_read_ai(comedi_device *dev,comedi_subdevice *s, comedi_i
 
 	for (n=0; n<insn->n; n++) {
 		outw(0, dev->iobase+PCI9118_SOFTTRG); /* start conversion */
-		udelay(2);
+		comedi_udelay(2);
     		timeout=100;
     		while (timeout--) {
 			if (inl(dev->iobase+PCI9118_ADSTAT) & AdStatus_ADrdy) goto conv_finish;
-			udelay(1);
+			comedi_udelay(1);
     		}
 
     		comedi_error(dev,"A/D insn timeout");
@@ -1611,7 +1611,7 @@ static int pci9118_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	outl(devpriv->AdControlReg,dev->iobase+PCI9118_ADCNTRL);
 	devpriv->AdFunctionReg=AdFunction_PDTrg|AdFunction_PETrg;	// positive triggers, no S&H, no burst, burst stop, no post trigger, no about trigger, trigger stop
 	outl(devpriv->AdFunctionReg,dev->iobase+PCI9118_ADFUNC);
-	udelay(1);
+	comedi_udelay(1);
 	outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
 	inl(dev->iobase+PCI9118_ADSTAT); // flush A/D and INT status register
 	inl(dev->iobase+PCI9118_INTSRC);
@@ -1778,7 +1778,7 @@ static int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_c
 #endif
 #endif
 	outl(0,dev->iobase+PCI9118_SCANMOD);	// close scan queue
-//	udelay(100);				// important delay, or first sample will be cripled
+//	comedi_udelay(100);				// important delay, or first sample will be cripled
 
 	DPRINTK("adl_pci9118 EDBG: END: setup_channel_list()\n");
 	return 1; // we can serve this with scan logic
@@ -1839,7 +1839,7 @@ static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, un
         outl(0x74, dev->iobase + PCI9118_CNTCTRL);
         outl(0xb4, dev->iobase + PCI9118_CNTCTRL);
 //	outl(0x30, dev->iobase + PCI9118_CNTCTRL);
-        udelay(1);
+        comedi_udelay(1);
   
         if ((mode==1)||(mode==2)||(mode==4)) {
 		outl(divisor2 & 0xff, dev->iobase + PCI9118_CNT2);
@@ -1939,7 +1939,7 @@ static int pci9118_reset(comedi_device *dev)
 	outl(devpriv->ao_data[0],dev->iobase+PCI9118_DA1);// reset A/D outs to 0V
 	outl(devpriv->ao_data[1],dev->iobase+PCI9118_DA2);
 	outl(0,dev->iobase+PCI9118_DO);	// reset digi outs to L
-	udelay(10);
+	comedi_udelay(10);
 	inl(dev->iobase+PCI9118_AD_DATA);
 	outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
 	outl(0,dev->iobase+PCI9118_INTSRC); // remove INT requests

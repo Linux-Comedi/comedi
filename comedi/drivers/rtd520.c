@@ -135,7 +135,7 @@ Configuration options:
 #define RTD_DMA_TIMEOUT	33000		/* 1 msec */
 #else
 /* by delaying, power and electrical noise are reduced somewhat */
-#define WAIT_QUIETLY	udelay (1)
+#define WAIT_QUIETLY	comedi_udelay (1)
 #define RTD_ADC_TIMEOUT	2000		/* in usec */
 #define RTD_DAC_TIMEOUT	2000		/* in usec */
 #define RTD_DMA_TIMEOUT	1000		/* in usec */
@@ -995,7 +995,7 @@ static int rtd_attach (
 					/* initialize board, per RTD spec */
 					/* also, initialize shadow registers */
     RtdResetBoard (dev);
-    udelay (100);			/* needed? */
+    comedi_udelay (100);			/* needed? */
     RtdInterruptMask (dev,0);		/* and sets shadow */
     RtdInterruptClearMask (dev,~0);	/* and sets shadow */
     RtdInterruptClear(dev);		/* clears bits set by mask */
@@ -1392,7 +1392,7 @@ void abort_dma (
 
     /* disable channel (required) */
     writeb(0, dma_cs_addr);
-    udelay(1);				/* needed?? */
+    comedi_udelay(1);				/* needed?? */
     /* set abort bit for channel */
     writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 

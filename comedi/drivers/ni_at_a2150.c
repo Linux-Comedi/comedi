@@ -453,7 +453,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		if((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
 			break;
-		udelay(1000);
+		comedi_udelay(1000);
 	}
 	if(i == timeout)
 	{
@@ -786,7 +786,7 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		{
 			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
-			udelay(1);
+			comedi_udelay(1);
 		}
 		if(i == timeout)
 		{
@@ -803,7 +803,7 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		{
 			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
-			udelay(1);
+			comedi_udelay(1);
 		}
 		if(i == timeout)
 		{

@@ -379,7 +379,7 @@ static inline int plx9080_abort_dma( unsigned long iobase, unsigned int channel 
 	for( i = 0; ( dma_status & PLX_DMA_DONE_BIT ) && i < timeout; i++ )
 	{
 		dma_status = readb( dma_cs_addr );
-		udelay( 1 );
+		comedi_udelay( 1 );
 	}
 	if( i == timeout )
 	{
@@ -388,14 +388,14 @@ static inline int plx9080_abort_dma( unsigned long iobase, unsigned int channel 
 	}
 	// disable channel
 	writeb( 0, dma_cs_addr );
-	udelay( 1 );
+	comedi_udelay( 1 );
 	// abort channel
 	writeb( PLX_DMA_ABORT_BIT, dma_cs_addr );
 	// wait for dma done bit
 	dma_status = readb( dma_cs_addr );
 	for( i = 0; ( dma_status & PLX_DMA_DONE_BIT ) == 0 && i < timeout; i++ )
 	{
-		udelay( 1 );
+		comedi_udelay( 1 );
 		dma_status = readb( dma_cs_addr );
 	}
 	if( i == timeout )

@@ -1716,7 +1716,7 @@ static void write_calibration_bitstream( comedi_device *dev, unsigned int regist
 			register_bits |= SERIAL_DATA_IN_BIT;
 		else
 			register_bits &= ~SERIAL_DATA_IN_BIT;
-		udelay( write_delay );
+		comedi_udelay( write_delay );
 		outw( register_bits, devpriv->control_status + CALIBRATION_REG);
 	}
 }
@@ -1726,7 +1726,7 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	static const int num_caldac_channels = 8;
 	static const int bitstream_length = 11;
 	unsigned int bitstream = ((address & 0x7) << 8) | value;
-	static const int caldac_8800_udelay = 1;
+	static const int caldac_8800_comedi_udelay = 1;
 
 	if(address >= num_caldac_channels)
 	{
@@ -1736,9 +1736,9 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 
 	write_calibration_bitstream( dev, 0, bitstream, bitstream_length );
 
-	udelay(caldac_8800_udelay);
+	comedi_udelay(caldac_8800_comedi_udelay);
 	outw(SELECT_8800_BIT, devpriv->control_status + CALIBRATION_REG);
-	udelay(caldac_8800_udelay);
+	comedi_udelay(caldac_8800_comedi_udelay);
 	outw(0, devpriv->control_status + CALIBRATION_REG);
 
 	return 0;
@@ -1749,15 +1749,15 @@ static int trimpot_7376_write(comedi_device *dev, uint8_t value)
 	static const int bitstream_length = 7;
 	unsigned int bitstream = value & 0x7f;
 	unsigned int register_bits;
-	static const int ad7376_udelay = 1;
+	static const int ad7376_comedi_udelay = 1;
 
 	register_bits = SELECT_TRIMPOT_BIT;
-	udelay( ad7376_udelay );
+	comedi_udelay( ad7376_comedi_udelay );
 	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
 
 	write_calibration_bitstream( dev, register_bits, bitstream, bitstream_length );
 
-	udelay(ad7376_udelay);
+	comedi_udelay(ad7376_comedi_udelay);
 	outw(0, devpriv->control_status + CALIBRATION_REG);
 
 	return 0;
@@ -1772,15 +1772,15 @@ static int trimpot_8402_write(comedi_device *dev, unsigned int channel, uint8_t 
 	static const int bitstream_length = 10;
 	unsigned int bitstream = ( ( channel & 0x1 ) << 8 ) | ( value & 0xff );
 	unsigned int register_bits;
-	static const int ad8402_udelay = 1;
+	static const int ad8402_comedi_udelay = 1;
 
 	register_bits = SELECT_TRIMPOT_BIT;
-	udelay( ad8402_udelay );
+	comedi_udelay( ad8402_comedi_udelay );
 	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
 
 	write_calibration_bitstream( dev, register_bits, bitstream, bitstream_length );
 
-	udelay(ad8402_udelay);
+	comedi_udelay(ad8402_comedi_udelay);
 	outw(0, devpriv->control_status + CALIBRATION_REG);
 
 	return 0;
@@ -1795,7 +1795,7 @@ static int wait_for_nvram_ready( unsigned long s5933_base_addr )
 	{
 		if( ( inb( s5933_base_addr + AMCC_OP_REG_MCSR_NVCMD ) & MCSR_NV_BUSY ) == 0 )
 			return 0;
-		udelay( 1 );
+		comedi_udelay( 1 );
 	}
 	return -1;
 }

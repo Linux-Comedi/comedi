@@ -264,7 +264,7 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
     		printk("icp multi B n=%d ST=%4x\n",n,readw(dev->iobase+ICP_MULTI_ADC_CSR));
 #endif
 
-		udelay(1);
+		comedi_udelay(1);
 
 #ifdef ICP_MULTI_EXTDEBUG
     		printk("icp multi C n=%d ST=%4x\n",n,readw(dev->iobase+ICP_MULTI_ADC_CSR));
@@ -281,7 +281,7 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
 				printk("icp multi D n=%d tm=%d ST=%4x\n",n,timeout,readw(dev->iobase+ICP_MULTI_ADC_CSR));
 #endif
 
-			udelay(1);
+			comedi_udelay(1);
     		}
 
 		// If we reach here, a timeout has occurred
@@ -381,7 +381,7 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 				printk("icp multi A n=%d tm=%d ST=%4x\n",n,timeout,readw(dev->iobase+ICP_MULTI_DAC_CSR));
 #endif
 
-			udelay(1);
+			comedi_udelay(1);
     		}
 
 		// If we reach here, a timeout has occurred
@@ -812,7 +812,7 @@ static int icp_multi_reset(comedi_device *dev)
 			writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
 			
 			// Delay to allow DAC time to recover
-			udelay(1);
+			comedi_udelay(1);
 		}
 	
 	// Digital outputs to 0

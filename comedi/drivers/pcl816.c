@@ -253,7 +253,7 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 				outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT (conversion end) flag */
 				break;
 			}
-			udelay (1);
+			comedi_udelay (1);
 		}
 		// Return timeout error
 		if(!timeout) {
@@ -283,7 +283,7 @@ interrupt_pcl816_ai_mode13_int (int irq, void *d, struct pt_regs *regs)
   while (timeout--) {
 	  if (!(inb (dev->iobase + PCL816_STATUS) & PCL816_STATUS_DRDY_MASK)) 
 		break;
-      udelay (1);
+      comedi_udelay (1);
   }
   if(!timeout) { 			// timeout, bail error
 	outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
@@ -624,7 +624,7 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if (!check_and_setup_channel_list (dev, s, cmd->chanlist, cmd->chanlist_len))
 	    return -EINVAL;
-	udelay (1);
+	comedi_udelay (1);
 
 		
     devpriv->ai_act_scan=0;
@@ -753,7 +753,7 @@ pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 	case INT_TYPE_AI1_INT:
 	case INT_TYPE_AI3_INT:
 	  outb (inb (dev->iobase + PCL816_CONTROL) & 0x73, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
-	  udelay (1);
+	  comedi_udelay (1);
 	  outb (0, dev->iobase + PCL816_CONTROL);	/* Stop A/D */
 	  outb (0xb0, dev->iobase + PCL816_CTRCTL);	/* Stop pacer */
 	  outb (0x70, dev->iobase + PCL816_CTRCTL);
@@ -782,17 +782,17 @@ pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 static int pcl816_check (int iobase)
 {
   outb (0x00, iobase + PCL816_MUX);
-  udelay (1);
+  comedi_udelay (1);
   if (inb (iobase + PCL816_MUX) != 0x00)
     return 1;			//there isn't card
   outb (0x55, iobase + PCL816_MUX);
-  udelay (1);
+  comedi_udelay (1);
   if (inb (iobase + PCL816_MUX) != 0x55)
     return 1;			//there isn't card
   outb (0x00, iobase + PCL816_MUX);
-  udelay (1);
+  comedi_udelay (1);
   outb (0x18, iobase + PCL816_CONTROL);
-  udelay (1);
+  comedi_udelay (1);
   if (inb (iobase + PCL816_CONTROL) != 0x18)
     return 1;			//there isn't card
   return 0;			// ok, card exist
@@ -807,10 +807,10 @@ pcl816_reset (comedi_device * dev)
 {
 //  outb (0, dev->iobase + PCL818_DA_LO);	// DAC=0V
 //  outb (0, dev->iobase + PCL818_DA_HI);
-//  udelay (1);
+//  comedi_udelay (1);
 //  outb (0, dev->iobase + PCL818_DO_HI);	// DO=$0000
 //  outb (0, dev->iobase + PCL818_DO_LO);
-//  udelay (1);
+//  comedi_udelay (1);
   outb (0, dev->iobase + PCL816_CONTROL);
   outb (0, dev->iobase + PCL816_MUX);
   outb (0, dev->iobase + PCL816_CLRINT);
@@ -832,10 +832,10 @@ start_pacer (comedi_device * dev, int mode, unsigned int divisor1,
 	outb (0x32, dev->iobase + PCL816_CTRCTL);
 	outb (0xff, dev->iobase + PCL816_CTR0);
 	outb (0x00, dev->iobase + PCL816_CTR0);
-	udelay (1);
+	comedi_udelay (1);
     outb(0xb4, dev->iobase + PCL816_CTRCTL);	// set counter 2 as mode 3
     outb(0x74, dev->iobase + PCL816_CTRCTL);	// set counter 1 as mode 3
-    udelay(1);
+    comedi_udelay(1);
 
 	if (mode == 1) {
 	    DPRINTK("mode %d, divisor1 %d, divisor2 %d\n", mode, divisor1, divisor2);
@@ -912,7 +912,7 @@ check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigne
 	  outb (CR_RANGE(chanlist[0]), dev->iobase + PCL816_RANGE);	/* select gain */
   }
 
-  udelay (1);
+  comedi_udelay (1);
 
   outb (devpriv->ai_act_chanlist[0] | (devpriv->ai_act_chanlist[seglen - 1] << 4),
 	dev->iobase + PCL816_MUX);	/* select channel interval to scan */

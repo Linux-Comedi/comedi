@@ -829,7 +829,7 @@ static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	range &= 0xf;
 	outb(range, dev->iobase + DAS800_GAIN);
 
-	udelay(5);
+	comedi_udelay(5);
 
 	for(n = 0; n < insn->n; n++)
 	{

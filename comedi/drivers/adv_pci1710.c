@@ -323,7 +323,7 @@ static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comed
 	for (n=0; n<insn->n; n++) {
 		outw(0, dev->iobase+PCI171x_SOFTTRG); /* start conversion */
     		DPRINTK("adv_pci1710 B n=%d ST=%4x\n",n,inw(dev->iobase+PCI171x_STATUS));
-		//udelay(1);
+		//comedi_udelay(1);
     		DPRINTK("adv_pci1710 C n=%d ST=%4x\n",n,inw(dev->iobase+PCI171x_STATUS));
     		timeout=100;
     		while (timeout--) {

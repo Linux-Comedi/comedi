@@ -1523,7 +1523,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 				if( pipe_full_bits( bits ) )
 					break;
 			}
-			udelay(1);
+			comedi_udelay(1);
 		}
 		DEBUG_PRINT(" looped %i times waiting for data\n", i);
 		if(i == timeout)
@@ -2663,12 +2663,12 @@ static void ad8402_write( comedi_device *dev, unsigned int channel, unsigned int
 	static const int bitstream_length = 10;
 	unsigned int bit, register_bits;
 	unsigned int bitstream = ( ( channel & 0x3 ) << 8 ) | ( value & 0xff );
-	static const int ad8402_udelay = 1;
+	static const int ad8402_comedi_udelay = 1;
 
 	priv(dev)->ad8402_state[ channel ] = value;
 
 	register_bits = SELECT_8402_64XX_BIT;
-	udelay( ad8402_udelay );
+	comedi_udelay( ad8402_comedi_udelay );
 	writew( register_bits, priv(dev)->main_iobase + CALIBRATION_REG );
 
 	for( bit = 1 << ( bitstream_length - 1 ); bit; bit >>= 1 )
@@ -2677,13 +2677,13 @@ static void ad8402_write( comedi_device *dev, unsigned int channel, unsigned int
 			register_bits |= SERIAL_DATA_IN_BIT;
 		else
 			register_bits &= ~SERIAL_DATA_IN_BIT;
-		udelay( ad8402_udelay );
+		comedi_udelay( ad8402_comedi_udelay );
 		writew( register_bits, priv(dev)->main_iobase + CALIBRATION_REG );
-		udelay( ad8402_udelay );
+		comedi_udelay( ad8402_comedi_udelay );
 		writew( register_bits | SERIAL_CLOCK_BIT, priv(dev)->main_iobase + CALIBRATION_REG );
 	}
 
-	udelay( ad8402_udelay );
+	comedi_udelay( ad8402_comedi_udelay );
 	writew( 0, priv(dev)->main_iobase + CALIBRATION_REG );
 }
 
@@ -2722,15 +2722,15 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	const int plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
 	uint16_t value;
 	static const int value_length = 16;
-	static const int eeprom_udelay = 1;
+	static const int eeprom_comedi_udelay = 1;
 
-	udelay(eeprom_udelay);
+	comedi_udelay(eeprom_comedi_udelay);
 	priv(dev)->plx_control_bits &= ~CTL_EE_CLK & ~CTL_EE_CS;
 	// make sure we don't send anything to the i2c bus on 4020
 	priv(dev)->plx_control_bits |= CTL_USERO;
 	writel(priv(dev)->plx_control_bits, plx_control_addr);
 	// activate serial eeprom
-	udelay(eeprom_udelay);
+	comedi_udelay(eeprom_comedi_udelay);
 	priv(dev)->plx_control_bits |= CTL_EE_CS;
 	writel(priv(dev)->plx_control_bits, plx_control_addr);
 
@@ -2738,17 +2738,17 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
 	{
 		// set bit to be written
-		udelay(eeprom_udelay);
+		comedi_udelay(eeprom_comedi_udelay);
 		if(bitstream & bit)
 			priv(dev)->plx_control_bits |= CTL_EE_W;
 		else
 			priv(dev)->plx_control_bits &= ~CTL_EE_W;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
 		// clock in bit
-		udelay(eeprom_udelay);
+		comedi_udelay(eeprom_comedi_udelay);
 		priv(dev)->plx_control_bits |= CTL_EE_CLK;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(eeprom_udelay);
+		comedi_udelay(eeprom_comedi_udelay);
 		priv(dev)->plx_control_bits &= ~CTL_EE_CLK;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
 	}
@@ -2757,19 +2757,19 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	for(bit = 1 << (value_length - 1); bit; bit >>= 1)
 	{
 		// clock out bit
-		udelay(eeprom_udelay);
+		comedi_udelay(eeprom_comedi_udelay);
 		priv(dev)->plx_control_bits |= CTL_EE_CLK;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(eeprom_udelay);
+		comedi_udelay(eeprom_comedi_udelay);
 		priv(dev)->plx_control_bits &= ~CTL_EE_CLK;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(eeprom_udelay);
+		comedi_udelay(eeprom_comedi_udelay);
 		if(readl(plx_control_addr) & CTL_EE_R)
 			value |= bit;
 	}
 
 	// deactivate eeprom serial input
-	udelay(eeprom_udelay);
+	comedi_udelay(eeprom_comedi_udelay);
 	priv(dev)->plx_control_bits &= ~CTL_EE_CS;
 	writel(priv(dev)->plx_control_bits, plx_control_addr);
 
@@ -2930,7 +2930,7 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	static const int bitstream_length = 11;
 	unsigned int bitstream = ((address & 0x7) << 8) | value;
 	unsigned int bit, register_bits;
-	static const int caldac_8800_udelay = 1;
+	static const int caldac_8800_comedi_udelay = 1;
 
 	if(address >= num_caldac_channels)
 	{
@@ -2943,16 +2943,16 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 		register_bits = 0;
 		if(bitstream & bit)
 			register_bits |= SERIAL_DATA_IN_BIT;
-		udelay(caldac_8800_udelay);
+		comedi_udelay(caldac_8800_comedi_udelay);
 		writew(register_bits, priv(dev)->main_iobase + CALIBRATION_REG);
 		register_bits |= SERIAL_CLOCK_BIT;
-		udelay(caldac_8800_udelay);
+		comedi_udelay(caldac_8800_comedi_udelay);
 		writew(register_bits, priv(dev)->main_iobase + CALIBRATION_REG);
         }
 
-	udelay(caldac_8800_udelay);
+	comedi_udelay(caldac_8800_comedi_udelay);
 	writew(SELECT_8800_BIT, priv(dev)->main_iobase + CALIBRATION_REG);
-	udelay(caldac_8800_udelay);
+	comedi_udelay(caldac_8800_comedi_udelay);
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
 
 	return 0;
@@ -3022,8 +3022,8 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 }
 
 // Their i2c requires a huge delay on setting clock or data high for some reason
-static const int i2c_high_udelay = 1000;
-static const int i2c_low_udelay = 10;
+static const int i2c_high_comedi_udelay = 1000;
+static const int i2c_low_comedi_udelay = 10;
 
 // set i2c data line high or low
 static void i2c_set_sda(comedi_device *dev, int state)
@@ -3036,12 +3036,12 @@ static void i2c_set_sda(comedi_device *dev, int state)
 		// set data line high
 		priv(dev)->plx_control_bits &= ~data_bit;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(i2c_high_udelay);
+		comedi_udelay(i2c_high_comedi_udelay);
 	}else // set data line low
 	{
 		priv(dev)->plx_control_bits |= data_bit;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(i2c_low_udelay);
+		comedi_udelay(i2c_low_comedi_udelay);
 	}
 }
 
@@ -3056,12 +3056,12 @@ static void i2c_set_scl(comedi_device *dev, int state)
 		// set clock line high
 		priv(dev)->plx_control_bits &= ~clock_bit;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(i2c_high_udelay);
+		comedi_udelay(i2c_high_comedi_udelay);
 	}else // set clock line low
 	{
 		priv(dev)->plx_control_bits |= clock_bit;
 		writel(priv(dev)->plx_control_bits, plx_control_addr);
-		udelay(i2c_low_udelay);
+		comedi_udelay(i2c_low_comedi_udelay);
 	}
 }
 
