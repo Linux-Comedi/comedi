@@ -57,8 +57,8 @@ int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
 	if(copy_from_user(&it,arg,sizeof(comedi_rangeinfo)))
 		return -EFAULT;
 
-	minor=(it.range_type>>24)&0xf;
-	subd=(it.range_type>>20)&0xf;
+	minor=(it.range_type>>28)&0xf;
+	subd=(it.range_type>>24)&0xf;
 	chan=(it.range_type>>16)&0xff;
 
 	if(minor>COMEDI_NDEVICES)

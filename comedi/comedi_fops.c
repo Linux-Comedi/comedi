@@ -204,7 +204,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->len_chanlist	= s->len_chanlist;
 		us->maxdata		= s->maxdata;
 		if(s->range_table){
-			us->range_type	= (dev->minor<<24)|(i<<20)|(0<<16)|
+			us->range_type	= (dev->minor<<28)|(i<<24)|(0<<16)|
 					(s->range_table->length);
 		}else{
 			us->range_type	= 0; /* XXX */
@@ -291,7 +291,7 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 		for(i=0;i<s->n_chan;i++){
 			int x;
 
-			x=(dev->minor<<24)|(it.subdev<<20)|(i<<16)|
+			x=(dev->minor<<28)|(it.subdev<<24)|(i<<16)|
 				(s->range_table_list[i]->length);
 			put_user(x,it.rangelist+i);
 		}
