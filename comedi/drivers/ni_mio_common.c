@@ -860,22 +860,16 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 
 			/* This may get the hi/lo data in the wrong order */
 			data = (dl>>16) & 0xffff;
-			data += devpriv->ai_offset[ async->cur_chan++ ];
 			no_err &= comedi_buf_put(s->async, data);
-			async->cur_chan %= async->cmd.chanlist_len;
 			data = dl & 0xffff;
-			data += devpriv->ai_offset[ async->cur_chan++ ];
 			no_err &= comedi_buf_put(s->async, data);
-			async->cur_chan %= async->cmd.chanlist_len;
 		}
 
 		/* Check if there's a single sample stuck in the FIFO */
 		if( n % 2){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 			data = dl & 0xffff;
-			data += devpriv->ai_offset[ async->cur_chan++ ];
 			no_err &= comedi_buf_put(s->async, data);
-			async->cur_chan %= async->cmd.chanlist_len;
 		}
 		if(no_err==0){
 			async->events |= COMEDI_CB_OVERFLOW;
@@ -889,8 +883,6 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		}
 		for(i=0;i<n;i++){
 			devpriv->ai_fifo_buffer[ n ] = ni_readw(ADC_FIFO_Data_Register);
-			devpriv->ai_fifo_buffer[ n ] += devpriv->ai_offset[ async->cur_chan++ ];
-			async->cur_chan %= async->cmd.chanlist_len;
 		}
 		cfc_write_array_to_buffer( s, devpriv->ai_fifo_buffer,
 			n * sizeof(devpriv->ai_fifo_buffer[0]) );
@@ -958,18 +950,14 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
-			data = (dl>>16) + devpriv->ai_offset[async->cur_chan++];
-			async->cur_chan %= async->cmd.chanlist_len;
+			data = (dl>>16);
 			err &= comedi_buf_put(s->async, data);
-			data = (dl&0xffff) + devpriv->ai_offset[async->cur_chan++];
-			async->cur_chan %= async->cmd.chanlist_len;
+			data = (dl&0xffff);
 			err &= comedi_buf_put(s->async, data);
 		}
 	}else{
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
 			data=ni_readw(ADC_FIFO_Data_Register);
-			data+=devpriv->ai_offset[async->cur_chan++];
-			async->cur_chan %= async->cmd.chanlist_len;
 			err &= comedi_buf_put(s->async, data);
 		}
 	}
@@ -991,8 +979,7 @@ static void get_last_sample_611x( comedi_device *dev )
 	/* Check if there's a single sample stuck in the FIFO */
 	if(ni_readb(XXX_Status)&0x80){
 		dl=ni_readl(ADC_FIFO_Data_611x);
-		data = (dl&0xffff) + devpriv->ai_offset[async->cur_chan++];
-		async->cur_chan %= async->cmd.chanlist_len;
+		data = (dl&0xffff);
 		err &= comedi_buf_put(s->async, data);
 	}
 	if(err==0){
