@@ -805,3 +805,25 @@ int comedi_unmap(unsigned int minor, unsigned int subdev)
 	return 0;
 }
 
+
+int comedi_loglevel(int newlevel)
+{
+	return 0;
+}
+
+int comedi_perror(const char *message)
+{
+	rt_printk("%s: unknown error\n",message);
+}
+
+char *comedi_strerror(int err)
+{
+	return "unknown error";
+} 
+
+int comedi_fileno(comedi_t *dev)
+{
+	/* return something random */
+	return ((comedi_device *)dev)->minor;
+}
+
