@@ -1,8 +1,6 @@
 
 comment 'Comedi Features'
 
-bool 'comedi_trig compatibility (deprecated)' CONFIG_COMEDI_TRIG
-
 if [ "$CONFIG_RTL" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
 	if [ "$CONFIG_COMEDI_RT" = "y" ];then
@@ -114,5 +112,6 @@ dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	dep_tristate 'Real-time command emulator (timer)' CONFIG_COMEDI_RT_TIMER $CONFIG_COMEDI
+	else define_bool CONFIG_COMEDI_RT_TIMER n
 fi
 
