@@ -23,6 +23,8 @@
 Driver: rtd520.o
 Description: Real Time Devices PCI4520/DM7520
 Author: Dan Christian
+Devices: [Real Time Devices] DM7520HR-1 (DM7520), DM7520HR-8 (DM7520-8),
+  PCI4520 (PCI4520), PCI4520-8 (PCI4520-8)
 
 Configuration options:
   [0] - PCI bus of device (optional)

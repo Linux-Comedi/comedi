@@ -4,9 +4,10 @@
  */
 /*
 Driver: pcl725.o
-Description: PC-LabCard PCL-725 (& compatibles)
+Description: Advantech PCL-725 (& compatibles)
 Author: ds
 Status: unknown
+Devices: [Advantech] PCL-725 (pcl725)
 */
 
 #include <linux/kernel.h>

@@ -1,11 +1,13 @@
 /*
     comedi/drivers/fl512.c
+    Anders Gnistrup <ex18@kalman.iau.dtu.dk>
 */
 
 /*
 Driver: fl512.o
 Description: unknown
 Author: unknown
+Devices: [unknown] FL512 (fl512)
 
 Digital I/O is not supported.
 
@@ -53,6 +55,7 @@ comedi_driver driver_fl512 = {
  attach:  fl512_attach,
  detach:  fl512_detach,
 };
+COMEDI_INITCLEANUP(driver_fl512);
 
 static int fl512_ai_insn(comedi_device *dev,
       comedi_subdevice *s,
@@ -198,5 +201,4 @@ static int fl512_detach(comedi_device *dev)
   return 0;
 }
 
-COMEDI_INITCLEANUP(driver_fl512);
 

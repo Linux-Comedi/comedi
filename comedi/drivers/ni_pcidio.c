@@ -27,7 +27,7 @@ Driver: ni_pcidio.o
 Description: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
 Author: ds
 Status: works in immediate mode
-Known-Devices: [National Instruments] PCI-DIO-32HS, PXI-6533,
+Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
   PXI-6503
 

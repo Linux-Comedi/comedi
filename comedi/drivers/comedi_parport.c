@@ -25,7 +25,7 @@ Driver: comedi_parport.o
 Description: Standard PC parallel port
 Author: ds
 Status: works in immediate mode
-Devices: [standard] parallel port
+Devices: [standard] parallel port (comedi_parport)
 
 A cheap and easy way to get a few more digital I/O lines.  Steal
 additional parallel ports from old computers or your neighbors'

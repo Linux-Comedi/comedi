@@ -25,6 +25,8 @@ Driver: multiq3.o
 Description: Quanser Consulting MultiQ-3
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
+Devices: [Quanser Consulting] MultiQ-3 (multiq3)
+
 */
 
 #include <linux/kernel.h>

@@ -25,7 +25,7 @@ Driver: daqboard2000.o
 Description: IOTech DAQBoard/2000
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
-Devices: [IOTech] DAQBoard/2000
+Devices: [IOTech] DAQBoard/2000 (daqboard2000)
 
 Much of the functionality of this driver was determined from reading
 the source code for the Windows driver.

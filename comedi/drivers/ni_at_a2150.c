@@ -26,7 +26,7 @@ Driver: ni_at_a2150.o
 Description: National Instruments AT-A2150
 Author: Frank Mori Hess
 Status: works
-Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_2150s)
+Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_a2150s)
 
 If you want to ac couple the board's inputs, use AREF_OTHER.
 

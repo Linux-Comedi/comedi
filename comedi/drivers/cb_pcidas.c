@@ -53,9 +53,9 @@ Status:
   - PCI-DAS1000, 1001, 1002: Should work, but untested.  Please report
     usage.
 Updated: 2001-8-27
-Devices: [Measurement Computing] PCI-DAS1602/16, PCI-DAS1602/16jr,
-  PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr, PCI-DAS1000,
-  PCI-DAS1001, PCI_DAS1002
+Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
+  PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
+  PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
 
 This driver originally intended to support the whole PCI-DAS series,
 but cards based on the PLX PCI controller are excluded for being

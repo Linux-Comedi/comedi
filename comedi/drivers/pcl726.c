@@ -1,5 +1,5 @@
 /*
-    module/pcl726.c
+    comedi/drivers/pcl726.c
 
     hardware driver for Advantech cards:
      card:   PCL-726, PCL-727, PCL-728
@@ -31,9 +31,8 @@ Driver: pcl726.o
 Description: Advantech PCL-726 & compatibles
 Author: ds
 Status: untested
-Device-Names: pcl726, pcl727, pcl728, acl6126, acl6128
-Known-Devices: [Advantech] PCL-726, PCL-727, PCL-728, [ADLink] ACL-6126,
-  ACL-6128
+Devices: [Advantech] PCL-726 (pcl726), PCL-727 (pcl727), PCL-728 (pcl728),
+  [ADLink] ACL-6126 (acl6126), ACL-6128 (acl6128)
 
 Interrupts are not supported.
 

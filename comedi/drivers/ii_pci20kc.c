@@ -42,6 +42,7 @@
 Driver: ii_pci20kc.o
 Description: Intelligent Instruments PCI-20001C carrier board
 Author: Markus Kempf <kempf@matsci.uni-sb.de>
+Devices: [Intelligent Instrumentation] PCI-20001C (ii_pci20kc)
 Status: works
 
 Supports the PCI-20001 C-2a Carrier board, and could probably support

@@ -24,6 +24,7 @@
 Driver: rti802.o
 Description: Analog Devices RTI-802
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Drivers: (Analog Devices) RTI-802 (rti802)
 Status: works
 */
 
@@ -50,7 +51,7 @@ Status: works
 
 static int rti802_attach(comedi_device *dev,comedi_devconfig *it);
 static int rti802_detach(comedi_device *dev);
-comedi_driver driver_rti802={
+static comedi_driver driver_rti802={
 	driver_name:	"rti802",
 	module:		THIS_MODULE,
 	attach:		rti802_attach,

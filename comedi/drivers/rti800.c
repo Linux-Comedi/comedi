@@ -25,6 +25,7 @@ Driver: rti800.o
 Description: Analog Devices RTI-800/815
 Author: ds
 Status: unknown
+Drivers: (Analog Devices) RTI-800 (rti800), RTI-815 (rti815)
 
 Configuration options:
   [0] - I/O port base address
@@ -137,7 +138,7 @@ static boardtype boardtypes[]={
 
 static int rti800_attach(comedi_device *dev,comedi_devconfig *it);
 static int rti800_detach(comedi_device *dev);
-comedi_driver driver_rti800={
+static comedi_driver driver_rti800={
 	driver_name:	"rti800",
 	module:		THIS_MODULE,
 	attach:		rti800_attach,

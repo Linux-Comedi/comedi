@@ -23,6 +23,7 @@
 /*
 Driver: 8255.o
 Description: generic 8255 support
+Devices: [standard] 8255 (8255)
 Author: ds
 
 The classic in digital I/O.  Three channels of 8 bit digital I/O,
