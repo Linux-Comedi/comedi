@@ -1,6 +1,6 @@
 /*
     ni_labpc.c driver for National Instruments Lab-PC series boards and compatibles
-    Copyright (C) 2000 Frank Mori Hess <fmhess@uiuc.edu>
+    Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,9 +24,10 @@ Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-1200),
   Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200)
-Status: In development.  For the older Lab-PC+, not all input ranges and analog
-  references will work, depending on how you
-  have configured the jumpers on your board (see your owner's manual).
+Status: Works (tested with lab-pc-1200).  For the older Lab-PC+, not all input
+  ranges and analog references will work, the available
+  ranges/arefs will depend on how you have configured
+  the jumpers on your board (see your owner's manual).
 
 Configuration options - ISA boards:
   [0] - I/O port base address
@@ -49,7 +50,6 @@ like lab-pc+ or scan up from channel zero.
 /*
 TODO:
 	pcmcia
-	make more variables volatile as appropriate
 
 NI manuals:
 341309a (labpc-1200 register manual)
@@ -90,7 +90,7 @@ NI manuals:
 
 //write-only registers
 #define COMMAND1_REG	0x0
-#define   ADC_GAIN_BITS(x)	(((x) & 0x7) << 4)
+#define   ADC_GAIN_MASK	(0x7 << 4)
 #define   ADC_CHAN_BITS(x)	((x) & 0x7)
 #define   ADC_SCAN_EN_BIT	0x80	// enables multi channel scans
 #define COMMAND2_REG	0x1
@@ -153,7 +153,8 @@ NI manuals:
 #define DIO_BASE_REG	0x10
 #define COUNTER_A_BASE_REG	0x14
 #define COUNTER_A_CONTROL_REG	(COUNTER_A_BASE_REG + 0x3)
-#define   INIT_A1_BITS	0x70
+#define   INIT_A0_BITS	0x14	// check modes put conversion pacer output in harmless state (a0 mode 2)
+#define   INIT_A1_BITS	0x70	// put hardware conversion counter output in harmless state (a1 mode 0)
 #define COUNTER_B_BASE_REG	0x18
 
 
@@ -205,15 +206,56 @@ typedef struct labpc_board_struct{
 	// function pointers so we can use inb/outb or readb/writeb as appropriate
 	unsigned int (*read_byte)(unsigned int address);
 	void (*write_byte)(unsigned int byte, unsigned int address);
+	comedi_lrange *ai_range_table;
+	int *ai_range_code;
+	int *ai_range_is_unipolar;
 }labpc_board;
 
 //analog input ranges
 
-#define AI_RANGE_IS_UNIPOLAR 0x8	// unipolar/bipolar bit
-#define AI_RANGE_GAIN_MASK 0x7	// gain bits
-
-static comedi_lrange range_labpc_ai = {
-	16,
+#define NUM_LABPC_PLUS_AI_RANGES 16
+// indicates unipolar ranges
+static int labpc_plus_is_unipolar[NUM_LABPC_PLUS_AI_RANGES] =
+{
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+};
+// map range index to gain bits
+static int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] =
+{
+	0x00,
+	0x10,
+	0x20,
+	0x30,
+	0x40,
+	0x50,
+	0x60,
+	0x70,
+	0x00,
+	0x10,
+	0x20,
+	0x30,
+	0x40,
+	0x50,
+	0x60,
+	0x70,
+};
+static comedi_lrange range_labpc_plus_ai = {
+	NUM_LABPC_PLUS_AI_RANGES,
 	{
 		BIP_RANGE(5),
 		BIP_RANGE(4),
@@ -225,6 +267,63 @@ static comedi_lrange range_labpc_ai = {
 		BIP_RANGE(0.05),
 		UNI_RANGE(10),
 		UNI_RANGE(8),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1),
+	}
+};
+
+#define NUM_LABPC_1200_AI_RANGES 14
+// indicates unipolar ranges
+static int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
+{
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+};
+// map range index to gain bits
+static int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
+{
+	0x00,
+	0x20,
+	0x30,
+	0x40,
+	0x50,
+	0x60,
+	0x70,
+	0x00,
+	0x20,
+	0x30,
+	0x40,
+	0x50,
+	0x60,
+	0x70,
+};
+static comedi_lrange range_labpc_1200_ai = {
+	NUM_LABPC_1200_AI_RANGES,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
 		UNI_RANGE(5),
 		UNI_RANGE(2),
 		UNI_RANGE(1),
@@ -257,6 +356,9 @@ static labpc_board labpc_boards[] =
 		has_ao:	1,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
+		ai_range_table:	&range_labpc_1200_ai,
+		ai_range_code: labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar: labpc_1200_is_unipolar,
 	},
 	{
 		name:	"lab-pc-1200",
@@ -266,6 +368,9 @@ static labpc_board labpc_boards[] =
 		has_ao:	1,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
+		ai_range_table:	&range_labpc_1200_ai,
+		ai_range_code: labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar: labpc_1200_is_unipolar,
 	},
 	{
 		name:	"lab-pc-1200ai",
@@ -275,6 +380,9 @@ static labpc_board labpc_boards[] =
 		has_ao:	0,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
+		ai_range_table:	&range_labpc_1200_ai,
+		ai_range_code: labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar: labpc_1200_is_unipolar,
 	},
 	{
 		name:	"lab-pc+",
@@ -284,6 +392,9 @@ static labpc_board labpc_boards[] =
 		has_ao:	1,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
+		ai_range_table:	&range_labpc_plus_ai,
+		ai_range_code: labpc_plus_ai_gain_bits,
+		ai_range_is_unipolar: labpc_plus_is_unipolar,
 	},
 	{
 		name:	"pci-1200",
@@ -294,6 +405,9 @@ static labpc_board labpc_boards[] =
 		has_ao:	1,
 		read_byte:	labpc_readb,
 		write_byte:	labpc_writeb,
+		ai_range_table:	&range_labpc_1200_ai,
+		ai_range_code: labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar: labpc_1200_is_unipolar,
 	},
 };
 
@@ -319,8 +433,8 @@ typedef struct{
 	unsigned int command5_bits;
 	unsigned int command6_bits;
 	// store last read of board status registers
-	unsigned int status1_bits;
-	unsigned int status2_bits;
+	volatile unsigned int status1_bits;
+	volatile unsigned int status2_bits;
 	unsigned int divisor1;	/* value to load into board's counter a0 for timed conversions */
 	unsigned int divisor2; 	/* value to load into board's counter b0 for timed conversions */
 	unsigned int dma_chan;	// dma channel to use
@@ -432,6 +546,17 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
+	// initialize board's command registers
+	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
+	if(thisboard->register_layout == labpc_1200_layout)
+	{
+		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
+	}
+
 	/* grab our IRQ */
 	if(irq < 0)
 	{
@@ -491,7 +616,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = (1 << 12) - 1;	// 12 bit resolution
-	s->range_table = &range_labpc_ai;
+	s->range_table = thisboard->ai_range_table;
 	s->do_cmd = labpc_ai_cmd;
 	s->do_cmdtest = labpc_ai_cmdtest;
 	s->insn_read = labpc_ai_rinsn;
@@ -501,9 +626,8 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 1;
 	if(thisboard->has_ao)
 	{
-/* XXX could provide command support, except it doesn't have a hardware
- * buffer for analog output and no underrun flag so speed would be very
- * limited unless using RT interrupt */
+/* Could provide command support, except it only has a one sample
+ * hardware buffer for analog output and no underrun flag. */
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
 		s->n_chan = NUM_AO_CHAN;
@@ -514,8 +638,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 		/* initialize analog outputs to a known value */
 		for(i = 0; i < s->n_chan; i++)
 		{
-			//XXX set to bi polar output mode
-			devpriv->ao_value[i] = s->maxdata / 2;	// XXX should init to 0 for unipolar
+			devpriv->ao_value[i] = s->maxdata / 2;
 			lsb = devpriv->ao_value[i] & 0xff;
 			msb = (devpriv->ao_value[i] >> 8) & 0xff;
 			thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
@@ -649,7 +772,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 {
 	int err = 0;
 	int tmp;
-	int gain;
+	int range;
 	int i;
 	int scan_up;
 	int stop_mask;
@@ -763,7 +886,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	// check channel/gain list against card's limitations
 	if(cmd->chanlist && cmd->chanlist_len > 1)
 	{
-		gain = CR_RANGE(cmd->chanlist[0]);
+		range = CR_RANGE(cmd->chanlist[0]);
 		// should the scan list counting up or down?
 		scan_up = 0;
 		if(thisboard->register_layout == labpc_1200_layout &&
@@ -788,7 +911,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 			}
 			if(err)
 				comedi_error(dev, "channel scanning order specified in chanlist is not supported by hardware.\n");
-			if(CR_RANGE(cmd->chanlist[i]) != gain)
+			if(CR_RANGE(cmd->chanlist[i]) != range)
 			{
 				comedi_error(dev, "entries in chanlist must all have the same gain\n");
 				err++;
@@ -803,12 +926,12 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 {
-	int endChan, range;
+	int channel, range, aref;
 	unsigned long irq_flags;
 	int ret;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	int scan_up;
+	int scan_up, scan_enable;
 	enum transfer_type xfer;
 
 	if(!dev->irq)
@@ -818,6 +941,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	}
 
 	range = CR_RANGE(cmd->chanlist[0]);
+	aref = CR_AREF(cmd->chanlist[0]);
 
 	// make sure board is disabled before setting up aquisition
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
@@ -843,13 +967,22 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	}else	// otherwise, just put a1 in mode 0 with no count to set its output low
 		thisboard->write_byte(INIT_A1_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
 
-	// figure out if we are scanning upwards or downwards through channels
-	scan_up = 0;
-	if(cmd->chanlist_len > 1 &&
-		thisboard->register_layout == labpc_1200_layout &&
-		CR_CHAN(cmd->chanlist[0]) == 0)
+	// are we going to use scan mode?
+	if(cmd->chanlist_len > 1)
 	{
-		scan_up = 1;
+		scan_enable = 1;
+		// figure out if we are scanning upwards or downwards through channels
+		if(cmd->chanlist_len > 1 &&
+			thisboard->register_layout == labpc_1200_layout &&
+			CR_CHAN(cmd->chanlist[0]) == 0)
+		{
+			scan_up = 1;
+		}else
+			scan_up = 0;
+	}else
+	{
+		scan_enable = 0;
+		scan_up = 0;
 	}
 
 	// figure out what method we will use to transfer data
@@ -871,25 +1004,16 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		xfer = fifo_not_empty_transfer;
 	devpriv->current_transfer = xfer;
 
-#ifdef LABPC_DEBUG
-	if(xfer == isa_dma_transfer)
-		comedi_error(dev, "using dma transfer");
-	else if(xfer == fifo_half_full_transfer)
-		comedi_error(dev, "using fifo half full interrupt");
-	else if(xfer == fifo_not_empty_transfer)
-		comedi_error(dev, "using fifo not empty interrupt");
-#endif
-
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
 		// reference inputs to ground or common?
-		if(CR_AREF(cmd->chanlist[0]) != AREF_GROUND)
+		if(aref != AREF_GROUND)
 			devpriv->command6_bits |= ADC_COMMON_BIT;
 		else
 			devpriv->command6_bits &= ~ADC_COMMON_BIT;
 		// bipolar or unipolar range?
-		if(range & AI_RANGE_IS_UNIPOLAR)
+		if(thisboard->ai_range_is_unipolar[range])
 			devpriv->command6_bits |= ADC_UNIP_BIT;
 		else
 			devpriv->command6_bits &= ~ADC_UNIP_BIT;
@@ -922,14 +1046,17 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	/* setup channel list, etc (command1 register) */
 	devpriv->command1_bits = 0;
 	if(scan_up)
-		endChan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+		channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
 	else
-		endChan = CR_CHAN(cmd->chanlist[0]);
-	devpriv->command1_bits |= ADC_CHAN_BITS(endChan);
-	devpriv->command1_bits |= ADC_GAIN_BITS(range);
+		channel = CR_CHAN(cmd->chanlist[0]);
+	// munge channel bits for differential / scan disabled mode
+	if(scan_enable == 0 && aref == AREF_DIFF)
+		channel *= 2;
+	devpriv->command1_bits |= ADC_CHAN_BITS(channel);
+	devpriv->command1_bits |= thisboard->ai_range_code[range];
 	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	// manual says to set scan enable bit on second pass
-	if(cmd->chanlist_len > 1)
+	if(scan_enable)
 	{
 		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
 		/* need a brief delay before enabling scan, or scan list will get screwed when you switch
@@ -945,7 +1072,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	if(cmd->scan_begin_src == TRIG_EXT)
 		devpriv->command4_bits |= EXT_SCAN_MASTER_EN_BIT | EXT_SCAN_EN_BIT;
 	// single-ended/differential
-	if(CR_AREF(cmd->chanlist[0]) == AREF_DIFF)
+	if(aref == AREF_DIFF)
 		devpriv->command4_bits |= ADC_DIFF_BIT;
 	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
@@ -1155,6 +1282,8 @@ static int labpc_drain_fifo(comedi_device *dev)
 	const int timeout = 10000;
 	unsigned int i;
 
+	devpriv->status1_bits = thisboard->read_byte(dev->iobase + STATUS1_REG);
+
 	for(i = 0; (devpriv->status1_bits & DATA_AVAIL_BIT) && i < timeout; i++)
 	{
 		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
@@ -1273,8 +1402,8 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	devpriv->command1_bits = 0;
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
-	devpriv->command1_bits |= ADC_GAIN_BITS(range);
-	// XXX munge channel bits for differential mode
+	devpriv->command1_bits |= thisboard->ai_range_code[range];
+	// munge channel bits for differential/scan disabled mode
 	if(CR_AREF(insn->chanspec) == AREF_DIFF)
 		chan *= 2;
 	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
@@ -1289,7 +1418,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		else
 			devpriv->command6_bits &= ~ADC_COMMON_BIT;
 		// bipolar or unipolar range?
-		if(range & AI_RANGE_IS_UNIPOLAR)
+		if(thisboard->ai_range_is_unipolar[range])
 			devpriv->command6_bits |= ADC_UNIP_BIT;
 		else
 			devpriv->command6_bits &= ~ADC_UNIP_BIT;
@@ -1316,7 +1445,8 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		devpriv->command4_bits |= ADC_DIFF_BIT;
 	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
-	// XXX init counter a0 to high state
+	// initialize pacer counter output to make sure it doesn't cause any problems
+	thisboard->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
 
 	// clear adc fifo
 	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
@@ -1359,7 +1489,6 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	channel = CR_CHAN(insn->chanspec);
 
 	// turn off pacing of analog output channel
-	// XXX spinlock access (race with analog input)
 	devpriv->command2_bits &= DAC_PACED_BIT(channel);
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
@@ -1530,9 +1659,26 @@ static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range)
 	unsigned int *unip_offset_frame = devpriv->eeprom_data + devpriv->eeprom_data[120];
 
 	unsigned int *ai_frame, *gain_frame, *offset_frame;
-	unsigned int gain;
+	// eeprom offsets by range
+	unsigned int range_to_index[NUM_LABPC_1200_AI_RANGES] =
+	{
+		0x0,
+		-0x2,
+		-0x3,
+		-0x4,
+		-0x5,
+		-0x6,
+		-0x7,
+		0x0,
+		-0x2,
+		-0x3,
+		-0x4,
+		-0x5,
+		-0x6,
+		-0x7,
+	};
 
-	if(range & AI_RANGE_IS_UNIPOLAR)
+	if(thisboard->ai_range_is_unipolar[range])
 	{
 		ai_frame = ai_unip_frame;
 		gain_frame = unip_gain_frame;
@@ -1549,10 +1695,8 @@ static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range)
 	write_caldac(dev, fine_offset_caldac, ai_frame[fine_offset_index]);
 
 	// load gain and postgain offset
-	gain = range & AI_RANGE_GAIN_MASK;
-	if(gain == 1) gain = 0;	// gain of 1.25 doesn't have a separate gain calibration
-	write_caldac(dev, postgain_offset_caldac, offset_frame[-gain]);
-	write_caldac(dev, gain_caldac, gain_frame[-gain]);
+	write_caldac(dev, postgain_offset_caldac, offset_frame[range_to_index[range]]);
+	write_caldac(dev, gain_caldac, gain_frame[range_to_index[range]]);
 }
 
 // load analog output caldacs from eeprom values (depend on range used)
@@ -1641,9 +1785,6 @@ static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
 	unsigned int value;
 	const int read_instruction = 0x3;	// bits to tell eeprom to expect a read
 	const int write_length = 8;	// 8 bit write lengths to eeprom
-
-/* XXX will need some locking if this function is to be called from multiple
- * subdevices */
 
 	// enable read/write to eeprom
 	devpriv->command5_bits &= ~EEPROM_EN_BIT;
