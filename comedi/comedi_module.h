@@ -111,6 +111,7 @@ struct comedi_subdevice_struct{
 	int (*insn_read)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*insn_write)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*insn_bits)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
+	int (*insn_config)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 
 	int (*do_cmd)(comedi_device *,comedi_subdevice *);
 	int (*do_cmdtest)(comedi_device *,comedi_subdevice *,comedi_cmd *);

@@ -103,6 +103,37 @@ static int subdev_8255_insn(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
+static int subdev_8255_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	unsigned int mask;
+	unsigned int bits;
+
+	mask=1<<CR_CHAN(insn->chanspec);
+	if(mask&0x0000ff){
+		bits=0x0000ff;
+	}else if(mask&0x00ff00){
+		bits=0x00ff00;
+	}else if(mask&0x0f0000){
+		bits=0x0f0000;
+	}else{
+		bits=0xf00000;
+	}
+
+	switch(insn->data[0]){
+	case COMEDI_INPUT:
+		s->io_bits&=~bits;
+		break;
+	case COMEDI_OUTPUT:
+		s->io_bits|=bits;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	do_config(dev,s);
+}
+
 static int subdev_8255_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int mask,data_in;

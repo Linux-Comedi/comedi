@@ -149,7 +149,14 @@ static comedi_lrange *ni_range_lkup[]={
 
 
 
+static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+#if 0
 static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+#endif
+
 static int ni_eeprom(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int ni_calib_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
@@ -170,7 +177,10 @@ static int ni_8255_callback(int dir,int port,int data,void *arg);
 static int ni_ns_to_timer(int *nanosec,int round_mode);
 
 static int gpct_setup(comedi_device *dev,comedi_subdevice *s);
-static int ni_gpct(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 
 #undef DEBUG
 
@@ -1500,6 +1510,7 @@ devpriv->ao_mode2|=AO_FIFO_Mode(1);
 
 
 
+#if 0
 /*
 	digital i/o
 
@@ -1537,6 +1548,26 @@ static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 	return it->n_chan;
 }
+#endif
+
+static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=1)return -EINVAL;
+	switch(data[0]){
+	case COMEDI_OUTPUT:
+		s->io_bits &= ~(1<<CR_CHAN(insn->chanspec));
+		break;
+	case COMEDI_INPUT:
+		s->io_bits |= 1<<CR_CHAN(insn->chanspec);
+		break;
+	default:
+		return -EINVAL;
+	}
+	win_out(s->io_bits,DIO_Control_Register);
+
+	return 1;
+}
 
 static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -1558,40 +1589,34 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
         This reads the value of the counter
 
 */
-static int ni_gpct(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+/*
+ * Each DAQ-STC counters have one transition input, a generic
+ * input, and an enable input.
+ *
+ * 31-30 type
+ *   00 disabled
+ *   01 transition pin
+ *   02 generic pin
+ *
+ *
+ */
+static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int data,mask;
-	int i;
-	int temp;
+	if(insn->n!=1)return -EINVAL;
 
-	/* rt stuff */
-	temp=win_save();
+	/* transition pin # */
+	/* */
 
-	if(it->flags & TRIG_CONFIG){
-		data=s->io_bits;
-		for(i=0;i<it->n_chan;i++){
-			mask=1<<CR_CHAN(it->chanlist[i]);
-			data&= ~mask;
-			if(it->data[i])
-				data|=mask;
-		}
-		s->io_bits=data;
-		win_out(s->io_bits,DIO_Control_Register);
-	}else{
-		if(it->flags & TRIG_WRITE){
-			do_pack(&s->state,it);
-			win_out(s->state,DIO_Output_Register);
-		}else{
-			data=win_in(DIO_Input_Register);
-			di_unpack(data,it);
-		}
-	}
-
-	win_restore(temp);
-
-	return it->n_chan;
+	return 1;
 }
 
+static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+
+	return -EIO;
+}
 
 static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 {
@@ -1654,7 +1679,10 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->range_table=&range_digital;
 	s->io_bits=0;		/* all bits input */
 	s->insn_bits=ni_dio_insn_bits;
+	s->insn_config=ni_dio_insn_config;
+#if 0
 	s->trig[0]=ni_dio;
+#endif
 
 	/* dio setup */
 	win_out(s->io_bits,DIO_Control_Register);
@@ -1673,7 +1701,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
-	s->trig[0]=ni_gpct;
+	s->insn_read=ni_gpct_insn_read;
+	s->insn_config=ni_gpct_insn_config;
 	s->n_chan=1; /* XXX */
 	s->maxdata=1;
 	gpct_setup(dev,s);

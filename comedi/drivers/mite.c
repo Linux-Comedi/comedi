@@ -108,31 +108,7 @@ void mite_init(void)
 
 #else
 
-#if LINUX_VERSION_CODE < 0x020300
-
 /* functions for the new PCI code (after 2.1.55) */
-
-void mite_init(void)
-{
-	struct pci_dev *pcidev;
-	struct mite_struct *mite;
-
-	for(pcidev=pci_devices;pcidev;pcidev=pcidev->next){
-		if(pcidev->vendor==PCI_VENDOR_ID_NATINST){
-			mite=kmalloc(sizeof(*mite),GFP_KERNEL);
-			memset(mite,0,sizeof(*mite));
-
-			mite->pcidev=pcidev;
-
-			mite->next=mite_devices;
-			mite_devices=mite;
-		}
-	}
-}
-
-#else
-
-/* And after the pci_devices change */
 
 void mite_init(void)
 {
@@ -152,8 +128,6 @@ void mite_init(void)
 	}
 }
 
-
-#endif
 #endif
 
 int mite_setup(struct mite_struct *mite)
