@@ -84,6 +84,7 @@ module_PROGRAMS = \
  mite.ko \
  ni_labpc.ko \
  acl7225b.ko \
+ adl_pci6208.ko \
  adl_pci9111.ko \
  adl_pci9118.ko \
  adv_pci1710.ko \
