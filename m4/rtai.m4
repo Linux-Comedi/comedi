@@ -9,7 +9,7 @@ AC_DEFUN([DS_RTAI],
 
 	AS_LINUX_CONFIG_OPTION_MODULE([CONFIG_RTHAL])
 
-	if test "${CONFIG_RTHAL}" != "no" -o "${CONFIG_ADEOS} != "no" ; then
+	if test "${CONFIG_RTHAL}" != "no" -o "${CONFIG_ADEOS}" != "no" ; then
 		AC_MSG_CHECKING([RTAI directory ${RTAI_DIR}])
 		if [[ -d ${RTAI_DIR}/include ]] ; then
 			RTAI_CFLAGS="-I${RTAI_DIR}/include"
