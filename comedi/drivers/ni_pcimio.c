@@ -245,23 +245,22 @@ static ni_board ni_boards[]={
 		caldac:         type3,
 		has_8255:	0,
 	},
-#if 0
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x2a80,		/* unknown */
 		name:           "pci-6025e",
 		n_adchan:       16,
 		adbits:         12,
 		ai_fifo_depth:  512,
 		alwaysdither:   0,
-		gainlkup:	0,		/* XXX */
+		gainlkup:       ai_gain_8_602x,
 		ai_speed:	5000,
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    1,
-		gainlkup:       ai_gain_8_602x,
 		caldac:         type3,
 		has_8255:	1,
 	},
+#if 0
 	{       device_id:      0x0000,		/* unknown */
 		name:           "pci-6052e",
 		n_adchan:       16,
