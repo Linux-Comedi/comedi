@@ -175,15 +175,9 @@ static int dnp_attach(comedi_device *dev,comedi_devconfig *it)
 	
   printk("attached\n");
 
-  /* allocate I/O ports:                                                     */
-  /* 0x22: Chip Setup and Control Index Register, CSCIR                      */
-  /* 0x23: Chip Setup and Control Data Register,  CSCDR                      */
-  /* XXX: this area seems to be reserved by the first 8259A!?!               */
-# warning region should be requested here!
-/*
-  if (check_region(0x22,2)<0) return -EBUSY;
-  if (request_region(0x22,2,"ssv_dnp")==NULL) return -EBUSY; 
-*/
+  /* We use the I/O ports 0x22,0x23 and 0xa3-0xa9, which are always
+   * allocated for the primary 8259, so we don't need to allocate them
+   * ourselves. */
 
   /* configure all ports as input (default)                                  */
   outb(PAMR,CSCIR); outb(0x00,CSCDR);
