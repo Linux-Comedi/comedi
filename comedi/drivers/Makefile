@@ -40,6 +40,8 @@ obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
 obj-$(CONFIG_COMEDI_PCL725)		+= pcl725.o
 obj-$(CONFIG_COMEDI_PCL726)		+= pcl726.o
 
+obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
+
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 
