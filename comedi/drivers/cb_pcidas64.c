@@ -1237,7 +1237,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			return -ETIME;
 		}
 		if(board(dev)->layout == LAYOUT_4020)
-			data[n] = readl(private(dev)->dio_counter_iobase) & 0xffff;
+			data[n] = readl(private(dev)->dio_counter_iobase + ADC_FIFO_REG) & 0xffff;
 		else
 			data[n] = readw(private(dev)->main_iobase + PIPE1_READ_REG);
 	}
