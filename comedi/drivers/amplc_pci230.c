@@ -273,7 +273,7 @@ static void pci230_ao_write(comedi_device *dev, sampl_t data, int chan)
 {
 	/* If a bipolar range was specified, mangle it (straight binary->twos complement). */ 
 	if (devpriv->ao_bipolar) {
-		data ^= 1<<(thisboard->ai_bits-1);
+		data ^= 1<<(thisboard->ao_bits-1);
 	}
 		
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower four bits reserved for expansion). */
@@ -696,12 +696,12 @@ static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 #define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s - Comedi limit due to unsigned int cmd.  Driver limit = 2^32 (2 cascaded 16bit counters) * 100ns (default 10MHz onboard clock) = 429s */
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
-		if(cmd->scan_begin_src<MAX_SPEED){
-			cmd->scan_begin_src=MAX_SPEED;
+		if(cmd->scan_begin_arg<MAX_SPEED){
+			cmd->scan_begin_arg=MAX_SPEED;
 			err++;
 		}
-		if(cmd->scan_begin_src>MIN_SPEED){
-			cmd->scan_begin_src=MIN_SPEED;
+		if(cmd->scan_begin_arg>MIN_SPEED){
+			cmd->scan_begin_arg=MIN_SPEED;
 			err++;
 		}
 	}
@@ -736,9 +736,10 @@ static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 }
 
 static int pci230_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
-		unsigned int x)
+		unsigned int trig_num)
 {
-	if(x!=0)return -EINVAL;
+	if(trig_num != 0)
+		return -EINVAL;
 
 	/* Enable DAC interrupt. */
 	devpriv->ier |= PCI230_INT_ZCLK_CT1;
@@ -752,10 +753,9 @@ static int pci230_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 static int pci230_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int range;
-	
+
 	/* Get the command. */
-	comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	comedi_cmd *cmd=&s->async->cmd;
 
 	/* Calculate number of conversions required. */
 	if(cmd->stop_src == TRIG_COUNT) {
@@ -782,7 +782,7 @@ static int pci230_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	 * changed; using ct0 and ct1 for DAC will screw up ADC pacer
 	 * which uses ct2 and ct0.  Change to only use ct1 for DAC?
 	 */
-	pci230_z2_ct1(dev, &cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);	/* cmd->convert_arg is sampling period in ns */
+	pci230_z2_ct1(dev, &cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);	/* cmd->convert_arg is sampling period in ns */
 
 	s->async->inttrig=pci230_ao_inttrig;
 
