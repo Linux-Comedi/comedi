@@ -196,7 +196,6 @@ int do_pack(unsigned int *bits,comedi_trig *it);
 
 #define SRF_USER		0x00000001
 #define SRF_RT			0x00000002
-#define SRF_RTIRQ		0x00000004
 
 
 /*

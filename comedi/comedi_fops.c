@@ -537,8 +537,18 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		s->buf_user_count=0;
 	}
 
-	/* mark as non-RT operation */
-	s->cur_trig.flags &= ~TRIG_RT;
+	s->cb_mask=COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	if(s->cur_trig.flags & TRIG_WAKE_EOS){
+		s->cb_mask|=COMEDI_CB_EOS;
+	}
+
+	s->runflags=SRF_USER;
+#ifdef CONFIG_COMEDI_RT
+	if(s->cur_trig.flags & TRIG_RT){
+		s->runflags|=SRF_RT;
+		// FIXME: TM move device to rt
+	}
+#endif
 
 	s->subdev_flags|=SDF_RUNNING;
 
@@ -813,8 +823,13 @@ if(s->subdev_flags & SDF_READABLE){
 	s->buf_user_count=0;
 }
 	
-	/* mark as non-RT operation */
-	s->cmd.flags &= ~TRIG_RT;
+	s->runflags=SRF_USER;
+#ifdef CONFIG_COMEDI_RT
+	if(s->cmd.flags & TRIG_RT){
+		s->runflags|=SRF_RT;
+		// move device to rt
+	}
+#endif
 
 	s->subdev_flags|=SDF_RUNNING;
 
@@ -1340,6 +1355,12 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	/* we do this because it's useful for the non-standard cases */
 	s->subdev_flags &= ~SDF_RUNNING;
 
+#ifdef CONFIG_COMEDI_RT
+	if(s->runflags&SRF_RT){
+		// FIXME: TM move device out of rt
+	}
+#endif
+
 	if(s->cur_trig.chanlist){
 		kfree(s->cur_trig.chanlist);
 		s->cur_trig.chanlist=NULL;
@@ -1581,52 +1602,50 @@ void comedi_error(comedi_device *dev,const char *s)
 	rt_printk("comedi%d: %s: %s\n",dev->minor,dev->driver->driver_name,s);
 }
 
+void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
+{
+	if(s->cb_mask&mask){
+		if(s->runflags&SRF_USER){
+			if(s->runflags&SRF_RT){
+				// pend wake up
+			}else{
+				wake_up_interruptible(&dev->wait);
+			}
+		}else{
+			s->cb_func(mask,s->cb_arg);
+		}
+	}
+	
+	if(mask&COMEDI_CB_EOA){
+		s->subdev_flags &= ~SDF_RUNNING;
+	}
+}
+
+/*
+   this function should be called by your interrupt routine
+   at the end of acquisition
+ */
 void comedi_done(comedi_device *dev,comedi_subdevice *s)
 {
-#if 0
-	DPRINTK("comedi_done\n");
-#endif
-
-	if(!(s->cur_trig.flags&TRIG_RT))
-		wake_up_interruptible(&dev->wait);
-	else if(s->cb_mask&COMEDI_CB_EOA)
-		s->cb_func(COMEDI_CB_EOA,s->cb_arg);
-
-	s->subdev_flags &= ~SDF_RUNNING;
+	comedi_event(dev,s,COMEDI_CB_EOA);
 }
 
+/*
+   this function should be called by your interrupt routine
+   at errors causing termination of acquisition
+ */
 void comedi_error_done(comedi_device *dev,comedi_subdevice *s)
 {
-#if 0
-	DPRINTK("comedi_error_done\n");
-#endif
-
-	if(!(s->cur_trig.flags&TRIG_RT))
-		wake_up_interruptible(&dev->wait);
-	else if(s->cb_mask&(COMEDI_CB_ERROR|COMEDI_CB_EOA))
-		s->cb_func(COMEDI_CB_ERROR|COMEDI_CB_EOA,s->cb_arg);
-
-	s->subdev_flags &= ~SDF_RUNNING;
+	comedi_event(dev,s,COMEDI_CB_ERROR|COMEDI_CB_EOA);
 }
 
+/*
+   this function should be called by your interrupt routine
+   at convenient block sizes
+ */
 void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s)
 {
-#if 0
-	DPRINTK("comedi_bufcheck\n");
-#endif
-
-#if 0
-	if((!(s->cur_trig.flags&TRIG_RT)) &&
-	   (s->buf_int_count-s->buf_user_count >= 16))
-		wake_up_interruptible(&dev->wait);
-#else
-	if(!(s->cur_trig.flags&TRIG_RT)) {
-		wake_up_interruptible(&dev->wait);
-	}else{
-		if(s->cb_mask&COMEDI_CB_BLOCK)
-			s->cb_func(COMEDI_CB_BLOCK,s->cb_arg);
-	}
-#endif
+	comedi_event(dev,s,COMEDI_CB_BLOCK);
 }
 
 /*
@@ -1635,13 +1654,7 @@ void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s)
  */
 void comedi_eos(comedi_device *dev,comedi_subdevice *s)
 {
-	if(s->cb_mask&COMEDI_CB_EOS){
-		s->cb_func(COMEDI_CB_EOS,s->cb_arg);
-		return;
-	}
-	if((s->cur_trig.flags&TRIG_WAKE_EOS)){
-		wake_up_interruptible(&dev->wait);
-	}
+	comedi_event(dev,s,COMEDI_CB_EOS);
 }
 
 /*
@@ -1650,8 +1663,6 @@ void comedi_eos(comedi_device *dev,comedi_subdevice *s)
  */
 void comedi_eobuf(comedi_device *dev,comedi_subdevice *s)
 {
-	if(s->cb_mask&COMEDI_CB_EOBUF){
-		s->cb_func(COMEDI_CB_EOBUF,s->cb_arg);
-	}
+	comedi_event(dev,s,COMEDI_CB_EOBUF);
 }
 
