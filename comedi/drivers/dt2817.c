@@ -120,14 +120,16 @@ static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
 	comedi_subdevice *s;
+	int iobase;
 
-	dev->iobase=it->options[0];
-	printk("comedi%d: dt2817: 0x%04x ",dev->minor,dev->iobase);
-	if(check_region(dev->iobase,DT2817_SIZE)<0){
+	iobase=it->options[0];
+	printk("comedi%d: dt2817: 0x%04x ",dev->minor,iobase);
+	if(check_region(iobase,DT2817_SIZE)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase,DT2817_SIZE,"dt2817");
+	request_region(iobase,DT2817_SIZE,"dt2817");
+	dev->iobase = iobase;
 	dev->board_name="dt2817";
 
 	dev->n_subdevices=1;

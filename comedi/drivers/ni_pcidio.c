@@ -297,28 +297,6 @@ static int ni_pcidio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-#if 0
-static int nidio_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	if(it->flags & TRIG_CONFIG){
-		do_pack(&s->io_bits,it);
-		writel(s->io_bits,dev->iobase+Port_Pin_Directions(0));
-	}else{
-		if(it->flags&TRIG_WRITE){
-			do_pack(&s->state,it);
-			writel(s->state,dev->iobase+Port_IO(0));
-		}else{
-			unsigned int data;
-
-			data=readl(dev->iobase+Port_IO(0));
-			di_unpack(data,it);
-		}
-	}
-
-	return it->n_chan;
-}
-#endif
-
 static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int i;
@@ -442,7 +420,6 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
-		//s->trig[0]=nidio_dio;
 		s->trig[2]=nidio_dio_mode2;
 		s->insn_config = ni_pcidio_insn_config;
 		s->insn_bits = ni_pcidio_insn_bits;

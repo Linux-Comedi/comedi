@@ -256,7 +256,6 @@ static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
 	data = lo + (hi << 8);
 
 	if (!(--devpriv->ntrig)) {
-		/* XXX */
 		/* how to turn off acquisition */
 		comedi_done(dev, dev->subdevices + 0);
 	}
@@ -290,17 +289,19 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	//long flags;
 	int ret;
 	comedi_subdevice *s;
+	int iobase;
 
-	dev->iobase = it->options[0];
+	iobase = it->options[0];
 
-	printk("comedi%d: dt2811: base=0x%04x\n", dev->minor, dev->iobase);
+	printk("comedi%d: dt2811: base=0x%04x\n", dev->minor, iobase);
 
-	if (check_region(dev->iobase, DT2811_SIZE) < 0) {
+	if (check_region(iobase, DT2811_SIZE) < 0) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase, DT2811_SIZE, driver_name);
+	request_region(iobase, DT2811_SIZE, driver_name);
 
+	dev->iobase = iobase;
 	dev->board_name = this_board->name;
 
 #if 0

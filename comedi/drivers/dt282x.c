@@ -1081,7 +1081,7 @@ static int dt282x_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
 
-	return 0;
+	return 1;
 }
 
 
@@ -1142,20 +1142,20 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	long flags;
 	int ret;
 	comedi_subdevice *s;
+	int iobase;
 
 	dev->board_name = this_board->name;
 
-	if (it->options[opt_iobase])
-		dev->iobase = it->options[opt_iobase];
-	else
-		dev->iobase = 0x240;
+	iobase = it->options[opt_iobase];
+	if(!iobase)iobase = 0x240;
 
-	printk("comedi%d: dt282x: 0x%04x", dev->minor, dev->iobase);
-	if (check_region(dev->iobase, DT2821_SIZE) < 0) {
+	printk("comedi%d: dt282x: 0x%04x", dev->minor, iobase);
+	if (check_region(iobase, DT2821_SIZE) < 0) {
 		printk(" I/O port conflict\n");
 		return -EBUSY;
 	}
-	request_region(dev->iobase, DT2821_SIZE, "dt282x");
+	request_region(iobase, DT2821_SIZE, "dt282x");
+	dev->iobase = iobase;
 
 	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
 	i = inw(dev->iobase + DT2821_ADCSR);

@@ -34,40 +34,46 @@ comedi_driver driver_pcl725={
 };
 COMEDI_INITCLEANUP(driver_pcl725);
 
-static int pcl725_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int pcl725_di(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-
-static int pcl725_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcl725_do_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
-	
-	outb(s->state,dev->iobase+PCL725_DO);
+	if(insn->n!=2)return -EINVAL;
 
-	return it->n_chan;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		outb(s->state,dev->iobase+PCL725_DO);
+	}
+	
+	data[1]=s->state;
+
+	return 2;
 }
 
-static int pcl725_di(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcl725_di_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int bits;
-	
-	bits=inb(dev->iobase+PCL725_DI);
-	
-	return di_unpack(bits,it);
+	if(insn->n!=2)return -EINVAL;
+
+	data[1]=inb(dev->iobase+PCL725_DI);
+
+	return 2;
 }
 
 static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
+	int iobase;
 
-	dev->iobase=it->options[0];
-	printk("comedi%d: pcl725: 0x%04x ",dev->minor,dev->iobase);
-	if(check_region(dev->iobase,PCL725_SIZE)<0){
+	iobase=it->options[0];
+	printk("comedi%d: pcl725: 0x%04x ",dev->minor,iobase);
+	if(check_region(iobase,PCL725_SIZE)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase,PCL725_SIZE,"pcl725");
+	request_region(iobase,PCL725_SIZE,"pcl725");
 	dev->board_name="pcl725";
-	dev->iobase=dev->iobase;
+	dev->iobase=iobase;
 	dev->irq=0;
 
 	dev->n_subdevices=2;
@@ -81,16 +87,16 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcl725_do;
+	s->insn_bits = pcl725_do_insn;
 	s->range_table=&range_digital;
 
 	s=dev->subdevices+1;
-	/* do */
+	/* di */
 	s->type=COMEDI_SUBD_DI;
 	s->subdev_flags=SDF_READABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcl725_di;
+	s->insn_bits = pcl725_di_insn;
 	s->range_table=&range_digital;
 
 	printk("\n");

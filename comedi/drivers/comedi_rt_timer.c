@@ -100,7 +100,6 @@ static void timer_ai_task_func(int d)
 	comedi_device *dev=(comedi_device *)d;
 	comedi_subdevice *s=dev->subdevices+0;
 	comedi_trig *it=&devpriv->trig;
-	comedi_trig *my_trig=&s->cur_trig;
 	int i,n,ret;
 	int n_chan;
 

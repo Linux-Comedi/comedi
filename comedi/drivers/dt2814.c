@@ -73,7 +73,7 @@ typedef struct{
 
 
 #define DT2814_TIMEOUT 10
-#define DT2814_MAX_SPEED 100000 /* XXX 10 khz */
+#define DT2814_MAX_SPEED 100000 /* Arbitrary 10 khz limit */
 
 static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
@@ -230,15 +230,16 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	int i,irq;
 	int ret;
 	comedi_subdevice *s;
+	int iobase;
 
-	dev->iobase=it->options[0];
+	iobase=it->options[0];
 	printk("comedi%d: dt2814: 0x%04x ",dev->minor,dev->iobase);
-	if(check_region(dev->iobase,DT2814_SIZE)<0){
+	if(check_region(iobase,DT2814_SIZE)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase,DT2814_SIZE,"dt2814");
-	dev->iobase=dev->iobase;
+	request_region(iobase,DT2814_SIZE,"dt2814");
+	dev->iobase=iobase;
 	dev->board_name = "dt2814";
 
 	outb(0,dev->iobase+DT2814_CSR);

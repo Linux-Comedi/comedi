@@ -219,6 +219,7 @@ typedef struct{
 	unsigned long phys_addr;
 	void *io_addr;
 	unsigned int lock;
+	lsampl_t ao_readback[2];
 }dt3k_private;
 #define devpriv ((dt3k_private *)dev->private)
 
@@ -230,6 +231,7 @@ comedi_driver driver_dt3000={
 	attach:		dt3000_attach,
 	detach:		dt3000_detach,
 };
+COMEDI_INITCLEANUP(driver_dt3000);
 
 
 #define TIMEOUT 100
@@ -316,31 +318,51 @@ static int dt3k_ai_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *it
 }
 #endif
 	
-
-static int dt3k_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt3k_ai_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
+	int i;
 	unsigned int chan,gain,aref;
 
-	chan=CR_CHAN(it->chanlist[0]);
-	gain=CR_RANGE(it->chanlist[0]);
-	/* docs don't explain how to select aref */
-	aref=CR_AREF(it->chanlist[0]);
+	chan=CR_CHAN(insn->chanspec);
+	gain=CR_RANGE(insn->chanspec);
+	/* XXX docs don't explain how to select aref */
+	aref=CR_AREF(insn->chanspec);
 
-	it->data[0]=dt3k_readsingle(dev,SUBS_AI,chan,gain);
-	
-	return 1;
+	for(i=0;i<insn->n;i++){
+		data[i]=dt3k_readsingle(dev,SUBS_AI,chan,gain);
+	}
+
+	return i;
 }
 
-static int dt3k_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt3k_ao_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int chan,data;
+	int i;
+	unsigned int chan;
 
-	chan=CR_CHAN(it->chanlist[0]);
-	data=it->data[0];
+	chan=CR_CHAN(insn->chanspec);
+	for(i=0;i<insn->n;i++){
+		dt3k_writesingle(dev,SUBS_AO,chan,data[i]);
+		devpriv->ao_readback[chan]=data[i];
+	}
 
-	dt3k_writesingle(dev,SUBS_AO,chan,data);
+	return i;
+}
 
-	return 1;
+static int dt3k_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	int i;
+	unsigned int chan;
+
+	chan=CR_CHAN(insn->chanspec);
+	for(i=0;i<insn->n;i++){
+		data[i]=devpriv->ao_readback[chan];
+	}
+
+	return i;
 }
 
 static void dt3k_dio_config(comedi_device *dev,int bits)
@@ -358,49 +380,55 @@ static void dt3k_dio_config(comedi_device *dev,int bits)
 	dt3k_send_cmd(dev,CMD_CONFIG);
 }
 
-static int dt3k_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt3k_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	if(it->flags&TRIG_CONFIG){
-		int mask,i;
+	int mask;
 
-		for(i=0;i<it->n_chan;i++){
-			mask=(CR_CHAN(it->chanlist[i])<4)?0x0f:0xf0;
-			if(it->data[i])s->io_bits|=mask;
-			else s->io_bits&=~mask;
-		}
+	if(insn->n!=1)return -EINVAL;
 
-		mask=(s->io_bits&0x01)|((s->io_bits&0x10)>>3);
-		dt3k_dio_config(dev,mask);
-	}else{
-		unsigned int data;
+	mask=(CR_CHAN(insn->chanspec)<4)?0x0f:0xf0;
+	if(data[0]==COMEDI_OUTPUT)s->io_bits|=mask;
+	else s->io_bits&=~mask;
 
-		if(it->flags&TRIG_WRITE){
-			do_pack(&s->state,it);
-			dt3k_writesingle(dev,SUBS_DOUT,0,s->state);
-		}else{
-			data=dt3k_readsingle(dev,SUBS_DIN,0,0);
-			di_unpack(data,it);
-		}
-	}
+	mask=(s->io_bits&0x01)|((s->io_bits&0x10)>>3);
+	dt3k_dio_config(dev,mask);
 
-	return it->n_chan;
+	return 1;
 }
 
-static int dt3k_readmem(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int dt3k_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int addr;
-	
-	addr=CR_CHAN(it->chanlist[0]);
-	
-	writew(SUBS_MEM,dev->iobase+DPR_SubSys);
-	writew(addr,dev->iobase+DPR_Params(0));
-	writew(1,dev->iobase+DPR_Params(1));
+	if(insn->n!=2)return -EINVAL;
 
-	dt3k_send_cmd(dev,CMD_READCODE);
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= data[1]&data[0];
+		dt3k_writesingle(dev,SUBS_DOUT,0,s->state);
+	}
+	data[1]=dt3k_readsingle(dev,SUBS_DIN,0,0);
 
-	it->data[0]=readw(dev->iobase+DPR_Params(2));
+	return 2;
+}
+
+static int dt3k_mem_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	unsigned int addr=CR_CHAN(insn->chanspec);
+	int i;
+
+	for(i=0;i<insn->n;i++){
+		writew(SUBS_MEM,dev->iobase+DPR_SubSys);
+		writew(addr,dev->iobase+DPR_Params(0));
+		writew(1,dev->iobase+DPR_Params(1));
+
+		dt3k_send_cmd(dev,CMD_READCODE);
+
+		data[i]=readw(dev->iobase+DPR_Params(2));
+	}
 	
-	return 1;
+	return i;
 }
 
 static int dt_pci_probe(comedi_device *dev);
@@ -442,7 +470,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=this_board->adchan;
-	s->trig[0]=dt3k_ai_mode0;
+	s->insn_read=dt3k_ai_insn;
 	s->maxdata=(1<<this_board->adbits)-1;
 	s->len_chanlist=512;
 	s->range_table=&range_dt3000_ai; /* XXX */
@@ -452,7 +480,8 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->type=COMEDI_SUBD_AO;
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=2;
-	s->trig[0]=dt3k_ao_mode0;
+	s->insn_read=dt3k_ao_insn_read;
+	s->insn_write=dt3k_ao_insn;
 	s->maxdata=(1<<this_board->dabits)-1;
 	s->len_chanlist=1;
 	s->range_table=&range_bipolar10;
@@ -462,7 +491,8 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
 	s->n_chan=8;
-	s->trig[0]=dt3k_dio;
+	s->insn_config=dt3k_dio_insn_config;
+	s->insn_bits=dt3k_dio_insn_bits;
 	s->maxdata=1;
 	s->len_chanlist=8;
 	s->range_table=&range_digital;
@@ -472,7 +502,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->type=COMEDI_SUBD_MEMORY;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=0x1000;
-	s->trig[0]=dt3k_readmem;
+	s->insn_read=dt3k_mem_insn_read;
 	s->maxdata=0xff;
 	s->len_chanlist=1;
 	s->range_table=&range_unknown;
@@ -655,16 +685,3 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board)
 #endif
 #endif /* PCI_SUPPORT_VER1 */
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_dt3000);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt3000);
-}
-#endif

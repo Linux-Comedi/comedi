@@ -37,10 +37,10 @@
 
 
 static comedi_lrange range_dt2815_ao_32_current = { 1, {
-	RANGE( 0,	32 )	/* XXX mA */
+	RANGE_mA( 0,	32 )
 }};
 static comedi_lrange range_dt2815_ao_20_current = { 1, {
-	RANGE( 4,	20 )
+	RANGE_mA( 4,	20 )
 }};
 
 #define DT2815_SIZE 2
@@ -62,51 +62,63 @@ static void dt2815_free_resources(comedi_device * dev);
 
 typedef struct {
   comedi_lrange * range_type_list[8];
+  lsampl_t ao_readback[8];
 } dt2815_private;
 
 #define devpriv ((dt2815_private *)dev->private)
 
-static int dt2815_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int dt2815_wait_for_status(comedi_device *dev,int status)
+{
+	int i;
+
+	for(i=0;i<100;i++){
+		if(inb(dev->iobase + DT2815_STATUS)==status)
+			break;
+	}
+	return status;
+}
+
+static int dt2815_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
+
+	for(i=0;i<insn->n;i++){
+		data[i]=devpriv->ao_readback[chan];
+	}
+
+	return i;
+}
+
+static int dt2815_ao_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
   int i;
-  int t;
-  int chan;
-  int data;
+  int chan = CR_CHAN(insn->chanspec);
   unsigned int status;
   unsigned int lo, hi;
 
-  for(i=0 ; i < it->n_chan ; i++) {
-    chan = CR_CHAN(it->chanlist[i]);
-    data = it->data[i];
+  for(i=0;i<insn->n;i++){
+    lo = ((data[i] & 0x0f) << 4) | (chan << 1) | 0x01;
+    hi = (data[i] & 0xff0) >> 4;
 
-    lo = ((data & 0x0f) << 4) | (chan << 1) | 0x01;
-    hi = (data & 0xff0) >> 4;
-    status = inb(dev->iobase + DT2815_STATUS);
-    for (t = 0 ; t < 30 ; t++) {
-      if (status == 0x00) break;
-      udelay(10);
-      status = inb(dev->iobase + DT2815_STATUS);
-    }
-    if (status == 0x00) {
-      outb(lo, dev->iobase + DT2815_DATA);
-    } else {
-      rt_printk("dt2815: failed to write low byte on %d reason %x, %d\n",
-	     chan, status, t);
+    status = dt2815_wait_for_status(dev,0x00);
+    if(status!=0){
+      rt_printk("dt2815: failed to write low byte on %d reason %x\n",
+	     chan, status);
       return -EBUSY;
     }
-    status = inb(dev->iobase + DT2815_STATUS);
-    for (t = 0 ; t < 30 ; t++) {
-      if (status == 0x10) break;
-      udelay(10);
-      status = inb(dev->iobase + DT2815_STATUS);
-    }
-    if (status == 0x10) {
-      outb(hi, dev->iobase + DT2815_DATA);
-    } else {
-      rt_printk("dt2815: failed to write high byte on %d reason %x, %d\n",
-	     chan, status, t);
+
+    outb(lo, dev->iobase + DT2815_DATA);
+
+    status = dt2815_wait_for_status(dev,0x10);
+    if(status!=0x10){
+      rt_printk("dt2815: failed to write high byte on %d reason %x\n",
+	     chan, status);
       return -EBUSY;
     }
+    devpriv->ao_readback[chan] = data[i];
   }
   return i;
 }
@@ -140,15 +152,17 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
   comedi_subdevice *s;
   int i;
   comedi_lrange *current_range_type, *voltage_range_type;
+  int iobase;
 
-  dev->iobase = it->options[0];
-  printk("comedi%d: dt2815: 0x%04x ", dev->minor, dev->iobase);
-  if (check_region(dev->iobase, DT2815_SIZE) < 0) {
+  iobase = it->options[0];
+  printk("comedi%d: dt2815: 0x%04x ", dev->minor, iobase);
+  if (check_region(iobase, DT2815_SIZE) < 0) {
     printk("I/O port conflict\n");
     return -EIO;
   }
-  request_region(dev->iobase, DT2815_SIZE, "dt2815");
+  request_region(iobase, DT2815_SIZE, "dt2815");
 
+  dev->iobase = iobase;
   dev->board_name = "dt2815";
 
   dev->n_subdevices = 1;
@@ -163,7 +177,8 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
   s->subdev_flags=SDF_WRITEABLE;
   s->maxdata=0xfff;
   s->n_chan=8;
-  s->trig[0] = dt2815_ao;
+  s->insn_write = dt2815_ao_insn;
+  s->insn_read = dt2815_ao_insn_read;
   s->range_table_list=devpriv->range_type_list;
 
   current_range_type = (it->options[3])

@@ -162,6 +162,7 @@ comedi_driver driver_pcl711={
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_pcl711);
 
 typedef struct {
 	int board;
@@ -169,6 +170,7 @@ typedef struct {
 	int ntrig;
 	int aip[8];
 	int mode;
+	lsampl_t ao_readback[2];
 } pcl711_private;
 
 #define devpriv ((pcl711_private *)dev->private)
@@ -225,49 +227,46 @@ static void pcl711_set_changain(comedi_device * dev, int chan)
 	}
 }
 
-static int pcl711_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl711_ai_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int hi, lo, i;
-	int nmax=40;	/* 1000 us / 25 us */
-	int n;
+	int i,n;
+	int hi,lo;
 
-	if(it->n<=nmax)nmax=it->n;
+	pcl711_set_changain(dev,insn->chanspec);
 
-	pcl711_set_changain(dev,it->chanlist[0]);
-	
 	/*
 	   a sensible precaution to wait for the mux to
 	   settle here.  is 10us enough?
 	*/
 	udelay(10);
 
-for(n=0;n<nmax;n++){
-	/*
-	 *  Write the correct mode (software polling) and start polling by writing
-	 *  to the trigger register
-	 */
-	outb(1, dev->iobase + PCL711_MODE);
+	for(n=0;n<insn->n;n++){
+		/*
+		 *  Write the correct mode (software polling) and start polling by writing
+		 *  to the trigger register
+		 */
+		outb(1, dev->iobase + PCL711_MODE);
 
-	if (this_board->is_8112) {
-	}else{
-		outb(0, dev->iobase + PCL711_SOFTTRIG);
-	}
+		if (this_board->is_8112) {
+		}else{
+			outb(0, dev->iobase + PCL711_SOFTTRIG);
+		}
 
-	i=PCL711_TIMEOUT;
-	while(--i){
-		hi = inb(dev->iobase + PCL711_AD_HI);
-		if (!(hi & PCL711_DRDY))
-			goto ok;
-		udelay(5);
-	}
-	rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
-	return -ETIME;
+		i=PCL711_TIMEOUT;
+		while(--i){
+			hi = inb(dev->iobase + PCL711_AD_HI);
+			if (!(hi & PCL711_DRDY))
+				goto ok;
+		}
+		rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
+		return -ETIME;
 	
 ok:
-	lo = inb(dev->iobase + PCL711_AD_LO);
+		lo = inb(dev->iobase + PCL711_AD_LO);
 
-	it->data[n] = ((hi & 0xf) << 8) | lo;
-}
+		data[n] = ((hi & 0xf) << 8) | lo;
+	}
 
 	return n;
 }
@@ -330,60 +329,73 @@ static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 /*
    analog output
 */
-static int pcl711_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl711_ao_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int chan = CR_CHAN(it->chanlist[0]);
-	sampl_t data = it->data[0];
+	int n;
+	int chan = CR_CHAN(insn->chanspec);
 
-	outb((data & 0xff), dev->iobase + (chan ? PCL711_DA1_LO : PCL711_DA0_LO));
-	outb((data >> 8), dev->iobase + (chan ? PCL711_DA1_HI : PCL711_DA0_HI));
+	for(n=0;n<insn->n;n++){
+		outb((data[n] & 0xff), dev->iobase + (chan ? PCL711_DA1_LO : PCL711_DA0_LO));
+		outb((data[n] >> 8), dev->iobase + (chan ? PCL711_DA1_HI : PCL711_DA0_HI));
 
-	return 0;
+		devpriv->ao_readback[chan] = data[n];
+	}
+
+	return n;
+}
+
+static int pcl711_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	int n;
+	int chan = CR_CHAN(insn->chanspec);
+
+	for(n=0;n<insn->n;n++){
+		data[n] = devpriv->ao_readback[chan];
+	}
+
+	return n;
+
 }
 
 /* Digital port read - Untested on 8112 */
-static int pcl711_di(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl711_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int data;
-	int chan;
-	int i;
+	if(insn->n!=2)return -EINVAL;
 
-	data = inb(dev->iobase + PCL711_DI_LO) |
+	data[1] = inb(dev->iobase + PCL711_DI_LO) |
 	    (inb(dev->iobase + PCL711_DI_HI) << 8);
 
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		it->data[i]=(data>>chan)&1;
-	}
-
-	return it->n_chan;
+	return 2;
 }
 
 /* Digital port write - Untested on 8112 */
-static int pcl711_do(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl711_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	int mask, data;
-	int chan;
-	int i;
+	if(insn->n!=2)return -EINVAL;
 
-	data=s->state;
-	for(i=0;i<it->n_chan;i++){
-		chan=CR_CHAN(it->chanlist[i]);
-		mask=(1<<chan);
-		data &= ~mask;
-		if(it->data[i])
-			data |= mask;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= data[0]&data[1];
 	}
-	outb(data & 0xff, dev->iobase + PCL711_DO_LO);
-	outb((data >> 8), dev->iobase + PCL711_DO_HI);
-	s->state = data;
+	if(data[0]&0x00ff)
+		outb(s->state & 0xff, dev->iobase + PCL711_DO_LO);
+	if(data[0]&0xff00)
+		outb((s->state >> 8), dev->iobase + PCL711_DO_HI);
 
-	return it->n_chan;
+	data[1]=s->state;
+
+	return 2;
 }
 
 /*  Free any resources that we have claimed  */
-static void free_resources(comedi_device * dev)
+static int pcl711_detach(comedi_device * dev)
 {
+	printk("comedi%d: pcl711: remove\n", dev->minor);
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 
@@ -447,7 +459,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
 	s->range_table = this_board->ai_range_type;
-	s->trig[0] = pcl711_ai_mode0;
+	s->insn_read = pcl711_ai_insn;
 	s->trig[1] = pcl711_ai_mode1;
 	s->trig[4] = pcl711_ai_mode4;
 
@@ -459,7 +471,8 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
 	s->range_table = &range_bipolar5;
-	s->trig[0] = pcl711_ao;
+	s->insn_write = pcl711_ao_insn;
+	s->insn_read = pcl711_ao_insn_read;
 
 	s++;
 	/* 16-bit digital input */
@@ -469,7 +482,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = 1;
 	s->len_chanlist = 16;
 	s->range_table = &range_digital;
-	s->trig[0] = pcl711_di;
+	s->insn_bits = pcl711_di_insn_bits;
 
 	s++;
 	/* 16-bit digital out */
@@ -480,7 +493,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->len_chanlist = 16;
 	s->range_table = &range_digital;
 	s->state=0;
-	s->trig[0] = pcl711_do;
+	s->insn_bits = pcl711_do_insn_bits;
 
 	/*
 	   this is the "base value" for the mode register, which is
@@ -500,20 +513,4 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 
 	return 0;
 }
-
-
-/*
- *  Removes device
- */
-
-static int pcl711_detach(comedi_device * dev)
-{
-	printk("comedi%d: pcl711: remove\n", dev->minor);
-
-	free_resources(dev);
-
-	return 0;
-}
-
-COMEDI_INITCLEANUP(driver_pcl711);
 

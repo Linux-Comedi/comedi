@@ -170,46 +170,73 @@ COMEDI_INITCLEANUP(driver_pcl726);
 typedef struct{
 	int bipolar[12];
 	comedi_lrange *rangelist[12];
+	lsampl_t ao_readback[12];
 }pcl726_private;
 #define devpriv ((pcl726_private *)dev->private)
 
 
-static int pcl726_ao(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcl726_ao_insn(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
 	int hi,lo;
-	int chan=CR_CHAN(it->chanlist[0]);
+	int n;
+	int chan=CR_CHAN(insn->chanspec);
 
-	lo=it->data[0]&0xff;
-	hi=(it->data[0]>>8)&0xf;
-	if(devpriv->bipolar[chan])hi^=0x8;
-/*
-	the programming info did not say which order to write bytes.
-	switch the order of the next two lines if you get glitches.
-*/
-	outb(hi,dev->iobase+PCL726_DAC0_HI + 2*chan);
-	outb(lo,dev->iobase+PCL726_DAC0_LO + 2*chan);
+	for(n=0;n<insn->n;n++){
+		lo=data[n]&0xff;
+		hi=(data[n]>>8)&0xf;
+		if(devpriv->bipolar[chan])hi^=0x8;
+		/*
+		 * the programming info did not say which order
+		 * to write bytes.  switch the order of the next
+		 * two lines if you get glitches.
+		 */
+		outb(hi,dev->iobase+PCL726_DAC0_HI + 2*chan);
+		outb(lo,dev->iobase+PCL726_DAC0_LO + 2*chan);
+		devpriv->ao_readback[chan]=data[n];
+	}
 	
-	return 1;
+	return n;
 }
 
-static int pcl726_di(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcl726_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int bits;
+	int chan=CR_CHAN(insn->chanspec);
+	int n;
+
+	for(n=0;n<insn->n;n++){
+		data[n]=devpriv->ao_readback[chan];
+	}
+	return n;
+}
+
+static int pcl726_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
 	
-	bits=inb(dev->iobase+this_board->di_lo)|
+	data[1]=inb(dev->iobase+this_board->di_lo)|
 		(inb(dev->iobase+this_board->di_hi)<<8);
 	
-	return di_unpack(bits,it);
+	return 2;
 }
 
-static int pcl726_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcl726_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
+	if(insn->n!=2)return -EINVAL;
 	
-	outb(s->state&0xff,dev->iobase+this_board->do_lo);
-	outb((s->state>>8),dev->iobase+this_board->do_hi);
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= data[0]&data[1];
+	}
+	if(data[1]&0x00ff)
+		outb(s->state&0xff,dev->iobase+this_board->do_lo);
+	if(data[1]&0xff00)
+		outb((s->state>>8),dev->iobase+this_board->do_hi);
 	
-	return it->n_chan;
+	return 2;
 }
 
 static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
@@ -276,8 +303,8 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=this_board->n_aochan;
 	s->maxdata=0xfff;
 	s->len_chanlist=1;
-	s->trig[0]=pcl726_ao;
-	/*s->range_table=&range_unknown;*/	/* XXX */
+	s->insn_write=pcl726_ao_insn;
+	s->insn_read=pcl726_ao_insn_read;
 	s->range_table_list = devpriv->rangelist;
 	for (i=0; i<this_board->n_aochan; i++) {
 		int j;
@@ -293,8 +320,6 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 			devpriv->bipolar[i]=1;	/* bipolar range */
 	}
 
-
-
 	s=dev->subdevices+1;
 	/* di */
 	if (!this_board->have_dio){
@@ -305,7 +330,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=16;
 		s->maxdata=1;
 		s->len_chanlist=1;
-		s->trig[0]=pcl726_di;
+		s->insn_bits=pcl726_di_insn_bits;
 		s->range_table=&range_digital;
 	}
 
@@ -319,7 +344,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=16;
 		s->maxdata=1;
 		s->len_chanlist=1;
-		s->trig[0]=pcl726_do;
+		s->insn_bits=pcl726_do_insn_bits;
 		s->range_table=&range_digital;
 	}
 
@@ -337,7 +362,8 @@ static int pcl726_detach(comedi_device *dev)
 	}
 #endif
 
-	release_region(dev->iobase,this_board->io_range);
+	if(dev->iobase)
+		release_region(dev->iobase,this_board->io_range);
 
 	return 0;
 }
