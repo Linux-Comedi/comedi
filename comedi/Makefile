@@ -13,9 +13,11 @@ ifneq ($(CONFIG_COMEDI_KLIB),)
 endif
 
 ifeq ($(CONFIG_COMEDI_RT),y)
+  ifneq ($(CONFIG_COMEDI_PIRQ),y)
 	MOD_SUB_DIRS += rt_pend_tq
 	SUB_DIRS += rt_pend_tq
 	EXTRA_OBJS := rt_pend_tq/rt_pend_tq.o
+  endif
 endif
 
 MOD_LIST_NAME := MISC_MODULES

@@ -59,6 +59,12 @@
 #define RT_spin_unlock_irq(x)	do{rtl_spin_unlock(x);RT_unprotect();}while(0)
 #endif
 
+#ifdef CONFIG_PRIORITY_IRQ
+#define RT_protect()	__local_irq_disable()
+#define RT_unprotect()	__local_irq_enable()
+#define RT_spin_lock_irq(x)	spin_lock_hard_irq(x)
+#define RT_spin_unlock_irq(x)	spin_unlock_hard_irq(x)
+#endif
 
 struct comedi_irq_struct {
 	int rt;
@@ -346,4 +352,37 @@ void comedi_rt_cleanup(void)
 
 #endif
 
+#ifdef CONFIG_COMEDI_PIRQ
+static int rt_get_irq(struct comedi_irq_struct *it)
+{
+	int ret;
+
+	free_irq(it->irq,it->dev_id);
+	ret=request_irq(it->irq,it->handler,it->flags|SA_PRIORITY,
+		it->device,it->dev_id);
+
+	return ret;
+}
+
+static int rt_release_irq(struct comedi_irq_struct *it)
+{
+	int ret;
+
+	free_irq(it->irq,it->dev_id);
+	ret=request_irq(it->irq,it->handler,it->flags,
+		it->device,it->dev_id);
+
+	return ret;
+}
+
+void comedi_rt_init(void)
+{
+	//rt_pend_tq_init();
+}
+
+void comedi_rt_cleanup(void)
+{
+	//rt_pend_tq_cleanup();
+}
+#endif
 
