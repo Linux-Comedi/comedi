@@ -89,6 +89,8 @@ static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,&caldac_ad
 static struct caldac_struct *type3[]={&caldac_mb88341,NULL,NULL};
 static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad8522};
 
+#define MAX_N_CALDACS (12+12+1)
+
 
 static ni_board ni_boards[]={
 	{       device_id:      0x0162, // NI also says 0x1620.  typo?
@@ -404,8 +406,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  16384,
 		caldac:         type4,		/* XXX */
 	},
-
-//TIM 5/14/01
         {       device_id:      0x15b0,
                 name:           "pxi-6071e",
                 n_adchan:       64,

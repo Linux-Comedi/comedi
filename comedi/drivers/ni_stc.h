@@ -603,6 +603,7 @@ static ni_board ni_boards[];
 	int changain_state;					\
 	unsigned int changain_spec;				\
 								\
+	unsigned int caldac_maxdata_list[MAX_N_CALDACS];	\
 	unsigned short ao[2];					\
 	unsigned short caldacs[12];				\
 								\
@@ -615,7 +616,7 @@ static ni_board ni_boards[];
 	unsigned short ao_trigger_select;			\
 								\
 	unsigned short gpct_mode[2];				\
-	unsigned short gpct_command[2];			\
+	unsigned short gpct_command[2];				\
 	unsigned short gpct_input_select[2];			\
 	int gpct_cur_operation[2];				\
 	unsigned short an_trig_etc_reg;				\

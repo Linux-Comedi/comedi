@@ -888,14 +888,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #else
 	win_out((0<<6)|0x0000,AI_Mode_3_Register); /* generate FIFO interrupts on non-empty */
 #endif
-	/* TIM 5/11/01 
-	0xA4A0 causes overrun errors at high speeds.  0xA420 fixes it,
-	but I haven't tested to see if it breaks something else. I don't think it would*/
-	#ifdef PCIDMA  
 	win_out(0xA420,AI_Personal_Register); 
-	#else
-	win_out(0xa4a0,AI_Personal_Register); /* ? */
-	#endif
 	win_out(0x032e,AI_Output_Control_Register);
 	win_out(0x0060,AI_Trigger_Select_Register); /* trigger source */
 
@@ -1953,9 +1946,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_CALIB;
 	s->subdev_flags=SDF_WRITEABLE|SDF_INTERNAL;
-	caldac_setup(dev,s);
 	s->insn_read=ni_calib_insn_read;
 	s->insn_write=ni_calib_insn_write;
+	caldac_setup(dev,s);
 	
 	/* EEPROM */
 	s=dev->subdevices+6;
@@ -2114,7 +2107,10 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 	if(diffbits){
 		int chan;
 
-		s->maxdata_list=kmalloc(sizeof(int)*n_chans,GFP_KERNEL);
+		if(n_chans>=MAX_N_CALDACS){
+			printk("BUG! MAX_N_CALDACS too small\n");
+		}
+		s->maxdata_list=devpriv->caldac_maxdata_list;
 		chan=0;
 		for(i=0;i<n_dacs;i++){
 			for(j=0;j<boardtype.caldac[i]->n_chans;j++){

@@ -67,6 +67,8 @@
 static struct caldac_struct *type1[]={&caldac_mb88341,NULL,NULL};
 static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,NULL};
 
+#define MAX_N_CALDACS 12
+
 static ni_board ni_boards[]={
 	{	device_id:	0x010d,
 		name:		"DAQCard-ai-16xe-50",
