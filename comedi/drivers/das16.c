@@ -31,12 +31,12 @@ Options:
 	[2] - dma (optional)
 	[3] - master clock speed in MHz (optional, 1 or 10, ignored if board
 		can probe clock speed, defaults to 1 otherwise)
-	[4] - analog input range lowest voltage (optional, only useful if your
+	[4] - analog input range lowest in microvolts (optional, only useful if your
 		board does not have software programmable gain)
-	[5] - analog input range highest voltage (optional, only useful if your
+	[5] - analog input range highest in microvolts (optional, only useful if your
 		board does not have software programmable gain)
-	[6] - analog output range lowest voltage (optional)
-	[7] - analog output range highest voltage (optional)
+	[6] - analog output range lowest in microvolts (optional)
+	[7] - analog output range highest in microvolts (optional)
 
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
@@ -1337,8 +1337,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		// initialize ai range
 		devpriv->user_ao_range_table->length = 1;
 		user_ai_range = devpriv->user_ai_range_table->range;
-		user_ai_range->min = it->options[4] * 1e6;
-		user_ai_range->max = it->options[5] * 1e6;
+		user_ai_range->min = it->options[4];
+		user_ai_range->max = it->options[5];
 		user_ai_range->flags = UNIT_volt;
 	}
 	// get any user-defined output range
@@ -1350,8 +1350,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		// initialize ao range
 		devpriv->user_ai_range_table->length = 1;
 		user_ao_range = devpriv->user_ao_range_table->range;
-		user_ao_range->min = it->options[6] * 1e6;
-		user_ao_range->max = it->options[7] * 1e6;
+		user_ao_range->min = it->options[6];
+		user_ao_range->max = it->options[7];
 		user_ao_range->flags = UNIT_volt;
 	}
 

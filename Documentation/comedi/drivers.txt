@@ -282,12 +282,12 @@ Options:
 	[2] - dma (optional)
 	[3] - master clock speed in MHz (optional, 1 or 10, ignored if board can
 		probe clock, defaults to 1)
-	[4] - analog input range lowest voltage (optional, only useful if your
+	[4] - analog input range lowest voltage in microvolts (optional, only useful if your
 		board does not have software programmable gain)
-	[5] - analog input range highest voltage (optional, only useful if your
+	[5] - analog input range highest voltage in microvolts (optional, only useful if your
 		board does not have software programmable gain)
-	[6] - analog output range lowest voltage (optional)
-	[7] - analog output range highest voltage (optional)
+	[6] - analog output range lowest voltage in microvolts (optional)
+	[7] - analog output range highest voltage in microvolts (optional)
 
 Passing a zero for an option is the same as leaving it unspecified.
 
