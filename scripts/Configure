@@ -392,9 +392,6 @@ echo "/*" > $CONFIG_H
 echo " * Automatically generated C config: don't edit" >> $CONFIG_H
 echo " */" >> $CONFIG_H
 
-echo '#define '${PROJECT}'_VERSION "'$VERS1.$VERS2.$VERS3\" >> $CONFIG_H
-echo '#define '${PROJECT}'_VERSION_CODE ('0x1000*$VERS1+0x100*$VERS2+$VERS3')' >> $CONFIG_H
-
 DEFAULT=""
 if [ "$1" = "-d" ] ; then
 	DEFAULT="-d"
