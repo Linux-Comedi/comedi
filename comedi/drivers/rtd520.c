@@ -581,7 +581,7 @@ static int rtd_attach (
 	    if (it->options[0] || it->options[1]) {
 		if (pcidev->bus->number == it->options[0]
 		    && PCI_SLOT(pcidev->devfn) == it->options[1]) {
-		    printk("rtd520: found bus=%d slot=%d\n",
+		    DPRINTK("rtd520: found bus=%d slot=%d\n",
 			   it->options[0], it->options[1]);
 		    break;		/* found it */
 		}
@@ -753,19 +753,17 @@ static int rtd_attach (
 static int rtd_detach (
     comedi_device *dev)
 {
-    printk("comedi%d: rtd520: removing (%ld ints, %ld extra ai)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n",
+    DPRINTK("comedi%d: rtd520: removing (%ld ints, %ld extra ai)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n",
 	   dev->minor, devpriv->intCount, devpriv->aiExtraInt,
 	   0xffff & RtdInterruptStatus (dev),
 	   0xffff & RtdInterruptOverrunStatus (dev),
 	   0xffff & RtdFifoStatus (dev));
     if (devpriv) {
-	/* Shut down any board ops by reseting it */
+	/* Shut down any board ops by resetting it */
 	RtdResetBoard (dev);
 	RtdInterruptMask (dev, 0);
 	RtdInterruptClearMask (dev,~0);
 	RtdInterruptClear(dev);		/* clears bits set by mask */
-	RtdClearCGT (dev);
-	RtdAdcClearFifo (dev);
 
 	/* release DMA */
 
@@ -873,8 +871,8 @@ static int rtd_ai_rinsn (
 {
     int n, ii;
     int	stat;
-					/* clear channel gain table */
-    /* write channel to multiplexer */
+
+    /* write channel to multiplexer and clear channel gain table */ 
     rtd_load_channelgain_list (dev, 1, &insn->chanspec);
 	
 					/* set conversion source */
@@ -949,7 +947,7 @@ static void ai_read_half_fifo (
 					/* check and deal with buffer wrap */
 	if (s->async->buf_int_ptr >= s->async->data_len) {
 	    s->async->buf_int_ptr = 0;
-	    comedi_eobuf(dev, s);
+	    s->async->events |= COMEDI_CB_EOBUF;
 	}
 					/* write into buffer */
 	*((sampl_t *)((void *)s->async->data + s->async->buf_int_ptr))
@@ -981,7 +979,7 @@ static void ai_read_dregs (
 					/* check and deal with buffer wrap */
 	if (s->async->buf_int_ptr >= s->async->data_len) {
 	    s->async->buf_int_ptr = 0;
-	    comedi_eobuf(dev, s);
+	    s->async->events |= COMEDI_CB_EOBUF;
 	}
 					/* write into buffer */
 	*((sampl_t *)((void *)s->async->data + s->async->buf_int_ptr))
@@ -1014,21 +1012,29 @@ static void rtd_interrupt (
 	|| !(dev->attached)) {
 	return;
     }
+
+    /* Check for analog in */
     /* Either end if a sequence (about), or time to flush the fifo (sample) */
-    /* You can only interrupt on fifo half full if doing DMA  */
+    /* Future: process DMA transfer */
     if (status & (IRQM_ADC_ABOUT_CNT | IRQM_ADC_SAMPLE_CNT)) {
 	comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
-					/* only read in big chunks */
-	if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) {
+
+	/* Check for any ready data */
+	if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) { /* read 1/2 fifo worth */
 	    ai_read_half_fifo (dev, s);
-	    comedi_bufcheck (dev, s);	/* signal something there */
+	    /*comedi_bufcheck (dev, s);	*/
+	    s->async->events |= COMEDI_CB_BLOCK; /* signal something there */
+	} else {
+	    /* for slow transfers, we should read whatever is there */
+	    /*s->async->events |= COMEDI_CB_EOS;*/
 	}
 
 	if (0 == devpriv->aiCount) { /* done! stop! */
-	    comedi_done (dev, s);	/* signal end to comedi */
-	    goto transferDone;
-	}
-	if (status & IRQM_ADC_ABOUT_CNT) { /* about counter terminated */
+	    RtdInterruptMask (dev, 0);		/* mask out ABOUT and SAMPLE */
+	    RtdPacerStop (dev);			/* Stop PACER */
+	    /*comedi_done (dev, s);*/
+	    s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
+	} else if (status & IRQM_ADC_ABOUT_CNT) { /* about cnt terminated */
 	    if (devpriv->aboutWrap) { /* multi-count wraps */
 		if (devpriv->aiCount < devpriv->aboutWrap) {
 		    RtdAboutStopEnable (dev, 0); /* enable stop */
@@ -1037,22 +1043,23 @@ static void rtd_interrupt (
 	    } else {			/* done */
 		/* TODO: allow multiple interrupt sources */
 		RtdInterruptMask (dev, 0);/* mask out ABOUT and SAMPLE */
-		ai_read_dregs (dev, s);
+		RtdPacerStop (dev);	/* Stop PACER */
+		ai_read_dregs (dev, s);	/* ready anything in FIFO */
 
-		comedi_done (dev, s);	/* signal end to comedi */
+		/*comedi_done (dev, s);*/
+		s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
 	    }
 	}
+
+	/* check for fifo over-run */
 	
+	if (s->async->events != 0) {	/* signal any events */
+	    comedi_event (dev, s, s->async->events);
+	    s->async->events = 0;
+	}
     }
+
 					/* clear the interrupt */
-    RtdInterruptClearMask (dev, status);
-    RtdInterruptClear (dev);
-    return;
-
- transferDone:
-    RtdPacerStop (dev);			/* Stop PACER */
-    RtdInterruptMask (dev, 0);		/* mask out ABOUT and SAMPLE */
-
     RtdInterruptClearMask (dev, status);
     RtdInterruptClear (dev);
 }
@@ -1133,19 +1140,19 @@ static int rtd_ai_cmdtest (
 
     if (cmd->start_arg != 0) {
 	cmd->start_arg = 0;
-	printk ("rtd520: cmdtest: start_arg not 0\n");
+	DPRINTK ("rtd520: cmdtest: start_arg not 0\n");
 	err++;
     }
 
     if (cmd->scan_begin_src == TRIG_TIMER){
 	if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
 	    cmd->scan_begin_arg = RTD_MAX_SPEED;
-	    printk ("rtd520: cmdtest: scan rate greater than max.\n");
+	    DPRINTK ("rtd520: cmdtest: scan rate greater than max.\n");
 	    err++;
 	}
 	if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
 	    cmd->scan_begin_arg = RTD_MIN_SPEED;
-	    printk ("rtd520: cmdtest: scan rate lower than min.\n");
+	    DPRINTK ("rtd520: cmdtest: scan rate lower than min.\n");
 	    err++;
 	}
     } else {
@@ -1154,19 +1161,19 @@ static int rtd_ai_cmdtest (
 	/* should specify multiple external triggers */
 	if (cmd->scan_begin_arg > 9) {
 	    cmd->scan_begin_arg = 9;
-	    printk ("rtd520: cmdtest: scan_begin_arg out of range\n");
+	    DPRINTK ("rtd520: cmdtest: scan_begin_arg out of range\n");
 	    err++;
 	}
     }
     if (cmd->convert_src==TRIG_TIMER) {
 	if (cmd->convert_arg < RTD_MAX_SPEED) {
 	    cmd->convert_arg = RTD_MAX_SPEED;
-	    printk ("rtd520: cmdtest: convert rate greater than max.\n");
+	    DPRINTK ("rtd520: cmdtest: convert rate greater than max.\n");
 	    err++;
 	}
 	if (cmd->convert_arg > RTD_MIN_SPEED) {
 	    cmd->convert_arg = RTD_MIN_SPEED;
-	    printk ("rtd520: cmdtest: convert rate lower than min.\n");
+	    DPRINTK ("rtd520: cmdtest: convert rate lower than min.\n");
 	    err++;
 	}
     } else {
@@ -1174,7 +1181,7 @@ static int rtd_ai_cmdtest (
 	/* see above */
 	if (cmd->convert_arg > 9) {
 	    cmd->convert_arg = 9;
-	    printk ("rtd520: cmdtest: convert_arg out of range\n");
+	    DPRINTK ("rtd520: cmdtest: convert_arg out of range\n");
 	    err++;
 	}
     }
@@ -1192,13 +1199,13 @@ static int rtd_ai_cmdtest (
 	/* TRIG_NONE */
 	if (cmd->stop_arg!=0) {
 	    cmd->stop_arg=0;
-	    printk ("rtd520: cmdtest: stop_arg not 0\n");
+	    DPRINTK ("rtd520: cmdtest: stop_arg not 0\n");
 	    err++;
 	}
     }
 
     if (err) {
-	printk ("rtd520: cmdtest error! Some argument compatibility test failed.\n");
+	DPRINTK ("rtd520: cmdtest error! Some argument compatibility test failed.\n");
 	return 3;
     }
 
@@ -1228,7 +1235,7 @@ static int rtd_ai_cmdtest (
     }
 
     if (err) {
-	printk ("rtd520: cmdtest error! Some timer value was altered.\n");
+	DPRINTK ("rtd520: cmdtest error! Some timer value was altered.\n");
 	return 4;
     }
 
@@ -1253,16 +1260,17 @@ static int rtd_ai_cmd (
     RtdPacerStop (dev);			/* Stop PACER */
 
     /* start configuration */
+    /* load channel list and reset CGT */
     rtd_load_channelgain_list (dev, cmd->chanlist_len, cmd->chanlist);
 
     /* setup the common case and override if needed */
     if (cmd->chanlist_len > 1) {
-	/*printk ("rtd520: Multi channel setup\n");*/
+	/*DPRINTK ("rtd520: Multi channel setup\n");*/
 	RtdPacerStartSource (dev, 0);	/* software triggers pacer */
 	RtdBurstStartSource (dev, 1);	/* PACER triggers burst */
 	RtdAdcConversionSource (dev, 2); /* BURST triggers ADC */
     } else {				/* single channel */
-	/*printk ("rtd520: single channel setup\n");*/
+	/*DPRINTK ("rtd520: single channel setup\n");*/
 	RtdPacerStartSource (dev, 0);	/* software triggers pacer */
 	RtdAdcConversionSource (dev, 1); /* PACER triggers ADC */
     }
@@ -1274,7 +1282,7 @@ static int rtd_ai_cmd (
     RtdPacerClockSource (dev, 1);	/* use INTERNAL 8Mhz clock source */
     RtdAdcSampleCounterSource (dev, 1);	/* count samples, not scans */
 
-    /* BUG!!! these look like enumerated values, but they are bit fields */
+    /* BUG??? these look like enumerated values, but they are bit fields */
 
     /* First, setup when to stop */
     switch(cmd->stop_src){
@@ -1289,31 +1297,33 @@ static int rtd_ai_cmd (
 	    devpriv->aiCount = n;
 	    if (n <= 0x10000) {
 		/* Note: stop on underflow.  Load with N-1 */
-		printk ("rtd520: loading %d into about\n", n - 1);
+		DPRINTK ("rtd520: loading %d into about\n", n - 1);
 		devpriv->aboutWrap = 0;
 		RtdAboutCounter (dev, n - 1);
 	    } else {			/* multiple counter wraps */
 		int	mm, dd, ii;
 
-		/*printk ("rtd520: multi-wrap count %d = %d x %d \n",
+		/*DPRINTK ("rtd520: multi-wrap count %d = %d x %d \n",
 		  n, cmd->chanlist_len, cmd->stop_arg);*/
 		/* interrupt on ABOUT wrap, until last wrap */
 		/* we can run long, aiCount handles the excess */
 		dd = (n + 0xffff-1) / 0xffff;/* find divisor, round up */
 		mm = n / dd;
 		/* dd * mm >= n, mm < 0xffff */
+
 					/* try to find good divisor */
-		for (ii = 0; ((mm*dd) < n) && (ii < 8); ++ii) {
+		for (ii = 0; ((mm*dd) < n) && (ii < 6); ++ii) {
 		    dd++;
 		    mm = n / dd;
 		}
 
 		if ((mm*dd) < n) {	/* just run long */
 		    ++mm;
+		    /* test case: try asking for 3 x 65537 samples */
 		}
 		/* dd * mm >= n, mm < 0xffff */
-		printk ("rtd520: multi-wrap count %d = (%d) x %d\n",
-			mm*dd, mm, dd);
+		DPRINTK ("rtd520: multi-wrap count (%d) %d = (%d) x %d\n",
+			n, mm*dd, mm, dd);
 		devpriv->aboutWrap = mm;
 		RtdAboutCounter (dev, mm-1);
 		RtdAboutStopEnable (dev, 1); /* just interrupt */
@@ -1327,7 +1337,7 @@ static int rtd_ai_cmd (
 	break;
 
     default:
-	printk ("rtd520: Warning! ignoring stop_src mode %d\n",
+	DPRINTK ("rtd520: Warning! ignoring stop_src mode %d\n",
 		cmd->stop_src);
     }
 
@@ -1337,7 +1347,7 @@ static int rtd_ai_cmd (
     case TRIG_TIMER:			/* periodic scanning */
 	timer=rtd_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 	/* set PACER clock */
-	/*printk ("rtd520: loading %d into pacer\n", timer);*/
+	/*DPRINTK ("rtd520: loading %d into pacer\n", timer);*/
 	RtdPacerCounter (dev, timer);
 
 	break;
@@ -1347,7 +1357,7 @@ static int rtd_ai_cmd (
 	break;
 
     default:
-	printk ("rtd520: Warning! ignoring scan_begin_src mode %d\n",
+	DPRINTK ("rtd520: Warning! ignoring scan_begin_src mode %d\n",
 		cmd->scan_begin_src);
     }
 
@@ -1357,7 +1367,7 @@ static int rtd_ai_cmd (
 	if (cmd->chanlist_len > 1) {	/* only needed for multi-channel */
 	    timer=rtd_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
 	    /* setup BURST clock */
-	    /*printk ("rtd520: loading %d into burst\n", timer);*/
+	    /*DPRINTK ("rtd520: loading %d into burst\n", timer);*/
 	    RtdBurstCounter (dev, timer);
 	}
 
@@ -1368,7 +1378,7 @@ static int rtd_ai_cmd (
 	break;
 
     default:
-	printk ("rtd520: Warning! ignoring convert_src mode %d\n",
+	DPRINTK ("rtd520: Warning! ignoring convert_src mode %d\n",
 		cmd->convert_src);
     }
 
@@ -1389,10 +1399,10 @@ static int rtd_ai_cmd (
 	
 					/* DEBUG */
 	if (stat & FS_ADC_EMPTY) {		/* 1 -> not empty */
-	    printk ("rtd520: ai_cmd Warning: fifo didn't seem to clear! FifoStatus=0x%x\n",
+	    DPRINTK ("rtd520: ai_cmd Warning: fifo didn't seem to clear! FifoStatus=0x%x\n",
 		    stat);
 	} else {
-	    printk ("rtd520: ai_cmd: polling for sample.\n");
+	    DPRINTK ("rtd520: ai_cmd: polling for sample.\n");
 	}
 
 	/* trigger conversion */
@@ -1408,14 +1418,14 @@ static int rtd_ai_cmd (
 		break;
 	}
 	if (ii >= RTD_ADC_TIMEOUT) {
-	    printk ("rtd520: ai_cmd Error: Never got data in FIFO! FifoStatus=0x%x\n",
+	    DPRINTK ("rtd520: ai_cmd Error: Never got data in FIFO! FifoStatus=0x%x\n",
 		    stat);
 	    return -ETIMEDOUT;
 	}
 
 	/* read data */
 	d = RtdAdcFifoGet (dev);	/* get 2s comp value */
-	/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1);*/
+	/*DPRINTK ("rtd520: Got 0x%x after %d usec\n", d, ii+1);*/
 	d = d >> 3;		/* low 3 bits are marker lines */
 
 					/* write into buffer */
@@ -1427,11 +1437,11 @@ static int rtd_ai_cmd (
     } else {
 	/* interrupt setup */
 	if (! dev->irq) {
-	    printk ("rtd520: ERROR! No interrupt available!\n");
+	    DPRINTK ("rtd520: ERROR! No interrupt available!\n");
 	    return -ENXIO;
 	}
 	
-	printk("rtd520: using interrupts. (%ld ints, %ld extra ai)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)\n",
+	DPRINTK("rtd520: using interrupts. (%ld ints, %ld extra ai)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)\n",
 	       devpriv->intCount, devpriv->aiExtraInt,
 	       0xffff & RtdInterruptStatus (dev),
 	       0xffff & RtdInterruptOverrunStatus (dev),
@@ -1543,7 +1553,7 @@ static int rtd_ao_winsn (
 	    val = data[i] << 3;
 	}
 
-	printk("comedi: rtd520 DAC chan=%d range=%d writing %d as 0x%x\n",
+	DPRINTK("comedi: rtd520 DAC chan=%d range=%d writing %d as 0x%x\n",
 	       chan, range, data[i], val);
 
 	/* a typical programming sequence */
@@ -1610,7 +1620,7 @@ static int rtd_dio_insn_bits (
      * input lines. */
     data[1] = RtdDio0Read (dev);
 
-    /*printk("rtd520:port_0 wrote: 0x%x read: 0x%x\n", s->state, data[1]);*/
+    /*DPRINTK("rtd520:port_0 wrote: 0x%x read: 0x%x\n", s->state, data[1]);*/
 
     return 2;
 }
@@ -1639,7 +1649,7 @@ static int rtd_dio_insn_config (
 	s->io_bits &= ~(1<<chan);
     }
 
-    printk("rtd520: port_0_direction=0x%x (1 means out)\n", s->io_bits);
+    DPRINTK("rtd520: port_0_direction=0x%x (1 means out)\n", s->io_bits);
     /* TODO support digital match interrupts and strobes */
     RtdDioStatusWrite (dev, 0x01);	/* make Dio0Ctrl point to direction */
     RtdDio0CtrlWrite (dev, s->io_bits);	/* set direction 1 means Out */
