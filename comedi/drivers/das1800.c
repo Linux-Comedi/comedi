@@ -178,7 +178,7 @@ static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn
 
 int das1800_set_frequency(comedi_device *dev);
 unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
-unsigned int suggest_transfer_size(comedi_device *dev, unsigned long ns);
+unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns);
 
 // analog input ranges
 static comedi_lrange range_ai_das1801 = {
@@ -1721,20 +1721,20 @@ unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode)
 }
 
 // utility function that suggests a dma transfer size based on the conversion period 'ns'
-unsigned int suggest_transfer_size(comedi_device *dev, unsigned long ns)
+unsigned int suggest_transfer_size(comedi_device *dev, unsigned int ns)
 {
 	int size;
-	float freq = 1000000000.0 / ns;
-	const int min_transfer = 1024;	// minimum transfer size in bytes
+	unsigned int freq = 1000000000 / ns;
+	static const int sample_size = 2;	// size in bytes of one sample from board
 
 	// make buffer fill in no more than 1/3 second
-	size = ((int)freq * sizeof(sampl_t)) / 3;
+	size = (freq / 3) * sample_size;
 
 	// set a minimum and maximum size allowed
 	if(size > devpriv->dma_buf_max_size)
-		size = devpriv->dma_buf_max_size;
-	else if(size < min_transfer)
-		size = min_transfer;
+		size = devpriv->dma_buf_max_size - devpriv->dma_buf_max_size % sample_size;
+	else if(size < sample_size)
+		size = sample_size;
 
 	return size;
 }

@@ -306,7 +306,7 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	/* set counter mode and counts */
-	das16m1_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
+	cmd->convert_arg = das16m1_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
 
 	// set control & status register
 	byte = 0;
