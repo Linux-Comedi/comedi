@@ -1025,60 +1025,49 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 	offset=1<<(boardtype.adbits-1);
 	for(i=0;i<n_chan;i++){
-		chan=CR_CHAN(list[i]);
-		range=CR_RANGE(list[i]);
-		aref=CR_AREF(list[i]);
-		dither=((list[i]&CR_ALT_FILTER)!=0);
+		if(list[i]&CR_ALT_SOURCE){
+			chan=CR_CHAN(devpriv->ai_calib_chanspec);
+			range=CR_RANGE(devpriv->ai_calib_chanspec);
+			aref=AREF_OTHER;
+			dither=((devpriv->ai_calib_chanspec&CR_ALT_FILTER)!=0);
+		}else{
+			chan=CR_CHAN(list[i]);
+			range=CR_RANGE(list[i]);
+			aref=CR_AREF(list[i]);
+			dither=((list[i]&CR_ALT_FILTER)!=0);
+		}
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
 
-		if(list[i]&CR_ALT_SOURCE || aref==AREF_OTHER){
-			int calib_chan;
-
-			if(aref==AREF_OTHER){
-				calib_chan = chan;
-			}else{
-				calib_chan = devpriv->ai_calib_chan;
-			}
-
-			hi = calib_chan;
-			ni_writew(hi,Configuration_Memory_High);
-
-			lo = (i==n_chan-1)?0x8000:0;
-			lo |= (dither<<9);
-			lo |= range;
-			ni_writew(lo,Configuration_Memory_Low);
+		if(boardtype.gainlkup != ai_gain_611x){
+			hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		}else{
-			if(boardtype.gainlkup != ai_gain_611x){
-				hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
-			}else{
-				/* bits 12-14 channel type */
-				/* map everything to differential */
-				hi = 0x1000;
-				/* bit 11 AC/DC coupling */
-				/* not handled */
-				hi |= 0x0000;
-				/* bits 0-2 channel */
-				hi |= (chan&0x0003);
-			}
-			ni_writew(hi,Configuration_Memory_High);
-
-			if(boardtype.gainlkup != ai_gain_611x){
-				lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
-			}else{
-				/* bits 15 last channel */
-				lo = (i==n_chan-1)?0x8000:0;
-				/* bits 14-10 reserved */
-				/* bit 9 dither */
-				lo |= (dither<<9);
-				/* bit 8 unipolar/bipolar */
-				/* bits 0-3 gain */
-				lo |= range;
-			}
-			ni_writew(lo,Configuration_Memory_Low);
+			/* bits 12-14 channel type */
+			/* map everything to differential */
+			hi = 0x1000;
+			/* bit 11 AC/DC coupling */
+			/* not handled */
+			hi |= 0x0000;
+			/* bits 0-2 channel */
+			hi |= (chan&0x0003);
 		}
+		ni_writew(hi,Configuration_Memory_High);
+
+		if(boardtype.gainlkup != ai_gain_611x){
+			lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
+		}else{
+			/* bits 15 last channel */
+			lo = (i==n_chan-1)?0x8000:0;
+			/* bits 14-10 reserved */
+			/* bit 9 dither */
+			lo |= (dither<<9);
+			/* bit 8 unipolar/bipolar */
+			/* bits 0-3 gain */
+			lo |= range;
+		}
+		ni_writew(lo,Configuration_Memory_Low);
 	}
 
 	/* prime the channel/gain list */
@@ -1574,7 +1563,7 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 		if(CR_CHAN(data[1]) >= 8 ||
 		   CR_RANGE(data[1]) >= s->range_table->length)
 			return -EINVAL;
-		devpriv->ai_calib_chan = data[1];
+		devpriv->ai_calib_chanspec = data[1];
 		return 2;
 		}
 	}
