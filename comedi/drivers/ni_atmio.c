@@ -232,15 +232,6 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 #define ni_readb_p(a)		(inb_p((a)+dev->iobase))
 
 
-/*
- * this is how we access windowed registers
- */
-
-#define win_out(a,b) (ni_writew((b),Window_Address),ni_writew((a),Window_Data))
-#define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
-#define win_save() (ni_readw(Window_Address))
-#define win_restore(a) (ni_writew((a),Window_Address))
-
 #ifdef HAVE_ISAPNP
 static struct isapnp_device_id device_ids[] = {
 	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x0000), },

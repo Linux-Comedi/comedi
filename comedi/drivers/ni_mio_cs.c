@@ -150,16 +150,6 @@ static ni_board ni_boards[]={
 #define ni_readb_p(a)		(inb_p((a)+dev->iobase))
 
 
-/*
- * this is how we access windowed registers
- */
-
-#define win_out(a,b) (ni_writew((b),Window_Address),ni_writew((a),Window_Data))
-#define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
-#define win_save() (ni_readw(Window_Address))
-#define win_restore(a) (ni_writew((a),Window_Address))
-
-
 typedef struct{
 	dev_link_t *link;
 
@@ -186,11 +176,10 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link);
 /* called when driver is removed */
 static int mio_cs_detach(comedi_device *dev)
 {
-#if 0
-	/* PCMCIA layer does this for us */
-	if(dev->iobase)
-		release_region(dev->iobase,NI_SIZE);
-#endif
+	mio_common_detach(dev);
+
+	/* PCMCIA layer frees the IO region */
+
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
@@ -198,7 +187,7 @@ static int mio_cs_detach(comedi_device *dev)
 	return 0;
 }
 
-void mio_cs_config(dev_link_t *link);
+static void mio_cs_config(dev_link_t *link);
 static void cs_release(u_long arg);
 static void cs_detach(dev_link_t *);
 static int irq_mask;
@@ -359,7 +348,7 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 
 
 
-void mio_cs_config(dev_link_t *link)
+static void mio_cs_config(dev_link_t *link)
 {
 	client_handle_t handle = link->handle;
 	tuple_t tuple;

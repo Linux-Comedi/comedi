@@ -492,7 +492,6 @@ COMEDI_INITCLEANUP(driver_pcimio);
 
 /* How we access registers */
 
-
 #define ni_writew(a,b)		(writew((a),dev->iobase+(b)))
 #define ni_readw(a)		(readw(dev->iobase+(a)))
 #define ni_writeb(a,b)		(writeb((a),dev->iobase+(b)))
@@ -501,18 +500,6 @@ COMEDI_INITCLEANUP(driver_pcimio);
 #define ni_readb_p(a)		(ni_readb(a),ni_readb(a))
 
 
-/*
- * this is how we access windowed registers
- */
-#define win_out(a,b) (ni_writew((b),Window_Address),ni_writew((a),Window_Data))
-#define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
-#define win_save() (ni_readw(Window_Address))
-#define win_restore(a) (ni_writew((a),Window_Address))
-
-/*
-   If interrupts _still_ don't work, play with the
-   following two values.
- */
 #define interrupt_pin(a)	0
 #define IRQ_POLARITY 1
 

@@ -1,4 +1,3 @@
-
 /*
     comedi/drivers/ni_mio_common.c
     Hardware driver for DAQ-STC based boards
@@ -64,11 +63,29 @@
 #define MDPRINTK(format,args...)
 #endif
 
-/* reference: ground, common, differential, other */
-static int ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
-static int ni_modebits2[4]={ 0x3f, 0x3f, 0x37, 0x37 };
+/* How we access windowed registers */
 
-static int ni_gainlkup[][16]={
+#define win_out(a,b) do{ \
+		ni_writew((b),Window_Address); \
+		ni_writew((a),Window_Data); \
+	}while(0)
+#define win_out2(a,b) do{ \
+		ni_writew((b),Window_Address); \
+		ni_writew(((a)>>16)&0xffff,Window_Data); \
+		ni_writew((b)+1,Window_Address); \
+		ni_writew((a)&0xffff,Window_Data); \
+	}while(0)
+#define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
+#define win_save() (ni_readw(Window_Address))
+#define win_restore(a) (ni_writew((a),Window_Address))
+
+
+
+/* reference: ground, common, differential, other */
+static short ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
+static short ni_modebits2[4]={ 0x3f, 0x3f, 0x37, 0x37 };
+
+static char ni_gainlkup[][16]={
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
 	{ 1, 2, 4, 7, 9, 10, 12, 15, 0,0,0,0,0,0,0,0 },
 	{ 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 0,0 },
@@ -126,12 +143,6 @@ static comedi_lrange range_ni_E_ai_bipolar4={ 4, {
 	RANGE( -0.5,	0.5	),
 	RANGE( -0.05,	0.05	),
 }};
-#if 0
-static comedi_lrange range_ni_E_ao = { 2, {
-	RANGE( -10,	10	),
-	RANGE( 0,	10	),
-}};
-#endif
 static comedi_lrange range_ni_E_ao_ext = { 4, {
 	RANGE( -10,	10	),
 	RANGE( 0,	10	),
@@ -202,17 +213,17 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 static void pfi_setup(comedi_device *dev);
 
 /*GPCT function def's*/
-int GPCT_G_Watch(comedi_device *dev, int chan);
+static int GPCT_G_Watch(comedi_device *dev, int chan);
 
-void GPCT_Reset(comedi_device *dev, int chan);
-void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length);
-void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length);
-void GPCT_Period_Meas(comedi_device *dev, int chan);
-void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan);
-void GPCT_Event_Counting(comedi_device *dev,int chan);
-int GPCT_Set_Direction(comedi_device *dev,int chan,int direction);
-int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate);
-int GPCT_Set_Source(comedi_device *dev,int chan ,int source);
+static void GPCT_Reset(comedi_device *dev, int chan);
+static void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length);
+static void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length);
+static void GPCT_Period_Meas(comedi_device *dev, int chan);
+static void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan);
+static void GPCT_Event_Counting(comedi_device *dev,int chan);
+static int GPCT_Set_Direction(comedi_device *dev,int chan,int direction);
+static int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate);
+static int GPCT_Set_Source(comedi_device *dev,int chan ,int source);
 
 static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
@@ -220,8 +231,6 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
-
-#undef DEBUG
 
 #define AIMODE_NONE		0
 #define AIMODE_HALF_FULL	1
@@ -234,7 +243,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short status);
 /*status must be long because the CHSR is 32 bits and the high bits
 are important to us */
 static void mite_handle_interrupt(comedi_device *dev,unsigned long status);
-void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop);
+static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop);
 #endif
 
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to 
@@ -249,8 +258,8 @@ void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *st
 *
 * value should only be 1 or 0.
 */
-void inline ni_set_bits(comedi_device *dev, int reg, int bits, int value) {
-	
+static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
+{
 	switch (reg){
 		case Interrupt_A_Enable_Register:
 			if(value)
@@ -281,8 +290,7 @@ void inline ni_set_bits(comedi_device *dev, int reg, int bits, int value) {
 }
 
 
-static
-void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
+static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
 	comedi_device *dev=d;
 	unsigned short a_status;
@@ -581,7 +589,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 }
 
 #ifdef PCIDMA
-void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop)
+static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop)
 {
 	comedi_async *async = s->async;
 	int j;
@@ -748,7 +756,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 }
 
 #ifdef PCIDMA
-int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
+static int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 {
 	int n;
 	int len;
@@ -794,7 +802,7 @@ int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 #endif
 
 #ifdef TRY_BLOCK
-int ni_ai_setup_block(comedi_device *dev,int frob,int mode1)
+static int ni_ai_setup_block(comedi_device *dev,int frob,int mode1)
 {
 	int n;
 	int last=0;
@@ -840,7 +848,7 @@ printk("n_left = %d\n",devpriv->n_left);
 #endif
 
 #ifdef PCIDMA
-int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
+static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 {
 	int n,len;
 	unsigned long ll_start;
@@ -1648,7 +1656,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ao_mode3&=~AO_Trigger_Length;
 	win_out(devpriv->ao_mode3,AO_Mode_3_Register);
 
-	if(cmd->stop_src==TRIG_NOW){
+	if(cmd->stop_src==TRIG_NONE){
 		devpriv->ao_mode1|=AO_Continuous;
 	}else{
 		devpriv->ao_mode1&=~AO_Continuous;
@@ -1656,28 +1664,22 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
 	devpriv->ao_mode2&=~AO_BC_Initial_Load_Source;
 	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	if(cmd->stop_src==TRIG_NOW){
-		win_out(0xff,AO_BC_Load_A_Register_High);
-		win_out(0xffff,AO_BC_Load_A_Register_Low);
+	if(cmd->stop_src==TRIG_NONE){
+		win_out2(0xffffff,AO_BC_Load_A_Register);
 	}else{
-		win_out(0,AO_BC_Load_A_Register_High);
-		win_out(0,AO_BC_Load_A_Register_Low);
+		win_out2(0,AO_BC_Load_A_Register);
 	}
 	win_out(AO_BC_Load,AO_Command_1_Register);
 	devpriv->ao_mode2&=~AO_UC_Initial_Load_Source;
 	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	if(cmd->stop_src==TRIG_NOW){
-		win_out(0xff,AO_UC_Load_A_Register_High);
-		win_out(0xffff,AO_UC_Load_A_Register_Low);
+	if(cmd->stop_src==TRIG_NONE){
+		win_out2(0xffffff,AO_UC_Load_A_Register);
 		win_out(AO_UC_Load,AO_Command_1_Register);
-		win_out(0xff,AO_UC_Load_A_Register_High);
-		win_out(0xffff,AO_UC_Load_A_Register_Low);
+		win_out2(0xffffff,AO_UC_Load_A_Register);
 	}else{
-		win_out(0,AO_UC_Load_A_Register_High);
-		win_out(0,AO_UC_Load_A_Register_Low);
+		win_out2(0,AO_UC_Load_A_Register);
 		win_out(AO_UC_Load,AO_Command_1_Register);
-		win_out((cmd->stop_arg-1)>>16,AO_UC_Load_A_Register_High);
-		win_out((cmd->stop_arg-1)&0xffff,AO_UC_Load_A_Register_Low);
+		win_out2(cmd->stop_arg,AO_UC_Load_A_Register);
 	}
 
 	devpriv->ao_cmd2&=~AO_BC_Gate_Enable;
@@ -1686,11 +1688,9 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
 	devpriv->ao_mode2&=~(AO_UI_Reload_Mode(3)|AO_UI_Initial_Load_Source);
 	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	win_out(0,AO_UI_Load_A_Register_High);
-	win_out(1,AO_UI_Load_A_Register_Low);
+	win_out2(1,AO_UI_Load_A_Register);
 	win_out(AO_UI_Load,AO_Command_1_Register);
-	win_out((trigvar>>16),AO_UI_Load_A_Register_High);
-	win_out((trigvar&0xffff),AO_UI_Load_A_Register_Low);
+	win_out2(trigvar,AO_UI_Load_A_Register);
 
 	if(cmd->scan_end_arg>1){
 		devpriv->ao_mode1|=AO_Multiple_Channels;
@@ -1725,7 +1725,6 @@ devpriv->ao_mode2|=AO_FIFO_Mode(1);
 	win_out(devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
 		AO_Command_1_Register);
 
-	//TIM 4/17/01 win_out(AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable,Interrupt_B_Enable_Register);
 	ni_set_bits(dev, Interrupt_B_Enable_Register,
 		AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 1);
 
@@ -2022,6 +2021,17 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 
 
+static int ni_8255_callback(int dir,int port,int data,void *arg)
+{
+	comedi_device *dev=arg;
+
+	if(dir){
+		ni_writeb(data,Port_A+2*port);
+		return 0;
+	}else{
+		return ni_readb(Port_A+2*port);
+	}
+}
 
 /*
 	presents the EEPROM as a subdevice
@@ -2219,8 +2229,6 @@ static void pfi_setup(comedi_device *dev)
 {
 	/* currently, we don't output any signals, thus, all
 	   the PFI's are input */
-	
-	//TIM 4/17/01 win_out(0,IO_Bidirection_Pin_Register);
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, 0x03ff, 0);
 }
 
@@ -2233,26 +2241,27 @@ static void pfi_setup(comedi_device *dev)
  */
 
 /*
-*   Low level stuff...Each STC counter has two 24 bit load registers (A&B).  Just make
-* it easier to access them.
-*/
-static void GPCT_Load_A(comedi_device *dev, int chan, long value)
+ * Low level stuff...Each STC counter has two 24 bit load registers
+ * (A&B).  Just make it easier to access them.
+ *
+ * These are inlined _only_ because they are used once in subsequent
+ * code.  Otherwise they should not be inlined.
+ */
+static inline void GPCT_Load_A(comedi_device *dev, int chan, unsigned int value)
 {
-	win_out( (value>>16) & 0x00ff, G_Load_A_Register_High(chan));
-	win_out( value & 0xffff, G_Load_A_Register_Low(chan));
+	win_out2( value & 0x00ffffff, G_Load_A_Register(chan));
 }
 
-static void GPCT_Load_B(comedi_device *dev, int chan, long value)
+static inline void GPCT_Load_B(comedi_device *dev, int chan, unsigned int value)
 {
-	win_out( (value>>16) & 0x00ff, G_Load_B_Register_High(chan));
-	win_out( value & 0xffff, G_Load_B_Register_Low(chan));
+	win_out2( value & 0x00ffffff, G_Load_B_Register(chan));
 }
 
 /*  Load a value into the counter, using register A as the intermediate step.
 *  You might use GPCT_Load_Using_A to load a 0x000000 into a counter
 *  reset its value.
 */
-static void GPCT_Load_Using_A(comedi_device *dev, int chan, long value)
+static void GPCT_Load_Using_A(comedi_device *dev, int chan, unsigned int value)
 {
 	devpriv->gpct_mode[chan] &= (~G_Load_Source_Select);
 	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
@@ -2260,24 +2269,12 @@ static void GPCT_Load_Using_A(comedi_device *dev, int chan, long value)
 	win_out( devpriv->gpct_command[chan]|G_Load,G_Command_Register(chan));
 }
 
-/*	Don't use this by itself!  The read is not atomic and quite unsafe.
-*	If you think you need this function, use GPCT_G_Watch instead.
-*/
-int inline GPCT_G_Read(comedi_device *dev, int chan)
-{
-	int tmp;
-	tmp = win_in( G_Save_Register_High(chan)) << 16;
-	tmp |= win_in(G_Save_Register_Low(chan));
-	return tmp;
-}
-
 /*
-*	Read the GPCTs current value.  
-*	This function is actually straight out of the STC RLPM.
-*/
-int GPCT_G_Watch(comedi_device *dev, int chan)
+ *	Read the GPCTs current value.  
+ */
+static int GPCT_G_Watch(comedi_device *dev, int chan)
 {
-	int save1,save2;
+	unsigned int hi1,hi2,lo;
 	
 	devpriv->gpct_command[chan] &= ~G_Save_Trace;
 	win_out( devpriv->gpct_command[chan],G_Command_Register(chan));
@@ -2285,25 +2282,26 @@ int GPCT_G_Watch(comedi_device *dev, int chan)
 	devpriv->gpct_command[chan] |= G_Save_Trace;
 	win_out( devpriv->gpct_command[chan], G_Command_Register(chan));
 
-	save1 = GPCT_G_Read(dev,chan);
-	save2 = GPCT_G_Read(dev,chan);
-	
-	/*if the value changed during the read, try again*/
-	if (save1 != save2) {
-		save1 = GPCT_G_Read(dev,chan);
-	}
-	return save1;
+	/* This procedure is used because the two registers cannot
+	 * be read atomically. */
+	do{
+		hi1 = win_in( G_Save_Register_High(chan));
+		lo = win_in(G_Save_Register_Low(chan));
+		hi2 = win_in( G_Save_Register_High(chan));
+	}while(hi1!=hi2);
+
+	return (hi1<<16)|lo;
 }
 
 
-int GPCT_Disarm(comedi_device *dev, int chan)
+static int GPCT_Disarm(comedi_device *dev, int chan)
 {
 	win_out( devpriv->gpct_command[chan] | G_Disarm,G_Command_Register(chan));
 	return 0;
 }
 
 
-int GPCT_Arm(comedi_device *dev, int chan)
+static int GPCT_Arm(comedi_device *dev, int chan)
 {
 	win_out( devpriv->gpct_command[chan] | G_Arm,G_Command_Register(chan));
 	/* If the counter is doing pulse width measurement, then make
@@ -2331,7 +2329,7 @@ int GPCT_Arm(comedi_device *dev, int chan)
 	return 0;
 }
 
-int GPCT_Set_Source(comedi_device *dev,int chan ,int source)
+static int GPCT_Set_Source(comedi_device *dev,int chan ,int source)
 {
 	//printk("GPCT_Set_Source...");
 	devpriv->gpct_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
@@ -2353,7 +2351,7 @@ int GPCT_Set_Source(comedi_device *dev,int chan ,int source)
 	return 0;
 }
 
-int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate)
+static int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate)
 {
 	//printk("GPCT_Set_Gate...");
 	devpriv->gpct_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
@@ -2379,7 +2377,7 @@ int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate)
 	return 0;
 }
 
-int GPCT_Set_Direction(comedi_device *dev,int chan,int direction)
+static int GPCT_Set_Direction(comedi_device *dev,int chan,int direction)
 {
 	//printk("GPCT_Set_Direction...");
 	
@@ -2404,7 +2402,7 @@ int GPCT_Set_Direction(comedi_device *dev,int chan,int direction)
 	return 0;
 }
 
-void GPCT_Event_Counting(comedi_device *dev,int chan)
+static void GPCT_Event_Counting(comedi_device *dev,int chan)
 {
 
 	//NOTE: possible residual bits from multibit masks can corrupt
@@ -2426,7 +2424,7 @@ void GPCT_Event_Counting(comedi_device *dev,int chan)
 	//printk("exit GPCT_Event_Counting\n");
 }
 
-void GPCT_Period_Meas(comedi_device *dev, int chan)
+static void GPCT_Period_Meas(comedi_device *dev, int chan)
 {
 	//printk("GPCT_Period_Meas...");
 	
@@ -2473,7 +2471,7 @@ void GPCT_Period_Meas(comedi_device *dev, int chan)
 	//printk("exit GPCT_Period_Meas\n");
 }
 
-void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan)
+static void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan)
 {
 	//printk("GPCT_Pulse_Width_Meas...");
 
@@ -2522,7 +2520,7 @@ void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan)
 /* GPCT_Gen_Single_Pulse() creates pulse of length pulsewidth which starts after the Arm
 signal is sent.  The pulse is delayed by the value already in the counter.  This function could
 be modified to send a pulse in response to a trigger event at its gate.*/
-void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length)
+static void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length)
 {
 	//printk("GPCT_Gen_Cont...");
 
@@ -2573,7 +2571,7 @@ void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length)
 	//printk("exit GPCT_Gen_Cont\n");
 }
 
-void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length)
+static void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length)
 {
 	//printk("GPCT_Gen_Cont...");
 
@@ -2631,7 +2629,7 @@ void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length)
 	//printk("exit GPCT_Gen_Cont\n");
 }
 
-void GPCT_Reset(comedi_device *dev, int chan)
+static void GPCT_Reset(comedi_device *dev, int chan)
 {
 	unsigned long irqflags;
 	int temp_ack_reg=0;
@@ -2798,14 +2796,3 @@ static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 }
 
 
-static int ni_8255_callback(int dir,int port,int data,void *arg)
-{
-	comedi_device *dev=arg;
-
-	if(dir){
-		ni_writeb(data,Port_A+2*port);
-		return 0;
-	}else{
-		return ni_readb(Port_A+2*port);
-	}
-}
