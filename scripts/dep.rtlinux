@@ -7,7 +7,7 @@ if [ "$CONFIG_RTL" != "" ];then
 	read RTLDIR
 	: ${RTLDIR:=/usr/src/rtl}
 	echo RTLDIR=$RTLDIR >>.sourcedirs
-	(cd include;rm -f rtlinux;ln -s $RTLDIR/include rtlinux)
+#	(cd include;rm -f rtlinux;ln -s $RTLDIR/include rtlinux)
 fi
 
 

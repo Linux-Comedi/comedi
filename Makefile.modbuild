@@ -51,6 +51,9 @@ CFLAGS += $(shell if $(CC) -fno-strict-aliasing -S -o /dev/null -xc /dev/null >/
 #CFLAGS += -include $(TOPDIR)/include/modbuild/config.h
 CFLAGS += -D__KERNEL__ -I $(TOPDIR)/include -I $(LINUXDIR)/include -I .
 CFLAGS += -D__MODBUILD__
+ifdef RTLDIR
+CFLAGS += -I $(RTLDIR)/include
+endif
 
 CONFIG_SHELL := sh
 
