@@ -1568,7 +1568,7 @@ int comedi_init(void)
 {
 	int i;
 
-	printk("comedi: version " COMEDI_RELEASE " - David Schleef <ds@stm.lbl.gov>\n");
+	printk("comedi: version " COMEDI_RELEASE " - David Schleef <ds@schleef.org>\n");
 	if(register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
 		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
 		return -EIO;
