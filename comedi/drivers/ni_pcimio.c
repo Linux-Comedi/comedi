@@ -105,7 +105,7 @@ incorrect.
 
 #define PCI_DEBUG
 
-//#define PCIDMA
+#define PCIDMA
 
 #define PCIMIO 1
 #undef ATMIO
@@ -401,6 +401,22 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		caldac:         {ad8804,mb88341,ad8522}, /* manual is wrong */
 	},
+#if 0
+	{       device_id:      0x0000, /* unknown */
+		name:           "pci-6053e",
+		n_adchan:       64,
+		adbits:         16,
+		ai_fifo_depth:  512,
+		alwaysdither:   1,
+		gainlkup:       ai_gain_16,
+		ai_speed:	3000,
+		n_aochan:       2,
+		aobits:         16,
+		ao_unipolar:    1,
+		ao_fifo_depth:  2048,
+		caldac:         {ad8804,mb88341,ad8522}, /* manual is wrong */
+	},
+#endif
 	{       device_id:      0x14e0,
 		name:           "pci-6110e",
 		n_adchan:       4, 
