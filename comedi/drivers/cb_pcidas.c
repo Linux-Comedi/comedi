@@ -494,6 +494,11 @@ static int trimpot_7376_write(comedi_device *dev, uint8_t value);
 static int trimpot_8402_write(comedi_device *dev, unsigned int channel, uint8_t value);
 static int nvram_read( comedi_device *dev, unsigned int address, uint8_t *data );
 
+static inline unsigned int cal_enable_bits( comedi_device *dev )
+{
+	return CAL_EN_BIT | CAL_SRC_BITS( devpriv->calibration_source );
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -780,7 +785,7 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 
 	// enable calibration input if appropriate
 	if( insn->chanspec & CR_ALT_SOURCE )
-		outw( CAL_EN_BIT | CAL_SRC_BITS( devpriv->calibration_source ),
+		outw( cal_enable_bits( dev ),
 			devpriv->control_status + CALIBRATION_REG);
 	else
 		outw( 0, devpriv->control_status + CALIBRATION_REG);
@@ -953,11 +958,11 @@ static int dac08_write( comedi_device *dev, lsampl_t value )
 
 	devpriv->dac08_value = value;
 
-	outw( ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+	outw( cal_enable_bits( dev ) | ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
 	comedi_udelay( 1 );
-	outw( SELECT_DAC08_BIT | ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+	outw( cal_enable_bits( dev ) | SELECT_DAC08_BIT | ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
 	comedi_udelay( 1 );
-	outw( ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+	outw( cal_enable_bits( dev ) | ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
 	comedi_udelay( 1 );
 
 	return 1;
@@ -1755,12 +1760,12 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 
 	devpriv->caldac_value[ address ] = value;
 
-	write_calibration_bitstream( dev, 0, bitstream, bitstream_length );
+	write_calibration_bitstream( dev, cal_enable_bits( dev ), bitstream, bitstream_length );
 
 	comedi_udelay(caldac_8800_comedi_udelay);
-	outw(SELECT_8800_BIT, devpriv->control_status + CALIBRATION_REG);
+	outw( cal_enable_bits( dev ) | SELECT_8800_BIT, devpriv->control_status + CALIBRATION_REG);
 	comedi_udelay(caldac_8800_comedi_udelay);
-	outw(0, devpriv->control_status + CALIBRATION_REG);
+	outw( cal_enable_bits( dev ), devpriv->control_status + CALIBRATION_REG);
 
 	return 1;
 }
@@ -1772,14 +1777,14 @@ static int trimpot_7376_write(comedi_device *dev, uint8_t value)
 	unsigned int register_bits;
 	static const int ad7376_comedi_udelay = 1;
 
-	register_bits = SELECT_TRIMPOT_BIT;
+	register_bits = cal_enable_bits( dev ) | SELECT_TRIMPOT_BIT;
 	comedi_udelay( ad7376_comedi_udelay );
 	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
 
 	write_calibration_bitstream( dev, register_bits, bitstream, bitstream_length );
 
 	comedi_udelay(ad7376_comedi_udelay);
-	outw(0, devpriv->control_status + CALIBRATION_REG);
+	outw( cal_enable_bits( dev ), devpriv->control_status + CALIBRATION_REG);
 
 	return 0;
 }
@@ -1789,20 +1794,19 @@ static int trimpot_7376_write(comedi_device *dev, uint8_t value)
  * ch 1 : adc postgain offset */
 static int trimpot_8402_write(comedi_device *dev, unsigned int channel, uint8_t value)
 {
-	// XXX check docs, this function is just a guess
 	static const int bitstream_length = 10;
-	unsigned int bitstream = ( ( channel & 0x1 ) << 8 ) | ( value & 0xff );
+	unsigned int bitstream = ( ( channel & 0x3 ) << 8 ) | ( value & 0xff );
 	unsigned int register_bits;
 	static const int ad8402_comedi_udelay = 1;
 
-	register_bits = SELECT_TRIMPOT_BIT;
+	register_bits = cal_enable_bits( dev ) | SELECT_TRIMPOT_BIT;
 	comedi_udelay( ad8402_comedi_udelay );
 	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
 
 	write_calibration_bitstream( dev, register_bits, bitstream, bitstream_length );
 
 	comedi_udelay(ad8402_comedi_udelay);
-	outw(0, devpriv->control_status + CALIBRATION_REG);
+	outw( cal_enable_bits( dev ), devpriv->control_status + CALIBRATION_REG);
 
 	return 0;
 }
