@@ -40,9 +40,9 @@ TODO:
 	there are a number of boards this driver will support when they are
 		fully released, but does not since yet since the pci device id numbers
 		are not yet available.
-	add plx9080 stuff to make interrupts work
+	add plx9080 stuff to make interrupts and dma work
 	need to take care to prevent ai and ao from affecting each others register bits
-	support prescaled 100khz for slow pacing
+	support prescaled 100khz clock for slow pacing
 */
 
 #include <linux/kernel.h>
@@ -62,7 +62,7 @@ TODO:
 #include <linux/comedidev.h>
 #include "8253.h"
 #include "8255.h"
-#include "plx9060.h"
+#include "plx9080.h"
 
 #define PCIDAS64_DEBUG	// enable debugging code
 //#undef PCIDAS64_DEBUG	// disable debugging code
@@ -114,6 +114,11 @@ TODO:
 #define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
 #define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
 #define ADC_SAMPLE_INTERVAL_UPPER_REG	0x18	// upper 8 bits of sample interval counter
+#define ADC_DELAY_INTERVAL_LOWER_REG	0x1a	// lower 16 bits of delay interval counter
+#define ADC_DELAY_INTERVAL_UPPER_REG	0x1c	// upper 8 bits of delay interval counter
+#define ADC_COUNT_LOWER_REG	0x1e	// lower 16 bits of hardware conversion/scan counter
+#define ADC_COUNT_UPPER_REG	0x20	// upper 8 bits of hardware conversion/scan counter
+#define ADC_START_REG	0x22	// software trigger to start aquisition
 #define ADC_CONVERT_REG	0x24	// initiates single conversion
 #define ADC_QUEUE_CLEAR_REG	0x26	// clears adc queue
 #define ADC_QUEUE_LOAD_REG	0x28	// loads adc queue
@@ -121,7 +126,8 @@ TODO:
 #define    GAIN_BITS(x)	(((x) & 0x3) << 8)	// translates range index to gain bits
 #define    UNIP_BIT(x)	(((x) & 0x4) << 11)	// translates range index to unipolar/bipolar bit
 #define    SE_BIT	0x1000	// single-ended/ differential bit
-#define    QUEUE_EOS_BIT	0x8000	// queue end of scan
+#define    QUEUE_EOSEQ_BIT	0x4000	// queue end of sequence
+#define    QUEUE_EOSCAN_BIT	0x8000	// queue end of scan
 #define ADC_BUFFER_CLEAR_REG	0x2a
 #define ADC_QUEUE_HIGH_REG	0x2c	// high channel for internal queue, use CHAN_BITS() macro above
 #define DAC_CONTROL0_REG	0x50	// dac control register 0
@@ -136,6 +142,8 @@ TODO:
 #define   ADC_BUSY_BIT	0x8
 #define   HW_REVISION(x)	(((x) >> 12) & 0xf)
 #define PIPE1_READ_REG	0x4
+// read-write
+#define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
 
 // devpriv->dio_counter_iobase registers
 #define DIO_8255_OFFSET	0x0
@@ -535,6 +543,18 @@ printk(" irq %i\n", dev->irq);
 
 printk(" stc hardware revision %i\n", devpriv->hw_revision);
 
+// plx9080 dump
+printk(" plx interrupt status 0x%x\n", readl(devpriv->plx9080_iobase + PLX_INTRCS_REG));
+printk(" plx id bits 0x%x\n", readl(devpriv->plx9080_iobase + PLX_ID_REG));
+printk(" plx hardware revision 0x%x\n", readl(devpriv->plx9080_iobase + PLX_REVISION_REG));
+printk(" plx dma channel 0 mode 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_MODE_REG));
+printk(" plx dma channel 0 pci address 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG));
+printk(" plx dma channel 0 local address 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
+printk(" plx dma channel 0 transfer size 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG));
+printk(" plx dma channel 0 descriptor 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG));
+printk(" plx dma channel 0 command status 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_CS_REG));
+printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_THRESHOLD_REG));
+
 #endif
 
 
@@ -547,18 +567,18 @@ printk(" stc hardware revision %i\n", devpriv->hw_revision);
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
-//	dev->read_subdev = s;
+	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
-	/* WARNING: Number of inputs in differential mode is ignored */
+	/* XXX Number of inputs in differential mode is ignored */
 	s->n_chan = thisboard->ai_se_chans;
 	s->len_chanlist = 8092;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &ai_ranges;
 	s->insn_read = ai_rinsn;
-//	s->do_cmd = ai_cmd;
-//	s->do_cmdtest = ai_cmdtest;
-//	s->cancel = ai_cancel;
+	//s->do_cmd = ai_cmd;
+	//s->do_cmdtest = ai_cmdtest;
+	//s->cancel = ai_cancel;
 
 	/* analog output subdevice */
 	s = dev->subdevices + 1;
@@ -864,7 +884,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int bits;
-	unsigned int counter_value;
+	unsigned int convert_counter_value;
+	unsigned int scan_counter_value;
+	unsigned int i;
 
 	// disable card's interrupt sources
 	writew(0, devpriv->main_iobase + INTR_ENABLE_REG);
@@ -884,30 +906,51 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	{
 		check_adc_timing(cmd);
 		// supposed to load counter with desired divisor minus 3
-		counter_value = cmd->scan_begin_arg / TIMER_BASE - 3;
+		convert_counter_value = cmd->convert_arg / TIMER_BASE - 3;
 		// load lower 16 bits
-		writew(counter_value & 0xffff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
+		writew(convert_counter_value & 0xffff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
 		// load upper 8 bits
-		writew((counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+		writew((convert_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+		// set scan pacing
+		if(cmd->convert_src == TRIG_TIMER)
+		{
+			// figure out how long we need to delay at end of scan
+			scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * cmd->chanlist_len))
+				/ TIMER_BASE;
+			// load lower 16 bits
+			writew(scan_counter_value & 0xffff, devpriv->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
+			// load upper 8 bits
+			writew((scan_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
+		}
 	}
 
-#if 0
+	// load hardware conversion counter with non-zero value so it doesn't mess with us
+	writew(~0, devpriv->main_iobase + ADC_COUNT_LOWER_REG);
+
+	/* XXX cannot write to queue fifo while dac fifo is being written to
+	 * ( need spinlock, or try to use internal queue instead */
+	// clear queue pointer
+	writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
 	// load external queue
-	bits = 0;
-	// set channel
-	bits |= CHAN_BITS(CR_CHAN(insn->chanspec));
-	// set gain
-	bits |= GAIN_BITS(CR_RANGE(insn->chanspec));
-	// set unipolar / bipolar
-	bits |= UNIP_BIT(CR_RANGE(insn->chanspec));
-	// set single-ended / differential
-	if(CR_AREF(insn->chanspec) != AREF_DIFF)
-		bits |= SE_BIT;
-	// set stop channel
-	writew(CHAN_BITS(CR_CHAN(insn->chanspec)), devpriv->main_iobase + ADC_QUEUE_HIGH_REG);
-	// set start channel, and rest of settings
-	writew(bits, devpriv->main_iobase + ADC_QUEUE_LOAD_REG);
-#endif
+	for(i = 0; i < cmd->chanlist_len; i++)
+	{
+		bits = 0;
+		// set channel
+		bits |= CHAN_BITS(CR_CHAN(cmd->chanlist[i]));
+		// set gain
+		bits |= GAIN_BITS(CR_RANGE(cmd->chanlist[i]));
+		// set unipolar / bipolar
+		bits |= UNIP_BIT(CR_RANGE(cmd->chanlist[i]));
+		// set single-ended / differential
+		if(CR_AREF(cmd->chanlist[i]) != AREF_DIFF)
+			bits |= SE_BIT;
+		// mark end of queue
+		if(i == cmd->chanlist_len - 1)
+			bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
+		writew(bits, devpriv->main_iobase + ADC_QUEUE_FIFO_REG);
+	}
+	// prime queue holding register
+	writew(0, devpriv->main_iobase + ADC_QUEUE_LOAD_REG);
 
 	// clear adc buffer
 	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
@@ -929,6 +972,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT;
 	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
+
+	// start aquisition
+	writew(0, devpriv->main_iobase + ADC_START_REG);
 
 	return 0;
 }

@@ -1,7 +1,9 @@
-/* plx9060.h
+/* plx9080.h
  *
- * I took this file from the wanXL device driver in the linux kernel,
+ * I modified this file from the plx9060.h header for the
+ * wanXL device driver in the linux kernel,
  * for the register offsets and bit definitions.  Minor modifications,
+ * added plx9080 registers and
  * stripped out stuff that was specifically for the wanXL driver.  I
  * use this for the plx9080 chip used in the cards supported by
  * the cb_pcidas64.c driver.
@@ -20,8 +22,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef __COMEDI_PLX9060_H
-#define __COMEDI_PLX9060_H
+#ifndef __COMEDI_PLX9080_H
+#define __COMEDI_PLX9080_H
 
 /**********************************************************************
 **            Register Offsets and Bit Definitions
@@ -161,6 +163,24 @@
 #define  CTL_EERLD         0x20000000 /* EEPROM Reload Register */
 #define  CTL_RESET         0x40000000 /* !! Adapter Reset !! */
 #define  CTL_READY         0x80000000 /* Local Init Done */
+
+#define PLX_ID_REG	0x70	// hard-coded plx vendor and device ids
+
+#define PLX_REVISION_REG	0x74	// silicon revision
+
+#define PLX_DMA0_MODE_REG	0x80	// dma channel 0 mode register
+
+#define PLX_DMA0_PCI_ADDRESS_REG	0x84	// pci address that dma transfers start at
+
+#define PLX_DMA0_LOCAL_ADDRESS_REG	0x88	// local address that dma transfers start at
+
+#define PLX_DMA0_TRANSFER_SIZE_REG	0x8c	// number of bytes to transfer (first 23 bits)
+
+#define PLX_DMA0_DESCRIPTOR_REG	0x90	// descriptor pointer register
+
+#define PLX_DMA0_CS_REG	0xa8	// command status register
+
+#define PLX_DMA0_THRESHOLD_REG	0xb0	// command status register
 
 /*
  * Accesses near the end of memory can cause the PLX chip
