@@ -156,7 +156,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 {
 	comedi_bufconfig bc;
 	comedi_subdevice *rsd=NULL, *wsd=NULL;
-	int read_ret = 0, write_ret = 0;
+	int ret;
 
 	if(!suser())
 		return -EPERM;
@@ -168,50 +168,63 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
-	// Should check to see if buffer is memory mapped and avoid
-	// changing buffer if it is.  (Have to wait until a mapped flag
-	// gets added to subdevice struct.)
-
 	if(bc.read_size){
+		if(dev->read_subdev < 0)
+			return -EINVAL;
+
 		rsd = &dev->subdevices[dev->read_subdev];
 
 		if(rsd->busy)
 			return -EBUSY;
 
+		if(rsd->subdev_flags & SDF_MMAPPED){
+			DPRINTK("read subdevice is mmapped, cannot resize buffer\n");
+			return -EBUSY;
+		}
+
 		if(!rsd->prealloc_buf)
 			return -EINVAL;
 	}
+	if(bc.write_size){
+		if(dev->write_subdev < 0)
+			return -EINVAL;
 
-	if(bc.write_size && dev->read_subdev != dev->write_subdev){
 		wsd = &dev->subdevices[dev->write_subdev];
 
 		if(wsd->busy)
 			return -EBUSY;
+
+		if(wsd->subdev_flags & SDF_MMAPPED){
+			DPRINTK("write subdevice is mmapped, cannot resize buffer\n");
+			return -EBUSY;
+		}
 
 		if(!wsd->prealloc_buf)
 			return -EINVAL;
 	}
 
 	// resize buffers
-	if(rsd){
-		read_ret = resize_buf(dev,rsd,bc.read_size);
+	if(bc.read_size){
+		ret = resize_buf(dev,rsd,bc.read_size);
+
+		if(ret < 0)
+			return ret;
+
 		bc.read_size = rsd->prealloc_bufsz;
 		DPRINTK("dev %i read buffer resized to %i bytes\n", dev->minor, bc.read_size);
 	}
+	if(bc.write_size){
+		ret = resize_buf(dev,wsd,bc.write_size);
 
-	if(wsd){
-		write_ret = resize_buf(dev,wsd,bc.write_size);
+		if(ret < 0)
+			return ret;
+
 		bc.write_size = wsd->prealloc_bufsz;
 		DPRINTK("dev %i write buffer resized to %i bytes\n", dev->minor, bc.write_size);
 	}
-	else bc.write_size = 0;
-
 
 	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
 		return -EFAULT;
-
-	if(read_ret < 0 || write_ret < 0)
-		return -ENOMEM;
 
 	return 0;
 }
