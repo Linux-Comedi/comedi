@@ -389,6 +389,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s);
+static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
 static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -755,6 +756,7 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
 }
 
 // analog output readback insn
+// XXX loses track of analog output value back after an analog ouput command is executed
 static int cb_pcidas_ao_readback_insn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
@@ -1025,7 +1027,7 @@ static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_INT;
 	if(!cmd->start_src || tmp != cmd->start_src)
 		err++;
 
@@ -1147,9 +1149,6 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	// clear fifo
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
-	// next time we send these bits, we want aquisiton to actually start
-	ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
-
 	// load counters
 	if(cmd->scan_begin_src == TRIG_TIMER)
 	{
@@ -1183,6 +1182,19 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 			break;
 	}
 
+	// next time we send these bits, we want aquisiton to actually start
+	ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
+	devpriv->ao_control_bits = ao_control_bits;
+	async->inttrig = cb_pcidas_ao_inttrig;
+
+	return 0;
+}
+
+static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num)
+{
+	if(trig_num != 0)
+		return -EINVAL;
+
 	// enable dac half-full and empty interrupts
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
 #ifdef CB_PCIDAS_DEBUG
@@ -1194,11 +1206,12 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
 
 	// start dac
-	devpriv->ao_control_bits = ao_control_bits;
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 #ifdef CB_PCIDAS_DEBUG
-	rt_printk("comedi: sent 0x%x to dac control\n", ao_control_bits);
+	rt_printk("comedi: sent 0x%x to dac control\n", devpriv->ao_control_bits);
 #endif
+
+	s->async->inttrig = NULL;
 
 	return 0;
 }
