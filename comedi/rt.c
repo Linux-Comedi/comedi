@@ -144,6 +144,7 @@ void comedi_free_irq(unsigned int irq,void *dev_id)
 void comedi_switch_to_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
+	unsigned long flags;
 
 	/* drivers might not be using an interrupt for commands */
 	if(it == NULL)return;
@@ -154,22 +155,21 @@ void comedi_switch_to_rt(comedi_device *dev)
 		return;
 	}
 
-	spin_lock_irq(&dev->spinlock);
-	RT_protect();
-	sti();
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
 	if(!dev->rt)
 		rt_get_irq(it);
 
 	dev->rt++;
 	it->rt=1;
-	spin_unlock(&dev->spinlock);
-	RT_unprotect();
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
 
 void comedi_switch_to_non_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
+	unsigned long flags;
 
 	if(it == NULL)
 		return;
@@ -178,14 +178,15 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 	if(it->flags & SA_SHIRQ)
 		return;
 
-	RT_spin_lock_irq(&dev->spinlock);
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
 	dev->rt--;
 	if(!dev->rt)
 		rt_release_irq(it);
 
 	it->rt=0;
-	RT_spin_unlock_irq(&dev->spinlock);
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
 
 void wake_up_int_handler(int arg1, void * arg2)
