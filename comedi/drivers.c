@@ -118,6 +118,8 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 			if(strcmp(driv->driver_name,it->board_name))
 				continue;
 		}
+		//initialize dev->driver here so comedi_error() can be called from attach
+		dev->driver=driv;
 		ret=driv->attach(dev,it);
 		if(ret<0){
 			driv->detach(dev);
@@ -157,7 +159,6 @@ attached:
 	}
 
 	dev->attached=1;
-	dev->driver=driv;
 
 	if(driv->module)
 		__MOD_INC_USE_COUNT(driv->module);
