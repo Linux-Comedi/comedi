@@ -100,7 +100,9 @@ list has 2 or more channels in it, then two conditions must be satisfied:
 #define   Q_CHAN(x)              ((x) & 0x7)
 #define   Q_RANGE(x)             (((x) & 0xf) << 4)
 #define   UNIPOLAR               0x40
-#define DAS16M1_8254_FIRST             8
+#define DAS16M1_8254_FIRST             0x8
+#define DAS16M1_8254_FIRST_CNTRL       0xb
+#define   TOTAL_CLEAR                    0x30
 #define DAS16M1_8254_SECOND            0xc
 #define DAS16M1_82C55                  0x400
 #define DAS16M1_8254_THIRD             0x404
@@ -176,6 +178,27 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 {
 	unsigned int err=0, tmp, i;
 
+	// check chanlist against board's peculiarities
+	if(cmd->chanlist && cmd->chanlist_len > 1)
+	{
+		for(i = 0; i < cmd->chanlist_len; i++)
+		{
+			// even/odd channels must go into even/odd queue addresses
+			if((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2))
+			{
+				comedi_error(dev, "bad chanlist:\n"
+					" even/odd channels must go have even/odd chanlist indices");
+				err++;
+			}
+		}
+		if((cmd->chanlist_len % 2) != 0)
+		{
+			comedi_error(dev, "chanlist must be of even length or length 1");
+			err++;
+		}
+	}
+	if(err) return -EINVAL;
+
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW | TRIG_EXT;
@@ -246,25 +269,6 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 			err++;
 		}
 	}
-	// check chanlist against board's peculiarities
-	if(cmd->chanlist_len > 1)
-	{
-		for(i = 0; i < cmd->chanlist_len; i++)
-		{
-			// even/odd channels must go into even/odd queue addresses
-			if((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2))
-			{
-				comedi_error(dev, "bad chanlist:\n"
-					" even/odd channels must go have even/odd chanlist indices");
-				err++;
-			}
-		}
-		if((cmd->chanlist_len % 2) != 0)
-		{
-			comedi_error(dev, "chanlist must be of even length or length 1");
-			err++;
-		}
-	}
 
 	if(err) return 3;
 
@@ -296,6 +300,10 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 		return -1;
 	}
 
+	/* disable interrupts and internal pacer */
+	devpriv->control_state &= ~INTE & ~PACER_MASK;
+	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
+
 	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
 
 	/* setup channel/gain queue */
@@ -308,8 +316,6 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	/* set counter mode and counts */
 	cmd->convert_arg = das16m1_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
-
-	async->events = 0;
 
 	// set control & status register
 	byte = 0;
@@ -435,6 +441,7 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 	// initialize async here to avoid freak out on premature interrupt
 	async = s->async;
+	async->events = 0;
 
 	insw(dev->iobase, data, HALF_FIFO);
 	for(i = 0; i < HALF_FIFO; i++)
@@ -451,6 +458,8 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 	}
 
+	/* this probably won't catch overruns since the card doesn't generate
+	 * overrun interrupts, but we might as well try */
 	if(status & OVRUN)
 	{
 		das16m1_cancel(dev, s);
@@ -616,6 +625,9 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 3;
 	/* 8255 */
 	subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DAS16M1_82C55));
+
+	// disable upper half of hardware conversion counter so it doesn't mess with us
+	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
 
 	// initialize digital output lines
 	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
