@@ -858,7 +858,14 @@ static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 		}
 		lsb = inb(dev->iobase + DAS800_LSB);
 		msb = inb(dev->iobase + DAS800_MSB);
-		data[n] = (lsb >> 4) | (msb << 4);
+		if(thisboard->resolution == 12)
+		{
+			data[n] = (lsb >> 4) & 0xff;
+			data[n] |= (msb << 4);
+		}else
+		{
+			data[n] = (msb << 8) | lsb;
+		}
 	}
 
 	return n;
