@@ -72,23 +72,20 @@ are not supported.
 	   321808a.pdf  about at-mio-16e-10 rev P
 	   321837a.pdf  discontinuation of at-mio-16de-10 rev d
 	   321838a.pdf  about at-mio-16de-10 rev N
-	
+
 	ISSUES:
 
 	need to deal with external reference for DAC, and other DAC
 	properties in board properties
-	
+
 	deal with at-mio-16de-10 revision D to N changes, etc.
-	
+
 */
 
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
-#ifdef HAVE_ISAPNP
-//#include <linux/isapnp.h>
-//#include <linux/pci.h>
-#endif
+#include <linux/isapnp.h>
 
 #include "ni_stc.h"
 #include "8255.h"
@@ -300,7 +297,7 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 
 
 
-#ifdef HAVE_ISAPNP
+#ifdef __ISAPNP__
 static struct isapnp_device_id device_ids[] = {
 	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x0000), },
 	{ ISAPNP_DEVICE_SINGLE_END, },
@@ -309,9 +306,7 @@ MODULE_DEVICE_TABLE(isapnp, device_ids);
 #endif
 
 typedef struct{
-#ifdef HAVE_ISAPNP
-	struct pci_dev *pcidev;
-#endif
+	struct pci_dev *isapnp_dev;
 	NI_PRIVATE_COMMON
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
@@ -336,70 +331,66 @@ static int ni_atmio_detach(comedi_device *dev)
 {
 	mio_common_detach(dev);
 
-#ifdef HAVE_ISAPNP
-	if(devpriv->pcidev)
-		devpriv->pcidev->deactivate(devpriv->pcidev);
-#else
 	if(dev->iobase)
 		release_region(dev->iobase,NI_SIZE);
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
-#endif
+	if(devpriv->isapnp_dev)
+		devpriv->isapnp_dev->deactivate(devpriv->isapnp_dev);
 
 	return 0;
 }
 
 static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 {
-#ifdef HAVE_ISAPNP
-	struct pci_dev *pcidev;
-#endif
+	struct pci_dev *isapnp_dev;
 	int		ret;
 	int		iobase;
 	int		board;
 	int		irq;
 
+	iobase=it->options[0];
 
-#ifdef HAVE_ISAPNP
-	pcidev = isapnp_find_dev(NULL,
-		ISAPNP_VENDOR('N','I','C'),
-		ISAPNP_FUNCTION(0x1900),
-		NULL);
+	if( iobase == 0 )
+	{
+		isapnp_dev = isapnp_find_dev(NULL,
+			ISAPNP_VENDOR('N','I','C'),
+			ISAPNP_FUNCTION(0x1900),
+			NULL);
 
-	if(!pcidev)
-		return -ENODEV;
+		if(!isapnp_dev)
+			return -ENODEV;
 
-	if(pcidev->active)
-		return -EBUSY;
+		if(isapnp_dev->active)
+			return -EBUSY;
 
-	if(pcidev->prepare(pcidev)<0)
-		return -EAGAIN;
+		if(isapnp_dev->prepare(isapnp_dev)<0)
+			return -EAGAIN;
 
-	if(!(pcidev->resource[0].flags & IORESOURCE_IO))
-		return -ENODEV;
+		if(!(isapnp_dev->resource[0].flags & IORESOURCE_IO))
+			return -ENODEV;
 
-	if(!pcidev->ro){
-		/* override resource */
-		if(it->options[0] != 0){
-			isapnp_resource_change(&pcidev->resource[0],
-				it->options[0], 1);
+		if(!isapnp_dev->ro){
+			/* override resource */
+			if(it->options[0] != 0){
+				isapnp_resource_change(&isapnp_dev->resource[0],
+					it->options[0], 1);
+			}
 		}
+		if(isapnp_dev->activate(isapnp_dev)<0){
+			printk("isapnp configure failed!\n");
+			return -ENOMEM;
+		}
+		iobase = isapnp_dev->resource[0].start;
+		irq = isapnp_dev->irq_resource[0].start;
+		devpriv->isapnp_dev = isapnp_dev;
+	}else{
+		irq=it->options[1];
 	}
-	if(pcidev->activate(pcidev)<0){
-		printk("isapnp configure failed!\n");
-		return -ENOMEM;
-	}
-	iobase = pcidev->resource[0].start;
-	irq = pcidev->irq;
-#else
-	iobase=0x200;
-	if(it->options[0])iobase=it->options[0];
-	irq=it->options[1];
-#endif
-	
+
 	/* reserve our I/O region */
-	
+
 	printk("comedi%d: ni_atmio: 0x%04x",dev->minor,iobase);
 	if(check_region(iobase,NI_SIZE)<0){
 		printk(" I/O port conflict\n");
@@ -408,7 +399,7 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	request_region(iobase,NI_SIZE,"ni_atmio");
 
 	dev->iobase=iobase;
-	
+
 #ifdef DEBUG
 	/* board existence sanity check */
        {
