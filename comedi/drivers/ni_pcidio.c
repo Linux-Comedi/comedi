@@ -1,5 +1,5 @@
 /*
-    module/ni-dio.c
+    comedi/drivers/ni_pcidio.c
     driver for National Instruments PCI-DIO-96/PCI-6508
                National Instruments PCI-DIO-32HS
                National Instruments PCI-6503
@@ -58,7 +58,9 @@ AT-MIO96.
 
  */
 
-//#define USE_CMD 1
+#define USE_CMD 1
+#undef USEDMA
+#define DEBUG 1
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -73,9 +75,6 @@ AT-MIO96.
 #include <asm/io.h>
 #include "mite.h"
 #include "8255.h"
-
-/* general debugging messages */
-#define DEBUG
 
 
 #define PCI_VENDOR_ID_NATINST	0x1093
@@ -288,153 +287,127 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev=d;
-	comedi_subdevice *s=dev->subdevices;
-	int a,b;
-	static int n_int=0;
-	int i;
-	struct timeval tv;
-	//int tag=0;
+	comedi_subdevice *s = dev->subdevices;
+	comedi_async *async = s->async;
+	int i, j;
 	long int AuxData = 0;
-	sampl_t MyData1 = 0;
-	sampl_t MyData2 = 0;
-	comedi_async *async;
-	int Flags;
-	int Status;
-	int j;
-
+	sampl_t data1 = 0;
+	sampl_t data2 = 0;
+	int flags;
+	int status;
 
 	//writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-	
-
-	async = s->async;
-	async->events = 0;	
 	
 	//printk("%d ",async->buf_int_count);
        
 	//writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 
-	Flags = readb(dev->iobase+Group_Flags);
+	flags = readb(dev->iobase+Group_Flags);
 	
 	//IntEn es un parametre!!!!
 	
-	Status = readb(dev->iobase+Interrupt_And_Window_Status);
+	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	
 	//interrupcions parasites
-	 if(dev->attached == 0)
-	   {
-	     comedi_error(dev,"premature interrupt");
-	     async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
-	   }
+	if(dev->attached == 0){
+		comedi_error(dev,"premature interrupt");
+		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
+	}
 	 
-	 if((Flags & (TransferReady | CountExpired | Waited | PrimaryTC | SecondaryTC))==0)
-	   {
-	     comedi_error(dev,"spurious interrupt");
-	     async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
-	   }
-	 // printk("IntEn=%d,Flags=%d,Status=%d\n",IntEn,Flags,Status);
+	if((flags & (TransferReady | CountExpired | Waited | PrimaryTC | SecondaryTC))==0){
+		comedi_error(dev,"spurious interrupt");
+		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
+	}
+	// printk("IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
 	 
-	 while(Status&1)
-	   {
-	     //printk("1)IntEn=%d,Flags=%d,Status=%d\n",IntEn,Flags,Status);
-	     //printk("hola11\n");
-	    
-	    if(Flags & IntEn & CountExpired)
-	      {
-		printk("count expired ");
-		writeb(CountExpired,dev->iobase+Group_First_Clear);
-		async->events |= COMEDI_CB_EOA;	
-		async->events |= COMEDI_CB_BLOCK;
-		//for(i=0;i<16;i++)
-		//{
-		    AuxData = readl(dev->iobase+Group_FIFO);
-		    MyData1 = AuxData & 0xffff;
-		    MyData2 = (AuxData & 0xffff0000) >> 16;
-		    comedi_buf_put(async,MyData1);
-		    comedi_buf_put(async,MyData2);
-		    //printk("lectura:%d, %d\n",MyData1,MyData2);
-		    //}
-		
-		writeb(0x00,dev->iobase+OpMode);
-		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-		writeb(0xff,dev->iobase+Group_First_Clear);
-		writeb(0xff,dev->iobase+Group_First_Clear);
-		break;
-	      }
-	    
-	    else if(Flags & IntEn & TransferReady)
-	      {
-		//aixo no surt en el manual de NI
-		writeb(TransferReady,dev->iobase+Group_First_Clear);
-		//printk("transfer ready 1º");
-		//for(i=0;i<16;i++)
-		//{
-		/*Flags = 0;
-		    j=0;
-		    while(!(Flags & TransferReady) && j<320)
-		       {
-			Flags = readb(dev->iobase+Group_Flags);
-			//printk("Flags:%d ",Flags);
-			j++;
-			}*/
-		    AuxData = readl(dev->iobase+Group_FIFO);
-		    MyData1 = AuxData & 0xffff;
-		    MyData2 = (AuxData & 0xffff0000) >> 16;
-		    comedi_buf_put(async,MyData1);
-		    comedi_buf_put(async,MyData2);
-		    //printk("lectura:%d, %d\n",MyData1,MyData2);
-		    //Flags = readb(dev->iobase+Group_Flags);
-		    //}
-		//  Flags = readb(dev->iobase+Group_Flags);
-		// }
-		//printk("%d ",async->buf_int_count);
-		//printk("1)IntEn=%d,Flags=%d,Status=%d\n",IntEn,Flags,Status);
-		async->events |= COMEDI_CB_BLOCK;
-	      }
-	    
-	    else if(Flags & IntEn & Waited)
-	      {
-		printk("waited\n");
-		writeb(Waited,dev->iobase+Group_First_Clear);
-		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-	      }
-	    
-	    else if(Flags & IntEn & PrimaryTC)
-	      {
-		printk("primaryTC\n");
-		writeb(PrimaryTC,dev->iobase+Group_First_Clear);
-		async->events |= COMEDI_CB_EOA;
-		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-	      }
-	    
-	    else if(Flags & IntEn & SecondaryTC)
-	      {
-		printk("secondaryTC\n");
-		writeb(SecondaryTC,dev->iobase+Group_First_Clear);
-		async->events |= COMEDI_CB_EOA;
-		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-	      }
-	    
-	    /*else
-	      {
-		printk("interrupcio desconeguda\n");
-		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;
-		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-		}*/
-	
-	    Flags = readb(dev->iobase+Group_Flags);
-	    Status = readb(dev->iobase+Interrupt_And_Window_Status);
-	    //printk("2) IntEn=%d,Flags=%d,Status=%d\n",IntEn,Flags,Status);
-	   }
+	while(status&1){
+		//printk("1)IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+		//printk("hola11\n");
+  
+		if(flags & IntEn & CountExpired){
+			printk("count expired ");
+			writeb(CountExpired,dev->iobase+Group_First_Clear);
+			async->events |= COMEDI_CB_EOA;	
+			async->events |= COMEDI_CB_BLOCK;
+			//for(i=0;i<16;i++){
+				AuxData = readl(dev->iobase+Group_FIFO);
+				data1 = AuxData & 0xffff;
+				data2 = (AuxData & 0xffff0000) >> 16;
+				comedi_buf_put(async,data1);
+				comedi_buf_put(async,data2);
+				DPRINTK("read: 0x%04x, 0x%04x\n",data1,data2);
+			//}
+			
+			writeb(0x00,dev->iobase+OpMode);
+			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+			writeb(0xff,dev->iobase+Group_First_Clear);
+			writeb(0xff,dev->iobase+Group_First_Clear);
+			break;
+		}else if(flags & IntEn & TransferReady){
+			//aixo no surt en el manual de NI
+			writeb(TransferReady,dev->iobase+Group_First_Clear);
+			DPRINTK("transfer ready 1");
+			//for(i=0;i<16;i++){
+#ifdef unused
+				flags = 0;
+				j=0;
+				while(!(flags & TransferReady) && j<320){
+					flags = readb(dev->iobase+Group_flags);
+					//printk("flags:%d ",flags);
+					j++;
+				}
+#endif
+				AuxData = readl(dev->iobase+Group_FIFO);
+				data1 = AuxData & 0xffff;
+				data2 = (AuxData & 0xffff0000) >> 16;
+				comedi_buf_put(async,data1);
+				comedi_buf_put(async,data2);
+				DPRINTK("read:%d, %d\n",data1,data2);
+			// }
+			flags = readb(dev->iobase+Group_Flags);
+			DPRINTK("%d ",async->buf_int_count);
+			DPRINTK("1)IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+			async->events |= COMEDI_CB_BLOCK;
+		}else if(flags & IntEn & Waited){
+			DPRINTK("waited\n");
+			writeb(Waited,dev->iobase+Group_First_Clear);
+			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+		}else if(flags & IntEn & PrimaryTC){
+			DPRINTK("primaryTC\n");
+			writeb(PrimaryTC,dev->iobase+Group_First_Clear);
+			async->events |= COMEDI_CB_EOA;
+			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+		}else if(flags & IntEn & SecondaryTC){
+			DPRINTK("secondaryTC\n");
+			writeb(SecondaryTC,dev->iobase+Group_First_Clear);
+			async->events |= COMEDI_CB_EOA;
+			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+		}else{
+			printk("ni_pcidio: unknown interrupt\n");
+			async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;
+			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+		}
+		flags = readb(dev->iobase+Group_Flags);
+		status = readb(dev->iobase+Interrupt_And_Window_Status);
+		DPRINTK("2) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+	}
 
 	comedi_event(dev,s,async->events);
-	async->events = 0;
 	    
-	//printk("hola2\n");
+#if unused
+	if(!tag){
+		writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
+	}
+#endif
 
-	//if  (!tag) 
-	//  writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
+}
+#endif
 
-	/*
+static void debug_int(comedi_device *dev)
+{
+	int a,b;
+	static int n_int = 0;
+	struct timeval tv;
 
 	do_gettimeofday(&tv);
 	a=readb(dev->iobase+Group_Status);
@@ -454,10 +427,9 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(n_int < 10){
 		DPRINTK("new status 0x%02x\n",b);
 		n_int++;
-		}*/
-	return;
+	}
 }
-#endif
+
 
 static int ni_pcidio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -525,7 +497,7 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	cmd->stop_src &= TRIG_COUNT;
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
@@ -618,68 +590,66 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-  int i;
+	writeb(  0 ,dev->iobase+OpMode);
 
-  writeb(  0 ,dev->iobase+OpMode);
+	/*ho vui per entrada(els ports)*/
+	writel(0x0000,dev->iobase+Port_Pin_Directions(0));
 
-  /*ho vui per entrada(els ports)*/
-  writel(0x0000,dev->iobase+Port_Pin_Directions(0));
-  
-  /* choose chan A,B (grup in,i 4 fifos sense funneling) */
-  writeb(0x0F,dev->iobase+Data_Path);
-  
-  /* set transfer width a 32 bits*/
-  writeb(0x00,dev->iobase+Transfer_Size_Control);
+	/* choose chan A,B (grup in,i 4 fifos sense funneling) */
+	writeb(0x0F,dev->iobase+Data_Path);
 
+	/* set transfer width a 32 bits*/
+	writeb(0x00,dev->iobase+Transfer_Size_Control);
 
-  /* protocol configuration */
-  writeb(0x00,dev->iobase+ClockReg);
-  writeb(  0 ,dev->iobase+Sequence);
-  writeb(0x00,dev->iobase+ReqReg);
-  writeb(  4 ,dev->iobase+BlockMode);
-  writeb(  0 ,dev->iobase+LinePolarities);
-  writeb(0x00,dev->iobase+AckSer);
-  writeb(  1 ,dev->iobase+StartDelay);
-  writeb(  1 ,dev->iobase+ReqDelay);
-  writeb(  1 ,dev->iobase+ReqNotDelay);
-  writeb(  1 ,dev->iobase+AckDelay);
-  writeb(0x0C,dev->iobase+AckNotDelay);
-  writeb(0x10,dev->iobase+Data1Delay);
-  writew(  0 ,dev->iobase+ClockSpeed);
-  writeb(0x60,dev->iobase+DAQOptions);
+	/* protocol configuration */
+	writeb(0x00,dev->iobase+ClockReg);
+	writeb(  0 ,dev->iobase+Sequence);
+	writeb(0x00,dev->iobase+ReqReg);
+	writeb(  4 ,dev->iobase+BlockMode);
+	writeb(  0 ,dev->iobase+LinePolarities);
+	writeb(0x00,dev->iobase+AckSer);
+	writeb(  1 ,dev->iobase+StartDelay);
+	writeb(  1 ,dev->iobase+ReqDelay);
+	writeb(  1 ,dev->iobase+ReqNotDelay);
+	writeb(  1 ,dev->iobase+AckDelay);
+	writeb(0x0C,dev->iobase+AckNotDelay);
+	writeb(0x10,dev->iobase+Data1Delay);
+	writew(  0 ,dev->iobase+ClockSpeed);
+	writeb(0x60,dev->iobase+DAQOptions);
 
-  /* ReadyLevel */
-  /*writeb(  0 ,dev->iobase+FIFO_Control);*/
+#if unused
+	/* ReadyLevel */
+	writeb(  0 ,dev->iobase+FIFO_Control);
+
+	for(i=0;i<16;i++){
+	  	writew(i,dev->iobase+Group_FIFO);
+  	}
+	printk("arg:%d\n",s->async->cmd.stop_arg);
+#endif
+	writel(s->async->cmd.stop_arg,dev->iobase+Transfer_Count);
   
-  /*for(i=0;i<16;i++){
-    writew(i,dev->iobase+Group_FIFO);
-    }*/
-  //printk("arg:%d\n",s->async->cmd.stop_arg);
-  writel(s->async->cmd.stop_arg,dev->iobase+Transfer_Count);
+#ifdef USEDMA
+	writeb(0x05,dev->iobase+DMA_Line_Control);
+	writeb(0x30,dev->iobase+Group_First_Clear);
+
+	mite_dma_prep(devpriv->mite,s);
+#else
+	writeb(0x00,dev->iobase+DMA_Line_Control);
+#endif
   
-#define USEDMA 0
-  if(USEDMA){
-    writeb(0x05,dev->iobase+DMA_Line_Control);
-    writeb(0x30,dev->iobase+Group_First_Clear);
-    
-    mite_dma_prep(devpriv->mite,s);
-  }else{
-    writeb(0x00,dev->iobase+DMA_Line_Control);
-  }
-  
-  /* clear and enable interrupts */
-  writeb(0xff,dev->iobase+Group_First_Clear);
-  /* interrupcions degudas a FIFO ple, s'ha fet totes les transferencies
-     primaryTC=1??? secondaryTC=1???*/
-  writeb(IntEn,dev->iobase+Interrupt_Enable);
-  writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
-  
-  /* start */
-  /*amb aixo ja s'esta dient numbered=1 + runmode=7*/
-  writeb(0x0f,dev->iobase+OpMode);
-  
-  printk("\nhas configurat la tarja chaval\n");
-  return 0;
+	/* clear and enable interrupts */
+	writeb(0xff,dev->iobase+Group_First_Clear);
+	/* interrupcions degudas a FIFO ple, s'ha fet totes les transferencies
+	   primaryTC=1??? secondaryTC=1???*/
+	writeb(IntEn,dev->iobase+Interrupt_Enable);
+	writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
+
+	/* start */
+	/* amb aixo ja s'esta dient numbered=1 + runmode=7*/
+	writeb(0x0f,dev->iobase+OpMode);
+
+	DPRINTK("ni_pcidio: command started\n");
+	return 0;
 }
 #endif
 
@@ -741,15 +711,14 @@ static int nidio_dio_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	writel(10000 ,dev->iobase+Transfer_Count);
 
-#define USEDMA 0
-	if(USEDMA){
-		writeb(0x05,dev->iobase+DMA_Line_Control);
-		writeb(0x30,dev->iobase+Group_First_Clear);
+#ifdef USEDMA
+	writeb(0x05,dev->iobase+DMA_Line_Control);
+	writeb(0x30,dev->iobase+Group_First_Clear);
 
-		mite_dma_prep(devpriv->mite,s);
-	}else{
-		writeb(0x00,dev->iobase+DMA_Line_Control);
-	}
+	mite_dma_prep(devpriv->mite,s);
+#else
+	writeb(0x00,dev->iobase+DMA_Line_Control);
+#endif
 
 	/* clear and enable interrupts */
 	writeb(0xff,dev->iobase+Group_First_Clear);
@@ -831,7 +800,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		/* disable interrupts on board */
 		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 
-		ret=comedi_request_irq(dev->irq,nidio_interrupt,SA_SHIRQ,"nidio",dev);
+		ret=comedi_request_irq(dev->irq,nidio_interrupt,SA_SHIRQ,"ni_pcidio",dev);
 		if(ret<0){
 			dev->irq=0;
 			printk(" irq not available");
