@@ -45,7 +45,7 @@ export  VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION KERNELRELEASE ARCH \
 	CONFIG_SHELL TOPDIR HPATH HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
 	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE MAKEFILES GENKSYMS MODFLAGS PERL
 
-CFLAGS = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+CFLAGS = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer 
 # use '-fno-strict-aliasing', but only if the compiler can take it
 CFLAGS += $(shell if $(CC) -fno-strict-aliasing -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-fno-strict-aliasing"; fi)
 #CFLAGS += -include $(TOPDIR)/include/modbuild/config.h

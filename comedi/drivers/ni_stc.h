@@ -415,10 +415,6 @@
 #define G_Disarm_Copy			_bit15		/* strobe */
 #define G_Save_Trace_Copy		_bit14
 #define G_Arm_Copy			_bit13		/* strobe */
-//#define G0_Bank_Switch_Enable		_bit12
-//#define G1_Bank_Switch_Enable		_bit12
-//#define G0_Bank_Switch_Mode		_bit11
-//#define G1_Bank_Switch_Mode		_bit11
 #define G_Bank_Switch_Start		_bit10		/* strobe */
 #define G_Little_Big_Endian		_bit9
 #define G_Synchronized_Gate		_bit8
@@ -426,8 +422,6 @@
 #define G_Up_Down(a)			(((a)&0x03)<<5)
 #define G_Disarm			_bit4		/* strobe */
 #define G_Analog_Trigger_Reset		_bit3		/* strobe */
-//#define G0_Load				_bit2		/* strobe */
-//#define G1_Load				_bit2		/* strobe */
 #define G_Save_Trace			_bit1
 #define G_Arm				_bit0		/* strobe */
 
@@ -438,14 +432,6 @@
 
 
 /* input select register */
-//#define G0_Source_Polarity		_bit15
-//#define G1_Source_Polarity		_bit15
-//#define G0_Output_Polarity		_bit14
-//#define G1_Output_Polarity		_bit14
-//#define G0_OR_Gate			_bit13
-//#define G1_OR_Gate			_bit13
-//#define G0_Gate_Select_Load_Source	_bit12
-//#define G1_Gate_Select_Load_Source	_bit12
 #define G_Gate_Select(a)		(((a)&0x1f)<<7)
 #define G_Source_Select(a)		(((a)&0x1f)<<2)
 #define G_Write_Acknowledges_Irq	_bit1
@@ -459,24 +445,9 @@
 
 
 /* mode register */
-//#define G0_Load_Source_Select		_bit7
-//#define G1_Load_Source_Select		_bit7
-
-//#define G0_Reload_Source_Switching	_bit15
-//#define G1_Reload_Source_Switching	_bit15
-//#define G0_Loading_On_Gate		_bit14
-//#define G1_Loading_On_Gate		_bit14
-//#define G0_Gate_Polarity		_bit13
-//#define G1_Gate_Polarity		_bit13
 #define G_Loading_On_TC			_bit12
-//#define G0_Counting_Once(a)		(((a)&0x03)<<10)
-//#define G1_Counting_Once(a)		(((a)&0x03)<<10)
 #define G_Output_Mode(a)		(((a)&0x03)<<8)
-//#define G0_Stop_Mode(a)			(((a)&0x03)<<5)
-//#define G1_Stop_Mode(a)			(((a)&0x03)<<5)
 #define G_Trigger_Mode_For_Edge_Gate(a)	(((a)&0x03)<<3)
-//#define G0_Gate_On_Both_Edges		_bit1
-//#define G1_Gate_On_Both_Edges		_bit1
 #define G_Gating_Mode(a)		(((a)&0x03)<<0)
 
 /* same input mode register, but with channel agnostic names */

@@ -209,6 +209,11 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 static void pfi_setup(comedi_device *dev);
 
+/*GPCTR function def's...*/
+int GPCTR_G_Watch(comedi_device *dev, int chan);
+int GPCTR_Begin_Event_Counting(comedi_device *dev, comedi_subdevice *s,int chan, int value);
+
+
 #undef DEBUG
 
 #define AIMODE_NONE		0
@@ -2247,7 +2252,7 @@ int gpct_setup(comedi_device *dev,comedi_subdevice *s)
 	/* Arm the counter 0 (stobe) */
 	tmpreg = devpriv->gpctr_command[0] | G0_Arm;
 	win_out(tmpreg,G_Command_Register(0));
-
+	
 	return 0;
 }
 
@@ -2327,8 +2332,8 @@ static int gpct_sp(comedi_device *dev,comedi_param *it)
 }
 #endif
 
-#define GPCTR 1
-#if GPCTR
+//make -DGPCTR is best way to include this.
+#ifdef GPCTR
 /*
 *   Low level stuff...Each STC counter has two 24 bit load registers (A&B).  Just make
 * it easier to access them.
@@ -2353,6 +2358,61 @@ void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
 	win_out( G_Command_Register(chan), devpriv->gpctr_mode[chan]|G_Load);
 }
 
+/*
+*	Begin simple event counting.  This function should eventually do quadrature
+*	encoding too.
+*/
+int GPCTR_Begin_Event_Counting(comedi_device *dev, comedi_subdevice *s,int chan,
+		int value) {
+	
+	GPCTR_Load_Using_A(dev, chan, value);	
+	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
+	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
+			
+	win_out( G_Mode_Register(chan), devpriv->gpctr_mode[chan]);
+	win_out( G_Command_Register(chan), devpriv->gpctr_command[chan]);
+	win_out( G_Input_Select_Register(chan), devpriv->gpctr_input_select[chan]);
+	
+	return 0;
+}
+
+/*	Don't use this by itself!  The read is not atomic and quite unsafe.
+*	If you think you need this function, use GPCTR_G_Watch instead.
+*/
+int inline GPCTR_G_Read(comedi_device *dev, int chan) {
+	int tmp;
+	tmp = win_in( G_Save_Register_High(chan)) << 16;
+	tmp |= win_in(G_Save_Register_Low(chan));
+	return tmp;
+}
+
+/*
+*	Read the GPCTRs current value.  
+*	This function is actually straight out of the STC RLPM.
+*/
+int GPCTR_G_Watch(comedi_device *dev, int chan) {
+	int save1,save2;
+	
+	devpriv->gpctr_command[chan] &= ~G_Save_Trace;
+	win_out( G_Command_Register(chan), devpriv->gpctr_command[chan]);
+	
+	devpriv->gpctr_command[chan] |= G_Save_Trace;
+	win_out( G_Command_Register(chan), devpriv->gpctr_command[chan]);
+
+	save1 = GPCTR_G_Read(dev,chan);
+	save2 = GPCTR_G_Read(dev,chan);
+	
+	/*if the value changed during the read, try again*/
+	if (save1 != save2) {
+		save1 = GPCTR_G_Read(dev,chan);
+	}
+	return save1;
+}
+
+//note: EXPORT_SYMTAB must have been defined for this to work.
+EXPORT_SYMBOL(GPCTR_G_Watch);
+EXPORT_SYMBOL(GPCTR_Begin_Event_Counting);
+
 #endif
 
 /*
@@ -2362,74 +2422,8 @@ void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
 *
 */
 #if 0
-
-//Tell the GPCTR to use A to load from, then put a value into A and 
-//tell the GPCTR to load that value.
-void GPCT_LoadUsingA(pd dev, int no, unsigned long x)
-{
-  /*  Writing to G0_Mode_Register with address 26
-   *      G0_Load_Source_Select<=0
-   *      pattern = 0x0000
-   */
-  DAQ_STC_Windowed_Mode_Masked_Write(dev, G0_Mode_Register+no,0x0000,0x0080);
-  
-  /*      Writing to the G0_Load_A_Register with address 28 */
-  DAQ_STC_Windowed_Mode_Write(dev, G0_Load_A_Registers+4*no,
-			      (x>>16) & 0x00ff);
-  DAQ_STC_Windowed_Mode_Write(dev, G0_Load_A_Registers+1+4*no,
-			      x & 0xffff);      
-  /*      Writing to G0_Command_Register with address 6
-   *      G0_Load <=1     
-   *      pattern=0x0104
-   */
-  //load the value we just wrote to G0_Load_A_Registers
-  DAQ_STC_Windowed_Mode_Strobe_Write(dev, G0_Command_Register+no,0x0004);
-}
-void GPCT_Prepare(pd dev, int no, int mode)
-{
-  gpct_private_data *gp = &dev->gc[no];
-
-  unsigned short uMode=0, uComm=0, uInpsel=0,
-    or_gate=0, gate_sel_load_src=0, /* in inpsel */
-    bank_sw_en=0, bank_sw_mode=0, /* in comm */
-    load_src_sel=0, reload_src_sw=0, load_on_gate=0, load_on_tc=0,
-    gate_mode=0, gate_on_both_edges=0, trig_mode_for_edge_gate=0,
-    stop_mode=0, counting_once=0;
-  int gate_irq_en=0;
-
-  switch (mode){
-  case 1: /* simple event count OK */
-    GPCT_LoadUsingA(dev, no, gp->icnt);
-    gate_mode=1; trig_mode_for_edge_gate=2;
-    break;
-
-
-  uInpsel=(gp->src_sel<<2) | (gp->gate_sel<<7) | (gate_sel_load_src<<12) |
-    (or_gate<<13) | (gp->out_pol<<14) | (gp->src_pol<<15);
-  uComm=(gp->up_down<<5) | (bank_sw_mode<<11) | (bank_sw_en<<12);
-  uMode=(gate_mode<<0) | (gate_on_both_edges<<2) |
-    (trig_mode_for_edge_gate<<3) | (stop_mode<<5) | (load_src_sel<<7) |
-    (gp->out_mode<<8) | (counting_once<<10) | (load_on_tc<<12) |
-    (gp->gate_pol<<13) | (load_on_gate<<14) | (reload_src_sw<<15);
-
-  DAQ_STC_Windowed_Mode_Masked_Write(dev,G0_Input_Select_Register+no,
-				     uInpsel, 0xFFFC);
-  DAQ_STC_Windowed_Mode_Masked_Write(dev,G0_Command_Register+no,
-				     uComm, 0x8160); 
-  DAQ_STC_Windowed_Mode_Masked_Write(dev, G0_Mode_Register+no,
-				     uMode, 0xFFFF);
-  DEBUG_PRINT (("g%1d mode=%x\n",no,uMode));
-  if(gate_irq_en)  {
-    if(!no)
-      DAQ_STC_Windowed_Mode_Masked_Write(dev, Interrupt_A_Enable_Register,
-					 0x0100, 0x0100);
-    else
-      DAQ_STC_Windowed_Mode_Masked_Write(dev, Interrupt_B_Enable_Register,
-					 0x0400, 0x0400);
-  }
-}
-
 #endif
+
 static int ni_8255_callback(int dir,int port,int data,void *arg)
 {
 	comedi_device *dev=arg;
