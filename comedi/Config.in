@@ -69,6 +69,13 @@ tristate 'PCL-726' CONFIG_COMEDI_PCL726
 tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
 tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
 
+if [ "$CONFIG_COMEDI_RT" = "y" ];then
+	comment 'Virtual device drivers'
+
+	tristate 'Command emulator (timer)' CONFIG_COMEDI_VD_TIMER
+	tristate 'Direct Digital Synthesis' CONFIG_COMEDI_VD_DDS
+fi
+
 fi
 #endmenu
 

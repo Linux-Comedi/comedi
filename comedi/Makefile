@@ -1,8 +1,8 @@
 
 
-SUB_DIRS     := drivers
-ALL_SUB_DIRS := kcomedilib drivers
-MOD_SUB_DIRS := drivers
+SUB_DIRS     := drivers realtime
+ALL_SUB_DIRS := kcomedilib drivers realtime
+MOD_SUB_DIRS := drivers realtime
 MOD_IN_SUB_DIRS :=
 
 ifneq ($(CONFIG_COMEDI_KLIB),n)
