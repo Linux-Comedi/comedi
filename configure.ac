@@ -50,7 +50,7 @@ CC=$LINUX_CC
 
 #ERROR_CFLAGS="-Werror"
 
-COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/"
+[COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/ -DKBUILD_MODNAME=\$(shell echo \$@ | sed 's/\(.*\)\.o/\1/g' | sed 's/\(.*\)_ko.*/\1/g')"]
 AC_SUBST(COMEDI_CFLAGS)
 
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
