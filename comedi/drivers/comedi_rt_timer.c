@@ -101,6 +101,7 @@ static inline RTIME nano2count(long long ns)
 #define rt_request_srq(x,y,z) rtl_get_soft_irq(y,"timer")
 #define rt_task_init(a,b,c,d,e,f,g) rt_task_init(a,b,c,d,(e)+1)
 #define rt_task_resume(x) rt_task_wakeup(x)
+#define rt_set_oneshot_mode()
 
 #endif
 #ifdef CONFIG_COMEDI_RTAI
@@ -147,6 +148,7 @@ typedef struct{
 	volatile int stop;	// indicates we should stop
 	volatile int rt_task_active;	// indicates rt_task is servicing a comedi_cmd
 	volatile int scan_task_active;	// indicates scan_task is servicing a comedi_cmd
+	unsigned timer_running : 1;
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 
@@ -541,7 +543,7 @@ static int timer_start_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_cmd *cmd = &async->cmd;
 	RTIME now, delay, period;
 	int ret;
-	
+
 	devpriv->stop = 0;
 	s->async->events = 0;
 
@@ -564,7 +566,6 @@ static int timer_start_cmd(comedi_device *dev, comedi_subdevice *s)
 		comedi_error(dev, "error starting rt_task");
 		return ret;
 	}
-
 	return 0;
 }
 
@@ -599,9 +600,9 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->device = comedi_open(path);
 	devpriv->subd=it->options[1];
 
-	printk("device %p, subdevice %d\n", devpriv->device, devpriv->subd);
+	printk("emulating commands for minor %i, subdevice %d\n", it->options[0], devpriv->subd);
 
-	emul_dev = (comedi_device *)devpriv->device;
+	emul_dev = devpriv->device;
 	emul_s = emul_dev->subdevices+devpriv->subd;
 
 	// input or output subdevice
@@ -641,9 +642,9 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_COMEDI_RTAI
 	rt_set_oneshot_mode();
-#endif
+	start_rt_timer( 1 );
+	devpriv->timer_running = 1;
 
 	devpriv->rt_task = kmalloc(sizeof(RT_TASK),GFP_KERNEL);
 	memset(devpriv->rt_task,0,sizeof(RT_TASK));
@@ -687,6 +688,8 @@ static int timer_detach(comedi_device *dev)
 			rt_task_delete(devpriv->scan_task);
 			kfree(devpriv->scan_task);
 		}
+		if( devpriv->timer_running )
+			stop_rt_timer();
 	}
 
 	return 0;
