@@ -276,6 +276,8 @@ static int rti800_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
 	}
 
+	data[1] = s->state;
+
 	return 2;
 }
 

@@ -476,10 +476,12 @@ static int pcl818_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
         outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
 
+	data[1] = s->state;
+	
 	return 2;
 }
 
-/* 
+/*
 ==============================================================================
    analog input interrupt mode 1 & 3, 818 cards
    one sample per interrupt version   

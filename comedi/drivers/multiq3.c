@@ -191,6 +191,8 @@ static int multiq3_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
   s->state |= (data[0]&data[1]);
   outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
 
+  data[1] = s->state;
+
   return 2;
 }
 

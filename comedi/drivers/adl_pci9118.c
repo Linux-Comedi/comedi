@@ -773,7 +773,7 @@ int pci9118_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 		s->state |= (data[0]&data[1]);
 		outl(s->state & 0x0f, dev->iobase + PCI9118_DO);
 	}
-	data[1] = inl(dev->iobase + PCI9118_DI) & 0x0f;
+	data[1] = s->state;
 
 	return 2;
 }

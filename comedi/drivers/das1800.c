@@ -1236,13 +1236,6 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 
 	switch(cmd->stop_src)
 	{
-		case TRIG_EXT:
-			if(cmd->stop_arg)
-			{
-				cmd->stop_arg = 0;
-				err++;
-			}
-			break;
 		case TRIG_COUNT:
 			if(!cmd->stop_arg)
 			{

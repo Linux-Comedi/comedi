@@ -513,9 +513,13 @@ static int skel_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		/* Write out the new digital output lines */
 		//outw(s->state,dev->iobase + SKEL_DIO);
 	}
+
 	/* on return, data[1] contains the value of the digital
-	 * input lines. */
+	 * input and output lines. */
 	//data[1]=inw(dev->iobase + SKEL_DIO);
+	/* or we could just return the software copy of the output values if
+	 * it was a purely digital output subdevice */
+	//data[1]=s->state;
 
 	return 2;
 }
@@ -529,9 +533,9 @@ static int skel_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the 
+	 * contains the channel to be changed, and data[0] contains the
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	
+
 	if(data[0]==COMEDI_OUTPUT){
 		s->io_bits |= 1<<chan;
 	}else{

@@ -560,8 +560,10 @@ static int dt2811_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	if(insn->n!=2)return -EINVAL;
 
 	s->state &= ~data[0];
-	s->state |= data[1];
+	s->state |= data[0] & data[1];
 	outb(s->state, dev->iobase + DT2811_DIO);
+
+	data[1] = s->state;
 
 	return 2;
 }

@@ -431,7 +431,7 @@ int pci171x_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 		s->state |= (data[0]&data[1]);
 		outw(s->state, dev->iobase + PCI171x_DO);
 	}
-	data[1] = inw(dev->iobase + PCI171x_DI);
+	data[1] = s->state;
 
 	return 2;
 }

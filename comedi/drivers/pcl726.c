@@ -243,7 +243,9 @@ static int pcl726_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		outb(s->state&0xff,dev->iobase+this_board->do_lo);
 	if(data[1]&0xff00)
 		outb((s->state>>8),dev->iobase+this_board->do_hi);
-	
+
+	data[1] = s->state;
+		
 	return 2;
 }
 
