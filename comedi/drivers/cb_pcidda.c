@@ -46,6 +46,8 @@
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
+#include "8255.h"
+
 #define PCI_VENDOR_CB	0x1307	// PCI vendor number of ComputerBoards
 #define N_BOARDS	10	// Number of boards in cb_pcidda_boards
 
