@@ -3,8 +3,9 @@ expsyms(comedi_ksyms.o)
 
 objlink(comedi.o comedi_fops.o proc.o range.o drivers.o kvmem.o comedi_ksyms.o)
 
-#if CONFIG_COMEDI_RT  += rt_pend_tq/rt_pend_tq.o
-#if CONFIG_COMEDI_RT  += rt.o
+ifsel(CONFIG_COMEDI_RT)
+  objlink(comedi.o rt_pend_tq.o rt.o)
+endif
 
 select(CONFIG_COMEDI comedi.o)
 

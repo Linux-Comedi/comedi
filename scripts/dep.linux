@@ -1,6 +1,11 @@
 #!/bin/sh
 
-default=${LINUXDIR:=/usr/src/linux}
+if [ -f /lib/modules/$(uname -r)/build/Makefile ];then
+	default="/lib/modules/$(uname -r)/build"
+else
+	default="/usr/src/linux"
+fi
+default=${LINUXDIR:=$default}
 if [ "${interactive}" = "y" ];then
 	echo -n "Enter location of Linux source tree [$default]: "
 	read LINUXDIR

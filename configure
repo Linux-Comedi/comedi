@@ -4,6 +4,7 @@
 topdir=${PWD}
 
 interactive=y
+menu=n
 
 while [ "$1" != "" ];do
 	case $1 in
@@ -26,6 +27,9 @@ while [ "$1" != "" ];do
 		--non-interactive)
 			interactive=n
 			;;
+		--menu)
+			menu=y
+			;;
 	esac
 	shift
 done
@@ -35,17 +39,29 @@ done
 . scripts/dep.rtlinux
 
 
-scripts/Configure ${old}
+if [ "$menu" = "y" ];then
+	make -C scripts/lxdialog all
+	if [ ! -f .config ];then
+		cp scripts/config.dist .config
+	fi
+	scripts/Menuconfig scripts/config.in
+else
+	scripts/Configure ${old}
+fi
 
 
-scripts/generate_makefile comedi/Makefile.in >comedi/Makefile
-scripts/generate_makefile comedi/drivers/Makefile.in >comedi/drivers/Makefile
-scripts/generate_makefile comedi/kcomedilib/Makefile.in >comedi/kcomedilib/Makefile
+for each in $(find . -name Makefile.in)
+do
+	scripts/generate_makefile ${each} >$(dirname $each)/$(basename $each .in)
+done
+#scripts/generate_makefile comedi/Makefile.in >comedi/Makefile
+#scripts/generate_makefile comedi/drivers/Makefile.in >comedi/drivers/Makefile
+#scripts/generate_makefile comedi/kcomedilib/Makefile.in >comedi/kcomedilib/Makefile
 
 
 cat <<EOF
 
-Makefiles for Comedi are now be configured.
+Makefiles for Comedi are now configured.
 Run 'make' to compile, and then 'make install' to install.
 
 If Comedi has never been installed on your system,
