@@ -7,9 +7,6 @@
     - PCI-DAS1000, 1001, 1002
 
 
-    SO FAR IT WAS ONLY TESTED WITH PCI-DAS1200. PLEASE REPORT IF YOU ARE
-    USING IT WITH A DIFFERENT CARD <ivanmr@altavista.com>.
-
     Options:
     [0] - PCI bus number
     [1] - PCI slot number
