@@ -29,8 +29,8 @@ Author: ds
 Status: works
 Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
-  PXI-6503
-Updated: Sat, 16 Mar 2002 17:34:48 -0800
+  PXI-6503, PCI-6534, PCI-6533
+Updated: Sun, 21 Apr 2002 21:03:38 -0700
 
 The DIO-96 appears as four 8255 subdevices.  See the 8255
 driver notes for details.
@@ -282,6 +282,12 @@ static nidio_board nidio_boards[]={
 	{
 	dev_id:		0x1320,
 	name:		"pxi-6533",
+	n_8255:		0,
+	is_diodaq:	1,
+	},
+	{
+	dev_id:		0x12b0,
+	name:		"pci-6534",
 	n_8255:		0,
 	is_diodaq:	1,
 	},
