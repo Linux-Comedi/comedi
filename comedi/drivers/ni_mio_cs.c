@@ -65,7 +65,7 @@ See the notes in the ni_atmio.o driver.
 
 #define NI_SIZE 0x20
 
-#define MAX_N_CALDACS 12
+#define MAX_N_CALDACS 32
 
 static ni_board ni_boards[]={
 	{	device_id:	0x010d,
@@ -111,7 +111,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		{dac8800,dac8043},
+		caldac:		{dac8804},
 	},
 	{	device_id:	0x075e,
 		name:		"DAQCard-6024E", /* specs incorrect! */
