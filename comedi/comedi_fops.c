@@ -513,34 +513,41 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
 
-	if(insnlist.n_insns>=MAX_INSNS)
+	if(insnlist.n_insns>=MAX_INSNS){
+		DPRINTK("insnlist too long\n");
 		return -EINVAL;
+	}
 
 	data=kmalloc(sizeof(lsampl_t)*MAX_SAMPLES,GFP_KERNEL);
 	if(!data){
+		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	insns=kmalloc(sizeof(comedi_insn)*insnlist.n_insns,GFP_KERNEL);
 	if(!insns){
+		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	if(copy_from_user(insns,insnlist.insns,sizeof(comedi_insn)*insnlist.n_insns)){
+		DPRINTK("copy_from_user failed\n");
 		ret=-EFAULT;
 		goto error;
 	}
 
 	for(i=0;i<insnlist.n_insns;i++){
 		if(insns[i].n>MAX_SAMPLES){
+			DPRINTK("number of samples too large\n");
 			ret=-EINVAL;
 			goto error;
 		}
 		if(insns[i].insn&INSN_MASK_WRITE){
 			if(copy_from_user(data,insns[i].data,
 					insns[i].n*sizeof(lsampl_t))){
+				DPRINTK("copy_from_user failed\n");
 				ret=-EFAULT;
 				goto error;
 			}
@@ -555,6 +562,7 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 		if(insns[i].insn&INSN_MASK_READ){
 			if(copy_to_user(insns[i].data,data,
 					insns[i].n*sizeof(lsampl_t))){
+				DPRINTK("copy_to_user failed\n");
 				ret=-EFAULT;
 				goto error;
 			}
