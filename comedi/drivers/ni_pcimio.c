@@ -642,35 +642,35 @@ COMEDI_INITCLEANUP(driver_pcimio);
 /* However, the 611x boards still aren't working, so I'm disabling
  * non-windowed STC access temporarily */
 
-#if 0
-#define win_out(data,addr) do{ \
-	if((addr)<8){ \
-		ni_writew((data),(addr)*2); \
-	}else{ \
-		ni_writew((addr),Window_Address); \
-		ni_writew((data),Window_Data); \
-	} \
-}while(0)
-#else
-#define win_out(data,addr) do{ \
-	ni_writew((addr),Window_Address); \
-	ni_writew((data),Window_Data); \
-}while(0)
-#endif
+#define win_out(data,addr) __win_out(dev,data,addr)
+static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	ni_writew(addr,Window_Address);
+	ni_writew(data,Window_Data);
+	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+}
 
 #define win_out2(data,addr) do{ \
 	win_out((data)>>16, (addr)); \
 	win_out((data)&0xffff, (addr)+1); \
 }while(0)
 
-#if 0
-#define win_in(addr) ( \
-	((addr)<7) \
-	? (ni_readw(((addr) - boardtype.reg_611x)*2)) \
-	: (ni_writew((addr),Window_Address),ni_readw(Window_Data)))
-#else
-#define win_in(addr) (ni_writew((addr),Window_Address),ni_readw(Window_Data))
-#endif
+#define win_in(addr) __win_in(dev,addr)
+static inline unsigned short __win_in(comedi_device *dev, int addr)
+{
+	unsigned long flags;
+	int ret;
+
+	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	ni_writew(addr,Window_Address);
+	ret = ni_readw(Window_Data);
+	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+
+	return ret;
+}
 
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
