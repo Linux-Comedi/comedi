@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020400
+#if LINUX_VERSION_CODE < 0x020200
 #include <linux/malloc.h>
 #else
 #include_next <linux/slab.h>
