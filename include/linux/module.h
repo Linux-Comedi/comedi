@@ -33,6 +33,10 @@
 #endif
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)
+#define MODULE_DEVICE_TABLE(a,b)
+#endif
+
 #include_next <linux/module.h>
 
 #endif /* _COMPAT_MODULE_H */

@@ -22,6 +22,15 @@
 
 #define pci_enable_device(x) 0
 
+#define PCI_ANY_ID (~0)
+
+struct pci_device_id {
+	unsigned int vendor, device;
+	unsigned int subvendor, subdevice;
+	unsigned int class, class_mask;
+	unsigned long driver_data;
+};
+
 #else
 
 #endif
