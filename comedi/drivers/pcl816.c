@@ -195,7 +195,6 @@ typedef struct
   unsigned int ai_act_chanlist_len;	// how long is actual MUX list
   unsigned int ai_act_chanlist_pos;	// actual position in MUX list
   unsigned int ai_poll_ptr;		// how many sampes transfer poll
-  unsigned int buf_ptr;		// data buffer ptr in samples
   comedi_subdevice *sub_ai;	// ptr to AI subdevice
   struct timer_list rtc_irq_timer;	// timer for RTC sanity check
   unsigned long rtc_freq;	// RTC int freq
@@ -299,32 +298,20 @@ interrupt_pcl816_ai_mode13_int (int irq, void *d, struct pt_regs *regs)
   // get the sample
   low = inb (dev->iobase + PCL816_AD_LO);
   hi = inb (dev->iobase + PCL816_AD_HI);
-  ((sampl_t *)s->async->data)[devpriv->buf_ptr++] = (hi << 8)|low;
+
+  comedi_buf_put( s->async, (hi << 8)|low );
 
   outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
-  s->async->buf_int_ptr+=sizeof(sampl_t);
-  s->async->buf_int_count+=sizeof(sampl_t);
 
   if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len)
     devpriv->ai_act_chanlist_pos = 0;
 
-   s->async->buf_int_ptr+=sizeof(sampl_t);
-   s->async->buf_int_count+=sizeof(sampl_t);
-   s->async->cur_chan++;
 
-   if (s->async->cur_chan>=s->async->cmd.chanlist_len){
-		s->async->cur_chan=0;
-		s->async->events |= COMEDI_CB_BLOCK;
+   if (s->async->cur_chan == 0){
 		devpriv->ai_act_scan++;
    }
 
-   if (s->async->buf_int_ptr >= s->async->data_len) {  /* buffer rollover */
-		s->async->buf_int_ptr=0;
-		devpriv->buf_ptr=0;
-		//printk("B ");
-		s->async->events |= COMEDI_CB_EOBUF;
-    }
 
   if (!devpriv->ai_neverending)
 	if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
@@ -349,9 +336,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 
 	for (i = 0; i < len; i++)  {
 
-	    ((sampl_t*)s->async->data)[devpriv->buf_ptr++] = ptr[bufptr++];
-		s->async->buf_int_ptr+=sizeof(sampl_t);
-		s->async->buf_int_count+=sizeof(sampl_t);
+	    comedi_buf_put( s->async, ptr[bufptr++] );
 
 
 		if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len) {
@@ -359,27 +344,16 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 		    devpriv->ai_act_scan++;
 		}
 
-		if (s->async->buf_int_ptr >= s->async->data_len) { 		// buffer rollover 
-			devpriv->buf_ptr=0;
-    		s->async->buf_int_ptr=0;
-			s->async->events |= COMEDI_CB_EOBUF;
-			comedi_event(dev,s,s->async->events);
-			s->async->events = 0;
-		}
-
 		if (!devpriv->ai_neverending)
-			if (devpriv->ai_act_scan >= devpriv->ai_scans) {	// all data sampled 
+			if (devpriv->ai_act_scan >= devpriv->ai_scans) {	// all data sampled
 				pcl816_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
 				s->async->events |= COMEDI_CB_BLOCK;
-				comedi_event(dev, s, s->async->events);
-				return;
+				break;
 			}
 	}
 
-	if (len > 0) {
-		comedi_event(dev, s, s->async->events);
-	}
+	comedi_event(dev,s,s->async->events);
 }
 
 
@@ -657,7 +631,6 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->irq_blocked = 1;
 	devpriv->ai_poll_ptr=0;
 	devpriv->irq_was_now_closed = 0;
-	devpriv->buf_ptr = 0;
 	
 	if (cmd->stop_src==TRIG_COUNT) { 
 		devpriv->ai_scans = cmd->stop_arg; 
