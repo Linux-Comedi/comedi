@@ -621,7 +621,7 @@ static int rtd_attach (
      */
     dev->board_name = thisboard->name;
 
-    if((ret=pci_enable_device(dev))<0){
+    if((ret=pci_enable_device(pcidev))<0){
 	return ret;
     }
 
