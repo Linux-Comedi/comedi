@@ -89,8 +89,8 @@ TODO:
 #include "8255.h"
 #include "plx9080.h"
 
-#undef PCIDAS64_DEBUG	// disable debugging code
-//#define PCIDAS64_DEBUG	// enable debugging code
+//#undef PCIDAS64_DEBUG	// disable debugging code
+#define PCIDAS64_DEBUG	// enable debugging code
 
 #ifdef PCIDAS64_DEBUG
 #define DEBUG_PRINT(format, args...)  printk("comedi: " format , ## args )
@@ -1658,6 +1658,11 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		// get least significant 15 bits
 		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
 		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
+
+		DEBUG_PRINT("rd seg 0x%x\n", read_segment);
+		DEBUG_PRINT("rd inx 0x%x\n", read_index);
+		DEBUG_PRINT("wrt seg 0x%x\n", write_segment);
+		DEBUG_PRINT("wrt inx 0x%x\n", write_index);
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
