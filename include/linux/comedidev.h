@@ -86,11 +86,6 @@ struct comedi_subdevice_struct{
 
 	unsigned int *chanlist;		/* driver-owned chanlist (not used) */
 
-#ifdef CONFIG_COMEDI_TRIG
-	comedi_trig	cur_trig;	/* current trig structure */
-	int (*trig[5])(comedi_device *,comedi_subdevice *,comedi_trig *);
-#endif
-
 	int (*insn_read)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*insn_write)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*insn_bits)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
@@ -219,11 +214,6 @@ void stop_polling(comedi_device *);
 
 void comedi_proc_init(void);
 void comedi_proc_cleanup(void);
-
-#ifdef CONFIG_COMEDI_TRIG
-int di_unpack(unsigned int bits,comedi_trig *it);
-int do_pack(unsigned int *bits,comedi_trig *it);
-#endif
 
 
 #define SRF_USER		0x00000001
