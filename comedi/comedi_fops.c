@@ -525,7 +525,6 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	comedi_subdevice *s;
 	int ret=0;
 	
-DPRINTK("entering do_cmd_ioctl()\n");
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
@@ -592,6 +591,21 @@ DPRINTK("entering do_cmd_ioctl()\n");
 		goto cleanup;
 	}
 	
+	ret=s->do_cmdtest(dev,s,&s->cmd);
+
+	if(s->cmd.flags&TRIG_BOGUS || ret){
+		user_cmd=s->cmd;
+		user_cmd.chanlist = NULL;
+		user_cmd.data = NULL;
+		if(copy_to_user(arg,&user_cmd,sizeof(comedi_cmd))){
+			DPRINTK("fault writing cmd\n");
+			ret = -EFAULT;
+			goto cleanup;
+		}
+		ret = -EAGAIN;
+		goto cleanup;
+	}
+
 	if(!s->prealloc_bufsz){
 		ret=-ENOMEM;
 		DPRINTK("no buffer (?)\n");
