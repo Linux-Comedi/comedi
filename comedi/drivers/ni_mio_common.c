@@ -2684,7 +2684,7 @@ static int ni_serial_sw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 
 		/* Input current bit */
 		if(win_in(DIO_Parallel_Input_Register) & DIO_SDIN) {
-			printk("DIO_P_I_R: 0x%x\n", win_in(DIO_Parallel_Input_Register));
+/*			printk("DIO_P_I_R: 0x%x\n", win_in(DIO_Parallel_Input_Register)); */
 			input |= mask;
 		}
 	}
