@@ -2006,7 +2006,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	unsigned int bits;
 
 	// do some initializing
-	writew(DAC_ENABLE_BIT, private(dev)->main_iobase + DAC_CONTROL0_REG);
+	writew(0, private(dev)->main_iobase + DAC_CONTROL0_REG);
 
 	// set range
 	bits = DAC_OUTPUT_ENABLE_BIT;
