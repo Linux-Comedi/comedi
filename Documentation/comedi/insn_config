@@ -24,86 +24,6 @@ Notes:
     that are tied to start_src, convert_src, etc.?
 
 
-ID=0: COMEDI_INPUT
-ID=1: COMEDI_OUTPUT
-ID=2: open drain input (?)
-ID=3: open drain output
-
-  length=1
-  chanspec is used to specify channel
-  type: SUBD_DIO
-
-  These are used to configure the direction of digital I/O lines.
-
-  Modifications: none
-
-  Errors: none
-
-  Notes:
-    - does "open drain input" make sense? (no)
-
-
-ID=xxx:  analog output waveform generation
-
-  Specify the number of samples in buffer.
-
-
-ID=xxx:  analog output deglitch configuration
-ID=xxx:  analog input dithering configuration
-  
-  Also could put AO range configuration here.  (ds: that would be
-  dumb.)
-
-
-ID=xxx:  analog triggering
-
-  length=N
-  chanspec is ignored
-  type: any with cmd
-
-  [0] - ID
-  [1] - analog trigger channel
-  [2] - flags
-          trigger
-          slope/level
-	  hysteresis
-  [3] - high
-  [4] - low
-
-  Modifications: ?
-  Errors:
-    - bad channel
-    - bad flags
-    - 
-  Notes:
-    - are there devices that can specify debouncing?
-    - are there devices that can specify a time value after
-      which the analog trigger resets?
-    - has to account for hysteresis
-
-
-ID=xxx: simple digital triggering
-
-  length =
-  chanspec is ignored
-  type: any with cmd
-
-  [0] - ID
-  [1] - flags
-          trigger 
-  	  edge/level
-	  rising/falling
-  [2] - divider (?)
-
-  Notes:
-    - should this configure pins, or configure triggers?
-      (ds: triggers, see independent subdevice design rule)
-      (ds: pins, because it makes other things easier)
-    - divider?  (ds: too complicated.  This is supposed to
-      be simple.)
-    - should this be encoded into the TRIG_EXT argument?
-      
-
 ID=xxx: extended digital triggering
 
   length =
@@ -164,13 +84,6 @@ ID=xxx: counter configuration, up counter
 
 ID=xxx: counter configuration, up counter with gating
 ID=xxx: counter configuration, quadrature
-
-
-ID=xxx: command trigger, pattern matching
-
-  [0] - ID
-  [1] - bit mask (1 - watch, 0 - don't watch)
-  [2] - bit pattern
 
 
 ID=xxx: set software gate
