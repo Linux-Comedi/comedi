@@ -889,13 +889,14 @@ static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev, comedi_subdevice *s,
 static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	int bits, channel;
+	int channel;
 	unsigned long flags;
 
 	// clear dac fifo
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
 	// set channel and range
+	channel = CR_CHAN(insn->chanspec);
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK( channel ) &
 		~DAC_START & ~DAC_PACER_MASK;
