@@ -14,6 +14,7 @@ d_mod=debian/$(p_mod)
 kdist_image:	checkroot
 	$(RM) debian/files
 	yes "" | ./configure --linuxdir $(KSRC) --non-interactive --reconf
+	echo "KERNELRELEASE=$(KVERS)" >>.buildvars
 	$(MAKE)
 	$(RM) -rf $(d_mod)
 	install -d $(d_mod) $(d_mod)/DEBIAN
