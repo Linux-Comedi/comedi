@@ -1331,8 +1331,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	// if fifo half-full
 	if(status & ADHFI)
 	{
-		// clear half-full interrupt latch
-		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		// read data
 		insw(devpriv->adc_fifo + ADCDATA, data, half_fifo);
 		for(i = 0; i < half_fifo; i++)
@@ -1348,12 +1346,12 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 				}
 			}
 		}
+		// clear half-full interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		async->events |= COMEDI_CB_BLOCK;
 	// else if fifo not empty
 	}else if(status & (ADNEI | EOBI))
 	{
-		// clear not-empty interrupt latch
-		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		for(i = 0; i < timeout; i++)
 		{
 			// break if fifo is empty
@@ -1369,6 +1367,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 				break;
 			}
 		}
+		// clear not-empty interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		async->events |= COMEDI_CB_BLOCK;
 	}else if(status & EOAI)
 	{
