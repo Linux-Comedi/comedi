@@ -5,7 +5,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,20)
 
 #define check_mem_region(start,n) 0
 #define request_mem_region(start,n,name) ((void*) 0)
