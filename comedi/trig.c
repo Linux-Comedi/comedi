@@ -202,7 +202,7 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		}
 	}
 
-	ret=s->trig[0](dev,s,&s->cur_trig);
+	ret = mode0_emulate(dev,s,&s->cur_trig);
 
 	if(ret<0)goto cleanup;
 
