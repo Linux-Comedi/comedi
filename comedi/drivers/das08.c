@@ -368,8 +368,8 @@ static struct das08_board_struct das08_boards[]={
 	ao_nbits:	0,
 	di:		das08_di_rbits,
 	do_:		das08_do_wbits,
-	i8255_offset:	8,
-	i8254_offset:	0,
+	i8255_offset:	0,
+	i8254_offset:	4,
 	},
 #if 0
 	{
