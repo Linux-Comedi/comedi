@@ -102,6 +102,8 @@ static inline RTIME nano2count(long long ns)
 #define rt_task_init(a,b,c,d,e,f,g) rt_task_init(a,b,c,d,(e)+1)
 #define rt_task_resume(x) rt_task_wakeup(x)
 #define rt_set_oneshot_mode()
+#define start_rt_timer(x)
+#define stop_rt_timer()
 
 #endif
 #ifdef CONFIG_COMEDI_RTAI
