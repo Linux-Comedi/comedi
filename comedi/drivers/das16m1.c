@@ -27,7 +27,7 @@
 /*
 Driver: das16m1.o
 Description: CIO-DAS16/M1
-Author: Frank Mori Hess <fmhess@uiuc.edu>
+Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [MeasurementComputing] CIO-DAS16/M1 (cio-das16/m1)
 Status: works
 
