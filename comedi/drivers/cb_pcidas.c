@@ -643,6 +643,8 @@ found:
 	 * They don't actually get sent here, but in cmd code. */
 	devpriv->s5933_intcsr_bits = INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT;
 
+	// make sure CALEN is disabled
+	outw(0, devpriv->control_status + CALIBRATION);
 	return 1;
 }
 
