@@ -202,7 +202,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
 		ai_bits:	12,
-		ai_speed:	3030,
+		ai_speed:	3200,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -211,7 +211,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
 		ai_bits:	12,
-		ai_speed:	3030,
+		ai_speed:	3200,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -220,7 +220,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
 		ai_bits:	12,
-		ai_speed:	3030,
+		ai_speed:	3200,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -248,7 +248,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
 		ai_bits:	12,
-		ai_speed:	6666,
+		ai_speed:	6800,
 		ao_nchan: 2,
 		ranges:	&cb_pcidas_alt_ranges,
 	},
@@ -258,7 +258,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
 		ai_bits:	12,
-		ai_speed:	6666,
+		ai_speed:	6800,
 		ao_nchan: 2,
 		ranges:	&cb_pcidas_ranges,
 	},
@@ -471,7 +471,7 @@ found:
 	}
 
 	// get irq
-	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt, 0, "cb_pcidas", dev ))
+	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt, SA_SHIRQ, "cb_pcidas", dev ))
 	{
 		printk(" unable to allocate irq %d\n", devpriv->pci_dev->irq);
 		return -EINVAL;
@@ -593,12 +593,12 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	/* wait for mux to settle */
 	/* I suppose I made it with outw_p... */
 
+	/* clear fifo */
+	outw(0, devpriv->adc_fifo + ADCFIFOCLR);
+
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++)
 	{
-		/* clear fifo */
-		outw(0, devpriv->adc_fifo + ADCFIFOCLR);
-
 		/* trigger conversion */
 		outw(0, devpriv->adc_fifo + ADCDATA);
 
@@ -750,12 +750,6 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
 		if(tmp != cmd->convert_arg)
 			err++;
-		if(cmd->scan_begin_src == TRIG_TIMER &&
-		  cmd->scan_begin_arg < cmd->convert_arg * cmd->scan_end_arg)
-		{
-			cmd->scan_begin_arg = cmd->convert_arg * cmd->scan_end_arg;
-			err++;
-		}
 	}
 
 	if(err) return 4;
@@ -909,6 +903,9 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		for(i = 0; i < timeout; i++)
 		{
+			// break if fifo is empty
+			if((ADNE & inw(devpriv->control_status + INT_ADCFIFO)) == 0)
+				break;
 			data[0] = inw(devpriv->adc_fifo);
 			comedi_buf_put(async, data[0]);
 			if(async->cmd.stop_src == TRIG_COUNT &&
@@ -918,9 +915,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
-			// break if fifo is empty
-			if((ADNE & inw(devpriv->control_status + INT_ADCFIFO)) == 0)
-				break;
 		}
 		async->events |= COMEDI_CB_BLOCK;
 		// clear not-empty interrupt latch
@@ -954,10 +948,10 @@ static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 	// disable interrupts
 	devpriv->adc_fifo_bits = 0;
 	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
-	// software pacer source
-	outw(0, devpriv->control_status + ADCMUX_CONT);
 	// disable start trigger source and burst mode
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
+	// software pacer source
+	outw(0, devpriv->control_status + ADCMUX_CONT);
 
 
 	return 0;
