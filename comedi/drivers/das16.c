@@ -904,16 +904,17 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	// set appropriate size of transfer
 	devpriv->dma_transfer_size = das16_suggest_transfer_size(*cmd);
-	if(devpriv->adc_count * sample_size > devpriv->dma_transfer_size)
-		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
-	else
-		set_dma_count(devpriv->dma_chan, devpriv->adc_count * sample_size);
- 	enable_dma(devpriv->dma_chan);
+	if(cmd->stop_src == TRIG_COUNT &&
+		devpriv->adc_count * sample_size < devpriv->dma_transfer_size)
+	{
+		devpriv->dma_transfer_size = devpriv->adc_count * sample_size;
+	}
+	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
 	/* clear interrupt bit */
 	outb(0x00, dev->iobase + DAS16_STATUS);
-	async->events = 0;
 	/* enable interrupts, dma and pacer clocked conversions */
 	devpriv->control_state |= DAS16_INTE | DMA_ENABLE;
 	if(cmd->convert_src == TRIG_EXT)
@@ -1077,6 +1078,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 	// initialize async here to make sure s is not NULL
 	async = s->async;
+	async->events = 0;
 
 	status = inb(dev->iobase + DAS16_STATUS);
 
@@ -1106,12 +1108,12 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	// figure out how many points will be stored next time
 	leftover = 0;
-	if(async->cmd.stop_src == TRIG_NONE)
+	if(async->cmd.stop_src != TRIG_COUNT)
 	{
 		leftover = devpriv->dma_transfer_size / sample_size;
-	}else if(devpriv->adc_count > max_points)
+	}else if(devpriv->adc_count > num_points)
 	{
-		leftover = devpriv->adc_count - max_points;
+		leftover = devpriv->adc_count - num_points;
 		if(leftover > max_points)
 			leftover = max_points;
 	}
@@ -1141,13 +1143,11 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if(devpriv->adc_count == 0)
 	{	/* end of acquisition */
-		rt_printk("End of acquisition\n");
 		das16_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA;
 	}
 
 	comedi_event(dev, s, async->events);
-	async->events = 0;
 
 	/* clear interrupt */
 	outb(0x00, dev->iobase + DAS16_STATUS);
