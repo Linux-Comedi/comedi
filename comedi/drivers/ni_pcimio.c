@@ -430,7 +430,7 @@ static ni_board ni_boards[]={
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
 		reg_611x:	1,
-		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
+		caldac:         {ad8804,ad8804},
 	},
 	{       device_id:      0x14f0,
 		name:           "pci-6111",
@@ -446,7 +446,7 @@ static ni_board ni_boards[]={
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
 		reg_611x:	1,
-		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
+		caldac:         {ad8804,ad8804},
 	},
 #if 0
 	/* The 6115 boards probably need their own driver */
