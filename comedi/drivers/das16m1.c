@@ -2,7 +2,7 @@
     comedi/drivers/das16m1.c
     CIO-DAS16/M1 driver
     Author: Frank Mori Hess, based on code from the das16
-      driver by Chris Baugher.
+      driver.
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@stm.lbl.gov>
@@ -24,9 +24,21 @@
 ************************************************************************
 
 This driver is for the (freakish) Measurement Computing (Computer Boards)
-CIO-DAS16/M1 board.  The CIO-DAS16/M1/16 board actually has a different
-register layout and is not supported by this driver (although it might
-go nicely in the das16.c driver.)
+CIO-DAS16/M1 board.  The similarly namced CIO-DAS16/M1/16 board actually
+has a different register layout and is not supported by this driver
+(although it might go nicely in the das16.c driver.)
+
+Options:
+	[0] - base io address
+	[1] - irq (optional, required for timed or externally triggered conversions)
+
+irq can be omitted, although the cmd interface will not work without it.
+
+NOTES:
+This board has some unusual restrictions for its channel/gain list.  If the
+list has 2 or more channels in it, then two conditions must be satisfied:
+(1) - even/odd channels must appear at even/odd indices in the list
+(2) - the list must have an even number of entries.
 
 */
 
@@ -276,6 +288,12 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int byte, i;
+
+	if(dev->irq == 0)
+	{
+		comedi_error(dev, "irq required to execute comedi_cmd");
+		return -1;
+	}
 
 	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
 
@@ -600,7 +618,10 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
 
 	/* set the interrupt level */
-	devpriv->control_state = das16m1_irq_bits(dev->irq);
+	if(dev->irq)
+		devpriv->control_state = das16m1_irq_bits(dev->irq);
+	else
+		devpriv->control_state = 0;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
 	return 0;

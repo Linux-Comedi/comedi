@@ -165,10 +165,34 @@ Status: unknown
 
 Driver: das16.o
 Description: DAS16 compatible boards
-Authors: Sam Moore, Warren Jasper, ds
+Authors: Sam Moore, Warren Jasper, ds, Chris Baugher
 Status: in development
 
 A rewrite of the das16 and das1600 drivers.
+
+
+
+Driver: das16m1.o
+Description: CIO-DAS16/M1
+Authors: Frank Mori Hess <fmhess@uiuc.edu>
+Status: works
+
+This driver supports a single board - the CIO-DAS16/M1.
+As far as I know, there are no other boards that have
+the same register layout.  Even the CIO-DAS16/M1/16 is
+significantly different.
+
+Don't expect to reach the full 1 MHz capability of this
+board.  It can't do dma, so at 1 MHz your cpu is going
+to be spending almost all of its time trying to pull
+samples across the ISA bus.  I have gotten it to run
+at 833kHz though, using a hard real-time interrupt
+(TRIG_RT flag with rtlinux).
+
+Options:
+	[0] - base io address
+	[1] - irq (optional, but you probably want it)
+
 
 
 Driver: das16-old.o
