@@ -111,7 +111,7 @@ void comedi_free_irq(unsigned int irq,void *dev_id)
 	comedi_irqs[irq]=NULL;
 
 	if(it->rt){
-		printk("BUG! \n");
+		printk("real-time IRQ allocated at board removal (ignore)\n");
 		rt_release_irq(it);
 	}
 
