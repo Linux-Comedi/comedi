@@ -21,6 +21,7 @@
 	for((x)=pci_devices;(x);(x)=(x)->next)
 
 #define pci_enable_device(x) 0
+#define pci_disable_device(x)
 
 #define PCI_ANY_ID (~0)
 
