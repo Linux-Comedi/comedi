@@ -90,13 +90,25 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 	it->handler=handler;
 	it->irq=irq;
 	it->dev_id=dev_id;
-	it->flags=flags;
 	it->device=device;
 
-	ret=request_irq(irq,handler,flags,device,dev_id);
+	/* null shared interrupt flag, since rt interrupt handlers do not
+	 * support it, and this version of comedi_request_irq() is only
+	 * called for kernels with rt support */
+	it->flags = flags & ~SA_SHIRQ;
+
+	ret=request_irq(irq,handler,it->flags,device,dev_id);
 	if(ret<0){
-		kfree(it);
-		return ret;
+		// we failed, so fall back on allowing shared interrupt
+		if(flags & SA_SHIRQ)
+		{
+			it->flags = flags;
+			ret=request_irq(irq,handler,it->flags,device,dev_id);
+		}
+		if(ret<0){
+			kfree(it);
+			return ret;
+		}
 	}
 
 	comedi_irqs[irq]=it;
@@ -127,8 +139,15 @@ void comedi_switch_to_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
+	// this prevents crashes with comedi_rt_timer
 	if(it == NULL)
 		return;
+
+	// rt interrupts and shared interrupts don't mix
+	if(it->flags & SA_SHIRQ){
+		rt_printk("comedi: cannot switch shared interrupt to real time priority\n");
+		return;
+	}
 
 	spin_lock_irq(&dev->spinlock);
 	RT_protect();
@@ -147,7 +166,12 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
+	// this prevents crashes with comedi_rt_timer
 	if(it == NULL)
+		return;
+
+	// rt interrupts and shared interrupts don't mix
+	if(it->flags & SA_SHIRQ)
 		return;
 
 	RT_spin_lock_irq(&dev->spinlock);
