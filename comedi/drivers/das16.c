@@ -717,7 +717,8 @@ struct das16_private_struct {
 	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
 	unsigned int dma_chan;	// dma channel
 	sampl_t *dma_buffer;
-	volatile unsigned int dma_transfer_size;	// number of bytes transfered per dma shot
+	volatile unsigned int target_transfer_size;	// target number of bytes to transfer per dma shot
+	volatile unsigned int actual_transfer_size;	// number of bytes in current dma transfer
 	// user-defined analog input and output ranges defined from config options
 	comedi_lrange *user_ai_range_table;
 	comedi_lrange *user_ao_range_table;
@@ -950,8 +951,9 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	clear_dma_ff(devpriv->dma_chan);
 	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	// set appropriate size of transfer
-	devpriv->dma_transfer_size = das16_suggest_transfer_size(dev, *cmd);
-	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+	devpriv->target_transfer_size = das16_suggest_transfer_size(dev, *cmd);
+	devpriv->actual_transfer_size = devpriv->target_transfer_size;
+	set_dma_count(devpriv->dma_chan, devpriv->actual_transfer_size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
@@ -1157,8 +1159,9 @@ static void das16_interrupt( comedi_device *dev )
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
-	int num_points, num_bytes, residue, next_num_bytes;
+	int num_points, num_bytes, residue;
 	sampl_t dpnt;
+	unsigned int target_xfer;
 
 	if(dev->attached == 0)
 	{
@@ -1183,13 +1186,13 @@ static void das16_interrupt( comedi_device *dev )
 	 * the stop_src is set to external triggering.
 	 */
 	residue = get_dma_residue(devpriv->dma_chan);
-	if(residue > devpriv->dma_transfer_size)
+	if(residue > devpriv->actual_transfer_size)
 	{
 		comedi_error(dev, "residue > transfer size!\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		num_bytes = 0;
 	}else
-		num_bytes = devpriv->dma_transfer_size - residue;
+		num_bytes = devpriv->actual_transfer_size + devpriv->remains - residue;
 	num_points = num_bytes / sample_size;
 	devpriv->remains = num_bytes % sample_size;
 
@@ -1211,10 +1214,12 @@ static void das16_interrupt( comedi_device *dev )
 	}
 
 	// figure out how many bytes for next transfer
-	next_num_bytes = devpriv->dma_transfer_size - devpriv->remains;
+	target_xfer = devpriv->target_transfer_size;
 	if(cmd->stop_src == TRIG_COUNT && devpriv->timer_mode == 0 &&
-		next_num_bytes + devpriv->remains > devpriv->adc_count * sample_size)
-		next_num_bytes = devpriv->adc_count * sample_size - devpriv->remains;
+		target_xfer > devpriv->adc_count * sample_size)
+		target_xfer = devpriv->adc_count * sample_size;
+
+	devpriv->actual_transfer_size = target_xfer - devpriv->remains;
 
 	// re-enable  dma
 	if(( async->events & COMEDI_CB_EOA ) == 0)
@@ -1222,7 +1227,7 @@ static void das16_interrupt( comedi_device *dev )
 		// copy possible leftover byte to beginning of buffer to be read next time
 		devpriv->dma_buffer[0] = devpriv->dma_buffer[num_points];
 		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer) + devpriv->remains);
-		set_dma_count(devpriv->dma_chan, next_num_bytes);
+		set_dma_count(devpriv->dma_chan, devpriv->actual_transfer_size);
 		enable_dma(devpriv->dma_chan);
 	}
 	release_dma_lock(flags);
