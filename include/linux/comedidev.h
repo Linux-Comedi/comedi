@@ -304,15 +304,13 @@ static inline void comedi_buf_put(comedi_async *async, sampl_t x)
 }
 
 /* Reads a data point from comedi's buffer, used for output.
- * returns signed int so error can be returned as negative. */
-static inline int comedi_buf_get(comedi_async *async)
+ * returns negative value on error. */
+static inline int comedi_buf_get(comedi_async *async, sampl_t *x)
 {
-	sampl_t data;
-
 	if(async->buf_int_count == async->buf_user_count)
 		return -EAGAIN;
 
-	data = *(sampl_t *)(async->data + async->buf_int_ptr);
+	*x = *(sampl_t *)(async->data + async->buf_int_ptr);
 	async->buf_int_ptr += sizeof(sampl_t);
 	if(async->buf_int_ptr >= async->data_len){
 		async->buf_int_ptr = 0;
@@ -324,7 +322,7 @@ static inline int comedi_buf_get(comedi_async *async)
 	}
 	async->buf_int_count += sizeof(sampl_t);
 
-	return data;
+	return 0;
 }
 
 #ifdef LINUX_V20
