@@ -1078,13 +1078,6 @@ static void daqp_cs_detach(dev_link_t *);
 
 static dev_info_t dev_info = "quatech_daqp_cs";
 
-/*====================================================================*/
-
-static void my_cs_error(client_handle_t handle, int func, int ret)
-{
-    error_info_t err = { func, ret };
-    CardServices(ReportError, handle, &err);
-}
 
 /*======================================================================
 
@@ -1124,10 +1117,11 @@ static dev_link_t *daqp_cs_attach(void)
     link = &local->link;
     link->priv = local;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
     /* Initialize the dev_link_t structure */
     link->release.function = &daqp_cs_release;
     link->release.data = (u_long)link;
-
+#endif
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
@@ -1160,11 +1154,11 @@ static dev_link_t *daqp_cs_attach(void)
     client_reg.event_handler = &daqp_cs_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
-    ret = CardServices(RegisterClient, &link->handle, &client_reg);
+    ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
-	my_cs_error(link->handle, RegisterClient, ret);
-	daqp_cs_detach(link);
-	return NULL;
+		cs_error(link->handle, RegisterClient, ret);
+		daqp_cs_detach(link);
+		return NULL;
     }
 
     return link;
@@ -1202,7 +1196,7 @@ static void daqp_cs_detach(dev_link_t *link)
 
     /* Break the link with Card Services */
     if (link->handle)
-	CardServices(DeregisterClient, link->handle);
+		pcmcia_deregister_client(link->handle);
     
     /* Unlink device structure, and free it */
     dev_table[dev->table_index] = NULL;
@@ -1218,19 +1212,13 @@ static void daqp_cs_detach(dev_link_t *link)
     
 ======================================================================*/
 
-#define CS_CHECK(fn, args...) \
-while ((last_ret=CardServices(last_fn=(fn),args))!=0) goto cs_failed
-
-#define CFG_CHECK(fn, args...) \
-if (CardServices(fn, args) != 0) goto next_entry
-
 static void daqp_cs_config(dev_link_t *link)
 {
     client_handle_t handle = link->handle;
     local_info_t *dev = link->priv;
     tuple_t tuple;
     cisparse_t parse;
-    int last_fn, last_ret;
+    int last_ret;
     u_char buf[64];
     config_info_t conf;
     
@@ -1245,9 +1233,21 @@ static void daqp_cs_config(dev_link_t *link)
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
-    CS_CHECK(GetTupleData, handle, &tuple);
-    CS_CHECK(ParseTuple, handle, &tuple, &parse);
+	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)))
+	{
+		cs_error(handle, GetFirstTuple, last_ret);
+		goto cs_failed;
+	}
+	if((last_ret = pcmcia_get_tuple_data(handle, &tuple)))
+	{
+		cs_error(handle, GetTupleData, last_ret);
+		goto cs_failed;
+	}
+	if((last_ret = pcmcia_parse_tuple(handle, &tuple, &parse)))
+	{
+		cs_error(handle, ParseTuple, last_ret);
+		goto cs_failed;
+	}
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
     
@@ -1255,7 +1255,11 @@ static void daqp_cs_config(dev_link_t *link)
     link->state |= DEV_CONFIG;
 
     /* Look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, handle, &conf);
+	if((last_ret = pcmcia_get_configuration_info(handle, &conf)))
+	{
+		cs_error(handle, GetConfigurationInfo, last_ret);
+		goto cs_failed;
+	}
     link->conf.Vcc = conf.Vcc;
 
     /*
@@ -1271,12 +1275,16 @@ static void daqp_cs_config(dev_link_t *link)
       will only use the CIS to fill in implementation-defined details.
     */
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
+	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)))
+	{
+		cs_error(handle, GetFirstTuple, last_ret);
+		goto cs_failed;
+	}
     while (1) {
 	cistpl_cftable_entry_t dflt = { 0 };
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	CFG_CHECK(GetTupleData, handle, &tuple);
-	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
+	if(pcmcia_get_tuple_data(handle, &tuple)) goto next_entry;
+	if(pcmcia_parse_tuple(handle, &tuple, &parse)) goto next_entry;
 
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
 	if (cfg->index == 0) goto next_entry;
@@ -1323,13 +1331,17 @@ static void daqp_cs_config(dev_link_t *link)
 	}
 
 	/* This reserves IO space but doesn't actually enable it */
-	CFG_CHECK(RequestIO, link->handle, &link->io);
+	if(pcmcia_request_io(link->handle, &link->io)) goto next_entry;
 
 	/* If we got this far, we're cool! */
 	break;
 	
-    next_entry:
-	CS_CHECK(GetNextTuple, handle, &tuple);
+next_entry:
+	if((last_ret = pcmcia_get_next_tuple(handle, &tuple)))
+	{
+		cs_error(handle, GetNextTuple, last_ret);
+		goto cs_failed;
+	}
     }
     
     /*
@@ -1338,14 +1350,22 @@ static void daqp_cs_config(dev_link_t *link)
        irq structure is initialized.
     */
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	CS_CHECK(RequestIRQ, link->handle, &link->irq);
+		if((last_ret = pcmcia_request_irq(link->handle, &link->irq)))
+		{
+			cs_error(handle, RequestIRQ, last_ret);
+			goto cs_failed;
+		}
 	
     /*
        This actually configures the PCMCIA socket -- setting up
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
     */
-    CS_CHECK(RequestConfiguration, link->handle, &link->conf);
+	if((last_ret = pcmcia_request_configuration(link->handle, &link->conf)))
+	{
+		cs_error(handle, RequestConfiguration, last_ret);
+		goto cs_failed;
+	}
 
     /*
       At this point, the dev_node_t structure(s) need to be
@@ -1379,7 +1399,6 @@ static void daqp_cs_config(dev_link_t *link)
     return;
 
 cs_failed:
-    my_cs_error(link->handle, last_fn, last_ret);
     daqp_cs_release((u_long)link);
 
 } /* daqp_cs_config */
@@ -1420,11 +1439,11 @@ static void daqp_cs_release(u_long arg)
     
     /* Don't bother checking to see if these succeed or not */
 
-    CardServices(ReleaseConfiguration, link->handle);
+    pcmcia_release_configuration(link->handle);
     if (link->io.NumPorts1)
-	CardServices(ReleaseIO, link->handle, &link->io);
+		pcmcia_release_io(link->handle, &link->io);
     if (link->irq.AssignedIRQ)
-	CardServices(ReleaseIRQ, link->handle, &link->irq);
+		pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
     
     if (link->state & DEV_STALE_LINK)
@@ -1457,8 +1476,12 @@ static int daqp_cs_event(event_t event, int priority,
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG) {
 	    dev->stop = 1;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 	    link->release.expires = jiffies + HZ/20;
 	    add_timer(&link->release);
+#else
+		daqp_cs_release((ulong)link);
+#endif
 	}
 	break;
     case CS_EVENT_CARD_INSERTION:
@@ -1472,14 +1495,14 @@ static int daqp_cs_event(event_t event, int priority,
 	/* Mark the device as stopped, to block IO until later */
         dev->stop = 1;
 	if (link->state & DEV_CONFIG)
-	    CardServices(ReleaseConfiguration, link->handle);
+	    pcmcia_release_configuration(link->handle);
 	break;
     case CS_EVENT_PM_RESUME:
 	link->state &= ~DEV_SUSPEND;
 	/* Fall through... */
     case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG)
-	    CardServices(RequestConfiguration, link->handle, &link->conf);
+	    pcmcia_request_configuration(link->handle, &link->conf);
 	dev->stop = 0;
 	break;
     }
@@ -1490,17 +1513,27 @@ static int daqp_cs_event(event_t event, int priority,
 
 #ifdef MODULE
 
+struct pcmcia_driver daqp_cs_driver =
+{
+	.attach = daqp_cs_attach,
+	.detach = daqp_cs_detach,
+	.owner = THIS_MODULE,
+	.drv = {
+		.name = "quatech_daqp_cs",
+	},	
+};
+
 int init_module(void)
 {
     servinfo_t serv;
     DEBUG(0, "%s\n", version);
-    CardServices(GetCardServicesInfo, &serv);
+    pcmcia_get_card_services_info(&serv);
     if (serv.Revision != CS_RELEASE_CODE) {
 	printk(KERN_NOTICE "daqp_cs: Card Services release "
 	       "does not match!\n");
 	return -1;
     }
-    register_pccard_driver(&dev_info, &daqp_cs_attach, &daqp_cs_detach);
+	pcmcia_register_driver(&daqp_cs_driver);
     comedi_driver_register(&driver_daqp);
     return 0;
 }
@@ -1511,7 +1544,7 @@ void cleanup_module(void)
 
     DEBUG(0, "daqp_cs: unloading\n");
     comedi_driver_unregister(&driver_daqp);
-    unregister_pccard_driver(&dev_info);
+	pcmcia_unregister_driver(&daqp_cs_driver);
     for (i=0; i < MAX_DEV; i++) {
       if (dev_table[i]) {
         if (dev_table[i]->link.state & DEV_CONFIG) {
