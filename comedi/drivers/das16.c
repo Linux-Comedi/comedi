@@ -686,7 +686,6 @@ static struct das16_board_struct das16_boards[]={
 	{
 	name:		"cio-das16/m1/16",	// cio-das16_m1_16.pdf, this board is a bit quirky, no dma
 	},
-	{
 #endif
 };
 #define n_das16_boards ((sizeof(das16_boards))/(sizeof(das16_board)))
@@ -705,7 +704,7 @@ static comedi_driver driver_das16={
 
 #define DAS16_TIMEOUT 1000
 
-static const int timer_period = HZ / 10 + 1;	// period for timer interrupt in jiffies (about 1/10 of a second)
+static const int timer_period = HZ / 20 + 1;	// period for timer interrupt in jiffies (about 1/20 of a second)
 
 struct das16_private_struct {
 	unsigned int	ai_unipolar;	// unipolar flag
@@ -923,7 +922,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	/* set counter mode and counts */
 	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
-	rt_printk("pacer period: %d ns\n", cmd->convert_arg);
+	DEBUG_PRINT("pacer period: %d ns\n", cmd->convert_arg);
 
 	/* enable counters */
 	byte = 0;
@@ -1190,8 +1189,9 @@ static void das16_interrupt( comedi_device *dev )
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		num_bytes = 0;
 	}else
-		num_bytes = devpriv->dma_transfer_size + devpriv->remains - residue;
+		num_bytes = devpriv->dma_transfer_size - residue;
 	num_points = num_bytes / sample_size;
+	devpriv->remains = num_bytes % sample_size;
 
 	if(cmd->stop_src == TRIG_COUNT &&
 		num_points > devpriv->adc_count)
@@ -1209,20 +1209,18 @@ static void das16_interrupt( comedi_device *dev )
 		comedi_buf_put(async, dpnt);
 		devpriv->adc_count--;
 	}
-	// copy possible leftover byte to beginning of buffer to be read next time
-	devpriv->dma_buffer[0] = devpriv->dma_buffer[i];
-
-	devpriv->remains = num_bytes % sample_size;
 
 	// figure out how many bytes for next transfer
 	next_num_bytes = devpriv->dma_transfer_size - devpriv->remains;
-	if(cmd->stop_src == TRIG_COUNT &&
+	if(cmd->stop_src == TRIG_COUNT && devpriv->timer_mode == 0 &&
 		next_num_bytes + devpriv->remains > devpriv->adc_count * sample_size)
 		next_num_bytes = devpriv->adc_count * sample_size - devpriv->remains;
 
 	// re-enable  dma
 	if(( async->events & COMEDI_CB_EOA ) == 0)
 	{
+		// copy possible leftover byte to beginning of buffer to be read next time
+		devpriv->dma_buffer[0] = devpriv->dma_buffer[num_points];
 		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer) + devpriv->remains);
 		set_dma_count(devpriv->dma_chan, next_num_bytes);
 		enable_dma(devpriv->dma_chan);
@@ -1607,16 +1605,6 @@ static int das16_detach(comedi_device *dev)
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices+4);
 
-	if(dev->irq)
-		comedi_free_irq(dev->irq, dev);
-
-	if(thisboard->size<0x400){
-		release_region(dev->iobase,thisboard->size);
-	}else{
-		release_region(dev->iobase,0x10);
-		release_region(dev->iobase+0x400,thisboard->size&0x3ff);
-	}
-
 	if(devpriv)
 	{
 		if(devpriv->dma_buffer)
@@ -1627,6 +1615,16 @@ static int das16_detach(comedi_device *dev)
 			kfree(devpriv->user_ai_range_table);
 		if(devpriv->user_ao_range_table)
 			kfree(devpriv->user_ao_range_table);
+	}
+	
+	if(dev->irq)
+		comedi_free_irq(dev->irq, dev);
+
+	if(thisboard->size<0x400){
+		release_region(dev->iobase,thisboard->size);
+	}else{
+		release_region(dev->iobase,0x10);
+		release_region(dev->iobase+0x400,thisboard->size&0x3ff);
 	}
 
 	return 0;
@@ -1675,4 +1673,5 @@ static unsigned int das16_suggest_transfer_size(comedi_device *dev, comedi_cmd c
 	
 	return size;
 }
+
 
