@@ -610,7 +610,13 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
 	
-	dev->iobase=mite_setup(devpriv->mite);
+	ret = mite_setup(devpriv->mite);
+	if(ret < 0)
+	{
+		printk(" error setting up mite\n");
+		return ret;
+	}
+	dev->iobase = mite_iobase(devpriv->mite);
 
 	dev->irq=mite_irq(devpriv->mite);
 

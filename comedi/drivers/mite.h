@@ -73,14 +73,29 @@ struct mite_struct{
 extern struct mite_struct *mite_devices;
 
 #ifdef PCI_SUPPORT_VER1
-#define mite_irq(a)		((a)->irq)
-#define mite_device_id(a)	((a)->device_id)
+extern inline unsigned int mite_irq(struct mite_struct *mite)
+{
+	return mite->irq;
+};
+extern inline unsigned int mite_device_id(struct mite_struct *mite)
+{
+	return mite->device_id;
+};
 #else
-#define mite_irq(a)		((a)->pcidev->irq)
-#define mite_device_id(a)	((a)->pcidev->device)
+extern inline unsigned int mite_irq(struct mite_struct *mite)
+{
+	return mite->pcidev->irq;
+};
+extern inline unsigned int mite_device_id(struct mite_struct *mite)
+{
+	return mite->pcidev->device;
+};
 #endif
 
-#define mite_iobase(a)		((a)->daq_io_addr)
+extern inline unsigned long mite_iobase(struct mite_struct *mite)
+{
+	return (unsigned long) mite->daq_io_addr;
+};
 
 
 void mite_init(void);

@@ -141,7 +141,13 @@ static int ni_670x_attach(comedi_device *dev,comedi_devconfig *it)
 	ret=ni_670x_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0) return ret;
 	
-	dev->iobase=mite_setup(devpriv->mite);
+	ret = mite_setup(devpriv->mite);
+	if(ret < 0)
+	{
+		printk("error setting up mite\n");
+		return ret;
+	}
+	dev->iobase=mite_iobase(devpriv->mite);
 	dev->board_name=thisboard->name;
 	dev->irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);

@@ -185,7 +185,7 @@ int mite_setup(struct mite_struct *mite)
 	}
 	request_mem_region(start, length, "mite (daq)");
 	mite->daq_io_addr = ioremap(start, length) + offset;
-	printk("DAQ:0x%08lx mapped to %p, ",mite->daq_phys_addr,mite->daq_io_addr);
+	printk("DAQ:0x%08lx mapped to %p\n",mite->daq_phys_addr,mite->daq_io_addr);
 
 	/* XXX don't know what the 0xc0 and 0x80 mean */
 	/* It must be here for the driver to work though */
@@ -208,7 +208,7 @@ int mite_setup(struct mite_struct *mite)
 
 	mite->used = 1;
 
-	return (int) mite->daq_io_addr;
+	return 0;
 }
 
 

@@ -513,6 +513,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	int lsb, msb;
 	int i;
 	unsigned long flags, isr_flags;
+	int ret;
 #ifdef CONFIG_PCMCIA
 	dev_link_t *link;
 #endif
@@ -540,8 +541,9 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 				printk("bug! mite device id does not match boardtype definition\n");
 				return -EINVAL;
 			}
-			iobase = mite_setup(devpriv->mite);
-			if(iobase < 0) return -EIO;
+			ret = mite_setup(devpriv->mite);
+			if(ret < 0) return ret;
+			iobase = mite_iobase(devpriv->mite);
 			irq = mite_irq(devpriv->mite);
 			break;
 		case pcmcia_bustype:
