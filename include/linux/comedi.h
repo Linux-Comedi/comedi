@@ -208,20 +208,29 @@ typedef unsigned short sampl_t;
 
 /* configuration instructions */
 
-#define COMEDI_INPUT			0
-#define COMEDI_OUTPUT			1
-#define COMEDI_OPENDRAIN		2
-
-#define INSN_CONFIG_ANALOG_TRIG		0x10
-//#define INSN_CONFIG_WAVEFORM		0x11
-//#define INSN_CONFIG_TRIG		0x12
-//#define INSN_CONFIG_COUNTER		0x13
-#define INSN_CONFIG_ALT_SOURCE		0x14
-#define INSN_CONFIG_DIGITAL_TRIG	0x15
-#define INSN_CONFIG_BLOCK_SIZE		0x16
-#define INSN_CONFIG_TIMER_1		0x17
-#define INSN_CONFIG_FILTER		0x18
-#define INSN_CONFIG_CHANGE_NOTIFY	0x19
+enum configuration_ids
+{
+	INSN_CONFIG_DIO_INPUT = 0,
+	INSN_CONFIG_DIO_OUTPUT = 1,
+	INSN_CONFIG_DIO_OPENDRAIN = 2,
+	COMEDI_INPUT = INSN_CONFIG_DIO_INPUT,
+	COMEDI_OUTPUT = INSN_CONFIG_DIO_OUTPUT,
+	COMEDI_OPENDRAIN = INSN_CONFIG_DIO_OPENDRAIN,
+	INSN_CONFIG_ANALOG_TRIG = 16,
+//	INSN_CONFIG_WAVEFORM = 17,
+//	INSN_CONFIG_TRIG = 18,
+//	INSN_CONFIG_COUNTER = 19,
+	INSN_CONFIG_ALT_SOURCE = 20,
+	INSN_CONFIG_DIGITAL_TRIG = 21,
+	INSN_CONFIG_BLOCK_SIZE = 22,
+	INSN_CONFIG_TIMER_1 = 23,
+	INSN_CONFIG_FILTER = 24,
+	INSN_CONFIG_CHANGE_NOTIFY = 25,
+	/*ALPHA*/
+	INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001, // Use CTR as single pulsegenerator
+	INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002, // Use CTR as pulsetraingenerator
+	INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003, // Use the counter as encoder
+};
 
 /* ioctls */
 
@@ -422,9 +431,6 @@ struct comedi_bufinfo_struct{
 	<http://people.mech.kuleuven.ac.be/~kgadeyne/linux/> for more
 	information about their use
 */
-#define INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR 1001 // Use CTR as single pulsegenerator
-#define INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR 1002 // Use CTR as pulsetraingenerator
-#define INSN_CONFIG_GPCT_QUADRATURE_ENCODER 1003 // Use the counter as encoder
 
 #define GPCT_X1                 0x01 // X1 encoding
 #define GPCT_X2                 0x02 // X2 encoding
