@@ -255,7 +255,10 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	do_gettimeofday(&tv);
 	a=readb(dev->iobase+Group_Status);
 	b=readb(dev->iobase+Group_Flags);
-	DPRINTK("status 0x%02x flags 0x%02x time %06d\n",a,b,(int)tv.tv_usec);
+
+	if(n_int < 10){
+		DPRINTK("status 0x%02x flags 0x%02x time %06d\n",a,b,(int)tv.tv_usec);
+	}
 
 	while(b&1){
 		writew(0xff,dev->iobase+Group_FIFO);
@@ -263,11 +266,11 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	b=readb(dev->iobase+Group_Flags);
-	DPRINTK("new status 0x%02x\n",b);
 
-	n_int++;
-	if(n_int==10)
-		disable_irq(dev->irq);
+	if(n_int < 10){
+		DPRINTK("new status 0x%02x\n",b);
+		n_int++;
+	}
 }
 
 static int ni_pcidio_insn_config(comedi_device *dev,comedi_subdevice *s,
@@ -442,7 +445,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		/* disable interrupts on board */
 		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 
-		ret=comedi_request_irq(dev->irq,nidio_interrupt,0,"nidio",dev);
+		ret=comedi_request_irq(dev->irq,nidio_interrupt,SA_SHIRQ,"nidio",dev);
 		if(ret<0){
 			dev->irq=0;
 			printk(" irq not available");
