@@ -61,8 +61,8 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 
-#undef HPDI_DEBUG	// disable debugging messages
-//#define HPDI_DEBUG	// enable debugging code
+//#undef HPDI_DEBUG	// disable debugging messages
+#define HPDI_DEBUG	// enable debugging code
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
@@ -809,6 +809,8 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	hpdi_writel( dev, RX_FIFO_RESET_BIT, BOARD_CONTROL_REG );
 
+	DEBUG_PRINT( "hpdi: in di_cmd\n");
+
 	abort_dma(dev, 0);
 
 	priv(dev)->dma_buf_index = 0;
@@ -828,6 +830,10 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 		priv(dev)->dio_count = cmd->stop_arg;
 	else
 		priv(dev)->dio_count = 1;
+
+	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );	
+
+	DEBUG_PRINT( "hpdi: starting rx\n");
 
 	hpdi_writel( dev, RX_ENABLE_BIT, BOARD_CONTROL_REG );
 
@@ -900,19 +906,12 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	hpdi_intr_status = readl( priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
 	hpdi_board_status = readl( priv(dev)->hpdi_iobase + BOARD_STATUS_REG );
 
-	if( hpdi_intr_status || ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA | ICS_LDIA ) ) )
-	{
-		DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
-		DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
-		DEBUG_PRINT("plx status 0x%x\n", plx_status);
-	}
 	async->events = 0;
 
 	if( hpdi_intr_status )
 	{
-		DEBUG_PRINT( "hpdi interrupt\n" );
+		DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
 		writel( hpdi_intr_status, priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
-		writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 	}
 
 	// spin lock makes sure noone else changes plx dma control reg
@@ -954,6 +953,14 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if( priv(dev)->dio_count == 0 )
 		async->events |= COMEDI_CB_EOA;
 
+	if( hpdi_intr_status || ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA ) ) )
+	{
+		DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
+		DEBUG_PRINT("plx status 0x%x\n", plx_status);
+		if( async->events )
+			DEBUG_PRINT( " events 0x%x\n", async->events );
+	}
+
 	cfc_handle_events( dev, s );
 
 	return;
@@ -981,3 +988,4 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s )
 
 	return 0;
 }
+
