@@ -1,6 +1,5 @@
 #!/bin/bash
 
-export LINUXDIR=/d/ds/linux/linux-2.2.17
 export CVSROOT=ds@oss.lineo.com:/var/cvs
 export CVS_RSH=ssh
 
@@ -12,18 +11,11 @@ else
 	minor=$1
 fi
 
-lastminor=$(echo $minor-1|bc)
+lastminor=$(($minor - 1))
 
 tag=r0_7_$minor
 version=0.7.$minor
 lasttag=r0_7_$lastminor
-
-echo 'removing export_tmp'
-rm -rf export_tmp
-
-mkdir export_tmp
-
-cd export_tmp
 
 echo "deleting tag $tag"
 cvs rtag -d $tag comedi
@@ -39,20 +31,13 @@ cvs rdiff -u -r $lasttag -r $tag comedi >../patch-comedi-$version
 
 mv comedi comedi-$version
 
-mkdir comedi-$version/include/comedi
-mkdir comedi-$version/include/modbuild
+#mkdir comedi-$version/include/comedi
+#mkdir comedi-$version/include/modbuild
 
-sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" comedi-$version/Makefile >Makefile.tmp
+sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" -e \
+	"s/^EXTRAVERSION.*/EXTRAVERSION = /" \
+	comedi-$version/Makefile >Makefile.tmp
 mv Makefile.tmp comedi-$version/Makefile
 
 tar -czvf ../comedi-$version.tgz comedi-$version
-
-exit
-
-cd comedi-$version
-
-yes "" | make
-make
-make
-
 
