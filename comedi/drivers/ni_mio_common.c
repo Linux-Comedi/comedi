@@ -637,7 +637,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsig
 	}
 
 	if(b_status&AO_BC_TC_St){
-		rt_printk("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
+		MDPRINTK("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
 		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_EOA;
 	}
@@ -1729,7 +1729,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		//TIM 4/17/01 win_out(bits,Interrupt_A_Enable_Register) ;
 		ni_set_bits(dev, Interrupt_A_Enable_Register, bits, 1);
 
-		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",bits);
+		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",devpriv->int_a_enable_reg);
 	}else{
 		/* interrupt on nothing */
 		ni_set_bits(dev, Interrupt_A_Enable_Register, ~0, 0);
