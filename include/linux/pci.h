@@ -39,7 +39,7 @@ struct pci_device_id {
 #define PCI_DMA_FROMDEVICE              0
 #define PCI_DMA_TODEVICE                0
 
-extern inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
+static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 	dma_addr_t *dma_handle)
 {
         void *ret;
@@ -57,7 +57,7 @@ extern inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
         return ret;
 }
 
-extern inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
+static inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 	void *vaddr, dma_addr_t dma_handle)
 {
 	free_pages((unsigned long)vaddr, get_order(size));
@@ -68,19 +68,19 @@ extern inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 #define pci_dma_sync_single(cookie, address, size, dir)
 
 // for getting base addresses
-extern inline unsigned long pci_resource_start(struct pci_dev *dev, unsigned int bar)
+static inline unsigned long pci_resource_start(struct pci_dev *dev, unsigned int bar)
 {
 	if(dev->base_address[bar] & PCI_BASE_ADDRESS_SPACE_IO)
 		return dev->base_address[bar] & PCI_BASE_ADDRESS_IO_MASK;
 	return dev->base_address[bar] & PCI_BASE_ADDRESS_MEM_MASK;
 }
 
-extern inline unsigned long pci_resource_end(struct pci_dev *dev, unsigned int bar)
+static inline unsigned long pci_resource_end(struct pci_dev *dev, unsigned int bar)
 {
 	return pci_resource_start(dev, bar);
 }
 
-extern inline int pci_request_regions(struct pci_dev *dev, char *name)
+static inline int pci_request_regions(struct pci_dev *dev, char *name)
 {
 	const int max_num_base_addr = 6;
 	static const int fake_length = 1;
@@ -114,7 +114,7 @@ extern inline int pci_request_regions(struct pci_dev *dev, char *name)
 	return 0;
 }
 
-extern inline void pci_release_regions(struct pci_dev *dev)
+static inline void pci_release_regions(struct pci_dev *dev)
 {
 	static const int max_num_base_addr = 6;
 	static const int fake_length = 1;
@@ -131,15 +131,23 @@ extern inline void pci_release_regions(struct pci_dev *dev)
 	}
 }
 
+static inline struct pci_dev* pci_find_subsys( unsigned int vendor, unsigned int device,
+	unsigned int ss_vendor, unsigned int ss_device,
+	const struct pci_dev *from)
+{
+	rt_printk( "pci_find_subsys() not supported in kernels older than 2.4!\n" );
+	return NULL;
+}
+
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,14)
-extern inline void pci_set_master(struct pci_dev *dev)
+static inline void pci_set_master(struct pci_dev *dev)
 { return; }
 #endif	// 2.2.14
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)
-extern inline unsigned long pci_resource_len (struct pci_dev *dev, int n_base)
+static inline unsigned long pci_resource_len (struct pci_dev *dev, int n_base)
 { return 0; }
 #endif	// 2.2.18
 
