@@ -1,11 +1,9 @@
 #!/bin/sh
 
-if [ "$LINUXDIR" = "" ]
-then
-	echo -n "Enter location of Linux source tree [/usr/src/linux]: "
-	read LINUXDIR
-	: ${LINUXDIR:=/usr/src/linux}
-fi
+default=${LINUXDIR:=/usr/src/linux}
+echo -n "Enter location of Linux source tree [$default]: "
+read LINUXDIR
+: ${LINUXDIR:=$default}
 
 if [ ! -f "$LINUXDIR/.config" ];then
 	echo Kernel source tree at $LINUXDIR is not configured
