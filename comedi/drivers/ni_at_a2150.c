@@ -169,7 +169,7 @@ COMEDI_INITCLEANUP(driver_a2150);
 
 #ifdef A2150_DEBUG
 
-void dump_regs(comedi_device *dev)
+void ni_dump_regs(comedi_device *dev)
 {
 	rt_printk("config bits 0x%x\n", devpriv->config_bits);
 	rt_printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
@@ -661,7 +661,7 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	outw(0, dev->iobase + FIFO_START_REG);
 
 #ifdef A2150_DEBUG
-	dump_regs(dev);
+	ni_dump_regs(dev);
 #endif
 
 	return 0;
