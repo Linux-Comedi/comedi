@@ -68,38 +68,43 @@ typedef struct {
 static int dt2815_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
 {
   int i;
+  int t;
+  int chan;
+  int data;
+  unsigned int status;
+  unsigned int lo, hi;
+
   for(i=0 ; i < it->n_chan ; i++) {
-    int t;
-    int chan = CR_CHAN(it->chanlist[i]);
-    int data = it->data[i];
-    unsigned int status;
-    unsigned int lo, hi;
+    chan = CR_CHAN(it->chanlist[i]);
+    data = it->data[i];
 
     lo = ((data & 0x0f) << 4) | (chan << 1) | 0x01;
     hi = (data & 0xff0) >> 4;
+    status = inb(dev->iobase + DT2815_STATUS);
     for (t = 0 ; t < 30 ; t++) {
-      status = inb(dev->iobase + DT2815_STATUS);
-      if (status == 0x00) {
-	outb(lo, dev->iobase + DT2815_DATA);
-	break;
-      }
+      if (status == 0x00) break;
       udelay(10);
+      status = inb(dev->iobase + DT2815_STATUS);
     }
-    if (status != 0x00) {
+    if (status == 0x00) {
+      outb(lo, dev->iobase + DT2815_DATA);
+    } else {
       rt_printk("dt2815: failed to write low byte on %d reason %x, %d\n",
 	     chan, status, t);
+      return -EBUSY;
     }
+    status = inb(dev->iobase + DT2815_STATUS);
     for (t = 0 ; t < 30 ; t++) {
-      status = inb(dev->iobase + DT2815_STATUS);
-      if (status == 0x10) {
-	outb(hi, dev->iobase + DT2815_DATA);
-	break;
-      }
+      if (status == 0x10) break;
       udelay(10);
+      status = inb(dev->iobase + DT2815_STATUS);
     }
-    if (status != 0x10) {
+    if (status == 0x10) {
+      outb(hi, dev->iobase + DT2815_DATA);
+    } else {
       rt_printk("dt2815: failed to write high byte on %d reason %x, %d\n",
 	     chan, status, t);
+      return -EBUSY;
     }
   }
   return i;
