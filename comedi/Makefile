@@ -35,7 +35,7 @@ range-$(CONFIG_COMEDI_DT2815)		+= drivers/dt2815.c
 range-$(CONFIG_COMEDI_DT282x)		+= drivers/dt282x.c
 range-$(CONFIG_COMEDI_DT3000)		+= drivers/dt3000.c
 range-$(CONFIG_COMEDI_NI_ATMIO)		+= drivers/ni_mio_common.c
-ifeq ($(CONFIG_COMEDI_NI_ATMIO),n)
+ifndef CONFIG_COMEDI_NI_ATMIO
 range-$(CONFIG_COMEDI_NI_PCIMIO)	+= drivers/ni_mio_common.c
 endif
 
