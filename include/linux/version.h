@@ -1,7 +1,7 @@
 #ifndef __MULTI_VERSION_H_
 #define __MULTI_VERSION_H_
 
-#include <version.h>
+#include <config.h>
 #include_next <linux/version.h>
 
 #ifdef UTS_RELEASE_OVERRIDE
