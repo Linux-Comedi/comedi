@@ -949,7 +949,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	s->buf_int_ptr=0;
 	s->buf_int_count=0;
-	if(s->subdev_flags & SDF_READABLE){
+	if(s->subdev_flags & (SDF_READABLE | SDF_WRITEABLE)){
 		s->buf_user_ptr=0;
 		s->buf_user_count=0;
 	}
