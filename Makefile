@@ -9,8 +9,8 @@ INSTALLDIR=/usr
 
 #LINUXDIR = /usr/src/linux
 #LINUXDIR = /d/ds/cvs/rtl/linux22
-LINUXDIR = /d/ds/cvs/linux22
-#LINUXDIR = /home/ds/cvs/linux23
+#LINUXDIR = /d/ds/cvs/linux22
+LINUXDIR = /home/ds/cvs/linux23
 
 # define the following if you want to compile using RTL
 # headers that aren't in the default location
