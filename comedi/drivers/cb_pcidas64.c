@@ -1356,7 +1356,7 @@ static int setup_subdevices(comedi_device *dev)
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DITHER;
 	if(board(dev)->layout == LAYOUT_60XX)
 		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
 	else if(board(dev)->layout == LAYOUT_64XX)
@@ -1846,7 +1846,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	disable_ai_pacing( dev );
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-	if( insn->chanspec & CR_DITHER )
+	if( insn->chanspec & CR_ALT_FILTER )
 		priv(dev)->adc_control1_bits |= ADC_DITHER_BIT;
 	else
 		priv(dev)->adc_control1_bits &= ~ADC_DITHER_BIT;
