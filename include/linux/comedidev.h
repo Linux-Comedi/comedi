@@ -49,7 +49,7 @@
 
 #ifdef MODULE
 #define COMEDI_INITCLEANUP(x)						\
-	int init_module(void){comedi_driver_register(&(x));return 0;}	\
+	int init_module(void){return comedi_driver_register(&(x));}	\
 	void cleanup_module(void){comedi_driver_unregister(&(x));}
 #else
 #define COMEDI_INITCLEANUP(x)
@@ -161,10 +161,14 @@ struct comedi_driver_struct{
 	 * to recognize which allows reporting back to user recognized board
 	 * names
 	 */
-	int (*register_boards)(void);	// initializes board_name and board_id arrays
+	void (*register_boards)(void);	// initializes board_name and board_id arrays
+	// number of elements in board_name and board_id arrays
+	unsigned int num_boards;
+	/* board_name and board_id arrays are allocated by comedi_driver_register()
+	 * using the value of num_boards for the number of elements
+	 */
 	char **board_name;
 	int *board_id;
-	unsigned int num_boards;	// number of elements in board_name and board_id arrays
 };
 
 struct comedi_device_struct{

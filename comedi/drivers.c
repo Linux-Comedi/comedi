@@ -176,17 +176,41 @@ int comedi_driver_register(comedi_driver *driver)
 	driver->next=comedi_drivers;
 	comedi_drivers=driver;
 
-	if(driver->register_boards)
+	if(driver->register_boards && driver->num_boards)
 	{
-		ret = driver->register_boards();
-		if(ret < 0)
+		driver->board_name = kmalloc(driver->num_boards * sizeof(char*), GFP_KERNEL);
+		if(driver->board_name == NULL)
 		{
-			DPRINTK("failed to register supported board names\n");
-			driver->num_boards = 0;
+			printk(KERN_ERR "comedi: memory allocation failure.\n");
+			ret = -ENOMEM;
+			goto cleanup;
 		}
+		driver->board_id = kmalloc(driver->num_boards * sizeof(int), GFP_KERNEL);
+		if(driver->board_id == NULL)
+		{
+			printk(KERN_ERR "comedi: memory allocation failure.\n");
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+
+		driver->register_boards();
 	}
 
 	return 0;
+
+cleanup:
+
+	// deallocate arrays
+	if(driver->board_name){
+		kfree(driver->board_name);
+	}
+	if(driver->board_id){
+		kfree(driver->board_id);
+	}
+
+	comedi_drivers = driver->next;
+
+	return ret;
 }
 
 int comedi_driver_unregister(comedi_driver *driver)

@@ -98,7 +98,7 @@ typedef struct{
 static int skel_attach(comedi_device *dev,comedi_devconfig *it);
 static int skel_detach(comedi_device *dev);
 //static int skel_recognize(char *name);
-static int skel_register_boards(void);
+static void skel_register_boards(void);
 comedi_driver driver_skel={
 	driver_name:	"dummy",
 	module:		THIS_MODULE,
@@ -106,6 +106,10 @@ comedi_driver driver_skel={
 	detach:		skel_detach,
 //	recognize:	skel_recognize,
 	register_boards:	skel_register_boards,	// replacement for recognize
+	/* comedi uses num_boards to allocate the board_name and board_id members
+	 * of this struct
+	 */
+	num_boards:		sizeof(skel_boards) / sizeof(skel_board),
 };
 
 static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -135,40 +139,24 @@ static int skel_recognize(char *name)
 /* The function register_boards() is a replacement for recognize
  * that allows comedi to report back valid board names when it doesn't
  * recognize a board name.  The job of register_boards is to
- * initialize the board_name, board_id and num_boards members of
+ * initialize the board_name and board_id members of
  * the the comedi_driver_struct for this driver.  The arrays
- * don't need to be deallocated as that is done in
- * comedi_driver_unregister() in the drivers.c file
+ * will have already been allocated with num_boards elements
+ * (your driver must initialize the num_boards member of your
+ * comedi_driver struct)
+ * by comedi_driver_register() in the drivers.c file.
  */
-static int skel_register_boards(void)
+static void skel_register_boards(void)
 {
 	unsigned int i;
-	unsigned int num_boards = sizeof(skel_boards) / sizeof(skel_board);
-	char **board_name;
-	int *board_id;
 
-	board_name = kmalloc(num_boards * sizeof(char*), GFP_KERNEL);
-	if(board_name == NULL)
-		return -ENOMEM;
-
-	board_id = kmalloc(num_boards * sizeof(int), GFP_KERNEL);
-	if(board_id == NULL)
+	for(i = 0; i < driver_skel.num_boards; i++)
 	{
-		kfree(board_name);
-		return -ENOMEM;
+		driver_skel.board_name[i] = skel_boards[i].name;
+		driver_skel.board_id[i] = i;
 	}
 
-	for(i = 0; i < num_boards; i++)
-	{
-		board_name[i] = skel_boards[i].name;
-		board_id[i] = i;
-	}
-
-	driver_skel.num_boards = num_boards;
-	driver_skel.board_name = board_name;
-	driver_skel.board_id = board_id;
-
-	return 0;
+	return;
 }
 
 /*

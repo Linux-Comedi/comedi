@@ -213,7 +213,7 @@ static comedi_lrange *das800_range_lkup[] = {
 static int das800_attach(comedi_device *dev,comedi_devconfig *it);
 static int das800_detach(comedi_device *dev);
 static int das800_recognize(char *name);
-static int das800_register_boards(void);
+static void das800_register_boards(void);
 static int das800_cancel(comedi_device *dev, comedi_subdevice *s);
 
 comedi_driver driver_das800={
@@ -223,6 +223,7 @@ comedi_driver driver_das800={
 	detach:		das800_detach,
 	recognize:		das800_recognize,
 	register_boards:		das800_register_boards,
+	num_boards:		sizeof(das800_boards) / sizeof(das800_board),
 };
 
 static void das800_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -239,35 +240,17 @@ int das800_probe(comedi_device *dev);
 int das800_set_frequency(comedi_device *dev);
 int das800_load_counter(unsigned int counterNumber, unsigned int counterValue, comedi_device *dev);
 
-static int das800_register_boards(void)
+static void das800_register_boards(void)
 {
 	unsigned int i;
-	unsigned int num_boards = sizeof(das800_boards) / sizeof(das800_boards[0]);
-	char **board_name;
-	int *board_id;
 
-	board_name = kmalloc(num_boards * sizeof(char*), GFP_KERNEL);
-	if(board_name == NULL)
-		return -ENOMEM;
-
-	board_id = kmalloc(num_boards * sizeof(int), GFP_KERNEL);
-	if(board_id == NULL)
+	for(i = 0; i < driver_das800.num_boards; i++)
 	{
-		kfree(board_name);
-		return -ENOMEM;
+		driver_das800.board_name[i] = das800_boards[i].name;
+		driver_das800.board_id[i] = i;
 	}
 
-	for(i = 0; i < num_boards; i++)
-	{
-		board_name[i] = das800_boards[i].name;
-		board_id[i] = i;
-	}
-
-	driver_das800.num_boards = num_boards;
-	driver_das800.board_name = board_name;
-	driver_das800.board_id = board_id;
-
-	return 0;
+	return;
 }
 
 static int das800_recognize(char *name)
