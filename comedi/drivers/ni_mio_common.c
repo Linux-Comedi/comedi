@@ -176,7 +176,9 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
 
 static void ni_mio_print_status_a(int status);
+#ifdef DEBUG_INTERRUPT
 static void ni_mio_print_status_b(int status);
+#endif
 
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
 static void ni_handle_fifo_half_full(comedi_device *dev);

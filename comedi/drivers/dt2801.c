@@ -197,14 +197,13 @@ static boardtype_t boardtypes[] =
 	},
 };
 #define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
+#define boardtype (*(boardtype_t *)dev->board_ptr)
 
 
 typedef struct{
-	boardtype_t *board;
 	comedi_lrange *dac_range_types[2];
 }dt2801_private;
 #define devpriv ((dt2801_private *)dev->private)
-#define boardtype (*devpriv->board)
 
 
 static int dt2801_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
@@ -492,7 +491,8 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 	type=0;
 
 havetype:
-	printk("dt2801: %s at port 0x%x",boardtypes[type].name,iobase);
+	dev->board_ptr = boardtypes+type;
+	printk("dt2801: %s at port 0x%x",boardtype.name,iobase);
 
 	n_ai_chans=probe_number_of_ai_chans(dev);
 	printk(" (ai channels = %d)",n_ai_chans);
@@ -505,8 +505,7 @@ havetype:
 	if((ret=alloc_private(dev,sizeof(dt2801_private)))<0)
 		goto out;
 
-	devpriv->board=boardtypes+type;
-	dev->board_name = devpriv->board->name;
+	dev->board_name = boardtype.name;
 
 	s=dev->subdevices+0;
 	/* ai subdevice */

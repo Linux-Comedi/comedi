@@ -147,8 +147,6 @@ enum{
 
 static int das1800_attach(comedi_device *dev, comedi_devconfig *it);
 static int das1800_detach(comedi_device *dev);
-static int das1800_recognize(char *name);
-static void das1800_register_boards(void);
 int das1800_probe(comedi_device *dev);
 static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -465,9 +463,9 @@ comedi_driver driver_das1800={
 	module:		THIS_MODULE,
 	attach:		das1800_attach,
 	detach:		das1800_detach,
-	recognize:		das1800_recognize,
-	register_boards:		das1800_register_boards,
-	num_names:		sizeof(das1800_boards) / sizeof(das1800_board),
+	num_names:	sizeof(das1800_boards) / sizeof(das1800_board),
+	board_name:	das1800_boards,
+	offset:		sizeof(das1800_board),
 };
 
 /*
@@ -484,6 +482,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	int irq = it->options[1];
 	int dma0, dma1;
 	int iobase2;
+	int board;
 
 // disable unsafe isa dma if we are using real time kernel
 #ifdef CONFIG_COMEDI_RT
@@ -527,14 +526,14 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->iosize = DAS1800_SIZE;
 
-	dev->board = das1800_probe(dev);
-	if(dev->board < 0)
+	board = das1800_probe(dev);
+	if(board < 0)
 	{
 		printk("unable to determine board type\n");
 		return -ENODEV;
 	}
 
-	dev->board_ptr = das1800_boards + dev->board;
+	dev->board_ptr = das1800_boards + board;
 	dev->board_name = thisboard->name;
 
 	// if it is an 'ao' board with fancy analog out then we need extra io ports
@@ -760,129 +759,80 @@ static int das1800_detach(comedi_device *dev)
 	return 0;
 };
 
-static int das1800_recognize(char *name)
-{
-	if(!strcmp(name, "das-1701st"))
-		return das1701st;
-	if(!strcmp(name, "das-1701st-da"))
-		return das1701st_da;
-	if(!strcmp(name, "das-1702st"))
-		return das1702st;
-	if(!strcmp(name, "das-1702st-da"))
-		return das1702st_da;
-	if(!strcmp(name, "das-1702hr"))
-		return das1702hr;
-	if(!strcmp(name, "das-1702hr-da"))
-		return das1702hr_da;
-	if(!strcmp(name, "das-1701ao"))
-		return das1701ao;
-	if(!strcmp(name, "das-1702ao"))
-		return das1702ao;
-	if(!strcmp(name, "das-1801st"))
-		return das1801st;
-	if(!strcmp(name, "das-1801st-da"))
-		return das1801st_da;
-	if(!strcmp(name, "das-1802st"))
-		return das1802st;
-	if(!strcmp(name, "das-1802st-da"))
-		return das1802st_da;
-	if(!strcmp(name, "das-1802hr"))
-		return das1802hr;
-	if(!strcmp(name, "das-1802hr-da"))
-		return das1802hr_da;
-	if(!strcmp(name, "das-1801hc"))
-		return das1801hc;
-	if(!strcmp(name, "das-1802hc"))
-		return das1802hc;
-	if(!strcmp(name, "das-1801ao"))
-		return das1801ao;
-	if(!strcmp(name, "das-1802ao"))
-		return das1802ao;
-
-	return -1;
-}
-void das1800_register_boards(void)
-{
-	int i;
-
-	for(i = 0; i < driver_das1800.num_names; i++)
-	{
-		driver_das1800.board_name[i] = das1800_boards[i].name;
-		driver_das1800.board_id[i] = i;
-	}
-	return;
-}
-
 /* probes and checks das-1800 series board type
  */
 int das1800_probe(comedi_device *dev)
 {
 	int id;
+	int board;
+
 	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf; /* get id bits */
+	board = ((das1800_board *)dev->board_ptr) - das1800_boards;
+	
 	switch(id)
 	{
 		// das-1800st-da
 		case 0x3:
-			if(dev->board == das1801st_da || dev->board == das1802st_da ||
-				dev->board == das1701st_da || dev->board == das1702st_da)
+			if(board == das1801st_da || board == das1802st_da ||
+				board == das1701st_da || board == das1702st_da)
 			{
-				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
-				return dev->board;
+				printk(" Board model: %s\n", das1800_boards[board].name);
+				return board;
 			}
 			printk(" Board model (probed, not recommended): das-1800st-da series\n");
 			return das1801st;
 			break;
 		// das-1800hr-da
 		case 0x4:
-			if(dev->board == das1802hr_da || dev->board == das1702hr_da)
+			if(board == das1802hr_da || board == das1702hr_da)
 			{
-				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
-				return dev->board;
+				printk(" Board model: %s\n", das1800_boards[board].name);
+				return board;
 			}
 			printk(" Board model (probed, not recommended): das-1802hr-da\n");
 			return das1802hr;
 			break;
 		case 0x5:
-			if(dev->board == das1801ao || dev->board == das1802ao ||
-				dev->board == das1701ao || dev->board == das1702ao)
+			if(board == das1801ao || board == das1802ao ||
+				board == das1701ao || board == das1702ao)
 			{
-				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
-				return dev->board;
+				printk(" Board model: %s\n", das1800_boards[board].name);
+				return board;
 			}
 			printk(" Board model (probed, not recommended): das-1800ao series\n");
 			return das1801ao;
 			break;
 		case 0x6:
-			if(dev->board == das1802hr || dev->board == das1702hr)
+			if(board == das1802hr || board == das1702hr)
 			{
-				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
-				return dev->board;
+				printk(" Board model: %s\n", das1800_boards[board].name);
+				return board;
 			}
 			printk(" Board model (probed, not recommended): das-1802hr\n");
 			return das1802hr;
 			break;
 		case 0x7:
-			if(dev->board == das1801st || dev->board == das1802st ||
-				dev->board == das1701st || dev->board == das1702st)
+			if(board == das1801st || board == das1802st ||
+				board == das1701st || board == das1702st)
 			{
-				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
-				return dev->board;
+				printk(" Board model: %s\n", das1800_boards[board].name);
+				return board;
 			}
 			printk(" Board model (probed, not recommended): das-1800st series\n");
 			return das1801st;
 			break;
 		case 0x8:
-			if(dev->board == das1801hc || dev->board == das1802hc)
+			if(board == das1801hc || board == das1802hc)
 			{
-				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
-				return dev->board;
+				printk(" Board model: %s\n", das1800_boards[board].name);
+				return board;
 			}
 			printk(" Board model (probed, not recommended): das-1800hc series\n");
 			return das1801hc;
 			break;
 		default :
 			printk(" Board model: probe returned 0x%x (unknown)\n", id);
-			return dev->board;
+			return board;
 			break;
 	}
 	return -1;

@@ -350,11 +350,9 @@ static ni_board ni_boards[]={
 
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcimio_detach(comedi_device *dev);
-static int pcimio_recognize(char *name);
 comedi_driver driver_pcimio={
 	driver_name:	"ni_pcimio",
 	module:		THIS_MODULE,
-	recognize:	pcimio_recognize,
 	attach:		pcimio_attach,
 	detach: 	pcimio_detach,
 };
@@ -416,18 +414,6 @@ static int pcimio_detach(comedi_device *dev)
 	return 0;
 }
 
-static int pcimio_recognize(char *name)
-{
-	if(!strcmp(name,"pcimio-E")){
-		printk("name \"pcimio-E\" deprecated.  Use \"ni_pcimio\"\n");
-		return 0;
-	}
-	if(!strcmp(name,"ni_pcimio"))
-		return 0;
-
-	return -1;
-}
-
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int		ret;
@@ -440,8 +426,8 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
-	printk(" %s",ni_boards[dev->board].name);
-	dev->board_name=ni_boards[dev->board].name;
+	printk(" %s",boardtype.name);
+	dev->board_name=boardtype.name;
 	
 	dev->iobase=mite_setup(devpriv->mite);
 
@@ -473,7 +459,7 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 			   slot!=PCI_SLOT(mite->pci_device_fn))
 				continue;
 #else
-			if(bus!=mite->pcidev->bus->number<<8 ||
+			if(bus!=mite->pcidev->bus->number ||
 			   slot!=PCI_SLOT(mite->pcidev->devfn))
 				continue;
 #endif
@@ -481,7 +467,7 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 
 		for(i=0;i<n_pcimio_boards;i++){
 			if(mite_device_id(mite)==ni_boards[i].device_id){
-				dev->board=i;
+				dev->board_ptr=ni_boards+i;
 				devpriv->mite=mite;
 
 				return 0;

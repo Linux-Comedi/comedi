@@ -491,11 +491,10 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 #endif
 
-	dev->board=ni_getboardtype(dev,link);
+	dev->board_ptr = ni_boards + ni_getboardtype(dev,link);
 	
-	printk(" %s",ni_boards[dev->board].name);
-	dev->board_name=ni_boards[dev->board].name;
-	dev->board_ptr = ni_boards+dev->board;
+	printk(" %s",boardtype.name);
+	dev->board_name=boardtype.name;
 
 	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_mio_cs",dev))<0 ){
 		printk(" irq not available\n");

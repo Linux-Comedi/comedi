@@ -30,19 +30,19 @@
 /*
     Options for PCL-726:
      [0] - IO Base
-     [1]...[6] - D/A output range for channel 1-6: 
+     [2]...[7] - D/A output range for channel 1-6: 
                0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
 	       4: 4-20mA, 5: unknow (external reference)
 	       
     Options for PCL-727:
      [0] - IO Base
-     [1]...[12] - D/A output range for channel 1-12: 
+     [2]...[13] - D/A output range for channel 1-12: 
                0: 0-5V, 1: 0-10V, 2: +/-5V, 
 	       3: 4-20mA
 	       
     Options for PCL-728 and ACL-6128:
      [0] - IO Base
-     [1], [2] - D/A output range for channel 1 and 2: 
+     [2], [3] - D/A output range for channel 1 and 2: 
                0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
 	       4: 4-20mA, 5: 0-20mA
 	       
@@ -120,15 +120,6 @@ static comedi_lrange *rangelist_728[]={
 
 static int pcl726_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl726_detach(comedi_device *dev);
-static int pcl726_recognize(char *name);
-
-comedi_driver driver_pcl726={
-	driver_name:	"pcl726",
-	module:		THIS_MODULE,
-	attach:		pcl726_attach,
-	detach:		pcl726_detach,
-	recognize:	pcl726_recognize,
-};
 
 typedef struct {
 	char 		*name;		// driver name
@@ -163,6 +154,17 @@ static boardtype boardtypes[] =
 	 &rangelist_728[0], },
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define this_board ((boardtype *)dev->board_ptr)
+
+comedi_driver driver_pcl726={
+	driver_name:	"pcl726",
+	module:		THIS_MODULE,
+	attach:		pcl726_attach,
+	detach:		pcl726_detach,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype),
+};
 
 typedef struct{
 	int bipolar[12];
@@ -193,8 +195,8 @@ static int pcl726_di(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	unsigned int bits;
 	
-	bits=inb(dev->iobase+boardtypes[dev->board].di_lo)|
-		(inb(dev->iobase+boardtypes[dev->board].di_hi)<<8);
+	bits=inb(dev->iobase+this_board->di_lo)|
+		(inb(dev->iobase+this_board->di_hi)<<8);
 	
 	return di_unpack(bits,it);
 }
@@ -203,8 +205,8 @@ static int pcl726_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	do_pack(&s->state,it);
 	
-	outb(s->state&0xff,dev->iobase+boardtypes[dev->board].do_lo);
-	outb((s->state>>8),dev->iobase+boardtypes[dev->board].do_hi);
+	outb(s->state&0xff,dev->iobase+this_board->do_lo);
+	outb((s->state>>8),dev->iobase+this_board->do_hi);
 	
 	return it->n_chan;
 }
@@ -212,14 +214,12 @@ static int pcl726_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-        int board,iobase,iorange;
-	int ret,i,fstch;
+        int iobase,iorange;
+	int ret,i;
 	
-        board=dev->board;
-
         iobase=it->options[0];
-        iorange=boardtypes[board].io_range;
-	printk("comedi%d: pcl726: board=%s, 0x%03x ",dev->minor,boardtypes[board].name,iobase);
+        iorange=this_board->io_range;
+	printk("comedi%d: pcl726: board=%s, 0x%03x ",dev->minor,this_board->name,iobase);
 	if(check_region(iobase,iorange)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -229,7 +229,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
         dev->iobase=iobase;
         dev->iosize=iorange;
     
-	dev->board_name = boardtypes[board].name;
+	dev->board_name = this_board->name;
 
 	if((ret=alloc_private(dev,sizeof(pcl726_private)))<0)
 		return -ENOMEM;
@@ -264,9 +264,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	printk("\n");
 
-	dev->n_subdevices=1;
-	if (boardtypes[board].have_dio)
-		dev->n_subdevices=3;
+	dev->n_subdevices=3;
 	
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
@@ -275,51 +273,55 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	/* ao */
 	s->type=COMEDI_SUBD_AO;
 	s->subdev_flags=SDF_WRITEABLE|SDF_GROUND;
-	s->n_chan=boardtypes[board].n_aochan;
+	s->n_chan=this_board->n_aochan;
 	s->maxdata=0xfff;
 	s->len_chanlist=1;
 	s->trig[0]=pcl726_ao;
 	/*s->range_table=&range_unknown;*/	/* XXX */
 	s->range_table_list = devpriv->rangelist;
-	fstch=1;
-	if (board==3) fstch=2;
-	for (i=0; i<boardtypes[board].n_aochan; i++) {
-		if ((it->options[fstch+i]<0)||(it->options[fstch+i]>=boardtypes[board].num_of_ranges)) {
-			printk("Invalid range for channel %d! Must be 0<=%d<%d\n",i+1,it->options[fstch+i],boardtypes[board].num_of_ranges-1);
-			it->options[fstch+i]=0;
+	for (i=0; i<this_board->n_aochan; i++) {
+		int j;
+
+		j = it->options[2+1];
+		if ((j<0)||(j>=this_board->num_of_ranges)) {
+			printk("Invalid range for channel %d! Must be 0<=%d<%d\n",
+				i,j,this_board->num_of_ranges-1);
+			j=0;
 		}
-		devpriv->rangelist[i]=boardtypes[board].range_type_list[it->options[fstch+i]];
+		devpriv->rangelist[i]=this_board->range_type_list[j];
 		if (devpriv->rangelist[i]->range[0].min==-devpriv->rangelist[i]->range[0].max)
 			devpriv->bipolar[i]=1;	/* bipolar range */
 	}
 
-	if (dev->n_subdevices<2) {
-		return 0;
-	}
+
 
 	s=dev->subdevices+1;
 	/* di */
-	s->type=COMEDI_SUBD_DI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND;
-	s->n_chan=16;
-	s->maxdata=1;
-	s->len_chanlist=1;
-	s->trig[0]=pcl726_di;
-	s->range_table=&range_digital;
-
-	if (dev->n_subdevices<3) {
-		return 0;
+	if (!this_board->have_dio){
+		s->type = COMEDI_SUBD_UNUSED;
+	}else{
+		s->type=COMEDI_SUBD_DI;
+		s->subdev_flags=SDF_READABLE|SDF_GROUND;
+		s->n_chan=16;
+		s->maxdata=1;
+		s->len_chanlist=1;
+		s->trig[0]=pcl726_di;
+		s->range_table=&range_digital;
 	}
 
 	s=dev->subdevices+2;
 	/* do */
-	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE|SDF_GROUND;
-	s->n_chan=16;
-	s->maxdata=1;
-	s->len_chanlist=1;
-	s->trig[0]=pcl726_do;
-	s->range_table=&range_digital;
+	if (!this_board->have_dio){
+		s->type = COMEDI_SUBD_UNUSED;
+	}else{
+		s->type=COMEDI_SUBD_DO;
+		s->subdev_flags=SDF_WRITEABLE|SDF_GROUND;
+		s->n_chan=16;
+		s->maxdata=1;
+		s->len_chanlist=1;
+		s->trig[0]=pcl726_do;
+		s->range_table=&range_digital;
+	}
 
 	return 0;
 }
@@ -339,20 +341,6 @@ static int pcl726_detach(comedi_device *dev)
 
 	return 0;
 }
-
-static int pcl726_recognize(char *name) 
-{
-        int i;
-
-        for (i = 0; i < n_boardtypes; i++) {
-		if (!strcmp(boardtypes[i].name, name)) {
-			return i;
-		}
-	}
-
-        return -1;
-}
-
 
 
 COMEDI_INITCLEANUP(driver_pcl726);

@@ -241,9 +241,6 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 	int iobase;
 	int i;
 
-	if(strcmp("8255",it->board_name))
-		return 0;
-
 	printk("comedi%d: 8255:",dev->minor);
 
 	dev->board_name="8255";

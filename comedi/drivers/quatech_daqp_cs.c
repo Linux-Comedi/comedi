@@ -233,7 +233,7 @@ static int daqp_attach(comedi_device *dev,comedi_devconfig *it);
 static int daqp_detach(comedi_device *dev);
 comedi_driver driver_daqp={
 	driver_name:	"daqp",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		daqp_attach,
 	detach:		daqp_detach,
 };

@@ -326,7 +326,7 @@ static struct das08_board_struct das08_boards[]={
 	},
 #endif
 };
-static int n_boardtypes = sizeof(das08_boards)/sizeof(das08_boards[0]);
+#define n_boardtypes sizeof(das08_boards)/sizeof(das08_boards[0])
 
 
 struct das08_private_struct{
@@ -335,7 +335,7 @@ struct das08_private_struct{
 };
 
 #define devpriv ((struct das08_private_struct *)dev->private)
-#define thisboard (das08_boards+dev->board)
+#define thisboard ((struct das08_board_struct *)dev->board_ptr)
 
 #define TIMEOUT 1000
 
@@ -489,17 +489,15 @@ static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 static int das08_attach(comedi_device *dev,comedi_devconfig *it);
 static int das08_detach(comedi_device *dev);
-static int das08_recognize(char *name);
-static void das08_register_boards(void);
 
 comedi_driver driver_das08={
 	driver_name:	"das08",
 	module:		THIS_MODULE,
 	attach:		das08_attach,
 	detach:		das08_detach,
-	recognize:	das08_recognize,
-	register_boards:	das08_register_boards,
-	num_names:	sizeof(das08_boards) / sizeof(das08_board),
+	board_name:	das08_boards,
+	num_names:	sizeof(das08_boards)/sizeof(struct das08_board_struct),
+	offset:		sizeof(struct das08_board_struct),
 };
 
 static int das08_attach(comedi_device *dev,comedi_devconfig *it)
@@ -514,7 +512,6 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		return -EIO;
 	}
 
-	dev->board_ptr = das08_boards+dev->board;
 	dev->board_name = thisboard->name;
 	dev->iosize = DAS08_SIZE;
 
@@ -600,30 +597,5 @@ static int das08_detach(comedi_device *dev)
 	return 0;
 }
 
-static int das08_recognize(char *name)
-{
-	int i;
-
-	for(i=0;i<n_boardtypes;i++){
-		if(!strcmp(das08_boards[i].name,name))return i;
-	}
-
-	return -1;
-}
-
-static void das08_register_boards(void)
-{
-	unsigned int i;
-
-	for(i = 0; i < driver_das08.num_names; i++)
-	{
-		driver_das08.board_name[i] = das08_boards[i].name;
-		driver_das08.board_id[i] = i;
-	}
-
-	return;
-}
-
-
-COMEDI_INITCLEANUP(driver_das08)
+COMEDI_INITCLEANUP(driver_das08);
 

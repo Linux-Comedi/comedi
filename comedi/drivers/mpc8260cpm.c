@@ -36,96 +36,38 @@
 #include <linux/comedidev.h>
 
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
-typedef struct skel_board_struct{
-	char *name;
-	int ai_chans;
-	int ai_bits;
-	int have_dio;
-}skel_board;
-skel_board skel_boards[] = {
-	{
-	name:		"mpc8260cpm",
-	},
-};
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((skel_board *)dev->board_ptr)
-
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct{
 	int data;
 
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
+}mpc8260cpm_private;
+#define devpriv ((mpc8260cpm_private *)dev->private)
 
-}skel_private;
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((skel_private *)dev->private)
-
-/*
- * The comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int skel_attach(comedi_device *dev,comedi_devconfig *it);
-static int skel_detach(comedi_device *dev);
-static int skel_register_boards(void);
-comedi_driver driver_skel={
+static int mpc8260cpm_attach(comedi_device *dev,comedi_devconfig *it);
+static int mpc8260cpm_detach(comedi_device *dev);
+comedi_driver driver_mpc8260cpm={
 	driver_name:	"dummy",
 	module:		THIS_MODULE,
-	attach:		skel_attach,
-	detach:		skel_detach,
-	register_boards:	skel_register_boards,	// replacement for recognize
+	attach:		mpc8260cpm_attach,
+	detach:		mpc8260cpm_detach,
 };
 
-static int skel_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int skel_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int mpc8260cpm_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int mpc8260cpm_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  _recognize() has already been called,
- * and dev->board contains whatever _recognize returned.
- */
-static int skel_attach(comedi_device *dev,comedi_devconfig *it)
+static int mpc8260cpm_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int i;
 
-	printk("comedi%d: mpc8260: ",dev->minor);
+	printk("comedi%d: mpc8260cpm: ",dev->minor);
 	
-/*
- * Initialize dev->board_ptr.  This can point to an element in the
- * skel_boards array, for quick access to board-specific information.
- */
-	dev->board_ptr = skel_boards + dev->board;
+	dev->board_ptr = mpc8260cpm_boards + dev->board;
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the private structure area.
- */
-	if(alloc_private(dev,sizeof(skel_private))<0)
+	if(alloc_private(dev,sizeof(mpc8260cpm_private))<0)
 		return -ENOMEM;
 
-/*
- * Allocate the subdevice structures.
- */
 	dev->n_subdevices=4;
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
@@ -137,34 +79,21 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->maxdata=1;
 		s->range_table=&range_digital;
-		s->insn_config = &skel_dio_config;
-		s->insn_bits = &skel_dio_bits;
+		s->insn_config = &mpc8260cpm_dio_config;
+		s->insn_bits = &mpc8260cpm_dio_bits;
 	}
 	
 	return 1;
 }
 
-
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int skel_detach(comedi_device *dev)
+static int mpc8260cpm_detach(comedi_device *dev)
 {
-	printk("comedi%d: skel: remove\n",dev->minor);
+	printk("comedi%d: mpc8260cpm: remove\n",dev->minor);
 	
 	return 0;
 }
 
-/*
- * "instructions" read/write data in "one-shot" or "software-triggered"
- * mode.
- */
-static int skel_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int mpc8260cpm_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int n;
 	unsigned int d;
@@ -173,7 +102,7 @@ static int skel_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	return 2;
 }
 
-static int skel_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int mpc8260cpm_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int n;
 	unsigned int d;
@@ -182,11 +111,5 @@ static int skel_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	return 2;
 }
 
-
-
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-COMEDI_INITCLEANUP(driver_skel);
+COMEDI_INITCLEANUP(driver_mpc8260cpm);
 

@@ -123,8 +123,6 @@ comedi_lrange range_pci9118hg={ 8, {
 
 static int pci9118_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci9118_detach(comedi_device *dev);
-static int pci9118_recognize(char *name);
-static void pci9118_register_boards(void);
 
 typedef struct {
 	char 		*name;		// driver name
@@ -171,9 +169,9 @@ comedi_driver driver_pci9118={
 	module:		THIS_MODULE,
 	attach:		pci9118_attach,
 	detach:		pci9118_detach,
-	recognize:	pci9118_recognize,
-	register_boards:	pci9118_register_boards,
 	num_names:	n_boardtypes,
+	board_name:	boardtypes,
+	offset:		sizeof(boardtype),
 };
 
 typedef struct{
@@ -223,7 +221,7 @@ typedef struct{
 }pci9118_private;
 
 #define devpriv ((pci9118_private *)dev->private)
-#define this_board (boardtypes+dev->board)
+#define this_board ((boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
@@ -1242,22 +1240,20 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret,pages,i;
-        unsigned int board,iobase_a,iobase_9,irq;
+        unsigned int iobase_a,iobase_9,irq;
 	struct amcc_struct *card=NULL;
 	unsigned char pci_bus,pci_slot,pci_func;
 	unsigned int master;
 	
-        board=dev->board;
-	
-	rt_printk("comedi%d: adl_pci9118: board=%s",dev->minor,boardtypes[board].name);
+	printk("comedi%d: adl_pci9118: board=%s",dev->minor,this_board->name);
 
 	if ((it->options[0]<1)&(it->options[1]<1)) { // use autodetection
-		if ((card=find_free_card_by_device(boardtypes[board].device_id))==NULL) {
+		if ((card=find_free_card_by_device(this_board->device_id))==NULL) {
 			rt_printk(" - Unused card not found in system!\n");
 			return -EIO;
 		}
 	} else {
-		switch (find_free_card_by_position(boardtypes[board].device_id,it->options[0],it->options[1],&card)) {
+		switch (find_free_card_by_position(this_board->device_id,it->options[0],it->options[1],&card)) {
 		case 1:
 			rt_printk(" - Card not found on requested position!\n");
 			return -EIO;
@@ -1281,16 +1277,16 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, 0x%4x",pci_bus,pci_slot,pci_func,iobase_9,iobase_a);
 	
-        if (check_region(iobase_9, boardtypes[board].iorange_9118) < 0) {
+        if (check_region(iobase_9, this_board->iorange_9118) < 0) {
 		rt_printk("I/O port conflict\n");
 		return -EIO;
         }
 
         dev->iobase=iobase_9;
-        dev->iosize=boardtypes[board].iorange_9118;
+        dev->iosize=this_board->iorange_9118;
         request_region(dev->iobase, dev->iosize, "ADLink PCI-9118");
 
-	dev->board_name = boardtypes[board].name;
+	dev->board_name = this_board->name;
 
 	if((ret=alloc_private(dev,sizeof(pci9118_private)))<0)
 		return -ENOMEM;
@@ -1298,7 +1294,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->amcc=card;
 	devpriv->master=master;
 	devpriv->iobase_a=iobase_a;
-	devpriv->iosize_a=boardtypes[board].iorange_amcc;
+	devpriv->iosize_a=this_board->iorange_amcc;
         request_region(devpriv->iobase_a, devpriv->iosize_a, "ADLink PCI-9118");
 	
 	if (irq>0)  {
@@ -1457,33 +1453,6 @@ static int pci9118_detach(comedi_device *dev)
 	release_region(dev->iobase,dev->iosize);
 
 	return 0;
-}
-
-/*
-==============================================================================
-*/
-static int pci9118_recognize(char *name)
-{
-	int i;
-
-	for (i = 0; i < n_boardtypes; i++) {
-		if (!strcmp(boardtypes[i].name, name)) {
-			return i;
-		}
-	}
-
-        return -1;
-}
-
-void pci9118_register_boards(void)
-{
-	int i;
-
-	for (i = 0; i < driver_pci9118.num_names; i++) {
-		driver_pci9118.board_name[i] = boardtypes[i].name;
-		driver_pci9118.board_id[i] = i;
-	}
-
 }
 
 #ifdef MODULE

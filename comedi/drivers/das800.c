@@ -212,8 +212,6 @@ static comedi_lrange *das800_range_lkup[] = {
 
 static int das800_attach(comedi_device *dev,comedi_devconfig *it);
 static int das800_detach(comedi_device *dev);
-static int das800_recognize(char *name);
-static void das800_register_boards(void);
 static int das800_cancel(comedi_device *dev, comedi_subdevice *s);
 
 comedi_driver driver_das800={
@@ -221,9 +219,9 @@ comedi_driver driver_das800={
 	module:		THIS_MODULE,
 	attach:		das800_attach,
 	detach:		das800_detach,
-	recognize:		das800_recognize,
-	register_boards:		das800_register_boards,
-	num_names:		sizeof(das800_boards) / sizeof(das800_board),
+	num_names:	sizeof(das800_boards) / sizeof(das800_board),
+	board_name:	(char **)das800_boards,
+	offset:		sizeof(das800_board),
 };
 
 static void das800_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -240,42 +238,12 @@ int das800_probe(comedi_device *dev);
 int das800_set_frequency(comedi_device *dev);
 int das800_load_counter(unsigned int counterNumber, unsigned int counterValue, comedi_device *dev);
 
-static void das800_register_boards(void)
-{
-	unsigned int i;
-
-	for(i = 0; i < driver_das800.num_names; i++)
-	{
-		driver_das800.board_name[i] = das800_boards[i].name;
-		driver_das800.board_id[i] = i;
-	}
-
-	return;
-}
-
-static int das800_recognize(char *name)
-{
-	if(!strcmp(name, "das-800") || !strcmp(name, "das800"))
-		return das800;
-	if(!strcmp(name, "cio-das800"))
-		return ciodas800;
-	if(!strcmp(name, "das-801"))
-		return das801;
-	if(!strcmp(name, "cio-das801"))
-		return ciodas801;
-	if(!strcmp(name, "das-802"))
-		return das802;
-	if(!strcmp(name, "cio-das802"))
-		return ciodas802;
-
-	return -1;
-}
-
 /* checks and probes das-800 series board type */
 int das800_probe(comedi_device *dev)
 {
 	int id_bits;
 	unsigned long irq_flags;
+	int board;
 
 	// 'comedi spin lock irqsave' disables even rt interrupts, we use them to protect indirect addressing
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
@@ -283,46 +251,48 @@ int das800_probe(comedi_device *dev)
 	id_bits = inb(dev->iobase + DAS800_ID) & 0x3; /* get id bits */
 	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
+	board = thisboard - das800_boards;
+
 	switch(id_bits)
 	{
 		case 0x0:
-			if(dev->board == das800)
+			if(board == das800)
 			{
 				printk(" Board model: DAS-800\n");
-				return dev->board;
+				return board;
 			}
-			if(dev->board == ciodas800)
+			if(board == ciodas800)
 			{
 				printk(" Board model: CIO-DAS800\n");
-				return dev->board;
+				return board;
 			}
 			printk(" Board model (probed): DAS-800\n");
 			return das800;
 			break;
 		case 0x2:
-			if(dev->board == das801)
+			if(board == das801)
 			{
 				printk(" Board model: DAS-801\n");
-				return dev->board;
+				return board;
 			}
-			if(dev->board == ciodas801)
+			if(board == ciodas801)
 			{
 				printk(" Board model: CIO-DAS801\n");
-				return dev->board;
+				return board;
 			}
 			printk(" Board model (probed): DAS-801\n");
 			return das801;
 			break;
 		case 0x3:
-			if(dev->board == das802)
+			if(board == das802)
 			{
 				printk(" Board model: DAS-802\n");
-				return dev->board;
+				return board;
 			}
-			if(dev->board == ciodas802)
+			if(board == ciodas802)
 			{
 				printk(" Board model: CIO-DAS802\n");
-				return dev->board;
+				return board;
 			}
 			printk(" Board model (probed): DAS-802\n");
 			return das802;
@@ -426,6 +396,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	int iobase = it->options[0];
 	int irq = it->options[1];
 	unsigned long irq_flags;
+	int board;
 
 	printk("comedi%d: das800: io 0x%x", dev->minor, iobase);
 	if(irq)
@@ -450,12 +421,13 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->iosize = DAS800_SIZE;
 
-	dev->board = das800_probe(dev);
-	if(dev->board < 0)
+	board = das800_probe(dev);
+	if(board < 0)
 	{
 		printk("unable to determine board type\n");
 		return -ENODEV;
 	}
+	dev->board_ptr = das800_boards + board;
 
 	/* grab our IRQ */
 	if(irq == 1 || irq > 7 || irq < 0)
@@ -473,7 +445,6 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	dev->irq = irq;
 
-	dev->board_ptr = das800_boards + dev->board;
 	dev->board_name = thisboard->name;
 
 	/* allocate and initialize dev->private */
@@ -492,7 +463,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = 0xfff;
-	s->range_table = das800_range_lkup[dev->board];
+	s->range_table = das800_range_lkup[board];
 	s->do_cmd = das800_ai_do_cmd;
 	s->do_cmdtest = das800_ai_do_cmdtest;
 	s->insn_read = das800_ai_rinsn;

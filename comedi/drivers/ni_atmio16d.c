@@ -121,15 +121,14 @@ static atmio16_board_t atmio16_boards[]={
 	has_8255:	1,
 	},
 };
-static int n_atmio16_boards=sizeof(atmio16_boards)/sizeof(atmio16_boards[0]);
+#define n_atmio16_boards sizeof(atmio16_boards)/sizeof(atmio16_boards[0])
 
-#define boardtype (atmio16_boards+dev->board)
+#define boardtype ((atmio16_board_t *)dev->board_ptr)
 
 
 /* function prototypes */
 static int atmio16d_attach(comedi_device *dev,comedi_devconfig *it);
 static int atmio16d_detach(comedi_device *dev);
-static int atmio16d_recognize(char *name);
 static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs);
 static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s);
@@ -143,7 +142,9 @@ comedi_driver driver_atmio16d={
 	module:     THIS_MODULE,
 	attach:     atmio16d_attach,
 	detach:     atmio16d_detach,
-	recognize:  atmio16d_recognize,
+	board_name:	atmio16_boards,
+	num_names:	n_atmio16_boards,
+	offset:		sizeof(atmio16_board_t),
 };
 
 /* range structs */
@@ -655,17 +656,6 @@ static int atmio16d_dio(comedi_device * dev, comedi_subdevice *s, comedi_trig * 
 }
 
 
-static int atmio16d_recognize(char *name)
-{
-	int i;
-
-	for(i=0;i<n_atmio16_boards;i++){
-		if(!strcmp(atmio16_boards[i].name,name))return i;
-	}
-
-	return -1;
-}
-
 /*
    options[0] - I/O port
    options[1] - MIO irq
@@ -713,23 +703,16 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, ATMIO16D_SIZE, "ATMIO16D");
+	request_region(iobase, ATMIO16D_SIZE, "ni_atmio16d");
 	dev->iobase = iobase;
 	dev->iosize = ATMIO16D_SIZE;
 
 	
 	/* board name */
-	if (dev->board == 0)
-		dev->board_name = "at-mio16d";
-	else
-		dev->board_name = "unknown";
-
+	dev->board_name = boardtype->name;
 
 	/* set number of subdevices */
-	if(dev->board == 0)
-		dev->n_subdevices=4;
-	else
-		dev->n_subdevices=4;
+	dev->n_subdevices=4;
 
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;

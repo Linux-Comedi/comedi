@@ -419,13 +419,17 @@ static struct das16_board_struct das16_boards[]={
 
 static int das16_attach(comedi_device *dev,comedi_devconfig *it);
 static int das16_detach(comedi_device *dev);
-static int das16_recognize(char *name);
 comedi_driver driver_das16={
 	driver_name:	"das16",
 	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
-	recognize:	das16_recognize,
+/* Should be able to autodetect boards */
+#if 0
+	board_name:	das16_boards,
+	num_names:	n_das16_boards,
+	offset:		sizeof(das16_boards[0]),
+#endif
 };
 
 
@@ -968,19 +972,6 @@ static int das1600_mode_detect(comedi_device *dev)
 }
 
 
-static int das16_recognize(char *name)
-{
-	int i;
-
-	for(i=0;i<n_das16_boards;i++){
-		if(!strcmp(das16_boards[i].name,name))
-			return i;
-	}
-
-	return -1;
-}
-
-
 /*
  *
  * Options list:
@@ -1002,11 +993,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(struct das16_private_struct)))<0)
 		return ret;
 
-	dev->board = das16_probe(dev, it);
-
-	dev->board_ptr = das16_boards + dev->board;
+	dev->board_ptr = das16_boards + das16_probe(dev, it);
 	dev->board_name = thisboard->name;
-	
 
 	if(thisboard->size<0x400){
 		printk(" 0x%04x-0x%04x\n",

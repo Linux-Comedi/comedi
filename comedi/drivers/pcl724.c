@@ -48,15 +48,6 @@
 
 static int pcl724_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl724_detach(comedi_device *dev);
-static int pcl724_recognize(char *name);
-
-comedi_driver driver_pcl724={
-	driver_name:	"pcl724",
-	module:		THIS_MODULE,
-	attach:		pcl724_attach,
-	detach:		pcl724_detach,
-	recognize:	pcl724_recognize,
-};
 
 typedef struct {
 	char 		*name;		// driver name
@@ -79,6 +70,18 @@ static boardtype boardtypes[] =
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define this_board ((boardtype *)dev->board_ptr)
+
+comedi_driver driver_pcl724={
+	driver_name:	"pcl724",
+	module:		THIS_MODULE,
+	attach:		pcl724_attach,
+	detach:		pcl724_detach,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype),
+};
+
 
 static int subdev_8255_cb(int dir,int port,int data,void *arg)
 {
@@ -111,16 +114,15 @@ static int subdev_8255mapped_cb(int dir,int port,int data,void *arg)
 
 static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 {
-        int board,iobase,iorange;
+        int iobase,iorange;
 	int ret,i;
 	
-        board=dev->board;
-
         iobase=it->options[0];
-        iorange=boardtypes[board].io_range;
-	if ((boardtypes[board].can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
+        iorange=this_board->io_range;
+	if ((this_board->can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
 		iorange=PCL722_96_SIZE;	// PCL-724 in 96 DIO configuration
-	printk("comedi%d: pcl724: board=%s, 0x%03x ",dev->minor,boardtypes[board].name,iobase);
+	printk("comedi%d: pcl724: board=%s, 0x%03x ",dev->minor,
+		this_board->name,iobase);
 	if(check_region(iobase,iorange)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -130,14 +132,14 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
         dev->iobase=iobase;
         dev->iosize=iorange;
     
-	dev->board_name = boardtypes[board].name;
+	dev->board_name = this_board->name;
 
 #ifdef PCL724_IRQ
         irq=0;
-        if (boardtypes[board].IRQbits!=0) { /* board support IRQ */
+        if (this_board->IRQbits!=0) { /* board support IRQ */
 		irq=it->options[1];
 		if (irq>0)  {/* we want to use IRQ */
-		        if (((1<<irq)&boardtypes[board].IRQbits)==0) {
+		        if (((1<<irq)&this_board->IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
 			} else { 
@@ -156,16 +158,15 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	printk("\n");
 
-	dev->n_subdevices=boardtypes[board].numofports;
-	if ((boardtypes[board].can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
+	dev->n_subdevices=this_board->numofports;
+	if ((this_board->can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
 		dev->n_subdevices=4;	// PCL-724 in 96 DIO configuration
-
 	
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
 
 	for(i=0;i<dev->n_subdevices;i++){
-		if (boardtypes[board].is_pet48) {
+		if (this_board->is_pet48) {
 			subdev_8255_init(dev,dev->subdevices+i,
 				subdev_8255mapped_cb,(void *)(dev->iobase+i*0x1000));
 		} else
@@ -192,31 +193,6 @@ static int pcl724_detach(comedi_device *dev)
 	return 0;
 }
 
-static int pcl724_recognize(char *name) 
-{
-        int i;
 
-        for (i = 0; i < n_boardtypes; i++) {
-		if (!strcmp(boardtypes[i].name, name)) {
-			return i;
-		}
-	}
+COMEDI_INITCLEANUP(driver_pcl724);
 
-        return -1;
-}
-
-
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcl724);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl724);
-}
-#endif

@@ -96,15 +96,26 @@ static comedi_lrange range_rti800_ai_unipolar = { 4, {
 	UNI_RANGE( 0.02 )
 }};
 
+typedef struct{
+	char *name;
+	int has_ao;
+}boardtype;
+static boardtype boardtypes[]={
+	{ "rti800", 0 },
+	{ "rti815", 1 },
+};
+#define this_board ((boardtype *)dev->board_ptr)
+
 static int rti800_attach(comedi_device *dev,comedi_devconfig *it);
 static int rti800_detach(comedi_device *dev);
-static int rti800_recognize(char *name);
 comedi_driver driver_rti800={
 	driver_name:	"rti800",
 	module:		THIS_MODULE,
 	attach:		rti800_attach,
 	detach:		rti800_detach,
-	recognize:	rti800_recognize,
+	num_names:	sizeof(boardtypes)/sizeof(boardtype),
+	board_name:	boardtypes,
+	offset:		sizeof(boardtype),
 };
 
 static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs);
@@ -270,14 +281,6 @@ static int rti800_do(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
    options[8] - dac1 coding
  */
 
-static int rti800_recognize(char *name)
-{
-	if (!strcmp("rti800", name))return 0;
-	if (!strcmp("rti815", name))return 1;
-
-	return -1;
-}
-
 static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int irq;
@@ -318,17 +321,9 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("( no irq )");
 	}
 
-	if (dev->board == 0)
-		dev->board_name = "rti800";
-	else
-		dev->board_name = "rti815";
+	dev->board_name = this_board->name;
 
-
-	if (dev->board != 0) {
-		dev->n_subdevices=4;
-	}else{
-		dev->n_subdevices=3;
-	}
+	dev->n_subdevices=4;
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(rti800_private)))<0)
@@ -362,8 +357,8 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		break;
 	}
 
-	if (dev->board == 1) {
-		s++;
+	s++;
+	if (this_board->has_ao){
 		/* ao subdevice (only on rti815) */
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITEABLE;
@@ -387,6 +382,8 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->ao_range_type_list[1] = &range_unipolar10;
 			break;
 		}
+	}else{
+		s->type=COMEDI_SUBD_UNUSED;
 	}
 
 	s++;

@@ -130,22 +130,43 @@ static comedi_lrange _range_unipolar5 = { 1, {
 	RANGE( 0,	5 )
 }};
 
+typedef struct{
+	char *name;
+	int ai_bits;
+	comedi_lrange *bip_range;
+	comedi_lrange *unip_range;
+}boardtype;
+static boardtype boardtypes[]={
+	{ "das1601/12", 12,
+	bip_range:	&range_das1601_ai_10_bipolar,
+	unip_range:	&range_das1601_ai_10_unipolar,
+	},
+	{ "das1602/12", 12,
+	bip_range:	&range_das1602_ai_10_bipolar,
+	unip_range:	&range_das1602_ai_10_unipolar,
+	},
+	{ "das1602/16", 16,
+	bip_range:	&range_das1602_ai_10_bipolar,
+	unip_range:	&range_das1602_ai_10_unipolar,
+	},
+};
+#define n_boardtypes sizeof(boardtypes)/sizeof(boardtype)
+#define this_board ((boardtype *)dev->board_ptr)
+
 static int das1600_attach(comedi_device *dev,comedi_devconfig *it);
 static int das1600_detach(comedi_device *dev);
-static int das1600_recognize(char *name);
 comedi_driver driver_das1600={
 	driver_name:	"das1600",
 	module:		THIS_MODULE,
 	attach:		das1600_attach,
 	detach:		das1600_detach,
-	recognize:	das1600_recognize,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype),
 };
 
 
 typedef struct {
-	enum {
-		card_1601_12, card_1602_12, card_1602_16
-	} card;
 	int dma;
 	int crystal;
 	enum {
@@ -229,14 +250,10 @@ static int das1600_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * i
 		rt_printk("das1600: timeout\n");
 	} 
 
-	switch (devpriv->card) {
-	case card_1601_12:
-	case card_1602_12:
-       it->data[i] = (hi << 4) | (lo >> 4);
-		break;
-	case card_1602_16:
-       it->data[i] = (hi << 8) | lo;
-		break;
+	if(this_board->ai_bits==12){
+		it->data[i] = (hi << 4) | (lo >> 4);
+	}else{
+		it->data[i] = (hi << 8) | lo;
 	}
   }
   return i;
@@ -359,14 +376,6 @@ static int das1600_do(comedi_device * dev, comedi_subdevice * s, comedi_trig * i
                  4 == unipolar 5V  (0V -- +5V)
                  5 == unipolar user supplied  (0V -- +xV)
  */
-static int das1600_recognize(char *name)
-{
-	if (!strcmp("das1601/12", name)) return card_1601_12;
-	if (!strcmp("das1602/12", name)) return card_1602_12;
-	if (!strcmp("das1602/16", name)) return card_1602_16;
-
-	return -1;
-}
 
 static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -384,18 +393,7 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	request_region(dev->iobase, DAS1600_BASE_SIZE, "das1600");
 	request_region(dev->iobase + 0x400, DAS1600_DIO_SIZE, "das1600");
 
-	switch(dev->board){
-		case card_1601_12:
-		default:
-			dev->board_name = "das1601/12";
-			break;
-		case card_1602_12:
-			dev->board_name = "das1601/12";
-			break;
-		case card_1602_16:
-			dev->board_name = "das1602/16";
-			break;
-	}
+	dev->board_name=*(char **)dev->board_ptr;
 
 	dev->n_subdevices=5;
 
@@ -404,7 +402,6 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	if((result=alloc_subdevices(dev))<0)
 		return result;
 
-	devpriv->card = dev->board;
 	devpriv->dma = it->options[2];
 	devpriv->crystal = it->options[3];
 	devpriv->adc_mux = (it->options[4] == 1) ? adc_singleended : adc_diff;
@@ -417,29 +414,14 @@ static int das1600_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE|SDF_RT;
 	s->n_chan = (devpriv->adc_mux == adc_singleended) ? 16 : 8;
-	s->maxdata = (dev->board == card_1602_16) ? 0xffff : 0xfff;
+	s->maxdata = (1<<this_board->ai_bits)-1;
 	s->trig[0] = das1600_ai;
-	switch (dev->board) {
-	case card_1601_12:
-		switch (devpriv->adc_range) {
-		case adc_bipolar10:
-			s->range_table = &range_das1601_ai_10_bipolar;
-			break;
-		case adc_unipolar10:
-			s->range_table = &range_das1601_ai_10_unipolar;
-			break;
-		};
+	switch (devpriv->adc_range) {
+	case adc_bipolar10:
+		s->range_table = this_board->bip_range;
 		break;
-	case card_1602_12:
-	case card_1602_16:
-		switch (devpriv->adc_range) {
-		case adc_bipolar10:
-			s->range_table = &range_das1602_ai_10_bipolar;
-			break;
-		case adc_unipolar10:
-			s->range_table = &range_das1602_ai_10_unipolar;
-			break;
-		};
+	case adc_unipolar10:
+		s->range_table = this_board->unip_range;
 		break;
 	}
 

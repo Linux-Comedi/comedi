@@ -127,7 +127,8 @@ static dt3k_boardtype dt3k_boardtypes[]={
 		dabits:		12,
 	},
 };
-static int n_dt3k_boards=sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype);
+#define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype)
+#define this_board ((dt3k_boardtype *)dev->board_ptr)
 
 #define DT3000_SIZE		(4*0x1000)
 
@@ -429,7 +430,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 		return -ENODEV;
 	}
 
-	dev->board_name=dt3k_boardtypes[dev->board].name;
+	dev->board_name=this_board->name;
 
 	dev->n_subdevices=4;
 	if((ret=alloc_subdevices(dev))<0)
@@ -440,9 +441,9 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
-	s->n_chan=dt3k_boardtypes[dev->board].adchan;
+	s->n_chan=this_board->adchan;
 	s->trig[0]=dt3k_ai_mode0;
-	s->maxdata=(1<<dt3k_boardtypes[dev->board].adbits)-1;
+	s->maxdata=(1<<this_board->adbits)-1;
 	s->len_chanlist=512;
 	s->range_table=&range_dt3000_ai; /* XXX */
 
@@ -452,7 +453,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=2;
 	s->trig[0]=dt3k_ao_mode0;
-	s->maxdata=(1<<dt3k_boardtypes[dev->board].dabits)-1;
+	s->maxdata=(1<<this_board->dabits)-1;
 	s->len_chanlist=1;
 	s->range_table=&range_bipolar10;
 
@@ -528,7 +529,7 @@ static int dt_pci_find_device(comedi_device *dev)
 		{
 			devpriv->pci_bus=pci_bus;
 			devpriv->pci_dev_fn=pci_dev_fn;
-			dev->board=i;
+			dev->board_ptr=dt3k_boards+i;
 			return 1;
 		}
 	}
@@ -565,7 +566,7 @@ static int dt_pci_probe(comedi_device *dev)
 	int board;
 
 	devpriv->pci_dev=dt_pci_find_device(NULL,&board);
-	dev->board=board;
+	dev->board_ptr=dt3k_boardtypes+board;
 
 	if(!devpriv->pci_dev)
 		return 0;

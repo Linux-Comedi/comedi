@@ -564,7 +564,7 @@ typedef struct ni_board_struct{
 static ni_board ni_boards[];
 #define n_ni_boards  (sizeof(ni_boards)/sizeof(ni_board))
 
-#define boardtype ni_boards[dev->board]
+#define boardtype (*(ni_board *)dev->board_ptr)
 
 #define NI_PRIVATE_COMMON					\
 	unsigned short dio_output;				\

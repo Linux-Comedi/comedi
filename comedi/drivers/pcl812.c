@@ -117,21 +117,14 @@ static comedi_lrange range_pcl813b2_ai = { 4, {
 
 static int pcl812_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl812_detach(comedi_device *dev);
-static int pcl812_recognize(char *name);
 
 static int i8253_osc_base = 500;	/* 2 Mhz */
 
 
-comedi_driver driver_pcl812={
-	driver_name:	"pcl812",
-	module:		THIS_MODULE,
-	attach:		pcl812_attach,
-	detach:		pcl812_detach,
-	recognize:	pcl812_recognize,
-};
-
 typedef struct {
 	char *name;
+	int is_812pg;
+	int is_813b;
 	int n_ranges;
 	int n_aichan;
 	int ai_maxsample;
@@ -153,6 +146,7 @@ static boardtype boardtypes[] =
 {
 	{
 	name:		"pcl812pg",
+	is_812pg:	1,
 	n_ranges:	5,
 	n_aichan:	16,
 	ai_maxsample:	30,
@@ -169,6 +163,7 @@ static boardtype boardtypes[] =
 	},
 	{
 	name:		"pcl813b",
+	is_813b:	1,
 	n_ranges:	4,
 	n_aichan:	32,
 	ai_maxsample:	25,
@@ -186,6 +181,17 @@ static boardtype boardtypes[] =
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define this_board ((boardtype *)dev->board_ptr)
+
+comedi_driver driver_pcl812={
+	driver_name:	"pcl812",
+	module:		THIS_MODULE,
+	attach:		pcl812_attach,
+	detach:		pcl812_detach,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype),
+};
 
 typedef struct {
 #ifdef USE_DMA
@@ -211,7 +217,6 @@ typedef struct {
 } pcl812_private;
 
 #define devpriv ((pcl812_private *)dev->private)
-#define this_board (boardtypes+dev->board)
 
 // *INDENT-ON*
 /* 
@@ -563,7 +568,7 @@ static void free_resources(comedi_device * dev)
 */
 static void pcl812_reset(comedi_device * dev)
 {
-	if (dev->board == boardPCL812PG) {
+	if (this_board->is_812pg){
 		outb(0, dev->iobase + PCL812_DA1_LO);
 		outb(0, dev->iobase + PCL812_DA1_HI);
 		outb(0, dev->iobase + PCL812_DA2_LO);
@@ -576,7 +581,7 @@ static void pcl812_reset(comedi_device * dev)
 	outb(0, dev->iobase + PCL812_GAIN);
 	outb(0, dev->iobase + PCL812_MUX);
 	udelay(5);
-	if (dev->board == boardPCL813B) {
+	if (this_board->is_813b){
 #ifdef PCL813_MICROSECS
 		udelay(5);
 #else
@@ -602,22 +607,20 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	int dma;
 	unsigned long pages;
 #endif
-	int board;
 	comedi_subdevice *s;
 	int num_of_subdevs, subdevs[5];
 
-	board = dev->board;	/* inicialized from pcl812_recognize()? */
-
 	/* claim our I/O space */
 	iobase = it->options[0];
-	printk("comedi%d: pcl812:  board=%s, ioport=0x%03x", dev->minor, boardtypes[board].name, iobase);
-	if (check_region(iobase, boardtypes[board].io_range) < 0) {
+	printk("comedi%d: pcl812:  board=%s, ioport=0x%03x", dev->minor,
+		this_board->name, iobase);
+	if (check_region(iobase, this_board->io_range) < 0) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, boardtypes[board].io_range, "pcl812");
+	request_region(iobase, this_board->io_range, "pcl812");
 	dev->iobase = iobase;
-	dev->iosize = boardtypes[board].io_range;
+	dev->iosize = this_board->io_range;
 
 	/* there should be a sanity check here */
 
@@ -625,14 +628,14 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret;	/* Can't alloc mem */
 
 	/* set up some name stuff */
-	dev->board_name = boardtypes[board].name;
+	dev->board_name = this_board->name;
 
 	/* grab our IRQ */
 	irq = 0;
-	if (boardtypes[board].IRQbits != 0) {	/* board support IRQ */
+	if (this_board->IRQbits != 0) {	/* board support IRQ */
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & boardtypes[board].IRQbits) == 0) {
+			if (((1 << irq) & this_board->IRQbits) == 0) {
 				printk(", IRQ %d is out of allowed range, DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
@@ -724,10 +727,9 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 0xfff;
 		s->len_chanlist = 1024;
 		s->range_table = this_board->ai_range_type;
-		switch (board) {
-		case boardPCL812PG:
-			s->subdev_flags |= SDF_GROUND;
-			s->trig[0] = pcl812_ai_mode0;
+		s->subdev_flags |= SDF_GROUND;
+		s->trig[0] = pcl812_ai_mode0;
+		if(this_board->is_812pg){
 			if (it->options[3] == 1)
 				s->range_table = &range_pcl812pg2_ai;
 			if (dev->irq) {
@@ -737,13 +739,9 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 					s->trig[3] = pcl812_ai_mode3_int;
 				}
 			}
-			break;
-		case boardPCL813B:
-			s->subdev_flags |= SDF_GROUND;
+		}else{
 			if (it->options[1] == 1)
 				s->range_table = &range_pcl813b2_ai;
-			s->trig[0] = pcl812_ai_mode0;
-			break;
 		}
 	}
 
@@ -758,8 +756,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 0xfff;
 		s->len_chanlist = 1;
 		s->range_table = this_board->ao_range_type;
-		switch (board) {
-		case boardPCL812PG:
+		if(this_board->is_812pg){
 			s->subdev_flags |= SDF_GROUND;
 			s->trig[0] = pcl812_ao_mode0;
 			//s->trig[1] = pcl812_ao_mode1;
@@ -767,7 +764,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 				s->range_table = &range_unipolar5;
 			if (it->options[4] == 2)
 				s->range_table = &range_unknown;
-			break;
 		}
 	}
 
@@ -782,11 +778,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dichan;
 		s->range_table = &range_digital;
-		switch (board) {
-		case boardPCL812PG:
-			s->trig[0] = pcl812_di_mode0;
-			break;
-		}
+		s->trig[0] = pcl812_di_mode0;
 	}
 
 	/* digital output */
@@ -800,25 +792,17 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;
 		s->range_table = &range_digital;
-		switch (board) {
-		case boardPCL812PG:
-			s->trig[0] = pcl812_do_mode0;
-			break;
-		}
+		s->trig[0] = pcl812_do_mode0;
 	}
 
-	/*dev->rem = pcl812_rem; */
-
-	switch (dev->board) {
-	case boardPCL812PG:
-		pcl812_reset(dev);
+	pcl812_reset(dev);
+	if(this_board->is_812pg){
 		devpriv->max_812_ai_mode0_samples = 32;
 		devpriv->max_812_ai_mode0_rangewait = 1;
 		devpriv->max_812_ai_mode0_chanset = 1;
 		devpriv->max_812_ai_mode0_convstart = 5;
-		break;
-	case boardPCL813B:
-		pcl812_reset(dev);
+	}
+	if(this_board->is_813b){
 		if (it->options[2] < 2) {
 			devpriv->max_812_ai_mode0_samples = 1;
 		} else {
@@ -833,7 +817,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->max_812_ai_mode0_chanset = 5000;
 		devpriv->max_812_ai_mode0_convstart = 20000;
 #endif
-		break;
 	}
 	printk("\n");
 	return 0;
@@ -852,25 +835,6 @@ static int pcl812_detach(comedi_device * dev)
 #endif
 	free_resources(dev);
 	return 0;
-}
-
-static int pcl812_recognize(char *name)
-{
-
-	int i;
-
-#ifdef MD_DEBUG
-	printk("comedi: pcl812: recognize code '%s'\n", name);
-#endif
-	for (i = 0; i < n_boardtypes; i++) {
-		if (!strcmp(boardtypes[i].name, name)) {
-#ifdef MD_DEBUG
-			printk("comedi: pcl812: recognize found '%s'\n", boardtypes[i].name);
-#endif
-			return i;
-		}
-	}
-	return -1;
 }
 
 /*  

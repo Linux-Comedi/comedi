@@ -279,7 +279,8 @@ static boardtype_t boardtypes[] =
 		dabits:		0,
 	},
 };
-static int n_boardtypes = sizeof(boardtypes)/sizeof(boardtype_t);
+#define n_boardtypes sizeof(boardtypes)/sizeof(boardtype_t)
+#define this_board ((boardtype_t *)dev->board_ptr)
 
 
 typedef struct {
@@ -338,13 +339,14 @@ typedef struct {
 
 static int dt282x_attach(comedi_device * dev, comedi_devconfig * it);
 static int dt282x_detach(comedi_device * dev);
-static int dt282x_recognize(char *name);
 comedi_driver driver_dt282x={
 	driver_name:	"dt282x",
 	module:		THIS_MODULE,
 	attach:		dt282x_attach,
 	detach:		dt282x_detach,
-	recognize:	dt282x_recognize,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype_t),
 };
 COMEDI_INITCLEANUP(driver_dt282x);
 
@@ -1354,18 +1356,6 @@ enum{	opt_iobase=0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channels 
 };
 
 
-static int dt282x_recognize(char *name)
-{
-	int i;
-
-	for(i=0;i<n_boardtypes;i++){
-		if(!strcmp(boardtypes[i].name,name))
-			return i;
-	}
-
-	return -1;
-}
-
 /*
    options:
    0	i/o base
@@ -1387,8 +1377,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	int ret;
 	comedi_subdevice *s;
 
-	dev->board_ptr = boardtypes+dev->board;
-	dev->board_name = boardtypes[dev->board].name;
+	dev->board_name = this_board->name;
 
 	if (it->options[opt_iobase])
 		dev->iobase = it->options[opt_iobase];

@@ -118,17 +118,6 @@ static comedi_lrange range_acl8112dg_ai = { 9, {
 	BIP_RANGE( 10 )
 }};
 
-static int pcl711_attach(comedi_device *dev,comedi_devconfig *it);
-static int pcl711_detach(comedi_device *dev);
-static int pcl711_recognize(char *name);
-comedi_driver driver_pcl711={
-	driver_name:	"pcl711",
-	module:		THIS_MODULE,
-	attach:		pcl711_attach,
-	detach:		pcl711_detach,
-	recognize:	pcl711_recognize,
-};
-
 typedef int bool;
 
 /*
@@ -160,6 +149,19 @@ static boardtype boardtypes[] =
 	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define this_board ((boardtype *)dev->board_ptr)
+
+static int pcl711_attach(comedi_device *dev,comedi_devconfig *it);
+static int pcl711_detach(comedi_device *dev);
+comedi_driver driver_pcl711={
+	driver_name:	"pcl711",
+	module:		THIS_MODULE,
+	attach:		pcl711_attach,
+	detach:		pcl711_detach,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype),
+};
 
 typedef struct {
 	int board;
@@ -170,7 +172,6 @@ typedef struct {
 } pcl711_private;
 
 #define devpriv ((pcl711_private *)dev->private)
-#define this_board (boardtypes+dev->board)
 
 static void pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
 {
@@ -390,18 +391,6 @@ static void free_resources(comedi_device * dev)
 		release_region(dev->iobase, dev->iosize);
 }
 
-static int pcl711_recognize(char *name)
-{
-	int i;
-
-	for (i = 0; i < n_boardtypes; i++) {
-		if (!strcmp(boardtypes[i].name, name)) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 /*  Initialization */
 static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -425,11 +414,11 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	/* there should be a sanity check here */
 
 	/* set up some name stuff */
-	dev->board_name = boardtypes[dev->board].name;
+	dev->board_name = this_board->name;
 
 	/* grab our IRQ */
 	irq = it->options[1];
-	if (irq < 0 || irq > boardtypes[dev->board].maxirq) {
+	if (irq < 0 || irq > this_board->maxirq) {
 		printk("irq out of range\n");
 		free_resources(dev);
 		return -EINVAL;
@@ -527,16 +516,5 @@ static int pcl711_detach(comedi_device * dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcl711);
-	
-	return 0;
-}
+COMEDI_INITCLEANUP(driver_pcl711);
 
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl711);
-}
-#endif

@@ -176,7 +176,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s;
 	pci20xxx_subdev_private *sdp;
 
-	dev->n_subdevices = PCI20000_MODULES+1;
+	dev->n_subdevices = 1+PCI20000_MODULES;
 	if ((ret = alloc_subdevices(dev)) < 0)
 		return ret;
 	if ((ret = alloc_private(dev, sizeof(pci20xxx_private))) < 0)

@@ -257,32 +257,16 @@ typedef struct{
 
 static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_atmio_detach(comedi_device *dev);
-static int ni_atmio_recognize(char *name);
 comedi_driver driver_atmio={
 	driver_name:	"ni_atmio",
 	module:		THIS_MODULE,
 	attach:		ni_atmio_attach,
 	detach:		ni_atmio_detach,
-	recognize:	ni_atmio_recognize,
 };
 
 COMEDI_INITCLEANUP(driver_atmio);
 
 #include "ni_mio_common.c"
-
-static int ni_atmio_recognize(char *name)
-{
-	if(!strcmp(name,"atmio-E")){
-		printk("Driver name 'atmio-E' deprecated.  Please use 'ni_atmio'.\n");
-		return 0;
-	}
-	if(!strcmp(name,"ni_atmio")){
-		return 0;
-	}
-
-	return -1;
-}
-
 
 static int ni_getboardtype(comedi_device *dev);
 
@@ -379,9 +363,11 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	board=ni_getboardtype(dev);
 	if(board<0)return -EIO;
+
+	dev->board_ptr=ni_boards + board;
 	
-	printk(" %s",ni_boards[board].name);
-	dev->board_name=ni_boards[board].name;
+	printk(" %s",boardtype.name);
+	dev->board_name=boardtype.name;
 
 	/* irq stuff */
 
@@ -402,8 +388,6 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	if((ret=alloc_private(dev,sizeof(ni_private)))<0)
 		return ret;
-	
-	dev->board=board;
 
 	/* generic E series stuff in ni_mio_common.c */
 

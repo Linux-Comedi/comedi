@@ -299,6 +299,16 @@ comedi_driver driver_daqboard2000 = {
   detach:	daqboard2000_detach,
 };
 
+typedef struct {
+	char *name;
+	int id;
+}boardtype;
+static boardtype boardtypes[]={
+	{ "ids2", DAQBOARD2000_SUBSYSTEM_IDS2 },
+	{ "ids4", DAQBOARD2000_SUBSYSTEM_IDS4 },
+};
+#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+#define this_board ((boardtype *)dev->board_ptr)
 
 typedef struct {
   enum {
@@ -659,21 +669,17 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 
   if (card->hdr_type == PCI_HEADER_TYPE_NORMAL) {
     u32 id;
+    int i;
     pci_read_config_dword(card, PCI_SUBSYSTEM_VENDOR_ID, &id);
-    switch(id){
-      case DAQBOARD2000_SUBSYSTEM_IDS2:
-	printk(" ids2");
-	dev->board=0;
-	break;
-      case DAQBOARD2000_SUBSYSTEM_IDS4:
-	printk(" ids4");
-	dev->board=1;
-	break;
-      default:
-        printk(" unknown subsystem id %08x\n", id);
-        printk(" (pretend it is an ids2)");
-	dev->board=0;
-	break;
+    for(i=0;i<n_boardtypes;i++){
+      if(boardtypes[i].id==id){
+	printk(" %s",boardtypes[i].name);
+	dev->board_ptr=boardtypes+i;
+      }
+    }
+    if(!dev->board_ptr){
+      printk(" unknown subsystem id %08x (pretend it is an ids2)",id);
+      dev->board_ptr=boardtypes;
     }
   }else{
     printk(" abnormal pci header type !?!?\n");
@@ -742,12 +748,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 
   dev->iobase = (int)devpriv->daq;
     
-  switch(dev->board){
-    case card_daqboard_2000:
-    default:
-      dev->board_name = "daqboard/2000";
-      break;
-  }
+  dev->board_name = this_board->name;
 
   s = dev->subdevices + 0;
   /* ai subdevice */

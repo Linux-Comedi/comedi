@@ -172,15 +172,36 @@ comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 #define DT2811_INTENB   0x04
 #define DT2811_ADMODE   0x03
 
+typedef struct {
+	char *name;
+	comedi_lrange *bip_5;
+	comedi_lrange *bip_2_5;
+	comedi_lrange *unip_5;
+}boardtype;
+static boardtype boardtypes[]={
+	{ "dt2811-pgh",
+		&range_dt2811_pgh_ai_5_bipolar,
+		&range_dt2811_pgh_ai_2_5_bipolar,
+		&range_dt2811_pgh_ai_5_unipolar,
+	},
+	{ "dt2811-pgl",
+		&range_dt2811_pgl_ai_5_bipolar,
+		&range_dt2811_pgl_ai_2_5_bipolar,
+		&range_dt2811_pgl_ai_5_unipolar,
+	},
+};
+#define this_board ((boardtype *)dev->board_ptr)
+
 static int dt2811_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2811_detach(comedi_device *dev);
-static int dt2811_recognize(char *name);
 comedi_driver driver_dt2811={
 	driver_name:	"dt2811",
 	module:		THIS_MODULE,
 	attach:		dt2811_attach,
 	detach:		dt2811_detach,
-	recognize:	dt2811_recognize,
+	board_name:	boardtypes,
+	num_names:	sizeof(boardtypes)/sizeof(boardtype),
+	offset:		sizeof(boardtype),
 };
 
 static int dt2811_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
@@ -199,9 +220,6 @@ typedef struct {
 	  adc_singleended, adc_diff, adc_pseudo_diff
         } adc_mux;
         enum {
-	  adc_bipolar_5, adc_bipolar_2_5, adc_unipolar_5
-        } adc_range;
-        enum {
 	  dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
 	} dac_range[2];
         comedi_lrange * range_type_list[2];
@@ -209,13 +227,6 @@ typedef struct {
 
 #define devpriv ((dt2811_private *)dev->private)
 
-static comedi_lrange *adc_range_types[][2] =
-{
-  /*     dt2811-pgh                       dt2811-pgl */
-  { &range_dt2811_pgh_ai_5_bipolar,   &range_dt2811_pgl_ai_5_bipolar },
-  { &range_dt2811_pgh_ai_2_5_bipolar, &range_dt2811_pgl_ai_2_5_bipolar },
-  { &range_dt2811_pgh_ai_5_unipolar,  &range_dt2811_pgl_ai_5_unipolar }
-};
 static comedi_lrange *dac_range_types[] =
 {
   &range_bipolar5,
@@ -263,13 +274,6 @@ static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
                  1 == bipolar 2.5V  (-2.5V -- +2.5V)
                  2 == unipolar 5V  (0V -- +5V)
 */
-static int dt2811_recognize(char *name)
-{
-	if(!strcmp("dt2811-pgh", name))return card_2811_pgh;
-	if(!strcmp("dt2811-pgl", name))return card_2811_pgl;
-
-	return -1;
-}
 
 static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -277,7 +281,6 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	long flags;
 	int ret;
 	comedi_subdevice *s;
-        int board = -1;
 
 	dev->iobase = it->options[0];
 
@@ -289,12 +292,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	request_region(dev->iobase, DT2811_SIZE, driver_name);
 
-	board = dev->board;
-	if (board == card_2811_pgh) {
-	  dev->board_name = "dt2811-pgh";
-        } else if (board == card_2811_pgl) {
-	  dev->board_name = "dt2811-pgl";
-        }
+	dev->board_name = this_board->name;
 	dev->iosize = DT2811_SIZE;
 
 #if 0
@@ -350,12 +348,6 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	  case 2: devpriv->adc_mux = adc_pseudo_diff; break;
 	  default:devpriv->adc_mux = adc_singleended; break;
 	}
-	switch (it->options[3]) {
-	  case 0: devpriv->adc_range = adc_bipolar_5; break;
-	  case 1: devpriv->adc_range = adc_bipolar_2_5; break;
-	  case 2: devpriv->adc_range = adc_unipolar_5; break;
-	  default:devpriv->adc_range = adc_bipolar_5; break;
-	}
 	switch (it->options[4]) {
 	  case 0: devpriv->dac_range[0] = dac_bipolar_5; break;
 	  case 1: devpriv->dac_range[0] = dac_bipolar_2_5; break;
@@ -376,7 +368,18 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = devpriv->adc_mux == adc_diff ? 8 : 16;
 	s->trig[0] = dt2811_ai;
 	s->maxdata = 0xfff;
-	s->range_table = adc_range_types[devpriv->adc_range][board];
+	switch(it->options[3]){
+		case 0:
+		default:
+			s->range_table = this_board->bip_5;
+			break;
+		case 1:
+			s->range_table = this_board->bip_2_5;
+			break;
+		case 2:
+			s->range_table = this_board->unip_5;
+			break;
+	}
 
 	s = dev->subdevices + 1;
 	/* ao subdevice */

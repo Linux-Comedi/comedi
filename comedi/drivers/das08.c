@@ -157,18 +157,6 @@ das08jr info:
 #define S0       0x00
 #define S1       0x02
 
-static int das08_attach(comedi_device *dev,comedi_devconfig *it);
-static int das08_detach(comedi_device *dev);
-static int das08_recognize(char *name);
-comedi_driver driver_das08={
-	driver_name:	"das08",
-	module:		THIS_MODULE,
-	attach:		das08_attach,
-	detach:		das08_detach,
-	recognize:	das08_recognize,
-};
-
-
 typedef struct{
 	int boardtype;
 	int dio;
@@ -189,6 +177,19 @@ static struct boardtype_struct boardtypes[]={
 };
 #define this_board (boardtypes[devpriv->boardtype])
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtypes[0]))
+
+static int das08_attach(comedi_device *dev,comedi_devconfig *it);
+static int das08_detach(comedi_device *dev);
+comedi_driver driver_das08={
+	driver_name:	"das08",
+	module:		THIS_MODULE,
+	attach:		das08_attach,
+	detach:		das08_detach,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(struct boardtype_struct),
+};
+
 
 
 static int das08_ai(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
@@ -279,16 +280,6 @@ static int das08_di(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	bits=(inb(dev->iobase+STATUS_REG)>>4)&0x7;
 	
 	return di_unpack(bits,it);
-}
-
-static int das08_recognize(char *name)
-{
-	int i;
-
-	for(i=0;i<n_boardtypes;i++){
-		if(!strcmp(boardtypes[i].name,name))return i;
-	}
-	return -1;
 }
 
 static int das08_attach(comedi_device *dev,comedi_devconfig *it)

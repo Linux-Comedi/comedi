@@ -46,7 +46,7 @@
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
-#define CB_ID		0x1307	// PCI vendor number of ComputerBoards
+#define PCI_VENDOR_CB	0x1307	// PCI vendor number of ComputerBoards
 #define N_BOARDS	10	// Number of boards in cb_pcidas_boards
 
 /* PCI-DAS base addresses */
@@ -249,6 +249,9 @@ comedi_driver driver_cb_pcidas={
 	module:		THIS_MODULE,
 	attach:		cb_pcidas_attach,
 	detach:		cb_pcidas_detach,
+	board_name:	cb_pcidas_boards,
+	num_names:	sizeof(cb_pcidas_boards)/sizeof(cb_pcidas_board),
+	offset:		sizeof(cb_pcidas_board),
 };
 
 static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -260,13 +263,12 @@ static int cb_pcidas_ns_to_timer(unsigned int *ns,int round);
 
 /*
  * Attach is called by the Comedi core to configure the driver
- * for a particular board.  _recognize() has already been called,
- * and dev->board contains whatever _recognize returned.
+ * for a particular board.
  */
 static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	struct pci_dev* pci_dev_temp;
+	struct pci_dev* pcidev;
 	int index;
 
 	printk("comedi%d: cb_pcidas: ",dev->minor);
@@ -280,75 +282,66 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 /*
  * Probe the device to determine what device in the series it is.
  */
-	devpriv->pci_dev = NULL;
-	pci_dev_temp = pci_devices;
-
 	printk("\n");
 
-	while(pci_dev_temp && !devpriv->pci_dev)
-	{
-		if ((pci_dev_temp->bus->number == it->options[0]) &&
-				(PCI_SLOT(pci_dev_temp->devfn) == it->options[1]))
-		{
-			devpriv->pci_dev = pci_dev_temp;
-			if (pci_dev_temp->vendor == CB_ID)
-			{
-				index = 0; 
-				while((index < N_BOARDS) &&
-					(cb_pcidas_boards[index].device_id !=
-					pci_dev_temp->device))
-					index++;
-				if (index < N_BOARDS)
-				{
-					dev->board = index;
-					printk("Found %s at requested position\n",
-						cb_pcidas_boards[dev->board].name);
+	pci_for_each_dev(pcidev){
+		if(pcidev->vendor==PCI_VENDOR_CB){
+			if(it->options[0] && it->options[1]){
+				if(pcidev->bus->number==it->options[0] &&
+				   PCI_SLOT(pcidev->devfn)==it->options[1]){
+					break;
 				}
-				else
-				{
-					rt_printk("Not a supported ComputerBoards card on requested "
-						"position\n");			
-					return -EIO;
-				}
-			}
-			else
-			{
-				rt_printk("Not a ComputerBoards card on requested position\n");
-				return -EIO;
+			}else{
+				break;
 			}
 		}
-		pci_dev_temp = pci_dev_temp->next;
 	}
 
-	if (!devpriv->pci_dev)
-	{
-		rt_printk("No card on requested position\n");
+	if(!pcidev){
+		printk("Not a ComputerBoards card on requested position\n");
 		return -EIO;
 	}
 
-/*
- * Initialize devpriv->control_status and devpriv->adc_fifo to point to
- * their base address.
- */
+	for(index=0;index<N_BOARDS;index++){
+		if(cb_pcidas_boards[index].device_id == pcidev->device){
+			goto found;
+		}
+	}
+	printk("Not a supported ComputerBoards card on requested position\n");			
+	return -EIO;
+
+found:
+	devpriv->pci_dev = pcidev;
+	dev->board_ptr = cb_pcidas_boards+index;
+	printk("Found %s at requested position\n",cb_pcidas_boards[index].name);
+
+	/*
+	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
+	 * their base address.
+	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
 	devpriv->control_status =
 		devpriv->pci_dev->base_address[CONT_STAT_BADRINDEX] &
 			PCI_BASE_ADDRESS_IO_MASK;
-	devpriv->adc_fifo = devpriv->pci_dev->base_address[ADC_FIFO_BADRINDEX] &
+	devpriv->adc_fifo =
+		devpriv->pci_dev->base_address[ADC_FIFO_BADRINDEX] &
 			PCI_BASE_ADDRESS_IO_MASK;
+#else
+	devpriv->control_status =
+		devpriv->pci_dev->resource[CONT_STAT_BADRINDEX].start &
+			PCI_BASE_ADDRESS_IO_MASK;
+	devpriv->adc_fifo =
+		devpriv->pci_dev->resource[ADC_FIFO_BADRINDEX].start &
+			PCI_BASE_ADDRESS_IO_MASK;
+#endif
 
 /*
  * Warn about the status of the driver.
  */
-	if (cb_pcidas_boards[dev->board].status == 2)
+	if (thisboard->status == 2)
 		printk("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. "
 			"WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DAS1200. "
 			"PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
-
-/*
- * Initialize dev->board_ptr.  This can point to an element in the
- * cb_pcidas_boards array, for quick access to board-specific information.
- */
-	dev->board_ptr = cb_pcidas_boards + dev->board;
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"

@@ -54,7 +54,6 @@ static int poc_attach(comedi_device *dev,comedi_devconfig *it);
 static int poc_detach(comedi_device *dev);
 static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int poc_recognize(char *name);
 
 struct boarddef_struct{
 	char *name;
@@ -79,6 +78,7 @@ static struct boarddef_struct boards[]={
 	}
 };
 #define n_boards (sizeof(boards)/sizeof(boards[0]))
+#define this_board ((struct boarddef_struct *)dev->board_ptr)
 
 comedi_driver driver_poc=
 {
@@ -86,7 +86,9 @@ comedi_driver driver_poc=
 	module:		THIS_MODULE,
 	attach:		poc_attach,
 	detach:		poc_detach,
-	recognize:	poc_recognize,
+	board_name:	boards,
+	num_names:	n_boards,
+	offset:		sizeof(boards[0]),
 };
 
 // analog output ranges
@@ -100,18 +102,6 @@ static comedi_lrange range_dac02 = {
 	}
 };
 
-static int poc_recognize(char *name)
-{
-	int i;
-
-	for(i=0;i<n_boards;i++){
-		if(!strcmp(boards[i].name,name))
-			return i;
-	}
-
-	return -1;
-}
-
 static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
@@ -119,9 +109,9 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	iobase = it->options[0];
 	printk("comedi%d: poc: using %s iobase 0x%x\n", dev->minor,
-		boards[dev->board].name, iobase);
+		this_board->name, iobase);
 
-	dev->board_name = boards[dev->board].name;
+	dev->board_name = this_board->name;
 
 	if(iobase == 0)
 	{
@@ -129,7 +119,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-	iosize = boards[dev->board].iosize;
+	iosize = this_board->iosize;
 	/* check if io addresses are available */
 	if(check_region(iobase, iosize) < 0)
 	{
@@ -144,17 +134,17 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->n_subdevices = 1;
 	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
-	if(alloc_private(dev,sizeof(lsampl_t)*boards[dev->board].n_chan) < 0)
+	if(alloc_private(dev,sizeof(lsampl_t)*this_board->n_chan) < 0)
 		return -ENOMEM;
 
 	/* analog output subdevice */
 	s=dev->subdevices + 0;
-	s->type = boards[dev->board].type;
-	s->n_chan = boards[dev->board].n_chan;
-	s->maxdata = (1<<boards[dev->board].n_bits)-1;
+	s->type = this_board->type;
+	s->n_chan = this_board->n_chan;
+	s->maxdata = (1<<this_board->n_bits)-1;
 	s->range_table = &range_dac02; // XXX
-	s->insn_write = boards[dev->board].winsn;
-	s->insn_write = boards[dev->board].rinsn;
+	s->insn_write = this_board->winsn;
+	s->insn_write = this_board->rinsn;
 	if(s->type==COMEDI_SUBD_AO || s->type==COMEDI_SUBD_DO){
 		s->subdev_flags = SDF_WRITEABLE;
 	}

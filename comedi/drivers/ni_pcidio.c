@@ -146,13 +146,11 @@
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
-static int nidio_recognize(char *name);
 comedi_driver driver_pcidio={
 	driver_name:	"ni_pcidio",
 	module:		THIS_MODULE,
 	attach:		nidio_attach,
 	detach:		nidio_detach,
-	recognize:	nidio_recognize,
 };
 
 typedef struct{
@@ -212,6 +210,7 @@ static nidio_board nidio_boards[]={
 	},
 };
 #define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
+#define this_board ((nidio_board *)dev->board_ptr)
 
 typedef struct{
 	struct mite_struct *mite;
@@ -224,17 +223,6 @@ static int nidio_find_device(comedi_device *dev,int bus,int slot);
 #if 0
 static int setup_mite(comedi_device *dev);
 #endif
-
-static int nidio_recognize(char *name)
-{
-	if(!strcmp(name,"nidio")){
-		printk("name \"nidio\" deprecated.  Use \"ni_pcidio\"\n");
-		return 0;
-	}
-	if(!strcmp(name,"ni_pcidio"))
-		return 0;
-	return -1;
-}
 
 static int nidio96_8255_cb(int dir,int port,int data,void *arg)
 {
@@ -425,20 +413,20 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->iobase=mite_setup(devpriv->mite);
 
-	dev->board_name=nidio_boards[dev->board].name;
+	dev->board_name=this_board->name;
 	dev->irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);
 
-	if(!nidio_boards[dev->board].is_diodaq){
-		dev->n_subdevices=nidio_boards[dev->board].n_8255;
+	if(!this_board->is_diodaq){
+		dev->n_subdevices=this_board->n_8255;
 	}else{
 		dev->n_subdevices=1;
 	}
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
 
-	if(!nidio_boards[dev->board].is_diodaq){
-		for(i=0;i<nidio_boards[dev->board].n_8255;i++){
+	if(!this_board->is_diodaq){
+		for(i=0;i<this_board->n_8255;i++){
 			subdev_8255_init(dev,dev->subdevices+i,
 				nidio96_8255_cb,(void *)(dev->iobase+NIDIO_8255_BASE(i)));
 		}
@@ -510,7 +498,7 @@ static int nidio_find_device(comedi_device *dev,int bus,int slot)
 		}
 		for(i=0;i<n_nidio_boards;i++){
 			if(mite_device_id(mite)==nidio_boards[i].dev_id){
-				dev->board=i;
+				dev->board_ptr=nidio_boards+i;
 				devpriv->mite=mite;
 
 				return 0;

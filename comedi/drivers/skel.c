@@ -97,22 +97,32 @@ typedef struct{
  */
 static int skel_attach(comedi_device *dev,comedi_devconfig *it);
 static int skel_detach(comedi_device *dev);
-//static int skel_recognize(char *name);
-static void skel_register_boards(void);
 comedi_driver driver_skel={
 	driver_name:	"dummy",
 	module:		THIS_MODULE,
 	attach:		skel_attach,
 	detach:		skel_detach,
 /* It is not necessary to implement the following members if you are
- * writing a driver for a plug and play card.
- */
-//	recognize:	skel_recognize,
-	register_boards:	skel_register_boards,	// replacement for recognize
-	/* comedi uses num_names to allocate the board_name and board_id members
-	 * of this struct
+ * writing a driver for a ISA PnP or PCI card */
+	/* Most drivers will support multiple types of boards by
+	 * having an array of board structures.  These were defined
+	 * in skel_boards[] above.  Note that the element 'name'
+	 * was first in the structure -- Comedi uses this fact to
+	 * extract the name of the board without knowing any details
+	 * about the structure except for its length.
+	 * When a device is attached (by comedi_config), the name
+	 * of the device is given to Comedi, and Comedi tries to
+	 * match it by going through the list of board names.  If
+	 * there is a match, the address of the pointer is put
+	 * into dev->board_ptr and driver->attach() is called.
+	 *
+	 * Note that these are not necessary if you can determine
+	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
+	 * devices are such boards.
 	 */
-	num_names:		sizeof(skel_boards) / sizeof(skel_board),
+	board_name:	skel_boards,
+	offset:		sizeof(skel_board),
+	num_names:	sizeof(skel_boards) / sizeof(skel_board),
 };
 
 static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -122,50 +132,10 @@ static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 static int skel_ns_to_timer(unsigned int *ns,int round);
 
 /*
- * The function skel_recognize() is called when the Comedi core
- * gets a request to configure a device.  If the name of the device
- * being configured matches with one of the devices that this
- * driver can service, then a non-negative index should be returned.
- * This index is put into dev->board, and then _attach() is called.
- */
-
-/*
-static int skel_recognize(char *name)
-{
-	if(!strcmp("skel-100",name))return 0;
-	if(!strcmp("skel-200",name))return 1;
-
-	return -1;
-}
-*/
-
-/* The function register_boards() is a replacement for recognize
- * that allows comedi to report back valid board names when it doesn't
- * recognize a board name.  The job of register_boards is to
- * initialize the board_name and board_id members of
- * the the comedi_driver_struct for this driver.  The arrays
- * will have already been allocated with num_names elements
- * (your driver must initialize the num_names member of your
- * comedi_driver struct) by comedi_driver_register()
- * in the drivers.c file.
- */
-static void skel_register_boards(void)
-{
-	unsigned int i;
-
-	for(i = 0; i < driver_skel.num_names; i++)
-	{
-		driver_skel.board_name[i] = skel_boards[i].name;
-		driver_skel.board_id[i] = i;
-	}
-
-	return;
-}
-
-/*
  * Attach is called by the Comedi core to configure the driver
- * for a particular board.  _recognize() has already been called,
- * and dev->board contains whatever _recognize returned.
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
  */
 static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -175,16 +145,10 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	
 /*
  * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, you should use the
- * _recognize method, and use the value in dev->board.
+ * it is, this is the place to do it.  Otherwise, dev->board_ptr
+ * should already be initialized.
  */
-	//dev->board = skel_recognize(dev);
-
-/*
- * Initialize dev->board_ptr.  This can point to an element in the
- * skel_boards array, for quick access to board-specific information.
- */
-	dev->board_ptr = skel_boards + dev->board;
+	//dev->board_ptr = skel_probe(dev);
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -193,13 +157,16 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 /*
- * Allocate the private structure area.
+ * Allocate the private structure area.  alloc_private() is a
+ * convenient macro defined in comedidev.h.
  */
 	if(alloc_private(dev,sizeof(skel_private))<0)
 		return -ENOMEM;
 
 /*
- * Allocate the subdevice structures.
+ * Allocate the subdevice structures.  alloc_subdevice() is a
+ * convenient macro defined in comedidev.h.  It relies on
+ * n_subdevices being set correctly.
  */
 	dev->n_subdevices=3;
 	if(alloc_subdevices(dev)<0)

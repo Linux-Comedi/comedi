@@ -204,18 +204,9 @@ static comedi_lrange range718_unipolar1 = { 1, { BIP_RANGE(1), }};
 
 static int pcl818_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl818_detach(comedi_device *dev);
-static int pcl818_recognize(char *name);
 
 static int RTC_lock = 0;		/* RTC lock */
 static int RTC_timer_lock = 0;		/* RTC int lock */
-
-comedi_driver driver_pcl818={
-	driver_name:	"pcl818",
-	module:		THIS_MODULE,
-	attach:		pcl818_attach,
-	detach:		pcl818_detach,
-	recognize:	pcl818_recognize,
-};
 
 typedef struct {
 	char 		*name;		// driver name
@@ -236,28 +227,40 @@ typedef struct {
 	int 		ai_chanlist;	// allowed len of channel list A/D
 	int 		ao_chanlist;	// allowed len of channel list D/A
 	unsigned char 	fifo;		// 1=board've FIFO
+	int		is_818;
 } boardtype;
 
 static boardtype boardtypes[] =
 {
 	{"pcl818l",   4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai, &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 1, 0 },
+	  0x0a, 0xfff, 0xfff, 1024, 1, 0, 1 },
 	{"pcl818h",   9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 1, 0 },
+	  0x0a, 0xfff, 0xfff, 1024, 1, 0, 1 },
 	{"pcl818hd",  9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 1, 1 },
+	  0x0a, 0xfff, 0xfff, 1024, 1, 1, 1 },
 	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 1, 1 },
+	  0x0a, 0xfff, 0xfff, 1024, 1, 1, 1 },
 	{"pcl818",    9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 2, 0 },
+	  0x0a, 0xfff, 0xfff, 1024, 2, 0, 1 },
 	{"pcl718",    1, 16, 8, 16000, 2, 16, 16, &range_unipolar5,    &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 2, 0 },
+	  0x0a, 0xfff, 0xfff, 1024, 2, 0, 0 },
 	/* pcm3718 */
 	{"pcm3718",   9, 16, 8, 10000, 0, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
-	  0x0a, 0xfff, 0xfff, 1024, 0, 0 },
+	  0x0a, 0xfff, 0xfff, 1024, 0, 0, 1 /* XXX ? */ },
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+
+comedi_driver driver_pcl818={
+	driver_name:	"pcl818",
+	module:		THIS_MODULE,
+	attach:		pcl818_attach,
+	detach:		pcl818_detach,
+	board_name:	boardtypes,
+	num_names:	n_boardtypes,
+	offset:		sizeof(boardtype),
+};
+
 
 typedef struct {
 	int 		dma;		// used DMA, 0=don't use DMA
@@ -300,7 +303,7 @@ static unsigned int muxonechan[] ={ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x
                                     0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
 
 #define devpriv ((pcl818_private *)dev->private)
-#define this_board (boardtypes+dev->board)
+#define this_board ((boardtype *)dev->board_ptr)
 
 /* 
 ==============================================================================
@@ -1196,19 +1199,11 @@ void pcl818_reset(comedi_device * dev)
         outb(0xb0, dev->iobase + PCL818_CTRCTL);/* Stop pacer */
         outb(0x70, dev->iobase + PCL818_CTRCTL);
         outb(0x30, dev->iobase + PCL818_CTRCTL);
-        switch (dev->board) {
-	case boardPCL818L:
-	case boardPCL818H:
-	case boardPCL818HD:
-	case boardPCL818HG:
+	if(this_board->is_818){
     	        outb(0, dev->iobase + PCL818_RANGE);
-		break;
-	case boardPCL818:
-		outb(0, dev->iobase + PCL818_RANGE);
-	case boardPCL718:
+	}else{
 		outb(0, dev->iobase + PCL718_DA2_LO);
 		outb(0, dev->iobase + PCL718_DA2_HI);
-		break;
 	}
 }
 
@@ -1328,18 +1323,15 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
         int iobase;
         int irq,dma;
         unsigned long pages;
-        int i;
-        int board,io_range;
+        int io_range;
         comedi_subdevice *s;
-        int num_of_subdevs, subdevs[5];
 	
-        board = dev->board; /* inicialized from pcl812_recognize()? */
-    
         /* claim our I/O space */
         iobase = it->options[0];
-        rt_printk("comedi%d: pcl818:  board=%s, ioport=0x%03x", dev->minor, boardtypes[board].name, iobase);
-        io_range=boardtypes[board].io_range;
-        if ((boardtypes[board].fifo)&&(it->options[2]==0)) // we've board with FIFO and we want to use FIFO
+        printk("comedi%d: pcl818:  board=%s, ioport=0x%03x",
+		dev->minor, this_board->name, iobase);
+        io_range=this_board->io_range;
+        if ((this_board->fifo)&&(it->options[2]==0)) // we've board with FIFO and we want to use FIFO
 		io_range=PCLx1xFIFO_RANGE;
         if (check_region(iobase, io_range) < 0) {
 		rt_printk("I/O port conflict\n");
@@ -1351,7 +1343,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
         dev->iosize=io_range;
     
         if (pcl818_check(iobase)) {
-		rt_printk(", I cann't detect board. FAIL!\n");
+		rt_printk(", I can't detect board. FAIL!\n");
 		return -EIO;
         }
 
@@ -1359,14 +1351,14 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret; /* Can't alloc mem */
 
         /* set up some name stuff */
-	dev->board_name = boardtypes[board].name;
+	dev->board_name = this_board->name;
         if (io_range==PCLx1xFIFO_RANGE) devpriv->usefifo=1; 
         /* grab our IRQ */
         irq=0;
-        if (boardtypes[board].IRQbits!=0) { /* board support IRQ */
+        if (this_board->IRQbits!=0) { /* board support IRQ */
 		irq=it->options[1];
 		if (irq>0)  {/* we want to use IRQ */
-		        if (((1<<irq)&boardtypes[board].IRQbits)==0) {
+		        if (((1<<irq)&this_board->IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
 			} else { 
@@ -1415,10 +1407,10 @@ no_rtc:
         dma=0;
         devpriv->dma=dma;
         if ((devpriv->irq_free==0)&&(devpriv->dma_rtc==0)) goto no_dma; /* if we haven't IRQ, we can't use DMA */
-        if (boardtypes[board].DMAbits!=0) { /* board support DMA */
+        if (this_board->DMAbits!=0) { /* board support DMA */
 		dma=it->options[2];
 		if (dma<1) goto no_dma; /* DMA disabled */
-		if (((1<<dma)&boardtypes[board].DMAbits)==0) {
+		if (((1<<dma)&this_board->DMAbits)==0) {
 		        rt_printk(", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL; /* Bad DMA */
 		} 
@@ -1454,116 +1446,107 @@ no_rtc:
 
 no_dma:
    
-        num_of_subdevs=0;
-    
-	if ((this_board->n_aichan_se>0)||(this_board->n_aichan_diff>0)) subdevs[num_of_subdevs++]=COMEDI_SUBD_AI;
-        if (this_board->n_aochan>0) subdevs[num_of_subdevs++]=COMEDI_SUBD_AO;
-        if (this_board->n_dichan>0) subdevs[num_of_subdevs++]=COMEDI_SUBD_DI;
-        if (this_board->n_dochan>0) subdevs[num_of_subdevs++]=COMEDI_SUBD_DO;
-
-        dev->n_subdevices = num_of_subdevs;
-        if((ret=alloc_subdevices(dev))<0)
-        return ret;
+        dev->n_subdevices = 4;
+        if((ret=alloc_subdevices(dev))<0) return ret;
 
 	s = dev->subdevices + 0;
-        for (i = 0; i < num_of_subdevs; i++) {
-		s->type = subdevs[i];
-		switch (s->type) {
-		case COMEDI_SUBD_AI:
-			devpriv->sub_ai=s;
-			s->subdev_flags = SDF_READABLE|SDF_RT;
-			if (check_single_ended(dev->iobase)) {
-				s->n_chan = this_board->n_aichan_se;
-				s->subdev_flags|=SDF_COMMON|SDF_GROUND;
-				rt_printk(", %dchans S.E. DAC",s->n_chan);
-			} else {
-				s->n_chan = this_board->n_aichan_diff;
-				s->subdev_flags|=SDF_DIFF;
-				rt_printk(", %dchans DIFF DAC",s->n_chan);
-			}
-			s->maxdata = this_board->ai_maxdata;
-			s->len_chanlist = this_board->ai_chanlist;
-			s->range_table = this_board->ai_range_type;
-			s->cancel=pcl818_ai_cancel;
-			s->trig[0] = pcl818_ai_mode0;
-			if ((irq)||(devpriv->dma_rtc)) {
-				s->trig[1] = pcl818_ai_mode1;
-				s->trig[3] = pcl818_ai_mode3;
-			} 
-			switch (board) {
-			case boardPCL818L:
-				if ((it->options[4]==1)||(it->options[4]==10)) 
-					s->range_table=&range_pcl818l_h_ai; // secondary range list jumper selectable
-				break;
-			case boardPCL718:
-			    switch (it->options[4]) {
-			    case 0: s->range_table=&range_bipolar10; break;
-			    case 1: s->range_table=&range_bipolar5; break;
-			    case 2: s->range_table=&range_bipolar2_5; break;
-			    case 3: s->range_table=&range718_bipolar1; break;
-			    case 4: s->range_table=&range718_bipolar0_5; break;
-			    case 6: s->range_table=&range_unipolar10; break;
-			    case 7: s->range_table=&range_unipolar5; break;
-			    case 8: s->range_table=&range718_unipolar2; break;
-			    case 9: s->range_table=&range718_unipolar1; break;
-			    default: s->range_table=&range_unknown; break;
-			    }
-			    break;
-		    }
-		    break;
-
-		case COMEDI_SUBD_AO:
-			s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_RT;
-			s->n_chan = this_board->n_aochan;
-			s->maxdata = this_board->ao_maxdata;
-			s->len_chanlist = this_board->ao_chanlist;
-			s->range_table = this_board->ao_range_type;
-			s->trig[0] = pcl818_ao_mode0;
-#ifdef PCL818_MODE13_AO
-			if (irq) {
-			        s->trig[1] = pcl818_ao_mode1;
-				s->trig[3] = pcl818_ao_mode3;
-			} 
-#endif
-			switch (board) {
-		    	case boardPCL818:
-			case boardPCL818H:
-			case boardPCL818HD:
-			case boardPCL818HG:
-				if ((it->options[4]==1)||(it->options[4]==10)) 
-					s->range_table=&range_unipolar10; 
-				if (it->options[4]==2) 
-					s->range_table=&range_unknown; 
-				break;
-			case boardPCL718:
-			case boardPCL818L:
-				if ((it->options[5]==1)||(it->options[5]==10)) 
-					s->range_table=&range_unipolar10; 
-				if (it->options[5]==2) 
-					s->range_table=&range_unknown; 
-				break;
-			}	
-			break;
-
-		case COMEDI_SUBD_DI:
-			s->subdev_flags = SDF_READABLE|SDF_RT;
-			s->n_chan = this_board->n_dichan;
-			s->maxdata = 1;
-			s->len_chanlist = this_board->n_dichan;
-			s->range_table = &range_digital;
-			s->trig[0] = pcl818_di_mode0;
-			break;
-
-		case COMEDI_SUBD_DO:
-			s->subdev_flags = SDF_WRITEABLE|SDF_RT;
-			s->n_chan = this_board->n_dochan;
-			s->maxdata = 1;
-			s->len_chanlist = this_board->n_dochan;
-			s->range_table = &range_digital;
-			s->trig[0] = pcl818_do_mode0;
-			break;
+	if(!this_board->n_aichan_se){
+		s->type = COMEDI_SUBD_UNUSED;
+	}else{
+		s->type = COMEDI_SUBD_AI;
+		devpriv->sub_ai=s;
+		s->subdev_flags = SDF_READABLE|SDF_RT;
+		if (check_single_ended(dev->iobase)) {
+			s->n_chan = this_board->n_aichan_se;
+			s->subdev_flags|=SDF_COMMON|SDF_GROUND;
+			rt_printk(", %dchans S.E. DAC",s->n_chan);
+		} else {
+			s->n_chan = this_board->n_aichan_diff;
+			s->subdev_flags|=SDF_DIFF;
+			rt_printk(", %dchans DIFF DAC",s->n_chan);
 		}
-		s++;
+		s->maxdata = this_board->ai_maxdata;
+		s->len_chanlist = this_board->ai_chanlist;
+		s->range_table = this_board->ai_range_type;
+		s->cancel=pcl818_ai_cancel;
+		s->trig[0] = pcl818_ai_mode0;
+		if ((irq)||(devpriv->dma_rtc)) {
+			s->trig[1] = pcl818_ai_mode1;
+			s->trig[3] = pcl818_ai_mode3;
+		} 
+		if(this_board->is_818){
+			if ((it->options[4]==1)||(it->options[4]==10)) 
+				s->range_table=&range_pcl818l_h_ai; // secondary range list jumper selectable
+		}else{
+			switch (it->options[4]) {
+			case 0: s->range_table=&range_bipolar10; break;
+			case 1: s->range_table=&range_bipolar5; break;
+			case 2: s->range_table=&range_bipolar2_5; break;
+			case 3: s->range_table=&range718_bipolar1; break;
+			case 4: s->range_table=&range718_bipolar0_5; break;
+			case 6: s->range_table=&range_unipolar10; break;
+			case 7: s->range_table=&range_unipolar5; break;
+			case 8: s->range_table=&range718_unipolar2; break;
+			case 9: s->range_table=&range718_unipolar1; break;
+			default: s->range_table=&range_unknown; break;
+			}
+		}
+	}
+
+	s = dev->subdevices + 1;
+	if(!this_board->n_aochan){
+		s->type = COMEDI_SUBD_UNUSED;
+	}else{
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITEABLE|SDF_GROUND|SDF_RT;
+		s->n_chan = this_board->n_aochan;
+		s->maxdata = this_board->ao_maxdata;
+		s->len_chanlist = this_board->ao_chanlist;
+		s->range_table = this_board->ao_range_type;
+		s->trig[0] = pcl818_ao_mode0;
+#ifdef PCL818_MODE13_AO
+		if (irq) {
+		        s->trig[1] = pcl818_ao_mode1;
+			s->trig[3] = pcl818_ao_mode3;
+		} 
+#endif
+		if(this_board->is_818){
+			if ((it->options[4]==1)||(it->options[4]==10)) 
+				s->range_table=&range_unipolar10; 
+			if (it->options[4]==2) 
+				s->range_table=&range_unknown; 
+		}else{
+			if ((it->options[5]==1)||(it->options[5]==10)) 
+				s->range_table=&range_unipolar10; 
+			if (it->options[5]==2) 
+				s->range_table=&range_unknown; 
+		}	
+	}
+
+	s = dev->subdevices + 2;
+	if(!this_board->n_dichan){
+		s->type = COMEDI_SUBD_UNUSED;
+	}else{
+		s->type = COMEDI_SUBD_DI;
+		s->subdev_flags = SDF_READABLE|SDF_RT;
+		s->n_chan = this_board->n_dichan;
+		s->maxdata = 1;
+		s->len_chanlist = this_board->n_dichan;
+		s->range_table = &range_digital;
+		s->trig[0] = pcl818_di_mode0;
+	}
+
+	s = dev->subdevices + 3;
+	if(!this_board->n_dochan){
+		s->type = COMEDI_SUBD_UNUSED;
+	}else{
+		s->type = COMEDI_SUBD_DO;
+		s->subdev_flags = SDF_WRITEABLE|SDF_RT;
+		s->n_chan = this_board->n_dochan;
+		s->maxdata = 1;
+		s->len_chanlist = this_board->n_dochan;
+		s->range_table = &range_digital;
+		s->trig[0] = pcl818_do_mode0;
 	}
 
 	/* select 1/10MHz oscilator */
@@ -1574,13 +1557,11 @@ no_dma:
 	}	
 
          /* max sampling speed */
-        devpriv->ns_min=boardtypes[dev->board].ns_min;
+        devpriv->ns_min=this_board->ns_min;
 	  
-        switch (dev->board) {
-    	case boardPCL718: 
+	if(!this_board->is_818){
 		if ((it->options[6]==1)||(it->options[6]==100)) 
 			devpriv->ns_min=10000;  /* extended PCL718 to 100kHz DAC */
-        	break;
 	}
 
 	pcl818_reset(dev); 
@@ -1602,21 +1583,6 @@ static int pcl818_detach(comedi_device * dev)
         if (devpriv->dma_rtc) 
 		RTC_lock--;
         return 0;
-}
-
-static int pcl818_recognize(char *name) 
-{
-        int i;
-
-	//  rt_printk("comedi: pcl818: recognize code '%s'\n",name);
-        for (i = 0; i < n_boardtypes; i++) {
-		if (!strcmp(boardtypes[i].name, name)) {
-			// rt_printk("comedi: pcl818: recognize found %d '%s'\n", i,boardtypes[i].name);
-			return i;
-		}
-	}
-
-        return -1;
 }
 
 /*  
