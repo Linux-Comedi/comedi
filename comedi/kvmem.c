@@ -1,3 +1,7 @@
+
+#include <linux/kernel.h>
+#include <linux/config.h>
+#include <linux/vmalloc.h>
 #include "kvmem.h"
 
 /* allocate user space mmapable block of memory in the kernel space */
