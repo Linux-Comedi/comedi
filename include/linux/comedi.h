@@ -113,7 +113,7 @@ typedef unsigned short sampl_t;
 //#define TRIG_RT	0x0008		/* perform op in real time */
 #define TRIG_CONFIG	0x0010		/* perform configuration, not triggering */
 //#define TRIG_WAKE_EOS	0x0020		/* wake up on end-of-scan events */
-#define TRIG_WRITE	0x0040		/* write to bidirectional devices */
+//#define TRIG_WRITE	0x0040		/* write to bidirectional devices */
 
 /* command flags */
 /* These flags are used in comedi_cmd structures */
@@ -122,6 +122,11 @@ typedef unsigned short sampl_t;
 
 #define TRIG_RT		CMDF_PRIORITY /* compatibility definition */
 #define TRIG_WAKE_EOS		0x00000020 /* legacy definition for COMEDI_EV_SCAN_END */
+
+#define CMDF_WRITE		0x00000040
+#define TRIG_WRITE	CMDF_WRITE /* compatibility definition */
+
+#define CMDF_RAWDATA		0x00000080
 
 #define COMEDI_EV_START		0x00040000
 #define COMEDI_EV_SCAN_BEGIN	0x00080000
@@ -379,6 +384,7 @@ struct comedi_bufinfo_struct{
 #define UNIT_mA			1
 #define UNIT_none		2
 
+#define COMEDI_MIN_SPEED	((unsigned int)0xffffffff)
 
 /* callback stuff */
 /* only relevant to kernel modules. */
