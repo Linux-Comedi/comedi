@@ -1128,7 +1128,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 	int status_int;
 	comedi_device *dev = (comedi_device*) d;
 	comedi_subdevice *s;
-	int retval = IRQ_HANDLED;
+	int retval = 1;
 
 	/* Read interrupt status/enable register. */
 	status_int = inb(devpriv->pci_iobase + PCI230_INT_SCE);

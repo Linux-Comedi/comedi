@@ -2578,7 +2578,7 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	uint32_t plx_bits;
 	uint8_t dma0_status, dma1_status;
 	unsigned long flags;
-	int retval = IRQ_HANDLED;
+	int retval = 1;
 
 	plx_status = readl(priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(priv(dev)->main_iobase + HW_STATUS_REG);

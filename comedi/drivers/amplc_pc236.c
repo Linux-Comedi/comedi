@@ -540,7 +540,7 @@ static irqreturn_t pc236_interrupt(int irq,void *d,struct pt_regs *regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices+1;
-	int retval = IRQ_HANDLED;
+	int retval = 1;
 
 	if(!pc236_intr_check(dev))
 		return IRQ_RETVAL(retval);

@@ -619,7 +619,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 static irqreturn_t interrupt_service_pci1710(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
-	int retval = IRQ_HANDLED;
+	int retval = 1;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_service_pci1710(%d,...)\n",irq);
 	if (!(inw(dev->iobase + PCI171x_STATUS) & Status_IRQ)) 	// is this interrupt from our board?

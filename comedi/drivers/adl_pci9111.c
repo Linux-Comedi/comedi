@@ -932,7 +932,7 @@ static irqreturn_t pci9111_interrupt (int irq,
   unsigned long irq_flags;
   int i, data;
   int resolution = ((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
-	int retval = IRQ_HANDLED;
+	int retval = 1;
 
   async = subdevice->async;
 

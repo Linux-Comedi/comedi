@@ -399,7 +399,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	int status;
 	int work = 0;
 	unsigned int m_status;
-	int retval = IRQ_HANDLED;
+	int retval = 1;
 
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	flags = readb(dev->iobase+Group_1_Flags);
