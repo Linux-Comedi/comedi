@@ -1,5 +1,0 @@
-
-define_bool CONFIG_COMEDI m
-
-source comedi/Config.in
-
