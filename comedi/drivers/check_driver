@@ -280,3 +280,8 @@ else
 	echo "E: config option not in Config.in (or broken)"
 fi
 
+# Check if the driver contains ^M
+if grep '' ${driver} &>/dev/null;then
+	echo "E: driver has ^M characters"
+fi
+
