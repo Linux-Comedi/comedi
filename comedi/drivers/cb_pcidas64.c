@@ -939,7 +939,9 @@ found:
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_OTHER;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	if(board(dev)->layout != LAYOUT_4020)
+		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
 	/* XXX Number of inputs in differential mode is ignored */
 	s->n_chan = board(dev)->ai_se_chans;
 	s->len_chanlist = 0x2000;
@@ -1618,8 +1620,6 @@ static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
 	unsigned int i;
 	u32 fifo_data;
 
-	DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
-
 	private(dev)->ai_count -= num_samples;
 
 	for(i = 0; i < num_samples / 2; i++)
@@ -1627,6 +1627,8 @@ static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
 		fifo_data = readl(private(dev)->dio_counter_iobase);
 		comedi_buf_put(async, fifo_data & 0xffff);
 		comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
+		DEBUG_PRINT(" rptr 0x%i wptr 0x%x\n", readw(private(dev)->main_iobase + ADC_READ_PNTR_REG),
+			readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG));
 	}
 }
 
