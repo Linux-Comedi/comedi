@@ -24,7 +24,7 @@
 /*
 Driver: cb_pcimdda.o
 Description: A driver for this relatively new and uniquely designed board
-Devices: [Computer Boards] PCIM-DDA06-16 (pcimdda06-16)
+Devices: [Computer Boards] PCIM-DDA06-16 (cb_pcimdda)
 Author: Calin Culianu <calin@ajvar.org>
 Updated: Thu, 20 Jun 2002 16:19:41 -0500
 Status: works
