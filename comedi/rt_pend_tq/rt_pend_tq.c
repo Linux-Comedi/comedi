@@ -35,18 +35,18 @@ int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
 		return -EINVAL;
 	if(rt_pend_tq_irq<=0)
 		return -ENODEV;
-	comedi_spin_lock_irqsave(rt_pend_tq_lock, flags);
+	comedi_spin_lock_irqsave(&rt_pend_tq_lock, flags);
 	INC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
 	if(rt_pend_head==rt_pend_tail) {
 		// overflow, we just refuse to take this request
 		DEC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
-		comedi_spin_unlock_irqrestore(rt_pend_tq_lock, flags);
+		comedi_spin_unlock_irqrestore(&rt_pend_tq_lock, flags);
 		return -EAGAIN;
 	}
 	rt_pend_head->func=func;
 	rt_pend_head->arg1=arg1;
 	rt_pend_head->arg2=arg2;
-	comedi_spin_unlock_irqrestore(rt_pend_tq_lock, flags);
+	comedi_spin_unlock_irqrestore(&rt_pend_tq_lock, flags);
 #ifdef CONFIG_COMEDI_RTAI
 	rt_pend_linux_srq(rt_pend_tq_irq);
 #endif
