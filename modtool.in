@@ -18,8 +18,14 @@ case $mode in
 --install)
 	module_src=$1
 	module_dest=`echo $2 | sed "s/\.ko$/${LINUX_MODULE_EXT}/"`
-	echo $INSTALL "$module_src" "$module_dest"
-	$INSTALL "$module_src" "$module_dest"
+	echo $INSTALL -m644 "$module_src" "$module_dest"
+	$INSTALL -m644 "$module_src" "$module_dest"
+	;;
+--uninstall)
+	module_src=$1
+	module_dest=`echo $2 | sed "s/\.ko$/${LINUX_MODULE_EXT}/"`
+	echo uninstall "$module_src" "$module_dest"
+	rm -f "$module_dest"
 	;;
 *)
 	echo Unknown mode $mode >&2
