@@ -96,7 +96,7 @@ TODO:
 #define PRESCALED_TIMER_BASE	10000	// 100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday
 #define QUARTER_AI_FIFO_SIZE 2048	// 1/4 analog input fifo size
 // size in bytes of transfers used for dma transfers, also size of buffers that make up dma ring
-#define AI_DMA_TRANSFER_SIZE 0x4000
+#define DMA_TRANSFER_SIZE 0x4000
 // number of dma transfers we will chain together into a ring (and the number of dma buffers we maintain)
 #define DMA_RING_COUNT 10
 
@@ -388,9 +388,12 @@ typedef struct
 	unsigned long plx9080_iobase;
 	unsigned long main_iobase;
 	unsigned long dio_counter_iobase;
+	// local address (used by dma controller)
+	u32 local_main_iobase;
 	volatile unsigned int ai_count;	// number of analog input samples remaining
 	u16 *ai_buffer[DMA_RING_COUNT];	// dma buffers for analog input
 	dma_addr_t ai_buffer_phys_addr[DMA_RING_COUNT];	// physical addresses of ai dma buffers
+	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	unsigned int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 	unsigned int hw_revision;	// stc chip hardware revision number
@@ -456,6 +459,10 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	unsigned long plx9080_iobase;
 	unsigned long main_iobase;
 	unsigned long dio_counter_iobase;
+	u32 local_range, local_decode;
+#ifdef PCIDMA
+	unsigned int bits;
+#endif
 
 	printk("comedi%d: cb_pcidas64\n",dev->minor);
 
@@ -572,6 +579,11 @@ found:
 	devpriv->main_iobase = (unsigned long)ioremap(main_iobase, MAIN_IOSIZE);
 	devpriv->dio_counter_iobase = (unsigned long)ioremap(dio_counter_iobase, DIO_COUNTER_IOSIZE);
 
+	// figure out what local address is for main_iobase
+	local_range = readl(devpriv->plx9080_iobase + PLX_LAS0RNG_REG) & LRNG_MEM_MASK;
+	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS0MAP_REG) & local_range & LMAP_MEM_MASK ;
+	devpriv->local_main_iobase = (devpriv->main_phys_iobase & ~local_range) | local_decode;
+
 	devpriv->hw_revision = HW_REVISION(readw(devpriv->main_iobase + HW_STATUS_REG));
 
 	// get irq
@@ -581,15 +593,6 @@ found:
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
-
-#ifdef PCIDMA
-	// alocate pci dma buffers
-	for(index = 0; index < DMA_RING_COUNT; i++)
-	{
-		devpriv->ai_buffer[index] =
-			pci_alloc_consistent(devpriv->hw_dev, DMA_BUFFER_SIZE, &devpriv->ai_buffer_phys_addr[index]);
-	}
-#endif
 
 #ifdef PCIDAS64_DEBUG
 
@@ -602,6 +605,8 @@ printk(" plx9080 virt io addr 0x%lx\n", devpriv->plx9080_iobase);
 printk(" main virt io addr 0x%lx\n", devpriv->main_iobase);
 printk(" diocounter virt io addr 0x%lx\n", devpriv->dio_counter_iobase);
 printk(" irq %i\n", dev->irq);
+
+printk(" local main io addr 0x%ulx\n", devpriv->local_main_iobase);
 
 printk(" stc hardware revision %i\n", devpriv->hw_revision);
 
@@ -619,6 +624,43 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 
 #endif
 
+#ifdef PCIDMA
+	// alocate pci dma buffers
+	for(index = 0; index < DMA_RING_COUNT; index++)
+	{
+		devpriv->ai_buffer[index] =
+			pci_alloc_consistent(devpriv->hw_dev, DMA_TRANSFER_SIZE, &devpriv->ai_buffer_phys_addr[index]);
+	}
+	// allocate dma descriptors
+	devpriv->dma_desc = kmalloc(sizeof(struct plx_dma_desc) * DMA_RING_COUNT, GFP_KERNEL);
+	// initialize dma descriptors
+	for(index = 0; index < DMA_RING_COUNT; index++)
+	{
+		devpriv->dma_desc[index].pci_start_addr = virt_to_bus(devpriv->ai_buffer[index]);
+		devpriv->dma_desc[index].local_start_addr = devpriv->local_main_iobase + ADC_FIFO_REG;
+		devpriv->dma_desc[index].transfer_size = DMA_TRANSFER_SIZE;
+		devpriv->dma_desc[index].next = virt_to_bus(&devpriv->dma_desc[(index + 1) % (DMA_RING_COUNT)]) |
+			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
+	}
+	// do some initialization of plx9080 dma registers
+	/* XXX there are some other bits that can be set here that might
+	 * improve performance, but I just want to get it working */
+	bits = 0;
+	// localspace0 bus is 16 bits wide
+	bits |= PLX_LOCAL_BUS_16_WIDE_BITS;
+	// enable ready input, not sure if this is necessary
+	bits |= PLX_DMA_EN_READYIN_BIT;
+	// enable dma chaining
+	bits |= PLX_EN_CHAIN_BIT;
+	// enable interrupt on dma done (probably don't need this, since chain never finishes)
+	bits |= PLX_EN_DMA_DONE_INTR_BIT;
+	// don't increment local address during transfers (we are transferring from a fixed fifo register)
+	bits |= PLX_LOCAL_ADDR_CONST_BIT;
+	// route dma interrupt to pci bus
+	bits |= PLX_DMA_INTR_PCI_BIT;
+	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_MODE_REG);
+
+#endif
 
 /*
  * Allocate the subdevice structures.
@@ -737,6 +779,8 @@ static int detach(comedi_device *dev)
 				pci_free_consistent(devpriv->hw_dev, DMA_BUFFER_SIZE,
 					devpriv->ai_buffer[i], devpriv->ai_buffer_phys_addr[i]);
 		}
+		// free dma descriptors
+		kfree(devpriv->dma_desc);
 #endif
 	}
 	if(dev->irq)
@@ -958,7 +1002,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	unsigned int bits;
+	u32 bits;
 	unsigned int convert_counter_value;
 	unsigned int scan_counter_value;
 	unsigned int i;
@@ -1041,6 +1085,19 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// clear adc buffer
 	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
 
+#ifdef PCIDMA
+	// give location of first dma descriptor
+	bits = virt_to_bus(devpriv->dma_desc);
+	bits |= PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
+	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+	// enable dma transfer
+	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+#else
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+#endif
+
 	// enable interrupts
 	devpriv->intr_enable_bits |= EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT;
 	if(cmd->stop_src == TRIG_EXT)
@@ -1050,16 +1107,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	else
 		devpriv->intr_enable_bits |= ADC_INTR_QFULL_BITS;	// for clairity only, since quarter-full bits are zero
 	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
-	// enable interrupts on plx 9080 XXX enabling more interrupt sources than are actually used
-	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E;
+	// enable interrupts on plx 9080
+	// XXX enabling more interrupt sources than are actually used
+	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE;
 	writel(bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
-
-#ifdef PCIDMA
-//XXX
-#else
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
-#endif
 
 	/* set mode, disable software conversion gate */
 	bits = ADC_CONTROL1_DUMMY_BITS | SW_NOGATE_BIT;
@@ -1106,7 +1157,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if((status &
 		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
 		DAC_INTR_PENDING_BIT | DAC_DONE_BIT | EXT_INTR_PENDING_BIT)) == 0 &&
-		(plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA)) == 0)
+		(plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA |
+		ICS_MBIA(0) | ICS_MBIA(1) |ICS_MBIA(2) | ICS_MBIA(3))) == 0)
 	{
 #ifdef PCIDAS64_DEBUG
 		intr_count++;

@@ -45,16 +45,18 @@ struct plx_dma_desc
 **
 **********************************************************************/
 
-#define PLX_LASMAP_REG         0x0000 /* L, Local Addr Space Range Register */
-#define  LASMAP_IO         0x00000001 /* Map to: 1=I/O, 0=Mem */
-#define  LMAP_ANY32        0x00000000 /* Locate anywhere in 32 bit */
-#define  LMAP_LT1MB        0x00000002 /* Locate in 1st meg */
-#define  LMAP_ANY64        0x00000004 /* Locate anywhere in 64 bit */
+#define PLX_LAS0RNG_REG         0x0000 /* L, Local Addr Space 0 Range Register */
+#define  LRNG_IO           0x00000001 /* Map to: 1=I/O, 0=Mem */
+#define  LRNG_ANY32        0x00000000 /* Locate anywhere in 32 bit */
+#define  LRNG_LT1MB        0x00000002 /* Locate in 1st meg */
+#define  LRNG_ANY64        0x00000004 /* Locate anywhere in 64 bit */
+#define  LRNG_MEM_MASK     0xfffffff0	// bits that specify range for memory io
+#define  LRNG_IO_MASK     0xfffffffa	// bits that specify range for normal io
 
-#define PLX_LASRNG_REG         0x0004 /* L, Local Addr Space Range Register */
-#define  LRNG_EN           0x00000001 /* Enable slave decode */
-#define  LRNG_IO           0xFFFFFFFC /* Decode bits if I/O spc */
-#define  LRNG_MEM          0xFFFFFFF0 /* Decode bits if mem spc */
+#define PLX_LAS0MAP_REG         0x0004 /* L, Local Addr Space 0 Remap Register */
+#define  LMAP_EN           0x00000001 /* Enable slave decode */
+#define  LMAP_MEM_MASK     0xfffffff0	// bits that specify decode for memory io
+#define  LMAP_IO_MASK     0xfffffffa	// bits that specify decode bits for normal io
 
 
 /* Note: The Local Arbitration Register is only present on the 9060ES part.
@@ -139,6 +141,7 @@ struct plx_dma_desc
 #define  ICS_AERR          0x00000001 /* Assert LSERR on ABORT */
 #define  ICS_PERR          0x00000002 /* Assert LSERR on Parity Error */
 #define  ICS_SERR          0x00000004 /* Generate PCI SERR# */
+#define  ICS_MBIE          0x00000008 // mailbox interrupt enable
 #define  ICS_PIE           0x00000100 /* PCI Interrupt Enable */
 #define  ICS_PDIE          0x00000200 /* PCI Doorbell Interrupt Enable */
 #define  ICS_PAIE          0x00000400 /* PCI Abort Interrupt Enable */
@@ -159,6 +162,7 @@ struct plx_dma_desc
 #define  ICS_TA_DMA0       0x02000000 /* Target Abort - DMA #0 */
 #define  ICS_TA_DMA1       0x04000000 /* Target Abort - DMA #1 */
 #define  ICS_TA_RA         0x08000000 /* Target Abort - Retry Timeout */
+#define  ICS_MBIA(x)       (0x10000000 << ((x) & 0x3)) // mailbox x is active
 
 #define PLX_CONTROL_REG        0x006C /* L, EEPROM Cntl & PCI Cmd Codes */
 #define  CTL_RDMA          0x0000000F /* DMA Read Command */
@@ -181,6 +185,13 @@ struct plx_dma_desc
 #define PLX_REVISION_REG	0x74	// silicon revision
 
 #define PLX_DMA0_MODE_REG	0x80	// dma channel 0 mode register
+#define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
+#define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
+#define  PLX_DMA_EN_READYIN_BIT	0x40	// enable ready in input
+#define  PLX_EN_CHAIN_BIT	0x200	// enables chaining
+#define  PLX_EN_DMA_DONE_INTR_BIT	0x400	// enables interrupt on dma done
+#define  PLX_LOCAL_ADDR_CONST_BIT	0x800	// hold local address constant (don't increment)
+#define  PLX_DMA_INTR_PCI_BIT	0x20000	// routes dma interrupt to pci bus (instead of local bus)
 
 #define PLX_DMA0_PCI_ADDRESS_REG	0x84	// pci address that dma transfers start at
 
@@ -190,15 +201,15 @@ struct plx_dma_desc
 
 #define PLX_DMA0_DESCRIPTOR_REG	0x90	// descriptor pointer register
 #define PLX_DMA1_DESCRIPTOR_REG	0xa4
-#define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
-#define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
-#define  PLX_EN_CHAIN_BIT	0x200	// enables chaining
-#define  PLX_EN_DMA_DONE_INTR_BIT	0x400	// enables interrupt on dma done
-#define  PLX_LOCAL_ADDR_CONST_BIT	0x800	// hold local address constant (don't increment)
-#define  PLX_DMA_INTR_PCI_BIT	0x20000	// routes dma interrupt to pci bus (instead of local bus)
+#define  PLX_DESC_IN_PCI_BIT	0x1	// descriptor is located in pci space (not local space)
+#define  PLX_END_OF_CHAIN_BIT	0x2	// end of chain bit
+#define  PLX_INTR_TERM_COUNT	0x4	// interrupt when this descriptor's transfer is finished
+#define  PLX_XFER_LOCAL_TO_PCI 0x8	// transfer from local to pci bus (not pci to local)
 
 #define PLX_DMA0_CS_REG	0xa8	// command status register
 #define PLX_DMA1_CS_REG	0xa9
+#define  PLX_DMA_EN_BIT	0x1	// enable dma channel
+#define  PLX_DMA_START_BIT	0x2	// start dma transfer
 #define  PLX_CLEAR_DMA_INTR_BIT	0x8
 
 #define PLX_DMA0_THRESHOLD_REG	0xb0	// command status register
