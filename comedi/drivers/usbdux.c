@@ -25,7 +25,7 @@ Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 03 Jan 2005
+Updated: 04 Jan 2005
 Status: Stable
 Configuration options:
   You have to upload firmware with the -i option. The
@@ -82,10 +82,10 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 // #define NOISY_DUX_DEBUGBUG
 
 // generates moderate amount of debug info
-// #define CONFIG_COMEDI_DEBUG
+#define CONFIG_COMEDI_DEBUG
 
 // uncomment this if you don't want to have debug infos from CVS versions
-// #undef CONFIG_COMEDI_DEBUG
+#undef CONFIG_COMEDI_DEBUG
 
 
 #include <linux/kernel.h>
