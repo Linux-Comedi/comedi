@@ -33,8 +33,6 @@ move /proc/comedi to /proc/driver/comedi
 
 Drivers that do DMA need to be fixed for big-endian machines.
 
-Comedi should support devfs
-
 ni_pcimio: doesn't do DMA with AO
 
 ni_pcimio: ai COMEDI_WAKE_EOS doesn't work with DMA
@@ -45,11 +43,11 @@ don't need Configure.help and Configure.help.append
 
 ni_mio_common: 2-chan AO doesn't work?
 
-ni_mio_common: add a PFI subdevice
-
 create separate fops structure for unconfigured devices
 
 remove SDF_RT globally
 
 ni_mio_common: starting AO without anything in buffer causes oops
+
+ni_mio_common: insn AO doesn't work after cmd AO
 
