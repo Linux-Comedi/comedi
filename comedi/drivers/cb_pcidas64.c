@@ -1189,6 +1189,15 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	async->events = 0;
 
+	// check for fifo overrun
+	if(status & ADC_OVERRUN_BIT)
+	{
+		ai_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s, async->events);
+		return;
+	}
+
 	// if interrupt was due to analog input data being available
 	if(status & ADC_INTR_PENDING_BIT)
 	{
@@ -1224,22 +1233,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	}
 
-	// check for fifo overrun
-	if(status & ADC_OVERRUN_BIT)
-	{
-		ai_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-	}
-
-	// if we are have all the data, then quit
-	if(cmd->stop_src == TRIG_COUNT ||
-		(cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
-	{
-		if(devpriv->ai_count <= 0)
-			ai_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA;
-	}
-
 	// clear possible plx9080 interrupt sources
 	if(plx_status & ICS_LDIA)
 	{ // clear local doorbell interrupt
@@ -1257,6 +1250,12 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		{
 			// transfer data from dma buffer to comedi buffer
 			num_samples = DMA_TRANSFER_SIZE / sizeof(devpriv->ai_buffer[0][0]);
+			if(cmd->stop_src == TRIG_COUNT)
+			{
+				if(num_samples > devpriv->ai_count)
+					num_samples = devpriv->ai_count;
+				devpriv->ai_count -= num_samples;
+			}
 			for(i = 0; i < num_samples; i++)
 			{
 				comedi_buf_put(async, devpriv->ai_buffer[devpriv->dma_index][i]);
@@ -1276,6 +1275,15 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(intr_count < debug_count)
 			rt_printk(" cleared dma ch1 interrupt\n");
 #endif
+	}
+
+	// if we are have all the data, then quit
+	if(cmd->stop_src == TRIG_COUNT ||
+		(cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
+	{
+		if(devpriv->ai_count <= 0)
+			ai_cancel(dev, s);
+		async->events |= COMEDI_CB_EOA;
 	}
 
 	comedi_event(dev, s, async->events);
