@@ -183,11 +183,11 @@ if grep -E 'cmd..?data' ${driver} &>/dev/null;then
 	echo "E: uses cmd->data or cmd->data_len"
 fi
 
-if grep -E 'buf_int_ptr++' ${driver} &>/dev/null;then
+if grep 'buf_int_ptr++' ${driver} &>/dev/null;then
 	echo "E: uses buf_int_ptr++"
 fi
 
-if grep -E 'buf_int_count++' ${driver} &>/dev/null;then
+if grep 'buf_int_count++' ${driver} &>/dev/null;then
 	echo "E: uses buf_int_count++"
 fi
 

@@ -458,7 +458,6 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	printk("stop_src: %d\n", cmd->stop_src);
 	printk("stop_arg: %d\n", cmd->stop_arg);
 	printk("chanlist_len: %d\n", cmd->chanlist_len);
-	printk("data_len: %d\n", cmd->data_len);
 }
 */
 

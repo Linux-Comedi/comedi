@@ -1016,8 +1016,8 @@ static int pci9118_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ai1234_flags=cmd->flags;
 	devpriv->ai1234_n_chan=cmd->chanlist_len;
 	devpriv->ai1234_chanlist=cmd->chanlist;
-	devpriv->ai1234_data=cmd->data;
-	devpriv->ai1234_data_len=cmd->data_len;
+	devpriv->ai1234_data=s->async->data;
+	devpriv->ai1234_data_len=s->async->data_len;
 	if (cmd->stop_arg==TRIG_COUNT) { devpriv->ai1234_scans=cmd->stop_arg; }
 				else   { devpriv->ai1234_scans=0; }
 	devpriv->ai1234_timer1=0;

@@ -344,12 +344,12 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->count > 0 || devpriv->forever == 1)
 		{
 			/* write data point to buffer */
-			if(async->buf_int_ptr >= async->cmd.data_len )
+			if(async->buf_int_ptr >= async->data_len )
 			{
 				async->buf_int_ptr = 0;
 				comedi_eobuf(dev, s);
 			}
-			*((sampl_t *)((void *)async->cmd.data + async->buf_int_ptr)) = dataPoint;
+			*((sampl_t *)((void *)async->data + async->buf_int_ptr)) = dataPoint;
 			async->cur_chan++;
 			if( async->cur_chan >= async->cur_chanlist_len )
 			{
