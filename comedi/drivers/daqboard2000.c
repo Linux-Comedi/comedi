@@ -166,11 +166,11 @@ typedef struct daqboard2000_hw {
   volatile u16  acqPacerClockDivHigh;     // 0x0a
   volatile u16  acqTriggerCount;          // 0x0c
   volatile u16  fill2;                    // 0x0e
-  volatile s16  acqResultsFIFO;           // 0x10
+  volatile u16  acqResultsFIFO;           // 0x10
   volatile u16  fill3;                    // 0x12
-  volatile s16  acqResultsShadow;         // 0x14
+  volatile u16  acqResultsShadow;         // 0x14
   volatile u16  fill4;                    // 0x16
-  volatile s16  acqAdcResult;             // 0x18
+  volatile u16  acqAdcResult;             // 0x18
   volatile u16  fill5;                    // 0x1a
   volatile u16  dacScanCounter;           // 0x1c
   volatile u16  fill6;                    // 0x1e
@@ -369,6 +369,7 @@ static int daqboard2000_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
   daqboard2000_hw *fpga = devpriv->daq;
   int gain, chan, timeout;
 
+  /* Could these two be merged? */
   fpga->acqControl = DAQBOARD2000_AcqResetScanListFifo;
   fpga->acqControl = DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
 
@@ -381,6 +382,7 @@ static int daqboard2000_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
    * forced to fix it.  --ds */
   for(i=0;i<insn->n;i++){
     setup_sampling(dev, chan, gain);
+    /* Enable reading from the scanlist FIFO */
     fpga->acqControl = DAQBOARD2000_SeqStartScanList;
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqConfigPipeFull) { break; }
@@ -650,12 +652,13 @@ static int daqboard2000_8255_cb(int dir, int port, int data, void *arg)
   int result = 0;
   unsigned long ioaddr=(unsigned long)arg;
   if(dir){
-    writew(data,ioaddr+port);
+    writew(data,ioaddr+port*2);
     result = 0;
   }else{
-    result = readw(ioaddr+port);
+    result = readw(ioaddr+port*2);
   }
-/*  printk("daqboard2000_8255_cb %x %d %d %2.2x -> %2.2x\n",
+/*
+  printk("daqboard2000_8255_cb %x %d %d %2.2x -> %2.2x\n",
         arg, dir, port, data, result);
 */
   return result;
