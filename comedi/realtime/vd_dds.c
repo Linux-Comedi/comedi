@@ -23,6 +23,7 @@
 
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/malloc.h>
@@ -49,13 +50,16 @@
 
 static int dds_attach(comedi_device *dev,comedi_devconfig *it);
 static int dds_detach(comedi_device *dev);
-comedi_driver driver_={
-	driver_name:		"dds",
+comedi_driver driver_vd_dds={
+	driver_name:		"vd_dds",
+	module:		&__this_module,
 	attach:		dds_attach,
 	detach:		dds_detach,
 };
 
+#ifdef CONFIG_COMEDI_RTL
 static void dds_interrupt(int irq,void *dev,struct pt_regs * regs);
+#endif
 
 typedef struct{
 	int device;
@@ -77,6 +81,7 @@ typedef struct{
 
 static comedi_device *broken_rtl_dev;
 
+#ifdef CONFIG_COMEDI_RTL
 static void dds_interrupt(int irq,void *d,struct pt_regs * regs)
 {
 	comedi_device *dev=broken_rtl_dev;
@@ -85,6 +90,7 @@ static void dds_interrupt(int irq,void *d,struct pt_regs * regs)
 
 	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
 }
+#endif
 
 static inline void buf_add(comedi_device *dev,comedi_subdevice *s,sampl_t x)
 {
@@ -106,10 +112,13 @@ static void dds_ao_task_func(int d)
 	comedi_trig *my_trig=&s->cur_trig;
 	int ret;
 
-	it->n_chan=1;
-	it->data=devpriv->data;
-	it->chanlist=my_trig->chanlist;
 	while(1){
+		it->n_chan=1;
+		it->data=devpriv->data;
+		it->chanlist=my_trig->chanlist;
+
+		devpriv->data[0]^=0x400;
+		
 		ret=comedi_trig_ioctl(devpriv->device,devpriv->subd,it);
 
 		if(ret<0){
@@ -119,7 +128,7 @@ static void dds_ao_task_func(int d)
 		rt_task_wait();
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-		rt_task_yield();
+		rt_task_wait_period();
 #endif
 	}
 }
@@ -144,7 +153,7 @@ static int dds_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	struct timespec ts;
 
 	//if(it->trigvar1!=0)return -EINVAL;
-	if(it->trigvar<100000)return -EINVAL;	/* 10 khz */
+	//if(it->trigvar<100000)return -EINVAL;	/* 10 khz */
 	
 	ret=comedi_lock_ioctl(devpriv->device,devpriv->subd);
 	if(ret<0)goto out;
@@ -157,24 +166,29 @@ static int dds_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 #endif
 
 	devpriv->trig.subdev=devpriv->subd;
-	devpriv->trig.mode=TRIG_WRITE;
-	devpriv->trig.flags=0;
+	devpriv->trig.mode=0;
+	devpriv->trig.flags=TRIG_WRITE;
 	devpriv->trig.n=1;
 
 	ts.tv_sec=0;
 	ts.tv_nsec=it->trigvar;
 
 #ifdef CONFIG_COMEDI_RTAI
-	//period=timespec_to_RTIME(ts);
-	//rt_task_init(&devpriv->rt_task,dds_ao_task_func,(int)dev,3000,4);
+	start_rt_timer(nano2count(it->trigvar));
+
+	period=nano2count(it->trigvar);
+	rt_task_init(&devpriv->rt_task,dds_ao_task_func,(int)dev,3000,4,0,0);
+
+	now=rt_get_time();
+	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
 #endif
 #ifdef CONFIG_COMEDI_RTL
 	period=timespec_to_RTIME(ts);
 	rt_task_init(&devpriv->rt_task,dds_ao_task_func,(int)dev,3000,4);
-#endif
 
 	now=rt_get_time();
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
+#endif
 
 	return 0;
 
@@ -186,7 +200,14 @@ out:
 
 int dds_ao_cancel(comedi_device *dev,comedi_subdevice *s)
 {
+#ifdef CONFIG_COMEDI_RTAI
+	stop_rt_timer();
+	rt_task_suspend(&devpriv->rt_task);
 	rt_task_delete(&devpriv->rt_task);
+#endif
+#ifdef CONFIG_COMEDI_RTL
+	rt_task_delete(&devpriv->rt_task);
+#endif
 
 	comedi_unlock_ioctl(devpriv->device,devpriv->subd);
 
@@ -199,7 +220,7 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 
 	printk("comedi%d: dds: ",dev->minor);
-	dev->board_name="dds";
+	dev->board_name="vd_dds";
 
 	dev->n_subdevices=1;
 	if((ret=alloc_subdevices(dev))<0)
@@ -211,6 +232,14 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->subd=it->options[1];
 
 	devpriv->dev=comedi_get_device_by_minor(devpriv->device);
+	if(!devpriv->dev || !devpriv->dev->attached){
+		printk("target device doesn't exist\n");
+		return 0;
+	}
+	if(devpriv->subd>=devpriv->dev->n_subdevices){
+		printk("target subdevice doesn't exist\n");
+		return 0;
+	}
 	devpriv->s=devpriv->dev->subdevices+devpriv->subd;
 
 	s=dev->subdevices+0;
@@ -218,6 +247,7 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=devpriv->s->n_chan;
 	s->len_chanlist=1024;
+	s->trig[0]=dds_cntrl_mode0;
 	s->trig[2]=dds_ao_mode2;
 	s->cancel=dds_ao_cancel;
 	s->maxdata=devpriv->s->maxdata;
@@ -241,9 +271,25 @@ static int dds_detach(comedi_device *dev)
 {
 	printk("comedi%d: dds: remove\n",dev->minor);
 	
+#ifdef CONFIG_COMEDI_RTL
 	free_irq(devpriv->soft_irq,NULL);
+#endif
 
 	return 0;
 }
 
+
+#ifdef MODULE
+int init_module(void)
+{
+	comedi_driver_register(&driver_vd_dds);
+
+	return 0;
+}
+
+void cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_vd_dds);
+}
+#endif
 
