@@ -59,6 +59,16 @@
 	module_init(x ## _init_module);					\
 	module_exit(x ## _cleanup_module);					\
 
+
+#define PCI_VENDOR_ID_INOVA		0x104c
+#define PCI_VENDOR_ID_NATINST		0x1093
+#define PCI_VENDOR_ID_DATX		0x1116
+#define PCI_VENDOR_ID_COMPUTERBOARDS	0x1307
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
+#define PCI_VENDOR_ID_RTD		0x1435
+#define PCI_VENDOR_ID_AMPLICON		0x14dc
+
+
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
 typedef struct comedi_async_struct comedi_async;
@@ -192,11 +202,13 @@ extern comedi_device *comedi_devices;
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
 void comedi_error(comedi_device *dev,const char *s);
+#if 0
 void comedi_done(comedi_device *dev,comedi_subdevice *s);
 void comedi_error_done(comedi_device *dev,comedi_subdevice *s);
 void comedi_eos(comedi_device *dev,comedi_subdevice *s);
 void comedi_eobuf(comedi_device *dev,comedi_subdevice *s);
 void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s);
+#endif
 
 comedi_device * comedi_get_device_by_minor(kdev_t minor);
 
@@ -218,8 +230,13 @@ void cleanup_polling(void);
 void start_polling(comedi_device *);
 void stop_polling(comedi_device *);
 
+#ifdef CONFIG_PROC_FS
 void comedi_proc_init(void);
 void comedi_proc_cleanup(void);
+#else
+static inline void comedi_proc_init(void) {}
+static inline void comedi_proc_cleanup(void) {}
+#endif
 
 // subdevice runflags
 #define SRF_USER		0x00000001
@@ -323,9 +340,6 @@ static inline int comedi_buf_get(comedi_async *async, sampl_t *x)
 	return 0;
 }
 
-#ifdef LINUX_V20
-extern struct symbol_table comedi_syms;
-#endif
 
 //#ifdef CONFIG_COMEDI_RT
 #include <linux/comedi_rt.h>
