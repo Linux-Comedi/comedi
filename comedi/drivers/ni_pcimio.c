@@ -1,5 +1,5 @@
 /*
-    module/pcimio-E.c
+    module/ni_pcimio.c
     Hardware driver for NI PCI-MIO E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -330,9 +330,11 @@ static ni_board ni_boards[]={
 
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcimio_detach(comedi_device *dev);
+static int pcimio_recognize(const char *name);
 comedi_driver driver_pcimio={
-	driver_name:	"pcimio-E",
+	driver_name:	"ni_pcimio",
 	module:		THIS_MODULE,
+	recognize:	pcimio_recognize,
 	attach:		pcimio_attach,
 	detach: 	pcimio_detach,
 };
@@ -431,14 +433,23 @@ static int pcimio_detach(comedi_device *dev)
 	return 0;
 }
 
+static int pcimio_recognize(const char *name)
+{
+	if(!strcmp(name,"pcimio-E")){
+		printk("name \"pcimio-E\" deprecated.  Use \"ni_pcimio\"\n");
+		return 0;
+	}
+	if(!strcmp(name,"ni_pcimio"))
+		return 0;
+
+	return -1;
+}
+
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int		ret;
 	
-	if(strcmp("pcimio-E",it->board_name))
-		return 0;
-	
-	printk("comedi%d: pcimio-E:",dev->minor);
+	printk("comedi%d: ni_pcimio:",dev->minor);
 	
 	ret=alloc_private(dev,sizeof(ni_private));
 	if(ret<0)return ret;
@@ -465,7 +476,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" unknown irq (bad)\n");
 	}else{
         	printk(" ( irq = %d )",dev->irq);
-        	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"pcimio-E",dev))<0 ){
+        	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_pcimio",dev))<0 ){
                 	printk(" irq not available\n");
 			dev->irq=0;
         	}
