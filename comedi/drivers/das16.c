@@ -699,22 +699,6 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 			err++;
 		}
 	}
-	// check channel/gain list against card's limitations
-	gain = CR_RANGE(cmd->chanlist[0]);
-	start_chan = CR_CHAN(cmd->chanlist[0]);
-	for(i = 1; i < cmd->chanlist_len; i++)
-	{
-		if(CR_CHAN(cmd->chanlist[i]) != (start_chan + i) % s->n_chan)
-		{
-			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
-			err++;
-		}
-		if(CR_RANGE(cmd->chanlist[i]) != gain)
-		{
-			comedi_error(dev, "entries in chanlist must all have the same gain\n");
-			err++;
-		}
-	}
 	if(err)return 3;
 
 	// step 4: fix up arguments
@@ -723,13 +707,36 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 		// set divisors, correct timing arguments
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
 			&(devpriv->divisor2), &(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
-   }
+		err++;
+	}
 	if(cmd->convert_src == TRIG_TIMER)
 	{
 		// set divisors, correct timing arguments
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
 			&(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
-   }
+		err++;
+	}
+	if(err)return 4;
+
+	// check channel/gain list against card's limitations
+	if(cmd->chanlist){
+		gain = CR_RANGE(cmd->chanlist[0]);
+		start_chan = CR_CHAN(cmd->chanlist[0]);
+		for(i = 1; i < cmd->chanlist_len; i++)
+		{
+			if(CR_CHAN(cmd->chanlist[i]) != (start_chan + i) % s->n_chan)
+			{
+				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+				err++;
+			}
+			if(CR_RANGE(cmd->chanlist[i]) != gain)
+			{
+				comedi_error(dev, "entries in chanlist must all have the same gain\n");
+				err++;
+			}
+		}
+	}
+	if(err)return 5;
 
 	return 0;
 }
