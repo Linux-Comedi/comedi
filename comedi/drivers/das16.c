@@ -26,7 +26,7 @@
 /*
 Driver: das16.o
 Description: DAS16 compatible boards
-Author: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess
+Author: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess, Roman Fietze
 Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
   DAS-16F (das-16f), DAS-1201 (das-1201), DAS-1202 (das-1202),
   DAS-1401 (das-1401), DAS-1402 (das-1402), DAS-1601 (das-1601),
@@ -38,29 +38,32 @@ Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
   CIO-DAS1402/12 (cio-das1402/12), CIO-DAS1402/16 (cio-das1402/16),
   CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
   CIO-DAS1602/16 (cio-das1602/16), CIO-DAS16/330 (cio-das16/330)
-Status: works in das16 mode, das-1600 enhanced mode features untested.
-Updated: 2001-8-27
+Status: works
+Updated: 2002-04-17
 
 A rewrite of the das16 and das1600 drivers.
 Options:
-        [0] - base io address
-        [1] - irq (optional)
-        [2] - dma (optional)
-        [3] - master clock speed in MHz (optional, 1 or 10, ignored if
-	        board can probe clock, defaults to 1)
-        [4] - analog input range lowest voltage in microvolts (optional,
-	        only useful if your board does not have software
+	[0] - base io address
+	[1] - irq (optional)
+	[2] - dma (optional)
+	[3] - master clock speed in MHz (optional, 1 or 10, ignored if
+		board can probe clock, defaults to 1)
+	[4] - analog input range lowest voltage in microvolts (optional,
+		only useful if your board does not have software
 		programmable gain)
-        [5] - analog input range highest voltage in microvolts (optional,
-	        only useful if board does not have software programmable
+	[5] - analog input range highest voltage in microvolts (optional,
+		only useful if board does not have software programmable
 		gain)
-        [6] - analog output range lowest voltage in microvolts (optional)
-        [7] - analog output range highest voltage in microvolts (optional)
+	[6] - analog output range lowest voltage in microvolts (optional)
+	[7] - analog output range highest voltage in microvolts (optional)
+	[8] - use timer mode for DMA, needed e.g. for buggy DMA controller 
+		in NS CS5530A (Geode Companion).  If set, also allows 
+		comedi_command() to be run without an irq.
 
 Passing a zero for an option is the same as leaving it unspecified.
 
-Both an irq line and dma channel are required for timed or externally
-triggered conversions.
+Both a dma channel and an irq (or use of 'timer mode', option 8) are required 
+for timed or externally triggered conversions.
 */
 /*
 
@@ -68,6 +71,8 @@ Testing and debugging help provided by Daniel Koch.
 
 Keithley Manuals:
 	2309.PDF (das16)
+	4919.PDF (das1400, 1600)
+	4922.PDF (das-1400)
 	4923.PDF (das1200, 1400, 1600)
 
 Computer boards manuals also available from their website www.measurementcomputing.com
@@ -87,6 +92,13 @@ Computer boards manuals also available from their website www.measurementcomputi
 #include "8255.h"
 
 #undef DEBUG
+//#define DEBUG
+
+#ifdef DEBUG
+#define DEBUG_PRINT(format, args...) rt_printk("das16: " format, ## args)
+#else
+#define DEBUG_PRINT(format, args...)
+#endif
 
 #define DAS16_SIZE 20	// number of ioports
 #define DAS16_DMA_SIZE 0xff00 // size in bytes of allocated dma buffer
@@ -317,15 +329,15 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s);
 static int das16_cancel(comedi_device *dev, comedi_subdevice *s);
 
 static void das16_reset(comedi_device *dev);
-static void das16_interrupt(int irq, void *d, struct pt_regs *regs);
+static void das16_dma_interrupt(int irq, void *d, struct pt_regs *regs);
+static void das16_timer_interrupt(unsigned long arg);
+static void das16_interrupt(comedi_device *dev);
 
 static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int flags);
 static int das1600_mode_detect(comedi_device *dev);
-static unsigned int das16_suggest_transfer_size(comedi_cmd cmd);
+static unsigned int das16_suggest_transfer_size(comedi_device *dev, comedi_cmd cmd);
 
-#ifdef DEBUG
 static void reg_dump(comedi_device *dev);
-#endif
 
 typedef struct das16_board_struct{
 	char		*name;
@@ -691,9 +703,9 @@ static comedi_driver driver_das16={
 	offset:		sizeof(das16_boards[0]),
 };
 
-
 #define DAS16_TIMEOUT 1000
 
+static const int timer_period = HZ / 10 + 1;	// period for timer interrupt in jiffies (about 1/10 of a second)
 
 struct das16_private_struct {
 	unsigned int	ai_unipolar;	// unipolar flag
@@ -701,6 +713,7 @@ struct das16_private_struct {
 	unsigned int	clockbase;	// master clock speed in ns
 	volatile unsigned int	control_state;	// dma, interrupt and trigger control bits
 	volatile unsigned int	adc_count;	// number of samples remaining
+	volatile unsigned int remains;            // remaining bytes after last irq
 	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
 	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
 	unsigned int dma_chan;	// dma channel
@@ -709,6 +722,10 @@ struct das16_private_struct {
 	// user-defined analog input and output ranges defined from config options
 	comedi_lrange *user_ai_range_table;
 	comedi_lrange *user_ao_range_table;
+	
+	struct timer_list timer;                // for timed interrupt
+	volatile unsigned int timer_running : 1;
+	volatile unsigned int timer_mode : 1;   // true if using timer mode
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
@@ -871,9 +888,9 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	unsigned long flags;
 	int range;
 
-	if(dev->irq == 0 || devpriv->dma_chan == 0)
+	if(devpriv->dma_chan == 0 || (dev->irq == 0 && devpriv->timer_mode == 0))
 	{
-		comedi_error(dev, "irq and dma required to execute comedi_cmd");
+		comedi_error(dev, "irq (or use of 'timer mode') dma required to execute comedi_cmd");
 		return -1;
 	}
 	if(cmd->flags & TRIG_RT)
@@ -883,6 +900,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
+	devpriv->remains = 0;
 
 	// disable conversions for das1600 mode
 	if(thisboard->size > 0x400)
@@ -933,20 +951,26 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	clear_dma_ff(devpriv->dma_chan);
 	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	// set appropriate size of transfer
-	devpriv->dma_transfer_size = das16_suggest_transfer_size(*cmd);
-	if(cmd->stop_src == TRIG_COUNT &&
-		devpriv->adc_count * sample_size < devpriv->dma_transfer_size)
-	{
-		devpriv->dma_transfer_size = devpriv->adc_count * sample_size;
-	}
+	devpriv->dma_transfer_size = das16_suggest_transfer_size(dev, *cmd);
 	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
-	/* clear interrupt bit */
-	outb(0x00, dev->iobase + DAS16_STATUS);
-	/* enable interrupts, dma and pacer clocked conversions */
-	devpriv->control_state |= DAS16_INTE | DMA_ENABLE;
+	// set up interrupt
+	if (devpriv->timer_mode)
+	{
+		devpriv->timer_running = 1;
+		devpriv->timer.expires = jiffies + timer_period;
+		add_timer(&devpriv->timer);
+		devpriv->control_state &= ~DAS16_INTE;
+	}else
+	{
+		/* clear interrupt bit */
+		outb(0x00, dev->iobase + DAS16_STATUS);
+		/* enable interrupts, dma and pacer clocked conversions */
+		devpriv->control_state |= DAS16_INTE;
+	}
+	devpriv->control_state |= DMA_ENABLE;
 	if(cmd->convert_src == TRIG_EXT)
 		devpriv->control_state |= EXT_PACER;
 	else
@@ -970,6 +994,13 @@ static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 	if(devpriv->dma_chan)
 		disable_dma(devpriv->dma_chan);
 
+	// disable SW timer
+	if( devpriv->timer_mode && devpriv->timer_running )
+	{
+		devpriv->timer_running = 0;
+		del_timer(&devpriv->timer);
+	}
+
 	/* disable burst mode */
 	if(thisboard->size > 0x400)
 	{
@@ -981,10 +1012,10 @@ static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 
 static void das16_reset(comedi_device *dev)
 {
-	outb(0,dev->iobase+DAS16_STATUS);
-	outb(0,dev->iobase+DAS16_CONTROL);
-	outb(0,dev->iobase+DAS16_PACER);
-	outb(0,dev->iobase+DAS16_CNTR_CONTROL);
+	outb(0, dev->iobase + DAS16_STATUS);
+	outb(0, dev->iobase + DAS16_CONTROL);
+	outb(0, dev->iobase + DAS16_PACER);
+	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
 }
 
 static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
@@ -1091,25 +1122,10 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 }
 
 
-static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
+static void das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-	int i;
 	int status;
-	unsigned long flags;
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->read_subdev;
-	comedi_async *async;
-	unsigned int max_points, num_points, residue, leftover;
-	sampl_t dpnt;
-
-	if(dev->attached == 0)
-	{
-		comedi_error(dev, "premature interrupt");
-		return;
-	}
-	// initialize async here to make sure it is not NULL
-	async = s->async;
-	async->events = 0;
 
 	status = inb(dev->iobase + DAS16_STATUS);
 
@@ -1122,6 +1138,39 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* clear interrupt */
 	outb(0x00, dev->iobase + DAS16_STATUS);
 
+	das16_interrupt(dev);
+}
+
+static void das16_timer_interrupt(unsigned long arg)
+{
+	comedi_device *dev = (comedi_device*) arg;
+
+	das16_interrupt(dev);
+
+	if(devpriv->timer_running)
+		mod_timer(&devpriv->timer, jiffies + timer_period);
+}
+
+static void das16_interrupt( comedi_device *dev )
+{
+	int i;
+	unsigned long flags;
+	comedi_subdevice *s = dev->read_subdev;
+	comedi_async *async;
+	comedi_cmd *cmd;
+	int num_points, num_bytes, residue, next_num_bytes;
+	sampl_t dpnt;
+
+	if(dev->attached == 0)
+	{
+		comedi_error(dev, "premature interrupt");
+		return;
+	}
+	// initialize async here to make sure it is not NULL
+	async = s->async;
+	cmd = &async->cmd;
+	async->events = 0;
+
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
 	/* clear flip-flop to make sure 2-byte registers for
@@ -1129,33 +1178,26 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	clear_dma_ff(devpriv->dma_chan);
 
 	// figure out how many points to read
-	max_points = devpriv->dma_transfer_size  / sample_size;
+
 	/* residue is the number of points left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
-	if(residue > max_points)
+	residue = get_dma_residue(devpriv->dma_chan);
+	if(residue > devpriv->dma_transfer_size)
 	{
-		comedi_error(dev, "residue > max_points!\n");
-		async->events |= COMEDI_CB_ERROR;
-		residue = max_points;
-	}
-	num_points = max_points - residue;
-	if(devpriv->adc_count < num_points &&
-		async->cmd.stop_src == TRIG_COUNT)
-		num_points = devpriv->adc_count;
+		comedi_error(dev, "residue > transfer size!\n");
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		num_bytes = 0;
+	}else
+		num_bytes = devpriv->dma_transfer_size + devpriv->remains - residue;
+	num_points = num_bytes / sample_size;
 
-	// figure out how many points will be stored next time
-	leftover = 0;
-	if(async->cmd.stop_src == TRIG_NONE)
+	if(cmd->stop_src == TRIG_COUNT &&
+		num_points > devpriv->adc_count)
 	{
-		leftover = devpriv->dma_transfer_size / sample_size;
-	}else if(devpriv->adc_count > num_points)
-	{
-		leftover = devpriv->adc_count - num_points;
-		if(leftover > max_points)
-			leftover = max_points;
+		num_points = devpriv->adc_count;
+		async->events |= COMEDI_CB_EOA;
 	}
 
 	for(i = 0; i < num_points; i++)
@@ -1165,25 +1207,32 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(thisboard->ai_nbits == 12)
 			dpnt = (dpnt >> 4) & 0xfff;
 		comedi_buf_put(async, dpnt);
-		if(devpriv->adc_count > 0) devpriv->adc_count--;
+		devpriv->adc_count--;
 	}
+	// copy possible leftover byte to beginning of buffer to be read next time
+	devpriv->dma_buffer[0] = devpriv->dma_buffer[i];
+
+	devpriv->remains = num_bytes % sample_size;
+
+	// figure out how many bytes for next transfer
+	next_num_bytes = devpriv->dma_transfer_size - devpriv->remains;
+	if(cmd->stop_src == TRIG_COUNT &&
+		next_num_bytes + devpriv->remains > devpriv->adc_count * sample_size)
+		next_num_bytes = devpriv->adc_count * sample_size - devpriv->remains;
+
 	// re-enable  dma
-	if(leftover)
+	if(( async->events & COMEDI_CB_EOA ) == 0)
 	{
-		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
-		set_dma_count(devpriv->dma_chan, leftover * sample_size);
+		set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer) + devpriv->remains);
+		set_dma_count(devpriv->dma_chan, next_num_bytes);
 		enable_dma(devpriv->dma_chan);
 	}
 	release_dma_lock(flags);
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	if(async->cmd.stop_src == TRIG_COUNT &&
-		devpriv->adc_count == 0)
-	{	/* end of acquisition */
+	if(async->events & COMEDI_CB_EOA)
 		das16_cancel(dev, s);
-		async->events |= COMEDI_CB_EOA;
-	}
 
 	comedi_event(dev, s, async->events);
 }
@@ -1200,23 +1249,21 @@ static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int rou
 	return ns;
 }
 
-#ifdef DEBUG
 static void reg_dump(comedi_device *dev)
 {
-	rt_printk("********DAS1600 REGISTER DUMP********\n");
-	rt_printk("DAS16_MUX: %x\n", inb(dev->iobase+DAS16_MUX) );
-	rt_printk("DAS16_DIO: %x\n", inb(dev->iobase+DAS16_DIO) );
-	rt_printk("DAS16_STATUS: %x\n", inb(dev->iobase+DAS16_STATUS) );
-	rt_printk("DAS16_CONTROL: %x\n", inb(dev->iobase+DAS16_CONTROL) );
-	rt_printk("DAS16_PACER: %x\n", inb(dev->iobase+DAS16_PACER) );
-	rt_printk("DAS16_GAIN: %x\n", inb(dev->iobase+DAS16_GAIN) );
-	rt_printk("DAS16_CNTR_CONTROL: %x\n", inb(dev->iobase+DAS16_CNTR_CONTROL) );
-	rt_printk("DAS1600_CONV: %x\n", inb(dev->iobase+DAS1600_CONV) );
-	rt_printk("DAS1600_BURST: %x\n", inb(dev->iobase+DAS1600_BURST) );
-	rt_printk("DAS1600_ENABLE: %x\n", inb(dev->iobase+DAS1600_ENABLE) );
-	rt_printk("DAS1600_STATUS_B: %x\n", inb(dev->iobase+DAS1600_STATUS_B) );
+	DEBUG_PRINT("********DAS1600 REGISTER DUMP********\n");
+	DEBUG_PRINT("DAS16_MUX: %x\n", inb(dev->iobase+DAS16_MUX) );
+	DEBUG_PRINT("DAS16_DIO: %x\n", inb(dev->iobase+DAS16_DIO) );
+	DEBUG_PRINT("DAS16_STATUS: %x\n", inb(dev->iobase+DAS16_STATUS) );
+	DEBUG_PRINT("DAS16_CONTROL: %x\n", inb(dev->iobase+DAS16_CONTROL) );
+	DEBUG_PRINT("DAS16_PACER: %x\n", inb(dev->iobase+DAS16_PACER) );
+	DEBUG_PRINT("DAS16_GAIN: %x\n", inb(dev->iobase+DAS16_GAIN) );
+	DEBUG_PRINT("DAS16_CNTR_CONTROL: %x\n", inb(dev->iobase+DAS16_CNTR_CONTROL) );
+	DEBUG_PRINT("DAS1600_CONV: %x\n", inb(dev->iobase+DAS1600_CONV) );
+	DEBUG_PRINT("DAS1600_BURST: %x\n", inb(dev->iobase+DAS1600_BURST) );
+	DEBUG_PRINT("DAS1600_ENABLE: %x\n", inb(dev->iobase+DAS1600_ENABLE) );
+	DEBUG_PRINT("DAS1600_STATUS_B: %x\n", inb(dev->iobase+DAS1600_STATUS_B) );
 }
-#endif
 
 static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 {
@@ -1266,6 +1313,8 @@ static int das1600_mode_detect(comedi_device *dev)
 		printk(" 1MHz pacer clock\n");
 	}
 
+	reg_dump(dev);
+
 	return 0;
 }
 
@@ -1285,6 +1334,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	int ret, irq;
 	int iobase;
 	int dma_chan;
+	int timer_mode;
 	unsigned long flags;
 	comedi_krange *user_ai_range, *user_ao_range;
 
@@ -1363,7 +1413,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	irq = it->options[1];
 	if(irq > 1 && irq < 8)
 	{
-		if((ret=comedi_request_irq(irq, das16_interrupt, 0, "das16",dev)) < 0)
+		if((ret=comedi_request_irq(irq, das16_dma_interrupt, 0, "das16",dev)) < 0)
 			return ret;
 		dev->irq = irq;
 		printk(" ( irq = %d )",irq);
@@ -1428,6 +1478,15 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		user_ao_range->min = it->options[6];
 		user_ao_range->max = it->options[7];
 		user_ao_range->flags = UNIT_volt;
+	}
+
+	timer_mode = it->options[8];
+	if(timer_mode)
+	{
+		init_timer(&(devpriv->timer));
+		devpriv->timer.function = das16_timer_interrupt;
+		devpriv->timer.data = (unsigned long) dev;
+		devpriv->timer_mode = timer_mode ? 1 : 0;
 	}
 
 	dev->n_subdevices = 5;
@@ -1576,11 +1635,18 @@ static int das16_detach(comedi_device *dev)
 COMEDI_INITCLEANUP(driver_das16);
 
 // utility function that suggests a dma transfer size in bytes
-static unsigned int das16_suggest_transfer_size(comedi_cmd cmd)
+static unsigned int das16_suggest_transfer_size(comedi_device *dev, comedi_cmd cmd)
 {
 	unsigned int size;
 	unsigned int freq;
 
+	/* if we are using timer interrupt, we don't care how long it
+	 * will take to complete transfer since it will be interrupted
+	 * by timer interrupt */
+	if(devpriv->timer_mode) return DAS16_DMA_SIZE;
+
+	/* otherwise, we are relying on dma terminal count interrupt,
+	 * so pick a reasonable size */
 	if(cmd.convert_src == TRIG_TIMER)
 		freq = 1000000000 / cmd.convert_arg;
 	else if(cmd.scan_begin_src == TRIG_TIMER)
@@ -1604,6 +1670,9 @@ static unsigned int das16_suggest_transfer_size(comedi_cmd cmd)
 	else if(size < sample_size)
 		size = sample_size;
 
+	if( cmd.stop_src == TRIG_COUNT && size > devpriv->adc_count * sample_size )
+		size = devpriv->adc_count * sample_size;
+	
 	return size;
 }
 
