@@ -38,6 +38,25 @@ For AI:
 
 
 
+Driver: cb_pcidas.o
+Description: ComputerBoards PCI-DAS1200, PCI-DAS1200/JR, may work with other PCI-DAS
+Author: Ivan Martinez <ivanmr@altavista.com>
+Status: works with PCI-DAS1200
+	should work with PCI-DAS1200/JR, not tested
+	may work with other PCI-DAS
+
+Options:
+	[0] - PCI bus number
+	[1] - PCI slot number
+
+Doesn't support commands.
+This intends to be the driver for the whole PCI-DAS series. However,
+it was programmed with the manuals for PCI-DAS1200 and PCI-DAS1200/JR,
+and tested with the first one. IF YOU TRY THE DRIVER WITH ANOTHER PCI-DAS
+CARD, PLEASE REPORT ANY SUCCESS OR FAILURE TO <ivanmr@altavista.com>
+
+
+
 Driver: comedi_parport.o
 Description: Standard PC parallel port
 Author: ds
