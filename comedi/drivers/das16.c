@@ -32,11 +32,6 @@ Options:
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
 
-TODO:
-
-Autodetecting boards doesn't work very well, we should give up on that
-or at least only use it as a fallback.
-
 */
 
 #include <linux/kernel.h>
@@ -260,7 +255,7 @@ unsigned int das16_suggest_transfer_size(comedi_cmd cmd);
 static void reg_dump(comedi_device *dev);
 #endif
 
-struct das16_board_struct{
+typedef struct das16_board_struct{
 	char		*name;
 	void		*ai;
 	unsigned int	ai_nbits;
@@ -275,24 +270,29 @@ struct das16_board_struct{
 	unsigned int    i8254_offset;
 
 	unsigned int	size;
-};
+} das16_board;
 enum{	/* must match following array */
 	das16_board_das16,
+	das16_board_das16g,
 	das16_board_das16f,
-	das16_board_das16jr,
+	das16_board_ciodas16jr,
 	das16_board_das1201,
 	das16_board_das1202,
-	das16_board_das1401_12,
-	das16_board_das1402_12,
-	das16_board_das1402_16,
-	das16_board_das1601_12,
-	das16_board_das1602_12,
-	das16_board_das1602_16,
-	das16_board_das16_330,
+	das16_board_das1401,
+	das16_board_das1402,
+	das16_board_das1601,
+	das16_board_das1602,
+	das16_board_ciodas1401_12,
+	das16_board_ciodas1402_12,
+	das16_board_ciodas1402_16,
+	das16_board_ciodas1601_12,
+	das16_board_ciodas1602_12,
+	das16_board_ciodas1602_16,
+	das16_board_ciodas16_330,
 };
 static struct das16_board_struct das16_boards[]={
 	{
-	name:		"das16",	// cio-das16.pdf
+	name:		"das-16",	// cio-das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	20000,
@@ -306,7 +306,21 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x14,
 	},
 	{
-	name:		"das16/f",	// das16.pdf
+	name:		"das-16g",
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	14286,
+	ai_pg:		das16_pg_none,
+	ao:		das16_ao_winsn,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0x10,
+	i8254_offset:	0x0c,
+	size:		0x14,
+	},
+	{
+	name:		"das-16f",	// das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -320,7 +334,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x14,
 	},
 	{
-	name:		"das16/jr",	// cio-das16jr.pdf
+	name:		"cio-das16/jr",	// cio-das16jr.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	7692,
@@ -334,7 +348,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x10,
 	},
 	{
-	name:		"das1201",	// 4924.pdf (keithley user's manual)
+	name:		"das-1201",	// 4924.pdf (keithley user's manual)
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	20000,
@@ -348,7 +362,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1202",	// 4924.pdf (keithley user's manual)
+	name:		"das-1202",	// 4924.pdf (keithley user's manual)
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -362,7 +376,63 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1401/12",	// cio-das1400_series.pdf
+	name:		"das-1401",	// 4922.pdf (keithley user's manual)
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	10000,
+	ai_pg:		das16_pg_1601,
+	ao:		NULL,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x408,
+	},
+	{
+	name:		"das-1402",	// 4922.pdf (keithley user's manual)
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	10000,
+	ai_pg:		das16_pg_1602,
+	ao:		NULL,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x408,
+	},
+	{
+	name:		"das-1601",
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	10000,
+	ai_pg:		das16_pg_1601,
+	ao:		das16_ao_winsn,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x408,
+	},
+	{
+	name:		"das-1602",
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	10000,
+	ai_pg:		das16_pg_1602,
+	ao:		das16_ao_winsn,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x408,
+	},
+	{
+	name:		"cio-das1401/12",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	6250,
@@ -376,7 +446,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1402/12",	// cio-das1400_series.pdf
+	name:		"cio-das1402/12",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	6250,
@@ -390,7 +460,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1402/16",	// cio-das1400_series.pdf
+	name:		"cio-das1402/16",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
 	ai_speed:	10000,
@@ -404,7 +474,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1601/12",	// cio-das160x-1x.pdf
+	name:		"cio-das1601/12",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	6250,
@@ -418,7 +488,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1602/12",	// cio-das160x-1x.pdf
+	name:		"cio-das1602/12",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -432,7 +502,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das1602/16",	// cio-das160x-1x.pdf
+	name:		"cio-das1602/16",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
 	ai_speed:	10000,
@@ -446,7 +516,7 @@ static struct das16_board_struct das16_boards[]={
 	size:		0x408,
 	},
 	{
-	name:		"das16/330",	// ?
+	name:		"cio-das16/330",	// ?
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	3030,
@@ -466,17 +536,12 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/jr/ctr5", // ?
 	},
 	{
-	name:		"das16/m1/16",	// cio-das-m1-16.pdf ?
+	name:		"cio-das16/m1/16",	// cio-das-m1-16.pdf ?
 	},
 	{
-	name:		"das1601/12-p5",//
-	},
-	{
-	name:		"das1602/12-p5",//
-	},
 #endif
 };
-#define n_das16_boards ((sizeof(das16_boards))/(sizeof(das16_boards[0])))
+#define n_das16_boards ((sizeof(das16_boards))/(sizeof(das16_board)))
 
 static int das16_attach(comedi_device *dev,comedi_devconfig *it);
 static int das16_detach(comedi_device *dev);
@@ -485,12 +550,9 @@ comedi_driver driver_das16={
 	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
-/* Trying to autodetect boards isn't good enough, this has to go back */
-#if 0
 	board_name:	das16_boards,
 	num_names:	n_das16_boards,
 	offset:		sizeof(das16_boards[0]),
-#endif
 };
 
 
@@ -991,37 +1053,11 @@ static void reg_dump(comedi_device *dev)
 }
 #endif
 
-static int detect_ao(comedi_device *dev)
-{
-	int in_aa;
-	int in_55;
-
-	outb(0xaa,dev->iobase+DAS16_AO_LSB(0));
-	in_aa = inb(dev->iobase+DAS16_AO_LSB(0));
-
-	outb(0x55,dev->iobase+DAS16_AO_LSB(0));
-	in_55 = inb(dev->iobase+DAS16_AO_LSB(0));
-
-	printk("detect_ao: 0xaa -> 0x%02x, 0x55 -> 0x%02x\n",in_aa,in_55);
-
-	if((in_aa == 0xaa) && (in_55 == 0x55)){
-		printk("possibly 16 bit ao?\n");
-	}
-
-	if(((in_aa & 0xf0) == 0xa0) && ((in_55 & 0xf0) == 0x50)){
-		printk("ao test positive\n");
-		return 1;
-	}
-
-	printk("ao test negative\n");
-
-	return 0;
-}
-
 static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 {
 	int status;
 	int diobits;
+	int board_index = thisboard - das16_boards;
 
 	/* status is available on all boards */
 
@@ -1046,42 +1082,43 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 	printk(" diobits 0x%02x",diobits);
 	switch(diobits){
 	case 0x80:
-		printk(" das16 or das16/f");
-		if(it->options[3])
-			devpriv->clockbase = 1000 / it->options[3];
-		else
-			devpriv->clockbase = 1000;	// 1 MHz default
-		return das16_board_das16;
+		printk(" das16\n");
+		if(board_index == das16_board_das16 ||
+			board_index == das16_board_das16g ||
+			board_index == das16_board_das16f)
+			return 0;
+		break;
 	case 0x00:
-		printk(" das16jr or das16/330");
-		if(it->options[3])
-			devpriv->clockbase = 1000 / it->options[3];
-		else
-			devpriv->clockbase = 1000;	// 1 MHz default
-		/* the 330 has ao, 16jr does not */
-
-		/* we can write the low 4 bits without updating DAC */
-		if(detect_ao(dev)){
-			return das16_board_das16_330;
-		}else{
-			return das16_board_das16jr;
-		}
+		printk(" das16jr or das16/330\n");
+		if(board_index == das16_board_ciodas16jr ||
+			board_index == das16_board_ciodas16_330)
+			return 0;
+		break;
 	case 0xC0:
-		printk(" das1600\n");
-		das1600_mode_detect(dev);
-		return das16_board_das1601_12;
-	case 0xE0:
-		printk(" das1400\n");
-		das1600_mode_detect(dev);
-		return das16_board_das1401_12;
+		printk(" das1600 or das1400\n");
+		if(board_index == das16_board_das1401 ||
+			board_index == das16_board_das1402 ||
+			board_index == das16_board_das1601 ||
+			board_index == das16_board_das1602 ||
+			board_index == das16_board_ciodas1601_12 ||
+			board_index == das16_board_ciodas1602_12 ||
+			board_index == das16_board_ciodas1602_16 ||
+			board_index == das16_board_ciodas1401_12 ||
+			board_index == das16_board_ciodas1402_12 ||
+			board_index == das16_board_ciodas1402_16)
+			return 0;
+		break;
 	case 0x20:
 		printk(" das1200\n");
-		das1600_mode_detect(dev);
-		return das16_board_das1201;
+		if(board_index == das16_board_das1201 ||
+			board_index == das16_board_das1202)
+			return 0;
+		break;
 	default:
 		printk(" unknown board\n");
 		return -1;
 	}
+	return -1;
 }
 
 static int das1600_mode_detect(comedi_device *dev)
@@ -1138,9 +1175,6 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(struct das16_private_struct)))<0)
 		return ret;
 
-	dev->board_ptr = das16_boards + das16_probe(dev, it);
-	dev->board_name = thisboard->name;
-
 	if(thisboard->size<0x400){
 		printk(" 0x%04x-0x%04x\n", iobase, iobase+thisboard->size);
 		if(check_region(iobase,thisboard->size)<0){
@@ -1164,7 +1198,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		}
 	}
 
-	if(thisboard->size<0x400){
+	if(thisboard->size < 0x400){
 		request_region(iobase,thisboard->size,"das16");
 	}else{
 		request_region(iobase,0x10,"das16");
@@ -1172,6 +1206,26 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	dev->iobase = iobase;
+
+	// probe id bits to make sure they are consistent
+	if(das16_probe(dev, it))
+	{
+		printk("id bits do not match selected board, aborting\n");
+		return -EINVAL;
+	}
+	dev->board_name = thisboard->name;
+
+	// get master clock speed
+	if(thisboard->size < 0x400)
+	{
+		if(it->options[3])
+			devpriv->clockbase = 1000 / it->options[3];
+		else
+			devpriv->clockbase = 1000;	// 1 MHz default
+	}else
+	{
+		das1600_mode_detect(dev);
+	}
 
 	/* now for the irq */
 	irq=it->options[1];
