@@ -464,7 +464,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	DPRINTK("mio_cs_attach(dev=%p,it=%p)\n",dev,it);
 
 	link = dev_list; /* XXX hack */
-	if(!link)return 0;
+	if(!link)return -EIO;
 
 	dev->driver=&driver_ni_mio_cs;
 	dev->iobase=link->io.BasePort1;
@@ -558,14 +558,14 @@ int init_module(void)
 {
 	servinfo_t serv;
 
-	comedi_driver_register(&driver_ni_mio_cs);
 	CardServices(GetCardServicesInfo, &serv);
 	if(serv.Revision != CS_RELEASE_CODE){
 		printk(KERN_NOTICE "mio_cs: Card Services release "
 			"does not match!\n");
-		return -1;
+		//return -EPERM; /* XXX what to return? */
 	}
 	register_pccard_driver(&dev_info, &cs_attach, &cs_detach);
+	comedi_driver_register(&driver_ni_mio_cs);
 	return 0;
 }
 
