@@ -295,7 +295,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase, RTI800_SIZE, "rti800");
+	request_region(iobase, RTI800_SIZE, "rti800");
 	dev->iobase = iobase;
 
 #ifdef DEBUG
