@@ -132,6 +132,10 @@ add analog out support
 
 #define CALIBRATION	6	// CALIBRATION register
 
+#define DAC_CSR	0x8	// dac control and status register
+#define   DACEN	0x2	// dac enable
+#define   DAC_RANGE(channel, range)	(((range) & 0x3) << (8 + 2 * channel) )	// dac range
+
 /* ADC data, FIFO clear registers */
 #define ADCDATA	0	// ADC DATA register
 #define ADCFIFOCLR	2	// ADC FIFO CLEAR
@@ -140,8 +144,12 @@ add analog out support
 #define ADC8254 0
 #define DIO_8255 4
 
-// bit in hexadecimal representation of range index that indicates unipolar range
+// analog output registers
+#define DAC_DATA_REG(channel)	((channel) & 0x1)
+
+// bit in hexadecimal representation of range index that indicates unipolar input range
 #define IS_UNIPOLAR 0x4
+// analog input ranges for most boards
 comedi_lrange cb_pcidas_ranges =
 {
 	8,
@@ -157,6 +165,7 @@ comedi_lrange cb_pcidas_ranges =
 	}
 };
 
+// pci-das1001 input ranges
 comedi_lrange cb_pcidas_alt_ranges =
 {
 	8,
@@ -169,6 +178,18 @@ comedi_lrange cb_pcidas_alt_ranges =
 		UNI_RANGE(1),
 		UNI_RANGE(0.1),
 		UNI_RANGE(0.01)
+	}
+};
+
+// analog output ranges
+comedi_lrange cb_pcidas_ao_ranges =
+{
+	4,
+	{
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(10),
 	}
 };
 
@@ -239,7 +260,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	{
 		name:		"pci-das1602/16/jr",
 		device_id:	0x1C,
-		ai_se_chans:	64,
+		ai_se_chans:	16,
 		ai_diff_chans:	8,
 		ai_bits:	16,
 		ai_speed: 5000,
@@ -315,6 +336,7 @@ typedef struct
 	volatile unsigned int count;	//number of samples remaining
 	unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
 	unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
+	int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 } cb_pcidas_private;
 
 /*
@@ -339,7 +361,8 @@ comedi_driver driver_cb_pcidas={
 };
 
 static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-//static int cb_pcidas_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int cb_pcidas_ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
@@ -442,7 +465,8 @@ found:
 		devpriv->pci_dev->base_address[AO_BADRINDEX] &
 		PCI_BASE_ADDRESS_IO_MASK;
 #else
-	pci_enable_device(devpriv->pci_dev);
+	if(pci_enable_device(devpriv->pci_dev))
+		return -EIO;
 	s5933_config =
 		devpriv->pci_dev->resource[S5933_BADRINDEX].start &
 		PCI_BASE_ADDRESS_IO_MASK;
@@ -529,8 +553,21 @@ found:
 	s = dev->subdevices + 1;
 	if(thisboard->ao_nchan)
 	{
-		// XXX todo: support analog output
-		s->type = COMEDI_SUBD_UNUSED;
+		if(thisboard->has_ao_fifo)
+		{
+			// XXX todo: support fancy analog output
+			s->type = COMEDI_SUBD_UNUSED;
+		}else
+		{
+			s->type = COMEDI_SUBD_AO;
+			s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+			s->n_chan = thisboard->ao_nchan;
+			// ao_bits is the same as ai_bits
+			s->maxdata = (1 << thisboard->ai_bits) - 1;
+			s->range_table = &cb_pcidas_ao_ranges;
+			s->insn_write = cb_pcidas_ao_nofifo_winsn;
+			s->insn_read = cb_pcidas_ao_readback_insn;
+		}
 	}else
 	{
 		s->type = COMEDI_SUBD_UNUSED;
@@ -638,6 +675,35 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 
 	/* return the number of samples read/written */
 	return n;
+}
+
+// analog output insn for pcidas-1000 and 1200 series
+static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int bits, channel;
+
+	// set channel and range
+	channel = CR_CHAN(insn->chanspec);
+	bits = DACEN;
+	bits |= DAC_RANGE(channel, CR_RANGE(insn->chanspec));
+	outw(bits, devpriv->control_status + DAC_CSR);
+
+	// remember value for readback
+	devpriv->ao_value[channel] = data[0];
+	// send data
+	outw(data[0], devpriv->ao_registers + DAC_DATA_REG(channel));
+
+	return 1;
+}
+
+// analog output readback insn
+static int cb_pcidas_ao_readback_insn(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
+
+	return 1;
 }
 
 static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
