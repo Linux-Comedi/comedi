@@ -75,6 +75,8 @@ obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 
 obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
 
+obj-$(CONFIG_COMEDI_RT_TIMER)		+= comedi_rt_timer.o
+
 #obj-m += $(obj-y)
 
 O_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
