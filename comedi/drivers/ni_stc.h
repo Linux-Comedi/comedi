@@ -568,10 +568,7 @@
 */
 
 enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x };
-extern struct caldac_struct caldac_mb88341,
-	caldac_dac8800,
-	caldac_dac8043,
-	caldac_ad8522;
+enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522 };
 
 typedef struct ni_board_struct{
 	int device_id;
@@ -597,7 +594,7 @@ typedef struct ni_board_struct{
 
 	int has_analog_trig : 1;
 
-	struct caldac_struct **caldac;
+	enum caldac_enum caldac[3];
 }ni_board;
 
 static ni_board ni_boards[];

@@ -73,9 +73,6 @@ See the notes in the ni_atmio.o driver.
 
 #define NI_SIZE 0x20
 
-static struct caldac_struct *type1[]={&caldac_mb88341,NULL,NULL};
-static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,NULL};
-
 #define MAX_N_CALDACS 12
 
 static ni_board ni_boards[]={
@@ -92,7 +89,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		type2,
+		caldac:		{dac8800,dac8043},
 	},
 	{	device_id:	0x010c,
 		name:		"DAQCard-ai-16e-4",
@@ -107,7 +104,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		type1, /* or ad8804 */
+		caldac:		{mb88341}, /* or ad8804 */
 	},
 	{	device_id:	0x02c4,
 		name:		"DAQCard-6062E",
@@ -122,7 +119,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		type2,
+		caldac:		{dac8800,dac8043},
 	},
 	{	device_id:	0x075e,
 		name:		"DAQCard-6024E", /* specs incorrect! */
@@ -137,7 +134,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		type2,
+		caldac:		{dac8800,dac8043},
 	},
 };
 

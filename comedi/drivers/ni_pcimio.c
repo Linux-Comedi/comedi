@@ -109,11 +109,6 @@ DMA is halfway completed, but not yet operational.
 #define PCIMIO 1
 #undef ATMIO
 
-static struct caldac_struct *type1[]={&caldac_dac8800,&caldac_dac8043,NULL};
-static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,&caldac_ad8522};
-static struct caldac_struct *type3[]={&caldac_mb88341,NULL,NULL};
-static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad8522};
-
 #define MAX_N_CALDACS (16+16+2)
 
 #define NI_VENDOR_ID 0x1093
@@ -162,7 +157,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    0,
-		caldac:         type1,
+		caldac:         {dac8800,dac8043},
 		has_8255:       0,
 	},
 	{       device_id:      0x1170,
@@ -177,7 +172,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
-		caldac:         type2,
+		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
 	{       device_id:      0x11d0,
@@ -192,7 +187,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
-		caldac:         type2,
+		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
 
@@ -208,7 +203,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:       0,
 	},
 	{       device_id:      0x1190,
@@ -223,7 +218,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  512,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:       0,
 	},
 	{       device_id:      0x11c0,
@@ -238,7 +233,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  512,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:       0,
 	},
 
@@ -254,7 +249,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
-		caldac:         type2,
+		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
 	{       device_id:      0x1270,
@@ -269,7 +264,7 @@ static ni_board ni_boards[]={
 		aobits:         0,
 		ao_fifo_depth:  0,
 		ao_unipolar:    1,
-		caldac:         type2,
+		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
 	{       device_id:      0x1340,
@@ -284,7 +279,7 @@ static ni_board ni_boards[]={
 		aobits:         0,
 		ao_fifo_depth:  0,
 		ao_unipolar:    1,
-		caldac:         type2,
+		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
 	{       device_id:      0x1350,
@@ -299,7 +294,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:       0,
 	},
 	{       device_id:      0x2a60,
@@ -313,7 +308,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_unipolar:    0,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	0,
 	},
 	{       device_id:      0x2a70,
@@ -328,7 +323,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	0,
 	},
 	{       device_id:      0x2a80,
@@ -343,7 +338,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	1,
 	},
 	{       device_id:      0x2ab0,
@@ -358,7 +353,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    1,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	1,
 	},
 
@@ -374,7 +369,7 @@ static ni_board ni_boards[]={
 		aobits:         0,
 		ao_fifo_depth:  0,
 		ao_unipolar:    0,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	0,
 	},
 	{       device_id:      0x2c80,
@@ -389,7 +384,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_fifo_depth:  0,
 		ao_unipolar:    0,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	0,
 	},
 	{       device_id:      0x18b0,
@@ -404,9 +399,9 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
-		caldac:         type4,
+		caldac:         {mb88341,mb88341,ad8522},
 	},
-	{       device_id:      0x14e0,		/* unknown */
+	{       device_id:      0x14e0,
 		name:           "pci-6110e",
 		n_adchan:       4, 
 		adbits:         12,
@@ -417,9 +412,9 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
-		caldac:         type4,		/* XXX */
+		caldac:         {mb88341,mb88341,ad8522},/* XXX */
 	},
-	{       device_id:      0x14f0,		/* unknown */
+	{       device_id:      0x14f0,
 		name:           "pci-6111e",
 		n_adchan:       2,
 		adbits:         12,
@@ -431,7 +426,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
-		caldac:         type4,		/* XXX */
+		caldac:         {mb88341,mb88341,ad8522},/* XXX */
 	},
 	{       device_id:      0x1880,
 		name:           "pci-6711",
@@ -445,7 +440,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
-		caldac:         type4,		/* XXX */
+		caldac:         {mb88341,mb88341,ad8522},/* XXX */
 	},
 	{       device_id:      0x1870,
 		name:           "pci-6713",
@@ -459,7 +454,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
-		caldac:         type4,		/* XXX */
+		caldac:         {mb88341,mb88341,ad8522},/* XXX */
 	},
         {       device_id:      0x15b0,
                 name:           "pxi-6071e",
@@ -473,7 +468,7 @@ static ni_board ni_boards[]={
                 aobits:         12,
                 ao_fifo_depth:  2048,
                 ao_unipolar:    1,
-                caldac:         type3,
+		caldac:         {mb88341},
                 has_8255:       0,
         },
 
@@ -489,7 +484,7 @@ static ni_board ni_boards[]={
                 aobits:         12,
                 ao_fifo_depth:  2048,
                 ao_unipolar:    1,
-                caldac:         type3,
+		caldac:         {mb88341},
                 has_8255:       0,
         },
  	{	device_id:      0x18c0,
@@ -504,7 +499,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
-		caldac:         type4,
+		caldac:         {mb88341,mb88341,ad8522},
 	},
  	{	device_id:      0x1580,
 		name:           "pxi-6031e",
@@ -518,7 +513,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  2048,
 		ao_unipolar:    1,
-		caldac:         type2,
+		caldac:         {dac8800,dac8043,ad8522},
 	},
 	{       device_id:      0x2890,
 		name:           "pci-6036e",
@@ -532,7 +527,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  0,
 		ao_unipolar:    0,
-		caldac:         type3,
+		caldac:         {mb88341},
 		has_8255:	0,
 	},
 };

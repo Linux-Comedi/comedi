@@ -108,9 +108,6 @@ External triggering is supported for some events.  The channel index
 
 #define NI_SIZE 0x20
 
-static struct caldac_struct *type1[]={&caldac_mb88341,NULL,NULL};
-static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,NULL};
-
 #define MAX_N_CALDACS 12
 
 static ni_board ni_boards[]={
@@ -127,7 +124,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		caldac:		type1,
+		caldac:		{mb88341},
 	},
 	{	device_id:	25,
 		name:		"at-mio-16e-2",
@@ -142,7 +139,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		caldac:		type1,
+		caldac:		{mb88341},
 	},
 	{	device_id:	36,
 		name:		"at-mio-16e-10",
@@ -156,7 +153,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
-		caldac:		type1,
+		caldac:		{mb88341},
 		has_8255:	0,
 	},
 	{	device_id:	37,
@@ -171,7 +168,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
-		caldac:		type1,
+		caldac:		{mb88341},
 		has_8255:	1,
 	},
 	{	device_id:	38,
@@ -187,7 +184,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		caldac:		type1,
+		caldac:		{mb88341},
 	},
 	{	device_id:	39,
 		name:		"at-mio-16xe-50",
@@ -201,7 +198,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
-		caldac:		type2,
+		caldac:		{dac8800,dac8043},
 		has_8255:	0,
 	},
 	{	device_id:	50,
@@ -216,7 +213,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,	/* unknown */
 		ao_unipolar:	0,	/* unknown */
-		caldac:		type2,
+		caldac:		{dac8800,dac8043},
 		has_8255:	0,
 	},
 	{	device_id:	51,
@@ -232,7 +229,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		aorangelkup:	0,
 		ao_unipolar:	0,
-		caldac:		type2,
+		caldac:		{dac8800,dac8043},
 		has_8255:	0,
 	}
 };

@@ -2200,9 +2200,7 @@ static int ni_calib_insn_read(comedi_device *dev,comedi_subdevice *s,
 static int pack_mb88341(int addr,int val,int *bitstring);
 static int pack_dac8800(int addr,int val,int *bitstring);
 static int pack_dac8043(int addr,int val,int *bitstring);
-#ifdef PCIMIO
 static int pack_ad8522(int addr,int val,int *bitstring);
-#endif
 
 struct caldac_struct{
 	int n_chans;
@@ -2210,13 +2208,12 @@ struct caldac_struct{
 	int (*packbits)(int,int,int *);
 };
 
-static struct caldac_struct caldac_mb88341={ 12, 8, pack_mb88341 };
-static struct caldac_struct caldac_dac8800={ 8, 8, pack_dac8800 };
-static struct caldac_struct caldac_dac8043={ 1, 12, pack_dac8043 };
-#ifdef PCIMIO
-static struct caldac_struct caldac_ad8522={ 2, 12, pack_ad8522 };
-#endif
-
+static struct caldac_struct caldacs[] = {
+	[mb88341] = { 12, 8, pack_mb88341 },
+	[dac8800] = { 8, 8, pack_dac8800 },
+	[dac8043] = { 1, 12, pack_dac8043 },
+	[ad8522]  = { 2, 12, pack_ad8522 },
+};
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 {
@@ -2225,13 +2222,16 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 	int n_chans=0;
 	int n_bits;
 	int diffbits=0;
+	int type;
 	
-	if(!boardtype.caldac[0])return;
-	n_bits=boardtype.caldac[0]->n_bits;
+	type = boardtype.caldac[0];
+	if(type==caldac_none)return;
+	n_bits=caldacs[type].n_bits;
 	for(i=0;i<3;i++){
-		if(!boardtype.caldac[i])break;
-		if(boardtype.caldac[i]->n_bits!=n_bits)diffbits=1;
-		n_chans+=boardtype.caldac[i]->n_chans;
+		type = boardtype.caldac[i];
+		if(type==caldac_none)break;
+		if(caldacs[type].n_bits!=n_bits)diffbits=1;
+		n_chans+=caldacs[type].n_chans;
 	}
 	n_dacs=i;
 	s->n_chan=n_chans;
@@ -2245,30 +2245,37 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 		s->maxdata_list=devpriv->caldac_maxdata_list;
 		chan=0;
 		for(i=0;i<n_dacs;i++){
-			for(j=0;j<boardtype.caldac[i]->n_chans;j++){
+			type = boardtype.caldac[i];
+			for(j=0;j<caldacs[type].n_chans;j++){
 				s->maxdata_list[chan]=
-					(1<<boardtype.caldac[i]->n_bits)-1;
+					(1<<caldacs[type].n_bits)-1;
 				chan++;
 			}
 		}
 	}else{
-		s->maxdata=(1<<boardtype.caldac[0]->n_bits)-1;
+		type = boardtype.caldac[0];
+		s->maxdata=(1<<caldacs[type].n_bits)-1;
 	}
 }
 
 static void ni_write_caldac(comedi_device *dev,int addr,int val)
 {
-	int loadbit=0,bits=0,bit,bitstring=0;
+	unsigned int loadbit=0,bits=0,bit,bitstring=0;
 	int i;
+	int type;
 	
+	//printk("ni_write_caldac: chan=%d val=%d\n",addr,val);
+
 	for(i=0;i<3;i++){
-		if(!boardtype.caldac[i])return;
-		if(addr<boardtype.caldac[i]->n_chans){
-			bits=boardtype.caldac[i]->packbits(addr,val,&bitstring);
+		type = boardtype.caldac[i];
+		if(type==caldac_none)break;
+		if(addr<caldacs[type].n_chans){
+			bits=caldacs[type].packbits(addr,val,&bitstring);
 			loadbit=SerDacLd(i);
+			//printk("caldac: using i=%d addr=%d %x\n",i,addr,bitstring);
 			break;
 		}
-		addr-=boardtype.caldac[i]->n_chans;
+		addr-=caldacs[type].n_chans;
 	}
 
 	for(bit=1<<(bits-1);bit;bit>>=1){
@@ -2313,13 +2320,11 @@ static int pack_dac8043(int addr,int val,int *bitstring)
 	return 12;
 }
 	
-#ifdef PCIMIO
 static int pack_ad8522(int addr,int val,int *bitstring)
 {
 	*bitstring=(val&0xfff)|(addr ? 0xc000:0xa000);
 	return 16;
 }
-#endif
 
 
 
