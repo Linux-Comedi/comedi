@@ -357,7 +357,8 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 {
 #ifdef __ISAPNP__
 	struct pci_dev *isapnp_dev = NULL;
-
+	int i;
+	
 	for( i = 0; i < n_ni_boards; i++ )
 	{
 		isapnp_dev = isapnp_find_dev(NULL,
