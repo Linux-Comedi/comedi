@@ -35,34 +35,10 @@ Status: works, cio-das802/16 untested - email me if you have tested it
 Configuration options:
   [0] - I/O port base address
   [1] - IRQ (optional, required for timed or externally triggered conversions)
-*/
-/*
 
-This driver supports the Keithley boards:
-das-800
-das-801
-das-802
+Notes:
+	IRQ can be omitted, although the cmd interface will not work without it.
 
-and Measurement Computing (Computer Boards) models:
-cio-das800
-cio-das801
-cio-das802
-cio-das802/16
-
-Options:
-	[0] - base io address
-	[1] - irq
-
-irq can be omitted, although the cmd interface will not work without it.
-
-cmd triggers supported:
-	start_src:      TRIG_NOW | TRIG_EXT
-	scan_begin_src: TRIG_FOLLOW
-	scan_end_src:   TRIG_COUNT
-	convert_src:    TRIG_TIMER | TRIG_EXT
-	stop_src:       TRIG_NONE | TRIG_COUNT
-
-NOTES:
 	All entries in the channel/gain list must use the same gain and be
 	consecutive channels counting upwards in channel number (these are
 	hardware limitations.)
@@ -72,6 +48,16 @@ NOTES:
 
 	The cio-das802/16 does not have a fifo-empty status bit!  Therefore
 	only fifo-half-full transfers are possible with this card.
+*/
+/*
+
+cmd triggers supported:
+	start_src:      TRIG_NOW | TRIG_EXT
+	scan_begin_src: TRIG_FOLLOW
+	scan_end_src:   TRIG_COUNT
+	convert_src:    TRIG_TIMER | TRIG_EXT
+	stop_src:       TRIG_NONE | TRIG_COUNT
+
 
 */
 

@@ -66,22 +66,6 @@ triggered conversions.
 
 Testing and debugging help provided by Daniel Koch.
 
-Options:
-	[0] - base io address
-	[1] - irq (optional)
-	[2] - dma (optional)
-	[3] - master clock speed in MHz (optional, 1 or 10, ignored if board
-		can probe clock speed, defaults to 1 otherwise)
-	[4] - analog input range lowest in microvolts (optional, only useful if your
-		board does not have software programmable gain)
-	[5] - analog input range highest in microvolts (optional, only useful if your
-		board does not have software programmable gain)
-	[6] - analog output range lowest in microvolts (optional)
-	[7] - analog output range highest in microvolts (optional)
-
-Both an irq line and dma channel are required for timed or externally
-triggered conversions.
-
 Keithley Manuals:
 	2309.PDF (das16)
 	4923.PDF (das1200, 1400, 1600)
