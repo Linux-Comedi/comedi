@@ -1,7 +1,7 @@
 
 expsyms(comedi_ksyms.o)
 
-objlink(comedi.o comedi_fops.o proc.o range.o drivers.o kvmem.o comedi_ksyms.o)
+objlink(comedi.o comedi_fops.o proc.o range.o drivers.o comedi_ksyms.o)
 
 ifsel(CONFIG_COMEDI_RT)
   objlink(comedi.o rt_pend_tq.o rt.o)

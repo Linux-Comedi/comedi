@@ -37,13 +37,14 @@
 #include <linux/poll.h>
 #include <linux/init.h>
 #include <linux/devfs_fs_kernel.h>
+#include <linux/vmalloc.h>
 
 #include <linux/comedidev.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#include "kvmem.h"
+//#include "kvmem.h"
 
 MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi core module");
@@ -1199,16 +1200,20 @@ static struct vm_operations_struct comedi_vm_ops={
 };
 /*
    comedi_mmap_v22
-
-   issues:
-      what happens when the underlying buffer gets changed?
-
  */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
+#define page_address(x) x
+#endif
+
 static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 {
 	kdev_t minor=MINOR(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 	comedi_async *async = NULL;
+	unsigned long pos;
+	unsigned long start = vma->vm_start;
+	unsigned long size;
+	unsigned long page;
 
 	if(!dev->attached)
 	{
@@ -1225,20 +1230,38 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
+#if LINUX_VERSION_CODE < 0x020300
 	if(vma->vm_offset != 0){
-#else
-	if(vma->vm_pgoff != 0){
-#endif
 		DPRINTK("comedi: mmap() offset must be 0.\n");
 		return -EINVAL;
 	}
+#else
+	if(vma->vm_pgoff != 0){
+		DPRINTK("comedi: mmap() offset must be 0.\n");
+		return -EINVAL;
+	}
+#endif
 
-	rvmmap(async->prealloc_buf,async->prealloc_bufsz,vma);
+	size = vma->vm_end - vma->vm_start;
+	if(size>=async->prealloc_bufsz)
+		return -EFAULT;
+	if(size&(~PAGE_MASK))
+		return -EFAULT;
 
-	//vma->vm_file = file;
+	pos = (unsigned long)async->prealloc_buf;
+	while(size>0){
+		page = kvirt_to_pa(pos);
+		if(remap_page_range(start, page, PAGE_SIZE, PAGE_SHARED)){
+			return -EAGAIN;
+		}
+
+		pos += PAGE_SIZE;
+		start += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+
 	vma->vm_ops = &comedi_vm_ops;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
+#if LINUX_VERSION_CODE < 0x020300
 	(void *)vma->vm_pte = async;
 #else
 	vma->vm_private_data = async;

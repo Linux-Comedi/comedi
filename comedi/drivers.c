@@ -33,10 +33,11 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/comedidev.h>
+#include <linux/wrapper.h>
 
 #include <asm/io.h>
 
-#include "kvmem.h"
+//#include "kvmem.h"
 
 static int postconfig(comedi_device *dev);
 static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
@@ -375,15 +376,41 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	}
 
 	if(async->prealloc_bufsz){
-		rvfree(async->prealloc_buf, async->prealloc_bufsz);
+		unsigned long adr, size;
+		unsigned long page;
+
+		size = async->prealloc_bufsz;
+		adr = (unsigned long)async->prealloc_buf;
+		while(size>0){
+			page = kvirt_to_pa(adr);
+			mem_map_unreserve(virt_to_page(__va(page)));
+			adr += PAGE_SIZE;
+			size -= PAGE_SIZE;
+		}
+
+		vfree(async->prealloc_buf);
 		async->prealloc_buf = NULL;
 	}
 
 	if(new_size){
-		async->prealloc_buf = rvmalloc(new_size);
+		unsigned long adr;
+		unsigned long size;
+		unsigned long page;
+
+		async->prealloc_buf = vmalloc_32(new_size);
 		if(async->prealloc_buf == NULL){
 			async->prealloc_bufsz = 0;
 			return -ENOMEM;
+		}
+		memset(async->prealloc_buf,0,new_size);
+
+		adr = (unsigned long)async->prealloc_buf;
+		size = new_size;
+		while(size > 0){
+			page = kvirt_to_pa(adr);
+			mem_map_reserve(virt_to_page(__va(page)));
+			adr += PAGE_SIZE;
+			size -= PAGE_SIZE;
 		}
 	}
 	async->prealloc_bufsz = new_size;
