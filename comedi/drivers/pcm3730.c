@@ -8,6 +8,7 @@ Driver: pcm3730.o
 Description: PCM3730
 Author: Blaine Lee
 Devices: [Advantech] PCM-3730 (pcm3730)
+Status: unknown
 
 Configuration options:
   [0] - I/O port base

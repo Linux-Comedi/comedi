@@ -8,6 +8,7 @@ Driver: fl512.o
 Description: unknown
 Author: unknown
 Devices: [unknown] FL512 (fl512)
+Status: unknown
 
 Digital I/O is not supported.
 

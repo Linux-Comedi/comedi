@@ -24,6 +24,7 @@
 /*
 Driver: serial2002.o
 Description: Driver for serial connected hardware
+Devices:
 Author: Anders Blomdell
 Updated: Fri,  7 Jun 2002 12:56:45 -0700
 Status: in development

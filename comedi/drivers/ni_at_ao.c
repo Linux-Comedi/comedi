@@ -24,9 +24,12 @@
 Driver: ni_at_ao.o
 Description: National Instruments AT-AO-6/10
 Devices: [National Instruments] AT-AO-6 (at-ao-6), AT-AO-10 (at-ao-10)
+Status: untested
 Author: ds
+Updated: Fri,  7 Jun 2002 13:20:30 -0700
 
-20
+This driver has not been tested, but should work.
+
 */
 /*
  * Register-level programming information can be found in NI

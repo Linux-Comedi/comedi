@@ -127,6 +127,8 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 			dev->iobase = pci_resource_start ( pcidev, 0 );
 			printk ( " base addr %x ", dev->iobase );
 
+			dev->board_ptr = contec_boards + 0;
+
 			s=dev->subdevices+0;
 
 			s->type = COMEDI_SUBD_DI;
