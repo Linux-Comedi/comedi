@@ -1,0 +1,106 @@
+Advantech			ACL-8112-DG			pcl711
+Advantech			ACL-8112-HG			pcl711
+Advantech			PCL-711				pcl711
+Advantech			PCL-711B			pcl711
+Advantech			PCL-718				pcl818
+Advantech			PCL-725				pcl725
+Advantech			PCL-726				pcl726
+Advantech			PCL-812PG			pcl812
+Advantech			PCL-813B			pcl812
+Advantech			PCL-818				pcl818
+Advantech			PCL-818H			pcl818
+Advantech			PCL-818HD			pcl818
+Advantech			PCL-818HG			pcl818
+Advantech			PCL-818L			pcl818
+Analog Devices			RTI800				rti800
+Analog Devices			RTI802				rti802
+Analog Devices			RTI815				rti800
+ComputerBoards			CIO-DAS08			das08
+ComputerBoards			CIO-DAS08-AOH			das08
+ComputerBoards			CIO-DAS08-AOL			das08
+ComputerBoards			CIO-DAS08-AOM			das08
+ComputerBoards			CIO-DAS08-PGH			das08
+ComputerBoards			CIO-DAS08-PGL			das08
+ComputerBoards			CIO-DAS08-PGM			das08
+ComputerBoards			CIO-DAS08/F			das08
+ComputerBoards			CIO-DAS08/JR			das08
+ComputerBoards			CIO-DAS08/JR-16-AO		das08
+ComputerBoards			CIO-DAS08/JR-AO			das08
+ComputerBoards			CIO-DAS08/JR-AO			das08jr
+ComputerBoards			CIO-DAS08/JR/16			das08
+Data Translation		DT21-EZ				dt282x
+Data Translation		DT23-EZ				dt282x
+Data Translation		DT24-EZ				dt282x
+Data Translation		DT24-EZ-PGL			dt282x
+Data Translation		DT2801				dt2801
+Data Translation		DT2801-A			dt2801
+Data Translation		DT2801/5716A			dt2801
+Data Translation		DT2805				dt2801
+Data Translation		DT2805/5716A			dt2801
+Data Translation		DT2808				dt2801
+Data Translation		DT2809				dt2801
+Data Translation		DT2811				dt2811
+Data Translation		DT2814				dt2814
+Data Translation		DT2815				dt2815
+Data Translation		DT2817				dt2817
+Data Translation		DT2818				dt2801
+Data Translation		DT2821				dt282x
+Data Translation		DT2823				dt282x
+Data Translation		DT2824-PGH			dt282x
+Data Translation		DT2824-PGL			dt282x
+Data Translation		DT2825				dt282x
+Data Translation		DT2827				dt282x
+Data Translation		DT2828			*	dt282x
+Data Translation		DT3001				dt3000
+Data Translation		DT3001-PGL			dt3000
+Data Translation		DT3002				dt3000
+Data Translation		DT3003				dt3000
+Data Translation		DT3003-PGL			dt3000
+Data Translation		DT3004				dt3000
+Data Translation		DT3005				dt3000
+Generic				8255				8255
+Generic				PC parallel port		comedi_parport
+IOtech				DAQBoard/2000			daqboard2000
+Intelligent Instrumentation	PCI-20001 C-2A		*	ii_pci20kc
+Intelligent Instrumentation	PCI-20006 M-2		*	ii_pci20kc
+Intelligent Instrumentation	PCI-20341 M-1A		*	ii_pci20kc
+Keithley Metrabyte		DAS-1601		*	das1600
+Keithley Metrabyte		DAS-1602		*	das1600
+Keithley Metrabyte		DAS-8				das08
+Keithley Metrabyte		DAS-8/AO			das08
+Keithley Metrabyte		DAS-8PGA			das08
+Keithley Metrabyte		DAS-8PGA/G2		*	das08
+National Instruments		AT-AI-16XE-10			ni_atmio
+National Instruments		AT-MIO-16D			ni_atmio16d
+National Instruments		AT-MIO-16DE-10			ni_atmio
+National Instruments		AT-MIO-16E-1			ni_atmio
+National Instruments		AT-MIO-16E-10			ni_atmio
+National Instruments		AT-MIO-16E-2			ni_atmio
+National Instruments		AT-MIO-16XE-10			ni_atmio
+National Instruments		AT-MIO-16XE-50			ni_atmio
+National Instruments		AT-MIO-64E-3			ni_atmio
+National Instruments		DAQCard-AI-16E-4	*	ni_mio_cs
+National Instruments		DAQCard-AI-16XE-50		ni_mio_cs
+National Instruments		PCI-6023E			ni_pcimio
+National Instruments		PCI-6024E			ni_pcimio
+National Instruments		PCI-6025E			ni_pcimio
+National Instruments		PCI-6031E			ni_pcimio
+National Instruments		PCI-6032E			ni_pcimio
+National Instruments		PCI-6033E			ni_pcimio
+National Instruments		PCI-6034E			ni_pcimio
+National Instruments		PCI-6035E			ni_pcimio
+National Instruments		PCI-6040E			ni_pcimio
+National Instruments		PCI-6041E			ni_pcimio
+National Instruments		PCI-6052E			ni_pcimio
+National Instruments		PCI-6071E			ni_pcimio
+National Instruments		PCI-6110E			ni_pcimio
+National Instruments		PCI-6111E			ni_pcimio
+National Instruments		PCI-DIO-32HS			ni_pcidio
+National Instruments		PCI-DIO-6503			ni_pcidio
+National Instruments		PCI-DIO-6508			ni_pcidio
+National Instruments		PCI-DIO-96			ni_pcidio
+National Instruments		PCI-MIO-16E-1			ni_pcimio
+National Instruments		PCI-MIO-16E-4			ni_pcimio
+National Instruments		PCI-MIO-16XE-10			ni_pcimio
+National Instruments		PCI-MIO-16XE-50			ni_pcimio
+Quanser Consulting		MultiQ				multiq3
