@@ -53,6 +53,7 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 	dep_tristate '  AT-MIO E series' CONFIG_COMEDI_NI_ATMIO $CONFIG_COMEDI
 	if [ "$CONFIG_PCMCIA" = "y" -o "$CONFIG_PCMCIA" = "m" ];then
 		dep_tristate '  PCMCIA MIO E series' CONFIG_COMEDI_NI_MIO_CS $CONFIG_COMEDI
+		dep_tristate '  NI-DAQ-DIO24' CONFIG_COMEDI_NI_DAQ_DIO24 $CONFIG_COMEDI
 	fi
 	if [ "$CONFIG_PCI" = "y" ];then
 		dep_tristate '  PCI-MIO E series' CONFIG_COMEDI_NI_PCIMIO $CONFIG_COMEDI
@@ -69,9 +70,6 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 	dep_tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D $CONFIG_COMEDI
 	dep_tristate '  AT-A2150' CONFIG_COMEDI_NI_AT_A2150 $CONFIG_COMEDI
 	dep_tristate '  LAB-PC and compatibles' CONFIG_COMEDI_NI_LABPC $CONFIG_COMEDI
-	if [ "$CONFIG_PCMCIA" = "y" -o "$CONFIG_PCMCIA" = "m" ];then
-		dep_tristate '  NI-DAQ-DIO24' CONFIG_COMEDI_NI_DAQ_DIO24 $CONFIG_COMEDI
-	fi
 	dep_tristate '  AT-AO-6/10' CONFIG_COMEDI_NI_AT_AO $CONFIG_COMEDI
 fi
 
