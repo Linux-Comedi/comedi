@@ -103,6 +103,10 @@ int mite_setup(struct mite_struct *mite)
 	unsigned long			offset, start, length;
 	u32				addr;
 
+	if( pci_request_regions( mite->pcidev, "mite" ) ) {
+		printk("failed to request mite io regions\n");
+		return -EIO;
+	}; 
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
 		return -EIO;
@@ -166,6 +170,7 @@ void mite_unsetup(struct mite_struct *mite)
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr=NULL;
 	}
+	pci_release_regions( mite->pcidev );
 
 	mite->used = 0;
 }

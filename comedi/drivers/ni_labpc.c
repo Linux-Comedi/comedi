@@ -804,11 +804,13 @@ static int labpc_detach(comedi_device *dev)
 		kfree(devpriv->dma_buffer);
 	if(devpriv->dma_chan)
 		free_dma(devpriv->dma_chan);
-	if(thisboard->bustype != pcmcia_bustype &&
-		dev->iobase)
-		release_region(dev->iobase, LABPC_SIZE);
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
+	if(thisboard->bustype == isa_bustype &&
+		dev->iobase)
+		release_region(dev->iobase, LABPC_SIZE);
+	if( devpriv->mite )
+		mite_unsetup( devpriv->mite );
 
 	return 0;
 };
