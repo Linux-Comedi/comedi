@@ -1026,7 +1026,7 @@ typedef struct
 	// states of various devices stored to enable read-back
 	unsigned int ad8402_state[2];
 	unsigned int caldac_state[8];
-	volatile unsigned ai_cmd_running : 1;
+	volatile short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
 } pcidas64_private;
@@ -1164,6 +1164,9 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx interrupt status 0x%x\n", readl(plx_iobase + PLX_INTRCS_REG));
 	DEBUG_PRINT(" plx id bits 0x%x\n", readl(plx_iobase + PLX_ID_REG));
 	DEBUG_PRINT(" plx control reg 0x%x\n", priv(dev)->plx_control_bits);
+	DEBUG_PRINT(" plx mode/arbitration reg 0x%x\n", readl(plx_iobase + PLX_MARB_REG));
+	DEBUG_PRINT(" plx region0 reg 0x%x\n", readl(plx_iobase + PLX_REGION0_REG));
+	DEBUG_PRINT(" plx region1 reg 0x%x\n", readl(plx_iobase + PLX_REGION1_REG));
 
 	DEBUG_PRINT(" plx revision 0x%x\n", readl(plx_iobase + PLX_REVISION_REG));
 	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n", readl(plx_iobase + PLX_DMA0_MODE_REG));
@@ -1184,6 +1187,8 @@ static void init_plx9080(comedi_device *dev)
 	bits = 0;
 	// enable ready input, not sure if this is necessary
 	bits |= PLX_DMA_EN_READYIN_BIT;
+	// enable bterm, not sure if this is necessary
+	bits |= PLX_EN_BTERM_BIT;
 	// enable dma chaining
 	bits |= PLX_EN_CHAIN_BIT;
 	// enable interrupt on dma done (probably don't need this, since chain never finishes)
@@ -1533,11 +1538,19 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		priv(dev)->ai_buffer[index] =
 			pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE, &priv(dev)->ai_buffer_phys_addr[index]);
+		if(priv(dev)->ai_buffer[index] == NULL)
+		{
+			return -ENOMEM;
+		}
 	}
 	// allocate dma descriptors
 	priv(dev)->dma_desc =
 		pci_alloc_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
 		&priv(dev)->dma_desc_phys_addr);
+	if(priv(dev)->dma_desc == NULL)
+	{
+		return -ENOMEM;
+	}
 	// initialize dma descriptors
 	for(index = 0; index < DMA_RING_COUNT; index++)
 	{
@@ -2592,8 +2605,6 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	DEBUG_PRINT("cb_pcidas64: hw status 0x%x ", status);
 	DEBUG_PRINT("plx status 0x%x\n", plx_status);
 
-	async->events = 0;
-
 	// check for fifo overrun
 	if(status & ADC_OVERRUN_BIT)
 	{
@@ -2606,7 +2617,6 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	dma0_status = readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	if(plx_status & ICS_DMA0_A)
 	{	// dma chan 0 interrupt
-		// XXX possible race
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
@@ -2618,9 +2628,8 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	// spin lock makes sure noone else changes plx dma control reg
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
-	if(plx_status & ICS_DMA1_A)	// XXX
+	if(plx_status & ICS_DMA1_A)
 	{	// dma chan 1 interrupt
-		// XXX possible race
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
 
