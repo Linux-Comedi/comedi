@@ -506,7 +506,7 @@ static struct das16_board_struct das16_boards[]={
 	id:	0x20,
 	},
 	{
-	name:		"das-1401",	// 4922.pdf (keithley user's manual)
+	name:		"das-1401",	// 4919.pdf and 4922.pdf (keithley user's manual)
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -517,10 +517,10 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x0,
 	i8254_offset:	0x0c,
 	size:		0x408,
-	id:	0xc0
+	id:	0xc0	// 4919.pdf says id bits are 0xe0, 4922.pdf says 0xc0
 	},
 	{
-	name:		"das-1402",	// 4922.pdf (keithley user's manual)
+	name:		"das-1402",	// 4919.pdf and 4922.pdf (keithley user's manual)
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -531,10 +531,10 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x0,
 	i8254_offset:	0x0c,
 	size:		0x408,
-	id:	0xc0
+	id:	0xc0	// 4919.pdf says id bits are 0xe0, 4922.pdf says 0xc0
 	},
 	{
-	name:		"das-1601",
+	name:		"das-1601",	// 4919.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -549,7 +549,7 @@ static struct das16_board_struct das16_boards[]={
 	id:	0xc0
 	},
 	{
-	name:		"das-1602",
+	name:		"das-1602",	// 4919.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
