@@ -222,7 +222,7 @@
 #define DIO_Serial_Input_Register       28
 #define Joint_Status_2_Register         29
 
-#define AO_Mode_1_Register		39
+#define AO_Mode_1_Register		38
 #define AO_UPDATE_Source_Select(x)		(((x)&0x1f)<<11)
 #define AO_UI_Source_Select(x)			(((x)&0x1f)<<6)
 #define AO_Multiple_Channels			_bit5
