@@ -21,7 +21,7 @@ endif
 
 # define the following if you want to compile using PCMCIA
 # headers
-PCMCIADIR = /d/ds/stuff/pcmcia-cs-3.1.15
+#PCMCIADIR = /d/ds/stuff/pcmcia-cs-3.1.15
 
 TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
