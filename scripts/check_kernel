@@ -2,16 +2,17 @@
 
 
 
-if [ $(grep -c "$(uname -r)" /usr/include/linux/version.h) != 0 ]
+if [ $(grep -c "$(uname -r)" ${LINUXDIR}/include/linux/version.h) != 0 ]
 then
 	echo <<EOF
  *****
  *****    WARNING!!!
  *****
  *****    The kernel that is currently running is a different
- *****    version than the source in /usr/src/linux.  The current
+ *****    version than the source in ${LINUXDIR}.  The current
  *****    compile will create a module that is *incompatible*
- *****    with the running kernel.
+ *****    with the running kernel.  (This may be exactly what
+ *****    you want, however.)
  *****
 EOF
 fi
