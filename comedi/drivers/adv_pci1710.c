@@ -704,13 +704,12 @@ static void interrupt_pci1710_every_sample(void *d)
 				comedi_error_done(dev,s);
 				return;
 			}
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=sampl & 0x0fff;
+		*(sampl_t *)((void *)(devpriv->ai_data)+s->async->buf_int_ptr)=sampl & 0x0fff;
 #ifdef PCI171X_EXTDEBUG
     		rt_printk("%8d %2d %8d~",s->async->buf_int_ptr,s->async->cur_chan,s->async->buf_int_count);
 #endif
 #else
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
-			inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff;
+		*(sampl_t *)((void *)(devpriv->ai_data)+s->async->buf_int_ptr)=inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff;
 #endif
 		s->async->buf_int_count+=sizeof(sampl_t);
 		s->async->buf_int_ptr+=sizeof(sampl_t);
@@ -825,7 +824,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 	samplesinbuf=this_board->fifo_half_size;
 	if(s->async->buf_int_ptr+samplesinbuf*sizeof(sampl_t)>=devpriv->ai_data_len){
 		m=(devpriv->ai_data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		if (move_block_from_fifo(dev,s,s->async->data+s->async->buf_int_ptr,m,0))
+		if (move_block_from_fifo(dev,s,((void *)(devpriv->ai_data))+s->async->buf_int_ptr,m,0))
 			return;
 		s->async->buf_int_count+=m*sizeof(sampl_t);
 		samplesinbuf-=m;
@@ -840,7 +839,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 	}
 
 	if (samplesinbuf) {
-		if (move_block_from_fifo(dev,s,s->async->data+s->async->buf_int_ptr,samplesinbuf,1))
+		if (move_block_from_fifo(dev,s,((void *)(devpriv->ai_data))+s->async->buf_int_ptr,samplesinbuf,1))
 			return;
 
 		s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
