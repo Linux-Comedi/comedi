@@ -183,7 +183,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 			return -ENODEV;
 		}
 
-		if(rasync->subdev->busy)
+		if(dev->read_subdev->busy)
 			return -EBUSY;
 
 		if(rasync->mmap_count){
@@ -201,7 +201,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 			return -ENODEV;
 		}
 
-		if(wasync->subdev->busy)
+		if(dev->write_subdev->busy)
 			return -EBUSY;
 
 		if(wasync->mmap_count){
@@ -1598,7 +1598,7 @@ printk("m is %d\n",m);
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
 			retval=-EINVAL;
-			do_cancel(dev, async->subdev);
+			do_cancel(dev, dev->read_subdev);
 			DPRINTK("buffer overrun\n");
 			break;
 		}

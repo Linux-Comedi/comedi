@@ -268,7 +268,6 @@ static void postconfig(comedi_device *dev)
       async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			memset(async, 0, sizeof(comedi_async));
 			s->async = async;
-			async->subdev = s;
 			async->prealloc_bufsz=1024*128;
 			/* XXX */
 			async->prealloc_buf=rvmalloc(async->prealloc_bufsz);
