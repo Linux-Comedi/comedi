@@ -48,6 +48,7 @@
 comedi_device *comedi_devices;
 
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor);
+static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
 static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg);
@@ -62,6 +63,7 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
 
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
+int resize_buf(comedi_device *dev,comedi_subdevice *s, unsigned int size);
 
 static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
 {
@@ -72,6 +74,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 	{
 	case COMEDI_DEVCONFIG:
 		return do_devconfig_ioctl(dev,(void *)arg,minor);
+	case COMEDI_BUFCONFIG:
+		return do_bufconfig_ioctl(dev,(void*)arg);
 	case COMEDI_DEVINFO:
 		return do_devinfo_ioctl(dev,(void *)arg);
 	case COMEDI_SUBDINFO:
@@ -121,7 +125,7 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 	
 	if(!suser())
 		return -EPERM;
-	
+
 	if(arg==NULL){
 		return comedi_device_detach(dev);
 	}
@@ -130,15 +134,122 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 		return -EFAULT;
 	
 	it.board_name[COMEDI_NAMELEN-1]=0;
-	
+
 	return comedi_device_attach(dev,&it);
 }
 
+/*
+	COMEDI_BUFCONFIG
+	buffer configuration ioctl
+
+	arg:
+		pointer to bufconfig structure
+
+	reads:
+		bufconfig at arg
+
+	writes:
+		modified bufconfig at arg
+
+*/
+static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
+{
+	comedi_bufconfig bc;
+	comedi_subdevice *rsd=NULL, *wsd=NULL;
+	int read_ret = 0, write_ret = 0;
+
+	if(!suser())
+		return -EPERM;
+
+	// perform sanity checks
+	if(!dev->attached)
+		return -EINVAL;
+
+	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
+		return -EFAULT;
+
+	// Should check to see if buffer is memory mapped and avoid
+	// changing buffer if it is.  (Have to wait until a mapped flag
+	// gets added to subdevice struct.)
+
+	if(bc.read_size){
+		rsd = &dev->subdevices[dev->read_subdev];
+
+		if(rsd->busy)
+			return -EBUSY;
+
+		if(!rsd->prealloc_buf)
+			return -EINVAL;
+	}
+
+	if(bc.write_size && dev->read_subdev != dev->write_subdev){
+		wsd = &dev->subdevices[dev->write_subdev];
+
+		if(wsd->busy)
+			return -EBUSY;
+
+		if(!wsd->prealloc_buf)
+			return -EINVAL;
+	}
+
+	// resize buffers
+	if(rsd){
+		read_ret = resize_buf(dev,rsd,bc.read_size);
+		bc.read_size = rsd->prealloc_bufsz;
+		DPRINTK("dev %i read buffer resized to %i bytes\n", dev->minor, bc.read_size);
+	}
+
+	if(wsd){
+		write_ret = resize_buf(dev,wsd,bc.write_size);
+		bc.write_size = wsd->prealloc_bufsz;
+		DPRINTK("dev %i write buffer resized to %i bytes\n", dev->minor, bc.write_size);
+	}
+	else bc.write_size = 0;
+
+
+	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
+		return -EFAULT;
+
+	if(read_ret < 0 || write_ret < 0)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/* utility function that resizes the prealloc_buf for
+ * a subdevice
+ */
+int resize_buf(comedi_device *dev, comedi_subdevice *s, unsigned int size)
+{
+	void *old_buf;
+
+	// make sure buffer is an integral number of pages (we round up)
+	size = ((size + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
+
+	// if no change is required, do nothing
+	if(s->prealloc_buf && s->prealloc_bufsz){
+		if(s->prealloc_bufsz == size)
+			return 0;
+	}
+
+	old_buf = s->prealloc_buf;
+	s->prealloc_buf = rvmalloc(size);
+	// restore old buffer on error
+	if(s->prealloc_buf == 0){
+		s->prealloc_buf = old_buf;
+		return -ENOMEM;
+	}
+
+	rvfree(old_buf, s->prealloc_bufsz);
+	s->prealloc_bufsz = size;
+
+	return 0;
+}
 
 /*
 	COMEDI_DEVINFO
 	device info ioctl
-	
+
 	arg:
 		pointer to devinfo structure
 	
