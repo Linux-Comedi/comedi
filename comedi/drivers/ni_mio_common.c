@@ -29,13 +29,13 @@
 	<trux@truxton.com>
 
 	References (from ftp://ftp.natinst.com/support/manuals):
-	
+
 	   340747b.pdf  AT-MIO E series Register Level Programmer Manual
 	   341079b.pdf  PCI E Series RLPM
 	   340934b.pdf  DAQ-STC reference manual
 
 	Other possibly relevant info:
-	
+
 	   320517c.pdf  User manual (obsolete)
 	   320517f.pdf  User manual (new)
 	   320889a.pdf  delete
@@ -45,11 +45,12 @@
 	   321808a.pdf  about at-mio-16e-10 rev P
 	   321837a.pdf  discontinuation of at-mio-16de-10 rev d
 	   321838a.pdf  about at-mio-16de-10 rev N
-	
+
 	ISSUES:
 
 	 - the interrupt routine needs to be cleaned up
 	 - many printk's need to be changed to rt_printk()
+	 - analog output data is not munged for ao command (fmhess)
 */
 
 //#define DEBUG_INTERRUPT
@@ -372,11 +373,11 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 	s->async->buf_int_count = mite_bytes_transferred(devpriv->mite, 0);
 	raw_ptr = s->async->buf_int_count % s->async->prealloc_bufsz;
 	if(s->async->buf_int_ptr > raw_ptr) {
-		ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf, 
+		ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf,
 			s->async->prealloc_buf+s->async->prealloc_bufsz);
 		s->async->buf_int_ptr = 0;
 	}
-	ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf, 
+	ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf,
 		raw_ptr+s->async->prealloc_buf);
 	s->async->buf_int_ptr = raw_ptr;
 	}
@@ -387,7 +388,7 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 			(s->async->buf_int_count > (len - s->async->prealloc_bufsz))) {
 		long offset;
 		int i;
-		
+
 		offset = len % s->async->prealloc_bufsz;
 		if(offset < devpriv->mite->ring[0].count) {
 			devpriv->mite->ring[0].count = offset;
@@ -396,9 +397,9 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 			offset -= devpriv->mite->ring[0].count;
 			i = offset / PAGE_SIZE;
 			devpriv->mite->ring[i].count = offset % PAGE_SIZE;
-			devpriv->mite->ring[(i+1)%MITE_RING_SIZE].count = 0;			
+			devpriv->mite->ring[(i+1)%MITE_RING_SIZE].count = 0;
 		}
-		devpriv->mite->DMA_CheckNearEnd = 0;		
+		devpriv->mite->DMA_CheckNearEnd = 0;
 	}
 
 	MDPRINTK("CHSR is 0x%08lx, count is %d\n",m_status,s->async->buf_int_count);
@@ -407,10 +408,10 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 		//printk("buf_int_count is %d, buf_int_ptr is %d\n",
 		//		s->async->buf_int_count,s->async->buf_int_ptr);
 		ni_handle_block_dma(dev);
-	}       
+	}
 	MDPRINTK("exit mite_handle_interrupt\n");
-	return; 
-}      
+	return;
+}
 
 #endif //PCIDMA
 
@@ -772,13 +773,13 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 	n = cmd->stop_arg;
 	win_out2(n-1,AI_SC_Load_A_Registers);
 	win_out2(n-1,AI_SC_Load_B_Registers);
-	
+
 	/* load SC (Scan Count) */
 	win_out(AI_SC_Load,AI_Command_1_Register);
 
 	mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
 	win_out(mode1,AI_Mode_1_Register);
-	
+
 	/*start the MITE*/
 	mite_dma_arm(devpriv->mite);
 	return mode1;
@@ -820,7 +821,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	/* generate FIFO interrupts on non-empty */
 	win_out((0<<6)|0x0000,AI_Mode_3_Register);
 #endif
-	win_out(0xA420,AI_Personal_Register); 
+	win_out(0xA420,AI_Personal_Register);
 	win_out(0x032e,AI_Output_Control_Register);
 	win_out(0x0060,AI_Trigger_Select_Register); /* trigger source */
 
@@ -1610,23 +1611,25 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 	devpriv->ao[chan] = dat;
 
-	conf=chan<<8;
+	conf=AO_Channel(chan);
 	if(boardtype.ao_unipolar){
-		conf |= (range&1)^1;
-		conf |= (range&2)<<1;
-		if((range&1)==0)
+		if((range&1) == 0){
+			conf |= AO_Bipolar;
 			dat^=(1<<(boardtype.aobits-1));
+		}
+		if(range&2)
+			conf |= AO_Ext_Ref;
 	}else{
-		conf |= 1;
+		conf |= AO_Bipolar;
 		dat^=(1<<(boardtype.aobits-1));
 	}
 
 	/* not all boards can deglitch, but this shouldn't hurt */
-	if((insn->chanspec>>26)&1)conf |= 2;
+	if((insn->chanspec>>26)&1)conf |= AO_Deglitch;
 
 	/* analog reference */
 	/* AREF_OTHER connects AO ground to AI ground, i think */
-	conf |= (CR_AREF(insn->chanspec)==AREF_OTHER)? 8 : 0;
+	conf |= (CR_AREF(insn->chanspec)==AREF_OTHER)? AO_Ground_Ref : 0;
 
 	ni_writew(conf,AO_Configuration);
 
@@ -1657,7 +1660,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 		AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 1);
 
 	ni_writew(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2);
-	
+
 	s->async->inttrig=NULL;
 
 	return 1;
@@ -1671,30 +1674,36 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	unsigned int range;
 	int trigvar;
 	int i;
-	
+
 	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
 	win_out(AO_Disarm,AO_Command_1_Register);
 
 	for(i=0;i<cmd->chanlist_len;i++){
 		chan=CR_CHAN(cmd->chanlist[i]);
-
-		conf=chan<<8;
-	
 		/* XXX check range with current range in flaglist[chan] */
 		/* should update calibration if range changes (ick) */
-
 		range = CR_RANGE(cmd->chanlist[i]);
-		conf |= (range&1);
-		conf |= (range&2)<<1;
-	
+
+		conf=AO_Channel(chan);
+
+		if(boardtype.ao_unipolar){
+			if((range&1) == 0){
+				conf |= AO_Bipolar;
+			}
+			if(range&2)
+				conf |= AO_Ext_Ref;
+		}else{
+			conf |= AO_Bipolar;
+		}
+
 		/* not all boards can deglitch, but this shouldn't hurt */
 		if(cmd->flags & TRIG_DEGLITCH) /* XXX ? */
-			conf |= 2;
+			conf |= AO_Deglitch;
 
 		/* analog reference */
 		/* AREF_OTHER connects AO ground to AI ground, i think */
-		conf |= (CR_AREF(cmd->chanlist[i])==AREF_OTHER)? 8 : 0;
+		conf |= (CR_AREF(cmd->chanlist[i])==AREF_OTHER)? AO_Ground_Ref : 0;
 
 		ni_writew(conf,AO_Configuration);
 	}
@@ -2027,7 +2036,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	
 	devpriv->ao0p=0x0000;
 	ni_writew(devpriv->ao0p,AO_Configuration);
-	devpriv->ao1p=0x0100;
+	devpriv->ao1p=AO_Channel(1);
 	ni_writew(devpriv->ao1p,AO_Configuration);
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 	win_out(AO_Disarm,AO_Command_1_Register);

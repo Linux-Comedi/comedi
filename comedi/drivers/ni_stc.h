@@ -543,10 +543,18 @@
 #define G0_G1_Select			0x0b
 
 /* 16 bit registers */
+
 #define Configuration_Memory_Low	0x10
 #define Configuration_Memory_High	0x12
 #define ADC_FIFO_Data_Register		0x1c
+
 #define AO_Configuration		0x16
+#define AO_Bipolar		_bit0
+#define AO_Deglitch		_bit1
+#define AO_Ext_Ref		_bit2
+#define AO_Ground_Ref		_bit3
+#define AO_Channel(x)		((x) & _bit8)
+
 #define DAC_FIFO_Data			0x1e
 #define DAC0_Direct_Data		0x18
 #define DAC1_Direct_Data		0x1a
