@@ -7,9 +7,9 @@ Prerequisites:
 	  not present, you can create them by compiling a new
 	  kernel.  Some distributions don't provide these by
 	  default.
-	- a 2.0, 2.2, or 2.4 series kernel.  Some development
-	  kernels may not work, since I don't keep very good
-	  track of them.
+	- a 2.2 or 2.4 series kernel.  2.0.38 may also work, but
+	  it's not actively maintained.  (But feel free to try it
+	  and report problems.)
 
 Configure using 'make'.  The first time you run make, it will take
 you through configuration options similar to compiling a linux
