@@ -18,6 +18,7 @@ obj-n :=
 obj-  :=
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o
+obj-$(CONFIG_COMEDI_MPC8260CPM)		+= mpc8260cpm.o
 
 obj-$(CONFIG_COMEDI_ADL_PCI9118)	+= adl_pci9118.o
 
