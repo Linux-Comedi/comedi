@@ -559,7 +559,7 @@ static void free_resources(comedi_device * dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->iobase)
-		release_region(dev->iobase, dev->iosize);
+		release_region(dev->iobase, this_board->io_range);
 #ifdef USE_DMA
 	if (dev->private) {
 		if (devpriv->dmabuf[0])
@@ -630,7 +630,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	request_region(iobase, this_board->io_range, "pcl812");
 	dev->iobase = iobase;
-	dev->iosize = this_board->io_range;
 
 	/* there should be a sanity check here */
 

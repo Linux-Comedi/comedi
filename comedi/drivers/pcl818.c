@@ -1330,7 +1330,7 @@ static void free_resources(comedi_device * dev)
 	} 
 
 	if (dev->irq) free_irq(dev->irq, dev);
-	if (dev->iobase) release_region(dev->iobase, dev->iosize);
+	if (dev->iobase) release_region(dev->iobase, this_board->io_range);
 	//rt_printk("free_resource() end\n");
 }
 
@@ -1363,7 +1363,6 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 
         request_region(iobase, io_range, "pcl818");
         dev->iobase=iobase;
-        dev->iosize=io_range;
     
         if (pcl818_check(iobase)) {
 		rt_printk(", I can't detect board. FAIL!\n");

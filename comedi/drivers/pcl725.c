@@ -68,7 +68,6 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 	request_region(dev->iobase,PCL725_SIZE,"pcl725");
 	dev->board_name="pcl725";
 	dev->iobase=dev->iobase;
-	dev->iosize=PCL725_SIZE;
 	dev->irq=0;
 
 	dev->n_subdevices=2;
@@ -104,7 +103,7 @@ static int pcl725_detach(comedi_device *dev)
 {
 	printk("comedi%d: pcl725: remove\n",dev->minor);
 
-	if(dev->iobase)release_region(dev->iobase,dev->iosize);
+	if(dev->iobase)release_region(dev->iobase,PCL725_SIZE);
 	
 	return 0;
 }

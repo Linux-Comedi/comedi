@@ -129,7 +129,6 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	request_region(iobase, iosize, "dac02");
 	dev->iobase = iobase;
-	dev->iosize = iosize;
 
 	dev->n_subdevices = 1;
 	if(alloc_subdevices(dev) < 0)
@@ -156,7 +155,7 @@ static int poc_detach(comedi_device *dev)
 {
 	/* only free stuff if it has been allocated by _attach */
 	if(dev->iobase)
-		release_region(dev->iobase, dev->iosize);
+		release_region(dev->iobase, this_board->iosize);
 
 	printk("comedi%d: dac02: remove\n", dev->minor);
 

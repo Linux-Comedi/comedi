@@ -1283,8 +1283,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
         }
 
         dev->iobase=iobase_9;
-        dev->iosize=this_board->iorange_9118;
-        request_region(dev->iobase, dev->iosize, "ADLink PCI-9118");
+        request_region(dev->iobase, this_board->iorange_9118, "ADLink PCI-9118");
 
 	dev->board_name = this_board->name;
 
@@ -1450,7 +1449,9 @@ static int pci9118_detach(comedi_device *dev)
 		free_irq(dev->irq,dev);
 	}
 
-	release_region(dev->iobase,dev->iosize);
+	if(dev->iobase){
+        	release_region(dev->iobase, this_board->iorange_9118);
+	}
 
 	return 0;
 }

@@ -297,7 +297,6 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	request_region(dev->iobase, RTI800_SIZE, "rti800");
 	dev->iobase = iobase;
-	dev->iosize = RTI800_SIZE;
 
 #ifdef DEBUG
 	printk("fingerprint=%x,%x,%x,%x,%x ",
@@ -427,7 +426,7 @@ static int rti800_detach(comedi_device * dev)
 	printk("comedi%d: rti800: remove\n", dev->minor);
 
 	if(dev->iobase)
-		release_region(dev->iobase, dev->iosize);
+		release_region(dev->iobase, RTI800_SIZE);
 
 	if(dev->irq)
 		free_irq(dev->irq,dev);

@@ -524,7 +524,6 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	request_region(iobase, DAS1800_SIZE, "das1800");
 	dev->iobase = iobase;
-	dev->iosize = DAS1800_SIZE;
 
 	board = das1800_probe(dev);
 	if(board < 0)

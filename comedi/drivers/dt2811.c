@@ -294,7 +294,6 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	request_region(dev->iobase, DT2811_SIZE, driver_name);
 
 	dev->board_name = this_board->name;
-	dev->iosize = DT2811_SIZE;
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
@@ -424,7 +423,9 @@ static int dt2811_detach(comedi_device * dev)
 	if (dev->irq) {
 		free_irq(dev->irq, dev);
 	}
-	release_region(dev->iobase, dev->iosize);
+	if(dev->iobase){
+		release_region(dev->iobase, DT2811_SIZE);
+	}
 
 	return 0;
 }

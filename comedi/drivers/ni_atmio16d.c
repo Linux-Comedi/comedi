@@ -707,7 +707,6 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	request_region(iobase, ATMIO16D_SIZE, "ni_atmio16d");
 	dev->iobase = iobase;
-	dev->iosize = ATMIO16D_SIZE;
 
 	
 	/* board name */
@@ -847,7 +846,7 @@ static int atmio16d_detach(comedi_device * dev)
 	reset_atmio16d(dev);
 	
 	if(dev->iobase)
-		release_region(dev->iobase, dev->iosize);
+		release_region(dev->iobase, ATMIO16D_SIZE);
 
 	return 0;
 }

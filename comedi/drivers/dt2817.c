@@ -129,7 +129,6 @@ static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	request_region(dev->iobase,DT2817_SIZE,"dt2817");
 	dev->board_name="dt2817";
-	dev->iosize=DT2817_SIZE;
 
 	dev->n_subdevices=1;
 	if((ret=alloc_subdevices(dev))<0)
@@ -158,7 +157,8 @@ static int dt2817_detach(comedi_device *dev)
 {
 	printk("comedi%d: dt2817: remove\n",dev->minor);
 	
-	release_region(dev->iobase,dev->iosize);
+	if(dev->iobase)
+		release_region(dev->iobase,DT2817_SIZE);
 
 	return 0;
 }

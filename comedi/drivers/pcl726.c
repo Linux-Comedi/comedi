@@ -165,6 +165,7 @@ comedi_driver driver_pcl726={
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_pcl726);
 
 typedef struct{
 	int bipolar[12];
@@ -227,7 +228,6 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	
         request_region(iobase, iorange, "pcl726");
         dev->iobase=iobase;
-        dev->iosize=iorange;
     
 	dev->board_name = this_board->name;
 
@@ -337,11 +337,9 @@ static int pcl726_detach(comedi_device *dev)
 	}
 #endif
 
-	release_region(dev->iobase,dev->iosize);
+	release_region(dev->iobase,this_board->io_range);
 
 	return 0;
 }
 
-
-COMEDI_INITCLEANUP(driver_pcl726);
 

@@ -1156,7 +1156,6 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EBUSY;
 	}
 	request_region(dev->iobase, DT2821_SIZE, "dt282x");
-	dev->iosize = DT2821_SIZE;
 
 	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
 	i = inw(dev->iobase + DT2821_ADCSR);
@@ -1286,7 +1285,7 @@ static void free_resources(comedi_device *dev)
 		free_irq(dev->irq, dev);
 	}
 	if(dev->iobase)
-		release_region(dev->iobase, dev->iosize);
+		release_region(dev->iobase, DT2821_SIZE);
 	if(dev->private){
 		if (devpriv->dma[0].chan)
 			free_dma(devpriv->dma[0].chan);

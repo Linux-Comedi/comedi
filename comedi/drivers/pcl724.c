@@ -81,6 +81,7 @@ comedi_driver driver_pcl724={
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_pcl724);
 
 
 static int subdev_8255_cb(int dir,int port,int data,void *arg)
@@ -130,7 +131,6 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 	
         request_region(iobase, iorange, "pcl724");
         dev->iobase=iobase;
-        dev->iosize=iorange;
     
 	dev->board_name = this_board->name;
 
@@ -188,11 +188,9 @@ static int pcl724_detach(comedi_device *dev)
 	}
 #endif
 
-	release_region(dev->iobase,dev->iosize);
+	release_region(dev->iobase,this_board->io_range);
 
 	return 0;
 }
 
-
-COMEDI_INITCLEANUP(driver_pcl724);
 

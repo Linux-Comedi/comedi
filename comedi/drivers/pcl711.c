@@ -388,7 +388,7 @@ static void free_resources(comedi_device * dev)
 		free_irq(dev->irq, dev);
 
 	if (dev->iobase)
-		release_region(dev->iobase, dev->iosize);
+		release_region(dev->iobase, PCL711_SIZE);
 }
 
 /*  Initialization */
@@ -409,7 +409,6 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	request_region(dev->iobase, PCL711_SIZE, "pcl711");
 	dev->iobase = iobase;
-	dev->iosize = PCL711_SIZE;
 
 	/* there should be a sanity check here */
 

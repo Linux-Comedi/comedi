@@ -223,7 +223,6 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
 
       request_region(dev->iobase, MULTIQ3_SIZE, "multiq3");
       dev->iobase = iobase;
-      dev->iosize = MULTIQ3_SIZE;
 
       irq = it->options[1];
       if (irq > 0) {
@@ -292,7 +291,7 @@ static int multiq3_detach(comedi_device * dev)
 {
   printk("comedi%d: multiq3: remove\n", dev->minor);
 
-  if (dev->iobase) { release_region(dev->iobase, dev->iosize); }
+  if (dev->iobase) { release_region(dev->iobase, MULTIQ3_SIZE); }
   if (dev->irq) { free_irq(dev->irq,dev); }
 
   return 0;

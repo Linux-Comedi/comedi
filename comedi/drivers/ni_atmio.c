@@ -345,7 +345,6 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	request_region(iobase,NI_SIZE,"ni_atmio");
 
 	dev->iobase=iobase;
-	dev->iosize=NI_SIZE;
 	
 #ifdef DEBUG
 	/* board existence sanity check */

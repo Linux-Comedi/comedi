@@ -239,7 +239,6 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	request_region(dev->iobase,DT2814_SIZE,"dt2814");
 	dev->iobase=dev->iobase;
-	dev->iosize=DT2814_SIZE;
 	dev->board_name = "dt2814";
 
 	outb(0,dev->iobase+DT2814_CSR);
@@ -313,7 +312,7 @@ static int dt2814_detach(comedi_device *dev)
 		free_irq(dev->irq,dev);
 	}
 	if(dev->iobase){
-		release_region(dev->iobase,dev->iosize);
+		release_region(dev->iobase,DT2814_SIZE);
 	}
 
 	return 0;

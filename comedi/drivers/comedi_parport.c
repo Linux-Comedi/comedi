@@ -59,6 +59,8 @@ comedi_driver driver_parport={
 	attach:		parport_attach,
 	detach:		parport_detach,
 };
+COMEDI_INITCLEANUP(driver_parport);
+
 
 typedef struct parport_private_struct{
 	unsigned int a_data;
@@ -241,7 +243,6 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	request_region(iobase,PARPORT_SIZE,"parport (comedi)");
 	dev->iobase=iobase;
-	dev->iosize=PARPORT_SIZE;
 
 	irq=it->options[1];
 	if(irq){
@@ -316,12 +317,10 @@ static int parport_detach(comedi_device *dev)
 {
 	printk("comedi%d: parport: remove\n",dev->minor);
 	
-	if(dev->iobase)release_region(dev->iobase,dev->iosize);
+	if(dev->iobase)release_region(dev->iobase,PARPORT_SIZE);
 
 	if(dev->irq)comedi_free_irq(dev->irq,dev);
 
 	return 0;
 }
-
-COMEDI_INITCLEANUP(driver_parport);
 
