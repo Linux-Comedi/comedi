@@ -84,8 +84,7 @@ the kernel source directory.])
 			;;
 	esac
 
-	DS_RTAI()
-	DS_RTLINUX()
+	DS_RT()
 ])
 
 AC_DEFUN(DS_LINUX_2_6,
@@ -252,8 +251,11 @@ AC_DEFUN(DS_RTAI,
 				AC_MSG_ERROR([incorrect RTAI directory?])
 			fi
 		fi
+		$1
 		AC_MSG_RESULT([found])
 		AC_DEFINE([CONFIG_COMEDI_RTAI],[true],[Define if kernel is RTAI patched])
+	else
+		$2
 	fi
 	AC_SUBST(RTAI_CFLAGS)
 
@@ -278,7 +280,19 @@ AC_DEFUN(DS_RTLINUX,
 		fi
 		AC_MSG_RESULT([found])
 		AC_DEFINE([CONFIG_COMEDI_RTL],[true],[Define if kernel is RTLinux patched])
+		$1
+	else
+		$2
 	fi
 	AC_SUBST(RTLINUX_CFLAGS)
 ])
 
+AC_DEFUN(DS_RT,
+[
+	DS_RTAI([USE_RTAI=yes],[USE_RTAI=no])
+	DS_RTLINUX([USE_RTLINUX=yes],[USE_RTLINUX=no])
+	AM_CONDITIONAL([CONFIG_COMEDI_RT],[test ${USE_RTAI} == "yes" -o ${USE_RTLINUX} == "yes"])
+	if test ${USE_RTAI} == "yes" -o ${USE_RTLINUX} == "yes" ; then
+		AC_DEFINE([CONFIG_COMEDI_RT],[true],[Define to enable comedi's RT support])
+	fi
+])

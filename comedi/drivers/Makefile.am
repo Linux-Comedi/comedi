@@ -1,7 +1,7 @@
 
 #SUBDIRS = addi-data
 
-AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS)
+AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@
 
 EXTRA_DIST = \
@@ -23,7 +23,12 @@ EXTRA_DIST = \
  rtd520.h
 
 # mpc8260cpm.ko
-# comedi_rt_timer.ko
+
+if CONFIG_COMEDI_RT
+rt_modules = comedi_rt_timer.ko
+else
+rt_modules =
+endif
 
 if CONFIG_PCMCIA
 pcmcia_modules= \
@@ -103,7 +108,8 @@ module_PROGRAMS = 8255.ko \
  skel.ko \
  ssv_dnp.ko \
  comedi_test.ko \
- $(pcmcia_modules)
+ $(pcmcia_modules) \
+ $(rt_modules)
 
 8255_ko_SOURCES = 8255.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c

@@ -721,7 +721,7 @@ struct das16_private_struct
 	unsigned int	ai_singleended;	// single ended flag
 	unsigned int	clockbase;	// master clock speed in ns
 	volatile unsigned int	control_state;	// dma, interrupt and trigger control bits
-	volatile unsigned long	adc_byte_count;	// number of samples remaining
+	volatile unsigned long	adc_byte_count;	// number of bytes remaining
 	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
 	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
 	unsigned int dma_chan;	// dma channel
@@ -734,8 +734,8 @@ struct das16_private_struct
 	comedi_lrange *user_ao_range_table;
 
 	struct timer_list timer;                // for timed interrupt
-	volatile unsigned int timer_running : 1;
-	volatile unsigned int timer_mode : 1;   // true if using timer mode
+	volatile short timer_running;
+	volatile short timer_mode;   // true if using timer mode
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
