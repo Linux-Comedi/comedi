@@ -36,16 +36,31 @@ struct pci_device_id {
 #include <linux/malloc.h>
 #define PCI_DMA_FROMDEVICE              0
 #define PCI_DMA_TODEVICE                0
-static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
-                                         dma_addr_t *dma_handle)
-{
-        void *virt_ptr;
 
-        virt_ptr = kmalloc(size, GFP_KERNEL);
-        *dma_handle = virt_to_bus(virt_ptr);
-        return virt_ptr;
+extern inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
+	dma_addr_t *dma_handle)
+{
+        void *ret;
+        int gfp = GFP_KERNEL;
+
+        if (hwdev == NULL)
+                gfp |= GFP_DMA;
+        ret = (void *) __get_free_pages(gfp, get_order(size));
+
+        if (ret != NULL) 
+	{
+                memset(ret, 0, size);
+                *dma_handle = virt_to_bus(ret);
+        }
+        return ret;
 }
-#define pci_free_consistent(cookie, size, ptr, dma_ptr) kfree(ptr)
+
+extern inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
+	void *vaddr, dma_addr_t dma_handle)
+{
+	free_pages((unsigned long)vaddr, get_order(size));
+}
+
 #define pci_map_single(cookie, address, size, dir)      virt_to_bus(address)
 #define pci_unmap_single(cookie, address, size, dir)
 #define pci_dma_sync_single(cookie, address, size, dir)
