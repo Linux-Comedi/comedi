@@ -113,8 +113,8 @@ COMEDI_INITCLEANUP(driver_timer);
 typedef struct{
 	int device;	// device we are emulating commands for
 	int subd;	// subdevice we are emulating commands for
-	RT_TASK rt_task;	// rt task that starts scans
-	RT_TASK scan_task;	// rt task that controls conversion timing in a scan
+	RT_TASK *rt_task;	// rt task that starts scans
+	RT_TASK *scan_task;	// rt task that controls conversion timing in a scan
 	/* io_function can point to either an input or output function
 	 * depending on what kind of subdevice we are emulating for */
 	int (*io_function)(comedi_device *dev, comedi_cmd *cmd, unsigned int index);
@@ -239,7 +239,7 @@ static void scan_task_func(int d)
 		for(n = 0; n < cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
 			if(n){
 				// suspend task until next scan
-				ret = rt_task_suspend(&devpriv->scan_task);
+				ret = rt_task_suspend(devpriv->scan_task);
 				if(ret < 0){
 					comedi_error(dev, "error suspending scan task");
 					async->events |= COMEDI_CB_ERROR;
@@ -284,7 +284,7 @@ cleanup:
 		async->events = 0;
 		devpriv->scan_task_active = 0;
 		// suspend task until next comedi_cmd
-		rt_task_suspend(&devpriv->scan_task);
+		rt_task_suspend(devpriv->scan_task);
 	}
 }
 
@@ -309,7 +309,7 @@ static void timer_task_func(int d)
 			if(devpriv->scan_task_active == 0){
 				goto cleanup;
 			}
-			ret = rt_task_make_periodic(&devpriv->scan_task,
+			ret = rt_task_make_periodic(devpriv->scan_task,
 				devpriv->start + devpriv->scan_period * n,
 				devpriv->convert_period);
 			if(ret < 0){
@@ -321,7 +321,7 @@ cleanup:
 
 		devpriv->rt_task_active = 0;
 		// suspend until next comedi_cmd
-		rt_task_suspend(&devpriv->rt_task);
+		rt_task_suspend(devpriv->rt_task);
 	}
 }
 
@@ -474,15 +474,11 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 			break;
 	}
 
-#ifdef CONFIG_COMEDI_RTAI
-	start_rt_timer(1);
-#endif
-
 	devpriv->stop = 0;
 	s->async->events = 0;
 
 	now=rt_get_time();
-	ret = rt_task_make_periodic(&devpriv->rt_task, now
+	ret = rt_task_make_periodic(devpriv->rt_task, now
 		+ delay, devpriv->scan_period);
 	if(ret < 0)
 	{
@@ -498,7 +494,8 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 	comedi_subdevice *s, *emul_s;
 	comedi_device *emul_dev;
-	const int timer_priority = 0;
+	/* These should probably be devconfig options[] */
+	const int timer_priority = 4;
 	const int scan_priority = timer_priority + 1;
 
 	printk("comedi%d: timer: ",dev->minor);
@@ -564,18 +561,32 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_COMEDI_RTAI
+	rt_set_oneshot_mode();
+#endif
+
+	devpriv->rt_task = kmalloc(sizeof(RT_TASK),GFP_KERNEL);
+	memset(devpriv->rt_task,0,sizeof(RT_TASK));
+
 	// initialize real-time tasks
-	ret = rt_task_init(&devpriv->rt_task, timer_task_func,(int)dev, 3000,
+	ret = rt_task_init(devpriv->rt_task, timer_task_func,(int)dev, 3000,
 		timer_priority, 0, 0);
 	if(ret < 0) 	{
 		comedi_error(dev, "error initalizing rt_task");
+		kfree(devpriv->rt_task);
+		devpriv->rt_task = 0;
 		return ret;
 	}
 
-	ret = rt_task_init(&devpriv->scan_task, scan_task_func,
+	devpriv->scan_task = kmalloc(sizeof(RT_TASK),GFP_KERNEL);
+	memset(devpriv->scan_task,0,sizeof(RT_TASK));
+
+	ret = rt_task_init(devpriv->scan_task, scan_task_func,
 		(int)dev, 3000, scan_priority, 0, 0);
 	if(ret < 0){
 		comedi_error(dev, "error initalizing scan_task");
+		kfree(devpriv->scan_task);
+		devpriv->scan_task = 0;
 		return ret;
 	}
 
@@ -588,8 +599,14 @@ static int timer_detach(comedi_device *dev)
 	printk("comedi%d: timer: remove\n",dev->minor);
 
 	if(devpriv){
-		rt_task_delete(&devpriv->rt_task);
-		rt_task_delete(&devpriv->scan_task);
+		if(devpriv->rt_task){
+			rt_task_delete(devpriv->rt_task);
+			kfree(devpriv->rt_task);
+		}
+		if(devpriv->scan_task){
+			rt_task_delete(devpriv->scan_task);
+			kfree(devpriv->scan_task);
+		}
 	}
 
 	return 0;
