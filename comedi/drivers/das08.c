@@ -1318,7 +1318,7 @@ static void das08_pcmcia_config(dev_link_t *link)
 		At this point, the dev_node_t structure(s) need to be
 		initialized and arranged in a linked list at link->dev.
 	*/
-	sprintf(dev->node.dev_name, "das08");
+	sprintf(dev->node.dev_name, "pcm-das08");
 	dev->node.major = dev->node.minor = 0;
 	link->dev = &dev->node;
 

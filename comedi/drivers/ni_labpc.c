@@ -2515,7 +2515,7 @@ static void labpc_config(dev_link_t *link)
       At this point, the dev_node_t structure(s) need to be
       initialized and arranged in a linked list at link->dev.
     */
-    sprintf(dev->node.dev_name, "ni_labpc");
+    sprintf(dev->node.dev_name, "daqcard-1200");
     dev->node.major = dev->node.minor = 0;
     link->dev = &dev->node;
 
