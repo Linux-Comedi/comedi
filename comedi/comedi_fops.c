@@ -159,7 +159,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	comedi_bufconfig bc;
 	comedi_async *async;
 	comedi_subdevice *s;
-	int ret;
+	int ret = 0;
 
 	// perform sanity checks
 	if(!dev->attached)
@@ -171,7 +171,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
-	if(bc.subdevice>=dev->n_subdevices)
+	if(bc.subdevice>=dev->n_subdevices || bc.subdevice<0)
 		return -EINVAL;
 	
 	s=dev->subdevices+bc.subdevice;
@@ -197,7 +197,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		if(s->busy)return -EBUSY;
 
 		if(async->mmap_count){
-			DPRINTK("read subdevice is mmapped, cannot resize buffer\n");
+			DPRINTK("subdevice is mmapped, cannot resize buffer\n");
 			return -EBUSY;
 		}
 
@@ -1308,12 +1308,17 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 	return ret;
 }
 
-struct comedi_file_private {
-	unsigned int read_mmap_count;
-	unsigned int write_mmap_count;
-};
-
 #ifdef LINUX_V22
+void comedi_unmap(struct vm_area_struct *area)
+{
+	comedi_async *async = area->vm_private_data;
+
+	async->mmap_count--;
+}
+
+static struct vm_operations_struct comedi_vm_ops={
+	close:		comedi_unmap,
+};
 /*
    comedi_mmap_v22
 
@@ -1326,7 +1331,6 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	kdev_t minor=MINOR(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 	comedi_async *async = NULL;
-	struct comedi_file_private *cfp;
 
 	if(!dev->attached)
 	{
@@ -1348,17 +1352,11 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	cfp = (struct comedi_file_private*) file->private_data;
-	if(async == dev->read_subdev->async)
-		cfp->read_mmap_count++;
-	else if(async == dev->write_subdev->async)
-		cfp->write_mmap_count++;
-
 	rvmmap(async->prealloc_buf,async->prealloc_bufsz,vma);
 
 	//vma->vm_file = file;
-	//vma->vm_ops = &comedi_vm_ops;
-	//file_atomic_inc(&file->f_count);
+	vma->vm_ops = &comedi_vm_ops;
+	vma->vm_private_data = async;
 
 	async->mmap_count++;
 
@@ -1697,7 +1695,6 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	comedi_device *dev;
 	static int in_comedi_open=0;
 	char mod[32];
-	struct comedi_file_private *cfp;
 
 	if(minor>=COMEDI_NDEVICES)return -ENODEV;
 
@@ -1723,15 +1720,6 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 ok:
 	MOD_INC_USE_COUNT;
 
-	cfp = kmalloc(sizeof(struct comedi_file_private), GFP_KERNEL);
-	if(cfp == NULL)
-	{
-		MOD_DEC_USE_COUNT;
-		return -ENOMEM;
-	}
-	memset(cfp, 0, sizeof(struct comedi_file_private));
-	file->private_data = cfp;
-
 	if(dev->attached && dev->driver->module){
 		__MOD_INC_USE_COUNT(dev->driver->module);
 	}
@@ -1744,8 +1732,6 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 {
 	comedi_device *dev=comedi_get_device_by_minor(MINOR(inode->i_rdev));
 	comedi_subdevice *s = NULL;
-	comedi_async *async = NULL;
-	struct comedi_file_private *cfp = (struct comedi_file_private*) file->private_data;
 	int i;
 
 	for(i=0;i<dev->n_subdevices;i++){
@@ -1769,19 +1755,6 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 	if(file->f_flags & FASYNC){
 		comedi_fasync(-1,file,0);
 	}
-
-	// decrement mmap_counts
-	if(cfp->read_mmap_count)
-	{
-		async = dev->read_subdev->async;
-		async->mmap_count -= cfp->read_mmap_count;
-	}
-	if(cfp->write_mmap_count)
-	{
-		async = dev->write_subdev->async;
-		async->mmap_count -= cfp->write_mmap_count;
-	}
-	kfree(cfp);
 
 	return 0;
 }
