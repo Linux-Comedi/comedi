@@ -29,8 +29,14 @@ Options:
 	[0] - base io address
 	[1] - irq (optional)
 	[2] - dma (optional)
-	[3] - master clock speed in MHz (1 or 10, ignored if board can
-		probe clock speed, defaults to 1 otherwise)
+	[3] - master clock speed in MHz (optional, 1 or 10, ignored if board
+		can probe clock speed, defaults to 1 otherwise)
+	[4] - analog input range lowest voltage (optional, only useful if your
+		board does not have software programmable gain)
+	[5] - analog input range highest voltage (optional, only useful if your
+		board does not have software programmable gain)
+	[6] - analog output range lowest voltage (optional)
+	[7] - analog output range highest voltage (optional)
 
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
@@ -630,6 +636,9 @@ struct das16_private_struct {
 	unsigned int dma_chan;	// dma channel
 	sampl_t *dma_buffer;
 	unsigned int dma_transfer_size;	// number of bytes transfered per dma shot
+	// user-defined analog input and output ranges defined from config options
+	comedi_lrange *user_ai_range_table;
+	comedi_lrange *user_ao_range_table;
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
@@ -1202,6 +1211,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	int iobase;
 	int dma_chan;
 	unsigned long flags;
+	comedi_krange *user_ai_range, *user_ao_range;
 
 	iobase = it->options[0];
 
@@ -1317,6 +1327,34 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
+	// get any user-defined input range
+	if(thisboard->ai_pg == das16_pg_none &&
+		(it->options[4] || it->options[5]))
+	{
+		// allocate single-range range table
+		devpriv->user_ai_range_table =
+			kmalloc(sizeof(comedi_lrange) + sizeof(comedi_krange), GFP_KERNEL);
+		// initialize ai range
+		devpriv->user_ao_range_table->length = 1;
+		user_ai_range = devpriv->user_ai_range_table->range;
+		user_ai_range->min = it->options[4] * 1e6;
+		user_ai_range->max = it->options[5] * 1e6;
+		user_ai_range->flags = UNIT_volt;
+	}
+	// get any user-defined output range
+	if(it->options[6] || it->options[7])
+	{
+		// allocate single-range range table
+		devpriv->user_ao_range_table =
+			kmalloc(sizeof(comedi_lrange) + sizeof(comedi_krange), GFP_KERNEL);
+		// initialize ao range
+		devpriv->user_ai_range_table->length = 1;
+		user_ao_range = devpriv->user_ao_range_table->range;
+		user_ao_range->min = it->options[6] * 1e6;
+		user_ao_range->max = it->options[7] * 1e6;
+		user_ao_range->flags = UNIT_volt;
+	}
+
 	dev->n_subdevices = 5;
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
@@ -1337,7 +1375,10 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 			s->subdev_flags |= SDF_DIFF;
 		}
 		s->maxdata = (1 << thisboard->ai_nbits) - 1;
-		if(devpriv->ai_unipolar){
+		if(devpriv->user_ai_range_table)
+		{	// user defined ai range
+			s->range_table = devpriv->user_ai_range_table;
+		}else if(devpriv->ai_unipolar){
 			s->range_table = das16_ai_uni_lranges[thisboard->ai_pg];
 		}else{
 			s->range_table = das16_ai_bip_lranges[thisboard->ai_pg];
@@ -1357,7 +1398,13 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->subdev_flags = SDF_WRITEABLE;
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
-		s->range_table = &range_unknown;
+		if(devpriv->user_ao_range_table)
+		{	// user defined ao range
+			s->range_table = devpriv->user_ao_range_table;
+		}else
+		{
+			s->range_table = &range_unknown;
+		}
 		s->insn_write = thisboard->ao;
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1422,7 +1469,7 @@ static int das16_detach(comedi_device *dev)
 	printk("comedi%d: das16: remove\n", dev->minor);
 
 	das16_reset(dev);
-	
+
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices+4);
 
@@ -1442,6 +1489,10 @@ static int das16_detach(comedi_device *dev)
 			kfree(devpriv->dma_buffer);
 		if(devpriv->dma_chan)
 			free_dma(devpriv->dma_chan);
+		if(devpriv->user_ai_range_table)
+			kfree(devpriv->user_ai_range_table);
+		if(devpriv->user_ao_range_table)
+			kfree(devpriv->user_ao_range_table);
 	}
 
 	return 0;
