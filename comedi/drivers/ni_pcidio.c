@@ -62,7 +62,7 @@ AT-MIO96.
 
 #define USE_DMA
 //#define DEBUG 1
-#define DEBUG_FLAGS
+//#define DEBUG_FLAGS
 
 #include <linux/comedidev.h>
 
@@ -167,6 +167,7 @@ AT-MIO96.
 #define ClockReg			Protocol_Register_2
   #define ClockLine(x)		(((x)&3)<<5)
   #define InvertStopTrig	(1<<7)
+  #define DataLatching(x)       (((x)&3)<<5)
 
 #define Protocol_Register_3		67
 #define Sequence			Protocol_Register_3
@@ -354,6 +355,7 @@ typedef struct{
 	struct mite_struct *mite;
 	int boardtype;
 	int dio;
+	unsigned short OpModeBits;
 }nidio96_private;
 #define devpriv ((nidio96_private *)dev->private)
 
@@ -446,7 +448,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(m_status & CHSR_DONE){
 			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 		}
-		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1)){
+		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1 | CHSR_MRDY)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
 			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 			disable_irq(dev->irq);
@@ -666,11 +668,11 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
+	cmd->scan_end_src &= TRIG_COUNT|TRIG_NONE;  
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
@@ -776,7 +778,7 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 	/* XXX configure ports for input*/
 	writel(0x0000,dev->iobase+Port_Pin_Directions(0));
 
-	if(0){
+	if(1){
 		/* enable fifos A B C D */
 		writeb(0x0f,dev->iobase+Data_Path);
 
@@ -852,9 +854,14 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 	writeb(IntEn,dev->iobase+Interrupt_Control);
 	writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
 
+	if(cmd->stop_src == TRIG_NONE) {
+		devpriv->OpModeBits = DataLatching(0) | RunMode(7);
+	} else {  // TRIG_TIMER
+		devpriv->OpModeBits = Numbered | RunMode(7);
+	}
 	if(cmd->start_src == TRIG_NOW){
 		/* start */
-		writeb(Numbered | RunMode(7),dev->iobase+OpMode);
+		writeb(devpriv->OpModeBits, dev->iobase+OpMode);
 		s->async->inttrig = NULL;
 	}else{
 		/* TRIG_INT */
@@ -875,7 +882,7 @@ static void setup_mite_dma(comedi_device *dev,comedi_subdevice *s)
 
 	mite_chan->dir = COMEDI_INPUT;
 
-	mite_prep_dma(mite, DI_DMA_CHAN, 16, 16);
+	mite_prep_dma(mite, DI_DMA_CHAN, 32, 32);
 
 	mite_dma_arm(mite, DI_DMA_CHAN);
 }
@@ -886,7 +893,7 @@ static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
 {
 	if(trignum!=0)return -EINVAL;
 
-	writeb(Numbered | RunMode(7),dev->iobase+OpMode);
+	writeb(devpriv->OpModeBits, dev->iobase+OpMode);
 	s->async->inttrig = NULL;
 
 	return 1;
@@ -963,7 +970,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 		dev->read_subdev = s;
 		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
+		s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_LSAMPL;
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
