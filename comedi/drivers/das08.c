@@ -349,9 +349,20 @@ static struct das08_board_struct das08_boards[]={
 	{
 	name:		"das08jr",
 	},
+#endif
 	{
 	name:		"das08jr/16",
+	ai:		das08_ai_rinsn,
+	ai_nbits:	16,
+	ai_pg:		das08_pg_none,
+	ao:		NULL,
+	ao_nbits:	0,
+	di:		das08jr_di_rbits,
+	do_:		das08jr_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0,
 	},
+#if 0
 	{
 	name:		"das48-pga",		// cio-das48-pga.pdf
 	},
@@ -402,14 +413,20 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	udelay(2);
 
 	for(n=0;n<insn->n;n++){
+		/* clear over-range bits for 16-bit boards */
+		if (thisboard->ai_nbits == 16)
+			if (inb(dev->iobase + DAS08_MSB) & 0x80)
+				rt_printk("das08: over-range\n");
+
 		/* trigger conversion */
 		outb_p(0,dev->iobase+DAS08_TRIG_12BIT);
 
-		for(i=0;i<TIMEOUT;i++){
+		for(i=0;i<(thisboard->ai_nbits == 16 ? 100 : 1) * TIMEOUT;
+			i++){
 			if(!(inb(dev->iobase+DAS08_STATUS)&DAS08_EOC))
 				break;
 		}
-		if(i==TIMEOUT){
+		if(i==(thisboard->ai_nbits == 16 ? 100 : 1) * TIMEOUT){
 			rt_printk("das08: timeout\n");
 			return -ETIME;
 		}
@@ -418,7 +435,11 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		if(thisboard->ai_nbits==12){
 			data[n] = (lsb>>4) | (msb << 4);
 		}else{
-			data[n] = lsb | (msb << 8);
+			/* FPOS 16-bit boards are sign-magnitude */
+			if (msb & 0x80)
+				data[n] = (1 << 15) | lsb | ((msb & 0x7f) << 8);
+			else
+				data[n] = (1 << 15) - (lsb | (msb & 0x7f) << 8);
 		}
 	}
 
