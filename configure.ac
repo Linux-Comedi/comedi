@@ -33,6 +33,10 @@ AC_DEFINE_UNQUOTED(COMEDI_MICROVERSION, $COMEDI_MICROVERSION, [Comedi micro vers
 
 AC_PROG_CC()
 AC_PATH_PROG(STRIP,strip)
+AC_PATH_PROG([DEPMOD], [depmod], [no], [PATH:/sbin:/usr/sbin:/usr/local/sbin])
+if test "$DEPMOD" == "no" ; then
+	AC_MSG_ERROR([unable to find the 'depmod' program.])
+fi
 
 AS_LINUX()
 AS_LINUX_MODTOOL()
