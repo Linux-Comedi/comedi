@@ -204,18 +204,19 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
     		for (t = RTI800_TIMEOUT; t; t--) {
 			status=inb(dev->iobase+RTI800_CSR);
 			if(status & RTI800_OVERRUN){
-				rt_printk("rti800: a/d overflow\n");
+				rt_printk("rti800: a/d overrun\n");
 				outb(0,dev->iobase+RTI800_CLRFLAGS);
 				return -EIO;
 			}
 			if (status & RTI800_DONE)break;
+			//udelay(8);
 		}
-		if(t){
+		if(t == 0){
 			rt_printk("rti800: timeout\n");
 			return -ETIME;
 		}
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
-		data[i] = (0xf & inb(dev->iobase + RTI800_ADCHI))<<8;
+		data[i] |= (0xf & inb(dev->iobase + RTI800_ADCHI))<<8;
 
 		if (devpriv->adc_coding == adc_2comp) {
 			data[i] ^= 0x800;
@@ -249,8 +250,8 @@ static int rti800_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 		if (devpriv->dac0_coding == dac_2comp) {
 			d ^= 0x800;
 		}
-		outb(d & 0xff, dev->iobase + chan?RTI800_DAC1LO:RTI800_DAC0LO);
-		outb(d >> 8, dev->iobase + chan?RTI800_DAC1HI:RTI800_DAC0HI);
+		outb(d & 0xff, dev->iobase + (chan?RTI800_DAC1LO:RTI800_DAC0LO));
+		outb(d >> 8, dev->iobase + (chan?RTI800_DAC1HI:RTI800_DAC0HI));
 	}
 	return i;
 }
@@ -260,7 +261,6 @@ static int rti800_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 {
 	if(insn->n!=2)return -EINVAL;
 	data[1] = inb(dev->iobase + RTI800_DI);
-
 	return 2;
 }
 
@@ -271,7 +271,7 @@ static int rti800_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 
 	if(data[0]){
 		s->state &= ~data[0];
-		s->state &= data[0]&data[1];
+		s->state |= data[0]&data[1];
 		/* Outputs are inverted... */
 		outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
 	}
