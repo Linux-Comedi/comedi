@@ -69,8 +69,8 @@
 #include <linux/isapnp.h>
 #include <linux/pci.h>
 #endif
-#include <ni_stc.h>
-#include <8255.h>
+#include "ni_stc.h"
+#include "8255.h"
 
 #undef DEBUG
 

@@ -44,8 +44,8 @@
 #include <linux/rtl.h>
 #endif
 #include <linux/comedidev.h>
-#include <ni_stc.h>
-#include <8255.h>
+#include "ni_stc.h"
+#include "8255.h"
 
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>

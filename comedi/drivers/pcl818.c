@@ -71,7 +71,7 @@
 #include <linux/delay.h>
 #include <asm/dma.h>
 #include <linux/comedidev.h>
-#include <8253.h>
+#include "8253.h"
 
 // #define PCL818_MODE13_AO 1
 

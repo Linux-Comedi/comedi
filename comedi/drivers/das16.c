@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
-#include <8255.h>
+#include "8255.h"
 
 
 #define DAS16_SIZE 20

@@ -73,8 +73,8 @@
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/comedidev.h>
-#include <ni_stc.h>
-#include <mite.h>
+#include "ni_stc.h"
+#include "mite.h"
 
 #undef DEBUG
 #define PCI_DEBUG

@@ -75,7 +75,7 @@
 #define Am9513_input_data()		inb(dev->iobase+RTI800_9513A_DATA)
 #define Am9513_input_status()		inb(dev->iobase+RTI800_9513A_STATUS)
 
-#include <am9513.h>
+#include "am9513.h"
 
 static comedi_lrange range_rti800_ai_10_bipolar = { 4, {
 	BIP_RANGE( 10 ),

@@ -46,8 +46,8 @@
 #include <linux/malloc.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <mite.h>
-#include <8255.h>
+#include "mite.h"
+#include "8255.h"
 
 /* general debugging messages */
 #define DEBUG

@@ -31,8 +31,8 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
-#include <8253.h>
-#include <amcc_s5933.h>
+#include "8253.h"
+#include "amcc_s5933.h"
 
 
 #define ADVANTECH_VENDOR	0x13fe	/* Advantech PCI vendor ID */

@@ -110,9 +110,9 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/comedidev.h>
-#include <8255.h>
+#include "8255.h"
 #ifdef CONFIG_COMEDI_DAQBOARD2000_FPGA
-#include <daqboard2000_fpga.h>
+#include "daqboard2000_fpga.h"
 #endif
 
 #define DAQBOARD2000_SUBSYSTEM_IDS2 	0x00021616 /* Daqboard/2000 - 2 Dacs */

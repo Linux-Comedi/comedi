@@ -30,8 +30,8 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
-#include <amcc_s5933.h>
-#include <8253.h>
+#include "amcc_s5933.h"
+#include "8253.h"
 
 #define PCL9118_PARANOIDCHECK		/* if defined, then is used code which control correct channel number on every 12 bit sample */
 

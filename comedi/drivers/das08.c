@@ -34,7 +34,7 @@ Support for pci-das08 card added by Frank M. Hess
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
-#include <8255.h>
+#include "8255.h"
 #include <linux/pci.h>
 
 

@@ -42,7 +42,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <linux/comedidev.h>
-#include <8253.h>
+#include "8253.h"
 
 /* #define MD_DEBUG */
 

@@ -58,7 +58,7 @@
 #define DEBUG_STATUS_A
 //#define DEBUG_STATUS_B
 
-#include <8255.h>
+#include "8255.h"
 
 #ifndef MDPRINTK
 #define MDPRINTK(format,args...)

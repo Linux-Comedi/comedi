@@ -51,8 +51,8 @@ list has 2 or more channels in it, then two conditions must be satisfied:
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
-#include <8255.h>
-#include <8253.h>
+#include "8255.h"
+#include "8253.h"
 
 #define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8

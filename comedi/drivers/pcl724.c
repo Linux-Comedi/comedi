@@ -34,7 +34,7 @@
 #include <linux/timer.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
-#include <8255.h>
+#include "8255.h"
 
 #define PCL722_SIZE    32
 #define PCL722_96_SIZE 16
