@@ -36,7 +36,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 
 
 #if LINUX_VERSION_CODE >= 0x020200

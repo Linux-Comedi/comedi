@@ -34,7 +34,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 extern volatile int rtcomedi_lock_semaphore;
