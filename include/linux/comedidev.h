@@ -67,6 +67,8 @@
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe
 #define PCI_VENDOR_ID_RTD		0x1435
 #define PCI_VENDOR_ID_AMPLICON		0x14dc
+#define PCI_VENDOR_ID_ADLINK		0x144a
+#define PCI_VENDOR_ID_ICP		0x104c
 
 
 typedef struct comedi_device_struct comedi_device;
