@@ -30,6 +30,10 @@ Description: National Instruments PCMCIA DAQ-Card DIO-24
 Author: Daniel Vecino Castel <dvecino@able.es>
 Devices: National Instruments PCMCIA DAQ-Card DIO-24
 Status: ?
+Updated: Thu, 07 Nov 2002 21:53:06 -0800
+
+This is just a wrapper around the 8255.o driver to properly handle
+the PCMCIA interface.
 */
 
 
@@ -82,9 +86,6 @@ static dev_link_t *pcmcia_dev_list = NULL;
 static int dio24_attach(comedi_device *dev,comedi_devconfig *it);
 static int dio24_detach(comedi_device *dev);
 
-static unsigned int dio24_inb(unsigned int address);
-static void dio24_outb(unsigned int byte, unsigned int address);
-
 enum dio24_bustype {pcmcia_bustype};
 
 typedef struct dio24_board_struct{
@@ -105,8 +106,6 @@ static dio24_board dio24_boards[] =
 		device_id:	0x475c,	// 0x10b is manufacturer id, 0x475c is device id
 		bustype:	pcmcia_bustype,
 		have_dio:	1,
-		read_byte:	dio24_inb,
-		write_byte:	dio24_outb,
 	},
 };
 
@@ -209,18 +208,6 @@ static int dio24_detach(comedi_device *dev)
 	return 0;
 };
 
-
-/* functions that do inb/outb and readb/writeb so we can use
- * function pointers to decide which to use */
-static unsigned int dio24_inb(unsigned int address)
-{
-	return inb(address);
-}
-
-static void dio24_outb(unsigned int byte, unsigned int address)
-{
-	outb(byte, address);
-}
 
 
 // PCMCIA crap
@@ -815,7 +802,6 @@ int init_module(void)
 {
 	int ret;
 
-        printk("ni_daq_dio24: HOLA SOY YO el primero!\n");
     	ret = init_dio24_cs();
 	if(ret < 0)
 		return ret;
@@ -825,7 +811,6 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	printk("ni_daq_dio24: ADIOS SOY YO el primero!\n");
 	exit_dio24_cs();
 	comedi_driver_unregister(&driver_dio24);
 }
