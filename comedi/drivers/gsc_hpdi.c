@@ -61,8 +61,8 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 
-//#undef HPDI_DEBUG	// disable debugging messages
-#define HPDI_DEBUG	// enable debugging code
+#undef HPDI_DEBUG	// disable debugging messages
+//#define HPDI_DEBUG	// enable debugging code
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
