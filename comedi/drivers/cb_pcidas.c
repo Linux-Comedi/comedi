@@ -1023,6 +1023,8 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL, devpriv->control_status + INT_ADCFIFO);
 	// enable s5933 interrupt
 	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
+	// make sure mailbox 3 is empty
+	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
 
 
 	// set start trigger and burst mode
@@ -1259,6 +1261,8 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI, devpriv->control_status + INT_ADCFIFO);
 	// enable s5933 interrupt
 	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
+	// make sure mailbox 3 is empty
+	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
 
 	// start dac
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
@@ -1303,10 +1307,10 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if(INTR_ASSERTED & s5933_status)
 	{
-		// make sure mailbox 3 is empty
-		inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
 		// clear interrupt on amcc s5933
 		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+		// make sure mailbox 3 is empty
+		inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
 	}
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
@@ -1327,6 +1331,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	// if fifo half-full
 	if(status & ADHFI)
 	{
+		// clear half-full interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		// read data
 		insw(devpriv->adc_fifo + ADCDATA, data, half_fifo);
 		for(i = 0; i < half_fifo; i++)
@@ -1343,11 +1349,11 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		async->events |= COMEDI_CB_BLOCK;
-		// clear half-full interrupt latch
-		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 	// else if fifo not empty
 	}else if(status & (ADNEI | EOBI))
 	{
+		// clear not-empty interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		for(i = 0; i < timeout; i++)
 		{
 			// break if fifo is empty
@@ -1364,8 +1370,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		async->events |= COMEDI_CB_BLOCK;
-		// clear not-empty interrupt latch
-		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 	}else if(status & EOAI)
 	{
 		comedi_error(dev, "bug! encountered end of aquisition interrupt?");
