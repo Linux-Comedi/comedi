@@ -50,7 +50,6 @@
 
 	 - the interrupt routine needs to be cleaned up
 	 - many printk's need to be changed to rt_printk()
-	 - analog output data is not munged for ao command (fmhess)
 */
 
 //#define DEBUG_INTERRUPT
@@ -1343,7 +1342,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		//TIM 4/17/01 win_out(bits,Interrupt_A_Enable_Register) ;
 		ni_set_bits(dev, Interrupt_A_Enable_Register, bits, 1);
-		
+
 		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",bits);
 	}else{
 		/* interrupt on nothing */
@@ -1518,13 +1517,56 @@ static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
 }
 
 
+// munge data from unsigned to 2's complement for analog output bipolar modes
+static void ni_ao_munge(comedi_device *dev, comedi_subdevice *s,
+	sampl_t *array, unsigned int length)
+{
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int range;
+	unsigned int i;
+	unsigned int offset;
+	unsigned int channel_index;
+
+	offset = 1 << (boardtype.aobits - 1);
+	for(i = 0; i < length; i++)
+	{
+		channel_index = (async->cur_chan + i) % cmd->chanlist_len;
+		range = CR_RANGE(cmd->chanlist[channel_index]);
+		// if it's a unipolar range, no munging is required
+		if(boardtype.ao_unipolar &&
+			(range & 1))
+			continue;
+		else
+			array[i] -= offset;
+	}
+}
+
 static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
 {
+	comedi_async *async = s->async;
 	int i;
+
+	// do any munging necessary
+	ni_ao_munge(dev, s, data, n);
 
 	for(i=0;i<n;i++){
 		ni_writew(data[i],DAC_FIFO_Data);
+	}
+
+	// increment channel index
+	async->cur_chan = (async->cur_chan + n) % async->cmd.chanlist_len;
+	// increment async buf_int_count and buf_int_ptr
+	async->buf_int_count += n * sizeof(sampl_t);
+	async->buf_int_ptr += n * sizeof(sampl_t);
+	// check if we have reached end of buffer
+	if(async->buf_int_ptr >= async->data_len)
+	{
+		async->buf_int_ptr -= async->data_len;
+		// this shouldn't ever happen
+		if(async->buf_int_ptr >= async->data_len)
+			comedi_error(dev, "ao bug!");
 	}
 }
 
@@ -1557,13 +1599,9 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>s->async->data_len){
 		m=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,m);
-		s->async->buf_int_count+=m*sizeof(sampl_t);
-		s->async->buf_int_ptr=0;
 		n-=m;
 	}
 	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
-	s->async->buf_int_count+=n*sizeof(sampl_t);
-	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
 	comedi_bufcheck(dev,s);
 
@@ -1584,8 +1622,6 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 		n=boardtype.ao_fifo_depth;
 
 	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
-	s->async->buf_int_count+=n*sizeof(sampl_t);
-	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
 	return n;
 }
