@@ -903,12 +903,12 @@ static int ni_pcidio_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 
-static int ni_pcidio_alloc(comedi_device *dev, comedi_subdevice *s,
+static int ni_pcidio_change(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
 
-	ret = mite_buf_alloc(devpriv->mite, DI_DMA_CHAN, s->async, new_size);
+	ret = mite_buf_change(devpriv->mite, DI_DMA_CHAN, s->async, new_size);
 	if(ret<0)return ret;
 
 	memset(s->async->prealloc_buf, 0xaa, s->async->prealloc_bufsz);
@@ -974,7 +974,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->do_cmdtest = ni_pcidio_cmdtest;
 		s->cancel = ni_pcidio_cancel;
 		s->len_chanlist=32;		/* XXX */
-		s->buf_alloc = ni_pcidio_alloc;
+		s->buf_change = ni_pcidio_change;
 
 		writel(0,dev->iobase+Port_IO(0));
 		writel(0,dev->iobase+Port_Pin_Directions(0));

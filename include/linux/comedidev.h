@@ -132,8 +132,8 @@ struct comedi_subdevice_struct{
 	//int (*do_lock)(comedi_device *,comedi_subdevice *);
 	//int (*do_unlock)(comedi_device *,comedi_subdevice *);
 
-	/* buffer allocation overload function */
-	int (*buf_alloc)(comedi_device *,comedi_subdevice *s,unsigned long new_size);
+	/* called when the buffer changes */
+	int (*buf_change)(comedi_device *,comedi_subdevice *s,unsigned long new_size);
 
 	void (*munge)( comedi_device *, comedi_subdevice *s, void *data,
 		unsigned int num_bytes, unsigned int start_chan_index );
@@ -144,6 +144,7 @@ struct comedi_subdevice_struct{
 struct comedi_async_struct{
 	void		*prealloc_buf;		/* pre-allocated buffer */
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
+	unsigned long	*buf_page_list;		/* physical address of each page */
 	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 
@@ -236,13 +237,6 @@ const int comedi_debug = 0;
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
 void comedi_error(comedi_device *dev,const char *s);
-#if 0
-void comedi_done(comedi_device *dev,comedi_subdevice *s);
-void comedi_error_done(comedi_device *dev,comedi_subdevice *s);
-void comedi_eos(comedi_device *dev,comedi_subdevice *s);
-void comedi_eobuf(comedi_device *dev,comedi_subdevice *s);
-void comedi_bufcheck(comedi_device *dev,comedi_subdevice *s);
-#endif
 
 comedi_device * comedi_get_device_by_minor(kdev_t minor);
 
@@ -263,6 +257,9 @@ void init_polling(void);
 void cleanup_polling(void);
 void start_polling(comedi_device *);
 void stop_polling(comedi_device *);
+
+int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s, unsigned long
+	new_size);
 
 #ifdef CONFIG_PROC_FS
 void comedi_proc_init(void);
@@ -346,43 +343,6 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 	else
 		return sizeof( sampl_t );
 }
-
-#if LINUX_VERSION_CODE >= 0x020200
-static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
-{
-	unsigned long ret = 0UL;
-	pmd_t *pmd;
-	pte_t *ptep, pte;
-
-	if(!pgd_none(*pgd)){
-		pmd = pmd_offset(pgd, adr);
-		if(!pmd_none(*pmd)){
-			ptep = pte_offset(pmd, adr);
-			pte = *ptep;
-			if(pte_present(pte)){
-				ret = (unsigned long) page_address(pte_page(pte));
-				ret |= (adr & (PAGE_SIZE - 1));
-			}
-		}
-	}
-	return ret;
-}
-
-static inline unsigned long kvirt_to_pa(unsigned long adr)
-{
-	unsigned long va, kva, ret;
-
-	va = VMALLOC_VMADDR(adr);
-	kva = uvirt_to_kva(pgd_offset_k(va), va);
-	ret = __pa(kva);
-	return ret;
-}
-#else
-static inline unsigned long kvirt_to_pa(unsigned long adr)
-{
-	return 0;
-}
-#endif
 
 int comedi_buf_put(comedi_async *async, sampl_t x);
 int comedi_buf_get(comedi_async *async, sampl_t *x);

@@ -37,8 +37,6 @@
 
 #include <asm/io.h>
 
-//#include "kvmem.h"
-
 static int postconfig(comedi_device *dev);
 static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
@@ -46,7 +44,7 @@ static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,l
 static void *comedi_recognize(comedi_driver *driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
 static int poll_invalid(comedi_device *dev,comedi_subdevice *s);
-static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
+int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size);
 
 comedi_driver *comedi_drivers;
@@ -73,7 +71,8 @@ int comedi_device_detach(comedi_device *dev)
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
 		if(s->async){
-			if(s->buf_alloc) s->buf_alloc(dev,s,0);
+			comedi_buf_alloc(dev, s, 0);
+			if(s->buf_change) s->buf_change(dev,s,0);
 			kfree(s->async);
 		}
 	}
@@ -225,6 +224,7 @@ static int postconfig(comedi_device *dev)
 	int i;
 	comedi_subdevice *s;
 	comedi_async *async = NULL;
+	int ret;
 
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
@@ -249,13 +249,16 @@ static int postconfig(comedi_device *dev)
 #define DEFAULT_BUF_SIZE (64*1024)
 
 			async->max_bufsize = DEFAULT_BUF_MAXSIZE;
-			if(!s->buf_alloc) s->buf_alloc = buf_alloc;
 
 			async->prealloc_buf = NULL;
 			async->prealloc_bufsz = 0;
-			if(s->buf_alloc(dev,s,DEFAULT_BUF_SIZE) < 0){
+			if(comedi_buf_alloc(dev,s,DEFAULT_BUF_SIZE) < 0){
 				printk("Buffer allocation failed\n");
 				return -ENOMEM;
+			}
+			if(s->buf_change){
+				ret = s->buf_change(dev,s,DEFAULT_BUF_SIZE);
+				if(ret < 0)return ret;
 			}
 		}
 
@@ -358,14 +361,39 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
-/*
- * Default allocator for Comedi buffers
- * Override function should allocate a new buffer of size new_size,
- * and update async->prealloc_buf and async->prealloc_bufsz.  Set
- * NULL and 0 if the allocation fails.  If new_size is 0, deallocate
- * the old buffer and don't allocate a new one.
- */
-static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
+
+static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
+{
+	unsigned long ret = 0UL;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
+
+	if(!pgd_none(*pgd)){
+		pmd = pmd_offset(pgd, adr);
+		if(!pmd_none(*pmd)){
+			ptep = pte_offset(pmd, adr);
+			pte = *ptep;
+			if(pte_present(pte)){
+				ret = (unsigned long) page_address(pte_page(pte));
+				ret |= (adr & (PAGE_SIZE - 1));
+			}
+		}
+	}
+	return ret;
+}
+
+static inline unsigned long kvirt_to_kva(unsigned long adr)
+{
+	unsigned long va, kva;
+
+	va = VMALLOC_VMADDR(adr);
+	kva = uvirt_to_kva(pgd_offset_k(va), va);
+
+	return kva;
+}
+
+
+int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size)
 {
 	comedi_async *async = s->async;
@@ -376,43 +404,41 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	}
 
 	if(async->prealloc_bufsz){
-		unsigned long adr, size;
-		unsigned long page;
+		int i;
+		int n_pages = async->prealloc_bufsz >> PAGE_SHIFT;
 
-		size = async->prealloc_bufsz;
-		adr = (unsigned long)async->prealloc_buf;
-		while(size>0){
-			page = kvirt_to_pa(adr);
-			mem_map_unreserve(virt_to_page(__va(page)));
-			adr += PAGE_SIZE;
-			size -= PAGE_SIZE;
+		for(i=0;i<n_pages;i++){
+			mem_map_unreserve(virt_to_page(__va(__pa(async->buf_page_list[i]))));
 		}
 
 		vfree(async->prealloc_buf);
 		async->prealloc_buf = NULL;
+		kfree(async->buf_page_list);
+		async->buf_page_list = NULL;
 	}
 
 	if(new_size){
 		unsigned long adr;
-		unsigned long size;
-		unsigned long page;
+		int n_pages = new_size >> PAGE_SHIFT;
+		int i;
 
+		async->buf_page_list = kmalloc(sizeof(unsigned long)*n_pages, GFP_KERNEL);
 		async->prealloc_buf = vmalloc_32(new_size);
 		if(async->prealloc_buf == NULL){
 			async->prealloc_bufsz = 0;
+			kfree(async->buf_page_list);
 			return -ENOMEM;
 		}
 		memset(async->prealloc_buf,0,new_size);
 
 		adr = (unsigned long)async->prealloc_buf;
-		size = new_size;
-		while(size > 0){
-			page = kvirt_to_pa(adr);
-			mem_map_reserve(virt_to_page(__va(page)));
+		for(i=0;i<n_pages;i++){
+			async->buf_page_list[i] = kvirt_to_kva(adr);
+			mem_map_reserve(virt_to_page(__va(__pa(async->buf_page_list[i]))));
 			adr += PAGE_SIZE;
-			size -= PAGE_SIZE;
 		}
 	}
+
 	async->prealloc_bufsz = new_size;
 
 	return 0;
@@ -422,7 +448,7 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 void comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
 	unsigned int num_bytes )
 {
-	unsigned int offset = s->async->buf_write_count;
+	unsigned int offset = s->async->buf_write_ptr;
 
 	if( s->munge == NULL || ( s->async->cmd.flags & CMDF_RAWDATA ) )
 		return;

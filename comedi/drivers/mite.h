@@ -107,12 +107,12 @@ void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan, int 
 
 void mite_prep_dma(struct mite_struct *mite, unsigned int channel,
 	unsigned int num_device_bits, unsigned int num_memory_bits );
-int mite_buf_alloc(struct mite_struct *mite, unsigned int channel,
+int mite_buf_change(struct mite_struct *mite, unsigned int channel,
 	comedi_async *async, unsigned long new_size);
 
 #ifdef DEBUG_MITE
 void mite_print_chsr(unsigned int chsr);
-void mite_dump_regs(struct mite_struct *mite, channel);
+void mite_dump_regs(struct mite_struct *mite, int channel);
 #endif
 
 #define CHAN_OFFSET(x)			(0x100*(x))

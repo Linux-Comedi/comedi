@@ -231,10 +231,13 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		 * (we round up) */
 		bc.size = (bc.size + 1)&PAGE_MASK;
 
-		ret = s->buf_alloc(dev,s,bc.size);
+		ret = comedi_buf_alloc(dev, s, bc.size);
+		if(ret < 0) return ret;
 
-		if(ret < 0)
-			return ret;
+		if(s->buf_change){
+			ret = s->buf_change(dev,s,bc.size);
+			if(ret < 0) return ret;
+		}
 
 		DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
 			dev->minor, bc.subdevice, async->prealloc_bufsz);
@@ -1212,10 +1215,10 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	kdev_t minor=MINOR(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 	comedi_async *async = NULL;
-	unsigned long pos;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
-	unsigned long page;
+	int n_pages;
+	int i;
 
 	if(!dev->attached)
 	{
@@ -1250,16 +1253,13 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	if(size&(~PAGE_MASK))
 		return -EFAULT;
 
-	pos = (unsigned long)async->prealloc_buf;
-	while(size>0){
-		page = kvirt_to_pa(pos);
-		if(remap_page_range(start, page, PAGE_SIZE, PAGE_SHARED)){
+	n_pages = size >> PAGE_SHIFT;
+	for(i=0;i<n_pages;i++){
+		if(remap_page_range(start, __pa(async->buf_page_list[i]),
+				PAGE_SIZE, PAGE_SHARED)){
 			return -EAGAIN;
 		}
-
-		pos += PAGE_SIZE;
 		start += PAGE_SIZE;
-		size -= PAGE_SIZE;
 	}
 
 	vma->vm_ops = &comedi_vm_ops;

@@ -53,7 +53,6 @@
 #include <linux/comedidev.h>
 
 #include <linux/pci.h>
-#include <linux/wrapper.h>
 
 #include "mite.h"
 
@@ -183,98 +182,6 @@ void mite_list_devices(void)
 
 }
 
-#if 0
-int mite_kvmem_segment_load(struct mite_struct *mite,int i,char *kvmem,unsigned int len)
-{
-	int count,offset;
-
-	offset=((int)kvmem)&(PAGE_SIZE-1);
-
-	mite->ring[i].addr = cpu_to_le32(kvirt_to_bus((int)kvmem));
-
-	count=PAGE_SIZE-offset;
-	if(count>len)count=len;
-	mite->ring[i].count = cpu_to_le32(count);
-
-	return count;
-}
-
-
-/*
- * Create the short linkchaining MITE linked list using kernel memory
- */
-unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int reqlen)
-{
-	int i,size_so_far, continuous_aq, len;
-	unsigned long nup;
-	unsigned long prealloc_buf,prealloc_bufsz;
-
-	MDPRINTK("mite_ll_from_kvmem\n");
-	prealloc_buf=(unsigned long)async->prealloc_buf;
-	prealloc_bufsz=async->prealloc_bufsz;
-
-	continuous_aq = (async->cmd.stop_src == TRIG_NONE? 1:0);
-	if(continuous_aq) {
-		len = prealloc_bufsz;
-	}else{
-		len = (reqlen>prealloc_bufsz?prealloc_bufsz:reqlen);
-	}
-
-	//find the kernel's memory pages.
-	nup = (unsigned long)async->data;
-	i=0;
-	size_so_far=0;
-	MDPRINTK("buf=0x%08lx bufsz=0x%08lx\n",
-		(unsigned long)prealloc_buf,prealloc_bufsz);
-
-	while(((void*)nup < (async->data+len))&&(i<(MITE_RING_SIZE-1))) {
-		int count;
-		count = 1+TOP_OF_PAGE(nup)-nup;
-		if(count>len-size_so_far) count = len-size_so_far;
-		// it's already a kernel address :-)
-		mite->ring[i].addr = cpu_to_le32(kvirt_to_bus(nup));
-		mite->ring[i].count = cpu_to_le32(count);
-		mite->ring[i].next = cpu_to_le32(virt_to_bus(mite->ring+i+1));
-		size_so_far += count;
-		nup += count;
-		i++;
-	}
-
-	/*End the mite->ring by setting the last element's count to 0.
-	To make a looping ring for continuous acquisition,
-	mite->ring[i-1].next = cpu_to_le32(virt_to_bus(mite->ring));
-	*/
-	//mite->ring[i].count=0;
-
-	if (continuous_aq&&(i>0)) {
-		mite->ring[i-1].next = cpu_to_le32(virt_to_bus(mite->ring+0));
-		mite->DMA_CheckNearEnd = 0;
-	}else if (prealloc_bufsz < reqlen) {
-		mite->ring[i-1].next = cpu_to_le32(virt_to_bus(mite->ring+0));
-		mite->DMA_CheckNearEnd = 1;
-	}
-	else {
-		mite->ring[i].count=0;
-		mite->DMA_CheckNearEnd = 0;
-	}
-
-
-	MDPRINTK("i was %d, size_so_far was %d\n",i,size_so_far);
-	if(size_so_far<len) {
-		printk("<1>Comedi Error: MITE_RING_SIZE is too small to hold the needed buffer\n");
-	}
-#ifdef DEBUG_MITE
-	for(i=0; i<MITE_RING_SIZE;i++){
-		printk("i=%3d, addr=0x%08x, next=0x%08x, count=0x%08x\n",i,mite->ring[i].addr,
-			mite->ring[i].next, mite->ring[i].count);
-	}
-#endif
-	MDPRINTK("exit mite_ll_from_kvmem\n");
-	return virt_to_bus(&(mite->ring[0]));
-}
-#endif
-
-
 void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
 {
 	int chor;
@@ -286,60 +193,6 @@ void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
 
 	mite_dma_tcr(mite, channel);
 }
-
-
-#if 0
-void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan,int dir)
-{
-	//*mite is the mite to work with
-	//ll_start is the beginning of the linkshort mite linked list
-	//chan is the DMA channel to use on the MITE (0,1,2,3)
-	//dir is the direction of the transfer COMEDI_INPUT or COMEDI_OUTPUT
-	int chor,chcr,mcr,dcr,lkcr;
-
-	MDPRINTK("mite_setregs\n");
-
-	chor = CHOR_DMARESET | CHOR_FRESET; //reset DMA and FIFO
-	writel(chor,mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(chan));
-
-	//short link chaining mode
-	chcr = CHCR_SET_DMA_IE| CHCR_LINKSHORT | CHCR_SET_DONE_IE;
-	/*Link Complete Interrupt: interrupt every time a link in MITE_RING
-	is completed. This can generate a lot of extra interrupts, but right now we
-	update the values of buf_int_ptr and buf_int_count at each interrupt.  A
-	better method is to poll the MITE before each user "read()" to calculate the
-	number of bytes available.  mite_bytes_transferred() is provided to get the
-	number of bytes transferred to system memory so far.
-	*/
-	chcr |= CHCR_SET_LC_IE;
-
-	if(dir == COMEDI_INPUT){
-		chcr |= CHCR_DEV_TO_MEM;
-	}
-	writel(chcr,mite->mite_io_addr+MITE_CHCR+CHAN_OFFSET(chan));
-
-	//16 bits, to memory
-	mcr = CR_RL64 | CR_ASEQxP1 | CR_PSIZEHALF;
-	writel(mcr,mite->mite_io_addr+MITE_MCR+CHAN_OFFSET(chan));
-
-	//16 bits, from STC
-	dcr = CR_RL64 |  CR_ASEQx(1) | CR_PSIZEHALF;
-	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQS(0x4+chan);
-	writel(dcr,mite->mite_io_addr+MITE_DCR+CHAN_OFFSET(chan));
-
-	//reset the DAR
-	writel(0,mite->mite_io_addr+MITE_DAR+CHAN_OFFSET(chan));
-
-	//the link is 32bits
-	lkcr = CR_RL64 | CR_ASEQUP | CR_PSIZEWORD;
-	writel(lkcr,mite->mite_io_addr+MITE_LKCR+CHAN_OFFSET(chan));
-
-	//starting address for link chaining
-	writel(ll_start,mite->mite_io_addr+MITE_LKAR+CHAN_OFFSET(chan));
-
-	MDPRINTK("exit mite_setregs\n");
-}
-#endif
 
 
 /**************************************/
@@ -363,7 +216,7 @@ int mite_load_buffer(struct mite_struct *mite, unsigned int channel, comedi_asyn
 
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	MDPRINTK("buf=%p buf(bus)=%p bufsz=0x%08x n_links=0x%04x\n",
+	MDPRINTK("buf=%p buf(bus)=%08lx bufsz=0x%08x n_links=0x%04x\n",
 		async->prealloc_buf, virt_to_bus(async->prealloc_buf), async->prealloc_bufsz, n_links);
 
 	mite_chan->ring = kmalloc(n_links * sizeof(struct mite_dma_chain), GFP_KERNEL);
@@ -376,76 +229,22 @@ int mite_load_buffer(struct mite_struct *mite, unsigned int channel, comedi_asyn
 
 	for(i=0;i<n_links;i++){
 		mite_chan->ring[i].count = cpu_to_le32(PAGE_SIZE);
-#ifdef USE_KMALLOC
-		mite_chan->ring[i].addr = cpu_to_le32(
-			virt_to_bus(async->prealloc_buf + i*PAGE_SIZE));
-#else
-		mite_chan->ring[i].addr = cpu_to_le32(
-			kvirt_to_bus((unsigned long)async->prealloc_buf + i*PAGE_SIZE));
-#endif
-		mite_chan->ring[i].next = cpu_to_le32(virt_to_bus(mite_chan->ring+i+1));
+		mite_chan->ring[i].addr = cpu_to_le32(virt_to_bus(
+				(void *)async->buf_page_list[i]));
+		mite_chan->ring[i].next = cpu_to_le32(virt_to_bus(
+				mite_chan->ring+i+1));
 	}
 
-	mite_chan->ring[n_links-1].next = cpu_to_le32(virt_to_bus(mite_chan->ring));
+	mite_chan->ring[n_links-1].next = cpu_to_le32(virt_to_bus(
+				mite_chan->ring));
 
 	return 0;
 }
 
-int mite_buf_alloc(struct mite_struct *mite, unsigned int channel,
+int mite_buf_change(struct mite_struct *mite, unsigned int channel,
 	comedi_async *async, unsigned long new_size)
 {
-	MDPRINTK("mite_buf_alloc ch%i\n", channel);
-
-	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
-		return 0;
-	}
-
-	if(async->prealloc_bufsz){
-#ifdef USE_KMALLOC
-		kfree(async->prealloc_buf);
-#else
-		{
-			unsigned long addr = (unsigned long)async->prealloc_buf;
-			unsigned long size = async->prealloc_bufsz;
-			unsigned long page;
-
-			while(size>0){
-				page = kvirt_to_pa(addr);
-				mem_map_unreserve(virt_to_page(__va(page)));
-				addr += PAGE_SIZE;
-				size -= PAGE_SIZE;
-			}
-		}
-		vfree(async->prealloc_buf);
-#endif
-		async->prealloc_buf = NULL;
-		async->prealloc_bufsz = 0;
-	}
-
-	if(new_size){
-#ifdef USE_KMALLOC
-		async->prealloc_buf = kmalloc(new_size, GFP_KERNEL);
-#else
-		async->prealloc_buf = vmalloc_32(new_size);
-		{
-			unsigned long addr = (unsigned long)async->prealloc_buf;
-			unsigned long size = async->prealloc_bufsz;
-			unsigned long page;
-
-			while(size>0){
-				page = kvirt_to_pa(addr);
-				mem_map_reserve(virt_to_page(__va(page)));
-				addr += PAGE_SIZE;
-				size -= PAGE_SIZE;
-			}
-		}
-#endif
-		if(async->prealloc_buf == NULL){
-			async->prealloc_bufsz = 0;
-			return -ENOMEM;
-		}
-	}
-	async->prealloc_bufsz = new_size;
+	MDPRINTK("mite_buf_change ch%i\n", channel);
 
 	mite_load_buffer(mite, channel, async);
 
@@ -578,6 +377,8 @@ void mite_dma_disarm(struct mite_struct *mite, unsigned int channel)
 
 #ifdef DEBUG_MITE
 
+static void mite_decode(char **bit_str, unsigned int bits);
+
 /* names of bits in mite registers */
 
 static char *mite_CHOR_strings[] = {
@@ -648,7 +449,7 @@ static char *mite_CHSR_strings[] = {
 	"28", "lpauses", "30", "int",
 };
 
-void mite_dump_regs(struct mite_struct *mite, unsigned int channel)
+void mite_dump_regs(struct mite_struct *mite, int channel)
 {
 	unsigned long mite_io_addr = (unsigned long) mite->mite_io_addr;
 	unsigned long addr=0;
@@ -673,12 +474,12 @@ void mite_dump_regs(struct mite_struct *mite, unsigned int channel)
 	printk("mite status[MAR] at 0x%08lx =0x%08x\n",addr, readl(addr));
 	addr = mite_io_addr+MITE_DCR+CHAN_OFFSET(channel);
 	printk("mite status[DCR] at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
-	mite_decode(mite_CR_strings,temp);
+	mite_decode(mite_DCR_strings,temp);
 	addr = mite_io_addr+MITE_DAR+CHAN_OFFSET(channel);
 	printk("mite status[DAR] at 0x%08lx =0x%08x\n",addr, readl(addr));
 	addr = mite_io_addr+MITE_LKCR+CHAN_OFFSET(channel);
 	printk("mite status[LKCR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
-	mite_decode(mite_CR_strings,temp);
+	mite_decode(mite_LKCR_strings,temp);
 	addr = mite_io_addr+MITE_LKAR+CHAN_OFFSET(channel);
 	printk("mite status[LKAR]at 0x%08lx =0x%08x\n",addr, readl(addr));
 
@@ -689,7 +490,7 @@ void mite_dump_regs(struct mite_struct *mite, unsigned int channel)
 	printk("mite status[FCR] at 0x%08lx =0x%08x\n\n",addr, readl(addr));
 }
 
-void mite_decode(char **bit_str, unsigned int bits)
+static void mite_decode(char **bit_str, unsigned int bits)
 {
 	int i;
 
@@ -730,7 +531,7 @@ EXPORT_SYMBOL(mite_setregs);
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
 EXPORT_SYMBOL(mite_prep_dma);
-EXPORT_SYMBOL(mite_buf_alloc);
+EXPORT_SYMBOL(mite_buf_change);
 EXPORT_SYMBOL(mite_bytes_transferred);
 EXPORT_SYMBOL(mite_bytes_read);
 EXPORT_SYMBOL(mite_bytes_in_transit);
