@@ -3760,10 +3760,14 @@ static int cs5529_do_conversion(comedi_device *dev, unsigned short *data)
 		return -ETIME;
 	}
 	status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-	if(status & (CSS_OSC_DETECT | CSS_OVERRANGE))
+	if(status & CSS_OSC_DETECT)
 	{
-		rt_printk("ni_mio_common: cs5529 conversion error, status 0x%x\n", status);
+		rt_printk("ni_mio_common: cs5529 conversion error, status CSS_OSC_DETECT\n");
 		return -EIO;
+	}
+	if(status & CSS_OVERRANGE)
+	{
+		rt_printk("ni_mio_common: cs5529 conversion error, overrange (ignoring)\n");
 	}
 	if(data)
 	{
@@ -3778,12 +3782,17 @@ static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_ins
 {
 	int n, retval;
 	unsigned short sample;
-	unsigned int channel;
+	unsigned int channel_select;
+	const unsigned int INTERNAL_REF = 0x1000;
 
-	channel = CR_CHAN(insn->chanspec);
 	/* Set calibration adc source.  Docs lie, reference select bits 8 to 11
-	 * do nothing. */
-	ni_ao_win_outw(dev, 0x100 | channel, AO_Calibration_Channel_Select_67xx);
+	 * do nothing. bit 12 seems to chooses internal reference voltage, bit
+	 * 13 causes the adc input to go overrange (maybe reads external reference?) */
+	if(insn->chanspec & CR_ALT_SOURCE)
+		channel_select = INTERNAL_REF;
+	else
+		channel_select = CR_CHAN(insn->chanspec);
+	ni_ao_win_outw(dev, channel_select, AO_Calibration_Channel_Select_67xx);
 
 	for(n = 0; n < insn->n; n++)
 	{
