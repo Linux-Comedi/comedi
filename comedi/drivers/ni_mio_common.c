@@ -250,7 +250,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 static void handle_b_interrupt(comedi_device *dev,unsigned short status);
 #ifdef PCIDMA
 //static void mite_handle_interrupt(comedi_device *dev,unsigned int status);
-static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop);
+static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *data, int nbytes);
 #endif
 
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to 
@@ -349,47 +349,40 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 	int count;
 	comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
+	int nbytes;
+	int ret;
 
 	writel(CHOR_CLRLC, mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan));
 
-	count = mite_bytes_transferred(mite, 0) - async->buf_write_count;
-	if(count < 0 || count > 100000){
-		printk("BUG: too many samples in interrupt (%d)\n",count);
+	nbytes = mite_bytes_transferred(mite, 0);
+	if(nbytes >= async->buf_free_count){
+		printk("ni_mio_common: BUG: DMA overwrite of free area\n");
+		ni_ai_reset(dev,s);
+		async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
-	async->buf_write_count += count;
 
-	if(async->cmd.flags & CMDF_RAWDATA){
-		/*
-		 * Don't munge the data, just update the user's status
-		 * variables
-		 */
-		async->buf_write_ptr += count;
-		if(async->buf_write_ptr >= async->prealloc_bufsz)
-			async->buf_write_ptr -= async->prealloc_bufsz;
-	}else{
-		/*
-		 * Munge the ADC data to change its format from two's
-		 * complement to unsigned int.  This is slow but makes
-		 * it more compatible with other cards.
-		 */
-		if(async->buf_write_ptr + count >= async->prealloc_bufsz){
+	count = nbytes - async->buf_write_count;
+
+	while(count >= PAGE_SIZE){
+		if(!(async->cmd.flags & CMDF_RAWDATA)){
 			ni_munge(dev,s,
 				async->prealloc_buf + async->buf_write_ptr,
-				async->prealloc_buf + async->prealloc_bufsz);
-			async->buf_write_ptr += count;
-			async->buf_write_ptr -= async->prealloc_bufsz;
-			ni_munge(dev,s,
-				async->prealloc_buf,
-				async->prealloc_buf + async->buf_write_ptr);
-		}else{
-			ni_munge(dev,s,
-				async->prealloc_buf + async->buf_write_ptr,
-				async->prealloc_buf + async->buf_write_ptr + count);
-			async->buf_write_ptr += count;
+				PAGE_SIZE);
 		}
+		comedi_buf_write_free(async,PAGE_SIZE);
+
+		ret = comedi_buf_write_alloc(s->async, PAGE_SIZE);
+		if(ret<PAGE_SIZE){
+			printk("ni_mio_common: buffer overflow\n");
+			ni_ai_reset(dev,s);
+			async->events |= COMEDI_CB_OVERFLOW;
+		}
+
+		count -= PAGE_SIZE;
 	}
-	s->async->events |= COMEDI_CB_BLOCK;
+
+	async->events |= COMEDI_CB_BLOCK;
 }
 
 #if 0
@@ -581,7 +574,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 	if(b_status&AO_Overrun_St){
 		rt_printk("ni_mio_common: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
 		ni_ao_reset(dev,s);
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
 	if(b_status&AO_BC_TC_St){
@@ -600,7 +593,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
 		win_out(0,Interrupt_B_Enable_Register);
 		ni_ao_reset(dev,s);
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
 	comedi_event(dev,s,s->async->events);
@@ -658,12 +651,16 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	int i;
 	sampl_t d;
 	unsigned int mask;
+	int err = 1;
 
 	mask=(1<<boardtype.adbits)-1;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
 		d+=devpriv->ai_xorlist[ async->cur_chan ];
-		comedi_buf_put(async, d);
+		err &= comedi_buf_put(async, d);
+	}
+	if(err==0){
+		async->events |= COMEDI_CB_OVERFLOW;
 	}
 }
 
@@ -698,6 +695,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	int i,n;
 	unsigned int mask;
 	unsigned int dl;
+	int err = 1;
 
 	mask=(1<<boardtype.adbits)-1;
 	if(boardtype.reg_611x){
@@ -706,16 +704,16 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 
 			/* This may get the hi/lo data in the wrong order */
 			data = (dl>>16) + devpriv->ai_xorlist[async->cur_chan];
-			comedi_buf_put(s->async, data);
+			err &= comedi_buf_put(s->async, data);
 			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
-			comedi_buf_put(s->async, data);
+			err &= comedi_buf_put(s->async, data);
 		}
 
 		/* Check if there's a single sample stuck in the FIFO */
 		if(ni_readb(Status_611x)&0x80){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 			data = (dl&0xffff) + devpriv->ai_xorlist[async->cur_chan];
-			comedi_buf_put(s->async, data);
+			err &= comedi_buf_put(s->async, data);
 		}
 	}else{
 		while(1){
@@ -726,25 +724,26 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 				}
 				data=ni_readw(ADC_FIFO_Data_Register);
 				data+=devpriv->ai_xorlist[async->cur_chan];
-				comedi_buf_put(s->async, data);
+				err &= comedi_buf_put(s->async, data);
 			}
 		}
+	}
+	if(err==0){
+		async->events |= COMEDI_CB_OVERFLOW;
 	}
 }
 
 #ifdef PCIDMA
-static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start,
-		sampl_t *stop)
+static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *data,
+		int nbytes)
 {
 	comedi_async *async = s->async;
 	unsigned int j;
-	sampl_t *i;
-	unsigned int mask;
 
-	mask=(1<<boardtype.adbits)-1;
 	j=async->cur_chan;
-	for(i=start;i<stop;i++){
-		*i = __le16_to_cpu(*i) + devpriv->ai_xorlist[j];
+	for(;nbytes>0;nbytes-=2){
+		*data = __le16_to_cpu(*data) + devpriv->ai_xorlist[j];
+		data++;
 		j++;
 		if(j>=async->cmd.chanlist_len)j=0;
 	}
@@ -773,6 +772,10 @@ static void ni_handle_block_dma(comedi_device *dev)
 static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 {
 	struct mite_struct *mite = devpriv->mite;
+	comedi_subdevice *s = dev->subdevices + 0;
+
+	/* mark 2 pages as being under DMA control */
+	comedi_buf_write_alloc(s->async, 2*PAGE_SIZE);
 
 	mite->current_link = 0;
 	mite->chan = 0;
@@ -1657,6 +1660,7 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 	sampl_t d;
 	int range;
 	int offset;
+	int err = 1;
 
 	if(boardtype.reg_611x){
 		port = DAC_FIFO_Data_611x;
@@ -1667,7 +1671,7 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 	offset = 1 << (boardtype.aobits - 1);
 	chan = async->cur_chan;
 	for(i=0;i<n;i++){
-		comedi_buf_get(async, &d);
+		err &= comedi_buf_get(async, &d);
 
 		range = CR_RANGE(cmd->chanlist[chan]);
 		if(!boardtype.ao_unipolar || !(range & 1)){
@@ -1680,6 +1684,9 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 		if(chan>=cmd->chanlist_len)chan=0;
 	}
 	async->cur_chan = chan;
+	if(err==0){
+		async->events |= COMEDI_CB_OVERFLOW;
+	}
 }
 
 
@@ -1704,7 +1711,10 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 	int n;
 
 	n = comedi_buf_read_n_available(s->async);
-	if(n==0)return 0;
+	if(n==0){
+		s->async->events |= COMEDI_CB_OVERFLOW;
+		return 0;
+	}
 
 	n /= sizeof(sampl_t);
 	if(n>boardtype.ao_fifo_depth/2)
