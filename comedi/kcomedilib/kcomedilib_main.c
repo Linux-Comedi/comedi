@@ -944,3 +944,48 @@ int comedi_poll(unsigned int minor, unsigned int subdev)
 	return s->poll(dev,s);
 }
 
+
+/* WARNING: not portable */
+int comedi_map(unsigned int minor, unsigned int subdev, void **ptr)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+
+	if((ret=minor_to_dev(minor,&dev))<0)
+		return ret;
+
+	if(subdev>=dev->n_subdevices)
+		return -ENODEV;
+
+	s=dev->subdevices+subdev;
+	if(!s->async)
+		return -EINVAL;
+
+	if(ptr)*ptr=s->async->prealloc_buf;
+
+	/* XXX no reference counting */
+
+	return 0;
+}
+
+/* WARNING: not portable */
+int comedi_unmap(unsigned int minor, unsigned int subdev)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+
+	if((ret=minor_to_dev(minor,&dev))<0)
+		return ret;
+
+	if(subdev>=dev->n_subdevices)
+		return -ENODEV;
+
+	s=dev->subdevices+subdev;
+	if(!s->async)
+		return -EINVAL;
+
+	/* XXX no reference counting */
+
+	return 0;
+}
+

@@ -62,6 +62,7 @@ EXPORT_SYMBOL(comedi_get_subdevice_type);
 
 EXPORT_SYMBOL(comedi_open);
 EXPORT_SYMBOL(comedi_close);
+EXPORT_SYMBOL(comedi_poll);
 //EXPORT_SYMBOL(comedi_loglevel);
 //EXPORT_SYMBOL(comedi_perror);
 //EXPORT_SYMBOL(comedi_strerror);
@@ -99,6 +100,8 @@ EXPORT_SYMBOL(comedi_dio_bitfield);
 //EXPORT_SYMBOL(comedi_get_timer);
 //EXPORT_SYMBOL(comedi_timed_1chan);
 //EXPORT_SYMBOL(comedi_set_global_oor_behavior);
+EXPORT_SYMBOL(comedi_map);
+EXPORT_SYMBOL(comedi_unmap);
 
 
 #endif
