@@ -174,7 +174,7 @@ CONFIG_COMEDI_PARPORT
   compatible with the generic Linux parallel port interface.
 
 ADLink PCI-9118DG/HR/HG driver
-CONFIG_COMEDI_ADLPCI9118
+CONFIG_COMEDI_ADL_PCI9118
   Includes support for these ADLink cards:
     ADLink PCI-9118DG
     ADLink PCI-9118HR
