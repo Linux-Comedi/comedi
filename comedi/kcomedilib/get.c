@@ -189,8 +189,12 @@ int comedi_set_user_int_count(comedi_t *d,unsigned int subdevice,unsigned int bu
 	comedi_device *dev = (comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
+	unsigned int num_bytes;
 
 	async = s->async;
+
+	num_bytes =  buf_user_count - async->buf_read_count;
+	comedi_buf_read_free( async, num_bytes );
 	async->buf_read_count = buf_user_count;
 
 	return 0;
