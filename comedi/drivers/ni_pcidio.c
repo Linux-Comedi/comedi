@@ -147,11 +147,13 @@
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
+static int nidio_recognize(comedi_device *dev,char *name);
 comedi_driver driver_pcidio={
-	driver_name:	"nidio",
+	driver_name:	"ni_pcidio",
 	module:		THIS_MODULE,
 	attach:		nidio_attach,
 	detach:		nidio_detach,
+	recognize:	nidio_recognize,
 };
 
 typedef struct{
@@ -224,6 +226,16 @@ static int nidio_find_device(comedi_device *dev,comedi_devconfig *it);
 static int setup_mite(comedi_device *dev);
 #endif
 
+static int nidio_recognize(char *name)
+{
+	if(!strcmp(name,"nidio")){
+		printk("name \"nidio\" deprecated.  Use \"ni_pcidio\"\n");
+		return 0;
+	}
+	if(!strcmp(name,"ni_pcimio"))
+		return 0;
+	return -1;
+}
 
 static int nidio96_8255_cb(int dir,int port,int data,void *arg)
 {
