@@ -63,20 +63,25 @@ typedef unsigned short sampl_t;
 #define AREF_OTHER	0x03		/* analog ref = other (undefined) */
 
 /* counters -- these are arbitrary values */
-#define GPCTR_INT_CLOCK		1
-#define GPCTR_EXT_PIN		2
-#define GPCTR_NO_GATE		3
-#define GPCTR_UP		4
-#define GPCTR_DOWN		5
-#define GPCTR_HWUD		6
-#define GPCTR_INV_HWUD		7
-#define GPCTR_RESET		8
-#define GPCTR_SET_SOURCE	9
-#define GPCTR_SET_GATE		10
-#define GPCTR_SET_DIRECTION	11
-#define GPCTR_SET_OPERATION	12
-#define GPCTR_ARM		13
-#define GPCTR_DISARM		14
+#define GPCTR_RESET		0x0001
+#define GPCTR_SET_SOURCE	0x0002
+#define GPCTR_SET_GATE		0x0004
+#define GPCTR_SET_DIRECTION	0x0008
+#define GPCTR_SET_OPERATION	0x0010
+#define GPCTR_ARM		0x0020
+#define GPCTR_DISARM		0x0040
+
+#define GPCTR_INT_CLOCK		0x0001
+#define GPCTR_EXT_PIN		0x0002
+#define GPCTR_NO_GATE		0x0004
+#define GPCTR_UP		0x0008
+#define GPCTR_DOWN		0x0010
+#define GPCTR_HWUD		0x0020
+#define GPCTR_SIMPLE_EVENT	0x0040
+#define GPCTR_SINGLE_PERIOD	0x0080
+#define GPCTR_SINGLE_PW		0x0100
+#define GPCTR_CONT_PULSE_OUT	0x0200
+#define GPCTR_SINGLE_PULSE_OUT	0x0400
 
 
 /* instructions */

@@ -221,8 +221,6 @@ static int ni_gpctr_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
-static int ni_gpctr_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
 
 #undef DEBUG
 
@@ -1899,7 +1897,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_read=  ni_gpctr_insn_read;
 	s->insn_write= ni_gpctr_insn_write;
 	s->insn_config=ni_gpctr_insn_config;
-	s->insn_bits=  ni_gpctr_insn_bits;
 	s->n_chan=2;
 	s->maxdata=1;
 	GPCTR_Reset(dev,0);
@@ -2442,12 +2439,12 @@ static int gpct_sp(comedi_device *dev,comedi_param *it)
 * it easier to access them.
 */
 void GPCTR_Load_A(comedi_device *dev, int chan, long value){
-	win_out( (value>>16) & 0x00ff, G_Load_A_Register_High(0));
-	win_out( value & 0xffff, G_Load_A_Register_Low(0));
+	win_out( (value>>16) & 0x00ff, G_Load_A_Register_High(chan));
+	win_out( value & 0xffff, G_Load_A_Register_Low(chan));
 }
 void GPCTR_Load_B(comedi_device *dev, int chan, long value){
-	win_out( (value>>16) & 0x00ff, G_Load_B_Register_High(0));
-	win_out( value & 0xffff, G_Load_B_Register_Low(0));
+	win_out( (value>>16) & 0x00ff, G_Load_B_Register_High(chan));
+	win_out( value & 0xffff, G_Load_B_Register_Low(chan));
 }
 
 /*  Load a value into the counter, using register A as the intermediate step.
@@ -2458,33 +2455,7 @@ void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
 	devpriv->gpctr_mode[chan] &= (~G_Load_Source_Select);
 	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
 	GPCTR_Load_A(dev,chan,value);
-	win_out( devpriv->gpctr_mode[chan]|G_Load,G_Command_Register(chan));
-}
-
-/*
-*	Begin simple event counting.  This function should eventually do quadrature
-*	encoding too.
-*/
-int GPCTR_Begin_Event_Counting(comedi_device *dev, int chan, int value) {
-	
-	GPCTR_Load_Using_A(dev, chan, value);	
-			
-	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
-	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
-	devpriv->gpctr_mode[chan] |= G_Gate_Polarity;
-	
-	devpriv->gpctr_input_select[chan] = 0; //reset it
-	devpriv->gpctr_input_select[chan] |= G_Gate_Select(31);
-	
-			
-	devpriv->gpctr_command[chan] = 0; //reset it 
-	devpriv->gpctr_command[chan] = G_Up_Down(1);
-	
-	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
-	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
-	
-	return 0;
+	win_out( devpriv->gpctr_command[chan]|G_Load,G_Command_Register(chan));
 }
 
 /*	Don't use this by itself!  The read is not atomic and quite unsafe.
@@ -2522,10 +2493,10 @@ int GPCTR_G_Watch(comedi_device *dev, int chan) {
 
 
 void GPCTR_Disarm(comedi_device *dev, int chan){
-	win_out( G_Disarm,G_Command_Register(chan));
+	win_out( devpriv->gpctr_command[chan] | G_Disarm,G_Command_Register(chan));
 }
 void GPCTR_Arm(comedi_device *dev, int chan){
-	win_out( G_Arm,G_Command_Register(chan));
+	win_out( devpriv->gpctr_command[chan] | G_Arm,G_Command_Register(chan));
 }
 int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
 	printk("GPCTR_Set_Source...");
@@ -2543,7 +2514,7 @@ int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
 		return -EINVAL;
 	}
 	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
-	printk("exit GPCTR_Set_Source");
+	printk("exit GPCTR_Set_Source\n");
 	return 1;
 }
 int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
@@ -2583,17 +2554,14 @@ int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction) {
 		case GPCTR_HWUD:
 			devpriv->gpctr_command[chan] |= G_Up_Down(2);
 			break;
-		case GPCTR_INV_HWUD:
-			devpriv->gpctr_command[chan] |= G_Up_Down(2);
-			devpriv->gpctr_mode[chan] |= G_Gate_Polarity;
-			break;
 		default:
+			printk("Error direction=0x%08x..",direction);
 			return -EINVAL;
 	}
 	win_out(devpriv->gpctr_command[chan], G_Command_Register(chan));
 	win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
 	printk("exit GPCTR_Set_Direction\n");
-	return 1;
+	return 2;
 }
 
 void GPCTR_Event_Counting(comedi_device *dev,int chan) {
@@ -2655,6 +2623,7 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+	//printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
 	switch(data[0]){
 	case GPCTR_RESET:
 		if(insn->n!=1)return -EINVAL;
@@ -2674,9 +2643,13 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case GPCTR_SET_OPERATION:
 		if(insn->n!=2)return -EINVAL;
-			//there should be a second switch statement here
-			//to choose the operation
-		GPCTR_Event_Counting(dev,insn->chanspec);
+		switch(data[1]){
+			case GPCTR_SIMPLE_EVENT:
+				GPCTR_Event_Counting(dev,insn->chanspec);
+				break;
+			default:
+				printk("unsupported GPCTR operation!\n");
+		}
 		break;
 	case GPCTR_ARM:
 		if(insn->n!=1)return -EINVAL;
@@ -2690,7 +2663,7 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		return -EINVAL;
 	}
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_gpctr_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -2711,18 +2684,10 @@ static int ni_gpctr_insn_write(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
-/*Error, the user insn_bits doesn't do anything for a counter. */
-static int ni_gpctr_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data) {
-	
-	return -EINVAL;
-}
-
 //note: EXPORT_SYMTAB must have been defined for this to work.
 //this is mostly for testing inside the kernel
 EXPORT_SYMBOL(GPCTR_Load_Using_A);
 EXPORT_SYMBOL(GPCTR_G_Watch);
-EXPORT_SYMBOL(GPCTR_Begin_Event_Counting);
 EXPORT_SYMBOL(GPCTR_Arm);
 EXPORT_SYMBOL(GPCTR_Disarm);
 EXPORT_SYMBOL(GPCTR_Reset);
