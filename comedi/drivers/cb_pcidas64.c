@@ -908,11 +908,13 @@ static int dio_60xx_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 static int calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int ad8402_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static void ad8402_write( comedi_device *dev, unsigned int channel, unsigned int value );
 static int ad8402_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static void i2c_write(comedi_device *dev, unsigned int address, const uint8_t *data, unsigned int length);
+static void caldac_write( comedi_device *dev, unsigned int channel, unsigned int value );
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
 //static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
 static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, unsigned int value);
@@ -1006,6 +1008,7 @@ static int setup_subdevices(comedi_device *dev)
 {
 	comedi_subdevice *s;
 	unsigned long dio_8255_iobase;
+	int i;
 
 	if( alloc_subdevices( dev, 10 ) < 0 )
 		return -ENOMEM;
@@ -1128,6 +1131,8 @@ static int setup_subdevices(comedi_device *dev)
 		s->maxdata = 0xff;
 	s->insn_read = calib_read_insn;
 	s->insn_write = calib_write_insn;
+	for( i = 0; i < s->n_chan; i++ )
+		caldac_write( dev, i, s->maxdata / 2 );
 
 	// 2 channel ad8402 potentiometer
 	s = dev->subdevices + 7;
@@ -1139,6 +1144,8 @@ static int setup_subdevices(comedi_device *dev)
 		s->insn_read = ad8402_read_insn;
 		s->insn_write = ad8402_write_insn;
 		s->maxdata = 0xff;
+		for( i = 0; i < s->n_chan; i++ )
+			ad8402_write( dev, i, s->maxdata / 2 );
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
@@ -2610,24 +2617,34 @@ static int dio_60xx_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	return 2;
 }
 
-static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+static void caldac_write( comedi_device *dev, unsigned int channel, unsigned int value )
 {
-	int channel = CR_CHAN(insn->chanspec);
-
-	priv(dev)->caldac_state[channel] = data[0];
+	priv(dev)->caldac_state[channel] = value;
 
 	switch(board(dev)->layout)
 	{
 		case LAYOUT_60XX:
 		case LAYOUT_64XX:
-			caldac_8800_write(dev, channel, data[0]);
+			caldac_8800_write(dev, channel, value);
 			break;
 		case LAYOUT_4020:
-			caldac_i2c_write(dev, channel, data[0]);
+			caldac_i2c_write(dev, channel, value);
 			break;
 		default:
 			break;
 	}
+}
+
+static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int channel = CR_CHAN(insn->chanspec);
+
+	/* return immediately if setting hasn't changed, since
+	 * programming these things is slow */
+	if( priv(dev)->caldac_state[channel] == data[0] )
+		return 1;
+
+	caldac_write( dev, channel, data[0] );
 
 	return 1;
 }
@@ -2636,40 +2653,53 @@ static int calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
-        data[0] = priv(dev)->caldac_state[channel];
+	data[0] = priv(dev)->caldac_state[channel];
 
-        return 1;
+	return 1;
+}
+
+static void ad8402_write( comedi_device *dev, unsigned int channel, unsigned int value )
+{
+	static const int bitstream_length = 10;
+	unsigned int bit, register_bits;
+	unsigned int bitstream = ( ( channel & 0x3 ) << 8 ) | ( value & 0xff );
+	static const int ad8402_udelay = 1;
+
+	priv(dev)->ad8402_state[ channel ] = value;
+
+	register_bits = SELECT_8402_64XX_BIT;
+	udelay( ad8402_udelay );
+	writew( register_bits, priv(dev)->main_iobase + CALIBRATION_REG );
+
+	for( bit = 1 << ( bitstream_length - 1 ); bit; bit >>= 1 )
+	{
+		if( bitstream & bit )
+			register_bits |= SERIAL_DATA_IN_BIT;
+		else
+			register_bits &= ~SERIAL_DATA_IN_BIT;
+		udelay( ad8402_udelay );
+		writew( register_bits, priv(dev)->main_iobase + CALIBRATION_REG );
+		udelay( ad8402_udelay );
+		writew( register_bits | SERIAL_CLOCK_BIT, priv(dev)->main_iobase + CALIBRATION_REG );
+	}
+
+	udelay( ad8402_udelay );
+	writew( 0, priv(dev)->main_iobase + CALIBRATION_REG );
 }
 
 /* for pci-das6402/16, channel 0 is analog input gain and channel 1 is offset */
 static int ad8402_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-	static const int bitstream_length = 10;
 	int channel = CR_CHAN(insn->chanspec);
-	unsigned int bitstream = ((channel & 0x3) << 8) | (data[0] & 0xff);
-	unsigned int bit, register_bits;
-	static const int ad8402_udelay = 1;
+
+	/* return immediately if setting hasn't changed, since
+	 * programming these things is slow */
+	if( priv(dev)->ad8402_state[channel] == data[0] )
+		return 1;
 
 	priv(dev)->ad8402_state[channel] = data[0];
 
-	register_bits = SELECT_8402_64XX_BIT;
-	udelay(ad8402_udelay);
-	writew(register_bits, priv(dev)->main_iobase + CALIBRATION_REG);
-
-	for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
-	{
-		if(bitstream & bit)
-			register_bits |= SERIAL_DATA_IN_BIT;
-		else
-			register_bits &= ~SERIAL_DATA_IN_BIT;
-		udelay(ad8402_udelay);
-		writew(register_bits, priv(dev)->main_iobase + CALIBRATION_REG);
-		udelay(ad8402_udelay);
-		writew(register_bits | SERIAL_CLOCK_BIT, priv(dev)->main_iobase + CALIBRATION_REG);
-        }
-
-	udelay(ad8402_udelay);
-	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
+	ad8402_write( dev, channel, data[ 0 ] );
 
 	return 1;
 }
