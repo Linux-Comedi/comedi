@@ -121,6 +121,16 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	unsigned int start;
 	unsigned int ns_low, ns_high;
 
+	/* exit early if everything is already correct (this can save time
+	 * since this function may be called repeatedly during command tests
+	 * and execution) */
+	if(*d1 * *d2 * i8253_osc_base == *nanosec &&
+		*d1 > 1 && *d1 < 0x10000 &&
+		*d2 > 1 && *d2 < 0x10000)
+	{
+		return;
+	}
+
 	divider = *nanosec / i8253_osc_base;
 
 	div1_lub = div2_lub = 0;
@@ -175,7 +185,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	}
 
 	*nanosec = div1 * div2 * i8253_osc_base;
-	*d1 = div1 & 0xffff;
+	*d1 = div1 & 0xffff;	// masking is done since counter maps zero to 0x10000
 	*d2 = div2 & 0xffff;
 	return;
 }
@@ -185,6 +195,8 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
  * counter_number is the counter you want to load (0,1 or 2)
  * count is the number to load into the counter.
  * You probably want to use mode 2.
+ * Use i8254_mm_load() if you board uses memory-mapped io, it is
+ * the same as i8254_load() except it uses writeb() instead of outb().
  * FMH
  */
 static inline int i8254_load(unsigned int base_address,
@@ -206,6 +218,29 @@ static inline int i8254_load(unsigned int base_address,
 	outb(byte, base_address + counter_number);
 	byte = (count >> 8) & 0xff;	// msb of counter value
 	outb(byte, base_address + counter_number);
+
+	return 0;
+}
+
+static inline int i8254_mm_load(unsigned int base_address,
+	unsigned int counter_number, unsigned int count, unsigned int mode)
+{
+	unsigned char byte;
+	static const int counter_control = 3;
+
+	if(counter_number > 2) return -1;
+	if(count > 0xffff) return -1;
+	if(mode > 5) return -1;
+	if(mode == 2 && count == 1) return -1;
+
+	byte = counter_number << 6;
+	byte |= 0x30;	// load low then high byte
+	byte |= (mode << 1);	// set counter mode
+	writeb(byte, base_address + counter_control);
+	byte = count & 0xff;	// lsb of counter value
+	writeb(byte, base_address + counter_number);
+	byte = (count >> 8) & 0xff;	// msb of counter value
+	writeb(byte, base_address + counter_number);
 
 	return 0;
 }
