@@ -21,6 +21,15 @@
 
 */
 
+/*
+Driver: serial2002.o
+Description: Driver for serial connected hardware
+Author: Anders Blomdell
+Updated: Fri,  7 Jun 2002 12:56:45 -0700
+Status: in development
+
+*/
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
