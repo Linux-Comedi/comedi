@@ -518,7 +518,7 @@ static comedi_driver driver_das1800={
  */
 COMEDI_INITCLEANUP(driver_das1800);
 
-int das1800_init_dma( comedi_device *dev, unsigned int dma0, unsigned int dma1 )
+static int das1800_init_dma( comedi_device *dev, unsigned int dma0, unsigned int dma1 )
 {
 	unsigned long flags;
 	
