@@ -93,10 +93,10 @@ static comedi_lrange range_ni_E_ai_limited={	8, {
 	RANGE( -5,	5	),
 	RANGE( -1,	1	),
 	RANGE( -0.1,	0.1	),
-	RANGE( 0,	20	),
 	RANGE( 0,	10	),
-	RANGE( 0,	2	),
-	RANGE( 0,	0.2	),
+	RANGE( 0,	5	),
+	RANGE( 0,	1	),
+	RANGE( 0,	0.1	),
 }};
 static comedi_lrange range_ni_E_ai_limited14={	14, {
 	RANGE( -10,	10	),
@@ -206,7 +206,8 @@ static void pfi_setup(comedi_device *dev);
 #define AIMODE_SAMPLE		3
 
 
-static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
+//static
+void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices;
@@ -249,7 +250,7 @@ printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 
 	if(status&AI_SC_TC_St){
 #ifdef DEBUG_INTERRUPT
-printk("ni-E: SC_TC interrupt\n");
+printk("ni_mio_common: SC_TC interrupt\n");
 #endif
 #ifdef TRY_DMA
 		ni_handle_block(dev);
@@ -1012,7 +1013,7 @@ devpriv->n_left = 1;
 	switch(cmd->convert_src){
 	case TRIG_TIMER:
 		timer=ni_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
-		win_out(timer,AI_SI2_Load_A_Register); /* 0,0 does not work. */
+		win_out(1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
 		win_out(timer,AI_SI2_Load_B_Register);
 
 		/* AI_SI2_Reload_Mode = alternate */
@@ -1025,6 +1026,7 @@ devpriv->n_left = 1;
 		win_out(AI_SI2_Load,AI_Command_1_Register);
 
 		//mode2 |= AI_SI_Reload_Mode(0);
+	/* XXX the AI_SI stuff should go to the scan_begin_src area */
 		mode2 |= AI_SI_Reload_Mode(1);
 		//mode2 |= 0&AI_SI_Initial_Load_Source;
 		mode2 |= AI_SI_Initial_Load_Source;
@@ -1104,7 +1106,7 @@ devpriv->n_left = 1;
 		break;
 	case TRIG_EXT:
 		/* AI_SI2_Arm, AI_DIV_Arm, AI_SC_Arm */
-		win_out(0x1500,AI_Command_1_Register);
+		win_out(0x1540,AI_Command_1_Register);
 		break;
 	}
 
@@ -2092,8 +2094,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* analog output subdevice */
 
 	s=dev->subdevices+1;
-	dev->write_subdev=s;
 	if(boardtype.n_aochan){
+		dev->write_subdev=s;
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITEABLE|SDF_RT|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
 		s->n_chan=boardtype.n_aochan;
@@ -2112,8 +2114,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 #endif
 		s->len_chanlist = 2;
 #ifdef USE_TRIG
-		if(boardtype.ao_fifo_depth)
+		if(boardtype.ao_fifo_depth){
 			s->trig[2]=ni_ao_mode2;
+		}
 #endif
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
