@@ -1,0 +1,270 @@
+diff -Nur comedi-cvs/comedi/Makefile comedi/comedi/Makefile
+--- comedi-cvs/comedi/Makefile	Tue Jan 16 20:26:13 2001
++++ comedi/comedi/Makefile	Fri Mar  2 00:17:56 2001
+@@ -1,7 +1,7 @@
+ 
+ 
+ SUB_DIRS     := drivers
+-ALL_SUB_DIRS := kcomedilib drivers realtime
++ALL_SUB_DIRS := kcomedilib drivers realtime rt_pend_tq
+ MOD_SUB_DIRS := drivers
+ MOD_IN_SUB_DIRS :=
+ 
+@@ -13,8 +13,8 @@
+ endif
+ 
+ ifeq ($(CONFIG_COMEDI_RT),y)
+-	MOD_SUB_DIRS += realtime
+-	SUB_DIRS += realtime
++	MOD_SUB_DIRS += realtime rt_pend_tq
++	SUB_DIRS += realtime rt_pend_tq
+ endif
+ 
+ MOD_LIST_NAME := MISC_MODULES
+diff -Nur comedi-cvs/comedi/rt.c comedi/comedi/rt.c
+--- comedi-cvs/comedi/rt.c	Mon Feb  5 03:06:46 2001
++++ comedi/comedi/rt.c	Fri Mar  2 00:52:35 2001
+@@ -36,6 +36,8 @@
+ #include <linux/irq.h>
+ #include <asm/io.h>
+ 
++#include "rt_pend_tq.h"
++
+ #ifdef CONFIG_COMEDI_RTAI
+ #include <rtai/rtai.h>
+ 
+@@ -152,17 +154,19 @@
+ 	RT_spin_unlock_irq(&dev->spinlock);
+ }
+ 
+-void comedi_rt_pend_wakeup(wait_queue_head_t *q)
+-{
+-
+-}
+-
+ #ifdef HAVE_RT_PEND_TQ
+ void wake_up_int_handler(int arg1, void * arg2)
+ {
+ 	wake_up_interruptible((wait_queue_head_t*)arg2);
+ }
+ #endif
++
++void comedi_rt_pend_wakeup(wait_queue_head_t *q)
++{
++#ifdef HAVE_RT_PEND_TQ
++	rt_pend_call(wake_up_int_handler,0,q);
++#endif
++}
+ 
+ 
+ /* RTAI section */
+diff -Nur comedi-cvs/comedi/rt_pend_tq/Makefile comedi/comedi/rt_pend_tq/Makefile
+--- comedi-cvs/comedi/rt_pend_tq/Makefile	Thu Jan  1 01:00:00 1970
++++ comedi/comedi/rt_pend_tq/Makefile	Fri Mar  2 00:37:55 2001
+@@ -0,0 +1,42 @@
++
++ALL_SUB_DIRS :=
++MOD_SUB_DIRS :=
++SUB_DIRS     :=
++MOD_LIST_NAME := MISC_MODULES
++
++EXTRA_CFLAGS := -I ../
++
++export-objs := 
++
++obj-y :=
++obj-m :=
++obj-n :=
++obj-  :=
++
++obj-$(CONFIG_COMEDI_RT)		+= rt_pend_tq.o
++
++obj-m += $(obj-y)
++
++#L_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
++#LX_OBJS	:= $(sort $(filter     $(export-objs), $(obj-y)))
++#MI_OBJS	:= $(sort $(filter-out $(export-objs), $(obj-y)))
++#MIX_OBJS	:= $(sort $(filter     $(export-objs), $(obj-y)))
++M_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-m)))
++MX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-m)))
++
++
++
++include $(TOPDIR)/Rules.make
++
++ifdef CONFIG_COMEDI_RTL
++rt_pend_tq.o : rt_pend_tq_rtl.c
++
++endif
++
++ifdef CONFIG_COMEDI_RTAI
++rt_pend_tq.o : rt_pend_tq_rtai.c
++
++endif
++
++
++
+diff -Nur comedi-cvs/comedi/rt_pend_tq/rt_pend_tq.c comedi/comedi/rt_pend_tq/rt_pend_tq.c
+--- comedi-cvs/comedi/rt_pend_tq/rt_pend_tq.c	Thu Jan  1 01:00:00 1970
++++ comedi/comedi/rt_pend_tq/rt_pend_tq.c	Fri Mar  2 00:19:06 2001
+@@ -0,0 +1,9 @@
++#include <linux/comedidev.h>
++
++#ifdef CONFIG_COMEDI_RTAI
++#include "rt_pend_tq_rtai.c"
++#else
++#ifdef CONFIG_COMEDI_RTL
++#include "rt_pend_tq_rtl.c"
++#endif
++#endif
+diff -Nur comedi-cvs/comedi/rt_pend_tq/rt_pend_tq.h comedi/comedi/rt_pend_tq/rt_pend_tq.h
+--- comedi-cvs/comedi/rt_pend_tq/rt_pend_tq.h	Thu Jan  1 01:00:00 1970
++++ comedi/comedi/rt_pend_tq/rt_pend_tq.h	Thu Jan 25 16:09:29 2001
+@@ -0,0 +1,9 @@
++#define RT_PEND_TQ_SIZE 16
++struct rt_pend_tq {
++	void (*func)(int arg1, void * arg2);
++	int arg1;
++	void *arg2;
++} ;
++extern int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2);
++extern int rt_pend_tq_init(void);
++extern void rt_pend_tq_cleanup(void);
+diff -Nur comedi-cvs/comedi/rt_pend_tq/rt_pend_tq_rtai.c comedi/comedi/rt_pend_tq/rt_pend_tq_rtai.c
+--- comedi-cvs/comedi/rt_pend_tq/rt_pend_tq_rtai.c	Thu Jan  1 01:00:00 1970
++++ comedi/comedi/rt_pend_tq/rt_pend_tq_rtai.c	Thu Jan 25 16:09:29 2001
+@@ -0,0 +1,51 @@
++#include <linux/errno.h>
++#include <linux/stddef.h>
++#include "rt_pend_tq.h"
++#include <rtai.h>
++
++volatile static struct rt_pend_tq rt_pend_tq[RT_PEND_TQ_SIZE]; 
++volatile static struct rt_pend_tq * volatile rt_pend_head= rt_pend_tq,
++	* volatile rt_pend_tail = rt_pend_tq;
++int rt_pend_tq_irq=0;
++
++// WARNING: following code not checked against race conditions yet.
++#define INC_CIRCULAR_PTR(ptr,begin,size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
++#define DEC_CIRCULAR_PTR(ptr,begin,size) do {if(--(ptr)<(begin)) (ptr)=(begin)+(size)-1; } while(0)
++
++int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
++{
++	if(func==NULL)
++		return -EINVAL;
++	if(rt_pend_tq_irq<=0)
++		return -ENODEV;
++	INC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
++	if(rt_pend_head==rt_pend_tail) {
++		// overflow, we just refuse to take this request
++		DEC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
++		return -EAGAIN;
++	}
++	rt_pend_head->func=func;
++	rt_pend_head->arg1=arg1;
++	rt_pend_head->arg2=arg2;
++	rt_pend_linux_srq(rt_pend_tq_irq);
++	return 0;
++}
++
++void rt_pend_irq_handler()
++{
++	while(rt_pend_head!=rt_pend_tail) {
++		INC_CIRCULAR_PTR(rt_pend_tail,rt_pend_tq,RT_PEND_TQ_SIZE);
++		rt_pend_tail->func(rt_pend_tail->arg1,rt_pend_tail->arg2);
++	}
++}
++
++int rt_pend_tq_init()
++{
++	rt_pend_head=rt_pend_tail=rt_pend_tq;
++	return rt_pend_tq_irq=rt_request_srq(0,rt_pend_irq_handler,NULL);
++}
++
++void rt_pend_tq_cleanup()
++{
++	free_irq(rt_pend_tq_irq,NULL);
++}
+diff -Nur comedi-cvs/comedi/rt_pend_tq/rt_pend_tq_rtl.c comedi/comedi/rt_pend_tq/rt_pend_tq_rtl.c
+--- comedi-cvs/comedi/rt_pend_tq/rt_pend_tq_rtl.c	Thu Jan  1 01:00:00 1970
++++ comedi/comedi/rt_pend_tq/rt_pend_tq_rtl.c	Fri Mar  2 00:54:09 2001
+@@ -0,0 +1,61 @@
++#include <linux/module.h>
++#include <linux/errno.h>
++#include <linux/sched.h>
++#include "rt_pend_tq.h"
++#include <linux/rtl.h>
++
++volatile static struct rt_pend_tq rt_pend_tq[RT_PEND_TQ_SIZE]; 
++volatile static struct rt_pend_tq * volatile rt_pend_head= rt_pend_tq,
++	* volatile rt_pend_tail = rt_pend_tq;
++int rt_pend_tq_irq=0;
++
++// WARNING: following code not checked against race conditions yet.
++#define INC_CIRCULAR_PTR(ptr,begin,size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
++#define DEC_CIRCULAR_PTR(ptr,begin,size) do {if(--(ptr)<(begin)) (ptr)=(begin)+(size)-1; } while(0)
++
++int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
++{
++	if(func==NULL)
++		return -EINVAL;
++	if(rt_pend_tq_irq<=0)
++		return -ENODEV;
++// FIXME: grab RT spinlock/cli
++	INC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
++	if(rt_pend_head==rt_pend_tail) {
++		// overflow, we just refuse to take this request
++		DEC_CIRCULAR_PTR(rt_pend_head,rt_pend_tq,RT_PEND_TQ_SIZE);
++// FIXME: release RT spinlock/restore
++		return -EAGAIN;
++	}
++// FIXME: release RT spinlock/restore
++	rt_pend_head->func=func;
++	rt_pend_head->arg1=arg1;
++	rt_pend_head->arg2=arg2;
++	rtl_global_pend_irq(rt_pend_tq_irq);
++	return 0;
++}
++
++void rt_pend_irq_handler(int irq, void *dev, struct pt_regs * regs)
++{
++	while(rt_pend_head!=rt_pend_tail) {
++		INC_CIRCULAR_PTR(rt_pend_tail,rt_pend_tq,RT_PEND_TQ_SIZE);
++		rt_pend_tail->func(rt_pend_tail->arg1,rt_pend_tail->arg2);
++	}
++}
++
++int init_module(void)
++{
++	rt_pend_head=rt_pend_tail=rt_pend_tq;
++	rt_pend_tq_irq=rtl_get_soft_irq(rt_pend_irq_handler,"rt_pend_irq");
++	if(rt_pend_tq_irq>0) 
++		printk("rt_pend_tq: RT bottom half scheduler initialized OK\n");
++	else
++		printk("rt_pend_tq: rtl_get_soft_irq failed\n");
++	return 0;
++}
++
++void cleanup_module(void)
++{
++	printk("rt_pend_tq: unloading\n");
++	free_irq(rt_pend_tq_irq,NULL);
++}
+diff -Nur comedi-cvs/include/linux/rtl.h comedi/include/linux/rtl.h
+--- comedi-cvs/include/linux/rtl.h	Thu Jan  1 01:00:00 1970
++++ comedi/include/linux/rtl.h	Fri Mar  2 00:23:59 2001
+@@ -0,0 +1,14 @@
++/*
++ * linux/rtl.h compatibility header
++ */
++
++#ifndef _COMPAT_RTL_H
++#define _COMPAT_RTL_H
++
++#include_next <rtl.h>
++
++#endif /* _COMPAT_RTL_H */
++
++
++
++
