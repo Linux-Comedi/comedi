@@ -1827,14 +1827,20 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if((cmd->flags & TRIG_WAKE_EOS) == 0 ||
 		board(dev)->layout == LAYOUT_4020)
 	{
+		unsigned long flags;
+
 		// set dma transfer size
 		for( i = 0; i < DMA_RING_COUNT; i++)
 			priv(dev)->dma_desc[ i ].transfer_size = dma_transfer_size( dev );
 		// give location of first dma descriptor
 		bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
 		writel(bits, priv(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
+
+		// spinlock for plx dma control/status reg
+		comedi_spin_lock_irqsave( &dev->spinlock, flags );
 		// enable dma transfer
 		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}
 
 	/* enable pacing, triggering, etc */
@@ -2011,6 +2017,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	uint32_t plx_status;
 	uint32_t plx_bits;
 	uint8_t dma0_status, dma1_status;
+	unsigned long flags;
 
 	plx_status = readl(priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(priv(dev)->main_iobase + HW_STATUS_REG);
@@ -2027,16 +2034,22 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
+	// spin lock makes sure noone else changes plx dma control reg
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	dma0_status = readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	if(plx_status & ICS_DMA0_A)
 	{	// dma chan 0 interrupt
 		// XXX possible race
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
 
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
+	// spin lock makes sure noone else changes plx dma control reg
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	if(plx_status & ICS_DMA1_A)	// XXX
 	{	// dma chan 1 interrupt
@@ -2050,6 +2063,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// clear possible plx9080 interrupt sources
 	if(plx_status & ICS_LDIA)
@@ -2090,17 +2104,23 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 	uint8_t dma_status;
 	const int timeout = 10000;
 	unsigned int i;
-
+	unsigned long flags;
 
 	if(channel)
 		dma_cs_addr = priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG;
 	else
 		dma_cs_addr = priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG;
 
+	// spinlock for plx dma control/status reg
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+
 	// abort dma transfer if necessary
 	dma_status = readb(dma_cs_addr);
 	if((dma_status & PLX_DMA_EN_BIT) == 0)
+	{
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		return;
+	}
 
 	// wait to make sure done bit is zero
 	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++)
@@ -2111,6 +2131,7 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 	if(i == timeout)
 	{
 		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done clear\n", channel);
+		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		return;
 	}
 	// disable channel
@@ -2127,6 +2148,8 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 	}
 	if(i == timeout)
 		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done set\n", channel);
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
 
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
