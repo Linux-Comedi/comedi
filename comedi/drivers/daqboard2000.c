@@ -36,10 +36,7 @@ option.  The latter is recommended, in order to save a bit of kernel
 memory.
 
 Configuration options:
-  [0] - pointer to FPGA initialization data
-          The pointer and size options are handled automatically
-          by comedi_config when you use the -i option.
-  [1] - size of FPGA data
+    none
 */
 /*
    This card was obviously never intended to leave the Windows world, 
@@ -121,9 +118,6 @@ Configuration options:
 #include <linux/pci.h>
 
 #include "8255.h"
-#ifdef CONFIG_COMEDI_DAQBOARD2000_FPGA
-#include "daqboard2000_fpga.h"
-#endif
 
 #define DAQBOARD2000_SUBSYSTEM_IDS2 	0x00021616 /* Daqboard/2000 - 2 Dacs */
 #define DAQBOARD2000_SUBSYSTEM_IDS4 	0x00041616 /* Daqboard/2000 - 4 Dacs */
