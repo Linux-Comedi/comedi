@@ -115,7 +115,8 @@ struct comedi_subdevice_struct{
 	//int (*do_lock)(comedi_device *,comedi_subdevice *);
 	//int (*do_unlock)(comedi_device *,comedi_subdevice *);
 
-	int (*buf_change)(comedi_device *,comedi_subdevice *s);
+	/* buffer allocation overload function */
+	int (*buf_alloc)(comedi_device *,comedi_subdevice *s,unsigned long new_size);
 
 	unsigned int state;
 };
