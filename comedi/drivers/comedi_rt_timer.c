@@ -512,8 +512,8 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 	comedi_subdevice *s, *emul_s;
 	comedi_device *emul_dev;
-	const int scan_priority = 0;
-	const int timer_priority = scan_priority + 1;
+	const int timer_priority = 0;
+	const int scan_priority = timer_priority + 1;
 
 	printk("comedi%d: timer: ",dev->minor);
 
