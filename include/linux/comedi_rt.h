@@ -31,6 +31,7 @@
 #include <linux/malloc.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
+#include "comedidev.h"
 
 #ifdef CONFIG_COMEDI_RT
 

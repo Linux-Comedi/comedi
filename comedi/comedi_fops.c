@@ -23,7 +23,7 @@
 
 #undef DEBUG
 
-#include <linux/comedidev.h>
+#include <linux/comedi_rt.h>
 
 #define __NO_VERSION__
 #include <linux/module.h>
