@@ -39,6 +39,9 @@ boards seem to boot into a state where the all calibration DACs
 are at one extreme of their range, thus the default calibration
 is terrible.  Calibration at boot is strongly encouraged.
 
+To use the extended digital I/O on some of the boards, enable the
+8255 driver when configuring the Comedi source tree.
+
 External triggering is supported for some events.  The channel index
 (scan_begin_arg, etc.) maps to PFI0 - PFI9.
 
