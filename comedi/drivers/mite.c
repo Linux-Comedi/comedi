@@ -327,7 +327,13 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 		nup += mite->ring[i].count;
 		i++;
 	}
+	
+	/*End the mite->ring by setting the last element's count to 0.
+	To make a looping ring for continuous acquisition, 
+	mite->ring[i-1].next = virt_to_bus(mite->ring);
+	*/
 	mite->ring[i].count=0;
+	
 	MDPRINTK("i was %d, size_so_far was %d\n",i,size_so_far);
 	if(size_so_far<len) {
 		printk("<1>Comedi Error: MITE_RING_SIZE is too small to hold the needed buffer\n");
