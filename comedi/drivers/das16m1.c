@@ -370,6 +370,8 @@ static int das16m1_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 	for(n = 0; n < insn->n; n++)
 	{
+		/* clear IRQDATA bit */
+		outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 		/* trigger conversion */
 		outb(0, dev->iobase);
 
