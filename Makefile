@@ -9,8 +9,8 @@ INSTALLDIR=/usr
 
 #LINUXDIR = /usr/src/linux
 #LINUXDIR = /d/ds/cvs/rtl/linux22
+LINUXDIR = /d/ds/cvs/linux22
 #LINUXDIR = /home/ds/cvs/linux23
-LINUXDIR = /home/ds/cvs/linux22
 
 # define the following if you want to compile using RTL
 # headers that aren't in the default location
@@ -75,7 +75,7 @@ install:	dummy
 ifeq (/lib/modules/${UTS_VERSION},$(wildcard /lib/modules/${UTS_VERSION}))
 	install -d /lib/modules/${UTS_VERSION}/misc
 	install modules/*.o /lib/modules/${UTS_VERSION}/misc
-	depmod -a ${UTS_VERSION}
+	/sbin/depmod -a ${UTS_VERSION}
 else
 	# ***
 	# *** Could not install comedi.o into /lib/modules/${UTS_VERSION}/misc
