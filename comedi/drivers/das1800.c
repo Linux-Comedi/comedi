@@ -506,16 +506,6 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-	dev->board = das1800_probe(dev);
-	if(dev->board < 0)
-	{
-		printk("unable to determine board type\n");
-		return -ENODEV;
-	}
-
-	dev->board_ptr = das1800_boards + dev->board;
-	dev->board_name = thisboard->name;
-
 	/* check if io addresses are available */
 	if(check_region(iobase, DAS1800_SIZE) < 0)
 	{
@@ -539,6 +529,16 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 		request_region(iobase2, DAS1800_SIZE, thisboard->name);
 		devpriv->iobase2 = iobase2;
 	}
+
+	dev->board = das1800_probe(dev);
+	if(dev->board < 0)
+	{
+		printk("unable to determine board type\n");
+		return -ENODEV;
+	}
+
+	dev->board_ptr = das1800_boards + dev->board;
+	dev->board_name = thisboard->name;
 
 	/* grab our IRQ */
 	if(irq)
