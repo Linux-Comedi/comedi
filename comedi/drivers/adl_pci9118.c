@@ -519,7 +519,7 @@ static void pci9118_ai_munge(comedi_device *dev, comedi_subdevice *s, void *data
 
 	for (i = 0; i < num_samples; i++) {
 		if(devpriv->usedma)
-			array[i] = __be16_to_cpu(array[i]);
+			array[i] = be16_to_cpu(array[i]);
 		if (devpriv->ai16bits) {
 			array[i] ^= 0x8000;
 		} else {

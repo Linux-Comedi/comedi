@@ -992,7 +992,7 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 	for(i = 0; i < length; i++)
 	{
 #ifdef PCIDMA
-		array[i] = __le16_to_cpu(array[i]);
+		array[i] = le16_to_cpu(array[i]);
 #endif
 		array[i] += devpriv->ai_offset[ chan_index ];
 		chan_index++;
@@ -1954,7 +1954,7 @@ static void ni_ao_munge(comedi_device *dev, comedi_subdevice *s,
 		if(boardtype.ao_unipolar == 0 || (range & 1) == 0 )
 			array[i] -= offset;
 #ifdef PCIDMA
-		array[i] = __cpu_to_le16( array[i] );
+		array[i] = cpu_to_le16( array[i] );
 #endif
 		chan_index++;
 		chan_index %= async->cmd.chanlist_len;

@@ -1726,7 +1726,7 @@ static void das16_ai_munge(comedi_device *dev, comedi_subdevice *s, void *array,
 
 	for(i = 0; i < num_samples; i++)
 	{
-		data[i] = __le16_to_cpu(data[i]);
+		data[i] = le16_to_cpu(data[i]);
 		if( thisboard->ai_nbits == 12 )
 		{
 			data[i] = (data[i] >> 4) & 0xfff;
