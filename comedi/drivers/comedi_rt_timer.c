@@ -42,19 +42,14 @@ higher than with a device that has an on-board timer, and maximum
 sample rate is much lower.
 
 Configuration options:
-  [0] - device index
-  [1] - subdevice index
+  [0] - minor number of device you wish to emulate commands for
+  [1] - subdevice number you wish to emulate commands for
 */
 /*
-Options:
-	[0] - minor number of device you wish to emulate commands for
-	[1] - subdevice number you wish to emulate commands for
-
 TODO:
 	Support for digital io commands could be added, except I can't see why
 		anyone would want to use them
 	What happens if device we are emulating for is de-configured?
-
 */
 
 
