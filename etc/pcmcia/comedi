@@ -6,18 +6,15 @@ if [ -r ./shared ] ; then . ./shared ; else . /etc/pcmcia/shared ; fi
 get_info $DEVICE
 
 # Load site-specific settings
-ADDRESS="$SCHEME,$SOCKET,$INSTANCE,$HWADDR"
 start_fn () { return; }
 stop_fn () { return; }
 . $0.opts
-
-RESOLV=/etc/resolv.conf
 
 case "$ACTION" in
 
 'start')
 
-    echo /usr/sbin/comedi_config /dev/comedi0 $2
+    #echo /usr/sbin/comedi_config /dev/comedi0 $2
     /usr/sbin/comedi_config /dev/comedi0 $2
 
     start_fn $DEVICE
@@ -33,11 +30,9 @@ case "$ACTION" in
     ;;
 
 'cksum')
-    chk_simple "$3,$SOCKET,$INSTANCE,$HWADDR" || exit 1
     ;;
 
 'restart')
-    test "$IPADDR" && /sbin/ifconfig $DEVICE down up
     ;;
 
 'suspend'|'resume')
