@@ -87,6 +87,9 @@ add analog out support
 
 // amcc s5933 pci configuration registers
 #define INTCSR	0x38	// interrupt control/status
+#define   OUTBOX_BYTE(x)	((x) & 0x3)
+#define   OUTBOX_SELECT(x)	(((x) & 0x3) << 2)
+#define   OUTBOX_EMPTY_INT	0x10	// enable outbox empty interrupt
 #define   INBOX_BYTE(x)	(((x) & 0x3) << 8)
 #define   INBOX_SELECT(x)	(((x) & 0x3) << 10)
 #define   INBOX_FULL_INT	0x1000	//enable inbox full interrupt
@@ -511,7 +514,9 @@ found:
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
 #ifdef CB_PCIDAS_DEBUG
-	// enable interrupts on amcc s5933
+	/* Enable interrupts on amcc s5933.  Will probably also need to
+	 * enable outgoing mailbox interrupts to get waveform output
+	 * running on pci-das1602 models */
 	outl(INBOX_BYTE(0) | INBOX_SELECT(0) | INBOX_FULL_INT, devpriv->s5933_config + INTCSR);
 	rt_printk("attaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 #endif
@@ -942,6 +947,9 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+#ifdef CB_PCIDAS_DEBUG
+rt_printk("mailbox status is 0x%x\n", inl(devpriv->s5933_config + 0x34));
+#endif
 	// disable interrupts
 	outw(0, devpriv->control_status + INT_ADCFIFO);
 	// software pacer source
