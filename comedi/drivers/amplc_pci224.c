@@ -1314,22 +1314,6 @@ pci224_find_pci(comedi_device *dev, int bus, int slot,
 }
 
 /*
- * This function checks and requests an I/O region, reporting an error
- * if there is a conflict.
- */
-static int
-pci224_request_region(unsigned minor, unsigned long from, unsigned long extent)
-{
-	if (check_region(from, extent) < 0) {
-		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
-				minor, from, extent);
-		return -EIO;
-	}
-	request_region(from, extent, DRIVER_NAME);
-	return 0;
-}
-
-/*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
  * in the driver structure, dev->board_ptr contains that
@@ -1340,7 +1324,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev;
-	int iobase1 = 0, iobase2 = 0,  irq = 0;
+	int irq;
 	int bus = 0, slot = 0;
 	unsigned n;
 	int ret;
@@ -1360,19 +1344,27 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 		pci_dev_put(pci_dev);
 		return ret;
 	}
-	iobase1 = pci_resource_start(pci_dev, 2);
-	iobase2 = pci_resource_start(pci_dev, 3);
-	irq = pci_dev->irq;
+	if (pci_request_regions(pci_dev, DRIVER_NAME)) {
+		printk(KERN_ERR "comedi%d: error! cannot allocate PCI regions!\n",
+				dev->minor);
+		pci_dev_put(pci_dev);
+		return -EIO;
+	}
 
 	if ((ret=alloc_private(dev,sizeof(pci224_private))) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 				dev->minor);
+		pci_release_regions(pci_dev);
 		pci_dev_put(pci_dev);
 		return ret; 
 	}
 
 	devpriv->pci_dev = pci_dev;
 	spin_lock_init(&devpriv->ao_spinlock);
+
+	devpriv->iobase1 = pci_resource_start(pci_dev, 2);
+	dev->iobase = pci_resource_start(pci_dev, 3);
+	irq = pci_dev->irq;
 
 	/* Allocate readback buffer for AO channels. */
 	devpriv->ao_readback = kmalloc(sizeof(devpriv->ao_readback[0]) *
@@ -1394,20 +1386,6 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 	if (!devpriv->ao_scan_order) {
 		return -ENOMEM;
 	}
-
-	/* Reserve I/O space 1. */
-	ret = pci224_request_region(dev->minor, iobase1, PCI224_IO1_SIZE);
-	if (ret < 0) {
-		return ret;
-	}
-	devpriv->iobase1 = iobase1;
-
-	/* Reserve I/O space 2. */
-	ret = pci224_request_region(dev->minor, iobase2, PCI224_IO2_SIZE);
-	if (ret < 0) {
-		return ret;
-	}
-	dev->iobase = iobase2;
 
 	/* Disable interrupt sources. */
 	devpriv->intsce = 0;
@@ -1555,13 +1533,7 @@ pci224_detach(comedi_device *dev)
                         kfree(s->range_table_list);
                 }
         }
-	if (dev->iobase) {
-		release_region(dev->iobase, PCI224_IO2_SIZE);
-	}
 	if (devpriv) {
-		if (devpriv->iobase1) {
-			release_region(devpriv->iobase1, PCI224_IO1_SIZE);
-		}
 		if (devpriv->ao_readback) {
 			kfree(devpriv->ao_readback);
 		}
@@ -1572,6 +1544,7 @@ pci224_detach(comedi_device *dev)
 			kfree(devpriv->ao_scan_order);
 		}
 		if (devpriv->pci_dev) {
+			pci_release_regions(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
