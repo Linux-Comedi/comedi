@@ -99,6 +99,15 @@ Configuration options:
 #define Control_EXT	0x0004		/* 1=external trigger source */
 #define Control_PACER	0x0002		/* 1=enable internal 8254 trigger source */
 #define Control_SW	0x0001		/* 1=enable software trigger source */
+// bits from counter control register (PCI171x_CNTCTRL)
+#define Counter_BCD     0x0001          /* 0 = binary counter, 1 = BCD counter */
+#define Counter_M0      0x0002          /* M0-M2 select modes 0-5 */
+#define Counter_M1      0x0004          /* 000 = mode 0, 010 = mode 2 ... */
+#define Counter_M2      0x0008          
+#define Counter_RW0     0x0010          /* RW0/RW1 select read/write mode */
+#define Counter_RW1     0x0020
+#define Counter_SC0     0x0040           /* Select Counter. Only 00 or 11 may */
+#define Counter_SC1     0x0080           /* be used, 00 for CNT0, 11 for read-back command */
 
 #define PCI1720_DA0	 0		/* W:   D/A register 0 */
 #define PCI1720_DA1	 2		/* W:   D/A register 1 */
@@ -186,6 +195,7 @@ typedef struct {
 	int 		n_aochan;	// num of D/A chans
 	int 		n_dichan;	// num of DI chans
 	int 		n_dochan;	// num of DO chans
+	int             n_counter;      // num of counters
 	int		ai_maxdata;	// resolution of A/D
 	int		ao_maxdata;	// resolution of D/A
 	comedi_lrange	*rangelist_ai;	// rangelist for A/D
@@ -209,32 +219,32 @@ static boardtype boardtypes[] =
 {
 	{"pci1710", 0x1710,
 	 IORANGE_171x, 1, TYPE_PCI171X,
-	 16, 8, 2, 16, 16,  0x0fff, 0x0fff,
+	 16, 8, 2, 16, 16, 1,  0x0fff, 0x0fff,
 	 &range_pci1710_3, range_codes_pci1710_3, &range_pci171x_da,
 	 10000, 2048 },
 	{"pci1710hg", 0x1710,
 	 IORANGE_171x, 1, TYPE_PCI171X,
-	 16, 8, 2, 16, 16,  0x0fff, 0x0fff,
+	 16, 8, 2, 16, 16, 1,  0x0fff, 0x0fff,
 	 &range_pci1710hg, range_codes_pci1710hg, &range_pci171x_da,
 	 10000, 2048 },
 	{"pci1711", 0x1711,
 	 IORANGE_171x, 1, TYPE_PCI171X,
-	 16, 0, 2, 16, 16,  0x0fff, 0x0fff,
+	 16, 0, 2, 16, 16, 0,  0x0fff, 0x0fff,
 	 &range_pci17x1, range_codes_pci17x1, &range_pci171x_da,
 	 10000, 512 },
 	{"pci1713", 0x1713,
 	 IORANGE_171x, 1, TYPE_PCI1713,
-	 32,16, 0,  0,  0,  0x0fff, 0x0000,
+	 32,16, 0,  0,  0, 0,  0x0fff, 0x0000,
 	 &range_pci17x1, range_codes_pci1710_3, NULL,
 	 10000, 2048 },
 	{"pci1720", 0x1720,
 	 IORANGE_1720, 0, TYPE_PCI1720,
-	 0, 0, 4, 0, 0,  0x0000, 0x0fff,
+	 0, 0, 4, 0, 0, 0,  0x0000, 0x0fff,
 	 NULL, NULL, &range_pci1720,
 	 0, 0 },
 	{"pci1731", 0x1731,
 	 IORANGE_171x, 1, TYPE_PCI171X,
-	 16, 0, 0, 16, 16,  0x0fff, 0x0000,
+	 16, 0, 0, 16, 16, 0,  0x0fff, 0x0000,
 	 &range_pci17x1, range_codes_pci17x1, NULL,
 	 10000, 512 },
 };
@@ -278,6 +288,7 @@ typedef struct{
 	unsigned int		ai_timer1;	// timers
 	unsigned int		ai_timer2;
 	sampl_t			ao_data[4];	// data output buffer
+	unsigned int            cnt0_write_wait; // after a write, wait for update of the internal state
 } pci1710_private;
 
 #define devpriv ((pci1710_private *)dev->private)
@@ -429,6 +440,90 @@ static int pci171x_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_i
 	return 2;
 }
 
+/*
+==============================================================================
+*/
+static int pci171x_insn_counter_read(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+{
+	unsigned int msb, lsb, ccntrl;
+	int i;
+
+	ccntrl = 0xD2; /* count only */
+	for (i=0; i<insn->n; i++) {
+		outw(ccntrl, dev->iobase+PCI171x_CNTCTRL);
+
+		lsb = inw(dev->iobase+PCI171x_CNT0) & 0xFF;
+		msb = inw(dev->iobase+PCI171x_CNT0) & 0xFF;
+
+		data[0] = lsb | (msb << 8);
+	}
+#if unused
+	if ( /* count and status */ )
+		ccntrl = 0xC2;
+		/* status, if latched, first */
+		data[1] = inw(dev->iobase+PCI171x_CNT0); 
+	}
+#endif
+
+	return insn->n;
+}
+
+/*
+==============================================================================
+*/
+static int pci171x_insn_counter_write(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+{
+	uint msb, lsb, ccntrl, status;
+
+	lsb = data[0] & 0x00FF;
+	msb = (data[0] & 0xFF00) >> 8;
+
+	/* write lsb, then msb */
+	outw(lsb, dev->iobase+PCI171x_CNT0);
+	outw(msb, dev->iobase+PCI171x_CNT0);
+
+	if ( devpriv->cnt0_write_wait ) {
+		/* wait for the new count to be loaded */
+		ccntrl = 0xE2;
+		do {
+			outw(ccntrl, dev->iobase+PCI171x_CNTCTRL);
+			status = inw(dev->iobase+PCI171x_CNT0) & 0xFF;
+		} while (status & 0x40);
+	}
+
+	return insn->n;
+}
+
+/*
+==============================================================================
+*/
+static int pci171x_insn_counter_config(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+{
+#ifdef unused
+	/* This doesn't work like a normal Comedi counter config */
+	uint ccntrl = 0;
+	
+	devpriv->cnt0_write_wait = data[0] & 0x20;
+
+	/* internal or external clock? */
+	if ( ! (data[0] & 0x10) ) { /* internal */
+		devpriv->CntrlReg &= ~Control_CNT0;
+	} else {
+		devpriv->CntrlReg |= Control_CNT0;
+	}
+	outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
+
+	if ( data[0] & 0x01 ) ccntrl |= Counter_M0;
+	if ( data[0] & 0x02 ) ccntrl |= Counter_M1;
+	if ( data[0] & 0x04 ) ccntrl |= Counter_M2;
+	if ( data[0] & 0x08 ) ccntrl |= Counter_BCD;
+	ccntrl |= Counter_RW0;  /* set read/write mode */
+	ccntrl |= Counter_RW1;
+	outw(ccntrl, dev->iobase+PCI171x_CNTCTRL);
+#endif
+	
+	return 1;
+}
 
 /* 
 ==============================================================================
@@ -1175,6 +1270,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_aochan) n_subdevices++;
 	if (this_board->n_dichan) n_subdevices++;
 	if (this_board->n_dochan) n_subdevices++;
+	if (this_board->n_counter) n_subdevices++;
 
         if((ret=alloc_subdevices(dev, n_subdevices))<0) {
     		release_region(dev->iobase, this_board->iorange);
@@ -1270,7 +1366,19 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 		subdev++;
 	}
 	
-// XXX There is unused counter 0 from onboard 82C54. Well, one user counter/timer?
+	if (this_board->n_counter) {
+		s = dev->subdevices + subdev;
+		s->type = COMEDI_SUBD_COUNTER;
+		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
+		s->n_chan=this_board->n_counter;
+		s->len_chanlist = this_board->n_counter;
+		s->maxdata=0xffff;
+		s->range_table = &range_unknown;
+		s->insn_read = pci171x_insn_counter_read;
+		s->insn_write = pci171x_insn_counter_write;
+		s->insn_config = pci171x_insn_counter_config;
+		subdev++;
+	}
 	
 	devpriv->valid=1;
 
