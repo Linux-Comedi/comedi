@@ -39,6 +39,7 @@
 #include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/vmalloc.h>
+#include <linux/fs.h>
 
 #include <linux/comedidev.h>
 
@@ -50,10 +51,6 @@
 MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi core module");
 MODULE_LICENSE("GPL");
-
-#ifndef KILL_FASYNC
-#define KILL_FASYNC(a,b,c) kill_fasync(&(a),(b),(c))
-#endif
 
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
@@ -242,8 +239,11 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		if(bc.size > async->max_bufsize)
 			return -EPERM;
 
-		if(s->busy)return -EBUSY;
-
+		if(s->busy)
+		{
+			DPRINTK("subdevice is busy, cannot resize buffer\n");
+			return -EBUSY;
+		}
 		if(async->mmap_count){
 			DPRINTK("subdevice is mmapped, cannot resize buffer\n");
 			return -EBUSY;
@@ -325,16 +325,16 @@ static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
 /*
 	COMEDI_SUBDINFO
 	subdevice info ioctl
-	
+
 	arg:
 		pointer to array of subdevice info structures
-	
+
 	reads:
 		none
-	
+
 	writes:
 		array of subdevice info structures at arg
-		
+
 */
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 {
@@ -368,7 +368,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->range_type	= 0; /* XXX */
 		}
 		us->flags		= s->flags;
-		
+
 		if(s->busy)
 			us->subd_flags |= SDF_BUSY;
 		if(s->busy == file)
@@ -388,9 +388,9 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 
 		us->settling_time_0 = s->settling_time_0;
 	}
-	
+
 	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));
-	
+
 	kfree(tmp);
 
 	return ret?-EFAULT:0;
@@ -400,10 +400,10 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 /*
 	COMEDI_CHANINFO
 	subdevice info ioctl
-	
+
 	arg:
 		pointer to chaninfo structure
-	
+
 	reads:
 		chaninfo structure at arg
 
@@ -435,7 +435,7 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 		if(copy_to_user(it.flaglist,s->flaglist,s->n_chan*sizeof(unsigned int)))
 			return -EFAULT;
 	}
-			
+
 	if(it.rangelist){
 		int i;
 
@@ -721,7 +721,6 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 		}
 		/* This looks arbitrary.  It is. */
 		s->busy=&parse_insn;
-
 		switch(insn->insn){
 			case INSN_READ:
 				ret=s->insn_read(dev,s,insn,data);
@@ -1046,13 +1045,13 @@ cleanup:
 /*
 	COMEDI_LOCK
 	lock subdevice
-	
+
 	arg:
 		subdevice number
-	
+
 	reads:
 		none
-	
+
 	writes:
 		none
 
@@ -1102,7 +1101,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 
 	reads:
 		none
-	
+
 	writes:
 		none
 
@@ -1138,13 +1137,13 @@ static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 /*
 	COMEDI_CANCEL
 	cancel acquisition ioctl
-	
+
 	arg:
 		subdevice number
-	
+
 	reads:
 		nothing
-	
+
 	writes:
 		nothing
 
@@ -1172,10 +1171,10 @@ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 /*
 	COMEDI_POLL ioctl
 	instructs driver to synchronize buffers
-	
+
 	arg:
 		subdevice number
-	
+
 	reads:
 		nothing
 
@@ -1803,7 +1802,7 @@ static int __init comedi_init(void)
 			COMEDI_MAJOR, i, 0666 | S_IFCHR, &comedi_fops, NULL);
 		class_simple_device_add(comedi_class, MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	}
-	
+
 	comedi_rt_init();
 
 	return 0;
