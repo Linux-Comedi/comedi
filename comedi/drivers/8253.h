@@ -24,6 +24,8 @@
 #ifndef _8253_H
 #define _8253_H
 
+#include <linux/comedi.h>
+
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
 static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
@@ -80,6 +82,7 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 
 	for (div1 = 2; div1 <= (1 << 16); div1 <<= 1) {
 		base = i8253_osc_base * div1;
+		round_mode &= TRIG_ROUND_MASK;
 		switch (round_mode) {
 		case TRIG_ROUND_NEAREST:
 		default:
@@ -161,6 +164,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 		}
 	}
 
+	round_mode &= TRIG_ROUND_MASK;
 	switch (round_mode) {
 	case TRIG_ROUND_NEAREST:
 	default:
@@ -190,7 +194,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	return;
 }
 
-/* Programs 8254 counter chip.  I don't know if this works for 8253.
+/* Programs 8254 counter chip.  It should also work for the 8253.
  * base_address is the lowest io address for the chip (the address of counter 0).
  * counter_number is the counter you want to load (0,1 or 2)
  * count is the number to load into the counter.
