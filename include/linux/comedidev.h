@@ -228,7 +228,7 @@ extern spinlock_t big_comedi_lock;
 #ifdef CONFIG_COMEDI_DEBUG
 extern int comedi_debug;
 #else
-const int comedi_debug = 0;
+static const int comedi_debug = 0;
 #endif
 
 /*
