@@ -409,6 +409,9 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
 	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
+	/* XXX should use mite_bytes_read() for the overrun check
+	 * since mite_bytes_transferred returns a conservative
+	 * lower bound */
 	if( (int)(nbytes - old_alloc_count) > 0 ){
 		printk("ni_mio_common: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
@@ -418,7 +421,8 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 
 	count = nbytes - async->buf_write_count;
 	if( count < 0 ){
-		rt_printk("ni_mio_common: BUG: negative ai count\n");
+		/* it's possible count will be negative due to
+		 * conservative value returned by mite_bytes_transferred */
 		return;
 	}
 
