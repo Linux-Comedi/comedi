@@ -17,9 +17,7 @@
     Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
     David Schleef and the rest of the Comedi developers comunity.
 
-    Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>, with
-    valuable help from David Schleef, Frank Mori Hess, and the rest of
-    the Comedi developers comunity.
+    Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
     Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -81,7 +79,7 @@ add analog out support
 #define PACER_BADRINDEX 3
 #define AO_BADRINDEX 4
 // sizes of io regions
-#define S5933_SIZE 128
+#define S5933_SIZE 64
 #define CONT_STAT_SIZE 10
 #define ADC_FIFO_SIZE 4
 #define PACER_SIZE 12
@@ -89,7 +87,9 @@ add analog out support
 
 // amcc s5933 pci configuration registers
 #define INTCSR	0x38	// interrupt control/status
-#define   ADD_INT_EN 0x2000	//enable add-on interrupt
+#define   INBOX_BYTE(x)	(((x) & 0x3) << 8)
+#define   INBOX_SELECT(x)	(((x) & 0x3) << 10)
+#define   INBOX_FULL_INT	0x1000	//enable inbox full interrupt
 
 /* Control/Status registers */
 #define INT_ADCFIFO	0	// INTERRUPT / ADC FIFO register
@@ -511,9 +511,9 @@ found:
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
 #ifdef CB_PCIDAS_DEBUG
-	// enable passing of interrupts through amcc s5933 chip
-	outl(ADD_INT_EN, devpriv->s5933_config + INTCSR);
-	rt_printk("finished attach, intcsr register is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+	// enable interrupts on amcc s5933
+	outl(INBOX_BYTE(0) | INBOX_SELECT(0) | INBOX_FULL_INT, devpriv->s5933_config + INTCSR);
+	rt_printk("attaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 #endif
 
 	return 1;
@@ -535,7 +535,14 @@ static int cb_pcidas_detach(comedi_device *dev)
 	if(devpriv)
 	{
 		if(devpriv->s5933_config)
+		{
+#ifdef CB_PCIDAS_DEBUG
+			// disable interrupts on amcc s5933
+			outl(0, devpriv->s5933_config + INTCSR);
+			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+#endif
 			release_region(devpriv->s5933_config, S5933_SIZE);
+		}
 		if(devpriv->control_status)
 			release_region(devpriv->control_status, CONT_STAT_SIZE);
 		if(devpriv->adc_fifo)
