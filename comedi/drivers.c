@@ -56,11 +56,35 @@ int comedi_modprobe(int minor)
 	return -EINVAL;
 }
 
-int comedi_device_detach(comedi_device *dev)
+static void cleanup_device_allocations(comedi_device *dev)
 {
 	int i;
 	comedi_subdevice *s;
 
+	if(dev->subdevices)
+	{
+		for(i = 0; i < dev->n_subdevices; i++)
+		{
+			s = dev->subdevices + i;
+			if(s->async)
+			{
+				comedi_buf_alloc(dev, s, 0);
+				if(s->buf_change) s->buf_change(dev, s, 0);
+				kfree(s->async);
+			}
+		}
+		kfree(dev->subdevices);
+		dev->subdevices = NULL;
+	}
+	if(dev->private)
+	{
+		kfree(dev->private);
+		dev->private = NULL;
+	}
+}
+
+int comedi_device_detach(comedi_device *dev)
+{
 	if(!dev->attached)
 		return 0;
 
@@ -69,24 +93,13 @@ int comedi_device_detach(comedi_device *dev)
 
 	dev->attached=0;
 
-	for(i=0;i<dev->n_subdevices;i++){
-		s=dev->subdevices+i;
-		if(s->async){
-			comedi_buf_alloc(dev, s, 0);
-			if(s->buf_change) s->buf_change(dev,s,0);
-			kfree(s->async);
-		}
-	}
-
 	if(dev->driver){
 		dev->driver->detach(dev);
 	}else{
 		printk("BUG: dev->driver=NULL in comedi_device_detach()\n");
 	}
 
-	if(dev->subdevices)kfree(dev->subdevices);
-	if(dev->private)kfree(dev->private);
-
+	cleanup_device_allocations(dev);
 	return 0;
 }
 
@@ -130,8 +143,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 		ret=driv->attach(dev,it);
 		if(ret<0){
 			driv->detach(dev);
-			if(dev->subdevices)kfree(dev->subdevices);
-			if(dev->private)kfree(dev->private);
+			cleanup_device_allocations(dev);
 			module_put( driv->module );
 			return ret;
 		}
@@ -158,9 +170,7 @@ attached:
 	if(ret < 0)
 	{
 		driv->detach(dev);
-		if(dev->subdevices)kfree(dev->subdevices);
-		if(dev->private)kfree(dev->private);
-
+		cleanup_device_allocations(dev);
 		return ret;
 	}
 

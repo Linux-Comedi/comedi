@@ -1662,17 +1662,19 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 	comedi_subdevice *s = NULL;
 	int i;
 
-	for(i=0;i<dev->n_subdevices;i++){
-		s=dev->subdevices+i;
+	if(dev->subdevices)
+	{
+		for(i=0;i<dev->n_subdevices;i++){
+			s=dev->subdevices+i;
 
-		if(s->busy==file){
-			do_cancel(dev,s);
-		}
-		if(s->lock==file){
-			s->lock=NULL;
+			if(s->busy==file){
+				do_cancel(dev,s);
+			}
+			if(s->lock==file){
+				s->lock=NULL;
+			}
 		}
 	}
-
 	if(dev->attached && dev->use_count==1 && dev->close){
 		dev->close(dev);
 	}
