@@ -43,7 +43,6 @@ EXTRA_DIST = \
  icp_multi.h \
  mite.h \
  me4000.h \
- me4000_fw.h \
  ni_labpc.h \
  ni_mio_common.c \
  ni_stc.h \
