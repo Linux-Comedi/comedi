@@ -254,13 +254,13 @@ static ni_board ni_boards[]={
 		caldac:         type3,
 		has_8255:	1,
 	},
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x2ca0,
 		name:           "pci-6034e",
 		n_adchan:       16,
 		adbits:         16,
 		ai_fifo_depth:  512,
 		alwaysdither:   1,
-		gainlkup:       ai_gain_8_602x,
+		gainlkup:       ai_gain_8_602x, // XXX check
 		ai_speed:	5000,
 		n_aochan:       0,
 		aobits:         0,
