@@ -287,8 +287,8 @@ static inline void ni_ao_win_outw( comedi_device *dev, uint16_t data, int addr )
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&dev->spinlock,flags);
-	ni_writew(addr,AO_Window_Address_671x);
-	ni_writew(data,AO_Window_Data_671x);
+	ni_writew(addr,AO_Window_Address_611x);
+	ni_writew(data,AO_Window_Data_611x);
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 }
 
@@ -297,8 +297,8 @@ static inline void ni_ao_win_outl(comedi_device *dev, uint32_t data, int addr)
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&dev->spinlock,flags);
-	ni_writew(addr,AO_Window_Address_671x);
-	ni_writel(data,AO_Window_Data_671x);
+	ni_writew(addr,AO_Window_Address_611x);
+	ni_writel(data,AO_Window_Data_611x);
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 }
 
@@ -308,8 +308,8 @@ static inline unsigned short ni_ao_win_inw( comedi_device *dev, int addr )
 	unsigned short data;
 
 	comedi_spin_lock_irqsave(&dev->spinlock,flags);
-	ni_writew(addr, AO_Window_Address_671x);
-	data = ni_readw(AO_Window_Data_671x);
+	ni_writew(addr, AO_Window_Address_611x);
+	data = ni_readw(AO_Window_Data_611x);
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 	return data;
 }
@@ -3834,7 +3834,7 @@ static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	channel = CR_CHAN(insn->chanspec);
 	/* Set calibration adc source.  Docs lie, reference select bits 8 to 11
 	 * do nothing. */
-	ni_ao_win_outw(dev, channel, AO_Calibration_Channel_Select_67xx);
+	ni_ao_win_outw(dev, 0x100 | channel, AO_Calibration_Channel_Select_67xx);
 
 	for(n = 0; n < insn->n; n++)
 	{

@@ -646,28 +646,25 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 #define Calibration_Channel_Select_611x	0x1a /* w16 (new) */
 #define ADC_FIFO_Data_611x		0x1c /* r32 (incompatible) */
 #define AI_FIFO_Offset_Load_611x	0x05 /* r8 (new) */
-#define AO_FIFO_Offset_Load_611x       0x13 /* W32 */
 #define DAC_FIFO_Data_611x		0x14 /* w32 (incompatible) */
-#define AO_Window_Addr_611x		0x18 /* w16 */
-#define AO_Window_Data_611x		0x1e /* w16 */
 #define Cal_Gain_Select_611x		0x05 /* w8 (new) */
 
-/* AO Windowed registers */
+#define AO_Window_Address_611x		0x18
+#define AO_Window_Data_611x		0x1e
 
 /* 671x, 611x registers */
-
-#define AO_Window_Address_671x		0x18 /* W 16 */
-#define AO_Window_Data_671x		0x1e /* W 16 */
 
 /* 671xi, 611x windowed ao registers */
 enum windowed_regs_67xx_61xx
 {
 	AO_Immediate_671x = 0x11, /* W 16 */
 	AO_Timed_611x = 0x10, /* W 16 */
+	AO_FIFO_Offset_Load_611x = 0x13, /* W32 */
 	AO_Later_Single_Point_Updates = 0x14, /* W 16 */
 	AO_Waveform_Generation_611x = 0x15, /* W 16 */
 	AO_Misc_611x = 0x16, /* W 16 */
 	AO_Calibration_Channel_Select_67xx = 0x17, /* W 16 */
+	AO_Configuration_2_67xx = 0x18, /* W 16 */
 	CAL_ADC_Command_67xx = 0x19, /* W 8 */
 	CAL_ADC_Status_67xx = 0x1a, /* R 8 */
 	CAL_ADC_Data_67xx = 0x1b, /* R 16 */
