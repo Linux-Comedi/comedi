@@ -3,7 +3,7 @@
     header file for comedi
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1998-2000 David A. Schleef <ds@schleef.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,8 +70,7 @@ typedef unsigned short sampl_t;
 
 #define INSN_READ		( 0 | INSN_MASK_READ)
 #define INSN_WRITE		( 1 | INSN_MASK_WRITE)
-#define INSN_READBITS		( 2 | INSN_MASK_READ)
-#define INSN_WRITEBITS		( 3 | INSN_MASK_WRITE)
+#define INSN_BITS		( 2 | INSN_MASK_READ|INSN_MASK_WRITE)
 #define INSN_GTOD		( 4 | INSN_MASK_READ|INSN_MASK_SPECIAL)
 #define INSN_WAIT		( 5 | INSN_MASK_WRITE|INSN_MASK_SPECIAL)
 
@@ -207,6 +206,7 @@ struct comedi_insn_struct{
 	lsampl_t *data;
 	unsigned int subdev;
 	unsigned int chanspec;
+	unsigned int unused[3];
 };
 
 struct comedi_insnlist_struct{
