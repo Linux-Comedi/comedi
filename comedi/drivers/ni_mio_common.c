@@ -99,8 +99,8 @@ static short ni_gainlkup[][16]={
 	/* ai_gain_4 */
 	{ 0, 1, 4, 7 },
 	/* ai_gain_611x */
-	/* 0x109, gain=0.1 might be valid, but it's not useful */
-	{ 0x10a, 0x10b, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106 }
+	/* 0x009, gain=0.1 might be valid, but it's not useful */
+	{ 0x00a, 0x00b, 0x001, 0x002, 0x003, 0x004, 0x005, 0x006 }
 };
 
 static comedi_lrange range_ni_E_ai={	16, {
