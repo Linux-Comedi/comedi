@@ -3864,10 +3864,14 @@ static int init_cs5529(comedi_device *dev)
 {
 	unsigned int config_bits = CSCFG_PORT_MODE | CSCFG_WORD_RATE_2180_CYCLES;
 
+	/* force gain calibration to 1 */
+	cs5529_config_write(dev, 0x400000, CSCMD_GAIN_REGISTER);
 	/* do self-calibration */
-	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET_GAIN, CSCMD_CONFIG_REGISTER);
+//	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET_GAIN, CSCMD_CONFIG_REGISTER);
+	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET, CSCMD_CONFIG_REGISTER);
 	/* need to force a conversion for calibration to run */
 	cs5529_do_conversion(dev, NULL);
+
 	if(0)
 	{
 		rt_printk("config: 0x%x\n", cs5529_config_read(dev, CSCMD_CONFIG_REGISTER));
