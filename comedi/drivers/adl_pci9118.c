@@ -1357,6 +1357,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
         if((ret=alloc_subdevices(dev))<0)
     		return ret;
 
+	dev->read_subdev = 0;
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE|SDF_RT|SDF_COMMON|SDF_GROUND|SDF_DIFF;
@@ -1506,3 +1507,4 @@ void cleanup_module(void)
  *            1=use ADCHN7 (pin 23) signal and use software for timing
  *              (in this case external multiplexor can serve only 128 A/D channels)
 */
+

@@ -342,6 +342,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
+	dev->read_subdev = 0;
 	/* analog input subdevice */
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_AI;

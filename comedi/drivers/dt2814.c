@@ -318,6 +318,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(dt2814_private)))<0)
 		return ret;
 
+	dev->read_subdev = 0;
 	s=dev->subdevices+0;
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;

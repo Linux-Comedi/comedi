@@ -171,6 +171,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 		return -ENOMEM;
 
 	s=dev->subdevices+0;
+	dev->read_subdev=0;
 	/* analog input subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;

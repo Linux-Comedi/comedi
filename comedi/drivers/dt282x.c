@@ -1469,6 +1469,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	s=dev->subdevices+0;
 
+	dev->read_subdev=0;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|((it->options[opt_diff])?SDF_DIFF:SDF_COMMON);
@@ -1491,6 +1492,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	s++;
 	if((s->n_chan=boardtype.dachan)){
+		dev->write_subdev=1;
 		/* ao subsystem */
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITEABLE;

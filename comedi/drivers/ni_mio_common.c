@@ -2003,6 +2003,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	
 	/* analog input subdevice */
 
+	dev->read_subdev=0;
 	s=dev->subdevices+0;
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
@@ -2024,6 +2025,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* analog output subdevice */
 	/* XXX what about boards without ao? */
 
+	dev->write_subdev=1;
 	s=dev->subdevices+1;
 	if(boardtype.n_aochan){
 		s->type=COMEDI_SUBD_AO;

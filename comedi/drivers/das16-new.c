@@ -1054,6 +1054,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		printk(" ( no irq )\n");
 	}
 	
+	dev->read_subdev=0;
 	s=dev->subdevices+0;
 	/* ai */
 	if(thisboard->ai){

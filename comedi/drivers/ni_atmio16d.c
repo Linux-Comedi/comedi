@@ -765,6 +765,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->dac1_coding = it->options[12];
 
 	
+	dev->read_subdev = 0;
 	/* setup sub-devices */
 	s=dev->subdevices+0;
 	/* ai subdevice */
