@@ -334,10 +334,21 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
 {
 	int i;
+	sampl_t d;
+	int j;
+	int range;
 
+	j=devpriv->ai_chanlistptr;
 	for(i=0;i<n;i++){
-		data[i]=ni_readw(ADC_FIFO_Data_Register);
+		d=ni_readw(ADC_FIFO_Data_Register);
+		range=CR_RANGE(devpriv->ai_chanlist[j]);
+		if(range>=8)d^=0x800;
+		d&=0xfff;
+		data[i]=d;
+		j++;
+		if(j>=s->cur_trig.n_chan)j=0;
 	}
+	devpriv->ai_chanlistptr=j;
 }
 
 
@@ -539,7 +550,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 		
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
-		list[i]=CR_PACK(chan,range,aref);
+		devpriv->ai_chanlist[i]=CR_PACK(chan,range,aref);
 
 		hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		ni_writew(hi,Configuration_Memory_High);

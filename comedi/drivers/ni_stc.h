@@ -493,7 +493,7 @@ typedef struct ni_board_struct{
 	
 	int has_8255;
 
-        int n_gpct;		/* CLO */
+        int n_gpct;
 
 	struct caldac_struct **caldac;
 }ni_board;
