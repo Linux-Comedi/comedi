@@ -328,17 +328,19 @@ void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 #ifdef PCIDMA
 static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
 {
+	int len;
+	
 	comedi_subdevice *s=dev->subdevices+0;
 	
 	comedi_event(dev,s,COMEDI_CB_BLOCK);
 
 	MDPRINTK("mite_handle_interrupt\n");
 	writel(CHOR_CLRLC, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
-#if 0
+/*
 	//Don't munge the data, just update the user's status variables
 	s->async->buf_int_count=mite_bytes_transferred(devpriv->mite, 0);
 	s->async->buf_int_ptr= s->async->buf_int_count % s->async->prealloc_bufsz;     
-#else
+*/
 	//Munge the ADC data to change its format from twos complement to unsigned int
 	//This is slow but makes it more compatible with other cards
 	{ 
@@ -354,7 +356,27 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
 		raw_ptr+s->async->prealloc_buf);
 	s->async->buf_int_ptr = raw_ptr;
 	}
-#endif
+
+
+	len = sizeof(sampl_t)*s->async->cmd.stop_arg*s->async->cmd.scan_end_arg;
+	if((devpriv->mite->DMA_CheckNearEnd)&&
+			(s->async->buf_int_count > (len - s->async->prealloc_bufsz))) {
+		long offset;
+		int i;
+		
+		offset = len % s->async->prealloc_bufsz;
+		if(offset < devpriv->mite->ring[0].count) {
+			devpriv->mite->ring[0].count = offset;
+			devpriv->mite->ring[1].count = 0;
+		}else{
+			offset -= devpriv->mite->ring[0].count;
+			i = offset / PAGE_SIZE;
+			devpriv->mite->ring[i].count = offset % PAGE_SIZE;
+			devpriv->mite->ring[(i+1)%MITE_RING_SIZE].count = 0;			
+		}
+		devpriv->mite->DMA_CheckNearEnd = 0;		
+	}
+
 	MDPRINTK("CHSR is 0x%08lx, count is %d\n",m_status,s->async->buf_int_count);
 	if(m_status&CHSR_DONE){
 		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
@@ -735,10 +757,7 @@ int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 	        
 	MDPRINTK("ni_ai_setup_block_dma\n");
 	        
-	/*Build MITE linked list and configure the MITE
-	 * ******WARNING******
-	 * There is no error handling here, 
-	 * the memory buffer *Must* be mlock'ed by the user*/
+	/*Build MITE linked list and configure the MITE*/
 
 	len = sizeof(sampl_t)*cmd->stop_arg*cmd->scan_end_arg;
 

@@ -64,6 +64,8 @@ struct mite_struct{
 	void *mite_io_addr;
 	unsigned long daq_phys_addr;
 	void *daq_io_addr;
+	
+	int DMA_CheckNearEnd;
 
 	struct mite_dma_chain ring[MITE_RING_SIZE];
 };

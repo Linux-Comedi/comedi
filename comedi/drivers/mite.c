@@ -150,7 +150,7 @@ int mite_setup(struct mite_struct *mite)
 #if LINUX_VERSION_CODE < 0x020300
 	addr=mite->pcidev->base_address[0];
 #else
-	pci_enable_device(mite->pcidev);
+	//pci_enable_device(mite->pcidev);  This is causing a hang when used with PCIDMA -- 7/27/01 Tim
 	addr=mite->pcidev->resource[0].start;
 #endif
 #endif
@@ -293,9 +293,9 @@ void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s)
  * Create the short linkchaining MITE linked list using kernel memory
  * a drop in replacement for mite_ll_from_user( ) 
  */
-unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len)
+unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int reqlen)
 {
-	int i,size_so_far, continuous_aq;
+	int i,size_so_far, continuous_aq, len;
 	unsigned long nup;
 	unsigned long prealloc_buf,prealloc_bufsz; 
 	//comedi_subdevice *s;
@@ -312,11 +312,14 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	continuous_aq = (async->cmd.stop_src == TRIG_NONE? 1:0);
 	if(continuous_aq) {
 		len = prealloc_bufsz;
+	}else{
+		len = (reqlen>prealloc_bufsz?prealloc_bufsz:reqlen);
 	}
 	
-	if(async->data_len<len) {
-		printk("<1>Comedi Error: preallocated DMA buffer is too small to hold the samples.");
-	}
+	//if(async->data_len<len) {
+	//	printk("<1>Comedi Error: preallocated DMA buffer is too small to hold the samples.");
+	//}
+	
 	//find the kernel's memory pages.
 	nup = (unsigned long)async->data;
 	i=0;
@@ -340,9 +343,15 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	//mite->ring[i].count=0;
 	
 	if (continuous_aq&&(i>0)) {
-		mite->ring[i-1].next = virt_to_bus(mite->ring+0); 
-	}else {
+		mite->ring[i-1].next = virt_to_bus(mite->ring+0);
+		mite->DMA_CheckNearEnd = 0;
+	}else if (prealloc_bufsz < reqlen) {
+		mite->ring[i-1].next = virt_to_bus(mite->ring+0);
+		mite->DMA_CheckNearEnd = 1;
+	}	
+	else {
 		mite->ring[i].count=0;
+		mite->DMA_CheckNearEnd = 0;
 	}
 
 	
