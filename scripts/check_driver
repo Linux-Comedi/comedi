@@ -149,7 +149,11 @@ if grep 'comedi_insn' ${driver} &>/dev/null;then
 	echo "uses insn"
 	insn=yes
 else
-	echo "E: doesn't use insn"
+	if grep 'subdev_8255_init' ${driver} &>/dev/null;then
+		echo uses subdev_8255_init
+	else
+		echo "E: doesn't use insn"
+	fi
 	insn=no
 fi
 
@@ -379,5 +383,17 @@ if [ $pci = yes ];then
 	if ! grep pci_device_id ${driver} &>/dev/null;then
 		echo "E: PCI drivers should have pci_device_id tables"
 	fi
+fi
+
+if grep 'insn->data' ${driver} &>/dev/null;then
+	echo "E: driver uses insn->data, which is a userspace pointer"
+fi
+
+if grep 'out[wlb] *([^(,]*iobase' ${driver} &>/dev/null; then
+	echo "E: misordered outX(dev->iobase + offset,XXX)"
+fi
+
+if grep 'write[wlb] *([^(,]*iobase' ${driver} &>/dev/null; then
+	echo "E: writeX(dev->iobase + offset,XXX)"
 fi
 
