@@ -40,6 +40,9 @@
 #include <linux/kmod.h>
 #include <asm/uaccess.h>
 #endif
+#if LINUX_VERSION_CODE >= 0x020100
+#include <linux/poll.h>
+#endif
 
 comedi_device *comedi_devices;
 
@@ -611,16 +614,16 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 	for(i=0;i<insnlist.n_insns;i++){
 		if(copy_from_user(&insn,insnlist.insns+i,sizeof(comedi_insn))){
 			ret=-EFAULT;
-			break;
+			goto error;
 		}
 		if(insn.n>256){
 			ret=-EINVAL;
-			break;
+			goto error;
 		}
 		if(insn.insn&INSN_MASK_WRITE){
 			if(copy_from_user(data,insn.data,insn.n*sizeof(lsampl_t))){
 				ret=-EFAULT;
-				break;
+				goto error;
 			}
 		}
 		if(insn.insn&INSN_MASK_SPECIAL){
@@ -653,32 +656,34 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 			/* a subdevice instruction */
 			if(insn.subdev>=dev->n_subdevices){
 				ret=-EINVAL;
-				break;
+				goto error;
 			}
 			s=dev->subdevices+insn.subdev;
 	
 			if(s->type==COMEDI_SUBD_UNUSED){
 				DPRINTK("%d not useable subdevice\n",insn.subdev);
-				return -EIO;
+				ret = -EIO;
+				goto error;
 			}
 		
 			/* are we locked? (ioctl lock) */
 			if(s->lock && s->lock!=file){
 				DPRINTK("device locked\n");
-				return -EACCES;
+				ret = -EACCES;
+				goto error;
 			}
-	
-			if(s->busy){
-				ret=-EBUSY;
-				break;
-			}
-			s->busy=file;
 	
 			if((ret=check_chanlist(s,1,&insn.chanspec))<0){
 				ret=-EINVAL;
 				DPRINTK("bad chanspec\n");
-				break;
+				goto error;
 			}
+
+			if(s->busy){
+				ret=-EBUSY;
+				goto error;
+			}
+			s->busy=file;
 
 			switch(insn.insn){
 				case INSN_READ:
@@ -697,20 +702,21 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 
 			s->busy=NULL;
 		}
-		if(ret<0)break;
+		if(ret<0)goto error;
 		if(ret!=insn.n){
-			printk("result of insn != insn.n\n");
+			printk("BUG: result of insn != insn.n\n");
 			ret=-EINVAL;
-			break;
+			goto error;
 		}
 		if(insn.insn&INSN_MASK_READ){
 			if(copy_to_user(insn.data,data,insn.n*sizeof(lsampl_t))){
 				ret=-EFAULT;
-				break;
+				goto error;
 			}
 		}
 	}
 
+error:
 	kfree(data);
 
 	if(i==0)return ret;
@@ -1178,6 +1184,28 @@ static void *comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
 
 #endif
 
+#if LINUX_VERSION_CODE >= 0x020100
+
+static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	unsigned int mask;
+
+	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+
+	poll_wait(file, &dev->read_wait, wait);
+	poll_wait(file, &dev->write_wait, wait);
+	mask = 0;
+/* XXX incomplete */
+	if(0)
+		mask |= POLLIN | POLLRDNORM;
+	if(0)
+		mask |= POLLOUT | POLLWRNORM;
+
+	return mask;
+}
+#endif
 
 static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,loff_t *offset)
 {
@@ -1190,7 +1218,8 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	unsigned int buf_len;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
-	s=dev->subdevices+file->f_pos;
+	if(dev->write_subdev<0)return -EIO;
+	s=dev->subdevices+dev->write_subdev;
 
 	if(s->subdev_flags&SDF_LSAMPL){
 		sample_size=sizeof(lsampl_t);
@@ -1221,7 +1250,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	if(!buf_ptr)
 		return -EIO;
 
-	add_wait_queue(&dev->wait,&wait);
+	add_wait_queue(&dev->write_wait,&wait);
 	while(nbytes>0 && !retval){
 		current->state=TASK_INTERRUPTIBLE;
 
@@ -1266,7 +1295,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		break;	/* makes device work like a pipe */
 	}
 	current->state=TASK_RUNNING;
-	remove_wait_queue(&dev->wait,&wait);
+	remove_wait_queue(&dev->write_wait,&wait);
 
 	return (count ? count : retval);
 }
@@ -1281,9 +1310,8 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	int sample_size;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
-	if(file->f_pos>=dev->n_subdevices)
-		return -EIO;
-	s=dev->subdevices+file->f_pos;
+	if(dev->read_subdev<0)return -EIO;
+	s=dev->subdevices+dev->read_subdev;
 
 	if(s->subdev_flags&SDF_LSAMPL){
 		sample_size=sizeof(lsampl_t);
@@ -1306,7 +1334,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	if(s->busy != file)
 		return -EACCES;
 
-	add_wait_queue(&dev->wait,&wait);
+	add_wait_queue(&dev->read_wait,&wait);
 	while(nbytes>0 && !retval){
 		current->state=TASK_INTERRUPTIBLE;
 
@@ -1364,7 +1392,7 @@ printk("m is %d\n",m);
 		do_become_nonbusy(dev,s);
 	}
 	current->state=TASK_RUNNING;
-	remove_wait_queue(&dev->wait,&wait);
+	remove_wait_queue(&dev->read_wait,&wait);
 
 	return (count ? count : retval);
 }
@@ -1556,6 +1584,7 @@ static struct file_operations comedi_fops={
 	read		: comedi_read_v22,
 	write		: comedi_write_v22,
 	mmap		: comedi_mmap_v22,
+	poll		: comedi_poll_v22,
 };
 #endif
 
@@ -1647,7 +1676,14 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 			if(s->runflags&SRF_RT){
 				// pend wake up
 			}else{
-				wake_up_interruptible(&dev->wait);
+				unsigned int subdev;
+
+				subdev = s - dev->subdevices;
+
+				if(subdev==dev->read_subdev)
+					wake_up_interruptible(&dev->read_wait);
+				if(subdev==dev->write_subdev)
+					wake_up_interruptible(&dev->write_wait);
 			}
 		}else{
 			s->cb_func(mask,s->cb_arg);
