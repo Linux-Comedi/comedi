@@ -82,6 +82,8 @@
 #define AI_Status_2_Register		5
 
 #define Interrupt_B_Ack_Register	3
+#define AO_BC_TC_Interrupt_Ack _bit8
+
 #define AO_Status_1_Register		3
 #define Interrupt_B_St				_bit15
 #define AO_FIFO_Full_St				_bit14

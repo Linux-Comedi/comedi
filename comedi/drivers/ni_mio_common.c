@@ -638,6 +638,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsig
 
 	if(b_status&AO_BC_TC_St){
 		rt_printk("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
+		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_EOA;
 	}
 
@@ -661,7 +662,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsig
 			rt_printk("ni_mio_common: AO buffer underrun\n");
 		}
 		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
-		win_out(0,Interrupt_B_Enable_Register);
+		ni_set_bits(dev,Interrupt_B_Enable_Register,~0,0);
 		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
@@ -1731,7 +1732,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		MDPRINTK("Interrupt_A_Enable_Register = 0x%04x\n",bits);
 	}else{
 		/* interrupt on nothing */
-		win_out(0x0000,Interrupt_A_Enable_Register) ;
+		ni_set_bits(dev, Interrupt_A_Enable_Register, ~0, 0);
 
 		/* XXX start polling if necessary */
 		MDPRINTK("interrupting on nothing\n");
@@ -2115,11 +2116,18 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out(AO_BC_Load,AO_Command_1_Register);
 	devpriv->ao_mode2&=~AO_UC_Initial_Load_Source;
 	win_out(devpriv->ao_mode2,AO_Mode_2_Register);
-	if(cmd->stop_src==TRIG_NONE){
+	switch(cmd->stop_src){
+	case TRIG_COUNT:
+		win_out2(cmd->stop_arg,AO_UC_Load_A_Register);
+		win_out(AO_UC_Load,AO_Command_1_Register);
+		win_out2(cmd->stop_arg,AO_UC_Load_A_Register);
+		break;
+	case TRIG_NONE:
 		win_out2(0xffffff,AO_UC_Load_A_Register);
 		win_out(AO_UC_Load,AO_Command_1_Register);
 		win_out2(0xffffff,AO_UC_Load_A_Register);
-	}else{
+		break;
+	default:
 		win_out2(0,AO_UC_Load_A_Register);
 		win_out(AO_UC_Load,AO_Command_1_Register);
 		win_out2(cmd->stop_arg,AO_UC_Load_A_Register);
@@ -2174,6 +2182,12 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	win_out(AO_Configuration_End,Joint_Reset_Register);
 
+	if(cmd->stop_src==TRIG_COUNT) {
+		win_out(AO_BC_TC_Interrupt_Ack,Interrupt_B_Ack_Register);
+		ni_set_bits(dev, Interrupt_B_Enable_Register,
+			AO_BC_TC_Interrupt_Enable, 1);
+	}
+
 	s->async->inttrig=ni_ao_inttrig;
 
 	return 0;
@@ -2203,7 +2217,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_NONE;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
@@ -2292,7 +2306,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 	win_out(AO_Disarm,AO_Command_1_Register);
-	win_out(0,Interrupt_B_Enable_Register);
+	ni_set_bits(dev,Interrupt_B_Enable_Register,~0,0);
 	win_out(0x0010,AO_Personal_Register);
 	win_out(0x3f98,Interrupt_B_Ack_Register);
 	win_out(AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
@@ -2492,8 +2506,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->insn_bits = ni_pfi_insn_bits;
 	s->insn_config = ni_pfi_insn_config;
-	s->io_bits = 0;
-	win_out(s->io_bits, IO_Bidirection_Pin_Register);
+	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
@@ -3356,16 +3369,15 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 	switch(data[0]){
 	case COMEDI_OUTPUT:
-		s->io_bits |= (1<<chan);
+		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1<<chan, 1);
 		break;
 	case COMEDI_INPUT:
-		s->io_bits &= ~(1<<chan);
+		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1<<chan, 0);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	win_out(s->io_bits, IO_Bidirection_Pin_Register);
 	return 1;
 }
 
