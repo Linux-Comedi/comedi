@@ -1,0 +1,10 @@
+#!/bin/bash
+
+LINUX_LD="@LINUX_LD@"
+CC="@CC@"
+
+echo modtool $*
+
+$LINUX_LD $*
+
+
