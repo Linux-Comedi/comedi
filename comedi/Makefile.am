@@ -16,4 +16,6 @@ comedi_ko_LINK = $(top_builddir)/modtool --link -o $@
 comedi_ksyms.o: comedi_ksyms.c
 	$(CC) -o $@ comedi_ksyms.c $(CFLAGS) $(COMEDI_CFLAGS) $(LINUX_CFLAGS) -DEXPORT_SYMTAB
 
+install-data-hook: 
+	depmod -ae $(LINUX_KERNELRELEASE)
 
