@@ -537,7 +537,7 @@ static dev_link_t *daqp_cs_attach(void)
     link = &local->link;
     link->priv = local;
 
-    init_waitqueue(&local->endofscan);
+    init_waitqueue_head(&local->endofscan);
 
     /* Initialize the dev_link_t structure */
     link->release.function = &daqp_cs_release;

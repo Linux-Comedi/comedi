@@ -236,7 +236,9 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs);
 
 static float das16_set_pacer(comedi_device *dev, unsigned int ns);
 static int das1600_mode_detect(comedi_device *dev);
+#ifdef DEBUG
 static void reg_dump(comedi_device *dev);
+#endif
 
 struct das16_board_struct{
 	char		*name;
