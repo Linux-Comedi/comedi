@@ -1,0 +1,182 @@
+diff -ur comedi-0.7.53/comedi/comedi_fops.c comedi-0.7.53-patched/comedi/comedi_fops.c
+--- comedi-0.7.53/comedi/comedi_fops.c	Fri Dec  1 13:06:29 2000
++++ comedi-0.7.53-patched/comedi/comedi_fops.c	Sun Jan  7 21:30:20 2001
+@@ -60,9 +60,12 @@
+ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file);
+ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
+ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
++static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
+
+ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
+
++void* resize_buf(comedi_device *dev,comedi_subdevice *s);
++
+ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
+ {
+ 	kdev_t minor=MINOR(inode->i_rdev);
+@@ -96,11 +99,43 @@
+ 		return do_cmdtest_ioctl(dev,(void *)arg,file);
+ 	case COMEDI_INSNLIST:
+ 		return do_insnlist_ioctl(dev,(void *)arg,file);
++	case COMEDI_BUFCONFIG:
++		return do_bufconfig_ioctl(dev,(void*)arg);
+ 	default:
+ 		return -EIO;
+ 	}
+ }
+
++/*
++	COMEDI_BUFCONFIG
++	buffer configuration ioctl
++
++	arg:
++		pointer to bufconfig structure
++
++	reads:
++		bufconfig at arg
++
++	writes:
++		modified bufconfig at arg
++*/
++static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
++{
++	comedi_bufconfig bc;
++
++	if(!suser())
++		return -EPERM;
++
++	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
++		return -EFAULT;
++
++	dev->subdev_bufsz = bc.size;
++
++	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
++		return -EFAULT;
++
++	return 0;
++}
+
+ /*
+ 	COMEDI_DEVCONFIG
+@@ -529,6 +564,8 @@
+ 		goto cleanup;
+ 	}
+
++	/* make sure preallocated buffer is the correct size */
++	resize_buf(dev, s);
+ 	if(!s->prealloc_buf){
+ 		printk("comedi: bug: s->prealloc_buf=NULL\n");
+ 	}
+@@ -818,12 +855,15 @@
+ 		goto cleanup;
+ 	}
+
+-	if(!s->prealloc_bufsz){
++	/* make sure preallocated buffer is the correct size */
++	resize_buf(dev, s);
++	if(!s->prealloc_buf){
+ 		ret=-ENOMEM;
+ 		DPRINTK("no buffer (?)\n");
+ 		goto cleanup;
+ 	}
+ 	s->cmd.data_len=s->prealloc_bufsz;
++	s->cmd.data=s->prealloc_buf;
+
+ #ifdef CONFIG_COMEDI_MODE_CORE
+ 	s->cur_trig.data=s->prealloc_buf;	/* XXX */
+@@ -1102,6 +1143,28 @@
+ 	do_become_nonbusy(dev,s);
+
+ 	return ret;
++}
++
++/* utility function that resizes the prealloc_buf for
++ * a subdevice according to the value of dev->subdev_bufsz
++ * Frank Mori Hess 2001-01-07
++ */
++void* resize_buf(comedi_device *dev, comedi_subdevice *s)
++{
++	unsigned int size;
++
++	// make sure buffer is an integral number of pages (we round up)
++	size = ((dev->subdev_bufsz + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
++
++	if(s->prealloc_buf && s->prealloc_bufsz)
++	{
++		if(s->prealloc_bufsz == size)
++			return s->prealloc_buf;
++		else
++			rvfree(s->prealloc_buf, s->prealloc_bufsz);
++	}
++	s->prealloc_bufsz = size;
++	return s->prealloc_buf = rvmalloc(s->prealloc_bufsz);
+ }
+
+ #ifdef LINUX_V22
+Only in comedi-0.7.53-patched/comedi: comedi_fops.c.orig
+diff -ur comedi-0.7.53/comedi/drivers.c comedi-0.7.53-patched/comedi/drivers.c
+--- comedi-0.7.53/comedi/drivers.c	Tue Nov  7 15:48:16 2000
++++ comedi-0.7.53-patched/comedi/drivers.c	Sun Jan  7 21:30:20 2001
+@@ -201,6 +201,10 @@
+ 	int have_trig;
+ 	comedi_subdevice *s;
+
++	// set the default buffer size if appropriate
++	if(dev->subdev_bufsz == 0)
++		dev->subdev_bufsz = PAGE_SIZE * 32;
++
+ 	for(i=0;i<dev->n_subdevices;i++){
+ 		s=dev->subdevices+i;
+
+@@ -221,7 +225,7 @@
+ 			s->trig[4]=command_trig;
+ 		}
+ 		if(s->do_cmd || have_trig){
+-			s->prealloc_bufsz=1024*128;
++			s->prealloc_bufsz=dev->subdev_bufsz;
+ 		}else{
+ 			s->prealloc_bufsz=0;
+ 		}
+diff -ur comedi-0.7.53/include/linux/comedi.h comedi-0.7.53-patched/include/linux/comedi.h
+--- comedi-0.7.53/include/linux/comedi.h	Tue Nov  7 14:47:37 2000
++++ comedi-0.7.53-patched/include/linux/comedi.h	Sun Jan  7 21:30:20 2001
+@@ -170,6 +170,7 @@
+ #define COMEDI_CMDTEST _IOR(CIO,10,comedi_cmd)
+ #define COMEDI_INSNLIST _IOR(CIO,11,comedi_insnlist)
+ #define COMEDI_INSN _IOR(CIO,12,comedi_insn)
++#define COMEDI_BUFCONFIG _IOR(CIO,13,comedi_bufconfig)
+
+
+
+@@ -185,6 +186,7 @@
+ typedef struct comedi_devconfig_struct comedi_devconfig;
+ typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
+ typedef struct comedi_krange_struct comedi_krange;
++typedef struct comedi_bufconfig_struct comedi_bufconfig;
+
+ struct comedi_trig_struct{
+ 	unsigned int subdev;		/* subdevice */
+@@ -283,6 +285,11 @@
+ struct comedi_devconfig_struct{
+ 	char board_name[COMEDI_NAMELEN];
+ 	int options[COMEDI_NDEVCONFOPTS];
++};
++
++struct comedi_bufconfig_struct{
++	unsigned int size;		/* buffer size in bytes */
++	int unused[5];
+ };
+
+
+diff -ur comedi-0.7.53/include/linux/comedidev.h comedi-0.7.53-patched/include/linux/comedidev.h
+--- comedi-0.7.53/include/linux/comedidev.h	Fri Nov 24 18:10:34 2000
++++ comedi-0.7.53-patched/include/linux/comedidev.h	Sun Jan  7 21:30:20 2001
+@@ -148,6 +148,8 @@
+ 	int n_subdevices;
+ 	comedi_subdevice *subdevices;
+ 	int options[COMEDI_NDEVCONFOPTS];
++	// size in bytes subdevices should use for prealloc_buf
++	unsigned int subdev_bufsz;
+
+ 	/* dumb */
+ 	int iobase;
