@@ -1158,8 +1158,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 			priv(dev)->dma_desc[index].local_start_addr = priv(dev)->local1_iobase + ADC_FIFO_REG;
 		else
 			priv(dev)->dma_desc[index].local_start_addr = priv(dev)->local0_iobase + ADC_FIFO_REG;
-//XXX
-//		priv(dev)->dma_desc[index].transfer_size = DMA_TRANSFER_SIZE;
+		priv(dev)->dma_desc[index].transfer_size = 0;
 		priv(dev)->dma_desc[index].next = (priv(dev)->dma_desc_phys_addr + ((index + 1) % (DMA_RING_COUNT)) * sizeof(priv(dev)->dma_desc[0])) |
 			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 	}
@@ -1653,7 +1652,8 @@ static inline unsigned int dma_transfer_size( comedi_device *dev )
 	unsigned int num_samples;
 
 	num_samples = priv(dev)->ai_fifo_segment_length * board(dev)->ai_fifo->sample_packing_ratio;
-	if( num_samples > DMA_BUFFER_SIZE ) num_samples = DMA_BUFFER_SIZE;
+	if( num_samples > DMA_BUFFER_SIZE / sizeof( uint16_t ) )
+		num_samples = DMA_BUFFER_SIZE / sizeof( uint16_t );
 
 	return num_samples;
 }
@@ -1832,7 +1832,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		// set dma transfer size
 		for( i = 0; i < DMA_RING_COUNT; i++)
-			priv(dev)->dma_desc[ i ].transfer_size = dma_transfer_size( dev );
+			priv(dev)->dma_desc[ i ].transfer_size = dma_transfer_size( dev ) * sizeof( uint16_t );
 		// give location of first dma descriptor
 		bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
 		writel(bits, priv(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
