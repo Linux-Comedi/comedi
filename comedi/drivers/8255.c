@@ -55,8 +55,13 @@
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-#define CALLBACK_ARG	((void *)(s->async->cb_arg))
-#define CALLBACK_FUNC	((int (*)(int,int,int,void *))(s->async->cb_func))
+struct subdev_8255_struct{
+	void *cb_arg;
+	int (*cb_func)(int,int,int,void *);
+};
+
+#define CALLBACK_ARG	(((struct subdev_8255_struct *)s->private)->cb_arg)
+#define CALLBACK_FUNC	(((struct subdev_8255_struct *)s->private)->cb_func)
 
 static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it);
 static int dev_8255_detach(comedi_device * dev);
@@ -162,10 +167,11 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	s->range_table=&range_digital;
 	s->maxdata=1;
 
-	/* commandeer range_list */
-	CALLBACK_ARG=arg;
+	/* XXX This causes a memory leak */
+	s->private=kmalloc(sizeof(struct subdev_8255_struct),GFP_KERNEL);
+	if(!s->private)return -ENOMEM;
 
-	/* same for flaglist */
+	CALLBACK_ARG=arg;
 	if(cb==NULL){
 		CALLBACK_FUNC=subdev_8255_cb;
 	}else{
