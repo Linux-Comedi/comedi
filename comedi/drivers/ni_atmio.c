@@ -137,7 +137,7 @@ static ni_board ni_boards[]={
 		caldac:		{mb88341},
 	},
 	{	device_id:	36,
-		isapnp_id:	0x1900,	/* probably wrong */
+		isapnp_id:	0x2400,
 		name:		"at-mio-16e-10",
 		n_adchan:	16,
 		adbits:		12,
