@@ -931,15 +931,15 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 	case 0x80:
 		printk(" das16 or das16/f");
 		/* only difference is speed, so not an issue yet */
-		if(it->options[4])
-			devpriv->clockbase = it->options[4];
+		if(it->options[3])
+			devpriv->clockbase = 1000 / it->options[3];
 		else
 			devpriv->clockbase = 1000;	// 1 MHz default
 		return das16_board_das16;
 	case 0x00:
 		printk(" das16jr or das16/330");
-		if(it->options[4])
-			devpriv->clockbase = it->options[4];
+		if(it->options[3])
+			devpriv->clockbase = 1000 / it->options[3];
 		else
 			devpriv->clockbase = 1000;	// 1 MHz default
 		/* the 330 has ao, 16jr does not */
@@ -1014,7 +1014,7 @@ static int das1600_mode_detect(comedi_device *dev)
  *   0  I/O base
  *   1  IRQ
  *   2  DMA
- *   3  Clock speed
+ *   3  Clock speed (in MHz)
  */
 
 static int das16_attach(comedi_device *dev, comedi_devconfig *it)
@@ -1028,6 +1028,18 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	iobase = it->options[0];
 
 	printk("comedi%d: das16:",dev->minor);
+
+	// check that clock setting is valid
+	if(it->options[3])
+	{
+		if(it->options[3] != 0 &&
+			it->options[3] != 1 &&
+			it->options[3] != 10)
+		{
+			printk("\n Invalid option.  Master clock must be set to 1 or 10 (MHz)\n");
+			return -EINVAL;
+		}
+	}
 
 	if((ret=alloc_private(dev,sizeof(struct das16_private_struct)))<0)
 		return ret;
