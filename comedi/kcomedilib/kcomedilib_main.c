@@ -44,12 +44,6 @@
 extern volatile int rtcomedi_lock_semaphore;
 
 
-#if 0
-/* need more thot */
-int comedi_devinfo_ioctl(unsigned int minor,comedi_devinfo *arg);
-int comedi_subdinfo_ioctl(unsigned int minor,comedi_subdinfo *arg,void *file);
-int comedi_chaninfo_ioctl(unsigned int minor,comedi_chaninfo *arg);
-#endif
 
 
 
@@ -66,6 +60,35 @@ static inline int minor_to_dev(unsigned int minor,comedi_device **dev)
 	return 0;
 }
 
+
+/* this is strange */
+static inline int minor_to_subdev(unsigned int minor,unsigned int subdevice,comedi_device **dev,comedi_subdevice **s)
+{
+	if ((minor_to_dev(minor, dev))!=0) 
+		return -ENODEV;
+
+        if (subdevice>(*dev)->n_subdevices)
+		return -ENODEV;
+
+	*s=(*dev)->subdevices+subdevice;
+
+	return 0;
+}
+
+
+/* this is strange */
+static inline int minor_to_subdevchan(unsigned int minor,unsigned int subdevice,comedi_device **dev,comedi_subdevice **s,unsigned int chan)
+{
+	int ret;
+	
+	if ((ret=minor_to_subdev(minor,subdevice,dev,s))!=0) 
+		return ret;
+
+	if (chan>=(*s)->n_chan)
+		return -EINVAL;
+
+	return 0;
+}
 
 int comedi_open(unsigned int minor)
 {
@@ -87,156 +110,240 @@ void comedi_close(unsigned int minor)
 }
 
 /*
-   These functions are #if 0'd because they aren't appropriate
-   inside RTLinux, at least, not in this form.  Interface needs
-   thot.
- */
-#if 0
-
-/*
-	COMEDI_DEVINFO
-	device info ioctl
-	
-	arg:
-		pointer to devinfo structure
-	
-	reads:
-		none
-	
-	writes:
-		devinfo structure
-		
 */
-static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
+int comedi_get_n_subdevices(unsigned int minor)
 {
-	comedi_devinfo devinfo;
-	
-	
-	/* fill devinfo structure */
-	devinfo.version_code=COMEDI_VERSION_CODE;
-	devinfo.n_subdevs=dev->n_subdevices;
-	memcpy(devinfo.driver_name,dev->driver_name,COMEDI_NAMELEN);
-	memcpy(devinfo.board_name,dev->board_name,COMEDI_NAMELEN);
-	memcpy(devinfo.options,dev->options,COMEDI_NDEVCONFOPTS*sizeof(int));
-	
-
-	if(copy_to_user(arg,&devinfo,sizeof(comedi_devinfo)))
-		return -EFAULT;
-
-	return 0;
-}
-
-
-/*
-	COMEDI_SUBDINFO
-	subdevice info ioctl
-	
-	arg:
-		pointer to array of subdevice info structures
-	
-	reads:
-		none
-	
-	writes:
-		array of subdevice info structures at arg
-		
-*/
-static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
-{
-	int ret,i;
-	comedi_subdinfo *tmp,*us;
-	comedi_subdevice *s;
-	
-
-	tmp=kmalloc(dev->n_subdevices*sizeof(comedi_subdinfo),GFP_KERNEL);
-	if(!tmp)
-		return -ENOMEM;
-	
-	/* fill subdinfo structs */
-	for(i=0;i<dev->n_subdevices;i++){
-		s=dev->subdevices+i;
-		us=tmp+i;
-		
-		us->type		= s->type;
-		us->n_chan		= s->n_chan;
-		us->subd_flags		= s->subdev_flags;
-		us->timer_type		= s->timer_type;
-		us->len_chanlist	= s->len_chanlist;
-		us->maxdata		= s->maxdata;
-		us->range_type		= s->range_type;
-		
-		if(s->busy)
-			us->subd_flags |= SDF_BUSY;
-		if(s->busy == file)
-			us->subd_flags |= SDF_BUSY_OWNER;
-		if(s->lock)
-			us->subd_flags |= SDF_LOCKED;
-		if(s->lock == file)
-			us->subd_flags |= SDF_LOCK_OWNER;
-		if(s->maxdata_list)
-			us->subd_flags |= SDF_MAXDATA;
-		if(s->flaglist)
-			us->subd_flags |= SDF_FLAGS;
-		if(s->range_type_list)
-			us->subd_flags |= SDF_RANGETYPE;
-
-	}
-	
-	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));
-	
-	kfree(tmp);
-	
-	return ret?-EFAULT:0;
-}
-
-
-/*
-	COMEDI_CHANINFO
-	subdevice info ioctl
-	
-	arg:
-		pointer to chaninfo structure
-	
-	reads:
-		chaninfo structure at arg
-	
-	writes:
-		arrays at elements of chaninfo structure
-	
-*/
-static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
-{
-	comedi_subdevice *s;
-	comedi_chaninfo it;
+	comedi_device *dev;
 	int ret;
 	
-	if(copy_from_user(&it,arg,sizeof(comedi_chaninfo)))
-		return -EFAULT;
-	
-	if(it.subdev>=dev->n_subdevices)
-		return -EINVAL;
-	s=dev->subdevices+it.subdev;
-	
-	if(it.flaglist){
-		if(s->subdev_flags & SDF_FLAGS)
-			ret=copy_to_user(it.flaglist,s->flaglist,s->n_chan*sizeof(unsigned int));
-		else
-			ret=clear_user(it.flaglist,s->n_chan*sizeof(unsigned int));
-		if(ret)return -EFAULT;
+	if ((ret=minor_to_dev(minor, &dev))!=0) 
+		return ret;
+
+	return dev->n_subdevices;
+}
+
+/*
+*/
+int comedi_get_version_code(unsigned int minor)
+{
+	comedi_device *dev;
+	int ret;
+
+	if ((ret=minor_to_dev(minor, &dev))!=0) 
+		return ret;
+
+	return COMEDI_VERSION_CODE;
+}
+
+/*
+*/
+char *comedi_get_driver_name(unsigned int minor)
+{
+	comedi_device *dev;
+	int ret;
+
+	if ((ret=minor_to_dev(minor, &dev))!=0) 
+		return NULL;
+
+	return dev->driver->driver_name;
+}
+
+/*
+*/
+char *comedi_get_board_name(unsigned int minor)
+{
+	comedi_device *dev;
+	int ret;
+
+	if ((ret=minor_to_dev(minor, &dev))!=0) 
+		return NULL;
+
+	return dev->board_name;
+}
+
+/*
+*/
+int comedi_get_subdevice_type(unsigned int minor,unsigned int subdevice)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdev(minor,subdevice,&dev,&s))!=0) 
+		return ret;
+		
+	return s->type;
+}
+
+/*
+ * ALPHA function
+*/
+unsigned int comedi_get_subdevice_flags(unsigned int minor,unsigned int subdevice)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+
+	if (minor_to_subdev(minor,subdevice,&dev,&s)!=0) 
+		return 0;
+		
+	return s->subdev_flags;
+}
+
+/*
+*/
+int comedi_find_subdevice_by_type(unsigned int minor,int type,unsigned int subd)
+{
+	comedi_device *dev;
+	int ret;
+
+	if ((ret=minor_to_dev(minor, &dev))!=0) 
+		return ret;
+
+        if (subd>dev->n_subdevices)
+		return -ENODEV;
+
+	for(;subd<dev->n_subdevices;subd++){
+		if(dev->subdevices[subd].type==type)
+			return subd;
 	}
-			
-	if(it.rangelist){
-		if(s->subdev_flags & SDF_FLAGS)
-			ret=copy_to_user(it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int));
-		else
-			ret=clear_user(it.rangelist,s->n_chan*sizeof(unsigned int));
-		if(ret)return -EFAULT;
+	return -1;
+}
+
+/*
+*/
+int comedi_get_n_channels(unsigned int minor,unsigned int subdevice)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdev(minor,subdevice,&dev,&s))!=0) 
+		return ret;
+
+	return s->n_chan;
+}
+
+/*
+ * ALPHA function
+*/
+int comedi_get_len_chanlist(unsigned int minor,unsigned int subdevice)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdev(minor,subdevice,&dev,&s))!=0) 
+		return ret;
+
+	return s->len_chanlist;
+}
+
+/*
+*/
+lsampl_t comedi_get_maxdata(unsigned int minor,unsigned int subdevice,unsigned int chan)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdevchan(minor,subdevice,&dev,&s,chan))!=0) 
+		return ret;
+		
+	if (s->maxdata_list)
+		return s->maxdata_list[chan];
+		
+	return s->maxdata;
+}
+
+/*
+ * DEPRECATED
+*/
+int comedi_get_rangetype(unsigned int minor,unsigned int subdevice,unsigned int chan)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdevchan(minor,subdevice,&dev,&s,chan))!=0) 
+		return ret;
+		
+	if (s->range_table_list) {
+		ret=s->range_table_list[chan]->length;
+	} else {
+		ret=s->range_table->length;
+	}
+	
+	ret=ret|(minor<<28)|(subdevice<<24)|(chan<<16);
+		
+	return ret;
+}
+
+/*
+*/
+int comedi_get_n_ranges(unsigned int minor,unsigned int subdevice,unsigned int chan)
+{
+	int ret;
+
+	if ((ret=comedi_get_rangetype(minor, subdevice, chan))<0)
+		return ret;
+		
+	return RANGE_LENGTH(ret);
+}
+
+/*
+ * ALPHA (non-portable)
+*/
+int comedi_get_krange(unsigned int minor,unsigned int subdevice,unsigned int chan,unsigned int range,comedi_krange *krange)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdevchan(minor,subdevice,&dev,&s,chan))!=0) 
+		return ret;
+		
+	if (s->range_table_list) {
+		if (range>=s->range_table_list[chan]->length) {
+			return -EINVAL;
+		}
+		memcpy(krange,&s->range_table_list[chan]->range[range],sizeof(comedi_krange));
+	} else {
+		memcpy(krange,&s->range_table->range[range],sizeof(comedi_krange));
 	}
 	
 	return 0;
 }
-#endif
 
+/*
+ * ALPHA (may be renamed)
+*/
+unsigned int comedi_get_buf_head_pos(unsigned int minor,unsigned int subdevice)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+
+	if (minor_to_subdev(minor,subdevice,&dev,&s)!=0) 
+		return 0;
+		
+	return s->buf_int_count;
+}
+
+/*
+ * ALPHA (not necessary)
+*/
+int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,unsigned int buf_user_count)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if ((ret=minor_to_subdev(minor,subdevice,&dev,&s))!=0) 
+		return ret;
+		
+	s->buf_user_count=buf_user_count;
+	
+	return 0;
+}
 
 /*
 	COMEDI_TRIG
