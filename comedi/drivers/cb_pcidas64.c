@@ -47,8 +47,10 @@ Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
-  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6023E, PCI-DAS6025E, PCI-DAS6034E,
-  PCI-DAS6035E, PCI-DAS4020/12
+  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6023, PCI-DAS6025, PCI-DAS6030,
+  PCI-DAS6031, PCI-DAS6032, PCI-DAS6033, PCI-DAS6034,
+  PCI-DAS6035, PCI-DAS6036, PCI-DAS6040, PCI-DAS6052,
+  PCI-DAS6070, PCI-DAS6071, PCI-DAS4020/12
 
 Configuration options:
    [0] - PCI bus of device (optional)
@@ -398,18 +400,8 @@ static comedi_lrange ai_ranges_64xx =
 		UNI_RANGE(1.25)
 	}
 };
-static int ai_range_bits_64xx[] = {
-	0x000,
-	0x100,
-	0x200,
-	0x300,
-	0x800,
-	0x900,
-	0xa00,
-	0xb00,
-};
 
-// analog input ranges for 60xx boards
+/* analog input ranges for 60xx boards */
 static comedi_lrange ai_ranges_60xx =
 {
 	4,
@@ -420,11 +412,50 @@ static comedi_lrange ai_ranges_60xx =
 		BIP_RANGE(0.05),
 	}
 };
-static int ai_range_bits_60xx[] = {
-	0x000,
-	0x100,
-	0x400,
-	0x700,
+
+/* analog input ranges for 6030, etc boards */
+static comedi_lrange ai_ranges_6030 =
+{
+	14,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.2),
+		BIP_RANGE(0.1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1),
+	}
+};
+
+/* analog input ranges for 6052, etc boards */
+static comedi_lrange ai_ranges_6052 =
+{
+	15,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1),
+	}
 };
 
 // analog input ranges for 4020 board
@@ -435,11 +466,6 @@ static comedi_lrange ai_ranges_4020 =
 		BIP_RANGE(5),
 		BIP_RANGE(1),
 	}
-};
-static int ai_range_bits_4020[] =
-{
-	0x1,
-	0x0,
 };
 
 // analog output ranges
@@ -471,6 +497,20 @@ static comedi_lrange ao_ranges_60xx =
 static int ao_range_code_60xx[] =
 {
 	0x0,
+};
+
+static comedi_lrange ao_ranges_6030 =
+{
+	2,
+	{
+		BIP_RANGE(10),
+		UNI_RANGE(10),
+	}
+};
+static int ao_range_code_6030[] =
+{
+	0x0,
+	0x2,
 };
 
 static comedi_lrange ao_ranges_4020 =
@@ -510,13 +550,13 @@ typedef struct pcidas64_board_struct
 	int ai_bits;	// analog input resolution
 	int ai_speed;	// fastest conversion period in ns
 	comedi_lrange *ai_range_table;
-	int *ai_range_bits;
 	int ao_nchan;	// number of analog out channels
 	int ao_scan_speed;	// analog output speed (for a scan, not conversion)
 	comedi_lrange *ao_range_table;
 	int *ao_range_code;
 	const hw_fifo_info_t *const ai_fifo;
 	enum register_layout layout;	// different board families have slightly different registers
+	unsigned has_8255 : 1;
 } pcidas64_board;
 
 static const hw_fifo_info_t ai_fifo_4020 =
@@ -555,10 +595,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ao_range_table:	&ao_ranges_64xx,
 		ao_range_code:	ao_range_code_64xx,
 		ai_fifo:	&ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das6402/12",	// XXX check
@@ -570,10 +610,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ao_range_table:	&ao_ranges_64xx,
 		ao_range_code:	ao_range_code_64xx,
 		ai_fifo:	&ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m1/16",
@@ -585,10 +625,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ao_range_table:	&ao_ranges_64xx,
 		ao_range_code:	ao_range_code_64xx,
 		ai_fifo:	&ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m2/16",
@@ -600,10 +640,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ao_range_table:	&ao_ranges_64xx,
 		ao_range_code:	ao_range_code_64xx,
 		ai_fifo:	&ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m3/16",
@@ -615,10 +655,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ao_range_table:	&ao_ranges_64xx,
 		ao_range_code:	ao_range_code_64xx,
 		ai_fifo:	&ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das6023",
@@ -630,10 +670,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
-		ai_range_bits:	ai_range_bits_60xx,
 		ao_range_table:	&ao_ranges_60xx,
 		ao_range_code:	ao_range_code_60xx,
 		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das6025",
@@ -645,10 +685,64 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
-		ai_range_bits:	ai_range_bits_60xx,
 		ao_range_table:	&ao_ranges_60xx,
 		ao_range_code:	ao_range_code_60xx,
 		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 1,
+	},
+	{
+		name:		"pci-das6030",
+		device_id:	0x5f,
+		ai_se_chans:	16,
+		ai_bits:	16,
+		ai_speed:	10000,
+		ao_nchan: 2,
+		ao_scan_speed:	10000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6030,
+		ao_range_table:	&ao_ranges_6030,
+		ao_range_code:	ao_range_code_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6031",
+		device_id:	0x60,
+		ai_se_chans:	64,
+		ai_bits:	16,
+		ai_speed:	10000,
+		ao_nchan: 2,
+		ao_scan_speed:	10000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6030,
+		ao_range_table:	&ao_ranges_6030,
+		ao_range_code:	ao_range_code_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6032",
+		device_id:	0x61,
+		ai_se_chans:	16,
+		ai_bits:	16,
+		ai_speed:	10000,
+		ao_nchan: 0,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6033",
+		device_id:	0x62,
+		ai_se_chans:	64,
+		ai_bits:	16,
+		ai_speed:	10000,
+		ao_nchan: 0,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
 	},
 	{
 		name:		"pci-das6034",
@@ -660,8 +754,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	0,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
-		ai_range_bits:	ai_range_bits_60xx,
 		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das6035",
@@ -673,10 +767,85 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
-		ai_range_bits:	ai_range_bits_60xx,
 		ao_range_table:	&ao_ranges_60xx,
 		ao_range_code:	ao_range_code_60xx,
 		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 1,
+	},
+	{
+		name:		"pci-das6036",
+		device_id:	0x6f,
+		ai_se_chans:	16,
+		ai_bits:	16,
+		ai_speed:	5000,
+		ao_nchan:	2,
+		ao_scan_speed:	100000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_60xx,
+		ao_range_table:	&ao_ranges_60xx,
+		ao_range_code:	ao_range_code_60xx,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6040",
+		device_id:	0x65,
+		ai_se_chans:	16,
+		ai_bits:	12,
+		ai_speed:	2000,
+		ao_nchan: 2,
+		ao_scan_speed:	1000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6052,
+		ao_range_table:	&ao_ranges_6030,
+		ao_range_code:	ao_range_code_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6052",
+		device_id:	0x66,
+		ai_se_chans:	16,
+		ai_bits:	16,
+		ai_speed:	3333,
+		ao_nchan:	2,
+		ao_scan_speed:	3333,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6052,
+		ao_range_table:	&ao_ranges_6030,
+		ao_range_code:	ao_range_code_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6070",
+		device_id:	0x67,
+		ai_se_chans:	16,
+		ai_bits:	12,
+		ai_speed:	800,
+		ao_nchan:	2,
+		ao_scan_speed:	1000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6052,
+		ao_range_table:	&ao_ranges_6030,
+		ao_range_code:	ao_range_code_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
+	},
+	{
+		name:		"pci-das6071",
+		device_id:	0x68,
+		ai_se_chans:	64,
+		ai_bits:	12,
+		ai_speed:	800,
+		ao_nchan:	2,
+		ao_scan_speed:	1000,
+		layout:	LAYOUT_60XX,
+		ai_range_table:	&ai_ranges_6052,
+		ao_range_table:	&ao_ranges_6030,
+		ao_range_code:	ao_range_code_6030,
+		ai_fifo:	&ai_fifo_60xx,
+		has_8255 : 0,
 	},
 	{
 		name:	"pci-das4020/12",
@@ -688,10 +857,10 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	0,	// no hardware pacing on ao
 		layout:	LAYOUT_4020,
 		ai_range_table:	&ai_ranges_4020,
-		ai_range_bits:	NULL,
 		ao_range_table:	&ao_ranges_4020,
 		ao_range_code:	ao_range_code_4020,
 		ai_fifo:	&ai_fifo_4020,
+		has_8255 : 1,
 	},
 #if 0
 	{
@@ -704,8 +873,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m1/16/jr",
@@ -717,8 +886,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m2/16/jr",
@@ -730,8 +899,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m3/16/jr",
@@ -743,8 +912,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m1/14",
@@ -756,8 +925,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m2/14",
@@ -769,8 +938,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 	{
 		name:		"pci-das64/m3/14",
@@ -782,8 +951,8 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_scan_speed:	10000,
 		layout:	LAYOUT_64XX,
 		ai_range_table:	&ai_ranges_64xx,
-		ai_range_bits:	ai_range_bits_64xx,
 		ai_fifo:	ai_fifo_64xx,
+		has_8255 : 1,
 	},
 #endif
 };
@@ -927,11 +1096,49 @@ static void disable_ai_pacing( comedi_device *dev );
 static void disable_ai_interrupts( comedi_device *dev );
 static void enable_ai_interrupts( comedi_device *dev, const comedi_cmd *cmd );
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
 COMEDI_INITCLEANUP(driver_cb_pcidas);
+
+static unsigned int ai_range_bits_6xxx( const comedi_device *dev, unsigned int range_index )
+{
+	comedi_krange *range = &board( dev )->ai_range_table->range[ range_index ];
+	unsigned int bits = 0;
+
+	switch( range->max )
+	{
+		case 10000000:
+			bits = 0;
+			break;
+		case 5000000:
+			bits = 1;
+			break;
+		case 2000000:
+		case 2500000:
+			bits = 2;
+			break;
+		case 1000000:
+		case 1250000:
+			bits = 3;
+			break;
+		case 500000:
+			bits = 4;
+			break;
+		case 200000:
+		case 250000:
+			bits = 5;
+			break;
+		case 100000:
+			bits = 6;
+			break;
+		case 50000:
+			bits = 7;
+			break;
+		default:
+			comedi_error( dev, "bug! in ai_range_bits_6xxx" );
+			break;
+	}
+	if( range->min == 0 ) bits += 0x900;
+	return bits;
+}
 
 static inline uint16_t dac_range_bits( const comedi_device *dev,
 	unsigned int channel, unsigned int range )
@@ -1096,15 +1303,19 @@ static int setup_subdevices(comedi_device *dev)
 
 	/* 8255 */
 	s = dev->subdevices + 4;
-	if(board(dev)->layout == LAYOUT_4020)
+	if( board(dev)->has_8255 )
 	{
-		dio_8255_iobase = priv(dev)->main_iobase + I8255_4020_REG;
-		subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
-	} else
-	{
-		dio_8255_iobase = priv(dev)->dio_counter_iobase + DIO_8255_OFFSET;
-		subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
-	}
+		if(board(dev)->layout == LAYOUT_4020)
+		{
+			dio_8255_iobase = priv(dev)->main_iobase + I8255_4020_REG;
+			subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
+		} else
+		{
+			dio_8255_iobase = priv(dev)->dio_counter_iobase + DIO_8255_OFFSET;
+			subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
+		}
+	}else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	// 8 channel dio for 60xx
 	s = dev->subdevices + 5;
@@ -1438,7 +1649,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// load internal queue
 		bits = 0;
 		// set gain
-		bits |= board(dev)->ai_range_bits[CR_RANGE(insn->chanspec)];
+		bits |= ai_range_bits_6xxx( dev, CR_RANGE(insn->chanspec) );
 		// set single-ended / differential
 		if( ( board(dev)->layout == LAYOUT_64XX && aref != AREF_DIFF ) ||
 			( board(dev)->layout == LAYOUT_60XX && aref == AREF_DIFF ) )
@@ -1482,7 +1693,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits( 4 );
 		}
 		// select range
-		if(ai_range_bits_4020[range])
+		if( ai_range_bits_6xxx( dev, range ) )
 			priv(dev)->i2c_cal_range_bits |= attenuate_bit( channel );
 		else
 			priv(dev)->i2c_cal_range_bits &= ~attenuate_bit( channel );
@@ -2065,7 +2276,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			// set channel
 			bits |= adc_chan_bits( CR_CHAN( cmd->chanlist[i] ) );
 			// set gain
-			bits |= board(dev)->ai_range_bits[CR_RANGE(cmd->chanlist[i])];
+			bits |= ai_range_bits_6xxx( dev, CR_RANGE( cmd->chanlist[i] ) );
 			// set single-ended / differential
 			if( ( board(dev)->layout == LAYOUT_64XX && CR_AREF(cmd->chanlist[i]) != AREF_DIFF ) ||
 				( board(dev)->layout == LAYOUT_60XX && CR_AREF(cmd->chanlist[i]) == AREF_DIFF ) )
@@ -2092,7 +2303,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			unsigned int channel = CR_CHAN(cmd->chanlist[i]);
 			unsigned int range = CR_RANGE(cmd->chanlist[i]);
 
-			if(ai_range_bits_4020[range])
+			if( ai_range_bits_6xxx( dev, range ) ) 
 				priv(dev)->i2c_cal_range_bits |= attenuate_bit( channel );
 			else
 				priv(dev)->i2c_cal_range_bits &= ~attenuate_bit( channel );
