@@ -565,18 +565,24 @@
 
 /* 611x registers (these boards differ from the e-series) */
 
-#define AI_Command_2_Register_611x	8
-//#define AO_Status_1_Register_611x	4
-#define DAC_FIFO_Data_611x		0x14
+#define Serial_Command_611x		0x0d /* w8 (same) */
+#define Misc_Command_611x		0x0f /* w8 (addtional bits) */
+#define Magic_611x			0x19 /* w8 (new) */
+#define Status_611x			0x01 /* r8 (additional bits) */
+#define Calibration_Channel_Select_611x	0x1a /* w16 (new) */
+#define ADC_FIFO_Data_611x		0x1c /* r32 (incompatible) */
+#define Configuration_Memory_Low_611x	0x10 /* w16 (same) */
+#define Configuration_Memory_High_611x	0x12 /* w16 (additional bits) */
+#define AI_FIFO_Offset_Load_611x	0x05 /* r8 (new) */
+#define AO_Configuration_611x		0x16 /* w16 */
+#define DAC_FIFO_Data_611x		0x14 /* w32 (incompatible) */
+#define AO_Window_Addr_611x		0x18 /* w16 */
+#define AO_Window_Data_611x		0x1e /* w16 */
+#define Cal_Gain_Select_611x		0x05 /* w8 (new) */
+#define AI_AO_Select_611x		0x09 /* w8 */
+#define G0_G1_Select_611x		0x0b /* w8 */
 
-#if 0
-#define AI_Status_1_611x		0x02
-#define AO_Status_1_611x		0x04
-#define G_Status_611x			0x06
-#define AI_Status_2_611x		0x08
-#define AO_Status_2_611x		0x0a
-#define DIO_Parallel_Input_611x		0x0c
-#endif
+/* AO Windowed registers */
 
 /* 671x registers */
 
