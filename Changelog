@@ -1,4 +1,10 @@
 
+Comedi-0.7.63:
+
+ - Fix event bug introduced in 0.7.62
+ - Fix resizing buffers on subdevice!=0
+ - ni_mio_common: fixes for pci-611x boards (incomplete)
+
 Comedi-0.7.62:
 
  - rewrite build system
