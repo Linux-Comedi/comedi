@@ -233,10 +233,13 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
-#define AIMODE_NONE		0
-#define AIMODE_HALF_FULL	1
-#define AIMODE_SCAN		2
-#define AIMODE_SAMPLE		3
+enum aimodes
+{
+	AIMODE_NONE = 0,
+	AIMODE_HALF_FULL = 1,
+	AIMODE_SCAN = 2,
+	AIMODE_SAMPLE = 3,
+};
 
 static const int num_adc_stages_611x = 3;
 
@@ -574,10 +577,14 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	if(status&AI_FIFO_Half_Full_St){
 		ni_handle_fifo_half_full(dev);
 	}
-	/* XXX These don't work if DMA is running */
-	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
-		ni_handle_fifo_dregs(dev);
+#endif // !PCIDMA
 
+	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
+#ifdef PCIDMA
+		mite_handle_a_linkc(devpriv->mite, dev);
+#else
+		ni_handle_fifo_dregs(dev);
+#endif
 		s->async->events |= COMEDI_CB_EOS;
 
 		/* we need to ack the START, also */
@@ -588,7 +595,6 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 
 		//s->async->events |= COMEDI_CB_SAMPLE;
 	}
-#endif // !PCIDMA
 
 	if(ack) win_out(ack,Interrupt_A_Ack_Register);
 
@@ -1483,6 +1489,10 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->stop_arg=0x00ffffff;
 			err++;
 		}
+		if(cmd->stop_arg < 2){
+			cmd->stop_arg = 2;
+			err++;
+		}
 	}else{
 		/* TRIG_NONE */
 		if(cmd->stop_arg!=0){
@@ -1707,20 +1717,23 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		switch(devpriv->aimode){
 		case AIMODE_HALF_FULL:
-			/*generate FIFO interrupts on half-full */
+			/*generate FIFO interrupts and DMA requests on half-full */
 #ifdef PCIDMA
-			win_out(AI_FIFO_Mode_HF_to_E|0x0000,AI_Mode_3_Register);
+			win_out(AI_FIFO_Mode_HF_to_E, AI_Mode_3_Register);
 #else
-			win_out(AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
+			win_out(AI_FIFO_Mode_HF, AI_Mode_3_Register);
 #endif
 			break;
 		case AIMODE_SAMPLE:
 			/*generate FIFO interrupts on non-empty */
-			win_out(AI_FIFO_Mode_NE|0x0000,AI_Mode_3_Register);
+			win_out(AI_FIFO_Mode_NE, AI_Mode_3_Register);
 			break;
 		case AIMODE_SCAN:
-			/*generate FIFO interrupts on half-full */
-			win_out(AI_FIFO_Mode_HF|0x0000,AI_Mode_3_Register);
+#ifdef PCIDMA
+			win_out(AI_FIFO_Mode_NE, AI_Mode_3_Register);
+#else
+			win_out(AI_FIFO_Mode_HF, AI_Mode_3_Register);
+#endif
 			bits|=AI_STOP_Interrupt_Enable;
 			break;
 		default:
@@ -2261,6 +2274,10 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(cmd->stop_src==TRIG_COUNT){ /* XXX check */
 		if(cmd->stop_arg>0x00ffffff){
 			cmd->stop_arg=0x00ffffff;
+			err++;
+		}
+		if(cmd->stop_arg < 2){
+			cmd->stop_arg = 2;
 			err++;
 		}
 	}else{
