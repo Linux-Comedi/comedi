@@ -1456,7 +1456,7 @@ static int setup_subdevices(comedi_device *dev)
 
 	//serial EEPROM, if present
 	s = dev->subdevices + 8;
-	if(priv(dev)->plx_control_bits & CTL_EECHK)
+	if(readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK)
 	{
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
