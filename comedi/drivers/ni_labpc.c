@@ -172,7 +172,7 @@ static unsigned int labpc_readb(unsigned int address);
 static void labpc_writeb(unsigned int byte, unsigned int address);
 static int labpc_dio_mem_callback(int dir, int port, int data, void *arg);
 static void labpc_load_calibration(comedi_device *dev);
-static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int write_length);
+static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int labpc_serial_in(comedi_device *dev);
 static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address);
 static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value);
@@ -196,7 +196,7 @@ typedef struct labpc_board_struct{
 
 //analog input ranges
 
-#define AI_RANGE_IS_UNIPOLAR 0x10
+#define AI_RANGE_IS_UNIPOLAR 0x8
 
 static comedi_lrange range_labpc_ai = {
 	16,
@@ -222,7 +222,7 @@ static comedi_lrange range_labpc_ai = {
 
 //analog output ranges
 
-#define AO_RANGE_IS_UNIPOLAR 0x10
+#define AO_RANGE_IS_UNIPOLAR 0x1
 
 static comedi_lrange range_labpc_ao = {
 	2,
@@ -312,7 +312,7 @@ typedef struct{
 	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
 	enum transfer_type current_transfer;	// we are using dma/fifo-half-full/etc.
 	unsigned int eeprom_data[EEPROM_SIZE];	// stores contents of board's eeprom
-	unsigned int caldac[8];	// stores settings of calibration dacs
+	unsigned int caldac[12];	// stores settings of calibration dacs
 }labpc_private;
 
 #define devpriv ((labpc_private *)dev->private)
@@ -852,23 +852,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		comedi_error(dev, "using fifo not empty interrupt");
 #endif
 
-	/* setup channel list, etc (command1 register) */
-	devpriv->command1_bits = 0;
-	if(scan_up)
-		endChan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
-	else
-		endChan = CR_CHAN(cmd->chanlist[0]);
-	devpriv->command1_bits |= ADC_CHAN_BITS(endChan);
-	range = CR_RANGE(cmd->chanlist[0]);
-	devpriv->command1_bits |= ADC_GAIN_BITS(range);
-	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
-	// manual says to set scan enable bit on second pass
-	if(cmd->chanlist_len > 1)
-	{
-		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
-		thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
-	}
-
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
@@ -892,8 +875,33 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			devpriv->command6_bits |= A1_INTR_EN_BIT;
 		else
 			devpriv->command6_bits &= ~A1_INTR_EN_BIT;
+		// are we scanning up or down through channels?
+		if(scan_up)
+			devpriv->command6_bits |= ADC_SCAN_UP_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_SCAN_UP_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
+	}
+
+	/* setup channel list, etc (command1 register) */
+	devpriv->command1_bits = 0;
+	if(scan_up)
+		endChan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	else
+		endChan = CR_CHAN(cmd->chanlist[0]);
+	devpriv->command1_bits |= ADC_CHAN_BITS(endChan);
+	range = CR_RANGE(cmd->chanlist[0]);
+	devpriv->command1_bits |= ADC_GAIN_BITS(range);
+	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+	// manual says to set scan enable bit on second pass
+	if(cmd->chanlist_len > 1)
+	{
+		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
+		/* need a brief delay before enabling scan, or scan list will get screwed when you switch
+		 * between scan up to scan down mode - dunno why */
+		udelay(1);
+		thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	}
 
 	// setup any external triggering/pacing (command4 register)
@@ -1201,7 +1209,6 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
 	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 
-
 	// setup command6 register for 1200 boards
 	if(thisboard->register_layout == labpc_1200_layout)
 	{
@@ -1323,7 +1330,7 @@ static int labpc_calib_write_insn(comedi_device *dev, comedi_subdevice *s, comed
 	int channel = CR_CHAN(insn->chanspec);
 
 	devpriv->caldac[channel] = data[0];
-	write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
+	write_caldac(dev, channel + 3, data[0]);	// first caldac used by boards is number 3
 
 	return 1;
 }
@@ -1475,7 +1482,7 @@ static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
 {
 	unsigned int value;
 	const int read_instruction = 0x3;	// bits to tell eeprom to expect a read
-	const int write_length = 8;	// eeprom writes are 8 bits long
+	const int write_length = 8;	// 8 bit write lengths to eeprom
 
 /* XXX will need some locking if this function is to be called from multiple
  * subdevices */
@@ -1511,13 +1518,22 @@ static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address,
 // writes to 8 bit calibration dacs
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
 {
+	unsigned int reordered_channel, i;
+	const int num_channel_bits = 4;	// caldacs use 4 bit channel specification
+
 	// clear caldac load bit and make sure we don't write to eeprom
 	devpriv->command5_bits &= ~CALDAC_LOAD_BIT & ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
 	udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
-	// write 4 bit channel
-	labpc_serial_out(dev, channel, 4);
+	// write 4 bit channel, LSB first
+	reordered_channel = 0;
+	for(i = 0; i < num_channel_bits; i++)
+	{
+		if(channel & (1 << i))
+			reordered_channel |= 1 << (num_channel_bits - i - 1);
+	}
+	labpc_serial_out(dev, reordered_channel, 4);
 	// write 8 bit caldac value
 	labpc_serial_out(dev, value, 8);
 
