@@ -339,6 +339,7 @@ int comedi_buf_get_array(comedi_async *async, sampl_t *array, unsigned int num_s
 #endif
 int comedi_buf_get(comedi_async *async, sampl_t *x);
 
+unsigned int comedi_buf_write_n_available(comedi_async *async);
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes);
 unsigned int comedi_buf_write_alloc_strict(comedi_async *async, unsigned int nbytes);
 void comedi_buf_write_free(comedi_async *async, unsigned int nbytes);

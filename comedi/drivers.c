@@ -391,6 +391,12 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
+unsigned int comedi_buf_write_n_available(comedi_async *async)
+{
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+
+	return free_end - async->buf_free_count;
+}
 
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 {
