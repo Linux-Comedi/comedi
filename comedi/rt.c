@@ -273,6 +273,7 @@ static void handle_void_irq(int irq)
 		if( it == NULL ) continue;
 		it->handler( irq, it->dev_id, NULL );
 	}
+	rt_enable_irq(irq);	//needed by rtai-adeos, seems like it shouldn't hurt earlier versions
 }
 
 DECLARE_VOID_IRQ(0);
