@@ -505,15 +505,15 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 
 	dev->iobase=it->options[0];
-	printk("comedi%d: das08: )x%04x",dev->minor,dev->iobase);
+	printk("comedi%d: das08: 0x%04x",dev->minor,dev->iobase);
 	if(check_region(dev->iobase,DAS08_SIZE)<0){
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
 
-	dev->board_name="das08";
-	dev->board_ptr=das08_boards+dev->board;
-	dev->iosize=DAS08_SIZE;
+	dev->board_ptr = das08_boards+dev->board;
+	dev->board_name = thisboard->name;
+	dev->iosize = DAS08_SIZE;
 
 	dev->n_subdevices=5;
 	if((ret=alloc_subdevices(dev))<0)

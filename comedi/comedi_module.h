@@ -52,6 +52,13 @@
 #define COMEDI_VERSION "1.0.0"
 #endif
 
+#ifdef MODULE
+#define COMEDI_INITCLEANUP(x)						\
+	int init_module(void){comedi_driver_register(&(x));return 0;}	\
+	void cleanup_module(void){comedi_driver_unregister(&(x));}
+#else
+#define COMEDI_INITCLEANUP(x)
+#endif
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
 typedef struct comedi_driver_struct comedi_driver;
