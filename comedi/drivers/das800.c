@@ -844,10 +844,10 @@ static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	mux_bits = inb(dev->iobase + DAS800_STATUS) & 0x7;
 
 	// only set bits that have been masked
+	data[0] &= 0xf;
 	wbits = devpriv->do_bits >> 4;
 	wbits &= ~data[0];
 	wbits |= data[0] & data[1];
-	wbits &= 0xf;
 	devpriv->do_bits = wbits << 4;
 
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
