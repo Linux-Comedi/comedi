@@ -126,7 +126,7 @@ dt2801.o: Data Translation DT2801 series
 	  (2801, 2805, 2808, 2809, 2818, and DT01-EZ)
 
 Author: ds
-Status: might work
+Status: works
 
 
 
@@ -295,7 +295,7 @@ Status: works
 
 
 
-ni_pcidio.o: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533
+ni_pcidio.o: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
 
 Author: ds
 Status: works in immediate mode
