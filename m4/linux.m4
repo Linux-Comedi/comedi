@@ -1,7 +1,8 @@
 
 
 AC_DEFUN(DS_LINUX_DIR,
-  [AC_ARG_WITH([linuxdir],
+[
+  AC_ARG_WITH([linuxdir],
     [AC_HELP_STRING([--with-linuxdir],
       [specify path to Linux source directory])],
     [LINUX_DIR="${withval}"],
@@ -45,9 +46,36 @@ AC_DEFUN(DS_TRY_LINUX_DIR,
   AC_MSG_RESULT($result)
 ])
 
-AC_DEFUN(DS_LINUX_2_6,
+AC_DEFUN(DS_LINUX,
 [
   DS_LINUX_DIR()
+
+  AC_MSG_CHECKING([Linux version])
+
+  LINUX_VERSION=$(grep UTS_RELEASE ${LINUX_DIR}/include/linux/version.h | \
+  	sed 's/[[^"]]*"\(.*\)\{1\}"/\1/')
+
+  AC_MSG_RESULT([$LINUX_VERSION])
+
+  LINUX_VERSION_MAJOR=$(echo ${LINUX_VERSION} | cut -d. -f1)
+  LINUX_VERSION_MINOR=$(echo ${LINUX_VERSION} | cut -d. -f2)
+
+  case $LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR in
+    2.6)
+      DS_LINUX_2_6()
+      ;;
+    2.[01234])
+      DS_LINUX_2_4()
+      ;;
+    *)
+      AC_MSG_ERROR([Unknown Linux major.minor $LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR])
+      ;;
+  esac
+
+])
+
+AC_DEFUN(DS_LINUX_2_6,
+[
   AC_MSG_CHECKING(for Linux CFLAGS)
 
   tmpdir="`pwd`/tmp-noicrwa"
@@ -100,7 +128,6 @@ EOF
 
 AC_DEFUN(DS_LINUX_2_4,
 [
-  DS_LINUX_DIR()
   AC_MSG_CHECKING(for Linux CFLAGS)
 
   tmpdir="`pwd`/tmp-noicrwa"
