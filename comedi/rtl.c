@@ -4,7 +4,6 @@
  */
 
 #include <comedi_module.h>
-#include "rtl.h"
 
 #include <linux/kernel.h>
 #include <linux/string.h>
