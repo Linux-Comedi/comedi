@@ -93,8 +93,7 @@ if [ $? != 0 ]; then
 	echo "make in linux source directory failed, do you have write permission?"
 	exit $?
 fi
-cd ${topdir}
-mv $FLAGDIR/flags .buildvars
+mv ${FLAGDIR}/flags .buildvars
 
 
 if (( $LINUX_VERSION_CODE >= 0x00020300 ));then
