@@ -1171,12 +1171,14 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	mask = 0;
 	if(dev->read_subdev>=0){
 		s=dev->subdevices+dev->read_subdev;
-		if(s->buf_user_count < s->buf_int_count)
+		if(!(s->subdev_flags&SDF_RUNNING) ||
+		   (s->buf_user_count < s->buf_int_count))
 			mask |= POLLIN | POLLRDNORM;
 	}
 	if(dev->write_subdev>=0){
 		s=dev->subdevices+dev->write_subdev;
-		if(s->buf_user_count < s->buf_int_count + s->prealloc_bufsz)
+		if((!s->subdev_flags&SDF_RUNNING) ||
+		   (s->buf_user_count < s->buf_int_count + s->prealloc_bufsz))
 			mask |= POLLOUT | POLLWRNORM;
 	}
 
