@@ -187,9 +187,11 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=thisboard->ai_chans;
 	s->maxdata=(1<<thisboard->ai_bits)-1;
 	s->range_table=&range_bipolar10;
+	s->len_chanlist=16;  /* This is the maximum chanlist length that
+				the board can handle */
 	s->insn_read = &skel_ai_rinsn;
 	//s->do_cmd = &skel_ai_cmd;
-	s->do_cmdtest = &skel_ai_cmdtest;
+	s->do_cmdtest = skel_ai_cmdtest;
 
 	s=dev->subdevices+1;
 	/* analog output subdevice */
