@@ -24,13 +24,15 @@
 /*
 Driver: amplc_pci230.o
 Description: Driver for Amplicom PCI230 and PCI260 Multifunction I/O boards
-Author: Allan Willcox <allanwillcox@ozemail.com.au>
-Updated: Mon,  3 Sep 2001 17:37:12 -0700
+Author: Allan Willcox <allanwillcox@ozemail.com.au>, Steve D Sharples <steve.sharples@nottingham.ac.uk>
+Updated: Fri,  30 April 2004
 Devices: [Amplicon] PCI230 (amplc_pci230), PCI260
-Status: unknown
+Status: works
 
 */
-
+/*
+extra triggered scan functionality, interrupt bug-fix added by Steve Sharples 
+*/
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
@@ -38,6 +40,7 @@ Status: unknown
 
 #include "8253.h"
 #include "8255.h"
+
 
 /* PCI230 PCI configuration register information */
 #define PCI_VENDOR_ID_AMPLICON 0x14dc
@@ -81,17 +84,17 @@ Status: unknown
 
 /* ADCCON write values. */
 #define PCI230_ADC_TRIG_NONE		0
-#define PCI230_ADC_TRIG_SW 			1
+#define PCI230_ADC_TRIG_SW 		1
 #define PCI230_ADC_TRIG_EXTP		2
 #define PCI230_ADC_TRIG_EXTN		3
 #define PCI230_ADC_TRIG_Z2CT0		4
 #define PCI230_ADC_TRIG_Z2CT1		5
 #define PCI230_ADC_TRIG_Z2CT2		6
-#define PCI230_ADC_IR_UNI			(0<<3)	/* Input range unipolar */
-#define PCI230_ADC_IR_BIP			(1<<3)	/* Input range bipolar */
-#define PCI230_ADC_IM_SE			(0<<4)	/* Input mode single ended */
-#define PCI230_ADC_IM_DIF			(1<<4)	/* Input mode differential */
-#define PCI230_ADC_FIFO_EN			(1<<8)
+#define PCI230_ADC_IR_UNI		(0<<3)	/* Input range unipolar */
+#define PCI230_ADC_IR_BIP		(1<<3)	/* Input range bipolar */
+#define PCI230_ADC_IM_SE		(0<<4)	/* Input mode single ended */
+#define PCI230_ADC_IM_DIF		(1<<4)	/* Input mode differential */
+#define PCI230_ADC_FIFO_EN		(1<<8)
 #define PCI230_ADC_INT_FIFO_EMPTY	0
 #define PCI230_ADC_INT_FIFO_NEMPTY	(1<<9)
 #define PCI230_ADC_INT_FIFO_NHALF	(2<<9)
@@ -104,9 +107,9 @@ Status: unknown
 
 /* ADCCON read values. */
 #define PCI230_ADC_BUSY_BIT		15
-#define PCI230_ADC_FIFO_EMPTY	(1<<12)
-#define PCI230_ADC_FIFO_FULL	(1<<13)
-#define PCI230_ADC_FIFO_HALF	(1<<14)
+#define PCI230_ADC_FIFO_EMPTY		(1<<12)
+#define PCI230_ADC_FIFO_FULL		(1<<13)
+#define PCI230_ADC_FIFO_HALF		(1<<14)
 
 /* Group Z clock configuration register values. */
 #define PCI230_ZCLK_CT0			0
@@ -122,7 +125,23 @@ Status: unknown
 #define PCI230_ZCLK_SRC_OUTNM1	6		/* The output of the preceding counter/timer channel (OUT n-1). */ 
 #define PCI230_ZCLK_SRC_EXTCLK	7		/* The dedicated external clock input for the group (X1/X2, Y1/Y2, Z1/Z2). */ 
 
-#define PCI230_TIMEBASE_10MHZ	100		/* 10MHz => 100ns. */
+/* Group Z gate configuration register values. */
+#define	PCI230_ZGAT_CT0			0
+#define	PCI230_ZGAT_CT1			8
+#define	PCI230_ZGAT_CT2			16
+#define	PCI230_ZGAT_RES			24
+#define	PCI230_ZGAT_SRC_VCC	0		/* The counter/timer's GAT input is VCC (ie enabled) */
+#define	PCI230_ZGAT_SRC_GND	1		/* GAT input is GND (ie disabled) */
+#define	PCI230_ZGAT_SRC_PPCN	2		/* GAT input is DIO port Cn, where n is the number of the counter/timer */
+#define	PCI230_ZGAT_SRC_OUTNP1	3		/* GAT input is the output of the next counter/timer channel (OUT n+1) */
+
+
+#define PCI230_TIMEBASE_10MHZ	100		/* 10MHz  =>     100ns. */
+#define PCI230_TIMEBASE_1MHZ	1000		/* 1MHz   =>    1000ns. */
+#define PCI230_TIMEBASE_100KHZ	10000		/* 100kHz =>   10000ns. */
+#define PCI230_TIMEBASE_10KHZ	100000		/* 10kHz  =>  100000ns. */
+#define PCI230_TIMEBASE_1KHZ	1000000		/* 1kHz   => 1000000ns. */
+
 
 /* Interrupt enables/status register values. */
 #define PCI230_INT_DISABLE		0
@@ -136,6 +155,7 @@ Status: unknown
 /*
  * Board descriptions for the two boards supported.
  */
+
 typedef struct pci230_board_struct{
 	char *name;
 	unsigned short id;
@@ -154,7 +174,7 @@ static pci230_board pci230_boards[] = {
 	ai_bits:	12,
 	have_ao:	1,
 	ao_chans:	2,
-	ao_bits:	12,	
+	ao_bits:	12,
 	have_dio:	1,
 	},
 	{
@@ -164,7 +184,7 @@ static pci230_board pci230_boards[] = {
 	ai_bits:	12,
 	have_ao:	0,
 	ao_chans:	0,
-	ao_bits:	0,	
+	ao_bits:	0,
 	have_dio:	0,
 	},
 };
@@ -189,6 +209,9 @@ struct pci230_private{
 	lsampl_t ao_readback[2];  	/* Used for AO readback */
 	unsigned int pci_iobase;	/* PCI230's I/O space 1 */	
 	/* Divisors for 8254 counter/timer. */    
+	unsigned int clk_src0;		/* which clock to use for the counter/timers: 10MHz, 1MHz, 100kHz etc */
+	unsigned int clk_src1;
+	unsigned int clk_src2;
 	unsigned int divisor0;
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -199,7 +222,7 @@ struct pci230_private{
 	unsigned int ao_stop;  		/* Flag set when cmd->stop_src == TRIG_NONE - user chooses to stop continuous conversion by cancelation. */
 	unsigned int ai_bipolar;	/* Set if bipolar input range so we know to mangle it. */
 	unsigned int ao_bipolar;	/* Set if bipolar output range so we know to mangle it. */
-	unsigned int ier;			/* Copy of interrupt enables/status register. */
+	unsigned int ier;		/* Copy of interrupt enables/status register. */
 };
 
 #define devpriv ((struct pci230_private *)dev->private)
@@ -243,6 +266,9 @@ static int pci230_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 static int pci230_ct_insn_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int pci230_ct_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static void pci230_ns_to_timer(unsigned int *ns,int round);
+static void pci230_ns_to_single_timer(unsigned int *ns,int round);
+static void i8253_single_ns_to_timer(unsigned int i8253_osc_base, unsigned int *d, unsigned int *nanosec, int round_mode);
+static void pci230_setup_monostable_ct0(comedi_device *dev, unsigned int ns, unsigned int n_chan);
 static void pci230_z2_ct0(comedi_device *dev, unsigned int *ns,int round);
 static void pci230_z2_ct1(comedi_device *dev, unsigned int *ns,int round);
 static void pci230_z2_ct2(comedi_device *dev, unsigned int *ns,int round);
@@ -428,7 +454,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config = pci230_ct_insn_config;
 	s->insn_read = &pci230_ct_rinsn;
 
-	printk("attached\n");
+	printk("comedi%d: attached\n",dev->minor);
 
 	return 1;
 }
@@ -669,7 +695,7 @@ static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(cmd->stop_src!=TRIG_COUNT &&
 	   cmd->stop_src!=TRIG_NONE)err++;
-	
+
 	if(err)return 2;
 
 	/* Step 3: make sure arguments are trivially compatible.
@@ -681,8 +707,8 @@ static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		err++;
 	}
 
-#define MAX_SPEED	3205		/* 3205ns => 312kHz */
-#define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s - Comedi limit due to unsigned int cmd.  Driver limit = 2^32 (2 cascaded 16bit counters) * 100ns (default 10MHz onboard clock) = 429s */
+#define MAX_SPEED	3200		/* 3200ns => 312.5kHz */
+#define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s - Comedi limit due to unsigned int cmd.  Driver limit = 2^16 (16bit counter) * 1000000ns (1kHz onboard clock) = 65.536s */
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		if(cmd->scan_begin_arg<MAX_SPEED){
@@ -715,7 +741,7 @@ static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		tmp=cmd->scan_begin_arg;
-		pci230_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+		pci230_ns_to_single_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
 
@@ -770,6 +796,9 @@ static int pci230_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	 * TODO - when Comedi supports concurrent commands, this must be
 	 * changed; using ct0 and ct1 for DAC will screw up ADC pacer
 	 * which uses ct2 and ct0.  Change to only use ct1 for DAC?
+	 *
+	 * <sds>: we may as well do this now, in the transition to using single
+	 * counters for the analogue input (to accommodate triggered scans).
 	 */
 	pci230_z2_ct1(dev, &cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);	/* cmd->convert_arg is sampling period in ns */
 
@@ -800,7 +829,15 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
+	/* Unfortunately, we cannot trigger a scan off an external source
+	 * on the PCI260 board, since it uses the PPI0 (DIO) input, which
+	 * isn't present on the PCI260 */
+	if(thisboard->have_dio){
+		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_EXT;
+		}
+	else{
+		cmd->scan_begin_src &= TRIG_FOLLOW;
+		}
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
@@ -822,12 +859,22 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	 * if this fails. */
 
 	if(cmd->start_src!=TRIG_NOW)err++;
-	if(cmd->scan_begin_src!=TRIG_FOLLOW)err++;
+	if(cmd->scan_begin_src!=TRIG_FOLLOW &&
+	   cmd->scan_begin_src!=TRIG_EXT)err++;
 	if(cmd->convert_src!=TRIG_TIMER &&
 	   cmd->convert_src!=TRIG_EXT)err++;
 	if(cmd->stop_src!=TRIG_COUNT &&
 	   cmd->stop_src!=TRIG_NONE)err++;
 	
+	/* Although the scan and convert triggers come from different sources, the
+	 * driver relies on the knowledge of convert rate to trigger the correct number
+	 * of channels. If the is not known (ie if convert_src==TRIG_EXT) then the 
+	 * scan trigger will not work correctly.
+	 * The convert trigger is the input into the "EXT TRIG" line (pin 25), whilst
+	 * the scan trigger is "PPC0" (pin 49). */
+	if(cmd->scan_begin_src==TRIG_EXT &&
+	   cmd->convert_src==TRIG_EXT)err++;
+
 	if(err)return 2;
 
 	/* Step 3: make sure arguments are trivially compatible.
@@ -839,8 +886,8 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		err++;
 	}
 
-#define MAX_SPEED	3205		/* 3205ns => 312kHz max sampling - claimed max for single channel; should really be fn(nchans) */
-#define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s - Comedi limit due to unsigned int cmd.  Driver limit = 2^32 (2 cascaded 16bit counters) * 100ns (default 10MHz onboard clock) = 429s */
+#define MAX_SPEED	3200		/* 3200ns => 312.5kHz */
+#define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s - Comedi limit due to unsigned int cmd.  Driver limit = 2^16 (16bit counter) * 1000000ns (1kHz onboard clock) = 65.536s */
 
 	if(cmd->convert_src==TRIG_TIMER){
 		if(cmd->convert_arg<MAX_SPEED){
@@ -873,6 +920,17 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		}
 	}
 
+
+	if(cmd->scan_begin_src==TRIG_EXT){
+		/* external "trigger" to begin each scan                               *
+		 * scan_begin_arg==0 => use PPC0 input -> gate of CT0 -> gate of CT2   *
+		 *			(sample convert trigger is CT2)                */
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;	/* default option, so you can monitor CT2 (only CT with an external output) */
+			err++;
+		}
+	}
+
 	if(err)return 3;
 
 	/* Step 4: fix up any arguments.
@@ -881,7 +939,7 @@ static int pci230_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(cmd->convert_src==TRIG_TIMER){
 		tmp=cmd->convert_arg;
-		pci230_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+		pci230_ns_to_single_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
 		if(tmp!=cmd->convert_arg)err++;
 	}
 
@@ -894,7 +952,8 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int i, chan, range, diff;
 	unsigned int adccon, adcen, adcg;
-	
+	unsigned int zgat;
+
 	/* Get the command. */
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -909,15 +968,16 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		devpriv->ai_count = 0;
 		devpriv->ai_stop = 1;
 	}
-	
+
 	/* Steps;
 	 * - Disable ADC interrupts.
-	 * - Enable and reset FIFO, specify uni/bip, se/diff, and start conversion source to none.
 	 * - Set channel scan list.
 	 * - Set channel gains.
+	 * - Enable and reset FIFO, specify uni/bip, se/diff, and start conversion source to none.
+	 * - PAUSE (25us) - failure to do this leads to "dodgy data" for the first few channels at high convert rates.
 	 * - Enable conversion complete interrupt.
 	 * - Set the counter timers to the specified sampling frequency.
-	 * - Enable FIFO, set FIFO interrupt trigger level, set start conversion source to counter 0. 
+	 * - Enable AND RESET FIFO (yes you do need to do this twice), set FIFO interrupt trigger level, set start conversion source to counter 2. 
 	 */
 
 	/* Disable ADC interrupt. */
@@ -936,6 +996,7 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	adccon |= PCI230_ADC_FIFO_RESET | PCI230_ADC_FIFO_EN;
+	//adccon |= PCI230_ADC_FIFO_RESET;
 	adcg = 0;
 	adcen = 0;
 
@@ -973,26 +1034,85 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		}
 	}
 
-	/* Enable and reset FIFO, specify FIFO trigger level full, specify uni/bip, se/diff, and start conversion source to none. */
-	outw(adccon | PCI230_ADC_INT_FIFO_FULL | PCI230_ADC_TRIG_NONE, dev->iobase + PCI230_ADCCON);
-
 	/* Set channel scan list. */
 	outw(adcen, dev->iobase + PCI230_ADCEN);
 
 	/* Set channel gains. */
 	outw(adcg, dev->iobase + PCI230_ADCG);
 
+	/* Enable and reset FIFO, specify FIFO trigger level full, specify uni/bip, se/diff, and start conversion source to none. */
+	outw(adccon | PCI230_ADC_INT_FIFO_FULL | PCI230_ADC_TRIG_NONE, dev->iobase + PCI230_ADCCON);
+
+	/* Delay */
+	/* Failure to include this will result in the first few channels'-worth of data being corrupt,
+	 * normally manifesting itself by large negative voltages. It seems the board needs time to
+	 * settle between the first FIFO reset (above) and the second FIFO reset (below). Setting
+	 * the channel gains and scan list _before_ the first FIFO reset also helps, though only
+	 * slightly. */
+	comedi_udelay(25);
+
 	/* Enable ADC (conversion complete) interrupt. */
 	devpriv->ier |= PCI230_INT_ADC;
 	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
 
+	/* Set up the scan_begin_src (if it's NOT set to TRIG_FOLLOW) */
+	if(cmd->scan_begin_src == TRIG_EXT){
+		/* use PPC0 -> gate of CT0 (as monostable) -> gate of CT2
+		 *
+		 * Note that the PCI230 card does not support "native" triggered scans,
+		 * although the _hardware_ can be set up to achieve this. This is _not_
+		 * software emulation within the driver, it is merely using the on-board
+		 * counters and one of the digital inputs to achieve the same thing.
+		 * The idea is to use a rising edge of a digital input (in this case PPC0)
+		 * to trigger a counter (set up as a monostable). This produces a pulse of
+		 * exactly the same length as the number of conversion pulses in your scan.
+		 * This pulse is then used as to gate the counter responsible for your
+		 * convert source.
+		 *
+		 * So, if your conversion rate is set to 100kHz (10us/conversion) and you 
+		 * have 8 channels in your channel list, a positive edge on PPC0 will
+		 * trigger a pulse of length 80us (8 x 10us). Because the two counters
+		 * involved have the same clock source, the monostable pulse will always
+		 * be exactly the right length.
+		 *
+		 * Previous versions of this driver used two cascaded counters to achieve
+		 * different conversion rates (the output of the first counter is the
+		 * clock input of the second counter). The use of the triggered scan
+		 * functionality necessitated using only one counter/timer for dividing
+		 * the internal clock down to the convert rate. In order to allow
+		 * relatively low convert rates (upto the comedi limit of 4.29s), the
+		 * driver now uses not only the 10MHz input clock, but also (depending on
+		 * the desired convert rate) a choice of 1MHz, 100kHz or 10kHz clocks.
+		 *                                                 - sds, 30 April 2004 */
+
+		/* initialise the gates to sensible settings while we set everything up */
+		zgat = PCI230_ZGAT_CT0 | PCI230_ZGAT_SRC_GND;
+		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+
+		zgat = PCI230_ZGAT_CT2 | PCI230_ZGAT_SRC_GND;
+		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+
+		pci230_setup_monostable_ct0(dev, cmd->convert_arg, cmd->chanlist_len);
+
+		/* now set the gates up so that we can begin triggering */
+		zgat = PCI230_ZGAT_CT0 | PCI230_ZGAT_SRC_PPCN;
+		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+
+		zgat = PCI230_ZGAT_CT2 | PCI230_ZGAT_SRC_OUTNP1;
+		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+	}
+	else{	/* must be using "TRIG_FOLLOW", so need to "ungate" CT2 */
+		zgat = PCI230_ZGAT_CT2 | PCI230_ZGAT_SRC_VCC;
+		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+	}
+
 	/* Set start conversion source. */
 	if(cmd->convert_src == TRIG_TIMER) {
-		/* Onboard counter/timer 0. */
-		adccon = adccon | PCI230_ADC_TRIG_Z2CT0;
+		/* Onboard counter/timer 2. */
+		adccon = adccon | PCI230_ADC_TRIG_Z2CT2;
 
 		/* Set the counter timers to the specified sampling frequency. */
-		pci230_z2_ct0(dev, &cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);	/* cmd->convert_arg is sampling period in ns */
+		pci230_z2_ct2(dev, &cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);	/* cmd->convert_arg is sampling period in ns */
 	}
 	else {
 		/* TRIG_EXT - external trigger. */
@@ -1005,6 +1125,7 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			adccon = adccon | PCI230_ADC_TRIG_EXTN;
 		}	
 	}
+
 
 	/* Set FIFO interrupt trigger level. */
 	if(cmd->stop_src == TRIG_COUNT) {
@@ -1019,7 +1140,8 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		/* TRIG_NONE - trigger on half-full FIFO. */
 		adccon = adccon | PCI230_ADC_INT_FIFO_HALF;
 	}
-	
+
+	//adccon = adccon | PCI230_ADC_FIFO_EN;
 	outw(adccon, dev->iobase + PCI230_ADCCON);
 
 	return 0;
@@ -1038,31 +1160,147 @@ static void pci230_ns_to_timer(unsigned int *ns,int round)
 	return;
 }
 
+
+/* This function is used for analogue input. Only one counter/timer can be used,
+ * because for the triggered scan functionality to work, 2 counters with
+ * identical clock inputs and divide ratios are required, so that the
+ * correct number of channels are converted in each scan.
+ * This is a very "noddy" way of doing this... apologies. (sds) */
+static unsigned int pci230_choose_clk_src(unsigned int ns)
+{
+	unsigned int clk_src=0;
+
+	if(ns <   6553600)			clk_src=PCI230_TIMEBASE_10MHZ;
+	if(ns >=  6553600 && ns <  65536000)	clk_src=PCI230_TIMEBASE_1MHZ;
+	if(ns >= 65536000 && ns < 655360000)	clk_src=PCI230_TIMEBASE_100KHZ;
+	if(ns >=655360000 && ns <4294967295u)	clk_src=PCI230_TIMEBASE_10KHZ; /* maximum limited by comedi = 4.29s */
+
+	if(clk_src == 0){
+		printk("comedi: dodgy clock source chosen, using 10MHz\n");
+		clk_src=PCI230_TIMEBASE_10MHZ;
+		}
+	return clk_src;
+}
+
+static void pci230_ns_to_single_timer(unsigned int *ns,int round)
+{
+	unsigned int divisor;
+	unsigned int clk_src;
+
+	clk_src=pci230_choose_clk_src(*ns);
+	i8253_single_ns_to_timer(clk_src, &divisor, ns, TRIG_ROUND_MASK);
+	return;
+}
+
+static void i8253_single_ns_to_timer(unsigned int i8253_osc_base, unsigned int *d, unsigned int *nanosec, int round_mode)
+{
+        int divider;
+        unsigned int div;
+
+        /* exit early if everything is already correct (this can save time
+         * since this function may be called repeatedly during command tests
+         * and execution) */
+        if(*d * i8253_osc_base == *nanosec &&
+                *d > 1 && *d < 0x10000)
+        {
+                return;
+        }
+
+	round_mode &= TRIG_ROUND_MASK;
+	switch (round_mode) {
+	case TRIG_ROUND_NEAREST:
+	default:
+		div=(*nanosec + i8253_osc_base / 2) / i8253_osc_base;
+		break;
+	case TRIG_ROUND_UP:
+		div=(*nanosec)  / i8253_osc_base;
+		break;
+	case TRIG_ROUND_DOWN:
+		div=(*nanosec + i8253_osc_base + 1 )  / i8253_osc_base;
+		break;	
+	}
+
+	*nanosec = div * i8253_osc_base;
+	*d = div & 0xffff;    // masking is done since counter maps zero to 0x10000
+
+	return;
+}
+
+static void pci230_setup_monostable_ct0(comedi_device *dev, unsigned int ns, unsigned int n_chan)
+{
+	/* ns is the convert period, n_chan is the no of channels per scan.
+	 * We must make the output of the counter equal in time to the amount of time
+	 * it takes to acquire n_chan*ns */
+
+	unsigned int pulse_duration;
+
+	pulse_duration = ns*n_chan;
+	devpriv->clk_src0=pci230_choose_clk_src(pulse_duration); /* let's hope that if devpriv->clk_src0 != devpriv->clk_src2, then one is divided down from the other! */
+
+	devpriv->divisor0=pulse_duration/devpriv->clk_src0;
+
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 1);	/* Counter 1, mode 1 */
+
+	/* PCI 230 specific - ties up counter clk input with correct clk source */
+	switch (devpriv->clk_src0) {
+	case PCI230_TIMEBASE_10MHZ:
+	default:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1MHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_100KHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_100KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_10KHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1KHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	}
+
+	return;
+}
+
+
 /* 
  *  Set ZCLK_CT0 to square wave mode with period of ns.
- *  Default clk source for ADC.
  */
 static void pci230_z2_ct0(comedi_device *dev, unsigned int *ns,int round)
 {
-	/* For two cascaded counter/timers, calculate the divide ratios required to give a square wave of period ns. */
-	i8253_cascade_ns_to_timer_2div(PCI230_TIMEBASE_10MHZ, &devpriv->divisor2, &devpriv->divisor0, ns, TRIG_ROUND_MASK);
+	devpriv->clk_src0=pci230_choose_clk_src(*ns);	/* choose a suitable clock source from the range available, given the desired period in ns */
+	i8253_single_ns_to_timer(devpriv->clk_src0, &devpriv->divisor0, ns, TRIG_ROUND_MASK);
 
-    /* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 2, devpriv->divisor2, 3);	/* Counter 2, divisor2, square wave (8254 mode 3). */
+	/* Generic i8254_load calls; program counters' divide ratios. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 3);	/* Counter 0, divisor0, square wave (8254 mode 3). */
 
-	/* PCI 230 specific - ties up counter clk inputs with clk sources */
-	outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
-	outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_OUTNM1, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
-
+	/* PCI 230 specific - ties up counter clk input with clk source */
+	switch (devpriv->clk_src0) {
+	case PCI230_TIMEBASE_10MHZ:
+	default:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1MHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_100KHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_100KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_10KHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1KHZ:
+		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
+		break;
+	}
 	return;
 }
 
 static void pci230_cancel_ct0(comedi_device *dev)
 {
-	devpriv->divisor2 = 0;
 	devpriv->divisor0 = 0;
- 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 2, devpriv->divisor2, 0);	/* Counter 2, divisor2, 8254 mode 0. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 0);	/* Counter 0, divisor0, 8254 mode 0. */
 }
 
@@ -1072,53 +1310,77 @@ static void pci230_cancel_ct0(comedi_device *dev)
  */
 static void pci230_z2_ct1(comedi_device *dev, unsigned int *ns,int round)
 {
-	/* For two cascaded counter/timers, calculate the divide ratios required to give a square wave of period ns. */
-	i8253_cascade_ns_to_timer_2div(PCI230_TIMEBASE_10MHZ, &devpriv->divisor0, &devpriv->divisor1, ns, TRIG_ROUND_MASK);
+	devpriv->clk_src1=pci230_choose_clk_src(*ns);	/* choose a suitable clock source from the range available, given the desired period in ns */
+	i8253_single_ns_to_timer(devpriv->clk_src1, &devpriv->divisor1, ns, TRIG_ROUND_MASK);
 
-    /* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 3);	/* Counter 0, divisor0, square wave (8254 mode 3). */
+	/* Generic i8254_load calls; program counters' divide ratios. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 1, devpriv->divisor1, 3);	/* Counter 1, divisor1, square wave (8254 mode 3). */
 
-	/* PCI 230 specific - ties up counter clk inputs with clk sources */
-	outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 0's input clock source. */
-	outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_OUTNM1, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
-
+	/* PCI 230 specific - ties up counter clk input with clk source */
+	switch (devpriv->clk_src1) {
+	case PCI230_TIMEBASE_10MHZ:
+	default:
+		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1MHZ:
+		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_1MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
+		break;
+	case PCI230_TIMEBASE_100KHZ:
+		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_100KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
+		break;
+	case PCI230_TIMEBASE_10KHZ:
+		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_10KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1KHZ:
+		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_1KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
+		break;
+	}
 	return;
 }
 
 static void pci230_cancel_ct1(comedi_device *dev)
 {
-	devpriv->divisor0 = 0;
 	devpriv->divisor1 = 0;
- 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 0);	/* Counter 0, divisor0, 8254 mode 0. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 1, devpriv->divisor1, 0);	/* Counter 1, divisor1, 8254 mode 0. */
 }
 
 /* 
  *  Set ZCLK_CT2 to square wave mode with period of ns.
- *  Default clk source for external freq. generator (COMEDI_SUBD_TIMER).
+ *  Default clk source for ADC.
  */
 static void pci230_z2_ct2(comedi_device *dev, unsigned int *ns,int round)
 {
-	/* For two cascaded counter/timers, calculate the divide ratios required to give a square wave of period ns. */
-	i8253_cascade_ns_to_timer_2div(PCI230_TIMEBASE_10MHZ, &devpriv->divisor1, &devpriv->divisor2, ns, TRIG_ROUND_MASK);
+	devpriv->clk_src2=pci230_choose_clk_src(*ns);	/* choose a suitable clock source from the range available, given the desired period in ns */
+	i8253_single_ns_to_timer(devpriv->clk_src2, &devpriv->divisor2, ns, TRIG_ROUND_MASK);
 
-    /* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 1, devpriv->divisor1, 3);	/* Counter 1, divisor1, square wave (8254 mode 3). */
+	/* Generic i8254_load calls; program counters' divide ratios. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 2, devpriv->divisor2, 3);	/* Counter 2, divisor2, square wave (8254 mode 3). */
 
-	/* PCI 230 specific - ties up counter clk inputs with clk sources */
-	outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 1's input clock source. */
-	outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_OUTNM1, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
-
+	/* PCI 230 specific - ties up counter clk input with clk source */
+	switch (devpriv->clk_src2) {
+	case PCI230_TIMEBASE_10MHZ:
+	default:
+		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_10MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1MHZ:
+		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_1MHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
+		break;
+	case PCI230_TIMEBASE_100KHZ:
+		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_100KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
+		break;
+	case PCI230_TIMEBASE_10KHZ:
+		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_10KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
+		break;
+	case PCI230_TIMEBASE_1KHZ:
+		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_1KHZ, devpriv->pci_iobase + PCI230_ZCLK_SCE);	/* Program counter 2's input clock source. */
+		break;
+	}
 	return;
 }
 
 static void pci230_cancel_ct2(comedi_device *dev)
 {
-	devpriv->divisor1 = 0;
 	devpriv->divisor2 = 0;
- 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 1, devpriv->divisor1, 0);	/* Counter 1, divisor1, 8254 mode 0. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 2, devpriv->divisor2, 0);	/* Counter 2, divisor2, 8254 mode 0. */
 }
 
@@ -1211,7 +1473,7 @@ static void pci230_handle_ai(comedi_device *dev, comedi_subdevice *s) {
 	
 	/* Read FIFO state. */
 	status_fifo = inw(dev->iobase + PCI230_ADCCON);
-	
+
 	if (status_fifo & PCI230_ADC_FIFO_FULL) {
 		/* Report error otherwise FIFO overruns will go unnoticed by the caller. */
 		comedi_error(dev, "FIFO overrun");
@@ -1243,6 +1505,7 @@ static void pci230_handle_ai(comedi_device *dev, comedi_subdevice *s) {
 	else {
 		/* More samples required, tell Comedi to block. */
 		s->async->events |= COMEDI_CB_BLOCK;
+
 		/* Enable ADC (conversion complete) interrupt (and leave any other enabled interrupts as they are). */
 		devpriv->ier |= PCI230_INT_ADC;
 		outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
@@ -1304,7 +1567,7 @@ static int pci230_ai_cancel(comedi_device *dev, comedi_subdevice *s) {
 	devpriv->ai_stop = 0;
 
 	/* Stop counter/timers. */
-	pci230_cancel_ct0(dev);
+	pci230_cancel_ct2(dev);
 
 	/* Disable ADC interrupt. */
 	devpriv->ier &= ~PCI230_INT_ADC;
