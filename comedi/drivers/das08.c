@@ -384,7 +384,7 @@ struct das08_private_struct{
 #define devpriv ((struct das08_private_struct *)dev->private)
 #define thisboard ((struct das08_board_struct *)dev->board_ptr)
 
-#define TIMEOUT 1000
+#define TIMEOUT 100000
 
 static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
@@ -421,12 +421,11 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		/* trigger conversion */
 		outb_p(0,dev->iobase+DAS08_TRIG_12BIT);
 
-		for(i=0;i<(thisboard->ai_nbits == 16 ? 100 : 1) * TIMEOUT;
-			i++){
+		for(i=0;i<TIMEOUT;i++){
 			if(!(inb(dev->iobase+DAS08_STATUS)&DAS08_EOC))
 				break;
 		}
-		if(i==(thisboard->ai_nbits == 16 ? 100 : 1) * TIMEOUT){
+		if(i==TIMEOUT){
 			rt_printk("das08: timeout\n");
 			return -ETIME;
 		}
