@@ -284,6 +284,18 @@ static inline void ni_ao_win_outl(comedi_device *dev, uint32_t data, int addr)
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 }
 
+static inline unsigned short ni_ao_win_inw( comedi_device *dev, int addr )
+{
+	unsigned long flags;
+	unsigned short data;
+
+	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	ni_writew(addr, AO_Window_Address_671x);
+	data = ni_readw(AO_Window_Data_671x);
+	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	return data;
+}
+
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to
 * share registers (such as Interrupt_A_Register) without interfering with
 * each other.
@@ -618,13 +630,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	if( (status & AI_STOP_St) ){
 		if(devpriv->aimode==AIMODE_SCAN){
 #ifdef PCIDMA
-			int bytes_in_transit;
-
-			do{
-				bytes_in_transit = mite_bytes_in_transit( devpriv->mite, AI_DMA_CHAN );
-				ni_sync_ai_dma(devpriv->mite, dev);
-			}while( ( s->async->events & COMEDI_CB_EOS ) == 0 &&
-				bytes_in_transit );
+			ni_sync_ai_dma(devpriv->mite, dev);
 #else
 			ni_handle_fifo_dregs(dev);
 			s->async->events |= COMEDI_CB_EOS;
@@ -1248,12 +1254,50 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	return insn->n;
 }
 
+static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	int i, n;
+	static const int timeout = 100;
+	unsigned short status;
+
+	for(n = 0; n < insn->n; n++)
+	{
+		ni_ao_win_outw(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION, CAL_ADC_Command_67xx);
+		for(i = 0; i < timeout; i++)
+		{
+			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+			if((status & CSS_ADC_BUSY) == 0)
+			{
+				break;
+			}
+			/* this can't be called from RT, but why would someone want to mess with
+			 * this calibration adc from RT priority? */
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(1);
+		}
+		if(i == timeout)
+		{
+			rt_printk("ni_mio_common: timeout in cs5529_ai_insn_read\n");
+			return -ETIME;
+		}
+		if(status & (CSS_OSC_DETECT | CSS_OVERRANGE))
+		{
+			rt_printk("ni_mio_common: cs5529 conversion error, status 0x%x\n", status);
+			return -EIO;
+		}
+#if 0
+rt_printk("looped %i times\n", i);
+#endif
+		/*XXX cs5529 returns signed data in bipolar mode */
+		data[n] = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
+	}
+	return insn->n;
+}
 
 /*
  * Notes on the 6110 and 6111:
  * These boards a slightly different than the rest of the series, since
- * they have multiple A/D converters.  If you
- * have any questions, ask Tim Ousley.
+ * they have multiple A/D converters.
  * From the driver side, the configuration memory is a
  * little different.
  * Configuration Memory Low:
@@ -2449,7 +2493,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int bits;
 
-	if(alloc_subdevices(dev, 8)<0)
+	if(alloc_subdevices(dev, 9)<0)
 		return -ENOMEM;
 
 	/* analog input subdevice */
@@ -2531,7 +2575,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
-	
+
 	/* general purpose counter/timer device */
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
@@ -2544,7 +2588,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	devpriv->an_trig_etc_reg = 0;
 	GPCT_Reset(dev,0);
 	GPCT_Reset(dev,1);
-	
+
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_CALIB;
@@ -2552,7 +2596,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_read=ni_calib_insn_read;
 	s->insn_write=ni_calib_insn_write;
 	caldac_setup(dev,s);
-	
+
 	/* EEPROM */
 	s=dev->subdevices+6;
 	s->type=COMEDI_SUBD_MEMORY;
@@ -2560,7 +2604,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=512;
 	s->maxdata=0xff;
 	s->insn_read=ni_eeprom_insn_read;
-	
+
 	/* PFI */
 	s=dev->subdevices+7;
 	s->type=COMEDI_SUBD_DIO;
@@ -2571,6 +2615,37 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config = ni_pfi_insn_config;
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
+	/* cs5529 calibration adc */
+	s = dev->subdevices + 8;
+	if(boardtype.reg_type & ni_reg_67xx_mask)
+	{
+		s->type = COMEDI_SUBD_AI;
+		s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_INTERNAL;
+		s->n_chan = 1;
+		s->maxdata = (1 << 16) - 1;
+		s->range_table = &range_unknown; /* XXX */
+		s->insn_read=cs5529_ai_insn_read;
+		s->insn_config=NULL; /* XXX */
+	}else
+	{
+		s->type=COMEDI_SUBD_UNUSED;
+	}
+#if 0
+/* set calibration source to ref = ground, dac = 0*/
+win_out(0x100, AO_Calibration_Channel_Select_67xx);
+	/* calibration subdevice for cs5529 adc*/
+	s = dev->subdevices + 9;
+	if(boardtype.reg_type & ni_reg_67xx_mask)
+	{
+		s->type = COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_WRITABLE | SDF_INTERNAL;
+		s->insn_read = NULL; /* XXX */
+		s->insn_write = NULL; /* XXX */
+	}else
+	{
+		s->type=COMEDI_SUBD_UNUSED;
+	}
+#endif
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
 	if(boardtype.reg_type == ni_reg_normal){
