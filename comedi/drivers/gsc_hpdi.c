@@ -481,6 +481,9 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 	transfer_size -= transfer_size % sizeof( uint32_t );
 	if( transfer_size == 0 ) return -1;
 
+	DEBUG_PRINT(" transfer_size %i\n", transfer_size );
+	DEBUG_PRINT(" descriptors at 0x%lx\n", (unsigned long) priv(dev)->dma_desc_phys_addr );
+
 	buffer_offset = 0;
 	buffer_index = 0;
 	for( i = 0; i < NUM_DMA_DESCRIPTORS &&
@@ -503,14 +506,21 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 			( buffer_offset / sizeof( uint32_t ) );
 
 		buffer_offset += transfer_size;
+
+		DEBUG_PRINT(" descriptor %i\n", i );
+		DEBUG_PRINT(" start_addr virt 0x%p, phys 0x%lx\n", priv(dev)->desc_dio_buffer[ i ],
+			(unsigned long)priv(dev)->dma_desc[ i ].pci_start_addr );
+		DEBUG_PRINT(" next 0x%lx\n", (unsigned long)priv(dev)->dma_desc[ i ].next );
 	}
 	priv(dev)->num_dma_descriptors = i;
 	// fix last descriptor to point back to first
 	priv(dev)->dma_desc[ i - 1 ].next =
 		priv(dev)->dma_desc_phys_addr | next_bits;
+	DEBUG_PRINT(" descriptor %i next fixup 0x%lx\n", i - 1,
+		(unsigned long) priv(dev)->dma_desc[ i - 1 ].next );
 
 	priv(dev)->block_size = transfer_size;
-	
+
 	return transfer_size;
 }
 
@@ -602,11 +612,19 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		priv(dev)->dio_buffer[ i ] = pci_alloc_consistent( priv(dev)->hw_dev,
 			DMA_BUFFER_SIZE, &priv(dev)->dio_buffer_phys_addr[ i ] );
+		DEBUG_PRINT( "dio_buffer at virt 0x%p, phys 0x%lx\n",
+			priv(dev)->dio_buffer[ i ], (unsigned long) priv(dev)->dio_buffer_phys_addr[ i ]);
 	}
 	// allocate dma descriptors
 	priv(dev)->dma_desc = pci_alloc_consistent( priv(dev)->hw_dev,
 		sizeof( struct plx_dma_desc ) * NUM_DMA_DESCRIPTORS,
 		&priv(dev)->dma_desc_phys_addr);
+	if( priv(dev)->dma_desc_phys_addr & 0xf )
+	{
+		printk(" dma descriptors not quad-word aligned (bug)\n");
+		return -EIO;
+	}
+
 	retval = setup_dma_descriptors( dev, 0x1000 );
 	if( retval < 0 )
 		return retval;
@@ -846,12 +864,12 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	for(next_transfer_addr = readl(pci_addr_reg);
 		(next_transfer_addr < priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr ||
 		next_transfer_addr >= priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].pci_start_addr +
-		priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].transfer_size ) &&
+		priv(dev)->block_size ) &&
 		j < priv(dev)->num_dma_descriptors;
 		j++ )
 	{
 		// transfer data from dma buffer to comedi buffer
-		num_samples = priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].transfer_size / sizeof( uint32_t );
+		num_samples = priv(dev)->block_size / sizeof( uint32_t );
 		if( async->cmd.stop_src == TRIG_COUNT )
 		{
 			if(num_samples > priv(dev)->dio_count)
@@ -863,7 +881,8 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 		priv(dev)->dma_desc_index++;
 		priv(dev)->dma_desc_index %= priv(dev)->num_dma_descriptors;
 
-		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->dio_buffer_phys_addr[priv(dev)->dma_index]);
+		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long)
+			priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].next );
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
 	// XXX check for buffer overrun somehow
