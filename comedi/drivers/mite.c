@@ -359,7 +359,7 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 		(unsigned long)prealloc_buf,prealloc_bufsz);
 	
 	while(((void*)nup < (async->data+len))&&(i<(MITE_RING_SIZE-1))) {
-		int n;
+		int count;
 		count = 1+TOP_OF_PAGE(nup)-nup;
 		if(count>len-size_so_far) count = len-size_so_far;
 		mite->ring[i].addr =kvirt_to_bus(nup);// it's already a kernel address :-)
