@@ -4,7 +4,7 @@
  */
 
 #include <comedi_module.h>
-#include <rtl.h>
+#include "rtl.h"
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -14,6 +14,8 @@
 #include <linux/rtl.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+
+#include <rtl_core.h>
 #if 0
 #include <rtlinux/rtl_posixio.h>
 #endif
@@ -183,6 +185,12 @@ struct rtl_file_operations comedi_rtl_fops={
 
 #endif
 
+static struct comedi_irq_struct rtl_irq_struct;
+
+struct comedi_irq_struct * get_irq_struct(unsigned int irq)
+{
+	return &rtl_irq_struct;
+}
 
 static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
 {

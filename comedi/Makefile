@@ -17,13 +17,8 @@ MI_OBJS := comedi_fops.o dummy.o proc.o range.o drivers.o kvmem.o
 MIX_OBJS := comedi_ksyms.o
 
 
-ifeq ($(CONFIG_COMEDI_REALTIME),y)
-MI_OBJS += rt.o
-endif
-
 ifeq ($(CONFIG_COMEDI_RTL),y)
 MI_OBJS += rtl.o
-CFLAGS += -D__RTL__
 endif
 
 ifeq ($(CONFIG_COMEDI_RTAI),y)
@@ -32,7 +27,6 @@ endif
 
 ifeq ($(CONFIG_COMEDI_RTL_V1),y)
 MI_OBJS += rtl_v1.o
-CFLAGS += -D__RTL__
 endif
 
 range-y := range.c

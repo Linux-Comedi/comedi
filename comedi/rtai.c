@@ -13,6 +13,8 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 
+#include <rtai.h>
+
 
 extern void rt_unmask_irq(unsigned int irq);
 

@@ -56,23 +56,24 @@ struct comedi_irq_struct * get_irq_struct(unsigned int);
 #endif
 
 #ifdef CONFIG_COMEDI_RTL
-#include <rtl.h>
+void comedi_rtl_init(void);
+void comedi_rtl_cleanup(void);
 #endif
 
 #ifdef CONFIG_COMEDI_RTAI
-#include <rtai.h>
+void comedi_rtai_init(void);
+void comedi_rtai_cleanup(void);
 #define rt_printk(format,args...)	printk(format,##args)
 #define rt_printk_init()		
 #define rt_printk_cleanup()		
-
 #endif
 
 #ifdef CONFIG_COMEDI_RTL_V1
-#include <rtl_v1.h>
+void comedi_rtl_v1_init(void);
+void comedi_rtl_v1_cleanup(void);
 #define rt_printk(format,args...)	printk(format,##args)
 #define rt_printk_init()		
 #define rt_printk_cleanup()		
-
 #endif
 
 #else /* !CONFIG_COMEDI_RT */
@@ -83,7 +84,7 @@ struct comedi_irq_struct * get_irq_struct(unsigned int);
 
 #endif
 
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_COMEDI_DEBUG
 #define DPRINTK(format, args...)	printk("comedi: " format , ## args )
 #else
 #define DPRINTK(format, args...)	/* */
