@@ -209,10 +209,20 @@ typedef struct wait_queue *wait_queue_head_t;
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)		/* ? */
-#ifdef MODULE
-#define THIS_MODULE	&__this_module
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
+  #ifdef MODULE
+  /* don't ask.  It works. */
+  #define THIS_MODULE			((struct module *)&mod_use_count_)
+  #else
+  #define THIS_MODULE	NULL
+  #endif
+  #define __MOD_INC_USE_COUNT(x)	((*(long *)(x))++, (*(long *)(x)) |= MOD_VISITED)
+  #define __MOD_DEC_USE_COUNT(x)	((*(long *)(x))--, (*(long *)(x)) |= MOD_VISITED)
 #else
-#define THIS_MODULE	NULL
+  #ifdef MODULE
+  #define THIS_MODULE	&__this_module
+  #else
+  #define THIS_MODULE	NULL
 #endif
 #endif
 
