@@ -1,0 +1,6 @@
+comedi (0.7.63-cvs20020210-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- David Schleef <ds@schleef.org>  Mon, 11 Feb 2002 00:08:02 -0800
+

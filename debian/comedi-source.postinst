@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "$1" = "configure" ]; then
+	if [ -d /usr/doc -a ! -e /usr/doc/comedi-source -a -d /usr/share/doc/comedi-source ]; then
+		ln -sf ../share/doc/comedi-source /usr/doc/comedi-source
+	fi
+fi
