@@ -20,6 +20,8 @@
 #define pci_for_each_dev(x)	\
 	for((x)=pci_devices;(x);(x)=(x)->next)
 
+#define pci_enable_device(x) 0
+
 #else
 
 #endif
