@@ -102,10 +102,10 @@ for modprobe and insmod.
 
 In order to configure a driver module to use a particular device
 file (/dev/comediN) and a particular device, you need to use the
-command /usr/sbin/comedi_config, which is part of the comedilib
+command 'comedi_config', which is part of the comedilib
 distribution.  Comedi_config is invoked using
 
-  /usr/sbin/comedi_config /dev/comedi0 <device name> <option list>
+  comedi_config /dev/comedi0 <device name> <option list>
 
 The device name may or may not be the same as the module name.  In
 general, if the device type can be autoprobed (as with ISA PnP or
@@ -117,10 +117,10 @@ such as I/O address, IRQ, DMA channels, and other jumper settings.
 Information about option lists appropriate for a driver is in
 drivers.txt.  The following commands are examples:
 
-  /usr/sbin/comedi_config /dev/comedi0 dt2821 0x240,3
-  /usr/sbin/comedi_config /dev/comedi1 ni_atmio 0x260,4
-  /usr/sbin/comedi_config /dev/comedi2 dt2817 0x228
-  /usr/sbin/comedi_config /dev/comedi3 ni_pcimio
+  comedi_config /dev/comedi0 dt2821 0x240,3
+  comedi_config /dev/comedi1 ni_atmio 0x260,4
+  comedi_config /dev/comedi2 dt2817 0x228
+  comedi_config /dev/comedi3 ni_pcimio
 
 Try a 'man comedi_config' for information on how to use
 this utility.  Scripts have been written for a few of the drivers
@@ -134,7 +134,7 @@ into /etc/modules.conf (this does not apply for PCMCIA cards):
 
   alias char-major-98 comedi
   alias char-major-98-0 your_driver
-  post-install your_driver /usr/sbin/comedi_config /dev/comedi0 your_driver <<options>>
+  post-install your_driver PATH=/sbin:/usr/sbin:/usr/local/sbin:$PATH;comedi_config /dev/comedi0 board_name <<options>>
 
 Alternatively, for complicated option lists, the scripts in etc
 are designed to be copied into /etc, so that you could put the
