@@ -56,5 +56,5 @@ select(CONFIG_COMEDI_RTI800 rti800.o)
 select(CONFIG_COMEDI_RTI802 rti802.o)
 select(CONFIG_COMEDI_SKEL skel.o)
 select(CONFIG_COMEDI_SSV_DNP ssv_dnp.o)
-select(CONFIG_COMEDI_DUMMY_WAVEFORM dummy_waveform.o)
+select(CONFIG_COMEDI_TEST comedi_test.o)
 

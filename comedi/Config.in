@@ -117,7 +117,7 @@ dep_tristate 'Winsystems PCM-A/D' CONFIG_COMEDI_PCMAD $CONFIG_COMEDI
 dep_tristate 'Amplicon PCI230' CONFIG_COMEDI_AMPLC_PCI230 $CONFIG_COMEDI
 dep_tristate 'SSV DIL/Net PC driver' CONFIG_COMEDI_SSV_DNP $CONFIG_COMEDI
 dep_tristate 'Inova ICP Multi' CONFIG_COMEDI_ICP_MULTI $CONFIG_COMEDI
-dep_tristate 'Dummy waveform driver' CONFIG_COMEDI_DUMMY_WAVEFORM $CONFIG_COMEDI
+dep_tristate 'Comedi test driver' CONFIG_COMEDI_TEST $CONFIG_COMEDI
 dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then

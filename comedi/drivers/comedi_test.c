@@ -1,5 +1,5 @@
 /*
-    dummy_waveform.c driver
+    comedi_test.c driver
 
     Generates fake waveform signals that can be read through
     the command interface.  It does _not_ read from any board;
@@ -28,7 +28,7 @@
 
 ************************************************************************/
 /*
-Driver: dummy_waveform.o
+Driver: comedi_test.o
 Description: generates fake waveforms
 Authors: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess <fmhess@uiuc.edu>
 Devices:
@@ -66,7 +66,7 @@ typedef struct waveform_board_struct{
 } waveform_board;
 static waveform_board waveform_boards[] = {
 	{
-	name:           "dummy_waveform",
+	name:           "comedi_test",
 	ai_chans:       8,
 	ai_bits:        16,
 	have_dio:       0,
@@ -80,8 +80,11 @@ typedef struct{
 	struct timeval last; // time at which last timer interrupt occured
 	unsigned int uvolt_amplitude;	// waveform amplitude in microvolts
 	unsigned long usec_period;	// waveform period in microseconds
-	unsigned long usec_current;	// current time (modulo waveform period)
+	volatile unsigned long usec_current;	// current time (modulo waveform period)
+	volatile unsigned long usec_remainder;	// usec since last scan;
 	volatile unsigned long ai_count;	// number of conversions remaining
+	unsigned int scan_period;	// scan period in usec
+	unsigned int convert_period;	// conversion period in usec
 	volatile unsigned timer_running : 1;
 } waveform_private;
 #define devpriv ((waveform_private *)dev->private)
@@ -89,7 +92,7 @@ typedef struct{
 static int waveform_attach(comedi_device *dev,comedi_devconfig *it);
 static int waveform_detach(comedi_device *dev);
 static comedi_driver driver_waveform={
-	driver_name:    "dummy_waveform",
+	driver_name:    "comedi_test",
 	module:         THIS_MODULE,
 	attach:         waveform_attach,
 	detach:         waveform_detach,
@@ -108,6 +111,8 @@ static sampl_t fake_squarewave(comedi_device *dev, unsigned int range, unsigned 
 static sampl_t fake_flatline(comedi_device *dev, unsigned int range, unsigned long current_time);
 static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
 	unsigned int range, unsigned long current_time);
+
+static const int nano_per_micro = 1000;	// 1000 nanosec in a microsec
 
 // fake analog input ranges
 static comedi_lrange waveform_ai_ranges =
@@ -133,16 +138,14 @@ void waveform_ai_interrupt(unsigned long arg)
 	// all times in microsec
 	unsigned long elapsed_time;
 	unsigned int num_scans;
-	unsigned int scan_period = async->cmd.scan_begin_arg / 1000;
-	unsigned int remainder = devpriv->usec_current % scan_period;
 	struct timeval now;
 
 	do_gettimeofday(&now);
 
 	elapsed_time = 1000000 * (now.tv_sec - devpriv->last.tv_sec) + now.tv_usec - devpriv->last.tv_usec;
 	devpriv->last = now;
-	num_scans = (remainder + elapsed_time) / scan_period;
-
+	num_scans = (devpriv->usec_remainder + elapsed_time) / devpriv->scan_period;
+	devpriv->usec_remainder = (devpriv->usec_remainder + elapsed_time) % devpriv->scan_period;
 	async->events = 0;
 
 	for(i = 0; i < num_scans; i++)
@@ -151,7 +154,7 @@ void waveform_ai_interrupt(unsigned long arg)
 		{
 			comedi_buf_put(async,
 				fake_waveform(dev, CR_CHAN(cmd->chanlist[j]), CR_RANGE(cmd->chanlist[j]),
-					devpriv->usec_current + i * scan_period));
+					devpriv->usec_current + i * devpriv->scan_period + j * devpriv->convert_period));
 		}
 		devpriv->ai_count++;
 		if(cmd->stop_src == TRIG_COUNT && devpriv->ai_count >= cmd->stop_arg)
@@ -168,6 +171,8 @@ void waveform_ai_interrupt(unsigned long arg)
 
 	if((async->events & COMEDI_CB_EOA) == 0 && devpriv->timer_running)
 		mod_timer(&devpriv->timer, jiffies + 1);
+	else
+		del_timer(&devpriv->timer);
 
 	comedi_event(dev, dev->read_subdev, async->events);
 }
@@ -178,7 +183,7 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	int amplitude = it->options[0];
 	int period = it->options[1];
 
-	printk("comedi%d: dummy_waveform: ", dev->minor);
+	printk("comedi%d: comedi_test: ", dev->minor);
 
 	dev->board_name = thisboard->name;
 
@@ -223,7 +228,7 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int waveform_detach(comedi_device *dev)
 {
-	printk("comedi%d: dummy_waveform: remove\n",dev->minor);
+	printk("comedi%d: comedi_test: remove\n",dev->minor);
 
 	if(dev->private)
 	{
@@ -250,7 +255,7 @@ static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
+	cmd->convert_src &= TRIG_NOW | TRIG_TIMER;
 	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
 
 	tmp = cmd->scan_end_src;
@@ -265,6 +270,8 @@ static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
+	if(cmd->convert_src != TRIG_NOW &&
+		cmd->convert_src != TRIG_TIMER) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE) err++;
 
@@ -277,16 +284,29 @@ static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		cmd->start_arg = 0;
 		err++;
 	}
-	if(cmd->convert_arg != 0)
+	if(cmd->convert_src == TRIG_NOW)
 	{
-		cmd->convert_arg = 0;
-		err++;
+		if(cmd->convert_arg != 0)
+		{
+			cmd->convert_arg = 0;
+			err++;
+		}
 	}
 	if(cmd->scan_begin_src == TRIG_TIMER)
 	{
-		if(cmd->scan_begin_arg < 1000)
-			cmd->scan_begin_arg = 1000;
+		if(cmd->scan_begin_arg < nano_per_micro)
+		{
+			cmd->scan_begin_arg = nano_per_micro;
+			err++;
+		}
+		if(cmd->convert_src == TRIG_TIMER &&
+			cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len)
+		{
+			cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+			err++;
+		}
 	}
+
 
 	// XXX these checks are generic and should go in core if not there already
 	if(!cmd->chanlist_len)
@@ -322,11 +342,17 @@ static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(cmd->scan_begin_src == TRIG_TIMER)
 	{
-		const int nano_per_micro = 1000;
 		tmp = cmd->scan_begin_arg;
 		// round to nearest microsec
 		cmd->scan_begin_arg = nano_per_micro * ((tmp + (nano_per_micro / 2)) / nano_per_micro);
 		if(tmp != cmd->scan_begin_arg) err++;
+	}
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		tmp = cmd->convert_arg;
+		// round to nearest microsec
+		cmd->convert_arg = nano_per_micro * ((tmp + (nano_per_micro / 2)) / nano_per_micro);
+		if(tmp != cmd->convert_arg) err++;
 	}
 
 	if(err) return 4;
@@ -339,12 +365,22 @@ static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_cmd *cmd = &s->async->cmd;
 
 	devpriv->timer_running = 1;
+	devpriv->ai_count = 0;
+	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
 
-	if(cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_count = 0;
+	if(cmd->convert_src == TRIG_NOW)
+		devpriv->convert_period = 0;
+	else if( cmd->convert_src == TRIG_TIMER)
+		devpriv->convert_period = cmd->convert_arg / nano_per_micro;
+	else
+	{
+		comedi_error(dev, "bug setting conversion period");
+		return -1;
+	}
 
 	do_gettimeofday(&devpriv->last);
-	devpriv->usec_current = 0;
+	devpriv->usec_current = devpriv->last.tv_usec % devpriv->usec_period;
+	devpriv->usec_remainder = 0;
 
 	devpriv->timer.expires = jiffies + 1;
 	add_timer(&devpriv->timer);
