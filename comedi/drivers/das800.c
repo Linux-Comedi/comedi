@@ -33,7 +33,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <comedi_module.h>
+#include <linux/comedidev.h>
 
 #define DAS800_SIZE           8
 #define TIMER_BASE            1000
@@ -170,7 +170,7 @@ comedi_driver driver_das800={
  * static int das800_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
  */
 
-unsigned int das800_interrupt(unsigned int irq, void *d, struct pt_regs *regs);
+static void das800_interrupt(int irq, void *d, struct pt_regs *regs);
 void enableDAS800(comedi_device *dev);
 void disableDAS800(comedi_device *dev);
 static int das800_do_cmd(comedi_device *dev, comedi_subdevice *s);
@@ -228,7 +228,7 @@ int das800_probe(comedi_device *dev)
  */
 COMEDI_INITCLEANUP(driver_das800);
 
-unsigned int das800_interrupt(unsigned int irq, void *d, struct pt_regs *regs)
+static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	short i;		/* loop index */
   sampl_t dataPoint;
@@ -245,7 +245,7 @@ unsigned int das800_interrupt(unsigned int irq, void *d, struct pt_regs *regs)
 		{
       comedi_error(dev, "DAS800 FIFO overflow");
 			comedi_error_done(dev, s);
-			return 1;
+			return;
 		}
 		dataPoint = (dataPoint >> 4) & 0xfff;		/* strip off extraneous bits */
 		if(devpriv->count > 0 || devpriv->forever == 1)
@@ -281,7 +281,6 @@ unsigned int das800_interrupt(unsigned int irq, void *d, struct pt_regs *regs)
 		disableDAS800(dev);		/* diable hardware triggered conversions */
 		comedi_done(dev, s);
 	}
-	return 0;
 };
 
 /*
@@ -312,7 +311,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 		printk("irq out of range\n");
 		return -EINVAL;
 	}
-	if( comedi_request_irq( irq, das800_interrupt, SA_INTERRUPT, "das800", dev ))
+	if( comedi_request_irq( irq, das800_interrupt, 0, "das800", dev ))
 	{
 		printk( "unable to allocate irq %d\n", irq);
 		return -EINVAL;
@@ -380,7 +379,7 @@ static int das800_detach(comedi_device *dev)
 	printk("comedi%d: das800: remove\n", dev->minor);
 
 	release_region(dev->iobase, DAS800_SIZE);		/* free general status and control registers' i/o ports */
-	comedi_free_irq(dev->irq);		/* free irq */
+	comedi_free_irq(dev->irq,dev);		/* free irq */
 	return 0;
 };
 
