@@ -180,9 +180,9 @@ enum board_status_bits
 	RX_NOT_FULL_BIT = 0x8000,
 	BOARD_JUMPER0_INSTALLED_BIT = 0x10000,
 	BOARD_JUMPER1_INSTALLED_BIT = 0x20000,
-	TX_OVERRUN_BIT = 0x2000000,
-	RX_UNDERRUN_BIT = 0x4000000,
-	RX_OVERRUN_BIT = 0x8000000,
+	TX_OVERRUN_BIT = 0x200000,
+	RX_UNDERRUN_BIT = 0x400000,
+	RX_OVERRUN_BIT = 0x800000,
 };
 
 uint32_t almost_full_bits( unsigned int num_words )
@@ -831,10 +831,12 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 	else
 		priv(dev)->dio_count = 1;
 
-	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );	
+	// clear over/under run status flags
+	writel( RX_UNDERRUN_BIT | RX_OVERRUN_BIT, priv(dev)->hpdi_iobase + BOARD_STATUS_REG );
+	// enable interrupts
+	writel( intr_bit( RX_FULL_INTR ), priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 
 	DEBUG_PRINT( "hpdi: starting rx\n");
-
 	hpdi_writel( dev, RX_ENABLE_BIT, BOARD_CONTROL_REG );
 
 	return 0;
@@ -948,6 +950,18 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		plx_bits = readl(priv(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		writel(plx_bits, priv(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
+	}
+
+	if( hpdi_board_status & RX_OVERRUN_BIT )
+	{
+		comedi_error(dev, "rx fifo overrun");
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+	}
+
+	if( hpdi_board_status & RX_UNDERRUN_BIT )
+	{
+		comedi_error(dev, "rx fifo underrun");
+		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
 	if( priv(dev)->dio_count == 0 )
