@@ -1568,6 +1568,9 @@ static int use_hw_sample_counter( comedi_cmd *cmd )
 {
 	static const int max_hardware_count = 0xffffff;
 
+// disable for now until I work out a race
+return 0;
+
 	if( cmd->stop_src == TRIG_COUNT &&
 		cmd->stop_arg <= max_hardware_count )
 		return 1;
