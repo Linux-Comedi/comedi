@@ -153,7 +153,7 @@ static int comedi_rtl_ioctl(struct rtl_file *file,unsigned int cmd,
 		int minor=file->f_minor;
 		int subdev=(int)arg;
 
-		return comedi_lock_ioctl(minor,subdev);
+		return comedi_unlock_ioctl(minor,subdev);
 	  }
 	case COMEDI_CANCEL:
 	  {
@@ -208,7 +208,7 @@ int get_priority_irq(struct comedi_irq_struct *it)
 
 int free_priority_irq(struct comedi_irq_struct *it)
 {
-	rtl_free_irq(it->irq);
+	rtl_free_global_irq(it->irq);
 
 	return 0;
 }
