@@ -97,8 +97,8 @@ analog triggering on 1602 series
 #include "8255.h"
 #include "amcc_s5933.h"
 
-//#define CB_PCIDAS_DEBUG	// enable debugging code
 #undef CB_PCIDAS_DEBUG	// disable debugging code
+//#define CB_PCIDAS_DEBUG	// enable debugging code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
@@ -1502,10 +1502,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if(dev->attached == 0)
 	{
-#ifdef CB_PCIDAS_DEBUG
 		comedi_error(dev, "premature interrupt");
-#endif
-		return;
 	}
 
 	async = s->async;
@@ -1579,7 +1576,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 				break;
 			}
 		}
-		async->events |= COMEDI_CB_BLOCK;
 		// clear not-empty interrupt latch
 		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 	}else if(status & EOAI)
