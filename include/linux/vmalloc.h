@@ -12,6 +12,7 @@
 
 #else
 #include_next <linux/vmalloc.h>
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 2, 18)
 extern inline void * vmalloc_32(unsigned long size)
@@ -20,7 +21,6 @@ extern inline void * vmalloc_32(unsigned long size)
 }
 #endif	// 2.2.18
 
-#endif
 
 #endif
 

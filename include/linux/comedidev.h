@@ -347,6 +347,7 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 		return sizeof( sampl_t );
 }
 
+#if LINUX_VERSION_CODE >= 0x020200
 static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
 {
 	unsigned long ret = 0UL;
@@ -376,6 +377,7 @@ static inline unsigned long kvirt_to_pa(unsigned long adr)
 	ret = __pa(kva);
 	return ret;
 }
+#endif
 
 int comedi_buf_put(comedi_async *async, sampl_t x);
 int comedi_buf_get(comedi_async *async, sampl_t *x);
