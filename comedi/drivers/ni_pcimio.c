@@ -52,8 +52,8 @@ DMA is halfway completed, but not yet operational.
 
 	References for specifications:
 	
-	   340747c.pdf  Register Level Programmer Manual
-	   DAQ-STC reference manual
+	   341079b.pdf  PCI E Series Register-Level Programmer Manual
+	   340934b.pdf  DAQ-STC reference manual
 
 	Other possibly relevant info:
 	
