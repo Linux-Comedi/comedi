@@ -397,3 +397,9 @@ if grep 'write[wlb] *([^(,]*iobase' ${driver} &>/dev/null; then
 	echo "E: writeX(dev->iobase + offset,XXX)"
 fi
 
+if grep 'COMEDI_SUBD_AI' ${driver} &>/dev/null;then
+	if ! grep 'SDF_\(GROUND\|COMMON\|DIFF\|OTHER\)' ${driver} &>/dev/null;then
+		echo "E: Driver doesn't set SDF flags for aref's it supports"
+	fi
+fi
+
