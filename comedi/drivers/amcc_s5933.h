@@ -18,7 +18,7 @@
 #include <linux/pci.h>
 
 #ifdef PCI_SUPPORT_VER1
-    Sorry, no support for 2.1.55 and older! :-((((
+#error    Sorry, no support for 2.1.55 and older! :-((((
 #endif
 
 
@@ -218,14 +218,17 @@ void amcc_init(void)
 			amcc->daq_io_addr=pcidev->base_address[2] & ~3UL;
 			amcc->irq=pcidev->irq;
 #else
-			amcc->device=???;
-			amcc->master=???;
-			amcc->pci_bus=???;
-			amcc->pci_slot=???;
-			amcc->pci_func=???;
+			amcc->device=pcidev->device;
+#if 0
+			amcc->master=pcidev->master;
+			amcc->pci_bus=pcidev->bus->number;
+			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
+			amcc->pci_func=PCI_FUNC(pcidev->devfn);
+#endif
 			amcc->amcc_io_addr=pcidev->resource[0].start & ~3UL;
 			amcc->daq_io_addr=pcidev->resource[2].start & ~3UL;
-			amcc->irq=???;
+			amcc->irq=pcidev->irq;
+#endif
 #endif
 			
 		}
