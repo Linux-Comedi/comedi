@@ -346,6 +346,7 @@ comedi_driver driver_dt282x={
 	detach:		dt282x_detach,
 	recognize:	dt282x_recognize,
 };
+COMEDI_INITCLEANUP(driver_dt282x);
 
 static void free_resources(comedi_device *dev);
 static int prep_ai_dma(comedi_device * dev,int chan,int size);
@@ -1563,21 +1564,6 @@ static int dt282x_detach(comedi_device * dev)
 
 	return 0;
 }
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_dt282x);
-
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt282x);
-}
-
-#endif
 
 static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2)
 {
