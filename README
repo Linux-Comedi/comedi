@@ -1,11 +1,29 @@
 
-For installation instructions, look at the file INSTALL.  For notes
-of what is happening/changing in recent comedi releases, see the
-file NOTES.
+    COMEDI
+    The Linux Control and Measurement Interface
+    David Schleef <ds@schleef.org>
 
-This distribution contains just the Comedi kernel module.  You will
+
+* About Comedi:
+
+Comedi is a collection of drivers for data acquisition hardware.
+These drivers work with Linux, and also with Linux combined with
+the real-time extensions RTAI and RTLinux.  The Comedi core, which
+ties all the driver together, allows applications to be written
+that are completely hardware independent.
+
+Comedi supports a variety of data acquisition hardware; an
+incomplete list can be found in Documentation/comedi/drivers.txt.
+
+This distribution contains just the Comedi kernel modules.  You will
 almost certainly also want to download Comedilib, which is a user
 space library, a few utilities, and some example programs.
+
+* Installation:
+
+For installation instructions, look at the file INSTALL.
+
+* Mailing List:
 
 Comedi has a mailing list.  Send "subscribe comedi" to
 comedi-request@stm.lbl.gov to subscribe.  Traffic is light, and mainly
@@ -16,11 +34,15 @@ http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi.
 You can always unsubscribe by sendinging "unsubscribe" (spell
 it correctly!) to comedi-request@stm.lbl.gov.
 
+* More Information:
+
 Comedi also has a web page, at http://stm.lbl.gov/comedi.  New versions
 of comedi can be found on the ftp site ftp://stm.lbl.gov/pub/comedi.
 
-Instructions for anonymous CVS access to the Comedi and Comedilib
-repositories are found at http://oss.lineo.com/cvs_anon.html.
+Often bugfixes and new features that are not in the current release
+can be found in the CVS repository.  Instructions for anonymous CVS
+access to the Comedi and Comedilib repositories are found at
+http://oss.lineo.com/cvs_anon.html.
 
 Comedi may be freely distibuted and modified in accordance with the
 GNU General Public License.

@@ -1,96 +1,144 @@
 
-Prerequisites:
-	- a machine capable of compiling Linux modules
-	- a correctly installed kernel source tree.  Specifically,
-	  you need to have the file /usr/src/linux/.config and
-	  /usr/src/linux/include/linux/autoconf.h.  If these are
-	  not present, you can create them by compiling a new
-	  kernel.  Some distributions don't provide these by
-	  default.
-	- a 2.2 or 2.4 series kernel.  2.0.38 may also work, but
-	  it's not actively maintained.  (But feel free to try it
-	  and report problems.)
+* Linux source:
 
-Configure using 'make'.  The first time you run make, it will take
-you through configuration options similar to compiling a linux
-kernel.  If you need to run the configuration again, use 'make config'.
-Red Hat users note: Red Hat does not ship with kernel headers
-capable of compiling Comedi.  You either need to install the
-kernel source RPMs, or download a kernel tarball and build a
-new kernel.
+In order to compile the Comedi modules, you will need to have
+a correctly configured Linux kernel source tree.  The best
+way to get one is to download a tarball from kernel.org and
+compile your own kernel.  Kernel sources that are distributed
+with Red Hat Linux are not supported, because they are too
+heavily modified.  Comedi should work with most 2.2 and 2.4
+Linux kernels.  2.0.3x may also work, but support for this
+is not actively maintained, but bugs will be fixed as they
+are reported.
 
-Make the dependency list by running 'make' again.
+* RTAI support:
 
-Compile using 'make'.  If this doesn't work, make sure you have the
-basic tools installed to compile.  If you can successfully compile
-other things, consult the author, as he has probably made a mistake.
+If you want to use the real-time capabilities of Comedi with
+RTAI, you need to compile and install RTAI first.  It is
+necessary to use the rthal patch instead of the "copyto"
+scripts.  Known working versions are RTAI-1.6, RTAI-24.1.4,
+and current RTAI CVS.  Remember to enable Kcomedilib support,
+since you will be accessing Comedi from other kernel modules.
+
+* RTLinux support:
+
+If you want to use the real-time capabilities of Comedi with
+RTAI, you need to compile RTLinux (both the kernel and the
+modules) first.  Known working versions are 2.x and 3.0.
+Remember to enable Kcomedilib support, since you will be
+accessing Comedi from other kernel modules.
+
+* Configuration:
+
+Configure using 'make'.  This will ask you the location of the
+Linux kernel source tree.  If it detects that you have a kernel
+patched for RTAI or RTLinux, it will also ask you for the location
+of the RTAI or RTLinux source directory.  Then the configuration
+script will ask questions for a couple general Comedi features
+and then whether or not compile each driver.
+
+* Compiling:
+
+Compile using 'make'.  If this fails for some reason, send the
+_entire_ build log to the mailing list.  Without the build
+log, it is impossible to find problems.
+
+* Installation:
 
 Install using 'make install' as root.  This installs the files:
-	/lib/modules/<<kernel version>>/misc/comedi.o
-	/lib/modules/<<kernel version>>/misc/kcomedilib.o
-	/lib/modules/<<kernel version>>/misc/<<driver files>>.o
+
+  /lib/modules/<<kernel version>>/misc/comedi.o
+  /lib/modules/<<kernel version>>/misc/kcomedilib.o
+  /lib/modules/<<kernel version>>/misc/<<driver files>>.o
 
 You need to create device files to access the hardware from a
 user process.  These can be created using 'make dev'.  The following
 special files will be created:
-	/dev/comedi0
-	/dev/comedi1
-	/dev/comedi2
-	/dev/comedi3
 
-To use comedi, the driver module must be loaded into the kernel.
-In general, this is done by a command similar to
+  /dev/comedi0
+  /dev/comedi1
+  /dev/comedi2
+  /dev/comedi3
 
-	/sbin/modprobe <<driver>>
+* Comedilib:
+
+Now would be a good time to compile and install Comedilib.  Comedi
+and Comedilib are completely independent, so it doesn't matter
+which is installed first.
+
+* Running Comedi:
+
+To use comedi, the driver module and the core Comedi modules must
+be loaded into the kernel.  This is done by a command similar to
+
+  /sbin/modprobe <<driver>>
 
 If your module dependencies are set up correctly, this will load
-both comedi.o and your driver.  See the man pages for modprobe
-and insmod for more details.
+both comedi.o and your driver.  If you get unresolved symbols, check
+the FAQ or the mailing list archives.  Also look at the man pages
+for modprobe and insmod.
 
-The default behavior when the module is loaded is to _not_ configure
-it automatically, i.e., you have a device file (/dev/comedi0) associated
-with a driver, but the driver is not associated with a device.  To
-associate a device file/driver with a device, you need to run the
+In order to configure a driver module to use a particular device
+file (/dev/comediN) and a particular device, you need to use the
 command /usr/sbin/comedi_config, which is part of the comedilib
-distribution.  This is also used to supply additional information,
-such as I/O address, IRQ, and possibly DMA channels.  The following
-commands are examples:
+distribution.  Comedi_config is invoked using
 
-	/usr/sbin/comedi_config /dev/comedi0 dt282x 0x240,3
-	/usr/sbin/comedi_config /dev/comedi1 ni_atmio 0x260,4
-	/usr/sbin/comedi_config /dev/comedi2 dt2817 0x228
-	/usr/sbin/comedi_config /dev/comedi0 ni_pcimio
+  /usr/sbin/comedi_config /dev/comedi0 <device name> <option list>
+
+The device name may or may not be the same as the module name.  In
+general, if the device type can be autoprobed (as with ISA PnP or
+PCI devices), the device name will be the same as the module name.
+Otherwise, you will need to check Documentation/comedi/drivers.txt
+for information about what device name is appropriate for your
+hardware.  The option list is to supply additional information,
+such as I/O address, IRQ, DMA channels, and other jumper settings.
+Information about option lists appropriate for a driver is in
+drivers.txt.  The following commands are examples:
+
+  /usr/sbin/comedi_config /dev/comedi0 dt2821 0x240,3
+  /usr/sbin/comedi_config /dev/comedi1 ni_atmio 0x260,4
+  /usr/sbin/comedi_config /dev/comedi2 dt2817 0x228
+  /usr/sbin/comedi_config /dev/comedi3 ni_pcimio
 
 Try a 'man comedi_config' for information on how to use
-this utility.  The options (numbers at the end, above) have
-different meanings for different drivers, and you should consult
-the file Documentation/comedi/drivers.txt for details about
-each driver.  Scripts have been written for a few of the drivers
+this utility.  Scripts have been written for a few of the drivers
 with very complicated option lists -- these are found in the etc
 directory.
 
+* Module Autoloading:
+
 If you like to autoload your modules, put the lines
 
-	alias char-major-98 comedi
-	alias char-major-98-0 your_driver
-	post-install your_driver /usr/sbin/comedi_config /dev/comedi0 your_driver <<options>>
+  alias char-major-98 comedi
+  alias char-major-98-0 your_driver
+  post-install your_driver /usr/sbin/comedi_config /dev/comedi0 your_driver <<options>>
 
 Alternatively, for complicated option lists, the scripts in etc
 are designed to be copied into /etc, so that you could put the
 following lines into /etc/conf.modules:
 
-	alias char-major-98-0 dt282x
-	post-install dt282x /etc/dt282x.conf
+  alias char-major-98-0 dt282x
+  post-install dt282x /etc/dt282x.conf
 
 If you have a National Instruments AT-MIO or PCI-MIO board, you probably
 will want to run comedi_calibrate, an autocalibration tool that is part
 of comedilib in a bootup script.
 
-To write programs that use comedi, there are demo programs included
-with comedilib.
+* PCMCIA:
 
+Linux-2.4 kernels are recommended for PCMCIA drivers, since 2.2
+kernel require the separate PCMCIA package.  It is possible to
+use 2.2 kernels with PCMCIA, although it is necessary to modify
+the top level Makefile.
 
-Upgrading:
+Comedi works with several PCMCIA cards, and the driver modules can
+be loaded and unloaded upon insertion and removal of the card.
+Copy the files in etc/pcmcia/ to /etc/pcmcia and restart card
+services.  The pcmcia script provided is very simple -- it only
+uses /dev/comedi0 for devices, which is a limitation if you have
+other Comedi devices in your system.
+
+* Upgrading:
 
 From versions prior to 0.6.0, you will need to edit and recompile
 all programs that use comedi or comedilib, since the names of
