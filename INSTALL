@@ -7,7 +7,7 @@ Prerequisites:
 	  not present, you can create them by compiling a new
 	  kernel.  Some distributions don't provide these by
 	  default.
-	- a 2.0, 2.2, or 2.3 series kernel.  Some development
+	- a 2.0, 2.2, or 2.4 series kernel.  Some development
 	  kernels may not work, since I don't keep very good
 	  track of them.
 
