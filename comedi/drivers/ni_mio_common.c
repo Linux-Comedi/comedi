@@ -2178,7 +2178,7 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 	if(diffbits){
 		int chan;
 
-		if(n_chans>=MAX_N_CALDACS){
+		if(n_chans>MAX_N_CALDACS){
 			printk("BUG! MAX_N_CALDACS too small\n");
 		}
 		s->maxdata_list=devpriv->caldac_maxdata_list;
