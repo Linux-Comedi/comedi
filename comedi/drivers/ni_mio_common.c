@@ -751,25 +751,19 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 	sampl_t d;
 	u32 packed_data;
 	int range;
-	int offset;
 	int err = 1;
 
-	offset = 1 << (boardtype.aobits - 1);
 	chan = async->cur_chan;
 	for(i=0;i<n;i++){
 		err &= comedi_buf_get(async, &d);
 		if(err == 0) break;
 
 		range = CR_RANGE(cmd->chanlist[chan]);
-		if(!boardtype.ao_unipolar || !(range & 1)){
-			d -= offset;
-		}
 
 		if( boardtype.ao_671x ){
 			packed_data = d & 0xffff;
 			err &= comedi_buf_get(async, &d);
 			if(err == 0) break;
-			d -= offset;
 			chan++;
 			i++;
 			packed_data |= ( d << 16 ) & 0xffff0000;
@@ -813,8 +807,8 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	n /= sizeof(sampl_t);
-	if(n>boardtype.ao_fifo_depth/2)
-		n=boardtype.ao_fifo_depth/2;
+	if(n>boardtype.ao_fifo_depth/sizeof(sampl_t))
+		n=boardtype.ao_fifo_depth/sizeof(sampl_t);
 
 	ni_ao_fifo_load(dev,s,n);
 
@@ -2467,9 +2461,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
 			s->len_chanlist = 2;
+			s->munge=ni_ao_munge;
 		}
 		s->cancel=ni_ao_reset;
-		s->munge=ni_ao_munge;
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
