@@ -125,7 +125,6 @@ typedef struct{
 static int timer_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	devpriv->done = 1;
-	comedi_unlock(devpriv->device,devpriv->subd);
 
 	return 0;
 }
