@@ -745,13 +745,8 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   result = alloc_subdevices(dev);
   if(result<0)goto out;
   
-#if LINUX_VERSION_CODE < 0x020300
-  devpriv->plx = ioremap(card->base_address[0], DAQBOARD2000_PLX_SIZE);
-  devpriv->daq = ioremap(card->base_address[2], DAQBOARD2000_DAQ_SIZE);
-#else
-  devpriv->plx = ioremap(card->resource[0].start, DAQBOARD2000_PLX_SIZE);
-  devpriv->daq = ioremap(card->resource[2].start, DAQBOARD2000_DAQ_SIZE);
-#endif
+  devpriv->plx = ioremap(pci_resource_start(card,0), DAQBOARD2000_PLX_SIZE);
+  devpriv->daq = ioremap(pci_resource_start(card,2), DAQBOARD2000_DAQ_SIZE);
   readl(devpriv->plx + 0x6c); 
 
   /*

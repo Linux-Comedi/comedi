@@ -71,11 +71,11 @@ PLEASE REPORT IF YOU ARE USING IT WITH A DIFFERENT CARD
 
 /* PCI-DDA base addresses */
 #define DIGITALIO_BADRINDEX	2
-	// DIGITAL I/O is devpriv->pci_dev->base_address[2]
+	// DIGITAL I/O is pci_dev->resource[2]
 #define DIGITALIO_SIZE 8
 	// DIGITAL I/O uses 8 I/O port addresses
 #define DAC_BADRINDEX	3
-	// DAC is devpriv->pci_dev->base_address[3]
+	// DAC is pci_dev->resource[3]
 
 /* Digital I/O registers */
 #define PORT1A 0	// PORT 1A DATA

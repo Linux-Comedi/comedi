@@ -571,11 +571,7 @@ static int setup_pci(comedi_device *dev)
 	ret = pci_enable_device(devpriv->pci_dev);
 	if(ret<0)return ret;
 
-#if LINUX_VERSION_CODE < 0x020300
-	addr=devpriv->pci_dev->base_address[0];
-#else
-	addr=devpriv->pci_dev->resource[0].start;
-#endif
+	addr=pci_resource_start(devpriv->pci_dev,0);
 	devpriv->phys_addr=addr;
 	offset = devpriv->phys_addr & ~PAGE_MASK;
 	devpriv->io_addr = ioremap(devpriv->phys_addr & PAGE_MASK, DT3000_SIZE + offset )
