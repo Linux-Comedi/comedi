@@ -241,7 +241,8 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 //	printk("atmio16d_interrupt!\n");
 
 
-	s->cur_trig.data[s->buf_int_ptr++] = inw(dev->iobase+AD_FIFO_REG);
+	*(sampl_t *)(((void *)s->cur_trig.data)+s->buf_int_ptr) = inw(dev->iobase+AD_FIFO_REG);
+	s->buf_int_ptr += sizeof(sampl_t);
 	s->buf_int_count += sizeof(sampl_t);
 		
 	if((++s->cur_chan) >= s->cmd.chanlist_len) {	/* one scan done */
@@ -253,8 +254,7 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* This is strange. If I let s->buf_int_ptr get all the way to
 	 * s->cur_trig.data_len, the kernel crashes. If I let it only 
 	 * get half that far, no problem. */
-//	if (s->buf_int_ptr >= s->cur_trig.data_len) {
-	if (s->buf_int_ptr >= s->cur_trig.data_len/2) {	/* buffer rollover */
+	if (s->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
 		s->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
