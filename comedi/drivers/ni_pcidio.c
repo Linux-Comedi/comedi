@@ -232,7 +232,7 @@ static int nidio_recognize(char *name)
 		printk("name \"nidio\" deprecated.  Use \"ni_pcidio\"\n");
 		return 0;
 	}
-	if(!strcmp(name,"ni_pcimio"))
+	if(!strcmp(name,"ni_pcidio"))
 		return 0;
 	return -1;
 }
