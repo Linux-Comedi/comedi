@@ -67,6 +67,7 @@ TODO:
 		are not yet available.
 	need to take care to prevent ai and ao from affecting each other's register bits
 	support prescaled 100khz clock for slow pacing (not available on 6000 series?)
+	figure out cause of intermittent lockups (pci dma?)
 */
 
 #include <linux/kernel.h>
@@ -97,8 +98,6 @@ TODO:
 #define DEBUG_PRINT(format, args...)
 #endif
 
-// PCI vendor number of ComputerBoards/MeasurementComputing
-#define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 25	// 40MHz master clock
 #define PRESCALED_TIMER_BASE	10000	// 100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday
 #define QUARTER_AI_FIFO_SIZE 2048	// 1/4 analog input fifo size
@@ -615,15 +614,15 @@ static pcidas64_board pcidas64_boards[] =
 #define N_BOARDS	(sizeof(pcidas64_boards) / sizeof(pcidas64_board))
 
 static struct pci_device_id pcidas64_pci_table[] __devinitdata = {
-	{ PCI_VENDOR_ID_CB, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x0036, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x0037, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x005e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x0063, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x0064, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_CB, 0x0052, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0036, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0037, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x005e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0063, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0064, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0052, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
@@ -752,7 +751,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	pci_for_each_dev(pcidev)
 	{
 		// is it not a computer boards card?
-		if(pcidev->vendor != PCI_VENDOR_ID_CB)
+		if(pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 #ifdef PCIDAS64_DEBUG
 		printk(" found computer boards device id 0x%x on bus %i slot %i\n",
@@ -1671,8 +1670,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	int num_samples = 0;
 	unsigned int i;
 	unsigned int status;
-	u32 plx_status;
-	u32 plx_bits;
+	uint32_t plx_status;
+	uint32_t plx_bits;
 	unsigned int dma0_status;
 
 	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
@@ -1705,25 +1704,35 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(plx_status & ICS_DMA0_A)
 	{	// dma chan 0 interrupt
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
-		DEBUG_PRINT("dma chain flags 0x%x\n", CHAIN_FLAG_BITS(readw(private(dev)->main_iobase + PREPOST_REG)));
 		// XXX possible race
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		if(dma0_status & PLX_DMA_EN_BIT)
 		{
-			// transfer data from dma buffer to comedi buffer
-			num_samples = DMA_TRANSFER_SIZE / sizeof(private(dev)->ai_buffer[0][0]);
-			if(cmd->stop_src == TRIG_COUNT)
+			uint32_t next_transfer_addr;
+			static const int timeout = 1000;
+			int j;
+			// loop until we have read all the transferred data
+			for(next_transfer_addr = readl(private(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG), j = 0;
+				next_transfer_addr != private(dev)->ai_buffer_phys_addr[private(dev)->dma_index] && j < timeout;
+				j++ )
 			{
-				if(num_samples > private(dev)->ai_count)
-					num_samples = private(dev)->ai_count;
-				private(dev)->ai_count -= num_samples;
+				// transfer data from dma buffer to comedi buffer
+				num_samples = DMA_TRANSFER_SIZE / sizeof(private(dev)->ai_buffer[0][0]);
+				if(cmd->stop_src == TRIG_COUNT)
+				{
+					if(num_samples > private(dev)->ai_count)
+						num_samples = private(dev)->ai_count;
+					private(dev)->ai_count -= num_samples;
+				}
+				for(i = 0; i < num_samples; i++)
+				{
+					comedi_buf_put(async, private(dev)->ai_buffer[private(dev)->dma_index][i]);
+				}
+				private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
+				DEBUG_PRINT("next buffer addr 0x%x\n", private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
+				DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 			}
-			for(i = 0; i < num_samples; i++)
-			{
-				comedi_buf_put(async, private(dev)->ai_buffer[private(dev)->dma_index][i]);
-			}
-			private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
 			async->events |= COMEDI_CB_BLOCK;
 		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
