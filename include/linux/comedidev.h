@@ -284,9 +284,15 @@ extern comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
 
+#if __GNUC__ >= 3
+#define GCC_ZERO_LENGTH_ARRAY
+#else
+#define GCC_ZERO_LENGTH_ARRAY 0
+#endif
+
 struct comedi_lrange_struct{
 	int length;
-	comedi_krange range[];
+	comedi_krange range[ GCC_ZERO_LENGTH_ARRAY ];
 };
 
 
