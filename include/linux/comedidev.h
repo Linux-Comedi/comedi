@@ -239,6 +239,7 @@ extern volatile int rtcomedi_lock_semaphore;
 
 #define RANGE(a,b)		{(a)*1e6,(b)*1e6,0}
 #define RANGE_ext(a,b)		{(a)*1e6,(b)*1e6,RF_EXTERNAL}
+#define RANGE_mA(a,b)		{(a)*1e6,(b)*1e6,UNIT_mA}
 #define RANGE_unitless(a,b)	{(a)*1e6,(b)*1e6,0}	/* XXX */
 #define BIP_RANGE(a)		{-(a)*1e6,(a)*1e6,0}
 #define UNI_RANGE(a)		{0,(a)*1e6,0}
