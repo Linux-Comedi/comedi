@@ -109,7 +109,7 @@ check:
 
 drivers.txt: dummy
 	(for each in *.c;do ../../scripts/dump_doc $$each;done >drivers.txt)
-	../../scripts/doc_devlist drivers.txt >devlist.txt
+	../../scripts/doc_devlist drivers.txt >devices.txt
 
 dummy:
 
