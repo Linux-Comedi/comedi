@@ -1156,9 +1156,9 @@ static irqreturn_t das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
 		return IRQ_NONE;
 	}
 
-	das16_interrupt(dev);
 	/* clear interrupt */
 	outb(0x00, dev->iobase + DAS16_STATUS);
+	das16_interrupt(dev);
 
 	return IRQ_HANDLED;
 }
