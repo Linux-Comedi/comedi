@@ -1948,7 +1948,7 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	int i, bits;
 	int invert = 0;
 
-	if( boardtype.ao_671x ){
+	if( boardtype.reg_611x ){
 		ao_win_out( CLEAR_WG, AO_Misc_611x);
 
 		bits = 0;
@@ -2025,8 +2025,11 @@ static int ni_ao_insn_write_671x(comedi_device *dev,comedi_subdevice *s,
 	unsigned int invert;
 
 	ao_win_out(1 << chan, AO_Immediate_671x);
-
 	invert = 1 << (boardtype.aobits - 1);
+
+	if( boardtype.reg_611x == 0 )
+		ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
+
 	devpriv->ao[chan] = data[0];
 	ao_win_out(data[0] ^ invert, DACx_Direct_Data_671x(chan));
 
