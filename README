@@ -13,11 +13,14 @@ questions/answers about comedi installation, bugs, and programming.
 General questions about data acquisition are also welcome.
 Alternatively, you can subscribe and unsubscribe at
 http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi.
-You can always unsubscribe by sendinging "unsibscribe" (spell
+You can always unsubscribe by sendinging "unsubscribe" (spell
 it correctly!) to comedi-request@stm.lbl.gov.
 
 Comedi also has a web page, at http://stm.lbl.gov/comedi.  New versions
 of comedi can be found on the ftp site ftp://stm.lbl.gov/pub/comedi.
+
+Instructions for anonymous CVS access to the Comedi and Comedilib
+repositories are found at http://oss.lineo.com/cvs_anon.html.
 
 Comedi may be freely distibuted and modified in accordance with the
 GNU General Public License.
