@@ -54,6 +54,8 @@ Configuration options:
    [0] - PCI bus of device (optional)
    [1] - PCI slot of device (optional)
 
+To select the bnc trigger input on the 4020 (instead of the dio input),
+specify channel 1000 in the chanspec.
 Feel free to send and success/failure reports to Frank Hess.
 
 Some devices are not identified because the PCI device IDs are not yet
@@ -65,6 +67,7 @@ easily added.
 /*
 
 TODO:
+	fix races between interrupt and manipulation of software copies of registers 
 	command support for ao
 	user counter subdevice
 	there are a number of boards this driver will support when they are
@@ -109,6 +112,9 @@ TODO:
 /* maximum number of dma transfers we will chain together into a ring
  * (and the maximum number of dma buffers we maintain) */
 #define DMA_RING_COUNT 64
+
+// arbitrary channel number used to select bnc trigger input
+static const int bnc_trigger_channel_4020 = 1000;
 
 /* PCI-DAS64xxx base addresses */
 
@@ -208,7 +214,9 @@ enum intr_enable_contents
 enum hw_config_contents
 {
 	MASTER_CLOCK_4020_MASK = 0x3,	// bits that specify master clock source for 4020
-	INTERNAL_CLOCK_4020_BITS = 0x1,	// user 40 MHz internal master clock for 4020
+	INTERNAL_CLOCK_4020_BITS = 0x1,	// use 40 MHz internal master clock for 4020
+	BNC_CLOCK_4020_BITS = 0x2,	// use BNC input for master clock
+	EXT_CLOCK_4020_BITS = 0x3,	// use dio input for master clock
 	EXT_QUEUE_BIT = 0x200,	// use external channel/gain queue (more versatile than internal queue)
 	SLOW_DAC_BIT = 0x400,	// use 225 nanosec strobe when loading dac instead of 50 nanosec
 	HW_CONFIG_DUMMY_BITS = 0x2000,	// bit with unknown function yet given as default value in pci-das64 manual
@@ -811,10 +819,17 @@ MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-extern inline pcidas64_board* board( const comedi_device *dev )
+static inline pcidas64_board* board( const comedi_device *dev )
 {
 	return (pcidas64_board *)dev->board_ptr;
 }
+
+struct ext_clock_info
+{
+	unsigned int convert_divisor;	// master clock divisor to use for conversions with external master clock
+	unsigned int scan_divisor;	// master clock divisor to use for scans with external master clock
+	unsigned int chanspec;	// chanspec for master clock input
+};
 
 /* this structure is for data unique to this hardware driver. */
 typedef struct
@@ -854,12 +869,13 @@ typedef struct
 	unsigned int caldac_state[8];
 	volatile unsigned ai_cmd_running : 1;
 	unsigned int ai_fifo_segment_length;
+	struct ext_clock_info ext_clock;
 } pcidas64_private;
 
 /* inline function that makes it easier to
  * access the private structure.
  */
-extern inline pcidas64_private* priv(comedi_device *dev)
+static inline pcidas64_private* priv(comedi_device *dev)
 {
 	return dev->private;
 }
@@ -913,6 +929,9 @@ static void disable_plx_interrupts( comedi_device *dev );
 static int set_ai_fifo_size( comedi_device *dev, unsigned int num_samples );
 static unsigned int ai_fifo_size( comedi_device *dev );
 static int set_ai_fifo_segment_length( comedi_device *dev, unsigned int num_entries );
+static void disable_ai_pacing( comedi_device *dev );
+static void disable_ai_interrupts( comedi_device *dev );
+static void enable_ai_interrupts( comedi_device *dev, const comedi_cmd *cmd );
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -1157,6 +1176,29 @@ static void disable_plx_interrupts( comedi_device *dev )
 	writel(priv(dev)->plx_intcsr_bits, priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 }
 
+static void init_stc_registers( comedi_device *dev )
+{
+	uint16_t bits;
+
+	// bit should be set for 6025, although docs say boards with <= 16 chans should be cleared XXX
+	if( 1 )
+		priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
+	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
+
+	bits = SLOW_DAC_BIT | DMA_CH_SELECT_BIT;
+	if(board(dev)->layout == LAYOUT_4020)
+		bits |= INTERNAL_CLOCK_4020_BITS;
+	priv(dev)->hw_config_bits |= bits;
+	writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
+
+	writew(0, priv(dev)->main_iobase + DAQ_SYNC_REG);
+	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
+
+	// set fifos to maximum size
+	priv(dev)->fifo_size_bits |= DAC_FIFO_BITS;
+	set_ai_fifo_segment_length( dev, board(dev)->ai_fifo->max_segment_length );
+};
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -1303,25 +1345,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 		return retval;
 	}
 
-	// initialize various registers
-
-	// manual says to set this bit for boards with > 16 channels
-//	if(board(dev)->ai_se_chans > 16)
-	if(1)	// bit should be set for 6025, although docs say 6034 and 6035 should be cleared XXX
-		priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
-	writew(priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG);
-
-	priv(dev)->hw_config_bits = SLOW_DAC_BIT | DMA_CH_SELECT_BIT;
-	if(board(dev)->layout == LAYOUT_4020)
-		priv(dev)->hw_config_bits |= INTERNAL_CLOCK_4020_BITS;
-	writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
-
-	writew(0, priv(dev)->main_iobase + DAQ_SYNC_REG);
-	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
-
-	// set fifos to maximum size
-	priv(dev)->fifo_size_bits = DAC_FIFO_BITS;
-	set_ai_fifo_segment_length( dev, board(dev)->ai_fifo->max_segment_length );
+	init_stc_registers( dev );
 
 	return 0;
 }
@@ -1389,18 +1413,13 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	range = CR_RANGE(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
 
-	// disable card's analog input interrupt sources
+	// disable card's analog input interrupt sources and pacing
 	// 4020 generates dac done interrupts even though they are disabled
-	priv(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
-		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
-	writew(priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG);
+	disable_ai_pacing( dev );
 
-	/* disable pacing, enable software triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG);
-	priv(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
-	if(insn->chanspec & CR_DITHER)
+	if( insn->chanspec & CR_DITHER )
 		priv(dev)->adc_control1_bits |= ADC_DITHER_BIT;
-	writew(priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG);
+	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 
 	if(board(dev)->layout != LAYOUT_4020)
 	{
@@ -1557,6 +1576,45 @@ static int ai_config_block_size( comedi_device *dev, lsampl_t *data )
 	return 2;
 }
 
+static int ai_config_master_clock_4020( comedi_device *dev, lsampl_t *data )
+{
+	unsigned int divisor = data[4];
+
+	if( divisor < 2 ) divisor = 2;
+
+	switch( data[1] )
+	{
+		case COMEDI_EV_SCAN_BEGIN:
+			priv(dev)->ext_clock.scan_divisor = divisor;
+			priv(dev)->ext_clock.chanspec = data[2];
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
+
+	data[4] = divisor;
+
+	return 5;
+}
+
+// XXX could add support for 60xx series
+static int ai_config_master_clock( comedi_device *dev, lsampl_t *data )
+{
+
+	switch( board(dev)->layout  )
+	{
+		case LAYOUT_4020:
+			return ai_config_master_clock_4020( dev, data );
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
+
+	return -EINVAL;
+}
+
 static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int id = data[0];
@@ -1568,6 +1626,9 @@ static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn 
 			break;
 		case INSN_CONFIG_BLOCK_SIZE:
 			return ai_config_block_size( dev, data );
+			break;
+		case INSN_CONFIG_TIMER_1:
+			return ai_config_master_clock( dev, data );
 			break;
 		default:
 			return -EINVAL;
@@ -1592,14 +1653,16 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 
 	tmp = cmd->scan_begin_src;
 	triggers = TRIG_TIMER;
-	if(board(dev)->layout != LAYOUT_4020)
-		triggers |= TRIG_FOLLOW;;
+	if(board(dev)->layout == LAYOUT_4020)
+		triggers |= TRIG_OTHER;
+	else
+		triggers |= TRIG_FOLLOW;
 	cmd->scan_begin_src &= triggers;
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
 	if(board(dev)->layout == LAYOUT_4020)
-		triggers = TRIG_NOW;
+		triggers = TRIG_NOW | TRIG_OTHER;
 	else
 		triggers = TRIG_TIMER | TRIG_EXT;
 	cmd->convert_src &= triggers;
@@ -1621,10 +1684,12 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	if(cmd->start_src != TRIG_NOW &&
 		cmd->start_src != TRIG_EXT) err++;
 	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_OTHER &&
 		cmd->scan_begin_src != TRIG_FOLLOW) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
 		cmd->convert_src != TRIG_EXT &&
-		cmd->convert_src != TRIG_NOW) err++;
+		cmd->convert_src != TRIG_NOW &&
+		cmd->convert_src != TRIG_OTHER) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE &&
 		cmd->stop_src != TRIG_EXT) err++;
@@ -1633,7 +1698,12 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	if(cmd->convert_src == TRIG_EXT &&
 		cmd->scan_begin_src == TRIG_TIMER)
 		err++;
-
+	if(cmd->stop_src != TRIG_COUNT &&
+		cmd->stop_src != TRIG_NONE &&
+		cmd->stop_src != TRIG_EXT) err++;
+	if( cmd->convert_src == TRIG_OTHER &&
+		cmd->scan_begin_arg == TRIG_OTHER ) err++;
+		
 	if(err) return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
@@ -1788,21 +1858,50 @@ static inline unsigned int dma_transfer_size( comedi_device *dev )
 	return num_samples;
 }
 
-void disable_ai_interrupts( comedi_device *dev )
+static void disable_ai_pacing( comedi_device *dev )
 {
-	priv(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
-		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
-		~ADC_INTR_SRC_MASK;
-	writew( priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG);
+	disable_ai_interrupts( dev );
+
+	/* disable pacing, triggering, etc */
+	writew( ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG );
+	priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
+	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 }
 
-uint32_t ai_convert_counter_6xxx( const comedi_device *dev, const comedi_cmd *cmd )
+static void disable_ai_interrupts( comedi_device *dev )
+{
+	priv(dev)->intr_enable_bits &=
+		~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT & ~EN_ADC_ACTIVE_INTR_BIT
+		& ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT & ~ADC_INTR_SRC_MASK;
+	writew( priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG );
+	DEBUG_PRINT( "intr enable bits 0x%x\n", priv(dev)->intr_enable_bits );
+}
+
+static void enable_ai_interrupts( comedi_device *dev, const comedi_cmd *cmd )
+{
+	uint32_t bits;
+
+	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
+		EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
+	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
+	if( cmd->flags & TRIG_WAKE_EOS )
+	{
+		// 4020 doesn't support pio transfers except for fifo dregs
+		if( board(dev)->layout != LAYOUT_4020 )
+			bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
+	}
+	priv(dev)->intr_enable_bits |= bits;
+	writew( priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG );
+	DEBUG_PRINT( "intr enable bits 0x%x\n", priv(dev)->intr_enable_bits );
+}
+
+static uint32_t ai_convert_counter_6xxx( const comedi_device *dev, const comedi_cmd *cmd )
 {
 	// supposed to load counter with desired divisor minus 3
 	return	cmd->convert_arg / TIMER_BASE - 3;
 }
 
-uint32_t ai_scan_counter_6xxx( comedi_device *dev, comedi_cmd *cmd )
+static uint32_t ai_scan_counter_6xxx( comedi_device *dev, comedi_cmd *cmd )
 {
 	// figure out how long we need to delay at end of scan
 	switch( cmd->scan_begin_src )
@@ -1820,17 +1919,66 @@ uint32_t ai_scan_counter_6xxx( comedi_device *dev, comedi_cmd *cmd )
 	return 0;
 }
 
-uint32_t ai_convert_counter_4020( comedi_device *dev, comedi_cmd *cmd )
+static uint32_t ai_convert_counter_4020( comedi_device *dev, comedi_cmd *cmd )
 {
+	unsigned int divisor;
+
+	switch( cmd->scan_begin_src )
+	{
+		case TRIG_TIMER:
+			divisor = cmd->scan_begin_arg;
+			break;
+		case TRIG_OTHER:
+			divisor = priv(dev)->ext_clock.scan_divisor;
+			break;
+		default:	// should never happen
+			comedi_error( dev, "bug! failed to set ai pacing!" );
+			divisor = 1000;
+			break;
+	}
+
 	// supposed to load counter with desired divisor minus 2 for 4020
-	return cmd->scan_begin_arg / TIMER_BASE - 2;
+	return divisor / TIMER_BASE - 2;
 }
 
-void set_ai_pacing( comedi_device *dev, comedi_cmd *cmd )
+static void select_master_clock_4020( comedi_device *dev, const comedi_cmd *cmd )
+{
+	int chanspec = priv(dev)->ext_clock.chanspec;
+
+	// select internal/external master clock
+	priv(dev)->hw_config_bits &= ~MASTER_CLOCK_4020_MASK;
+	if( cmd->scan_begin_src == TRIG_OTHER )
+	{
+		if( CR_CHAN( chanspec ) == bnc_trigger_channel_4020 )
+			priv(dev)->hw_config_bits |= BNC_CLOCK_4020_BITS;
+		else
+			priv(dev)->hw_config_bits |= EXT_CLOCK_4020_BITS;
+	}else
+	{
+		priv(dev)->hw_config_bits |= INTERNAL_CLOCK_4020_BITS;
+	}
+	writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
+}
+
+static void select_master_clock( comedi_device *dev, const comedi_cmd *cmd )
+{
+	switch( board(dev)->layout )
+	{
+		case LAYOUT_4020:
+			select_master_clock_4020( dev, cmd );
+			break;
+		default:
+			break;
+	}
+}
+
+static void set_ai_pacing( comedi_device *dev, comedi_cmd *cmd )
 {
 	uint32_t convert_counter = 0, scan_counter = 0;
 
 	check_adc_timing( cmd );
+
+	select_master_clock( dev, cmd );
 
 	if( board(dev)->layout == LAYOUT_4020 )
 	{
@@ -1859,16 +2007,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	u32 bits;
+	uint32_t bits;
 	unsigned int i;
 	unsigned long flags;
 
-	disable_ai_interrupts( dev );
-
-	/* disable pacing, triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG);
-	priv(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
-	writew(priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG);
+	disable_ai_pacing( dev );
 
 	// make sure internal calibration source is turned off
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
@@ -1943,43 +2086,32 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	priv(dev)->plx_intcsr_bits |= ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE | ICS_DMA1_E;
 	writel(priv(dev)->plx_intcsr_bits, priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
-	// enable interrupts
-	priv(dev)->intr_enable_bits |= EN_ADC_OVERRUN_BIT |
-		EN_ADC_DONE_INTR_BIT | EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
-	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
-	if(cmd->flags & TRIG_WAKE_EOS)
-	{
-		if(board(dev)->layout != LAYOUT_4020)
-			priv(dev)->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
-		// 4020 doesn't support pio transfers except for fifo dregs
-	}
-	writew(priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG);
-	DEBUG_PRINT("intr enable bits 0x%x\n", priv(dev)->intr_enable_bits);
+	enable_ai_interrupts( dev, cmd );
 
 	/* set mode, allow conversions through software gate */
-	priv(dev)->adc_control1_bits |= SW_GATE_BIT;
+	bits = SW_GATE_BIT;
 	if(board(dev)->layout != LAYOUT_4020)
 	{
-		if(cmd->convert_src == TRIG_EXT)
-			priv(dev)->adc_control1_bits |= adc_mode_bits( 13 );	// good old mode 13
+		if( cmd->convert_src == TRIG_EXT )
+			bits |= adc_mode_bits( 13 );	// good old mode 13
 		else
-			priv(dev)->adc_control1_bits |= adc_mode_bits(8);	// mode 8.  What else could you need?
+			bits |= adc_mode_bits(8);	// mode 8.  What else could you need?
 #if 0
 		// this causes interrupt on end of scan to be disabled on 60xx?
 		if(cmd->flags & TRIG_WAKE_EOS)
-			priv(dev)->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
+			bits |= ADC_DMA_DISABLE_BIT;
 #endif
 	} else
 	{
-		if(cmd->chanlist_len == 4)
-			priv(dev)->adc_control1_bits |= FOUR_CHANNEL_4020_BITS;
-		else if(cmd->chanlist_len == 2)
-			priv(dev)->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
-		priv(dev)->adc_control1_bits |= adc_lo_chan_4020_bits( CR_CHAN( cmd->chanlist[0] ) );
-		priv(dev)->adc_control1_bits |= adc_hi_chan_4020_bits( CR_CHAN( cmd->chanlist[ cmd->chanlist_len - 1 ] ) );
+		if( cmd->chanlist_len == 4 )
+			bits |= FOUR_CHANNEL_4020_BITS;
+		else if( cmd->chanlist_len == 2 )
+			bits |= TWO_CHANNEL_4020_BITS;
+		bits |= adc_lo_chan_4020_bits( CR_CHAN( cmd->chanlist[0] ) );
+		bits |= adc_hi_chan_4020_bits( CR_CHAN( cmd->chanlist[ cmd->chanlist_len - 1 ] ) );
 	}
-
-	writew(priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG);
+	priv(dev)->adc_control1_bits |= bits;
+	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	DEBUG_PRINT("control1 bits 0x%x\n", priv(dev)->adc_control1_bits);
 
 	abort_dma(dev, 1);
@@ -2003,9 +2135,15 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if( board(dev)->layout == LAYOUT_4020 )
 	{
-		/* set source for external triggers (hard coded to
-		 * use inputs on 40-pin connector for now) */
-		writew( 0, priv(dev)->main_iobase + DAQ_ATRIG_LOW_4020_REG );
+		/* set source for external triggers */
+		bits = 0;
+		if( cmd->start_src == TRIG_EXT &&
+			CR_CHAN( cmd->start_arg ) == bnc_trigger_channel_4020 )
+			bits |= EXT_START_TRIG_BNC_BIT;
+		if( cmd->stop_src == TRIG_EXT &&
+			CR_CHAN( cmd->stop_arg ) == bnc_trigger_channel_4020 )
+			bits |= EXT_STOP_TRIG_BNC_BIT;
+		writew( bits, priv(dev)->main_iobase + DAQ_ATRIG_LOW_4020_REG );
 	}
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
@@ -2341,18 +2479,9 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	priv(dev)->ai_cmd_running = 0;
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
-	// disable ai interrupts
-	priv(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
-		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
-		~ADC_INTR_SRC_MASK;
-	writew(priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG);
+	disable_ai_pacing( dev );
 
 	abort_dma(dev, 1);
-
-	/* disable pacing, triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG);
-	priv(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
-	writew(priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG);
 
 	return 0;
 }
