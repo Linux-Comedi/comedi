@@ -748,7 +748,7 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 				ret=s->insn_bits(dev,s,insn,data);
 				break;
 			case INSN_CONFIG:
-				ret=check_insn_config_length(insn);
+				ret=check_insn_config_length(insn, data);
 				if(ret) break;
 				ret=s->insn_config(dev,s,insn,data);
 				break;
