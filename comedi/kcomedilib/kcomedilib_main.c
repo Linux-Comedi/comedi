@@ -427,6 +427,7 @@ int comedi_command_test(unsigned int minor,comedi_cmd *cmd)
 	return s->do_cmdtest(dev,s,cmd);
 }
 
+#ifdef CONFIG_COMEDI_TRIG
 /*
 	COMEDI_TRIG
 	trigger ioctl
@@ -609,6 +610,7 @@ int __comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it)
 
 	return ret;
 }
+#endif
 
 /*
  *	COMEDI_INSN

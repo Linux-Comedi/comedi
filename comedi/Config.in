@@ -3,11 +3,7 @@ define_bool CONFIG_COMEDI m
 
 comment 'Comedi Features'
 
-define_bool CONFIG_COMEDI_MODES y
-define_bool CONFIG_COMEDI_MODE0 y
-define_bool CONFIG_COMEDI_MODE_CORE y
-
-#bool 'Backwards compatibility' CONFIG_COMEDI_BACKWARDS
+bool 'Trig compatibility (say yes)' CONFIG_COMEDI_TRIG
 
 if [ "$CONFIG_RTL" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
@@ -29,7 +25,6 @@ if [ "$CONFIG_RTHAL" = "y" ];then
 fi
 
 bool 'Verbose Debugging' CONFIG_COMEDI_DEBUG
-#bool 'Version 0.8 support' CONFIG_COMEDI_VER08
 
 dep_tristate 'Kernel Comedilib' CONFIG_COMEDI_KLIB $CONFIG_COMEDI
 

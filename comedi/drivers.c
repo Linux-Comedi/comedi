@@ -37,16 +37,18 @@
 #include <linux/malloc.h>
 #include <asm/io.h>
 
+#ifdef CONFIG_COMEDI_TRIG
+/* in comedi/trig.c */
+int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
+int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
+int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
+#endif
+
 static int postconfig(comedi_device *dev);
-static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
 static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-#if 0
-static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
-static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
-#endif
 static void *comedi_recognize(comedi_driver *driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
 static int poll_invalid(comedi_device *dev,comedi_subdevice *s);
@@ -235,14 +237,20 @@ static int postconfig(comedi_device *dev)
 
 		if(s->len_chanlist==0)
 			s->len_chanlist=1; 
+#ifdef CONFIG_COMEDI_TRIG
 		if(s->do_cmd){
 			s->trig[1]=command_trig;
 			s->trig[2]=command_trig;
 			s->trig[3]=command_trig;
 			s->trig[4]=command_trig;
 		}
+#endif
 
-		if(s->do_cmd || s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4]){
+		if(s->do_cmd
+#ifdef CONFIG_COMEDI_TRIG
+		    || s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4]
+#endif
+		    ){
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{
@@ -361,161 +369,6 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 
 	return 1;
 }
-
-#define SUPPORT_TRIG
-#define SUPPORT_TRIG0
-#ifdef SUPPORT_TRIG
-#if 0
-static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
-{
-	comedi_insn insn;
-	lsampl_t ldata;
-	int ret;
-
-	insn.subdev=trig->subdev;
-	insn.data=&ldata;
-	insn.n=1;
-	insn.chanspec=trig->chanlist[0];
-
-	if(trig->flags&TRIG_CONFIG)
-		return mode0_emulate_config(dev,s,trig);
-
-	if(s->subdev_flags & SDF_WRITEABLE){
-		if(s->subdev_flags & SDF_READABLE){
-			if(trig->flags&TRIG_WRITE){
-				insn.insn=INSN_WRITE;
-			}else{
-				insn.insn=INSN_READ;
-			}
-		}else{
-			insn.insn=INSN_WRITE;
-		}
-	}else{
-		insn.insn=INSN_READ;
-	}
-
-	switch(insn.insn){
-	case INSN_READ:
-		ret=s->insn_read(dev,s,&insn,&ldata);
-		if(s->subdev_flags&SDF_LSAMPL){
-			*(lsampl_t *)trig->data=ldata;
-		}else{
-			trig->data[0]=ldata;
-		}
-		return ret;
-	case INSN_WRITE:
-		if(s->subdev_flags&SDF_LSAMPL){
-			ldata=*(lsampl_t *)trig->data;
-		}else{
-			ldata=trig->data[0];
-		}
-		return s->insn_write(dev,s,&insn,&ldata);
-	default:
-	}
-
-	return -EINVAL;
-}
-#endif
-#endif
-
-#ifdef SUPPORT_TRIG0
-#if 0
-static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
-{
-	comedi_insn insn;
-	lsampl_t ldata;
-
-	insn.subdev=trig->subdev;
-	insn.data=&ldata;
-	insn.n=1;
-	insn.chanspec=trig->chanlist[0];
-
-	ldata = trig->data[0];
-
-	return s->insn_config(dev,s,&insn,&ldata);
-}
-#endif
-#endif
-
-#ifdef SUPPORT_TRIG
-static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	int ret;
-	comedi_async *async = s->async;
-
-	ret=mode_to_command(&async->cmd,it);
-	if(ret)return ret;
-
-	ret=s->do_cmdtest(dev,s,&async->cmd);
-	if(ret)return -EINVAL;
-
-	ret=s->do_cmd(dev,s);
-	if(ret>0)return -EINVAL;
-	return ret;
-}
-#endif
-
-static int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
-{
-	memset(cmd,0,sizeof(comedi_cmd));
-	cmd->subdev=it->subdev;
-	cmd->chanlist_len=it->n_chan;
-	cmd->chanlist=it->chanlist;
-	cmd->data=it->data;
-	cmd->data_len=it->data_len;
-
-	cmd->start_src=TRIG_NOW;
-
-	switch(it->mode){
-	case 1:
-		cmd->scan_begin_src=TRIG_FOLLOW;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->convert_arg=it->trigvar;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-		
-		break;
-	case 2:
-		cmd->scan_begin_src=TRIG_TIMER;
-		cmd->scan_begin_arg=it->trigvar;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->convert_arg=it->trigvar1;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-		
-		break;
-	case 3:
-		cmd->scan_begin_src=TRIG_FOLLOW;
-		cmd->convert_src=TRIG_EXT;
-		cmd->convert_arg=it->trigvar;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-
-		break;
-	case 4:
-		cmd->scan_begin_src=TRIG_EXT;
-		cmd->scan_begin_arg=it->trigvar;
-		cmd->convert_src=TRIG_TIMER;
-		cmd->convert_arg=it->trigvar1;
-		cmd->scan_end_src=TRIG_COUNT;
-		cmd->scan_end_arg=it->n_chan;
-		cmd->stop_src=TRIG_COUNT;
-		cmd->stop_arg=it->n;
-
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 
 #define REG(x) {extern comedi_driver (x);comedi_driver_register(&(x));}
 

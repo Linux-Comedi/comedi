@@ -53,7 +53,7 @@ static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
 static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg);
 static int do_bufinfo_ioctl(comedi_device *dev,void *arg);
-#ifdef CONFIG_COMEDI_MODE_CORE
+#ifdef CONFIG_COMEDI_TRIG
 static int do_trig_ioctl(comedi_device *dev,void *arg,void *file);
 #endif
 static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file);
@@ -101,7 +101,7 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 		return do_rangeinfo_ioctl(dev,(void *)arg);
 	case COMEDI_BUFINFO:
 		return do_bufinfo_ioctl(dev,(void*)arg);
-#ifdef CONFIG_COMEDI_MODE_CORE
+#ifdef CONFIG_COMEDI_TRIG
 	case COMEDI_TRIG:
 		return do_trig_ioctl(dev,(void *)arg,file);
 #endif
@@ -371,7 +371,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->subd_flags |= SDF_FLAGS;
 		if(s->range_table_list)
 			us->subd_flags |= SDF_RANGETYPE;
-#ifdef CONFIG_COMEDI_MODE_CORE
+#ifdef CONFIG_COMEDI_TRIG
 		if(s->trig[0])
 			us->subd_flags |= SDF_MODE0;
 		if(s->trig[1])
@@ -530,7 +530,7 @@ copyback:
 	return 0;
 }
 
-#ifdef CONFIG_COMEDI_MODE_CORE
+#ifdef CONFIG_COMEDI_TRIG
 /*
 	COMEDI_TRIG
 	trigger ioctl
@@ -1678,7 +1678,7 @@ printk("m is %d\n",m);
 		n-=m;
 
 		// check for buffer overrun
-		if(async->buf_int_count - async->buf_user_count > async->data_len){	/* XXX MODE */
+		if(async->buf_int_count - async->buf_user_count > async->data_len){
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
 			retval=-EINVAL;
@@ -1727,10 +1727,12 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	}
 #endif
 
+#ifdef CONFIG_COMEDI_TRIG
 	if(s->cur_trig.chanlist){		/* XXX wrong? */
 		kfree(s->cur_trig.chanlist);
 		s->cur_trig.chanlist=NULL;
 	}
+#endif
 
 	if(async){
 		async->buf_user_ptr=0;
