@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.6"
+#define DRIVER_VERSION "v0.7"
 #define DRIVER_AUTHOR "Bernd Porr, Bernd.Porr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast -- Bernd.Porr@f2s.com"
 /*
@@ -1719,9 +1719,11 @@ static void init_usb_devices(void) {
 
 // Table with the USB-devices: just now only testing IDs
 static struct usb_device_id usbduxfastsub_table [] = {
-        { USB_DEVICE(0x4b4, 0x8613), //testing
+	//        { USB_DEVICE(0x4b4, 0x8613), //testing
+	//        },
+        { USB_DEVICE(0x13d8, 0x0010) //real ID
         },
-        { USB_DEVICE(0x13d8, 0x0002) 
+        { USB_DEVICE(0x13d8, 0x0011) //real ID
         },
 	{ }	/* Terminating entry */
 };
