@@ -661,18 +661,78 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 #define AO_Window_Data_671x		0x1e /* W 16 */
 
 /* 671xi, 611x windowed ao registers */
-
-#define DACx_Direct_Data_671x(x)	(x) /* W 16 */
-#define AO_Immediate_671x		0x11 /* W 16 */
-#define AO_Timed_611x                   0x10 /* W 16 */
-#define AO_Later_Single_Point_Updates   0x14 /* W 16 */
-#define AO_Waveform_Generation_611x     0x15 /* W 16 */
-#define AO_Misc_611x                    0x16 /* W 16 */
+enum windowed_regs_67xx_61xx
+{
+	AO_Immediate_671x = 0x11, /* W 16 */
+	AO_Timed_611x = 0x10, /* W 16 */
+	AO_Later_Single_Point_Updates = 0x14, /* W 16 */
+	AO_Waveform_Generation_611x = 0x15, /* W 16 */
+	AO_Misc_611x = 0x16, /* W 16 */
+	AO_Calibration_Channel_Select_67xx = 0x17, /* W 16 */
+	CAL_ADC_Command_67xx = 0x19, /* W 8 */
+	CAL_ADC_Status_67xx = 0x1a, /* R 8 */
+	CAL_ADC_Data_67xx = 0x1b, /* R 16 */
+	CAL_ADC_Config_Data_High_Word_67xx = 0x1c, /* RW 16 */
+	CAL_ADC_Config_Data_Low_Word_67xx = 0x1d, /* RW 16 */
+};
+static inline unsigned int DACx_Direct_Data_671x(int channel)
+{
+	return channel;
+}
 enum AO_Misc_611x_Bits
 {
 	CLEAR_WG = 1,
 };
-
+enum cs5529_configuration_bits
+{
+	CSCFG_CAL_CONTROL_MASK = 0x7,
+	CSCFG_SELF_CAL_OFFSET = 0x1,
+	CSCFG_SELF_CAL_GAIN = 0x2,
+	CSCFG_SELF_CAL_OFFSET_GAIN = 0x3,
+	CSCFG_SYSTEM_CAL_OFFSET = 0x5,
+	CSCFG_SYSTEM_CAL_GAIN = 0x6,
+	CSCFG_DONE = 1 << 3,
+	CSCFG_POWER_SAVE_SELECT = 1 << 4,
+	CSCFGFG_RESET_VALID = 1 << 6,
+	CSCFG_RESET = 1 << 7,
+	CSCFG_UNIPOLAR = 1 << 12,
+	CSCFG_WORD_RATE_2180_CYCLES = 0x0 << 13,
+	CSCFG_WORD_RATE_1092_CYCLES = 0x1 << 13,
+	CSCFG_WORD_RATE_532_CYCLES = 0x2 << 13,
+	CSCFG_WORD_RATE_388_CYCLES = 0x3 << 13,
+	CSCFG_WORD_RATE_324_CYCLES = 0x4 << 13,
+	CSCFG_WORD_RATE_17444_CYCLES = 0x5 << 13,
+	CSCFG_WORD_RATE_8724_CYCLES = 0x6 << 13,
+	CSCFG_WORD_RATE_4364_CYCLES = 0x7 << 13,
+	CSCFG_WORD_RATE_MASK = 0x7 << 13,
+	CSCFG_LOW_POWER = 1 << 16,
+};
+static inline unsigned int CS5529_CONFIG_DOUT(int output)
+{
+	return 1 << (18 + output);
+}
+static inline unsigned int CS5529_CONFIG_AOUT(int output)
+{
+	return 1 << (22 + output);
+}
+enum cs5529_command_bits
+{
+	CSCMD_POWER_SAVE = 0x1,
+	CSCMD_REGISTER_SELECT_MASK = 0xe,
+	CSCMD_OFFSET_REGISTER = 0x0,
+	CSCMD_GAIN_REGISTER = 0x2,
+	CSCMD_CONFIG_REGISTER = 0x4,
+	CSCMD_READ = 0x10,
+	CSCMD_CONTINUOUS_CONVERSIONS = 0x20,
+	CSCMD_SINGLE_CONVERSION = 0x40,
+	CSCMD_COMMAND = 0x80,
+};
+enum cs5529_status_bits
+{
+	CSS_ADC_BUSY = 0x1,
+	CSS_OSC_DETECT = 0x2, /* indicates adc error */
+	CSS_OVERRANGE = 0x4,
+};
 #define SerDacLd(x)			(0x08<<(x))
 
 /*
