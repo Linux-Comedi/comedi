@@ -183,12 +183,14 @@ static void postconfig(comedi_device *dev)
 		if(s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4])
 			have_trig=1;
 
+#ifdef CONFIG_COMEDI_VER08
 		if(s->do_cmd && !have_trig){
 			s->trig[1]=command_trig;
 			s->trig[2]=command_trig;
 			s->trig[3]=command_trig;
 			s->trig[4]=command_trig;
 		}
+#endif
 		if(s->do_cmd || have_trig){
 			s->prealloc_bufsz=1024*128;
 		}else{
@@ -197,7 +199,7 @@ static void postconfig(comedi_device *dev)
 
 		if(s->prealloc_bufsz){
 			/* XXX */
-			s->prealloc_buf=rvmalloc(s->prealloc_bufsz*sizeof(sampl_t));
+			s->prealloc_buf=rvmalloc(s->prealloc_bufsz);
 			if(!s->prealloc_buf){
 				printk("ENOMEM\n");
 			}
