@@ -1366,6 +1366,7 @@ static int setup_subdevices(comedi_device *dev)
 	} else
 	{
 		s->type = COMEDI_SUBD_UNUSED;
+		dev->write_subdev = NULL;
 	}
 
 	// digital input
@@ -2948,13 +2949,14 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned short status,
 	unsigned int plx_status)
 {
 	comedi_subdevice *s = dev->write_subdev;
-	comedi_async *async = s->async;
-	comedi_cmd *cmd = &async->cmd;
+	comedi_async *async;
+	comedi_cmd *cmd;
 	uint8_t dma0_status;
 	unsigned long flags;
 
-	/* board might not support ao, in which case async is NULL */
-	if(async == NULL) return;
+	/* board might not support ao, in which case write_subdev is NULL */
+	if(s == NULL) return;
+	async = s->async;
 	cmd = &async->cmd;
 
 	// spin lock makes sure noone else changes plx dma control reg
