@@ -61,7 +61,7 @@ AT-MIO96.
  */
 
 #define USE_DMA
-#define DEBUG 1
+//#define DEBUG 1
 #define DEBUG_FLAGS
 
 #include <linux/comedidev.h>
