@@ -317,7 +317,6 @@ typedef struct
 	dma_addr_t dma_desc_phys_addr;	// physical address of dma descriptor array
 	unsigned int num_dma_descriptors;
 	uint32_t *desc_dio_buffer[ NUM_DMA_DESCRIPTORS ];	// pointer to start of buffers indexed by descriptor
-	volatile unsigned int dma_buf_index;	// index of the dma buffer that is currently being used
 	volatile unsigned int dma_desc_index;	// index of the dma descriptor that is currently being used
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
@@ -487,12 +486,6 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 	for( i = 0; i < NUM_DMA_DESCRIPTORS &&
 		buffer_index < NUM_DMA_BUFFERS; i++ )
 	{
-		if( transfer_size + buffer_offset > DMA_BUFFER_SIZE )
-		{
-			buffer_offset = 0;
-			buffer_index++;
-		}
-
 		priv(dev)->dma_desc[ i ].pci_start_addr = priv(dev)->dio_buffer_phys_addr[ buffer_index ] +
 			buffer_offset;
 		priv(dev)->dma_desc[ i ].local_start_addr = FIFO_REG;
@@ -504,6 +497,11 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 			( buffer_offset / sizeof( uint32_t ) );
 
 		buffer_offset += transfer_size;
+		if( transfer_size + buffer_offset > DMA_BUFFER_SIZE )
+		{
+			buffer_offset = 0;
+			buffer_index++;
+		}
 
 		DEBUG_PRINT(" desc %i\n", i );
 		DEBUG_PRINT(" start addr virt 0x%p, phys 0x%lx\n", priv(dev)->desc_dio_buffer[ i ],
@@ -813,7 +811,6 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	abort_dma(dev, 0);
 
-	priv(dev)->dma_buf_index = 0;
 	priv(dev)->dma_desc_index = 0;
 
 	// give location of first dma descriptor
