@@ -2597,7 +2597,7 @@ void GPCTR_Event_Counting(comedi_device *dev,int chan) {
 	//NOTE: possible residual bits from multibit masks can corrupt
 	//If you config for several measurements between Resets, watch out!
 	
-	//printk("GPCTR_Event_Counting...");
+	printk("GPCTR_Event_Counting...");
 	
 	devpriv->gpctr_cur_operation[chan] = GPCTR_SIMPLE_EVENT;
 	
@@ -2610,7 +2610,7 @@ void GPCTR_Event_Counting(comedi_device *dev,int chan) {
 	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 
 	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	//printk("exit GPCTR_Event_Counting\n");
+	printk("exit GPCTR_Event_Counting\n");
 }
 
 void GPCTR_Period_Meas(comedi_device *dev, int chan) {
@@ -2871,8 +2871,8 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	//printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
 	int retval=0;
+	//printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
 	switch(data[0]){
 	case GPCTR_RESET:
 		if(insn->n!=1)return -EINVAL;
@@ -2891,7 +2891,7 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		retval=GPCTR_Set_Direction(dev,insn->chanspec,data[1]);
 		break;
 	case GPCTR_SET_OPERATION:
-		if(insn->n!=3)return -EINVAL;
+		//TIM 5/1/01 if((insn->n<2)||(insn->n>3))return -EINVAL;
 		switch(data[1]){
 			case GPCTR_SIMPLE_EVENT:
 				GPCTR_Event_Counting(dev,insn->chanspec);
@@ -2929,6 +2929,7 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 	if(retval==0){
 		return insn->n;
 	}else{
+		printk("error: retval was %d\n",retval);
 		return retval;
 	}
 }
