@@ -155,6 +155,7 @@ TODO:
 #define    ADC_START_TRIG_MASK	0x30
 #define    ADC_START_TRIG_FALLING_BIT	0x40	// trig 1 uses falling edge
 #define    ADC_EXT_CONV_FALLING_BIT	0x800	// external pacing uses falling edge
+#define    ADC_SAMPLE_COUNTER_EN_BIT	0x1000	// enable hardware scan counter
 #define    ADC_DMA_DISABLE_BIT	0x4000	// disables dma
 #define    ADC_ENABLE_BIT	0x8000	// master adc enable
 #define ADC_CONTROL1_REG	0x12	// adc control register 1
@@ -696,7 +697,7 @@ typedef struct
 	volatile unsigned int ext_trig_falling;	// configure digital triggers to trigger on falling edge
 	// states of various devices stored to enable read-back
 	unsigned int ad8402_state[2];
-	unsigned int dac8800_state[8];
+	unsigned int caldac_state[8];
 } pcidas64_private;
 
 /* inline function that makes it easier to
@@ -929,7 +930,7 @@ static int setup_subdevices(comedi_device *dev)
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
-	// 8 channel 8800 caldac
+	// caldac
 	s = dev->subdevices + 6;
 	s->type=COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -1547,6 +1548,37 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	return 0;
 }
 
+static int use_hw_sample_counter( comedi_cmd *cmd )
+{
+	static const int max_hardware_count = 0xffffff;
+
+	if( cmd->stop_src == TRIG_COUNT &&
+		cmd->stop_arg <= max_hardware_count )
+		return 1;
+	else
+		return 0;
+}
+
+static void setup_sample_counters( comedi_device *dev, comedi_cmd *cmd )
+{
+	if( cmd->stop_src == TRIG_COUNT )
+	{
+		// set software count
+		private(dev)->ai_count = cmd->stop_arg * cmd->chanlist_len;
+	}
+
+	// load hardware conversion counter
+	if( use_hw_sample_counter( cmd ) )
+	{
+		writew( cmd->stop_arg & 0xffff, private(dev)->main_iobase + ADC_COUNT_LOWER_REG);
+		writew( ( cmd->stop_arg >> 16 ) & 0xff,
+			private(dev)->main_iobase + ADC_COUNT_UPPER_REG);
+	} else
+	{
+		writew( 1, private(dev)->main_iobase + ADC_COUNT_LOWER_REG);
+	}
+}
+
 static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
@@ -1604,12 +1636,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew((scan_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
 	DEBUG_PRINT("scan counter 0x%x\n", scan_counter_value);
 
-	// load hardware conversion counter with non-zero value so it doesn't mess with us
-	writew(1, private(dev)->main_iobase + ADC_COUNT_LOWER_REG);
-
-	// set software count
-	if(cmd->stop_src == TRIG_COUNT)
-		private(dev)->ai_count = cmd->stop_arg * cmd->chanlist_len;
+	setup_sample_counters( dev, cmd );
 
 	if(board(dev)->layout != LAYOUT_4020)
 	{
@@ -1738,6 +1765,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= ADC_START_TRIG_SOFT_BITS;
 	if( cmd->start_arg & CR_INVERT )
 		bits |= ADC_START_TRIG_FALLING_BIT;
+	if( use_hw_sample_counter( cmd ) )
+		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, private(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);
 
@@ -1805,10 +1834,9 @@ static void pio_drain_ai_fifo_16(comedi_device *dev)
 }
 
 /* Read from 32 bit wide ai fifo of 4020 - deal with insane grey coding of pointers.
- * This function isn't used at the moment, since the pci-4020 hardware only supports
+ * The pci-4020 hardware only supports
  * dma transfers (it only supports the use of pio for draining the last remaining
- * points from the fifo when a data aquisition operation has completed).  This function
- * will be useful in the future if support for hardware stop triggers is added.
+ * points from the fifo when a data aquisition operation has completed).
  */
 static void pio_drain_ai_fifo_32(comedi_device *dev)
 {
@@ -1853,8 +1881,6 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		pio_drain_ai_fifo_32(dev);
 	}else
 		pio_drain_ai_fifo_16(dev);
-
-	async->events |= COMEDI_CB_BLOCK;
 }
 
 static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
@@ -1888,6 +1914,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 		}
 		comedi_buf_put_array(async, private(dev)->ai_buffer[private(dev)->dma_index], num_samples);
 		private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
+
 		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) private(dev)->ai_buffer_phys_addr[private(dev)->dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
@@ -1922,6 +1949,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		return;
 	}
 
+	if( (s->subdev_flags & SDF_RUNNING) == 0 ) return;
+
 	async->events = 0;
 
 	// check for fifo overrun
@@ -1955,18 +1984,19 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
 
-	// pio transfer XXX
-	if((status & ADC_INTR_PENDING_BIT) && (dma1_status & PLX_DMA_EN_BIT) == 0)
-	{
-		pio_drain_ai_fifo(dev);
-	}
-
 	// clear possible plx9080 interrupt sources
 	if(plx_status & ICS_LDIA)
 	{ // clear local doorbell interrupt
 		plx_bits = readl(private(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		writel(plx_bits, private(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
+	}
+
+	// clean up dregs if we were stopped by hardware sample counter
+	if( status & ADC_DONE_BIT )
+	{
+		pio_drain_ai_fifo(dev);
+		async->events |= COMEDI_CB_EOA;
 	}
 
 	// if we are have all the data, then quit
@@ -2183,7 +2213,7 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 {
 	int channel = CR_CHAN(insn->chanspec);
 
-	private(dev)->dac8800_state[channel] = data[0];
+	private(dev)->caldac_state[channel] = data[0];
 
 	switch(board(dev)->layout)
 	{
@@ -2205,7 +2235,7 @@ static int calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
-        data[0] = private(dev)->dac8800_state[channel];
+        data[0] = private(dev)->caldac_state[channel];
 
         return 1;
 }
