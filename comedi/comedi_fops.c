@@ -1774,9 +1774,6 @@ static int __init comedi_init(void)
 		comedi_devices[i].minor=i;
 		spin_lock_init(&(comedi_devices[i].spinlock));
 	}
-#if 0
-	init_polling();
-#endif
 
 	/* XXX requires /proc interface */
 	comedi_proc_init();
@@ -1796,9 +1793,7 @@ static void __exit comedi_cleanup(void)
 	unregister_chrdev(COMEDI_MAJOR,"comedi");
 
 	comedi_proc_cleanup();
-#if 0
-	comedi_polling_cleanup();
-#endif
+
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		comedi_device *dev;
 
@@ -1869,6 +1864,7 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 	}
 }
 
+#if 0
 /*
    this function should be called by your interrupt routine
    at the end of acquisition
@@ -1913,5 +1909,6 @@ void comedi_eobuf(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_event(dev,s,COMEDI_CB_EOBUF);
 }
+#endif
 
 
