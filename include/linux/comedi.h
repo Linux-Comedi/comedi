@@ -218,6 +218,7 @@ typedef unsigned short sampl_t;
 #define INSN_CONFIG_ALT_SOURCE		0x14
 #define INSN_CONFIG_DIGITAL_TRIG	0x15
 #define INSN_CONFIG_BLOCK_SIZE		0x16
+#define INSN_CONFIG_TIMER_1			0x17
 
 /* ioctls */
 
