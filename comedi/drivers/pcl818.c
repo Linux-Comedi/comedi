@@ -1207,7 +1207,6 @@ int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 			devpriv->irq_was_now_closed=devpriv->int818_mode;
 			devpriv->int818_mode=0;
 			devpriv->last_int_sub=s;
-			s->busy = 0;
 			break;
 		}
         }

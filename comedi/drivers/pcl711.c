@@ -194,7 +194,6 @@ static void pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
 		} else {
 			outb(0, dev->iobase + PCL711_MODE);
 		}
-		s->busy = 0;
 
 		comedi_done(dev,s);
 	}
