@@ -263,7 +263,7 @@ static int das800_attach(comedi_device *dev,comedi_devconfig *it);
 static int das800_detach(comedi_device *dev);
 static int das800_cancel(comedi_device *dev, comedi_subdevice *s);
 
-comedi_driver driver_das800={
+static comedi_driver driver_das800={
 	driver_name:	"das800",
 	module:		THIS_MODULE,
 	attach:		das800_attach,
@@ -536,7 +536,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = (1 << thisboard->resolution) - 1;
