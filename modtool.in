@@ -4,6 +4,7 @@ LINUX_LD="@LINUX_LD@"
 CC="@CC@"
 INSTALL="@INSTALL@"
 LINUX_MODULE_EXT="@LINUX_MODULE_EXT@"
+STRIP="@STRIP@"
 
 #echo modtool $*
 
@@ -20,6 +21,7 @@ case $mode in
 	module_dest=`echo $2 | sed "s/\.ko$/${LINUX_MODULE_EXT}/"`
 	echo $INSTALL -m644 "$module_src" "$module_dest"
 	$INSTALL -m644 "$module_src" "$module_dest"
+	$STRIP -g "$module_dest"
 	;;
 --uninstall)
 	module_src=$1
