@@ -111,6 +111,9 @@ static inline RTIME nano2count(long long ns)
 
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
+static int timer_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num);
+static int timer_start_cmd(comedi_device *dev, comedi_subdevice *s);
+
 comedi_driver driver_timer={
 	module:		THIS_MODULE,
 	driver_name:	"comedi_rt_timer",
@@ -382,9 +385,15 @@ static int cmdtest_helper(comedi_cmd *cmd,
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	int err = 0;
+	unsigned int start_src = 0;
+
+	if(s->type == COMEDI_SUBD_AO)
+		start_src = TRIG_INT;
+	else
+		start_src = TRIG_NOW;
 
 	err = cmdtest_helper(cmd,
-		TRIG_NOW,	/* start_src */
+		start_src,	/* start_src */
 		TRIG_TIMER | TRIG_FOLLOW,	/* scan_begin_src */
 		TRIG_NOW | TRIG_TIMER,	/* convert_src */
 		TRIG_COUNT,	/* scan_end_src */
@@ -394,6 +403,9 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 2: make sure trigger sources are unique and mutually
 	 * compatible */
 
+	if(cmd->start_src != TRIG_NOW &&
+		cmd->start_src != TRIG_INT)
+		err++;
 	if(cmd->scan_begin_src != TRIG_TIMER &&
 		cmd->scan_begin_src != TRIG_FOLLOW)
 		err++;
@@ -442,7 +454,6 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret;
-	RTIME now, delay, period;
 	comedi_cmd *cmd = &s->async->cmd;
 
 	/* hack attack: drivers are not supposed to do this: */
@@ -458,7 +469,6 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "failed to obtain lock");
 		return ret;
 	}
-	delay = nano2count(cmd->start_arg);
 	switch(cmd->scan_begin_src){
 		case TRIG_TIMER:
 			devpriv->scan_period = nano2count(cmd->scan_begin_arg);
@@ -484,8 +494,39 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 			break;
 	}
 
+	if(cmd->start_src == TRIG_NOW)
+		return timer_start_cmd(dev, s);
+
+	s->async->inttrig = timer_inttrig;
+
+	return 0;
+}
+
+static int timer_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num)
+{
+	if(trig_num != 0)
+		return -EINVAL;
+
+	s->async->inttrig = NULL;
+
+	return timer_start_cmd(dev, s);
+}
+
+static int timer_start_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	RTIME now, delay, period;
+	int ret;
+	
 	devpriv->stop = 0;
 	s->async->events = 0;
+
+
+	if(cmd->start_src == TRIG_NOW)
+		delay = nano2count(cmd->start_arg);
+	else
+		delay = 0;
 
 	now=rt_get_time();
 	/* Using 'period' this way gets around some weird bug in gcc-2.95.2
