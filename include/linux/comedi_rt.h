@@ -67,5 +67,26 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 
 #endif
 
+
+// define a spin_lock_irqsave function that will work with rt or without
+
+#if defined(CONFIG_COMEDI_RTAI)
+#define comedi_spin_lock_irqsave(x, flags)	rt_spin_lock_irqsave(x, flags)
+#define comedi_spin_unlock_irqrestore(x, flags)	rt_spin_unlock_irqrestore(x, flags)
+
+#elif defined(CONFIG_COMEDI_RTL)
+#define comedi_spin_lock_irqsave(x, flags)	rtl_spin_lock_irqsave(x, flags)
+#define comedi_spin_unlock_irqrestore(x, flags)	rtl_spin_unlock_irqrestore(x, flags)
+
+#elif defined(CONFIG_COMEDI_RTL_V1)
+#define comedi_spin_lock_irqsave(x, flags)	rtl_spin_lock_irqsave(x, flags)
+#define comedi_spin_unlock_irqrestore(x, flags)	rtl_spin_unlock_irqrestore(x, flags)
+
+#else
+#define comedi_spin_lock_irqsave(x, flags)	spin_lock_irqsave(x, flags);
+#define comedi_spin_unlock_irqrestore(x, flags)	spin_unlock_irqrestore(x, flags);
+
 #endif
 
+
+#endif
