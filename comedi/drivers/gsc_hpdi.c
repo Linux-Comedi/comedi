@@ -493,7 +493,7 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 			}
 		}while( pcidev != NULL );
 	}
-	if( i == num_boards() )
+	if( dev->board_ptr == NULL )
 	{
 		printk("gsc_hpdi: no hpdi card found\n");
 		return -EIO;
