@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 
 #include <asm/io.h>
+#include <asm/system.h>
 
 static int postconfig(comedi_device *dev);
 static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
@@ -566,7 +567,7 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 	unsigned int write_ptr = async->buf_write_ptr + offset;
 
 	if( write_ptr >= async->prealloc_bufsz )
-		write_ptr -= async->prealloc_bufsz;
+		write_ptr %= async->prealloc_bufsz;
 
 	while( num_bytes )
 	{
@@ -584,6 +585,7 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 
 		write_ptr = 0;
 	}
+	mb();
 }
 
 void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
@@ -593,8 +595,9 @@ void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	unsigned int read_ptr = async->buf_read_ptr + offset;
 
 	if( read_ptr >= async->prealloc_bufsz )
-		read_ptr -= async->prealloc_bufsz;
+		read_ptr %= async->prealloc_bufsz;
 
+	mb();
 	while( nbytes )
 	{
 		unsigned int block_size;
