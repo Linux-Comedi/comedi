@@ -2,27 +2,27 @@
 comment 'Comedi Features'
 
 if [ "$CONFIG_RTL" = "y" ];then
-	bool 'Real-time support' CONFIG_COMEDI_RT
-	if [ "$CONFIG_COMEDI_RT" = "y" ];then
-		define_bool CONFIG_COMEDI_RTL y
+	bool 'Real-time support' CONFIG_COMEDI_RTL
+	if [ "$CONFIG_COMEDI_RTL" = "y" ];then
+		define_bool CONFIG_COMEDI_RT y
 	fi
 fi
 if [ "$CONFIG_RTL_V1" = "y" ];then
-	bool 'Real-time v1 support' CONFIG_COMEDI_RT
-	if [ "$CONFIG_COMEDI_RT" = "y" ];then
-		define_bool CONFIG_COMEDI_RTL_V1 y
+	bool 'Real-time v1 support' CONFIG_COMEDI_RTL_V1
+	if [ "$CONFIG_COMEDI_RTL_V1" = "y" ];then
+		define_bool CONFIG_COMEDI_RT y
 	fi
 fi
 if [ "$CONFIG_RTHAL" = "y" ];then
-	bool 'Real-time support' CONFIG_COMEDI_RT
-	if [ "$CONFIG_COMEDI_RT" = "y" ];then
-		define_bool CONFIG_COMEDI_RTAI y
+	bool 'Real-time support' CONFIG_COMEDI_RTAI
+	if [ "$CONFIG_COMEDI_RTAI" = "y" ];then
+		define_bool CONFIG_COMEDI_RT y
 	fi
 fi
 if [ "$CONFIG_PRIORITY_IRQ" = "y" ];then
-	bool 'Real-time support' CONFIG_COMEDI_RT
-	if [ "$CONFIG_COMEDI_RT" = "y" ];then
-		define_bool CONFIG_COMEDI_PIRQ y
+	bool 'Real-time support' CONFIG_COMEDI_PIRQ
+	if [ "$CONFIG_COMEDI_PIRQ" = "y" ];then
+		define_bool CONFIG_COMEDI_RT y
 	fi
 fi
 
@@ -112,6 +112,5 @@ dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	dep_tristate 'Real-time command emulator (timer)' CONFIG_COMEDI_RT_TIMER $CONFIG_COMEDI
-	else define_bool CONFIG_COMEDI_RT_TIMER n
 fi
 
