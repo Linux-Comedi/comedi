@@ -284,7 +284,7 @@ extern struct symbol_table comedi_syms;
 #endif
 
 #ifdef CONFIG_COMEDI_RT
-#include <comedi_rt.h>
+#include <linux/comedi_rt.h>
 #endif
 
 
