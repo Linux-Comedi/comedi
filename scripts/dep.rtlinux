@@ -3,12 +3,10 @@
 if [ "$CONFIG_RTL" != "" ];then
 	echo You appear to be running an RTL-patched kernel
 
-	echo -n "Enter location of RTL source tree [/usr/src/rtl]: "
+	default=${RTLDIR:=/usr/src/rtl}
+	echo -n "Enter location of RTL source tree [$default]: "
 	read RTLDIR
-	: ${RTLDIR:=/usr/src/rtl}
+	: ${RTLDIR:=$default}
 	echo RTLDIR=$RTLDIR >>.sourcedirs
 #	(cd include;rm -f rtlinux;ln -s $RTLDIR/include rtlinux)
 fi
-
-
-

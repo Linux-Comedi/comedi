@@ -62,6 +62,7 @@ PROJECTRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 -include $(LINUXDIR)/.config
 ifdef PCMCIADIR
 CONFIG_PCMCIA=m
+CFLAGS += -I $(PCMCIADIR)/include
 endif
 
 ifeq (.config,$(wildcard .config))
@@ -81,21 +82,23 @@ ifeq ($(CONFIG_SMP),y)
 CFLAGS += -D__SMP__
 endif
 
-ifdef PCMCIADIR
-CFLAGS += -I $(PCMCIADIR)/include
-endif
-
-
 -include arch/$(ARCH)/Makefile
 -include arch/Makefile.noarch
 
 config:	dummy
 	scripts/Configure
 
+MODULES		= $(wildcard modules/*.o)
+MODULES_PCMCIA	= $(filter %_cs.o, $(MODULES))
+MODULES_MISC	= $(filter-out %_cs.o, $(MODULES))
+
 install:	dummy
 	mkdir -p ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
 	install -d ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
-	install modules/*.o ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
+	install ${MODULES_MISC} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
+ifneq ($(MODULES_PCMCIA),)
+	install ${MODULES_PCMCIA} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/pcmcia
+endif
 	#/sbin/depmod -a ${UTS_VERSION}
 
 

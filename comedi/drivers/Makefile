@@ -55,6 +55,8 @@ obj-$(CONFIG_COMEDI_PCL726)		+= pcl726.o
 obj-$(CONFIG_COMEDI_PCL812)		+= pcl812.o
 obj-$(CONFIG_COMEDI_PCL818)		+= pcl818.o
 
+obj-$(CONFIG_COMEDI_QUATECH_DAQP)	+= quatech_daqp_cs.o
+
 obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
 
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
