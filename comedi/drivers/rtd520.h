@@ -138,7 +138,7 @@
 #define LCFG_ITCSR              0x0068    // INTCSR, Interrupt Control/Status Register
 #define LCFG_DMAMODE0           0x0080    // DMA Channel 0 Mode Register
 #define LCFG_DMAPADR0           0x0084    // DMA Channel 0 PCI Address Register
-#define LCFG_DMALADR0           0x0088    // DMA Channel 0 Local Address Register
+#define LCFG_DMALADR0           0x0088    // DMA Channel 0 Local Address Reg
 #define LCFG_DMASIZ0            0x008C    // DMA Channel 0 Transfer Size (Bytes) Register
 #define LCFG_DMADPR0            0x0090    // DMA Channel 0 Descriptor Pointer Register
 #define LCFG_DMAMODE1           0x0094    // DMA Channel 1 Mode Register
@@ -353,51 +353,12 @@
 #define DMAS_DAC1_FIFO_HALF_EMPTY  0x9  // D/A1 FIFO half empty
 #define DMAS_DAC2_FIFO_HALF_EMPTY  0xA  // D/A2 FIFO half empty
 
-//  PLX Interrupt Control/Status enable masks (LCFG)
-#define PIRQE_PCI          0x00000100	//PCI Interrupt Enable (defaulton)
-#define PIRQE_LINT         0x00000800	//Local Interrupt Enable (bit 11)
-#define PIRQE_DMA0         0x00040000	//DMA Channel 0 Interrupt Enable
-#define PIRQE_DMA1         0x00080000	//DMA Channel 1 Interrupt Enable
-//  PLX Interrupt Control/Status status masks (LCFG)
-#define PIRQS_LINT         0x00008000	//Local Interrupt Active (bit 15)
-#define PIRQS_DMA0         0x00200000	//DMA Channel 0 Interrupt Active
-#define PIRQS_DMA1         0x00400000	//DMA Channel 1 Interrupt Active
+// DMA Local Addresses   (0x40000000+LAS1 offset)
+#define DMALADDR_ADC       0x40000000	// A/D FIFO
+#define DMALADDR_HDIN      0x40000004	// High Speed Digital Input FIFO
+#define DMALADDR_DAC1      0x40000008	// D/A1 FIFO
+#define DMALADDR_DAC2      0x4000000C	// D/A2 FIFO
 
-// DMA Mode Register (LCFG)
-#define DMA_8BIT         0x0000    // 8 bit wide transfer
-#define DMA_16BIT        0x0001    // 16 bit wide transfer
-#define DMA_32BIT        0x0003    // 32 bit wide transfer
-#define DMA_RDYEN        0x0040    // READY enable
-#define DMA_BTERM        0x0080    // BTERM enable
-#define DMA_LBURST       0x0100    // Local Burst enable
-#define DMA_CHAIN        0x0200    // Chain mode DMA
-#define DMA_ITEN         0x0400    // DMA done IT enable
-#define DMA_LA_CONST     0x0800    // Local Address constant
-#define DMA_DEMAND       0x1000    // Demand mode DMA
-#define DMA_WRANDI       0x2000    // Write and Invalidate mode DMA
-#define DMA_CLRCNT       0x010000  // Clear transfer count
-#define DMA_IT_PCI       0x020000  // DMA IT rerouted to PCI IT
-
-//  DMA Command/Status bits (LCFG)
-#define DMA_ENABLED       0x01		// DMA Channel 0 enabled
-#define DMA_START         0x02		// DMA Channel 0 started
-#define DMA_ABORT         0x04		// Abort DMA Channel 0 transfer
-#define DMA_CLEAR_IT      0x08		// Clear DMA Channel 0 IT
-#define DMA_DONE          0x10		// DMA Channel 0 transfer done
-
-// DMA Transfer Direction
-#define DMAD_FROMCARD      1            // DMA transfer from card to memory
-#define DMAD_TOCARD        0            // DMA transfer from memory to card
-
-// Chained DMA Transfer Direction
-#define DMA_CHAINED_READ       8	// DMA transfer from memory to card
-#define DMA_CHAINED_WRITE      0	// DMA transfer from card to memory
-
-// DMA Local Addresses   (LAS1 offset)
-#define DMALADDR_ADC       0x0000	// A/D FIFO
-#define DMALADDR_HDIN      0x0004	// High Speed Digital Input FIFO
-#define DMALADDR_DAC1      0x0008	// D/A1 FIFO
-#define DMALADDR_DAC2      0x000C	// D/A2 FIFO
 
 // Port 0 compare modes (SetDIO0CompareMode)
 #define DIO_MODE_EVENT     0		// Event Mode
