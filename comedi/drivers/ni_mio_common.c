@@ -53,7 +53,6 @@
 */
 
 //#define DEBUG_INTERRUPT
-//#define TRY_BLOCK
 #define DEBUG_STATUS_A
 //#define DEBUG_STATUS_B
 
@@ -189,9 +188,6 @@ static void ni_mio_print_status_b(int status);
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
 static void ni_handle_fifo_half_full(comedi_device *dev);
 static void ni_handle_fifo_dregs(comedi_device *dev);
-#ifdef TRY_BLOCK
-static void ni_handle_block(comedi_device *dev);
-#endif
 #ifdef PCIDMA
 static void ni_handle_block_dma(comedi_device *dev);
 #endif
@@ -443,9 +439,6 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 #ifdef DEBUG_INTERRUPT
 			rt_printk("ni_mio_common: SC_TC interrupt\n");
 #endif
-#ifdef TRY_BLOCK
-			ni_handle_block(dev);
-#else
 			//for MITE DMA ignore the terminal count from the STC
 			//instead finish up when the MITE asserts DONE
 #ifndef PCIDMA
@@ -462,7 +455,6 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 				comedi_done(dev,s);
 			}
 #endif //PCIDMA
-#endif //TRY_BLOCK
 			ack|=AI_SC_TC_Interrupt_Ack;
 		}
 		if(status&AI_START1_St){
@@ -625,59 +617,6 @@ static void ni_handle_block_dma(comedi_device *dev)
 }
 #endif
 
-#ifdef TRY_BLOCK
-/* Blocked mode is used to get interrupts at convenient places
- * to do DMA.  It is also useful when you want to count greater
- * than 16M scans.
- */
-static void ni_handle_block(comedi_device *dev)
-{
-	int n;
-
-	if(devpriv->ai_continuous){
-		n = devpriv->blocksize;
-	}else{
-		if(devpriv->n_left==0){
-			ni_handle_fifo_dregs(dev);
-			printk("end\n");
-			//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
-			ni_set_bits(dev, Interrupt_A_Enable_Register,
-				AI_SC_TC_Interrupt_Enable | AI_Start1_Interrupt_Enable|
-				AI_Start2_Interrupt_Enable| AI_Start_Interrupt_Enable|
-				AI_Stop_Interrupt_Enable| AI_Error_Interrupt_Enable|
-				AI_FIFO_Interrupt_Enable,0);
-			ni_ai_reset(dev,dev->subdevices);
-			comedi_done(dev,dev->subdevices);
-		}else if(devpriv->n_left<=devpriv->blocksize){
-			printk("last block %d\n",devpriv->n_left);
-			n = devpriv->n_left;
-			devpriv->n_left = 0;
-		}else{
-			printk("block %d\n",devpriv->n_left);
-			n = devpriv->blocksize;
-			devpriv->n_left -= devpriv->blocksize;
-		}
-	}
-#if 0
-	{
-		int size=0x10000;
-
-	/* stage number of scans */
-	win_out((size-1)>>16,AI_SC_Load_A_Registers);
-	win_out((size-1)&0xffff,AI_SC_Load_A_Registers+1);
-
-	//mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-	mode1 |= 0xe;
-	win_out(mode1,AI_Mode_1_Register);
-
-	/* load SC (Scan Count) */
-	win_out(AI_SC_Load,AI_Command_1_Register);
-
-	}
-#endif
-}
-#endif
-
 static void ni_handle_fifo_half_full(comedi_device *dev)
 {
 	int n,m;
@@ -796,52 +735,6 @@ static int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 	mite_dma_arm(devpriv->mite);
 	        
 	MDPRINTK("exit ni_ai_setup_block_dma\n");
-
-	return mode1;
-}
-#endif
-
-#ifdef TRY_BLOCK
-static int ni_ai_setup_block(comedi_device *dev,int frob,int mode1)
-{
-	int n;
-	int last=0;
-
-printk("n_left = %d\n",devpriv->n_left);
-	if(devpriv->ai_continuous){
-		n=devpriv->blocksize;
-		last=0;
-	}else{
-		n=devpriv->n_left;
-		if(n>devpriv->blocksize){
-			n=devpriv->blocksize;
-			last=0;
-		}else{
-			last=1;
-		}
-		devpriv->n_left -= n;
-	}
-
-	if(frob){
-		/* stage number of scans */
-		win_out((n-1)>>16,AI_SC_Load_A_Registers);
-		win_out((n-1)&0xffff,AI_SC_Load_A_Registers+1);
-		win_out((n-1)>>16,AI_SC_Load_B_Registers);
-		win_out((n-1)&0xffff,AI_SC_Load_B_Registers+1);
-
-		/* load SC (Scan Count) */
-		win_out(AI_SC_Load,AI_Command_1_Register);
-#if 0
-		if(!last){
-			mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-		}else{
-			mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
-		}
-#endif
-		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-		win_out(mode1,AI_Mode_1_Register);
-
-	}
 
 	return mode1;
 }
@@ -1236,10 +1129,9 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	/* start configuration */
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
-#ifndef TRY_BLOCK
-	#ifdef PCIDMA
+#ifdef PCIDMA
 	ni_ai_setup_MITE_dma(dev,cmd,mode1);	
-	#else
+#else
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
 		/* stage number of scans */
@@ -1270,23 +1162,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		break;
 	}
-	#endif
-#else
-	devpriv->blocksize = 0x4000;
-	switch(cmd->stop_src){
-	case TRIG_COUNT:
-		devpriv->ai_continuous = 0;
-		devpriv->n_left = cmd->stop_arg;
-		break;
-	case TRIG_NONE:
-		devpriv->ai_continuous = 1;
-		devpriv->n_left = 0;
-		break;
-	}
-
-	mode1 = ni_ai_setup_block(dev,1,mode1);
 #endif
-
 
 	switch(cmd->scan_begin_src){
 	case TRIG_TIMER:
