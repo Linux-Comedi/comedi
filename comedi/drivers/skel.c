@@ -255,8 +255,8 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=1;
 	s->maxdata=0xffff;
 	s->range_table=&range_bipolar5;
-	s->insn_write = &skel_ao_winsn;
-	s->insn_read = &skel_ao_rinsn;
+	s->insn_write = skel_ao_winsn;
+	s->insn_read = skel_ao_rinsn;
 
 	s=dev->subdevices+2;
 	/* digital i/o subdevice */
