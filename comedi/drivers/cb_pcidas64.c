@@ -1517,16 +1517,6 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	DEBUG_PRINT(" main remapped to 0x%lx\n", priv(dev)->main_iobase);
 	DEBUG_PRINT(" diocounter remapped to 0x%lx\n", priv(dev)->dio_counter_iobase);
 
-	// get irq
-	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
-	{
-		printk(" unable to allocate irq %d\n", pcidev->irq);
-		return -EINVAL;
-	}
-	dev->irq = pcidev->irq;
-
-	printk(" irq %i\n", dev->irq);
-
 	// figure out what local addresses are
 	local_range = readl(priv(dev)->plx9080_iobase + PLX_LAS0RNG_REG) & LRNG_MEM_MASK;
 	local_decode = readl(priv(dev)->plx9080_iobase + PLX_LAS0MAP_REG) & local_range & LMAP_MEM_MASK ;
@@ -1537,12 +1527,6 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 
 	DEBUG_PRINT(" local 0 io addr 0x%x\n", priv(dev)->local0_iobase);
 	DEBUG_PRINT(" local 1 io addr 0x%x\n", priv(dev)->local1_iobase);
-
-	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
-
-	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
-
-	init_plx9080(dev);
 
 	// alocate pci dma buffers
 	for(index = 0; index < DMA_RING_COUNT; index++)
@@ -1575,11 +1559,27 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 	}
 
+	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
+
+	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
+
 	retval = setup_subdevices(dev);
 	if(retval < 0)
 	{
 		return retval;
 	}
+
+	// get irq
+	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
+	{
+		printk(" unable to allocate irq %d\n", pcidev->irq);
+		return -EINVAL;
+	}
+	dev->irq = pcidev->irq;
+
+	printk(" irq %i\n", dev->irq);
+
+	init_plx9080(dev);
 
 	init_stc_registers( dev );
 
@@ -1641,9 +1641,9 @@ static int detach(comedi_device *dev)
 static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	unsigned int bits = 0, n, i;
-	const int timeout = 100;
 	unsigned int channel, range, aref;
 	unsigned long flags;
+	static const int timeout = 100;
 
 	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
 	channel = CR_CHAN(insn->chanspec);
@@ -2335,6 +2335,8 @@ static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 					bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
 				writew(bits, priv(dev)->main_iobase + ADC_QUEUE_FIFO_REG);
 			}
+			/* doing a queue clear is not specified in board docs,
+			 * but required for reliable operation */
 			writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
 			// prime queue holding register
 			writew(0, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
@@ -2375,11 +2377,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	unsigned long flags;
 
 	disable_ai_pacing( dev );
-
-	/* adc must be enabled or loading of channel queue becomes
-	 * unreliable */
-	writew( ADC_ENABLE_BIT | ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS |
-		ADC_GATE_LEVEL_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG );
+	abort_dma(dev, 1);
 
 	// make sure internal calibration source is turned off
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
@@ -2387,13 +2385,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	set_ai_pacing( dev, cmd );
 
 	setup_sample_counters( dev, cmd );
-
-	setup_channel_queue(dev, cmd);
-
-	// clear adc buffer
-	writew(0, priv(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
-
-	priv(dev)->dma_index = 0;
 
 	// enable interrupts on plx 9080
 	priv(dev)->plx_intcsr_bits |= ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE | ICS_DMA1_E;
@@ -2428,16 +2419,27 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	DEBUG_PRINT("control1 bits 0x%x\n", priv(dev)->adc_control1_bits);
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
-	abort_dma(dev, 1);
+	// clear adc buffer
+	writew(0, priv(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
+
 	if((cmd->flags & TRIG_WAKE_EOS) == 0 ||
 		board(dev)->layout == LAYOUT_4020)
 	{
+		priv(dev)->dma_index = 0;
 
 		// set dma transfer size
 		for( i = 0; i < DMA_RING_COUNT; i++)
 			priv(dev)->dma_desc[ i ].transfer_size = dma_transfer_size( dev ) * sizeof( uint16_t );
+
+		/* These register are supposedly unused during chained dma,
+		 * but I have found that left over values from last operation
+		 * occasionally cause problems with transfer of first dma
+		 * block.  Initializing them to zero seems to fix the problem. */
+		writel(0, priv(dev)->plx9080_iobase + PLX_DMA1_TRANSFER_SIZE_REG);
+		writel(0, priv(dev)->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG);
+		writel(0, priv(dev)->plx9080_iobase + PLX_DMA1_LOCAL_ADDRESS_REG);
 		// give location of first dma descriptor
-		bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
+		bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 		writel(bits, priv(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
 
 		// spinlock for plx dma control/status reg
@@ -2461,6 +2463,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+
+	setup_channel_queue(dev, cmd);
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
@@ -2616,8 +2620,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 		pci_addr_reg = priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
 
 	// loop until we have read all the full buffers
-	j = 0;
-	for(next_transfer_addr = readl(pci_addr_reg);
+	for(j = 0, next_transfer_addr = readl(pci_addr_reg);
 		(next_transfer_addr < priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index] ||
 		next_transfer_addr >= priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index] + DMA_BUFFER_SIZE) &&
 		j < DMA_RING_COUNT;
@@ -2632,13 +2635,13 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 			priv(dev)->ai_count -= num_samples;
 		}
 		cfc_write_array_to_buffer( dev->read_subdev,
-			priv(dev)->ai_buffer[ priv(dev)->dma_index ], num_samples * sizeof( sampl_t ) );
+			priv(dev)->ai_buffer[ priv(dev)->dma_index ], num_samples * sizeof( uint16_t ) );
 		priv(dev)->dma_index = (priv(dev)->dma_index + 1) % DMA_RING_COUNT;
 
 		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index]);
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
-	// XXX check for buffer overrun somehow
+	// XXX check for dma ring buffer overrun somehow
 }
 
 static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
@@ -2766,6 +2769,7 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 
 	abort_dma(dev, 1);
 
+	DEBUG_PRINT("ai canceled\n");
 	return 0;
 }
 
