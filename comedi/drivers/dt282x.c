@@ -559,12 +559,6 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	int handled = 0;
 
 	adcsr=inw(dev->iobase + DT2821_ADCSR);
-	if (adcsr & DT2821_ADERR) {
-		comedi_error(dev, "A/D error");
-		dt282x_ai_cancel(dev,s);
-		s->async->events |= COMEDI_CB_ERROR;
-		handled = 1;
-	}
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
 	/*printk("supcsr=%02x\n",supcsr);*/
 	if (supcsr & DT2821_DMAD) {
@@ -572,6 +566,15 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 			dt282x_ai_dma_interrupt(dev);
 		else
 			dt282x_ao_dma_interrupt(dev);
+		handled = 1;
+	}
+	if (adcsr & DT2821_ADERR) {
+		if(devpriv->nread != 0 )
+		{
+			comedi_error(dev, "A/D error");
+			dt282x_ai_cancel(dev,s);
+			s->async->events |= COMEDI_CB_ERROR;
+		}
 		handled = 1;
 	}
 	if ((dacsr = inw(dev->iobase + DT2821_DACSR)) & DT2821_DAERR) {
