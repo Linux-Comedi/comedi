@@ -140,9 +140,6 @@ struct comedi_async_struct{
 	/* number of bytes that have been received for current scan */
 	unsigned int scan_progress;
 
-	void		*data;
-	unsigned int	data_len;
-
 	unsigned int	events;		/* events that have occurred */
 
 	comedi_cmd cmd;
