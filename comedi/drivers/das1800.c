@@ -1085,12 +1085,12 @@ static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *
 /* utility function used by das1800 interrupt service routines */
 inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point)
 {
-	if(s->async->buf_int_ptr >= s->async->prealloc_bufsz )
+	if(s->async->buf_int_ptr >= s->async->cmd.data_len )
 	{
 		s->async->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
-	*((sampl_t *)((void *)s->async->prealloc_buf + s->async->buf_int_ptr)) = data_point;
+	*((sampl_t *)((void *)s->async->cmd.data + s->async->buf_int_ptr)) = data_point;
 	s->async->cur_chan++;
 	if(s->async->cur_chan >= s->async->cur_chanlist_len)
 	{
