@@ -31,7 +31,7 @@ Authors: Warren Jasper, ds
 Devices: [ComputerBoards] DAS08 (das08), DAS08-PGM (das08-pgm),
   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
-  DAS08/JR-16-AO (das08jr-16-ao), (PCI-DAS08) pci-das08,
+  DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (pci-das08),
   DAS08/JR/16 (das08jr/16)
 Status: works
 
