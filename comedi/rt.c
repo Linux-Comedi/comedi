@@ -76,8 +76,8 @@ struct comedi_irq_struct {
 	comedi_device *dev_id;
 };
 
-static int rt_get_irq(struct comedi_irq_struct *it);
-static int rt_release_irq(struct comedi_irq_struct *it);
+static int comedi_rt_get_irq(struct comedi_irq_struct *it);
+static int comedi_rt_release_irq(struct comedi_irq_struct *it);
 
 #define MAX_IRQ_SHARING 6
 static struct comedi_irq_struct *comedi_irqs[NR_IRQS][MAX_IRQ_SHARING];
@@ -182,7 +182,7 @@ void comedi_free_irq(unsigned int irq,comedi_device *dev_id)
 
 	if(it->rt){
 		printk("real-time IRQ allocated at board removal (ignore)\n");
-		rt_release_irq(it);
+		comedi_rt_release_irq(it);
 	}
 
 	free_irq(it->irq,it->dev_id);
@@ -210,7 +210,7 @@ int comedi_switch_to_rt(comedi_device *dev)
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
 	if(!dev->rt)
-		rt_get_irq(it);
+		comedi_rt_get_irq(it);
 
 	dev->rt++;
 	it->rt=1;
@@ -237,7 +237,7 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 
 	dev->rt--;
 	if(!dev->rt)
-		rt_release_irq(it);
+		comedi_rt_release_irq(it);
 
 	it->rt=0;
 
@@ -332,7 +332,7 @@ static V_FP_V handle_void_irq_ptrs[]={
 };
 /* if you need more, fix it yourself... */
 
-static int rt_get_irq(struct comedi_irq_struct *it)
+static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	rt_request_global_irq(it->irq,handle_void_irq_ptrs[it->irq]);
 	rt_startup_irq(it->irq);
@@ -340,7 +340,7 @@ static int rt_get_irq(struct comedi_irq_struct *it)
 	return 0;
 }
 
-static int rt_release_irq(struct comedi_irq_struct *it)
+static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 {
 	rt_shutdown_irq(it->irq);
 	rt_free_global_irq(it->irq);
@@ -348,7 +348,7 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 }
 #else
 
-static int rt_get_irq(struct comedi_irq_struct *it)
+static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	int ret;
 
@@ -363,7 +363,7 @@ static int rt_get_irq(struct comedi_irq_struct *it)
 	return 0;
 }
 
-static int rt_release_irq(struct comedi_irq_struct *it)
+static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 {
 	rt_shutdown_irq(it->irq);
 	rt_free_global_irq(it->irq);
@@ -405,13 +405,13 @@ static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
 	return 0;
 }
 
-static int rt_get_irq(struct comedi_irq_struct *it)
+static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	rtl_request_global_irq(it->irq,handle_rtl_irq);
 	return 0;
 }
 
-static int rt_release_irq(struct comedi_irq_struct *it)
+static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 {
 	rtl_free_global_irq(it->irq);
 	return 0;
@@ -430,7 +430,7 @@ void comedi_rt_cleanup(void)
 #endif
 
 #ifdef CONFIG_COMEDI_PIRQ
-static int rt_get_irq(struct comedi_irq_struct *it)
+static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	int ret;
 
@@ -441,7 +441,7 @@ static int rt_get_irq(struct comedi_irq_struct *it)
 	return ret;
 }
 
-static int rt_release_irq(struct comedi_irq_struct *it)
+static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 {
 	int ret;
 
