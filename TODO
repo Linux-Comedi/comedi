@@ -45,3 +45,11 @@ don't need Configure.help and Configure.help.append
 
 ni_mio_common: 2-chan AO doesn't work?
 
+ni_mio_common: add a PFI subdevice
+
+create separate fops structure for unconfigured devices
+
+remove SDF_RT globally
+
+ni_mio_common: starting AO without anything in buffer causes oops
+
