@@ -21,13 +21,11 @@
 
 *****************************************************************
 
-Support for pci-das08 card and pcm-das08 added by Frank M. Hess
-
 */
 /*
 Driver: das08.o
 Description: DAS-08 compatible boards
-Authors: Warren Jasper, ds
+Authors: Warren Jasper, ds, Frank Hess
 Devices: [ComputerBoards] DAS08 (das08), DAS08-PGM (das08-pgm),
   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
@@ -789,6 +787,11 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 #ifdef CONFIG_PCMCIA
 	}else if(thisboard->bustype == pcmcia)
 	{
+		if(link == NULL)
+		{
+			printk(" no pcmcia cards found\n");
+			return -EIO;
+		}
 		iobase = link->io.BasePort1;
 #endif // CONFIG_PCMCIA
 	}else{
@@ -817,7 +820,9 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	/* ai */
 	if(thisboard->ai){
 		s->type=COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE;
+	/* XXX some boards actually have differential inputs instead of single ended.
+	 *  The driver does nothing with arefs though, so it's no big deal. */
+		s->subdev_flags = SDF_READABLE | SDF_GROUND;
 		s->n_chan = 8;
 		s->maxdata = (1<<thisboard->ai_nbits)-1;
 		s->range_table = das08_ai_lranges[thisboard->ai_pg];
@@ -831,6 +836,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	/* ao */
 	if(thisboard->ao){
 		s->type=COMEDI_SUBD_AO;
+// XXX lacks read-back insn
 		s->subdev_flags = SDF_WRITEABLE;
 		s->n_chan = 2;
 		s->maxdata = (1<<thisboard->ao_nbits)-1;
