@@ -10,6 +10,13 @@ SUBDIRS := comedi
 
 include ./Makefile.modbuild
 
+INSTALLDIR_DEV=$(DESTDIR)/usr/realtime/
+
+install_dev:
+	install -d $(INSTALLDIR_DEV)/include
+	install -m 644 include/linux/comedi.h $(INSTALLDIR_DEV)/include
+	install -m 644 include/linux/comedilib.h $(INSTALLDIR_DEV)/include
+
 dev:
 	-mknod -m 666 /dev/comedi0 c 98 0
 	-mknod -m 666 /dev/comedi1 c 98 1
