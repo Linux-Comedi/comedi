@@ -32,6 +32,11 @@ Options:
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
 
+TODO:
+
+Autodetecting boards doesn't work very well, we should give up on that
+or at least only use it as a fallback.
+
 */
 
 #include <linux/kernel.h>
@@ -159,7 +164,7 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define   DAS16_CNTR2		0x80
 
 #define DAS1600_CONV		0x404
-#define   DAS1600_CONV_DISABLE	0x40
+#define   DAS1600_CONV_DISABLE		0x40
 #define DAS1600_BURST		0x405
 #define   DAS1600_BURST_VAL		0x40
 #define DAS1600_ENABLE		0x406
@@ -275,6 +280,8 @@ enum{	/* must match following array */
 	das16_board_das16,
 	das16_board_das16f,
 	das16_board_das16jr,
+	das16_board_das1201,
+	das16_board_das1202,
 	das16_board_das1401_12,
 	das16_board_das1402_12,
 	das16_board_das1402_16,
@@ -325,6 +332,34 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x10,
+	},
+	{
+	name:		"das1201",	// 4924.pdf (keithley user's manual)
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	20000,
+	ai_pg:		das16_pg_none,
+	ao:		NULL,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x408,
+	},
+	{
+	name:		"das1202",	// 4924.pdf (keithley user's manual)
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	10000,
+	ai_pg:		das16_pg_none,
+	ao:		NULL,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x408,
 	},
 	{
 	name:		"das1401/12",	// cio-das1400_series.pdf
@@ -450,7 +485,7 @@ comedi_driver driver_das16={
 	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
-/* Should be able to autodetect boards */
+/* Trying to autodetect boards isn't good enough, this has to go back */
 #if 0
 	board_name:	das16_boards,
 	num_names:	n_das16_boards,
@@ -655,12 +690,12 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 		if(cmd->convert_src == TRIG_NOW)
 		{
 			outb(DAS1600_BURST_VAL, dev->iobase + DAS1600_BURST);
+			// set burst length
+			byte |= BURST_LEN_BITS(cmd->chanlist_len - 1);
 		}else
 		{
 			outb(0, dev->iobase + DAS1600_BURST);
 		}
-		// set burst length
-		byte |= BURST_LEN_BITS(cmd->chanlist_len);
 	}
 	outb(byte, dev->iobase + DAS16_PACER);
 
@@ -668,6 +703,9 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	// set up dma transfer
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
+	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma_chan);
 	set_dma_addr(devpriv->dma_chan, (unsigned int) devpriv->dma_buffer);
 	// set appropriate size of transfer
 	devpriv->dma_transfer_size = das16_suggest_transfer_size(*cmd);
@@ -689,6 +727,12 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 		devpriv->control_state |= INT_PACER;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
+	/* Enable conversions if using das1600 mode */
+	if(thisboard->size > 0x400)
+	{
+		outb(0, dev->iobase + DAS1600_CONV);
+	}
+
 	return 0;
 }
 
@@ -699,6 +743,12 @@ static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 	if(devpriv->dma_chan)
 		disable_dma(devpriv->dma_chan);
+
+	// disable conversions for das1600 mode
+	if(thisboard->size > 0x400)
+	{
+		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
+	}
 
 	return 0;
 }
@@ -846,6 +896,9 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
+	/* clear flip-flop to make sure 2-byte registers for
+	 * count and address get set correctly */
+	clear_dma_ff(devpriv->dma_chan);
 
 	// figure out how many points to read
 	max_points = devpriv->dma_transfer_size  / sample_size;
@@ -1021,6 +1074,10 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 		printk(" das1400\n");
 		das1600_mode_detect(dev);
 		return das16_board_das1401_12;
+	case 0x20:
+		printk(" das1200\n");
+		das1600_mode_detect(dev);
+		return das16_board_das1201;
 	default:
 		printk(" unknown board\n");
 		return -1;
@@ -1040,31 +1097,6 @@ static int das1600_mode_detect(comedi_device *dev)
 		devpriv->clockbase = 1000;
 		printk(" 1MHz pacer clock\n");
 	}
-
-	outb(0, dev->iobase + DAS1600_CONV);
-	outb(0, dev->iobase + DAS1600_BURST);
-	outb(0, dev->iobase + DAS1600_ENABLE);
-
-#ifdef DETECT
-	/* burststatus is available on 1600, 1400 */
-	if((burststatus & 0xfc)==0x10){
-		/* true for 1400, 1600 */
-	}
-
-	if((burststatus & DAS1600_CLK)){
-		devpriv->clockbase = 100;
-	}else{
-		devpriv->clockbase = 1000;
-	}
-
-	if(detect_ao(dev)){
-		printk("das1600 series\n");
-		return das16_board_das1601_12;
-	}else{
-		printk("das1400 series\n");
-		return das16_board_das1401_12;
-	}
-#endif
 
 	return 0;
 }
@@ -1173,7 +1205,6 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		devpriv->dma_chan = dma_chan;
 		flags = claim_dma_lock();
 		disable_dma(devpriv->dma_chan);
-		clear_dma_ff(devpriv->dma_chan);
 		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 		release_dma_lock(flags);
 		printk(" ( dma = %d)\n", dma_chan);
@@ -1271,6 +1302,14 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	/* set the interrupt level,enable pacer clock */
 	devpriv->control_state = DAS16_IRQ(dev->irq);
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
+
+	// turn on das1600 mode if available
+	if(thisboard->size > 0x400)
+	{
+		outb(DAS1600_ENABLE_VAL, dev->iobase + DAS1600_ENABLE);
+		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
+		outb(0, dev->iobase + DAS1600_BURST);
+	}
 
 	return 0;
 }
