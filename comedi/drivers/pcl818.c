@@ -1343,7 +1343,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
         }
 
-        request_region(dev->iobase, io_range, "pcl818");
+        request_region(iobase, io_range, "pcl818");
         dev->iobase=iobase;
         dev->iosize=io_range;
     

@@ -615,7 +615,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase, boardtypes[board].io_range, "pcl812");
+	request_region(iobase, boardtypes[board].io_range, "pcl812");
 	dev->iobase = iobase;
 	dev->iosize = boardtypes[board].io_range;
 
