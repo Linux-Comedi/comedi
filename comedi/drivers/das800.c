@@ -235,8 +235,8 @@ das800_board das800_boards[] =
 #define thisboard ((das800_board *)dev->board_ptr)
 
 typedef struct{
-	unsigned long count;  /* number of data points left to be taken */
-	int forever;  /* flag indicating whether we should take data forever */
+	volatile unsigned int count;  /* number of data points left to be taken */
+	volatile int forever;  /* flag indicating whether we should take data forever */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
 	int do_bits;	/* digital output bits */

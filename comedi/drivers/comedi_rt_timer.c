@@ -126,9 +126,9 @@ typedef struct{
 	// time between conversions in a scan
 	RTIME convert_period;
 	// flags
-	unsigned stop : 1;	// indicates we should stop
-	unsigned rt_task_active : 1;	// indicates rt_task is servicing a comedi_cmd
-	unsigned scan_task_active : 1;	// indicates scan_task is servicing a comedi_cmd
+	volatile int stop;	// indicates we should stop
+	volatile int rt_task_active;	// indicates rt_task is servicing a comedi_cmd
+	volatile int scan_task_active;	// indicates scan_task is servicing a comedi_cmd
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 

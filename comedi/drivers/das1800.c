@@ -436,8 +436,8 @@ das1800_board das1800_boards[] =
 #define thisboard ((das1800_board *)dev->board_ptr)
 
 typedef struct{
-	unsigned long count;  /* number of data points left to be taken */
-	int forever;  /* flag indicating whether we should take data forever */
+	volatile unsigned int count;  /* number of data points left to be taken */
+	volatile int forever;  /* flag indicating whether we should take data forever */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
 	int do_bits;	/* digital output bits */
@@ -447,10 +447,10 @@ typedef struct{
 	int dma_bits;
 	unsigned int dma0;	/* dma channels used */
 	unsigned int dma1;
-	unsigned int dma_current;	/* dma channel currently in use */
+	volatile unsigned int dma_current;	/* dma channel currently in use */
 	short *dma_buf0;	/* pointers to dma buffers */
 	short *dma_buf1;
-	short *dma_current_buf;	/* pointer to dma buffer currently being used */
+	volatile short *dma_current_buf;	/* pointer to dma buffer currently being used */
 	unsigned int dma_buf_max_size;	/* allocated size in bytes of dma buffers */
 	unsigned int dma_buf_size;	/* size of buffers currently used, depends on sampling frequency */
 	int iobase2;	/* secondary io address used for analog out on 'ao' boards */
@@ -937,7 +937,7 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 	unsigned long numPoints, leftover;
 	long maxPoints, residue;
 	short dpnt;
-	short *buffer;
+	volatile short *buffer;
 	int unipolar;
 	int i;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
