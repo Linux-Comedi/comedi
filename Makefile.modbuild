@@ -71,7 +71,7 @@ config:	dummy
 modules_install:	$(patsubst %, _modinst_%, $(SUBDIRS))
 ifeq ($(INSTALL_MOD_PATH),)
 ifeq ($(KERNELRELEASE),$(shell uname -r))
-	/sbin/depmod -a
+	/sbin/depmod -ae
 endif
 endif
 
