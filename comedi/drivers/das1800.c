@@ -496,6 +496,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(das1800_private)) < 0)
 		return -ENOMEM;
+	devpriv->spinlock = SPIN_LOCK_UNLOCKED;
 
 	printk("comedi%d: das1800: io 0x%x", dev->minor, iobase);
 	if(irq)

@@ -466,6 +466,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(das800_private)) < 0)
 		return -ENOMEM;
+	devpriv->spinlock = SPIN_LOCK_UNLOCKED;
 
 	dev->n_subdevices = 3;
 	if(alloc_subdevices(dev) < 0)
