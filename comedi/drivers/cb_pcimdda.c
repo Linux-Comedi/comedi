@@ -1,26 +1,7 @@
 /*
     comedi/drivers/cb_pcimdda.c
-
     Computer Boards PCIM-DDA06-16 Comedi driver
-
     Author: Calin Culianu <calin@ajvar.org>
-
-    This is a driver for the Computer Boards PCIM-DDA06-16 Analog Output
-    card.  This board has a unique register layout and as such probably 
-    deserves its own driver file.  
-
-    It is theoretically possible to integrate this board into the cb_pcidda
-    file, but since that isn't my code, I didn't want to significantly
-    modify that file to support this board (I thought it impolite to do so).
-
-    At any rate, if you feel ambitious, please feel free to take
-    the code out of this file and combine it with a more unified driver
-    file.
-
-    I would like to thank Timothy Curry <Timothy.Curry@rdec.redstone.army.mil>
-    for lending me a board so that I could write this driver.
-
-    -Calin Culianu <calin@ajvar.org>
     
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -78,46 +59,30 @@ output modes on the board:
  
 
 Configuration Options:
-  Just tell comedi_config that you want to use the cb_pcimdda driver as so:
-
-  comedi_config /dev/comedi0 cb_pcimdda
+  [0] PCI bus (optional) (unimplemented)
+  [1] PCI slot (optional) (unimplemented)
+  [2] analog output range jumper setting
+      0 == +/- 5 V
+      1 == +/- 10 V
 */
 
 /*
- * The previous block comment is used to automatically generate
- * documentation in Comedi and Comedilib.  The fields:
- *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
- *
- * These headers should be followed by a blank line, and any comments
- * you wish to say about the driver.  The comment area is the place
- * to put any known bugs, limitations, unsupported features, supported
- * command triggers, whether or not commands are supported on particular
- * subdevices, etc.
- *
- * Somewhere in the comment should be information about configuration
- * options that are used with comedi_config.
+    This is a driver for the Computer Boards PCIM-DDA06-16 Analog Output
+    card.  This board has a unique register layout and as such probably 
+    deserves its own driver file.  
+
+    It is theoretically possible to integrate this board into the cb_pcidda
+    file, but since that isn't my code, I didn't want to significantly
+    modify that file to support this board (I thought it impolite to do so).
+
+    At any rate, if you feel ambitious, please feel free to take
+    the code out of this file and combine it with a more unified driver
+    file.
+
+    I would like to thank Timothy Curry <Timothy.Curry@rdec.redstone.army.mil>
+    for lending me a board so that I could write this driver.
+
+    -Calin Culianu <calin@ajvar.org>
  */
 
 #include <linux/kernel.h>
@@ -150,16 +115,12 @@ typedef struct board_struct {
     unsigned short device_id;
     int ao_chans;
     int ao_bits;
-	int ai_chans;
-	int ai_bits;
 	int dio_chans;
     int dio_method;
     int dio_offset; /* how many bytes into the BADR are the DIO ports */
     int regs_badrindex; /* IO Region for the control, analog output, 
                            and DIO registers */
     int reg_sz;     /* number of bytes of registers in io region */
-    comedi_lrange *ai_range_table;
-    comedi_lrange *ao_range_table;
 } board;
 
 enum DIO_METHODS {
@@ -174,25 +135,11 @@ static board boards[] = {
         device_id:       PCI_ID_PCIM_DDA06_16,
         ao_chans:	 6,
         ao_bits:         16,
-        ai_chans:	 0,   /* No AI on this board */
-        ai_bits:	 0,
         dio_chans:	 24,
         dio_method:      DIO_8255,
         dio_offset:      12, 
         regs_badrindex:  3,
         reg_sz:          16,
-        ai_range_table:  &range_bipolar5, // dummy, since we have no AI
-        /* this board only has one, jumper setable range, +/-5V 
-           you can also set it to +/-10V via jumper, but we will 
-           assume it is at the factory default, since it is beyond
-           documented possibility to detect the state of this jumper through 
-           software or to override it through software. (However, it's 
-           possible that the Measurement Computing documentation
-           is flawed or incomplete.. if you want to experiment by writing
-           to random places in this device's IO regions and seeing if it
-           changes the ranges settings on the board, please go ahead
-           and do so... ). */
-        ao_range_table:  &range_bipolar5
     }
 };
 
@@ -253,37 +200,19 @@ static comedi_driver cb_pcimdda_driver = {
 	module:		THIS_MODULE,
 	attach:		attach,
 	detach:		detach,
-    /* It is not necessary to implement the following members if you are
-     * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-    //	board_name:	boards,
-	//offset:		sizeof(board),
-	//num_names:	N_BOARDS
 };
+MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");             
+MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
+                   "series.  Currently only supports PCIM-DDA06-16 (which "
+                   "also happens to be the only board in this series. :) ) "); 
+MODULE_LICENSE("GPL");
+COMEDI_INITCLEANUP_NOMODULE(cb_pcimdda_driver);
 
 
 static int ao_winsn(comedi_device *dev, comedi_subdevice *s, 
                     comedi_insn *insn,lsampl_t *data);
 static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, 
                     comedi_insn *insn,lsampl_t *data);
-/* stub... */
-static int ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
-                    lsampl_t *data);
 
 
 /*---------------------------------------------------------------------------
@@ -357,47 +286,27 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  * convenient macro defined in comedidev.h.  It relies on
  * n_subdevices being set correctly.
  */
-	dev->n_subdevices=3;
+	dev->n_subdevices=2;
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
 
 	s = dev->subdevices+0;
 
-	if (thisboard->ai_chans > 0) {
-
-  	    /* analog input subdevice */
-	    s->type=COMEDI_SUBD_AI;
-	    s->subdev_flags = SDF_READABLE;
-	    s->n_chan = thisboard->ai_chans;
-	    s->maxdata = figure_out_maxdata(thisboard->ai_bits);
-	    s->range_table = &range_bipolar5;
-	    s->insn_read = &ai_rinsn;
-
-	} else {
-	    /* no AI on this board! */
-	    s->type = COMEDI_SUBD_UNUSED;
+	/* analog output subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = thisboard->ao_chans;
+	s->maxdata = figure_out_maxdata(thisboard->ao_bits);
+	/* this is hard-coded here */
+	if(dev->options[2]){
+		s->range_table = &range_bipolar10;
+	}else{
+		s->range_table = &range_bipolar5;
 	}
+	s->insn_write = &ao_winsn;
+	s->insn_read = &ao_rinsn;
 
 	s = dev->subdevices+1;
-
-	if (thisboard->ao_chans > 0) {
-
-	    /* analog output subdevice */
-	    s->type = COMEDI_SUBD_AO;
-	    s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	    s->n_chan = thisboard->ao_chans;
-	    s->maxdata = figure_out_maxdata(thisboard->ao_bits);
-	    /* this is hard-coded here */
-	    s->range_table = thisboard->ao_range_table;
-	    s->insn_write = &ao_winsn;
-	    s->insn_read = &ao_rinsn;
-
-	} else {
-  	    /* no AO on this board! */
-  	    s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	s = dev->subdevices+2;
 	/* digital i/o subdevice */
     if(thisboard->dio_chans) {
         switch(thisboard->dio_method) {
@@ -514,14 +423,6 @@ static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
     return i;
 }
 
-/* stub... */
-static int ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
-                    lsampl_t *data)
-{
-    /* do nothing.. */
-    (void) dev; (void) s; (void) insn; (void) data;
-    return 0;
-}
 
 /*---------------------------------------------------------------------------
   HELPER FUNCTION DEFINITIONS
@@ -609,26 +510,5 @@ static inline lsampl_t figure_out_maxdata(int bits)
     return max;
 }
 
-
-/*----------------------------------------------------------------------------
-   LINUX KERNEL MODULE STUFF...
------------------------------------------------------------------------------*/
-MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");             
-MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
-                   "series.  Currently only supports PCIM-DDA06-16 (which "
-                   "also happens to be the only board in this series. :) ) "); 
-MODULE_LICENSE("GPL");                                          
-
-/* Entry point into this module.. */
-int init_module(void)             
-{ 
-  return comedi_driver_register(&cb_pcimdda_driver);
-}                  
-
-/* Module Exit/cleanup.. */
-void cleanup_module(void)                  
-{
-  comedi_driver_unregister(&cb_pcimdda_driver);
-}
 
 
