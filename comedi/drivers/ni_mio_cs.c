@@ -94,7 +94,7 @@ static struct caldac_struct *type1[]={&caldac_mb88341,NULL,NULL};
 static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,NULL};
 
 static ni_board ni_boards[]={
-	{	device_id:	44,
+	{	device_id:	52,
 		name:		"xe-50",
 		n_adchan:	16,
 		adbits:		16,
@@ -205,6 +205,11 @@ static int irq_mask;
 
 static dev_link_t *dev_list = NULL;
 static dev_info_t dev_info = "ni_mio_cs";
+static dev_node_t dev_node = {
+	"ni_mio_cs",
+	COMEDI_MAJOR,0,
+	NULL
+};
 static int mio_cs_event(event_t event, int priority, event_callback_args_t *args);
 
 static void cs_error(client_handle_t handle, int func, int ret)
@@ -369,19 +374,28 @@ void mio_cs_config(dev_link_t *link)
 	int manfid = 0, prodid = 0;
 	int ret;
 	comedi_device *dev;
+	config_info_t conf;
 
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleOffset = 0;
 	tuple.TupleDataMax = 255;
 	tuple.Attributes = 0;
+	
 	tuple.DesiredTuple = CISTPL_CONFIG;
-
-	ret=CardServices(GetFirstTuple, handle,&tuple);
+	ret=CardServices(GetFirstTuple, handle, &tuple);
+	printk("GFT %d\n",ret);
+	ret=CardServices(GetTupleData, handle, &tuple);
+	printk("GTD %d\n",ret);
+	ret=CardServices(ParseTuple, handle, &tuple, &parse);
+	printk("PT %d\n",ret);
 	link->conf.ConfigBase = parse.config.base;
+	printk("config_base: 0x%x\n",parse.config.base);
 	link->conf.Present = parse.config.rmask[0];
 
 	link->state |= DEV_CONFIG;
 
+	CardServices(GetConfigurationInfo,handle,&conf);
+	link->conf.Vcc=conf.Vcc;
 #if 0
 	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
 	tuple.Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
@@ -398,13 +412,57 @@ void mio_cs_config(dev_link_t *link)
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
-	CardServices(GetFirstTuple, handle, &tuple);
-	CardServices(GetTupleData, handle, &tuple);
-	CardServices(ParseTuple, handle, &tuple, &parse);
-	CardServices(RequestIO, handle, &link->io);
-	
-	CardServices(RequestIRQ, handle, &link->irq);
-	CardServices(RequestConfiguration, handle, &link->conf);
+	ret=CardServices(GetFirstTuple, handle, &tuple);
+	printk("GFT %d\n",ret);
+	ret=CardServices(GetTupleData, handle, &tuple);
+	printk("GTD %d\n",ret);
+	ret=CardServices(ParseTuple, handle, &tuple, &parse);
+	printk("PT %d\n",ret);
+
+	printk("cftable:\n");
+#if 0
+	printk(" index: 0x%x\n",parse.cftable_entry.index);
+	printk(" flags: 0x%x\n",parse.cftable_entry.flags);
+	printk(" io flags: 0x%x\n",parse.cftable_entry.io.flags);
+	printk(" io nwin: 0x%x\n",parse.cftable_entry.io.nwin);
+	printk(" io base: 0x%x\n",parse.cftable_entry.io.win[0].base);
+	printk(" io len: 0x%x\n",parse.cftable_entry.io.win[0].len);
+	printk(" irq1: 0x%x\n",parse.cftable_entry.irq.IRQInfo1);
+	printk(" irq2: 0x%x\n",parse.cftable_entry.irq.IRQInfo2);
+	printk(" mem flags: 0x%x\n",parse.cftable_entry.mem.flags);
+	printk(" mem nwin: 0x%x\n",parse.cftable_entry.mem.nwin);
+	printk(" subtuples: 0x%x\n",parse.cftable_entry.subtuples);
+#endif
+
+{
+	int base;
+
+#if 0
+	link->io.NumPorts1=0x20;
+	link->io.IOAddrLines=5;
+	link->io.Attributes1=IO_DATA_PATH_WIDTH_AUTO;
+#endif
+	link->io.NumPorts1=parse.cftable_entry.io.win[0].len;
+	link->io.IOAddrLines=parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
+	link->io.NumPorts2=0;
+
+	for(base=0x300;base<0x400;base+=0x20){
+		link->io.BasePort1=base;
+		ret=CardServices(RequestIO, handle, &link->io);
+		printk("RequestIO 0x%02x\n",ret);
+		if(!ret)break;
+	}
+}
+
+	link->irq.IRQInfo1=parse.cftable_entry.irq.IRQInfo1;
+	link->irq.IRQInfo2=parse.cftable_entry.irq.IRQInfo2;
+	ret=CardServices(RequestIRQ, handle, &link->irq);
+	printk("RequestIRQ 0x%02x\n",ret);
+
+	link->conf.ConfigIndex=1;
+
+	ret=CardServices(RequestConfiguration, handle, &link->conf);
+	printk("RequestConfiguration %d\n",ret);
 
 	dev=comedi_allocate_dev(&driver_mio_cs);
 	dev->iobase=link->io.BasePort1;
@@ -416,28 +474,29 @@ void mio_cs_config(dev_link_t *link)
 		dev->irq);
 	printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
 
-#if 1
-       {
-               int i;
+#if 0
+	{
+		int i;
 
-               printk(" board fingerprint:");
-              for(i=0;i<16;i+=2){
-                       printk(" %04x %02x",inw(dev->iobase+i),inb(dev->iobase+i+1));
-               }
-       }
+		printk(" board fingerprint:");
+		for(i=0;i<32;i+=2){
+		printk(" %04x %02x",inw(dev->iobase+i),inb(dev->iobase+i+1));
+		}
+		printk("\n");
+		printk(" board fingerprint (windowed):");
+		for(i=0;i<10;i++){
+			printk(" 0x%04x",win_in(i));
+		}
+		printk("\n");
+	}
 #endif
 
-#if 0
-	board=ni_getboardtype(dev);
-	if(board<0)return -EIO;
-#else
+	//printk("boardtype=%d\n",ni_getboardtype(dev));
+	//if(board<0)return -EIO;
 	dev->board=0;
-#endif
 	
-#if 0
-	printk(" %s",ni_boards[board].name);
-	dev->board_name=ni_boards[board].name;
-#endif
+	printk(" %s",ni_boards[dev->board].name);
+	dev->board_name=ni_boards[dev->board].name;
 
 #if 0
 	irq=it->options[1];
@@ -455,27 +514,24 @@ void mio_cs_config(dev_link_t *link)
 	}
 #endif
 	
-#if 0
 	/* allocate private area */
 	if((ret=alloc_private(dev,sizeof(ni_private)))<0)
-		return ret;
+		return;
 	
-	dev->board=board;
+{
+	comedi_devconfig it;
 
-	if( (ret=ni_E_init(dev,it))<0 ){
-		return ret;
+	if( (ret=ni_E_init(dev,&it))<0 ){
+		return;
 	}
-#endif
+}
 
-#if 0
+	link->dev = &dev_node;
 	link->state &= ~DEV_CONFIG_PENDING;
-	//link->dev = &info->node;
-#endif
 
 }
 
 
-#if 0
 static int ni_getboardtype(comedi_device *dev)
 {
 	int device_id=ni_read_eeprom(dev,511);
@@ -495,7 +551,6 @@ static int ni_getboardtype(comedi_device *dev)
 	}
 	return -1;
 }
-#endif
 
 
 #ifdef MODULE
