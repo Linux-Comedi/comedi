@@ -27,7 +27,8 @@ Options:
 	[0] - base io address
 	[1] - irq (optional)
 	[2] - dma (optional)
-	[3] - master clock speed in MHz (1 or 10, defaults to 1)
+	[3] - master clock speed in MHz (1 or 10, ignored if board can
+		probe clock speed, defaults to 1 otherwise)
 
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
