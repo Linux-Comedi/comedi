@@ -1516,8 +1516,10 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s,
 	// do any munging necessary
 	ni_ao_munge(dev, s, data, n);
 
-	for(i=0;i<n;i++){
-		ni_writew(data[i],DAC_FIFO_Data);
+	if(boardtype.reg_611x){
+		for(i=0;i<n;i++)ni_writew(data[i],DAC_FIFO_Data_611x);
+	}else{
+		for(i=0;i<n;i++)ni_writew(data[i],DAC_FIFO_Data);
 	}
 
 	// increment channel index
