@@ -116,8 +116,8 @@ Asynchronous analog input support added by Frank Mori Hess.
 #define ADC8254 0
 #define DIO_8255 4
 
-// bit in hexadecimal representation of range index that indicates bipolar range
-#define IS_BIPOLAR 0x4
+// bit in hexadecimal representation of range index that indicates unipolar range
+#define IS_UNIPOLAR 0x4
 comedi_lrange cb_pcidas_ranges =
 {
 	8,
@@ -592,10 +592,10 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 		command |= SE;
 
 	/* input signals range */
-	if (CR_RANGE(insn->chanspec) & IS_BIPOLAR)
-		command |= CR_RANGE(insn->chanspec) << 8;
-	else
+	if (CR_RANGE(insn->chanspec) & IS_UNIPOLAR)
 		command |= UNIP | GAIN_BITS(CR_RANGE(insn->chanspec));
+	else
+		command |= GAIN_BITS(CR_RANGE(insn->chanspec));
 
 	/* write channel to multiplexer */
 	command |= CR_CHAN(insn->chanspec) | (CR_CHAN(insn->chanspec) << 4);
@@ -786,7 +786,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		END_SCAN(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1])) |
 		GAIN_BITS(CR_RANGE(cmd->chanlist[0]));
 	// set unipolar/bipolar
-	if((CR_RANGE(cmd->chanlist[0]) & IS_BIPOLAR) == 0)
+	if(CR_RANGE(cmd->chanlist[0]) & IS_UNIPOLAR)
 		bits |= UNIP;
 	// set singleended/differential
 	if(CR_AREF(cmd->chanlist[0]) != AREF_DIFF)
