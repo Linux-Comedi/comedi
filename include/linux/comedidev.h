@@ -307,6 +307,7 @@ static inline int alloc_private(comedi_device *dev,int size)
 // writes a data point to comedi's buffer, used for input
 static inline void comedi_buf_put(comedi_async *async, sampl_t x)
 {
+	async->buf_int_count += sizeof(sampl_t);
 	*(sampl_t *)(async->data + async->buf_int_ptr) = x;
 	async->buf_int_ptr += sizeof(sampl_t);
 	if(async->buf_int_ptr >= async->data_len){
@@ -317,11 +318,11 @@ static inline void comedi_buf_put(comedi_async *async, sampl_t x)
 		async->cur_chan = 0;
 		async->events |= COMEDI_CB_EOS;
 	}
-	async->buf_int_count += sizeof(sampl_t);
+	async->events |= COMEDI_CB_BLOCK;
 }
 
 /* Writes an array of data points to comedi's buffer, used for input.
- * Can be more efficient than comedi_buf_put() */
+ * Can be more efficient than putting comedi_buf_put() in a loop. */
 static inline void comedi_buf_put_array(comedi_async *async, sampl_t* array, unsigned int length)
 {
 	unsigned int num_bytes;
@@ -329,6 +330,7 @@ static inline void comedi_buf_put_array(comedi_async *async, sampl_t* array, uns
 
 	while((num_bytes = length * sizeof(sampl_t) - xfer_count))
 	{
+		async->buf_int_count += num_bytes;
 		if( async->buf_int_ptr + num_bytes > async->data_len)
 			num_bytes = async->data_len - async->buf_int_ptr;
 
@@ -346,7 +348,6 @@ static inline void comedi_buf_put_array(comedi_async *async, sampl_t* array, uns
 			async->cur_chan %= async->cmd.chanlist_len;
 			async->events |= COMEDI_CB_EOS;
 		}
-		async->buf_int_count += num_bytes;
 		xfer_count += num_bytes;
 	}
 	async->events |= COMEDI_CB_BLOCK;
