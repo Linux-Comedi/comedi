@@ -537,7 +537,7 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	int reading;
 	int bufsz;
 	int ret=0,i;
-	comedi_async *async = s->async;
+//	comedi_async *async = s->async;
 
 	/* make sure channel/gain list isn't too long */
 	if(user_trig->n_chan > s->len_chanlist){
@@ -579,12 +579,13 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		goto cleanup;
 	}
 
-	async->buf_int_ptr=0;
-	async->buf_int_count=0;
-	if(s->subdev_flags & SDF_READABLE){
-		async->buf_user_ptr=0;
-		async->buf_user_count=0;
-	}
+// this stuff isn't used in mode0
+//	async->buf_int_ptr=0;
+//	async->buf_int_count=0;
+//	if(s->subdev_flags & SDF_READABLE){
+//		async->buf_user_ptr=0;
+//		async->buf_user_count=0;
+//	}
 
 	if(s->subdev_flags & SDF_WRITEABLE){
 		if(s->subdev_flags & SDF_READABLE){
@@ -1655,10 +1656,13 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 		s->cur_trig.data=NULL;
 	}
 
-	async->buf_user_ptr=0;
-	async->buf_int_ptr=0;
-	async->buf_user_count=0;
-	async->buf_int_count=0;
+	if(async)
+	{
+		async->buf_user_ptr=0;
+		async->buf_int_ptr=0;
+		async->buf_user_count=0;
+		async->buf_int_count=0;
+	}
 
 	s->busy=NULL;
 }
