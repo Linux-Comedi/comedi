@@ -409,6 +409,7 @@ static int prep_ao_dma(comedi_device * dev,int chan,int size);
 static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s);
 static int dt282x_ns_to_timer(int *nanosec,int round_mode);
+static void dt282x_disable_dma(comedi_device *dev);
 
 
 static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2);
@@ -806,6 +807,13 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd=&s->async->cmd;
 	int timer;
 
+	if(devpriv->usedma == 0){
+		comedi_error(dev, "driver requires 2 dma channels to execute command");
+		return -EIO;
+	}
+
+	dt282x_disable_dma(dev);
+
 	if(cmd->convert_arg < this_board->ai_speed )
 		cmd->convert_arg = this_board->ai_speed;
 	timer=dt282x_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
@@ -832,8 +840,7 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		update_supcsr(0);
 	}
 
-	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-	update_adcsr(0);
+	devpriv->adcsr = 0;
 
 	dt282x_load_changain(dev,cmd->chanlist_len,cmd->chanlist);
 
@@ -856,8 +863,18 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
+static void dt282x_disable_dma(comedi_device *dev)
+{
+	if( devpriv->usedma ){
+		disable_dma(devpriv->dma[0].chan);
+		disable_dma(devpriv->dma[1].chan);
+	}
+}
+
 static int dt282x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
+	dt282x_disable_dma(dev);
+
 	devpriv->adcsr=0;
 	update_adcsr(0);
 
@@ -1063,6 +1080,13 @@ static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int timer;
 	comedi_cmd *cmd=&s->async->cmd;
+
+	if(devpriv->usedma == 0){
+		comedi_error(dev, "driver requires 2 dma channels to execute command");
+		return -EIO;
+	}
+
+	dt282x_disable_dma(dev);
 
 	devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS1 | DT2821_DDMA;
 	update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_DACINIT);
