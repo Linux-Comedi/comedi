@@ -295,14 +295,8 @@ static int ni_670x_find_device(comedi_device *dev,int bus,int slot)
 		if(mite->used)continue;
 		if(bus || slot)
 		{
-		
-#if LINUX_VERSION_CODE < 0x020155
-			if(bus!=mite->pci_bus || slot!=PCI_SLOT(mite->pci_device_fn))
-				continue;
-#else
 			if(bus!=mite->pcidev->bus->number || slot!=PCI_SLOT(mite->pcidev->devfn))
 				continue;
-#endif
 		}
 
 		for(i=0;i<n_ni_670x_boards;i++)
