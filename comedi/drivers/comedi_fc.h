@@ -32,12 +32,12 @@
 unsigned int cfc_write_array_to_buffer( comedi_subdevice *subd, void *data,
 	unsigned int num_bytes );
 
-inline unsigned int cfc_write_to_buffer( comedi_subdevice *subd, sampl_t data )
+static inline unsigned int cfc_write_to_buffer( comedi_subdevice *subd, sampl_t data )
 {
 	return cfc_write_array_to_buffer( subd, &data, sizeof( data ) );
 };
 
-inline unsigned int cfc_write_long_to_buffer( comedi_subdevice *subd, lsampl_t data )
+static inline unsigned int cfc_write_long_to_buffer( comedi_subdevice *subd, lsampl_t data )
 {
 	return cfc_write_array_to_buffer( subd, &data, sizeof( data ) );
 };
