@@ -68,7 +68,7 @@
 #define PCI_DAQ_SIZE		4096
 
 
-struct mite_struct *mite_devices;
+struct mite_struct *mite_devices = NULL;
 
 
 
