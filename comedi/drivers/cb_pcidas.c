@@ -520,6 +520,7 @@ found:
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
 	/* WARNING: Number of inputs in differential mode is ignored */
 	s->n_chan = thisboard->ai_se_chans;
+	s->len_chanlist = thisboard->ai_se_chans;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = thisboard->ranges;
 	s->insn_read = cb_pcidas_ai_rinsn;
