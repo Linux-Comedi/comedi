@@ -886,20 +886,22 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_device *dev = d;
 	int status;
 
-	/* Prevent race with das1800_ai_poll() on multi processor systems.
-	 * Also protects indirect addressing in das1800_ai_handler */
-	spin_lock(&dev->spinlock);
-	status = inb(dev->iobase + DAS1800_STATUS);
-
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
 		return;
 	}
+
+	/* Prevent race with das1800_ai_poll() on multi processor systems.
+	 * Also protects indirect addressing in das1800_ai_handler */
+	spin_lock(&dev->spinlock);
+	status = inb(dev->iobase + DAS1800_STATUS);
+
 	/* if interrupt was not caused by das-1800 */
 	if(!(status & INT))
 	{
 		comedi_error(dev, "spurious interrupt");
+		spin_unlock(&dev->spinlock);
 		return;
 	}
 
