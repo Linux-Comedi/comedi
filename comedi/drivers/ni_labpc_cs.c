@@ -98,9 +98,6 @@ static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
  */
 #define thisboard ((labpc_board *)dev->board_ptr)
 
-static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
-static const int sample_size = 2;	// 2 bytes per sample
-
 static comedi_driver driver_labpc_cs =
 {
 	driver_name: "ni_labpc_cs",

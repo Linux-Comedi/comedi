@@ -38,13 +38,11 @@ typedef struct labpc_board_struct{
 	enum labpc_bustype bustype;	// ISA/PCI/etc.
 	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
 	int has_ao;	// has analog output true/false
-	// function pointers so we can use inb/outb or readb/writeb as appropriate
-	unsigned int (*read_byte)(unsigned long address);
-	void (*write_byte)(unsigned int byte, unsigned long address);
 	comedi_lrange *ai_range_table;
 	int *ai_range_code;
 	int *ai_range_is_unipolar;
 	unsigned ai_scan_up : 1;	// board can auto scan up in ai channels, not just down
+	unsigned memory_mapped_io : 1; /* uses memory mapped io instead of ioports */
 }labpc_board;
 
 typedef struct{
@@ -70,6 +68,9 @@ typedef struct{
 	enum transfer_type current_transfer;	// we are using dma/fifo-half-full/etc.
 	unsigned int eeprom_data[EEPROM_SIZE];	// stores contents of board's eeprom
 	unsigned int caldac[16];	// stores settings of calibration dacs
+	// function pointers so we can use inb/outb or readb/writeb as appropriate
+	unsigned int (*read_byte)(unsigned long address);
+	void (*write_byte)(unsigned int byte, unsigned long address);
 }labpc_private;
 
 #define NUM_LABPC_CS_BOARDS 2
