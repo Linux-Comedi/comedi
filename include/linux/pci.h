@@ -83,6 +83,7 @@ extern inline unsigned long pci_resource_end(struct pci_dev *dev, unsigned int b
 extern inline int pci_request_regions(struct pci_dev *dev, char *name)
 {
 	const int max_num_base_addr = 6;
+	static const int fake_length = 1;
 	int i;
 	int retval = 0;
 
@@ -92,7 +93,7 @@ extern inline int pci_request_regions(struct pci_dev *dev, char *name)
 		{
 			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
 				retval = check_region(pci_resource_start(dev, i),
-					pci_resource_len(dev, i));
+					fake_length);
 			if( retval )
 				break;
 		}
@@ -106,7 +107,7 @@ extern inline int pci_request_regions(struct pci_dev *dev, char *name)
 		{
 			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
 				request_region(pci_resource_start(dev, i),
-					pci_resource_len(dev, i), name);
+					fake_length);
 		}
 	}
 
@@ -115,7 +116,8 @@ extern inline int pci_request_regions(struct pci_dev *dev, char *name)
 
 extern inline void pci_release_regions(struct pci_dev *dev)
 {
-	const int max_num_base_addr = 6;
+	static const int max_num_base_addr = 6;
+	static const int fake_length = 1;
 	int i;
 
 	for(i = 0; i < max_num_base_addr; i++)
@@ -124,7 +126,7 @@ extern inline void pci_release_regions(struct pci_dev *dev)
 		{
 			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
 				release_region(pci_resource_start(dev, i),
-					pci_resource_len(dev, i));
+					fake_length);
 		}
 	}
 }
