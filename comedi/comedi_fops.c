@@ -478,7 +478,6 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		}
 	}
 	bi.buf_int_count = async->buf_int_count;
-	// XXX why why report the pointer values, they are useless to the user
 	bi.buf_int_ptr = async->buf_int_ptr;
 	bi.buf_user_count = async->buf_user_count;
 	bi.buf_user_ptr = async->buf_user_ptr;
@@ -1349,12 +1348,11 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		if( async->buf_user_ptr < async->buf_int_ptr)
-			m = async->buf_int_ptr - async->buf_user_ptr;
-		else
+		m = async->buf_int_ptr - async->buf_user_ptr;
+		if( m < 0 )
 			m = async->data_len - async->buf_user_count;
 
-		if(m<n)n=m;
+		if(m < n) n = m;
 
 		if(n==0){
 			if(file->f_flags&O_NONBLOCK){
@@ -1380,7 +1378,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		m=copy_from_user(async->data+async->buf_user_ptr,buf,n);
 		if(m) retval=-EFAULT;
 		n-=m;
-		
+
 		count+=n;
 		nbytes-=n;
 		async->buf_user_ptr+=n;
@@ -1443,9 +1441,8 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		n=nbytes;
 
-		if(async->buf_int_ptr >= async->buf_user_ptr)
-			m = async->buf_int_ptr - async->buf_user_ptr;
-		else
+		m = async->buf_int_ptr - async->buf_user_ptr;
+		if( m < 0 )
 			m = async->data_len - async->buf_user_ptr;
 
 #if 0
