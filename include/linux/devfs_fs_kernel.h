@@ -18,7 +18,7 @@ static inline int devfs_register_chrdev (unsigned int major, const char *name,
 	struct file_operations *fops)
 {
 	return register_chrdev (major, name, fops);
-}   
+}
 
 static inline int devfs_unregister_chrdev (unsigned int major,const char *name)
 {
@@ -36,13 +36,6 @@ static inline void devfs_unregister (devfs_handle_t de)
 {
 }
 
-static inline devfs_handle_t devfs_get_handle (devfs_handle_t dir,
-	const char *name, unsigned int major, unsigned int minor,
-	char type, int traverse_symlinks)
-{
-	    return NULL;
-}
-
 static inline devfs_handle_t devfs_find_handle (devfs_handle_t dir,
 	const char *name, unsigned int major, unsigned int minor,
 	char type, int traverse_symlinks)
@@ -52,6 +45,11 @@ static inline devfs_handle_t devfs_find_handle (devfs_handle_t dir,
 
 #else
 #include_next <linux/devfs_fs_kernel.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 4, 0)
+#define devfs_find_handle(dir, name, major, minor, type, traverse) devfs_find_handle(dir, name, strlen(name), major, minor, type, traverse)
+#endif
+
 #endif
 
 #endif
