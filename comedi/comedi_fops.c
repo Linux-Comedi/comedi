@@ -163,14 +163,20 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 
 	// perform sanity checks
 	if(!dev->attached)
-		return -EINVAL;
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
 
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
 	if(bc.read_size){
 		if(dev->read_subdev < 0)
-			return -EINVAL;
+		{
+			DPRINTK("device has no read subdevice, buffer resize failed\n");
+			return -ENODEV;
+		}
 
 		rsd = &dev->subdevices[dev->read_subdev];
 
@@ -187,7 +193,10 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	}
 	if(bc.write_size){
 		if(dev->write_subdev < 0)
-			return -EINVAL;
+		{
+			DPRINTK("device has no write subdevice, buffer resize failed\n");
+			return -ENODEV;
+		}
 
 		wsd = &dev->subdevices[dev->write_subdev];
 
@@ -211,7 +220,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 			return ret;
 
 		bc.read_size = rsd->prealloc_bufsz;
-		DPRINTK("dev %i read buffer resized to %i bytes\n", dev->minor, bc.read_size);
+		DPRINTK("comedi%i read buffer resized to %i bytes\n", dev->minor, bc.read_size);
 	}
 	if(bc.write_size){
 		ret = resize_buf(dev,wsd,bc.write_size);
@@ -220,7 +229,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 			return ret;
 
 		bc.write_size = wsd->prealloc_bufsz;
-		DPRINTK("dev %i write buffer resized to %i bytes\n", dev->minor, bc.write_size);
+		DPRINTK("comedi%i write buffer resized to %i bytes\n", dev->minor, bc.write_size);
 	}
 
 	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
@@ -458,7 +467,13 @@ static int do_trig_ioctl(comedi_device *dev,void *arg,void *file)
 {
 	comedi_trig user_trig;
 	comedi_subdevice *s;
-	
+
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 #if 0
 DPRINTK("entering do_trig_ioctl()\n");
 #endif
@@ -466,14 +481,14 @@ DPRINTK("entering do_trig_ioctl()\n");
 		DPRINTK("bad trig address\n");
 		return -EFAULT;
 	}
-	
+
 #if 0
 	/* this appears to be the only way to check if we are allowed
 	   to write to an area. */
 	if(copy_to_user(arg,&user_trig,sizeof(comedi_trig)))
 		return -EFAULT;
 #endif
-	
+
 	if(user_trig.subdev>=dev->n_subdevices){
 		DPRINTK("%d no such subdevice\n",user_trig.subdev);
 		return -ENODEV;
@@ -484,7 +499,7 @@ DPRINTK("entering do_trig_ioctl()\n");
 		DPRINTK("%d not useable subdevice\n",user_trig.subdev);
 		return -EIO;
 	}
-	
+
 	/* are we locked? (ioctl lock) */
 	if(s->lock && s->lock!=file){
 		DPRINTK("device locked\n");
@@ -714,6 +729,12 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 	int i;
 	int ret=0;
 
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
 	
@@ -860,6 +881,12 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	comedi_subdevice *s;
 	int ret=0;
 	unsigned int *chanlist_saver=NULL;
+
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
 
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
@@ -1019,6 +1046,12 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 	unsigned int *chanlist=NULL;
 	unsigned int *chanlist_saver=NULL;
 
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
@@ -1109,14 +1142,14 @@ cleanup:
 	If it is 1, it knows it is pre-empting this function, and fails.
 	Obviously, if RT-linux fails to get a lock, it *must* allow
 	linux to run, since that is the only way to free the lock.
-	
+
 	This function is not SMP compatible.
 
 	necessary locking:
 	- ioctl/rt lock  (this type)
 	- lock while subdevice busy
 	- lock while subdevice being programmed
-	
+
 */
 
 volatile int rtcomedi_lock_semaphore=0;
@@ -1126,21 +1159,27 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 	int ret=0;
 	comedi_subdevice *s;
 	
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+arg;
-	
+
 	if(s->busy)
 		return -EBUSY;
 
 	rtcomedi_lock_semaphore=1;
-	
+
 	if(s->lock && s->lock!=file){
 		ret=-EACCES;
 	}else{
 		s->lock=file;
 	}
-	
+
 	rtcomedi_lock_semaphore=0;
 
 	if(ret<0)
@@ -1161,7 +1200,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 	
 	arg:
 		subdevice number
-	
+
 	reads:
 		none
 	
@@ -1175,16 +1214,22 @@ static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 {
 	comedi_subdevice *s;
 
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+arg;
-	
+
 	if(s->busy)
 		return -EBUSY;
 
 	if(s->lock && s->lock!=file)
 		return -EACCES;
-	
+
 	if(s->lock==file){
 #if 0
 		if(s->unlock)
@@ -1215,6 +1260,12 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 {
 	comedi_subdevice *s;
+
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
 
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
@@ -1265,6 +1316,12 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	int subdev;
 	struct comedi_file_private *cfp;
 
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(vma->vm_flags & VM_WRITE){
 		subdev=dev->write_subdev;
 	}else{
@@ -1308,6 +1365,12 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 	mask = 0;
@@ -1339,6 +1402,13 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 	unsigned int buf_len;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(dev->write_subdev<0)return -EIO;
 	s=dev->subdevices+dev->write_subdev;
 
@@ -1431,6 +1501,13 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	int sample_size;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
 	if(dev->read_subdev<0)return -EIO;
 	s=dev->subdevices+dev->read_subdev;
 
@@ -1570,7 +1647,7 @@ static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
 {
 	comedi_device *dev;
 	loff_t new_offset;
-	
+
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
 	switch(origin){
