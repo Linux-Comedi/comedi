@@ -11,8 +11,8 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/stddef.h>
+#include <linux/irq.h>
 
-#include <asm/irq.h>
 #include <asm/ptrace.h>
 
 #include <rtai/rtai.h>

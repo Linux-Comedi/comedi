@@ -35,7 +35,6 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/dma.h>
 
 #define DEBUG

@@ -13,8 +13,8 @@
 //#include <linux/rtl.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/irq.h>
 
-#include <asm/irq.h>
 #include <asm/ptrace.h>
 
 #include <rtl_core.h>
