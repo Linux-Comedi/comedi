@@ -21,6 +21,12 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: ssv_dnp.o
+Description: SSV Embedded Systems DIL/Net-PC
+Author: Robert Schwebel <robert@schwebel.de>
+Devices: [SSV Embedded Systems] DIL/Net-PC 1486 (dnp-1486)
+*/
 
 /* include files ----------------------------------------------------------- */
 
@@ -109,6 +115,7 @@ comedi_driver driver_dnp = {
   offset:       sizeof(dnp_board),      /* like ISA-PnP, PCI or PCMCIA.      */
   num_names:	sizeof(dnp_boards) / sizeof(dnp_board),
 };
+COMEDI_INITCLEANUP(driver_dnp);
 
 static int dnp_dio_insn_bits(
   comedi_device    *dev,
@@ -330,11 +337,4 @@ static int dnp_dio_insn_config(
   return 1;
 
 }
-
-/* ------------------------------------------------------------------------- */
-/* A convenient macro that defines init_module() and cleanup_module(),       */
-/* as necessary.                                                             */
-/* ------------------------------------------------------------------------- */
-
-COMEDI_INITCLEANUP(driver_dnp);
 
