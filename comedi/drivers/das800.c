@@ -207,7 +207,6 @@ typedef struct{
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
 	int do_bits;	/* digital output bits */
-	spinlock_t spinlock;
 }das800_private;
 
 #define devpriv ((das800_private *)dev->private)
@@ -248,10 +247,10 @@ int das800_probe(comedi_device *dev)
 	int board;
 
 	// 'comedi spin lock irqsave' disables even rt interrupts, we use them to protect indirect addressing
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(ID, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be ID register */
 	id_bits = inb(dev->iobase + DAS800_ID) & 0x3; /* get id bits */
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	board = thisboard - das800_boards;
 
@@ -331,13 +330,13 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		return;
 
 	// if hardware conversions are not enabled, then quit
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be STATUS2 register */
 	status = inb(dev->iobase + DAS800_STATUS2) & STATUS2_HCEN;
 	/* don't release spinlock yet since we want to make sure noone else disables hardware conversions */
 	if(status == 0)
 	{
-		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return;
 	}
 
@@ -380,7 +379,7 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
 	}
 	/* we can release spinlock now since we dont case if hardware conversions are enabled anymore */
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	if(i == max_loops)
 		comedi_error(dev, "possible problem with loop in interrupt handler");
 
@@ -396,10 +395,10 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(devpriv->count > 0 || devpriv->forever == 1)
 	{
 		/* Re-enable card's interrupt */
-		comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+		comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 		outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 		outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
-		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	/* otherwise, stop taking data */
 	} else
 	{
@@ -468,7 +467,6 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(das800_private)) < 0)
 		return -ENOMEM;
-	devpriv->spinlock = SPIN_LOCK_UNLOCKED;
 
 	dev->n_subdevices = 3;
 	if(alloc_subdevices(dev) < 0)
@@ -511,10 +509,10 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	disable_das800(dev);
 
 	/* initialize digital out channels */
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 	outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return 0;
 };
@@ -543,22 +541,22 @@ static int das800_cancel(comedi_device *dev, comedi_subdevice *s)
 void enable_das800(comedi_device *dev)
 {
 	unsigned long irq_flags;
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
 	outb(CONV_HCEN, dev->iobase + DAS800_CONV_CONTROL);	/* enable hardware triggering */
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 	outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);	/* enable card's interrupt */
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
 /* disable_das800 stops hardware triggered conversions */
 void disable_das800(comedi_device *dev)
 {
 	unsigned long irq_flags;
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
 	outb(0x0, dev->iobase + DAS800_CONV_CONTROL);	/* disable hardware triggering of conversions */
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
 static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
@@ -704,10 +702,10 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	endChan = (startChan + async->cmd.chanlist_len - 1) % 8;
 	scan = (endChan << 3) | startChan;
 
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(SCAN_LIMITS, dev->iobase + DAS800_GAIN);	/* select base address + 2 to be scan limits register */
 	outb(scan, dev->iobase + DAS800_SCAN_LIMITS); /* set scan limits */
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	/* set gain */
 	gain = CR_RANGE(async->cmd.chanlist[0]);
@@ -755,10 +753,10 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 			break;
 	}
 
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
 	outb(conv_bits, dev->iobase + DAS800_CONV_CONTROL);
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	enable_das800(dev);
 	return 0;
@@ -778,10 +776,10 @@ static int das800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
 
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 	outb(chan | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	/* set gain / range */
 	range = CR_RANGE(insn->chanspec);
@@ -851,10 +849,10 @@ static int das800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	else
 		devpriv->do_bits &= ~(1 << (chan + 4));
 
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 	outb(devpriv->do_bits | CONTROL1_INTE, dev->iobase + DAS800_CONTROL1);
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return 1;
 }
@@ -872,10 +870,10 @@ static int das800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	wbits |= data[0] & data[1];
 	devpriv->do_bits = wbits << 4;
 
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 	outb(devpriv->do_bits | CONTROL1_INTE, dev->iobase + DAS800_CONTROL1);
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	data[1] = wbits;
 

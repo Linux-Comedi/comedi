@@ -454,7 +454,6 @@ typedef struct{
 	unsigned int dma_buf_size;	/* size of buffers currently used, depends on sampling frequency */
 	int iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	short ao_update_bits; /* remembers the last write to the 'update' dac */
-	spinlock_t	spinlock;	/* used to protect indirect addressing */
 }das1800_private;
 
 #define devpriv ((das1800_private *)dev->private)
@@ -518,7 +517,6 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(das1800_private)) < 0)
 		return -ENOMEM;
-	devpriv->spinlock = SPIN_LOCK_UNLOCKED;
 
 	printk("comedi%d: %s: io 0x%x", dev->minor, driver_das1800.driver_name, iobase);
 	if(irq)
@@ -882,7 +880,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		return;
 	}
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(ADC, dev->iobase + DAS1800_SELECT);
 	// dma buffer full or about-triggering (stop_src == TRIG_EXT)
 	if(devpriv->irq_dma_bits & DMA_ENABLED)
@@ -902,7 +900,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* clear interrupt */
 	outb(FNE, dev->iobase + DAS1800_STATUS);
 
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	comedi_bufcheck(dev, s);
 	/* if the card's fifo has overflowed */
 	if(status & OVF)
@@ -1458,7 +1456,7 @@ void program_chanlist(comedi_device *dev, comedi_cmd cmd)
 	const int range_bitshift = 8;
 
 	n = cmd.chanlist_len;
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT); /* select QRAM for baseAddress + 0x0 */
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*set QRAM address start */
 	/* make channel / gain list */
@@ -1468,7 +1466,7 @@ void program_chanlist(comedi_device *dev, comedi_cmd cmd)
 		outw(chan_range, dev->iobase + DAS1800_QRAM);
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return;
 }
@@ -1563,7 +1561,7 @@ static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	/* mask of unipolar/bipolar bit from range */
 	range = CR_RANGE(insn->chanspec) & 0x3;
 	chan_range = chan | (range << 8);
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
 	outb(0x0, dev->iobase + DAS1800_QRAM_ADDRESS);	/* set QRAM address start */
 	outw(chan_range, dev->iobase + DAS1800_QRAM);
@@ -1592,7 +1590,7 @@ static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 			dpnt += 1 << (thisboard->resolution - 1);
 		data[n] = dpnt;
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return n;
 }
@@ -1612,7 +1610,7 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	if(chan == update_chan)
 		devpriv->ao_update_bits = output;
 	// write to channel
-	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(DAC(chan), dev->iobase + DAS1800_SELECT); /* select dac channel for baseAddress + 0x0 */
 	outw(output, dev->iobase + DAS1800_DAC);
 	// now we need to write to 'update' channel to update all dac channels
@@ -1621,7 +1619,7 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 		outb(DAC(update_chan), dev->iobase + DAS1800_SELECT); /* select 'update' channel for baseAddress + 0x0 */
 		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return 1;
 }
