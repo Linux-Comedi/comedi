@@ -510,25 +510,12 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	if(check_region(iobase, DAS1800_SIZE) < 0)
 	{
 		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
-			iobase, iobase + DAS1800_SIZE);
+			iobase, iobase + DAS1800_SIZE - 1);
 		return -EIO;
 	}
-	request_region(iobase, DAS1800_SIZE, thisboard->name);
+	request_region(iobase, DAS1800_SIZE, "das1800");
 	dev->iobase = iobase;
 	dev->iosize = DAS1800_SIZE;
-	// if it is an 'ao' board with fancy analog out then we need extra io ports
-	if(thisboard->ao_ability == 2)
-	{
-		iobase2 = iobase + 0x400;
-		if(check_region(iobase2, DAS1800_SIZE) < 0)
-		{
-			printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
-				iobase2, iobase2 + DAS1800_SIZE);
-			return -EIO;
-		}
-		request_region(iobase2, DAS1800_SIZE, thisboard->name);
-		devpriv->iobase2 = iobase2;
-	}
 
 	dev->board = das1800_probe(dev);
 	if(dev->board < 0)
@@ -540,10 +527,24 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->board_ptr = das1800_boards + dev->board;
 	dev->board_name = thisboard->name;
 
+	// if it is an 'ao' board with fancy analog out then we need extra io ports
+	if(thisboard->ao_ability == 2)
+	{
+		iobase2 = iobase + 0x400;
+		if(check_region(iobase2, DAS1800_SIZE) < 0)
+		{
+			printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+				iobase2, iobase2 + DAS1800_SIZE - 1);
+			return -EIO;
+		}
+		request_region(iobase2, DAS1800_SIZE, "das1800");
+		devpriv->iobase2 = iobase2;
+	}
+
 	/* grab our IRQ */
 	if(irq)
 	{
-		if(comedi_request_irq( irq, das1800_interrupt, 0, thisboard->name, dev ))
+		if(comedi_request_irq( irq, das1800_interrupt, 0, "das1800", dev ))
 		{
 			printk( "unable to allocate irq %d\n", irq);
 			return -EINVAL;
@@ -613,7 +614,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 					return -EINVAL;
 					break;
 			}
-			if(request_dma(dma0, thisboard->name))
+			if(request_dma(dma0, "das1800"))
 			{
 				printk("failed to allocate dma channel %i\n", dma0);
 				return -EINVAL;
@@ -622,7 +623,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 			devpriv->dma_current = dma0;
 			if(dma1)
 			{
-				if(request_dma(dma1, thisboard->name))
+				if(request_dma(dma1, "das1800"))
 				{
 					printk("failed to allocate dma channel %i\n", dma1);
 					return -EINVAL;
@@ -796,7 +797,7 @@ static int das1800_recognize(char *name)
 int das1800_probe(comedi_device *dev)
 {
 	int id;
-	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0x7; /* get id bits */
+	id = (inb(dev->iobase + DAS1800_DIGITAL) >> 4) & 0xf; /* get id bits */
 	switch(id)
 	{
 		// das-1800st-da
