@@ -977,8 +977,6 @@ static void init_plx9080(comedi_device *dev)
 	bits = 0;
 	// enable ready input, not sure if this is necessary
 	bits |= PLX_DMA_EN_READYIN_BIT;
-	// enable BTERM# input, not sure if this is necessary
-	bits |= PLX_EN_BTERM_BIT;
 	// enable dma chaining
 	bits |= PLX_EN_CHAIN_BIT;
 	// enable interrupt on dma done (probably don't need this, since chain never finishes)
