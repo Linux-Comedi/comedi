@@ -283,6 +283,7 @@ static int das16_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	request_region(iobase, PORT_SIZE, "das16");
 	dev->iobase=iobase;
+	dev->boardname="das16";
 
 #if 0
 	/* we don't really want to search for boards... */
