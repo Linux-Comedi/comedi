@@ -651,6 +651,7 @@ static ni_board ni_boards[];
 	int ai_continuous;					\
 	int blocksize;						\
 	int n_left;						\
+	unsigned int ai_calib_chan;				\
 								\
 	int changain_state;					\
 	unsigned int changain_spec;				\

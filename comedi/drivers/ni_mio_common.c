@@ -883,7 +883,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #endif
 	win_out(0xA420,AI_Personal_Register);
 	win_out(0x032e,AI_Output_Control_Register);
-	win_out(0x0060,AI_Trigger_Select_Register); /* trigger source */
 
 	/* this should be done in _ai_modeX() */
 	win_out(0x29e0,AI_START_STOP_Select_Register);
@@ -896,7 +895,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	 *	AI_Mode_3_Register
 	 *	AI_Personal_Register
 	 *	AI_Output_Control_Register
-	 *	AI_Trigger_Select_Register
 	*/
 	win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
 
@@ -1030,39 +1028,57 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 		chan=CR_CHAN(list[i]);
 		range=CR_RANGE(list[i]);
 		aref=CR_AREF(list[i]);
-		dither=(list[i]>>26)&1;
+		dither=((list[i]&CR_ALT_FILTER)!=0);
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
 
-		if(boardtype.gainlkup != ai_gain_611x){
-			hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
-		}else{
-			/* bits 12-14 channel type */
-			/* map everything to differential, except AREF_OTHER */
-			hi = (aref==AREF_OTHER)?0x0000:0x1000;
-			/* bit 11 AC/DC coupling */
-			/* not handled */
-			hi |= 0x0000;
-			/* bits 0-2 channel */
-			hi |= (chan&0x0003);
-		}
-		ni_writew(hi,Configuration_Memory_High);
+		if(list[i]&CR_ALT_SOURCE || aref==AREF_OTHER){
+			int calib_chan;
 
-		if(boardtype.gainlkup != ai_gain_611x){
-			lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
-		}else{
-			/* bits 15 last channel */
+			if(aref==AREF_OTHER){
+				calib_chan = chan;
+			}else{
+				calib_chan = devpriv->ai_calib_chan;
+			}
+
+			hi = calib_chan;
+			ni_writew(hi,Configuration_Memory_High);
+
 			lo = (i==n_chan-1)?0x8000:0;
-			/* bits 14-10 reserved */
-			/* bit 9 dither */
 			lo |= (dither<<9);
-			/* bit 8 unipolar/bipolar */
-			/* bits 0-3 gain */
 			lo |= range;
+			ni_writew(lo,Configuration_Memory_Low);
+		}else{
+			if(boardtype.gainlkup != ai_gain_611x){
+				hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
+			}else{
+				/* bits 12-14 channel type */
+				/* map everything to differential */
+				hi = 0x1000;
+				/* bit 11 AC/DC coupling */
+				/* not handled */
+				hi |= 0x0000;
+				/* bits 0-2 channel */
+				hi |= (chan&0x0003);
+			}
+			ni_writew(hi,Configuration_Memory_High);
+
+			if(boardtype.gainlkup != ai_gain_611x){
+				lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
+			}else{
+				/* bits 15 last channel */
+				lo = (i==n_chan-1)?0x8000:0;
+				/* bits 14-10 reserved */
+				/* bit 9 dither */
+				lo |= (dither<<9);
+				/* bit 8 unipolar/bipolar */
+				/* bits 0-3 gain */
+				lo |= range;
+			}
+			ni_writew(lo,Configuration_Memory_Low);
 		}
-		ni_writew(lo,Configuration_Memory_Low);
 	}
 
 	/* prime the channel/gain list */
@@ -1120,7 +1136,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW|TRIG_INT;
+	cmd->start_src &= TRIG_NOW|TRIG_INT|TRIG_EXT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
@@ -1145,7 +1161,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	/* note that mutual compatiblity is not an issue here */
 	if(cmd->start_src!=TRIG_NOW &&
-	   cmd->start_src!=TRIG_INT)err++;
+	   cmd->start_src!=TRIG_INT &&
+	   cmd->start_src!=TRIG_EXT)err++;
 	if(cmd->scan_begin_src!=TRIG_TIMER &&
 	   cmd->scan_begin_src!=TRIG_EXT &&
 	   cmd->scan_begin_src!=TRIG_OTHER)err++;
@@ -1158,10 +1175,23 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg!=0){
-		/* true for both TRIG_NOW and TRIG_INT */
-		cmd->start_arg=0;
-		err++;
+	if(cmd->start_src==TRIG_EXT){
+		/* external trigger */
+		unsigned int tmp = CR_CHAN(cmd->start_arg);
+
+		if(tmp>9)tmp=9;
+		/* XXX for now, use the top bit to invert the signal */
+		tmp |= (cmd->start_arg&0x80000000);
+		if(cmd->start_arg!=tmp){
+			cmd->start_arg = tmp;
+			err++;
+		}
+	}else{
+		if(cmd->start_arg!=0){
+			/* true for both TRIG_NOW and TRIG_INT */
+			cmd->start_arg=0;
+			err++;
+		}
 	}
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		if(cmd->scan_begin_arg<boardtype.ai_speed){
@@ -1269,6 +1299,25 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* start configuration */
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
+
+	switch(cmd->start_src){
+	case TRIG_INT:
+	case TRIG_NOW:
+		win_out(AI_START2_Select(0)|
+			AI_START1_Sync|AI_START1_Edge|AI_START1_Select(0),
+			AI_Trigger_Select_Register);
+		break;
+	case TRIG_EXT:
+	{
+		int chan = CR_CHAN(cmd->start_arg);
+
+		win_out(AI_START2_Select(0)|
+			AI_START1_Sync|AI_START1_Edge|
+			AI_START1_Select(chan),
+			AI_Trigger_Select_Register);
+		break;
+	}
+	}
 
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
@@ -1466,14 +1515,18 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	//mite_dump_regs(devpriv->mite);
 #endif
 
-	if(cmd->start_src==TRIG_NOW){
-		/* TRIG_NOW */
+	switch(cmd->start_src){
+	case TRIG_NOW:
 		/* AI_START1_Pulse */
 		win_out(AI_START1_Pulse,AI_Command_2_Register);
 		s->async->inttrig=NULL;
-	}else{
-		/* TRIG_INT */
+		break;
+	case TRIG_EXT:
+		s->async->inttrig=NULL;
+		break;
+	case TRIG_INT:
 		s->async->inttrig=ni_ai_inttrig;
+		break;
 	}
 
 	win_restore(wsave);
@@ -1516,6 +1569,14 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 		return ni_ai_config_analog_trig(dev,s,insn,data);
 	case INSN_CONFIG_ANALOG_CONV:
 		break;
+	case INSN_CONFIG_ALT_SOURCE:
+		{
+		if(CR_CHAN(data[1]) >= 8 ||
+		   CR_RANGE(data[1]) >= s->range_table->length)
+			return -EINVAL;
+		devpriv->ai_calib_chan = data[1];
+		return 2;
+		}
 	}
 
 	return -EINVAL;
@@ -1831,7 +1892,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	s->async->inttrig=NULL;
 
-	return 1;
+	return 0;
 }
 
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
@@ -1944,7 +2005,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	cmd->stop_src &= TRIG_NONE;
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
@@ -2003,6 +2064,15 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(tmp!=cmd->scan_begin_arg)err++;
 	
 	if(err)return 4;
+
+	/* step 5: fix up chanlist */
+
+	if(cmd->chanlist_len != cmd->scan_end_arg){
+		cmd->chanlist_len = cmd->scan_end_arg;
+		err++;
+	}
+
+	if(err)return 5;
 
 	return 0;
 }
@@ -2096,7 +2166,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.n_aochan){
 		dev->write_subdev=s;
 		s->type=COMEDI_SUBD_AO;
-		s->subdev_flags=SDF_WRITEABLE|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
+		s->subdev_flags=SDF_WRITABLE|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
 		if(boardtype.ao_unipolar){
@@ -2123,7 +2193,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	
 	s=dev->subdevices+2;
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE;
+	s->subdev_flags=SDF_WRITABLE|SDF_READABLE;
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
@@ -2146,7 +2216,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* general purpose counter/timer device */
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->insn_read=  ni_gpct_insn_read;
 	s->insn_write= ni_gpct_insn_write;
 	s->insn_config=ni_gpct_insn_config;
@@ -2159,7 +2229,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_CALIB;
-	s->subdev_flags=SDF_WRITEABLE|SDF_INTERNAL;
+	s->subdev_flags=SDF_WRITABLE|SDF_INTERNAL;
 	s->insn_read=ni_calib_insn_read;
 	s->insn_write=ni_calib_insn_write;
 	caldac_setup(dev,s);
@@ -2175,7 +2245,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* PFI */
 	s=dev->subdevices+7;
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE|SDF_INTERNAL;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
 	s->n_chan=10;
 	s->maxdata=1;
 	s->insn_bits = ni_pfi_insn_bits;
