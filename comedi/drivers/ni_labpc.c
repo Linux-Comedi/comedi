@@ -1676,7 +1676,7 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 // figures out what counter values to use based on command
 static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 {
-	const int max_counter_value = 0x1000;  // max value for 16 bit counter in mode 2
+	const int max_counter_value = 0x10000;  // max value for 16 bit counter in mode 2
 	const int min_counter_value = 2;  // min value for 16 bit counter in mode 2
 	unsigned int base_period;
 
