@@ -481,7 +481,7 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 		comedi_error(dev,"I/O port conflict");
 		return -EIO;
 	}
-	request_region(dev->iobase, DT2801_IOSIZE, "dt2801");
+	request_region(iobase, DT2801_IOSIZE, "dt2801");
 	dev->iobase=iobase;
 
 	/* do some checking */
