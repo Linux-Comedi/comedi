@@ -483,8 +483,6 @@ found:
 		pcidev->resource[DIO_COUNTER_BADRINDEX].start &
 		PCI_BASE_ADDRESS_MEM_MASK;
 
-#if KERNEL_VERSION_CODE >= KERNEL_VERSION(2,3,17)
-
 	if(check_mem_region(plx9080_iobase, PLX9080_IOSIZE))
 	{
 		/* Couldn't allocate io space */
@@ -511,7 +509,6 @@ found:
 	request_mem_region(dio_counter_iobase, DIO_COUNTER_IOSIZE, "cb_pcidas64");
 	devpriv->dio_counter_phys_iobase = dio_counter_iobase;
 
-#endif
 #endif
 
 	// remap, won't work with 2.0 kernels but who cares
@@ -657,14 +654,12 @@ static int detach(comedi_device *dev)
 			iounmap((void*)devpriv->main_iobase);
 		if(devpriv->dio_counter_iobase)
 			iounmap((void*)devpriv->dio_counter_iobase);
-#if KERNEL_VERSION_CODE >= KERNEL_VERSION(2,3,17)
 		if(devpriv->plx9080_phys_iobase)
 			release_mem_region(devpriv->plx9080_iobase, PLX9080_IOSIZE);
 		if(devpriv->main_iobase)
 			release_mem_region(devpriv->main_phys_iobase, MAIN_IOSIZE);
 		if(devpriv->dio_counter_iobase)
 			release_mem_region(devpriv->dio_counter_phys_iobase, DIO_COUNTER_IOSIZE);
-#endif
 	}
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
