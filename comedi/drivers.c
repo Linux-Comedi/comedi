@@ -48,6 +48,7 @@ static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *tri
 static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 static void *comedi_recognize(comedi_driver *driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
+static int poll_invalid(comedi_device *dev,comedi_subdevice *s);
 
 comedi_driver *comedi_drivers;
 
@@ -309,6 +310,8 @@ static int postconfig(comedi_device *dev)
 		if(!s->insn_bits){
 			s->insn_bits = insn_inval;
 		}
+
+		if(!s->poll)s->poll=poll_invalid;
 	}
 
 	return 0;
@@ -347,6 +350,11 @@ void comedi_report_boards(comedi_driver *driv)
 
 	if(driv->num_names == 0)
 		printk(" %s\n", driv->driver_name);
+}
+
+static int poll_invalid(comedi_device *dev,comedi_subdevice *s)
+{
+	return -EINVAL;
 }
 
 /* helper functions for drivers */
