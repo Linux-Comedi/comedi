@@ -16,24 +16,22 @@ while(<FILE>){
 }
 
 $driver = "";
-while($_=shift @lines){
-	if( m/^[\w-]+: / ){
-		if($l){
-			#print "$l\n";
-			if($l =~ m/^Driver: /){
-				$_ = $l;
-				s/^Driver: //;
-				$driver = $_;
-			}
+$mode = 0;
+while($line=shift @lines){
+	$_ = $line;
+	if( $mode == 0){
+		if( m/^[\w-]+: / ){
+			chomp;
+			$l=$_;
+			$mode = 1;
 		}
-		chomp;
-		$l=$_;
-	}elsif( m/^ / ){
-		s/^ +//;
-		chomp;
-		$l="$l $_";
-	}else{
-		if($l){
+	}elsif($mode==1){
+		if( m/^ / ){
+			s/^ +//;
+			chomp;
+			$l="$l $_";
+			$mode = 1;
+		}else{
 			#print "$l\n";
 			if($l =~ m/^Driver: /){
 				$_ = $l;
@@ -41,11 +39,17 @@ while($_=shift @lines){
 				$driver = $_;
 			}
 			if($l =~ m/^Devices: /){
-				$_ = $l;
-				s/^Devices: //;
-				parse_devices($_);
+				$l =~ s/^Devices: //;
+				parse_devices($l);
 			}
 			$l="";
+			$mode = 0;
+			$_ = $line;
+			if( m/^[\w-]+: / ){
+				chomp;
+				$l=$_;
+				$mode = 1;
+			}
 		}
 	}
 }
