@@ -30,20 +30,26 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
   PCI-6110E, PCI-6111E, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
-  PXI-6052E, PCI-6036E
+  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes above for
 ni_atmio.o for additional information about these boards.
 
-Comedi knows the PCI ID codes for many of the boards in this series,
-but the NI documentation is incomplete in this matter.  If you have
-a PCI-MIO board that Comedi doesn't recognize, send me the PCI device
-ID, as can be found in /proc/pci or the output of lspci.  The vendor
-code for National Instruments is 0x1093.  I will include the ID in
-the next version.
+Autocalibration is supported on many of the devices, using the
+calibration utility in Comedilib.
 
-DMA is halfway completed, but not yet operational.
+By default, the driver uses DMA to transfer analog input data to
+memory.  When DMA is enabled, not all triggering features are
+supported.
+
+Streaming analog output is not supported on PCI-671x and PCI-673x.
+
+PCI IDs are not known for PCI-6731 and PCI-6733.  Digital I/O may not
+work on 673x.
+
+Information (number of channels, bits, etc.) for some devices may be
+incorrect.
 */
 /*
 	The PCI-MIO E series driver was originally written by
@@ -425,34 +431,46 @@ static ni_board ni_boards[]={
 	},
 	{       device_id:      0x1880,
 		name:           "pci-6711",
-		n_adchan:       0,
-		adbits:         0,
-		ai_fifo_depth:  0,
-		alwaysdither:   0,
-		gainlkup:       0,
-		ai_speed:	0,
+		n_adchan:       0, /* no analog input */
 		n_aochan:	4,
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
 		ao_671x:	1,
-		caldac:         {mb88341,mb88341,ad8522},/* XXX */
+		caldac:         {mb88341,mb88341},/* XXX */
 	},
 	{       device_id:      0x1870,
 		name:           "pci-6713",
-		n_adchan:       0,
-		adbits:         0,
-		ai_fifo_depth:  0,
-		alwaysdither:   0,
-		gainlkup:       0,
-		ai_speed:	0,
+		n_adchan:       0, /* no analog input */
 		n_aochan:	8,
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
 		ao_671x:	1,
-		caldac:         {mb88341,mb88341,ad8522},/* XXX */
+		caldac:         {mb88341,mb88341},/* XXX */
 	},
+#if 0
+	{       device_id:      0x1880,
+		name:           "pci-6731",
+		n_adchan:       0, /* no analog input */
+		n_aochan:	4,
+		aobits:         16,
+		ao_unipolar:    0,
+		ao_fifo_depth:  8192,
+		ao_671x:	1,
+		caldac:         {mb88341,mb88341},/* XXX */
+	},
+	{       device_id:      0x1870,
+		name:           "pci-6733",
+		n_adchan:       0, /* no analog input */
+		n_aochan:	8,
+		aobits:         16,
+		ao_unipolar:    0,
+		ao_fifo_depth:  16384,
+		ao_671x:	1,
+		caldac:         {mb88341,mb88341},/* XXX */
+	},
+#endif
         {       device_id:      0x15b0,
                 name:           "pxi-6071e",
                 n_adchan:       64,
