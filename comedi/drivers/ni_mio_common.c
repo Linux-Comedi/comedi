@@ -221,6 +221,7 @@ printk("A status=0x%04x\n",status);
 #endif
 	if(status&(AI_Overrun_St|AI_Overflow_St)){
 		rt_printk("ni_E: overrun/overflow status=0x%04x\n",status);
+		win_out(0x0000,Interrupt_A_Enable_Register);
 		comedi_done(dev,s);
 		return;
 	}
