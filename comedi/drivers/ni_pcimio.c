@@ -28,8 +28,8 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6040E,
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
-  PCI-6110E, PCI-6111E, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
-  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733
+  PCI-6110, PCI-6111, PCI-6115, PXI-6115, PCI-6711, PCI-6713,
+  PXI-6071E, PXI-6070E, PXI-6052E, PCI-6036E, PCI-6731, PCI-6733
 Updated: Sat, 16 Mar 2002 17:34:48 -0800
 
 These boards are almost identical to the AT-MIO E series, except that
@@ -425,7 +425,7 @@ static ni_board ni_boards[]={
 	},
 #endif
 	{       device_id:      0x14e0,
-		name:           "pci-6110e",
+		name:           "pci-6110",
 		n_adchan:       4, 
 		adbits:         12,
 		ai_fifo_depth:  8192,
@@ -440,7 +440,7 @@ static ni_board ni_boards[]={
 		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
 	},
 	{       device_id:      0x14f0,
-		name:           "pci-6111e",
+		name:           "pci-6111",
 		n_adchan:       2,
 		adbits:         12,
 		ai_fifo_depth:  8192,
@@ -455,6 +455,40 @@ static ni_board ni_boards[]={
 		reg_611x:	1,
 		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
 	},
+	{       device_id:      0x2ed0,
+		name:           "pci-6115",
+		n_adchan:       4,
+		adbits:         12,
+		ai_fifo_depth:  8192,
+		alwaysdither:   0,
+		gainlkup:       ai_gain_611x,
+		ai_speed:	100,
+		n_aochan:       2,
+		aobits:         16,
+		ao_671x:	1,
+		ao_unipolar:    0,
+		ao_fifo_depth:  2048,
+		reg_611x:	1,
+		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
+	},
+#if 0
+	{       device_id:      0x0000,
+		name:           "pxi-6115",
+		n_adchan:       4,
+		adbits:         12,
+		ai_fifo_depth:  8192,
+		alwaysdither:   0,
+		gainlkup:       ai_gain_611x,
+		ai_speed:	100,
+		n_aochan:       2,
+		aobits:         16,
+		ao_671x:	1,
+		ao_unipolar:    0,
+		ao_fifo_depth:  2048,
+		reg_611x:	1,
+		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
+	},
+#endif
 	{       device_id:      0x1880,
 		name:           "pci-6711",
 		n_adchan:       0, /* no analog input */
