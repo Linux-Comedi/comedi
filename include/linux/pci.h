@@ -183,7 +183,9 @@ static inline unsigned long pci_resource_len (struct pci_dev *dev, int n_base)
 #endif	// 2.2.18
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#define pci_get_device pci_find_device
 #define pci_get_subsys pci_find_subsys
+#define pci_dev_get(x)	(x)
 #define pci_dev_put(x)
 #endif
 
