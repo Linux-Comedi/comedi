@@ -708,9 +708,12 @@ static comedi_driver driver_das16={
 
 #define DAS16_TIMEOUT 1000
 
-/* period for timer interrupt in jiffies */
-static const int timer_period = HZ / 20;
-
+/* Period for timer interrupt in jiffies.  It's a function
+ * to deal with possibility of dynamic HZ patches  */
+static inline int timer_period(void)
+{
+	return HZ / 20;
+}
 struct das16_private_struct
 {
 	unsigned int	ai_unipolar;	// unipolar flag
@@ -967,7 +970,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	if( devpriv->timer_mode )
 	{
 		devpriv->timer_running = 1;
-		devpriv->timer.expires = jiffies + timer_period;
+		devpriv->timer.expires = jiffies + timer_period();
 		add_timer(&devpriv->timer);
 		devpriv->control_state &= ~DAS16_INTE;
 	}else
@@ -1165,7 +1168,7 @@ static void das16_timer_interrupt(unsigned long arg)
 	das16_interrupt(dev);
 
 	if(devpriv->timer_running)
-		mod_timer(&devpriv->timer, jiffies + timer_period);
+		mod_timer(&devpriv->timer, jiffies + timer_period());
 }
 
 static void das16_interrupt( comedi_device *dev )

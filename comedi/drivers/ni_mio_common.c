@@ -3732,7 +3732,7 @@ static void cs5529_config_write(comedi_device *dev, unsigned int value, unsigned
 {
 	int i;
 	unsigned short status;
-	static const int timeout = HZ;
+	int timeout = HZ;
 
 	ni_ao_win_outw(dev, ((value >> 16) & 0xff), CAL_ADC_Config_Data_High_Word_67xx);
 	ni_ao_win_outw(dev, (value & 0xffff), CAL_ADC_Config_Data_Low_Word_67xx);
@@ -3761,7 +3761,7 @@ static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_sele
 	int i;
 	unsigned short status;
 	unsigned int value;
-	static const int timeout = HZ;
+	int timeout = HZ;
 
 	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
 	cs5529_command(dev, CSCMD_COMMAND | CSCMD_READ | reg_select_bits);
@@ -3788,7 +3788,7 @@ static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_sele
 static int cs5529_do_conversion(comedi_device *dev, unsigned short *data)
 {
 	int i;
-	static const int timeout = HZ;
+	int timeout = HZ;
 	unsigned int status;
 
 	cs5529_command(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION);
