@@ -207,6 +207,7 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define   DAS16_INTE			(1<<7)
 #define   DAS16_IRQ(x)			(((x) & 0x7) << 4)
 #define   DMA_ENABLE			(1<<2)
+#define   PACING_MASK	0x3
 #define   INT_PACER		0x03
 #define   EXT_PACER			0x02
 #define   DAS16_SOFT		0x00
@@ -982,10 +983,11 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	{
 		/* clear interrupt bit */
 		outb(0x00, dev->iobase + DAS16_STATUS);
-		/* enable interrupts, dma and pacer clocked conversions */
+		/* enable interrupts */
 		devpriv->control_state |= DAS16_INTE;
 	}
 	devpriv->control_state |= DMA_ENABLE;
+	devpriv->control_state &= ~PACING_MASK;
 	if(cmd->convert_src == TRIG_EXT)
 		devpriv->control_state |= EXT_PACER;
 	else
@@ -1004,7 +1006,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	/* disable interrupts, dma and pacer clocked conversions */
-	devpriv->control_state &= ~DAS16_INTE & ~INT_PACER & ~EXT_PACER & ~DMA_ENABLE;
+	devpriv->control_state &= ~DAS16_INTE & ~PACING_MASK & ~DMA_ENABLE;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 	if(devpriv->dma_chan)
 		disable_dma(devpriv->dma_chan);
@@ -1039,6 +1041,10 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	int range;
 	int chan;
 	int msb,lsb;
+
+	// disable interrupts and pacing
+	devpriv->control_state &= ~DAS16_INTE & ~DMA_ENABLE & ~PACING_MASK;
+	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
