@@ -579,13 +579,13 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 
 	if(b_status==0xffff)return;
 	if(b_status&AO_Overrun_St){
-		rt_printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
+		rt_printk("ni_mio_common: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
 		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 	}
 
 	if(b_status&AO_BC_TC_St){
-		rt_printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
+		rt_printk("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
 		s->async->events |= COMEDI_CB_EOA;
 	}
 
@@ -819,15 +819,26 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	/* generate FIFO interrupts on non-empty */
 	win_out((0<<6)|0x0000,AI_Mode_3_Register);
 #endif
-	win_out(AI_SHIFTIN_Pulse_Width |
-		AI_SOC_Polarity |
-		AI_CONVERT_Pulse_Width |
-		AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
-	win_out(AI_SCAN_IN_PROG_Output_Select(3) |
-		AI_EXTMUX_CLK_Output_Select(0) |
-		AI_LOCALMUX_CLK_Output_Select(2) |
-		AI_SC_TC_Output_Select(3) |
-		AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
+	if(!boardtype.reg_611x){
+		win_out(AI_SHIFTIN_Pulse_Width |
+			AI_SOC_Polarity |
+			AI_CONVERT_Pulse_Width |
+			AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
+		win_out(AI_SCAN_IN_PROG_Output_Select(3) |
+			AI_EXTMUX_CLK_Output_Select(0) |
+			AI_LOCALMUX_CLK_Output_Select(2) |
+			AI_SC_TC_Output_Select(3) |
+			AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
+	}else{
+		win_out(AI_SHIFTIN_Pulse_Width |
+			AI_SOC_Polarity |
+			AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
+		win_out(AI_SCAN_IN_PROG_Output_Select(3) |
+			AI_EXTMUX_CLK_Output_Select(0) |
+			AI_LOCALMUX_CLK_Output_Select(2) |
+			AI_SC_TC_Output_Select(3) |
+			AI_CONVERT_Output_Select(3),AI_Output_Control_Register);
+	}
 
 	/* this should be done in _ai_modeX() */
 	win_out(0x29e0,AI_START_STOP_Select_Register);
@@ -891,6 +902,8 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 				if(ni_readb(Status_611x)&0x80)
 					break;
 			}
+			rt_printk("ni_mio_common: timeout in ni_ai_insn_read (ignored)\n");
+			i = 0;
 		}else{
 			for(i=0;i<NI_TIMEOUT;i++){
 				if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St))
@@ -898,7 +911,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			}
 		}
 		if(i==NI_TIMEOUT){
-			rt_printk("ni_E: timeout 2\n");
+			rt_printk("ni_mio_common: timeout in ni_ai_insn_read\n");
 			win_restore(wsave);
 			return -ETIME;
 		}
@@ -1017,7 +1030,12 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 	/* prime the channel/gain list */
 
-	if(!boardtype.reg_611x){
+	if(boardtype.reg_611x){
+		/* XXX need to check if this is necessary */
+		win_out(1,AI_Command_1_Register);
+		/* hope that it works */
+		return;
+	}else{
 		win_out(1,AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
@@ -1026,7 +1044,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 			}
 		}
 	}
-	rt_printk("ni_E: timeout 1\n");
+	rt_printk("ni_mio_common: timeout loading channel/gain list\n");
 }
 
 #define TIMER_BASE 50 /* 20 Mhz base */
@@ -2224,12 +2242,19 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
-	win_out(Slow_Internal_Time_Divide_By_2 |
-		Slow_Internal_Timebase |
-		Clock_To_Board_Divide_By_2 |
-		Clock_To_Board |
-		AI_Output_Divide_By_2 |
-		AO_Output_Divide_By_2, Clock_and_FOUT_Register);
+	if(!boardtype.reg_611x){
+		win_out(Slow_Internal_Time_Divide_By_2 |
+			Slow_Internal_Timebase |
+			Clock_To_Board_Divide_By_2 |
+			Clock_To_Board |
+			AI_Output_Divide_By_2 |
+			AO_Output_Divide_By_2, Clock_and_FOUT_Register);
+	}else{
+		win_out(Slow_Internal_Time_Divide_By_2 |
+			Slow_Internal_Timebase |
+			Clock_To_Board_Divide_By_2 |
+			Clock_To_Board, Clock_and_FOUT_Register);
+	}
 
 	/* analog output configuration */
 	ni_ao_reset(dev,dev->subdevices + 1);
