@@ -255,7 +255,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	do_gettimeofday(&tv);
 	a=readb(dev->iobase+Group_Status);
 	b=readb(dev->iobase+Group_Flags);
-	printk("status 0x%02x flags 0x%02x time %06d\n",a,b,(int)tv.tv_usec);
+	DPRINTK("status 0x%02x flags 0x%02x time %06d\n",a,b,(int)tv.tv_usec);
 
 	while(b&1){
 		writew(0xff,dev->iobase+Group_FIFO);
@@ -263,7 +263,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	b=readb(dev->iobase+Group_Flags);
-	printk("new status 0x%02x\n",b);
+	DPRINTK("new status 0x%02x\n",b);
 
 	n_int++;
 	if(n_int==10)
