@@ -20,17 +20,23 @@ You should configure this driver if you plan to use a board that
 has an 8255 chip.  For multifunction boards, the main driver will
 configure the 8255 subdevice automatically.
 
+This driver also works independently with ISA cards that directly
+map the 8255 registers to I/O ports, including cards with multiple
+8255 chips.  To configure the driver for such a card, the option
+list should be a list of the I/O port bases for each of the 8255
+chips.
+
 
 
 Driver: adl_pci9118.o
 Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
 Author: Michal Dobes <majkl@tesnet.cz>
-Status works
+Device Names: pci9118dg, pci9118hg, pci9118hr
+Status: works
 
 This driver supports AI, AO, DI and DO subdevices.
 AI subdevice support cmd, insn and mode0-4 interface,
 other subdevices support insn and mode0 interface.
-See the head of the source file adv_pci1710.c for configuration options.
 For AI:
 - If cmd->scan_begin_src=TRIG_EXT (or trigger mode4) then trigger input 
   is TGIN (pin 46).
@@ -46,17 +52,34 @@ There is know problem with this driver:
 - If you use trigger mode4 (scan_begin_src=TRIG_EXT&convert_src=TRIG_TIMER)
   then this mode sometimes discards some samples. :-((
 
+Configuration options:
+  [0] - PCI bus of device (optional)
+          If bus/slot is not specified, the first available PCI
+	  device will be used.
+  [1] - PCI slot of device (optional)
+
+If you have an external multiplexer, the third option in the option
+list should be used to indicate the number of channels in the
+multiplexer.
+
 
 Driver: adv_pci1710.o
 Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, 
              Advantech PCI-1720, PCI-1731
 Author: Michal Dobes <majkl@tesnet.cz>
+Device Names: pci1710, pci1710hg, pci1711, pci1713, pci1720, pci1731
 Status: works
 
 This driver supports AI, AO, DI and DO subdevices.
 AI subdevice supports cmd, insn, mode0, mode1 and mode3 interface,
 other subdevices support insn and mode0 interface.
-See the head of the source file adv_pci1710.c for configuration options.
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+          If bus/slot is not specified, the first available PCI
+	  device will be used.
+  [1] - PCI slot of device (optional)
+
 
 
 Driver: cb_pcidas.o
@@ -66,15 +89,17 @@ Status: works with PCI-DAS1200
 	should work with PCI-DAS1200/JR, not tested
 	may work with other PCI-DAS
 
-Options:
-	[0] - PCI bus number
-	[1] - PCI slot number
-
 Doesn't support commands.
 This intends to be the driver for the whole PCI-DAS series. However,
 it was programmed with the manuals for PCI-DAS1200 and PCI-DAS1200/JR,
 and tested with the first one. IF YOU TRY THE DRIVER WITH ANOTHER PCI-DAS
 CARD, PLEASE REPORT ANY SUCCESS OR FAILURE TO <ivanmr@altavista.com>
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+          If bus/slot is not specified, the first available PCI
+	  device will be used.
+  [1] - PCI slot of device (optional)
 
 
 
@@ -87,8 +112,11 @@ A cheap and easy way to get a few more digital I/O lines.  Steal
 additional parallel ports from old computers or your neighbors'
 computers.
 
+Option list:
+ 0: I/O port base for the parallel port.
+ 1: IRQ
 
-Parallel Output Port Lines:
+Parallel Port Lines:
 
 pin	subdev	chan	aka
 ---	------	----	---
@@ -111,7 +139,6 @@ pin	subdev	chan	aka
 17	2	3	select printer
 18-25	ground
 
-
 Notes:
 
 Channel 0 and 2 are output, channel 1 is input.  I know that it
@@ -124,13 +151,61 @@ hardware, thus cancelling the effect.
 Pin 1 is a strobe, thus acts like one.  There's no way in software
 to change this, at least on a standard parallel port.
 
-Please report any sucesses/failures.
+Subdevice 3 pretends to be a digital input subdevice, but it always
+returns 0 when read.  However, if you run a command with
+scan_begin_src=TRIG_EXT, it uses pin 13 as a external triggering
+pin, which can be used to wake up tasks.
+
+
+
+Driver: comedi_rt_timer.o
+Description: Command emulator using real-time tasks
+Authors: ds, fmhess
+Status: works
+
+This driver requires RTAI or RTLinux to work correctly.  It doesn't
+actually drive hardware directly, but calls other drivers and uses
+a real-time task to emulate commands for drivers and devices that
+are incapable of native commands.  Thus, you can get accurately
+timed I/O on any device.
+
+Since the timing is all done in software, sampling jitter is much
+higher than with a device that has an on-board timer, and maximum
+sample rate is much lower.
+
+Configuration options:
+  [0] - device index
+  [1] - subdevice index
+
+
+
+Driver: daqboard2000.o
+Description: IOTech DAQBoard/2000
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+
+Much of the functionality of this driver was determined from reading
+the source code for the Windows driver.
+
+The FPGA on the board requires initialization code, which can either
+be compiled into the driver or loaded by comedi_config using the -i
+option.  The latter is recommended, in order to save a bit of kernel
+memory.
+
+Configuration options:
+  [0] - pointer to FPGA initialization data
+          The pointer and size options are handled automatically
+	  by comedi_config when you use the -i option.
+  [1] - size of FPGA data
 
 
 
 Driver: das08.o
 Description: DAS-08 compatible boards
 Authors: Warren Jasper, ds
+Device Names: das08, das08-pgm, das08-pgh, das08-pgl, das08-aoh,
+  das08-aol, das08-aom, das08/jr-ao, das08jr-16-ao, pci-das08,
+  das08jr/16
 Status: works
 
 This is a rewrite of the das08 and das08jr drivers.
@@ -206,6 +281,8 @@ Driver: das1600-old.o
 Description: Keithley Metrabyte DAS1600 (& compatibles)
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 
+This driver is obsolete.  Use the das16 driver instead.
+
 The driver recognizes the following board names:
 	das1601/12
 	das1602/12
@@ -250,37 +327,21 @@ Options (probably wrong, verify with source):
 Driver: das1800.o
 Description: Keithley Metrabyte DAS1800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
+Device Names: das-1701st, das-1701st-da, das-1701ao, das-1702st,
+  das-1702st-da, das-1702hr, das-1702hr-da, das-1702ao, das-1801st,
+  das-1801st-da, das-1801hc, das-1801ao, das-1802st, das-1802st-da,
+  das-1802hr, das-1802hr-da, das-1802hc, das-1802ao
 Status: works
 
-Presently dma is disabled if you enable hard real-time support for comedi.
-The waveform analog output on the 'ao' cards is not supported.
-If you need it, send me (Frank Hess) an email. Recognizes the
-following board names:
-
-das-1701st
-das-1701st-da
-das-1701ao
-das-1702st
-das-1702st-da
-das-1702hr
-das-1702hr-da
-das-1702ao
-das-1801st
-das-1801st-da
-das-1801hc
-das-1801ao
-das-1802st
-das-1802st-da
-das-1802hr
-das-1802hr-da
-das-1802hc
-das-1802ao
+Presently, DMA is disabled if you enable hard real-time support for
+Comedi.  The waveform analog output on the 'ao' cards is not supported.
+If you need it, send me (Frank Hess) an email.
 
 Configuration options:
-	[0] - base io address
-	[1] - irq (optional, required for timed or externally triggered conversions)
-	[2] - dma0 (optional, requires irq)
-	[3] - dma1 (optional, requires irq and dma0)
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed or externally triggered conversions)
+  [2] - DMA0 (optional, requires irq)
+  [3] - DMA1 (optional, requires irq and dma0)
 
 
 
@@ -294,38 +355,60 @@ Status: unknown
 Driver: das800.o
 Description: Keithley Metrabyte DAS800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
+Device Names: das-800, das-801, das-802, cio-das800, cio-das801,
+  cio-das802, cio-das802/16
 Status: works, cio-das802/16 untested - email me if you have tested it
 
-
-Recognizes the following board names:
-
-das-800
-das-801
-das-802
-cio-das800
-cio-das801
-cio-das802
-cio-das802/16
-
 Configuration options:
-	[0] - base io address
-	[1] - irq (optional, required for timed or externally triggered conversions)
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed or externally triggered conversions)
 
 
 
 Driver: dt2801.o
-Description: Data Translation DT2801 series (2801, 2805, 2808, 2809, 2818, and DT01-EZ)
+Description: Data Translation DT2801 series and DT01-EZ
 Author: ds
 Status: works
+
+This driver can autoprobe the type of board.
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - unused
+  [2] - A/D reference 0=differential, 1=single-ended
+  [3] - A/D range
+          0 = [-10,10]
+	  1 = [0,10]
+  [4] - D/A 0 range
+          0 = [-10,10]
+	  1 = [-5,5]
+	  2 = [-2.5,2.5]
+	  3 = [0,10]
+	  4 = [0,5]
+  [5] - D/A 1 range (same choices)
 
 
 
 Driver: dt2811.o
 Description: Data Translation DT2811
 Author: ds
-Status: might work
+Device Names: dt2811-pgl, dt2811-pgh
+Status: works
 
-The driver recognizes the names dt2811-pgl and dt2811-pgh.
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ, although this is currently unused
+  [2] - A/D reference
+          0 = signle-ended
+          1 = differential
+	  2 = pseudo-differential (common reference)
+  [3] - A/D range
+          0 = [-5,5]
+	  1 = [-2.5,2.5]
+	  2 = [0,5]
+  [4] - D/A 0 range (same choices)
+  [4] - D/A 1 range (same choices)
+
 
 
 Driver: dt2814.o
@@ -333,15 +416,16 @@ Description: Data Translation DT2814
 Author: ds
 Status: complete
 
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ
+
 This card has 16 analog inputs multiplexed onto a 12 bit ADC.  There
 is a minimally useful onboard clock.  The base frequency for the
 clock is selected by jumpers, and the clock divider can be selected
 via programmed I/O.  Unfortunately, the clock divider can only be
 a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
 addition, the clock does not seem to be very accurate.
-
-Also, the board does not have a fifo or do DMA, so timed mode
-is not supported.
 
 
 
@@ -353,44 +437,30 @@ Status: mostly complete, untested
 I'm not sure anyone has ever tested this board.  If you have information
 contrary, please update.
 
-Options
-  1   Board base address
-  2   IRQ (not applicable)
-  3   Voltage unipolar/bipolar configuration
-        0 == unipolar 5V  (0V -- +5V)
-	1 == bipolar 5V  (-5V -- +5V)
-  4   Current offset configuration
-        0 == disabled  (0mA -- +32mAV)
-        1 == enabled  (+4mA -- +20mAV)
-  5   Firmware program configuration
-        0 == program 1 (see manual table 5-4)
-        1 == program 2 (see manual table 5-4)
-        2 == program 3 (see manual table 5-4)
-        3 == program 4 (see manual table 5-4)
-  6   Analog output 0 range configuration
-        0 == voltage
-        1 == current
-  7   Analog output 1 range configuration
-        0 == voltage
-        1 == current
-  8   Analog output 2 range configuration
-        0 == voltage
-        1 == current
-  9   Analog output 3 range configuration
-        0 == voltage
-        1 == current
-  10  Analog output 4 range configuration
-        0 == voltage
-        1 == current
-  11  Analog output 5 range configuration
-        0 == voltage
-        1 == current
-  12  Analog output 6 range configuration
-        0 == voltage
-        1 == current
-  13  Analog output 7 range configuration
-        0 == voltage
-        1 == current
+Configuration options:
+  [0] - I/O port base base address
+  [1] - IRQ (unused)
+  [2] - Voltage unipolar/bipolar configuration
+          0 == unipolar 5V  (0V -- +5V)
+	  1 == bipolar 5V  (-5V -- +5V)
+  [3] - Current offset configuration
+          0 == disabled  (0mA -- +32mAV)
+          1 == enabled  (+4mA -- +20mAV)
+  [4] - Firmware program configuration
+          0 == program 1 (see manual table 5-4)
+          1 == program 2 (see manual table 5-4)
+          2 == program 3 (see manual table 5-4)
+          3 == program 4 (see manual table 5-4)
+  [5] - Analog output 0 range configuration
+          0 == voltage
+          1 == current
+  [6] - Analog output 1 range configuration (same options)
+  [7] - Analog output 2 range configuration (same options)
+  [8] - Analog output 3 range configuration (same options)
+  [9] - Analog output 4 range configuration (same options)
+  [10] - Analog output 5 range configuration (same options)
+  [11] - Analog output 6 range configuration (same options)
+  [12] - Analog output 7 range configuration (same options)
 
 
 
@@ -406,28 +476,20 @@ is configurable for input or output.  One wonders why it takes a
 The driver (which, btw, is much less than 50 pages) has 1 subdevice
 with 32 channels, configurable in groups of 8.
 
+Configuration options:
+  [0] - I/O port base base address
 
 
 Driver: dt282x.o
 Description: Data Translation DT2821 series (including DT-EZ)
 Author: ds
+Device Names: dt2821, dt2823, dt2824-pgh, dt2824-pgl, dt2825, dt2827,
+  dt2828, dt21-ez, dt23-ez, dt24-ez, dt24-ez-pgl
 Status: complete
 
-This driver recognizes the following board names:
-	dt2821
-	dt2823
-	dt2824-pgh
-	dt2824-pgl
-	dt2825
-	dt2827
-	dt2828
-	dt21-ez
-	dt23-ez
-	dt24-ez
-	dt24-ez-pgl
-
-The driver supports numerous options, which are documented
-in the source, as well as the file etc/dt282x.conf.
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ
 
 
 
@@ -435,6 +497,17 @@ Driver: dt3000.o
 Description: Data Translation DT3000 series
 Author: ds
 Status: untested
+
+
+
+Driver: fl512.o
+Description: unknown
+Author: unknown
+
+Digital I/O is not supported.
+
+Configuration options:
+  [0] - I/O port base address
 
 
 
@@ -472,6 +545,15 @@ options for PCI-20341M:
              1  10
              2  100
              3  200
+
+
+
+Driver: mpc8260cpm.o
+Description: MPC8260 CPM module generic digital I/O lines
+Author: ds
+
+This driver is specific to the Motorola MPC8260 processor, allowing
+you to access the processor's generic digital I/O lines.
 
 
 
@@ -643,6 +725,7 @@ Options:
     [2] - max number of samples in ai_mode0 (defaul=1scan)
 
 
+
 Driver: pcl818.o
 Description: Advantech PCL-818 cards (818, 818L, 818H, 818HD, 818HG), Advantech PCL-718
 Author: Michal Dobes <majkl@tesnet.cz>
@@ -675,10 +758,66 @@ See the head of the source file pcl818.c for configuration options.
 
 
 
+Driver: pcm3730.o
+Description: PCM3730
+Author: Blaine Lee
+
+Configuration options:
+  [0] - I/O port base
+
+
+
+Driver: pcmad.o
+Description: Winsystems PCM-A/D12, PCM-A/D16
+Author: ds
+Device names: pcmad12, pcmad16
+Status: untested
+
+This driver was written on a bet that I couldn't write a driver
+in less than 2 hours.  I won the bet, but never got paid.  =(
+
+Configuration options:
+  [0] - I/O port base
+  [1] - unused
+  [2] - Analog input reference
+          0 = single ended
+	  1 = differential
+  [3] - Analog input encoding (must match jumpers)
+          0 = straight binary
+	  1 = two's complement
+
+
+
+Driver: poc.o
+Description: Generic driver for very simple devices
+Device names: dac02
+Author: ds
+
+This driver is indended to support very simple ISA-based devices,
+including:
+  dac02 - Keithley DAC-02 analog output board
+
+Configuration options:
+  [0] - I/O port base
+
+
+
 Driver: quatech_daqp_cs.o
 Description: Quatech DAQP PCMCIA data capture cards
 Author: Brent Baccala <baccala@freesoft.org>
 Status: unkown
+
+
+
+Driver: rtd520.o
+Description: Real Time Devices PCI4520/DM7520
+Author: Dan Christian
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+          If bus/slot is not specified, the first available PCI
+	  device will be used.
+  [1] - PCI slot of device (optional)
 
 
 
@@ -687,7 +826,28 @@ Description: Analog Devices RTI-800/815
 Author: ds
 Status: unknown
 
-See the source for configuration details.
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ
+  [2] - A/D reference
+          0 = differential
+	  1 = pseudodifferential (common)
+	  2 = single-ended
+  [3] - A/D range
+          0 = [-10,10]
+	  1 = [-5,5]
+	  2 = [0,10]
+  [4] - A/D encoding
+          0 = two's complement
+	  1 = straight binary
+  [5] - DAC 0 range
+	  0 = [-10,10]
+	  1 = [0,10]
+  [5] - DAC 0 encoding
+          0 = two's complement
+	  1 = straight binary
+  [6] - DAC 1 range (same as DAC 0)
+  [7] - DAC 1 encoding (same as DAC 0)
 
 
 
@@ -695,6 +855,15 @@ Driver: rti802.o
 Description: Analog Devices RTI-802
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
+
+
+
+Driver: skel.o
+Description: Skeleton driver, an example for driver writers
+Author: ds
+
+This driver is a documented example on how Comedi drivers are
+written.
 
 
 
