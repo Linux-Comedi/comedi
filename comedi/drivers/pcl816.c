@@ -20,20 +20,18 @@ PCL 816 and 814B have 16 SE/DIFF ADCs, 16 DACs, 16 DI and 16 DO.
 Differences are at resolution (16 vs 12 bits).
 
 The driver support AI command mode, other subdevices not written.
-See the head of the source file pcl816.c for configuration options.
-*/
-/*
-   Options for PCL-816:
-    [0] - IO Base
-    [1] - IRQ	(0=disable, 2, 3, 4, 5, 6, 7)
-    [2] - DMA	(0=disable, 1, 3)
-    [3] - 0, 10=10MHz clock for 8254
-              1= 1MHz clock for 8254
 
-	Notes:
-		WARNING: AO, DI, and DO are not implemented!!!!
+Analog output and digital input and output are not supported.
+
+Configuration Options:
+  [0] - IO Base
+  [1] - IRQ	(0=disable, 2, 3, 4, 5, 6, 7)
+  [2] - DMA	(0=disable, 1, 3)
+  [3] - 0, 10=10MHz clock for 8254
+            1= 1MHz clock for 8254
 
 */
+
 #define DEBUG(x) x
 
 #include <linux/ioport.h>
@@ -1026,7 +1024,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
   int iobase;
   int irq, dma;
   unsigned long pages;
-  int i;
+  //int i;
   comedi_subdevice *s;
 
   /* claim our I/O space */
@@ -1192,7 +1190,7 @@ no_dma:
     s->subdev_flags = SDF_READABLE | SDF_RT;
     s->n_chan = this_board->n_aichan;
     s->subdev_flags |= SDF_DIFF;
-    printk (", %dchans DIFF DAC - %d", s->n_chan, i);
+    //printk (", %dchans DIFF DAC - %d", s->n_chan, i);
     s->maxdata = this_board->ai_maxdata;
     s->len_chanlist = this_board->ai_chanlist;
     s->range_table = this_board->ai_range_type;
