@@ -3,8 +3,16 @@ SUBDIRS = kcomedilib drivers
 
 module_PROGRAMS = comedi.ko
 
-comedi_ko_SOURCES = comedi_fops.c proc.c range.c drivers.c \
-	comedi_ksyms.o
+EXTRA_DIST = \
+ rt_pend_tq.h
+
+comedi_ko_SOURCES = \
+ comedi_fops.c \
+ proc.c \
+ range.c \
+ drivers.c \
+ comedi_ksyms.c
+
 comedi_ko_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS)
 comedi_ko_LINK = $(top_builddir)/modtool --link -o $@
 
@@ -13,8 +21,8 @@ comedi_ko_LINK = $(top_builddir)/modtool --link -o $@
 #endif
 
 
-comedi_ksyms.o: comedi_ksyms.c
-	$(CC) -o $@ comedi_ksyms.c $(CFLAGS) $(COMEDI_CFLAGS) $(LINUX_CFLAGS) -DEXPORT_SYMTAB
+#comedi_ksyms.o: comedi_ksyms.c
+#	$(CC) -o $@ comedi_ksyms.c $(CFLAGS) $(COMEDI_CFLAGS) $(LINUX_CFLAGS) -DEXPORT_SYMTAB
 
 install-data-hook: 
 	depmod -ae $(LINUX_KERNELRELEASE)

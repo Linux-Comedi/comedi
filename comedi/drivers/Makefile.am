@@ -1,7 +1,24 @@
 
+#SUBDIRS = addi-data
 
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@
+
+EXTRA_DIST = \
+ 8253.h \
+ 8255.h \
+ am9513.h \
+ amcc_s5933.h \
+ comedi_fc.h \
+ das08.h \
+ icp_multi.h \
+ mite.h \
+ ni_labpc.h \
+ ni_mio_common.c \
+ ni_stc.h \
+ plx9052.h \
+ plx9080.h \
+ rtd520.h
 
 # mpc8260cpm.ko
 # comedi_rt_timer.ko

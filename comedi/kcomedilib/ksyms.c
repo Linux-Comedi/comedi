@@ -22,6 +22,7 @@
 */
 
 
+#define EXPORT_SYMTAB
 
 #include <linux/comedi.h>
 #include <linux/comedidev.h>

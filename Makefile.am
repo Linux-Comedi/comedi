@@ -1,6 +1,8 @@
 
 SUBDIRS = comedi
 
+EXTRA_DIST = Documentation include m4 scripts
+
 
 dev:
 	-mknod -m 666 /dev/comedi0 c 98 0

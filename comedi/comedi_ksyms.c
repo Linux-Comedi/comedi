@@ -23,6 +23,8 @@
 
 
 #define __NO_VERSION__
+#define EXPORT_SYMTAB
+
 #include <linux/comedidev.h>
 
 
