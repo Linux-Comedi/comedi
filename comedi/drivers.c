@@ -91,9 +91,14 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_driver *driv;
 	int ret;
 	int i=0;
+	int minor;
 
 	if(dev->attached)
 		return -EBUSY;
+
+	minor=dev->minor;
+	memset(dev,0,sizeof(dev));
+	dev->minor=minor;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
 		if(driv->recognize){
