@@ -233,9 +233,13 @@ printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 #endif
 
 	if(status&(AI_Overrun_St|AI_Overflow_St)){
-		printk("ni_mio_common: error ");
-		ni_mio_print_status_a(status);
-		printk("\n");
+		if(status==0xffff){
+			printk("ni_mio_common: status=0xffff.  Card removed?\n");
+		}else{
+			printk("ni_mio_common: error ");
+			ni_mio_print_status_a(status);
+			printk("\n");
+		}
 		win_out(0x0000,Interrupt_A_Enable_Register);
 		comedi_done(dev,s);
 		return;
@@ -746,7 +750,7 @@ static int ni_ns_to_timer(int *nanosec,int round_mode)
 	}
 
 	*nanosec=base*divider;
-	return divider;
+	return divider-1;
 }
 
 static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
@@ -1946,6 +1950,7 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+	if(insn->n!=2)return -EINVAL;
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
