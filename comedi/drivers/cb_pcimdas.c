@@ -467,9 +467,6 @@ static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	chanlims=chan | (chan<<4);
 	outb(chanlims,devpriv->BADR3+0);
 
-	/* wait for mux to settle */
-	udelay(10); //docs say wait 10µs
-
 	/* convert n samples */
 	for(n=0;n<insn->n;n++){
 		/* trigger conversion */

@@ -518,9 +518,6 @@ static int pci230_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	/* Specify uni/bip, se/diff, s/w conversion, and reset FIFO (even though we're not using it - MEV says so). */
 	outw_p(adccon, dev->iobase + PCI230_ADCCON);
 
-	/* Wait for mux to settle */
-	udelay(PCI230_MUX_SETTLE);
-
 	/* Convert n samples */
 	for(n=0;n<insn->n;n++){
 		/* trigger conversion */
@@ -571,14 +568,6 @@ static int pci230_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 
 		/* Write value to DAC. */
 		pci230_ao_write(dev, data[i], chan);
-
-#if 0
-		/* XXX screw the user.  Only do this if the board gets upset if you don't */
-		/* If we're writing more than one sample, wait for output to settle between successive writes */
-		if (insn->n > 1) {
-	    	udelay(PCI230_DAC_SETTLE);
-		}
-#endif
 	}
 
 	/* return the number of samples read/written */

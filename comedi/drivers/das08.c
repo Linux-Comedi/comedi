@@ -556,9 +556,6 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		outb(devpriv->pg_gainlist[range],dev->iobase+DAS08AO_GAIN_CONTROL);
 	}
 
-	/* wait for MUX to settle */
-	udelay(2);
-
 	for(n=0;n<insn->n;n++){
 		/* clear over-range bits for 16-bit boards */
 		if (thisboard->ai_nbits == 16)
