@@ -174,7 +174,9 @@ ID=INSN_CONFIG_ALT_SOURCE: select alternate input source (internal calibration r
   [0] - ID
   [1] - source
 
-ID=INSN_CONFIG_TIMER_1
+ID=INSN_CONFIG_TIMER_1: Configure an external master clock and divisor
+	to divide clock by.  Used with commands by setting scan_begin_src or
+	convert_src set to TRIG_OTHER.
 
   [0] - ID
   [1] - trigger configuration (COMEDI_EV_SCAN_BEGIN, COMEDI_EV_CONVERT, etc.)
