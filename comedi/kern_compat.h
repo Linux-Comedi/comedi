@@ -208,6 +208,13 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)		/* ? */
+#ifdef MODULE
+#define THIS_MODULE	&__this_module
+#else
+#define THIS_MODULE	NULL
+#endif
+#endif
 
 #endif /* _KERN_COMPAT_H */
 
