@@ -180,7 +180,9 @@ static void ni_mio_print_status_a(int status);
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
 static void ni_handle_fifo_half_full(comedi_device *dev);
 static void ni_handle_fifo_dregs(comedi_device *dev);
+#ifdef TRY_DMA
 static void ni_handle_block(comedi_device *dev);
+#endif
 
 static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
 
@@ -360,6 +362,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	s->cur_chan=j;
 }
 
+#ifdef TRY_DMA
 /* Blocked mode is used to get interrupts at convenient places
  * to do DMA.  It is also useful when you want to count greater
  * than 16M scans.
@@ -400,6 +403,7 @@ static void ni_handle_block(comedi_device *dev)
 	}
 #endif
 }
+#endif
 
 static void ni_handle_fifo_half_full(comedi_device *dev)
 {
