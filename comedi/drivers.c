@@ -585,7 +585,7 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 
 		write_ptr = 0;
 	}
-	mb();
+	barrier();
 }
 
 void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
@@ -597,7 +597,7 @@ void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	if( read_ptr >= async->prealloc_bufsz )
 		read_ptr %= async->prealloc_bufsz;
 
-	mb();
+	barrier();
 	while( nbytes )
 	{
 		unsigned int block_size;
