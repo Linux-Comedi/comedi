@@ -15,7 +15,7 @@ AC_DEFUN([DS_RTAI],
 			RTAI_CFLAGS="-I${RTAI_DIR}/include"
 		else
 			if [[ -d ${RTAI_DIR}/rtai-core/include ]] ; then
-				RTAI_CFLAGS="-I${RTAI_DIR}/rtai-core/include"
+				RTAI_CFLAGS=" -I{RTAI_DIR} -I${RTAI_DIR}/rtai-core/include"
 			else
 				AC_MSG_ERROR([incorrect RTAI directory?])
 			fi
