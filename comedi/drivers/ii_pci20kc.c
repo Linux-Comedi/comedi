@@ -39,6 +39,9 @@
  *
  */
 
+/* XXX this is a pci driver, but relies on configuration options to find base address.  It
+   also does memory mapped io, but never calles ioremap(), etc. - fmhess */
+
 #include <linux/comedidev.h>
 
 #include <linux/module.h>	/* modularer Kernel */
