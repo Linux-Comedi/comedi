@@ -163,24 +163,22 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 			if (pci_id->driver_data == thisboard->model)
 				break;
 		}
-		if (pci_id->driver_data != thisboard->model) {
+		if (pci_id->vendor == 0) {
 			printk("bug! cannot determine board type!\n");
 			return -EINVAL;
 		}
 
 		/* Look for matching PCI device. */
-		for(pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
-			pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+		for(pci_dev = pci_find_device(pci_id->vendor, pci_id->device,
+					NULL); pci_dev != NULL; 
+				pci_dev = pci_find_device(pci_id->vendor,
+					pci_id->device, pci_dev)) {
 			/* If bus/slot specified, check them. */
 			if (bus || slot) {
 				if (bus != pci_dev->bus->number
 						|| slot != PCI_SLOT(pci_dev->devfn))
 					continue;
 			}
-			if (pci_dev->vendor != pci_id->vendor)
-				continue;
-			if (pci_dev->device != pci_id->device)
-				continue;
 #if 0
 			if (pci_id->subvendor != PCI_ANY_ID) {
 				if (pci_dev->subsystem_vendor != pci_id->subvendor)
