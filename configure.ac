@@ -60,17 +60,7 @@ CC=$LINUX_CC
 AC_SUBST(COMEDI_CFLAGS)
 
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
-	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="probe"])
-if test "$ENABLE_PCMCIA" = "probe" ; then
-	if test "x$(echo "$LINUX_KERNELRELEASE" | grep '^2.6')" != x ; then
-		AC_MSG_NOTICE([Disabling PCMCIA drivers because they haven't been ported to Linux-2.6])
-		ENABLE_PCMCIA=no
-	else
-		AC_MSG_NOTICE([moo])
-		ENABLE_PCMCIA=yes
-	fi
-
-fi
+	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="yes"])
 if test "$ENABLE_PCMCIA" = "yes" ; then
 	AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
 else
