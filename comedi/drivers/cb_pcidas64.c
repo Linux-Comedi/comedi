@@ -727,7 +727,7 @@ static void i2c_write(comedi_device *dev, unsigned int address, const uint8_t *d
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
 //static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
 static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, unsigned int value);
-
+static void abort_dma(comedi_device *dev, unsigned int channel);
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
@@ -757,9 +757,8 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(plx_iobase + PLX_DMA0_CS_REG));
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
 
-	// disable dma channels
-	writeb(0, plx_iobase + PLX_DMA0_CS_REG);
-	writeb(0, plx_iobase + PLX_DMA1_CS_REG);
+	abort_dma(dev, 0);
+	abort_dma(dev, 1);
 
 	// configure dma0 mode
 	bits = 0;
@@ -1649,11 +1648,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 	DEBUG_PRINT("control1 bits 0x%x\n", private(dev)->adc_control1_bits);
 
-	if((cmd->flags & TRIG_WAKE_EOS) &&
-		board(dev)->layout != LAYOUT_4020)
-	{
-		writeb(0, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
-	} else
+	abort_dma(dev, 1);
+	if((cmd->flags & TRIG_WAKE_EOS) == 0 ||
+		board(dev)->layout == LAYOUT_4020)
 	{
 		// give location of first dma descriptor
 		bits = private(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
@@ -2143,14 +2140,15 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	const int plx_control_addr = private(dev)->plx9080_iobase + PLX_CONTROL_REG;
 	uint16_t value;
 	static const int value_length = 16;
+	static const int eeprom_udelay = 1;
 
-	udelay(1);
+	udelay(eeprom_udelay);
 	private(dev)->plx_control_bits &= ~CTL_EE_CLK & ~CTL_EE_CS;
 	// make sure we don't send anything to the i2c bus on 4020
 	private(dev)->plx_control_bits |= CTL_USERO;
 	writel(private(dev)->plx_control_bits, plx_control_addr);
 	// activate serial eeprom
-	udelay(1);
+	udelay(eeprom_udelay);
 	private(dev)->plx_control_bits |= CTL_EE_CS;
 	writel(private(dev)->plx_control_bits, plx_control_addr);
 
@@ -2158,17 +2156,17 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
 	{
 		// set bit to be written
-		udelay(1);
+		udelay(eeprom_udelay);
 		if(bitstream & bit)
 			private(dev)->plx_control_bits |= CTL_EE_W;
 		else
 			private(dev)->plx_control_bits &= ~CTL_EE_W;
 		writel(private(dev)->plx_control_bits, plx_control_addr);
 		// clock in bit
-		udelay(1);
+		udelay(eeprom_udelay);
 		private(dev)->plx_control_bits |= CTL_EE_CLK;
 		writel(private(dev)->plx_control_bits, plx_control_addr);
-		udelay(1);
+		udelay(eeprom_udelay);
 		private(dev)->plx_control_bits &= ~CTL_EE_CLK;
 		writel(private(dev)->plx_control_bits, plx_control_addr);
 	}
@@ -2177,19 +2175,19 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	for(bit = 1 << (value_length - 1); bit; bit >>= 1)
 	{
 		// clock out bit
-		udelay(1);
+		udelay(eeprom_udelay);
 		private(dev)->plx_control_bits |= CTL_EE_CLK;
 		writel(private(dev)->plx_control_bits, plx_control_addr);
-		udelay(1);
+		udelay(eeprom_udelay);
 		private(dev)->plx_control_bits &= ~CTL_EE_CLK;
 		writel(private(dev)->plx_control_bits, plx_control_addr);
-		udelay(1);
+		udelay(eeprom_udelay);
 		if(readl(plx_control_addr) & CTL_EE_R)
 			value |= bit;
 	}
 
 	// deactivate eeprom serial input
-	udelay(1);
+	udelay(eeprom_udelay);
 	private(dev)->plx_control_bits &= ~CTL_EE_CS;
 	writel(private(dev)->plx_control_bits, plx_control_addr);
 
@@ -2283,10 +2281,11 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
  */
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value)
 {
-	const int num_caldac_channels = 8;
-	const int bitstream_length = 11;
+	static const int num_caldac_channels = 8;
+	static const int bitstream_length = 11;
 	unsigned int bitstream = ((address & 0x7) << 8) | value;
 	unsigned int bit, register_bits;
+	static const int caldac_8800_udelay = 1;
 
 	if(address >= num_caldac_channels)
 	{
@@ -2299,16 +2298,16 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 		register_bits = 0;
 		if(bitstream & bit)
 			register_bits |= SERIAL_DATA_IN_BIT;
-		udelay(1);
+		udelay(caldac_8800_udelay);
 		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
 		register_bits |= SERIAL_CLOCK_BIT;
-		udelay(1);
+		udelay(caldac_8800_udelay);
 		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
         }
 
-	udelay(1);
+	udelay(caldac_8800_udelay);
 	writew(SELECT_8800_BIT, private(dev)->main_iobase + CALIBRATION_REG);
-	udelay(1);
+	udelay(caldac_8800_udelay);
 	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
 
 	return 0;
@@ -2375,37 +2374,6 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 	i2c_write(dev, i2c_addr, serial_bytes, 3);
 	return 0;
 }
-
-#if 0
-// 1590 doesn't seem to do anything.  Perhaps it is the actual primary ao chip.
-static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b)
-{
-	const int bitstream_length = 24;
-	const int max_caldac_value = 0xfff;
-	unsigned int bitstream = ((dac_a & 0xfff) << 12) | (dac_b & 0xfff);
-	unsigned int bit, register_bits;
-
-	if(dac_a > max_caldac_value || dac_b > max_caldac_value)
-	{
-		comedi_error(dev, "illegal 1590 caldac channel");
-		return -1;
-	}
-
-        for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
-	{
-		register_bits = SELECT_1590_BIT | SERIAL_CLOCK_BIT;
-		if(bitstream & bit)
-			register_bits |= SERIAL_DATA_IN_BIT;
-		udelay(1);
-		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
-        }
-
-	udelay(1);
-	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
-
-	return 0;
-}
-#endif
 
 // Their i2c requires a huge delay on setting clock or data high for some reason
 static const int i2c_high_udelay = 1000;
