@@ -470,7 +470,7 @@ static struct das16_board_struct das16_boards[]={
 	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
-	i8255_offset:	0,
+	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
 	id:	0x20,
@@ -484,7 +484,7 @@ static struct das16_board_struct das16_boards[]={
 	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
-	i8255_offset:	0,
+	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
 	id:	0x20,
@@ -498,7 +498,7 @@ static struct das16_board_struct das16_boards[]={
 	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
-	i8255_offset:	0,
+	i8255_offset:	0x0,
 	i8254_offset:	0x0c,
 	size:		0x408,
 	id:	0xc0
@@ -512,7 +512,7 @@ static struct das16_board_struct das16_boards[]={
 	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
-	i8255_offset:	0,
+	i8255_offset:	0x0,
 	i8254_offset:	0x0c,
 	size:		0x408,
 	id:	0xc0
@@ -527,7 +527,7 @@ static struct das16_board_struct das16_boards[]={
 	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
-	i8255_offset:	0,
+	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
 	id:	0xc0
@@ -542,7 +542,7 @@ static struct das16_board_struct das16_boards[]={
 	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
-	i8255_offset:	0,
+	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
 	id:	0xc0
