@@ -7,7 +7,17 @@ VERS3 = 38
 
 INSTALLDIR=/usr
 
-LINUXDIR = /usr/src/linux
+#LINUXDIR = /usr/src/linux
+#LINUXDIR = /d/ds/cvs/rtl/linux22
+LINUXDIR = /d/ds/cvs/linux22
+
+# define the following if you want to compile using RTL
+# headers that aren't in the default location
+RTLDIR = /d/ds/cvs/rtlinux
+
+# define the following if you want to compile using RTAI
+# headers that aren't in the default location
+RTAIDIR = /d/ds/cvs/rtai
 
 TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
@@ -16,20 +26,35 @@ TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 CFLAGS = -Wall -O2 -Wstrict-prototypes
 CFLAGS += -D__KERNEL__ -I $(LINUXDIR)/include -I $(TOPDIR)/include -I .
 
-ifeq ($(CONFIG_SMP),y)
-CFLAGS += -D__SMP__
-endif
-
 CONFIG_SHELL := sh
+
+include $(LINUXDIR)/.config
 
 ifeq (.config,$(wildcard .config))
 include .config
 include .uts_version
-include $(LINUXDIR)/.config
 all2:	modules comedi_config
 else
 all2:	config
 endif
+
+ifeq ($(CONFIG_SMP),y)
+CFLAGS += -D__SMP__
+endif
+
+ifeq ($(CONFIG_COMEDI_RTL),y)
+ifdef RTLDIR
+CFLAGS += -I $(RTLDIR)/include
+endif
+CFLAGS += -D__RTL__
+endif
+
+ifeq ($(CONFIG_COMEDI_RTAI),y)
+ifdef RTAIDIR
+CFLAGS += -I $(RTAIDIR)/include
+endif
+endif
+
 
 SUBDIRS := comedi
 
@@ -74,6 +99,10 @@ dev:	dummy
 
 
 MODFLAGS += -DMODULE
+ifeq ($(CONFIG_MODVERSIONS),y)
+MODFLAGS += -DMODVERSIONS -include $(LINUXDIR)/include/linux/modversions.h
+endif
+
 
 modules:	$(patsubst %, _mod_%, $(SUBDIRS))
 
@@ -91,8 +120,8 @@ distclean:	clean
 	rm -f core `find . \( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
+	-rm -f modules/*
 	rm -f .config .uts_version include/config.h
-	rm -f modules/*
 
 include $(TOPDIR)/Rules.make
 

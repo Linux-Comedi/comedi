@@ -1,6 +1,8 @@
 
 das6402 needs cleanup
 
+merge das08, das16, das1600 and do cleanup
+
 check each driver init for stuff
 
 grep XXX
@@ -12,4 +14,9 @@ allocate private
 
 fix PCI code, use pci_find_device()
 
-fix up DAS16 driver
+make a skeleton driver
+
+standardize error codes
+
+fix CONFIG_MODVERISONS=y
+
