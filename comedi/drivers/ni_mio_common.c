@@ -78,7 +78,9 @@
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
 
+/* A timeout count */
 
+#define NI_TIMEOUT 1000
 
 /* reference: ground, common, differential, other */
 static short ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
@@ -186,13 +188,17 @@ static void ni_mio_print_status_b(int status);
 #endif
 
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
+#ifndef PCIDMA
 static void ni_handle_fifo_half_full(comedi_device *dev);
 static void ni_handle_fifo_dregs(comedi_device *dev);
+#endif
 #ifdef PCIDMA
 static void ni_handle_block_dma(comedi_device *dev);
 #endif
 static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum);
+static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
+	unsigned int *list);
 
 static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
 
@@ -236,9 +242,7 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 static void handle_a_interrupt(comedi_device *dev,unsigned short status);
 static void handle_b_interrupt(comedi_device *dev,unsigned short status);
 #ifdef PCIDMA
-/*status must be long because the CHSR is 32 bits and the high bits
-are important to us */
-static void mite_handle_interrupt(comedi_device *dev,unsigned long status);
+static void mite_handle_interrupt(comedi_device *dev,unsigned int status);
 static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop);
 #endif
 
@@ -293,9 +297,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	unsigned short b_status;
 	int wsave;
 #ifdef PCIDMA
-	/* m_status must be long because the CHSR is a 32 bit register and we are
-	interested in several high bits */
-	unsigned long m_status;
+	unsigned int m_status;
 #endif
 
 	MDPRINTK("ni_E_Interrupt\n");
@@ -319,7 +321,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	ni_mio_print_status_b(b_status);
 #endif
 #ifdef PCIDMA
-	//rt_printk("mite status=0x%08lx\n",m_status);
+	//rt_printk("mite status=0x%08x\n",m_status);
 	if(m_status&CHSR_INT)mite_handle_interrupt(dev,m_status);
 #endif
 	if(a_status&Interrupt_A_St)handle_a_interrupt(dev,a_status);
@@ -330,7 +332,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 }
 
 #ifdef PCIDMA
-static void mite_handle_interrupt(comedi_device *dev,unsigned long m_status)
+static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 {
 	int len;
 	
@@ -415,16 +417,13 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 				status);
 			ni_mio_print_status_a(status);
 			
-			//TIM 5/11/01
 			win_out(AI_Error_Interrupt_Ack, Interrupt_A_Ack_Register);
 			
-			#ifndef PCIDMA
+#ifndef PCIDMA
 			ni_handle_fifo_dregs(dev);
-			#endif 
+#endif 
 						
-			//TIM 4/17/01
-			//win_out(0x0000,Interrupt_A_Enable_Register);
-			//turn off all AI interrupts
+			/* turn off all AI interrupts */
 			ni_set_bits(dev, Interrupt_A_Enable_Register,
 				AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
 				AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
@@ -439,22 +438,20 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 #ifdef DEBUG_INTERRUPT
 			rt_printk("ni_mio_common: SC_TC interrupt\n");
 #endif
-			//for MITE DMA ignore the terminal count from the STC
-			//instead finish up when the MITE asserts DONE
+			/* for MITE DMA ignore the terminal count from the STC
+			 * instead finish up when the MITE asserts DONE */
 #ifndef PCIDMA
-			
 			if(!devpriv->ai_continuous){
 				ni_handle_fifo_dregs(dev);
-				//win_out(0x0000,Interrupt_A_Enable_Register); TIM 4/17/01
 				ni_set_bits(dev, Interrupt_A_Enable_Register,
-				AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
-				AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
-				AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
-				AI_FIFO_Interrupt_Enable,0);
+					AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+					AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+					AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
+					AI_FIFO_Interrupt_Enable,0);
 
 				comedi_done(dev,s);
 			}
-#endif //PCIDMA
+#endif // !PCIDMA
 			ack|=AI_SC_TC_Interrupt_Ack;
 		}
 		if(status&AI_START1_St){
@@ -465,7 +462,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 	if(status&AI_FIFO_Half_Full_St){
 		ni_handle_fifo_half_full(dev);
 	}
-#endif //PCIDMA
+	/* XXX These don't work if DMA is running */
 	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
 		ni_handle_fifo_dregs(dev);
 
@@ -479,6 +476,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 
 		//s->async->events |= COMEDI_CB_SAMPLE;
 	}
+#endif // !PCIDMA
 
 	if(ack) ni_writew(ack,Interrupt_A_Ack);
 
@@ -556,6 +554,7 @@ static void ni_mio_print_status_b(int status)
 }
 #endif
 
+#ifndef PCIDMA
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
 {
@@ -568,8 +567,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	j=async->cur_chan;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
-		d^=devpriv->ai_xorlist[j];
-		d&=mask;
+		d+=devpriv->ai_xorlist[j];
 		data[i]=d;
 		j++;
 		if(j>=async->cur_chanlist_len){
@@ -579,43 +577,6 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	}
 	async->cur_chan=j;
 }
-
-#ifdef PCIDMA
-static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start, sampl_t *stop)
-{
-	comedi_async *async = s->async;
-	int j;
-	sampl_t *i;
-	unsigned int mask;
-
-	mask=(1<<boardtype.adbits)-1;
-	j=async->cur_chan;
-	for(i=start;i<stop;i++){
-		*i ^=devpriv->ai_xorlist[j];
-		*i &=mask;
-		j++;
-		j %= async->cur_chanlist_len;
-	}
-	async->cur_chan=j;
-}
-
-static void ni_handle_block_dma(comedi_device *dev)
-{
-	MDPRINTK("ni_handle_block_dma\n");
-	//mite_dump_regs(devpriv->mite);  
-	mite_dma_disarm(devpriv->mite);
-	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
-	ni_set_bits(dev, Interrupt_A_Enable_Register,
-		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
-		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
-		AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
-		AI_FIFO_Interrupt_Enable,0);
-
-	ni_ai_reset(dev,dev->subdevices);
-	comedi_done(dev,dev->subdevices);
-	MDPRINTK("exit ni_handle_block_dma\n");
-}
-#endif
 
 static void ni_handle_fifo_half_full(comedi_device *dev)
 {
@@ -676,8 +637,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 				return;
 			}
 			d=ni_readw(ADC_FIFO_Data_Register);
-			d^=devpriv->ai_xorlist[j];
-			d&=mask;
+			d+=devpriv->ai_xorlist[j];
 			*data=d;
 			j++;
 			if(j>=s->async->cur_chanlist_len){
@@ -693,8 +653,45 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		s->async->events |= COMEDI_CB_EOBUF;
 	}
 }
+#endif // !PCIDMA
 
 #ifdef PCIDMA
+static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start,
+		sampl_t *stop)
+{
+	comedi_async *async = s->async;
+	unsigned int j;
+	sampl_t *i;
+	unsigned int mask;
+
+	mask=(1<<boardtype.adbits)-1;
+	j=async->cur_chan;
+	for(i=start;i<stop;i++){
+		*i +=devpriv->ai_xorlist[j];
+		j++;
+		if(j>=async->cur_chanlist_len)j=0;
+	}
+	async->cur_chan=j;
+}
+
+static void ni_handle_block_dma(comedi_device *dev)
+{
+	MDPRINTK("ni_handle_block_dma\n");
+	//mite_dump_regs(devpriv->mite);  
+	mite_dma_disarm(devpriv->mite);
+	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
+	ni_set_bits(dev, Interrupt_A_Enable_Register,
+		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
+		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
+		AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
+		AI_FIFO_Interrupt_Enable,0);
+
+	ni_ai_reset(dev,dev->subdevices);
+	comedi_done(dev,dev->subdevices);
+	MDPRINTK("exit ni_handle_block_dma\n");
+}
+
+#ifdef unused
 static int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 {
 	int n;
@@ -720,11 +717,9 @@ static int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 
 	/* stage number of scans */
 	n = cmd->stop_arg;
-	win_out((n-1)>>16,AI_SC_Load_A_Registers);
-	win_out((n-1)&0xffff,AI_SC_Load_A_Registers+1);
-	win_out((n-1)>>16,AI_SC_Load_B_Registers);
-	win_out((n-1)&0xffff,AI_SC_Load_B_Registers+1);
-	        
+	win_out2(n-1,AI_SC_Load_A_Registers);
+	win_out2(n-1,AI_SC_Load_B_Registers);
+
 	/* load SC (Scan Count) */
 	win_out(AI_SC_Load,AI_Command_1_Register);
 
@@ -738,9 +733,8 @@ static int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
 
 	return mode1;
 }
-#endif
+#endif // 0
 
-#ifdef PCIDMA
 static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 {
 	int n,len;
@@ -758,10 +752,8 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 
 	/* stage number of scans */
 	n = cmd->stop_arg;
-	win_out((n-1)>>16,AI_SC_Load_A_Registers);
-	win_out((n-1)&0xffff,AI_SC_Load_A_Registers+1);
-	win_out((n-1)>>16,AI_SC_Load_B_Registers);
-	win_out((n-1)&0xffff,AI_SC_Load_B_Registers+1);
+	win_out2(n-1,AI_SC_Load_A_Registers);
+	win_out2(n-1,AI_SC_Load_B_Registers);
 	
 	/* load SC (Scan Count) */
 	win_out(AI_SC_Load,AI_Command_1_Register);
@@ -773,7 +765,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 	mite_dma_arm(devpriv->mite);
 	return mode1;
 }
-#endif
+#endif // PCIDMA
 
 /*
    used for both cancel ioctl and board initialization
@@ -785,7 +777,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #ifdef PCIDMA
 	mite_dma_disarm(devpriv->mite);
 #endif
-	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
 		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
 		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
@@ -804,9 +795,11 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	win_out(0x000d,AI_Mode_1_Register);
 	win_out(0x0000,AI_Mode_2_Register);
 #if 0
-	win_out((1<<6)|0x0000,AI_Mode_3_Register); /* generate FIFO interrupts on half full */
+	/* generate FIFO interrupts on half full */
+	win_out((1<<6)|0x0000,AI_Mode_3_Register);
 #else
-	win_out((0<<6)|0x0000,AI_Mode_3_Register); /* generate FIFO interrupts on non-empty */
+	/* generate FIFO interrupts on non-empty */
+	win_out((0<<6)|0x0000,AI_Mode_3_Register);
 #endif
 	win_out(0xA420,AI_Personal_Register); 
 	win_out(0x032e,AI_Output_Control_Register);
@@ -834,6 +827,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 
 static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 {
+#ifndef PCIDMA
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&dev->spinlock,flags);
@@ -843,36 +837,29 @@ static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 	comedi_event(dev,s,s->async->events);
 
 	return s->async->buf_int_count-s->async->buf_user_count;
+#else
+	/* XXX we don't support this yet. */
+	return -EINVAL;
+#endif
 }
-
-static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsigned int *list,int dither);
-
-#define NI_TIMEOUT 1000
 
 
 static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int i,n;
 	int wsave;
-	unsigned int mask,sign;
+	unsigned int mask;
+	unsigned short signbits;
+	unsigned short d;
 
 	wsave=win_save();
 
 	win_out(1,ADC_FIFO_Clear);
 
-	/* interrupt on errors */
-	//TIM 4/17/01 win_out(0x0020,Interrupt_A_Enable_Register);
-	ni_set_bits(dev, Interrupt_A_Enable_Register, AI_Error_Interrupt_Enable,1);
+	ni_load_channelgain_list(dev,1,&insn->chanspec);
 
-
-	//ni_load_channelgain_list(dev,1,&insn->chanspec,(insn->flags&TRIG_DITHER)==TRIG_DITHER);
-	ni_load_channelgain_list(dev,1,&insn->chanspec,0);
-
-#if 0
-#define NI_TIMEOUT 1000
-#endif
 	mask=(1<<boardtype.adbits)-1;
-	sign=devpriv->ai_xorlist[0];
+	signbits=devpriv->ai_xorlist[0];
 	for(n=0;n<insn->n;n++){
 		win_out(1,AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
@@ -884,7 +871,8 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			win_restore(wsave);
 			return -ETIME;
 		}
-		data[n]=(ni_readw(ADC_FIFO_Data_Register)&mask)^sign;
+		d = ni_readw(ADC_FIFO_Data_Register)+signbits;
+		data[n] = d;
 	}
 	win_restore(wsave);
 	return insn->n;
@@ -892,12 +880,12 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 
 
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
-	unsigned int *list,int ignored)
+	unsigned int *list)
 {
 	unsigned int chan,range,aref;
 	unsigned int i;
 	unsigned int hi,lo;
-	unsigned short sign;
+	unsigned short offset;
 	unsigned int dither;
 
 	if(n_chan==1){
@@ -913,7 +901,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 	win_out(1,Configuration_Memory_Clear);
 
-	sign=1<<(boardtype.adbits-1);
+	offset=1<<(boardtype.adbits-1);
 	for(i=0;i<n_chan;i++){
 		chan=CR_CHAN(list[i]);
 		range=CR_RANGE(list[i]);
@@ -922,7 +910,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
-		devpriv->ai_xorlist[i]=(range<8)?sign:0;
+		devpriv->ai_xorlist[i]=(range<8)?offset:0;
 
 		hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		ni_writew(hi,Configuration_Memory_High);
@@ -1123,8 +1111,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	win_out(1,ADC_FIFO_Clear);
 
-	ni_load_channelgain_list(dev,cmd->chanlist_len,cmd->chanlist,
-		(cmd->flags&TRIG_DITHER)==TRIG_DITHER);
+	ni_load_channelgain_list(dev,cmd->chanlist_len,cmd->chanlist);
 
 	/* start configuration */
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
@@ -1135,8 +1122,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
 		/* stage number of scans */
-		win_out((cmd->stop_arg-1)>>16,AI_SC_Load_A_Registers);
-		win_out((cmd->stop_arg-1)&0xffff,AI_SC_Load_A_Registers+1);
+		win_out2(cmd->stop_arg-1,AI_SC_Load_A_Registers);
 
 		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
 		win_out(mode1,AI_Mode_1_Register);
@@ -1184,8 +1170,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			AI_START_STOP_Select_Register);
 
 		timer=ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
-		win_out((timer>>16),AI_SI_Load_A_Registers);
-		win_out((timer&0xffff),AI_SI_Load_A_Registers+1);
+		win_out2(timer,AI_SI_Load_A_Registers);
 
 		/* AI_SI_Initial_Load_Source=A */
 		mode2 |= AI_SI_Initial_Load_Source&0;
@@ -1196,8 +1181,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out(AI_SI_Load,AI_Command_1_Register);
 
 		/* stage freq. counter into SI B */
-		win_out((timer>>16),AI_SI_Load_B_Registers);
-		win_out((timer&0xffff),AI_SI_Load_B_Registers+1);
+		win_out2(timer,AI_SI_Load_B_Registers);
 
 		break;
 	case TRIG_EXT:

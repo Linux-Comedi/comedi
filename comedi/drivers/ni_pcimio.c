@@ -76,10 +76,9 @@
 #include "ni_stc.h"
 #include "mite.h"
 
-#undef DEBUG
 #define PCI_DEBUG
 
-//#define PCIDMA
+#define PCIDMA
 
 #define PCIMIO 1
 #undef ATMIO
