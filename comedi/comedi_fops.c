@@ -1803,7 +1803,7 @@ static void __exit comedi_cleanup(void)
 	if(MOD_IN_USE)
 		printk("comedi: module in use -- remove delayed\n");
 
-	for(i=0;i<4;i++){
+	for(i=0;i<COMEDI_NDEVICES;i++){
 		char name[20];
 		sprintf(name, "comedi%d", i);
 		devfs_unregister(devfs_find_handle(NULL, name,
