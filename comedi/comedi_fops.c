@@ -776,11 +776,11 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 				break;
 			}
 			case INSN_WAIT:
-				if(insn.n<1 || data[0]>=100){
+				if(insn.n<1 || data[0]>=100000){
 					ret=-EINVAL;
 					break;
 				}
-				udelay(data[0]);
+				udelay(data[0]/1000);
 				ret=1;
 				break;
 			default:
