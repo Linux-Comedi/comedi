@@ -20,5 +20,7 @@ moo:
 	(grep '^.:' drivers.check >drivers.summary)
 	
 install-data-hook:
-	#depmod -ae $(KERNELRELEASE)
+	if [ -z "$(DESTDIR)" ] ; then \
+		depmod -ae $(KERNELRELEASE) \
+	fi
 

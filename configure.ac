@@ -34,7 +34,17 @@ AC_DEFINE_UNQUOTED(COMEDI_MICROVERSION, $COMEDI_MICROVERSION, [Comedi micro vers
 AC_PROG_CC()
 AC_PATH_PROG(STRIP,strip)
 
-DS_LINUX()
+AS_LINUX()
+AS_LINUX_MODTOOL()
+
+DS_RTAI([USE_RTAI=yes],[USE_RTAI=no])
+DS_RTLINUX([USE_RTLINUX=yes],[USE_RTLINUX=no])
+AM_CONDITIONAL([CONFIG_COMEDI_RT],
+	[test ${USE_RTAI} == "yes" -o ${USE_RTLINUX} == "yes"])
+if test ${USE_RTAI} == "yes" -o ${USE_RTLINUX} == "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_RT],[true],[Define to enable Comedi's real-time support])
+fi
+
 
 CC=$LINUX_CC
 
@@ -43,16 +53,10 @@ CC=$LINUX_CC
 COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/"
 AC_SUBST(COMEDI_CFLAGS)
 
-moduledir="\$(libdir)/modules/\$(LINUX_KERNELRELEASE)/comedi"
-modulePROGRAMS_INSTALL="\$(top_builddir)/modtool --install"
-modulePROGRAMS_UNINSTALL="\$(top_builddir)/modtool --uninstall"
-AC_SUBST(moduledir)
-AC_SUBST(modulePROGRAMS_INSTALL)
-
-DS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
-DS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
-DS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
-DS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)
+AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
+AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
+AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
+AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)
 #AM_CONDITIONAL(CONFIG_PCMCIA,false)
 
 AC_DEFINE(CONFIG_COMEDI_DEBUG, true, [Define if debugging is enabled])
@@ -60,12 +64,9 @@ AC_DEFINE(CONFIG_COMEDI_8255, true, [Define if 8255 support is enabled])
 
 AC_OUTPUT([
 Makefile
-modtool
 comedi/Makefile
 comedi/drivers/Makefile
 comedi/kcomedilib/Makefile
 ])
 #comedi/drivers/addi-data/Makefile
-
-chmod +x modtool
 
