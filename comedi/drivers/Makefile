@@ -28,6 +28,7 @@ obj-$(CONFIG_COMEDI_DAS08JR)		+= das08jr.o
 obj-$(CONFIG_COMEDI_DAS16)		+= das16.o
 obj-$(CONFIG_COMEDI_DAS1600)		+= das1600.o
 obj-$(CONFIG_COMEDI_DAS6402)		+= das6402.o
+obj-$(CONFIG_COMEDI_DAS800)		+= das800.o
 
 obj-$(CONFIG_COMEDI_DT2801)		+= dt2801.o
 obj-$(CONFIG_COMEDI_DT2811)		+= dt2811.o
