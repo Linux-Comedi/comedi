@@ -57,7 +57,7 @@ Configuration Options:
 //#define  CONFIG_COMEDI_DEBUG
 
 
-
+#include <linux/version.h>
 
 #if LINUX_VERSION_CODE < 0x020600
 /////////////////////////////////////////////////////////////////////
