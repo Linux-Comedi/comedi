@@ -1707,10 +1707,6 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		return retval;
 	}
-	/* make sure everything is written out to memory before there is a possibility
-	 * of the interrupt handler executing (trying to fix mysterious pci-das6402/16
-	 * crash during attach) */
-	mb();
 	// get irq
 	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
 	{
@@ -3008,6 +3004,14 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	DEBUG_PRINT("cb_pcidas64: hw status 0x%x ", status);
 	DEBUG_PRINT("plx status 0x%x\n", plx_status);
 
+	/* an interrupt before all the postconfig stuff gets done could
+	 * cause a NULL dereference if we continue through the
+	 * interrupt handler */
+	if(dev->attached == 0)
+	{
+		DEBUG_PRINT("cb_pcidas64: premature interrupt, ignoring", status);
+		return;
+	}
 	handle_ai_interrupt(dev, status, plx_status);
 	handle_ao_interrupt(dev, status, plx_status);
 

@@ -182,7 +182,7 @@ attached:
 		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
 		dev->board_name="BUG";
 	}
-
+	barrier();
 	dev->attached=1;
 
 	return 0;
@@ -259,7 +259,7 @@ static int postconfig(comedi_device *dev)
 			continue;
 
 		if(s->len_chanlist==0)
-			s->len_chanlist=1; 
+			s->len_chanlist=1;
 
 		if(s->do_cmd){
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
