@@ -3,7 +3,6 @@
     DAS16 driver
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1995,1996  Sam Moore, Warren Jasper
     Copyright (C) 2000 David A. Schleef <ds@stm.lbl.gov>
     Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
     Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
@@ -21,6 +20,17 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+************************************************************************
+
+Options:
+	[0] - base io address
+	[1] - irq (optional)
+	[2] - dma (optional)
+	[3] - master clock speed in MHz (1 or 10, defaults to 1)
+
+Both an irq line and dma channel are required for timed or externally
+triggered conversions.
 
 */
 
@@ -134,6 +144,7 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define DAS16_PACER		0x0A
 #define   DAS16_CTR0			(1<<1)
 #define   DAS16_TRIG0			(1<<0)
+#define   BURST_LEN_BITS(x)			(((x) & 0xf) << 4)
 #define DAS16_GAIN		0x0B
 #define DAS16_CNTR0_DATA		0x0C
 #define DAS16_CNTR1_DATA		0x0D
@@ -159,9 +170,6 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define   DAS1600_CD			0x10
 #define   DAS1600_WS			0x02
 #define   DAS1600_CLK_10MHZ		0x01
-
-#define DAS16_SLOWEST_TIMER		0xffffffff
-#define DAS16_FASTEST_TIMER		10000
 
 static comedi_lrange range_das1x01_bip = { 4, {
 	BIP_RANGE( 10 ),
@@ -200,7 +208,6 @@ static comedi_lrange range_das16jr = { 9, {
 	UNI_RANGE( 1.25 ),
 }};
 
-
 static int das16jr_gainlist[] = { 8, 0, 1, 2, 3, 4, 5, 6, 7 };
 static int das1600_gainlist[] = { 0, 1, 2, 3 };
 enum {
@@ -216,13 +223,13 @@ static int *das16_gainlists[] = {
 	das1600_gainlist,
 };
 static comedi_lrange *das16_ai_uni_lranges[]={
-	&range_bipolar10, /* XXX guess */
+	&range_unknown,
 	&range_das16jr,
 	&range_das1x01_unip,
 	&range_das1x02_unip,
 };
 static comedi_lrange *das16_ai_bip_lranges[]={
-	&range_unipolar10, /* XXX guess */
+	&range_unknown,
 	&range_das16jr,
 	&range_das1x01_bip,
 	&range_das1x02_bip,
@@ -424,7 +431,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/jr/ctr5", // ?
 	},
 	{
-	name:		"das16/n1",	// cio-das-m1-16.pdf ?
+	name:		"das16/m1/16",	// cio-das-m1-16.pdf ?
 	},
 	{
 	name:		"das1601/12-p5",//
@@ -474,20 +481,28 @@ struct das16_private_struct {
 static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 {
 	int err=0, tmp;
+	int gain, start_chan, i;
+	int mask;
 
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
-	/* XXX cards that support burst mode could do scan_begin_src
-	 * TRIG_TIMER and convert_src TRIG_NOW */
 	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
+	mask = TRIG_FOLLOW;
+	// if board supports burst mode
+	if(thisboard->size > 0x400)
+		mask |= TRIG_TIMER | TRIG_EXT;
+	cmd->scan_begin_src &= mask;
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
+	mask = TRIG_TIMER | TRIG_EXT;
+	// if board supports burst mode
+	if(thisboard->size > 0x400)
+		mask |= TRIG_NOW;
+	cmd->convert_src &= mask;
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
@@ -501,11 +516,20 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 	if(err)return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
-	/* note that mutual compatiblity is not an issue here */
+	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_EXT &&
+		cmd->scan_begin_src != TRIG_FOLLOW) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
-		cmd->convert_src != TRIG_EXT) err++;
+		cmd->convert_src != TRIG_EXT &&
+		cmd->convert_src != TRIG_NOW) err++;
 	if(cmd->stop_src != TRIG_NONE &&
 		cmd->stop_src != TRIG_COUNT) err++;
+
+	// make sure scan_begin_src and convert_src dont conflict
+	if(cmd->scan_begin_src == TRIG_FOLLOW &&
+		cmd->convert_src == TRIG_NOW) err++;
+	if(cmd->scan_begin_src != TRIG_FOLLOW &&
+		cmd->convert_src != TRIG_NOW) err++;
 
 	if(err)return 2;
 
@@ -531,7 +555,16 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
+
 	// check against maximum frequency
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		if(cmd->scan_begin_arg < thisboard->ai_speed * cmd->chanlist_len)
+		{
+			cmd->convert_arg = thisboard->ai_speed * cmd->chanlist_len;
+			err++;
+		}
+	}
 	if(cmd->convert_src == TRIG_TIMER)
 	{
 		if(cmd->convert_arg < thisboard->ai_speed)
@@ -541,23 +574,39 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 		}
 	}
 
-	if(cmd->stop_src == TRIG_COUNT)
+	if(cmd->stop_src == TRIG_NONE)
 	{
-		/* any count is allowed */
-	}else
-	{
-		/* TRIG_NONE */
 		if(cmd->stop_arg != 0)
 		{
 			cmd->stop_arg = 0;
 			err++;
 		}
 	}
-	// XXX check chanlist
-
+	// check channel/gain list against card's limitations
+	gain = CR_RANGE(cmd->chanlist[0]);
+	start_chan = CR_CHAN(cmd->chanlist[0]);
+	for(i = 1; i < cmd->chanlist_len; i++)
+	{
+		if(CR_CHAN(cmd->chanlist[i]) != (start_chan + i) % s->n_chan)
+		{
+			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+			err++;
+		}
+		if(CR_RANGE(cmd->chanlist[i]) != gain)
+		{
+			comedi_error(dev, "entries in chanlist must all have the same gain\n");
+			err++;
+		}
+	}
 	if(err)return 3;
 
 	// step 4: fix up arguments
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		// set divisors, correct timing arguments
+		i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
+			&(devpriv->divisor2), &(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+   }
 	if(cmd->convert_src == TRIG_TIMER)
 	{
 		// set divisors, correct timing arguments
@@ -597,8 +646,24 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	/* set counter mode and counts */
 	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
 	rt_printk("pacer period: %d ns\n", cmd->convert_arg);
+
 	/* enable counters */
-	outb(0x00, dev->iobase + DAS16_PACER);
+	byte = 0;
+	/* Enable burst mode if appropriate. */
+	if(thisboard->size > 0x400)
+	{
+		if(cmd->convert_src == TRIG_NOW)
+		{
+			outb(DAS1600_BURST_VAL, dev->iobase + DAS1600_BURST);
+		}else
+		{
+			outb(0, dev->iobase + DAS1600_BURST);
+		}
+		// set burst length
+		byte |= BURST_LEN_BITS(cmd->chanlist_len);
+	}
+	outb(byte, dev->iobase + DAS16_PACER);
+
 
 	// set up dma transfer
 	flags = claim_dma_lock();
@@ -667,9 +732,6 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		outb((das16_gainlists[thisboard->ai_pg])[range],
 			dev->iobase+DAS16_GAIN);
 	}
-
-	/* How long should we wait for MUX to settle? */
-	//udelay(5);
 
 	for(n=0;n<insn->n;n++){
 		/* trigger conversion */
@@ -929,11 +991,9 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 	diobits = inb(dev->iobase + DAS16_DIO) & 0xf0;
 
 	printk(" diobits 0x%02x",diobits);
-
 	switch(diobits){
 	case 0x80:
 		printk(" das16 or das16/f");
-		/* only difference is speed, so not an issue yet */
 		if(it->options[3])
 			devpriv->clockbase = 1000 / it->options[3];
 		else
@@ -981,7 +1041,6 @@ static int das1600_mode_detect(comedi_device *dev)
 		printk(" 1MHz pacer clock\n");
 	}
 
-	/* for now, don't support das1400/1600 mode */
 	outb(0, dev->iobase + DAS1600_CONV);
 	outb(0, dev->iobase + DAS1600_BURST);
 	outb(0, dev->iobase + DAS1600_ENABLE);
@@ -1098,6 +1157,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
+	// initialize dma
 	dma_chan = it->options[2];
 	if(dma_chan == 1 || dma_chan == 3)
 	{
@@ -1137,13 +1197,13 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->subdev_flags = SDF_READABLE;
 		if(devpriv->ai_singleended){
 			s->n_chan = 16;
-			s->subdev_flags |= SDF_GROUND;	/* XXX ? */
+			s->subdev_flags |= SDF_GROUND;
 		}else{
 			s->n_chan = 8;
 			s->subdev_flags |= SDF_DIFF;
 		}
 		s->len_chanlist = 16;
-		s->maxdata = (1<<thisboard->ai_nbits)-1;
+		s->maxdata = (1 << thisboard->ai_nbits) - 1;
 		if(devpriv->ai_unipolar){
 			s->range_table = das16_ai_uni_lranges[thisboard->ai_pg];
 		}else{
@@ -1163,8 +1223,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE;
 		s->n_chan = 2;
-		s->maxdata = (1<<thisboard->ao_nbits)-1;
-		s->range_table = &range_unknown; /* XXX */
+		s->maxdata = (1 << thisboard->ao_nbits) - 1;
+		s->range_table = &range_unknown;
 		s->insn_write = thisboard->ao;
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1254,7 +1314,7 @@ unsigned int das16_suggest_transfer_size(comedi_cmd cmd)
 	unsigned int size;
 	unsigned int freq;
 
-	if(cmd.convert_src == TRIG_TIMER && cmd.scan_begin_src == TRIG_FOLLOW)
+	if(cmd.convert_src == TRIG_TIMER)
 		freq = 1000000000 / cmd.convert_arg;
 	else if(cmd.scan_begin_src == TRIG_TIMER)
 		freq = (1000000000 / cmd.scan_begin_arg) * cmd.chanlist_len;
