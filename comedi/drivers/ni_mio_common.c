@@ -1078,7 +1078,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 
 	ni_writeb(0, Misc_Command);
 
-	win_out(0x0000,AI_Command_1_Register); /* reset pulses */
+	win_out(AI_Disarm, AI_Command_1_Register); /* reset pulses */
 	win_out(AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once,
 		AI_Mode_1_Register);
 	win_out(0x0000,AI_Mode_2_Register);
@@ -2538,16 +2538,16 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* analog output configuration */
 	ni_ao_reset(dev,dev->subdevices + 1);
 
-        if(dev->irq){
-                win_out((IRQ_POLARITY?Interrupt_Output_Polarity:0) |
+	if(dev->irq){
+		win_out((IRQ_POLARITY?Interrupt_Output_Polarity:0) |
 			(Interrupt_Output_On_3_Pins&0) |
 			Interrupt_A_Enable |
 			Interrupt_B_Enable |
 			Interrupt_A_Output_Select(interrupt_pin(dev->irq)) |
 			Interrupt_B_Output_Select(interrupt_pin(dev->irq)),
-                        Interrupt_Control_Register
-                );
-        }
+			Interrupt_Control_Register
+		);
+	}
 
 	/* DMA setup */
 	/* tell the STC which dma channels to use for AI and AO */
