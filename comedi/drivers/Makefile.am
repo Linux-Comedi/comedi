@@ -151,6 +151,8 @@ module_PROGRAMS = \
  $(rt_modules)
 
 8255_ko_SOURCES = 8255.c
+acl7225b_ko_SOURCES = acl7225b.c
+adl_pci6208_ko_SOURCES = adl_pci6208.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
 adl_pci9118_ko_SOURCES = adl_pci9118.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
@@ -211,6 +213,7 @@ pcl711_ko_SOURCES = pcl711.c
 pcl724_ko_SOURCES = pcl724.c
 pcl725_ko_SOURCES = pcl725.c
 pcl726_ko_SOURCES = pcl726.c
+pcl730_ko_SOURCES = pcl730.c
 pcl812_ko_SOURCES = pcl812.c
 pcl816_ko_SOURCES = pcl816.c
 pcl818_ko_SOURCES = pcl818.c
@@ -225,5 +228,3 @@ ssv_dnp_ko_SOURCES = ssv_dnp.c
 comedi_test_ko_SOURCES = comedi_test.c
 usbdux_ko_SOURCES = usbdux.c
 usbduxfast_ko_SOURCES = usbduxfast.c
-
-
