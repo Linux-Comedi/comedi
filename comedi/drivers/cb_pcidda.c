@@ -236,7 +236,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	unsigned int dac, digitalio;
 
 	printk("comedi%d: cb_pcidda: ",dev->minor);
-	
+
 /*
  * Allocate the private structure area.
  */
@@ -338,7 +338,7 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	dev->n_subdevices=1;
+	dev->n_subdevices=3;
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
 
@@ -352,7 +352,14 @@ found:
 	s->insn_write = &cb_pcidda_ao_winsn;
 //	s->do_cmd = &cb_pcidda_ai_cmd;
 	s->do_cmdtest = &cb_pcidda_ai_cmdtest;
-	
+
+	// two 8255 digital io subdevices
+	s = dev->subdevices + 1;
+	subdev_8255_init(dev, s, NULL, (void *)(devpriv->digitalio));
+	s = dev->subdevices + 2;
+	subdev_8255_init(dev, s, NULL,
+		(void *)(devpriv->digitalio + PORT2A));
+
 	return 1;
 }
 
@@ -377,6 +384,13 @@ static int cb_pcidda_detach(comedi_device *dev)
 		if(devpriv->dac)
 			release_region(devpriv->dac, 8 + thisboard->ao_chans*2);
 	}
+	// cleanup 8255
+	if(dev->subdevices)
+	{
+		subdev_8255_cleanup(dev, dev->subdevices + 1);
+		subdev_8255_cleanup(dev, dev->subdevices + 2);
+	}
+
 	printk("comedi%d: cb_pcidda: remove\n",dev->minor);
 
 	return 0;
