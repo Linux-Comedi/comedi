@@ -1091,8 +1091,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		unsigned int tmp = CR_CHAN(cmd->convert_arg);
 
 		if(tmp>9)tmp=9;
-		/* XXX for now, use the top bit to invert the signal */
-		tmp |= (cmd->convert_arg&0x80000000);
+		tmp |= (cmd->convert_arg&(CR_ALT_FILTER|CR_INVERT));
 		if(cmd->convert_arg!=tmp){
 			cmd->convert_arg = tmp;
 			err++;
@@ -1231,17 +1230,10 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	    {
 		unsigned int reg = 0;
 
-/* XXX duh, these should be moved, but I need to think about it
- * a bit first.  --ds */
-#define COMEDI_TRIG_LEVEL	0
-#define COMEDI_TRIG_EDGE	(1<<31)
-#define COMEDI_TRIG_FALLING	0
-#define COMEDI_TRIG_RISING	(1<<30)
-
-		if(cmd->scan_begin_arg&COMEDI_TRIG_EDGE)
+		if(cmd->scan_begin_arg&CR_ALT_FILTER)
 			reg |= AI_START_Edge;
 		/* AI_START_Polarity==1 is falling edge */
-		if(!(cmd->scan_begin_arg&COMEDI_TRIG_RISING))
+		if(cmd->scan_begin_arg&CR_INVERT)
 			reg |= AI_START_Polarity;
 		reg |= AI_START_Sync;
 		reg |= AI_START_Select(1+(cmd->scan_begin_arg&0xf));
