@@ -998,12 +998,14 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 }
 
 
-static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsigned int *list,int dither)
+static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
+	unsigned int *list,int ignored)
 {
 	unsigned int chan,range,aref;
 	unsigned int i;
 	unsigned int hi,lo;
 	unsigned short sign;
+	unsigned int dither;
 
 	if(n_chan==1){
 		if(devpriv->changain_state && devpriv->changain_spec==list[0]){
@@ -1023,6 +1025,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 		chan=CR_CHAN(list[i]);
 		range=CR_RANGE(list[i]);
 		aref=CR_AREF(list[i]);
+		dither=(list[i]>>26)&1;
 
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
@@ -1108,7 +1111,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(cmd->start_src!=TRIG_NOW &&
 	   cmd->start_src!=TRIG_INT)err++;
 	if(cmd->scan_begin_src!=TRIG_TIMER &&
-	   cmd->scan_begin_src!=TRIG_EXT)err++;
+	   cmd->scan_begin_src!=TRIG_EXT &&
+	   cmd->scan_begin_src!=TRIG_OTHER)err++;
 	if(cmd->convert_src!=TRIG_TIMER &&
 	   cmd->convert_src!=TRIG_EXT)err++;
 	if(cmd->stop_src!=TRIG_COUNT &&
@@ -1132,18 +1136,22 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->scan_begin_arg=TIMER_BASE*0xffffff;
 			err++;
 		}
-	}else{
+	}else if(cmd->scan_begin_src==TRIG_EXT){
 		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		/* should specify multiple external triggers */
-#if 0
-/* XXX This is disabled, since we want to use bits 30 and 31 to
- * refer to edge/level and hi/lo triggering. */
-		if(cmd->scan_begin_arg>9){
-			cmd->scan_begin_arg=9;
+		unsigned int tmp = CR_CHAN(cmd->scan_begin_arg);
+
+		if(tmp>9)tmp=9;
+		/* XXX for now, use the top bit to invert the signal */
+		tmp |= (cmd->scan_begin_arg&0x80000000);
+		if(cmd->scan_begin_arg!=tmp){
+			cmd->scan_begin_arg = tmp;
 			err++;
 		}
-#endif
+	}else{ /* TRIG_OTHER */
+		if(cmd->scan_begin_arg){
+			cmd->scan_begin_arg=0;
+			err++;
+		}
 	}
 	if(cmd->convert_src==TRIG_TIMER){
 		if(cmd->convert_arg<boardtype.ai_speed){
@@ -1156,15 +1164,15 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		}
 	}else{
 		/* external trigger */
-		/* see above */
-#if 0
-/* XXX This is disabled, since we want to use bits 30 and 31 to
- * refer to edge/level and hi/lo triggering. */
-		if(cmd->convert_arg>9){
-			cmd->convert_arg=9;
+		unsigned int tmp = CR_CHAN(cmd->convert_arg);
+
+		if(tmp>9)tmp=9;
+		/* XXX for now, use the top bit to invert the signal */
+		tmp |= (cmd->convert_arg&0x80000000);
+		if(cmd->convert_arg!=tmp){
+			cmd->convert_arg = tmp;
 			err++;
 		}
-#endif
 	}
 
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
@@ -1483,6 +1491,122 @@ static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
+#define INSN_CONFIG_ANALOG_TRIG 0x10
+#define INSN_CONFIG_ANALOG_CONV 0x11
+
+static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
+
+static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	if(insn->n<1)return -EINVAL;
+
+	switch(data[0]){
+	case INSN_CONFIG_ANALOG_TRIG:
+		return ni_ai_config_analog_trig(dev,s,insn,data);
+	case INSN_CONFIG_ANALOG_CONV:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	unsigned int a,b,modebits;
+	int err=0;
+
+	/* data[1] is flags
+	 * data[2] is analog line
+	 * data[3] is set level
+	 * data[4] is reset level */
+	if(!boardtype.has_analog_trig)return -EINVAL;
+	if(insn->n!=5)return -EINVAL;
+	if((data[1]&0xffff0000) != COMEDI_EV_SCAN_BEGIN){
+		data[1]&=~(COMEDI_EV_SCAN_BEGIN&0xffff);
+		err++;
+	}
+	if(data[2]>=boardtype.n_adchan){
+		data[2]=boardtype.n_adchan-1;
+		err++;
+	}
+	if(data[3]>255){ /* a */
+		data[3]=255;
+		err++;
+	}
+	if(data[4]>255){ /* b */
+		data[4]=255;
+		err++;
+	}
+	/*
+	 * 00 ignore
+	 * 01 set
+	 * 10 reset
+	 *
+	 * modes:
+	 *   1 level:			 +b-   +a-
+	 *     high mode		00 00 01 10
+	 *     low mode			00 00 10 01
+	 *   2 level: (a<b)
+	 *     hysteresis low mode	10 00 00 01
+	 *     hysteresis high mode	01 00 00 10
+	 *     middle mode		10 01 01 10
+	 */
+
+	a=data[3];
+	b=data[4];
+	modebits=data[1]=0xff;
+	if(modebits&0xf0){
+		/* two level mode */
+		if(b<a){
+			/* swap order */
+			a=data[4];
+			b=data[3];
+			modebits=((data[1]&0xf)<<4)|((data[1]&0xf0)>>4);
+		}
+		devpriv->atrig_low = a;
+		devpriv->atrig_high = b;
+		switch(modebits){
+		case 0x81:	/* low hysteresis mode */
+			devpriv->atrig_mode = 6;
+			break;
+		case 0x42:	/* high hysteresis mode */
+			devpriv->atrig_mode = 3;
+			break;
+		case 0x96:	/* middle window mode */
+			devpriv->atrig_mode = 2;
+			break;
+		default:
+			data[1]&=~0xff;
+			err++;
+		}
+	}else{
+		/* one level mode */
+		if(b!=0){
+			data[4]=0;
+			err++;
+		}
+		switch(modebits){
+		case 0x06:	/* high window mode */
+			devpriv->atrig_high = a;
+			devpriv->atrig_mode = 0;
+			break;
+		case 0x09:	/* low window mode */
+			devpriv->atrig_low = a;
+			devpriv->atrig_mode = 1;
+			break;
+		default:
+			data[1]&=~0xff;
+			err++;
+		}
+	}
+	if(err)return -EAGAIN;
+	return 5;
+}
+
+
 static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
 {
@@ -1588,12 +1712,8 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 		dat^=(1<<(boardtype.aobits-1));
 	}
 
-#if 0
-	/* XXX oops.  forgot flags in insn! */
 	/* not all boards can deglitch, but this shouldn't hurt */
-	if(insn->flags & TRIG_DEGLITCH)
-		conf |= 2;
-#endif
+	if((insn->chanspec>>26)&1)conf |= 2;
 
 	/* analog reference */
 	/* AREF_OTHER connects AO ground to AI ground, i think */
@@ -1893,6 +2013,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->range_table=ni_range_lkup[boardtype.gainlkup];
 	s->insn_read=ni_ai_insn_read;
+	s->insn_config=ni_ai_insn_config;
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
 	s->cancel=ni_ai_reset;

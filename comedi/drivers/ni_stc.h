@@ -573,7 +573,7 @@ typedef struct ni_board_struct{
 	int adbits;
 	
 	int ai_fifo_depth;
-	int alwaysdither;
+	int alwaysdither : 1;
 	int gainlkup;
 	int ai_speed;
 
@@ -583,9 +583,11 @@ typedef struct ni_board_struct{
 	int ao_fifo_depth;
 	int aorangelkup;
 	
-	int ao_unipolar;
+	int ao_unipolar : 1;
 	
-	int has_8255;
+	int has_8255 : 1;
+
+	int has_analog_trig : 1;
 
 	struct caldac_struct **caldac;
 }ni_board;
@@ -638,6 +640,10 @@ static ni_board ni_boards[];
 	unsigned short int_a_enable_reg;			\
 	unsigned short int_b_enable_reg;			\
 	unsigned short io_bidirection_pin_reg;			\
+								\
+	unsigned short atrig_mode;				\
+	unsigned short atrig_high;				\
+	unsigned short atrig_low;				\
 
 #endif /* _COMEDI_NI_STC_H */
 
