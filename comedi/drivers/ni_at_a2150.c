@@ -414,7 +414,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER;
 	s->n_chan = 4;
 	s->len_chanlist = 4;
 	s->maxdata = 0xffff;
@@ -780,9 +780,19 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
+
+#ifdef A2150_DEBUG
+	ni_dump_regs(dev);
+#endif
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
+#ifdef A2150_DEBUG
+	rt_printk(" data is %i\n", data[n]);
+#endif
 		data[n] ^= 0x8000;
 	}
+
+	// clear fifo and reset triggering circuitry
+	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	return n;
 }
