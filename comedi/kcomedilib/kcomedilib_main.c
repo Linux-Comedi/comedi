@@ -65,7 +65,8 @@ comedi_t *comedi_open(const char *filename)
 	if(!dev->attached)
 		return NULL;
 
-	__MOD_INC_USE_COUNT(dev->driver->module);
+	if(!try_module_get(dev->driver->module))
+		return NULL;
 
 	return (comedi_t *)dev;
 }
@@ -89,7 +90,7 @@ int comedi_close(comedi_t *d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
-	__MOD_DEC_USE_COUNT(dev->driver->module);
+	module_put(dev->driver->module);
 
 	return 0;
 }

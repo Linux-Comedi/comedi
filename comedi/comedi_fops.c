@@ -1632,10 +1632,11 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	return -ENODEV;
 
 ok:
-	MOD_INC_USE_COUNT;
+	if(!try_module_get(THIS_MODULE))
+		return -ENOSYS;
 
-	if(dev->attached && dev->driver->module){
-		__MOD_INC_USE_COUNT(dev->driver->module);
+	if(dev->attached){
+		try_module_get( dev->driver->module );
 	}
 
 	if(dev->attached && dev->use_count==0 && dev->open){
@@ -1668,9 +1669,9 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 		dev->close(dev);
 	}
 
-	MOD_DEC_USE_COUNT;
-	if(dev->attached && dev->driver->module){
-		__MOD_DEC_USE_COUNT(dev->driver->module);
+	module_put(THIS_MODULE);
+	if(dev->attached){
+		module_put(dev->driver->module);
 	}
 
 	dev->use_count--;

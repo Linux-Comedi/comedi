@@ -63,9 +63,8 @@ int comedi_device_detach(comedi_device *dev)
 	if(!dev->attached)
 		return 0;
 
-	/* this is not correct for the kmod case */
-	if(dev->driver->module)
-		__MOD_DEC_USE_COUNT(dev->driver->module);
+	/* this is not correct for the kmod case? */
+	module_put(dev->driver->module);
 
 	dev->attached=0;
 
@@ -108,12 +107,22 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->use_count = use_count;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
+		if(!try_module_get( driv->module ))
+		{
+			printk( "comedi: failed to increment module count, skipping\n" );
+			continue;
+		}
 		if(driv->num_names){
 			dev->board_ptr=comedi_recognize(driv, it->board_name);
-			if(dev->board_ptr==NULL) continue;
-		}else{
-			if(strcmp(driv->driver_name,it->board_name))
+			if(dev->board_ptr==NULL){
+				module_put( driv->module );
 				continue;
+			}
+		}else{
+			if(strcmp(driv->driver_name,it->board_name)){
+				module_put( driv->module );
+				continue;
+			}
 		}
 		//initialize dev->driver here so comedi_error() can be called from attach
 		dev->driver=driv;
@@ -122,16 +131,23 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 			driv->detach(dev);
 			if(dev->subdevices)kfree(dev->subdevices);
 			if(dev->private)kfree(dev->private);
-
+			module_put( driv->module );
 			return ret;
 		}
 		goto attached;
+		module_put( driv->module );
 	}
 
 	// recognize has failed if we get here
 	// report valid board names before returning error
 	for(driv=comedi_drivers;driv;driv=driv->next){
+		if(!try_module_get( driv->module ))
+		{
+			printk( "comedi: failed to increment module count\n" );
+			continue;
+		}
 		comedi_report_boards(driv);
+		module_put( driv->module );
 	}
 	return -EIO;
 
@@ -156,9 +172,6 @@ attached:
 	}
 
 	dev->attached=1;
-
-	if(driv->module)
-		__MOD_INC_USE_COUNT(driv->module);
 
 	return 0;
 }
