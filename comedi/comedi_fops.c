@@ -1349,7 +1349,7 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 		async = s->async;
 		if(!s->busy
 		   || !(s->subdev_flags&SDF_RUNNING)
-		   || comedi_buf_write_n_available(async)>0){
+		   || comedi_buf_write_n_available(s)>0){
 			mask |= POLLOUT | POLLWRNORM;
 		}
 	}
