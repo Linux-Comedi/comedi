@@ -43,8 +43,6 @@ TODO:
 
 add a calibration subdevice
 
-finish analog out support for 1602 series
-
 analog triggering on 1602 series
 */
 
@@ -102,17 +100,20 @@ analog triggering on 1602 series
 #define   INT_EOS 0x1	// interrupt end of scan
 #define   INT_FHF 0x2	// interrupt fifo half full
 #define   INT_FNE 0x3	// interrupt fifo not empty
+#define   INT_MASK 0x3	// mask of interrupt select bits
 #define   INTE 0x4	// interrupt enable
-#define   EOACL 0x40	// write-clear for end of acquisition interrupt status
-#define   EOAI 0x40	// read end of acq. interrupt status
-#define   INTCL 0x80	//	write-clear for EOS/FHF/FNE interrupt status
-#define   INT 0x80	// read interrupt status
+#define   DAHFIE 0x8	// dac half full interrupt enable
+#define   EOAIE	0x10	// end of aquisition interrupt enable
+#define   DAHFI	0x20	// dac half full read status / write interrupt clear
+#define   EOAI 0x40	// read end of acq. interrupt status / write clear
+#define   INT 0x80	// read interrupt status / write clear
 #define   EOBI 0x200	// read end of burst interrupt status
 #define   ADHFI 0x400	// read half-full interrupt status
 #define   ADNEI 0x800	// read fifo not empty interrupt latch status
-#define   ADNE 0x1000	// fifo not empty (realtime, not latched) status
-#define   ADFLCL 0x2000	// write-clear for fifo full status
-#define   LADFUL 0x2000	// read fifo overflow
+#define   ADNE 0x1000	// read, fifo not empty (realtime, not latched) status
+#define   DAEMIE	0x1000	// write, dac empty interrupt enable
+#define   LADFUL 0x2000	// read fifo overflow / write clear
+#define   DAEMI 0x4000	// dac fifo empty interrupt status / write clear
 
 #define ADCMUX_CONT	2	// ADC CHANNEL MUX AND CONTROL register
 #define   BEGIN_SCAN(x)	((x) & 0xf)
@@ -124,6 +125,7 @@ analog triggering on 1602 series
 #define   PACER_INT 0x1000	// internal pacer
 #define   PACER_EXT_FALL	0x2000	// external falling edge
 #define   PACER_EXT_RISE	0x3000	// external rising edge
+#define   EOC	0x4000	// adc not busy
 
 #define TRIG_CONTSTAT 4 // TRIGGER CONTROL/STATUS register
 #define   SW_TRIGGER 0x1	// software start trigger
@@ -140,18 +142,26 @@ analog triggering on 1602 series
 // bits for 1602 series only
 #define   DAC_EMPTY	0x1	// dac fifo empty, read, write clear
 #define   DAC_START	0x4	// start/arm dac fifo operations
+#define   DAC_PACER_MASK	0x18	// bits that set dac pacer source
+#define   DAC_PACER_INT	0x8	// dac internal pacing
+#define   DAC_PACER_EXT_FALL	0x10	// dac external pacing, falling edge
+#define   DAC_PACER_EXT_RISE	0x18	// dac external pacing, rising edge
 #define   DAC_CHAN_EN(x)		(1 << (5 + ((x) & 0x1)))	// enable channel 0 or 1
 
-// analog output registers for 100x, 1200 series
-#define DAC_DATA_REG(channel)	((channel) & 0x1)
-
-/* analog output registers for 1602 series*/
+/* analog input fifo */
 #define ADCDATA	0	// ADC DATA register
 #define ADCFIFOCLR	2	// ADC FIFO CLEAR
 
 // pacer, counter, dio registers
 #define ADC8254 0
 #define DIO_8255 4
+#define DAC8254 8
+
+// analog output registers for 100x, 1200 series
+#define DAC_DATA_REG(channel)	((channel) & 0x1)
+/* analog output registers for 1602 series*/
+#define DACDATA	0	// DAC DATA register
+#define DACFIFOCLR	2	// DAC FIFO CLEAR
 
 // bit in hexadecimal representation of range index that indicates unipolar input range
 #define IS_UNIPOLAR 0x4
@@ -209,6 +219,7 @@ typedef struct cb_pcidas_board_struct
 	int ai_speed;	// fastest conversion period in ns
 	int ao_nchan;	// number of analog out channels
 	int has_ao_fifo;	// analog output has fifo
+	int ao_scan_speed;	// analog output speed for 1602 series (for a scan, not conversion)
 	int fifo_size;	// number of samples fifo can hold
 	comedi_lrange *ranges;
 } cb_pcidas_board;
@@ -224,6 +235,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_speed:	5000,
 		ao_nchan: 2,
 		has_ao_fifo:	1,
+		ao_scan_speed:	10000,
 		fifo_size:	512,
 		ranges:	&cb_pcidas_ranges,
 	},
@@ -248,6 +260,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_speed:	3200,
 		ao_nchan: 2,
 		has_ao_fifo:	1,
+		ao_scan_speed:	4000,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
 	},
@@ -325,23 +338,25 @@ static cb_pcidas_board cb_pcidas_boards[] =
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct
 {
-	int data;
-
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
-
 	// base addresses
 	unsigned int s5933_config;
 	unsigned int control_status;
 	unsigned int adc_fifo;
 	unsigned int pacer_counter_dio;
 	unsigned int ao_registers;
-	// divisors of master clock for pacing
+	// divisors of master clock for analog input pacing
 	unsigned int divisor1;
 	unsigned int divisor2;
-	volatile unsigned int count;	//number of samples remaining
+	volatile unsigned int count;	// number of analog input samples remaining
 	unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
 	unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
+	unsigned int ao_control_bits;	// bits to write to ao control and status register
+	// divisors of master clock for analog output pacing
+	unsigned int ao_divisor1;
+	unsigned int ao_divisor2;
+	volatile unsigned int ao_count;	// number of analog output samples remaining
 	int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 } cb_pcidas_private;
 
@@ -373,9 +388,15 @@ static int cb_pcidas_ao_readback_insn(comedi_device *dev,comedi_subdevice *s,com
 static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
+static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s);
+static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd);
 static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs);
+static void handle_ao_interrupt(comedi_device *dev, unsigned int status);
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s);
-void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int round_flags);
+static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s);
+static void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int round_flags);
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -563,14 +584,18 @@ found:
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
 		s->n_chan = thisboard->ao_nchan;
-		// ao_bits is the same as ai_bits
+		// analog out resolution is the same as analog input resolution, so use ai_bits
 		s->maxdata = (1 << thisboard->ai_bits) - 1;
 		s->range_table = &cb_pcidas_ao_ranges;
 		s->insn_read = cb_pcidas_ao_readback_insn;
 		if(thisboard->has_ao_fifo)
 		{
+			dev->write_subdev = s;
 			s->insn_write = cb_pcidas_ao_fifo_winsn;
-			// XXX todo: support analog output cmd
+			s->do_cmdtest = cb_pcidas_ao_cmdtest;
+			s->do_cmd = cb_pcidas_ao_cmd;
+			s->len_chanlist = thisboard->ao_nchan;
+			s->cancel = cb_pcidas_ao_cancel;
 		}else
 		{
 			s->insn_write = cb_pcidas_ao_nofifo_winsn;
@@ -670,7 +695,7 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 		/* return -ETIMEDOUT if there is a timeout */
 		for(i = 0; i < timeout; i++)
 		{
-			if (inw(devpriv->control_status + INT_ADCFIFO) & ADNE)
+			if (inw(devpriv->control_status + ADCMUX_CONT) & EOC)
 				break;
 		}
 		if(i == timeout)
@@ -711,7 +736,7 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	int bits, channel;
 
 	// clear dac fifo
-	outw(0, devpriv->ao_registers + ADCFIFOCLR);
+	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
 	// set channel and range
 	channel = CR_CHAN(insn->chanspec);
@@ -724,7 +749,7 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	// remember value for readback
 	devpriv->ao_value[channel] = data[0];
 	// send data
-	outw(data[0], devpriv->ao_registers + ADCDATA);
+	outw(data[0], devpriv->ao_registers + DACDATA);
 
 	return 1;
 }
@@ -942,7 +967,8 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	// enable interrupts
-	devpriv->adc_fifo_bits = INTE;
+	devpriv->adc_fifo_bits |= INTE;
+	devpriv->adc_fifo_bits &= ~INT_MASK;
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
 		if(cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
@@ -957,9 +983,9 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		rt_printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
 #endif
 	// enable (and clear) interrupts
-	outw(devpriv->adc_fifo_bits | EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
-	// clear s5933 interrupt
-	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL, devpriv->control_status + INT_ADCFIFO);
+	// enable s5933 interrupt
+	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
 
 
 	// set start trigger and burst mode
@@ -978,6 +1004,200 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
 #ifdef CB_PCIDAS_DEBUG
 		rt_printk("comedi: sent 0x%x to trig control\n", bits);
+#endif
+
+	return 0;
+}
+
+static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* cmdtest tests a particular command to see if it is valid.
+	 * Using the cmdtest ioctl, a user can create a valid cmd
+	 * and then have it executes by the cmd ioctl.
+	 *
+	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
+	 * the command passes. */
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp = cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src || tmp != cmd->start_src)
+		err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
+	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
+
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_NOW;
+	if(!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
+
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if(!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_EXT)
+		err++;
+	if(cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
+		err++;
+
+	if(err) return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0)
+	{
+		cmd->start_arg=0;
+		err++;
+	}
+
+	if (cmd->scan_begin_src == TRIG_TIMER)
+	{
+		if (cmd->scan_begin_arg < thisboard->ao_scan_speed)
+		{
+			cmd->scan_begin_arg = thisboard->ao_scan_speed;
+			err++;
+		}
+	}
+
+	if(cmd->scan_end_arg != cmd->chanlist_len)
+	{
+		cmd->scan_end_arg = cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src == TRIG_NONE)
+	{
+		/* TRIG_NONE */
+		if (cmd->stop_arg != 0)
+		{
+			cmd->stop_arg=0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		tmp = cmd->scan_begin_arg;
+		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
+			&(devpriv->ao_divisor1), &(devpriv->ao_divisor2),
+			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
+		if(tmp != cmd->scan_begin_arg)
+			err++;
+	}
+
+	if(err) return 4;
+
+	// check channel/gain list against card's limitations
+	if(cmd->chanlist &&
+		cmd->chanlist_len > 1)
+	{
+		if(CR_CHAN(cmd->chanlist[0]) != CR_CHAN(cmd->chanlist[1]))
+		{
+			comedi_error(dev, "entries in chanlist must be unique\n");
+			err++;
+		}
+	}
+
+	if(err) return 5;
+
+	return 0;
+}
+
+static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int ao_control_bits = 0;
+	unsigned int i;
+
+	// set channel limits, gain
+	for(i = 0; i < cmd->chanlist_len; i++)
+	{
+		// enable channel
+		ao_control_bits |= DAC_CHAN_EN(CR_CHAN(cmd->chanlist[i]));
+		// set range
+		ao_control_bits |= DAC_RANGE(CR_CHAN(cmd->chanlist[i]),
+			CR_RANGE(cmd->chanlist[i]));
+	}
+
+	// disable analog out before settings pacer source and count values
+	outw(ao_control_bits, devpriv->control_status + DAC_CSR);
+	// clear fifo
+	outw(0, devpriv->ao_registers + DACFIFOCLR);
+
+	// next time we send these bits, we want aquisiton to actually start
+	ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
+
+	// load counters
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->ao_divisor1),
+			&(devpriv->ao_divisor2), &(cmd->scan_begin_arg),
+			cmd->flags);
+
+		/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
+		i8254_load(devpriv->pacer_counter_dio + DAC8254, 1, devpriv->ao_divisor1, 2);
+		i8254_load(devpriv->pacer_counter_dio + DAC8254, 2, devpriv->ao_divisor2, 2);
+	}
+
+	// set number of conversions
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		devpriv->ao_count = cmd->chanlist_len * cmd->stop_arg;
+	}
+
+	// set pacer source
+	switch(cmd->scan_begin_src)
+	{
+		case TRIG_TIMER:
+			ao_control_bits |= DAC_PACER_INT;
+			break;
+		case TRIG_EXT:
+			ao_control_bits |= DAC_PACER_EXT_RISE;
+			break;
+		default:
+			comedi_error(dev, "error setting dac pacer source");
+			return -1;
+			break;
+	}
+
+	// enable dac half-full and empty interrupts
+	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
+#ifdef CB_PCIDAS_DEBUG
+	rt_printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
+#endif
+	// enable and clear interrupts
+	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI, devpriv->control_status + INT_ADCFIFO);
+	// enable s5933 interrupt
+	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
+
+	// start dac
+	devpriv->ao_control_bits = ao_control_bits;
+	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
+#ifdef CB_PCIDAS_DEBUG
+	rt_printk("comedi: sent 0x%x to dac control\n", ao_control_bits);
 #endif
 
 	return 0;
@@ -1007,7 +1227,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	async->events = 0;
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
-	if((status & (INT | EOAI | LADFUL)) == 0)
+	if((status & (INT | EOAI | LADFUL | DAHFI | DAEMI)) == 0)
 	{
 #ifdef CB_PCIDAS_DEBUG
 		comedi_error(dev, "spurious interrupt");
@@ -1016,10 +1236,21 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 		return;
 	}
+
+	// check for analog output interrupt
+	if(status & (DAHFI | DAEMI))
+	{
+		handle_ao_interrupt(dev, status);
+	}
+
+	// check for analog input interrupts
 	// if fifo half-full
 	if(status & ADHFI)
 	{
-		insw(devpriv->adc_fifo, data, half_fifo);
+		// clear half-full interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
+		// read data
+		insw(devpriv->adc_fifo + ADCDATA, data, half_fifo);
 		for(i = 0; i < half_fifo; i++)
 		{
 			comedi_buf_put(async, data[i]);
@@ -1034,11 +1265,11 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		async->events |= COMEDI_CB_BLOCK;
-		// clear half-full interrupt latch
-		outw(devpriv->adc_fifo_bits | INTCL, devpriv->control_status + INT_ADCFIFO);
 	// else if fifo not empty
 	}else if(status & (ADNEI | EOBI))
 	{
+		// clear not-empty interrupt latch
+		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
 		for(i = 0; i < timeout; i++)
 		{
 			// break if fifo is empty
@@ -1055,20 +1286,18 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		async->events |= COMEDI_CB_BLOCK;
-		// clear not-empty interrupt latch
-		outw(devpriv->adc_fifo_bits | INTCL, devpriv->control_status + INT_ADCFIFO);
 	}else if(status & EOAI)
 	{
 		comedi_error(dev, "bug! encountered end of aquisition interrupt?");
 		// clear EOA interrupt latch
-		outw(devpriv->adc_fifo_bits | EOACL, devpriv->control_status + INT_ADCFIFO);
+		outw(devpriv->adc_fifo_bits | EOAI, devpriv->control_status + INT_ADCFIFO);
 	}
 	//check for fifo overflow
 	if(status & LADFUL)
 	{
 		comedi_error(dev, "fifo overflow");
 		// clear overflow interrupt latch
-		outw(devpriv->adc_fifo_bits | ADFLCL, devpriv->control_status + INT_ADCFIFO);
+		outw(devpriv->adc_fifo_bits | LADFUL, devpriv->control_status + INT_ADCFIFO);
 		cb_pcidas_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
@@ -1080,17 +1309,78 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	return;
 }
+static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
+{
+	comedi_subdevice *s = dev->write_subdev;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+	unsigned int half_fifo = thisboard->fifo_size / 2;
+	static const int max_half_fifo = 512;	// maximum possible half-fifo size
+	sampl_t data[max_half_fifo];
+	unsigned int num_points, i;
 
+	if(status & DAEMI)
+	{
+		// clear dac empty interrupt latch
+		outw(devpriv->adc_fifo_bits | DAEMI, devpriv->control_status + INT_ADCFIFO);
+		if(cmd->stop_src == TRIG_COUNT &&
+			devpriv->ao_count)
+		{
+			comedi_error(dev, "dac fifo underflow");
+			cb_pcidas_ao_cancel(dev, s);
+			async->events |= COMEDI_CB_ERROR;
+		}
+		async->events |= COMEDI_CB_EOA;
+		return;
+	}
+	if(status & DAHFI)
+	{
+		// clear half-full interrupt latch
+		outw(devpriv->adc_fifo_bits | DAHFI, devpriv->control_status + INT_ADCFIFO);
+		// figure out how many points we are writing to fifo
+		num_points = half_fifo;
+		if(cmd->stop_src == TRIG_COUNT &&
+			devpriv->ao_count < num_points)
+			num_points = devpriv->ao_count;
+		for(i = 0; i < num_points; i++)
+		{
+			if(comedi_buf_get(async, &data[i]))
+				break;
+		}
+		if(async->cmd.stop_src == TRIG_COUNT)
+		{
+			devpriv->ao_count -= i;
+		}
+		// write data to board's fifo
+		outsw(devpriv->ao_registers + DACDATA, data, i);
+		async->events |= COMEDI_CB_BLOCK;
+	}
+}
+
+// cancel analog input command
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	// disable interrupts
-	devpriv->adc_fifo_bits = 0;
+	devpriv->adc_fifo_bits &= ~INTE & ~EOAIE;
 	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
 	// disable start trigger source and burst mode
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
 	// software pacer source
 	outw(0, devpriv->control_status + ADCMUX_CONT);
 
+
+	return 0;
+}
+
+// cancel analog output command
+static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	// disable interrupts
+	devpriv->adc_fifo_bits &= ~DAHFIE & ~DAEMIE;
+	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
+	// disable output
+	devpriv->ao_control_bits &= ~DACEN & ~DAC_PACER_MASK;
+	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 
 	return 0;
 }
