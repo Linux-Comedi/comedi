@@ -70,6 +70,7 @@ typedef unsigned short sampl_t;
 #define GPCTR_SET_OPERATION	0x0010
 #define GPCTR_ARM		0x0020
 #define GPCTR_DISARM		0x0040
+#define GPCTR_GET_INT_CLK_FRQ	0x0080
 
 #define GPCTR_INT_CLOCK		0x0001
 #define GPCTR_EXT_PIN		0x0002

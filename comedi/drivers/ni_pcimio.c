@@ -63,14 +63,6 @@
 
 */
 
-//TIM 4/13/01.  I need to export the GPCTR functions to test them
-//before I build an API.  This should be a temporary fix, since
-//I just need a way to test the functions w/o choosing an API
-//...Tim Ousley
-#ifdef GPCTR
-#define EXPORT_SYMTAB
-#endif
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>

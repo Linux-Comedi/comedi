@@ -210,11 +210,18 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 static void pfi_setup(comedi_device *dev);
 
-/*GPCTR function def's...incomplete right now.*/
+/*GPCTR function def's*/
 int GPCTR_G_Watch(comedi_device *dev, int chan);
-int GPCTR_Begin_Event_Counting(comedi_device *dev,int chan, int value);
 
 void GPCTR_Reset(comedi_device *dev, int chan);
+void GPCTR_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length);
+void GPCTR_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length);
+void GPCTR_Period_Meas(comedi_device *dev, int chan);
+void GPCTR_Pulse_Width_Meas(comedi_device *dev, int chan);
+void GPCTR_Event_Counting(comedi_device *dev,int chan);
+int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction);
+int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate);
+int GPCTR_Set_Source(comedi_device *dev,int chan ,int source);
 
 static int ni_gpctr_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
@@ -1891,7 +1898,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	gpct_setup(dev,s);
 	
-	#ifdef GPCTR
+	//TIM 5/1/01 #ifdef GPCTR
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_COUNTER;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
@@ -1902,7 +1909,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	GPCTR_Reset(dev,0);
 	GPCTR_Reset(dev,1);
-	#endif //GPCTR
+	//TIM 5/1/01 #endif //GPCTR
 	
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
@@ -2434,7 +2441,7 @@ static int gpct_sp(comedi_device *dev,comedi_param *it)
 #endif
 
 //make -DGPCTR is best way to include this.
-#ifdef GPCTR
+//TIM 5/1/01 #ifdef GPCTR
 /*
 *   Low level stuff...Each STC counter has two 24 bit load registers (A&B).  Just make
 * it easier to access them.
@@ -2524,6 +2531,7 @@ int GPCTR_Arm(comedi_device *dev, int chan){
 	}
 	return 0;
 }
+
 int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
 	//printk("GPCTR_Set_Source...");
 	devpriv->gpctr_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
@@ -2543,6 +2551,7 @@ int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
 	//printk("exit GPCTR_Set_Source\n");
 	return 0;
 }
+
 int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
 	//printk("GPCTR_Set_Gate...");
 	devpriv->gpctr_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
@@ -2566,7 +2575,6 @@ int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
 	//printk("exit GPCTR_Set_Gate\n");
 	return 0;
 }
-
 
 int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction) {
 	//printk("GPCTR_Set_Direction...");
@@ -2890,6 +2898,14 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		if(insn->n!=2) return -EINVAL;
 		retval=GPCTR_Set_Direction(dev,insn->chanspec,data[1]);
 		break;
+	case GPCTR_GET_INT_CLK_FRQ:
+		if(insn->n!=2) return -EINVAL;
+		//There are actually 2 internal clocks on the STC, we always
+		//use the fast 20MHz one at this time.  Tim  Ousley 5/1/01
+		//NOTE: This is not the final interface, ideally the user
+		//will never need to know the int. clk. freq.
+		data[1]=50;//50ns = 20MHz = internal timebase of STC
+		break;
 	case GPCTR_SET_OPERATION:
 		//TIM 5/1/01 if((insn->n<2)||(insn->n>3))return -EINVAL;
 		switch(data[1]){
@@ -2965,6 +2981,7 @@ static int ni_gpctr_insn_write(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
+/*TIM 5/1/01
 //note: EXPORT_SYMTAB must have been defined for this to work.
 //this is mostly for testing inside the kernel
 EXPORT_SYMBOL(GPCTR_Load_Using_A);
@@ -2975,9 +2992,9 @@ EXPORT_SYMBOL(GPCTR_Reset);
 EXPORT_SYMBOL(ni_gpctr_insn_config);
 EXPORT_SYMBOL(ni_gpctr_insn_read);
 EXPORT_SYMBOL(ni_gpctr_insn_write);
+*/
 
-
-#endif
+//TIM 5/1/01 #endif
 
 
 static int ni_8255_callback(int dir,int port,int data,void *arg)
