@@ -445,6 +445,7 @@ typedef struct ni_board_struct{
 	int ai_fifo_depth;
 	int alwaysdither;
 	int gainlkup;
+	int ai_speed;
 
 	int n_aochan;
 	int aobits;
