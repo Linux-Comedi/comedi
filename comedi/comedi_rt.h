@@ -37,6 +37,11 @@
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai/rtai.h>
 #endif
+#ifdef CONFIG_COMEDI_RTL
+#include <rtl_core.h>
+#include <asm/rtl_sync.h>
+#define rt_printk rtl_printf
+#endif
 
 int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,
 	struct pt_regs *regs),unsigned long flags,const char *device,

@@ -45,13 +45,15 @@
 #define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
 #endif
 
-#ifdef CONFIG_COMEDI_RTLINUX
+#ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
 
 #define RT_protect()	rtl_make_rt_system_active()
 #define RT_unprotect()	rtl_make_rt_system_idle()
-#define RT_spin_lock_irq(x)	rt_spin_lock_irq(x)
-#define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
+/* RTL doesn't have the necessary primitives, so we have to hack
+ * it, dealing with the race */
+#define RT_spin_lock_irq(x)	do{RT_protect();rtl_spin_lock(x);}while(0)
+#define RT_spin_unlock_irq(x)	do{rtl_spin_unlock(x);RT_unprotect();}while(0)
 #endif
 
 
@@ -247,13 +249,14 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 
 
 /* RTLinux section */
-#ifdef CONFIG_COMEDI_RTLINUX
+#ifdef CONFIG_COMEDI_RTL
 
 static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
 {
 	struct comedi_irq_struct *it=comedi_irqs[irq];
 	it->handler(irq,it->dev_id,regs);
 	rtl_hard_enable_irq(irq);
+	return 0;
 }
 
 static int rt_get_irq(struct comedi_irq_struct *it)
