@@ -1,4 +1,6 @@
 
+update the list of supported cards
+
 mode[N] doesn't work until cmd is used.  Works in .57, not in
 CVS.  I know how to fix this, but it needs other changes to
 be done correctly.
