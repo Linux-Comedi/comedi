@@ -566,15 +566,16 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	/* this should be done in _ai_modeX() */
 	win_out(0x29e0,AI_START_STOP_Select_Register);
 
-	/* the following registers should not be changed:
-		Clock_and_FOUT_Register
-		AI_Mode_1_Register
-		AI_Mode_3_Register
-		AI_Personal_Register
-		AI_Output_Control_Register
-		AI_Trigger_Select_Register
+	/* the following registers should not be changed, because there
+	 * are no backup registers in devpriv.  If you want to change
+	 * any of these, add a backup register and other appropriate code:
+	 *	Clock_and_FOUT_Register
+	 *	AI_Mode_1_Register
+	 *	AI_Mode_3_Register
+	 *	AI_Personal_Register
+	 *	AI_Output_Control_Register
+	 *	AI_Trigger_Select_Register
 	*/
-
 	win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
 
 	win_out(AI_Configuration_End,Joint_Reset_Register);
@@ -1911,14 +1912,31 @@ static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 				data|=mask;
 		}
 		s->io_bits=data;
-		win_out(s->io_bits,DIO_Control_Register);
+		devpriv->dio_control &= ~DIO_Pins_Dir_Mask;
+		devpriv->dio_control |= DIO_Pins_Dir(s->io_bits);
+		win_out(devpriv->dio_control,DIO_Control_Register);
+#ifdef DEBUG_DIO
+		printk("Parallel DIO config bits=0x%x\n", s->io_bits);
+#endif
 	}else{
 		if(it->flags & TRIG_WRITE){
 			do_pack(&s->state,it);
-			win_out(s->state,DIO_Output_Register);
+#ifdef DEBUG_DIO
+			printk("Parallel DIO write bits=0x%x\n", s->state);
+#endif
+			devpriv->dio_output &= ~DIO_Parallel_Data_Mask;
+			devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
+			win_out(devpriv->dio_output,DIO_Output_Register);
 		}else{
-			data=win_in(DIO_Input_Register);
+			/* Using ni_readw to access the direct-mapped register
+			   is faster by about 0.5us on my machine.
+			   -bkeryan@ni.com */
+			/*data=win_in(DIO_Input_Register);*/
+			data=ni_readw(DIO_Parallel_Input);
 			di_unpack(data,it);
+#ifdef DEBUG_DIO
+			printk("Parallel DIO read bits=0x%x\n", data);
+#endif
 		}
 	}
 
@@ -1931,6 +1949,10 @@ static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+#ifdef DEBUG_DIO
+	printk("ni_dio_insn_config() chan=%d io=%d\n",
+		CR_CHAN(insn->chanspec),data[0]);
+#endif
 	if(insn->n!=1)return -EINVAL;
 	switch(data[0]){
 	case COMEDI_OUTPUT:
@@ -1942,7 +1964,10 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	default:
 		return -EINVAL;
 	}
-	win_out(s->io_bits,DIO_Control_Register);
+
+	devpriv->dio_control &= ~DIO_Pins_Dir_Mask;
+	devpriv->dio_control |= DIO_Pins_Dir(s->io_bits);
+	win_out(devpriv->dio_control,DIO_Control_Register);
 
 	return 1;
 }
@@ -1950,13 +1975,18 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+#ifdef DEBUG_DIO
+	printk("ni_dio_insn_bits() mask=0x%x bits=0x%x\n",data[0],data[1]);
+#endif
 	if(insn->n!=2)return -EINVAL;
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
-		win_out(s->state,DIO_Output_Register);
+		devpriv->dio_output &= ~DIO_Parallel_Data_Mask;
+		devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
+		win_out(devpriv->dio_output,DIO_Output_Register);
 	}
-	data[1] = win_in(DIO_Input_Register);
+	data[1] = ni_readw(DIO_Parallel_Input);
 
 	return 2;
 }
@@ -2074,7 +2104,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 #endif
 
 	/* dio setup */
-	win_out(s->io_bits,DIO_Control_Register);
+	devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
+	win_out(devpriv->dio_control,DIO_Control_Register);
 	
 	/* 8255 device */
 	s=dev->subdevices+3;

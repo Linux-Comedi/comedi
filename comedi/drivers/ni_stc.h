@@ -131,6 +131,7 @@
 #define AO_START1_Pulse				_bit0
 
 #define DIO_Input_Register		7
+#define DIO_SDIN        			_bit4
 
 #define AI_Command_1_Register		8
 #define AI_Analog_Trigger_Reset			_bit14
@@ -169,7 +170,19 @@
 
 
 #define DIO_Output_Register		10
+#define DIO_Parallel_Data_Out(a)                ((a)&0xff)
+#define DIO_Parallel_Data_Mask                  0xff
+#define DIO_SDOUT                               _bit0
+#define DIO_Serial_Data_Out(a)                  (((a)&0xff)<<8)
+#define DIO_Serial_Data_Mask                    0xff00
+
 #define DIO_Control_Register		11
+#define DIO_Software_Serial_Control             _bit11
+#define DIO_HW_Serial_Timebase                  _bit10
+#define DIO_HW_Serial_Enable                    _bit9
+#define DIO_HW_Serial_Start                     _bit8
+#define DIO_Pins_Dir(a)                         ((a)&0xff)
+#define DIO_Pins_Dir_Mask                       0xff
 
 #define AI_Mode_1_Register		12
 #define AI_CONVERT_Source_Select(a)		((a)<<11)
@@ -200,6 +213,12 @@
 #define AI_SC_Load_B_Registers		20
 #define AI_SI2_Load_A_Register		23
 #define AI_SI2_Load_B_Register		25
+
+#define Joint_Status_1_Register         27
+#define DIO_Serial_IO_In_Progress_St            _bit12
+
+#define DIO_Serial_Input_Register       28
+#define Joint_Status_2_Register         29
 
 #define AO_Mode_1_Register		39
 #define AO_UPDATE_Source_Select(x)		(((x)&0x1f)<<11)
@@ -236,6 +255,9 @@
 #define AO_UC_Load_A_Register_Low	49
 
 #define Clock_and_FOUT_Register		56
+#define DIO_Serial_Out_Divide_By_2              _bit13
+#define Slow_Internal_Timebase                  _bit11
+
 #define Interrupt_Control_Register	59
 #define AI_Output_Control_Register	60
 
@@ -543,7 +565,8 @@ static ni_board ni_boards[];
 #define boardtype ni_boards[dev->board]
 
 #define NI_PRIVATE_COMMON					\
-	int dio;						\
+	unsigned short dio_output;				\
+	unsigned short dio_control;				\
 	int ao0p,ao1p;						\
 	int lastchan;						\
 	int last_do;						\
@@ -575,7 +598,10 @@ static ni_board ni_boards[];
 	unsigned short gpct_input_select1;			\
 								\
 	unsigned short ai_xorlist[512];				\
-
+								\
+	unsigned long serial_interval_ns;                       \
+	unsigned char serial_hw_mode;                           \
+	unsigned short clock_and_fout;				\
 
 
 #endif /* _COMEDI_NI_STC_H */
