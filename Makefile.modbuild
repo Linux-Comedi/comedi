@@ -102,7 +102,11 @@ install:	dummy
 ifneq ($(MODULES_PCMCIA),)
 	install ${MODULES_PCMCIA} ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/pcmcia
 endif
-	#/sbin/depmod -a ${UTS_VERSION}
+ifeq (${MOD_INSTALL_PATH},)
+	/sbin/depmod -a ${UTS_VERSION}
+else
+	echo 'depmod -a not run'
+endif
 
 
 ifeq ($(CONFIG_MODVERSIONS),y)
