@@ -181,7 +181,8 @@ static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
 
 }
 
-static int gaindelay[]={10,20,40,80};
+// settling delay times in usec for different gains
+//static int gaindelay[]={10,20,40,80};
 
 static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -195,9 +196,6 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	outb(0,dev->iobase+RTI800_CLRFLAGS);
 
 	outb(chan | (gain << 5), dev->iobase + RTI800_MUXGAIN);
-
-	/* contrary to the docs, there needs to be a delay here */
-	udelay(gaindelay[gain]);
 
 	for(i=0;i<insn->n;i++){
 		outb(0, dev->iobase + RTI800_CONVERT);
