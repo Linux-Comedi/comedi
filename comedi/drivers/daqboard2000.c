@@ -1,5 +1,5 @@
 /*
-   module/daqboard2000.c
+   comedi/drivers/daqboard2000.c
    hardware driver for IOtech DAQboard/2000
 
    COMEDI - Linux Control and Measurement Device Interface
