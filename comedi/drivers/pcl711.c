@@ -249,12 +249,6 @@ static int pcl711_ai_insn(comedi_device *dev,comedi_subdevice *s,
 
 	pcl711_set_changain(dev,insn->chanspec);
 
-	/*
-	   a sensible precaution to wait for the mux to
-	   settle here.  is 10us enough?
-	*/
-	udelay(10);
-
 	for(n=0;n<insn->n;n++){
 		/*
 		 *  Write the correct mode (software polling) and start polling by writing
@@ -272,6 +266,7 @@ static int pcl711_ai_insn(comedi_device *dev,comedi_subdevice *s,
 			hi = inb(dev->iobase + PCL711_AD_HI);
 			if (!(hi & PCL711_DRDY))
 				goto ok;
+			udelay(1);
 		}
 		rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;

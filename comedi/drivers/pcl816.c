@@ -230,22 +230,21 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	int timeout;
 
 	DPRINTK("mode 0 analog input\n");
+	// software trigger, DMA and INT off 
+	outb (0, dev->iobase + PCL816_CONTROL);	
+	// clear INT (conversion end) flag 
+	outb (0, dev->iobase + PCL816_CLRINT);	
+	
+	// Set the input channel
+	outb (CR_CHAN(insn->chanspec) & 0xf, dev->iobase + PCL816_MUX);	
+	outb (CR_RANGE(insn->chanspec), dev->iobase + PCL816_RANGE);	/* select gain */
 
 	for(n=0;n<insn->n;n++){
 
-		// software trigger, DMA and INT off 
-		outb (0, dev->iobase + PCL816_CONTROL);	
-		// clear INT (conversion end) flag 
-		outb (0, dev->iobase + PCL816_CLRINT);	
-		
-		// Set the input channel
-		outb (CR_CHAN(insn->chanspec) & 0xf, dev->iobase + PCL816_MUX);	
-	    outb (CR_RANGE(insn->chanspec), dev->iobase + PCL816_RANGE);	/* select gain */
 
-		udelay (5);
 		outb (0, dev->iobase + PCL816_AD_LO);	/* start conversion */
 
-       	timeout=100;
+		timeout=100;
 		while (timeout--) {
     		if (!(inb (dev->iobase + PCL816_STATUS) & PCL816_STATUS_DRDY_MASK)) {
 			// return read value		

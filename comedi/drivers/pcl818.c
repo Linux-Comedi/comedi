@@ -368,22 +368,22 @@ static int pcl818_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	int n;
         int timeout; 
 
+	/* software trigger, DMA and INT off */
+       	outb(0, dev->iobase+PCL818_CONTROL);
+
+	/* select channel */
+       	outb(muxonechan[CR_CHAN(insn->chanspec)],
+		dev->iobase+PCL818_MUX);
+
+	/* select gain */
+       	outb(CR_RANGE(insn->chanspec),
+		dev->iobase+PCL818_RANGE);
+
 	for(n=0;n<insn->n;n++){
-		/* software trigger, DMA and INT off */
-        	outb(0, dev->iobase+PCL818_CONTROL);
 
 		/* clear INT (conversion end) flag */
         	outb(0, dev->iobase+PCL818_CLRINT);
 
-		/* select channel */
-        	outb(muxonechan[CR_CHAN(insn->chanspec)],
-			dev->iobase+PCL818_MUX);
-
-		/* select gain */
-        	outb(CR_RANGE(insn->chanspec),
-			dev->iobase+PCL818_RANGE);
-
-        	udelay(5);
 		/* start conversion */
 		outb(0, dev->iobase+PCL818_AD_LO);
 
@@ -391,6 +391,7 @@ static int pcl818_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
         	while (timeout--) {
 			if (inb(dev->iobase + PCL818_STATUS) & 0x10)
 				goto conv_finish;
+			udelay(1);
         	}
         	comedi_error(dev,"A/D insn timeout");
 		/* clear INT (conversion end) flag */

@@ -1542,9 +1542,6 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 
-	// give it a little settling time
-	udelay(5);
-
 	for(n = 0; n < insn->n; n++)
 	{
 		/* trigger conversion */

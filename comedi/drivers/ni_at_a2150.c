@@ -463,7 +463,6 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 		if((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
 			break;
 		udelay(1000);
-	// probably should sleep instead of using udelay since wait is so long
 	}
 	if(i == timeout)
 	{
@@ -759,11 +758,11 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-// XXX doesn't seem to work
 static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	unsigned int i, n;
-	static const int timeout = 10000;
+	static const int timeout = 100000;
+	static const int filter_delay = 36;
 
 	// clear fifo and reset triggering circuitry
 	outw(0, dev->iobase + FIFO_RESET_REG);
@@ -789,9 +788,22 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	// start aquisition for soft trigger
 	outw(0, dev->iobase + FIFO_START_REG);
 
-	/* there is a 35.6 sample delay for data to get through the antialias filter
-	 * so we might as well wait a while */
-	udelay(500);
+	/* there is a 35.6 sample delay for data to get through the antialias filter */
+ 	for(n = 0; n < filter_delay; n++)
+	{
+		for(i = 0; i < timeout; i++)
+		{
+			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
+				break;
+			udelay(1);
+		}
+		if(i == timeout)
+		{
+			comedi_error(dev, "timeout");
+			return -ETIME;
+		}
+		inw(dev->iobase + FIFO_DATA_REG);
+	}
 
 	// read data
  	for(n = 0; n < insn->n; n++)
@@ -800,6 +812,7 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		{
 			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
+			udelay(1);
 		}
 		if(i == timeout)
 		{
