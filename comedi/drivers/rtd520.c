@@ -1175,10 +1175,14 @@ static int rtd_ai_cmdtest (
     if (cmd->scan_begin_src == TRIG_TIMER){
 	if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
 	    cmd->scan_begin_arg = RTD_MAX_SPEED;
+	    rtd_ns_to_timer(&cmd->scan_begin_arg,
+			    cmd->flags&TRIG_ROUND_MASK);
 	    err++;
 	}
 	if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
 	    cmd->scan_begin_arg = RTD_MIN_SPEED;
+	    rtd_ns_to_timer(&cmd->scan_begin_arg,
+			    cmd->flags&TRIG_ROUND_MASK);
 	    err++;
 	}
     } else {
@@ -1193,10 +1197,14 @@ static int rtd_ai_cmdtest (
     if (cmd->convert_src==TRIG_TIMER) {
 	if (cmd->convert_arg < RTD_MAX_SPEED) {
 	    cmd->convert_arg = RTD_MAX_SPEED;
+	    rtd_ns_to_timer(&cmd->convert_arg,
+			    cmd->flags&TRIG_ROUND_MASK);
 	    err++;
 	}
 	if (cmd->convert_arg > RTD_MIN_SPEED) {
 	    cmd->convert_arg = RTD_MIN_SPEED;
+	    rtd_ns_to_timer(&cmd->convert_arg,
+			    cmd->flags&TRIG_ROUND_MASK);
 	    err++;
 	}
     } else {
