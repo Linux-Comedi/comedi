@@ -106,6 +106,6 @@ dep_tristate 'Generic ISA driver for simple boards' CONFIG_COMEDI_POC $CONFIG_CO
 dep_tristate 'Skeleton driver' CONFIG_COMEDI_SKEL $CONFIG_COMEDI
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
-	dep_tristate 'Real-time command emulator (timer)' CONFIG_COMEDI_XXX $CONFIG_COMEDI
+	dep_tristate 'Real-time command emulator (timer)' CONFIG_COMEDI_RT_TIMER $CONFIG_COMEDI
 fi
 

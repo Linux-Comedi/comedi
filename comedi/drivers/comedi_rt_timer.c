@@ -23,15 +23,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/malloc.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
 #ifdef CONFIG_COMEDI_RTL_V1
@@ -48,9 +40,14 @@
 #include <rtai_sched.h>
 #endif
 
+/* Change this if you need more channels */
+#define N_CHANLIST 16
+
+
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
 comedi_driver driver_timer={
+	module:		THIS_MODULE,
 	driver_name:	"timer",
 	attach:		timer_attach,
 	detach:		timer_detach,
@@ -66,9 +63,11 @@ typedef struct{
 	comedi_device *dev;
 	comedi_subdevice *s;
 	RT_TASK rt_task;
-	sampl_t *data;
-	comedi_trig trig;
 	int soft_irq;
+	int n_chan;
+	int n_samples;
+	int chanlist[N_CHANLIST];
+	lsampl_t data[N_CHANLIST];
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 
@@ -86,9 +85,9 @@ static void timer_interrupt(int irq,void *d,struct pt_regs * regs)
 
 static inline void buf_add(comedi_device *dev,comedi_subdevice *s,sampl_t x)
 {
-	*(sampl_t *)(((void *)(s->cur_trig.data))+s->buf_int_ptr)=x&0xfff;
+	*(sampl_t *)((s->async->data)+s->buf_int_ptr)=x&0xfff;
 	s->buf_int_ptr+=sizeof(sampl_t);
-	if(s->buf_int_ptr>=s->cur_trig.data_len){
+	if(s->buf_int_ptr>=s->async->data_len){
 		s->buf_int_ptr=0;
 		comedi_eobuf(dev,s);
 	}
@@ -105,19 +104,25 @@ static void timer_ai_task_func(int d)
 	int i,n,ret;
 	int n_chan;
 
-	n_chan=s->cur_trig.n_chan;
+	n_chan=devpriv->n_chan;
 
-	for(n=0;n<my_trig->n;n++){
+	for(n=0;n<devpriv->n;n++){
 		for(i=0;i<n_chan;i++){
 			it->n_chan=1;
 			it->data=devpriv->data+i;
-			it->chanlist=my_trig->chanlist+i;
+			it->chanlist=devpriv->chanlist+i;
 
-			ret=comedi_trig_ioctl(devpriv->device,devpriv->subd,it);
-
+			ret = comedi_data_read(devpriv->device,devpriv->subd,
+				CR_CHAN(devpriv->chanlist[i]),
+				CR_RANGE(devpriv->chanlist[i]),
+				CR_AREF(devpriv->chanlist[i]),
+				&data);
 			if(ret<0){
 				/* eek! */
 			}
+
+			devpriv->data[i]=data;
+
 		}
 		for(i=0;i<n_chan;i++){
 			buf_add(dev,s,devpriv->data[i]);
@@ -316,7 +321,9 @@ static int timer_detach(comedi_device *dev)
 {
 	printk("comedi%d: timer: remove\n",dev->minor);
 	
+#ifdef CONFIG_COMEDI_RTL
 	free_irq(devpriv->soft_irq,NULL);
+#endif
 
 	return 0;
 }

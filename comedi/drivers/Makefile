@@ -70,12 +70,12 @@ obj-$(CONFIG_COMEDI_QUATECH_DAQP)	+= quatech_daqp_cs.o
 
 obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
 
+obj-$(CONFIG_COMEDI_RT_TIMER)		+= comedi_rt_timer.o
+
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 
 obj-$(CONFIG_COMEDI_SKEL)		+= skel.o
-
-obj-$(CONFIG_COMEDI_RT_TIMER)		+= comedi_rt_timer.o
 
 #obj-m += $(obj-y)
 
