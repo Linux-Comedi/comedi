@@ -115,12 +115,11 @@ int mite_setup(struct mite_struct *mite)
 	start = mite->mite_phys_addr & PAGE_MASK;
 	length = PCI_MITE_SIZE + offset;
 	// check and request io memory region
-	if(check_mem_region(start, length)){
+	if(request_mem_region(start, length, "mite")){
 
 		printk("io memory region already in use\n");
 		return -EIO;
 	}
-	request_mem_region(start, length, "mite");
 	mite->mite_io_addr = ioremap(start, length) + offset;
 	printk("MITE:0x%08lx mapped to %p ",mite->mite_phys_addr,mite->mite_io_addr);
 
@@ -130,12 +129,11 @@ int mite_setup(struct mite_struct *mite)
 	start = mite->daq_phys_addr & PAGE_MASK;
 	length = PCI_DAQ_SIZE + offset;
 	// check and request io memory region
-	if(check_mem_region(start, length)){
+	if(request_mem_region(start, length, "mite")){
 
 		printk("io memory region already in use\n");
 		return -EIO;
 	}
-	request_mem_region(start, length, "mite (daq)");
 	mite->daq_io_addr = ioremap(start, length) + offset;
 	printk("DAQ:0x%08lx mapped to %p\n",mite->daq_phys_addr,mite->daq_io_addr);
 
