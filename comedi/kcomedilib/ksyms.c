@@ -79,7 +79,9 @@ EXPORT_SYMBOL(comedi_get_n_channels);
 
 /* channel queries */
 EXPORT_SYMBOL(comedi_get_maxdata);
-EXPORT_SYMBOL(comedi_get_rangetype); /* deprecated? */
+#ifdef KCOMEDILIB_DEPRECATED
+EXPORT_SYMBOL(comedi_get_rangetype);
+#endif
 EXPORT_SYMBOL(comedi_get_n_ranges);
 //EXPORT_SYMBOL(comedi_find_range);
 
