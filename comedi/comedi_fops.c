@@ -1618,6 +1618,11 @@ ok:
 	if(dev->attached && dev->driver->module){
 		__MOD_INC_USE_COUNT(dev->driver->module);
 	}
+
+	if(dev->attached && dev->use_count==0 && dev->open){
+		dev->open(dev);
+	}
+
 	dev->use_count++;
 
 	return 0;
@@ -1638,6 +1643,10 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 		if(s->lock==file){
 			s->lock=NULL;
 		}
+	}
+
+	if(dev->attached && dev->use_count==1 && dev->close){
+		dev->close(dev);
 	}
 
 	MOD_DEC_USE_COUNT;

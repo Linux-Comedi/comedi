@@ -206,6 +206,9 @@ struct comedi_device_struct{
 	wait_queue_head_t write_wait;
 
 	struct fasync_struct *async_queue;
+
+	void (*open)(comedi_device *dev);
+	void (*close)(comedi_device *dev);
 };
 
 
