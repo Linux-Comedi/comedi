@@ -65,12 +65,13 @@ struct subdev_8255_struct{
 
 static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it);
 static int dev_8255_detach(comedi_device * dev);
-comedi_driver driver_8255={
+static comedi_driver driver_8255={
 	driver_name:	"8255",
 	module:		THIS_MODULE,
 	attach:		dev_8255_attach,
 	detach:		dev_8255_detach,
 };
+COMEDI_INITCLEANUP(driver_8255);
 
 static void do_config(comedi_device *dev,comedi_subdevice *s);
 
@@ -260,5 +261,7 @@ static int dev_8255_detach(comedi_device *dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_8255);
+
+EXPORT_SYMBOL(subdev_8255_init);
+EXPORT_SYMBOL(subdev_8255_cleanup);
 
