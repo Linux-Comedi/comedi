@@ -324,7 +324,7 @@ if grep "^Driver: ${basedriver}.o$" $driver &>/dev/null;then
 	if grep "^Updated:" $driver &>/dev/null;then
 		echo "has updated documentation"
 	else
-		echo "E: documentation: no Updated:"
+		echo "W: documentation: no Updated:"
 	fi
 	if grep "^Description:" $driver &>/dev/null;then
 		echo "has description documentation"
