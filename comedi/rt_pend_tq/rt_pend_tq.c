@@ -7,8 +7,9 @@
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
 #endif
-#ifdef CONFIG_COMEDI_RTLINUX
-#include <linux/rtl.h>
+#ifdef CONFIG_COMEDI_RTL
+#include <rtl.h>
+#include <rtl_core.h>
 #endif
 
 #ifdef standalone
@@ -46,7 +47,7 @@ int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
 #ifdef CONFIG_COMEDI_RTAI
 	rt_pend_linux_srq(rt_pend_tq_irq);
 #endif
-#ifdef CONFIG_COMEDI_RTLINUX
+#ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(rt_pend_tq_irq);
 #endif
 	return 0;
@@ -55,7 +56,7 @@ int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
 #ifdef CONFIG_COMEDI_RTAI
 void rt_pend_irq_handler(void)
 #endif
-#ifdef CONFIG_COMEDI_RTLINUX
+#ifdef CONFIG_COMEDI_RTL
 void rt_pend_irq_handler(int irq, void *dev, struct pt_regs * regs)
 #endif
 {
@@ -71,7 +72,7 @@ int rt_pend_tq_init(void)
 #ifdef CONFIG_COMEDI_RTAI
 	rt_pend_tq_irq=rt_request_srq(0,rt_pend_irq_handler,NULL);
 #endif
-#ifdef CONFIG_COMEDI_RTLINUX
+#ifdef CONFIG_COMEDI_RTL
 	rt_pend_tq_irq=rtl_get_soft_irq(rt_pend_irq_handler,"rt_pend_irq");
 	if(rt_pend_tq_irq>0) 
 		printk("rt_pend_tq: RT bottom half scheduler initialized OK\n");
