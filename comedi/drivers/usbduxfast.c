@@ -125,9 +125,6 @@ Status: testing
 // It's quad buffering and we have to ignore 4 packets.
 #define PACKETS_TO_IGNORE 4
 
-// Buffer overflow in the FX2 aborts the transmission
-#define BUFFER_OVERFL_ABORTS 1
-
 /////////////////////////////////////////////
 // comedi constants
 static comedi_lrange range_usbduxfast_ai_range = { 2, {
@@ -406,21 +403,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb, struct pt_regs *regs)
 
 	p=urb->transfer_buffer;
 	if (!this_usbduxfastsub->ignore) {
-		if (*p==0xffff) {
-			// buffer overflow in the middle of the data stream
-			// let's make it a real error
-			printk("comedi%d: usbduxfast: buffer overflow in the usbduxfast box.\n",
-			       this_usbduxfastsub->comedidev->minor);
-#ifdef BUFFER_OVERFL_ABORTS
-			s->async->events |= COMEDI_CB_EOA;
-			s->async->events |= COMEDI_CB_ERROR;
-			comedi_event(this_usbduxfastsub->comedidev, 
-				     s,
-				     s->async->events);
-			usbduxfast_ai_stop(this_usbduxfastsub,0);
-			return;
-#endif
-		}
 		if (!(this_usbduxfastsub->ai_continous)) {
 			// not continous, fixed number of samples
 			n=urb->actual_length/sizeof(uint16_t);
