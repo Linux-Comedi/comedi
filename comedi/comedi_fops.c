@@ -70,7 +70,6 @@ static int do_insn_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_poll_ioctl(comedi_device *dev,unsigned int subd,void *file);
 
 void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
-int resize_buf(comedi_device *dev,comedi_async *s, unsigned int size);
 static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
 static int comedi_fasync (int fd, struct file *file, int on);
@@ -217,7 +216,11 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		if(!async->prealloc_buf)
 			return -EINVAL;
 
-		ret = resize_buf(dev,async,bc.size);
+		/* make sure buffer is an integral number of pages
+		 * (we round up) */
+		bc.size = (bc.size + 1)&PAGE_MASK;
+
+		ret = s->buf_alloc(dev,s,bc.size);
 
 		if(ret < 0)
 			return ret;
@@ -232,37 +235,6 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 copyback:
 	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
 		return -EFAULT;
-
-	return 0;
-}
-
-/* utility function that resizes the prealloc_buf for
- * a subdevice
- */
-int resize_buf(comedi_device *dev, comedi_async *async, unsigned int size)
-{
-	void *old_buf;
-
-	// make sure buffer is an integral number of pages (we round up)
-	size = ((size + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
-
-	// if no change is required, do nothing
-	if(async->prealloc_buf && async->prealloc_bufsz &&
-		async->prealloc_bufsz == size)
-	{
-		return 0;
-	}
-
-	old_buf = async->prealloc_buf;
-	async->prealloc_buf = rvmalloc(size);
-	// restore old buffer on error
-	if(async->prealloc_buf == NULL){
-		async->prealloc_buf = old_buf;
-		return -ENOMEM;
-	}
-
-	rvfree(old_buf, async->prealloc_bufsz);
-	async->prealloc_bufsz = size;
 
 	return 0;
 }

@@ -52,8 +52,7 @@ DMA is halfway completed, but not yet operational.
 
 	References for specifications:
 	
-	   321747b.pdf  Register Level Programmer Manual (obsolete)
-	   321747c.pdf  Register Level Programmer Manual (new)
+	   340747c.pdf  Register Level Programmer Manual
 	   DAQ-STC reference manual
 
 	Other possibly relevant info:
@@ -115,7 +114,7 @@ static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,&caldac_ad
 static struct caldac_struct *type3[]={&caldac_mb88341,NULL,NULL};
 static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad8522};
 
-#define MAX_N_CALDACS (12+12+2)
+#define MAX_N_CALDACS (16+16+2)
 
 #define NI_VENDOR_ID 0x1093
 /* The following two tables must be in the same order */
@@ -570,6 +569,8 @@ typedef struct{
 	struct mite_struct *mite;
 
 	NI_PRIVATE_COMMON
+	
+	dma_addr_t ai_dma_handle;
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 
@@ -578,6 +579,8 @@ typedef struct{
 
 
 static int pcimio_find_device(comedi_device *dev,int bus,int slot);
+static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size);
 
 
 /* cleans up allocated resources */
@@ -629,7 +632,13 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 			dev->irq=0;
         	}
 	}
-	return ni_E_init(dev,it);
+
+	ret = ni_E_init(dev,it);
+	if(ret<0)return ret;
+
+	dev->subdevices[0].buf_alloc = pcimio_ai_alloc;
+
+	return ret;
 }
 
 
@@ -665,4 +674,37 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+/* This needs to be fixed before it can be used for AO, since it
+ * uses devpriv->ai_dma_handle */
+static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	comedi_async *async = s->async;
+
+	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
+		return 0;
+	}
+
+	if(async->prealloc_bufsz){
+		pci_free_consistent(devpriv->mite->pcidev,
+			async->prealloc_bufsz, async->prealloc_buf,
+			devpriv->ai_dma_handle);
+		async->prealloc_buf = NULL;
+		async->prealloc_bufsz = 0;
+	}
+
+	if(new_size){
+		async->prealloc_buf = pci_alloc_consistent(devpriv->mite->pcidev,
+			new_size, &devpriv->ai_dma_handle);
+		if(async->prealloc_buf == NULL){
+			async->prealloc_bufsz = 0;
+			return -ENOMEM;
+		}
+	}
+	async->prealloc_bufsz = new_size;
+
+	return 0;
+}
+
 

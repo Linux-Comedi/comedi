@@ -45,6 +45,8 @@ static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,l
 static void *comedi_recognize(comedi_driver *driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
 static int poll_invalid(comedi_device *dev,comedi_subdevice *s);
+static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size);
 
 comedi_driver *comedi_drivers;
 
@@ -70,7 +72,7 @@ int comedi_device_detach(comedi_device *dev)
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
 		if(s->async){
-			rvfree(s->async->prealloc_buf,s->async->prealloc_bufsz);
+			if(s->buf_alloc) s->buf_alloc(dev,s,0);
 			kfree(s->async);
 		}
 	}
@@ -241,12 +243,17 @@ static int postconfig(comedi_device *dev)
 			}
 			memset(async, 0, sizeof(comedi_async));
 			s->async = async;
-			async->max_bufsize=64*1024;
-			async->prealloc_bufsz=16*1024;
-			async->prealloc_buf=rvmalloc(async->prealloc_bufsz);
-			if(!async->prealloc_buf){
-				printk("ENOMEM\n");
-				kfree(async);
+
+#define DEFAULT_BUF_MAXSIZE (64*1024)
+#define DEFAULT_BUF_SIZE (16*1024)
+
+			async->max_bufsize = DEFAULT_BUF_MAXSIZE;
+			if(!s->buf_alloc) s->buf_alloc = buf_alloc;
+
+			async->prealloc_buf = NULL;
+			async->prealloc_bufsz = 0;
+			if(s->buf_alloc(dev,s,DEFAULT_BUF_SIZE) < 0){
+				printk("Buffer allocation failed\n");
 				return -ENOMEM;
 			}
 		}
@@ -348,5 +355,39 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	}
 
 	return 1;
+}
+
+/*
+ * Default allocator for Comedi buffers
+ * Override function should allocate a new buffer of size new_size,
+ * and update async->prealloc_buf and async->prealloc_bufsz.  Set
+ * NULL and 0 if the allocation fails.  If new_size is 0, deallocate
+ * the old buffer and don't allocate a new one.
+ */
+static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	comedi_async *async = s->async;
+
+	/* if no change is required, do nothing */
+	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
+		return 0;
+	}
+
+	if(async->prealloc_bufsz){
+		rvfree(async->prealloc_buf, async->prealloc_bufsz);
+		async->prealloc_buf = NULL;
+	}
+
+	if(new_size){
+		async->prealloc_buf = rvmalloc(new_size);
+		if(async->prealloc_buf == NULL){
+			async->prealloc_bufsz = 0;
+			return -ENOMEM;
+		}
+	}
+	async->prealloc_bufsz = new_size;
+
+	return 0;
 }
 
