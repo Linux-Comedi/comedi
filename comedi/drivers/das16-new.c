@@ -538,7 +538,7 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 
 static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->cmd;
+	comedi_cmd *cmd = &s->async->cmd;
 	char byte;
 	float freq;
 	
@@ -692,10 +692,10 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	
 	if(devpriv->cmd_go)	{	/* Are we supposed to be here? */
 		/* check for missed conversions */
-	//	if( CR_CHAN(s->cur_chanlist[0]) != inb() )
+	//	if( CR_CHAN(s->async->cur_chanlist[0]) != inb() )
 	//		printk("Channel MUX sync error\n");
 		
-		for(i=0;i<s->cur_chanlist_len;++i) {
+		for(i=0;i<s->async->cur_chanlist_len;++i) {
 			
 			if(i) {		/* performing multiple conversions */			
 				outb(0x00, dev->iobase+DAS16_TRIG);	/* force a conversion */
@@ -711,18 +711,18 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 			msb = inb(dev->iobase+DAS16_AI_MSB);
 			
 			/* all this just to put data into a buffer! */
-			*(sampl_t *)(((void *)s->cur_trig.data)+s->buf_int_ptr) =
+			*(sampl_t *)(((void *)s->cur_trig.data)+s->async->buf_int_ptr) =
 				(lsb>>4) + (msb<<4);
-		
-			s->buf_int_ptr += sizeof(sampl_t);
-			s->buf_int_count += sizeof(sampl_t);
-		
-			if(s->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
-				s->buf_int_ptr = 0;
+
+			s->async->buf_int_ptr += sizeof(sampl_t);
+			s->async->buf_int_count += sizeof(sampl_t);
+
+			if(s->async->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
+				s->async->buf_int_ptr = 0;
 				comedi_eobuf(dev, s);
 			}
 		
-			if( !(s->cmd.flags&TRIG_WAKE_EOS) )
+			if( !(s->async->cmd.flags&TRIG_WAKE_EOS) )
 				comedi_bufcheck(dev, s);	/* wakeup user's read() */
 		
 			if(--devpriv->adc_count <= 0) {		/* end of acquisition */
@@ -1054,8 +1054,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		printk(" ( no irq )\n");
 	}
 	
-	dev->read_subdev=0;
 	s=dev->subdevices+0;
+	dev->read_subdev=s;
 	/* ai */
 	if(thisboard->ai){
 		s->type = COMEDI_SUBD_AI;
@@ -1078,7 +1078,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->do_cmdtest = das16_cmd_test;
 		s->do_cmd = das16_cmd_exec;
 		s->cancel = das16_cancel;
-		s->cmd.flags |= TRIG_WAKE_EOS;
+		s->async->cmd.flags |= TRIG_WAKE_EOS;
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}

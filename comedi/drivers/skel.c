@@ -215,7 +215,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 		return -ENOMEM;
 
 	s=dev->subdevices+0;
-	dev->read_subdev=0;
+	//dev->read_subdev=s;
 	/* analog input subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
@@ -225,7 +225,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_read = &skel_ai_rinsn;
 	//s->do_cmd = &skel_ai_cmd;
 	s->do_cmdtest = &skel_ai_cmdtest;
-	
+
 	s=dev->subdevices+1;
 	/* analog output subdevice */
 	s->type=COMEDI_SUBD_AO;

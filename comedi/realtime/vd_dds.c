@@ -94,13 +94,13 @@ static void dds_interrupt(int irq,void *d,struct pt_regs * regs)
 
 static inline void buf_add(comedi_device *dev,comedi_subdevice *s,sampl_t x)
 {
-	*(sampl_t *)(((void *)(s->cur_trig.data))+s->buf_int_ptr)=x&0xfff;
-	s->buf_int_ptr+=sizeof(sampl_t);
-	if(s->buf_int_ptr>=s->cur_trig.data_len){
-		s->buf_int_ptr=0;
+	*(sampl_t *)(((void *)(s->cur_trig.data))+s->async->buf_int_ptr)=x&0xfff;
+	s->async->buf_int_ptr+=sizeof(sampl_t);
+	if(s->async->buf_int_ptr>=s->cur_trig.data_len){
+		s->async->buf_int_ptr=0;
 		comedi_eobuf(dev,s);
 	}
-	s->buf_int_count+=sizeof(sampl_t);
+	s->async->buf_int_count+=sizeof(sampl_t);
 }
 
 
@@ -243,6 +243,7 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->s=devpriv->dev->subdevices+devpriv->subd;
 
 	s=dev->subdevices+0;
+	dev->read_subdev=s;
 	s->type=COMEDI_SUBD_AO;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=devpriv->s->n_chan;

@@ -381,43 +381,43 @@ static void copy_to_buf(comedi_device *dev,comedi_subdevice *s,void *buf,unsigne
 	unsigned int n;
 
 	n=n_bytes;
-	if(s->buf_int_ptr+n >= s->cur_trig.data_len){
-		n=s->cur_trig.data_len-s->buf_int_ptr;
-		memcpy(((void *)(s->cur_trig.data))+s->buf_int_ptr,buf,n);
+	if(s->async->buf_int_ptr+n >= s->cur_trig.data_len){
+		n=s->cur_trig.data_len-s->async->buf_int_ptr;
+		memcpy(((void *)(s->cur_trig.data))+s->async->buf_int_ptr,buf,n);
 		buf+=n;
-		s->buf_int_count+=n;
-		s->buf_int_ptr=0;
+		s->async->buf_int_count+=n;
+		s->async->buf_int_ptr=0;
 
 		n=n_bytes-n;
 	}
-	memcpy(((void *)(s->cur_trig.data))+s->buf_int_ptr,buf,n);
+	memcpy(((void *)(s->cur_trig.data))+s->async->buf_int_ptr,buf,n);
 	buf+=n;
-	s->buf_int_count+=n;
-	s->buf_int_ptr+=n;
+	s->async->buf_int_count+=n;
+	s->async->buf_int_ptr+=n;
 }
 
 static int copy_from_buf(comedi_device *dev,comedi_subdevice *s,void *buf,unsigned int n_bytes)
 {
 	unsigned int n,m;
 
-	n=s->buf_int_count-s->buf_user_count;
+	n=s->async->buf_int_count-s->async->buf_user_count;
 	if(n==0)return 0;
 	if(n>n_bytes)
 		n=n_bytes;
 
 	n_bytes=n;
-	if(s->buf_int_ptr+n >= s->cur_trig.data_len){
-		m=s->cur_trig.data_len-s->buf_int_ptr;
-		memcpy(buf,((void *)(s->cur_trig.data))+s->buf_int_ptr,m);
+	if(s->async->buf_int_ptr+n >= s->cur_trig.data_len){
+		m=s->cur_trig.data_len-s->async->buf_int_ptr;
+		memcpy(buf,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m);
 		buf+=m;
-		s->buf_int_count+=m;
-		s->buf_int_ptr=0;
+		s->async->buf_int_count+=m;
+		s->async->buf_int_ptr=0;
 
 		n-=m;
 	}
-	memcpy(buf,((void *)(s->cur_trig.data))+s->buf_int_ptr,n);
-	s->buf_int_count+=n;
-	s->buf_int_ptr+=n;
+	memcpy(buf,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	s->async->buf_int_count+=n;
+	s->async->buf_int_ptr+=n;
 
 	return n_bytes;
 }
@@ -608,7 +608,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->ad_2scomp){
 			data^=1<<(boardtype.adbits-1);
 		}
-		s->cur_trig.data[s->buf_int_ptr++]=data;
+		s->cur_trig.data[s->async->buf_int_ptr++]=data;
 
 		devpriv->nread--;
 		if(!devpriv->nread){
@@ -799,7 +799,7 @@ static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,comedi_cm
 
 static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
-	comedi_cmd *cmd=&s->cmd;
+	comedi_cmd *cmd=&s->async->cmd;
 	int timer;
 
 	timer=dt282x_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
@@ -1195,7 +1195,7 @@ static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int size;
 	int timer;
-	comedi_cmd *cmd=&s->cmd;
+	comedi_cmd *cmd=&s->async->cmd;
 
 	devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS1 | DT2821_DDMA;
 	update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_DACINIT);
@@ -1470,7 +1470,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	s=dev->subdevices+0;
 
-	dev->read_subdev=0;
+	dev->read_subdev=s;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|((it->options[opt_diff])?SDF_DIFF:SDF_COMMON);
@@ -1493,9 +1493,9 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 
 	s++;
 	if((s->n_chan=boardtype.dachan)){
-		dev->write_subdev=1;
 		/* ao subsystem */
 		s->type=COMEDI_SUBD_AO;
+		dev->write_subdev=s;
 		s->subdev_flags=SDF_WRITEABLE;
 #ifdef CONFIG_COMEDI_MODE0
 		s->trig[0]=dt282x_ao;

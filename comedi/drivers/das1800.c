@@ -660,8 +660,8 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* analog input subdevice */
-	dev->read_subdev = 0;
 	s = dev->subdevices + 0;
+	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
 	if(thisboard->common)
@@ -1085,20 +1085,20 @@ static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *
 /* utility function used by das1800 interrupt service routines */
 inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point)
 {
-	if(s->buf_int_ptr >= s->prealloc_bufsz )
+	if(s->async->buf_int_ptr >= s->async->prealloc_bufsz )
 	{
-		s->buf_int_ptr = 0;
+		s->async->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
-	*((sampl_t *)((void *)s->prealloc_buf + s->buf_int_ptr)) = data_point;
-	s->cur_chan++;
-	if(s->cur_chan >= s->cur_chanlist_len)
+	*((sampl_t *)((void *)s->async->prealloc_buf + s->async->buf_int_ptr)) = data_point;
+	s->async->cur_chan++;
+	if(s->async->cur_chan >= s->async->cur_chanlist_len)
 	{
-		s->cur_chan = 0;
+		s->async->cur_chan = 0;
 		comedi_eos(dev, s);
 	}
-	s->buf_int_count += sizeof(sampl_t);
-	s->buf_int_ptr += sizeof(sampl_t);
+	s->async->buf_int_count += sizeof(sampl_t);
+	s->async->buf_int_ptr += sizeof(sampl_t);
 }
 
 void disable_das1800(comedi_device *dev)
@@ -1293,13 +1293,13 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	disable_das1800(dev);
 
-	n = s->cmd.chanlist_len;
+	n = s->async->cmd.chanlist_len;
 	outb(QRAM, dev->iobase + DAS1800_SELECT); /* select QRAM for baseAddress + 0x0 */
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*set QRAM address start */
 	for(i = 0; i < n; i++)	/* make channel / gain list */
 	{
 		/* mask off unipolar/bipolar bit from range */
-		chan_range = CR_CHAN(s->cmd.chanlist[i]) | ((CR_RANGE(s->cmd.chanlist[i]) & 0x3) << 8);
+		chan_range = CR_CHAN(s->async->cmd.chanlist[i]) | ((CR_RANGE(s->async->cmd.chanlist[i]) & 0x3) << 8);
 		outw(chan_range, dev->iobase + DAS1800_QRAM);
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
@@ -1309,25 +1309,25 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	 * set clock source to internal or external, select analog reference,
 	 * select unipolar / bipolar
 	 */
-	aref = CR_AREF(s->cmd.chanlist[0]);
+	aref = CR_AREF(s->async->cmd.chanlist[0]);
 	conv_flags = UQEN;
 	if(aref != AREF_DIFF)
 		conv_flags |= SD;
 	if(aref == AREF_COMMON)
 		conv_flags |= CMEN;
 	/* if a unipolar range was selected */
-	if(CR_RANGE(s->cmd.chanlist[0]) & 0x4)
+	if(CR_RANGE(s->async->cmd.chanlist[0]) & 0x4)
 		conv_flags |= UB;
-	switch(s->cmd.scan_begin_src)
+	switch(s->async->cmd.scan_begin_src)
 	{
 		case TRIG_FOLLOW:	// not in burst mode
-			switch(s->cmd.convert_src)
+			switch(s->async->cmd.convert_src)
 			{
 				case TRIG_TIMER:
 					/* trig on cascaded counters */
 					conv_flags |= IPCLK;
 					/* set conversion frequency */
-					i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(s->cmd.convert_arg), s->cmd.flags & TRIG_ROUND_MASK);
+					i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(s->async->cmd.convert_arg), s->async->cmd.flags & TRIG_ROUND_MASK);
 					if(das1800_set_frequency(dev) < 0)
 					{
 						comedi_error(dev, "Error setting up counters");
@@ -1346,7 +1346,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 			// burst mode with internal pacer clock
 			conv_flags |= BMDE | IPCLK;
 			/* set conversion frequency */
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(s->cmd.scan_begin_arg), s->cmd.flags & TRIG_ROUND_MASK);
+			i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(s->async->cmd.scan_begin_arg), s->async->cmd.flags & TRIG_ROUND_MASK);
 			if(das1800_set_frequency(dev) < 0)
 			{
 				comedi_error(dev, "Error setting up counters");
@@ -1362,19 +1362,19 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	// set conversion rate and length for burst mode
 	if(conv_flags & BMDE)
 	{
-		s->cmd.convert_arg = burst_convert_arg(s->cmd.convert_arg, s->cmd.flags & TRIG_ROUND_MASK);
-		outb(s->cmd.convert_arg / 1000 - 1, dev->iobase + DAS1800_BURST_RATE);
-		outb(s->cmd.chanlist_len - 1, dev->iobase + DAS1800_BURST_LENGTH);
+		s->async->cmd.convert_arg = burst_convert_arg(s->async->cmd.convert_arg, s->async->cmd.flags & TRIG_ROUND_MASK);
+		outb(s->async->cmd.convert_arg / 1000 - 1, dev->iobase + DAS1800_BURST_RATE);
+		outb(s->async->cmd.chanlist_len - 1, dev->iobase + DAS1800_BURST_LENGTH);
 	}
 
-	switch(s->cmd.stop_src)
+	switch(s->async->cmd.stop_src)
 	{
 		case TRIG_COUNT:
-			devpriv->count = s->cmd.stop_arg * s->cmd.chanlist_len;
+			devpriv->count = s->async->cmd.stop_arg * s->async->cmd.chanlist_len;
 			devpriv->forever = 0;
 			/* set interrupt mode */
 			// if they want just a few points
-			if(s->cmd.stop_arg < HALF_FIFO)
+			if(s->async->cmd.stop_arg < HALF_FIFO)
 				devpriv->irq_dma_bits &= ~FIMD;	// interrupt fifo not empty
 			else
 				devpriv->irq_dma_bits |= FIMD;	//interrupt fifo half full
@@ -1393,13 +1393,13 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	// enable fifo
 	control_a = FFEN;
-	if(s->cmd.stop_src == TRIG_EXT)
+	if(s->async->cmd.stop_src == TRIG_EXT)
 	{
 		control_a |= ATEN;
 		// load counter 0 in mode 0
-		das1800_load_counter(dev, 0, s->cmd.stop_arg & 0xffff, 0);
+		das1800_load_counter(dev, 0, s->async->cmd.stop_arg & 0xffff, 0);
 	}
-	switch(s->cmd.start_src)
+	switch(s->async->cmd.start_src)
 	{
 		case TRIG_EXT:
 			control_a |= TGEN | CGSL;

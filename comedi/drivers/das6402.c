@@ -164,7 +164,7 @@ static void intr_handler(int irq,void *d,struct pt_regs *regs)
 
 	das6402_ai_fifo_dregs(dev,s);
 
-	if(s->buf_int_count >= devpriv->ai_bytes_to_read){
+	if(s->async->buf_int_count >= devpriv->ai_bytes_to_read){
 		outw_p(SCANL,dev->iobase+2);  /* clears the fifo */
 		outb(0x07,dev->iobase+8);  /* clears all flip-flops */
 #ifdef DEBUG
@@ -199,16 +199,16 @@ static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s)
 
 	data=((void *)s->cur_trig.data);
 	while(1){
-		n=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
+		n=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
 			if(!(inb(dev->iobase+8)&0x01))
 				return;
 			*data=inw(dev->iobase);
 			data++;
-			s->buf_int_ptr+=sizeof(sampl_t);
-			s->buf_int_count+=sizeof(sampl_t);
+			s->async->buf_int_ptr+=sizeof(sampl_t);
+			s->async->buf_int_count+=sizeof(sampl_t);
 		}
-		s->buf_int_ptr=0;
+		s->async->buf_int_ptr=0;
 		data=s->cur_trig.data;
 		comedi_eobuf(dev,s);
 	}

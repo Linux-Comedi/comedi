@@ -63,7 +63,7 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
 
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
-int resize_buf(comedi_device *dev,comedi_subdevice *s, unsigned int size);
+int resize_buf(comedi_device *dev,comedi_async *s, unsigned int size);
 
 static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
 {
@@ -155,7 +155,7 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 {
 	comedi_bufconfig bc;
-	comedi_subdevice *rsd=NULL, *wsd=NULL;
+	comedi_async *rasync = NULL, *wasync = NULL;
 	int ret;
 
 	if(!suser())
@@ -171,72 +171,72 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
-	if(dev->read_subdev >= 0)
-		rsd = &dev->subdevices[dev->read_subdev];
-	if(dev->write_subdev >= 0)
-		wsd = &dev->subdevices[dev->write_subdev];
+	if(dev->read_subdev)
+		rasync = dev->read_subdev->async;
+	if(dev->write_subdev)
+		wasync = dev->write_subdev->async;
 
 	if(bc.read_size){
-		if(rsd == NULL)
+		if(rasync == NULL)
 		{
 			DPRINTK("device has no read subdevice, buffer resize failed\n");
 			return -ENODEV;
 		}
 
-		if(rsd->busy)
+		if(rasync->subdev->busy)
 			return -EBUSY;
 
-		if(rsd->mmap_count){
+		if(rasync->mmap_count){
 			DPRINTK("read subdevice is mmapped, cannot resize buffer\n");
 			return -EBUSY;
 		}
 
-		if(!rsd->prealloc_buf)
+		if(!rasync->prealloc_buf)
 			return -EINVAL;
 	}
 	if(bc.write_size){
-		if(wsd == NULL)
+		if(wasync == NULL)
 		{
 			DPRINTK("device has no write subdevice, buffer resize failed\n");
 			return -ENODEV;
 		}
 
-		if(wsd->busy)
+		if(wasync->subdev->busy)
 			return -EBUSY;
 
-		if(wsd->mmap_count){
+		if(wasync->mmap_count){
 			DPRINTK("write subdevice is mmapped, cannot resize buffer\n");
 			return -EBUSY;
 		}
 
-		if(!wsd->prealloc_buf)
+		if(!wasync->prealloc_buf)
 			return -EINVAL;
 	}
 
 	// resize buffers
 	if(bc.read_size){
-		ret = resize_buf(dev,rsd,bc.read_size);
+		ret = resize_buf(dev,rasync,bc.read_size);
 
 		if(ret < 0)
 			return ret;
 
-		DPRINTK("comedi%i read buffer resized to %i bytes\n", dev->minor, rsd->prealloc_bufsz);
+		DPRINTK("comedi%i read buffer resized to %i bytes\n", dev->minor, rasync->prealloc_bufsz);
 	}
 	if(bc.write_size){
-		ret = resize_buf(dev,wsd,bc.write_size);
+		ret = resize_buf(dev,wasync,bc.write_size);
 
 		if(ret < 0)
 			return ret;
 
-		DPRINTK("comedi%i write buffer resized to %i bytes\n", dev->minor, wsd->prealloc_bufsz);
+		DPRINTK("comedi%i write buffer resized to %i bytes\n", dev->minor, wasync->prealloc_bufsz);
 	}
 
 	// write back buffer sizes
-	if(rsd){
-		bc.read_size = rsd->prealloc_bufsz;
+	if(rasync){
+		bc.read_size = rasync->prealloc_bufsz;
 	} else bc.read_size = 0;
-	if(wsd){
-		bc.write_size = wsd->prealloc_bufsz;
+	if(wasync){
+		bc.write_size = wasync->prealloc_bufsz;
 	} else bc.write_size = 0;
 
 	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
@@ -248,7 +248,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 /* utility function that resizes the prealloc_buf for
  * a subdevice
  */
-int resize_buf(comedi_device *dev, comedi_subdevice *s, unsigned int size)
+int resize_buf(comedi_device *dev, comedi_async *async, unsigned int size)
 {
 	void *old_buf;
 
@@ -256,21 +256,22 @@ int resize_buf(comedi_device *dev, comedi_subdevice *s, unsigned int size)
 	size = ((size + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
 
 	// if no change is required, do nothing
-	if(s->prealloc_buf && s->prealloc_bufsz){
-		if(s->prealloc_bufsz == size)
-			return 0;
+	if(async->prealloc_buf && async->prealloc_bufsz &&
+		async->prealloc_bufsz == size)
+	{
+		return 0;
 	}
 
-	old_buf = s->prealloc_buf;
-	s->prealloc_buf = rvmalloc(size);
+	old_buf = async->prealloc_buf;
+	async->prealloc_buf = rvmalloc(size);
 	// restore old buffer on error
-	if(s->prealloc_buf == 0){
-		s->prealloc_buf = old_buf;
+	if(async->prealloc_buf == NULL){
+		async->prealloc_buf = old_buf;
 		return -ENOMEM;
 	}
 
-	rvfree(old_buf, s->prealloc_bufsz);
-	s->prealloc_bufsz = size;
+	rvfree(old_buf, async->prealloc_bufsz);
+	async->prealloc_bufsz = size;
 
 	return 0;
 }
@@ -387,7 +388,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));
 	
 	kfree(tmp);
-	
+
 	return ret?-EFAULT:0;
 }
 
@@ -536,6 +537,7 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	int reading;
 	int bufsz;
 	int ret=0,i;
+	comedi_async *async = s->async;
 
 	/* make sure channel/gain list isn't too long */
 	if(user_trig->n_chan > s->len_chanlist){
@@ -577,11 +579,11 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		goto cleanup;
 	}
 
-	s->buf_int_ptr=0;
-	s->buf_int_count=0;
+	async->buf_int_ptr=0;
+	async->buf_int_count=0;
 	if(s->subdev_flags & SDF_READABLE){
-		s->buf_user_ptr=0;
-		s->buf_user_count=0;
+		async->buf_user_ptr=0;
+		async->buf_user_count=0;
 	}
 
 	if(s->subdev_flags & SDF_WRITEABLE){
@@ -634,13 +636,21 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 cleanup:
 
 	do_become_nonbusy(dev,s);
-	
+
 	return ret;
 }
 
 static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig)
 {
 	int ret=0;
+	comedi_async *async = s->async;
+
+	if(async == NULL)
+	{
+		DPRINTK("subdevice has no buffer, trig failed\n");
+		return -ENODEV;
+		goto cleanup;
+	}
 
 	if(s->cur_trig.mode>=5 || s->trig[s->cur_trig.mode]==NULL){
 		DPRINTK("bad mode %d\n",s->cur_trig.mode);
@@ -668,32 +678,32 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		ret = -EFAULT;
 		goto cleanup;
 	}
-	
+
 	/* make sure each element in channel/gain list is valid */
 	if((ret=check_chanlist(s,s->cur_trig.n_chan,s->cur_trig.chanlist))<0){
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
 	}
 
-	if(!s->prealloc_buf){
-		printk("comedi: bug: s->prealloc_buf=NULL\n");
+	if(!s->async->prealloc_buf){
+		printk("comedi: bug: s->async->prealloc_buf==NULL\n");
 	}
-	s->cur_trig.data=s->prealloc_buf;
-	s->cur_trig.data_len=s->prealloc_bufsz;
+	s->cur_trig.data=async->prealloc_buf;
+	s->cur_trig.data_len=async->prealloc_bufsz;
 
-	s->buf_int_ptr=0;
-	s->buf_int_count=0;
+	async->buf_int_ptr=0;
+	async->buf_int_count=0;
 	if(s->subdev_flags & SDF_READABLE){
-		s->buf_user_ptr=0;
-		s->buf_user_count=0;
+		async->buf_user_ptr=0;
+		async->buf_user_count=0;
 	}
 
-	s->cur_chan=0;
-	s->cur_chanlist_len=s->cur_trig.n_chan;
+	async->cur_chan=0;
+	async->cur_chanlist_len=s->cur_trig.n_chan;
 
-	s->cb_mask=COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	async->cb_mask=COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(s->cur_trig.flags & TRIG_WAKE_EOS){
-		s->cb_mask|=COMEDI_CB_EOS;
+		async->cb_mask|=COMEDI_CB_EOS;
 	}
 
 	s->runflags=SRF_USER;
@@ -706,7 +716,7 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 
 cleanup:
 	do_become_nonbusy(dev,s);
-	
+
 	return ret;
 }
 #endif
@@ -744,7 +754,7 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
-	
+
 	if(insnlist.n_insns>=10)	/* XXX */
 		return -EINVAL;
 
@@ -779,7 +789,7 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 				data[0]=tv.tv_sec;
 				data[1]=tv.tv_usec;
 				ret=2;
-				
+
 				break;
 			}
 			case INSN_WAIT:
@@ -886,6 +896,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 {
 	comedi_cmd user_cmd;
 	comedi_subdevice *s;
+	comedi_async *async;
 	int ret=0;
 	unsigned int *chanlist_saver=NULL;
 
@@ -909,6 +920,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 	s=dev->subdevices+user_cmd.subdev;
+	async = s->async;
 	if(s->type==COMEDI_SUBD_UNUSED){
 		DPRINTK("%d not valid subdevice\n",user_cmd.subdev);
 		return -EIO;
@@ -939,36 +951,36 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 
-	s->cmd=user_cmd;
-	s->cmd.chanlist=NULL;
-	s->cmd.data=NULL;
+	async->cmd=user_cmd;
+	async->cmd.chanlist=NULL;
+	async->cmd.data=NULL;
 
 	/* load channel/gain list */
 	/* we should have this already allocated */
-	s->cmd.chanlist=kmalloc(s->cmd.chanlist_len*sizeof(int),GFP_KERNEL);
-	if(!s->cmd.chanlist){
+	async->cmd.chanlist=kmalloc(async->cmd.chanlist_len*sizeof(int),GFP_KERNEL);
+	if(!async->cmd.chanlist){
 		DPRINTK("allocation failed\n");
 		ret = -ENOMEM;
 		goto cleanup;
 	}
 
-	if(copy_from_user(s->cmd.chanlist,user_cmd.chanlist,s->cmd.chanlist_len*sizeof(int))){
+	if(copy_from_user(async->cmd.chanlist,user_cmd.chanlist,async->cmd.chanlist_len*sizeof(int))){
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
 		goto cleanup;
 	}
 
 	/* make sure each element in channel/gain list is valid */
-	if((ret=check_chanlist(s,s->cmd.chanlist_len,s->cmd.chanlist))<0){
+	if((ret=check_chanlist(s,async->cmd.chanlist_len,async->cmd.chanlist))<0){
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
 	}
 
-	ret=s->do_cmdtest(dev,s,&s->cmd);
+	ret=s->do_cmdtest(dev,s,&async->cmd);
 
-	if(s->cmd.flags&TRIG_BOGUS || ret){
+	if(async->cmd.flags&TRIG_BOGUS || ret){
 		DPRINTK("test returned %d\n",ret);
-		user_cmd=s->cmd;
+		user_cmd=async->cmd;
 		// restore chanlist pointer before copying back
 		user_cmd.chanlist = chanlist_saver;
 		user_cmd.data = NULL;
@@ -981,32 +993,32 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 
-	if(!s->prealloc_bufsz){
+	if(!async->prealloc_bufsz){
 		ret=-ENOMEM;
 		DPRINTK("no buffer (?)\n");
 		goto cleanup;
 	}
-	s->cmd.data = s->prealloc_buf;
-	s->cmd.data_len=s->prealloc_bufsz;
+	async->cmd.data = async->prealloc_buf;
+	async->cmd.data_len=async->prealloc_bufsz;
 
 #ifdef CONFIG_COMEDI_MODE_CORE
-	s->cur_trig.data=s->prealloc_buf;	/* XXX */
-	s->cur_trig.data_len=s->prealloc_bufsz;
+	s->cur_trig.data=async->prealloc_buf;	/* XXX */
+	s->cur_trig.data_len=async->prealloc_bufsz;
 #endif
 
-	s->buf_int_ptr=0;
-	s->buf_int_count=0;
+	async->buf_int_ptr=0;
+	async->buf_int_count=0;
 	if(s->subdev_flags & SDF_READABLE){
-		s->buf_user_ptr=0;
-		s->buf_user_count=0;
+		async->buf_user_ptr=0;
+		async->buf_user_count=0;
 	}
 
-	s->cur_chan = 0;
-	s->cur_chanlist_len = s->cmd.chanlist_len;
+	async->cur_chan = 0;
+	async->cur_chanlist_len = async->cmd.chanlist_len;
 
-	s->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
-	if(s->cmd.flags & TRIG_WAKE_EOS){
-		s->cb_mask |= COMEDI_CB_EOS;
+	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	if(async->cmd.flags & TRIG_WAKE_EOS){
+		async->cb_mask |= COMEDI_CB_EOS;
 	}
 
 	s->runflags=SRF_USER;
@@ -1014,7 +1026,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	s->subdev_flags|=SDF_RUNNING;
 
 #ifdef CONFIG_COMEDI_RT
-	if(s->cmd.flags&TRIG_RT){
+	if(async->cmd.flags&TRIG_RT){
 		comedi_switch_to_rt(dev);
 		s->runflags |= SRF_RT;
 	}
@@ -1033,14 +1045,14 @@ cleanup:
 /*
 	COMEDI_CMDTEST
 	command testing ioctl
-	
+
 	arg:
 		pointer to cmd structure
-	
+
 	reads:
 		cmd structure at arg
 		channel/range list
-	
+
 	writes:
 		modified cmd structure at arg
 
@@ -1319,8 +1331,7 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 {
 	kdev_t minor=MINOR(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
-	comedi_subdevice *s;
-	int subdev;
+	comedi_async *async = NULL;
 	struct comedi_file_private *cfp;
 
 	if(!dev->attached)
@@ -1330,14 +1341,13 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	}
 
 	if(vma->vm_flags & VM_WRITE){
-		subdev=dev->write_subdev;
+		async=dev->write_subdev->async;
 	}else{
-		subdev=dev->read_subdev;
+		async=dev->read_subdev->async;
 	}
-	if(subdev<0){
+	if(async==NULL){
 		return -EINVAL;
 	}
-	s=dev->subdevices+subdev;
 
 	if(VM_OFFSET(vma) != 0){
 		DPRINTK("comedi: mmap() offset must be 0.\n");
@@ -1345,18 +1355,18 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	}
 
 	cfp = (struct comedi_file_private*) file->private_data;
-	if(subdev == dev->read_subdev)
+	if(async == dev->read_subdev->async)
 		cfp->read_mmap_count++;
-	else if(subdev == dev->write_subdev)
+	else if(async == dev->write_subdev->async)
 		cfp->write_mmap_count++;
 
-	rvmmap(s->prealloc_buf,s->prealloc_bufsz,vma);
+	rvmmap(async->prealloc_buf,async->prealloc_bufsz,vma);
 
 	//vma->vm_file = file;
 	//vma->vm_ops = &comedi_vm_ops;
 	//file_atomic_inc(&file->f_count);
 
-	s->mmap_count++;
+	async->mmap_count++;
 
 	return 0;
 }
@@ -1368,6 +1378,7 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 	unsigned int mask;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
@@ -1381,16 +1392,18 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 	mask = 0;
-	if(dev->read_subdev>=0){
-		s=dev->subdevices+dev->read_subdev;
+	if(dev->read_subdev){
+		s = dev->read_subdev;
+		async = s->async;
 		if(!(s->subdev_flags&SDF_RUNNING) ||
-		   (s->buf_user_count < s->buf_int_count))
+		   (async->buf_user_count < async->buf_int_count))
 			mask |= POLLIN | POLLRDNORM;
 	}
-	if(dev->write_subdev>=0){
-		s=dev->subdevices+dev->write_subdev;
+	if(dev->write_subdev){
+		s = dev->write_subdev;
+		async = s->async;
 		if((!s->subdev_flags&SDF_RUNNING) ||
-		   (s->buf_user_count < s->buf_int_count + s->prealloc_bufsz))
+		   (async->buf_user_count < async->buf_int_count + async->prealloc_bufsz))
 			mask |= POLLOUT | POLLWRNORM;
 	}
 
@@ -1402,6 +1415,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
 	int sample_size;
@@ -1416,8 +1430,9 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		return -ENODEV;
 	}
 
-	if(dev->write_subdev<0)return -EIO;
-	s=dev->subdevices+dev->write_subdev;
+	if(dev->write_subdev == NULL)return -EIO;
+	s = dev->write_subdev;
+	async = s->async;
 
 	if(s->subdev_flags&SDF_LSAMPL){
 		sample_size=sizeof(lsampl_t);
@@ -1433,8 +1448,8 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		return -EIO;
 
 	if(!s->busy){
-		buf_ptr=s->prealloc_buf;
-		buf_len=s->prealloc_bufsz;
+		buf_ptr=async->prealloc_buf;
+		buf_len=async->prealloc_bufsz;
 	}else{
 		if(s->busy != file)
 			return -EACCES;
@@ -1454,9 +1469,9 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 
 		n=nbytes;
 
-		m=buf_len-(s->buf_user_count-s->buf_int_count);
-		if(s->buf_user_ptr+m > buf_len){
-			m=buf_len - s->buf_user_ptr;
+		m=buf_len-(async->buf_user_count-async->buf_int_count);
+		if(async->buf_user_ptr+m > buf_len){
+			m=buf_len - async->buf_user_ptr;
 		}
 		if(m<n)n=m;
 
@@ -1476,17 +1491,17 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			schedule();
 			continue;
 		}
-		m=copy_from_user(buf_ptr+s->buf_user_ptr,buf,n);
+		m=copy_from_user(buf_ptr+async->buf_user_ptr,buf,n);
 		if(m) retval=-EFAULT;
 		n-=m;
 		
 		count+=n;
 		nbytes-=n;
-		s->buf_user_ptr+=n;
-		s->buf_user_count+=n;
+		async->buf_user_ptr+=n;
+		async->buf_user_count+=n;
 
-		if(s->buf_user_ptr>=buf_len ){
-			s->buf_user_ptr=0;
+		if(async->buf_user_ptr>=buf_len ){
+			async->buf_user_ptr=0;
 		}
 
 		buf+=n;
@@ -1503,6 +1518,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
 	int sample_size;
@@ -1515,8 +1531,9 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 		return -ENODEV;
 	}
 
-	if(dev->read_subdev<0)return -EIO;
-	s=dev->subdevices+dev->read_subdev;
+	s = dev->read_subdev;
+	if(s == NULL)return -EIO;
+	async = s->async;
 
 	if(s->subdev_flags&SDF_LSAMPL){
 		sample_size=sizeof(lsampl_t);
@@ -1545,10 +1562,10 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		n=nbytes;
 
-		m=s->buf_int_count-s->buf_user_count;
+		m=async->buf_int_count-async->buf_user_count;
 
-		if(s->buf_user_ptr+m > s->cur_trig.data_len){ /* XXX MODE */
-			m=s->cur_trig.data_len - s->buf_user_ptr;
+		if(async->buf_user_ptr+m > s->cur_trig.data_len){ /* XXX MODE */
+			m=s->cur_trig.data_len - async->buf_user_ptr;
 #if 0
 printk("m is %d\n",m);
 #endif
@@ -1572,33 +1589,33 @@ printk("m is %d\n",m);
 			schedule();
 			continue;
 		}
-		m=copy_to_user(buf,((void *)(s->cur_trig.data))+s->buf_user_ptr,n);
+		m=copy_to_user(buf,((void *)(s->cur_trig.data))+async->buf_user_ptr,n);
 		if(m) retval=-EFAULT;
 		n-=m;
 
 		// check for buffer overrun
-		if(s->buf_int_count - s->buf_user_count > s->cur_trig.data_len){	/* XXX MODE */
-			s->buf_user_count = s->buf_int_count;
-			s->buf_user_ptr = s->buf_int_ptr;
+		if(async->buf_int_count - async->buf_user_count > s->cur_trig.data_len){	/* XXX MODE */
+			async->buf_user_count = async->buf_int_count;
+			async->buf_user_ptr = async->buf_int_ptr;
 			retval=-EINVAL;
-			do_cancel_ioctl(dev, dev->read_subdev, file);
+			do_cancel(dev, async->subdev);
 			DPRINTK("buffer overrun\n");
 			break;
 		}
 
 		count+=n;
 		nbytes-=n;
-		s->buf_user_ptr+=n;
-		s->buf_user_count+=n;
+		async->buf_user_ptr+=n;
+		async->buf_user_count+=n;
 
-		if(s->buf_user_ptr>=s->cur_trig.data_len ){
-			s->buf_user_ptr=0;
+		if(async->buf_user_ptr>=s->cur_trig.data_len ){
+			async->buf_user_ptr=0;
 		}
 
 		buf+=n;
 		break;	/* makes device work like a pipe */
 	}
-	if(!(s->subdev_flags&SDF_RUNNING) && s->buf_int_count-s->buf_user_count==0){
+	if(!(s->subdev_flags&SDF_RUNNING) && async->buf_int_count-async->buf_user_count==0){
 		do_become_nonbusy(dev,s);
 	}
 	current->state=TASK_RUNNING;
@@ -1612,6 +1629,7 @@ printk("m is %d\n",m);
  */
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 {
+	comedi_async *async = s->async;
 #if 0
 	printk("becoming non-busy\n");
 #endif
@@ -1631,16 +1649,16 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	if(s->cur_trig.data){
-		if(s->cur_trig.data != s->prealloc_buf)
+		if(async == NULL || s->cur_trig.data != async->prealloc_buf)
 			kfree(s->cur_trig.data);
 
 		s->cur_trig.data=NULL;
 	}
 
-	s->buf_user_ptr=0;
-	s->buf_int_ptr=0;
-	s->buf_user_count=0;
-	s->buf_int_count=0;
+	async->buf_user_ptr=0;
+	async->buf_int_ptr=0;
+	async->buf_user_count=0;
+	async->buf_int_count=0;
 
 	s->busy=NULL;
 }
@@ -1728,7 +1746,8 @@ ok:
 static int comedi_close_v22(struct inode *inode,struct file *file)
 {
 	comedi_device *dev=comedi_get_device_by_minor(MINOR(inode->i_rdev));
-	comedi_subdevice *s=NULL;
+	comedi_subdevice *s = NULL;
+	comedi_async *async = NULL;
 	struct comedi_file_private *cfp = (struct comedi_file_private*) file->private_data;
 	int i;
 
@@ -1753,13 +1772,13 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 	// decrement mmap_counts
 	if(cfp->read_mmap_count)
 	{
-		s = dev->subdevices + dev->read_subdev;
-		s->mmap_count -= cfp->read_mmap_count;
+		async = dev->read_subdev->async;
+		async->mmap_count -= cfp->read_mmap_count;
 	}
 	if(cfp->write_mmap_count)
 	{
-		s = dev->subdevices + dev->write_subdev;
-		s->mmap_count -= cfp->write_mmap_count;
+		async = dev->write_subdev->async;
+		async->mmap_count -= cfp->write_mmap_count;
 	}
 	kfree(cfp);
 
@@ -1905,31 +1924,31 @@ void comedi_error(comedi_device *dev,const char *s)
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 {
+	comedi_async *async = s->async;
+
 	//DPRINTK("comedi_event %x\n",mask);
 
-	if(s->cb_mask&mask){
+	if(async->cb_mask&mask){
 		if(s->runflags&SRF_USER){
-			unsigned int subdev;
 
-			subdev = s - dev->subdevices;
 			if(dev->rt){
 #ifdef CONFIG_COMEDI_RT
 				// pend wake up
-				if(subdev==dev->read_subdev)
+				if(s==dev->read_subdev)
 					comedi_rt_pend_wakeup(&dev->read_wait);
-				if(subdev==dev->write_subdev)
+				if(s==dev->write_subdev)
 					comedi_rt_pend_wakeup(&dev->write_wait);
 #else
 				printk("BUG: comedi_event() code unreachable\n");
 #endif
 			}else{
-				if(subdev==dev->read_subdev)
+				if(s==dev->read_subdev)
 					wake_up_interruptible(&dev->read_wait);
-				if(subdev==dev->write_subdev)
+				if(s==dev->write_subdev)
 					wake_up_interruptible(&dev->write_wait);
 			}
 		}else{
-			if(s->cb_func)s->cb_func(mask,s->cb_arg);
+			if(async->cb_func)async->cb_func(mask,async->cb_arg);
 			/* XXX bug here.  If subdevice A is rt, and
 			 * subdevice B tries to callback to a normal
 			 * linux kernel function, it will be at the
@@ -1937,7 +1956,7 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 			 * common, I'm not going to worry about it. */
 		}
 	}
-	
+
 	if(mask&COMEDI_CB_EOA){
 		s->subdev_flags &= ~SDF_RUNNING;
 	}

@@ -186,7 +186,7 @@ unsigned int comedi_get_subdevice_flags(unsigned int minor,unsigned int subdevic
 	comedi_device *dev;
 	comedi_subdevice *s;
 
-	if (minor_to_subdev(minor,subdevice,&dev,&s)!=0) 
+	if (minor_to_subdev(minor,subdevice,&dev,&s)!=0)
 		return 0;
 		
 	return s->subdev_flags;
@@ -315,7 +315,7 @@ int comedi_get_krange(unsigned int minor,unsigned int subdevice,unsigned int cha
 		return -EINVAL;
 	}
 	memcpy(krange,lr->range+range,sizeof(comedi_krange));
-	
+
 	return 0;
 }
 
@@ -326,11 +326,15 @@ unsigned int comedi_get_buf_head_pos(unsigned int minor,unsigned int subdevice)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 
-	if (minor_to_subdev(minor,subdevice,&dev,&s)!=0) 
+	if (minor_to_subdev(minor,subdevice,&dev,&s)!=0)
 		return 0;
-		
-	return s->buf_int_count;
+
+	async = s->async;
+	if(async == NULL) return 0;
+
+	return async->buf_int_count;
 }
 
 /*
@@ -340,13 +344,15 @@ int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,unsigned
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 	int ret;
 
-	if ((ret=minor_to_subdev(minor,subdevice,&dev,&s))!=0) 
+	if ((ret=minor_to_subdev(minor,subdevice,&dev,&s))!=0)
 		return ret;
-		
-	s->buf_user_count=buf_user_count;
-	
+
+	async = s->async;
+	async->buf_user_count = buf_user_count;
+
 	return 0;
 }
 
@@ -354,22 +360,27 @@ int comedi_command(unsigned int minor,comedi_cmd *cmd)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 	int ret;
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
-	
+
 	if(cmd->subdev>=dev->n_subdevices)
 		return -ENODEV;
 
 	s=dev->subdevices+cmd->subdev;
+	async = s->async;
 	if(s->type==COMEDI_SUBD_UNUSED)
 		return -EIO;
-	
-	s->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
-	s->cb_mask |= COMEDI_CB_EOS;
 
-	s->cmd=*cmd;
+	if(async == NULL)
+		return -ENODEV;
+
+	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	async->cb_mask |= COMEDI_CB_EOS;
+
+	async->cmd=*cmd;
 
 #if 0
 	s->runflags=0;
@@ -380,13 +391,13 @@ int comedi_command(unsigned int minor,comedi_cmd *cmd)
 
 	s->subdev_flags |= SDF_RUNNING;
 
-	s->buf_user_ptr=0;
-	s->buf_user_count=0;
-	s->buf_int_ptr=0;
-	s->buf_int_count=0;
+	async->buf_user_ptr=0;
+	async->buf_user_count=0;
+	async->buf_int_ptr=0;
+	async->buf_int_count=0;
 
-	s->cur_trig.data_len = s->cmd.data_len;
-	s->cur_trig.data = s->cmd.data;
+	s->cur_trig.data_len = async->cmd.data_len;
+	s->cur_trig.data = async->cmd.data;
 
 	return s->do_cmd(dev,s);
 }
@@ -399,21 +410,24 @@ int comedi_command_test(unsigned int minor,comedi_cmd *cmd)
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
-	
+
 	if(cmd->subdev>=dev->n_subdevices)
 		return -ENODEV;
 
 	s=dev->subdevices+cmd->subdev;
 	if(s->type==COMEDI_SUBD_UNUSED)
 		return -EIO;
-	
+
+	if(s->async == NULL)
+		return -ENODEV;
+
 	return s->do_cmdtest(dev,s,cmd);
 }
 
 /*
 	COMEDI_TRIG
 	trigger ioctl
-	
+
 	arg:
 		pointer to trig structure
 	
@@ -437,17 +451,20 @@ int comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it)
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
-	
+
 	if(it->subdev>=dev->n_subdevices)
 		return -ENODEV;
 
 	s=dev->subdevices+it->subdev;
 	if(s->type==COMEDI_SUBD_UNUSED)
 		return -EIO;
-	
+
 	if(it->mode==0)
 		return comedi_trig_ioctl_mode0(dev,s,it);
-	
+
+	if(s->async == NULL)
+		return -ENODEV;
+
 	return comedi_trig_ioctl_modeN(dev,s,it);
 }
 
@@ -469,11 +486,11 @@ static int comedi_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi
 		ret = -EINVAL;
 		goto cleanup;
 	}
-	
+
 	/* make sure each element in channel/gain list is valid */
 	if((ret=check_chanlist(s,it->n_chan,it->chanlist))<0)
 		goto cleanup;
-	
+
 	if(it->data==NULL){
 		ret=-EINVAL;
 		goto cleanup;
@@ -490,9 +507,9 @@ static int comedi_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi
 	}
 
 	s->cur_trig=*it;
-	
+
 	ret=s->trig[0](dev,s,it);
-	
+
 	if(ret>it->n*it->n_chan){
 		rt_printk("comedi: (bug) trig returned too many samples\n");
 	}
@@ -506,6 +523,7 @@ cleanup:
 static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int ret=0;
+	comedi_async *async = s->async;
 
 	/* are we locked? (ioctl lock) */
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
@@ -521,15 +539,18 @@ static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi
 		ret = -EINVAL;
 		goto cleanup;
 	}
-	
+
+	if(async == NULL)
+		return -ENODEV;
+
 	/* make sure each element in channel/gain list is valid */
 	if((ret=check_chanlist(s,it->n_chan,it->chanlist))<0)
 		goto cleanup;
-	
-	s->buf_user_ptr=0;
-	s->buf_user_count=0;
-	s->buf_int_ptr=0;
-	s->buf_int_count=0;
+
+	async->buf_user_ptr=0;
+	async->buf_user_count=0;
+	async->buf_int_ptr=0;
+	async->buf_int_count=0;
 
 	if(it->data==NULL){
 		ret=-EINVAL;
@@ -552,9 +573,9 @@ static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi
 	}
 
 	s->cur_trig=*it;
-	
+
 	ret=s->trig[it->mode](dev,s,it);
-	
+
 	if(ret==0)return 0;
 
 cleanup:
@@ -681,7 +702,7 @@ error:
 	
 	arg:
 		subdevice number
-	
+
 	reads:
 		none
 	
@@ -756,33 +777,35 @@ int comedi_unlock(unsigned int minor,unsigned int subdev)
 	int ret=0;
 	comedi_subdevice *s;
 	comedi_device *dev;
+	comedi_async *async;
 
 	if(rtcomedi_lock_semaphore)
 		return -EBUSY;
-	
+
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
-	
+
 	if(subdev>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+subdev;
-	
+	async = s->async;
+
 	if(s->busy)
 		return -EBUSY;
 
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
 		return -EACCES;
-	
+
 	if(s->do_unlock)
 		s->do_unlock(dev,s);
 
 	if(s->lock==&rtcomedi_lock_semaphore){
 		s->lock=NULL;
 
-		s->cb_mask=0;
-		s->cb_func=NULL;
-		s->cb_arg=NULL;
-		
+		async->cb_mask=0;
+		async->cb_func=NULL;
+		async->cb_arg=NULL;
+
 		__MOD_DEC_USE_COUNT(dev->driver->module);
 	}
 
@@ -792,13 +815,13 @@ int comedi_unlock(unsigned int minor,unsigned int subdev)
 /*
 	COMEDI_CANCEL
 	cancel acquisition ioctl
-	
+
 	arg:
 		subdevice number
-	
+
 	reads:
 		nothing
-	
+
 	writes:
 		nothing
 
@@ -849,18 +872,20 @@ int comedi_register_callback(unsigned int minor,unsigned int subdev,
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	comedi_async *async;
 	int ret;
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
-	
+
 	if(subdev>=dev->n_subdevices)
 		return -ENODEV;
 
 	s=dev->subdevices+subdev;
+	async = s->async;
 	if(s->type==COMEDI_SUBD_UNUSED)
 		return -EIO;
-	
+
 	/* are we locked? (ioctl lock) */
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
 		return -EACCES;
@@ -870,13 +895,13 @@ int comedi_register_callback(unsigned int minor,unsigned int subdev,
 		return -EBUSY;
 
 	if(!mask){
-		s->cb_mask=0;
-		s->cb_func=NULL;
-		s->cb_arg=NULL;
+		async->cb_mask=0;
+		async->cb_func=NULL;
+		async->cb_arg=NULL;
 	}else{
-		s->cb_mask=mask;
-		s->cb_func=cb;
-		s->cb_arg=arg;
+		async->cb_mask=mask;
+		async->cb_func=cb;
+		async->cb_arg=arg;
 	}
 
 	return 0;

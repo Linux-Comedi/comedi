@@ -260,17 +260,17 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 	
 //	printk("atmio16d_interrupt!\n");
 
-	*(sampl_t *)(((void *)s->cur_trig.data)+s->buf_int_ptr) = inw(dev->iobase+AD_FIFO_REG);
-	s->buf_int_ptr += sizeof(sampl_t);
-	s->buf_int_count += sizeof(sampl_t);
-	
-	if((++s->cur_chan) >= s->cur_chanlist_len) {	/* one scan done */
-		s->cur_chan = 0;
+	*(sampl_t *)(((void *)s->cur_trig.data)+s->async->buf_int_ptr) = inw(dev->iobase+AD_FIFO_REG);
+	s->async->buf_int_ptr += sizeof(sampl_t);
+	s->async->buf_int_count += sizeof(sampl_t);
+
+	if((++s->async->cur_chan) >= s->async->cur_chanlist_len) {	/* one scan done */
+		s->async->cur_chan = 0;
 		comedi_eos(dev, s);
 	}
 
-	if (s->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
-		s->buf_int_ptr = 0;
+	if (s->async->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
+		s->async->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
 }
@@ -303,7 +303,7 @@ static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_c
 	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
-	
+
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 	/* note that mutual compatiblity is not an issue here */
 	if(cmd->scan_begin_src!=TRIG_FOLLOW &&
@@ -313,8 +313,8 @@ static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_c
 	   cmd->stop_src!=TRIG_NONE)err++;
 
 	if(err)return 2;
-	
-	
+
+
 	/* step 3: make sure arguments are trivially compatible */
 
 	if(cmd->start_arg!=0){
@@ -337,13 +337,13 @@ static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_c
 		}
 #endif
 	}
-	
+
 	if(cmd->convert_arg<10000){
 		cmd->convert_arg=10000;
 		err++;
 	}
-	
-	
+
+
 #if 0
 	if(cmd->convert_arg>SLOWEST_TIMER){
 		cmd->convert_arg=SLOWEST_TIMER;
@@ -371,18 +371,18 @@ static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_c
 
 static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->cmd;
+	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int timer, base_clock;
 	unsigned int sample_count, tmp, chan, gain;
 	int i;
-#ifdef DEBUG1	
+#ifdef DEBUG1
 	printk("atmio16d_ai_cmd\n");
 #endif
 	/* This is slowly becoming a working command interface. *
 	 * It is still uber-experimental */
-	
+
 	reset_counters(dev);
-	s->cur_chan	= 0;
+	s->async->cur_chan	= 0;
 	
 	/* check if scanning multiple channels */
 	if(cmd->chanlist_len < 2) {
@@ -765,9 +765,9 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->dac1_coding = it->options[12];
 
 	
-	dev->read_subdev = 0;
 	/* setup sub-devices */
 	s=dev->subdevices+0;
+	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;

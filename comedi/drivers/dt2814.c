@@ -223,7 +223,7 @@ static int dt2814_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 static int dt2814_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->cmd;
+	comedi_cmd *cmd = &s->async->cmd;
 	int chan;
 	int trigvar;
 
@@ -318,8 +318,8 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(dt2814_private)))<0)
 		return ret;
 
-	dev->read_subdev = 0;
 	s=dev->subdevices+0;
+	dev->read_subdev = s;
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=16;			/* XXX */

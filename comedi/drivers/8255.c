@@ -55,8 +55,8 @@
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-#define CALLBACK_ARG	((void *)(s->cb_arg))
-#define CALLBACK_FUNC	((int (*)(int,int,int,void *))(s->cb_func))
+#define CALLBACK_ARG	((void *)(s->async->cb_arg))
+#define CALLBACK_FUNC	((int (*)(int,int,int,void *))(s->async->cb_func))
 
 static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it);
 static int dev_8255_detach(comedi_device * dev);

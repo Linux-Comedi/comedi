@@ -345,11 +345,11 @@ static void interrupt_pcl812_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 
       conv_finish:
 
-	s->cur_trig.data[s->buf_int_ptr++] = ((hi << 8) | inb(dev->iobase + PCL812_AD_LO)) & 0xfff;
+	s->cur_trig.data[s->async->buf_int_ptr++] = ((hi << 8) | inb(dev->iobase + PCL812_AD_LO)) & 0xfff;
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
-	s->buf_int_count += sizeof(sampl_t);
+	s->async->buf_int_count += sizeof(sampl_t);
 
 	if ((++devpriv->int13_act_chan) >= s->cur_trig.n_chan) {	/* one scan done */
 		devpriv->int13_act_chan = 0;
@@ -366,8 +366,8 @@ static void interrupt_pcl812_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 		outb(CR_CHAN(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_MUX);	/* select next channel */
 	}
 
-	if (s->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
-		s->buf_int_ptr = 0;
+	if (s->async->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
+		s->async->buf_int_ptr = 0;
 		//devpriv->int13_act_ptr=0;
 		comedi_eobuf(dev, s);
 	}

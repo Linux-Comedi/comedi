@@ -56,6 +56,7 @@
 #endif
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
+typedef struct comedi_async_struct comedi_async;
 typedef struct comedi_driver_struct comedi_driver;
 typedef struct comedi_lrange_struct comedi_lrange;
 
@@ -68,39 +69,42 @@ struct comedi_subdevice_struct{
 
 	void		*private;
 
-	void		*prealloc_buf;		/* pre-allocated buffer */
-	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
-	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
+//	asyncronous specific stuff has been moved to comedi_async_struct
+//	void		*prealloc_buf;		/* pre-allocated buffer */
+//	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
+//	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
+	comedi_async *async;
 
 	void *lock;
 	void *busy;
 	unsigned int runflags;
-	
+
 	int io_bits;
-	
+
 	lsampl_t maxdata;		/* if maxdata==0, use list */
 	lsampl_t *maxdata_list;		/* list is channel specific */
-	
+
 	unsigned int flags;
 	unsigned int *flaglist;
 
 	comedi_lrange *range_table;
 	comedi_lrange **range_table_list;
-	
+
 	unsigned int *chanlist;		/* driver-owned chanlist (not used) */
-	
+
 #ifdef CONFIG_COMEDI_MODE_CORE
 	comedi_trig	cur_trig;	/* current trig structure */
 #endif
-	comedi_cmd	cmd;
-	
-	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
-	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */
-	volatile unsigned int buf_int_count;	/* byte count for interrupt */
-	unsigned int buf_user_count;		/* byte count for read() and write() */
-	unsigned int cur_chan;		/* useless channel marker for interrupt */
-	unsigned int cur_chanlist_len;
-	
+//	asyncronous specific stuff has been moved to comedi_async_struct
+//	comedi_cmd	cmd;
+
+//	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
+//	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */
+//	volatile unsigned int buf_int_count;	/* byte count for interrupt */
+//	unsigned int buf_user_count;		/* byte count for read() and write() */
+//	unsigned int cur_chan;		/* useless channel marker for interrupt */
+//	unsigned int cur_chanlist_len;
+
 #ifdef CONFIG_COMEDI_MODE_CORE
 	int (*trig[5])(comedi_device *,comedi_subdevice *,comedi_trig *);
 #endif
@@ -117,11 +121,33 @@ struct comedi_subdevice_struct{
 	int (*do_lock)(comedi_device *,comedi_subdevice *);
 	int (*do_unlock)(comedi_device *,comedi_subdevice *);
 
+//	asyncronous specific stuff has been moved to comedi_async_struct
+//	unsigned int cb_mask;
+//	int (*cb_func)(unsigned int flags,void *);
+//	void *cb_arg;
+
+	unsigned int state;
+};
+
+struct comedi_async_struct{
+	comedi_subdevice *subdev;	/* the subdevice this buffer is associated with */
+
+	void		*prealloc_buf;		/* pre-allocated buffer */
+	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
+	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
+	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
+	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */
+	volatile unsigned int buf_int_count;	/* byte count for interrupt */
+	unsigned int buf_user_count;		/* byte count for read() and write() */
+	unsigned int cur_chan;		/* useless channel marker for interrupt */
+	unsigned int cur_chanlist_len;
+
+	comedi_cmd cmd;
+
+	// callback stuff
 	unsigned int cb_mask;
 	int (*cb_func)(unsigned int flags,void *);
 	void *cb_arg;
-
-	unsigned int state;
 };
 
 struct comedi_driver_struct{
@@ -164,10 +190,10 @@ struct comedi_device_struct{
 	int iosize;
 	int irq;
 
-	int read_subdev;
+	comedi_subdevice *read_subdev;
 	wait_queue_head_t read_wait;
 
-	int write_subdev;
+	comedi_subdevice *write_subdev;
 	wait_queue_head_t write_wait;
 };
 

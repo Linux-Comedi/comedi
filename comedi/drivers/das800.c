@@ -364,7 +364,8 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 	short i;		/* loop index */
 	sampl_t dataPoint;
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + dev->read_subdev;	/* analog input subdevice */
+	comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
+	comedi_async *async = s->async;
 	int status;
 	unsigned long irq_flags;
 
@@ -390,20 +391,20 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->count > 0 || devpriv->forever == 1)
 		{
 			/* write data point to buffer */
-			if(s->buf_int_ptr >= s->prealloc_bufsz )
+			if(async->buf_int_ptr >= async->prealloc_bufsz )
 			{
-				s->buf_int_ptr = 0;
+				async->buf_int_ptr = 0;
 				comedi_eobuf(dev, s);
 			}
-			*((sampl_t *)((void *)s->prealloc_buf + s->buf_int_ptr)) = dataPoint;
-			s->cur_chan++;
-			if( s->cur_chan >= s->cur_chanlist_len )
+			*((sampl_t *)((void *)async->prealloc_buf + async->buf_int_ptr)) = dataPoint;
+			async->cur_chan++;
+			if( async->cur_chan >= async->cur_chanlist_len )
 			{
-				s->cur_chan = 0;
+				async->cur_chan = 0;
 				comedi_eos(dev, s);
 			}
-			s->buf_int_count += sizeof(sampl_t);
-			s->buf_int_ptr += sizeof(sampl_t);
+			async->buf_int_count += sizeof(sampl_t);
+			async->buf_int_ptr += sizeof(sampl_t);
 			if(devpriv->count > 0) devpriv->count--;
 		}
 		/* read 16 bits from dev->iobase and dev->iobase + 1 */
@@ -501,8 +502,8 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* analog input subdevice */
-	dev->read_subdev = 0;
 	s = dev->subdevices + 0;
+	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 8;
@@ -697,6 +698,7 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	int startChan, endChan, scan, gain;
 	int conv_bits;
 	unsigned long irq_flags;
+	comedi_async *async = s->async;
 
 	if(!dev->irq)
 	{
@@ -707,8 +709,8 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	disable_das800(dev);
 
 	/* set channel scan limits */
-	startChan = CR_CHAN(s->cmd.chanlist[0]);
-	endChan = (startChan + s->cmd.chanlist_len - 1) % 8;
+	startChan = CR_CHAN(async->cmd.chanlist[0]);
+	endChan = (startChan + async->cmd.chanlist_len - 1) % 8;
 	scan = (endChan << 3) | startChan;
 
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
@@ -717,16 +719,16 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	/* set gain */
-	gain = CR_RANGE(s->cmd.chanlist[0]);
+	gain = CR_RANGE(async->cmd.chanlist[0]);
 	if( gain > 0)
 		gain += 0x7;
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
 
-	switch(s->cmd.stop_src)
+	switch(async->cmd.stop_src)
 	{
 		case TRIG_COUNT:
-			devpriv->count = s->cmd.stop_arg * s->cmd.chanlist_len;
+			devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
 			devpriv->forever = 0;
 			break;
 		case TRIG_NONE:
@@ -742,14 +744,14 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	 */
 	conv_bits = 0;
 	conv_bits |= EACS | IEOC;
-	if(s->cmd.start_src == TRIG_EXT)
+	if(async->cmd.start_src == TRIG_EXT)
 		conv_bits |= DTEN;
-	switch(s->cmd.convert_src)
+	switch(async->cmd.convert_src)
 	{
 		case TRIG_TIMER:
 			conv_bits |= CASC | ITE;
 			/* set conversion frequency */
-			i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(s->cmd.convert_arg), s->cmd.flags & TRIG_ROUND_MASK);
+			i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(async->cmd.convert_arg), async->cmd.flags & TRIG_ROUND_MASK);
 			if(das800_set_frequency(dev) < 0)
 			{
 				comedi_error(dev, "Error setting up counters");

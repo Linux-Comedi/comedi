@@ -215,11 +215,11 @@ static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
 		return;
 	}
 
-	*(sampl_t *)(((void *)s->cur_trig.data)+s->buf_int_ptr)=0;
-	s->buf_int_ptr+=sizeof(sampl_t);
-	s->buf_int_count+=sizeof(sampl_t);
-	if(s->buf_int_ptr>=s->cur_trig.data_len){
-		s->buf_int_ptr=0;
+	*(sampl_t *)(((void *)s->cur_trig.data)+s->async->buf_int_ptr)=0;
+	s->async->buf_int_ptr+=sizeof(sampl_t);
+	s->async->buf_int_count+=sizeof(sampl_t);
+	if(s->async->buf_int_ptr>=s->cur_trig.data_len){
+		s->async->buf_int_ptr=0;
 		comedi_eobuf(dev,s);
 	}
 	
@@ -287,7 +287,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_bits = parport_insn_c;
 
 	s=dev->subdevices+3;
-	dev->read_subdev=3;
+	dev->read_subdev=s;
 	if(irq){
 		s->type=COMEDI_SUBD_DI;
 		s->subdev_flags=SDF_READABLE;

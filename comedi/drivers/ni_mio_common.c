@@ -351,19 +351,19 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	unsigned int mask;
 
 	mask=(1<<boardtype.adbits)-1;
-	j=s->cur_chan;
+	j=s->async->cur_chan;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
 		d^=devpriv->ai_xorlist[j];
 		d&=mask;
 		data[i]=d;
 		j++;
-		if(j>=s->cur_chanlist_len){
+		if(j>=s->async->cur_chanlist_len){
 			j=0;
 			//s->event_mask |= COMEDI_CB_EOS;
 		}
 	}
-	s->cur_chan=j;
+	s->async->cur_chan=j;
 }
 
 #ifdef TRY_DMA
@@ -423,24 +423,24 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 	   ignore them.
 
 	*/
-	
+
 	n=boardtype.ai_fifo_depth/2;
 
 	/* this makes the assumption that the buffer length is
 	   greater than the half-fifo depth. */
 
-	if(s->buf_int_ptr+n*sizeof(sampl_t)>=s->cur_trig.data_len){
-		m=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
-		ni_ai_fifo_read(dev,s,((void *)(s->cur_trig.data))+s->buf_int_ptr,m);
-		s->buf_int_count+=m*sizeof(sampl_t);
+	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>=s->cur_trig.data_len){
+		m=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		ni_ai_fifo_read(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m);
+		s->async->buf_int_count+=m*sizeof(sampl_t);
 		n-=m;
-		s->buf_int_ptr=0;
+		s->async->buf_int_ptr=0;
 
 		comedi_eobuf(dev,s);
 	}
-	ni_ai_fifo_read(dev,s,((void *)(s->cur_trig.data))+s->buf_int_ptr,n);
-	s->buf_int_count+=n*sizeof(sampl_t);
-	s->buf_int_ptr+=n*sizeof(sampl_t);
+	ni_ai_fifo_read(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	s->async->buf_int_count+=n*sizeof(sampl_t);
+	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
 	comedi_bufcheck(dev,s);
 }
@@ -462,13 +462,13 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	*/
 
 	mask=(1<<boardtype.adbits)-1;
-	j=s->cur_chan;
-	data=((void *)s->cur_trig.data)+s->buf_int_ptr;
+	j=s->async->cur_chan;
+	data=((void *)s->cur_trig.data)+s->async->buf_int_ptr;
 	while(1){
-		n=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
+		n=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
 			if(ni_readw(AI_Status_1)&AI_FIFO_Empty_St){
-				s->cur_chan=j;
+				s->async->cur_chan=j;
 				return;
 			}
 			d=ni_readw(ADC_FIFO_Data_Register);
@@ -476,15 +476,15 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			d&=mask;
 			*data=d;
 			j++;
-			if(j>=s->cur_chanlist_len){
+			if(j>=s->async->cur_chanlist_len){
 				j=0;
 				//s->event_mask |= COMEDI_CB_EOS;
 			}
 			data++;
-			s->buf_int_ptr+=sizeof(sampl_t);
-			s->buf_int_count+=sizeof(sampl_t);
+			s->async->buf_int_ptr+=sizeof(sampl_t);
+			s->async->buf_int_count+=sizeof(sampl_t);
 		}
-		s->buf_int_ptr=0;
+		s->async->buf_int_ptr=0;
 		data=s->cur_trig.data;
 		comedi_eobuf(dev,s);
 	}
@@ -596,14 +596,14 @@ static int ni_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	int i;
 	int chan;
 	int wsave;
-	
+
 	wsave=win_save();
 
 	win_out(1,ADC_FIFO_Clear);
 
 	/* interrupt on errors */
 	win_out(0x0020,Interrupt_A_Enable_Register) ;
-	
+
 	for(chan=0;chan<it->n_chan;chan++){
 		ni_load_channelgain_list(dev,1,it->chanlist+chan,(it->flags&TRIG_DITHER)==TRIG_DITHER);
 #if 0
@@ -615,7 +615,7 @@ static int ni_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 
 		win_out(1,AI_Command_1_Register);
-	
+
 		/* I don't know how long it takes to access the bus,
 		   so shorter loops might cause timeouts */
 		for(i=0;i<NI_TIMEOUT;i++){
@@ -645,14 +645,14 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	int i,n;
 	int wsave;
 	unsigned int mask,sign;
-	
+
 	wsave=win_save();
 
 	win_out(1,ADC_FIFO_Clear);
 
 	/* interrupt on errors */
 	win_out(0x0020,Interrupt_A_Enable_Register) ;
-	
+
 	//ni_load_channelgain_list(dev,1,&insn->chanspec,(insn->flags&TRIG_DITHER)==TRIG_DITHER);
 	ni_load_channelgain_list(dev,1,&insn->chanspec,0);
 
@@ -696,7 +696,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 	}else{
 		devpriv->changain_state=0;
 	}
-	
+
 	win_out(1,Configuration_Memory_Clear);
 
 	sign=1<<(boardtype.adbits-1);
@@ -704,7 +704,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 		chan=CR_CHAN(list[i]);
 		range=CR_RANGE(list[i]);
 		aref=CR_AREF(list[i]);
-		
+
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_xorlist[i]=(range<8)?sign:0;
@@ -882,7 +882,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int wsave;
-	comedi_cmd *cmd=&s->cmd;
+	comedi_cmd *cmd=&s->async->cmd;
 	int timer;
 	int mode1=0; /* mode1 is needed for both stop and convert */
 	int mode2=0;
@@ -906,7 +906,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
 		win_out(mode1,AI_Mode_1_Register);
-	
+
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
@@ -918,7 +918,7 @@ devpriv->n_left = 0;
 		/* stage number of scans */
 		win_out(0,AI_SC_Load_A_Registers);
 		win_out(0,AI_SC_Load_A_Registers+1);
-	
+
 		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
 		win_out(mode1,AI_Mode_1_Register);
 
@@ -947,11 +947,11 @@ devpriv->n_left = 1;
 	  	AI_START_STOP_Select_Register:
 		    AI_START_Polarity=0 (?)	rising edge
 		    AI_START_Edge=1		edge triggered
-		    AI_START_Sync=1 (?)		
+		    AI_START_Sync=1 (?)
 		    AI_START_Select=0		SI_TC
 		    AI_STOP_Polarity=0		rising edge
 		    AI_STOP_Edge=0		level
-		    AI_STOP_Sync=1		
+		    AI_STOP_Sync=1
 		    AI_STOP_Select=19		external pin (configuration mem)
 		 */
 		win_out(AI_START_Edge|AI_START_Sync|
@@ -1032,7 +1032,7 @@ devpriv->n_left = 1;
 			AI_Error_Interrupt_Enable|
 			AI_SC_TC_Interrupt_Enable;
 
-		if(s->cb_mask&COMEDI_CB_EOS){
+		if(s->async->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
 		}else{
@@ -1069,7 +1069,7 @@ devpriv->n_left = 1;
 
 	/* end configuration */
 	win_out(AI_Configuration_End,Joint_Reset_Register);
-	
+
 	switch(cmd->scan_begin_src){
 	case TRIG_TIMER:
 		/* AI_SI2_Arm, AI_SI_Arm, AI_DIV_Arm, AI_SC_Arm */
@@ -1106,7 +1106,7 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	trigvar1 = ni_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
 
 	ni_load_channelgain_list(dev,it->n_chan,it->chanlist,(it->flags&TRIG_DITHER)==TRIG_DITHER);
-	
+
 	/* start configuration */
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
@@ -1121,21 +1121,21 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
 		win_out(0x000d,AI_Mode_1_Register);
 	}
-	
+
 	/* load SC (Scan Count) */
 	win_out(0x20,AI_Command_1_Register);
-	
+
 	/*
 	    AI_SI_Special_Trigger_Delay=0
 	    AI_Pre_Trigger=0
 	  AI_START_STOP_Select_Register:
 	    AI_START_Polarity=0 (?)	rising edge
 	    AI_START_Edge=1		edge triggered
-	    AI_START_Sync=1 (?)		
+	    AI_START_Sync=1 (?)
 	    AI_START_Select=0		SI_TC
 	    AI_STOP_Polarity=0		rising edge
 	    AI_STOP_Edge=0		level
-	    AI_STOP_Sync=1		
+	    AI_STOP_Sync=1
 	    AI_STOP_Select=19		external pin (configuration mem)
 	 */
 	win_out(AI_START_Edge|AI_START_Sync|
@@ -1176,7 +1176,7 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		     AI_SC_TC_Interrupt_Enable;
 		//bits|=Pass_Thru_0_Interrupt_Enable;
 
-		if(s->cb_mask&COMEDI_CB_EOS){
+		if(s->async->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
 		}else{
@@ -1211,7 +1211,7 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	}
 
 #ifdef PCIDMA
-#if 0 
+#if 0
 	Strobes_Register
 	AI_AO_Select_Register
 	Interrupt_B_Enable_Register MSC_Pass_thru
@@ -1228,7 +1228,7 @@ rt_printk("end config\n");
 #endif
 	/* end configuration */
 	win_out(AI_Configuration_End,Joint_Reset_Register);
-	
+
 	/* AI_SI2_Arm, AI_SI_Arm, AI_DIV_Arm, AI_SC_Arm */
 	win_out(0x1540,AI_Command_1_Register);
 
@@ -1259,7 +1259,7 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 	trigvar1 = ni_ns_to_timer(&it->trigvar1,TRIG_ROUND_NEAREST);
 	ni_load_channelgain_list(dev,it->n_chan,it->chanlist,(it->flags&TRIG_DITHER)==TRIG_DITHER);
-	
+
 	/* start configuration */
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
@@ -1274,27 +1274,27 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
 		win_out(0x000d,AI_Mode_1_Register);
 	}
-	
+
 	/* load SC (Scan Count) */
 	win_out(0x20,AI_Command_1_Register);
-	
+
 	/*
 	    AI_SI_Special_Trigger_Delay=0
 	    AI_Pre_Trigger=0
 	  AI_START_STOP_Select_Register:
 	    AI_START_Polarity=0 (?)	rising edge
 	    AI_START_Edge=1		edge triggered
-	    AI_START_Sync=1 (?)		
+	    AI_START_Sync=1 (?)
 	    AI_START_Select=1		PFI0
 	    AI_STOP_Polarity=0		rising edge
 	    AI_STOP_Edge=0		level
-	    AI_STOP_Sync=1		
+	    AI_STOP_Sync=1
 	    AI_STOP_Select=19		external pin (configuration mem)
 	*/
 	win_out(AI_START_Edge|AI_START_Sync|AI_START_Select(1)|
 		AI_STOP_Select(19)|AI_STOP_Sync,
 		AI_START_STOP_Select_Register);
-	
+
 #if 0
 	win_out((it->trigvar>>16),AI_SI_Load_A_Registers);
 	win_out((it->trigvar&0xffff),AI_SI_Load_A_Registers+1);
@@ -1329,7 +1329,7 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		/* interrupt on FIFO, errors, SC_TC */
 		bits=0x00a1;
 
-		if(s->cb_mask&COMEDI_CB_EOS){
+		if(s->async->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
 		}else{
@@ -1363,7 +1363,7 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 		/* XXX start polling if necessary */
 	}
-	
+
 	/* end configuration */
 	win_out(AI_Configuration_End,Joint_Reset_Register);
 
@@ -1410,21 +1410,21 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 {
 	int n,m;
 
-	n=(s->buf_int_count-s->buf_user_count)/sizeof(sampl_t);
+	n=(s->async->buf_int_count-s->async->buf_user_count)/sizeof(sampl_t);
 	if(n==0)return 0;
 	if(n>boardtype.ao_fifo_depth/2)
 		n=boardtype.ao_fifo_depth/2;
 
-	if(s->buf_int_ptr+n*sizeof(sampl_t)>s->cur_trig.data_len){
-		m=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
-		ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->buf_int_ptr,m);
-		s->buf_int_count+=m*sizeof(sampl_t);
-		s->buf_int_ptr=0;
+	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>s->cur_trig.data_len){
+		m=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m);
+		s->async->buf_int_count+=m*sizeof(sampl_t);
+		s->async->buf_int_ptr=0;
 		n-=m;
 	}
-	ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->buf_int_ptr,n);
-	s->buf_int_count+=n*sizeof(sampl_t);
-	s->buf_int_ptr+=n*sizeof(sampl_t);
+	ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	s->async->buf_int_count+=n*sizeof(sampl_t);
+	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
 	comedi_bufcheck(dev,s);
 
@@ -1439,14 +1439,14 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	win_out(0,DAC_FIFO_Clear);
 
 	/* load some data */
-	n=(s->buf_int_count-s->buf_user_count)/sizeof(sampl_t);
+	n=(s->async->buf_int_count-s->async->buf_user_count)/sizeof(sampl_t);
 	if(n==0)return 0;
 	if(n>boardtype.ao_fifo_depth)
 		n=boardtype.ao_fifo_depth;
 
-	ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->buf_int_ptr,n);
-	s->buf_int_count+=n*sizeof(sampl_t);
-	s->buf_int_ptr+=n*sizeof(sampl_t);
+	ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	s->async->buf_int_count+=n*sizeof(sampl_t);
+	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
 	return n;
 }
@@ -1471,7 +1471,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	chan=CR_CHAN(insn->chanspec);
 
 	conf=chan<<8;
-	
+
 	/* XXX check range with current range in flaglist[chan] */
 	/* should update calibration if range changes (ick) */
 
@@ -1480,7 +1480,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 		conf |= (range&1)^1;
 	}
 	conf |= (range&2)<<1;
-	
+
 #if 0
 	/* XXX oops.  forgot flags in insn! */
 	/* not all boards can deglitch, but this shouldn't hurt */
@@ -1498,7 +1498,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 	if(((range&1)==0) || !boardtype.ao_unipolar)
 		dat^=(1<<(boardtype.aobits-1));
-	
+
 	ni_writew(dat,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 
 	return 1;
@@ -1506,7 +1506,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->cmd;
+	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int conf;
 	unsigned int chan;
 	unsigned int range;
@@ -2038,8 +2038,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	
 	/* analog input subdevice */
 
-	dev->read_subdev=0;
 	s=dev->subdevices+0;
+	dev->read_subdev=s;
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
 	s->subdev_flags|=SDF_DITHER;
@@ -2056,12 +2056,12 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
 	s->cancel=ni_ai_reset;
-	
+
 	/* analog output subdevice */
 	/* XXX what about boards without ao? */
 
-	dev->write_subdev=1;
 	s=dev->subdevices+1;
+	dev->write_subdev=s;
 	if(boardtype.n_aochan){
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITEABLE|SDF_RT|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;

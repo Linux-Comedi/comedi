@@ -451,47 +451,47 @@ conv_finish:
 		comedi_error_done(dev,s);
 		return;
         }
-        s->buf_int_ptr+=sizeof(sampl_t);
-        s->buf_int_count+=sizeof(sampl_t);
+        s->async->buf_int_ptr+=sizeof(sampl_t);
+        s->async->buf_int_count+=sizeof(sampl_t);
 
 
         if (++devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
 
         if ((++devpriv->int13_act_chan)>=s->cur_trig.n_chan) { /* one scan done */
 		devpriv->int13_act_chan=0;
-		if (s->cur_trig.flags & TRIG_WAKE_EOS) { comedi_eos(dev,s); } 
+		if (s->cur_trig.flags & TRIG_WAKE_EOS) { comedi_eos(dev,s); }
 						    else { comedi_bufcheck(dev,s); }
 		// rt_printk("E");
 		devpriv->int13_act_scan++;
         }
 
-	if (s->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
-		s->buf_int_ptr=0;
+	if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+		s->async->buf_int_ptr=0;
 		devpriv->buf_ptr=0;
 		//printk("B ");
-		comedi_eobuf(dev,s);    
+		comedi_eobuf(dev,s);
         }
 
 	if (!devpriv->neverending_ai)
 		if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
 			pcl818_ai_cancel(dev,s);
-	        	comedi_done(dev,s); 
+	        	comedi_done(dev,s);
 			return;
 		}
 }
 
-/* 
+/*
 ==============================================================================
    analog input dma mode 1 & 3, 818 cards
 */
-static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *regs) 
+static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int i,len,bufptr;
 	unsigned long flags;
         sampl_t *ptr;
-   
+
         disable_dma(devpriv->dma);
         devpriv->next_dma_buf=1-devpriv->next_dma_buf;
         if ((devpriv->dma_runs_to_end)>-1) {  // switch dma bufs
@@ -521,8 +521,8 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 
 		s->cur_trig.data[devpriv->buf_ptr++]=ptr[bufptr++] >> 4; // get one sample
 
-		s->buf_int_ptr+=sizeof(sampl_t);
-		s->buf_int_count+=sizeof(sampl_t);
+		s->async->buf_int_ptr+=sizeof(sampl_t);
+		s->async->buf_int_count+=sizeof(sampl_t);
 		devpriv->act_chanlist_pos++;
 
 		if (devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
@@ -532,29 +532,29 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 		        devpriv->int13_act_scan++;
 		}
 
-		if (s->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
-	    		s->buf_int_ptr=0;
+		if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+	    		s->async->buf_int_ptr=0;
 			devpriv->buf_ptr=0;
-			comedi_eobuf(dev,s);    
+			comedi_eobuf(dev,s);
 		}
 
 		if (!devpriv->neverending_ai)
 	    		if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
 				pcl818_ai_cancel(dev,s);
-				comedi_done(dev,s); 
-				// printk("done int ai13 dma\n"); 
+				comedi_done(dev,s);
+				// printk("done int ai13 dma\n");
 				return;
 			}
 	}
-	
+
 	if (len>0)  comedi_bufcheck(dev,s);
 }
 
-/* 
+/*
 ==============================================================================
    analog input dma mode 1 & 3 over RTC, 818 cards
 */
-static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs *regs) 
+static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs *regs)
 {
         comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -564,7 +564,7 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
         sampl_t *dmabuf=(sampl_t *)devpriv->dmabuf[0];
 
         //outb(2,0x378);
-        switch(devpriv->int818_mode) { 
+        switch(devpriv->int818_mode) {
 	case INT_TYPE_AI1_DMA_RTC:
 	case INT_TYPE_AI3_DMA_RTC:
 		tmp = (CMOS_READ(RTC_INTR_FLAGS) & 0xF0);
@@ -583,7 +583,7 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 		if (ofs_dats<0) ofs_dats=(devpriv->dmasamplsize)+ofs_dats;
 		if (!ofs_dats) return; // exit=no new samples from last call
 		// obsluz data
-		i=devpriv->last_top_dma-1; 
+		i=devpriv->last_top_dma-1;
 		i&=(devpriv->dmasamplsize-1);
 
 		if (dmabuf[i]!=MAGIC_DMA_WORD) { // DMA overflow!
@@ -594,9 +594,9 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			return;
 		}
 		//rt_printk("r %ld ",ofs_dats);
-  
+
 		bufptr=devpriv->last_top_dma;
-  
+
 		for (i=0; i<ofs_dats; i++) {
 			if ((dmabuf[bufptr] & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
 				rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d!=%d !\n",(dmabuf[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
@@ -604,12 +604,12 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 				comedi_error_done(dev,s);
 				return;
 			}
-	 
+
 			s->cur_trig.data[devpriv->buf_ptr++]=dmabuf[bufptr++] >> 4; // get one sample
 			bufptr&=(devpriv->dmasamplsize-1);
 
-			s->buf_int_ptr+=sizeof(sampl_t);
-			s->buf_int_count+=sizeof(sampl_t);
+			s->async->buf_int_ptr+=sizeof(sampl_t);
+			s->async->buf_int_count+=sizeof(sampl_t);
 			devpriv->act_chanlist_pos++;
 
 			if (devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
@@ -619,22 +619,22 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 				devpriv->int13_act_scan++;
 			}
 
-			if (s->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
-				s->buf_int_ptr=0;
+			if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+				s->async->buf_int_ptr=0;
 				devpriv->buf_ptr=0;
-				comedi_eobuf(dev,s);    
+				comedi_eobuf(dev,s);
 			}
 
 			if (!devpriv->neverending_ai)
 				if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
 					pcl818_ai_cancel(dev,s);
-					comedi_done(dev,s); 
-					//printk("done int ai13 dma\n"); 
+					comedi_done(dev,s);
+					//printk("done int ai13 dma\n");
 					return;
 				}
 		}
 
-		devpriv->last_top_dma=bufptr; 
+		devpriv->last_top_dma=bufptr;
 		bufptr--;
 		bufptr&=(devpriv->dmasamplsize-1);
 		dmabuf[bufptr]=MAGIC_DMA_WORD;
@@ -647,16 +647,16 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 
 }
 
-/* 
+/*
 ==============================================================================
    analog input interrupt mode 1 & 3, 818HD/HG cards
 */
-static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *regs) 
+static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *regs)
 {
         comedi_device *dev = d;
         comedi_subdevice *s = dev->subdevices + 0;
         int i,len,lo;
-   
+
         outb(0, dev->iobase + PCL818_FI_INTCLR);  // clear fifo int request
 
         lo=inb(dev->iobase + PCL818_FI_STATUS);
@@ -674,10 +674,10 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 		comedi_error_done(dev,s);
 		return;
 	}
-   
+
         if (lo&2) { len=512; }
 	    else { len=0; }
-  
+
         for (i=0;i<len;i++) {
 		lo=inb(dev->iobase + PCL818_FI_DATALO);
 		if ((lo & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
@@ -688,8 +688,8 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 		}
 
 		s->cur_trig.data[devpriv->buf_ptr++]=(lo >> 4)|(inb(dev->iobase + PCL818_FI_DATAHI) << 4); // get one sample
-		s->buf_int_ptr+=sizeof(sampl_t);
-		s->buf_int_count+=sizeof(sampl_t);
+		s->async->buf_int_ptr+=sizeof(sampl_t);
+		s->async->buf_int_count+=sizeof(sampl_t);
 		devpriv->act_chanlist_pos++;
 
 		if (devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
@@ -699,8 +699,8 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 			devpriv->int13_act_scan++;
 		}
 
-		if (s->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
-			s->buf_int_ptr=0;
+		if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+			s->async->buf_int_ptr=0;
 			devpriv->buf_ptr=0;
     			comedi_eobuf(dev,s);    
 		}

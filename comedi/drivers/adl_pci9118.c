@@ -263,7 +263,7 @@ static void move_block_from_dma_12bit(comedi_device *dev,comedi_subdevice *s,sam
 {
 	int i,j;
 
-	j=s->cur_chan;
+	j=s->async->cur_chan;
 	for(i=0;i<n;i++){
 #ifdef PCL9118_PARANOIDCHECK
 		if ((*dma & 0x0f00)!=devpriv->chanlist[j]) { // data dropout!
@@ -283,7 +283,7 @@ static void move_block_from_dma_12bit(comedi_device *dev,comedi_subdevice *s,sam
 				comedi_eos(dev,s);  
 		}
 	}
-	s->cur_chan=j;
+	s->async->cur_chan=j;
 }
 
 /* 
@@ -293,7 +293,7 @@ static void move_block_from_dma_16bit(comedi_device *dev,comedi_subdevice *s,sam
 {
 	int i,j;
 
-	j=s->cur_chan;
+	j=s->async->cur_chan;
 	for(i=0;i<n;i++){
 		*data=((*dma & 0xff)<<8)|((*dma & 0xff00)>>8); // get one sample
 		data++; dma++;
@@ -305,7 +305,7 @@ static void move_block_from_dma_16bit(comedi_device *dev,comedi_subdevice *s,sam
 				comedi_eos(dev,s);  
 		}
 	}
-	s->cur_chan=j;
+	s->async->cur_chan=j;
 }
 
 /* 
@@ -361,21 +361,21 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 	
         ptr=(sampl_t *)devpriv->dmabuf_virt[devpriv->dma_actbuf];
 
-	if(s->buf_int_ptr+samplesinbuf*sizeof(sampl_t)>=devpriv->ai1234_data_len){
-		m=(devpriv->ai1234_data_len-s->buf_int_ptr)/sizeof(sampl_t);
-		if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->buf_int_ptr,m); }
-					    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->buf_int_ptr,m); }
-		s->buf_int_count+=m*sizeof(sampl_t);
+	if(s->async->buf_int_ptr+samplesinbuf*sizeof(sampl_t)>=devpriv->ai1234_data_len){
+		m=(devpriv->ai1234_data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m); }
+					    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m); }
+		s->async->buf_int_count+=m*sizeof(sampl_t);
 		ptr+=m*sizeof(sampl_t);
 		samplesinbuf-=m;
-		s->buf_int_ptr=0;
+		s->async->buf_int_ptr=0;
 
 		comedi_eobuf(dev,s);
 	}
-	if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->buf_int_ptr,samplesinbuf); }
-				    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->buf_int_ptr,samplesinbuf); }
-	s->buf_int_count+=samplesinbuf*sizeof(sampl_t);
-	s->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
+	if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,samplesinbuf); }
+				    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,samplesinbuf); }
+	s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
+	s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
 
 
 	if (!devpriv->neverending_ai)
@@ -461,7 +461,7 @@ static int pci9118_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 	inl(dev->iobase+PCI9118_ADSTAT); // flush A/D status register
 
         devpriv->ai1234_act_scan=0;
-        s->cur_chan=0;
+        s->async->cur_chan=0;
         devpriv->ai1234_buf_ptr=0;
         devpriv->neverending_ai=0;
 
@@ -610,7 +610,7 @@ static int pci9118_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tr
 /* 
 ==============================================================================
 */
-static int pci9118_ai_mode2(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+static int pci9118_ai_mode2(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
         return pci9118_ai_mode1234(2, dev, s, it);
 }
@@ -1010,7 +1010,7 @@ static int pci9118_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 */
 static int pci9118_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd=&s->cmd;
+	comedi_cmd *cmd=&s->async->cmd;
 	
 	devpriv->ai1234_flags=cmd->flags;
 	devpriv->ai1234_n_chan=cmd->chanlist_len;
@@ -1187,7 +1187,7 @@ int pci9118_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 	devpriv->ai_do=0;
         devpriv->ai1234_act_scan=0;
-        s->cur_chan=0;
+        s->async->cur_chan=0;
         devpriv->ai1234_buf_ptr=0;
         devpriv->neverending_ai=0;
 	devpriv->ai4_status=0;
@@ -1357,8 +1357,8 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
         if((ret=alloc_subdevices(dev))<0)
     		return ret;
 
-	dev->read_subdev = 0;
 	s = dev->subdevices + 0;
+	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE|SDF_RT|SDF_COMMON|SDF_GROUND|SDF_DIFF;
 	if (devpriv->usemux) { s->n_chan = devpriv->usemux; }

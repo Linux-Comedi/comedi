@@ -60,6 +60,7 @@ int comedi_device_detach(comedi_device *dev)
 {
 	int i;
 	comedi_subdevice *s;
+	comedi_async *async;
 
 	if(!dev->attached)
 		return 0;
@@ -72,8 +73,12 @@ int comedi_device_detach(comedi_device *dev)
 
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
-		if(s->prealloc_buf)
-			rvfree(s->prealloc_buf,s->prealloc_bufsz);
+		if(s->async)
+		{
+			async = s->async;
+			rvfree(async->prealloc_buf,async->prealloc_bufsz);
+			kfree(async);
+		}
 	}
 
 	if(dev->driver){
@@ -104,8 +109,6 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	memset(dev,0,sizeof(dev));
 	dev->minor=minor;
 	dev->use_count = use_count;
-	dev->read_subdev=-1;
-	dev->write_subdev=-1;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
 		if(driv->register_boards && driv->num_boards){
@@ -240,6 +243,7 @@ static void postconfig(comedi_device *dev)
 	int i;
 	int have_trig;
 	comedi_subdevice *s;
+	comedi_async *async = NULL;
 
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
@@ -261,15 +265,14 @@ static void postconfig(comedi_device *dev)
 			s->trig[4]=command_trig;
 		}
 		if(s->do_cmd || have_trig){
-			s->prealloc_bufsz=1024*128;
-		}else{
-			s->prealloc_bufsz=0;
-		}
-
-		if(s->prealloc_bufsz){
+      async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
+			memset(async, 0, sizeof(comedi_async));
+			s->async = async;
+			async->subdev = s;
+			async->prealloc_bufsz=1024*128;
 			/* XXX */
-			s->prealloc_buf=rvmalloc(s->prealloc_bufsz);
-			if(!s->prealloc_buf){
+			async->prealloc_buf=rvmalloc(async->prealloc_bufsz);
+			if(!async->prealloc_buf){
 				printk("ENOMEM\n");
 			}
 		}
@@ -447,7 +450,7 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	int ret;
 	lsampl_t new_data[2];
 	unsigned int chan;
-	
+
 	chan = CR_CHAN(insn->chanspec);
 
 	memset(&new_insn,0,sizeof(new_insn));
@@ -553,11 +556,12 @@ static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_tr
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int ret;
+	comedi_async *async = s->async;
 
-	ret=mode_to_command(&s->cmd,it);
+	ret=mode_to_command(&async->cmd,it);
 	if(ret)return ret;
 
-	ret=s->do_cmdtest(dev,s,&s->cmd);
+	ret=s->do_cmdtest(dev,s,&async->cmd);
 	if(ret)return -EINVAL;
 
 	ret=s->do_cmd(dev,s);
