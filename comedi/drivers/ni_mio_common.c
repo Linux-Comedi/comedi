@@ -380,8 +380,8 @@ static irqreturn_t ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	a_status=win_in(AI_Status_1_Register);
 	b_status=win_in(AO_Status_1_Register);
 #ifdef PCIDMA
-	m0_status=readl(mite->mite_io_addr+MITE_CHSR+CHAN_OFFSET(AI_DMA_CHAN));
-	m1_status=readl(mite->mite_io_addr+MITE_CHSR+CHAN_OFFSET(AO_DMA_CHAN));
+	m0_status=readl(mite->mite_io_addr + MITE_CHSR(AI_DMA_CHAN));
+	m1_status=readl(mite->mite_io_addr + MITE_CHSR(AO_DMA_CHAN));
 #else
 	m0_status = 0;
 	m1_status = 0;
@@ -440,7 +440,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	comedi_async *async = s->async;
 	unsigned int nbytes, new_write_count;
 
-	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AO_DMA_CHAN));
+	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
 
 	new_write_count = async->buf_write_count;
 
@@ -479,8 +479,7 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 
 	MDPRINTK("mite_handle_interrupt: m_status=%08x\n",m_status);
 	if(m_status & CHSR_DONE){
-		writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR +
-			CHAN_OFFSET(0));
+		writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(0));
 	}
 
 #if 0
@@ -507,7 +506,7 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 #if  0
 	MDPRINTK("CHSR is 0x%08x, count is %d\n",m_status,async->buf_int_count);
 	if(m_status&CHSR_DONE){
-		writel(CHOR_CLRDONE, mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan));
+		writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(mite->chan));
 		//printk("buf_int_count is %d, buf_int_ptr is %d\n",
 		//		s->async->buf_int_count,s->async->buf_int_ptr);
 		ni_handle_block_dma(dev);
@@ -608,21 +607,19 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
 	if(m_status & CHSR_LINKC){
-		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AI_DMA_CHAN));
+		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(AI_DMA_CHAN));
 		ni_sync_ai_dma(devpriv->mite, dev);
 	}
 
 	if(m_status & CHSR_DONE){
-		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR +
-			CHAN_OFFSET(AI_DMA_CHAN));
+		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(AI_DMA_CHAN));
 	}
 
 	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
 		printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
 		//mite_print_chsr(m_status);
 		mite_dma_disarm(devpriv->mite, AI_DMA_CHAN );
-		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR +
-			CHAN_OFFSET(AI_DMA_CHAN));
+		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR(AI_DMA_CHAN));
 		//disable_irq(dev->irq);
 	}
 #endif
@@ -717,16 +714,14 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsig
 	}
 
 	if(m_status & CHSR_DONE){
-		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR +
-			CHAN_OFFSET(AO_DMA_CHAN));
+		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
 	}
 
 	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
 		printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
 		//mite_print_chsr(m_status);
 		mite_dma_disarm(devpriv->mite, AO_DMA_CHAN );
-		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR +
-			CHAN_OFFSET(AO_DMA_CHAN));
+		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
        }
 #endif
 
@@ -2375,8 +2370,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 
 #ifdef PCIDMA
 	mite_dma_disarm(devpriv->mite, AO_DMA_CHAN);
-	writel(CHOR_DMARESET | CHOR_FRESET, devpriv->mite->mite_io_addr + MITE_CHOR +
-		CHAN_OFFSET(AO_DMA_CHAN));
+	writel(CHOR_DMARESET | CHOR_FRESET, devpriv->mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
 #endif
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);

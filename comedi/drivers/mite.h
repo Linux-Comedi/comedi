@@ -115,199 +115,221 @@ void mite_print_chsr(unsigned int chsr);
 void mite_dump_regs(struct mite_struct *mite, int channel);
 #endif
 
+static inline int CHAN_OFFSET(int channel)
+{
+	return 0x500 + 0x100 * channel;
+};
+
 enum mite_registers
 {
 	MITE_IODWBSR = 0xc0, //IO Device Window Base Size Register
+	MITE_CSIGR = 0x460,	//chip signature
+};
+static inline int MITE_CHOR(int channel)	// channel operation
+{
+	return CHAN_OFFSET(channel) + 0x0;
+};
+static inline int MITE_CHCR(int channel)	// channel control
+{
+	return CHAN_OFFSET(channel) + 0x4;
+};
+static inline int MITE_TCR(int channel)	// transfer count
+{
+	return CHAN_OFFSET(channel) + 0x8;
+};
+static inline int MITE_MCR(int channel)	// memory configuration
+{
+	return CHAN_OFFSET(channel) + 0xc;
+};
+static inline int MITE_MAR(int channel)	// memory address
+{
+	return CHAN_OFFSET(channel) + 0x10;
+};
+static inline int MITE_DCR(int channel)	// device configuration
+{
+	return CHAN_OFFSET(channel) + 0x14;
+};
+static inline int MITE_DAR(int channel)	// device address
+{
+	return CHAN_OFFSET(channel) + 0x18;
+};
+static inline int MITE_LKCR(int channel)	// link configuration
+{
+	return CHAN_OFFSET(channel) + 0x1c;
+};
+static inline int MITE_LKAR(int channel)	// link address
+{
+	return CHAN_OFFSET(channel) + 0x20;
+};
+static inline int MITE_LLKAR(int channel)	// ?
+{
+	return CHAN_OFFSET(channel) + 0x24;
+};
+static inline int MITE_BAR(int channel)	// base address
+{
+	return CHAN_OFFSET(channel) + 0x28;
+};
+static inline int MITE_BCR(int channel)	// base count
+{
+	return CHAN_OFFSET(channel) + 0x2c;
+};
+static inline int MITE_SAR(int channel)	// ? address
+{
+	return CHAN_OFFSET(channel) + 0x30;
+};
+static inline int MITE_WSCR(int channel)	// ?
+{
+	return CHAN_OFFSET(channel) + 0x34;
+};
+static inline int MITE_WSER(int channel)	// ?
+{
+	return CHAN_OFFSET(channel) + 0x38;
+};
+static inline int MITE_CHSR(int channel)	// channel status
+{
+	return CHAN_OFFSET(channel) + 0x3c;
+};
+static inline int MITE_FCR(int channel)	// fifo count
+{
+	return CHAN_OFFSET(channel) + 0x40;
 };
 
 enum MITE_IODWBSR_bits
 {
 	WENAB = 0x80,	// window enable
 };
+enum MITE_MCR_bits
+{
+	MCRPON = 0,
+};
+enum MITE_DCR_bits
+{
+	DCR_NORMAL = (1<<29),
+	DCRPON = 0,
+};
+enum MITE_CHOR_bits
+{
+	CHOR_DMARESET			= (1<<31),
+	CHOR_SET_SEND_TC		= (1<<11),
+	CHOR_CLR_SEND_TC		= (1<<10),
+	CHOR_SET_LPAUSE			= (1<<9),
+	CHOR_CLR_LPAUSE			= (1<<8),
+	CHOR_CLRDONE			= (1<<7),
+	CHOR_CLRRB			= (1<<6),
+	CHOR_CLRLC			= (1<<5),
+	CHOR_FRESET			= (1<<4),
+	CHOR_ABORT			= (1<<3),
+	CHOR_STOP			= (1<<2),
+	CHOR_CONT			= (1<<1),
+	CHOR_START			= (1<<0),
+	CHOR_PON		= (CHOR_CLR_SEND_TC|CHOR_CLR_LPAUSE),
+};
+enum MITE_CHCR_bits
+{
+	CHCR_SET_DMA_IE			= (1<<31),
+	CHCR_CLR_DMA_IE			= (1<<30),
+	CHCR_SET_LINKP_IE		= (1<<29),
+	CHCR_CLR_LINKP_IE		= (1<<28),
+	CHCR_SET_SAR_IE			= (1<<27),
+	CHCR_CLR_SAR_IE			= (1<<26),
+	CHCR_SET_DONE_IE		= (1<<25),
+	CHCR_CLR_DONE_IE		= (1<<24),
+	CHCR_SET_MRDY_IE		= (1<<23),
+	CHCR_CLR_MRDY_IE		= (1<<22),
+	CHCR_SET_DRDY_IE		= (1<<21),
+	CHCR_CLR_DRDY_IE		= (1<<20),
+	CHCR_SET_LC_IE			= (1<<19),
+	CHCR_CLR_LC_IE			= (1<<18),
+	CHCR_SET_CONT_RB_IE		= (1<<17),
+	CHCR_CLR_CONT_RB_IE		= (1<<16),
+	CHCR_FIFODIS			= (1<<15),
+	CHCR_FIFO_ON			= 0,
+	CHCR_BURSTEN			= (1<<14),
+	CHCR_NO_BURSTEN			= 0,
+	CHCR_CHEND1			= (1<<5),
+	CHCR_CHEND0			= (1<<4),
+	CHCR_DIR			= (1<<3),
+	CHCR_DEV_TO_MEM		= CHCR_DIR,
+	CHCR_MEM_TO_DEV		= 0,
+	CHCR_NORMAL			= (0<<0),
+	CHCR_CONTINUE			= (1<<0),
+	CHCR_RINGBUFF			= (2<<0),
+	CHCR_LINKSHORT			= (4<<0),
+	CHCR_LINKLONG			= (5<<0),
+	CHCRPON				= (CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE | CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE),
+};
+enum ConfigRegister_bits
+{
+	CR_REQS_MASK = 0x7 << 16,
+	CR_ASEQDONT = 0x0 << 10,
+	CR_ASEQUP = 0x1 << 10,
+	CR_ASEQDOWN = 0x2 << 10,
+	CR_ASEQ_MASK = 0x3 << 10,
+	CR_PSIZE8			= (1<<8),
+	CR_PSIZE16			= (2<<8),
+	CR_PSIZE32			= (3<<8),
+	CR_PORTCPU			= (0<<6),
+	CR_PORTIO			= (1<<6),
+	CR_PORTVXI			= (2<<6),
+	CR_PORTMXI			= (3<<6),
+	CR_AMDEVICE			= (1<<0),
+};
+static inline int CR_REQS(int source)
+{
+	return (source & 0x7) <<16;
+};
+static inline int CR_REQSDRQ(int drq_line)
+{
+	return CR_REQS(drq_line + 0x4);
+}
+static inline int CR_RL(unsigned int retry_limit)
+{
+	int value = 0;
 
-#define CHAN_OFFSET(x)			(0x100*(x))
+	while(retry_limit)
+	{
+		retry_limit >>= 1;
+		value++;
+	}
+	if(value > 0x7) rt_printk("comedi: bug! retry_limit too large\n");
+	return (value & 0x7) << 21;
+}
 
-/* DMA base for chan 0 is 0x500, chan 1 is 0x600 */
-
-#define MITE_CHOR		0x500
-#define CHOR_DMARESET			(1<<31)
-#define CHOR_SET_SEND_TC		(1<<11)
-#define CHOR_CLR_SEND_TC		(1<<10)
-#define CHOR_SET_LPAUSE			(1<<9)
-#define CHOR_CLR_LPAUSE			(1<<8)
-#define CHOR_CLRDONE			(1<<7)
-#define CHOR_CLRRB			(1<<6)
-#define CHOR_CLRLC			(1<<5)
-#define CHOR_FRESET			(1<<4)
-#define CHOR_ABORT			(1<<3)
-#define CHOR_STOP			(1<<2)
-#define CHOR_CONT			(1<<1)
-#define CHOR_START			(1<<0)
-#define CHOR_PON			(CHOR_CLR_SEND_TC|CHOR_CLR_LPAUSE)
-
-#define MITE_CHCR		0x504
-#define CHCR_SET_DMA_IE			(1<<31)
-#define CHCR_CLR_DMA_IE			(1<<30)
-#define CHCR_SET_LINKP_IE		(1<<29)
-#define CHCR_CLR_LINKP_IE		(1<<28)
-#define CHCR_SET_SAR_IE			(1<<27)
-#define CHCR_CLR_SAR_IE			(1<<26)
-#define CHCR_SET_DONE_IE		(1<<25)
-#define CHCR_CLR_DONE_IE		(1<<24)
-#define CHCR_SET_MRDY_IE		(1<<23)
-#define CHCR_CLR_MRDY_IE		(1<<22)
-#define CHCR_SET_DRDY_IE		(1<<21)
-#define CHCR_CLR_DRDY_IE		(1<<20)
-#define CHCR_SET_LC_IE			(1<<19)
-#define CHCR_CLR_LC_IE			(1<<18)
-#define CHCR_SET_CONT_RB_IE		(1<<17)
-#define CHCR_CLR_CONT_RB_IE		(1<<16)
-#define CHCR_FIFODIS			(1<<15)
-#define CHCR_FIFO_ON			0
-#define CHCR_BURSTEN			(1<<14)
-#define CHCR_NO_BURSTEN			0
-#define CHCR_NFTP(x)			((x)<<11)
-#define CHCR_NFTP0			CHCR_NFTP(0)
-#define CHCR_NFTP1			CHCR_NFTP(1)
-#define CHCR_NFTP2			CHCR_NFTP(2)
-#define CHCR_NFTP4			CHCR_NFTP(3)
-#define CHCR_NFTP8			CHCR_NFTP(4)
-#define CHCR_NFTP16			CHCR_NFTP(5)
-#define CHCR_NETP(x)			((x)<<11)
-#define CHCR_NETP0			CHCR_NETP(0)
-#define CHCR_NETP1			CHCR_NETP(1)
-#define CHCR_NETP2			CHCR_NETP(2)
-#define CHCR_NETP4			CHCR_NETP(3)
-#define CHCR_NETP8			CHCR_NETP(4)
-#define CHCR_CHEND1			(1<<5)
-#define CHCR_CHEND0			(1<<4)
-#define CHCR_DIR			(1<<3)
-#define 	CHCR_DEV_TO_MEM		CHCR_DIR
-#define 	CHCR_MEM_TO_DEV		0
-#define CHCR_NORMAL			((0)<<0)
-#define CHCR_CONTINUE			((1)<<0)
-#define CHCR_RINGBUFF			((2)<<0)
-#define CHCR_LINKSHORT			((4)<<0)
-#define CHCR_LINKLONG			((5)<<0)
-#define CHCRPON				(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE | CHCR_CLR_LC_IE | CHCR_CLR_CONT_IE)
-
-#define MITE_TCR		0x508
-
-/* CR bits */
-#define CR_RL(x)			((x)<<21)
-#define CR_RL0				CR_RL(0)
-#define CR_RL1				CR_RL(1)
-#define CR_RL2				CR_RL(2)
-#define CR_RL4				CR_RL(3)
-#define CR_RL8				CR_RL(4)
-#define CR_RL16				CR_RL(5)
-#define CR_RL32				CR_RL(6)
-#define CR_RL64				CR_RL(7)
-#define CR_RD(x)			((x)<<19)
-#define CR_RD0				CR_RD(0)
-#define CR_RD32				CR_RD(1)
-#define CR_RD512			CR_RD(2)
-#define CR_RD8192			CR_RD(3)
-#define CR_REQS(x)			((x)<<16)
-#define CR_REQSDRQ0			CR_REQS(4)
-#define CR_REQSDRQ1			CR_REQS(5)
-#define CR_REQSDRQ2			CR_REQS(6)
-#define CR_REQSDRQ3			CR_REQS(7)
-#define CR_ASEQx(x)			((x)<<10)
-#define CR_ASEQx0			CR_ASEQx(0)
-#define 	CR_ASEQDONT		CR_ASEQx0
-#define CR_ASEQxP1			CR_ASEQx(1)
-#define 	CR_ASEQUP		CR_ASEQxP1
-#define CR_ASEQxP2			CR_ASEQx(2)
-#define 	CR_ASEQDOWN		CR_ASEQxP2
-#define CR_ASEQxP4			CR_ASEQx(3)
-#define CR_ASEQxP8			CR_ASEQx(4)
-#define CR_ASEQxP16			CR_ASEQx(5)
-#define CR_ASEQxP32			CR_ASEQx(6)
-#define CR_ASEQxP64			CR_ASEQx(7)
-#define CR_ASEQxM1			CR_ASEQx(9)
-#define CR_ASEQxM2			CR_ASEQx(10)
-#define CR_ASEQxM4			CR_ASEQx(11)
-#define CR_ASEQxM8			CR_ASEQx(12)
-#define CR_ASEQxM16			CR_ASEQx(13)
-#define CR_ASEQxM32			CR_ASEQx(14)
-#define CR_ASEQxM64			CR_ASEQx(15)
-#define CR_PSIZEBYTE			(1<<8)
-#define CR_PSIZEHALF			(2<<8)
-#define CR_PSIZEWORD			(3<<8)
-#define CR_PORTCPU			(0<<6)
-#define CR_PORTIO			(1<<6)
-#define CR_PORTVXI			(2<<6)
-#define CR_PORTMXI			(3<<6)
-#define CR_AMDEVICE			(1<<0)
-
-#define CHSR_INT			(1<<31)
-#define CHSR_LPAUSES			(1<<29)
-#define CHSR_SARS			(1<<27)
-#define CHSR_DONE			(1<<25)
-#define CHSR_MRDY			(1<<23)
-#define CHSR_DRDY			(1<<21)
-#define CHSR_LINKC			(1<<19)
-#define CHSR_CONTS_RB			(1<<17)
-#define CHSR_ERROR			(1<<15)
-#define CHSR_SABORT			(1<<14)
-#define CHSR_HABORT			(1<<13)
-#define CHSR_STOPS			(1<<12)
-#define CHSR_OPERR_mask			(3<<10)
-#define CHSR_OPERR_NOERROR	(0<<10)
-#define CHSR_OPERR_FIFOERROR	(1<<10)
-#define CHSR_OPERR_LINKERROR	(1<<10) /* ??? */
-#define CHSR_XFERR			(1<<9)
-#define CHSR_END			(1<<8)
-#define CHSR_DRQ1			(1<<7)
-#define CHSR_DRQ0			(1<<6)
-#define CHSR_LxERR_mask			(3<<4)
-#define CHSR_LBERR		(1<<4)
-#define CHSR_LRERR		(2<<4)
-#define CHSR_LOERR		(3<<4)
-#define CHSR_MxERR_mask			(3<<2)
-#define CHSR_MBERR		(1<<2)
-#define CHSR_MRERR		(2<<2)
-#define CHSR_MOERR		(3<<2)
-#define CHSR_DxERR_mask			(3<<0)
-#define CHSR_DBERR		(1<<0)
-#define CHSR_DRERR		(2<<0)
-#define CHSR_DOERR		(3<<0)
-
-#define MITE_MCR		0x50c
-#define	MCRPON				0
-
-#define MITE_MAR		0x510
-
-#define MITE_DCR		0x514
-#define DCR_NORMAL			(1<<29)
-#define DCRPON				0
-
-#define MITE_DAR		0x518
-
-#define MITE_LKCR		0x51c
-
-#define MITE_LKAR		0x520
-#define MITE_LLKAR		0x524
-#define MITE_BAR		0x528
-#define MITE_BCR		0x52c
-#define MITE_SAR		0x530
-#define MITE_WSCR		0x534
-#define MITE_WSER		0x538
-#define MITE_CHSR		0x53c
-#define MITE_FCR		0x540
-
-#define MITE_FIFO		0x80
-#define MITE_FIFOEND		0xff
-
-#define MITE_AMRAM		0x00
-#define MITE_AMDEVICE		0x01
-#define MITE_AMHOST_A32_SINGLE	0x09
-#define MITE_AMHOST_A24_SINGLE	0x39
-#define MITE_AMHOST_A16_SINGLE	0x29
-#define MITE_AMHOST_A32_BLOCK	0x0b
-#define MITE_AMHOST_A32D64_BLOCK	0x08
-#define MITE_AMHOST_A24_BLOCK	0x3b
+enum CHSR_bits
+{
+	CHSR_INT			= (1<<31),
+	CHSR_LPAUSES			= (1<<29),
+	CHSR_SARS			= (1<<27),
+	CHSR_DONE			= (1<<25),
+	CHSR_MRDY			= (1<<23),
+	CHSR_DRDY			= (1<<21),
+	CHSR_LINKC			= (1<<19),
+	CHSR_CONTS_RB			= (1<<17),
+	CHSR_ERROR			= (1<<15),
+	CHSR_SABORT			= (1<<14),
+	CHSR_HABORT			= (1<<13),
+	CHSR_STOPS			= (1<<12),
+	CHSR_OPERR_mask			= (3<<10),
+	CHSR_OPERR_NOERROR	= (0<<10),
+	CHSR_OPERR_FIFOERROR	= (1<<10),
+	CHSR_OPERR_LINKERROR	= (1<<10), /* ??? */
+	CHSR_XFERR			= (1<<9),
+	CHSR_END			= (1<<8),
+	CHSR_DRQ1			= (1<<7),
+	CHSR_DRQ0			= (1<<6),
+	CHSR_LxERR_mask			= (3<<4),
+	CHSR_LBERR		= (1<<4),
+	CHSR_LRERR		= (2<<4),
+	CHSR_LOERR		= (3<<4),
+	CHSR_MxERR_mask			= (3<<2),
+	CHSR_MBERR		= (1<<2),
+	CHSR_MRERR		= (2<<2),
+	CHSR_MOERR		= (3<<2),
+	CHSR_DxERR_mask			= (3<<0),
+	CHSR_DBERR		= (1<<0),
+	CHSR_DRERR		= (2<<0),
+	CHSR_DOERR		= (3<<0),
+};
 
 #endif
 

@@ -125,10 +125,9 @@ int mite_setup(struct mite_struct *mite)
 	writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
 
 	for( i = 0; i < NUM_MITE_DMA_CHANNELS; i++ ) {
-
-		writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(i));
+		writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(i));
 		/* disable interrupts */
-		writel(0,mite->mite_io_addr + MITE_CHCR + CHAN_OFFSET(i));
+		writel(0, mite->mite_io_addr + MITE_CHCR(i));
 	}
 	mite->used = 1;
 
@@ -188,8 +187,7 @@ void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
 	MDPRINTK("mite_dma_arm ch%i\n", channel);
 	/* arm */
 	chor = CHOR_START;
-	writel(chor, mite->mite_io_addr + CHAN_OFFSET(channel) + MITE_CHOR);
-
+	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
 	mite_dma_tcr(mite, channel);
 }
 
@@ -260,7 +258,7 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 
 	/* reset DMA and FIFO */
 	chor = CHOR_DMARESET | CHOR_FRESET;
-	writel(chor, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(channel));
+	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
 
 	/* short link chaining mode */
 	chcr = CHCR_SET_DMA_IE| CHCR_LINKSHORT | CHCR_SET_DONE_IE;
@@ -280,67 +278,67 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	if(mite_chan->dir == COMEDI_INPUT){
 		chcr |= CHCR_DEV_TO_MEM;
 	}
-	writel(chcr, mite->mite_io_addr + MITE_CHCR + CHAN_OFFSET(channel));
+	writel(chcr, mite->mite_io_addr + MITE_CHCR(channel));
 
 	/* to/from memory */
-	mcr = CR_RL64 | CR_ASEQxP1;
+	mcr = CR_RL(64) | CR_ASEQUP;
 	switch( num_memory_bits ){
 		case 8:
-			mcr |= CR_PSIZEBYTE;
+			mcr |= CR_PSIZE8;
 			break;
 		case 16:
-			mcr |= CR_PSIZEHALF;
+			mcr |= CR_PSIZE16;
 			break;
 		case 32:
-			mcr |= CR_PSIZEWORD;
+			mcr |= CR_PSIZE32;
 			break;
 		default:
 			rt_printk( "mite: bug! invalid mem bit width for dma transfer\n" );
 			break;
 	}
-	writel(mcr, mite->mite_io_addr + MITE_MCR + CHAN_OFFSET(channel));
+	writel(mcr, mite->mite_io_addr + MITE_MCR(channel));
 
 	/* from/to device */
-	dcr = CR_RL64 |  CR_ASEQx(1);
-	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQS(0x4 + channel);
+	dcr = CR_RL(64) |  CR_ASEQUP;
+	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQSDRQ(channel);
 	switch( num_device_bits ){
 		case 8:
-			dcr |= CR_PSIZEBYTE;
+			dcr |= CR_PSIZE8;
 			break;
 		case 16:
-			dcr |= CR_PSIZEHALF;
+			dcr |= CR_PSIZE16;
 			break;
 		case 32:
-			dcr |= CR_PSIZEWORD;
+			dcr |= CR_PSIZE32;
 			break;
 		default:
 			rt_printk( "mite: bug! invalid dev bit width for dma transfer\n" );
 			break;
 	}
-	writel(dcr, mite->mite_io_addr + MITE_DCR + CHAN_OFFSET(channel));
+	writel(dcr, mite->mite_io_addr + MITE_DCR(channel));
 
 	/* reset the DAR */
-	writel(0, mite->mite_io_addr + MITE_DAR + CHAN_OFFSET(channel));
+	writel(0, mite->mite_io_addr + MITE_DAR(channel));
 
 	/* the link is 32bits */
-	lkcr = CR_RL64 | CR_ASEQUP | CR_PSIZEWORD;
-	writel(lkcr, mite->mite_io_addr + MITE_LKCR + CHAN_OFFSET(channel));
+	lkcr = CR_RL(64) | CR_ASEQUP | CR_PSIZE16;
+	writel(lkcr, mite->mite_io_addr + MITE_LKCR(channel));
 
 	/* starting address for link chaining */
 	writel(virt_to_bus(mite_chan->ring),
-		mite->mite_io_addr + MITE_LKAR + CHAN_OFFSET(channel));
+		mite->mite_io_addr + MITE_LKAR(channel));
 
 	MDPRINTK("exit mite_prep_dma\n");
 }
 
 unsigned int mite_bytes_read(struct mite_struct *mite, unsigned int chan)
 {
-       return readl(mite->mite_io_addr+MITE_DAR+CHAN_OFFSET(chan));
+       return readl(mite->mite_io_addr+MITE_DAR(chan));
 }
 
 unsigned int mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan)
 {
-	return readl(mite->mite_io_addr + MITE_FCR + CHAN_OFFSET(chan)) & 0x000000FF;
+	return readl(mite->mite_io_addr + MITE_FCR(chan)) & 0x000000FF;
 }
 
 unsigned int mite_bytes_transferred(struct mite_struct *mite, unsigned int chan)
@@ -359,8 +357,8 @@ int mite_dma_tcr(struct mite_struct *mite, unsigned int channel)
 	int tcr;
 	int lkar;
 
-	lkar=readl(mite->mite_io_addr + CHAN_OFFSET(channel) + MITE_LKAR);
-	tcr=readl(mite->mite_io_addr + CHAN_OFFSET(channel) + MITE_TCR);
+	lkar = readl(mite->mite_io_addr + MITE_LKAR(channel));
+	tcr = readl(mite->mite_io_addr + MITE_TCR(channel));
 	MDPRINTK("mite_dma_tcr ch%i, lkar=0x%08x tcr=%d\n", channel, lkar, tcr);
 
 	return tcr;
@@ -372,7 +370,7 @@ void mite_dma_disarm(struct mite_struct *mite, unsigned int channel)
 
 	/* disarm */
 	chor = CHOR_ABORT;
-	writel(chor, mite->mite_io_addr + CHAN_OFFSET(channel) + MITE_CHOR);
+	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
 }
 
 #ifdef DEBUG_MITE
@@ -458,35 +456,35 @@ void mite_dump_regs(struct mite_struct *mite, int channel)
 	printk("mite_dump_regs ch%i\n", channel);
 	printk("mite address is  =0x%08lx\n",mite_io_addr);
 
-	addr = mite_io_addr+MITE_CHOR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_CHOR(channel);
 	printk("mite status[CHOR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_decode(mite_CHOR_strings,temp);
-	addr = mite_io_addr+MITE_CHCR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_CHCR(channel);
 	printk("mite status[CHCR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_decode(mite_CHCR_strings,temp);
-	addr = mite_io_addr+MITE_TCR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_TCR(channel);
 	printk("mite status[TCR] at 0x%08lx =0x%08x\n",addr, readl(addr));
-	addr = mite_io_addr+MITE_MCR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_MCR(channel);
 	printk("mite status[MCR] at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_decode(mite_MCR_strings,temp);
 
-	addr = mite_io_addr+MITE_MAR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_MAR(channel);
 	printk("mite status[MAR] at 0x%08lx =0x%08x\n",addr, readl(addr));
-	addr = mite_io_addr+MITE_DCR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_DCR(channel);
 	printk("mite status[DCR] at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_decode(mite_DCR_strings,temp);
-	addr = mite_io_addr+MITE_DAR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_DAR(channel);
 	printk("mite status[DAR] at 0x%08lx =0x%08x\n",addr, readl(addr));
-	addr = mite_io_addr+MITE_LKCR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_LKCR(channel);
 	printk("mite status[LKCR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_decode(mite_LKCR_strings,temp);
-	addr = mite_io_addr+MITE_LKAR+CHAN_OFFSET(channel);
+	addr = mite_io_addr + MITE_LKAR(channel);
 	printk("mite status[LKAR]at 0x%08lx =0x%08x\n",addr, readl(addr));
 
-	addr = mite_io_addr+MITE_CHSR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_CHSR(channel);
 	printk("mite status[CHSR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_decode(mite_CHSR_strings,temp);
-	addr = mite_io_addr+MITE_FCR+CHAN_OFFSET(channel);
+	addr = mite_io_addr+MITE_FCR(channel);
 	printk("mite status[FCR] at 0x%08lx =0x%08x\n\n",addr, readl(addr));
 }
 

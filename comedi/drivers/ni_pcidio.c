@@ -403,7 +403,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	flags = readb(dev->iobase+Group_1_Flags);
-	m_status = readl(mite->mite_io_addr + MITE_CHSR + CHAN_OFFSET( DI_DMA_CHAN ));
+	m_status = readl(mite->mite_io_addr + MITE_CHSR(DI_DMA_CHAN));
 
 	//interrupcions parasites
 	if(dev->attached == 0){
@@ -428,7 +428,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(m_status & CHSR_LINKC){
 			unsigned int count;
 
-			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(DI_DMA_CHAN));
+			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 			count = le32_to_cpu(mite_chan->ring[mite_chan->current_link].count);
 
 			/* XXX need to byteswap */
@@ -444,13 +444,11 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			}
 		}
 		if(m_status & CHSR_DONE){
-			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET( DI_DMA_CHAN ));
+			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 		}
 		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
-			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET( DI_DMA_CHAN ));
+			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 			disable_irq(dev->irq);
 		}
 		async->events |= COMEDI_CB_BLOCK;
@@ -499,8 +497,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 #ifdef USE_DMA
 			mite_dma_disarm(mite, DI_DMA_CHAN);
-			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET( DI_DMA_CHAN ));
+			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 #endif
 			break;
 		}else if(flags & Waited){
@@ -510,8 +507,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 #ifdef USE_DMA
 			mite_dma_disarm(mite, DI_DMA_CHAN);
-			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET( DI_DMA_CHAN ));
+			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
 #endif
 			break;
 		}else if(flags & PrimaryTC){
