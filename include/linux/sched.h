@@ -2,8 +2,8 @@
  * linux/fs.h compatibility header
  */
 
-#ifndef __COMPAT_LINUX_POLL_H_
-#define __COMPAT_LINUX_POLL_H_
+#ifndef __COMPAT_LINUX_SCHED_H_
+#define __COMPAT_LINUX_SCHED_H_
 
 #include <linux/version.h>
 
