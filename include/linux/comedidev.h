@@ -163,10 +163,10 @@ struct comedi_device_struct{
 	int iosize;
 	int irq;
 
-	unsigned int read_subdev;
+	int read_subdev;
 	wait_queue_head_t read_wait;
 
-	unsigned int write_subdev;
+	int write_subdev;
 	wait_queue_head_t write_wait;
 };
 
