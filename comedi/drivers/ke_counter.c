@@ -92,9 +92,6 @@ static comedi_driver cnt_driver =
   module:      THIS_MODULE,
   attach:      cnt_attach,
   detach:      cnt_detach,
-  num_names:   cnt_board_nbr,
-  board_name:  cnt_boards,
-  offset:      sizeof(cnt_board_struct),
 };
 COMEDI_INITCLEANUP(cnt_driver);
 
@@ -192,11 +189,10 @@ found:
 
   /* read register base address [PCI_BASE_ADDRESS #0] */
   io_base = pci_resource_start(pci_device, 0);
-  dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
-  if (request_region(dev->iobase, 0x08, CNT_DRIVER_NAME) == NULL)
-  {
+  if (request_region(io_base & PCI_BASE_ADDRESS_IO_MASK, 0x08, CNT_DRIVER_NAME) == NULL) {
     return -EIO;
   }
+  dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
 
   /* allocate the subdevice structures */
   dev->n_subdevices = 1;

@@ -237,13 +237,13 @@ static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
 		if((data[0]>>0)&0xff)
-			outb(dev->iobase+0,(s->state>>0)&0xff);
+			outb((s->state>>0)&0xff, dev->iobase + 0);
 		if((data[0]>>8)&0xff)
-			outb(dev->iobase+1,(s->state>>8)&0xff);
+			outb((s->state>>8)&0xff, dev->iobase + 1);
 		if((data[0]>>16)&0xff)
-			outb(dev->iobase+2,(s->state>>16)&0xff);
+			outb((s->state>>16)&0xff, dev->iobase + 2);
 		if((data[0]>>24)&0xff)
-			outb(dev->iobase+3,(s->state>>24)&0xff);
+			outb((s->state>>24)&0xff, dev->iobase + 3);
 	}
 	data[1] = s->state;
 
