@@ -534,16 +534,11 @@ found:
 	 */
 	if(pci_enable_device(devpriv->pci_dev))
 		return -EIO;
-	s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
-	control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
-	adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
-	pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
-	ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
+	s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX); 
+	control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX); 
+	adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX); 
+	pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX); 
+	ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX); 
 
 	// reserve io ports
 	err = 0;

@@ -335,8 +335,8 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register. */
 	if(pci_enable_device(pci_dev)<0)return -EIO;
 
-	pci_iobase = pci_resource_start(pci_dev, 2) & PCI_BASE_ADDRESS_IO_MASK;
-	iobase = pci_resource_start(pci_dev, 3) & PCI_BASE_ADDRESS_IO_MASK;
+	pci_iobase = pci_resource_start(pci_dev, 2);
+	iobase = pci_resource_start(pci_dev, 3);
 
 	printk("comedi%d: amplc_pci230: I/O region 1 0x%04x I/O region 2 0x%04x\n",dev->minor, pci_iobase, iobase);
 

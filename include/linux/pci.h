@@ -66,7 +66,12 @@ extern inline void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 #define pci_dma_sync_single(cookie, address, size, dir)
 
 // for getting base addresses
-#define pci_resource_start(dev,bar)   ((dev)->base_address[(bar)])
+extern inline unsigned long pci_resource_start(struct pci_dev *dev, unsigned int bar)
+{
+	if(dev->base_address[bar] & PCI_BASE_ADDRESS_SPACE_IO)
+		return dev->base_address[bar] & PCI_BASE_ADDRESS_IO_MASK;
+	return dev->base_address[bar] & PCI_BASE_ADDRESS_MEM_MASK;
+}
 
 #else
 

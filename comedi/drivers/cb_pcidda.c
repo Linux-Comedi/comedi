@@ -337,10 +337,8 @@ found:
 	 */
 	if(pci_enable_device(devpriv->pci_dev))
 		return -EIO;
-	digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
-	dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX) &
-		PCI_BASE_ADDRESS_IO_MASK;
+	digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX); 
+	dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX); 
 
 /*
  * Allocate the I/O ports.

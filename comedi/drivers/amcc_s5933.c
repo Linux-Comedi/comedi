@@ -49,12 +49,12 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
 			amcc->pci_func=PCI_FUNC(pcidev->devfn);
 			for (i=0;i<5;i++)
-				amcc->io_addr[i]=pci_resource_start(pcidev, i) & PCI_BASE_ADDRESS_IO_MASK;
+				amcc->io_addr[i]=pci_resource_start(pcidev, i);
 			amcc->irq=pcidev->irq;
 #if LINUX_VERSION_CODE < 0x020300
 			amcc->master=pcidev->master;
 #else
-//			amcc->master=pcidev->master; // how get this information under 2.4 kernels?
+			amcc->master=1; 
 #endif
 			
 		}
@@ -121,7 +121,10 @@ int pci_card_alloc(struct pcilst_struct *amcc)
 	if (!amcc) return -1;
 
 	if (amcc->used) return 1;
+	if(pci_enable_device(amcc->pcidev)) return -1;
+	pci_set_master(amcc->pcidev);
 	amcc->used=1;
+
 	return 0;
 }
 

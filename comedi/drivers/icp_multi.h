@@ -74,30 +74,19 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 			     else { inova_devices=inova; }
 			last=inova;
 			
+			inova->vendor=pcidev->vendor;		
+			inova->device=pcidev->device;
 #if LINUX_VERSION_CODE < 0x020300
-			inova->vendor=pcidev->vendor;		
-			inova->device=pcidev->device;
 			inova->master=pcidev->master;
-			inova->pci_bus=pcidev->bus->number;
-			inova->pci_slot=PCI_SLOT(pcidev->devfn);
-			inova->pci_func=PCI_FUNC(pcidev->devfn);
-			for (i=0;i<5;i++)
-				inova->io_addr[i]=pcidev->base_address[i] & PCI_BASE_ADDRESS_MEM_MASK;
-			inova->irq=pcidev->irq;
 #else
-			inova->vendor=pcidev->vendor;		
-			inova->device=pcidev->device;
-#if 0
-			inova->master=pcidev->master; // how get this information under 2.4 kernels?
+inova->master = 1;	//XXX
 #endif
 			inova->pci_bus=pcidev->bus->number;
 			inova->pci_slot=PCI_SLOT(pcidev->devfn);
 			inova->pci_func=PCI_FUNC(pcidev->devfn);
 			for (i=0;i<5;i++)
-				inova->io_addr[i]=pcidev->resource[i].start & PCI_BASE_ADDRESS_MEM_MASK;
+				inova->io_addr[i]=pci_resource_start(pcidev, i);
 			inova->irq=pcidev->irq;
-#endif
-			
 		}
 	}
 
@@ -188,7 +177,7 @@ void pci_card_list_display(void)
 
 	for (inova=inova_devices; inova; inova=next) {
 		next=inova->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%8xl 0x%8xl  %2d  %2d\n",
+		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%8lx 0x%8lx  %2d  %2d\n",
 			inova->pci_bus,inova->pci_slot,inova->pci_func,inova->vendor,inova->device,inova->master?"yes":"no",
 			inova->io_addr[0],inova->io_addr[2],inova->irq,inova->used);
 		

@@ -772,8 +772,8 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		// read base addresses
 		if(pci_enable_device(pdev))
 			return -EIO;
-		pci_iobase = pci_resource_start(pdev, 1) & PCI_BASE_ADDRESS_IO_MASK;
-		iobase = pci_resource_start(pdev, 2) & PCI_BASE_ADDRESS_IO_MASK;
+		pci_iobase = pci_resource_start(pdev, 1);
+		iobase = pci_resource_start(pdev, 2);
 		printk("pcibase 0x%x ", pci_iobase);
 		// reserve io ports for 9052 pci chip
 		if(check_region(pci_iobase,PCIDAS08_SIZE)<0){

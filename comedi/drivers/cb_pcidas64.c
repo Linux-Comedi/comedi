@@ -533,12 +533,9 @@ found:
 #ifdef PCIDMA
 	pci_set_master(pcidev);
 #endif
-	plx9080_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX) &
-		PCI_BASE_ADDRESS_MEM_MASK;
-	main_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX) &
-		PCI_BASE_ADDRESS_MEM_MASK;
-	dio_counter_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX) &
-		PCI_BASE_ADDRESS_MEM_MASK;
+	plx9080_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX); 
+	main_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX); 
+	dio_counter_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX); 
 
 	if(check_mem_region(plx9080_iobase, PLX9080_IOSIZE))
 	{
