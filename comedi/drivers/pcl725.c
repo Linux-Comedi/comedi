@@ -28,7 +28,7 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl725_detach(comedi_device *dev);
 comedi_driver driver_pcl725={
 	driver_name:	"pcl725",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pcl725_attach,
 	detach:		pcl725_detach,
 };

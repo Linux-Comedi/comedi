@@ -181,7 +181,7 @@ static int das16_attach(comedi_device *dev,comedi_devconfig *it);
 static int das16_detach(comedi_device *dev);
 comedi_driver driver_das16={
 	driver_name:	"das16",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
 };

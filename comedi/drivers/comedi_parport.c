@@ -56,7 +56,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it);
 static int parport_detach(comedi_device *dev);
 comedi_driver driver_parport={
 	driver_name:	"parport",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		parport_attach,
 	detach:		parport_detach,
 };

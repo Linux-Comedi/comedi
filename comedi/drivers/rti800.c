@@ -101,7 +101,7 @@ static int rti800_detach(comedi_device *dev);
 static int rti800_recognize(char *name);
 comedi_driver driver_rti800={
 	driver_name:	"rti800",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		rti800_attach,
 	detach:		rti800_detach,
 	recognize:	rti800_recognize,

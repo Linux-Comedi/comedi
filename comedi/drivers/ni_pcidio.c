@@ -149,7 +149,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
 comedi_driver driver_pcidio={
 	driver_name:	"nidio",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		nidio_attach,
 	detach:		nidio_detach,
 };

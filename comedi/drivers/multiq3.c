@@ -89,7 +89,7 @@ static int multiq3_attach(comedi_device *dev,comedi_devconfig *it);
 static int multiq3_detach(comedi_device *dev);
 comedi_driver driver_multiq3={
 	driver_name:	"multiq3",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		multiq3_attach,
 	detach:		multiq3_detach,
 };

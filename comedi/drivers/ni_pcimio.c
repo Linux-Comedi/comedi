@@ -336,7 +336,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcimio_detach(comedi_device *dev);
 comedi_driver driver_pcimio={
 	driver_name:	"pcimio-E",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pcimio_attach,
 	detach: 	pcimio_detach,
 };
@@ -411,6 +411,7 @@ typedef struct{
 	unsigned short gpct_input_select0;
 	unsigned short gpct_input_select1;
 
+	unsigned int ai_n_chans;
 	unsigned int ai_chanlistptr;
 	unsigned short ai_xorlist[512];
 }ni_private;

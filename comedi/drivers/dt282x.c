@@ -340,7 +340,7 @@ static int dt282x_detach(comedi_device * dev);
 static int dt282x_recognize(char *name);
 comedi_driver driver_dt282x={
 	driver_name:	"dt282x",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dt282x_attach,
 	detach:		dt282x_detach,
 	recognize:	dt282x_recognize,

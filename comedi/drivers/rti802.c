@@ -46,7 +46,7 @@ static int rti802_attach(comedi_device *dev,comedi_devconfig *it);
 static int rti802_detach(comedi_device *dev);
 comedi_driver driver_rti802={
 	driver_name:	"rti802",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		rti802_attach,
 	detach:		rti802_detach,
 };

@@ -124,7 +124,7 @@ static int i8253_osc_base = 500;	/* 2 Mhz */
 
 comedi_driver driver_pcl812={
 	driver_name:	"pcl812",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pcl812_attach,
 	detach:		pcl812_detach,
 	recognize:	pcl812_recognize,

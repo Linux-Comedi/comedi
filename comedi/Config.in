@@ -3,7 +3,6 @@ comment 'Comedi Features'
 
 #bool 'Backwards compatibility' CONFIG_COMEDI_BACKWARDS
 
-tristate 'Kernel Comedilib' CONFIG_COMEDI_KLIB
 if [ "$CONFIG_RTL" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
 	if [ "$CONFIG_COMEDI_RT" = "y" ];then
@@ -20,69 +19,70 @@ fi
 bool 'Verbose Debugging' CONFIG_COMEDI_DEBUG
 #bool 'Version 0.8 support' CONFIG_COMEDI_VER08
 
-comment 'Hardware device drivers'
+dep_tristate 'Kernel Comedilib' CONFIG_COMEDI_KLIB $CONFIG_COMEDI
 
+comment 'Hardware device drivers'
 
 bool 'Data Translation boards' CONFIG_COMEDI_DT
 if [ "$CONFIG_COMEDI_DT" = "y" ];then
-	tristate '  DT 2801' CONFIG_COMEDI_DT2801
-	tristate '  DT 2811' CONFIG_COMEDI_DT2811
-	tristate '  DT 2814' CONFIG_COMEDI_DT2814
-	tristate '  DT 2815' CONFIG_COMEDI_DT2815
-	tristate '  DT 2817' CONFIG_COMEDI_DT2817
-	tristate '  DT 2821 series' CONFIG_COMEDI_DT282x
+	dep_tristate '  DT 2801' CONFIG_COMEDI_DT2801 $CONFIG_COMEDI
+	dep_tristate '  DT 2811' CONFIG_COMEDI_DT2811 $CONFIG_COMEDI
+	dep_tristate '  DT 2814' CONFIG_COMEDI_DT2814 $CONFIG_COMEDI
+	dep_tristate '  DT 2815' CONFIG_COMEDI_DT2815 $CONFIG_COMEDI
+	dep_tristate '  DT 2817' CONFIG_COMEDI_DT2817 $CONFIG_COMEDI
+	dep_tristate '  DT 2821 series' CONFIG_COMEDI_DT282x $CONFIG_COMEDI
 	if [ "$CONFIG_PCI" = "y" ];then
-		tristate '  DT3000' CONFIG_COMEDI_DT3000
+		dep_tristate '  DT3000' CONFIG_COMEDI_DT3000 $CONFIG_COMEDI
 	fi
 fi
 
 bool 'National Instruments boards' CONFIG_COMEDI_NI
 if [ "$CONFIG_COMEDI_NI" = "y" ];then
-	tristate '  AT-MIO E series' CONFIG_COMEDI_NI_ATMIO
+	dep_tristate '  AT-MIO E series' CONFIG_COMEDI_NI_ATMIO $CONFIG_COMEDI
 	if [ "$CONFIG_PCMCIA" = "y" -o "$CONFIG_PCMCIA" = "m" ];then
-		tristate '  PCMCIA MIO E series' CONFIG_COMEDI_NI_MIO_CS
+		dep_tristate '  PCMCIA MIO E series' CONFIG_COMEDI_NI_MIO_CS $CONFIG_COMEDI
 	fi
 	if [ "$CONFIG_PCI" = "y" ];then
-		tristate '  PCI-MIO E series' CONFIG_COMEDI_NI_PCIMIO
-		tristate '  NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO
+		dep_tristate '  PCI-MIO E series' CONFIG_COMEDI_NI_PCIMIO $CONFIG_COMEDI
+		dep_tristate '  NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO $CONFIG_COMEDI
 		if [ "$CONFIG_COMEDI_NI_PCIMIO" = "y" -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" ];then
 			define_bool CONFIG_COMEDI_MITE y
 		else
 			if [ "$CONFIG_COMEDI_NI_PCIMIO" = "m" -o "$CONFIG_COMEDI_NI_PCIDIO" = "m" ];then
-				define_bool CONFIG_COMEDI_MITE y
+				define_bool CONFIG_COMEDI_MITE m
 			fi
 		fi
 	fi
-	tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D
+	dep_tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D $CONFIG_COMEDI
 fi
 
-tristate 'new DAS08 compatible driver' CONFIG_COMEDI_DAS08_NEW
-tristate 'new DAS16 compatible driver' CONFIG_COMEDI_DAS16_NEW
-tristate 'Computer Boards DAS-08 series' CONFIG_COMEDI_DAS08
-tristate 'Computer Boards DAS-08jr' CONFIG_COMEDI_DAS08JR
-tristate 'Keithley Metrabyte DAS-1600 and compatibles' CONFIG_COMEDI_DAS1600
-tristate 'DAS16' CONFIG_COMEDI_DAS16
-tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402
-tristate 'Generic 8255 support' CONFIG_COMEDI_8255
-tristate 'Quanser Consulting MultiQ-3' CONFIG_COMEDI_MULTIQ3
-tristate 'Generic parallel port support' CONFIG_COMEDI_PARPORT
-tristate 'PCL-711, PCL-711b, ACL-8112, and compatibles' CONFIG_COMEDI_PCL711
-tristate 'PCL-725' CONFIG_COMEDI_PCL725
-tristate 'PCL-726' CONFIG_COMEDI_PCL726
-tristate 'Advantech PCL-812PG, PCL-813B' CONFIG_COMEDI_PCL812
-tristate 'Advantech PCL-818/L/H/HD/HG, PCL-718' CONFIG_COMEDI_PCL818
-tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
-tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
-tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC
+dep_tristate 'new DAS08 compatible driver' CONFIG_COMEDI_DAS08_NEW $CONFIG_COMEDI
+dep_tristate 'new DAS16 compatible driver' CONFIG_COMEDI_DAS16_NEW $CONFIG_COMEDI
+dep_tristate 'Computer Boards DAS-08 series' CONFIG_COMEDI_DAS08 $CONFIG_COMEDI
+dep_tristate 'Computer Boards DAS-08jr' CONFIG_COMEDI_DAS08JR $CONFIG_COMEDI
+dep_tristate 'Keithley Metrabyte DAS-1600 and compatibles' CONFIG_COMEDI_DAS1600 $CONFIG_COMEDI
+dep_tristate 'DAS16' CONFIG_COMEDI_DAS16 $CONFIG_COMEDI
+dep_tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402 $CONFIG_COMEDI
+dep_tristate 'Generic 8255 support' CONFIG_COMEDI_8255 $CONFIG_COMEDI
+dep_tristate 'Quanser Consulting MultiQ-3' CONFIG_COMEDI_MULTIQ3 $CONFIG_COMEDI
+dep_tristate 'Generic parallel port support' CONFIG_COMEDI_PARPORT $CONFIG_COMEDI
+dep_tristate 'PCL-711, PCL-711b, ACL-8112, and compatibles' CONFIG_COMEDI_PCL711 $CONFIG_COMEDI
+dep_tristate 'PCL-725' CONFIG_COMEDI_PCL725 $CONFIG_COMEDI
+dep_tristate 'PCL-726' CONFIG_COMEDI_PCL726 $CONFIG_COMEDI
+dep_tristate 'Advantech PCL-812PG, PCL-813B' CONFIG_COMEDI_PCL812 $CONFIG_COMEDI
+dep_tristate 'Advantech PCL-818/L/H/HD/HG, PCL-718' CONFIG_COMEDI_PCL818 $CONFIG_COMEDI
+dep_tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800 $CONFIG_COMEDI
+dep_tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802 $CONFIG_COMEDI
+dep_tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC $CONFIG_COMEDI
 if [ "$CONFIG_PCI" = "y" ];then
-	tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000
+	dep_tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000 $CONFIG_COMEDI
 fi
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	comment 'Virtual device drivers'
 
-	tristate 'Command emulator (timer)' CONFIG_COMEDI_VD_TIMER
-	tristate 'Direct Digital Synthesis' CONFIG_COMEDI_VD_DDS
+	dep_tristate 'Command emulator (timer)' CONFIG_COMEDI_VD_TIMER $CONFIG_COMEDI
+	dep_tristate 'Direct Digital Synthesis' CONFIG_COMEDI_VD_DDS $CONFIG_COMEDI
 fi
 
 

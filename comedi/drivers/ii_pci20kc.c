@@ -95,7 +95,7 @@ static int pci20xxx_detach(comedi_device * dev);
 
 comedi_driver driver_pci20xxx = {
 	driver_name:"pci20xxx",
-	module:&__this_module,
+	module:THIS_MODULE,
 	attach:pci20xxx_attach,
 	detach:pci20xxx_detach,
 };

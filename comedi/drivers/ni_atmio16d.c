@@ -140,7 +140,7 @@ static void reset_atmio16d(comedi_device *dev);
 /* main driver struct */
 comedi_driver driver_atmio16d={
 	driver_name:    "atmio16",
-	module:     &__this_module,
+	module:     THIS_MODULE,
 	attach:     atmio16d_attach,
 	detach:     atmio16d_detach,
 	recognize:  atmio16d_recognize,

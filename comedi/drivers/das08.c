@@ -162,7 +162,7 @@ static int das08_detach(comedi_device *dev);
 static int das08_recognize(char *name);
 comedi_driver driver_das08={
 	driver_name:	"das08",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		das08_attach,
 	detach:		das08_detach,
 	recognize:	das08_recognize,

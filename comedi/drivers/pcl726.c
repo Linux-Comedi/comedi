@@ -61,7 +61,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl726_detach(comedi_device *dev);
 comedi_driver driver_pcl726={
 	driver_name:	"pcl726",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pcl726_attach,
 	detach:		pcl726_detach,
 };

@@ -135,7 +135,7 @@ static int das1600_detach(comedi_device *dev);
 static int das1600_recognize(char *name);
 comedi_driver driver_das1600={
 	driver_name:	"das1600",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		das1600_attach,
 	detach:		das1600_detach,
 	recognize:	das1600_recognize,

@@ -62,7 +62,7 @@ static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it);
 static int dev_8255_detach(comedi_device * dev);
 comedi_driver driver_8255={
 	driver_name:	"8255",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dev_8255_attach,
 	detach:		dev_8255_detach,
 };
@@ -220,6 +220,7 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	printk("\n");
+
 	return 0;
 }
 

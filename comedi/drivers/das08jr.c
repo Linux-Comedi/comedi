@@ -80,7 +80,7 @@ static int das08jr_attach(comedi_device *dev,comedi_devconfig *it);
 static int das08jr_detach(comedi_device *dev);
 comedi_driver driver_das08jr={
 	driver_name:	"das08jr",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		das08jr_attach,
 	detach:		das08jr_detach,
 };

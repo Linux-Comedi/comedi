@@ -4,7 +4,11 @@ MOD_SUB_DIRS :=
 SUB_DIRS     :=
 MOD_LIST_NAME := MISC_MODULES
 
-EXTRA_CFLAGS := -I ../
+EXTRA_CFLAGS := -I ../ -I ./
+
+ifeq ($(CONFIG_COMEDI),y)
+O_TARGET	:= drivers.o
+endif
 
 export-objs := mite.o 8255.o
 
@@ -17,6 +21,8 @@ obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 
 obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o
 
+obj-$(CONFIG_COMEDI_DAS08_NEW)		+= das08-new.o
+obj-$(CONFIG_COMEDI_DAS16_NEW)		+= das16-new.o
 obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
 obj-$(CONFIG_COMEDI_DAS08JR)		+= das08jr.o
 obj-$(CONFIG_COMEDI_DAS16)		+= das16.o
@@ -53,12 +59,10 @@ obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
 obj-$(CONFIG_COMEDI_RTI800)		+= rti800.o
 obj-$(CONFIG_COMEDI_RTI802)		+= rti802.o
 
-obj-m += $(obj-y)
+#obj-m += $(obj-y)
 
-#L_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
-#LX_OBJS	:= $(sort $(filter     $(export-objs), $(obj-y)))
-#MI_OBJS	:= $(sort $(filter-out $(export-objs), $(obj-y)))
-#MIX_OBJS	:= $(sort $(filter     $(export-objs), $(obj-y)))
+O_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
+OX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-y)))
 M_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-m)))
 MX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-m)))
 
@@ -66,9 +70,6 @@ MX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-m)))
 
 include $(TOPDIR)/Rules.make
 
-
-drivers.o:	$(obj-y)
-	$(LD) -r -o $@ $(obj-y)
 
 ni_pcimio.o:	ni_mio_common.c
 ni_atmio.o:	ni_mio_common.c

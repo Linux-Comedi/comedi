@@ -123,7 +123,7 @@ static int pcl711_detach(comedi_device *dev);
 static int pcl711_recognize(char *name);
 comedi_driver driver_pcl711={
 	driver_name:	"pcl711",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pcl711_attach,
 	detach:		pcl711_detach,
 	recognize:	pcl711_recognize,

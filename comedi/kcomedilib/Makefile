@@ -6,9 +6,15 @@ MOD_LIST_NAME := MISC_MODULES
 
 EXTRA_CFLAGS := -I ../
 
-MI_OBJS := data.o dio.o
-MIX_OBJS := kcomedilib_main.o
-M_OBJS := kcomedilib.o
+ifeq ($(CONFIG_COMEDI_KLIB),y)
+  O_TARGET := kcomedilib.o
+  OX_OBJS := kcomedilib_main.o
+  O_OBJS := data.o dio.o
+else
+  MI_OBJS := data.o dio.o
+  MIX_OBJS := kcomedilib_main.o
+  M_OBJS := kcomedilib.o
+endif
 
 
 include $(TOPDIR)/Rules.make

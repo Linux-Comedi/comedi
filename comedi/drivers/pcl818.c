@@ -211,7 +211,7 @@ static int RTC_timer_lock = 0;		/* RTC int lock */
 
 comedi_driver driver_pcl818={
 	driver_name:	"pcl818",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pcl818_attach,
 	detach:		pcl818_detach,
 	recognize:	pcl818_recognize,

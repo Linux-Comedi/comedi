@@ -52,7 +52,7 @@ static int dt2815_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2815_detach(comedi_device *dev);
 comedi_driver driver_dt2815={
 	driver_name:	"dt2815",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dt2815_attach,
 	detach:		dt2815_detach,
 };

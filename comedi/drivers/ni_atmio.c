@@ -270,6 +270,7 @@ typedef struct{
 	unsigned short gpct_input_select0;
 	unsigned short gpct_input_select1;
 
+	unsigned int ai_n_chans;
 	unsigned int ai_chanlistptr;
 	unsigned short ai_xorlist[512];
 }ni_private;
@@ -279,7 +280,7 @@ static int atmio_attach(comedi_device *dev,comedi_devconfig *it);
 static int atmio_detach(comedi_device *dev);
 comedi_driver driver_atmio={
 	driver_name:	"atmio-E",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		atmio_attach,
 	detach:		atmio_detach,
 };

@@ -72,7 +72,7 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt2801_detach(comedi_device *dev);
 comedi_driver driver_dt2801={
 	driver_name:	"dt2801",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dt2801_attach,
 	detach:		dt2801_detach,
 };

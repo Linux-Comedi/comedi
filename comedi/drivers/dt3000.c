@@ -225,7 +225,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it);
 static int dt3000_detach(comedi_device *dev);
 comedi_driver driver_dt3000={
 	driver_name:	"dt3000",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dt3000_attach,
 	detach:		dt3000_detach,
 };

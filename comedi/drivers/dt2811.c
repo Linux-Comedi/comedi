@@ -177,7 +177,7 @@ static int dt2811_detach(comedi_device *dev);
 static int dt2811_recognize(char *name);
 comedi_driver driver_dt2811={
 	driver_name:	"dt2811",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dt2811_attach,
 	detach:		dt2811_detach,
 	recognize:	dt2811_recognize,

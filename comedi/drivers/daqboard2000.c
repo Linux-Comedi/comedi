@@ -292,7 +292,7 @@ static int daqboard2000_recognize(char *name);
 
 comedi_driver driver_daqboard2000 = {
   driver_name:	"daqboard2000",
-  module:	&__this_module,
+  module:	THIS_MODULE,
   attach:	daqboard2000_attach,
   detach:	daqboard2000_detach,
   recognize:	daqboard2000_recognize,
