@@ -199,25 +199,34 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 }
 
 #ifndef CMDTEST
-/* Programs 8254 counter chip.  It should also work for the 8253.
+/* i8254_load programs 8254 counter chip.  It should also work for the 8253.
  * base_address is the lowest io address for the chip (the address of counter 0).
  * counter_number is the counter you want to load (0,1 or 2)
  * count is the number to load into the counter.
+ *
  * You probably want to use mode 2.
+ *
  * Use i8254_mm_load() if you board uses memory-mapped io, it is
  * the same as i8254_load() except it uses writeb() instead of outb().
+ *
+ * Neither i8254_load() or i8254_read() do their loading/reading
+ * atomically.  The 16 bit read/writes are performed with two successive
+ * 8 bit read/writes.  So if two parts of your driver do a load/read on
+ * the same counter, it may be necessary to protect these functions
+ * with a spinlock.
+ *
  * FMH
  */
 static inline int i8254_load(unsigned int base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
-	unsigned char byte;
+	unsigned int byte;
 	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 	if(count > 0xffff) return -1;
 	if(mode > 5) return -1;
-	if(mode == 2 && count == 1) return -1;
+	if((mode == 2 || mode == 3) && count == 1) return -1;
 
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
@@ -234,13 +243,13 @@ static inline int i8254_load(unsigned int base_address,
 static inline int i8254_mm_load(unsigned int base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
-	unsigned char byte;
+	unsigned int byte;
 	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 	if(count > 0xffff) return -1;
 	if(mode > 5) return -1;
-	if(mode == 2 && count == 1) return -1;
+	if((mode == 2 || mode == 3) && count == 1) return -1;
 
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
@@ -252,6 +261,27 @@ static inline int i8254_mm_load(unsigned int base_address,
 	writeb(byte, base_address + counter_number);
 
 	return 0;
+}
+
+/* Returns 16 bit counter value, should work for 8253 also.*/
+static inline int i8254_read(unsigned int base_address, unsigned int counter_number)
+{
+	unsigned int byte;
+	int ret;
+	static const int counter_control = 3;
+
+	if(counter_number > 2) return -1;
+
+	// latch counter
+	byte = counter_number << 6;
+	outb(byte, base_address + counter_control);
+
+	// read lsb
+	ret = inb(base_address + counter_number);
+	// read msb
+	ret += inb(base_address + counter_number) << 8;
+
+	return ret;
 }
 #endif
 
