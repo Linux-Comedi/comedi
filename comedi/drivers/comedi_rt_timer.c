@@ -163,8 +163,10 @@ static inline int buf_remove(comedi_device *dev,comedi_subdevice *s)
 	return data;
 }
 
-// checks for timing error
-inline static int check_timing(comedi_device *dev, unsigned long long scan){
+// checks for scan timing error
+inline static int check_scan_timing(comedi_device *dev,
+	unsigned long long scan)
+{
 	RTIME now, timing_error;
 
 	now = rt_get_time();
@@ -172,6 +174,23 @@ inline static int check_timing(comedi_device *dev, unsigned long long scan){
 	if(timing_error > devpriv->scan_period){
 		comedi_error(dev, "timing error");
 		rt_printk("scan started %i ns late\n", timing_error * 838);
+		return -1;
+	}
+
+	return 0;
+}
+
+// checks for conversion timing error
+inline static int check_conversion_timing(comedi_device *dev,
+	RTIME scan_start, unsigned int conversion)
+{
+	RTIME now, timing_error;
+
+	now = rt_get_time();
+	timing_error = now - (scan_start + conversion * devpriv->convert_period);
+	if(timing_error > devpriv->convert_period){
+		comedi_error(dev, "timing error");
+		rt_printk("conversion started %i ns late\n", timing_error * 838);
 		return -1;
 	}
 
@@ -187,6 +206,7 @@ static void input_scan_task_func(int d)
 	int i, ret;
 	unsigned long long n;
 	lsampl_t data;
+	RTIME scan_start;
 
 	// every comedi_cmd causes one execution of while loop
 	while(1){
@@ -206,15 +226,21 @@ static void input_scan_task_func(int d)
 			// check if done flag was set (by timer_cancel())
 			if(devpriv->done)
 				goto cleanup;
-			ret = check_timing(dev, n);
+			ret = check_scan_timing(dev, n);
 			if(ret < 0){
 				comedi_error_done(dev,s);
 				goto cleanup;
 			}
+			scan_start = rt_get_time();
 			for(i = 0; i < cmd->scan_end_arg; i++){
 				// conversion timing
 				if(cmd->convert_src == TRIG_TIMER && i){
 					rt_task_wait_period();
+				}
+				ret = check_conversion_timing(dev, scan_start, i);
+				if(ret < 0){
+					comedi_error_done(dev,s);
+					goto cleanup;
 				}
 				ret = comedi_data_read(devpriv->device,devpriv->subd,
 					CR_CHAN(cmd->chanlist[i]),
@@ -252,6 +278,7 @@ static void output_scan_task_func(int d)
 	int i, ret;
 	unsigned long long n;
 	int data;
+	RTIME scan_start;
 
 	// every comedi_cmd causes one execution of while loop
 	while(1){
@@ -271,15 +298,21 @@ static void output_scan_task_func(int d)
 			// check if done flag was set (by timer_cancel())
 			if(devpriv->done)
 				goto cleanup;
-			ret = check_timing(dev, n);
+			ret = check_scan_timing(dev, n);
 			if(ret < 0){
 				comedi_error_done(dev,s);
 				goto cleanup;
 			}
+			scan_start = rt_get_time();
 			for(i = 0; i < cmd->scan_end_arg; i++){
 				// conversion timing
 				if(cmd->convert_src == TRIG_TIMER && i){
 					rt_task_wait_period();
+				}
+				ret = check_conversion_timing(dev, scan_start, i);
+				if(ret < 0){
+					comedi_error_done(dev,s);
+					goto cleanup;
 				}
 				data = buf_remove(dev, s);
 				if(data < 0) {
@@ -321,7 +354,6 @@ static void timer_task_func(int d)
 
 	// every comedi_cmd causes one execution of while loop
 	while(1){
-		devpriv->done = 0;
 		devpriv->start = rt_get_time();
 
 		for(n = 0; 1; n++){
@@ -494,6 +526,8 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 #ifdef CONFIG_COMEDI_RTAI
 	start_rt_timer(1);
 #endif
+
+	devpriv->done = 0;
 
 	now=rt_get_time();
 	ret = rt_task_make_periodic(&devpriv->rt_task, now
