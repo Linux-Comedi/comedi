@@ -258,10 +258,19 @@ int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	if(ret)return ret;
 
 	ret=s->do_cmdtest(dev,s,&async->cmd);
-	if(ret)return -EINVAL;
+	// let it fix up arguments if necessary
+	if(ret == 3)
+		ret=s->do_cmdtest(dev,s,&async->cmd);
+	if(ret == 4)
+		ret=s->do_cmdtest(dev,s,&async->cmd);
+	if(ret)
+		return -EINVAL;
 
 	ret=s->do_cmd(dev,s);
-	if(ret>0)return -EINVAL;
+	if(ret)return -EINVAL;
+
+	// XXX write back changes to trig struct?
+
 	return ret;
 }
 
@@ -285,7 +294,7 @@ int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
 		cmd->scan_end_arg=it->n_chan;
 		cmd->stop_src=TRIG_COUNT;
 		cmd->stop_arg=it->n;
-		
+
 		break;
 	case 2:
 		cmd->scan_begin_src=TRIG_TIMER;
