@@ -1,7 +1,7 @@
 /*
     cb_pcidas64.c
     This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
-    64xxx cards.
+    64xx, 60xx, and 4020 cards.
 
     Author:  Frank Mori Hess <fmhess@uiuc.edu>
     Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@uiuc.edu>
@@ -35,10 +35,10 @@
 
 Driver: cb_pcidas64.o
 Description: Driver for the ComputerBoards/MeasurementComputing
-   PCI-DAS64xxx series with the PLX 9080 PCI controller.
+   PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller.
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: in development, pci-das6025e analog input works
-Updated: 2002-03-10
+Updated: 2002-03-30
 Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
@@ -164,6 +164,7 @@ TODO:
 #define    CONVERT_POLARITY_BIT	0x10
 #define    EOC_POLARITY_BIT	0x20
 #define    SW_GATE_BIT	0x40	// software gate of adc
+#define    ADC_DITHER_BIT	0x200	// turn on extra noise for dithering
 #define    RETRIGGER_BIT	0x800
 #define    LO_CHANNEL_4020_BITS(x)	(((x) & 0x3) << 8)	// low channel for 4020 two channel mode
 #define    HI_CHANNEL_4020_BITS(x)	(((x) & 0x3) << 10)	// high channel for 4020 two channel mode
@@ -318,6 +319,8 @@ static comedi_lrange ao_ranges =
 		UNI_RANGE(10),
 	}
 };
+
+//XXX 60xx do 10V bipolar only
 
 enum register_layout
 {
@@ -575,7 +578,10 @@ MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pcidas64_board *)dev->board_ptr)
+extern inline pcidas64_board* board(comedi_device *dev)
+{
+	return (pcidas64_board *)dev->board_ptr;
+}
 
 /* this structure is for data unique to this hardware driver. */
 typedef struct
@@ -605,6 +611,7 @@ typedef struct
 	volatile unsigned int intr_enable_bits;	// bits to send to INTR_ENABLE_REG register
 	volatile u16 adc_control1_bits;	// bits to send to ADC_CONTROL1_REG register
 	volatile u16 fifo_size_bits;	// bits to send to FIFO_SIZE_REG register
+	int calibration_source;	// index of calibration source readable through ai ch0
 } pcidas64_private;
 
 /* inline function that makes it easier to
@@ -631,6 +638,7 @@ static comedi_driver driver_cb_pcidas={
 };
 
 static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int ai_config_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int ai_cmd(comedi_device *dev,comedi_subdevice *s);
@@ -649,7 +657,7 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
-static int caldac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
+//static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -725,7 +733,7 @@ found:
 	private(dev)->hw_dev = pcidev;
 
 	//Initialize dev->board_name
-	dev->board_name = thisboard->name;
+	dev->board_name = board(dev)->name;
 
 	if(pci_enable_device(pcidev))
 		return -EIO;
@@ -760,7 +768,7 @@ found:
 	private(dev)->local1_iobase = (private(dev)->dio_counter_phys_iobase & ~local_range) | local_decode;
 
 	private(dev)->hw_revision = HW_REVISION(readw(private(dev)->main_iobase + HW_STATUS_REG));
-	if( thisboard->layout == LAYOUT_4020)
+	if( board(dev)->layout == LAYOUT_4020)
 		private(dev)->hw_revision >>= 1;
 
 	// disable interrupts on plx 9080
@@ -788,7 +796,8 @@ found:
 	// plx9080 dump
 	DEBUG_PRINT(" plx interrupt status 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG));
 	printk(" plx id bits 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_ID_REG));
-	printk(" plx hardware revision 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_REVISION_REG));
+	printk(" plx control reg 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_CONTROL_REG));
+	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_REVISION_REG));
 	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_MODE_REG));
 	DEBUG_PRINT(" plx dma channel 0 pci address 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG));
 	DEBUG_PRINT(" plx dma channel 0 local address 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
@@ -814,7 +823,7 @@ found:
 	for(index = 0; index < DMA_RING_COUNT; index++)
 	{
 		private(dev)->dma_desc[index].pci_start_addr = private(dev)->ai_buffer_phys_addr[index];
-		if(thisboard->layout == LAYOUT_4020)
+		if(board(dev)->layout == LAYOUT_4020)
 			private(dev)->dma_desc[index].local_start_addr = private(dev)->local1_iobase;
 		else
 			private(dev)->dma_desc[index].local_start_addr = private(dev)->local0_iobase + ADC_FIFO_REG;
@@ -840,32 +849,33 @@ found:
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_OTHER;
 	/* XXX Number of inputs in differential mode is ignored */
-	s->n_chan = thisboard->ai_se_chans;
+	s->n_chan = board(dev)->ai_se_chans;
 	s->len_chanlist = 0x2000;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = thisboard->ai_range_table;
+	s->maxdata = (1 << board(dev)->ai_bits) - 1;
+	s->range_table = board(dev)->ai_range_table;
 	s->insn_read = ai_rinsn;
+	s->insn_config = ai_config_insn;
 	s->do_cmd = ai_cmd;
 	s->do_cmdtest = ai_cmdtest;
 	s->cancel = ai_cancel;
 
 	/* analog output subdevice */
 	s = dev->subdevices + 1;
-	if(thisboard->ao_nchan)
+	if(board(dev)->ao_nchan)
 	{
 	//	dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
-		s->n_chan = thisboard->ao_nchan;
+		s->n_chan = board(dev)->ao_nchan;
 		// analog out resolution is the same as analog input resolution, so use ai_bits
-		s->maxdata = (1 << thisboard->ai_bits) - 1;
+		s->maxdata = (1 << board(dev)->ai_bits) - 1;
 		s->range_table = &ao_ranges;
 		s->insn_read = ao_readback_insn;
 		s->insn_write = ao_winsn;
 //XXX 4020 can't do paced analog output
 	//	s->do_cmdtest = ao_cmdtest;
 	//	s->do_cmd = ao_cmd;
-	//	s->len_chanlist = thisboard->ao_nchan;
+	//	s->len_chanlist = board(dev)->ao_nchan;
 	//	s->cancel = ao_cancel;
 	} else
 	{
@@ -893,7 +903,7 @@ found:
 
 	/* 8255 */
 	s = dev->subdevices + 4;
-	if(thisboard->layout == LAYOUT_4020)
+	if(board(dev)->layout == LAYOUT_4020)
 	{
 		dio_8255_iobase = private(dev)->main_iobase + I8255_4020_REG;
 		subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
@@ -909,11 +919,11 @@ found:
 
 	// calibration subd XXX
 	s = dev->subdevices + 6;
-	if(thisboard->layout == LAYOUT_60XX)
+	if(board(dev)->layout == LAYOUT_60XX)
 	{
 		s->type=COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
-		s->n_chan = 8;
+		s->n_chan = 8;	// XXX
 		s->maxdata = 0xff;
 //		s->insn_read = calib_read_insn;
 		s->insn_write = calib_write_insn;
@@ -921,7 +931,7 @@ found:
 		s->type = COMEDI_SUBD_UNUSED;
 
 	// manual says to set this bit for boards with > 16 channels
-//	if(thisboard->ai_se_chans > 16)
+//	if(board(dev)->ai_se_chans > 16)
 	if(1)	// bit should be set for 6025, although docs say 6034 and 6035 should be cleared XXX
 		private(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
@@ -949,7 +959,7 @@ found:
 	// enable local burst mode
 	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
 	// 4020 uses 32 bit dma
-	if(thisboard->layout == LAYOUT_4020)
+	if(board(dev)->layout == LAYOUT_4020)
 		bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
 	else
 		// localspace0 bus is 16 bits wide
@@ -958,7 +968,7 @@ found:
 
 	// set fifos to maximum size
 	private(dev)->fifo_size_bits = DAC_FIFO_BITS;
-	switch(thisboard->layout)
+	switch(board(dev)->layout)
 	{
 		case LAYOUT_64XX:
 			private(dev)->fifo_size_bits |= ADC_FIFO_64XX_BITS;
@@ -985,7 +995,6 @@ for(i = 0; i < 8; i++)
 	else
 		caldac_8800_write(dev, i, 128);
 }
-caldac_1590_write(dev, 0x800, 0x800);
 #endif
 
 	return 0;
@@ -1041,6 +1050,8 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	unsigned int bits = 0, n, i;
 	const int timeout = 100;
 
+	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
+	
 	// disable interrupts on plx 9080 XXX
 	writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
@@ -1049,41 +1060,49 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 
-	// make sure internal calibration source is turned off
-	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
-
 	/* disable pacing, enable software triggering, etc */
 	writew(ADC_DMA_DISABLE_BIT, private(dev)->main_iobase + ADC_CONTROL0_REG);
 	private(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	if(insn->chanspec & CR_DITHER)
+		private(dev)->adc_control1_bits |= ADC_DITHER_BIT;
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
-	if(thisboard->layout != LAYOUT_4020)
+	if(board(dev)->layout != LAYOUT_4020)
 	{
 		// use internal queue
 		writew(SLOW_DAC_BIT, private(dev)->main_iobase + HW_CONFIG_REG);
 
 		// load internal queue
 		bits = 0;
-		// set channel
-		bits |= CHAN_BITS(CR_CHAN(insn->chanspec));
-//bits |= CHAN_BITS(0);
 		// set gain
-		bits |= thisboard->ai_range_bits[CR_RANGE(insn->chanspec)];
+		bits |= board(dev)->ai_range_bits[CR_RANGE(insn->chanspec)];
 		// set single-ended / differential
 		if(CR_AREF(insn->chanspec) == AREF_DIFF)
 			bits |= ADC_DIFFERENTIAL_BIT;
 		if(CR_AREF(insn->chanspec) == AREF_COMMON)
 			bits |= ADC_COMMON_BIT;
-		// set stop channel
-		writew(CHAN_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
-//writew(CHAN_BITS(0), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
+		// ALT_SOURCE is internal calibration reference
+		if(insn->chanspec & CR_ALT_SOURCE)
+		{
+			DEBUG_PRINT("reading calibration source\n");
+			// internal reference reads on channel 0
+			bits |= CHAN_BITS(0);
+			writew(CHAN_BITS(0), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
+			// channel selects internal reference source to connect to channel 0
+			writew(CAL_EN_BIT | CAL_SRC_BITS(private(dev)->calibration_source),
+				private(dev)->main_iobase + CALIBRATION_REG);
+		} else	// set channel
+		{
+			bits |= CHAN_BITS(CR_CHAN(insn->chanspec));
+			// set stop channel
+			writew(CHAN_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
+			// make sure internal calibration source is turned off
+			writew(0, private(dev)->main_iobase + CALIBRATION_REG);
+		}
 		// set start channel, and rest of settings
 		writew(bits, private(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 	}
 
-// calibration testing
-//writew(CAL_EN_BIT | CAL_SRC_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + CALIBRATION_REG);
-//udelay(10);
 
 	// clear adc buffer
 	writew(0, private(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
@@ -1109,13 +1128,30 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			printk(" status 0x%x\n", bits);
 			return -ETIME;
 		}
-		if(thisboard->layout == LAYOUT_4020)
+		if(board(dev)->layout == LAYOUT_4020)
 			data[n] = readl(private(dev)->dio_counter_iobase) & 0xffff;
 		else
 			data[n] = readw(private(dev)->main_iobase + PIPE1_READ_REG);
 	}
 
 	return n;
+}
+
+static int ai_config_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	int id = data[0];
+	int source = data[1];
+	static const int num_calibration_sources = 8;
+
+	if(id != INSN_CONFIG_ALT_SOURCE) return -EINVAL;
+
+	if(source >= num_calibration_sources)
+		return -EINVAL;
+
+	DEBUG_PRINT("setting calibration source to %i\n", source);
+	private(dev)->calibration_source = source;
+
+	return 1;
 }
 
 static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
@@ -1134,14 +1170,14 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 
 	tmp = cmd->scan_begin_src;
 	triggers = TRIG_FOLLOW;
-	if(thisboard->layout != LAYOUT_4020)
+	if(board(dev)->layout != LAYOUT_4020)
 		triggers |= TRIG_TIMER;
 	cmd->scan_begin_src &= triggers;
 	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
 
 	tmp = cmd->convert_src;
 	triggers = TRIG_TIMER;
-	if(thisboard->layout != LAYOUT_4020)
+	if(board(dev)->layout != LAYOUT_4020)
 		triggers |= TRIG_EXT;
 	cmd->convert_src &= triggers;
 	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
@@ -1185,9 +1221,9 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	}
 	if(cmd->convert_src == TRIG_TIMER)
 	{
-		if(cmd->convert_arg < thisboard->ai_speed)
+		if(cmd->convert_arg < board(dev)->ai_speed)
 		{
-			cmd->convert_arg = thisboard->ai_speed;
+			cmd->convert_arg = board(dev)->ai_speed;
 			err++;
 		}
 		if(cmd->scan_begin_src == TRIG_TIMER)
@@ -1294,9 +1330,12 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	private(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
 	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
+	// make sure internal calibration source is turned off
+	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
+
 	// set hardware configuration register
 	bits = 0;
-	if(thisboard->layout == LAYOUT_4020)
+	if(board(dev)->layout == LAYOUT_4020)
 		bits |= INTERNAL_CLOCK_4020_BITS;
 	// use external queue
 	else bits |= EXT_QUEUE_BIT | SLOW_DAC_BIT;
@@ -1308,7 +1347,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		check_adc_timing(cmd);
 
 		// supposed to load counter with desired divisor minus 2 or 3 depending on board
-		if(thisboard->layout == LAYOUT_4020)
+		if(board(dev)->layout == LAYOUT_4020)
 			convert_counter_value = cmd->convert_arg / TIMER_BASE - 2;
 		else
 			convert_counter_value = cmd->convert_arg / TIMER_BASE - 3;
@@ -1319,7 +1358,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		writew((convert_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
 
 		// set scan pacing
-		if(thisboard->layout != LAYOUT_4020)
+		if(board(dev)->layout != LAYOUT_4020)
 		{
 			scan_counter_value = 0;
 			if(cmd->scan_begin_src == TRIG_TIMER)
@@ -1346,7 +1385,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if(cmd->stop_src == TRIG_COUNT)
 		private(dev)->ai_count = cmd->stop_arg * cmd->chanlist_len;
 
-	if(thisboard->layout != LAYOUT_4020)
+	if(board(dev)->layout != LAYOUT_4020)
 	{
 		/* XXX cannot write to queue fifo while dac fifo is being written to
 		* ( need spinlock, or try to use internal queue instead */
@@ -1359,7 +1398,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			// set channel
 			bits |= CHAN_BITS(CR_CHAN(cmd->chanlist[i]));
 			// set gain
-			bits |= thisboard->ai_range_bits[CR_RANGE(cmd->chanlist[i])];
+			bits |= board(dev)->ai_range_bits[CR_RANGE(cmd->chanlist[i])];
 			// set single-ended / differential
 			if(CR_AREF(cmd->chanlist[i]) == AREF_DIFF)
 				bits |= ADC_DIFFERENTIAL_BIT;
@@ -1399,7 +1438,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* set mode, allow software conversions */
 	private(dev)->adc_control1_bits |= SW_GATE_BIT;
-	if(thisboard->layout != LAYOUT_4020)
+	if(board(dev)->layout != LAYOUT_4020)
 	{
 		if(cmd->convert_src == TRIG_EXT)
 			private(dev)->adc_control1_bits |= ADC_MODE_BITS(13);	// good old mode 13
@@ -1515,12 +1554,12 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
 		if(read_segment != write_segment)
-			num_samples = (thisboard->fifo_depth / num_fifo_segments) - read_index;
+			num_samples = (board(dev)->fifo_depth / num_fifo_segments) - read_index;
 		else
 			num_samples = write_index - read_index;
 
 		// 4020 stores two samples per 32 bit fifo entry
-		if(thisboard->layout == LAYOUT_4020)
+		if(board(dev)->layout == LAYOUT_4020)
 			num_samples *= 2;
 
 		if(cmd->stop_src == TRIG_COUNT)
@@ -1531,7 +1570,7 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 			}
 		}
 
-		if(thisboard->layout == LAYOUT_4020)
+		if(board(dev)->layout == LAYOUT_4020)
 			pio_drain_ai_fifo_32(dev, num_samples);
 		else
 			pio_drain_ai_fifo_16(dev, num_samples);
@@ -1860,7 +1899,11 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 	return divisor;
 }
 
-/* 6025 caldacs:
+/* pci-6025 8800 caldac:
+ * address 0 == dac channel 0 offset
+ * address 1 == dac channel 0 gain
+ * address 2 == dac channel 1 offset
+ * address 3 == dac channel 1 gain
  * address 4 == fine adc offset
  * address 5 == coarse adc offset
  * address 6 == coarse adc gain
@@ -1896,7 +1939,9 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	return 0;
 }
 
-static int caldac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b)
+#if 0
+// 1590 doesn't seem to do anything.  Perhaps it is the actual primary ao chip.
+static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b)
 {
 	const int bitstream_length = 24;
 	const int max_caldac_value = 0xfff;
@@ -1923,4 +1968,4 @@ static int caldac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned in
 
 	return 0;
 }
-
+#endif
