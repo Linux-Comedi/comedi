@@ -258,6 +258,8 @@
 #define DIO_Serial_Out_Divide_By_2              _bit13
 #define Slow_Internal_Timebase                  _bit11
 
+#define IO_Bidirection_Pin_Register	57
+
 #define Interrupt_Control_Register	59
 #define AI_Output_Control_Register	60
 

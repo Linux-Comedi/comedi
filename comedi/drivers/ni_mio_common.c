@@ -196,6 +196,8 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
+static void pfi_setup(comedi_device *dev);
+
 #undef DEBUG
 
 #define AIMODE_NONE		0
@@ -814,10 +816,14 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
+#if 0
+/* XXX This is disabled, since we want to use bits 30 and 31 to
+ * refer to edge/level and hi/lo triggering. */
 		if(cmd->scan_begin_arg>9){
 			cmd->scan_begin_arg=9;
 			err++;
 		}
+#endif
 	}
 	if(cmd->convert_src==TRIG_TIMER){
 		if(cmd->convert_arg<boardtype.ai_speed){
@@ -831,10 +837,14 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	}else{
 		/* external trigger */
 		/* see above */
+#if 0
+/* XXX This is disabled, since we want to use bits 30 and 31 to
+ * refer to edge/level and hi/lo triggering. */
 		if(cmd->convert_arg>9){
 			cmd->convert_arg=9;
 			err++;
 		}
+#endif
 	}
 
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
@@ -975,11 +985,28 @@ devpriv->n_left = 1;
 
 		break;
 	case TRIG_EXT:
-		win_out(AI_START_Edge|AI_START_Sync|
-			AI_START_Select(1+cmd->scan_begin_arg)|
-			AI_STOP_Select(19)|AI_STOP_Sync,
-			AI_START_STOP_Select_Register);
+	    {
+		unsigned int reg = 0;
+
+/* XXX duh, these should be moved, but I need to think about it
+ * a bit first.  --ds */
+#define COMEDI_TRIG_LEVEL	0
+#define COMEDI_TRIG_EDGE	(1<<31)
+#define COMEDI_TRIG_FALLING	0
+#define COMEDI_TRIG_RISING	(1<<30)
+
+		if(cmd->scan_begin_arg&COMEDI_TRIG_EDGE)
+			reg |= AI_START_Edge;
+		/* AI_START_Polarity==1 is falling edge */
+		if(!(cmd->scan_begin_arg&COMEDI_TRIG_RISING))
+			reg |= AI_START_Polarity;
+		reg |= AI_START_Sync;
+		reg |= AI_START_Select(1+(cmd->scan_begin_arg&0xf));
+		reg |= AI_STOP_Select(19)|AI_STOP_Sync;
+
+		win_out(reg,AI_START_STOP_Select_Register);
 		break;
+	    }
 	}
 
 	switch(cmd->convert_src){
@@ -1598,9 +1625,18 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	win_out((trigvar>>16),AO_UI_Load_A_Register_High);
 	win_out((trigvar&0xffff),AO_UI_Load_A_Register_Low);
 
-	devpriv->ao_mode1&=~AO_Multiple_Channels;
+	if(cmd->scan_end_arg>1){
+		devpriv->ao_mode1|=AO_Multiple_Channels;
+		win_out(AO_Number_Of_Channels(cmd->scan_end_arg-1)|
+			AO_UPDATE_Output_Select(1),
+			AO_Output_Control_Register);
+	}else{
+		devpriv->ao_mode1&=~AO_Multiple_Channels;
+		win_out(AO_Number_Of_Channels(CR_CHAN(cmd->chanlist[0]))|
+			AO_UPDATE_Output_Select(1),
+			AO_Output_Control_Register);
+	}
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
-	win_out(AO_UPDATE_Output_Select(1),AO_Output_Control_Register);
 
 	win_out(AO_DAC0_Update_Mode|AO_DAC1_Update_Mode,AO_Command_1_Register);
 
@@ -1928,10 +1964,6 @@ static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 			devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
 			win_out(devpriv->dio_output,DIO_Output_Register);
 		}else{
-			/* Using ni_readw to access the direct-mapped register
-			   is faster by about 0.5us on my machine.
-			   -bkeryan@ni.com */
-			/*data=win_in(DIO_Input_Register);*/
 			data=ni_readw(DIO_Parallel_Input);
 			di_unpack(data,it);
 #ifdef DEBUG_DIO
@@ -2058,7 +2090,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->cancel=ni_ai_reset;
 
 	/* analog output subdevice */
-	/* XXX what about boards without ao? */
 
 	s=dev->subdevices+1;
 	dev->write_subdev=s;
@@ -2182,6 +2213,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
                         Interrupt_Control_Register
                 );
         }
+
+	pfi_setup(dev);
 
 	printk("\n");
 
@@ -2391,7 +2424,6 @@ static int pack_ad8522(int addr,int val,int *bitstring)
  *
  */
 
-#if 0
 
 static void pfi_setup(comedi_device *dev)
 {
@@ -2401,7 +2433,6 @@ static void pfi_setup(comedi_device *dev)
 	win_out(IO_Bidirection_Pin_Register,0);
 }
 
-#endif
 
 
 /*
@@ -2674,9 +2705,9 @@ static int ni_8255_callback(int dir,int port,int data,void *arg)
 	comedi_device *dev=arg;
 
 	if(dir){
-		ni_writeb(25+2*port,data);
+		ni_writeb(data,Port_A+2*port);
 		return 0;
 	}else{
-		return ni_readb(25+2*port);
+		return ni_readb(Port_A+2*port);
 	}
 }
