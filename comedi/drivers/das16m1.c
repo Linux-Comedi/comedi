@@ -3,6 +3,7 @@
     CIO-DAS16/M1 driver
     Author: Frank Mori Hess, based on code from the das16
       driver.
+    Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@stm.lbl.gov>
@@ -144,7 +145,9 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s);
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s);
 
+static int das16m1_poll(comedi_device *dev, comedi_subdevice *s);
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs);
+static void das16m1_handler(comedi_device *dev, unsigned int status);
 
 static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int round_flag);
 
@@ -179,6 +182,10 @@ static comedi_driver driver_das16m1={
 struct das16m1_private_struct {
 	unsigned int	control_state;
 	volatile unsigned int	adc_count;	// number of samples completed
+	/* initial value in lower half of hardware conversion counter,
+	 * needed to keep track of whether new count has been loaded into
+	 * counter yet (loaded by first sample conversion) */
+	u16 initial_hw_count;
 	unsigned int do_bits;	// saves status of digital output bits
 	unsigned int divisor1;	// divides master clock to obtain conversion speed
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
@@ -321,10 +328,13 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	// set software count
 	devpriv->adc_count = 0;
-	/* initialize lower half of hardware counter, used to determine how
-	 * many samples are in fifo */
+	/* Initialize lower half of hardware counter, used to determine how
+	 * many samples are in fifo.  Value doesn't actually load into counter
+	 * until counter's next clock (the next a/d conversion) */
 	i8254_load(dev->iobase + DAS16M1_8254_FIRST, 1, 0, 2);
-
+	/* remember current reading of counter so we know when counter has
+	 * actually been loaded */
+	devpriv->initial_hw_count = i8254_read(dev->iobase + DAS16M1_8254_FIRST, 1);
 	/* setup channel/gain queue */
 	for(i = 0; i < cmd->chanlist_len; i++)
 	{
@@ -439,15 +449,24 @@ static int das16m1_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	return 2;
 }
 
+static int das16m1_poll(comedi_device *dev, comedi_subdevice *s)
+{
+	unsigned long flags;
+	unsigned int status;
+
+	// prevent race with interrupt handler
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	status = inb(dev->iobase + DAS16M1_CS);
+	das16m1_handler(dev, status);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	return s->async->buf_int_count - s->async->buf_user_count;
+}
+
 static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-	int i, status;
-	sampl_t data[FIFO_SIZE];
+	int status;
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices;
-	comedi_async *async;
-	comedi_cmd *cmd;
-	u16 num_samples;
 
 	if(dev->attached == 0)
 	{
@@ -455,20 +474,58 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 		return;
 	}
 
+	// prevent race with comedi_poll()
+	spin_lock(&dev->spinlock);
+
 	status = inb(dev->iobase + DAS16M1_CS);
 
 	if((status & (IRQDATA | OVRUN)) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
+		spin_unlock(&dev->spinlock);
 		return;
 	}
-	// initialize async here to avoid freak out on premature interrupt
+
+	das16m1_handler(dev, status);
+
+	/* clear interrupt */
+	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+
+	spin_unlock(&dev->spinlock);
+}
+
+static void das16m1_handler(comedi_device *dev, unsigned int status)
+{
+	int i;
+	sampl_t data[FIFO_SIZE];
+	comedi_subdevice *s;
+	comedi_async *async;
+	comedi_cmd *cmd;
+	u16 num_samples;
+	u16 hw_counter;
+
+	s = dev->read_subdev;
 	async = s->async;
 	async->events = 0;
 	cmd = &async->cmd;
 
 	// figure out how many samples are in fifo
-	num_samples = (0x10000 - i8254_read(dev->iobase + DAS16M1_8254_FIRST, 1)) - devpriv->adc_count;
+	hw_counter = i8254_read(dev->iobase + DAS16M1_8254_FIRST, 1);
+	/* make sure hardware counter reading is not bogus due to initial value
+	 * not having been loaded yet */
+	if(devpriv->adc_count == 0 && hw_counter == devpriv->initial_hw_count)
+	{
+		num_samples = 0;
+	}else
+	{
+		/* The calculation of num_samples looks odd, but it uses the following facts.
+		 * 16 bit hardware counter is initialized with value of zero (which really
+		 * means 0x1000).  The counter decrements by one on each conversion
+		 * (when the counter decrements from zero it goes to 0xffff).  num_samples
+		 * is a 16 bit variable, so it will roll over in a similar fashion to the
+		 * hardware counter.  Work it out, and this is what you get. */
+		num_samples = - hw_counter - devpriv->adc_count;
+	}
 	// check if we only need some of the points
 	if(num_samples > cmd->stop_arg * cmd->chanlist_len)
 		num_samples = cmd->stop_arg * cmd->chanlist_len;
@@ -502,8 +559,6 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	async->events |= COMEDI_CB_BLOCK;
 	comedi_event(dev, s, async->events);
 
-	/* clear interrupt */
-	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 }
 
 /* This function takes a time in nanoseconds and sets the     *
@@ -634,6 +689,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	s->do_cmdtest = das16m1_cmd_test;
 	s->do_cmd = das16m1_cmd_exec;
 	s->cancel = das16m1_cancel;
+	s->poll = das16m1_poll;
 
 	s = dev->subdevices + 1;
 	/* di */
