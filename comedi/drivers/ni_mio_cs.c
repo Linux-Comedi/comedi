@@ -262,15 +262,6 @@ static dev_node_t dev_node = {
 };
 static int mio_cs_event(event_t event, int priority, event_callback_args_t *args);
 
-static void my_cs_error(client_handle_t handle, int func, int ret)
-{
-	error_info_t err = { func, ret };
-
-	DPRINTK("my_cs_error(handle=%p, func=%d, ret=%d)\n",handle,func,ret);
-
-	CardServices(ReportError, handle, &err);
-}
-
 static dev_link_t *cs_attach(void)
 {
 	dev_link_t *link;
@@ -281,9 +272,10 @@ static dev_link_t *cs_attach(void)
 	if(!link)return NULL;
 	memset(link,0,sizeof(*link));
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 	link->release.function = &cs_release;
 	link->release.data = (u_long)link;
-	
+#endif	
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -305,9 +297,9 @@ static dev_link_t *cs_attach(void)
 	client_reg.event_handler = &mio_cs_event;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
-	ret = CardServices(RegisterClient, &link->handle, &client_reg);
+	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
-		my_cs_error(link->handle, RegisterClient, ret);
+		cs_error(link->handle, RegisterClient, ret);
 		printk("detaching...\n");
 		cs_detach(link);
 		return NULL;
@@ -320,9 +312,9 @@ static void cs_release(u_long arg)
 {
 	dev_link_t *link=(void *)arg;
 
-	CardServices(ReleaseConfiguration, link->handle);
-	CardServices(ReleaseIO, link->handle, &link->io);
-	CardServices(ReleaseIRQ, link->handle, &link->irq);
+	pcmcia_release_configuration(link->handle);
+	pcmcia_release_io(link->handle, &link->io);
+	pcmcia_release_irq(link->handle, &link->irq);
 
 	link->state &= ~DEV_CONFIG;
 }
@@ -342,7 +334,9 @@ static void cs_detach(dev_link_t *link)
 	//cli
 	if (link->state & DEV_RELEASE_PENDING){
 		printk("dev release pending bug\n");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 		del_timer(&link->release);
+#endif
 		link->state &= ~DEV_RELEASE_PENDING;
 	}
 	//restore_flags
@@ -356,7 +350,7 @@ static void cs_detach(dev_link_t *link)
 	}
 
 	if(link->handle){
-		CardServices(DeregisterClient, link->handle);
+		pcmcia_deregister_client(link->handle);
 	}
 
 }
@@ -372,9 +366,13 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 		DPRINTK("removal event\n");
 		link->state &= ~DEV_PRESENT;
 		if(link->state & DEV_CONFIG) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 			link->release.expires = jiffies+HZ/20;
 			link->state |= DEV_RELEASE_PENDING;
 			add_timer(&link->release);
+#else
+			cs_release((ulong)link);	
+#endif
 		}
 		/* XXX disable irq here, to get rid of spurious interrupts */
 		break;
@@ -390,7 +388,7 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 	case CS_EVENT_RESET_PHYSICAL:
 		DPRINTK("reset physical event\n");
 		if(link->state & DEV_CONFIG)
-			CardServices(ReleaseConfiguration, link->handle);
+			pcmcia_release_configuration(link->handle);
 		break;
 	case CS_EVENT_PM_RESUME:
 		DPRINTK("pm resume event\n");
@@ -399,7 +397,7 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 	case CS_EVENT_CARD_RESET:
 		DPRINTK("card reset event\n");
 		if(DEV_OK(link))
-			CardServices(RequestConfiguration, link->handle, &link->conf);
+			pcmcia_request_configuration(link->handle, &link->conf);
 		break;
 	default:
 		DPRINTK("unknown event (ignored)\n");
@@ -427,15 +425,15 @@ static void mio_cs_config(dev_link_t *link)
 	tuple.Attributes = 0;
 	
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	ret=CardServices(GetFirstTuple, handle, &tuple);
-	ret=CardServices(GetTupleData, handle, &tuple);
-	ret=CardServices(ParseTuple, handle, &tuple, &parse);
+	ret = pcmcia_get_first_tuple(handle, &tuple);
+	ret = pcmcia_get_tuple_data(handle, &tuple);
+	ret = pcmcia_parse_tuple(handle, &tuple, &parse);
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
 	link->state |= DEV_CONFIG;
 
-	CardServices(GetConfigurationInfo,handle,&conf);
+	pcmcia_get_configuration_info(handle, &conf);
 	link->conf.Vcc=conf.Vcc;
 #if 0
 	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
@@ -445,8 +443,8 @@ static void mio_cs_config(dev_link_t *link)
 
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((CardServices(GetFirstTuple,handle, &tuple) == CS_SUCCESS) &&
-	   (CardServices(GetTupleData,handle,&tuple) == CS_SUCCESS)){
+	if((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
+	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
@@ -454,9 +452,9 @@ static void mio_cs_config(dev_link_t *link)
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
-	ret=CardServices(GetFirstTuple, handle, &tuple);
-	ret=CardServices(GetTupleData, handle, &tuple);
-	ret=CardServices(ParseTuple, handle, &tuple, &parse);
+	ret = pcmcia_get_first_tuple(handle, &tuple);
+	ret = pcmcia_get_tuple_data(handle, &tuple);
+	ret = pcmcia_parse_tuple(handle, &tuple, &parse);
 
 #if 0
 	printk(" index: 0x%x\n",parse.cftable_entry.index);
@@ -486,7 +484,7 @@ static void mio_cs_config(dev_link_t *link)
 		int base;
 		for(base=0x000;base<0x400;base+=0x20){
 			link->io.BasePort1=base;
-			ret=CardServices(RequestIO, handle, &link->io);
+			ret = pcmcia_request_io(handle, &link->io);
 			//printk("RequestIO 0x%02x\n",ret);
 			if(!ret)break;
 		}
@@ -494,12 +492,12 @@ static void mio_cs_config(dev_link_t *link)
 
 	link->irq.IRQInfo1=parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2=parse.cftable_entry.irq.IRQInfo2;
-	ret=CardServices(RequestIRQ, handle, &link->irq);
+	ret = pcmcia_request_irq(handle, &link->irq);
 	//printk("RequestIRQ 0x%02x\n",ret);
 
 	link->conf.ConfigIndex=1;
 
-	ret=CardServices(RequestConfiguration, handle, &link->conf);
+	ret = pcmcia_request_configuration(handle, &link->conf);
 	//printk("RequestConfiguration %d\n",ret);
 
 	link->dev = &dev_node;
@@ -576,8 +574,8 @@ static int get_prodid(comedi_device *dev,dev_link_t *link)
 	tuple.TupleDataMax = 255;
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((CardServices(GetFirstTuple,handle, &tuple) == CS_SUCCESS) &&
-	   (CardServices(GetTupleData,handle,&tuple) == CS_SUCCESS)){
+	if((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
+	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
 		prodid = le16_to_cpu(buf[1]);
 	}
 	
@@ -607,24 +605,34 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 
 MODULE_LICENSE("GPL");
 
+struct pcmcia_driver ni_mio_cs_driver =
+{
+	.attach = cs_attach,
+	.detach = cs_detach,
+	.owner = THIS_MODULE,
+	.drv = {
+		.name = "ni_mio_cs",
+	},	
+};
+
 int init_module(void)
 {
 	servinfo_t serv;
 
-	CardServices(GetCardServicesInfo, &serv);
+	pcmcia_get_card_services_info(&serv);
 	if(serv.Revision != CS_RELEASE_CODE){
 		printk(KERN_NOTICE "mio_cs: Card Services release "
 			"does not match!\n");
 		//return -EPERM; /* XXX what to return? */
 	}
-	register_pccard_driver(&dev_info, &cs_attach, &cs_detach);
+	pcmcia_register_driver(&ni_mio_cs_driver);
 	comedi_driver_register(&driver_ni_mio_cs);
 	return 0;
 }
 
 void cleanup_module(void)
 {
-	unregister_pccard_driver(&dev_info);
+	pcmcia_unregister_driver(&ni_mio_cs_driver);
 #if 0
 	while(dev_list != NULL)
 		cs_detach(dev_list);
