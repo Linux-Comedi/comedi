@@ -841,6 +841,8 @@ static int dt3000_detach(comedi_device *dev)
 {
 	if(dev->irq)comedi_free_irq(dev->irq,dev);
 
+	if(devpriv && devpriv->pci_dev) pci_dev_put(devpriv->pci_dev);
+
 	/* XXX */
 
 	return 0;
@@ -892,8 +894,8 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board)
 {
 	int i;
 	
-	for(from=pci_find_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from); from!=NULL;
-			from=pci_find_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from)){
+	for(from=pci_get_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from); from!=NULL;
+			from=pci_get_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from)){
 		for(i=0;i<n_dt3k_boards;i++){
 			if(from->device == dt3k_boardtypes[i].device_id){
 				*board=i;

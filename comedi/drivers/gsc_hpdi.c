@@ -575,7 +575,10 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	if( pci_enable_device( pcidev ) )
+	{
+		pci_dev_put( pcidev );
 		return -EIO;
+	}
 	pci_set_master( pcidev );
 
 	priv(dev)->hw_dev = pcidev;

@@ -684,8 +684,8 @@ static int me_attach(comedi_device *dev,comedi_devconfig *it)
 //
 // Probe the device to determine what device in the series it is.
 //
-	for(pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
-		pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_device))
+	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device))
   {
     if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS)
     {
@@ -725,7 +725,10 @@ found:
   // Allocate private memory
 
   if(alloc_private(dev,sizeof(me_private_data_struct)) < 0)
+  {
+    pci_dev_put(pci_device);
     return -ENOMEM;
+  }
 
   // Set data in device structure
 
@@ -866,7 +869,15 @@ found:
 
 static int me_detach(comedi_device *dev)
 {
-  me_reset(dev);
+  if(dev_private)
+  {
+    me_reset(dev);
+
+    if(dev_private->pci_device)
+    {
+      pci_dev_put(dev_private->pci_device);
+    }
+  }
 
   return 0;
 }

@@ -74,6 +74,15 @@ static cnt_board_struct cnt_boards[] =
 
 #define cnt_board_nbr (sizeof(cnt_boards)/sizeof(cnt_board_struct))
 
+/*-- device private structure -----------------------------------------------*/
+
+typedef struct
+{
+  struct pci_dev *pcidev;
+} cnt_device_private;
+
+#define devpriv ((cnt_device_private *)dev->private)
+
 static comedi_driver cnt_driver =
 {
   driver_name: CNT_DRIVER_NAME,
@@ -140,8 +149,8 @@ static int cnt_attach(comedi_device *dev, comedi_devconfig *it)
   int              error, i;
 
   /* Probe the device to determine what device in the series it is. */
-	for(pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
-		pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_device))
+	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device))
   {
     if(pci_device->vendor == PCI_VENDOR_ID_KOLTER)
     {
@@ -181,6 +190,15 @@ found:
   request_region(io_base & PCI_BASE_ADDRESS_IO_MASK, 0x08, CNT_DRIVER_NAME);
   dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
 
+  /* allocate device private structure */
+  if((error = alloc_private(dev, sizeof(cnt_device_private))) < 0)
+  {
+    pci_dev_put(pci_device);
+    return error;
+  }
+
+  devpriv->pcidev = pci_device;
+
   /* allocate the subdevice structures */
   if((error = alloc_subdevices(dev, 1)) < 0)
   {
@@ -216,6 +234,10 @@ static int cnt_detach(comedi_device *dev)
   if (dev->iobase)
   {
     release_region(dev->iobase, 0x08);
+  }
+  if (devpriv->pcidev)
+  {
+    pci_dev_put(devpriv->pcidev);
   }
 
   printk("comedi%d: " CNT_DRIVER_NAME " remove\n",dev->minor);

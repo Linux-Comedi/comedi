@@ -1268,8 +1268,8 @@ static int pci9111_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n",dev->minor);
 
-	for(pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
-		pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) 
+	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) 
 	{
 		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK)
 		{
@@ -1340,6 +1340,7 @@ found:
 	if(pci_request_regions(pci_device, PCI9111_DRIVER_NAME))
 	{
 		printk("comedi%d: I/O port conflict\n",dev->minor);
+		pci_dev_put(pci_device);
 		return -EIO;
 	}
 	
@@ -1347,7 +1348,11 @@ found:
 	dev->board_name = board->name;
 	
 	if(alloc_private(dev,sizeof(pci9111_private_data_struct))<0)
+	{
+		pci_release_regions(pci_device);
+		pci_dev_put(pci_device);
 		return -ENOMEM;
+	}
 	
 	dev_private->pci_device = pci_device;
 	dev_private->io_range = io_range;
@@ -1457,7 +1462,11 @@ static int pci9111_detach(comedi_device *dev)
     comedi_free_irq(dev->irq,dev);
   }
 
-  pci_release_regions(dev_private->pci_device);
+  if (dev_private!=0 && dev_private->pci_device!=0)
+  {
+    pci_release_regions(dev_private->pci_device);
+    pci_dev_put(dev_private->pci_device);
+  }
 
   return 0;
 }

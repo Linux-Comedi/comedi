@@ -332,8 +332,8 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("comedi%d: amplc_pci230\n",dev->minor);
 	
 	/* Find card */
-	for(pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
-		pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	for(pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
+		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 		if(pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
 			continue;
 		for(i=0;i<n_pci230_boards;i++){
@@ -350,7 +350,10 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_ptr = pci230_boards+i;
 	
 	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register. */
-	if(pci_enable_device(pci_dev)<0)return -EIO;
+	if(pci_enable_device(pci_dev)<0){
+		pci_dev_put(pci_dev);
+		return -EIO;
+	}
 
 	pci_iobase = pci_resource_start(pci_dev, 2);
 	iobase = pci_resource_start(pci_dev, 3);
@@ -359,8 +362,10 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* Allocate the private structure area using alloc_private().
 	 * Macro defined in comedidev.h - memsets struct fields to 0. */
-	if((alloc_private(dev,sizeof(struct pci230_private)))<0)
+	if((alloc_private(dev,sizeof(struct pci230_private)))<0){
+		pci_dev_put(pci_dev);
 		return -ENOMEM;
+	}
 	devpriv->pci_dev = pci_dev;
 
 	/* Reserve I/O space 1. */
@@ -485,6 +490,9 @@ static int pci230_detach(comedi_device *dev)
 	if(devpriv){
 		if(devpriv->pci_iobase){
 			release_region(devpriv->pci_iobase, PCI230_IO1_SIZE);
+		}
+		if(devpriv->pci_dev){
+			pci_dev_put(devpriv->pci_dev);
 		}
 	}
 	

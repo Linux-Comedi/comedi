@@ -204,7 +204,10 @@ static int pci6208_detach(comedi_device *dev)
 {
 	printk("comedi%d: pci6208: remove\n",dev->minor);
 	
-	pci_release_regions(devpriv->pci_dev);
+	if(devpriv && devpriv->pci_dev){
+		pci_release_regions(devpriv->pci_dev);
+		pci_dev_put(devpriv->pci_dev);
+	}
 	
 	return 0;
 }
@@ -303,8 +306,8 @@ pci6208_find_device(comedi_device *dev, int bus, int slot)
 	struct pci_dev *pci_dev;
 	int i;
 	
-	for(pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
-		pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	for(pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
+		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK)
 		{
 			for (i= 0; i< pci6208_board_nbr; i++)

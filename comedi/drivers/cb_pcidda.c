@@ -284,8 +284,8 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_CB){
 			if(it->options[0] || it->options[1]){
 				if(pcidev->bus->number==it->options[0] &&
@@ -310,6 +310,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	printk("Not a supported ComputerBoards/MeasurementComputing card on "
 		"requested position\n");
+	pci_dev_put(pcidev);
 	return -EIO;
 
 found:
@@ -408,6 +409,8 @@ static int cb_pcidda_detach(comedi_device *dev)
 			release_region(devpriv->digitalio, DIGITALIO_SIZE);
 		if(devpriv->dac)
 			release_region(devpriv->dac, 8 + thisboard->ao_chans*2);
+		if(devpriv->pci_dev)
+			pci_dev_put(devpriv->pci_dev);
 	}
 	// cleanup 8255
 	if(dev->subdevices)

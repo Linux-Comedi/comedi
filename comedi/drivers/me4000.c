@@ -397,8 +397,8 @@ static int me4000_probe(comedi_device *dev, comedi_devconfig *it){
     /*
      * Probe the device to determine what device in the series it is.
      */
- 	for(pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
-		pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+ 	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
 	if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS){
 	    for(i = 0; i < ME4000_BOARD_VERSIONS; i++){
 		if(me4000_boards[i].device_id == pci_device->device){
@@ -430,8 +430,10 @@ found:
 	    pci_device->bus->number, PCI_SLOT(pci_device->devfn));
 
     /* Allocate private memory */
-    if(alloc_private(dev, sizeof(me4000_info_t)) < 0)
+    if(alloc_private(dev, sizeof(me4000_info_t)) < 0){
+	pci_dev_put(pci_device);
 	return -ENOMEM;
+    }
 
     /* Set data in device structure */
     dev->board_name = board->name;
@@ -506,7 +508,6 @@ PROBE_ERROR_2:
     pci_release_regions(pci_device);
 
 PROBE_ERROR_1:
-    kfree(info);
 
     return result;
 }
@@ -847,11 +848,14 @@ static int reset_board(comedi_device *dev){
 static int me4000_detach(comedi_device *dev){
     CALL_PDEBUG("In me4000_detach()\n");
 
-    reset_board(dev);
+    if(info){
+	reset_board(dev);
 
-    pci_release_regions(info->pci_dev_p);
-
-    kfree(info);
+	if(info->pci_dev_p) {
+	    pci_release_regions(info->pci_dev_p);
+	    pci_dev_put(info->pci_dev_p);
+	}
+    }
 
     return 0;
 }

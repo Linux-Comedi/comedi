@@ -277,9 +277,9 @@ dio200_find_pci(comedi_device *dev, int bus, int slot,
 	}
 
 	/* Look for matching PCI device. */
-	for(pci_dev = pci_find_device(pci_id->vendor, pci_id->device, NULL);
+	for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device, NULL);
 			pci_dev != NULL ; 
-			pci_dev = pci_find_device(pci_id->vendor,
+			pci_dev = pci_get_device(pci_id->vendor,
 				pci_id->device, pci_dev)) {
 		/* If bus/slot specified, check them. */
 		if (bus || slot) {
@@ -755,7 +755,7 @@ static int
 dio200_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = NULL;
 	int iobase = 0, irq = 0;
 	int bus = 0, slot = 0;
 	dio200_layout *layout;
@@ -785,6 +785,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 		if ((ret=pci_enable_device(pci_dev)) < 0) {
 			printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
 					dev->minor);
+			pci_dev_put(pci_dev);
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
@@ -799,6 +800,9 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if ((ret=alloc_private(dev,sizeof(dio200_private))) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n", dev->minor);
+		if (pci_dev) {
+			pci_dev_put(pci_dev);
+		}
 		return ret; 
 	}
 
@@ -926,6 +930,9 @@ dio200_detach(comedi_device *dev)
 	}
 	if (dev->iobase) {
 		release_region(dev->iobase, DIO200_IO_SIZE);
+	}
+	if (devpriv && devpriv->pci_dev) {
+		pci_dev_put(devpriv->pci_dev);
 	}
 	if (dev->board_name) {
 		printk(KERN_INFO "comedi%d: %s removed\n",

@@ -31,13 +31,18 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 	amcc_devices=NULL;
 	last=NULL;
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==pci_vendor){
 			amcc=kmalloc(sizeof(*amcc),GFP_KERNEL);
+			if (!amcc) {
+				printk("amcc_s5933: allocation failed\n");
+				pci_dev_put(pcidev);
+				break;
+			}
 			memset(amcc,0,sizeof(*amcc));
 
-			amcc->pcidev=pcidev;
+			amcc->pcidev=pci_dev_get(pcidev);
 			if (last) { last->next=amcc; }
 			     else { amcc_devices=amcc; }
 			last=amcc;
@@ -69,6 +74,7 @@ void pci_card_list_cleanup(unsigned short pci_vendor)
 	struct pcilst_struct *amcc,*next;
 
 	for(amcc=amcc_devices;amcc;amcc=next){
+		pci_dev_put(amcc->pcidev);
 		next=amcc->next;
 		kfree(amcc);
 	}

@@ -200,6 +200,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		if ((ret=pci_enable_device(pci_dev)) < 0) {
 			printk("error enabling PCI device!\n");
+			pci_dev_put(pci_dev);
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
@@ -222,6 +223,8 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	if ((ret=alloc_private(dev,sizeof(pc263_private))) < 0) {
 		printk("out of memory!\n");
+		if (pci_dev)
+			pci_dev_put(pci_dev);
 		return ret;
 	}
 
@@ -285,6 +288,8 @@ static int pc263_detach(comedi_device *dev)
 
 	if (dev->iobase)
 		release_region(dev->iobase, PC263_IO_SIZE);
+	if (devpriv && devpriv->pci_dev)
+		pci_dev_put(devpriv->pci_dev);
 	
 	return 0;
 }

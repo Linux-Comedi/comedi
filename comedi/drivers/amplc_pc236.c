@@ -198,9 +198,9 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 
 		/* Look for matching PCI device. */
-		for(pci_dev = pci_find_device(pci_id->vendor, pci_id->device,
+		for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device,
 					NULL); pci_dev != NULL; 
-				pci_dev = pci_find_device(pci_id->vendor,
+				pci_dev = pci_get_device(pci_id->vendor,
 					pci_id->device, pci_dev)) {
 			/* If bus/slot specified, check them. */
 			if (bus || slot) {
@@ -229,6 +229,7 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		if ((ret=pci_enable_device(pci_dev)) < 0) {
 			printk("error enabling PCI device!\n");
+			pci_dev_put(pci_dev);
 			return ret;
 		}
 		lcr_iobase = pci_resource_start(pci_dev, 1);
@@ -253,6 +254,8 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	if ((ret=alloc_private(dev,sizeof(pc236_private))) < 0) {
 		printk("out of memory!\n");
+		if (pci_dev)
+			pci_dev_put(pci_dev);
 		return ret; 
 	}
 
@@ -344,11 +347,15 @@ static int pc236_detach(comedi_device *dev)
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices+0);
 	}
+	if (dev->iobase) {
+		release_region(dev->iobase, PC236_IO_SIZE);
+	}
 	if (devpriv) {
 		if (devpriv->lcr_iobase)
 			release_region(devpriv->lcr_iobase, PC236_LCR_IO_SIZE);
+		if (devpriv->pci_dev)
+			pci_dev_put(devpriv->pci_dev);
 	}
-	if (dev->iobase) release_region(dev->iobase, PC236_IO_SIZE);
 	
 	return 0;
 }

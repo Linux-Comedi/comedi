@@ -1660,8 +1660,8 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
 	{
 		// is it not a computer boards card?
 		if( pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS )
@@ -1697,7 +1697,10 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	if( pci_enable_device( pcidev ) )
+	{
+		pci_dev_put( pcidev );
 		return -EIO;
+	}
 	pci_set_master( pcidev );
 
 	priv(dev)->hw_dev = pcidev;
@@ -1817,6 +1820,7 @@ static int detach(comedi_device *dev)
 				pci_free_consistent(priv(dev)->hw_dev, sizeof(struct plx_dma_desc) * AO_DMA_RING_COUNT,
 					priv(dev)->ao_dma_desc, priv(dev)->ao_dma_desc_bus_addr );
 			pci_disable_device(priv(dev)->hw_dev);
+			pci_dev_put(priv(dev)->hw_dev);
 		}
 	}
 	if(dev->subdevices)

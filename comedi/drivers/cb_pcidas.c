@@ -769,6 +769,8 @@ static int cb_pcidas_detach(comedi_device *dev)
 		comedi_free_irq(dev->irq, dev);
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);
+	if(devpriv && devpriv->pci_dev)
+		pci_dev_put(devpriv->pci_dev);
 
 	return 0;
 }

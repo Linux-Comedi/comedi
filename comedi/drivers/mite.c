@@ -72,17 +72,18 @@ void mite_init(void)
 	struct pci_dev *pcidev;
 	struct mite_struct *mite;
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_NATINST){
 			mite=kmalloc(sizeof(*mite),GFP_KERNEL);
 			if(!mite){
 				printk("mite: allocation failed\n");
+				pci_dev_put(pcidev);
 				return;
 			}
 			memset(mite,0,sizeof(*mite));
 
-			mite->pcidev=pcidev;
+			mite->pcidev=pci_dev_get(pcidev);
 
 			mite->next=mite_devices;
 			mite_devices=mite;
@@ -141,6 +142,7 @@ void mite_cleanup(void)
 	struct mite_struct *mite,*next;
 
 	for(mite=mite_devices;mite;mite=next){
+		pci_dev_put(mite->pcidev);
 		next=mite->next;
 		kfree(mite);
 	}

@@ -459,7 +459,7 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS]={
 	do_nchan:	3,
 	i8255_offset:	0,
 	i8254_offset:	0,
-	iosize:	16, // unchecked
+	iosize:	16,
 	},
 	// duplicate so driver name can be used also
 	{
@@ -477,7 +477,7 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS]={
 	do_nchan:	3,
 	i8255_offset:	0,
 	i8254_offset:	0,
-	iosize:	16, // unchecked
+	iosize:	16,
 	},
 };
 
@@ -943,8 +943,8 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		printk("\n");
 		// find card
-		for(pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pdev != NULL ; 
-			pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
+		for(pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pdev != NULL ; 
+			pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
 			if(pdev->vendor == PCI_VENDOR_ID_COMPUTERBOARDS &&
 				pdev->device == PCI_DEVICE_ID_PCIDAS08){
 				if(it->options[0] || it->options[1]){
@@ -1011,6 +1011,9 @@ int das08_common_detach(comedi_device *dev)
 	if(devpriv){
 		if(devpriv->pci_iobase){
 			release_region(devpriv->pci_iobase, PCIDAS08_SIZE);
+		}
+		if(devpriv->pdev){
+			pci_dev_put(devpriv->pdev);
 		}
 	}
 

@@ -107,11 +107,12 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_subdevices(dev, 2)<0)
 		return -ENOMEM;
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		
 		if ( pcidev->vendor == PCI_VENDOR_ID_CONTEC && 
 		     pcidev->device == PCI_DEVICE_ID_PIO1616L ) {
+			devpriv->pci_dev = pcidev;
 			dev->iobase = pci_resource_start ( pcidev, 0 );
 			printk ( " base addr %lx ", dev->iobase );
 
@@ -146,6 +147,9 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 static int contec_detach(comedi_device *dev)
 {
 	printk("comedi%d: contec: remove\n",dev->minor);
+
+	if (devpriv && devpriv->pci_dev)
+		pci_dev_put(devpriv->pci_dev);
 	
 	return 0;
 }

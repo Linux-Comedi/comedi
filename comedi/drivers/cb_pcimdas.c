@@ -239,8 +239,8 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
 	{
 		// is it not a computer boards card?
 		if(pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
@@ -407,13 +407,18 @@ found:
 static int cb_pcimdas_detach(comedi_device *dev)
 {
 #ifdef CBPCIMDAS_DEBUG
-	printk("devpriv->BADR0 = %d\n",devpriv->BADR0);
-	printk("devpriv->BADR1 = %d\n",devpriv->BADR1);
-	printk("devpriv->BADR2 = %d\n",devpriv->BADR2);
-	printk("devpriv->BADR3 = %d\n",devpriv->BADR3);
-	printk("devpriv->BADR4 = %d\n",devpriv->BADR4);
+	if(devpriv)
+	{
+		printk("devpriv->BADR0 = %d\n",devpriv->BADR0);
+		printk("devpriv->BADR1 = %d\n",devpriv->BADR1);
+		printk("devpriv->BADR2 = %d\n",devpriv->BADR2);
+		printk("devpriv->BADR3 = %d\n",devpriv->BADR3);
+		printk("devpriv->BADR4 = %d\n",devpriv->BADR4);
+	}
 #endif
 	printk("comedi%d: cb_pcimdas: remove\n",dev->minor);
+	if(devpriv)
+	{
 		if(devpriv->BADR0)
 			release_mem_region(devpriv->BADR0, BADR0_SIZE);
 		if(devpriv->BADR1)
@@ -424,6 +429,9 @@ static int cb_pcimdas_detach(comedi_device *dev)
 			release_region(devpriv->BADR3, BADR3_SIZE);
 		if(devpriv->BADR4)
 			release_region(devpriv->BADR4, BADR4_SIZE);
+		if(devpriv->pci_dev)
+			pci_dev_put(devpriv->pci_dev);
+	}
 	
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);

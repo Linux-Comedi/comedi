@@ -322,6 +322,7 @@ typedef struct {
   enum {
     card_daqboard_2000
   } card;
+  struct pci_dev *pci_dev;
   void *daq;
   void *plx;
   lsampl_t ao_readback[2];
@@ -684,7 +685,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 
   /* FIXME: we should handle multiple cards, have to make David decide 
             how, so we will be consistent among all PCI card drivers... */
-  card = pci_find_device(0x1616, 0x0409, NULL);
+  card = pci_get_device(0x1616, 0x0409, NULL);
 
   if (!card) {
     printk(" no daqboard2000 found\n");
@@ -693,6 +694,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   }
 
   if((result = pci_enable_device(card))<0){
+    pci_dev_put(card);
     goto out;
   }
 
@@ -713,11 +715,17 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   }else{
     printk(" abnormal pci header type !?!?\n");
     result=-EIO;
+    pci_dev_put(card);
     goto out;
   }
   
   result = alloc_private(dev,sizeof(daqboard2000_private));
-  if(result<0)goto out;
+  if(result<0){
+    pci_dev_put(card);
+    goto out;
+  }
+
+  devpriv->pci_dev = card;
 
   result = alloc_subdevices(dev, 3);
   if(result<0)goto out;
@@ -798,6 +806,9 @@ static int daqboard2000_detach(comedi_device * dev)
   }
   if (dev->irq) {
     free_irq(dev->irq, dev);
+  }
+  if (devpriv && devpriv->pci_dev) {
+    pci_dev_put(devpriv->pci_dev);
   }
   return 0;
 }

@@ -896,8 +896,8 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if ((pcidev->vendor!=this_board->vendor_id)||
 		    (pcidev->device!=this_board->device_id))
 			continue;
@@ -911,6 +911,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		if (ret==1) { found=1; break; }
 		if (ret>1) { 
 			pci_dio_detach(dev);
+			pci_dev_put(pcidev);
 			return -EIO;
 		}
 	}
@@ -928,6 +929,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 	
 	if (pci_request_regions(pcidev, driver_pci_dio.driver_name)) {
 		pci_dio_detach(dev);
+		pci_dev_put(pcidev);
 		rt_printk(", Error: Cann't allocate PCI device!\n");
 		return -EIO;
 	}
@@ -1048,8 +1050,10 @@ static int pci_dio_detach(comedi_device *dev)
 		if (devpriv->enabled)
 			pci_disable_device(devpriv->pcidev);
 
-		if (devpriv->pcidev)
+		if (devpriv->pcidev) {
 			pci_release_regions(devpriv->pcidev);
+			pci_dev_put(devpriv->pcidev);
+		}
 		
 		if (devpriv->prev) { devpriv->prev->next=devpriv->next; }
 				    { pci_priv=devpriv->next; }

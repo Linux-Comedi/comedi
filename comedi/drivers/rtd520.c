@@ -774,8 +774,8 @@ static int rtd_attach (
     /*
      * Probe the device to determine what device in the series it is.
      */
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 	if (pcidev->vendor == PCI_VENDOR_ID_RTD) {
 	    if (it->options[0] || it->options[1]) {
 		if (pcidev->bus->number == it->options[0]
@@ -800,12 +800,12 @@ static int rtd_attach (
 	return -EIO;
     }
 
+    devpriv->pci_dev = pcidev;
     if (pcidev->device != thisboard->device_id) {
 	printk ("Found an RTD card, but not the supported type (%x).\n",
 		pcidev->device);
 	return -EIO;
     }
-    devpriv->pci_dev = pcidev;
     dev->board_name = thisboard->name;
 
     if((ret=pci_enable_device(pcidev))<0){
@@ -1022,6 +1022,7 @@ static int rtd_attach (
 
     return 1;
 
+#if 0
     /* hit an error, clean up memory and return ret */
 //rtd_attach_die_error:
 #ifdef USE_DMA
@@ -1063,7 +1064,11 @@ static int rtd_attach (
     if (devpriv->lcfg) {
 	iounmap (devpriv->lcfg);
     }
+    if (devpriv->pci_dev) {
+	pci_dev_put(devpriv->pci_dev);
+    }
     return ret;
+#endif
 }
 
 /*
@@ -1138,6 +1143,9 @@ static int rtd_detach (
 	}
 	if (devpriv->lcfg) {
 	    iounmap (devpriv->lcfg);
+	}
+	if (devpriv->pci_dev) {
+	    pci_dev_put(devpriv->pci_dev);
 	}
     }
 
