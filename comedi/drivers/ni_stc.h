@@ -593,12 +593,9 @@ static ni_board ni_boards[];
 	unsigned short ao_cmd3;					\
 	unsigned short ao_trigger_select;			\
 								\
-	unsigned short gpct_mode0;				\
-	unsigned short gpct_mode1;				\
-	unsigned short gpct_command0;				\
-	unsigned short gpct_command1;				\
-	unsigned short gpct_input_select0;			\
-	unsigned short gpct_input_select1;			\
+	unsigned short gpctr_mode[2];				\
+	unsigned short gpctr_command[2];			\
+	unsigned short gpctr_input_select[2];			\
 								\
 	unsigned short ai_xorlist[512];				\
 								\
