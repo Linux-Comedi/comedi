@@ -22,7 +22,7 @@ obj-$(CONFIG_COMEDI_MPC8260CPM)		+= mpc8260cpm.o
 
 obj-$(CONFIG_COMEDI_ADL_PCI9118)	+= adl_pci9118.o
 obj-$(CONFIG_COMEDI_ADV_PCI1710)	+= adv_pci1710.o
-obj-$(CONFIG_COMEDI_APMLC_PCI230)	+= amplc_pci230.o
+obj-$(CONFIG_COMEDI_AMPLC_PCI230)	+= amplc_pci230.o
 
 obj-$(CONFIG_COMEDI_CB_PCIDAS)		+= cb_pcidas.o
 obj-$(CONFIG_COMEDI_CB_PCIDAS64)		+= cb_pcidas64.o
