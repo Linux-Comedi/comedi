@@ -135,8 +135,8 @@ static int get_prodid(comedi_device *dev, dev_link_t *link)
 	tuple.TupleDataMax = 255;
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((CardServices(GetFirstTuple,handle, &tuple) == CS_SUCCESS) &&
-	   (CardServices(GetTupleData,handle,&tuple) == CS_SUCCESS)){
+	if((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
+	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
 		prodid = le16_to_cpu(buf[1]);
 	}
 
@@ -711,14 +711,6 @@ typedef struct local_info_t {
     struct bus_operations *bus;
 } local_info_t;
 
-/*====================================================================*/
-
-static void my_cs_error(client_handle_t handle, int func, int ret)
-{
-    error_info_t err = { func, ret };
-    CardServices(ReportError, handle, &err);
-}
-
 /*======================================================================
 
     das16cs_pcmcia_attach() creates an "instance" of the driver, allocating
@@ -747,9 +739,10 @@ static dev_link_t *das16cs_pcmcia_attach(void)
     link = &local->link; link->priv = local;
 
     /* Initialize the dev_link_t structure */
-    link->release.function = &das16cs_pcmcia_release;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
+	link->release.function = &das16cs_pcmcia_release;
     link->release.data = (u_long)link;
-
+#endif
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
@@ -783,9 +776,9 @@ static dev_link_t *das16cs_pcmcia_attach(void)
     client_reg.event_handler = &das16cs_pcmcia_event;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
-    ret = CardServices(RegisterClient, &link->handle, &client_reg);
+    ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
-	my_cs_error(link->handle, RegisterClient, ret);
+	cs_error(link->handle, RegisterClient, ret);
 	das16cs_pcmcia_detach(link);
 	return NULL;
     }
@@ -832,7 +825,7 @@ static void das16cs_pcmcia_detach(dev_link_t *link)
 
 	/* Break the link with Card Services */
 	if (link->handle)
-		CardServices(DeregisterClient, link->handle);
+		pcmcia_deregister_client(link->handle);
 
 	/* Unlink device structure, and free it */
 	*linkp = link->next;
@@ -848,12 +841,6 @@ static void das16cs_pcmcia_detach(dev_link_t *link)
     device available to the system.
 
 ======================================================================*/
-
-#define CS_CHECK(fn, args...) \
-while ((last_ret=CardServices(last_fn=(fn),args))!=0) goto cs_failed
-
-#define CFG_CHECK(fn, args...) \
-if (CardServices(fn, args) != 0) goto next_entry
 
 static void das16cs_pcmcia_config(dev_link_t *link)
 {
@@ -878,9 +865,12 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, handle, &tuple);
-	CS_CHECK(GetTupleData, handle, &tuple);
-	CS_CHECK(ParseTuple, handle, &tuple, &parse);
+	last_fn = GetFirstTuple;
+	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)) != 0) goto cs_failed;
+	last_fn = GetTupleData;
+	if((last_ret = pcmcia_get_tuple_data(handle, &tuple)) != 0) goto cs_failed;
+	last_fn = ParseTuple;
+	if((last_ret = pcmcia_parse_tuple(handle, &tuple, &parse)) != 0) goto cs_failed;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -888,7 +878,8 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	link->state |= DEV_CONFIG;
 
 	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo, handle, &conf);
+	last_fn = GetConfigurationInfo;
+	if((last_ret = pcmcia_get_configuration_info(handle, &conf)) != 0) goto cs_failed;
 	link->conf.Vcc = conf.Vcc;
 
 	/*
@@ -904,11 +895,12 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	will only use the CIS to fill in implementation-defined details.
 	*/
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, handle, &tuple);
+	last_fn = GetFirstTuple;
+	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)) != 0) goto cs_failed;
 	while (1) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	CFG_CHECK(GetTupleData, handle, &tuple);
-	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
+	if(pcmcia_get_tuple_data(handle, &tuple)) goto next_entry;
+	if(pcmcia_parse_tuple(handle, &tuple, &parse)) goto next_entry;
 
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
 	if (cfg->index == 0) goto next_entry;
@@ -959,7 +951,7 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 		link->io.NumPorts2 = io->win[1].len;
 		}
 		/* This reserves IO space but doesn't actually enable it */
-		CFG_CHECK(RequestIO, link->handle, &link->io);
+		if(pcmcia_request_io(link->handle, &link->io)) goto next_entry;
 	}
 
 	/* If we got this far, we're cool! */
@@ -967,8 +959,9 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 
 	next_entry:
 	if (link->io.NumPorts1)
-		CardServices(ReleaseIO, link->handle, &link->io);
-	CS_CHECK(GetNextTuple, handle, &tuple);
+		pcmcia_release_io(link->handle, &link->io);
+	last_fn = GetNextTuple;
+	if((last_ret = pcmcia_get_next_tuple(handle, &tuple)) != 0) goto cs_failed;
 	}
 
 	/*
@@ -977,14 +970,16 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 		irq structure is initialized.
 	*/
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	CS_CHECK(RequestIRQ, link->handle, &link->irq);
+	last_fn = RequestIRQ;
+	if((last_ret = pcmcia_request_irq(link->handle, &link->irq)) != 0) goto cs_failed;
 
 	/*
 		This actually configures the PCMCIA socket -- setting up
 		the I/O windows and the interrupt mapping, and putting the
 		card and host interface into "Memory and IO" mode.
 	*/
-	CS_CHECK(RequestConfiguration, link->handle, &link->conf);
+	last_fn = RequestConfiguration;
+	if((last_ret = pcmcia_request_configuration(link->handle, &link->conf)) != 0) goto cs_failed;
 
 	/*
 		At this point, the dev_node_t structure(s) need to be
@@ -1017,7 +1012,7 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	return;
 
 cs_failed:
-	my_cs_error(link->handle, last_fn, last_ret);
+	cs_error(link->handle, last_fn, last_ret);
 	das16cs_pcmcia_release((u_long)link);
 
 } /* das16cs_pcmcia_config */
@@ -1059,12 +1054,12 @@ static void das16cs_pcmcia_release(u_long arg)
 
     /* Don't bother checking to see if these succeed or not */
 	if (link->win)
-		CardServices(ReleaseWindow, link->win);
-	CardServices(ReleaseConfiguration, link->handle);
+		pcmcia_release_window(link->win);
+	pcmcia_release_configuration(link->handle);
 	if (link->io.NumPorts1)
-		CardServices(ReleaseIO, link->handle, &link->io);
+		pcmcia_release_io(link->handle, &link->io);
 	if (link->irq.AssignedIRQ)
-		CardServices(ReleaseIRQ, link->handle, &link->irq);
+		pcmcia_release_irq(link->handle, &link->irq);
 	link->state &= ~DEV_CONFIG;
 
 	if (link->state & DEV_STALE_LINK)
@@ -1099,12 +1094,18 @@ static int das16cs_pcmcia_event(event_t event, int priority,
 			if (link->state & DEV_CONFIG)
 			{
 				((local_info_t *)link->priv)->stop = 1;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 				mod_timer(&link->release, jiffies + HZ/20);
+#else
+				das16cs_pcmcia_release((u_long)link);
+#endif
 			}
 			break;
 		case CS_EVENT_CARD_INSERTION:
 			link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 			dev->bus = args->bus;
+#endif
 			das16cs_pcmcia_config(link);
 			break;
 		case CS_EVENT_PM_SUSPEND:
@@ -1114,14 +1115,14 @@ static int das16cs_pcmcia_event(event_t event, int priority,
 			/* Mark the device as stopped, to block IO until later */
 			dev->stop = 1;
 			if (link->state & DEV_CONFIG)
-			CardServices(ReleaseConfiguration, link->handle);
+			pcmcia_release_configuration(link->handle);
 			break;
 		case CS_EVENT_PM_RESUME:
 			link->state &= ~DEV_SUSPEND;
 			/* Fall through... */
 		case CS_EVENT_CARD_RESET:
 			if (link->state & DEV_CONFIG)
-				CardServices(RequestConfiguration, link->handle, &link->conf);
+				pcmcia_request_configuration(link->handle, &link->conf);
 			dev->stop = 0;
 /*
 In a normal driver, additional code may go here to restore
@@ -1134,29 +1135,49 @@ the device state and restart IO.
 } /* das16cs_pcmcia_event */
 
 /*====================================================================*/
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 0)
+struct pcmcia_driver das16cs_driver =
+{
+	.attach = das16cs_pcmcia_attach,
+	.detach = das16cs_pcmcia_detach,
+	.owner = THIS_MODULE,
+	.drv = {
+		.name = "cb_das16_cs",
+	},	
+};
+#endif
 static int __init init_das16cs_pcmcia_cs(void)
 {
 	servinfo_t serv;
 	DEBUG(0, "%s\n", version);
-	CardServices(GetCardServicesInfo, &serv);
+	pcmcia_get_card_services_info(&serv);
 	if (serv.Revision != CS_RELEASE_CODE)
 	{
 		printk(KERN_NOTICE "das16cs: Card Services release "
 			"does not match!\n");
 		//return -1;
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 	register_pccard_driver(&dev_info, &das16cs_pcmcia_attach, &das16cs_pcmcia_detach);
+#else
+	pcmcia_register_driver(&das16cs_driver);
+#endif
 	return 0;
 }
 
 static void __exit exit_das16cs_pcmcia_cs(void)
 {
 	DEBUG(0, "das16cs_pcmcia_cs: unloading\n");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 	unregister_pccard_driver(&dev_info);
+#else
+	pcmcia_unregister_driver(&das16cs_driver);
+#endif
 	while (dev_list != NULL)
 	{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
 		del_timer(&dev_list->release);
+#endif
 		if (dev_list->state & DEV_CONFIG)
 			das16cs_pcmcia_release((u_long)dev_list);
 		das16cs_pcmcia_detach(dev_list);
