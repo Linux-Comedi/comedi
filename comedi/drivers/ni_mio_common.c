@@ -212,12 +212,16 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	wsave=win_save();
 	
 	b_status=ni_readw(AO_Status_1);
-#if 0
-printk("B status=0x%04x\n",b_status);
-#endif
 	status=ni_readw(AI_Status_1);
-#if 0
-printk("A status=0x%04x\n",status);
+#if 1
+printk("status=0x%04x,0x%04x\n",status,b_status);
+#ifdef PCIMIO
+printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
+#endif
+#endif
+
+#ifdef PCIMIO
+mite_dma_tcr(devpriv->mite);
 #endif
 	if(status&(AI_Overrun_St|AI_Overflow_St)){
 		rt_printk("ni_E: overrun/overflow status=0x%04x\n",status);
@@ -432,6 +436,9 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
  */
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 {
+#ifdef PCIMIO
+	mite_dma_disarm(devpriv->mite);
+#endif
 	win_out(0x0000,Interrupt_A_Enable_Register);
 
 	win_out(AI_Reset,Joint_Reset_Register);
@@ -964,6 +971,7 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		}else{
 			devpriv->aimode=AIMODE_HALF_FULL;
 		}
+devpriv->aimode=AIMODE_SAMPLE;
 		switch(devpriv->aimode){
 		case AIMODE_HALF_FULL:
 			/*generate FIFO interrupts on half-full */
@@ -982,6 +990,9 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 			break;
 		}
 
+bits=AI_SC_TC_Interrupt_Enable;
+bits|=AI_Error_Interrupt_Enable;
+//bits|=Pass_Thru_0_Interrupt_Enable;
 		win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
 
 		win_out(bits,Interrupt_A_Enable_Register) ;
@@ -991,6 +1002,19 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 		/* XXX start polling if necessary */
 	}
+
+#ifdef PCIMIO
+#if 0 
+	Strobes_Register
+	AI_AO_Select_Register
+	Interrupt_B_Enable_Register MSC_Pass_thru
+#endif
+
+	ni_writeb(0x01,AI_AO_Select);
+	mite_dma_prep(devpriv->mite, s);
+
+	mite_dma_arm(devpriv->mite);
+#endif
 
 #ifdef DEBUG
 rt_printk("end config\n");

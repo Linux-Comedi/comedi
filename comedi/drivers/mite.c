@@ -202,10 +202,12 @@ int mite_setup(struct mite_struct *mite)
 #endif
 
 	/* DMA setup */
-	for(i=0;i<MITE_RING_SIZE;i++){
+	for(i=0;i<MITE_RING_SIZE-1;i++){
 		mite->ring[i].next=virt_to_bus(mite->ring+i+1);
 		mite->ring[i].unused=0x1c; /* eh? */
 	}
+	mite->ring[i].next=0;
+	mite->ring[i].unused=0x1c; /* eh? */
 
 	return (int) mite->daq_io_addr;
 }
@@ -260,17 +262,15 @@ void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s)
 		n=s->prealloc_bufsz-s->buf_int_ptr;
 		n=mite_kvmem_segment_load(mite,i,((void *)s->cur_trig.data)+s->buf_int_ptr,n);
 		s->buf_int_ptr+=n;
-		if(s->buf_int_ptr>=s->cur_trig.data_len)
+		if(s->buf_int_ptr>=s->prealloc_bufsz)
 			s->buf_int_ptr=0;
 	}
-
-	writel(virt_to_bus(mite->ring),mite->mite_io_addr+MITE_LKAR+CHAN_OFFSET(0));
 
 	chor = CHOR_DMARESET | CHOR_FRESET;
 	writel(chor,mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
 
 	chcr = CHCR_LINKLONG | CHCR_DEV_TO_MEM;
-	chcr = CHCR_LINKLONG | CHCR_MEM_TO_DEV;
+	//chcr = CHCR_LINKLONG | CHCR_MEM_TO_DEV;
 	writel(chcr,mite->mite_io_addr+MITE_CHCR+CHAN_OFFSET(0));
 
 	mcr = CR_RL64 | CR_ASEQxP1 | CR_PSIZEHALF;
@@ -283,7 +283,7 @@ void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s)
 	lkcr = CR_RL64 | CR_ASEQUP | CR_PSIZEWORD;
 	writel(lkcr,mite->mite_io_addr+MITE_LKCR+CHAN_OFFSET(0));
 
-	//lkar = 0;
+	writel(virt_to_bus(mite->ring),mite->mite_io_addr+MITE_LKAR+CHAN_OFFSET(0));
 
 }
 
@@ -294,6 +294,20 @@ void mite_dma_arm(struct mite_struct *mite)
 	/* arm */
 	chor = CHOR_START;
 	writel(chor,mite->mite_io_addr+CHAN_OFFSET(0)+MITE_CHOR);
+
+	mite_dma_tcr(mite);
+}
+
+int mite_dma_tcr(struct mite_struct *mite)
+{
+	int tcr;
+	int lkar;
+
+	lkar=readl(mite->mite_io_addr+CHAN_OFFSET(0)+MITE_LKAR);
+	tcr=readl(mite->mite_io_addr+CHAN_OFFSET(0)+MITE_TCR);
+	printk("lkar=0x%08x tcr=%d\n",lkar,tcr);
+
+	return tcr;
 }
 
 void mite_dma_disarm(struct mite_struct *mite)
@@ -336,6 +350,7 @@ struct symbol_table mite_syms = {
 
 #ifdef LINUX_V22
 
+EXPORT_SYMBOL(mite_dma_tcr);
 EXPORT_SYMBOL(mite_dma_arm);
 EXPORT_SYMBOL(mite_dma_disarm);
 EXPORT_SYMBOL(mite_dma_prep);

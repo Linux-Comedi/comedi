@@ -83,6 +83,11 @@ void mite_unsetup(struct mite_struct *mite);
 
 void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s);
 
+int mite_dma_tcr(struct mite_struct *mite);
+
+void mite_dma_arm(struct mite_struct *mite);
+void mite_dma_disarm(struct mite_struct *mite);
+
 
 #define CHAN_OFFSET(x)			(0x100*(x))
 
