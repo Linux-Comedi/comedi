@@ -19,7 +19,6 @@
 #include <linux/comedidev.h>
 
 
-
 /****************************************************************************/
 /* AMCC Operation Register Offsets - PCI                                    */
 /****************************************************************************/
@@ -47,6 +46,29 @@
 
 #define AMCC_FIFO_DEPTH_DWORD	8
 #define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof (u32))
+
+/****************************************************************************/
+/* AMCC - PCI Interrupt Control/Status Register                            */
+/****************************************************************************/
+#define INTCSR_OUTBOX_BYTE(x)	((x) & 0x3)
+#define INTCSR_OUTBOX_SELECT(x)	(((x) & 0x3) << 2)
+#define INTCSR_OUTBOX_EMPTY_INT	0x10	// enable outbox empty interrupt
+#define INTCSR_INBOX_BYTE(x)	(((x) & 0x3) << 8)
+#define INTCSR_INBOX_SELECT(x)	(((x) & 0x3) << 10)
+#define INTCSR_INBOX_FULL_INT	0x1000	// enable inbox full interrupt
+#define INTCSR_INBOX_INTR_STATUS	0x20000 // read, or write clear inbox full interrupt
+#define INTCSR_INTR_ASSERTED	0x800000	// read only, interrupt asserted
+
+/****************************************************************************/
+/* AMCC - PCI non-volatile ram command register (byte 3 of master control/status register) */
+/****************************************************************************/
+#define MCSR_NV_LOAD_LOW_ADDR	0x0
+#define MCSR_NV_LOAD_HIGH_ADDR	0x20
+#define MCSR_NV_WRITE	0x40
+#define MCSR_NV_READ	0x60
+#define MCSR_NV_MASK	0x60
+#define MCSR_NV_ENABLE	0x80
+#define MCSR_NV_BUSY	MCSR_NV_ENABLE
 
 /****************************************************************************/
 /* AMCC Operation Registers Size - PCI                                      */
@@ -135,6 +157,7 @@
 #define AINT_IMB_SELECT 	0x0000000c
 #define AINT_IMB_BYTE		0x00000003
 
+// these are bits from various different registers, needs cleanup XXX
 /* Enable Bus Mastering */
 #define EN_A2P_TRANSFERS	0x00000400
 /* FIFO Flag Reset */
