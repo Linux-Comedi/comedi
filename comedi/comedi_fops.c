@@ -32,7 +32,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/poll.h>
 

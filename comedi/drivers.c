@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/comedidev.h>
 
 #include <asm/io.h>

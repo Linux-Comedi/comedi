@@ -32,14 +32,14 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/irq.h>
 #include <asm/io.h>
 
 #include "rt_pend_tq/rt_pend_tq.h"
 
 #ifdef CONFIG_COMEDI_RTAI
-#include <rtai/rtai.h>
+#include <rtai.h>
 
 #define RT_protect()	hard_cli()
 #define RT_unprotect()	hard_sti()
@@ -146,12 +146,14 @@ void comedi_switch_to_rt(comedi_device *dev)
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
 	// this prevents crashes with comedi_rt_timer
-	if(it == NULL)
+	if(it == NULL){
+		printk("BUG: comedi_switch_to_rt() called with bogus interrupt %d\n",dev->irq);
 		return;
+	}
 
 	// rt interrupts and shared interrupts don't mix
 	if(it->flags & SA_SHIRQ){
-		rt_printk("comedi: cannot switch shared interrupt to real time priority\n");
+		printk("comedi: cannot switch shared interrupt to real time priority\n");
 		return;
 	}
 
@@ -204,6 +206,9 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q)
 /* RTAI section */
 #ifdef CONFIG_COMEDI_RTAI
 
+#ifdef CONFIG_PPC
+#define HAVE_RT_REQUEST_IRQ_WITH_ARG
+#endif
 #ifndef HAVE_RT_REQUEST_IRQ_WITH_ARG
 #define DECLARE_VOID_IRQ(irq) \
 static void handle_void_irq_ ## irq (void){ handle_void_irq(irq);}
@@ -286,8 +291,14 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 
 static int rt_get_irq(struct comedi_irq_struct *it)
 {
-	rt_request_global_irq_arg(it->irq,it->handler,it->flags,
+	int ret;
+
+	ret = rt_request_global_irq_arg(it->irq,it->handler,it->flags,
 			it->device,it->dev_id);
+	if(ret<0){
+		rt_printk("rt_request_global_irq_arg() returned %d\n",ret);
+		return ret;
+	}
 	rt_startup_irq(it->irq);
 	
 	return 0;
