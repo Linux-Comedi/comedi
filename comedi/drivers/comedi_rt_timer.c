@@ -131,6 +131,12 @@ static inline RTIME nano2count(long long ns)
 #include <rtai_sched.h>
 #endif
 
+
+/* This defines the fastest speed we will emulate.  Note that
+ * without a watchdog (like in RTAI), we could easily overrun our
+ * task period because analog input tends to be slow. */
+#define SPEED_LIMIT 100000	/* in nanoseconds */
+
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
 static int timer_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num);
@@ -252,6 +258,24 @@ static int timer_data_write(comedi_device *dev, comedi_cmd *cmd,
 		comedi_error(dev, "write error");
 		return -EIO;
 	}
+
+	return 0;
+}
+
+// devpriv->io_function for DIO subdevices
+static int timer_dio_read(comedi_device *dev, comedi_cmd *cmd,
+	unsigned int index)
+{
+	comedi_subdevice *s = dev->read_subdev;
+	int ret;
+	lsampl_t data;
+
+	ret = comedi_dio_bitfield(devpriv->device, devpriv->subd, 0, &data);
+	if(ret<0){
+		comedi_error(dev, "read error");
+		return -EIO;
+	}
+	comedi_buf_put(s->async, data);
 
 	return 0;
 }
@@ -447,14 +471,14 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 3: make sure arguments are trivially compatible */
 	// limit frequency, this is fairly arbitrary
 	if(cmd->scan_begin_src == TRIG_TIMER){
-		if(cmd->scan_begin_arg<10000){	/* 100 khz */
-			cmd->scan_begin_arg=10000;
+		if(cmd->scan_begin_arg<SPEED_LIMIT){
+			cmd->scan_begin_arg=SPEED_LIMIT;
 			err++;
 		}
 	}
 	if(cmd->convert_src == TRIG_TIMER){
-		if(cmd->convert_arg<10000){	/* 100 khz */
-			cmd->convert_arg=10000;
+		if(cmd->convert_arg<SPEED_LIMIT){
+			cmd->convert_arg=SPEED_LIMIT;
 			err++;
 		}
 	}
@@ -601,48 +625,39 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	emul_dev=comedi_get_device_by_minor(devpriv->device);
 	emul_s=emul_dev->subdevices+devpriv->subd;
 
-	if(emul_s->type != COMEDI_SUBD_AI
-		&& emul_s->type != COMEDI_SUBD_AO)
-	{
-		printk("cannot emulate subdevice type\n");
-		return -EINVAL;
-	}
-
 	// input or output subdevice
 	s=dev->subdevices+0;
+	s->type=emul_s->type;
+	s->subdev_flags = emul_s->subdev_flags;
+	s->n_chan=emul_s->n_chan;
+	s->len_chanlist=1024;
+	s->do_cmd=timer_cmd;
+	s->do_cmdtest=timer_cmdtest;
+	s->cancel=timer_cancel;
+	s->maxdata=emul_s->maxdata;
+	s->range_table=emul_s->range_table;
+	s->range_table_list=emul_s->range_table_list;
 	s->poll=timer_poll;
-	if(emul_s->type == COMEDI_SUBD_AI)
-	{
-		s->type=emul_s->type;
-		s->subdev_flags = emul_s->subdev_flags;
-		s->n_chan=emul_s->n_chan;
-		s->len_chanlist=1024;
-		s->do_cmd=timer_cmd;
-		s->do_cmdtest=timer_cmdtest;
-		s->cancel=timer_cancel;
-		s->maxdata=emul_s->maxdata;
-		s->range_table=emul_s->range_table;
-		s->range_table_list=emul_s->range_table_list;
+	switch(emul_s->type){
+	case COMEDI_SUBD_AI:
 		s->insn_read=timer_insn;
 		dev->read_subdev = s;
 		devpriv->io_function = timer_data_read;
-	}else if(emul_s->type == COMEDI_SUBD_AO)
-	{
-		s->type=emul_s->type;
-		s->subdev_flags = emul_s->subdev_flags;
-		s->n_chan=emul_s->n_chan;
-		s->len_chanlist=1024;
-		s->do_cmd=timer_cmd;
-		s->do_cmdtest=timer_cmdtest;
-		s->cancel=timer_cancel;
-		s->maxdata=emul_s->maxdata;
-		s->range_table=emul_s->range_table;
-		s->range_table_list=emul_s->range_table_list;
+		break;
+	case COMEDI_SUBD_AO:
 		s->insn_write=timer_insn;
 		s->insn_read=timer_insn;
 		dev->write_subdev = s;
 		devpriv->io_function = timer_data_write;
-	}else {
+		break;
+	case COMEDI_SUBD_DIO:
+		s->insn_write=timer_insn;
+		s->insn_read=timer_insn;
+		s->insn_bits=timer_insn;
+		dev->read_subdev = s;
+		devpriv->io_function = timer_dio_read;
+		break;
+	default:
 		comedi_error(dev, "failed to determine subdevice type!");
 		return -EINVAL;
 	}
