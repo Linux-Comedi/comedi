@@ -21,6 +21,7 @@ other things, consult the author, as he has probably made a mistake.
 
 Install using 'make install' as root.  This installs the files:
 	/lib/modules/<<kernel version>>/misc/comedi.o
+	/lib/modules/<<kernel version>>/misc/kcomedilib.o
 	/lib/modules/<<kernel version>>/misc/<<driver files>>.o
 	/usr/sbin/comedi_config
 	/usr/include/comedi.h
@@ -42,13 +43,16 @@ In general, this is done by a command similar to
 	/sbin/modprobe <<driver>>.o
 
 If your module dependencies are set up correctly, this will load
-both comedi.o and your driver.
+both comedi.o and your driver.  See the man pages for modprobe
+and insmod for more details.
 
-In this version, the default behavior when the module is loaded is
-to _not_ configure it automatically.  This may change soon.  For
-many boards, you need to supply additional information, such as
-I/O address, IRQ, and possibly DMA channels.  The following commands
-are examples:
+The default behavior when the module is loaded is to _not_ configure
+it automatically, i.e., you have a device file (/dev/comedi0) associated
+with a driver, but the driver is not associated with a device.  To
+associate a device file/driver with a device, you need to run the
+command /usr/sbin/comedi_config, and supply additional information,
+such as I/O address, IRQ, and possibly DMA channels.  The following
+commands are examples:
 
 	/usr/sbin/comedi_config /dev/comedi0 dt282x 0x240,3
 	/usr/sbin/comedi_config /dev/comedi1 atmio-E 0x260,4
@@ -56,19 +60,29 @@ are examples:
 	/usr/sbin/comedi_config /dev/comedi0 pcimio-E
 
 Try a 'man comedi_config' for information on how to use
-this utility.  IRQs can be automatically detected for some hardware,
-although this is not recommended, for the same reasons as other
-hardware.
+this utility.  The options (numbers at the end, above) have
+different meanings for different drivers, and you should consult
+the file Documentation/comedi/drivers.txt for details about
+each driver.  Scripts have been written for a few of the drivers
+with very complicated command lists -- these are found in the etc
+directory.
 
 If you like to autoload your modules, put the lines
 
 	alias char-major-98 comedi
-	post-install comedi /etc/comedi.conf
+	alias char-major-98-0 your_driver
+	post-install your_driver /usr/sbin/comedi_config /dev/comedi0 your_driver <<options>>
 
-and create a script /etc/comedi.conf, which can be a list of commands
-to configure the board.  If you have a National Instruments AT-MIO or
-PCI-MIO board, you probably will want to run the autocalibration tool
-that is part of comedilib in this script.
+Alternatively, for complicated option lists, the scripts in etc
+are designed to be copied into /etc, so that you could put the
+following lines into /etc/conf.modules:
+
+	alias char-major-98-0 dt282x
+	post-install dt282x /etc/dt282x.conf
+
+If you have a National Instruments AT-MIO or PCI-MIO board, you probably
+will want to run comedi_calibrate, an autocalibration tool that is part
+of comedilib in a bootup script.
 
 To write programs that use comedi, there are demo programs included
 with comedilib.
