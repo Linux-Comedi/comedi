@@ -26,8 +26,8 @@ Description: National Instruments DAQCard E series
 Author: ds
 Status: works
 Devices: [National Instruments] DAQCard-AI-16XE-50 (ni_mio_cs),
-  DAQCard-AI-16E-4, DAQCard-6062E, DAQCard-6024E
-Updated: Thu, 07 Nov 2002 21:09:40 -0800
+  DAQCard-AI-16E-4, DAQCard-6062E, DAQCard-6024E, DAQCard-6036E
+Updated: Thu Oct 23 19:43:17 CDT 2003
 
 See the notes in the ni_atmio.o driver.
 */
