@@ -453,7 +453,7 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 		comedi_event(dev,s,s->async->events);
 		return;
 	}
-	comedi_buf_copy_from(s->async, ptr, size);
+	comedi_buf_memcpy_from(s->async, 0, ptr, size);
 	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,i,size);
 	enable_dma(devpriv->dma[i].chan);
@@ -1029,7 +1029,7 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 		rt_printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
-	comedi_buf_copy_from(s->async, devpriv->dma[0].buf, size);
+	comedi_buf_memcpy_from(s->async, 0, devpriv->dma[0].buf, size);
 	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,0,size);
 	enable_dma(devpriv->dma[0].chan);
@@ -1040,7 +1040,7 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 		rt_printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
-	comedi_buf_copy_from(s->async, devpriv->dma[1].buf, size);
+	comedi_buf_memcpy_from(s->async, 0, devpriv->dma[1].buf, size);
 	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,1,size);
 	enable_dma(devpriv->dma[1].chan);
