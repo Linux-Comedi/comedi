@@ -519,11 +519,9 @@ found:
 	subdev_8255_init(dev, s, NULL,
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
-	// clear interrupts
-	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
-	/* Enable (and clear) incoming mailbox interrupts on amcc s5933. */
+	/* Set bits to enable incoming mailbox interrupts on amcc s5933.
+	 * They don't actually get sent here, but in cmd code. */
 	devpriv->s5933_intcsr_bits = INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT;
-	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 
 	return 1;
 }
@@ -802,7 +800,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= SE;
 	// set pacer source
 	if(cmd->convert_src == TRIG_EXT || cmd->scan_begin_src == TRIG_EXT)
-		bits |= PACER_EXT_FALL;
+		bits |= PACER_EXT_RISE;
 	else
 		bits |= PACER_INT;
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
@@ -828,7 +826,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->adc_fifo_bits = INTE;
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
-		if(cmd->convert_src == TRIG_NOW)
+		if(cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
 			devpriv->adc_fifo_bits |= INT_EOS;	// interrupt end of burst
 		else
 			devpriv->adc_fifo_bits |= INT_FNE;	// interrupt fifo not empty
@@ -849,7 +847,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "bug!");
 		return -1;
 	}
-	if(cmd->convert_src == TRIG_NOW)
+	if(cmd->convert_src == TRIG_NOW && cmd->chanlist_len > 1)
 		bits |= BURSTE;
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
 
