@@ -567,6 +567,13 @@ static int timer_start_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
+static int timer_poll(comedi_device *dev,comedi_subdevice *s)
+{
+	/* This it pretty generic code, perhaps it should be the
+	 * default for any subdevice that doesn't implement poll. */
+	return s->async->buf_int_count - s->async->buf_user_count;
+}
+
 static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
@@ -603,6 +610,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	// input or output subdevice
 	s=dev->subdevices+0;
+	s->poll=timer_poll;
 	if(emul_s->type == COMEDI_SUBD_AI)
 	{
 		s->type=emul_s->type;
