@@ -28,3 +28,7 @@ get rid of spurious "char-major-98-0 not found"
 
 verify 2.0.x operation
 
+develop 8253 and Am9513 code
+
+increase mod use count for RT
+
