@@ -784,7 +784,7 @@ static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	comedi_subdevice *s = dev->subdevices + 0;
 
 	/* mark 2 pages as being under DMA control */
-	comedi_buf_write_alloc(s->async, 2*PAGE_SIZE);
+	comedi_buf_write_alloc(s->async, 4*PAGE_SIZE);
 
 	mite->current_link = 0;
 	mite->chan = 0;
