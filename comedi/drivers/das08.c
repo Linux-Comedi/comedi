@@ -68,7 +68,7 @@ driver.
 #include "8255.h"
 
 // pcmcia includes
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -178,7 +178,7 @@ static int das08jr_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 /*
    A linked list of "instances" of the das08_pcmcia device.  Each actual
    PCMCIA card corresponds to one device instance, and is described
@@ -446,7 +446,7 @@ static struct das08_board_struct das08_boards[]={
 	i8254_offset:	4,
 	iosize:	8,
 	},
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 	{
 	name:		"pcm-das08",
 	id:	0x0,	// XXX
@@ -734,7 +734,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 	int iobase, pci_iobase = 0;
 	struct pci_dev *pdev;
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 	dev_link_t *link = dev_list;	// XXX hack
 #endif
 
@@ -795,7 +795,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR );
 #endif
 
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 	}else if(thisboard->bustype == pcmcia)
 	{
 		if(link == NULL)
@@ -938,7 +938,7 @@ static int das08_detach(comedi_device *dev)
    be present but disabled -- but it can then be enabled for specific
    modules at load time with a 'pc_debug=#' option to insmod.
 */
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;

@@ -89,7 +89,7 @@ NI manuals:
 #include "8255.h"
 #include "mite.h"
 
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 
 //#include <pcmcia/config.h>
 //#include <pcmcia/k_compat.h>
@@ -388,7 +388,7 @@ static comedi_lrange range_labpc_ao = {
 
 static labpc_board labpc_boards[] =
 {
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 	{
 		name:	"daqcard-1200",
 		device_id:	0x103,	// 0x10b is manufacturer id, 0x103 is device id
@@ -517,7 +517,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	int i;
 	unsigned long flags, isr_flags;
 	int ret;
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 	dev_link_t *link;
 #endif
 
@@ -550,7 +550,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 			irq = mite_irq(devpriv->mite);
 			break;
 		case pcmcia_bustype:
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 			link = pcmcia_dev_list; /* XXX hack */
 			if(!link) return -EIO;
 			iobase = link->io.BasePort1;
@@ -2108,7 +2108,7 @@ static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int 
 }
 
 // PCMCIA crap
-#ifdef CONFIG_PCMCIA
+#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
