@@ -1961,11 +1961,11 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 			}else{
 				if(s==dev->read_subdev){
 					wake_up_interruptible(&dev->read_wait);
-					kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
+					KILL_FASYNC(dev->async_queue, SIGIO, POLL_IN);
 				}
 				if(s==dev->write_subdev){
 					wake_up_interruptible(&dev->write_wait);
-					kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
+					KILL_FASYNC(dev->async_queue, SIGIO, POLL_OUT);
 				}
 			}
 		}else{
