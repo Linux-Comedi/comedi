@@ -434,7 +434,7 @@ void mio_cs_config(dev_link_t *link)
 
 	{
 		int base;
-		for(base=0x300;base<0x400;base+=0x20){
+		for(base=0x000;base<0x400;base+=0x20){
 			link->io.BasePort1=base;
 			ret=CardServices(RequestIO, handle, &link->io);
 			//printk("RequestIO 0x%02x\n",ret);
