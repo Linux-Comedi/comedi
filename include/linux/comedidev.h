@@ -377,6 +377,11 @@ static inline unsigned long kvirt_to_pa(unsigned long adr)
 	ret = __pa(kva);
 	return ret;
 }
+#else
+static inline unsigned long kvirt_to_pa(unsigned long adr)
+{
+	return 0;
+}
 #endif
 
 int comedi_buf_put(comedi_async *async, sampl_t x);
