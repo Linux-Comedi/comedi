@@ -61,6 +61,7 @@ ComputerBoards			CIO-DAS16/330			das16
 ComputerBoards			CIO-DAS800			das800
 ComputerBoards			CIO-DAS801			das800
 ComputerBoards			CIO-DAS802			das800
+ComputerBoards			CIO-DAS802/16			das800
 ComputerBoards			PCI-DAS08			das08
 ComputerBoards			PCI-DAS1200			cb_pcidas
 Data Translation		DT21-EZ				dt282x

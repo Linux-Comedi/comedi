@@ -141,6 +141,7 @@ Options (for ISA cards):
 Options (for pci-das08):
 	[0] - bus  (optional)
 	[1] = slot (optional)
+Use the name 'pci-das08' for the pci-das08, NOT 'das08'.
 
 The das08 driver doesn't support asynchronous commands, since
 the el cheapo das08 hardware doesn't really support them.  The
@@ -269,7 +270,8 @@ Status: unknown
 Driver: das800.o
 Description: Keithley Metrabyte DAS800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
-Status: works
+Status: works, cio-das802/16 untested - email me if you have tested it
+
 
 Recognizes the following board names:
 
@@ -279,6 +281,7 @@ das-802
 cio-das800
 cio-das801
 cio-das802
+cio-das802/16
 
 Configuration options:
 	[0] - base io address
