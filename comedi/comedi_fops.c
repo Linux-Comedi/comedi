@@ -1388,6 +1388,8 @@ void init_drivers(void);
 
 int init_module(void)
 {
+	int i;
+
 	printk("comedi: version " COMEDI_VERSION " - David Schleef <ds@stm.lbl.gov>\n");
 	if(register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
 		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
@@ -1397,6 +1399,9 @@ int init_module(void)
 	if(!comedi_devices)
 		return -ENOMEM;
 	memset(comedi_devices,0,sizeof(comedi_device)*COMEDI_NDEVICES);
+	for(i=0;i<COMEDI_NDEVICES;i++){
+		comedi_devices[i].minor=i;
+	}
 #if 0
 	init_polling();
 #endif
