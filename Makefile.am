@@ -21,6 +21,6 @@ moo:
 	
 install-data-hook:
 	if [ -z "$(DESTDIR)" ] ; then \
-		depmod -ae $(KERNELRELEASE) \
+		depmod -ae $(LINUX_KERNELRELEASE); \
 	fi
 
