@@ -331,8 +331,8 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
+	request_region(iobase,DAS6402_SIZE,"das6402");
 	dev->iobase=iobase;
-	request_region(dev->iobase,DAS6402_SIZE,"das6402");
 
 	/* should do a probe here */
 

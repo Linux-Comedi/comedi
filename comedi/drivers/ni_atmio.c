@@ -273,6 +273,8 @@ static int ni_getboardtype(comedi_device *dev);
 /* clean up allocated resources */
 static int ni_atmio_detach(comedi_device *dev)
 {
+	mio_common_detach(dev);
+
 #ifdef HAVE_ISAPNP
 	if(devpriv->pcidev)
 		devpriv->pcidev->deactivate(devpriv->pcidev);

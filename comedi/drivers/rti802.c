@@ -105,14 +105,16 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int i;
+	int iobase;
 
-	dev->iobase = it->options[0];
-	printk("comedi%d: rti802: 0x%04x ", dev->minor, dev->iobase);
-	if (check_region(dev->iobase, RTI802_SIZE) < 0) {
+	iobase = it->options[0];
+	printk("comedi%d: rti802: 0x%04x ", dev->minor, iobase);
+	if (check_region(iobase, RTI802_SIZE) < 0) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase, RTI802_SIZE, "rti802");
+	request_region(iobase, RTI802_SIZE, "rti802");
+	dev->iobase = iobase;
 
 	dev->board_name = "rti802";
 

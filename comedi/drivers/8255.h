@@ -26,15 +26,10 @@
 
 #include <linux/comedidev.h>
 
-#ifdef CONFIG_COMEDI_8255
+#if defined(CONFIG_COMEDI_8255) || defined(CONFIG_COMEDI_8255_MODULE)
 
 int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,void *),void *arg);
-
-#else
-
-#ifdef CONFIG_COMEDI_8255_MODULE
-
-int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,void *),void *arg);
+void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s);
 
 #else
 
@@ -47,7 +42,7 @@ static inline int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,void *
 	return 0;
 }
 
-#endif
+static inline void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s){}
 
 #endif
 

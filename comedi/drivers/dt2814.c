@@ -135,23 +135,23 @@ static int dt2814_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_TIMER;
-	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
 	cmd->convert_src &= TRIG_NOW;
-	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
 	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
 

@@ -1185,9 +1185,9 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 		return -EIO;
         }
 
-        dev->iobase=iobase_9;
-        request_region(dev->iobase, this_board->iorange_9118, "ADLink PCI-9118");
+        request_region(iobase_9, this_board->iorange_9118, "ADLink PCI-9118");
 
+        dev->iobase=iobase_9;
 	dev->board_name = this_board->name;
 
 	if((ret=alloc_private(dev,sizeof(pci9118_private)))<0)
@@ -1195,8 +1195,8 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	devpriv->amcc=card;
 	devpriv->master=master;
+        request_region(iobase_a, this_board->iorange_amcc, "ADLink PCI-9118");
 	devpriv->iobase_a=iobase_a;
-        request_region(devpriv->iobase_a, this_board->iorange_amcc, "ADLink PCI-9118");
 	
 	if (irq>0)  {
 		if (comedi_request_irq(irq, interrupt_pci9118, SA_SHIRQ, "ADLink PCI-9118", dev)) {

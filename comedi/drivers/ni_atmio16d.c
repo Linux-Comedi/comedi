@@ -287,23 +287,23 @@ static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_c
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_FOLLOW|TRIG_TIMER;
-	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
 	cmd->convert_src &= TRIG_TIMER;
-	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
 	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
 
@@ -621,40 +621,40 @@ static int atmio16d_ao(comedi_device * dev, comedi_subdevice *s, comedi_trig * i
 }
 
 
-static int atmio16d_dio(comedi_device * dev, comedi_subdevice *s, comedi_trig * it)
+static int atmio16d_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-	unsigned int data,mask;
-	int i;
+	if(insn->n!=2)return -EINVAL;
 
-#ifdef DEBUG1
-	printk("atmio16d_dio\n");
-#endif
-
-	if(it->flags & TRIG_CONFIG){
-		data = s->io_bits;
-		for(i=0;i<it->n_chan;i++){
-			mask=(CR_CHAN(it->chanlist[i])<4)?0x0f:0xf0;
-			data &= ~mask;
-			if(it->data[i])
-				data |= mask;
-		}
-		s->io_bits=data;
-		devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0|COMREG2_DOUTEN1);
-		if(data&0x0f)
-			devpriv->com_reg_2_state |= COMREG2_DOUTEN0;
-		if(data&0xf0)
-			devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
-	}else{
-		if(it->flags & TRIG_WRITE){
-			do_pack(&s->state,it);
-			outw( s->state, dev->iobase+MIO_16_DIG_OUT_REG );
-		}else{
-			data = inw(dev->iobase+MIO_16_DIG_IN_REG);
-			di_unpack(data,it);
-		}
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]|data[1]);
+		outw(s->state, dev->iobase+MIO_16_DIG_OUT_REG );
 	}
+	data[1] = inw(dev->iobase+MIO_16_DIG_IN_REG);
 
-	return it->n_chan;
+	return 2;
+}
+
+static int atmio16d_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int i;
+	int mask;
+
+	for(i=0;i<insn->n;i++){
+		mask=(CR_CHAN(insn->chanspec)<4)?0x0f:0xf0;
+		s->io_bits &= ~mask;
+		if(data[i])s->io_bits |= mask;
+	}
+	devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0|COMREG2_DOUTEN1);
+	if(s->io_bits&0x0f)
+		devpriv->com_reg_2_state |= COMREG2_DOUTEN0;
+	if(s->io_bits&0xf0)
+		devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
+	outw(devpriv->com_reg_2_state, dev->iobase+COM_REG_2);
+
+	return i;
 }
 
 
@@ -806,7 +806,8 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE;
 	s->n_chan=8;
-	s->trig[0]=atmio16d_dio;
+	s->insn_bits = atmio16d_dio_insn_bits;
+	s->insn_config = atmio16d_dio_insn_config;
 	s->maxdata=1;
 	s->range_table=&range_digital;
 
@@ -839,6 +840,9 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 static int atmio16d_detach(comedi_device * dev)
 {
 	printk("comedi%d: atmio16d: remove\n", dev->minor);
+
+	if(dev->subdevices && boardtype->has_8255)
+		subdev_8255_cleanup(dev,dev->subdevices + 3);
 
 	if(dev->irq)
 		free_irq(dev->irq,dev);

@@ -132,16 +132,18 @@ static int fl512_ao_insn_readback(comedi_device *dev,
  */
 static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
 {
+  int iobase;
   comedi_subdevice *s;      /* pointer to the subdevice:
           Analog in, Analog out, ( not made ->and Digital IO) */
 
-  dev->iobase = it->options[0];
-  printk("comedi:%d fl512: 0x%04x",dev->minor,dev->iobase);
-  if (check_region(dev->iobase, FL512_SIZE) < 0) {
+  iobase = it->options[0];
+  printk("comedi:%d fl512: 0x%04x",dev->minor,iobase);
+  if (check_region(iobase, FL512_SIZE) < 0) {
     printk(" I/O port conflict\n");
     return -EIO;
   }
-  request_region(dev->iobase, FL512_SIZE, "fl512");
+  request_region(iobase, FL512_SIZE, "fl512");
+  dev->iobase = iobase;
   dev->board_name = "fl512";
   dev->n_subdevices = 2;      /* Analog in/out */
   if(alloc_private(dev,sizeof(fl512_private)) < 0)

@@ -1829,6 +1829,11 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
+static void mio_common_detach(comedi_device *dev)
+{
+	if(dev->subdevices && boardtype.has_8255)
+		subdev_8255_cleanup(dev,dev->subdevices+3);
+}
 
 static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 {
@@ -1847,7 +1852,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
 	s->subdev_flags|=SDF_DITHER;
 	s->n_chan=boardtype.n_adchan;
-	s->len_chanlist=512;	/* XXX is this the same for PCI-MIO ? */
+	s->len_chanlist=512;
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->range_table=ni_range_lkup[boardtype.gainlkup];
 	s->insn_read=ni_ai_insn_read;

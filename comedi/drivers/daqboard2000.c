@@ -288,7 +288,6 @@ typedef struct daqboard2000_hw {
 
 
 
-static void daqboard2000_release_resources(comedi_device * dev);
 static int daqboard2000_attach(comedi_device *dev,comedi_devconfig *it);
 static int daqboard2000_detach(comedi_device *dev);
 
@@ -316,6 +315,7 @@ typedef struct {
   } card;
   void *daq;
   void *plx;
+  lsampl_t ao_readback[2];
 } daqboard2000_private;
 
 #define devpriv ((daqboard2000_private*)dev->private)
@@ -362,35 +362,40 @@ static void setup_sampling(comedi_device *dev, int chan, int gain)
 }
 
 
-static int daqboard2000_ai(comedi_device *dev, comedi_subdevice *s, 
-			   comedi_trig *it)
+static int daqboard2000_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
   int i;
   daqboard2000_hw *fpga = devpriv->daq;
+  int gain, chan, timeout;
 
   fpga->acqControl = DAQBOARD2000_AcqResetScanListFifo;
-   fpga->acqControl = DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
-  for(i=0 ; i < it->n_chan ; i++) {
-    int gain, chan, timeout;
+  fpga->acqControl = DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
 
-    gain = CR_RANGE(it->chanlist[i]);
-    chan = CR_CHAN(it->chanlist[i]);		
+  gain = CR_RANGE(insn->chanspec);
+  chan = CR_CHAN(insn->chanspec);		
+
+  /* This doesn't look efficient.  I decided to take the conservative
+   * approach when I did the insn conversion.  Perhaps it would be
+   * better to have broken it completely, then someone would have been
+   * forced to fix it.  --ds */
+  for(i=0;i<insn->n;i++){
     setup_sampling(dev, chan, gain);
     fpga->acqControl = DAQBOARD2000_SeqStartScanList;
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqConfigPipeFull) { break; }
-      udelay(2);
+      //udelay(2);
     }
     fpga->acqControl = DAQBOARD2000_AdcPacerEnable;
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqLogicScanning) { break; }
-      udelay(2);
+      //udelay(2);
     }
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if (fpga->acqControl & DAQBOARD2000_AcqResultsFIFOHasValidData) { break;}
-      udelay(2);
+      //udelay(2);
     }
-    it->data[i] = fpga->acqResultsFIFO;
+    data[i] = fpga->acqResultsFIFO;
     fpga->acqControl = DAQBOARD2000_AdcPacerDisable;
     fpga->acqControl = DAQBOARD2000_SeqStopScanList;
   }
@@ -398,33 +403,46 @@ static int daqboard2000_ai(comedi_device *dev, comedi_subdevice *s,
   return i;
 }
 
-static int daqboard2000_ao(comedi_device *dev, comedi_subdevice *s, 
-			   comedi_trig *it)
+
+static int daqboard2000_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
   int i;
+  int chan = CR_CHAN(insn->chanspec);
+
+  for(i=0;i<insn->n;i++){
+    data[i]=devpriv->ao_readback[chan];
+  }
+
+  return i;
+}
+
+static int daqboard2000_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+  int i;
+  int chan = CR_CHAN(insn->chanspec);
   daqboard2000_hw *fpga = devpriv->daq;
+  int timeout;
 
-  for(i=0 ; i < it->n_chan ; i++) {
-    int chan, data, timeout;
-
-    chan = CR_CHAN(it->chanlist[i]);
-    data = it->data[i];
-/*  
-    OK, since it works OK without enabling the DAC's, let's keep
-    it as simple as possible...
-    fpga->dacControl = (chan + 2) * 0x0010 | 0x0001; udelay(1000);
-*/
-    fpga->dacSetting[chan] = data;
+  for(i=0;i<insn->n;i++){
+    /*  
+     * OK, since it works OK without enabling the DAC's, let's keep
+     * it as simple as possible...
+     */
+    //fpga->dacControl = (chan + 2) * 0x0010 | 0x0001; udelay(1000);
+    fpga->dacSetting[chan] = data[i];
     for (timeout = 0 ; timeout < 20 ; timeout++) {
       if ((fpga->dacControl & ((chan + 1) * 0x0010)) == 0) { break; }
-      udelay(2);
+      //udelay(2);
     }
-/*  
-    Since we never enabled the DAC's, we don't need to disable it...
-    fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; udelay(1000);
-*/
-
+    devpriv->ao_readback[chan] = data[i];
+  /*  
+   * Since we never enabled the DAC's, we don't need to disable it...
+   * fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; udelay(1000);
+   */
   }
+
   return i;
 }
 
@@ -756,7 +774,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   s->subdev_flags = SDF_READABLE|SDF_RT;
   s->n_chan = 24;
   s->maxdata = 0xffff;
-  s->trig[0] = daqboard2000_ai;
+  s->insn_read = daqboard2000_ai_insn_read;
   s->range_table = &range_daqboard2000_ai;
 
   s = dev->subdevices + 1;
@@ -765,7 +783,8 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   s->subdev_flags = SDF_WRITEABLE|SDF_RT;
   s->n_chan = 2;
   s->maxdata = 0xffff;
-  s->trig[0] = daqboard2000_ao;
+  s->insn_read = daqboard2000_ao_insn_read;
+  s->insn_write = daqboard2000_ao_insn_write;
   s->range_table = &range_daqboard2000_ao;
 
   s = dev->subdevices + 2;
@@ -777,8 +796,13 @@ out:
   return result;
 }
 
-static void daqboard2000_release_resources(comedi_device * dev)
+static int daqboard2000_detach(comedi_device * dev)
 {
+  printk("comedi%d: daqboard2000: remove\n", dev->minor);
+
+  if(dev->subdevices)
+    subdev_8255_cleanup(dev,dev->subdevices+2);
+
   if (devpriv && devpriv->daq) {
     iounmap(devpriv->daq);
   }
@@ -788,12 +812,6 @@ static void daqboard2000_release_resources(comedi_device * dev)
   if (dev->irq) {
     free_irq(dev->irq, dev);
   }
-}
-
-static int daqboard2000_detach(comedi_device * dev)
-{
-  printk("comedi%d: daqboard2000: remove\n", dev->minor);
-  daqboard2000_release_resources(dev);
   return 0;
 }
 

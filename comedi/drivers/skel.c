@@ -242,8 +242,9 @@ static int skel_detach(comedi_device *dev)
  */
 static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	int n;
+	int n,i;
 	unsigned int d;
+	unsigned int status;
 
 	/* a typical programming sequence */
 
@@ -257,8 +258,19 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 		/* trigger conversion */
 		//outw(0,dev->iobase + SKEL_CONVERT);
 
+#define TIMEOUT 100
 		/* wait for conversion to end */
-		/* return -ETIMEDOUT if there is a timeout */
+		for(i=0;i<TIMEOUT;i++){
+			status = 1;
+			//status = inb(dev->iobase + SKEL_STATUS);
+			if(status)break;
+		}
+		if(i==TIMEOUT){
+			/* rt_printk() should be used instead of printk()
+			 * whenever the code can be called from real-time. */
+			rt_printk("timeout\n");
+			return -ETIMEDOUT;
+		}
 
 		/* read data */
 		//d = inw(dev->iobase + SKEL_AI_DATA);
@@ -291,23 +303,23 @@ static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
-	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
 	cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
-	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
 	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
 

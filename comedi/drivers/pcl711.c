@@ -421,7 +421,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase, PCL711_SIZE, "pcl711");
+	request_region(iobase, PCL711_SIZE, "pcl711");
 	dev->iobase = iobase;
 
 	/* there should be a sanity check here */

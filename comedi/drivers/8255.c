@@ -167,7 +167,6 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	s->range_table=&range_digital;
 	s->maxdata=1;
 
-	/* XXX This causes a memory leak */
 	s->private=kmalloc(sizeof(struct subdev_8255_struct),GFP_KERNEL);
 	if(!s->private)return -ENOMEM;
 
@@ -183,11 +182,15 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	s->state=0;
 	s->io_bits=0;
 	do_config(dev,s);
-
 	
 	return 0;
 }
 
+void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s)
+{
+	if(s->private)
+		kfree(s->private);
+}
 
 /*
 
@@ -251,6 +254,7 @@ static int dev_8255_detach(comedi_device *dev)
 			iobase=(int)CALLBACK_ARG;
 			release_region(iobase,_8255_SIZE);
 		}
+		subdev_8255_cleanup(dev,s);
 	}
 
 	return 0;

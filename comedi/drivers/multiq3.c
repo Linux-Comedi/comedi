@@ -94,74 +94,95 @@ comedi_driver driver_multiq3={
 	detach:		multiq3_detach,
 };
 
+struct multiq3_private{
+	lsampl_t ao_readback[2];
+};
+#define devpriv ((struct multiq3_private *)dev->private)
 
-static int multiq3_ai(comedi_device *dev, comedi_subdevice *s, comedi_trig *it)
+static int multiq3_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-  int i, hi, lo;
-  int chan;
-  int data;
-  int status, control;
+	int i,n;
+	int chan;
+	unsigned int hi, lo;
 
-  chan = CR_CHAN(it->chanlist[0]);
-  control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3);
-  outw(control, dev->iobase+MULTIQ3_CONTROL);
-  for (i = 0; i < MULTIQ3_TIMEOUT; i++) {
-    status = inw(dev->iobase+MULTIQ3_STATUS);
-    if(status & MULTIQ3_STATUS_EOC) {
-      break;
-    }
-    udelay(10);
-  }
-  if(i == MULTIQ3_TIMEOUT){
-    rt_printk("multiq3: timeout\n");
-    return -ETIME;
-  }
-  outw(0, dev->iobase+MULTIQ3_AD_CS);
-  for (i = 0; i < MULTIQ3_TIMEOUT; i++) {
-    status = inw(dev->iobase+MULTIQ3_STATUS);
-    if(status & MULTIQ3_STATUS_EOC_I) {
-      break;
-    }
-    udelay(10);
-  }
-  hi = inb(dev->iobase + MULTIQ3_AD_CS) &0xff;
-  lo = inb(dev->iobase + MULTIQ3_AD_CS) &0xff;
+	chan = CR_CHAN(insn->chanspec);
+	outw(MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3),
+		dev->iobase+MULTIQ3_CONTROL);
+	
+	for(i = 0; i < MULTIQ3_TIMEOUT; i++) {
+		if(inw(dev->iobase+MULTIQ3_STATUS) & MULTIQ3_STATUS_EOC)
+			break;
+	}
+	if(i==MULTIQ3_TIMEOUT)return -ETIMEDOUT;
 
-  data = (((hi << 8) | lo) + 0x1000) & 0x1fff;
-  it->data[0]=data;
+	for(n=0;n<insn->n;n++){
+		outw(0, dev->iobase+MULTIQ3_AD_CS);
+		for(i = 0; i < MULTIQ3_TIMEOUT; i++) {
+			if(inw(dev->iobase+MULTIQ3_STATUS) & MULTIQ3_STATUS_EOC_I)
+				break;
+		}
+		if(i==MULTIQ3_TIMEOUT)return -ETIMEDOUT;
+		
+		hi = inb(dev->iobase + MULTIQ3_AD_CS);
+		lo = inb(dev->iobase + MULTIQ3_AD_CS);
+		data[n] = ((hi << 8) | lo) & 0xfff;
+	}
 
-  return 1;
+	return i;
 }
 
-static int multiq3_ao(comedi_device *dev, comedi_subdevice *s, comedi_trig *it)
+static int multiq3_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-  int chan, control;
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
-  chan=CR_CHAN(it->chanlist[0]);
-  control = MULTIQ3_CONTROL_MUST | MULTIQ3_DA_LOAD | chan;
-  outw(control, dev->iobase+MULTIQ3_CONTROL);
-  outw(it->data[0], dev->iobase+MULTIQ3_DAC_DATA);
-  control = MULTIQ3_CONTROL_MUST;
-  outw(control, dev->iobase+MULTIQ3_CONTROL);
-  return 1;
+	for(i=0;i<insn->n;i++){
+		data[i]=devpriv->ao_readback[chan];
+	}
+
+	return i;
 }
 
-static int multiq3_di(comedi_device *dev, comedi_subdevice *s, comedi_trig *it)
+static int multiq3_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-  unsigned int bits;
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
-  bits = inw(dev->iobase + MULTIQ3_DIGIN_PORT);
+	for(i=0;i<insn->n;i++){
+		outw(MULTIQ3_CONTROL_MUST | MULTIQ3_DA_LOAD | chan,
+			dev->iobase+MULTIQ3_CONTROL);
+		outw(data[i], dev->iobase+MULTIQ3_DAC_DATA);
+		outw(MULTIQ3_CONTROL_MUST, dev->iobase+MULTIQ3_CONTROL);
 
-  return di_unpack(bits,it);
+		devpriv->ao_readback[chan] = data[i];
+	}
+
+	return i;
 }
 
-static int multiq3_do(comedi_device *dev, comedi_subdevice *s, comedi_trig *it)
+static int multiq3_di_insn_bits(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
 {
-  do_pack(&s->state,it);
+  if(insn->n!=2)return -EINVAL;
 
+  data[1] = inw(dev->iobase + MULTIQ3_DIGIN_PORT);
+
+  return 2;
+}
+
+static int multiq3_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+  if(insn->n!=2)return -EINVAL;
+
+  s->state &= ~data[0];
+  s->state |= (data[0]&data[1]);
   outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
 
-  return it->n_chan;
+  return 2;
 }
 
 static int multiq3_ei(comedi_device *dev, comedi_subdevice *s, comedi_trig *it)
@@ -235,12 +256,15 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       result = alloc_subdevices(dev);
       if(result<0)return result;
 
+      result = alloc_private(dev,sizeof(struct multiq3_private));
+      if(result<0)return result;
+
       s = dev->subdevices + 0;
       /* ai subdevice */
       s->type = COMEDI_SUBD_AI;
       s->subdev_flags = SDF_READABLE;
       s->n_chan = 8;
-      s->trig[0] = multiq3_ai;
+      s->insn_read = multiq3_ai_insn_read;
       s->maxdata = 0x1fff;
       s->range_table = &range_bipolar5;
 
@@ -249,7 +273,8 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->type = COMEDI_SUBD_AO;
       s->subdev_flags = SDF_WRITEABLE;
       s->n_chan = 8;
-      s->trig[0] = multiq3_ao;
+      s->insn_read = multiq3_ao_insn_read;
+      s->insn_write = multiq3_ao_insn_write;
       s->maxdata = 0xfff;
       s->range_table = &range_bipolar5;
 
@@ -258,7 +283,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->type = COMEDI_SUBD_DI;
       s->subdev_flags = SDF_READABLE;
       s->n_chan = 16;
-      s->trig[0] = multiq3_di;
+      s->insn_bits = multiq3_di_insn_bits;
       s->maxdata = 1;
       s->range_table = &range_digital;
 
@@ -267,7 +292,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       s->type = COMEDI_SUBD_DO;
       s->subdev_flags = SDF_WRITEABLE;
       s->n_chan = 16;
-      s->trig[0] = multiq3_do;
+      s->insn_bits = multiq3_do_insn_bits;
       s->maxdata = 1;
       s->range_table = &range_digital;
       s->state = 0;

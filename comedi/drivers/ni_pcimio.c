@@ -536,6 +536,8 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot);
 /* cleans up allocated resources */
 static int pcimio_detach(comedi_device *dev)
 {
+	mio_common_detach(dev);
+
 	if(dev->private && devpriv->mite)
 		mite_unsetup(devpriv->mite);
 	

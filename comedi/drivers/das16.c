@@ -454,26 +454,26 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_FOLLOW|TRIG_TIMER;
-	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	/* XXX This must be TRIG_FOLLOW until I figure out a way to *
 	 * time the individual conversions.                         */
 	tmp=cmd->convert_src;
 	//cmd->convert_src &= TRIG_TIMER;
 	cmd->convert_src &= TRIG_FOLLOW;
-	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
 	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
 	
@@ -985,8 +985,9 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret, irq;
+	int iobase;
 
-	dev->iobase = it->options[0];
+	iobase = it->options[0];
 
 	printk("comedi%d: das16:",dev->minor);
 
@@ -997,25 +998,24 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	if(thisboard->size<0x400){
-		printk(" 0x%04x-0x%04x\n",
-			   dev->iobase,dev->iobase+thisboard->size);
-		if(check_region(dev->iobase,thisboard->size)<0){
+		printk(" 0x%04x-0x%04x\n", iobase, iobase+thisboard->size);
+		if(check_region(iobase,thisboard->size)<0){
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
 	}else{
 		printk(" 0x%04x-0x%04x 0x%04x-0x%04x\n",
-			   dev->iobase,dev->iobase+0x0f,
-			   dev->iobase+0x400,dev->iobase+0x400+(thisboard->size&0x3ff));
-		if(check_region(dev->iobase,0x10) < 0) {
+			   iobase,iobase+0x0f,
+			   iobase+0x400,iobase+0x400+(thisboard->size&0x3ff));
+		if(check_region(iobase,0x10) < 0) {
 			printk(" I/O port conflict:  0x%04x-0x%04x\n",
-				   dev->iobase,dev->iobase+0x0f);
+				   iobase,iobase+0x0f);
 			return -EIO;
 		}
-		if(check_region(dev->iobase+0x400,thisboard->size&0x3ff)<0){
+		if(check_region(iobase+0x400,thisboard->size&0x3ff)<0){
 			printk(" I/O port conflict:  0x%04x-0x%04x\n",
-				   dev->iobase+0x400,
-				   dev->iobase+0x400+(thisboard->size&0x3ff));
+				   iobase+0x400,
+				   iobase+0x400+(thisboard->size&0x3ff));
 			return -EIO;
 		}
 	}
@@ -1025,11 +1025,13 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		return ret;
 
 	if(thisboard->size<0x400){
-		request_region(dev->iobase,thisboard->size,"das16");
+		request_region(iobase,thisboard->size,"das16");
 	}else{
-		request_region(dev->iobase,0x10,"das16");
-		request_region(dev->iobase+0x400,thisboard->size&0x3ff,"das16");
+		request_region(iobase,0x10,"das16");
+		request_region(iobase+0x400,thisboard->size&0x3ff,"das16");
 	}
+
+	dev->iobase = iobase;
 
 	/* now for the irq */
 	irq=it->options[1];
@@ -1134,6 +1136,9 @@ static int das16_detach(comedi_device *dev)
 	
 	das16_reset(dev);
 	
+	if(dev->subdevices)
+		subdev_8255_cleanup(dev,dev->subdevices+4);
+
 	if(dev->irq)
 		free_irq(dev->irq, dev);
 	

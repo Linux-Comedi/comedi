@@ -180,8 +180,14 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int pcl724_detach(comedi_device *dev)
 {
+	int i;
+
 //	printk("comedi%d: pcl724: remove\n",dev->minor);
 	
+	for(i=0;i<dev->n_subdevices;i++){
+		subdev_8255_cleanup(dev,dev->subdevices+i);
+	}
+
 #ifdef PCL724_IRQ
 	if(dev->irq){
 		free_irq(dev->irq,dev);

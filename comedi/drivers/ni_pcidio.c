@@ -452,6 +452,14 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int nidio_detach(comedi_device *dev)
 {
+	int i;
+
+	if(!this_board->is_diodaq){
+		for(i=0;i<this_board->n_8255;i++){
+			subdev_8255_cleanup(dev,dev->subdevices+i);
+		}
+	}
+
 	if(dev->irq)
 		comedi_free_irq(dev->irq,dev);
 

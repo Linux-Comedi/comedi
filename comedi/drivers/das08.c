@@ -498,10 +498,11 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret;
+	int iobase;
 
-	dev->iobase=it->options[0];
-	printk("comedi%d: das08: 0x%04x",dev->minor,dev->iobase);
-	if(check_region(dev->iobase,DAS08_SIZE)<0){
+	iobase=it->options[0];
+	printk("comedi%d: das08: 0x%04x",dev->minor,iobase);
+	if(check_region(iobase,DAS08_SIZE)<0){
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
@@ -514,7 +515,8 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(struct das08_private_struct)))<0)
 		return ret;
 
-	request_region(dev->iobase,DAS08_SIZE,"das08");
+	request_region(iobase,DAS08_SIZE,"das08");
+	dev->iobase = iobase;
 
 	s=dev->subdevices+0;
 	/* ai */
@@ -585,7 +587,11 @@ static int das08_detach(comedi_device *dev)
 {
 	printk(KERN_INFO "comedi%d: das08: remove\n",dev->minor);
 
-	release_region(dev->iobase,DAS08_SIZE);
+	if(dev->subdevices)
+		subdev_8255_cleanup(dev,dev->subdevices+4);
+
+	if(dev->iobase)
+		release_region(dev->iobase,DAS08_SIZE);
 
 	return 0;
 }

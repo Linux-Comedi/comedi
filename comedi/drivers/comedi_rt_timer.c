@@ -95,7 +95,7 @@ static inline RTIME nano2count(long long ns)
 
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
-static comedi_driver driver_timer={
+comedi_driver driver_timer={
 	module:		THIS_MODULE,
 	driver_name:	"comedi_rt_timer",
 	attach:		timer_attach,
@@ -374,9 +374,6 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "failed to obtain lock");
 		return ret;
 	}
-#ifdef CONFIG_COMEDI_RTAI
-	start_rt_timer(1);
-#endif
 	delay = nano2count(cmd->start_arg);
 	if(cmd->scan_begin_src == TRIG_TIMER)
 		period = nano2count(cmd->scan_begin_arg);
@@ -386,6 +383,9 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "bug!");
 		return -1;
 	}
+#ifdef CONFIG_COMEDI_RTAI
+	start_rt_timer(period);
+#endif
 	if(s == dev->read_subdev)
 		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
 	else
