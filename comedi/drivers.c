@@ -123,6 +123,11 @@ attached:
 	/* do a little post-config cleanup */
 	postconfig(dev);
 
+	if(!dev->board_name){
+		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
+		dev->board_name="BUG";
+	}
+
 	dev->attached=1;
 	dev->driver=driv;
 

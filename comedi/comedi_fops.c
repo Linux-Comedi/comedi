@@ -156,12 +156,6 @@ static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
 	/* fill devinfo structure */
 	devinfo.version_code=COMEDI_VERSION_CODE;
 	devinfo.n_subdevs=dev->n_subdevices;
-#if 1
-	if(!dev->board_name){
-		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
-		return -EFAULT;
-	}
-#endif
 	memcpy(devinfo.driver_name,dev->driver->driver_name,COMEDI_NAMELEN);
 	memcpy(devinfo.board_name,dev->board_name,COMEDI_NAMELEN);
 	memcpy(devinfo.options,dev->options,COMEDI_NDEVCONFOPTS*sizeof(int));
@@ -1189,7 +1183,7 @@ static void *comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
 static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 {
 	comedi_device *dev;
-	comedi_subdevice *s;
+	//comedi_subdevice *s;
 	unsigned int mask;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
