@@ -41,7 +41,7 @@ export MODLIB
 
 export FLAT_MODULES
 
-CFLAGS := -I $(TOPDIR)/include -D__KERNEL__ -I $(LINUXDIR)/include $(CFLAGS) 
+CFLAGS := -I $(TOPDIR)/include $(CFLAGS) 
 
 CFLAGS += -nostdinc -I $(shell $(CC) -print-search-dirs|grep ^install:|sed 's/^install: //')include
 
@@ -110,6 +110,7 @@ distclean:	clean
 	rm -f core `find . \( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
+	rm -f `find comedi -name Makefile -print`
 	-rm -rf modules
 	rm -f .config .config.old
 	rm -f include/config.h include/version.h

@@ -10,8 +10,10 @@ if [ "$CONFIG_RTHAL" != "" ];then
 		read RTAIDIR
 	fi
 	: ${RTAIDIR:=${default}}
-	echo RTAIDIR=$RTAIDIR >>.buildvars
-	echo CFLAGS += -I $RTAIDIR/include >>.buildvars
+	if [ -d ${RTAIDIR}/include ];then
+		echo RTAIDIR=$RTAIDIR >>.buildvars
+		echo CFLAGS += -I $RTAIDIR/include >>.buildvars
+	fi
 	export RTAIDIR
 fi
 
