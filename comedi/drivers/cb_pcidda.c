@@ -295,7 +295,8 @@ found:
 		devpriv->pci_dev->base_address[DAC_BADRINDEX] &
 			PCI_BASE_ADDRESS_IO_MASK;
 #else
-	pci_enable_device(devpriv->pci_dev);
+	if(pci_enable_device(devpriv->pci_dev))
+		return -EIO;
 	digitalio =
 		devpriv->pci_dev->resource[DIGITALIO_BADRINDEX].start &
 			PCI_BASE_ADDRESS_IO_MASK;
