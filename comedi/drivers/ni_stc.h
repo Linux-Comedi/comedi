@@ -612,10 +612,12 @@ enum Configuration_Memory_High_Bits
 {
 	AI_AC_COUPLE	= 0x800,
 	AI_DIFFERENTIAL = 0x1000,
+	AI_COMMON = 0x2000,
+	AI_GROUND = 0x3000,
 };
 static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 {
-	return ( channel & 0x7 );
+	return ( channel & 0x3f );
 }
 
 #define ADC_FIFO_Data_Register		0x1c
@@ -733,7 +735,7 @@ static ni_board ni_boards[];
 	int ai_continuous;					\
 	int blocksize;						\
 	int n_left;						\
-	unsigned int ai_calib_chanspec;				\
+	unsigned int ai_calib_source;				\
 								\
 	int changain_state;					\
 	unsigned int changain_spec;				\

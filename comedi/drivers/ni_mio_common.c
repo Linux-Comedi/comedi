@@ -69,10 +69,6 @@
 
 #define NI_TIMEOUT 1000
 
-/* reference: ground, common, differential, other */
-static short ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
-static short ni_modebits2[4]={ 0x3f, 0x3f, 0x37, 0x37 };
-
 /* Note: this table must match the ai_gain_* definitions */
 static short ni_gainlkup[][16]={
 	/* ai_gain_16 */
@@ -1247,28 +1243,42 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	offset=1<<(boardtype.adbits-1);
 	for(i=0;i<n_chan;i++){
 		if(list[i]&CR_ALT_SOURCE){
-			chan=CR_CHAN(devpriv->ai_calib_chanspec);
-			range=CR_RANGE(devpriv->ai_calib_chanspec);
-			aref=AREF_OTHER;
-			dither=((devpriv->ai_calib_chanspec&CR_ALT_FILTER)!=0);
+			chan=devpriv->ai_calib_source;
 		}else{
 			chan=CR_CHAN(list[i]);
-			range=CR_RANGE(list[i]);
-			aref=CR_AREF(list[i]);
-			dither=((list[i]&CR_ALT_FILTER)!=0);
 		}
+		aref=CR_AREF(list[i]);
+		range=CR_RANGE(list[i]);
+		dither=((list[i]&CR_ALT_FILTER)!=0);
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
 
-		if(boardtype.gainlkup != ai_gain_611x){
-			hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
-		}else{
-			/* map everything to differential */
-			hi = AI_DIFFERENTIAL;
-			hi |= AI_CONFIG_CHANNEL( chan );
+		hi = 0;
+		if( ( list[i] & CR_ALT_SOURCE ) )
+		{
+			if( boardtype.reg_611x )
+				ni_writew(CR_CHAN(list[i])&0x0003, Calibration_Channel_Select_611x);
+		}else
+		{
+			switch( aref )
+			{
+				case AREF_DIFF:
+					hi |= AI_DIFFERENTIAL;
+					break;
+				case AREF_COMMON:
+					hi |= AI_COMMON;
+					break;
+				case AREF_GROUND:
+					hi |= AI_GROUND;
+					break;
+				case AREF_OTHER:
+					break;
+			}
 		}
+		hi |= AI_CONFIG_CHANNEL( chan );
+
 		ni_writew(hi,Configuration_Memory_High);
 
 		lo = range;
@@ -1796,10 +1806,9 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case INSN_CONFIG_ALT_SOURCE:
 		{
-		if(CR_CHAN(data[1]) >= 8 ||
-		   CR_RANGE(data[1]) >= s->range_table->length)
+		if(data[1] >= 8)
 			return -EINVAL;
-		devpriv->ai_calib_chanspec = data[1];
+		devpriv->ai_calib_source = data[1];
 		return 2;
 		}
 	}
@@ -2369,8 +2378,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
 		s->subdev_flags=SDF_READABLE|SDF_DIFF;
-		if( boardtype.reg_611x == 0 )	// driver doesn't seem to support ground/common for any boards?
-			s->subdev_flags |= SDF_GROUND | SDF_COMMON;
+		if( boardtype.reg_611x == 0 )
+			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 
 		s->subdev_flags|=SDF_DITHER;
 		s->n_chan=boardtype.n_adchan;
@@ -2673,7 +2682,7 @@ static void ni_write_caldac(comedi_device *dev,int addr,int val)
 	unsigned int loadbit=0,bits=0,bit,bitstring=0;
 	int i;
 	int type;
-	
+
 	//printk("ni_write_caldac: chan=%d val=%d\n",addr,val);
 
 	for(i=0;i<3;i++){
@@ -3201,7 +3210,7 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 	
 	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
 	win_out( devpriv->gpct_input_select[chan],G_Input_Select_Register(chan));
-	win_out( 0,G_Autoincrement_Register(chan)); 
+	win_out( 0,G_Autoincrement_Register(chan));
 		
 	//printk("exit GPCT_Reset\n");
 }
@@ -3289,7 +3298,7 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	int chan=insn->chanspec;
 	int cur_op = devpriv->gpct_cur_operation[chan];
-		
+
 	//printk("in ni_gpct_insn_read, n=%d, data[0]=%d\n",insn->chanspec,data[0]);
 	if(insn->n!=1)return -EINVAL;
 		
