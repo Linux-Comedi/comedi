@@ -25,6 +25,18 @@
 #ifndef __COMEDI_PLX9080_H
 #define __COMEDI_PLX9080_H
 
+// descriptor block used for chained dma transfers
+struct plx_dma_desc
+{
+	u32 pci_start_addr;
+	u32 local_start_addr;
+	// transfer_size is in bytes, only first 23 bits of register are used
+	u32 transfer_size;
+	/* address of next descriptor (quad word aligned), plus some
+	 * additional bits (see PLX_DMA0_DESCRIPTOR_REG) */
+	u32 next;
+};
+
 /**********************************************************************
 **            Register Offsets and Bit Definitions
 **
@@ -177,6 +189,13 @@
 #define PLX_DMA0_TRANSFER_SIZE_REG	0x8c	// number of bytes to transfer (first 23 bits)
 
 #define PLX_DMA0_DESCRIPTOR_REG	0x90	// descriptor pointer register
+#define PLX_DMA1_DESCRIPTOR_REG	0xa4
+#define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
+#define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
+#define  PLX_EN_CHAIN_BIT	0x200	// enables chaining
+#define  PLX_EN_DMA_DONE_INTR_BIT	0x400	// enables interrupt on dma done
+#define  PLX_LOCAL_ADDR_CONST_BIT	0x800	// hold local address constant (don't increment)
+#define  PLX_DMA_INTR_PCI_BIT	0x20000	// routes dma interrupt to pci bus (instead of local bus)
 
 #define PLX_DMA0_CS_REG	0xa8	// command status register
 #define PLX_DMA1_CS_REG	0xa9
@@ -315,4 +334,4 @@
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
 #define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
 
-#endif /* __PLX9060_H */
+#endif /* __COMEDI_PLX9080_H */

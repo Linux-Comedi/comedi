@@ -95,6 +95,10 @@ TODO:
 #define TIMER_BASE 25	// 40MHz master clock
 #define PRESCALED_TIMER_BASE	10000	// 100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday
 #define QUARTER_AI_FIFO_SIZE 2048	// 1/4 analog input fifo size
+// size in bytes of transfers used for dma transfers, also size of buffers that make up dma ring
+#define AI_DMA_TRANSFER_SIZE 0x4000
+// number of dma transfers we will chain together into a ring (and the number of dma buffers we maintain)
+#define DMA_RING_COUNT 10
 
 /* PCI-DAS64xxx base addresses */
 
@@ -117,7 +121,9 @@ TODO:
 #define    ADC_INTR_EOSEQ_BITS	0x3	// interrupt end of sequence (probably wont use this it's pretty fancy)
 #define    EN_ADC_INTR_SRC_BIT	0x4	// enable adc interrupt source
 #define    EN_ADC_DONE_INTR_BIT	0x8	// enable adc aquisition done interrupt
+#define    EN_ADC_ACTIVE_INTR_BIT	0x200	// enable adc active interrupt
 #define    EN_ADC_STOP_INTR_BIT	0x400	// enable adc stop trigger interrupt
+#define    EN_DAC_ACTIVE_INTR_BIT	0x800	// enable dac active interrupt
 #define    EN_DAC_UNDERRUN_BIT	0x4000	// enable dac underrun status bit
 #define    EN_ADC_OVERRUN_BIT	0x8000	// enable adc overrun status bit
 #define HW_CONFIG_REG	0x2	// hardware config register
@@ -373,6 +379,7 @@ MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct
 {
+	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
 	// base addresses (physical)
 	unsigned long plx9080_phys_iobase;
 	unsigned long main_phys_iobase;
@@ -381,15 +388,14 @@ typedef struct
 	unsigned long plx9080_iobase;
 	unsigned long main_iobase;
 	unsigned long dio_counter_iobase;
-	// divisor of master clock for analog input pacing
-	unsigned int ai_divisor;
 	volatile unsigned int ai_count;	// number of analog input samples remaining
-	// divisors of master clock for analog output pacing
-	unsigned int ao_divisor;
+	u16 *ai_buffer[DMA_RING_COUNT];	// dma buffers for analog input
+	dma_addr_t ai_buffer_phys_addr[DMA_RING_COUNT];	// physical addresses of ai dma buffers
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	unsigned int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 	unsigned int hw_revision;	// stc chip hardware revision number
 	unsigned int do_bits;	// remember digital ouput levels
+	volatile unsigned int intr_enable_bits;	// bits to send to INTR_ENABLE_REG register
 } pcidas64_private;
 
 /*
@@ -499,6 +505,7 @@ found:
 
 	printk("Found %s on bus %i, slot %i\n", pcidas64_boards[index].name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	devpriv->hw_dev = pcidev;
 
 	//Initialize dev->board_name
 	dev->board_name = thisboard->name;
@@ -519,7 +526,9 @@ found:
 #else
 	if(pci_enable_device(pcidev))
 		return -EIO;
+#ifdef PCIDMA
 	pci_set_master(pcidev);
+#endif
 	plx9080_iobase =
 		pcidev->resource[PLX9080_BADRINDEX].start &
 		PCI_BASE_ADDRESS_MEM_MASK;
@@ -572,6 +581,15 @@ found:
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
+
+#ifdef PCIDMA
+	// alocate pci dma buffers
+	for(index = 0; index < DMA_RING_COUNT; i++)
+	{
+		devpriv->ai_buffer[index] =
+			pci_alloc_consistent(devpriv->hw_dev, DMA_BUFFER_SIZE, &devpriv->ai_buffer_phys_addr[index]);
+	}
+#endif
 
 #ifdef PCIDAS64_DEBUG
 
@@ -691,6 +709,10 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
  */
 static int detach(comedi_device *dev)
 {
+#ifdef PCIDMA
+	unsigned int i;
+#endif
+
 	printk("comedi%d: cb_pcidas: remove\n",dev->minor);
 
 	if(devpriv)
@@ -707,6 +729,15 @@ static int detach(comedi_device *dev)
 			release_mem_region(devpriv->main_phys_iobase, MAIN_IOSIZE);
 		if(devpriv->dio_counter_iobase)
 			release_mem_region(devpriv->dio_counter_phys_iobase, DIO_COUNTER_IOSIZE);
+#ifdef PCIDMA
+		// free pci dma buffers
+		for(i = 0; i < DMA_RING_COUNT; i++)
+		{
+			if(devpriv->ai_buffer[i])
+				pci_free_consistent(devpriv->hw_dev, DMA_BUFFER_SIZE,
+					devpriv->ai_buffer[i], devpriv->ai_buffer_phys_addr[i]);
+		}
+#endif
 	}
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
@@ -721,8 +752,10 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	unsigned int bits, n, i;
 	const int timeout = 1000;
 
-	// disable card's interrupt sources
-	writew(0, devpriv->main_iobase + INTR_ENABLE_REG);
+	// disable card's analog input interrupt sources
+	devpriv->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
+	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
 
 	/* disable pacing, triggering, etc */
 	writew(ADC_ENABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
@@ -931,7 +964,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	unsigned int i;
 
 	// disable card's interrupt sources
-	writew(0, devpriv->main_iobase + INTR_ENABLE_REG);
+	// disable card's analog input interrupt sources
+	devpriv->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
+	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
 
 	/* disable pacing, triggering, etc */
 	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
@@ -1006,21 +1042,24 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
 
 	// enable interrupts
-	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT;
+	devpriv->intr_enable_bits |= EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT;
 	if(cmd->stop_src == TRIG_EXT)
-		bits |= EN_ADC_STOP_INTR_BIT;
+		devpriv->intr_enable_bits |= EN_ADC_STOP_INTR_BIT;
 	if(cmd->flags & TRIG_WAKE_EOS)
-		bits |= ADC_INTR_EOSCAN_BITS;
+		devpriv->intr_enable_bits |= ADC_INTR_EOSCAN_BITS;
 	else
-		bits |= ADC_INTR_QFULL_BITS;	// for clairity only, since quarter-full bits are zero
-	writew(bits, devpriv->main_iobase + INTR_ENABLE_REG);
+		devpriv->intr_enable_bits |= ADC_INTR_QFULL_BITS;	// for clairity only, since quarter-full bits are zero
+	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
 	// enable interrupts on plx 9080 XXX enabling more interrupt sources than are actually used
 	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E;
 	writel(bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
 
-	// disable dma for now XXX
+#ifdef PCIDMA
+//XXX
+#else
 	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+#endif
 
 	/* set mode, disable software conversion gate */
 	bits = ADC_CONTROL1_DUMMY_BITS | SW_NOGATE_BIT;
@@ -1097,8 +1136,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		read_index <<= 15;
 		write_index <<= 15;
 		// get least significant 15 bits
-		read_index += readw(devpriv->main_iobase + ADC_READ_PNTR_REG);
-		write_index += readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG);
+		read_index += readw(devpriv->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
+		write_index += readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 		num_samples = write_index - read_index;
 		if(num_samples < 0)
 			num_samples += 4 * QUARTER_AI_FIFO_SIZE;
