@@ -1005,6 +1005,9 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	/* disable interrupts, dma and pacer clocked conversions */
 	devpriv->control_state &= ~DAS16_INTE & ~PACING_MASK & ~DMA_ENABLE;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
@@ -1023,6 +1026,8 @@ static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 	{
 		outb(0, dev->iobase + DAS1600_BURST);
 	}
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	return 0;
 }
@@ -1152,7 +1157,7 @@ static void das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if((status & DAS16_INT ) == 0)
 	{
-		comedi_error(dev, "spurious interrupt");
+		DEBUG_PRINT( "spurious interrupt\n" );
 		return;
 	}
 
@@ -1174,7 +1179,7 @@ static void das16_timer_interrupt(unsigned long arg)
 
 static void das16_interrupt( comedi_device *dev )
 {
-	unsigned long flags;
+	unsigned long dma_flags, spin_flags;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
@@ -1196,7 +1201,15 @@ static void das16_interrupt( comedi_device *dev )
 		return;
 	}
 
-	flags = claim_dma_lock();
+	comedi_spin_lock_irqsave( &dev->spinlock, spin_flags );
+	if( ( devpriv->control_state & DMA_ENABLE ) == 0 )
+	{
+		comedi_spin_unlock_irqrestore( &dev->spinlock, spin_flags );
+		DEBUG_PRINT( "interrupt while dma disabled?\n" );
+		return;
+	}
+
+	dma_flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
@@ -1240,7 +1253,9 @@ static void das16_interrupt( comedi_device *dev )
 		set_dma_count( devpriv->dma_chan, devpriv->dma_transfer_size );
 		enable_dma(devpriv->dma_chan);
 	}
-	release_dma_lock(flags);
+	release_dma_lock(dma_flags);
+
+	comedi_spin_unlock_irqrestore( &dev->spinlock, spin_flags );
 
 	das16_write_array_to_buffer( dev,
 		devpriv->dma_buffer[ buffer_index ], num_bytes );
