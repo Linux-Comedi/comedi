@@ -144,6 +144,7 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ NI_VENDOR_ID, 0x15b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ NI_VENDOR_ID, 0x11b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ NI_VENDOR_ID, 0x18c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1580, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
@@ -491,7 +492,7 @@ static ni_board ni_boards[]={
                 caldac:         type3,
                 has_8255:       0,
         },
- 	{       device_id:      0x18c0,
+ 	{	device_id:      0x18c0,
 		name:           "pxi-6052e",
 		n_adchan:       16,
 		adbits:         16,
@@ -504,6 +505,20 @@ static ni_board ni_boards[]={
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
 		caldac:         type4,
+	},
+ 	{	device_id:      0x1580,
+		name:           "pxi-6031e",
+		n_adchan:       64,
+		adbits:         16,
+		ai_fifo_depth:  512,
+		alwaysdither:   1,
+		gainlkup:       ai_gain_14,
+		ai_speed:	10000,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  2048,
+		ao_unipolar:    1,
+		caldac:         type2,
 	},
 };
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
