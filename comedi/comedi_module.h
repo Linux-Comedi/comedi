@@ -31,6 +31,7 @@
 #include <linux/errno.h>
 #include <comedi.h>
 #include <linux/config.h>
+#include <comedi/version.h>
 
 
 #include "kern_compat.h"

@@ -65,7 +65,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 	int l=0;
 	
 	l+=sprintf(buf+l,
-		"comedi version " COMEDI_VERSION "\n"
+		"comedi version " COMEDI_RELEASE "\n"
 		"format string: %s\n",
 		"\"%2d: %-20s %-20s %4d\",i,driver_name,board_name,n_subdevices");
 
