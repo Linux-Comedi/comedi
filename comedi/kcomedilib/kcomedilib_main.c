@@ -23,10 +23,6 @@
 
 
 
-#include <linux/comedidev.h>
-#include <linux/comedi.h>
-#include <linux/comedilib.h>
-
 #define __NO_VERSION__
 #include <linux/module.h>
 
@@ -42,6 +38,10 @@
 #ifdef LINUX_V22
 #include <asm/uaccess.h>
 #endif
+
+#include <linux/comedidev.h>
+#include <linux/comedi.h>
+#include <linux/comedilib.h>
 
 
 extern volatile int rtcomedi_lock_semaphore;
@@ -350,6 +350,66 @@ int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,unsigned
 	return 0;
 }
 
+int comedi_command(unsigned int minor,comedi_cmd *cmd)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if((ret=minor_to_dev(minor,&dev))<0)
+		return ret;
+	
+	if(cmd->subdev>=dev->n_subdevices)
+		return -ENODEV;
+
+	s=dev->subdevices+cmd->subdev;
+	if(s->type==COMEDI_SUBD_UNUSED)
+		return -EIO;
+	
+	s->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	s->cb_mask |= COMEDI_CB_EOS;
+
+	s->cmd=*cmd;
+
+#if 0
+	s->runflags=0;
+#else
+	s->runflags=SRF_RT;
+	comedi_switch_to_rt(dev);
+#endif
+
+	s->subdev_flags |= SDF_RUNNING;
+
+	s->buf_user_ptr=0;
+	s->buf_user_count=0;
+	s->buf_int_ptr=0;
+	s->buf_int_count=0;
+
+	s->cur_trig.data_len = s->cmd.data_len;
+	s->cur_trig.data = s->cmd.data;
+
+	return s->do_cmd(dev,s);
+}
+
+int comedi_command_test(unsigned int minor,comedi_cmd *cmd)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret;
+
+	if((ret=minor_to_dev(minor,&dev))<0)
+		return ret;
+	
+	if(cmd->subdev>=dev->n_subdevices)
+		return -ENODEV;
+
+	s=dev->subdevices+cmd->subdev;
+	if(s->type==COMEDI_SUBD_UNUSED)
+		return -EIO;
+	
+	return s->do_cmdtest(dev,s,cmd);
+}
+
 /*
 	COMEDI_TRIG
 	trigger ioctl
@@ -446,12 +506,6 @@ cleanup:
 static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int ret=0;
-
-	/* is subdevice RT capable? (important!) */
-	if(!(s->subdev_flags&SDF_RT)){
-		ret=-EINVAL;
-		goto cleanup;
-	}
 
 	/* are we locked? (ioctl lock) */
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
@@ -601,7 +655,7 @@ int comedi_do_insn(unsigned int minor,comedi_insn *insn)
 				ret = s->insn_read(dev,s,insn,insn->data);
 				break;
 			case INSN_BITS:
-				ret = s->insn_read(dev,s,insn,insn->data);
+				ret = s->insn_bits(dev,s,insn,insn->data);
 				break;
 			default:
 				ret=-EINVAL;
@@ -768,11 +822,13 @@ int comedi_cancel(unsigned int minor,unsigned int subdev)
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
 		return -EACCES;
 	
+#if 0
 	if(!s->busy)
 		return 0;
 
 	if(s->busy!=&rtcomedi_lock_semaphore)
 		return -EBUSY;
+#endif
 
 	if(!s->cancel)
 		return -EINVAL;
@@ -787,9 +843,6 @@ int comedi_cancel(unsigned int minor,unsigned int subdev)
 	
 /*
    registration of callback functions
-
-   XXX - this needs additional work.  Specifically, being SDF_RT is _not_ a
-   sufficient condition for being able to do callbacks.
  */
 int comedi_register_callback(unsigned int minor,unsigned int subdev,
 		unsigned int mask,int (*cb)(unsigned int,void *),void *arg)
@@ -808,10 +861,6 @@ int comedi_register_callback(unsigned int minor,unsigned int subdev,
 	if(s->type==COMEDI_SUBD_UNUSED)
 		return -EIO;
 	
-	/* is subdevice RT capable? (important!) */
-	if(!(s->subdev_flags&SDF_RT))
-		return -EINVAL;
-
 	/* are we locked? (ioctl lock) */
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
 		return -EACCES;
