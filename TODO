@@ -1,6 +1,3 @@
-bug: ni_labpc, das08, and ni_daq_dio24 rely on CONFIG_PCMCIA to determine
-whether the kernel supports pcmcia, but it could be CONFIG_PCMCIA_MODULE
-instead.
 
 bug: buffer resize to 0 convinces comedi that buffer doesn't exist
 
