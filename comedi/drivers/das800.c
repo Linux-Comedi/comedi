@@ -101,7 +101,6 @@ NOTES:
 
 typedef struct das800_board_struct{
 	char *name;
-	int id;
 	int ai_speed;
 }das800_board;
 
@@ -111,32 +110,26 @@ das800_board das800_boards[] =
 {
 	{
 		name:	"das-800",
-		id:	das800,
 		ai_speed:	25000,
 	},
 	{
 		name:	"cio-das800",
-		id:	ciodas800,
 		ai_speed:	20000,
 	},
 	{
 		name:		"das-801",
-		id:	das801,
 		ai_speed:	25000,
 	},
 	{
 		name:	"cio-das801",
-		id:	ciodas801,
 		ai_speed:	20000,
 	},
 	{
 		name:		"das-802",
-		id:	das802,
 		ai_speed:	25000,
 	},
 	{
 		name:	"cio-das802",
-		id:	ciodas802,
 		ai_speed:	20000,
 	},
 };
@@ -267,7 +260,7 @@ static int das800_register_boards(void)
 	for(i = 0; i < num_boards; i++)
 	{
 		board_name[i] = das800_boards[i].name;
-		board_id[i] = das800_boards[i].id;
+		board_id[i] = i;
 	}
 
 	driver_das800.num_boards = num_boards;
@@ -298,16 +291,16 @@ static int das800_recognize(char *name)
 /* checks and probes das-800 series board type */
 int das800_probe(comedi_device *dev)
 {
-	int id;
+	int id_bits;
 	unsigned long irq_flags;
 
 	// 'comedi spin lock irqsave' disables even rt interrupts, we use them to protect indirect addressing
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(ID, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be ID register */
-	id = inb(dev->iobase + DAS800_ID) & 0x3; /* get id bits */
+	id_bits = inb(dev->iobase + DAS800_ID) & 0x3; /* get id bits */
 	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
-	switch(id)
+	switch(id_bits)
 	{
 		case 0x0:
 			if(dev->board == das800)
@@ -352,7 +345,7 @@ int das800_probe(comedi_device *dev)
 			return das802;
 			break;
 		default :
-			printk(" Board model: probe returned 0x%x (unknown)\n", id);
+			printk(" Board model: probe returned 0x%x (unknown)\n", id_bits);
 			return -1;
 			break;
 	}
@@ -457,13 +450,6 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 	printk("\n");
 
-	dev->board = das800_probe(dev);
-	if(dev->board < 0)
-	{
-		printk("unable to determine board type\n");
-		return -ENODEV;
-	}
-
 	if(iobase == 0)
 	{
 		printk("io base address required for das800\n");
@@ -479,6 +465,13 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	request_region(iobase, DAS800_SIZE, "das800");
 	dev->iobase = iobase;
 	dev->iosize = DAS800_SIZE;
+
+	dev->board = das800_probe(dev);
+	if(dev->board < 0)
+	{
+		printk("unable to determine board type\n");
+		return -ENODEV;
+	}
 
 	/* grab our IRQ */
 	if(irq == 1 || irq > 7 || irq < 0)
