@@ -246,3 +246,12 @@ if grep 'subdev_8255_init' ${driver} &>/dev/null;then
 	fi
 fi
 
+# Policy change in 0.7.60.  Drivers should use comedi_event(),
+# which has a slightly different behavior.  Checks for use
+# of comedi_done(), comedi_error_done(), comedi_bufcheck(),
+# comedi_eos(), comedi_eobuf()
+if grep 'comedi_\(\(done\)\|\(error_done\)\|\(bufcheck\)\|\(eos\)\|\(eobuf\)\)[[:space:]]*(' \
+	${driver} &>/dev/null;then
+	echo "W: should be using comedi_event()"
+fi
+
