@@ -818,6 +818,13 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	priv(dev)->dma_desc_index = 0;
 
+	/* These register are supposedly unused during chained dma,
+	* but I have found that left over values from last operation
+	* occasionally cause problems with transfer of first dma
+	* block.  Initializing them to zero seems to fix the problem. */
+	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG);
+	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG);
+	writel(0, priv(dev)->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG);
 	// give location of first dma descriptor
 	bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 	writel( bits, priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG );
