@@ -182,7 +182,7 @@ struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsign
 {
 	struct pcilst_struct *card;
 	
-	if ((pci_bus<1)&(pci_slot<1)) { // use autodetection
+	if ((pci_bus<1)&&(pci_slot<1)) { // use autodetection
 		if ((card=find_free_pci_card_by_device(vendor_id,device_id))==NULL) {
 			rt_printk(" - Unused card not found in system!\n");
 			return NULL;
