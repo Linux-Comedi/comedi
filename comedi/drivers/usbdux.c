@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v1.00pre8"
+#define DRIVER_VERSION "v1.00pre9"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -25,9 +25,20 @@ Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 10 Aug 2004
-Status: testing
+Updated: 05 Sept 2004
+Status: Stable
+Configuration options:
+  You have to upload firmware with the -i option. The
+  firmware is usually installed under /usr/share/usb or
+  /usr/local/share/usb.
 
+Connection scheme for the counter at the digital port:
+  0=/CLK0, 1=UP/DOWN0, 2=RESET0, 4=/CLK1, 5=UP/DOWN1, 6=RESET1.
+  The sampling rate of the counter is approximately 500Hz.
+
+Please note that under USB2.0 the length of the channel list determines
+the max sampling rate. If you sample only one channel you get 8kHz
+sampling rate. If you sample two channels you get 4kHz and so on.
 */
 /*
  * I must give credit here to Chris Baugher who
@@ -65,7 +76,6 @@ Status: testing
  *
  * Todo:
  * - use EP1in/out for sync digital I/O
- * - PWM with the GPIF
  */
 
 
@@ -111,12 +121,8 @@ Status: testing
 // Input endpoint number: ISO/IRQ
 #define ISOINEP           6
 
-#define IRQINEP           6
-
 // Output endpoint number: ISO/IRQ
 #define ISOOUTEP          2
-
-#define IRQOUTEP          2
 
 // This EP sends DUX commands to USBDUX
 #define COMMAND_OUT_EP     4
@@ -783,7 +789,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb, struct pt_regs *regs) {
 				     s, 
 				     s->async->events);
 			// don't do an unlink here
-			usbdux_ai_stop(this_usbduxsub,0);
+			usbdux_ao_stop(this_usbduxsub,0);
 		}
 	}
 }
