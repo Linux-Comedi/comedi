@@ -214,6 +214,30 @@ int comedi_do_insn(comedi_t *d,comedi_insn *insn)
 			udelay(insn->data[0]);
 			ret=1;
 			break;
+		case INSN_INTTRIG:
+			if(insn->n!=1){
+				ret=-EINVAL;
+				break;
+			}
+			if(insn->subdev>=dev->n_subdevices){
+				rt_printk("%d not usable subdevice\n",insn->subdev);
+				ret=-EINVAL;
+				break;
+			}
+			s=dev->subdevices+insn->subdev;
+			if(!s->async){
+				rt_printk("no async\n");
+				ret=-EINVAL;
+				break;
+			}
+			if(!s->async->inttrig){
+				rt_printk("no inttrig\n");
+				ret=-EAGAIN;
+				break;
+			}
+			ret = s->async->inttrig(dev,s,insn->data[0]);
+			if(ret>=0)ret = 1;
+			break;
 		default:
 			ret = -EINVAL;
 		}
