@@ -3,30 +3,30 @@
 AC_DEFUN(DS_LINUX_DIR,
 [
 	AC_ARG_WITH([linuxdir],
-		[AC_HELP_STRING([--with-linuxdir],
+		[AC_HELP_STRING([--with-linuxdir=DIR],
 			[specify path to Linux source directory])],
 		[LINUX_DIR="${withval}"],
 		[LINUX_DIR=default])
 
 	if test "${LINUX_DIR}" != "default" ; then
-		DS_TRY_LINUX_DIR(${LINUX_DIR}, , AC_MSG_ERROR("not found") )
+		DS_TRY_LINUX_DIR([${LINUX_DIR}], , AC_MSG_ERROR([Linux dir not found]) )
 	fi
 
 	if test "${LINUX_DIR}" = "default" ; then
 		dir="/lib/modules/`uname -r`/build";
-		DS_TRY_LINUX_DIR(${dir}, LINUX_DIR=${dir}, )
+		DS_TRY_LINUX_DIR([${dir}], [LINUX_DIR=${dir}], )
 	fi
 	if test "${LINUX_DIR}" = "default" ; then
 		dir="../linux";
-		DS_TRY_LINUX_DIR(${dir}, LINUX_DIR=${dir}, )
+		DS_TRY_LINUX_DIR([${dir}], [LINUX_DIR=${dir}], )
 	fi
 	if test "${LINUX_DIR}" = "default" ; then
 		dir="/usr/src/linux";
-		DS_TRY_LINUX_DIR(${dir}, LINUX_DIR=${dir}, )
+		DS_TRY_LINUX_DIR([${dir}], [LINUX_DIR=${dir}], )
 	fi
 
 	if test "${LINUX_DIR}" = "default" ; then
-		AC_MSG_ERROR(Linux source directory not found)
+		AC_MSG_ERROR([Linux source directory not found])
 	fi
 
 	AC_SUBST(LINUX_DIR)
@@ -84,6 +84,8 @@ the kernel source directory.])
 			;;
 	esac
 
+	DS_RTAI()
+	DS_RTLINUX()
 ])
 
 AC_DEFUN(DS_LINUX_2_6,
@@ -227,5 +229,56 @@ AC_DEFUN(DS_LINUX_CONFIG_OPTION_MODULE,
 		[$1=no])
 
 	AM_CONDITIONAL([$1],[test "${$1}" = yes -o "${$1}" = module])
+])
+
+AC_DEFUN(DS_RTAI,
+[
+	AC_ARG_WITH([rtaidir],
+		[AC_HELP_STRING([--with-rtaidir=DIR],
+			[specify path to RTAI source directory])],
+		[RTAI_DIR="${withval}"],
+		[RTAI_DIR=/usr/src/rtai])
+
+	DS_LINUX_CONFIG_OPTION_MODULE([CONFIG_RTHAL])
+
+	if test "${CONFIG_RTHAL}" != "no" ; then
+		AC_MSG_CHECKING([RTAI directory ${RTAI_DIR}])
+		if [[ -d ${RTAI_DIR}/include ]] ; then
+			RTAI_CFLAGS="-I${RTAI_DIR}/include"
+		else
+			if [ -d ${RTAI_DIR}/rtai-core/include ] ; then
+				RTAI_CFLAGS="-I${RTAI_DIR}/rtai-core/include"
+			else
+				AC_MSG_ERROR([incorrect RTAI directory?])
+			fi
+		fi
+		AC_MSG_RESULT([found])
+		AC_DEFINE([CONFIG_COMEDI_RTAI],[true],[Define if kernel is RTAI patched])
+	fi
+	AC_SUBST(RTAI_CFLAGS)
+
+])
+
+AC_DEFUN(DS_RTLINUX,
+[
+	AC_ARG_WITH([rtlinuxdir],
+		[AC_HELP_STRING([--with-rtlinuxdir=DIR],
+			[specify path to RTLinux source directory])],
+		[RTLINUX_DIR="${withval}"],
+		[RTLINUX_DIR=/usr/src/rtlinux])
+
+	DS_LINUX_CONFIG_OPTION_MODULE([CONFIG_RTLINUX])
+
+	if test "${CONFIG_RTLINUX}" != "no" ; then
+		AC_MSG_CHECKING([RTLinux directory ${RTLINUX_DIR}])
+		if [[ -d ${RTLINUX_DIR}/include ]] ; then
+			RTLINUX_CFLAGS="-I${RTLINUX_DIR}/include -I${RTLINUX_DIR}/include/compat -I${RTLINUX_DIR}/include/posix -D__RT__"
+		else
+			AC_MSG_ERROR([incorrect RTLinux directory?])
+		fi
+		AC_MSG_RESULT([found])
+		AC_DEFINE([CONFIG_COMEDI_RTL],[true],[Define if kernel is RTLinux patched])
+	fi
+	AC_SUBST(RTLINUX_CFLAGS)
 ])
 
