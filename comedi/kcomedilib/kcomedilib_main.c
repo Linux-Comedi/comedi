@@ -124,6 +124,8 @@ static void init_async_buf( comedi_async *async )
 	async->buf_free_count = 0;
 	async->buf_read_ptr = 0;
 	async->buf_write_ptr = 0;
+	async->cur_chan = 0;
+	async->scan_progress = 0;
 }
 
 int comedi_command(comedi_t *d,comedi_cmd *cmd)
@@ -160,7 +162,6 @@ int comedi_command(comedi_t *d,comedi_cmd *cmd)
 
 	async->data = cmd->data;
 	async->data_len = cmd->data_len;
-	async->cur_chan = 0;
 
 	return s->do_cmd(dev,s);
 }

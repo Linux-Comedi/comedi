@@ -56,13 +56,13 @@ Options:
 		gain)
 	[6] - analog output range lowest voltage in microvolts (optional)
 	[7] - analog output range highest voltage in microvolts (optional)
-	[8] - use timer mode for DMA, needed e.g. for buggy DMA controller 
-		in NS CS5530A (Geode Companion).  If set, also allows 
+	[8] - use timer mode for DMA, needed e.g. for buggy DMA controller
+		in NS CS5530A (Geode Companion).  If set, also allows
 		comedi_command() to be run without an irq.
 
 Passing a zero for an option is the same as leaving it unspecified.
 
-Both a dma channel and an irq (or use of 'timer mode', option 8) are required 
+Both a dma channel and an irq (or use of 'timer mode', option 8) are required
 for timed or externally triggered conversions.
 */
 /*
@@ -90,6 +90,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 #include <asm/dma.h>
 #include "8253.h"
 #include "8255.h"
+#include "comedi_fc.h"
 
 #undef DEBUG
 //#define DEBUG
@@ -1152,15 +1153,26 @@ static void das16_timer_interrupt(unsigned long arg)
 		mod_timer(&devpriv->timer, jiffies + timer_period);
 }
 
+static void munge_ai_data( comedi_device *dev, sampl_t *data, unsigned int num_points)
+{
+	unsigned int i;
+
+	if( thisboard->ai_nbits == 12)
+	{
+		for(i = 0; i < num_points; i++)
+		{
+			data[i] = ( data[i] >> 4 ) & 0xfff;
+		}
+	}
+}
+
 static void das16_interrupt( comedi_device *dev )
 {
-	int i;
 	unsigned long flags;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	comedi_cmd *cmd;
 	int num_points, num_bytes, residue;
-	sampl_t dpnt;
 	unsigned int target_xfer;
 
 	if(dev->attached == 0)
@@ -1203,15 +1215,9 @@ static void das16_interrupt( comedi_device *dev )
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	for(i = 0; i < num_points; i++)
-	{
-		/* write data point to comedi buffer */
-		dpnt = devpriv->dma_buffer[i];
-		if(thisboard->ai_nbits == 12)
-			dpnt = (dpnt >> 4) & 0xfff;
-		comedi_buf_put(async, dpnt);
-		devpriv->adc_count--;
-	}
+	munge_ai_data( dev, devpriv->dma_buffer, num_points );
+	cfc_write_array_to_buffer( s, devpriv->dma_buffer, num_points * sizeof( sampl_t ) );
+	devpriv->adc_count -= num_points;
 
 	// figure out how many bytes for next transfer
 	target_xfer = devpriv->target_transfer_size;

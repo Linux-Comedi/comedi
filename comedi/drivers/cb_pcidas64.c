@@ -85,6 +85,7 @@ TODO:
 #include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
+#include "comedi_fc.h"
 
 #undef PCIDAS64_DEBUG	// disable debugging code
 //#define PCIDAS64_DEBUG	// enable debugging code
@@ -1915,7 +1916,7 @@ static void pio_drain_ai_fifo_16(comedi_device *dev)
 
 		for(i = 0; i < num_samples; i++)
 		{
-			comedi_buf_put(async, readw(priv(dev)->main_iobase + ADC_FIFO_REG));
+			cfc_write_to_buffer( s, readw(priv(dev)->main_iobase + ADC_FIFO_REG));
 		}
 
 	} while (read_segment != write_segment);
@@ -1947,11 +1948,11 @@ static void pio_drain_ai_fifo_32(comedi_device *dev)
 	for(i = 0; read_code != write_code && i < max_transfer; )
 	{
 		fifo_data = readl(priv(dev)->dio_counter_iobase + ADC_FIFO_REG);
-		comedi_buf_put(async, fifo_data & 0xffff);
+		cfc_write_to_buffer( s, fifo_data & 0xffff);
 		i++;
 		if(i < max_transfer)
 		{
-			comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
+			cfc_write_to_buffer( s, (fifo_data >> 16) & 0xffff);
 			i++;
 		}
 		read_code = readw(priv(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
@@ -1998,7 +1999,8 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 				num_samples = priv(dev)->ai_count;
 			priv(dev)->ai_count -= num_samples;
 		}
-		comedi_buf_put_array(async, priv(dev)->ai_buffer[priv(dev)->dma_index], num_samples);
+		cfc_write_array_to_buffer( dev->read_subdev,
+			priv(dev)->ai_buffer[ priv(dev)->dma_index ], num_samples * sizeof( sampl_t ) );
 		priv(dev)->dma_index = (priv(dev)->dma_index + 1) % DMA_RING_COUNT;
 
 		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long) priv(dev)->ai_buffer_phys_addr[priv(dev)->dma_index]);

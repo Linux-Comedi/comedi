@@ -1,6 +1,6 @@
 /*
     ni_at_a2150.c driver for National Instruments AT-A2150 boards
-    Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
+    Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -78,6 +78,7 @@ TRIG_WAKE_EOS
 #include <asm/dma.h>
 #include <linux/comedidev.h>
 #include "8253.h"
+#include "comedi_fc.h"
 
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	// size in bytes of dma buffer
@@ -299,7 +300,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		dpnt = devpriv->dma_buffer[i];
 		// convert from 2's complement to unsigned coding
 		dpnt ^= 0x8000;
-		comedi_buf_put(async, dpnt);
+		cfc_write_to_buffer( s, dpnt );
 		if(cmd->stop_src == TRIG_COUNT)
 		{
 			if(--devpriv->count == 0)

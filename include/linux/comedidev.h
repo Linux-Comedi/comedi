@@ -139,6 +139,8 @@ struct comedi_async_struct{
 	unsigned int buf_read_ptr;	/* buffer marker for reader */
 
 	unsigned int cur_chan;		/* useless channel marker for interrupt */
+	/* number of bytes that have been received for current scan */
+	unsigned int scan_progress;
 
 	void		*data;
 	unsigned int	data_len;
@@ -335,6 +337,10 @@ void comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
 void comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
 unsigned int comedi_buf_read_n_available(comedi_async *async);
 void comedi_buf_copy_from(comedi_async *async, void *dest, int nbytes);
+void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *source,
+	unsigned int num_bytes );
+void comedi_buf_memcpy_from( comedi_async *async, unsigned int offset, void *destination,
+	unsigned int num_bytes );
 
 
 //#ifdef CONFIG_COMEDI_RT

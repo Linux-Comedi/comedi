@@ -68,6 +68,7 @@ irq can be omitted, although the cmd interface will not work without it.
 #include <linux/delay.h>
 #include "8255.h"
 #include "8253.h"
+#include "comedi_fc.h"
 
 #define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
@@ -98,7 +99,6 @@ irq can be omitted, although the cmd interface will not work without it.
 
 #define DAS16M1_AI             0	// 16-bit wide register
 #define   AI_CHAN(x)             ((x) & 0xf)
-#define   AI_DATA(x)             (((x) >> 4) & 0xfff)
 #define DAS16M1_CS             2
 #define   EXT_TRIG_BIT           0x1
 #define   OVRUN                  0x20
@@ -186,6 +186,7 @@ struct das16m1_private_struct {
 	 * needed to keep track of whether new count has been loaded into
 	 * counter yet (loaded by first sample conversion) */
 	u16 initial_hw_count;
+	sampl_t ai_buffer[ FIFO_SIZE ];
 	unsigned int do_bits;	// saves status of digital output bits
 	unsigned int divisor1;	// divides master clock to obtain conversion speed
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
@@ -194,6 +195,11 @@ struct das16m1_private_struct {
 #define thisboard ((struct das16m1_board_struct *)(dev->board_ptr))
 
 COMEDI_INITCLEANUP(driver_das16m1);
+
+static inline sampl_t munge_sample( sampl_t data )
+{
+	return ( data >> 4 ) & 0xfff;
+}
 
 static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 {
@@ -413,7 +419,7 @@ static int das16m1_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-		data[n] = AI_DATA(inw(dev->iobase));
+		data[n] = munge_sample( inw( dev->iobase ) );
 	}
 
 	return n;
@@ -494,9 +500,18 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	spin_unlock(&dev->spinlock);
 }
 
+static void munge_sample_array( sampl_t *array, unsigned int num_elements )
+{
+	unsigned int i;
+
+	for(i = 0; i < num_elements; i++)
+	{
+		array[i] = munge_sample( array[i] );
+	}
+}
+
 static void das16m1_handler(comedi_device *dev, unsigned int status)
 {
-	int i;
 	comedi_subdevice *s;
 	comedi_async *async;
 	comedi_cmd *cmd;
@@ -534,13 +549,9 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 	// make sure we dont try to get too many points if fifo has overrun
 	if(num_samples > FIFO_SIZE)
 		num_samples = FIFO_SIZE;
-	for(i = 0; i < num_samples; i++) {
-		sampl_t d;
-
-		d = inw(dev->iobase);
-		/* XXX check return value */
-		comedi_buf_put(async, AI_DATA(d));
-	}
+	insw( dev->iobase, devpriv->ai_buffer, num_samples );
+	munge_sample_array( devpriv->ai_buffer, num_samples );
+	cfc_write_array_to_buffer( s, devpriv->ai_buffer, num_samples * sizeof( sampl_t ) );
 	devpriv->adc_count += num_samples;
 
 	if(cmd->stop_src == TRIG_COUNT)

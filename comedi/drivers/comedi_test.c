@@ -62,6 +62,7 @@ zero volts).
 #include <linux/init.h>
 #include <linux/comedidev.h>
 #include <asm/div64.h>
+#include "comedi_fc.h"
 
 /* Board descriptions */
 typedef struct waveform_board_struct{
@@ -159,7 +160,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	{
 		for( j = 0; j < cmd->chanlist_len; j++)
 		{
-			comedi_buf_put(async,
+			cfc_write_to_buffer( dev->read_subdev,
 				fake_waveform(dev, CR_CHAN(cmd->chanlist[j]), CR_RANGE(cmd->chanlist[j]),
 					devpriv->usec_current + i * devpriv->scan_period + j * devpriv->convert_period));
 		}
@@ -173,8 +174,6 @@ static void waveform_ai_interrupt(unsigned long arg)
 
 	devpriv->usec_current += elapsed_time;
 	devpriv->usec_current %= devpriv->usec_period;
-
-	async->events |= COMEDI_CB_BLOCK;
 
 	if((async->events & COMEDI_CB_EOA) == 0 && devpriv->timer_running)
 		mod_timer(&devpriv->timer, jiffies + 1);

@@ -212,7 +212,10 @@ static int timer_data_read(comedi_device *dev, comedi_cmd *cmd,
 		comedi_error(dev, "read error");
 		return -EIO;
 	}
-	comedi_buf_put(s->async, data);
+	if( s->flags % SDF_LSAMPL )
+		cfc_write_long_to_buffer( s, data );
+	else
+		cfc_write_to_buffer( s, data );
 
 	return 0;
 }
@@ -222,11 +225,20 @@ static int timer_data_write(comedi_device *dev, comedi_cmd *cmd,
 	unsigned int index)
 {
 	comedi_subdevice *s = dev->write_subdev;
-	int ret;
+	unsigned int num_bytes;
 	sampl_t data;
+	lsampl_t long_data;
 
-	ret = comedi_buf_get(s->async, &data);
-	if(ret < 0) {
+	if( s->flags & SDF_LSAMPL )
+	{
+		num_bytes = cfc_read_array_from_buffer( s, &long_data, sizeof( long_data ) );
+	}else
+		num_bytes = cfc_read_array_from_buffer( s, &data, sizeof( data ) );
+		long_data = data;
+	}
+
+	if(num_bytes == 0)
+	{
 		comedi_error(dev, "buffer underrun");
 		return -EAGAIN;
 	}
@@ -234,7 +246,7 @@ static int timer_data_write(comedi_device *dev, comedi_cmd *cmd,
 		CR_CHAN(cmd->chanlist[index]),
 		CR_RANGE(cmd->chanlist[index]),
 		CR_AREF(cmd->chanlist[index]),
-		data);
+		long_data);
 	if(ret<0){
 		comedi_error(dev, "write error");
 		return -EIO;
@@ -256,7 +268,11 @@ static int timer_dio_read(comedi_device *dev, comedi_cmd *cmd,
 		comedi_error(dev, "read error");
 		return -EIO;
 	}
-	comedi_buf_put(s->async, data);
+
+	if( s->flags % SDF_LSAMPL )
+		cfc_write_long_to_buffer( s, data );
+	else
+		cfc_write_to_buffer( s, data );
 
 	return 0;
 }

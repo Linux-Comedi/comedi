@@ -67,8 +67,8 @@ NI manuals:
 
 */
 
-#define LABPC_DEBUG	// enable debugging messages
-//#undef LABPC_DEBUG
+#undef LABPC_DEBUG
+//#define LABPC_DEBUG	// enable debugging messages
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -88,6 +88,7 @@ NI manuals:
 #include "8253.h"
 #include "8255.h"
 #include "mite.h"
+#include "comedi_fc.h"
 
 #if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
 
@@ -738,11 +739,14 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 		s->insn_read = labpc_eeprom_read_insn;
 		s->insn_write = labpc_eeprom_write_insn;
 
+		for(i = 0; i < EEPROM_SIZE; i++)
+		{
+			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
+		}
 #ifdef LABPC_DEBUG
 		printk(" eeprom:");
 		for(i = 0; i < EEPROM_SIZE; i++)
 		{
-			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
 			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
 		}
 		printk("\n");
@@ -1380,7 +1384,7 @@ static int labpc_drain_fifo(comedi_device *dev)
 		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 		msb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 		data = (msb << 8) | lsb;
-		comedi_buf_put(async, data);
+		cfc_write_to_buffer( dev->read_subdev, data );
 		// quit if we have all the data we want
 		if(async->cmd.stop_src == TRIG_COUNT)
 		{
@@ -1443,9 +1447,9 @@ static void labpc_drain_dma(comedi_device *dev)
 	}
 
 	/* write data to comedi buffer */
-	for(i=0;i<num_points;i++){
-		/* XXX check for errors */
-		comedi_buf_put(async, devpriv->dma_buffer[i]);
+	for( i = 0; i < num_points; i++)
+	{
+		cfc_write_to_buffer( s, devpriv->dma_buffer[i] );
 	}
 	if(async->cmd.stop_src == TRIG_COUNT) devpriv->count -= num_points;
 

@@ -882,8 +882,6 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	init_async_buf( async );
 
-	async->cur_chan = 0;
-
 	async->data = async->prealloc_buf;
 	async->data_len=async->prealloc_bufsz;
 
@@ -1839,5 +1837,8 @@ static void init_async_buf( comedi_async *async )
 
 	async->buf_write_ptr = 0;
 	async->buf_read_ptr = 0;
+
+	async->cur_chan = 0;
+	async->scan_progress = 0;
 }
 

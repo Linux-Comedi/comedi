@@ -75,6 +75,7 @@ cmd triggers supported:
 #include <asm/io.h>
 #include <linux/comedidev.h>
 #include "8253.h"
+#include "comedi_fc.h"
 
 #define DAS800_SIZE           8
 #define TIMER_BASE            1000
@@ -415,7 +416,7 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->count > 0 || devpriv->forever == 1)
 		{
 			/* write data point to buffer */
-			comedi_buf_put(async, dataPoint);
+			cfc_write_to_buffer( s, dataPoint);
 			if(devpriv->count > 0) devpriv->count--;
 		}
 	}

@@ -605,6 +605,59 @@ void comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
 	}
 }
 
+void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *data,
+	unsigned int num_bytes )
+{
+	unsigned int write_ptr = async->buf_write_ptr + offset;
+
+	if( write_ptr > async->data_len )
+		write_ptr %= async->data_len;
+
+	while( num_bytes )
+	{
+		unsigned int block_size;
+
+		if( write_ptr + num_bytes > async->data_len)
+			block_size = async->data_len - write_ptr;
+		else
+			block_size = num_bytes;
+
+		memcpy( async->data + write_ptr, data, block_size );
+
+		data += block_size;
+		num_bytes -= block_size;
+
+		write_ptr = 0;
+	}
+}
+
+void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
+	void *dest, unsigned int nbytes)
+{
+	void *src;
+	unsigned int read_ptr = async->buf_read_ptr + offset;
+
+	if( read_ptr > async->data_len )
+		read_ptr %= async->data_len;
+
+	while( nbytes )
+	{
+		unsigned int block_size;
+
+		src = async->data + read_ptr;
+
+		if( nbytes >= async->data_len - read_ptr )
+			block_size = async->data_len - read_ptr;
+		else
+			block_size = nbytes;
+
+		memcpy(dest, src, block_size );
+		nbytes -= block_size;
+		dest += block_size;
+		read_ptr = 0;
+	}
+}
+
 unsigned int comedi_buf_read_n_available(comedi_async *async)
 {
 	unsigned int read_end = async->buf_write_count;
@@ -637,16 +690,5 @@ int comedi_buf_put(comedi_async *async, sampl_t x)
 
 void comedi_buf_copy_from(comedi_async *async, void *dest, int nbytes)
 {
-	void *src;
-
-	src = async->prealloc_buf + async->buf_read_ptr;
-	if(async->buf_read_ptr + nbytes >= async->prealloc_bufsz){
-		memcpy(dest, src,
-			async->prealloc_bufsz - async->buf_read_ptr - nbytes);
-		nbytes -= async->prealloc_bufsz - async->buf_read_ptr;
-		src = async->prealloc_buf;
-		dest += async->prealloc_bufsz - async->buf_read_ptr;
-	}
-	memcpy(dest, src, nbytes);
+	comedi_buf_memcpy_from( async, 0, dest, nbytes );
 }
-

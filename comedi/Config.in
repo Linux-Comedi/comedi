@@ -127,3 +127,4 @@ if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	dep_tristate 'Real-time command emulator (timer)' CONFIG_COMEDI_RT_TIMER $CONFIG_COMEDI
 fi
 
+define_bool CONFIG_COMEDI_FC m

@@ -71,7 +71,8 @@ EXPORT_SYMBOL(comedi_buf_copy_from);
 EXPORT_SYMBOL(comedi_buf_write_free);
 EXPORT_SYMBOL(comedi_buf_write_alloc);
 EXPORT_SYMBOL(comedi_buf_read_free);
-
+EXPORT_SYMBOL(comedi_buf_memcpy_to);
+EXPORT_SYMBOL(comedi_buf_memcpy_from);
 #endif
 
 

@@ -96,6 +96,7 @@ analog triggering on 1602 series
 #include "8253.h"
 #include "8255.h"
 #include "amcc_s5933.h"
+#include "comedi_fc.h"
 
 #undef CB_PCIDAS_DEBUG	// disable debugging code
 //#define CB_PCIDAS_DEBUG	// enable debugging code
@@ -103,6 +104,8 @@ analog triggering on 1602 series
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 100	// 10MHz master clock
+#define AI_BUFFER_SIZE 1024	// maximum fifo size of any supported board
+#define AO_BUFFER_SIZE 1024	// maximum fifo size of any supported board
 #define NUM_CHANNELS_8800 8
 #define NUM_CHANNELS_7376 1
 #define NUM_CHANNELS_8402 2
@@ -425,6 +428,8 @@ typedef struct
 	volatile unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
 	volatile unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
 	volatile unsigned int ao_control_bits;	// bits to write to ao control and status register
+	sampl_t ai_buffer[ AI_BUFFER_SIZE ];
+	sampl_t ao_buffer[ AO_BUFFER_SIZE ];
 	// divisors of master clock for analog output pacing
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
@@ -1439,8 +1444,7 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num)
 {
-	unsigned int i, num_points = thisboard->fifo_size;
-	sampl_t d;
+	unsigned int num_bytes, num_points = thisboard->fifo_size;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &s->async->cmd;
 
@@ -1448,19 +1452,21 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 		return -EINVAL;
 
 	// load up fifo
-	if(cmd->stop_src == TRIG_COUNT &&
-		devpriv->ao_count < num_points)
+	if( cmd->stop_src == TRIG_COUNT &&
+		devpriv->ao_count < num_points
+	)
 		num_points = devpriv->ao_count;
-	
+
+	num_bytes = cfc_read_array_from_buffer( s, devpriv->ao_buffer,
+		num_points * sizeof( sampl_t ) );
+	num_points = num_bytes / sizeof( sampl_t );
+
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		devpriv->ao_count -= num_points;
+	}
 	// write data to board's fifo
-	for(i = 0; i < num_points; i++) {
-		/* XXX check return value */
-		comedi_buf_get(async, &d);
-		outw(devpriv->ao_registers + DACDATA, d);
-	}
-	if(cmd->stop_src == TRIG_COUNT) {
-		devpriv->ao_count -= i;
-	}
+	outsw( devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_bytes );
 
 	// enable dac half-full and empty interrupts
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
@@ -1536,8 +1542,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	// if fifo half-full
 	if(status & ADHFI)
 	{
-		int i;
-
 		// read data
 		num_samples = half_fifo;
 		if(async->cmd.stop_src == TRIG_COUNT &&
@@ -1545,9 +1549,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		{
 			num_samples = devpriv->count;
 		}
-		for(i=0;i<num_samples;i++){
-			comedi_buf_put(async, inw(devpriv->adc_fifo + ADCDATA));
-		}
+		insw(devpriv->adc_fifo + ADCDATA, devpriv->ai_buffer, num_samples);
+		cfc_write_array_to_buffer( s, devpriv->ai_buffer, num_samples * sizeof( sampl_t ) );
 		devpriv->count -= num_samples;
 		if(async->cmd.stop_src == TRIG_COUNT &&
 			devpriv->count == 0)
@@ -1565,7 +1568,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 			// break if fifo is empty
 			if((ADNE & inw(devpriv->control_status + INT_ADCFIFO)) == 0)
 				break;
-			comedi_buf_put(async, inw(devpriv->adc_fifo + ADCDATA));
+			cfc_write_to_buffer( s, inw( devpriv->adc_fifo ) );
 			if(async->cmd.stop_src == TRIG_COUNT &&
 				--devpriv->count == 0)
 			{		/* end of acquisition */
@@ -1603,7 +1606,7 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int half_fifo = thisboard->fifo_size / 2;
-	unsigned int num_points, i;
+	unsigned int num_points;
 
 	async->events = 0;
 
@@ -1624,24 +1627,22 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 		}
 	}else if(status & DAHFI)
 	{
-		sampl_t d;
+		unsigned int num_bytes;
 
 		// figure out how many points we are writing to fifo
 		num_points = half_fifo;
 		if(cmd->stop_src == TRIG_COUNT &&
 			devpriv->ao_count < num_points)
 			num_points = devpriv->ao_count;
-		// write data to board's fifo
-		for(i = 0; i < num_points; i++)
-		{
-			comedi_buf_get(async, &d);
-			outw(devpriv->ao_registers + DACDATA, d);
-		}
+		num_bytes = cfc_read_array_from_buffer( s, devpriv->ao_buffer, num_points * sizeof( sampl_t ) );
+		num_points = num_bytes / sizeof( sampl_t );
+
 		if(async->cmd.stop_src == TRIG_COUNT)
 		{
-			devpriv->ao_count -= i;
+			devpriv->ao_count -= num_points;
 		}
-		async->events |= COMEDI_CB_BLOCK;
+		// write data to board's fifo
+		outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_points);
 		// clear half-full interrupt latch
 		outw(devpriv->adc_fifo_bits | DAHFI, devpriv->control_status + INT_ADCFIFO);
 	}
