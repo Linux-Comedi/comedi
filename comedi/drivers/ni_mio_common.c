@@ -191,6 +191,7 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
+static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 #ifdef DEBUG_STATUS_A
 static void ni_mio_print_status_a(int status);
@@ -1261,49 +1262,6 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			d += signbits; /* subtle: needs to be short addition */
 			data[n] = d;
 		}
-	}
-	return insn->n;
-}
-
-static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
-{
-	int i, n;
-	static const int timeout = 100;
-	unsigned short status;
-
-	for(n = 0; n < insn->n; n++)
-	{
-		ni_ao_win_outw(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION, CAL_ADC_Command_67xx);
-		for(i = 0; i < timeout; i++)
-		{
-			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-			if((status & CSS_ADC_BUSY) == 0)
-			{
-				break;
-			}
-			/* this can't be called from RT, but why would someone want to mess with
-			 * this calibration adc from RT priority? */
-			set_current_state(TASK_INTERRUPTIBLE);
-			if(schedule_timeout(1))
-			{
-				return -EIO;
-			}
-		}
-		if(i == timeout)
-		{
-			rt_printk("ni_mio_common: timeout in cs5529_ai_insn_read\n");
-			return -ETIME;
-		}
-		if(status & (CSS_OSC_DETECT | CSS_OVERRANGE))
-		{
-			rt_printk("ni_mio_common: cs5529 conversion error, status 0x%x\n", status);
-			return -EIO;
-		}
-#if 0
-rt_printk("looped %i times\n", i);
-#endif
-		/*XXX cs5529 returns signed data in bipolar mode */
-		data[n] = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
 	}
 	return insn->n;
 }
@@ -3752,6 +3710,104 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	}
 
 	return 1;
+}
+
+/* write to cs5529 register */
+static void cs5529_config_write(comedi_device *dev, unsigned int reg_select_bits, unsigned int value)
+{
+	int i;
+	unsigned short status;
+	static const int timeout = HZ;
+
+	ni_ao_win_outw(dev, ((value >> 16) & 0xff), CAL_ADC_Config_Data_High_Word_67xx);
+	ni_ao_win_outw(dev, (value & 0xffff), CAL_ADC_Config_Data_Low_Word_67xx);
+	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
+	ni_ao_win_outw(dev, CSCMD_COMMAND | reg_select_bits, CAL_ADC_Command_67xx);
+	for(i = 0; i < timeout; i++)
+	{
+			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+			if((status & CSS_ADC_BUSY) == 0)
+				break;
+			set_current_state(TASK_INTERRUPTIBLE);
+			if(schedule_timeout(1))
+			{
+				comedi_error(dev, "interrupted in cs5529_config_write()\n");
+				return;
+			}
+	}
+	if(i == timeout)
+		comedi_error(dev, "timed out in cs5529_config_write()\n");
+}
+
+/* read from cs5529 register */
+static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_select_bits)
+{
+	int i;
+	unsigned short status;
+	unsigned int value;
+	static const int timeout = HZ;
+
+	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
+	ni_ao_win_outw(dev, CSCMD_COMMAND | CSCMD_READ | reg_select_bits, CAL_ADC_Command_67xx);
+	for(i = 0; i < timeout; i++)
+	{
+			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+			if((status & CSS_ADC_BUSY) == 0)
+				break;
+			set_current_state(TASK_INTERRUPTIBLE);
+			if(schedule_timeout(1))
+			{
+				return -EIO;
+			}
+	}
+	if(i == timeout)
+		comedi_error(dev, "timed out in cs5529_config_write()\n");
+	value = (ni_ao_win_inw(dev, CAL_ADC_Config_Data_High_Word_67xx) << 16) & 0xff0000;
+	value |= ni_ao_win_inw(dev, CAL_ADC_Config_Data_Low_Word_67xx) & 0xffff;
+	return value;
+}
+
+static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+	int i, n;
+	static const int timeout = HZ;
+	unsigned short status;
+
+	for(n = 0; n < insn->n; n++)
+	{
+		ni_ao_win_outw(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION, CAL_ADC_Command_67xx);
+		for(i = 0; i < timeout; i++)
+		{
+			status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
+			if((status & CSS_ADC_BUSY) == 0)
+			{
+				break;
+			}
+			/* this can't be called from RT, but why would someone want to mess with
+			 * this calibration adc from RT priority? */
+			set_current_state(TASK_INTERRUPTIBLE);
+			if(schedule_timeout(1))
+			{
+				return -EIO;
+			}
+		}
+		if(i == timeout)
+		{
+			rt_printk("ni_mio_common: timeout in cs5529_ai_insn_read\n");
+			return -ETIME;
+		}
+		if(status & (CSS_OSC_DETECT | CSS_OVERRANGE))
+		{
+			rt_printk("ni_mio_common: cs5529 conversion error, status 0x%x\n", status);
+			return -EIO;
+		}
+#if 0
+rt_printk("looped %i times\n", i);
+#endif
+		/*XXX cs5529 returns signed data in bipolar mode */
+		data[n] = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
+	}
+	return insn->n;
 }
 
 
