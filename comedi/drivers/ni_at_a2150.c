@@ -294,7 +294,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 	}
 	// re-enable  dma
-	set_dma_addr(devpriv->dma, (unsigned int) devpriv->dma_buffer);
+	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
 	set_dma_count(devpriv->dma, leftover * sample_size);
 	enable_dma(devpriv->dma);
 	release_dma_lock(flags);
@@ -676,7 +676,7 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, (unsigned int) devpriv->dma_buffer);
+	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
 	// set size of transfer to fill in 1/3 second
 	devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
 		(1000000000.0 / 3.0 ) / cmd->scan_begin_arg;

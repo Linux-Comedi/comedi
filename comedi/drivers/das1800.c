@@ -980,7 +980,7 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 	// re-enable  dma (single dma)
 	if((dual_dma == 0) && leftover)
 	{
-		set_dma_addr(devpriv->dma_current, (unsigned int) devpriv->dma_current_buf);
+		set_dma_addr(devpriv->dma_current, virt_to_bus(devpriv->dma_current_buf));
 		set_dma_count(devpriv->dma_current, leftover * sizeof(short));
 		enable_dma(devpriv->dma_current);
 		release_dma_lock(flags);
@@ -1006,7 +1006,7 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 	{
 		if(leftover)
 		{
-			set_dma_addr(devpriv->dma_current, (unsigned int) buffer);
+			set_dma_addr(devpriv->dma_current, virt_to_bus(buffer));
 			set_dma_count(devpriv->dma_current, leftover * sizeof(short));
 			enable_dma(devpriv->dma_current);
 			release_dma_lock(flags);
@@ -1396,7 +1396,7 @@ void setup_dma(comedi_device *dev, comedi_cmd cmd)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma0);
-	set_dma_addr(devpriv->dma0, (unsigned int) devpriv->dma_buf0);
+	set_dma_addr(devpriv->dma0, virt_to_bus(devpriv->dma_buf0));
 	// set appropriate size of transfer
 	if(devpriv->count * sizeof(short) >= devpriv->dma_buf_size || devpriv->forever)
 		set_dma_count(devpriv->dma0, devpriv->dma_buf_size);
@@ -1409,7 +1409,7 @@ void setup_dma(comedi_device *dev, comedi_cmd cmd)
 		/* clear flip-flop to make sure 2-byte registers for
 		 * count and address get set correctly */
 		clear_dma_ff(devpriv->dma1);
-		set_dma_addr(devpriv->dma1, (unsigned int) devpriv->dma_buf1);
+		set_dma_addr(devpriv->dma1, virt_to_bus(devpriv->dma_buf1));
 		// set appropriate size of transfer
 		if(devpriv->count * sizeof(short) >= 2 * devpriv->dma_buf_size || devpriv->forever)
 			set_dma_count(devpriv->dma1, devpriv->dma_buf_size);

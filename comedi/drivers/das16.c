@@ -23,6 +23,8 @@
 
 ************************************************************************
 
+Testing and debugging help provided by Daniel Koch.
+
 Options:
 	[0] - base io address
 	[1] - irq (optional)
@@ -814,7 +816,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma_chan);
-	set_dma_addr(devpriv->dma_chan, (unsigned int) devpriv->dma_buffer);
+	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	// set appropriate size of transfer
 	devpriv->dma_transfer_size = das16_suggest_transfer_size(*cmd);
 	if(devpriv->adc_count * sample_size > devpriv->dma_transfer_size)
@@ -1045,7 +1047,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->adc_count > 0) devpriv->adc_count--;
 	}
 	// re-enable  dma
-	set_dma_addr(devpriv->dma_chan, (unsigned int) devpriv->dma_buffer);
+	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
 	set_dma_count(devpriv->dma_chan, leftover * sample_size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
