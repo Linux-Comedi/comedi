@@ -406,7 +406,9 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		status,flags,m_status);
 	ni_pcidio_print_flags(flags);
 	ni_pcidio_print_status(status);
+#ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
+#endif
 	//printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,1));
 	//mite_dump_regs(mite);
 
@@ -436,7 +438,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR +
 				CHAN_OFFSET(1));
 		}
-		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY)){
+		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
 			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
 				CHAN_OFFSET(1));
