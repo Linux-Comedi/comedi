@@ -235,6 +235,8 @@ void comedi_free_irq(unsigned int irq,void *dev_id);
 int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg);
 int check_chanlist(comedi_subdevice *s,int n,unsigned int *chanlist);
 
+extern int rtcomedi_lock_semaphore;
+
 /* range stuff */
 
 #include <range.h>
@@ -279,9 +281,7 @@ static inline int alloc_private(comedi_device *dev,int size)
 
 
 #ifdef LINUX_V20
-#ifdef CONFIG_EXPORT
 extern struct symbol_table comedi_syms;
-#endif
 #endif
 
 

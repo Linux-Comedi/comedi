@@ -55,6 +55,8 @@ EXPORT_SYMBOL(comedi_unlock_ioctl);
 EXPORT_SYMBOL(comedi_cancel_ioctl);
 EXPORT_SYMBOL(comedi_register_callback);
 #endif
+
+/* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
 EXPORT_SYMBOL(comedi_bufcheck);
@@ -64,6 +66,11 @@ EXPORT_SYMBOL(do_pack);
 EXPORT_SYMBOL(di_unpack);
 EXPORT_SYMBOL(comedi_eobuf);
 EXPORT_SYMBOL(comedi_eos);
+
+/* for kcomedilib */
+EXPORT_SYMBOL(comedi_devices);
+EXPORT_SYMBOL(rtcomedi_lock_semaphore);
+EXPORT_SYMBOL(check_chanlist);
 
 #endif
 
