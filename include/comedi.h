@@ -120,6 +120,7 @@ typedef unsigned short sampl_t;
 #define SDF_MMAP	0x04000000	/* can do mmap() */
 #define SDF_RUNNING	0x08000000	/* subdevice is acquiring data */
 #define SDF_LSAMPL	0x10000000	/* subdevice uses 32-bit samples */
+#define SDF_PACKED	0x20000000	/* subdevice can do packed DIO */
 
 
 /* subdevice types */
