@@ -132,7 +132,6 @@ a2150_board a2150_boards[] =
 
 typedef struct{
 	volatile unsigned int count;  /* number of data points left to be taken */
-	volatile int forever;  /* flag indicating whether we should take data forever */
 	unsigned int dma;	// dma channel
 	s16 *dma_buffer;	// dma buffer
 	unsigned int dma_transfer_size;	// size in bytes of dma transfers
@@ -558,7 +557,7 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	{
 		tmp = cmd->scan_begin_arg;
 		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-		if(tmp != cmd->convert_arg) err++;
+		if(tmp != cmd->scan_begin_arg) err++;
 	}
 
 	if(err)return 4;
@@ -591,11 +590,11 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		return -1;
 
 	// setup ac/dc coupling
-	if(CR_AREF(cmd->chanlist[0]) == AREF_DIFF)
+	if(CR_AREF(cmd->chanlist[0]) == AREF_OTHER)
 		devpriv->config_bits |= AC0_BIT;
 	else
 		devpriv->config_bits &= ~AC0_BIT;
-	if(CR_AREF(cmd->chanlist[2]) == AREF_DIFF)
+	if(CR_AREF(cmd->chanlist[2]) == AREF_OTHER)
 		devpriv->config_bits |= AC1_BIT;
 	else
 		devpriv->config_bits &= ~AC1_BIT;
@@ -666,6 +665,12 @@ static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
 	glb_divisor_shift = 0;
 	glb_index = thisboard->num_clocks - 1;
 	glb = thisboard->clock[glb_index] * (1 << lub_divisor_shift);
+
+	// make sure period is in available range
+	if(*period < glb)
+		*period = glb;
+	if(*period > lub)
+		*period = lub;
 
 	// we can multiply period by 1, 2, 4, or 8, using (1 << i)
 	for(i = 0; i < 4; i = i++)
