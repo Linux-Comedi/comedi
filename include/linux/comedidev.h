@@ -133,13 +133,15 @@ struct comedi_async_struct{
 	/* To avoid races and provide reliable overrun detection, read / writes
 	 * to buffer should proceed as follows:
 	 * Writing:
-	 *   1) increment write count
-	 *   2) write data to buffer
-	 *   3) increment write ptr
+	 *   1) if appropriate, check space in buffer, using either 'count' or 'ptr' members
+	 *      ('count' members are more convenient).
+	 *   2) increment write count
+	 *   3) write data to buffer
+	 *   4) increment write ptr
 	 * Reading:
 	 *   1) read data from buffer, using 'ptr' members to determine how much
-	 *   2) update the read ptr, exactly when this occurs is not critical
-	 *   3) check for overrun, using 'count' members
+	 *   2) update the read ptr
+	 *   3) if appropriate, check for overrun using 'count' members
 	 *   4) increment read count
 	 */
 	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */

@@ -11,17 +11,22 @@ but it should work and bugs will be fixed as they are reported.
 You can also prepare a kernel source tree that matches
 the kernel you are currently running if you have its config file (in
 the Debian distibution the config files for the kernel-image packages
-are installed into the /boot directory).  Perform the following steps:
+are installed into the /boot directory).  The following steps will
+(almost) set up your kernel sources correctly.  You will also need
+write permission to the kernel source directory the first time you
+run comedi's 'make config', so you might want to unpack the kernel 
+source into a directory you own.
+
 1) Get a copy of the kernel source that matches the kernel you are
 	running.  Unpack it and copy your kernel config file to '.config'
 	in the top directory of your kernel source.
-2) run 'make oldconfig' in your kernel source directory.
+2) Run 'make oldconfig' in your kernel source directory.
 3) You might need to edit the file 'Makefile' in the kernel source.
 	At the top of the Makefile, the variable EXTRAVERSION is defined.
 	If necessary, change it to match your kernel (for example, if the command
 	'uname -r' produces "2.4.16-386" then your EXTRAVERSION should be
 	set as 'EXTRAVERSION=-386'.
-4) run 'make dep' in the kernel source directory and you are done.
+4) Run 'make dep' in the kernel source directory and you are done.
 
 Red Hat users note: Kernel sources that are distributed with Red
 Hat Linux are not supported, because they are too heavily
