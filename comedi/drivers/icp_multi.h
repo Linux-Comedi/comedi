@@ -151,6 +151,7 @@ int pci_card_alloc(struct pcilst_struct *inova)
 	if (!inova) return -1;
 
 	if (inova->used) return 1;
+	if(pci_enable_device(inova->pcidev)) return -1;
 	inova->used=1;
 	return 0;
 }
