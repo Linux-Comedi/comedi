@@ -104,24 +104,9 @@
 #define RTD_MIN_SPEED	1000000000	/* in nanoseconds ??? */
 #define RTD_SETTLE_DELAY	1	/* in usec */
 #define RTD_ADC_TIMEOUT	1000		/* in usec */
+#define RTD_DAC_DELAY	1		/* in usec */
 
 #include "rtd520.h"
-
-/*
-  Bit fields for one entry in the channel gain table
-*/
-typedef struct rtdChanGain_struct {
-    unsigned int    channel : 4;
-    unsigned int    gain    : 3;
-    unsigned int    nrse    : 1;	/* SE GND: 0=AGND, 1=AINSENSE */
-    unsigned int    range   : 2;	/* 0=+-5, 1=+-10, 2=+10 */
-    unsigned int    diff    : 1;	/* 0=SE, 1=differental */
-    unsigned int    pause   : 1;
-    unsigned int    dac1    : 1;
-    unsigned int    dac2    : 1;
-    unsigned int    skip    : 1;
-    unsigned int    reserved: 1;
-} rtdChanGain;
 
 /*======================================================================
   Comedi specific stuff
@@ -147,11 +132,12 @@ static comedi_lrange rtd_ai_7520_range = { 6, {
 }};
   /* PCI4520 has two more gains (6 more entries) */
 
+/* Table order matches range values */
 static comedi_lrange rtd_ao_range = { 4, {
-  RANGE(-10, 10),
-  RANGE(-5, 5),
-  RANGE(0, 10),
   RANGE(0, 5),
+  RANGE(0, 10),
+  RANGE(-5, 5),
+  RANGE(-10, 10),
 }};
 
 /*
@@ -164,7 +150,6 @@ typedef struct rtdBoard_struct{
     int		aiBits;
     int		aiMaxGain;
     int		fifoLen;
-    int		haveDio;		/* is digital IO supported */
 } rtdBoard;
 
 rtdBoard rtd520Boards[] = {
@@ -175,7 +160,6 @@ rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	32,
 	fifoLen:	1024,
-	haveDio:	0,
     },
     {
 	name:		"DM7520-8",
@@ -184,7 +168,6 @@ rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	32,
 	fifoLen:	8192,
-	haveDio:	0,
     },
     {
 	name:		"PCI4520",
@@ -193,7 +176,6 @@ rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	128,
 	fifoLen:	1024,
-	haveDio:	0,
     },
     {
 	name:		"PCI4520-8",
@@ -202,7 +184,6 @@ rtdBoard rtd520Boards[] = {
 	aiBits:		12,
 	aiMaxGain:	128,
 	fifoLen:	8192,
-	haveDio:	0,
     },
 };
 
@@ -273,7 +254,7 @@ typedef struct{
     writel (v, devpriv->las0+LAS0_CGL_WRITE)
 
 /* Reset ADC FIFO */
-#define RtdClearAdcFifo(dev) \
+#define RtdAdcClearFifo(dev) \
     writel (0, devpriv->las0+LAS0_ADC_FIFO_CLEAR)
 
 /* Set ADC start conversion source select (write only) */
@@ -316,12 +297,12 @@ typedef struct{
 #define RtdAdcStart(dev) \
     writew (0, devpriv->las0+LAS0_ADC)
 
-/* Read one ADC data value (12bit+sign as 16bit) */
+/* Read one ADC data value (12bit (with sign extend) as 16bit) */
 /* Note: matches what DMA would get.  Actual value >> 3 */
 #define RtdAdcFifoGet(dev) \
     readw (devpriv->las1+LAS1_ADC_FIFO)
 
-/* Read two ADC data values */
+/* Read two ADC data values (DOESNT WORK) */
 #define RtdAdcFifoGet2(dev) \
     readl (devpriv->las1+LAS1_ADC_FIFO)
 
@@ -436,6 +417,64 @@ typedef struct{
 #define RtdPLXInterruptWrite(dev,v) \
     writel (v, devpriv->lcfg+LCFG_ITCSR)
 
+
+/* Digital IO */
+#define RtdDio0Read(dev) \
+    (readw (devpriv->las0+LAS0_DIO0) & 0xff)
+#define RtdDio0Write(dev,v) \
+    writew ((v) & 0xff, devpriv->las0+LAS0_DIO0)
+
+#define RtdDio1Read(dev) \
+    (readw (devpriv->las0+LAS0_DIO1) & 0xff)
+#define RtdDio1Write(dev,v) \
+    writew ((v) & 0xff, devpriv->las0+LAS0_DIO1)
+
+#define RtdDioStatusRead(dev) \
+    (readw (devpriv->las0+LAS0_DIO_STATUS) & 0xff)
+#define RtdDioStatusWrite(dev,v) \
+    writew ((v) & 0xff, devpriv->las0+LAS0_DIO_STATUS)
+
+#define RtdDio0CtrlRead(dev) \
+    (readw (devpriv->las0+LAS0_DIO0_CTRL) & 0xff)
+#define RtdDio0CtrlWrite(dev,v) \
+    writew ((v) & 0xff, devpriv->las0+LAS0_DIO0_CTRL)
+
+
+/* Digital to Analog converter */
+/* We follow the RTD docs, which label the DACs 1 and 2 (not 0 and 1) */
+
+/* Write one data value (sign + 12bit + marker bits) */
+/* Note: matches what DMA would put.  Actual value << 3 */
+#define RtdDac1FifoPut(dev, v) \
+    writew ((v), devpriv->las1+LAS1_DAC1_FIFO)
+
+#define RtdDac2FifoPut(dev, v) \
+    writew ((v), devpriv->las1+LAS1_DAC2_FIFO)
+
+/* Start single DAC conversion */
+#define RtdDac1Update(dev) \
+    writew (0, devpriv->las0+LAS0_DAC1)
+
+#define RtdDac2Update(dev) \
+    writew (0, devpriv->las0+LAS0_DAC2)
+
+/* Start single DAC conversion on both DACs */
+#define RtdDacBothUpdate(dev) \
+    writew (0, devpriv->las0+LAS0_DAC)
+
+/* Set DAC output type and range */
+#define RtdDac1Range(dev, v) \
+    writew ((v) & 7, devpriv->las0+LAS0_DAC1_CTRL)
+
+#define RtdDac2Range(dev, v) \
+    writew ((v) & 7, devpriv->las0+LAS0_DAC2_CTRL)
+
+/* Reset DAC FIFO */
+#define RtdDac1ClearFifo(dev) \
+    writel (0, devpriv->las0+LAS0_DAC1_RESET)
+
+#define RtdDac2ClearFifo(dev) \
+    writel (0, devpriv->las0+LAS0_DAC2_RESET)
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -613,10 +652,9 @@ static int rtd_attach (
 
     s=dev->subdevices+1;
     /* analog output subdevice */
-    s->type = COMEDI_SUBD_UNUSED;
-    /*s->type=COMEDI_SUBD_AO;*/
+    s->type=COMEDI_SUBD_AO;
     s->subdev_flags=SDF_WRITEABLE;
-    s->n_chan =2;
+    s->n_chan = 2;
     s->maxdata =(1<<thisboard->aiBits)-1;
     s->range_table = &rtd_ao_range;
     s->insn_write = &rtd_ao_winsn;
@@ -624,17 +662,14 @@ static int rtd_attach (
 
     s=dev->subdevices+2;
     /* digital i/o subdevice */
-    if (thisboard->haveDio){
-	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
-	s->n_chan=16;
-	s->maxdata=1;
-	s->range_table=&range_digital;
-	s->insn_bits = rtd_dio_insn_bits;
-	s->insn_config = rtd_dio_insn_config;
-    } else {
-	s->type = COMEDI_SUBD_UNUSED;
-    }
+    s->type=COMEDI_SUBD_DIO;
+    s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+    /* we only support port 0 right now.  Ignoring port 1 and user IO */
+    s->n_chan=8;
+    s->maxdata=1;
+    s->range_table=&range_digital;
+    s->insn_bits = rtd_dio_insn_bits;
+    s->insn_config = rtd_dio_insn_config;
 
     s=dev->subdevices+3;
     s->n_chan=3;
@@ -659,7 +694,7 @@ static int rtd_attach (
     RtdInterruptClear(dev);		/* clears bits set by mask */
     RtdInterruptOverrunClear(dev);
     RtdClearCGT (dev);
-    RtdClearAdcFifo (dev);
+    RtdAdcClearFifo (dev);
 					/* clear DA FIFO */
 					/* clear digital IO */
     if (dev->irq) {			/* enable interrupt controller */
@@ -695,7 +730,7 @@ static int rtd_detach (
 	RtdInterruptClearMask (dev,~0);
 	RtdInterruptClear(dev);		/* clears bits set by mask */
 	RtdClearCGT (dev);
-	RtdClearAdcFifo (dev);
+	RtdAdcClearFifo (dev);
 
 	/* release DMA */
 
@@ -764,8 +799,8 @@ static unsigned short rtdConvertChanGain (
     case AREF_OTHER:		/* ??? */
 	break;
     }
-    printk ("chan=%d r=%d a=%d -> 0x%x\n",
-	    chan, range, aref, r);
+    /*printk ("chan=%d r=%d a=%d -> 0x%x\n",
+      chan, range, aref, r);*/
     return r;
 }
 
@@ -814,7 +849,7 @@ static int rtd_ai_rinsn (
     udelay (RTD_SETTLE_DELAY);
 
 					/* clear any old fifo data */
-    RtdClearAdcFifo (dev);
+    RtdAdcClearFifo (dev);
 
     stat = RtdFifoStatus (dev);		/* DEBUG */
     if (stat & FS_ADC_EMPTY) {		/* 1 -> not empty */
@@ -954,14 +989,13 @@ static void rtd_interrupt (
 	    comedi_bufcheck (dev, s);	/* signal something there */
 	}
 
+	if (0 == devpriv->aiCount) { /* done! stop! */
+	    comedi_done (dev, s);	/* signal end to comedi */
+	    goto transferDone;
+	}
 	if (status & IRQM_ADC_ABOUT_CNT) { /* about counter terminated */
 	    if (devpriv->aboutWrap) { /* multi-count wraps */
-		if (0 == devpriv->aiCount) { /* done! stop! */
-		    RtdPacerStop (dev); /* Stop PACER */
-		    RtdInterruptMask (dev, 0);	/* mask out ABOUT and SAMPLE */
-		    ai_read_dregs (dev, s);
-		    comedi_done (dev, s);	/* signal end to comedi */
-		} else if (devpriv->aiCount < devpriv->aboutWrap) {
+		if (devpriv->aiCount < devpriv->aboutWrap) {
 		    RtdAboutStopEnable (dev, 0); /* enable stop */
 		    devpriv->aboutWrap = 0;
 		}
@@ -976,6 +1010,14 @@ static void rtd_interrupt (
 	
     }
 					/* clear the interrupt */
+    RtdInterruptClearMask (dev, status);
+    RtdInterruptClear (dev);
+    return;
+
+ transferDone:
+    RtdPacerStop (dev);			/* Stop PACER */
+    RtdInterruptMask (dev, 0);		/* mask out ABOUT and SAMPLE */
+
     RtdInterruptClearMask (dev, status);
     RtdInterruptClear (dev);
 }
@@ -1194,12 +1236,12 @@ static int rtd_ai_cmd (
 
     /* setup the common case and override if needed */
     if (cmd->chanlist_len > 1) {
-	printk ("rtd520: Multi channel setup\n");
+	/*printk ("rtd520: Multi channel setup\n");*/
 	RtdPacerStartSource (dev, 0);	/* software triggers pacer */
 	RtdBurstStartSource (dev, 1);	/* PACER triggers burst */
 	RtdAdcConversionSource (dev, 2); /* BURST triggers ADC */
     } else {				/* single channel */
-	printk ("rtd520: single channel setup\n");
+	/*printk ("rtd520: single channel setup\n");*/
 	RtdPacerStartSource (dev, 0);	/* software triggers pacer */
 	RtdAdcConversionSource (dev, 1); /* PACER triggers ADC */
     }
@@ -1230,18 +1272,27 @@ static int rtd_ai_cmd (
 		devpriv->aboutWrap = 0;
 		RtdAboutCounter (dev, n - 1);
 	    } else {			/* multiple counter wraps */
-		int	mm, dd;
+		int	mm, dd, ii;
 
+		/*printk ("rtd520: multi-wrap count %d = %d x %d \n",
+		  n, cmd->chanlist_len, cmd->stop_arg);*/
 		/* interrupt on ABOUT wrap, until last wrap */
-		mm = n & 0xffff;
-		dd = n / mm;		/* effective divisor */
-		while (mm < 0xfff) {	/* make sure we have time to arm */
+		/* we can run long, aiCount handles the excess */
+		dd = (n + 0xffff-1) / 0xffff;/* find divisor, round up */
+		mm = n / dd;
+		/* dd * mm >= n, mm < 0xffff */
+					/* try to find good divisor */
+		for (ii = 0; ((mm*dd) < n) && (ii < 8); ++ii) {
 		    dd++;
-		    mm = (n + dd-1) / dd; /* round up, if needed */
+		    mm = n / dd;
 		}
-		/* TODO fix round error */
-		printk ("rtd520: Warning! count value %d > 65536 using %d\n",
-			n, mm);
+
+		if ((mm*dd) < n) {	/* just run long */
+		    ++mm;
+		}
+		/* dd * mm >= n, mm < 0xffff */
+		printk ("rtd520: multi-wrap count %d = (%d) x %d\n",
+			mm*dd, mm, dd);
 		devpriv->aboutWrap = mm;
 		RtdAboutCounter (dev, mm-1);
 		RtdAboutStopEnable (dev, 1); /* just interrupt */
@@ -1265,8 +1316,7 @@ static int rtd_ai_cmd (
     case TRIG_TIMER:			/* periodic scanning */
 	timer=rtd_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 	/* set PACER clock */
-	printk ("rtd520: loading %d into pacer for %dns\n",
-		timer, cmd->scan_begin_arg);
+	/*printk ("rtd520: loading %d into pacer\n", timer);*/
 	RtdPacerCounter (dev, timer);
 
 	break;
@@ -1283,10 +1333,12 @@ static int rtd_ai_cmd (
     /* Sample timing within a scan */
     switch(cmd->convert_src){
     case TRIG_TIMER:			/* periodic */
-	timer=rtd_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
-	/* setup BURST clock */
-	printk ("rtd520: loading %d into burst\n", timer);
-	RtdBurstCounter (dev, timer);
+	if (cmd->chanlist_len > 1) {	/* only needed for multi-channel */
+	    timer=rtd_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
+	    /* setup BURST clock */
+	    /*printk ("rtd520: loading %d into burst\n", timer);*/
+	    RtdBurstCounter (dev, timer);
+	}
 
 	break;
 
@@ -1306,7 +1358,7 @@ static int rtd_ai_cmd (
     /* initial settling */
     udelay (RTD_SETTLE_DELAY);
 					/* clear any old data */
-    RtdClearAdcFifo (dev);
+    RtdAdcClearFifo (dev);
 
     /* see if we can do a simple polled input */
     if (justPoll) {
@@ -1439,6 +1491,9 @@ static int rtd_ns_to_timer (
     return rtd_ns_to_timer_base (ns, round_mode, RTD_CLOCK_BASE);
 }
 
+/*
+  Output one (or more) analog values to a single port as fast as possible.
+*/
 static int rtd_ao_winsn (
     comedi_device *dev,
     comedi_subdevice *s,
@@ -1446,18 +1501,52 @@ static int rtd_ao_winsn (
     lsampl_t *data)
 {
     int i;
-    int chan = CR_CHAN(insn->chanspec);
+    int chan = CR_CHAN (insn->chanspec);
+    int range = CR_RANGE (insn->chanspec);
+
+    /* Configure the output range (table index matches the range values) */
+    if (chan == 0) {
+	RtdDac1Range (dev, range);
+    } else {
+	RtdDac2Range (dev, range);
+    }
 
     /* Writing a list of values to an AO channel is probably not
      * very useful, but that's how the interface is defined. */
-    for(i=0;i<insn->n;i++){
+    for (i=0; i < insn->n; ++i){
+	int	val = data[i] << 3;
+
+	/* VERIFY: comedi range and offset conversions */
+
+	if ((range > 1)			/* bipolar */
+	    && (data[i] < 2048)) {
+					/* offset and sign extend */
+	    val = (((int)data[i]) - 2048) << 3;
+	} else {			/* unipolor */
+	    val = data[i] << 3;
+	}
+
+	printk("comedi: rtd520 DAC chan=%d range=%d writing %d as 0x%x\n",
+	       chan, range, data[i], val);
+
 	/* a typical programming sequence */
-	//outw(data[i],dev->iobase + RTD_DA0 + chan);
-	devpriv->ao_readback[chan] = data[i];
+	if (chan == 0) {
+	    RtdDac1FifoPut (dev, val); /* put the value in */
+	    RtdDac1Update (dev);	/* trigger the conversion */
+	} else {
+	    RtdDac2FifoPut (dev, val); /* put the value in */
+	    RtdDac2Update (dev);	/* trigger the conversion */
+	}
+
+	devpriv->ao_readback[chan] = data[i]; /* save for read back */
+
+	if (insn->n > 1) {		/* let DAC finish (TODO poll) */
+	    udelay (RTD_DAC_DELAY);
+	}
     }
 
     /* return the number of samples read/written */
-    return 1;
+    return i;
 }
 
 /* AO subdevices should have a read insn as well as a write insn.
@@ -1471,17 +1560,23 @@ static int rtd_ao_rinsn (
     int i;
     int chan = CR_CHAN(insn->chanspec);
 
-    for(i=0;i<insn->n;i++)
+    for (i=0; i < insn->n; i++) {
 	data[i] = devpriv->ao_readback[chan];
+    }
 
     return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
+/* 
+   Write a masked set of bits and the read back the port.
+   We track what the bits should be (i.e. we don't read the port first).
+   
+   DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
+ * comedi core can convert between insn_bits and insn_read/write
+ */
 static int rtd_dio_insn_bits (
     comedi_device *dev,
     comedi_subdevice *s,
@@ -1495,16 +1590,22 @@ static int rtd_dio_insn_bits (
     if (data[0]) {
 	s->state &= ~data[0];
 	s->state |= data[0]&data[1];
+	
 	/* Write out the new digital output lines */
-	//outw(s->state,dev->iobase + RTD_DIO);
+	RtdDio0Write (dev, s->state);
     }
     /* on return, data[1] contains the value of the digital
      * input lines. */
-    //data[1]=inw(dev->iobase + RTD_DIO);
+    data[1] = RtdDio0Read (dev);
+
+    /*printk("rtd520:port_0 wrote: 0x%x read: 0x%x\n", s->state, data[1]);*/
 
     return 2;
 }
 
+/*
+  Configure one bit on a IO port as Input or Output (hence the name :-).
+*/
 static int rtd_dio_insn_config (
     comedi_device *dev,
     comedi_subdevice *s,
@@ -1521,12 +1622,21 @@ static int rtd_dio_insn_config (
      * value COMEDI_INPUT or COMEDI_OUTPUT. */
 	
     if (data[0]==COMEDI_OUTPUT) {
-	s->io_bits |= 1<<chan;
+	s->io_bits |= 1<<chan;		/* 1 means Out */
     } else {
 	s->io_bits &= ~(1<<chan);
     }
-    //outw(s->io_bits,dev->iobase + RTD_DIO_CONFIG);
- 
+
+    printk("rtd520: port_0_direction=0x%x (1 means out)\n", s->io_bits);
+    /* TODO support digital match interrupts and strobes */
+    RtdDioStatusWrite (dev, 0x01);	/* make Dio0Ctrl point to direction */
+    RtdDio0CtrlWrite (dev, s->io_bits);	/* set direction 1 means Out */
+    RtdDioStatusWrite (dev, 0);		/* make Dio0Ctrl clear interrupts */
+
+    /* port1 can only be all input or all output */
+
+    /* there are also 2 user input lines and 2 user output lines */
+
     return 1;
 }
 
