@@ -58,6 +58,7 @@ analog triggering on 1602 series
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
 #include "8253.h"
@@ -67,7 +68,7 @@ analog triggering on 1602 series
 //#undef CB_PCIDAS_DEBUG	// disable debugging code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
-#define PCI_VENDOR_CB	0x1307
+#define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 100	// 10MHz master clock
 static const int max_fifo_size = 1024;	// maximum fifo size of any supported board
 
@@ -329,6 +330,19 @@ static cb_pcidas_board cb_pcidas_boards[] =
 // Number of boards in cb_pcidas_boards
 #define N_BOARDS	(sizeof(cb_pcidas_boards) / sizeof(cb_pcidas_board))
 
+static struct pci_device_id cb_pcidas_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_CB, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x000f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x001c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x004c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x001a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x001b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
+
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -428,7 +442,7 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 	pci_for_each_dev(pcidev)
 	{
 		// is it not a computer boards card?
-		if(pcidev->vendor != PCI_VENDOR_CB)
+		if(pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
 		// loop through cards supported by this driver
 		for(index = 0; index < N_BOARDS; index++)

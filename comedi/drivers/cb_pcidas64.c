@@ -53,6 +53,7 @@ TODO:
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
 #include "8253.h"
@@ -62,7 +63,7 @@ TODO:
 //#undef PCIDAS64_DEBUG	// disable debugging code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
-#define PCI_VENDOR_CB	0x1307
+#define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 25	// 40MHz master clock
 
 /* PCI-DAS64xxx base addresses */
@@ -273,6 +274,16 @@ static pcidas64_board pcidas64_boards[] =
 // Number of boards in cb_pcidas_boards
 #define N_BOARDS	(sizeof(pcidas64_boards) / sizeof(pcidas64_board))
 
+static struct pci_device_id pcidas64_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_CB, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0036, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0037, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
+
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -373,7 +384,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	pci_for_each_dev(pcidev)
 	{
 		// is it not a computer boards card?
-		if(pcidev->vendor != PCI_VENDOR_CB)
+		if(pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
 #ifdef PCIDAS64_DEBUG
 		printk(" found computer boards device id 0x%x on bus %i slot %i\n",

@@ -70,9 +70,12 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/comedidev.h>
+#include <linux/init.h>
+
+#include <asm/io.h>
+
 #include "ni_stc.h"
 #include "mite.h"
 
@@ -90,6 +93,36 @@ static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad
 
 #define MAX_N_CALDACS (12+12+1)
 
+#define NI_VENDOR_ID 0x1093
+/* The following two tables must be in the same order */
+static struct pci_device_id ni_pci_table[] __devinitdata = {
+	{ NI_VENDOR_ID, 0x0162, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1170, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x11d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1190, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x11c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1330, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1270, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1340, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1350, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2a60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2a70, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2a80, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2ab0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2ca0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x2c80, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x18b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x14e0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x14f0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1880, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x1870, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x15b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x11b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ NI_VENDOR_ID, 0x18c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_pci_table);
 
 static ni_board ni_boards[]={
 	{       device_id:      0x0162, // NI also says 0x1620.  typo?

@@ -83,6 +83,8 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/init.h>
+
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
@@ -92,7 +94,7 @@
 ======================================================================*/
 
 /* registers  */
-#define RTD_VENDOR_ID	0x1435
+#define PCI_VENDOR_ID_RTD	0x1435
 /*
   The board has three memory windows: las0, las1, and lcfg (the PCI chip)
   Las1 has the data and can be burst DMAed 32bits at a time.
@@ -216,6 +218,13 @@ static rtdBoard rtd520Boards[] = {
 	fifoLen:	8192,
     },
 };
+
+static struct pci_device_id rtd520_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_RTD, 0x7520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_RTD, 0x4520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -558,7 +567,7 @@ static int rtd_attach (
      * Probe the device to determine what device in the series it is.
      */
     pci_for_each_dev (pcidev) {
-	if (pcidev->vendor == RTD_VENDOR_ID) {
+	if (pcidev->vendor == PCI_VENDOR_ID_RTD) {
 	    if (it->options[0] || it->options[1]) {
 		if (pcidev->bus->number == it->options[0]
 		    && PCI_SLOT(pcidev->devfn) == it->options[1]) {

@@ -31,11 +31,14 @@ Support for pci-das08 card added by Frank M. Hess
 #include <linux/comedidev.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
-#include "8255.h"
 #include <linux/pci.h>
+#include <linux/init.h>
+
+#include <asm/io.h>
+
+#include "8255.h"
 
 
 #define PCI_VENDOR_ID_COMPUTERBOARDS 0x1307
@@ -380,6 +383,12 @@ struct das08_private_struct{
 	struct pci_dev *pdev;	// struct for pci-das08
 	unsigned int	pci_iobase;	// additional base address for pci-das08
 };
+
+static struct pci_device_id das08_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_PCIDAS08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, das08_pci_table);
 
 #define devpriv ((struct das08_private_struct *)dev->private)
 #define thisboard ((struct das08_board_struct *)dev->board_ptr)

@@ -43,12 +43,13 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
 #include "8255.h"
 
-#define PCI_VENDOR_CB	0x1307	// PCI vendor number of ComputerBoards
+#define PCI_VENDOR_ID_CB	0x1307	// PCI vendor number of ComputerBoards
 #define N_BOARDS	10	// Number of boards in cb_pcidda_boards
 
 /* PCI-DDA base addresses */
@@ -176,6 +177,17 @@ static cb_pcidda_board cb_pcidda_boards[] =
 	},
 };
 
+static struct pci_device_id cb_pcidda_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_CB, 0x0020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_CB, 0x0025, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
+
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -251,7 +263,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	printk("\n");
 
 	pci_for_each_dev(pcidev){
-		if(pcidev->vendor==PCI_VENDOR_CB){
+		if(pcidev->vendor==PCI_VENDOR_ID_CB){
 			if(it->options[0] || it->options[1]){
 				if(pcidev->bus->number==it->options[0] &&
 				   PCI_SLOT(pcidev->devfn)==it->options[1]){

@@ -32,6 +32,8 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>
+#include <linux/init.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
 
@@ -68,6 +70,17 @@ static skel_board skel_boards[] = {
 	have_dio:	0,
 	},
 };
+
+/* This is used by modprobe to translate PCI IDs to drivers.  Should
+ * only be used for PCI and ISA-PnP devices */
+#define PCI_VENDOR_ID_SKEL 0xdafe
+static struct pci_device_id skel_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, skel_pci_table);
+
 /*
  * Useful for shorthand access to the particular board structure
  */

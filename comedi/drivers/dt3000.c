@@ -40,9 +40,11 @@
 
 #include <linux/comedidev.h>
 #include <linux/module.h>
-#include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/init.h>
+
+#include <asm/io.h>
 
 #define PCI_VENDOR_ID_DT	0x1116
 
@@ -129,6 +131,18 @@ static dt3k_boardtype dt3k_boardtypes[]={
 };
 #define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype)
 #define this_board ((dt3k_boardtype *)dev->board_ptr)
+
+static struct pci_device_id dt3k_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_DT, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_DT, 0x0027, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_DT, 0x0023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_DT, 0x0024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_DT, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_DT, 0x0025, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_DT, 0x0026, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
 
 #define DT3000_SIZE		(4*0x1000)
 

@@ -33,7 +33,10 @@
 #include <linux/errno.h> 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/init.h>
+
 #include <asm/io.h>
+
 #include <linux/comedidev.h>
 #include "mite.h"
 
@@ -74,6 +77,13 @@ ni_670x_board ni_670x_boards[] =
 	ao_bits		: 16,
 	},
 };
+
+static struct pci_device_id ni_670x_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	//{ PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
 
 #define thisboard ((ni_670x_board *)dev->board_ptr)
 

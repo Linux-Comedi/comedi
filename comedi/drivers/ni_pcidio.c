@@ -42,10 +42,12 @@
 #include <linux/comedidev.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/init.h>
+
+#include <asm/io.h>
 #include "mite.h"
 #include "8255.h"
 
@@ -218,6 +220,20 @@ static nidio_board nidio_boards[]={
 };
 #define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
 #define this_board ((nidio_board *)dev->board_ptr)
+
+static struct pci_device_id ni_pcidio_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_NATINST, 0x1150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1320, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x0160, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1630, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x13c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x0400, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1250, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x17d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);
 
 typedef struct{
 	struct mite_struct *mite;
