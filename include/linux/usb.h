@@ -32,7 +32,7 @@
 #define PROBE_ERR_RETURN(x) NULL
 #else
 #define USB_ALLOC_URB(x) usb_alloc_urb(x,GFP_KERNEL)
-#define USB_SUBMIT_URB(x) usb_submit_urb(x,GFP_KERNEL)
+#define USB_SUBMIT_URB(x) usb_submit_urb(x,GFP_ATOMIC)
 #define PROBE_ERR_RETURN(x) x
 #endif
 
