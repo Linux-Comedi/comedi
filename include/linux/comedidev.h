@@ -389,6 +389,8 @@ static inline int comedi_buf_get(comedi_async *async, sampl_t *x)
 	}
 	async->buf_int_count += sizeof(sampl_t);
 
+	async->events |= COMEDI_CB_BLOCK;
+
 	return 0;
 }
 
