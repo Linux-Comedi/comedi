@@ -338,13 +338,16 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 	int count;
 	comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
-	unsigned int nbytes;
-	int ret;
+	unsigned int nbytes, old_alloc_count;
 
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AI_DMA_CHAN));
 
+	old_alloc_count = async->buf_write_alloc_count;
+	// write alloc as much as we can
+	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+
 	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
-	if((int)(nbytes - async->buf_free_count) >= 0){
+	if( (int)(nbytes - old_alloc_count) > 0 ){
 		printk("ni_mio_common: BUG: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
@@ -352,24 +355,13 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 	}
 
 	count = nbytes - async->buf_write_count;
-
-	comedi_buf_write_free(async, count);
-
-	while( count ){
-		unsigned int block_size;
-
-		block_size = count;
-
-		ret = comedi_buf_write_alloc(s->async, block_size);
-		if(ret == 0){
-			printk("ni_mio_common: buffer overflow\n");
-			ni_ai_reset(dev,s);
-			async->events |= COMEDI_CB_OVERFLOW;
-			break;
-		}
-
-		count -= ret;
+	if( count < 0 ){
+		rt_printk("ni_mio_common: BUG: negative ai count\n");
+		count = 0;
 	}
+
+	comedi_buf_munge(dev, s, count);
+	comedi_buf_write_free(async, count);
 
 	async->events |= COMEDI_CB_BLOCK;
 }
@@ -379,23 +371,25 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	int count;
 	comedi_subdevice *s = dev->subdevices + 1;
 	comedi_async *async = s->async;
-	unsigned int nbytes;
+	unsigned int nbytes, new_write_count;
 
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AO_DMA_CHAN));
 
+	new_write_count = async->buf_write_count;
+
 	nbytes = mite_bytes_read(mite, AO_DMA_CHAN);
-	// XXX this won't catch all buffer underruns
-	if((int)(nbytes - async->buf_write_count) > 0){
+	if( (int)(nbytes - devpriv->last_buf_write_count) > 0 ){
 		rt_printk("ni_mio_common: DMA underrun\n");
-		rt_printk("nbytes %u, write count %u\n", nbytes, async->buf_write_count );
 		ni_ao_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
 
+	devpriv->last_buf_write_count = new_write_count;
+
 	count = nbytes - async->buf_read_count;
 	if( count < 0 ){
-		rt_printk("ni_mio_common: BUG: negative count\n");
+		rt_printk("ni_mio_common: BUG: negative ao count\n");
 		count = 0;
 	}
 	comedi_buf_read_free(async, count);
@@ -968,7 +962,7 @@ static void get_last_sample_611x( comedi_device *dev )
 }
 
 static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
-	void *data, unsigned int num_bytes)
+	void *data, unsigned int num_bytes, unsigned int chan_index )
 {
 	comedi_async *async = s->async;
 	unsigned int i;
@@ -981,8 +975,8 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 		array[i] = __le16_to_cpu(array[i]);
 #endif
 		array[i] ^= devpriv->ai_xorlist[ async->cur_chan ];
-		async->cur_chan++;
-		async->cur_chan %= async->cmd.chanlist_len;
+		chan_index++;
+		chan_index %= async->cmd.chanlist_len;
 	}
 }
 
@@ -1013,8 +1007,8 @@ static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	struct mite_channel *mite_chan = &mite->channels[ AI_DMA_CHAN ];
 	comedi_subdevice *s = dev->subdevices + 0;
 
-	/* mark 4 pages as being under DMA control */
-	comedi_buf_write_alloc(s->async, 4*PAGE_SIZE);
+	/* write alloc the entire buffer */
+	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_INPUT;
@@ -1031,6 +1025,9 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 {
 	struct mite_struct *mite = devpriv->mite;
 	struct mite_channel *mite_chan = &mite->channels[ AO_DMA_CHAN ];
+	comedi_subdevice *s = dev->subdevices + 1;
+
+	devpriv->last_buf_write_count = s->async->buf_write_count;
 
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_OUTPUT;
@@ -1056,24 +1053,25 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 #ifdef PCIDMA
 	mite_dma_disarm(devpriv->mite, AI_DMA_CHAN);
 #endif
+	win_out(AI_Reset,Joint_Reset_Register);
+	/* ai configuration */
+	win_out(AI_Configuration_Start,Joint_Reset_Register);
+
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
 		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
 		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
 		AI_STOP_Interrupt_Enable|   AI_Error_Interrupt_Enable|
 		AI_FIFO_Interrupt_Enable,0);
 
-	win_out(AI_Reset,Joint_Reset_Register);
+	// XXX do interrupt ack
 
 	win_out(1,ADC_FIFO_Clear);
-
-	/* ai configuration */
-
-	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
 	ni_writeb(0, Misc_Command);
 
 	win_out(0x0000,AI_Command_1_Register); /* reset pulses */
-	win_out(0x000d,AI_Mode_1_Register);
+	win_out(AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once,
+		AI_Mode_1_Register);
 	win_out(0x0000,AI_Mode_2_Register);
 #if 0
 	/* generate FIFO interrupts on half full */
@@ -1154,7 +1152,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	mask=(1<<boardtype.adbits)-1;
 	signbits=devpriv->ai_xorlist[0];
 	for(n=0;n<insn->n;n++){
-		win_out(1,AI_Command_1_Register);
+		win_out(AI_CONVERT_Pulse, AI_Command_1_Register);
 		if(boardtype.reg_611x){
 			/* The 611x has screwy 32-bit FIFOs. */
 			for(i=0;i<NI_TIMEOUT;i++){
@@ -1262,6 +1260,8 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 				ni_writew(CR_CHAN(list[i])&0x0003, Calibration_Channel_Select_611x);
 		}else
 		{
+			if( boardtype.reg_611x )
+				aref = AREF_DIFF;
 			switch( aref )
 			{
 				case AREF_DIFF:
@@ -1736,12 +1736,13 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	switch(cmd->scan_begin_src){
 	case TRIG_TIMER:
-		/* AI_SI2_Arm, AI_SI_Arm, AI_DIV_Arm, AI_SC_Arm */
-		win_out(0x1540,AI_Command_1_Register);
+		win_out(AI_SI2_Arm | AI_SI_Arm | AI_DIV_Arm | AI_SC_Arm,
+			AI_Command_1_Register);
 		break;
 	case TRIG_EXT:
-		/* AI_SI2_Arm, AI_DIV_Arm, AI_SC_Arm */
-		win_out(0x1540,AI_Command_1_Register);
+		/* XXX AI_SI_Arm? */
+		win_out(AI_SI2_Arm | AI_SI_Arm | AI_DIV_Arm | AI_SC_Arm,
+			AI_Command_1_Register);
 		break;
 	}
 
@@ -1912,7 +1913,7 @@ static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
 
 /* munge data from unsigned to 2's complement for analog output bipolar modes */
 static void ni_ao_munge(comedi_device *dev, comedi_subdevice *s,
-	void *data, unsigned int num_bytes)
+	void *data, unsigned int num_bytes, unsigned int chan_index )
 {
 	comedi_async *async = s->async;
 	unsigned int range;
@@ -1924,14 +1925,14 @@ static void ni_ao_munge(comedi_device *dev, comedi_subdevice *s,
 	offset = 1 << (boardtype.aobits - 1);
 	for(i = 0; i < length; i++)
 	{
-		range = CR_RANGE( async->cmd.chanlist[ async->cur_chan ] );
+		range = CR_RANGE( async->cmd.chanlist[ chan_index ] );
 		if(boardtype.ao_unipolar == 0 || (range & 1) == 0 )
 			array[i] -= offset;
 #ifdef PCIDMA
 		array[i] = __cpu_to_le16( array[i] );
 #endif
-		async->cur_chan++;
-		async->cur_chan %= async->cmd.chanlist_len;
+		chan_index++;
+		chan_index %= async->cmd.chanlist_len;
 	}
 }
 
@@ -2080,11 +2081,11 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
+	win_out(AO_Configuration_Start,Joint_Reset_Register);
+
 	win_out(AO_Disarm,AO_Command_1_Register);
 
 	ni_ao_config_chanlist(dev,s,cmd->chanlist,cmd->chanlist_len);
-
-	win_out(AO_Configuration_Start,Joint_Reset_Register);
 
 	devpriv->ao_mode1|=AO_Trigger_Once;
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);

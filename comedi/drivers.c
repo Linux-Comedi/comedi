@@ -391,22 +391,49 @@ static int buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
+// munging is applied to data right before comedi_buf_write_free()
+void comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
+	unsigned int num_bytes )
+{
+	unsigned int offset = s->async->buf_write_count;
+
+	if( s->munge == NULL || ( s->async->cmd.flags & CMDF_RAWDATA ) )
+		return;
+
+	while( num_bytes )
+	{
+		unsigned int block_size;
+
+		block_size = num_bytes;
+		if( (int)(offset + block_size - s->async->prealloc_bufsz) > 0 )
+			block_size = s->async->prealloc_bufsz - offset;
+
+		s->munge( dev, s, s->async->prealloc_buf + offset,
+			block_size, s->async->munge_chan );
+
+		s->async->munge_chan += num_bytes / bytes_per_sample( s );
+		s->async->munge_chan %= s->async->cmd.chanlist_len;
+		num_bytes -= block_size;
+		offset = 0;
+	}
+}
+
 unsigned int comedi_buf_write_n_available(comedi_async *async)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	return free_end - async->buf_free_count;
+	return free_end - async->buf_write_alloc_count;
 }
 
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if((int)(async->buf_free_count + nbytes - free_end) > 0){
-		nbytes = free_end - async->buf_free_count;
+	if((int)(async->buf_write_alloc_count + nbytes - free_end) > 0){
+		nbytes = free_end - async->buf_write_alloc_count;
 	}
 
-	async->buf_free_count += nbytes;
+	async->buf_write_alloc_count += nbytes;
 
 	return nbytes;
 }
@@ -416,11 +443,11 @@ unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if((int)(async->buf_free_count + nbytes - free_end) > 0){
+	if((int)(async->buf_write_alloc_count + nbytes - free_end) > 0){
 		nbytes = 0;
 	}
 
-	async->buf_free_count += nbytes;
+	async->buf_write_alloc_count += nbytes;
 
 	return nbytes;
 }
@@ -431,7 +458,7 @@ void comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
 	if(async->buf_write_ptr >= async->prealloc_bufsz){
-		async->buf_write_ptr -= async->prealloc_bufsz;
+		async->buf_write_ptr %= async->prealloc_bufsz;
 		async->events |= COMEDI_CB_EOBUF;
 	}
 }

@@ -27,14 +27,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include "comedi_fc.h"
-
-static inline unsigned int bytes_per_sample( comedi_subdevice *subd )
-{
-	if( subd->flags & SDF_LSAMPL )
-		return sizeof( lsampl_t );
-	else
-		return sizeof( sampl_t );
-}
+#include "linux/comedidev.h"
 
 static inline unsigned int bytes_per_scan( comedi_subdevice *subd )
 {

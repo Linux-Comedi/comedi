@@ -72,7 +72,7 @@ struct comedi_irq_struct {
 	void (*handler)(int irq,void *dev_id,struct pt_regs *regs);
 	unsigned long flags;
 	const char *device;
-	void *dev_id;
+	comedi_device *dev_id;
 };
 
 static int rt_get_irq(struct comedi_irq_struct *it);
@@ -81,7 +81,7 @@ static int rt_release_irq(struct comedi_irq_struct *it);
 #define MAX_IRQ_SHARING 6
 static struct comedi_irq_struct *comedi_irqs[NR_IRQS][MAX_IRQ_SHARING];
 
-struct comedi_irq_struct * find_comedi_irq_struct( int irq, void *dev_id )
+static struct comedi_irq_struct * find_comedi_irq_struct( int irq, comedi_device *dev_id )
 {
 	int i;
 
@@ -96,7 +96,7 @@ struct comedi_irq_struct * find_comedi_irq_struct( int irq, void *dev_id )
 	return NULL;
 }
 
-void free_comedi_irq_struct( int irq, void *dev_id )
+static void free_comedi_irq_struct( int irq, comedi_device *dev_id )
 {
 	int i;
 
@@ -112,12 +112,27 @@ void free_comedi_irq_struct( int irq, void *dev_id )
 	}
 }
 
+static int insert_comedi_irq_struct( int irq,
+	struct comedi_irq_struct *it )
+{
+	int i;
+
+	for( i = 0; i < MAX_IRQ_SHARING; i++ )
+	{
+		if( comedi_irqs[ irq ][ i ] == NULL )
+		{
+			comedi_irqs[ irq ][ i ] = it;
+			return 0;
+		}
+	}
+	return -1;
+}
+
 int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *),
-		unsigned long flags,const char *device,void *dev_id)
+		unsigned long flags,const char *device,comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
 	int ret;
-	int i;
 
 	it=kmalloc(sizeof(*it),GFP_KERNEL);
 	if(!it)
@@ -148,15 +163,7 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 		}
 	}
 
-	for( i = 0; i < MAX_IRQ_SHARING; i++)
-	{
-		if( comedi_irqs[irq][i] == NULL )
-		{
-			comedi_irqs[irq][i] = it;
-			break;
-		}
-	}
-	if( i == MAX_IRQ_SHARING )
+	if( insert_comedi_irq_struct( irq, it ) )
 	{
 		kfree(it);
 		return -1;
@@ -165,7 +172,7 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 	return 0;
 }
 
-void comedi_free_irq(unsigned int irq,void *dev_id)
+void comedi_free_irq(unsigned int irq,comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
 
@@ -184,19 +191,19 @@ void comedi_free_irq(unsigned int irq,void *dev_id)
 
 
 
-void comedi_switch_to_rt(comedi_device *dev)
+int comedi_switch_to_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it;
 	unsigned long flags;
 
-	it = find_comedi_irq_struct( dev->irq, dev );	// assumes dev == dev_id XXX
+	it = find_comedi_irq_struct( dev->irq, dev );
 	/* drivers might not be using an interrupt for commands */
-	if( it == NULL ) return;
+	if( it == NULL ) return -1;
 
 	/* rt interrupts and shared interrupts don't mix */
 	if(it->flags & SA_SHIRQ){
-		printk("comedi: cannot switch shared interrupt to real time priority\n");
-		return;
+		DPRINTK( "cannot switch shared interrupt to real time priority\n" );
+		return -1;
 	}
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
@@ -208,6 +215,8 @@ void comedi_switch_to_rt(comedi_device *dev)
 	it->rt=1;
 
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+
+	return 0;
 }
 
 void comedi_switch_to_non_rt(comedi_device *dev)
@@ -215,7 +224,7 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 	struct comedi_irq_struct *it;
 	unsigned long flags;
 
-	it = find_comedi_irq_struct( dev->irq, dev );	// assumes dev == dev_id XXX
+	it = find_comedi_irq_struct( dev->irq, dev );
 	if(it == NULL)
 		return;
 

@@ -54,11 +54,11 @@
 
 int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,
 	struct pt_regs *regs),unsigned long flags,const char *device,
-	void *dev_id);
-void comedi_free_irq(unsigned int irq,void *dev_id);
+	comedi_device *dev_id);
+void comedi_free_irq(unsigned int irq,comedi_device *dev_id);
 void comedi_rt_init(void);
 void comedi_rt_cleanup(void);
-void comedi_switch_to_rt(comedi_device *dev);
+int comedi_switch_to_rt(comedi_device *dev);
 void comedi_switch_to_non_rt(comedi_device *dev);
 void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 extern int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2);

@@ -452,10 +452,10 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 
 	if(!async){
 		DPRINTK("subdevice does not have async capability\n");
-		bi.buf_int_ptr = 0;
-		bi.buf_user_ptr = 0;
-		bi.buf_int_count = 0;
-		bi.buf_user_count = 0;
+		bi.buf_write_ptr = 0;
+		bi.buf_read_ptr = 0;
+		bi.buf_write_count = 0;
+		bi.buf_read_count = 0;
 		goto copyback;
 	}
 
@@ -469,11 +469,16 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		}
 	}
 
-	// XXX fix bufinfo struct
-	bi.buf_int_count = async->buf_write_count;
-	bi.buf_int_ptr = async->buf_write_ptr;
-	bi.buf_user_count = async->buf_read_count;
-	bi.buf_user_ptr = async->buf_read_ptr;
+	if(bi.bytes_written){
+		bi.bytes_written = comedi_buf_write_alloc( async, bi.bytes_written );
+		comedi_buf_munge(dev, s, bi.bytes_written);
+		comedi_buf_write_free(async, bi.bytes_written);
+	}
+
+	bi.buf_write_count = async->buf_write_count;
+	bi.buf_write_ptr = async->buf_write_ptr;
+	bi.buf_read_count = async->buf_read_count;
+	bi.buf_read_ptr = async->buf_read_ptr;
 
 copyback:
 	if(copy_to_user(arg, &bi, sizeof(comedi_bufinfo)))
@@ -1358,9 +1363,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			n -= m;
 			retval = -EFAULT;
 		}
-		if( s->munge ){
-			s->munge(dev, s,async->prealloc_buf + async->buf_write_ptr, n);
-		}
+		comedi_buf_munge(dev, s, n);
 		comedi_buf_write_free(async, n);
 
 		count+=n;
@@ -1440,10 +1443,6 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 			continue;
 		}
 
-		if( s->munge ){
-			s->munge(dev, s, async->prealloc_buf +
-				async->buf_read_ptr, n);
-		}
 		m = copy_to_user(buf, async->prealloc_buf +
 			async->buf_read_ptr, n);
 		if(m){
@@ -1823,7 +1822,7 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 
 static void init_async_buf( comedi_async *async )
 {
-	async->buf_free_count = 0;
+	async->buf_write_alloc_count = 0;
 	async->buf_write_count = 0;
 	async->buf_read_count = 0;
 
@@ -1832,5 +1831,6 @@ static void init_async_buf( comedi_async *async )
 
 	async->cur_chan = 0;
 	async->scan_progress = 0;
+	async->munge_chan = 0;
 }
 

@@ -704,7 +704,7 @@ typedef struct{
 
 	NI_PRIVATE_COMMON
 
-	dma_addr_t ai_dma_handle;
+	unsigned int last_buf_write_count;
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 

@@ -130,7 +130,7 @@ struct comedi_subdevice_struct{
 	int (*buf_alloc)(comedi_device *,comedi_subdevice *s,unsigned long new_size);
 
 	void (*munge)( comedi_device *, comedi_subdevice *s, void *data,
-		unsigned int num_bytes );
+		unsigned int num_bytes, unsigned int start_chan_index );
 
 	unsigned int state;
 };
@@ -141,9 +141,9 @@ struct comedi_async_struct{
 	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 
-	volatile unsigned int buf_free_count;	/* byte count for free space */
 	volatile unsigned int buf_write_count;	/* byte count for writer (write completed) */
-	volatile unsigned int buf_read_count;	/* byte count for reader */
+	volatile unsigned int buf_write_alloc_count;	/* byte count for writer (allocated for writing) */
+	volatile unsigned int buf_read_count;	/* byte count for reader (read completed)*/
 
 	unsigned int buf_write_ptr;	/* buffer marker for writer */
 	unsigned int buf_read_ptr;	/* buffer marker for reader */
@@ -151,6 +151,8 @@ struct comedi_async_struct{
 	unsigned int cur_chan;		/* useless channel marker for interrupt */
 	/* number of bytes that have been received for current scan */
 	unsigned int scan_progress;
+	/* keeps track of where we are in chanlist as for munging */
+	unsigned int munge_chan;
 
 	unsigned int	events;		/* events that have occurred */
 
@@ -331,6 +333,14 @@ static inline int alloc_private(comedi_device *dev,int size)
 	return 0;
 }
 
+static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
+{
+	if( subd->flags & SDF_LSAMPL )
+		return sizeof( lsampl_t );
+	else
+		return sizeof( sampl_t );
+}
+
 #if 0
 int write_to_async_buffer( comedi_async *async, const void *array,
 	unsigned int num_bytes, unsigned int from_user_space );
@@ -360,7 +370,8 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 	unsigned int num_bytes );
 void comedi_buf_memcpy_from( comedi_async *async, unsigned int offset, void *destination,
 	unsigned int num_bytes );
-
+void comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
+	unsigned int num_bytes );
 
 //#ifdef CONFIG_COMEDI_RT
 #include <linux/comedi_rt.h>
