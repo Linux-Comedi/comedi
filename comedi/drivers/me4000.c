@@ -52,8 +52,10 @@ Configuration Options:
 #include <linux/spinlock.h>
 
 #include "me4000.h"
+#if 0
+/* file removed due to GPL incompatibility */
 #include "me4000_fw.h"
-
+#endif
 
 me4000_board_t me4000_boards[] = {
     { "ME-4650"  , 0x4650, { 0, 0 }, { 16, 0,  0, 0 }, { 4 }, { 0 } },
@@ -740,14 +742,16 @@ static int xilinx_download(comedi_device *dev){
     value = inl(info->plx_regbase + PLX_ICR);
     value &= ~0x100;
     outl(value, info->plx_regbase + PLX_ICR);
-
+#if 1
+	comedi_error(dev, "xilinx firmware unavailable due to licensing, aborting");
+	return -EIO;
+#else
     /* Download Xilinx firmware */
     size = (xilinx_firm[0] << 24) + (xilinx_firm[1] << 16) + (xilinx_firm[2] <<  8) + xilinx_firm[3];
     udelay(10);
 
     for(idx = 0; idx < size; idx++){
 	outb(xilinx_firm[16+idx], info->program_regbase);
-
 	udelay(10);
 
 	/* Check if BUSY flag is low */
@@ -756,6 +760,7 @@ static int xilinx_download(comedi_device *dev){
 	    return -EIO;
 	}
     }
+#endif
 
     /* If done flag is high download was successful */
     if (inl(info->plx_regbase + PLX_ICR) & 0x4){
