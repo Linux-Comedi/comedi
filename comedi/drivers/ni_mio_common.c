@@ -99,7 +99,8 @@ static short ni_gainlkup[][16]={
 	/* ai_gain_4 */
 	{ 0, 1, 4, 7 },
 	/* ai_gain_611x */
-	{ 9, 10, 11, 1, 2, 3, 4, 5, 6 },
+	/* 0x109, gain=0.1 might be valid, but it's not useful */
+	{ 0x10a, 0x10b, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106 }
 };
 
 static comedi_lrange range_ni_E_ai={	16, {
@@ -966,13 +967,35 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 		dither=(list[i]>>26)&1;
 
 		/* fix the external/internal range differences */
-		range=ni_gainlkup[boardtype.gainlkup][range];
-		devpriv->ai_xorlist[i]=(range&0x100)?0:offset;
+		range = ni_gainlkup[boardtype.gainlkup][range];
+		devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
 
-		hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
+		if(boardtype.gainlkup != ai_gain_611x){
+			hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
+		}else{
+			/* bits 12-14 channel type */
+			/* map everything to differential */
+			hi = (aref==AREF_OTHER)?0x0000:0x1000;
+			/* bit 11 coupling */
+			/* not handled */
+			hi |= 0x0000;
+			/* bits 0-2 channel */
+			hi |= (chan&0x0003);
+		}
 		ni_writew(hi,Configuration_Memory_High);
 
-		lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
+		if(boardtype.gainlkup != ai_gain_611x){
+			lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
+		}else{
+			/* bits 15 last channel */
+			lo = (i==n_chan-1)?0x8000:0;
+			/* bits 14-10 reserved */
+			/* bit 9 dither */
+			lo |= (dither<<9);
+			/* bit 8 unipolar/bipolar */
+			/* bits 0-3 gain */
+			lo |= range;
+		}
 		ni_writew(lo,Configuration_Memory_Low);
 	}
 
