@@ -71,6 +71,7 @@ tristate 'PCL-711, PCL-711b, ACL-8112, and compatibles' CONFIG_COMEDI_PCL711
 tristate 'PCL-725' CONFIG_COMEDI_PCL725
 tristate 'PCL-726' CONFIG_COMEDI_PCL726
 tristate 'Advantech PCL-812PG, PCL-813B' CONFIG_COMEDI_PCL812
+tristate 'Advantech PCL-818/L/H/HD/HG, PCL-718' CONFIG_COMEDI_PCL818
 tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
 tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
 tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC

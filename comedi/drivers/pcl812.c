@@ -355,8 +355,11 @@ static void interrupt_pcl812_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 		devpriv->int13_act_chan = 0;
 		outb(CR_RANGE(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_GAIN);	/* select next gain */
 		outb(CR_CHAN(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_MUX);	/* select next channel */
-		if (s->cur_trig.flags & TRIG_WAKE_EOS)
+		if (s->cur_trig.flags & TRIG_WAKE_EOS) {
 			comedi_eos(dev, s);
+		} else {
+			comedi_eobuf(dev, s);
+		}
 		devpriv->int13_act_scan++;
 	} else {
 		outb(CR_RANGE(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_GAIN);	/* select next gain */
@@ -444,7 +447,7 @@ static int pcl812_ai_mode1_int(comedi_device * dev, comedi_subdevice * s, comedi
 	 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
 	 */
 
-	i8253_cascade_ns_to_timer(&timer1,&timer2,&it->trigvar,TRIG_ROUND_NEAREST);
+	i8253_cascade_ns_to_timer(i8253_osc_base,&timer1,&timer2,&it->trigvar,TRIG_ROUND_NEAREST);
 
 	outb(0x74, dev->iobase + PCL812_CTRCTL);
 	outb((timer1) & 0xff, dev->iobase + PCL812_CTR1);

@@ -24,11 +24,9 @@
 #ifndef _8253_H
 #define _8253_H
 
-extern int i8253_osc_base;
-
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_power
 
-static inline void i8253_cascade_ns_to_timer_2div(int *d1, int *d2, int *nanosec, int round_mode)
+static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
 {
 	int divider;
 	int div1, div2;
@@ -73,7 +71,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int *d1, int *d2, int *nanosec
 	*d2 = div2_lub;
 }
 
-static inline void i8253_cascade_ns_to_timer_power(int *d1, int *d2, int *nanosec, int round_mode)
+static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
 {
 	int div1, div2;
 	int base;

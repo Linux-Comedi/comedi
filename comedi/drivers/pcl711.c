@@ -306,7 +306,7 @@ static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_tri
 	 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
 	 */
 
-	i8253_cascade_ns_to_timer(&timer1,&timer2,&it->trigvar,TRIG_ROUND_NEAREST);
+	i8253_cascade_ns_to_timer(i8253_osc_base,&timer1,&timer2,&it->trigvar,TRIG_ROUND_NEAREST);
 
 	outb(0x74, dev->iobase + PCL711_CTRCTL);
 	outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
