@@ -1140,9 +1140,9 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 
 	rvmmap(s->prealloc_buf,s->prealloc_bufsz,vma);
 	
-	vma->vm_file = file;
-	vma->vm_ops = &comedi_vm_ops;
-	file_atomic_inc(&file->f_count);
+	//vma->vm_file = file;
+	//vma->vm_ops = &comedi_vm_ops;
+	//file_atomic_inc(&file->f_count);
 
 	/* XXX mark subdev as mapped */
 	
