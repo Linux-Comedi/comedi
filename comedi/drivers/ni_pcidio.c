@@ -243,6 +243,7 @@ static int nidio96_8255_cb(int dir,int port,int data,void *arg)
 	}
 }
 
+#ifdef not_working
 static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev=d;
@@ -272,6 +273,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		n_int++;
 	}
 }
+#endif
 
 static int ni_pcidio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -306,6 +308,7 @@ static int ni_pcidio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
+#ifdef not_working
 #ifdef CONFIG_COMEDI_TRIG
 static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
@@ -386,6 +389,7 @@ static int nidio_dio_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *i
 	return 0;
 }
 #endif
+#endif
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 {
@@ -431,8 +435,10 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
+#ifdef not_working
 #ifdef CONFIG_COMEDI_TRIG
 		s->trig[2]=nidio_dio_mode2;
+#endif
 #endif
 		s->insn_config = ni_pcidio_insn_config;
 		s->insn_bits = ni_pcidio_insn_bits;
@@ -442,6 +448,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		writel(0,dev->iobase+Port_Pin_Directions(0));
 		writel(0,dev->iobase+Port_Pin_Mask(0));
 
+#ifdef not_working
 		/* disable interrupts on board */
 		writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 
@@ -450,6 +457,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 			dev->irq=0;
 			printk(" irq not available");
 		}
+#endif
 	}
 
 	printk("\n");
