@@ -1,4 +1,6 @@
 
+define_bool CONFIG_COMEDI m
+
 comment 'Comedi Features'
 
 define_bool CONFIG_COMEDI_MODES y
