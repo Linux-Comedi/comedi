@@ -307,8 +307,8 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 
 	/* write channel to multiplexer */
 	//outw(chan,dev->iobase + SKEL_MUX);
-	
-	/* wait for mux to settle */
+
+	/* don't wait for mux to settle */
 
 	/* convert n samples */
 	for(n=0;n<insn->n;n++){
@@ -503,6 +503,7 @@ static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
+printk("skel_ao_winsn\n");
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
 	for(i=0;i<insn->n;i++){
