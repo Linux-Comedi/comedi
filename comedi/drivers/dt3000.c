@@ -781,8 +781,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	dev->irq = devpriv->pci_dev->irq;
 
-	dev->n_subdevices = 4;
-	if( (ret = alloc_subdevices(dev)) <0)
+	if( (ret = alloc_subdevices(dev, 4)) <0)
 		return ret;
 
 	s=dev->subdevices;

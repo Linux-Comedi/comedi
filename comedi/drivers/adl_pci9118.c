@@ -2088,8 +2088,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	pci_read_config_word(devpriv->pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w|64);  // Enable parity check for parity error
 
-        dev->n_subdevices = 4;
-        if((ret=alloc_subdevices(dev))<0)
+        if((ret=alloc_subdevices(dev, 4))<0)
     		return ret;
 
 	s = dev->subdevices + 0;

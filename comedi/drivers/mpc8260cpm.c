@@ -72,8 +72,7 @@ static int mpc8260cpm_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_private(dev,sizeof(mpc8260cpm_private))<0)
 		return -ENOMEM;
 
-	dev->n_subdevices=4;
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev,4)<0)
 		return -ENOMEM;
 
 	for(i=0;i<4;i++){

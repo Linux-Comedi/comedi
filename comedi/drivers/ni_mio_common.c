@@ -2367,9 +2367,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int bits;
 
-	dev->n_subdevices=8;
-
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev, 8)<0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

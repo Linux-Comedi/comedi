@@ -288,9 +288,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	printk("\n");
 
-	dev->n_subdevices=3;
-	
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 3))<0)
 		return ret;
 
 	s=dev->subdevices+0;

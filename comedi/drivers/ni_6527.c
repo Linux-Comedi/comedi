@@ -354,8 +354,7 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk(" ID=0x%02x", readb(dev->iobase + ID_Register));
 
-	dev->n_subdevices=2;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev,2))<0)
 		return ret;
 
 	s=dev->subdevices+0;

@@ -114,8 +114,7 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = "rti802";
 
-	dev->n_subdevices = 1;
-	if(alloc_subdevices(dev)<0 || alloc_private(dev,sizeof(rti802_private))){
+	if(alloc_subdevices(dev, 1)<0 || alloc_private(dev,sizeof(rti802_private))){
 		return -ENOMEM;
 	}
 

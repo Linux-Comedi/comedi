@@ -923,12 +923,13 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int i;
 	int ret;
-	
+	int n_subdevices;
+
 	printk("comedi%d: nidio:",dev->minor);
 
 	if((ret=alloc_private(dev,sizeof(nidio96_private)))<0)
 		return ret;
-	
+
 	ret=nidio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
@@ -945,11 +946,11 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(" %s",dev->board_name);
 
 	if(!this_board->is_diodaq){
-		dev->n_subdevices=this_board->n_8255;
+		n_subdevices=this_board->n_8255;
 	}else{
-		dev->n_subdevices=1;
+		n_subdevices=1;
 	}
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, n_subdevices))<0)
 		return ret;
 
 	if(!this_board->is_diodaq){

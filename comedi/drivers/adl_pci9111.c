@@ -1341,9 +1341,8 @@ found:
 //
 // TODO: Add external multiplexer setup (according to option[2]).
 //
-  
-  dev->n_subdevices = 4;
-  if((error=alloc_subdevices(dev))<0)
+
+  if((error=alloc_subdevices(dev, 4))<0)
     return  error;
   
   subdevice 			= dev->subdevices + 0;

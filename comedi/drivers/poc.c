@@ -137,8 +137,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	request_region(iobase, iosize, "dac02");
 	dev->iobase = iobase;
 
-	dev->n_subdevices = 1;
-	if(alloc_subdevices(dev) < 0)
+	if(alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 	if(alloc_private(dev,sizeof(lsampl_t)*this_board->n_chan) < 0)
 		return -ENOMEM;

@@ -726,8 +726,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   result = alloc_private(dev,sizeof(daqboard2000_private));
   if(result<0)goto out;
 
-  dev->n_subdevices = 3;
-  result = alloc_subdevices(dev);
+  result = alloc_subdevices(dev, 3);
   if(result<0)goto out;
   
   devpriv->plx = ioremap(pci_resource_start(card,0), DAQBOARD2000_PLX_SIZE);

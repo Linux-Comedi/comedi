@@ -104,8 +104,7 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_private(dev,sizeof(contec_private))<0)
 		return -ENOMEM;
 
-	dev->n_subdevices=2;
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev, 2)<0)
 		return -ENOMEM;
 
 	pci_for_each_dev ( pcidev ) {

@@ -1490,8 +1490,7 @@ no_rtc:
 
 no_dma:
 
-        dev->n_subdevices = 4;
-        if((ret=alloc_subdevices(dev))<0) return ret;
+        if((ret=alloc_subdevices(dev, 4))<0) return ret;
 
 	s = dev->subdevices + 0;
 	if(!this_board->n_aichan_se){

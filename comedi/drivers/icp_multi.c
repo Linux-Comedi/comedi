@@ -844,12 +844,12 @@ static int icp_multi_reset(comedi_device *dev)
 static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice 	*s;
-	int ret, 		subdev;
+	int ret, subdev, n_subdevices;
 	unsigned short 		master,irq;
 	struct pcilst_struct 	*card=NULL;
         unsigned long 		io_addr[5], iobase;
 	unsigned char 		pci_bus, pci_slot, pci_func;
-	
+
 	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
 
 	// Alocate private data storage space
@@ -872,13 +872,13 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ICP, this_board->device_id, it->options[0], it->options[1]))==NULL)
 		return -EIO;
-	
+
 	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0], &irq, &master))<0) {
 		pci_card_free(card);
 		printk(" - Can't get configuration data!\n");
 		return -EIO;
 	}
-	
+
 	iobase=io_addr[2];
 
 //	if(check_mem_region(iobase, ICP_MULTI_SIZE))
@@ -891,7 +891,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->phys_iobase = iobase;
 
 	printk(", b:s:f=%d:%d:%d, io=0x%8lx \n", pci_bus, pci_slot, pci_func, iobase);
-	
+
 	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
 
 	if (devpriv->io_addr == NULL) {
@@ -907,14 +907,14 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 
-        dev->n_subdevices = 0;
-	if (this_board->n_aichan) dev->n_subdevices++;
-	if (this_board->n_aochan) dev->n_subdevices++;
-	if (this_board->n_dichan) dev->n_subdevices++;
-	if (this_board->n_dochan) dev->n_subdevices++;
-	if (this_board->n_ctrs)	  dev->n_subdevices++;
-	
-        if((ret=alloc_subdevices(dev))<0) {
+        n_subdevices = 0;
+	if (this_board->n_aichan) n_subdevices++;
+	if (this_board->n_aochan) n_subdevices++;
+	if (this_board->n_dichan) n_subdevices++;
+	if (this_board->n_dochan) n_subdevices++;
+	if (this_board->n_ctrs)	  n_subdevices++;
+
+        if((ret=alloc_subdevices(dev, n_subdevices))<0) {
 		pci_card_free(card);
     		return ret;
 	}

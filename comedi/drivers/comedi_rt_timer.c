@@ -604,8 +604,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->board_name="timer";
 
-	dev->n_subdevices=1;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 1))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(timer_private)))<0)
 		return ret;

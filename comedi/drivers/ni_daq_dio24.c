@@ -166,8 +166,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	dev->n_subdevices = 2;	// Antes era 5
-	if(alloc_subdevices(dev) < 0)
+	if(alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
 	/* 8255 dio */
@@ -182,7 +181,7 @@ static int dio24_detach(comedi_device *dev)
 	printk("comedi%d: ni_daq_dio24: remove\n", dev->minor);
 
 	if(dev->subdevices)
-		subdev_8255_cleanup(dev,dev->subdevices + 2);
+		subdev_8255_cleanup(dev,dev->subdevices + 0);
 
 	if(thisboard->bustype != pcmcia_bustype &&
 		dev->iobase)

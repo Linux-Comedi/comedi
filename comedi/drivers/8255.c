@@ -373,9 +373,8 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" no devices specified\n");
 		return -EINVAL;
 	}
-	dev->n_subdevices=i;
 
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, i))<0)
 		return ret;
 
 	for(i=0;i<dev->n_subdevices;i++){

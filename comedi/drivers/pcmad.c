@@ -142,8 +142,7 @@ static int pcmad_attach(comedi_device *dev,comedi_devconfig *it)
 	request_region(iobase,PCMAD_SIZE,"pcmad");
 	dev->iobase=iobase;
 
-	dev->n_subdevices=1;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 1))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(struct pcmad_priv_struct)))<0)
 		return ret;

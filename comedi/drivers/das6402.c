@@ -331,8 +331,7 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 	if((ret=alloc_private(dev,sizeof(das6402_private)))<0)
 		return ret;
 
-	dev->n_subdevices=1;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 1))<0)
 		return ret;
 
 	/* ai subdevice */

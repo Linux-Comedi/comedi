@@ -148,7 +148,6 @@ static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
   request_region(iobase, FL512_SIZE, "fl512");
   dev->iobase = iobase;
   dev->board_name = "fl512";
-  dev->n_subdevices = 2;      /* Analog in/out */
   if(alloc_private(dev,sizeof(fl512_private)) < 0)
     return -ENOMEM;
 
@@ -156,7 +155,7 @@ static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
   printk("malloc ok\n");
 #endif
 
-  if(alloc_subdevices(dev)<0)
+  if(alloc_subdevices(dev, 2)<0)
     return -ENOMEM;
 
   /*

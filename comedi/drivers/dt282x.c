@@ -1250,8 +1250,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	if(ret<0)
 		return ret;
 
-	dev->n_subdevices = 3;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 3))<0)
 		return ret;
 
 	s=dev->subdevices+0;

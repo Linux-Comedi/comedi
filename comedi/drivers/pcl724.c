@@ -125,8 +125,8 @@ static int subdev_8255mapped_cb(int dir,int port,int data,unsigned long iobase)
 static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 {
         int iobase,iorange;
-	int ret,i;
-	
+	int ret,i,n_subdevices;
+
         iobase=it->options[0];
         iorange=this_board->io_range;
 	if ((this_board->can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
@@ -137,10 +137,10 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	
+
         request_region(iobase, iorange, "pcl724");
         dev->iobase=iobase;
-    
+
 	dev->board_name = this_board->name;
 
 #ifdef PCL724_IRQ
@@ -151,27 +151,27 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 		        if (((1<<irq)&this_board->IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
-			} else { 
+			} else {
 				if (comedi_request_irq(irq, interrupt_pcl724, 0, "pcl724", dev)) {
 					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
 				} else {
 					rt_printk(", irq=%d", irq);
-				}    
-			}  
+				}
+			}
 		}
 	}
 
         dev->irq = irq;
 #endif
-	
+
 	printk("\n");
 
-	dev->n_subdevices=this_board->numofports;
+	n_subdevices=this_board->numofports;
 	if ((this_board->can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
-		dev->n_subdevices=4;	// PCL-724 in 96 DIO configuration
-	
-	if((ret=alloc_subdevices(dev))<0)
+		n_subdevices=4;	// PCL-724 in 96 DIO configuration
+
+	if((ret=alloc_subdevices(dev, n_subdevices))<0)
 		return ret;
 
 	for(i=0;i<dev->n_subdevices;i++){

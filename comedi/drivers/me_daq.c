@@ -818,8 +818,7 @@ found:
 
   // device driver capabilities
 
-  dev->n_subdevices = 3;
-  if((error = alloc_subdevices(dev)) < 0)
+  if((error = alloc_subdevices(dev, 3)) < 0)
     return error;
 
   subdevice = dev->subdevices + 0;

@@ -79,9 +79,7 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->iobase=dev->iobase;
 	dev->irq=0;
 
-	dev->n_subdevices=6;
-
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev, 6)<0)
 		return -ENOMEM;
 
 	s=dev->subdevices+0;

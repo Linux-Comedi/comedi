@@ -681,8 +681,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-	dev->n_subdevices = 4;
-	if((ret = alloc_subdevices(dev)) < 0)
+	if((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

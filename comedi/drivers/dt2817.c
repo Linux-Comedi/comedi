@@ -139,8 +139,7 @@ static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->board_name="dt2817";
 
-	dev->n_subdevices=1;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 1))<0)
 		return ret;
 
 	s=dev->subdevices+0;

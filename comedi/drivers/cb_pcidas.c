@@ -637,8 +637,7 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	dev->n_subdevices = 7;
-	if(alloc_subdevices(dev) < 0)
+	if(alloc_subdevices(dev, 7) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

@@ -289,9 +289,8 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		printk("(probe returned multiple irqs--bad)\n");
 	}
-	
-	dev->n_subdevices=1;
-	if((ret=alloc_subdevices(dev))<0)
+
+	if((ret=alloc_subdevices(dev, 1))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(dt2814_private)))<0)
 		return ret;

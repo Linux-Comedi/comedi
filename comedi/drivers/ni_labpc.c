@@ -663,8 +663,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	dev->n_subdevices = 5;
-	if(alloc_subdevices(dev) < 0)
+	if(alloc_subdevices(dev, 5) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

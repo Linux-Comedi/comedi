@@ -181,8 +181,7 @@ found:
   dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
 
   /* allocate the subdevice structures */
-  dev->n_subdevices = 1;
-  if((error = alloc_subdevices(dev)) < 0)
+  if((error = alloc_subdevices(dev, 1)) < 0)
   {
     return error;
   }

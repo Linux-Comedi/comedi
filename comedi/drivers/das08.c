@@ -818,8 +818,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	dev->n_subdevices=5;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 5))<0)
 		return ret;
 
 	s=dev->subdevices+0;

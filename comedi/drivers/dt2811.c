@@ -359,8 +359,7 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 #endif
 
-	dev->n_subdevices = 4;
-	if ((ret = alloc_subdevices(dev)) < 0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
 	if ((ret = alloc_private(dev, sizeof(dt2811_private))) < 0)
 		return ret;

@@ -526,8 +526,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	dev->irq = irq;
 
-	dev->n_subdevices = 4;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 4))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(pcl711_private)))<0)
 		return ret;

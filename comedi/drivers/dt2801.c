@@ -520,9 +520,7 @@ havetype:
 	n_ai_chans=probe_number_of_ai_chans(dev);
 	printk(" (ai channels = %d)",n_ai_chans);
 
-	dev->n_subdevices=4;
-
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 4))<0)
 		goto out;
 
 	if((ret=alloc_private(dev,sizeof(dt2801_private)))<0)

@@ -226,11 +226,9 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.  It relies on
- * n_subdevices being set correctly.
+ * convenient macro defined in comedidev.h.
  */
-	dev->n_subdevices=3;
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev, 3)<0)
 		return -ENOMEM;
 
 	s=dev->subdevices+0;

@@ -1009,8 +1009,7 @@ static int setup_subdevices(comedi_device *dev)
 	comedi_subdevice *s;
 	unsigned long dio_8255_iobase;
 
-	dev->n_subdevices = 10;
-	if(alloc_subdevices(dev)<0)
+	if( alloc_subdevices( dev, 10 ) < 0 )
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;

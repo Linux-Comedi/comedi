@@ -716,10 +716,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* board name */
 	dev->board_name = boardtype->name;
 
-	/* set number of subdevices */
-	dev->n_subdevices=4;
-
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 4))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(atmio16d_private)))<0)
 		return ret;

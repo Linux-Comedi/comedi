@@ -309,8 +309,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	dev->board_name="parport";
 
-	dev->n_subdevices=4;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 4))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(parport_private)))<0)
 		return ret;

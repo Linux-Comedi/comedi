@@ -1500,8 +1500,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		devpriv->timer_mode = timer_mode ? 1 : 0;
 	}
 
-	dev->n_subdevices = 5;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 5))<0)
 		return ret;
 
 	s=dev->subdevices+0;

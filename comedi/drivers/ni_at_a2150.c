@@ -418,8 +418,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
 	dev->board_name = thisboard->name;
 
-	dev->n_subdevices = 1;
-	if(alloc_subdevices(dev) < 0)
+	if(alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */

@@ -198,8 +198,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_private(dev,sizeof(das16cs_private))<0)
 		return -ENOMEM;
 
-	dev->n_subdevices=4;
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev, 4)<0)
 		return -ENOMEM;
 
 	s=dev->subdevices+0;

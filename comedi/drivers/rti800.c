@@ -328,8 +328,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = this_board->name;
 
-	dev->n_subdevices=4;
-	if((ret=alloc_subdevices(dev))<0)
+	if((ret=alloc_subdevices(dev, 4))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(rti800_private)))<0)
 		return ret;

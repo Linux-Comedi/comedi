@@ -146,11 +146,9 @@ static int dnp_attach(comedi_device *dev,comedi_devconfig *it)
   if(alloc_private(dev,sizeof(dnp_private_data))<0) return -ENOMEM;
 
   /* Allocate the subdevice structures. alloc_subdevice() is a convenient    */
-  /* macro defined in comedidev.h. It relies on n_subdevices being set       */
-  /* correctly.                                                              */
+  /* macro defined in comedidev.h.                                           */
 
-  dev->n_subdevices=1;
-  if(alloc_subdevices(dev)<0) return -ENOMEM;
+  if(alloc_subdevices(dev, 1)<0) return -ENOMEM;
 
   s=dev->subdevices+0;
   /* digital i/o subdevice                                                   */

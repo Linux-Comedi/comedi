@@ -1117,12 +1117,12 @@ static int pci1710_reset(comedi_device *dev)
 static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int ret,subdev;
+	int ret,subdev,n_subdevices;
 	unsigned short io_addr[5],master,irq;
 	struct pcilst_struct *card=NULL;
         unsigned int iobase;
 	unsigned char pci_bus,pci_slot,pci_func;
-	
+
 	if (!pci_list_builded) {
 		pci_card_list_init(PCI_VENDOR_ID_ADVANTECH,
 #ifdef PCI171X_EXTDEBUG
@@ -1137,20 +1137,20 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 	rt_printk("comedi%d: adv_pci1710: board=%s",dev->minor,this_board->name);
 
 	/* this call pci_enable_device() */
-	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ADVANTECH, this_board->device_id, it->options[0], it->options[1], 0))==NULL) 
+	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ADVANTECH, this_board->device_id, it->options[0], it->options[1], 0))==NULL)
 		return -EIO;
-	
+
 	if ((pci_card_data(card,&pci_bus,&pci_slot,&pci_func,
 	                    &io_addr[0],&irq,&master))<0) {
 		pci_card_free(card);
 		rt_printk(" - Can't get configuration data!\n");
 		return -EIO;
 	}
-	
+
 	iobase=io_addr[2];
-		
+
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",pci_bus,pci_slot,pci_func,iobase);
-	
+
         if (check_region(iobase, this_board->iorange) < 0) {
 		pci_card_free(card);
 		rt_printk("I/O port conflict\n");
@@ -1159,7 +1159,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 
         request_region(iobase, this_board->iorange, "Advantech PCI-1710");
         dev->iobase=iobase;
-    
+
 	dev->board_name = this_board->name;
 
 	if((ret=alloc_private(dev,sizeof(pci1710_private)))<0) {
@@ -1167,14 +1167,14 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 		pci_card_free(card);
 		return -ENOMEM;
 	}
-		
-        dev->n_subdevices = 0;
-	if (this_board->n_aichan) dev->n_subdevices++;
-	if (this_board->n_aochan) dev->n_subdevices++;
-	if (this_board->n_dichan) dev->n_subdevices++;
-	if (this_board->n_dochan) dev->n_subdevices++;
-	
-        if((ret=alloc_subdevices(dev))<0) {
+
+        n_subdevices = 0;
+	if (this_board->n_aichan) n_subdevices++;
+	if (this_board->n_aochan) n_subdevices++;
+	if (this_board->n_dichan) n_subdevices++;
+	if (this_board->n_dochan) n_subdevices++;
+
+        if((ret=alloc_subdevices(dev, n_subdevices))<0) {
     		release_region(dev->iobase, this_board->iorange);
 		pci_card_free(card);
     		return ret;

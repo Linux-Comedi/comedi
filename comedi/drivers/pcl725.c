@@ -73,9 +73,7 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->iobase=iobase;
 	dev->irq=0;
 
-	dev->n_subdevices=2;
-
-	if(alloc_subdevices(dev)<0)
+	if(alloc_subdevices(dev, 2)<0)
 		return -ENOMEM;
 
 	s=dev->subdevices+0;

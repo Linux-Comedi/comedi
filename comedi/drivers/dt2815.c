@@ -191,8 +191,7 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
   dev->iobase = iobase;
   dev->board_name = "dt2815";
 
-  dev->n_subdevices = 1;
-  if(alloc_subdevices(dev)<0)
+  if(alloc_subdevices(dev, 1)<0)
     return -ENOMEM;
   if(alloc_private(dev,sizeof(dt2815_private))<0)
     return -ENOMEM;

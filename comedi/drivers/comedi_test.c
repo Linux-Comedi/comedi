@@ -198,8 +198,7 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->usec_period = period;
 
 	printk("%i microvolt, %li microsecond waveform ", devpriv->uvolt_amplitude, devpriv->usec_period);
-	dev->n_subdevices = 1;
-	if(alloc_subdevices(dev) < 0) return -ENOMEM;
+	if(alloc_subdevices(dev, 1) < 0) return -ENOMEM;
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;

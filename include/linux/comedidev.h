@@ -316,10 +316,11 @@ struct comedi_lrange_struct{
 
 /* some silly little inline functions */
 
-static inline int alloc_subdevices(comedi_device *dev)
+static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevices)
 {
-	int size=sizeof(comedi_subdevice)*dev->n_subdevices;
+	int size=sizeof(comedi_subdevice)*num_subdevices;
 
+	dev->n_subdevices = num_subdevices;
 	dev->subdevices=kmalloc(size,GFP_KERNEL);
 	if(!dev->subdevices)
 		return -ENOMEM;

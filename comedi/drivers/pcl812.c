@@ -1165,7 +1165,7 @@ static void pcl812_reset(comedi_device * dev)
 }
 
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
@@ -1176,6 +1176,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	int dma;
 	unsigned long pages;
 	comedi_subdevice *s;
+	int n_subdevices;
 
 	iobase = it->options[0];
 	printk("comedi%d: pcl812:  board=%s, ioport=0x%03x", dev->minor,
@@ -1255,14 +1256,13 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	}
       no_dma:
 
-	dev->n_subdevices=0;
+	n_subdevices=0;
+	if (this_board->n_aichan > 0) n_subdevices++;
+	if (this_board->n_aochan > 0) n_subdevices++;
+	if (this_board->n_dichan > 0) n_subdevices++;
+	if (this_board->n_dochan > 0) n_subdevices++;
 
-	if (this_board->n_aichan > 0) dev->n_subdevices++;
-	if (this_board->n_aochan > 0) dev->n_subdevices++;
-	if (this_board->n_dichan > 0) dev->n_subdevices++;
-	if (this_board->n_dochan > 0) dev->n_subdevices++;
-
-	if ((ret = alloc_subdevices(dev)) < 0) {
+	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
 		free_resources(dev);
 		return ret;
 	}

@@ -250,8 +250,7 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
        printk("comedi%d: no irq\n", dev->minor);
       }
       dev->board_name = "multiq3";
-      dev->n_subdevices = 5;
-      result = alloc_subdevices(dev);
+      result = alloc_subdevices(dev, 5);
       if(result<0)return result;
 
       result = alloc_private(dev,sizeof(struct multiq3_private));

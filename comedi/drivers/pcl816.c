@@ -1152,8 +1152,7 @@ no_dma:
   if (this_board->n_dochan > 0)
     subdevs[3] = COMEDI_SUBD_DO;
 */
-  dev->n_subdevices = 1;
-  if ((ret = alloc_subdevices (dev)) < 0)
+  if ((ret = alloc_subdevices (dev, 1)) < 0)
     return ret;
 
   s = dev->subdevices + 0;
