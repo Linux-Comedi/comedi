@@ -36,9 +36,6 @@
 #include <linux/mm.h>
 #include <linux/malloc.h>
 #include <asm/io.h>
-#ifdef LINUX_V22
-#include <asm/uaccess.h>
-#endif
 
 #define USE_INSN
 

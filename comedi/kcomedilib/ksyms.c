@@ -39,7 +39,7 @@
 #include <linux/malloc.h>
 
 
-#ifdef LINUX_V22
+#if LINUX_VERSION_CODE >= 0x020200
 
 /* functions specific to kcomedilib */
 

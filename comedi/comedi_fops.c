@@ -1697,19 +1697,23 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 
 	dev->use_count--;
 
+#if LINUX_VERSION_CODE >= 0x020100
 	if(file->f_flags & FASYNC){
 		comedi_fasync(-1,file,0);
 	}
+#endif
 
 	return 0;
 }
 
+#if LINUX_VERSION_CODE >= 0x020100
 static int comedi_fasync (int fd, struct file *file, int on)
 {
 	comedi_device *dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
 	return fasync_helper(fd,file,on,&dev->async_queue);
 }
+#endif
 
 /*
 	kernel compatibility

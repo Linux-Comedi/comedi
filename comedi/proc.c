@@ -34,7 +34,7 @@
 #include <linux/string.h>
 
 
-#ifdef LINUX_V20
+#if LINUX_VERSION_CODE < 0x020100
 int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int unused);
 
 struct proc_dir_entry comedi_proc_entry =
@@ -56,7 +56,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 
 extern comedi_driver *comedi_drivers;
 
-#ifdef LINUX_V20
+#if LINUX_VERSION_CODE < 0x020100
 int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int unused)
 #else
 int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,void *data)
@@ -107,7 +107,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 
 void comedi_proc_init(void)
 {
-#ifdef LINUX_V20
+#if LINUX_VERSION_CODE < 0x020100
 	proc_register_dynamic(&proc_root,&comedi_proc_entry);
 #else
 	struct proc_dir_entry *comedi_proc;
@@ -120,7 +120,7 @@ void comedi_proc_init(void)
 
 void comedi_proc_cleanup(void)
 {
-#ifdef LINUX_V20
+#if LINUX_VERSION_CODE < 0x020100
 	proc_unregister(&proc_root,comedi_proc_entry.low_ino);
 #else
 	remove_proc_entry("comedi",0);

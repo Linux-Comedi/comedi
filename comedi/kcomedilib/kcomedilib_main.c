@@ -35,9 +35,6 @@
 #include <linux/mm.h>
 #include <linux/malloc.h>
 #include <asm/io.h>
-#ifdef LINUX_V22
-#include <asm/uaccess.h>
-#endif
 
 #include <linux/comedidev.h>
 #include <linux/comedi.h>
