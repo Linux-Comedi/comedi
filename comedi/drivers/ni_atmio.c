@@ -110,7 +110,7 @@ are not supported.
 
 #define NI_SIZE 0x20
 
-#define MAX_N_CALDACS 12
+#define MAX_N_CALDACS 32
 
 static ni_board ni_boards[]={
 	{	device_id:	44,
@@ -200,7 +200,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
-		caldac:		{ad8804,dac8043},
+		caldac:		{ad8804_debug,ad8804_debug}, // ad8804 dac8043
 		has_8255:	0,
 	},
 	{	device_id:	50,
