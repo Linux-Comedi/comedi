@@ -327,7 +327,6 @@ typedef struct {
 	unsigned int 	act_chanlist[16];// MUX setting for actual AI operations
 	unsigned int 	act_chanlist_len;// how long is actual MUX list
 	unsigned int 	act_chanlist_pos;// actual position in MUX list
-	unsigned int 	buf_ptr;	// data buffer ptr in samples
 	comedi_subdevice *sub_ai;	// ptr to AI subdevice
 	unsigned char 	usefifo;	// 1=use fifo
 	struct timer_list rtc_irq_timer;// timer for RTC sanity check
@@ -505,8 +504,8 @@ static void interrupt_pcl818_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 
 conv_finish:
         low=inb(dev->iobase + PCL818_AD_LO);
-	*(sampl_t *)(s->async->data+devpriv->buf_ptr)=((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)); // get one sample
-	devpriv->buf_ptr+=sizeof(sampl_t);
+	comedi_buf_put( s->async,
+		((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)) ); // get one sample
         outb(0,dev->iobase+PCL818_CLRINT); /* clear INT request */
 
         if ((low & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
@@ -516,22 +515,9 @@ conv_finish:
 		comedi_event(dev, s, s->async->events);
 		return;
         }
-        s->async->buf_int_ptr+=sizeof(sampl_t);
-        s->async->buf_int_count+=sizeof(sampl_t);
-
-	s->async->cur_chan++;
-        if (s->async->cur_chan>=s->async->cmd.chanlist_len){
-		s->async->cur_chan=0;
-		s->async->events |= COMEDI_CB_BLOCK;
+        if (s->async->cur_chan == 0) {
 		// rt_printk("E");
 		devpriv->int13_act_scan--;
-        }
-
-	if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
-		s->async->buf_int_ptr=0;
-		devpriv->buf_ptr=0;
-		//printk("B ");
-		s->async->events |= COMEDI_CB_EOBUF;
         }
 
 	if (!devpriv->neverending_ai){
@@ -584,24 +570,9 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 			return;
 		}
 
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
-			ptr[bufptr++] >> 4; // get one sample
-		devpriv->buf_ptr++;
+		comedi_buf_put( s->async, ptr[bufptr++] >> 4 ); // get one sample
 
-		s->async->buf_int_ptr+=sizeof(sampl_t);
-		s->async->buf_int_count+=sizeof(sampl_t);
 		devpriv->act_chanlist_pos++;
-
-		s->async->cur_chan++;
-		if(s->async->cur_chan>=s->async->cmd.chanlist_len){
-			s->async->cur_chan=0;
-		}
-
-		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
-	    		s->async->buf_int_ptr=0;
-			devpriv->buf_ptr=0;
-			s->async->events |= COMEDI_CB_EOBUF;
-		}
 
 		if (!devpriv->neverending_ai)
 	    		if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
@@ -673,24 +644,11 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 				return;
 			}
 
-			*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
-				dmabuf[bufptr++] >> 4; // get one sample
-			devpriv->buf_ptr++;
+			comedi_buf_put( s->async, dmabuf[bufptr++] >> 4); // get one sample
 			bufptr&=(devpriv->dmasamplsize-1);
 
-			s->async->buf_int_ptr+=sizeof(sampl_t);
-			s->async->buf_int_count+=sizeof(sampl_t);
-
-			s->async->cur_chan++;
-			if(s->async->cur_chan>=s->async->cmd.chanlist_len){
-				s->async->cur_chan++;
+			if(s->async->cur_chan == 0){
 				devpriv->int13_act_scan--;
-			}
-
-			if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
-				s->async->buf_int_ptr=0;
-				devpriv->buf_ptr=0;
-				s->async->events |= COMEDI_CB_EOBUF;
 			}
 
 			if (!devpriv->neverending_ai)
@@ -758,22 +716,10 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 			return;
 		}
 
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
-			(lo >> 4)|(inb(dev->iobase + PCL818_FI_DATAHI) << 4); // get one sample
-		devpriv->buf_ptr++;
-		s->async->buf_int_ptr+=sizeof(sampl_t);
-		s->async->buf_int_count+=sizeof(sampl_t);
+		comedi_buf_put( s->async, (lo >> 4)|(inb(dev->iobase + PCL818_FI_DATAHI) << 4) ); // get one sample
 
-		s->async->cur_chan++;
-		if(s->async->cur_chan>=s->async->cmd.chanlist_len){
-			s->async->cur_chan = 0;
+		if(s->async->cur_chan == 0){
 			devpriv->int13_act_scan--;
-		}
-
-		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
-			s->async->buf_int_ptr=0;
-			devpriv->buf_ptr=0;
-			s->async->events |= COMEDI_CB_EOBUF;
 		}
 
 		if (!devpriv->neverending_ai)
