@@ -78,20 +78,6 @@ Configuration Options:
 #include <linux/comedidev.h>
 #endif
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-#define USB_ALLOC_URB(x) usb_alloc_urb(x)
-#define USB_SUBMIT_URB(x) usb_submit_urb(x)
-#define USBDUX_ISO_ASAP USB_ISO_ASAP
-#define PROBE_ERR_RETURN(x) NULL
-#else
-#define USB_ALLOC_URB(x) usb_alloc_urb(x,GFP_KERNEL)
-#define USB_SUBMIT_URB(x) usb_submit_urb(x,GFP_KERNEL)
-#define USBDUX_ISO_ASAP URB_ISO_ASAP
-#define PROBE_ERR_RETURN(x) x
-#endif
-
-
 #define BOARDNAME "usbdux"
 
 // timeout for the USB-transfer
@@ -2455,7 +2441,7 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 			usbduxsub[index].urbIn[i]->context = NULL;
 			usbduxsub[index].urbIn[i]->pipe = 
 				usb_rcvisocpipe(usbduxsub[index].usbdev, ISOINEP);
-			usbduxsub[index].urbIn[i]->transfer_flags = USBDUX_ISO_ASAP;
+			usbduxsub[index].urbIn[i]->transfer_flags = URB_ISO_ASAP;
 			usbduxsub[index].urbIn[i]->transfer_buffer=
 				kmalloc(SIZEINBUF,GFP_KERNEL);
 			if (!(usbduxsub[index].urbIn[i]->transfer_buffer)) {
@@ -2524,7 +2510,7 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 			usbduxsub[index].urbOut[i]->context = NULL;
 			usbduxsub[index].urbOut[i]->pipe = 
 				usb_sndisocpipe(usbduxsub[index].usbdev, ISOOUTEP);
-			usbduxsub[index].urbOut[i]->transfer_flags = USBDUX_ISO_ASAP;
+			usbduxsub[index].urbOut[i]->transfer_flags = URB_ISO_ASAP;
 			usbduxsub[index].urbOut[i]->transfer_buffer=
 				kmalloc(SIZEOUTBUF,GFP_KERNEL);
 			if (!(usbduxsub[index].urbOut[i]->transfer_buffer)) {
