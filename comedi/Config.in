@@ -46,7 +46,7 @@ fi
 bool 'National Instruments boards' CONFIG_COMEDI_NI
 if [ "$CONFIG_COMEDI_NI" = "y" ];then
 	tristate '  AT-MIO E series' CONFIG_COMEDI_NI_ATMIO
-	if [ "$CONFIG_PCMCIA" == "y" -o "$CONFIG_PCMCIA" == "m" ];then
+	if [ "$CONFIG_PCMCIA" = "y" -o "$CONFIG_PCMCIA" = "m" ];then
 		tristate '  PCMCIA MIO E series' CONFIG_COMEDI_NI_MIO_CS
 	fi
 	if [ "$CONFIG_PCI" = "y" ];then
@@ -54,6 +54,10 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 		tristate '  NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO
 		if [ "$CONFIG_COMEDI_NI_PCIMIO" = "y" -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" ];then
 			define_bool CONFIG_COMEDI_MITE y
+		else
+			if [ "$CONFIG_COMEDI_NI_PCIMIO" = "m" -o "$CONFIG_COMEDI_NI_PCIDIO" = "m" ];then
+				define_bool CONFIG_COMEDI_MITE y
+			fi
 		fi
 	fi
 	tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D

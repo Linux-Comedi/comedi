@@ -215,17 +215,17 @@ $(MODINCL)/%.ver: %.c
 	
 $(addprefix $(MODINCL)/,$(SYMTAB_OBJS:.o=.ver)): $(LINUXDIR)/include/linux/autoconf.h
 
-$(LINUXDIR)/include/linux/modversions.h: $(addprefix $(MODINCL)/,$(SYMTAB_OBJS:.o=.ver))
-	@echo updating $(LINUXDIR)/include/linux/modversions.h
-	@(echo "#ifndef _LINUX_MODVERSIONS_H";\
-	  echo "#define _LINUX_MODVERSIONS_H"; \
-	  echo "#include <linux/modsetver.h>"; \
-	  cd $(LINUXDIR)/include/linux/modules; \
-	  for f in *.ver; do \
-	    if [ -f $$f ]; then echo "#include <linux/modules/$${f}>"; fi; \
-	  done; \
-	  echo "#endif"; \
-	) > $@
+#$(LINUXDIR)/include/linux/modversions.h: $(addprefix $(MODINCL)/,$(SYMTAB_OBJS:.o=.ver))
+#	@echo updating $(LINUXDIR)/include/linux/modversions.h
+#	@(echo "#ifndef _LINUX_MODVERSIONS_H";\
+#	  echo "#define _LINUX_MODVERSIONS_H"; \
+#	  echo "#include <linux/modsetver.h>"; \
+#	  cd $(LINUXDIR)/include/linux/modules; \
+#	  for f in *.ver; do \
+#	    if [ -f $$f ]; then echo "#include <linux/modules/$${f}>"; fi; \
+#	  done; \
+#	  echo "#endif"; \
+#	) > $@
 
 dep fastdep: $(LINUXDIR)/include/linux/modversions.h
 

@@ -35,9 +35,9 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/malloc.h>
-#include <linux/kmod.h>
 #include <asm/io.h>
 #ifdef LINUX_V22
+#include <linux/kmod.h>
 #include <asm/uaccess.h>
 #endif
 
