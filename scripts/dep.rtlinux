@@ -1,6 +1,9 @@
 #!/bin/sh
 
-if [ "$CONFIG_RTL" != "" ];then
+if [ -f "$LINUXDIR/include/asm/rt_irq.h" ]; then
+	CONFIG_RTL_V1="y"
+fi
+if [ "$CONFIG_RTL" != "" -o "$CONFIG_RTL_V1" = "y" ]; then
 	echo You appear to be running an RTL-patched kernel
 
 	default=${RTLDIR:=/usr/src/rtl}

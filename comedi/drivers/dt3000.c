@@ -502,6 +502,7 @@ static int setup_pci(comedi_device *dev);
 static int dt_pci_probe(comedi_device *dev)
 {
 	int board;
+	int ret;
 
 	ret=dt_pci_find_device(NULL,&board);
 	if(ret==0)

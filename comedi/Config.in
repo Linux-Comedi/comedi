@@ -15,6 +15,12 @@ if [ "$CONFIG_RTL" = "y" ];then
 		define_bool CONFIG_COMEDI_RTL y
 	fi
 fi
+if [ "$CONFIG_RTL_V1" = "y" ];then
+	bool 'Real-time v1 support' CONFIG_COMEDI_RT
+	if [ "$CONFIG_COMEDI_RT" = "y" ];then
+		define_bool CONFIG_COMEDI_RTL_V1 y
+	fi
+fi
 if [ "$CONFIG_RTHAL" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
 	if [ "$CONFIG_COMEDI_RT" = "y" ];then

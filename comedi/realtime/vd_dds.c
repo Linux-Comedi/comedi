@@ -52,7 +52,7 @@ static int dds_attach(comedi_device *dev,comedi_devconfig *it);
 static int dds_detach(comedi_device *dev);
 comedi_driver driver_vd_dds={
 	driver_name:		"vd_dds",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		dds_attach,
 	detach:		dds_detach,
 };
