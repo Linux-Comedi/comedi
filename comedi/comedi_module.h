@@ -29,7 +29,7 @@
 #include <linux/kdev_t.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
-#include <comedi.h>
+#include <linux/comedi.h>
 #include <linux/config.h>
 #include <comedi/version.h>
 

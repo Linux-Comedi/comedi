@@ -30,7 +30,7 @@
 #include <linux/config.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
-#include <comedi.h>
+#include <linux/comedi.h>
 
 
 #include <kern_compat.h>
