@@ -199,9 +199,6 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
 static void ni_handle_fifo_half_full(comedi_device *dev);
 #endif
 static void ni_handle_fifo_dregs(comedi_device *dev);
-#ifdef PCIDMA
-static void ni_handle_block_dma(comedi_device *dev);
-#endif
 static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum);
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
@@ -642,6 +639,7 @@ static void ni_mio_print_status_b(int status)
 }
 #endif
 
+#ifndef PCIDMA
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
 {
@@ -701,6 +699,7 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 
 	async->events |= COMEDI_CB_BLOCK;
 }
+#endif
 
 /*
    Empties the AI fifo
@@ -760,6 +759,7 @@ static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start,
 	async->cur_chan=j;
 }
 
+#if 0
 static void ni_handle_block_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -776,6 +776,7 @@ static void ni_handle_block_dma(comedi_device *dev)
 	s->async->events |= COMEDI_CB_EOA;
 	MDPRINTK("exit ni_handle_block_dma\n");
 }
+#endif
 
 static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 {
