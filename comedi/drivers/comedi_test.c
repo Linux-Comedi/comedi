@@ -216,13 +216,13 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
-	s->insn_read = waveform_ai_insn_read; // apparently, we do not need waveform_ai_rinsn;
+	s->insn_read = waveform_ai_insn_read; 
 	s->do_cmd = waveform_ai_cmd;
 	s->do_cmdtest = waveform_ai_cmdtest;
 	s->cancel = waveform_ai_cancel;
 
 	s = dev->subdevices + 1;
-	dev->read_subdev = s;
+	dev->write_subdev = s;
 	/* analog output subdevice (loopback) */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
