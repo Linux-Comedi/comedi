@@ -108,7 +108,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-/* no, comedi_module.h takes care about it #include <asm/uaccess.h> */
+#include <asm/uaccess.h>
 #include <comedi_module.h>
 #include <8255.h>
 #ifdef CONFIG_COMEDI_DAQBOARD2000_FPGA
