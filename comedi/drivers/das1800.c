@@ -72,6 +72,11 @@ Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
 Documentation on register-level programing of the das-1800 series boards
 	is available for download from Keitley's web site http://www.keithley.com
 
+WARNING:
+It is not safe to run this driver at real-time priority with dma enabled.
+	It's allright if you are just using irq with no dma.  If you enable
+	dual dma you shouldn't need real-time priority anyways.
+
 TODO:
 	Add support for analog out on 'ao' cards.
 
@@ -148,8 +153,8 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
 static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s);
 static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *s);
 static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *s);
-inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t 
-data_point); void disable_das1800(comedi_device *dev);
+inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point);
+void disable_das1800(comedi_device *dev);
 static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
@@ -651,8 +656,8 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
-	dev->read_subdev = 0;
 	/* analog input subdevice */
+	dev->read_subdev = 0;
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
@@ -724,8 +729,6 @@ static int das1800_detach(comedi_device *dev)
 		release_region(dev->iobase, DAS1800_SIZE);
 	if(devpriv->iobase2)
 		release_region(devpriv->iobase2, DAS1800_SIZE);
-	if(dev->irq)
-		comedi_free_irq(dev->irq, dev);
 	if(devpriv->dma0)
 		free_dma(devpriv->dma0);
 	if(devpriv->dma0_buf)
@@ -734,6 +737,8 @@ static int das1800_detach(comedi_device *dev)
 		free_dma(devpriv->dma1);
 	if(devpriv->dma1_buf)
 		kfree(devpriv->dma1_buf);
+	if(dev->irq)
+		comedi_free_irq(dev->irq, dev);
 
 	printk("comedi%d: das1800: remove\n", dev->minor);
 
@@ -873,7 +878,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	status = inb(dev->iobase + DAS1800_STATUS);
 	/* if interrupt was not caused by das-1800 */
-	if(!(status & INT))
+	if(!(status & INT) || !(dev->attached))
 	{
 		return;
 	}
@@ -1073,14 +1078,14 @@ static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *
 }
 
 /* utility function used by das1800 interrupt service routines */
-inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t
-data_point) {
-	if(s->buf_int_ptr >= s->cur_trig.data_len )
+inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point)
+{
+	if(s->buf_int_ptr >= s->prealloc_bufsz )
 	{
 		s->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
-	*((sampl_t *)((void *)s->cur_trig.data + s->buf_int_ptr)) = data_point;
+	*((sampl_t *)((void *)s->prealloc_buf + s->buf_int_ptr)) = data_point;
 	s->cur_chan++;
 	if(s->cur_chan >= s->cur_chanlist_len)
 	{
