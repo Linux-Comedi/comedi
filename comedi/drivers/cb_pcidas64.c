@@ -1183,6 +1183,14 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 descriptor 0x%x\n", readl(plx_iobase + PLX_DMA0_DESCRIPTOR_REG));
 	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(plx_iobase + PLX_DMA0_CS_REG));
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
+	DEBUG_PRINT(" plx bigend 0x%x\n", readl(plx_iobase + PLX_BIGEND_REG));
+
+#ifdef __BIG_ENDIAN
+	bits = BIGEND_DMA0 | BIGEND_DMA1;
+#else
+	bits = 0;
+#endif
+	writel(bits, priv(dev)->plx9080_iobase + PLX_BIGEND_REG);
 
 	disable_plx_interrupts( dev );
 
@@ -1549,14 +1557,14 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	// initialize dma descriptors
 	for(index = 0; index < DMA_RING_COUNT; index++)
 	{
-		priv(dev)->dma_desc[index].pci_start_addr = priv(dev)->ai_buffer_phys_addr[index];
+		priv(dev)->dma_desc[index].pci_start_addr = __cpu_to_le32(priv(dev)->ai_buffer_phys_addr[index]);
 		if(board(dev)->layout == LAYOUT_4020)
-			priv(dev)->dma_desc[index].local_start_addr = priv(dev)->local1_iobase + ADC_FIFO_REG;
+			priv(dev)->dma_desc[index].local_start_addr = __cpu_to_le32(priv(dev)->local1_iobase + ADC_FIFO_REG);
 		else
-			priv(dev)->dma_desc[index].local_start_addr = priv(dev)->local0_iobase + ADC_FIFO_REG;
-		priv(dev)->dma_desc[index].transfer_size = 0;
-		priv(dev)->dma_desc[index].next = (priv(dev)->dma_desc_phys_addr + ((index + 1) % (DMA_RING_COUNT)) * sizeof(priv(dev)->dma_desc[0])) |
-			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
+			priv(dev)->dma_desc[index].local_start_addr = __cpu_to_le32(priv(dev)->local0_iobase + ADC_FIFO_REG);
+		priv(dev)->dma_desc[index].transfer_size = __cpu_to_le32(0);
+		priv(dev)->dma_desc[index].next = __cpu_to_le32((priv(dev)->dma_desc_phys_addr + ((index + 1) % (DMA_RING_COUNT)) * sizeof(priv(dev)->dma_desc[0])) |
+			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI);
 	}
 
 	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
@@ -2428,8 +2436,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		priv(dev)->dma_index = 0;
 
 		// set dma transfer size
-		for( i = 0; i < DMA_RING_COUNT; i++)
-			priv(dev)->dma_desc[ i ].transfer_size = dma_transfer_size( dev ) * sizeof( uint16_t );
+		for(i = 0; i < DMA_RING_COUNT; i++)
+			priv(dev)->dma_desc[i].transfer_size = __cpu_to_le32(dma_transfer_size(dev) * sizeof(uint16_t));
 
 		/* These register are supposedly unused during chained dma,
 		 * but I have found that left over values from last operation

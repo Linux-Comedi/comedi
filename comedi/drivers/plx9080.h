@@ -85,6 +85,20 @@ enum marb_bits
 	MARB_PCI_READ_NO_FLUSH_MODE = 0x10000000,
 	MARB_USE_SUBSYSTEM_IDS = 0x20000000,
 };
+
+#define PLX_BIGEND_REG 0xc
+enum bigend_bits
+{
+	BIGEND_CONFIG = 0x1,	/* use big endian ordering for configuration register accesses*/
+	BIGEND_DIRECT_MASTER = 0x2,
+	BIGEND_DIRECT_SLAVE_LOCAL0 = 0x4,
+	BIGEND_ROM = 0x8,
+	BIGEND_BYTE_LANE = 0x10, /* use byte lane consisting of most significant bits instead of least significant */
+	BIGEND_DIRECT_SLAVE_LOCAL1 = 0x20,
+	BIGEND_DMA1 = 0x40,
+	BIGEND_DMA0 = 0x80,
+};
+
 /* Note: The Expansion ROM  stuff is only relevant to the PC environment.
 **       This expansion ROM code is executed by the host CPU at boot time.
 **       For this reason no bit definitions are provided here.
