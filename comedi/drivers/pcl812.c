@@ -892,32 +892,18 @@ static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 		return;
 	}
 
-	*(sampl_t *)(s->async->data+s->async->buf_int_ptr) =
-		((inb(dev->iobase + PCL812_AD_HI) << 8) | inb(dev->iobase + PCL812_AD_LO)) & mask;
-
-	setup_range_channel(dev, s, devpriv->ai_chanlist[s->async->cur_chan], 0); // select channel and renge
+	comedi_buf_put( s->async,
+		((inb(dev->iobase + PCL812_AD_HI) << 8) | inb(dev->iobase + PCL812_AD_LO)) & mask);
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
-	s->async->buf_int_ptr+=sizeof(sampl_t);
-	s->async->buf_int_count+=sizeof(sampl_t);
-
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= s->async->cmd.chanlist_len) {	/* one scan done */
-		s->async->cur_chan=0;
+	if (s->async->cur_chan == 0 ) {	/* one scan done */
 		devpriv->ai_act_scan++;
-		if (devpriv->ai_eos)
-			s->async->events |= COMEDI_CB_EOS;
 		if (!(devpriv->ai_neverending))
 			if (devpriv->ai_act_scan>=devpriv->ai_scans) {	/* all data sampled */
 				pcl812_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
 			}
-	}
-	
-	if (s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
-		s->async->buf_int_ptr = 0;
-		s->async->events |= COMEDI_CB_EOBUF;
 	}
 
 	comedi_event(dev,s,s->async->events);
@@ -933,17 +919,10 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 	
 	s->async->events = 0;
         for (i=len; i; i--) {
-		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=ptr[bufptr++]; // get one sample
+		comedi_buf_put( s->async, ptr[bufptr++] ); // get one sample
 
-		s->async->buf_int_ptr+=sizeof(sampl_t);
-		s->async->buf_int_count+=sizeof(sampl_t);
-
-		s->async->cur_chan++;
-		if(s->async->cur_chan>=s->async->cmd.chanlist_len){
-			s->async->cur_chan=0;
+		if(s->async->cur_chan == 0){
 			devpriv->ai_act_scan++;
-			if (devpriv->ai_eos)
-				s->async->events |= COMEDI_CB_EOS;
 			if (!devpriv->ai_neverending)
 				if (devpriv->ai_act_scan>=devpriv->ai_scans) {	/* all data sampled */
 					pcl812_ai_cancel(dev,s);
@@ -951,17 +930,8 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 					break;
 				}
 		}
-
-		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
-	    		s->async->buf_int_ptr=0;
-			s->async->events |= COMEDI_CB_EOBUF;
-			comedi_event(dev,s,s->async->events);
-			s->async->events = 0;
-		}
-
 	}
 
-	s->async->events |= COMEDI_CB_BLOCK;
 	comedi_event(dev,s,s->async->events);
 }
 
@@ -1021,7 +991,7 @@ static void interrupt_pcl812(int irq, void *d, struct pt_regs *regs)
 
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ai_poll(comedi_device *dev,comedi_subdevice *s)
@@ -1030,7 +1000,7 @@ static int pcl812_ai_poll(comedi_device *dev,comedi_subdevice *s)
         unsigned int top1,top2,i;
 
 	if (!devpriv->ai_dma) return 0; // poll is valid only for DMA transfer
-	
+
 	comedi_spin_lock_irqsave(&dev->spinlock,flags);
 
 	for (i=0; i<10; i++) {
@@ -1054,9 +1024,9 @@ static int pcl812_ai_poll(comedi_device *dev,comedi_subdevice *s)
 
 	transfer_from_dma_buf(dev, s, (void *)devpriv->dmabuf[1-devpriv->next_dma_buf],
 				devpriv->ai_poll_ptr, top2);
-	
+
 	devpriv->ai_poll_ptr=top1; // new buffer position
-	
+
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 
 	return s->async->buf_int_count-s->async->buf_user_count;
