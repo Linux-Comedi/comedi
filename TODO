@@ -42,4 +42,7 @@ ni_pcimio: ai COMEDI_WAKE_EOS doesn't work with DMA
 
 ni_pcimio: ao "write: Invalid argument" for initial write
 
+don't need Configure.help and Configure.help.append
+
+ni_mio_common: 2-chan AO doesn't work?
 
