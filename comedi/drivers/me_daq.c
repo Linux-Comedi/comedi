@@ -41,6 +41,13 @@ Configuration options:
 
     If bus/slot is not specified, the first available PCI
     device will be used.
+
+The 2600 requires a firmware upload, which can be accomplished
+using the -i or --init-data option of comedi_config. 
+The firmware can be
+found in the comedi_nonfree_firmware tarball available
+from http://www.comedi.org 
+
 */
 
 #include <linux/comedidev.h>

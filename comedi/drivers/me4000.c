@@ -42,6 +42,13 @@ Configuration Options:
 
     If bus/slot is not specified, the first available PCI
     device will be used.
+
+The firmware required by these boards is available in the
+comedi_nonfree_firmware tarball available from
+http://www.comedi.org.  However, the driver's support for
+loading the firmware through comedi_config is currently
+broken.
+
  */
 
 #include <linux/comedidev.h>

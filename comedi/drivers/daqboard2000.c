@@ -32,7 +32,8 @@ the source code for the Windows driver.
 
 The FPGA on the board requires initialization code, which can 
 be loaded by comedi_config using the -i
-option.  
+option.  The initialization code is available from http://www.comedi.org
+in the comedi_nonfree_firmware tarball.
 
 Configuration options:
     none
