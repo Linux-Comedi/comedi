@@ -1141,7 +1141,8 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	if(devpriv->adc_count == 0)
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		devpriv->adc_count == 0)
 	{	/* end of acquisition */
 		das16_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA;
