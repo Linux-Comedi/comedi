@@ -211,7 +211,7 @@ multi-used	:= $(filter $(list-multi), $(obj-y) $(obj-m))
 multi-objs	:= $(foreach m, $(multi-used), $($(basename $(m))-objs))
 active-objs	:= $(sort $(multi-objs) $(obj-y) $(obj-m))
 
-ifdef CONFIG_MODVERSIONS
+ifdef never_generate_CONFIG_MODVERSIONS
 ifneq "$(strip $(export-objs))" ""
 
 MODINCL = $(TOPDIR)/include/linux/modules
@@ -273,7 +273,7 @@ $(active-objs): $(TOPDIR)/include/linux/modversions.h
 else
 
 $(TOPDIR)/include/linux/modversions.h:
-	@echo "#include <linux/modsetver.h>" > $@
+#	@echo "#include <linux/modsetver.h>" > $@
 
 endif # CONFIG_MODVERSIONS
 
