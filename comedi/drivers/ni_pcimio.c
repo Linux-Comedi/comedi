@@ -297,7 +297,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		caldac:         type4,
 	},
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x14e0,		/* unknown */
 		name:           "pci-6110e",
 		n_adchan:       4, 
 		adbits:         12,
@@ -305,7 +305,7 @@ static ni_board ni_boards[]={
 		alwaysdither:   0,
 		gainlkup:       ai_gain_14,	/* wrong */
 		ai_speed:	200,
-		aobits:         12,
+		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
 		caldac:         type4,		/* XXX */
