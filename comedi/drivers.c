@@ -468,10 +468,6 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 			return -EINVAL;
 		new_data[0] = 1<<chan; /* mask */
 		new_data[1] = data[0]?(1<<chan):0; /* bits */
-	}else if(insn->insn == INSN_READ){
-		if(!(s->subdev_flags & SDF_READABLE))
-			return -EINVAL;
-		data[0] = (new_data[1]>>chan)&1;
 	}else {
 		new_data[0] = 0;
 		new_data[1] = 0;
@@ -479,6 +475,12 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 
 	ret = s->insn_bits(dev,s,&new_insn,new_data);
 	if(ret<0)return ret;
+
+	if(insn->insn == INSN_READ){
+		if(!(s->subdev_flags & SDF_READABLE))
+			return -EINVAL;
+		data[0] = (new_data[1]>>chan)&1;
+	}
 
 	return 1;
 }
