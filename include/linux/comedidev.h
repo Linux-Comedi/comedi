@@ -47,6 +47,14 @@
 #define COMEDI_RELEASE "1.0.0"
 #endif
 
+#define COMEDI_INITCLEANUP_NOMODULE(x)					\
+	static int __init x ## _init_module(void)			\
+		{return comedi_driver_register(&(x));}			\
+	static void __exit x ## _cleanup_module(void)			\
+		{comedi_driver_unregister(&(x));} 			\
+	module_init(x ## _init_module);					\
+	module_exit(x ## _cleanup_module);					\
+
 #define COMEDI_INITCLEANUP(x)						\
 	MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");		\
 	MODULE_DESCRIPTION("Comedi low-level driver");			\
