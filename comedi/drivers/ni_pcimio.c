@@ -356,6 +356,7 @@ comedi_driver driver_pcimio={
 	attach:		pcimio_attach,
 	detach: 	pcimio_detach,
 };
+COMEDI_INITCLEANUP(driver_pcimio);
 
 
 /* How we access registers */
@@ -479,17 +480,3 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 	return -EIO;
 }
 
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcimio);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcimio);
-}
-#endif

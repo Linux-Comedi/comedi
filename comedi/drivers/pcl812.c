@@ -192,6 +192,7 @@ comedi_driver driver_pcl812={
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_pcl812);
 
 typedef struct {
 #ifdef USE_DMA
@@ -639,7 +640,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 				printk(", IRQ %d is out of allowed range, DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq(irq, interrupt_pcl812, SA_INTERRUPT, "pcl812", dev)) {
+				if (comedi_request_irq(irq, interrupt_pcl812, 0, "pcl812", dev)) {
 					printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
@@ -836,24 +837,6 @@ static int pcl812_detach(comedi_device * dev)
 	free_resources(dev);
 	return 0;
 }
-
-/*  
-==============================================================================
-*/
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcl812);
-
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl812);
-}
-
-#endif
 
 
 #if 0

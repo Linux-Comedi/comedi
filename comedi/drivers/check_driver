@@ -111,6 +111,7 @@ if grep 'comedi_cmd' ${driver} &>/dev/null;then
 	echo "uses cmd"
 	cmd=yes
 else
+	echo "W: doesn't use cmd"
 	cmd=no
 fi
 
@@ -118,6 +119,7 @@ if grep 'comedi_insn' ${driver} &>/dev/null;then
 	echo "uses insn"
 	insn=yes
 else
+	echo "W: doesn't use insn"
 	insn=no
 fi
 
@@ -169,4 +171,7 @@ if grep 'int init_module' ${driver} &>/dev/null;then
 	echo "W: suggest using COMEDI_INITCLEANUP"
 fi
 
+if grep 'range_unknown' ${driver} &>/dev/null;then
+	echo "W: uses range_unknown"
+fi
 

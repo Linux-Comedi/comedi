@@ -50,6 +50,7 @@ comedi_driver driver_rti802={
 	attach:		rti802_attach,
 	detach:		rti802_detach,
 };
+COMEDI_INITCLEANUP(driver_rti802);
 
 static void rti802_free_resources(comedi_device * dev);
 
@@ -148,16 +149,3 @@ static int rti802_detach(comedi_device * dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_rti802);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_rti802);
-}
-#endif

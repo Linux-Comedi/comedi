@@ -56,6 +56,7 @@ comedi_driver driver_dt2815={
 	attach:		dt2815_attach,
 	detach:		dt2815_detach,
 };
+COMEDI_INITCLEANUP(driver_dt2815);
 
 static void dt2815_free_resources(comedi_device * dev);
 
@@ -220,16 +221,3 @@ static int dt2815_detach(comedi_device * dev)
   return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_dt2815);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2815);
-}
-#endif

@@ -61,6 +61,7 @@ comedi_driver driver_dt2814={
 	attach:		dt2814_attach,
 	detach:		dt2814_detach,
 };
+COMEDI_INITCLEANUP(driver_dt2814);
 
 static void dt2814_interrupt(int irq,void *dev,struct pt_regs * regs);
 
@@ -304,7 +305,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->irq=0;
 	if(irq>0){
 		printk("( irq = %d )\n",irq);
-		request_irq(irq,dt2814_interrupt,0*SA_INTERRUPT,"dt2814",dev);
+		comedi_request_irq(irq,dt2814_interrupt,0,"dt2814",dev);
 		dev->irq=irq;
 	}else if(irq==0){
 		printk("(no irq)\n");
@@ -387,17 +388,3 @@ static void dt2814_interrupt(int irq,void *d,struct pt_regs * regs)
 	}
 }
 
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_dt2814);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2814);
-}
-#endif

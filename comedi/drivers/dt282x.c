@@ -1438,7 +1438,8 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->irq = 0;
 	if (irq > 0) {
 		printk(" ( irq = %d )", irq);
-		request_irq(irq, dt282x_interrupt, SA_INTERRUPT, "dt282x", dev);
+		ret = comedi_request_irq(irq, dt282x_interrupt, 0, "dt282x", dev);
+		if(ret<0)return -EIO;
 		dev->irq = irq;
 	} else if (irq == 0) {
 		printk(" (no irq)");

@@ -117,6 +117,7 @@ comedi_driver driver_rti800={
 	board_name:	boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_rti800);
 
 static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs);
 
@@ -314,7 +315,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	irq=it->options[1];
 	if(irq>0){
 		printk("( irq = %d )\n",irq);
-		if((ret=request_irq(irq,rti800_interrupt, SA_INTERRUPT, "rti800", dev))<0)
+		if((ret=comedi_request_irq(irq,rti800_interrupt, 0, "rti800", dev))<0)
 			return ret;
 		dev->irq=irq;
 	}else if(irq == 0){
@@ -434,16 +435,3 @@ static int rti800_detach(comedi_device * dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_rti800);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_rti800);
-}
-#endif

@@ -249,7 +249,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
 			} else { 
-				if (request_irq(irq, interrupt_pcl818, SA_INTERRUPT, "pcl726", dev)) {
+				if (comedi_request_irq(irq, interrupt_pcl818, 0, "pcl726", dev)) {
 					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
 				} else {

@@ -203,6 +203,7 @@ comedi_driver driver_dt2811={
 	num_names:	sizeof(boardtypes)/sizeof(boardtype),
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_dt2811);
 
 static int dt2811_ai(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
 #if 0
@@ -327,7 +328,8 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 			i = inb(dev->iobase + DT2811_ADDATLO);
 			i = inb(dev->iobase + DT2811_ADDATHI);
 			printk("(irq = %d)\n", irq);
-			request_irq(irq, dt2811_interrupt, 0 * SA_INTERRUPT, driver_name, dev);
+			ret = comedi_request_irq(irq, dt2811_interrupt, 0, driver_name, dev);
+			if(ret<0)return -EIO;
 			dev->irq = irq;
 		} else if (irq == 0) {
 			printk("(no irq)\n");
@@ -553,16 +555,3 @@ static int dt2811_do(comedi_device * dev, comedi_subdevice * s, comedi_trig * it
 	return it->n_chan;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_dt2811);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2811);
-}
-#endif

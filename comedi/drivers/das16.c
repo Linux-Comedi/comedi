@@ -317,7 +317,7 @@ static int das16_attach(comedi_device *dev,comedi_devconfig *it)
 	if(irq<0 || irq>=16 || irq_list[irq]<0){
 		return -EINVAL;
 	}
-	if (request_irq(irq, das16_interrupt, SA_INTERRUPT, "das16", dev) == 0) {
+	if (comedi_request_irq(irq, das16_interrupt, 0, "das16", dev) == 0) {
 		return -EIO;
 	}
 	dev->irq=irq;

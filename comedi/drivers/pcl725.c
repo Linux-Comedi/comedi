@@ -32,6 +32,7 @@ comedi_driver driver_pcl725={
 	attach:		pcl725_attach,
 	detach:		pcl725_detach,
 };
+COMEDI_INITCLEANUP(driver_pcl725);
 
 static int pcl725_do(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int pcl725_di(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
@@ -102,20 +103,9 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 static int pcl725_detach(comedi_device *dev)
 {
 	printk("comedi%d: pcl725: remove\n",dev->minor);
+
+	if(dev->iobase)release_region(dev->iobase,dev->iosize);
 	
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcl725);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl725);
-}
-#endif

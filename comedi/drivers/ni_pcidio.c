@@ -152,6 +152,7 @@ comedi_driver driver_pcidio={
 	attach:		nidio_attach,
 	detach:		nidio_detach,
 };
+COMEDI_INITCLEANUP(driver_pcidio);
 
 typedef struct{
 	int dev_id;
@@ -510,17 +511,3 @@ static int nidio_find_device(comedi_device *dev,int bus,int slot)
 	return -EIO;
 }
 
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcidio);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcidio);
-}
-#endif

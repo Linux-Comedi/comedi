@@ -260,6 +260,7 @@ comedi_driver driver_pcl818={
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
+COMEDI_INITCLEANUP(driver_pcl818);
 
 
 typedef struct {
@@ -1362,7 +1363,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
 			} else { 
-				if (request_irq(irq, interrupt_pcl818, SA_INTERRUPT, "pcl818", dev)) {
+				if (comedi_request_irq(irq, interrupt_pcl818, 0, "pcl818", dev)) {
 					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
 				} else {
@@ -1388,7 +1389,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->rtc_iobase=RTC_PORT(0);
 		devpriv->rtc_iosize=RTC_IO_EXTENT;
 		RTC_lock++;
-		if (!request_irq(RTC_IRQ, interrupt_pcl818_ai_mode13_dma_rtc, SA_INTERRUPT|SA_SHIRQ, "pcl818 DMA (RTC)", dev)) {
+		if (!comedi_request_irq(RTC_IRQ, interrupt_pcl818_ai_mode13_dma_rtc, 0, "pcl818 DMA (RTC)", dev)) {
 			devpriv->dma_rtc=1;
 			devpriv->rtc_irq=RTC_IRQ;
 			rt_printk(", dma_irq=%d", devpriv->rtc_irq);
@@ -1585,20 +1586,3 @@ static int pcl818_detach(comedi_device * dev)
         return 0;
 }
 
-/*  
-==============================================================================
-*/
-#ifdef MODULE
-int init_module(void)
-{
-        comedi_driver_register(&driver_pcl818);
-        return 0;
-}
-
-void cleanup_module(void)
-{
-        //  rt_printk("comedi: pcl818: unreg\n");
-        comedi_driver_unregister(&driver_pcl818);
-        // rt_printk("comedi: pcl818: unreg end\n");
-}
-#endif

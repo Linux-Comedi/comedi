@@ -424,7 +424,7 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EINVAL;
 	}
 	if (irq) {
-		if (request_irq(irq, pcl711_interrupt, SA_INTERRUPT, "pcl711", dev)) {
+		if (comedi_request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
 			printk("unable to allocate irq %d\n", irq);
 			free_resources(dev);
 			return -EINVAL;

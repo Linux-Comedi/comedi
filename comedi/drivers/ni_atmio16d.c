@@ -146,6 +146,7 @@ comedi_driver driver_atmio16d={
 	num_names:	n_atmio16_boards,
 	offset:		sizeof(atmio16_board_t),
 };
+COMEDI_INITCLEANUP(driver_atmio16d);
 
 /* range structs */
 static comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
@@ -726,8 +727,8 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* check if our interrupt is available and get it */
 	irq=it->options[1];
 	if(irq>0){
-		if((ret=request_irq(irq,atmio16d_interrupt,
-							SA_INTERRUPT, "atmio16d", dev))<0)
+		if((ret=comedi_request_irq(irq,atmio16d_interrupt,
+			0, "atmio16d", dev))<0)
 			return ret;
 		dev->irq=irq;
 		printk("( irq = %d )\n",irq);
@@ -850,17 +851,3 @@ static int atmio16d_detach(comedi_device * dev)
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_atmio16d);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_atmio16d);
-	
-}
-#endif

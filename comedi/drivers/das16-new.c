@@ -1034,7 +1034,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	/* now for the irq */
 	irq=it->options[1];
 	if(irq>0){
-		if((ret=request_irq(irq,das16_interrupt,SA_INTERRUPT,"das16",dev))<0)
+		if((ret=comedi_request_irq(irq,das16_interrupt,0,"das16",dev))<0)
 			return ret;
 		dev->irq=irq;
 		printk(" ( irq = %d )\n",irq);

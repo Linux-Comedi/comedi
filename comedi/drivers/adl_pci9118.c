@@ -1298,7 +1298,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
         request_region(devpriv->iobase_a, devpriv->iosize_a, "ADLink PCI-9118");
 	
 	if (irq>0)  {
-		if (request_irq(irq, interrupt_pci9118, SA_INTERRUPT, "ADLink PCI-9118", dev)) {
+		if (comedi_request_irq(irq, interrupt_pci9118, 0, "ADLink PCI-9118", dev)) {
 			rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 			irq=0; /* Can't use IRQ */
 		} else {
