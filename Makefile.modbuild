@@ -7,7 +7,8 @@
 # headers
 # PCMCIADIR = /home/ds/stuff/pcmcia-cs-3.1.15
 
-ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
+#ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
+ARCH := ppc
 
 .EXPORT_ALL_VARIABLES:
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
@@ -20,6 +21,30 @@ FINDHPATH	= $(HPATH)/$(project)
 
 HOSTCC		=gcc
 HOSTCFLAGS	=-Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+
+CROSS_COMPILE	= powerpc-linux-
+
+#
+# Include the make variables (CC, etc...)
+#
+
+AS              = $(CROSS_COMPILE)as
+LD              = $(CROSS_COMPILE)ld
+CC              = $(CROSS_COMPILE)gcc
+CPP             = $(CC) -E
+AR              = $(CROSS_COMPILE)ar
+NM              = $(CROSS_COMPILE)nm
+STRIP           = $(CROSS_COMPILE)strip
+OBJCOPY         = $(CROSS_COMPILE)objcopy
+OBJDUMP         = $(CROSS_COMPILE)objdump
+MAKEFILES       = $(TOPDIR)/.config
+GENKSYMS        = /sbin/genksyms
+MODFLAGS        = -DMODULE
+PERL            = perl
+
+export  VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION KERNELRELEASE ARCH \
+	CONFIG_SHELL TOPDIR HPATH HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
+	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE MAKEFILES GENKSYMS MODFLAGS PERL
 
 CFLAGS = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
 # use '-fno-strict-aliasing', but only if the compiler can take it
