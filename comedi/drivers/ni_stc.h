@@ -553,7 +553,7 @@
 #define AO_Deglitch		_bit1
 #define AO_Ext_Ref		_bit2
 #define AO_Ground_Ref		_bit3
-#define AO_Channel(x)		((x) & _bit8)
+#define AO_Channel(x)		((x) << 8)
 
 #define DAC_FIFO_Data			0x1e
 #define DAC0_Direct_Data		0x18
