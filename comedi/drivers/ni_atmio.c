@@ -243,15 +243,30 @@ typedef struct{
 
 static int atmio_attach(comedi_device *dev,comedi_devconfig *it);
 static int atmio_detach(comedi_device *dev);
+static int atmio_recognize(const char *name);
 comedi_driver driver_atmio={
-	driver_name:	"atmio-E",
+	driver_name:	"ni_atmio",
 	module:		THIS_MODULE,
 	attach:		atmio_attach,
 	detach:		atmio_detach,
+	recognize:	atmio_recognize,
 };
 
 
 #include "ni_mio_common.c"
+
+static int atmio_recognize(const char *name)
+{
+	if(!strcmp(name,"atmio-E")){
+		printk("Driver name 'atmio-E' deprecated.  Please use 'ni_atmio'.\n");
+		return 0;
+	}
+	if(!strcmp(name,"ni_atmio")){
+		return 0;
+	}
+
+	return -1;
+}
 
 
 static int init_stage2(comedi_device *dev,comedi_devconfig *it);
