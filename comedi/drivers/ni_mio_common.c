@@ -344,33 +344,31 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 	MDPRINTK("mite_handle_interrupt\n");
 	writel(CHOR_CLRLC, mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan));
 
-#ifdef NO_MUNGE
-	/*
-	 * Don't munge the data, just update the user's status variables
-	 */
-	async->buf_int_count = mite_bytes_transferred(mite, 0);
-	async->buf_int_ptr = async->buf_int_count % async->prealloc_bufsz;     
-#else
-	/*
-	 * Munge the ADC data to change its format from twos complement
-	 * to unsigned int.  This is slow but makes it more compatible
-	 * with other cards
-	 */
-	{ 
-	unsigned int raw_ptr;
-	async->buf_int_count = mite_bytes_transferred(mite, 0);
-	raw_ptr = async->buf_int_count % async->prealloc_bufsz;
-	if(async->buf_int_ptr > raw_ptr) {
+	if(async->cmd.flags & CMDF_RAWDATA){
+		/*
+		 * Don't munge the data, just update the user's status
+		 * variables
+		 */
+		async->buf_int_count = mite_bytes_transferred(mite, 0);
+		async->buf_int_ptr = async->buf_int_count % async->prealloc_bufsz;     
+	}else{
+		/*
+		 * Munge the ADC data to change its format from two's
+		 * complement to unsigned int.  This is slow but makes
+		 * it more compatible with other cards.
+		 */
+		unsigned int raw_ptr;
+		async->buf_int_count = mite_bytes_transferred(mite, 0);
+		raw_ptr = async->buf_int_count % async->prealloc_bufsz;
+		if(async->buf_int_ptr > raw_ptr) {
+			ni_munge(dev,s,async->buf_int_ptr+async->prealloc_buf,
+				async->prealloc_buf+async->prealloc_bufsz);
+			async->buf_int_ptr = 0;
+		}
 		ni_munge(dev,s,async->buf_int_ptr+async->prealloc_buf,
-			async->prealloc_buf+async->prealloc_bufsz);
-		async->buf_int_ptr = 0;
+			raw_ptr+s->async->prealloc_buf);
+		s->async->buf_int_ptr = raw_ptr;
 	}
-	ni_munge(dev,s,async->buf_int_ptr+async->prealloc_buf,
-		raw_ptr+s->async->prealloc_buf);
-	s->async->buf_int_ptr = raw_ptr;
-	}
-#endif
-
 
 	len = sizeof(sampl_t)*async->cmd.stop_arg*async->cmd.scan_end_arg;
 	if((devpriv->mite->DMA_CheckNearEnd) &&
@@ -682,7 +680,7 @@ static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start,
 	mask=(1<<boardtype.adbits)-1;
 	j=async->cur_chan;
 	for(i=start;i<stop;i++){
-		*i +=devpriv->ai_xorlist[j];
+		*i = __le16_to_cpu(*i) + devpriv->ai_xorlist[j];
 		j++;
 		if(j>=async->cmd.chanlist_len)j=0;
 	}
