@@ -2124,8 +2124,8 @@ int gpct_setup(comedi_device *dev,comedi_subdevice *s)
 	/* win_out(0x0000,Interrupt_B_Enable_Register); */
 
 	/* G(i)_Synchronized_Gate = 1 (write) */
-	devpriv->gpctr_command[0] |= G0_Synchronized_Gate;
-	devpriv->gpctr_command[1] |= G1_Synchronized_Gate;
+	devpriv->gpctr_command[0] |= G_Synchronized_Gate;
+	devpriv->gpctr_command[1] |= G_Synchronized_Gate;
 	win_out(devpriv->gpctr_command[0],G_Command_Register(0));
 	win_out(devpriv->gpctr_command[1],G_Command_Register(1));
 
@@ -2146,7 +2146,7 @@ int gpct_setup(comedi_device *dev,comedi_subdevice *s)
            "relative position sensing" mode and then arms it */
   
 	/* G(i)_Load_Source_Select = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G0_Load_Source_Select;
+	devpriv->gpctr_mode[0] &= ~G_Load_Source_Select;
 	win_out(devpriv->gpctr_mode[0],G_Mode_Register(0));
 
 	/* G(i)_Load_A = initial counter value (write) */
@@ -2158,7 +2158,7 @@ int gpct_setup(comedi_device *dev,comedi_subdevice *s)
 	/* FLUSH */
 
 	/* G(i)_Load = 1 (strobe) */
-	tmpreg = devpriv->gpctr_command[0] | G0_Load;
+	tmpreg = devpriv->gpctr_command[0] | G_Load;
 	win_out(tmpreg,G_Command_Register(0));
 
 	/* FLUSH */
@@ -2168,62 +2168,62 @@ int gpct_setup(comedi_device *dev,comedi_subdevice *s)
 	devpriv->gpctr_input_select[0] |= G_Source_Select(0x01);
 
 	/* G(i)_Source_Polarity = 0 (count rising edges) (write) */
-	devpriv->gpctr_input_select[0] &= ~G0_Source_Polarity;
+	devpriv->gpctr_input_select[0] &= ~G_Source_Polarity;
 
 	/* G(i)_Gate_select = 0 (write) */
 	devpriv->gpctr_input_select[0] &= (0xffff & G_Gate_Select(0x00));
 	devpriv->gpctr_input_select[0] |= G_Gate_Select(0x00);
 
 	/* G(i)_OR_Gate = 0 (write) */
-	devpriv->gpctr_input_select[0] &= ~G0_OR_Gate;
+	devpriv->gpctr_input_select[0] &= ~G_OR_Gate;
 
 	/* G(i)_Output_Polarity = 0 (write) */
-	devpriv->gpctr_input_select[0] &= ~G0_Output_Polarity;
+	devpriv->gpctr_input_select[0] &= ~G_Output_Polarity;
 
 	/* G(i)_Gate_Select_Load_Source = 0 (write) */
-	devpriv->gpctr_input_select[0] &= ~G0_Gate_Select_Load_Source;
+	devpriv->gpctr_input_select[0] &= ~G_Gate_Select_Load_Source;
 
 	/* G(i)_Gate_Polarity = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G0_Gate_Polarity;
+	devpriv->gpctr_mode[0] &= ~G_Gate_Polarity;
 
 	/* G(i)_Output_Mode = 1 (one clock cycle output) (write) */
 	devpriv->gpctr_mode[0] &= (0xffff & G_Output_Mode(0x00));
 	devpriv->gpctr_mode[0] |= G_Output_Mode(0x01);
 
 	/* G(i)_Reload_Source_Switching = 1 (write) */
-	devpriv->gpctr_mode[0] |= G0_Reload_Source_Switching;
+	devpriv->gpctr_mode[0] |= G_Reload_Source_Switching;
 
 	/* G(i)_Loading_On_Gate = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G0_Loading_On_Gate;
+	devpriv->gpctr_mode[0] &= ~G_Loading_On_Gate;
 
 	/* G(i)_Gating_Mode = 2 (write) */
 	devpriv->gpctr_mode[0] &= (0xffff & G_Gating_Mode(0x00));
 	devpriv->gpctr_mode[0] |= G_Gating_Mode(0x02);
 
 	/* G(i)_Gate_On_Both_Edges = 0 (write) */
-	devpriv->gpctr_mode[0] &= ~G0_Gate_On_Both_Edges;
+	devpriv->gpctr_mode[0] &= ~G_Gate_On_Both_Edges;
 
 	/* G(i)_Trigger_Mode_For_Edge_Gate = 3 (write) */
 	devpriv->gpctr_mode[0] &= (0xffff & G_Trigger_Mode_For_Edge_Gate(0x00));
 	devpriv->gpctr_mode[0] |= G_Trigger_Mode_For_Edge_Gate(0x03);
 
 	/* G(i)_Stop_Mode = 0 */
-	devpriv->gpctr_mode[0] &= (0xffff & G0_Stop_Mode(0x00));
-	devpriv->gpctr_mode[0] |= G0_Stop_Mode(0x00);
+	devpriv->gpctr_mode[0] &= (0xffff & G_Stop_Mode(0x00));
+	devpriv->gpctr_mode[0] |= G_Stop_Mode(0x00);
 
 	/* G(i)_Counting_Once = 0 (write) */
-	devpriv->gpctr_mode[0] &= (0xffff & G0_Counting_Once(0x00));
-	devpriv->gpctr_mode[0] |= G0_Counting_Once(0x00);
+	devpriv->gpctr_mode[0] &= (0xffff & G_Counting_Once(0x00));
+	devpriv->gpctr_mode[0] |= G_Counting_Once(0x00);
 
 	/* G(i)_Up_Down = 2 (hardware controlled) (write) */
 	devpriv->gpctr_command[0] &= (0xffff & G_Up_Down(0x00));
 	devpriv->gpctr_command[0] |= G_Up_Down(0x02);
 
 	/* G(i)_Bank_Switch_Enable = 0 (write) */
-	devpriv->gpctr_command[0] &= ~G0_Bank_Switch_Enable;
+	devpriv->gpctr_command[0] &= ~G_Bank_Switch_Enable;
 
 	/* G(i)_Bank_Switch_Mode = 0 (write) */
-	devpriv->gpctr_command[0] &= ~G0_Bank_Switch_Mode;
+	devpriv->gpctr_command[0] &= ~G_Bank_Switch_Mode;
 
 	/* XXX - for now we ignore interrupts */
 	/* G(i)_TC_Interrupt_Enable = 0 (write) */
@@ -2327,7 +2327,8 @@ static int gpct_sp(comedi_device *dev,comedi_param *it)
 }
 #endif
 
-#ifdef GPCTR
+#define GPCTR 1
+#if GPCTR
 /*
 *   Low level stuff...Each STC counter has two 24 bit load registers (A&B).  Just make
 * it easier to access them.
@@ -2346,14 +2347,10 @@ void GPCTR_Load_B(comedi_device *dev, int chan, long value){
 *  reset its value.
 */
 void GPCTR_Load_Using_A(comedi_device *dev, int chan, long value){
-	short int masked_mode,masked_command;
-	//masked win_out to set Gi_Mode_Registers load source to A
-	masked_mode = (chan?devpriv->gpctr_mode1:devpriv->gpctr_mode0);
-	masked_mode &= (~G_Mode_Load_reg_bit);
-	
+	devpriv->gpctr_mode[chan] &= (~G_Load_Source_Select);
+	win_out( G_Mode_Register(chan),devpriv->gpctr_mode[chan]);
 	GPCTR_Load_A(dev,chan,value);
-	//masked win_out to Gi_Command_Register to tell the STC to load the value
-	xxx
+	win_out( G_Command_Register(chan), devpriv->gpctr_mode[chan]|G_Load);
 }
 
 #endif
