@@ -62,26 +62,6 @@
 #define MDPRINTK(format,args...)
 #endif
 
-/* How we access windowed registers */
-
-#define win_out(a,b) do{ \
-		ni_writew((b),Window_Address); \
-		ni_writew((a),Window_Data); \
-	}while(0)
-#define win_out2(a,b) do{ \
-		ni_writew((b),Window_Address); \
-		ni_writew(((a)>>16)&0xffff,Window_Data); \
-		ni_writew((b)+1,Window_Address); \
-		ni_writew((a)&0xffff,Window_Data); \
-	}while(0)
-#define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
-#define win_save() (ni_readw(Window_Address))
-#define win_restore(a) (ni_writew((a),Window_Address))
-#define ao_win_out(a,b) do{ \
-		ni_writew((b),AO_Window_Address_671x); \
-		ni_writew((a),AO_Window_Data_671x); \
-	}while(0)
-
 /* A timeout count */
 
 #define NI_TIMEOUT 1000
@@ -331,8 +311,8 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 */
 	wsave=win_save();
 	
-	a_status=ni_readw(AI_Status_1);
-	b_status=ni_readw(AO_Status_1);
+	a_status=win_in(AI_Status_1_Register);
+	b_status=win_in(AO_Status_1_Register);
 #ifdef PCIDMA
 	m_status=readl(mite->mite_io_addr+MITE_CHSR+CHAN_OFFSET(mite->chan));
 #endif
@@ -511,7 +491,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 	}
 #endif // !PCIDMA
 
-	if(ack) ni_writew(ack,Interrupt_A_Ack);
+	if(ack) win_out(ack,Interrupt_A_Ack_Register);
 
 	comedi_event(dev,s,s->async->events);
 }
@@ -523,17 +503,17 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 
 	if(b_status==0xffff)return;
 	if(b_status&AO_Overrun_St){
-		rt_printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
+		rt_printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
 	}
 
 	if(b_status&AO_BC_TC_St){
-		rt_printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
+		rt_printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
 	}
 
 	if(b_status&AO_FIFO_Request_St)
 		ni_ao_fifo_half_empty(dev,s);
 
-	b_status=ni_readw(AO_Status_1);
+	b_status=win_in(AO_Status_1_Register);
 	if(b_status&Interrupt_B_St){
 		if(b_status&AO_FIFO_Request_St){
 			rt_printk("ni_mio_common: AO buffer underrun\n");
@@ -667,7 +647,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	while(1){
 		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
-			if(ni_readw(AI_Status_1)&AI_FIFO_Empty_St){
+			if(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St){
 				s->async->cur_chan=j;
 				return;
 			}
@@ -854,7 +834,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	for(n=0;n<insn->n;n++){
 		win_out(1,AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
-			if(!(ni_readw(AI_Status_1)&AI_FIFO_Empty_St))
+			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St))
 				break;
 		}
 		if(i==NI_TIMEOUT){
@@ -967,7 +947,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 	win_out(1,AI_Command_1_Register);
 	for(i=0;i<1000;i++){
-		if(!(ni_readw(AI_Status_1)&AI_FIFO_Empty_St)){
+		if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
 			win_out(1,ADC_FIFO_Clear);
 			return;
 		}
@@ -1711,7 +1691,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	ni_set_bits(dev, Interrupt_B_Enable_Register,
 		AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 1);
 
-	ni_writew(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2);
+	win_out(devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2_Register);
 
 	s->async->inttrig=NULL;
 
@@ -1766,7 +1746,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	devpriv->ao_cmd2&=~AO_BC_Gate_Enable;
-	ni_writew(devpriv->ao_cmd2,AO_Command_2);
+	win_out(devpriv->ao_cmd2,AO_Command_2_Register);
 	devpriv->ao_mode1&=~(AO_UI_Source_Select(0x1f)|AO_UI_Source_Polarity);
 	win_out(devpriv->ao_mode1,AO_Mode_1_Register);
 	devpriv->ao_mode2&=~(AO_UI_Reload_Mode(3)|AO_UI_Initial_Load_Source);
@@ -1932,7 +1912,7 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
 		win_out(devpriv->dio_output,DIO_Output_Register);
 	}
-	data[1] = ni_readw(DIO_Parallel_Input);
+	data[1] = win_in(DIO_Parallel_Input_Register);
 
 	return 2;
 }
@@ -2071,7 +2051,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	win_out(AO_Disarm,AO_Command_1_Register);
 	win_out(0,Interrupt_B_Enable_Register);
 	win_out(0x0010,AO_Personal_Register);
-	ni_writew(0x3f98,Interrupt_B_Ack);
+	win_out(0x3f98,Interrupt_B_Ack_Register);
 	win_out(0x1430,AO_Personal_Register);
 	win_out(0,AO_Output_Control_Register);
 	win_out(0,AO_Start_Select_Register);
@@ -2140,18 +2120,18 @@ static int ni_read_eeprom(comedi_device *dev,int addr)
 	int bitstring;
 
 	bitstring=0x0300|((addr&0x100)<<3)|(addr&0xff);
-	ni_writeb_p(0x04,Serial_Command);
+	ni_writeb(0x04,Serial_Command);
 	for(bit=0x8000;bit;bit>>=1){
-		ni_writeb_p(0x04|((bit&bitstring)?0x02:0),Serial_Command);
-		ni_writeb_p(0x05|((bit&bitstring)?0x02:0),Serial_Command);
+		ni_writeb(0x04|((bit&bitstring)?0x02:0),Serial_Command);
+		ni_writeb(0x05|((bit&bitstring)?0x02:0),Serial_Command);
 	}
 	bitstring=0;
 	for(bit=0x80;bit;bit>>=1){
-		ni_writeb_p(0x04,Serial_Command);
-		ni_writeb_p(0x05,Serial_Command);
-		bitstring|=((ni_readb_p(XXX_Status)&0x01)?bit:0);
+		ni_writeb(0x04,Serial_Command);
+		ni_writeb(0x05,Serial_Command);
+		bitstring|=((ni_readb(XXX_Status)&0x01)?bit:0);
 	}
-	ni_writeb_p(0x00,Serial_Command);
+	ni_writeb(0x00,Serial_Command);
 	
 	return bitstring;
 }

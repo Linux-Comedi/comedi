@@ -132,7 +132,9 @@
 #define AO_UPDATE2_Pulse			_bit1
 #define AO_START1_Pulse				_bit0
 
-#define DIO_Input_Register		7
+#define AO_Status_2_Register		6
+
+#define DIO_Parallel_Input_Register	7
 #define DIO_SDIN        			_bit4
 
 #define AI_Command_1_Register		8
@@ -386,23 +388,6 @@
 #define AI_External_Gate_Polarity		_bit5
 #define AI_External_Gate_Select(a)		(a)
 
-
-/* 16 bit registers shadowed from DAQ-STC */
-#define Window_Address			0x00
-#define Window_Data			0x02
-#define Interrupt_A_Ack			0x04
-#define AI_Status_1			0x04
-#define Interrupt_B_Ack			0x06
-#define AO_Status_1			0x06
-#define AI_Command_2			0x08
-#define G_Status			0x08
-#define AO_Command_2			0x0a
-#define AI_Status_2			0x0a
-#define G0_Command			0x0c
-#define AO_Status_2			0x0c
-#define G1_Command			0x0e
-#define DIO_Parallel_Input		0x0e
-
 #define G_Autoincrement_Register(a)	(68+(a))
 #define G_Command_Register(a)		(6+(a))	
 #define G_HW_Save_Register(a)		(8+(a)*2)
@@ -520,6 +505,24 @@
 
 /* Additional windowed registers unique to E series */
 
+/* 16 bit registers shadowed from DAQ-STC */
+#define Window_Address			0x00
+#define Window_Data			0x02
+#if 0
+#define Interrupt_A_Ack			0x04
+#define AI_Status_1			0x04
+#define Interrupt_B_Ack			0x06
+#define AO_Status_1			0x06
+#define AI_Command_2			0x08
+#define G_Status			0x08
+#define AO_Command_2			0x0a
+#define AI_Status_2			0x0a
+#define G0_Command			0x0c
+#define AO_Status_2			0x0c
+#define G1_Command			0x0e
+#define DIO_Parallel_Input		0x0e
+#endif
+
 #define Configuration_Memory_Clear	82
 #define ADC_FIFO_Clear			83
 #define DAC_FIFO_Clear			84
@@ -559,6 +562,22 @@
 #define DAC0_Direct_Data		0x18
 #define DAC1_Direct_Data		0x1a
 
+
+/* 611x registers (these boards differ from the e-series) */
+
+#define AI_Command_2_Register_611x	8
+//#define AO_Status_1_Register_611x	4
+#define DAC_FIFO_Data_611x		0x14
+
+#if 0
+#define AI_Status_1_611x		0x02
+#define AO_Status_1_611x		0x04
+#define G_Status_611x			0x06
+#define AI_Status_2_611x		0x08
+#define AO_Status_2_611x		0x0a
+#define DIO_Parallel_Input_611x		0x0c
+#endif
+
 /* 671x registers */
 
 #define AO_Window_Address_671x		0x18 /* W 16 */
@@ -568,6 +587,7 @@
 
 #define DACx_Direct_Data_671x(x)	(x) /* W 16 */
 #define AO_Immediate_671x		0x11 /* W 16 */
+
 
 
 #define SerDacLd(x)			(0x08<<(x))
@@ -605,6 +625,8 @@ typedef struct ni_board_struct{
 	int has_analog_trig : 1;
 
 	int ao_671x : 1;
+
+	int reg_611x : 1;
 
 	enum caldac_enum caldac[3];
 }ni_board;

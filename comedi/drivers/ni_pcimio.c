@@ -429,7 +429,8 @@ static ni_board ni_boards[]={
 		ao_671x:	1,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
-		caldac:         {mb88341,mb88341,ad8522},/* XXX */
+		reg_611x:	1,
+		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
 	},
 	{       device_id:      0x14f0,
 		name:           "pci-6111e",
@@ -444,7 +445,8 @@ static ni_board ni_boards[]={
 		ao_671x:	1,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
-		caldac:         {mb88341,mb88341,ad8522},/* XXX */
+		reg_611x:	1,
+		caldac:         {ad8804_debug,ad8804_debug,ad8804_debug},/* XXX */
 	},
 	{       device_id:      0x1880,
 		name:           "pci-6711",
@@ -582,8 +584,42 @@ COMEDI_INITCLEANUP(driver_pcimio);
 #define ni_readw(a)		(readw(dev->iobase+(a)))
 #define ni_writeb(a,b)		(writeb((a),dev->iobase+(b)))
 #define ni_readb(a)		(readb(dev->iobase+(a)))
-#define ni_writeb_p(a,b)	(ni_writeb(a,b),ni_writeb(a,b))
-#define ni_readb_p(a)		(ni_readb(a),ni_readb(a))
+
+/* How we access STC registers */
+
+/* We automatically take advantage of STC registers that can be
+ * read/written directly in the I/O space of the board.  Most
+ * PCIMIO devices map the low 8 STC registers to iobase+addr*2.
+ * The 611x devices map the write registers to iobase+addr*2, and
+ * the read registers to iobase+(addr-1)*2. */
+
+#define win_out(data,addr) do{ \
+	if((addr)<8){ \
+		ni_writew((data),(addr)*2); \
+	}else{ \
+		ni_writew((addr),Window_Address); \
+		ni_writew((data),Window_Data); \
+	} \
+}while(0)
+
+#define win_out2(data,addr) do{ \
+	win_out((data)>>16, (addr)); \
+	win_out((data)&0xffff, (addr)+1); \
+}while(0)
+
+#define win_in(addr) ( \
+	((addr)<7) \
+	? (ni_readw(((addr) - boardtype.reg_611x)*2)) \
+	: (ni_writew((addr),Window_Address),ni_readw(Window_Data)))
+
+#define win_save() (ni_readw(Window_Address))
+#define win_restore(a) (ni_writew((a),Window_Address))
+
+#define ao_win_out(a,b) do{ \
+	ni_writew((b),AO_Window_Address_671x); \
+	ni_writew((a),AO_Window_Data_671x); \
+}while(0)
+
 
 
 #define interrupt_pin(a)	0
