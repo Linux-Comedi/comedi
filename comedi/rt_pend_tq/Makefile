@@ -6,24 +6,9 @@ MOD_LIST_NAME := MISC_MODULES
 
 EXTRA_CFLAGS := -I ../
 
-export-objs := 
-
-obj-y :=
-obj-m :=
-obj-n :=
-obj-  :=
-
-obj-$(CONFIG_COMEDI_RT)		+= rt_pend_tq.o
-
-obj-m += $(obj-y)
-
-#L_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-y)))
-#LX_OBJS	:= $(sort $(filter     $(export-objs), $(obj-y)))
-#MI_OBJS	:= $(sort $(filter-out $(export-objs), $(obj-y)))
-#MIX_OBJS	:= $(sort $(filter     $(export-objs), $(obj-y)))
-M_OBJS		:= $(sort $(filter-out $(export-objs), $(obj-m)))
-MX_OBJS		:= $(sort $(filter     $(export-objs), $(obj-m)))
-
+ifeq ($(CONFIG_COMEDI_RT),y)
+MI_OBJS		+= rt_pend_tq.o
+endif
 
 
 include $(TOPDIR)/Rules.make
