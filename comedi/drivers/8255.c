@@ -253,7 +253,7 @@ static int subdev_8255_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	/* step 3 */
 
 	if(cmd->start_arg != 0){
-		cmd->start_arg = 1;
+		cmd->start_arg = 0;
 		err++;
 	}
 	if(cmd->scan_begin_arg!=0){
