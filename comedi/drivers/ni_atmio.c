@@ -292,14 +292,6 @@ static int atmio_detach(comedi_device *dev)
 
 static int atmio_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	if(!strcmp("ni_E",it->board_name)){
-		printk("comedi: 'ni_E' deprecated.  Use 'atmio-E'\n");
-	}else if(!strcmp("atmio-E",it->board_name)){
-		;
-	}else{
-		return 0;
-	}
-
 	return init_stage2(dev,it);
 }
 
