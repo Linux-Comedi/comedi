@@ -65,6 +65,7 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
 
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 int resize_buf(comedi_device *dev,comedi_async *s, unsigned int size);
+static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
 static int comedi_fasync (int fd, struct file *file, int on);
 
@@ -505,6 +506,15 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 
 		async->buf_user_ptr += bi.bytes_read;
 		async->buf_user_count += bi.bytes_read;
+
+		// check for buffer overrun
+		if(m > async->data_len){	/* XXX MODE */
+			async->buf_user_count = async->buf_int_count;
+			async->buf_user_ptr = async->buf_int_ptr;
+			do_cancel(dev, dev->read_subdev);
+			DPRINTK("buffer overrun\n");
+			return -EIO;
+		}
 	}
 
 	comedi_spin_lock_irqsave(&bufinfo_lock, irq_flags);
@@ -1334,7 +1344,6 @@ static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 	return 0;
 }
 
-static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 /*
 	COMEDI_CANCEL
 	cancel acquisition ioctl
