@@ -7,6 +7,7 @@
 #include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/highmem.h>  /* for SuSE brokenness */
 #include <linux/wrapper.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
