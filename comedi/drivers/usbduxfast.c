@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.9"
+#define DRIVER_VERSION "v0.91"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 03 Jan 2005
+Updated: 13 Jan 2005
 Status: testing
 */
 
@@ -641,8 +641,6 @@ int usbduxfastsub_submit_InURBs(usbduxfastsub_t* usbduxfastsub) {
 			  SIZEINBUF,
 			  usbduxfastsub_ai_Irq,
 			  usbduxfastsub->comedidev);
-        usbduxfastsub->urbIn->transfer_flags |= URB_ASYNC_UNLINK;
-
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi%d: usbduxfast: submitting in-urb: %x,%x\n",
