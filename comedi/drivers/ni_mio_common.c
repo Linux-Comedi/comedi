@@ -413,7 +413,7 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
 	rmb();
 	/* We use mite_bytes_read() for the overrun check
-	 * because it returns an upper board, and mite_bytes_transferred
+	 * because it returns an upper bound, and mite_bytes_transferred
 	 * returns a lower bound on the number of bytes actually
 	 * transferred */
 	if( (int)(mite_bytes_read(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
@@ -548,7 +548,6 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	unsigned int m_status)
 {
 	comedi_subdevice *s=dev->subdevices+0;
-	//comedi_async *async = s->async;
 	unsigned short ack=0;
 
 	s->async->events = 0;
@@ -1133,7 +1132,7 @@ static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 	int count;
 
 	// lock to avoid race with interrupt handler
- if(in_interrupt() == 0)
+	if(in_interrupt() == 0)
 		comedi_spin_lock_irqsave(&dev->spinlock, flags);
 #ifndef PCIDMA
 	ni_handle_fifo_dregs(dev);
@@ -1536,7 +1535,11 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	int interrupt_a_enable=0;
 
 	MDPRINTK("ni_ai_cmd\n");
-
+	if(dev->irq == 0)
+	{
+		comedi_error(dev, "cannot run command without an irq");
+		return -EIO;
+	}
 	win_out(1,ADC_FIFO_Clear);
 
 	ni_load_channelgain_list(dev,cmd->chanlist_len,cmd->chanlist);
@@ -2095,7 +2098,12 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	int trigvar;
 	int bits;
 	int i;
-
+	
+	if(dev->irq == 0)
+	{
+		comedi_error(dev, "cannot run command without an irq");
+		return -EIO;
+	}
 	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
