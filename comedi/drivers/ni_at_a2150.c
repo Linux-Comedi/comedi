@@ -400,7 +400,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 		disable_dma(dma);
 		set_dma_mode(dma, DMA_MODE_READ);
 
-		devpriv->irq_dma_bits |= DMA_DEM_EN_BIT | DMA_CHAN_BITS(dma);
+		devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
 	}
 
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
