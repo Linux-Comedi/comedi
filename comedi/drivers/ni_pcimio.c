@@ -154,7 +154,7 @@ static ni_board ni_boards[]={
 		has_8255:       0,
 	},
 	{       device_id:      0x1190,
-		name:           "pci-mio-16e-4",
+		name:           "pci-mio-16e-4", /* aka pci-6040e */
 		n_adchan:       16,
 		adbits:         12,
 		ai_fifo_depth:  512,
@@ -375,8 +375,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		caldac:         type4,		/* XXX */
 	},
-#if 0
-	{       device_id:      0x0000,		/* unknown */
+	{       device_id:      0x1880,
 		name:           "pci-6711",
 		n_adchan:       0,
 		adbits:         0,
@@ -390,7 +389,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  8192,
 		caldac:         type4,		/* XXX */
 	},
-#endif
 	{       device_id:      0x1870,
 		name:           "pci-6713",
 		n_adchan:       0,
@@ -450,31 +448,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		caldac:         type4,
 	},
-
-
-
-#if 0
-	{       device_id:      0x0000,		/* unknown */
-		name:           "pci-6040e",
-		ai_speed:	800,
-	},
-	{       device_id:      0x0000,		/* unknown */
-		name:           "pci-6041e",
-		ai_speed:	800,
-	},
-	{       device_id:      0x0000,		/* unknown */
-		name:           "pci-1200",
-		ai_speed:	10000,
-	},
-	{       device_id:      0x0000,		/* unknown */
-		name:           "ni-5911 for PCI",
-		ai_speed:	10000,
-	},
-	{       device_id:      0x0000,		/* unknown */
-		name:           "ni-5102 for PCI",
-		ai_speed:	10000,
-	},
-#endif
 };
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
 
