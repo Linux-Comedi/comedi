@@ -22,7 +22,7 @@
 #include <linux/version.h>
 #include_next <linux/kdev_t.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+#if 0
 
 #ifndef major
 #define major(x) MAJOR(x)

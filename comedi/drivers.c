@@ -50,7 +50,7 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 
 comedi_driver *comedi_drivers;
 
-int comedi_modprobe(kdev_t minor)
+int comedi_modprobe(int minor)
 {
 	return -EINVAL;
 }
