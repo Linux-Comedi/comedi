@@ -68,8 +68,6 @@ easily added.
 
 TODO:
 	command support for ao
-	to be safe, should add locking for all manipulation of software copies
-		of registers (before adding ao command support)
 	user counter subdevice
 	there are a number of boards this driver will support when they are
 		fully released, but does not yet since the pci device id numbers
@@ -265,8 +263,12 @@ enum adc_control1_contents
 	SW_GATE_BIT = 0x40,	// software gate of adc
 	ADC_DITHER_BIT = 0x200,	// turn on extra noise for dithering
 	RETRIGGER_BIT = 0x800,
+	ADC_LO_CHANNEL_4020_MASK = 0x300,
+	ADC_HI_CHANNEL_4020_MASK = 0xc00,
 	TWO_CHANNEL_4020_BITS = 0x1000, // two channel mode for 4020
 	FOUR_CHANNEL_4020_BITS = 0x2000,	// four channel mode for 4020
+	CHANNEL_MODE_4020_MASK = 0x3000,
+	ADC_MODE_MASK = 0xf000,
 };
 static inline uint16_t adc_lo_chan_4020_bits( unsigned int channel )
 {
@@ -1414,7 +1416,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	const int timeout = 100;
 	unsigned int channel, range, aref;
 	unsigned long flags;
-	
+
 	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
 	channel = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
@@ -1427,6 +1429,8 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	if( insn->chanspec & CR_DITHER )
 		priv(dev)->adc_control1_bits |= ADC_DITHER_BIT;
+	else
+		priv(dev)->adc_control1_bits &= ~ADC_DITHER_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
@@ -1882,7 +1886,7 @@ static void disable_ai_pacing( comedi_device *dev )
 	writew( ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG );
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-	priv(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
+	priv(dev)->adc_control1_bits &= ~SW_GATE_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
@@ -2116,30 +2120,35 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	enable_ai_interrupts( dev, cmd );
 
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	/* set mode, allow conversions through software gate */
-	bits = SW_GATE_BIT;
+	priv(dev)->adc_control1_bits |= SW_GATE_BIT;
 	if(board(dev)->layout != LAYOUT_4020)
 	{
+		priv(dev)->adc_control1_bits &= ~ADC_MODE_MASK;
 		if( cmd->convert_src == TRIG_EXT )
-			bits |= adc_mode_bits( 13 );	// good old mode 13
+			priv(dev)->adc_control1_bits |= adc_mode_bits( 13 );	// good old mode 13
 		else
-			bits |= adc_mode_bits(8);	// mode 8.  What else could you need?
+			priv(dev)->adc_control1_bits |= adc_mode_bits(8);	// mode 8.  What else could you need?
 #if 0
 		// this causes interrupt on end of scan to be disabled on 60xx?
 		if(cmd->flags & TRIG_WAKE_EOS)
-			bits |= ADC_DMA_DISABLE_BIT;
+			priv(dev)->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
+		else
+			priv(dev)->adc_control1_bits &= ~ADC_DMA_DISABLE_BIT;
 #endif
 	} else
 	{
+		priv(dev)->adc_control1_bits &= ~CHANNEL_MODE_4020_MASK;
 		if( cmd->chanlist_len == 4 )
-			bits |= FOUR_CHANNEL_4020_BITS;
+			priv(dev)->adc_control1_bits |= FOUR_CHANNEL_4020_BITS;
 		else if( cmd->chanlist_len == 2 )
-			bits |= TWO_CHANNEL_4020_BITS;
-		bits |= adc_lo_chan_4020_bits( CR_CHAN( cmd->chanlist[0] ) );
-		bits |= adc_hi_chan_4020_bits( CR_CHAN( cmd->chanlist[ cmd->chanlist_len - 1 ] ) );
+			priv(dev)->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
+		priv(dev)->adc_control1_bits &= ~ADC_LO_CHANNEL_4020_MASK;
+		priv(dev)->adc_control1_bits |= adc_lo_chan_4020_bits( CR_CHAN( cmd->chanlist[0] ) );
+		priv(dev)->adc_control1_bits &= ~ADC_HI_CHANNEL_4020_MASK;
+		priv(dev)->adc_control1_bits |= adc_hi_chan_4020_bits( CR_CHAN( cmd->chanlist[ cmd->chanlist_len - 1 ] ) );
 	}
-	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-	priv(dev)->adc_control1_bits |= bits;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	DEBUG_PRINT("control1 bits 0x%x\n", priv(dev)->adc_control1_bits);
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
