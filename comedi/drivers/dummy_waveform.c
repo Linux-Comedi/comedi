@@ -27,6 +27,23 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************/
+/*
+Driver: dummy_waveform.o
+Description: generates fake waveforms
+Authors: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess <fmhess@uiuc.edu>
+Devices:
+Status: works
+Updated: 2002-03-05
+
+Configuration options:
+  [0] - Amplitude in microvolts for fake waveforms (default 1 volt)
+  [1] - Period in microseconds for fake waveforms (default 0.1 sec)
+
+Generates a sawtooth wave on channel 0, square wave on channel 1, additional
+waveforms could be added to other channels (currently they return flatline
+zero volts).
+
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -86,7 +103,22 @@ static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s);
 static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static sampl_t fake_sawtooth(comedi_device *dev, unsigned long current_time);
+static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range, unsigned long current_time);
+static sampl_t fake_squarewave(comedi_device *dev, unsigned int range, unsigned long current_time);
+static sampl_t fake_flatline(comedi_device *dev, unsigned int range, unsigned long current_time);
+static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
+	unsigned int range, unsigned long current_time);
+
+// fake analog input ranges
+static comedi_lrange waveform_ai_ranges =
+{
+	2,
+	{
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+	}
+};
+
 /*
    This is the background routine used to generate arbitrary data.
    It should run in the background; therefore it is scheduled by
@@ -97,7 +129,7 @@ void waveform_ai_interrupt(unsigned long arg)
 	comedi_device *dev = (comedi_device*) arg;
 	comedi_async *async = dev->read_subdev->async;
 	comedi_cmd *cmd = &async->cmd;
-	unsigned long i;
+	unsigned int i, j;
 	// all times in microsec
 	unsigned long elapsed_time;
 	unsigned int num_scans;
@@ -115,8 +147,12 @@ void waveform_ai_interrupt(unsigned long arg)
 
 	for(i = 0; i < num_scans; i++)
 	{
-		comedi_buf_put(async,
-			fake_sawtooth(dev, devpriv->usec_current + i * scan_period));
+		for( j = 0; j < cmd->chanlist_len; j++)
+		{
+			comedi_buf_put(async,
+				fake_waveform(dev, CR_CHAN(cmd->chanlist[j]), CR_RANGE(cmd->chanlist[j]),
+					devpriv->usec_current + i * scan_period));
+		}
 		devpriv->ai_count++;
 		if(cmd->stop_src == TRIG_COUNT && devpriv->ai_count >= cmd->stop_arg)
 		{
@@ -169,7 +205,7 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = thisboard->ai_chans;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = &range_bipolar10;
+	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = 16;
 	s->insn_read = waveform_ai_insn_read; // apparently, we do not need waveform_ai_rinsn;
 	s->do_cmd = waveform_ai_cmd;
@@ -354,27 +390,78 @@ unsigned long long my_ull_div(unsigned long long numerator, unsigned long denomi
 	return value + my_ull_div(remainder, denominator);
 }
 
-static sampl_t fake_sawtooth(comedi_device *dev, unsigned long current_time)
+static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range_index, unsigned long current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
-	unsigned long long value = 0;
+	unsigned long long value;
+	comedi_krange *krange = &s->range_table->range[range_index];
+	unsigned long long binary_amplitude;
+
+	binary_amplitude = s->maxdata;
+	binary_amplitude *= devpriv->uvolt_amplitude;
+	binary_amplitude = my_ull_div(binary_amplitude, krange->max - krange->min);
 
 	current_time %= devpriv->usec_period;
 	value = current_time;
-	value *= s->maxdata;
+	value *= binary_amplitude * 2;
 	value = my_ull_div(value, devpriv->usec_period);
-	value *= devpriv->uvolt_amplitude;
-	value = my_ull_div(value, 20000000);	// XXX
+	value -= binary_amplitude;	// get rid of sawtooth's dc offset
 
 	return offset + value;
+}
+static sampl_t fake_squarewave(comedi_device *dev, unsigned int range_index, unsigned long current_time)
+{
+	comedi_subdevice *s = dev->read_subdev;
+	unsigned int offset = s->maxdata / 2;
+	unsigned long long value;
+	comedi_krange *krange = &s->range_table->range[range_index];
+	current_time %= devpriv->usec_period;
+
+	value = s->maxdata;
+	value *= devpriv->uvolt_amplitude;
+	value = my_ull_div(value, krange->max - krange->min);
+
+	if(current_time < devpriv->usec_period / 2)
+		value *= -1;
+
+	return offset + value;
+}
+
+static sampl_t fake_flatline(comedi_device *dev, unsigned int range_index, unsigned long current_time)
+{
+	return dev->read_subdev->maxdata / 2;
+}
+
+// generates a different waveform depending on what channel is read
+static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
+	unsigned int range, unsigned long current_time)
+{
+	enum
+	{
+		SAWTOOTH_CHAN,
+		SQUARE_CHAN,
+	};
+	switch(channel)
+	{
+		case SAWTOOTH_CHAN:
+			return fake_sawtooth(dev, range, current_time);
+			break;
+		case SQUARE_CHAN:
+			return fake_squarewave(dev, range, current_time);
+			break;
+		default:
+			break;
+	}
+
+	return fake_flatline(dev, range, current_time);
 }
 
 static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int i;
 	for(i = 0; i < insn->n; i++)
-		data[i] = i;
+		data[i] = s->maxdata / 2;
 
 	return insn->n;
 }
