@@ -86,32 +86,32 @@
 #define INT_TYPE_AI3_INT 3
 /* #define INT_TYPE_AI3_DMA 4 */
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_pcl812pg_ai
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-        -0.625  0.625
-        -0.3125 0.3125
-RANGE_pcl812pg2_ai
-	-10	10
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-        -0.625  0.625
-RANGE_pcl813b_ai
-        -5      5
-        -2.5    2.5
-        -1.25   1.25
-        -0.625  0.625
-RANGE_pcl813b2_ai
-	0	10
-        0	5
-        0	2.5
-        0	1.25
----END-RANGE-DEFS---
-*/
+static comedi_lrange range_pcl812pg_ai = { 5, {
+	BIP_RANGE(5),
+	BIP_RANGE(2.5),
+	BIP_RANGE(1.25),
+	BIP_RANGE(0.625),
+	BIP_RANGE(0.3125),
+}};
+static comedi_lrange range_pcl812pg2_ai = { 5, {
+	BIP_RANGE(10),
+	BIP_RANGE(5),
+	BIP_RANGE(2.5),
+	BIP_RANGE(1.25),
+	BIP_RANGE(0.625),
+}};
+static comedi_lrange range_pcl813b_ai = { 4, {
+	BIP_RANGE(5),
+	BIP_RANGE(2.5),
+	BIP_RANGE(1.25),
+	BIP_RANGE(0.625),
+}};
+static comedi_lrange range_pcl813b2_ai = { 4, {
+	UNI_RANGE(10),
+	UNI_RANGE(5),
+	UNI_RANGE(2.5),
+	UNI_RANGE(1.25),
+}};
 
 static int pcl812_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl812_detach(comedi_device *dev);
@@ -133,9 +133,9 @@ typedef struct {
 	int n_aochan;
 	int n_dichan;
 	int n_dochan;
-	int ai_range_type;
+	comedi_lrange *ai_range_type;
 	int ai_timer_type;
-	int ao_range_type;
+	comedi_lrange *ao_range_type;
 	int io_range;
 	unsigned int IRQbits;
 /*	unsigned int DMAbits; */
@@ -145,8 +145,36 @@ typedef struct {
 
 static boardtype boardtypes[] =
 {
-	{"pcl812pg", 5, 16,  30, 2, 16, 16, RANGE_pcl812pg_ai, TIMER_pcl812, RANGE_unipolar5, PCLx1x_RANGE, 0xdcfc/*, 0x00 */},
-	{"pcl813b",  4, 32,  25, 0,  0,  0, RANGE_pcl813b_ai,             0,               0, PCLx1x_RANGE, 0x0000/*, 0x00 */}
+	{
+	name:		"pcl812pg",
+	n_ranges:	5,
+	n_aichan:	16,
+	ai_maxsample:	30,
+	n_aochan:	2,
+	n_dichan:	16,
+	n_dochan:	16,
+	ai_range_type:	&range_pcl812pg_ai,
+	ai_timer_type:	TIMER_pcl812,
+	ao_range_type:	&range_unipolar5,
+	io_range:	PCLx1x_RANGE,
+	IRQbits:	0xdcfc,
+//	DMAbits:	0x00,
+	},
+	{
+	name:		"pcl813b",
+	n_ranges:	4,
+	n_aichan:	32,
+	ai_maxsample:	25,
+	n_aochan:	0,
+	n_dichan:	0,
+	n_dochan:	0,
+	ai_range_type:	&range_pcl813b_ai,
+	ai_timer_type:	0,
+	ao_range_type:	NULL,
+	io_range:	PCLx1x_RANGE,
+	IRQbits:	0x0000
+//	DMAbits:	0x00,
+	},
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
@@ -643,12 +671,12 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it) {
         s->maxdata = 0xfff;
         s->len_chanlist = 1024;
         s->timer_type = this_board->ai_timer_type;
-        s->range_type = this_board->ai_range_type;
+        s->range_table = this_board->ai_range_type;
         switch (board) {
           case boardPCL812PG:
   	    s->subdev_flags|=SDF_GROUND;
             s->trig[0] = pcl812_ai_mode0;
-	    if (it->options[3]==1) s->range_type=RANGE_pcl812pg2_ai;
+	    if (it->options[3]==1) s->range_table=&range_pcl812pg2_ai;
 	    if (dev->irq) {
 	      if (it->options[2]!=1) { s->trig[1] = pcl812_ai_mode1; }
 	                        else { s->trig[3] = pcl812_ai_mode3_int; }
@@ -656,7 +684,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it) {
             break;
 	  case boardPCL813B:
 	    s->subdev_flags|=SDF_GROUND;
-	    if (it->options[1]==1) s->range_type=RANGE_pcl813b2_ai; 
+	    if (it->options[1]==1) s->range_table=&range_pcl813b2_ai; 
 	    s->trig[0] = pcl812_ai_mode0;
 	    break;
 	 }
@@ -667,14 +695,14 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it) {
         s->maxdata = 0xfff;
         s->len_chanlist = 1;
         //s->timer_type = this_board->ai_timer_type;
-        s->range_type = this_board->ao_range_type;
+        s->range_table = this_board->ao_range_type;
         switch (board) {
           case boardPCL812PG:
   	    s->subdev_flags|=SDF_GROUND;
 	    s->trig[0] = pcl812_ao_mode0;
             //s->trig[1] = pcl812_ao_mode1;
-	    if (it->options[4]==1) s->range_type=RANGE_unipolar5; 
-	    if (it->options[4]==2) s->range_type=RANGE_unknown; 
+	    if (it->options[4]==1) s->range_table=&range_unipolar5; 
+	    if (it->options[4]==2) s->range_table=&range_unknown; 
 	    break;
          }	
 	break;
@@ -683,7 +711,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it) {
         s->n_chan = this_board->n_dichan;
         s->maxdata = 1;
         s->len_chanlist = this_board->n_dichan;
-        s->range_type = RANGE_digital;
+        s->range_table = &range_digital;
         switch (board) {
           case boardPCL812PG:
 	    s->trig[0] = pcl812_di_mode0;
@@ -695,7 +723,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it) {
         s->n_chan = this_board->n_dochan;
         s->maxdata = 1;
         s->len_chanlist = this_board->n_dochan;
-        s->range_type = RANGE_digital;
+        s->range_table = &range_digital;
         switch (board) {
           case boardPCL812PG:
             s->trig[0] = pcl812_do_mode0;
@@ -785,53 +813,140 @@ void cleanup_module(void)
 #endif
 
 
-/* pcl812 timer */
-void Zisti_Div8254(long celk, long *d1, long *d2) {
+#if 0
+/* @@Kluvi: magic crystaline sphere error correction, I hope
+   that work identicaly under C and TP :-) */
+static void Zisti_Div8254(long celk, long *d1, long *d2)
+{
+	long minch,chyba,mini,i;
 
- long minch,chyba,mini,i;
-
-  minch=32000; mini=1;
-  if (celk<=(65536*2)) { i=2;
- }
-	 	  else { i=celk / 65536; }
-  do
- {
-    *d1=i;
-    *d2=celk / *d1;
-    if (*d2<65536) {
-      chyba=celk- *d1* *d2;
-      if (chyba<0) { chyba=-chyba; }
-      if (chyba<minch) {
-        minch=chyba;
-        mini=i;
-	if (chyba==0) break;
-       }
-     }
-    i++;
-   } while ((i<65536)&&(*d2>2)&&(*d2> *d1));
-  i=mini;
-  *d1 =i;
-  *d2=celk/ *d1;
+	minch=32000;
+	mini=1;
+	if (celk<=(65536*2)) {
+		i=2;
+	} else {
+		i=celk / 65536;
+	}
+	do {
+		*d1=i;
+		*d2=celk / *d1;
+		if (*d2<65536) {
+			chyba=celk- *d1* *d2;
+			if (chyba<0) {
+				chyba=-chyba;
+			}
+			if (chyba<minch) {
+				minch=chyba;
+				mini=i;
+				if (chyba==0) break;
+			}
+		}
+		i++;
+	} while ((i<65536)&&(*d2>2)&&(*d2> *d1));
+	i=mini;
+	*d1 =i;
+	*d2=celk/ *d1;
 }
 
-#include <math.h>
+static int pcl812_timer(double freq,unsigned int *trigvar,double *actual_freq)
+{
+	long divisor1,divisor2,divid;
+	double Oscilator=2e6;
 
-static int pcl812_timer(double freq,unsigned int *trigvar,double *actual_freq) {
+	if (freq<0.0004) { freq=0.0004; }
+	if (freq>30000) { freq=30000; }
+	divid=rint(Oscilator/freq);
+	Zisti_Div8254(divid,&divisor1,&divisor2);
+	divid=rint(Oscilator/freq+0.5*(divid-divisor1*divisor2));
+	Zisti_Div8254(divid,&divisor1,&divisor2);
+	*actual_freq=Oscilator/(divisor1*divisor2);
 
- long divisor1,divisor2,divid;
- double Oscilator=2e6;
-  
-  if (freq<0.0004) { freq=0.0004; }
-  if (freq>30000) { freq=30000; }
-  divid=rint(Oscilator/freq);
-  Zisti_Div8254(divid,&divisor1,&divisor2);
-  // @@Kluvi: magic crystaline sphere error correction, I hope that work identicaly under C and TP :-) }
-  divid=rint(Oscilator/freq+0.5*
-(divid-divisor1*divisor2));
-  Zisti_Div8254(divid,&divisor1,&divisor2);
-  *actual_freq=Oscilator/(divisor1*divisor2);
- 
-  *trigvar = (divisor1<<16) | divisor2;
-  return 0;
+	*trigvar = (divisor1<<16) | divisor2;
+	return 0;
 }
+#endif
+
+static int osc_base = 500;	/* 2 Mhz */
+
+static void pcl812_ns_to_timer_2div(int *d1,int *d2,int *nanosec,int round_mode)
+{
+	int divider;
+	int div1,div2;
+	int div1_glb,div2_glb,ns_glb;
+	int div1_lub,div2_lub,ns_lub;
+	int ns;
+
+	divider=(*nanosec+osc_base/2)/osc_base;
+
+	/* find 2 integers 1<={x,y}<=65536 such that x*y is
+	   close to divider */
+
+	div1_lub=div2_lub=0;
+	div1_glb=div2_glb=0;
+
+	ns_glb=0;
+	ns_lub=0xffffffff;
+
+	div2=0;
+	for(div1 = divider/65536;div1<div2;div1++){
+		div2 = *nanosec/(osc_base*div1);
+
+		ns = osc_base*div1*div2;
+		if(ns<=*nanosec && ns>ns_glb){
+			ns_glb=ns;
+			div1_glb=div1;
+			div2_glb=div2;
+		}
+
+		div2++;
+		if(div2<=65536){
+			ns = osc_base*div1*div2;
+			if(ns>*nanosec && ns<ns_lub){
+				ns_lub=ns;
+				div1_lub=div1;
+				div2_lub=div2;
+			}
+		}
+	}
+
+	*d1 = div1_lub;
+	*d2 = div2_lub;
+}
+
+static void pcl812_ns_to_timer_power(int *d1,int *d2,int *nanosec,int round_mode)
+{
+	int div1,div2;
+	int base;
+
+	for(div1=1;div1<=(1<<16);div1<<=1){
+		base = osc_base*div1;
+		switch(round_mode){
+		case TRIG_ROUND_NEAREST:
+		default:
+			div2=(*nanosec+base/2)/base;
+			break;
+		case TRIG_ROUND_DOWN:
+			div2=(*nanosec)/base;
+			break;
+		case TRIG_ROUND_UP:
+			div2=(*nanosec+base-1)/base;
+			break;
+		}
+		if(div2<=65536){
+			*nanosec=div2*base;
+			*d1 = div1&0xffff;
+			*d2 = div2&0xffff;
+			return;
+		}
+	}
+
+	/* shouldn't get here */
+	div1 = 0x10000;
+	div2 = 0x10000;
+	*nanosec=div1*div2*osc_base;
+	*d1 = div1&0xffff;
+	*d2 = div2&0xffff;
+}
+
+
 
