@@ -18,5 +18,5 @@ make a skeleton driver
 
 standardize error codes
 
-fix CONFIG_MODVERISONS=y
+writes to linux source
 

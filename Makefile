@@ -3,7 +3,7 @@
 
 VERS1 = 0
 VERS2 = 7
-VERS3 = 38
+VERS3 = 39
 
 INSTALLDIR=/usr
 
@@ -45,6 +45,8 @@ endif
 ifeq ($(CONFIG_COMEDI_RTL),y)
 ifdef RTLDIR
 CFLAGS += -I $(RTLDIR)/include
+else
+CFLAGS += -I /usr/include/rtlinux
 endif
 CFLAGS += -D__RTL__
 endif
@@ -52,6 +54,8 @@ endif
 ifeq ($(CONFIG_COMEDI_RTAI),y)
 ifdef RTAIDIR
 CFLAGS += -I $(RTAIDIR)/include
+else
+CFLAGS += -I /usr/include/rtai
 endif
 endif
 
