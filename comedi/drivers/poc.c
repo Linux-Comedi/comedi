@@ -54,7 +54,7 @@ static int poc_attach(comedi_device *dev,comedi_devconfig *it);
 static int poc_detach(comedi_device *dev);
 static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int poc_recognize(const char *name);
+static int poc_recognize(char *name);
 
 struct boarddef_struct{
 	char *name;
@@ -69,8 +69,8 @@ struct boarddef_struct{
 static struct boarddef_struct boards[]={
 	{
 	name:		"dac02",
-	size:		8,
-	setup:		dac02_setup,
+	iosize:		8,
+	//setup:		dac02_setup,
 	type:		COMEDI_SUBD_AO,
 	n_chan:		2,
 	n_bits:		12,
@@ -78,7 +78,7 @@ static struct boarddef_struct boards[]={
 	rinsn:		readback_insn,
 	}
 };
-#define n_boards ((sizeof(boards)/sizeof(boards[0]))
+#define n_boards (sizeof(boards)/sizeof(boards[0]))
 
 comedi_driver driver_poc=
 {
@@ -100,7 +100,7 @@ static comedi_lrange range_dac02 = {
 	}
 };
 
-static int poc_recognize(const char *name)
+static int poc_recognize(char *name)
 {
 	int i;
 
@@ -112,11 +112,12 @@ static int poc_recognize(const char *name)
 	return -1;
 }
 
-static int dac02_attach(comedi_device *dev, comedi_devconfig *it)
+static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int iosize, iobase;
 
+	iobase = it->options[0];
 	printk("comedi%d: poc: using %s iobase 0x%x\n", dev->minor,
 		boards[dev->board].name, iobase);
 
@@ -128,8 +129,7 @@ static int dac02_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-	iobase = it->options[0];
-	iosize = boards[dev->board].name;
+	iosize = boards[dev->board].iosize;
 	/* check if io addresses are available */
 	if(check_region(iobase, iosize) < 0)
 	{
@@ -175,9 +175,7 @@ static int poc_detach(comedi_device *dev)
 
 static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	int temp;
 	int chan;
-	int output;
 
 	chan = CR_CHAN(insn->chanspec);
 	data[0]=((lsampl_t *)dev->private)[chan];
