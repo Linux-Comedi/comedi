@@ -139,6 +139,27 @@ TODO:
 
 enum{das1701st, das1701st_da, das1702st, das1702st_da, das1702hr, das1702hr_da, das1701ao, das1702ao, das1801st, das1801st_da, das1802st, das1802st_da, das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao};
 
+static int das1800_attach(comedi_device *dev, comedi_devconfig *it);
+static int das1800_detach(comedi_device *dev);
+static int das1800_recognize(char *name);
+int das1800_probe(comedi_device *dev);
+static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
+static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
+static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s);
+static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *s);
+static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *s);
+inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t 
+data_point); void disable_das1800(comedi_device *dev);
+static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
+static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
+static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das1800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+int das1800_set_frequency(comedi_device *dev);
+int das1800_load_counter(comedi_device *dev, unsigned int counterNumber, unsigned int counterValue, unsigned int mode);
+unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
+
 typedef struct das1800_board_struct{
 	char *name;
 	int ai_speed;	/* max conversion period in nanoseconds */
@@ -356,7 +377,6 @@ typedef struct{
 	short *dma1_buf;
 	short *dma_current_buf;	/* pointer to dma buffer currently being used */
 	unsigned int dma_buf_size;	/* size in bytes of dma buffers */
-	int dual_dma;	/* flag that indicates whether we have dual dma */
 	int iobase2;	/* secondary io address used for analog out on 'ao' boards */
  	short ao_update_bits; /* remembers the last write to the 'update' dac
 */ }das1800_private;
@@ -414,7 +434,7 @@ static comedi_lrange *das1800_ai_range_lkup[] = {
 	&range_das1802_ai,
 };
 
-// analog output ranges
+// analog out range for boards with basic analog out
 static comedi_lrange range_ao_1 = {
 	1,
 	{
@@ -422,6 +442,8 @@ static comedi_lrange range_ao_1 = {
 	}
 };
 
+// analog out range for 'ao' boards
+/*
 static comedi_lrange range_ao_2 = {
 	2,
 	{
@@ -429,11 +451,7 @@ static comedi_lrange range_ao_2 = {
 		RANGE(-5, 5),
 	}
 };
-
-static int das1800_attach(comedi_device *dev, comedi_devconfig *it);
-static int das1800_detach(comedi_device *dev);
-static int das1800_recognize(char *name);
-static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
+*/
 
 comedi_driver driver_das1800={
 	driver_name:	"das1800",
@@ -443,22 +461,283 @@ comedi_driver driver_das1800={
 	recognize:		das1800_recognize,
 };
 
-static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
-static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s);
-static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *s);
-static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *s);
-void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point);
-void disable_das1800(comedi_device *dev);
-static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
-static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
-static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das1800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-int das1800_probe(comedi_device *dev);
-int das1800_set_frequency(comedi_device *dev);
-int das1800_load_counter(comedi_device *dev, unsigned int counterNumber, unsigned int counterValue, unsigned int mode);
-unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
+/*
+ * A convenient macro that defines init_module() and cleanup_module(),
+ * as necessary.
+ */
+COMEDI_INITCLEANUP(driver_das1800);
+
+static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	comedi_subdevice *s;
+	unsigned long flags;
+	int iobase = it->options[0];
+	int irq = it->options[1];
+	int dma0 = it->options[2];
+	int dma1 = it->options[3];
+	int iobase2;
+
+	/* allocate and initialize dev->private */
+	if(alloc_private(dev, sizeof(das1800_private)) < 0)
+		return -ENOMEM;
+
+	printk("comedi%d: das1800: io 0x%x", dev->minor, iobase);
+	if(irq)
+	{
+		printk(", irq %i", irq);
+		if(dma0)
+		{
+			printk(", dma %i", dma0);
+			if(dma1) printk(" and %i", dma1);
+		}
+	}
+	printk("\n");
+
+	if(iobase == 0)
+	{
+		printk("io base address required for das1800\n");
+		return -EINVAL;
+	}
+
+	dev->board = das1800_probe(dev);
+	if(dev->board < 0)
+	{
+		printk("unable to determine board type\n");
+		return -ENODEV;
+	}
+
+	dev->board_ptr = das1800_boards + dev->board;
+	dev->board_name = thisboard->name;
+
+	/* check if io addresses are available */
+	if(check_region(iobase, DAS1800_SIZE) < 0)
+	{
+		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+			iobase, iobase + DAS1800_SIZE);
+		return -EIO;
+	}
+	request_region(iobase, DAS1800_SIZE, thisboard->name);
+	dev->iobase = iobase;
+	dev->iosize = DAS1800_SIZE;
+	// if it is an 'ao' board with fancy analog out then we need extra io ports
+	if(thisboard->ao_ability == 2)
+	{
+		iobase2 = iobase + 0x400;
+		if(check_region(iobase2, DAS1800_SIZE) < 0)
+		{
+			printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+				iobase2, iobase2 + DAS1800_SIZE);
+			return -EIO;
+		}
+		request_region(iobase2, DAS1800_SIZE, thisboard->name);
+		devpriv->iobase2 = iobase2;
+	}
+
+	/* grab our IRQ */
+	if(irq)
+	{
+		if(comedi_request_irq( irq, das1800_interrupt, 0, thisboard->name, dev ))
+		{
+			printk( "unable to allocate irq %d\n", irq);
+			return -EINVAL;
+		}
+	}
+	dev->irq = irq;
+
+	// set bits that tell card which irq to use
+	switch(irq)
+	{
+		case 0:
+			break;
+		case 3:
+			devpriv->irq_dma_bits |= 0x8;
+			break;
+		case 5:
+			devpriv->irq_dma_bits |= 0x10;
+			break;
+		case 7:
+			devpriv->irq_dma_bits |= 0x18;
+			break;
+		case 10:
+			devpriv->irq_dma_bits |= 0x28;
+			break;
+		case 11:
+			devpriv->irq_dma_bits |= 0x30;
+			break;
+		case 15:
+			devpriv->irq_dma_bits |= 0x38;
+			break;
+		default:
+			printk("irq out of range\n");
+			return -EINVAL;
+			break;
+	}
+
+//dma stuff
+	// need an irq to do dma
+	if(irq)
+	{
+		if(dma0)
+		{
+			switch((dma0 & 0x7) | (dma1 << 4))
+			{
+				case 0x5:	// dma0 == 5
+					devpriv->irq_dma_bits |= 0x1;
+					break;
+				case 0x6:	// dma0 == 6
+					devpriv->irq_dma_bits |= 0x2;
+					break;
+				case 0x7:	// dma0 == 7
+					devpriv->irq_dma_bits |= 0x3;
+					break;
+				case 0x65:	// dma0 == 5, dma1 == 6
+					devpriv->irq_dma_bits |= 0x5;
+					break;
+				case 0x76:	// dma0 == 6, dma1 == 7
+					devpriv->irq_dma_bits |= 0x6;
+					break;
+				case 0x57:	// dma0 == 7, dma1 == 5
+					devpriv->irq_dma_bits |= 0x7;
+					break;
+				default:
+					printk("%s only supports dma channels 5 through 7\n"
+						"  Dual dma only allows the following combinations:\n"
+						"  dma 5,6 / 6,7 / or 7,5\n", thisboard->name);
+					return -EINVAL;
+					break;
+			}
+			if(request_dma(dma0, thisboard->name))
+			{
+				printk("failed to allocate dma channel %i\n", dma0);
+				return -EINVAL;
+			}
+			devpriv->dma0 = dma0;
+			devpriv->dma_current = dma0;
+			if(dma1)
+			{
+				if(request_dma(dma1, thisboard->name))
+				{
+					printk("failed to allocate dma channel %i\n", dma1);
+					return -EINVAL;
+				}
+				devpriv->dma1 = dma1;
+			}
+			devpriv->dma_buf_size = 0x1ff00;
+			devpriv->dma0_buf = kmalloc(devpriv->dma_buf_size, GFP_BUFFER | GFP_DMA);
+			if(devpriv->dma0_buf == 0)
+				return -ENOMEM;
+			devpriv->dma_current_buf = devpriv->dma0_buf;
+			if(dma1)
+			{
+				devpriv->dma1_buf = kmalloc(devpriv->dma_buf_size, GFP_BUFFER | GFP_DMA);
+				if(devpriv->dma1_buf == 0)
+					return -ENOMEM;
+			}
+			flags = claim_dma_lock();
+			disable_dma(devpriv->dma0);
+			clear_dma_ff(devpriv->dma0);
+			set_dma_mode(devpriv->dma0, DMA_MODE_READ);
+			if(dma1)
+			{
+				disable_dma(devpriv->dma1);
+				clear_dma_ff(devpriv->dma1);
+				set_dma_mode(devpriv->dma1, DMA_MODE_READ);
+			}
+			release_dma_lock(flags);
+		}
+	}
+
+	dev->n_subdevices = 4;
+	if(alloc_subdevices(dev) < 0)
+		return -ENOMEM;
+
+	/* analog input subdevice */
+	s = dev->subdevices + 0;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
+	if(thisboard->common)
+		s->subdev_flags |= SDF_COMMON;
+	s->n_chan = thisboard->qram_len;
+	s->len_chanlist = thisboard->qram_len;
+	s->maxdata = (1 << thisboard->resolution) - 1;
+	s->range_table = das1800_ai_range_lkup[dev->board];
+	s->do_cmd = das1800_ai_do_cmd;
+	s->do_cmdtest = das1800_ai_do_cmdtest;
+	s->insn_read = das1800_ai_rinsn;
+	s->cancel = das1800_cancel;
+
+	/* analog out */
+	s = dev->subdevices + 1;
+	if(thisboard->ao_ability == 1)
+	{
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITEABLE;
+		s->n_chan = thisboard->ao_n_chan;
+		s->maxdata = (1 << thisboard->resolution) - 1;
+		s->range_table = &range_ao_1;
+		s->insn_write = das1800_ao_winsn;
+	}
+	else
+	{
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+
+	/* di */
+	s = dev->subdevices + 2;
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = 4;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_read = das1800_di_rinsn;
+
+	/* do */
+	s = dev->subdevices + 3;
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITEABLE;
+	s->n_chan = thisboard->do_n_chan;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_write = das1800_do_winsn;
+
+	disable_das1800(dev);
+
+	// initialize digital out channels
+	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
+
+	// initialize analog out channels
+	if(thisboard->ao_ability == 1)
+	{
+		// select 'update' dac channel for baseAddress + 0x0
+		outb(DAC(thisboard->ao_n_chan - 1), dev->iobase + DAS1800_SELECT);
+		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
+	}
+
+	return 0;
+};
+
+static int das1800_detach(comedi_device *dev)
+{
+	/* only free stuff if it has been allocated by _attach */
+	if(dev->iobase)
+		release_region(dev->iobase, DAS1800_SIZE);
+	if(devpriv->iobase2)
+		release_region(devpriv->iobase2, DAS1800_SIZE);
+	if(dev->irq)
+		comedi_free_irq(dev->irq, dev);
+	if(devpriv->dma0)
+		free_dma(devpriv->dma0);
+	if(devpriv->dma0_buf)
+		kfree(devpriv->dma0_buf);
+	if(devpriv->dma1)
+		free_dma(devpriv->dma1);
+	if(devpriv->dma1_buf)
+		kfree(devpriv->dma1_buf);
+
+	printk("comedi%d: das1800: remove\n", dev->minor);
+
+	return 0;
+};
 
 static int das1800_recognize(char *name)
 {
@@ -577,15 +856,17 @@ int das1800_probe(comedi_device *dev)
 	return -1;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-COMEDI_INITCLEANUP(driver_das1800);
+static int das1800_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	devpriv->forever = 0;
+	devpriv->count = 0;
+	disable_das1800(dev);
+	return 0;
+}
 
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-	int status;
+	int status, select;
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
 
@@ -594,7 +875,12 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(!(status & INT))
 	{
 		return;
-	} else if(devpriv->dma0) 	/* if dma is enabled and generated the interrupt */
+	}
+	// save contents of data select register so they can be restored later
+	select = inb(dev->iobase + DAS1800_SELECT) & 0xf;
+	// select adc for base address + 0
+	if(select != ADC) outb(ADC, dev->iobase + DAS1800_SELECT);
+	if(devpriv->dma0) 	/* if dma is enabled and generated the interrupt */
 	{
 		// dma buffer full or about-triggering (stop_src == TRIG_EXT)
 		if(status & (DMATC | CT0TC))
@@ -607,6 +893,8 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 		das1800_handle_fifo_not_empty(dev, s);
 	}
 	comedi_bufcheck(dev, s);
+	// restore data select register
+	if(select != ADC) outb(select, dev->iobase + DAS1800_SELECT);
 	/* if the card's fifo has overflowed */
 	if(status & OVF)
 	{
@@ -615,6 +903,8 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error_done(dev, s);
 		return;
 	}
+	// if stop_src TRIG_EXT has occurred
+	if(status & CT0TC) devpriv->forever = 0;
 	/* stop taking data if appropriate */
 	if(devpriv->count == 0 && devpriv->forever == 0)
 	{
@@ -628,7 +918,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned long flags;
-	int numPoints, maxPoints;
+	unsigned int numPoints, maxPoints, leftover, residue;
 	short dpnt;
 	short *buffer;
 	int unipolar;
@@ -636,44 +926,52 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_current);
+
 	// figure out how many points to read
+	maxPoints = devpriv->dma_buf_size  / sizeof(short);
+	/* residue is the number of points left to be done on the dma
+	 * transfer.  It should always be zero at this point unless
+	 * the stop_src is set to external triggering.
+	 */
+	residue = get_dma_residue(devpriv->dma_current) / sizeof(short);
 	if(devpriv->forever)
-		numPoints = devpriv->dma_buf_size / sizeof(short);
+		numPoints = maxPoints - residue;
 	else
 		numPoints = devpriv->count;
-	maxPoints = (devpriv->dma_buf_size - get_dma_residue(devpriv->dma_current)) / sizeof(short);
-	if(numPoints > maxPoints)
-		numPoints = maxPoints;
-	buffer = devpriv->dma_current_buf;
-	if(devpriv->dual_dma)
+	if(numPoints > maxPoints - residue)
+		numPoints = maxPoints - residue;
+	// figure out how many points will be stored next time this buffer is used
+	leftover = 0;
+	if(devpriv->forever)
+		leftover = maxPoints;
+	else
 	{
-		if(devpriv->dma_current == devpriv->dma0)
+		if(devpriv->dma1)
 		{
-			devpriv->dma_current = devpriv->dma1;
-			devpriv->dma_current_buf = devpriv->dma1_buf;
+			if(devpriv->count - 2 * maxPoints > 0)
+				leftover = devpriv->count - 2 * maxPoints;
 		}
 		else
 		{
-			devpriv->dma_current = devpriv->dma0;
-			devpriv->dma_current_buf = devpriv->dma0_buf;
+			if(devpriv->count - maxPoints > 0)
+				leftover = devpriv->count - maxPoints;
 		}
 	}
-	set_dma_addr(devpriv->dma_current, (unsigned int) devpriv->dma_current_buf);
-	if((devpriv->count - numPoints) * sizeof(short) > devpriv->dma_buf_size || devpriv->forever)
-		set_dma_count(devpriv->dma_current, devpriv->dma_buf_size);
-	else
-		set_dma_count(devpriv->dma_current, (devpriv->count - numPoints) * sizeof(short));
+	if(leftover > maxPoints)
+		leftover = maxPoints;
+	/* there should only be a residue if collection was stopped by having
+	 * the stop_src set to an external trigger, in which case there
+	 * will be no more data
+	 */
+	if(residue)
+		leftover = 0;
 
-	// if we are doing dual channel dma, enable the second channel immediately
-	if(devpriv->dual_dma)
-	{
-		enable_dma(devpriv->dma_current);
-		release_dma_lock(flags);
-	}
+	buffer = devpriv->dma_current_buf;
 
 	/* see if card is using a unipolar or bipolar range */
 	unipolar = inb(dev->iobase + DAS1800_CONTROL_C) & UB;
 
+	// read data from dma buffer
 	for( i = 0; i < numPoints; i++)
 	{
 		/* write data point to comedi buffer */
@@ -685,11 +983,28 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 		if(devpriv->count > 0) devpriv->count--;
 	}
 
-	// for single channel dma, re-enable after old data has been read
-	if(devpriv->dual_dma == 0)
+	// re-enable channel
+	if(leftover)
 	{
+		set_dma_addr(devpriv->dma_current, (unsigned int) devpriv->dma_current_buf);
+		set_dma_count(devpriv->dma_current, leftover * sizeof(short));
 		enable_dma(devpriv->dma_current);
-		release_dma_lock(flags);
+	}
+	release_dma_lock(flags);
+
+	// if we are using dual dma, read data from the other channel next time
+	if(devpriv->dma1)
+	{
+		if(devpriv->dma_current == devpriv->dma0)
+		{
+			devpriv->dma_current = devpriv->dma1;
+			devpriv->dma_current_buf = devpriv->dma1_buf;
+		}
+		else
+		{
+			devpriv->dma_current = devpriv->dma0;
+			devpriv->dma_current_buf = devpriv->dma0_buf;
+		}
 	}
 
 	/* clear interrupt */
@@ -756,11 +1071,9 @@ static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *
 	return;
 }
 
-/* utility function used by das1800 interrupt service routines, really
- * should be inline
- */
-void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point)
-{
+/* utility function used by das1800 interrupt service routines */
+inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t
+data_point) {
 	if(s->buf_int_ptr >= s->cur_trig.data_len )
 	{
 		s->buf_int_ptr = 0;
@@ -775,286 +1088,6 @@ void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t data_point
 	}
 	s->buf_int_count += sizeof(sampl_t);
 	s->buf_int_ptr += sizeof(sampl_t);
-}
-
-static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
-{
-	comedi_subdevice *s;
-	unsigned long flags;
-	int iobase = it->options[0];
-	int irq = it->options[1];
-	int dma0 = it->options[2];
-	int dma1 = it->options[3];
-	int iobase2;
-
-	/* allocate and initialize dev->private */
-	if(alloc_private(dev, sizeof(das1800_private)) < 0)
-		return -ENOMEM;
-
-	printk("comedi%d: das1800: io 0x%x", dev->minor, iobase);
-	if(irq)
-	{
-		printk(", irq %i", irq);
-		if(dma0)
-		{
-			printk(", dma %i", dma0);
-			if(dma1) printk(" and %i", dma1);
-		}
-	}
-	printk("\n");
-
-	if(iobase == 0)
-	{
-		printk("io base address required for das1800\n");
-		return -EINVAL;
-	}
-
-	dev->board = das1800_probe(dev);
-	if(dev->board < 0)
-	{
-		printk("unable to determine board type\n");
-		return -ENODEV;
-	}
-
-	dev->board_ptr = das1800_boards + dev->board;
-	dev->board_name = thisboard->name;
-
-	/* check if io addresses are available */
-	if(check_region(iobase, DAS1800_SIZE) < 0)
-	{
-		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
-			iobase, iobase + DAS1800_SIZE);
-		return -EIO;
-	}
-	request_region(iobase, DAS1800_SIZE, thisboard->name);
-	dev->iobase = iobase;
-	dev->iosize = DAS1800_SIZE;
-	// if it is an 'ao' board with fancy analog out then we need extra io ports
-	if(thisboard->ao_ability == 2)
-	{
-		iobase2 = iobase + 0x400;
-		if(check_region(iobase2, DAS1800_SIZE) < 0)
-		{
-			printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
-				iobase2, iobase2 + DAS1800_SIZE);
-			return -EIO;
-		}
-		devpriv->iobase2 = iobase2;
-	}
-
-	/* grab our IRQ */
-	if(irq)
-	{
-		if(comedi_request_irq( irq, das1800_interrupt, 0, thisboard->name, dev ))
-		{
-			printk( "unable to allocate irq %d\n", irq);
-			return -EINVAL;
-		}
-	}
-	dev->irq = irq;
-
-	// set bits that tell card which irq to use
-	switch(irq)
-	{
-		case 0:
-			break;
-		case 3:
-			devpriv->irq_dma_bits |= 0x8;
-			break;
-		case 5:
-			devpriv->irq_dma_bits |= 0x10;
-			break;
-		case 7:
-			devpriv->irq_dma_bits |= 0x18;
-			break;
-		case 10:
-			devpriv->irq_dma_bits |= 0x28;
-			break;
-		case 11:
-			devpriv->irq_dma_bits |= 0x30;
-			break;
-		case 15:
-			devpriv->irq_dma_bits |= 0x38;
-			break;
-		default:
-			printk("irq out of range\n");
-			return -EINVAL;
-			break;
-	}
-
-//dma stuff
-	// need an irq to do dma
-	if(irq)
-	{
-		if(dma0)
-		{
-			switch((dma0 & 0x7) | (dma1 << 4))
-			{
-				case 0x5:	// dma0 == 5
-					devpriv->irq_dma_bits |= 0x1;
-					break;
-				case 0x6:	// dma0 == 6
-					devpriv->irq_dma_bits |= 0x2;
-					break;
-				case 0x7:	// dma0 == 7
-					devpriv->irq_dma_bits |= 0x3;
-					break;
-				case 0x65:	// dma0 == 5, dma1 == 6
-					devpriv->irq_dma_bits |= 0x5;
-					break;
-				case 0x76:	// dma0 == 6, dma1 == 7
-					devpriv->irq_dma_bits |= 0x6;
-					break;
-				case 0x57:	// dma0 == 7, dma1 == 5
-					devpriv->irq_dma_bits |= 0x7;
-					break;
-				default:
-					printk("%s only supports dma channels 5 through 7\n"
-						"  Dual dma only allows the following combinations:\n"
-						"  dma 5,6 / 6,7 / or 7,5\n", thisboard->name);
-					return -EINVAL;
-					break;
-			}
-			if(request_dma(dma0, thisboard->name))
-			{
-				printk("failed to allocate dma channel %i\n", dma0);
-				return -EINVAL;
-			}
-			devpriv->dma0 = dma0;
-			devpriv->dma_current = dma0;
-			if(dma1)
-			{
-				if(request_dma(dma1, thisboard->name))
-				{
-					printk("failed to allocate dma channel %i\n", dma1);
-					return -EINVAL;
-				}
-				devpriv->dma1 = dma1;
-				devpriv->dual_dma = 1;
-			}
-			devpriv->dma_buf_size = 0x1ff00;
-			devpriv->dma0_buf = kmalloc(devpriv->dma_buf_size, GFP_BUFFER | GFP_DMA);
-			if(devpriv->dma0_buf == 0)
-				return -ENOMEM;
-			devpriv->dma_current_buf = devpriv->dma0_buf;
-			if(dma1)
-			{
-				devpriv->dma1_buf = kmalloc(devpriv->dma_buf_size, GFP_BUFFER | GFP_DMA);
-				if(devpriv->dma1_buf == 0)
-					return -ENOMEM;
-			}
-			flags = claim_dma_lock();
-			disable_dma(devpriv->dma0);
-			clear_dma_ff(devpriv->dma0);
-			set_dma_mode(devpriv->dma0, DMA_MODE_READ);
-			if(dma1)
-			{
-				disable_dma(devpriv->dma1);
-				clear_dma_ff(devpriv->dma1);
-				set_dma_mode(devpriv->dma1, DMA_MODE_READ);
-			}
-			release_dma_lock(flags);
-		}
-	}
-
-	dev->n_subdevices = 4;
-	if(alloc_subdevices(dev) < 0)
-		return -ENOMEM;
-
-	/* analog input subdevice */
-	s = dev->subdevices + 0;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
-	if(thisboard->common)
-		s->subdev_flags |= SDF_COMMON;
-	s->n_chan = thisboard->qram_len;
-	s->len_chanlist = thisboard->qram_len;
-	s->maxdata = (1 << thisboard->resolution) - 1;
-	s->range_table = das1800_ai_range_lkup[dev->board];
-	s->do_cmd = das1800_ai_do_cmd;
-	s->do_cmdtest = das1800_ai_do_cmdtest;
-	s->insn_read = das1800_ai_rinsn;
-	s->cancel = das1800_cancel;
-
-	/* analog out */
-	s = dev->subdevices + 1;
-	if(thisboard->ao_ability == 1)
-	{
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE;
-		s->n_chan = thisboard->ao_n_chan;
-		s->maxdata = (1 << thisboard->resolution) - 1;
-		s->range_table = &range_ao_1;
-		s->insn_write = das1800_ao_winsn;
-	}
-	else
-	{
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	/* di */
-	s = dev->subdevices + 2;
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_read = das1800_di_rinsn;
-
-	/* do */
-	s = dev->subdevices + 3;
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = thisboard->do_n_chan;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_write = das1800_do_winsn;
-
-	disable_das1800(dev);
-
-	// initialize digital out channels
-	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
-
-	// initialize analog out channels
-	if(thisboard->ao_ability == 1)
-	{
-		// select 'update' dac channel for baseAddress + 0x0
-		outb(DAC(thisboard->ao_n_chan - 1), dev->iobase + DAS1800_SELECT);
-		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
-	}
-
-	return 0;
-};
-
-static int das1800_detach(comedi_device *dev)
-{
-	printk("comedi%d: das1800: remove\n", dev->minor);
-
-	/* only free stuff if it has been allocated by _attach */
-	if(dev->iobase)
-		release_region(dev->iobase, DAS1800_SIZE);
-	if(devpriv->iobase2)
-		release_region(devpriv->iobase2, DAS1800_SIZE);
-	if(dev->irq)
-		comedi_free_irq(dev->irq, dev);
-	if(devpriv->dma0)
-		free_dma(devpriv->dma0);
-	if(devpriv->dma0_buf)
-		kfree(devpriv->dma0_buf);
-	if(devpriv->dma1)
-		free_dma(devpriv->dma1);
-	if(devpriv->dma1_buf)
-		kfree(devpriv->dma1_buf);
-
-	return 0;
-};
-
-static int das1800_cancel(comedi_device *dev, comedi_subdevice *s)
-{
-	devpriv->forever = 0;
-	devpriv->count = 0;
-	disable_das1800(dev);
-	return 0;
 }
 
 void disable_das1800(comedi_device *dev)
@@ -1111,7 +1144,8 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 		cmd->convert_src != TRIG_EXT) err++;
 	if(cmd->scan_end_src != TRIG_COUNT) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_NONE) err++;
+		cmd->stop_src != TRIG_NONE &&
+		cmd->stop_src != TRIG_EXT) err++;
 	//compatibility check
 	if(cmd->scan_begin_src != TRIG_FOLLOW &&
 		cmd->convert_src != TRIG_TIMER) err++;
@@ -1335,6 +1369,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 				devpriv->irq_dma_bits |= FIMD;	//interrupt fifo half full
 			break;
 		case TRIG_NONE:
+		case TRIG_EXT:
 			devpriv->forever = 1;
 			devpriv->count = 0;
 			devpriv->irq_dma_bits |= FIMD;
@@ -1366,20 +1401,36 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	}
 
 	outb(devpriv->irq_dma_bits, dev->iobase + DAS1800_CONTROL_B); // enable irq/dma
+
+	// set up dma
 	if(devpriv->dma0)
 	{
 		lock_flags = claim_dma_lock();
 		disable_dma(devpriv->dma0);
 		set_dma_addr(devpriv->dma0, (unsigned int) devpriv->dma0_buf);
+		// set appropriate size of transfer
 		if(devpriv->count * sizeof(short) > devpriv->dma_buf_size || devpriv->forever)
 			set_dma_count(devpriv->dma0, devpriv->dma_buf_size);
 		else
 			set_dma_count(devpriv->dma0, devpriv->count * sizeof(short));
+		// set up dual dma if appropriate
+		if(devpriv->dma1 && (devpriv->count * sizeof(short) > devpriv->dma_buf_size || devpriv->forever))
+		{
+			disable_dma(devpriv->dma1);
+			set_dma_addr(devpriv->dma1, (unsigned int) devpriv->dma1_buf);
+			// set appropriate size of transfer
+			if(devpriv->count * sizeof(short) > 2 * devpriv->dma_buf_size || devpriv->forever)
+				set_dma_count(devpriv->dma1, devpriv->dma_buf_size);
+			else
+				set_dma_count(devpriv->dma1, devpriv->count * sizeof(short) - devpriv->dma_buf_size);
+			enable_dma(devpriv->dma1);
+		}
 		devpriv->dma_current = devpriv->dma0;
 		devpriv->dma_current_buf = devpriv->dma0_buf;
 		enable_dma(devpriv->dma0);
 		release_dma_lock(lock_flags);
 	}
+
 	outb(control_a, dev->iobase + DAS1800_CONTROL_A);	/* enable fifo and triggering */
 	outb(CVEN, dev->iobase + DAS1800_STATUS);	/* enable conversions */
 
