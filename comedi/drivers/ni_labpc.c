@@ -211,10 +211,10 @@ static int labpc_eeprom_write_insn(comedi_device *dev, comedi_subdevice *s, come
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd);
 static struct mite_struct* labpc_find_device(int bus, int slot);
-static unsigned int labpc_inb(unsigned int address);
-static void labpc_outb(unsigned int byte, unsigned int address);
-static unsigned int labpc_readb(unsigned int address);
-static void labpc_writeb(unsigned int byte, unsigned int address);
+static unsigned int labpc_inb(unsigned long address);
+static void labpc_outb(unsigned int byte, unsigned long address);
+static unsigned int labpc_readb(unsigned long address);
+static void labpc_writeb(unsigned int byte, unsigned long address);
 static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long arg);
 static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int labpc_serial_in(comedi_device *dev);
@@ -242,8 +242,8 @@ typedef struct labpc_board_struct{
 	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
 	int has_ao;	// has analog output true/false
 	// function pointers so we can use inb/outb or readb/writeb as appropriate
-	unsigned int (*read_byte)(unsigned int address);
-	void (*write_byte)(unsigned int byte, unsigned int address);
+	unsigned int (*read_byte)(unsigned long address);
+	void (*write_byte)(unsigned int byte, unsigned long address);
 	comedi_lrange *ai_range_table;
 	int *ai_range_code;
 	int *ai_range_is_unipolar;
@@ -1839,22 +1839,22 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 
 /* functions that do inb/outb and readb/writeb so we can use
  * function pointers to decide which to use */
-static unsigned int labpc_inb(unsigned int address)
+static unsigned int labpc_inb(unsigned long address)
 {
 	return inb(address);
 }
 
-static void labpc_outb(unsigned int byte, unsigned int address)
+static void labpc_outb(unsigned int byte, unsigned long address)
 {
 	outb(byte, address);
 }
 
-static unsigned int labpc_readb(unsigned int address)
+static unsigned int labpc_readb(unsigned long address)
 {
 	return readb(address);
 }
 
-static void labpc_writeb(unsigned int byte, unsigned int address)
+static void labpc_writeb(unsigned int byte, unsigned long address)
 {
 	writeb(byte, address);
 }
