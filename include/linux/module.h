@@ -23,6 +23,7 @@
   #endif
   #define __MOD_INC_USE_COUNT(x)	((*(long *)(x))++, (*(long *)(x)) |= MOD_VISITED)
   #define __MOD_DEC_USE_COUNT(x)	((*(long *)(x))--, (*(long *)(x)) |= MOD_VISITED)
+  #define EXPORT_SYMBOL(x)
 #else
   #ifdef MODULE
     #define THIS_MODULE	&__this_module

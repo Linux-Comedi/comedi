@@ -29,6 +29,8 @@
 #include <linux/kdev_t.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
+#include <linux/spinlock.h>
+
 #include <linux/comedi.h>
 
 
