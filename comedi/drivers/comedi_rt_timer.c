@@ -39,17 +39,28 @@
 // begin hack to fix HRT_TO_8254() function on rtlinux
 #undef HRT_TO_8254(x)
 #define HRT_TO_8254(x) nano2tick_hack(x)
-long long nano2tick_hack(long long ns)
+// this function sole purpose is to divide a long long by 838
+inline long long nano2tick_hack(long long ns)
 {
-	unsigned long most = ns >> 32;
-	unsigned long least = ns;
-	unsigned long denom = 838;
-	unsigned long remainder = (most % denom);
+	unsigned long denom = 838;	// divisor
+	long ms32 = ns >> 32;	// most significant 32 bits
+	unsigned long ms32rem = ms32 % denom;	// remainder of ms32 / denom
+	unsigned long ls32 = ns;	// least significant 32 bits
+	unsigned long ls32rem = ls32 % denom;
+	unsigned long big = 0xffffffff;
+	unsigned long big_rem = big % denom;
+	unsigned long rem_rem;
 
-	most /= denom;
-	least = remainder * (0xffffffff / denom) + (remainder + least) / denom;
-
-	ns = (long long) most * (long long) 0x100000000 + (long long) least;
+	// divide most significant bits
+	ns = ms32 / denom;
+	ns = ns << 32;
+	// add corrections due to rounding errors
+	ns += ms32rem * (big / denom) + (ms32rem * (big_rem + 1)) / denom;
+	// divide least significant bits
+	ns += ls32 / denom;
+	// add really small correction
+	rem_rem = (ms32rem * (big_rem+1)) % denom;
+	ns += (ls32rem + rem_rem) / denom;
 
 	return ns;
 }
