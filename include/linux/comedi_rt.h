@@ -38,9 +38,9 @@
 #endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
-#ifdef RTLINUX_VERSION_CODE
+//#ifdef RTLINUX_VERSION_CODE
 #include <rtl_sync.h>
-#endif
+//#endif
 #define rt_printk rtl_printf
 #endif
 
