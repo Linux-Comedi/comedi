@@ -43,6 +43,9 @@
 
 #include "kvmem.h"
 
+MODULE_AUTHOR("David Schleef <ds@schleef.org>");
+MODULE_DESCRIPTION("Comedi core module");
+MODULE_LICENSE("GPL");
 
 #ifndef KILL_FASYNC
 #define KILL_FASYNC(a,b,c) kill_fasync(&(a),(b),(c))
@@ -1753,12 +1756,7 @@ static struct file_operations comedi_fops={
 };
 #endif
 
-void mite_init(void);
-void mite_cleanup(void);
-void init_drivers(void);
-
-
-int comedi_init(void)
+static int __init comedi_init(void)
 {
 	int i;
 
@@ -1783,12 +1781,11 @@ int comedi_init(void)
 	comedi_proc_init();
 	
 	comedi_rt_init();
-	init_drivers();
 
 	return 0;
 }
 
-void comedi_cleanup(void)
+static void __exit comedi_cleanup(void)
 {
 	int i;
 
@@ -1813,17 +1810,8 @@ void comedi_cleanup(void)
 	comedi_rt_cleanup();
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	return comedi_init();
-}
-
-void cleanup_module(void)
-{
-	comedi_cleanup();
-}
-#endif
+module_init(comedi_init);
+module_exit(comedi_cleanup);
 
 void comedi_error(comedi_device *dev,const char *s)
 {
