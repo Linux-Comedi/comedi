@@ -108,10 +108,8 @@ Configuration options:
   If bus/slot is not specified, the first available PCI
   device will be used.
 
-Commands must meet scan_begin_src=TRIG_FOLLOW and
-convert_src=TRIG_TIMER. Scaned channels must be consecutive
-(i.e. 4-5-6-7, 2-3-4,...). Other features such as digital I/O are not
-supported.
+For commands, the scaned channels must be consecutive
+(i.e. 4-5-6-7, 2-3-4,...).
 
 
 
@@ -255,14 +253,20 @@ driver.
 Driver: das16.o
 Description: DAS16 compatible boards
 Authors: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess
-Status: in development
+Device Names: das-16, das-16g, das-16f, cio-das16/jr, pc104-das16jr,
+  pc104-das16jr/16, das-1201, das-1202, das-1401, das-1402, das-1601,
+  das-1602, cio-das1401/12, cio-das1402/12, cio-das1402/16,
+  cio-das1601/12, cio-das1602/12, cio-das1602/16, cio-das16/330
+Status: works in das16 mode, das-1600 enhanced mode features untested.
 
 A rewrite of the das16 and das1600 drivers.
 Options:
 	[0] - base io address
 	[1] - irq (optional)
 	[2] - dma (optional)
-	[3] - master clock speed in MHz (1 or 10, defaults to 1)
+	[3] - master clock speed in MHz (1 or 10, ignored if board can
+		probe clock, defaults to 1)
+
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
 
@@ -536,7 +540,14 @@ Status: works
 Driver: ni_at_a2150.o
 Description: National Instruments AT-A2150
 Author: Frank Mori Hess
-Status: development
+Status: works
+
+If you want to ac couple the board's inputs, use AREF_OTHER.
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed conversions)
+  [2] - DMA (optional, required for timed conversions)
 
 
 
