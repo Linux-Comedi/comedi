@@ -17,10 +17,10 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 /* we should get rid of this, as it has been dropped from 2.6 */
-#define pci_for_each_dev(x)	\
-	for((x) = pci_dev_g(pci_devices.next), prefetch((x)->global_list.next); \
-		x->global_list.next != &pci_devices; (x) = pci_dev_g((x)->global_list.next), \
-		prefetch((x)->global_list.next))
+#define pci_for_each_dev(x) \
+	for((x) = pci_find_device(PCI_ANY_ID,PCI_ANY_ID,NULL); \
+		(x); \
+		(x) = pci_find_device(PCI_ANY_ID,PCI_ANY_ID,(x)))
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0) /* XXX */
