@@ -213,6 +213,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum);
 
 static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
+static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s);
 
 static int ni_8255_callback(int dir,int port,int data,unsigned long arg);
 
@@ -579,10 +580,13 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 	if(b_status==0xffff)return;
 	if(b_status&AO_Overrun_St){
 		rt_printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
+		ni_ao_reset(dev,s);
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 	}
 
 	if(b_status&AO_BC_TC_St){
 		rt_printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,win_in(AO_Status_2_Register));
+		s->async->events |= COMEDI_CB_EOA;
 	}
 
 	if(b_status&AO_FIFO_Request_St)
@@ -595,6 +599,8 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 		}
 		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
 		win_out(0,Interrupt_B_Enable_Register);
+		ni_ao_reset(dev,s);
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 	}
 
 	comedi_event(dev,s,s->async->events);
@@ -2067,6 +2073,37 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 }
 
 
+static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
+{
+	devpriv->ao0p=0x0000;
+	ni_writew(devpriv->ao0p,AO_Configuration);
+
+	devpriv->ao1p=AO_Channel(1);
+	ni_writew(devpriv->ao1p,AO_Configuration);
+
+	win_out(AO_Configuration_Start,Joint_Reset_Register);
+	win_out(AO_Disarm,AO_Command_1_Register);
+	win_out(0,Interrupt_B_Enable_Register);
+	win_out(0x0010,AO_Personal_Register);
+	win_out(0x3f98,Interrupt_B_Ack_Register);
+	win_out(0x1430,AO_Personal_Register);
+	win_out(0,AO_Output_Control_Register);
+	win_out(0,AO_Start_Select_Register);
+	devpriv->ao_cmd1=0;
+	win_out(devpriv->ao_cmd1,AO_Command_1_Register);
+	devpriv->ao_cmd2=0;
+	devpriv->ao_mode1=0;
+	devpriv->ao_mode2=0;
+	devpriv->ao_mode3=0;
+	devpriv->ao_trigger_select=0;
+	if(boardtype.ao_671x){
+		ao_win_out(0xff,AO_Immediate_671x);
+	}
+
+	return 0;
+}
+
+
 static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -2174,6 +2211,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 				s->len_chanlist = 2;
 			}
 		}
+		s->cancel=ni_ao_reset;
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
@@ -2245,31 +2283,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	ni_ai_reset(dev,dev->subdevices+0);
 	win_out(0x1ba0,Clock_and_FOUT_Register);
 
-
 	/* analog output configuration */
-	
-	devpriv->ao0p=0x0000;
-	ni_writew(devpriv->ao0p,AO_Configuration);
-	devpriv->ao1p=AO_Channel(1);
-	ni_writew(devpriv->ao1p,AO_Configuration);
-	win_out(AO_Configuration_Start,Joint_Reset_Register);
-	win_out(AO_Disarm,AO_Command_1_Register);
-	win_out(0,Interrupt_B_Enable_Register);
-	win_out(0x0010,AO_Personal_Register);
-	win_out(0x3f98,Interrupt_B_Ack_Register);
-	win_out(0x1430,AO_Personal_Register);
-	win_out(0,AO_Output_Control_Register);
-	win_out(0,AO_Start_Select_Register);
-	devpriv->ao_cmd1=0;
-	win_out(devpriv->ao_cmd1,AO_Command_1_Register);
-	devpriv->ao_cmd2=0;
-	devpriv->ao_mode1=0;
-	devpriv->ao_mode2=0;
-	devpriv->ao_mode3=0;
-	devpriv->ao_trigger_select=0;
-	if(boardtype.ao_671x){
-		ao_win_out(0xff,AO_Immediate_671x);
-	}
+	ni_ao_reset(dev,dev->subdevices + 1);
 
         if(dev->irq){
                 win_out((IRQ_POLARITY<<0) |  /* polarity : active high */
