@@ -1377,6 +1377,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 		// clear error interrupt
 		thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev, s, async->events);
 		comedi_error(dev, "overflow");
 		return IRQ_HANDLED;
 	}
