@@ -532,6 +532,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 				AI_FIFO_Interrupt_Enable,0);
 
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			comedi_event(dev,s,s->async->events);
 
 			return;
 		}
