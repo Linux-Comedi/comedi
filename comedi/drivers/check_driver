@@ -203,3 +203,7 @@ if grep 'request_region.*dev.*iobase' ${driver} &>/dev/null;then
 	echo "W: recommend assigning dev->iobase after successful request_region()"
 fi
 
+if grep 'if.*cmd.*&&.*err..;' ${driver} &>/dev/null;then
+	echo "E: Probable logic error in cmdtest"
+fi
+
