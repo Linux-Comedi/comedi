@@ -103,12 +103,13 @@ static int multiq3_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 {
 	int i,n;
 	int chan;
-	unsigned int hi, lo;
+	unsigned short hi, lo;
+	int16_t raw_data;
 
 	chan = CR_CHAN(insn->chanspec);
 	outw(MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3),
 		dev->iobase+MULTIQ3_CONTROL);
-	
+
 	for(i = 0; i < MULTIQ3_TIMEOUT; i++) {
 		if(inw(dev->iobase+MULTIQ3_STATUS) & MULTIQ3_STATUS_EOC)
 			break;
@@ -122,10 +123,12 @@ static int multiq3_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 				break;
 		}
 		if(i==MULTIQ3_TIMEOUT)return -ETIMEDOUT;
-		
+
 		hi = inb(dev->iobase + MULTIQ3_AD_CS);
 		lo = inb(dev->iobase + MULTIQ3_AD_CS);
-		data[n] = ((hi << 8) | lo) & 0xfff;
+		raw_data = ((hi << 8) & 0xff00) | (lo & 0xff);
+		raw_data += 0x1000;
+		data[n] = raw_data & 0x1fff;
 	}
 
 	return n;
