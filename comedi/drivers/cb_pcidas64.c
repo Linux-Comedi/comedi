@@ -170,7 +170,8 @@ enum read_write_registers
 {
 	I8255_4020_REG = 0x48,	// 8255 offset, for 4020 only
 	ADC_QUEUE_FIFO_REG = 0x100,	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
-	ADC_FIFO_REG = 0x200,	// adc data fifo
+	ADC_FIFO_REG = 0x200,	/* adc data fifo */
+	DAC_FIFO_REG = 0x300, /* dac data fifo, has weird interactions with external channel queue */
 };
 
 // priv(dev)->dio_counter_iobase registers
@@ -1066,12 +1067,12 @@ static int ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
-//static int ao_cmd(comedi_device *dev,comedi_subdevice *s);
-//static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
-//static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
+static int ao_cmd(comedi_device *dev,comedi_subdevice *s);
+static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
+static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s);
-//static int ao_cancel(comedi_device *dev, comedi_subdevice *s);
+static int ao_cancel(comedi_device *dev, comedi_subdevice *s);
 static int dio_callback(int dir, int port, int data, unsigned long arg);
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
 static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
@@ -1273,7 +1274,7 @@ static int setup_subdevices(comedi_device *dev)
 	s = dev->subdevices + 1;
 	if(board(dev)->ao_nchan)
 	{
-	//	dev->write_subdev = s;
+//		dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board(dev)->ao_nchan;
@@ -1282,11 +1283,15 @@ static int setup_subdevices(comedi_device *dev)
 		s->range_table = board(dev)->ao_range_table;
 		s->insn_read = ao_readback_insn;
 		s->insn_write = ao_winsn;
-//XXX 4020 can't do paced analog output
-	//	s->do_cmdtest = ao_cmdtest;
-	//	s->do_cmd = ao_cmd;
-	//	s->len_chanlist = board(dev)->ao_nchan;
-	//	s->cancel = ao_cancel;
+		if(board(dev)->layout != LAYOUT_4020)
+		{
+#if 0
+			s->do_cmdtest = ao_cmdtest;
+			s->do_cmd = ao_cmd;
+			s->len_chanlist = board(dev)->ao_nchan;
+			s->cancel = ao_cancel;
+#endif
+		}
 	} else
 	{
 		s->type = COMEDI_SUBD_UNUSED;
@@ -2322,8 +2327,8 @@ static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 			// use external queue
 			priv(dev)->hw_config_bits |= EXT_QUEUE_BIT;
 			writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
-			/* XXX cannot write to queue fifo while dac fifo is being used
-			* (maybe spinlock?).*/
+			// clear DAC buffer to prevent weird interactions
+			writew(0, priv(dev)->main_iobase + DAC_BUFFER_CLEAR_REG);
 			// clear queue pointer
 			writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
 			// load external queue
@@ -2342,6 +2347,7 @@ static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 				if(i == cmd->chanlist_len - 1)
 					bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
 				writew(bits, priv(dev)->main_iobase + ADC_QUEUE_FIFO_REG);
+				DEBUG_PRINT("wrote 0x%x to external channel queue\n", bits);
 			}
 			/* doing a queue clear is not specified in board docs,
 			 * but required for reliable operation */
@@ -2806,7 +2812,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 		writew( (data[0] >> 8) & 0xf , priv(dev)->main_iobase + dac_msb_4020_reg( chan ) );
 	}else
 	{
-		writew(data[0], priv(dev)->main_iobase + dac_convert_reg( chan ) );
+		writew(data[0], priv(dev)->main_iobase + dac_convert_reg(chan));
 	}
 
 	// remember output value
@@ -2820,6 +2826,27 @@ static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	data[0] = priv(dev)->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
+}
+
+static int ao_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	s->async->inttrig = ao_inttrig;
+	return 0;
+}
+
+static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num)
+{
+	return 0;
+}
+
+static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
+{
+	return 0;
+}
+
+static int ao_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	return 0;
 }
 
 static int dio_callback(int dir, int port, int data, unsigned long iobase)
