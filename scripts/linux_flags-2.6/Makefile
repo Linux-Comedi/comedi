@@ -9,13 +9,13 @@ flags:
 	echo LINUXDIR=$(LINUXDIR) >$(obj)/flags
 	echo ARCH=$(ARCH) >>$(obj)/flags
 	echo AFLAGS="$(AFLAGS)" | sed 's_Iinclude_I"$(LINUXDIR)/include"_g'>>$(obj)/flags
-	echo LDFLAGS= >>$(obj)/flags
+	echo LDFLAGS="$(LDFLAGS)" >>$(obj)/flags
 	echo ARFLAGS="$(ARFLAGS)" >>$(obj)/flags
 	echo CROSS_COMPILE="$(CROSS_COMPILE)" >>$(obj)/flags
 	echo KERNELRELEASE="$(KERNELRELEASE)" >>$(obj)/flags
 	echo CFLAGS="$(CFLAGS)" | sed 's_Iinclude_I"$(LINUXDIR)/include"_g'>>$(obj)/flags
 	echo CC="$(CC)" >>$(obj)/flags
-	echo LD="$(LD) $(LDFLAGS)" >>$(obj)/flags
+	echo LD="$(LD)" >>$(obj)/flags
 	echo AS="$(AS)" >>$(obj)/flags
 
 
