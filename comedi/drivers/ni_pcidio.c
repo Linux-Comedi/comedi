@@ -60,7 +60,8 @@ AT-MIO96.
 
 #define USE_CMD 1
 #undef USEDMA
-#define DEBUG 1
+//#define DEBUG 1
+//#define DEBUG_FLAGS
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -77,6 +78,13 @@ AT-MIO96.
 #include "8255.h"
 
 
+#undef DPRINTK
+#ifdef DEBUG
+#define DPRINTK(format, args...)	printk(format, ## args)
+#else
+#define DPRINTK(format, args...)
+#endif
+
 #define PCI_VENDOR_ID_NATINST	0x1093
 
 #define PCI_DIO_SIZE 4096
@@ -92,83 +100,156 @@ AT-MIO96.
 
 /* defines for the PCI-DIO-32HS */
 
+#define Window_Address			4	/* W */
+#define Interrupt_And_Window_Status	4	/* R */
+  #define IntStatus1				(1<<0)
+  #define IntStatus2				(1<<1)
+  #define WindowAddressStatus_mask		0x7c
+
+#define Master_DMA_And_Interrupt_Control 5	/* W */
+  #define InterruptLine(x)			((x)&3)
+  #define OpenInt				(1<<2)
+#define Group_Status			5	/* R */
+  #define DataLeft				(1<<0)
+  #define Req					(1<<2)
+  #define StopTrig				(1<<3)
+
+#define Group_1_Flags			6	/* R */
+#define Group_2_Flags			7	/* R */
+  #define TransferReady				(1<<0)
+  #define CountExpired				(1<<1)
+  #define Waited				(1<<5)
+  #define PrimaryTC				(1<<6)
+  #define SecondaryTC				(1<<7)
+  //#define SerialRose
+  //#define ReqRose
+  //#define Paused
+
+#define Group_1_First_Clear		6	/* W */
+#define Group_2_First_Clear		7	/* W */
+  #define ClearWaited				(1<<3)
+  #define ClearPrimaryTC			(1<<4)
+  #define ClearSecondaryTC			(1<<5)
+  #define DMAReset				(1<<6)
+  #define FIFOReset				(1<<7)
+  #define ClearAll				0xf8
+
+#define Group_1_FIFO			8	/* W */
+#define Group_2_FIFO			12	/* W */
+
+#define Transfer_Count			20
 #define Chip_ID_D			24
 #define Chip_ID_I			25
 #define Chip_ID_O			26
 #define Chip_Version			27
-
 #define Port_IO(x)			(28+(x))
 #define Port_Pin_Directions(x)		(32+(x))
 #define Port_Pin_Mask(x)		(36+(x))
 #define Port_Pin_Polarities(x)		(40+(x))
+
+#define Master_Clock_Routing		45
+  #define RTSIClocking(x)			(((x)&3)<<4)
+
+#define Group_1_Second_Clear		46	/* W */
+#define Group_2_Second_Clear		47	/* W */
+  #define ClearExpired				(1<<0)
+
 #define Port_Pattern(x)			(48+(x))
 
-#define Master_DMA_And_Interrupt_Control 5
-#define InterruptLine				3
-#define OpenInt					4
-
-#define Interrupt_And_Window_Status	4
-#define Group_Status			5
-#define DataLeft				(1<<0)
-#define Req					(1<<2)
-#define StopTrig				(1<<3)
-
-#define Group_Flags			6
-#define TransferReady				(1<<0)
-#define CountExpired				(1<<1)
-#define Waited					(1<<5)
-#define PrimaryTC				(1<<6)
-#define SecondaryTC				(1<<7)
-
-#define Group_First_Clear		6
-#define ClearWaited				(1<<3)
-#define ClearPrimaryTC				(1<<4)
-#define ClearSecondaryTC			(1<<5)
-#define DMAReset				(1<<6)
-#define FIFOReset				(1<<7)
-#define ClearAll				0xf8
-
-#define Group_FIFO			8
-#define Transfer_Count			20
 #define Data_Path			64
-#define FIFO_Control			72
-#define Interrupt_Enable		75
-#define DMA_Line_Control		76
-#define Transfer_Size_Control		77
+  #define FIFOEnableA		(1<<0)
+  #define FIFOEnableB		(1<<1)
+  #define FIFOEnableC		(1<<2)
+  #define FIFOEnableD		(1<<3)
+  #define Funneling(x)		(((x)&3)<<4)
+  #define GroupDirection	(1<<7)
 
 #define Protocol_Register_1		65
-#define Protocol_Register_2		66
-#define Protocol_Register_3		67
-#define Protocol_Register_4		70
-#define Protocol_Register_5		71
-#define Protocol_Register_6		73
-#define Protocol_Register_7		74
-#define Protocol_Register_8		88
-#define Protocol_Register_9		82
-#define Protocol_Register_10		83
-#define Protocol_Register_11		84
-#define Protocol_Register_12		85
-#define Protocol_Register_13		86
-#define Protocol_Register_14		68
-#define Protocol_Register_15		79
-
 #define OpMode				Protocol_Register_1
-#define ClockReg			Protocol_Register_2
-#define Sequence			Protocol_Register_3
-#define ReqReg				Protocol_Register_4
-#define BlockMode			Protocol_Register_5
-#define LinePolarities			Protocol_Register_6
-#define AckSer				Protocol_Register_7
-#define StartDelay			Protocol_Register_8
-#define ReqDelay			Protocol_Register_9
-#define ReqNotDelay			Protocol_Register_10
-#define AckDelay			Protocol_Register_11
-#define AckNotDelay			Protocol_Register_12
-#define Data1Delay			Protocol_Register_13
-#define ClockSpeed			Protocol_Register_14
-#define DAQOptions			Protocol_Register_15
+  #define RunMode(x)		((x)&7)
+  #define Numbered		(1<<3)
 
-#define IntEn 3
+#define Protocol_Register_2		66
+#define ClockReg			Protocol_Register_2
+  #define ClockLine(x)		(((x)&3)<<5)
+  #define InvertStopTrig	(1<<7)
+
+#define Protocol_Register_3		67
+#define Sequence			Protocol_Register_3
+
+#define Protocol_Register_14		68 /* 16 bit */
+#define ClockSpeed			Protocol_Register_14
+
+#define Protocol_Register_4		70
+#define ReqReg				Protocol_Register_4
+  #define ReqConditioning(x)	(((x)&7)<<3)
+
+#define Protocol_Register_5		71
+#define BlockMode			Protocol_Register_5
+
+#define FIFO_Control			72
+  #define ReadyLevel(x)		((x)&7)
+
+#define Protocol_Register_6		73
+#define LinePolarities			Protocol_Register_6
+  #define InvertAck		(1<<0)
+  #define InvertReq		(1<<1)
+  #define InvertClock		(1<<2)
+  #define InvertSerial		(1<<3)
+  #define OpenAck		(1<<4)
+  #define OpenClock		(1<<5)
+
+#define Protocol_Register_7		74
+#define AckSer				Protocol_Register_7
+  #define AckLine(x)		(((x)&3)<<2)
+  #define ExchangePins		(1<<7)
+
+#define Interrupt_Control		75
+  /* bits same as flags */
+
+#define DMA_Line_Control		76
+  #define DMAChannel(x)		((x)&0xf)
+
+#define Transfer_Size_Control		77
+  #define TransferWidth(x)	((x)&3)
+  #define TransferLength(x)	(((x)&3)<<3)
+  #define RequireRLevel		(1<<5)
+
+#define Protocol_Register_15		79
+#define DAQOptions			Protocol_Register_15
+  #define StartSource(x)			((x)&0x3)
+  #define InvertStart				(1<<2)
+  #define StopSource(x)				(((x)&0x3)<<3)
+  #define ReqStart				(1<<6)
+  #define PreStart				(1<<7)
+
+#define Pattern_Detection		81
+  #define DetectionMethod			(1<<0)
+  #define InvertMatch				(1<<1)
+  #define IE_Pattern_Detection			(1<<2)
+
+#define Protocol_Register_9		82
+#define ReqDelay			Protocol_Register_9
+
+#define Protocol_Register_10		83
+#define ReqNotDelay			Protocol_Register_10
+
+#define Protocol_Register_11		84
+#define AckDelay			Protocol_Register_11
+
+#define Protocol_Register_12		85
+#define AckNotDelay			Protocol_Register_12
+
+#define Protocol_Register_13		86
+#define Data1Delay			Protocol_Register_13
+
+#define Protocol_Register_8		88 /* 32 bit */
+#define StartDelay			Protocol_Register_8
+
+
+#define TIMER_BASE 50		/* nanoseconds */
+
+#define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
@@ -270,8 +351,19 @@ typedef struct{
 static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 				  comedi_cmd *cmd);
 static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s);
+static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
+	unsigned int trignum);
 #endif
 static int nidio_find_device(comedi_device *dev,int bus,int slot);
+static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
+
+#ifdef DEBUG_FLAGS
+static void ni_pcidio_print_flags(unsigned int flags);
+static void ni_pcidio_print_status(unsigned int status);
+#else
+#define ni_pcidio_print_flags(x)
+#define ni_pcidio_print_status(x)
+#endif
 
 static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 {
@@ -295,18 +387,10 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	sampl_t data2 = 0;
 	int flags;
 	int status;
+	int work = 0;
 
-	//writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-	
-	//printk("%d ",async->buf_int_count);
-       
-	//writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-
-	flags = readb(dev->iobase+Group_Flags);
-	
-	//IntEn es un parametre!!!!
-	
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
+	flags = readb(dev->iobase+Group_1_Flags);
 	
 	//interrupcions parasites
 	if(dev->attached == 0){
@@ -314,84 +398,84 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
 	}
 	 
-	if((flags & (TransferReady | CountExpired | Waited | PrimaryTC | SecondaryTC))==0){
-		comedi_error(dev,"spurious interrupt");
-		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;	
-	}
-	// printk("IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+	DPRINTK("ni_pcidio_interrupt: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n",
+		IntEn,flags,status);
+	ni_pcidio_print_flags(flags);
+	ni_pcidio_print_status(status);
 	 
-	while(status&1){
-		//printk("1)IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
-		//printk("hola11\n");
-  
-		if(flags & IntEn & CountExpired){
-			printk("count expired ");
-			writeb(CountExpired,dev->iobase+Group_First_Clear);
-			async->events |= COMEDI_CB_EOA;	
-			async->events |= COMEDI_CB_BLOCK;
-			//for(i=0;i<16;i++){
-				AuxData = readl(dev->iobase+Group_FIFO);
-				data1 = AuxData & 0xffff;
-				data2 = (AuxData & 0xffff0000) >> 16;
-				comedi_buf_put(async,data1);
-				comedi_buf_put(async,data2);
-				DPRINTK("read: 0x%04x, 0x%04x\n",data1,data2);
-			//}
-			
-			writeb(0x00,dev->iobase+OpMode);
+	while(status&DataLeft){
+		work++;
+		if(work>20){
+			DPRINTK("too much work in interrupt\n");
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-			writeb(0xff,dev->iobase+Group_First_Clear);
-			writeb(0xff,dev->iobase+Group_First_Clear);
 			break;
-		}else if(flags & IntEn & TransferReady){
-			//aixo no surt en el manual de NI
-			writeb(TransferReady,dev->iobase+Group_First_Clear);
-			DPRINTK("transfer ready 1");
-			//for(i=0;i<16;i++){
-#ifdef unused
-				flags = 0;
-				j=0;
-				while(!(flags & TransferReady) && j<320){
-					flags = readb(dev->iobase+Group_flags);
-					//printk("flags:%d ",flags);
-					j++;
+		}
+
+		flags &= IntEn;
+  
+		if(flags & TransferReady){
+			DPRINTK("TransferReady\n");
+			while(flags & TransferReady){
+				work++;
+				if(work>100){
+					DPRINTK("too much work in interrupt\n");
+					writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+					goto out;
 				}
-#endif
-				AuxData = readl(dev->iobase+Group_FIFO);
+				AuxData = readl(dev->iobase+Group_1_FIFO);
 				data1 = AuxData & 0xffff;
 				data2 = (AuxData & 0xffff0000) >> 16;
 				comedi_buf_put(async,data1);
 				comedi_buf_put(async,data2);
 				DPRINTK("read:%d, %d\n",data1,data2);
-			// }
-			flags = readb(dev->iobase+Group_Flags);
-			DPRINTK("%d ",async->buf_int_count);
-			DPRINTK("1)IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+				flags = readb(dev->iobase+Group_1_Flags);
+			}
+			DPRINTK("buf_int_count: %d\n",async->buf_int_count);
+			DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+			ni_pcidio_print_flags(flags);
+			ni_pcidio_print_status(status);
 			async->events |= COMEDI_CB_BLOCK;
-		}else if(flags & IntEn & Waited){
-			DPRINTK("waited\n");
-			writeb(Waited,dev->iobase+Group_First_Clear);
+		}
+
+		if(flags & CountExpired){
+			DPRINTK("CountExpired\n");
+			writeb(ClearExpired,dev->iobase+Group_1_Second_Clear);
+			async->events |= COMEDI_CB_EOA;
+			
+			writeb(0x00,dev->iobase+OpMode);
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-		}else if(flags & IntEn & PrimaryTC){
-			DPRINTK("primaryTC\n");
-			writeb(PrimaryTC,dev->iobase+Group_First_Clear);
+			break;
+		}else if(flags & Waited){
+			DPRINTK("Waited\n");
+			writeb(ClearWaited,dev->iobase+Group_1_First_Clear);
+			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
+		}else if(flags & PrimaryTC){
+			DPRINTK("PrimaryTC\n");
+			writeb(ClearPrimaryTC,dev->iobase+Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA;
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-		}else if(flags & IntEn & SecondaryTC){
-			DPRINTK("secondaryTC\n");
-			writeb(SecondaryTC,dev->iobase+Group_First_Clear);
+		}else if(flags & SecondaryTC){
+			DPRINTK("SecondaryTC\n");
+			writeb(ClearSecondaryTC,dev->iobase+Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA;
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
-		}else{
+		}
+#if 0
+		else{
 			printk("ni_pcidio: unknown interrupt\n");
 			async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 		}
-		flags = readb(dev->iobase+Group_Flags);
+#endif
+		flags = readb(dev->iobase+Group_1_Flags);
 		status = readb(dev->iobase+Interrupt_And_Window_Status);
-		DPRINTK("2) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
+		DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n",
+			IntEn,flags,status);
+		ni_pcidio_print_flags(flags);
+		ni_pcidio_print_status(status);
 	}
 
+out:
 	comedi_event(dev,s,async->events);
 	    
 #if unused
@@ -403,6 +487,42 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 }
 #endif
 
+#ifdef DEBUG_FLAGS
+static char *flags_strings[] = {
+	"TransferReady", "CountExpired", "2", "3",
+	"4", "Waited", "PrimaryTC", "SecondaryTC",
+};
+static void ni_pcidio_print_flags(unsigned int flags)
+{
+	int i;
+
+	printk("group_1_flags:");
+	for(i=7;i>=0;i--){
+		if(flags&(1<<i)){
+			printk(" %s",flags_strings[i]);
+		}
+	}
+	printk("\n");
+}
+static char *status_strings[] = {
+	"DataLeft1", "Reserved1", "Req1", "StopTrig1",
+	"DataLeft2", "Reserved2", "Req2", "StopTrig2",
+};
+static void ni_pcidio_print_status(unsigned int flags)
+{
+	int i;
+
+	printk("group_status:");
+	for(i=7;i>=0;i--){
+		if(flags&(1<<i)){
+			printk(" %s",status_strings[i]);
+		}
+	}
+	printk("\n");
+}
+#endif
+
+#ifdef unused
 static void debug_int(comedi_device *dev)
 {
 	int a,b;
@@ -411,24 +531,25 @@ static void debug_int(comedi_device *dev)
 
 	do_gettimeofday(&tv);
 	a=readb(dev->iobase+Group_Status);
-	b=readb(dev->iobase+Group_Flags);
+	b=readb(dev->iobase+Group_1_Flags);
 
 	if(n_int < 10){
 		DPRINTK("status 0x%02x flags 0x%02x time %06d\n",a,b,(int)tv.tv_usec);
 	}
 
 	while(b&1){
-		writew(0xff,dev->iobase+Group_FIFO);
-		b=readb(dev->iobase+Group_Flags);
+		writew(0xff,dev->iobase+Group_1_FIFO);
+		b=readb(dev->iobase+Group_1_Flags);
 	}
 
-	b=readb(dev->iobase+Group_Flags);
+	b=readb(dev->iobase+Group_1_Flags);
 
 	if(n_int < 10){
 		DPRINTK("new status 0x%02x\n",b);
 		n_int++;
 	}
 }
+#endif
 
 
 static int ni_pcidio_insn_config(comedi_device *dev,comedi_subdevice *s,
@@ -471,17 +592,10 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	int err=0;
 	int tmp;
 
-	/* cmdtest tests a particular command to see if it is valid.
-	 * Using the cmdtest ioctl, a user can create a valid cmd
-	 * and then have it executes by the cmd ioctl.
-	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
-	 * the command passes. */
-
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_NOW|TRIG_INT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
@@ -489,7 +603,7 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
+	cmd->convert_src &= TRIG_NOW;
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
@@ -505,34 +619,29 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
+	if(cmd->start_src!=TRIG_NOW &&
+	   cmd->start_src!=TRIG_INT)err++;
 	if(cmd->scan_begin_src!=TRIG_TIMER &&
 	   cmd->scan_begin_src!=TRIG_EXT)err++;
-	if(cmd->convert_src!=TRIG_TIMER &&
-	   cmd->convert_src!=TRIG_EXT)err++;
-	if(cmd->stop_src!=TRIG_COUNT &&
-	   cmd->stop_src!=TRIG_NONE)err++;
 
 	if(err)return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
 	if(cmd->start_arg!=0){
+		/* same for both TRIG_INT and TRIG_NOW */
 		cmd->start_arg=0;
 		err++;
 	}
 
-#define MAX_SPEED	10000		/* in nanoseconds */
-#define MIN_SPEED	1000000000	/* in nanoseconds */
+#define MAX_SPEED	(TIMER_BASE)	/* in nanoseconds */
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		if(cmd->scan_begin_arg<MAX_SPEED){
 			cmd->scan_begin_arg=MAX_SPEED;
 			err++;
 		}
-		if(cmd->scan_begin_arg>MIN_SPEED){
-			cmd->scan_begin_arg=MIN_SPEED;
-			err++;
-		}
+		/* no minumum */
 	}else{
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
@@ -542,22 +651,9 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 			err++;
 		}
 	}
-	if(cmd->convert_src==TRIG_TIMER){
-		if(cmd->convert_arg<MAX_SPEED){
-			cmd->convert_arg=MAX_SPEED;
-			err++;
-		}
-		if(cmd->convert_arg>MIN_SPEED){
-			cmd->convert_arg=MIN_SPEED;
-			err++;
-		}
-	}else{
-		/* external trigger */
-		/* see above */
-		if(cmd->convert_arg>9){
-			cmd->convert_arg=9;
-			err++;
-		}
+	if(cmd->convert_arg!=0){
+		cmd->convert_arg = 0;
+		err++;
 	}
 
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
@@ -565,10 +661,7 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		err++;
 	}
 	if(cmd->stop_src==TRIG_COUNT){
-		if(cmd->stop_arg>0x00ffffff){
-			cmd->stop_arg=0x00ffffff;
-			err++;
-		}
+		/* no limit */
 	}else{
 		/* TRIG_NONE */
 		if(cmd->stop_arg!=0){
@@ -581,6 +674,12 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	/* step 4: fix up any arguments */
 	
+	if(cmd->scan_begin_src == TRIG_TIMER){
+		tmp = cmd->scan_begin_arg;
+		ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
+			cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->scan_begin_arg)err++;
+	}
 
 	if(err)return 4;
 
@@ -588,49 +687,93 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 }
 
 
+static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
+{
+	int divider, base;
+
+	base = TIMER_BASE;
+
+	switch(round_mode){
+	case TRIG_ROUND_NEAREST:
+	default:
+		divider = (*nanosec + base/2)/base;
+		break;
+	case TRIG_ROUND_DOWN:
+		divider = (*nanosec)/base;
+		break;
+	case TRIG_ROUND_UP:
+		divider = (*nanosec + base - 1)/base;
+		break;
+	}
+
+	*nanosec = base * divider;
+	return divider;
+}
+
+
 static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	writeb(  0 ,dev->iobase+OpMode);
+	comedi_cmd *cmd = &s->async->cmd;
 
-	/*ho vui per entrada(els ports)*/
+	/* XXX configure ports for input*/
 	writel(0x0000,dev->iobase+Port_Pin_Directions(0));
 
-	/* choose chan A,B (grup in,i 4 fifos sense funneling) */
+	/* enable fifos A B C D */
 	writeb(0x0F,dev->iobase+Data_Path);
 
 	/* set transfer width a 32 bits*/
 	writeb(0x00,dev->iobase+Transfer_Size_Control);
 
 	/* protocol configuration */
-	writeb(0x00,dev->iobase+ClockReg);
-	writeb(  0 ,dev->iobase+Sequence);
-	writeb(0x00,dev->iobase+ReqReg);
-	writeb(  4 ,dev->iobase+BlockMode);
-	writeb(  0 ,dev->iobase+LinePolarities);
-	writeb(0x00,dev->iobase+AckSer);
-	writeb(  1 ,dev->iobase+StartDelay);
-	writeb(  1 ,dev->iobase+ReqDelay);
-	writeb(  1 ,dev->iobase+ReqNotDelay);
-	writeb(  1 ,dev->iobase+AckDelay);
-	writeb(0x0C,dev->iobase+AckNotDelay);
-	writeb(0x10,dev->iobase+Data1Delay);
-	writew(  0 ,dev->iobase+ClockSpeed);
-	writeb(0x60,dev->iobase+DAQOptions);
+	if(cmd->scan_begin_src == TRIG_TIMER){
+		/* page 4-5, "input with internal REQs" */
+		writeb(  0 ,dev->iobase+OpMode);
+		writeb(0x00,dev->iobase+ClockReg);
+		writeb(  1 ,dev->iobase+Sequence);
+		writeb(0x04,dev->iobase+ReqReg);
+		writeb(  4 ,dev->iobase+BlockMode);
+		writeb(  3 ,dev->iobase+LinePolarities);
+		writeb(0xc0,dev->iobase+AckSer);
+		writel(ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
+			TRIG_ROUND_NEAREST),dev->iobase+StartDelay);
+		writeb(  1 ,dev->iobase+ReqDelay);
+		writeb(  1 ,dev->iobase+ReqNotDelay);
+		writeb(  1 ,dev->iobase+AckDelay);
+		writeb(0x0b,dev->iobase+AckNotDelay);
+		writeb(0x01,dev->iobase+Data1Delay);
+		/* manual, page 4-5: ClockSpeed comment is incorrectly listed
+	 	* on DAQOptions */
+		writew(0   ,dev->iobase+ClockSpeed);
+		writeb(0   ,dev->iobase+DAQOptions);
+	}else{
+		/* TRIG_EXT */
+		/* page 4-5, "input with external REQs" */
+		writeb(  0 ,dev->iobase+OpMode);
+		writeb(0x00,dev->iobase+ClockReg);
+		writeb(  0 ,dev->iobase+Sequence);
+		writeb(0x00,dev->iobase+ReqReg);
+		writeb(  4 ,dev->iobase+BlockMode);
+		writeb(  0 ,dev->iobase+LinePolarities);
+		writeb(0x00,dev->iobase+AckSer);
+		writel(  1 ,dev->iobase+StartDelay);
+		writeb(  1 ,dev->iobase+ReqDelay);
+		writeb(  1 ,dev->iobase+ReqNotDelay);
+		writeb(  1 ,dev->iobase+AckDelay);
+		writeb(0x0C,dev->iobase+AckNotDelay);
+		writeb(0x10,dev->iobase+Data1Delay);
+		writew(  0 ,dev->iobase+ClockSpeed);
+		writeb(0x60,dev->iobase+DAQOptions);
+	}
 
-#if unused
-	/* ReadyLevel */
-	writeb(  0 ,dev->iobase+FIFO_Control);
-
-	for(i=0;i<16;i++){
-	  	writew(i,dev->iobase+Group_FIFO);
-  	}
-	printk("arg:%d\n",s->async->cmd.stop_arg);
-#endif
-	writel(s->async->cmd.stop_arg,dev->iobase+Transfer_Count);
+	if(cmd->stop_src == TRIG_COUNT){
+		writel(cmd->stop_arg,dev->iobase+Transfer_Count);
+	}else{
+		/* XXX */
+	}
   
 #ifdef USEDMA
 	writeb(0x05,dev->iobase+DMA_Line_Control);
-	writeb(0x30,dev->iobase+Group_First_Clear);
+	writeb(0x30,dev->iobase+Group_1_First_Clear);
 
 	mite_dma_prep(devpriv->mite,s);
 #else
@@ -638,18 +781,35 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 #endif
   
 	/* clear and enable interrupts */
-	writeb(0xff,dev->iobase+Group_First_Clear);
-	/* interrupcions degudas a FIFO ple, s'ha fet totes les transferencies
-	   primaryTC=1??? secondaryTC=1???*/
-	writeb(IntEn,dev->iobase+Interrupt_Enable);
+	writeb(0xff,dev->iobase+Group_1_First_Clear);
+	//writeb(ClearExpired,dev->iobase+Group_1_Second_Clear);
+
+	writeb(IntEn,dev->iobase+Interrupt_Control);
 	writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
 
-	/* start */
-	/* amb aixo ja s'esta dient numbered=1 + runmode=7*/
-	writeb(0x0f,dev->iobase+OpMode);
+	if(cmd->start_src == TRIG_NOW){
+		/* start */
+		writeb(Numbered | RunMode(7),dev->iobase+OpMode);
+		s->async->inttrig = NULL;
+	}else{
+		/* TRIG_INT */
+		s->async->inttrig = ni_pcidio_inttrig;
+	}
 
 	DPRINTK("ni_pcidio: command started\n");
 	return 0;
+}
+
+
+static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
+	unsigned int trignum)
+{
+	if(trignum!=0)return -EINVAL;
+
+	writeb(Numbered | RunMode(7),dev->iobase+OpMode);
+	s->async->inttrig = NULL;
+
+	return 1;
 }
 #endif
 
@@ -692,28 +852,28 @@ static int nidio_dio_cmd(comedi_device *dev,comedi_subdevice *s)
 	writeb(  0 ,dev->iobase+BlockMode);
 	writeb(  3 ,dev->iobase+LinePolarities);
 	writeb(224 ,dev->iobase+AckSer);
-	writeb(100 ,dev->iobase+StartDelay);
+	writeb( 10 ,dev->iobase+StartDelay);
 	writeb(  1 ,dev->iobase+ReqDelay);
 	writeb(  1 ,dev->iobase+ReqNotDelay);
 	writeb(  1 ,dev->iobase+AckDelay);
 	writeb( 11 ,dev->iobase+AckNotDelay);
 	writeb(  1 ,dev->iobase+Data1Delay);
-	writew(1000,dev->iobase+ClockSpeed);
-	writeb(100 ,dev->iobase+DAQOptions);
+	writew(  0 ,dev->iobase+ClockSpeed);
+	writeb(10000 ,dev->iobase+DAQOptions);
 #endif
 
 	/* ReadyLevel */
 	writeb(  0 ,dev->iobase+FIFO_Control);
 
 	for(i=0;i<16;i++){
-		writew(i,dev->iobase+Group_FIFO);
+		writew(i,dev->iobase+Group_1_FIFO);
 	}
 
 	writel(10000 ,dev->iobase+Transfer_Count);
 
 #ifdef USEDMA
 	writeb(0x05,dev->iobase+DMA_Line_Control);
-	writeb(0x30,dev->iobase+Group_First_Clear);
+	writeb(0x30,dev->iobase+Group_1_First_Clear);
 
 	mite_dma_prep(devpriv->mite,s);
 #else
@@ -721,8 +881,8 @@ static int nidio_dio_cmd(comedi_device *dev,comedi_subdevice *s)
 #endif
 
 	/* clear and enable interrupts */
-	writeb(0xff,dev->iobase+Group_First_Clear);
-	writeb(0xc3,dev->iobase+Interrupt_Enable);
+	writeb(0xff,dev->iobase+Group_1_First_Clear);
+	writeb(0xc3,dev->iobase+Interrupt_Control);
 	writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
 
 	/* start */
