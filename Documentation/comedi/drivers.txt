@@ -554,7 +554,7 @@ Status: works
 
 
 
-Driver: ni_670x.c
+Driver: ni_670x.o
 Description: National Instruments 670x
 Author: Bart Joris <bjoris@advalvas.be>
 Updated: Wed, 22 Aug 2001 22:47:32 -0700
