@@ -550,6 +550,8 @@ static ni_board ni_boards[];
 	int rt_irq;						\
 	int irqmask;						\
 	int aimode;						\
+	int blocksize;						\
+	int n_left;						\
 								\
 	int changain_state;					\
 	unsigned int changain_spec;				\
