@@ -1336,15 +1336,18 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 	{
 		// clear dac empty interrupt latch
 		outw(devpriv->adc_fifo_bits | DAEMI, devpriv->control_status + INT_ADCFIFO);
-		if(cmd->stop_src == TRIG_COUNT &&
-			devpriv->ao_count)
+		if(inw(devpriv->ao_registers + DAC_CSR) & DAC_EMPTY)
 		{
-			comedi_error(dev, "dac fifo underflow");
-			cb_pcidas_ao_cancel(dev, s);
-			async->events |= COMEDI_CB_ERROR;
+			if(cmd->stop_src == TRIG_NONE ||
+				(cmd->stop_src == TRIG_COUNT && devpriv->ao_count))
+			{
+				comedi_error(dev, "dac fifo underflow");
+				cb_pcidas_ao_cancel(dev, s);
+				async->events |= COMEDI_CB_ERROR;
+			}
+			async->events |= COMEDI_CB_EOA;
+			return;
 		}
-		async->events |= COMEDI_CB_EOA;
-		return;
 	}
 	if(status & DAHFI)
 	{
