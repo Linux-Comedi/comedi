@@ -1,6 +1,6 @@
 /*
-    module/ni-E.c
-    Hardware driver for NI E series cards
+    comedi/drivers/ni_mio_common.c
+    Hardware driver for DAQ-STC based boards
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
@@ -247,11 +247,12 @@ void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	win_restore(wsave);
 }
 
-void handle_a_interrupt(comedi_device *dev,unsigned short status)
+static void handle_a_interrupt(comedi_device *dev,unsigned short status)
 {
 	comedi_subdevice *s=dev->subdevices+0;
 	unsigned short ack=0;
-	unsigned int events = 0;
+
+	s->async->events = 0;
 
 	/* uncommon interrupt events */
 	if(status&(AI_Overrun_St|AI_Overflow_St|AI_SC_TC_Error_St|AI_SC_TC_St|AI_START1_St)){
@@ -296,7 +297,7 @@ void handle_a_interrupt(comedi_device *dev,unsigned short status)
 	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
 		ni_handle_fifo_dregs(dev);
 
-		events |= COMEDI_CB_EOS;
+		s->async->events |= COMEDI_CB_EOS;
 
 		/* we need to ack the START, also */
 		ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
@@ -304,12 +305,12 @@ void handle_a_interrupt(comedi_device *dev,unsigned short status)
 	if(devpriv->aimode==AIMODE_SAMPLE){
 		ni_handle_fifo_dregs(dev);
 
-		//events |= COMEDI_CB_SAMPLE;
+		//s->async->events |= COMEDI_CB_SAMPLE;
 	}
 
 	if(ack) ni_writew(ack,Interrupt_A_Ack);
 
-	comedi_event(dev,s,events);
+	comedi_event(dev,s,s->async->events);
 }
 
 static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
@@ -386,25 +387,25 @@ static void ni_mio_print_status_b(int status)
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
 {
-	int i;
+	comedi_async *async = s->async;
+	int i,j;
 	sampl_t d;
-	int j;
 	unsigned int mask;
 
 	mask=(1<<boardtype.adbits)-1;
-	j=s->async->cur_chan;
+	j=async->cur_chan;
 	for(i=0;i<n;i++){
 		d=ni_readw(ADC_FIFO_Data_Register);
 		d^=devpriv->ai_xorlist[j];
 		d&=mask;
 		data[i]=d;
 		j++;
-		if(j>=s->async->cur_chanlist_len){
+		if(j>=async->cur_chanlist_len){
 			j=0;
-			//s->event_mask |= COMEDI_CB_EOS;
+			async->events |= COMEDI_CB_EOS;
 		}
 	}
-	s->async->cur_chan=j;
+	async->cur_chan=j;
 }
 
 #ifdef TRY_DMA
@@ -462,6 +463,7 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 {
 	int n,m;
 	comedi_subdevice *s=dev->subdevices+0;
+	comedi_async *async=s->async;
 
 	/*
 	   if we got a fifo_half_full interrupt, we can transfer fifo/2
@@ -478,20 +480,20 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 	/* this makes the assumption that the buffer length is
 	   greater than the half-fifo depth. */
 
-	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>=s->async->data_len){
-		m=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		ni_ai_fifo_read(dev,s,s->async->data+s->async->buf_int_ptr,m);
-		s->async->buf_int_count+=m*sizeof(sampl_t);
+	if(async->buf_int_ptr+n*sizeof(sampl_t)>=async->data_len){
+		m=(async->data_len-async->buf_int_ptr)/sizeof(sampl_t);
+		ni_ai_fifo_read(dev,s,async->data+async->buf_int_ptr,m);
+		async->buf_int_count+=m*sizeof(sampl_t);
 		n-=m;
-		s->async->buf_int_ptr=0;
+		async->buf_int_ptr=0;
 
-		comedi_eobuf(dev,s);
+		async->events |= COMEDI_CB_EOBUF;
 	}
-	ni_ai_fifo_read(dev,s,s->async->data+s->async->buf_int_ptr,n);
-	s->async->buf_int_count+=n*sizeof(sampl_t);
-	s->async->buf_int_ptr+=n*sizeof(sampl_t);
+	ni_ai_fifo_read(dev,s,async->data+async->buf_int_ptr,n);
+	async->buf_int_count+=n*sizeof(sampl_t);
+	async->buf_int_ptr+=n*sizeof(sampl_t);
 
-	comedi_bufcheck(dev,s);
+	async->events |= COMEDI_CB_BLOCK;
 }
 
 /*
