@@ -71,7 +71,7 @@ typedef struct{
 #define devpriv ((dt2814_private *)dev->private)
 
 
-#define DT2814_TIMEOUT 100
+#define DT2814_TIMEOUT 1000
 #define DT2814_MAX_SPEED 100000 /* XXX 10 khz */
 
 static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -269,6 +269,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	request_region(dev->iobase,DT2814_SIZE,"dt2814");
 	dev->iobase=dev->iobase;
 	dev->iosize=DT2814_SIZE;
+	dev->board_name = "dt2814";
 
 	outb(0,dev->iobase+DT2814_CSR);
 	udelay(100);
@@ -345,7 +346,9 @@ static int dt2814_detach(comedi_device *dev)
 	if(dev->irq){
 		free_irq(dev->irq,dev);
 	}
-	release_region(dev->iobase,dev->iosize);
+	if(dev->iobase){
+		release_region(dev->iobase,dev->iosize);
+	}
 
 	return 0;
 }
