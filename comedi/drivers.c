@@ -92,13 +92,18 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 	int i=0;
 	int minor;
+	int use_count;
 
 	if(dev->attached)
 		return -EBUSY;
 
-	minor=dev->minor;
+	minor = dev->minor;
+	use_count = dev->use_count;
 	memset(dev,0,sizeof(dev));
 	dev->minor=minor;
+	dev->use_count = dev->use_count;
+	dev->read_subdev=-1;
+	dev->write_subdev=-1;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
 		if(driv->recognize){
