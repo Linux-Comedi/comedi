@@ -96,7 +96,7 @@ typedef struct comedi_lrange_struct comedi_lrange;
 struct comedi_subdevice_struct{
 	int type;
 	int n_chan;
-	int subdev_flags;
+	volatile int subdev_flags;
 	int len_chanlist;		/* maximum length of channel/gain list */
 
 	void		*private;
@@ -105,7 +105,7 @@ struct comedi_subdevice_struct{
 
 	void *lock;
 	void *busy;
-	unsigned int runflags;
+	volatile unsigned int runflags;
 
 	int io_bits;
 
