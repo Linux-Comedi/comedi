@@ -37,7 +37,7 @@
 #include <linux/malloc.h>
 #include <asm/io.h>
 
-static void postconfig(comedi_device *dev);
+static int postconfig(comedi_device *dev);
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
 static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -141,11 +141,13 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	return -EIO;
 
 attached:
+	/* do a little post-config cleanup */
+	ret = postconfig(dev);
+	if(ret < 0)
+		return ret;
+
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
-
-	/* do a little post-config cleanup */
-	postconfig(dev);
 
 	if(!dev->board_name){
 		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
@@ -238,7 +240,7 @@ void comedi_deallocate_dev(comedi_device *dev)
 
 }
 
-static void postconfig(comedi_device *dev)
+static int postconfig(comedi_device *dev)
 {
 	int i;
 	int have_trig;
@@ -266,13 +268,19 @@ static void postconfig(comedi_device *dev)
 		}
 		if(s->do_cmd || have_trig){
       async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
+			if(async == NULL)
+			{
+				printk("failed to allocate async struct\n");
+				return -ENOMEM;
+			}
 			memset(async, 0, sizeof(comedi_async));
 			s->async = async;
 			async->prealloc_bufsz=1024*128;
-			/* XXX */
 			async->prealloc_buf=rvmalloc(async->prealloc_bufsz);
 			if(!async->prealloc_buf){
 				printk("ENOMEM\n");
+				kfree(async);
+				return -ENOMEM;
 			}
 		}
 
@@ -315,12 +323,13 @@ static void postconfig(comedi_device *dev)
 		if(!s->insn_write)s->insn_write = insn_inval;
 		if(!s->insn_bits)s->insn_bits = insn_inval;
 #endif
-		
+
 		if(!s->insn_bits){
 			s->insn_bits = insn_inval;
 		}
 	}
 
+	return 0;
 }
 
 // generic recognize function for drivers that register their supported board names
