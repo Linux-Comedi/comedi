@@ -336,8 +336,6 @@ void comedi_report_boards(comedi_driver *driv)
 	unsigned int i;
 	void *name_ptr;
 
-	if(driv->num_names == 0) return;
-
 	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
 
 	name_ptr=driv->board_name;
@@ -346,6 +344,9 @@ void comedi_report_boards(comedi_driver *driv)
 		printk(" %s\n", *(char **)name_ptr);
 		name_ptr += driv->offset;
 	}
+
+	if(driv->num_names == 0)
+		printk(" %s\n", driv->driver_name);
 }
 
 /* helper functions for drivers */
