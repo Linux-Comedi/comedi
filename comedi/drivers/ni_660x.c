@@ -651,6 +651,7 @@ typedef struct
 
 static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_660x_detach(comedi_device *dev);
+static void init_tio_chip(comedi_device *dev, int chipset);
 
 static comedi_driver driver_ni_660x=
 {
@@ -777,14 +778,15 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config  = ni_660x_dio_insn_config;
 	s->io_bits      = 0;     /* all bits default to input */
 
+	init_tio_chip(dev, 0);
 	// Enabling the second chip:  This "hardcodes" the counter
 	// outputs 5 to 8 to use the second TIO in case of a NI6602
 	// board.
 	if (thisboard->name == "PCI-6602" )
-	  {
-	    printk("NI6602: Setting Counterswap on second TIO\n");
-	    enable_chip(dev);
-	  }
+	{
+		printk("NI6602: Setting Counterswap on second TIO\n");
+		init_tio_chip(dev, 1);
+	}
 
 	printk("attached\n");
 
@@ -893,15 +895,18 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
     }
 }
 
-static void
-enable_chip(comedi_device *dev)
+static void init_tio_chip(comedi_device *dev, int chipset)
 {
-	/* See P. 3.5 of the Register-Level Programming manual.  This
-		bit has to be set, otherwise, you can't use the second chip.
+	/* See P. 3.5 of the Register-Level Programming manual.  The
+		CounterSwap bit has to be set on the second chip, otherwise 
+		it will try to use the same pins as the first chip.
 	*/
-        writel(CounterSwap,dev->iobase + GPCT_OFFSET[1]
-	       + registerData[ClockConfigRegister].offset);
-	return 0;
+	if(chipset)
+		writel(CounterSwap,dev->iobase + GPCT_OFFSET[1]
+			+ registerData[ClockConfigRegister].offset);
+	else
+		writel(0,dev->iobase + GPCT_OFFSET[0]
+			+ registerData[ClockConfigRegister].offset);	
 }
 
 static int
