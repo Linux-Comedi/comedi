@@ -350,7 +350,7 @@ static ni_board ni_boards[]={
 
 static int pcimio_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcimio_detach(comedi_device *dev);
-static int pcimio_recognize(const char *name);
+static int pcimio_recognize(char *name);
 comedi_driver driver_pcimio={
 	driver_name:	"ni_pcimio",
 	module:		THIS_MODULE,
@@ -453,7 +453,7 @@ static int pcimio_detach(comedi_device *dev)
 	return 0;
 }
 
-static int pcimio_recognize(const char *name)
+static int pcimio_recognize(char *name)
 {
 	if(!strcmp(name,"pcimio-E")){
 		printk("name \"pcimio-E\" deprecated.  Use \"ni_pcimio\"\n");
@@ -521,7 +521,7 @@ static int pcimio_find_device(comedi_device *dev)
 		}
 	}
 	printk("no device found\n");
-	mite_list_boards();
+	mite_list_devices();
 	return -EIO;
 }
 

@@ -458,6 +458,7 @@ static int nidio_find_device(comedi_device *dev,comedi_devconfig *it)
 		}
 	}
 	printk("no device found\n");
+	mite_list_devices();
 	return -EIO;
 }
 
