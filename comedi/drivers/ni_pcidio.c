@@ -448,6 +448,7 @@ static int nidio_find_device(comedi_device *dev,comedi_devconfig *it)
 	int i;
 	
 	for(mite=mite_devices;mite;mite=mite->next){
+		if(mite->used)continue;
 		for(i=0;i<n_nidio_boards;i++){
 			if(mite_device_id(mite)==nidio_boards[i].dev_id){
 				dev->board=i;

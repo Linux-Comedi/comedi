@@ -260,7 +260,7 @@ static ni_board ni_boards[]={
 		adbits:         16,
 		ai_fifo_depth:  512,
 		alwaysdither:   1,
-		gainlkup:       ai_gain_8_602x, // XXX check
+		gainlkup:       ai_gain_4_603x,
 		ai_speed:	5000,
 		n_aochan:       0,
 		aobits:         0,
@@ -481,6 +481,7 @@ static int pcimio_find_device(comedi_device *dev)
 	int i;
 
 	for(mite=mite_devices;mite;mite=mite->next){
+		if(mite->used)continue;
 		for(i=0;i<n_pcimio_boards;i++){
 			if(mite_device_id(mite)==ni_boards[i].device_id){
 				dev->board=i;

@@ -209,6 +209,8 @@ int mite_setup(struct mite_struct *mite)
 	mite->ring[i].next=0;
 	mite->ring[i].unused=0x1c; /* eh? */
 
+	mite->used = 1;
+
 	return (int) mite->daq_io_addr;
 }
 
@@ -235,6 +237,8 @@ void mite_unsetup(struct mite_struct *mite)
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr=NULL;
 	}
+
+	mite->used = 0;
 }
 
 
@@ -246,6 +250,7 @@ void mite_list_devices(void)
 	for(mite=mite_devices;mite;mite=next){
 		next=mite->next;
 		printk(" 0x%04x",mite_device_id(mite));
+		if(mite->used)printk("(used)");
 	}
 	printk("\n");
 
