@@ -29,7 +29,6 @@ Options:
 	[1] - subdevice number you wish to emulate commands for
 
 TODO:
-	Improve error handling
 	Support for digital io commands could be added, except I can't see why
 		anyone would want to use them
 	Fix it so more that one comedi_rt_timer can be configured at once
@@ -97,9 +96,6 @@ static inline RTIME nano2count(long long ns)
 #include <rtai_sched.h>
 #endif
 
-/* Change this if you need more channels */
-#define N_CHANLIST 16
-
 static int timer_attach(comedi_device *dev,comedi_devconfig *it);
 static int timer_detach(comedi_device *dev);
 static comedi_driver driver_timer={
@@ -119,12 +115,11 @@ typedef struct{
 	comedi_subdevice *s;
 	RT_TASK rt_task;
 	int soft_irq;
-	int chanlist[N_CHANLIST];
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 
 
-static comedi_device *broken_rt_dev;
+static comedi_device *broken_rt_dev = NULL;
 
 #ifdef CONFIG_COMEDI_RTL
 static void timer_interrupt(int irq,void *d,struct pt_regs * regs)
@@ -196,8 +191,9 @@ static void timer_ai_task_func(int d)
 				CR_AREF(cmd->chanlist[i]),
 				&data);
 			if(ret<0){
-				/* eek! */
-				rt_printk("eek!\n");
+				comedi_error(dev, "read error");
+				comedi_error_done(dev, s);
+				goto cleanup;
 			}
 			if(cmd->convert_src == TRIG_TIMER)
 				rt_task_wait_period();
@@ -208,11 +204,12 @@ static void timer_ai_task_func(int d)
 		s->async->events = 0;
 	}
 	comedi_done(dev,s);
+
+cleanup:
+
 	rt_pend_linux_srq(devpriv->soft_irq);
-
+	// we are deleting ourself here, no lines afterwards will be executed!
 	rt_task_delete(&devpriv->rt_task);
-
-	/* eek! */
 }
 
 static void timer_ao_task_func(int d)
@@ -229,8 +226,9 @@ static void timer_ao_task_func(int d)
 		for(i=0;i<cmd->scan_end_arg;i++){
 			data = buf_remove(dev,s);
 			if(data < 0) {
-				/* eek! */
-				rt_printk("eek!\n");
+				comedi_error(dev, "buffer underrun");
+				comedi_error_done(dev, s);
+				goto cleanup;
 			}
 			ret = comedi_data_write(devpriv->device,devpriv->subd,
 				CR_CHAN(cmd->chanlist[i]),
@@ -238,8 +236,9 @@ static void timer_ao_task_func(int d)
 				CR_AREF(cmd->chanlist[i]),
 				data);
 			if(ret<0){
-				/* eek! */
-				rt_printk("eek!\n");
+				comedi_error(dev, "write error");
+				comedi_error_done(dev, s);
+				goto cleanup;
 			}
 			if(cmd->convert_src == TRIG_TIMER)
 				rt_task_wait_period();
@@ -251,11 +250,12 @@ static void timer_ao_task_func(int d)
 			rt_task_wait_period();
 	}
 	comedi_done(dev,s);
+
+cleanup:
+
 	rt_pend_linux_srq(devpriv->soft_irq);
-
+	// we are deleting ourself here, no lines afterwards will be executed!
 	rt_task_delete(&devpriv->rt_task);
-
-	/* eek! */
 }
 
 static int timer_insn(comedi_device *dev,comedi_subdevice *s,
@@ -428,8 +428,7 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 static int timer_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	rt_task_delete(&devpriv->rt_task);
-
-	comedi_unlock(devpriv->device,devpriv->subd);
+	rt_pend_linux_srq(devpriv->soft_irq);
 
 	return 0;
 }
@@ -440,6 +439,13 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 
 	printk("comedi%d: timer: ",dev->minor);
+
+	if(broken_rt_dev)
+	{
+		printk("Only a single comedi_rt_timer can be configured at once.\n"
+			" Hopefully this will be fixed in the future.\n");
+		return -EBUSY;
+	}
 
 	dev->board_name="timer";
 
@@ -529,6 +535,8 @@ static int timer_detach(comedi_device *dev)
 			rt_free_srq(devpriv->soft_irq);
 		}
 	}
+
+	broken_rt_dev = NULL;
 
 	return 0;
 }
