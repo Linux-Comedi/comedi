@@ -181,7 +181,7 @@ static ni_board ni_boards[]={
 		has_8255:	1,
 	},
 	{	device_id:	38,
-		isapnp_id:	0x0000,	/* XXX unknown */
+		isapnp_id:	0x2600,
 		name:		"at-mio-64e-3",
 		n_adchan:	64,
 		adbits:		12,
