@@ -609,7 +609,7 @@ typedef struct ni_board_struct{
 	int adbits;
 	
 	int ai_fifo_depth;
-	int alwaysdither : 1;
+	unsigned int alwaysdither : 1;
 	int gainlkup;
 	int ai_speed;
 
@@ -619,15 +619,11 @@ typedef struct ni_board_struct{
 	int ao_fifo_depth;
 	int aorangelkup;
 	
-	int ao_unipolar : 1;
-	
-	int has_8255 : 1;
-
-	int has_analog_trig : 1;
-
-	int ao_671x : 1;
-
-	int reg_611x : 1;
+	unsigned int ao_unipolar : 1;
+	unsigned int has_8255 : 1;
+	unsigned int has_analog_trig : 1;
+	unsigned int ao_671x : 1;
+	unsigned int reg_611x : 1;
 
 	enum caldac_enum caldac[3];
 }ni_board;
