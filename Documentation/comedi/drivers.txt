@@ -173,7 +173,37 @@ Options (probably wrong, verify with source):
 Driver: das1800.o
 Description: Keithley Metrabyte DAS1800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
-Status: in development
+Status: works
+
+Presently it is not safe to run at real-time priority with dma
+enabled. The waveform analog output on the 'ao' cards is not supported.
+If you need it, send me (Frank Hess) an email. Recognizes the
+following board names:
+
+das-1701st
+das-1701st-da
+das-1701ao
+das-1702st
+das-1702st-da
+das-1702hr
+das-1702hr-da
+das-1702ao
+das-1801st
+das-1801st-da
+das-1801hc
+das-1801ao
+das-1802st
+das-1802st-da
+das-1802hr
+das-1802hr-da
+das-1802hc
+das-1802ao
+
+Configuration options:
+	[0] - base io address
+	[1] - irq (optional, required for timed or externally triggered conversions)
+	[2] - dma0 (optional, requires irq)
+	[3] - dma1 (optional, requires irq and dma0)
 
 
 
@@ -187,7 +217,21 @@ Status: unknown
 Driver: das800.o
 Description: Keithley Metrabyte DAS800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
-Status: in development
+Status: works
+
+Recognizes the following board names:
+
+das800
+das-800
+das-801
+das-802
+cio-das800
+cio-das800
+cio-das800
+
+Configuration options:
+	[0] - base io address
+	[1] - irq (optional, required for timed or externally triggered conversions)
 
 
 
