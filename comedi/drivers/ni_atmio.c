@@ -369,7 +369,7 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 
 		if(isapnp_dev->active)
 		{
-			printk( "%s found but already active, skipping.\n", ni_boards[ i ].name );
+			printk( "ni_atmio: %s found but already active, skipping.\n", ni_boards[ i ].name );
 			continue;
 		}
 		if(isapnp_dev->prepare(isapnp_dev)<0)
@@ -388,7 +388,7 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 		}
 #endif
 		if(isapnp_dev->activate(isapnp_dev)<0){
-			printk("isapnp configure failed!\n");
+			printk("ni_atmio: isapnp configure failed!\n");
 			return -ENOMEM;
 		}
 		break;
@@ -397,7 +397,7 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 	*dev = isapnp_dev;
 	return 0;
 #else
-	comedi_error(dev, "kernel does not have isapnp support available\n");
+	printk("ni_atmio: kernel does not have isapnp support available\n");
 	return -EIO;
 #endif
 }
