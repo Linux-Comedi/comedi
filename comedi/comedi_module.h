@@ -27,13 +27,15 @@
 #include <linux/version.h>
 #include <linux/config.h>
 #include <linux/kdev_t.h>
-#include <config.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
 #include <comedi.h>
+#ifdef COMEDI_STANDALONE
+#include <config.h>
+#endif
 
 
-#include <kern_compat.h>
+#include "kern_compat.h"
 
 #ifdef CONFIG_COMEDI_RT
 #include <comedi_rt.h>
@@ -45,6 +47,10 @@
 #define DPRINTK(format, args...)	/* */
 #endif
 
+#ifndef COMEDI_VERSION_CODE
+#define COMEDI_VERSION_CODE 0x10000
+#define COMEDI_VERSION "1.0.0"
+#endif
 
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
