@@ -40,7 +40,7 @@ Status: ?
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -88,7 +88,6 @@ static int dio24_detach(comedi_device *dev);
 
 static unsigned int dio24_inb(unsigned int address);
 static void dio24_outb(unsigned int byte, unsigned int address);
-static int dio24_dio_mem_callback(int dir, int port, int data, void *arg);
 
 enum dio24_bustype {pcmcia_bustype};
 
@@ -202,7 +201,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 
 	/* 8255 dio */
 	s = dev->subdevices + 0;
-	subdev_8255_init(dev, s, NULL, (void*)(dev->iobase));
+	subdev_8255_init(dev, s, NULL, dev->iobase);
 
 	return 0;
 };
@@ -801,8 +800,8 @@ static int dio24_event(event_t event, int priority,
 
 static int __init init_dio24_cs(void)
 {
-    printk("ni_daq_dio24: HOLA SOY YO!\n");
     servinfo_t serv;
+    printk("ni_daq_dio24: HOLA SOY YO!\n");
     DEBUG(0, "%s\n", version);
     CardServices(GetCardServicesInfo, &serv);
     if (serv.Revision != CS_RELEASE_CODE) {
