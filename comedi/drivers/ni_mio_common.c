@@ -519,8 +519,9 @@ static void ni_handle_eos(comedi_device *dev, comedi_subdevice *s)
 #endif
 	}
 	/* handle special case of single scan using AI_End_On_End_Of_Scan */
-	if( ( devpriv->ai_cmd2 & AI_End_On_End_Of_Scan ) ){
+	if((devpriv->ai_cmd2 & AI_End_On_End_Of_Scan)){
 		shutdown_ai_command( dev );
+		ni_ai_reset(dev, s);
 	}
 }
 
@@ -653,8 +654,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #ifdef DEBUG_INTERRUPT
 	status=win_in(AI_Status_1_Register);
 	if(status&Interrupt_A_St){
-		printk("handle_a_interrupt: BUG, didn't clear interrupt. disabling. status=0x%x\n", status);
-                win_out(0,Interrupt_Control_Register);
+		printk("handle_a_interrupt: didn't clear interrupt? status=0x%x\n", status);
 	}
 #endif
 }
@@ -935,14 +935,16 @@ static int ni_ai_drain_dma(comedi_device *dev )
 
 	for( i = 0; i < timeout; i++ )
 	{
-		if( ( win_in( AI_Status_1_Register ) & AI_FIFO_Empty_St ) &&
-			mite_bytes_in_transit( mite, AI_DMA_CHAN ) == 0 )
+		if((win_in(AI_Status_1_Register) & AI_FIFO_Empty_St) &&
+			mite_bytes_in_transit(mite, AI_DMA_CHAN) == 0)
 			break;
 		comedi_udelay(2);
 	}
-	if( i == timeout )
+	if(i == timeout)
 	{
-		rt_printk( "ni_mio_common: wait for dma drain timed out\n" );
+		rt_printk("ni_mio_common: wait for dma drain timed out\n");
+		rt_printk("mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
+			mite_bytes_in_transit(mite, AI_DMA_CHAN), win_in(AI_Status_1_Register));
 		return -1;
 	}
 
@@ -1497,6 +1499,10 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->stop_arg = max_count;
 			err++;
 		}
+		if(cmd->stop_arg < 1){
+			cmd->stop_arg = 1;
+			err++;
+		}
 	}else{
 		/* TRIG_NONE */
 		if(cmd->stop_arg!=0){
@@ -1588,12 +1594,13 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	mode2 &= ~AI_SC_Reload_Mode;
 	win_out(mode2, AI_Mode_2_Register);
 
-	start_stop_select |= AI_STOP_Sync;
-	if(boardtype.reg_type == ni_reg_611x){
+	if(cmd->chanlist_len == 1 || boardtype.reg_type == ni_reg_611x){
 		start_stop_select |= AI_STOP_Polarity;
-		start_stop_select |= AI_STOP_Select( 31 );
-	}else{
-		start_stop_select |= AI_STOP_Select( 19 );
+		start_stop_select |= AI_STOP_Select( 31 ); // logic low
+		start_stop_select |= AI_STOP_Sync;
+	}else
+	{
+		start_stop_select |= AI_STOP_Select(19); // ai configuration memory
 	}
 	win_out(start_stop_select, AI_START_STOP_Select_Register);
 
@@ -1618,6 +1625,9 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		if( stop_count == 0 ){
 			devpriv->ai_cmd2 |= AI_End_On_End_Of_Scan;
 			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
+			// this is required to get the last sample for chanlist_len > 1, not sure why
+			if(cmd->chanlist_len > 1)
+				start_stop_select |= AI_STOP_Polarity | AI_STOP_Edge;
 		}
 		break;
 	case TRIG_NONE:
@@ -1726,7 +1736,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		interrupt_a_enable|=AI_FIFO_Interrupt_Enable;
 #endif
 
-		if(cmd->flags & TRIG_WAKE_EOS){
+		if(cmd->flags & TRIG_WAKE_EOS || (devpriv->ai_cmd2 & AI_End_On_End_Of_Scan)){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
 		}else{

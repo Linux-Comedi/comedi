@@ -334,6 +334,8 @@ enum AO_FIFO_Mode_Bits
 #define AI_START1_Edge				_bit5
 #define AI_START1_Select(a)			(a)
 
+#define AI_DIV_Load_A_Register	64
+
 #define AO_Start_Select_Register	66
 #define AO_UI2_Software_Gate			_bit15
 #define AO_UI2_External_Gate_Polarity		_bit14
