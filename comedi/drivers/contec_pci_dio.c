@@ -100,10 +100,12 @@ static int contec_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 static int contec_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
+#if 0
 static int contec_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 
 static int contec_ns_to_timer(unsigned int *ns,int round);
+#endif
 
 static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 {

@@ -154,7 +154,7 @@ void mite_cleanup(void)
 
 void mite_unsetup(struct mite_struct *mite)
 {
-	unsigned long offset, start, length;
+	//unsigned long offset, start, length;
 
 	if(!mite)return;
 
