@@ -237,9 +237,9 @@ static boardtype boardtypes[] =
 	  0x0a, 0xfff, 0xfff, 1024, 1, 0, 1 },
 	{"pcl818h",   9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 0, 1 },
-	{"pcl818hd",  9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1xFIFO_RANGE, 0x00fc,
+	{"pcl818hd",  9, 16, 8, 10000, 1, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 1, 1, 1 },
-	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1xFIFO_RANGE, 0x00fc,
+	{"pcl818hg", 12, 16, 8, 10000, 1, 16, 16, &range_pcl818hg_ai,  &range_unipolar5, PCLx1x_RANGE, 0x00fc,
 	  0x0a, 0xfff, 0xfff, 1024, 1, 1, 1 },
 	{"pcl818",    9, 16, 8, 10000, 2, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 2, 0, 1 },
@@ -267,6 +267,7 @@ COMEDI_INITCLEANUP(driver_pcl818);
 typedef struct {
 	int 		dma;		// used DMA, 0=don't use DMA
 	int 		dma_rtc;	// 1=RTC used with DMA, 0=no RTC alloc
+	int		io_range;
 	unsigned int 	rtc_iobase;	// RTC port region
 	unsigned int 	rtc_iosize;
 	unsigned int 	rtc_irq;
@@ -928,7 +929,7 @@ static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 		// rt_printk("IRQ\n");
 		if (mode==1) { 
 			devpriv->int818_mode=INT_TYPE_AI1_INT;
-			outb(0x83 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Pacer+IRQ */ 
+			outb(0x83 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Pacer+IRQ */
 		} else {
 			devpriv->int818_mode=INT_TYPE_AI3_INT;
 			outb(0x82 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Ext trig+IRQ */ 
@@ -1084,7 +1085,7 @@ void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned 
  Check if channel list from user is builded correctly
  If it's ok, then program scan/gain logic
 */
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
+int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
         unsigned int chansegment[16];  
         unsigned int i, nowmustbechan, seglen, segpos;
@@ -1318,7 +1319,7 @@ void rtc_dropped_irq(unsigned long data)
 }
 
 
-/* 
+/*
 ==============================================================================
   Set frequency of interrupts from RTC
 */
@@ -1353,7 +1354,7 @@ int rtc_setfreq_irq(int freq)
 static void free_resources(comedi_device * dev)
 {
         //rt_printk("free_resource()\n");
-        if(dev->private)  {
+	if(dev->private)  {
 		pcl818_ai_cancel(dev, devpriv->sub_ai);
 		pcl818_reset(dev);
 		if (devpriv->dma) free_dma(devpriv->dma);
@@ -1363,13 +1364,13 @@ static void free_resources(comedi_device * dev)
 		if ((devpriv->dma_rtc)&&(RTC_lock==1)) {
 			if (devpriv->rtc_iobase)
 				release_region(devpriv->rtc_iobase, devpriv->rtc_iosize);
-		} 
-        if (devpriv->dma_rtc)
-		RTC_lock--;
+		}
+		if (devpriv->dma_rtc)
+			RTC_lock--;
 	}
 
 	if (dev->irq) free_irq(dev->irq, dev);
-	if (dev->iobase) release_region(dev->iobase, this_board->io_range);
+	if (dev->iobase) release_region(dev->iobase, devpriv->io_range);
 	//rt_printk("free_resource() end\n");
 }
 
@@ -1387,31 +1388,33 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned long pages;
 	comedi_subdevice *s;
 
+
+	if((ret=alloc_private(dev,sizeof(pcl818_private)))<0)
+		return ret; /* Can't alloc mem */
+
 	/* claim our I/O space */
 	iobase = it->options[0];
 	printk("comedi%d: pcl818:  board=%s, ioport=0x%03x",
 		dev->minor, this_board->name, iobase);
+	devpriv->io_range=this_board->io_range;
+	if ((this_board->fifo)&&(it->options[2]==-1)) { // we've board with FIFO and we want to use FIFO
+		devpriv->io_range=PCLx1xFIFO_RANGE;
+		devpriv->usefifo = 1;
+	}
 	if (check_region(iobase, this_board->io_range) < 0) {
 		rt_printk("I/O port conflict\n");
 		return -EIO;
 	}
 
-	request_region(iobase, this_board->io_range, "pcl818");
+	request_region(iobase, devpriv->io_range, "pcl818");
 	dev->iobase=iobase;
-    
+
 	if (pcl818_check(iobase)) {
 		rt_printk(", I can't detect board. FAIL!\n");
 		return -EIO;
 	}
 
-	if ((this_board->fifo)&&(it->options[2]==-1)) { // we've board with FIFO and we want to use FIFO
-		devpriv->usefifo=1;
-	}
-
-	if((ret=alloc_private(dev,sizeof(pcl818_private)))<0)
-		return ret; /* Can't alloc mem */
-
-	/* set up some name stuff */
+        /* set up some name stuff */
 	dev->board_name = this_board->name;
         /* grab our IRQ */
         irq=0;
@@ -1421,7 +1424,7 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		        if (((1<<irq)&this_board->IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
-			} else {
+			} else { 
 				if (comedi_request_irq(irq, interrupt_pcl818, 0, "pcl818", dev)) {
 					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
