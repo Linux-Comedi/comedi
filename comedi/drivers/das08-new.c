@@ -190,7 +190,7 @@ static int *das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
-struct das08_board_struct{
+typedef struct das08_board_struct{
 	char		*name;
 	void		*ai;
 	unsigned int	ai_nbits;
@@ -201,7 +201,7 @@ struct das08_board_struct{
 	void		*do_;
 	unsigned int	i8255_offset;
 	unsigned int	i8254_offset;
-};
+} das08_board;
 static struct das08_board_struct das08_boards[]={
 	{
 	name:		"das08",		// cio-das08.pdf
@@ -490,6 +490,7 @@ static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static int das08_attach(comedi_device *dev,comedi_devconfig *it);
 static int das08_detach(comedi_device *dev);
 static int das08_recognize(char *name);
+static void das08_register_boards(void);
 
 comedi_driver driver_das08={
 	driver_name:	"das08",
@@ -497,6 +498,8 @@ comedi_driver driver_das08={
 	attach:		das08_attach,
 	detach:		das08_detach,
 	recognize:	das08_recognize,
+	register_boards:	das08_register_boards,
+	num_names:	sizeof(das08_boards) / sizeof(das08_board),
 };
 
 static int das08_attach(comedi_device *dev,comedi_devconfig *it)
@@ -608,17 +611,19 @@ static int das08_recognize(char *name)
 	return -1;
 }
 
-#ifdef MODULE
-int init_module(void)
+static void das08_register_boards(void)
 {
-	comedi_driver_register(&driver_das08);
+	unsigned int i;
 
-	return 0;
+	for(i = 0; i < driver_das08.num_names; i++)
+	{
+		driver_das08.board_name[i] = das08_boards[i].name;
+		driver_das08.board_id[i] = i;
+	}
+
+	return;
 }
 
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_das08);
-}
-#endif
+
+COMEDI_INITCLEANUP(driver_das08)
 
