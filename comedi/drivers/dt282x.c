@@ -933,7 +933,7 @@ static int dt282x_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_INT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
@@ -1006,9 +1006,29 @@ static int dt282x_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *
 
 }
 
-static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
+static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
+		unsigned int x)
 {
 	int size;
+
+	if(x!=0)return -EVINAL;
+
+	size=copy_from_buf(dev,s,devpriv->dma[0].buf,devpriv->dma_maxsize*2);
+	prep_ao_dma(dev,0,size/2);
+	enable_dma(devpriv->dma[0].chan);
+
+	size=copy_from_buf(dev,s,devpriv->dma[1].buf,devpriv->dma_maxsize*2);
+	prep_ao_dma(dev,1,size/2);
+	enable_dma(devpriv->dma[1].chan);
+	
+	update_supcsr(DT2821_STRIG);
+	s->async->inttrig=NULL;
+
+	return 1;
+}
+
+static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
+{
 	int timer;
 	comedi_cmd *cmd=&s->async->cmd;
 
@@ -1021,21 +1041,13 @@ static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->dma_dir=DMA_MODE_WRITE;
 	devpriv->current_dma_chan=0;
 
-	size=copy_from_buf(dev,s,devpriv->dma[0].buf,devpriv->dma_maxsize*2);
-	prep_ao_dma(dev,0,size/2);
-	enable_dma(devpriv->dma[0].chan);
-
-	size=copy_from_buf(dev,s,devpriv->dma[1].buf,devpriv->dma_maxsize*2);
-	prep_ao_dma(dev,1,size/2);
-	enable_dma(devpriv->dma[1].chan);
-	
 	timer=dt282x_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
 	devpriv->dacsr = DT2821_SSEL| DT2821_DACLK | DT2821_IDARDY;
 	update_dacsr(0);
 
-	update_supcsr(DT2821_STRIG);
+	s->async->inttrig=dt282x_ao_inttrig;
 
 	return 0;
 }
