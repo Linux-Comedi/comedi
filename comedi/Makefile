@@ -1,7 +1,7 @@
 
 
-SUB_DIRS     := drivers realtime
-ALL_SUB_DIRS := kcomedilib drivers
+SUB_DIRS     := drivers
+ALL_SUB_DIRS := kcomedilib drivers realtime
 MOD_SUB_DIRS := drivers
 MOD_IN_SUB_DIRS :=
 
