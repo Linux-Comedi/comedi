@@ -320,12 +320,12 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 
 	this function is too complicated
 */
+static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig);
+static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig);
 static int do_trig_ioctl(comedi_device *dev,void *arg,void *file)
 {
 	comedi_trig user_trig;
 	comedi_subdevice *s;
-	int ret=0,i,bufsz;
-	int reading;
 	
 #if 0
 DPRINTK("entering do_trig_ioctl()\n");
@@ -366,17 +366,29 @@ DPRINTK("entering do_trig_ioctl()\n");
 	}
 	s->busy=file;
 
-	/* make sure channel/gain list isn't too long */
-	if(user_trig.n_chan > s->len_chanlist){
-		DPRINTK("channel/gain list too long %d > %d\n",user_trig.n_chan,s->len_chanlist);
-		ret = -EINVAL;
-		goto cleanup;
-	}
-
-	
 	s->cur_trig=user_trig;
 	s->cur_trig.chanlist=NULL;
 	s->cur_trig.data=NULL;
+
+	if(user_trig.mode == 0){
+		return do_trig_ioctl_mode0(dev,s,&user_trig);
+	}else{
+		return do_trig_ioctl_modeN(dev,s,&user_trig);
+	}
+}
+
+static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig)
+{
+	int reading;
+	int bufsz;
+	int ret=0,i;
+
+	/* make sure channel/gain list isn't too long */
+	if(user_trig->n_chan > s->len_chanlist){
+		DPRINTK("channel/gain list too long %d > %d\n",user_trig->n_chan,s->len_chanlist);
+		ret = -EINVAL;
+		goto cleanup;
+	}
 
 	/* load channel/gain list */
 	s->cur_trig.chanlist=kmalloc(s->cur_trig.n_chan*sizeof(int),GFP_KERNEL);
@@ -385,8 +397,8 @@ DPRINTK("entering do_trig_ioctl()\n");
 		ret = -ENOMEM;
 		goto cleanup;
 	}
-	
-	if(copy_from_user(s->cur_trig.chanlist,user_trig.chanlist,s->cur_trig.n_chan*sizeof(int))){
+
+	if(copy_from_user(s->cur_trig.chanlist,user_trig->chanlist,s->cur_trig.n_chan*sizeof(int))){
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
 		goto cleanup;
@@ -397,54 +409,31 @@ DPRINTK("entering do_trig_ioctl()\n");
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
 	}
-	
-	if(!s->prealloc_bufsz){
-		/* allocate temporary buffer */
 
-		if(s->subdev_flags&SDF_LSAMPL){
-			bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
-		}else{
-			bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
-		}
-
-		if(!(s->cur_trig.data=kmalloc(bufsz,GFP_KERNEL))){
-			DPRINTK("failed to allocate buffer\n");
-			ret=-ENOMEM;
-			goto cleanup;
-		}
+	/* allocate temporary buffer */
+	if(s->subdev_flags&SDF_LSAMPL){
+		bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
 	}else{
-		bufsz=s->prealloc_bufsz;
-		if(!s->prealloc_buf){
-			printk("comedi: bug: s->prealloc_buf=NULL\n");
-		}
-		s->cur_trig.data=s->prealloc_buf;
+		bufsz=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
 	}
-	s->cur_trig.data_len=bufsz;
 
-#if 0
-/* debugging */
-memset(s->cur_trig.data,0xef,bufsz);
-#endif
+	if(!(s->cur_trig.data=kmalloc(bufsz,GFP_KERNEL))){
+		DPRINTK("failed to allocate buffer\n");
+		ret=-ENOMEM;
+		goto cleanup;
+	}
 
 	s->buf_int_ptr=0;
 	s->buf_int_count=0;
-if(s->subdev_flags & SDF_READABLE){
-	s->buf_user_ptr=0;
-	s->buf_user_count=0;
-}
-	
-#if 0
-	if(user_trig.data==NULL){
-		/* XXX this *should* indicate that we want to transfer via read/write */
-		ret=-EINVAL;
-		goto cleanup;
+	if(s->subdev_flags & SDF_READABLE){
+		s->buf_user_ptr=0;
+		s->buf_user_count=0;
 	}
-#endif
 
 	if(s->subdev_flags & SDF_WRITEABLE){
 		if(s->subdev_flags & SDF_READABLE){
 			/* bidirectional, so we defer to trig structure */
-			if(user_trig.flags&TRIG_WRITE){
+			if(user_trig->flags&TRIG_WRITE){
 				reading=0;
 			}else{
 				reading=1;
@@ -456,14 +445,14 @@ if(s->subdev_flags & SDF_READABLE){
 		/* subdev is read-only */
 		reading=1;
 	}
-	if(!reading && user_trig.data){
+	if(!reading && user_trig->data){
 		if(s->subdev_flags&SDF_LSAMPL){
 			i=s->cur_trig.n*s->cur_trig.n_chan*sizeof(lsampl_t);
 		}else{
 			i=s->cur_trig.n*s->cur_trig.n_chan*sizeof(sampl_t);
 		}
-		if(copy_from_user(s->cur_trig.data,user_trig.data,i)){
-			DPRINTK("bad address %p,%p (%d)\n",s->cur_trig.data,user_trig.data,i);
+		if(copy_from_user(s->cur_trig.data,user_trig->data,i)){
+			DPRINTK("bad address %p,%p (%d)\n",s->cur_trig.data,user_trig->data,i);
 			ret=-EFAULT;
 			goto cleanup;
 		}
@@ -481,7 +470,7 @@ if(s->subdev_flags & SDF_READABLE){
 	s->subdev_flags|=SDF_RUNNING;
 
 	ret=s->trig[s->cur_trig.mode](dev,s,&s->cur_trig);
-	
+
 	if(ret==0)return 0;
 
 	if(ret<0)goto cleanup;
@@ -496,7 +485,7 @@ if(s->subdev_flags & SDF_READABLE){
 		i=bufsz;
 	}
 	if(reading){
-		if(copy_to_user(user_trig.data,s->cur_trig.data,i)){
+		if(copy_to_user(user_trig->data,s->cur_trig.data,i)){
 			ret=-EFAULT;
 			goto cleanup;
 		}
@@ -507,6 +496,72 @@ cleanup:
 	
 	return ret;
 }
+
+static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig)
+{
+	int ret=0;
+
+	if(s->cur_trig.mode>=5 || s->trig[s->cur_trig.mode]==NULL){
+		DPRINTK("bad mode %d\n",s->cur_trig.mode);
+		ret=-EINVAL;
+		goto cleanup;
+	}
+
+	/* make sure channel/gain list isn't too long */
+	if(user_trig->n_chan > s->len_chanlist){
+		DPRINTK("channel/gain list too long %d > %d\n",user_trig->n_chan,s->len_chanlist);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* load channel/gain list */
+	s->cur_trig.chanlist=kmalloc(s->cur_trig.n_chan*sizeof(int),GFP_KERNEL);
+	if(!s->cur_trig.chanlist){
+		DPRINTK("allocation failed\n");
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+
+	if(copy_from_user(s->cur_trig.chanlist,user_trig->chanlist,s->cur_trig.n_chan*sizeof(int))){
+		DPRINTK("fault reading chanlist\n");
+		ret = -EFAULT;
+		goto cleanup;
+	}
+	
+	/* make sure each element in channel/gain list is valid */
+	if((ret=check_chanlist(s,s->cur_trig.n_chan,s->cur_trig.chanlist))<0){
+		DPRINTK("bad chanlist\n");
+		goto cleanup;
+	}
+
+	if(!s->prealloc_buf){
+		printk("comedi: bug: s->prealloc_buf=NULL\n");
+	}
+	s->cur_trig.data=s->prealloc_buf;
+	s->cur_trig.data_len=s->prealloc_bufsz;
+
+	s->buf_int_ptr=0;
+	s->buf_int_count=0;
+	if(s->subdev_flags & SDF_READABLE){
+		s->buf_user_ptr=0;
+		s->buf_user_count=0;
+	}
+
+	/* mark as non-RT operation */
+	s->cur_trig.flags &= ~TRIG_RT;
+
+	s->subdev_flags|=SDF_RUNNING;
+
+	ret=s->trig[s->cur_trig.mode](dev,s,&s->cur_trig);
+
+	if(ret==0)return 0;
+
+cleanup:
+	do_become_nonbusy(dev,s);
+	
+	return ret;
+}
+
 
 /*
 	COMEDI_CMD
@@ -598,6 +653,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	ret=s->do_cmdtest(dev,s,&s->cmd);
 
 	if(s->cmd.flags&TRIG_BOGUS || ret){
+		DPRINTK("test returned %d\n",ret);
 		user_cmd=s->cmd;
 		user_cmd.chanlist = NULL;
 		user_cmd.data = NULL;
@@ -616,6 +672,9 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 	s->cmd.data_len=s->prealloc_bufsz;
+
+	s->cur_trig.data=s->prealloc_buf;
+	s->cur_trig.data_len=s->prealloc_bufsz;
 
 	s->buf_int_ptr=0;
 	s->buf_int_count=0;
@@ -661,7 +720,6 @@ static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file)
 	int ret=0;
 	unsigned int *chanlist=NULL;
 	
-DPRINTK("entering do_cmdtest_ioctl()\n");
 	if(copy_from_user(&user_cmd,arg,sizeof(comedi_cmd))){
 		DPRINTK("bad cmd address\n");
 		return -EFAULT;
