@@ -416,7 +416,7 @@ static int atao_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
 	unsigned int bitstring, bit;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 
-	bitstring = ((chan&0x7)<<8)|(insn->data[insn->n-1]&0xff);
+	bitstring = ((chan&0x7)<<8)|(data[insn->n-1]&0xff);
 
 	for(bit=1<<(11-1);bit;bit>>=1){
 		outw(devpriv->cfg2 | ((bit&bitstring)?SDATA:0), dev->iobase + ATAO_CFG2);

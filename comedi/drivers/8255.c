@@ -193,7 +193,7 @@ static int subdev_8255_insn_config(comedi_device *dev,comedi_subdevice *s,
 		bits=0xf00000;
 	}
 
-	switch(insn->data[0]){
+	switch(data[0]){
 	case COMEDI_INPUT:
 		s->io_bits&=~bits;
 		break;

@@ -3090,7 +3090,7 @@ static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 {
 	if(insn->n!=2)return -EINVAL;
 
-	insn->data[1] = 0;
+	data[1] = 0;
 
 	return 2;
 }

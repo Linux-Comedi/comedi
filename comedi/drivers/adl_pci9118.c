@@ -362,7 +362,7 @@ static int pci9118_insn_read_ai(comedi_device *dev,comedi_subdevice *s, comedi_i
     		}
 
     		comedi_error(dev,"A/D insn timeout");
-    		insn->data[n]=0;
+    		data[n]=0;
 		outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
     		return -ETIME;
 

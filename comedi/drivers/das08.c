@@ -661,8 +661,8 @@ static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	int lsb,msb;
 	int chan;
 
-	lsb=insn->data[0]&0xff;
-	msb=(insn->data[0]>>8)&0xf;
+	lsb=data[0]&0xff;
+	msb=(data[0]>>8)&0xf;
 
 	chan=CR_CHAN(insn->chanspec);
 
@@ -694,8 +694,8 @@ static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	int lsb,msb;
 	int chan;
 
-	lsb=insn->data[0]&0xff;
-	msb=(insn->data[0]>>8)&0xf;
+	lsb=data[0]&0xff;
+	msb=(data[0]>>8)&0xf;
 
 	chan=CR_CHAN(insn->chanspec);
 

@@ -2627,7 +2627,7 @@ static int dio_60xx_config_insn(comedi_device *dev, comedi_subdevice *s, comedi_
 
 	mask = 1 << CR_CHAN(insn->chanspec);
 
-	switch(insn->data[0])
+	switch(data[0])
 	{
 		case COMEDI_INPUT:
 			s->io_bits &= ~mask;

@@ -1065,7 +1065,7 @@ static int pci9111_ai_insn_read ( comedi_device *dev,
     }
 
     comedi_error(dev,"A/D read timeout");
-    insn->data[i]=0;
+    data[i]=0;
     pci9111_fifo_reset();
     return -ETIME;
 
