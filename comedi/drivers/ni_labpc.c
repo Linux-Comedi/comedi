@@ -31,6 +31,14 @@ and analog references will work, the available ranges/arefs will
 depend on how you have configured the jumpers on your board
 (see your owner's manual).
 
+Kernel-level ISA plug-and-play support for the lab-pc-1200
+boards has not
+yet been added to the driver, mainly due to the fact that
+I don't know the device id numbers.  If you have one
+of these boards,
+please file a bug report at https://bugs.comedi.org/
+so I can get the necessary information from you.
+
 The 1200 series boards have onboard calibration dacs for correcting
 analog input/output offsets and gains.  The proper settings for these
 caldacs are stored on the board's eeprom.  To read the caldac values
