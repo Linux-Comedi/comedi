@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ "$CONFIG_RTHAL" != "" ];then
+	echo You appear to be running an RTAI-patched kernel
+
+	echo -n "Enter location of RTAI source tree [/usr/src/rtai]: "
+	read RTAIDIR
+	: ${RTAIDIR:=/usr/src/rtai}
+	echo RTAIDIR=$RTAIDIR >>.sourcedirs
+	if [ -d $RTAIDIR/include/rtai ];then
+		(cd include;rm -f rtai;ln -s $RTAIDIR/include/rtai rtai)
+	else
+		(cd include;rm -f rtai;ln -s $RTAIDIR/include rtai)
+	fi
+fi
+

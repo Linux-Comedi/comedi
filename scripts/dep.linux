@@ -1,0 +1,60 @@
+#!/bin/sh
+
+if [ "$LINUXDIR" = "" ]
+then
+	echo -n "Enter location of Linux source tree [/usr/src/linux]: "
+	read LINUXDIR
+	: ${LINUXDIR:=/usr/src/linux}
+fi
+
+if [ ! -f "$LINUXDIR/.config" ];then
+	echo Kernel source tree at $LINUXDIR is not configured
+	echo Fix before continuing
+	exit 1
+fi
+
+echo using LINUXDIR=$LINUXDIR
+echo LINUXDIR=$LINUXDIR >.sourcedirs
+
+. $LINUXDIR/.config
+
+#
+# check for a bad situation
+#
+if [ "$CONFIG_MODULES" = "n" ]
+then
+	cat <<EOF
+ *****
+ *****    WARNING!!!
+ *****
+ *****    Your kernel is configured to not allow loadable modules.
+ *****    You are attempting to compile a loadable module for this
+ *****    kernel.  This is a problem.  Please correct it.
+ *****
+EOF
+exit
+fi
+
+#
+# check running kernel vs. /usr/src/linux and warn if necessary
+#
+read dummy dummy dummy2 <$LINUXDIR/include/linux/version.h
+UTS_VERSION=`echo $dummy2|sed 's/"//g'`
+
+echo UTS_VERSION=$UTS_VERSION >.uts_version
+
+if [ "$(uname -r)" != "$UTS_VERSION" ]
+then
+	cat <<EOF
+ *****
+ *****    WARNING!!!
+ *****
+ *****    The kernel that is currently running is a different
+ *****    version than the source in $LINUXDIR.  The current
+ *****    compile will create a module that is *incompatible*
+ *****    with the running kernel.
+ *****
+EOF
+fi
+
+

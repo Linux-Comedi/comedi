@@ -1,0 +1,136 @@
+
+-include .sourcedirs
+
+# Makefile for modbuild
+
+# define the following if you want to compile using PCMCIA
+# headers
+# PCMCIADIR = /home/ds/stuff/pcmcia-cs-3.1.15
+
+ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
+
+.EXPORT_ALL_VARIABLES:
+CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+	else if [ -x /bin/bash ]; then echo /bin/bash; \
+	else echo sh; fi ; fi)
+TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+
+HPATH		= $(TOPDIR)/include
+FINDHPATH	= $(HPATH)/$(project)
+
+HOSTCC		=gcc
+HOSTCFLAGS	=-Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+
+CFLAGS = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
+# use '-fno-strict-aliasing', but only if the compiler can take it
+CFLAGS += $(shell if $(CC) -fno-strict-aliasing -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-fno-strict-aliasing"; fi)
+#CFLAGS += -include $(TOPDIR)/include/modbuild/config.h
+CFLAGS += -D__KERNEL__ -I $(TOPDIR)/include -I $(LINUXDIR)/include -I .
+CFLAGS += -D__MODBUILD__
+
+CONFIG_SHELL := sh
+
+PROJECTRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
+
+-include $(LINUXDIR)/.config
+ifdef PCMCIADIR
+CONFIG_PCMCIA=m
+endif
+
+ifeq (.config,$(wildcard .config))
+include .config
+include .uts_version
+ifeq (.depend,$(wildcard .depend))
+include .depend
+all2:	modules
+else
+all2:	depend
+endif
+else
+all2:	config
+endif
+
+ifeq ($(CONFIG_SMP),y)
+CFLAGS += -D__SMP__
+endif
+
+ifdef PCMCIADIR
+CFLAGS += -I $(PCMCIADIR)/include
+endif
+
+
+-include arch/$(ARCH)/Makefile
+-include arch/Makefile.noarch
+
+config:	dummy
+	scripts/Configure
+
+install:	dummy
+	mkdir -p ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
+	install -d ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
+	install modules/*.o ${MOD_INSTALL_PATH}/lib/modules/${UTS_VERSION}/misc
+	#/sbin/depmod -a ${UTS_VERSION}
+
+
+MODFLAGS += -DMODULE
+ifeq ($(CONFIG_MODVERSIONS),y)
+MODFLAGS += -DMODVERSIONS -include $(LINUXDIR)/include/linux/modversions.h
+endif
+
+
+modules:	$(patsubst %, _mod_%, $(SUBDIRS))
+
+$(patsubst %, _mod_%, $(SUBDIRS)) : dummy
+	-mkdir modules
+	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
+
+dep-files: scripts/mkdep archdep include/$(project)/version.h new-genksyms
+#	scripts/mkdep init/*.c >.depend
+	echo >.depend
+	scripts/mkdep `find $(FINDHPATH) -follow -name \*.h ! -name modversions.h -print` > .hdepend
+#	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i fastdep ;done
+# let this be made through the fastdep rule in Rules.make
+	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
+
+include/$(project)/version.h: ./Makefile
+	@echo \#define $(PROJECT)_RELEASE \"$(PROJECTRELEASE)\" > .ver
+	@echo \#define $(PROJECT)_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
+	@echo '#define $(PROJECT)_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))' >>.ver
+	@mv -f .ver $@
+
+
+MODVERFILE :=
+
+new-genksyms:
+
+depend dep: dep-files $(MODVERFILE)
+
+clean:
+	rm -f core `find . -name '*.[oas]'`
+	rm -f core `find . -name '.*.flags' -print`
+
+distclean:	clean
+	rm -f .depend `find . -name .depend -print`
+	rm -f core `find . \( -name '*.orig' -o -name '*.rej' -o -name '*~' \
+		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
+		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
+	-rm -rf modules
+	rm -f .config .uts_version include/modbuild/config.h .config.old
+	rm -f scripts/mkdep
+	rm -f .sourcedirs
+
+include $(TOPDIR)/Rules.make
+
+
+dummy:
+
+#
+# This generates dependencies for the .h files.
+#
+
+scripts/mkdep: scripts/mkdep.c
+	$(HOSTCC) $(HOSTCFLAGS) -o scripts/mkdep scripts/mkdep.c
+
+scripts/split-include: scripts/split-include.c
+	$(HOSTCC) $(HOSTCFLAGS) -o scripts/split-include scripts/split-include.c
+

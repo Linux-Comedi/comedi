@@ -1,0 +1,14 @@
+#!/bin/sh
+
+if [ "$CONFIG_RTL" != "" ];then
+	echo You appear to be running an RTL-patched kernel
+
+	echo -n "Enter location of RTL source tree [/usr/src/rtl]: "
+	read RTLDIR
+	: ${RTLDIR:=/usr/src/rtl}
+	echo RTLDIR=$RTLDIR >>.sourcedirs
+	(cd include;rm -f rtlinux;ln -s $RTLDIR/include rtlinux)
+fi
+
+
+

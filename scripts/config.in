@@ -1,5 +1,4 @@
 
-define_bool CONFIG_COMEDI m
-
+# XXX change here
 source comedi/Config.in
 

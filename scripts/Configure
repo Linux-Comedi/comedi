@@ -3,43 +3,7 @@
 # This script was hacked from the one used to configure the linux kernel.
 #
 
-#
-# check running kernel vs. /usr/src/linux and warn if necessary
-#
-read dummy dummy dummy2 <$LINUXDIR/include/linux/version.h
-UTS_VERSION=`echo $dummy2|sed 's/"//g'`
-
-echo UTS_VERSION=$UTS_VERSION >.uts_version
-
-. $LINUXDIR/.config
-
-if [ "$CONFIG_MODULES" = "n" ]
-then
-	cat <<EOF
- *****
- *****    WARNING!!!
- *****
- *****    Your kernel is configured to not allow loadable modules.
- *****    You are attempting to compile a loadable module for this
- *****    kernel.  This is a problem.  Please correct it.
- *****
-EOF
-exit
-fi
-
-if [ "$(uname -r)" != "$UTS_VERSION" ]
-then
-	cat <<EOF
- *****
- *****    WARNING!!!
- *****
- *****    The kernel that is currently running is a different
- *****    version than the source in /usr/src/linux.  The current
- *****    compile will create a module that is *incompatible*
- *****    with the running kernel.
- *****
-EOF
-fi
+. scripts/preconfigure
 
 #
 # Make sure we're really running bash.
@@ -428,8 +392,8 @@ echo "/*" > $CONFIG_H
 echo " * Automatically generated C config: don't edit" >> $CONFIG_H
 echo " */" >> $CONFIG_H
 
-echo '#define COMEDI_VERSION "'$VERS1.$VERS2.$VERS3\" >> $CONFIG_H
-echo '#define COMEDI_VERSION_CODE ('0x1000*$VERS1+0x100*$VERS2+$VERS3')' >> $CONFIG_H
+echo '#define '${PROJECT}'_VERSION "'$VERS1.$VERS2.$VERS3\" >> $CONFIG_H
+echo '#define '${PROJECT}'_VERSION_CODE ('0x1000*$VERS1+0x100*$VERS2+$VERS3')' >> $CONFIG_H
 
 DEFAULT=""
 if [ "$1" = "-d" ] ; then
@@ -468,10 +432,10 @@ if [ -f .config ]; then
 	mv .config .config.old
 fi
 mv .tmpconfig .config
-mv .tmpconfig.h include/config.h
+mv .tmpconfig.h include/modbuild/config.h
 
 echo 
-echo "Makefiles for comedi should now be configured.  Run 'make' to compile,"
+echo "Makefiles for ${project} should now be configured.  Run 'make' to compile,"
 echo "and then 'make install' to install."
 echo 
 

@@ -2,7 +2,7 @@
 
 
 
-if [ $(grep -c "$(uname -r)" ${LINUXDIR}/version.h) != 0 ]
+if [ $(grep -c "$(uname -r)" /usr/include/linux/version.h) != 0 ]
 then
 	echo <<EOF
  *****
