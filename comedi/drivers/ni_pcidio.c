@@ -48,7 +48,7 @@ AT-MIO96.
 The PCI-6534 requires a firmware upload after power-up to work, the
 firmware data and instructions for loading it with comedi_config
 it are contained in the
-comedi_firmware tarball available from http://www.comedi.org
+comedi_nonfree_firmware tarball available from http://www.comedi.org
 */
 
 /*
@@ -969,7 +969,7 @@ static int pci_6534_load_fpga(comedi_device *dev, int fpga_index, u8 *data, int 
 	writew(0xc0 | fpga_index, dev->iobase + Firmware_Control_Register);
 	for(i = 0; (readw(dev->iobase + Firmware_Status_Register) & 0x2) == 0 && i < timeout; ++i)
 	{
-		comedi_udelay(1);
+		udelay(1);
 	}
 	if(i == timeout)
 	{
@@ -979,7 +979,7 @@ static int pci_6534_load_fpga(comedi_device *dev, int fpga_index, u8 *data, int 
 	writew(0x80 | fpga_index, dev->iobase + Firmware_Control_Register);
 	for(i = 0; readw(dev->iobase + Firmware_Status_Register) != 0x3 && i < timeout; ++i)
 	{
-		comedi_udelay(1);
+		udelay(1);
 	}
 	if(i == timeout)
 	{
@@ -993,13 +993,15 @@ static int pci_6534_load_fpga(comedi_device *dev, int fpga_index, u8 *data, int 
 		writew(value, dev->iobase + Firmware_Data_Register);
 		for(i = 0; (readw(dev->iobase + Firmware_Status_Register) & 0x2) == 0 && i < timeout; ++i)
 		{
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if(i == timeout)
 		{
 			printk("ni_pcidio: failed to load word into fpga %i\n", fpga_index);
 			return -EIO;
 		}
+		if(need_resched())
+			schedule();
 	}
 	writew(0x0, dev->iobase + Firmware_Control_Register);
 	return 0;
