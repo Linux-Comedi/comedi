@@ -996,7 +996,7 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->n_chan=1;
 	s->len_chanlist=1;
-	s->insn_read=daqp_do_insn_write;
+	s->insn_write=daqp_do_insn_write;
 
 	return 1;
 }
