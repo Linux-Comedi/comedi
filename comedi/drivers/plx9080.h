@@ -46,6 +46,7 @@ struct plx_dma_desc
 **********************************************************************/
 
 #define PLX_LAS0RNG_REG         0x0000 /* L, Local Addr Space 0 Range Register */
+#define PLX_LAS1RNG_REG         0x00f0 /* L, Local Addr Space 1 Range Register */
 #define  LRNG_IO           0x00000001 /* Map to: 1=I/O, 0=Mem */
 #define  LRNG_ANY32        0x00000000 /* Locate anywhere in 32 bit */
 #define  LRNG_LT1MB        0x00000002 /* Locate in 1st meg */
@@ -54,6 +55,7 @@ struct plx_dma_desc
 #define  LRNG_IO_MASK     0xfffffffa	// bits that specify range for normal io
 
 #define PLX_LAS0MAP_REG         0x0004 /* L, Local Addr Space 0 Remap Register */
+#define PLX_LAS1MAP_REG         0x00f4 /* L, Local Addr Space 1 Remap Register */
 #define  LMAP_EN           0x00000001 /* Enable slave decode */
 #define  LMAP_MEM_MASK     0xfffffff0	// bits that specify decode for memory io
 #define  LMAP_IO_MASK     0xfffffffa	// bits that specify decode bits for normal io
@@ -187,9 +189,11 @@ struct plx_dma_desc
 #define PLX_DMA0_MODE_REG	0x80	// dma channel 0 mode register
 #define PLX_DMA1_MODE_REG	0x94	// dma channel 0 mode register
 #define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
+#define  PLX_LOCAL_BUS_32_WIDE_BITS	0x3
 #define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
 #define  PLX_DMA_EN_READYIN_BIT	0x40	// enable ready in input
 #define  PLX_EN_BTERM_BIT	0x80	// enable BTERM# input
+#define  PLX_DMA_LOCAL_BURST_EN_BIT	0x100	// enable local burst mode
 #define  PLX_EN_CHAIN_BIT	0x200	// enables chaining
 #define  PLX_EN_DMA_DONE_INTR_BIT	0x400	// enables interrupt on dma done
 #define  PLX_LOCAL_ADDR_CONST_BIT	0x800	// hold local address constant (don't increment)
@@ -349,5 +353,10 @@ struct plx_dma_desc
 /* system allocates this many bytes for address mapping mailbox space */
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
 #define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
+
+// I2O registers
+#define PLX_INBOUND_QUEUE_PORT_REG	0x40	// inbound queue port
+#define PLX_QUEUE_CONFIG_REG	0xc0	// messaging queue configuration register
+#define PLX_QUEUE_SC_REG	0xe8	// queue status and control
 
 #endif /* __COMEDI_PLX9080_H */
