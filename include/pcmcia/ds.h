@@ -21,13 +21,18 @@ struct pcmcia_driver {
 static inline int pcmcia_register_driver(struct pcmcia_driver *driver)
 {
 	return register_pccard_driver(driver->drv.name, driver->attach, driver->detach);
-}
+};
 
 static void inline pcmcia_unregister_driver(struct pcmcia_driver *driver)
 {
 	unregister_pccard_driver(driver->drv.name);
-}
+};
 
+static void inline cs_error(client_handle_t handle, int func, int ret)
+{
+    error_info_t err = { func, ret };
+    CardServices(ReportError, handle, &err);
+};
 
 #endif
 
