@@ -71,6 +71,8 @@ NOTES:
 
 #define DAS800_SIZE           8
 #define TIMER_BASE            1000
+#define N_CHAN_AI             8	// number of analog input channels
+
 /* Registers for the das800 */
 
 #define DAS800_LSB            0
@@ -103,53 +105,10 @@ NOTES:
 typedef struct das800_board_struct{
 	char *name;
 	int ai_speed;
+	comedi_lrange *ai_range;
 }das800_board;
 
-enum{das800, ciodas800, das801, ciodas801, das802, ciodas802};
-
-das800_board das800_boards[] =
-{
-	{
-		name:	"das-800",
-		ai_speed:	25000,
-	},
-	{
-		name:	"cio-das800",
-		ai_speed:	20000,
-	},
-	{
-		name:		"das-801",
-		ai_speed:	25000,
-	},
-	{
-		name:	"cio-das801",
-		ai_speed:	20000,
-	},
-	{
-		name:		"das-802",
-		ai_speed:	25000,
-	},
-	{
-		name:	"cio-das802",
-		ai_speed:	20000,
-	},
-};
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((das800_board *)dev->board_ptr)
-
-typedef struct{
-	unsigned long count;  /* number of data points left to be taken */
-	int forever;  /* flag indicating whether we should take data forever */
-	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
-	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
-	int do_bits;	/* digital output bits */
-	spinlock_t spinlock;
-}das800_private;
-
-#define devpriv ((das800_private *)dev->private)
-
+//analog input ranges
 static comedi_lrange range_das800_ai = {
 	1,
 	{
@@ -202,14 +161,56 @@ static comedi_lrange range_das802_ai = {
 	}
 };
 
-static comedi_lrange *das800_range_lkup[] = {
-	&range_das800_ai,
-	&range_das800_ai,
-	&range_das801_ai,
-	&range_cio_das801_ai,
-	&range_das802_ai,
-	&range_das802_ai,
+enum{das800, ciodas800, das801, ciodas801, das802, ciodas802};
+
+das800_board das800_boards[] =
+{
+	{
+		name:	"das-800",
+		ai_speed:	25000,
+		ai_range:	&range_das800_ai,
+	},
+	{
+		name:	"cio-das800",
+		ai_speed:	20000,
+		ai_range:	&range_das800_ai,
+	},
+	{
+		name:		"das-801",
+		ai_speed:	25000,
+		ai_range:	&range_das801_ai,
+	},
+	{
+		name:	"cio-das801",
+		ai_speed:	20000,
+		ai_range:	&range_cio_das801_ai,
+	},
+	{
+		name:		"das-802",
+		ai_speed:	25000,
+		ai_range:	&range_das802_ai,
+	},
+	{
+		name:	"cio-das802",
+		ai_speed:	20000,
+		ai_range:	&range_das802_ai,
+	},
 };
+/*
+ * Useful for shorthand access to the particular board structure
+ */
+#define thisboard ((das800_board *)dev->board_ptr)
+
+typedef struct{
+	unsigned long count;  /* number of data points left to be taken */
+	int forever;  /* flag indicating whether we should take data forever */
+	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
+	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
+	int do_bits;	/* digital output bits */
+	spinlock_t spinlock;
+}das800_private;
+
+#define devpriv ((das800_private *)dev->private)
 
 static int das800_attach(comedi_device *dev,comedi_devconfig *it);
 static int das800_detach(comedi_device *dev);
@@ -481,7 +482,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = 0xfff;
-	s->range_table = das800_range_lkup[board];
+	s->range_table = thisboard->ai_range;
 	s->do_cmd = das800_ai_do_cmd;
 	s->do_cmdtest = das800_ai_do_cmdtest;
 	s->insn_read = das800_ai_rinsn;
@@ -566,7 +567,6 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 	int tmp;
 	int gain, startChan;
 	int i;
-	comedi_async *async = s->async;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -651,16 +651,16 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 		}
 	}
 	// check channel/gain list against card's limitations
-	gain = CR_RANGE(async->cmd.chanlist[0]);
-	startChan = CR_CHAN(async->cmd.chanlist[0]);
-	for(i = 1; i < async->cmd.chanlist_len; i++)
+	gain = CR_RANGE(cmd->chanlist[0]);
+	startChan = CR_CHAN(cmd->chanlist[0]);
+	for(i = 1; i < cmd->chanlist_len; i++)
 	{
-  	if(CR_CHAN(async->cmd.chanlist[i]) != (startChan + i) % s->n_chan)
+  	if(CR_CHAN(cmd->chanlist[i]) != (startChan + i) % N_CHAN_AI)
 		{
 			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
 			err++;
 		}
-		if(CR_RANGE(async->cmd.chanlist[i]) != gain)
+		if(CR_RANGE(cmd->chanlist[i]) != gain)
 		{
 			comedi_error(dev, "entries in chanlist must all have the same gain\n");
 			err++;
