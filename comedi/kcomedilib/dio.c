@@ -38,12 +38,25 @@
 #include <asm/uaccess.h>
 #endif
 
+#define USE_INSN
 
 extern volatile int rtcomedi_lock_semaphore;
 
 int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int io)
 {
+#if 0
+	comedi_insn insn;
+
+	memset(&insn,0,sizeof(insn));
+	insn.insn = INSN_CONFIG;
+	insn.n = 1;
+	insn.data = &io;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan,0,0);
+
+	return comedi_do_insn(dev,&insn);
+#else
 	comedi_trig cmd;
 	sampl_t sdata = io;
 
@@ -60,11 +73,24 @@ int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
 	cmd.chanlist = &chan;
 
 	return comedi_trig_ioctl(dev,subdev,&cmd);
+#endif
 }
 
 int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int *val)
 {
+#ifdef USE_INSN
+	comedi_insn insn;
+
+	memset(&insn,0,sizeof(insn));
+	insn.insn = INSN_READ;
+	insn.n = 1;
+	insn.data = val;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan,0,0);
+
+	return comedi_do_insn(dev,&insn);
+#else
 	comedi_trig cmd;
 	sampl_t sdata;
 	int ret;
@@ -83,11 +109,24 @@ int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	*val = sdata;
 
 	return ret;
+#endif
 }
 
 int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int val)
 {
+#ifdef USE_INSN
+	comedi_insn insn;
+
+	memset(&insn,0,sizeof(insn));
+	insn.insn = INSN_WRITE;
+	insn.n = 1;
+	insn.data = &val;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan,0,0);
+
+	return comedi_do_insn(dev,&insn);
+#else
 	comedi_trig cmd;
 	sampl_t sdata=val;
 	int ret;
@@ -105,11 +144,32 @@ int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	ret = comedi_trig_ioctl(dev,subdev,&cmd);
 
 	return ret;
+#endif
 }
 
 int comedi_dio_bitfield(unsigned int minor,unsigned int subdev,unsigned int mask,
 	unsigned int *bits)
 {
+#ifdef USE_INSN
+	comedi_insn insn;
+	lsampl_t data[2];
+	int ret;
+
+	memset(&insn,0,sizeof(insn));
+	insn.insn = INSN_BITS;
+	insn.n = 2;
+	insn.data = data;
+	insn.subdev = subdev;
+
+	data[0] = mask;
+	data[1] = *bits;
+
+	ret = comedi_do_insn(minor,&insn);
+
+	*bits = data[1];
+
+	return ret;
+#else
 	int ret;
 	unsigned int i,n_chan;
 	unsigned int m,bit;
@@ -133,6 +193,7 @@ int comedi_dio_bitfield(unsigned int minor,unsigned int subdev,unsigned int mask
 	}
 
 	return (int)n_chan;
+#endif
 }
 
 

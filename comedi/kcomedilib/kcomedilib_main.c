@@ -528,6 +528,97 @@ int __comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
 }
 
 /*
+ *	COMEDI_INSN
+ *	perform an instruction
+ */
+int comedi_do_insn(unsigned int minor,comedi_insn *insn)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int ret=0;
+
+	dev=comedi_get_device_by_minor(minor);
+
+	if(insn->insn&INSN_MASK_SPECIAL){
+		switch(insn->insn){
+		case INSN_GTOD:
+		{
+			struct timeval tv;
+			lsampl_t data[2];
+
+			do_gettimeofday(&tv);
+			data[0] = tv.tv_sec;
+			data[1] = tv.tv_usec;
+			ret = 2;
+
+			break;
+		}
+		case INSN_WAIT:
+			if(insn->n<1 || insn->data[0]>=100){
+				ret = -EINVAL;
+				break;
+			}
+			udelay(insn->data[0]);
+			ret=1;
+			break;
+		default:
+			ret = -EINVAL;
+		}
+	}else{
+		/* a subdevice instruction */
+		if(insn->subdev>=dev->n_subdevices){
+			ret = -EINVAL;
+			goto error;
+		}
+		s = dev->subdevices+insn->subdev;
+
+		if(s->type==COMEDI_SUBD_UNUSED){
+			rt_printk("%d not useable subdevice\n",insn->subdev);
+			goto error;
+		}
+
+		/* XXX check lock */
+
+		if((ret=check_chanlist(s,1,&insn->chanspec))<0){
+			rt_printk("bad chanspec\n");
+			goto error;
+		}
+
+		if(s->busy){
+			ret = -EBUSY;
+			goto error;
+		}
+		s->busy = (void *)&rtcomedi_lock_semaphore;
+
+		switch(insn->insn){
+			case INSN_READ:
+				ret = s->insn_read(dev,s,insn,insn->data);
+				break;
+			case INSN_WRITE:
+				ret = s->insn_read(dev,s,insn,insn->data);
+				break;
+			case INSN_BITS:
+				ret = s->insn_read(dev,s,insn,insn->data);
+				break;
+			default:
+				ret=-EINVAL;
+				break;
+		}
+
+		s->busy = NULL;
+	}
+	if(ret<0)goto error;
+	if(ret!=insn->n){
+		rt_printk("BUG: result of insn != insn.n\n");
+		ret = -EINVAL;
+		goto error;
+	}
+error:
+	
+	return ret;
+}
+
+/*
 	COMEDI_LOCK
 	lock subdevice
 	

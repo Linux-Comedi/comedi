@@ -38,12 +38,25 @@
 #include <asm/uaccess.h>
 #endif
 
+#define USE_INSN
 
 extern volatile int rtcomedi_lock_semaphore;
 
 int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t data)
 {
+#ifdef USE_INSN
+	comedi_insn insn;
+	
+	memset(&insn,0,sizeof(insn));
+	insn.insn = INSN_WRITE;
+	insn.n = 1;
+	insn.data = &data;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan,range,aref);
+
+	return comedi_do_insn(dev,&insn);
+#else
 	comedi_trig cmd;
 	sampl_t sdata = data;
 
@@ -61,11 +74,24 @@ int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	cmd.chanlist = &chan;
 
 	return comedi_trig_ioctl(dev,subdev,&cmd);
+#endif
 }
 
 int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t *data)
 {
+#ifdef USE_INSN
+	comedi_insn insn;
+	
+	memset(&insn,0,sizeof(insn));
+	insn.insn = INSN_READ;
+	insn.n = 1;
+	insn.data = data;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan,range,aref);
+
+	return comedi_do_insn(dev,&insn);
+#else
 	comedi_trig cmd;
 	int ret;
 	sampl_t sdata;
@@ -87,5 +113,6 @@ int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	*data = sdata;
 
 	return ret;
+#endif
 }
 
