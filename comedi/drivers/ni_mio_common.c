@@ -1545,18 +1545,21 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	unsigned int range;
 	unsigned int dat = data[0];
 
-	chan=CR_CHAN(insn->chanspec);
+	chan = CR_CHAN(insn->chanspec);
+	range = CR_RANGE(insn->chanspec);
+
+	devpriv->ao[chan] = dat;
 
 	conf=chan<<8;
-
-	/* XXX check range with current range in flaglist[chan] */
-	/* should update calibration if range changes (ick) */
-
-	range = CR_RANGE(insn->chanspec);
 	if(boardtype.ao_unipolar){
 		conf |= (range&1)^1;
+		conf |= (range&2)<<1;
+		if((range&1)==0)
+			dat^=(1<<(boardtype.aobits-1));
+	}else{
+		conf |= 1;
+		dat^=(1<<(boardtype.aobits-1));
 	}
-	conf |= (range&2)<<1;
 
 #if 0
 	/* XXX oops.  forgot flags in insn! */
@@ -1570,11 +1573,6 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	conf |= (CR_AREF(insn->chanspec)==AREF_OTHER)? 8 : 0;
 
 	ni_writew(conf,AO_Configuration);
-
-	devpriv->ao[chan] = dat;
-
-	if(((range&1)==0) || !boardtype.ao_unipolar)
-		dat^=(1<<(boardtype.aobits-1));
 
 	ni_writew(dat,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 
