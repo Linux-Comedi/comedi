@@ -214,7 +214,7 @@ static int labpc_eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comed
 static int labpc_eeprom_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd);
-static struct mite_struct* pclab_find_device(int bus, int slot);
+static struct mite_struct* labpc_find_device(int bus, int slot);
 static unsigned int labpc_inb(unsigned int address);
 static void labpc_outb(unsigned int byte, unsigned int address);
 static unsigned int labpc_readb(unsigned int address);
@@ -1676,8 +1676,8 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 // figures out what counter values to use based on command
 static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 {
-	const max_counter_value = 0x1000;  // max value for 16 bit counter in mode 2
-	const min_counter_value = 2;  // min value for 16 bit counter in mode 2
+	const int max_counter_value = 0x1000;  // max value for 16 bit counter in mode 2
+	const int min_counter_value = 2;  // min value for 16 bit counter in mode 2
 	unsigned int base_period;
 
 	// if both convert and scan triggers are TRIG_TIMER, then they both rely on counter b0
