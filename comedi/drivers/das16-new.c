@@ -386,14 +386,17 @@ static struct das16_board_struct das16_boards[]={
 	},
 #endif
 };
+#define n_das16_boards ((sizeof(das16_boards))/(sizeof(das16_boards[0])))
 
 static int das16_attach(comedi_device *dev,comedi_devconfig *it);
 static int das16_detach(comedi_device *dev);
+static int das16_recognize(char *name);
 comedi_driver driver_das16={
 	driver_name:	"das16",
 	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
+	recognize:	das16_recognize,
 };
 
 
@@ -609,6 +612,19 @@ printk("diobits 0x%02x",diobits);
 		return das16_board_das1401_12;
 	}
 
+}
+
+
+static int das16_recognize(char *name)
+{
+	int i;
+
+	for(i=0;i<n_das16_boards;i++){
+		if(!strcmp(das16_boards[i].name,name))
+			return i;
+	}
+
+	return -1;
 }
 
 
