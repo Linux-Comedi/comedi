@@ -194,7 +194,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		caldac:		{mb88341},
+		caldac:		{ad8804_debug},
 	},
 	{	device_id:	39,
 		isapnp_id:	0x2700,
