@@ -133,9 +133,14 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	 * and execution) */
 	div1 = *d1 ? *d1 : 0x10000;
 	div2 = *d2 ? *d2 : 0x10000;
+	divider = div1 * div2;
 	if(div1 * div2 * i8253_osc_base == *nanosec &&
 		div1 > 1 && div1 <= 0x10000 &&
-		div2 > 1 && div2 <= 0x10000)
+		div2 > 1 && div2 <= 0x10000 &&
+		/* check for overflow */
+		divider > div1 && divider > div2 &&
+		divider * i8253_osc_base > divider &&
+		divider * i8253_osc_base > i8253_osc_base)
 	{
 		return;
 	}
@@ -160,7 +165,6 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 				div2_glb = div2;
 			}
 			if (div2 <= 0x10000) {
-				ns = i8253_osc_base * div1 * div2;
 				if (ns >= *nanosec && ns < ns_lub) {
 					ns_lub = ns;
 					div1_lub = div1;
