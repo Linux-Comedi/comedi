@@ -1,7 +1,7 @@
 
 
 SUB_DIRS     := drivers
-ALL_SUB_DIRS := kcomedilib drivers realtime
+ALL_SUB_DIRS := kcomedilib drivers realtime rt_pend_tq
 MOD_SUB_DIRS := drivers
 MOD_IN_SUB_DIRS :=
 
@@ -13,8 +13,8 @@ ifneq ($(CONFIG_COMEDI_KLIB),)
 endif
 
 ifeq ($(CONFIG_COMEDI_RT),y)
-	MOD_SUB_DIRS += realtime
-	SUB_DIRS += realtime
+	MOD_SUB_DIRS += realtime rt_pend_tq
+	SUB_DIRS += realtime rt_pend_tq
 endif
 
 MOD_LIST_NAME := MISC_MODULES

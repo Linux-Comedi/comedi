@@ -36,6 +36,8 @@
 #include <linux/irq.h>
 #include <asm/io.h>
 
+#include "rt_pend_tq/rt_pend_tq.h"
+
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai/rtai.h>
 
@@ -152,17 +154,19 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 	RT_spin_unlock_irq(&dev->spinlock);
 }
 
-void comedi_rt_pend_wakeup(wait_queue_head_t *q)
-{
-
-}
-
 #ifdef HAVE_RT_PEND_TQ
 void wake_up_int_handler(int arg1, void * arg2)
 {
 	wake_up_interruptible((wait_queue_head_t*)arg2);
 }
 #endif
+
+void comedi_rt_pend_wakeup(wait_queue_head_t *q)
+{
+#ifdef HAVE_RT_PEND_TQ
+	rt_pend_call(wake_up_int_handler,0,q);
+#endif
+}
 
 
 /* RTAI section */
