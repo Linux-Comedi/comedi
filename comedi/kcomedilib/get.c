@@ -186,12 +186,14 @@ int comedi_get_buffer_contents( comedi_t *d, unsigned int subdevice )
 	comedi_device *dev = (comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
+	unsigned int num_bytes;
 
 	if( subdevice >= dev->n_subdevices ) return -1;
 	async = s->async;
-	if(async == NULL) return 0;
 
-	return async->buf_write_count - async->buf_read_count;
+	num_bytes = comedi_buf_read_n_available(s);
+	comedi_buf_munge( dev, s, async->buf_write_count - async->munge_count );
+	return num_bytes;
 }
 
 /*
