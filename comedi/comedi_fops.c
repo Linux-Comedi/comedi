@@ -1539,7 +1539,7 @@ void mite_cleanup(void);
 void init_drivers(void);
 
 
-void comedi_init(void)
+int comedi_init(void)
 {
 	int i;
 
@@ -1566,6 +1566,8 @@ void comedi_init(void)
 	comedi_rt_init();
 #endif
 	init_drivers();
+
+	return 0;
 }
 
 void comedi_cleanup(void)
@@ -1599,9 +1601,7 @@ void comedi_cleanup(void)
 #ifdef MODULE
 int init_module(void)
 {
-	comedi_init();
-
-	return 0;
+	return comedi_init();
 }
 
 int cleanup_module(void)

@@ -123,7 +123,7 @@ attached:
 	dev->attached=1;
 	dev->driver=driv;
 
-	if(driver->module)
+	if(driv->module)
 		__MOD_INC_USE_COUNT(driv->module);
 
 	return 0;
