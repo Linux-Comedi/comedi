@@ -23,6 +23,9 @@
 #define pci_enable_device(x) 0
 
 #define PCI_ANY_ID (~0)
+#ifndef PCI_VENDOR_ID_ICP
+#define PCI_VENDOR_ID_ICP 0x104c
+#endif
 
 struct pci_device_id {
 	unsigned int vendor, device;
@@ -72,9 +75,6 @@ extern inline unsigned long pci_resource_start(struct pci_dev *dev, unsigned int
 		return dev->base_address[bar] & PCI_BASE_ADDRESS_IO_MASK;
 	return dev->base_address[bar] & PCI_BASE_ADDRESS_MEM_MASK;
 }
-
-#else
-
 #endif
 
 #endif
