@@ -1701,7 +1701,7 @@ static int __init comedi_init(void)
 	/* XXX requires /proc interface */
 	comedi_proc_init();
 
-	for(i=0;i<4;i++){
+	for(i=0;i<COMEDI_NDEVICES;i++){
 		char name[20];
 		sprintf(name, "comedi%d", i);
 		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
