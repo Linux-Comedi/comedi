@@ -6,10 +6,11 @@
 # architecture-dependant package, as well as an architecture-independent
 # package.
 
-#p_mod=comedi-modules-$(KVERS)
-p_mod=comedi-modules
+p_mod=comedi-modules-$(KVERS)
+#p_mod=comedi-modules
 d_mod=debian/$(p_mod)
 
+.PHONY: kdist_image
 kdist_image:	checkroot
 	$(RM) debian/files
 	yes "" | ./configure --linuxdir $(KSRC) --non-interactive --reconf
@@ -27,27 +28,28 @@ kdist_image:	checkroot
 	  $(d_mod)/usr/share/doc/$(p_mod)/copyright
 	chown -R root.root $(d_mod)
 	chmod -R g-ws $(d_mod)
+	echo "kpkg:Package-Version=$(epoch)$(pversion)+$(non_epoch_version)" \
+	  >> debian/substvars
+	echo "kpkg:Kernel-Version=$(KVERS)" >> debian/substvars
+	sed 's/\$$KVERS/$(KVERS)/' debian/comedi-modules.control >debian/control
 	dpkg-gencontrol -p$(p_mod) -P$(d_mod) -isp
 	dpkg-deb --build $(d_mod) $(KSRC)/..
 
-kdist_changes:
-
-kdist_configure:
+.PHONY: kdist_config
+kdist_config:
+	echo "****** kdist_configure *****"
+	env
+	yes "" | ./configure --linuxdir $(KSRC) --non-interactive --reconf
 	
-kdist: kdist_image
-	#$(RM) -r $(d_mod)
-
+.PHONY: kdist_clean clean
 kdist_clean clean:
 	$(MAKE) distclean
 	$(RM) -r debian/tmp $(d_mod) debian/src debian/*~ \
-	  debian/files debian/control.tmp debian/substvars
+	  debian/files debian/substvars
 
 build:
 
-clean-modules:
-	-umask 022; $(MAKE) DEB_MOD=yes clean
-	$(RM) build-modules
-
+.PHONY: binary-source
 binary-source: checkroot
 	$(RM) -r debian/src
 	install -d debian/src debian/src/DEBIAN
@@ -81,13 +83,15 @@ binary-source: checkroot
 	dpkg-gencontrol -pcomedi-source -Pdebian/src -isp
 	dpkg-deb --build debian/src ..
 
+.PHONY: binary-arch
 binary-arch:
 
+.PHONY: binary-indep
 binary-indep: binary-source
 
 checkroot:
 	test root = "`whoami`"
 
+.PHONY: binary
 binary: binary-indep
 
-.PHONY: build clean binary-indep binary-arch binary install configure
