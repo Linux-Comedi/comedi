@@ -180,8 +180,9 @@ typedef struct cb_pcidas_board_struct
 	int ai_diff_chans;	// Inputs in differential mode
 	int ai_bits;	// analog input resolution
 	int ai_speed;	// fastest conversion period in ns
-	// number of analog outputs
-	int ao_nchan;
+	int ao_nchan;	// number of analog out channels
+	int has_ao_fifo;	// analog output has fifo
+	int fifo_size;	// number of samples fifo can hold
 	comedi_lrange *ranges;
 } cb_pcidas_board;
 
@@ -194,6 +195,9 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_diff_chans:	8,
 		ai_bits:	16,
 		ai_speed:	5000,
+		ao_nchan: 2,
+		has_ao_fifo:	1,
+		fifo_size:	512,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -203,6 +207,9 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_diff_chans:	8,
 		ai_bits:	12,
 		ai_speed:	3200,
+		ao_nchan: 2,
+		has_ao_fifo:	0,
+		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -212,6 +219,9 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_diff_chans:	8,
 		ai_bits:	12,
 		ai_speed:	3200,
+		ao_nchan: 2,
+		has_ao_fifo:	1,
+		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -221,6 +231,9 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_diff_chans:	8,
 		ai_bits:	12,
 		ai_speed:	3200,
+		ao_nchan: 0,
+		has_ao_fifo:	0,
+		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -230,6 +243,9 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_diff_chans:	8,
 		ai_bits:	16,
 		ai_speed: 5000,
+		ao_nchan: 0,
+		has_ao_fifo:	0,
+		fifo_size:	512,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -240,6 +256,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_bits:	12,
 		ai_speed:	4000,
 		ao_nchan: 0,
+		has_ao_fifo:	0,
+		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
@@ -250,6 +268,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_bits:	12,
 		ai_speed:	6800,
 		ao_nchan: 2,
+		has_ao_fifo:	0,
+		fifo_size:	1024,
 		ranges:	&cb_pcidas_alt_ranges,
 	},
 	{
@@ -260,6 +280,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ai_bits:	12,
 		ai_speed:	6800,
 		ao_nchan: 2,
+		has_ao_fifo:	0,
+		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
 	},
 };
@@ -869,16 +891,19 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	int status;
-	static const int half_fifo = 512;
-	sampl_t data[half_fifo];
+	int half_fifo = thisboard->fifo_size / 2;
+	static const int max_half_fifo = 512;	// maximum possible half-fifo size
+	sampl_t data[max_half_fifo];
 	int i;
 	static const int timeout = 10000;
 
+#ifdef CB_PCIDAS_DEBUG
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
 		return;
 	}
+#endif
 
 	async = s->async;
 	async->events = 0;
