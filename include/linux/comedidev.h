@@ -130,6 +130,18 @@ struct comedi_async_struct{
 	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 
+	/* To avoid races and provide reliable overrun detection, read / writes
+	 * to buffer should proceed as follows:
+	 * Writing:
+	 *   1) increment write count
+	 *   2) write data to buffer
+	 *   3) increment write ptr
+	 * Reading:
+	 *   1) read data from buffer, using 'ptr' members to determine how much
+	 *   2) update the read ptr, exactly when this occurs is not critical
+	 *   3) check for overrun, using 'count' members
+	 *   4) increment read count
+	 */
 	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
 	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */
 	volatile unsigned int buf_int_count;	/* byte count for interrupt */
