@@ -4,6 +4,7 @@
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
+    Copyright (C) 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -330,7 +331,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 }
 
 #ifdef PCIDMA
-static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
+static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 {
 	int count;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -495,7 +496,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
 	if(m_status & CHSR_LINKC){
-		mite_handle_a_linkc(devpriv->mite, dev);
+		ni_sync_ai_dma(devpriv->mite, dev);
 	}
 
 	if(m_status & CHSR_DONE){
@@ -586,9 +587,15 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	}
 #endif // !PCIDMA
 
-	if(devpriv->aimode==AIMODE_SCAN && status&AI_STOP_St){
+	if(devpriv->aimode==AIMODE_SCAN && (status & AI_STOP_St)){
 #ifdef PCIDMA
-		mite_handle_a_linkc(devpriv->mite, dev);
+		int bytes_in_transit;
+
+		do{
+			bytes_in_transit = mite_bytes_in_transit( devpriv->mite, AI_DMA_CHAN );
+			ni_sync_ai_dma(devpriv->mite, dev);
+		}while( ( s->async->events & COMEDI_CB_EOS ) == 0 &&
+			bytes_in_transit );
 #else
 		ni_handle_fifo_dregs(dev);
 		s->async->events |= COMEDI_CB_EOS;
@@ -922,7 +929,7 @@ static int ni_ai_drain_dma(comedi_device *dev )
 		return -1;
 	}
 
-	mite_handle_a_linkc( mite, dev );
+	ni_sync_ai_dma( mite, dev );
 
 	return 0;
 }
