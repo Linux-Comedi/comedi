@@ -729,7 +729,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   */
   if(it->options[0] && it->options[1]){
     void *ptr;
-    int size = it->options[1];
+    unsigned int size = it->options[1];
 
     /* Note:  using copy_from_user here is a hack.  I would prefer
      * to have a generic solution for copying extended data at
