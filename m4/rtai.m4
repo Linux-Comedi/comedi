@@ -8,6 +8,7 @@ AC_DEFUN([DS_RTAI],
 		[RTAI_DIR=/usr/src/rtai])
 
 	AS_LINUX_CONFIG_OPTION_MODULE([CONFIG_RTHAL])
+	AS_LINUX_CONFIG_OPTION_MODULE([CONFIG_ADEOS])
 
 	if test "${CONFIG_RTHAL}" != "no" -o "${CONFIG_ADEOS}" != "no" ; then
 		AC_MSG_CHECKING([RTAI directory ${RTAI_DIR}])
