@@ -1068,7 +1068,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 		/* The 611x has screwy 32-bit FIFOs. */
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(ni_readb(Status_611x)&0x80){
-				ni_readl(ADC_FIFO_Data_611x)&0xffff;
+				ni_readl(ADC_FIFO_Data_611x);
 				return;
 			}
 		}
