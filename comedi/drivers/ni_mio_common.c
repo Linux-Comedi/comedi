@@ -59,6 +59,7 @@
 
 #include "8255.h"
 #include "mite.h"
+#include "comedi_fc.h"
 
 #ifndef MDPRINTK
 #define MDPRINTK(format,args...)
@@ -851,7 +852,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 	u32 dl;
 	sampl_t data;
 	unsigned int mask;
-	int err = 1;
+	int no_err = 1;
 
 	mask=(1<<boardtype.adbits)-1;
 	if(boardtype.reg_611x){
@@ -861,11 +862,11 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 			/* This may get the hi/lo data in the wrong order */
 			data = (dl>>16) & 0xffff;
 			data += devpriv->ai_offset[ async->cur_chan++ ];
-			err &= comedi_buf_put(s->async, data);
+			no_err &= comedi_buf_put(s->async, data);
 			async->cur_chan %= async->cmd.chanlist_len;
 			data = dl & 0xffff;
 			data += devpriv->ai_offset[ async->cur_chan++ ];
-			err &= comedi_buf_put(s->async, data);
+			no_err &= comedi_buf_put(s->async, data);
 			async->cur_chan %= async->cmd.chanlist_len;
 		}
 
@@ -874,19 +875,26 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 			dl=ni_readl(ADC_FIFO_Data_611x);
 			data = dl & 0xffff;
 			data += devpriv->ai_offset[ async->cur_chan++ ];
-			err &= comedi_buf_put(s->async, data);
+			no_err &= comedi_buf_put(s->async, data);
 			async->cur_chan %= async->cmd.chanlist_len;
+		}
+		if(no_err==0){
+			async->events |= COMEDI_CB_OVERFLOW;
 		}
 	}else{
-		for(i=0;i<n;i++){
-			data=ni_readw(ADC_FIFO_Data_Register);
-			data += devpriv->ai_offset[ async->cur_chan++ ];
-			async->cur_chan %= async->cmd.chanlist_len;
-			err &= comedi_buf_put(async, data);
+		if( n > sizeof(devpriv->ai_fifo_buffer) / sizeof(devpriv->ai_fifo_buffer[0]))
+		{
+			comedi_error( dev, "bug! ai_fifo_buffer too small" );
+			async->events |= COMEDI_CB_ERROR;
+			return;
 		}
-	}
-	if(err==0){
-		async->events |= COMEDI_CB_OVERFLOW;
+		for(i=0;i<n;i++){
+			devpriv->ai_fifo_buffer[ n ] = ni_readw(ADC_FIFO_Data_Register);
+			devpriv->ai_fifo_buffer[ n ] += devpriv->ai_offset[ async->cur_chan++ ];
+			async->cur_chan %= async->cmd.chanlist_len;
+		}
+		cfc_write_array_to_buffer( s, devpriv->ai_fifo_buffer,
+			n * sizeof(devpriv->ai_fifo_buffer[0]) );
 	}
 }
 

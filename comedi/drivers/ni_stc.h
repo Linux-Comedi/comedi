@@ -776,6 +776,8 @@ static ni_board ni_boards[];
 	unsigned short atrig_mode;				\
 	unsigned short atrig_high;				\
 	unsigned short atrig_low;				\
+								\
+	sampl_t ai_fifo_buffer[0x2000];				\
 
 #endif /* _COMEDI_NI_STC_H */
 
