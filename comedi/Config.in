@@ -70,10 +70,10 @@ fi
 
 dep_tristate 'new DAS08 compatible driver' CONFIG_COMEDI_DAS08_NEW $CONFIG_COMEDI
 dep_tristate 'new DAS16 compatible driver' CONFIG_COMEDI_DAS16_NEW $CONFIG_COMEDI
-dep_tristate 'Computer Boards DAS-08 series' CONFIG_COMEDI_DAS08 $CONFIG_COMEDI
-dep_tristate 'Computer Boards DAS-08jr' CONFIG_COMEDI_DAS08JR $CONFIG_COMEDI
+dep_tristate 'old Computer Boards DAS-08 series driver' CONFIG_COMEDI_DAS08_OLD $CONFIG_COMEDI
+dep_tristate 'old Computer Boards DAS-08jr driver' CONFIG_COMEDI_DAS08JR_OLD $CONFIG_COMEDI
 dep_tristate 'Keithley Metrabyte DAS-1600 and compatibles' CONFIG_COMEDI_DAS1600 $CONFIG_COMEDI
-dep_tristate 'DAS16' CONFIG_COMEDI_DAS16 $CONFIG_COMEDI
+dep_tristate 'old DAS16 driver' CONFIG_COMEDI_DAS16_OLD $CONFIG_COMEDI
 dep_tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402 $CONFIG_COMEDI
 dep_tristate 'DAS-800 and compatibles' CONFIG_COMEDI_DAS800 $CONFIG_COMEDI
 dep_tristate 'DAS-1800 and compatibles' CONFIG_COMEDI_DAS1800 $CONFIG_COMEDI

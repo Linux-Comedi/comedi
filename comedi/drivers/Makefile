@@ -28,9 +28,9 @@ obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o
 
 obj-$(CONFIG_COMEDI_DAS08_NEW)		+= das08-new.o
 obj-$(CONFIG_COMEDI_DAS16_NEW)		+= das16-new.o
-obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
-obj-$(CONFIG_COMEDI_DAS08JR)		+= das08jr.o
-obj-$(CONFIG_COMEDI_DAS16)		+= das16.o
+obj-$(CONFIG_COMEDI_DAS08_OLD)		+= das08-old.o
+obj-$(CONFIG_COMEDI_DAS08JR_OLD)	+= das08jr-old.o
+obj-$(CONFIG_COMEDI_DAS16_OLD)		+= das16-old.o
 obj-$(CONFIG_COMEDI_DAS1600)		+= das1600.o
 obj-$(CONFIG_COMEDI_DAS6402)		+= das6402.o
 obj-$(CONFIG_COMEDI_DAS800)		+= das800.o
