@@ -24,11 +24,15 @@
 Driver: ni_at_ao.o
 Description: National Instruments AT-AO-6/10
 Devices: [National Instruments] AT-AO-6 (at-ao-6), AT-AO-10 (at-ao-10)
-Status: untested
+Status: should work
 Author: ds
-Updated: Fri,  7 Jun 2002 13:20:30 -0700
+Updated: Sun Dec 26 12:26:28 EST 2004
 
-This driver has not been tested, but should work.
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ (unused)
+  [2] - DMA (unused)
+  [3] - analog output range, set by jumpers on hardware (0 for -10 to 10V bipolar, 1 for 0V to 10V unipolar)
 
 */
 /*
@@ -204,10 +208,12 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase;
-
+	int ao_unipolar;
+	
 	iobase = it->options[0];
 	if(iobase==0)iobase = 0x1c0;
-
+	ao_unipolar = it->options[3];
+	
 	printk("comedi%d: ni_at_ao: 0x%04lx",dev->minor,iobase);
 	
 	if(check_region(iobase, ATAO_SIZE) < 0){
@@ -233,7 +239,10 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITABLE;
 	s->n_chan=thisboard->n_ao_chans;
 	s->maxdata=(1<<12)-1;
-	s->range_table=&range_bipolar10;
+	if(ao_unipolar)
+		s->range_table=&range_unipolar10;
+	else
+		s->range_table=&range_bipolar10;
 	s->insn_write = &atao_ao_winsn;
 	s->insn_read = &atao_ao_rinsn;
 
@@ -299,14 +308,14 @@ static void atao_reset(comedi_device *dev)
 	
 	inw(dev->iobase + ATAO_FIFO_CLEAR);
 
-	devpriv->cfg1 = GRP2WR;
+	devpriv->cfg1 |= GRP2WR;
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
 
 	outw(0, dev->iobase + ATAO_2_INT1CLR);
 	outw(0, dev->iobase + ATAO_2_INT2CLR);
 	outw(0, dev->iobase + ATAO_2_DMATCCLR);
 
-	devpriv->cfg1 = 0;
+	devpriv->cfg1 &= ~GRP2WR;
 	outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
 }
 
@@ -315,9 +324,21 @@ static int atao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
-
+	short bits;
+	
 	for(i=0;i<insn->n;i++){
-		outw(data[i], dev->iobase + ATAO_DACn(chan));
+		bits = data[i] - 0x800;
+		if(chan == 0)
+		{
+			devpriv->cfg1 |= GRP2WR;
+			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+		}
+		outw(bits, dev->iobase + ATAO_DACn(chan));
+		if(chan == 0)
+		{
+			devpriv->cfg1 &= ~GRP2WR;
+			outw(devpriv->cfg1, dev->iobase + ATAO_CFG1);
+		}
 		devpriv->ao_readback[chan] = data[i];
 	}
 
