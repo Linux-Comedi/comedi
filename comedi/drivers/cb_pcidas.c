@@ -873,12 +873,15 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
 		err++;
 
-	// make sure convert_src and scan_begin_src are compatible
+	// make sure trigger sources are compatible with each other
 	if(cmd->scan_begin_src == TRIG_FOLLOW &&
 		cmd->convert_src == TRIG_NOW)
 		err++;
 	if(cmd->scan_begin_src != TRIG_FOLLOW &&
 		cmd->convert_src != TRIG_NOW)
+		err++;
+	if(cmd->start_src == TRIG_EXT &&
+		(cmd->convert_src == TRIG_EXT || cmd->scan_begin_src == TRIG_EXT))
 		err++;
 
 	if(err) return 2;
@@ -1402,6 +1405,8 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 	sampl_t data[max_half_fifo];
 	unsigned int num_points, i;
 
+	async->events = 0;
+
 	if(status & DAEMI)
 	{
 		// clear dac empty interrupt latch
@@ -1441,6 +1446,8 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 		// clear half-full interrupt latch
 		outw(devpriv->adc_fifo_bits | DAHFI, devpriv->control_status + INT_ADCFIFO);
 	}
+
+	comedi_event(dev, s, async->events);
 }
 
 // cancel analog input command
