@@ -24,7 +24,7 @@
 #ifndef _8253_H
 #define _8253_H
 
-#define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_power
+#define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
 static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
 {
@@ -110,9 +110,6 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 }
 
 
-/* this function is meant to replace i8253_cascade_ns_to_timer_2div
- * (which is completely broken at the moment)
- */
 static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
 {
