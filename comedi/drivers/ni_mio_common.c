@@ -1828,16 +1828,14 @@ static int ni_ao_insn_write_671x(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	lsampl_t d;
+	unsigned int invert;
 
-	ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
+	invert = ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
 
-	d = data[insn->n-1];
-	devpriv->ao[chan] = d;
-	d -= 1 << (boardtype.aobits - 1);
-	ao_win_out(d,DACx_Direct_Data_671x(chan));
+	devpriv->ao[chan] = data[0];
+	ao_win_out(data[0] ^ invert, DACx_Direct_Data_671x(chan));
 
-	return insn->n;
+	return 1;
 }
 
 static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
