@@ -68,6 +68,7 @@ tristate 'PCL-725' CONFIG_COMEDI_PCL725
 tristate 'PCL-726' CONFIG_COMEDI_PCL726
 tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
 tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
+tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	comment 'Virtual device drivers'
