@@ -82,7 +82,7 @@ static ni_670x_board ni_670x_boards[] =
 	ao_bits		: 16,
 	},
 	{
-	dev_id		: 0x0000,
+	dev_id		: 0x1290,
 	name		: "PCI-6704",
 	ao_chans	: 32,
 	ao_bits		: 16,
