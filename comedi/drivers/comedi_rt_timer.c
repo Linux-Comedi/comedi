@@ -31,8 +31,6 @@ Options:
 TODO:
 	Support for digital io commands could be added, except I can't see why
 		anyone would want to use them
-	Fix it so more that one comedi_rt_timer can be configured at once
-		(replace broken_rt_dev)
 	What happens if device we are emulating for is de-configured?
 	Make it work from kernel space (fix problems with comedi_switch_to_rt() etc.)
 
@@ -107,7 +105,6 @@ static comedi_driver driver_timer={
 COMEDI_INITCLEANUP(driver_timer);
 
 
-
 typedef struct{
 	int device;
 	int subd;
@@ -119,16 +116,9 @@ typedef struct{
 #define devpriv ((timer_private *)dev->private)
 
 
-static comedi_device *broken_rt_dev = NULL;
-
-#ifdef CONFIG_COMEDI_RTL
-static void timer_interrupt(int irq,void *d,struct pt_regs * regs)
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-static void timer_interrupt(void)
-#endif
+static void timer_interrupt(int unused, void *device)
 {
-	comedi_device *dev=broken_rt_dev;
+	comedi_device *dev = (comedi_device*)device;
 
 	comedi_unlock(devpriv->device,devpriv->subd);
 }
@@ -207,7 +197,7 @@ static void timer_ai_task_func(int d)
 
 cleanup:
 
-	rt_pend_linux_srq(devpriv->soft_irq);
+	rt_pend_call(timer_interrupt, 0, dev);
 	// we are deleting ourself here, no lines afterwards will be executed!
 	rt_task_delete(&devpriv->rt_task);
 }
@@ -253,7 +243,7 @@ static void timer_ao_task_func(int d)
 
 cleanup:
 
-	rt_pend_linux_srq(devpriv->soft_irq);
+	rt_pend_call(timer_interrupt, 0, dev);
 	// we are deleting ourself here, no lines afterwards will be executed!
 	rt_task_delete(&devpriv->rt_task);
 }
@@ -428,7 +418,7 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 static int timer_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	rt_task_delete(&devpriv->rt_task);
-	rt_pend_linux_srq(devpriv->soft_irq);
+	rt_pend_call(timer_interrupt, 0, dev);
 
 	return 0;
 }
@@ -439,13 +429,6 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 
 	printk("comedi%d: timer: ",dev->minor);
-
-	if(broken_rt_dev)
-	{
-		printk("Only a single comedi_rt_timer can be configured at once.\n"
-			" Hopefully this will be fixed in the future.\n");
-		return -EBUSY;
-	}
 
 	dev->board_name="timer";
 
@@ -510,15 +493,6 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->type=COMEDI_SUBD_UNUSED;
 	}
 
-	devpriv->soft_irq=rt_request_srq(0,timer_interrupt,NULL);
-	if(devpriv->soft_irq < 0)
-	{
-		return devpriv->soft_irq;
-	}
-	broken_rt_dev=dev;
-
-	printk("\n");
-
 	return 1;
 }
 
@@ -526,17 +500,6 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 static int timer_detach(comedi_device *dev)
 {
 	printk("comedi%d: timer: remove\n",dev->minor);
-
-	// make sure dev->private was sucessfully allocated
-	if(devpriv)
-	{
-		if(devpriv->soft_irq > 0)
-		{
-			rt_free_srq(devpriv->soft_irq);
-		}
-	}
-
-	broken_rt_dev = NULL;
 
 	return 0;
 }

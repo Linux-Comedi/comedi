@@ -58,6 +58,7 @@ EXPORT_SYMBOL(comedi_free_irq);
 EXPORT_SYMBOL(comedi_request_irq);
 EXPORT_SYMBOL(comedi_switch_to_rt);
 EXPORT_SYMBOL(comedi_switch_to_non_rt);
+EXPORT_SYMBOL(rt_pend_call);
 #endif
 
 /* for kcomedilib */
