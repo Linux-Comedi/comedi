@@ -35,10 +35,6 @@ supported yet.  PulseGeneration (both single pulse and pulse train)
 works. DIO is experimental (8 channels only). Interrupts do not
 work.
 
-The counter API is unstable, see comedi_counter_unstable.h and
-the directory comedi/Documentation/comedi/ (the files counter-spec and
-insn_config).
-
 References:
 DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
 DAQ 6601/6602 User Manual (NI 322137B-01)
@@ -53,7 +49,6 @@ Measurement, ...)
 
 #include <linux/comedidev.h>
 #include "mite.h"
-#include "comedi_counter_unstable.h"
 
 #define CTRS_PER_CHIP 4 // The number of counters per ni-tio chip
 #define DATA_1B 0x1 // 1 byte = 8 bits data
