@@ -1,9 +1,9 @@
 /*
-    module/module.c
+    comedi/comedi_fops.c
     comedi kernel module
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1997-2000 David A. Schleef <ds@stm.lbl.gov>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 
 #include <comedi_module.h>
 
+#define __NO_VERSION__
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -1501,98 +1502,4 @@ int command_to_mode(comedi_trig *it,comedi_cmd *cmd)
 	}
 	return -EINVAL;
 }
-
-#ifdef CONFIG_COMEDI_RT
-
-static struct comedi_irq_struct *comedi_irqs;
-
-int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *),
-		unsigned long flags,const char *device,void *dev_id)
-{
-	struct comedi_irq_struct *it;
-	int ret;
-
-	it=kmalloc(sizeof(*it),GFP_KERNEL);
-	if(!it)
-		return -ENOMEM;
-
-	it->handler=handler;
-	it->irq=irq;
-	it->dev_id=dev_id;
-	it->flags=flags;
-
-	ret=request_irq(irq,handler,flags&~SA_PRIORITY,device,dev_id);
-	if(ret<0){
-		kfree(it);
-		return ret;
-	}
-
-	if(flags&SA_PRIORITY){
-		get_priority_irq(it);
-	}
-
-	it->next=comedi_irqs;
-	comedi_irqs=it;
-
-	return 0;
-}
-
-int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long flags)
-{
-	struct comedi_irq_struct *it;
-
-	it=get_irq_struct(irq);
-	if(it){
-		if((it->flags&~SA_PRIORITY)!=(flags&~SA_PRIORITY))
-			return -EINVAL;
-
-		if((it->flags&SA_PRIORITY)==(flags&SA_PRIORITY))
-			return 0;
-
-		it->flags=flags;
-		if(flags&SA_PRIORITY){
-			return get_priority_irq(it);
-		}else{
-			return free_priority_irq(it);
-		}
-	}
-
-	return -EINVAL;
-}
-
-void comedi_free_irq(unsigned int irq,void *dev_id)
-{
-	struct comedi_irq_struct *it,*prev;
-
-	prev=NULL;
-	for(it=comedi_irqs;it;it=it->next){
-		if(it->irq==irq){
-			break;
-		}
-		prev=it;
-	}
-	if(it->flags&SA_PRIORITY)
-		free_priority_irq(it);
-
-	free_irq(it->irq,it->dev_id);
-
-	if(prev) prev->next=it->next;
-	else comedi_irqs=it->next;
-
-	kfree(it);
-}
-
-struct comedi_irq_struct *get_irq_struct(unsigned int irq)
-{
-	struct comedi_irq_struct *it;
-
-	for(it=comedi_irqs;it;it=it->next){
-		if(it->irq==irq){
-			return it;
-		}
-	}
-	return NULL;
-}
-
-#endif
 

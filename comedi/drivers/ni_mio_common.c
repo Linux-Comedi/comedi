@@ -549,6 +549,18 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 	rt_printk("ni_E: timeout 1\n");
 }
 
+static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
+{
+	int wsave;
+
+	wsave = win_save();
+
+	win_out(1,ADC_FIFO_Clear);
+
+
+
+	return 0;
+}
 
 /*
 	mode 2 is timed, multi-channel

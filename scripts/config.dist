@@ -1,45 +1,39 @@
 #
 # Automatically generated make config: don't edit
 #
+CONFIG_COMEDI=m
 
 #
-# Features
+# Comedi Features
 #
-CONFIG_EXPORT=y
-# CONFIG_COMEDI_RT is not set
-CONFIG_DEBUG=y
+CONFIG_COMEDI_KLIB=y
+CONFIG_COMEDI_DEBUG=y
 
 #
 # Hardware device drivers
 #
-CONFIG_DT=y
-# CONFIG_DT2801 is not set
-# CONFIG_DT2811 is not set
-# CONFIG_DT2814 is not set
-# CONFIG_DT2815 is not set
-# CONFIG_DT2817 is not set
-# CONFIG_DT282x is not set
-CONFIG_NI=y
-# CONFIG_ATMIO_E is not set
-# CONFIG_PCIMIO_E is not set
-# CONFIG_NI_PCIDIO is not set
-# CONFIG_DAS08 is not set
-# CONFIG_DAS08JR is not set
-# CONFIG_DAS1600 is not set
-# CONFIG_8255 is not set
+CONFIG_COMEDI_DT=y
+# CONFIG_COMEDI_DT2801 is not set
+# CONFIG_COMEDI_DT2811 is not set
+# CONFIG_COMEDI_DT2814 is not set
+# CONFIG_COMEDI_DT2815 is not set
+# CONFIG_COMEDI_DT2817 is not set
+# CONFIG_COMEDI_DT282x is not set
+# CONFIG_COMEDI_DT3000 is not set
+CONFIG_COMEDI_NI=y
+# CONFIG_COMEDI_NI_ATMIO is not set
+# CONFIG_COMEDI_NI_PCIMIO is not set
+# CONFIG_COMEDI_NI_PCIDIO is not set
+# CONFIG_COMEDI_DAS08 is not set
+# CONFIG_COMEDI_DAS08JR is not set
+# CONFIG_COMEDI_DAS1600 is not set
+# CONFIG_COMEDI_DAS16 is not set
+# CONFIG_COMEDI_DAS6402 is not set
+# CONFIG_COMEDI_8255 is not set
+# CONFIG_COMEDI_MULTIQ3 is not set
 # CONFIG_COMEDI_PARPORT is not set
-# CONFIG_RTI800 is not set
-# CONFIG_RTI802 is not set
-# CONFIG_PCL711 is not set
-# CONFIG_PCL725 is not set
-# CONFIG_PCL726 is not set
-# CONFIG_MULTIQ3 is not set
-
-#
-# Experimental extras (might not compile and/or work)
-#
-# CONFIG_ATMIO16F is not set
-# CONFIG_DAS6402 is not set
-# CONFIG_RTI860 is not set
-# CONFIG_DT3000 is not set
-# CONFIG_DAS16 is not set
+# CONFIG_COMEDI_PCL711 is not set
+# CONFIG_COMEDI_PCL725 is not set
+# CONFIG_COMEDI_PCL726 is not set
+# CONFIG_COMEDI_RTI800 is not set
+# CONFIG_COMEDI_RTI802 is not set

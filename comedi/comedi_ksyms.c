@@ -60,6 +60,10 @@ EXPORT_SYMBOL(comedi_driver_unregister);
 EXPORT_SYMBOL(comedi_bufcheck);
 EXPORT_SYMBOL(comedi_done);
 EXPORT_SYMBOL(comedi_error);
+EXPORT_SYMBOL(do_pack);
+EXPORT_SYMBOL(di_unpack);
+EXPORT_SYMBOL(comedi_eobuf);
+EXPORT_SYMBOL(comedi_eos);
 
 #endif
 

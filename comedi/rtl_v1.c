@@ -6,7 +6,6 @@
 #include <comedi_module.h>
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <asm/irq.h>

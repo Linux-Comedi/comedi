@@ -1,46 +1,54 @@
 
+#mainmenu_option next_comment
+#comment 'Comedi support'
+
+#tristate 'Comedi support' CONFIG_COMEDI
+
 define_bool CONFIG_COMEDI m
+
+if [ "$CONFIG_COMEDI" != "n" ];then
 
 comment 'Comedi Features'
 
-#bool 'Backwards compatibility' CONFIG_BACKWARDS
+#bool 'Backwards compatibility' CONFIG_COMEDI_BACKWARDS
 
 tristate 'Kernel Comedilib' CONFIG_COMEDI_KLIB
 if [ "$CONFIG_RTL" = "y" ];then
-	define_bool CONFIG_COMEDI_RT y
-	define_bool CONFIG_COMEDI_RTL y
-fi
-if [ "$CONFIG_RTAI" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
-	if [ "$CONFIG_RTAI" = "y" ];then
+	if [ "$CONFIG_COMEDI_RT" = "y" ];then
+		define_bool CONFIG_COMEDI_RTL y
+	fi
+fi
+if [ "$CONFIG_RTHAL" = "y" ];then
+	bool 'Real-time support' CONFIG_COMEDI_RT
+	if [ "$CONFIG_COMEDI_RT" = "y" ];then
 		define_bool CONFIG_COMEDI_RTAI y
 	fi
 fi
 
 bool 'Verbose Debugging' CONFIG_COMEDI_DEBUG
+bool 'Version 0.8 support' CONFIG_COMEDI_VER08
 
 comment 'Hardware device drivers'
 
 
 bool 'Data Translation boards' CONFIG_COMEDI_DT
-if [ "$CONFIG_DT" = "y" ];then
-	tristate 'DT 2801' CONFIG_COMEDI_DT2801
-	tristate 'DT 2811' CONFIG_COMEDI_DT2811
-	tristate 'DT 2814' CONFIG_COMEDI_DT2814
-	tristate 'DT 2815' CONFIG_COMEDI_DT2815
-	tristate 'DT 2817' CONFIG_COMEDI_DT2817
-	tristate 'DT 2821 series' CONFIG_COMEDI_DT282x
-	if [ "$CONFIG_EXPERIMENTAL" = "y" ];then
-		tristate 'DT3000' CONFIG_COMEDI_DT3000
-	fi
+if [ "$CONFIG_COMEDI_DT" = "y" ];then
+	tristate '  DT 2801' CONFIG_COMEDI_DT2801
+	tristate '  DT 2811' CONFIG_COMEDI_DT2811
+	tristate '  DT 2814' CONFIG_COMEDI_DT2814
+	tristate '  DT 2815' CONFIG_COMEDI_DT2815
+	tristate '  DT 2817' CONFIG_COMEDI_DT2817
+	tristate '  DT 2821 series' CONFIG_COMEDI_DT282x
+	tristate '  DT3000' CONFIG_COMEDI_DT3000
 fi
 
 bool 'National Instruments boards' CONFIG_COMEDI_NI
-if [ "$CONFIG_NI" = "y" ];then
-	tristate 'AT-MIO E series' CONFIG_COMEDI_NI_ATMIO
+if [ "$CONFIG_COMEDI_NI" = "y" ];then
+	tristate '  AT-MIO E series' CONFIG_COMEDI_NI_ATMIO
 	if [ "$CONFIG_PCI" = "y" ];then
-		tristate 'PCI-MIO E series' CONFIG_COMEDI_NI_PCIMIO
-		tristate 'NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO
+		tristate '  PCI-MIO E series' CONFIG_COMEDI_NI_PCIMIO
+		tristate '  NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO
 		if [ "$CONFIG_COMEDI_NI_PCIMIO" = "y" -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" ];then
 			define_bool CONFIG_COMEDI_MITE y
 		fi
@@ -61,4 +69,6 @@ tristate 'PCL-726' CONFIG_COMEDI_PCL726
 tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
 tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
 
+fi
+#endmenu
 

@@ -13,10 +13,13 @@ endif
 MOD_LIST_NAME := MISC_MODULES
 
 M_OBJS := comedi.o
-MI_OBJS := module.o dummy.o proc.o range.o drivers.o kvmem.o
+MI_OBJS := comedi_fops.o dummy.o proc.o range.o drivers.o kvmem.o
 MIX_OBJS := comedi_ksyms.o
 
 
+ifeq ($(CONFIG_COMEDI_REALTIME),y)
+MI_OBJS += rt.o
+endif
 
 ifeq ($(CONFIG_COMEDI_RTL),y)
 MI_OBJS += rtl.o
@@ -53,8 +56,8 @@ range-$(CONFIG_COMEDI_DAS1600)		+= drivers/das1600.c
 include $(TOPDIR)/Rules.make
 
 
-comedi.o: $(MI_OBJS)
-	$(LD) -r -o $@ $(MI_OBJS)
+comedi.o: $(MI_OBJS) $(MIX_OBJS)
+	$(LD) -r -o $@ $(MI_OBJS) $(MIX_OBJS)
 
 range.h: mk_range $(TOPDIR)/.config
 	-rm -f range.h
