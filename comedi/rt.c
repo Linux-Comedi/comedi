@@ -203,7 +203,7 @@ int comedi_switch_to_rt(comedi_device *dev)
 
 	/* rt interrupts and shared interrupts don't mix */
 	if(it->flags & SA_SHIRQ){
-		DPRINTK( "cannot switch shared interrupt to real time priority\n" );
+		rt_printk("comedi: cannot switch shared interrupt to RT priority\n");
 		return -1;
 	}
 
