@@ -193,6 +193,8 @@ struct comedi_device_struct{
 
 	comedi_subdevice *write_subdev;
 	wait_queue_head_t write_wait;
+
+	struct fasync_struct *async_queue;
 };
 
 

@@ -65,6 +65,8 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
 static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 int resize_buf(comedi_device *dev,comedi_async *s, unsigned int size);
 
+static int comedi_fasync (int fd, struct file *file, int on);
+
 static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd,unsigned long arg)
 {
 	kdev_t minor=MINOR(inode->i_rdev);
@@ -1773,6 +1775,10 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 
 	dev->use_count--;
 
+	if(file->f_flags & FASYNC){
+		comedi_fasync(-1,file,0);
+	}
+
 	// decrement mmap_counts
 	if(cfp->read_mmap_count)
 	{
@@ -1789,6 +1795,12 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 	return 0;
 }
 
+static int comedi_fasync (int fd, struct file *file, int on)
+{
+	comedi_device *dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+
+	return fasync_helper(fd,file,on,&dev->async_queue);
+}
 
 /*
 	kernel compatibility
@@ -1847,6 +1859,7 @@ static struct file_operations comedi_fops={
 	write		: comedi_write_v22,
 	mmap		: comedi_mmap_v22,
 	poll		: comedi_poll_v22,
+	fasync		: comedi_fasync,
 };
 #endif
 
@@ -1946,10 +1959,14 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 				printk("BUG: comedi_event() code unreachable\n");
 #endif
 			}else{
-				if(s==dev->read_subdev)
+				if(s==dev->read_subdev){
 					wake_up_interruptible(&dev->read_wait);
-				if(s==dev->write_subdev)
+					kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
+				}
+				if(s==dev->write_subdev){
 					wake_up_interruptible(&dev->write_wait);
+					kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
+				}
 			}
 		}else{
 			if(async->cb_func)async->cb_func(mask,async->cb_arg);
