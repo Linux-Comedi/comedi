@@ -1,5 +1,5 @@
+BUG in do_test_for_insn_bits() (due to -EACCES)
 
-Doesn't get the right RTL flags
 
 das6402 needs cleanup
 
