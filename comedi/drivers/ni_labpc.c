@@ -40,6 +40,12 @@ and analog references will work, the available ranges/arefs will
 depend on how you have configured the jumpers on your board
 (see your owner's manual).
 
+The 1200 series boards have onboard calibration dacs for correcting
+analog input/output offsets and gains.  The proper settings for these
+caldacs are stored on the board's eeprom.  To read the caldac values
+from the eeprom and store them into a file that can be then be used by
+comedilib, use the comedi_calibrate program.
+
 Configuration options - ISA boards:
   [0] - I/O port base address
   [1] - IRQ (optional, required for timed or externally triggered conversions)
@@ -62,11 +68,6 @@ are also legal, and allow you to pace conversions in bursts.
 */
 
 /*
-TODO:
-
-Move calibration stuff out of driver and into comedi_calibrate
-(requires more infrastructure for comedi_calibrate and comedilib)
-
 
 NI manuals:
 341309a (labpc-1200 register manual)
@@ -215,14 +216,11 @@ static void labpc_outb(unsigned int byte, unsigned int address);
 static unsigned int labpc_readb(unsigned int address);
 static void labpc_writeb(unsigned int byte, unsigned int address);
 static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long arg);
-static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range);
-static void labpc_load_ao_calibration(comedi_device *dev, unsigned int channel, unsigned int range);
 static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int labpc_serial_in(comedi_device *dev);
 static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address);
 static unsigned int labpc_eeprom_read_status(comedi_device *dev);
 static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value);
-static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 
 enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
@@ -470,8 +468,6 @@ static const int sample_size = 2;	// 2 bytes per sample
 typedef struct{
 	struct mite_struct *mite;	// for mite chip on pci-1200
 	volatile unsigned long long count;  /* number of data points left to be taken */
-	unsigned int ai_range;	// current ai range setting
-	unsigned int ao_range[NUM_AO_CHAN];	// current ao range settings
 	unsigned int ao_value[NUM_AO_CHAN];	// software copy of analog output values
 	// software copys of bits written to command registers
 	volatile unsigned int command1_bits;
@@ -491,7 +487,7 @@ typedef struct{
 	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
 	enum transfer_type current_transfer;	// we are using dma/fifo-half-full/etc.
 	unsigned int eeprom_data[EEPROM_SIZE];	// stores contents of board's eeprom
-	unsigned int caldac[12];	// stores settings of calibration dacs
+	unsigned int caldac[16];	// stores settings of calibration dacs
 }labpc_private;
 
 #define devpriv ((labpc_private *)dev->private)
@@ -721,13 +717,13 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		s->type=COMEDI_SUBD_CALIB;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		if(thisboard->has_ao)
-			s->n_chan = 8;
-		else
-			s->n_chan = 4;
+		s->n_chan = 16;
 		s->maxdata = 0xff;
 		s->insn_read = labpc_calib_read_insn;
 		s->insn_write = labpc_calib_write_insn;
+
+		for( i = 0; i < s->n_chan; i++ )
+			write_caldac( dev, i, s->maxdata / 2 );
 	}else
 		s->type = COMEDI_SUBD_UNUSED;
 
@@ -756,14 +752,6 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 #endif
 	}else
 		s->type = COMEDI_SUBD_UNUSED;
-
-	if(thisboard->register_layout == labpc_1200_layout)
-	{
-		// load board calibration
-		labpc_load_ai_calibration(dev, devpriv->ai_range);
-		for(i = 0; i < NUM_AO_CHAN; i++)
-			labpc_load_ao_calibration(dev, i, devpriv->ao_range[i]);
-	}
 
 	return 0;
 };
@@ -1218,12 +1206,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			devpriv->command6_bits &= ~ADC_SCAN_UP_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-
-		// if range has changed, update calibration dacs
-		if(range != devpriv->ai_range)
-		{
-			labpc_load_ai_calibration(dev, range);
-		}
 	}
 
 	/* setup channel list, etc (command1 register) */
@@ -1630,12 +1612,6 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		devpriv->command6_bits &= ~A1_INTR_EN_BIT;
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-
-		// if range has changed, update calibration dacs
-		if(range != devpriv->ai_range)
-		{
-			labpc_load_ai_calibration(dev, range);
-		}
 	}
 
 	// setup command4 register
@@ -1703,11 +1679,6 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 			devpriv->command6_bits &= ~DAC_UNIP_BIT(channel);
 		// write to register
 		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
-		// if range has changed, update calibration dacs
-		if(range != devpriv->ao_range[channel])
-		{
-			labpc_load_ao_calibration(dev, channel, range);
-		}
 	}
 
 	// send data
@@ -1742,8 +1713,7 @@ static int labpc_calib_write_insn(comedi_device *dev, comedi_subdevice *s, comed
 {
 	int channel = CR_CHAN(insn->chanspec);
 
-	write_caldac(dev, channel, data[0]);
-
+	write_caldac( dev, channel, data[ 0 ] );
 	return 1;
 }
 
@@ -1898,108 +1868,6 @@ static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long iob
 	}else
 	{
 		return readb(iobase + port);
-	}
-}
-
-// load analog input caldacs from eeprom values (depend on range used)
-static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range)
-{
-	// caldac channels
-	const int coarse_offset_caldac = 0;
-	const int fine_offset_caldac = 1;
-	const int postgain_offset_caldac = 2;
-	const int gain_caldac = 3;
-
-	// points to (end of) analog input bipolar calibration values
-	unsigned int *ai_bip_frame = devpriv->eeprom_data + devpriv->eeprom_data[127];
-	const int coarse_offset_index = 0;
-	const int fine_offset_index = -1;
-
-	// points to (end of) analog input unipolar calibration values
-	unsigned int *ai_unip_frame = devpriv->eeprom_data + devpriv->eeprom_data[126];
-	// points to (end of) analog input bipolar calibration values
-	unsigned int *bip_gain_frame = devpriv->eeprom_data + devpriv->eeprom_data[123];
-	// points to (end of) analog input bipolar calibration values
-	unsigned int *unip_gain_frame = devpriv->eeprom_data + devpriv->eeprom_data[122];
-	// points to (end of) analog input bipolar calibration values
-	unsigned int *bip_offset_frame = devpriv->eeprom_data + devpriv->eeprom_data[121];
-	// points to (end of) analog input bipolar calibration values
-	unsigned int *unip_offset_frame = devpriv->eeprom_data + devpriv->eeprom_data[120];
-
-	unsigned int *ai_frame, *gain_frame, *offset_frame;
-	// eeprom offsets by range
-	unsigned int range_to_index[NUM_LABPC_1200_AI_RANGES] =
-	{
-		0,
-		-2,
-		-3,
-		-4,
-		-5,
-		-6,
-		-7,
-		0,
-		-2,
-		-3,
-		-4,
-		-5,
-		-6,
-		-7,
-	};
-
-
-	// store new range index in dev->private struct
-	devpriv->ai_range = range;
-
-	if(thisboard->ai_range_is_unipolar[range])
-	{
-		ai_frame = ai_unip_frame;
-		gain_frame = unip_gain_frame;
-		offset_frame = unip_offset_frame;
-	}else
-	{
-		ai_frame = ai_bip_frame;
-		gain_frame = bip_gain_frame;
-		offset_frame = bip_offset_frame;
-	}
-
-	// load offset
-	write_caldac(dev, coarse_offset_caldac, ai_frame[coarse_offset_index]);
-	write_caldac(dev, fine_offset_caldac, ai_frame[fine_offset_index]);
-
-	// load gain and postgain offset
-	write_caldac(dev, postgain_offset_caldac, offset_frame[range_to_index[range]]);
-	write_caldac(dev, gain_caldac, gain_frame[range_to_index[range]]);
-}
-
-// load analog output caldacs from eeprom values (depend on range used)
-static void labpc_load_ao_calibration(comedi_device *dev, unsigned int channel, unsigned int range)
-{
-	// caldacs for analog output channels 0 and 1
-	const int offset_caldac[NUM_AO_CHAN] = {4, 6};
-	const int gain_caldac[NUM_AO_CHAN] = {5, 7};
-
-	// points to (end of) analog output bipolar calibration values
-	unsigned int *ao_bip_frame = devpriv->eeprom_data + devpriv->eeprom_data[125];
-	// points to (end of) analog output bipolar calibration values
-	unsigned int *ao_unip_frame = devpriv->eeprom_data + devpriv->eeprom_data[124];
-	const int offset_index[NUM_AO_CHAN] = {0, -2};
-	const int gain_index[NUM_AO_CHAN] = {-1, -3};
-
-	// store new range index in dev->private struct
-	devpriv->ao_range[channel] = range;
-
-	if(range & AO_RANGE_IS_UNIPOLAR)
-	{
-		// load offset
-		write_caldac(dev, offset_caldac[channel], ao_unip_frame[offset_index[channel]]);
-		// load gain calibration
-		write_caldac(dev, gain_caldac[channel], ao_unip_frame[gain_index[channel]]);
-	}else
-	{
-		// load offset
-		write_caldac(dev, offset_caldac[channel], ao_bip_frame[offset_index[channel]]);
-		// load gain calibration
-		write_caldac(dev, gain_caldac[channel], ao_bip_frame[gain_index[channel]]);
 	}
 }
 
@@ -2172,25 +2040,18 @@ static unsigned int labpc_eeprom_read_status(comedi_device *dev)
 }
 
 // writes to 8 bit calibration dacs
-static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
+static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
 {
-	unsigned int reordered_channel, i;
-	const int num_channel_bits = 4;	// caldacs use 4 bit channel specification
+	if( value == devpriv->caldac[ channel ] ) return;
+	devpriv->caldac[ channel ] = value;
 
 	// clear caldac load bit and make sure we don't write to eeprom
 	devpriv->command5_bits &= ~CALDAC_LOAD_BIT & ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
 	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
-	/* write 4 bit channel, LSB first (NI appears to have gotten confused here
-	 * about how the caldac chip works) */
-	reordered_channel = 0;
-	for(i = 0; i < num_channel_bits; i++)
-	{
-		if(channel & (1 << i))
-			reordered_channel |= 1 << (num_channel_bits - i - 1);
-	}
-	labpc_serial_out(dev, reordered_channel, 4);
+	// write 4 bit channel
+	labpc_serial_out(dev, channel, 4);
 	// write 8 bit caldac value
 	labpc_serial_out(dev, value, 8);
 
@@ -2201,26 +2062,6 @@ static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned in
 	devpriv->command5_bits &= ~CALDAC_LOAD_BIT;
 	comedi_udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
-}
-
-// work around NI's screw up on bit order for caldac channels
-static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
-{
-	if(channel > 7)
-	{
-		comedi_error(dev, "bug!");
-		return;
-	}
-
-	devpriv->caldac[channel] = value;
-	channel += 3;	// first caldac used by boards is number 3
-
-	__write_caldac(dev, channel, value);
-	// do some weirdness to make caldacs 3 and 7 work
-	if(channel == 3)
-		__write_caldac(dev, 14, value);
-	if(channel == 7)
-		__write_caldac(dev, 13, value);
 }
 
 // PCMCIA crap
