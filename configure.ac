@@ -5,6 +5,10 @@ AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_TARGET([])
 
+if test x$prefix = xNONE ; then
+  prefix=/
+fi
+
 PACKAGE=comedi
 COMEDI_MAJORVERSION=0
 COMEDI_MINORVERSION=7
@@ -36,8 +40,9 @@ DS_LINUX()
 COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/"
 AC_SUBST(COMEDI_CFLAGS)
 
-moduledir="/lib/modules/${LINUX_KERNELRELEASE}/comedi"
-modulePROGRAMS_INSTALL="\$(top_srcdir)/modtool --install"
+moduledir="\$(libdir)/modules/\$(LINUX_KERNELRELEASE)/comedi"
+modulePROGRAMS_INSTALL="\$(top_builddir)/modtool --install"
+modulePROGRAMS_UNINSTALL="\$(top_builddir)/modtool --uninstall"
 AC_SUBST(moduledir)
 AC_SUBST(modulePROGRAMS_INSTALL)
 
@@ -56,6 +61,7 @@ comedi/Makefile
 comedi/drivers/Makefile
 comedi/kcomedilib/Makefile
 ])
+#comedi/drivers/addi-data/Makefile
 
 chmod +x modtool
 
