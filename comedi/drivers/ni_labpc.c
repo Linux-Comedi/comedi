@@ -233,6 +233,7 @@ typedef struct labpc_board_struct{
 	comedi_lrange *ai_range_table;
 	int *ai_range_code;
 	int *ai_range_is_unipolar;
+	unsigned ai_scan_up : 1;	// board can auto scan up in ai channels, not just down
 }labpc_board;
 
 //analog input ranges
@@ -384,6 +385,7 @@ static labpc_board labpc_boards[] =
 		ai_range_table:	&range_labpc_1200_ai,
 		ai_range_code: labpc_1200_ai_gain_bits,
 		ai_range_is_unipolar: labpc_1200_is_unipolar,
+		ai_scan_up: 0,
 	},
 #endif // CONFIG_PCMCIA
 	{
@@ -397,6 +399,7 @@ static labpc_board labpc_boards[] =
 		ai_range_table:	&range_labpc_1200_ai,
 		ai_range_code: labpc_1200_ai_gain_bits,
 		ai_range_is_unipolar: labpc_1200_is_unipolar,
+		ai_scan_up: 1,
 	},
 	{
 		name:	"lab-pc-1200ai",
@@ -409,6 +412,7 @@ static labpc_board labpc_boards[] =
 		ai_range_table:	&range_labpc_1200_ai,
 		ai_range_code: labpc_1200_ai_gain_bits,
 		ai_range_is_unipolar: labpc_1200_is_unipolar,
+		ai_scan_up: 1,
 	},
 	{
 		name:	"lab-pc+",
@@ -421,6 +425,7 @@ static labpc_board labpc_boards[] =
 		ai_range_table:	&range_labpc_plus_ai,
 		ai_range_code: labpc_plus_ai_gain_bits,
 		ai_range_is_unipolar: labpc_plus_is_unipolar,
+		ai_scan_up: 0,
 	},
 	{
 		name:	"pci-1200",
@@ -434,6 +439,7 @@ static labpc_board labpc_boards[] =
 		ai_range_table:	&range_labpc_1200_ai,
 		ai_range_code: labpc_1200_ai_gain_bits,
 		ai_range_is_unipolar: labpc_1200_is_unipolar,
+		ai_scan_up: 1,
 	},
 };
 
@@ -945,7 +951,7 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 		range = CR_RANGE(cmd->chanlist[0]);
 		// should the scan list counting up or down?
 		scan_up = 0;
-		if(thisboard->register_layout == labpc_1200_layout &&
+		if(thisboard->ai_scan_up &&
 			CR_CHAN(cmd->chanlist[0]) == 0)
 		{
 			scan_up = 1;
@@ -1029,7 +1035,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		scan_enable = 1;
 		// figure out if we are scanning upwards or downwards through channels
 		if(cmd->chanlist_len > 1 &&
-			thisboard->register_layout == labpc_1200_layout &&
+			thisboard->ai_scan_up &&
 			CR_CHAN(cmd->chanlist[0]) == 0)
 		{
 			scan_up = 1;
@@ -2409,11 +2415,9 @@ static void labpc_config(dev_link_t *link)
 
 	/* Does this card need audio output? */
 	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-	    link->conf.Attributes |= CONF_ENABLE_SPKR;
-	    link->conf.Status = CCSR_AUDIO_ENA;
+		link->conf.Attributes |= CONF_ENABLE_SPKR;
+		link->conf.Status = CCSR_AUDIO_ENA;
 	}
-
-	link->conf.Status |= CCSR_POWER_DOWN;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
