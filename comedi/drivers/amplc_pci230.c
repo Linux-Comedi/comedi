@@ -918,8 +918,16 @@ static void pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 	 * we can't even talk to the board (base addresses for native
 	 * IO regions aren't set...)
 	 */
+
 	/* XXX doesn't make sense, since interrupt is allocated in the
 	 * _attach function, _after_ the IO regions are allocated */
+
+	/* XXX I (Frank Hess) do this in drivers to prevent a null
+	 * dereference when the handler tries to use async.  This
+	 * probably won't help too much here as it is though, since
+	 * it doesn't clear the interrupt before returning and so
+	 * will lock up the (single cpu) computer. */
+
 	if(dev->attached == 0) {
 		comedi_error(dev, "premature interrupt");
 		return;
