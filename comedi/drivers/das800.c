@@ -332,9 +332,12 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be STATUS2 register */
 	status = inb(dev->iobase + DAS800_STATUS2) & STATUS2_HCEN;
-	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
+	/* don't release spinlock yet since we want to make sure noone else disables hardware conversions */
 	if(status == 0)
+	{
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 		return;
+	}
 
   /* read 16 bits from dev->iobase and dev->iobase + 1 */
 	dataPoint = inb(dev->iobase + DAS800_LSB);
@@ -374,6 +377,8 @@ static void das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		dataPoint = inb(dev->iobase + DAS800_LSB);
 		dataPoint += inb(dev->iobase + DAS800_MSB) << 8;
 	}
+	/* we can release spinlock now since we dont case if hardware conversions are enabled anymore */
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 	if(i == max_loops)
 		comedi_error(dev, "possible problem with loop in interrupt handler");
 
