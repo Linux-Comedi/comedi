@@ -1,4 +1,6 @@
 
+doc: how to use kcomedilib
+
 comedi_rt_timer segfaults when the lower-level driver disappears
 and reappears.  This is a problem with the Comedi core, not the
 driver.  I don't really know how to fix this.
@@ -11,8 +13,6 @@ das6402 needs cleanup
 fix PCI code, use pci_find_device()
 
 standardize error codes
-
-verify PCI-6503 code
 
 get rid of spurious "char-major-98-0 not found"
 
@@ -27,6 +27,9 @@ need realtime examples
 das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
 move /proc/comedi to /proc/driver/comedi
+
+
+bug: buffer resize to 0 convinces comedi that buffer doesn't exist
 
 - ao dma
 
