@@ -1707,12 +1707,12 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 		{
 			default:
 			case TRIG_ROUND_NEAREST:
-				devpriv->divisor_a0 = cmd->convert_arg + (base_period / 2) / base_period;
-				devpriv->divisor_b1 = cmd->scan_begin_arg + (base_period / 2) / base_period;
+				devpriv->divisor_a0 = (cmd->convert_arg + (base_period / 2)) / base_period;
+				devpriv->divisor_b1 = (cmd->scan_begin_arg + (base_period / 2)) / base_period;
 				break;
 			case TRIG_ROUND_UP:
-				devpriv->divisor_a0 = cmd->convert_arg + (base_period - 1) / base_period;
-				devpriv->divisor_b1 = cmd->scan_begin_arg + (base_period - 1) / base_period;
+				devpriv->divisor_a0 = (cmd->convert_arg + (base_period - 1)) / base_period;
+				devpriv->divisor_b1 = (cmd->scan_begin_arg + (base_period - 1)) / base_period;
 				break;
 			case TRIG_ROUND_DOWN:
 				devpriv->divisor_a0 = cmd->convert_arg  / base_period;
