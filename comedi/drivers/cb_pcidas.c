@@ -98,8 +98,8 @@ analog triggering on 1602 series
 #include "8253.h"
 #include "8255.h"
 
-#define CB_PCIDAS_DEBUG	// enable debugging code
-//#undef CB_PCIDAS_DEBUG	// disable debugging code
+//#define CB_PCIDAS_DEBUG	// enable debugging code
+#undef CB_PCIDAS_DEBUG	// disable debugging code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
