@@ -92,7 +92,8 @@ add analog out support
 #define   OUTBOX_EMPTY_INT	0x10	// enable outbox empty interrupt
 #define   INBOX_BYTE(x)	(((x) & 0x3) << 8)
 #define   INBOX_SELECT(x)	(((x) & 0x3) << 10)
-#define   INBOX_FULL_INT	0x1000	//enable inbox full interrupt
+#define   INBOX_FULL_INT	0x1000	// enable inbox full interrupt
+#define   INBOX_INTR_STATUS	0x20000 // read, or write clear inbox full interrupt
 
 /* Control/Status registers */
 #define INT_ADCFIFO	0	// INTERRUPT / ADC FIFO register
@@ -515,13 +516,8 @@ found:
 	subdev_8255_init(dev, s, NULL,
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
-#ifdef CB_PCIDAS_DEBUG
-	/* Enable interrupts on amcc s5933.  Will probably also need to
-	 * enable outgoing mailbox interrupts to get waveform output
-	 * running on pci-das1602 models */
+	/* Enable incoming mailbox interrupts on amcc s5933. */
 	outl(INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT, devpriv->s5933_config + INTCSR);
-	rt_printk("attaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
-#endif
 
 	return 1;
 }
@@ -543,11 +539,9 @@ static int cb_pcidas_detach(comedi_device *dev)
 	{
 		if(devpriv->s5933_config)
 		{
-#ifdef CB_PCIDAS_DEBUG
 			// disable interrupts on amcc s5933
 			outl(0, devpriv->s5933_config + INTCSR);
 			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
-#endif
 			release_region(devpriv->s5933_config, S5933_SIZE);
 		}
 		if(devpriv->control_status)
@@ -820,8 +814,6 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	else if(cmd->scan_begin_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
 
-	async->events = 0;
-
 	// clear interrupts
 	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
 
@@ -873,13 +865,17 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "premature interrupt");
 		return;
 	}
+
 	async = s->async;
+	async->events = 0;
+
 	status = inw(devpriv->control_status + INT_ADCFIFO);
 	if((status & (INT | EOAI | EOBI)) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
 #ifdef CB_PCIDAS_DEBUG
 rt_printk("status bits are 0x%x\n", status);
+rt_printk("intcsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 #endif
 		return;
 	}
@@ -905,21 +901,18 @@ rt_printk("status bits are 0x%x\n", status);
 		// clear half-full interrupt latch
 		outw(devpriv->adc_fifo_bits | INTCL, devpriv->control_status + INT_ADCFIFO);
 	// else if fifo not empty
-	}else if(status & ADNE)
+	}else if(status & (ADNEI | EOBI))
 	{
 		for(i = 0; i < timeout; i++)
 		{
 			data[0] = inw(devpriv->adc_fifo);
 			comedi_buf_put(async, data[0]);
-			if(async->cmd.stop_src == TRIG_COUNT)
-			{
-				if(async->cmd.stop_src == TRIG_COUNT &&
-					--devpriv->count == 0)
-				{		/* end of acquisition */
-					cb_pcidas_cancel(dev, s);
-					async->events |= COMEDI_CB_EOA;
-					break;
-				}
+			if(async->cmd.stop_src == TRIG_COUNT &&
+				--devpriv->count == 0)
+			{		/* end of acquisition */
+				cb_pcidas_cancel(dev, s);
+				async->events |= COMEDI_CB_EOA;
+				break;
 			}
 			// break if fifo is empty
 			if((ADNE & inw(devpriv->control_status + INT_ADCFIFO)) == 0)
@@ -944,23 +937,33 @@ rt_printk("status bits are 0x%x\n", status);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
+// clear interrupt on amcc s5933
+#ifdef CB_PCIDAS_DEBUG
+if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
+{
+	outl(INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+	if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
+		rt_printk("manual clear failed, bits are 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+}else{
+	rt_printk("amcc interrupt is already clear\n");
+}
+#endif
+
 	comedi_event(dev, s, async->events);
-	async->events = 0;
 
 	return;
 }
 
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-#ifdef CB_PCIDAS_DEBUG
-rt_printk("mailbox status is 0x%x\n", inl(devpriv->s5933_config + 0x34));
-#endif
 	// disable interrupts
-	outw(0, devpriv->control_status + INT_ADCFIFO);
+	devpriv->adc_fifo_bits = 0;
+	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
 	// software pacer source
 	outw(0, devpriv->control_status + ADCMUX_CONT);
 	// disable start trigger source and burst mode
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
+
 
 	return 0;
 }
