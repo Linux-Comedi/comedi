@@ -14,5 +14,5 @@ M_OBJS := kcomedilib.o
 include $(TOPDIR)/Rules.make
 
 kcomedilib.o: $(MI_OBJS) $(MIX_OBJS)
-	$(LD) -r -o $@ $(MI_OBJS) $(MIX_OBS)
+	$(LD) -r -o $@ $(MI_OBJS) $(MIX_OBJS)
 
