@@ -832,10 +832,13 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	s->buf_int_ptr=0;
 	s->buf_int_count=0;
-if(s->subdev_flags & SDF_READABLE){
-	s->buf_user_ptr=0;
-	s->buf_user_count=0;
-}
+	if(s->subdev_flags & SDF_READABLE){
+		s->buf_user_ptr=0;
+		s->buf_user_count=0;
+	}
+
+	s->cur_chan = 0;
+	s->cur_chanlist_len = s->cmd.chanlist_len;
 	
 	s->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(s->cmd.flags & TRIG_WAKE_EOS){
