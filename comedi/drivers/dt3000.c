@@ -129,26 +129,26 @@ static dt3k_boardtype dt3k_boardtypes[]={
 };
 static int n_dt3k_boards=sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype);
 
-#define DT3000_SIZE		(2*0x1000)
+#define DT3000_SIZE		(4*0x1000)
 
 /* dual-ported RAM location definitions */
 
-#define DPR_DAC_buffer		(2*0x000)
-#define DPR_ADC_buffer		(2*0x800)
-#define DPR_Command		(2*0xfd3)
-#define DPR_SubSys		(2*0xfd3)
-#define DPR_Encode		(2*0xfd4)
-#define DPR_Params(a)		(2*(0xfd5+(a)))
-#define DPR_Tick_Reg_Lo		(2*0xff5)
-#define DPR_Tick_Reg_Hi		(2*0xff6)
-#define DPR_DA_Buf_Front	(2*0xff7)
-#define DPR_DA_Buf_Rear		(2*0xff8)
-#define DPR_AD_Buf_Front	(2*0xff9)
-#define DPR_AD_Buf_Rear		(2*0xffa)
-#define DPR_Int_Mask		(2*0xffb)
-#define DPR_Intr_Flag		(2*0xffc)
-#define DPR_Response_Mbx	(2*0xffe)
-#define DPR_Command_Mbx		(2*0xfff)
+#define DPR_DAC_buffer		(4*0x000)
+#define DPR_ADC_buffer		(4*0x800)
+#define DPR_Command		(4*0xfd3)
+#define DPR_SubSys		(4*0xfd3)
+#define DPR_Encode		(4*0xfd4)
+#define DPR_Params(a)		(4*(0xfd5+(a)))
+#define DPR_Tick_Reg_Lo		(4*0xff5)
+#define DPR_Tick_Reg_Hi		(4*0xff6)
+#define DPR_DA_Buf_Front	(4*0xff7)
+#define DPR_DA_Buf_Rear		(4*0xff8)
+#define DPR_AD_Buf_Front	(4*0xff9)
+#define DPR_AD_Buf_Rear		(4*0xffa)
+#define DPR_Int_Mask		(4*0xffb)
+#define DPR_Intr_Flag		(4*0xffc)
+#define DPR_Response_Mbx	(4*0xffe)
+#define DPR_Command_Mbx		(4*0xfff)
 
 /* command list */
 

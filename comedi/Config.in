@@ -54,6 +54,7 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 			define_bool CONFIG_COMEDI_MITE y
 		fi
 	fi
+	tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D
 fi
 
 tristate 'Computer Boards DAS-08 series' CONFIG_COMEDI_DAS08

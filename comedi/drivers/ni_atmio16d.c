@@ -3,9 +3,6 @@
    hardware driver for National Instruments AT-MIO16D board
    Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
 
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
-
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or

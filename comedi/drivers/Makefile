@@ -38,6 +38,7 @@ obj-$(CONFIG_COMEDI_NI_MIO_CS)		+= ni_mio_cs.o
 obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_NI_PCIDIO)		+= ni_pcidio.o
 obj-$(CONFIG_COMEDI_MITE)		+= mite.o
+obj-$(CONFIG_COMEDI_NI_ATMIO16D)	+= ni_atmio16d.o
 
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
 obj-$(CONFIG_COMEDI_PCL725)		+= pcl725.o

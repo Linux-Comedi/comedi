@@ -82,7 +82,8 @@ int comedi_device_detach(comedi_device *dev)
 int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_driver *driv;
-	int i,ret;
+	int ret;
+	int i=0;
 
 	if(dev->attached)
 		return -EBUSY;
