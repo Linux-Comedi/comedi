@@ -57,7 +57,9 @@ typedef unsigned short sampl_t;
 #define CR_RANGE(a)	(((a)>>16)&0xff)
 #define CR_AREF(a)	(((a)>>24)&0x03)
 
-#define CR_DITHER	(1<<26)
+#define CR_ALT_FILTER	(1<<26)
+#define CR_DITHER		CR_ALT_FILTER
+#define CR_DEGLITCH		CR_ALT_FILTER
 #define CR_INVERT	(1<<31)
 
 #define AREF_GROUND	0x00		/* analog ref = analog ground */
@@ -193,9 +195,16 @@ typedef unsigned short sampl_t;
 #define COMEDI_SUBD_CALIB               9	/* calibration DACs */
 #define COMEDI_SUBD_PROC                10	/* processor, DSP */
 
+/* configuration instructions */
 
 #define COMEDI_INPUT			0
 #define COMEDI_OUTPUT			1
+#define COMEDI_OPENDRAIN		2
+
+#define INSN_CONFIG_ANALOG_TRIG		0x10
+//#define INSN_CONFIG_WAVEFORM		0x11
+//#define INSN_CONFIG_TRIG		0x12
+//#define INSN_CONFIG_COUNTER		0x13
 
 /* ioctls */
 
