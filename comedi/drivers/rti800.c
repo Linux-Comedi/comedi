@@ -139,7 +139,7 @@ static comedi_driver driver_rti800={
 };
 COMEDI_INITCLEANUP(driver_rti800);
 
-static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs);
+static irqreturn_t rti800_interrupt(int irq, void *dev, struct pt_regs *regs);
 
 typedef struct {
 	enum {
@@ -165,10 +165,9 @@ typedef struct {
 
 #define RTI800_TIMEOUT 10
 
-static void rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
 {
-
-
+	return IRQ_HANDLED;
 }
 
 // settling delay times in usec for different gains

@@ -197,21 +197,22 @@ static int ni6527_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-static void ni6527_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t ni6527_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 2;
 	unsigned int status;
 
 	status = readb(dev->iobase + Change_Status);
-	if(!status&MasterInterruptStatus)return;
-	if(!status&EdgeStatus)return;
+	if(!status&MasterInterruptStatus)return IRQ_NONE;
+	if(!status&EdgeStatus)return IRQ_NONE;
 
 	writeb(ClrEdge | ClrOverflow, dev->iobase + Clear_Register);
 
 	comedi_buf_put(s->async, 0);
 	s->async->events |= COMEDI_CB_EOS;
 	comedi_event(dev,s,s->async->events);
+	return IRQ_HANDLED;
 }
 
 static int ni6527_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,

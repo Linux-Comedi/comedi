@@ -601,24 +601,22 @@ static int icp_multi_insn_write_ctr(comedi_device * dev, comedi_subdevice * s, c
 		void *d			Pointer to current device
 		struct pt_regs *regs	Pointer to
 
-	Returns:int			Nmuber of instructions executed
-
 ==============================================================================
 */
-static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 {
         comedi_device *dev = d;
 	int	int_no;
-	
+
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: BGN: interrupt_service_icp_multi(%d,...)\n",irq);
 #endif
 
 	// Is this interrupt from our board?
 	int_no = readw(dev->iobase + ICP_MULTI_INT_STAT) & Status_IRQ;
-	if (!int_no) 	
+	if (!int_no)
 		// No, exit
-		return;
+		return IRQ_NONE;
 
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: interrupt_service_icp_multi() ST: %4x\n",readw(dev->iobase + ICP_MULTI_INT_STAT));
@@ -651,6 +649,7 @@ static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: END: interrupt_service_icp_multi(...)\n");
 #endif
+	return IRQ_HANDLED;
 }
 
 
@@ -659,7 +658,7 @@ static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 ==============================================================================
 
 	Name:	check_channel_list
-	
+
 	Description:
 		This function checks if the channel list, provided by user
 		is built correctly

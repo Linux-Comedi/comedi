@@ -247,7 +247,7 @@ typedef struct local_info_t {
 
 /*====================================================================*/
 
-static void cs_error(client_handle_t handle, int func, int ret)
+static void my_cs_error(client_handle_t handle, int func, int ret)
 {
     error_info_t err = { func, ret };
     CardServices(ReportError, handle, &err);
@@ -318,7 +318,7 @@ static dev_link_t *labpc_cs_attach(void)
     client_reg.event_callback_args.client_data = link;
     ret = CardServices(RegisterClient, &link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
+	my_cs_error(link->handle, RegisterClient, ret);
 	labpc_cs_detach(link);
 	return NULL;
     }
@@ -572,7 +572,7 @@ static void labpc_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    my_cs_error(link->handle, last_fn, last_ret);
     labpc_release((u_long)link);
 
 } /* labpc_config */

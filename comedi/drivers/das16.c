@@ -336,7 +336,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s);
 static int das16_cancel(comedi_device *dev, comedi_subdevice *s);
 
 static void das16_reset(comedi_device *dev);
-static void das16_dma_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das16_dma_interrupt(int irq, void *d, struct pt_regs *regs);
 static void das16_timer_interrupt(unsigned long arg);
 static void das16_interrupt(comedi_device *dev);
 
@@ -1148,7 +1148,7 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 }
 
 
-static void das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int status;
 	comedi_device *dev = d;
@@ -1158,13 +1158,14 @@ static void das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
 	if((status & DAS16_INT ) == 0)
 	{
 		DEBUG_PRINT( "spurious interrupt\n" );
-		return;
+		return IRQ_NONE;
 	}
 
 	/* clear interrupt */
 	outb(0x00, dev->iobase + DAS16_STATUS);
 
 	das16_interrupt(dev);
+	return IRQ_HANDLED;
 }
 
 static void das16_timer_interrupt(unsigned long arg)

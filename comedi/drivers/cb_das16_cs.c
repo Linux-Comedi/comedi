@@ -104,7 +104,7 @@ static comedi_lrange das16cs_ai_range = { 4, {
 }};
 
 
-static void das16cs_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das16cs_interrupt(int irq, void *d, struct pt_regs *regs);
 static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int das16cs_ai_cmd(comedi_device *dev,comedi_subdevice *s);
@@ -271,10 +271,10 @@ static int das16cs_detach(comedi_device *dev)
 }
 
 
-static void das16cs_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das16cs_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	//comedi_device *dev = d;
-
+	return IRQ_HANDLED;
 }
 
 /*
@@ -713,7 +713,7 @@ typedef struct local_info_t {
 
 /*====================================================================*/
 
-static void cs_error(client_handle_t handle, int func, int ret)
+static void my_cs_error(client_handle_t handle, int func, int ret)
 {
     error_info_t err = { func, ret };
     CardServices(ReportError, handle, &err);
@@ -785,7 +785,7 @@ static dev_link_t *das16cs_pcmcia_attach(void)
     client_reg.event_callback_args.client_data = link;
     ret = CardServices(RegisterClient, &link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
+	my_cs_error(link->handle, RegisterClient, ret);
 	das16cs_pcmcia_detach(link);
 	return NULL;
     }
@@ -1017,7 +1017,7 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	my_cs_error(link->handle, last_fn, last_ret);
 	das16cs_pcmcia_release((u_long)link);
 
 } /* das16cs_pcmcia_config */

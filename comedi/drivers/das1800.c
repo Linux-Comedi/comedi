@@ -182,7 +182,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it);
 static int das1800_detach(comedi_device *dev);
 static int das1800_probe(comedi_device *dev);
 static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
-static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das1800_interrupt(int irq, void *d, struct pt_regs *regs);
 static int das1800_ai_poll(comedi_device *dev,comedi_subdevice *s);
 static void das1800_ai_handler(comedi_device *dev);
 static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s, unsigned int status);
@@ -885,7 +885,7 @@ static int das1800_ai_poll(comedi_device *dev,comedi_subdevice *s)
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	unsigned int status;
@@ -893,7 +893,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/* Prevent race with das1800_ai_poll() on multi processor systems.
@@ -905,7 +905,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(!(status & INT))
 	{
 		spin_unlock(&dev->spinlock);
-		return;
+		return IRQ_NONE;
 	}
 	/* clear the interrupt status bit INT*/
 	outb(CLEAR_INTR_MASK & ~INT, dev->iobase + DAS1800_STATUS);
@@ -913,6 +913,7 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	das1800_ai_handler(dev);
 
 	spin_unlock(&dev->spinlock);
+	return IRQ_HANDLED;
 }
 
 // the guts of the interrupt handler, that is shared with das1800_ai_poll

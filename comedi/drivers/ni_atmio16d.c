@@ -127,7 +127,7 @@ static atmio16_board_t atmio16_boards[]={
 /* function prototypes */
 static int atmio16d_attach(comedi_device *dev,comedi_devconfig *it);
 static int atmio16d_detach(comedi_device *dev);
-static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t atmio16d_interrupt(int irq, void *d, struct pt_regs *regs);
 static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s);
@@ -254,16 +254,17 @@ static void reset_atmio16d(comedi_device *dev)
 	outw(2048, dev->iobase+DAC1_REG);
 }
 
-static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
-	
+
 //	printk("atmio16d_interrupt!\n");
 
 	comedi_buf_put( s->async, inw(dev->iobase+AD_FIFO_REG) );
 
 	comedi_event(dev, s, s->async->events);
+	return IRQ_HANDLED;
 }
 
 static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)

@@ -480,7 +480,7 @@ static dev_info_t dev_info = "daqp_cs";
 
 /*====================================================================*/
 
-static void cs_error(client_handle_t handle, int func, int ret)
+static void my_cs_error(client_handle_t handle, int func, int ret)
 {
     error_info_t err = { func, ret };
     CardServices(ReportError, handle, &err);
@@ -564,7 +564,7 @@ static dev_link_t *daqp_cs_attach(void)
     client_reg.event_callback_args.client_data = link;
     ret = CardServices(RegisterClient, &link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
+	my_cs_error(link->handle, RegisterClient, ret);
 	daqp_cs_detach(link);
 	return NULL;
     }
@@ -777,7 +777,7 @@ static void daqp_cs_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    my_cs_error(link->handle, last_fn, last_ret);
     daqp_cs_release((u_long)link);
 
 } /* daqp_cs_config */

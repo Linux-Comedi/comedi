@@ -70,7 +70,7 @@ static comedi_driver driver_dt2814={
 };
 COMEDI_INITCLEANUP(driver_dt2814);
 
-static void dt2814_interrupt(int irq,void *dev,struct pt_regs * regs);
+static irqreturn_t dt2814_interrupt(int irq,void *dev,struct pt_regs * regs);
 
 typedef struct{
 	int ntrig;
@@ -326,37 +326,35 @@ static int dt2814_detach(comedi_device *dev)
 }
 
 
-static void dt2814_interrupt(int irq,void *d,struct pt_regs * regs)
+static irqreturn_t dt2814_interrupt(int irq,void *d,struct pt_regs * regs)
 {
-        int lo,hi;
-        comedi_device *dev=d;
+	int lo,hi;
+	comedi_device *dev=d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	int data;
 
-        hi=inb(dev->iobase+DT2814_DATA);
-        lo=inb(dev->iobase+DT2814_DATA);
+	hi=inb(dev->iobase+DT2814_DATA);
+	lo=inb(dev->iobase+DT2814_DATA);
 
-        data=(hi<<4)|(lo>>4);
+	data=(hi<<4)|(lo>>4);
 
 	if(!(--devpriv->ntrig)){
-		int flags,i;
+		int i;
 
 		outb(0,dev->iobase+DT2814_CSR);
 		/* note: turning off timed mode triggers another
 			sample. */
 
-		save_flags(flags);
-		cli();	/* FIXME */
 		for(i=0;i<DT2814_TIMEOUT;i++){
 			if(inb(dev->iobase+DT2814_CSR)&DT2814_FINISH)
 				break;
 		}
 		inb(dev->iobase+DT2814_DATA);
 		inb(dev->iobase+DT2814_DATA);
-		restore_flags(flags);
-	
+
 		s->async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev,s,s->async->events);
+	return IRQ_HANDLED;
 }
 

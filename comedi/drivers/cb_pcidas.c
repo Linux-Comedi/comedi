@@ -467,7 +467,7 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
 static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
-static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs);
 static void handle_ao_interrupt(comedi_device *dev, unsigned int status);
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s);
 static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s);
@@ -1506,7 +1506,7 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	return 0;
 }
 
-static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = (comedi_device*) d;
 	comedi_subdevice *s = dev->read_subdev;
@@ -1516,7 +1516,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned int num_samples, i;
 	static const int timeout = 10000;
 	unsigned long flags;
-	
+	int retval = IRQ_HANDLED;
+
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
@@ -1532,7 +1533,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 #endif
 
 	if( ( INTCSR_INTR_ASSERTED & s5933_status ) == 0 )
-		return;
+		return IRQ_NONE;
 
 	// make sure mailbox 4 is empty
 	inl_p(devpriv->s5933_config + AMCC_OP_REG_IMB4);
@@ -1620,7 +1621,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	comedi_event(dev, s, async->events);
 
-	return;
+	return IRQ_RETVAL(retval);
 }
 
 static void handle_ao_interrupt(comedi_device *dev, unsigned int status)

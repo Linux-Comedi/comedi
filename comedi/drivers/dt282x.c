@@ -569,7 +569,7 @@ static int prep_ao_dma(comedi_device * dev,int chan,int n)
 	return n;
 }
 
-static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices+0;
@@ -583,8 +583,8 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "A/D error");
 		dt282x_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);	
-		return;
+		comedi_event(dev,s,s->async->events);
+		return IRQ_HANDLED;
 	}
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
 	/*printk("supcsr=%02x\n",supcsr);*/
@@ -593,7 +593,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 			dt282x_ai_dma_interrupt(dev);
 		else
 			dt282x_ao_dma_interrupt(dev);
-		return;
+		return IRQ_HANDLED;
 	}
 	if ((dacsr = inw(dev->iobase + DT2821_DACSR)) & DT2821_DAERR) {
 #if 0
@@ -606,8 +606,8 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "D/A error");
 		dt282x_ao_cancel(dev,s_ao);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(dev,s_ao,s->async->events);	
-		return;
+		comedi_event(dev,s_ao,s->async->events);
+		return IRQ_HANDLED;
 	}
 	if (adcsr & DT2821_ADDONE) {
 		data = (sampl_t) inw(dev->iobase + DT2821_ADDAT);
@@ -628,9 +628,10 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 				update_supcsr(DT2821_STRIG);
 		}
 
-		comedi_event(dev,s,s->async->events);	
-		return;
+		comedi_event(dev,s,s->async->events);
+		return IRQ_HANDLED;
 	}
+	return IRQ_HANDLED;
 }
 
 
@@ -1166,8 +1167,7 @@ enum{	opt_iobase=0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channels 
  */
 static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	int i, irqs, irq;
-	long flags;
+	int i, irq;
 	int ret;
 	comedi_subdevice *s;
 	int iobase;
@@ -1213,7 +1213,11 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	/* should do board test */
 
 	irq = it->options[opt_irq];
+#if 0
 	if (irq < 0) {
+		unsigned long flags;
+		int irqs;
+		
 		save_flags(flags);
 		sti();
 		irqs = probe_irq_on();
@@ -1228,7 +1232,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 			printk(" error probing irq (bad)");
 		}
 	}
-	dev->irq = 0;
+#endif
 	if (irq > 0) {
 		printk(" ( irq = %d )", irq);
 		ret = comedi_request_irq(irq, dt282x_interrupt, 0, "dt282x", dev);

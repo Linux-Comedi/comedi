@@ -430,7 +430,7 @@ static int pci9118_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_i
 /*
 ==============================================================================
 */
-static void interrupt_pci9118_ai_mode4_switch(comedi_device *dev) 
+static void interrupt_pci9118_ai_mode4_switch(comedi_device *dev)
 {
 	devpriv->AdFunctionReg=AdFunction_PDTrg|AdFunction_PETrg|AdFunction_AM;
 	outl(devpriv->AdFunctionReg,dev->iobase+PCI9118_ADFUNC);
@@ -439,7 +439,6 @@ static void interrupt_pci9118_ai_mode4_switch(comedi_device *dev)
 	outl((devpriv->dmabuf_hw[1-devpriv->dma_actbuf]>>9)&0xff, dev->iobase + PCI9118_CNT0);
 	devpriv->AdFunctionReg|=AdFunction_Start;
 	outl(devpriv->AdFunctionReg,dev->iobase+PCI9118_ADFUNC);
-
 }
 
 
@@ -889,7 +888,7 @@ static void interrupt_pci9118_ai_dma(comedi_device *dev,comedi_subdevice *s,
 		outl(devpriv->dmabuf_hw[0], devpriv->iobase_a+AMCC_OP_REG_MWAR);
 		outl(devpriv->dmabuf_use_size[0], devpriv->iobase_a+AMCC_OP_REG_MWTC);
 		if (devpriv->ai_do==4) 
-			interrupt_pci9118_ai_mode4_switch(dev); 
+			interrupt_pci9118_ai_mode4_switch(dev);
 	}
 
 	comedi_event(dev,s,s->async->events);
@@ -898,25 +897,25 @@ static void interrupt_pci9118_ai_dma(comedi_device *dev,comedi_subdevice *s,
 /* 
 ==============================================================================
 */
-static void interrupt_pci9118(int irq, void *d, struct pt_regs *regs) 
+static irqreturn_t interrupt_pci9118(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	unsigned int	int_daq=0,int_amcc,int_adstat;
-		
+
 	int_daq=inl(dev->iobase+PCI9118_INTSRC) & 0xf;		// get IRQ reasons from card
 	int_amcc=inl(devpriv->iobase_a+AMCC_OP_REG_INTCSR);	// get INT register from AMCC chip
 
 //	DPRINTK("INT daq=0x%01x amcc=0x%08x MWAR=0x%08x MWTC=0x%08x ADSTAT=0x%02x ai_do=%d\n", int_daq, int_amcc, inl(devpriv->iobase_a+AMCC_OP_REG_MWAR), inl(devpriv->iobase_a+AMCC_OP_REG_MWTC), inw(dev->iobase+PCI9118_ADSTAT)&0x1ff,devpriv->ai_do);
 
 	if ((!int_daq)&&(!(int_amcc&ANY_S593X_INT)))
-		return;	// interrupt from other source
+		return IRQ_NONE;	// interrupt from other source
 
 	outl(int_amcc|0x00ff0000, devpriv->iobase_a+AMCC_OP_REG_INTCSR); // shutdown IRQ reasons in AMCC
 
 	int_adstat=inw(dev->iobase+PCI9118_ADSTAT)&0x1ff;	// get STATUS register
 
 	if (devpriv->ai_do) {
-		if (devpriv->ai12_startstop) 
+		if (devpriv->ai12_startstop)
 			if ((int_adstat&AdStatus_DTH)&&(int_daq&Int_DTrg)) {	// start stop of measure
 				if (devpriv->ai12_startstop&START_AI_EXT) {
 					devpriv->ai12_startstop&=~START_AI_EXT;
@@ -936,6 +935,7 @@ static void interrupt_pci9118(int irq, void *d, struct pt_regs *regs)
 		(devpriv->int_ai_func)(dev,dev->subdevices + 0,int_adstat,int_amcc,int_daq);
 
 	}
+	return IRQ_HANDLED;
 }
 
 /*

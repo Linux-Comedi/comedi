@@ -683,12 +683,6 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 
   printk("comedi%d: daqboard2000:", dev->minor);
 
-  if(!pci_present()) {
-    printk(" PCI bus not present!\n");
-    result = -EIO;
-    goto out;
-  }
-
   /* FIXME: we should handle multiple cards, have to make David decide 
             how, so we will be consistent among all PCI card drivers... */
   card = pci_find_device(0x1616, 0x0409, NULL);

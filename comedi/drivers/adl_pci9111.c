@@ -922,7 +922,7 @@ static int pci9111_ai_do_cmd ( comedi_device *dev,
 
 #undef INTERRUPT_DEBUG
 
-static void pci9111_interrupt (int irq,
+static irqreturn_t pci9111_interrupt (int irq,
 			       void *p_device,
 			       struct pt_regs *regs)
 {
@@ -932,16 +932,17 @@ static void pci9111_interrupt (int irq,
   unsigned long irq_flags;
   int i, data;
   int resolution = ((pci9111_board_struct *) dev->board_ptr)->ai_resolution;
+	int retval = IRQ_HANDLED;
 
   async = subdevice->async;
 
   comedi_spin_lock_irqsave (&dev->spinlock, irq_flags);
-  
+
   if ((inb(dev_private->lcr_io_base+PLX9050_REGISTER_INTERRUPT_CONTROL) &
       PLX9050_LINTI1_STATUS) != 0)
-  { 
+  {
     // Interrupt comes from fifo_half-full signal
-  
+
     if (pci9111_is_fifo_full())
     {
       comedi_spin_unlock_irqrestore (&dev->spinlock, irq_flags);
@@ -951,20 +952,20 @@ static void pci9111_interrupt (int irq,
       async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
       comedi_event (dev, subdevice, async->events);
 
-      return;
+      return IRQ_RETVAL(retval);
     }
- 
+
     if (pci9111_is_fifo_half_full())
     {
 #ifdef INTERRUPT_DEBUG
       printk (PCI9111_DRIVER_NAME ": fifo is half full\n");
 #endif
       async->events |= COMEDI_CB_BLOCK;
-      
+
       for (i=0;i<PCI9111_FIFO_HALF_SIZE;i++)
       {
 	// FIXME: The resolution test should be done outside of the read loop
-	
+
 	if (resolution == PCI9111_HR_AI_RESOLUTION) {
 	  data = pci9111_hr_ai_get_data ();
 	}
@@ -994,20 +995,22 @@ static void pci9111_interrupt (int irq,
     async->events |= COMEDI_CB_EOA;
     pci9111_ai_cancel (dev, subdevice);
   }
-  
+
   // Very important, otherwise another interrupt request will be inserted
   // and will cause driver hangs on processing interrupt event (and cause a
-  // computer crash, and corrupt the source file of the driver you are 
-  // working on, since you forgot to do a sync before test, and you cry, 
+  // computer crash, and corrupt the source file of the driver you are
+  // working on, since you forgot to do a sync before test, and you cry,
   // and ...)
-  
+
   pci9111_interrupt_clear();
 
   comedi_spin_unlock_irqrestore (&dev->spinlock, irq_flags);
 
   comedi_event (dev, subdevice, async->events);
+
+	return IRQ_RETVAL(retval);
 }
-			       
+
 // ------------------------------------------------------------------
 // 
 // INSTANT ANALOG INPUT OUTPUT SECTION

@@ -58,7 +58,7 @@ void abort_dma( comedi_device *dev, unsigned int channel );
 static int hpdi_cmd( comedi_device *dev, comedi_subdevice *s );
 static int hpdi_cmd_test( comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd );
 static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
-static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 
 #undef HPDI_DEBUG	// disable debugging messages
@@ -895,7 +895,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	// XXX check for buffer overrun somehow
 }
 
-static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;
@@ -918,7 +918,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		writel( hpdi_intr_status, priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
 	}else if( ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA ) ) == 0 )
 	{
-		return;
+		return IRQ_NONE;
 	}
 
 	// spin lock makes sure noone else changes plx dma control reg
@@ -980,7 +980,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	cfc_handle_events( dev, s );
 
-	return;
+	return IRQ_HANDLED;
 }
 
 void abort_dma( comedi_device *dev, unsigned int channel )
@@ -998,7 +998,7 @@ void abort_dma( comedi_device *dev, unsigned int channel )
 static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s )
 {
 	hpdi_writel( dev, 0, BOARD_CONTROL_REG );
-	
+
 	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 
 	abort_dma(dev, 0);

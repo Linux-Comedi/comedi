@@ -733,7 +733,7 @@ static int rtd_ai_cmd ( comedi_device *dev, comedi_subdevice *s);
 static int rtd_ai_cancel ( comedi_device *dev, comedi_subdevice *s);
 //static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
 static int rtd_ns_to_timer (unsigned int *ns, int roundMode);
-static void rtd_interrupt ( int irq, void *d, struct pt_regs *regs);
+static irqreturn_t rtd_interrupt ( int irq, void *d, struct pt_regs *regs);
 
 
 /*
@@ -1472,30 +1472,30 @@ static int ai_process_dma (
 #endif /* USE_DMA */
 
 /*
-  Handle all rtd520 interrupts.  
+  Handle all rtd520 interrupts.
   Runs atomically and is never re-entered.
   This is a "slow handler";  other interrupts may be active.
   The data conversion may someday happen in a "bottom half".
 */
-static void rtd_interrupt (
+static irqreturn_t rtd_interrupt (
     int irq,				/* interrupt number (ignored) */
     void *d,				/* our data */
     struct pt_regs *regs)		/* cpu context (ignored) */
 {
-    comedi_device *dev = d;		/* must be called "dev" for devpriv */
-    u16 status;
-    u16 fifoStatus;
-    comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
+	comedi_device *dev = d;		/* must be called "dev" for devpriv */
+	u16 status;
+	u16 fifoStatus;
+	comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
 
-    devpriv->intCount++;		/* DEBUG statistics */
+	devpriv->intCount++;		/* DEBUG statistics */
 
-    fifoStatus = RtdFifoStatus (dev);
-    /* check for FIFO full, this automatically halts the ADC! */
-    if (!(fifoStatus & FS_ADC_FULL)) {	/* 0 -> full */
-	DPRINTK("rtd520: FIFO full! fifo_status=0x%x\n",
-		(fifoStatus ^ 0x6666) & 0x7777); /* should be all 0s */
-	goto abortTransfer;
-    } 
+	fifoStatus = RtdFifoStatus (dev);
+	/* check for FIFO full, this automatically halts the ADC! */
+	if (!(fifoStatus & FS_ADC_FULL)) {	/* 0 -> full */
+		DPRINTK("rtd520: FIFO full! fifo_status=0x%x\n",
+			(fifoStatus ^ 0x6666) & 0x7777); /* should be all 0s */
+		goto abortTransfer;
+	}
 
 #ifdef USE_DMA
     if (devpriv->flags & DMA0_ACTIVE) {	/* Check DMA */
@@ -1510,7 +1510,7 @@ static void rtd_interrupt (
 				| PLX_CLEAR_DMA_INTR_BIT);
 		goto abortTransfer;
 	    }
-		
+
 	    /*DPRINTK ("rtd520: DMA transfer: %ld to go, istatus %x\n",
 	      devpriv->aiCount, istatus);*/
 	    RtdDma0Control (dev, (devpriv->dma0Control & ~PLX_DMA_START_BIT)
@@ -1530,7 +1530,7 @@ static void rtd_interrupt (
     status = RtdInterruptStatus (dev);
     /* if interrupt was not caused by our board, or handled above */
     if (0 == status) {
-	return;
+		return IRQ_HANDLED;
     }
 
     if (status & IRQM_ADC_ABOUT_CNT) { /* sample count -> read FIFO */
@@ -1581,12 +1581,12 @@ static void rtd_interrupt (
 		devpriv->aiCount,
 		0xffff & RtdInterruptOverrunStatus (dev));
 	goto abortTransfer;
-    } 
-	
+    }
+
 					/* clear the interrupt */
     RtdInterruptClearMask (dev, status);
     RtdInterruptClear (dev);
-    return;
+    return IRQ_HANDLED;
 
 abortTransfer:
     RtdAdcClearFifo (dev);		/* clears full flag */
@@ -1628,12 +1628,14 @@ transferDone:
     status = RtdInterruptStatus (dev);
     RtdInterruptClearMask (dev, status);
     RtdInterruptClear (dev);
-	
+
     fifoStatus = RtdFifoStatus (dev);	/* DEBUG */
     DPRINTK("rtd520: Acquisition complete. %ld ints, intStat=%x, overStat=%x\n",
 	    devpriv->intCount,
 	    status,
 	    0xffff & RtdInterruptOverrunStatus (dev));
+
+	return IRQ_HANDLED;
 }
 
 #if 0

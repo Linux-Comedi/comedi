@@ -163,7 +163,7 @@ NI manuals:
 
 static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s);
-static void labpc_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t labpc_interrupt(int irq, void *d, struct pt_regs *regs);
 static int labpc_drain_fifo(comedi_device *dev);
 static void labpc_drain_dma(comedi_device *dev);
 static void handle_isa_dma(comedi_device *dev);
@@ -1316,7 +1316,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* interrupt service routine */
-static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;
@@ -1326,7 +1326,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
-		return;
+		return IRQ_HANDLED;
 	}
 
 	async = s->async;
@@ -1342,7 +1342,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 		(devpriv->status2_bits & A1_TC_BIT) == 0 &&
 		(devpriv->status2_bits & FNHF_BIT))
 	{
-		return;
+		return IRQ_NONE;
 	}
 
 	if(devpriv->status1_bits & OVERRUN_BIT)
@@ -1352,7 +1352,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_event(dev, s, async->events);
 		comedi_error(dev, "overrun");
-		return;
+		return IRQ_HANDLED;
 	}
 
 	if(devpriv->current_transfer == isa_dma_transfer)
@@ -1378,7 +1378,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 		thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_error(dev, "overflow");
-		return;
+		return IRQ_HANDLED;
 	}
 
 	// handle external stop trigger
@@ -1403,6 +1403,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	comedi_event(dev, s, async->events);
+	return IRQ_HANDLED;
 }
 
 // read all available samples from ai fifo

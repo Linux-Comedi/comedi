@@ -273,11 +273,11 @@ static dev_node_t dev_node = {
 };
 static int mio_cs_event(event_t event, int priority, event_callback_args_t *args);
 
-static void cs_error(client_handle_t handle, int func, int ret)
+static void my_cs_error(client_handle_t handle, int func, int ret)
 {
 	error_info_t err = { func, ret };
 
-	DPRINTK("cs_error(handle=%p, func=%d, ret=%d)\n",handle,func,ret);
+	DPRINTK("my_cs_error(handle=%p, func=%d, ret=%d)\n",handle,func,ret);
 
 	CardServices(ReportError, handle, &err);
 }
@@ -318,7 +318,7 @@ static dev_link_t *cs_attach(void)
 	client_reg.event_callback_args.client_data = link;
 	ret = CardServices(RegisterClient, &link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
+		my_cs_error(link->handle, RegisterClient, ret);
 		printk("detaching...\n");
 		cs_detach(link);
 		return NULL;

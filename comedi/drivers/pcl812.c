@@ -848,7 +848,7 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 /* 
 ==============================================================================
 */
-static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 {
 	char err=1;
 	unsigned int mask, timeout;
@@ -875,13 +875,13 @@ static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 			comedi_udelay(1);
 		}
 	}
-	
+
 	if (err) {
 		rt_printk("comedi%d: pcl812: (%s at 0x%x) A/D cmd IRQ without DRDY!\n", dev->minor, dev->board_name, dev->iobase);
 		pcl812_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA|COMEDI_CB_ERROR;
 		comedi_event(dev,s,s->async->events);
-		return;
+		return IRQ_HANDLED;
 	}
 
 	comedi_buf_put( s->async,
@@ -899,9 +899,10 @@ static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 	}
 
 	comedi_event(dev,s,s->async->events);
+	return IRQ_HANDLED;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
@@ -930,38 +931,38 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 /* 
 ==============================================================================
 */
-static void interrupt_pcl812_ai_dma(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 	unsigned long dma_flags;
 	int len,bufptr;
-        sampl_t *ptr;
+	sampl_t *ptr;
 
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: interrupt_pcl812_ai_dma(...)\n");
 #endif
-        ptr=(sampl_t *)devpriv->dmabuf[devpriv->next_dma_buf];
-        len=(devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) - devpriv->ai_poll_ptr;
+	ptr=(sampl_t *)devpriv->dmabuf[devpriv->next_dma_buf];
+	len=(devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) - devpriv->ai_poll_ptr;
 
-        devpriv->next_dma_buf=1-devpriv->next_dma_buf;
-        disable_dma(devpriv->dma);
+	devpriv->next_dma_buf=1-devpriv->next_dma_buf;
+	disable_dma(devpriv->dma);
 	set_dma_mode(devpriv->dma, DMA_MODE_READ);
 	dma_flags=claim_dma_lock();
 	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[devpriv->next_dma_buf]);
 	if (devpriv->ai_eos) {
-		set_dma_count(devpriv->dma, devpriv->dmabytestomove[devpriv->next_dma_buf]); 
+		set_dma_count(devpriv->dma, devpriv->dmabytestomove[devpriv->next_dma_buf]);
 	} else {
 		if (devpriv->dma_runs_to_end) { set_dma_count(devpriv->dma, devpriv->dmabytestomove[devpriv->next_dma_buf]); }
-					else { set_dma_count(devpriv->dma, devpriv->last_dma_run); }
-	        devpriv->dma_runs_to_end--;
+		else { set_dma_count(devpriv->dma, devpriv->last_dma_run); }
+		devpriv->dma_runs_to_end--;
 	}
 	release_dma_lock(dma_flags);
 	enable_dma(devpriv->dma);
 
-        outb(0,dev->iobase+PCL812_CLRINT); /* clear INT request */
+	outb(0,dev->iobase+PCL812_CLRINT); /* clear INT request */
 
-        bufptr=devpriv->ai_poll_ptr;
+	bufptr=devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr=0;
 
 	transfer_from_dma_buf(dev, s, ptr, bufptr, len);
@@ -969,18 +970,18 @@ static void interrupt_pcl812_ai_dma(int irq, void *d, struct pt_regs *regs)
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: END: interrupt_pcl812_ai_dma(...)\n");
 #endif
+	return IRQ_HANDLED;
 }
 
-/* 
+/*
 ==============================================================================
 */
-static void interrupt_pcl812(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl812(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 
-	if (devpriv->ai_dma) { interrupt_pcl812_ai_dma(irq, d, regs); }
-			else { interrupt_pcl812_ai_int(irq, d, regs); };
-
+	if (devpriv->ai_dma) { return interrupt_pcl812_ai_dma(irq, d, regs); }
+			else { return interrupt_pcl812_ai_int(irq, d, regs); };
 }
 
 /*

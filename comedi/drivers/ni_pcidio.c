@@ -384,7 +384,7 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 	}
 }
 
-static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s = dev->subdevices;
@@ -399,6 +399,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	int status;
 	int work = 0;
 	unsigned int m_status;
+	int retval = IRQ_HANDLED;
 
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	flags = readb(dev->iobase+Group_1_Flags);
@@ -541,13 +542,13 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 
 out:
 	comedi_event(dev,s,async->events);
-	    
+
 #if unused
 	if(!tag){
 		writeb(0x03,dev->iobase+Master_DMA_And_Interrupt_Control);
 	}
 #endif
-
+	return IRQ_RETVAL(retval);
 }
 
 #ifdef DEBUG_FLAGS

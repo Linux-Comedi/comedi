@@ -303,7 +303,7 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 }
 
 
-static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
+static irqreturn_t ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
 	comedi_device *dev=d;
 	unsigned short a_status;
@@ -328,6 +328,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 		handle_a_interrupt(dev, a_status, m0_status);
 	if(b_status&Interrupt_B_St || m1_status & CHSR_INT )
 		handle_b_interrupt(dev, b_status, m1_status);
+	return IRQ_HANDLED;
 }
 
 #ifdef PCIDMA

@@ -272,56 +272,56 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
    analog input interrupt mode 1 & 3, 818 cards
    one sample per interrupt version   
 */
-static void
+static irqreturn_t
 interrupt_pcl816_ai_mode13_int (int irq, void *d, struct pt_regs *regs)
 {
-  comedi_device *dev = d;
-  comedi_subdevice *s = dev->subdevices + 0;
-  int low, hi;
-  int timeout = 50;		/* wait max 50us */
+	comedi_device *dev = d;
+	comedi_subdevice *s = dev->subdevices + 0;
+	int low, hi;
+	int timeout = 50;		/* wait max 50us */
 
-  while (timeout--) {
-	  if (!(inb (dev->iobase + PCL816_STATUS) & PCL816_STATUS_DRDY_MASK)) 
+	while (timeout--) {
+	  if (!(inb (dev->iobase + PCL816_STATUS) & PCL816_STATUS_DRDY_MASK))
 		break;
       comedi_udelay (1);
   }
   if(!timeout) { 			// timeout, bail error
-	outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-	comedi_error (dev, "A/D mode1/3 IRQ without DRDY!");
-	pcl816_ai_cancel (dev, s);
-	s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-	comedi_event(dev, s, s->async->events);
-	return;
+		outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
+		comedi_error (dev, "A/D mode1/3 IRQ without DRDY!");
+		pcl816_ai_cancel (dev, s);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		comedi_event(dev, s, s->async->events);
+		return IRQ_HANDLED;
 
   }
 
 
-  // get the sample
-  low = inb (dev->iobase + PCL816_AD_LO);
-  hi = inb (dev->iobase + PCL816_AD_HI);
+	// get the sample
+	low = inb (dev->iobase + PCL816_AD_LO);
+	hi = inb (dev->iobase + PCL816_AD_HI);
 
-  comedi_buf_put( s->async, (hi << 8)|low );
+	comedi_buf_put( s->async, (hi << 8)|low );
 
-  outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
-
-
-  if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len)
-    devpriv->ai_act_chanlist_pos = 0;
+	outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT request */
 
 
-   if (s->async->cur_chan == 0){
+	if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len)
+		devpriv->ai_act_chanlist_pos = 0;
+
+
+	if (s->async->cur_chan == 0){
 		devpriv->ai_act_scan++;
-   }
+	}
 
 
-  if (!devpriv->ai_neverending)
+	if (!devpriv->ai_neverending)
 	if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
 		/* all data sampled */
 		pcl816_ai_cancel (dev, s);
 		s->async->events |= COMEDI_CB_EOA;
-		return;
 	}
 	comedi_event(dev, s, s->async->events);
+	return IRQ_HANDLED;
 }
 
 /*
@@ -358,7 +358,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 }
 
 
-static void interrupt_pcl816_ai_mode13_dma(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d, struct pt_regs *regs)
 {
   comedi_device *dev = d;
   comedi_subdevice *s = dev->subdevices + 0;
@@ -396,6 +396,7 @@ static void interrupt_pcl816_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
   devpriv->ai_poll_ptr = 0;
 
   transfer_from_dma_buf(dev, s, ptr, bufptr, len);
+	return IRQ_HANDLED;
 }
 
 
@@ -403,7 +404,7 @@ static void interrupt_pcl816_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 ==============================================================================
     INT procedure
 */
-static void
+static irqreturn_t
 interrupt_pcl816 (int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
@@ -411,19 +412,17 @@ interrupt_pcl816 (int irq, void *d, struct pt_regs *regs)
 
 	if(!dev->attached) {
 		comedi_error(dev, "premature interrupt");
-		return;
+		return IRQ_HANDLED;
 	}
 
 
 	switch (devpriv->int816_mode)  {
     case INT_TYPE_AI1_DMA:
     case INT_TYPE_AI3_DMA:
-		interrupt_pcl816_ai_mode13_dma (irq, d, regs);
-		return;
+		return interrupt_pcl816_ai_mode13_dma (irq, d, regs);
     case INT_TYPE_AI1_INT:
     case INT_TYPE_AI3_INT:
-		interrupt_pcl816_ai_mode13_int (irq, d, regs);
-		return;
+		return interrupt_pcl816_ai_mode13_int (irq, d, regs);
     }
 
 
@@ -434,12 +433,13 @@ interrupt_pcl816 (int irq, void *d, struct pt_regs *regs)
 		if (devpriv->irq_was_now_closed)	{
 			devpriv->irq_was_now_closed = 0;
 			// comedi_error(dev,"last IRQ..");
-			return;
+			return IRQ_HANDLED;
 		}
 		comedi_error (dev, "bad IRQ!");
-		return;
+		return IRQ_NONE;
  	}
 	comedi_error (dev, "IRQ from unknow source!");
+	return IRQ_NONE;
 }
 
 

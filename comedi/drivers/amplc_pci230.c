@@ -249,7 +249,7 @@ static void pci230_z2_ct2(comedi_device *dev, unsigned int *ns,int round);
 static void pci230_cancel_ct0(comedi_device *dev);
 static void pci230_cancel_ct1(comedi_device *dev);
 static void pci230_cancel_ct2(comedi_device *dev);
-static void pci230_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs);
 static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 static int pci230_ao_cmd(comedi_device *dev, comedi_subdevice *s);
 static int pci230_ao_cancel(comedi_device *dev, comedi_subdevice *s);
@@ -1123,11 +1123,12 @@ static void pci230_cancel_ct2(comedi_device *dev)
 }
 
 /* Interrupt handler */
-static void pci230_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int status_int;
 	comedi_device *dev = (comedi_device*) d;
 	comedi_subdevice *s;
+	int retval = IRQ_HANDLED;
 
 	/* Read interrupt status/enable register. */
 	status_int = inb(devpriv->pci_iobase + PCI230_INT_SCE);
@@ -1163,7 +1164,7 @@ static void pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 		s->async->events = 0;
 	}
 
-	return;
+	return IRQ_RETVAL(retval);
 }
 
 static void pci230_handle_ao(comedi_device *dev, comedi_subdevice *s) {

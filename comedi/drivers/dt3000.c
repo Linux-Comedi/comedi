@@ -333,7 +333,7 @@ static void dt3k_writesingle(comedi_device *dev,unsigned int subsys,
 
 static int debug_n_ints = 0;
 
-static void dt3k_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t dt3k_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -358,6 +358,7 @@ static void dt3k_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	comedi_event(dev,s,s->async->events);
+	return IRQ_HANDLED;
 }
 
 #ifdef DEBUG

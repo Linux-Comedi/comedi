@@ -154,7 +154,7 @@ static int pc236_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int pc236_intr_cmd(comedi_device *dev,comedi_subdevice *s);
 static int pc236_intr_cancel(comedi_device *dev,comedi_subdevice *s);
-static void pc236_interrupt(int irq,void *d,struct pt_regs *regs);
+static irqreturn_t pc236_interrupt(int irq,void *d,struct pt_regs *regs);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -536,17 +536,19 @@ static int pc236_intr_cancel(comedi_device *dev,comedi_subdevice *s)
  * Interrupt service routine.
  * Based on the comedi_parport driver.
  */
-static void pc236_interrupt(int irq,void *d,struct pt_regs *regs)
+static irqreturn_t pc236_interrupt(int irq,void *d,struct pt_regs *regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices+1;
+	int retval = IRQ_HANDLED;
 
-	if(!pc236_intr_check(dev)) 
-		return;
+	if(!pc236_intr_check(dev))
+		return IRQ_RETVAL(retval);
 
 	comedi_buf_put(s->async,0);
 	s->async->events |= COMEDI_CB_EOS;
-	
+
 	comedi_event(dev,s,s->async->events);
+	return IRQ_RETVAL(retval);
 }
 

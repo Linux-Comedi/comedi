@@ -181,7 +181,7 @@ typedef struct {
 
 #define devpriv ((pcl711_private *)dev->private)
 
-static void pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int lo, hi;
 	int data;
@@ -204,6 +204,7 @@ static void pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
 		s->async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s, s->async->events);
+	return IRQ_HANDLED;
 }
 
 static void pcl711_set_changain(comedi_device * dev, int chan)

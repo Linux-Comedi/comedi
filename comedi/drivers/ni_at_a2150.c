@@ -177,7 +177,7 @@ static comedi_driver driver_a2150={
 	detach:		a2150_detach,
 };
 
-static void a2150_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t a2150_interrupt(int irq, void *d, struct pt_regs *regs);
 static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
@@ -202,7 +202,7 @@ static void ni_dump_regs(comedi_device *dev)
 #endif
 
 /* interrupt service routine */
-static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int i;
 	int status;
@@ -218,7 +218,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
-		return;
+		return IRQ_HANDLED;
 	}
 	// initialize async here to make sure s is not NULL
 	async = s->async;
@@ -230,7 +230,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 	if((status & INTR_BIT ) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
-		return;
+		return IRQ_NONE;
 	}
 
 	if(status & OVFL_BIT)
@@ -246,7 +246,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_event(dev, s, async->events);
-		return;
+		return IRQ_HANDLED;
 	}
 
 	flags = claim_dma_lock();
@@ -318,7 +318,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* clear interrupt */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
 
-	return;
+	return IRQ_HANDLED;
 }
 
 // probes board type, returns offset

@@ -1065,7 +1065,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 //static int ao_cmd(comedi_device *dev,comedi_subdevice *s);
 //static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
 //static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
-static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s);
 //static int ao_cancel(comedi_device *dev, comedi_subdevice *s);
 static int dio_callback(int dir, int port, int data, unsigned long arg);
@@ -2567,7 +2567,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	// XXX check for buffer overrun somehow
 }
 
-static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;
@@ -2578,6 +2578,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	uint32_t plx_bits;
 	uint8_t dma0_status, dma1_status;
 	unsigned long flags;
+	int retval = IRQ_HANDLED;
 
 	plx_status = readl(priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(priv(dev)->main_iobase + HW_STATUS_REG);
@@ -2663,7 +2664,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	DEBUG_PRINT("exiting handler\n");
 
-	return;
+	return IRQ_RETVAL( retval );
 }
 
 void abort_dma(comedi_device *dev, unsigned int channel)

@@ -152,14 +152,14 @@ static void das6402_setcounter(comedi_device *dev)
 	outb_p(p,dev->iobase+14);
 }
 
-static void intr_handler(int irq,void *d,struct pt_regs *regs)
+static irqreturn_t intr_handler(int irq,void *d,struct pt_regs *regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices;
 
 	if (devpriv->das6402_ignoreirq){
 		printk("das6402: BUG: spurious interrupt\n");
-		return;
+		return IRQ_HANDLED;
 	}
 
 #ifdef DEBUG
@@ -182,6 +182,7 @@ static void intr_handler(int irq,void *d,struct pt_regs *regs)
 	outb(0x01,dev->iobase+8);   /* clear only the interrupt flip-flop */
 
 	comedi_event(dev,s,s->async->events);
+	return IRQ_HANDLED;
 }
 
 #if 0

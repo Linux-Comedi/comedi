@@ -141,7 +141,7 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s);
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s);
 
 static int das16m1_poll(comedi_device *dev, comedi_subdevice *s);
-static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das16m1_interrupt(int irq, void *d, struct pt_regs *regs);
 static void das16m1_handler(comedi_device *dev, unsigned int status);
 
 static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int round_flag);
@@ -464,7 +464,7 @@ static int das16m1_poll(comedi_device *dev, comedi_subdevice *s)
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 {
 	int status;
 	comedi_device *dev = d;
@@ -472,7 +472,7 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(dev->attached == 0)
 	{
 		comedi_error(dev, "premature interrupt");
-		return;
+		return IRQ_HANDLED;
 	}
 
 	// prevent race with comedi_poll()
@@ -484,7 +484,7 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		comedi_error(dev, "spurious interrupt");
 		spin_unlock(&dev->spinlock);
-		return;
+		return IRQ_NONE;
 	}
 
 	das16m1_handler(dev, status);
@@ -493,6 +493,7 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 
 	spin_unlock(&dev->spinlock);
+	return IRQ_HANDLED;
 }
 
 static void munge_sample_array( sampl_t *array, unsigned int num_elements )
