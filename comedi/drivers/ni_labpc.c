@@ -1613,7 +1613,6 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	lsb = data[0] & 0xff;
 	msb = (data[0] >> 8 ) & 0xff;
 	thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(channel));
-	udelay( 1 );
 	thisboard->write_byte(msb, dev->iobase + DAC_MSB_REG(channel));
 
 	// remember value for readback
@@ -2431,6 +2430,8 @@ static void labpc_config(dev_link_t *link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status = CCSR_AUDIO_ENA;
 	}
+
+	link->conf.Status |= CCSR_POWER_DOWN;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
