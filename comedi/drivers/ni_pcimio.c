@@ -220,6 +220,8 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:  512,
 		alwaysdither:   0,
 		gainlkup:       ai_gain_16,
+		/* Note: there have been reported problems with full speed
+		 * on this board */
 		ai_speed:	2000,
 		n_aochan:       2,
 		aobits:         12,
