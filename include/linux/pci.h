@@ -50,6 +50,9 @@ static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 #define pci_unmap_single(cookie, address, size, dir)
 #define pci_dma_sync_single(cookie, address, size, dir)
 
+// for getting base addresses
+#define pci_resource_start(dev,bar)   ((dev)->base_address[(bar)])
+
 #else
 
 #endif
