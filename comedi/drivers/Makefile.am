@@ -42,6 +42,12 @@ else
 pcmcia_modules=
 endif
 
+if CONFIG_USB
+usb_modules=usbdux.ko
+else
+usb_modules=
+endif
+
 module_PROGRAMS = 8255.ko \
  adl_pci9111.ko \
  adl_pci9118.ko \
@@ -109,6 +115,7 @@ module_PROGRAMS = 8255.ko \
  ssv_dnp.ko \
  comedi_test.ko \
  $(pcmcia_modules) \
+ $(usb_modules) \
  $(rt_modules)
 
 8255_ko_SOURCES = 8255.c
@@ -184,6 +191,7 @@ rti802_ko_SOURCES = rti802.c
 skel_ko_SOURCES = skel.c
 ssv_dnp_ko_SOURCES = ssv_dnp.c
 comedi_test_ko_SOURCES = comedi_test.c
+usbdux_ko_SOURCES = usbdux.c
 
 mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
