@@ -143,7 +143,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = (1<<this_board->n_bits)-1;
 	s->range_table = &range_dac02; // XXX
 	s->insn_write = this_board->winsn;
-	s->insn_write = this_board->rinsn;
+	s->insn_read = this_board->rinsn;
 	if(s->type==COMEDI_SUBD_AO || s->type==COMEDI_SUBD_DO){
 		s->subdev_flags = SDF_WRITEABLE;
 	}
