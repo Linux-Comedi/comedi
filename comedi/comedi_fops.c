@@ -157,11 +157,9 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 {
 	comedi_bufconfig bc;
-	comedi_async *rasync = NULL, *wasync = NULL;
+	comedi_async *async;
+	comedi_subdevice *s;
 	int ret;
-
-	if(!suser())
-		return -EPERM;
 
 	// perform sanity checks
 	if(!dev->attached)
@@ -173,74 +171,52 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 	if(copy_from_user(&bc,arg,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
-	if(dev->read_subdev)
-		rasync = dev->read_subdev->async;
-	if(dev->write_subdev)
-		wasync = dev->write_subdev->async;
+	if(bc.subdevice>=dev->n_subdevices)
+		return -EINVAL;
+	
+	s=dev->subdevices+bc.subdevice;
+	async=s->async;
 
-	if(bc.read_size){
-		if(rasync == NULL)
-		{
-			DPRINTK("device has no read subdevice, buffer resize failed\n");
-			return -ENODEV;
-		}
+	if(!async){
+		DPRINTK("subdevice does not have async capability\n");
+		bc.size = 0;
+		bc.maximum_size = 0;
+		goto copyback;
+	}
 
-		if(dev->read_subdev->busy)
-			return -EBUSY;
+	if(bc.maximum_size){
+		if(!suser())return -EPERM;
 
-		if(rasync->mmap_count){
+		async->max_bufsize = bc.maximum_size;
+	}
+
+	if(bc.size){
+		if(bc.size > async->max_bufsize)
+			return -EPERM;
+
+		if(s->busy)return -EBUSY;
+
+		if(async->mmap_count){
 			DPRINTK("read subdevice is mmapped, cannot resize buffer\n");
 			return -EBUSY;
 		}
 
-		if(!rasync->prealloc_buf)
+		if(!async->prealloc_buf)
 			return -EINVAL;
-	}
-	if(bc.write_size){
-		if(wasync == NULL)
-		{
-			DPRINTK("device has no write subdevice, buffer resize failed\n");
-			return -ENODEV;
-		}
 
-		if(dev->write_subdev->busy)
-			return -EBUSY;
-
-		if(wasync->mmap_count){
-			DPRINTK("write subdevice is mmapped, cannot resize buffer\n");
-			return -EBUSY;
-		}
-
-		if(!wasync->prealloc_buf)
-			return -EINVAL;
-	}
-
-	// resize buffers
-	if(bc.read_size){
-		ret = resize_buf(dev,rasync,bc.read_size);
+		ret = resize_buf(dev,async,bc.size);
 
 		if(ret < 0)
 			return ret;
 
-		DPRINTK("comedi%i read buffer resized to %i bytes\n", dev->minor, rasync->prealloc_bufsz);
-	}
-	if(bc.write_size){
-		ret = resize_buf(dev,wasync,bc.write_size);
-
-		if(ret < 0)
-			return ret;
-
-		DPRINTK("comedi%i write buffer resized to %i bytes\n", dev->minor, wasync->prealloc_bufsz);
+		DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
+			dev->minor, bc.subdevice, async->prealloc_bufsz);
 	}
 
-	// write back buffer sizes
-	if(rasync){
-		bc.read_size = rasync->prealloc_bufsz;
-	} else bc.read_size = 0;
-	if(wasync){
-		bc.write_size = wasync->prealloc_bufsz;
-	} else bc.write_size = 0;
+	bc.size = async->prealloc_bufsz;
+	bc.maximum_size = async->max_bufsize;
 
+copyback:
 	if(copy_to_user(arg,&bc,sizeof(comedi_bufconfig)))
 		return -EFAULT;
 
@@ -296,14 +272,26 @@ static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
 {
 	comedi_devinfo devinfo;
 	
+	memset(&devinfo,0,sizeof(devinfo));
 	
 	/* fill devinfo structure */
 	devinfo.version_code=COMEDI_VERSION_CODE;
 	devinfo.n_subdevs=dev->n_subdevices;
 	memcpy(devinfo.driver_name,dev->driver->driver_name,COMEDI_NAMELEN);
 	memcpy(devinfo.board_name,dev->board_name,COMEDI_NAMELEN);
-	memcpy(devinfo.options,dev->options,COMEDI_NDEVCONFOPTS*sizeof(int));
-	
+
+	if(dev->read_subdev){
+		devinfo.read_subdevice = (dev->read_subdev - dev->subdevices)/
+			sizeof(comedi_subdevice);
+	}else{
+		devinfo.read_subdevice = -1;
+	}
+	if(dev->write_subdev){
+		devinfo.write_subdevice = (dev->write_subdev - dev->subdevices)/
+			sizeof(comedi_subdevice);
+	}else{
+		devinfo.write_subdevice = -1;
+	}
 
 	if(copy_to_user(arg,&devinfo,sizeof(comedi_devinfo)))
 		return -EFAULT;
@@ -385,6 +373,8 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		if(s->trig[4])
 			us->subd_flags |= SDF_MODE4;
 #endif
+		if(s->do_cmd)
+			us->subd_flags |= SDF_CMD;
 	}
 	
 	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));
@@ -924,12 +914,13 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	s=dev->subdevices+user_cmd.subdev;
 	async = s->async;
+
 	if(s->type==COMEDI_SUBD_UNUSED){
 		DPRINTK("%d not valid subdevice\n",user_cmd.subdev);
 		return -EIO;
 	}
 
-	if(!s->do_cmd){
+	if(!s->do_cmd || !s->async){
 		DPRINTK("subdevice does not support commands\n");
 		return -EIO;
 	}
@@ -1395,17 +1386,17 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 	mask = 0;
-	if(dev->read_subdev){
+	if(dev->read_subdev && dev->read_subdev->async){
 		s = dev->read_subdev;
 		async = s->async;
 		if(!(s->subdev_flags&SDF_RUNNING) ||
 		   (async->buf_user_count < async->buf_int_count))
 			mask |= POLLIN | POLLRDNORM;
 	}
-	if(dev->write_subdev){
+	if(dev->write_subdev && dev->write_subdev->async){
 		s = dev->write_subdev;
 		async = s->async;
-		if((!s->subdev_flags&SDF_RUNNING) ||
+		if(!(s->subdev_flags&SDF_RUNNING) ||
 		   (async->buf_user_count < async->buf_int_count + async->prealloc_bufsz))
 			mask |= POLLOUT | POLLWRNORM;
 	}

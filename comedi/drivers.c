@@ -297,7 +297,7 @@ static int postconfig(comedi_device *dev)
 			s->trig[4]=command_trig;
 		}
 		if(s->do_cmd || have_trig){
-      async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
+			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{
 				printk("failed to allocate async struct\n");
@@ -305,7 +305,8 @@ static int postconfig(comedi_device *dev)
 			}
 			memset(async, 0, sizeof(comedi_async));
 			s->async = async;
-			async->prealloc_bufsz=1024*128;
+			async->max_bufsize=64*1024;
+			async->prealloc_bufsz=16*1024;
 			async->prealloc_buf=rvmalloc(async->prealloc_bufsz);
 			if(!async->prealloc_buf){
 				printk("ENOMEM\n");

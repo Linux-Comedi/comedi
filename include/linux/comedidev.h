@@ -132,6 +132,7 @@ struct comedi_subdevice_struct{
 struct comedi_async_struct{
 	void		*prealloc_buf;		/* pre-allocated buffer */
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
+	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
 	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */

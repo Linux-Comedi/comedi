@@ -119,6 +119,7 @@ typedef unsigned short sampl_t;
 #define SDF_MODE2	0x0200		/* can do mode 2 */
 #define SDF_MODE3	0x0400		/* can do mode 3 */
 #define SDF_MODE4	0x0800		/* can do mode 4 */
+#define SDF_CMD		0x1000		/* can do commands */
 
 #define SDF_READABLE	0x00010000	/* subdevice can be read (e.g. analog input) */
 #define SDF_WRITEABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
@@ -277,7 +278,9 @@ struct comedi_devinfo_struct{
 	unsigned int n_subdevs;
 	char driver_name[COMEDI_NAMELEN];
 	char board_name[COMEDI_NAMELEN];
-	int options[COMEDI_NDEVCONFOPTS];
+	int read_subdevice;
+	int write_subdevice;
+	int unused[30];
 };
 
 struct comedi_devconfig_struct{
@@ -286,9 +289,13 @@ struct comedi_devconfig_struct{
 };
 
 struct comedi_bufconfig_struct{
-	unsigned int read_size;	/* read buffer size in bytes */
-	unsigned int write_size;	/* write buffer size in bytes */
-	unsigned int unused[5];
+	unsigned int subdevice;
+	unsigned int flags;
+
+	unsigned int maximum_size;
+	unsigned int size;
+
+	unsigned int unused[4];
 };
 
 /* range stuff */
