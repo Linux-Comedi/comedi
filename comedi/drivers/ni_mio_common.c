@@ -166,6 +166,7 @@ static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
 
+static void ni_mio_print_status_a(int status);
 
 static void ni_handle_fifo_half_full(comedi_device *dev);
 static void ni_handle_fifo_dregs(comedi_device *dev);
@@ -245,7 +246,7 @@ printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 mite_dma_tcr(devpriv->mite);
 #endif
 	if(status&(AI_Overrun_St|AI_Overflow_St)){
-		rt_printk("ni_E: overrun/overflow status=0x%04x\n",status);
+		ni_mio_print_status_a(status);
 		win_out(0x0000,Interrupt_A_Enable_Register);
 		comedi_done(dev,s);
 		return;
@@ -323,6 +324,26 @@ rt_printk("ni-E: SC_TC interrupt\n");
 	}
 
 	win_restore(wsave);
+}
+
+static char *status_a_strings[]={
+	"passthru0","fifo","G0_gate","G0_TC",
+	"stop","start","ac_tc","start1",
+	"start2","sc_tc_error","overflow","overrun",
+	"fifo_empty","fifo_half_full","fifo_full","interrupt_a"
+};
+
+static void ni_mio_print_status_a(int status)
+{
+	int i;
+
+	rt_printk("ni_mio_common: error status=0x%04x",status);
+	for(i=15;i>=0;i--){
+		if(status&(1<<i)){
+			rt_printk(" %s",status_a_strings[i]);
+		}
+	}
+	rt_printk("\n");
 }
 
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
