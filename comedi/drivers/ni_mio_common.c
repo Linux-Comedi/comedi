@@ -1064,12 +1064,21 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	/* prime the channel/gain list */
 
 	win_out(1,AI_Command_1_Register);
-	for(i=0;i<1000;i++){
-		if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
-			win_out(1,ADC_FIFO_Clear);
-			return;
+	if(boardtype.reg_611x){
+		/* The 611x has screwy 32-bit FIFOs. */
+		for(i=0;i<NI_TIMEOUT;i++){
+			if(ni_readb(Status_611x)&0x80){
+				ni_readl(ADC_FIFO_Data_611x)&0xffff;
+				return;
+			}
 		}
-		//udelay(25);
+	}else{
+		for(i=0;i<NI_TIMEOUT;i++){
+			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
+				win_out(1,ADC_FIFO_Clear);
+				return;
+			}
+		}
 	}
 	rt_printk("ni_E: timeout 1\n");
 }
