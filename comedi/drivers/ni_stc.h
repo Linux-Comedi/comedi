@@ -247,12 +247,16 @@
 #define AO_BC_Reload_Mode			_bit1
 #define AO_BC_Write_Switch			_bit0
 
+#define AO_UI_Load_A_Register		40
 #define AO_UI_Load_A_Register_High	40
 #define AO_UI_Load_A_Register_Low	41
+#define AO_BC_Load_A_Register		44
 #define AO_BC_Load_A_Register_High	44
 #define AO_BC_Load_A_Register_Low	45
+#define AO_BC_Load_B_Register		46
 #define AO_BC_Load_B_Register_High	46
 #define AO_BC_Load_B_Register_Low	47
+#define AO_UC_Load_A_Register		48
 #define AO_UC_Load_A_Register_High	48
 #define AO_UC_Load_A_Register_Low	49
 
@@ -401,14 +405,18 @@
 
 #define G_Autoincrement_Register(a)	(68+(a))
 #define G_Command_Register(a)		(6+(a))	
+#define G_HW_Save_Register(a)		(8+(a)*2)
 #define G_HW_Save_Register_High(a)	(8+(a)*2)
 #define G_HW_Save_Register_Low(a)	(9+(a)*2)
 #define G_Input_Select_Register(a)	(36+(a))
+#define G_Load_A_Register(a)		(28+(a)*4)
 #define G_Load_A_Register_High(a)	(28+(a)*4)
 #define G_Load_A_Register_Low(a)	(29+(a)*4)
+#define G_Load_B_Register(a)		(30+(a)*4)
 #define G_Load_B_Register_High(a)	(30+(a)*4)
 #define G_Load_B_Register_Low(a)	(31+(a)*4)
 #define G_Mode_Register(a)		(26+(a))
+#define G_Save_Register(a)		(12+(a)*2)
 #define G_Save_Register_High(a)		(12+(a)*2)
 #define G_Save_Register_Low(a)		(13+(a)*2)
 #define G_Status_Register		4
