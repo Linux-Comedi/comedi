@@ -1,5 +1,5 @@
 
-AC_DEFUN(DS_RTLINUX,
+AC_DEFUN([DS_RTLINUX],
 [
 	AC_ARG_WITH([rtlinuxdir],
 		[AC_HELP_STRING([--with-rtlinuxdir=DIR],

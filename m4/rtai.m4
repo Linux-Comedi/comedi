@@ -1,5 +1,5 @@
 
-AC_DEFUN(DS_RTAI,
+AC_DEFUN([DS_RTAI],
 [
 	AC_ARG_WITH([rtaidir],
 		[AC_HELP_STRING([--with-rtaidir=DIR],

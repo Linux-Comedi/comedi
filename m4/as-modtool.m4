@@ -12,7 +12,7 @@ dnl this macro defines:
 dnl moduledir
 dnl modulePROGRAMS_INSTALL
 dnl modulePROGRAMS_UNINSTALL
-dnl 
+dnl
 dnl End of search list.
 
 dnl
@@ -21,7 +21,7 @@ dnl  How do you specify that the building of modtool should go to the
 dnl  end of the configure script?
 dnl
 
-AC_DEFUN(AS_LINUX_MODTOOL,
+AC_DEFUN([AS_LINUX_MODTOOL],
 [
 	#AS_LINUX()
 

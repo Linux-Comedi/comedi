@@ -46,7 +46,7 @@ dnl End of search list.
 
 dnl check if we can find a source dir for the Linux kernel
 dnl defines LINUX_DIR to the absolute location of a usable kernel source tree
-AC_DEFUN(AS_LINUX_DIR,
+AC_DEFUN([AS_LINUX_DIR],
 [
 	AC_ARG_WITH([linuxdir],
 		[AC_HELP_STRING([--with-linuxdir=DIR],
@@ -79,7 +79,7 @@ AC_DEFUN(AS_LINUX_DIR,
 ])
 
 dnl check if the given candidate path for a linux source tree is usable
-AC_DEFUN(AS_TRY_LINUX_DIR,
+AC_DEFUN([AS_TRY_LINUX_DIR],
 	[AC_MSG_CHECKING(for Linux in $1)
 
 	if test -f "$1/Makefile" ; then
@@ -96,7 +96,7 @@ AC_DEFUN(AS_TRY_LINUX_DIR,
 dnl check if we can find a config file for the Linux kernel
 dnl defines CONFIG_FILE to the absolute location of a usable kernel source tree
 dnl uses LINUX_DIR to find either .config or decent configs in configs/
-AC_DEFUN(AS_CONFIG_FILE,
+AC_DEFUN([AS_CONFIG_FILE],
 [
 	AC_ARG_WITH([linux-config],
 		[AC_HELP_STRING([--with-linux-config=FILE],
@@ -141,7 +141,7 @@ Fix before continuing or specify a config file using --with-linux-config.])
 ])
 
 dnl check if the given candidate config file is usable
-AC_DEFUN(AS_TRY_CONFIG_FILE,
+AC_DEFUN([AS_TRY_CONFIG_FILE],
 	[AC_MSG_CHECKING(for configuration in $1)
 
 	if test -f "$1" ; then
@@ -160,7 +160,7 @@ dnl RH/Fedora defines this in linux/rhconfig.h, included from linux/version.h
 dnl if this is present, a few extra defines need to be present to make sure
 dnl symbol versioning is correct
 dnl uses LINUX_DIR to find rhconfig.h
-AC_DEFUN(AS_CHECK_REDHAT,
+AC_DEFUN([AS_CHECK_REDHAT],
 [
 	AC_MSG_CHECKING(Red Hat/Fedora kernel)
         HAVE_REDHAT_KERNEL=false
@@ -169,7 +169,7 @@ AC_DEFUN(AS_CHECK_REDHAT,
         AC_COMPILE_IFELSE(AC_LANG_PROGRAM([
 #include "rhconfig.h"
 int code = RED_HAT_LINUX_KERNEL;
-	]), 
+	]),
         AC_MSG_RESULT(found); HAVE_REDHAT_KERNEL=true,
         AC_MSG_RESULT(not found))
 	dnl restore CFLAGS
@@ -222,7 +222,7 @@ int code = RED_HAT_LINUX_KERNEL;
 
 dnl main entry point
 dnl checks the version, and figures out all flags to use to make modules.
-AC_DEFUN(AS_LINUX,
+AC_DEFUN([AS_LINUX],
 [
 	AS_LINUX_DIR()
         AS_CONFIG_FILE()
@@ -282,7 +282,7 @@ int code = LINUX_VERSION_CODE;
 	esac
 ])
 
-AC_DEFUN(AS_LINUX_2_6,
+AC_DEFUN([AS_LINUX_2_6],
 [
 	AC_MSG_CHECKING(for Linux CFLAGS)
 
@@ -335,7 +335,7 @@ EOF
 ])
 
 
-AC_DEFUN(AS_LINUX_2_4,
+AC_DEFUN([AS_LINUX_2_4],
 [
 	AC_MSG_CHECKING(for Linux 2.4 make flags)
 	dnl we try to figure out the CFLAGS by invoking the Makefile on
@@ -353,7 +353,7 @@ You need to run 'make dep' on the kernel source before continuing.])
 	POPDIR=`(pwd)`
         cd ${LINUX_DIR}
 ( sed "s|\.config|${CONFIG_FILE}|g" Makefile && cat <<EOF ) | make -f - get_cflags > ${TMPFILE}
-                                                                                
+
 get_cflags:
 	@echo LINUX_ARCH=\"\$(ARCH)\"
 	@echo LINUX_AFLAGS=\"\$(AFLAGS)\" | sed 's_Iinclude_I\"\$(LINUXDIR)/include\"_g'
@@ -400,7 +400,7 @@ EOF
 	AC_MSG_RESULT($LINUX_LDFLAGS)
 ])
 
-AC_DEFUN(AS_CHECK_LINUX_CONFIG_OPTION,
+AC_DEFUN([AS_CHECK_LINUX_CONFIG_OPTION],
 [
 	AC_MSG_CHECKING([Linux config option $1])
 
@@ -419,7 +419,7 @@ AC_DEFUN(AS_CHECK_LINUX_CONFIG_OPTION,
 	AC_MSG_RESULT([$result])
 ])
 
-AC_DEFUN(AS_LINUX_CONFIG_OPTION,
+AC_DEFUN([AS_LINUX_CONFIG_OPTION],
 [
 	AS_CHECK_LINUX_CONFIG_OPTION([$1],
 		[$1=yes],
@@ -429,7 +429,7 @@ AC_DEFUN(AS_LINUX_CONFIG_OPTION,
 	AM_CONDITIONAL([$1],[test "${$1}" = yes])
 ])
 
-AC_DEFUN(AS_LINUX_CONFIG_OPTION_MODULE,
+AC_DEFUN([AS_LINUX_CONFIG_OPTION_MODULE],
 [
 	AS_CHECK_LINUX_CONFIG_OPTION([$1],
 		[$1=yes],
