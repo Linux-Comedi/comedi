@@ -218,7 +218,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:  512,
 		alwaysdither:   0,
 		gainlkup:       ai_gain_16,
-		ai_speed:	500, //shouldn't this be 2000?
+		ai_speed:	2000,
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  512,
@@ -233,7 +233,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:  512,
 		alwaysdither:   0,
 		gainlkup:       ai_gain_16,
-		ai_speed:	500, //shouldn't this be 2000?
+		ai_speed:	2000,
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  512,
