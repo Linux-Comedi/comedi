@@ -68,7 +68,7 @@ TODO:
 	need to take care to prevent ai and ao from affecting each other's register bits
 	support prescaled 100khz clock for slow pacing (not available on 6000 series?)
 	figure out cause of intermittent lockups (pci dma?)
-	false fifo overruns on 4020 after 64k samples
+		disable dma interrupt cleanly in cancel...
 */
 
 #include <linux/kernel.h>
@@ -94,7 +94,7 @@ TODO:
 //#define PCIDAS64_DEBUG	// enable debugging code
 
 #ifdef PCIDAS64_DEBUG
-#define DEBUG_PRINT(format, args...)  printk("comedi: " format , ## args )
+#define DEBUG_PRINT(format, args...)  rt_printk("comedi: " format , ## args )
 #else
 #define DEBUG_PRINT(format, args...)
 #endif
@@ -244,9 +244,12 @@ TODO:
 // read-write
 
 // I2C addresses for 4020
-#define   RANGE_CAL_I2C_ADDR	0x20
-#define   CALDAC0_I2C_ADDR	0xc
-#define   CALDAC1_I2C_ADDR	0xd
+#define RANGE_CAL_I2C_ADDR	0x20
+#define   ADC_SRC_BITS(x)	(((x) << 4) & ADC_SRC_MASK)	// input source
+#define   ADC_SRC_MASK	0x70	// bits that set what source the adc converter measures
+#define   ATTENUATE_BIT(channel)	(1 << ((channel) & 0x3))	// attenuate channel (+-5V input range)
+#define CALDAC0_I2C_ADDR	0xc
+#define CALDAC1_I2C_ADDR	0xd
 
 #define I8255_4020_REG 0x48	// 8255 offset, for 4020 only
 #define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
@@ -311,6 +314,11 @@ static comedi_lrange ai_ranges_4020 =
 		BIP_RANGE(5),
 		BIP_RANGE(1),
 	}
+};
+static int ai_range_bits_4020[] = 
+{
+	0x1,
+	0x0,
 };
 
 // analog output ranges
@@ -663,12 +671,14 @@ typedef struct
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	volatile unsigned int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 	unsigned int hw_revision;	// stc chip hardware revision number
-	volatile unsigned int intr_enable_bits;	// bits to send to INTR_ENABLE_REG register
-	volatile uint16_t adc_control1_bits;	// bits to send to ADC_CONTROL1_REG register
-	volatile uint16_t fifo_size_bits;	// bits to send to FIFO_SIZE_REG register
-	volatile uint16_t hw_config_bits;	// bits to send to HW_CONFIG_REG register
-	volatile uint32_t plx_control_bits;	// bits written to plx9080 control register
+	volatile unsigned int intr_enable_bits;	// last bits sent to INTR_ENABLE_REG register
+	volatile uint16_t adc_control1_bits;	// last bits sent to ADC_CONTROL1_REG register
+	volatile uint16_t fifo_size_bits;	// last bits sent to FIFO_SIZE_REG register
+	volatile uint16_t hw_config_bits;	// last bits sent to HW_CONFIG_REG register
+	volatile uint32_t plx_control_bits;	// last bits written to plx9080 control register
+	volatile uint32_t plx_intcsr_bits;	// last bits written to plx interrupt control and status register
 	volatile int calibration_source;	// index of calibration source readable through ai ch0
+	volatile uint8_t i2c_cal_range_bits;	// bits written to i2c calibration/range register
 } pcidas64_private;
 
 /* inline function that makes it easier to
@@ -716,7 +726,7 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
-static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, unsigned int length);
+static void i2c_write(comedi_device *dev, unsigned int address, const uint8_t *data, unsigned int length);
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
 //static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
 static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, unsigned int value);
@@ -751,7 +761,8 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
 
 	// disable interrupts
-	writel(0, plx_iobase + PLX_INTRCS_REG);
+	private(dev)->plx_intcsr_bits = 0;
+	writel(private(dev)->plx_intcsr_bits, plx_iobase + PLX_INTRCS_REG);
 
 	// disable dma channels
 	writeb(0, plx_iobase + PLX_DMA0_CS_REG);
@@ -786,17 +797,162 @@ static void init_plx9080(comedi_device *dev)
 	writel(bits, plx_iobase + PLX_DMA1_MODE_REG);
 }
 
+/* Allocate and initialize the subdevice structures.
+ */
+static int setup_subdevices(comedi_device *dev)
+{
+	comedi_subdevice *s;
+	unsigned long dio_8255_iobase;	
+
+	dev->n_subdevices = 9;
+	if(alloc_subdevices(dev)<0)
+		return -ENOMEM;
+
+	s = dev->subdevices + 0;
+	/* analog input subdevice */
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	if(board(dev)->layout != LAYOUT_4020)
+		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
+	/* XXX Number of inputs in differential mode is ignored */
+	s->n_chan = board(dev)->ai_se_chans;
+	s->len_chanlist = 0x2000;
+	s->maxdata = (1 << board(dev)->ai_bits) - 1;
+	s->range_table = board(dev)->ai_range_table;
+	s->insn_read = ai_rinsn;
+	s->insn_config = ai_config_insn;
+	s->do_cmd = ai_cmd;
+	s->do_cmdtest = ai_cmdtest;
+	s->cancel = ai_cancel;
+	if(board(dev)->layout == LAYOUT_4020)
+	{
+		unsigned int i;
+		uint8_t data;
+		// set adc to read from inputs (not internal calibration sources)
+		private(dev)->i2c_cal_range_bits = ADC_SRC_BITS(1);
+		// set channels to +-5 volt input ranges
+		for( i = 0; i < s->n_chan; i++)
+			private(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(i);
+		data = private(dev)->i2c_cal_range_bits;
+		i2c_write(dev, RANGE_CAL_I2C_ADDR, &data, sizeof(data));
+	}
+
+	/* analog output subdevice */
+	s = dev->subdevices + 1;
+	if(board(dev)->ao_nchan)
+	{
+	//	dev->write_subdev = s;
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+		s->n_chan = board(dev)->ao_nchan;
+		// analog out resolution is the same as analog input resolution, so use ai_bits
+		s->maxdata = (1 << board(dev)->ai_bits) - 1;
+		s->range_table = board(dev)->ao_range_table;
+		s->insn_read = ao_readback_insn;
+		s->insn_write = ao_winsn;
+//XXX 4020 can't do paced analog output
+	//	s->do_cmdtest = ao_cmdtest;
+	//	s->do_cmd = ao_cmd;
+	//	s->len_chanlist = board(dev)->ao_nchan;
+	//	s->cancel = ao_cancel;
+	} else
+	{
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+
+	// digital input
+	s = dev->subdevices + 2;
+	if(board(dev)->layout == LAYOUT_64XX)
+	{
+		s->type = COMEDI_SUBD_DI;
+		s->subdev_flags = SDF_READABLE;
+		s->n_chan = 4;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = di_rbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	// digital output
+	if(board(dev)->layout == LAYOUT_64XX)
+	{
+		s = dev->subdevices + 3;
+		s->type = COMEDI_SUBD_DO;
+		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->n_chan = 4;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = do_wbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/* 8255 */
+	s = dev->subdevices + 4;
+	if(board(dev)->layout == LAYOUT_4020)
+	{
+		dio_8255_iobase = private(dev)->main_iobase + I8255_4020_REG;
+		subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
+	} else
+	{
+		dio_8255_iobase = private(dev)->dio_counter_iobase + DIO_8255_OFFSET;
+		subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
+	}
+
+	// 8 channel dio for 60xx
+	s = dev->subdevices + 5;
+	if(board(dev)->layout == LAYOUT_60XX)
+	{
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
+		s->n_chan = 8;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_config = dio_60xx_config_insn;
+		s->insn_bits = dio_60xx_wbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	// calibration subd XXX
+	s = dev->subdevices + 6;
+	s->type=COMEDI_SUBD_CALIB;
+	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+	s->n_chan = 8;	// XXX
+	if(board(dev)->layout == LAYOUT_4020)
+		s->maxdata = 0xfff;
+	else
+		s->maxdata = 0xff;
+//	s->insn_read = calib_read_insn;
+	s->insn_write = calib_write_insn;
+
+	//serial EEPROM, if present
+	s = dev->subdevices + 7;
+	if(private(dev)->plx_control_bits & CTL_EECHK)
+	{
+		s->type = COMEDI_SUBD_MEMORY;
+		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
+		s->n_chan = 128;
+		s->maxdata = 0xffff;
+		s->insn_read = eeprom_read_insn;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+	// user counter subd XXX
+	s = dev->subdevices + 8;
+	s->type = COMEDI_SUBD_UNUSED;
+
+	return 0;
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
 static int attach(comedi_device *dev, comedi_devconfig *it)
 {
-	comedi_subdevice *s;
 	struct pci_dev* pcidev;
 	int index;
 	uint32_t local_range, local_decode;
-	unsigned long dio_8255_iobase;
+	int retval;
 
 	printk("comedi%d: cb_pcidas64\n",dev->minor);
 
@@ -930,133 +1086,11 @@ found:
 			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 	}
 
-/*
- * Allocate the subdevice structures.
- */
-	dev->n_subdevices = 9;
-	if(alloc_subdevices(dev)<0)
-		return -ENOMEM;
-
-	s = dev->subdevices + 0;
-	/* analog input subdevice */
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	if(board(dev)->layout != LAYOUT_4020)
-		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
-	/* XXX Number of inputs in differential mode is ignored */
-	s->n_chan = board(dev)->ai_se_chans;
-	s->len_chanlist = 0x2000;
-	s->maxdata = (1 << board(dev)->ai_bits) - 1;
-	s->range_table = board(dev)->ai_range_table;
-	s->insn_read = ai_rinsn;
-	s->insn_config = ai_config_insn;
-	s->do_cmd = ai_cmd;
-	s->do_cmdtest = ai_cmdtest;
-	s->cancel = ai_cancel;
-
-	/* analog output subdevice */
-	s = dev->subdevices + 1;
-	if(board(dev)->ao_nchan)
+	retval = setup_subdevices(dev);
+	if(retval < 0)
 	{
-	//	dev->write_subdev = s;
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
-		s->n_chan = board(dev)->ao_nchan;
-		// analog out resolution is the same as analog input resolution, so use ai_bits
-		s->maxdata = (1 << board(dev)->ai_bits) - 1;
-		s->range_table = board(dev)->ao_range_table;
-		s->insn_read = ao_readback_insn;
-		s->insn_write = ao_winsn;
-//XXX 4020 can't do paced analog output
-	//	s->do_cmdtest = ao_cmdtest;
-	//	s->do_cmd = ao_cmd;
-	//	s->len_chanlist = board(dev)->ao_nchan;
-	//	s->cancel = ao_cancel;
-	} else
-	{
-		s->type = COMEDI_SUBD_UNUSED;
+		return retval;
 	}
-
-	// digital input
-	s = dev->subdevices + 2;
-	if(board(dev)->layout == LAYOUT_64XX)
-	{
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = di_rbits;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	// digital output
-	if(board(dev)->layout == LAYOUT_64XX)
-	{
-		s = dev->subdevices + 3;
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = do_wbits;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/* 8255 */
-	s = dev->subdevices + 4;
-	if(board(dev)->layout == LAYOUT_4020)
-	{
-		dio_8255_iobase = private(dev)->main_iobase + I8255_4020_REG;
-		subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
-	} else
-	{
-		dio_8255_iobase = private(dev)->dio_counter_iobase + DIO_8255_OFFSET;
-		subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
-	}
-
-	// 8 channel dio for 60xx
-	s = dev->subdevices + 5;
-	if(board(dev)->layout == LAYOUT_60XX)
-	{
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_READABLE;
-		s->n_chan = 8;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_config = dio_60xx_config_insn;
-		s->insn_bits = dio_60xx_wbits;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	// calibration subd XXX
-	s = dev->subdevices + 6;
-	s->type=COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
-	s->n_chan = 8;	// XXX
-	if(board(dev)->layout == LAYOUT_4020)
-		s->maxdata = 0xfff;
-	else
-		s->maxdata = 0xff;
-//	s->insn_read = calib_read_insn;
-	s->insn_write = calib_write_insn;
-
-	//serial EEPROM, if present
-	s = dev->subdevices + 7;
-	if(private(dev)->plx_control_bits & CTL_EECHK)
-	{
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 128;
-		s->maxdata = 0xffff;
-		s->insn_read = eeprom_read_insn;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-	// user counter subd XXX
-	s = dev->subdevices + 8;
-	s->type = COMEDI_SUBD_UNUSED;
-
 
 	// initialize various registers
 
@@ -1093,22 +1127,6 @@ found:
 			break;
 	}
 	writew(private(dev)->fifo_size_bits, private(dev)->main_iobase + FIFO_SIZE_REG);
-
-#if 0
-{
-int i;
-for(i = 0; i < 8; i++)
-	if(i == 0)
-		caldac_8800_write(dev, i, 128);
-	else
-		caldac_8800_write(dev, i, 128);
-}
-#endif
-	if(board(dev)->layout == LAYOUT_4020)
-	{	// set adc to read from inputs (not internal calibration sources)
-		uint8_t byte = 0x4f;
-		i2c_write(dev, RANGE_CAL_I2C_ADDR, &byte, 1);
-	}
 
 	return 0;
 }
@@ -1162,11 +1180,16 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 {
 	unsigned int bits = 0, n, i;
 	const int timeout = 100;
+	unsigned int channel, range, aref;
 
 	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
+	channel = CR_CHAN(insn->chanspec);
+	range = CR_RANGE(insn->chanspec);
+	aref = CR_AREF(insn->chanspec);
 
 	// disable interrupts on plx 9080 XXX
-	writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	private(dev)->plx_intcsr_bits = 0;
+	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// disable card's analog input interrupt sources
 	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
@@ -1191,9 +1214,9 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// set gain
 		bits |= board(dev)->ai_range_bits[CR_RANGE(insn->chanspec)];
 		// set single-ended / differential
-		if(CR_AREF(insn->chanspec) == AREF_DIFF)
+		if( aref == AREF_DIFF)
 			bits |= ADC_DIFFERENTIAL_BIT;
-		if(CR_AREF(insn->chanspec) == AREF_COMMON)
+		if( aref == AREF_COMMON)
 			bits |= ADC_COMMON_BIT;
 		// ALT_SOURCE is internal calibration reference
 		if(insn->chanspec & CR_ALT_SOURCE)
@@ -1205,25 +1228,45 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 				cal_en_bit = CAL_EN_60XX_BIT;
 			else
 				cal_en_bit = CAL_EN_64XX_BIT;
-			// internal reference reads on channel 0
-			bits |= CHAN_BITS(0);
-			writew(CHAN_BITS(0), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
-			// channel selects internal reference source to connect to channel 0
+			// select internal reference source to connect to channel 0
 			writew(cal_en_bit | CAL_SRC_BITS(private(dev)->calibration_source),
 				private(dev)->main_iobase + CALIBRATION_REG);
-		} else	// set channel
+		} else
 		{
-			bits |= CHAN_BITS(CR_CHAN(insn->chanspec));
-			// set stop channel
-			writew(CHAN_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
 			// make sure internal calibration source is turned off
 			writew(0, private(dev)->main_iobase + CALIBRATION_REG);
 		}
+		bits |= CHAN_BITS(channel);
 		// set start channel, and rest of settings
 		writew(bits, private(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
+		// set stop channel
+		writew(CHAN_BITS(channel), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
 	}else
 	{
-		/* 4020 requires sample interval register to be set before writing to convert register.
+		uint8_t old_cal_range_bits = private(dev)->i2c_cal_range_bits;
+
+		private(dev)->i2c_cal_range_bits &= ~ADC_SRC_MASK;
+		if(insn->chanspec & CR_ALT_SOURCE)
+		{
+			DEBUG_PRINT("reading calibration source\n");
+			private(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(private(dev)->calibration_source);
+		} else
+		{	//select BNC inputs
+			private(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(1);
+		}
+		// select range
+		if(ai_range_bits_4020[range])
+			private(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(channel);
+		else
+			private(dev)->i2c_cal_range_bits &= ~ATTENUATE_BIT(channel);
+		// update calibration/range i2c register only if necessary, as it is very slow
+		if(old_cal_range_bits != private(dev)->i2c_cal_range_bits)
+		{
+			uint8_t i2c_data = private(dev)->i2c_cal_range_bits;
+			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data, sizeof(i2c_data));
+		}
+
+		/* 4020 manual asks that sample interval register to be set before writing to convert register.
 		 * Using somewhat arbitrary setting of 4 master clock ticks = 0.1 usec */
 		writew(0, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
 		writew(2, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
@@ -1543,8 +1586,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// enable interrupts on plx 9080
 	// XXX enabling more interrupt sources than are actually used
-	bits = ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE;
-	writel(bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	private(dev)->plx_intcsr_bits |= ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE | ICS_DMA1_E;
+	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// enable interrupts
 	private(dev)->intr_enable_bits |= EN_ADC_OVERRUN_BIT |
@@ -1597,7 +1640,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits = private(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
 		writel(bits, private(dev)->plx9080_iobase + PLX_DMA1_DESCRIPTOR_REG);
 		// enable dma transfer
-		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	}
 
 	/* enable pacing, triggering, etc */
@@ -1773,7 +1816,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int status;
 	uint32_t plx_status;
-	static const uint32_t plx_interrupt_status_mask = ICS_DMA0_A | 
+	static const uint32_t plx_interrupt_status_mask = ICS_DMA0_A |
 		ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA |
 		ICS_MBIA(0) | ICS_MBIA(1) |ICS_MBIA(2) | ICS_MBIA(3);
 	uint32_t plx_bits;
@@ -1800,7 +1843,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	// check for fifo overrun
 	if(status & ADC_OVERRUN_BIT)
 	{
-		ai_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_error(dev, "fifo overrun");
 	}
@@ -1845,9 +1887,11 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if((cmd->stop_src == TRIG_COUNT && private(dev)->ai_count <= 0) ||
 		(cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
 	{
-		ai_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA;
 	}
+
+	if(async->events & COMEDI_CB_EOA)
+		ai_cancel(dev, s);
 
 	comedi_event(dev, s, async->events);
 
@@ -1857,7 +1901,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		comedi_error(dev, "interrupt didn't clear?  Disabling interrupts!");
 		rt_printk("plx status 0x%x\n", plx_status);
-		writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+		private(dev)->plx_intcsr_bits = 0;
+		writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	}
 
 	return;
@@ -1914,6 +1959,10 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
 		~ADC_INTR_SRC_MASK;
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
+
+	// disable dma ch 1 interrupt on plx
+	private(dev)->plx_intcsr_bits &= ~ICS_DMA1_E;
+	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	abort_dma(dev, 1);
 
@@ -2378,12 +2427,12 @@ static void i2c_set_scl(comedi_device *dev, int state)
 {
 	static const int clock_bit = CTL_USERO;
 	unsigned long plx_control_addr = private(dev)->plx9080_iobase + PLX_CONTROL_REG;
-	
+
 	if(state)
 	{
 		// set clock line high
 		private(dev)->plx_control_bits &= ~clock_bit;
-	}else
+	}else // set clock line low
 	{
 		private(dev)->plx_control_bits |= clock_bit;
 	}
@@ -2396,6 +2445,8 @@ static void i2c_write_byte(comedi_device *dev, uint8_t byte)
 {
 	uint8_t bit;
 	unsigned int num_bits = 8;
+	
+	DEBUG_PRINT("writing to i2c byte 0x%x\n", byte);
 
 	for(bit = 1 << (num_bits - 1); bit; bit >>= 1)
 	{
@@ -2435,7 +2486,7 @@ static void i2c_stop(comedi_device *dev)
 	i2c_set_sda(dev, 1);
 }
 
-static void i2c_write(comedi_device *dev, unsigned int address, uint8_t *data, unsigned int length)
+static void i2c_write(comedi_device *dev, unsigned int address, const uint8_t *data, unsigned int length)
 {
 	unsigned int i;
 	uint8_t bitstream;
