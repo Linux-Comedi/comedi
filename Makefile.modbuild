@@ -16,7 +16,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
 HPATH		= $(TOPDIR)/include
-FINDHPATH	= $(HPATH)/$(project)
+FINDHPATH	= $(HPATH)
 
 HOSTCC		=gcc
 HOSTCFLAGS	=-Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
@@ -53,6 +53,9 @@ CFLAGS += -D__KERNEL__ -I $(TOPDIR)/include -I $(LINUXDIR)/include -I .
 CFLAGS += -D__MODBUILD__
 ifdef RTLDIR
 CFLAGS += -I $(RTLDIR)/include -D__RT__
+endif
+ifdef RTAIDIR
+CFLAGS += -I $(TOPDIR)/include/rtai
 endif
 
 CONFIG_SHELL := sh
@@ -144,9 +147,11 @@ distclean:	clean
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
 	-rm -rf modules
-	rm -f .config .uts_version include/modbuild/config.h .config.old include/modbuild/version.h
+	rm -f .config .uts_version .config.old
 	rm -f scripts/mkdep
 	rm -f .sourcedirs
+	rm -f include/modbuild/*.h
+	rm -f include/rtai include/rtlinux
 
 include $(TOPDIR)/Rules.make
 
