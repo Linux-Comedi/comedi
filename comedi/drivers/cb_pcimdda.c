@@ -209,7 +209,10 @@ static int ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 -----------------------------------------------------------------------------*/
 
 /* returns a maxdata value for a given n_bits */
-static inline lsampl_t figure_out_maxdata(int bits);
+static inline lsampl_t figure_out_maxdata(int bits)
+{
+	return (((lsampl_t)1 << bits) - 1);
+}
 
 /* 
  *  Probes for a supported device.
@@ -485,19 +488,6 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 	return -ENODEV;
 }
 
-
-/* returns a maxdata value for a given n_bits */
-static inline lsampl_t figure_out_maxdata(int bits)
-{
-    lsampl_t max = 0;
-    int i;
-
-    for (i = 0; i < bits; i++) {
-      max <<= 1;
-      max |=  1U;
-    }
-    return max;
-}
 
 
 
