@@ -1,10 +1,6 @@
 
 update the list of supported cards
 
-mode[N] doesn't work until cmd is used.  Works in .57, not in
-CVS.  I know how to fix this, but it needs other changes to
-be done correctly.
-
 mite.c expects that the buffer is vmalloc()ed.  This might not
 be the case with real-time.  The planned fix for this is to
 no longer allow real-time applications to allocate their own
