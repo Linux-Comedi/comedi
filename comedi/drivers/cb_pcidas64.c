@@ -1335,7 +1335,7 @@ static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 	DEBUG_PRINT("setting calibration source to %i\n", source);
 	private(dev)->calibration_source = source;
 
-	return 1;
+	return 2;
 }
 
 static int ai_config_digital_trigger( comedi_device *dev, lsampl_t *data )
@@ -1349,8 +1349,8 @@ static int ai_config_digital_trigger( comedi_device *dev, lsampl_t *data )
 	{
 		private(dev)->ext_trig_falling = 1;
 	}
-	
-	return 1;
+
+	return 2;
 }
 
 static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
