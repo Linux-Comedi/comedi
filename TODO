@@ -44,3 +44,12 @@ ni_mio_common: starting AO without anything in buffer causes oops
 ni_mio_common: resetting AO sets ao chan 1 to -10V
 
 
+Dan Christian 07/01: rtd520.o: problems with buffer
+
+problems with >4GB from buffer
+
+ni_pcimio: polling
+
+
+
+rename prealloc_buf and prealloc_bufsz
