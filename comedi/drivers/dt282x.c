@@ -58,6 +58,7 @@ Notes:
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <asm/dma.h>
+#include "comedi_fc.h"
 
 #define DEBUG
 
@@ -382,14 +383,13 @@ static int dt282x_ns_to_timer(int *nanosec,int round_mode);
 
 static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2);
 
-static void dt282x_copy_to_buffer(comedi_device *dev,sampl_t *buf,
+static void dt282x_munge(comedi_device *dev,sampl_t *buf,
 	unsigned int nbytes)
 {
 	comedi_async *async = dev->subdevices[0].async;
 	unsigned int i;
 	unsigned short mask=(1<<boardtype.adbits)-1;
 	unsigned short sign=1<<(boardtype.adbits-1);
-	unsigned short *abuf;
 	int n;
 
 	if(devpriv->ad_2scomp){
@@ -398,19 +398,11 @@ static void dt282x_copy_to_buffer(comedi_device *dev,sampl_t *buf,
 		sign = 0;
 	}
 
-	abuf = async->prealloc_buf + async->buf_write_ptr;
-	if(async->buf_write_ptr + nbytes >= async->prealloc_bufsz){
-		n = (async->prealloc_bufsz - async->buf_write_ptr - nbytes)/2;
-		for(i=0;i<n;i++){
-			abuf[i] = (buf[i]&mask)^sign;
-		}
-		nbytes -= n;
-		abuf = async->prealloc_buf;
-		buf = buf + i;
-	}
+	if( nbytes % 2 )
+		comedi_error( dev, "bug! odd number of bytes from dma xfer" );
 	n = nbytes/2;
 	for(i=0;i<n;i++){
-		abuf[i] = (buf[i]&mask)^sign;
+		buf[i] = (buf[i]&mask)^sign;
 	}
 }
 
@@ -476,15 +468,9 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_chan = 1-i;
 
-	ret = comedi_buf_write_alloc(s->async, size);
-	if(!ret){
-		rt_printk("dt282x: AI buffer overflow\n");
-		s->async->events |= COMEDI_CB_OVERFLOW;
-		comedi_event(dev,s,s->async->events);
-		return;
-	}
-	dt282x_copy_to_buffer(dev, ptr, size);
-	comedi_buf_write_free(s->async, size);
+	dt282x_munge(dev, ptr, size );
+	ret = cfc_write_array_to_buffer( s, ptr, size );
+	if( ret == 0 ) return;
 
 	devpriv->nread-=size/2;
 
