@@ -24,7 +24,7 @@
 Driver: dt3000.o
 Description: Data Translation DT3000 series
 Author: ds
-Devices: [Data Translation] DT3001, DT3001-PGL, DT3002, DT3003,
+Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,
   DT3003-PGL, DT3004, DT3005, DT3004-200
 Status: untested
 */
