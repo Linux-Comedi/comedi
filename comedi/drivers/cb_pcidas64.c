@@ -1999,7 +1999,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if( status & ADC_DONE_BIT )
 	{
 		DEBUG_PRINT("adc done interrupt\n");
-		pio_drain_ai_fifo(dev);
+		if( private(dev)->ai_cmd_running )
+			pio_drain_ai_fifo(dev);
 	}
 
 	// if we are have all the data, then quit
