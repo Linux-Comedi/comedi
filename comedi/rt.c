@@ -83,6 +83,7 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 	it=kmalloc(sizeof(*it),GFP_KERNEL);
 	if(!it)
 		return -ENOMEM;
+	memset(it,0,sizeof(*it));
 
 	it->handler=handler;
 	it->irq=irq;
