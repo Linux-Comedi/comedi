@@ -263,13 +263,39 @@
 #define AO_UC_Load_A_Register_Low	49
 
 #define Clock_and_FOUT_Register		56
-#define DIO_Serial_Out_Divide_By_2              _bit13
-#define Slow_Internal_Timebase                  _bit11
+#define FOUT_Enable				_bit15
+#define FOUT_Timebase_Select			_bit14
+#define DIO_Serial_Out_Divide_By_2		_bit13
+#define Slow_Internal_Time_Divide_By_2		_bit12
+#define Slow_Internal_Timebase			_bit11
+#define G_Source_Divide_By_2			_bit10
+#define Clock_To_Board_Divide_By_2		_bit9
+#define Clock_To_Board				_bit8
+#define AI_Output_Divide_By_2			_bit7
+#define AI_Source_Divide_By_2			_bit6
+#define AO_Output_Divide_By_2			_bit5
+#define AO_Source_Divide_By_2			_bit4
+#define FOUT_Divider(x)				((x)<<0)
 
 #define IO_Bidirection_Pin_Register	57
 
 #define Interrupt_Control_Register	59
+#define Interrupt_B_Enable			_bit15
+#define Interrupt_B_Output_Select(x)		((x)<<12)
+#define Interrupt_A_Enable			_bit11
+#define Interrupt_A_Output_Select(x)		((x)<<8)
+#define Pass_Thru_0_Interrupt_Polarity		_bit3
+#define Pass_Thru_1_Interrupt_Polarity		_bit2
+#define Interrupt_Output_On_3_Pins		_bit1
+#define Interrupt_Output_Polarity		_bit0
+
 #define AI_Output_Control_Register	60
+#define AI_START_Output_Select			_bit10
+#define AI_SCAN_IN_PROG_Output_Select(x)	((x)<<8)
+#define AI_EXTMUX_CLK_Output_Select(x)		((x)<<6)
+#define AI_LOCALMUX_CLK_Output_Select(x)	((x)<<4)
+#define AI_SC_TC_Output_Select(x)		((x)<<2)
+#define AI_CONVERT_Output_Select(x)		((x)<<0)
 
 #define AI_START_STOP_Select_Register	62
 #define AI_START_Polarity			_bit15
@@ -357,6 +383,19 @@
 
 #define Second_IRQ_B_Enable_Register	76
 #define AI_Personal_Register		77
+#define AI_SHIFTIN_Pulse_Width			_bit15
+#define AI_EOC_Polarity				_bit14
+#define AI_SOC_Polarity				_bit13
+#define AI_SHIFTIN_Polarity			_bit12
+#define AI_CONVERT_Pulse_Timebase		_bit11
+#define AI_CONVERT_Pulse_Width			_bit10
+#define AI_CONVERT_Original_Pulse		_bit9
+#define AI_FIFO_Flags_Polarity			_bit8
+#define AI_Overrun_Mode				_bit7
+#define AI_EXTMUX_CLK_Pulse_Width		_bit6
+#define AI_LOCALMUX_CLK_Pulse_Width		_bit5
+#define AI_AIFREQ_Polarity			_bit4
+
 #define AO_Personal_Register		78
 #define Write_Strobe_0_Register		82
 #define Write_Strobe_1_Register		83

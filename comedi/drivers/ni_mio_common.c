@@ -53,7 +53,7 @@
 */
 
 //#define DEBUG_INTERRUPT
-//#define DEBUG_STATUS_A
+#define DEBUG_STATUS_A
 //#define DEBUG_STATUS_B
 
 #include <linux/irq.h>
@@ -819,8 +819,15 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	/* generate FIFO interrupts on non-empty */
 	win_out((0<<6)|0x0000,AI_Mode_3_Register);
 #endif
-	win_out(0xA420,AI_Personal_Register);
-	win_out(0x032e,AI_Output_Control_Register);
+	win_out(AI_SHIFTIN_Pulse_Width |
+		AI_SOC_Polarity |
+		AI_CONVERT_Pulse_Width |
+		AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
+	win_out(AI_SCAN_IN_PROG_Output_Select(3) |
+		AI_EXTMUX_CLK_Output_Select(0) |
+		AI_LOCALMUX_CLK_Output_Select(2) |
+		AI_SC_TC_Output_Select(3) |
+		AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
 
 	/* this should be done in _ai_modeX() */
 	win_out(0x29e0,AI_START_STOP_Select_Register);
@@ -1010,16 +1017,8 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 	/* prime the channel/gain list */
 
-	win_out(1,AI_Command_1_Register);
-	if(boardtype.reg_611x){
-		/* The 611x has screwy 32-bit FIFOs. */
-		for(i=0;i<NI_TIMEOUT;i++){
-			if(ni_readb(Status_611x)&0x80){
-				ni_readl(ADC_FIFO_Data_611x);
-				return;
-			}
-		}
-	}else{
+	if(!boardtype.reg_611x){
+		win_out(1,AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
 				win_out(1,ADC_FIFO_Clear);
@@ -1647,7 +1646,6 @@ static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s, int n)
 		port = DAC_FIFO_Data;
 	}
 
-printk("ao_fifo_load %d\n",n);
 	offset = 1 << (boardtype.aobits - 1);
 	chan = async->cur_chan;
 	for(i=0;i<n;i++){
@@ -2226,18 +2224,23 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
-	win_out(0x1ba0,Clock_and_FOUT_Register);
+	win_out(Slow_Internal_Time_Divide_By_2 |
+		Slow_Internal_Timebase |
+		Clock_To_Board_Divide_By_2 |
+		Clock_To_Board |
+		AI_Output_Divide_By_2 |
+		AO_Output_Divide_By_2, Clock_and_FOUT_Register);
 
 	/* analog output configuration */
 	ni_ao_reset(dev,dev->subdevices + 1);
 
         if(dev->irq){
-                win_out((IRQ_POLARITY<<0) |  /* polarity : active high */
-                        (0<<1) |  /* no interrupt on 3 pins */
-                        (1<<11) |  /* enable int A */
-                        (1<<15) |  /* enable int B */
-                        (interrupt_pin(dev->irq)<<8) |  /* interrupt output pin A */
-                        (interrupt_pin(dev->irq)<<12) ,  /* interrupt output pin B */
+                win_out((IRQ_POLARITY?Interrupt_Output_Polarity:0) |
+			(Interrupt_Output_On_3_Pins&0) |
+			Interrupt_A_Enable |
+			Interrupt_B_Enable |
+			Interrupt_A_Output_Select(interrupt_pin(dev->irq)) |
+			Interrupt_B_Output_Select(interrupt_pin(dev->irq)),
                         Interrupt_Control_Register
                 );
         }
