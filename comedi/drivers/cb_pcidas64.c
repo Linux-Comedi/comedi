@@ -1342,21 +1342,6 @@ static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 	return 2;
 }
 
-static int ai_config_digital_trigger( comedi_device *dev, lsampl_t *data )
-{
-	lsampl_t flags = data[1];
-
-	if( flags & DIGITAL_TRIG_RISING)
-	{
-		private(dev)->ext_trig_falling = 0;
-	}else
-	{
-		private(dev)->ext_trig_falling = 1;
-	}
-
-	return 2;
-}
-
 static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int id = data[0];
@@ -1365,9 +1350,6 @@ static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	{
 		case INSN_CONFIG_ALT_SOURCE:
 			return ai_config_calibration_source( dev, data );
-			break;
-		case INSN_CONFIG_DIGITAL_TRIG:
-			return ai_config_digital_trigger( dev, data );
 			break;
 		default:
 			return -EINVAL;
@@ -1438,11 +1420,6 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg != 0)
-	{
-		cmd->start_arg = 0;
-		err++;
-	}
 	if(cmd->convert_src == TRIG_TIMER)
 	{
 		if(cmd->convert_arg < board(dev)->ai_speed)
@@ -1724,7 +1701,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= ADC_START_TRIG_EXT_BITS;
 	else if(cmd->start_src == TRIG_NOW)
 		bits |= ADC_START_TRIG_SOFT_BITS;
-	if( private(dev)->ext_trig_falling )
+	if( cmd->start_arg & CR_INVERT )
 		bits |= ADC_START_TRIG_FALLING_BIT;
 	writew(bits, private(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);

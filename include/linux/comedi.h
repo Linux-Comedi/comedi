@@ -63,6 +63,7 @@ typedef unsigned short sampl_t;
 #define CR_DITHER		CR_ALT_FILTER
 #define CR_DEGLITCH		CR_ALT_FILTER
 #define CR_ALT_SOURCE	(1<<27)
+#define CR_EDGE	(1<<30)
 #define CR_INVERT	(1<<31)
 
 #define AREF_GROUND	0x00		/* analog ref = analog ground */
@@ -216,8 +217,6 @@ typedef unsigned short sampl_t;
 //#define INSN_CONFIG_COUNTER		0x13
 #define INSN_CONFIG_ALT_SOURCE		0x14
 #define INSN_CONFIG_DIGITAL_TRIG		0x15
-// flags for INSN_CONFIG_DIGITAL_TRIG
-#define  DIGITAL_TRIG_RISING	0x1
 
 /* ioctls */
 
