@@ -338,7 +338,8 @@ struct comedi_subdinfo_struct{
 	lsampl_t	maxdata;
 	unsigned int	flags;		/* channel flags */
 	unsigned int	range_type;	/* lookup in kernel */
-	unsigned int unused[10];
+	unsigned int	settling_time_0;
+	unsigned int unused[9];
 };
 
 struct comedi_devinfo_struct{
