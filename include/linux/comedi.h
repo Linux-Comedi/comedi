@@ -179,7 +179,7 @@ typedef unsigned short sampl_t;
 #define SDF_WRITABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
 #define SDF_WRITEABLE	SDF_WRITABLE	/* spelling error in API */
 #define SDF_INTERNAL	0x00040000	/* subdevice does not have externally visible lines */
-#define SDF_RT		0x00080000	/* subdevice is RT capable */
+#define SDF_RT		0x00080000	/* DEPRECATED: subdevice is RT capable */
 #define SDF_GROUND	0x00100000	/* can do aref=ground */
 #define SDF_COMMON	0x00200000	/* can do aref=common */
 #define SDF_DIFF	0x00400000	/* can do aref=diff */
@@ -399,9 +399,10 @@ struct comedi_bufinfo_struct{
 
 #define COMEDI_CB_EOS		1	/* end of scan */
 #define COMEDI_CB_EOA		2	/* end of acquisition */
-#define COMEDI_CB_BLOCK		4	/* convenient block size */
-#define COMEDI_CB_EOBUF		8	/* end of buffer */
+#define COMEDI_CB_BLOCK		4	/* DEPRECATED: convenient block size */
+#define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
 #define COMEDI_CB_ERROR		16	/* card error during acquisition */
+#define COMEDI_CB_OVERFLOW	32	/* buffer overflow/underflow */
 
 
 #ifdef __cplusplus
