@@ -608,7 +608,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 		ni_writew(lo,Configuration_Memory_Low);
 	}
 
-	/* prime the channel/gain list */
+	 prime the channel/gain list */
 
 	win_out(1,AI_Command_1_Register);
 	for(i=0;i<40;i++){
@@ -1014,7 +1014,6 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 		}else{
 			devpriv->aimode=AIMODE_HALF_FULL;
 		}
-devpriv->aimode=AIMODE_SAMPLE;
 		switch(devpriv->aimode){
 		case AIMODE_HALF_FULL:
 			/*generate FIFO interrupts on half-full */
