@@ -4,12 +4,14 @@
 In order to compile the Comedi modules, you will need to have
 a correctly configured Linux kernel source tree.  The best
 way to get one is to download a tarball from kernel.org and
-compile your own kernel.  Kernel sources that are distributed
-with Red Hat Linux are not supported, because they are too
-heavily modified.  Comedi should work with most 2.2 and 2.4
-Linux kernels.  2.0.3x may also work, but support for this
-is not actively maintained, but bugs will be fixed as they
-are reported.
+compile your own kernel.  Comedi should work with most 2.2 and
+2.4 Linux kernels.  Support for 2.0.3x is not actively maintained,
+but it should work and bugs will be fixed as they are reported.
+
+Red Hat users note: Kernel sources that are distributed with Red
+Hat Linux are not supported, because they are too heavily
+modified.  However, there is some information in
+Documentation/comedi/redhat-notes on how to use Red Hat kernels.
 
 * RTAI support:
 
