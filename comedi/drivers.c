@@ -182,7 +182,7 @@ attached:
 		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
 		dev->board_name="BUG";
 	}
-	barrier();
+	mb();
 	dev->attached=1;
 
 	return 0;

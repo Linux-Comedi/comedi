@@ -375,6 +375,8 @@ static irqreturn_t ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 #ifdef PCIDMA
 	struct mite_struct *mite = devpriv->mite;
 #endif
+
+	if(dev->attached == 0) return IRQ_NONE;
 	// lock to avoid race with comedi_poll
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	a_status=win_in(AI_Status_1_Register);
