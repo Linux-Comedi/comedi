@@ -81,6 +81,10 @@ topdir=$(pwd)
 
 cd ${topdir}/scripts/linux_flags
 make LINUXDIR=${LINUXDIR}
+if [ $? != 0 ]; then
+	echo "make in linux source directory failed, do you have write permission?"
+	exit $?
+fi
 cd ${topdir}
 mv scripts/linux_flags/flags .buildvars
 
