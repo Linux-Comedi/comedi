@@ -74,7 +74,6 @@ For safety reasons, the driver disables dma transfers if you enable
 
 TODO:
 	Add support for analog out on 'ao' cards.
-	what happens on external stop source with dma turned off?
 */
 
 #include <linux/kernel.h>
@@ -124,7 +123,7 @@ TODO:
 #define   DMA_CH6_CH7             0x6
 #define   DMA_CH7_CH5             0x7
 #define   DMA_ENABLED             0x3	//mask used to determine if dma is enabled
-#define		DMA_DUAL                0x4
+#define   DMA_DUAL                0x4
 #define   IRQ3                    0x8
 #define   IRQ5                    0x10
 #define   IRQ7                    0x18
@@ -890,7 +889,8 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 			das1800_handle_dma(dev, s);
 		}
 	}
-	else if(status & FHF)
+	// if fifo half full, and there has not an external stop trigger
+	else if((status & FHF) && !(status & CT0TC))
 	{
 		das1800_handle_fifo_half_full(dev, s);
 	} else if(status & FNE)
@@ -1054,7 +1054,6 @@ static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *
 		if(!unipolar);
 			dpnt += 1 << (thisboard->resolution - 1);
 		write_to_buffer(dev, s, dpnt);
-		if(devpriv->count > 0) devpriv->count--;
 	}
 	return;
 }
@@ -1068,14 +1067,13 @@ static void das1800_handle_fifo_not_empty(comedi_device *dev, comedi_subdevice *
 
 	while(inb(dev->iobase + DAS1800_STATUS) & FNE)
 	{
+		if(devpriv->count == 0 && devpriv->forever == 0)
+			break;
 		dpnt = inw(dev->iobase + DAS1800_FIFO);
 		/* convert to unsigned type if we are in a bipolar mode */
 		if(!unipolar);
 			dpnt += 1 << (thisboard->resolution - 1);
 		write_to_buffer(dev, s, dpnt);
-		if(devpriv->count > 0) devpriv->count--;
-		if(devpriv->count == 0 && devpriv->forever == 0)
-			break;
 	}
 
 	return;
@@ -1098,6 +1096,7 @@ inline void write_to_buffer(comedi_device *dev, comedi_subdevice *s, sampl_t dat
 	}
 	s->async->buf_int_count += sizeof(sampl_t);
 	s->async->buf_int_ptr += sizeof(sampl_t);
+	if(devpriv->count > 0) devpriv->count--;
 }
 
 void disable_das1800(comedi_device *dev)
