@@ -1,50 +1,49 @@
-Michal Dobes <dobes@tesnet.cz>
-Jochen Küpper <jochen@pc1.uni-duesseldorf.de>
-Oystein Svendsen <svendsen@pvv.org>
-Frank Mori Hess <fmhess@users.sourceforge.net>
-Markus Kempf <kempf@matsci.uni-sb.de>
+# People who have contributed code/documentation to Comedi (alphabetized by last name)
+Ian Abbott <abbotti@mev.co.uk>
+Dave Andruczyk <dave@tech.buffalostate.edu>
 Chris R. Baugher <baugher@enteract.com>
-Janne Jalkanen <jalkanen@cs.hut.fi>
-Eric Bunn <ebu@cs.hut.fi>
 Brent Baccala <baccala@freesoft.org>
 Anders Blomdell <anders.blomdell@control.lth.se>
-Tomasz Motylewski <motyl@stan.chemie.unibas.ch>
-Warren Jasper <wjasper@tx.ncsu.edu>
-Sam Moore <sam@tx.ncsu.edu>
-Dave Andruczyk <dave@tech.buffalostate.edu>
-Robert Wilhelm <robert@haegar.physiol.med.tu-muenchen.de>
-Truxton Fulton <trux@truxton.com>
-Andrea Cisternino  <acister@pcape1.pi.infn.it>
-Claus Schroeter <clausi@chemie.fu-berlin.de>
-Harald Kirsch <kir@iitb.fhg.de>
-Joe Smith <jes@presto.med.upenn.edu>
-Tim Ousley <tim.ousley@ni.com>
-Dan Christian <dac@ptolemy.arc.nasa.gov>
-Ivan Martinez <ivanmr@altavista.com>
-Emmanuel PACAUD <emmanuel.pacaud@univ-poitiers.fr>
-John Hallen
-Rolf Mueller
-Herbert Peremans
+Eric Bunn <ebu@cs.hut.fi>
 Herman Bruyninckx
-Ian Abbott <abbotti@mev.co.uk>
-Allan Willcox <allanwillcox@ozemail.com.au>
 Calin Culianu <calin@ajvar.org>
-Stefano Rivoir <s.rivoir@gts.it>
-Anne Smorthit <anne.smorthit@sfwte.ch>
-Michael Hillmann <hillmann@syscongroup.de>
-J.P. Mellor <jpmellor@rose-hulman.edu>
-Bart Joris <bjoris@advalvas.be>
-Daniel Vecino Castel <dvecino@able.es>
+Dan Christian <dac@ptolemy.arc.nasa.gov>
+Andrea Cisternino  <acister@pcape1.pi.infn.it>
+Michal Dobes <dobes@tesnet.cz>
+Truxton Fulton <trux@truxton.com>
 Juan Grigera <juan@grigera.com.ar>
-Robert Schwebel <robert@schwebel.de>
-David Schleef <ds@schleef.org>
-Bernd Porr <Bernd.Porr@cn.stir.ac.uk>
+John Hallen
+Frank Mori Hess <fmhess@users.sourceforge.net>
+Michael Hillmann <hillmann@syscongroup.de>
+Janne Jalkanen <jalkanen@cs.hut.fi>
+Warren Jasper <wjasper@tx.ncsu.edu>
 Steven Jenkins <steven.jenkins@ieee.org>
+Bart Joris <bjoris@advalvas.be>
+Nils Juergens <ju@isf.rwth-aachen.de>
+Markus Kempf <kempf@matsci.uni-sb.de>
+Harald Kirsch <kir@iitb.fhg.de>
+Jochen Küpper <jochen@pc1.uni-duesseldorf.de>
+Brent Ledvina <bml22@cornell.edu>
+Ivan Martinez <ivanmr@altavista.com>
+Luis Martínez <luimarma@marcosa.e.telefonica.net>
+J.P. Mellor <jpmellor@rose-hulman.edu>
+Sam Moore <sam@tx.ncsu.edu>
+Tomasz Motylewski <motyl@stan.chemie.unibas.ch>
+Rolf Mueller
+Bernd Porr <Bernd.Porr@cn.stir.ac.uk>
+Tim Ousley <tim.ousley@ni.com>
+Emmanuel PACAUD <emmanuel.pacaud@univ-poitiers.fr>
+Herbert Peremans
+Stefano Rivoir <s.rivoir@gts.it>
+David Schleef <ds@schleef.org>
+Claus Schroeter <clausi@chemie.fu-berlin.de>
+Robert Schwebel <robert@schwebel.de>
+Steve D Sharples <steve.sharples@nottingham.ac.uk>
+Joe Smith <jes@presto.med.upenn.edu>
+Anne Smorthit <anne.smorthit@sfwte.ch>
+Oystein Svendsen <svendsen@pvv.org>
 Caleb Tennis <caleb@aei-tech.com>
 Salvador Eduardo Tropea <salvador@inti.gov.ar>
-Nils Juergens <ju@isf.rwth-aachen.de>
-Luis Martínez <luimarma@marcosa.e.telefonica.net>
-Steve D Sharples <steve.sharples@nottingham.ac.uk>
-Brent Ledvina <bml22@cornell.edu>
-
-
+Daniel Vecino Castel <dvecino@able.es>
+Robert Wilhelm <robert@haegar.physiol.med.tu-muenchen.de>
+Allan Willcox <allanwillcox@ozemail.com.au>
