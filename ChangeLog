@@ -1,3 +1,10 @@
+Comedi-0.7.69:
+Fixed compilation with rtai-adeos.  USBDUX driver updates (Bernd Porr).
+Command support added to pcl818 driver (Nils Juergens).  Fixes for 64 bit
+cpus.  Fixes for compilation against 2.6 kernels (Dave Schleef).  PCMCIA
+support ported to 2.6 kernel api.  Various unrelated driver bugfixes and
+enhancements (me, Alberto Sechi, Luis Martinez, Eugene Zharkov, Steve
+Sharples).  Fixed RTLinux crashes due to comedi_udelay().
 
 Comedi-0.7.65:
 
