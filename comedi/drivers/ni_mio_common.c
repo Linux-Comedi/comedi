@@ -1183,16 +1183,18 @@ static int ni_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	unsigned int conf;
 	unsigned int chan;
 	unsigned int range;
+	int i;
 	
-	data=it->data[0];
-	chan=CR_CHAN(it->chanlist[0]);
+for(i=0;i<it->n_chan;i++){
+	data=it->data[i];
+	chan=CR_CHAN(it->chanlist[i]);
 
 	conf=chan<<8;
 	
 	/* XXX check range with current range in flaglist[chan] */
 	/* should update calibration if range changes (ick) */
 
-	range = CR_RANGE(it->chanlist[0]);
+	range = CR_RANGE(it->chanlist[i]);
 	conf |= (range&1);
 	conf |= (range&2)<<1;
 	
@@ -1202,15 +1204,16 @@ static int ni_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 	/* analog reference */
 	/* AREF_OTHER connects AO ground to AI ground, i think */
-	conf |= (CR_AREF(it->chanlist[0])==AREF_OTHER)? 8 : 0;
+	conf |= (CR_AREF(it->chanlist[i])==AREF_OTHER)? 8 : 0;
 
 	ni_writew(conf,AO_Configuration);
 
 	if(range&1)data^=0x800;
 	
 	ni_writew(data,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
+}
 	
-	return 1;
+	return i;
 }
 
 static int ni_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
@@ -1418,6 +1421,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->timer_type=TIMER_atmio;
 		s->range_table=&range_ni_E_ao_ext;	/* XXX wrong for some boards */
 		s->trig[0]=ni_ao_mode0;
+		s->len_chanlist = 2;
 		if(boardtype.ao_fifo_depth)
 			s->trig[2]=ni_ao_mode2;
 	}else{
