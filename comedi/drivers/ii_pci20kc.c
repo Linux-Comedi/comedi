@@ -39,6 +39,9 @@
  *
  */
 
+/* XXX needs to use ioremap() for compatibility with 2.4 kernels.  Should also
+ * check_mem_region() etc. - fmhess */
+
 #include <linux/comedidev.h>
 
 #include <linux/module.h>	/* modularer Kernel */
