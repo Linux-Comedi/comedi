@@ -136,6 +136,16 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 		caldac:		{dac8800,dac8043},
 	},
+#if 0
+	{	device_id:	0x0000, /* unknown */
+		name:		"DAQCard-6715",
+		n_adchan:	0,
+		n_aochan:	8,
+		aobits:		12,
+		ao_671x:	8192,
+		caldac:		{mb88341,mb88341},
+	},
+#endif
 };
 
 
