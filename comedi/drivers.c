@@ -45,6 +45,7 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
+static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 
 comedi_driver *comedi_drivers;
 
@@ -467,7 +468,6 @@ static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_tr
 {
 	comedi_insn insn;
 	lsampl_t ldata;
-	int ret;
 
 	insn.subdev=trig->subdev;
 	insn.data=&ldata;
