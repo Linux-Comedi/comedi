@@ -102,7 +102,7 @@ static void do_config(comedi_device *dev,comedi_subdevice *s);
 
 static int subdev_8255_cb(int dir,int port,int data,void *arg)
 {
-	int iobase=(int)arg;
+	int iobase=(unsigned long)arg;
 
 	if(dir){
 		outb(data,iobase+port);
