@@ -645,10 +645,8 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 
 	if(cmd->start_src != TRIG_NOW &&
 		cmd->start_src != TRIG_EXT) err++;
-	if(cmd->scan_begin_src != TRIG_FOLLOW) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
 	   cmd->convert_src != TRIG_EXT) err++;
-	if(cmd->scan_end_src != TRIG_COUNT) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE) err++;
 
@@ -672,11 +670,6 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 	if(!cmd->chanlist_len)
 	{
 		cmd->chanlist_len = 1;
-		err++;
-	}
-	if(cmd->chanlist_len > s->len_chanlist)
-	{
-		cmd->chanlist_len = s->len_chanlist;
 		err++;
 	}
 	if(cmd->scan_end_arg != cmd->chanlist_len)
