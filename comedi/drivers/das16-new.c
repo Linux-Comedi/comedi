@@ -22,10 +22,11 @@
 
 */
 
+#undef DEBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <comedi_module.h>
+#include <linux/comedidev.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
@@ -153,7 +154,7 @@
 #define   DAS1600_WS			0x02
 #define   DAS1600_CLK_10MHZ		0x01
 
-#define DAS16_SLOWEST_TIMER		429000000000
+#define DAS16_SLOWEST_TIMER		0xffffffff
 #define DAS16_FASTEST_TIMER		10000
 
 static comedi_lrange range_das1x01_bip = { 4, {
@@ -675,7 +676,7 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 #endif
 	}
 
-	return n;
+	return i;
 }
 
 
@@ -819,6 +820,7 @@ static float das16_set_pacer(comedi_device *dev, unsigned int ns)
 	return devpriv->clockbase / ((long) ctr1 * (long) ctr2) + 0.5;
 }
 
+#ifdef DEBUG
 static void reg_dump(comedi_device *dev)
 {
 	printk("********DAS1600 REGISTER DUMP********\n");
@@ -834,6 +836,7 @@ static void reg_dump(comedi_device *dev)
 	printk("DAS1600_ENABLE: %x\n", inb(dev->iobase+DAS1600_ENABLE) );
 	printk("DAS1600_STATUS_B: %x\n", inb(dev->iobase+DAS1600_STATUS_B) );	
 }
+#endif
 
 static int detect_ao(comedi_device *dev)
 {
