@@ -1,4 +1,29 @@
 
+Comedi-0.7.65:
+
+ - ni_atmio.o, ni_pcimio.o: changes to caldacs listed for some boards, should
+   make calibration better
+ - ni_mio_common: ignore more errors from MITE during DMA, and don't
+   disable the interrupt.  Clean up AO error handling.  Add support
+   for CR_ALT_SOURCE to replace AREF_OTHER.  Added TRIG_INT for AI.
+   Added PFI subdevice.
+ - mite.o: removed request_mem_region(), because it's wrong.
+ - comedi_parport.o: fix EOS event handling
+ - cb_pcidas64.o: bug fixes, additional boards, additional features
+ - added devfs support
+ - serial2002.o: new driver from Anders.  Don't know what it supports.
+ - comedi_rt_timer.o: fix for RTAI timer not being started
+ - core: fix analog output streaming.
+ - core: Change bogus locking to spin locks.
+ - contec_pci_dio.o: new driver
+ - kcomedilib: global switch from (int) to (comedi_t *) to be compatible
+   with Comedilib.  Can be reverted by using KCOMEDILIB_DEPRECATED or
+   using the old header.
+ - kcomedilib: added various functions
+ - ni_at_a2150, ni_labpc, pcl711, pcl816, pcl818, rti800: removed settling
+   delay
+ - das16: bug fixes, fixes to interrupt handling
+
 Comedi-0.7.64:
  
  - documentation updates in many drivers
