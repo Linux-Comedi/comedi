@@ -63,7 +63,7 @@ AT-MIO96.
 #include <linux/comedidev.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/init.h>

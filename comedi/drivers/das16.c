@@ -95,7 +95,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <asm/dma.h>
 #include "8253.h"

@@ -42,6 +42,9 @@ Comedilib includes a utility to autocalibrate these boards.  The
 boards seem to boot into a state where the all calibration DACs
 are at one extreme of their range, thus the default calibration
 is terrible.  Calibration at boot is strongly encouraged.
+
+External triggering is supported for some events.  The channel index
+(scan_begin_arg, etc.) maps to PFI0 - PFI9.
 */
 /*
 	The real guts of the driver is in ni_mio_common.c, which is included
@@ -85,7 +88,7 @@ is terrible.  Calibration at boot is strongly encouraged.
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/comedidev.h>
 #ifdef HAVE_ISAPNP
 #include <linux/isapnp.h>

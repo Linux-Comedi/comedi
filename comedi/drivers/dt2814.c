@@ -44,7 +44,7 @@ addition, the clock does not seem to be very accurate.
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>

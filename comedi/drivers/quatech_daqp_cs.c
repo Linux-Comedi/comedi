@@ -43,7 +43,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <asm/io.h>

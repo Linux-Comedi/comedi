@@ -48,7 +48,7 @@ See the notes in the ni_atmio.o driver.
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #ifdef CONFIG_COMEDI_RTL
 #include <linux/rtl.h>
 #endif

@@ -64,7 +64,7 @@ irq can be omitted, although the cmd interface will not work without it.
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include "8255.h"
 #include "8253.h"

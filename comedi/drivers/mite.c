@@ -58,7 +58,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 
 #include "mite.h"
 #include "../kvmem.h"
