@@ -32,7 +32,7 @@ esac
 
 
 # check to see if it is a driver
-if grep '^comedi_driver' ${driver} &>/dev/null;then
+if grep '^\(static \)*comedi_driver' ${driver} &>/dev/null;then
 	echo "appears to be a driver"
 else
 	echo "not a driver file"
@@ -284,5 +284,16 @@ fi
 # Check if the driver contains ^M
 if grep '' ${driver} &>/dev/null;then
 	echo "E: driver has ^M characters"
+fi
+
+if [ -f "${basedriver}.o" ];then
+	# .o checks
+	n_syms=$(nm ${basedriver}.o |grep -c ' [TDC] ')
+	echo "number of global symbols: $n_syms"
+	n_xsyms=$(nm ${basedriver}.o |grep -c ' __ksymtab')
+	echo "number of exported symbols: $n_xsyms"
+	if [ $(($n_syms-$n_xsyms)) -gt 3 ];then
+		echo "W: driver leaks symbols"
+	fi
 fi
 
