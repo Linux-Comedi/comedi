@@ -26,8 +26,6 @@ static void handle_rtai_irq(void)
 {
 	struct comedi_irq_struct *it=rtai_irq;
 
-	printk("handle_rtai_irq printk, %p\n",it);
-	rt_printk("handle_rtai_irq, %p\n",it);
 	if(it)
 		it->handler(it->irq,it->dev_id,NULL);
 
@@ -41,7 +39,6 @@ int get_priority_irq(struct comedi_irq_struct *it)
 	//free_irq(it->irq,it->dev_id);
 	rt_request_global_irq(it->irq,handle_rtai_irq);
 	rt_startup_irq(it->irq); // rtai 1.3
-//	rt_enable_irq(it->irq);  // did it ever work ?
 
 	return 0;
 }

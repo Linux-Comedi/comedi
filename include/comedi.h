@@ -346,7 +346,30 @@ int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int val);
 int comedi_dio_bitfield(unsigned int dev,unsigned int subdev,unsigned int mask,
 	unsigned int *bits);
+int comedi_get_n_subdevices(unsigned int dev);
+int comedi_get_version_code(unsigned int dev);
+char *comedi_get_driver_name(unsigned int dev);
+char *comedi_get_board_name(unsigned int minor);
+int comedi_get_subdevice_type(unsigned int minor,unsigned int subdevice);
+int comedi_find_subdevice_by_type(unsigned int minor,int type,unsigned int subd);
+int comedi_get_n_channels(unsigned int minor,unsigned int subdevice);
+lsampl_t comedi_get_maxdata(unsigned int minor,unsigned int subdevice,unsigned
+	int chan);
+int comedi_get_n_ranges(unsigned int minor,unsigned int subdevice,unsigned int
+	chan);
 
+
+
+/* ALPHA functions */
+unsigned int comedi_get_subdevice_flags(unsigned int minor,unsigned int
+	subdevice);
+int comedi_get_len_chanlist(unsigned int minor,unsigned int subdevice);
+int comedi_get_krange(unsigned int minor,unsigned int subdevice,unsigned int
+	chan, unsigned int range, comedi_krange *krange);
+unsigned int comedi_get_buf_head_pos(unsigned int minor,unsigned int
+	subdevice);
+int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,
+	unsigned int buf_user_count);
 
 #endif
 

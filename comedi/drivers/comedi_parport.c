@@ -28,7 +28,7 @@
    - support bit mask ioctl
    - EPP/ECP support
 
-   see http://www.senet.com.au/~cpeacock/parallel.htm for information.
+   see http://www.beyondlogic.org/ for information.
  */
 
 #include <linux/kernel.h>

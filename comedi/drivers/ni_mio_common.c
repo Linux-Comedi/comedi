@@ -234,9 +234,11 @@ mite_dma_tcr(devpriv->mite);
 #ifdef DEBUG
 rt_printk("ni-E: SC_TC interrupt\n");
 #endif
-		ni_handle_fifo_dregs(dev);
-		win_out(0x0000,Interrupt_A_Enable_Register);
-		comedi_done(dev,s);
+		if(s->cur_trig.n){	/* XXX fix */
+			ni_handle_fifo_dregs(dev);
+			win_out(0x0000,Interrupt_A_Enable_Register);
+			comedi_done(dev,s);
+		}
 
 		ack|=AI_SC_TC_Interrupt_Ack;
 	}
@@ -391,6 +393,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		n=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
 			if(ni_readw(AI_Status_1)&AI_FIFO_Empty_St){
+				s->cur_chan=j;
 				return;
 			}
 			d=ni_readw(ADC_FIFO_Data_Register);
@@ -410,7 +413,6 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		data=s->cur_trig.data;
 		comedi_eobuf(dev,s);
 	}
-	s->cur_chan=j;
 }
 
 /*
