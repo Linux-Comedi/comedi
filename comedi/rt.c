@@ -258,9 +258,6 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q)
 /* RTAI section */
 #ifdef CONFIG_COMEDI_RTAI
 
-#ifdef CONFIG_PPC
-#define HAVE_RT_REQUEST_IRQ_WITH_ARG
-#endif
 #ifndef HAVE_RT_REQUEST_IRQ_WITH_ARG
 #define DECLARE_VOID_IRQ(irq) \
 static void handle_void_irq_ ## irq (void){ handle_void_irq(irq);}
