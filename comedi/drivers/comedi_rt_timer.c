@@ -214,8 +214,7 @@ static void timer_ao_task_func(int d)
 	/* eek! */
 }
 
-#if 0
-static int timer_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+static int timer_insn(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	comedi_insn xinsn = *insn;
@@ -225,7 +224,6 @@ static int timer_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	return comedi_do_insn(devpriv->device,&xinsn);
 }
-#endif
 
 static int cmdtest_helper(comedi_cmd *cmd,
 	unsigned int start_src,
@@ -388,7 +386,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->maxdata=devpriv->s->maxdata;
 		s->range_table=devpriv->s->range_table;
 		s->range_table_list=devpriv->s->range_table_list;
-		s->insn_read=devpriv->s->insn_read;
+		s->insn_read=timer_insn;
 		dev->read_subdev = s;
 	}else {
 		s->type=COMEDI_SUBD_UNUSED;
@@ -408,7 +406,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->maxdata=devpriv->s->maxdata;
 		s->range_table=devpriv->s->range_table;
 		s->range_table_list=devpriv->s->range_table_list;
-		s->insn_write=devpriv->s->insn_write;
+		s->insn_write=timer_insn;
 		dev->write_subdev = s;
 	}else {
 		s->type=COMEDI_SUBD_UNUSED;
