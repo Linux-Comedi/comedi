@@ -132,7 +132,7 @@ static int dt2814_ns_to_timer(unsigned int *ns,unsigned int flags)
 
 	/* XXX ignores flags */
 
-	f = 1e4; /* ns */
+	f = 10000; /* ns */
 	for(i=0;i<8;i++){
 		if((2*(*ns))<(f*11))break;
 		f *= 10;
