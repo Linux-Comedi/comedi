@@ -213,6 +213,7 @@ static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum);
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned int *list);
+static void shutdown_ai_command( comedi_device *dev );
 
 static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum);
@@ -403,8 +404,6 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	unsigned int nbytes, old_alloc_count;
 	unsigned int bytes_per_scan = 2 * async->cmd.chanlist_len;
 
-	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AI_DMA_CHAN));
-
 	old_alloc_count = async->buf_write_alloc_count;
 	// write alloc as much as we can
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
@@ -420,7 +419,7 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	count = nbytes - async->buf_write_count;
 	if( count < 0 ){
 		rt_printk("ni_mio_common: BUG: negative ai count\n");
-		count = 0;
+		return;
 	}
 
 	comedi_buf_write_free(async, count);
@@ -532,6 +531,8 @@ static int ni_ao_wait_for_dma_load( comedi_device *dev )
 		b_status = win_in( AO_Status_1_Register );
 		if( b_status & AO_FIFO_Half_Full_St )
 			break;
+		/* if we poll too often, the pci bus activity seems
+		 to slow the dma transfer down */
 		comedi_udelay(10);
 	}
 	if( i == timeout )
@@ -543,6 +544,30 @@ static int ni_ao_wait_for_dma_load( comedi_device *dev )
 }
 
 #endif //PCIDMA
+static void ni_handle_eos(comedi_device *dev, comedi_subdevice *s)
+{
+	if(devpriv->aimode == AIMODE_SCAN)
+	{
+#ifdef PCIDMA
+		static const int timeout = 10;
+		int i;
+
+		for(i = 0; i < timeout; i++)
+		{
+			ni_sync_ai_dma(devpriv->mite, dev);
+			if((s->async->events & COMEDI_CB_EOS)) break;
+			comedi_udelay(1);
+		}
+#else
+		ni_handle_fifo_dregs(dev);
+		s->async->events |= COMEDI_CB_EOS;
+#endif
+	}
+	/* handle special case of single scan using AI_End_On_End_Of_Scan */
+	if( ( devpriv->ai_cmd2 & AI_End_On_End_Of_Scan ) ){
+		shutdown_ai_command( dev );
+	}
+}
 
 static void shutdown_ai_command( comedi_device *dev )
 {
@@ -583,6 +608,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
 	if(m_status & CHSR_LINKC){
+		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AI_DMA_CHAN));
 		ni_sync_ai_dma(devpriv->mite, dev);
 	}
 
@@ -649,28 +675,17 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #endif // !PCIDMA
 
 	if( (status & AI_STOP_St) ){
-		if(devpriv->aimode==AIMODE_SCAN){
-#ifdef PCIDMA
-			ni_sync_ai_dma(devpriv->mite, dev);
-#else
-			ni_handle_fifo_dregs(dev);
-			s->async->events |= COMEDI_CB_EOS;
-#endif
-		}
-		/* handle special case of single scan using AI_End_On_End_Of_Scan */
-		if( ( devpriv->ai_cmd2 & AI_End_On_End_Of_Scan ) ){
-			shutdown_ai_command( dev );
-		}
-
+		ni_handle_eos(dev, s);
 		/* we need to ack the START, also */
 		ack |= AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
 	}
+#if 0
 	if(devpriv->aimode==AIMODE_SAMPLE){
 		ni_handle_fifo_dregs(dev);
 
 		//s->async->events |= COMEDI_CB_SAMPLE;
 	}
-
+#endif
 	if(ack) win_out(ack,Interrupt_A_Ack_Register);
 
 	comedi_event(dev,s,s->async->events);
@@ -964,7 +979,7 @@ static int ni_ai_drain_dma(comedi_device *dev )
 		if( ( win_in( AI_Status_1_Register ) & AI_FIFO_Empty_St ) &&
 			mite_bytes_in_transit( mite, AI_DMA_CHAN ) == 0 )
 			break;
-		comedi_udelay( 1 );
+		comedi_udelay(2);
 	}
 	if( i == timeout )
 	{
@@ -987,7 +1002,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	u32 dl;
 	short fifo_empty;
 	int i;
-	 
+
 	if(boardtype.reg_type == ni_reg_611x){
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
 			dl=ni_readl(ADC_FIFO_Data_611x);
@@ -2555,9 +2570,7 @@ static int ni_serial_hw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 	win_out(devpriv->dio_control,DIO_Control_Register);
 	devpriv->dio_control &= ~DIO_HW_Serial_Start;
 
-	/* Wait until STC says we're done, but don't loop infinitely. Also,
-	   we don't have to keep updating the window address for this. */
-
+	/* Wait until STC says we're done, but don't loop infinitely. */
 	while((status1 = win_in(Joint_Status_1_Register)) & DIO_Serial_IO_In_Progress_St) {
 		/* Delay one bit per loop */
 		comedi_udelay((devpriv->serial_interval_ns + 999) / 1000);
