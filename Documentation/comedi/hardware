@@ -3,8 +3,12 @@ ADLink				ACL-6128			pcl726
 ADLink				ACL-7122			pcl724
 ADLink				ACL-7124			pcl724
 ADLink				ACL-8112-DG			pcl711
+ADLink				ACL-8112DG			pcl812
 ADLink				ACL-8112-HG			pcl711
+ADLink				ACL-8112HG			pcl812
+ADLink				ACL-8112PG			pcl812
 ADLink				ACL-8113			pcl812
+ADLink				ACL-8216			pcl812
 ADLink				PCI-9118DG			adl_pci9118
 ADLink				PCI-9118HG			adl_pci9118
 ADLink				PCI-9118HR			adl_pci9118
@@ -25,13 +29,17 @@ Advantech			PCL-726				pcl726
 Advantech			PCL-727				pcl726
 Advantech			PCL-728				pcl726
 Advantech			PCL-731				pcl724
+Advantech			PCL-812				pcl812
 Advantech			PCL-812PG			pcl812
+Advantech			PCL-813				pcl812
 Advantech			PCL-813B			pcl812
 Advantech			PCL-818				pcl818
 Advantech			PCL-818H			pcl818
 Advantech			PCL-818HD			pcl818
 Advantech			PCL-818HG			pcl818
 Advantech			PCL-818L			pcl818
+Advantech			PCM-3718			pcl818
+Advantech			PCM-3730			pcm3730
 Analog Devices			RTI800				rti800
 Analog Devices			RTI802				rti802
 Analog Devices			RTI815				rti800
@@ -104,6 +112,15 @@ Data Translation		DT3004				dt3000
 Data Translation		DT3005				dt3000
 Generic				8255				8255
 Generic				PC parallel port		comedi_parport
+ICP DAS				A-821PGH			pcl812
+ICP DAS				A-821PGL			pcl812
+ICP DAS				A-821PGL-NDA			pcl812
+ICP DAS				A-822PGH			pcl812
+ICP DAS				A-822PGL			pcl812
+ICP DAS				A-823PGH			pcl812
+ICP DAS				A-823PGL			pcl812
+ICP DAS				A-826PG				pcl812
+ICP DAS				ISO-813				pcl812
 IOtech				DAQBoard/2000			daqboard2000
 Intelligent Instrumentation	PCI-20001 C-2A		*	ii_pci20kc
 Intelligent Instrumentation	PCI-20006 M-2		*	ii_pci20kc
