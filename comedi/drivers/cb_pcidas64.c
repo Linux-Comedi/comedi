@@ -60,15 +60,12 @@ Some devices are not identified because the PCI device IDs are not known.
 
 TODO:
 	command support for ao
-	calibration subdevice
 	user counter subdevice
 	there are a number of boards this driver will support when they are
 		fully released, but does not yet since the pci device id numbers
 		are not yet available.
-	need to take care to prevent ai and ao from affecting each other's register bits
 	support prescaled 100khz clock for slow pacing (not available on 6000 series?)
-	figure out cause of intermittent lockups (pci dma?)
-		disable dma interrupt cleanly in cancel...
+
 */
 
 #include <linux/kernel.h>
@@ -187,10 +184,10 @@ TODO:
  *  7 : dac channel 1
  */
 #define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)	// XXX 60xx only
-#define    CAL_EN_64XX_BIT	0x40	// calibration enable XXX 0x40 for 6402?
+#define    CAL_EN_64XX_BIT	0x40	// calibration enable for 64xx series
 #define    SERIAL_DATA_IN_BIT	0x80
 #define    SERIAL_CLOCK_BIT	0x100
-#define    CAL_EN_60XX_BIT	0x200	// calibration enable XXX 0x40 for 6402?
+#define    CAL_EN_60XX_BIT	0x200	// calibration enable for 60xx series
 #define    CAL_GAIN_BIT	0x800
 #define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
 #define ADC_SAMPLE_INTERVAL_UPPER_REG	0x18	// upper 8 bits of sample interval counter
@@ -909,11 +906,11 @@ static int setup_subdevices(comedi_device *dev)
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
-	// calibration subd XXX
+	// calibration subd
 	s = dev->subdevices + 6;
 	s->type=COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
-	s->n_chan = 8;	// XXX
+	s->n_chan = 8;	// XXX 64xx has digital pots too
 	if(board(dev)->layout == LAYOUT_4020)
 		s->maxdata = 0xfff;
 	else
@@ -1184,6 +1181,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	aref = CR_AREF(insn->chanspec);
 
 	// disable card's analog input interrupt sources
+	// 4020 generates dac done interrupts even though they are disabled
 	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
@@ -1264,11 +1262,12 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		writew(2, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
 	}
 
-	// clear adc buffer
-	writew(0, private(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
-
 	for(n = 0; n < insn->n; n++)
 	{
+
+		// clear adc buffer (inside loop for 4020 sake)
+		writew(0, private(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
+
 		/* trigger conversion, bits sent only matter for 4020 */
 		writew(ADC_CONVERT_CHANNEL_4020_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + ADC_CONVERT_REG);
 
@@ -1277,10 +1276,16 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		{
 			bits = readw(private(dev)->main_iobase + HW_STATUS_REG);
 			DEBUG_PRINT(" pipe bits 0x%x\n", PIPE_FULL_BITS(bits));
-			if(PIPE_FULL_BITS(bits))
-				break;
+			if(board(dev)->layout == LAYOUT_4020)
+			{
+				if(readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG))
+					break;
+			}else
+			{
+				if(PIPE_FULL_BITS(bits))
+					break;
+			}
 			udelay(1);
-			if(board(dev)->layout == LAYOUT_4020) break;	// XXX
 		}
 		DEBUG_PRINT(" looped %i times waiting for data\n", i);
 		if(i == timeout)
@@ -1568,6 +1573,30 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		}
 		// prime queue holding register
 		writew(0, private(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
+	}else
+	{
+		uint8_t old_cal_range_bits = private(dev)->i2c_cal_range_bits;
+
+		private(dev)->i2c_cal_range_bits &= ~ADC_SRC_MASK;
+		//select BNC inputs
+		private(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(4);
+		// select ranges
+		for(i = 0; i < cmd->chanlist_len; i++)
+		{
+			unsigned int channel = CR_CHAN(cmd->chanlist[i]);
+			unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+			if(ai_range_bits_4020[range])
+				private(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(channel);
+			else
+				private(dev)->i2c_cal_range_bits &= ~ATTENUATE_BIT(channel);
+		}
+		// update calibration/range i2c register only if necessary, as it is very slow
+		if(old_cal_range_bits != private(dev)->i2c_cal_range_bits)
+		{
+			uint8_t i2c_data = private(dev)->i2c_cal_range_bits;
+			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data, sizeof(i2c_data));
+		}
 	}
 
 	// clear adc buffer
@@ -2118,7 +2147,7 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	udelay(1);
 	private(dev)->plx_control_bits &= ~CTL_EE_CLK & ~CTL_EE_CS;
 	// make sure we don't send anything to the i2c bus on 4020
-	private(dev)->plx_control_bits &= ~CTL_USERO;
+	private(dev)->plx_control_bits |= CTL_USERO;
 	writel(private(dev)->plx_control_bits, plx_control_addr);
 	// activate serial eeprom
 	udelay(1);
@@ -2300,7 +2329,6 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 	enum data_bits
 	{
 		NOT_CLEAR_REGISTERS = 0x20,
-		UPDATE_ADDRESSED_DAC_ONLY = 0x10,
 	};
 
 	switch(caldac_channel)
@@ -2342,8 +2370,7 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 			return -1;
 			break;
 	}
-	serial_bytes[1] = NOT_CLEAR_REGISTERS | UPDATE_ADDRESSED_DAC_ONLY |
-		((value >> 8) & 0xf);
+	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
 	serial_bytes[2] = value & 0xff;
 	i2c_write(dev, i2c_addr, serial_bytes, 3);
 	return 0;
@@ -2380,28 +2407,28 @@ static int dac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int d
 }
 #endif
 
-/* Requires at least a udelay of 350-400 to work for i2c reg, and even more for calibration registers.
- * Need to figure out if this can be improved,
- * since slowest chip (i2c reg!) should only require a delay of about 5 usec */
-static const int i2c_udelay = 1000;
+// Their i2c requires a huge delay on setting clock or data high for some reason
+static const int i2c_high_udelay = 1000;
+static const int i2c_low_udelay = 10;
 
 // set i2c data line high or low
 static void i2c_set_sda(comedi_device *dev, int state)
 {
 	static const int data_bit = CTL_EE_W;
 	unsigned long plx_control_addr = private(dev)->plx9080_iobase + PLX_CONTROL_REG;
-	
+
 	if(state)
 	{
 		// set data line high
 		private(dev)->plx_control_bits &= ~data_bit;
+		writel(private(dev)->plx_control_bits, plx_control_addr);
+		udelay(i2c_high_udelay);
 	}else // set data line low
 	{
 		private(dev)->plx_control_bits |= data_bit;
+		writel(private(dev)->plx_control_bits, plx_control_addr);
+		udelay(i2c_low_udelay);
 	}
-
-	writel(private(dev)->plx_control_bits, plx_control_addr);
-	udelay(i2c_udelay);
 }
 
 // set i2c clock line high or low
@@ -2414,20 +2441,21 @@ static void i2c_set_scl(comedi_device *dev, int state)
 	{
 		// set clock line high
 		private(dev)->plx_control_bits &= ~clock_bit;
+		writel(private(dev)->plx_control_bits, plx_control_addr);
+		udelay(i2c_high_udelay);
 	}else // set clock line low
 	{
 		private(dev)->plx_control_bits |= clock_bit;
+		writel(private(dev)->plx_control_bits, plx_control_addr);
+		udelay(i2c_low_udelay);
 	}
-
-	writel(private(dev)->plx_control_bits, plx_control_addr);
-	udelay(i2c_udelay);
 }
 
 static void i2c_write_byte(comedi_device *dev, uint8_t byte)
 {
 	uint8_t bit;
 	unsigned int num_bits = 8;
-	
+
 	DEBUG_PRINT("writing to i2c byte 0x%x\n", byte);
 
 	for(bit = 1 << (num_bits - 1); bit; bit >>= 1)
