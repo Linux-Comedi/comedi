@@ -104,8 +104,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		{ad8804_debug},
-		//caldac:		{mb88341}, /* or ad8804 */
+		caldac:		{mb88341}, /* verified */
 	},
 	{	device_id:	0x02c4,
 		name:		"DAQCard-6062E",
