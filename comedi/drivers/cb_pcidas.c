@@ -97,6 +97,7 @@ analog triggering on 1602 series
 #include <linux/comedidev.h>
 #include "8253.h"
 #include "8255.h"
+#include "amcc_s5933.h"
 
 //#define CB_PCIDAS_DEBUG	// enable debugging code
 #undef CB_PCIDAS_DEBUG	// disable debugging code
@@ -105,6 +106,8 @@ analog triggering on 1602 series
 #define PCI_VENDOR_ID_CB	0x1307
 #define TIMER_BASE 100	// 10MHz master clock
 static const int max_fifo_size = 1024;	// maximum fifo size of any supported board
+#define NUM_CHANNELS_8800 8
+#define NUM_CHANNELS_7376 1
 
 /* PCI-DAS base addresses */
 
@@ -115,26 +118,10 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 #define PACER_BADRINDEX 3
 #define AO_BADRINDEX 4
 // sizes of io regions
-#define S5933_SIZE 64
 #define CONT_STAT_SIZE 10
 #define ADC_FIFO_SIZE 4
 #define PACER_SIZE 12
 #define AO_SIZE 4
-
-// amcc s5933 pci configuration registers
-#define INCOMING_MAILBOX(x)	(0x10 + 4 * (x))	// incoming mailbox registers 0 to 3
-
-#define MBEF 0x34	// mailbox empty/full status register
-
-#define INTCSR	0x38	// interrupt control/status
-#define   OUTBOX_BYTE(x)	((x) & 0x3)
-#define   OUTBOX_SELECT(x)	(((x) & 0x3) << 2)
-#define   OUTBOX_EMPTY_INT	0x10	// enable outbox empty interrupt
-#define   INBOX_BYTE(x)	(((x) & 0x3) << 8)
-#define   INBOX_SELECT(x)	(((x) & 0x3) << 10)
-#define   INBOX_FULL_INT	0x1000	// enable inbox full interrupt
-#define   INBOX_INTR_STATUS	0x20000 // read, or write clear inbox full interrupt
-#define   INTR_ASSERTED	0x800000	// read only, interrupt asserted
 
 /* Control/Status registers */
 #define INT_ADCFIFO	0	// INTERRUPT / ADC FIFO register
@@ -177,7 +164,12 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 #define   BURSTE 0x20	// burst mode enable
 #define   XTRCL	0x80	// clear external trigger
 
-#define CALIBRATION	6	// CALIBRATION register
+#define CALIBRATION_REG	6	// CALIBRATION register
+#define   SELECT_8800_BIT	0x100	// select 8800 caldac
+#define   SELECT_7376_BIT	0x200	// select ad7376 trim pot
+#define   CAL_SRC_BITS(x)	(((x) & 0x7) << 11)
+#define   CAL_EN_BIT	0x4000	// read calibration source instead of analog input channel 0
+#define   SERIAL_DATA_IN_BIT	0x8000	// serial data stream going to 8800 and 7376
 
 #define DAC_CSR	0x8	// dac control and status register
 #define   DACEN	0x2	// dac enable
@@ -414,6 +406,8 @@ typedef struct
 	unsigned int ao_divisor2;
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	int ao_value[2];	// remember what the analog outputs are set to, to allow readback
+	unsigned int caldac_value[ NUM_CHANNELS_8800 ];	// for readback of caldac
+	unsigned int trimpot_value;	// for readback of trimpot
 } cb_pcidas_private;
 
 /*
@@ -453,6 +447,19 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status);
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s);
 static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s);
 static void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int round_flags);
+static int eeprom_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
+static int caldac_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
+static int caldac_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
+static int trimpot_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
+static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
+static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
+static int trimpot_7376_write(comedi_device *dev, uint8_t value);
+static int nvram_read( comedi_device *dev, unsigned int address, uint8_t *data );
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -542,7 +549,7 @@ found:
 
 	// reserve io ports
 	err = 0;
-	if(check_region(s5933_config, S5933_SIZE) < 0)
+	if(check_region(s5933_config, AMCC_OP_REG_SIZE) < 0)
 		err++;
 	if(check_region(control_status, CONT_STAT_SIZE) < 0)
 		err++;
@@ -558,7 +565,7 @@ found:
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(s5933_config, S5933_SIZE, "cb_pcidas");
+	request_region(s5933_config, AMCC_OP_REG_SIZE, "cb_pcidas");
 	devpriv->s5933_config = s5933_config;
 	request_region(control_status, CONT_STAT_SIZE, "cb_pcidas");
 	devpriv->control_status = control_status;
@@ -586,8 +593,8 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	dev->n_subdevices = 3;
-	if(alloc_subdevices(dev)<0)
+	dev->n_subdevices = 6;
+	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;
@@ -637,14 +644,42 @@ found:
 	subdev_8255_init(dev, s, NULL,
 		(unsigned long)(devpriv->pacer_counter_dio + DIO_8255));
 
-	// make sure mailbox 3 is empty
-	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
+	// serial EEPROM,
+	s = dev->subdevices + 3;
+	s->type = COMEDI_SUBD_MEMORY;
+	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
+	s->n_chan = 128;	// XXX may have more
+	s->maxdata = 0xff;
+	s->insn_read = eeprom_read_insn;
+
+	// caldac
+	s = dev->subdevices + 4;
+	s->type = COMEDI_SUBD_CALIB;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan = NUM_CHANNELS_8800;
+	s->maxdata = 0xff;
+	s->insn_read = caldac_read_insn;
+	s->insn_write = caldac_write_insn;
+
+	// trim potentiometer
+	s = dev->subdevices + 5;
+	if(0)
+	{
+		s->type = COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan = NUM_CHANNELS_7376;
+		s->insn_read = trimpot_read_insn;
+		s->insn_write = trimpot_write_insn;
+		s->maxdata = 0x7f;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	// make sure mailbox 4 is empty
+	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4 );
 	/* Set bits to enable incoming mailbox interrupts on amcc s5933.
 	 * They don't actually get sent here, but in cmd code. */
-	devpriv->s5933_intcsr_bits = INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT;
+	devpriv->s5933_intcsr_bits = INTCSR_INBOX_BYTE(3) | INTCSR_INBOX_SELECT(3) | INTCSR_INBOX_FULL_INT;
 
-	// make sure CALEN is disabled
-	outw(0, devpriv->control_status + CALIBRATION);
 	return 1;
 }
 
@@ -666,11 +701,11 @@ static int cb_pcidas_detach(comedi_device *dev)
 		if(devpriv->s5933_config)
 		{
 			// disable and clear interrupts on amcc s5933
-			outl(INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+			outl(INTCSR_INBOX_INTR_STATUS, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 #ifdef CB_PCIDAS_DEBUG
-			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR));
 #endif
-			release_region(devpriv->s5933_config, S5933_SIZE);
+			release_region(devpriv->s5933_config, AMCC_OP_REG_SIZE);
 		}
 		if(devpriv->control_status)
 			release_region(devpriv->control_status, CONT_STAT_SIZE);
@@ -699,6 +734,9 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	int n,i;
 	unsigned int bits;
 	static const int timeout = 10000;
+
+	// make sure CALEN is disabled
+	outw(0, devpriv->control_status + CALIBRATION_REG);
 
 	// set mux limits and gain
 	bits = BEGIN_SCAN(CR_CHAN(insn->chanspec)) |
@@ -793,6 +831,57 @@ static int cb_pcidas_ao_readback_insn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int eeprom_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	uint8_t nvram_data;
+	int retval;
+
+	retval = nvram_read( dev, CR_CHAN( insn->chanspec ), &nvram_data );
+	if( retval < 0 )
+		return retval;
+
+	data[ 0 ] = nvram_data;
+
+	return 1;
+}
+
+static int caldac_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	const unsigned int channel = CR_CHAN( insn->chanspec );
+
+	devpriv->caldac_value[ channel ] = data[0];
+	caldac_8800_write( dev, channel, data[0] );
+
+	return 1;
+}
+
+static int caldac_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	data[ 0 ] = devpriv->caldac_value[ CR_CHAN( insn->chanspec ) ];
+
+	return 1;
+}
+
+static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	devpriv->trimpot_value = data[0];
+	trimpot_7376_write( dev, data[0] );
+
+	return 1;
+}
+
+static int trimpot_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	data[ 0 ] = devpriv->trimpot_value;
 
 	return 1;
 }
@@ -965,6 +1054,8 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int bits;
 
+	// make sure CALEN is disabled
+	outw(0, devpriv->control_status + CALIBRATION_REG);
 	// initialize before settings pacer source and count values
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
 	// clear fifo
@@ -1022,9 +1113,9 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// enable (and clear) interrupts
 	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL, devpriv->control_status + INT_ADCFIFO);
 	// enable s5933 interrupt
-	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
-	// make sure mailbox 3 is empty
-	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
+	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	// make sure mailbox 4 is empty
+	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
 
 
 	// set start trigger and burst mode
@@ -1260,9 +1351,9 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	// enable and clear interrupts
 	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI, devpriv->control_status + INT_ADCFIFO);
 	// enable s5933 interrupt
-	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
-	// make sure mailbox 3 is empty
-	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
+	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+	// make sure mailbox 4 is empty
+	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
 
 	// start dac
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
@@ -1299,18 +1390,18 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	async = s->async;
 	async->events = 0;
 
-	s5933_status = inl(devpriv->s5933_config + INTCSR);
+	s5933_status = inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 #ifdef CB_PCIDAS_DEBUG
 	rt_printk("intcsr 0x%x\n", s5933_status);
-	rt_printk("mbef 0x%x\n", inl(devpriv->s5933_config + MBEF));
+	rt_printk("mbef 0x%x\n", inl(devpriv->s5933_config + AMCC_OP_REG_MBEF));
 #endif
 
-	if(INTR_ASSERTED & s5933_status)
+	if(INTCSR_INTR_ASSERTED & s5933_status)
 	{
 		// clear interrupt on amcc s5933
-		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
-		// make sure mailbox 3 is empty
-		inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
+		outl(devpriv->s5933_intcsr_bits | INTCSR_INBOX_INTR_STATUS, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+		// make sure mailbox 4 is empty
+		inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);
 	}
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
@@ -1482,6 +1573,99 @@ static void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int ro
 	i8254_load(devpriv->pacer_counter_dio + ADC8254, 2, devpriv->divisor2, 2);
 }
 
+static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value)
+{
+	static const int num_caldac_channels = 8;
+	static const int bitstream_length = 11;
+	unsigned int bitstream = ((address & 0x7) << 8) | value;
+	unsigned int bit, register_bits;
+	static const int caldac_8800_udelay = 1;
+
+	if(address >= num_caldac_channels)
+	{
+		comedi_error(dev, "illegal caldac channel");
+		return -1;
+	}
+
+	for( bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
+	{
+		if(bitstream & bit)
+			register_bits = SERIAL_DATA_IN_BIT;
+		else
+			register_bits = 0;
+		udelay(caldac_8800_udelay);
+		outw(register_bits, devpriv->control_status + CALIBRATION_REG);
+	}
+
+	udelay(caldac_8800_udelay);
+	outw(SELECT_8800_BIT, devpriv->control_status + CALIBRATION_REG);
+	udelay(caldac_8800_udelay);
+	outw(0, devpriv->control_status + CALIBRATION_REG);
+
+	return 0;
+}
+
+static int trimpot_7376_write(comedi_device *dev, uint8_t value)
+{
+	static const int bitstream_length = 7;
+	unsigned int bitstream = value & 0x7f;
+	unsigned int bit, register_bits;
+	static const int ad7376_udelay = 1;
+
+	register_bits = SELECT_7376_BIT;
+	udelay( ad7376_udelay );
+	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
+
+	for( bit = 1 << ( bitstream_length - 1 ); bit; bit >>= 1)
+	{
+		if( bitstream & bit )
+			register_bits |= SERIAL_DATA_IN_BIT;
+		else
+			register_bits &= ~SERIAL_DATA_IN_BIT;
+		udelay(ad7376_udelay);
+		outw(register_bits, devpriv->control_status + CALIBRATION_REG);
+	}
+
+	udelay(ad7376_udelay);
+	outw(0, devpriv->control_status + CALIBRATION_REG);
+
+	return 0;
+}
+
+static int wait_for_nvram_ready( unsigned long s5933_base_addr )
+{
+	static const int timeout = 1000;
+	unsigned int i;
+
+	for( i = 0; i < timeout; i++)
+	{
+		if( ( inb( s5933_base_addr + AMCC_OP_REG_MCSR_NVCMD ) & MCSR_NV_BUSY ) == 0 )
+			return 0;
+		udelay( 1 );
+	}
+	return -1;
+}
+
+static int nvram_read( comedi_device *dev, unsigned int address, uint8_t *data )
+{
+	unsigned long iobase = devpriv->s5933_config;
+
+	if( wait_for_nvram_ready( iobase ) < 0 )
+		return -ETIMEDOUT;
+
+	outb( MCSR_NV_ENABLE | MCSR_NV_LOAD_LOW_ADDR, iobase + AMCC_OP_REG_MCSR_NVCMD );
+	outb( address & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA );
+	outb( MCSR_NV_ENABLE | MCSR_NV_LOAD_HIGH_ADDR, iobase + AMCC_OP_REG_MCSR_NVCMD );
+	outb( ( address >> 8 ) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA );
+	outb( MCSR_NV_ENABLE | MCSR_NV_READ, iobase + AMCC_OP_REG_MCSR_NVCMD );
+
+	if( wait_for_nvram_ready( iobase ) < 0 )
+		return -ETIMEDOUT;
+
+	*data = inb( iobase + AMCC_OP_REG_MCSR_NVDATA );
+
+	return 0;
+}
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
