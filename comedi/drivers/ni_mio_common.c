@@ -65,75 +65,79 @@ static int ni_gainlkup[][16]={
 	{ 0, 1, 4, 7, 8, 9, 12, 15, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
-static int ni_range_lkup[]={
-	RANGE_ni_E_ai,
-	RANGE_ni_E_ai_limited,
-	RANGE_ni_E_ai_limited14,
-	RANGE_ni_E_ai_limited_602x
-};
+static comedi_lrange range_ni_E_ai={	16, {
+	RANGE( -10,	10	),
+	RANGE( -5,	5	),
+	RANGE( -2.5,	2.5	),
+	RANGE( -1,	1	),
+	RANGE( -0.5,	0.5	),
+	RANGE( -0.25,	0.25	),
+	RANGE( -0.1,	0.1	),
+	RANGE( -0.05,	0.05	),
+	RANGE( 0,	20	),
+	RANGE( 0,	10	),
+	RANGE( 0,	5	),
+	RANGE( 0,	2	),
+	RANGE( 0,	1	),
+	RANGE( 0,	0.5	),
+	RANGE( 0,	0.2	),
+	RANGE( 0,	0.1	),
+}};
+static comedi_lrange range_ni_E_ai_limited={	8, {
+	RANGE( -10,	10	),
+	RANGE( -5,	5	),
+	RANGE( -1,	1	),
+	RANGE( -0.1,	0.1	),
+	RANGE( 0,	20	),
+	RANGE( 0,	10	),
+	RANGE( 0,	2	),
+	RANGE( 0,	0.2	),
+}};
+static comedi_lrange range_ni_E_ai_limited14={	14, {
+	RANGE( -5,	5	),
+	RANGE( -2.5,	2.5	),
+	RANGE( -1,	1	),
+	RANGE( -0.5,	0.5	),
+	RANGE( -0.25,	0.25	),
+	RANGE( -0.1,	0.1	),
+	RANGE( -0.05,	0.05	),
+	RANGE( 0,	5	),
+	RANGE( 0,	2.5	),
+	RANGE( 0,	1	),
+	RANGE( 0,	0.5	),
+	RANGE( 0,	0.25	),
+	RANGE( 0,	0.1	),
+	RANGE( 0,	0.05	),
+}};
+static comedi_lrange range_ni_E_ai_limited_602x={ 8, {
+	RANGE( -10,	10	),
+	RANGE( -5,	5	),
+	RANGE( -0.5,	0.5	),
+	RANGE( -0.05,	0.05	),
+	RANGE( 0,	20	),
+	RANGE( 0,	10	),
+	RANGE( 0,	1	),
+	RANGE( 0,	0.1	),
+}};
+#if 0
+static comedi_lrange range_ni_E_ao = { 2, {
+	RANGE( -10,	10	),
+	RANGE( 0,	10	),
+}};
+#endif
+static comedi_lrange range_ni_E_ao_ext = { 4, {
+	RANGE( -10,	10	),
+	RANGE( 0,	10	),
+	RANGE_ext( -1,	1	),
+	RANGE_ext( 0,	1	),
+}};
 
-/*
---BEGIN-RANGE-DEFS--
-RANGE_ni_E_ai
-        -10     10
-        -5      5
-        -2.5    2.5
-        -1      1
-        -0.5    0.5
-        -0.25   0.25
-        -0.1    0.1
-        -0.05   0.05
-        0       20
-        0       10
-        0       5
-        0       2
-        0       1
-        0       0.5
-        0       0.2
-        0       0.1
-RANGE_ni_E_ai_limited
-	-10	10
-	-5	5
-	-1	1
-	-0.1	0.1
-	0	10
-	0	5
-	0	1
-	0	0.1
-RANGE_ni_E_ai_limited14
-        -5      5
-        -2.5    2.5
-        -1      1
-        -0.5    0.5
-        -0.25   0.25
-        -0.1    0.1
-        -0.05   0.05
-        0       10
-        0       5
-        0       2
-        0       1
-        0       0.5
-        0       0.2
-        0       0.1
-RANGE_ni_E_ai_limited_602x
-        -10     10
-        -5      5
-        -0.5    0.5
-        -0.05   0.05
-        0       20
-        0       10
-        0       1
-        0       0.1
-RANGE_ni_E_ao
-        -10     10
-        0       10
-RANGE_ni_E_ao_ext
-        -10     10
-        0       10
-        -1      1       ext
-        0       1       ext
----END-RANGE-DEFS---
-*/
+static comedi_lrange *ni_range_lkup[]={
+	&range_ni_E_ai,
+	&range_ni_E_ai_limited,
+	&range_ni_E_ai_limited14,
+	&range_ni_E_ai_limited_602x
+};
 
 
 
@@ -549,6 +553,140 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 	rt_printk("ni_E: timeout 1\n");
 }
 
+#ifdef CONFIG_COMEDI_VER08
+static int ni_ns_to_timer(int *nanosec,int round_mode)
+{
+	int divider,base;
+
+	base=50; /* 20 Mhz base */
+
+	switch(round_mode){
+	case TRIG_ROUND_NEAREST:
+	default:
+		divider=(*nanosec+base/2)/base;
+		break;
+	case TRIG_ROUND_DOWN:
+		divider=(*nanosec)/base;
+		break;
+	case TRIG_ROUND_UP:
+		divider=(*nanosec+base-1)/base;
+		break;
+	}
+
+	*nanosec=base*divider;
+	return divider;
+}
+
+static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src && tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
+	if(!cmd->scan_begin_src && tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER;
+	if(!cmd->convert_src && tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT;
+	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	/* note that mutual compatiblity is not an issue here */
+	if(cmd->scan_begin_src!=TRIG_TIMER &&
+	   cmd->scan_begin_src!=TRIG_EXT)err++;
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg=0;
+		err++;
+	}
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		if(cmd->scan_begin_arg<boardtype.ai_speed){
+			cmd->scan_begin_arg=boardtype.ai_speed;
+			err++;
+		}
+		if(cmd->scan_begin_arg>1000000000){	/* XXX */
+			cmd->scan_begin_arg=1000000000;
+			err++;
+		}
+	}else{
+		/* external trigger */
+		/* should be level/edge, hi/lo specification here */
+		/* should specify multiple external triggers */
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;
+			err++;
+		}
+	}
+	if(cmd->scan_begin_arg<boardtype.ai_speed){
+		cmd->scan_begin_arg=boardtype.ai_speed;
+		err++;
+	}
+	if(cmd->scan_begin_arg>1000000000){	/* XXX */
+		cmd->scan_begin_arg=1000000000;
+		err++;
+	}
+
+	if(cmd->scan_end_arg!=cmd->chanlist_len){
+		cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_COUNT){
+		if(cmd->stop_arg>0x00ffffff){
+			cmd->stop_arg=0x00ffffff;
+			err++;
+		}
+	}else{
+		/* TRIG_NONE */
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		tmp=cmd->scan_begin_arg;
+		ni_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->scan_begin_arg)err++;
+	}
+	tmp=cmd->convert_arg;
+	ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+	if(tmp!=cmd->convert_arg)err++;
+	if(cmd->scan_begin_src==TRIG_TIMER &&
+	   cmd->convert_arg<cmd->scan_begin_arg*cmd->scan_end_arg){
+		cmd->convert_arg=cmd->scan_begin_arg*cmd->scan_end_arg;
+		err++;
+	}
+
+	if(err)return 4;
+
+	return 0;
+}
+
 static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int wsave;
@@ -561,6 +699,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	return 0;
 }
+#endif
 
 /*
 	mode 2 is timed, multi-channel
@@ -1115,10 +1254,14 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->len_chanlist=512;	/* XXX is this the same for PCI-MIO ? */
 	s->maxdata=(1<<boardtype.adbits)-1;
 	s->timer_type=TIMER_atmio;
-	s->range_type=ni_range_lkup[boardtype.gainlkup];
+	s->range_table=ni_range_lkup[boardtype.gainlkup];
 	s->trig[0]=ni_ai_mode0;
 	s->trig[2]=ni_ai_mode2;
 	s->trig[4]=ni_ai_mode4;
+#ifdef CONFIG_COMEDI_VER08
+	s->do_cmdtest=ni_ai_cmdtest;
+	s->do_cmd=ni_ai_cmd;
+#endif
 	s->cancel=ni_ai_reset;
 	s->do_lock=ni_ai_lock;
 	s->do_unlock=ni_ai_unlock;
@@ -1133,7 +1276,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
 		s->timer_type=TIMER_atmio;
-		s->range_type=RANGE_ni_E_ao_ext;	/* XXX wrong for some boards */
+		s->range_table=&range_ni_E_ao_ext;	/* XXX wrong for some boards */
 		s->trig[0]=ni_ao_mode0;
 		if(boardtype.ao_fifo_depth)
 			s->trig[2]=ni_ao_mode2;
@@ -1148,7 +1291,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE|SDF_RT;
 	s->n_chan=8;
 	s->maxdata=1;
-	s->range_type=RANGE_digital;
+	s->range_table=&range_digital;
 	s->io_bits=0;		/* all bits input */
 	s->trig[0]=ni_dio;
 

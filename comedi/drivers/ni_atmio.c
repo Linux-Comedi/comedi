@@ -93,6 +93,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	8192,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
+		ai_speed:	800,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	2048,
@@ -107,6 +108,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	2048,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
+		ai_speed:	2000,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	2048,
@@ -121,6 +123,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	512,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
+		ai_speed:	10000,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	0,
@@ -135,6 +138,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	512,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
+		ai_speed:	10000,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	0,
@@ -149,6 +153,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	2048,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
+		ai_speed:	2000,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	2048,
@@ -163,6 +168,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	512,
 		alwaysdither:	1,
 		gainlkup:	ai_gain_8,
+		ai_speed:	50000,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	0,
@@ -177,6 +183,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	512,
 		alwaysdither:	1,	/* unknown */
 		gainlkup:	ai_gain_8,	/* unknown */
+		ai_speed:	10000,
 		n_aochan:	2,
 		aobits:		12,
 		ao_fifo_depth:	0,	/* unknown */
@@ -191,6 +198,7 @@ static ni_board ni_boards[]={
 		ai_fifo_depth:	512,
 		alwaysdither:	1,	/* unknown */
 		gainlkup:	ai_gain_8,
+		ai_speed:	10000,
 		n_aochan:	0,
 		aobits:		0,
 		ao_fifo_depth:	0,
