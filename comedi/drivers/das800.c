@@ -69,8 +69,6 @@ NOTES:
 #include <asm/io.h>
 #include <linux/comedidev.h>
 #include "8253.h"
-#include <asm/spinlock.h>
-#include "das_spinlock.h"
 
 #define DAS800_SIZE           8
 #define TIMER_BASE            1000
