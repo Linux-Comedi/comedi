@@ -71,11 +71,8 @@ Only the DAS-1801ST has been tested by me.
 Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
 Documentation on register-level programing of the das-1800 series boards
 	is available for download from Keitley's web site http://www.keithley.com
-
-WARNING:
-It is not safe to run this driver at real-time priority with dma enabled.
-	It's allright if you are just using irq with no dma.  If you enable
-	dual dma you shouldn't need real-time priority anyways.
+For safety reasons, the driver disables dma transfers if you enable
+	real-time support in comedi.
 
 TODO:
 	Add support for analog out on 'ao' cards.
@@ -385,8 +382,9 @@ typedef struct{
 	short *dma_current_buf;	/* pointer to dma buffer currently being used */
 	unsigned int dma_buf_size;	/* size in bytes of dma buffers */
 	int iobase2;	/* secondary io address used for analog out on 'ao' boards */
- 	short ao_update_bits; /* remembers the last write to the 'update' dac
-*/ }das1800_private;
+	short ao_update_bits; /* remembers the last write to the 'update' dac */
+	spinlock_t	spinlock;	/* used to protect indirect addressing */
+}das1800_private;
 
 #define devpriv ((das1800_private *)dev->private)
 
@@ -480,9 +478,17 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	unsigned long flags;
 	int iobase = it->options[0];
 	int irq = it->options[1];
-	int dma0 = it->options[2];
-	int dma1 = it->options[3];
+	int dma0, dma1;
 	int iobase2;
+
+// disable unsafe isa dma if we are using real time kernel
+#ifdef CONFIG_COMEDI_RT
+	dma0 = 0;
+	dma1 = 0;
+#else
+	dma0 = it->options[2];
+	dma1 = it->options[3];
+#endif
 
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(das1800_private)) < 0)
@@ -877,7 +883,8 @@ static int das1800_cancel(comedi_device *dev, comedi_subdevice *s)
 
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-	int status, select;
+	int status;
+	unsigned long irq_flags;
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
 
@@ -887,10 +894,8 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		return;
 	}
-	// save contents of data select register so they can be restored later
-	select = inb(dev->iobase + DAS1800_SELECT) & 0xf;
-	// select adc for base address + 0
-	if(select != ADC) outb(ADC, dev->iobase + DAS1800_SELECT);
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
+	outb(ADC, dev->iobase + DAS1800_SELECT);
 	if(devpriv->dma0) 	/* if dma is enabled and generated the interrupt */
 	{
 		// dma buffer full or about-triggering (stop_src == TRIG_EXT)
@@ -903,9 +908,8 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		das1800_handle_fifo_not_empty(dev, s);
 	}
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 	comedi_bufcheck(dev, s);
-	// restore data select register
-	if(select != ADC) outb(select, dev->iobase + DAS1800_SELECT);
 	/* if the card's fifo has overflowed */
 	if(status & OVF)
 	{
@@ -1284,6 +1288,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	int conv_flags;
 	int control_a;
 	int lock_flags;
+	unsigned long irq_flags;
 
 	if(!dev->irq)
 	{
@@ -1294,6 +1299,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	disable_das1800(dev);
 
 	n = s->async->cmd.chanlist_len;
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT); /* select QRAM for baseAddress + 0x0 */
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*set QRAM address start */
 	for(i = 0; i < n; i++)	/* make channel / gain list */
@@ -1303,7 +1309,7 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 		outw(chan_range, dev->iobase + DAS1800_QRAM);
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
-	outb(ADC, dev->iobase + DAS1800_SELECT);	/* select ADC for baseAddress + 0x0 */
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	/* enable auto channel scan, send interrupts on end of conversion,
 	 * set clock source to internal or external, select analog reference,
@@ -1456,6 +1462,7 @@ static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	int timeout = 1000;
 	short dpnt;
 	int conv_flags = 0;
+	unsigned long irq_flags;
 
 	/* set up analog reference and unipolar / bipolar mode */
 	aref = CR_AREF(insn->chanspec);
@@ -1478,6 +1485,7 @@ static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	/* mask of unipolar/bipolar bit from range */
 	range = CR_RANGE(insn->chanspec) & 0x3;
 	chan_range = chan | (range << 8);
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
 	outb(0x0, dev->iobase + DAS1800_QRAM_ADDRESS);	/* set QRAM address start */
 	outw(chan_range, dev->iobase + DAS1800_QRAM);
@@ -1506,6 +1514,7 @@ static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 			dpnt += 1 << (thisboard->resolution - 1);
 		data[n] = dpnt;
 	}
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	return n;
 }
@@ -1517,7 +1526,7 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 //	int range = CR_RANGE(insn->chanspec);
 	int update_chan = thisboard->ao_n_chan - 1;
 	short output;
-
+	unsigned long irq_flags;
 
 	//  card expects two's complement data
 	output = data[0] - (1 << (thisboard->resolution - 1));
@@ -1525,6 +1534,7 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	if(chan == update_chan)
 		devpriv->ao_update_bits = output;
 	// write to channel
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irq_flags);
 	outb(DAC(chan), dev->iobase + DAS1800_SELECT); /* select dac channel for baseAddress + 0x0 */
 	outw(output, dev->iobase + DAS1800_DAC);
 	// now we need to write to 'update' channel to update all dac channels
@@ -1533,6 +1543,7 @@ static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 		outb(DAC(update_chan), dev->iobase + DAS1800_SELECT); /* select 'update' channel for baseAddress + 0x0 */
 		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
 	}
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irq_flags);
 
 	return 1;
 }
