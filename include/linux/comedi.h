@@ -372,10 +372,10 @@ struct comedi_bufinfo_struct{
 	unsigned int subdevice;
 	unsigned int bytes_read;
 
-	unsigned int buf_write_ptr;
-	unsigned int buf_read_ptr;
-	unsigned int buf_write_count;
-	unsigned int buf_read_count;
+	unsigned int buf_int_ptr;
+	unsigned int buf_user_ptr;
+	unsigned int buf_int_count;
+	unsigned int buf_user_count;
 
 	unsigned int bytes_written;
 
