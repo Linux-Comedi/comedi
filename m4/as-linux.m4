@@ -286,10 +286,20 @@ AC_DEFUN([AS_LINUX_2_6],
 [
 	AC_MSG_CHECKING(for Linux CFLAGS)
 
-	tmpdir="`pwd`/tmp-noicrwa"
+	{
+	  tmpdir=`(umask 077 && mktemp -d -q "./confstatXXXXXX") 2>/dev/null` &&
+	  test -n "$tmpdir" && test -d "$tmpdir"
+	} ||
+	{
+	  tmpdir=./confstat$$-$RANDOM
+	  (umask 077 && mkdir $tmpdir)
+	} ||
+	{
+	  echo "$me: cannot create a temporary directory in ." >&2
+	  { (exit 1); exit 1; }
+	}
 
-	rm -rf ${tmpdir} || :
-	mkdir ${tmpdir}
+	tmpdir=`pwd`/$tmpdir
 
 	cat >${tmpdir}/Makefile <<EOF
 obj-m += fake.o
@@ -350,13 +360,23 @@ AC_DEFUN([AS_LINUX_2_4],
 You need to run 'make dep' on the kernel source before continuing.])
 	fi
 
-        TMPFILE=`mktemp /tmp/linux.XXXXXXXX` || exit 1
+	{
+	  tmpdir=`(umask 077 && mktemp -d -q "./confstatXXXXXX") 2>/dev/null` &&
+	  test -n "$tmpdir" && test -d "$tmpdir"
+	} ||
+	{
+	  tmpdir=./confstat$$-$RANDOM
+	  (umask 077 && mkdir $tmpdir)
+	} ||
+	{
+	  echo "$me: cannot create a temporary directory in ." >&2
+	  { (exit 1); exit 1; }
+	}
+	tmpdir=`pwd`/$tmpdir
 
-	POPDIR=`(pwd)`
-        cd ${LINUX_DIR}
-( sed "s|\.config|${CONFIG_FILE}|g" Makefile && cat <<EOF ) | make -f - get_cflags > ${TMPFILE}
-
-get_cflags:
+	#sed "s|\.config|${CONFIG_FILE}|g" ${LINUX_DIR}/Makefile >$tmpdir/Makefile
+	cat >$tmpdir/Makefile <<EOF
+modules:
 	@echo LINUX_ARCH=\"\$(ARCH)\"
 	@echo LINUX_AFLAGS=\"\$(AFLAGS)\" | sed 's_Iinclude_I\"\$(LINUXDIR)/include\"_g'
 	@echo LINUX_LDFLAGS=\"\"
@@ -369,9 +389,9 @@ get_cflags:
 	@echo LINUX_LD=\"\$(LD) \$(LDFLAGS)\"
 	@echo LINUX_AS=\"\$(AS)\"
 EOF
-	. ${TMPFILE}
-	rm -rf ${TMPFILE}
-	cd $POPDIR
+	make -C ${LINUX_DIR} SUBDIRS=${tmpdir} modules | grep ^LINUX_ >${tmpdir}/ack
+	. ${tmpdir}/ack
+	rm -rf ${tmpdir}
 
 	LINUX_MODULE_EXT=".o"
 
