@@ -290,6 +290,8 @@ typedef struct {
 
 	comedi_lrange *darangelist[2];
 
+	sampl_t ao[2];
+
 	int dacsr;		/* software copies of registers */
 	int adcsr;
 	int supcsr;
@@ -642,6 +644,37 @@ static void dt282x_load_changain(comedi_device * dev, int n, unsigned int *chanl
  *      - preload multiplexer
  *      - trigger conversion and wait for it to finish
  */
+static int dt282x_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int i;
+
+	devpriv->adcsr = DT2821_ADCLK;
+	update_adcsr(0);
+
+	dt282x_load_changain(dev, 1, &insn->chanspec);
+
+	update_supcsr(DT2821_PRLD);
+	wait_for(!mux_busy(),
+		 comedi_error(dev, "timeout\n");
+		 return -ETIME;
+	    );
+
+	for(i=0;i<insn->n;i++){
+		update_supcsr(DT2821_STRIG);
+		wait_for(ad_done(),
+			comedi_error(dev, "timeout\n");
+			return -ETIME;
+		    );
+
+		data[i] = inw(dev->iobase + DT2821_ADDAT) & ((1<<boardtype.adbits)-1);
+		if (devpriv->ad_2scomp)
+			data[i] ^= (1 << (boardtype.adbits - 1));
+	}
+
+	return i;
+}
+
 static int dt282x_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	devpriv->adcsr = DT2821_ADCLK;
@@ -1006,6 +1039,47 @@ static int dt282x_ns_to_timer(int *nanosec,int round_mode)
  *      offset binary if necessary, loads the data into the DAC
  *      data register, and performs the conversion.
  */
+static int dt282x_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	sampl_t d;
+	unsigned int chan;
+
+	chan = CR_CHAN(insn->chanspec);
+	d = data[0];
+	d &= (1<<boardtype.dabits)-1;
+	devpriv->ao[chan] = d;
+
+	devpriv->dacsr |= DT2821_SSEL;
+
+	if (chan) {
+		/* select channel */
+		devpriv->dacsr |= DT2821_YSEL;
+		if (devpriv->da0_2scomp)
+			d ^= (1<<(boardtype.dabits-1));
+	} else {
+		devpriv->dacsr &= ~DT2821_YSEL;
+		if (devpriv->da1_2scomp)
+			d ^= (1<<(boardtype.dabits-1));
+	}
+
+	update_dacsr(0);
+
+	outw(d, dev->iobase + DT2821_DADAT);
+
+	update_supcsr(DT2821_DACON);
+
+	return 1;
+}
+
 static int dt282x_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
 {
 	sampl_t data;
@@ -1407,6 +1481,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[1]=dt282x_ai_mode1;
 	s->trig[4]=dt282x_ai_mode4;
 #endif
+	s->insn_read=dt282x_ai_insn_read;
 	s->do_cmdtest=dt282x_ai_cmdtest;
 	s->do_cmd=dt282x_ai_cmd;
 	s->cancel=dt282x_ai_cancel;
@@ -1426,6 +1501,8 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 #ifdef CONFIG_COMEDI_MODES
 		s->trig[2]=dt282x_ao_mode2;
 #endif
+		s->insn_read=dt282x_ao_insn_read;
+		s->insn_write=dt282x_ao_insn_write;
 		s->do_cmdtest=dt282x_ao_cmdtest;
 		s->do_cmd=dt282x_ao_cmd;
 		s->cancel=dt282x_ao_cancel;
