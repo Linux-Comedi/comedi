@@ -35,6 +35,7 @@
 #include <linux/comedidev.h>
 #include <linux/wrapper.h>
 #include <linux/highmem.h>  /* for SuSE brokenness */
+#include <linux/vmalloc.h>
 
 #include <asm/io.h>
 
