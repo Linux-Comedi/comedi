@@ -528,10 +528,10 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	// input or output subdevice
 	s=dev->subdevices+0;
-	if(emul_s->subdev_flags & SDF_READABLE)
+	if(emul_s->type == COMEDI_SUBD_AI)
 	{
 		s->type=emul_s->type;
-		s->subdev_flags = SDF_READABLE;
+		s->subdev_flags = emul_s->subdev_flags;
 		s->n_chan=emul_s->n_chan;
 		s->len_chanlist=1024;
 		s->do_cmd=timer_cmd;
@@ -543,10 +543,10 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->insn_read=timer_insn;
 		dev->read_subdev = s;
 		devpriv->io_function = timer_data_read;
-	}else if(emul_s->subdev_flags & SDF_WRITEABLE)
+	}else if(emul_s->type == COMEDI_SUBD_AO)
 	{
 		s->type=emul_s->type;
-		s->subdev_flags = SDF_WRITEABLE;
+		s->subdev_flags = emul_s->subdev_flags;
 		s->n_chan=emul_s->n_chan;
 		s->len_chanlist=1024;
 		s->do_cmd=timer_cmd;
@@ -560,7 +560,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		dev->write_subdev = s;
 		devpriv->io_function = timer_data_write;
 	}else {
-		comedi_error(dev, "subdevice is not readable or writeable!");
+		comedi_error(dev, "failed to determine subdevice type!");
 		return -EINVAL;
 	}
 
