@@ -301,7 +301,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_event(dev, s, async->events);
 
 	/* clear interrupt */
-	outb(0x00, dev->iobase + DMA_TC_CLEAR_REG);
+	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
 
 	return;
 }
@@ -387,6 +387,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 			printk(" failed to allocate dma channel %i\n", dma);
 			return -EINVAL;
 		}
+		devpriv->dma = dma;
 		devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
 		if(devpriv->dma_buffer == NULL)
 			return -ENOMEM;
@@ -394,7 +395,6 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 		disable_dma(dma);
 		set_dma_mode(dma, DMA_MODE_READ);
 
-		devpriv->dma = dma;
 		devpriv->irq_dma_bits |= DMA_DEM_EN_BIT | DMA_CHAN_BITS(dma);
 	}
 
@@ -436,12 +436,14 @@ static int a2150_detach(comedi_device *dev)
 {
 	printk("comedi%d: %s: remove\n", dev->minor, driver_a2150.driver_name);
 
-	// put board in power-down mode
-	outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-
 	/* only free stuff if it has been allocated by _attach */
 	if(dev->iobase)
+	{
+		// put board in power-down mode
+		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
 		release_region(dev->iobase, A2150_SIZE);
+	}
+
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
 	if(devpriv)
