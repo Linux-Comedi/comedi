@@ -691,7 +691,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x14,
-	id:	0x00
+	id:	0xf0
 	},
 #if 0
 	{
