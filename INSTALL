@@ -20,12 +20,12 @@ source into a directory you own.
 1) Get a copy of the kernel source that matches the kernel you are
 	running.  Unpack it and copy your kernel config file to '.config'
 	in the top directory of your kernel source.
-2) Run 'make oldconfig' in your kernel source directory.
-3) You might need to edit the file 'Makefile' in the kernel source.
+2) You might need to edit the file 'Makefile' in the kernel source.
 	At the top of the Makefile, the variable EXTRAVERSION is defined.
 	If necessary, change it to match your kernel (for example, if the command
 	'uname -r' produces "2.4.16-386" then your EXTRAVERSION should be
 	set as 'EXTRAVERSION=-386'.
+3) Run 'make oldconfig' in your kernel source directory.
 4) Run 'make dep' in the kernel source directory and you are done.
 
 Red Hat users note: Kernel sources that are distributed with Red
