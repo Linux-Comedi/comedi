@@ -950,6 +950,7 @@ int comedi_map(unsigned int minor, unsigned int subdev, void **ptr)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	int ret;
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
@@ -973,6 +974,7 @@ int comedi_unmap(unsigned int minor, unsigned int subdev)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
+	int ret;
 
 	if((ret=minor_to_dev(minor,&dev))<0)
 		return ret;
