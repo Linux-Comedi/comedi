@@ -291,6 +291,7 @@ typedef struct
 	unsigned int divisor2;
 	volatile unsigned int count;	//number of samples remaining
 	unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
+	unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
 } cb_pcidas_private;
 
 /*
@@ -517,7 +518,8 @@ found:
 		(void *)(devpriv->pacer_counter_dio + DIO_8255));
 
 	/* Enable incoming mailbox interrupts on amcc s5933. */
-	outl(INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT, devpriv->s5933_config + INTCSR);
+	devpriv->s5933_intcsr_bits = INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT;
+	outl(devpriv->s5933_intcsr_bits, devpriv->s5933_config + INTCSR);
 
 	return 1;
 }
@@ -870,7 +872,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	async->events = 0;
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
-	if((status & (INT | EOAI | EOBI)) == 0)
+	if((status & (INT | EOAI)) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
 #ifdef CB_PCIDAS_DEBUG
@@ -941,7 +943,7 @@ rt_printk("intcsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 #ifdef CB_PCIDAS_DEBUG
 if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
 {
-	outl(INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 	if(inl(devpriv->s5933_config + INTCSR) & 0x800000)
 		rt_printk("manual clear failed, bits are 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 }else{
