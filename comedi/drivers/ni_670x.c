@@ -78,6 +78,12 @@ static ni_670x_board ni_670x_boards[] =
 	ao_chans	: 32,
 	ao_bits		: 16,
 	},
+	{
+	dev_id		: 0x1920,		/* ????? */
+	name		: "PXI-6704",
+	ao_chans	: 32,
+	ao_bits		: 16,
+	},
 };
 
 static struct pci_device_id ni_670x_pci_table[] __devinitdata = {
