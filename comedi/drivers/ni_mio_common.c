@@ -478,7 +478,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			/* we probably aren't even running a command now,
 			 * so it's a good idea to be careful. */
 			if(s->subdev_flags&SDF_RUNNING){
-				s->async->events |= COMEDI_CB_EOA;
+				s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 				//comedi_event(dev,s,s->async->events);
 			}
 			return;
@@ -488,6 +488,8 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 				status);
 			ni_mio_print_status_a(status);
 			
+			ni_ai_reset(dev,dev->subdevices);
+
 			win_out(AI_Error_Interrupt_Ack, Interrupt_A_Ack_Register);
 
 #ifdef PCIDMA
@@ -504,9 +506,8 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 				AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
 				AI_FIFO_Interrupt_Enable,0);
 				
-			ni_ai_reset(dev,dev->subdevices);//added by tim
-			s->async->events |= COMEDI_CB_EOA;
-			//comedi_event(dev,s,s->async->events);
+			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+
 			return;
 		}
 		if(status&AI_SC_TC_St){
