@@ -129,7 +129,7 @@ static int insert_comedi_irq_struct( int irq,
 	return -1;
 }
 
-int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *),
+int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *,struct pt_regs *),
 		unsigned long flags,const char *device,comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
