@@ -154,8 +154,11 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link);
 /* clean up allocated resources */
 static int mio_cs_free(comedi_device *dev)
 {
+#if 0
+	/* PCMCIA layer does this for us */
 	if(dev->iobase)
 		release_region(dev->iobase,NI_SIZE);
+#endif
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
