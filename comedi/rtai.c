@@ -15,7 +15,7 @@
 #include <asm/irq.h>
 #include <asm/ptrace.h>
 
-#include <rtai.h>
+#include <rtai/rtai.h>
 
 
 extern void rt_unmask_irq(unsigned int irq);
