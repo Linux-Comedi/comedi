@@ -33,7 +33,7 @@ cvs rdiff -u -r $lasttag -r $tag comedi >patch-comedi-$version
 
 cd comedi-$version
 
-sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" -e \
+sed -e "s/^SUBLEVEL.*/SUBLEVEL = $minor/" -e \
 	"s/^EXTRAVERSION.*/EXTRAVERSION = /" \
 	Makefile >Makefile.tmp
 mv Makefile.tmp Makefile
