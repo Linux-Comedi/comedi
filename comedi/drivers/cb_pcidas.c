@@ -18,7 +18,7 @@
     David Schleef and the rest of the Comedi developers comunity.
 
     Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
-    Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
+    Copyright (C) 2001,2002 Frank Mori Hess <fmhess@uiuc.edu>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
@@ -98,8 +98,8 @@ analog triggering on 1602 series
 #include "8253.h"
 #include "8255.h"
 
-//#define CB_PCIDAS_DEBUG	// enable debugging code
-#undef CB_PCIDAS_DEBUG	// disable debugging code
+#define CB_PCIDAS_DEBUG	// enable debugging code
+//#undef CB_PCIDAS_DEBUG	// disable debugging code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
@@ -122,6 +122,10 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 #define AO_SIZE 4
 
 // amcc s5933 pci configuration registers
+#define INCOMING_MAILBOX(x)	(0x10 + 4 * (x))	// incoming mailbox registers 0 to 3
+
+#define MBEF 0x34	// mailbox empty/full status register
+
 #define INTCSR	0x38	// interrupt control/status
 #define   OUTBOX_BYTE(x)	((x) & 0x3)
 #define   OUTBOX_SELECT(x)	(((x) & 0x3) << 2)
@@ -130,6 +134,7 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 #define   INBOX_SELECT(x)	(((x) & 0x3) << 10)
 #define   INBOX_FULL_INT	0x1000	// enable inbox full interrupt
 #define   INBOX_INTR_STATUS	0x20000 // read, or write clear inbox full interrupt
+#define   INTR_ASSERTED	0x800000	// read only, interrupt asserted
 
 /* Control/Status registers */
 #define INT_ADCFIFO	0	// INTERRUPT / ADC FIFO register
@@ -166,6 +171,8 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 #define TRIG_CONTSTAT 4 // TRIGGER CONTROL/STATUS register
 #define   SW_TRIGGER 0x1	// software start trigger
 #define   EXT_TRIGGER 0x2	// external start trigger
+#define   ANALOG_TRIGGER 0x3	// external analog trigger
+#define   TRIGGER_MASK	0x3	// mask of bits that determine start trigger
 #define   TGEN	0x10	// enable external start trigger
 #define   BURSTE 0x20	// burst mode enable
 #define   XTRCL	0x80	// clear external trigger
@@ -399,9 +406,9 @@ typedef struct
 	unsigned int divisor1;
 	unsigned int divisor2;
 	volatile unsigned int count;	// number of analog input samples remaining
-	unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
-	unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
-	unsigned int ao_control_bits;	// bits to write to ao control and status register
+	volatile unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
+	volatile unsigned int s5933_intcsr_bits;	// bits to write to amcc s5933 interrupt control/status register
+	volatile unsigned int ao_control_bits;	// bits to write to ao control and status register
 	// divisors of master clock for analog output pacing
 	unsigned int ao_divisor1;
 	unsigned int ao_divisor2;
@@ -644,7 +651,6 @@ found:
 			s->insn_write = cb_pcidas_ao_fifo_winsn;
 			s->do_cmdtest = cb_pcidas_ao_cmdtest;
 			s->do_cmd = cb_pcidas_ao_cmd;
-			s->len_chanlist = thisboard->ao_nchan;
 			s->cancel = cb_pcidas_ao_cancel;
 		}else
 		{
@@ -1005,7 +1011,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 #ifdef CB_PCIDAS_DEBUG
-		rt_printk("comedi: sent 0x%x to adcmux control\n", bits);
+	rt_printk("comedi: sent 0x%x to adcmux control\n", bits);
 #endif
 
 	// load counters
@@ -1034,7 +1040,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		devpriv->adc_fifo_bits |= INT_FHF;	//interrupt fifo half full
 	}
 #ifdef CB_PCIDAS_DEBUG
-		rt_printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
+	rt_printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
 #endif
 	// enable (and clear) interrupts
 	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL, devpriv->control_status + INT_ADCFIFO);
@@ -1057,7 +1063,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= BURSTE;
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
 #ifdef CB_PCIDAS_DEBUG
-		rt_printk("comedi: sent 0x%x to trig control\n", bits);
+	rt_printk("comedi: sent 0x%x to trig control\n", bits);
 #endif
 
 	return 0;
@@ -1294,7 +1300,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_device *dev = (comedi_device*) d;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
-	int status;
+	int status, s5933_status;
 	int half_fifo = thisboard->fifo_size / 2;
 	static const int max_half_fifo = 512;	// maximum possible half-fifo size
 	sampl_t data[max_half_fifo];
@@ -1313,13 +1319,23 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	async->events = 0;
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
+	s5933_status = inl(devpriv->s5933_config + INTCSR);
+#ifdef CB_PCIDAS_DEBUG
+	rt_printk("intcsr 0x%x\n", s5933_status);
+	rt_printk("mbef 0x%x\n", inl(devpriv->s5933_config + MBEF));
+#endif
 	if((status & (INT | EOAI | LADFUL | DAHFI | DAEMI)) == 0)
 	{
+		// clear s5933 interrupt if necessary
+		if(INTR_ASSERTED & s5933_status)
+		{
+			// make sure mailbox 3 is empty
+			inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
+			outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 #ifdef CB_PCIDAS_DEBUG
-		comedi_error(dev, "spurious interrupt");
+			comedi_error(dev, "spurious interrupt");
 #endif
-		// clear s5933 interrupt
-		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+		}
 		return;
 	}
 
@@ -1388,6 +1404,8 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
+	// make sure mailbox 3 is empty
+	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
 	// clear interrupt on amcc s5933
 	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 
@@ -1422,10 +1440,8 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 				async->events |= COMEDI_CB_ERROR;
 			}
 			async->events |= COMEDI_CB_EOA;
-			return;
 		}
-	}
-	if(status & DAHFI)
+	}else if(status & DAHFI)
 	{
 		// figure out how many points we are writing to fifo
 		num_points = half_fifo;
