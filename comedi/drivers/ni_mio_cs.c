@@ -1,5 +1,5 @@
 /*
-    module/atmio-E.c
+    comedi/drivers/ni_mio_cs.c
     Hardware driver for NI PCMCIA MIO E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -127,11 +127,9 @@ static ni_board ni_boards[]={
 };
 
 
-static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
+#define interrupt_pin(a)	0
 
-#define interrupt_pin(a)	(ni_irqpin[(a)])
-
-#define IRQ_POLARITY 0
+#define IRQ_POLARITY 1
 
 
 /* How we access registers */
@@ -182,8 +180,8 @@ typedef struct{
 
 static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it);
 static int mio_cs_detach(comedi_device *dev);
-comedi_driver driver_mio_cs={
-	driver_name:	"mio-cs",
+comedi_driver driver_ni_mio_cs={
+	driver_name:	"ni_mio_cs",
 	module:		&__this_module,
 	attach:		mio_cs_attach,
 	detach:		mio_cs_detach,
@@ -287,8 +285,6 @@ static void cs_release(u_long arg)
 	CardServices(ReleaseIRQ, link->handle, &link->irq);
 
 	link->state &= ~DEV_CONFIG;
-
-	//dev->attached=1;
 }
 
 static void cs_detach(dev_link_t *link)
@@ -368,18 +364,6 @@ printk("reset event\n");
 	return 0;
 }
 
-static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
-{
-	if(!strcmp("ni_E",it->board_name)){
-		printk("comedi: 'ni_E' deprecated.  Use 'atmio-E'\n");
-	}else if(!strcmp("atmio-E",it->board_name)){
-		;
-	}else{
-		return 0;
-	}
-
-	return 0;
-}
 
 
 void mio_cs_config(dev_link_t *link)
@@ -426,6 +410,7 @@ void mio_cs_config(dev_link_t *link)
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
+	printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
@@ -481,15 +466,27 @@ void mio_cs_config(dev_link_t *link)
 	ret=CardServices(RequestConfiguration, handle, &link->conf);
 	printk("RequestConfiguration %d\n",ret);
 
-	dev=comedi_allocate_dev(&driver_mio_cs);
+	link->dev = &dev_node;
+	link->state &= ~DEV_CONFIG_PENDING;
+}
+
+static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
+{
+	dev_link_t *link;
+	int ret;
+	
+	link = dev_list; /* XXX hack */
+	if(!link)return 0;
+
+	dev->driver=&driver_ni_mio_cs;
 	dev->iobase=link->io.BasePort1;
 	dev->iosize=link->io.NumPorts1;
+
 	dev->irq=link->irq.AssignedIRQ;
 
 	printk("comedi%d: %s: DAQCard: io %#3lx, irq %d, ",
 		dev->minor,dev->driver->driver_name,dev->iobase,
 		dev->irq);
-	printk("manfid = 0x%04x, 0x%04x\n",manfid,prodid);
 
 #if 0
 	{
@@ -515,41 +512,22 @@ void mio_cs_config(dev_link_t *link)
 	printk(" %s",ni_boards[dev->board].name);
 	dev->board_name=ni_boards[dev->board].name;
 
-#if 0
-	irq=it->options[1];
-	if(irq!=0){
-		if(irq<0 || irq>15 || ni_irqpin[irq]==-1){
-			printk(" invalid irq\n");
-			return -EINVAL;
-		}
-		printk(" ( irq = %d )",irq);
-		if( (ret=comedi_request_irq(irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"atmio-E",dev))<0 ){
-			printk(" irq not available\n");
-			return -EINVAL;
-		}
-		dev->irq=irq;
+	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_mio_cs",dev))<0 ){
+		printk(" irq not available\n");
+		return -EINVAL;
 	}
-#endif
 	
 	/* allocate private area */
 	if((ret=alloc_private(dev,sizeof(ni_private)))<0)
-		return;
+		return ret;
 	
-{
-	comedi_devconfig it;
-
-	if( (ret=ni_E_init(dev,&it))<0 ){
-		return;
+	if( (ret=ni_E_init(dev,it))<0 ){
+		return ret;
 	}
+
+	return 0;
 }
 
-	dev->attached=1;
-	postconfig(dev);
-
-	link->dev = &dev_node;
-	link->state &= ~DEV_CONFIG_PENDING;
-
-}
 
 
 static int ni_getboardtype(comedi_device *dev)
@@ -578,7 +556,7 @@ int init_module(void)
 {
 	servinfo_t serv;
 
-	comedi_driver_register(&driver_mio_cs);
+	comedi_driver_register(&driver_ni_mio_cs);
 	CardServices(GetCardServicesInfo, &serv);
 	if(serv.Revision != CS_RELEASE_CODE){
 		printk(KERN_NOTICE "mio_cs: Card Services release "
@@ -596,6 +574,6 @@ void cleanup_module(void)
 	while(dev_list != NULL)
 		cs_detach(dev_list);
 #endif
-	comedi_driver_unregister(&driver_mio_cs);
+	comedi_driver_unregister(&driver_ni_mio_cs);
 }
 #endif
