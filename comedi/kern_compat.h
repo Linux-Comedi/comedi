@@ -76,43 +76,6 @@
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)	/* XXX */
-/* somewhere about 2.1.4 */
-
-#include <asm/segment.h>
-
-static inline int copy_to_user(void * to,const void *from,unsigned long n_bytes)
-{
-	int i;
-
-	if((i=verify_area(VERIFY_WRITE,to,n_bytes)) != 0)
-		return i;
-	memcpy_tofs(to,from,n_bytes);
-	return 0;
-}
-
-static inline int copy_from_user(void * to,const void *from,unsigned long n_bytes)
-{
-	int i;
-	if((i=verify_area(VERIFY_READ,from,n_bytes))!=0)
-		return i;
-	memcpy_fromfs(to,from,n_bytes);
-	return 0;
-}
-
-static inline int clear_user(void * mem,unsigned long len)
-{
-	char *cmem=mem;
-	
-	if(verify_area(VERIFY_WRITE,mem,len))
-		return len;
-	/* this is slow, but I'm lazy */
-	while(len--){put_user(0,cmem);cmem++;}
-	return 0;
-}
-
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
 static inline void __process_timeout(unsigned long __data)
 {
@@ -161,12 +124,6 @@ static inline long interruptible_sleep_on_timeout(struct wait_queue ** p,
 #endif
 #endif
 
-#if LINUX_VERSION_CODE < 0x020115
-#define MODULE_AUTHOR(a)
-#define MODULE_DESCRIPTION(a)
-#define MODULE_PARM(a,b)
-#endif
-
 #if LINUX_VERSION_CODE < 0x20138
 #define test_and_set_bit(val, addr) set_bit(val, addr)
 #define le32_to_cpu(val) (val)
@@ -176,13 +133,6 @@ static inline long interruptible_sleep_on_timeout(struct wait_queue ** p,
 #if LINUX_VERSION_CODE <= 0x20139
 #define net_device_stats enet_statistics
 #define NETSTATS_VER2
-#endif
-
-#if LINUX_VERSION_CODE < 0x20155
-#include <linux/bios32.h>
-#define PCI_SUPPORT_VER1
-#else
-#define PCI_SUPPORT_VER2
 #endif
 
 #if LINUX_VERSION_CODE < 0x20159
@@ -202,24 +152,6 @@ static inline long interruptible_sleep_on_timeout(struct wait_queue ** p,
 
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)		/* ? */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
-  #ifdef MODULE
-    /* don't ask.  It works. */
-    #define THIS_MODULE			((struct module *)&mod_use_count_)
-  #else
-    #define THIS_MODULE	NULL
-  #endif
-  #define __MOD_INC_USE_COUNT(x)	((*(long *)(x))++, (*(long *)(x)) |= MOD_VISITED)
-  #define __MOD_DEC_USE_COUNT(x)	((*(long *)(x))--, (*(long *)(x)) |= MOD_VISITED)
-#else
-  #ifdef MODULE
-    #define THIS_MODULE	&__this_module
-  #else
-    #define THIS_MODULE	NULL
-  #endif
-#endif
-#endif
 
 #endif /* _KERN_COMPAT_H */
 
