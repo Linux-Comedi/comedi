@@ -21,6 +21,9 @@ extern inline void * vmalloc_32(unsigned long size)
 }
 #endif	// 2.2.18
 
+#ifndef VMALLOC_VMADDR
+#define VMALLOC_VMADDR(x) ((unsigned long)(x))
+#endif
 
 #endif
 
