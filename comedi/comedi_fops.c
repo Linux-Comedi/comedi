@@ -1631,9 +1631,10 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 
 	dev->in_request_module=0;
 
-	if(!dev->attached && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
+	if(!dev->attached && !capable(CAP_SYS_ADMIN)){
+		DPRINTK("not attached and not root\n");
+		return -ENODEV;
+	}
 ok:
 	if(!try_module_get(THIS_MODULE))
 		return -ENOSYS;
