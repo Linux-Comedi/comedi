@@ -50,6 +50,10 @@ work on 673x.
 
 Information (number of channels, bits, etc.) for some devices may be
 incorrect.
+
+Bugs:
+ - Driver doesn't stop correctly when DMA is enabled.
+
 */
 /*
 	The PCI-MIO E series driver was originally written by
