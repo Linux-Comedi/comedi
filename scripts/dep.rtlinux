@@ -10,9 +10,12 @@ if [ "$CONFIG_RTL" != "" -o "$CONFIG_RTL_V1" = "y" ]; then
 	echo You appear to be running an RTL-patched kernel
 
 	default=${RTLDIR:=/usr/src/rtl}
-	echo -n "Enter location of RTL source tree [$default]: "
-	read RTLDIR
+	if [ "${interactive}" = "y" ];then
+		echo -n "Enter location of RTL source tree [$default]: "
+		read RTLDIR
+	fi
 	: ${RTLDIR:=$default}
-	echo RTLDIR=$RTLDIR >>.sourcedirs
-#	(cd include;rm -f rtlinux;ln -s $RTLDIR/include rtlinux)
+	echo RTLDIR=$RTLDIR >>.buildvars
+	echo CFLAGS += -I $RTLDIR/include -I $RTLDIR/include/compat -D__RT__ >>.buildvars
+	export RTLDIR
 fi

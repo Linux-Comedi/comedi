@@ -2,7 +2,7 @@
  * Originally by Linus Torvalds.
  * Smart CONFIG_* processing by Werner Almesberger, Michael Chastain.
  *
- * Usage: mkdep file ...
+ * Usage: mkdep cflags -- file ...
  * 
  * Read source files and output makefile dependency lines for them.
  * I make simple dependency lines for #include <*.h> and #include "*.h".
@@ -18,10 +18,21 @@
  *   the definition is inactivated, but I still used it.  It turns out this
  *   actually happens a few times in the kernel source.  The simple way to
  *   fix this problem is to remove this particular optimization.
+ *
+ * 2.3.99-pre1, Andrew Morton <andrewm@uow.edu.au>
+ * - Changed so that 'filename.o' depends upon 'filename.[cS]'.  This is so that
+ *   missing source files are noticed, rather than silently ignored.
+ *
+ * 2.4.2-pre3, Keith Owens <kaos@ocs.com.au>
+ * - Accept cflags followed by '--' followed by filenames.  mkdep extracts -I
+ *   options from cflags and looks in the specified directories as well as the
+ *   defaults.   Only -I is supported, no attempt is made to handle -idirafter,
+ *   -isystem, -I- etc.
  */
 
 #include <ctype.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,13 +51,14 @@ int hasdep;
 
 struct path_struct {
 	int len;
-	char buffer[256-sizeof(int)];
-} path_array[2] = {
-	{  0, "" },
-	{  0, "" }
+	char *buffer;
 };
+struct path_struct *path_array;
+int paths;
 
 
+/* Current input file */
+static const char *g_filename;
 
 /*
  * This records all the configuration options seen.
@@ -58,7 +70,16 @@ char * str_config  = NULL;
 int    size_config = 0;
 int    len_config  = 0;
 
-
+static void
+do_depname(void)
+{
+	if (!hasdep) {
+		hasdep = 1;
+		printf("%s:", depname);
+		if (g_filename)
+			printf(" %s", g_filename);
+	}
+}
 
 /*
  * Grow the configuration string to a desired length.
@@ -66,15 +87,9 @@ int    len_config  = 0;
  */
 void grow_config(int len)
 {
-	if (str_config == NULL) {
-		len_config  = 0;
-		size_config = 4096;
-		str_config  = malloc(4096);
-		if (str_config == NULL)
-			{ perror("malloc"); exit(1); }
-	}
-
 	while (len_config + len > size_config) {
+		if (size_config == 0)
+			size_config = 2048;
 		str_config = realloc(str_config, size_config *= 2);
 		if (str_config == NULL)
 			{ perror("malloc config"); exit(1); }
@@ -142,15 +157,9 @@ int    len_precious  = 0;
  */
 void grow_precious(int len)
 {
-	if (str_precious == NULL) {
-		len_precious  = 0;
-		size_precious = 4096;
-		str_precious  = malloc(4096);
-		if (str_precious == NULL)
-			{ perror("malloc precious"); exit(1); }
-	}
-
 	while (len_precious + len > size_precious) {
+		if (size_precious == 0)
+			size_precious = 2048;
 		str_precious = realloc(str_precious, size_precious *= 2);
 		if (str_precious == NULL)
 			{ perror("malloc"); exit(1); }
@@ -178,9 +187,10 @@ void define_precious(const char * filename)
 /*
  * Handle an #include line.
  */
-void handle_include(int type, const char * name, int len)
+void handle_include(int start, const char * name, int len)
 {
-	struct path_struct *path = path_array+type;
+	struct path_struct *path;
+	int i;
 
 	if (len == 14 && !memcmp(name, "linux/config.h", len))
 		return;
@@ -188,16 +198,58 @@ void handle_include(int type, const char * name, int len)
 	if (len >= 7 && !memcmp(name, "config/", 7))
 		define_config(name+7, len-7-2);
 
-	memcpy(path->buffer+path->len, name, len);
-	path->buffer[path->len+len] = '\0';
-	if (access(path->buffer, F_OK) != 0)
-		return;
-
-	if (!hasdep) {
-		hasdep = 1;
-		printf("%s:", depname);
+	for (i = start, path = path_array+start; i < paths; ++i, ++path) {
+		memcpy(path->buffer+path->len, name, len);
+		path->buffer[path->len+len] = '\0';
+		if (access(path->buffer, F_OK) == 0) {
+			do_depname();
+			printf(" \\\n   %s", path->buffer);
+			return;
+		}
 	}
-	printf(" \\\n   %s", path->buffer);
+
+}
+
+
+
+/*
+ * Add a path to the list of include paths.
+ */
+void add_path(const char * name)
+{
+	struct path_struct *path;
+	char resolved_path[PATH_MAX+1];
+	const char *name2;
+
+	if (strcmp(name, ".")) {
+		name2 = realpath(name, resolved_path);
+		if (!name2) {
+			fprintf(stderr, "realpath(%s) failed, %m\n", name);
+			exit(1);
+		}
+	}
+	else {
+		name2 = "";
+	}
+
+	path_array = realloc(path_array, (++paths)*sizeof(*path_array));
+	if (!path_array) {
+		fprintf(stderr, "cannot expand path_arry\n");
+		exit(1);
+	}
+
+	path = path_array+paths-1;
+	path->len = strlen(name2);
+	path->buffer = malloc(path->len+1+256+1);
+	if (!path->buffer) {
+		fprintf(stderr, "cannot allocate path buffer\n");
+		exit(1);
+	}
+	strcpy(path->buffer, name2);
+	if (path->len && *(path->buffer+path->len-1) != '/') {
+		*(path->buffer+path->len) = '/';
+		*(path->buffer+(++(path->len))) = '\0';
+	}
 }
 
 
@@ -210,7 +262,7 @@ void use_config(const char * name, int len)
 	char *pc;
 	int i;
 
-	pc = path_array[0].buffer + path_array[0].len;
+	pc = path_array[paths-1].buffer + path_array[paths-1].len;
 	memcpy(pc, "config/", 7);
 	pc += 7;
 
@@ -227,11 +279,8 @@ void use_config(const char * name, int len)
 
 	define_config(pc, len);
 
-	if (!hasdep) {
-		hasdep = 1;
-		printf("%s: ", depname);
-	}
-	printf(" \\\n   $(wildcard %s.h)", path_array[0].buffer);
+	do_depname();
+	printf(" \\\n   $(wildcard %s.h)", path_array[paths-1].buffer);
 }
 
 
@@ -242,7 +291,7 @@ void use_config(const char * name, int len)
  * Thus, there is one memory access per sizeof(unsigned long) characters.
  */
 
-#if defined(__alpha__) || defined(__i386__) || defined(__ia64__) || defined(__MIPSEL__)	\
+#if defined(__alpha__) || defined(__i386__) || defined(__ia64__)  || defined(__x86_64__) || defined(__MIPSEL__)	\
     || defined(__arm__)
 #define LE_MACHINE
 #endif
@@ -276,8 +325,8 @@ void use_config(const char * name, int len)
  */
 #define MAX2(a,b) ((a)>(b)?(a):(b))
 #define MIN2(a,b) ((a)<(b)?(a):(b))
-#define MAX6(a,b,c,d,e,f) (MAX2(a,MAX2(b,MAX2(c,MAX2(d,MAX2(e,f))))))
-#define MIN6(a,b,c,d,e,f) (MIN2(a,MIN2(b,MIN2(c,MIN2(d,MIN2(e,f))))))
+#define MAX5(a,b,c,d,e) (MAX2(a,MAX2(b,MAX2(c,MAX2(d,e)))))
+#define MIN5(a,b,c,d,e) (MIN2(a,MIN2(b,MIN2(c,MIN2(d,e)))))
 
 
 
@@ -285,18 +334,18 @@ void use_config(const char * name, int len)
  * The state machine looks for (approximately) these Perl regular expressions:
  *
  *    m|\/\*.*?\*\/|
+ *    m|\/\/.*|
  *    m|'.*?'|
  *    m|".*?"|
  *    m|#\s*include\s*"(.*?)"|
  *    m|#\s*include\s*<(.*?>"|
  *    m|#\s*(?define|undef)\s*CONFIG_(\w*)|
  *    m|(?!\w)CONFIG_|
- *    m|__SMP__|
  *
  * About 98% of the CPU time is spent here, and most of that is in
  * the 'start' paragraph.  Because the current characters are
  * in a register, the start loop usually eats 4 or 8 characters
- * per memory read.  The MAX6 and MIN6 tests dispose of most
+ * per memory read.  The MAX5 and MIN5 tests dispose of most
  * input characters with 1 or 2 comparisons.
  */
 void state_machine(const char * map, const char * end)
@@ -309,19 +358,27 @@ void state_machine(const char * map, const char * end)
 start:
 	GETNEXT
 __start:
-	if (current > MAX6('/','\'','"','#','C','_')) goto start;
-	if (current < MIN6('/','\'','"','#','C','_')) goto start;
+	if (current > MAX5('/','\'','"','#','C')) goto start;
+	if (current < MIN5('/','\'','"','#','C')) goto start;
 	CASE('/',  slash);
 	CASE('\'', squote);
 	CASE('"',  dquote);
 	CASE('#',  pound);
 	CASE('C',  cee);
-	CASE('_',  underscore);
 	goto start;
+
+/* // */
+slash_slash:
+	GETNEXT
+	CASE('\n', start);
+	NOTCASE('\\', slash_slash);
+	GETNEXT
+	goto slash_slash;
 
 /* / */
 slash:
 	GETNEXT
+	CASE('/',  slash_slash);
 	NOTCASE('*', __start);
 slash_star_dot_star:
 	GETNEXT
@@ -382,7 +439,7 @@ pound_include_dquote:
 	GETNEXT
 	CASE('\n', start);
 	NOTCASE('"', pound_include_dquote);
-	handle_include(1, map_dot, next - map_dot - 1);
+	handle_include(0, map_dot, next - map_dot - 1);
 	goto start;
 
 /* #\s*include\s*<(.*)> */
@@ -390,7 +447,7 @@ pound_include_langle:
 	GETNEXT
 	CASE('\n', start);
 	NOTCASE('>', pound_include_langle);
-	handle_include(0, map_dot, next - map_dot - 1);
+	handle_include(1, map_dot, next - map_dot - 1);
 	goto start;
 
 /* #\s*d */
@@ -455,18 +512,6 @@ cee_CONFIG_word:
 		goto cee_CONFIG_word;
 	use_config(map_dot, next - map_dot - 1);
 	goto __start;
-
-/* __SMP__ */
-underscore:
-	GETNEXT NOTCASE('_', __start);
-	GETNEXT NOTCASE('S', __start);
-	GETNEXT NOTCASE('M', __start);
-	GETNEXT NOTCASE('P', __start);
-	GETNEXT NOTCASE('_', __start);
-	GETNEXT NOTCASE('_', __start);
-	use_config("SMP", 3);
-	goto __start;
-
     }
 }
 
@@ -531,7 +576,7 @@ void do_depend(const char * filename, const char * command)
 int main(int argc, char **argv)
 {
 	int len;
-	char *hpath;
+	const char *hpath;
 
 	hpath = getenv("HPATH");
 	if (!hpath) {
@@ -539,21 +584,37 @@ int main(int argc, char **argv)
 		      "Don't bypass the top level Makefile.\n", stderr);
 		return 1;
 	}
-	len = strlen(hpath);
-	memcpy(path_array[0].buffer, hpath, len);
-	if (len && hpath[len-1] != '/')
-		path_array[0].buffer[len++] = '/';
-	path_array[0].buffer[len] = '\0';
-	path_array[0].len = len;
+
+	add_path(".");		/* for #include "..." */
+
+	while (++argv, --argc > 0) {
+		if (strncmp(*argv, "-I", 2) == 0) {
+			if (*((*argv)+2)) {
+				add_path((*argv)+2);
+			}
+			else {
+				++argv;
+				--argc;
+				add_path(*argv);
+			}
+		}
+		else if (strcmp(*argv, "--") == 0) {
+			break;
+		}
+	}
+
+	add_path(hpath);	/* must be last entry, for config files */
 
 	while (--argc > 0) {
 		const char * filename = *++argv;
 		const char * command  = __depname;
+		g_filename = 0;
 		len = strlen(filename);
 		memcpy(depname, filename, len+1);
 		if (len > 2 && filename[len-2] == '.') {
 			if (filename[len-1] == 'c' || filename[len-1] == 'S') {
 			    depname[len-1] = 'o';
+			    g_filename = filename;
 			    command = "";
 			}
 		}

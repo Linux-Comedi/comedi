@@ -12,7 +12,6 @@ read PCMCIADIR
 : ${PCMCIADIR:=$default}
 
 if [ -r $PCMCIADIR ]; then
-    echo PCMCIADIR=$PCMCIADIR >>.sourcedirs
     echo using PCMCIADIR=$PCMCIADIR
 else
     echo not configuring PCMCIA support

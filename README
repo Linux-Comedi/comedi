@@ -28,11 +28,11 @@ For installation instructions, look at the file INSTALL.
 Questions about Comedi should be sent to the Comedi mailing list,
 <comedi@stm.lbl.gov>.  Mailing the maintainer directly is always
 acceptable, but since the mailing list is archived and questions
-are often answered more quickly by other, the mailing list is
+are often answered more quickly by others, the mailing list is
 preferred.
 
 To subscribe to ans unsubscribe from the mailing list, go to
-http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi. Alternatively,
+http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi.  Alternatively,
 you can send "subscribe comedi" to <comedi-request@stm.lbl.gov>
 Traffic on the list is light, and mainly questions/answers about
 comedi installation, bugs, and programming.  General questions
@@ -48,7 +48,7 @@ can be found in the CVS repository.  Instructions for anonymous CVS
 access to the Comedi and Comedilib repositories are found at
 http://oss.lineo.com/cvs_anon.html.
 
-Comedi may be freely distibuted and modified in accordance with the
+Comedi may be freely distributed and modified in accordance with the
 GNU General Public License.
 
 The person behind all this misspelled humor is David Schleef

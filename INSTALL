@@ -136,8 +136,9 @@ the top level Makefile.
 
 Comedi works with several PCMCIA cards, and the driver modules can
 be loaded and unloaded upon insertion and removal of the card.
-Copy the files in etc/pcmcia/ to /etc/pcmcia and restart card
-services.  The pcmcia script provided is very simple -- it only
+The necessary configuration files are in the Comedilib source
+package.  Copy the files in etc/pcmcia/ to /etc/pcmcia and restart
+card services.  The pcmcia script provided is very simple -- it only
 uses /dev/comedi0 for devices, which is a limitation if you have
 other Comedi devices in your system.
 

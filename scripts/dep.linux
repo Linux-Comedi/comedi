@@ -1,8 +1,10 @@
 #!/bin/sh
 
 default=${LINUXDIR:=/usr/src/linux}
-echo -n "Enter location of Linux source tree [$default]: "
-read LINUXDIR
+if [ "${interactive}" = "y" ];then
+	echo -n "Enter location of Linux source tree [$default]: "
+	read LINUXDIR
+fi
 : ${LINUXDIR:=$default}
 
 if [ ! -f "$LINUXDIR/.config" ];then
@@ -12,7 +14,8 @@ if [ ! -f "$LINUXDIR/.config" ];then
 fi
 
 echo using LINUXDIR=$LINUXDIR
-echo LINUXDIR=$LINUXDIR >.sourcedirs
+
+export LINUXDIR
 
 . $LINUXDIR/.config
 
@@ -38,7 +41,6 @@ fi
 #
 UTS_VERSION=$(grep UTS_RELEASE ${LINUXDIR}/include/linux/version.h| \
 	sed 's/[^"]*"\(.*\)\{1\}"/\1/')
-echo UTS_VERSION=$UTS_VERSION >.uts_version
 
 echo "Kernel source version is ${UTS_VERSION}"
 
@@ -58,6 +60,20 @@ then
  ***    what you want, however.)
  ***
 EOF
+fi
+
+topdir=${PWD}
+
+cd ${topdir}/scripts/linux_flags
+make LINUXDIR=${LINUXDIR} &>/dev/null
+cd ${topdir}
+mv scripts/linux_flags/flags .buildvars
+
+
+if [ "$(echo ${UTS_VERSION} | grep '^2.[45]')" != "" ];then
+	echo "FLAT_MODULES := no" >>.buildvars
+else
+	echo "FLAT_MODULES := yes" >>.buildvars
 fi
 
 

@@ -1,0 +1,55 @@
+#!/bin/sh
+
+
+topdir=${PWD}
+
+interactive=y
+
+while [ "$1" != "" ];do
+	case $1 in
+		--linuxdir)
+			shift
+			export LINUXDIR=$1
+			;;
+		--rtaidir)
+			shift
+			export RTAIDIR=$1
+			;;
+		--rtldir)
+			shift
+			export RTLDIR=$1
+			;;
+		--reconf*)
+			old=-d
+			interactive=n
+			;;
+		--non-interactive)
+			interactive=n
+			;;
+	esac
+	shift
+done
+
+. scripts/dep.linux
+. scripts/dep.rtai
+. scripts/dep.rtlinux
+
+
+scripts/Configure ${old}
+
+
+scripts/generate_makefile comedi/Makefile.in >comedi/Makefile
+scripts/generate_makefile comedi/drivers/Makefile.in >comedi/drivers/Makefile
+scripts/generate_makefile comedi/kcomedilib/Makefile.in >comedi/kcomedilib/Makefile
+
+
+cat <<EOF
+
+Makefiles for Comedi are now be configured.
+Run 'make' to compile, and then 'make install' to install.
+
+If Comedi has never been installed on your system,
+also run 'make dev' to create the device nodes '/dev/comedi*'.
+
+EOF
+

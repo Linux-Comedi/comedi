@@ -1,13 +1,6 @@
 
--include .sourcedirs
+-include .buildvars
 
-# Makefile for modbuild
-
-# define the following if you want to compile using PCMCIA
-# headers
-# PCMCIADIR = /home/ds/stuff/pcmcia-cs-3.1.15
-
-ARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ -e s/arm.*/arm/ -e s/sa110/arm/)
 
 .EXPORT_ALL_VARIABLES:
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
@@ -20,8 +13,6 @@ FINDHPATH	= $(HPATH)
 
 HOSTCC		=gcc
 HOSTCFLAGS	=-Wall -Wstrict-prototypes -O2 -fomit-frame-pointer
-
-CROSS_COMPILE	= 
 
 #
 # Include the make variables (CC, etc...)
@@ -45,73 +36,41 @@ export  VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION KERNELRELEASE ARCH \
 	CONFIG_SHELL TOPDIR HPATH HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
 	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE MAKEFILES GENKSYMS MODFLAGS PERL
 
-CFLAGS = -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer 
-# use '-fno-strict-aliasing', but only if the compiler can take it
-CFLAGS += $(shell if $(CC) -fno-strict-aliasing -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-fno-strict-aliasing"; fi)
-#CFLAGS += -include $(TOPDIR)/include/modbuild/config.h
-CFLAGS += -D__KERNEL__ -I $(TOPDIR)/include -I $(LINUXDIR)/include -I .
-CFLAGS += -D__MODBUILD__
-ifdef RTLDIR
-CFLAGS += -I $(RTLDIR)/include -I $(RTLDIR)/include/posix -I $(RTLDIR)/include/compat -D__RT__
-endif
-ifdef RTAIDIR
-CFLAGS += -I $(TOPDIR)/include/rtai
-endif
-CFLAGS += -nostdinc -I $(shell $(CC) -print-search-dirs|grep ^install:|sed 's/^install: //')include
+MODLIB := $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
+export MODLIB
 
-CONFIG_SHELL := sh
+export FLAT_MODULES
+
+CFLAGS := -I $(TOPDIR)/include $(CFLAGS)
+
+CFLAGS += -nostdinc -I $(shell $(CC) -print-search-dirs|grep ^install:|sed 's/^install: //')include
 
 PROJECTRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
 -include $(LINUXDIR)/.config
-ifdef PCMCIADIR
-CONFIG_PCMCIA=m
-CFLAGS += -I $(PCMCIADIR)/include
-endif
 
 ifeq (.config,$(wildcard .config))
 include .config
-include .uts_version
 ifeq (.depend,$(wildcard .depend))
 include .depend
-all2:	modules
+all:	modules
 else
-all2:	depend modules
+all:	depend modules
 endif
 else
-all2:	config
+all:	config
 endif
-
-ifeq ($(CONFIG_SMP),y)
-CFLAGS += -D__SMP__
-endif
-
--include arch/$(ARCH)/Makefile
--include arch/Makefile.noarch
 
 oldconfig:	dummy
-	$(CONFIG_SHELL) scripts/Configure -d
+	$(CONFIG_SHELL) ./configure --old
 
 config:	dummy
-	$(CONFIG_SHELL) scripts/Configure
+	$(CONFIG_SHELL) ./configure
 
-MODULES		= $(wildcard modules/*.o)
-MODULES_PCMCIA	= $(filter %_cs.o, $(MODULES))
-MODULES_MISC	= $(filter-out %_cs.o, $(MODULES))
+modules_install:	$(patsubst %, _modinst_%, $(SUBDIRS))
 
-install:	dummy
-	mkdir -p ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/misc
-	install -d ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/misc
-	install ${MODULES_MISC} ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/misc
-ifneq ($(MODULES_PCMCIA),)
-	mkdir -p ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/pcmcia
-	install ${MODULES_PCMCIA} ${INSTALL_MOD_PATH}/lib/modules/${UTS_VERSION}/pcmcia
-endif
-ifeq (${INSTALL_MOD_PATH},)
-	/sbin/depmod -a ${UTS_VERSION}
-else
-	echo 'depmod -a not run'
-endif
+_modinst_%:
+	$(MAKE) -C $(patsubst _modinst_%, %, $@) modules_install
 
 
 ifeq ($(CONFIG_MODVERSIONS),y)
@@ -122,29 +81,23 @@ endif
 modules:	$(patsubst %, _mod_%, $(SUBDIRS))
 
 $(patsubst %, _mod_%, $(SUBDIRS)) : dummy
-	-mkdir modules
 	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
 
-dep-files: scripts/mkdep archdep include/modbuild/version.h new-genksyms
-#	scripts/mkdep init/*.c >.depend
-	echo >.depend
-	scripts/mkdep `find $(FINDHPATH) -follow -name \*.h ! -name modversions.h -print` > .hdepend
-#	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i fastdep ;done
-# let this be made through the fastdep rule in Rules.make
-	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
-
-include/modbuild/version.h: ./Makefile
-	@echo \#define $(PROJECT)_RELEASE \"$(PROJECTRELEASE)\" > .ver
+include/version.h: Makefile
+	@echo \#define $(PROJECT)_RELEASE \"$(PROJECTRELEASE)\" >.ver
 	@echo \#define $(PROJECT)_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
 	@echo '#define $(PROJECT)_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))' >>.ver
 	@mv -f .ver $@
 
+depend: dep-files
 
-MODVERFILE :=
+dep-files: scripts/mkdep include/version.h new-genksyms
+#	scripts/mkdep `find $(FINDHPATH) -follow -name \*.h ! -name modversions.h -print` > .hdepend
+# let this be made through the fastdep rule in Rules.make
+	$(MAKE) $(patsubst %,_sfdep_%,$(SUBDIRS)) _FASTDEP_ALL_SUB_DIRS="$(SUBDIRS)"
+
 
 new-genksyms:
-
-depend dep: dep-files $(MODVERFILE)
 
 clean:
 	rm -f core `find . -name '*.[oas]'`
@@ -157,11 +110,10 @@ distclean:	clean
 		-o -name '*.bak' -o -name '#*#' -o -name '.*.orig' \
 		-o -name '.*.rej' -o -name '.SUMS' -o -size 0 \) -print` TAGS
 	-rm -rf modules
-	rm -f .config .uts_version .config.old
+	rm -f .config .config.old
+	rm -f include/config.h include/version.h
 	rm -f scripts/mkdep
-	rm -f .sourcedirs
-	rm -f include/modbuild/*.h
-	rm -f include/rtai include/rtlinux
+	rm -f .buildvars
 
 include $(TOPDIR)/Rules.make
 

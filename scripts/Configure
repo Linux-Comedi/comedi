@@ -52,7 +52,7 @@
 # 24 January 1999, Michael Elizabeth Chastain, <mec@shout.net>
 # - Improve the exit message (Jeff Ronne).
 
-. scripts/preconfigure
+. ${LINUXDIR}/.config
 
 #
 # Make sure we're really running bash.
@@ -565,14 +565,6 @@ if [ -f .config ]; then
 fi
 mv .tmpconfig .config
 #mv .tmpconfig.h include/linux/autoconf.h
-mv .tmpconfig.h include/modbuild/config.h
-
-echo 
-echo "Makefiles for ${project} should now be configured."
-echo "Run 'make dep ; make' to compile, and then 'make install' to install."
-echo 
-echo "If ${project} has never been installed on your system,"
-echo "then run 'make dev' to build the device nodes '/dev/comedi*'."
-echo
+mv .tmpconfig.h include/config.h
 
 exit 0
