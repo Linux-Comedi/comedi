@@ -26,7 +26,7 @@ Description: Source code for the Meilhaus ME-4000 board family.
 Devices: ME-4650, ME-4670i, ME-4680, ME-4680i, ME-4680is
 Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)
 Updated: Mon, 18 Mar 2002 15:34:01 -0800
-Status: experimental
+Status: broken (no support for loading firmware)
 
 Supports:
 
@@ -705,13 +705,16 @@ static int init_cnt_context(comedi_device *dev){
     return 0;
 }
 
-
+#define FIRMWARE_NOT_AVAILABLE 1
+#if FIRMWARE_NOT_AVAILABLE
+extern unsigned char *xilinx_firm;
+#endif
 
 static int xilinx_download(comedi_device *dev){
-    int size = 0;
     u32 value = 0;
-    int idx = 0;
     wait_queue_head_t queue;
+    int idx = 0;
+    int size = 0;
 
     CALL_PDEBUG("In xilinx_download()\n");
 
@@ -742,25 +745,26 @@ static int xilinx_download(comedi_device *dev){
     value = inl(info->plx_regbase + PLX_ICR);
     value &= ~0x100;
     outl(value, info->plx_regbase + PLX_ICR);
-#if 1
+    if(FIRMWARE_NOT_AVAILABLE){
 	comedi_error(dev, "xilinx firmware unavailable due to licensing, aborting");
 	return -EIO;
-#else
+    }
+    else{
     /* Download Xilinx firmware */
-    size = (xilinx_firm[0] << 24) + (xilinx_firm[1] << 16) + (xilinx_firm[2] <<  8) + xilinx_firm[3];
-    udelay(10);
-
-    for(idx = 0; idx < size; idx++){
-	outb(xilinx_firm[16+idx], info->program_regbase);
+	size = (xilinx_firm[0] << 24) + (xilinx_firm[1] << 16) + (xilinx_firm[2] <<  8) + xilinx_firm[3];
 	udelay(10);
 
-	/* Check if BUSY flag is low */
-	if(inl(info->plx_regbase + PLX_ICR) & 0x20){
-	    printk(KERN_ERR"comedi%d: me4000: xilinx_download(): Xilinx is still busy (idx = %d)\n", dev->minor, idx);
-	    return -EIO;
+	for(idx = 0; idx < size; idx++){
+	    outb(xilinx_firm[16+idx], info->program_regbase);
+	    udelay(10);
+
+	    /* Check if BUSY flag is low */
+	    if(inl(info->plx_regbase + PLX_ICR) & 0x20){
+		printk(KERN_ERR"comedi%d: me4000: xilinx_download(): Xilinx is still busy (idx = %d)\n", dev->minor, idx);
+		return -EIO;
+	    }
 	}
     }
-#endif
 
     /* If done flag is high download was successful */
     if (inl(info->plx_regbase + PLX_ICR) & 0x4){
@@ -1087,11 +1091,11 @@ static int ai_round_cmd_args(
 
 	if(cmd->flags & TRIG_ROUND_NEAREST){
 	    if(rest > 33){
-		*init_ticks ++;
+		(*init_ticks) ++;
 	    }
 	}
 	else if(cmd->flags & TRIG_ROUND_UP){
-	    if(rest) *init_ticks ++;
+	    if(rest) (*init_ticks) ++;
 	}
     }
 
@@ -1101,11 +1105,11 @@ static int ai_round_cmd_args(
 
 	if(cmd->flags & TRIG_ROUND_NEAREST){
 	    if(rest > 33){
-		*scan_ticks ++;
+		(*scan_ticks) ++;
 	    }
 	}
 	else if(cmd->flags & TRIG_ROUND_UP){
-	    if(rest) *scan_ticks ++;
+	    if(rest) (*scan_ticks) ++;
 	}
     }
 
@@ -1115,11 +1119,11 @@ static int ai_round_cmd_args(
 
 	if(cmd->flags & TRIG_ROUND_NEAREST){
 	    if(rest > 33){
-		*chan_ticks ++;
+		(*chan_ticks) ++;
 	    }
 	}
 	else if(cmd->flags & TRIG_ROUND_UP){
-	    if(rest) *chan_ticks ++;
+	    if(rest) (*chan_ticks) ++;
 	}
     }
 
