@@ -1,7 +1,7 @@
 
-AC_INIT(comedi/comedi_fops.c)
-
-AM_CONFIG_HEADER(config.h)
+AC_INIT
+AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
+AC_CONFIG_HEADERS(config.h)
 
 AC_CANONICAL_TARGET([])
 
@@ -55,8 +55,8 @@ CC=$LINUX_CC
 #ERROR_CFLAGS="-Werror"
 
 [COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/\
- -DKBUILD_MODNAME=\$(shell echo \$@ | sed 's/\(.*\)\.o/\1/g' | sed 's/\(.*\)_ko.*/\1/g')\
- -DKBUILD_BASENAME=\$(shell echo \$< | sed 's/\(.*\)\.c/\1/g')"]
+ -DKBUILD_MODNAME=\$(shell basename \$@ .o | sed 's/\(.*\)_ko.*/\1/g')\
+ -DKBUILD_BASENAME=\$(shell basename \$< .c)"]
 AC_SUBST(COMEDI_CFLAGS)
 
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
