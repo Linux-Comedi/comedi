@@ -786,6 +786,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 
 	s=dev->subdevices;
+	dev->read_subdev = s;
 
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
