@@ -180,6 +180,11 @@ static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
 static int ni_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
+static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+
 static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
 
@@ -213,7 +218,6 @@ static int ni_8255_callback(int dir,int port,int data,unsigned long arg);
 
 static int ni_ns_to_timer(int *nanosec,int round_mode);
 
-static void pfi_setup(comedi_device *dev);
 
 /*GPCT function def's*/
 static int GPCT_G_Watch(comedi_device *dev, int chan);
@@ -2059,7 +2063,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	
-	dev->n_subdevices=7;
+	dev->n_subdevices=8;
 	
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
@@ -2070,7 +2074,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev=s;
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
-		s->subdev_flags=SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
+		s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_COMMON|SDF_DIFF|SDF_OTHER;
 		s->subdev_flags|=SDF_DITHER;
 		s->n_chan=boardtype.n_adchan;
 		s->len_chanlist=512;
@@ -2092,7 +2096,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.n_aochan){
 		dev->write_subdev=s;
 		s->type=COMEDI_SUBD_AO;
-		s->subdev_flags=SDF_WRITEABLE|SDF_RT|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
+		s->subdev_flags=SDF_WRITEABLE|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
 		if(boardtype.ao_unipolar){
@@ -2119,7 +2123,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	
 	s=dev->subdevices+2;
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE|SDF_RT;
+	s->subdev_flags=SDF_WRITEABLE|SDF_READABLE;
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
@@ -2168,6 +2172,16 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=0xff;
 	s->insn_read=ni_eeprom_insn_read;
 	
+	/* PFI */
+	s=dev->subdevices+7;
+	s->type=COMEDI_SUBD_DIO;
+	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE|SDF_INTERNAL;
+	s->n_chan=10;
+	s->maxdata=1;
+	s->insn_bits = ni_pfi_insn_bits;
+	s->insn_config = ni_pfi_insn_config;
+	ni_set_bits(dev, IO_Bidirection_Pin_Register, 0x3ff, 0);
+
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
 	win_out(0x1ba0,Clock_and_FOUT_Register);
@@ -2212,9 +2226,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* DMA setup */
 	/* tell the STC to use DMA0 for AI, DMA1 for AO */
 	ni_writeb(0x21,AI_AO_Select);
-
-	/* PFI setup */
-	pfi_setup(dev);
 
 	printk("\n");
 
@@ -2444,19 +2455,6 @@ static int pack_ad8842(int addr,int val,int *bitstring)
 }
 
 
-/*
- *
- *  Programmable Function Inputs
- *
- */
-
-
-static void pfi_setup(comedi_device *dev)
-{
-	/* currently, we don't output any signals, thus, all
-	   the PFI's are input */
-	ni_set_bits(dev, IO_Bidirection_Pin_Register, 0x03ff, 0);
-}
 
 
 
@@ -3020,5 +3018,49 @@ static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 	GPCT_Load_Using_A(dev,insn->chanspec,data[0]);
 	return 1;
 }
+
+
+/*
+ *
+ *  Programmable Function Inputs
+ *
+ */
+
+static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(insn->n!=2)return -EINVAL;
+
+	insn->data[1] = 0;
+
+	return 2;
+}
+
+static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	unsigned int chan;
+
+	if(insn->n!=1)return -EINVAL;
+
+	chan = CR_CHAN(insn->chanspec);
+	if(chan>10)return -EINVAL;
+
+	switch(data[0]){
+	case COMEDI_OUTPUT:
+		s->io_bits |= 1<<chan;
+		ni_set_bits(dev, IO_Bidirection_Pin_Register, (1<<chan), 1);
+		break;
+	case COMEDI_INPUT:
+		s->io_bits &= ~(1<<chan);
+		ni_set_bits(dev, IO_Bidirection_Pin_Register, (1<<chan), 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 1;
+}
+
 
 
