@@ -1106,31 +1106,31 @@ static unsigned int ai_range_bits_6xxx( const comedi_device *dev, unsigned int r
 	switch( range->max )
 	{
 		case 10000000:
-			bits = 0;
+			bits = 0x000;
 			break;
 		case 5000000:
-			bits = 1;
+			bits = 0x100;
 			break;
 		case 2000000:
 		case 2500000:
-			bits = 2;
+			bits = 0x200;
 			break;
 		case 1000000:
 		case 1250000:
-			bits = 3;
+			bits = 0x300;
 			break;
 		case 500000:
-			bits = 4;
+			bits = 0x400;
 			break;
 		case 200000:
 		case 250000:
-			bits = 5;
+			bits = 0x500;
 			break;
 		case 100000:
-			bits = 6;
+			bits = 0x600;
 			break;
 		case 50000:
-			bits = 7;
+			bits = 0x700;
 			break;
 		default:
 			comedi_error( dev, "bug! in ai_range_bits_6xxx" );
