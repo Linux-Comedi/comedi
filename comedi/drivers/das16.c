@@ -443,6 +443,7 @@ struct das16_private_struct {
 	unsigned char	control_state;
 	volatile unsigned char	cmd_go;
 	unsigned int	adc_count;
+	unsigned int	do_bits;
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board_struct *)(dev->board_ptr))
@@ -562,7 +563,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	/* enable pacer clocked conversions */
 	devpriv->control_state |= DAS16_CTR2;
 	outb(devpriv->control_state,dev->iobase+DAS16_CONTROL);
-	
+
 	/* set counter mode and counts */
 	freq = das16_set_pacer(dev, cmd->scan_begin_arg);
 
@@ -644,16 +645,32 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 
 static int das16_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	data[0]=inb(dev->iobase+DAS16_DIO)&0xf;
+	lsampl_t bits;
 
-	return 1;
+	bits = inb(dev->iobase+DAS16_DIO) & 0xf;
+	data[1] = bits;
+	data[0] = 0;
+
+	return 2;
 }
 
 static int das16_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	outb(data[0],dev->iobase+DAS16_DIO);
+	lsampl_t wbits;
 
-	return 1;
+	// only set bits that have been masked
+	data[0] &= 0xf;
+	wbits = devpriv->do_bits;
+	// zero bits that have been masked
+	wbits &= ~data[0];
+	// set masked bits
+	wbits |= data[0] & data[1];
+	devpriv->do_bits = wbits;
+	data[1] = wbits;
+
+	outb(devpriv->do_bits, dev->iobase + DAS16_DIO);
+
+	return 2;
 }
 
 static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
@@ -741,7 +758,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 		}	/* end of scan loop */
 		
 		comedi_eos(dev, s);
-		
+
 	} else {
 		printk("Acquisition canceled OR Stray interrupt!\n");
 		devpriv->control_state &= ~DAS16_INTE;
@@ -936,7 +953,7 @@ static int das1600_mode_detect(comedi_device *dev)
 	int status=0;
 	
 	status = inb(dev->iobase + DAS1600_STATUS_B);
-	
+
 	if(status & DAS1600_CLK_10MHZ) {
 		devpriv->clockbase = 10000000;
 		printk(" 10MHz pacer clock\n");
@@ -1094,7 +1111,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_read = thisboard->di;
+		s->insn_bits = thisboard->di;
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -1107,7 +1124,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_write = thisboard->do_;
+		s->insn_bits = thisboard->do_;
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -1122,6 +1139,8 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	das16_reset(dev);
+	// initialize digital output lines
+	outb(devpriv->do_bits, dev->iobase + DAS16_DIO);
 	/* set the interrupt level,enable pacer clock */
 	devpriv->control_state = DAS16_IRQ(dev->irq);
 	outb(devpriv->control_state,dev->iobase+DAS16_CONTROL);
@@ -1133,7 +1152,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 static int das16_detach(comedi_device *dev)
 {
 	printk("comedi%d: das16: remove\n", dev->minor);
-	
+
 	das16_reset(dev);
 	
 	if(dev->subdevices)
