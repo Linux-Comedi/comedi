@@ -43,6 +43,14 @@ if ! grep '[[:space:]]\+module:[[:space:]]*THIS_MODULE' ${driver} &>/dev/null;th
 	echo "E: doesn't set driver->module to THIS_MODULE"
 fi
 
+# check the Makefile for the config option
+config=$(grep "CONFIG.*${basedriver}.o" Makefile|sed 's/.*\(CONFIG_.*\)\{1\}).*/\1/')
+if [ "$config" = "" ];then
+	echo "E: can't find config option!"
+else
+	echo config option $config
+fi
+
 # check to see if it uses name recognition
 if grep 'board_name:' ${driver} &>/dev/null;then
 	echo uses recognize to determine type
@@ -258,9 +266,17 @@ if grep 'comedi_\(\(done\)\|\(error_done\)\|\(bufcheck\)\|\(eos\)\|\(eobuf\)\)[[
 fi
 
 # Drivers should have documentation in Documentation/comedi/drivers.txt
-if grep "^Driver: ${basedriver}.o$" ../../Documentation/comedi/drivers.txt;then
+if grep "^Driver: ${basedriver}.o$" ../../Documentation/comedi/drivers.txt \
+    &>/dev/null;then
 	echo "entry in drivers.txt"
 else
 	echo "E: not documented in drivers.txt"
+fi
+
+# Check that the config option is in Config.in
+if grep "dep_tristate.* ${config} \$CONFIG_COMEDI" ../Config.in &>/dev/null;then
+	echo "config option in Config.in"
+else
+	echo "E: config option not in Config.in (or broken)"
 fi
 
