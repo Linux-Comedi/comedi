@@ -1,0 +1,49 @@
+From: Dan Christian <dac@ptolemy.arc.nasa.gov>
+Reply-To: dac@ptolemy.arc.nasa.gov
+Organization: NASA Ames Research Center
+To: comedi@stm.lbl.gov
+Subject: Notes on building under RedHat 7.1
+Date: Wed, 23 May 2001 10:25:37 -0700
+
+
+I just got comedi building under a stock Redhat 7.1 kernel.  Here are 
+my notes on how to make it work.  There are really just two issues to 
+fix: getting the right .config file, and working around RedHat's custom 
+version.h file.
+
+You have to have kernel-headers and kernel-source installed and then 
+you have to get the right config file in place.  In my case, I'm 
+building for a K6-2 (i586 compatible).
+
+# as root
+cd /usr/src
+ln -s linux-2.4.2 linux		# this may already have been done
+cd linux
+# now copy the right config file to the standard place
+cp -p configs/kernel-2.4.2-i586.config .config
+
+# as any user
+cd comedi
+make config
+# you will get a message about the kernel version.  Ignore it (for now)
+# This is due to RedHat's multi-kernel version.h file.
+emacs .uts_version
+# it will have multiple values for UTS_VERSION.  
+# Edit to just have your kernel (e.g. 2.4.2-2)
+make clean
+make dep
+make
+
+# as root
+make install
+
+Everything seems to work fine.
+
+-Dan
+
+
+_______________________________________________
+comedi mailing list
+comedi@stm.lbl.gov
+http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi
+
