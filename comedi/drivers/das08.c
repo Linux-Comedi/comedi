@@ -78,7 +78,7 @@ driver.
 
 #define PCI_VENDOR_ID_COMPUTERBOARDS 0x1307
 #define PCI_DEVICE_ID_PCIDAS08 0x29
-#define PCIDAS08_SIZE 128
+#define PCIDAS08_SIZE 0x54
 
 // pci configuration registers
 #define INTCSR               0x4c
@@ -90,8 +90,6 @@ driver.
 #define   CNTRL_DIR            0x2
 #define   CNTRL_INTR           0x4
 
-
-#define DAS08_SIZE 16
 
 /*
     cio-das08.pdf
@@ -286,6 +284,7 @@ typedef struct das08_board_struct{
 	unsigned int	do_nchan;
 	unsigned int	i8255_offset;
 	unsigned int	i8254_offset;
+	unsigned int	iosize;	// number of ioports used
 } das08_board;
 
 static struct das08_board_struct das08_boards[]={
@@ -303,6 +302,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	8,
 	i8254_offset:	4,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08-pgm",		// cio-das08pgx.pdf
@@ -317,6 +317,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08-pgh",		// cio-das08pgx.pdf
@@ -331,6 +332,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08-pgl",		// cio-das08pgx.pdf
@@ -345,6 +347,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08-aoh",		// cio-das08_aox.pdf
@@ -360,6 +363,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0x0c,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08-aol",		// cio-das08_aox.pdf
@@ -375,6 +379,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0x0c,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08-aom",		// cio-das08_aox.pdf
@@ -390,6 +395,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0x0c,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08/jr-ao",		// cio-das08-jr-ao.pdf
@@ -405,6 +411,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	8,
 	i8255_offset:	0,
 	i8254_offset:	0,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"das08jr-16-ao",	// cio-das08jr-16-ao.pdf
@@ -420,6 +427,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	8,
 	i8255_offset:	0,
 	i8254_offset:	0x04,
+	iosize:	16, // unchecked
 	},
 	{
 	name:		"pci-das08",
@@ -436,6 +444,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0,
 	i8254_offset:	4,
+	iosize:	8,
 	},
 #ifdef CONFIG_PCMCIA
 	{
@@ -453,6 +462,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	3,
 	i8255_offset:	0,
 	i8254_offset:	0,
+	iosize:	16, // unchecked
 	},
 #endif // CONFIG_PCMCIA
 	{
@@ -469,6 +479,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	4,
 	i8255_offset:	0,
 	i8254_offset:	4,
+	iosize:	16, // unchecked
 	},
 #if 0
 	{
@@ -492,6 +503,7 @@ static struct das08_board_struct das08_boards[]={
 	do_nchan:	8,
 	i8255_offset:	0,
 	i8254_offset:	0,
+	iosize:	16, // unchecked
 	},
 #if 0
 	{
@@ -806,11 +818,11 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	if(thisboard->bustype != pcmcia)
 	{
 		printk("iobase 0x%x ", iobase);
-		if(check_region(iobase,DAS08_SIZE)<0){
+		if(check_region(iobase, thisboard->iosize)<0){
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
-		request_region(iobase,DAS08_SIZE,"das08");
+		request_region(iobase, thisboard->iosize,"das08");
 	}
 	dev->iobase = iobase;
 
@@ -901,7 +913,7 @@ static int das08_detach(comedi_device *dev)
 	if(thisboard->bustype != pcmcia)
 	{
 		if(dev->iobase)
-			release_region(dev->iobase,DAS08_SIZE);
+			release_region(dev->iobase, thisboard->iosize);
 	}
 
 	if(devpriv){
