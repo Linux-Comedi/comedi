@@ -47,7 +47,7 @@ extern volatile int rtcomedi_lock_semaphore;
 int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int io)
 {
-#if 0
+#ifdef USE_INSN
 	comedi_insn insn;
 
 	memset(&insn,0,sizeof(insn));

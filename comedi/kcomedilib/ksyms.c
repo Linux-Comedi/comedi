@@ -43,7 +43,9 @@
 
 /* functions specific to kcomedilib */
 
+#ifdef CONFIG_COMEDI_TRIG
 EXPORT_SYMBOL(__comedi_trigger);
+#endif
 EXPORT_SYMBOL(comedi_register_callback);
 EXPORT_SYMBOL(comedi_get_subdevice_flags);
 EXPORT_SYMBOL(comedi_get_len_chanlist);
@@ -79,7 +81,9 @@ EXPORT_SYMBOL(comedi_get_n_ranges);
 //EXPORT_SYMBOL(comedi_range_is_chan_specific);
 //EXPORT_SYMBOL(comedi_maxdata_is_chan_specific);
 EXPORT_SYMBOL(comedi_cancel);
+#ifdef CONFIG_COMEDI_TRIG
 EXPORT_SYMBOL(comedi_trigger);
+#endif
 EXPORT_SYMBOL(comedi_command);
 EXPORT_SYMBOL(comedi_command_test);
 //EXPORT_SYMBOL(comedi_do_insnlist);
