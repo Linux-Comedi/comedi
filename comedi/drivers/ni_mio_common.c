@@ -224,12 +224,6 @@ static int ni_8255_callback(int dir,int port,int data,void *arg);
 
 static int ni_ns_to_timer(int *nanosec,int round_mode);
 
-//static int gpct_setup(comedi_device *dev,comedi_subdevice *s);
-static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-
 static void pfi_setup(comedi_device *dev);
 
 /*GPCT function def's*/
