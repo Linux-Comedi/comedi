@@ -1504,7 +1504,25 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 				break;
 			}
 		}
-		// XXX check 4020 chanlist
+		// check 4020 chanlist
+		if( board(dev)->layout == LAYOUT_4020 )
+		{
+			unsigned int first_channel = CR_CHAN( cmd->chanlist[0] );
+			for( i = 1; i < cmd->chanlist_len; i++ )
+			{
+				if( CR_CHAN( cmd->chanlist[ i ] ) != first_channel + i )
+				{
+					comedi_error( dev, "chanlist must use consecutive channels" );
+					err++;
+					break;
+				}
+			}
+			if( cmd->chanlist_len == 3 )
+			{
+				comedi_error( dev, "chanlist cannot be 3 channels long, use 1, 2, or 4 channels" );
+				err++;
+			}
+		}
 	}
 
 	if(err) return 5;
