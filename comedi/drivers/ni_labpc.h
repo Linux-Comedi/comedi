@@ -74,7 +74,7 @@ typedef struct{
 }labpc_private;
 
 #define NUM_LABPC_CS_BOARDS 2
-labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
+extern labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
 
 int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	int irq, int dma );
