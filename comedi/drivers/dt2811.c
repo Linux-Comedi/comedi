@@ -288,6 +288,8 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
 	}
 	request_region(dev->iobase, DT2811_SIZE, driver_name);
+
+	board = dev->board;
 	if (board == card_2811_pgh) {
 	  dev->board_name = "dt2811-pgh";
         } else if (board == card_2811_pgl) {
