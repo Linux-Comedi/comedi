@@ -1,13 +1,14 @@
 /*======================================================================
 
     Quatech DAQP PCMCIA data capture cards COMEDI client driver
-    Copyright (C) 2000 Brent Baccala <baccala@freesoft.org>
+    Copyright (C) 2000, 2003 Brent Baccala <baccala@freesoft.org>
     The DAQP interface code in this file is released into the public domain.
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+    http://www.comedi.org/
 
-    daqp_cs.c 1.00
+    daqp_cs.c 1.10
 
 
 
@@ -17,13 +18,24 @@
 
     This manual is for both the DAQP-208 and the DAQP-308.
 
-    This code presently doesn't do D/A conversion; only A/D.
-    Also, I've had problems getting interrupts to work reliably,
-    the driver currently polls the card.
+    What works:
 
-    Multiple DAPQ cards are handled and can be independently attached
-    by specifying a numeric argument to comedi_config.  Cards are
-    numbered sequentially from 0 in the order they are inserted/detected.
+	- A/D conversion
+	    - 8 channels
+	    - 4 gain ranges
+	    - ground ref or differential
+	    - single-shot and timed both supported
+	- D/A conversion, single-shot
+	- digital I/O
+
+    What doesn't:
+
+	- any kind of triggering - external or D/A channel 1
+	- the card's optional expansion board
+	- the card's timer (for anything other than A/D conversion)
+	- D/A update modes other than immediate (i.e, timed)
+	- fancier timing modes
+	- setting card's FIFO buffer thresholds to anything but default
 
 ======================================================================*/
 
@@ -31,7 +43,7 @@
 Driver: quatech_daqp_cs.o
 Description: Quatech DAQP PCMCIA data capture cards
 Author: Brent Baccala <baccala@freesoft.org>
-Status: unkown
+Status: works
 Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
@@ -52,12 +64,13 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
    be present but disabled -- but it can then be enabled for specific
    modules at load time with a 'pc_debug=#' option to insmod.
 */
+
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 MODULE_PARM(pc_debug, "i");
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"daqp_cs.c 1.00 2000/10/02 (Brent Baccala)";
+"quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -65,15 +78,27 @@ static char *version =
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
-/* I can't get my DAQP-308 to reliably generate interrupts, so I poll it */
-/* #define USE_INTERRUPTS */
+/* Since this is a PCMCIA device, this driver basically has two
+ * pieces: the COMEDI part at the top, and the PCMCIA part at the
+ * bottom.  This local_info_t structure is used to pull the two parts
+ * together.  One of these structures is allocated for each DAQP card
+ * we're serving, and a pointer to it is put in the dev_table[] array.
+ *
+ * The next comment is ripped right from the PCMCIA dummy driver and
+ * talks more about the first two fields in the structure.  Note that
+ * the dev_link_t's 'priv' pointer is set to point back to this
+ * structure (the local_info_t), and that we only have a single
+ * dev_node_t per DAQP card, so it too is just part of the
+ * local_info_t.  We also set the 'local' pointer on all the COMEDI
+ * subdevices to point to this structure.
+ */
 
 /*
    A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
+   to keep track of a PCMCIA socket, but there will usually be some
+   device specific information that also needs to be kept track of.
+   The 'priv' pointer in a dev_link_t structure can be used to point
+   to a device-specific private data structure, like this.
 
    To simplify the data structure handling, we actually include the
    dev_link_t structure in the device's private data structure.
@@ -86,34 +111,40 @@ static char *version =
    in a linked list starting at the 'dev' field of a dev_link_t
    structure.  We allocate them in the card's private data structure,
    because they generally shouldn't be allocated dynamically.
-
-   We also provide an index into the dev_table
 */
+
+/* After the PCMCIA stuff, there is a 'stop' flag, which is used to
+ * indicate that the card has been removed, but COMEDI hasn't detached
+ * the device yet, so everything should pretty much return errors
+ * instead of attempting I/O with the card.  Then we provide our own
+ * index in the dev_table[], followed by an enum and a semaphore used
+ * by the interrupt handler (see below).  Next comes the COMEDI device
+ * corresponding to this card.  If we're using the interrupt handler
+ * to do a timed acquisition, then 's' is the subdevice being used
+ * (only the A/D converter is supported), and 'count' is how many
+ * samples remain to be taken (or -1 if it's unlimited).
+ */
    
 typedef struct local_info_t {
-    dev_link_t		link;
-    dev_node_t		node;
-    int			stop;
-    int			table_index;
-    wait_queue_head_t	endofscan;
+	dev_link_t		link;
+	dev_node_t		node;
+	int			stop;
+	int			table_index;
+	char			board_name[32];
+
+	enum {semaphore, buffer} interrupt_mode;
+
+	struct semaphore	eos;
+
+	comedi_device		*dev;
+	comedi_subdevice	*s;
+	int			count;
 } local_info_t;
 
 /* A list of "instances" of the device. */
 
 static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */ };
 
-
-/* this is COMEDI's private data structure unique to this hardware driver.
-   Not to be confused with PCMCIA's local_info_t (above).
-*/
-
-typedef struct {
-
-	int devnum;
-
-} daqp_private;
-
-#define devpriv ((daqp_private *)dev->private)
 
 /*====================================================================*/
 
@@ -170,6 +201,7 @@ MODULE_PARM(irq_list, "1-4i");
 
 #define DAQP_STATUS_IDLE		0x80
 #define DAQP_STATUS_RUNNING		0x40
+#define DAQP_STATUS_EVENTS		0x38
 #define DAQP_STATUS_DATA_LOST		0x20
 #define DAQP_STATUS_END_OF_SCAN		0x10
 #define DAQP_STATUS_FIFO_THRESHOLD	0x08
@@ -212,12 +244,19 @@ MODULE_PARM(irq_list, "1-4i");
 #define DAQP_AUX_FIFO_NEARFULL		0x02
 #define DAQP_AUX_FIFO_EMPTY		0x01
 
+/* These range structures tell COMEDI how the sample values map to
+ * voltages.  The A/D converter has four ranges: +/- 10V through
+ * +/- 1.25V, and the D/A converter has only one: +/- 5V.
+ */
+
 static comedi_lrange range_daqp_ai = { 4, {
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 5 ),
 	BIP_RANGE( 2.5 ),
 	BIP_RANGE( 1.25 )
 }};
+
+static comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)}};
 
 /*====================================================================*/
 
@@ -226,12 +265,13 @@ static comedi_lrange range_daqp_ai = { 4, {
 static int daqp_attach(comedi_device *dev,comedi_devconfig *it);
 static int daqp_detach(comedi_device *dev);
 static comedi_driver driver_daqp={
-	driver_name:	"daqp",
+	driver_name:	"quatech_daqp_cs",
 	module:		THIS_MODULE,
 	attach:		daqp_attach,
 	detach:		daqp_detach,
 };
 
+#ifdef DAQP_DEBUG
 
 static void daqp_dump(comedi_device *dev)
 {
@@ -239,34 +279,164 @@ static void daqp_dump(comedi_device *dev)
 	       inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
 }
 
+static void hex_dump(char *str, void *ptr, int len)
+{
+	unsigned char * cptr = ptr;
+	int i;
+
+	printk(str);
+
+	for (i=0; i<len; i++) {
+		if (i%16 == 0) {
+			printk("\n0x%08x:", (unsigned int)cptr);
+		}
+		printk(" %02x", *(cptr++));
+	}
+	printk("\n");
+}
+
+#endif
+
+/* Cancel a running acquisition */
+
+static int daqp_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	local_info_t *local = (local_info_t *)s->private;
+
+	if (local->stop) {
+		return -EIO;
+	}
+
+	outb(DAQP_COMMAND_STOP, dev->iobase+DAQP_COMMAND);
+
+	/* flush any linguring data in FIFO - superfluous here */
+	/* outb(DAQP_COMMAND_RSTF, dev->iobase+DAQP_COMMAND); */
+
+	local->interrupt_mode = semaphore;
+
+	return 0;
+}
+
+/* Interrupt handler
+ *
+ * Operates in one of two modes.  If local->interrupt_mode is
+ * 'semaphore', just signal the local->eos semaphore and return
+ * (one-shot mode).  Otherwise (continuous mode), read data in from
+ * the card, transfer it to the buffer provided by the higher-level
+ * comedi kernel module, and signal various comedi callback routines,
+ * which run pretty quick.
+ */
+
+static void daqp_interrupt(int irq, void * dev_id, struct pt_regs *regs)
+{
+	local_info_t *local = (local_info_t *)dev_id;
+	comedi_device *dev = local->dev;
+	comedi_subdevice *s = local->s;
+	int loop_limit = 10000;
+	int status;
+
+	if (local == NULL) {
+		printk(KERN_WARNING
+		       "daqp_interrupt(): irq %d for unknown device.\n", irq);
+		return;
+	}
+
+	if (dev == NULL) {
+		printk(KERN_WARNING
+		       "daqp_interrupt(): NULL comedi_device.\n");
+		return;
+	}
+
+	if (s == NULL) {
+		printk(KERN_WARNING
+		       "daqp_interrupt(): NULL comedi_subdevice.\n");
+		return;
+	}
+
+	if ((local_info_t *) s->private != local) {
+		printk(KERN_WARNING
+		       "daqp_interrupt(): invalid comedi_subdevice.\n");
+		return;
+	}
+
+	switch (local->interrupt_mode) {
+
+	case semaphore:
+
+		up(&local->eos);
+		break;
+
+	case buffer:
+
+		while ( ! ((status = inb(dev->iobase + DAQP_STATUS))
+			   & DAQP_STATUS_FIFO_EMPTY)) {
+
+			sampl_t data;
+
+			if (status & DAQP_STATUS_DATA_LOST) {
+				s->async->events |=
+				  COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
+				printk("daqp: data lost\n");
+				daqp_ai_cancel(dev, s);
+				break;
+			}
+
+			data = inb(dev->iobase + DAQP_FIFO);
+			data |= inb(dev->iobase + DAQP_FIFO) << 8;
+			data ^= 0x8000;
+
+			comedi_buf_put(s->async, data);
+
+			/* If there's a limit, decrement it
+			 * and stop conversion if zero
+			 */
+
+			if (local->count > 0) {
+				local->count --;
+				if (local->count == 0) {
+					daqp_ai_cancel(dev, s);
+					s->async->events |= COMEDI_CB_EOA;
+					break;
+				}
+			}
+
+			if ((loop_limit --) <= 0) break;
+		}
+
+		if (loop_limit <= 0) {
+			printk(KERN_WARNING
+			       "loop_limit reached in daqp_interrupt()\n");
+			daqp_ai_cancel(dev, s);
+			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		}
+
+		s->async->events |= COMEDI_CB_BLOCK;
+
+		comedi_event(dev, s, s->async->events);
+	}
+}
+
+/* One-shot analog data acquisition routine */
+
 static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	local_info_t *local;
+	local_info_t *local = (local_info_t *)s->private;
 	int i;
 	int v;
 	int counter=10000;
-#ifdef USE_INTERRUPTS
-	int threshold;
-	int flags;
-	int timeout;
-#endif
 
-	if (!dev_table[devpriv->devnum] || dev_table[devpriv->devnum]->stop) {
+	if (local->stop) {
 		return -EIO;
-	} else {
-		local = dev_table[devpriv->devnum];
 	}
 
 	/* Stop any running conversion */
-	outb(DAQP_COMMAND_STOP,
-	     dev->iobase+DAQP_COMMAND);
+	daqp_ai_cancel(dev, s);
 
 	outb(0, dev->iobase+DAQP_AUX);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ,
-	     dev->iobase+DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTQ, dev->iobase+DAQP_COMMAND);
 
 	/* Program one scan list entry */
 
@@ -283,78 +453,446 @@ static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	outb(v >> 8, dev->iobase + DAQP_SCANLIST);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
-	outb(DAQP_COMMAND_RSTF,
-	     dev->iobase + DAQP_COMMAND);
 
-#ifdef USE_INTERRUPTS
-	/* Set FIFO threshold */
-	// threshold = DAQP_FIFO_SIZE - 2*it->n_chan;
-	threshold = DAQP_FIFO_SIZE - 1;
-	outb(0, dev->iobase + DAQP_FIFO);
-	outb(0, dev->iobase + DAQP_FIFO);
-	outb(threshold & 0xff, dev->iobase + DAQP_FIFO);
-	outb(threshold >> 8, dev->iobase + DAQP_FIFO);
-#endif
+	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_COMMAND);
 
 	/* Set trigger */
+
 	v = DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL
-	  | DAQP_CONTROL_PACER_100kHz;
-#ifdef USE_INTERRUPTS
-	v |= DAQP_CONTROL_FIFO_INT_ENABLE;
-#endif
+	  | DAQP_CONTROL_PACER_100kHz | DAQP_CONTROL_EOS_INT_ENABLE;
+
 	outb(v, dev->iobase + DAQP_CONTROL);
 
-#ifdef USE_INTERRUPTS
-	save_flags(flags);
-	cli();
-#endif
 
-	/* Start conversion */
-	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-	     dev->iobase + DAQP_COMMAND);
+	/* Reset any pending interrupts (my card has a tendancy to require
+	 * require multiple reads on the status register to achieve this)
+	 */
 
-#ifdef USE_INTERRUPTS
-	timeout = sleep_on_timeout(&local->endofscan, 1*HZ);
-
-	restore_flags(flags);
-
-	printk("timeout: %d\n", timeout);
-#endif
-
-	i=0;
-
-	/* Wait for data in FIFO */
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS)
-		   & DAQP_STATUS_FIFO_EMPTY));
-
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS));
 	if (!counter) {
-		printk("DAQP FIFO never got data!\n");
-		daqp_dump(dev);
-		return -EIO;
-	} else {
+		printk("daqp: couldn't clear interrupts in status register\n");
+		return -1;
+	}
+
+
+	/* Make sure semaphore is blocked */
+	sema_init(&local->eos, 0);
+	local->interrupt_mode = semaphore;
+	local->dev = dev;
+	local->s = s;
+
+	for (i=0; i < insn->n; i++) {
+
+		/* Start conversion */
+		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
+		     dev->iobase + DAQP_COMMAND);
+
+		/* Wait for interrupt service routine to unblock semaphore */
+		/* Maybe could use a timeout here, but it's interruptible */
+		down_interruptible(&local->eos);
+
 		data[i] = inb(dev->iobase + DAQP_FIFO);
 		data[i] |= inb(dev->iobase + DAQP_FIFO) << 8;
 		data[i] ^= 0x8000;
 	}
 
-	/* XXX wrong, but I don't know how to fix it --ds */
+	return insn->n;
+}
+
+/* This function converts ns nanoseconds to a counter value suitable
+ * for programming the device.  We always use the DAQP's 5 MHz clock,
+ * which with its 24-bit counter, allows values up to 84 seconds.
+ * Also, the function adjusts ns so that it cooresponds to the actual
+ * time that the device will use.
+ */
+
+static int daqp_ns_to_timer(unsigned int *ns, int round)
+{
+	int timer;
+
+	timer = *ns/200;
+	*ns = timer*200;
+
+	return timer;
+}
+
+
+/* cmdtest tests a particular command to see if it is valid.
+ * Using the cmdtest ioctl, a user can create a valid cmd
+ * and then have it executed by the cmd ioctl.
+ *
+ * cmdtest returns 1,2,3,4 or 0, depending on which tests
+ * the command passes.
+ */
+
+static int daqp_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
+	comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER|TRIG_FOLLOW;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER|TRIG_NOW;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	/* note that mutual compatiblity is not an issue here */
+	if(cmd->scan_begin_src!=TRIG_TIMER &&
+	   cmd->scan_begin_src!=TRIG_FOLLOW) err++;
+	if(cmd->convert_src!=TRIG_NOW &&
+	   cmd->convert_src!=TRIG_TIMER) err++;
+	if(cmd->scan_begin_src==TRIG_FOLLOW &&
+	   cmd->convert_src==TRIG_NOW) err++;
+	if(cmd->stop_src!=TRIG_COUNT &&
+	   cmd->stop_src!=TRIG_NONE)err++;
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg=0;
+		err++;
+	}
+
+#define MAX_SPEED	10000		/* 100 kHz - in nanoseconds */
+
+	if(cmd->scan_begin_src==TRIG_TIMER && cmd->scan_begin_arg<MAX_SPEED){
+		cmd->scan_begin_arg=MAX_SPEED;
+		err++;
+	}
+
+	/* If both scan_begin and convert are both timer values, the only
+	 * way that can make sense is if the scan time is the number of
+	 * conversions times the convert time
+	 */
+
+	if(cmd->scan_begin_src==TRIG_TIMER && cmd->convert_src==TRIG_TIMER
+	   && cmd->scan_begin_arg != cmd->convert_arg * cmd->scan_end_arg){
+		err++;
+	}
+
+	if(cmd->convert_src==TRIG_TIMER && cmd->convert_arg<MAX_SPEED){
+		cmd->convert_arg=MAX_SPEED;
+		err++;
+	}
+
+	if(cmd->scan_end_arg!=cmd->chanlist_len){
+		cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_COUNT){
+		if(cmd->stop_arg>0x00ffffff){
+			cmd->stop_arg=0x00ffffff;
+			err++;
+		}
+	}else{
+		/* TRIG_NONE */
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		tmp=cmd->scan_begin_arg;
+		daqp_ns_to_timer(&cmd->scan_begin_arg,
+				 cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->scan_begin_arg)err++;
+	}
+
+	if(cmd->convert_src==TRIG_TIMER){
+		tmp=cmd->convert_arg;
+		daqp_ns_to_timer(&cmd->convert_arg,
+				 cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->convert_arg)err++;
+	}
+
+	if(err)return 4;
+
+	return 0;
+}
+
+static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	local_info_t *local = (local_info_t *)s->private;
+	comedi_cmd *cmd = &s->async->cmd;
+	int counter = 100;
+	int scanlist_start_on_every_entry;
+	int threshold;
+
+	int i;
+	int v;
+
+	if (local->stop) {
+		return -EIO;
+	}
+
+	/* Stop any running conversion */
+	daqp_ai_cancel(dev, s);
+
+	outb(0, dev->iobase+DAQP_AUX);
+
+	/* Reset scan list queue */
+	outb(DAQP_COMMAND_RSTQ, dev->iobase+DAQP_COMMAND);
+
+	/* Program pacer clock
+	 *
+	 * There's two modes we can operate in.  If convert_src is
+	 * TRIG_TIMER, then convert_arg specifies the time between
+	 * each conversion, so we program the pacer clock to that
+	 * frequency and set the SCANLIST_START bit on every scanlist
+	 * entry.  Otherwise, convert_src is TRIG_NOW, which means
+	 * we want the fastest possible conversions, scan_begin_src
+	 * is TRIG_TIMER, and scan_begin_arg specifies the time between
+	 * each scan, so we program the pacer clock to this frequency
+	 * and only set the SCANLIST_START bit on the first entry.
+	 */
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		int counter = daqp_ns_to_timer(&cmd->convert_arg,
+					       cmd->flags&TRIG_ROUND_MASK);
+		outb(counter&0xff, dev->iobase + DAQP_PACER_LOW);
+		outb((counter>>8)&0xff, dev->iobase + DAQP_PACER_MID);
+		outb((counter>>16)&0xff, dev->iobase + DAQP_PACER_HIGH);
+		scanlist_start_on_every_entry = 1;
+	} else {
+		int counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
+					       cmd->flags&TRIG_ROUND_MASK);
+		outb(counter&0xff, dev->iobase + DAQP_PACER_LOW);
+		outb((counter>>8)&0xff, dev->iobase + DAQP_PACER_MID);
+		outb((counter>>16)&0xff, dev->iobase + DAQP_PACER_HIGH);
+		scanlist_start_on_every_entry = 0;
+	}
+
+	/* Program scan list */
+
+	for (i=0; i < cmd->chanlist_len; i++) {
+
+		int chanspec = cmd->chanlist[i];
+
+		/* Program one scan list entry */
+
+		v = DAQP_SCANLIST_CHANNEL(CR_CHAN(chanspec))
+			| DAQP_SCANLIST_GAIN(CR_RANGE(chanspec));
+
+		if (CR_AREF(chanspec) == AREF_DIFF) {
+			v |= DAQP_SCANLIST_DIFFERENTIAL;
+		}
+
+		if (i == 0 || scanlist_start_on_every_entry) {
+			v |= DAQP_SCANLIST_START;
+		}
+
+		outb(v & 0xff, dev->iobase + DAQP_SCANLIST);
+		outb(v >> 8, dev->iobase + DAQP_SCANLIST);
+	}
+
+	/* Now it's time to program the FIFO threshold, basically the
+	 * number of samples the card will buffer before it interrupts
+	 * the CPU.
+	 *
+	 * If we don't have a stop count, then use half the size of
+	 * the FIFO (the manufacturer's recommendation).  Consider
+	 * that the FIFO can hold 2K samples (4K bytes).  With the
+	 * threshold set at half the FIFO size, we have a margin of
+	 * error of 1024 samples.  At the chip's maximum sample rate
+	 * of 100,000 Hz, the CPU would have to delay interrupt
+	 * service for a full 10 milliseconds in order to lose data
+	 * here (as opposed to higher up in the kernel).  I've never
+	 * seen it happen.  However, for slow sample rates it may
+	 * buffer too much data and introduce too much delay for the
+	 * user application.
+	 *
+	 * If we have a stop count, then things get more interesting.
+	 * If the stop count is less than the FIFO size (actually
+	 * three-quarters of the FIFO size - see below), we just use
+	 * the stop count itself as the threshold, the card interrupts
+	 * us when that many samples have been taken, and we kill the
+	 * acquisition at that point and are done.  If the stop count
+	 * is larger than that, then we divide it by 2 until it's less
+	 * than three quarters of the FIFO size (we always leave the
+	 * top quarter of the FIFO as protection against sluggish CPU
+	 * interrupt response) and use that as the threshold.  So, if
+	 * the stop count is 4000 samples, we divide by two twice to
+	 * get 1000 samples, use that as the threshold, take four
+	 * interrupts to get our 4000 samples and are done.
+	 *
+	 * The algorithm could be more clever.  For example, if 81000
+	 * samples are requested, we could set the threshold to 1500
+	 * samples and take 54 interrupts to get 81000.  But 54 isn't
+	 * a power of two, so this algorithm won't find that option.
+	 * Instead, it'll set the threshold at 1266 and take 64
+	 * interrupts to get 81024 samples, of which the last 24 will
+	 * be discarded... but we won't get the last interrupt until
+	 * they've been collected.  To find the first option, the
+	 * computer could look at the prime decomposition of the
+	 * sample count (81000 = 3^4 * 5^3 * 2^3) and factor it into a
+	 * threshold (1500 = 3 * 5^3 * 2^2) and an interrupt count (54
+	 * = 3^3 * 2).  Hmmm... a one-line while loop or prime
+	 * decomposition of integers... I'll leave it the way it is.
+	 *
+	 * I'll also note a mini-race condition before ignoring it in
+	 * the code.  Let's say we're taking 4000 samples, as before.
+	 * After 1000 samples, we get an interrupt.  But before that
+	 * interrupt is completely serviced, another sample is taken
+	 * and loaded into the FIFO.  Since the interrupt handler
+	 * empties the FIFO before returning, it will read 1001 samples.
+	 * If that happens four times, we'll end up taking 4004 samples,
+	 * not 4000.  The interrupt handler will discard the extra four
+	 * samples (by halting the acquisition with four samples still
+	 * in the FIFO), but we will have to wait for them.
+	 *
+	 * In short, this code works pretty well, but for either of
+	 * the two reasons noted, might end up waiting for a few more
+	 * samples than actually requested.  Shouldn't make too much
+	 * of a difference.
+	 */
+
+	/* Save away the number of conversions we should perform, and
+	 * compute the FIFO threshold (in bytes, not samples - that's
+	 * why we multiple local->count by 2 = sizeof(sample))
+	 */
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		local->count = cmd->stop_arg * cmd->scan_end_arg;
+		threshold = 2 * local->count;
+		while (threshold > DAQP_FIFO_SIZE*3/4) threshold /= 2;
+	} else {
+		local->count = -1;
+		threshold = DAQP_FIFO_SIZE/2;
+	}
+
+	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
+
+	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_COMMAND);
+
+	/* Set FIFO threshold.  First two bytes are near-empty
+	 * threshold, which is unused; next two bytes are near-full
+	 * threshold.  We computed the number of bytes we want in the
+	 * FIFO when the interrupt is generated, what the card wants
+	 * is actually the number of available bytes left in the FIFO
+	 * when the interrupt is to happen.
+	 */
+
+	outb(0x00, dev->iobase + DAQP_FIFO);
+	outb(0x00, dev->iobase + DAQP_FIFO);
+
+	outb((DAQP_FIFO_SIZE - threshold) & 0xff, dev->iobase + DAQP_FIFO);
+	outb((DAQP_FIFO_SIZE - threshold) >> 8, dev->iobase + DAQP_FIFO);
+
+	/* Set trigger */
+
+	v = DAQP_CONTROL_TRIGGER_CONTINUOUS | DAQP_CONTROL_TRIGGER_INTERNAL
+		| DAQP_CONTROL_PACER_5MHz | DAQP_CONTROL_FIFO_INT_ENABLE;
+
+	outb(v, dev->iobase + DAQP_CONTROL);
+
+	/* Reset any pending interrupts (my card has a tendancy to require
+	 * require multiple reads on the status register to achieve this)
+	 */
+
+	while (--counter
+	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS));
+	if (!counter) {
+		printk("daqp: couldn't clear interrupts in status register\n");
+		return -1;
+	}
+
+	local->interrupt_mode = buffer;
+	local->dev = dev;
+	local->s = s;
+
+	/* Start conversion */
+	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
+	     dev->iobase + DAQP_COMMAND);
+
+	return 0;
+}
+
+/* Single-shot analog output routine */
+
+static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+			      comedi_insn *insn, lsampl_t *data)
+{
+	local_info_t *local = (local_info_t *)s->private;
+	int d;
+	unsigned int chan;
+
+	if (local->stop) {
+		return -EIO;
+	}
+
+	chan = CR_CHAN(insn->chanspec);
+	d = data[0];
+	d &= 0x0fff;
+	d ^= 0x0800;	/* Flip the sign */
+	d |= chan<<12;
+
+	/* Make sure D/A update mode is direct update */
+	outb(0, dev->iobase+DAQP_AUX);
+
+	outw(d, dev->iobase+DAQP_DA);
+
 	return 1;
 }
 
-static void daqp_interrupt(int irq, void * dev_id, struct pt_regs *regs)
-{
-	local_info_t *local = (local_info_t *)dev_id;
+/* Digital input routine */
 
-	if (local == NULL) {
-		printk(KERN_WARNING "daqp_interrupt(): irq %d for unknown device.\n",
-		       irq);
-		return;
+static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
+			     comedi_insn *insn, lsampl_t *data)
+{
+	local_info_t *local = (local_info_t *)s->private;
+
+	if (local->stop) {
+		return -EIO;
 	}
 
-	wake_up(&local->endofscan);
+	data[0] = inb(dev->iobase+DAQP_DIGITAL_IO);
 
-	printk("daqp_interrupt()\n");
+	return 1;
+}
+
+/* Digital output routine */
+
+static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
+			      comedi_insn *insn, lsampl_t *data)
+{
+	local_info_t *local = (local_info_t *)s->private;
+
+	if (local->stop) {
+		return -EIO;
+	}
+
+	outw(data[0] & 0xf, dev->iobase+DAQP_DIGITAL_IO);
+
+	return 1;
 }
 
 /* daqp_attach is called via comedi_config to attach a comedi device
@@ -366,37 +904,99 @@ static void daqp_interrupt(int irq, void * dev_id, struct pt_regs *regs)
 static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	int ret;
+	local_info_t *local = dev_table[it->options[0]];
+	tuple_t tuple;
+	int i;
 	comedi_subdevice *s;
 
-	if (it->options[0] < 0 || it->options[0] >= MAX_DEV
-	    || ! dev_table[it->options[0]]) {
+	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || ! local) {
 	  printk("comedi%d: No such daqp device %d\n",
 		 dev->minor, it->options[0]);
 	  return -EIO;
 	}
 
-	/* Probably should pull this out of PCMCIA CIS tuples */
-	dev->board_name = "Quatech DAQP";
+	/* Typically brittle code that I don't completely understand,
+	 * but "it works on my card".  The intent is to pull the model
+	 * number of the card out the PCMCIA CIS and stash it away as
+	 * the COMEDI board_name.  Looks like the third field in
+	 * CISTPL_VERS_1 (offset 2) holds what we're looking for.  If
+	 * it doesn't work, who cares, just leave it as "DAQP".
+	 */
 
-	dev->iobase=dev_table[it->options[0]]->link.io.BasePort1;
+	strcpy(local->board_name, "DAQP");
+	dev->board_name = local->board_name;
 
-	if((ret=alloc_private(dev,sizeof(daqp_private))) < 0)
-		return ret;
-	devpriv->devnum = it->options[0];
+	tuple.DesiredTuple = CISTPL_VERS_1;
+	if (pcmcia_get_first_tuple(local->link.handle, &tuple) == 0) {
+		u_char buf[128];
 
-	if((ret=alloc_subdevices(dev, 1))<0)
+		buf[0] = buf[sizeof(buf)-1] = 0;
+		tuple.TupleData = buf;
+		tuple.TupleDataMax = sizeof(buf);
+		tuple.TupleOffset = 2;
+		if (pcmcia_get_tuple_data(local->link.handle, &tuple) == 0) {
+
+			for (i=0; i<tuple.TupleDataLen - 4; i++) 
+				if (buf[i] == 0) break;
+			for (i++; i<tuple.TupleDataLen - 4; i++) 
+				if (buf[i] == 0) break;
+			i++;
+			if ((i < tuple.TupleDataLen - 4)
+			    && (strncmp(buf+i, "DAQP", 4) == 0)) {
+				strncpy(local->board_name, buf+i,
+					sizeof(local->board_name));
+			}
+		}
+	}
+
+	dev->iobase=local->link.io.BasePort1;
+
+	if((ret=alloc_subdevices(dev,4))<0)
 		return ret;
 
 	printk("comedi%d: attaching daqp%d (io 0x%04x)\n",
 	       dev->minor, it->options[0], dev->iobase);
 
 	s=dev->subdevices+0;
+	dev->read_subdev = s;
+	s->private = local;
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|AREF_GROUND|AREF_DIFF;
+	s->subdev_flags=SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan=8;
+	s->len_chanlist=2048;
 	s->maxdata=0xffff;
 	s->range_table=&range_daqp_ai;
 	s->insn_read=daqp_ai_insn_read;
+	s->do_cmdtest=daqp_ai_cmdtest;
+	s->do_cmd=daqp_ai_cmd;
+	s->cancel=daqp_ai_cancel;
+
+	s=dev->subdevices+1;
+	dev->write_subdev = s;
+	s->private = local;
+	s->type=COMEDI_SUBD_AO;
+	s->subdev_flags=SDF_WRITEABLE;
+	s->n_chan=2;
+	s->len_chanlist=1;
+	s->maxdata=0x0fff;
+	s->range_table=&range_daqp_ao;
+	s->insn_write=daqp_ao_insn_write;
+
+	s=dev->subdevices+2;
+	s->private = local;
+	s->type=COMEDI_SUBD_DI;
+	s->subdev_flags=SDF_READABLE;
+	s->n_chan=1;
+	s->len_chanlist=1;
+	s->insn_read=daqp_di_insn_read;
+
+	s=dev->subdevices+3;
+	s->private = local;
+	s->type=COMEDI_SUBD_DO;
+	s->subdev_flags=SDF_WRITEABLE;
+	s->n_chan=1;
+	s->len_chanlist=1;
+	s->insn_read=daqp_do_insn_write;
 
 	return 1;
 }
@@ -476,7 +1076,7 @@ static void daqp_cs_detach(dev_link_t *);
    database.
 */
 
-static dev_info_t dev_info = "daqp_cs";
+static dev_info_t dev_info = "quatech_daqp_cs";
 
 /*====================================================================*/
 
@@ -523,8 +1123,6 @@ static dev_link_t *daqp_cs_attach(void)
     dev_table[i] = local;
     link = &local->link;
     link->priv = local;
-
-    init_waitqueue_head(&local->endofscan);
 
     /* Initialize the dev_link_t structure */
     link->release.function = &daqp_cs_release;
@@ -753,7 +1351,11 @@ static void daqp_cs_config(dev_link_t *link)
       At this point, the dev_node_t structure(s) need to be
       initialized and arranged in a linked list at link->dev.
     */
-    sprintf(dev->node.dev_name, "daqp%d", dev->table_index);
+    /* Comedi's PCMCIA script uses this device name (extracted
+     * from /var/lib/pcmcia/stab) to pass to comedi_config
+     */
+    /* sprintf(dev->node.dev_name, "daqp%d", dev->table_index); */
+    sprintf(dev->node.dev_name, "quatech_daqp_cs");
     dev->node.major = dev->node.minor = 0;
     link->dev = &dev->node;
 
@@ -915,7 +1517,12 @@ void cleanup_module(void)
         if (dev_table[i]->link.state & DEV_CONFIG) {
           daqp_cs_release((u_long)(&dev_table[i]->link));
         }
-        daqp_cs_detach(&dev_table[i]->link);
+	/* If DEV_STALE_LINK was set, the daqp_cs_release already did
+	 * a detach, which freed the memory, so make sure we don't
+	 * do it again or oops()... that's why this test is here
+	 */
+	if (dev_table[i])
+	  daqp_cs_detach(&dev_table[i]->link);
       }
     }
 }
