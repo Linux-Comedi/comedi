@@ -25,6 +25,7 @@
 Driver: icp_multi.o
 Author: Anne Smorthit <anne.smorthit@sfwte.ch>
 Devices: [Inova] ICP_MULTI (icp_multi)
+Status: unknown
 
 Options:
  [0] - PCI bus number - if bus number and slot number are 0, 
@@ -102,7 +103,7 @@ Options:
 
 
 // Define analogue range
-comedi_lrange range_analog={ 4, {
+static comedi_lrange range_analog={ 4, {
 	UNI_RANGE(5),
 	UNI_RANGE(10),
 	BIP_RANGE(5),
@@ -170,7 +171,7 @@ static boardtype boardtypes[] =
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-comedi_driver driver_icp_multi={
+static comedi_driver driver_icp_multi={
 	driver_name:	"icp_multi",
 	module:		THIS_MODULE,
 	attach:		icp_multi_attach,
@@ -179,6 +180,7 @@ comedi_driver driver_icp_multi={
 	board_name:	boardtypes,
 	offset:		sizeof(boardtype),	
 };
+COMEDI_INITCLEANUP(driver_icp_multi);
 
 typedef struct{
 	char			valid;			// card is usable
@@ -207,8 +209,10 @@ typedef struct{
 ==============================================================================
 */
 
-int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
-void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
+#if 0
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
+#endif
+static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
 static int icp_multi_reset(comedi_device *dev);
 
 
@@ -237,7 +241,7 @@ static int icp_multi_reset(comedi_device *dev);
 
 ==============================================================================
 */
-int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
+static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
 {
 	int n,timeout;
 
@@ -344,7 +348,7 @@ conv_finish:
 
 ==============================================================================
 */
-int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
+static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
 {
 	int n, chan, range, timeout;
 
@@ -445,7 +449,7 @@ dac_ready:
 
 ==============================================================================
 */
-int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
+static int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
 {
 	int n,chan;
 
@@ -477,7 +481,7 @@ int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_ins
 
 ==============================================================================
 */
-int icp_multi_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+static int icp_multi_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	data[1] = readw(dev->iobase + ICP_MULTI_DI);
 
@@ -544,7 +548,7 @@ static int icp_multi_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi
 
 ==============================================================================
 */
-int icp_multi_insn_read_ctr(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
+static int icp_multi_insn_read_ctr(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
 {
         return 0;
 }
@@ -568,7 +572,7 @@ int icp_multi_insn_read_ctr(comedi_device * dev, comedi_subdevice * s, comedi_in
 
 ==============================================================================
 */
-int icp_multi_insn_write_ctr(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
+static int icp_multi_insn_write_ctr(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data)
 {
         return 0;
 }
@@ -642,6 +646,7 @@ static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 }
 
 
+#if 0
 /*
 ==============================================================================
 
@@ -662,7 +667,7 @@ static void interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
 
 ==============================================================================
 */
-int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan)
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan)
 {
         unsigned int i;
     
@@ -693,6 +698,7 @@ int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *
 	}
 	return 1;
 }
+#endif
 
 
 
@@ -716,7 +722,7 @@ int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *
 
 ==============================================================================
 */
-void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
+static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
 			unsigned int n_chan)
 {
 	unsigned int i, range, chanprog;
@@ -1061,12 +1067,4 @@ static int icp_multi_detach(comedi_device *dev)
 
 	return 0;
 }
-
-/* 
-==============================================================================
-*/
-COMEDI_INITCLEANUP(driver_icp_multi);
-/* 
-==============================================================================
-*/
 

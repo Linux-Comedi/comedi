@@ -35,23 +35,23 @@ struct pcilst_struct *inova_devices;	// ptr to root list of all Inova devices
 
 /****************************************************************************/
 
-void pci_card_list_init(unsigned short pci_vendor, char display);
-void pci_card_list_cleanup(unsigned short pci_vendor);
-struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id);
-int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card);
-struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot);
+static void pci_card_list_init(unsigned short pci_vendor, char display);
+static void pci_card_list_cleanup(unsigned short pci_vendor);
+static struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id);
+static int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card);
+static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot);
 
-int pci_card_alloc(struct pcilst_struct *amcc);
-int pci_card_free(struct pcilst_struct *amcc);
-void pci_card_list_display(void);
-int pci_card_data(struct pcilst_struct *amcc,
+static int pci_card_alloc(struct pcilst_struct *amcc);
+static int pci_card_free(struct pcilst_struct *amcc);
+static void pci_card_list_display(void);
+static int pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
 	unsigned long *io_addr, unsigned short *irq, unsigned short *master);
 
 /****************************************************************************/
 
 /* build list of Inova cards in this system */
-void pci_card_list_init(unsigned short pci_vendor, char display)
+static void pci_card_list_init(unsigned short pci_vendor, char display)
 {
 	struct pci_dev *pcidev;
 	struct pcilst_struct *inova,*last;
@@ -95,7 +95,7 @@ inova->master = 1;	//XXX
 
 /****************************************************************************/
 /* free up list of amcc cards in this system */
-void pci_card_list_cleanup(unsigned short pci_vendor)
+static void pci_card_list_cleanup(unsigned short pci_vendor)
 {
 	struct pcilst_struct *inova,*next;
 
@@ -109,7 +109,7 @@ void pci_card_list_cleanup(unsigned short pci_vendor)
 
 /****************************************************************************/
 /* find first unused card with this device_id */
-struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id)
+static struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id)
 {
 	struct pcilst_struct *inova,*next;
 
@@ -124,7 +124,7 @@ struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, uns
 
 /****************************************************************************/
 /* find card on requested position */
-int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card)
+static int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card)
 {
 	struct pcilst_struct *inova,*next;
 
@@ -146,7 +146,7 @@ int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short devi
 
 /****************************************************************************/
 /* mark card as used */
-int pci_card_alloc(struct pcilst_struct *inova)
+static int pci_card_alloc(struct pcilst_struct *inova)
 {
 	if (!inova) return -1;
 
@@ -158,7 +158,7 @@ int pci_card_alloc(struct pcilst_struct *inova)
 
 /****************************************************************************/
 /* mark card as free */
-int pci_card_free(struct pcilst_struct *inova)
+static int pci_card_free(struct pcilst_struct *inova)
 {
 	if (!inova) return -1;
 
@@ -169,7 +169,7 @@ int pci_card_free(struct pcilst_struct *inova)
 
 /****************************************************************************/
 /* display list of found cards */
-void pci_card_list_display(void)
+static void pci_card_list_display(void)
 {
 	struct pcilst_struct *inova, *next;
 
@@ -187,7 +187,7 @@ void pci_card_list_display(void)
 
 /****************************************************************************/
 /* return all card information for driver */
-int pci_card_data(struct pcilst_struct *inova,
+static int pci_card_data(struct pcilst_struct *inova,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
 	unsigned long *io_addr, unsigned short *irq, unsigned short *master)
 {
@@ -206,7 +206,7 @@ int pci_card_data(struct pcilst_struct *inova,
 
 /****************************************************************************/
 /* select and alloc card */
-struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot)
+static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot)
 {
 	struct pcilst_struct *card;
 	
