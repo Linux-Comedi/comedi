@@ -1572,6 +1572,13 @@ int alloc_and_init_dma_members(comedi_device *dev)
 	}
 	return 0;
 }
+
+static inline void warn_external_queue(comedi_device *dev)
+{
+	comedi_error(dev, "AO command and AI external channel queue cannot be used simultaneously.");
+	comedi_error(dev, "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -2421,7 +2428,7 @@ static int use_internal_queue_6xxx(const comedi_cmd *cmd)
 	return 1;
 }
 
-static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
+static int setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 {
 	unsigned short bits;
 	int i;
@@ -2448,6 +2455,11 @@ static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 		}else
 		{
 			// use external queue
+			if(dev->write_subdev && dev->write_subdev->busy)
+			{
+				warn_external_queue(dev);
+				return -EBUSY;
+			}
 			priv(dev)->hw_config_bits |= EXT_QUEUE_BIT;
 			writew(priv(dev)->hw_config_bits, priv(dev)->main_iobase + HW_CONFIG_REG);
 			// clear DAC buffer to prevent weird interactions
@@ -2503,6 +2515,7 @@ static void setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 			i2c_write(dev, RANGE_CAL_I2C_ADDR, &i2c_data, sizeof(i2c_data));
 		}
 	}
+	return 0;
 }
 
 static inline void load_first_dma_descriptor(comedi_device *dev, unsigned int dma_channel,
@@ -2535,9 +2548,14 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	uint32_t bits;
 	unsigned int i;
 	unsigned long flags;
+	int retval;
 
 	disable_ai_pacing( dev );
 	abort_dma(dev, 1);
+
+	retval = setup_channel_queue(dev, cmd);
+	if(retval < 0)
+		return retval;
 
 	// make sure internal calibration source is turned off
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
@@ -2608,8 +2626,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-
-	setup_channel_queue(dev, cmd);
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
@@ -3033,12 +3049,6 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	set_dac_range_bits( dev, &priv(dev)->dac_control1_bits, chan, range );
 	writew(priv(dev)->dac_control1_bits, priv(dev)->main_iobase + DAC_CONTROL1_REG);
 
-	// clear buffer
-	writew(0, priv(dev)->main_iobase + DAC_BUFFER_CLEAR_REG);
-	/* clear queue pointer too, since external queue has
-	 * weird interactions with ao fifo */
-	writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
-
 	// write to channel
 	if( board(dev)->layout == LAYOUT_4020 )
 	{
@@ -3196,6 +3206,9 @@ static int prep_ao_dma(comedi_device *dev, const comedi_cmd *cmd)
 	unsigned int num_bytes;
 	int i;
 
+	/* clear queue pointer too, since external queue has
+	 * weird interactions with ao fifo */
+	writew(0, priv(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
 	writew(0, priv(dev)->main_iobase + DAC_BUFFER_CLEAR_REG);
 
 	num_bytes = (DAC_FIFO_SIZE / 2) * bytes_in_sample;
@@ -3222,10 +3235,26 @@ static int prep_ao_dma(comedi_device *dev, const comedi_cmd *cmd)
 	return 0;
 }
 
+static inline int external_ai_queue_in_use(comedi_device *dev)
+{
+	if(dev->read_subdev->busy)
+		return 0;
+	if(board(dev)->layout == LAYOUT_4020)
+		return 0;
+	else if(use_internal_queue_6xxx(&dev->read_subdev->async->cmd))
+		return 0;
+	return 1;
+}
+
 static int ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 
+	if(external_ai_queue_in_use(dev))
+	{
+		warn_external_queue(dev);
+		return -EBUSY;
+	}
 	/* disable analog output system during setup */
 	writew(0x0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
 
@@ -3246,25 +3275,12 @@ static int ao_cmd(comedi_device *dev,comedi_subdevice *s)
 static int ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num)
 {
 	comedi_cmd *cmd = &s->async->cmd;
-	static const int timeout = 1000;
-	int i;
 	int retval;
 
 	if(trig_num!=0)return -EINVAL;
 
 	retval = prep_ao_dma(dev, cmd);
 	if(retval < 0) return -EPIPE;
-
-	for(i = 0; i < timeout; i++)
-	{
-		//XXX
-		if(i > 10) break;
-	}
-	if(i == timeout)
-	{
-		comedi_error(dev, "timed out waiting for fifo to fill");
-		return -ETIMEDOUT;
-	}
 
 	set_dac_control0_reg(dev, cmd);
 
