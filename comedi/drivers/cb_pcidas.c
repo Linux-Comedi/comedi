@@ -813,6 +813,12 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	else if(cmd->scan_begin_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
 
+	// set number of conversions
+	if(cmd->stop_src == TRIG_COUNT)
+	{
+		devpriv->count = cmd->chanlist_len * cmd->stop_arg;
+	}
+
 	// clear interrupts
 	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
 	// clear s5933 interrupt
