@@ -1335,7 +1335,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		devpriv->user_ai_range_table =
 			kmalloc(sizeof(comedi_lrange) + sizeof(comedi_krange), GFP_KERNEL);
 		// initialize ai range
-		devpriv->user_ao_range_table->length = 1;
+		devpriv->user_ai_range_table->length = 1;
 		user_ai_range = devpriv->user_ai_range_table->range;
 		user_ai_range->min = it->options[4];
 		user_ai_range->max = it->options[5];
@@ -1348,7 +1348,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		devpriv->user_ao_range_table =
 			kmalloc(sizeof(comedi_lrange) + sizeof(comedi_krange), GFP_KERNEL);
 		// initialize ao range
-		devpriv->user_ai_range_table->length = 1;
+		devpriv->user_ao_range_table->length = 1;
 		user_ao_range = devpriv->user_ao_range_table->range;
 		user_ao_range->min = it->options[6];
 		user_ao_range->max = it->options[7];
