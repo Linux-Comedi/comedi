@@ -729,26 +729,6 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		}
 	}
 
-	// check channel/gain list against card's limitations
-	if(cmd->chanlist)
-	{
-		gain = CR_RANGE(cmd->chanlist[0]);
-		start_chan = CR_CHAN(cmd->chanlist[0]);
-		for(i = 1; i < cmd->chanlist_len; i++)
-		{
-			if(CR_CHAN(cmd->chanlist[i]) != (start_chan + i) % s->n_chan)
-			{
-				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
-				err++;
-			}
-			if(CR_RANGE(cmd->chanlist[i]) != gain)
-			{
-				comedi_error(dev, "entries in chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
-
 	if(err)return 3;
 
 	/* step 4: fix up any arguments */
@@ -779,6 +759,28 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	}
 
 	if(err) return 4;
+
+	// check channel/gain list against card's limitations
+	if(cmd->chanlist)
+	{
+		gain = CR_RANGE(cmd->chanlist[0]);
+		start_chan = CR_CHAN(cmd->chanlist[0]);
+		for(i = 1; i < cmd->chanlist_len; i++)
+		{
+			if(CR_CHAN(cmd->chanlist[i]) != (start_chan + i) % s->n_chan)
+			{
+				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+				err++;
+			}
+			if(CR_RANGE(cmd->chanlist[i]) != gain)
+			{
+				comedi_error(dev, "entries in chanlist must all have the same gain\n");
+				err++;
+			}
+		}
+	}
+
+	if(err) return 5;
 
 	return 0;
 }

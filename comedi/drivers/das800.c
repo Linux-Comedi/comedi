@@ -688,6 +688,21 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 			err++;
 		}
 	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(cmd->convert_src == TRIG_TIMER)
+	{
+		tmp = cmd->convert_arg;
+		/* calculate counter values that give desired timing */
+		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+		if(tmp != cmd->convert_arg) err++;
+	}
+
+	if(err)return 4;
+
 	// check channel/gain list against card's limitations
 	if(cmd->chanlist)
 	{
@@ -708,19 +723,7 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 		}
 	}
 
-	if(err)return 3;
-
-	/* step 4: fix up any arguments */
-
-	if(cmd->convert_src == TRIG_TIMER)
-	{
-		tmp = cmd->convert_arg;
-		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1), &(devpriv->divisor2), &(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
-		if(tmp != cmd->convert_arg) err++;
-	}
-
-	if(err)return 4;
+	if(err)return 5;
 
 	return 0;
 }

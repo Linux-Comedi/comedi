@@ -178,27 +178,6 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 {
 	unsigned int err=0, tmp, i;
 
-	// check chanlist against board's peculiarities
-	if(cmd->chanlist && cmd->chanlist_len > 1)
-	{
-		for(i = 0; i < cmd->chanlist_len; i++)
-		{
-			// even/odd channels must go into even/odd queue addresses
-			if((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2))
-			{
-				comedi_error(dev, "bad chanlist:\n"
-					" even/odd channels must go have even/odd chanlist indices");
-				err++;
-			}
-		}
-		if((cmd->chanlist_len % 2) != 0)
-		{
-			comedi_error(dev, "chanlist must be of even length or length 1");
-			err++;
-		}
-	}
-	if(err) return -EINVAL;
-
 	/* make sure triggers are valid */
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW | TRIG_EXT;
@@ -284,6 +263,28 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 	}
 
 	if(err) return 4;
+
+	// check chanlist against board's peculiarities
+	if(cmd->chanlist && cmd->chanlist_len > 1)
+	{
+		for(i = 0; i < cmd->chanlist_len; i++)
+		{
+			// even/odd channels must go into even/odd queue addresses
+			if((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2))
+			{
+				comedi_error(dev, "bad chanlist:\n"
+					" even/odd channels must go have even/odd chanlist indices");
+				err++;
+			}
+		}
+		if((cmd->chanlist_len % 2) != 0)
+		{
+			comedi_error(dev, "chanlist must be of even length or length 1");
+			err++;
+		}
+	}
+
+	if(err) return 5;
 
 	return 0;
 }

@@ -1160,21 +1160,6 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 		err++;
 	}
 
-	// make sure user is not trying to mix unipolar and bipolar ranges
-	if(cmd->chanlist)
-	{
-		unipolar = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
-		for(i = 1; i < cmd->chanlist_len; i++)
-		{
-			if(unipolar != (CR_RANGE(cmd->chanlist[i]) & UNIPOLAR))
-			{
-				comedi_error(dev, "unipolar and bipolar ranges cannot be mixed in the chanlist");
-				err++;
-				break;
-			}
-		}
-	}
-
 	switch(cmd->stop_src)
 	{
 		case TRIG_EXT:
@@ -1241,6 +1226,23 @@ static int das1800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_c
 	}
 
 	if(err) return 4;
+
+	// make sure user is not trying to mix unipolar and bipolar ranges
+	if(cmd->chanlist)
+	{
+		unipolar = CR_RANGE(cmd->chanlist[0]) & UNIPOLAR;
+		for(i = 1; i < cmd->chanlist_len; i++)
+		{
+			if(unipolar != (CR_RANGE(cmd->chanlist[i]) & UNIPOLAR))
+			{
+				comedi_error(dev, "unipolar and bipolar ranges cannot be mixed in the chanlist");
+				err++;
+				break;
+			}
+		}
+	}
+
+	if(err) return 5;
 
 	return 0;
 }
