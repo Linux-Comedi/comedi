@@ -908,3 +908,32 @@ int comedi_register_callback(unsigned int minor,unsigned int subdev,
 }
 
 
+int comedi_poll(unsigned int minor, unsigned int subdev)
+{
+	comedi_device *dev;
+	comedi_subdevice *s;
+	comedi_async *async;
+	int ret;
+
+	if((ret=minor_to_dev(minor,&dev))<0)
+		return ret;
+
+	if(subdev>=dev->n_subdevices)
+		return -ENODEV;
+
+	s=dev->subdevices+subdev;
+	async = s->async;
+	if(s->type==COMEDI_SUBD_UNUSED || !async)
+		return -EIO;
+
+	/* are we locked? (ioctl lock) */
+	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
+		return -EACCES;
+
+	/* are we running? XXX wrong? */
+	if(!s->busy)
+		return -EIO;
+
+	return s->poll(dev,s);
+}
+
