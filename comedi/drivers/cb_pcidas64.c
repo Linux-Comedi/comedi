@@ -760,10 +760,6 @@ static void init_plx9080(comedi_device *dev)
 	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(plx_iobase + PLX_DMA0_CS_REG));
 	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
 
-	// disable interrupts
-	private(dev)->plx_intcsr_bits = 0;
-	writel(private(dev)->plx_intcsr_bits, plx_iobase + PLX_INTRCS_REG);
-
 	// disable dma channels
 	writeb(0, plx_iobase + PLX_DMA0_CS_REG);
 	writeb(0, plx_iobase + PLX_DMA1_CS_REG);
@@ -830,7 +826,7 @@ static int setup_subdevices(comedi_device *dev)
 		unsigned int i;
 		uint8_t data;
 		// set adc to read from inputs (not internal calibration sources)
-		private(dev)->i2c_cal_range_bits = ADC_SRC_BITS(1);
+		private(dev)->i2c_cal_range_bits = ADC_SRC_BITS(4);
 		// set channels to +-5 volt input ranges
 		for( i = 0; i < s->n_chan; i++)
 			private(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(i);
@@ -1187,10 +1183,6 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 	range = CR_RANGE(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
 
-	// disable interrupts on plx 9080 XXX
-	private(dev)->plx_intcsr_bits = 0;
-	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
-
 	// disable card's analog input interrupt sources
 	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
@@ -1252,7 +1244,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			private(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(private(dev)->calibration_source);
 		} else
 		{	//select BNC inputs
-			private(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(1);
+			private(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(4);
 		}
 		// select range
 		if(ai_range_bits_4020[range])
@@ -1504,7 +1496,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// make sure internal calibration source is turned off
 	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
-
 	// set conversion pacing
 	check_adc_timing(cmd);
 	if(cmd->convert_src == TRIG_TIMER)
@@ -1585,7 +1576,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	private(dev)->dma_index = 0;
 
 	// enable interrupts on plx 9080
-	// XXX enabling more interrupt sources than are actually used
 	private(dev)->plx_intcsr_bits |= ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE | ICS_DMA1_E;
 	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
@@ -1656,8 +1646,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// start aquisition
 	writew(0, private(dev)->main_iobase + ADC_START_REG);
 	DEBUG_PRINT("soft trig\n");
-
-	DEBUG_PRINT("trying to start, hw status is 0x%x\n", readw(private(dev)->main_iobase + HW_STATUS_REG));
 
 	return 0;
 }
@@ -1820,8 +1808,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		ICS_DMA1_A | ICS_LDIA | ICS_LIA | ICS_PAIA | ICS_PDIA |
 		ICS_MBIA(0) | ICS_MBIA(1) |ICS_MBIA(2) | ICS_MBIA(3);
 	uint32_t plx_bits;
-	uint8_t dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	uint8_t dma1_status = readb(private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+	uint8_t dma0_status, dma1_status;
 
 	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(private(dev)->main_iobase + HW_STATUS_REG);
@@ -1847,20 +1834,22 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_error(dev, "fifo overrun");
 	}
 
+	dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	if(plx_status & ICS_DMA0_A)
 	{	// dma chan 0 interrupt
-		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
 		// XXX possible race
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
 
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
 
+	dma1_status = readb(private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	if(plx_status & ICS_DMA1_A)	// XXX
 	{	// dma chan 1 interrupt
-		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
 		// XXX possible race
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
+		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
 
 		if(dma1_status & PLX_DMA_EN_BIT)
 		{
@@ -1870,7 +1859,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	// pio transfer XXX
-	if((status & ADC_INTR_PENDING_BIT) && (dma0_status & PLX_DMA_EN_BIT) == 0 && (dma1_status & PLX_DMA_EN_BIT) == 0)
+	if((status & ADC_INTR_PENDING_BIT) && (dma1_status & PLX_DMA_EN_BIT) == 0)
 	{
 		pio_drain_ai_fifo(dev);
 	}
@@ -1895,15 +1884,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	comedi_event(dev, s, async->events);
 
-	// XXX
-	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
-	if((plx_status & plx_interrupt_status_mask))
-	{
-		comedi_error(dev, "interrupt didn't clear?  Disabling interrupts!");
-		rt_printk("plx status 0x%x\n", plx_status);
-		private(dev)->plx_intcsr_bits = 0;
-		writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
-	}
+	DEBUG_PRINT("exiting handler\n");
 
 	return;
 }
@@ -1939,6 +1920,7 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 	}
 	// disable channel
 	writeb(0, dma_cs_addr);
+	udelay(1);
 	// abort channel
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 	// wait for dma done bit
@@ -1959,10 +1941,6 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
 		~ADC_INTR_SRC_MASK;
 	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
-
-	// disable dma ch 1 interrupt on plx
-	private(dev)->plx_intcsr_bits &= ~ICS_DMA1_E;
-	writel(private(dev)->plx_intcsr_bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	abort_dma(dev, 1);
 
@@ -2289,9 +2267,12 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 
 	for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
 	{
-		register_bits = SERIAL_CLOCK_BIT;
+		register_bits = 0;
 		if(bitstream & bit)
 			register_bits |= SERIAL_DATA_IN_BIT;
+		udelay(1);
+		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
+		register_bits |= SERIAL_CLOCK_BIT;
 		udelay(1);
 		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
         }
@@ -2361,7 +2342,8 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 			return -1;
 			break;
 	}
-	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
+	serial_bytes[1] = NOT_CLEAR_REGISTERS | UPDATE_ADDRESSED_DAC_ONLY |
+		((value >> 8) & 0xf);
 	serial_bytes[2] = value & 0xff;
 	i2c_write(dev, i2c_addr, serial_bytes, 3);
 	return 0;
