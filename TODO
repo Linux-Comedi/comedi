@@ -28,3 +28,17 @@ das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
 move /proc/comedi to /proc/driver/comedi
 
+- ao dma
+
+- ai doesn't stop
+
+- COMEDI_WAKE_EOS doesn't work with DMA
+
+- munging config parameter
+
+- ao "write: Invalid argument"
+
+- buffer size issues
+
+- devfs support
+
