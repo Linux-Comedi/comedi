@@ -505,15 +505,20 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 
 	if(bi.bytes_written && s==dev->write_subdev){
 		bi.bytes_written = comedi_buf_write_alloc( async, bi.bytes_written );
-		comedi_buf_munge(dev, s, bi.bytes_written);
+		comedi_buf_munge(dev, s, async->buf_write_alloc_count - async->munge_count);
 		comedi_buf_write_free(async, bi.bytes_written);
 	}
 
 	if(s==dev->read_subdev){
+		unsigned int n_munge_bytes;
+
 		bi.buf_int_count = async->buf_write_count;
 		bi.buf_int_ptr = async->buf_write_ptr;
 		bi.buf_user_count = async->buf_read_count;
 		bi.buf_user_ptr = async->buf_read_ptr;
+
+		n_munge_bytes = bi.buf_int_count - s->async->munge_count;
+		comedi_buf_munge(dev, s, n_munge_bytes);
 	}else{
 		bi.buf_int_count = async->buf_read_count;
 		bi.buf_int_ptr = async->buf_read_ptr;
@@ -1334,7 +1339,7 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 		s = dev->read_subdev;
 		async = s->async;
 		if(!s->busy
-		   || comedi_buf_read_n_available(async)>0
+		   || comedi_buf_read_n_available(s)>0
 		   || !(s->subdev_flags&SDF_RUNNING)){
 			mask |= POLLIN | POLLRDNORM;
 		}
@@ -1423,7 +1428,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_munge(dev, s, n);
+		comedi_buf_munge(dev, s, async->buf_write_alloc_count - async->munge_count);
 		comedi_buf_write_free(async, n);
 
 		count+=n;
@@ -1473,7 +1478,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		n=nbytes;
 
-		m = comedi_buf_read_n_available(async);
+		m = comedi_buf_read_n_available(s);
 //printk("%d available\n",m);
 		if(async->buf_read_ptr + m > async->prealloc_bufsz){
 			m = async->prealloc_bufsz - async->buf_read_ptr;
@@ -1503,6 +1508,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 			continue;
 		}
 
+		comedi_buf_munge(dev, s, n);
 		m = copy_to_user(buf, async->prealloc_buf +
 			async->buf_read_ptr, n);
 		if(m){
@@ -1897,6 +1903,8 @@ static void init_async_buf( comedi_async *async )
 	async->cur_chan = 0;
 	async->scan_progress = 0;
 	async->munge_chan = 0;
+	async->munge_count = 0;
+	async->munge_ptr = 0;
 
 	async->events = 0;
 }

@@ -90,7 +90,7 @@ unsigned int cfc_read_array_from_buffer( comedi_subdevice *subd, void *data,
 
 	if( num_bytes == 0 ) return 0;
 
-	bytes_available = comedi_buf_read_n_available( async );
+	bytes_available = comedi_buf_read_n_available(subd);
 	if( bytes_available < num_bytes )
 	{
 		num_bytes = bytes_available;

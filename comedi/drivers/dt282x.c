@@ -457,7 +457,7 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_index=1-i;
 
-	size = comedi_buf_read_n_available(s->async);
+	size = comedi_buf_read_n_available(s);
 	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
@@ -597,8 +597,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		handled = 1;
 	}
 	if (adcsr & DT2821_ADERR) {
-		if(devpriv->nread != 0 )
-		{
+		if(devpriv->nread != 0 ){
 			comedi_error(dev, "A/D error");
 			dt282x_ai_cancel(dev,s);
 			s->async->events |= COMEDI_CB_ERROR;
@@ -1050,7 +1049,7 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	if(x!=0)return -EINVAL;
 
-	size = comedi_buf_read_n_available(s->async);
+	size = comedi_buf_read_n_available(s);
 	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
@@ -1060,7 +1059,7 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,0,size);
 
-	size = comedi_buf_read_n_available(s->async);
+	size = comedi_buf_read_n_available(s);
 	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
@@ -1110,6 +1109,8 @@ static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 
 static int dt282x_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
+	dt282x_disable_dma(dev);
+
 	devpriv->dacsr=0;
 	update_dacsr(0);
 

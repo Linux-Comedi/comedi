@@ -186,7 +186,7 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	outb(chan | (gain << 5), dev->iobase + RTI800_MUXGAIN);
 
-	/* without a delay here, you the RTI_OVERRUN bit
+	/* without a delay here, the RTI_OVERRUN bit
 	 * gets set, and you will have an error.  Not
 	 * sure if this is a long enough delay though.
 	 * comedi_udelay( gaindelay[ gain ] ) definitely

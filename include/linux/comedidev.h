@@ -164,6 +164,10 @@ struct comedi_async_struct{
 	unsigned int scan_progress;
 	/* keeps track of where we are in chanlist as for munging */
 	unsigned int munge_chan;
+	/* number of bytes that have been munged */
+	unsigned int munge_count;
+	/* buffer marker for munging */
+	unsigned int munge_ptr;
 
 	unsigned int	events;		/* events that have occurred */
 
@@ -350,17 +354,17 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 int comedi_buf_put(comedi_async *async, sampl_t x);
 int comedi_buf_get(comedi_async *async, sampl_t *x);
 
-unsigned int comedi_buf_write_n_available(comedi_async *async);
+unsigned int comedi_buf_write_n_available(comedi_subdevice *s);
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes);
 unsigned int comedi_buf_write_alloc_strict(comedi_async *async, unsigned int nbytes);
 void comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
 void comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
-unsigned int comedi_buf_read_n_available(comedi_async *async);
+unsigned int comedi_buf_read_n_available(comedi_subdevice *s);
 void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *source,
 	unsigned int num_bytes );
 void comedi_buf_memcpy_from( comedi_async *async, unsigned int offset, void *destination,
 	unsigned int num_bytes );
-void comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
+unsigned int comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
 	unsigned int num_bytes );
 
 //#ifdef CONFIG_COMEDI_RT

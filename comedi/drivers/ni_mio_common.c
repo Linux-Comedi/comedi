@@ -361,7 +361,6 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 		count = 0;
 	}
 
-	comedi_buf_munge(dev, s, count);
 	comedi_buf_write_free(async, count);
 
 	async->scan_progress += count;
@@ -807,7 +806,7 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 {
 	int n;
 
-	n = comedi_buf_read_n_available(s->async);
+	n = comedi_buf_read_n_available(s);
 	if(n==0){
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
@@ -832,7 +831,7 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	win_out(0,DAC_FIFO_Clear);
 
 	/* load some data */
-	n = comedi_buf_read_n_available(s->async);
+	n = comedi_buf_read_n_available(s);
 	if(n==0)return 0;
 
 	n /= sizeof(sampl_t);
@@ -1236,7 +1235,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
  * they have multiple A/D converters.  Register level documentation is
  * not written down for these boards, other than what is here.  If you
  * have any questions, ask Tim Ousley.
- * From the driver side, it is only the configuration memory that is a
+ * From the driver side, the configuration memory is a
  * little different.
  * Configuration Memory Low:
  *   bits 15-9: same
