@@ -68,8 +68,8 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 	dep_tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D $CONFIG_COMEDI
 fi
 
-dep_tristate 'new DAS08 compatible driver' CONFIG_COMEDI_DAS08_NEW $CONFIG_COMEDI
-dep_tristate 'new DAS16 compatible driver' CONFIG_COMEDI_DAS16_NEW $CONFIG_COMEDI
+dep_tristate 'DAS08 compatible driver' CONFIG_COMEDI_DAS08 $CONFIG_COMEDI
+dep_tristate 'DAS16 compatible driver' CONFIG_COMEDI_DAS16 $CONFIG_COMEDI
 dep_tristate 'old Computer Boards DAS-08 series driver' CONFIG_COMEDI_DAS08_OLD $CONFIG_COMEDI
 dep_tristate 'old Computer Boards DAS-08jr driver' CONFIG_COMEDI_DAS08JR_OLD $CONFIG_COMEDI
 dep_tristate 'Keithley Metrabyte DAS-1600 and compatibles' CONFIG_COMEDI_DAS1600 $CONFIG_COMEDI
