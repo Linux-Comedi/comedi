@@ -1,6 +1,6 @@
 
 This file contains information about specific drivers, their
-features, and limitation.
+features, and limitations.
 
 Driver: 8255.o
 Description: generic 8255 support
@@ -78,6 +78,13 @@ Configuration options:
   [1] - PCI slot of device (optional)
           If bus/slot is not specified, the first available PCI
 	  device will be used.
+
+
+
+Driver: amplc_pci230.o
+Description: Driver for Amplicom PCI230 and PCI260 Multifunction I/O boards
+Author: Allan Willcox <allanwillcox@ozemail.com.au>
+Updated: Mon,  3 Sep 2001 17:37:12 -0700
 
 
 
