@@ -741,6 +741,10 @@ static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,comedi_cm
 		cmd->convert_arg=SLOWEST_TIMER;
 		err++;
 	}
+	if(cmd->convert_arg < this_board->ai_speed ){
+		cmd->convert_arg = this_board->ai_speed;
+		err++;
+	}
 	if(cmd->scan_end_arg!=cmd->chanlist_len){
 		cmd->scan_end_arg=cmd->chanlist_len;
 		err++;
@@ -798,12 +802,12 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		update_supcsr(0);
 	}
 
-	devpriv->adcsr = DT2821_ADCLK /*| DT2821_IADDONE*/;
+	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
 	update_adcsr(0);
 
 	dt282x_load_changain(dev,cmd->chanlist_len,cmd->chanlist);
 
-	devpriv->adcsr = DT2821_ADCLK /*| DT2821_IADDONE */;
+	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
 	update_adcsr(0);
 
 	update_supcsr(DT2821_PRLD);
