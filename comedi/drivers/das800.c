@@ -438,13 +438,14 @@ static irqreturn_t das800_interrupt(int irq, void *d, struct pt_regs *regs)
 		 * We already have spinlock, so indirect addressing is safe */
 		outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 		outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
+		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	/* otherwise, stop taking data */
 	} else
 	{
+		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		disable_das800(dev);		/* diable hardware triggered conversions */
 		async->events |= COMEDI_CB_EOA;
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	comedi_event(dev, s, async->events);
 	async->events = 0;
 	return IRQ_HANDLED;
