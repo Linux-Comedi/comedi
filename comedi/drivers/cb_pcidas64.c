@@ -109,9 +109,9 @@ static const int bnc_trigger_channel_4020 = 1000;
 // indices of base address regions
 enum base_address_regions
 {
-	PLX9080_BADRINDEX = 0,
-	MAIN_BADRINDEX = 2,
-	DIO_COUNTER_BADRINDEX = 3,
+	PLX9080_BADDRINDEX = 0,
+	MAIN_BADDRINDEX = 2,
+	DIO_COUNTER_BADDRINDEX = 3,
 };
 
 // priv(dev)->main_iobase registers
@@ -1271,17 +1271,17 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 		return -EIO;
 	}
 
-	priv(dev)->plx9080_phys_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX);
-	priv(dev)->main_phys_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX);
-	priv(dev)->dio_counter_phys_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX);
+	priv(dev)->plx9080_phys_iobase = pci_resource_start(pcidev, PLX9080_BADDRINDEX);
+	priv(dev)->main_phys_iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	priv(dev)->dio_counter_phys_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
 
 	// remap, won't work with 2.0 kernels but who cares
 	priv(dev)->plx9080_iobase = (unsigned long)ioremap(priv(dev)->plx9080_phys_iobase,
-		pci_resource_len(pcidev, PLX9080_BADRINDEX));
+		pci_resource_len(pcidev, PLX9080_BADDRINDEX));
 	priv(dev)->main_iobase = (unsigned long)ioremap(priv(dev)->main_phys_iobase,
-		pci_resource_len(pcidev, PLX9080_BADRINDEX));
+		pci_resource_len(pcidev, MAIN_BADDRINDEX));
 	priv(dev)->dio_counter_iobase = (unsigned long)ioremap(priv(dev)->dio_counter_phys_iobase,
-		pci_resource_len(pcidev, PLX9080_BADRINDEX));
+		pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
 
 	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
 	DEBUG_PRINT(" main remapped to 0x%lx\n", priv(dev)->main_iobase);
