@@ -283,7 +283,7 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 
 	pci_for_each_dev(pcidev){
 		if(pcidev->vendor==PCI_VENDOR_CB){
-			if(it->options[0] && it->options[1]){
+			if(it->options[0] || it->options[1]){
 				if(pcidev->bus->number==it->options[0] &&
 				   PCI_SLOT(pcidev->devfn)==it->options[1]){
 					break;

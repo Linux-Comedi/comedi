@@ -578,7 +578,7 @@ static int rtd_attach (
      */
     pci_for_each_dev (pcidev) {
 	if (pcidev->vendor == RTD_VENDOR_ID) {
-	    if (it->options[0] && it->options[1]) {
+	    if (it->options[0] || it->options[1]) {
 		if (pcidev->bus->number == it->options[0]
 		    && PCI_SLOT(pcidev->devfn) == it->options[1]) {
 		    printk("rtd520: found bus=%d slot=%d\n",
