@@ -1667,16 +1667,10 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* XXX */
 	
 	/* general purpose counter/timer device */
-	/* CLO */
 	s=dev->subdevices+4;
-	if(boardtype.n_gpct){
-	    gpct_setup(dev,s);
-	    s->type=COMEDI_SUBD_COUNTER;
-	    s->trig[0]=ni_gpct;
-	}else{
-	    s->type=COMEDI_SUBD_UNUSED;
-	    s->trig[0]=NULL;
-	}
+	gpct_setup(dev,s);
+	s->type=COMEDI_SUBD_COUNTER;
+	s->trig[0]=ni_gpct;
 	/* XXX */
 	
 	/* calibration subdevice -- ai and ao */

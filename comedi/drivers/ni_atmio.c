@@ -99,7 +99,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		n_gpct:         0,
 		caldac:		type1,
 	},
 	{	device_id:	25,
@@ -115,7 +114,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		n_gpct:         0,
 		caldac:		type1,
 	},
 	{	device_id:	36,
@@ -131,7 +129,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
 		caldac:		type1,
-		n_gpct:         2,
 		has_8255:	0,
 	},
 	{	device_id:	37,
@@ -147,7 +144,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
 		caldac:		type1,
-		n_gpct:         0,
 		has_8255:	1,
 	},
 	{	device_id:	38,
@@ -163,7 +159,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
-		n_gpct:         0,
 		caldac:		type1,
 	},
 	{	device_id:	39,
@@ -179,7 +174,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
 		caldac:		type2,
-		n_gpct:         0,
 		has_8255:	0,
 	},
 	{	device_id:	50,
@@ -195,7 +189,6 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,	/* unknown */
 		ao_unipolar:	0,	/* unknown */
 		caldac:		type2,
-		n_gpct:         0,
 		has_8255:	0,
 	},
 	{	device_id:	51,
@@ -212,7 +205,6 @@ static ni_board ni_boards[]={
 		aorangelkup:	0,
 		ao_unipolar:	0,
 		caldac:		type2,
-		n_gpct:         0,
 		has_8255:	0,
 	}
 };
