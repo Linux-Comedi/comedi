@@ -924,8 +924,6 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
 
-	async->events = 0;
-
 	s->runflags=SRF_USER;
 
 	s->subdev_flags|=SDF_RUNNING;
@@ -1899,5 +1897,7 @@ static void init_async_buf( comedi_async *async )
 	async->cur_chan = 0;
 	async->scan_progress = 0;
 	async->munge_chan = 0;
+
+	async->events = 0;
 }
 
