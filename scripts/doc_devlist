@@ -38,8 +38,8 @@ while($line=shift @lines){
 				s/^Driver: //;
 				$driver = $_;
 			}
-			if($l =~ m/^Devices: /){
-				$l =~ s/^Devices: //;
+			if($l =~ m/^Devices:/){
+				$l =~ s/^Devices://;
 				parse_devices($l);
 			}
 			$l="";
