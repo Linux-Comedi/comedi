@@ -130,9 +130,9 @@ static void timer_ai_task_func(int d)
 	for(n=0;n<cmd->stop_arg;n++){
 		for(i=0;i<cmd->scan_end_arg;i++){
 			ret = comedi_data_read(devpriv->device,devpriv->subd,
-				CR_CHAN(devpriv->chanlist[i]),
-				CR_RANGE(devpriv->chanlist[i]),
-				CR_AREF(devpriv->chanlist[i]),
+				CR_CHAN(cmd->chanlist[i]),
+				CR_RANGE(cmd->chanlist[i]),
+				CR_AREF(cmd->chanlist[i]),
 				&data);
 			if(ret<0){
 				/* eek! */
@@ -184,9 +184,9 @@ static void timer_ao_task_func(int d)
 					/* eek! */
 				}
 				ret = comedi_data_write(devpriv->device,devpriv->subd,
-					CR_CHAN(devpriv->chanlist[i]),
-					CR_RANGE(devpriv->chanlist[i]),
-					CR_AREF(devpriv->chanlist[i]),
+					CR_CHAN(cmd->chanlist[i]),
+					CR_RANGE(cmd->chanlist[i]),
+					CR_AREF(cmd->chanlist[i]),
 					data);
 				if(ret<0){
 					/* eek! */
