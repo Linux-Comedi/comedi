@@ -551,7 +551,7 @@
 	but I thought I'd put it here anyway.
 */
 
-enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_8_602x, ai_gain_4_603x };
+enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4 };
 extern struct caldac_struct caldac_mb88341,
 	caldac_dac8800,
 	caldac_dac8043,

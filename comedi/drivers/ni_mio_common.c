@@ -120,17 +120,7 @@ static comedi_lrange range_ni_E_ai_limited14={	14, {
 	RANGE( 0,	0.2	),
 	RANGE( 0,	0.1	),
 }};
-static comedi_lrange range_ni_E_ai_limited_602x={ 8, {
-	RANGE( -10,	10	),
-	RANGE( -5,	5	),
-	RANGE( -0.5,	0.5	),
-	RANGE( -0.05,	0.05	),
-	RANGE( 0,	20	),
-	RANGE( 0,	10	),
-	RANGE( 0,	1	),
-	RANGE( 0,	0.1	),
-}};
-static comedi_lrange range_ni_E_ai_603x={ 4, {
+static comedi_lrange range_ni_E_ai_bipolar4={ 4, {
 	RANGE( -10,	10	),
 	RANGE( -5,	5	),
 	RANGE( -0.5,	0.5	),
@@ -153,8 +143,7 @@ static comedi_lrange *ni_range_lkup[]={
 	&range_ni_E_ai,
 	&range_ni_E_ai_limited,
 	&range_ni_E_ai_limited14,
-	&range_ni_E_ai_limited_602x,
-	&range_ni_E_ai_603x,
+	&range_ni_E_ai_bipolar4,
 };
 
 
