@@ -49,6 +49,8 @@ like lab-pc+ or scan up from channel zero.
 /*
 TODO:
 	pcmcia
+	be more careful about stop trigger with dma transfers
+	calibration subdevice
 */
 
 #define LABPC_DEBUG	// enable debugging messages
@@ -65,6 +67,7 @@ TODO:
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #include <linux/comedidev.h>
 #include <asm/dma.h>
@@ -114,6 +117,13 @@ TODO:
 #define   EXT_CONVERT_OUT_BIT	0x4	// chooses direction (output or input) for EXTCONV* line
 #define   ADC_DIFF_BIT	0x8	// chooses differential inputs for adc (in conjunction with board jumper)
 #define   EXT_CONVERT_DISABLE_BIT	0x10
+#define COMMAND5_REG	0x1c	// 1200 boards only, calibration stuff
+#define   EEPROM_WRITE_UNPROTECT_BIT	0x4// enable eeprom for write
+#define   DITHER_EN_BIT	0x8	// enable dithering
+#define   CALDAC_LOAD_BIT	0x10	// load calibration dac
+#define   SCLOCK_BIT	0x20	// serial clock - rising edge writes, falling edge reads
+#define   SDATA_BIT	0x40	// serial data bit for writing to eeprom or calibration dacs
+#define   EEPROM_EN_BIT	0x80	// enable eeprom for read/write
 #define INTERVAL_COUNT_REG	0x1e
 #define INTERVAL_LOAD_REG	0x1f
 #define   INTERVAL_LOAD_BITS	0x1
@@ -127,7 +137,7 @@ TODO:
 #define   DMATC_BIT	0x10	// dma terminal count has occured
 #define   EXT_TRIG_BIT	0x40	// external trigger has occured
 #define STATUS2_REG	0x1d	// 1200 boards only
-#define   EEPROM_OUT_BIT	0x1	// programmable eeprom output
+#define   EEPROM_OUT_BIT	0x1	// programmable eeprom serial output
 #define   A1_TC_BIT	0x2	// counter A1 terminal count
 #define   FNHF_BIT	0x4	// fifo not half full
 #define ADC_FIFO_REG	0xa
@@ -150,11 +160,17 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int labpc_ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
-struct mite_struct* pclab_find_device(int bus, int slot);
-unsigned int labpc_inb(unsigned int address);
-void labpc_outb(unsigned int byte, unsigned int address);
-unsigned int labpc_readb(unsigned int address);
-void labpc_writeb(unsigned int byte, unsigned int address);
+static struct mite_struct* pclab_find_device(int bus, int slot);
+static unsigned int labpc_inb(unsigned int address);
+static void labpc_outb(unsigned int byte, unsigned int address);
+static unsigned int labpc_readb(unsigned int address);
+static void labpc_writeb(unsigned int byte, unsigned int address);
+static int labpc_dio_mem_callback(int dir, int port, int data, void *arg);
+static void labpc_load_factory_calibration(comedi_device *dev);
+static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int write_length);
+static unsigned int labpc_serial_in(comedi_device *dev);
+static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address);
+static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 
 enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
 enum labpc_register_layout {labpc_plus_layout, labpc_1200_layout};
@@ -210,15 +226,11 @@ static comedi_lrange range_labpc_ao = {
 	}
 };
 
-// enum must match labpc_boards array
-// XXX i can't think of why i need this
-// static enum labpc_board_index {lab_pc_plus};
-
 static labpc_board labpc_boards[] =
 {
 	{
 		name:	"daqcard-1200",
-		device_id:	0x0,	// XXX
+		device_id:	0x103,	// 0x10b is manufacturer id, 0x103 is device id
 		ai_speed:	10000,
 		bustype:	pcmcia_bustype,
 		register_layout:	labpc_1200_layout,
@@ -255,7 +267,7 @@ static labpc_board labpc_boards[] =
 	},
 	{
 		name:	"pci-1200",
-		device_id:	0x0,	// XXX
+		device_id:	0x161,
 		ai_speed:	10000,
 		bustype:	pci_bustype,
 		register_layout:	labpc_1200_layout,
@@ -271,11 +283,7 @@ static labpc_board labpc_boards[] =
 #define thisboard ((labpc_board *)dev->board_ptr)
 
 static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
-const int sample_size = 2;	// 2 bytes per sample
-
-// XXX need pci device tables
-
-// XXX need to use outb/inb or readb/writeb appropriately
+static const int sample_size = 2;	// 2 bytes per sample
 
 typedef struct{
 	struct mite_struct *mite;	// for mite chip on pci-1200
@@ -310,6 +318,12 @@ static comedi_driver driver_labpc={
 	board_name:	(char **)labpc_boards,
 	offset:		sizeof(labpc_board),
 };
+
+static struct pci_device_id labpc_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_NATINST, 0x161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, labpc_pci_table);
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -351,6 +365,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 				return -EINVAL;
 			}
 			iobase = mite_setup(devpriv->mite);
+			if(iobase < 0) return -EIO;
 			irq = mite_irq(devpriv->mite);
 			break;
 		case pcmcia_bustype:
@@ -392,8 +407,6 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 		request_region(iobase, LABPC_SIZE, driver_labpc.driver_name);
 	}
 	dev->iobase = iobase;
-
-	// XXX is there any useful board fingerprinting we can do?
 
 	/* grab our IRQ */
 	if(irq < 0)
@@ -447,7 +460,6 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-//XXX ground/common/differential abilities depend on jumpers
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
 	s->n_chan = 8;
 	s->len_chanlist = 8;
@@ -460,30 +472,40 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	/* analog output */
 	s = dev->subdevices + 1;
+	if(thisboard->has_ao)
+	{
 /* XXX could provide command support, except it doesn't have a hardware
  * buffer for analog output and no underrun flag so speed would be very
  * limited unless using RT interrupt */
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = 2;
-	s->maxdata = (1 << 12) - 1;	// 12 bit resolution
-	s->range_table = &range_labpc_ao;
-	s->insn_read = labpc_ao_rinsn;
-	s->insn_write = labpc_ao_winsn;
-
-	/* initialize analog outputs to a known value */
-	for(i = 0; i < s->n_chan; i++)
+		s->type=COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+		s->n_chan = 2;
+		s->maxdata = (1 << 12) - 1;	// 12 bit resolution
+		s->range_table = &range_labpc_ao;
+		s->insn_read = labpc_ao_rinsn;
+		s->insn_write = labpc_ao_winsn;
+		/* initialize analog outputs to a known value */
+		for(i = 0; i < s->n_chan; i++)
+		{
+			//XXX set to bi polar output mode
+			devpriv->ao_value[i] = s->maxdata / 2;	// XXX should init to 0 for unipolar
+			lsb = devpriv->ao_value[i] & 0xff;
+			msb = (devpriv->ao_value[i] >> 8) & 0xff;
+			thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
+			thisboard->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
+		}
+	}else
 	{
-		devpriv->ao_value[i] = s->maxdata / 2;	// XXX should init to 0 for unipolar
-		lsb = devpriv->ao_value[i] & 0xff;
-		msb = (devpriv->ao_value[i] >> 8) & 0xff;
-		thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(i));
-		thisboard->write_byte(msb, dev->iobase + DAC_MSB_REG(i));
+		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	/* 8255 dio */
 	s = dev->subdevices + 2;
-	subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DIO_BASE_REG));
+	// if board uses io memory we have to give a custom callback function to the 8255 driver
+	if(thisboard->write_byte == labpc_writeb)
+		subdev_8255_init(dev, s, labpc_dio_mem_callback, (void*)(dev->iobase + DIO_BASE_REG));
+	else
+		subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DIO_BASE_REG));
 
 	// calibration subdevices for boards that have one
 	s = dev->subdevices + 3;
@@ -499,11 +521,16 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 
+	for(i = 68; i <= 117; i++)
+	{
+		printk("eeprom %i: 0x%x\n", i, labpc_eeprom_read(dev, i));
+	}
+
 	return 0;
 };
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
-struct mite_struct* pclab_find_device(int bus, int slot)
+static struct mite_struct* pclab_find_device(int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;
@@ -1281,22 +1308,147 @@ static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd)
 
 /* functions that do inb/outb and readb/writeb so we can use
  * function pointers to decide which to use */
-unsigned int labpc_inb(unsigned int address)
+static unsigned int labpc_inb(unsigned int address)
 {
 	return inb(address);
 }
 
-void labpc_outb(unsigned int byte, unsigned int address)
+static void labpc_outb(unsigned int byte, unsigned int address)
 {
 	outb(byte, address);
 }
 
-unsigned int labpc_readb(unsigned int address)
+static unsigned int labpc_readb(unsigned int address)
 {
 	return readb(address);
 }
 
-void labpc_writeb(unsigned int byte, unsigned int address)
+static void labpc_writeb(unsigned int byte, unsigned int address)
 {
 	writeb(byte, address);
+}
+
+static int labpc_dio_mem_callback(int dir, int port, int data, void *arg)
+{
+	unsigned long iobase = (int)arg;
+
+	if(dir)
+	{
+		writeb(data, iobase + port);
+		return 0;
+	}else
+	{
+		return readb(iobase + port);
+	}
+}
+
+
+static void labpc_load_factory_calibration(comedi_device *dev)
+{
+}
+
+// lowlevel write to eeprom/dac
+static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int value_width)
+{
+	int i;
+
+	for(i = 1; i <= value_width; i++)
+	{
+		// clear serial clock
+		devpriv->command5_bits &= ~SCLOCK_BIT;
+		// send bits most significant bit first
+		if(value & (1 << (value_width - i)))
+			devpriv->command5_bits |= SDATA_BIT;
+		else
+			devpriv->command5_bits &= ~SDATA_BIT;
+		udelay(1);
+		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+		// set clock to load bit
+		devpriv->command5_bits |= SCLOCK_BIT;
+		udelay(1);
+		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	}
+}
+
+// lowlevel read from eeprom
+static unsigned int labpc_serial_in(comedi_device *dev)
+{
+	unsigned int value = 0;
+	int i;
+	const int value_width = 8;	// number of bits wide values are
+
+	for(i = 1; i <= value_width; i++)
+	{
+		// set serial clock
+		devpriv->command5_bits |= SCLOCK_BIT;
+		udelay(1);
+		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+		// clear clock bit
+		devpriv->command5_bits &= ~SCLOCK_BIT;
+		udelay(1);
+		thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+		// read bits most significant bit first
+		udelay(1);
+		devpriv->status2_bits = thisboard->read_byte(dev->iobase + STATUS2_REG);
+		if(devpriv->status2_bits & EEPROM_OUT_BIT)
+		{
+			value |= 1 << (value_width - i);
+		}
+	}
+
+	return value;
+}
+
+static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address)
+{
+	unsigned int value;
+	const int read_instruction = 0x3;	// bits to tell eeprom to expect a read
+	const int write_length = 8;	// eeprom writes are 8 bits long
+
+/* XXX will need some locking if this function is to be called from multiple
+ * subdevices */
+
+	// enable read/write to eeprom
+	devpriv->command5_bits &= ~EEPROM_EN_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	devpriv->command5_bits |= EEPROM_EN_BIT | EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	// send read instruction
+	labpc_serial_out(dev, read_instruction, write_length);
+	// send 8 bit address to read from
+	labpc_serial_out(dev, address, write_length);
+	// read result
+	value = labpc_serial_in(dev);
+
+	// disable read/write to eeprom
+	devpriv->command5_bits &= ~EEPROM_EN_BIT & ~EEPROM_WRITE_UNPROTECT_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	return value;
+}
+
+// writes to 8 bit calibration dacs
+static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
+{
+	// clear caldac load bit
+	devpriv->command5_bits &= ~CALDAC_LOAD_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+
+	// write 4 bit channel
+	labpc_serial_out(dev, channel, 4);
+	// write 8 bit caldac value
+	labpc_serial_out(dev, value, 8);
+
+	// set and clear caldac bit to load caldac value
+	devpriv->command5_bits |= CALDAC_LOAD_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
+	devpriv->command5_bits &= ~CALDAC_LOAD_BIT;
+	udelay(1);
+	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
