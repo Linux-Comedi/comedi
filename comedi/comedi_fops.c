@@ -1289,22 +1289,20 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	if(dev->read_subdev && dev->read_subdev->async){
 		s = dev->read_subdev;
 		async = s->async;
-		if(s->busy){
-			if((async->buf_user_count < async->buf_int_count) ||
-			   !(s->subdev_flags&SDF_RUNNING)){
-				mask |= POLLIN | POLLRDNORM;
-			}
+		if(!s->busy ||
+		   (async->buf_user_count < async->buf_int_count) ||
+		   !(s->subdev_flags&SDF_RUNNING)){
+			mask |= POLLIN | POLLRDNORM;
 		}
 	}
 	if(dev->write_subdev && dev->write_subdev->async){
 		s = dev->write_subdev;
 		async = s->async;
-		if(s->busy){
-			if(!(s->subdev_flags&SDF_RUNNING) ||
-			   (async->buf_user_count < async->buf_int_count +
-			      async->prealloc_bufsz)){
-				mask |= POLLOUT | POLLWRNORM;
-			}
+		if(!s->busy ||
+		   !(s->subdev_flags&SDF_RUNNING) ||
+		   (async->buf_user_count < async->buf_int_count +
+		    async->prealloc_bufsz)){
+			mask |= POLLOUT | POLLWRNORM;
 		}
 	}
 
