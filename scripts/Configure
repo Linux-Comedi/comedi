@@ -1,9 +1,53 @@
-#!/bin/sh
+#! /bin/sh
 #
-# This script was hacked from the one used to configure the linux kernel.
+# This script is used to configure the Linux kernel.
 #
-
-. scripts/preconfigure
+# It was inspired by the challenge in the original Configure script
+# to ``do something better'', combined with the actual need to ``do
+# something better'' because the old configure script wasn't flexible
+# enough.
+#
+# Raymond Chen was the original author of Configure.
+# Michael Elizabeth Chastain (mec@shout.net) is the current maintainer.
+#
+# 050793 - use IFS='@' to get around a bug in a pre-version of bash-1.13
+# with an empty IFS.
+#
+# 030995 (storner@osiris.ping.dk) - added support for tri-state answers,
+# for selecting modules to compile.
+#
+# 180995 Bernhard Kaindl (bkaindl@ping.at) - added dummy functions for
+# use with a config.in modified for make menuconfig.
+#
+# 301195 (boldt@math.ucsb.edu) - added help text support
+#
+# 281295 Paul Gortmaker - make tri_state functions collapse to boolean
+# if module support is not enabled.
+#
+# 010296 Aaron Ucko (ucko@vax1.rockhurst.edu) - fix int and hex to accept
+# arbitrary ranges
+#
+# 150296 Dick Streefland (dicks@tasking.nl) - report new configuration
+# items and ask for a value even when doing a "make oldconfig"
+#
+# 200396 Tom Dyas (tdyas@eden.rutgers.edu) - when the module option is
+# chosen for an item, define the macro <option_name>_MODULE
+#
+# 090397 Axel Boldt (boldt@math.ucsb.edu) - avoid ? and + in regular 
+# expressions for GNU expr since version 1.15 and up use \? and \+.
+#
+# 300397 Phil Blundell (pjb27@cam.ac.uk) - added support for min/max 
+# arguments to "int", allow dep_tristate to take a list of dependencies
+# rather than just one.
+#
+# 090398 Axel Boldt (boldt@math.ucsb.edu) - allow for empty lines in help
+# texts.
+#
+# 102598 Michael Chastain (mec@shout.net) - put temporary files in
+# current directory, not in /tmp.
+#
+# 24 January 1999, Michael Elizabeth Chastain, <mec@shout.net>
+# - Improve the exit message (Jeff Ronne).
 
 #
 # Make sure we're really running bash.
@@ -37,26 +81,28 @@ function endmenu () {
 #       help variable
 #
 function help () {
-  if [ -f scripts/Configure.help ]
+  if [ -f Documentation/Configure.help ]
   then
      #first escape regexp special characters in the argument:
      var=$(echo "$1"|sed 's/[][\/.^$*]/\\&/g')
      #now pick out the right help text:
      text=$(sed -n "/^$var[ 	]*\$/,\${
-			/^$var[ 	]*\$/b
-			/^#.*/b
-			/^[ 	]*\$/q
+			/^$var[ 	]*\$/c\\
+${var}:\\
+
+			/^#/b
+			/^[^ 	]/q
 			p
-		    }" scripts/Configure.help)
+		    }" Documentation/Configure.help)
      if [ -z "$text" ]
      then
 	  echo; echo "  Sorry, no help available for this option yet.";echo
      else
-	  (echo; echo "$text"; echo) | ${PAGER:-more}
+	  (echo; echo "$text") | ${PAGER:-more}
      fi
   else
      echo;
-     echo "  Can't access the file scripts/Configure.help which"
+     echo "  Can't access the file Documentation/Configure.help which"
      echo "  should contain the help texts."
      echo
   fi
@@ -75,7 +121,7 @@ function readln () {
 	else
 		echo -n "$1"
 		[ -z "$3" ] && echo -n "(NEW) "
-		IFS='@' read ans </dev/tty || exit 1
+		IFS='@' read ans || exit 1
 		[ -z "$ans" ] && ans=$2
 	fi
 }
@@ -97,6 +143,10 @@ function comment () {
 #	define_bool define value
 #
 function define_bool () {
+	define_tristate $1 $2
+}
+
+function define_tristate () {
 	case "$2" in
 	 "y")
 		echo "$1=y" >>$CONFIG
@@ -167,11 +217,11 @@ function tristate () {
 	  while :; do
 	    readln "$1 ($2) [$defprompt] " "$def" "$old"
 	    case "$ans" in
-	      [yY] | [yY]es ) define_bool "$2" "y"
+	      [yY] | [yY]es ) define_tristate "$2" "y"
 			      break ;;
-	      [nN] | [nN]o )  define_bool "$2" "n"
+	      [nN] | [nN]o )  define_tristate "$2" "n"
 			      break ;;
-	      [mM] )          define_bool "$2" "m"
+	      [mM] )          define_tristate "$2" "m"
 			      break ;;
 	      * )             help "$2"
 			      ;;
@@ -182,22 +232,35 @@ function tristate () {
 
 #
 # dep_tristate processes a tristate argument that depends upon
-# another option.  If the option we depend upon is a module,
-# then the only allowable options are M or N.  If Y, then
+# another option or options.  If any of the options we depend upon is a
+# module, then the only allowable options are M or N.  If all are Y, then
 # this is a normal tristate.  This is used in cases where modules
 # are nested, and one module requires the presence of something
 # else in the kernel.
 #
-#	tristate question define default
+#	dep_tristate question define default ...
 #
 function dep_tristate () {
 	old=$(eval echo "\${$2}")
 	def=${old:-'n'}
-	if [ "$3" = "n" ]; then
-		define_bool "$2" "n"
-	elif [ "$3" = "y" ]; then
-		tristate "$1" "$2"
-	else
+	ques=$1
+	var=$2
+	need_module=0
+	shift 2
+	while [ $# -gt 0 ]; do
+	  case "$1" in
+ 	    n)
+	      define_tristate "$var" "n"
+	      return
+	      ;;
+	    m)
+	      need_module=1
+	      ;;
+	  esac
+	  shift
+	done
+
+	if [ $need_module = 1 ]; then
 	   if [ "$CONFIG_MODULES" = "y" ]; then
 		case "$def" in
 		 "y" | "m") defprompt="M/n/?"
@@ -207,11 +270,11 @@ function dep_tristate () {
 		      ;;
 		esac
 		while :; do
-		  readln "$1 ($2) [$defprompt] " "$def" "$old"
+		  readln "$ques ($var) [$defprompt] " "$def" "$old"
 		  case "$ans" in
-		      [nN] | [nN]o )  define_bool "$2" "n"
+		      [nN] | [nN]o )  define_tristate "$var" "n"
 				      break ;;
-		      [mM] )          define_bool "$2" "m"
+		      [mM] )          define_tristate "$var" "m"
 				      break ;;
 		      [yY] | [yY]es ) echo 
    echo "  This answer is not allowed, because it is not consistent with"
@@ -221,12 +284,51 @@ function dep_tristate () {
    echo "  as a module as well (with M) or leave it out altogether (N)."
 				      echo
 				      ;;
-		      * )             help "$2"
+		      * )             help "$var"
 				      ;;
 		  esac
 		done
 	   fi
+	else
+	   tristate "$ques" "$var"
 	fi
+}
+
+function dep_bool () {
+	ques=$1
+	var=$2
+	shift 2
+	while [ $# -gt 0 ]; do
+	  case "$1" in
+	    m | n)
+	      define_bool "$var" "n"
+	      return
+	      ;;
+	  esac
+	  shift
+	done
+
+	bool "$ques" "$var"
+}
+
+function dep_mbool () {
+	ques=$1
+	var=$2
+	shift 2
+	while [ $# -gt 0 ]; do
+	  case "$1" in
+	    n)
+	      define_bool "$var" "n"
+	      return
+	      ;;
+	    m)
+	      eval "$var=y"
+	      ;;
+	  esac
+	  shift
+	done
+
+	bool "$ques" "$var"
 }
 
 #
@@ -241,30 +343,34 @@ function define_int () {
 }
 
 #
-# int processes an integer argument
+# int processes an integer argument with optional limits
 #
-#	int question define default
-# GNU expr changed handling of ?.  In older versions you need ?,
-# in newer you need \?
-OLD_EXPR=`expr "0" : '0\?'`
-if [ $OLD_EXPR -eq 1 ]; then
-    INT_EXPR='0$\|-\?[1-9][0-9]*$'
-else
-    INT_EXPR='0$\|-?[1-9][0-9]*$'
-fi
+#	int question define default [min max]
+#
 function int () {
 	old=$(eval echo "\${$2}")
 	def=${old:-$3}
+	if [ $# -gt 3 ]; then
+	  min=$4
+	else
+	  min=-10000000    # !!
+	fi
+	if [ $# -gt 4 ]; then
+	  max=$5
+	else
+	  max=10000000     # !!
+	fi
 	while :; do
 	  readln "$1 ($2) [$def] " "$def" "$old"
-	  if expr "$ans" : $INT_EXPR > /dev/null; then
-	    define_int "$2" "$ans"
+	  if expr \( \( $ans + 0 \) \>= $min \) \& \( $ans \<= $max \) >/dev/null 2>&1 ; then
+            define_int "$2" "$ans"
 	    break
-	  else
+          else
 	    help "$2"
-	  fi
+          fi
 	done
 }
+
 #
 # define_hex sets the value of a hexadecimal argument
 #
@@ -297,6 +403,28 @@ function hex () {
 	done
 }
 
+#
+# define_string sets the value of a string argument
+#
+#	define_string define value
+#
+function define_string () {
+	echo "$1=\"$2\"" >>$CONFIG
+	echo "#define $1 \"$2\"" >>$CONFIG_H
+	eval "$1=\"$2\""
+}
+
+#
+# string processes a string argument
+#
+#	string question define default
+#
+function string () {
+	old=$(eval echo "\${$2}")
+	def=${old:-$3}
+	readln "$1 ($2) [$def] " "$def" "$old"
+	define_string "$2" "$ans"
+}
 #
 # choice processes a choice list (1-out-of-n)
 #
@@ -391,6 +519,7 @@ echo "#" >> $CONFIG
 echo "/*" > $CONFIG_H
 echo " * Automatically generated C config: don't edit" >> $CONFIG_H
 echo " */" >> $CONFIG_H
+echo "#define AUTOCONF_INCLUDED" >> $CONFIG_H
 
 DEFAULT=""
 if [ "$1" = "-d" ] ; then
@@ -398,12 +527,12 @@ if [ "$1" = "-d" ] ; then
 	shift
 fi
 
-CONFIG_IN=./scripts/config.in
+CONFIG_IN=./config.in
 if [ "$1" != "" ] ; then
 	CONFIG_IN=$1
 fi
 
-DEFAULTS=./scripts/config.dist
+DEFAULTS=arch/$ARCH/defconfig
 if [ -f .config ]; then
   DEFAULTS=.config
 fi
@@ -413,9 +542,9 @@ if [ -f $DEFAULTS ]; then
   echo "# Using defaults found in" $DEFAULTS
   echo "#"
   . $DEFAULTS
-  sed -e 's/# \(.*\) is not.*/\1=n/' < $DEFAULTS > /tmp/conf.$$
-  . /tmp/conf.$$
-  rm /tmp/conf.$$
+  sed -e 's/# \(CONFIG_[^ ]*\) is not.*/\1=n/' <$DEFAULTS >.config-is-not.$$
+  . .config-is-not.$$
+  rm .config-is-not.$$
 else
   echo "#"
   echo "# No defaults found"
@@ -429,14 +558,16 @@ if [ -f .config ]; then
 	mv .config .config.old
 fi
 mv .tmpconfig .config
-mv .tmpconfig.h include/modbuild/config.h
+mv .tmpconfig.h include/linux/autoconf.h
 
-echo 
-echo "Makefiles for ${project} should now be configured."
-echo "Run 'make dep ; make' to compile, and then 'make install' to install."
-echo 
-echo "If ${project} has never been installed on your system,"
-echo "then run 'make dev' to build the device nodes '/dev/comedi*'."
+echo
+echo "*** End of Linux kernel configuration."
+echo "*** Check the top-level Makefile for additional configuration."
+if [ ! -f .hdepend -o "$CONFIG_MODVERSIONS" = "y" ] ; then
+    echo "*** Next, you must run 'make dep'."
+else
+    echo "*** Next, you may run 'make zImage', 'make zdisk', or 'make zlilo'."
+fi
 echo
 
 exit 0
