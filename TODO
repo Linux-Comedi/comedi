@@ -1,16 +1,10 @@
 
-update the list of supported cards
-
-mite.c expects that the buffer is vmalloc()ed.  This might not
-be the case with real-time.  The planned fix for this is to
-no longer allow real-time applications to allocate their own
-buffer.
-
 comedi_rt_timer segfaults when the lower-level driver disappears
 and reappears.  This is a problem with the Comedi core, not the
-driver.
+driver.  I don't really know how to fix this.
 
-BUG in do_test_for_insn_bits() (due to -EACCES)
+BUG in do_test_for_insn_bits() (due to -EACCES)  This happens when
+another process is using a subdevice.
 
 das6402 needs cleanup
 
@@ -31,8 +25,6 @@ autoloading causes BUG on failure.
 need realtime examples
 
 das1800: kmalloc could fail on large buffer sizes (see dt282x)
-
-check for SA_SHIRQ in drivers
 
 move /proc/comedi to /proc/driver/comedi
 
