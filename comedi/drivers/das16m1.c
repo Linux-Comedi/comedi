@@ -714,7 +714,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 
 	s = dev->subdevices + 3;
 	/* 8255 */
-	subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DAS16M1_82C55));
+	subdev_8255_init(dev, s, NULL, (unsigned long)(dev->iobase + DAS16M1_82C55));
 
 	// disable upper half of hardware conversion counter so it doesn't mess with us
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);

@@ -441,7 +441,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s);
 //static int ao_cancel(comedi_device *dev, comedi_subdevice *s);
-static int dio_callback(int dir, int port, int data, void *arg);
+static int dio_callback(int dir, int port, int data, unsigned long arg);
 static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
@@ -741,7 +741,7 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 	/* 8255 */
 	s = dev->subdevices + 4;
 	subdev_8255_init(dev, s, dio_callback,
-		(void*) (devpriv->dio_counter_iobase + DIO_8255_OFFSET));
+		(unsigned long) (devpriv->dio_counter_iobase + DIO_8255_OFFSET));
 
 	// user counter subd XXX
 	s = dev->subdevices + 5;
@@ -1367,10 +1367,8 @@ static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	return 1;
 }
 
-static int dio_callback(int dir, int port, int data, void *arg)
+static int dio_callback(int dir, int port, int data, unsigned long iobase)
 {
-	unsigned long iobase = (int)arg;
-
 	if(dir)
 	{
 		writeb(data, iobase + port);

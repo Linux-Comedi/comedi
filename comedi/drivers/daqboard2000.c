@@ -674,10 +674,9 @@ The test command, REMOVE!!:
 rmmod daqboard2000 ; rmmod comedi; make install ; modprobe daqboard2000; /usr/sbin/comedi_config /dev/comedi0 daqboard/2000 ; tail -40 /var/log/messages
 */
 
-static int daqboard2000_8255_cb(int dir, int port, int data, void *arg)
+static int daqboard2000_8255_cb(int dir, int port, int data, unsigned long ioaddr)
 {
   int result = 0;
-  unsigned long ioaddr=(unsigned long)arg;
   if(dir){
     writew(data,ioaddr+port*2);
     result = 0;
@@ -823,7 +822,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 
   s = dev->subdevices + 2;
   result = subdev_8255_init(dev,s,daqboard2000_8255_cb,
-                           (void *)(dev->iobase+0x40));
+                           (unsigned long)(dev->iobase+0x40));
   
   printk("\n");
 out:

@@ -81,8 +81,8 @@ chips.
 #define CR_CW		0x80
 
 struct subdev_8255_struct{
-	void *cb_arg;
-	int (*cb_func)(int,int,int,void *);
+	unsigned long cb_arg;
+	int (*cb_func)(int,int,int,unsigned long);
 };
 
 #define CALLBACK_ARG	(((struct subdev_8255_struct *)s->private)->cb_arg)
@@ -100,9 +100,9 @@ COMEDI_INITCLEANUP(driver_8255);
 
 static void do_config(comedi_device *dev,comedi_subdevice *s);
 
-static int subdev_8255_cb(int dir,int port,int data,void *arg)
+static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
-	int iobase=(unsigned long)arg;
+	int iobase=arg;
 
 	if(dir){
 		outb(data,iobase+port);
@@ -185,7 +185,7 @@ static void do_config(comedi_device *dev,comedi_subdevice *s)
 }
 
 
-int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,void *),void *arg)
+int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,unsigned long),unsigned long arg)
 {
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_READABLE|SDF_WRITEABLE|SDF_RT;
@@ -258,7 +258,7 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 		}else{
 			request_region(iobase,_8255_SIZE,"8255");
 
-			subdev_8255_init(dev,dev->subdevices+i,NULL,(void *)iobase);
+			subdev_8255_init(dev,dev->subdevices+i,NULL,iobase);
 		}
 	}
 
@@ -277,7 +277,7 @@ static int dev_8255_detach(comedi_device *dev)
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
 		if(s->type!=COMEDI_SUBD_UNUSED){
-			iobase=(int)CALLBACK_ARG;
+			iobase=CALLBACK_ARG;
 			release_region(iobase,_8255_SIZE);
 		}
 		subdev_8255_cleanup(dev,s);

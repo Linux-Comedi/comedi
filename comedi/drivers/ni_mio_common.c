@@ -220,7 +220,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
 
-static int ni_8255_callback(int dir,int port,int data,void *arg);
+static int ni_8255_callback(int dir,int port,int data,unsigned long arg);
 
 static int ni_ns_to_timer(int *nanosec,int round_mode);
 
@@ -2023,7 +2023,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* 8255 device */
 	s=dev->subdevices+3;
 	if(boardtype.has_8255){
-		subdev_8255_init(dev,s,ni_8255_callback,dev);
+		subdev_8255_init(dev,s,ni_8255_callback,(unsigned long)dev);
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
@@ -2104,9 +2104,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 
 
-static int ni_8255_callback(int dir,int port,int data,void *arg)
+static int ni_8255_callback(int dir,int port,int data,unsigned long arg)
 {
-	comedi_device *dev=arg;
+	comedi_device *dev=(comedi_device *)arg;
 
 	if(dir){
 		ni_writeb(data,Port_A+2*port);

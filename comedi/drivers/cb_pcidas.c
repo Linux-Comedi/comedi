@@ -658,7 +658,7 @@ found:
 	/* 8255 */
 	s = dev->subdevices + 2;
 	subdev_8255_init(dev, s, NULL,
-		(void *)(devpriv->pacer_counter_dio + DIO_8255));
+		(unsigned long)(devpriv->pacer_counter_dio + DIO_8255));
 
 	/* Set bits to enable incoming mailbox interrupts on amcc s5933.
 	 * They don't actually get sent here, but in cmd code. */

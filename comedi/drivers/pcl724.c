@@ -102,9 +102,9 @@ comedi_driver driver_pcl724={
 COMEDI_INITCLEANUP(driver_pcl724);
 
 
-static int subdev_8255_cb(int dir,int port,int data,void *arg)
+static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
-	int iobase=(int)arg;
+	int iobase=arg;
 
 	if(dir){
 		outb(data,iobase+port);
@@ -114,9 +114,8 @@ static int subdev_8255_cb(int dir,int port,int data,void *arg)
 	}
 }
 
-static int subdev_8255mapped_cb(int dir,int port,int data,void *arg)
+static int subdev_8255mapped_cb(int dir,int port,int data,unsigned long iobase)
 {
-	int iobase=(int)arg;
 	int movport=SIZE_8255*(iobase>>12);
 
 	iobase&=0x0fff;
@@ -186,10 +185,10 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 	for(i=0;i<dev->n_subdevices;i++){
 		if (this_board->is_pet48) {
 			subdev_8255_init(dev,dev->subdevices+i,
-				subdev_8255mapped_cb,(void *)(dev->iobase+i*0x1000));
+				subdev_8255mapped_cb,(unsigned long)(dev->iobase+i*0x1000));
 		} else
 			subdev_8255_init(dev,dev->subdevices+i,
-				subdev_8255_cb,(void *)(dev->iobase+SIZE_8255*i));
+				subdev_8255_cb,(unsigned long)(dev->iobase+SIZE_8255*i));
 	};
 
 	return 0;

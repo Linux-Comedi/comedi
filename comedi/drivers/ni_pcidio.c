@@ -268,10 +268,8 @@ static int nidio_find_device(comedi_device *dev,int bus,int slot);
 static int setup_mite(comedi_device *dev);
 #endif
 
-static int nidio96_8255_cb(int dir,int port,int data,void *arg)
+static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 {
-	int iobase=(int)arg;
-
 	if(dir){
 		writeb(data,iobase+port);
 		return 0;
@@ -457,7 +455,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	if(!this_board->is_diodaq){
 		for(i=0;i<this_board->n_8255;i++){
 			subdev_8255_init(dev,dev->subdevices+i,
-				nidio96_8255_cb,(void *)(dev->iobase+NIDIO_8255_BASE(i)));
+				nidio96_8255_cb,(unsigned long)(dev->iobase+NIDIO_8255_BASE(i)));
 		}
 	}else{
 

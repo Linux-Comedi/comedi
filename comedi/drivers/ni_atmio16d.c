@@ -839,7 +839,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* 8255 subdevice */
 	s++;
 	if(boardtype->has_8255){
-		subdev_8255_init(dev,s,NULL,(void *)dev->iobase);
+		subdev_8255_init(dev,s,NULL,(unsigned long)dev->iobase);
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}

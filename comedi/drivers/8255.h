@@ -28,12 +28,13 @@
 
 #if defined(CONFIG_COMEDI_8255) || defined(CONFIG_COMEDI_8255_MODULE)
 
-int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,void *),void *arg);
+int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,
+		int (*cb)(int,int,int,unsigned long),unsigned long arg);
 void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s);
 
 #else
 
-static inline int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,void *x,void *y)
+static inline int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,void *x,unsigned long y)
 {
 	printk("8255 support not configured -- disabling subdevice\n");
 

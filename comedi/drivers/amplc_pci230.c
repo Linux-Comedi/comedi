@@ -430,7 +430,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+2;
 	/* digital i/o subdevice */
 	if(thisboard->have_dio){
-		subdev_8255_init(dev,s,NULL,(void *)(devpriv->pci_iobase + PCI230_PPI_X_A));
+		subdev_8255_init(dev,s,NULL,(devpriv->pci_iobase + PCI230_PPI_X_A));
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}

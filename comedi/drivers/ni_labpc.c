@@ -697,7 +697,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 2;
 	// if board uses io memory we have to give a custom callback function to the 8255 driver
 	if(thisboard->write_byte == labpc_writeb)
-		subdev_8255_init(dev, s, labpc_dio_mem_callback, (void*)(dev->iobase + DIO_BASE_REG));
+		subdev_8255_init(dev, s, labpc_dio_mem_callback, (unsigned long)(dev->iobase + DIO_BASE_REG));
 	else
 		subdev_8255_init(dev, s, NULL, (void*)(dev->iobase + DIO_BASE_REG));
 
@@ -1767,10 +1767,8 @@ static void labpc_writeb(unsigned int byte, unsigned int address)
 	writeb(byte, address);
 }
 
-static int labpc_dio_mem_callback(int dir, int port, int data, void *arg)
+static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long iobase)
 {
-	unsigned long iobase = (int)arg;
-
 	if(dir)
 	{
 		writeb(data, iobase + port);

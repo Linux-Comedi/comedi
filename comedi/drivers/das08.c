@@ -893,7 +893,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+4;
 	/* 8255 */
 	if(thisboard->i8255_offset!=0){
-		subdev_8255_init(dev,s,NULL,(void *)(dev->iobase+
+		subdev_8255_init(dev,s,NULL,(unsigned long)(dev->iobase+
 			thisboard->i8255_offset));
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
