@@ -23,7 +23,6 @@
 #define pci_enable_device(x) 0
 
 #define PCI_ANY_ID (~0)
-#define __devinitdata	__initdata
 
 struct pci_device_id {
 	unsigned int vendor, device;
@@ -34,6 +33,7 @@ struct pci_device_id {
 
 // stuff for allocating pci dma buffers
 #include <asm/io.h>
+#include <linux/malloc.h>
 #define PCI_DMA_FROMDEVICE              0
 #define PCI_DMA_TODEVICE                0
 static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
