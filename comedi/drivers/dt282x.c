@@ -335,7 +335,7 @@ typedef struct {
 		short *buf;	/* DMA buffer */
 		int size;	/* size of current transfer */
 	}dma[2];
-	int dma_maxsize;	/* max size of DMA transfer     */
+	int dma_maxsize;	/* max size of DMA transfer (in bytes) */
 	int usedma;		/* driver uses DMA              */
 	int current_dma_chan;
 	int dma_dir;
@@ -391,21 +391,35 @@ static int dt282x_ns_to_timer(int *nanosec,int round_mode);
 
 static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2);
 
-static void dt282x_cleanup_buffer(comedi_device *dev,unsigned short *buf,unsigned int len)
+static void dt282x_copy_to_buffer(comedi_device *dev,sampl_t *buf,
+	unsigned int nbytes)
 {
+	comedi_async *async = dev->subdevices[0].async;
 	unsigned int i;
 	unsigned short mask=(1<<boardtype.adbits)-1;
 	unsigned short sign=1<<(boardtype.adbits-1);
+	unsigned short *abuf;
+	int n;
 
 	if(devpriv->ad_2scomp){
-		for(i=0;i<len;i++){
-			buf[i]&=mask;
-			buf[i]^=sign;
-		}
+		sign = 1<<(boardtype.adbits-1);
 	}else{
-		for(i=0;i<len;i++){
-			buf[i]&=mask;
+		sign = 0;
+	}
+
+	abuf = async->prealloc_buf + async->buf_write_ptr;
+	if(async->buf_write_ptr + nbytes >= async->prealloc_bufsz){
+		n = (async->prealloc_bufsz - async->buf_write_ptr - nbytes)/2;
+		for(i=0;i<n;i++){
+			abuf[i] = (buf[i]&mask)^sign;
 		}
+		nbytes -= n;
+		abuf = async->prealloc_buf;
+		buf = buf + i;
+	}
+	n = nbytes/2;
+	for(i=0;i<n;i++){
+		abuf[i] = (buf[i]&mask)^sign;
 	}
 }
 
@@ -430,16 +444,18 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_chan=1-i;
 
-	size = comedi_buf_get_array( s->async, ptr, devpriv->dma_maxsize );
-	if( size < 0){
-		printk("dt282x: AO underrun\n");
+	size = comedi_buf_read_n_available(s->async);
+	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
+	if( size == 0){
+		rt_printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev,s,s->async->events);
 		return;
 	}
+	comedi_buf_copy_from(s->async, ptr, size);
+	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,i,size);
-
 	enable_dma(devpriv->dma[i].chan);
 
 	comedi_event(dev,s,s->async->events);
@@ -451,6 +467,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 	void *ptr;
 	int size;
 	int i;
+	int ret;
 	comedi_subdevice *s=dev->subdevices;
 
 	update_supcsr(DT2821_CLRDMADNE);
@@ -460,16 +477,25 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 		return;
 	}
 
-	i=devpriv->current_dma_chan;
-	ptr=devpriv->dma[i].buf;
-	size=devpriv->dma[i].size;
+	i = devpriv->current_dma_chan;
+	ptr = devpriv->dma[i].buf;
+	size = devpriv->dma[i].size;
 
 	disable_dma(devpriv->dma[i].chan);
 
-	devpriv->current_dma_chan=1-i;
-	dt282x_cleanup_buffer(dev,ptr,size);
-	comedi_buf_put_array( s->async, ptr, size );
-	devpriv->nread-=size;
+	devpriv->current_dma_chan = 1-i;
+
+	ret = comedi_buf_write_alloc(s->async, size);
+	if(!ret){
+		rt_printk("dt282x: AI buffer overflow\n");
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		comedi_event(dev,s,s->async->events);
+		return;
+	}
+	dt282x_copy_to_buffer(dev, ptr, size);
+	comedi_buf_write_free(s->async, size);
+
+	devpriv->nread-=size/2;
 
 	if(devpriv->nread<0){
 		printk("dt282x: off by one\n");
@@ -516,9 +542,9 @@ static int prep_ai_dma(comedi_device * dev,int chan,int n)
 
 	if(n==0)
 		n = devpriv->dma_maxsize;
-	if (n >= devpriv->ntrig)
-		n = devpriv->ntrig;
-	devpriv->ntrig -= n;
+	if (n >= devpriv->ntrig*2)
+		n = devpriv->ntrig*2;
+	devpriv->ntrig -= n/2;
 
 	devpriv->dma[chan].size = n;
 	dma_chan = devpriv->dma[chan].chan;
@@ -527,7 +553,7 @@ static int prep_ai_dma(comedi_device * dev,int chan,int n)
 	set_dma_mode(dma_chan, DMA_MODE_READ);
 	flags=claim_dma_lock();
 	set_dma_addr(dma_chan, dma_ptr);
-	set_dma_count(dma_chan, n << 1);
+	set_dma_count(dma_chan, n);
 	release_dma_lock(flags);
 
 	return n;
@@ -546,7 +572,7 @@ static int prep_ao_dma(comedi_device * dev,int chan,int n)
 	set_dma_mode(dma_chan, DMA_MODE_WRITE);
 	flags=claim_dma_lock();
 	set_dma_addr(dma_chan, dma_ptr);
-	set_dma_count(dma_chan, n*2 );
+	set_dma_count(dma_chan, n );
 	release_dma_lock(flags);
 
 	return n;
@@ -558,6 +584,7 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->subdevices+0;
 	unsigned int supcsr, adcsr, dacsr;
 	sampl_t data;
+	int ret;
 
 	adcsr=inw(dev->iobase + DT2821_ADCSR);
 	if (adcsr & DT2821_ADERR) {
@@ -596,7 +623,10 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->ad_2scomp){
 			data^=1<<(boardtype.adbits-1);
 		}
-		comedi_buf_put( s->async, data );
+		ret = comedi_buf_put( s->async, data );
+		if(ret==0){
+			s->async->events |= COMEDI_CB_ERROR;
+		}
 
 		devpriv->nread--;
 		if(!devpriv->nread){
@@ -993,16 +1023,28 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	if(x!=0)return -EINVAL;
 
-	size=comedi_buf_get_array( s->async, devpriv->dma[0].buf, devpriv->dma_maxsize);
-	if( size < 0 ) return size;
-
+	size = comedi_buf_read_n_available(s->async);
+	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
+	if( size == 0){
+		rt_printk("dt282x: AO underrun\n");
+		return -EPIPE;
+	}
+	comedi_buf_copy_from(s->async, devpriv->dma[0].buf, size);
+	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,0,size);
 	enable_dma(devpriv->dma[0].chan);
 
-	size=comedi_buf_get_array( s->async, devpriv->dma[1].buf, devpriv->dma_maxsize);
+	size = comedi_buf_read_n_available(s->async);
+	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
+	if( size == 0){
+		rt_printk("dt282x: AO underrun\n");
+		return -EPIPE;
+	}
+	comedi_buf_copy_from(s->async, devpriv->dma[1].buf, size);
+	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,1,size);
 	enable_dma(devpriv->dma[1].chan);
-	
+
 	update_supcsr(DT2821_STRIG);
 	s->async->inttrig=NULL;
 
@@ -1332,7 +1374,7 @@ static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2)
 		return -EBUSY;
 	devpriv->dma[1].chan=dma2;
 
-	devpriv->dma_maxsize = PAGE_SIZE >> 1;
+	devpriv->dma_maxsize = PAGE_SIZE;
 	devpriv->dma[0].buf = (void *) get_free_page(GFP_KERNEL | GFP_DMA);
 	devpriv->dma[1].buf = (void *) get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf) {

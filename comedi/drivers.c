@@ -635,3 +635,18 @@ int comedi_buf_put(comedi_async *async, sampl_t x)
 	return 1;
 }
 
+void comedi_buf_copy_from(comedi_async *async, void *dest, int nbytes)
+{
+	void *src;
+
+	src = async->prealloc_buf + async->buf_read_ptr;
+	if(async->buf_read_ptr + nbytes >= async->prealloc_bufsz){
+		memcpy(dest, src,
+			async->prealloc_bufsz - async->buf_read_ptr - nbytes);
+		nbytes -= async->prealloc_bufsz - async->buf_read_ptr;
+		src = async->prealloc_buf;
+		dest += async->prealloc_bufsz - async->buf_read_ptr;
+	}
+	memcpy(dest, src, nbytes);
+}
+

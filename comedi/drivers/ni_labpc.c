@@ -1408,6 +1408,7 @@ static void labpc_drain_dma(comedi_device *dev)
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;
+	int i;
 
 	status = devpriv->status1_bits;
 
@@ -1442,7 +1443,10 @@ static void labpc_drain_dma(comedi_device *dev)
 	}
 
 	/* write data to comedi buffer */
-	comedi_buf_put_array(async, devpriv->dma_buffer, num_points);
+	for(i=0;i<num_points;i++){
+		/* XXX check for errors */
+		comedi_buf_put(async, devpriv->dma_buffer[i]);
+	}
 	if(async->cmd.stop_src == TRIG_COUNT) devpriv->count -= num_points;
 
 	// set address and count for next transfer

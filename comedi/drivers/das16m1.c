@@ -497,7 +497,6 @@ static void das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
 static void das16m1_handler(comedi_device *dev, unsigned int status)
 {
 	int i;
-	sampl_t data[FIFO_SIZE];
 	comedi_subdevice *s;
 	comedi_async *async;
 	comedi_cmd *cmd;
@@ -535,12 +534,13 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 	// make sure we dont try to get too many points if fifo has overrun
 	if(num_samples > FIFO_SIZE)
 		num_samples = FIFO_SIZE;
-	insw(dev->iobase, data, num_samples);
-	for(i = 0; i < num_samples; i++)
-	{
-		data[i] = AI_DATA(data[i]);
+	for(i = 0; i < num_samples; i++) {
+		sampl_t d;
+
+		d = inw(dev->iobase);
+		/* XXX check return value */
+		comedi_buf_put(async, AI_DATA(d));
 	}
-	comedi_buf_put_array(async, data, num_samples);
 	devpriv->adc_count += num_samples;
 
 	if(cmd->stop_src == TRIG_COUNT)
