@@ -659,7 +659,7 @@ struct pcmcia_driver das08_cs_driver =
 	.detach = das08_pcmcia_detach,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = "das08_cs",
+		.name = dev_info,
 	},	
 };
 
