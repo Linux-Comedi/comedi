@@ -92,26 +92,40 @@ void rt_pend_irq_handler(void)
 	}
 }
 
+#define random_pointer ((void *)&rt_pend_tq_init)
+
 int rt_pend_tq_init(void)
 {
 	rt_pend_head=rt_pend_tail=rt_pend_tq;
-	return rt_pend_tq_irq=rt_request_srq(0,rt_pend_irq_handler,NULL);
+	rt_pend_tq_irq=rt_request_srq(0,rt_pend_irq_handler,random_pointer);
+	if(rt_pend_tq_irq<0){
+		rt_pend_tq_irq=0;
+		printk("rt_pend_tq_init(): couldn't alloc srq\n");
+		return -EINVAL;
+	}else{
+		printk("rt_pend_tq_init(): irq=%d\n",rt_pend_tq_irq);
+	}
+	return 0;
 }
 
 void rt_pend_tq_cleanup(void)
 {
-	free_irq(rt_pend_tq_irq,NULL);
+	if(rt_pend_tq_irq){
+		free_irq(rt_pend_tq_irq,random_pointer);
+	}
 }
 #endif
 
 
 void comedi_rtai_init(void)
 {
+	rt_mount_rtai();
 	rt_pend_tq_init();
 }
 
 void comedi_rtai_cleanup(void)
 {
 	rt_pend_tq_cleanup();
+	rt_umount_rtai();
 }
 
