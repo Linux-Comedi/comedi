@@ -18,7 +18,7 @@
     David Schleef and the rest of the Comedi developers comunity.
 
     Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
-    Copyright (C) 2001,2002 Frank Mori Hess <fmhess@uiuc.edu>
+    Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
@@ -75,8 +75,6 @@ range and aref.
 
 TODO:
 
-add a calibration support
-
 analog triggering on 1602 series
 */
 
@@ -108,6 +106,8 @@ analog triggering on 1602 series
 static const int max_fifo_size = 1024;	// maximum fifo size of any supported board
 #define NUM_CHANNELS_8800 8
 #define NUM_CHANNELS_7376 1
+#define NUM_CHANNELS_8402 2
+#define NUM_CHANNELS_DAC08 1
 
 /* PCI-DAS base addresses */
 
@@ -166,7 +166,8 @@ static const int max_fifo_size = 1024;	// maximum fifo size of any supported boa
 
 #define CALIBRATION_REG	6	// CALIBRATION register
 #define   SELECT_8800_BIT	0x100	// select 8800 caldac
-#define   SELECT_7376_BIT	0x200	// select ad7376 trim pot
+#define   SELECT_TRIMPOT_BIT	0x200	// select ad7376 trim pot
+#define   SELECT_DAC08_BIT	0x400	// select dac08 caldac
 #define   CAL_SRC_BITS(x)	(((x) & 0x7) << 11)
 #define   CAL_EN_BIT	0x4000	// read calibration source instead of analog input channel 0
 #define   SERIAL_DATA_IN_BIT	0x8000	// serial data stream going to 8800 and 7376
@@ -244,6 +245,12 @@ static comedi_lrange cb_pcidas_ao_ranges =
 	}
 };
 
+enum trimpot_model
+{
+	AD7376,
+	AD8402,
+};
+
 typedef struct cb_pcidas_board_struct
 {
 	char *name;
@@ -257,6 +264,8 @@ typedef struct cb_pcidas_board_struct
 	int ao_scan_speed;	// analog output speed for 1602 series (for a scan, not conversion)
 	int fifo_size;	// number of samples fifo can hold
 	comedi_lrange *ranges;
+	enum trimpot_model trimpot;
+	unsigned has_dac08 : 1;
 } cb_pcidas_board;
 
 static cb_pcidas_board cb_pcidas_boards[] =
@@ -273,6 +282,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ao_scan_speed:	10000,
 		fifo_size:	512,
 		ranges:	&cb_pcidas_ranges,
+		trimpot:	AD8402,
+		has_dac08:	1,
 	},
 	{
 		name:		"pci-das1200",
@@ -285,6 +296,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		has_ao_fifo:	0,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
+		trimpot: AD7376,
+		has_dac08:	0,
 	},
 	{
 		name:		"pci-das1602/12",
@@ -298,6 +311,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ao_scan_speed:	4000,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
+		trimpot: AD7376,
+		has_dac08:	0,
 	},
 	{
 		name:		"pci-das1200/jr",
@@ -310,6 +325,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		has_ao_fifo:	0,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
+		trimpot: AD7376,
+		has_dac08:	0,
 	},
 	{
 		name:		"pci-das1602/16/jr",
@@ -322,6 +339,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		has_ao_fifo:	0,
 		fifo_size:	512,
 		ranges:	&cb_pcidas_ranges,
+		trimpot: AD8402,
+		has_dac08:	1,
 	},
 	{
 		name:		"pci-das1000",
@@ -334,6 +353,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		has_ao_fifo:	0,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
+		trimpot: AD7376,
+		has_dac08:	0,
 	},
 	{
 		name:		"pci-das1001",
@@ -346,6 +367,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		has_ao_fifo:	0,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_alt_ranges,
+		trimpot: AD7376,
+		has_dac08:	0,
 	},
 	{
 		name:		"pci-das1002",
@@ -358,6 +381,8 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		has_ao_fifo:	0,
 		fifo_size:	1024,
 		ranges:	&cb_pcidas_ranges,
+		trimpot: AD7376,
+		has_dac08:	0,
 	},
 };
 // Number of boards in cb_pcidas_boards
@@ -407,7 +432,9 @@ typedef struct
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 	unsigned int caldac_value[ NUM_CHANNELS_8800 ];	// for readback of caldac
-	unsigned int trimpot_value;	// for readback of trimpot
+	unsigned int trimpot_value[ NUM_CHANNELS_8402 ];	// for readback of trimpot
+	unsigned int dac08_value;
+	unsigned int calibration_source;
 } cb_pcidas_private;
 
 /*
@@ -432,6 +459,7 @@ static comedi_driver driver_cb_pcidas={
 };
 
 static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int ai_config_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ao_fifo_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -457,8 +485,13 @@ static int trimpot_read_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
 static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data );
+static int dac08_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
+static int dac08_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data );
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
 static int trimpot_7376_write(comedi_device *dev, uint8_t value);
+static int trimpot_8402_write(comedi_device *dev, unsigned int channel, uint8_t value);
 static int nvram_read( comedi_device *dev, unsigned int address, uint8_t *data );
 
 /*
@@ -593,7 +626,7 @@ found:
 /*
  * Allocate the subdevice structures.
  */
-	dev->n_subdevices = 6;
+	dev->n_subdevices = 7;
 	if(alloc_subdevices(dev) < 0)
 		return -ENOMEM;
 
@@ -608,6 +641,7 @@ found:
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = thisboard->ranges;
 	s->insn_read = cb_pcidas_ai_rinsn;
+	s->insn_config = ai_config_insn;
 	s->do_cmd = cb_pcidas_ai_cmd;
 	s->do_cmdtest = cb_pcidas_ai_cmdtest;
 	s->cancel = cb_pcidas_cancel;
@@ -652,7 +686,7 @@ found:
 	s->maxdata = 0xff;
 	s->insn_read = eeprom_read_insn;
 
-	// caldac
+	// 8800 caldac
 	s = dev->subdevices + 4;
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
@@ -665,10 +699,30 @@ found:
 	s = dev->subdevices + 5;
 	s->type = COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = NUM_CHANNELS_7376;
+	if( thisboard->trimpot == AD7376 )
+	{
+		s->n_chan = NUM_CHANNELS_7376;
+		s->maxdata = 0x7f;
+	}else
+	{
+		s->n_chan = NUM_CHANNELS_8402;
+		s->maxdata = 0xff;
+	}
 	s->insn_read = trimpot_read_insn;
 	s->insn_write = trimpot_write_insn;
-	s->maxdata = 0x7f;
+
+	// dac08 caldac
+	s = dev->subdevices + 6;
+	if( thisboard->has_dac08 )
+	{
+		s->type = COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan = NUM_CHANNELS_DAC08;
+		s->insn_read = dac08_read_insn;
+		s->insn_write = dac08_write_insn;
+		s->maxdata = 0xff;
+	}else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	// make sure mailbox 4 is empty
 	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4 );
@@ -731,8 +785,12 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	unsigned int bits;
 	static const int timeout = 10000;
 
-	// make sure CALEN is disabled
-	outw(0, devpriv->control_status + CALIBRATION_REG);
+	// enable calibration input if appropriate
+	if( insn->chanspec & CR_ALT_SOURCE )
+		outw( CAL_EN_BIT | CAL_SRC_BITS( devpriv->calibration_source ),
+			devpriv->control_status + CALIBRATION_REG);
+	else
+		outw( 0, devpriv->control_status + CALIBRATION_REG);
 
 	// set mux limits and gain
 	bits = BEGIN_SCAN(CR_CHAN(insn->chanspec)) |
@@ -774,6 +832,39 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 
 	/* return the number of samples read/written */
 	return n;
+}
+
+static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
+{
+	static const int num_calibration_sources = 8;
+	lsampl_t source = data[1];
+
+	if(source >= num_calibration_sources)
+	{
+		printk( "invalid calibration source: %i\n", source );
+		return -EINVAL;
+	}
+
+	devpriv->calibration_source = source;
+
+	return 2;
+}
+
+static int ai_config_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int id = data[0];
+
+	switch( id )
+	{
+		case INSN_CONFIG_ALT_SOURCE:
+			return ai_config_calibration_source( dev, data );
+			break;
+		default:
+			return -EINVAL;
+			break;
+	}
+	return -EINVAL;
 }
 
 // analog output insn for pcidas-1000 and 1200 series
@@ -865,11 +956,43 @@ static int caldac_read_insn( comedi_device *dev, comedi_subdevice *s,
 	return 1;
 }
 
+// 1602/16 pregain offset
+static int dac08_write_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	devpriv->dac08_value = data[0];
+
+	outw( SELECT_DAC08_BIT | ( data[0] & 0xff ), devpriv->control_status + CALIBRATION_REG );
+
+	return 1;
+}
+
+static int dac08_read_insn( comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data )
+{
+	data[ 0 ] = devpriv->dac08_value;
+
+	return 1;
+}
+
 static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data )
 {
-	devpriv->trimpot_value = data[0];
-	trimpot_7376_write( dev, data[0] );
+	unsigned int channel = CR_CHAN( insn->chanspec );
+
+	devpriv->trimpot_value[ channel ] = data[0];
+	switch( thisboard->trimpot )
+	{
+		case AD7376:
+			trimpot_7376_write( dev, data[0] );
+			break;
+		case AD8402:
+			trimpot_8402_write( dev, channel, data[0] );
+			break;
+		default:
+			return -1;
+			break;
+	}
 
 	return 1;
 }
@@ -877,7 +1000,9 @@ static int trimpot_write_insn( comedi_device *dev, comedi_subdevice *s,
 static int trimpot_read_insn( comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data )
 {
-	data[ 0 ] = devpriv->trimpot_value;
+	unsigned int channel = CR_CHAN( insn->chanspec );
+
+	data[ 0 ] = devpriv->trimpot_value[ channel ];
 
 	return 1;
 }
@@ -1050,7 +1175,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int bits;
 
-	// make sure CALEN is disabled
+	// make sure CAL_EN_BIT is disabled
 	outw(0, devpriv->control_status + CALIBRATION_REG);
 	// initialize before settings pacer source and count values
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
@@ -1569,12 +1694,28 @@ static void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int ro
 	i8254_load(devpriv->pacer_counter_dio + ADC8254, 2, devpriv->divisor2, 2);
 }
 
+static void write_calibration_bitstream( comedi_device *dev, unsigned int register_bits,
+	unsigned int bitstream, unsigned int bitstream_length )
+{
+	static const int write_delay = 1;
+	unsigned int bit;
+
+	for( bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
+	{
+		if(bitstream & bit)
+			register_bits |= SERIAL_DATA_IN_BIT;
+		else
+			register_bits &= ~SERIAL_DATA_IN_BIT;
+		udelay( write_delay );
+		outw( register_bits, devpriv->control_status + CALIBRATION_REG);
+	}
+}
+
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value)
 {
 	static const int num_caldac_channels = 8;
 	static const int bitstream_length = 11;
 	unsigned int bitstream = ((address & 0x7) << 8) | value;
-	unsigned int bit, register_bits;
 	static const int caldac_8800_udelay = 1;
 
 	if(address >= num_caldac_channels)
@@ -1583,15 +1724,7 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 		return -1;
 	}
 
-	for( bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
-	{
-		if(bitstream & bit)
-			register_bits = SERIAL_DATA_IN_BIT;
-		else
-			register_bits = 0;
-		udelay(caldac_8800_udelay);
-		outw(register_bits, devpriv->control_status + CALIBRATION_REG);
-	}
+	write_calibration_bitstream( dev, 0, bitstream, bitstream_length );
 
 	udelay(caldac_8800_udelay);
 	outw(SELECT_8800_BIT, devpriv->control_status + CALIBRATION_REG);
@@ -1605,24 +1738,39 @@ static int trimpot_7376_write(comedi_device *dev, uint8_t value)
 {
 	static const int bitstream_length = 7;
 	unsigned int bitstream = value & 0x7f;
-	unsigned int bit, register_bits;
+	unsigned int register_bits;
 	static const int ad7376_udelay = 1;
 
-	register_bits = SELECT_7376_BIT;
+	register_bits = SELECT_TRIMPOT_BIT;
 	udelay( ad7376_udelay );
 	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
 
-	for( bit = 1 << ( bitstream_length - 1 ); bit; bit >>= 1)
-	{
-		if( bitstream & bit )
-			register_bits |= SERIAL_DATA_IN_BIT;
-		else
-			register_bits &= ~SERIAL_DATA_IN_BIT;
-		udelay(ad7376_udelay);
-		outw(register_bits, devpriv->control_status + CALIBRATION_REG);
-	}
+	write_calibration_bitstream( dev, register_bits, bitstream, bitstream_length );
 
 	udelay(ad7376_udelay);
+	outw(0, devpriv->control_status + CALIBRATION_REG);
+
+	return 0;
+}
+
+/* For 1602/16 only
+ * ch 0 : adc gain
+ * ch 1 : adc postgain offset */
+static int trimpot_8402_write(comedi_device *dev, unsigned int channel, uint8_t value)
+{
+	// XXX check docs, this function is just a guess
+	static const int bitstream_length = 9;
+	unsigned int bitstream = ( ( channel & 0x1 ) << 8 ) | ( value & 0xff );
+	unsigned int register_bits;
+	static const int ad8402_udelay = 1;
+
+	register_bits = SELECT_TRIMPOT_BIT;
+	udelay( ad8402_udelay );
+	outw( register_bits, devpriv->control_status + CALIBRATION_REG);
+
+	write_calibration_bitstream( dev, register_bits, bitstream, bitstream_length );
+
+	udelay(ad8402_udelay);
 	outw(0, devpriv->control_status + CALIBRATION_REG);
 
 	return 0;

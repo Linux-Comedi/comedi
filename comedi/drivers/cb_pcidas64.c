@@ -180,7 +180,7 @@ TODO:
  *  2 : 5V
  *  3 : 0.5V
  *  4 : 0.05V
- *  5 : ground
+ *  5 : ground or 0.005V?
  *  6 : dac channel 0
  *  7 : dac channel 1
  */
