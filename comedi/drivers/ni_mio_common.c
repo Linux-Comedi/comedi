@@ -717,52 +717,51 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	j=s->async->cur_chan;
 	data=s->async->data+s->async->buf_int_ptr;
 	if(boardtype.reg_611x){
-	while(1){
-		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		for(i=0;i<n;i++){
-			if(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St){
-				/* Check if there's a single sample stuck in the FIFO */
-				if(ni_readb(Status_611x)&0x80){
-					dl=ni_readl(ADC_FIFO_Data_611x);
-					*data = (dl&0xffff) + devpriv->ai_xorlist[j];
-					j++;
-					if(j>=s->async->cmd.chanlist_len){
-						j=0;
-					}
-					data++;
-					s->async->buf_int_ptr+=sizeof(sampl_t);
-					s->async->buf_int_count+=sizeof(sampl_t);
-				}
-				s->async->cur_chan=j;
-				return;
-			}
+		while(!(win_in(AI_Status_1_Register)&AI_FIFO_Empty_St)){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
 			*data = (dl>>16) + devpriv->ai_xorlist[j];
 			j++;
-			if(j>=s->async->cmd.chanlist_len){
-				j=0;
-				//s->events |= COMEDI_CB_EOS;
-			}
+			if(j>=s->async->cmd.chanlist_len) j=0;
 			data++;
 			s->async->buf_int_ptr+=sizeof(sampl_t);
 			s->async->buf_int_count+=sizeof(sampl_t);
+			if(s->async->buf_int_ptr>=s->async->data_len){
+				data = s->async->data;
+				s->async->buf_int_ptr = 0;
+				s->async->events |= COMEDI_CB_EOBUF;
+			}
 
 			*data = (dl&0xffff) + devpriv->ai_xorlist[j];
 			j++;
-			if(j>=s->async->cmd.chanlist_len){
-				j=0;
-				//s->events |= COMEDI_CB_EOS;
-			}
+			if(j>=s->async->cmd.chanlist_len) j=0;
 			data++;
 			s->async->buf_int_ptr+=sizeof(sampl_t);
 			s->async->buf_int_count+=sizeof(sampl_t);
+			if(s->async->buf_int_ptr>=s->async->data_len){
+				data = s->async->data;
+				s->async->buf_int_ptr = 0;
+				s->async->events |= COMEDI_CB_EOBUF;
+			}
 		}
-		s->async->buf_int_ptr=0;
-		data=s->async->data;
-		s->async->events |= COMEDI_CB_EOBUF;
-	}
+
+		/* Check if there's a single sample stuck in the FIFO */
+		if(ni_readb(Status_611x)&0x80){
+			dl=ni_readl(ADC_FIFO_Data_611x);
+			*data = (dl&0xffff) + devpriv->ai_xorlist[j];
+			j++;
+			if(j>=s->async->cmd.chanlist_len) j=0;
+			data++;
+			s->async->buf_int_ptr+=sizeof(sampl_t);
+			s->async->buf_int_count+=sizeof(sampl_t);
+			if(s->async->buf_int_ptr>=s->async->data_len){
+				data = s->async->data;
+				s->async->buf_int_ptr = 0;
+				s->async->events |= COMEDI_CB_EOBUF;
+			}
+		}
+		s->async->cur_chan=j;
 	}else{
 	while(1){
 		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
