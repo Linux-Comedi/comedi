@@ -289,7 +289,7 @@ enum calibration_contents
  *  2 : 5V
  *  3 : 0.5V
  *  4 : 0.05V
- *  5 : ground or 0.005V?
+ *  5 : ground
  *  6 : dac channel 0
  *  7 : dac channel 1
  */
@@ -2453,54 +2453,12 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 void abort_dma(comedi_device *dev, unsigned int channel)
 {
-	unsigned long dma_cs_addr;
-	uint8_t dma_status;
-	const int timeout = 10000;
-	unsigned int i;
 	unsigned long flags;
-
-	if(channel)
-		dma_cs_addr = priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG;
-	else
-		dma_cs_addr = priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG;
 
 	// spinlock for plx dma control/status reg
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
-	// abort dma transfer if necessary
-	dma_status = readb(dma_cs_addr);
-	if((dma_status & PLX_DMA_EN_BIT) == 0)
-	{
-		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
-		return;
-	}
-
-	// wait to make sure done bit is zero
-	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++)
-	{
-		dma_status = readb(dma_cs_addr);
-		udelay(1);
-	}
-	if(i == timeout)
-	{
-		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done clear\n", channel);
-		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
-		return;
-	}
-	// disable channel
-	writeb(0, dma_cs_addr);
-	udelay(1);
-	// abort channel
-	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
-	// wait for dma done bit
-	dma_status = readb(dma_cs_addr);
-	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) == 0 && i < timeout; i++)
-	{
-		udelay(1);
-		dma_status = readb(dma_cs_addr);
-	}
-	if(i == timeout)
-		rt_printk("cb_pcidas64: cancel() timed out waiting for dma %i done set\n", channel);
+	plx9080_abort_dma( priv( dev )->plx9080_iobase, channel );
 
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 }
@@ -2514,7 +2472,7 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	{
 		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 		return 0;
-	} 
+	}
 	priv(dev)->ai_cmd_running = 0;
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 

@@ -1,16 +1,15 @@
 /* plx9080.h
  *
+ * Copyright (C) 2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
  * I modified this file from the plx9060.h header for the
  * wanXL device driver in the linux kernel,
- * for the register offsets and bit definitions.  Minor modifications,
+ * for the register offsets and bit definitions.  Made minor modifications,
  * added plx9080 registers and
- * stripped out stuff that was specifically for the wanXL driver.  I
- * use this for the plx9080 chip used in the cards supported by
- * the cb_pcidas64.c driver.
- * Frank Mori Hess
+ * stripped out stuff that was specifically for the wanXL driver.
+ *
  ********************************************************************
  *
- * SBE wanXL device driver
  * Copyright (C) 1999 RG Studio s.c., http://www.rgstudio.com.pl/
  * Written by Krzysztof Halasa <khc@rgstudio.com.pl>
  *
@@ -356,5 +355,56 @@ struct plx_dma_desc
 /* system allocates this many bytes for address mapping mailbox space */
 #define MBX_ADDR_SPACE_360 0x80	/* wanXL100s/200/400 */
 #define MBX_ADDR_MASK_360 (MBX_ADDR_SPACE_360-1)
+
+static inline int plx9080_abort_dma( unsigned long iobase, unsigned int channel )
+{
+	unsigned long dma_cs_addr;
+	uint8_t dma_status;
+	const int timeout = 10000;
+	unsigned int i;
+
+	if( channel )
+		dma_cs_addr = iobase + PLX_DMA1_CS_REG;
+	else
+		dma_cs_addr = iobase + PLX_DMA0_CS_REG;
+
+	// abort dma transfer if necessary
+	dma_status = readb( dma_cs_addr );
+	if( ( dma_status & PLX_DMA_EN_BIT ) == 0 )
+	{
+		return 0;
+	}
+
+	// wait to make sure done bit is zero
+	for( i = 0; ( dma_status & PLX_DMA_DONE_BIT ) && i < timeout; i++ )
+	{
+		dma_status = readb( dma_cs_addr );
+		udelay( 1 );
+	}
+	if( i == timeout )
+	{
+		rt_printk("plx9080: cancel() timed out waiting for dma %i done clear\n", channel);
+		return -ETIMEDOUT;
+	}
+	// disable channel
+	writeb( 0, dma_cs_addr );
+	udelay( 1 );
+	// abort channel
+	writeb( PLX_DMA_ABORT_BIT, dma_cs_addr );
+	// wait for dma done bit
+	dma_status = readb( dma_cs_addr );
+	for( i = 0; ( dma_status & PLX_DMA_DONE_BIT ) == 0 && i < timeout; i++ )
+	{
+		udelay( 1 );
+		dma_status = readb( dma_cs_addr );
+	}
+	if( i == timeout )
+	{
+		rt_printk("plx9080: cancel() timed out waiting for dma %i done set\n", channel);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
 
 #endif /* __COMEDI_PLX9080_H */
