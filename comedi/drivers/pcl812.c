@@ -903,7 +903,7 @@ static void interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
 	s->async->buf_int_count+=sizeof(sampl_t);
 
 	s->async->cur_chan++;
-	if (s->async->cur_chan >= s->async->cur_chanlist_len) {	/* one scan done */
+	if (s->async->cur_chan >= s->async->cmd.chanlist_len) {	/* one scan done */
 		s->async->cur_chan=0;
 		devpriv->ai_act_scan++;
 		if (devpriv->ai_eos)
@@ -939,7 +939,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 		s->async->buf_int_count+=sizeof(sampl_t);
 
 		s->async->cur_chan++;
-		if(s->async->cur_chan>=s->async->cur_chanlist_len){
+		if(s->async->cur_chan>=s->async->cmd.chanlist_len){
 			s->async->cur_chan=0;
 			devpriv->ai_act_scan++;
 			if (devpriv->ai_eos)

@@ -582,7 +582,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 		d+=devpriv->ai_xorlist[j];
 		data[i]=d;
 		j++;
-		if(j>=async->cur_chanlist_len){
+		if(j>=async->cmd.chanlist_len){
 			j=0;
 			async->events |= COMEDI_CB_EOS;
 		}
@@ -652,7 +652,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			d+=devpriv->ai_xorlist[j];
 			*data=d;
 			j++;
-			if(j>=s->async->cur_chanlist_len){
+			if(j>=s->async->cmd.chanlist_len){
 				j=0;
 				//s->events |= COMEDI_CB_EOS;
 			}
@@ -681,7 +681,7 @@ static void ni_munge(comedi_device *dev,comedi_subdevice *s,sampl_t *start,
 	for(i=start;i<stop;i++){
 		*i +=devpriv->ai_xorlist[j];
 		j++;
-		if(j>=async->cur_chanlist_len)j=0;
+		if(j>=async->cmd.chanlist_len)j=0;
 	}
 	async->cur_chan=j;
 }

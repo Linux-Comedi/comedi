@@ -114,7 +114,6 @@ struct comedi_async_struct{
 	volatile unsigned int buf_int_count;	/* byte count for interrupt */
 	unsigned int buf_user_count;		/* byte count for read() and write() */
 	unsigned int cur_chan;		/* useless channel marker for interrupt */
-	unsigned int cur_chanlist_len;
 
 	void		*data;
 	unsigned int	data_len;
@@ -288,7 +287,7 @@ static inline void comedi_buf_put(comedi_async *async, sampl_t x)
 		async->buf_int_ptr = 0;
 		async->events |= COMEDI_CB_EOBUF;
 	}
-	if(++async->cur_chan >= async->cur_chanlist_len){
+	if(++async->cur_chan >= async->cmd.chanlist_len){
 		async->cur_chan = 0;
 		async->events |= COMEDI_CB_EOS;
 	}
@@ -308,7 +307,7 @@ static inline int comedi_buf_get(comedi_async *async, sampl_t *x)
 		async->buf_int_ptr = 0;
 		async->events |= COMEDI_CB_EOBUF;
 	}
-	if(++async->cur_chan >= async->cur_chanlist_len){
+	if(++async->cur_chan >= async->cmd.chanlist_len){
 		async->cur_chan = 0;
 		async->events |= COMEDI_CB_EOS;
 	}

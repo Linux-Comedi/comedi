@@ -916,7 +916,6 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 	async->cur_chan = 0;
-	async->cur_chanlist_len = async->cmd.chanlist_len;
 
 	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
 	if(async->cmd.flags & TRIG_WAKE_EOS){

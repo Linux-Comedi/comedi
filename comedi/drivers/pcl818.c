@@ -519,7 +519,7 @@ conv_finish:
         s->async->buf_int_count+=sizeof(sampl_t);
 
 	s->async->cur_chan++;
-        if (s->async->cur_chan>=s->async->cur_chanlist_len){
+        if (s->async->cur_chan>=s->async->cmd.chanlist_len){
 		s->async->cur_chan=0;
 #if 0
 		if (devpriv->cur_flags & TRIG_WAKE_EOS){
@@ -597,7 +597,7 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 		devpriv->act_chanlist_pos++;
 
 		s->async->cur_chan++;
-		if(s->async->cur_chan>=s->async->cur_chanlist_len){
+		if(s->async->cur_chan>=s->async->cmd.chanlist_len){
 			s->async->cur_chan=0;
 		}
 
@@ -683,7 +683,7 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 			s->async->buf_int_count+=sizeof(sampl_t);
 
 			s->async->cur_chan++;
-			if(s->async->cur_chan>=s->async->cur_chanlist_len){
+			if(s->async->cur_chan>=s->async->cmd.chanlist_len){
 				s->async->cur_chan++;
 				devpriv->int13_act_scan--;
 			}
@@ -763,7 +763,7 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 		s->async->buf_int_count+=sizeof(sampl_t);
 
 		s->async->cur_chan++;
-		if(s->async->cur_chan>=s->async->cur_chanlist_len){
+		if(s->async->cur_chan>=s->async->cmd.chanlist_len){
 			s->async->cur_chan = 0;
 			devpriv->int13_act_scan--;
 		}

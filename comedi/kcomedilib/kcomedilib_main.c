@@ -399,7 +399,6 @@ int comedi_command(unsigned int minor,comedi_cmd *cmd)
 	async->data = cmd->data;
 	async->data_len = cmd->data_len;
 	async->cur_chan = 0;
-	async->cur_chanlist_len = cmd->chanlist_len;
 
 	return s->do_cmd(dev,s);
 }
