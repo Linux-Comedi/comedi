@@ -1,15 +1,5 @@
 /*
     cb_pcidas.c
-    This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
-    cards using the AMCC S5933 PCI controller:
-    - PCI-DAS1602/12, 1602/16, 1602/16/jr
-    - PCI-DAS1200, 1200jr
-    - PCI-DAS1000, 1001, 1002
-
-
-    Options:
-    [0] - PCI bus number
-    [1] - PCI slot number
 
     Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
     David Schleef and the rest of the Comedi developers comunity.
@@ -52,6 +42,9 @@ Status:
   supported cards. Despite no detailed log is maintained, it can
   be said that the driver is quite tested and stable.
 
+  The boards may be autocalibrated using the comedi_calibrate
+  utility.
+	
 Configuration options:
   [0] - PCI bus of device (optional)
   [1] - PCI slot of device (optional)

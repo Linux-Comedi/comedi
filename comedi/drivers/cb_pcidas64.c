@@ -54,6 +54,8 @@ Configuration options:
    [0] - PCI bus of device (optional)
    [1] - PCI slot of device (optional)
 
+These boards may be autocalibrated with the comedi_calibrate utility.
+
 To select the bnc trigger input on the 4020 (instead of the dio input),
 specify channel 1000 in the chanspec.
 Feel free to send and success/failure reports to Frank Hess.
