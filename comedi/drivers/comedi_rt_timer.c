@@ -2,6 +2,8 @@
     module/comedi_rt_timer.c
     virtual driver for using RTL timing sources
 
+    Authors: David A. Schleef, Frank M. Hess
+
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1999,2001 David A. Schleef <ds@schleef.org>
 
@@ -18,6 +20,20 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+**************************************************************************
+
+Options:
+	[0] - minor number of device you wish to emulate commands for
+	[1] - subdevice number you wish to emulate commands for
+
+TODO:
+	Improve error handling
+	Support for digital io commands could be added, except I can't see why
+		anyone would want to use them
+	Fix it so more that one comedi_rt_timer can be configured at once
+		(replace broken_rt_dev)
 
 */
 
@@ -38,7 +54,7 @@
 
 // begin hack to workaround broken HRT_TO_8254() function on rtlinux
 // this function sole purpose is to divide a long long by 838
-static inline long long nano2count(long long ns)
+static inline RTIME nano2count(long long ns)
 {
 	unsigned long denom = 838;	// divisor
 	long ms32 = ns >> 32;	// most significant 32 bits
@@ -63,12 +79,12 @@ static inline long long nano2count(long long ns)
 	return ns;
 }
 
-inline RTIME rt_get_time(void)
-{
-        return nano2count(gethrtime());
-}
-
+#define rt_get_time() nano2count(gethrtime())
 // end hack
+
+// rtl-rtai compatibility
+#define rt_task_wait_period() rt_task_wait()
+#define rt_pend_linux_srq(irq) rtl_global_pend_irq(irq)
 
 #endif
 #ifdef CONFIG_COMEDI_RTAI
@@ -137,7 +153,7 @@ static inline int buf_remove(comedi_device *dev,comedi_subdevice *s)
 	comedi_async *async = s->async;
 	sampl_t data;
 
-	if(async->buf_int_ptr >= async->buf_user_ptr)
+	if(async->buf_int_count == async->buf_user_count)
 		return -1;
 
 	data = *(sampl_t *)(async->data+async->buf_int_ptr);
@@ -161,19 +177,14 @@ static void timer_ai_task_func(int d)
 
 	s->async->events = 0;
 
-	for(n=0;n<cmd->stop_arg;n++){
+	for(n=0;n<cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
 		/* pause goes at beginning so task can not be interrupted between
 		 * writing last point to buffer (buf_add()) and comedi_done()
 		 */
-		if(n != 0){
-#ifdef CONFIG_COMEDI_RTL
-			rt_task_wait();
-#endif
-#ifdef CONFIG_COMEDI_RTAI
+		if(cmd->scan_begin_src == TRIG_TIMER && n != 0){
 			rt_task_wait_period();
-#endif
 		}
-		for(i=0;i<cmd->scan_end_arg;i++){
+		for(i = 0; i < cmd->scan_end_arg; i++){
 			ret = comedi_data_read(devpriv->device,devpriv->subd,
 				CR_CHAN(cmd->chanlist[i]),
 				CR_RANGE(cmd->chanlist[i]),
@@ -181,20 +192,18 @@ static void timer_ai_task_func(int d)
 				&data);
 			if(ret<0){
 				/* eek! */
+				rt_printk("eek!\n");
 			}
+			if(cmd->convert_src == TRIG_TIMER)
+				rt_task_wait_period();
 			buf_add(dev,s,data);
 		}
-		s->async->events |= COMEDI_CB_EOS;
+		s->async->events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
 		comedi_event(dev,s,s->async->events);
 		s->async->events = 0;
 	}
 	comedi_done(dev,s);
-#ifdef CONFIG_COMEDI_RTL
-	rtl_global_pend_irq(devpriv->soft_irq);
-#endif
-#ifdef CONFIG_COMEDI_RTAI
 	rt_pend_linux_srq(devpriv->soft_irq);
-#endif
 
 	rt_task_delete(&devpriv->rt_task);
 
@@ -208,47 +217,36 @@ static void timer_ao_task_func(int d)
 	comedi_cmd *cmd=&s->async->cmd;
 	int i,n,ret;
 	int data;
-	int ao_repeat_flag = 0;
-
-	if(cmd->stop_src == TRIG_NONE)
-		ao_repeat_flag = 1;
 
 	s->async->events = 0;
 
-	do{
-		for(n=0;n<cmd->stop_arg;n++){
-			for(i=0;i<cmd->scan_end_arg;i++){
-				data = buf_remove(dev,s);
-				if(data < 0) {
-					/* eek! */
-				}
-				ret = comedi_data_write(devpriv->device,devpriv->subd,
-					CR_CHAN(cmd->chanlist[i]),
-					CR_RANGE(cmd->chanlist[i]),
-					CR_AREF(cmd->chanlist[i]),
-					data);
-				if(ret<0){
-					/* eek! */
-				}
+	for(n = 0; n < cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
+		for(i=0;i<cmd->scan_end_arg;i++){
+			data = buf_remove(dev,s);
+			if(data < 0) {
+				/* eek! */
+				rt_printk("eek!\n");
 			}
-			s->async->events |= COMEDI_CB_EOS;
-			comedi_event(dev,s,s->async->events);
-			s->async->events = 0;
-#ifdef CONFIG_COMEDI_RTL
-			rt_task_wait();
-#endif
-#ifdef CONFIG_COMEDI_RTAI
-			rt_task_wait_period();
-#endif
+			ret = comedi_data_write(devpriv->device,devpriv->subd,
+				CR_CHAN(cmd->chanlist[i]),
+				CR_RANGE(cmd->chanlist[i]),
+				CR_AREF(cmd->chanlist[i]),
+				data);
+			if(ret<0){
+				/* eek! */
+				rt_printk("eek!\n");
+			}
+			if(cmd->convert_src == TRIG_TIMER)
+				rt_task_wait_period();
 		}
-	}while(ao_repeat_flag);
+		s->async->events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
+		comedi_event(dev,s,s->async->events);
+		s->async->events = 0;
+		if(cmd->scan_begin_src == TRIG_TIMER)
+			rt_task_wait_period();
+	}
 	comedi_done(dev,s);
-#ifdef CONFIG_COMEDI_RTL
-	rtl_global_pend_irq(devpriv->soft_irq);
-#endif
-#ifdef CONFIG_COMEDI_RTAI
 	rt_pend_linux_srq(devpriv->soft_irq);
-#endif
 
 	rt_task_delete(&devpriv->rt_task);
 
@@ -302,38 +300,75 @@ static int cmdtest_helper(comedi_cmd *cmd,
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	int err = 0;
-	int stop_src = TRIG_COUNT;
-
-// stop_src TRIG_NONE does not work yet
-//	if(s == dev->write_subdev)
-//		stop_src |= TRIG_NONE;
 
 	err = cmdtest_helper(cmd,
 		TRIG_NOW,	/* start_src */
-		TRIG_TIMER,	/* scan_begin_src */
-		TRIG_NOW,	/* convert_src */
+		TRIG_TIMER | TRIG_FOLLOW,	/* scan_begin_src */
+		TRIG_NOW | TRIG_TIMER,	/* convert_src */
 		TRIG_COUNT,	/* scan_end_src */
-		stop_src);	/* stop_src */
+		TRIG_COUNT | TRIG_NONE);	/* stop_src */
 	if(err)return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually
 	 * compatible */
 
+	if(cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_FOLLOW)
+		err++;
+	if(cmd->convert_src != TRIG_TIMER &&
+		cmd->convert_src != TRIG_NOW)
+		err++;
+	if(cmd->stop_src != TRIG_COUNT &&
+		cmd->stop_src != TRIG_NONE)
+		err++;
+	/* we dont yet support TRIG_TIMER for scan_begin_src and convert_src
+	 * simultaneously */
+	if(cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER)
+		err++;
+	if(cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src != TRIG_TIMER)
+		err++;
+	if(cmd->convert_src == TRIG_NOW && cmd->scan_begin_src != TRIG_TIMER)
+		err++;
+
+	if(err)return 2;
+
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->scan_begin_arg<100000){	/* 10 khz */
-		cmd->scan_begin_arg=100000;
-		err++;
+	// limit frequency, this is fairly arbitrary
+	if(cmd->scan_begin_src == TRIG_TIMER){
+		if(cmd->scan_begin_arg<100000){	/* 10 khz */
+			cmd->scan_begin_arg=100000;
+			err++;
+		}
+		if(cmd->scan_begin_arg>1e9){	/* 1 hz */
+			cmd->scan_begin_arg=1e9;
+			err++;
+		}
 	}
-	if(cmd->scan_begin_arg>1e9){	/* 1 hz */
-		cmd->scan_begin_arg=1e9;
-		err++;
+	if(cmd->convert_src == TRIG_TIMER){
+		if(cmd->convert_arg<100000){	/* 10 khz */
+			cmd->convert_arg=100000;
+			err++;
+		}
+		if(cmd->convert_arg>1e9){	/* 1 hz */
+			cmd->convert_arg=1e9;
+			err++;
+		}
 	}
+
 	if(err)return 3;
 
 	/* step 4: fix up and arguments */
 
-	/* XXX we don't do this yet, but we should */
+	/* TRIG_RT flag will cause a null dereference, since this is a weird driver
+	 * so zero it! */
+	if(cmd->flags & TRIG_RT)
+	{
+		cmd->flags &= ~TRIG_RT;
+		err++;
+	}
+
+	if(err)return 4;
 
 	return 0;
 }
@@ -356,14 +391,34 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	delay = nano2count(cmd->start_arg);
 #ifdef CONFIG_COMEDI_RTL
-	period = nano2count(cmd->scan_begin_arg);
+	if(cmd->scan_begin_src == TRIG_TIMER)
+		period = nano2count(cmd->scan_begin_arg);
+	else if(cmd->convert_src == TRIG_TIMER)
+		period = nano2count(cmd->convert_arg);
+	else {
+		comedi_error(dev, "bug!");
+		return -1;
+	}
+
 	if(s == dev->read_subdev)
 		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,1);
 	else
 		ret = rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,1);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
-	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
+
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		period = nano2count(cmd->scan_begin_arg);
+// I don't think start_rt_timer() is necessary? - FMH
+//	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
+	}else if(cmd->convert_src == TRIG_TIMER)
+	{
+		period = nano2count(cmd->convert_arg);
+	}else {
+		comedi_error(dev, "bug!");
+		return -1;
+	}
 	if(s == dev->read_subdev)
 		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
 	else
