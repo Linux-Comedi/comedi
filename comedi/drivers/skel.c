@@ -104,9 +104,12 @@ comedi_driver driver_skel={
 	module:		THIS_MODULE,
 	attach:		skel_attach,
 	detach:		skel_detach,
+/* It is not necessary to implement the following members if you are
+ * writing a driver for a plug and play card.
+ */
 //	recognize:	skel_recognize,
 	register_boards:	skel_register_boards,	// replacement for recognize
-	/* comedi uses num_boards to allocate the board_name and board_id members
+	/* comedi uses num_names to allocate the board_name and board_id members
 	 * of this struct
 	 */
 	num_names:		sizeof(skel_boards) / sizeof(skel_board),
@@ -141,10 +144,10 @@ static int skel_recognize(char *name)
  * recognize a board name.  The job of register_boards is to
  * initialize the board_name and board_id members of
  * the the comedi_driver_struct for this driver.  The arrays
- * will have already been allocated with num_boards elements
- * (your driver must initialize the num_boards member of your
- * comedi_driver struct)
- * by comedi_driver_register() in the drivers.c file.
+ * will have already been allocated with num_names elements
+ * (your driver must initialize the num_names member of your
+ * comedi_driver struct) by comedi_driver_register()
+ * in the drivers.c file.
  */
 static void skel_register_boards(void)
 {
