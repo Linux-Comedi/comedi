@@ -348,19 +348,20 @@ COMEDI_INITCLEANUP( driver_hpdi );
 static int dio_config_insn( comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	if( insn->n != 1 ) return -EINVAL;
-
 	switch( data[ 0 ] )
 	{
 		case COMEDI_OUTPUT:
+			if( insn->n != 1 ) return -EINVAL;
 			priv(dev)->dio_config_output = 1;
 			return 1;
 			break;
 		case COMEDI_INPUT:
+			if( insn->n != 1 ) return -EINVAL;
 			priv(dev)->dio_config_output = 0;
 			return 1;
 			break;
 		case INSN_CONFIG_BLOCK_SIZE:
+			if( insn->n != 2 ) return -EINVAL;
 			return dio_config_block_size( dev, data );
 			break;
 		default:
@@ -507,8 +508,8 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 
 		buffer_offset += transfer_size;
 
-		DEBUG_PRINT(" descriptor %i\n", i );
-		DEBUG_PRINT(" start_addr virt 0x%p, phys 0x%lx\n", priv(dev)->desc_dio_buffer[ i ],
+		DEBUG_PRINT(" desc %i\n", i );
+		DEBUG_PRINT(" start addr virt 0x%p, phys 0x%lx\n", priv(dev)->desc_dio_buffer[ i ],
 			(unsigned long)priv(dev)->dma_desc[ i ].pci_start_addr );
 		DEBUG_PRINT(" next 0x%lx\n", (unsigned long)priv(dev)->dma_desc[ i ].next );
 	}
@@ -516,7 +517,7 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 	// fix last descriptor to point back to first
 	priv(dev)->dma_desc[ i - 1 ].next =
 		priv(dev)->dma_desc_phys_addr | next_bits;
-	DEBUG_PRINT(" descriptor %i next fixup 0x%lx\n", i - 1,
+	DEBUG_PRINT(" desc %i next fixup 0x%lx\n", i - 1,
 		(unsigned long) priv(dev)->dma_desc[ i - 1 ].next );
 
 	priv(dev)->block_size = transfer_size;
@@ -881,7 +882,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 		priv(dev)->dma_desc_index++;
 		priv(dev)->dma_desc_index %= priv(dev)->num_dma_descriptors;
 
-		DEBUG_PRINT("next buffer addr 0x%lx\n", (unsigned long)
+		DEBUG_PRINT("next desc addr 0x%lx\n", (unsigned long)
 			priv(dev)->dma_desc[ priv(dev)->dma_desc_index ].next );
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
@@ -956,7 +957,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	if( priv(dev)->dio_count == 0 )
 		async->events |= COMEDI_CB_EOA;
-		
+
 	cfc_handle_events( dev, s );
 
 	return;
