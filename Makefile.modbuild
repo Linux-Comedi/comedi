@@ -69,7 +69,11 @@ config:	dummy
 	env -i $(CONFIG_SHELL) ./configure --linuxdir $(LINUXDIR)
 
 modules_install:	$(patsubst %, _modinst_%, $(SUBDIRS))
-	depmod -a
+ifeq ($(INSTALL_MOD_PATH),)
+ifeq ($(KERNELRELEASE),$(shell uname -r))
+	/sbin/depmod -a
+endif
+endif
 
 _modinst_%:
 	$(MAKE) -C $(patsubst _modinst_%, %, $@) modules_install
