@@ -355,7 +355,7 @@ AC_DEFUN([AS_LINUX_2_4],
         dnl we use the correct config file by substituting the MAKEFILES
         dnl Makefile variable, which originally points to .config
 
-	if [[ ! -f "${LINUX_DIR}/.hdepend" ]];then
+	if [[ ! -e "${LINUX_DIR}/.hdepend" ]];then
 		AC_MSG_ERROR([
 You need to run 'make dep' on the kernel source before continuing.])
 	fi
