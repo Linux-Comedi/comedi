@@ -81,6 +81,7 @@ Configuration Options:
 #define INT_TYPE_AI1_DMA 2
 #define INT_TYPE_AI3_INT 4
 #define INT_TYPE_AI3_DMA 5
+#ifdef unused
 #define INT_TYPE_AI1_DMA_RTC 9
 #define INT_TYPE_AI3_DMA_RTC 10
 
@@ -88,6 +89,7 @@ Configuration Options:
 // RTC stuff...
 #define RTC_IRQ 	8
 #define RTC_IO_EXTENT	0x10
+#endif
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -151,8 +153,10 @@ static boardtype boardtypes[] = {
 static int pcl816_attach (comedi_device * dev, comedi_devconfig * it);
 static int pcl816_detach (comedi_device * dev);
 
+#ifdef unused
 static int RTC_lock = 0;	/* RTC lock */
 static int RTC_timer_lock = 0;	/* RTC int lock */
+#endif
 
 static comedi_driver driver_pcl816 = {
   driver_name: "pcl816",
@@ -170,9 +174,11 @@ typedef struct
 {
   int dma;			// used DMA, 0=don't use DMA
   int dma_rtc;			// 1=RTC used with DMA, 0=no RTC alloc
+#ifdef unused
   unsigned int rtc_iobase;	// RTC port region
   unsigned int rtc_iosize;
   unsigned int rtc_irq;
+#endif
   unsigned long dmabuf[2];	// pointers to begin of DMA buffers
   unsigned int dmapages[2];	// len of DMA buffers in PAGE_SIZEs
   unsigned int hwdmaptr[2];	// hardware address of DMA buffers
@@ -187,7 +193,9 @@ typedef struct
   unsigned char ai_neverending;	// if=1, then we do neverending record (you must use cancel())
   int irq_free;			// 1=have allocated IRQ
   int irq_blocked;		// 1=IRQ now uses any subdev
+#ifdef unused
   int rtc_irq_blocked;		// 1=we now do AI with DMA&RTC
+#endif
   int irq_was_now_closed;	// when IRQ finish, there's stored int816_mode for last interrupt
   int int816_mode;		// who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma 
   comedi_subdevice *last_int_sub;	// ptr to subdevice which now finish
@@ -197,8 +205,10 @@ typedef struct
   unsigned int ai_act_chanlist_pos;	// actual position in MUX list
   unsigned int ai_poll_ptr;		// how many sampes transfer poll
   comedi_subdevice *sub_ai;	// ptr to AI subdevice
+#ifdef unused
   struct timer_list rtc_irq_timer;	// timer for RTC sanity check
   unsigned long rtc_freq;	// RTC int freq
+#endif
 } pcl816_private;
 
 
@@ -211,7 +221,9 @@ static int check_and_setup_channel_list (comedi_device * dev, comedi_subdevice *
 static int pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s);
 static void start_pacer (comedi_device * dev, int mode, unsigned int divisor1,
 		  unsigned int divisor2);
+#ifdef unused
 static int set_rtc_irq_bit (unsigned char bit);
+#endif
 
 static int pcl816_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 static int pcl816_ai_cmd(comedi_device *dev, comedi_subdevice *s);
@@ -743,10 +755,12 @@ pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
   
   if (devpriv->irq_blocked > 0) {
   switch (devpriv->int816_mode)	{
+#ifdef unused
 	case INT_TYPE_AI1_DMA_RTC:
 	case INT_TYPE_AI3_DMA_RTC:
 	  set_rtc_irq_bit (0);	// stop RTC
 	  del_timer (&devpriv->rtc_irq_timer);
+#endif
 	case INT_TYPE_AI1_DMA:
 	case INT_TYPE_AI3_DMA:
 	  disable_dma (devpriv->dma);
@@ -920,6 +934,7 @@ check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigne
   return 1;			// we can serve this with MUX logic
 }
 
+#ifdef unused
 /* 
 ==============================================================================
   Enable(1)/disable(0) periodic interrupts from RTC
@@ -948,6 +963,7 @@ static int set_rtc_irq_bit(unsigned char bit)
         restore_flags(flags);
         return 0;
 }
+#endif
 
 
 /* 
@@ -968,6 +984,7 @@ free_resources (comedi_device * dev)
 	free_pages (devpriv->dmabuf[0], devpriv->dmapages[0]);
       if (devpriv->dmabuf[1])
 	free_pages (devpriv->dmabuf[1], devpriv->dmapages[1]);
+#ifdef unused
       if (devpriv->rtc_irq)
 	comedi_free_irq (devpriv->rtc_irq, dev);
       if ((devpriv->dma_rtc) && (RTC_lock == 1))
@@ -975,6 +992,7 @@ free_resources (comedi_device * dev)
 	  if (devpriv->rtc_iobase)
 	    release_region (devpriv->rtc_iobase, devpriv->rtc_iosize);
 	}
+#endif
     }
 
   if (dev->irq)
@@ -1059,6 +1077,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
   devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
   devpriv->int816_mode = 0;	/* mode of irq */
 
+#ifdef unused
   /* grab RTC for DMA operations */
   devpriv->dma_rtc = 0;
   if (it->options[2] > 0)
@@ -1095,6 +1114,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
     }
 
 no_rtc:
+#endif
   /* grab our DMA */
   dma = 0;
   devpriv->dma = dma;
@@ -1222,7 +1242,9 @@ pcl816_detach (comedi_device * dev)
 {
   DEBUG(rt_printk("comedi%d: pcl816: remove\n", dev->minor);)
   free_resources (dev);
+#ifdef unused
   if (devpriv->dma_rtc)
     RTC_lock--;
+#endif
   return 0;
 }
