@@ -35,13 +35,7 @@ spinlocks
 
 autoloading causes BUG on failure.
 
-adl_pci9118 doesn't differentiate between various PCI cards
-
-adv_pci1710 doesn't differentiate between various PCI cards
-
 need realtime examples
-
-das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
 das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
