@@ -299,20 +299,11 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	comedi_device *dev=d;
 	unsigned short a_status;
 	unsigned short b_status;
-	int wsave;
 	unsigned int m0_status;
 	unsigned int m1_status;
 #ifdef PCIDMA
 	struct mite_struct *mite = devpriv->mite;
 #endif
-
-/*
-    If you want to use windowed registers in an interrupt, it is
-    important that you restore the window address register.  If
-    you change certain modes, e.g., AI_Configuration_Start/End,
-    you need to set up software flags for non-interrupt routines.
-*/
-	wsave=win_save();
 
 	a_status=win_in(AI_Status_1_Register);
 	b_status=win_in(AO_Status_1_Register);
@@ -328,8 +319,6 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 		handle_a_interrupt(dev, a_status, m0_status);
 	if(b_status&Interrupt_B_St || m1_status & CHSR_INT )
 		handle_b_interrupt(dev, b_status, m1_status);
-
-	win_restore(wsave);
 }
 
 #ifdef PCIDMA
@@ -1142,12 +1131,9 @@ static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int i,n;
-	int wsave;
 	unsigned int mask;
 	unsigned short signbits;
 	unsigned short d;
-
-	wsave=win_save();
 
 	ni_load_channelgain_list(dev,1,&insn->chanspec);
 
@@ -1178,7 +1164,6 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			}
 			if(i==NI_TIMEOUT){
 				rt_printk("ni_mio_common: timeout in 611x ni_ai_insn_read\n");
-				win_restore(wsave);
 				return -ETIME;
 			}
 			d += signbits; /* subtle: needs to be short addition */
@@ -1193,7 +1178,6 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			}
 			if(i==NI_TIMEOUT){
 				rt_printk("ni_mio_common: timeout in ni_ai_insn_read\n");
-				win_restore(wsave);
 				return -ETIME;
 			}
 			d = ni_readw(ADC_FIFO_Data_Register);
@@ -1201,7 +1185,6 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			data[n] = d;
 		}
 	}
-	win_restore(wsave);
 	return insn->n;
 }
 
@@ -1525,7 +1508,6 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	int wsave;
 	comedi_cmd *cmd=&s->async->cmd;
 	int timer;
 	int mode1=0; /* mode1 is needed for both stop and convert */
@@ -1534,7 +1516,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	unsigned int stop_count;
 
 	MDPRINTK("ni_ai_cmd\n");
-	wsave = win_save();
 
 	win_out(1,ADC_FIFO_Clear);
 
@@ -1786,8 +1767,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		break;
 	}
 
-	win_restore(wsave);
-
 	MDPRINTK("exit ni_ai_cmd\n");
 
 	return 0;
@@ -1796,16 +1775,10 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 	unsigned int trignum)
 {
-	int wsave;
-
 	if(trignum!=0)return -EINVAL;
-
-	wsave = win_save();
 
 	win_out(AI_START1_Pulse,AI_Command_2_Register);
 	s->async->inttrig=NULL;
-
-	win_restore(wsave);
 
 	return 1;
 }
@@ -1984,7 +1957,6 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 			bits |= 1 << chan;
 			ao_win_out( chan, AO_Waveform_Generation_611x);
 		}
-		ao_win_out(~bits & 0x3, AO_Immediate_671x);
 		ao_win_out(bits, AO_Timed_611x);
 	}else{
 		for(i=0;i<n_chans;i++){
