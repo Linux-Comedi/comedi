@@ -87,11 +87,14 @@ static short ni_modebits1[4]={ 0x3000, 0x2000, 0x1000, 0 };
 static short ni_modebits2[4]={ 0x3f, 0x3f, 0x37, 0x37 };
 
 static char ni_gainlkup[][16]={
-	{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
-	{ 1, 2, 4, 7, 9, 10, 12, 15, 0,0,0,0,0,0,0,0 },
-	{ 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 0,0 },
-	{ 0, 1, 4, 7, 8, 9, 12, 15, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 1, 4, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+	{ 0, 1, 2, 3, 4, 5, 6, 7, 0x100, 0x101, 0x102, 0x103, 0x104, 0x105,
+		0x106, 0x107 },
+	{ 1, 2, 4, 7, 0x101, 0x102, 0x104, 0x107 },
+	{ 1, 2, 3, 4, 5, 6, 7, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106,
+		0x107, 0,0 },
+	//{ 0, 1, 4, 7, 0x100, 0x101, 0x104, 0x107 },
+	{ 0, 1, 4, 7 },
+	{ 9, 10, 11, 1, 2, 3, 4, 5, 6 },
 };
 
 static comedi_lrange range_ni_E_ai={	16, {
@@ -144,6 +147,17 @@ static comedi_lrange range_ni_E_ai_bipolar4={ 4, {
 	RANGE( -0.5,	0.5	),
 	RANGE( -0.05,	0.05	),
 }};
+static comedi_lrange range_ni_E_ai_611x={ 8, {
+	RANGE( -50,	50	),
+	RANGE( -20,	20	),
+	RANGE( -10,	10	),
+	RANGE( -5,	5	),
+	RANGE( -2,	2	),
+	RANGE( -1,	1	),
+	RANGE( -0.5,	0.5	),
+	RANGE( -0.2,	0.2	),
+	//RANGE( -0.1,	0.1	),
+}};
 static comedi_lrange range_ni_E_ao_ext = { 4, {
 	RANGE( -10,	10	),
 	RANGE( 0,	10	),
@@ -156,6 +170,7 @@ static comedi_lrange *ni_range_lkup[]={
 	&range_ni_E_ai_limited,
 	&range_ni_E_ai_limited14,
 	&range_ni_E_ai_bipolar4,
+	&range_ni_E_ai_611x,
 };
 
 
@@ -883,6 +898,37 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 }
 
 
+/*
+ * Notes on the 6110 and 6111:
+ * These boards a slightly different than the rest of the series, since
+ * they have multiple A/D converters.  Register level documentation is
+ * not written down for these boards, other than what is here.  If you
+ * have any questions, ask Tim Ousley.
+ * From the driver side, it is only the configuration memory that is a
+ * little different.
+ * Configuration Memory Low:
+ *   bits 15-9: same
+ *   bit 8: unipolar/bipolar (should be 0 for bipolar)
+ *   bits 0-3: gain.  This is 4 bits instead of 3 for the other boards
+ *       1001 gain=0.1 (+/- 50)
+ *       1010 0.2
+ *       1011 0.1
+ *       0001 1
+ *       0010 2
+ *       0011 5
+ *       0100 10
+ *       0101 20
+ *       0110 50
+ * Configuration Memory High:
+ *   bits 12-14: Channel Type
+ *       001 for differential
+ *       000 for calibration
+ *   bit 11: coupling  (this is not currently handled)
+ *       1 AC coupling
+ *       0 DC coupling
+ *   bits 0-2: channel
+ *       valid channels are 0-3
+ */
 static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned int *list)
 {
@@ -914,12 +960,12 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 		/* fix the external/internal range differences */
 		range=ni_gainlkup[boardtype.gainlkup][range];
-		devpriv->ai_xorlist[i]=(range<8)?offset:0;
+		devpriv->ai_xorlist[i]=(range&0x100)?offset:0;
 
 		hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		ni_writew(hi,Configuration_Memory_High);
 
-		lo=((i==n_chan-1)?0x8000:0) | ((range&0x8)<<5) | (range&0x7) | (dither<<9);
+		lo=((i==n_chan-1)?0x8000:0) | range | (dither<<9);
 		ni_writew(lo,Configuration_Memory_Low);
 	}
 
