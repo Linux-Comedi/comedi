@@ -3,7 +3,7 @@
 
 VERS1 = 0
 VERS2 = 7
-VERS3 = 39
+VERS3 = 44
 
 INSTALLDIR=/usr
 
@@ -19,6 +19,10 @@ endif
 # headers that aren't in the default location
 #RTAIDIR = /home/ds/cvs/rtai
 
+# define the following if you want to compile using PCMCIA
+# headers
+PCMCIADIR = /d/ds/stuff/pcmcia-cs-3.1.15
+
 TOPDIR := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 
 .EXPORT_ALL_VARIABLES:
@@ -29,6 +33,9 @@ CFLAGS += -D__KERNEL__ -I $(LINUXDIR)/include -I $(TOPDIR)/include -I .
 CONFIG_SHELL := sh
 
 include $(LINUXDIR)/.config
+ifdef PCMCIADIR
+CONFIG_PCMCIA=y
+endif
 
 ifeq (.config,$(wildcard .config))
 include .config
@@ -59,6 +66,9 @@ CFLAGS += -I /usr/include/rtai
 endif
 endif
 
+ifdef PCMCIADIR
+CFLAGS += -I $(PCMCIADIR)/include
+endif
 
 SUBDIRS := comedi
 
