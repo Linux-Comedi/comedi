@@ -1561,6 +1561,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		{
 			if(thisboard->read_byte(dev->iobase + STATUS1_REG) & DATA_AVAIL_BIT)
 				break;
+			udelay( 1 );
 		}
 		if(i == timeout)
 		{
@@ -1585,6 +1586,8 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	channel = CR_CHAN(insn->chanspec);
 
 	// turn off pacing of analog output channel
+	/* note: hardware bug in daqcard-1200 means pacing cannot
+	 * be independently enabled/disabled for its the two channels */
 	devpriv->command2_bits &= ~DAC_PACED_BIT(channel);
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
@@ -1610,6 +1613,7 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	lsb = data[0] & 0xff;
 	msb = (data[0] >> 8 ) & 0xff;
 	thisboard->write_byte(lsb, dev->iobase + DAC_LSB_REG(channel));
+	udelay( 1 );
 	thisboard->write_byte(msb, dev->iobase + DAC_MSB_REG(channel));
 
 	// remember value for readback
