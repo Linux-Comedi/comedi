@@ -235,9 +235,11 @@ printk("A status=0x%04x\n",status);
 #ifdef DEBUG
 rt_printk("ni-E: SC_TC interrupt\n");
 #endif
-		ni_handle_fifo_dregs(dev);
-		win_out(0x0000,Interrupt_A_Enable_Register);
-		comedi_done(dev,s);
+		if(s->cur_trig.n!=0){
+			ni_handle_fifo_dregs(dev);
+			win_out(0x0000,Interrupt_A_Enable_Register);
+			comedi_done(dev,s);
+		}
 
 		ack|=AI_SC_TC_Interrupt_Ack;
 	}
@@ -604,7 +606,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(!cmd->scan_end_src && tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
 	if(!cmd->stop_src && tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
@@ -714,6 +716,19 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	
 		/* load SC (Scan Count) */
 		win_out(0x20,AI_Command_1_Register);
+
+		win_out(0x000d,AI_Mode_1_Register);
+
+		break;
+	case TRIG_NONE:
+		/* stage number of scans */
+		win_out(0,AI_SC_Load_A_Registers);
+		win_out(0,AI_SC_Load_A_Registers+1);
+	
+		/* load SC (Scan Count) */
+		win_out(0x20,AI_Command_1_Register);
+
+		win_out(0x000e,AI_Mode_1_Register);
 
 		break;
 	}
@@ -863,8 +878,16 @@ static int ni_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
 	/* stage number of scans */
-	win_out((it->n-1)>>16,AI_SC_Load_A_Registers);
-	win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
+	if(it->n==0){
+		/* hack for continuous acquisition */
+		win_out(0,AI_SC_Load_A_Registers);
+		win_out(0,AI_SC_Load_A_Registers+1);
+		win_out(0x000e,AI_Mode_1_Register);
+	}else{
+		win_out((it->n-1)>>16,AI_SC_Load_A_Registers);
+		win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
+		win_out(0x000d,AI_Mode_1_Register);
+	}
 	
 	/* load SC (Scan Count) */
 	win_out(0x20,AI_Command_1_Register);
@@ -996,8 +1019,16 @@ static int ni_ai_mode4(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	win_out(AI_Configuration_Start,Joint_Reset_Register);
 
 	/* stage number of scans */
-	win_out((it->n-1)>>16,AI_SC_Load_A_Registers);
-	win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
+	if(it->n==0){
+		/* hack for continuous acquisition */
+		win_out(0,AI_SC_Load_A_Registers);
+		win_out(0,AI_SC_Load_A_Registers+1);
+		win_out(0x000e,AI_Mode_1_Register);
+	}else{
+		win_out((it->n-1)>>16,AI_SC_Load_A_Registers);
+		win_out((it->n-1)&0xffff,AI_SC_Load_A_Registers+1);
+		win_out(0x000d,AI_Mode_1_Register);
+	}
 	
 	/* load SC (Scan Count) */
 	win_out(0x20,AI_Command_1_Register);
