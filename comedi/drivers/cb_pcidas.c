@@ -663,16 +663,12 @@ found:
 
 	// trim potentiometer
 	s = dev->subdevices + 5;
-	if(0)
-	{
-		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = NUM_CHANNELS_7376;
-		s->insn_read = trimpot_read_insn;
-		s->insn_write = trimpot_write_insn;
-		s->maxdata = 0x7f;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
+	s->type = COMEDI_SUBD_CALIB;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan = NUM_CHANNELS_7376;
+	s->insn_read = trimpot_read_insn;
+	s->insn_write = trimpot_write_insn;
+	s->maxdata = 0x7f;
 
 	// make sure mailbox 4 is empty
 	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4 );
