@@ -193,7 +193,7 @@ static inline long interruptible_sleep_on_timeout(struct wait_queue ** p,
 
 #ifndef COMPAT_V22
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,5)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)
 typedef struct wait_queue *wait_queue_head_t;
 #define DECLARE_WAITQUEUE(x,y) struct wait_queue x={y,NULL}
 #define init_waitqueue_head(x)
@@ -208,7 +208,7 @@ typedef struct wait_queue *wait_queue_head_t;
 
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)		/* ? */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)		/* ? */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
   #ifdef MODULE
     /* don't ask.  It works. */

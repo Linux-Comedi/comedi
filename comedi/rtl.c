@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <linux/rtl.h>
+//#include <linux/rtl.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 
