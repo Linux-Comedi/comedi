@@ -726,7 +726,7 @@ void init_plx9080(comedi_device *dev)
 	uint32_t bits;
 	unsigned long plx_iobase = private(dev)->plx9080_iobase;
 
-	private(dev)->plx_control_bits = readl(private(dev)->main_iobase + PLX_CONTROL_REG);
+	private(dev)->plx_control_bits = readl(private(dev)->plx9080_iobase + PLX_CONTROL_REG);
 
 	// plx9080 dump
 	DEBUG_PRINT(" plx interrupt status 0x%x\n", readl(plx_iobase + PLX_INTRCS_REG));
@@ -735,6 +735,7 @@ void init_plx9080(comedi_device *dev)
 
 	DEBUG_PRINT(" plx revision 0x%x\n", readl(plx_iobase + PLX_REVISION_REG));
 	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n", readl(plx_iobase + PLX_DMA0_MODE_REG));
+	DEBUG_PRINT(" plx dma channel 1 mode 0x%x\n", readl(plx_iobase + PLX_DMA1_MODE_REG));
 	DEBUG_PRINT(" plx dma channel 0 pci address 0x%x\n", readl(plx_iobase + PLX_DMA0_PCI_ADDRESS_REG));
 	DEBUG_PRINT(" plx dma channel 0 local address 0x%x\n", readl(plx_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
 	DEBUG_PRINT(" plx dma channel 0 transfer size 0x%x\n", readl(plx_iobase + PLX_DMA0_TRANSFER_SIZE_REG));
@@ -1047,7 +1048,7 @@ found:
 	{
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 64;
+		s->n_chan = 128;
 		s->maxdata = 0xffff;
 		s->insn_read = eeprom_read_insn;
 	} else
@@ -1308,7 +1309,8 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	if(cmd->scan_begin_src != TRIG_TIMER &&
 		cmd->scan_begin_src != TRIG_FOLLOW) err++;
 	if(cmd->convert_src != TRIG_TIMER &&
-		cmd->convert_src != TRIG_EXT) err++;
+		cmd->convert_src != TRIG_EXT &&
+		cmd->convert_src != TRIG_NOW) err++;
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE &&
 		cmd->stop_src != TRIG_EXT) err++;
@@ -1411,6 +1413,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 				break;
 			}
 		}
+		// XXX check 4020 chanlist
 	}
 
 	if(err) return 5;
