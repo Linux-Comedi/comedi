@@ -7,7 +7,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < 0x020400
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 2, 18)
 
 #define DEVFS_FL_DEFAULT 0
 #define DEVFS_SPECIAL_CHR 0
