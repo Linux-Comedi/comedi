@@ -137,9 +137,9 @@ struct comedi_subdevice_struct{
 	//int (*do_unlock)(comedi_device *,comedi_subdevice *);
 
 	/* called when the buffer changes */
-	int (*buf_change)(comedi_device *,comedi_subdevice *s,unsigned long new_size);
+	int (*buf_change)(comedi_device *dev,comedi_subdevice *s,unsigned long new_size);
 
-	void (*munge)( comedi_device *, comedi_subdevice *s, void *data,
+	void (*munge)( comedi_device *dev, comedi_subdevice *s, void *data,
 		unsigned int num_bytes, unsigned int start_chan_index );
 
 	unsigned int state;
