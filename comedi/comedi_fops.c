@@ -1311,7 +1311,13 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 #ifdef LINUX_V22
 void comedi_unmap(struct vm_area_struct *area)
 {
-	comedi_async *async = area->vm_private_data;
+	comedi_async *async;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
+	async = (void *)area->vm_pte;
+#else
+	async = area->vm_private_data;
+#endif
 
 	async->mmap_count--;
 }
@@ -1356,7 +1362,11 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 
 	//vma->vm_file = file;
 	vma->vm_ops = &comedi_vm_ops;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
+	(void *)vma->vm_pte = async;
+#else
 	vma->vm_private_data = async;
+#endif
 
 	async->mmap_count++;
 
