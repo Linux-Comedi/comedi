@@ -398,8 +398,10 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 static void ni_handle_fifo_dregs(comedi_device *dev)
 {
 	comedi_subdevice *s=dev->subdevices+0;
-	sampl_t *data;
+	sampl_t *data,d;
 	int i,n;
+	int j;
+	unsigned int mask;
 
 	/*
 	   Too bad NI didn't have the foresight to return a
@@ -411,6 +413,8 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	   This would save a lot of time.
 	*/
 
+	mask=(1<<boardtype.adbits)-1;
+	j=devpriv->ai_chanlistptr;
 	data=((void *)s->cur_trig.data)+s->buf_int_ptr;
 	while(1){
 		n=(s->cur_trig.data_len-s->buf_int_ptr)/sizeof(sampl_t);
@@ -418,7 +422,12 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			if(ni_readw(AI_Status_1)&AI_FIFO_Empty_St){
 				return;
 			}
-			*data=ni_readw(ADC_FIFO_Data_Register);
+			d=ni_readw(ADC_FIFO_Data_Register);
+			d^=devpriv->ai_xorlist[j];
+			d&=mask;
+			*data=d;
+			j++;
+			if(j>=s->cur_trig.n_chan)j=0;
 			data++;
 			s->buf_int_ptr+=sizeof(sampl_t);
 			s->buf_int_count+=sizeof(sampl_t);
@@ -427,6 +436,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 		data=s->cur_trig.data;
 		comedi_eobuf(dev,s);
 	}
+	devpriv->ai_chanlistptr=j;
 }
 
 /*
