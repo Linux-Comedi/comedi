@@ -91,6 +91,7 @@ static inline RTIME nano2count(long long ns)
 #define rt_free_srq(irq) rtl_free_soft_irq(irq)
 #define rt_request_srq(x,y,z) rtl_get_soft_irq(y,"timer")
 #define rt_task_init(a,b,c,d,e,f,g) rt_task_init(a,b,c,d,(e)+1)
+#define rt_task_resume(x) rt_task_wakeup(x)
 
 #endif
 #ifdef CONFIG_COMEDI_RTAI
@@ -113,9 +114,26 @@ typedef struct{
 	int device;
 	int subd;
 	RT_TASK rt_task;
+	RT_TASK scan_task;
+	RTIME start;
+	RTIME scan_period;
+	RTIME convert_period;
 }timer_private;
 #define devpriv ((timer_private *)dev->private)
 
+
+static void cleanup_tasks(int unused, void *device)
+{
+	comedi_device *dev = (comedi_device*)device;
+	int ret;
+
+	ret = rt_task_delete(&devpriv->rt_task);
+	if(ret < 0)
+		comedi_error(dev, "error deleting rt_task");
+	ret = rt_task_delete(&devpriv->scan_task);
+	if(ret < 0)
+		comedi_error(dev, "error deleting scan_task");
+}
 
 static void timer_interrupt(int unused, void *device)
 {
@@ -158,22 +176,22 @@ static inline int buf_remove(comedi_device *dev,comedi_subdevice *s)
 	return data;
 }
 
-static void timer_ai_task_func(int d)
+static void input_scan_task_func(int d)
 {
 	comedi_device *dev=(comedi_device *)d;
 	comedi_subdevice *s=dev->read_subdev;
 	comedi_cmd *cmd=&s->async->cmd;
-	int i,n,ret;
+	int i, ret;
+	unsigned long long n;
 	lsampl_t data;
 
-	s->async->events = 0;
-
-	for(n=0;n<cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
-		/* pause goes at beginning so task can not be interrupted between
-		 * writing last point to buffer (buf_add()) and comedi_done()
-		 */
-		if(cmd->scan_begin_src == TRIG_TIMER && n != 0){
-			rt_task_wait_period();
+	for(n = 0; n < cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
+		// suspend scan until next scan
+		ret = rt_task_suspend(&devpriv->scan_task);
+		if(ret < 0){
+			comedi_error(dev, "error suspending scan task");
+			comedi_error_done(dev,s);
+			goto cleanup;
 		}
 		for(i = 0; i < cmd->scan_end_arg; i++){
 			ret = comedi_data_read(devpriv->device,devpriv->subd,
@@ -186,35 +204,42 @@ static void timer_ai_task_func(int d)
 				comedi_error_done(dev, s);
 				goto cleanup;
 			}
-			if(cmd->convert_src == TRIG_TIMER)
+			if(cmd->convert_src == TRIG_TIMER &&
+				i + 1 != cmd->scan_end_arg){
 				rt_task_wait_period();
+			}
 			buf_add(dev,s,data);
 		}
 		s->async->events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
 		comedi_event(dev,s,s->async->events);
 		s->async->events = 0;
 	}
-	comedi_done(dev,s);
+	comedi_done(dev, s);
 
 cleanup:
 
 	rt_pend_call(timer_interrupt, 0, dev);
-	// we are deleting ourself here, no lines afterwards will be executed!
-	rt_task_delete(&devpriv->rt_task);
+	rt_pend_call(cleanup_tasks, 0, dev);
 }
 
-static void timer_ao_task_func(int d)
+static void output_scan_task_func(int d)
 {
 	comedi_device *dev=(comedi_device *)d;
-	comedi_subdevice *s=dev->write_subdev;
+	comedi_subdevice *s=dev->read_subdev;
 	comedi_cmd *cmd=&s->async->cmd;
-	int i,n,ret;
-	int data;
-
-	s->async->events = 0;
+	int i, ret;
+	unsigned long long n;
+	lsampl_t data;
 
 	for(n = 0; n < cmd->stop_arg || cmd->stop_src == TRIG_NONE; n++){
-		for(i=0;i<cmd->scan_end_arg;i++){
+		// suspend scan until next scan
+		ret = rt_task_suspend(&devpriv->scan_task);
+		if(ret < 0){
+			comedi_error(dev, "error suspending scan task");
+			comedi_error_done(dev,s);
+			goto cleanup;
+		}
+		for(i = 0; i < cmd->scan_end_arg; i++){
 			data = buf_remove(dev,s);
 			if(data < 0) {
 				comedi_error(dev, "buffer underrun");
@@ -231,22 +256,50 @@ static void timer_ao_task_func(int d)
 				comedi_error_done(dev, s);
 				goto cleanup;
 			}
-			if(cmd->convert_src == TRIG_TIMER)
+			if(cmd->convert_src == TRIG_TIMER &&
+				i + 1 != cmd->scan_end_arg){
 				rt_task_wait_period();
+			}
 		}
 		s->async->events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
 		comedi_event(dev,s,s->async->events);
 		s->async->events = 0;
-		if(cmd->scan_begin_src == TRIG_TIMER)
-			rt_task_wait_period();
 	}
-	comedi_done(dev,s);
+	comedi_done(dev, s);
 
 cleanup:
 
 	rt_pend_call(timer_interrupt, 0, dev);
-	// we are deleting ourself here, no lines afterwards will be executed!
-	rt_task_delete(&devpriv->rt_task);
+	rt_pend_call(cleanup_tasks, 0, dev);
+}
+
+static void timer_task_func(int d)
+{
+	comedi_device *dev=(comedi_device *)d;
+	comedi_subdevice *s=dev->read_subdev;
+	int ret;
+	unsigned long long n;
+
+	s->async->events = 0;
+
+	devpriv->start = rt_get_time();
+
+	for(n = 0; 1; n++){
+		ret = rt_task_make_periodic(&devpriv->scan_task,
+			devpriv->start + devpriv->scan_period * n,
+			devpriv->convert_period);
+		if(ret < 0){
+			comedi_error(dev, "error resuming scan task");
+			comedi_error_done(dev,s);
+			goto cleanup;
+		}
+		rt_task_wait_period();
+	}
+
+cleanup:
+
+	rt_pend_call(timer_interrupt, 0, dev);
+	rt_pend_call(cleanup_tasks, 0, dev);
 }
 
 static int timer_insn(comedi_device *dev,comedi_subdevice *s,
@@ -317,10 +370,6 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(cmd->stop_src != TRIG_COUNT &&
 		cmd->stop_src != TRIG_NONE)
 		err++;
-	/* we dont yet support TRIG_TIMER for scan_begin_src and convert_src
-	 * simultaneously */
-	if(cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER)
-		err++;
 	if(cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src != TRIG_TIMER)
 		err++;
 	if(cmd->convert_src == TRIG_NOW && cmd->scan_begin_src != TRIG_TIMER)
@@ -329,15 +378,10 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(err)return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
-
 	// limit frequency, this is fairly arbitrary
 	if(cmd->scan_begin_src == TRIG_TIMER){
 		if(cmd->scan_begin_arg<100000){	/* 10 khz */
 			cmd->scan_begin_arg=100000;
-			err++;
-		}
-		if(cmd->scan_begin_arg>1e9){	/* 1 hz */
-			cmd->scan_begin_arg=1e9;
 			err++;
 		}
 	}
@@ -346,16 +390,17 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->convert_arg=100000;
 			err++;
 		}
-		if(cmd->convert_arg>1e9){	/* 1 hz */
-			cmd->convert_arg=1e9;
+	}
+	// make sure conversion and scan frequencies are compatible
+	if(cmd->convert_src == TRIG_TIMER && cmd->scan_begin_src == TRIG_TIMER){
+		if(cmd->convert_arg * cmd->scan_end_arg > cmd->scan_begin_arg){
+			cmd->scan_begin_arg = cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
-
 	if(err)return 3;
 
 	/* step 4: fix up and arguments */
-
 	if(err)return 4;
 
 	return 0;
@@ -364,7 +409,7 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret;
-	RTIME now,period,delay;
+	RTIME now, delay;
 	comedi_cmd *cmd = &s->async->cmd;
 
 	/* hack attack: drivers are not supposed to do this: */
@@ -377,31 +422,66 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 		return ret;
 	}
 	delay = nano2count(cmd->start_arg);
-	if(cmd->scan_begin_src == TRIG_TIMER)
-		period = nano2count(cmd->scan_begin_arg);
-	else if(cmd->convert_src == TRIG_TIMER)
-		period = nano2count(cmd->convert_arg);
-	else {
-		comedi_error(dev, "bug!");
-		return -1;
+	switch(cmd->scan_begin_src){
+		case TRIG_TIMER:
+			devpriv->scan_period = nano2count(cmd->scan_begin_arg);
+			break;
+		case TRIG_FOLLOW:
+			devpriv->scan_period = nano2count(cmd->convert_arg * cmd->scan_end_arg);
+			break;
+		default:
+			comedi_error(dev, "bug setting scan period!");
+			return -1;
+			break;
 	}
+	switch(cmd->convert_src){
+		case TRIG_TIMER:
+			devpriv->convert_period = nano2count(cmd->convert_arg);
+			break;
+		case TRIG_NOW:
+			devpriv->convert_period = 1;
+			break;
+		default:
+			comedi_error(dev, "bug setting conversion period!");
+			return -1;
+			break;
+	}
+
 #ifdef CONFIG_COMEDI_RTAI
-	start_rt_timer(period);
+	start_rt_timer(1);
 #endif
-	if(s == dev->read_subdev)
-		ret = rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
-	else
-		ret = rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,0,0,0);
+
+	ret = rt_task_init(&devpriv->rt_task,timer_task_func,(int)dev,3000,0,0,0);
 	if(ret < 0)
 	{
-		comedi_error(dev, "error initalizing task");
+		comedi_error(dev, "error initalizing rt_task");
 		return ret;
 	}
-	now=rt_get_time();
-	ret = rt_task_make_periodic(&devpriv->rt_task,now+delay,period);
+
+	if(s == dev->read_subdev)
+		ret = rt_task_init(&devpriv->scan_task, input_scan_task_func,
+			(int)dev, 3000, 0, 0, 0);
+	else
+		ret = rt_task_init(&devpriv->scan_task, output_scan_task_func,
+			(int)dev, 3000, 0, 0, 0);
 	if(ret < 0)
 	{
-		comedi_error(dev, "error starting task");
+		comedi_error(dev, "error initalizing scan_task");
+		return ret;
+	}
+
+	ret = rt_task_resume(&devpriv->scan_task);
+	if(ret < 0)
+	{
+		comedi_error(dev, "error starting scan_task");
+		return ret;
+	}
+
+	now=rt_get_time();
+	ret = rt_task_make_periodic(&devpriv->rt_task,now+delay,devpriv->scan_period);
+	if(ret < 0)
+	{
+		comedi_error(dev, "error starting rt_task");
 		return ret;
 	}
 
@@ -411,6 +491,7 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 static int timer_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	rt_task_delete(&devpriv->rt_task);
+	rt_task_delete(&devpriv->scan_task);
 	rt_pend_call(timer_interrupt, 0, dev);
 
 	return 0;
@@ -482,6 +563,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->range_table=emul_s->range_table;
 		s->range_table_list=emul_s->range_table_list;
 		s->insn_write=timer_insn;
+		s->insn_read=timer_insn;
 		dev->write_subdev = s;
 	}else {
 		s->type=COMEDI_SUBD_UNUSED;
