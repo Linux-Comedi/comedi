@@ -974,6 +974,8 @@ void abort_dma( comedi_device *dev, unsigned int channel )
 static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s )
 {
 	hpdi_writel( dev, 0, BOARD_CONTROL_REG );
+	
+	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 
 	abort_dma(dev, 0);
 
