@@ -160,7 +160,9 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s);
 static int das1800_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das1800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 int das1800_set_frequency(comedi_device *dev);
 int das1800_load_counter(comedi_device *dev, unsigned int counterNumber, unsigned int counterValue, unsigned int mode);
 unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
@@ -179,7 +181,7 @@ typedef struct das1800_board_struct{
 das1800_board das1800_boards[] =
 {
 	{
-		name:	"DAS-1701ST",
+		name:	"das-1701st",
 		/* Warning: the maximum conversion speeds listed below are
 		 * not always achievable depending on board setup (see
 		 * user manual.)
@@ -193,7 +195,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	0,
 	},
 	{
-		name:	"DAS-1701ST-DA",
+		name:	"das-1701st-da",
 		ai_speed:	6250,
 		resolution:	12,
 		qram_len:	256,
@@ -203,7 +205,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	4,
 	},
 	{
-		name:		"DAS-1702ST",
+		name:		"das-1702st",
 		ai_speed:	6250,
 		resolution:	12,
 		qram_len:	256,
@@ -213,7 +215,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	0,
 	},
 	{
-		name:		"DAS-1702ST-DA",
+		name:		"das-1702st-da",
 		ai_speed:	6250,
 		resolution:	12,
 		qram_len:	256,
@@ -223,7 +225,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	4,
 	},
 	{
-		name:		"DAS-1702HR",
+		name:		"das-1702hr",
 		ai_speed:	20000,
 		resolution:	16,
 		qram_len:	256,
@@ -233,7 +235,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	0,
 	},
 	{
-		name:		"DAS-1702HR-DA",
+		name:		"das-1702hr-da",
 		ai_speed:	20000,
 		resolution:	16,
 		qram_len:	256,
@@ -243,7 +245,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:	"DAS-1701AO",
+		name:	"das-1701ao",
 		ai_speed:	6250,
 		resolution:	12,
 		qram_len:	256,
@@ -253,7 +255,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:		"DAS-1702AO",
+		name:		"das-1702ao",
 		ai_speed:	6250,
 		resolution:	12,
 		qram_len:	256,
@@ -263,7 +265,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:	"DAS-1801ST",
+		name:	"das-1801st",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	256,
@@ -273,7 +275,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	0,
 	},
 	{
-		name:	"DAS-1801ST-DA",
+		name:	"das-1801st-da",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	256,
@@ -283,7 +285,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	4,
 	},
 	{
-		name:		"DAS-1802ST",
+		name:		"das-1802st",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	256,
@@ -293,7 +295,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	0,
 	},
 	{
-		name:		"DAS-1802ST-DA",
+		name:		"das-1802st-da",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	256,
@@ -303,7 +305,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	4,
 	},
 	{
-		name:		"DAS-1802HR",
+		name:		"das-1802hr",
 		ai_speed:	10000,
 		resolution:	16,
 		qram_len:	256,
@@ -313,7 +315,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	0,
 	},
 	{
-		name:		"DAS-1802HR-DA",
+		name:		"das-1802hr-da",
 		ai_speed:	10000,
 		resolution:	16,
 		qram_len:	256,
@@ -323,7 +325,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:		"DAS-1801HC",
+		name:		"das-1801hc",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	64,
@@ -333,7 +335,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:		"DAS-1802HC",
+		name:		"das-1802hc",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	64,
@@ -343,7 +345,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:	"DAS-1801AO",
+		name:	"das-1801ao",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	256,
@@ -353,7 +355,7 @@ das1800_board das1800_boards[] =
 		ao_n_chan:	2,
 	},
 	{
-		name:		"DAS-1802AO",
+		name:		"das-1802ao",
 		ai_speed:	3000,
 		resolution:	12,
 		qram_len:	256,
@@ -696,6 +698,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_read = das1800_di_rinsn;
+	s->insn_bits = das1800_di_rbits;
 
 	/* do */
 	s = dev->subdevices + 3;
@@ -705,6 +708,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_write = das1800_do_winsn;
+	s->insn_bits = das1800_do_wbits;
 
 	disable_das1800(dev);
 
@@ -803,7 +807,7 @@ int das1800_probe(comedi_device *dev)
 				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
 				return dev->board;
 			}
-			printk(" Board model (probed, not recommended): DAS-1800ST-DA series\n");
+			printk(" Board model (probed, not recommended): das-1800st-da series\n");
 			return das1801st;
 			break;
 		// das-1800hr-da
@@ -813,7 +817,7 @@ int das1800_probe(comedi_device *dev)
 				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
 				return dev->board;
 			}
-			printk(" Board model (probed, not recommended): DAS-1802HR-DA\n");
+			printk(" Board model (probed, not recommended): das-1802hr-da\n");
 			return das1802hr;
 			break;
 		case 0x5:
@@ -823,7 +827,7 @@ int das1800_probe(comedi_device *dev)
 				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
 				return dev->board;
 			}
-			printk(" Board model (probed, not recommended): DAS-1800AO series\n");
+			printk(" Board model (probed, not recommended): das-1800ao series\n");
 			return das1801ao;
 			break;
 		case 0x6:
@@ -832,7 +836,7 @@ int das1800_probe(comedi_device *dev)
 				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
 				return dev->board;
 			}
-			printk(" Board model (probed, not recommended): DAS-1802HR\n");
+			printk(" Board model (probed, not recommended): das-1802hr\n");
 			return das1802hr;
 			break;
 		case 0x7:
@@ -842,7 +846,7 @@ int das1800_probe(comedi_device *dev)
 				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
 				return dev->board;
 			}
-			printk(" Board model (probed, not recommended): DAS-1800ST series\n");
+			printk(" Board model (probed, not recommended): das-1800st series\n");
 			return das1801st;
 			break;
 		case 0x8:
@@ -851,7 +855,7 @@ int das1800_probe(comedi_device *dev)
 				printk(" Board model: %s\n", (das1800_boards + dev->board)->name);
 				return dev->board;
 			}
-			printk(" Board model (probed, not recommended): DAS-1800HC series\n");
+			printk(" Board model (probed, not recommended): das-1800hc series\n");
 			return das1801hc;
 			break;
 		default :
@@ -1545,6 +1549,16 @@ static int das1800_di_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	return 1;
 }
 
+/* reads from digital input channels */
+static int das1800_di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+
+	data[1] = inb(dev->iobase + DAS1800_DIGITAL) & 0xf;
+	data[0] = 0;
+
+	return 2;
+}
+
 /* writes to a digital output channel */
 static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
@@ -1559,6 +1573,25 @@ static int das1800_do_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
 
 	return 1;
+}
+
+/* writes to digital output channels */
+static int das1800_do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	lsampl_t wbits;
+
+	// only set bits that have been masked
+	data[0] &= (1 << s->n_chan) - 1;
+	wbits = devpriv->do_bits;
+	wbits &= ~data[0];
+	wbits |= data[0] & data[1];
+	devpriv->do_bits = wbits;
+
+	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
+
+	data[1] = devpriv->do_bits;
+
+	return 2;
 }
 
 /* loads counters with divisor1, divisor2 from private structure */
