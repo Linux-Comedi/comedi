@@ -956,6 +956,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		comedi_error(dev, "rx fifo overrun");
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		DEBUG_PRINT( "dma0_status 0x%x\n", (int)readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG));
 	}
 
 	if( hpdi_board_status & RX_UNDERRUN_BIT )
