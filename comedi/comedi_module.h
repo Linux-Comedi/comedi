@@ -140,6 +140,7 @@ struct comedi_subdevice_struct{
 	int (*trig[5])(comedi_device *,comedi_subdevice *,comedi_trig *);
 
 	int (*do_cmd)(comedi_device *,comedi_subdevice *);
+	int (*do_cmdtest)(comedi_device *,comedi_subdevice *,comedi_cmd *);
 	int (*poll)(comedi_device *,comedi_subdevice *);
 	int (*cancel)(comedi_device *,comedi_subdevice *);
 	int (*do_lock)(comedi_device *,comedi_subdevice *);

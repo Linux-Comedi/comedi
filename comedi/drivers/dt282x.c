@@ -655,14 +655,13 @@ static int dt282x_ai_mode0(comedi_device * dev, comedi_subdevice * s, comedi_tri
 	return 1;
 }
 
-#if 0
-static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+#ifdef CONFIG_COMEDI_VER08
+static int dt282x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,comedi_cmd *cmd)
 {
 	int err=0;
-	comedi_cmd *cmd=&s->cur_cmd;
 
 	if(cmd->start_src!=TRIG_NOW ||
-	   cmd->start_arg!=0 |||
+	   cmd->start_arg!=0 ||
 	   cmd->scan_begin_arg!=0 ||
 	   cmd->convert_src!=TRIG_TIMER ||
 	   cmd->scan_end_src!=TRIG_COUNT ||
@@ -685,10 +684,67 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	}
 	if(cmd->stop_src!=TRIG_COUNT && cmd->stop_src!=TRIG_NONE){
 		err=1;
-
 	}
 
-	return -EINVAL;
+	if(err)return -EINVAL;
+
+	return 0;
+}
+
+static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
+{
+	comedi_cmd *cmd=&s->cmd;
+	int timer;
+
+	timer=dt282x_ns_to_timer(&cmd->convert_arg);
+	outw(timer, dev->iobase + DT2821_TMRCTR);
+
+	if(cmd->scan_begin_src==TRIG_FOLLOW){
+		/* internal trigger */
+		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0;
+	}else{
+		/* external trigger */
+		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0 | DT2821_DS1;
+	}
+	update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_ADCINIT);
+	devpriv->adcsr = 0;
+
+	devpriv->ntrig=cmd->stop_arg*cmd->scan_end_arg;
+	devpriv->nread=devpriv->ntrig;
+
+	devpriv->dma_dir=DMA_MODE_READ;
+	devpriv->current_dma_chan=0;
+	prep_ai_dma(dev,0,0);
+	enable_dma(devpriv->dma[0].chan);
+	if(devpriv->ntrig){
+		prep_ai_dma(dev,1,0);
+		enable_dma(devpriv->dma[1].chan);
+		devpriv->supcsr |= DT2821_DDMA;
+		update_supcsr(0);
+	}
+
+	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
+	update_adcsr(0);
+
+	dt282x_load_changain(dev,cmd->chanlist_len,cmd->chanlist);
+
+	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
+	update_adcsr(0);
+
+	update_supcsr(DT2821_PRLD);
+	wait_for(!mux_busy(),
+		 comedi_error(dev, "timeout\n");
+		 return -ETIME;
+	    );
+
+	if(cmd->scan_begin_src==TRIG_FOLLOW){
+		update_supcsr(DT2821_STRIG);
+	}else{
+		devpriv->supcsr |= DT2821_XTRIG;
+		update_supcsr(0);
+	}
+
+	return 0;
 }
 #endif
 
@@ -1121,7 +1177,8 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[0]=dt282x_ai_mode0;
 	s->trig[1]=dt282x_ai_mode1;
 	s->trig[4]=dt282x_ai_mode4;
-#if 0
+#if CONFIG_COMEDI_VER08
+	s->do_cmdtest=dt282x_ai_cmdtest;
 	s->do_cmd=dt282x_ai_cmd;
 #endif
 	s->cancel=dt282x_ai_cancel;
