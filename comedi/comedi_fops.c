@@ -925,7 +925,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	init_async_buf( async );
 
-	async->cb_mask = COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
+	async->cb_mask = COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
 	if(async->cmd.flags & TRIG_WAKE_EOS){
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
@@ -1843,8 +1843,6 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 
 	mask = s->async->events;
 	s->async->events = 0;
-
-	mask |= COMEDI_CB_BLOCK;
 
 	//DPRINTK("comedi_event %x\n",mask);
 
