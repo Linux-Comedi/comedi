@@ -872,8 +872,8 @@ static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	// set channel and range
 	channel = CR_CHAN(insn->chanspec);
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK( channel );
-	devpriv->ao_control_bits |= DACEN | DAC_RANGE( channel, CR_RANGE( insn->chanspec ) );
+	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK(channel);
+	devpriv->ao_control_bits |= DACEN | DAC_RANGE(channel, CR_RANGE(insn->chanspec));
 	outw( devpriv->ao_control_bits, devpriv->control_status + DAC_CSR );
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
@@ -897,11 +897,12 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
 
 	// set channel and range
 	channel = CR_CHAN(insn->chanspec);
-	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK( channel ) &
-		~DAC_START & ~DAC_PACER_MASK;
-	devpriv->ao_control_bits |= DACEN | DAC_RANGE( channel, CR_RANGE( insn->chanspec ) );
-	outw( devpriv->ao_control_bits, devpriv->control_status + DAC_CSR );
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->ao_control_bits &= ~DAC_CHAN_EN(0) & ~DAC_CHAN_EN(1) & ~DAC_RANGE_MASK(channel) &
+		~DAC_PACER_MASK;
+	devpriv->ao_control_bits |= DACEN | DAC_RANGE(channel, CR_RANGE(insn->chanspec)) |
+		DAC_CHAN_EN(channel) | DAC_START;
+	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// remember value for readback
