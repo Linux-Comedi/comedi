@@ -874,11 +874,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 {
 #ifndef PCIDMA
-	unsigned long flags;
-
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
 	ni_handle_fifo_dregs(dev);
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 
 	//comedi_event(dev,s,s->async->events);
 
@@ -2919,7 +2915,6 @@ static void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int lengt
 
 static void GPCT_Reset(comedi_device *dev, int chan)
 {
-	unsigned long irqflags;
 	int temp_ack_reg=0;
 	
 	//printk("GPCT_Reset...");
@@ -2930,10 +2925,10 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 			//note: I need to share the soft copies of the Enable Register with the ISRs.
 			// so I'm using comedi_spin_lock_irqsave() to guard this section of code
 			win_out(G0_Reset,Joint_Reset_Register);
-			comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
+			//comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
 			ni_set_bits(dev,Interrupt_A_Enable_Register,G0_TC_Interrupt_Enable,  0);
 			ni_set_bits(dev,Interrupt_A_Enable_Register,G0_Gate_Interrupt_Enable,0);
-			comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
+			//comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
 			temp_ack_reg |= G0_Gate_Error_Confirm;
 			temp_ack_reg |= G0_TC_Error_Confirm;
 			temp_ack_reg |= G0_TC_Interrupt_Ack;
@@ -2946,10 +2941,10 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 			break;
 		case 1:
 			win_out(G1_Reset,Joint_Reset_Register);
-			comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
+			//comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
 			ni_set_bits(dev,Interrupt_B_Enable_Register,G1_TC_Interrupt_Enable,  0);
 			ni_set_bits(dev,Interrupt_B_Enable_Register,G0_Gate_Interrupt_Enable,0);
-			comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
+			//comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
 			temp_ack_reg |= G1_Gate_Error_Confirm;
 			temp_ack_reg |= G1_TC_Error_Confirm;
 			temp_ack_reg |= G1_TC_Interrupt_Ack;
