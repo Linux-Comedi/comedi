@@ -237,8 +237,7 @@ static int dt2801_writecmd(comedi_device * dev, int command)
 
 	stat = inb_p(dev->iobase+DT2801_STATUS);
 	if (stat & DT_S_COMPOSITE_ERROR) {
-        	printk("dt2801: composite-error in dt2801_writecmd()\n");
-		return -EIO;
+        	printk("dt2801: composite-error in dt2801_writecmd(), ignoring\n");
 	}
 	if (!(stat & DT_S_READY)) {
         	printk("dt2801: !ready in dt2801_writecmd(), ignoring\n");
@@ -255,13 +254,26 @@ static int dt2801_reset(comedi_device *dev)
 
 	printk("dt2801: resetting board...\n");
 
+	printk("fingerprint: 0x%02x 0x%02x\n",inb_p(dev->iobase),inb_p(dev->iobase+1));
+
 	printk("dt2801: stop\n");
-	dt2801_writecmd(dev,DT_C_STOP);
-	printk("dt2801: reading dummy\n");
-	dt2801_readdata(dev,&board_code);
+	outb_p(DT_C_STOP, dev->iobase+DT2801_CMD);
+	//dt2801_writecmd(dev,DT_C_STOP);
+
+	dt2801_wait_for_ready(dev);
+
+	//printk("dt2801: reading dummy\n");
+	//dt2801_readdata(dev,&board_code);
 
 	printk("dt2801: reset\n");
-	dt2801_writecmd(dev,DT_C_RESET);
+	outb_p(DT_C_RESET, dev->iobase+DT2801_CMD);
+	//dt2801_writecmd(dev,DT_C_RESET);
+
+	for(i=10000;i>0;i--){
+		if(!(inb_p(dev->iobase+DT2801_STATUS)&READY_BIT))
+			break;
+	}
+	printk("dt2801: reset ready wait timeout %d\n",i);
 
 	printk("dt2801: reading code\n");
 	dt2801_readdata(dev,&board_code);
