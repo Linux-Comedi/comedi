@@ -95,6 +95,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 			if(strcmp(driv->driver_name,it->board_name))
 				continue;
 		}
+		dev->board = i;
 		ret=driv->attach(dev,it);
 		if(ret<0){
 			driv->detach(dev);
