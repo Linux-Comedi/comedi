@@ -1703,11 +1703,6 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 
 	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
 	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
-	retval = setup_subdevices(dev);
-	if(retval < 0)
-	{
-		return retval;
-	}
 	// get irq
 	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
 	{
@@ -1715,12 +1710,15 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
-
 	printk(" irq %i\n", dev->irq);
 
 	init_plx9080(dev);
-
 	init_stc_registers( dev );
+	retval = setup_subdevices(dev);
+	if(retval < 0)
+	{
+		return retval;
+	}
 
 	return 0;
 }
@@ -3845,31 +3843,29 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	static const int bitstream_length = 11;
 	unsigned int bitstream = ((address & 0x7) << 8) | value;
 	unsigned int bit, register_bits;
-	static const int caldac_8800_comedi_udelay = 1;
+	static const int caldac_8800_udelay = 1;
 
 	if(address >= num_caldac_channels)
 	{
 		comedi_error(dev, "illegal caldac channel");
 		return -1;
 	}
-
 	for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
 	{
 		register_bits = 0;
 		if(bitstream & bit)
 			register_bits |= SERIAL_DATA_IN_BIT;
-		comedi_udelay(caldac_8800_comedi_udelay);
+		comedi_udelay(caldac_8800_udelay);
 		writew(register_bits, priv(dev)->main_iobase + CALIBRATION_REG);
 		register_bits |= SERIAL_CLOCK_BIT;
-		comedi_udelay(caldac_8800_comedi_udelay);
+		comedi_udelay(caldac_8800_udelay);
 		writew(register_bits, priv(dev)->main_iobase + CALIBRATION_REG);
-        }
-
-	comedi_udelay(caldac_8800_comedi_udelay);
+	}
+	comedi_udelay(caldac_8800_udelay);
 	writew(SELECT_8800_BIT, priv(dev)->main_iobase + CALIBRATION_REG);
-	comedi_udelay(caldac_8800_comedi_udelay);
+	comedi_udelay(caldac_8800_udelay);
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
-
+	comedi_udelay(caldac_8800_udelay);	
 	return 0;
 }
 
