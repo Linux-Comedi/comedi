@@ -44,10 +44,11 @@ cmd triggers supported:
 	convert_src:    TRIG_TIMER | TRIG_EXT
 	stop_src:       TRIG_NONE | TRIG_COUNT
 
-The number of channels scanned is determined from chanlist_len.  The
-starting channel to scan and the gain is determined from chanlist[0].
-
 NOTES:
+	All entries in the channel/gain list must use the same gain and be
+	consecutive channels counting upwards in channel number (these are
+	hardware limitations.)
+
 	I've never tested the gain setting stuff since I only have a
 	DAS-800 board with fixed gain.
 
@@ -563,6 +564,9 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 {
 	int err = 0;
 	int tmp;
+	int gain, startChan;
+	int i;
+	comedi_async *async = s->async;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
@@ -643,6 +647,22 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 		if(cmd->stop_arg != 0)
 		{
 			cmd->stop_arg = 0;
+			err++;
+		}
+	}
+	// check channel/gain list against card's limitations
+	gain = CR_RANGE(async->cmd.chanlist[0]);
+	startChan = CR_CHAN(async->cmd.chanlist[0]);
+	for(i = 1; i < async->cmd.chanlist_len; i++)
+	{
+  	if(CR_CHAN(async->cmd.chanlist[i]) != (startChan + i) % s->n_chan)
+		{
+			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+			err++;
+		}
+		if(CR_RANGE(async->cmd.chanlist[i]) != gain)
+		{
+			comedi_error(dev, "entries in chanlist must all have the same gain\n");
 			err++;
 		}
 	}
