@@ -323,7 +323,6 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	struct mite_struct *mite = devpriv->mite;
 #endif
 
-	MDPRINTK("ni_E_Interrupt\n");
 /*
     If you want to use windowed registers in an interrupt, it is
     important that you restore the window address register.  If
@@ -344,14 +343,12 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	ni_mio_print_status_b(b_status);
 #endif
 #ifdef PCIDMA
-	//rt_printk("mite status=0x%08x\n",m_status);
 	if(m_status&CHSR_INT)mite_handle_interrupt(dev,m_status);
 #endif
 	if(a_status&Interrupt_A_St)handle_a_interrupt(dev,a_status);
 	if(b_status&Interrupt_B_St)handle_b_interrupt(dev,b_status);
 	
 	win_restore(wsave);
-	MDPRINTK("exit ni_E_Interrupt\n");
 }
 
 #ifdef PCIDMA
@@ -1164,7 +1161,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 #ifdef PCIDMA
 	ni_ai_setup_MITE_dma(dev,cmd,mode1);	
-#else
+#endif
 	switch(cmd->stop_src){
 	case TRIG_COUNT:
 		/* stage number of scans */
@@ -1194,7 +1191,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		break;
 	}
-#endif
 
 	switch(cmd->scan_begin_src){
 	case TRIG_TIMER:
