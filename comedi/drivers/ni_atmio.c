@@ -27,11 +27,23 @@ Devices: [National Instruments] AT-MIO-16E-1 (ni_atmio),
   AT-MIO-16E-2, AT-MIO-16E-10, AT-MIO-16DE-10, AT-MIO-64E-3,
   AT-MIO-16XE-50, AT-MIO-16XE-10, AT-AI-16XE-10
 Status: works
-Updated: Sat, 16 Mar 2002 17:34:48 -0800
+Updated: Thu May  1 20:03:02 CDT 2003
 
-The isapnptools package is required to use this board.  Use isapnp to
-configure the I/O base for the board, and then pass the same value as
-a parameter in comedi_config.  A sample isapnp.conf file is included
+The driver now has (2.4) kernel isapnp support, and
+will automatically probe for a supported board if the
+I/O base is left unspecified with comedi_config.
+However, many of
+the isapnp id numbers are unknown.  If your board is not
+recognized, please send the output of 'cat /proc/isapnp'
+(you may need to modprobe the isa-pnp module for
+/proc/isapnp to exist) so the
+id numbers for your board can be added to the driver.
+
+Otherwise, you can use the isapnptools package to configure
+your board.  Use isapnp to
+configure the I/O base and IRQ for the board, and then pass
+the same values as
+parameters in comedi_config.  A sample isapnp.conf file is included
 in the etc/ directory of Comedilib.
 
 Comedilib includes a utility to autocalibrate these boards.  The
@@ -368,8 +380,11 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 
 		if(!isapnp_dev) continue;
 
-		if(isapnp_dev->active) continue;
-
+		if(isapnp_dev->active)
+		{
+			printk( "%s found but already active, skipping.\n", ni_boards[ i ].name );
+			continue;
+		}
 		if(isapnp_dev->prepare(isapnp_dev)<0)
 			return -EAGAIN;
 
