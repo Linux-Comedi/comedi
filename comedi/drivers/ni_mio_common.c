@@ -336,6 +336,7 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 	comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
 	unsigned int nbytes, old_alloc_count;
+	unsigned int bytes_per_scan = 2 * async->cmd.chanlist_len;
 
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(AI_DMA_CHAN));
 
@@ -360,6 +361,12 @@ static void mite_handle_a_linkc(struct mite_struct *mite, comedi_device *dev)
 	comedi_buf_munge(dev, s, count);
 	comedi_buf_write_free(async, count);
 
+	async->scan_progress += count;
+	if( async->scan_progress >= bytes_per_scan )
+	{
+		async->scan_progress %= bytes_per_scan;
+		async->events |= COMEDI_CB_EOS;
+	}
 	async->events |= COMEDI_CB_BLOCK;
 }
 
@@ -584,8 +591,8 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 		mite_handle_a_linkc(devpriv->mite, dev);
 #else
 		ni_handle_fifo_dregs(dev);
-#endif
 		s->async->events |= COMEDI_CB_EOS;
+#endif
 
 		/* we need to ack the START, also */
 		ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
