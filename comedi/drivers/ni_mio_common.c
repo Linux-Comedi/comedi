@@ -466,13 +466,13 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			CHAN_OFFSET(0));
 	}
 
-	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT)){
-		printk("unknown mite interrupt, disabling IRQ (m_status=%08x)\n", m_status);
+	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
+		printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
 		//mite_print_chsr(m_status);
 		mite_dma_disarm(devpriv->mite);
 		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR +
 			CHAN_OFFSET(0));
-		disable_irq(dev->irq);
+		//disable_irq(dev->irq);
 	}
 #endif
 
