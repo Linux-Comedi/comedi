@@ -15,8 +15,6 @@ comedi_rt_timer segfaults when the lower-level driver disappears
 and reappears.  This is a problem with the Comedi core, not the
 driver.
 
-fix INSTALL.RTLinux, INSTALL.RTAI
-
 BUG in do_test_for_insn_bits() (due to -EACCES)
 
 ni_mio_common: doesn't do 2-chan ao.
@@ -44,6 +42,4 @@ spinlocks
 add pci_enable_device where appropriate
 
 autoloading causes BUG on failure.
-
-fix comedi_report_boards to use /proc
 
