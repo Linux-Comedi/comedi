@@ -367,7 +367,7 @@ int comedi_set_user_int_count(unsigned int minor,unsigned int subdevice,unsigned
 */
 static int comedi_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int comedi_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-int comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
+int comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
@@ -646,7 +646,7 @@ error:
 	- lock while subdevice being programmed
 	
 */
-int comedi_lock_ioctl(unsigned int minor,unsigned int subdev)
+int comedi_lock(unsigned int minor,unsigned int subdev)
 {
 	int ret=0;
 	comedi_subdevice *s;
@@ -695,7 +695,7 @@ int comedi_lock_ioctl(unsigned int minor,unsigned int subdev)
 		none
 
 */
-int comedi_unlock_ioctl(unsigned int minor,unsigned int subdev)
+int comedi_unlock(unsigned int minor,unsigned int subdev)
 {
 	int ret=0;
 	comedi_subdevice *s;
@@ -747,7 +747,7 @@ int comedi_unlock_ioctl(unsigned int minor,unsigned int subdev)
 		nothing
 
 */
-int comedi_cancel_ioctl(unsigned int minor,unsigned int subdev)
+int comedi_cancel(unsigned int minor,unsigned int subdev)
 {
 	int ret=0;
 	comedi_subdevice *s;
@@ -830,13 +830,6 @@ int comedi_register_callback(unsigned int minor,unsigned int subdev,
 
 	return 0;
 }
-
-/* XXX */
-void comedi_cancel(void);
-void comedi_lock(void);
-void comedi_unlock(void);
-void comedi_trigger(void);
-
 
 
 #ifdef LINUX_V22
