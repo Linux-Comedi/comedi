@@ -466,7 +466,6 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->driver=&driver_ni_mio_cs;
 	dev->iobase=link->io.BasePort1;
-	dev->iosize=link->io.NumPorts1;
 
 	dev->irq=link->irq.AssignedIRQ;
 
