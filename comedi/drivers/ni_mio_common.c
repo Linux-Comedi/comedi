@@ -316,6 +316,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	int wsave;
 #ifdef PCIDMA
 	unsigned int m_status;
+	struct mite_struct *mite = devpriv->mite;
 #endif
 
 	MDPRINTK("ni_E_Interrupt\n");
@@ -330,7 +331,7 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	a_status=ni_readw(AI_Status_1);
 	b_status=ni_readw(AO_Status_1);
 #ifdef PCIDMA
-	m_status=readl(devpriv->mite->mite_io_addr+MITE_CHSR+CHAN_OFFSET(0));
+	m_status=readl(mite->mite_io_addr+MITE_CHSR+CHAN_OFFSET(mite->chan));
 #endif
 #ifdef DEBUG_INTERRUPT
 	rt_printk("ni_mio_common: interrupt: a_status=%04x b_status=%04x\n",
@@ -353,64 +354,72 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 {
 	int len;
+	comedi_subdevice *s = dev->subdevices+0;
+	comedi_async *async = s->async;
+	struct mite_struct *mite = devpriv->mite;
 	
-	comedi_subdevice *s=dev->subdevices+0;
-	
-	s->async->events |= COMEDI_CB_BLOCK;
+	async->events |= COMEDI_CB_BLOCK;
 
 	MDPRINTK("mite_handle_interrupt\n");
-	writel(CHOR_CLRLC, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
-/*
-	//Don't munge the data, just update the user's status variables
-	s->async->buf_int_count=mite_bytes_transferred(devpriv->mite, 0);
-	s->async->buf_int_ptr= s->async->buf_int_count % s->async->prealloc_bufsz;     
-*/
-	//Munge the ADC data to change its format from twos complement to unsigned int
-	//This is slow but makes it more compatible with other cards
+	writel(CHOR_CLRLC, mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan));
+
+#ifdef NO_MUNGE
+	/*
+	 * Don't munge the data, just update the user's status variables
+	 */
+	async->buf_int_count = mite_bytes_transferred(mite, 0);
+	async->buf_int_ptr = async->buf_int_count % async->prealloc_bufsz;     
+#else
+	/*
+	 * Munge the ADC data to change its format from twos complement
+	 * to unsigned int.  This is slow but makes it more compatible
+	 * with other cards
+	 */
 	{ 
 	unsigned int raw_ptr;
-	s->async->buf_int_count = mite_bytes_transferred(devpriv->mite, 0);
-	raw_ptr = s->async->buf_int_count % s->async->prealloc_bufsz;
-	if(s->async->buf_int_ptr > raw_ptr) {
-		ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf,
-			s->async->prealloc_buf+s->async->prealloc_bufsz);
-		s->async->buf_int_ptr = 0;
+	async->buf_int_count = mite_bytes_transferred(mite, 0);
+	raw_ptr = async->buf_int_count % async->prealloc_bufsz;
+	if(async->buf_int_ptr > raw_ptr) {
+		ni_munge(dev,s,async->buf_int_ptr+async->prealloc_buf,
+			async->prealloc_buf+async->prealloc_bufsz);
+		async->buf_int_ptr = 0;
 	}
-	ni_munge(dev,s,s->async->buf_int_ptr+s->async->prealloc_buf,
+	ni_munge(dev,s,async->buf_int_ptr+async->prealloc_buf,
 		raw_ptr+s->async->prealloc_buf);
 	s->async->buf_int_ptr = raw_ptr;
 	}
+#endif
 
 
-	len = sizeof(sampl_t)*s->async->cmd.stop_arg*s->async->cmd.scan_end_arg;
-	if((devpriv->mite->DMA_CheckNearEnd)&&
+	len = sizeof(sampl_t)*async->cmd.stop_arg*async->cmd.scan_end_arg;
+	if((devpriv->mite->DMA_CheckNearEnd) &&
 			(s->async->buf_int_count > (len - s->async->prealloc_bufsz))) {
 		long offset;
 		int i;
 
-		offset = len % s->async->prealloc_bufsz;
-		if(offset < devpriv->mite->ring[0].count) {
-			devpriv->mite->ring[0].count = offset;
-			devpriv->mite->ring[1].count = 0;
+		offset = len % async->prealloc_bufsz;
+		if(offset < mite->ring[0].count) {
+			mite->ring[0].count = offset;
+			mite->ring[1].count = 0;
 		}else{
-			offset -= devpriv->mite->ring[0].count;
-			i = offset / PAGE_SIZE;
-			devpriv->mite->ring[i].count = offset % PAGE_SIZE;
-			devpriv->mite->ring[(i+1)%MITE_RING_SIZE].count = 0;
+			offset -= mite->ring[0].count;
+			i = offset >> PAGE_SHIFT;
+			mite->ring[i].count = offset & ~PAGE_MASK;
+			mite->ring[(i+1)%mite->n_links].count = 0;
 		}
-		devpriv->mite->DMA_CheckNearEnd = 0;
+		mite->DMA_CheckNearEnd = 0;
 	}
 
-	MDPRINTK("CHSR is 0x%08lx, count is %d\n",m_status,s->async->buf_int_count);
+	MDPRINTK("CHSR is 0x%08x, count is %d\n",m_status,async->buf_int_count);
 	if(m_status&CHSR_DONE){
-		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(0));
+		writel(CHOR_CLRDONE, mite->mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan));
 		//printk("buf_int_count is %d, buf_int_ptr is %d\n",
 		//		s->async->buf_int_count,s->async->buf_int_ptr);
 		ni_handle_block_dma(dev);
 	}
 	MDPRINTK("exit mite_handle_interrupt\n");
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev,s,async->events);
 }
 
 #endif //PCIDMA
@@ -716,60 +725,15 @@ static void ni_handle_block_dma(comedi_device *dev)
 	MDPRINTK("exit ni_handle_block_dma\n");
 }
 
-#ifdef unused
-static int ni_ai_setup_block_dma(comedi_device *dev,int frob,int mode1)
-{
-	int n;
-	int len;
-	unsigned long ll_start;
-	comedi_cmd *cmd=&dev->subdevices->async->cmd;
-	        
-	MDPRINTK("ni_ai_setup_block_dma\n");
-	        
-	/*Build MITE linked list and configure the MITE*/
-
-	len = sizeof(sampl_t)*cmd->stop_arg*cmd->scan_end_arg;
-
-	/*use kvmem if no user buf specified */
-	ll_start = mite_ll_from_kvmem(devpriv->mite,dev->subdevices->async,
-		len);
-
-	mite_setregs(devpriv->mite, ll_start,0,COMEDI_INPUT);
-
-	/*tell the STC to use DMA0 for AI. 
-	 * Select the MITE DMA channel to use, 0x01=A*/
-	ni_writeb(0x01,AI_AO_Select);
-
-	/* stage number of scans */
-	n = cmd->stop_arg;
-	win_out2(n-1,AI_SC_Load_A_Registers);
-	win_out2(n-1,AI_SC_Load_B_Registers);
-
-	/* load SC (Scan Count) */
-	win_out(AI_SC_Load,AI_Command_1_Register);
-
-	mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-	win_out(mode1,AI_Mode_1_Register);
-	        
-	/*start the MITE*/
-	mite_dma_arm(devpriv->mite);
-	        
-	MDPRINTK("exit ni_ai_setup_block_dma\n");
-
-	return mode1;
-}
-#endif // 0
-
 static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 {
-	int n,len;
-	unsigned long ll_start;
-	comedi_async *async_mite;
+	int n;
+	struct mite_struct *mite = devpriv->mite;
 	
-	len = sizeof(sampl_t)*cmd->stop_arg*cmd->scan_end_arg;
-	async_mite=dev->subdevices[cmd->subdev].async;
-	ll_start = mite_ll_from_kvmem(devpriv->mite, async_mite,len);
-	mite_setregs(devpriv->mite, ll_start,0,COMEDI_INPUT);
+	mite->current_link = 0;
+	mite->chan = 0;
+	mite->dir = COMEDI_INPUT;
+	mite_prep_dma(mite);
 
 	/*tell the STC to use DMA0 for AI.
 	Select the MITE DMA channel to use, 0x01=A*/
@@ -787,7 +751,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd,int mode1)
 	win_out(mode1,AI_Mode_1_Register);
 
 	/*start the MITE*/
-	mite_dma_arm(devpriv->mite);
+	mite_dma_arm(mite);
 	return mode1;
 }
 #endif // PCIDMA
