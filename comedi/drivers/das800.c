@@ -223,7 +223,7 @@ comedi_driver driver_das800={
 	detach:		das800_detach,
 	recognize:		das800_recognize,
 	register_boards:		das800_register_boards,
-	num_boards:		sizeof(das800_boards) / sizeof(das800_board),
+	num_names:		sizeof(das800_boards) / sizeof(das800_board),
 };
 
 static void das800_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -244,7 +244,7 @@ static void das800_register_boards(void)
 {
 	unsigned int i;
 
-	for(i = 0; i < driver_das800.num_boards; i++)
+	for(i = 0; i < driver_das800.num_names; i++)
 	{
 		driver_das800.board_name[i] = das800_boards[i].name;
 		driver_das800.board_id[i] = i;

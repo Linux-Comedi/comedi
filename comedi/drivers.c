@@ -111,7 +111,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->use_count = use_count;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
-		if(driv->register_boards && driv->num_boards){
+		if(driv->register_boards && driv->num_names){
 			i=comedi_recognize(driv, it->board_name);
 			if(i < 0) continue;
 		}else if(driv->recognize){
@@ -176,16 +176,16 @@ int comedi_driver_register(comedi_driver *driver)
 	driver->next=comedi_drivers;
 	comedi_drivers=driver;
 
-	if(driver->register_boards && driver->num_boards)
+	if(driver->register_boards && driver->num_names)
 	{
-		driver->board_name = kmalloc(driver->num_boards * sizeof(char*), GFP_KERNEL);
+		driver->board_name = kmalloc(driver->num_names * sizeof(char*), GFP_KERNEL);
 		if(driver->board_name == NULL)
 		{
 			printk(KERN_ERR "comedi: memory allocation failure.\n");
 			ret = -ENOMEM;
 			goto cleanup;
 		}
-		driver->board_id = kmalloc(driver->num_boards * sizeof(int), GFP_KERNEL);
+		driver->board_id = kmalloc(driver->num_names * sizeof(int), GFP_KERNEL);
 		if(driver->board_id == NULL)
 		{
 			printk(KERN_ERR "comedi: memory allocation failure.\n");
@@ -367,7 +367,7 @@ int comedi_recognize(comedi_driver *driv, const char *name)
 {
 	unsigned int i = 0;
 
-	for(i = 0; i < driv->num_boards; i++)
+	for(i = 0; i < driv->num_names; i++)
 	{
 		if(strcmp(driv->board_name[i], name) == 0)
 			return driv->board_id[i];
@@ -380,10 +380,10 @@ void comedi_report_boards(comedi_driver *driv)
 {
 	unsigned int i;
 
-	if(driv->num_boards == 0) return;
+	if(driv->num_names == 0) return;
 
 	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
-	for(i = 0; i < driv->num_boards; i++)
+	for(i = 0; i < driv->num_names; i++)
 	{
 		printk(" %s\n", driv->board_name[i]);
 	}

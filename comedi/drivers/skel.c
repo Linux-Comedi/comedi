@@ -109,7 +109,7 @@ comedi_driver driver_skel={
 	/* comedi uses num_boards to allocate the board_name and board_id members
 	 * of this struct
 	 */
-	num_boards:		sizeof(skel_boards) / sizeof(skel_board),
+	num_names:		sizeof(skel_boards) / sizeof(skel_board),
 };
 
 static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -150,7 +150,7 @@ static void skel_register_boards(void)
 {
 	unsigned int i;
 
-	for(i = 0; i < driver_skel.num_boards; i++)
+	for(i = 0; i < driver_skel.num_names; i++)
 	{
 		driver_skel.board_name[i] = skel_boards[i].name;
 		driver_skel.board_id[i] = i;

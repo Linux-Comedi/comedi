@@ -163,7 +163,7 @@ struct comedi_driver_struct{
 	 */
 	void (*register_boards)(void);	// initializes board_name and board_id arrays
 	// number of elements in board_name and board_id arrays
-	unsigned int num_boards;
+	unsigned int num_names;
 	/* board_name and board_id arrays are allocated by comedi_driver_register()
 	 * using the value of num_boards for the number of elements
 	 */
