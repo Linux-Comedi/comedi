@@ -60,7 +60,7 @@
 /* Analog Input Registers */
 #define MUX_CNTR_REG		0x04	/* wo 16 */
 #define MUX_GAIN_REG		0x06	/* wo 16 */
-#define AD_FIFO_REG			0x16	/* ro 16 */
+#define AD_FIFO_REG		0x16	/* ro 16 */
 #define DMA_TC_INT_CLR_REG	0x16	/* wo 16 */
 /* AM9513A Counter/Timer Registers */
 #define AM9513A_DATA_REG	0x18	/* rw 16 */

@@ -334,24 +334,26 @@
 
 #define G_Autoincrement_Register(a)	(68+(a))
 #define G_Command_Register(a)		(6+(a))
-#define G_HW_Save_Register1(a)		(8+(a)*2)
-#define G_HW_Save_Register2(a)		(9+(a)*2)
+#define G_HW_Save_Register_High(a)	(8+(a)*2)
+#define G_HW_Save_Register_Low(a)	(9+(a)*2)
 #define G_Input_Select_Register(a)	(36+(a))
-#define G_Load_A_Register1(a)		(28+(a)*4)
-#define G_Load_A_Register2(a)		(29+(a)*4)
-#define G_Load_B_Register1(a)		(30+(a)*4)
-#define G_Load_B_Register2(a)		(31+(a)*4)
+#define G_Load_A_Register_High(a)	(28+(a)*4)
+#define G_Load_A_Register_Low(a)	(29+(a)*4)
+#define G_Load_B_Register_High(a)	(30+(a)*4)
+#define G_Load_B_Register_Low(a)	(31+(a)*4)
 #define G_Mode_Register(a)		(26+(a))
-#define G_Save_Register1(a)		(12+(a)*2)
-#define G_Save_Register2(a)		(13+(a)*2)
+#define G_Save_Register_High(a)		(12+(a)*2)
+#define G_Save_Register_Low(a)		(13+(a)*2)
 #define G_Status_Register		4
 
 /* command register */
 #define G_Disarm_Copy			_bit15		/* strobe */
 #define G_Save_Trace_Copy		_bit14
 #define G_Arm_Copy			_bit13		/* strobe */
-#define G_Bank_Switch_Enable		_bit12
-#define G_Bank_Switch_Mode		_bit11
+#define G0_Bank_Switch_Enable		_bit12
+#define G1_Bank_Switch_Enable		_bit12
+#define G0_Bank_Switch_Mode		_bit11
+#define G1_Bank_Switch_Mode		_bit11
 #define G_Bank_Switch_Start		_bit10		/* strobe */
 #define G_Little_Big_Endian		_bit9
 #define G_Synchronized_Gate		_bit8
@@ -359,34 +361,68 @@
 #define G_Up_Down(a)			(((a)&0x03)<<5)
 #define G_Disarm			_bit4		/* strobe */
 #define G_Analog_Trigger_Reset		_bit3		/* strobe */
-#define G_Load				_bit2		/* strobe */
+#define G0_Load				_bit2		/* strobe */
+#define G1_Load				_bit2		/* strobe */
 #define G_Save_Trace			_bit1
 #define G_Arm				_bit0		/* strobe */
 
 /* input select register */
-#define G_Source_Polarity		_bit15
-#define G_Output_Polarity		_bit14
-#define G_OR_Gate			_bit13
-#define G_Gate_Select_Load_Source	_bit12
+#define G0_Source_Polarity		_bit15
+#define G1_Source_Polarity		_bit15
+#define G0_Output_Polarity		_bit14
+#define G1_Output_Polarity		_bit14
+#define G0_OR_Gate			_bit13
+#define G1_OR_Gate			_bit13
+#define G0_Gate_Select_Load_Source	_bit12
+#define G1_Gate_Select_Load_Source	_bit12
 #define G_Gate_Select(a)		(((a)&0x1f)<<7)
 #define G_Source_Select(a)		(((a)&0x1f)<<2)
 #define G_Write_Acknowledges_Irq	_bit1
 #define G_Read_Acknowledges_Irq		_bit0
 
 /* mode register */
-#define G_Reload_Source_Switching	_bit15
-#define G_Loading_On_Gate		_bit14
-#define G_Gate_Polarity			_bit13
+#define G0_Load_Source_Select		_bit7
+#define G1_Load_Source_Select		_bit7
+
+#define G0_Reload_Source_Switching	_bit15
+#define G1_Reload_Source_Switching	_bit15
+#define G0_Loading_On_Gate		_bit14
+#define G1_Loading_On_Gate		_bit14
+#define G0_Gate_Polarity		_bit13
+#define G1_Gate_Polarity		_bit13
 #define G_Loading_On_TC			_bit12
-#define G_Counting_Once(a)		(((a)&0x03)<<10)
+#define G0_Counting_Once(a)		(((a)&0x03)<<10)
+#define G1_Counting_Once(a)		(((a)&0x03)<<10)
 #define G_Output_Mode(a)		(((a)&0x03)<<8)
-#define G_Load_Source_Select		_bit7
-#define G_Stop_Mode(a)			(((a)&0x03)<<5)
+#define G0_Stop_Mode(a)			(((a)&0x03)<<5)
+#define G1_Stop_Mode(a)			(((a)&0x03)<<5)
 #define G_Trigger_Mode_For_Edge_Gate(a)	(((a)&0x03)<<3)
-#define G_Gate_On_Both_Edges		_bit1
+#define G0_Gate_On_Both_Edges		_bit1
+#define G1_Gate_On_Both_Edges		_bit1
 #define G_Gating_Mode(a)		(((a)&0x03)<<0)
 
-
+/* CLO */
+/* general purpose counter timer */
+#define G0_Reset                        _bit2
+#define G1_Reset                        _bit3
+#define G0_TC_Interrupt_Enable          _bit6
+#define G1_TC_Interrupt_Enable          _bit9
+#define G0_Gate_Interrupt_Enable        _bit8
+#define G1_Gate_Interrupt_Enable        _bit10
+#define G0_Synchronized_Gate            _bit8
+#define G1_Synchronized_Gate            _bit8
+#define G0_Gate_Error_Confirm           _bit5
+#define G1_Gate_Error_Confirm           _bit1
+#define G0_TC_Error_Confirm             _bit6
+#define G1_TC_Error_Confirm             _bit2
+#define G0_TC_Interrupt_Ack             _bit14
+#define G1_TC_Interrupt_Ack             _bit14
+#define G0_Gate_Interrupt_Ack           _bit15
+#define G1_Gate_Interrupt_Ack           _bit15
+#define G_Autoincrement(a)              ((a)<<0)
+#define G_Autoincrement(a)              ((a)<<0)
+#define G0_Arm                          _bit0
+#define G1_Arm                          _bit0
 
 /* Additional windowed registers unique to E series */
 
@@ -456,6 +492,8 @@ typedef struct ni_board_struct{
 	int ao_unipolar;
 	
 	int has_8255;
+
+        int n_gpct;		/* CLO */
 
 	struct caldac_struct **caldac;
 }ni_board;

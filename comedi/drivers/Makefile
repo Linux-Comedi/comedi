@@ -15,6 +15,8 @@ obj-  :=
 
 obj-$(CONFIG_COMEDI_8255)		+= 8255.o
 
+obj-$(CONFIG_COMEDI_DAQBOARD2000)	+= daqboard2000.o
+
 obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
 obj-$(CONFIG_COMEDI_DAS08JR)		+= das08jr.o
 obj-$(CONFIG_COMEDI_DAS16)		+= das16.o

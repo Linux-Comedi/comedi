@@ -400,6 +400,9 @@ void init_drivers(void)
 #ifdef CONFIG_COMEDI_PCL812
 	REG(driver_pcl812);
 #endif
+#ifdef CONFIG_COMEDI_DAQBOARD2000
+	REG(driver_daqboard2000);
+#endif
 #endif
 }
 

@@ -99,6 +99,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
+		n_gpct:         0,
 		caldac:		type1,
 	},
 	{	device_id:	25,
@@ -114,6 +115,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
+		n_gpct:         0,
 		caldac:		type1,
 	},
 	{	device_id:	36,
@@ -129,6 +131,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
 		caldac:		type1,
+		n_gpct:         2,
 		has_8255:	0,
 	},
 	{	device_id:	37,
@@ -144,6 +147,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
 		caldac:		type1,
+		n_gpct:         0,
 		has_8255:	1,
 	},
 	{	device_id:	38,
@@ -159,6 +163,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	1,
 		has_8255:	0,
+		n_gpct:         0,
 		caldac:		type1,
 	},
 	{	device_id:	39,
@@ -174,6 +179,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
 		caldac:		type2,
+		n_gpct:         0,
 		has_8255:	0,
 	},
 	{	device_id:	50,
@@ -189,6 +195,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,	/* unknown */
 		ao_unipolar:	0,	/* unknown */
 		caldac:		type2,
+		n_gpct:         0,
 		has_8255:	0,
 	},
 	{	device_id:	51,
@@ -205,6 +212,7 @@ static ni_board ni_boards[]={
 		aorangelkup:	0,
 		ao_unipolar:	0,
 		caldac:		type2,
+		n_gpct:         0,
 		has_8255:	0,
 	}
 };
@@ -253,6 +261,12 @@ typedef struct{
 	unsigned short ao_cmd2;
 	unsigned short ao_cmd3;
 	unsigned short ao_trigger_select;
+	unsigned short gpct_mode0;
+	unsigned short gpct_mode1;
+	unsigned short gpct_command0;
+	unsigned short gpct_command1;
+	unsigned short gpct_input_select0;
+	unsigned short gpct_input_select1;
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 

@@ -158,6 +158,9 @@ static int ni_8255_callback(int dir,int port,int data,void *arg);
 
 static int ni_ns_to_timer(int *nanosec,int round_mode);
 
+static int gpct_setup(comedi_device *dev,comedi_subdevice *s);
+static int ni_gpct(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+
 #undef DEBUG
 
 #define AIMODE_NONE		0
@@ -1418,6 +1421,46 @@ static int ni_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 }
 
 
+/*
+	HACK! 
+
+        general purpose timer counter (CLO)
+        This reads the value of the counter
+
+*/
+static int ni_gpct(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+{
+	int data,mask;
+	int i;
+	int temp;
+
+	/* rt stuff */
+	temp=win_save();
+
+	if(it->flags & TRIG_CONFIG){
+		data=s->io_bits;
+		for(i=0;i<it->n_chan;i++){
+			mask=1<<CR_CHAN(it->chanlist[i]);
+			data&= ~mask;
+			if(it->data[i])
+				data|=mask;
+		}
+		s->io_bits=data;
+		win_out(s->io_bits,DIO_Control_Register);
+	}else{
+		if(it->flags & TRIG_WRITE){
+			do_pack(&s->state,it);
+			win_out(s->state,DIO_Output_Register);
+		}else{
+			data=win_in(DIO_Input_Register);
+			di_unpack(data,it);
+		}
+	}
+
+	win_restore(temp);
+
+	return it->n_chan;
+}
 
 
 static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
@@ -1490,10 +1533,17 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 	/* XXX */
 	
-	/* timer/counter device */
+	/* general purpose counter/timer device */
+	/* CLO */
 	s=dev->subdevices+4;
-	s->type=COMEDI_SUBD_UNUSED;
-	s->trig[0]=NULL;
+	if(boardtype.n_gpct){
+	    gpct_setup(dev,s);
+	    s->type=COMEDI_SUBD_COUNTER;
+	    s->trig[0]=ni_gpct;
+	}else{
+	    s->type=COMEDI_SUBD_UNUSED;
+	    s->trig[0]=NULL;
+	}
 	/* XXX */
 	
 	/* calibration subdevice -- ai and ao */
@@ -1747,6 +1797,7 @@ static void pfi_setup(comedi_device *dev)
 	win_out(IO_Bidirection_Pin_Register,0);
 }
 
+#endif
 
 
 /*
@@ -1758,6 +1809,187 @@ static void pfi_setup(comedi_device *dev)
 
 /* event counting */
 
+/*
+        Initialize the general purpose counter timers. (CLO)
+
+        Everything after the word HACK is a HACK because I don't
+        properly understand how to work within the comedi
+        architecture!
+
+ */
+int gpct_setup(comedi_device *dev,comedi_subdevice *s)
+{
+	unsigned short tmpreg;	/* For handling strobe writes */
+        unsigned short int msb, lsb;
+	unsigned short counter_init = 10000;
+
+        /* basic initialization of both counters, from section 4.6.1.3
+           of the DAQ-STC manul */
+
+	/* we track several write only register values in software */
+
+	/* G(i)_Reset = 1 (strobe) */
+	win_out(G0_Reset,Joint_Reset_Register);
+	win_out(G1_Reset,Joint_Reset_Register);
+
+	/* G(i)_Mode_Register = 0 */
+	devpriv->gpct_mode0 = 0x0000;
+	devpriv->gpct_mode1 = 0x0000;
+	win_out(devpriv->gpct_mode0,G_Mode_Register(0));
+	win_out(devpriv->gpct_mode1,G_Mode_Register(1));
+
+	/* G(i)_Command_Register = 0 */
+	devpriv->gpct_command0 = 0x0000;
+        devpriv->gpct_command1 = 0x0000;
+	win_out(devpriv->gpct_command0,G_Command_Register(0));
+	win_out(devpriv->gpct_command1,G_Command_Register(1));
+
+	/* G(i)_Input_Select_Register = 0 */
+	devpriv->gpct_input_select0 = 0x0000;
+	devpriv->gpct_input_select1 = 0x0000;
+	win_out(devpriv->gpct_input_select0,G_Input_Select_Register(0));
+	win_out(devpriv->gpct_input_select1,G_Input_Select_Register(1));
+
+	/* G(i)_Autoincrement = 0 (write) */
+	/* G(i)_Autoincrement_Register = 0 */
+	win_out(G_Autoincrement(0x00),G_Autoincrement_Register(0));
+	win_out(G_Autoincrement(0x00),G_Autoincrement_Register(1));
+
+	/* XXX - for now we ignore interrupts */
+	/* G(i)_TC_Interrupt_Enable = 0 (write)*/
+	/* G(i)_Gate_Interrupt_Enable = 0 (write) */
+	/* win_out(0x0000,Interrupt_A_Enable_Register); */
+	/* win_out(0x0000,Interrupt_B_Enable_Register); */
+
+	/* G(i)_Synchronized_Gate = 1 (write) */
+	devpriv->gpct_command0 |= G0_Synchronized_Gate;
+	devpriv->gpct_command1 |= G1_Synchronized_Gate;
+	win_out(devpriv->gpct_command0,G_Command_Register(0));
+	win_out(devpriv->gpct_command1,G_Command_Register(1));
+
+	/* XXX - for now we leave this in, but perhaps we could do without
+           if it causes problems elsewhere? */
+	/* G(i)_Gate_Error_Confirm = 1 (strobe) */
+	/* G(i)_TC_Error_Confirm = 1 (strobe) */
+	/* G(i)_TC_Interrupt_Ack = 1 (strobe) */
+	/* G(i)_Gate_Interrupt_Ack = 1 (strobe) */
+	win_out(G0_Gate_Error_Confirm|G0_TC_Error_Confirm|G0_TC_Interrupt_Ack|
+		G0_Gate_Interrupt_Ack,Interrupt_A_Ack_Register);
+	win_out(G1_Gate_Error_Confirm|G1_TC_Error_Confirm|G1_TC_Interrupt_Ack|
+		G1_Gate_Interrupt_Ack,Interrupt_B_Ack_Register);
+
+	/********************************************************************/
+
+	/* HACK - What follows is a hack.  This puts counter #0 in
+           "relative position sensing" mode and then arms it */
+  
+	/* G(i)_Load_Source_Select = 0 (write) */
+	devpriv->gpct_mode0 &= ~G0_Load_Source_Select;
+	win_out(devpriv->gpct_mode0,G_Mode_Register(0));
+
+	/* G(i)_Load_A = initial counter value (write) */
+	msb = counter_init>>16;
+	lsb = counter_init - msb;
+	win_out(msb,G_Load_A_Register_High(0));
+	win_out(lsb,G_Load_A_Register_Low(0));
+
+	/* FLUSH */
+
+	/* G(i)_Load = 1 (strobe) */
+	tmpreg = devpriv->gpct_command0 | G0_Load;
+	win_out(tmpreg,G_Command_Register(0));
+
+	/* FLUSH */
+
+	/* G(i)_Source_Select = PFI0 (write) */
+	devpriv->gpct_input_select0 &= (0xffff & G_Source_Select(0x00));
+	devpriv->gpct_input_select0 |= G_Source_Select(0x01);
+
+	/* G(i)_Source_Polarity = 0 (count rising edges) (write) */
+	devpriv->gpct_input_select0 &= ~G0_Source_Polarity;
+
+	/* G(i)_Gate_select = 0 (write) */
+	devpriv->gpct_input_select0 &= (0xffff & G_Gate_Select(0x00));
+	devpriv->gpct_input_select0 |= G_Gate_Select(0x00);
+
+	/* G(i)_OR_Gate = 0 (write) */
+	devpriv->gpct_input_select0 &= ~G0_OR_Gate;
+
+	/* G(i)_Output_Polarity = 0 (write) */
+	devpriv->gpct_input_select0 &= ~G0_Output_Polarity;
+
+	/* G(i)_Gate_Select_Load_Source = 0 (write) */
+	devpriv->gpct_input_select0 &= ~G0_Gate_Select_Load_Source;
+
+	/* G(i)_Gate_Polarity = 0 (write) */
+	devpriv->gpct_mode0 &= ~G0_Gate_Polarity;
+
+	/* G(i)_Output_Mode = 1 (one clock cycle output) (write) */
+	devpriv->gpct_mode0 &= (0xffff & G_Output_Mode(0x00));
+	devpriv->gpct_mode0 |= G_Output_Mode(0x01);
+
+	/* G(i)_Reload_Source_Switching = 1 (write) */
+	devpriv->gpct_mode0 |= G0_Reload_Source_Switching;
+
+	/* G(i)_Loading_On_Gate = 0 (write) */
+	devpriv->gpct_mode0 &= ~G0_Loading_On_Gate;
+
+	/* G(i)_Gating_Mode = 2 (write) */
+	devpriv->gpct_mode0 &= (0xffff & G_Gating_Mode(0x00));
+	devpriv->gpct_mode0 |= G_Gating_Mode(0x02);
+
+	/* G(i)_Gate_On_Both_Edges = 0 (write) */
+	devpriv->gpct_mode0 &= ~G0_Gate_On_Both_Edges;
+
+	/* G(i)_Trigger_Mode_For_Edge_Gate = 3 (write) */
+	devpriv->gpct_mode0 &= (0xffff & G_Trigger_Mode_For_Edge_Gate(0x00));
+	devpriv->gpct_mode0 |= G_Trigger_Mode_For_Edge_Gate(0x03);
+
+	/* G(i)_Stop_Mode = 0 */
+	devpriv->gpct_mode0 &= (0xffff & G0_Stop_Mode(0x00));
+	devpriv->gpct_mode0 |= G0_Stop_Mode(0x00);
+
+	/* G(i)_Counting_Once = 0 (write) */
+	devpriv->gpct_mode0 &= (0xffff & G0_Counting_Once(0x00));
+	devpriv->gpct_mode0 |= G0_Counting_Once(0x00);
+
+	/* G(i)_Up_Down = 2 (hardware controlled) (write) */
+	devpriv->gpct_command0 &= (0xffff & G_Up_Down(0x00));
+	devpriv->gpct_command0 |= G_Up_Down(0x02);
+
+	/* G(i)_Bank_Switch_Enable = 0 (write) */
+	devpriv->gpct_command0 &= ~G0_Bank_Switch_Enable;
+
+	/* G(i)_Bank_Switch_Mode = 0 (write) */
+	devpriv->gpct_command0 &= ~G0_Bank_Switch_Mode;
+
+	/* XXX - for now we ignore interrupts */
+	/* G(i)_TC_Interrupt_Enable = 0 (write) */
+	/* win_out(0x0000,Interrupt_A_Enable_Register); */
+
+	/* XXX - for now we ignore interrupts */
+	/* G(i)_Gate_Interrupt_Enable = 0 (write) */
+	/* win_out(0x0000,Interrupt_A_Enable_Register); */
+
+	/* actually write out the registers */
+	win_out(devpriv->gpct_input_select0,G_Input_Select_Register(0));
+	win_out(devpriv->gpct_mode0,G_Mode_Register(0));
+	win_out(devpriv->gpct_command0,G_Command_Register(0));
+
+	/********************************************************************/
+
+	/* HACK - What follows continues my hack of configuring the
+           counter in a specific mode.  Arming the counter instructs
+           it to start running with our configuration */
+
+	/* Arm the counter 0 (stobe) */
+	tmpreg = devpriv->gpct_command0 | G0_Arm;
+	win_out(tmpreg,G_Command_Register(0));
+
+	return 0;
+}
+
+#if 0
 int gpct_start(comedi_device *dev,int chan)
 {
 	/* select load source */
@@ -1831,7 +2063,6 @@ static int gpct_sp(comedi_device *dev,comedi_param *it)
 	}
 	return -EINVAL;
 }
-
 #endif
 
 static int ni_8255_callback(int dir,int port,int data,void *arg)
@@ -1845,4 +2076,3 @@ static int ni_8255_callback(int dir,int port,int data,void *arg)
 		return ni_readb(25+2*port);
 	}
 }
-

@@ -74,6 +74,7 @@ tristate 'Advantech PCL-812PG, PCL-813B' CONFIG_COMEDI_PCL812
 tristate 'Analog Devices RTI-800/815' CONFIG_COMEDI_RTI800
 tristate 'Analog Devices RTI-802' CONFIG_COMEDI_RTI802
 tristate 'Intelligent Instrumentation PCI-20001C' CONFIG_COMEDI_II_PCI20KC
+tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000
 
 if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	comment 'Virtual device drivers'
