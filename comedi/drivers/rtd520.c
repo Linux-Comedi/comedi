@@ -631,7 +631,6 @@ static int rtd_attach (
 {
     comedi_subdevice *s;
     struct pci_dev* pcidev;
-    int index;
     int	ret;
     unsigned long physLas0;		/* configuation */
     unsigned long physLas1;		/* data area */
@@ -1181,6 +1180,7 @@ transferDone:
     RtdInterruptClear (dev);
 }
 
+#if 0
 /*
   return the number of samples available
 */
@@ -1189,6 +1189,7 @@ static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s)
     /* TODO: This needs to mask interrupts, read_dregs, and then re-enable */
     return s->async->buf_write_count - s->async->buf_read_count;
 }
+#endif
 
 /*
   cmdtest tests a particular command to see if it is valid.
