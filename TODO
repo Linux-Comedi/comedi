@@ -1,12 +1,12 @@
 
+bug: buffer resize to 0 convinces comedi that buffer doesn't exist
+
 doc: how to use kcomedilib
 
 comedi_rt_timer segfaults when the lower-level driver disappears
 and reappears.  This is a problem with the Comedi core, not the
-driver.  I don't really know how to fix this.
-
-BUG in do_test_for_insn_bits() (due to -EACCES)  This happens when
-another process is using a subdevice.
+driver.  I don't really know how to fix this.  Actually, I do.
+kcomedilib needs an implementation of comedi_open() and comedi_close().
 
 das6402 needs cleanup
 
@@ -24,24 +24,23 @@ autoloading causes BUG on failure.
 
 need realtime examples
 
-das1800: kmalloc could fail on large buffer sizes (see dt282x)
+das1800: kmalloc could fail on large buffer sizes (see dt282x).  Needs
+to be fixed to use a bounce buffer.
 
 move /proc/comedi to /proc/driver/comedi
 
+Drivers that do DMA need to be fixed for big-endian machines.
 
-bug: buffer resize to 0 convinces comedi that buffer doesn't exist
+Comedi should support devfs
+
+ni_pcimio issues:
 
 - ao dma
 
-- ai doesn't stop
+- ai doesn't stop with DMA
 
 - COMEDI_WAKE_EOS doesn't work with DMA
 
-- munging config parameter
+- ao "write: Invalid argument" for initial write
 
-- ao "write: Invalid argument"
-
-- buffer size issues
-
-- devfs support
 
