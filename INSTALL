@@ -41,7 +41,7 @@ special files will be created:
 To use comedi, the driver module must be loaded into the kernel.
 In general, this is done by a command similar to
 
-	/sbin/modprobe <<driver>>.o
+	/sbin/modprobe <<driver>>
 
 If your module dependencies are set up correctly, this will load
 both comedi.o and your driver.  See the man pages for modprobe
