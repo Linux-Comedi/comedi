@@ -441,9 +441,7 @@ void comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
 {
 	async->buf_read_count += nbytes;
 	async->buf_read_ptr += nbytes;
-	if(async->buf_read_ptr >= async->prealloc_bufsz){
-		async->buf_read_ptr -= async->prealloc_bufsz;
-	}
+	async->buf_read_ptr %= async->prealloc_bufsz;
 }
 
 void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *data,

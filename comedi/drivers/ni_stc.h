@@ -235,7 +235,14 @@
 #define AO_Trigger_Once				_bit0
 
 #define AO_Mode_2_Register		39
-#define AO_FIFO_Mode(x)				((x)<<14)
+#define AO_FIFO_Mode_Mask ( 0x3 << 14 )
+enum AO_FIFO_Mode_Bits
+{
+	AO_FIFO_Mode_HF_to_F = (3<<14),
+	AO_FIFO_Mode_F = (2<<14),
+	AO_FIFO_Mode_HF = (1<<14),
+	AO_FIFO_Mode_E = (0<<14),
+};
 #define AO_FIFO_Retransmit_Enable		_bit13
 #define AO_START1_Disable			_bit12
 #define AO_UC_Initial_Load_Source		_bit11
@@ -397,6 +404,14 @@
 #define AI_AIFREQ_Polarity			_bit4
 
 #define AO_Personal_Register		78
+enum AO_Personal_Bits
+{
+	AO_BC_Source_Select = 1 << 4,
+	AO_UPDATE_Pulse_Width = 1 << 5,
+	AO_AOFREQ_Polarity = 1 << 9,
+	AO_FIFO_Enable = 1 << 10,
+	AO_TMRDACWR_Pulse_Width = 1 << 12,
+};
 #define Write_Strobe_0_Register		82
 #define Write_Strobe_1_Register		83
 #define Write_Strobe_2_Register		84
@@ -428,7 +443,7 @@
 #define AI_External_Gate_Select(a)		(a)
 
 #define G_Autoincrement_Register(a)	(68+(a))
-#define G_Command_Register(a)		(6+(a))	
+#define G_Command_Register(a)		(6+(a))
 #define G_HW_Save_Register(a)		(8+(a)*2)
 #define G_HW_Save_Register_High(a)	(8+(a)*2)
 #define G_HW_Save_Register_Low(a)	(9+(a)*2)
@@ -587,7 +602,22 @@
 /* 16 bit registers */
 
 #define Configuration_Memory_Low	0x10
+enum Configuration_Memory_Low_Bits
+{
+	AI_DITHER	= 0x200,
+	AI_LAST_CHANNEL	= 0x8000,
+};
 #define Configuration_Memory_High	0x12
+enum Configuration_Memory_High_Bits
+{
+	AI_AC_COUPLE	= 0x800,
+	AI_DIFFERENTIAL = 0x1000,
+};
+static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
+{
+	return ( channel & 0x7 );
+}
+
 #define ADC_FIFO_Data_Register		0x1c
 
 #define AO_Configuration		0x16
@@ -604,36 +634,41 @@
 
 /* 611x registers (these boards differ from the e-series) */
 
-#define Serial_Command_611x		0x0d /* w8 (same) */
-#define Misc_Command_611x		0x0f /* w8 (addtional bits) */
 #define Magic_611x			0x19 /* w8 (new) */
 #define Status_611x			0x01 /* r8 (additional bits) */
+enum Status_611x_Bits
+{
+	AI_FIFO_LOWER_NOT_EMPTY = 0x8,
+};
 #define Calibration_Channel_Select_611x	0x1a /* w16 (new) */
 #define ADC_FIFO_Data_611x		0x1c /* r32 (incompatible) */
-#define Configuration_Memory_Low_611x	0x10 /* w16 (same) */
-#define Configuration_Memory_High_611x	0x12 /* w16 (additional bits) */
 #define AI_FIFO_Offset_Load_611x	0x05 /* r8 (new) */
+#define AO_FIFO_Offset_Load_611x       0x13 /* W32? */
 #define AO_Configuration_611x		0x16 /* w16 */
 #define DAC_FIFO_Data_611x		0x14 /* w32 (incompatible) */
 #define AO_Window_Addr_611x		0x18 /* w16 */
 #define AO_Window_Data_611x		0x1e /* w16 */
 #define Cal_Gain_Select_611x		0x05 /* w8 (new) */
-#define AI_AO_Select_611x		0x09 /* w8 */
-#define G0_G1_Select_611x		0x0b /* w8 */
 
 /* AO Windowed registers */
 
-/* 671x registers */
+/* 671x, 611x registers */
 
 #define AO_Window_Address_671x		0x18 /* W 16 */
 #define AO_Window_Data_671x		0x1e /* W 16 */
 
-/* 671x windowed registers */
+/* 671xi, 611x windowed ao registers */
 
 #define DACx_Direct_Data_671x(x)	(x) /* W 16 */
 #define AO_Immediate_671x		0x11 /* W 16 */
-
-
+#define AO_Timed_611x                   0x10 /* W 16 */
+#define AO_Later_Single_Point_Updates   0x14 /* W 16 */
+#define AO_Waveform_Generation_611x     0x15 /* W 16 */
+#define AO_Misc_611x                    0x16 /* W 16 */
+enum AO_Misc_611x_Bits
+{
+	CLEAR_WG = 1,
+};
 
 #define SerDacLd(x)			(0x08<<(x))
 
@@ -642,6 +677,14 @@
 	but I thought I'd put it here anyway.
 */
 
+/* our default usage of mite channels */
+enum mite_dma_channel{
+	AI_DMA_CHAN = 0,
+	AO_DMA_CHAN = 1,
+	GPC0_DMA_CHAN = 2,
+	GPC1_DMA_CHAN = 3,
+};
+
 enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x };
 enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
 	ad8804, ad8842, ad8804_debug };
@@ -649,10 +692,10 @@ enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
 typedef struct ni_board_struct{
 	int device_id;
 	char *name;
-	
+
 	int n_adchan;
 	int adbits;
-	
+
 	int ai_fifo_depth;
 	unsigned int alwaysdither : 1;
 	int gainlkup;
@@ -660,10 +703,10 @@ typedef struct ni_board_struct{
 
 	int n_aochan;
 	int aobits;
-	
+
 	int ao_fifo_depth;
 	int aorangelkup;
-	
+
 	unsigned int ao_unipolar : 1;
 	unsigned int has_8255 : 1;
 	unsigned int has_analog_trig : 1;

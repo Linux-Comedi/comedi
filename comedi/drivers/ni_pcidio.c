@@ -256,6 +256,11 @@ AT-MIO96.
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
 
+enum mite_dma_channels
+{
+	DI_DMA_CHAN = 1,
+};
+
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
 static comedi_driver driver_pcidio={
@@ -391,6 +396,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->subdevices;
 	comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
+	struct mite_channel *mite_chan = &mite->channels[ DI_DMA_CHAN ];
 	//int i, j;
 	long int AuxData = 0;
 	sampl_t data1 = 0;
@@ -402,7 +408,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	status = readb(dev->iobase+Interrupt_And_Window_Status);
 	flags = readb(dev->iobase+Group_1_Flags);
-	m_status = readl(mite->mite_io_addr + MITE_CHSR + CHAN_OFFSET(1));
+	m_status = readl(mite->mite_io_addr + MITE_CHSR + CHAN_OFFSET( DI_DMA_CHAN ));
 
 	//interrupcions parasites
 	if(dev->attached == 0){
@@ -417,7 +423,7 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 #ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
 #endif
-	//printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,1));
+	//printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,DI_DMA_CHAN));
 	//mite_dump_regs(mite);
 
 	//printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf);
@@ -427,8 +433,8 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(m_status & CHSR_LINKC){
 			unsigned int count;
 
-			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(1));
-			count = le32_to_cpu(mite->ring[mite->current_link].count);
+			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(DI_DMA_CHAN));
+			count = le32_to_cpu(mite_chan->ring[mite_chan->current_link].count);
 
 			/* XXX need to byteswap */
 
@@ -437,19 +443,19 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			if(async->buf_write_ptr >= async->prealloc_bufsz){
 				async->buf_write_ptr -= async->prealloc_bufsz;
 			}
-			mite->current_link++;
-			if(mite->current_link >= mite->n_links){
-				mite->current_link=0;
+			mite_chan->current_link++;
+			if(mite_chan->current_link >= mite_chan->n_links){
+				mite_chan->current_link=0;
 			}
 		}
 		if(m_status & CHSR_DONE){
 			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET(1));
+				CHAN_OFFSET( DI_DMA_CHAN ));
 		}
 		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
 			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET(1));
+				CHAN_OFFSET( DI_DMA_CHAN ));
 			disable_irq(dev->irq);
 		}
 		async->events |= COMEDI_CB_BLOCK;
@@ -497,9 +503,9 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			writeb(0x00,dev->iobase+OpMode);
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 #ifdef USE_DMA
-			mite_dma_disarm(mite);
+			mite_dma_disarm(mite, DI_DMA_CHAN);
 			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET(1));
+				CHAN_OFFSET( DI_DMA_CHAN ));
 #endif
 			break;
 		}else if(flags & Waited){
@@ -508,9 +514,9 @@ static void nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 			writeb(0x00,dev->iobase+Master_DMA_And_Interrupt_Control);
 			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 #ifdef USE_DMA
-			mite_dma_disarm(mite);
+			mite_dma_disarm(mite, DI_DMA_CHAN);
 			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR +
-				CHAN_OFFSET(1));
+				CHAN_OFFSET( DI_DMA_CHAN ));
 #endif
 			break;
 		}else if(flags & PrimaryTC){
@@ -872,15 +878,15 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 static void setup_mite_dma(comedi_device *dev,comedi_subdevice *s)
 {
 	struct mite_struct *mite = devpriv->mite;
+	struct mite_channel *mite_chan = &mite->channels[ DI_DMA_CHAN ];
 
-	mite->current_link = 0;
+	mite_chan->current_link = 0;
 
-	mite->dir = COMEDI_INPUT;
-	mite->chan = 1;
+	mite_chan->dir = COMEDI_INPUT;
 
-	mite_prep_dma(mite);
+	mite_prep_dma(mite, DI_DMA_CHAN, 16, 16);
 
-	mite_dma_arm(mite);
+	mite_dma_arm(mite, DI_DMA_CHAN);
 }
 
 
@@ -909,7 +915,7 @@ static int ni_pcidio_alloc(comedi_device *dev, comedi_subdevice *s,
 {
 	int ret;
 
-	ret = mite_buf_alloc(devpriv->mite, s->async, new_size);
+	ret = mite_buf_alloc(devpriv->mite, DI_DMA_CHAN, s->async, new_size);
 	if(ret<0)return ret;
 
 	memset(s->async->prealloc_buf, 0xaa, s->async->prealloc_bufsz);
@@ -960,7 +966,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	}else{
 
 		printk(" rev=%d",readb(dev->iobase+Chip_Version));
-	
+
 		s=dev->subdevices+0;
 
 		dev->read_subdev = s;
@@ -990,8 +996,6 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 			printk(" irq not available");
 		}
 	}
-
-	devpriv->mite->chan = 1;
 
 	printk("\n");
 

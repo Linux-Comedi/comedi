@@ -80,7 +80,7 @@ dep_tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402 $CONFIG_COMEDI
 dep_tristate 'DAS-800 and compatibles' CONFIG_COMEDI_DAS800 $CONFIG_COMEDI
 dep_tristate 'DAS-1800 and compatibles' CONFIG_COMEDI_DAS1800 $CONFIG_COMEDI
 dep_tristate 'Computer Boards PCI-DAS series' CONFIG_COMEDI_CB_PCIDAS $CONFIG_COMEDI
-dep_tristate 'Computer Boards PCI-DAS64xx series' CONFIG_COMEDI_CB_PCIDAS64 $CONFIG_COMEDI
+dep_tristate 'Computer Boards PCI-DAS64xx and PCI-DAS60xx series' CONFIG_COMEDI_CB_PCIDAS64 $CONFIG_COMEDI
 dep_tristate 'Computer Boards PCI-DDA series' CONFIG_COMEDI_CB_PCIDDA $CONFIG_COMEDI
 dep_tristate 'Computer Boards PCIM-DDA06-16 driver' CONFIG_COMEDI_CB_PCIMDDA $CONFIG_COMEDI
 dep_tristate 'Computer Boards PC-CARD-DAS16/16 driver' CONFIG_COMEDI_CB_DAS16_CS $CONFIG_COMEDI

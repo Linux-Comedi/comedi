@@ -22,7 +22,8 @@
 /*
 Driver: ni_pcimio.o
 Description: National Instruments PCI-MIO-E series (all boards)
-Author: ds
+Author: ds, John Hallen, Frank Mori Hess, Rolf Mueller, Herbert Peremans,
+  Herman Bruyninckx
 Status: works
 Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6040E,
@@ -55,7 +56,7 @@ for your device.
 Bugs:
  - When DMA is enabled, COMEDI_EV_SCAN_END and COMEDI_EV_CONVERT do
    not work correctly.
- - There are reported problems with the 61xx and 67xx boards.
+ - There are reported problems with the 67xx boards.
 
 */
 /*
@@ -64,7 +65,7 @@ Bugs:
 
 
 	References:
-	
+
 	   341079b.pdf  PCI E Series Register-Level Programmer Manual
 	   340934b.pdf  DAQ-STC reference manual
 
@@ -72,16 +73,16 @@ Bugs:
 
 	   320945c.pdf  PCI E Series User Manual
 	   322138a.pdf  PCI-6052E and DAQPad-6052E User Manual
-	
+
 	ISSUES:
 
 	need to deal with external reference for DAC, and other DAC
 	properties in board properties
-	
+
 	deal with at-mio-16de-10 revision D to N changes, etc.
-	
+
 	need to add other CALDAC type
-	
+
 	need to slow down DAC loading.  I don't trust NI's claim that
 	two writes to the PCI bus slows IO enough.  I would prefer to
 	use udelay().  Timing specs: (clock)
@@ -675,11 +676,21 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
 
-#define ao_win_out(a,b) do{ \
-	ni_writew((b),AO_Window_Address_671x); \
-	ni_writew((a),AO_Window_Data_671x); \
-}while(0)
+#define ao_win_out(data,addr) __ao_win_out(dev,data,addr)
+static inline void __ao_win_out( comedi_device *dev, uint16_t data, int addr )
+{
+       unsigned long flags;
 
+       comedi_spin_lock_irqsave(&dev->spinlock,flags);
+       ni_writew(addr,AO_Window_Address_671x);
+       ni_writew(data,AO_Window_Data_671x);
+       comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+}
+
+#define ao_win_out2(data,addr) do{ \
+       ao_win_out((data)>>16, (addr)); \
+       ao_win_out((data)&0xffff, (addr)+1); \
+}while(0)
 
 
 #define interrupt_pin(a)	0
@@ -692,7 +703,7 @@ typedef struct{
 	struct mite_struct *mite;
 
 	NI_PRIVATE_COMMON
-	
+
 	dma_addr_t ai_dma_handle;
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
@@ -703,6 +714,8 @@ typedef struct{
 
 static int pcimio_find_device(comedi_device *dev,int bus,int slot);
 static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size);
+static int pcimio_ao_alloc(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size);
 
 
@@ -760,6 +773,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	if(ret<0)return ret;
 
 	dev->subdevices[0].buf_alloc = pcimio_ai_alloc;
+	dev->subdevices[1].buf_alloc = pcimio_ao_alloc;
 
 	return ret;
 }
@@ -792,14 +806,12 @@ static int pcimio_find_device(comedi_device *dev,int bus,int slot)
 	return -EIO;
 }
 
-/* This needs to be fixed before it can be used for AO, since it
- * uses devpriv->ai_dma_handle */
 static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size)
 {
 	int ret;
 
-	ret = mite_buf_alloc(devpriv->mite, s->async, new_size);
+	ret = mite_buf_alloc(devpriv->mite, AI_DMA_CHAN, s->async, new_size);
 	if(ret<0)return ret;
 
 	return 0;
@@ -832,4 +844,13 @@ static int pcimio_ai_alloc(comedi_device *dev, comedi_subdevice *s,
 #endif
 }
 
+static int pcimio_ao_alloc(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	int ret;
 
+	ret = mite_buf_alloc(devpriv->mite, AO_DMA_CHAN, s->async, new_size);
+	if(ret<0)return ret;
+
+	return 0;
+}

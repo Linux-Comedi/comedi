@@ -39,11 +39,23 @@
 #define MDPRINTK(format,args...)
 #endif
 
+#define NUM_MITE_DMA_CHANNELS 4
+
 struct mite_dma_chain{
 	u32 count;
 	u32 addr;
 	u32 next;
 	u32 dar;
+};
+
+struct mite_channel{
+	int DMA_CheckNearEnd;
+
+	int dir;
+	unsigned int current_link;
+	unsigned int n_links;
+
+	struct mite_dma_chain *ring;
 };
 
 struct mite_struct{
@@ -55,29 +67,21 @@ struct mite_struct{
 	void *mite_io_addr;
 	unsigned long daq_phys_addr;
 	void *daq_io_addr;
-	
-	int DMA_CheckNearEnd;
 
-	int dir;
-	int chan;
-	unsigned int current_link;
-	unsigned int n_links;
-
-	struct mite_dma_chain *ring;
+	struct mite_channel channels[ NUM_MITE_DMA_CHANNELS ];
 };
 
 extern struct mite_struct *mite_devices;
 
-extern inline unsigned int mite_irq(struct mite_struct *mite)
+static inline unsigned int mite_irq(struct mite_struct *mite)
 {
 	return mite->pcidev->irq;
 };
-extern inline unsigned int mite_device_id(struct mite_struct *mite)
+static inline unsigned int mite_device_id(struct mite_struct *mite)
 {
 	return mite->pcidev->device;
 };
-
-extern inline unsigned long mite_iobase(struct mite_struct *mite)
+static inline unsigned long mite_iobase(struct mite_struct *mite)
 {
 	return (unsigned long) mite->daq_io_addr;
 };
@@ -89,23 +93,26 @@ int mite_setup(struct mite_struct *mite);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
 
-int mite_dma_tcr(struct mite_struct *mite);
-void mite_dma_arm(struct mite_struct *mite);
-void mite_dma_disarm(struct mite_struct *mite);
-unsigned int mite_bytes_transferred(struct mite_struct *mite, int chan);
+int mite_dma_tcr(struct mite_struct *mite, unsigned int channel );
+void mite_dma_arm(struct mite_struct *mite, unsigned int channel );
+void mite_dma_disarm(struct mite_struct *mite, unsigned int channel );
+unsigned int mite_bytes_transferred(struct mite_struct *mite, unsigned int chan);
+unsigned int mite_bytes_read(struct mite_struct *mite, unsigned int chan);
+unsigned int mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan);
 
 #if 0
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);
 void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan, int dir);
 #endif
 
-void mite_prep_dma(struct mite_struct *mite);
-int mite_buf_alloc(struct mite_struct *mite, comedi_async *async,
-	unsigned long new_size);
+void mite_prep_dma(struct mite_struct *mite, unsigned int channel,
+	unsigned int num_device_bits, unsigned int num_memory_bits );
+int mite_buf_alloc(struct mite_struct *mite, unsigned int channel,
+	comedi_async *async, unsigned long new_size);
 
 #ifdef DEBUG_MITE
 void mite_print_chsr(unsigned int chsr);
-void mite_dump_regs(struct mite_struct *mite);
+void mite_dump_regs(struct mite_struct *mite, channel);
 #endif
 
 #define CHAN_OFFSET(x)			(0x100*(x))

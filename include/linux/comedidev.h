@@ -129,6 +129,9 @@ struct comedi_subdevice_struct{
 	/* buffer allocation overload function */
 	int (*buf_alloc)(comedi_device *,comedi_subdevice *s,unsigned long new_size);
 
+	void (*munge)( comedi_device *, comedi_subdevice *s, void *data,
+		unsigned int num_bytes );
+
 	unsigned int state;
 };
 

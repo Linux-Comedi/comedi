@@ -1358,6 +1358,9 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 			n -= m;
 			retval = -EFAULT;
 		}
+		if( s->munge ){
+			s->munge(dev, s,async->prealloc_buf + async->buf_write_ptr, n);
+		}
 		comedi_buf_write_free(async, n);
 
 		count+=n;
@@ -1437,6 +1440,10 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 			continue;
 		}
 
+		if( s->munge ){
+			s->munge(dev, s, async->prealloc_buf +
+				async->buf_read_ptr, n);
+		}
 		m = copy_to_user(buf, async->prealloc_buf +
 			async->buf_read_ptr, n);
 		if(m){
