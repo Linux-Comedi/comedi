@@ -972,7 +972,7 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 #ifdef PCIDMA
 		array[i] = __le16_to_cpu(array[i]);
 #endif
-		array[i] ^= devpriv->ai_xorlist[ async->cur_chan ];
+		array[i] ^= devpriv->ai_xorlist[ chan_index ];
 		chan_index++;
 		chan_index %= async->cmd.chanlist_len;
 	}
@@ -1249,7 +1249,10 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[boardtype.gainlkup][range];
-		devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
+		if( boardtype.reg_611x )
+			devpriv->ai_xorlist[i] = offset;
+		else
+			devpriv->ai_xorlist[i] = (range&0x100)?0:offset;
 
 		hi = 0;
 		if( ( list[i] & CR_ALT_SOURCE ) )
