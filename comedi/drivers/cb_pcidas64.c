@@ -464,13 +464,11 @@ static comedi_lrange ao_ranges_60xx =
 	1,
 	{
 		BIP_RANGE(10),
-		UNI_RANGE(10),
 	}
 };
 static int ao_range_code_60xx[] =
 {
 	0x0,
-	0x2,
 };
 
 static comedi_lrange ao_ranges_4020 =
