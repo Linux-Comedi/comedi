@@ -33,3 +33,5 @@ spinlocks
 
 fix pcmcia dep
 
+add pci_enable_device where appropriate
+
