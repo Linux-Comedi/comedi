@@ -290,6 +290,8 @@ static comedi_driver driver_amplc_pc236={
 	offset:		sizeof(pc236_board),
 	num_names:	sizeof(pc236_boards) / sizeof(pc236_board),
 };
+COMEDI_INITCLEANUP(driver_amplc_pc236);
+
 
 static int pc236_request_region(unsigned long from, unsigned long extent);
 static void pc236_intr_disable(comedi_device *dev);
@@ -691,21 +693,9 @@ static void pc236_interrupt(int irq,void *d,struct pt_regs *regs)
 	if(!pc236_intr_check(dev)) 
 		return;
 
-	*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=0;
-	s->async->buf_int_ptr+=sizeof(sampl_t);
-	s->async->buf_int_count+=sizeof(sampl_t);
-	if(s->async->buf_int_ptr>=s->async->data_len){
-		s->async->buf_int_ptr=0;
-		s->async->events |= COMEDI_CB_EOBUF;
-	}
+	comedi_buf_put(s->async,0);
 	s->async->events |= COMEDI_CB_EOS;
 	
 	comedi_event(dev,s,s->async->events);
 }
-
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-COMEDI_INITCLEANUP(driver_amplc_pc236);
 
