@@ -458,7 +458,25 @@
 
 #define G_Counting_Once(a)		(((a)&0x03)<<10)
 #define G_Stop_Mode(a)			(((a)&0x03)<<5)
-#define G_Gate_On_Both_Edges		_bit1
+#define G_Gate_On_Both_Edges		_bit2
+
+/* G_Status_Register */
+#define G1_Gate_Error_St		_bit15
+#define G0_Gate_Error_St		_bit14
+#define G1_TC_Error_St			_bit13
+#define G0_TC_Error_St			_bit12
+#define G1_No_Load_Between_Gates_St	_bit11
+#define G0_No_Load_Between_Gates_St	_bit10
+#define G1_Armed_St			_bit9
+#define G0_Armed_St			_bit8
+#define G1_Stale_Data_St		_bit7
+#define G0_Stale_Data_St		_bit6
+#define G1_Next_Load_Source_St		_bit5
+#define G0_Next_Load_Source_St		_bit4
+#define G1_Counting_St			_bit3
+#define G0_Counting_St			_bit2
+#define G1_Save_St			_bit1
+#define G0_Save_St			_bit0
 
 
 /* CLO */
@@ -591,6 +609,7 @@ static ni_board ni_boards[];
 	unsigned short gpctr_mode[2];				\
 	unsigned short gpctr_command[2];			\
 	unsigned short gpctr_input_select[2];			\
+	int gpctr_cur_operation[2];				\
 								\
 	unsigned short ai_xorlist[512];				\
 								\

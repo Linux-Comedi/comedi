@@ -1,3 +1,4 @@
+
 /*
     comedi/drivers/ni_mio_common.c
     Hardware driver for DAQ-STC based boards
@@ -209,7 +210,7 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 static void pfi_setup(comedi_device *dev);
 
-/*GPCTR function def's...*/
+/*GPCTR function def's...incomplete right now.*/
 int GPCTR_G_Watch(comedi_device *dev, int chan);
 int GPCTR_Begin_Event_Counting(comedi_device *dev,int chan, int value);
 
@@ -2496,14 +2497,39 @@ int GPCTR_G_Watch(comedi_device *dev, int chan) {
 }
 
 
-void GPCTR_Disarm(comedi_device *dev, int chan){
+int GPCTR_Disarm(comedi_device *dev, int chan){
 	win_out( devpriv->gpctr_command[chan] | G_Disarm,G_Command_Register(chan));
+	return 0;
 }
-void GPCTR_Arm(comedi_device *dev, int chan){
+
+
+int GPCTR_Arm(comedi_device *dev, int chan){
 	win_out( devpriv->gpctr_command[chan] | G_Arm,G_Command_Register(chan));
+	/* If the counter is doing pulse width measurement, then make
+	 sure that the counter did not start counting right away.  This would
+	 indicate that we started acquiring the pulse after it had already 
+	 started and our measurement would be inaccurate */
+	if(devpriv->gpctr_cur_operation[chan] == GPCTR_SINGLE_PW){
+		int g_status; 
+
+		g_status=win_in(G_Status_Register);
+		
+		if(chan == 0){
+			if(G0_Counting_St & g_status) {
+				//error: we missed the beginning of the pulse
+				return -EINVAL; //there is probably a more accurate error code...
+			}
+		}else{
+			if(G1_Counting_St & g_status) {
+				//error: we missed the beginning of the pulse
+				return -EINVAL;
+			}
+		}
+	}
+	return 0;
 }
 int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
-	printk("GPCTR_Set_Source...");
+	//printk("GPCTR_Set_Source...");
 	devpriv->gpctr_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
 	switch(source) {	case GPCTR_INT_CLOCK:
 		devpriv->gpctr_input_select[chan] |= G_Source_Select(0);//INT_TIMEBASE
@@ -2518,11 +2544,11 @@ int GPCTR_Set_Source(comedi_device *dev,int chan ,int source){
 		return -EINVAL;
 	}
 	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
-	printk("exit GPCTR_Set_Source\n");
-	return 1;
+	//printk("exit GPCTR_Set_Source\n");
+	return 0;
 }
 int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
-	printk("GPCTR_Set_Gate...");
+	//printk("GPCTR_Set_Gate...");
 	devpriv->gpctr_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
 	switch(gate) {	case GPCTR_NO_GATE:
 		devpriv->gpctr_input_select[chan] |= G_Gate_Select(31);//Low
@@ -2530,23 +2556,25 @@ int GPCTR_Set_Gate(comedi_device *dev,int chan ,int gate){
 		break;
 	case GPCTR_EXT_PIN:
 		devpriv->gpctr_mode[chan] &= ~G_Gate_Polarity;
-		if(chan==0)
+		if(chan==0){
 			devpriv->gpctr_input_select[chan] |= G_Gate_Select(10);//PFI9
-		else
+		}else{
 			devpriv->gpctr_input_select[chan] |= G_Gate_Select(5);//PFI4
+		}
 		break;
 	default:
 		return -EINVAL;
 	}
 	win_out(devpriv->gpctr_input_select[chan], G_Input_Select_Register(chan));
 	win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
-	printk("exit GPCTR_Set_Gate\n");
-	return 1;
+	//printk("exit GPCTR_Set_Gate\n");
+	return 0;
 }
 
 
 int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction) {
-	printk("GPCTR_Set_Direction...");
+	//printk("GPCTR_Set_Direction...");
+	
 	devpriv->gpctr_command[chan] &= ~G_Up_Down(0x3);
 	switch (direction) {
 		case GPCTR_UP:
@@ -2563,26 +2591,130 @@ int GPCTR_Set_Direction(comedi_device *dev,int chan,int direction) {
 			return -EINVAL;
 	}
 	win_out(devpriv->gpctr_command[chan], G_Command_Register(chan));
-	win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
-	printk("exit GPCTR_Set_Direction\n");
-	return 2;
+	//TIM 4/23/01 win_out(devpriv->gpctr_mode[chan], G_Mode_Register(chan));
+	//printk("exit GPCTR_Set_Direction\n");
+	return 0;
 }
 
 void GPCTR_Event_Counting(comedi_device *dev,int chan) {
+
+	//NOTE: possible residual bits from multibit masks can corrupt
+	//If you config for several measurements between Resets, watch out!
 	
-	printk("GPCTR_Event_Counting...");
+	//printk("GPCTR_Event_Counting...");
+	
+	devpriv->gpctr_cur_operation[chan] = GPCTR_SIMPLE_EVENT;
+	
+	// Gating_Mode = 1
+	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
 	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);
+	
+	// Trigger_Mode_For_Edge_Gate = 1
+	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
 	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
 
 	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
-	printk("exit GPCTR_Event_Counting\n");
+	//printk("exit GPCTR_Event_Counting\n");
+}
+
+void GPCTR_Period_Meas(comedi_device *dev, int chan) {
+	//printk("GPCTR_Period_Meas...");
+	
+	devpriv->gpctr_cur_operation[chan] = GPCTR_SINGLE_PERIOD;
+
+	
+	//NOTE: possible residual bits from multibit masks can corrupt
+	//If you config for several measurements between Resets, watch out!	
+	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+	
+	// Output_Mode = 3 
+	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Output_Mode(3);
+	
+	
+	//Gating Mode=2
+	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Gating_Mode(2);
+	
+	// Trigger_Mode_For_Edge_Gate=0
+	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(0);
+
+	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;
+	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;
+	devpriv->gpctr_mode[chan] &= ~G_Loading_On_TC;
+	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+
+	// Stop_Mode = 2
+	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Stop_Mode(0);
+	
+	// Counting_Once = 2 
+	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpctr_mode[chan] |= G_Counting_Once(2);
+
+	// Up_Down = 1 
+	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpctr_command[chan] |= G_Up_Down(1);
+
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+	//printk("exit GPCTR_Period_Meas\n");
+}
+
+void GPCTR_Pulse_Width_Meas(comedi_device *dev, int chan){
+	//printk("GPCTR_Pulse_Width_Meas...");
+
+	devpriv->gpctr_cur_operation[chan] = GPCTR_SINGLE_PW;
+
+	devpriv->gpctr_mode[chan] &= ~G_OR_Gate;
+	devpriv->gpctr_mode[chan] &= ~G_Gate_Select_Load_Source;
+
+	// Output_Mode = 3 
+	devpriv->gpctr_mode[chan] &= ~(G_Output_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Output_Mode(3);
+	
+	//Gating Mode=2
+	devpriv->gpctr_mode[chan] &= ~(G_Gating_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Gating_Mode(1);//TIM 4/24/01 was 2
+	
+	// Trigger_Mode_For_Edge_Gate=0
+	devpriv->gpctr_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
+	devpriv->gpctr_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);//TIM 4/24/01 was 0
+
+
+	devpriv->gpctr_mode[chan] |= G_Reload_Source_Switching;//TIM 4/24/01 was 1
+	devpriv->gpctr_mode[chan] &= ~G_Loading_On_Gate;//TIM 4/24/01 was 0
+
+	devpriv->gpctr_mode[chan] &= ~G_Loading_On_TC;
+	devpriv->gpctr_mode[chan] &= ~G_Gate_On_Both_Edges;
+
+	// Stop_Mode = 2
+	devpriv->gpctr_mode[chan] &= ~(G_Stop_Mode(0x3));
+	devpriv->gpctr_mode[chan] |= G_Stop_Mode(0);
+	
+	// Counting_Once = 2 
+	devpriv->gpctr_mode[chan] &= ~(G_Counting_Once(0x3));
+	devpriv->gpctr_mode[chan] |= G_Counting_Once(2);
+
+	// Up_Down = 1 
+	devpriv->gpctr_command[chan] &= ~(G_Up_Down(0x3));
+	devpriv->gpctr_command[chan] |= G_Up_Down(1);
+
+	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
+	win_out( devpriv->gpctr_command[chan],G_Command_Register(chan));
+
+	//printk("exit GPCTR_Pulse_Width_Meas\n");
 }
 
 void GPCTR_Reset(comedi_device *dev, int chan){
 	unsigned long irqflags;
 	int temp_ack_reg=0;
 	
-	printk("GPCTR_Reset...");
+	//printk("GPCTR_Reset...");
+	devpriv->gpctr_cur_operation[chan] = GPCTR_RESET;
+
 	switch (chan) {
 		case 0:
 			//note: I need to share the soft copies of the Enable Register with the ISRs.
@@ -2621,13 +2753,15 @@ void GPCTR_Reset(comedi_device *dev, int chan){
 	win_out( devpriv->gpctr_mode[chan],G_Mode_Register(chan));
 	win_out( devpriv->gpctr_input_select[chan],G_Input_Select_Register(chan));
 	win_out( 0,G_Autoincrement_Register(chan)); 
-	printk("exit GPCTR_Reset\n");
+		
+	//printk("exit GPCTR_Reset\n");
 }
 
 static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	//printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
+	int retval=0;
 	switch(data[0]){
 	case GPCTR_RESET:
 		if(insn->n!=1)return -EINVAL;
@@ -2635,15 +2769,15 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case GPCTR_SET_SOURCE:
 		if(insn->n!=2)return -EINVAL;
-		GPCTR_Set_Source(dev,insn->chanspec,data[1]);
+		retval=GPCTR_Set_Source(dev,insn->chanspec,data[1]);
 		break;
 	case GPCTR_SET_GATE:
 		if(insn->n!=2)return -EINVAL;
-		GPCTR_Set_Gate(dev,insn->chanspec,data[1]);
+		retval=GPCTR_Set_Gate(dev,insn->chanspec,data[1]);
 		break;
 	case GPCTR_SET_DIRECTION:
-		if(insn->n!=2)return -EINVAL;
-		GPCTR_Set_Direction(dev,insn->chanspec,data[1]);
+		if(insn->n!=2) return -EINVAL;
+		retval=GPCTR_Set_Direction(dev,insn->chanspec,data[1]);
 		break;
 	case GPCTR_SET_OPERATION:
 		if(insn->n!=2)return -EINVAL;
@@ -2651,31 +2785,56 @@ static int ni_gpctr_insn_config(comedi_device *dev,comedi_subdevice *s,
 			case GPCTR_SIMPLE_EVENT:
 				GPCTR_Event_Counting(dev,insn->chanspec);
 				break;
+			case GPCTR_SINGLE_PERIOD:
+				GPCTR_Period_Meas(dev,insn->chanspec);
+				break;
+			case GPCTR_SINGLE_PW:
+				GPCTR_Pulse_Width_Meas(dev,insn->chanspec);
+				break;
 			default:
 				printk("unsupported GPCTR operation!\n");
+				return -EINVAL;
 		}
 		break;
 	case GPCTR_ARM:
 		if(insn->n!=1)return -EINVAL;
-		GPCTR_Arm(dev,insn->chanspec);
+		retval=GPCTR_Arm(dev,insn->chanspec);
 		break;
 	case GPCTR_DISARM:
 		if(insn->n!=1)return -EINVAL;
-		GPCTR_Disarm(dev,insn->chanspec);
+		retval=GPCTR_Disarm(dev,insn->chanspec);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return insn->n;
+	//catch any errors from return values
+	if(retval==0){
+		return insn->n;
+	}else{
+		return retval;
+	}
 }
 
 static int ni_gpctr_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data) {
 
+	int chan=insn->chanspec;
+	int cur_op = devpriv->gpctr_cur_operation[chan];
+		
 	//printk("in ni_gpctr_insn_read, n=%d, data[0]=%d\n",insn->chanspec,data[0]);
 	if(insn->n!=1)return -EINVAL;
+		
 	data[0] = GPCTR_G_Watch(dev,insn->chanspec);
+		
+	/* for certain modes (period and pulse width measurment), the value
+	in the counter is not valid until the counter stops.  If the value is 
+	invalid, return a 0 */
+	if((cur_op == GPCTR_SINGLE_PERIOD) || (cur_op == GPCTR_SINGLE_PW)){
+		/* is the counter still running? */
+		if(win_in(G_Status_Register) & (chan?G1_Counting_St:G0_Counting_St))
+			data[0]=0;
+	}
 	return 1;
 }
 
