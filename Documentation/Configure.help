@@ -127,6 +127,11 @@ CONFIG_COMEDI_DAS1600
   compatibles.  To use the digital I/O provided by the 8255 chip
   on these boards, you need to include the 8255 driver above.
 
+DAS1800 driver
+CONFIG_COMEDI_DAS1800
+  Includes support for Keithley Metrabye DAS-1700 and DAS-1800
+  series.
+
 DAS16 driver
 CONFIG_COMEDI_DAS16
   Includes support for Keithley Metrabye DAS16 and compatibles.
@@ -134,6 +139,12 @@ CONFIG_COMEDI_DAS16
 DAS6402 driver
 CONFIG_COMEDI_DAS6402
   Includes support for Keithley Metrabye DAS6402 and compatibles.
+
+DAS800 driver
+CONFIG_COMEDI_DAS800
+  Includes support for Keithley Metrabye DAS800 series and
+  compatibles such as Measurement Computing (Computer Boards)
+  CIO-DAS800 series.
 
 Support for 8255
 CONFIG_COMEDI_8255
