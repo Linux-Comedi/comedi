@@ -29,7 +29,7 @@ Author: ds
 Status: works
 Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
-  PXI-6503, PCI-6534, PCI-6533
+  PXI-6503, PCI-6533
 Updated: Sun, 21 Apr 2002 21:03:38 -0700
 
 The DIO-96 appears as four 8255 subdevices.  See the 8255
@@ -44,6 +44,9 @@ DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
 
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
+
+The PCI-6534 does not work, and no documentation is available to
+explain why.
 */
 
 /*
