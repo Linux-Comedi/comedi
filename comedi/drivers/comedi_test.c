@@ -56,6 +56,7 @@ zero volts).
 
 #include "comedi_fc.h"
 
+
 /* Board descriptions */
 typedef struct waveform_board_struct{
 	char *name;
@@ -63,10 +64,13 @@ typedef struct waveform_board_struct{
 	int ai_bits;
 	int have_dio;
 } waveform_board;
+
+#define N_CHANS 8
+
 static waveform_board waveform_boards[] = {
 	{
 	name:           "comedi_test",
-	ai_chans:       8,
+	ai_chans:       N_CHANS,
 	ai_bits:        16,
 	have_dio:       0,
 	},
@@ -85,6 +89,7 @@ typedef struct{
 	unsigned int scan_period;	// scan period in usec
 	unsigned int convert_period;	// conversion period in usec
 	volatile unsigned timer_running : 1;
+	volatile lsampl_t ao_loopbacks[N_CHANS];
 } waveform_private;
 #define devpriv ((waveform_private *)dev->private)
 
@@ -106,6 +111,7 @@ static int waveform_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s);
 static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range, unsigned long current_time);
 static sampl_t fake_squarewave(comedi_device *dev, unsigned int range, unsigned long current_time);
 static sampl_t fake_flatline(comedi_device *dev, unsigned int range, unsigned long current_time);
@@ -198,7 +204,8 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->usec_period = period;
 
 	printk("%i microvolt, %li microsecond waveform ", devpriv->uvolt_amplitude, devpriv->usec_period);
-	if(alloc_subdevices(dev, 1) < 0) return -ENOMEM;
+	dev->n_subdevices = 2;
+	if(alloc_subdevices(dev, dev->n_subdevices) < 0) return -ENOMEM;
 
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
@@ -208,11 +215,31 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan = thisboard->ai_chans;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;
-	s->len_chanlist = 16;
+	s->len_chanlist = s->n_chan * 2;
 	s->insn_read = waveform_ai_insn_read; // apparently, we do not need waveform_ai_rinsn;
 	s->do_cmd = waveform_ai_cmd;
 	s->do_cmdtest = waveform_ai_cmdtest;
 	s->cancel = waveform_ai_cancel;
+
+	s = dev->subdevices + 1;
+	dev->read_subdev = s;
+	/* analog output subdevice (loopback) */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
+	s->n_chan = thisboard->ai_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &waveform_ai_ranges;
+	s->len_chanlist = s->n_chan * 2;
+	s->insn_write = waveform_ao_insn_write; 
+	s->do_cmd = 0;
+	s->do_cmdtest = 0;
+	s->cancel = 0;
+	{
+		/* Our default loopback value is just a 0V flatline */
+		int i;
+		for (i = 0; i < s->n_chan; i++) 
+			devpriv->ao_loopbacks[i] = s->maxdata / 2;
+	}
 
 	init_timer(&(devpriv->timer));
 	devpriv->timer.function = waveform_ai_interrupt;
@@ -466,10 +493,20 @@ static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
 
 static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-	int i;
+	int i, chan = CR_CHAN(insn->chanspec);
+
 	for(i = 0; i < insn->n; i++)
-		data[i] = s->maxdata / 2;
+		data[i] = devpriv->ao_loopbacks[chan];
 
 	return insn->n;
 }
 
+static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int i, chan = CR_CHAN(insn->chanspec);
+	
+	for(i = 0; i < insn->n; i++)
+		devpriv->ao_loopbacks[chan] = data[i];
+
+	return insn->n;
+}
