@@ -184,6 +184,8 @@ static void ni_handle_block(comedi_device *dev);
 #ifdef PCIDMA
 static void ni_handle_block_dma(comedi_device *dev);
 #endif
+static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
+	unsigned int trignum);
 
 static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s);
 
@@ -1059,7 +1061,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp=cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_NOW|TRIG_INT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
@@ -1083,6 +1085,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
+	if(cmd->start_src!=TRIG_NOW &&
+	   cmd->start_src!=TRIG_INT)err++;
 	if(cmd->scan_begin_src!=TRIG_TIMER &&
 	   cmd->scan_begin_src!=TRIG_EXT)err++;
 	if(cmd->convert_src!=TRIG_TIMER &&
@@ -1095,6 +1099,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 3: make sure arguments are trivially compatible */
 
 	if(cmd->start_arg!=0){
+		/* true for both TRIG_NOW and TRIG_INT */
 		cmd->start_arg=0;
 		err++;
 	}
@@ -1423,8 +1428,15 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		break;
 	}
 
-	/* AI_START1_Pulse */
-	win_out(AI_START1_Pulse,AI_Command_2_Register);
+	if(cmd->start_src==TRIG_NOW){
+		/* TRIG_NOW */
+		/* AI_START1_Pulse */
+		win_out(AI_START1_Pulse,AI_Command_2_Register);
+		s->async->inttrig=NULL;
+	}else{
+		/* TRIG_INT */
+		s->async->inttrig=ni_ai_inttrig;
+	}
 
 	win_restore(wsave);
 
@@ -1434,6 +1446,22 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
+static int ni_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
+	unsigned int trignum)
+{
+	int wsave;
+
+	if(trignum!=0)return -EINVAL;
+
+	wsave = win_save();
+
+	win_out(AI_START1_Pulse,AI_Command_2_Register);
+	s->async->inttrig=NULL;
+
+	win_restore(wsave);
+
+	return 1;
+}
 
 static void ni_ao_fifo_load(comedi_device *dev,comedi_subdevice *s,
 		sampl_t *data,int n)
@@ -2204,11 +2232,14 @@ static void pfi_setup(comedi_device *dev)
 *   Low level stuff...Each STC counter has two 24 bit load registers (A&B).  Just make
 * it easier to access them.
 */
-void GPCT_Load_A(comedi_device *dev, int chan, long value){
+static void GPCT_Load_A(comedi_device *dev, int chan, long value)
+{
 	win_out( (value>>16) & 0x00ff, G_Load_A_Register_High(chan));
 	win_out( value & 0xffff, G_Load_A_Register_Low(chan));
 }
-void GPCT_Load_B(comedi_device *dev, int chan, long value){
+
+static void GPCT_Load_B(comedi_device *dev, int chan, long value)
+{
 	win_out( (value>>16) & 0x00ff, G_Load_B_Register_High(chan));
 	win_out( value & 0xffff, G_Load_B_Register_Low(chan));
 }
@@ -2217,7 +2248,8 @@ void GPCT_Load_B(comedi_device *dev, int chan, long value){
 *  You might use GPCT_Load_Using_A to load a 0x000000 into a counter
 *  reset its value.
 */
-void GPCT_Load_Using_A(comedi_device *dev, int chan, long value){
+static void GPCT_Load_Using_A(comedi_device *dev, int chan, long value)
+{
 	devpriv->gpct_mode[chan] &= (~G_Load_Source_Select);
 	win_out( devpriv->gpct_mode[chan],G_Mode_Register(chan));
 	GPCT_Load_A(dev,chan,value);
@@ -2227,7 +2259,8 @@ void GPCT_Load_Using_A(comedi_device *dev, int chan, long value){
 /*	Don't use this by itself!  The read is not atomic and quite unsafe.
 *	If you think you need this function, use GPCT_G_Watch instead.
 */
-int inline GPCT_G_Read(comedi_device *dev, int chan) {
+int inline GPCT_G_Read(comedi_device *dev, int chan)
+{
 	int tmp;
 	tmp = win_in( G_Save_Register_High(chan)) << 16;
 	tmp |= win_in(G_Save_Register_Low(chan));
@@ -2238,7 +2271,8 @@ int inline GPCT_G_Read(comedi_device *dev, int chan) {
 *	Read the GPCTs current value.  
 *	This function is actually straight out of the STC RLPM.
 */
-int GPCT_G_Watch(comedi_device *dev, int chan) {
+int GPCT_G_Watch(comedi_device *dev, int chan)
+{
 	int save1,save2;
 	
 	devpriv->gpct_command[chan] &= ~G_Save_Trace;
@@ -2258,13 +2292,15 @@ int GPCT_G_Watch(comedi_device *dev, int chan) {
 }
 
 
-int GPCT_Disarm(comedi_device *dev, int chan){
+int GPCT_Disarm(comedi_device *dev, int chan)
+{
 	win_out( devpriv->gpct_command[chan] | G_Disarm,G_Command_Register(chan));
 	return 0;
 }
 
 
-int GPCT_Arm(comedi_device *dev, int chan){
+int GPCT_Arm(comedi_device *dev, int chan)
+{
 	win_out( devpriv->gpct_command[chan] | G_Arm,G_Command_Register(chan));
 	/* If the counter is doing pulse width measurement, then make
 	 sure that the counter did not start counting right away.  This would
@@ -2291,7 +2327,8 @@ int GPCT_Arm(comedi_device *dev, int chan){
 	return 0;
 }
 
-int GPCT_Set_Source(comedi_device *dev,int chan ,int source){
+int GPCT_Set_Source(comedi_device *dev,int chan ,int source)
+{
 	//printk("GPCT_Set_Source...");
 	devpriv->gpct_input_select[chan] &= ~G_Source_Select(0x1f);//reset gate to 0
 	switch(source) {
@@ -2312,10 +2349,12 @@ int GPCT_Set_Source(comedi_device *dev,int chan ,int source){
 	return 0;
 }
 
-int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate){
+int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate)
+{
 	//printk("GPCT_Set_Gate...");
 	devpriv->gpct_input_select[chan] &= ~G_Gate_Select(0x1f);//reset gate to 0
-	switch(gate) {	case GPCT_NO_GATE:
+	switch(gate) {
+	case GPCT_NO_GATE:
 		devpriv->gpct_input_select[chan] |= G_Gate_Select(31);//Low
 		devpriv->gpct_mode[chan] |= G_Gate_Polarity;
 		break;
@@ -2336,7 +2375,8 @@ int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate){
 	return 0;
 }
 
-int GPCT_Set_Direction(comedi_device *dev,int chan,int direction) {
+int GPCT_Set_Direction(comedi_device *dev,int chan,int direction)
+{
 	//printk("GPCT_Set_Direction...");
 	
 	devpriv->gpct_command[chan] &= ~G_Up_Down(0x3);
@@ -2360,7 +2400,8 @@ int GPCT_Set_Direction(comedi_device *dev,int chan,int direction) {
 	return 0;
 }
 
-void GPCT_Event_Counting(comedi_device *dev,int chan) {
+void GPCT_Event_Counting(comedi_device *dev,int chan)
+{
 
 	//NOTE: possible residual bits from multibit masks can corrupt
 	//If you config for several measurements between Resets, watch out!
@@ -2381,7 +2422,8 @@ void GPCT_Event_Counting(comedi_device *dev,int chan) {
 	//printk("exit GPCT_Event_Counting\n");
 }
 
-void GPCT_Period_Meas(comedi_device *dev, int chan) {
+void GPCT_Period_Meas(comedi_device *dev, int chan)
+{
 	//printk("GPCT_Period_Meas...");
 	
 	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PERIOD;
@@ -2427,7 +2469,8 @@ void GPCT_Period_Meas(comedi_device *dev, int chan) {
 	//printk("exit GPCT_Period_Meas\n");
 }
 
-void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan){
+void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan)
+{
 	//printk("GPCT_Pulse_Width_Meas...");
 
 	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PW;
@@ -2475,7 +2518,8 @@ void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan){
 /* GPCT_Gen_Single_Pulse() creates pulse of length pulsewidth which starts after the Arm
 signal is sent.  The pulse is delayed by the value already in the counter.  This function could
 be modified to send a pulse in response to a trigger event at its gate.*/
-void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){	
+void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length)
+{
 	//printk("GPCT_Gen_Cont...");
 
 	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PULSE_OUT;
@@ -2525,7 +2569,8 @@ void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int length){
 	//printk("exit GPCT_Gen_Cont\n");
 }
 
-void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length){	
+void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length)
+{
 	//printk("GPCT_Gen_Cont...");
 
 	devpriv->gpct_cur_operation[chan] = GPCT_CONT_PULSE_OUT;
@@ -2582,7 +2627,8 @@ void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int length){
 	//printk("exit GPCT_Gen_Cont\n");
 }
 
-void GPCT_Reset(comedi_device *dev, int chan){
+void GPCT_Reset(comedi_device *dev, int chan)
+{
 	unsigned long irqflags;
 	int temp_ack_reg=0;
 	
