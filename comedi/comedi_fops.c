@@ -1250,7 +1250,7 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 
    issues:
       what happens when the underlying buffer gets changed?
-      
+
  */
 static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 {
@@ -1275,13 +1275,14 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	}
 
 	rvmmap(s->prealloc_buf,s->prealloc_bufsz,vma);
-	
+
 	//vma->vm_file = file;
 	//vma->vm_ops = &comedi_vm_ops;
 	//file_atomic_inc(&file->f_count);
 
-	/* XXX mark subdev as mapped */
-	
+	/* mark subdev as mapped */
+	s->subdev_flags |= SDF_MMAPPED;
+
 	return 0;
 }
 #endif
