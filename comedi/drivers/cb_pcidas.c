@@ -104,6 +104,7 @@ add analog out support
 #define   EOAI 0x40	// read end of acq. interrupt status
 #define   INTCL 0x80	//	write-clear for EOS/FHF/FNE interrupt status
 #define   INT 0x80	// read interrupt status
+#define   EOBI 0x200	// read end of burst interrupt status
 #define   ADHFI 0x400	// read half-full interrupt status
 #define   ADNEI 0x800	// read fifo not empty interrupt latch status
 #define   ADNE 0x1000	// fifo not empty (realtime, not latched) status
@@ -279,15 +280,16 @@ typedef struct
 	struct pci_dev *pci_dev;
 
 	// base addresses
-	unsigned long s5933_config;
-	unsigned long control_status;
-	unsigned long adc_fifo;
-	unsigned long pacer_counter_dio;
-	unsigned long ao_registers;
+	unsigned int s5933_config;
+	unsigned int control_status;
+	unsigned int adc_fifo;
+	unsigned int pacer_counter_dio;
+	unsigned int ao_registers;
 	// divisors of master clock for pacing
 	unsigned int divisor1;
 	unsigned int divisor2;
 	volatile unsigned int count;	//number of samples remaining
+	unsigned int adc_fifo_bits;	// bits to write to interupt/adcfifo register
 } cb_pcidas_private;
 
 /*
@@ -517,7 +519,7 @@ found:
 	/* Enable interrupts on amcc s5933.  Will probably also need to
 	 * enable outgoing mailbox interrupts to get waveform output
 	 * running on pci-das1602 models */
-	outl(INBOX_BYTE(0) | INBOX_SELECT(0) | INBOX_FULL_INT, devpriv->s5933_config + INTCSR);
+	outl(INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT, devpriv->s5933_config + INTCSR);
 	rt_printk("attaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
 #endif
 
@@ -824,18 +826,18 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	outw(EOACL | INTCL | ADFLCL, devpriv->control_status + INT_ADCFIFO);
 
 	// enable interrupts
-	bits = INTE;
+	devpriv->adc_fifo_bits = INTE;
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
 		if(cmd->convert_src == TRIG_NOW)
-			bits |= INT_EOS;	// interrupt end of burst
+			devpriv->adc_fifo_bits |= INT_EOS;	// interrupt end of burst
 		else
-			bits |= INT_FNE;	// interrupt fifo not empty
+			devpriv->adc_fifo_bits |= INT_FNE;	// interrupt fifo not empty
 	}else
 	{
-		bits |= INT_FHF;	//interrupt fifo half full
+		devpriv->adc_fifo_bits |= INT_FHF;	//interrupt fifo half full
 	}
-	outw(bits, devpriv->control_status + INT_ADCFIFO);
+	outw(devpriv->adc_fifo_bits, devpriv->control_status + INT_ADCFIFO);
 
 	// set start trigger and burst mode
 	bits = 0;
@@ -873,9 +875,12 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 	async = s->async;
 	status = inw(devpriv->control_status + INT_ADCFIFO);
-	if((status & (INT | EOAI)) == 0)
+	if((status & (INT | EOAI | EOBI)) == 0)
 	{
 		comedi_error(dev, "spurious interrupt");
+#ifdef CB_PCIDAS_DEBUG
+rt_printk("status bits are 0x%x\n", status);
+#endif
 		return;
 	}
 	// if fifo half-full
@@ -898,9 +903,9 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 		async->events |= COMEDI_CB_BLOCK;
 		// clear half-full interrupt latch
-		outw(INTCL, devpriv->control_status + INT_ADCFIFO);
+		outw(devpriv->adc_fifo_bits | INTCL, devpriv->control_status + INT_ADCFIFO);
 	// else if fifo not empty
-	}else if(status & ADNEI)
+	}else if(status & ADNE)
 	{
 		for(i = 0; i < timeout; i++)
 		{
@@ -922,19 +927,19 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 		async->events |= COMEDI_CB_BLOCK;
 		// clear not-empty interrupt latch
-		outw(INTCL, devpriv->control_status + INT_ADCFIFO);
-	}else if(status & ADNEI)
+		outw(devpriv->adc_fifo_bits | INTCL, devpriv->control_status + INT_ADCFIFO);
+	}else if(status & EOAI)
 	{
 		comedi_error(dev, "bug! encountered end of aquisition interrupt?");
 		// clear EOA interrupt latch
-		outw(EOACL, devpriv->control_status + INT_ADCFIFO);
+		outw(devpriv->adc_fifo_bits | EOACL, devpriv->control_status + INT_ADCFIFO);
 	}
 	//check for fifo overflow
 	if(status & LADFUL)
 	{
 		comedi_error(dev, "fifo overflow");
 		// clear overflow interrupt latch
-		outw(ADFLCL, devpriv->control_status + INT_ADCFIFO);
+		outw(devpriv->adc_fifo_bits | ADFLCL, devpriv->control_status + INT_ADCFIFO);
 		cb_pcidas_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
