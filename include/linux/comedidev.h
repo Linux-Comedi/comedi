@@ -47,13 +47,17 @@
 #define COMEDI_RELEASE "1.0.0"
 #endif
 
-#ifdef MODULE
 #define COMEDI_INITCLEANUP(x)						\
-	int init_module(void){return comedi_driver_register(&(x));}	\
-	void cleanup_module(void){comedi_driver_unregister(&(x));}
-#else
-#define COMEDI_INITCLEANUP(x)
-#endif
+	MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");		\
+	MODULE_DESCRIPTION("Comedi low-level driver");			\
+	MODULE_LICENSE("GPL");						\
+	static int __init x ## _init_module(void)			\
+		{return comedi_driver_register(&(x));}			\
+	static void __exit x ## _cleanup_module(void)			\
+		{comedi_driver_unregister(&(x));} 			\
+	module_init(x ## _init_module);					\
+	module_exit(x ## _cleanup_module);					\
+
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
 typedef struct comedi_async_struct comedi_async;
