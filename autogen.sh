@@ -7,5 +7,5 @@ automake-1.7 --add-missing --copy
 
 rm -f config.cache
 
-./configure --enable-maintainer-mode
+./configure --enable-maintainer-mode $*
 
