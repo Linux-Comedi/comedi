@@ -704,7 +704,7 @@ static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cm
 	startChan = CR_CHAN(cmd->chanlist[0]);
 	for(i = 1; i < cmd->chanlist_len; i++)
 	{
-  	if(CR_CHAN(cmd->chanlist[i]) != (startChan + i) % N_CHAN_AI)
+		if(CR_CHAN(cmd->chanlist[i]) != (startChan + i) % N_CHAN_AI)
 		{
 			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
 			err++;
@@ -808,7 +808,7 @@ static int das800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
 	outb(conv_bits, dev->iobase + DAS800_CONV_CONTROL);
 	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
+	async->events = 0;
 	enable_das800(dev);
 	return 0;
 }

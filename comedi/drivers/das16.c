@@ -720,6 +720,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	comedi_cmd *cmd = &async->cmd;
 	unsigned int byte;
 	unsigned long flags;
+	int range;
 
 	if(dev->irq == 0 || devpriv->dma_chan == 0)
 	{
@@ -734,11 +735,24 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	devpriv->adc_count = cmd->stop_arg * cmd->chanlist_len;
 
+	// disable conversions for das1600 mode
+	if(thisboard->size > 0x400)
+	{
+		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
+	}
+
 	// set scan limits
 	byte = CR_CHAN(cmd->chanlist[0]);
 	byte |= CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]) << 4;
 	outb(byte, dev->iobase + DAS16_MUX);
 
+	/* set gain (this is also burst rate register but according to
+	 * computer boards manual, burst rate does nothing, even on keithley cards) */
+	if(thisboard->ai_pg != das16_pg_none){
+		range = CR_RANGE(cmd->chanlist[0]);
+		outb((das16_gainlists[thisboard->ai_pg])[range],
+			dev->iobase+DAS16_GAIN);
+	}
 
 	/* set counter mode and counts */
 	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
@@ -806,10 +820,10 @@ static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 	if(devpriv->dma_chan)
 		disable_dma(devpriv->dma_chan);
 
-	// disable conversions for das1600 mode
+	/* disable burst mode */
 	if(thisboard->size > 0x400)
 	{
-		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
+		outb(0, dev->iobase + DAS1600_BURST);
 	}
 
 	return 0;
@@ -1361,7 +1375,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	if(thisboard->size > 0x400)
 	{
 		outb(DAS1600_ENABLE_VAL, dev->iobase + DAS1600_ENABLE);
-		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
+		outb(0, dev->iobase + DAS1600_CONV);
 		outb(0, dev->iobase + DAS1600_BURST);
 	}
 

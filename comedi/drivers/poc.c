@@ -64,6 +64,7 @@ struct boarddef_struct{
 	int n_bits;
 	int (*winsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*rinsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
+	comedi_lrange* range;
 };
 static struct boarddef_struct boards[]={
 	{
@@ -75,6 +76,7 @@ static struct boarddef_struct boards[]={
 	n_bits:		12,
 	winsn:		dac02_ao_winsn,
 	rinsn:		readback_insn,
+	range:		&range_unknown,
 	}
 };
 #define n_boards (sizeof(boards)/sizeof(boards[0]))
@@ -89,17 +91,6 @@ comedi_driver driver_poc=
 	board_name:	boards,
 	num_names:	n_boards,
 	offset:		sizeof(boards[0]),
-};
-
-// analog output ranges
-static comedi_lrange range_dac02 = {
-	4,
-	{
-		RANGE( -5, 5 ),
-		RANGE( -10, 10 ),
-		RANGE( 0, 5 ),
-		RANGE( 0, 10 ),
-	}
 };
 
 static int poc_attach(comedi_device *dev, comedi_devconfig *it)
@@ -141,7 +132,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	s->type = this_board->type;
 	s->n_chan = this_board->n_chan;
 	s->maxdata = (1<<this_board->n_bits)-1;
-	s->range_table = &range_dac02; // XXX
+	s->range_table = this_board->range;
 	s->insn_write = this_board->winsn;
 	s->insn_read = this_board->rinsn;
 	if(s->type==COMEDI_SUBD_AO || s->type==COMEDI_SUBD_DO){

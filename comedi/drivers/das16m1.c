@@ -286,7 +286,8 @@ static int das16m1_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *
 
 static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
 
 	if(dev->irq == 0)
@@ -307,6 +308,8 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	/* set counter mode and counts */
 	cmd->convert_arg = das16m1_set_pacer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
+
+	async->events = 0;
 
 	// set control & status register
 	byte = 0;
