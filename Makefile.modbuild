@@ -80,14 +80,14 @@ _modinst_%:
 
 
 ifeq ($(CONFIG_MODVERSIONS),y)
-MODFLAGS += -DMODVERSIONS -include $(MODVERSIONS_H_PATH)
+MODFLAGS += -DMODVERSIONS -include $(LINUXDIR)/include/linux/modversions.h
 endif
 
 
 modules:	$(patsubst %, _mod_%, $(SUBDIRS))
 
 $(patsubst %, _mod_%, $(SUBDIRS)) : dummy
-	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS) $(MODFLAGS)" MAKING_MODULES=1 modules
+	$(MAKE) -C $(patsubst _mod_%, %, $@) CFLAGS="$(CFLAGS)" MAKING_MODULES=1 modules
 
 include/version.h: Makefile
 	@echo \#define $(PROJECT)_RELEASE \"$(PROJECTRELEASE)\" >.ver

@@ -7,7 +7,6 @@ $(obj)/fake.c: flags
 .PHONY: flags
 flags:
 	echo LINUXDIR=$(LINUXDIR) >$(obj)/flags
-	echo MODVERSIONS_H_PATH=$(LINUXDIR)/include/config/modversions.h >>$(obj)/flags
 	echo ARCH=$(ARCH) >>$(obj)/flags
 	echo AFLAGS="$(AFLAGS)" | sed 's_Iinclude_I"$(LINUXDIR)/include"_g'>>$(obj)/flags
 	echo LDFLAGS= >>$(obj)/flags
