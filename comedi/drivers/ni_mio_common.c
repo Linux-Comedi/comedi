@@ -370,10 +370,12 @@ static irqreturn_t ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	unsigned short b_status;
 	unsigned int m0_status;
 	unsigned int m1_status;
+	unsigned long flags;
 #ifdef PCIDMA
 	struct mite_struct *mite = devpriv->mite;
 #endif
-
+	// lock to avoid race with comedi_poll
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	a_status=win_in(AI_Status_1_Register);
 	b_status=win_in(AO_Status_1_Register);
 #ifdef PCIDMA
@@ -388,6 +390,7 @@ static irqreturn_t ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 		handle_a_interrupt(dev, a_status, m0_status);
 	if(b_status&Interrupt_B_St || m1_status & CHSR_INT )
 		handle_b_interrupt(dev, b_status, m1_status);
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -660,7 +663,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 		}
 
 		/* we need to ack the START, also */
-		ack|=AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
+		ack |= AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
 	}
 	if(devpriv->aimode==AIMODE_SAMPLE){
 		ni_handle_fifo_dregs(dev);
@@ -982,7 +985,9 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	comedi_subdevice *s=dev->subdevices+0;
 	sampl_t data[2];
 	u32 dl;
-
+	short fifo_empty;
+	int i;
+	 
 	if(boardtype.reg_type == ni_reg_611x){
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
 			dl=ni_readl(ADC_FIFO_Data_611x);
@@ -993,9 +998,17 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			cfc_write_array_to_buffer(s, data, sizeof(data));
 		}
 	}else{
-		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
-			data[0]=ni_readw(ADC_FIFO_Data_Register);
-			cfc_write_to_buffer(s, data[0]);
+		fifo_empty = win_in(AI_Status_1_Register) & AI_FIFO_Empty_St;
+		while(fifo_empty == 0)
+		{
+			for(i = 0; i < sizeof(devpriv->ai_fifo_buffer) / sizeof(devpriv->ai_fifo_buffer[0]); i++)
+			{
+				fifo_empty = win_in(AI_Status_1_Register) & AI_FIFO_Empty_St;
+				if(fifo_empty) break;
+				devpriv->ai_fifo_buffer[i] = ni_readw(ADC_FIFO_Data_Register);
+			}
+			cfc_write_array_to_buffer( s, devpriv->ai_fifo_buffer,
+				i * sizeof(devpriv->ai_fifo_buffer[0]) );
 		}
 	}
 }
@@ -1622,7 +1635,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		devpriv->ai_continuous = 0;
 		if( stop_count == 0 ){
 			devpriv->ai_cmd2 |= AI_End_On_End_Of_Scan;
-			interrupt_a_enable|=AI_STOP_Interrupt_Enable;
+			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
 		}
 		break;
 	case TRIG_NONE:
@@ -1760,7 +1773,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 #else
 			win_out(AI_FIFO_Mode_HF, AI_Mode_3_Register);
 #endif
-			interrupt_a_enable|=AI_STOP_Interrupt_Enable;
+			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
 			break;
 		default:
 			break;
