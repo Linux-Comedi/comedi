@@ -82,7 +82,8 @@ module_PROGRAMS = 8255.ko \
  rti802.ko \
  skel.ko \
  ssv_dnp.ko \
- comedi_test.ko
+ comedi_test.ko \
+ $(pcmcia_modules)
 
 8255_ko_SOURCES = 8255.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
