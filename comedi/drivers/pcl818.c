@@ -9,9 +9,11 @@
 */
 /*
 Driver: pcl818.o
-Description: Advantech PCL-818 cards (818, 818L, 818H, 818HD, 818HG),
-  Advantech PCL-718
+Description: Advantech PCL-818 cards, PCL-718
 Author: Michal Dobes <majkl@tesnet.cz>
+Devices: [Advantech] PCL-818L (pcl818l), PCL-818H (pcl818h),
+  PCL-818HD (pcl818hd), PCL-818HG (pcl818hg), PCL-818 (pcl818),
+  PCL-718 (pcl718)
 Status: works
 
 All cards have 16 SE/8 DIFF ADCs, one or two DACs, 16 DI and 16 DO.
@@ -345,12 +347,18 @@ static unsigned int muxonechan[] ={ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x
 /* 
 ==============================================================================
 */
+#ifdef unused
 static int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
+#endif
 static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+#ifdef unused
 static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
+#endif
 static int set_rtc_irq_bit(unsigned char bit);
+#ifdef unused
 static void rtc_dropped_irq(unsigned long data);
 static int rtc_setfreq_irq(int freq);
+#endif
 
 /* 
 ==============================================================================
@@ -832,7 +840,7 @@ static void interrupt_pcl818(int irq, void *d, struct pt_regs *regs)
 ==============================================================================
    ANALOG INPUT MODE 1 or 3 DMA , 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
+#ifdef unused
 static void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         unsigned int flags;
@@ -865,13 +873,11 @@ static void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdev
 		outb(0x86 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Ext trig+IRQ+DMA */ 
         };
 }
-#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1 or 3 DMA rtc, 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
 static void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         unsigned int flags;
@@ -903,13 +909,11 @@ static void pcl818_ai_mode13dma_rtc(int mode, comedi_device * dev, comedi_subdev
 		outb(0x06 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);  /* Ext trig+DMA */ 
     };
 }
-#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1 or 3, 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         int divisor1, divisor2;
@@ -991,36 +995,30 @@ static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 
 	return 0;
 }
-#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 1, 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ai_mode13(1, dev, s, it);
 }
-#endif
 
 /* 
 ==============================================================================
    ANALOG INPUT MODE 3, 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ai_mode3(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ai_mode13(3, dev, s, it);
 }
-#endif
 
 /*
 ==============================================================================
    ANALOG OUTPUT MODE 1 or 3, 818 cards
 */
 #ifdef PCL818_MODE13_AO
-#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         int divisor1, divisor2;
@@ -1069,24 +1067,20 @@ static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 
         return 0;
 }
-#endif
 
 /* 
 ==============================================================================
    ANALOG OUTPUT MODE 1, 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ao_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ao_mode13(1, dev, s, it);
 }
-#endif
 
 /* 
 ==============================================================================
    ANALOG OUTPUT MODE 3, 818 cards
 */
-#ifdef CONFIG_COMEDI_TRIG
 static int pcl818_ao_mode3(comedi_device * dev, comedi_subdevice * s, comedi_trig * it) 
 {
         return pcl818_ao_mode13(3, dev, s, it);
@@ -1098,6 +1092,7 @@ static int pcl818_ao_mode3(comedi_device * dev, comedi_subdevice * s, comedi_tri
 ==============================================================================
  Start/stop pacer onboard pacer
 */
+#ifdef unused
 static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
 {
         outb(0xb4, dev->iobase + PCL818_CTRCTL);
@@ -1186,6 +1181,7 @@ static int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * 
 	// we can serve this with MUX logic
 	return 1;
 }
+#endif
 
 /* 
 ==============================================================================
@@ -1333,6 +1329,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 ==============================================================================
   Restart RTC if something stop it (xntpd every 11 mins or large IDE transfers)
 */
+#ifdef unused
 static void rtc_dropped_irq(unsigned long data) 
 {
         comedi_device *dev = (void *)data;
@@ -1378,6 +1375,7 @@ static int rtc_setfreq_irq(int freq)
         restore_flags(flags);
         return rtc_freq;
 }
+#endif
 
 /* 
 ==============================================================================
@@ -1566,12 +1564,10 @@ no_dma:
 		s->range_table = this_board->ai_range_type;
 		s->cancel=pcl818_ai_cancel;
 		s->insn_read = pcl818_ai_insn_read;
-#ifdef CONFIG_COMEDI_TRIG
-		if ((irq)||(devpriv->dma_rtc)) {
-			s->trig[1] = pcl818_ai_mode1;
-			s->trig[3] = pcl818_ai_mode3;
-		}
-#endif
+		//if ((irq)||(devpriv->dma_rtc)) {
+			//s->trig[1] = pcl818_ai_mode1;
+			//s->trig[3] = pcl818_ai_mode3;
+		//}
 		if(this_board->is_818){
 			if ((it->options[4]==1)||(it->options[4]==10))
 				s->range_table=&range_pcl818l_h_ai; // secondary range list jumper selectable
@@ -1604,7 +1600,7 @@ no_dma:
 		s->range_table = this_board->ao_range_type;
 		s->insn_read = pcl818_ao_insn_read;
 		s->insn_write = pcl818_ao_insn_write;
-#ifdef CONFIG_COMEDI_TRIG
+#ifdef unused
 #ifdef PCL818_MODE13_AO
 		if (irq) {
 		        s->trig[1] = pcl818_ao_mode1;

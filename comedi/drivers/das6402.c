@@ -249,7 +249,7 @@ static int das6402_ai_cancel(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
-#ifdef CONFIG_COMEDI_TRIG
+#ifdef unused
 static int das6402_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	devpriv->das6402_ignoreirq=1;
@@ -365,9 +365,7 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE;
 	s->n_chan=8;
-#ifdef CONFIG_COMEDI_TRIG
-	s->trig[2]=das6402_ai_mode2;
-#endif
+	//s->trig[2]=das6402_ai_mode2;
 	s->cancel=das6402_ai_cancel;
 	s->maxdata=(1<<12)-1;
 	s->len_chanlist=16;	/* ? */
