@@ -5,7 +5,7 @@
     The DAQP interface code in this file is released into the public domain.
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1998 David A. Schleef <ds@schleef.org>
 
     daqp_cs.c 1.00
 

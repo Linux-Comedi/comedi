@@ -3,7 +3,7 @@
     DAS16 driver
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
     Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
     Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
 

@@ -4,7 +4,7 @@
    and compatibles
 
    COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1998 David A. Schleef <ds@stm.lbl.gov>
+   Copyright (C) 1998 David A. Schleef <ds@schleef.org>
    Janne Jalkanen <jalkanen@cs.hut.fi>
    Eric Bunn <ebu@cs.hut.fi>
 

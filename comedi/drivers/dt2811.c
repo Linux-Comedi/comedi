@@ -4,7 +4,7 @@
 
    COMEDI - Linux Control and Measurement Device Interface
    History:
-   Base Version  - David A. Schleef <ds@stm.lbl.gov>
+   Base Version  - David A. Schleef <ds@schleef.org>
    December 1998 - Updated to work.  David does not have a DT2811
    board any longer so this was suffering from bitrot.
    Updated performed by ...
