@@ -21,25 +21,11 @@
 
 */
 
-
-
 #include <linux/comedi.h>
-#include <linux/comedidev.h>
 #include <linux/comedilib.h>
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/fcntl.h>
-#include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <asm/io.h>
 
-extern volatile int rtcomedi_lock_semaphore;
-
-int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
+int comedi_dio_config(comedi_t * dev,unsigned int subdev,unsigned int chan,
 	unsigned int io)
 {
 	comedi_insn insn;
@@ -54,7 +40,7 @@ int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
 	return comedi_do_insn(dev,&insn);
 }
 
-int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
+int comedi_dio_read(comedi_t * dev,unsigned int subdev,unsigned int chan,
 	unsigned int *val)
 {
 	comedi_insn insn;
@@ -69,7 +55,7 @@ int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	return comedi_do_insn(dev,&insn);
 }
 
-int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
+int comedi_dio_write(comedi_t * dev,unsigned int subdev,unsigned int chan,
 	unsigned int val)
 {
 	comedi_insn insn;
@@ -84,7 +70,7 @@ int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	return comedi_do_insn(dev,&insn);
 }
 
-int comedi_dio_bitfield(unsigned int minor,unsigned int subdev,unsigned int mask,
+int comedi_dio_bitfield(comedi_t *dev,unsigned int subdev,unsigned int mask,
 	unsigned int *bits)
 {
 	comedi_insn insn;
@@ -100,7 +86,7 @@ int comedi_dio_bitfield(unsigned int minor,unsigned int subdev,unsigned int mask
 	data[0] = mask;
 	data[1] = *bits;
 
-	ret = comedi_do_insn(minor,&insn);
+	ret = comedi_do_insn(dev,&insn);
 
 	*bits = data[1];
 

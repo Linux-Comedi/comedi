@@ -21,25 +21,11 @@
 
 */
 
-
-
 #include <linux/comedi.h>
-#include <linux/comedidev.h>
 #include <linux/comedilib.h>
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/fcntl.h>
-#include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <asm/io.h>
 
-extern volatile int rtcomedi_lock_semaphore;
-
-int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
+int comedi_data_write(comedi_t *dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t data)
 {
 	comedi_insn insn;
@@ -54,7 +40,7 @@ int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	return comedi_do_insn(dev,&insn);
 }
 
-int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
+int comedi_data_read(comedi_t *dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t *data)
 {
 	comedi_insn insn;
