@@ -1273,7 +1273,10 @@ static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_ins
 			/* this can't be called from RT, but why would someone want to mess with
 			 * this calibration adc from RT priority? */
 			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			if(schedule_timeout(1))
+			{
+				return -EIO;
+			}
 		}
 		if(i == timeout)
 		{
