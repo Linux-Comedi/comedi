@@ -35,21 +35,17 @@ ni_pcimio: ai COMEDI_WAKE_EOS doesn't work with DMA
 
 don't need Configure.help and Configure.help.append
 
-create separate fops structure for unconfigured devices
-
-remove SDF_RT globally
-
-ni_mio_common: starting AO without anything in buffer causes oops
+create separate fops structure for unconfigured devices (probably not)
 
 ni_mio_common: resetting AO sets ao chan 1 to -10V
 
-
 Dan Christian 07/01: rtd520.o: problems with buffer
-
-problems with >4GB from buffer
 
 ni_pcimio: polling
 
-
+migrate COMEDI_CB interface to COMEDI_EV flags, move #defines to comedidev.h
 
 rename prealloc_buf and prealloc_bufsz
+
+fix RT interrupts and comedi_irq[] dumbness
+
