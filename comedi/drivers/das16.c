@@ -35,6 +35,12 @@ Options:
 Both an irq line and dma channel are required for timed or externally
 triggered conversions.
 
+Keithley Manuals:
+	2309.PDF (das16)
+	4923.PDF (das1200, 1400, 1600)
+
+Computer boards manuals also available from their website www.measurementcomputing.com
+
 */
 
 #include <linux/kernel.h>
@@ -273,31 +279,57 @@ typedef struct das16_board_struct{
 	unsigned int    i8254_offset;
 
 	unsigned int	size;
+	unsigned int id;
 } das16_board;
-enum{	/* must match following array */
-	das16_board_das16,
-	das16_board_das16g,
-	das16_board_das16f,
-	das16_board_ciodas16jr,
-	das16_board_pc104das16jr,
-	das16_board_pc104das16jr_16,
-	das16_board_das1201,
-	das16_board_das1202,
-	das16_board_das1401,
-	das16_board_das1402,
-	das16_board_das1601,
-	das16_board_das1602,
-	das16_board_ciodas1401_12,
-	das16_board_ciodas1402_12,
-	das16_board_ciodas1402_16,
-	das16_board_ciodas1601_12,
-	das16_board_ciodas1602_12,
-	das16_board_ciodas1602_16,
-	das16_board_ciodas16_330,
-};
+
 static struct das16_board_struct das16_boards[]={
 	{
-	name:		"das-16",	// cio-das16.pdf
+	name:		"das-16",
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	15000,
+	ai_pg:		das16_pg_none,
+	ao:		das16_ao_winsn,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0x10,
+	i8254_offset:	0x0c,
+	size:		0x14,
+	id:	0x00,
+	},
+	{
+	name:		"das-16g",
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	15000,
+	ai_pg:		das16_pg_none,
+	ao:		das16_ao_winsn,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0x10,
+	i8254_offset:	0x0c,
+	size:		0x14,
+	id:	0x00,
+	},
+	{
+	name:		"das-16f",
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	8500,
+	ai_pg:		das16_pg_none,
+	ao:		das16_ao_winsn,
+	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0x10,
+	i8254_offset:	0x0c,
+	size:		0x14,
+	id:	0x00,
+	},
+	{
+	name:		"cio-das16",	// cio-das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	20000,
@@ -309,23 +341,10 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x10,
 	i8254_offset:	0x0c,
 	size:		0x14,
+	id:	0x80,
 	},
 	{
-	name:		"das-16g",
-	ai:		das16_ai_rinsn,
-	ai_nbits:	12,
-	ai_speed:	14286,
-	ai_pg:		das16_pg_none,
-	ao:		das16_ao_winsn,
-	ao_nbits:	12,
-	di:		das16_di_rbits,
-	do_:		das16_do_wbits,
-	i8255_offset:	0x10,
-	i8254_offset:	0x0c,
-	size:		0x14,
-	},
-	{
-	name:		"das-16f",	// das16.pdf
+	name:		"cio-das16/f",	// das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
 	ai_speed:	10000,
@@ -337,6 +356,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x10,
 	i8254_offset:	0x0c,
 	size:		0x14,
+	id:	0x80,
 	},
 	{
 	name:		"cio-das16/jr",	// cio-das16jr.pdf
@@ -350,6 +370,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x10,
+	id:	0x00,
 	},
 	{
 	name:		"pc104-das16jr",	// pc104-das16jr_xx.pdf
@@ -363,6 +384,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x10,
+	id:	0x00,
 	},
 	{
 	name:		"pc104-das16jr/16",	// pc104-das16jr_xx.pdf
@@ -376,6 +398,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x10,
+	id:	0x00,
 	},
 	{
 	name:		"das-1201",	// 4924.pdf (keithley user's manual)
@@ -389,6 +412,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0x20,
 	},
 	{
 	name:		"das-1202",	// 4924.pdf (keithley user's manual)
@@ -402,6 +426,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0x20,
 	},
 	{
 	name:		"das-1401",	// 4922.pdf (keithley user's manual)
@@ -415,6 +440,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"das-1402",	// 4922.pdf (keithley user's manual)
@@ -428,6 +454,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"das-1601",
@@ -442,6 +469,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"das-1602",
@@ -456,6 +484,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das1401/12",	// cio-das1400_series.pdf
@@ -469,6 +498,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das1402/12",	// cio-das1400_series.pdf
@@ -482,6 +512,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das1402/16",	// cio-das1400_series.pdf
@@ -495,6 +526,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das1601/12",	// cio-das160x-1x.pdf
@@ -509,6 +541,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das1602/12",	// cio-das160x-1x.pdf
@@ -523,6 +556,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das1602/16",	// cio-das160x-1x.pdf
@@ -537,6 +571,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0x400,
 	i8254_offset:	0x0c,
 	size:		0x408,
+	id:	0xc0
 	},
 	{
 	name:		"cio-das16/330",	// ?
@@ -550,6 +585,7 @@ static struct das16_board_struct das16_boards[]={
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
 	size:		0x14,
+	id:	0x00
 	},
 #if 0
 	{
@@ -1102,7 +1138,6 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 {
 	int status;
 	int diobits;
-	int board_index = thisboard - das16_boards;
 
 	/* status is available on all boards */
 
@@ -1124,48 +1159,13 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 
 	diobits = inb(dev->iobase + DAS16_DIO) & 0xf0;
 
-	printk(" diobits 0x%02x",diobits);
-	switch(diobits){
-	case 0x80:
-		printk(" das16\n");
-		if(board_index == das16_board_das16 ||
-			board_index == das16_board_das16g ||
-			board_index == das16_board_das16f)
-			return 0;
-		break;
-	case 0x00:
-		printk(" das16jr or das16/330\n");
-		if(board_index == das16_board_ciodas16jr ||
-			board_index == das16_board_ciodas16_330 ||
-			board_index == das16_board_pc104das16jr ||
-			board_index == das16_board_pc104das16jr_16)
-			return 0;
-		break;
-	case 0xC0:
-		printk(" das1600 or das1400\n");
-		if(board_index == das16_board_das1401 ||
-			board_index == das16_board_das1402 ||
-			board_index == das16_board_das1601 ||
-			board_index == das16_board_das1602 ||
-			board_index == das16_board_ciodas1601_12 ||
-			board_index == das16_board_ciodas1602_12 ||
-			board_index == das16_board_ciodas1602_16 ||
-			board_index == das16_board_ciodas1401_12 ||
-			board_index == das16_board_ciodas1402_12 ||
-			board_index == das16_board_ciodas1402_16)
-			return 0;
-		break;
-	case 0x20:
-		printk(" das1200\n");
-		if(board_index == das16_board_das1201 ||
-			board_index == das16_board_das1202)
-			return 0;
-		break;
-	default:
-		printk(" probe failed, unknown board?\n");
+	printk(" id bits are 0x%02x\n",diobits);
+	if(thisboard->id != diobits)
+	{
+		printk(" requested board's id bits are 0x%x\n", thisboard->id);
 		return -1;
 	}
-	return -1;
+	return 0;
 }
 
 static int das1600_mode_detect(comedi_device *dev)
@@ -1257,7 +1257,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	// probe id bits to make sure they are consistent
 	if(das16_probe(dev, it))
 	{
-		printk("id bits do not match selected board, aborting\n");
+		printk(" id bits do not match selected board, aborting\n");
 		return -EINVAL;
 	}
 	dev->board_name = thisboard->name;
