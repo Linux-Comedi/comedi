@@ -128,7 +128,7 @@ static int multiq3_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 		data[n] = ((hi << 8) | lo) & 0xfff;
 	}
 
-	return i;
+	return n;
 }
 
 static int multiq3_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
