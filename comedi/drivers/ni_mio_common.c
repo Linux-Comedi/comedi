@@ -2194,8 +2194,7 @@ struct caldac_struct{
 };
 
 static struct caldac_struct caldacs[] = {
-	//[mb88341] = { 12, 8, pack_mb88341 },
-	[mb88341] = { 16, 8, pack_mb88341 },
+	[mb88341] = { 12, 8, pack_mb88341 },
 	[dac8800] = { 8, 8, pack_dac8800 },
 	[dac8043] = { 1, 12, pack_dac8043 },
 	[ad8522]  = { 2, 12, pack_ad8522 },

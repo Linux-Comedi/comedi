@@ -400,7 +400,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
-		caldac:         {mb88341,mb88341,ad8522},
+		caldac:         {ad8804,mb88341,ad8522}, /* manual is wrong */
 	},
 	{       device_id:      0x14e0,
 		name:           "pci-6110e",
