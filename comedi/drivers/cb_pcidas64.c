@@ -2123,6 +2123,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	/* set mode, allow conversions through software gate */
 	priv(dev)->adc_control1_bits |= SW_GATE_BIT;
+	priv(dev)->adc_control1_bits &= ~ADC_DITHER_BIT;
 	if(board(dev)->layout != LAYOUT_4020)
 	{
 		priv(dev)->adc_control1_bits &= ~ADC_MODE_MASK;
