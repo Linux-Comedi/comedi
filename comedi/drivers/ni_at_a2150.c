@@ -75,6 +75,8 @@ TRIG_WAKE_EOS
 #define   CLOCK_SELECT_BITS(x)		(((x) & 0x3) << 3)
 #define   CLOCK_DIVISOR_BITS(x)		(((x) & 0x3) << 5)
 #define   CLOCK_MASK		(0xf << 3)
+#define   ENABLE0_BIT		0x80	// enable (don't internally ground) channels 0 and 1
+#define   ENABLE1_BIT		0x100	// enable (don't internally ground) channels 2 and 3
 #define   AC0_BIT		0x200	// ac couple channels 0,1
 #define   AC1_BIT		0x400	// ac couple channels 2,3
 #define   APD_BIT		0x800	// analog power down
@@ -91,6 +93,7 @@ TRIG_WAKE_EOS
 #define   FNE_BIT		0x1	// fifo not empty
 #define   OVFL_BIT		0x8	// fifo overflow
 #define   EDAQ_BIT		0x10	// end of aquisition interrupt
+#define   DCAL_BIT		0x20	// offset calibration in progress
 #define   INTR_BIT		0x40	// interrupt has occured
 #define   DMA_TC_BIT		0x80	// dma terminal count interrupt has occured
 #define   ID_BITS(x)	(((x) >> 8) & 0x3)
@@ -278,7 +281,7 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		/* write data point to comedi buffer */
 		dpnt = devpriv->dma_buffer[i];
 		// convert from 2's complement to unsigned coding
-		dpnt += 0x8000;
+		dpnt ^= 0x8000;
 		comedi_buf_put(async, dpnt);
 		if(cmd->stop_src == TRIG_COUNT)
 		{
@@ -319,6 +322,8 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	int iobase = it->options[0];
 	int irq = it->options[1];
 	int dma = it->options[2];
+	static const int timeout = 2000;
+	int i;
 
 	printk("comedi%d: %s: io 0x%x", dev->minor, driver_a2150.driver_name, iobase);
 	if(irq)
@@ -427,9 +432,25 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	// reset and sync adc clock circuitry
-	outw_p(APD_BIT, dev->iobase + CONFIG_REG);
+	outw_p(DPD_BIT | APD_BIT, dev->iobase + CONFIG_REG);
+	outw_p(DPD_BIT, dev->iobase + CONFIG_REG);
 	// initialize configuration register
 	devpriv->config_bits = 0;
+	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
+	// wait until offset calibration is done, then enable analog inputs
+	for(i = 0; i < timeout; i++)
+	{
+		if((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
+			break;
+		udelay(1000);
+	// probably should sleep instead of using udelay since wait is so long
+	}
+	if(i == timeout)
+	{
+		printk(" timed out waiting for offset calibration to complete\n");
+		return -ETIME;
+	}
+	devpriv->config_bits |= ENABLE0_BIT | ENABLE1_BIT;
 	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
 
 	return 0;
@@ -760,7 +781,7 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 			return -ETIME;
 		}
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
-		data[n] += 0x8000;
+		data[n] ^= 0x8000;
 	}
 
 	return n;
