@@ -201,10 +201,13 @@ struct plx_dma_desc
 #define  PLX_DMA_INTR_PCI_BIT	0x20000	// routes dma interrupt to pci bus (instead of local bus)
 
 #define PLX_DMA0_PCI_ADDRESS_REG	0x84	// pci address that dma transfers start at
+#define PLX_DMA1_PCI_ADDRESS_REG	0x98
 
 #define PLX_DMA0_LOCAL_ADDRESS_REG	0x88	// local address that dma transfers start at
+#define PLX_DMA1_LOCAL_ADDRESS_REG	0x9c
 
 #define PLX_DMA0_TRANSFER_SIZE_REG	0x8c	// number of bytes to transfer (first 23 bits)
+#define PLX_DMA1_TRANSFER_SIZE_REG	0xa0
 
 #define PLX_DMA0_DESCRIPTOR_REG	0x90	// descriptor pointer register
 #define PLX_DMA1_DESCRIPTOR_REG	0xa4
