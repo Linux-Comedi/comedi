@@ -120,7 +120,6 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	spin_lock_init(&dev->spinlock);
 	dev->minor=minor;
 	dev->use_count = use_count;
-
 	for(driv=comedi_drivers;driv;driv=driv->next){
 		if(!try_module_get( driv->module ))
 		{
@@ -480,14 +479,18 @@ unsigned int comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
 
 	if( s->munge == NULL || ( s->async->cmd.flags & CMDF_RAWDATA ) )
 		return count;
-
 	/* don't munge partial samples */
 	num_bytes -= num_bytes % bytes_per_sample(s);
 	while( count < num_bytes )
 	{
-		unsigned int block_size;
+		int block_size;
 
 		block_size = num_bytes - count;
+		if(block_size < 0)
+		{
+			rt_printk("%s: %s: bug! block_size is negative\n", __FILE__, __FUNCTION__);
+			break;
+		}
 		if( (int)(s->async->munge_ptr + block_size - s->async->prealloc_bufsz) > 0 )
 			block_size = s->async->prealloc_bufsz - s->async->munge_ptr;
 

@@ -1504,8 +1504,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 			schedule();
 			continue;
 		}
-
-		comedi_buf_munge(dev, s, n);
+		comedi_buf_munge(dev, s, async->buf_write_count - async->munge_count);
 		m = copy_to_user(buf, async->prealloc_buf +
 			async->buf_read_ptr, n);
 		if(m){
