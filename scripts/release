@@ -26,12 +26,10 @@ echo "tagging $tag"
 cvs rtag $tag comedi
 
 echo "exporting"
-cvs export -r $tag comedi
+cvs export -r $tag -d comedi-$version comedi
 
 echo "generating patch"
-cvs rdiff -u -r $lasttag -r $tag comedi >../patch-comedi-$version
-
-mv comedi comedi-$version
+cvs rdiff -u -r $lasttag -r $tag comedi >patch-comedi-$version
 
 cd comedi-$version
 
