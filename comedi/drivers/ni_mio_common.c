@@ -190,31 +190,6 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 #define AIMODE_SCAN		2
 #define AIMODE_SAMPLE		3
 
-#ifdef CONFIG_COMEDI_RT
-
-#define RTirqmask_AI 1
-#define RTirqmask_AO 2
-
-static int ni_ai_lock(comedi_device *dev,comedi_subdevice *s)
-{
-	comedi_change_irq_flags(dev->irq,dev,NI_E_IRQ_FLAGS | SA_PRIORITY );
-
-	return 0;
-}
-
-static int ni_ai_unlock(comedi_device *dev,comedi_subdevice *s)
-{
-	comedi_change_irq_flags(dev->irq,dev,NI_E_IRQ_FLAGS );
-
-	return 0;
-}
-
-#else
-
-#define ni_ai_lock NULL
-#define ni_ai_unlock NULL
-
-#endif
 
 static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
@@ -1665,8 +1640,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->do_cmdtest=ni_ai_cmdtest;
 	s->do_cmd=ni_ai_cmd;
 	s->cancel=ni_ai_reset;
-	s->do_lock=ni_ai_lock;
-	s->do_unlock=ni_ai_unlock;
 	
 	/* analog output subdevice */
 	/* XXX what about boards without ao? */

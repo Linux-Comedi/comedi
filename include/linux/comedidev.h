@@ -36,10 +36,6 @@
 
 #include "kern_compat.h"
 
-#ifdef CONFIG_COMEDI_RT
-#include <comedi_rt.h>
-#endif
-
 #ifdef CONFIG_COMEDI_DEBUG
 #define DPRINTK(format, args...)	printk("comedi: " format , ## args )
 #else
@@ -146,6 +142,8 @@ struct comedi_device_struct{
 	int board;
 	void *board_ptr;
 	int attached;
+	int rt;
+	spinlock_t spinlock;
 
 	int n_subdevices;
 	comedi_subdevice *subdevices;
@@ -171,6 +169,7 @@ extern comedi_device *comedi_devices;
  * function prototypes
  */
 
+void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
 void comedi_error(comedi_device *dev,const char *s);
 void comedi_done(comedi_device *dev,comedi_subdevice *s);
 void comedi_error_done(comedi_device *dev,comedi_subdevice *s);
@@ -282,6 +281,10 @@ static inline int alloc_private(comedi_device *dev,int size)
 
 #ifdef LINUX_V20
 extern struct symbol_table comedi_syms;
+#endif
+
+#ifdef CONFIG_COMEDI_RT
+#include <comedi_rt.h>
 #endif
 
 

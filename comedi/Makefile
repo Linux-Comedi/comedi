@@ -36,18 +36,6 @@ ifeq ($(CONFIG_COMEDI_RT),y)
 MI_OBJS += rt.o
 endif
 
-ifeq ($(CONFIG_COMEDI_RTL),y)
-MI_OBJS += rtl.o
-endif
-
-ifeq ($(CONFIG_COMEDI_RTAI),y)
-MI_OBJS += rtai.o
-endif
-
-ifeq ($(CONFIG_COMEDI_RTL_V1),y)
-MI_OBJS += rtl_v1.o
-endif
-
 
 
 include $(TOPDIR)/Rules.make

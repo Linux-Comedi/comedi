@@ -252,6 +252,9 @@ static boardtype boardtypes[] =
 	  0x0a, 0xfff, 0xfff, 1024, 2, 0 },
 	{"pcl718",    1, 16, 8, 16000, 2, 16, 16, &range_unipolar5,    &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
 	  0x0a, 0xfff, 0xfff, 1024, 2, 0 },
+	/* pcm3718 */
+	{"pcm3718",   9, 16, 8, 10000, 0, 16, 16, &range_pcl818h_ai,   &range_unipolar5, PCLx1x_RANGE, 0x00fc, 
+	  0x0a, 0xfff, 0xfff, 1024, 0, 0 },
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))

@@ -30,80 +30,35 @@
 #include <linux/config.h>
 #include <linux/malloc.h>
 #include <linux/errno.h>
-#include <linux/comedi.h>
+#include <linux/comedidev.h>
 
-
-#include <kern_compat.h>
-
-
-struct comedi_irq_struct{
-	struct comedi_irq_struct *next;
-
-	int irq;
-	void *dev_id;
-	unsigned long flags;
-	void (*handler)(int,void *,struct pt_regs *);
-	const char *device;
-};
-
-int get_priority_irq(struct comedi_irq_struct *);
-int free_priority_irq(struct comedi_irq_struct *);
-struct comedi_irq_struct * get_irq_struct(unsigned int);
-
-#ifndef SA_PRIORITY
-#define SA_PRIORITY 0x08000000
-#endif
-
-#ifdef CONFIG_COMEDI_RTL
-void comedi_rtl_init(void);
-void comedi_rtl_cleanup(void);
-#define comedi_rt_init		comedi_rtl_init
-#define comedi_rt_cleanup	comedi_rtl_cleanup
-
-#include <rtl_printf.h>
-
-#define NEED_RT_PEND_TQ
-#endif
+#ifdef CONFIG_COMEDI_RT
 
 #ifdef CONFIG_COMEDI_RTAI
-void comedi_rtai_init(void);
-void comedi_rtai_cleanup(void);
-#define comedi_rt_init		comedi_rtai_init
-#define comedi_rt_cleanup	comedi_rtai_cleanup
-
-#define NEED_RT_PEND_TQ
-#define NEED_RT_PRINTK
-#endif
-
-#ifdef CONFIG_COMEDI_RTL_V1
-void comedi_rtl_v1_init(void);
-void comedi_rtl_v1_cleanup(void);
-#define comedi_rt_init		comedi_rtl_v1_init
-#define comedi_rt_cleanup	comedi_rtl_v1_cleanup
-
-/* we do not have sort IRQs (unless my v1 patch is used) T.M. */
-
-#define NEED_RT_PRINTK
-#endif
-
-#ifdef NEED_RT_PEND_TQ
-#include <rt_pend_tq.h>
-extern void wake_up_int_handler(int arg1, void * arg2);
-#endif
-
-#ifdef NEED_RT_PRINTK
-#define rt_printk(format,args...)	printk(format,##args)
-#define rt_printk_init()		
-#define rt_printk_cleanup()		
+#include <rtai/rtai.h>
 #endif
 
 int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,
 	struct pt_regs *regs),unsigned long flags,const char *device,
 	void *dev_id);
-int comedi_change_irq_flags(unsigned int irq,void *dev_id,
-	unsigned long new_flags);
 void comedi_free_irq(unsigned int irq,void *dev_id);
+void comedi_rt_init(void);
+void comedi_rt_cleanup(void);
+void comedi_switch_to_rt(comedi_device *dev);
+void comedi_switch_to_non_rt(comedi_device *dev);
+void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 
+#else
+
+#define comedi_request_irq(a,b,c,d,e) request_irq(a,b,c,d,e)
+#define comedi_free_irq(a,b) free_irq(a,b)
+#define comedi_rt_init() do{}while(0)
+#define comedi_rt_cleanup() do{}while(0)
+#define comedi_swtich_to_rt(a) do{}while(0)
+#define comedi_swtich_to_non_rt(a) do{}while(0)
+#define comedi_rt_pend_wakeup(a) do{}while(0)
+
+#endif
 
 #endif
 

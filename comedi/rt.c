@@ -33,11 +33,43 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/malloc.h>
+#include <linux/irq.h>
 #include <asm/io.h>
 
+#ifdef CONFIG_COMEDI_RTAI
+#include <rtai/rtai.h>
+
+#define RT_protect()	hard_cli()
+#define RT_unprotect()	hard_sti()
+#define RT_spin_lock_irq(x)	rt_spin_lock_irq(x)
+#define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
+#endif
+
+#ifdef CONFIG_COMEDI_RTLINUX
+#include <rtl_core.h>
+
+#define RT_protect()	rtl_make_rt_system_active()
+#define RT_unprotect()	rtl_make_rt_system_idle()
+#define RT_spin_lock_irq(x)	rt_spin_lock_irq(x)
+#define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
+#endif
 
 
-static struct comedi_irq_struct *comedi_irqs;
+struct comedi_irq_struct {
+	int rt;
+	int irq;
+	void (*handler)(int irq,void *dev_id,struct pt_regs *regs);
+	unsigned long flags;
+	const char *device;
+	void *dev_id;
+};
+
+static int rt_get_irq(struct comedi_irq_struct *it);
+static int rt_release_irq(struct comedi_irq_struct *it);
+
+
+static struct comedi_irq_struct *comedi_irqs[NR_IRQS];
+
 
 int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *),
 		unsigned long flags,const char *device,void *dev_id)
@@ -55,81 +87,70 @@ int comedi_request_irq(unsigned irq,void (*handler)(int, void *,struct pt_regs *
 	it->flags=flags;
 	it->device=device;
 
-	ret=request_irq(irq,handler,flags&~SA_PRIORITY,device,dev_id);
+	ret=request_irq(irq,handler,flags,device,dev_id);
 	if(ret<0){
 		kfree(it);
 		return ret;
 	}
 
-	if(flags&SA_PRIORITY){
-		get_priority_irq(it);
-	}
-
-	it->next=comedi_irqs;
-	comedi_irqs=it;
+	comedi_irqs[irq]=it;
 
 	return 0;
 }
 
-int comedi_change_irq_flags(unsigned int irq,void *dev_id,unsigned long flags)
-{
-	struct comedi_irq_struct *it;
-	int ret;
-
-	it=get_irq_struct(irq);
-	if(it){
-		if((it->flags&~SA_PRIORITY)!=(flags&~SA_PRIORITY))
-			return -EINVAL;
-
-		if((it->flags&SA_PRIORITY)==(flags&SA_PRIORITY))
-			return 0;
-
-		it->flags=flags;
-		if(flags&SA_PRIORITY){
-			free_irq(it->irq,it->dev_id);
-			return get_priority_irq(it);
-		}else{
-			ret=free_priority_irq(it);
-			request_irq(it->irq,it->handler,it->flags,it->device,it->dev_id);
-			return ret;
-		}
-	}
-
-	return -EINVAL;
-}
-
 void comedi_free_irq(unsigned int irq,void *dev_id)
 {
-	struct comedi_irq_struct *it,*prev;
+	struct comedi_irq_struct *it;
 
-	prev=NULL;
-	for(it=comedi_irqs;it;it=it->next){
-		if(it->irq==irq){
-			break;
-		}
-		prev=it;
+	it=comedi_irqs[irq];
+	if(!it)return;
+
+	comedi_irqs[irq]=NULL;
+
+	if(it->rt){
+		printk("BUG! \n");
+		rt_release_irq(it);
 	}
-	if(it->flags&SA_PRIORITY)
-		free_priority_irq(it);
 
 	free_irq(it->irq,it->dev_id);
-
-	if(prev) prev->next=it->next;
-	else comedi_irqs=it->next;
 
 	kfree(it);
 }
 
-struct comedi_irq_struct *get_irq_struct(unsigned int irq)
+void comedi_switch_to_rt(comedi_device *dev)
 {
-	struct comedi_irq_struct *it;
+	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
-	for(it=comedi_irqs;it;it=it->next){
-		if(it->irq==irq){
-			return it;
-		}
-	}
-	return NULL;
+	spin_lock_irq(&dev->spinlock);
+	RT_protect();
+	sti();
+
+	if(!dev->rt)
+		rt_get_irq(it);
+
+	dev->rt++;
+	it->rt=1;
+	spin_unlock(&dev->spinlock);
+	RT_unprotect();
+}
+
+void comedi_switch_to_non_rt(comedi_device *dev)
+{
+	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
+
+	RT_spin_lock_irq(&dev->spinlock);
+
+	dev->rt--;
+	if(!dev->rt)
+		rt_release_irq(it);
+
+	it->rt=0;
+	RT_spin_unlock_irq(&dev->spinlock);
+}
+
+void comedi_rt_pend_wakeup(wait_queue_head_t *q)
+{
+
 }
 
 #ifdef HAVE_RT_PEND_TQ
@@ -138,3 +159,115 @@ void wake_up_int_handler(int arg1, void * arg2)
 	wake_up_interruptible((wait_queue_head_t*)arg2);
 }
 #endif
+
+
+/* RTAI section */
+#ifdef CONFIG_COMEDI_RTAI
+
+#define DECLARE_VOID_IRQ(irq) \
+static void handle_void_irq_ ## irq (void){ handle_void_irq(irq);}
+
+static inline void handle_void_irq(int irq)
+{
+	struct comedi_irq_struct *it=comedi_irqs[irq];
+	it->handler(irq,it->dev_id,NULL);
+	rt_unmask_irq(irq);
+}
+
+DECLARE_VOID_IRQ(0);
+DECLARE_VOID_IRQ(1);
+DECLARE_VOID_IRQ(2);
+DECLARE_VOID_IRQ(3);
+DECLARE_VOID_IRQ(4);
+DECLARE_VOID_IRQ(5);
+DECLARE_VOID_IRQ(6);
+DECLARE_VOID_IRQ(7);
+DECLARE_VOID_IRQ(8);
+DECLARE_VOID_IRQ(9);
+DECLARE_VOID_IRQ(10);
+DECLARE_VOID_IRQ(11);
+DECLARE_VOID_IRQ(12);
+DECLARE_VOID_IRQ(13);
+DECLARE_VOID_IRQ(14);
+DECLARE_VOID_IRQ(15);
+DECLARE_VOID_IRQ(16);
+DECLARE_VOID_IRQ(17);
+DECLARE_VOID_IRQ(18);
+DECLARE_VOID_IRQ(19);
+DECLARE_VOID_IRQ(20);
+DECLARE_VOID_IRQ(21);
+DECLARE_VOID_IRQ(22);
+DECLARE_VOID_IRQ(23);
+
+typedef void (*V_FP_V)(void);
+static V_FP_V handle_void_irq_ptrs[]={
+	handle_void_irq_0,
+	handle_void_irq_1,
+	handle_void_irq_2,
+	handle_void_irq_3,
+	handle_void_irq_4,
+	handle_void_irq_5,
+	handle_void_irq_6,
+	handle_void_irq_7,
+	handle_void_irq_8,
+	handle_void_irq_9,
+	handle_void_irq_10,
+	handle_void_irq_11,
+	handle_void_irq_12,
+	handle_void_irq_13,
+	handle_void_irq_14,
+	handle_void_irq_15,
+	handle_void_irq_16,
+	handle_void_irq_17,
+	handle_void_irq_18,
+	handle_void_irq_19,
+	handle_void_irq_20,
+	handle_void_irq_21,
+	handle_void_irq_22,
+	handle_void_irq_23,
+};
+/* if you need more, fix it yourself... */
+
+static int rt_get_irq(struct comedi_irq_struct *it)
+{
+	rt_request_global_irq(it->irq,handle_void_irq_ptrs[it->irq]);
+	rt_startup_irq(it->irq);
+	
+	return 0;
+}
+
+static int rt_release_irq(struct comedi_irq_struct *it)
+{
+	rt_free_global_irq(it->irq);
+	return 0;
+}
+
+
+#endif
+
+
+/* RTLinux section */
+#ifdef CONFIG_COMEDI_RTLINUX
+
+static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
+{
+	struct comedi_irq_struct *it=comedi_irqs[irq];
+	it->handler(irq,it->dev_id,regs);
+	rtl_hard_enable_irq(irq);
+}
+
+static int rt_get_irq(struct comedi_irq_struct *it)
+{
+	rtl_request_global_irq(it->irq,handle_rtl_irq);
+	return 0;
+}
+
+static int rt_release_irq(struct comedi_irq_struct *it)
+{
+	rtl_free_global_irq(it->irq);
+	return 0;
+}
+
+#endif
+
+

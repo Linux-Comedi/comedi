@@ -21,15 +21,9 @@ verify 2.0.x operation
 
 develop 8253 and Am9513 code
 
-increase mod use count for RT
-
 different error code for board error vs buffer overflow
 
 change _recognize to const char *
-
-implement poll/select
-
-fix mmap
 
 ni_mio_common: gpct code broken
 

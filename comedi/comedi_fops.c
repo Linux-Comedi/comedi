@@ -43,6 +43,7 @@
 #if LINUX_VERSION_CODE >= 0x020100
 #include <linux/poll.h>
 #endif
+#include <kvmem.h>
 
 comedi_device *comedi_devices;
 
@@ -550,12 +551,6 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	}
 
 	s->runflags=SRF_USER;
-#ifdef CONFIG_COMEDI_RT
-	if(s->cur_trig.flags & TRIG_RT){
-		s->runflags|=SRF_RT;
-		// FIXME: TM move device to rt
-	}
-#endif
 
 	s->subdev_flags|=SDF_RUNNING;
 
@@ -848,14 +843,13 @@ if(s->subdev_flags & SDF_READABLE){
 	}
 
 	s->runflags=SRF_USER;
-#ifdef CONFIG_COMEDI_RT
-	if(s->cmd.flags & TRIG_RT){
-		s->runflags|=SRF_RT;
-		// move device to rt
-	}
-#endif
 
 	s->subdev_flags|=SDF_RUNNING;
+
+	if(s->cmd.flags&TRIG_RT){
+		comedi_switch_to_rt(dev);
+		s->runflags |= SRF_RT;
+	}
 
 	ret=s->do_cmd(dev,s);
 	
@@ -1109,75 +1103,56 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 }
 
 #ifdef LINUX_V22
+static void comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y);
+
+static struct vm_operations_struct comedi_vm_ops={
+	unmap:		comedi_unmap,
+};
+
 /*
    comedi_mmap_v22
 
-   mmap issues:
-   	- mmap has issues with lock and busy
-	- mmap has issues with reference counting
-	- RT issues?
-
-   unmapping:
-   	vm_ops->unmap()
-	- this needs to call comedi_cancel, or whatever.
+   issues:
+      what happens when the underlying buffer gets changed?
+      
  */
 static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 {
 	kdev_t minor=MINOR(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
 	comedi_subdevice *s;
-	int size;
-	unsigned long offset;
+	int subdev;
 
-#if LINUX_VERSION_CODE < 0x020300
-	offset=vma->vm_offset;
-#else
-	offset=0;	/* XXX */
-#endif
-	if(offset >= dev->n_subdevices)
-		return -EIO;
-	s=dev->subdevices+offset;
-
-	if((vma->vm_flags & VM_WRITE) && !(s->subdev_flags & SDF_WRITEABLE))
+	if(vma->vm_flags & VM_WRITE){
+		subdev=dev->write_subdev;
+	}else{
+		subdev=dev->read_subdev;
+	}
+	if(subdev<0){
 		return -EINVAL;
+	}
+	s=dev->subdevices+subdev;
 
-	if((vma->vm_flags & VM_READ) && !(s->subdev_flags & SDF_READABLE))
+	if(vma->vm_pgoff != 0){
+		DPRINTK("comedi: mmap() offset must be 0.\n");
 		return -EINVAL;
+	}
 
-	size = vma->vm_end - vma->vm_start;
-	if(size>(1<<16))
-		return -EINVAL;
-
-	if(remap_page_range(vma->vm_start, virt_to_phys(s->prealloc_buf),
-		size,vma->vm_page_prot))
-		return -EAGAIN;
+	rvmmap(s->prealloc_buf,s->prealloc_bufsz,vma);
 	
-	vma->vm_file=file;
-#if 0
-	file->f_count++;
-#else
+	vma->vm_file = file;
+	vma->vm_ops = &comedi_vm_ops;
 	file_atomic_inc(&file->f_count);
-#endif
 
-	/* mark subdev as mapped */
+	/* XXX mark subdev as mapped */
 	
-	/* call subdev about mmap, if necessary */
-printk("mmap done\n");
-
 	return 0;
 }
 
-#if 0
-/*
-   I can't find a driver that notices when it gets unmapped.
- */
-static void *comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
+static void comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
 {
 	printk("comedi unmap\n");
-
-	return NULL;
 }
-#endif
 
 #endif
 
@@ -1186,7 +1161,7 @@ static void *comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
 static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 {
 	comedi_device *dev;
-	//comedi_subdevice *s;
+	comedi_subdevice *s;
 	unsigned int mask;
 
 	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
@@ -1194,11 +1169,16 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 	mask = 0;
-/* XXX incomplete */
-	if(0)
-		mask |= POLLIN | POLLRDNORM;
-	if(0)
-		mask |= POLLOUT | POLLWRNORM;
+	if(dev->read_subdev>=0){
+		s=dev->subdevices+dev->read_subdev;
+		if(s->buf_user_count < s->buf_int_count)
+			mask |= POLLIN | POLLRDNORM;
+	}
+	if(dev->write_subdev>=0){
+		s=dev->subdevices+dev->write_subdev;
+		if(s->buf_user_count < s->buf_int_count + s->prealloc_bufsz)
+			mask |= POLLOUT | POLLWRNORM;
+	}
 
 	return mask;
 }
@@ -1405,11 +1385,10 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	/* we do this because it's useful for the non-standard cases */
 	s->subdev_flags &= ~SDF_RUNNING;
 
-#ifdef CONFIG_COMEDI_RT
 	if(s->runflags&SRF_RT){
-		// FIXME: TM move device out of rt
+		comedi_switch_to_non_rt(dev);
+		s->runflags &= ~SRF_RT;
 	}
-#endif
 
 	if(s->cur_trig.chanlist){		/* XXX wrong? */
 		kfree(s->cur_trig.chanlist);
@@ -1574,6 +1553,9 @@ static struct file_operations comedi_fops={
 #define comedi_open_v22 comedi_fop_open
 
 static struct file_operations comedi_fops={
+#if LINUX_VERSION_CODE >= 0x020400
+	owner		: THIS_MODULE,
+#endif
 	llseek		: comedi_lseek_v22,
 	ioctl		: comedi_ioctl_v22,
 	open		: comedi_open_v22,
@@ -1614,7 +1596,7 @@ int comedi_init(void)
 	comedi_proc_init();
 	
 #ifdef CONFIG_COMEDI_RT
-	comedi_rt_init();
+//	comedi_rt_init();
 #endif
 	init_drivers();
 
@@ -1644,7 +1626,7 @@ void comedi_cleanup(void)
 	kfree(comedi_devices);
 
 #ifdef CONFIG_COMEDI_RT
-	comedi_rt_cleanup();
+//	comedi_rt_cleanup();
 #endif
 
 }
@@ -1670,20 +1652,31 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 {
 	if(s->cb_mask&mask){
 		if(s->runflags&SRF_USER){
-			if(s->runflags&SRF_RT){
+			unsigned int subdev;
+
+			subdev = s - dev->subdevices;
+			if(dev->rt){
 				// pend wake up
+				if(subdev==dev->read_subdev)
+					comedi_rt_pend_wakeup(&dev->read_wait);
+				if(subdev==dev->write_subdev)
+					comedi_rt_pend_wakeup(&dev->write_wait);
 			}else{
-				unsigned int subdev;
-
-				subdev = s - dev->subdevices;
-
 				if(subdev==dev->read_subdev)
 					wake_up_interruptible(&dev->read_wait);
 				if(subdev==dev->write_subdev)
 					wake_up_interruptible(&dev->write_wait);
 			}
 		}else{
-			s->cb_func(mask,s->cb_arg);
+			if(s->runflags&SRF_RT){
+				s->cb_func(mask,s->cb_arg);
+			}else{
+			/* XXX bug here.  If subdevice A is rt, and
+			 * subdevice B tries to callback to a normal
+			 * linux kernel function, it will be at the
+			 * wrong priority.  Since this isn't very
+			 * common, I'm not going to worry about it. */
+			}
 		}
 	}
 	
