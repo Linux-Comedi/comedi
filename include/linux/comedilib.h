@@ -61,6 +61,8 @@ int comedi_cancel(unsigned int minor,unsigned int subdev);
 int comedi_register_callback(unsigned int minor,unsigned int subdev,
 		unsigned int mask,int (*cb)(unsigned int,void *),void *arg);
 
+int comedi_command(unsigned int minor,comedi_cmd *cmd);
+int comedi_command_test(unsigned int minor,comedi_cmd *cmd);
 int comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it);
 int __comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it);
 int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
