@@ -63,8 +63,8 @@ static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
 	void *data, unsigned int num_bytes );
 
-#undef HPDI_DEBUG	// disable debugging messages
-//#define HPDI_DEBUG	// enable debugging code
+//#undef HPDI_DEBUG	// disable debugging messages
+#define HPDI_DEBUG	// enable debugging code
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
@@ -73,8 +73,8 @@ static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
 #endif
 
 #define TIMER_BASE 50	// 20MHz master clock
-#define DMA_BUFFER_SIZE 0x1000
-#define NUM_DMA_BUFFERS 64
+#define DMA_BUFFER_SIZE 0x10000
+#define NUM_DMA_BUFFERS 4
 #define NUM_DMA_DESCRIPTORS 256
 
 // indices of base address regions
@@ -432,7 +432,8 @@ static int setup_subdevices(comedi_device *dev)
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
-	dev->read_subdev = dev->write_subdev = s;
+	dev->read_subdev = s;
+/*	dev->write_subdev = s; */
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL;
 	s->n_chan = 32;
@@ -474,50 +475,42 @@ static int setup_dma_descriptors( comedi_device *dev, unsigned int transfer_size
 	uint32_t next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
 		PLX_XFER_LOCAL_TO_PCI;
 	unsigned int i;
-	int remainder;
 
+	if( transfer_size > DMA_BUFFER_SIZE )
+		transfer_size = DMA_BUFFER_SIZE;
 	transfer_size -= transfer_size % sizeof( uint32_t );
-
 	if( transfer_size == 0 ) return -1;
 
 	buffer_offset = 0;
-	remainder = transfer_size;
-	for( i = 0, buffer_index = 0; i < NUM_DMA_DESCRIPTORS &&
+	buffer_index = 0;
+	for( i = 0; i < NUM_DMA_DESCRIPTORS &&
 		buffer_index < NUM_DMA_BUFFERS; i++ )
 	{
-		unsigned int size;
-
-		size = remainder;
-		if( size + buffer_offset > DMA_BUFFER_SIZE )
-			size = DMA_BUFFER_SIZE - buffer_offset;
-		remainder -= size;
-		if( remainder == 0 )
-			remainder = transfer_size;
-		else if( remainder < 0 )
+		if( transfer_size + buffer_offset > DMA_BUFFER_SIZE )
 		{
-			rt_printk( "gsc_hpdi: bug! negative remainder\n" );
-			return -1;
+			buffer_offset = 0;
+			buffer_index++;
 		}
 
 		priv(dev)->dma_desc[ i ].pci_start_addr = priv(dev)->dio_buffer_phys_addr[ buffer_index ] +
 			buffer_offset;
 		priv(dev)->dma_desc[ i ].local_start_addr = FIFO_REG;
-		priv(dev)->dma_desc[ i ].transfer_size = size;
+		priv(dev)->dma_desc[ i ].transfer_size = transfer_size;
 		priv(dev)->dma_desc[ i ].next = ( priv(dev)->dma_desc_phys_addr +
 			( i + 1 ) * sizeof( priv(dev)->dma_desc[ 0 ] ) ) | next_bits;
 
 		priv(dev)->desc_dio_buffer[ i ] = priv(dev)->dio_buffer[ buffer_index ] +
 			( buffer_offset / sizeof( uint32_t ) );
 
-		buffer_offset += size;
-		if( buffer_offset >= DMA_BUFFER_SIZE )
-			buffer_index++;
-		buffer_offset %= DMA_BUFFER_SIZE;
+		buffer_offset += transfer_size;
 	}
-	priv(dev)->num_dma_descriptors = i - 1;
+	priv(dev)->num_dma_descriptors = i;
 	// fix last descriptor to point back to first
-	priv(dev)->dma_desc[ priv(dev)->num_dma_descriptors ].next =
+	priv(dev)->dma_desc[ i - 1 ].next =
 		priv(dev)->dma_desc_phys_addr | next_bits;
+
+	priv(dev)->block_size = transfer_size;
+	
 	return transfer_size;
 }
 
@@ -614,7 +607,9 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	priv(dev)->dma_desc = pci_alloc_consistent( priv(dev)->hw_dev,
 		sizeof( struct plx_dma_desc ) * NUM_DMA_DESCRIPTORS,
 		&priv(dev)->dma_desc_phys_addr);
-	setup_dma_descriptors( dev, DMA_BUFFER_SIZE );
+	retval = setup_dma_descriptors( dev, 0x1000 );
+	if( retval < 0 )
+		return retval;
 
 	retval = setup_subdevices( dev );
 	if( retval < 0 )
@@ -670,11 +665,10 @@ static int dio_config_block_size( comedi_device *dev, lsampl_t *data )
 
 	requested_block_size = data[ 1 ];
 
-	priv(dev)->block_size = requested_block_size - ( requested_block_size % sizeof( uint32_t ) );
-	retval = setup_dma_descriptors( dev, priv(dev)->block_size );
+	retval = setup_dma_descriptors( dev, requested_block_size );
 	if( retval < 0 ) return retval;
 
-	data[ 1 ] = priv(dev)->block_size;
+	data[ 1 ] = retval;
 
 	return 2;
 }
@@ -979,9 +973,7 @@ static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
 
 	retval = cfc_write_array_to_buffer( s, data, num_bytes );
 	priv(dev)->block_progress += retval;
-	if( priv(dev)->block_progress >= priv(dev)->block_size )
-		s->async->events |= COMEDI_CB_BLOCK;
-	else
+	if( priv(dev)->block_progress < priv(dev)->block_size )
 		s->async->events &= ~COMEDI_CB_BLOCK;
 	priv(dev)->block_progress %= priv(dev)->block_size;
 
