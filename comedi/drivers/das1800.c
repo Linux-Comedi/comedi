@@ -193,7 +193,7 @@ static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
 static int das1800_ai_poll(comedi_device *dev,comedi_subdevice *s);
 static void das1800_ai_handler(comedi_device *dev);
-static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s);
+static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s, unsigned int status);
 static void das1800_flush_dma(comedi_device *dev, comedi_subdevice *s);
 static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, unsigned int channel, u16 *buffer);
 static void das1800_handle_fifo_half_full(comedi_device *dev, comedi_subdevice *s);
@@ -926,13 +926,8 @@ static void das1800_ai_handler(comedi_device *dev)
 	// dma buffer full
 	if(devpriv->irq_dma_bits & DMA_ENABLED)
 	{
-		if(status & DMATC)
-		{
-			// clear DMATC interrupt bit
-			outb(CLEAR_INTR_MASK & ~DMATC, dev->iobase + DAS1800_STATUS);
-		}
 		// look for data from dma transfer even if dma terminal count hasn't happened yet
-		das1800_handle_dma(dev, s);
+		das1800_handle_dma(dev, s, status);
 	}else if(status & FHF)
 	{	// if fifo half full
 		das1800_handle_fifo_half_full(dev, s);
@@ -978,7 +973,7 @@ static void das1800_ai_handler(comedi_device *dev)
 	return;
 }
 
-static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
+static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s, unsigned int status)
 {
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
@@ -991,26 +986,32 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 	enable_dma(devpriv->dma_current);
 	release_dma_lock(flags);
 
-	if(dual_dma)
+	if(status & DMATC)
 	{
-		// read data from the other channel next time
-		if(devpriv->dma_current == devpriv->dma0)
+		// clear DMATC interrupt bit
+		outb(CLEAR_INTR_MASK & ~DMATC, dev->iobase + DAS1800_STATUS);
+		// switch dma channels for next time, if appropriate
+		if(dual_dma)
 		{
-			devpriv->dma_current = devpriv->dma1;
-			devpriv->dma_current_buf = devpriv->dma_buf1;
-		}
-		else
-		{
-			devpriv->dma_current = devpriv->dma0;
-			devpriv->dma_current_buf = devpriv->dma_buf0;
+			// read data from the other channel next time
+			if(devpriv->dma_current == devpriv->dma0)
+			{
+				devpriv->dma_current = devpriv->dma1;
+				devpriv->dma_current_buf = devpriv->dma_buf1;
+			}
+			else
+			{
+				devpriv->dma_current = devpriv->dma0;
+				devpriv->dma_current_buf = devpriv->dma_buf0;
+			}
 		}
 	}
 
 	return;
 }
 
-/* utility function used by das1800_flush_dma() and das1800_handle_dma()
- * assumes dma lock is held */
+/* Utility function used by das1800_flush_dma() and das1800_handle_dma().
+ * Assumes dma lock is held */
 static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, unsigned int channel, u16 *buffer)
 {
 	unsigned int numPoints;
