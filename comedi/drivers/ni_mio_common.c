@@ -252,9 +252,7 @@ static int ni_ai_drain_dma(comedi_device *dev );
 
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to
 * share registers (such as Interrupt_A_Register) without interfering with
-* each other.  Use comedi_spin_lock_irqsave() and comedi_spin_unlock_irqrestore()
-* if you use this to modify the interrupt enable registers...which are sometimes
-* changed in ISRs
+* each other.  
 *
 * NOTE: the switch/case statements are optimized out for a constant argument
 * so this is actually quite fast---  If you must wrap another function around this
@@ -264,12 +262,16 @@ static int ni_ai_drain_dma(comedi_device *dev );
 */
 static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 {
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	switch (reg){
 		case Interrupt_A_Enable_Register:
 			if(value)
 				devpriv->int_a_enable_reg |= bits;
 			else
 				devpriv->int_a_enable_reg &= ~bits;
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 			win_out(devpriv->int_a_enable_reg,Interrupt_A_Enable_Register);
 			break;
 		case Interrupt_B_Enable_Register:
@@ -277,6 +279,7 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 				devpriv->int_b_enable_reg |= bits;
 			else
 				devpriv->int_b_enable_reg &= ~bits;
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 			win_out(devpriv->int_b_enable_reg,Interrupt_B_Enable_Register);
 			break;
 		case IO_Bidirection_Pin_Register:
@@ -284,11 +287,13 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 				devpriv->io_bidirection_pin_reg |= bits;
 			else
 				devpriv->io_bidirection_pin_reg &= ~bits;
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 			win_out(devpriv->io_bidirection_pin_reg,IO_Bidirection_Pin_Register);
 			break;
 		default:
 			printk("Warning ni_set_bits() called with invalid arguments\n");
 			printk("reg is %d\n",reg);
+			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 			break;
 	}
 }
@@ -3184,13 +3189,9 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 
 	switch (chan) {
 		case 0:
-			//note: I need to share the soft copies of the Enable Register with the ISRs.
-			// so I'm using comedi_spin_lock_irqsave() to guard this section of code
 			win_out(G0_Reset,Joint_Reset_Register);
-			//comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
 			ni_set_bits(dev,Interrupt_A_Enable_Register,G0_TC_Interrupt_Enable,  0);
 			ni_set_bits(dev,Interrupt_A_Enable_Register,G0_Gate_Interrupt_Enable,0);
-			//comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
 			temp_ack_reg |= G0_Gate_Error_Confirm;
 			temp_ack_reg |= G0_TC_Error_Confirm;
 			temp_ack_reg |= G0_TC_Interrupt_Ack;
@@ -3203,10 +3204,8 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 			break;
 		case 1:
 			win_out(G1_Reset,Joint_Reset_Register);
-			//comedi_spin_lock_irqsave(&dev->spinlock, irqflags);
 			ni_set_bits(dev,Interrupt_B_Enable_Register,G1_TC_Interrupt_Enable,  0);
 			ni_set_bits(dev,Interrupt_B_Enable_Register,G0_Gate_Interrupt_Enable,0);
-			//comedi_spin_unlock_irqrestore(&dev->spinlock, irqflags);
 			temp_ack_reg |= G1_Gate_Error_Confirm;
 			temp_ack_reg |= G1_TC_Error_Confirm;
 			temp_ack_reg |= G1_TC_Interrupt_Ack;

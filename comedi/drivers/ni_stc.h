@@ -768,8 +768,8 @@ static ni_board ni_boards[];
 	unsigned char serial_hw_mode;                           \
 	unsigned short clock_and_fout;				\
 								\
-	unsigned short int_a_enable_reg;			\
-	unsigned short int_b_enable_reg;			\
+	volatile unsigned short int_a_enable_reg;			\
+	volatile unsigned short int_b_enable_reg;			\
 	unsigned short io_bidirection_pin_reg;			\
 								\
 	unsigned short atrig_mode;				\
