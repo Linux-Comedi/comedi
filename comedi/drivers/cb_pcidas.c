@@ -532,41 +532,18 @@ found:
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-	s5933_config =
-		devpriv->pci_dev->base_address[S5933_BADRINDEX] &
-		PCI_BASE_ADDRESS_IO_MASK;
-	control_status =
-		devpriv->pci_dev->base_address[CONT_STAT_BADRINDEX] &
-		PCI_BASE_ADDRESS_IO_MASK;
-	adc_fifo =
-		devpriv->pci_dev->base_address[ADC_FIFO_BADRINDEX] &
-		PCI_BASE_ADDRESS_IO_MASK;
-	pacer_counter_dio =
-		devpriv->pci_dev->base_address[PACER_BADRINDEX] &
-		PCI_BASE_ADDRESS_IO_MASK;
-	ao_registers =
-		devpriv->pci_dev->base_address[AO_BADRINDEX] &
-		PCI_BASE_ADDRESS_IO_MASK;
-#else
 	if(pci_enable_device(devpriv->pci_dev))
 		return -EIO;
-	s5933_config =
-		devpriv->pci_dev->resource[S5933_BADRINDEX].start &
+	s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX) &
 		PCI_BASE_ADDRESS_IO_MASK;
-	control_status =
-		devpriv->pci_dev->resource[CONT_STAT_BADRINDEX].start &
+	control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX) &
 		PCI_BASE_ADDRESS_IO_MASK;
-	adc_fifo =
-		devpriv->pci_dev->resource[ADC_FIFO_BADRINDEX].start &
+	adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX) &
 		PCI_BASE_ADDRESS_IO_MASK;
-	pacer_counter_dio =
-		devpriv->pci_dev->resource[PACER_BADRINDEX].start &
+	pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX) &
 		PCI_BASE_ADDRESS_IO_MASK;
-	ao_registers =
-		devpriv->pci_dev->resource[AO_BADRINDEX].start &
+	ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX) &
 		PCI_BASE_ADDRESS_IO_MASK;
-#endif
 
 	// reserve io ports
 	err = 0;

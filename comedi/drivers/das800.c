@@ -257,7 +257,7 @@ typedef struct{
 	volatile int forever;  /* flag indicating whether we should take data forever */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
-	int do_bits;	/* digital output bits */
+	volatile int do_bits;	/* digital output bits */
 }das800_private;
 
 #define devpriv ((das800_private *)dev->private)

@@ -36,12 +36,8 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 
 	amcc_devices=NULL;
 	last=NULL;
-	
-#if LINUX_VERSION_CODE < 0x020300
-	for(pcidev=pci_devices;pcidev;pcidev=pcidev->next){
-#else
+
 	pci_for_each_dev(pcidev){
-#endif
 		if(pcidev->vendor==pci_vendor){
 			amcc=kmalloc(sizeof(*amcc),GFP_KERNEL);
 			memset(amcc,0,sizeof(*amcc));
@@ -50,29 +46,19 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 			if (last) { last->next=amcc; }
 			     else { amcc_devices=amcc; }
 			last=amcc;
-			
+
+			amcc->vendor=pcidev->vendor;
+			amcc->device=pcidev->device;
+			amcc->pci_bus=pcidev->bus->number;
+			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
+			amcc->pci_func=PCI_FUNC(pcidev->devfn);
+			for (i=0;i<5;i++)
+				amcc->io_addr[i]=pci_resource_start(pcidev, i) & PCI_BASE_ADDRESS_IO_MASK;
+			amcc->irq=pcidev->irq;
 #if LINUX_VERSION_CODE < 0x020300
-			amcc->vendor=pcidev->vendor;		
-			amcc->device=pcidev->device;
 			amcc->master=pcidev->master;
-			amcc->pci_bus=pcidev->bus->number;
-			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
-			amcc->pci_func=PCI_FUNC(pcidev->devfn);
-			for (i=0;i<5;i++)
-				amcc->io_addr[i]=pcidev->base_address[i] & ~3UL;
-			amcc->irq=pcidev->irq;
 #else
-			amcc->vendor=pcidev->vendor;		
-			amcc->device=pcidev->device;
-#if 0
-			amcc->master=pcidev->master; // how get this information under 2.4 kernels?
-#endif
-			amcc->pci_bus=pcidev->bus->number;
-			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
-			amcc->pci_func=PCI_FUNC(pcidev->devfn);
-			for (i=0;i<5;i++)
-				amcc->io_addr[i]=pcidev->resource[i].start & ~3UL;
-			amcc->irq=pcidev->irq;
+//			amcc->master=pcidev->master; // how get this information under 2.4 kernels?
 #endif
 			
 		}

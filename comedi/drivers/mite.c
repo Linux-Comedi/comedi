@@ -147,16 +147,12 @@ int mite_setup(struct mite_struct *mite)
 	pcibios_read_config_dword(mite->pci_bus,mite->pci_device_fn,PCI_BASE_ADDRESS_0,&addr);
 #else
 
-#if LINUX_VERSION_CODE < 0x020300
-	addr=mite->pcidev->base_address[0];
-#else
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
 		return -EIO;
 	}
 	pci_set_master(mite->pcidev);
-	addr=mite->pcidev->resource[0].start;
-#endif
+	addr=pci_resource_start(mite->pcidev, 0);
 #endif
 	mite->mite_phys_addr=addr;
 	offset = mite->mite_phys_addr & ~PAGE_MASK;
@@ -175,11 +171,7 @@ int mite_setup(struct mite_struct *mite)
 #ifdef PCI_SUPPORT_VER1
 	pcibios_read_config_dword(mite->pci_bus,mite->pci_device_fn,PCI_BASE_ADDRESS_1,&addr);
 #else
-#if LINUX_VERSION_CODE < 0x020300
-	addr=mite->pcidev->base_address[1];
-#else
-	addr=mite->pcidev->resource[1].start;
-#endif
+	addr=pci_resource_start(mite->pcidev, 1);
 #endif
 	mite->daq_phys_addr=addr;
 	offset = mite->daq_phys_addr & ~PAGE_MASK;

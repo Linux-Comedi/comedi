@@ -631,15 +631,12 @@ static int rtd_attach (
      * Initialize base addresses
      */
     /* Get the physical address from PCI config */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-    physLas0 = devpriv->pci_dev->base_address[LAS0_PCIINDEX];
-    physLas1 = devpriv->pci_dev->base_address[LAS1_PCIINDEX];
-    physLcfg = devpriv->pci_dev->base_address[LCFG_PCIINDEX];
-#else
-    physLas0 = devpriv->pci_dev->resource[LAS0_PCIINDEX].start;
-    physLas1 = devpriv->pci_dev->resource[LAS1_PCIINDEX].start;
-    physLcfg = devpriv->pci_dev->resource[LCFG_PCIINDEX].start;
-#endif
+	physLas0 = pci_resource_start(devpriv->pci_dev, LAS0_PCIINDEX) &
+		PCI_BASE_ADDRESS_MEM_MASK;
+	physLas1 = pci_resource_start(devpriv->pci_dev, LAS1_PCIINDEX) &
+		PCI_BASE_ADDRESS_MEM_MASK;
+	physLcfg = pci_resource_start(devpriv->pci_dev, LCFG_PCIINDEX) &
+		PCI_BASE_ADDRESS_MEM_MASK;
     /* Now have the kernel map this into memory */
 					/* ASSUME page aligned */
     devpriv->las0 = ioremap(physLas0, LAS0_PCISIZE);

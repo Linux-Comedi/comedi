@@ -770,15 +770,10 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		devpriv->pdev = pdev;
 		// read base addresses
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-		pci_iobase = pdev->base_address[1] & PCI_BASE_ADDRESS_IO_MASK;
-		iobase = pdev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK;
-#else
 		if(pci_enable_device(pdev))
 			return -EIO;
-		pci_iobase = pdev->resource[1].start & PCI_BASE_ADDRESS_IO_MASK;
-		iobase = pdev->resource[2].start & PCI_BASE_ADDRESS_IO_MASK;
-#endif
+		pci_iobase = pci_resource_start(pdev, 1) & PCI_BASE_ADDRESS_IO_MASK;
+		iobase = pci_resource_start(pdev, 2) & PCI_BASE_ADDRESS_IO_MASK;
 		printk("pcibase 0x%x ", pci_iobase);
 		// reserve io ports for 9052 pci chip
 		if(check_region(pci_iobase,PCIDAS08_SIZE)<0){

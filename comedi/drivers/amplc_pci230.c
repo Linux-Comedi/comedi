@@ -333,15 +333,10 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_ptr = pci230_boards+i;
 	
 	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-	pci_iobase = pci_dev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK;
-	iobase = pci_dev->base_address[3] & PCI_BASE_ADDRESS_IO_MASK;
-#else
 	if(pci_enable_device(pci_dev)<0)return -EIO;
 
-	pci_iobase = pci_dev->resource[2].start;
-	iobase = pci_dev->resource[3].start;
-#endif
+	pci_iobase = pci_resource_start(pci_dev, 2) & PCI_BASE_ADDRESS_IO_MASK;
+	iobase = pci_resource_start(pci_dev, 3) & PCI_BASE_ADDRESS_IO_MASK;
 
 	printk("comedi%d: amplc_pci230: I/O region 1 0x%04x I/O region 2 0x%04x\n",dev->minor, pci_iobase, iobase);
 

@@ -335,23 +335,12 @@ found:
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-	digitalio =
-		devpriv->pci_dev->base_address[DIGITALIO_BADRINDEX] &
-			PCI_BASE_ADDRESS_IO_MASK;
-	dac =
-		devpriv->pci_dev->base_address[DAC_BADRINDEX] &
-			PCI_BASE_ADDRESS_IO_MASK;
-#else
 	if(pci_enable_device(devpriv->pci_dev))
 		return -EIO;
-	digitalio =
-		devpriv->pci_dev->resource[DIGITALIO_BADRINDEX].start &
-			PCI_BASE_ADDRESS_IO_MASK;
-	dac =
-		devpriv->pci_dev->resource[DAC_BADRINDEX].start &
-			PCI_BASE_ADDRESS_IO_MASK;
-#endif
+	digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX) &
+		PCI_BASE_ADDRESS_IO_MASK;
+	dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX) &
+		PCI_BASE_ADDRESS_IO_MASK;
 
 /*
  * Allocate the I/O ports.

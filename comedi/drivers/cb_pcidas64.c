@@ -528,30 +528,16 @@ found:
 	/* Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-	plx9080_iobase =
-		pcidev->base_address[PLX9080_BADRINDEX] &
-		PCI_BASE_ADDRESS_MEM_MASK;
-	main_iobase =
-		pcidev->base_address[MAIN_BADRINDEX] &
-		PCI_BASE_ADDRESS_MEM_MASK;
-	dio_counter_iobase =
-		pcidev->base_address[DIO_COUNTER_BADRINDEX] &
-		PCI_BASE_ADDRESS_MEM_MASK;
-#else
 	if(pci_enable_device(pcidev))
 		return -EIO;
 #ifdef PCIDMA
 	pci_set_master(pcidev);
 #endif
-	plx9080_iobase =
-		pcidev->resource[PLX9080_BADRINDEX].start &
+	plx9080_iobase = pci_resource_start(pcidev, PLX9080_BADRINDEX) &
 		PCI_BASE_ADDRESS_MEM_MASK;
-	main_iobase =
-		pcidev->resource[MAIN_BADRINDEX].start &
+	main_iobase = pci_resource_start(pcidev, MAIN_BADRINDEX) &
 		PCI_BASE_ADDRESS_MEM_MASK;
-	dio_counter_iobase =
-		pcidev->resource[DIO_COUNTER_BADRINDEX].start &
+	dio_counter_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADRINDEX) &
 		PCI_BASE_ADDRESS_MEM_MASK;
 
 	if(check_mem_region(plx9080_iobase, PLX9080_IOSIZE))
@@ -579,8 +565,6 @@ found:
 	devpriv->main_phys_iobase = main_iobase;
 	request_mem_region(dio_counter_iobase, DIO_COUNTER_IOSIZE, "cb_pcidas64");
 	devpriv->dio_counter_phys_iobase = dio_counter_iobase;
-
-#endif
 
 	// remap, won't work with 2.0 kernels but who cares
 	devpriv->plx9080_iobase = (unsigned long)ioremap(plx9080_iobase, PLX9080_IOSIZE);
