@@ -693,6 +693,7 @@ enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
 
 typedef struct ni_board_struct{
 	int device_id;
+	int isapnp_id;
 	char *name;
 
 	int n_adchan;
