@@ -34,6 +34,7 @@ struct pci_device_id {
 // stuff for allocating pci dma buffers
 #include <asm/io.h>
 #include <linux/malloc.h>
+#include <linux/ioport.h>
 #define PCI_DMA_FROMDEVICE              0
 #define PCI_DMA_TODEVICE                0
 
@@ -47,7 +48,7 @@ extern inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
                 gfp |= GFP_DMA;
         ret = (void *) __get_free_pages(gfp, get_order(size));
 
-        if (ret != NULL) 
+        if (ret != NULL)
 	{
                 memset(ret, 0, size);
                 *dma_handle = virt_to_bus(ret);
@@ -72,6 +73,61 @@ extern inline unsigned long pci_resource_start(struct pci_dev *dev, unsigned int
 		return dev->base_address[bar] & PCI_BASE_ADDRESS_IO_MASK;
 	return dev->base_address[bar] & PCI_BASE_ADDRESS_MEM_MASK;
 }
+
+extern inline unsigned long pci_resource_end(struct pci_dev *dev, unsigned int bar)
+{
+	return pci_resource_start(dev, bar) + pci_resource_len(dev, bar) - 1;
+}
+
+extern inline int pci_request_regions(struct pci_dev *dev, char *name)
+{
+	const int max_num_base_addr = 6;
+	int i;
+	int retval = 0;
+
+	for(i = 0; i < max_num_base_addr; i++)
+	{
+		if(dev->base_address[i])
+		{
+			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
+				retval = check_region(pci_resource_start(dev, i),
+					pci_resource_len(dev, i));
+			if( retval )
+				break;
+		}
+	}
+
+	if(retval) return retval;
+
+	for(i = 0; i < max_num_base_addr; i++)
+	{
+		if(dev->base_address[i])
+		{
+			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
+				request_region(pci_resource_start(dev, i),
+					pci_resource_len(dev, i), name);
+		}
+	}
+
+	return 0;
+}
+
+extern inline void pci_release_regions(struct pci_dev *dev)
+{
+	const int max_num_base_addr = 6;
+	int i;
+
+	for(i = 0; i < max_num_base_addr; i++)
+	{
+		if(dev->base_address[i])
+		{
+			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
+				release_region(pci_resource_start(dev, i),
+					pci_resource_len(dev, i));
+		}
+	}
+}
+
 #endif
 
 #endif
