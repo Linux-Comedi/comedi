@@ -4,12 +4,13 @@
     64xxx cards.
 
     Author:  Frank Mori Hess <fmhess@uiuc.edu>
-
-    Options:
-    [0] - PCI bus number
-    [1] - PCI slot number
-
     Copyright (C) 2001 Frank Mori Hess <fmhess@uiuc.edu>
+
+    Thanks go to Steve Rosenbluth for providing the source code for
+    his pci-das6402 driver, and source code for working QNX pci-6402
+    drivers by Greg Laird and Mariusz Bogacz.  None of the code was
+    used directly here, but was useful as an additional source of
+    documentation on how to program the boards.
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
@@ -63,7 +64,6 @@ TODO:
 		are not yet available.
 	need to take care to prevent ai and ao from affecting each others register bits
 	support prescaled 100khz clock for slow pacing
-	need to make sure all trigger sources are properly supported (TRIG_EXT)
 */
 
 #include <linux/kernel.h>
@@ -87,6 +87,8 @@ TODO:
 
 #define PCIDAS64_DEBUG	// enable debugging code
 //#undef PCIDAS64_DEBUG	// disable debugging code
+//#define PCIDMA	// enable pcidma code
+#undef PCIDMA	// disable pcidma code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
@@ -100,7 +102,7 @@ TODO:
 #define PLX9080_BADRINDEX 0
 #define MAIN_BADRINDEX 2
 #define DIO_COUNTER_BADRINDEX 3
-
+// size on bytes of various memory io regions
 #define PLX9080_IOSIZE 0xec
 #define MAIN_IOSIZE 0x302
 #define DIO_COUNTER_IOSIZE 0x29
@@ -108,15 +110,16 @@ TODO:
 // devpriv->main_iobase registers
 // write-only
 #define INTR_ENABLE_REG	0x0	// interrupt enable register
-#define    EN_ADC_OVERRUN_BIT	0x8000	// enable adc overrun status bit
-#define    EN_DAC_UNDERRUN_BIT	0x4000	// enable dac underrun status bit
-#define    EN_ADC_DONE_INTR_BIT	0x8	// enable adc aquisition done interrupt
-#define    EN_ADC_INTR_SRC_BIT	0x4	// enable adc interrupt source
 #define    ADC_INTR_SRC_MASK	0x3	// bits that set adc interrupt source
 #define    ADC_INTR_QFULL_BITS	0x0	// interrupt fifo quater full
 #define    ADC_INTR_EOC_BITS	0x1	// interrupt end of conversion
 #define    ADC_INTR_EOSCAN_BITS	0x2	// interrupt end of scan
 #define    ADC_INTR_EOSEQ_BITS	0x3	// interrupt end of sequence (probably wont use this it's pretty fancy)
+#define    EN_ADC_INTR_SRC_BIT	0x4	// enable adc interrupt source
+#define    EN_ADC_DONE_INTR_BIT	0x8	// enable adc aquisition done interrupt
+#define    EN_ADC_STOP_INTR_BIT	0x400	// enable adc stop trigger interrupt
+#define    EN_DAC_UNDERRUN_BIT	0x4000	// enable dac underrun status bit
+#define    EN_ADC_OVERRUN_BIT	0x8000	// enable adc overrun status bit
 #define HW_CONFIG_REG	0x2	// hardware config register
 #define    HW_CONFIG_DUMMY_BITS	0x2400	// bits that don't do anything yet but are given default values
 #define    HW_CONFIG_DUMMY_BITS_6402	0x0400	// dummy bits in 6402 manual are slightly different, probably doesn't matter
@@ -128,7 +131,11 @@ TODO:
 #define    DAC_FIFO_SIZE_MASK	0xf00	// bits that set dac fifo size
 #define    DAC_FIFO_16K_BITS 0x0
 #define ADC_CONTROL0_REG	0x10	// adc control register 0
-#define    TRIG1_FALLING_BIT	0x20	// trig 1 uses falling edge
+#define    ADC_START_TRIG_FALLING_BIT	0x20	// trig 1 uses falling edge
+#define    ADC_START_TRIG_SOFT_BITS	0x10
+#define    ADC_START_TRIG_EXT_BITS	0x20
+#define    ADC_START_TRIG_ANALOG_BITS	0x30
+#define    ADC_START_TRIG_MASK	0x30
 #define    ADC_EXT_CONV_FALLING_BIT	0x800	// external pacing uses falling edge
 #define    ADC_ENABLE_BIT	0x8000	// master adc enable
 #define ADC_CONTROL1_REG	0x12	// adc control register 1
@@ -175,6 +182,11 @@ TODO:
 #define   PIPE_FULL_BIT(x)	(0x400 << ((x) & 0x1))
 #define   HW_REVISION(x)	(((x) >> 12) & 0xf)
 #define PIPE1_READ_REG	0x4
+#define ADC_READ_PNTR_REG	0x8
+#define ADC_WRITE_PNTR_REG	0xc
+#define PREPOST_REG	0x14
+#define   ADC_UPP_READ_PNTR_CODE(x)	(((x) >> 12) & 0x3)
+#define   ADC_UPP_WRITE_PNTR_CODE(x)	(((x) >> 14) & 0x3)
 // read-write
 #define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
 #define ADC_FIFO_REG 0x200	// adc data fifo
@@ -394,7 +406,7 @@ typedef struct
  */
 static int attach(comedi_device *dev,comedi_devconfig *it);
 static int detach(comedi_device *dev);
-comedi_driver driver_cb_pcidas={
+static comedi_driver driver_cb_pcidas={
 	driver_name:	"cb_pcidas64",
 	module:		THIS_MODULE,
 	attach:		attach,
@@ -417,6 +429,7 @@ static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
+static int grey2int(int code);
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -941,16 +954,20 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		// load upper 8 bits
 		writew((convert_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
 		// set scan pacing
-		if(cmd->convert_src == TRIG_TIMER)
+		scan_counter_value = 0;
+		if(cmd->scan_begin_src == TRIG_TIMER)
 		{
 			// figure out how long we need to delay at end of scan
 			scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * (cmd->chanlist_len - 1)))
 				/ TIMER_BASE;
-			// load lower 16 bits
-			writew(scan_counter_value & 0xffff, devpriv->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
-			// load upper 8 bits
-			writew((scan_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
+		}else if(cmd->scan_begin_src == TRIG_FOLLOW)
+		{
+			scan_counter_value = cmd->convert_arg / TIMER_BASE;
 		}
+		// load lower 16 bits
+		writew(scan_counter_value & 0xffff, devpriv->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
+		// load upper 8 bits
+		writew((scan_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
 	}
 
 	// load hardware conversion counter with non-zero value so it doesn't mess with us
@@ -990,6 +1007,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// enable interrupts
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT;
+	if(cmd->stop_src == TRIG_EXT)
+		bits |= EN_ADC_STOP_INTR_BIT;
 	if(cmd->flags & TRIG_WAKE_EOS)
 		bits |= ADC_INTR_EOSCAN_BITS;
 	else
@@ -1013,6 +1032,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT;
+	// set start trigger
+	if(cmd->start_src == TRIG_EXT)
+		bits |= ADC_START_TRIG_EXT_BITS;
+	else if(cmd->start_src == TRIG_NOW)
+		bits |= ADC_START_TRIG_SOFT_BITS;
 	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
 
 	// start aquisition
@@ -1023,13 +1047,11 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 {
-#ifdef PCIDAS64_DEBUG
-#endif
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	unsigned int num_samples = 0;
+	int num_samples = 0;
 	unsigned int i;
 	u16 data;
 	unsigned int status;
@@ -1068,18 +1090,28 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(status & ADC_INTR_PENDING_BIT)
 	{
 		// figure out how many samples we should read from board's fifo
-		/* XXX should use ADC read/write pointer registers to figure out
-		 * how many samples are actually in fifo */
-		if(cmd->flags & TRIG_WAKE_EOS)
-			num_samples = cmd->chanlist_len;
-		else
-			num_samples = QUARTER_AI_FIFO_SIZE;
+		int read_index, write_index;
+		// get most significant bits
+		read_index = grey2int(ADC_UPP_READ_PNTR_CODE(readw(devpriv->main_iobase + PREPOST_REG)));
+		write_index = grey2int(ADC_UPP_WRITE_PNTR_CODE(readw(devpriv->main_iobase + PREPOST_REG)));
+		read_index <<= 15;
+		write_index <<= 15;
+		// get least significant 15 bits
+		read_index += readw(devpriv->main_iobase + ADC_READ_PNTR_REG);
+		write_index += readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG);
+		num_samples = write_index - read_index;
+		if(num_samples < 0)
+			num_samples += 4 * QUARTER_AI_FIFO_SIZE;
 		if(cmd->stop_src == TRIG_COUNT)
 		{
 			if(num_samples > devpriv->ai_count)
 				num_samples = devpriv->ai_count;
 			devpriv->ai_count -= num_samples;
 		}
+#ifdef PCIDAS64_DEBUG
+		if(intr_count < debug_count)
+			rt_printk(" reading %i samples from fifo\n", num_samples);
+#endif
 		// read samples
 		for(i = 0; i < num_samples; i++)
 		{
@@ -1097,7 +1129,8 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	// if we are have all the data, then quit
-	if(cmd->stop_src == TRIG_COUNT)
+	if(cmd->stop_src == TRIG_COUNT ||
+		(cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
 	{
 		if(devpriv->ai_count <= 0)
 			ai_cancel(dev, s);
@@ -1279,4 +1312,28 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 	}
 
 	return divisor;
+}
+
+// decodes encoding of 2 most significant bits of read/write pointer addresses coming from board
+static int grey2int(int code)
+{
+	switch(code)
+	{
+		case 0:
+			return 0;
+			break;
+		case 1:
+			return 1;
+			break;
+		case 2:
+			return 3;
+			break;
+		case 3:
+			return 2;
+			break;
+		default:
+			break;
+	}
+
+	return -1;
 }
