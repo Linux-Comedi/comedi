@@ -79,12 +79,14 @@ Configuration options:
 /*
   driver status:
 
-  Analog in supports instruction and command mode.  I can do 400Khz
-  mutli-channel sampling on a 400Mhz K6-2 with 58% idle.
+  Analog in supports instruction and command mode.  I can do 200Khz
+  mutli-channel sampling on a 400Mhz K6-2 with 70% idle.  The DMA isn't
+  used yet.
   
   Digital IO and analog out support instruction mode.
 
   There was some timer/counter code, but it didn't follow the right API.
+
 */
 
 #include <linux/kernel.h>
@@ -110,7 +112,7 @@ Configuration options:
 ======================================================================*/
 /* Target period for periodic transfers */
 /* if this is too low, efficiency is poor */
-#define TRANS_TARGET_PERIOD 10000000	/* 10ms (in nanoseconds) */
+#define TRANS_TARGET_PERIOD 10000000	/* 10 ms (in nanoseconds) */
 
 /* The board support a channel list up to the FIFO length (1K or 8K) */
 /* Raising the MAX_CHANLIST uses more memory per board */
@@ -672,24 +674,12 @@ static int rtd_attach (
 	return -EIO;
     }
 
-    /* See if this is a model that we know about */
-    for (index=0; index < rtd520Driver.num_names; index++){
-	if (rtd520Boards[index].device_id == pcidev->device) {
-	    break;
-	}
-    }
-    if (index >= rtd520Driver.num_names) {
-	printk ("Found an RTD card, but not a supported type (%x).\n",
+    if (pcidev->device != thisboard->device_id) {
+	printk ("Found an RTD card, but not the supported type (%x).\n",
 		pcidev->device);
 	return -EIO;
-    } else {
-	devpriv->pci_dev = pcidev;
-	dev->board_ptr = rtd520Boards+index;
     }
-    /*
-     * Initialize dev->board_name.  Note that we can use the "thisboard"
-     * macro now, since we just initialized it in the last line.
-     */
+    devpriv->pci_dev = pcidev;
     dev->board_name = thisboard->name;
 
     if((ret=pci_enable_device(pcidev))<0){
@@ -709,7 +699,7 @@ static int rtd_attach (
     devpriv->las1 = ioremap(physLas1, LAS1_PCISIZE);
     devpriv->lcfg = ioremap(physLcfg, LCFG_PCISIZE);
 
-    printk ("%s: ", dev->board_name);
+    printk ("%s: ( fifoLength = %d )" , dev->board_name, thisboard->fifoLen);
     /*printk ("%s: LAS0=%lx, LAS1=%lx, CFG=%lx.\n", dev->board_name,
       physLas0, physLas1, physLcfg);*/
 
@@ -734,12 +724,12 @@ static int rtd_attach (
     } else {
 	s->range_table = &rtd_ai_4520_range;
     }
-    s->len_chanlist = thisboard->fifoLen;
+    s->len_chanlist = RTD_MAX_CHANLIST;	/* thisboard->fifoLen */
     s->insn_read = rtd_ai_rinsn;
     s->do_cmd = rtd_ai_cmd;
     s->do_cmdtest = rtd_ai_cmdtest;
     s->cancel = rtd_ai_cancel;
-    s->poll = rtd_ai_poll;
+    /*s->poll = rtd_ai_poll;*/		/* not ready yet */
 
     s=dev->subdevices+1;
     /* analog output subdevice */
@@ -804,6 +794,7 @@ static int rtd_attach (
 			      RtdPLXInterruptRead (dev) | (0x0800));
     }
 
+
     printk("comedi%d: rtd520 driver attached.\n", dev->minor);
 
     return 1;
@@ -824,7 +815,8 @@ static int rtd_detach (
 	   dev->minor, devpriv->intCount, devpriv->aiExtraInt,
 	   0xffff & RtdInterruptStatus (dev),
 	   0xffff & RtdInterruptOverrunStatus (dev),
-	   0xffff & RtdFifoStatus (dev));
+	   (0xffff & RtdFifoStatus (dev)) ^ 0x6666);
+
     if (devpriv) {
 	/* Shut down any board ops by resetting it */
 	RtdResetBoard (dev);
@@ -949,20 +941,14 @@ static int rtd_ai_rinsn (
     int n, ii;
     int	stat;
 
+					/* clear any old fifo data */
+    RtdAdcClearFifo (dev);
+
     /* write channel to multiplexer and clear channel gain table */ 
     rtd_load_channelgain_list (dev, 1, &insn->chanspec);
 	
 					/* set conversion source */
     RtdAdcConversionSource (dev, 0);	/* software */
-
-					/* clear any old fifo data */
-    RtdAdcClearFifo (dev);
-
-    stat = RtdFifoStatus (dev);		/* DEBUG */
-    if (stat & FS_ADC_EMPTY) {		/* 1 -> not empty */
-	printk ("rtd520: Warning: fifo didn't seem to clear! FifoStatus=0x%x\n",
-		stat);
-    }
 
     /* convert n samples */
     for (n=0; n < insn->n; n++) {
@@ -978,7 +964,7 @@ static int rtd_ai_rinsn (
 	}
 	if (ii >= RTD_ADC_TIMEOUT) {
 	    DPRINTK ("rtd520: Error: ADC never finished! FifoStatus=0x%x\n",
-		    stat);
+		    stat ^ 0x6666);
 	    return -ETIMEDOUT;
 	}
 
@@ -1012,12 +998,18 @@ static void ai_read_n (
 
     for (ii = 0; ii < count; ii++) {
 	sampl_t	sample;
-	s16 d = RtdAdcFifoGet (dev);	/* get 2s comp value */
+	s16 d;
 
 	if (0 == devpriv->aiCount) {	/* done */
-	    devpriv->aiExtraInt++;
-	    return;
+	    break;
 	}
+#if 0
+	if (0 == (RtdFifoStatus (dev) & FS_ADC_EMPTY)) { /* DEBUG */
+	    DPRINTK("comedi: READ OOPS on %d of %d\n", ii+1, count);
+	    break;
+	}
+#endif
+	d = RtdAdcFifoGet (dev);	/* get 2s comp value */
 
 	d = d >> 3;			/* low 3 bits are marker lines */
 	if (CHAN_ARRAY_TEST (devpriv->chanBipolar, s->async->cur_chan)) {
@@ -1044,10 +1036,7 @@ static void ai_read_dregs (
 	s16 d = RtdAdcFifoGet (dev); /* get 2s comp value */
 
 	if (0 == devpriv->aiCount) {	/* done */
-	    while (RtdFifoStatus (dev) & FS_ADC_EMPTY) { /* read rest */
-		d = RtdAdcFifoGet (dev);
-	    }
-	    return;
+	    continue;			/* read rest */
 	}
 
 	d = d >> 3;		/* low 3 bits are marker lines */
@@ -1076,8 +1065,10 @@ static void rtd_interrupt (
 {
     comedi_device *dev = d;		/* must be called "dev" for devpriv */
     u16 status = RtdInterruptStatus (dev);
+    u16 fifoStatus;
+    comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
 
-    devpriv->intCount++;
+    devpriv->intCount++;		/* DEBUG statistics */
 
     /* if interrupt was not caused by our board */
     /* needed??? we dont claim to share interrupt lines */
@@ -1086,47 +1077,104 @@ static void rtd_interrupt (
 	return;
     }
 
-    /* Check for analog in */
-    /* Either end if a sequence (about), or time to flush the fifo (sample) */
-    /* Future: process DMA transfer */
-    if (status & (IRQM_ADC_ABOUT_CNT | IRQM_ADC_SAMPLE_CNT)) {
-	comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
-
-	if (devpriv->transCount > 0) {	/* read often */
-	    if (status & IRQM_ADC_SAMPLE_CNT) {
-		ai_read_n (dev, s, devpriv->transCount);
-	    }
-	} else {			/* wait for 1/2 FIFO */
-	    if (RtdFifoStatus (dev) & FS_ADC_HEMPTY) {
-		ai_read_n (dev, s, thisboard->fifoLen / 2);
-	    }
-	}
-
-	if (0 == devpriv->aiCount) {	/* done! stop! */
-	    RtdInterruptMask (dev, 0);	/* mask out ABOUT and SAMPLE */
-	    RtdPacerStop (dev);		/* Stop PACER */
-	    s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
-	} else if ((devpriv->aiCount > 0) /* finite acquisition */
-		   && (status & IRQM_ADC_ABOUT_CNT)) { /* about counter */
-	    if (devpriv->aboutWrap) {	/* multi-count wraps */
-		if (devpriv->aiCount < devpriv->aboutWrap) {
-		    RtdAboutStopEnable (dev, 0); /* enable stop */
-		    devpriv->aboutWrap = 0;
-		}
-	    } else {			/* done */
-		/* TODO: allow multiple interrupt sources */
-		RtdInterruptMask (dev, 0);/* mask out ABOUT and SAMPLE */
-		RtdPacerStop (dev);	/* Stop PACER */
-		ai_read_dregs (dev, s);	/* ready anything in FIFO */
-
-		s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
-	    }
-	}
-
-	/* TODO: check for fifo over-run */
-	
+    fifoStatus = RtdFifoStatus (dev);
+    /* check for FIFO full, this automatically halts the ADC */
+    if (!(fifoStatus & FS_ADC_FULL)) {	/* 0 -> full */
+	DPRINTK("rtd520: FIFO full! fifo_status=0x%x\n",
+		fifoStatus ^ 0x6666);	/* should be all 0s */
+	RtdPacerStop (dev);		/* Stop PACER */
+	RtdInterruptMask (dev, 0);	/* mask out ABOUT and SAMPLE */
+	s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 	comedi_event (dev, s, s->async->events);
+	RtdAdcClearFifo (dev);		/* clears full flag */
+	RtdInterruptClearMask (dev, status);
+	RtdInterruptClear (dev);
+	return;
+    } 
+
+    /* ABOUT does not seem to be causing PCI interrupts */
+    if (status & IRQM_ADC_ABOUT_CNT) { /* about count -> done (maybe) */
+	if (0 == devpriv->aboutWrap) {	/* final about interrupt */
+	    DPRINTK("rtd520: Done. %ld remain, fifo_status=0x%x\n",
+		    devpriv->aiCount, 
+		    fifoStatus ^ 0x6666); /* should be all 0s */
+	    goto transferDone;
+	} else if (devpriv->aiCount > 0) { /* finite acquisition */
+	    /* multi-count wraps */
+	    if (devpriv->aiCount < devpriv->aboutWrap) {
+#if 0
+		DPRINTK("rtd520: About done. %ld remain of %d, fifo_status=0x%x\n",
+			devpriv->aiCount, devpriv->aboutWrap,
+			fifoStatus ^ 0x6666); /* should be all 0s */
+#endif
+		devpriv->aboutWrap = 0;
+		RtdAboutStopEnable (dev, 0); /* enable stop */
+	
+	    }
+	}
     }
+    else if (status & IRQM_ADC_SAMPLE_CNT) { /* sample count -> read FIFO */
+	/* since the priority interrupt controller may have queued a sample
+	   counter interrupt, even though we have already finish,
+	   we must handle the possibility that there is no data here */
+	if (!(fifoStatus & FS_ADC_HEMPTY)) { /* 0 -> 1/2 full */
+	    ai_read_n (dev, s, thisboard->fifoLen / 2);
+	    if (0 == devpriv->aiCount) { /* counted down */
+		DPRINTK("rtd520: Samples Done 1/2. fifo_status was 0x%x\n",
+			fifoStatus ^ 0x6666); /* should read all 0s */
+		goto transferDone;
+	    }
+	    comedi_event (dev, s, s->async->events);
+	} else if (devpriv->transCount > 0) {	/* read often */
+	    if (fifoStatus & FS_ADC_EMPTY) { /* 1 -> not empty */
+		ai_read_n (dev, s, devpriv->transCount);
+		if (0 == devpriv->aiCount) { /* counted down */
+		    DPRINTK("rtd520: Samples Done n. fifo_status was 0x%x\n",
+			    fifoStatus ^ 0x6666); /* should read all 0s */
+		    goto transferDone;
+		}
+		comedi_event (dev, s, s->async->events);
+	    }
+	} /* else wait for 1/2 FIFO */
+
+    }
+    else {
+	DPRINTK ("rtd520: unknown interrupt source!\n");
+    }
+
+    if (0xffff & RtdInterruptOverrunStatus (dev)) { /* interrupt overrun */
+	DPRINTK("rtd520: Interrupt overrun! over_status=0x%x\n",
+		0xffff & RtdInterruptOverrunStatus (dev));
+	RtdPacerStop (dev);		/* Stop PACER */
+	RtdInterruptMask (dev, 0);	/* mask out ABOUT and SAMPLE */
+	s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+	comedi_event (dev, s, s->async->events);
+	RtdInterruptOverrunClear (dev);
+    } 
+	
+					/* clear the interrupt */
+    RtdInterruptClearMask (dev, status);
+    RtdInterruptClear (dev);
+    return;
+
+transferDone:
+    RtdInterruptMask (dev, 0);	/* mask out ABOUT and SAMPLE */
+    RtdPacerStop (dev);		/* Stop PACER */
+
+    fifoStatus = RtdFifoStatus (dev);
+    if (!(fifoStatus & FS_ADC_HEMPTY)) { /* 0 -> 1/2 full */
+	ai_read_n (dev, s, thisboard->fifoLen / 2);
+    }
+    ai_read_dregs (dev, s);	/* read anything left in FIFO */
+    s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
+    comedi_event (dev, s, s->async->events);
+	
+    fifoStatus = RtdFifoStatus (dev);
+    DPRINTK("rtd520: Done. %ld ints, %ld extra ai, %ld remain\n\tintStatus=0x%x, overrun_status=0x%x, fifo_status=0x%x\n",
+	    devpriv->intCount, devpriv->aiExtraInt, devpriv->aiCount,
+	    status,
+	    0xffff & RtdInterruptOverrunStatus (dev),
+	    fifoStatus ^ 0x6666); /* should be all 0s */
 
 					/* clear the interrupt */
     RtdInterruptClearMask (dev, status);
@@ -1138,6 +1186,7 @@ static void rtd_interrupt (
 */
 static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s)
 {
+    /* TODO: This needs to mask interrupts, read_dregs, and then re-enable */
     return s->async->buf_int_count - s->async->buf_user_count;
 }
 
@@ -1329,10 +1378,11 @@ static int rtd_ai_cmd (
 {
     comedi_cmd *cmd=&s->async->cmd;
     int timer;
-    int	justPoll = 0;			/* can we do a simple poll */
 
 					/* stop anything currently running */
     RtdPacerStop (dev);			/* Stop PACER */
+    RtdAdcClearFifo (dev);		/* clear any old data */
+    RtdInterruptOverrunClear(dev);
 
     /* start configuration */
     /* load channel list and reset CGT */
@@ -1383,9 +1433,9 @@ static int rtd_ai_cmd (
 	    RtdAdcSampleCounter (dev, devpriv->transCount-1);
 	}
 
-	DPRINTK ("rtd520: tranferCount=%d scanTime(ns)=%d scanLen=%d flags=0x%x\n",
-		 devpriv->transCount, cmd->scan_begin_arg,
-		 cmd->chanlist_len, devpriv->flags);
+	DPRINTK ("rtd520: scanLen=%d tranferCount=%d fifoLen=%d\n\tscanTime(ns)=%d flags=0x%x\n",
+		 cmd->chanlist_len, devpriv->transCount, thisboard->fifoLen,
+		 cmd->scan_begin_arg, devpriv->flags);
     } else {
 	devpriv->transCount = 0;
 	devpriv->flags &= ~SEND_EOS;
@@ -1404,7 +1454,6 @@ static int rtd_ai_cmd (
     case TRIG_COUNT:			/* stop after N scans */
 	if ((cmd->chanlist_len <= 1) 	/* no scanning to do */
 	    && (cmd->stop_arg <= 1)) {
-	    justPoll = 1;
 	    RtdAdcConversionSource (dev, 0); /* SOFTWARE trigger */
 	} else {
 	    int	n = cmd->stop_arg * cmd->chanlist_len;
@@ -1412,7 +1461,7 @@ static int rtd_ai_cmd (
 	    devpriv->aiCount = n;
 	    if (n <= 0x10000) {
 		/* Note: stop on underflow.  Load with N-1 */
-		DPRINTK ("rtd520: loading %d into about\n", n - 1);
+		DPRINTK ("rtd520: setting about counter to %d\n", n);
 		devpriv->aboutWrap = 0;
 		RtdAboutCounter (dev, n - 1);
 	    } else {			/* multiple counter wraps */
@@ -1504,86 +1553,26 @@ static int rtd_ai_cmd (
     /* end configuration */
 
     /* BUG: start_src is ASSUMED to be TRIG_NOW */
-					/* clear any old data */
-    RtdAdcClearFifo (dev);
-    {					/* DEBUG */
-	int clr = 0;
-	while (RtdFifoStatus (dev) & FS_ADC_EMPTY) { /* read rest */
-	    int d = RtdAdcFifoGet (dev);
-	    ++clr;
-	}
-	if (clr > 0) {
-	    DPRINTK ("rtd520: cleared %d after AdcClearFifo\n", clr);
-	}
+
+    /* interrupt setup */
+    if (! dev->irq) {
+	DPRINTK ("rtd520: ERROR! No interrupt available!\n");
+	return -ENXIO;
     }
 
-    /* see if we can do a simple polled input (is this still wanted?) */
-    if (justPoll) {
-	sampl_t	sample;
-	int stat = RtdFifoStatus (dev);		/* DEBUG */
-	s16 d;
-	int ii;
-	
-					/* DEBUG */
-	if (stat & FS_ADC_EMPTY) {		/* 1 -> not empty */
-	    DPRINTK ("rtd520: ai_cmd Warning: fifo didn't seem to clear! FifoStatus=0x%x\n",
-		    stat);
-	} else {
-	    DPRINTK ("rtd520: ai_cmd: polling for sample.\n");
-	}
+    /* This doesn't work.  There is NO WAY to clear an interrupt
+       that the priority controller has queued! */
+    RtdInterruptClearMask (dev, ~0); /* clear any existing flags */
+    RtdInterruptClear (dev);
 
-	/* trigger conversion */
-	RtdAdcStart (dev);
-
-	/* right now, this means just 1 sample. emulate ai_rinsn */
-	for (ii = 0; ii < RTD_ADC_TIMEOUT; ++ii) {
-	    stat = RtdFifoStatus (dev);
-	    if (stat & FS_ADC_EMPTY)	/* 1 -> not empty */
-		break;
-	    WAIT_QUIETLY;
-	}
-	if (ii >= RTD_ADC_TIMEOUT) {
-	    DPRINTK ("rtd520 ai_cmd Error! Never got data in FIFO! FifoStatus=0x%x\n",
-		    stat);
-	    return -ETIMEDOUT;
-	}
-
-	/* read data */
-	d = RtdAdcFifoGet (dev);	/* get 2s comp value */
-	/*DPRINTK ("rtd520: Got 0x%x after %d usec\n", d, ii+1);*/
-	d = d >> 3;		/* low 3 bits are marker lines */
-	if (CHAN_ARRAY_TEST (devpriv->chanBipolar, 0)) {
-	    sample = d + 2048;	   /* convert to comedi unsigned data */
-	} else {
-	    sample = d;
-	}
-	comedi_buf_put (s->async, sample);
+    /* TODO: allow multiple interrupt sources */
+    if ((devpriv->transCount > 0) || (devpriv->aiCount > 512)) {
+	RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT | IRQM_ADC_SAMPLE_CNT );
     } else {
-	/* interrupt setup */
-	if (! dev->irq) {
-	    DPRINTK ("rtd520: ERROR! No interrupt available!\n");
-	    return -ENXIO;
-	}
-	
-	DPRINTK("rtd520: using interrupts. (%ld ints, %ld extra ai)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)\n",
-	       devpriv->intCount, devpriv->aiExtraInt,
-	       0xffff & RtdInterruptStatus (dev),
-	       0xffff & RtdInterruptOverrunStatus (dev),
-	       (0xffff & RtdFifoStatus (dev)) ^ 0x6666); /*should show all 0s*/
-
-	RtdInterruptClearMask (dev, ~0); /* clear any existing flags */
-	RtdInterruptClear (dev);
-	/*DEBUG RtdInterruptOverrunClear(dev);*/
-
-	/* TODO: allow multiple interrupt sources */
-	if ((devpriv->transCount > 0) || (devpriv->aiCount > 512)) {
-	    RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT | IRQM_ADC_SAMPLE_CNT );
-	} else {
-	    RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT);
-	}
-
-	RtdPacerStart (dev);		/* Start PACER */
+	RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT);
     }
+
+    RtdPacerStart (dev);		/* Start PACER */
     return 0;
 }
 
@@ -1697,7 +1686,7 @@ static int rtd_ao_winsn (
 	}
 	if (ii >= RTD_DAC_TIMEOUT) {
 	    DPRINTK("rtd520: Error: DAC never finished! FifoStatus=0x%x\n",
-		    stat);
+		    stat ^ 0x6666);
 	    return -ETIMEDOUT;
 	}
     }
