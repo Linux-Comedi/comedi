@@ -33,13 +33,19 @@
 
 #define PCI_VENDOR_ID_NATINST		0x1093
 
+//#define DEBUG_MITE
 
-#define MITE_RING_SIZE 32
+#ifdef DEBUG_MITE
+#define MDPRINTK(format,args...)	printk(format , ## args )
+#else
+#define MDPRINTK(format,args...)
+#endif
+
+#define MITE_RING_SIZE 3000 
 
 struct mite_dma_chain{
 	u32 count;
 	u32 addr;
-	u32 unused;
 	u32 next;
 };
 
@@ -88,7 +94,12 @@ int mite_dma_tcr(struct mite_struct *mite);
 
 void mite_dma_arm(struct mite_struct *mite);
 void mite_dma_disarm(struct mite_struct *mite);
-
+	
+unsigned long mite_ll_from_user(comedi_device *dev, comedi_cmd *cmd);
+unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);
+void mite_dump_regs(struct mite_struct *mite);
+void mite_setregs(struct mite_struct *mite,unsigned long ll_start,int chan, int dir);
+int mite_bytes_transferred(struct mite_struct *mite, int chan);
 
 #define CHAN_OFFSET(x)			(0x100*(x))
 
@@ -206,6 +217,10 @@ void mite_dma_disarm(struct mite_struct *mite);
 #define CR_PORTMXI			(3<<6)
 #define CR_AMDEVICE			(1<<0)
 
+#define CHSR_INT			0x80000000
+#define CHSR_DONE			0x02000000
+#define CHSR_LINKC			0x00080000
+
 #define MITE_MCR		0x50c
 #define	MCRPON				0
 
@@ -240,8 +255,6 @@ void mite_dma_disarm(struct mite_struct *mite);
 #define MITE_AMHOST_A32_BLOCK	0x0b
 #define MITE_AMHOST_A32D64_BLOCK	0x08
 #define MITE_AMHOST_A24_BLOCK	0x3b
-
-
 
 #endif
 
