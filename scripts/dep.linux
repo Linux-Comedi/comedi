@@ -80,7 +80,7 @@ fi
 topdir=$(pwd)
 
 cd ${topdir}/scripts/linux_flags
-make LINUXDIR=${LINUXDIR} &>/dev/null
+make LINUXDIR=${LINUXDIR}
 cd ${topdir}
 mv scripts/linux_flags/flags .buildvars
 
