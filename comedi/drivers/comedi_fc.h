@@ -1,11 +1,11 @@
 /*
-    cfc.h
+    comedi_fc.h
 
     This is a place for code driver writers wish to share between
-    two or more drivers.
-    If it ever grows beyond a couple inline functions, I'll make
-    a cfc.o module to go with this header file.  cfc is short
-    for comedi-frank-common.
+    two or more drivers. These functions are meant to be used only
+    by drivers, they are NOT part of the kcomedilib API!
+
+
 
     Author:  Frank Mori Hess <fmhess@users.sourceforge.net>
     Copyright (C) 2002 Frank Mori Hess
