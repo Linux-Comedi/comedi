@@ -163,13 +163,15 @@ TODO:
 #define   SD                      0x40
 #define   UB                      0x80
 #define DAS1800_STATUS          0x7
+// bits that prevent interrupt status bits (and CVEN) from being cleared on write
+#define   CLEAR_INTR_MASK         (CVEN_MASK | 0x1f)
 #define   INT                     0x1
 #define   DMATC                   0x2
 #define   CT0TC                   0x8
 #define   OVF                     0x10
 #define   FHF                     0x20
 #define   FNE                     0x40
-#define   CVEN_MASK               0x40
+#define   CVEN_MASK               0x40	// masks CVEN on write
 #define   CVEN                    0x80
 #define DAS1800_BURST_LENGTH    0x8
 #define DAS1800_BURST_RATE      0x9
@@ -190,7 +192,7 @@ static int das1800_probe(comedi_device *dev);
 static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
 static int das1800_ai_poll(comedi_device *dev,comedi_subdevice *s);
-static void das1800_ai_handler(comedi_device *dev, unsigned int status);
+static void das1800_ai_handler(comedi_device *dev);
 static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s);
 static void das1800_flush_dma(comedi_device *dev, comedi_subdevice *s);
 static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, unsigned int channel, u16 *buffer);
@@ -871,12 +873,10 @@ static int das1800_probe(comedi_device *dev)
 static int das1800_ai_poll(comedi_device *dev,comedi_subdevice *s)
 {
 	unsigned long flags;
-	unsigned int status;
 
 	// prevent race with interrupt handler
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
-	status = inb(dev->iobase + DAS1800_STATUS);
-	das1800_ai_handler(dev, status);
+	das1800_ai_handler(dev);
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return s->async->buf_int_count - s->async->buf_user_count;
@@ -904,20 +904,21 @@ static void das1800_interrupt(int irq, void *d, struct pt_regs *regs)
 		spin_unlock(&dev->spinlock);
 		return;
 	}
-	/* clear the interrupt status bits */
-	outb(CVEN_MASK, dev->iobase + DAS1800_STATUS);
+	/* clear the interrupt status bit INT*/
+	outb(CLEAR_INTR_MASK & ~INT, dev->iobase + DAS1800_STATUS);
 	// handle interrupt
-	das1800_ai_handler(dev, status);
+	das1800_ai_handler(dev);
 
 	spin_unlock(&dev->spinlock);
 }
 
 // the guts of the interrupt handler, that is shared with das1800_ai_poll
-static void das1800_ai_handler(comedi_device *dev, unsigned int status)
+static void das1800_ai_handler(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 0;	/* analog input subdevice */
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
+	unsigned int status = inb(dev->iobase + DAS1800_STATUS);
 
 	async->events = 0;
 	// select adc for base address + 0
@@ -925,7 +926,12 @@ static void das1800_ai_handler(comedi_device *dev, unsigned int status)
 	// dma buffer full
 	if(devpriv->irq_dma_bits & DMA_ENABLED)
 	{
-		das1800_handle_dma(dev, s);
+		if(status & DMATC)
+		{
+			// clear DMATC interrupt bit
+			outb(CLEAR_INTR_MASK & ~DMATC, dev->iobase + DAS1800_STATUS);
+			das1800_handle_dma(dev, s);
+		}
 	}else if(status & FHF)
 	{	// if fifo half full
 		das1800_handle_fifo_half_full(dev, s);
@@ -938,6 +944,8 @@ static void das1800_ai_handler(comedi_device *dev, unsigned int status)
 	/* if the card's fifo has overflowed */
 	if(status & OVF)
 	{
+		// clear OVF interrupt bit
+		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
 		comedi_error(dev, "DAS1800 FIFO overflow");
 		das1800_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
@@ -949,6 +957,8 @@ static void das1800_ai_handler(comedi_device *dev, unsigned int status)
 	/* stop_src TRIG_EXT */
 	if(status & CT0TC)
 	{
+		// clear CT0TC interrupt bit
+		outb(CLEAR_INTR_MASK & ~CT0TC, dev->iobase + DAS1800_STATUS);
 		// make sure we get all remaining data from board before quitting
 		if(devpriv->irq_dma_bits & DMA_ENABLED)
 			das1800_flush_dma(dev, s);
@@ -970,40 +980,10 @@ static void das1800_ai_handler(comedi_device *dev, unsigned int status)
 static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned long flags;
-	unsigned int numPoints;
-	int unipolar;
-	int i;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
-	const int bytes_per_sample = 2;
-	comedi_cmd *cmd = &s->async->cmd;
 
 	flags = claim_dma_lock();
-	disable_dma(devpriv->dma_current);
- 	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_current);
-
-	// figure out how many points to read
-	numPoints = (devpriv->dma_transfer_size - get_dma_residue(devpriv->dma_current)) /
-		bytes_per_sample;
-	/* if we only need some of the points */
-	if(cmd->stop_src == TRIG_COUNT && devpriv->count < numPoints)
-		numPoints = devpriv->count;
-
-	/* see if card is using a unipolar or bipolar range so we can munge data correctly */
-	unipolar = inb(dev->iobase + DAS1800_CONTROL_C) & UB;
-
-	// read data from dma buffer
-	for( i = 0; i < numPoints; i++)
-	{
-		/* convert to unsigned type if we are in a bipolar mode */
-		if(!unipolar);
-			devpriv->dma_current_buf[i] += 1 << (thisboard->resolution - 1);
-		comedi_buf_put(s->async, devpriv->dma_current_buf[i]);
-		if(s->async->cmd.stop_src == TRIG_COUNT)
-			devpriv->count--;
-	}
-
+	das1800_flush_dma_channel(dev, s, devpriv->dma_current, devpriv->dma_current_buf);
 	// re-enable  dma channel
 	set_dma_addr(devpriv->dma_current, virt_to_bus(devpriv->dma_current_buf));
 	set_dma_count(devpriv->dma_current, devpriv->dma_transfer_size);
@@ -1028,16 +1008,16 @@ static void das1800_handle_dma(comedi_device *dev, comedi_subdevice *s)
 	return;
 }
 
-// utility function used by das1800_flush_dma()
+/* utility function used by das1800_flush_dma() and das1800_handle_dma()
+ * assumes dma lock is held */
 static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, unsigned int channel, u16 *buffer)
 {
-	unsigned long flags;
 	unsigned int numPoints;
 	int unipolar;
 	int i;
 	const int bytes_per_sample = 2;
+	comedi_cmd *cmd = &s->async->cmd;
 
-	flags = claim_dma_lock();
 	disable_dma(channel);
 
 	/* clear flip-flop to make sure 2-byte registers
@@ -1047,6 +1027,9 @@ static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, u
 	// figure out how many points to read
 	numPoints = (devpriv->dma_transfer_size - get_dma_residue(channel)) /
 		bytes_per_sample;
+	/* if we only need some of the points */
+	if(cmd->stop_src == TRIG_COUNT && devpriv->count < numPoints)
+		numPoints = devpriv->count;
 
 	/* see if card is using a unipolar or bipolar range so we can munge data correctly */
 	unipolar = inb(dev->iobase + DAS1800_CONTROL_C) & UB;
@@ -1058,9 +1041,9 @@ static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, u
 		if(!unipolar);
 			buffer[i] += 1 << (thisboard->resolution - 1);
 		comedi_buf_put(s->async, buffer[i]);
+		if(s->async->cmd.stop_src == TRIG_COUNT)
+			devpriv->count--;
 	}
-
-	release_dma_lock(flags);
 
 	return;
 }
@@ -1069,8 +1052,10 @@ static void das1800_flush_dma_channel(comedi_device *dev, comedi_subdevice *s, u
  * and we are using dma transfers */
 static void das1800_flush_dma(comedi_device *dev, comedi_subdevice *s)
 {
+	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
+	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, devpriv->dma_current, devpriv->dma_current_buf);
 
 	if(dual_dma)
@@ -1088,6 +1073,8 @@ static void das1800_flush_dma(comedi_device *dev, comedi_subdevice *s)
 		}
 		das1800_flush_dma_channel(dev, s, devpriv->dma_current, devpriv->dma_current_buf);
 	}
+
+	release_dma_lock(flags);
 
 	// get any remaining samples in fifo
 	das1800_handle_fifo_not_empty(dev, s);
