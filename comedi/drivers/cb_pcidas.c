@@ -1759,7 +1759,7 @@ static int trimpot_7376_write(comedi_device *dev, uint8_t value)
 static int trimpot_8402_write(comedi_device *dev, unsigned int channel, uint8_t value)
 {
 	// XXX check docs, this function is just a guess
-	static const int bitstream_length = 9;
+	static const int bitstream_length = 10;
 	unsigned int bitstream = ( ( channel & 0x1 ) << 8 ) | ( value & 0xff );
 	unsigned int register_bits;
 	static const int ad8402_udelay = 1;
