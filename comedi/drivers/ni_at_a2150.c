@@ -22,7 +22,7 @@
 ************************************************************************
 
 Yet another driver for obsolete hardware brought to you by Frank Hess.
-Testing and debugging help provided by Dave Andruczyk. 
+Testing and debugging help provided by Dave Andruczyk.
 
 This driver supports the boards:
 
@@ -39,6 +39,12 @@ Options:
 References (from ftp://ftp.natinst.com/support/manuals):
 
 	   320360.pdf  AT-A2150 User Manual
+
+TODO:
+
+analog level triggering
+TRIG_WAKE_EOS
+
 */
 
 #include <linux/kernel.h>
@@ -79,6 +85,7 @@ References (from ftp://ftp.natinst.com/support/manuals):
 #define   HW_TRIG_EN		0x10	// enable hardware trigger
 #define FIFO_START_REG		0x6	// software start aquistion trigger
 #define FIFO_RESET_REG		0x8	// clears fifo + fifo flags
+#define FIFO_DATA_REG		0xa	// read data
 #define DMA_TC_CLEAR_REG		0xe	// clear dma terminal count interrupt
 #define STATUS_REG		0x12	// read only
 #define   FNE_BIT		0x1	// fifo not empty
@@ -409,7 +416,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	s->range_table = &range_a2150;
 	s->do_cmd = a2150_ai_cmd;
 	s->do_cmdtest = a2150_ai_cmdtest;
-//	s->insn_read = a2150_ai_rinsn;	XXX
+	s->insn_read = a2150_ai_rinsn;
 	s->cancel = a2150_cancel;
 
 	/* need to do this for software counting of completed conversions, to
@@ -703,8 +710,55 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-// XXX
-	return 0;
+	unsigned int i, n;
+	static const int timeout = 10000;
+
+	// clear fifo and reset triggering circuitry
+	outw(0, dev->iobase + FIFO_RESET_REG);
+
+	/* setup chanlist */
+	if(a2150_set_chanlist(dev, CR_CHAN(insn->chanspec), 1) < 0)
+		return -1;
+
+	// set dc coupling
+	devpriv->config_bits &= ~AC0_BIT;
+	devpriv->config_bits &= ~AC1_BIT;
+
+	// send timing, channel, config bits
+	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
+
+	// disable dma on card
+	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
+	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
+
+	// setup start triggering
+	outw(0, dev->iobase + TRIGGER_REG);
+
+	// start aquisition for soft trigger
+	outw(0, dev->iobase + FIFO_START_REG);
+
+	/* there is a 35.6 sample delay for data to get through the antialias filter
+	 * so we might as well wait a while */
+	udelay(500);
+
+	// read data
+ 	for(n = 0; n < insn->n; n++)
+	{
+		for(i = 0; i < timeout; i++)
+		{
+			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
+				break;
+		}
+		if(i == timeout)
+		{
+			comedi_error(dev, "timeout");
+			return -ETIME;
+		}
+		data[n] = inw(dev->iobase + FIFO_DATA_REG);
+		data[n] += 0x8000;
+	}
+
+	return n;
 }
 
 /* sets bits in devpriv->clock_bits to nearest approximation of requested period,
