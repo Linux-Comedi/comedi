@@ -614,7 +614,7 @@ static int rtd_ai_cmdtest (comedi_device *dev,comedi_subdevice *s,
 			   comedi_cmd *cmd);
 static int rtd_ai_cmd ( comedi_device *dev, comedi_subdevice *s);
 static int rtd_ai_cancel ( comedi_device *dev, comedi_subdevice *s);
-static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
+//static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
 static int rtd_ns_to_timer (unsigned int *ns, int roundMode);
 static void rtd_interrupt ( int irq, void *d, struct pt_regs *regs);
 
