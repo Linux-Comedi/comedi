@@ -52,17 +52,17 @@ are not supported.
 	The real guts of the driver is in ni_mio_common.c, which is included
 	both here and in ni_pcimio.c
 
-	
+
 	Interrupt support added by Truxton Fulton <trux@truxton.com>
 
 	References for specifications:
-	
+
 	   340747b.pdf  Register Level Programmer Manual (obsolete)
 	   340747c.pdf  Register Level Programmer Manual (new)
 	   DAQ-STC reference manual
 
 	Other possibly relevant info:
-	
+
 	   320517c.pdf  User manual (obsolete)
 	   320517f.pdf  User manual (new)
 	   320889a.pdf  delete
@@ -336,8 +336,10 @@ static int ni_atmio_detach(comedi_device *dev)
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
+#ifdef __ISAPNP__
 	if(devpriv->isapnp_dev)
 		devpriv->isapnp_dev->deactivate(devpriv->isapnp_dev);
+#endif
 
 	return 0;
 }
@@ -351,9 +353,11 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	int		irq;
 
 	iobase=it->options[0];
-
+	irq=it->options[1];
+	isapnp_dev = NULL;
 	if( iobase == 0 )
 	{
+#ifdef __ISAPNP__
 		isapnp_dev = isapnp_find_dev(NULL,
 			ISAPNP_VENDOR('N','I','C'),
 			ISAPNP_FUNCTION(0x1900),
@@ -385,8 +389,7 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 		iobase = isapnp_dev->resource[0].start;
 		irq = isapnp_dev->irq_resource[0].start;
 		devpriv->isapnp_dev = isapnp_dev;
-	}else{
-		irq=it->options[1];
+#endif
 	}
 
 	/* reserve our I/O region */
