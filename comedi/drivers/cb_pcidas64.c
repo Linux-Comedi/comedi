@@ -3,14 +3,18 @@
     This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
     64xx, 60xx, and 4020 cards.
 
-    Author:  Frank Mori Hess <fmhess@uiuc.edu>
-    Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+    Author:  Frank Mori Hess <fmhess@users.sourceforge.net>
+    Copyright (C) 2001, 2002 Frank Mori Hess
 
-    Thanks go to Steve Rosenbluth for providing the source code for
+    Thanks also go to the following people:
+
+    Steve Rosenbluth, for providing the source code for
     his pci-das6402 driver, and source code for working QNX pci-6402
     drivers by Greg Laird and Mariusz Bogacz.  None of the code was
-    used directly here, but was useful as an additional source of
+    used directly here, but it was useful as an additional source of
     documentation on how to program the boards.
+
+    John Sims, for much testing and feedback on pcidas-4020 support.
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
@@ -38,7 +42,7 @@ Description: Driver for the ComputerBoards/MeasurementComputing
    PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller.
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: works, but no streaming analog output yet
-Updated: 2002-06-30
+Updated: 2002-07-18
 Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
@@ -52,7 +56,10 @@ Configuration options:
 
 Feel free to send and success/failure reports to Frank Hess.
 
-Some devices are not identified because the PCI device IDs are not known.
+Some devices are not identified because the PCI device IDs are not yet
+known. If you have such a board, contact Frank Hess and the ID can be
+easily added.
+
 */
 
 /*
@@ -106,73 +113,176 @@ TODO:
 /* PCI-DAS64xxx base addresses */
 
 // indices of base address regions
-#define PLX9080_BADRINDEX 0
-#define MAIN_BADRINDEX 2
-#define DIO_COUNTER_BADRINDEX 3
+enum base_address_regions
+{
+	PLX9080_BADRINDEX = 0,
+	MAIN_BADRINDEX = 2,
+	DIO_COUNTER_BADRINDEX = 3,
+};
 
 // priv(dev)->main_iobase registers
-// write-only
-#define INTR_ENABLE_REG	0x0	// interrupt enable register
-#define    ADC_INTR_SRC_MASK	0x3	// bits that set adc interrupt source
-#define    ADC_INTR_QFULL_BITS	0x0	// interrupt fifo quater full
-#define    ADC_INTR_EOC_BITS	0x1	// interrupt end of conversion
-#define    ADC_INTR_EOSCAN_BITS	0x2	// interrupt end of scan
-#define    ADC_INTR_EOSEQ_BITS	0x3	// interrupt end of sequence (probably wont use this it's pretty fancy)
-#define    EN_ADC_INTR_SRC_BIT	0x4	// enable adc interrupt source
-#define    EN_ADC_DONE_INTR_BIT	0x8	// enable adc aquisition done interrupt
-#define    EN_DAC_INTR_SRC_BIT	0x40	// enable dac interrupt source
-#define    EN_ADC_ACTIVE_INTR_BIT	0x200	// enable adc active interrupt
-#define    EN_ADC_STOP_INTR_BIT	0x400	// enable adc stop trigger interrupt
-#define    EN_DAC_ACTIVE_INTR_BIT	0x800	// enable dac active interrupt
-#define    EN_DAC_UNDERRUN_BIT	0x4000	// enable dac underrun status bit
-#define    EN_ADC_OVERRUN_BIT	0x8000	// enable adc overrun status bit
-#define HW_CONFIG_REG	0x2	// hardware config register
-#define    MASTER_CLOCK_4020_MASK	0x3	// bits that specify master clock source for 4020
-#define    INTERNAL_CLOCK_4020_BITS	0x1	// user 40 MHz internal master clock for 4020
-#define    EXT_QUEUE_BIT	0x200	// use external channel/gain queue (more versatile than internal queue)
-#define    SLOW_DAC_BIT	0x400	// use 225 nanosec strobe when loading dac instead of 50 nanosec
-#define    HW_CONFIG_DUMMY_BITS	0x2000	// bit with unknown function yet given as default value in pci-das64 manual
-#define    DMA_CH_SELECT_BIT	0x8000	// bit selects channels 1/0 for analog input/output, otherwise 0/1
-#define FIFO_SIZE_REG	0x4	// allows adjustment of fifo sizes, we will always use maximum
-#define    ADC_FIFO_SIZE_MASK	0x7f	// bits that set adc fifo size
-#define    ADC_FIFO_60XX_BITS	0x78	// 8 kilosample adc fifo for 60xx boards
-#define    ADC_FIFO_64XX_BITS	0x38	// 8 kilosample adc fifo for 64xx boards
-#define    ADC_FIFO_4020_BITS	0x0	// dual 64 kilosample adc fifo for 4020
-#define    DAC_FIFO_SIZE_MASK	0xff00	// bits that set dac fifo size
-#define    DAC_FIFO_BITS 0xf000
-#define DAQ_SYNC_REG	0xc
-#define ADC_CONTROL0_REG	0x10	// adc control register 0
-#define    ADC_GATE_SRC_MASK	0x3	// bits that select gate
-#define    ADC_SOFT_GATE_BITS	0x1	// software gate
-#define    ADC_EXT_GATE_BITS	0x2	// external digital gate
-#define    ADC_ANALOG_GATE_BITS	0x3	// analog level gate
-#define    ADC_GATE_LEVEL_BIT	0x4	// level-sensitive gate (for digital)
-#define    ADC_GATE_POLARITY_BIT	0x8	// gate active low
-#define    ADC_START_TRIG_SOFT_BITS	0x10
-#define    ADC_START_TRIG_EXT_BITS	0x20
-#define    ADC_START_TRIG_ANALOG_BITS	0x30
-#define    ADC_START_TRIG_MASK	0x30
-#define    ADC_START_TRIG_FALLING_BIT	0x40	// trig 1 uses falling edge
-#define    ADC_EXT_CONV_FALLING_BIT	0x800	// external pacing uses falling edge
-#define    ADC_SAMPLE_COUNTER_EN_BIT	0x1000	// enable hardware scan counter
-#define    ADC_DMA_DISABLE_BIT	0x4000	// disables dma
-#define    ADC_ENABLE_BIT	0x8000	// master adc enable
-#define ADC_CONTROL1_REG	0x12	// adc control register 1
-#define    ADC_QUEUE_CONFIG_BIT	0x1	// should be set for boards with > 16 channels
-#define    CONVERT_POLARITY_BIT	0x10
-#define    EOC_POLARITY_BIT	0x20
-#define    SW_GATE_BIT	0x40	// software gate of adc
-#define    ADC_DITHER_BIT	0x200	// turn on extra noise for dithering
-#define    RETRIGGER_BIT	0x800
-#define    LO_CHANNEL_4020_BITS(x)	(((x) & 0x3) << 8)	// low channel for 4020 two channel mode
-#define    HI_CHANNEL_4020_BITS(x)	(((x) & 0x3) << 10)	// high channel for 4020 two channel mode
-#define    TWO_CHANNEL_4020_BITS	0x1000	// two channel mode for 4020
-#define    FOUR_CHANNEL_4020_BITS	0x2000	// four channel mode for 4020
-#define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
-#define CALIBRATION_REG	0x14
-#define    SELECT_8800_BIT	0x1
-#define    SELECT_8402_64XX_BIT	0x2
-#define    SELECT_1590_60XX_BIT	0x2
+enum write_only_registers
+{
+	INTR_ENABLE_REG = 0x0,	// interrupt enable register
+	HW_CONFIG_REG = 0x2,	// hardware config register
+	DAQ_SYNC_REG = 0xc,
+	DAQ_ATRIG_LOW_4020_REG = 0xc,
+	ADC_CONTROL0_REG = 0x10,	// adc control register 0
+	ADC_CONTROL1_REG = 0x12,	// adc control register 1
+	CALIBRATION_REG = 0x14,
+	ADC_SAMPLE_INTERVAL_LOWER_REG = 0x16,	// lower 16 bits of sample interval counter
+	ADC_SAMPLE_INTERVAL_UPPER_REG = 0x18,	// upper 8 bits of sample interval counter
+	ADC_DELAY_INTERVAL_LOWER_REG = 0x1a,	// lower 16 bits of delay interval counter
+	ADC_DELAY_INTERVAL_UPPER_REG = 0x1c,	// upper 8 bits of delay interval counter
+	ADC_COUNT_LOWER_REG = 0x1e,	// lower 16 bits of hardware conversion/scan counter
+	ADC_COUNT_UPPER_REG = 0x20,	// upper 8 bits of hardware conversion/scan counter
+	ADC_START_REG = 0x22,	// software trigger to start aquisition
+	ADC_CONVERT_REG = 0x24,	// initiates single conversion
+	ADC_QUEUE_CLEAR_REG = 0x26,	// clears adc queue
+	ADC_QUEUE_LOAD_REG = 0x28,	// loads adc queue
+	ADC_BUFFER_CLEAR_REG = 0x2a,
+	ADC_QUEUE_HIGH_REG = 0x2c,	// high channel for internal queue, use adc_chan_bits() inline above
+	DAC_CONTROL0_REG = 0x50,	// dac control register 0
+	DAC_CONTROL1_REG = 0x52,	// dac control register 0
+	DAC_BUFFER_CLEAR_REG = 0x66,	// clear dac buffer
+};
+static inline unsigned int dac_convert_reg( unsigned int channel )
+{
+	return 0x70 + ( 2 * ( channel & 0x1 ) );
+}
+static inline unsigned int dac_lsb_4020_reg( unsigned int channel )
+{
+	return 0x70 + ( 4 * ( channel & 0x1 ) );
+}
+static inline unsigned int dac_msb_4020_reg( unsigned int channel )
+{
+	return 0x72 + ( 4 * ( channel & 0x1 ) );
+}
+
+enum read_only_registers
+{
+	HW_STATUS_REG = 0x0,	// hardware status register, reading this apparently clears pending interrupts as well
+	PIPE1_READ_REG = 0x4,
+	ADC_READ_PNTR_REG = 0x8,
+	LOWER_XFER_REG = 0x10,
+	ADC_WRITE_PNTR_REG = 0xc,
+	PREPOST_REG = 0x14,
+};
+
+enum read_write_registers
+{
+	I8255_4020_REG = 0x48,	// 8255 offset, for 4020 only
+	ADC_QUEUE_FIFO_REG = 0x100,	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
+	ADC_FIFO_REG = 0x200,	// adc data fifo
+};
+
+// priv(dev)->dio_counter_iobase registers
+enum dio_counter_registers
+{
+	DIO_8255_OFFSET = 0x0,
+	DO_REG = 0x20,
+	DI_REG = 0x28,
+	DIO_DIRECTION_60XX_REG = 0x40,
+	DIO_DATA_60XX_REG = 0x48,
+};
+
+// bit definitions for write-only registers
+
+enum intr_enable_contents
+{
+	ADC_INTR_SRC_MASK = 0x3,	// bits that set adc interrupt source
+	ADC_INTR_QFULL_BITS = 0x0,	// interrupt fifo quater full
+	ADC_INTR_EOC_BITS = 0x1,	// interrupt end of conversion
+	ADC_INTR_EOSCAN_BITS = 0x2,	// interrupt end of scan
+	ADC_INTR_EOSEQ_BITS = 0x3,	// interrupt end of sequence (probably wont use this it's pretty fancy)
+	EN_ADC_INTR_SRC_BIT = 0x4,	// enable adc interrupt source
+	EN_ADC_DONE_INTR_BIT = 0x8,	// enable adc aquisition done interrupt
+	EN_DAC_INTR_SRC_BIT = 0x40,	// enable dac interrupt source
+	EN_ADC_ACTIVE_INTR_BIT = 0x200,	// enable adc active interrupt
+	EN_ADC_STOP_INTR_BIT = 0x400,	// enable adc stop trigger interrupt
+	EN_DAC_ACTIVE_INTR_BIT = 0x800,	// enable dac active interrupt
+	EN_DAC_UNDERRUN_BIT = 0x4000,	// enable dac underrun status bit
+	EN_ADC_OVERRUN_BIT = 0x8000,	// enable adc overrun status bit
+};
+
+enum hw_config_contents
+{
+	MASTER_CLOCK_4020_MASK = 0x3,	// bits that specify master clock source for 4020
+	INTERNAL_CLOCK_4020_BITS = 0x1,	// user 40 MHz internal master clock for 4020
+	EXT_QUEUE_BIT = 0x200,	// use external channel/gain queue (more versatile than internal queue)
+	SLOW_DAC_BIT = 0x400,	// use 225 nanosec strobe when loading dac instead of 50 nanosec
+	HW_CONFIG_DUMMY_BITS = 0x2000,	// bit with unknown function yet given as default value in pci-das64 manual
+	DMA_CH_SELECT_BIT = 0x8000,	// bit selects channels 1/0 for analog input/output, otherwise 0/1
+	FIFO_SIZE_REG = 0x4,	// allows adjustment of fifo sizes, we will always use maximum
+	DAC_FIFO_SIZE_MASK = 0xff00,	// bits that set dac fifo size
+	DAC_FIFO_BITS = 0xf000,
+};
+
+enum daq_atrig_low_4020_contents
+{
+	EXT_AGATE_BNC_BIT = 0x8000,	// use trig/ext clk bnc input for analog gate signal
+	EXT_STOP_TRIG_BNC_BIT = 0x4000,	// use trig/ext clk bnc input for external stop trigger signal
+	EXT_START_TRIG_BNC_BIT = 0x2000,	// use trig/ext clk bnc input for external start trigger signal
+};
+static inline uint16_t analog_trig_low_threshold_bits( uint16_t threshold )
+{
+	return threshold & 0xfff;
+}
+
+enum adc_control0_contents
+{
+	ADC_GATE_SRC_MASK = 0x3,	// bits that select gate
+	ADC_SOFT_GATE_BITS = 0x1,	// software gate
+	ADC_EXT_GATE_BITS = 0x2,	// external digital gate
+	ADC_ANALOG_GATE_BITS = 0x3,	// analog level gate
+	ADC_GATE_LEVEL_BIT = 0x4,	// level-sensitive gate (for digital)
+	ADC_GATE_POLARITY_BIT = 0x8,	// gate active low
+	ADC_START_TRIG_SOFT_BITS = 0x10,
+	ADC_START_TRIG_EXT_BITS = 0x20,
+	ADC_START_TRIG_ANALOG_BITS = 0x30,
+	ADC_START_TRIG_MASK = 0x30,
+	ADC_START_TRIG_FALLING_BIT = 0x40,	// trig 1 uses falling edge
+	ADC_EXT_CONV_FALLING_BIT = 0x800,	// external pacing uses falling edge
+	ADC_SAMPLE_COUNTER_EN_BIT = 0x1000,	// enable hardware scan counter
+	ADC_DMA_DISABLE_BIT = 0x4000,	// disables dma
+	ADC_ENABLE_BIT = 0x8000,	// master adc enable
+};
+
+enum adc_control1_contents
+{
+	ADC_QUEUE_CONFIG_BIT = 0x1,	// should be set for boards with > 16 channels
+	CONVERT_POLARITY_BIT = 0x10,
+	EOC_POLARITY_BIT = 0x20,
+	SW_GATE_BIT = 0x40,	// software gate of adc
+	ADC_DITHER_BIT = 0x200,	// turn on extra noise for dithering
+	RETRIGGER_BIT = 0x800,
+	TWO_CHANNEL_4020_BITS = 0x1000, // two channel mode for 4020
+	FOUR_CHANNEL_4020_BITS = 0x2000,	// four channel mode for 4020
+};
+static inline uint16_t adc_lo_chan_4020_bits( unsigned int channel )
+{
+	return ( channel & 0x3 ) << 8;
+};
+static inline uint16_t adc_hi_chan_4020_bits( unsigned int channel )
+{
+	return ( channel & 0x3 ) << 10;
+};
+static inline uint16_t adc_mode_bits( unsigned int mode )
+{
+	return ( mode & 0xf ) << 12;
+};
+
+enum calibration_contents
+{
+	SELECT_8800_BIT = 0x1,
+	SELECT_8402_64XX_BIT = 0x2,
+	SELECT_1590_60XX_BIT = 0x2,
+	CAL_EN_64XX_BIT = 0x40,	// calibration enable for 64xx series
+	SERIAL_DATA_IN_BIT = 0x80,
+	SERIAL_CLOCK_BIT = 0x100,
+	CAL_EN_60XX_BIT = 0x200,	// calibration enable for 60xx series
+	CAL_GAIN_BIT = 0x800,
+};
 /* calibration sources for 6025 are:
  *  0 : ground
  *  1 : 10V
@@ -183,83 +293,92 @@ TODO:
  *  6 : dac channel 0
  *  7 : dac channel 1
  */
-#define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)
-#define    CAL_EN_64XX_BIT	0x40	// calibration enable for 64xx series
-#define    SERIAL_DATA_IN_BIT	0x80
-#define    SERIAL_CLOCK_BIT	0x100
-#define    CAL_EN_60XX_BIT	0x200	// calibration enable for 60xx series
-#define    CAL_GAIN_BIT	0x800
-#define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
-#define ADC_SAMPLE_INTERVAL_UPPER_REG	0x18	// upper 8 bits of sample interval counter
-#define ADC_DELAY_INTERVAL_LOWER_REG	0x1a	// lower 16 bits of delay interval counter
-#define ADC_DELAY_INTERVAL_UPPER_REG	0x1c	// upper 8 bits of delay interval counter
-#define ADC_COUNT_LOWER_REG	0x1e	// lower 16 bits of hardware conversion/scan counter
-#define ADC_COUNT_UPPER_REG	0x20	// upper 8 bits of hardware conversion/scan counter
-#define ADC_START_REG	0x22	// software trigger to start aquisition
-#define ADC_CONVERT_REG	0x24	// initiates single conversion
-#define    ADC_CONVERT_CHANNEL_4020_BITS(x) (((x) & 0x3) << 8)
-#define ADC_QUEUE_CLEAR_REG	0x26	// clears adc queue
-#define ADC_QUEUE_LOAD_REG	0x28	// loads adc queue
-#define    CHAN_BITS(x)	((x) & 0x3f)
-#define    UNIP_BIT	0x800	// unipolar/bipolar bit
-#define    ADC_SE_DIFF_BIT	0x1000	// single-ended/ differential bit
-#define    ADC_COMMON_BIT	0x2000	// non-referenced single-ended (common-mode input)
-#define    QUEUE_EOSEQ_BIT	0x4000	// queue end of sequence
-#define    QUEUE_EOSCAN_BIT	0x8000	// queue end of scan
-#define ADC_BUFFER_CLEAR_REG	0x2a
-#define ADC_QUEUE_HIGH_REG	0x2c	// high channel for internal queue, use CHAN_BITS() macro above
-#define DAC_CONTROL0_REG	0x50	// dac control register 0
-#define    DAC_ENABLE_BIT	0x8000	// dac controller enable bit
-#define DAC_CONTROL1_REG	0x52	// dac control register 0
-#define    DAC_RANGE_BITS(channel, code)	(((code) & 0x3) << (2 * ((channel) & 0x1)))
-#define    DAC_OUTPUT_ENABLE_BIT	0x80	// dac output enable bit
-#define DAC_BUFFER_CLEAR_REG 0x66	// clear dac buffer
-#define DAC_CONVERT_REG(channel)	((0x70) + (2 * ((channel) & 0x1)))
-#define DAC_LSB_4020_REG( channel )	((0x70) + (4 * ((channel) & 0x1)))
-#define DAC_MSB_4020_REG( channel )	((0x72) + (4 * ((channel) & 0x1)))
-// read-only
-#define HW_STATUS_REG	0x0	// hardware status register, reading this apparently clears pending interrupts as well
-#define   DAC_UNDERRUN_BIT	0x1
-#define   ADC_OVERRUN_BIT 0x2
-#define   DAC_ACTIVE_BIT	0x4
-#define   ADC_ACTIVE_BIT	0x8
-#define   DAC_INTR_PENDING_BIT	0x10
-#define   ADC_INTR_PENDING_BIT	0x20
-#define   DAC_DONE_BIT	0x40
-#define   ADC_DONE_BIT	0x80
-#define   EXT_INTR_PENDING_BIT	0x100
-#define   ADC_STOP_BIT	0x200
-#define   PIPE_FULL_BITS(x)	(((x) >> 10) & 0x3)
-#define   HW_REVISION(x)	(((x) >> 12) & 0xf)
-#define PIPE1_READ_REG	0x4
-#define ADC_READ_PNTR_REG	0x8
-#define LOWER_XFER_REG	0x10
-#define ADC_WRITE_PNTR_REG	0xc
-#define PREPOST_REG	0x14
-#define   ADC_UPP_READ_PNTR_CODE(x)	(((x) >> 12) & 0x3)
-#define   ADC_UPP_WRITE_PNTR_CODE(x)	(((x) >> 14) & 0x3)
-#define   CHAIN_FLAG_BITS(x)	(((x) >> 6) & 0x3)
+static inline uint16_t adc_src_bits( unsigned int source )
+{
+	return ( source & 0xf ) << 3;
+};
 
-// read-write
+static inline uint16_t adc_convert_chan_4020_bits( unsigned int channel )
+{
+	return ( channel & 0x3 ) << 8;
+};
+
+enum adc_queue_load_contents
+{
+	UNIP_BIT = 0x800,	// unipolar/bipolar bit
+	ADC_SE_DIFF_BIT = 0x1000,	// single-ended/ differential bit
+	ADC_COMMON_BIT = 0x2000,	// non-referenced single-ended (common-mode input)
+	QUEUE_EOSEQ_BIT = 0x4000,	// queue end of sequence
+	QUEUE_EOSCAN_BIT = 0x8000,	// queue end of scan
+};
+static inline uint16_t adc_chan_bits( unsigned int channel )
+{
+	return channel & 0x3f;
+};
+
+enum dac_control0_contents
+{
+	DAC_ENABLE_BIT = 0x8000,	// dac controller enable bit
+};
+
+enum dac_control1_contents
+{
+	DAC_OUTPUT_ENABLE_BIT = 0x80,	// dac output enable bit
+};
+
+// bit definitions for read-only registers
+enum hw_status_contents
+{
+	DAC_UNDERRUN_BIT = 0x1,
+	ADC_OVERRUN_BIT = 0x2,
+	DAC_ACTIVE_BIT = 0x4,
+	ADC_ACTIVE_BIT = 0x8,
+	DAC_INTR_PENDING_BIT = 0x10,
+	ADC_INTR_PENDING_BIT = 0x20,
+	DAC_DONE_BIT = 0x40,
+	ADC_DONE_BIT = 0x80,
+	EXT_INTR_PENDING_BIT = 0x100,
+	ADC_STOP_BIT = 0x200,
+};
+static inline uint16_t pipe_full_bits( uint16_t hw_status_bits )
+{
+	return ( hw_status_bits >> 10) & 0x3;
+};
+
+static inline unsigned int dma_chain_flag_bits( uint16_t prepost_bits )
+{
+	return ( prepost_bits >> 6 ) & 0x3;
+}
+static inline unsigned int adc_upper_read_ptr_code( uint16_t prepost_bits )
+{
+	return ( prepost_bits >> 12 ) & 0x3;
+}
+static inline unsigned int adc_upper_write_ptr_code( uint16_t prepost_bits )
+{
+	return ( prepost_bits >> 14 ) & 0x3;
+}
 
 // I2C addresses for 4020
-#define RANGE_CAL_I2C_ADDR	0x20
-#define   ADC_SRC_BITS(x)	(((x) << 4) & ADC_SRC_MASK)	// input source
-#define   ADC_SRC_MASK	0x70	// bits that set what source the adc converter measures
-#define   ATTENUATE_BIT(channel)	(1 << ((channel) & 0x3))	// attenuate channel (+-5V input range)
-#define CALDAC0_I2C_ADDR	0xc
-#define CALDAC1_I2C_ADDR	0xd
+enum i2c_addresses
+{
+	RANGE_CAL_I2C_ADDR = 0x20,
+	CALDAC0_I2C_ADDR = 0xc,
+	CALDAC1_I2C_ADDR = 0xd,
+};
 
-#define I8255_4020_REG 0x48	// 8255 offset, for 4020 only
-#define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
-#define ADC_FIFO_REG 0x200	// adc data fifo
-
-// priv(dev)->dio_counter_iobase registers
-#define DIO_8255_OFFSET	0x0
-#define DO_REG	0x20
-#define DI_REG	0x28
-#define DIO_DIRECTION_60XX_REG	0x40
-#define DIO_DATA_60XX_REG	0x48
+enum range_cal_i2c_contents
+{
+	ADC_SRC_4020_MASK = 0x70,	// bits that set what source the adc converter measures
+};
+static inline uint8_t adc_src_4020_bits( unsigned int source )
+{
+	return ( source << 4 ) & ADC_SRC_4020_MASK;
+};
+static inline uint8_t attenuate_bit( unsigned int channel )
+{
+	// attenuate channel (+-5V input range)
+	return 1 << ( channel & 0x3 );
+};
 
 // analog input ranges for 64xx boards
 static comedi_lrange ai_ranges_64xx =
@@ -314,7 +433,7 @@ static comedi_lrange ai_ranges_4020 =
 		BIP_RANGE(1),
 	}
 };
-static int ai_range_bits_4020[] = 
+static int ai_range_bits_4020[] =
 {
 	0x1,
 	0x0,
@@ -666,10 +785,12 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_fifo:	ai_fifo_64xx,
 	},
 #endif
-
 };
 // Number of boards in cb_pcidas_boards
-#define N_BOARDS	(sizeof(pcidas64_boards) / sizeof(pcidas64_board))
+static inline unsigned int num_boards( void )
+{
+	return sizeof( pcidas64_boards ) / sizeof( pcidas64_board );
+}
 
 static struct pci_device_id pcidas64_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -689,7 +810,7 @@ MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-extern inline pcidas64_board* board(comedi_device *dev)
+extern inline pcidas64_board* board( const comedi_device *dev )
 {
 	return (pcidas64_board *)dev->board_ptr;
 }
@@ -798,6 +919,20 @@ static int set_ai_fifo_segment_length( comedi_device *dev, unsigned int num_entr
  */
 COMEDI_INITCLEANUP(driver_cb_pcidas);
 
+static inline uint16_t dac_range_bits( const comedi_device *dev,
+	unsigned int channel, unsigned int range )
+{
+	unsigned int code = board(dev)->ao_range_code[ range ];
+	return ( ( code ) & 0x3 ) << ( 2 * ( ( channel ) & 0x1 ) );
+};
+static inline unsigned int hw_revision( const comedi_device *dev, uint16_t hw_status_bits )
+{
+	if( board(dev)->layout == LAYOUT_4020)
+		return ( hw_status_bits >> 13 ) & 0x7;
+
+	return ( hw_status_bits >> 12) & 0xf;
+}
+
 // initialize plx9080 chip
 static void init_plx9080(comedi_device *dev)
 {
@@ -888,10 +1023,10 @@ static int setup_subdevices(comedi_device *dev)
 		unsigned int i;
 		uint8_t data;
 		// set adc to read from inputs (not internal calibration sources)
-		priv(dev)->i2c_cal_range_bits = ADC_SRC_BITS(4);
+		priv(dev)->i2c_cal_range_bits = adc_src_4020_bits( 4 );
 		// set channels to +-5 volt input ranges
 		for( i = 0; i < s->n_chan; i++)
-			priv(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(i);
+			priv(dev)->i2c_cal_range_bits |= attenuate_bit( i );
 		data = priv(dev)->i2c_cal_range_bits;
 		i2c_write(dev, RANGE_CAL_I2C_ADDR, &data, sizeof(data));
 	}
@@ -1050,7 +1185,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 		if( pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS )
 			continue;
 		// loop through cards supported by this driver
-		for(index = 0; index < N_BOARDS; index++)
+		for(index = 0; index < num_boards(); index++)
 		{
 			if( pcidas64_boards[index].device_id != pcidev->device )
 				continue;
@@ -1132,9 +1267,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	DEBUG_PRINT(" local 0 io addr 0x%x\n", priv(dev)->local0_iobase);
 	DEBUG_PRINT(" local 1 io addr 0x%x\n", priv(dev)->local1_iobase);
 
-	priv(dev)->hw_revision = HW_REVISION(readw(priv(dev)->main_iobase + HW_STATUS_REG));
-	if( board(dev)->layout == LAYOUT_4020)
-		priv(dev)->hw_revision >>= 1;
+	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
 
 	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
 
@@ -1295,36 +1428,36 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			else
 				cal_en_bit = CAL_EN_64XX_BIT;
 			// select internal reference source to connect to channel 0
-			writew(cal_en_bit | CAL_SRC_BITS(priv(dev)->calibration_source),
+			writew(cal_en_bit | adc_src_bits( priv(dev)->calibration_source ),
 				priv(dev)->main_iobase + CALIBRATION_REG);
 		} else
 		{
 			// make sure internal calibration source is turned off
 			writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
 		}
-		bits |= CHAN_BITS(channel);
+		bits |= adc_chan_bits( channel );
 		// set start channel, and rest of settings
 		writew(bits, priv(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 		// set stop channel
-		writew(CHAN_BITS(channel), priv(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
+		writew( adc_chan_bits( channel ), priv(dev)->main_iobase + ADC_QUEUE_HIGH_REG );
 	}else
 	{
 		uint8_t old_cal_range_bits = priv(dev)->i2c_cal_range_bits;
 
-		priv(dev)->i2c_cal_range_bits &= ~ADC_SRC_MASK;
+		priv(dev)->i2c_cal_range_bits &= ~ADC_SRC_4020_MASK;
 		if(insn->chanspec & CR_ALT_SOURCE)
 		{
 			DEBUG_PRINT("reading calibration source\n");
-			priv(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(priv(dev)->calibration_source);
+			priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits( priv(dev)->calibration_source );
 		} else
 		{	//select BNC inputs
-			priv(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(4);
+			priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits( 4 );
 		}
 		// select range
 		if(ai_range_bits_4020[range])
-			priv(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(channel);
+			priv(dev)->i2c_cal_range_bits |= attenuate_bit( channel );
 		else
-			priv(dev)->i2c_cal_range_bits &= ~ATTENUATE_BIT(channel);
+			priv(dev)->i2c_cal_range_bits &= ~attenuate_bit( channel );
 		// update calibration/range i2c register only if necessary, as it is very slow
 		if(old_cal_range_bits != priv(dev)->i2c_cal_range_bits)
 		{
@@ -1345,20 +1478,21 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		writew(0, priv(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
 
 		/* trigger conversion, bits sent only matter for 4020 */
-		writew(ADC_CONVERT_CHANNEL_4020_BITS(CR_CHAN(insn->chanspec)), priv(dev)->main_iobase + ADC_CONVERT_REG);
+		writew( adc_convert_chan_4020_bits( CR_CHAN( insn->chanspec ) ),
+			priv(dev)->main_iobase + ADC_CONVERT_REG );
 
 		// wait for data
 		for(i = 0; i < timeout; i++)
 		{
 			bits = readw(priv(dev)->main_iobase + HW_STATUS_REG);
-			DEBUG_PRINT(" pipe bits 0x%x\n", PIPE_FULL_BITS(bits));
+			DEBUG_PRINT(" pipe bits 0x%x\n", pipe_full_bits( bits ) );
 			if(board(dev)->layout == LAYOUT_4020)
 			{
-				if(readw(priv(dev)->main_iobase + ADC_WRITE_PNTR_REG))
+				if( readw( priv(dev)->main_iobase + ADC_WRITE_PNTR_REG ) )
 					break;
 			}else
 			{
-				if(PIPE_FULL_BITS(bits))
+				if( pipe_full_bits( bits ) )
 					break;
 			}
 			udelay(1);
@@ -1535,11 +1669,6 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd)
 	switch(cmd->stop_src)
 	{
 		case TRIG_EXT:
-			if(cmd->stop_arg)
-			{
-				cmd->stop_arg = 0;
-				err++;
-			}
 			break;
 		case TRIG_COUNT:
 			if(!cmd->stop_arg)
@@ -1658,20 +1787,81 @@ static inline unsigned int dma_transfer_size( comedi_device *dev )
 	return num_samples;
 }
 
+void disable_ai_interrupts( comedi_device *dev )
+{
+	priv(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
+		~ADC_INTR_SRC_MASK;
+	writew( priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG);
+}
+
+uint32_t ai_convert_counter_6xxx( const comedi_device *dev, const comedi_cmd *cmd )
+{
+	// supposed to load counter with desired divisor minus 3
+	return	cmd->convert_arg / TIMER_BASE - 3;
+}
+
+uint32_t ai_scan_counter_6xxx( comedi_device *dev, comedi_cmd *cmd )
+{
+	// figure out how long we need to delay at end of scan
+	switch( cmd->scan_begin_src )
+	{
+		case TRIG_TIMER:
+			return ( cmd->scan_begin_arg - ( cmd->convert_arg * ( cmd->chanlist_len - 1 ) ) )
+				/ TIMER_BASE;
+			break;
+		case TRIG_FOLLOW:
+			return cmd->convert_arg / TIMER_BASE;
+			break;
+		default:
+			break;
+	}
+	return 0;
+}
+
+uint32_t ai_convert_counter_4020( comedi_device *dev, comedi_cmd *cmd )
+{
+	// supposed to load counter with desired divisor minus 2 for 4020
+	return cmd->scan_begin_arg / TIMER_BASE - 2;
+}
+
+void set_ai_pacing( comedi_device *dev, comedi_cmd *cmd )
+{
+	uint32_t convert_counter = 0, scan_counter = 0;
+
+	check_adc_timing( cmd );
+
+	if( board(dev)->layout == LAYOUT_4020 )
+	{
+		convert_counter = ai_convert_counter_4020( dev, cmd );
+	}else
+	{
+		convert_counter = ai_convert_counter_6xxx( dev, cmd );
+		scan_counter = ai_scan_counter_6xxx( dev, cmd );
+	}
+
+	// load lower 16 bits of convert interval
+	writew( convert_counter & 0xffff, priv(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG );
+	DEBUG_PRINT("convert counter 0x%x\n", convert_counter );
+	// load upper 8 bits of convert interval
+	writew( ( convert_counter >> 16 ) & 0xff,
+		priv(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG );
+	// load lower 16 bits of scan delay
+	writew( scan_counter & 0xffff, priv(dev)->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG );
+	// load upper 8 bits of scan delay
+	writew( ( scan_counter >> 16 ) & 0xff,
+		priv(dev)->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG );
+	DEBUG_PRINT("scan counter 0x%x\n", scan_counter );
+}
+
 static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 	u32 bits;
-	unsigned int convert_counter_value = 0;
-	unsigned int scan_counter_value = 0;
 	unsigned int i;
 
-	// disable card's analog input interrupt sources
-	priv(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
-		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
-		~ADC_INTR_SRC_MASK;
-	writew(priv(dev)->intr_enable_bits, priv(dev)->main_iobase + INTR_ENABLE_REG);
+	disable_ai_interrupts( dev );
 
 	/* disable pacing, triggering, etc */
 	writew(ADC_DMA_DISABLE_BIT, priv(dev)->main_iobase + ADC_CONTROL0_REG);
@@ -1680,40 +1870,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// make sure internal calibration source is turned off
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
-	// set conversion pacing
-	check_adc_timing(cmd);
-	if(cmd->convert_src == TRIG_TIMER)
-	{
-		// supposed to load counter with desired divisor minus 3
-		convert_counter_value = cmd->convert_arg / TIMER_BASE - 3;
 
-		// set scan pacing
-		if(cmd->scan_begin_src == TRIG_TIMER)
-		{
-			// figure out how long we need to delay at end of scan
-			scan_counter_value = (cmd->scan_begin_arg - (cmd->convert_arg * (cmd->chanlist_len - 1)))
-				/ TIMER_BASE;
-		}else if(cmd->scan_begin_src == TRIG_FOLLOW)
-		{
-			scan_counter_value = cmd->convert_arg / TIMER_BASE;
-		}
-	// 4020 pacing
-	}else if(cmd->convert_src == TRIG_NOW && cmd->scan_begin_src == TRIG_TIMER)
-	{
-		// supposed to load counter with desired divisor minus 2 for 4020
-		convert_counter_value = cmd->scan_begin_arg / TIMER_BASE - 2;
-		scan_counter_value = 0;
-	}
-	// load lower 16 bits if convert interval
-	writew(convert_counter_value & 0xffff, priv(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
-	DEBUG_PRINT("convert counter 0x%x\n", convert_counter_value);
-	// load upper 8 bits of convert interval
-	writew((convert_counter_value >> 16) & 0xff, priv(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
-	// load lower 16 bits of scan delay
-	writew(scan_counter_value & 0xffff, priv(dev)->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
-	// load upper 8 bits of scan delay
-	writew((scan_counter_value >> 16) & 0xff, priv(dev)->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
-	DEBUG_PRINT("scan counter 0x%x\n", scan_counter_value);
+	set_ai_pacing( dev, cmd );
 
 	setup_sample_counters( dev, cmd );
 
@@ -1732,7 +1890,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		{
 			bits = 0;
 			// set channel
-			bits |= CHAN_BITS(CR_CHAN(cmd->chanlist[i]));
+			bits |= adc_chan_bits( CR_CHAN( cmd->chanlist[i] ) );
 			// set gain
 			bits |= board(dev)->ai_range_bits[CR_RANGE(cmd->chanlist[i])];
 			// set single-ended / differential
@@ -1752,9 +1910,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	{
 		uint8_t old_cal_range_bits = priv(dev)->i2c_cal_range_bits;
 
-		priv(dev)->i2c_cal_range_bits &= ~ADC_SRC_MASK;
+		priv(dev)->i2c_cal_range_bits &= ~ADC_SRC_4020_MASK;
 		//select BNC inputs
-		priv(dev)->i2c_cal_range_bits |= ADC_SRC_BITS(4);
+		priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits( 4 );
 		// select ranges
 		for(i = 0; i < cmd->chanlist_len; i++)
 		{
@@ -1762,9 +1920,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			unsigned int range = CR_RANGE(cmd->chanlist[i]);
 
 			if(ai_range_bits_4020[range])
-				priv(dev)->i2c_cal_range_bits |= ATTENUATE_BIT(channel);
+				priv(dev)->i2c_cal_range_bits |= attenuate_bit( channel );
 			else
-				priv(dev)->i2c_cal_range_bits &= ~ATTENUATE_BIT(channel);
+				priv(dev)->i2c_cal_range_bits &= ~attenuate_bit( channel );
 		}
 		// update calibration/range i2c register only if necessary, as it is very slow
 		if(old_cal_range_bits != priv(dev)->i2c_cal_range_bits)
@@ -1785,9 +1943,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	// enable interrupts
 	priv(dev)->intr_enable_bits |= EN_ADC_OVERRUN_BIT |
-		EN_ADC_DONE_INTR_BIT | EN_ADC_ACTIVE_INTR_BIT;
-	if(cmd->stop_src == TRIG_EXT)
-		priv(dev)->intr_enable_bits |= EN_ADC_STOP_INTR_BIT;
+		EN_ADC_DONE_INTR_BIT | EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
 	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
@@ -1803,9 +1959,9 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	if(board(dev)->layout != LAYOUT_4020)
 	{
 		if(cmd->convert_src == TRIG_EXT)
-			priv(dev)->adc_control1_bits |= ADC_MODE_BITS(13);	// good old mode 13
+			priv(dev)->adc_control1_bits |= adc_mode_bits( 13 );	// good old mode 13
 		else
-			priv(dev)->adc_control1_bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
+			priv(dev)->adc_control1_bits |= adc_mode_bits(8);	// mode 8.  What else could you need?
 #if 0
 		// this causes interrupt on end of scan to be disabled on 60xx?
 		if(cmd->flags & TRIG_WAKE_EOS)
@@ -1817,8 +1973,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			priv(dev)->adc_control1_bits |= FOUR_CHANNEL_4020_BITS;
 		else if(cmd->chanlist_len == 2)
 			priv(dev)->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
-		priv(dev)->adc_control1_bits |= LO_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[0]));
-		priv(dev)->adc_control1_bits |= HI_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]));
+		priv(dev)->adc_control1_bits |= adc_lo_chan_4020_bits( CR_CHAN( cmd->chanlist[0] ) );
+		priv(dev)->adc_control1_bits |= adc_hi_chan_4020_bits( CR_CHAN( cmd->chanlist[ cmd->chanlist_len - 1 ] ) );
 	}
 
 	writew(priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG);
@@ -1844,23 +2000,34 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}
 
+	if( board(dev)->layout == LAYOUT_4020 )
+	{
+		/* set source for external triggers (hard coded to
+		 * use inputs on 40-pin connector for now) */
+		writew( 0, priv(dev)->main_iobase + DAQ_ATRIG_LOW_4020_REG );
+	}
+
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
 	// set start trigger
-	if(cmd->start_src == TRIG_EXT)
+	if( cmd->start_src == TRIG_EXT )
+	{
 		bits |= ADC_START_TRIG_EXT_BITS;
-	else if(cmd->start_src == TRIG_NOW)
+		if( cmd->start_arg & CR_INVERT )
+			bits |= ADC_START_TRIG_FALLING_BIT;
+	}else if( cmd->start_src == TRIG_NOW )
 		bits |= ADC_START_TRIG_SOFT_BITS;
-	if( cmd->start_arg & CR_INVERT )
-		bits |= ADC_START_TRIG_FALLING_BIT;
 	if( use_hw_sample_counter( cmd ) )
 		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, priv(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);
 
 	// start aquisition
-	writew(0, priv(dev)->main_iobase + ADC_START_REG);
-	DEBUG_PRINT("soft trig\n");
+	if( cmd->start_src == TRIG_NOW )
+	{
+		writew(0, priv(dev)->main_iobase + ADC_START_REG);
+		DEBUG_PRINT("soft trig\n");
+	}
 
 	priv(dev)->ai_cmd_running = 1;
 
@@ -1889,8 +2056,8 @@ static void pio_drain_ai_fifo_16(comedi_device *dev)
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
-		read_segment = ADC_UPP_READ_PNTR_CODE(prepost_bits);
-		write_segment = ADC_UPP_WRITE_PNTR_CODE(prepost_bits);
+		read_segment = adc_upper_read_ptr_code( prepost_bits );
+		write_segment = adc_upper_write_ptr_code( prepost_bits );
 		if(read_segment != write_segment)
 			num_samples = priv(dev)->ai_fifo_segment_length - read_index;
 		else
@@ -2090,10 +2257,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	if( ( async->events & COMEDI_CB_EOA) )
-		ai_cancel(dev, s);
-
-	comedi_event(dev, s, async->events);
+	cfc_handle_events( dev, s );
 
 	DEBUG_PRINT("exiting handler\n");
 
@@ -2188,7 +2352,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 
 	// set range
 	bits = DAC_OUTPUT_ENABLE_BIT;
-	bits |= DAC_RANGE_BITS(chan, board(dev)->ao_range_code[range]);
+	bits |= dac_range_bits( dev, chan, range );
 	writew(bits, priv(dev)->main_iobase + DAC_CONTROL1_REG);
 
 	// clear buffer
@@ -2197,11 +2361,11 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	// write to channel
 	if( board(dev)->layout == LAYOUT_4020 )
 	{
-		writew( data[0] & 0xff , priv(dev)->main_iobase + DAC_LSB_4020_REG(chan));
-		writew( (data[0] >> 8) & 0xf , priv(dev)->main_iobase + DAC_MSB_4020_REG(chan));
+		writew( data[0] & 0xff , priv(dev)->main_iobase + dac_lsb_4020_reg( chan ) );
+		writew( (data[0] >> 8) & 0xf , priv(dev)->main_iobase + dac_msb_4020_reg( chan ) );
 	}else
 	{
-		writew(data[0], priv(dev)->main_iobase + DAC_CONVERT_REG(chan));
+		writew(data[0], priv(dev)->main_iobase + dac_convert_reg( chan ) );
 	}
 
 	// remember output value
