@@ -107,7 +107,7 @@ extern inline int pci_request_regions(struct pci_dev *dev, char *name)
 		{
 			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
 				request_region(pci_resource_start(dev, i),
-					fake_length);
+					fake_length, name);
 		}
 	}
 
