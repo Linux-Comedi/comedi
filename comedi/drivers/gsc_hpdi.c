@@ -61,8 +61,8 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
 
-//#undef HPDI_DEBUG	// disable debugging messages
-#define HPDI_DEBUG	// enable debugging code
+#undef HPDI_DEBUG	// disable debugging messages
+//#define HPDI_DEBUG	// enable debugging code
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
@@ -456,6 +456,7 @@ static int init_hpdi( comedi_device *dev )
 	// enable interrupts
 	plx_intcsr_bits = ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE | ICS_DMA0_E;
 	writel( plx_intcsr_bits, priv(dev)->plx9080_iobase + PLX_INTRCS_REG );
+	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 
 	return 0;
 }
@@ -746,7 +747,7 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	priv(dev)->dma_index = 0;
 
-	abort_dma(dev, 1);
+	abort_dma(dev, 0);
 
 	// give location of first dma descriptor
 	bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
@@ -831,11 +832,20 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	hpdi_intr_status = readl( priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
 	hpdi_board_status = readl( priv(dev)->hpdi_iobase + BOARD_STATUS_REG );
 
-	DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
-	DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
-	DEBUG_PRINT("plx status 0x%x\n", plx_status);
-
+	if( hpdi_intr_status || ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA | ICS_LDIA ) ) )
+	{
+		DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
+		DEBUG_PRINT("board status 0x%x, ", hpdi_board_status);
+		DEBUG_PRINT("plx status 0x%x\n", plx_status);
+	}
 	async->events = 0;
+
+	if( hpdi_intr_status )
+	{
+		DEBUG_PRINT( "hpdi interrupt\n" );
+		writel( hpdi_intr_status, priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
+		writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
+	}
 
 	// spin lock makes sure noone else changes plx dma control reg
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
@@ -878,8 +888,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		
 	cfc_handle_events( dev, s );
 
-	DEBUG_PRINT("exiting handler\n");
-
 	return;
 }
 
@@ -899,7 +907,7 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s )
 {
 	hpdi_writel( dev, 0, BOARD_CONTROL_REG );
 
-	abort_dma(dev, 1);
+	abort_dma(dev, 0);
 
 	return 0;
 }
