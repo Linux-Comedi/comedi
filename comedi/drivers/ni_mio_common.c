@@ -62,7 +62,8 @@ static int ni_gainlkup[][16]={
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
 	{ 1, 2, 4, 7, 9, 10, 12, 15, 0,0,0,0,0,0,0,0 },
 	{ 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 0,0 },
-	{ 0, 1, 4, 7, 8, 9, 12, 15, 0, 0, 0, 0, 0, 0, 0, 0 }
+	{ 0, 1, 4, 7, 8, 9, 12, 15, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 1, 4, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
 static comedi_lrange range_ni_E_ai={	16, {
@@ -119,6 +120,12 @@ static comedi_lrange range_ni_E_ai_limited_602x={ 8, {
 	RANGE( 0,	1	),
 	RANGE( 0,	0.1	),
 }};
+static comedi_lrange range_ni_E_ai_603x={ 4, {
+	RANGE( -10,	10	),
+	RANGE( -5,	5	),
+	RANGE( -0.5,	0.5	),
+	RANGE( -0.05,	0.05	),
+}};
 #if 0
 static comedi_lrange range_ni_E_ao = { 2, {
 	RANGE( -10,	10	),
@@ -136,7 +143,8 @@ static comedi_lrange *ni_range_lkup[]={
 	&range_ni_E_ai,
 	&range_ni_E_ai_limited,
 	&range_ni_E_ai_limited14,
-	&range_ni_E_ai_limited_602x
+	&range_ni_E_ai_limited_602x,
+	&range_ni_E_ai_603x,
 };
 
 
@@ -769,7 +777,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out((cmd->stop_arg-1)>>16,AI_SC_Load_A_Registers);
 		win_out((cmd->stop_arg-1)&0xffff,AI_SC_Load_A_Registers+1);
 
-		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
+		//mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
+		mode1 |= 0xd;
 		win_out(mode1,AI_Mode_1_Register);
 	
 		/* load SC (Scan Count) */
@@ -781,7 +790,8 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out(0,AI_SC_Load_A_Registers);
 		win_out(0,AI_SC_Load_A_Registers+1);
 	
-		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
+		//mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
+		mode1 |= 0xe;
 		win_out(mode1,AI_Mode_1_Register);
 
 		/* load SC (Scan Count) */

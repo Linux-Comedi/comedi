@@ -86,13 +86,11 @@
 static struct caldac_struct *type1[]={&caldac_dac8800,&caldac_dac8043,NULL};
 static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,&caldac_ad8522};
 static struct caldac_struct *type3[]={&caldac_mb88341,NULL,NULL};
-#if 0
 static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad8522};
-#endif
 
 
 static ni_board ni_boards[]={
-	{       device_id:      0x0162,
+	{       device_id:      0x0162, // NI also says 0x1620.  typo?
 		name:           "pci-mio-16xe-50",
 		n_adchan:       16,
 		adbits:         16,
@@ -256,7 +254,36 @@ static ni_board ni_boards[]={
 		caldac:         type3,
 		has_8255:	1,
 	},
-#if 0
+	{       device_id:      0x0000,		/* unknown */
+		name:           "pci-6034e",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,
+		alwaysdither:   1,
+		gainlkup:       ai_gain_8_602x,
+		ai_speed:	5000,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,
+		ao_unipolar:    0,
+		caldac:         type3,
+		has_8255:	0,
+	},
+	{       device_id:      0x0000,		/* unknown */
+		name:           "pci-6035e",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,
+		alwaysdither:   1,
+		gainlkup:       ai_gain_4_603x,
+		ai_speed:	5000,
+		n_aochan:       2,
+		aobits:         12,
+		ao_fifo_depth:  0,
+		ao_unipolar:    0,
+		caldac:         type3,
+		has_8255:	0,
+	},
 	{       device_id:      0x0000,		/* unknown */
 		name:           "pci-6052e",
 		n_adchan:       16,
@@ -296,6 +323,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  2048,
 		caldac:         type4,		/* XXX */
 	},
+#if 0
 	{       device_id:      0x0000,		/* unknown */
 		name:           "pci-6040e",
 		ai_speed:	800,
@@ -303,14 +331,6 @@ static ni_board ni_boards[]={
 	{       device_id:      0x0000,		/* unknown */
 		name:           "pci-6041e",
 		ai_speed:	800,
-	},
-	{       device_id:      0x0000,		/* unknown */
-		name:           "pci-6034e",
-		ai_speed:	5000,
-	},
-	{       device_id:      0x0000,		/* unknown */
-		name:           "pci-6035e",
-		ai_speed:	5000,
 	},
 	{       device_id:      0x0000,		/* unknown */
 		name:           "pci-1200",
@@ -501,6 +521,7 @@ static int pcimio_find_device(comedi_device *dev)
 		}
 	}
 	printk("no device found\n");
+	mite_list_boards();
 	return -EIO;
 }
 

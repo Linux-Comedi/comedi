@@ -238,6 +238,19 @@ void mite_unsetup(struct mite_struct *mite)
 }
 
 
+void mite_list_devices(void)
+{
+	struct mite_struct *mite,*next;
+	
+	printk("Available NI device IDs:");
+	for(mite=mite_devices;mite;mite=next){
+		next=mite->next;
+		printk(" 0x%04x",mite_device_id(mite));
+	}
+	printk("\n");
+
+}
+
 int mite_kvmem_segment_load(struct mite_struct *mite,int i,char *kvmem,unsigned int len)
 {
 	int count,offset;
@@ -323,6 +336,7 @@ void mite_dma_disarm(struct mite_struct *mite)
 int init_module(void)
 {
 	mite_init();
+	mite_list_devices();
 
 	return 0;
 }
@@ -343,6 +357,7 @@ struct symbol_table mite_syms = {
 	X(mite_unsetup),
 	X(mite_kvmem_segment_load),
 	X(mite_devices),
+	X(mite_list_devices),
 #include <linux/symtab_end.h>
 };
 
@@ -358,6 +373,7 @@ EXPORT_SYMBOL(mite_setup);
 EXPORT_SYMBOL(mite_unsetup);
 EXPORT_SYMBOL(mite_kvmem_segment_load);
 EXPORT_SYMBOL(mite_devices);
+EXPORT_SYMBOL(mite_list_devices);
 
 #endif
 
