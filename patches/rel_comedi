@@ -46,7 +46,7 @@ mkdir comedi-$version/include/comedi
 mkdir comedi-$version/include/modbuild
 rm -rf comedi-$version/patches
 
-sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" -e "s/^EXTRAVERSION.*/EXTRAVERSION = /" \
+sed -e "s/^SUBLEVEL.*/SUBLEVEL = $minor/" -e "s/^EXTRAVERSION.*/EXTRAVERSION = /" \
   comedi-$version/Makefile >Makefile.tmp
 mv Makefile.tmp comedi-$version/Makefile
 
