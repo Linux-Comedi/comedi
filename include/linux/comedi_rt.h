@@ -31,7 +31,7 @@
 #include <linux/malloc.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
-#include "comedidev.h"
+#include <linux/comedidev.h>
 
 #ifdef CONFIG_COMEDI_RT
 
@@ -44,6 +44,9 @@
 #include <rtl_sync.h>
 //#endif
 #define rt_printk rtl_printf
+#endif
+#ifdef CONFIG_PRIORITY_IRQ
+#define rt_printk printk
 #endif
 
 int comedi_request_irq(unsigned int irq,void (*handler)(int,void *,
