@@ -642,6 +642,22 @@ The test command, REMOVE!!:
 rmmod daqboard2000 ; rmmod comedi; make install ; modprobe daqboard2000; /usr/sbin/comedi_config /dev/comedi0 daqboard/2000 ; tail -40 /var/log/messages
 */
 
+static int daqboard2000_8255_cb(int dir, int port, int data, void *arg)
+{
+  int result = 0;
+  int iobase=(int)arg;
+  if(dir){
+    *((u16*)(iobase+port*2)) = data;
+    result = 0;
+  }else{
+    result = *((u16*)(iobase+port*2));
+  }
+/*  printk("daqboard2000_8255_cb %x %d %d %2.2x -> %2.2x\n",
+        arg, dir, port, data, result);
+*/
+  return result;
+}
+
 static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 {
   int result = 0;
@@ -758,7 +774,8 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
     s->range_table = &range_daqboard2000_ao;
 
     s = dev->subdevices + 2;
-    result = subdev_8255_init(dev,s,NULL,(void *)(dev->iobase+0x40));
+    result = subdev_8255_init(dev,s,daqboard2000_8255_cb,
+                             (void *)(dev->iobase+0x40));
   }
   
   printk("\n");
