@@ -623,7 +623,7 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		outb_p(0,dev->iobase+DAS16_TRIG);
 
 		for(i=0;i<DAS16_TIMEOUT;i++){
-			if(!(inb(DAS16_STATUS)&DAS16_EOC))
+			if(!(inb(dev->iobase + DAS16_STATUS) & DAS16_EOC))
 				break;
 		}
 		if(i==DAS16_TIMEOUT){
