@@ -980,7 +980,7 @@ static int dt282x_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *
 		cmd->start_arg=0;
 		err++;
 	}
-	if(cmd->scan_begin_arg <= 5000 /* XXX unknown */){
+	if(cmd->scan_begin_arg < 5000 /* XXX unknown */){
 		cmd->scan_begin_arg = 5000;
 		err++;
 	}
@@ -1291,7 +1291,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		s->do_cmd=dt282x_ao_cmd;
 		s->cancel=dt282x_ao_cancel;
 		s->maxdata=(1<<boardtype.dabits)-1;
-		s->len_chanlist=1;			/* XXX could do 2 */
+		s->len_chanlist=2;
 		s->range_table_list=devpriv->darangelist;
 		devpriv->darangelist[0]=
 			opt_ao_range_lkup(it->options[opt_ao0_range]);
