@@ -60,7 +60,7 @@ EXPORT_SYMBOL(comedi_close);
 EXPORT_SYMBOL(comedi_loglevel);
 EXPORT_SYMBOL(comedi_perror);
 EXPORT_SYMBOL(comedi_strerror);
-EXPORT_SYMBOL(comedi_errno);
+//EXPORT_SYMBOL(comedi_errno);
 EXPORT_SYMBOL(comedi_fileno);
 
 /* device queries */
