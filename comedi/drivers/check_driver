@@ -77,6 +77,8 @@ fi
 # I would prefer that drivers have a consistent number of subdevices
 # independent of the particular board type.  If a subdevice is not
 # relevant for a board type, the type should be set to COMEDI_SUBD_UNUSED.
+# However, for drivers that handle N identical subdevices, it's better
+# to have a variable number of subdevices.
 tmp=$(cat ${driver}|grep -c 'dev..n_subdevices[[:space:]]*=' 2>/dev/null)
 if [ "$tmp" = 1 ];then
 	echo sets n_subdevices once
@@ -95,23 +97,31 @@ else
 fi
 
 # Do we use trig?
+# trig[0] is going away.
 if grep 'trig\[0\]' ${driver} &>/dev/null;then
-	echo "W: uses trig[0]"
+	echo "E: uses trig[0]"
 else
 	echo "doesn't use trig[0]"
 fi
 
+# trig[1234] is going away, but not as rapidly.
 if grep 'trig\[[1234]\]' ${driver} &>/dev/null;then
-	echo "W: uses trig[1234]"
+	echo "E: uses trig[1234]"
+	trig1234=yes
 else
 	echo "doesn't use trig[1234]"
+	trig1234=no
 fi
 
 if grep 'comedi_cmd' ${driver} &>/dev/null;then 
 	echo "uses cmd"
 	cmd=yes
 else
-	echo "W: doesn't use cmd"
+	if [ "$trig1234" == yes ];then
+		echo "E: doesn't use cmd"
+	else
+		echo "doesn't use cmd"
+	fi
 	cmd=no
 fi
 
@@ -123,11 +133,17 @@ else
 	insn=no
 fi
 
-# not comprehensive.
-if ! grep 'rt_printk' ${driver} &>/dev/null;then
-	echo "W: doesn't use rt_printk"
+# rt_printk() only needs to be used in possible real-time code paths,
+# which is basically everything except *_attach() and *_detach().
+# However, since it works correctly in non-real-time code, just use
+# it everywhere.
+if grep 'printk' ${driver} &>/dev/null;then
+	if ! grep 'rt_printk' ${driver} &>/dev/null;then
+		echo "W: doesn't use rt_printk"
+	fi
 fi
 
+# comedi_request_irq() handles real-time interrupts.
 if grep request_irq ${driver} &>/dev/null;then
 	if ! grep 'comedi_request_irq' ${driver} &>/dev/null;then
 		echo "E: doesn't use comedi_request_irq"
@@ -166,15 +182,21 @@ if grep '\(XXX\)\|\(FIX\)' ${driver} &>/dev/null;then
 fi
 
 # COMEDI_INITCLEANUP isn't strictly necessary, but it's a one-stop
-# cleanup to get Comedi to compile as part of the kernel.
+# cleanup to get Comedi to compile as part of the kernel.  It is
+# recommended to use it unless something else is necessary in module
+# init.
 if grep 'int init_module' ${driver} &>/dev/null;then
 	echo "W: suggest using COMEDI_INITCLEANUP"
 fi
 
+# range_unknown _should_ be used if the driver can't determine
+# the I/O range.  However, it's commonly used as a marker where
+# the author has not added more accurate range information.
 if grep 'range_unknown' ${driver} &>/dev/null;then
 	echo "W: uses range_unknown"
 fi
 
+# cur_trig was removed around 0.7.56
 if grep 'cur_trig' ${driver} &>/dev/null;then
 	echo "E: uses cur_trig"
 fi
@@ -183,30 +205,41 @@ if grep -E 'cmd..?data' ${driver} &>/dev/null;then
 	echo "E: uses cmd->data or cmd->data_len"
 fi
 
+# buf_int_ptr is (void *), whereas the minimum sample size is
+# 2 bytes.  Should be buf_int_ptr += sizeof(sampl_t)
 if grep 'buf_int_ptr++' ${driver} &>/dev/null;then
 	echo "E: uses buf_int_ptr++"
 fi
 
+# same
 if grep 'buf_int_count++' ${driver} &>/dev/null;then
 	echo "E: uses buf_int_count++"
 fi
 
+# remnants of trig[0]
 if grep 'di_unpack' ${driver} &>/dev/null;then
 	echo "W: di_unpack() going away soon, (not too soon)"
 fi
 
+# remnants of trig[0]
 if grep 'do_pack' ${driver} &>/dev/null;then
 	echo "W: do_pack() going away soon, (not too soon)"
 fi
 
+# This is a bug that causes difficulty to unload a driver.  Easy
+# to fix.
 if grep 'request_region.*dev.*iobase' ${driver} &>/dev/null;then
 	echo "W: recommend assigning dev->iobase after successful request_region()"
 fi
 
+# ds got it wrong in the first driver, and it was subsequently
+# copied to others.  Use ||.
 if grep 'if.*cmd.*&&.*err..;' ${driver} &>/dev/null;then
 	echo "E: Probable logic error in cmdtest"
 fi
 
+# Change in 0.7.59.  Drivers need to call subdev_8255_cleanup()
+# so the 8255 code knows when to free it's private structures.
 if grep 'subdev_8255_init' ${driver} &>/dev/null;then
 	if ! grep 'subdev_8255_cleanup' ${driver} &>/dev/null;then
 		echo "E: doesn't call subdev_8255_cleanup()"
