@@ -123,3 +123,20 @@ static int dummy_ao(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	return 0;
 }
 
+
+#if 0
+#ifdef MODULE
+int init_module(void)
+{
+	comedi_driver_register(&driver_dummy);
+
+	return 0;
+}
+
+void cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dummy);
+}
+#endif
+#endif
+
