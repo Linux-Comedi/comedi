@@ -276,6 +276,8 @@ enum{	/* must match following array */
 	das16_board_das16g,
 	das16_board_das16f,
 	das16_board_ciodas16jr,
+	das16_board_pc104das16jr,
+	das16_board_pc104das16jr_16,
 	das16_board_das1201,
 	das16_board_das1202,
 	das16_board_das1401,
@@ -340,7 +342,32 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	7692,
 	ai_pg:		das16_pg_16jr,
 	ao:		NULL,
-	ao_nbits:	12,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x10,
+	},
+	{
+	name:		"pc104-das16jr",	// pc104-das16jr_xx.pdf
+	ai:		das16_ai_rinsn,
+	ai_nbits:	12,
+	ai_speed:	6667,
+	ai_pg:		das16_pg_16jr,
+	ao:		NULL,
+	di:		das16_di_rbits,
+	do_:		das16_do_wbits,
+	i8255_offset:	0,
+	i8254_offset:	0x0c,
+	size:		0x10,
+	},
+	{
+	name:		"pc104-das16jr/16",	// pc104-das16jr_xx.pdf
+	ai:		das16_ai_rinsn,
+	ai_nbits:	16,
+	ai_speed:	10000,
+	ai_pg:		das16_pg_16jr,
+	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -354,7 +381,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	20000,
 	ai_pg:		das16_pg_none,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -368,7 +394,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	10000,
 	ai_pg:		das16_pg_none,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -382,7 +407,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	10000,
 	ai_pg:		das16_pg_1601,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -396,7 +420,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	10000,
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -438,7 +461,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	6250,
 	ai_pg:		das16_pg_1601,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -452,7 +474,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	6250,
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -466,7 +487,6 @@ static struct das16_board_struct das16_boards[]={
 	ai_speed:	10000,
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
-	ao_nbits:	12,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
@@ -521,12 +541,12 @@ static struct das16_board_struct das16_boards[]={
 	ai_nbits:	12,
 	ai_speed:	3030,
 	ai_pg:		das16_pg_16jr,
-	ao:		das16_ao_winsn,
-	ao_nbits:	12,
+	ao:		NULL,
 	di:		das16_di_rbits,
 	do_:		das16_do_wbits,
 	i8255_offset:	0,
 	i8254_offset:	0x0c,
+	size:		0x14,
 	},
 #if 0
 	{
@@ -536,7 +556,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/jr/ctr5", // ?
 	},
 	{
-	name:		"cio-das16/m1/16",	// cio-das-m1-16.pdf ?
+	name:		"cio-das16/m1/16",	// cio-das16_m1_16.pdf, this board is a bit quirky, no dma
 	},
 	{
 #endif
@@ -1102,7 +1122,9 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 	case 0x00:
 		printk(" das16jr or das16/330\n");
 		if(board_index == das16_board_ciodas16jr ||
-			board_index == das16_board_ciodas16_330)
+			board_index == das16_board_ciodas16_330 ||
+			board_index == das16_board_pc104das16jr ||
+			board_index == das16_board_pc104das16jr_16)
 			return 0;
 		break;
 	case 0xC0:
@@ -1126,7 +1148,7 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 			return 0;
 		break;
 	default:
-		printk(" unknown board\n");
+		printk(" probe failed, unknown board?\n");
 		return -1;
 	}
 	return -1;
