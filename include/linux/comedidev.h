@@ -27,7 +27,7 @@
 #include <linux/version.h>
 #include <linux/config.h>
 #include <linux/kdev_t.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 

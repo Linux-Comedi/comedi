@@ -32,14 +32,14 @@
 #include <linux/config.h>
 #include <linux/kdev_t.h>
 #include <linux/config.h>
-#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 
 #ifdef CONFIG_COMEDI_RT
 
 #ifdef CONFIG_COMEDI_RTAI
-#include <rtai/rtai.h>
+#include <rtai.h>
 #endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>

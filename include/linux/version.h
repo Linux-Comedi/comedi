@@ -1,7 +1,7 @@
 #ifndef __MULTI_VERSION_H_
 #define __MULTI_VERSION_H_
 
-#include <modbuild/version.h>
+#include <version.h>
 #include_next <linux/version.h>
 
 #ifndef KERNEL_VERSION
