@@ -1430,7 +1430,9 @@ static int comedi_fop_open(struct inode *inode,struct file *file)
 	in_comedi_open=1;
 
 	sprintf(mod,"char-major-%i-%i",COMEDI_MAJOR,minor);
+#ifdef CONFIG_KMOD
 	request_module(mod);
+#endif
 
 	in_comedi_open=0;
 
