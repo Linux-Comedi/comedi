@@ -953,7 +953,12 @@ static int dac08_write( comedi_device *dev, lsampl_t value )
 
 	devpriv->dac08_value = value;
 
+	outw( ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+	comedi_udelay( 1 );
 	outw( SELECT_DAC08_BIT | ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+	comedi_udelay( 1 );
+	outw( ( value & 0xff ), devpriv->control_status + CALIBRATION_REG );
+	comedi_udelay( 1 );
 
 	return 1;
 }
