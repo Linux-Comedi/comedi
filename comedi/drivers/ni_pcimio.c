@@ -674,9 +674,6 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 	return ret;
 }
 
-#define win_save() (ni_readw(Window_Address))
-#define win_restore(a) (ni_writew((a),Window_Address))
-
 #define ao_win_out(data,addr) __ao_win_out(dev,data,addr)
 static inline void __ao_win_out( comedi_device *dev, uint16_t data, int addr )
 {
