@@ -163,7 +163,7 @@ typedef struct {
 
 #define devpriv ((rti800_private *)dev->private)
 
-#define RTI800_TIMEOUT 10
+#define RTI800_TIMEOUT 100
 
 static irqreturn_t rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
 {
@@ -186,9 +186,16 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	outb(chan | (gain << 5), dev->iobase + RTI800_MUXGAIN);
 
+	/* without a delay here, you the RTI_OVERRUN bit
+	 * gets set, and you will have an error.  Not
+	 * sure if this is a long enough delay though.
+	 * comedi_udelay( gaindelay[ gain ] ) definitely
+	 * works */
+	comedi_udelay(1);
+
 	for(i=0;i<insn->n;i++){
 		outb(0, dev->iobase + RTI800_CONVERT);
-    		for (t = RTI800_TIMEOUT; t; t--) {
+		for (t = RTI800_TIMEOUT; t; t--) {
 			status=inb(dev->iobase+RTI800_CSR);
 			if(status & RTI800_OVERRUN){
 				rt_printk("rti800: a/d overrun\n");
@@ -196,7 +203,7 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 				return -EIO;
 			}
 			if (status & RTI800_DONE)break;
-			//comedi_udelay(8);
+			comedi_udelay(1);
 		}
 		if(t == 0){
 			rt_printk("rti800: timeout\n");
