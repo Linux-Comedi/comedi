@@ -475,7 +475,7 @@ int comedi_poll(comedi_t *d, unsigned int subdevice)
 
 
 /* WARNING: not portable */
-int comedi_map(comedi_t *d, unsigned int subdevice, void **ptr)
+int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
 {
 	comedi_device *dev = (comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
@@ -483,7 +483,10 @@ int comedi_map(comedi_t *d, unsigned int subdevice, void **ptr)
 	if(!s->async)
 		return -EINVAL;
 
-	if(ptr)*ptr=s->async->prealloc_buf;
+	if(ptr)
+	{
+		*((void **) ptr) = s->async->prealloc_buf;
+	}
 
 	/* XXX no reference counting */
 

@@ -108,7 +108,7 @@ unsigned int comedi_get_buf_head_pos(comedi_t *dev,unsigned int
 	subdevice);
 int comedi_set_user_int_count(comedi_t *dev,unsigned int subdevice,
 	unsigned int buf_user_count);
-int comedi_map(comedi_t *dev, unsigned int subdev, void **ptr);
+int comedi_map(comedi_t *dev, unsigned int subdev, void *ptr);
 int comedi_unmap(comedi_t *dev, unsigned int subdev);
 
 
