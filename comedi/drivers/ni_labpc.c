@@ -53,10 +53,11 @@ Configuration options - PCMCIA boards:
   none
 
 The Lab-pc+ and daqcard-1200 have quirky chanlist requirements
-when scanning multiple channels.  Scan
+when scanning multiple channels.  Multiple channel scan
 sequence must start at highest channel, then decrement down to
 channel 0.  The rest of the cards can scan down like lab-pc+ or scan
-up from channel zero.
+up from channel zero.  Chanlists consisting of all one channel
+are also legal, and allow you to pace conversions in bursts.
 
 */
 
@@ -227,6 +228,13 @@ static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int 
 enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
 enum labpc_register_layout {labpc_plus_layout, labpc_1200_layout};
 enum transfer_type {fifo_not_empty_transfer, fifo_half_full_transfer, isa_dma_transfer};
+enum scan_mode
+{
+	MODE_SINGLE_CHAN,
+	MODE_SINGLE_CHAN_INTERVAL,
+	MODE_MULT_CHAN_UP,
+	MODE_MULT_CHAN_DOWN,
+};
 
 typedef struct labpc_board_struct{
 	char *name;
@@ -461,7 +469,7 @@ static const int sample_size = 2;	// 2 bytes per sample
 
 typedef struct{
 	struct mite_struct *mite;	// for mite chip on pci-1200
-	volatile unsigned int count;  /* number of data points left to be taken */
+	volatile unsigned long long count;  /* number of data points left to be taken */
 	unsigned int ai_range;	// current ai range setting
 	unsigned int ao_range[NUM_AO_CHAN];	// current ao range settings
 	unsigned int ao_value[NUM_AO_CHAN];	// software copy of analog output values
@@ -833,13 +841,149 @@ static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
+static enum scan_mode labpc_ai_scan_mode( const comedi_cmd *cmd )
+{
+	if( cmd->chanlist_len == 1 )
+		return MODE_SINGLE_CHAN;
+
+	if( CR_CHAN( cmd->chanlist[0] ) == CR_CHAN( cmd->chanlist[1] ) )
+		return MODE_SINGLE_CHAN_INTERVAL;
+
+	if( CR_CHAN( cmd->chanlist[0] ) < CR_CHAN( cmd->chanlist[1] ) )
+		return MODE_MULT_CHAN_UP;
+
+	if( CR_CHAN( cmd->chanlist[0] ) > CR_CHAN( cmd->chanlist[1] ) )
+		return MODE_MULT_CHAN_DOWN;
+
+	rt_printk( "ni_labpc: bug! this should never happen\n");
+
+	return 0;
+}
+
+static int labpc_ai_chanlist_invalid( const comedi_device *dev,
+	const comedi_cmd *cmd )
+{
+	int mode, channel, range, aref, i;
+
+	if( cmd->chanlist == NULL ) return 0;
+
+	mode = labpc_ai_scan_mode( cmd );
+
+	if( mode == MODE_SINGLE_CHAN ) return 0;
+
+	if( mode == MODE_SINGLE_CHAN_INTERVAL )
+	{
+		if( cmd->chanlist_len > 0xff )
+		{
+			comedi_error(dev, "ni_labpc: chanlist too long for single channel interval mode\n");
+			return 1;
+		}
+	}
+
+	channel = CR_CHAN( cmd->chanlist[ 0 ] );
+	range = CR_RANGE( cmd->chanlist[ 0 ] );
+	aref = CR_AREF( cmd->chanlist[ 0 ] );
+
+	for( i = 0; i < cmd->chanlist_len; i++ )
+	{
+
+		switch( mode )
+		{
+			case MODE_SINGLE_CHAN_INTERVAL:
+				if( CR_CHAN( cmd->chanlist[ i ] ) != channel )
+				{
+					comedi_error(dev, "channel scanning order specified in chanlist is not supported by hardware.\n");
+					return 1;
+				}
+				break;
+			case MODE_MULT_CHAN_UP:
+				if( CR_CHAN( cmd->chanlist[ i ] ) != i )
+				{
+					comedi_error(dev, "channel scanning order specified in chanlist is not supported by hardware.\n");
+					return 1;
+				}
+				break;
+			case MODE_MULT_CHAN_DOWN:
+				if( CR_CHAN( cmd->chanlist[i] ) !=
+					cmd->chanlist_len - i - 1 )
+				{
+					comedi_error(dev, "channel scanning order specified in chanlist is not supported by hardware.\n");
+					return 1;
+				}
+				break;
+			default:
+				rt_printk( "ni_labpc: bug! in chanlist check\n");
+				return 1;
+				break;
+		}
+
+		if( CR_RANGE( cmd->chanlist[i] ) != range )
+		{
+			comedi_error(dev, "entries in chanlist must all have the same range\n");
+			return 1;
+		}
+
+		if( CR_AREF( cmd->chanlist[i] ) != aref )
+		{
+			comedi_error(dev, "entries in chanlist must all have the same reference\n");
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static unsigned int labpc_ai_convert_period( const comedi_cmd *cmd )
+{
+	if( cmd->convert_src != TRIG_TIMER ) return 0;
+
+	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN &&
+		cmd->scan_begin_src == TRIG_TIMER )
+		return cmd->scan_begin_arg;
+
+	return cmd->convert_arg;
+}
+
+static void labpc_set_ai_convert_period( comedi_cmd *cmd, unsigned int ns )
+{
+	if( cmd->convert_src != TRIG_TIMER ) return;
+
+	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN &&
+		cmd->scan_begin_src == TRIG_TIMER )
+	{
+		cmd->scan_begin_arg = ns;
+		if( cmd->convert_arg > cmd->scan_begin_arg )
+			cmd->convert_arg = cmd->scan_begin_arg;
+	}else
+		cmd->convert_arg = ns;
+}
+
+static unsigned int labpc_ai_scan_period( const comedi_cmd *cmd )
+{
+	if( cmd->scan_begin_src != TRIG_TIMER ) return 0;
+
+	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN &&
+		cmd->convert_src == TRIG_TIMER )
+		return 0;
+
+	return cmd->scan_begin_arg;
+}
+
+static void labpc_set_ai_scan_period( comedi_cmd *cmd, unsigned int ns )
+{
+	if( cmd->scan_begin_src != TRIG_TIMER ) return;
+
+	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN &&
+		cmd->convert_src == TRIG_TIMER )
+		return;
+
+	cmd->scan_begin_arg = ns;
+}
+
 static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp, tmp2;
-	int range;
-	int i;
-	int scan_up;
 	int stop_mask;
 
 	/* step 1: make sure trigger sources are trivially valid */
@@ -965,43 +1109,8 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 	if(err)return 4;
 
-	// check channel/gain list against card's limitations
-	if(cmd->chanlist && cmd->chanlist_len > 1)
-	{
-		range = CR_RANGE(cmd->chanlist[0]);
-		// should the scan list counting up or down?
-		scan_up = 0;
-		if(thisboard->ai_scan_up &&
-			CR_CHAN(cmd->chanlist[0]) == 0)
-		{
-			scan_up = 1;
-		}
-		for(i = 0; i < cmd->chanlist_len; i++)
-		{
-			if(scan_up == 0)
-			{
-				if(CR_CHAN(cmd->chanlist[i]) != cmd->chanlist_len - i - 1)
-				{
-					err++;
-				}
-			}else
-			{
-				if(CR_CHAN(cmd->chanlist[i]) != i)
-				{
-					err++;
-				}
-			}
-			if(err)
-				comedi_error(dev, "channel scanning order specified in chanlist is not supported by hardware.\n");
-			if(CR_RANGE(cmd->chanlist[i]) != range)
-			{
-				comedi_error(dev, "entries in chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
-
-	if(err)return 5;
+	if( labpc_ai_chanlist_invalid( dev, cmd ) )
+		return 5;
 
 	return 0;
 }
@@ -1013,7 +1122,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	int ret;
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
-	int scan_up, scan_enable;
 	enum transfer_type xfer;
 	unsigned long flags;
 
@@ -1052,24 +1160,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		}
 	}else	// otherwise, just put a1 in mode 0 with no count to set its output low
 		thisboard->write_byte(INIT_A1_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
-
-	// are we going to use scan mode?
-	if(cmd->chanlist_len > 1)
-	{
-		scan_enable = 1;
-		// figure out if we are scanning upwards or downwards through channels
-		if(cmd->chanlist_len > 1 &&
-			thisboard->ai_scan_up &&
-			CR_CHAN(cmd->chanlist[0]) == 0)
-		{
-			scan_up = 1;
-		}else
-			scan_up = 0;
-	}else
-	{
-		scan_enable = 0;
-		scan_up = 0;
-	}
 
 	// figure out what method we will use to transfer data
 	if(devpriv->dma_chan &&	// need a dma channel allocated
@@ -1114,7 +1204,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		else
 			devpriv->command6_bits &= ~A1_INTR_EN_BIT;
 		// are we scanning up or down through channels?
-		if(scan_up)
+		if( labpc_ai_scan_mode( cmd ) == MODE_MULT_CHAN_UP )
 			devpriv->command6_bits |= ADC_SCAN_UP_BIT;
 		else
 			devpriv->command6_bits &= ~ADC_SCAN_UP_BIT;
@@ -1130,18 +1220,18 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	/* setup channel list, etc (command1 register) */
 	devpriv->command1_bits = 0;
-	if(scan_up)
+	if( labpc_ai_scan_mode( cmd ) == MODE_MULT_CHAN_UP )
 		channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
 	else
 		channel = CR_CHAN(cmd->chanlist[0]);
 	// munge channel bits for differential / scan disabled mode
-	if(scan_enable == 0 && aref == AREF_DIFF)
+	if( labpc_ai_scan_mode( cmd ) != MODE_SINGLE_CHAN && aref == AREF_DIFF )
 		channel *= 2;
 	devpriv->command1_bits |= ADC_CHAN_BITS(channel);
 	devpriv->command1_bits |= thisboard->ai_range_code[range];
 	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
 	// manual says to set scan enable bit on second pass
-	if(scan_enable)
+	if( labpc_ai_scan_mode( cmd ) != MODE_SINGLE_CHAN )
 	{
 		devpriv->command1_bits |= ADC_SCAN_EN_BIT;
 		/* need a brief delay before enabling scan, or scan list will get screwed when you switch
@@ -1156,28 +1246,20 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
 	/* XXX should discard first scan when using interval scanning
 	 * since manual says it is not synced with scan clock */
-	switch(cmd->scan_begin_src)
+	if( labpc_ai_scan_mode != MODE_SINGLE_CHAN )
 	{
-		case TRIG_EXT:
-			devpriv->command4_bits |= EXT_SCAN_EN_BIT | INTERVAL_SCAN_EN_BIT;
-			break;
-		case TRIG_TIMER:
-			devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
-			break;
-		default:
-			break;
+		devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
+		if( cmd->scan_begin_src == TRIG_EXT )
+			devpriv->command4_bits |= EXT_SCAN_EN_BIT;
 	}
 	// single-ended/differential
 	if(aref == AREF_DIFF)
 		devpriv->command4_bits |= ADC_DIFF_BIT;
 	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
-	// make sure interval counter register doesn't cause problems
-	if(devpriv->command4_bits & INTERVAL_SCAN_EN_BIT &&
-		cmd->chanlist_len == 1)
+	if( labpc_ai_scan_mode( cmd ) == MODE_SINGLE_CHAN_INTERVAL )
 	{
-		// set count to one
-		thisboard->write_byte(0x1, dev->iobase + INTERVAL_COUNT_REG);
+		thisboard->write_byte( cmd->chanlist_len, dev->iobase + INTERVAL_COUNT_REG);
 		// load count
 		thisboard->write_byte(INTERVAL_LOAD_BITS, dev->iobase + INTERVAL_LOAD_REG);
 	}
@@ -1193,32 +1275,34 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			comedi_error(dev, "error loading counter b0");
 			return -1;
 		}
-		// set up conversion pacing
-		if(cmd->convert_src == TRIG_TIMER)
+	}
+	// set up conversion pacing
+	if( labpc_ai_convert_period( cmd ) )
+	{
+		// load counter a0 in mode 2
+		ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 0, devpriv->divisor_a0, 2);
+		if(ret < 0)
 		{
-			// load counter a0 in mode 2
-			ret = i8254_load(dev->iobase + COUNTER_A_BASE_REG, 0, devpriv->divisor_a0, 2);
-			if(ret < 0)
-			{
-				comedi_error(dev, "error loading counter a0");
-				return -1;
-			}
+			comedi_error(dev, "error loading counter a0");
+			return -1;
 		}
-		// set up scan pacing
-		if(cmd->scan_begin_src == TRIG_TIMER)
+	}else
+		thisboard->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
+
+	// set up scan pacing
+	if( labpc_ai_scan_period( cmd ) )
+	{
+		// load counter b1 in mode 2
+		ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 1, devpriv->divisor_b1, 2);
+		if(ret < 0)
 		{
-			// load counter b1 in mode 2
-			ret = i8254_load(dev->iobase + COUNTER_B_BASE_REG, 1, devpriv->divisor_b1, 2);
-			if(ret < 0)
-			{
-				comedi_error(dev, "error loading counter b1");
-				return -1;
-			}
+			comedi_error(dev, "error loading counter b1");
+			return -1;
 		}
 	}
 
 	labpc_clear_adc_fifo( dev );
-	
+
 	// set up dma transfer
 	if(xfer == isa_dma_transfer)
 	{
@@ -1394,16 +1478,16 @@ static int labpc_drain_fifo(comedi_device *dev)
 
 	for(i = 0; (devpriv->status1_bits & DATA_AVAIL_BIT) && i < timeout; i++)
 	{
+		// quit if we have all the data we want
+		if(async->cmd.stop_src == TRIG_COUNT)
+		{
+			if(devpriv->count == 0) break;
+			devpriv->count--;
+		}
 		lsb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 		msb = thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
 		data = (msb << 8) | lsb;
 		cfc_write_to_buffer( dev->read_subdev, data );
-		// quit if we have all the data we want
-		if(async->cmd.stop_src == TRIG_COUNT)
-		{
-			devpriv->count--;
-			if(devpriv->count == 0) break;
-		}
 		devpriv->status1_bits = thisboard->read_byte(dev->iobase + STATUS1_REG);
 	}
 	if(i == timeout)
@@ -1412,8 +1496,6 @@ static int labpc_drain_fifo(comedi_device *dev)
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		return -1;
 	}
-
-	async->events |= COMEDI_CB_BLOCK;
 
 	return 0;
 }
@@ -1716,10 +1798,11 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 	unsigned int base_period;
 
 	// if both convert and scan triggers are TRIG_TIMER, then they both rely on counter b0
-	if(cmd->convert_src == TRIG_TIMER && cmd->scan_begin_src == TRIG_TIMER)
+	if( labpc_ai_convert_period( cmd ) && labpc_ai_scan_period( cmd ) )
 	{
 		// pick the lowest b0 divisor value we can (for maximum input clock speed on convert and scan counters)
-		devpriv->divisor_b0 = (cmd->scan_begin_arg - 1) / (LABPC_TIMER_BASE * max_counter_value) + 1;
+		devpriv->divisor_b0 = (labpc_ai_scan_period( cmd ) - 1) /
+			(LABPC_TIMER_BASE * max_counter_value) + 1;
 		if(devpriv->divisor_b0 < min_counter_value)
 			devpriv->divisor_b0 = min_counter_value;
 		if(devpriv->divisor_b0 > max_counter_value)
@@ -1732,16 +1815,16 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 		{
 			default:
 			case TRIG_ROUND_NEAREST:
-				devpriv->divisor_a0 = (cmd->convert_arg + (base_period / 2)) / base_period;
-				devpriv->divisor_b1 = (cmd->scan_begin_arg + (base_period / 2)) / base_period;
+				devpriv->divisor_a0 = (labpc_ai_convert_period( cmd ) + (base_period / 2)) / base_period;
+				devpriv->divisor_b1 = (labpc_ai_scan_period( cmd ) + (base_period / 2)) / base_period;
 				break;
 			case TRIG_ROUND_UP:
-				devpriv->divisor_a0 = (cmd->convert_arg + (base_period - 1)) / base_period;
-				devpriv->divisor_b1 = (cmd->scan_begin_arg + (base_period - 1)) / base_period;
+				devpriv->divisor_a0 = (labpc_ai_convert_period( cmd ) + (base_period - 1)) / base_period;
+				devpriv->divisor_b1 = (labpc_ai_scan_period( cmd ) + (base_period - 1)) / base_period;
 				break;
 			case TRIG_ROUND_DOWN:
-				devpriv->divisor_a0 = cmd->convert_arg  / base_period;
-				devpriv->divisor_b1 = cmd->scan_begin_arg  / base_period;
+				devpriv->divisor_a0 = labpc_ai_convert_period( cmd ) / base_period;
+				devpriv->divisor_b1 = labpc_ai_scan_period( cmd ) / base_period;
 				break;
 		}
 		// make sure a0 and b1 values are acceptable
@@ -1754,19 +1837,27 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 		if(devpriv->divisor_b1 > max_counter_value)
 			devpriv->divisor_b1 = max_counter_value;
 		// write corrected timings to command
-		cmd->convert_arg = base_period * devpriv->divisor_a0;
-		cmd->scan_begin_arg = base_period * devpriv->divisor_b1;
+		labpc_set_ai_convert_period( cmd, base_period * devpriv->divisor_a0 );
+		labpc_set_ai_scan_period( cmd, base_period * devpriv->divisor_b1 );
 	// if only one TRIG_TIMER is used, we can employ the generic cascaded timing functions
-	}else if(cmd->scan_begin_src == TRIG_TIMER)
+	}else if( labpc_ai_scan_period( cmd ) )
 	{
+		unsigned int scan_period;
+
+		scan_period = labpc_ai_scan_period( cmd );
 		/* calculate cascaded counter values that give desired scan timing */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor_b1), &(devpriv->divisor_b0),
-			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
-	}else if(cmd->convert_src == TRIG_TIMER)
+			&scan_period, cmd->flags & TRIG_ROUND_MASK);
+		labpc_set_ai_scan_period( cmd, scan_period );
+	}else if( labpc_ai_convert_period( cmd ) )
 	{
+		unsigned int convert_period;
+
+		convert_period = labpc_ai_convert_period( cmd );
 		/* calculate cascaded counter values that give desired conversion timing */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE, &(devpriv->divisor_a0), &(devpriv->divisor_b0),
-			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
+			&convert_period, cmd->flags & TRIG_ROUND_MASK);
+		labpc_set_ai_convert_period( cmd, convert_period );
 	}
 }
 
