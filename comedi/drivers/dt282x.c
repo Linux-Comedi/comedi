@@ -386,7 +386,6 @@ static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2);
 static void dt282x_munge(comedi_device *dev,sampl_t *buf,
 	unsigned int nbytes)
 {
-	comedi_async *async = dev->subdevices[0].async;
 	unsigned int i;
 	unsigned short mask=(1<<boardtype.adbits)-1;
 	unsigned short sign=1<<(boardtype.adbits-1);
@@ -529,6 +528,7 @@ static int prep_ai_dma(comedi_device * dev,int chan,int n)
 
 	set_dma_mode(dma_chan, DMA_MODE_READ);
 	flags=claim_dma_lock();
+	clear_dma_ff(dma_chan);
 	set_dma_addr(dma_chan, dma_ptr);
 	set_dma_count(dma_chan, n);
 	release_dma_lock(flags);
@@ -548,6 +548,7 @@ static int prep_ao_dma(comedi_device * dev,int chan,int n)
 
 	set_dma_mode(dma_chan, DMA_MODE_WRITE);
 	flags=claim_dma_lock();
+	clear_dma_ff(dma_chan);
 	set_dma_addr(dma_chan, dma_ptr);
 	set_dma_count(dma_chan, n );
 	release_dma_lock(flags);
