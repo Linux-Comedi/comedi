@@ -905,31 +905,23 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 {
 	comedi_async *async = s->async;
 	int i;
-	u32 dl;
-	sampl_t data;
-	unsigned int mask;
-	int no_err = 1;
 
-	mask=(1<<boardtype.adbits)-1;
 	if(boardtype.reg_type == ni_reg_611x){
+		sampl_t data[2];
+		u32 dl;
+
 		for( i = 0; i < n / 2; i++ ){
 			dl=ni_readl(ADC_FIFO_Data_611x);
-
 			/* This may get the hi/lo data in the wrong order */
-			data = (dl>>16) & 0xffff;
-			no_err &= comedi_buf_put(s->async, data);
-			data = dl & 0xffff;
-			no_err &= comedi_buf_put(s->async, data);
+			data[0] = (dl>>16) & 0xffff;
+			data[1] = dl & 0xffff;
+			cfc_write_array_to_buffer(s, data, sizeof(data));
 		}
-
 		/* Check if there's a single sample stuck in the FIFO */
 		if( n % 2){
 			dl=ni_readl(ADC_FIFO_Data_611x);
-			data = dl & 0xffff;
-			no_err &= comedi_buf_put(s->async, data);
-		}
-		if(no_err==0){
-			async->events |= COMEDI_CB_OVERFLOW;
+			data[0] = dl & 0xffff;
+			cfc_write_to_buffer(s, data[0]);
 		}
 	}else{
 		if( n > sizeof(devpriv->ai_fifo_buffer) / sizeof(devpriv->ai_fifo_buffer[0]))
@@ -938,8 +930,8 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 			async->events |= COMEDI_CB_ERROR;
 			return;
 		}
-		for(i=0;i<n;i++){
-			devpriv->ai_fifo_buffer[ n ] = ni_readw(ADC_FIFO_Data_Register);
+		for(i = 0; i < n; i++){
+			devpriv->ai_fifo_buffer[i] = ni_readw(ADC_FIFO_Data_Register);
 		}
 		cfc_write_array_to_buffer( s, devpriv->ai_fifo_buffer,
 			n * sizeof(devpriv->ai_fifo_buffer[0]) );
@@ -950,15 +942,6 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 {
 	int n;
 	comedi_subdevice *s=dev->subdevices+0;
-	/*
-	   if we got a fifo_half_full interrupt, we can transfer fifo/2
-	   samples without checking the empty flag.  It doesn't matter if
-	   we transfer the rest of the samples, the performance trade-off
-	   is minimal (checking empty flag for a few samples vs. having
-	   1% more interrupts.)  At really high speeds, it's better to
-	   ignore them.
-
-	*/
 
 	n=boardtype.ai_fifo_depth/2;
 
@@ -997,39 +980,31 @@ static int ni_ai_drain_dma(comedi_device *dev )
 static void ni_handle_fifo_dregs(comedi_device *dev)
 {
 	comedi_subdevice *s=dev->subdevices+0;
-	comedi_async *async = s->async;
-	sampl_t data;
+	sampl_t data[2];
 	u32 dl;
-	int err = 1;
 
 	if(boardtype.reg_type == ni_reg_611x){
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
 			dl=ni_readl(ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
-			data = (dl>>16);
-			err &= comedi_buf_put(s->async, data);
-			data = (dl&0xffff);
-			err &= comedi_buf_put(s->async, data);
+			data[0] = (dl>>16);
+			data[1] = (dl&0xffff);
+			cfc_write_array_to_buffer(s, data, sizeof(data));
 		}
 	}else{
 		while((win_in(AI_Status_1_Register)&AI_FIFO_Empty_St) == 0){
-			data=ni_readw(ADC_FIFO_Data_Register);
-			err &= comedi_buf_put(s->async, data);
+			data[0]=ni_readw(ADC_FIFO_Data_Register);
+			cfc_write_to_buffer(s, data[0]);
 		}
-	}
-	if(err==0){
-		async->events |= COMEDI_CB_OVERFLOW;
 	}
 }
 
 static void get_last_sample_611x( comedi_device *dev )
 {
 	comedi_subdevice *s=dev->subdevices+0;
-	comedi_async *async = s->async;
 	sampl_t data;
 	u32 dl;
-	int err = 1;
 
 	if(boardtype.reg_type != ni_reg_611x) return;
 
@@ -1037,10 +1012,7 @@ static void get_last_sample_611x( comedi_device *dev )
 	if(ni_readb(XXX_Status)&0x80){
 		dl=ni_readl(ADC_FIFO_Data_611x);
 		data = (dl&0xffff);
-		err &= comedi_buf_put(s->async, data);
-	}
-	if(err==0){
-		async->events |= COMEDI_CB_OVERFLOW;
+		cfc_write_to_buffer(s, data);
 	}
 }
 
@@ -1064,25 +1036,6 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 }
 
 #ifdef PCIDMA
-
-#if 0
-static void ni_handle_block_dma(comedi_device *dev)
-{
-	comedi_subdevice *s = dev->subdevices + 0;
-
-	MDPRINTK("ni_handle_block_dma\n");
-	mite_dma_disarm(devpriv->mite);
-	ni_set_bits(dev, Interrupt_A_Enable_Register,
-		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
-		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
-		AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
-		AI_FIFO_Interrupt_Enable,0);
-
-	ni_ai_reset(dev,dev->subdevices);
-	s->async->events |= COMEDI_CB_EOA;
-	MDPRINTK("exit ni_handle_block_dma\n");
-}
-#endif
 
 static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 {
@@ -1137,7 +1090,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	mite_dma_disarm(devpriv->mite, AI_DMA_CHAN);
 #endif
 	/* ai configuration */
-	win_out( AI_Configuration_Start | AI_Reset, Joint_Reset_Register );
+	win_out(AI_Configuration_Start | AI_Reset, Joint_Reset_Register);
 
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
 		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
@@ -1153,13 +1106,8 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	win_out(AI_Start_Stop | AI_Mode_1_Reserved /*| AI_Trigger_Once */,
 		AI_Mode_1_Register);
 	win_out(0x0000,AI_Mode_2_Register);
-#if 0
-	/* generate FIFO interrupts on half full */
-	win_out((1<<6)|0x0000,AI_Mode_3_Register);
-#else
 	/* generate FIFO interrupts on non-empty */
 	win_out((0<<6)|0x0000,AI_Mode_3_Register);
-#endif
 	if(boardtype.reg_type == ni_reg_normal){
 		win_out(AI_SHIFTIN_Pulse_Width |
 			AI_SOC_Polarity |
@@ -1189,7 +1137,10 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	 *	AI_Personal_Register
 	 *	AI_Output_Control_Register
 	*/
-	win_out(0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
+	win_out(AI_SC_TC_Error_Confirm | AI_START_Interrupt_Ack |
+		AI_START2_Interrupt_Ack | AI_START1_Interrupt_Ack |
+		AI_SC_TC_Interrupt_Ack | AI_Error_Interrupt_Ack |
+		AI_STOP_Interrupt_Ack, Interrupt_A_Ack_Register); /* clear interrupts */
 
 	win_out(AI_Configuration_End,Joint_Reset_Register);
 
