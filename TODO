@@ -9,8 +9,6 @@ das6402 needs cleanup
 
 check each driver init for stuff
 
-grep XXX
-
 register_symtab
 
 fix PCI code, use pci_find_device()
@@ -21,13 +19,9 @@ verify PCI-6503 code
 
 get rid of spurious "char-major-98-0 not found"
 
-verify 2.0.x operation
-
 develop 8253 and Am9513 code
 
 different error code for board error vs buffer overflow
-
-ni_mio_common: gpct code broken
 
 spinlocks
 
