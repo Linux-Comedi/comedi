@@ -34,6 +34,11 @@
 
 Asynchronous analog input support added by Frank Mori Hess.
 
+TODO:
+
+add a calibration subdevice
+
+add analog out support
 */
 
 #include <linux/kernel.h>
@@ -96,15 +101,18 @@ Asynchronous analog input support added by Frank Mori Hess.
 #define   BEGIN_SCAN(x)	((x) & 0xf)
 #define   END_SCAN(x)	(((x) & 0xf) << 4)
 #define   GAIN_BITS(x)	(((x) & 0x3) << 8)
-#define   PACER_INT	0x1000
 #define   UNIP	0004000	// Analog front-end unipolar for range
 #define   SE	0002000	// Inputs in single-ended mode
 #define   EOC	0040000	// End of conversion
+#define   PACER_MASK	0x3000	// pacer source bits
+#define   PACER_INT 0x1000	// internal pacer
+#define   PACER_EXT_FALL	0x2000	// external falling edge
+#define   PACER_EXT_RISE	0x3000	// external rising edge
 
 #define TRIG_CONTSTAT 4 // TRIGGER CONTROL/STATUS register
 #define   SW_TRIGGER 0x1	// software start trigger
 #define   EXT_TRIGGER 0x2	// external start trigger
-#define   CLK_SRC 0x2000	// use internal 10MHz master clock
+#define   BURSTE 0x20	// burst mode enable
 
 #define CALIBRATION	6	// CALIBRATION register
 
@@ -639,6 +647,7 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 {
 	int err=0;
 	int tmp;
+	int i, gain, start_chan;
 
 	/* cmdtest tests a particular command to see if it is valid.
 	 * Using the cmdtest ioctl, a user can create a valid cmd
@@ -650,17 +659,17 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_NOW | TRIG_EXT;
 	if(!cmd->start_src && tmp != cmd->start_src)
 		err++;
 
 	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW; //TRIG_TIMER | TRIG_EXT;  XXX
+	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT;
 	if(!cmd->scan_begin_src && tmp != cmd->scan_begin_src)
 		err++;
 
 	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER; // TRIG_NOW | TRIG_EXT; XXX
+	cmd->convert_src &= TRIG_TIMER | TRIG_NOW | TRIG_EXT;
 	if(!cmd->convert_src && tmp != cmd->convert_src)
 		err++;
 
@@ -670,7 +679,7 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		err++;
 
 	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT;//  | TRIG_NONE;	XXX
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
 	if(!cmd->stop_src && tmp != cmd->stop_src)
 		err++;
 
@@ -678,6 +687,9 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
+	if(cmd->start_src != TRIG_NOW &&
+		cmd->start_src != TRIG_EXT)
+		err++;
 	if(cmd->scan_begin_src != TRIG_FOLLOW &&
 		cmd->scan_begin_src != TRIG_TIMER &&
 		cmd->scan_begin_src != TRIG_EXT)
@@ -688,9 +700,13 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		err++;
 	if(cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
 		err++;
-	// can't have both scans and conversion timed
-	if(cmd->scan_begin_src == TRIG_TIMER &&
-		cmd->convert_src == TRIG_TIMER)
+
+	// make sure convert_src and scan_begin_src are compatible
+	if(cmd->scan_begin_src == TRIG_FOLLOW &&
+		cmd->convert_src == TRIG_NOW)
+		err++;
+	if(cmd->scan_begin_src != TRIG_FOLLOW &&
+		cmd->convert_src != TRIG_NOW)
 		err++;
 
 	if(err) return 2;
@@ -734,7 +750,23 @@ static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 			err++;
 		}
 	}
-	// XXX check chanlist
+
+	// check channel/gain list against card's limitations
+	gain = CR_RANGE(cmd->chanlist[0]);
+	start_chan = CR_CHAN(cmd->chanlist[0]);
+	for(i = 1; i < cmd->chanlist_len; i++)
+	{
+		if(CR_CHAN(cmd->chanlist[i]) != (start_chan + i) % s->n_chan)
+		{
+			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+			err++;
+		}
+		if(CR_RANGE(cmd->chanlist[i]) != gain)
+		{
+			comedi_error(dev, "entries in chanlist must all have the same gain\n");
+			err++;
+		}
+	}
 
 	if(err)return 3;
 
@@ -781,7 +813,7 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// clear fifo
 	outw(0, devpriv->adc_fifo + ADCFIFOCLR);
 
-	// set mux limits and gain
+	// set mux limits, gain and pacer source
 	bits = BEGIN_SCAN(CR_CHAN(cmd->chanlist[0])) |
 		END_SCAN(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1])) |
 		GAIN_BITS(CR_RANGE(cmd->chanlist[0]));
@@ -791,13 +823,18 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	// set singleended/differential
 	if(CR_AREF(cmd->chanlist[0]) != AREF_DIFF)
 		bits |= SE;
-	// set pacer source to internal
-	bits |= PACER_INT;
+	// set pacer source
+	if(cmd->convert_src == TRIG_EXT || cmd->scan_begin_src == TRIG_EXT)
+		bits |= PACER_EXT_FALL;
+	else
+		bits |= PACER_INT;
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 	// load counters
 	if(cmd->convert_src == TRIG_TIMER)
 		cb_pcidas_load_counters(dev, &cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK);
+	else if(cmd->scan_begin_src == TRIG_TIMER)
+		cb_pcidas_load_counters(dev, &cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
 
 	async->events = 0;
 
@@ -815,8 +852,21 @@ static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= INT_FHF;	//interrupt fifo half full
 	}
 	outw(bits, devpriv->control_status + INT_ADCFIFO);
-	// set pacer master clock to be internal 10MHz, and set software start trigger
-	outw(CLK_SRC | SW_TRIGGER, devpriv->control_status + TRIG_CONTSTAT);
+
+	// set start trigger and burst mode
+	bits = 0;
+	if(cmd->start_src == TRIG_NOW)
+		bits |= SW_TRIGGER;
+	else if(cmd->start_src == TRIG_EXT)
+		bits |= EXT_TRIGGER;
+	else
+	{
+		comedi_error(dev, "bug!");
+		return -1;
+	}
+	if(cmd->convert_src == TRIG_NOW)
+		bits |= BURSTE;
+	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
 
 	return 0;
 }
@@ -915,7 +965,7 @@ static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s)
 	outw(0, devpriv->control_status + INT_ADCFIFO);
 	// software pacer source
 	outw(0, devpriv->control_status + ADCMUX_CONT);
-	// disable start trigger source
+	// disable start trigger source and burst mode
 	outw(0, devpriv->control_status + TRIG_CONTSTAT);
 
 	return 0;
