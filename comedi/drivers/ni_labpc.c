@@ -24,10 +24,9 @@ Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-1200),
   Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200,
-Status: In development, probably doesn't work yet.  Initially
-  just working on Lab-PC+.  Will adapt for compatible boards later.  Not
-  all input ranges and analog references will work, depending on how you
-  have configured the jumpers on your board (see your owner's manual)
+Status: In development.  For the older Lab-PC+, not all input ranges and analog
+  references will work, depending on how you
+  have configured the jumpers on your board (see your owner's manual).
 
 Configuration options - ISA boards:
   [0] - I/O port base address
@@ -168,7 +167,6 @@ typedef struct labpc_board_struct{
 	enum labpc_bustype bustype;	// ISA/PCI/etc.
 	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
 	int has_ao;	// has analog output true/false
-	int fifo_depth;	// number of samples adc fifo can hold
 	// function pointers so we can use inb/outb or readb/writeb as appropriate
 	unsigned int (*read_byte)(unsigned int address);
 	void (*write_byte)(unsigned int byte, unsigned int address);
@@ -176,19 +174,11 @@ typedef struct labpc_board_struct{
 
 //analog input ranges
 
-#define RANGE_IS_BIPOLAR 0x10
+#define AI_RANGE_IS_UNIPOLAR 0x10
 
 static comedi_lrange range_labpc_ai = {
 	16,
 	{
-		UNI_RANGE(10),
-		UNI_RANGE(8),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1),
-		UNI_RANGE(0.5),
-		UNI_RANGE(0.2),
-		UNI_RANGE(0.1),
 		BIP_RANGE(5),
 		BIP_RANGE(4),
 		BIP_RANGE(2.5),
@@ -197,15 +187,26 @@ static comedi_lrange range_labpc_ai = {
 		BIP_RANGE(0.25),
 		BIP_RANGE(0.1),
 		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(8),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1),
 	}
 };
 
 //analog output ranges
+
+#define AO_RANGE_IS_UNIPOLAR 0x10
+
 static comedi_lrange range_labpc_ao = {
 	2,
 	{
-		UNI_RANGE(10),
 		BIP_RANGE(5),
+		UNI_RANGE(10),
 	}
 };
 
@@ -222,7 +223,6 @@ static labpc_board labpc_boards[] =
 		bustype:	pcmcia_bustype,
 		register_layout:	labpc_1200_layout,
 		has_ao:	1,
-		fifo_depth: 2048,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
 	},
@@ -232,7 +232,6 @@ static labpc_board labpc_boards[] =
 		bustype:	isa_bustype,
 		register_layout:	labpc_1200_layout,
 		has_ao:	1,
-		fifo_depth: 4096,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
 	},
@@ -242,7 +241,6 @@ static labpc_board labpc_boards[] =
 		bustype:	isa_bustype,
 		register_layout:	labpc_1200_layout,
 		has_ao:	0,
-		fifo_depth: 4096,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
 	},
@@ -252,7 +250,6 @@ static labpc_board labpc_boards[] =
 		bustype:	isa_bustype,
 		register_layout:	labpc_plus_layout,
 		has_ao:	1,
-		fifo_depth: 512,
 		read_byte:	labpc_inb,
 		write_byte:	labpc_outb,
 	},
@@ -263,7 +260,6 @@ static labpc_board labpc_boards[] =
 		bustype:	pci_bustype,
 		register_layout:	labpc_1200_layout,
 		has_ao:	1,
-		fifo_depth: 4096,
 		read_byte:	labpc_readb,
 		write_byte:	labpc_writeb,
 	},
@@ -547,6 +543,8 @@ static int labpc_detach(comedi_device *dev)
 	/* only free stuff if it has been allocated by _attach */
 	if(devpriv->dma_buffer)
 		kfree(devpriv->dma_buffer);
+	if(devpriv->dma_chan)
+		free_dma(devpriv->dma_chan);
 	if(dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
 	if(dev->irq)
@@ -558,7 +556,7 @@ static int labpc_detach(comedi_device *dev)
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 	devpriv->command3_bits = 0;
 	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
@@ -739,7 +737,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	// make sure board is disabled before setting up aquisition
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 	devpriv->command3_bits = 0;
 	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
@@ -781,8 +779,8 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	}else if(thisboard->register_layout == labpc_1200_layout &&	// pc-plus has no fifo-half full interrupt
 		// wake-end-of-scan should interrupt on fifo not empty
 		(cmd->flags & TRIG_WAKE_EOS) == 0 &&
-		// don't use fifo half full if we are taking just a few points
-		(cmd->stop_src != TRIG_COUNT || devpriv->count > thisboard->fifo_depth / 2))
+		// make sure we are taking more than just a few points
+		(cmd->stop_src != TRIG_COUNT || devpriv->count > 256))
 	{
 		xfer = fifo_half_full_transfer;
 	}else
@@ -795,7 +793,7 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	else if(xfer == fifo_half_full_transfer)
 		comedi_error(dev, "using fifo half full interrupt");
 	else if(xfer == fifo_not_empty_transfer)
-		comedi_error(dev, "using fifo_not_empty interrupt");
+		comedi_error(dev, "using fifo not empty interrupt");
 #endif
 
 	/* setup channel list, etc (command1 register) */
@@ -824,10 +822,10 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		else
 			devpriv->command6_bits &= ~ADC_COMMON_BIT;
 		// bipolar or unipolar range?
-		if(CR_RANGE(cmd->chanlist[0]) & RANGE_IS_BIPOLAR)
-			devpriv->command6_bits &= ~ADC_UNIP_BIT;
-		else
+		if(CR_RANGE(cmd->chanlist[0]) & AI_RANGE_IS_UNIPOLAR)
 			devpriv->command6_bits |= ADC_UNIP_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_UNIP_BIT;
 		// interrupt on fifo half full?
 		if(xfer == fifo_half_full_transfer)
 			devpriv->command6_bits |= ADC_FHF_INTR_EN_BIT;
@@ -984,7 +982,7 @@ static void labpc_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(thisboard->register_layout == labpc_1200_layout)
 		devpriv->status2_bits = thisboard->read_byte(dev->iobase + STATUS2_REG);
 
-	if((devpriv->status1_bits & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT | OVERRUN_BIT /*| DATA_AVAIL_BIT*/)) == 0 &&
+	if((devpriv->status1_bits & (DMATC_BIT | TIMER_BIT | OVERFLOW_BIT | OVERRUN_BIT | DATA_AVAIL_BIT)) == 0 &&
 		(devpriv->status2_bits & A1_TC_BIT) == 0 &&
 		(devpriv->status2_bits & FNHF_BIT))
 	{
@@ -1116,6 +1114,9 @@ static void handle_isa_dma(comedi_device *dev)
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
+	// clear dma tc interrupt
+	thisboard->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
+
 	async->events |= COMEDI_CB_BLOCK;
 }
 
@@ -1126,27 +1127,56 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	int lsb, msb;
 	int timeout = 1000;
 
-	/* set gain and channel */
-	devpriv->command1_bits = 0;
-	devpriv->command1_bits |= ADC_GAIN_BITS(CR_RANGE(insn->chanspec));
-	chan = CR_CHAN(insn->chanspec);
-	// munge channel bits for differential mode
-	if(CR_AREF(insn->chanspec) == AREF_DIFF)
-		chan *= 2;
-	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
-	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
-
 	// disable timed conversions
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
-	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND3_REG);
+	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
 
 	// disable interrupt generation and dma
 	devpriv->command3_bits = 0;
 	thisboard->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
+		/* set gain and channel */
+	devpriv->command1_bits = 0;
+	devpriv->command1_bits |= ADC_GAIN_BITS(CR_RANGE(insn->chanspec));
+	chan = CR_CHAN(insn->chanspec);
+	// XXX munge channel bits for differential mode
+	if(CR_AREF(insn->chanspec) == AREF_DIFF)
+		chan *= 2;
+	devpriv->command1_bits |= ADC_CHAN_BITS(chan);
+	thisboard->write_byte(devpriv->command1_bits, dev->iobase + COMMAND1_REG);
+
+
+	// setup command6 register for 1200 boards
+	if(thisboard->register_layout == labpc_1200_layout)
+	{
+		// reference inputs to ground or common?
+		if(CR_AREF(insn->chanspec) != AREF_GROUND)
+			devpriv->command6_bits |= ADC_COMMON_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_COMMON_BIT;
+		// bipolar or unipolar range?
+		if(CR_RANGE(insn->chanspec) & AI_RANGE_IS_UNIPOLAR)
+			devpriv->command6_bits |= ADC_UNIP_BIT;
+		else
+			devpriv->command6_bits &= ~ADC_UNIP_BIT;
+		// don't interrupt on fifo half full
+		devpriv->command6_bits &= ~ADC_FHF_INTR_EN_BIT;
+		// don't enable interrupt on counter a1 terminal count?
+		devpriv->command6_bits &= ~A1_INTR_EN_BIT;
+		// write to register
+		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
+	}
+
+	// setup command4 register
+	devpriv->command4_bits = 0;
+	devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
+	// single-ended/differential
+	if(CR_AREF(insn->chanspec) == AREF_DIFF)
+		devpriv->command4_bits |= ADC_DIFF_BIT;
+	thisboard->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
+
 	// XXX init counter a0 to high state
 
-	//XXX command4 set se/diff
 	// clear adc fifo
 	thisboard->write_byte(0x1, dev->iobase + ADC_CLEAR_REG);
 	thisboard->read_byte(dev->iobase + ADC_FIFO_REG);
@@ -1182,7 +1212,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	int channel;
+	int channel, range;
 	int lsb, msb;
 
 	channel = CR_CHAN(insn->chanspec);
@@ -1191,6 +1221,18 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	// XXX spinlock access (race with analog input)
 	devpriv->command2_bits &= DAC_PACED_BIT(channel);
 	thisboard->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
+
+	// set range
+	if(thisboard->register_layout == labpc_1200_layout)
+	{
+		range = CR_RANGE(insn->chanspec);
+		if(range & AO_RANGE_IS_UNIPOLAR)
+			devpriv->command6_bits |= DAC_UNIP_BIT(channel);
+		else
+			devpriv->command6_bits &= ~DAC_UNIP_BIT(channel);
+		// write to register
+		thisboard->write_byte(devpriv->command6_bits, dev->iobase + COMMAND6_REG);
+	}
 
 	// send data
 	lsb = data[0] & 0xff;
