@@ -352,9 +352,9 @@ found:
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = thisboard->ranges;
-	s->insn_write = &cb_pcidda_ao_winsn;
-//	s->do_cmd = &cb_pcidda_ai_cmd;
-	s->do_cmdtest = &cb_pcidda_ai_cmdtest;
+	s->insn_write = cb_pcidda_ao_winsn;
+//	s->do_cmd = cb_pcidda_ai_cmd;
+	s->do_cmdtest = cb_pcidda_ai_cmdtest;
 
 	// two 8255 digital io subdevices
 	s = dev->subdevices + 1;

@@ -666,10 +666,10 @@ static int rtd_attach (
 	s->range_table = &rtd_ai_4520_range;
     }
     s->len_chanlist = thisboard->fifoLen;
-    s->insn_read = &rtd_ai_rinsn;
-    s->do_cmd = &rtd_ai_cmd;
-    s->do_cmdtest = &rtd_ai_cmdtest;
-    s->cancel = &rtd_ai_cancel;
+    s->insn_read = rtd_ai_rinsn;
+    s->do_cmd = rtd_ai_cmd;
+    s->do_cmdtest = rtd_ai_cmdtest;
+    s->cancel = rtd_ai_cancel;
 
     s=dev->subdevices+1;
     /* analog output subdevice */
@@ -678,8 +678,8 @@ static int rtd_attach (
     s->n_chan = 2;
     s->maxdata =(1<<thisboard->aiBits)-1;
     s->range_table = &rtd_ao_range;
-    s->insn_write = &rtd_ao_winsn;
-    s->insn_read = &rtd_ao_rinsn;
+    s->insn_write = rtd_ao_winsn;
+    s->insn_read = rtd_ao_rinsn;
 
     s=dev->subdevices+2;
     /* digital i/o subdevice */
@@ -701,7 +701,7 @@ static int rtd_attach (
     //s->insn_config=rtd_gpct_insn_config;
     s->n_chan=3;
     s->maxdata=0xffff;
-	
+
     /* check if our interrupt is available and get it */
     dev->irq = devpriv->pci_dev->irq;
     if(dev->irq>0){
