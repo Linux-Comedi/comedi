@@ -23,9 +23,9 @@
 /*
 Driver: ke_counter.o
 Description: Driver for Kolter Electronic Counter Card
-Devices: (Kolter Electronic) PCI Counter Card [ke_counter]
-Author: mh
-Updated: 11.4.2002
+Devices: [Kolter Electronic] PCI Counter Card (ke_counter)
+Author: Michael Hillmann
+Updated: 2002.4.11
 Status: tested
 
 This driver is a simple driver to read the counter values from

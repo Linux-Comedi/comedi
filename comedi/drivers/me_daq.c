@@ -27,7 +27,7 @@
 Driver: me_daq.o
 Description: Driver for the Meilhaus PCI data acquisition cards.
 Author: Michael Hillmann <hillmann@syscongroup.de>
-Devices: [Meilhaus] ME-2600i, ME-2000i (me_daq)
+Devices: [Meilhaus] ME-2600i (me_daq), ME-2000i
 Status: experimental
 
 Supports:
