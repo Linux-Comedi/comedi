@@ -74,17 +74,17 @@ typedef unsigned short sampl_t;
 
 /* trigger sources */
 
-#define TRIG_ANY	0		
-#define TRIG_NONE	0		/* never trigger */
-#define TRIG_NOW	1		/* trigger now + N ns */
-#define TRIG_FOLLOW	2		/* trigger on next lower level trig */
-#define TRIG_TIME	3		/* trigger at time N ns */
-#define TRIG_TIMER	4		/* trigger at rate N ns */
-#define TRIG_COUNT	5		/* trigger when count reaches N */
-#define TRIG_EXT	6		/* trigger on external signal N */
-#define TRIG_INT	7		/* trigger on comedi-internal signal N */
+#define TRIG_ANY	0xffffffff
+#define TRIG_NONE	0x00000001	/* never trigger */
+#define TRIG_NOW	0x00000002	/* trigger now + N ns */
+#define TRIG_FOLLOW	0x00000004	/* trigger on next lower level trig */
+#define TRIG_TIME	0x00000008	/* trigger at time N ns */
+#define TRIG_TIMER	0x00000010	/* trigger at rate N ns */
+#define TRIG_COUNT	0x00000020	/* trigger when count reaches N */
+#define TRIG_EXT	0x00000040	/* trigger on external signal N */
+#define TRIG_INT	0x00000080	/* trigger on comedi-internal signal N */
 
-#define TRIG_INVAL	8		/* choice was invalid */
+#define TRIG_INVAL	0x00000100	/* choice was invalid */
 
 /* subdevice flags */
 
