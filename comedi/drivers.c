@@ -46,7 +46,7 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
-static int comedi_recognize(comedi_driver *driv, const char *name);
+static void *comedi_recognize(comedi_driver *driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
 
 comedi_driver *comedi_drivers;
@@ -97,7 +97,6 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_driver *driv;
 	int ret;
-	int i=0;
 	int minor;
 	int use_count;
 
@@ -111,17 +110,13 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->use_count = use_count;
 
 	for(driv=comedi_drivers;driv;driv=driv->next){
-		if(driv->register_boards && driv->num_names){
-			i=comedi_recognize(driv, it->board_name);
-			if(i < 0) continue;
-		}else if(driv->recognize){
-			i=driv->recognize(it->board_name);
-			if(i<0)continue;
+		if(driv->num_names){
+			dev->board_ptr=comedi_recognize(driv, it->board_name);
+			if(dev->board_ptr==NULL) continue;
 		}else{
 			if(strcmp(driv->driver_name,it->board_name))
 				continue;
 		}
-		dev->board = i;
 		ret=driv->attach(dev,it);
 		if(ret<0){
 			driv->detach(dev);
@@ -171,46 +166,10 @@ attached:
 
 int comedi_driver_register(comedi_driver *driver)
 {
-	int ret;
-
 	driver->next=comedi_drivers;
 	comedi_drivers=driver;
 
-	if(driver->register_boards && driver->num_names)
-	{
-		driver->board_name = kmalloc(driver->num_names * sizeof(char*), GFP_KERNEL);
-		if(driver->board_name == NULL)
-		{
-			printk(KERN_ERR "comedi: memory allocation failure.\n");
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-		driver->board_id = kmalloc(driver->num_names * sizeof(int), GFP_KERNEL);
-		if(driver->board_id == NULL)
-		{
-			printk(KERN_ERR "comedi: memory allocation failure.\n");
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-
-		driver->register_boards();
-	}
-
 	return 0;
-
-cleanup:
-
-	// deallocate arrays
-	if(driver->board_name){
-		kfree(driver->board_name);
-	}
-	if(driver->board_id){
-		kfree(driver->board_id);
-	}
-
-	comedi_drivers = driver->next;
-
-	return ret;
 }
 
 int comedi_driver_unregister(comedi_driver *driver)
@@ -228,14 +187,6 @@ int comedi_driver_unregister(comedi_driver *driver)
 				printk("BUG! detaching device with use_count=%d\n",dev->use_count);
 			comedi_device_detach(dev);
 		}
-	}
-
-	// deallocate arrays
-	if(driver->board_name){
-		kfree(driver->board_name);
-	}
-	if(driver->board_id){
-		kfree(driver->board_id);
 	}
 
 	if(comedi_drivers==driver){
@@ -364,32 +315,37 @@ static int postconfig(comedi_device *dev)
 }
 
 // generic recognize function for drivers that register their supported board names
-int comedi_recognize(comedi_driver *driv, const char *name)
+void *comedi_recognize(comedi_driver *driv, const char *name)
 {
 	unsigned int i = 0;
+	void *name_ptr;
 
+	name_ptr=driv->board_name;
 	for(i = 0; i < driv->num_names; i++)
 	{
-		if(strcmp(driv->board_name[i], name) == 0)
-			return driv->board_id[i];
+		if(strcmp(*(char **)name_ptr, name) == 0)
+			return name_ptr;
+		name_ptr += driv->offset;
 	}
 
-	return -1;
+	return NULL;
 }
 
 void comedi_report_boards(comedi_driver *driv)
 {
 	unsigned int i;
+	void *name_ptr;
 
 	if(driv->num_names == 0) return;
 
 	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
+
+	name_ptr=driv->board_name;
 	for(i = 0; i < driv->num_names; i++)
 	{
-		printk(" %s\n", driv->board_name[i]);
+		printk(" %s\n", *(char **)name_ptr);
+		name_ptr += driv->offset;
 	}
-
-	return;
 }
 
 /* helper functions for drivers */
