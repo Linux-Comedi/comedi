@@ -54,6 +54,8 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 
 #endif
 
+extern comedi_driver *comedi_drivers;
+
 #ifdef LINUX_V20
 int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int unused)
 #else
@@ -63,6 +65,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 	int i;
 	int devices_q=0;
 	int l=0;
+	comedi_driver *driv;
 	
 	l+=sprintf(buf+l,
 		"comedi version " COMEDI_RELEASE "\n"
@@ -85,6 +88,17 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 	}
 	if(!devices_q){
 		l+=sprintf(buf+l,"no devices\n");
+	}
+
+	for(driv=comedi_drivers;driv;driv=driv->next){
+		l += sprintf(buf+l,"%s:\n",driv->driver_name);
+		for(i=0;i<driv->num_names;i++){
+			l+=sprintf(buf+l," %s\n",
+				*(char **)(driv->board_name+i*driv->offset));
+		}
+		if(!driv->num_names){
+			l+=sprintf(buf+l," %s\n",driv->driver_name);
+		}
 	}
 
 	return l;
