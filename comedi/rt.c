@@ -171,11 +171,10 @@ void wake_up_int_handler(int arg1, void * arg2)
 #define DECLARE_VOID_IRQ(irq) \
 static void handle_void_irq_ ## irq (void){ handle_void_irq(irq);}
 
-static inline void handle_void_irq(int irq)
+static void handle_void_irq(int irq)
 {
 	struct comedi_irq_struct *it=comedi_irqs[irq];
 	it->handler(irq,it->dev_id,NULL);
-	rt_unmask_irq(irq);
 }
 
 DECLARE_VOID_IRQ(0);
@@ -242,10 +241,20 @@ static int rt_get_irq(struct comedi_irq_struct *it)
 
 static int rt_release_irq(struct comedi_irq_struct *it)
 {
+	rt_shutdown_irq(it->irq);
 	rt_free_global_irq(it->irq);
 	return 0;
 }
 
+void comedi_rt_init(void)
+{
+	rt_mount_rtai();
+}
+
+void comedi_rt_cleanup(void)
+{
+	rt_umount_rtai();
+}
 
 #endif
 
@@ -272,6 +281,9 @@ static int rt_release_irq(struct comedi_irq_struct *it)
 	rtl_free_global_irq(it->irq);
 	return 0;
 }
+
+void comedi_rt_init(void) { }
+void comedi_rt_cleanup(void) { }
 
 #endif
 
