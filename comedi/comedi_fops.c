@@ -59,6 +59,7 @@ static int do_unlock_ioctl(comedi_device *dev,unsigned int arg,void * file);
 static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file);
 static int do_cmdtest_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
+static int do_insn_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_poll_ioctl(comedi_device *dev,unsigned int subd,void *file);
 
 #ifdef CONFIG_COMEDI_TRIG
@@ -119,6 +120,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 		return do_cmdtest_ioctl(dev,(void *)arg,file);
 	case COMEDI_INSNLIST:
 		return do_insnlist_ioctl(dev,(void *)arg,file);
+	case COMEDI_INSN:
+		return do_insn_ioctl(dev,(void *)arg,file);
 	case COMEDI_POLL:
 		return do_poll_ioctl(dev,arg,file);
 	default:
@@ -536,6 +539,7 @@ copyback:
 }
 
 
+static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *file);
 /*
  * 	COMEDI_INSNLIST
  * 	synchronous instructions
@@ -551,147 +555,62 @@ copyback:
  * 	writes:
  * 		data (for reads)
  */
+/* arbitrary limits */
+#define MAX_SAMPLES 256
+#define MAX_INSNS 10
 static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 {
 	comedi_insnlist insnlist;
-	comedi_insn	insn;
-	comedi_subdevice *s;
-	lsampl_t	*data;
-	int i;
+	comedi_insn	*insns = NULL;
+	lsampl_t	*data = NULL;
+	int i = 0;
 	int ret=0;
 
 	if(copy_from_user(&insnlist,arg,sizeof(comedi_insnlist)))
 		return -EFAULT;
 
-	if(insnlist.n_insns>=10)	/* XXX */
+	if(insnlist.n_insns>=MAX_INSNS)
 		return -EINVAL;
 
-	data=kmalloc(sizeof(lsampl_t)*256,GFP_KERNEL);
-	if(!data)
-		return -ENOMEM;
+	data=kmalloc(sizeof(lsampl_t)*MAX_SAMPLES,GFP_KERNEL);
+	if(!data){
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	insns=kmalloc(sizeof(comedi_insn)*insnlist.n_insns,GFP_KERNEL);
+	if(!insns){
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	if(copy_from_user(insns,insnlist.insns,sizeof(comedi_insn)*insnlist.n_insns)){
+		ret=-EFAULT;
+		goto error;
+	}
 
 	for(i=0;i<insnlist.n_insns;i++){
-		if(copy_from_user(&insn,insnlist.insns+i,sizeof(comedi_insn))){
-			ret=-EFAULT;
-			goto error;
-		}
-		if(insn.n>256){
+		if(insns[i].n>MAX_SAMPLES){
 			ret=-EINVAL;
 			goto error;
 		}
-		if(insn.insn&INSN_MASK_WRITE){
-			if(copy_from_user(data,insn.data,insn.n*sizeof(lsampl_t))){
+		if(insns[i].insn&INSN_MASK_WRITE){
+			if(copy_from_user(data,insns[i].data,
+					insns[i].n*sizeof(lsampl_t))){
 				ret=-EFAULT;
 				goto error;
 			}
 		}
-		if(insn.insn&INSN_MASK_SPECIAL){
-			/* a non-subdevice instruction */
-
-			switch(insn.insn){
-			case INSN_GTOD:
-			{
-				struct timeval tv;
-
-				if(insn.n!=2){
-					ret=-EINVAL;
-					goto error;
-				}
-
-				do_gettimeofday(&tv);
-				data[0]=tv.tv_sec;
-				data[1]=tv.tv_usec;
-				ret=2;
-
-				break;
-			}
-			case INSN_WAIT:
-				if(insn.n!=1 || data[0]>=100000){
-					ret=-EINVAL;
-					break;
-				}
-				udelay(data[0]/1000);
-				ret=1;
-				break;
-			case INSN_INTTRIG:
-				if(insn.subdev>=dev->n_subdevices){
-					DPRINTK("%d not useable subdevice\n",insn.subdev);
-					ret=-EINVAL;
-					goto error;
-				}
-				s=dev->subdevices+insn.subdev;
-				if(!s->async || !s->async->inttrig){
-					DPRINTK("no async or no inttrig\n");
-					ret=-EINVAL;
-					goto error;
-				}
-				ret = s->async->inttrig(dev,s,0);
-				break;
-			default:
-				DPRINTK("invalid insn\n");
-				ret=-EINVAL;
-			}
-		}else{
-			/* a subdevice instruction */
-			if(insn.subdev>=dev->n_subdevices){
-				ret=-EINVAL;
-				goto error;
-			}
-			s=dev->subdevices+insn.subdev;
-	
-			if(s->type==COMEDI_SUBD_UNUSED){
-				DPRINTK("%d not useable subdevice\n",insn.subdev);
-				ret = -EIO;
-				goto error;
-			}
-		
-			/* are we locked? (ioctl lock) */
-			if(s->lock && s->lock!=file){
-				DPRINTK("device locked\n");
-				ret = -EACCES;
-				goto error;
-			}
-
-			if((ret=check_chanlist(s,1,&insn.chanspec))<0){
-				ret=-EINVAL;
-				DPRINTK("bad chanspec\n");
-				goto error;
-			}
-
-			if(s->busy){
-				ret=-EBUSY;
-				goto error;
-			}
-			s->busy=file;
-
-			switch(insn.insn){
-				case INSN_READ:
-					ret=s->insn_read(dev,s,&insn,data);
-					break;
-				case INSN_WRITE:
-					ret=s->insn_write(dev,s,&insn,data);
-					break;
-				case INSN_BITS:
-					ret=s->insn_bits(dev,s,&insn,data);
-					break;
-				case INSN_CONFIG:
-					ret=s->insn_config(dev,s,&insn,data);
-					break;
-				default:
-					ret=-EINVAL;
-					break;
-			}
-
-			s->busy=NULL;
-		}
+		ret = parse_insn(dev,insns+i,data,file);
 		if(ret<0)goto error;
-		if(ret!=insn.n){
+		if(ret!=insns[i].n){
 			printk("BUG: result of insn != insn.n\n");
 			ret=-EINVAL;
 			goto error;
 		}
-		if(insn.insn&INSN_MASK_READ){
-			if(copy_to_user(insn.data,data,insn.n*sizeof(lsampl_t))){
+		if(insns[i].insn&INSN_MASK_READ){
+			if(copy_to_user(insns[i].data,data,
+					insns[i].n*sizeof(lsampl_t))){
 				ret=-EFAULT;
 				goto error;
 			}
@@ -699,10 +618,175 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 error:
-	kfree(data);
+	if(insns)kfree(insns);
+	if(data)kfree(data);
 
-	if(i==0)return ret;
+	if(ret<0)return ret;
 	return i;
+}
+
+static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *file)
+{
+	comedi_subdevice *s;
+	int ret = 0;
+
+	if(insn->insn&INSN_MASK_SPECIAL){
+		/* a non-subdevice instruction */
+
+		switch(insn->insn){
+		case INSN_GTOD:
+		{
+			struct timeval tv;
+
+			if(insn->n!=2){
+				ret=-EINVAL;
+				break;
+			}
+
+			do_gettimeofday(&tv);
+			data[0]=tv.tv_sec;
+			data[1]=tv.tv_usec;
+			ret=2;
+
+			break;
+		}
+		case INSN_WAIT:
+			if(insn->n!=1 || data[0]>=100000){
+				ret=-EINVAL;
+				break;
+			}
+			udelay(data[0]/1000);
+			ret=1;
+			break;
+		case INSN_INTTRIG:
+			if(insn->subdev>=dev->n_subdevices){
+				DPRINTK("%d not useable subdevice\n",insn->subdev);
+				ret=-EINVAL;
+				break;
+			}
+			s=dev->subdevices+insn->subdev;
+			if(!s->async || !s->async->inttrig){
+				DPRINTK("no async or no inttrig\n");
+				ret=-EINVAL;
+				break;
+			}
+			ret = s->async->inttrig(dev,s,0);
+			break;
+		default:
+			DPRINTK("invalid insn\n");
+			ret=-EINVAL;
+		}
+	}else{
+		/* a subdevice instruction */
+		if(insn->subdev>=dev->n_subdevices){
+			ret=-EINVAL;
+			goto out;
+		}
+		s=dev->subdevices+insn->subdev;
+
+		if(s->type==COMEDI_SUBD_UNUSED){
+			DPRINTK("%d not useable subdevice\n",insn->subdev);
+			ret = -EIO;
+			goto out;
+		}
+	
+		/* are we locked? (ioctl lock) */
+		if(s->lock && s->lock!=file){
+			DPRINTK("device locked\n");
+			ret = -EACCES;
+			goto out;
+		}
+
+		if((ret=check_chanlist(s,1,&insn->chanspec))<0){
+			ret=-EINVAL;
+			DPRINTK("bad chanspec\n");
+			goto out;
+		}
+
+		if(s->busy){
+			ret=-EBUSY;
+			goto out;
+		}
+		/* This looks arbitrary.  It is. */
+		s->busy=&parse_insn;
+
+		switch(insn->insn){
+			case INSN_READ:
+				ret=s->insn_read(dev,s,insn,data);
+				break;
+			case INSN_WRITE:
+				ret=s->insn_write(dev,s,insn,data);
+				break;
+			case INSN_BITS:
+				ret=s->insn_bits(dev,s,insn,data);
+				break;
+			case INSN_CONFIG:
+				ret=s->insn_config(dev,s,insn,data);
+				break;
+			default:
+				ret=-EINVAL;
+				break;
+		}
+
+		s->busy=NULL;
+	}
+
+out:
+	return ret;
+}
+
+/*
+ * 	COMEDI_INSN
+ * 	synchronous instructions
+ *
+ * 	arg:
+ * 		pointer to insn
+ *
+ * 	reads:
+ * 		comedi_insn struct at arg
+ * 		data (for writes)
+ *
+ * 	writes:
+ * 		data (for reads)
+ */
+static int do_insn_ioctl(comedi_device *dev,void *arg,void *file)
+{
+	comedi_insn	insn;
+	lsampl_t	*data = NULL;
+	int ret=0;
+
+	data=kmalloc(sizeof(lsampl_t)*MAX_SAMPLES,GFP_KERNEL);
+	if(!data){
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	if(copy_from_user(&insn,arg,sizeof(comedi_insn))){
+		ret=-EFAULT;
+		goto error;
+	}
+
+	/* This is where the behavior of insn and insnlist deviate. */
+	if(insn.n>MAX_SAMPLES)insn.n=MAX_SAMPLES;
+	if(insn.insn&INSN_MASK_WRITE){
+		if(copy_from_user(data,insn.data,insn.n*sizeof(lsampl_t))){
+			ret=-EFAULT;
+			goto error;
+		}
+	}
+	ret = parse_insn(dev,&insn,data,file);
+	if(ret<0)goto error;
+	if(insn.insn&INSN_MASK_READ){
+		if(copy_to_user(insn.data,data,insn.n*sizeof(lsampl_t))){
+			ret=-EFAULT;
+			goto error;
+		}
+	}
+
+error:
+	if(data)kfree(data);
+
+	return ret;
 }
 
 /*
