@@ -2305,11 +2305,6 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	/* step 5: fix up chanlist */
 
-	if(cmd->chanlist_len != cmd->scan_end_arg){
-		cmd->chanlist_len = cmd->scan_end_arg;
-		err++;
-	}
-
 	if(err)return 5;
 
 	return 0;
@@ -2679,7 +2674,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		if(boardtype.ao_fifo_depth){
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
-			s->len_chanlist = 2;
+			s->len_chanlist = boardtype.n_aochan;
 			s->munge=ni_ao_munge;
 		}
 		s->cancel=ni_ao_reset;
