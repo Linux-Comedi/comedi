@@ -24,6 +24,10 @@
 #ifndef _COMEDI_RT_H
 #define _COMEDI_RT_H
 
+#ifndef _COMEDIDEV_H
+#error comedi_rt.h should only be included by comedidev.h
+#endif
+
 #include <linux/version.h>
 #include <linux/config.h>
 #include <linux/kdev_t.h>
@@ -31,7 +35,6 @@
 #include <linux/malloc.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
-#include <linux/comedidev.h>
 
 #ifdef CONFIG_COMEDI_RT
 
