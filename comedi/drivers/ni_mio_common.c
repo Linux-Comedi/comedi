@@ -1814,7 +1814,14 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 		{
 		if(data[1] >= 8)
 			return -EINVAL;
-		devpriv->ai_calib_source = data[1];
+		devpriv->ai_calib_source = data[1] & 0xf;
+		if( boardtype.reg_611x )
+		{
+			unsigned int calib_source_adjust;
+
+			calib_source_adjust = ( data[1] >> 4 ) & 0xff;
+			ni_writeb( calib_source_adjust, Cal_Gain_Select_611x );
+		}
 		return 2;
 		}
 	}
