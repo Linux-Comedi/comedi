@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v1.00pre9"
+#define DRIVER_VERSION "v1.00pre10"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 05 Sept 2004
+Updated: 03 Jan 2005
 Status: Stable
 Configuration options:
   You have to upload firmware with the -i option. The
@@ -78,9 +78,14 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * - use EP1in/out for sync digital I/O
  */
 
+// generates loads of debug info
+// #define NOISY_DUX_DEBUGBUG
 
-//#define NOISY_DUX_DEBUGBUG
+// generates moderate amount of debug info
+// #define CONFIG_COMEDI_DEBUG
 
+// uncomment this if you don't want to have debug infos from CVS versions
+// #undef CONFIG_COMEDI_DEBUG
 
 
 #include <linux/kernel.h>
@@ -299,10 +304,16 @@ static int usbduxsub_unlink_InURBs(usbduxsub_t* usbduxsub_tmp) {
 	if (usbduxsub_tmp && usbduxsub_tmp->urbIn) {
 		for (i=0; i < usbduxsub_tmp->numOfInBuffers; i++) {
 			if (usbduxsub_tmp->urbIn[i]) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 				j=usb_unlink_urb(usbduxsub_tmp->urbIn[i]);
-				if (j<0) {
-					err=j;
-				}
+                                if (j<0) {
+                                        err=j;
+                                }
+#else
+				// We wait here until all transfers
+				// have been cancelled.
+                                usb_kill_urb(usbduxsub_tmp->urbIn[i]);
+#endif
 			}
 #ifdef CONFIG_COMEDI_DEBUG
 			printk("comedi: usbdux: unlinked InURB %d: res=%d\n",
@@ -559,10 +570,14 @@ static int usbduxsub_unlink_OutURBs(usbduxsub_t* usbduxsub_tmp) {
 	if (usbduxsub_tmp && usbduxsub_tmp->urbOut) {
 		for (i=0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
 			if (usbduxsub_tmp->urbOut[i]) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 				j=usb_unlink_urb(usbduxsub_tmp->urbOut[i]);
-				if (j<err) {
-					err=j;
-				}
+                                if (j<err) {
+                                        err=j;
+                                }
+#else
+                                usb_kill_urb(usbduxsub_tmp->urbOut[i]);
+#endif
 			}
 #ifdef CONFIG_COMEDI_DEBUG
 			printk("comedi: usbdux: unlinked OutURB %d: res=%d\n",i,j);
