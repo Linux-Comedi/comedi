@@ -238,13 +238,16 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	ts.tv_nsec=cmd->scan_begin_arg;
 
 #ifdef CONFIG_COMEDI_RTL
+	// XXX timespec_to_RTIME() is undeclared (and undefined?) compiling against rtl3.0 - FMH
 	period=timespec_to_RTIME(ts);
 	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
+	// XXX line repeated a few lines down? - FMH
 	now = rt_get_time();
 	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
+	// XXX line repeated a few lines down? - FMH
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
 #endif
 
