@@ -1,9 +1,9 @@
 /*
-    cfc.c
+    comedi_fc.c
 
     This is a place for code driver writers wish to share between
-    two or more drivers.  cfc is short
-    for comedi-frank-common.
+    two or more drivers.  fc is short
+    for frank-common.
 
     Author:  Frank Mori Hess <fmhess@users.sourceforge.net>
     Copyright (C) 2002 Frank Mori Hess
@@ -64,7 +64,7 @@ unsigned int cfc_write_array_to_buffer( comedi_subdevice *subd, void *data,
 	retval = comedi_buf_write_alloc( async, num_bytes );
 	if( retval != num_bytes )
 	{
-		async->events |= COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
 	}
 
@@ -106,10 +106,7 @@ unsigned int cfc_handle_events( comedi_device *dev, comedi_subdevice *subd )
 {
 	unsigned int events = subd->async->events;
 
-	if( events & COMEDI_CB_ERROR )
-		events |= COMEDI_CB_EOA;
-
-	if( events & COMEDI_CB_EOA )
+	if( events & ( COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW ) )
 		subd->cancel( dev, subd );
 
 	comedi_event( dev, subd, events );
@@ -134,4 +131,3 @@ module_exit(comedi_fc_cleanup_module);
 EXPORT_SYMBOL( cfc_write_array_to_buffer );
 EXPORT_SYMBOL( cfc_read_array_from_buffer );
 EXPORT_SYMBOL( cfc_handle_events );
-
