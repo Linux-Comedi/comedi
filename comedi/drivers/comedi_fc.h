@@ -26,6 +26,9 @@
 
 ************************************************************************/
 
+#ifndef _COMEDI_FC_H
+#define _COMEDI_FC_H
+
 #include <linux/comedidev.h>
 
 /* Writes an array of data points to comedi's buffer */
@@ -47,3 +50,4 @@ extern unsigned int cfc_read_array_from_buffer( comedi_subdevice *subd, void *da
 
 extern unsigned int cfc_handle_events( comedi_device *dev, comedi_subdevice *subd );
 
+#endif	/* _COMEDI_FC_H */
