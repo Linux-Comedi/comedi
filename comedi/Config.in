@@ -1,3 +1,4 @@
+#!/bin/sh
 
 comment 'Comedi Features'
 
@@ -68,6 +69,10 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 	dep_tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D $CONFIG_COMEDI
 	dep_tristate '  AT-A2150' CONFIG_COMEDI_NI_AT_A2150 $CONFIG_COMEDI
 	dep_tristate '  LAB-PC and compatibles' CONFIG_COMEDI_NI_LABPC $CONFIG_COMEDI
+	if [ "$CONFIG_PCMCIA" = "y" -o "$CONFIG_PCMCIA" = "m" ];then
+		dep_tristate '  NI-DAQ-DIO24' CONFIG_COMEDI_NI_DAQ_DIO24 $CONFIG_COMEDI
+	fi
+	dep_tristate '  AT-AO-6/10' CONFIG_COMEDI_NI_AT_AO $CONFIG_COMEDI
 fi
 
 dep_tristate 'DAS08 compatible driver' CONFIG_COMEDI_DAS08 $CONFIG_COMEDI
