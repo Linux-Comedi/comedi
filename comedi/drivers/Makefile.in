@@ -1,5 +1,5 @@
 
-expsyms(mite.o 8255.o amcc_s5933.o comedi_fc.o)
+expsyms(mite.o 8255.o amcc_s5933.o comedi_fc.o ni_labpc.o)
 
 select(CONFIG_COMEDI_8255 8255.o)
 select(CONFIG_COMEDI_ADL_PCI9111 adl_pci9111.o)
@@ -50,6 +50,7 @@ select(CONFIG_COMEDI_NI_6527 ni_6527.o)
 select(CONFIG_COMEDI_NI_ATMIO16D ni_atmio16d.o)
 select(CONFIG_COMEDI_NI_AT_A2150 ni_at_a2150.o)
 select(CONFIG_COMEDI_NI_LABPC ni_labpc.o)
+select(CONFIG_COMEDI_NI_LABPC_CS ni_labpc_cs.o)
 select(CONFIG_COMEDI_NI_DAQ_DIO24 ni_daq_dio24.o)
 select(CONFIG_COMEDI_NI_AT_AO ni_at_ao.o)
 select(CONFIG_COMEDI_PCM3730 pcm3730.o)

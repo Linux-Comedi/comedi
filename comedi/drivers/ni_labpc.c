@@ -1,12 +1,6 @@
 /*
     ni_labpc.c driver for National Instruments Lab-PC series boards and compatibles
-    Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    PCMCIA crap at end of file is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
-    from the pcmcia package.
-    The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+    Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,12 +22,9 @@
 Driver: ni_labpc.o
 Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [National Instruments] DAQCard-1200 (daqcard-1200), Lab-PC-1200 (labpc-1200),
+Devices: [National Instruments] Lab-PC-1200 (labpc-1200),
   Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200)
 Status: works
-
-Thanks go to Fredrik Lingvall for much testing and perseverance in
-helping to debug daqcard-1200 support.
 
 Tested with lab-pc-1200.  For the older Lab-PC+, not all input ranges
 and analog references will work, the available ranges/arefs will
@@ -55,10 +46,7 @@ Configuration options - PCI boards:
   [0] - bus (optional)
   [1] - slot (optional)
 
-Configuration options - PCMCIA boards:
-  none
-
-The Lab-pc+ and daqcard-1200 have quirky chanlist requirements
+The Lab-pc+ has quirky chanlist requirements
 when scanning multiple channels.  Multiple channel scan
 sequence must start at highest channel, then decrement down to
 channel 0.  The rest of the cards can scan down like lab-pc+ or scan
@@ -71,7 +59,6 @@ are also legal, and allow you to pace conversions in bursts.
 
 NI manuals:
 341309a (labpc-1200 register manual)
-340988a (daqcard-1200)
 340914a (pci-1200)
 320502b (lab-pc+)
 
@@ -89,35 +76,10 @@ NI manuals:
 #include "8255.h"
 #include "mite.h"
 #include "comedi_fc.h"
-
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
-
-#include <pcmcia/version.h>
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
-#include <pcmcia/bus_ops.h>
-
-/*
-   A linked list of "instances" of the dummy device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
-   device numbers are used to derive the corresponding array index.
-*/
-
-static dev_link_t *pcmcia_dev_list = NULL;
-
-#endif // CONFIG_PCMCIA
+#include "ni_labpc.h"
 
 #define LABPC_SIZE           32	// size of io region used by board
 #define LABPC_TIMER_BASE            500	// 2 MHz master clock
-#define EEPROM_SIZE	256	// 256 byte eeprom
-#define NUM_AO_CHAN	2	// boards have two analog output channels
 
 /* Registers for the lab-pc+ */
 
@@ -192,7 +154,6 @@ static dev_link_t *pcmcia_dev_list = NULL;
 
 
 static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
-static int labpc_detach(comedi_device *dev);
 static int labpc_cancel(comedi_device *dev, comedi_subdevice *s);
 static void labpc_interrupt(int irq, void *d, struct pt_regs *regs);
 static int labpc_drain_fifo(comedi_device *dev);
@@ -211,10 +172,6 @@ static int labpc_eeprom_write_insn(comedi_device *dev, comedi_subdevice *s, come
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd);
 static struct mite_struct* labpc_find_device(int bus, int slot);
-static unsigned int labpc_inb(unsigned long address);
-static void labpc_outb(unsigned int byte, unsigned long address);
-static unsigned int labpc_readb(unsigned long address);
-static void labpc_writeb(unsigned int byte, unsigned long address);
 static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long arg);
 static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int labpc_serial_in(comedi_device *dev);
@@ -223,9 +180,6 @@ static unsigned int labpc_eeprom_read_status(comedi_device *dev);
 static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value);
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 
-enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
-enum labpc_register_layout {labpc_plus_layout, labpc_1200_layout};
-enum transfer_type {fifo_not_empty_transfer, fifo_half_full_transfer, isa_dma_transfer};
 enum scan_mode
 {
 	MODE_SINGLE_CHAN,
@@ -234,24 +188,7 @@ enum scan_mode
 	MODE_MULT_CHAN_DOWN,
 };
 
-typedef struct labpc_board_struct{
-	char *name;
-	int device_id;	// device id for pci and pcmcia boards
-	int ai_speed;	// maximum input speed in nanoseconds
-	enum labpc_bustype bustype;	// ISA/PCI/etc.
-	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
-	int has_ao;	// has analog output true/false
-	// function pointers so we can use inb/outb or readb/writeb as appropriate
-	unsigned int (*read_byte)(unsigned long address);
-	void (*write_byte)(unsigned int byte, unsigned long address);
-	comedi_lrange *ai_range_table;
-	int *ai_range_code;
-	int *ai_range_is_unipolar;
-	unsigned ai_scan_up : 1;	// board can auto scan up in ai channels, not just down
-}labpc_board;
-
 //analog input ranges
-
 #define NUM_LABPC_PLUS_AI_RANGES 16
 // indicates unipolar ranges
 static int labpc_plus_is_unipolar[NUM_LABPC_PLUS_AI_RANGES] =
@@ -315,9 +252,8 @@ static comedi_lrange range_labpc_plus_ai = {
 	}
 };
 
-#define NUM_LABPC_1200_AI_RANGES 14
 // indicates unipolar ranges
-static int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
+int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
 {
 	0,
 	0,
@@ -335,7 +271,7 @@ static int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
 	1,
 };
 // map range index to gain bits
-static int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
+int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
 {
 	0x00,
 	0x20,
@@ -352,7 +288,7 @@ static int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
 	0x60,
 	0x70,
 };
-static comedi_lrange range_labpc_1200_ai = {
+comedi_lrange range_labpc_1200_ai = {
 	NUM_LABPC_1200_AI_RANGES,
 	{
 		BIP_RANGE(5),
@@ -373,10 +309,8 @@ static comedi_lrange range_labpc_1200_ai = {
 };
 
 //analog output ranges
-
 #define AO_RANGE_IS_UNIPOLAR 0x1
-
-static comedi_lrange range_labpc_ao = {
+comedi_lrange range_labpc_ao = {
 	2,
 	{
 		BIP_RANGE(5),
@@ -386,22 +320,6 @@ static comedi_lrange range_labpc_ao = {
 
 static labpc_board labpc_boards[] =
 {
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
-	{
-		name:	"daqcard-1200",
-		device_id:	0x103,	// 0x10b is manufacturer id, 0x103 is device id
-		ai_speed:	10000,
-		bustype:	pcmcia_bustype,
-		register_layout:	labpc_1200_layout,
-		has_ao:	1,
-		read_byte:	labpc_inb,
-		write_byte:	labpc_outb,
-		ai_range_table:	&range_labpc_1200_ai,
-		ai_range_code: labpc_1200_ai_gain_bits,
-		ai_range_is_unipolar: labpc_1200_is_unipolar,
-		ai_scan_up: 0,
-	},
-#endif // CONFIG_PCMCIA
 	{
 		name:	"lab-pc-1200",
 		ai_speed:	10000,
@@ -465,38 +383,13 @@ static labpc_board labpc_boards[] =
 static const int dma_buffer_size = 0xff00;	// size in bytes of dma buffer
 static const int sample_size = 2;	// 2 bytes per sample
 
-typedef struct{
-	struct mite_struct *mite;	// for mite chip on pci-1200
-	volatile unsigned long long count;  /* number of data points left to be taken */
-	unsigned int ao_value[NUM_AO_CHAN];	// software copy of analog output values
-	// software copys of bits written to command registers
-	volatile unsigned int command1_bits;
-	volatile unsigned int command2_bits;
-	volatile unsigned int command3_bits;
-	volatile unsigned int command4_bits;
-	volatile unsigned int command5_bits;
-	volatile unsigned int command6_bits;
-	// store last read of board status registers
-	volatile unsigned int status1_bits;
-	volatile unsigned int status2_bits;
-	unsigned int divisor_a0;	/* value to load into board's counter a0 (conversion pacing) for timed conversions */
-	unsigned int divisor_b0; 	/* value to load into board's counter b0 (master) for timed conversions */
-	unsigned int divisor_b1; 	/* value to load into board's counter b1 (scan pacing) for timed conversions */
-	unsigned int dma_chan;	// dma channel to use
-	u16 *dma_buffer;	// buffer ai will dma into
-	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
-	enum transfer_type current_transfer;	// we are using dma/fifo-half-full/etc.
-	unsigned int eeprom_data[EEPROM_SIZE];	// stores contents of board's eeprom
-	unsigned int caldac[16];	// stores settings of calibration dacs
-}labpc_private;
-
 #define devpriv ((labpc_private *)dev->private)
 
 static comedi_driver driver_labpc={
 	driver_name:	"ni_labpc",
 	module:		THIS_MODULE,
 	attach:		labpc_attach,
-	detach:		labpc_detach,
+	detach:		labpc_common_detach,
 	num_names:	sizeof(labpc_boards) / sizeof(labpc_board),
 	board_name:	(char **)labpc_boards,
 	offset:		sizeof(labpc_board),
@@ -508,65 +401,15 @@ static struct pci_device_id labpc_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
 
-static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
+int labpc_common_attach( comedi_device *dev, unsigned long iobase,
+	int irq, int dma_chan )
 {
 	comedi_subdevice *s;
-	int iobase = 0;
-	int irq = 0;
-	int dma_chan = 0;
-	int lsb, msb;
 	int i;
-	unsigned long flags, isr_flags;
-	int ret;
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
-	dev_link_t *link;
-#endif
+	unsigned long dma_flags, isr_flags;
+	short lsb, msb;
 
-	/* allocate and initialize dev->private */
-	if(alloc_private(dev, sizeof(labpc_private)) < 0)
-		return -ENOMEM;
-
-	// get base address, irq etc. based on bustype
-	switch(thisboard->bustype)
-	{
-		case isa_bustype:
-			iobase = it->options[0];
-			irq = it->options[1];
-			dma_chan = it->options[2];
-			break;
-		case pci_bustype:
-			devpriv->mite = labpc_find_device(it->options[0], it->options[1]);
-			if(devpriv->mite == NULL)
-			{
-				return -EIO;
-			}
-			if(thisboard->device_id != mite_device_id(devpriv->mite))
-			{	// this should never happen since this driver only supports one type of pci board
-				printk("bug! mite device id does not match boardtype definition\n");
-				return -EINVAL;
-			}
-			ret = mite_setup(devpriv->mite);
-			if(ret < 0) return ret;
-			iobase = mite_iobase(devpriv->mite);
-			irq = mite_irq(devpriv->mite);
-			break;
-		case pcmcia_bustype:
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
-			link = pcmcia_dev_list; /* XXX hack */
-			if(!link) return -EIO;
-			iobase = link->io.BasePort1;
-			irq = link->irq.AssignedIRQ;
-#else
-			printk(" driver was not compiled with pcmcia support\n");
-			return -EINVAL;
-#endif // CONFIG_PCMCIA
-			break;
-		default:
-			printk("bug! couldn't determine board type\n");\
-			return -EINVAL;
-			break;
-	}
-	printk("comedi%d: ni_labpc: %s, io 0x%x", dev->minor, thisboard->name, iobase);
+	printk("comedi%d: ni_labpc: %s, io 0x%lx", dev->minor, thisboard->name, iobase);
 	if(irq)
 	{
 		printk(", irq %i", irq);
@@ -651,10 +494,10 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 			return -EINVAL;
 		}
 		devpriv->dma_chan = dma_chan;
-		flags = claim_dma_lock();
+		dma_flags = claim_dma_lock();
 		disable_dma(devpriv->dma_chan);
 		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
-		release_dma_lock(flags);
+		release_dma_lock(dma_flags);
 	}
 
 	dev->board_name = thisboard->name;
@@ -754,7 +597,55 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
-};
+}
+
+static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
+{
+	unsigned long iobase = 0;
+	int irq = 0;
+	int dma_chan = 0;
+	int ret;
+
+	/* allocate and initialize dev->private */
+	if(alloc_private(dev, sizeof(labpc_private)) < 0)
+		return -ENOMEM;
+
+	// get base address, irq etc. based on bustype
+	switch(thisboard->bustype)
+	{
+		case isa_bustype:
+			iobase = it->options[0];
+			irq = it->options[1];
+			dma_chan = it->options[2];
+			break;
+		case pci_bustype:
+			devpriv->mite = labpc_find_device(it->options[0], it->options[1]);
+			if(devpriv->mite == NULL)
+			{
+				return -EIO;
+			}
+			if(thisboard->device_id != mite_device_id(devpriv->mite))
+			{	// this should never happen since this driver only supports one type of pci board
+				printk("bug! mite device id does not match boardtype definition\n");
+				return -EINVAL;
+			}
+			ret = mite_setup(devpriv->mite);
+			if(ret < 0) return ret;
+			iobase = mite_iobase(devpriv->mite);
+			irq = mite_irq(devpriv->mite);
+			break;
+		case pcmcia_bustype:
+			printk(" this driver does not support pcmcia cards, use ni_labpc_cs.o\n");
+			return -EINVAL;
+			break;
+		default:
+			printk("bug! couldn't determine board type\n");\
+			return -EINVAL;
+			break;
+	}
+
+	return labpc_common_attach( dev, iobase, irq, dma_chan );
+}
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
 static struct mite_struct* labpc_find_device(int bus, int slot)
@@ -783,9 +674,9 @@ static struct mite_struct* labpc_find_device(int bus, int slot)
 	return NULL;
 }
 
-static int labpc_detach(comedi_device *dev)
+int labpc_common_detach(comedi_device *dev)
 {
-	printk("comedi%d: ni_labpc: remove\n", dev->minor);
+	printk("comedi%d: ni_labpc: detach\n", dev->minor);
 
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);
@@ -1837,27 +1728,6 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 	}
 }
 
-/* functions that do inb/outb and readb/writeb so we can use
- * function pointers to decide which to use */
-static unsigned int labpc_inb(unsigned long address)
-{
-	return inb(address);
-}
-
-static void labpc_outb(unsigned int byte, unsigned long address)
-{
-	outb(byte, address);
-}
-
-static unsigned int labpc_readb(unsigned long address)
-{
-	return readb(address);
-}
-
-static void labpc_writeb(unsigned int byte, unsigned long address)
-{
-	writeb(byte, address);
-}
 
 static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long iobase)
 {
@@ -2064,600 +1934,12 @@ static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int 
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 
-// PCMCIA crap
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
-
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ni_labpc.c, based on dummy_cs.c 1.31 2001/08/24 12:13:13";
-#else
-#define DEBUG(n, args...)
-#endif
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* The old way: bit map of interrupts to choose from */
-/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-static u_int irq_mask = 0xdeb8;
-/* Newer, simpler way of listing specific interrupts */
-static int irq_list[4] = { -1 };
-
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
-
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the dummy
-   event handler.
-*/
-
-static void labpc_config(dev_link_t *link);
-static void labpc_release(u_long arg);
-static int labpc_event(event_t event, int priority,
-		       event_callback_args_t *args);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
-static dev_link_t *labpc_cs_attach(void);
-static void labpc_cs_detach(dev_link_t *);
-
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "daqcard-1200";
-
-/*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
-   To simplify the data structure handling, we actually include the
-   dev_link_t structure in the device's private data structure.
-
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a dev_link_t
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-
-   The bus_operations pointer is used on platforms for which we need
-   to use special socket-specific versions of normal IO primitives
-   (inb, outb, readb, writeb, etc) for card IO.
-*/
-
-typedef struct local_info_t {
-    dev_link_t		link;
-    dev_node_t		node;
-    int			stop;
-    struct bus_operations *bus;
-} local_info_t;
-
-/*====================================================================*/
-
-static void cs_error(client_handle_t handle, int func, int ret)
-{
-    error_info_t err = { func, ret };
-    CardServices(ReportError, handle, &err);
-}
-
-/*======================================================================
-
-    labpc_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
-
-static dev_link_t *labpc_cs_attach(void)
-{
-    local_info_t *local;
-    dev_link_t *link;
-    client_reg_t client_reg;
-    int ret, i;
-
-    DEBUG(0, "labpc_cs_attach()\n");
-
-    /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-    if (!local) return NULL;
-    memset(local, 0, sizeof(local_info_t));
-    link = &local->link; link->priv = local;
-
-    /* Initialize the dev_link_t structure */
-    link->release.function = &labpc_release;
-    link->release.data = (u_long)link;
-
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
-    if (irq_list[0] == -1)
-		link->irq.IRQInfo2 = irq_mask;
-    else for (i = 0; i < 4; i++)
-	    link->irq.IRQInfo2 |= 1 << irq_list[i];
-    link->irq.Handler = NULL;
-
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
-    link->conf.Attributes = 0;
-    link->conf.Vcc = 50;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-
-    /* Register with Card Services */
-    link->next = pcmcia_dev_list;
-    pcmcia_dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &labpc_event;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = CardServices(RegisterClient, &link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	labpc_cs_detach(link);
-	return NULL;
-    }
-
-    return link;
-} /* labpc_cs_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
-static void labpc_cs_detach(dev_link_t *link)
-{
-    dev_link_t **linkp;
-
-    DEBUG(0, "labpc_cs_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &pcmcia_dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
-
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
-    if (link->state & DEV_CONFIG) {
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "ni_labpc: detach postponed, '%s' "
-	       "still locked\n", link->dev->dev_name);
-#endif
-	link->state |= DEV_STALE_LINK;
-	return;
-    }
-
-    /* Break the link with Card Services */
-    if (link->handle)
-	CardServices(DeregisterClient, link->handle);
-
-    /* Unlink device structure, and free it */
-    *linkp = link->next;
-    /* This points to the parent local_info_t struct */
-    kfree(link->priv);
-
-} /* labpc_cs_detach */
-
-/*======================================================================
-
-    labpc_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
-#define CS_CHECK(fn, args...) \
-while ((last_ret=CardServices(last_fn=(fn),args))!=0) goto cs_failed
-
-#define CFG_CHECK(fn, args...) \
-if (CardServices(fn, args) != 0) goto next_entry
-
-static void labpc_config(dev_link_t *link)
-{
-    client_handle_t handle = link->handle;
-    local_info_t *dev = link->priv;
-    tuple_t tuple;
-    cisparse_t parse;
-    int last_fn, last_ret;
-    u_char buf[64];
-    config_info_t conf;
-    win_req_t req;
-    memreq_t map;
-    cistpl_cftable_entry_t dflt = { 0 };
-
-    DEBUG(0, "labpc_config(0x%p)\n", link);
-
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
-    CS_CHECK(GetTupleData, handle, &tuple);
-    CS_CHECK(ParseTuple, handle, &tuple, &parse);
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
-    /* Look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, handle, &conf);
-    link->conf.Vcc = conf.Vcc;
-
-    /*
-      In this loop, we scan the CIS for configuration table entries,
-      each of which describes a valid card configuration, including
-      voltage, IO window, memory window, and interrupt settings.
-
-      We make no assumptions about the card to be configured: we use
-      just the information available in the CIS.  In an ideal world,
-      this would work for any PCMCIA card, but it requires a complete
-      and accurate CIS.  In practice, a driver usually "knows" most of
-      these things without consulting the CIS, and most client drivers
-      will only use the CIS to fill in implementation-defined details.
-    */
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    CS_CHECK(GetFirstTuple, handle, &tuple);
-    while (1) {
-	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	CFG_CHECK(GetTupleData, handle, &tuple);
-	CFG_CHECK(ParseTuple, handle, &tuple, &parse);
-
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-	if (cfg->index == 0) goto next_entry;
-	link->conf.ConfigIndex = cfg->index;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		link->conf.Attributes |= CONF_ENABLE_SPKR;
-		link->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-	    if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-	    if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	}
-
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
-		cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
-		dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
-
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-	    link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	link->io.NumPorts1 = link->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	    link->io.BasePort1 = io->win[0].base;
-	    link->io.NumPorts1 = io->win[0].len;
-	    if (io->nwin > 1) {
-		link->io.Attributes2 = link->io.Attributes1;
-		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = io->win[1].len;
-	    }
-	    /* This reserves IO space but doesn't actually enable it */
-	    CFG_CHECK(RequestIO, link->handle, &link->io);
-	}
-
-	/*
-	  Now set up a common memory window, if needed.  There is room
-	  in the dev_link_t structure for one memory window handle,
-	  but if the base addresses need to be saved, or if multiple
-	  windows are needed, the info should go in the private data
-	  structure for this device.
-
-	  Note that the memory window base is a physical address, and
-	  needs to be mapped to virtual space with ioremap() before it
-	  is used.
-	*/
-	if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
-	    cistpl_mem_t *mem =
-		(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
-	    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-	    req.Attributes |= WIN_ENABLE;
-	    req.Base = mem->win[0].host_addr;
-	    req.Size = mem->win[0].len;
-	    if (req.Size < 0x1000)
-		req.Size = 0x1000;
-	    req.AccessSpeed = 0;
-	    link->win = (window_handle_t)link->handle;
-	    CFG_CHECK(RequestWindow, &link->win, &req);
-	    map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-	    CFG_CHECK(MapMemPage, link->win, &map);
-	}
-	/* If we got this far, we're cool! */
-	break;
-
-    next_entry:
-	if (link->io.NumPorts1)
-	    CardServices(ReleaseIO, link->handle, &link->io);
-	CS_CHECK(GetNextTuple, handle, &tuple);
-    }
-
-    /*
-       Allocate an interrupt line.  Note that this does not assign a
-       handler to the interrupt, unless the 'Handler' member of the
-       irq structure is initialized.
-    */
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	CS_CHECK(RequestIRQ, link->handle, &link->irq);
-
-    /*
-       This actually configures the PCMCIA socket -- setting up
-       the I/O windows and the interrupt mapping, and putting the
-       card and host interface into "Memory and IO" mode.
-    */
-    CS_CHECK(RequestConfiguration, link->handle, &link->conf);
-
-    /*
-      At this point, the dev_node_t structure(s) need to be
-      initialized and arranged in a linked list at link->dev.
-    */
-    sprintf(dev->node.dev_name, "daqcard-1200");
-    dev->node.major = dev->node.minor = 0;
-    link->dev = &dev->node;
-
-    /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	   dev->node.dev_name, link->conf.ConfigIndex,
-	   link->conf.Vcc/10, link->conf.Vcc%10);
-    if (link->conf.Vpp1)
-	printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq.AssignedIRQ);
-    if (link->io.NumPorts1)
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-	       link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
-	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-	       link->io.BasePort2+link->io.NumPorts2-1);
-    if (link->win)
-	printk(", mem 0x%06lx-0x%06lx", req.Base,
-	       req.Base+req.Size-1);
-    printk("\n");
-
-    link->state &= ~DEV_CONFIG_PENDING;
-    return;
-
-cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
-    labpc_release((u_long)link);
-
-} /* labpc_config */
-
-/*======================================================================
-
-    After a card is removed, labpc_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
-static void labpc_release(u_long arg)
-{
-    dev_link_t *link = (dev_link_t *)arg;
-
-    DEBUG(0, "labpc_release(0x%p)\n", link);
-
-    /*
-       If the device is currently in use, we won't release until it
-       is actually closed, because until then, we can't be sure that
-       no one will try to access the device or its data structures.
-    */
-    if (link->open) {
-	DEBUG(1, "ni_labpc: release postponed, '%s' still open\n",
-	      link->dev->dev_name);
-	link->state |= DEV_STALE_CONFIG;
-	return;
-    }
-
-    /* Unlink the device chain */
-    link->dev = NULL;
-
-    /*
-      In a normal driver, additional code may be needed to release
-      other kernel data structures associated with this device.
-    */
-
-    /* Don't bother checking to see if these succeed or not */
-    if (link->win)
-	CardServices(ReleaseWindow, link->win);
-    CardServices(ReleaseConfiguration, link->handle);
-    if (link->io.NumPorts1)
-	CardServices(ReleaseIO, link->handle, &link->io);
-    if (link->irq.AssignedIRQ)
-	CardServices(ReleaseIRQ, link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
-
-    if (link->state & DEV_STALE_LINK)
-	labpc_cs_detach(link);
-
-} /* labpc_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
-
-static int labpc_event(event_t event, int priority,
-		       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    local_info_t *dev = link->priv;
-
-    DEBUG(1, "labpc_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    ((local_info_t *)link->priv)->stop = 1;
-	    mod_timer(&link->release, jiffies + HZ/20);
-	}
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	dev->bus = args->bus;
-	labpc_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	/* Mark the device as stopped, to block IO until later */
-	dev->stop = 1;
-	if (link->state & DEV_CONFIG)
-	    CardServices(ReleaseConfiguration, link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG)
-	    CardServices(RequestConfiguration, link->handle, &link->conf);
-	dev->stop = 0;
-	/*
-	  In a normal driver, additional code may go here to restore
-	  the device state and restart IO.
-	*/
-	break;
-    }
-    return 0;
-} /* labpc_event */
-
-/*====================================================================*/
-
-static int __init init_labpc_cs(void)
-{
-    servinfo_t serv;
-    DEBUG(0, "%s\n", version);
-    CardServices(GetCardServicesInfo, &serv);
-    if (serv.Revision != CS_RELEASE_CODE) {
-	printk(KERN_NOTICE "ni_labpc: Card Services release "
-	       "does not match!\n");
-	return -1;
-    }
-    register_pccard_driver(&dev_info, &labpc_cs_attach, &labpc_cs_detach);
-    return 0;
-}
-
-static void __exit exit_labpc_cs(void)
-{
-    DEBUG(0, "ni_labpc: unloading\n");
-    unregister_pccard_driver(&dev_info);
-    while (pcmcia_dev_list != NULL) {
-	del_timer(&pcmcia_dev_list->release);
-	if (pcmcia_dev_list->state & DEV_CONFIG)
-	    labpc_release((u_long)pcmcia_dev_list);
-	labpc_cs_detach(pcmcia_dev_list);
-    }
-}
-
-int init_module(void)
-{
-	int ret;
-
-	ret = init_labpc_cs();
-	if(ret < 0)
-		return ret;
-
-	return comedi_driver_register(&driver_labpc);
-}
-
-void cleanup_module(void)
-{
-	exit_labpc_cs();
-	comedi_driver_unregister(&driver_labpc);
-}
-
-#else
 COMEDI_INITCLEANUP(driver_labpc);
 
-#endif // CONFIG_PCMCIA
+EXPORT_SYMBOL_GPL( labpc_common_attach );
+EXPORT_SYMBOL_GPL( labpc_common_detach );
+EXPORT_SYMBOL_GPL( labpc_1200_is_unipolar );
+EXPORT_SYMBOL_GPL( labpc_1200_ai_gain_bits );
+EXPORT_SYMBOL_GPL( range_labpc_1200_ai );
+EXPORT_SYMBOL_GPL( range_labpc_ao );
+
