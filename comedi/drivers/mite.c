@@ -48,6 +48,8 @@
 
 */
 
+//#define USE_KMALLOC
+
 #include <linux/comedidev.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -100,7 +102,6 @@ int mite_setup(struct mite_struct *mite)
 {
 	unsigned long			offset, start, length;
 	u32				addr;
-	int i;
 
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
@@ -142,14 +143,12 @@ int mite_setup(struct mite_struct *mite)
 	/* It must be here for the driver to work though */
 	writel(mite->daq_phys_addr | 0x80 , mite->mite_io_addr + 0xc0 );
 
-#if 0
-	/* DMA setup */
-	for(i=0;i<MITE_RING_SIZE-1;i++){
-		mite->ring[i].next=cpu_to_le32(virt_to_bus(mite->ring+i+1));
+	writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(0));
+	writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR + CHAN_OFFSET(1));
 
-	}
-	mite->ring[i].next=0;
-#endif
+	/* disable interrupts */
+	writel(0,mite->mite_io_addr+MITE_CHCR+CHAN_OFFSET(0));
+	writel(0,mite->mite_io_addr+MITE_CHCR+CHAN_OFFSET(1));
 
 	mite->used = 1;
 
@@ -400,8 +399,13 @@ int mite_load_buffer(struct mite_struct *mite, comedi_async *async)
 
 	for(i=0;i<n_links;i++){
 		mite->ring[i].count = cpu_to_le32(PAGE_SIZE);
+#ifdef USE_KMALLOC
 		mite->ring[i].addr = cpu_to_le32(
 			virt_to_bus(async->prealloc_buf + i*PAGE_SIZE));
+#else
+		mite->ring[i].addr = cpu_to_le32(
+			kvirt_to_bus((unsigned long)async->prealloc_buf + i*PAGE_SIZE));
+#endif
 		mite->ring[i].next = cpu_to_le32(virt_to_bus(mite->ring+i+1));
 	}
 
@@ -420,13 +424,21 @@ int mite_buf_alloc(struct mite_struct *mite, comedi_async *async,
 	}
 
 	if(async->prealloc_bufsz){
+#ifdef USE_KMALLOC
 		kfree(async->prealloc_buf);
+#else
+		vfree(async->prealloc_buf);
+#endif
 		async->prealloc_buf = NULL;
 		async->prealloc_bufsz = 0;
 	}
 
 	if(new_size){
+#ifdef USE_KMALLOC
 		async->prealloc_buf = kmalloc(new_size, GFP_KERNEL);
+#else
+		async->prealloc_buf = vmalloc_32(new_size);
+#endif
 		if(async->prealloc_buf == NULL){
 			async->prealloc_bufsz = 0;
 			return -ENOMEM;
