@@ -46,20 +46,20 @@ Description: Driver for the ComputerBoards/MeasurementComputing cards
 Author: Ivan Martinez <ivanmr@altavista.com>,
   Frank Mori Hess <fmhess@uiuc.edu>
 Status:
-  - PCI-DAS1602/16, 16jr: Driver should work, but untested.  Please
+  - PCI-DAS1602/16: Analog input is tested, works.  Analog output untested.
+  - PCI-DAS1602/16jr: Driver should work, but untested.  Please
       report usage.
   - PCI-DAS1602/12: Same as above.
   - PCI-DAS1200, 1200jr: Tested, works.
   - PCI-DAS1000, 1001, 1002: Should work, but untested.  Please report
     usage.
-Updated: 2001-8-27
+
+  The boards' autocalibration features are not yet supported.
+
+Updated: 2002-1-09
 Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
   PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
   PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
-
-This driver originally intended to support the whole PCI-DAS series,
-but cards based on the PLX PCI controller are excluded for being
-too different.
 
 Configuration options:
   [0] - PCI bus of device (optional)
@@ -75,7 +75,7 @@ range and aref.
 
 TODO:
 
-add a calibration subdevice
+add a calibration support
 
 analog triggering on 1602 series
 */
@@ -98,8 +98,8 @@ analog triggering on 1602 series
 #include "8253.h"
 #include "8255.h"
 
-#define CB_PCIDAS_DEBUG	// enable debugging code
-//#undef CB_PCIDAS_DEBUG	// disable debugging code
+//#define CB_PCIDAS_DEBUG	// enable debugging code
+#undef CB_PCIDAS_DEBUG	// disable debugging code
 
 // PCI vendor number of ComputerBoards/MeasurementComputing
 #define PCI_VENDOR_ID_CB	0x1307
@@ -518,7 +518,6 @@ found:
 	// Warn about non-tested features
 	switch(thisboard->device_id)
 	{
-		case 0x1:
 		case 0x10:
 		case 0x1C:
 		case 0x4C:
@@ -666,6 +665,8 @@ found:
 	subdev_8255_init(dev, s, NULL,
 		(unsigned long)(devpriv->pacer_counter_dio + DIO_8255));
 
+	// make sure mailbox 3 is empty
+	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
 	/* Set bits to enable incoming mailbox interrupts on amcc s5933.
 	 * They don't actually get sent here, but in cmd code. */
 	devpriv->s5933_intcsr_bits = INBOX_BYTE(3) | INBOX_SELECT(3) | INBOX_FULL_INT;
@@ -692,7 +693,9 @@ static int cb_pcidas_detach(comedi_device *dev)
 		{
 			// disable and clear interrupts on amcc s5933
 			outl(INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+#ifdef CB_PCIDAS_DEBUG
 			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + INTCSR));
+#endif
 			release_region(devpriv->s5933_config, S5933_SIZE);
 		}
 		if(devpriv->control_status)
@@ -1307,37 +1310,38 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	int i;
 	static const int timeout = 10000;
 
-#ifdef CB_PCIDAS_DEBUG
 	if(dev->attached == 0)
 	{
+#ifdef CB_PCIDAS_DEBUG
 		comedi_error(dev, "premature interrupt");
+#endif
 		return;
 	}
-#endif
 
 	async = s->async;
 	async->events = 0;
 
-	status = inw(devpriv->control_status + INT_ADCFIFO);
 	s5933_status = inl(devpriv->s5933_config + INTCSR);
 #ifdef CB_PCIDAS_DEBUG
 	rt_printk("intcsr 0x%x\n", s5933_status);
 	rt_printk("mbef 0x%x\n", inl(devpriv->s5933_config + MBEF));
 #endif
+
+	if(INTR_ASSERTED & s5933_status)
+	{
+		// make sure mailbox 3 is empty
+		inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
+		// clear interrupt on amcc s5933
+		outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
+	}
+
+	status = inw(devpriv->control_status + INT_ADCFIFO);
+#ifdef CB_PCIDAS_DEBUG
 	if((status & (INT | EOAI | LADFUL | DAHFI | DAEMI)) == 0)
 	{
-		// clear s5933 interrupt if necessary
-		if(INTR_ASSERTED & s5933_status)
-		{
-			// make sure mailbox 3 is empty
-			inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
-			outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
-#ifdef CB_PCIDAS_DEBUG
-			comedi_error(dev, "spurious interrupt");
-#endif
-		}
-		return;
+		comedi_error(dev, "spurious interrupt");
 	}
+#endif
 
 	// check for analog output interrupt
 	if(status & (DAHFI | DAEMI))
@@ -1403,11 +1407,6 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 		cb_pcidas_cancel(dev, s);
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
-
-	// make sure mailbox 3 is empty
-	inl(devpriv->s5933_config + INCOMING_MAILBOX(3));
-	// clear interrupt on amcc s5933
-	outl(devpriv->s5933_intcsr_bits | INBOX_INTR_STATUS, devpriv->s5933_config + INTCSR);
 
 	comedi_event(dev, s, async->events);
 
