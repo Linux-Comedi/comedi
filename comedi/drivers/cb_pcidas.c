@@ -783,17 +783,21 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	int n,i;
 	unsigned int bits;
 	static const int timeout = 10000;
-
+	int channel;
 	// enable calibration input if appropriate
 	if( insn->chanspec & CR_ALT_SOURCE )
+	{
 		outw( cal_enable_bits( dev ),
 			devpriv->control_status + CALIBRATION_REG);
-	else
+		channel = 0;
+	}else
+	{
 		outw( 0, devpriv->control_status + CALIBRATION_REG);
-
+		channel = CR_CHAN(insn->chanspec);
+	}
 	// set mux limits and gain
-	bits = BEGIN_SCAN(CR_CHAN(insn->chanspec)) |
-		END_SCAN(CR_CHAN(insn->chanspec)) |
+	bits = BEGIN_SCAN(channel) |
+		END_SCAN(channel) |
 		GAIN_BITS(CR_RANGE(insn->chanspec));
 	// set unipolar/bipolar
 	if(CR_RANGE(insn->chanspec) & IS_UNIPOLAR)
