@@ -31,7 +31,7 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
   PCI-6110, PCI-6111, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733
-Updated: Sat, 16 Mar 2002 17:34:48 -0800
+Updated: Thu Jan  1 19:38:13 EST 2004
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes for
@@ -43,8 +43,6 @@ calibration utility in Comedilib.
 By default, the driver uses DMA to transfer analog input data to
 memory.  When DMA is enabled, not all triggering features are
 supported.
-
-Streaming analog output is not supported on PCI-671x and PCI-673x.
 
 PCI IDs are not known for PCI-6731 and PCI-6733.  Digital I/O may not
 work on 673x.
