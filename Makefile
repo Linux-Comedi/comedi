@@ -1,6 +1,6 @@
 VERSION = 0
 PATCHLEVEL = 7
-SUBLEVEL = 60
+SUBLEVEL = 62
 EXTRAVERSION = -cvs
 
 PROJECT = COMEDI
@@ -25,8 +25,12 @@ dev:
 	-mknod -m 666 /dev/comedi2 c 98 2
 	-mknod -m 666 /dev/comedi3 c 98 3
 
-devices.txt: drivers.txt
-drivers.txt: dummy
-	(for each in comedi/drivers/*.c;do scripts/dump_doc $$each;done >drivers.txt)
-	scripts/doc_devlist drivers.txt >devices.txt
+drivers.txt:
+	(for each in comedi/drivers/*.c;do scripts/dump_doc $$each;done >Documentation/comedi/drivers.txt)
+	scripts/doc_devlist Documentation/comedi/drivers.txt >Documentation/comedi/devices.txt
+
+check:
+	(cd comedi/drivers;for each in *.c;do ../../scripts/check_driver $$each;done >../../drivers.check)
+	(grep '^.:' drivers.check >drivers.summary)
+	
 
