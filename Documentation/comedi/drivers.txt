@@ -22,27 +22,78 @@ configure the 8255 subdevice automatically.
 
 
 
-Driver: ni-atmio.o
-Description: National Instruments AT-MIO-E series  (all boards)
+Driver: adl_pci9118.o
+Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
+Author: Michal Dobes <majkl@tesnet.cz>
+Status works
+
+This driver supports AI, AO, DI and DO subdevices.
+AI subdevice support cmd, insn and mode0-4 interface,
+other subdevices support insn and mode0 interface.
+For AI:
+- If cmd->scan_begin_src=TRIG_EXT (or trigger mode4) then trigger input 
+  is TGIN (pin 46).
+- If cmd->convert_src=TRIG_EXT (or trigger mode3) then trigger input 
+  is EXTTRG (pin 44).
+
+
+
+Driver: comedi_parport.o
+Description: Standard PC parallel port
 Author: ds
-Status: mainly limited by Comedi infrastructure
+Status: works in immediate mode
 
-The isapnptools package is required to use this board.  Use isapnp to
-configure the I/O base for the board, and then pass the same value as
-a parameter in comedi_config.  A sample isapnp.conf file is included
-in the etc/ directory.
+A cheap and easy way to get a few more digital I/O lines.  Steal
+additional parallel ports from old computers or your neighbors'
+computers.
 
-Assuming that the NI spec is correct, the driver should correctly
-identify every board in the series.  Each channel should have the
-appropriate parameters, i.e., input/output ranges, number of bits,
-etc.  If the driver fails to recognize your card or does not have
-the correct parameters, please contact me.
 
-Comedilib includes a utility to autocalibrate these boards.  The
-boards seem to boot into a state where the all calibration DACs
-are at one extreme of their range, thus the default calibration
-is terrible.  Calibration at boot is strongly encouraged.
+Parallel Output Port Lines:
 
+pin	subdev	chan	aka
+---	------	----	---
+1	2	0	strobe
+2	0	0	data 0
+3	0	1	data 1
+4	0	2	data 2
+5	0	3	data 3
+6	0	4	data 4
+7	0	5	data 5
+8	0	6	data 6
+9	0	7	data 7
+10	1	3	acknowledge
+11	1	4	busy
+12	1	2	output
+13	1	1	printer selected
+14	2	1	auto LF
+15	1	0	error
+16	2	2	init
+17	2	3	select printer
+18-25	ground
+
+
+Notes:
+
+Channel 0 and 2 are output, channel 1 is input.  I know that it
+is possible to change this with ECP/EPP parallel ports, but this
+driver is a cheap hack.
+
+Pins 13 and 14 are inverted once by comedi and once by the
+hardware, thus cancelling the effect.
+
+Pin 1 is a strobe, thus acts like one.  There's no way in software
+to change this, at least on a standard parallel port.
+
+Please report any sucesses/failures.
+
+
+
+Driver: das08-new.o
+Description: DAS-08 compatible boards
+Authors: Warren Jasper, ds
+Status: in development
+
+This is a rewrite of the das08 and das08jr drivers.
 
 
 Driver: das08.o
@@ -57,6 +108,14 @@ Description: ComputerBoards DAS-08jr-AO
 Authors: Jochen Küpper <jochen@pc1.uni-duesseldorf.de>, ds
 Status: unknown
 
+
+
+Driver: das16-new.o
+Description: DAS16 compatible boards
+Authors: Sam Moore, Warren Jasper, ds
+Status: in development
+
+A rewrite of the das16 and das1600 drivers.
 
 
 Driver: das16.o
@@ -118,6 +177,10 @@ Status: unknown
 
 
 
+Driver: das800.o
+Description: Keithley Metrabyte DAS800 (& compatibles)
+Author: Frank Mori Hess <fmhess@uiuc.edu>
+Status: in development
 
 
 
@@ -125,8 +188,6 @@ Driver: dt2801.o
 Description: Data Translation DT2801 series (2801, 2805, 2808, 2809, 2818, and DT01-EZ)
 Author: ds
 Status: works
-
-
 
 
 
@@ -291,6 +352,42 @@ Status: works
 
 
 
+Driver: ni_atmio.o
+Description: National Instruments AT-MIO-E series  (all boards)
+Author: ds
+Status: mainly limited by Comedi infrastructure
+
+The isapnptools package is required to use this board.  Use isapnp to
+configure the I/O base for the board, and then pass the same value as
+a parameter in comedi_config.  A sample isapnp.conf file is included
+in the etc/ directory.
+
+Assuming that the NI spec is correct, the driver should correctly
+identify every board in the series.  Each channel should have the
+appropriate parameters, i.e., input/output ranges, number of bits,
+etc.  If the driver fails to recognize your card or does not have
+the correct parameters, please contact me.
+
+Comedilib includes a utility to autocalibrate these boards.  The
+boards seem to boot into a state where the all calibration DACs
+are at one extreme of their range, thus the default calibration
+is terrible.  Calibration at boot is strongly encouraged.
+
+
+
+Driver: ni_atmio16d.o
+Description: National Instruments AT-MIO-16D
+Author: Chris R. Baugher <baugher@enteract.com>
+Status: unknown
+
+
+
+Driver: ni_mio_cs.o
+Description: National Instruments DAQCard E series
+Author: ds
+Status: works
+
+
 
 Driver: ni_pcidio.o
 Description: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
@@ -308,56 +405,6 @@ DMA is halfway completed, but not operational, for the PCI-DIO32HS.
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
 
-
-
-
-Driver: comedi_parport.o
-Description: Standard PC parallel port
-Author: ds
-Status: works in immediate mode
-
-A cheap and easy way to get a few more digital I/O lines.  Steal
-additional parallel ports from old computers or your neighbors'
-computers.
-
-
-Parallel Output Port Lines:
-
-pin	subdev	chan	aka
----	------	----	---
-1	2	0	strobe
-2	0	0	data 0
-3	0	1	data 1
-4	0	2	data 2
-5	0	3	data 3
-6	0	4	data 4
-7	0	5	data 5
-8	0	6	data 6
-9	0	7	data 7
-10	1	3	acknowledge
-11	1	4	busy
-12	1	2	output
-13	1	1	printer selected
-14	2	1	auto LF
-15	1	0	error
-16	2	2	init
-17	2	3	select printer
-18-25	ground
-
-
-Notes:
-
-Channel 0 and 2 are output, channel 1 is input.  I know that it
-is possible to change this with ECP/EPP parallel ports, but this
-driver is a cheap hack.
-
-Pins 13 and 14 are inverted once by comedi and once by the
-hardware, thus cancelling the effect.
-
-Pin 1 is a strobe, thus acts like one.  There's no way in software
-to change this, at least on a standard parallel port.
-
-Please report any sucesses/failures.
 
 
 
@@ -496,6 +543,14 @@ A word or two about DMA. Driver support DMA operations at two ways:
 See the head of the source file pcl818.c for configuration options.
 
 
+
+Driver: quatech_daqp_cs.o
+Description: Quatech DAQP PCMCIA data capture cards
+Author: Brent Baccala <baccala@freesoft.org>
+Status: unkown
+
+
+
 Driver: rti800.o
 Description: Analog Devices RTI-800/815
 Author: ds
@@ -509,21 +564,6 @@ Driver: rti802.o
 Description: Analog Devices RTI-802
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
-
-
-Driver: adl_pci9118.o
-Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
-Author: Michal Dobes <majkl@tesnet.cz>
-Status works
-
-This driver supports AI, AO, DI and DO subdevices.
-AI subdevice support cmd, insn and mode0-4 interface,
-other subdevices support insn and mode0 interface.
-For AI:
-- If cmd->scan_begin_src=TRIG_EXT (or trigger mode4) then trigger input 
-  is TGIN (pin 46).
-- If cmd->convert_src=TRIG_EXT (or trigger mode3) then trigger input 
-  is EXTTRG (pin 44).
 
 
 
