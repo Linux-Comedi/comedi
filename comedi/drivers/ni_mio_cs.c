@@ -115,7 +115,7 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 		caldac:		type2,
 	},
-	{	device_id:	0x0000,
+	{	device_id:	0x075e,
 		name:		"DAQCard-6024E", /* specs incorrect! */
 		n_adchan:	16,
 		adbits:		12,
