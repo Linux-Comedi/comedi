@@ -77,7 +77,7 @@ extern inline unsigned long pci_resource_start(struct pci_dev *dev, unsigned int
 
 extern inline unsigned long pci_resource_end(struct pci_dev *dev, unsigned int bar)
 {
-	return pci_resource_start(dev, bar) + pci_resource_len(dev, bar) - 1;
+	return pci_resource_start(dev, bar);
 }
 
 extern inline int pci_request_regions(struct pci_dev *dev, char *name)
@@ -135,6 +135,11 @@ extern inline void pci_release_regions(struct pci_dev *dev)
 extern inline void pci_set_master(struct pci_dev *dev)
 { return; }
 #endif	// 2.2.14
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,18)
+extern inline unsigned long pci_resource_len (struct pci_dev *dev, int n_base)
+{ return 0; }
+#endif	// 2.2.18
 
 #endif
 
