@@ -1145,7 +1145,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 	 * execution of commands, instructions or a mixture of the two.
 	 */
 	if (status_int == PCI230_INT_DISABLE) {
-		printk("comedi%d: amplc_pci230::pci230_interrupt spurious interrupt",dev->minor);
+		return IRQ_NONE;
 	}
 	
 	if (status_int & PCI230_INT_ZCLK_CT1) {
