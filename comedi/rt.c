@@ -145,13 +145,10 @@ void comedi_switch_to_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
-	// this prevents crashes with comedi_rt_timer
-	if(it == NULL){
-		printk("BUG: comedi_switch_to_rt() called with bogus interrupt %d\n",dev->irq);
-		return;
-	}
+	/* drivers might not be using an interrupt for commands */
+	if(it == NULL)return;
 
-	// rt interrupts and shared interrupts don't mix
+	/* rt interrupts and shared interrupts don't mix */
 	if(it->flags & SA_SHIRQ){
 		printk("comedi: cannot switch shared interrupt to real time priority\n");
 		return;
@@ -174,11 +171,10 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
-	// this prevents crashes with comedi_rt_timer
 	if(it == NULL)
 		return;
 
-	// rt interrupts and shared interrupts don't mix
+	/* rt interrupts and shared interrupts don't mix */
 	if(it->flags & SA_SHIRQ)
 		return;
 
