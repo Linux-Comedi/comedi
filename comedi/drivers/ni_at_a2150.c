@@ -425,6 +425,9 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 
 	// set card's irq and dma levels
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
+
+	// reset and sync adc clock circuitry
+	outw_p(APD_BIT, dev->iobase + CONFIG_REG);
 	// initialize configuration register
 	devpriv->config_bits = 0;
 	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
