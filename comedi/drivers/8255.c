@@ -132,6 +132,8 @@ static int subdev_8255_insn_config(comedi_device *dev,comedi_subdevice *s,
 	}
 
 	do_config(dev,s);
+
+	return 1;
 }
 
 static int subdev_8255_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
@@ -216,6 +218,7 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	}
 	s->trig[0]=subdev_8255_dio;
 	s->insn_bits = subdev_8255_insn;
+	s->insn_config = subdev_8255_insn_config;
 
 	s->state=0;
 	s->io_bits=0;
