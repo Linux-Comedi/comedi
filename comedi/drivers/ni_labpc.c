@@ -893,11 +893,21 @@ static int labpc_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 			cmd->convert_arg = thisboard->ai_speed;
 			err++;
 		}
-		// make sure scan timing is not too fast
-		if(cmd->scan_begin_src == TRIG_TIMER)
+	}
+
+	// make sure scan timing is not too fast
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		if(cmd->convert_src == TRIG_TIMER &&
+			cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len)
 		{
-			if(cmd->scan_begin_arg < cmd->convert_arg * cmd->chanlist_len)
-				cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+			cmd->scan_begin_arg = cmd->convert_arg * cmd->chanlist_len;
+			err++
+		}
+		if(cmd->scan_begin_arg < thisboard->ai_speed * cmd->chanlist_len)
+		{
+			cmd->convert_arg = thisboard->ai_speed * cmd->chanlist_len;
+			err++;
 		}
 	}
 
