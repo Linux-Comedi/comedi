@@ -688,7 +688,7 @@ static int ni_660x_GPCT_cmdtest(comedi_device *dev,comedi_subdevice *s,
 				comedi_cmd *cmd);
 static int ni_660x_GPCT_cmd(comedi_device *dev,comedi_subdevice *s);
 
-/* Possible instructions for Digital IO: Not implemented yet! */
+/* Possible instructions for Digital IO */
 static int ni_660x_dio_insn_config(comedi_device *dev,
 				   comedi_subdevice *s,
 				   comedi_insn *insn,
@@ -968,7 +968,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 			(ni_660x_gpct_config[subdev_channel]).data[2] = 0;
 
 		// Reset the counter
-		writew(G0Reset,dev->iobase + GPCT_OFFSET[chipset]
+		writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
 		+ registerData[GxxJointResetRegister(counter_channel)].offset);
 		// Disarm
 		writew(Disarm,dev->iobase + GPCT_OFFSET[chipset]
