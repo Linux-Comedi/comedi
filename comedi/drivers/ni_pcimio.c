@@ -393,6 +393,12 @@ typedef struct{
 	unsigned short ao_cmd2;
 	unsigned short ao_cmd3;
 	unsigned short ao_trigger_select;
+	unsigned short gpct_mode0;
+	unsigned short gpct_mode1;
+	unsigned short gpct_command0;
+	unsigned short gpct_command1;
+	unsigned short gpct_input_select0;
+	unsigned short gpct_input_select1;
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 
