@@ -213,14 +213,14 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	
 	b_status=ni_readw(AO_Status_1);
 	status=ni_readw(AI_Status_1);
-#if 1
+#ifdef PCIDMA
 printk("status=0x%04x,0x%04x\n",status,b_status);
-#ifdef PCIMIO
+#ifdef PCIDMA
 printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
 #endif
 #endif
 
-#ifdef PCIMIO
+#ifdef PCIDMA
 mite_dma_tcr(devpriv->mite);
 #endif
 	if(status&(AI_Overrun_St|AI_Overflow_St)){
@@ -446,7 +446,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
  */
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 {
-#ifdef PCIMIO
+#ifdef PCIDMA
 	mite_dma_disarm(devpriv->mite);
 #endif
 	win_out(0x0000,Interrupt_A_Enable_Register);
@@ -1047,7 +1047,7 @@ bits|=AI_Error_Interrupt_Enable;
 		/* XXX start polling if necessary */
 	}
 
-#ifdef PCIMIO
+#ifdef PCIDMA
 #if 0 
 	Strobes_Register
 	AI_AO_Select_Register
