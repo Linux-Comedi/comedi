@@ -684,6 +684,8 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
   int result = 0;
   comedi_subdevice *s;
   struct pci_dev *card = NULL;
+  void *aux_data;
+  unsigned int aux_len;
 
   printk("comedi%d: daqboard2000:", dev->minor);
 
@@ -744,33 +746,15 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
     pci_read_config_byte(card, PCI_INTERRUPT_LINE, &interrupt);
     printk("Interrupt before is: %x\n", interrupt);
   */
-  if(it->options[0] && it->options[1]){
-    void *ptr;
-    unsigned int size = it->options[1];
 
-    /* Note:  using copy_from_user here is a hack.  I would prefer
-     * to have a generic solution for copying extended data at
-     * device configuration, but that will require changes to the
-     * devconfig interface.  Wait until devconfig gets a little
-     * more crufty (than it already is?!?), and then fix it.  -ds */
-    ptr = kmalloc(size,GFP_KERNEL);
-    if(!ptr){
-      result=-ENOMEM;
-      goto out;
-    }
-    if(copy_from_user(ptr,(void *)it->options[0],size)){
-      result=-EFAULT;
-      goto out;
-    }
-    result = initialize_daqboard2000(dev,ptr,size);
-    kfree(ptr);
+  aux_data = (void *)it->options[COMEDI_DEVCONF_AUX_DATA];
+  aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
+
+  if(aux_data && aux_len){
+    result = initialize_daqboard2000(dev, aux_data, aux_len);
   }else{
-#ifdef CONFIG_COMEDI_DAQBOARD2000_FPGA
-    result = initialize_daqboard2000(dev,bTopBitArray,bTopBitSize);
-#else
     printk("no FPGA initialization code, aborting\n");
     result=-EIO;
-#endif
   }
   if(result<0)goto out;
   daqboard2000_initializeAdc(dev);

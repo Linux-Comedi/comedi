@@ -41,6 +41,8 @@ extern "C" {
 
 /* number of config options in the config structure */
 #define COMEDI_NDEVCONFOPTS 32
+#define COMEDI_DEVCONF_AUX_DATA		30
+#define COMEDI_DEVCONF_AUX_DATA_LENGTH	31
 
 /* max length of device and driver names */
 #define COMEDI_NAMELEN 20

@@ -47,7 +47,7 @@ Configuration options:
 
 #include <linux/pci.h>
 
-#include "me2600_fw.h"
+//#include "me2600_fw.h"
 
 #define ME_DRIVER_NAME                 "me_daq"
 
@@ -571,7 +571,8 @@ static int me_ao_insn_read(comedi_device * dev,
 // Xilinx firmware download for card: ME-2600i
 //
 
-static int me2600_xilinx_download(comedi_device *dev)
+static int me2600_xilinx_download(comedi_device *dev, unsigned char
+	*me2600_firmware, unsigned int length)
 {
   unsigned int value;
   unsigned int file_length;
@@ -598,6 +599,7 @@ static int me2600_xilinx_download(comedi_device *dev)
    * Byte 8-11:  date
    * Byte 12-15: reserved
    */
+  if(length<16)return -EINVAL;
   file_length =
     (((unsigned int)me2600_firmware[0] & 0xff)<<24) +
     (((unsigned int)me2600_firmware[1] & 0xff)<<16) +
@@ -801,7 +803,15 @@ found:
   // Download firmware and reset card
   if(board->device_id == ME2600_DEVICE_ID)
   {
-    me2600_xilinx_download(dev);
+    unsigned char *aux_data;
+    int aux_len;
+
+    aux_data = (unsigned char *)it->options[COMEDI_DEVCONF_AUX_DATA];
+    aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
+
+    if(!aux_data || aux_len)return -EINVAL;
+
+    me2600_xilinx_download(dev, aux_data, aux_len);
   }
 
   me_reset(dev);

@@ -154,6 +154,9 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor)
 {
 	comedi_devconfig it;
+	int ret;
+	unsigned char *aux_data = NULL;
+	int aux_len;
 
 	if(!suser())
 		return -EPERM;
@@ -167,7 +170,28 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 
 	it.board_name[COMEDI_NAMELEN-1]=0;
 
-	return comedi_device_attach(dev,&it);
+	if(it.options[COMEDI_DEVCONF_AUX_DATA] &&
+	   it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
+		aux_len = it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
+		if(aux_len<0)return -EFAULT;
+
+		aux_data = kmalloc(aux_len, GFP_KERNEL);
+		if(!aux_data)return -EFAULT;
+
+		if(copy_from_user(aux_data,
+		    (void *)it.options[COMEDI_DEVCONF_AUX_DATA], aux_len)){
+			kfree(aux_data);
+			return -EFAULT;
+		}
+
+		it.options[COMEDI_DEVCONF_AUX_DATA] = (unsigned long)aux_data;
+	}
+
+	ret = comedi_device_attach(dev,&it);
+
+	if(aux_data) kfree(aux_data);
+
+	return ret;
 }
 
 /*
