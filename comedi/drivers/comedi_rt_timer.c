@@ -700,10 +700,11 @@ static int timer_detach(comedi_device *dev)
 			rt_task_delete(devpriv->scan_task);
 			kfree(devpriv->scan_task);
 		}
-		if( devpriv->timer_running )
+		if(devpriv->timer_running)
 			stop_rt_timer();
+		if(devpriv->device)
+			comedi_close(devpriv->device);	
 	}
-
 	return 0;
 }
 
