@@ -15,7 +15,7 @@ else
 	minor=$1
 fi
 
-lastminor=$(echo $minor-1|bc)
+let lastminor=$minor-1
 
 tag=r0_7_$minor
 version=0.7.$minor
