@@ -51,7 +51,7 @@ typedef unsigned short sampl_t;
 
 /* packs and unpacks a channel/range number */
 
-#define CR_PACK(chan,rng,aref)		( (((aref)&0x3)<<24) | (((rng)&0xff)<<16) | ((chan)&0xffff) )
+#define CR_PACK(chan,rng,aref)		( (((aref)&0x3)<<24) | (((rng)&0xff)<<16) | (chan) )
 #define CR_PACK_FLAGS(chan, range, aref, flags)	(CR_PACK(chan, range, aref) | ((flags) & CR_FLAGS_MASK))
 
 #define CR_CHAN(a)	((a)&0xffff)
