@@ -1370,8 +1370,8 @@ static int dt282x_grab_dma(comedi_device *dev,int dma1,int dma2)
 	devpriv->dma[1].chan=dma2;
 
 	devpriv->dma_maxsize = PAGE_SIZE;
-	devpriv->dma[0].buf = (void *) get_free_page(GFP_KERNEL | GFP_DMA);
-	devpriv->dma[1].buf = (void *) get_free_page(GFP_KERNEL | GFP_DMA);
+	devpriv->dma[0].buf = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
+	devpriv->dma[1].buf = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf) {
 		printk(" can't get DMA memory");
 		return -ENOMEM;
