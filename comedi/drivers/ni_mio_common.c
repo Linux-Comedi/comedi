@@ -1730,7 +1730,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		interrupt_a_enable|=AI_FIFO_Interrupt_Enable;
 #endif
 
-		if(s->async->cb_mask&COMEDI_CB_EOS){
+		if(cmd->flags & TRIG_WAKE_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
 		}else{
