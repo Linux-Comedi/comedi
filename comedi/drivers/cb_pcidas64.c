@@ -41,8 +41,8 @@ Driver: cb_pcidas64.o
 Description: Driver for the ComputerBoards/MeasurementComputing
    PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller.
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Status: works, but no streaming analog output yet
-Updated: 2002-07-18
+Status: works
+Updated: 2002-10-09
 Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
@@ -59,7 +59,7 @@ Configuration options:
 These boards may be autocalibrated with the comedi_calibrate utility.
 
 To select the bnc trigger input on the 4020 (instead of the dio input),
-specify channel 1000 in the chanspec.  If you wish to use an external
+specify a nonzero channel in the chanspec.  If you wish to use an external
 master clock on the 4020, you may do so by setting the scan_begin_src
 to TRIG_OTHER, and using an INSN_CONFIG_TIMER_1 configuration insn
 to configure the divisor to use for the external clock.
@@ -73,7 +73,6 @@ https://bugs.comedi.org.
 /*
 
 TODO:
-	command support for ao
 	user counter subdevice
 	there are a number of boards this driver will support when they are
 		fully released, but does not yet since the pci device id numbers
@@ -102,10 +101,10 @@ TODO:
 
 #define TIMER_BASE 25	// 40MHz master clock
 #define PRESCALED_TIMER_BASE	10000	// 100kHz 'prescaled' clock for slow aquisition, maybe I'll support this someday
-#define DMA_BUFFER_SIZE 0x1000
+#define DMA_BUFFER_SIZE PAGE_SIZE
 /* maximum number of dma transfers we will chain together into a ring
  * (and the maximum number of dma buffers we maintain) */
-#define DMA_RING_COUNT 64
+#define DMA_RING_COUNT (0x40000 / PAGE_SIZE)
 
 /* PCI-DAS64xxx base addresses */
 
@@ -127,8 +126,8 @@ enum write_only_registers
 	ADC_CONTROL0_REG = 0x10,	// adc control register 0
 	ADC_CONTROL1_REG = 0x12,	// adc control register 1
 	CALIBRATION_REG = 0x14,
-	ADC_SAMPLE_INTERVAL_LOWER_REG = 0x16,	// lower 16 bits of sample interval counter
-	ADC_SAMPLE_INTERVAL_UPPER_REG = 0x18,	// upper 8 bits of sample interval counter
+	ADC_SAMPLE_INTERVAL_LOWER_REG = 0x16,	// lower 16 bits of adc sample interval counter
+	ADC_SAMPLE_INTERVAL_UPPER_REG = 0x18,	// upper 8 bits of adc sample interval counter
 	ADC_DELAY_INTERVAL_LOWER_REG = 0x1a,	// lower 16 bits of delay interval counter
 	ADC_DELAY_INTERVAL_UPPER_REG = 0x1c,	// upper 8 bits of delay interval counter
 	ADC_COUNT_LOWER_REG = 0x1e,	// lower 16 bits of hardware conversion/scan counter
@@ -141,6 +140,10 @@ enum write_only_registers
 	ADC_QUEUE_HIGH_REG = 0x2c,	// high channel for internal queue, use adc_chan_bits() inline above
 	DAC_CONTROL0_REG = 0x50,	// dac control register 0
 	DAC_CONTROL1_REG = 0x52,	// dac control register 0
+	DAC_SAMPLE_INTERVAL_LOWER_REG = 0x54,	// lower 16 bits of dac sample interval counter
+	DAC_SAMPLE_INTERVAL_UPPER_REG = 0x56,	// upper 8 bits of dac sample interval counter
+	DAC_SELECT_REG = 0x60,
+	DAC_START_REG = 0x64,
 	DAC_BUFFER_CLEAR_REG = 0x66,	// clear dac buffer
 };
 static inline unsigned int dac_convert_reg( unsigned int channel )
@@ -253,7 +256,7 @@ enum adc_control1_contents
 	ADC_QUEUE_CONFIG_BIT = 0x1,	// should be set for boards with > 16 channels
 	CONVERT_POLARITY_BIT = 0x10,
 	EOC_POLARITY_BIT = 0x20,
-	SW_GATE_BIT = 0x40,	// software gate of adc
+	ADC_SW_GATE_BIT = 0x40,	// software gate of adc
 	ADC_DITHER_BIT = 0x200,	// turn on extra noise for dithering
 	RETRIGGER_BIT = 0x800,
 	ADC_LO_CHANNEL_4020_MASK = 0x300,
@@ -323,11 +326,31 @@ static inline uint16_t adc_chan_bits( unsigned int channel )
 enum dac_control0_contents
 {
 	DAC_ENABLE_BIT = 0x8000,	// dac controller enable bit
+	DAC_CYCLIC_STOP_BIT = 0x4000,
+	DAC_WAVEFORM_MODE_BIT = 0x100,
+	DAC_EXT_UPDATE_FALLING_BIT = 0x80,
+	DAC_EXT_UPDATE_ENABLE_BIT = 0x40,
+	WAVEFORM_TRIG_MASK = 0x30,
+	WAVEFORM_TRIG_DISABLED_BITS = 0x0,
+	WAVEFORM_TRIG_SOFT_BITS = 0x10,
+	WAVEFORM_TRIG_EXT_BITS = 0x20,
+	WAVEFORM_TRIG_ADC1_BITS = 0x30,
+	WAVEFORM_TRIG_FALLING_BIT = 0x8,
+	WAVEFORM_GATE_LEVEL_BIT = 0x4,
+	WAVEFORM_GATE_ENABLE_BIT = 0x2,
+	WAVEFORM_GATE_SELECT_BIT = 0x1,
 };
 
 enum dac_control1_contents
 {
+	DAC_WRITE_POLARITY_BIT = 0x800, /* board-dependent setting */
+	DAC1_EXT_REF_BIT = 0x200,
+	DAC0_EXT_REF_BIT = 0x100,
 	DAC_OUTPUT_ENABLE_BIT = 0x80,	// dac output enable bit
+	DAC_UPDATE_POLARITY_BIT = 0x40, /* board-dependent setting */
+	DAC_SW_GATE_BIT = 0x20,
+	DAC1_UNIPOLAR_BIT = 0x8,
+	DAC0_UNIPOLAR_BIT = 0x2,
 };
 
 // bit definitions for read-only registers
@@ -1025,6 +1048,7 @@ typedef struct
 	volatile uint16_t adc_control1_bits;	// last bits sent to ADC_CONTROL1_REG register
 	volatile uint16_t fifo_size_bits;	// last bits sent to FIFO_SIZE_REG register
 	volatile uint16_t hw_config_bits;	// last bits sent to HW_CONFIG_REG register
+	volatile uint16_t dac_control1_bits;
 	volatile uint32_t plx_control_bits;	// last bits written to plx9080 control register
 	volatile uint32_t plx_intcsr_bits;	// last bits written to plx interrupt control and status register
 	volatile int calibration_source;	// index of calibration source readable through ai ch0
@@ -1145,19 +1169,25 @@ static unsigned int ai_range_bits_6xxx( const comedi_device *dev, unsigned int r
 	return bits;
 }
 
-static inline uint16_t dac_range_bits( const comedi_device *dev,
-	unsigned int channel, unsigned int range )
-{
-	unsigned int code = board(dev)->ao_range_code[ range ];
-	return ( ( code ) & 0x3 ) << ( 2 * ( ( channel ) & 0x1 ) );
-};
-static inline unsigned int hw_revision( const comedi_device *dev, uint16_t hw_status_bits )
+static unsigned int hw_revision( const comedi_device *dev, uint16_t hw_status_bits )
 {
 	if( board(dev)->layout == LAYOUT_4020)
 		return ( hw_status_bits >> 13 ) & 0x7;
 
 	return ( hw_status_bits >> 12) & 0xf;
 }
+
+static void set_dac_range_bits(comedi_device *dev, volatile uint16_t *bits,
+	unsigned int channel, unsigned int range)
+{
+	unsigned int code = board(dev)->ao_range_code[ range ];
+
+	if(channel > 1) comedi_error(dev, "bug! bad channel?");
+	if(code & ~0x3) comedi_error(dev, "bug! bad range code?");
+
+	*bits &= ~(0x3 << (2 * channel));
+	*bits |= code << (2 * channel);
+};
 
 // initialize plx9080 chip
 static void init_plx9080(comedi_device *dev)
@@ -1274,7 +1304,7 @@ static int setup_subdevices(comedi_device *dev)
 	s = dev->subdevices + 1;
 	if(board(dev)->ao_nchan)
 	{
-//		dev->write_subdev = s;
+		dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board(dev)->ao_nchan;
@@ -1285,12 +1315,10 @@ static int setup_subdevices(comedi_device *dev)
 		s->insn_write = ao_winsn;
 		if(board(dev)->layout != LAYOUT_4020)
 		{
-#if 0
 			s->do_cmdtest = ao_cmdtest;
 			s->do_cmd = ao_cmd;
 			s->len_chanlist = board(dev)->ao_nchan;
 			s->cancel = ao_cancel;
-#endif
 		}
 	} else
 	{
@@ -2130,7 +2158,7 @@ static void disable_ai_pacing( comedi_device *dev )
 	disable_ai_interrupts( dev );
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
-	priv(dev)->adc_control1_bits &= ~SW_GATE_BIT;
+	priv(dev)->adc_control1_bits &= ~ADC_SW_GATE_BIT;
 	writew( priv(dev)->adc_control1_bits, priv(dev)->main_iobase + ADC_CONTROL1_REG );
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
@@ -2408,7 +2436,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	/* set mode, allow conversions through software gate */
-	priv(dev)->adc_control1_bits |= SW_GATE_BIT;
+	priv(dev)->adc_control1_bits |= ADC_SW_GATE_BIT;
 	priv(dev)->adc_control1_bits &= ~ADC_DITHER_BIT;
 	if(board(dev)->layout != LAYOUT_4020)
 	{
@@ -2792,14 +2820,14 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
-	unsigned int bits;
+	uint16_t bits;
 
 	// do some initializing
 	writew(0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
 
 	// set range
 	bits = DAC_OUTPUT_ENABLE_BIT;
-	bits |= dac_range_bits( dev, chan, range );
+	set_dac_range_bits( dev, &bits, chan, range );
 	writew(bits, priv(dev)->main_iobase + DAC_CONTROL1_REG);
 
 	// clear buffer
@@ -2828,14 +2856,78 @@ static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	return 1;
 }
 
+static void set_dac_control0_reg(comedi_device *dev, const comedi_cmd *cmd)
+{
+	unsigned int bits = DAC_ENABLE_BIT;
+
+	if(cmd->start_src == TRIG_EXT)
+	{
+		bits |= WAVEFORM_TRIG_EXT_BITS;
+		if(cmd->start_arg & CR_INVERT)
+			bits |= WAVEFORM_TRIG_FALLING_BIT;
+	}else
+	{
+		bits |= WAVEFORM_TRIG_SOFT_BITS;
+	}
+	if(cmd->scan_begin_src == TRIG_EXT)
+	{
+		bits |= DAC_EXT_UPDATE_ENABLE_BIT;
+		if(cmd->scan_begin_arg & CR_INVERT)
+			bits |= DAC_EXT_UPDATE_FALLING_BIT;
+	}
+	writew(bits, priv(dev)->main_iobase + DAC_CONTROL0_REG);
+}
+
+static void set_dac_control1_reg(comedi_device *dev, const comedi_cmd *cmd)
+{
+	int i;
+
+	priv(dev)->dac_control1_bits |= DAC_OUTPUT_ENABLE_BIT;
+	for(i = 0; i < cmd->chanlist_len; i++)
+	{
+		int channel, range;
+
+		channel = CR_CHAN(cmd->chanlist[i]);
+		range = CR_RANGE(cmd->chanlist[i]);
+		set_dac_range_bits(dev, &priv(dev)->dac_control1_bits, channel, range);
+	}
+	writew(priv(dev)->dac_control1_bits, priv(dev)->main_iobase + DAC_CONTROL1_REG);
+}
+
+static void set_dac_select_reg(comedi_device *dev, const comedi_cmd *cmd)
+{
+	uint16_t bits;
+	unsigned int first_channel, last_channel;
+
+	first_channel = CR_CHAN(cmd->chanlist[0]);
+	last_channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	if(last_channel < first_channel)
+		comedi_error(dev, "bug! last ao channel < first ao channel");
+
+	bits = (first_channel & 0x7) | (last_channel & 0x7) << 3;
+
+	writew(bits, priv(dev)->main_iobase + DAC_SELECT_REG);
+}
+
 static int ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	s->async->inttrig = ao_inttrig;
+	comedi_cmd *cmd = &s->async->cmd;
+
+	if(cmd->start_src == TRIG_INT)
+		s->async->inttrig = ao_inttrig;
+	else
+		s->async->inttrig = NULL;
+
 	return 0;
 }
 
-static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num)
+static int ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigned int trig_num)
 {
+	if(trig_num!=0)return -EINVAL;
+
+	writew(0, priv(dev)->main_iobase + DAC_START_REG);
+	s->async->inttrig=NULL;
+
 	return 0;
 }
 
