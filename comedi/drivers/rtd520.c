@@ -34,7 +34,7 @@
     bus mastering DMA
     timers: ADC sample, pacer, burst, about, delay, DA1, DA2
     sample counter
-    3 user timer/counters
+    3 user timer/counters (8254)
     external interrupt
 
     The DM7520 has slightly fewer features (fewer gain steps).
@@ -54,12 +54,20 @@
     I use a pretty loose naming style within the driver (rtd_blah).
     All externally visible names should be rtd520_blah.
     I use camelCase in and for structures.
-    I may also use upper CamelCase for function names.
+    I may also use upper CamelCase for function names (old habit).
 
-    This board somewhat related to the PCI4400 board.  
+    This board is somewhat related to the PCI4400 board.  
 
     I borrowed heavily from the ni_mio_common, ni_atmio16d, and das1800,
     since they have the best documented code.
+
+*/
+
+/*
+  driver status:
+
+  Analog in supports instruction and command mode.  I can do 400Khz
+  mutli-channel sampling on 400Mhz K6-2 with 58% idle.
 
 */
 
@@ -116,28 +124,50 @@
   The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
 */
 static comedi_lrange rtd_ai_7520_range = { 6, {
-					/* TODO: BIP_RANGE(10.0) */
     BIP_RANGE(5.0),
     BIP_RANGE(5.0/2),
     BIP_RANGE(5.0/4),
     BIP_RANGE(5.0/8),
     BIP_RANGE(5.0/16),
     BIP_RANGE(5.0/32),
-    /*UNI_RANGE(10.0),
+#if 0					/* until we can handle 10V mode */
+    UNI_RANGE(10.0),
     UNI_RANGE(10.0/2),
     UNI_RANGE(10.0/4),
     UNI_RANGE(10.0/8),
     UNI_RANGE(10.0/16),
-    UNI_RANGE(10.0/32),*/
+    UNI_RANGE(10.0/32),
+#endif
 }};
-  /* PCI4520 has two more gains (6 more entries) */
+
+/* PCI4520 has two more gains (6 more entries) */
+static comedi_lrange rtd_ai_4520_range = { 8, {
+    BIP_RANGE(5.0),
+    BIP_RANGE(5.0/2),
+    BIP_RANGE(5.0/4),
+    BIP_RANGE(5.0/8),
+    BIP_RANGE(5.0/16),
+    BIP_RANGE(5.0/32),
+    BIP_RANGE(5.0/64),
+    BIP_RANGE(5.0/128),
+#if 0					/* until we can handle 10V mode */
+    UNI_RANGE(10.0),
+    UNI_RANGE(10.0/2),
+    UNI_RANGE(10.0/4),
+    UNI_RANGE(10.0/8),
+    UNI_RANGE(10.0/16),
+    UNI_RANGE(10.0/32),
+    UNI_RANGE(10.0/64),
+    UNI_RANGE(10.0/128),
+#endif
+}};
 
 /* Table order matches range values */
 static comedi_lrange rtd_ao_range = { 4, {
-  RANGE(0, 5),
-  RANGE(0, 10),
-  RANGE(-5, 5),
-  RANGE(-10, 10),
+    RANGE(0, 5),
+    RANGE(0, 10),
+    RANGE(-5, 5),
+    RANGE(-10, 10),
 }};
 
 /*
@@ -210,13 +240,18 @@ typedef struct{
 					/* PCI device info */
     struct pci_dev *pci_dev;
 
-					/* Used for AO readback */
-    lsampl_t ao_readback[2];
+    /* read back data */
+    lsampl_t	aoValue[2];		/* Used for AO read back */
 
-    /* NEEDED???: these 3 arent used after init */
-    unsigned long physLas0;		/* configuation */
-    unsigned long physLas1;		/* data area */
-    unsigned long physLcfg;		/* PLX9080 */
+    /* timer gate (when enabled) */
+    u8		utcGate[4];		/* 1 extra allows simple range check */
+
+    /* shadow registers affect other registers, but cant be read back */
+    /* The macros below update these on writes */
+    u16		intMask;		/* interrupt mask */
+    u16		intClearMask;		/* interrupt clear mask */
+    u8		utcCtrl[4];		/* crtl mode for 3 utc + read back */
+    u8		dioStatus;		/* could be read back (dio0Ctrl) */
 
 } rtdPrivate;
 
@@ -318,19 +353,19 @@ typedef struct{
 
 /* Interrupt status */
 #define RtdInterruptStatus(dev) \
-    readl (devpriv->las0+LAS0_IT)
+    readw (devpriv->las0+LAS0_IT)
 
 /* Interrupt mask */
 #define RtdInterruptMask(dev,v) \
-    writel (v,devpriv->las0+LAS0_IT)
+    writew ((devpriv->intMask = (v)),devpriv->las0+LAS0_IT)
 
 /* Interrupt status clear (only bits set in mask) */
 #define RtdInterruptClear(dev) \
-    readl (devpriv->las0+LAS0_CLEAR)
+    readw (devpriv->las0+LAS0_CLEAR)
 
 /* Interrupt clear mask */
 #define RtdInterruptClearMask(dev,v) \
-    writel (v, devpriv->las0+LAS0_CLEAR)
+    writew ((devpriv->intClearMask = (v)), devpriv->las0+LAS0_CLEAR)
 
 /* Interrupt overrun status */
 #define RtdInterruptOverrunStatus(dev) \
@@ -370,30 +405,20 @@ typedef struct{
 #define RtdAdcSampleCounter(dev,v) \
     writel ((v) & 0x3ff, devpriv->las0+LAS0_ADC_SCNT)
 
-/* User timer/counter, 16bit (two step access, LSB,MSB) */
-/* UTC Status word must have the right counter and latching mode in it!!! */
-#define RtdUtcCount(dev,n) \
-    (readb (devpriv->las0 \
-        + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2))) \
-     | (readb (devpriv->las0 \
-        + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2))) << 8))
 
-#define RtdUtcCounter(dev,n,v) \
-    writeb ((v) & 0xff, devpriv->las0 \
-        + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2))), \
-    writeb (((v) >> 8) & 0xff, devpriv->las0 \
+/* User Timer/Counter (8254) */
+#define RtdUtcCounterGet(dev,n) \
+    readb (devpriv->las0 \
         + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
 
-/* Set UTC mode.  Forces proper latching mode and binary counting. */
-#define RtdUtcModeSet(dev,n,v) \
-    writeb (((n & 3) << 6) | (((v) & 7) < 1) | 0x30, \
-      devpriv->las0 + LAS0_UTC_CTRL)
+#define RtdUtcCounterPut(dev,n,v) \
+    writeb ((v) & 0xff, devpriv->las0 \
+        + ((n <= 0) ? LAS0_UTC0 : ((1 == n) ? LAS0_UTC1 : LAS0_UTC2)))
 
-/* Get UTC mode. Forces proper latching mode and binary counting. */
-/* The docs say that you cant read mode, but dos driver implements it! */
-#define RtdUtcModeGet(dev,n) \
-    (writeb (((n & 3) << 1) | 0xE0, devpriv->las0 + LAS0_UTC_CTRL), \
-     readw (devpriv->las0 + LAS0_UTC_CTRL) & 0xff)
+/* Set UTC (8254) control byte  */
+#define RtdUtcCtrlPut(dev,n,v) \
+    writeb (devpriv->utcCtrl[(n) & 3] = (((n) & 3) << 6) | ((v) & 0x3f), \
+      devpriv->las0 + LAS0_UTC_CTRL)
 
 /* Set UTCn clock source (write only) */
 #define RtdUtcClockSource(dev,n,v) \
@@ -407,9 +432,11 @@ typedef struct{
         + ((n <= 0) ? LAS0_UTC0_GATE : \
            ((1 == n) ? LAS0_UTC1_GATE : LAS0_UTC2_GATE)))
 
+
 /* User output N source select (write only) */
 #define RtdUsrOutSource(dev,n,v) \
     writel (v,devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : LAS0_UOUT1_SELECT))
+
 
 /* PLX9080 interrupt mask and status */
 #define RtdPLXInterruptRead(dev) \
@@ -432,7 +459,7 @@ typedef struct{
 #define RtdDioStatusRead(dev) \
     (readw (devpriv->las0+LAS0_DIO_STATUS) & 0xff)
 #define RtdDioStatusWrite(dev,v) \
-    writew ((v) & 0xff, devpriv->las0+LAS0_DIO_STATUS)
+    writew ((devpriv->dioStatus = (v)), devpriv->las0+LAS0_DIO_STATUS)
 
 #define RtdDio0CtrlRead(dev) \
     (readw (devpriv->las0+LAS0_DIO0_CTRL) & 0xff)
@@ -441,40 +468,27 @@ typedef struct{
 
 
 /* Digital to Analog converter */
-/* We follow the RTD docs, which label the DACs 1 and 2 (not 0 and 1) */
-
 /* Write one data value (sign + 12bit + marker bits) */
 /* Note: matches what DMA would put.  Actual value << 3 */
-#define RtdDac1FifoPut(dev, v) \
-    writew ((v), devpriv->las1+LAS1_DAC1_FIFO)
-
-#define RtdDac2FifoPut(dev, v) \
-    writew ((v), devpriv->las1+LAS1_DAC2_FIFO)
+#define RtdDacFifoPut(dev,n,v) \
+    writew ((v), devpriv->las1 +(((n) == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO))
 
 /* Start single DAC conversion */
-#define RtdDac1Update(dev) \
-    writew (0, devpriv->las0+LAS0_DAC1)
-
-#define RtdDac2Update(dev) \
-    writew (0, devpriv->las0+LAS0_DAC2)
+#define RtdDacUpdate(dev,n) \
+    writew (0, devpriv->las0 +(((n) == 0) ? LAS0_DAC1 : LAS0_DAC2))
 
 /* Start single DAC conversion on both DACs */
 #define RtdDacBothUpdate(dev) \
     writew (0, devpriv->las0+LAS0_DAC)
 
 /* Set DAC output type and range */
-#define RtdDac1Range(dev, v) \
-    writew ((v) & 7, devpriv->las0+LAS0_DAC1_CTRL)
-
-#define RtdDac2Range(dev, v) \
-    writew ((v) & 7, devpriv->las0+LAS0_DAC2_CTRL)
+#define RtdDacRange(dev,n,v) \
+    writew ((v) & 7, devpriv->las0 \
+	+(((n) == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL))
 
 /* Reset DAC FIFO */
-#define RtdDac1ClearFifo(dev) \
-    writel (0, devpriv->las0+LAS0_DAC1_RESET)
-
-#define RtdDac2ClearFifo(dev) \
-    writel (0, devpriv->las0+LAS0_DAC2_RESET)
+#define RtdDacClearFifo(dev,n) \
+    writel (0, devpriv->las0+(((n) == 0) ? LAS0_DAC1_RESET : LAS0_DAC2_RESET))
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -486,32 +500,32 @@ static int rtd_attach (comedi_device *dev, comedi_devconfig *it);
 static int rtd_detach (comedi_device *dev);
 
 comedi_driver rtd520Driver={
-	driver_name:	"rtd520",
-	module:		THIS_MODULE,
-	attach:		rtd_attach,
-	detach:		rtd_detach,
+    driver_name:	"rtd520",
+    module:		THIS_MODULE,
+    attach:		rtd_attach,
+    detach:		rtd_detach,
 
-	/* It is not necessary to implement the following members if you are
-	 * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in rtd520Boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-	board_name:	rtd520Boards,
-	offset:		sizeof(rtdBoard),
-	num_names:	sizeof(rtd520Boards) / sizeof(rtdBoard),
+    /* It is not necessary to implement the following members if you are
+     * writing a driver for a ISA PnP or PCI card */
+    /* Most drivers will support multiple types of boards by
+     * having an array of board structures.  These were defined
+     * in rtd520Boards[] above.  Note that the element 'name'
+     * was first in the structure -- Comedi uses this fact to
+     * extract the name of the board without knowing any details
+     * about the structure except for its length.
+     * When a device is attached (by comedi_config), the name
+     * of the device is given to Comedi, and Comedi tries to
+     * match it by going through the list of board names.  If
+     * there is a match, the address of the pointer is put
+     * into dev->board_ptr and driver->attach() is called.
+     *
+     * Note that these are not necessary if you can determine
+     * the type of board in software.  ISA PnP, PCI, and PCMCIA
+     * devices are such boards.
+     */
+    board_name:	rtd520Boards,
+    offset:		sizeof(rtdBoard),
+    num_names:	sizeof(rtd520Boards) / sizeof(rtdBoard),
 };
 
 static int rtd_ai_rinsn (comedi_device *dev, comedi_subdevice *s,
@@ -546,6 +560,9 @@ static int rtd_attach (
     struct pci_dev* pcidev;
     int index;
     int	ret;
+    unsigned long physLas0;		/* configuation */
+    unsigned long physLas1;		/* data area */
+    unsigned long physLcfg;		/* PLX9080 */
 
     printk ("comedi%d: rtd520 attaching.\n", dev->minor);
 
@@ -577,7 +594,7 @@ static int rtd_attach (
     if (!pcidev) {
 	if (it->options[0] && it->options[1]) {
 	    printk ("No RTD card at bus=%d slot=%d.\n",
-		   it->options[0], it->options[1]);
+		    it->options[0], it->options[1]);
 	} else {
 	    printk ("No RTD card found.\n");
 	}
@@ -592,7 +609,7 @@ static int rtd_attach (
     }
     if (index >= rtd520Driver.num_names) {
 	printk ("Found an RTD card, but not a supported type (%x).\n",
-	       pcidev->device);
+		pcidev->device);
 	return -EIO;
     } else {
 	devpriv->pci_dev = pcidev;
@@ -609,23 +626,23 @@ static int rtd_attach (
      */
     /* Get the physical address from PCI config */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-    devpriv->physLas0 = devpriv->pci_dev->base_address[LAS0_PCIINDEX];
-    devpriv->physLas1 = devpriv->pci_dev->base_address[LAS1_PCIINDEX];
-    devpriv->physLcfg = devpriv->pci_dev->base_address[LCFG_PCIINDEX];
+    physLas0 = devpriv->pci_dev->base_address[LAS0_PCIINDEX];
+    physLas1 = devpriv->pci_dev->base_address[LAS1_PCIINDEX];
+    physLcfg = devpriv->pci_dev->base_address[LCFG_PCIINDEX];
 #else
-    devpriv->physLas0 = devpriv->pci_dev->resource[LAS0_PCIINDEX].start;
-    devpriv->physLas1 = devpriv->pci_dev->resource[LAS1_PCIINDEX].start;
-    devpriv->physLcfg = devpriv->pci_dev->resource[LCFG_PCIINDEX].start;
+    physLas0 = devpriv->pci_dev->resource[LAS0_PCIINDEX].start;
+    physLas1 = devpriv->pci_dev->resource[LAS1_PCIINDEX].start;
+    physLcfg = devpriv->pci_dev->resource[LCFG_PCIINDEX].start;
 #endif
     /* Now have the kernel map this into memory */
 					/* ASSUME page aligned */
-    devpriv->las0 = ioremap(devpriv->physLas0, LAS0_PCISIZE);
-    devpriv->las1 = ioremap(devpriv->physLas1, LAS1_PCISIZE);
-    devpriv->lcfg = ioremap(devpriv->physLcfg, LCFG_PCISIZE);
+    devpriv->las0 = ioremap(physLas0, LAS0_PCISIZE);
+    devpriv->las1 = ioremap(physLas1, LAS1_PCISIZE);
+    devpriv->lcfg = ioremap(physLcfg, LCFG_PCISIZE);
 
     printk ("%s: ", dev->board_name);
     /*printk ("%s: LAS0=%lx, LAS1=%lx, CFG=%lx.\n", dev->board_name,
-      devpriv->physLas0, devpriv->physLas1, devpriv->physLcfg);*/
+      physLas0, physLas1, physLcfg);*/
 
     /*
      * Allocate the subdevice structures.  alloc_subdevice() is a
@@ -643,7 +660,11 @@ static int rtd_attach (
     s->subdev_flags=SDF_READABLE;
     s->n_chan=thisboard->aiChans;
     s->maxdata=(1<<thisboard->aiBits)-1;
-    s->range_table = &rtd_ai_7520_range;
+    if (thisboard->aiMaxGain <= 32) {
+	s->range_table = &rtd_ai_7520_range;
+    } else {
+	s->range_table = &rtd_ai_4520_range;
+    }
     s->len_chanlist = thisboard->fifoLen;
     s->insn_read = &rtd_ai_rinsn;
     s->do_cmd = &rtd_ai_cmd;
@@ -671,10 +692,15 @@ static int rtd_attach (
     s->insn_bits = rtd_dio_insn_bits;
     s->insn_config = rtd_dio_insn_config;
 
+    /* timer/counter subdevices */
     s=dev->subdevices+3;
+    s->type = COMEDI_SUBD_COUNTER;
+    s->subdev_flags=SDF_READABLE|SDF_WRITEABLE;
+    //s->insn_read=  rtd_gpct_insn_read;
+    //s->insn_write= rtd_gpct_insn_write;
+    //s->insn_config=rtd_gpct_insn_config;
     s->n_chan=3;
-    /* 3 timer/counter subdevices */
-    s->type = COMEDI_SUBD_UNUSED;
+    s->maxdata=0xffff;
 	
     /* check if our interrupt is available and get it */
     dev->irq = devpriv->pci_dev->irq;
@@ -688,15 +714,24 @@ static int rtd_attach (
     }
 	
 					/* initialize board, per RTD spec */
+					/* also, initialize shadow registers */
     RtdResetBoard (dev);
-    RtdInterruptMask (dev,0);
-    RtdInterruptClearMask (dev,~0);
+    RtdInterruptMask (dev,0);		/* and sets shadow */
+    RtdInterruptClearMask (dev,~0);	/* and sets shadow */
     RtdInterruptClear(dev);		/* clears bits set by mask */
     RtdInterruptOverrunClear(dev);
     RtdClearCGT (dev);
     RtdAdcClearFifo (dev);
-					/* clear DA FIFO */
-					/* clear digital IO */
+    RtdDacClearFifo (dev,0);
+    RtdDacClearFifo (dev,1);
+					/* clear digital IO fifo*/
+    RtdDioStatusWrite (dev, 0);		/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 0, 0x30);	/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 1, 0x30);	/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 2, 0x30);	/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 3, 0);		/* safe state, set shadow */
+    /* todo: set user out source ??? */
+
     if (dev->irq) {			/* enable interrupt controller */
 	RtdPLXInterruptWrite (dev,
 			      RtdPLXInterruptRead (dev) | (0x0800));
@@ -976,7 +1011,7 @@ static void rtd_interrupt (
     /* if interrupt was not caused by our board */
     /* needed??? we dont claim to share interrupt lines */
     if ((0 == status)
-       || !(dev->attached)) {
+	|| !(dev->attached)) {
 	return;
     }
     /* Either end if a sequence (about), or time to flush the fifo (sample) */
@@ -1000,7 +1035,7 @@ static void rtd_interrupt (
 		    devpriv->aboutWrap = 0;
 		}
 	    } else {			/* done */
-	    /* TODO: allow multiple interrupt sources */
+		/* TODO: allow multiple interrupt sources */
 		RtdInterruptMask (dev, 0);/* mask out ABOUT and SAMPLE */
 		ai_read_dregs (dev, s);
 
@@ -1411,8 +1446,8 @@ static int rtd_ai_cmd (
 	}
 	
 	printk("rtd520: using interrupts. (%ld ints, %ld extra ai)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)\n",
-	   devpriv->intCount, devpriv->aiExtraInt,
-	   0xffff & RtdInterruptStatus (dev),
+	       devpriv->intCount, devpriv->aiExtraInt,
+	       0xffff & RtdInterruptStatus (dev),
 	       0xffff & RtdInterruptOverrunStatus (dev),
 	       0xffff & RtdFifoStatus (dev));
 
@@ -1505,11 +1540,7 @@ static int rtd_ao_winsn (
     int range = CR_RANGE (insn->chanspec);
 
     /* Configure the output range (table index matches the range values) */
-    if (chan == 0) {
-	RtdDac1Range (dev, range);
-    } else {
-	RtdDac2Range (dev, range);
-    }
+    RtdDacRange (dev, chan, range);
 
     /* Writing a list of values to an AO channel is probably not
      * very useful, but that's how the interface is defined. */
@@ -1530,15 +1561,10 @@ static int rtd_ao_winsn (
 	       chan, range, data[i], val);
 
 	/* a typical programming sequence */
-	if (chan == 0) {
-	    RtdDac1FifoPut (dev, val); /* put the value in */
-	    RtdDac1Update (dev);	/* trigger the conversion */
-	} else {
-	    RtdDac2FifoPut (dev, val); /* put the value in */
-	    RtdDac2Update (dev);	/* trigger the conversion */
-	}
+	RtdDacFifoPut (dev, chan, val); /* put the value in */
+	RtdDacUpdate (dev, chan);	/* trigger the conversion */
 
-	devpriv->ao_readback[chan] = data[i]; /* save for read back */
+	devpriv->aoValue[chan] = data[i]; /* save for read back */
 
 	if (insn->n > 1) {		/* let DAC finish (TODO poll) */
 	    udelay (RTD_DAC_DELAY);
@@ -1561,7 +1587,7 @@ static int rtd_ao_rinsn (
     int chan = CR_CHAN(insn->chanspec);
 
     for (i=0; i < insn->n; i++) {
-	data[i] = devpriv->ao_readback[chan];
+	data[i] = devpriv->aoValue[chan];
     }
 
     return i;
