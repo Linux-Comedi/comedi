@@ -63,17 +63,15 @@ Bugs:
 	Tomasz Motylewski <...>, and ported to comedi by ds.
 
 
-	References for specifications:
+	References:
 	
 	   341079b.pdf  PCI E Series Register-Level Programmer Manual
 	   340934b.pdf  DAQ-STC reference manual
 
-	Other possibly relevant info:
-	
-	   320517c.pdf  User manual (obsolete)
-	   320517f.pdf  User manual (new)
-
 	   322080b.pdf  6711/6713/6715 User Manual
+
+	   320945c.pdf  PCI E Series User Manual
+	   322138a.pdf  PCI-6052E and DAQPad-6052E User Manual
 	
 	ISSUES:
 
