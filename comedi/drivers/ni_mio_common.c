@@ -1226,6 +1226,9 @@ static int ni_ao_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	unsigned int chan;
 	unsigned int range;
 	int i;
+
+	/* XXX this function could use a little cleanup to make sure that it
+	 * gets the range settings correct for every board. */
 	
 for(i=0;i<it->n_chan;i++){
 	data=it->data[i];
@@ -1237,7 +1240,9 @@ for(i=0;i<it->n_chan;i++){
 	/* should update calibration if range changes (ick) */
 
 	range = CR_RANGE(it->chanlist[i]);
-	conf |= (range&1);
+	if(boardtype.ao_unipolar){
+		conf |= (range&1)^1;
+	}
 	conf |= (range&2)<<1;
 	
 	/* not all boards can deglitch, but this shouldn't hurt */
@@ -1250,7 +1255,7 @@ for(i=0;i<it->n_chan;i++){
 
 	ni_writew(conf,AO_Configuration);
 
-	if(range&1)
+	if(range&1 || !boardtype.ao_unipolar)
 		data^=(1<<(boardtype.aobits-1));
 	
 	ni_writew(data,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
@@ -1501,7 +1506,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->subdev_flags=SDF_WRITEABLE|SDF_RT|SDF_DEGLITCH|SDF_GROUND|SDF_OTHER;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
-		s->range_table=&range_ni_E_ao_ext;	/* XXX wrong for some boards */
+		if(boardtype.ao_unipolar){
+			s->range_table=&range_ni_E_ao_ext;	/* XXX wrong for some boards */
+		}else{
+			s->range_table=&range_bipolar10;
+		}
 		s->trig[0]=ni_ao_mode0;
 		s->len_chanlist = 2;
 		if(boardtype.ao_fifo_depth)
