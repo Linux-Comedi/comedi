@@ -65,7 +65,7 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 		  -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" \
 		  -o "$CONFIG_COMEDI_NI_670X" = "y" \
 		  -o "$CONFIG_COMEDI_NI_6527" = "y" \
-		  -o "$CONFIG_COMEDI_NI_660X" ];then
+		  -o "$CONFIG_COMEDI_NI_660X" = "y" ];then
 			define_bool CONFIG_COMEDI_MITE y
 		else
 			if [ "$CONFIG_COMEDI_NI_PCIMIO" = "m" \
@@ -73,7 +73,6 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 			  -o "$CONFIG_COMEDI_NI_670X" = "m" \
 			  -o "$CONFIG_COMEDI_NI_660X" = "m" \
 			  -o "$CONFIG_COMEDI_NI_6527" = "m" ];then
-
 				define_bool CONFIG_COMEDI_MITE m
 			fi
 		fi
