@@ -443,9 +443,6 @@ static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 		/* load DACs */
 		inb(dev->iobase+DAS08JR_DIO);
-
-		/* XXX */
-		break;
 	}
 
 	return n;
@@ -479,9 +476,6 @@ static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 		/* load DACs */
 		inb(dev->iobase+DAS08AO_AO_UPDATE);
-
-		/* XXX */
-		break;
 	}
 
 	return n;
@@ -543,7 +537,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		s->subdev_flags = SDF_WRITEABLE;
 		s->n_chan = 2;
 		s->maxdata = (1<<thisboard->ao_nbits)-1;
-		s->range_table = &range_unknown; /* XXX */
+		s->range_table = &range_bipolar5;
 		s->insn_write = thisboard->ao;
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
