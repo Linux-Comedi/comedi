@@ -92,6 +92,7 @@ module_PROGRAMS = \
  amplc_pci230.ko \
  amplc_pc236.ko \
  amplc_pc263.ko \
+ amplc_dio200.ko \
  cb_pcidas.ko \
  cb_pcidas64.ko \
  cb_pcidda.ko \
@@ -161,6 +162,7 @@ adv_pci_dio_ko_SOURCES = adv_pci_dio.c
 amplc_pci230_ko_SOURCES = amplc_pci230.c
 amplc_pc236_ko_SOURCES = amplc_pc236.c
 amplc_pc263_ko_SOURCES = amplc_pc263.c
+amplc_dio200_ko_SOURCES = amplc_dio200.c
 cb_pcidas_ko_SOURCES = cb_pcidas.c
 cb_pcidas64_ko_SOURCES = cb_pcidas64.c
 cb_pcidda_ko_SOURCES = cb_pcidda.c
