@@ -108,6 +108,7 @@ typedef union {
 	struct {
 		int iobase;
 		comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
+		lsampl_t last_data[2];
 	}pci20006;
 	struct {
 		int iobase;
@@ -129,7 +130,7 @@ static int pci20xxx_detach(comedi_device * dev);
 
 comedi_driver driver_pci20xxx = {
 	driver_name:	"ii_pci20kc",
-	module:		&__this_module,
+	module:		THIS_MODULE,
 	attach:		pci20xxx_attach,
 	detach:		pci20xxx_detach,
 };
@@ -236,13 +237,16 @@ static int pci20xxx_detach(comedi_device * dev)
 
 /* pci20006m */
 
-static int pci20006_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it);
+static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data);
+static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data);
 
 static comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar10,
 	&range_unipolar10,
 	&range_bipolar5,
- 	};
+};
 
 static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
 	int opt0,int opt1)
@@ -259,47 +263,58 @@ static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE|SDF_RT;
 	s->n_chan = 2;
-	s->trig[0] = pci20006_ao;
+	s->insn_read = pci20006_insn_read;
+	s->insn_write = pci20006_insn_write;
 	s->maxdata = 0xffff;
 	s->range_table_list = sdp->pci20006.ao_range_list;
 	return 0;
 }
 
-static int pci20006_ao(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	pci20xxx_subdev_private *sdp = s->private;
+
+	data[0] = sdp->pci20006.last_data[CR_CHAN(insn->chanspec)];
+
+	return 1;
+}
+
+static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
 	unsigned int boarddata;
-	int i;
 
-	for (i=0; i < it->n_chan; i++)	{
-		boarddata = (((unsigned int)it->data[i]+0x8000) & 0xffff);	/* comedi-data -> board-data */
-		lo = (boarddata & 0xff);
-		hi = ((boarddata >> 8) & 0xff);
-	
-		switch ( CR_CHAN(it->chanlist[i])) {
-		case 0:
-			writeb(lo, sdp->iobase + PCI20006_LCHAN0);
-			writeb(hi, sdp->iobase + PCI20006_LCHAN0 + 1);
-			writeb(0x00, sdp->iobase + PCI20006_STROBE0);
-			break;
-		case 1:
-			writeb(lo, sdp->iobase + PCI20006_LCHAN1);
-			writeb(hi, sdp->iobase + PCI20006_LCHAN1 + 1);
-			writeb(0x00, sdp->iobase + PCI20006_STROBE1);
-			break;
-		default:
-			printk(" comedi%d: pci20xxx: ao channel Error!\n", dev->minor);
-			return -EINVAL;
-		}
-	}		
+	sdp->pci20006.last_data[CR_CHAN(insn->chanspec)] = data[0];
+	boarddata = (((unsigned int)data[0]+0x8000) & 0xffff);	/* comedi-data -> board-data */
+	lo = (boarddata & 0xff);
+	hi = ((boarddata >> 8) & 0xff);
+
+	switch ( CR_CHAN(insn->chanspec)) {
+	case 0:
+		writeb(lo, sdp->iobase + PCI20006_LCHAN0);
+		writeb(hi, sdp->iobase + PCI20006_LCHAN0 + 1);
+		writeb(0x00, sdp->iobase + PCI20006_STROBE0);
+		break;
+	case 1:
+		writeb(lo, sdp->iobase + PCI20006_LCHAN1);
+		writeb(hi, sdp->iobase + PCI20006_LCHAN1 + 1);
+		writeb(0x00, sdp->iobase + PCI20006_STROBE1);
+		break;
+	default:
+		printk(" comedi%d: pci20xxx: ao channel Error!\n", dev->minor);
+		return -EINVAL;
+	}
+
 	return 1;
 }
 
 /* PCI20341M */
 
-static int pci20341_mode0(comedi_device * dev, comedi_subdevice * s,
-	comedi_trig * it);
+static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data);
 
 static int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
@@ -331,7 +346,7 @@ static int pci20341_init(comedi_device * dev,comedi_subdevice *s,
 	s->subdev_flags = SDF_READABLE|SDF_RT;
 	s->n_chan = PCI20341_CHAN_NR;
 	s->len_chanlist = PCI20341_SCANLIST;
-	s->trig[0] = pci20341_mode0;
+	s->insn_read = pci20341_insn_read;
 	s->maxdata = 0xffff;
 	s->range_table = pci20341_ranges[opt0];
 
@@ -345,7 +360,8 @@ static int pci20341_init(comedi_device * dev,comedi_subdevice *s,
 	return 0;
 }
 
-static int pci20341_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn *insn, lsampl_t *data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 	unsigned int i = 0, j = 0;
@@ -354,20 +370,18 @@ static int pci20341_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig
 	unsigned int clb;		/* channel list byte */
 	unsigned int boarddata;
 
-	writeb(it->n_chan, sdp->iobase + PCI20341_LCHAN_ADDR_REG);		/* write number of input channels */
-	for (i=0; i < it->n_chan; i++)	{
-		clb	= PCI20341_DAISY_CHAIN
-			| PCI20341_MUX
-			| (sdp->pci20341.ai_gain << 3)
-			| CR_CHAN(it->chanlist[i]); 
-		writeb(clb, sdp->iobase + PCI20341_CHAN_LIST+i);
-		}
+	writeb(1, sdp->iobase + PCI20341_LCHAN_ADDR_REG);		/* write number of input channels */
+	clb	= PCI20341_DAISY_CHAIN
+		| PCI20341_MUX
+		| (sdp->pci20341.ai_gain << 3)
+		| CR_CHAN(insn->chanspec); 
+	writeb(clb, sdp->iobase + PCI20341_CHAN_LIST);
 	writeb(0x00, sdp->iobase + PCI20341_CC_RESET);		/* reset settling time counter and trigger delay counter */
 	writeb(0x00, sdp->iobase + PCI20341_CHAN_RESET);
 
 	/* generate Pacer */
 
-	for (i=0; i < it->n_chan; i++)	{ 
+	for (i=0; i < insn->n; i++)	{ 
 		/* data polling isn't the niciest way to get the data, I know,
 		 * but there are only 6 cycles (mean) and it is easier than
 		 * the whole interrupt stuff 
@@ -386,9 +400,10 @@ static int pci20341_mode0(comedi_device * dev, comedi_subdevice * s, comedi_trig
 		lo = readb(sdp->iobase + PCI20341_LDATA);
 		hi = readb(sdp->iobase + PCI20341_LDATA + 1);
 		boarddata = lo + 0x100 *  hi;
-		it->data[i] = (sampl_t)((boarddata + 0x8000) & 0xffff);	/* board-data -> comedi-data */
-		}
-	return 1;
+		data[i] = (sampl_t)((boarddata + 0x8000) & 0xffff);	/* board-data -> comedi-data */
+	}
+
+	return i;
 }
 
 /* native DIO */
@@ -397,6 +412,8 @@ static void pci20xxx_dio_config(comedi_device * dev,comedi_subdevice *s);
 static void pci20xxx_do(comedi_device * dev,comedi_subdevice *s);
 static unsigned int pci20xxx_di(comedi_device * dev,comedi_subdevice *s);
 static int pci20xxx_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
+static int pci20xxx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data);
 
 /* initialize pci20xxx_private */
 static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s)
@@ -406,12 +423,13 @@ static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s)
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
 	s->n_chan = 32;
 	s->trig[0] = pci20xxx_dio;
+	s->insn_bits = pci20xxx_dio_insn_bits;
 	s->maxdata = 1;
 	s->len_chanlist = 32;
 	s->range_table = &range_digital;
 	s->io_bits = 0;
 
-	/* XXX digital I/O lines default to input on board reset. */
+	/* digital I/O lines default to input on board reset. */
 	pci20xxx_dio_config(dev,s);
 
 	return 0;
@@ -456,6 +474,32 @@ static int pci20xxx_dio(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	}
 
 	return it->n_chan;
+}
+
+static int pci20xxx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	unsigned int mask = data[0];
+
+	s->state &= ~mask;
+	s->state |= (mask&data[1]);
+
+	mask &= s->io_bits;
+	if(mask&0x000000ff)
+		writeb((s->state>>0)&0xff, dev->iobase + PCI20000_DIO_0 );
+	if(mask&0x0000ff00)
+		writeb((s->state>>8)&0xff, dev->iobase + PCI20000_DIO_1 );
+	if(mask&0x00ff0000)
+		writeb((s->state>>16)&0xff, dev->iobase + PCI20000_DIO_2 );
+	if(mask&0xff000000)
+		writeb((s->state>>24)&0xff, dev->iobase + PCI20000_DIO_3 );
+
+	data[1] = readb(dev->iobase + PCI20000_DIO_0 );
+	data[1] |= readb(dev->iobase + PCI20000_DIO_1 )<<8;
+	data[1] |= readb(dev->iobase + PCI20000_DIO_2 )<<16;
+	data[1] |= readb(dev->iobase + PCI20000_DIO_3 )<<24;
+
+	return 2;
 }
 
 static void pci20xxx_dio_config(comedi_device * dev,comedi_subdevice *s)
@@ -535,17 +579,5 @@ static unsigned int pci20xxx_di(comedi_device * dev, comedi_subdevice * s)
 	return bits;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pci20xxx);
+COMEDI_INITCLEANUP(driver_pci20xxx);
 
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pci20xxx);
-}
-
-#endif
