@@ -1684,7 +1684,7 @@ static void labpc_adc_timing(comedi_device *dev, comedi_cmd *cmd)
 	if(cmd->convert_src == TRIG_TIMER && cmd->scan_begin_src == TRIG_TIMER)
 	{
 		// pick the lowest b0 divisor value we can (for maximum input clock speed on convert and scan counters)
-		devpriv->divisor_b0 = (cmd->convert_arg - 1) / (LABPC_TIMER_BASE * max_counter_value) + 1;
+		devpriv->divisor_b0 = (cmd->scan_begin_arg - 1) / (LABPC_TIMER_BASE * max_counter_value) + 1;
 		if(devpriv->divisor_b0 < min_counter_value)
 			devpriv->divisor_b0 = min_counter_value;
 		if(devpriv->divisor_b0 > max_counter_value)
