@@ -802,9 +802,11 @@ int comedi_unlock(unsigned int minor,unsigned int subdev)
 	if(s->lock==&rtcomedi_lock_semaphore){
 		s->lock=NULL;
 
-		async->cb_mask=0;
-		async->cb_func=NULL;
-		async->cb_arg=NULL;
+		if(async){
+			async->cb_mask=0;
+			async->cb_func=NULL;
+			async->cb_arg=NULL;
+		}
 
 		__MOD_DEC_USE_COUNT(dev->driver->module);
 	}
