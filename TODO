@@ -6,9 +6,6 @@ be the case with real-time.  The planned fix for this is to
 no longer allow real-time applications to allocate their own
 buffer.
 
-PCMCIA scripts are broken.  Installation documentation isn't correct
-for PCMCIA.  
-
 comedi_rt_timer segfaults when the lower-level driver disappears
 and reappears.  This is a problem with the Comedi core, not the
 driver.
@@ -36,4 +33,6 @@ need realtime examples
 das1800: kmalloc could fail on large buffer sizes (see dt282x)
 
 check for SA_SHIRQ in drivers
+
+move /proc/comedi to /proc/driver/comedi
 
