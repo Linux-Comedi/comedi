@@ -1360,10 +1360,11 @@ static int ai_config_insn( comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	switch( id )
 	{
 		case INSN_CONFIG_ALT_SOURCE:
-			ai_config_calibration_source( dev, data );
+			return ai_config_calibration_source( dev, data );
 			break;
 		case INSN_CONFIG_DIGITAL_TRIG:
-			ai_config_digital_trigger( dev, data );
+			return ai_config_digital_trigger( dev, data );
+			break;
 		default:
 			return -EINVAL;
 			break;
