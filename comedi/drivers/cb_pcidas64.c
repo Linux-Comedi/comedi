@@ -2130,13 +2130,6 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			priv(dev)->adc_control1_bits |= adc_mode_bits( 13 );	// good old mode 13
 		else
 			priv(dev)->adc_control1_bits |= adc_mode_bits(8);	// mode 8.  What else could you need?
-#if 0
-		// this causes interrupt on end of scan to be disabled on 60xx?
-		if(cmd->flags & TRIG_WAKE_EOS)
-			priv(dev)->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
-		else
-			priv(dev)->adc_control1_bits &= ~ADC_DMA_DISABLE_BIT;
-#endif
 	} else
 	{
 		priv(dev)->adc_control1_bits &= ~CHANNEL_MODE_4020_MASK;
@@ -2189,6 +2182,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	/* enable pacing, triggering, etc */
 	bits = ADC_ENABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT;
+	if(cmd->flags & TRIG_WAKE_EOS)
+		bits |= ADC_DMA_DISABLE_BIT;
 	// set start trigger
 	if( cmd->start_src == TRIG_EXT )
 	{
@@ -2201,7 +2196,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, priv(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);
-	
+
 	priv(dev)->ai_cmd_running = 1;
 
 	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
