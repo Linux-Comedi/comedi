@@ -73,7 +73,7 @@ int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 
 	cmd.chanlist = &chan;
 
-	return comedi_trig_ioctl(dev,subdev,&cmd);
+	return comedi_trigger(dev,subdev,&cmd);
 #endif
 }
 
@@ -108,7 +108,7 @@ int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 
 	cmd.chanlist = &chan;
 
-	ret = comedi_trig_ioctl(dev,subdev,&cmd);
+	ret = comedi_trigger(dev,subdev,&cmd);
 
 	*data = sdata;
 

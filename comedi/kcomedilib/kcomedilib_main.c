@@ -512,7 +512,7 @@ cleanup:
    checks.  Any insanity in code calling this function must be
    assumed by the writer.
  */
-int __comedi_trig_ioctl(unsigned int minor,unsigned int subdev,comedi_trig *it)
+int __comedi_trigger(unsigned int minor,unsigned int subdev,comedi_trig *it)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
@@ -853,10 +853,11 @@ EXPORT_SYMBOL(comedi_get_n_ranges);
 //EXPORT_SYMBOL(comedi_maxdata_is_chan_specific);
 EXPORT_SYMBOL(comedi_cancel);
 EXPORT_SYMBOL(comedi_trigger);
+EXPORT_SYMBOL(__comedi_trigger);
 //EXPORT_SYMBOL(comedi_command);
 //EXPORT_SYMBOL(comedi_command_test);
 //EXPORT_SYMBOL(comedi_do_insnlist);
-//EXPORT_SYMBOL(comedi_do_insn);
+EXPORT_SYMBOL(comedi_do_insn);
 EXPORT_SYMBOL(comedi_lock);
 EXPORT_SYMBOL(comedi_unlock);
 //EXPORT_SYMBOL(comedi_to_phys);

@@ -72,7 +72,7 @@ int comedi_dio_config(unsigned int dev,unsigned int subdev,unsigned int chan,
 
 	cmd.chanlist = &chan;
 
-	return comedi_trig_ioctl(dev,subdev,&cmd);
+	return comedi_trigger(dev,subdev,&cmd);
 #endif
 }
 
@@ -104,7 +104,7 @@ int comedi_dio_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	cmd.data_len = sizeof(sampl_t);
 	cmd.chanlist = &chan;
 
-	ret = comedi_trig_ioctl(dev,subdev,&cmd);
+	ret = comedi_trigger(dev,subdev,&cmd);
 
 	*val = sdata;
 
@@ -141,7 +141,7 @@ int comedi_dio_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	cmd.data_len = sizeof(sampl_t);
 	cmd.chanlist = &chan;
 
-	ret = comedi_trig_ioctl(dev,subdev,&cmd);
+	ret = comedi_trigger(dev,subdev,&cmd);
 
 	return ret;
 #endif
