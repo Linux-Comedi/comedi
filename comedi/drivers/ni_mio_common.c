@@ -1650,8 +1650,11 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	switch(cmd->convert_src){
 	case TRIG_TIMER:
-		if( cmd->convert_arg == 0 ) break;
-		timer=ni_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_NEAREST);
+	case TRIG_NOW:
+		if( cmd->convert_arg == 0 || cmd->convert_src == TRIG_NOW )
+			timer = 1;
+		else
+			timer=ni_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_NEAREST);
 		win_out(1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
 		win_out(timer,AI_SI2_Load_B_Register);
 
@@ -1679,8 +1682,6 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 		win_out(mode2, AI_Mode_2_Register);
 
-		break;
-	case TRIG_NOW:
 		break;
 	}
 
