@@ -1,5 +1,5 @@
 /*
-    module/vd_timer.c
+    module/comedi_rt_timer.c
     virtual driver for using RTL timing sources
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -85,6 +85,7 @@ static void timer_interrupt(void)
 	comedi_unlock(devpriv->device,devpriv->subd);
 }
 
+// writes a data point to comedi's buffer, used for input
 static inline void buf_add(comedi_device *dev,comedi_subdevice *s,sampl_t x)
 {
 	comedi_async *async = s->async;
@@ -98,11 +99,30 @@ static inline void buf_add(comedi_device *dev,comedi_subdevice *s,sampl_t x)
 	async->buf_int_count+=sizeof(sampl_t);
 }
 
+// reads a data point from comedi's buffer, used for output
+static inline int buf_remove(comedi_device *dev,comedi_subdevice *s)
+{
+	comedi_async *async = s->async;
+	sampl_t data;
+
+	if(async->buf_int_ptr >= async->buf_user_ptr)
+		return -1;
+
+	data = *(sampl_t *)(async->data+async->buf_int_ptr);
+	async->buf_int_ptr+=sizeof(sampl_t);
+	if(async->buf_int_ptr>=async->data_len){
+		async->buf_int_ptr=0;
+		async->events |= COMEDI_CB_EOBUF;
+	}
+	async->buf_int_count+=sizeof(sampl_t);
+
+	return data;
+}
 
 static void timer_ai_task_func(int d)
 {
 	comedi_device *dev=(comedi_device *)d;
-	comedi_subdevice *s=dev->subdevices+0;
+	comedi_subdevice *s=dev->read_subdev;
 	comedi_cmd *cmd=&s->async->cmd;
 	int i,n,ret;
 	lsampl_t data;
@@ -142,6 +162,59 @@ static void timer_ai_task_func(int d)
 	/* eek! */
 }
 
+static void timer_ao_task_func(int d)
+{
+	comedi_device *dev=(comedi_device *)d;
+	comedi_subdevice *s=dev->write_subdev;
+	comedi_cmd *cmd=&s->async->cmd;
+	int i,n,ret;
+	int data;
+	int ao_repeat_flag = 0;
+
+	if(cmd->stop_src == TRIG_NONE)
+		ao_repeat_flag = 1;
+
+	do{
+		for(n=0;n<cmd->stop_arg;n++){
+			for(i=0;i<cmd->scan_end_arg;i++){
+				data = buf_remove(dev,s);
+				if(data < 0) {
+					/* eek! */
+				}
+				ret = comedi_data_write(devpriv->device,devpriv->subd,
+					CR_CHAN(devpriv->chanlist[i]),
+					CR_RANGE(devpriv->chanlist[i]),
+					CR_AREF(devpriv->chanlist[i]),
+					data);
+				if(ret<0){
+					/* eek! */
+				}
+			}
+			s->async->events |= COMEDI_CB_EOS;
+			comedi_event(dev,s,s->async->events);
+#ifdef CONFIG_COMEDI_RTL
+			rt_task_wait();
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+			rt_task_wait_period();
+#endif
+		}
+	}while(ao_repeat_flag);
+	s->async->events |= COMEDI_CB_EOA;
+	comedi_event(dev,s,s->async->events);
+#ifdef CONFIG_COMEDI_RTL
+	rtl_global_pend_irq(devpriv->soft_irq);
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	rt_pend_linux_srq(devpriv->soft_irq);
+#endif
+
+	rt_task_delete(&devpriv->rt_task);
+
+	/* eek! */
+}
+
+#if 0
 static int timer_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -152,6 +225,7 @@ static int timer_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	return comedi_do_insn(devpriv->device,&xinsn);
 }
+#endif
 
 static int cmdtest_helper(comedi_cmd *cmd,
 	unsigned int start_src,
@@ -189,14 +263,17 @@ static int cmdtest_helper(comedi_cmd *cmd,
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	int err = 0;
-	//int tmp;
+	int stop_src = TRIG_COUNT;
+
+	if(s == dev->write_subdev)
+		stop_src |= TRIG_NONE;
 
 	err = cmdtest_helper(cmd,
 		TRIG_NOW,	/* start_src */
 		TRIG_TIMER,	/* scan_begin_src */
 		TRIG_NOW,	/* convert_src */
 		TRIG_COUNT,	/* scan_end_src */
-		TRIG_COUNT);	/* stop_src */
+		stop_src);	/* stop_src */
 	if(err)return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually
@@ -239,11 +316,17 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 
 #ifdef CONFIG_COMEDI_RTL
 	period=HRT_TO_8254(cmd->scan_begin_arg);
-	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+	if(s == dev->read_subdev)
+			rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+	else
+		rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,4);
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 	period = start_rt_timer(nano2count(cmd->scan_begin_arg));
-	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
+	if(s == dev->read_subdev)
+		rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,0,0,0);
+	else
+		rt_task_init(&devpriv->rt_task,timer_ao_task_func,(int)dev,3000,0,0,0);
 #endif
 
 	now=rt_get_time();
@@ -270,7 +353,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->board_name="timer";
 
-	dev->n_subdevices=1;
+	dev->n_subdevices=2;
 	if((ret=alloc_subdevices(dev))<0)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(timer_private)))<0)
@@ -284,28 +367,60 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->dev=comedi_get_device_by_minor(devpriv->device);
 	devpriv->s=devpriv->dev->subdevices+devpriv->subd;
 
+	if(devpriv->s->type != COMEDI_SUBD_AI
+		&& devpriv->s->type != COMEDI_SUBD_AO)
+	{
+		printk("cannot emulate subdevice type\n");
+		return -EINVAL;
+	}
+
+	// input subdevice
 	s=dev->subdevices+0;
-	dev->read_subdev = s;
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE;
-	s->n_chan=devpriv->s->n_chan;
-	s->len_chanlist=1024;
-	s->insn_read=timer_ai_insn_read;
-	s->do_cmd=timer_cmd;
-	s->do_cmdtest=timer_cmdtest;
-	s->cancel=timer_cancel;
-	s->maxdata=devpriv->s->maxdata;
-	s->range_table=devpriv->s->range_table;
-	s->range_table_list=devpriv->s->range_table_list;
+	if(devpriv->s->subdev_flags & SDF_READABLE)
+	{
+		s->type=devpriv->s->type;
+		s->subdev_flags = SDF_READABLE;
+		s->n_chan=devpriv->s->n_chan;
+		s->len_chanlist=1024;
+		s->do_cmd=timer_cmd;
+		s->do_cmdtest=timer_cmdtest;
+		s->cancel=timer_cancel;
+		s->maxdata=devpriv->s->maxdata;
+		s->range_table=devpriv->s->range_table;
+		s->range_table_list=devpriv->s->range_table_list;
+		s->insn_read=devpriv->s->insn_read;
+		dev->read_subdev = s;
+	}else {
+		s->type=COMEDI_SUBD_UNUSED;
+	}
+
+	// output subdevice
+	s=dev->subdevices+1;
+	if(devpriv->s->subdev_flags & SDF_WRITEABLE)
+	{
+		s->type=devpriv->s->type;
+		s->subdev_flags = SDF_WRITEABLE;
+		s->n_chan=devpriv->s->n_chan;
+		s->len_chanlist=1024;
+		s->do_cmd=timer_cmd;
+		s->do_cmdtest=timer_cmdtest;
+		s->cancel=timer_cancel;
+		s->maxdata=devpriv->s->maxdata;
+		s->range_table=devpriv->s->range_table;
+		s->range_table_list=devpriv->s->range_table_list;
+		s->insn_write=devpriv->s->insn_write;
+		dev->write_subdev = s;
+	}else {
+		s->type=COMEDI_SUBD_UNUSED;
+	}
 
 #ifdef CONFIG_COMEDI_RTL
 	devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
-	broken_rt_dev=dev;
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 	devpriv->soft_irq=rt_request_srq(0,timer_interrupt,NULL);
-	broken_rt_dev=dev;
 #endif
+	broken_rt_dev=dev;
 
 	printk("\n");
 
