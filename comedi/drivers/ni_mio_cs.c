@@ -130,7 +130,6 @@ static ni_board ni_boards[]={
 		caldac:		type2,
 	},
 };
-};
 
 
 #define interrupt_pin(a)	0
