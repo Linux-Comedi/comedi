@@ -17,11 +17,11 @@ amcc_s5933_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 comedi_fc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
-das08_ko_CFLAGS = $(top_builddir)/modtool --link -o $@ \
+das08_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 mite_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
-ni_labpc_ko_CFLAGS = $(top_builddir)/modtool --link -o $@ \
+ni_labpc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 
 8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
