@@ -40,12 +40,13 @@
 static int postconfig(comedi_device *dev);
 static int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 static int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
-static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
+static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+#if 0
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
 static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
+#endif
 static void *comedi_recognize(comedi_driver *driv, const char *name);
 static void comedi_report_boards(comedi_driver *driv);
 static int poll_invalid(comedi_device *dev,comedi_subdevice *s);
@@ -223,7 +224,6 @@ void comedi_deallocate_dev(comedi_device *dev)
 static int postconfig(comedi_device *dev)
 {
 	int i;
-	int have_trig;
 	comedi_subdevice *s;
 	comedi_async *async = NULL;
 
@@ -234,19 +234,15 @@ static int postconfig(comedi_device *dev)
 			continue;
 
 		if(s->len_chanlist==0)
-			s->len_chanlist=1;
-
-		have_trig=0;
-		if(s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4])
-			have_trig=1;
-
-		if(s->do_cmd && !have_trig){
+			s->len_chanlist=1; 
+		if(s->do_cmd){
 			s->trig[1]=command_trig;
 			s->trig[2]=command_trig;
 			s->trig[3]=command_trig;
 			s->trig[4]=command_trig;
 		}
-		if(s->do_cmd || have_trig){
+
+		if(s->do_cmd || s->trig[1] || s->trig[2] || s->trig[3] ||s->trig[4]){
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{
@@ -268,46 +264,14 @@ static int postconfig(comedi_device *dev)
 		if(!s->range_table && !s->range_table_list)
 			s->range_table=&range_unknown;
 
-#define EMULATE_INSN_WITH_TRIG
-#ifdef EMULATE_INSN_WITH_TRIG
-		if(!s->insn_read){
-			if(s->insn_bits){
-				s->insn_read = insn_emulate_bits;
-			}else if(s->subdev_flags & SDF_READABLE){
-				s->insn_read=insn_emulate;
-			}else{
-				s->insn_read=insn_inval;
-			}
-		}
-		if(!s->insn_write){
-			if(s->insn_bits){
-				s->insn_write = insn_emulate_bits;
-			}else if(s->subdev_flags & SDF_WRITEABLE){
-				s->insn_write=insn_emulate;
-			}else{
-				s->insn_write=insn_inval;
-			}
-		}
-		if(!s->insn_config){
-			if(s->type==COMEDI_SUBD_DIO){
-				s->insn_config = insn_emulate;
-			}else{
-				s->insn_config = insn_inval;
-			}
-		}
+		if(!s->insn_read && s->insn_bits)
+			s->insn_read = insn_rw_emulate_bits;
+		if(!s->insn_write && s->insn_bits)
+			s->insn_write = insn_rw_emulate_bits;
 
-		if(!s->trig[0]){
-			s->trig[0]=mode0_emulate;
-		}
-#else
 		if(!s->insn_read)s->insn_read = insn_inval;
 		if(!s->insn_write)s->insn_write = insn_inval;
 		if(!s->insn_bits)s->insn_bits = insn_inval;
-#endif
-
-		if(!s->insn_bits){
-			s->insn_bits = insn_inval;
-		}
 
 		if(!s->poll)s->poll=poll_invalid;
 	}
@@ -360,60 +324,7 @@ static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,l
 	return -EINVAL;
 }
 
-#ifdef EMULATE_INSN_WITH_TRIG
-static int insn_emulate(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
-{
-	comedi_trig trig;
-	int i;
-	int ret;
-
-	switch(insn->insn){
-	case INSN_CONFIG:
-		trig.flags=TRIG_CONFIG;
-		break;
-	case INSN_WRITE:
-		if(!(s->subdev_flags & SDF_WRITEABLE))
-			return -EINVAL;
-		trig.flags=TRIG_WRITE;
-		break;
-	case INSN_READ:
-		if(!(s->subdev_flags & SDF_READABLE))
-			return -EINVAL;
-		trig.flags=0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	trig.subdev=insn->subdev;
-	trig.mode=0;
-	trig.n_chan=1;
-	trig.chanlist=&insn->chanspec;
-	trig.n=1;
-
-	if(s->subdev_flags & SDF_LSAMPL){
-		for(i=0;i<insn->n;i++){
-			trig.data=(void *)(data+i);
-			ret=s->trig[0](dev,s,&trig);
-			if(ret<0)return ret;
-		}
-	}else{
-		sampl_t sdata;
-
-		trig.data=&sdata;
-		for(i=0;i<insn->n;i++){
-			sdata=data[i];
-			ret=s->trig[0](dev,s,&trig);
-			if(ret<0)return ret;
-			data[i]=sdata;
-		}
-	}
-
-	return insn->n;
-}
-#endif
-
-static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
+static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	comedi_insn new_insn;
@@ -454,6 +365,7 @@ static int insn_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 #define SUPPORT_TRIG
 #define SUPPORT_TRIG0
 #ifdef SUPPORT_TRIG
+#if 0
 static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
 {
 	comedi_insn insn;
@@ -504,8 +416,10 @@ static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *tri
 	return -EINVAL;
 }
 #endif
+#endif
 
 #ifdef SUPPORT_TRIG0
+#if 0
 static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig)
 {
 	comedi_insn insn;
@@ -520,6 +434,7 @@ static int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_tr
 
 	return s->insn_config(dev,s,&insn,&ldata);
 }
+#endif
 #endif
 
 #ifdef SUPPORT_TRIG
