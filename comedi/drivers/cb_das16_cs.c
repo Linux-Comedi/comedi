@@ -555,15 +555,24 @@ static int das16cs_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	int chan=CR_CHAN(insn->chanspec);
 	int bits;
 
-	if(insn->n!=1)return -EINVAL;
-
 	if(chan<4)bits=0x0f;
 	else bits=0xf0;
 
-	if(data[0]==COMEDI_OUTPUT){
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= bits;
-	}else{
+		break;
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+		break;
 	}
 
 	devpriv->status2 &= ~0x00c0;
@@ -572,7 +581,7 @@ static int das16cs_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 
 	outw(devpriv->status2,dev->iobase + 6);
 
-	return 1;
+	return insn->n;
 }
 
 static int das16cs_timer_insn_read(comedi_device *dev,comedi_subdevice *s,

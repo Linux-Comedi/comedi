@@ -283,8 +283,6 @@ static int pci6208_ao_rinsn(comedi_device *dev,comedi_subdevice *s,
 //{
 //	int chan=CR_CHAN(insn->chanspec);
 
-//	if(insn->n!=1)return -EINVAL;
-
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the

@@ -1956,10 +1956,11 @@ static int me4000_dio_insn_config(
 
 	CALL_PDEBUG("In me4000_dio_insn_config()\n");
 
-
-	/* Only data[0] is valid */
-	if(insn->n != 1)
-	return -EINVAL;
+	if(data[0] == INSN_CONFIG_DIO_QUERY)
+	{
+		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	}
 
     /* 
      * The input or output configuration of each digital line is

@@ -346,18 +346,19 @@ static int dio_config_insn( comedi_device *dev,comedi_subdevice *s,
 {
 	switch( data[ 0 ] )
 	{
-		case COMEDI_OUTPUT:
-			if( insn->n != 1 ) return -EINVAL;
+		case INSN_CONFIG_DIO_OUTPUT:
 			priv(dev)->dio_config_output = 1;
-			return 1;
+			return insn->n;
 			break;
-		case COMEDI_INPUT:
-			if( insn->n != 1 ) return -EINVAL;
+		case INSN_CONFIG_DIO_INPUT:
 			priv(dev)->dio_config_output = 0;
-			return 1;
+			return insn->n;
+			break;
+		case INSN_CONFIG_DIO_QUERY:
+			data[1] = priv(dev)->dio_config_output ? COMEDI_OUTPUT : COMEDI_INPUT;
+			return insn->n;
 			break;
 		case INSN_CONFIG_BLOCK_SIZE:
-			if( insn->n != 2 ) return -EINVAL;
 			return dio_config_block_size( dev, data );
 			break;
 		default:

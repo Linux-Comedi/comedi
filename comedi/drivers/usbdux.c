@@ -1876,21 +1876,29 @@ static int usbdux_dio_insn_config (comedi_device *dev,
 				   lsampl_t *data) {
 	int chan=CR_CHAN(insn->chanspec);
 	
-	if (insn->n!=1) return -EINVAL;
-	
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the 
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
         
-	if (data[0]==COMEDI_OUTPUT) {
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= 1<<chan;          /* 1 means Out */
-	} else {
+		break;
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~(1<<chan);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		break;
+	default:
+		return -EINVAL;
+		break;
 	}
 	// we don't tell the firmware here as it would take 8 frames
 	// to submit the information. We do it in the insn_bits.
-	return 1;
+	return insn->n;
 }
 
 

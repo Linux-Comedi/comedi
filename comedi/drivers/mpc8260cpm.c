@@ -82,8 +82,8 @@ static int mpc8260cpm_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->maxdata=1;
 		s->range_table=&range_digital;
-		s->insn_config = &mpc8260cpm_dio_config;
-		s->insn_bits = &mpc8260cpm_dio_bits;
+		s->insn_config = mpc8260cpm_dio_config;
+		s->insn_bits = mpc8260cpm_dio_bits;
 	}
 	
 	return 1;
@@ -117,8 +117,6 @@ static int mpc8260cpm_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_i
 	unsigned int mask;
 	int port;
 
-	if(insn->n!=1)return -EINVAL;
-
 	port = (int)s->private;
 	mask = 1<<CR_CHAN(insn->chanspec);
 	if(mask&cpm_reserved_bits[port]){
@@ -126,11 +124,15 @@ static int mpc8260cpm_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_i
 	}
 
 	switch(data[0]){
-	case COMEDI_OUTPUT:
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= mask;
 		break;
-	case COMEDI_INPUT:
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~mask;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT; 
+		return insn->n;
 		break;
 	default:
 		return -EINVAL;

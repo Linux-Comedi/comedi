@@ -279,8 +279,20 @@ static int dnp_dio_insn_config(
   u8 register_buffer;
 
   int chan=CR_CHAN(insn->chanspec);     /* reduces chanspec to lower 16 bits */
-  if (insn->n != 1) return -EINVAL;     /* this insn uses only data[0]       */
 
+  switch(data[0])
+  {
+  case INSN_CONFIG_DIO_OUTPUT:
+  case INSN_CONFIG_DIO_INPUT:
+    break;
+  case INSN_CONFIG_DIO_QUERY:
+    data[1] = (inb(CSCDR) & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+    return insn->n;
+    break;
+  default:
+    return -EINVAL;
+    break;
+  }
   /* Test: which port does the channel belong to?                            */
   
   /* We have to pay attention with port C: this is the meaning of PCMR:      */

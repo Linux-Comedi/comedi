@@ -2266,18 +2266,25 @@ static int rtd_dio_insn_config (
 {
     int chan=CR_CHAN(insn->chanspec);
 
-    if (insn->n!=1) return -EINVAL;
-
     /* The input or output configuration of each digital line is
      * configured by a special insn_config instruction.  chanspec
      * contains the channel to be changed, and data[0] contains the 
      * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	
-    if (data[0]==COMEDI_OUTPUT) {
-	s->io_bits |= 1<<chan;		/* 1 means Out */
-    } else {
-	s->io_bits &= ~(1<<chan);
-    }
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= 1<<chan;		/* 1 means Out */
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~(1<<chan);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
 
     DPRINTK("rtd520: port_0_direction=0x%x (1 means out)\n", s->io_bits);
     /* TODO support digital match interrupts and strobes */

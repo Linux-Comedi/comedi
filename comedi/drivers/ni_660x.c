@@ -1322,31 +1322,34 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 				   comedi_insn *insn,
 				   lsampl_t *data)
 {
-  int chan=CR_CHAN(insn->chanspec);
-
-  if(insn->n!=1)return -EINVAL;
-
-  /* The input or output configuration of each digital line is
-   * configured by a special insn_config instruction.  chanspec
-   * contains the channel to be changed, and data[0] contains the
-   * value COMEDI_INPUT or COMEDI_OUTPUT. */
-
-  if(data[0]==COMEDI_OUTPUT)
-    {
-      s->io_bits |= 1<<chan;
-    }
-  else
-    {
-      s->io_bits &= ~(1<<chan);
-    }
-  // No GPCT_OFFSET[chipset] offset here??
-  writew(s->io_bits,dev->iobase + registerData[STCDIOControl].offset);
-  /* Should we do also something with the IO configuration registers,
-     see p 3-38 of register level prog. manual
-  */
-
-  return 1;
-  return -EINVAL;
+	int chan=CR_CHAN(insn->chanspec);
+	
+	/* The input or output configuration of each digital line is
+	* configured by a special insn_config instruction.  chanspec
+	* contains the channel to be changed, and data[0] contains the
+	* value COMEDI_INPUT or COMEDI_OUTPUT. */
+	
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= 1<<chan;
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~(1<<chan);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
+		break;
+	};
+	// No GPCT_OFFSET[chipset] offset here??
+	writew(s->io_bits,dev->iobase + registerData[STCDIOControl].offset);
+	/* Should we do also something with the IO configuration registers,
+		see p 3-38 of register level prog. manual
+	*/
+	return insn->n;
 }
 
 

@@ -277,21 +277,26 @@ static int ni_670x_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,comedi_i
 static int ni_670x_dio_insn_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int chan=CR_CHAN(insn->chanspec);
-	
 
-	if(insn->n!=1) return -EINVAL;
-
-	if(data[0]==COMEDI_OUTPUT)
+	switch(data[0])
 	{
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= 1<<chan;
-	}
-	else
-	{
+		break;
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~(1<<chan);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+		break;
 	}
 	writel(s->io_bits,dev->iobase + DIO_PORT0_DIR_OFFSET);
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_670x_find_device(comedi_device *dev,int bus,int slot)

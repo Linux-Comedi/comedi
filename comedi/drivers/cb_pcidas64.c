@@ -3537,12 +3537,15 @@ static int dio_60xx_config_insn(comedi_device *dev, comedi_subdevice *s, comedi_
 
 	switch(data[0])
 	{
-		case COMEDI_INPUT:
+		case INSN_CONFIG_DIO_INPUT:
 			s->io_bits &= ~mask;
 			break;
-		case COMEDI_OUTPUT:
+		case INSN_CONFIG_DIO_OUTPUT:
 			s->io_bits |= mask;
 			break;
+		case INSN_CONFIG_DIO_QUERY:
+			data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
+			return 2;
 		default:
 			return -EINVAL;
 	}

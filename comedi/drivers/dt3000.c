@@ -704,16 +704,28 @@ static int dt3k_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 {
 	int mask;
 
-	if(insn->n!=1)return -EINVAL;
-
 	mask=(CR_CHAN(insn->chanspec)<4)?0x0f:0xf0;
-	if(data[0]==COMEDI_OUTPUT)s->io_bits|=mask;
-	else s->io_bits&=~mask;
-
+	
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits|=mask;
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits&=~mask;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}	
 	mask=(s->io_bits&0x01)|((s->io_bits&0x10)>>3);
 	dt3k_dio_config(dev,mask);
 
-	return 1;
+	return insn->n;
 }
 
 static int dt3k_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,

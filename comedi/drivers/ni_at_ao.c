@@ -378,8 +378,6 @@ static int atao_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	int chan=CR_CHAN(insn->chanspec);
 	unsigned int mask, bit;
 
-	if(insn->n!=1)return -EINVAL;
-
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
@@ -388,12 +386,23 @@ static int atao_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	mask = (chan < 4) ? 0x0f : 0xf0;
 	bit = (chan < 4) ? DOUTEN1 : DOUTEN2;
 
-	if(data[0]==COMEDI_OUTPUT){
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= mask;
 		devpriv->cfg3 |= bit;
-	}else{
+		break;
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~mask;
 		devpriv->cfg3 &= ~bit;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+		break;
 	}
 
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);

@@ -2401,13 +2401,16 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	printk("ni_dio_insn_config() chan=%d io=%d\n",
 		CR_CHAN(insn->chanspec),data[0]);
 #endif
-	if(insn->n!=1)return -EINVAL;
 	switch(data[0]){
-	case COMEDI_OUTPUT:
+	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= 1<<CR_CHAN(insn->chanspec);
 		break;
-	case COMEDI_INPUT:
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~(1<<CR_CHAN(insn->chanspec));
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1<<CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
 		break;
 	default:
 		return -EINVAL;
