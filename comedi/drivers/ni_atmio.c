@@ -1,5 +1,5 @@
 /*
-    module/atmio-E.c
+    module/ni_atmio.c
     Hardware driver for NI AT-MIO E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -22,8 +22,8 @@
 */
 
 /*
-	The real guts of the driver is in ni-E.c, which is included
-	both here and in pcimio-E.c
+	The real guts of the driver is in ni_mio_common.c, which is included
+	both here and in ni_pcimio.c
 
 	
 	Interrupt support added by Truxton Fulton <trux@truxton.com>
@@ -65,6 +65,10 @@
 #include <asm/io.h>
 #include <linux/malloc.h>
 #include <linux/comedidev.h>
+#ifdef HAVE_ISAPNP
+#include <linux/isapnp.h>
+#include <linux/pci.h>
+#endif
 #include <ni_stc.h>
 #include <8255.h>
 
@@ -235,27 +239,38 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
 
+#ifdef HAVE_ISAPNP
+static struct isapnp_device_id device_ids[] = {
+	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x0000), },
+	{ ISAPNP_DEVICE_SINGLE_END, },
+};
+MODULE_DEVICE_TABLE(isapnp, device_ids);
+#endif
 
 typedef struct{
+#ifdef HAVE_ISAPNP
+	struct pci_dev *pcidev;
+#endif
 	NI_PRIVATE_COMMON
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 
-static int atmio_attach(comedi_device *dev,comedi_devconfig *it);
-static int atmio_detach(comedi_device *dev);
-static int atmio_recognize(char *name);
+static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it);
+static int ni_atmio_detach(comedi_device *dev);
+static int ni_atmio_recognize(char *name);
 comedi_driver driver_atmio={
 	driver_name:	"ni_atmio",
 	module:		THIS_MODULE,
-	attach:		atmio_attach,
-	detach:		atmio_detach,
-	recognize:	atmio_recognize,
+	attach:		ni_atmio_attach,
+	detach:		ni_atmio_detach,
+	recognize:	ni_atmio_recognize,
 };
 
+COMEDI_INITCLEANUP(driver_atmio);
 
 #include "ni_mio_common.c"
 
-static int atmio_recognize(char *name)
+static int ni_atmio_recognize(char *name)
 {
 	if(!strcmp(name,"atmio-E")){
 		printk("Driver name 'atmio-E' deprecated.  Please use 'ni_atmio'.\n");
@@ -269,59 +284,87 @@ static int atmio_recognize(char *name)
 }
 
 
-static int init_stage2(comedi_device *dev,comedi_devconfig *it);
 static int ni_getboardtype(comedi_device *dev);
 
 /* clean up allocated resources */
-int atmio_E_free(comedi_device *dev)
+static int ni_atmio_detach(comedi_device *dev)
 {
+#ifdef HAVE_ISAPNP
+	if(devpriv->pcidev)
+		devpriv->pcidev->deactivate(devpriv->pcidev);
+#else
 	if(dev->iobase)
 		release_region(dev->iobase,NI_SIZE);
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
+#endif
 
 	return 0;
 }
 
-/* called when driver is removed */
-static int atmio_detach(comedi_device *dev)
+static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	return atmio_E_free(dev);
-}
-
-static int atmio_attach(comedi_device *dev,comedi_devconfig *it)
-{
-	return init_stage2(dev,it);
-}
-
-static int init_stage2(comedi_device *dev,comedi_devconfig *it)
-{
+#ifdef HAVE_ISAPNP
+	struct pci_dev *pcidev;
+#endif
 	int		ret;
 	int		iobase;
 	int		board;
 	int		irq;
 
-	
-	/* reserve our I/O region */
 
+#ifdef HAVE_ISAPNP
+	pcidev = isapnp_find_dev(NULL,
+		ISAPNP_VENDOR('N','I','C'),
+		ISAPNP_FUNCTION(0x1900),
+		NULL);
+
+	if(!pcidev)
+		return -ENODEV;
+
+	if(pcidev->active)
+		return -EBUSY;
+
+	if(pcidev->prepare(pcidev)<0)
+		return -EAGAIN;
+
+	if(!(pcidev->resource[0].flags & IORESOURCE_IO))
+		return -ENODEV;
+
+	if(!pcidev->ro){
+		/* override resource */
+		if(it->options[0] != 0){
+			isapnp_resource_change(&pcidev->resource[0],
+				it->options[0], 1);
+		}
+	}
+	if(pcidev->activate(pcidev)<0){
+		printk("isapnp configure failed!\n");
+		return -ENOMEM;
+	}
+	iobase = pcidev->resource[0].start;
+	irq = pcidev->irq;
+#else
 	iobase=0x200;
 	if(it->options[0])iobase=it->options[0];
+	irq=it->options[1];
+#endif
 	
-	printk("comedi%d: ni_E: 0x%04x",dev->minor,iobase);
+	/* reserve our I/O region */
+	
+	printk("comedi%d: ni_atmio: 0x%04x",dev->minor,iobase);
 	if(check_region(iobase,NI_SIZE)<0){
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,NI_SIZE,"ni_E");
+	request_region(iobase,NI_SIZE,"ni_atmio");
 
 	dev->iobase=iobase;
 	dev->iosize=NI_SIZE;
 	
-	
-	/* board existence sanity check */
-	
 #ifdef DEBUG
+	/* board existence sanity check */
        {
                int i;
 
@@ -342,14 +385,13 @@ static int init_stage2(comedi_device *dev,comedi_devconfig *it)
 
 	/* irq stuff */
 
-	irq=it->options[1];
 	if(irq!=0){
 		if(irq<0 || irq>15 || ni_irqpin[irq]==-1){
 			printk(" invalid irq\n");
 			return -EINVAL;
 		}
 		printk(" ( irq = %d )",irq);
-		if( (ret=comedi_request_irq(irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"atmio-E",dev))<0 ){
+		if( (ret=comedi_request_irq(irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_atmio",dev))<0 ){
 			printk(" irq not available\n");
 			return -EINVAL;
 		}
@@ -363,7 +405,7 @@ static int init_stage2(comedi_device *dev,comedi_devconfig *it)
 	
 	dev->board=board;
 
-	/* generic E series stuff in ni-E.c */
+	/* generic E series stuff in ni_mio_common.c */
 
 	if( (ret=ni_E_init(dev,it))<0 ){
 		return ret;
@@ -393,17 +435,3 @@ static int ni_getboardtype(comedi_device *dev)
 	return -1;
 }
 
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_atmio);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_atmio);
-}
-#endif
