@@ -205,7 +205,7 @@ static boardtype boardtypes[] =
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-comedi_driver driver_pci9118={
+static comedi_driver driver_pci9118={
 	driver_name:	"adl_pci9118",
 	module:		THIS_MODULE,
 	attach:		pci9118_attach,
@@ -271,15 +271,15 @@ typedef struct{
 ==============================================================================
 */
 
-int check_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
 	unsigned int *chanlist);
-int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
+static int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
 	unsigned int *chanlist,int rot);
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
 static int pci9118_reset(comedi_device *dev);
-int pci9118_exttrg_add(comedi_device * dev, unsigned char source);
-int pci9118_exttrg_del(comedi_device * dev, unsigned char source);
-int pci9118_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static int pci9118_exttrg_add(comedi_device * dev, unsigned char source);
+static int pci9118_exttrg_del(comedi_device * dev, unsigned char source);
+static int pci9118_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 
 /* 
 ==============================================================================
@@ -680,7 +680,7 @@ static int pci9118_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 /*
 ==============================================================================
 */
-int pci9118_insn_read_ai(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int pci9118_insn_read_ai(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 
 	int n,timeout;
@@ -723,7 +723,7 @@ conv_finish:
 /*
 ==============================================================================
 */
-int pci9118_insn_write_ao(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int pci9118_insn_write_ao(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	int n,chanreg,ch;
 	
@@ -742,7 +742,7 @@ int pci9118_insn_write_ao(comedi_device *dev,comedi_subdevice *s, comedi_insn *i
 /* 
 ==============================================================================
 */
-int pci9118_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
+static int pci9118_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
 {
 	int n,chan;
 	
@@ -756,7 +756,7 @@ int pci9118_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn 
 /*
 ==============================================================================
 */
-int pci9118_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int pci9118_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
 
@@ -766,7 +766,7 @@ int pci9118_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 /*
 ==============================================================================
 */
-int pci9118_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int pci9118_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	if(data[0]){
 		s->state &= ~data[0];
@@ -995,7 +995,7 @@ static int pci9118_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 /*
 ==============================================================================
 */
-int check_channel_list(comedi_device * dev, comedi_subdevice * s,
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s,
 	int n_chan, unsigned int *chanlist)
 {
         unsigned int i, differencial=0, bipolar=0;
@@ -1029,7 +1029,7 @@ int check_channel_list(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
-int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
+static int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
 	unsigned int *chanlist,int rot)
 {
         unsigned int i, differencial=0, bipolar=0;
@@ -1084,7 +1084,7 @@ int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
 /*
 ==============================================================================
 */
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
 {
         outl(0x74, dev->iobase + PCI9118_CNTCTRL);
 	outl(0x30, dev->iobase + PCI9118_CNTCTRL);
@@ -1101,7 +1101,7 @@ void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned 
 /*
 ==============================================================================
 */
-int pci9118_exttrg_add(comedi_device * dev, unsigned char source)
+static int pci9118_exttrg_add(comedi_device * dev, unsigned char source)
 {
 	if (source>3) return -1; // incorrect source
 	devpriv->exttrg_users|=(1<<source);
@@ -1114,7 +1114,7 @@ int pci9118_exttrg_add(comedi_device * dev, unsigned char source)
 /* 
 ==============================================================================
 */
-int pci9118_exttrg_del(comedi_device * dev, unsigned char source)
+static int pci9118_exttrg_del(comedi_device * dev, unsigned char source)
 {
 	if (source>3) return -1; // incorrect source
 	devpriv->exttrg_users&=~(1<<source);
@@ -1130,7 +1130,7 @@ int pci9118_exttrg_del(comedi_device * dev, unsigned char source)
 /* 
 ==============================================================================
 */
-int pci9118_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int pci9118_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	outl(inl(devpriv->iobase_a+AMCC_OP_REG_INTCSR)&(~AINT_WRITE_COMPL), devpriv->iobase_a+AMCC_OP_REG_INTCSR);	// stop amcc irqs
 	outl(inl(devpriv->iobase_a+AMCC_OP_REG_MCSR)&(~EN_A2P_TRANSFERS), devpriv->iobase_a+AMCC_OP_REG_MCSR); // stop DMA

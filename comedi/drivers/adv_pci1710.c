@@ -123,7 +123,7 @@ Configuration options:
 #define Syncont_SC0	 1		/* set synchronous output mode */
 
 
-comedi_lrange range_pci1710_3={ 9, {
+static comedi_lrange range_pci1710_3={ 9, {
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
 	BIP_RANGE(1.25),
@@ -138,7 +138,7 @@ comedi_lrange range_pci1710_3={ 9, {
 
 static char range_codes_pci1710_3[]={0x00, 0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13 };
 
-comedi_lrange range_pci1710hg={ 12, {
+static comedi_lrange range_pci1710hg={ 12, {
 	BIP_RANGE(5),
 	BIP_RANGE(0.5),
 	BIP_RANGE(0.05),
@@ -156,7 +156,7 @@ comedi_lrange range_pci1710hg={ 12, {
 
 static char range_codes_pci1710hg[]={0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13 };
 
-comedi_lrange range_pci17x1={ 5, {
+static comedi_lrange range_pci17x1={ 5, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
@@ -167,7 +167,7 @@ comedi_lrange range_pci17x1={ 5, {
 
 static char range_codes_pci17x1[]={0x00, 0x01, 0x02, 0x03, 0x04 };
 
-comedi_lrange range_pci1720={ 4, {
+static comedi_lrange range_pci1720={ 4, {
 	UNI_RANGE(5),
 	UNI_RANGE(10),
 	BIP_RANGE(5),
@@ -175,7 +175,7 @@ comedi_lrange range_pci1720={ 4, {
 	}
 };
 
-comedi_lrange range_pci171x_da={ 2, {
+static comedi_lrange range_pci171x_da={ 2, {
 	UNI_RANGE(5),
 	UNI_RANGE(10),
 	}
@@ -243,7 +243,7 @@ static boardtype boardtypes[] =
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
-comedi_driver driver_pci1710={
+static comedi_driver driver_pci1710={
 	driver_name:	"adv_pci1710",
 	module:		THIS_MODULE,
 	attach:		pci1710_attach,
@@ -285,12 +285,12 @@ typedef struct{
 ==============================================================================
 */
 
-int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
-void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
+static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
 	unsigned int n_chan, unsigned int seglen);
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
 static int pci1710_reset(comedi_device *dev);
-int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static unsigned int muxonechan[] ={ 0x0000, 0x0101, 0x0202, 0x0303, 0x0404, 0x0505, 0x0606, 0x0707, // used for gain list programming
                                     0x0808, 0x0909, 0x0a0a, 0x0b0b, 0x0c0c, 0x0d0d, 0x0e0e, 0x0f0f,
@@ -301,7 +301,7 @@ static unsigned int muxonechan[] ={ 0x0000, 0x0101, 0x0202, 0x0303, 0x0404, 0x05
 /* 
 ==============================================================================
 */
-int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
+static int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
 {
 	int n,timeout;
 #ifdef PCI171x_PARANOIDCHECK
@@ -361,7 +361,7 @@ conv_finish:
 /* 
 ==============================================================================
 */
-int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
+static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
 {
 	int n,chan,range,ofs;
 
@@ -391,7 +391,7 @@ int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn
 /* 
 ==============================================================================
 */
-int pci171x_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
+static int pci171x_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
 {
 	int n,chan;
 	
@@ -405,7 +405,7 @@ int pci171x_insn_read_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn 
 /*
 ==============================================================================
 */
-int pci171x_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int pci171x_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	data[1] = inw(dev->iobase + PCI171x_DI);
 
@@ -415,7 +415,7 @@ int pci171x_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 /*
 ==============================================================================
 */
-int pci171x_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+static int pci171x_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
 {
 	if(data[0]){
 		s->state &= ~data[0];
@@ -431,7 +431,7 @@ int pci171x_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 /* 
 ==============================================================================
 */
-int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
+static int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s, comedi_insn *insn, lsampl_t *data) 
 {
 	int n,rangereg,chan;
 
@@ -711,7 +711,7 @@ static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 /* 
 ==============================================================================
 */
-void pci171x_cmdtest_out(int e,comedi_cmd *cmd) {
+static void pci171x_cmdtest_out(int e,comedi_cmd *cmd) {
 	rt_printk("adv_pci1710 e=%d startsrc=%x scansrc=%x convsrc=%x\n",e,cmd->start_src,cmd->scan_begin_src,cmd->convert_src);
 	rt_printk("adv_pci1710 e=%d startarg=%d scanarg=%d convarg=%d\n",e,cmd->start_arg,cmd->scan_begin_arg,cmd->convert_arg);
 	rt_printk("adv_pci1710 e=%d stopsrc=%x scanend=%x\n",e,cmd->stop_src,cmd->scan_end_src);
@@ -912,7 +912,7 @@ static int pci171x_ai_cmd(comedi_device *dev,comedi_subdevice *s)
  If it's ok, then program scan/gain logic.
  This works for all cards.
 */
-int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan)
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan)
 {
         unsigned int chansegment[32];  
         unsigned int i, nowmustbechan, seglen, segpos;
@@ -959,7 +959,7 @@ int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *
 	return seglen;
 }
 	
-void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
+static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
 	unsigned int n_chan, unsigned int seglen)
 {
 	unsigned int i, range, chanprog;
@@ -988,7 +988,7 @@ void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int 
 /*
 ==============================================================================
 */
-void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
 {
 	DPRINTK("adv_pci1710 EDBG: BGN: start_pacer(%d,%u,%u)\n",mode,divisor1,divisor2);
         outw(0xb4, dev->iobase + PCI171x_CNTCTRL);
@@ -1006,7 +1006,7 @@ void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned 
 /* 
 ==============================================================================
 */
-int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
+static int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cancel(...)\n");
 
