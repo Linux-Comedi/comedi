@@ -1319,9 +1319,9 @@ static int das16_probe(comedi_device *dev, comedi_devconfig *it)
 	printk(" id bits are 0x%02x\n",diobits);
 	if(thisboard->id != diobits)
 	{
-		printk(" requested board's id bits are 0x%x\n", thisboard->id);
-		return -1;
+		printk(" requested board's id bits are 0x%x (ignore)\n", thisboard->id);
 	}
+
 	return 0;
 }
 
