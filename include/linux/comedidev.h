@@ -63,7 +63,7 @@ struct comedi_subdevice_struct{
 	int type;
 	int n_chan;
 	int subdev_flags;
-	int len_chanlist;		/* length of channel/gain list, if available */
+	int len_chanlist;		/* maximum length of channel/gain list */
 
 	void		*private;
 
