@@ -59,6 +59,8 @@ References (from ftp://ftp.natinst.com/support/manuals):
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	// size in bytes of dma buffer
 
+#define A2150_DEBUG	// enable debugging code
+
 /* Registers and bits */
 #define CONFIG_REG		0x0
 #define   CHANNEL_BITS(x)		((x) & 0x7)
@@ -164,6 +166,17 @@ static int a2150_set_chanlist(comedi_device *dev, unsigned int start_channel, un
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_a2150);
+
+#ifdef A2150_DEBUG
+
+void dump_regs(comedi_device *dev)
+{
+	rt_printk("config bits 0x%x\n", devpriv->config_bits);
+	rt_printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
+	rt_printk("status bits 0x%x\n", inw(dev->iobase + STATUS_REG));
+}
+
+#endif
 
 /* interrupt service routine */
 static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
@@ -523,30 +536,33 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 	}
 
 	// check channel/gain list against card's limitations
-	startChan = CR_CHAN(cmd->chanlist[0]);
-	for(i = 1; i < cmd->chanlist_len; i++)
+	if(cmd->chanlist)
 	{
-		if(CR_CHAN(cmd->chanlist[i]) != (startChan + i))
+		startChan = CR_CHAN(cmd->chanlist[0]);
+		for(i = 1; i < cmd->chanlist_len; i++)
 		{
-			comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+			if(CR_CHAN(cmd->chanlist[i]) != (startChan + i))
+			{
+				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+				err++;
+			}
+		}
+		if(cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1)
+		{
+			comedi_error(dev, "length 2 chanlist must be channels 0,1 or channels 2,3");
 			err++;
 		}
-	}
-	if(cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1)
-	{
-		comedi_error(dev, "length 2 chanlist must be channels 0,1 or channels 2,3");
-		err++;
-	}
-	if(cmd->chanlist_len == 3)
-	{
-		comedi_error(dev, "chanlist must have 1,2 or 4 channels");
-		err++;
-	}
-	if(CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
-		CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3]))
-	{
-		comedi_error(dev, "channels 0/1 and 2/3 must have the same analog reference");
-		err++;
+		if(cmd->chanlist_len == 3)
+		{
+			comedi_error(dev, "chanlist must have 1,2 or 4 channels");
+			err++;
+		}
+		if(CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
+			CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3]))
+		{
+			comedi_error(dev, "channels 0/1 and 2/3 must have the same analog reference");
+			err++;
+		}
 	}
 
 	if(err)return 3;
@@ -631,6 +647,9 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	devpriv->irq_dma_bits |= DMA_INTR_EN_BIT | DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
+	// manual says you need to do this for software counting of completed conversions
+	outw(0x30, dev->iobase + I8253_MODE_REG);
+
 	// need to wait 72 sampling periods after changing timing
 	i8254_load(dev->iobase + I8253_BASE_REG, 2, 72, 0);
 	// set trigger source to delay trigger
@@ -640,6 +659,10 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	// start aquisition
 	outw(0, dev->iobase + FIFO_START_REG);
+
+#ifdef A2150_DEBUG
+	dump_regs(dev);
+#endif
 
 	return 0;
 }
