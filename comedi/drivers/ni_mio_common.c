@@ -739,13 +739,15 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		ni_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
-	tmp=cmd->convert_arg;
-	ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
-	if(tmp!=cmd->convert_arg)err++;
-	if(cmd->scan_begin_src==TRIG_TIMER &&
-	   cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
-		cmd->scan_begin_arg=cmd->convert_arg*cmd->scan_end_arg;
-		err++;
+	if(cmd->convert_src==TRIG_TIMER){
+		tmp=cmd->convert_arg;
+		ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->convert_arg)err++;
+		if(cmd->scan_begin_src==TRIG_TIMER &&
+		  cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
+			cmd->scan_begin_arg=cmd->convert_arg*cmd->scan_end_arg;
+			err++;
+		}
 	}
 
 	if(err)return 4;
