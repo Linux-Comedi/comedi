@@ -38,15 +38,14 @@
  *
  */
 
+#include <comedi_module.h>
+
 #include <linux/module.h>	/* modularer Kernel */
 #include <linux/kernel.h>	/* printk() */
-#include <linux/fs.h>		/* character device definition */
 #include <linux/errno.h>	/* error codes */
 
 #include <asm/io.h>			/* readb() ... */
 #include <asm/uaccess.h>	/* copy_to/from_user */
-
-#include "comedi_module.h"
 
 
 #define PCI20000_ID				0x1d
