@@ -111,7 +111,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		ao_unipolar:	0,
 		has_8255:	0,
-		caldac:		{dac8804},
+		caldac:		{ad8804_debug},
 	},
 	{	device_id:	0x075e,
 		name:		"DAQCard-6024E", /* specs incorrect! */
