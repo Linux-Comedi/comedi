@@ -32,7 +32,6 @@ Configuration Options:
 
 */
 
-#define DEBUG(x) x
 
 #include <linux/comedidev.h>
 
@@ -43,6 +42,7 @@ Configuration Options:
 
 #include "8253.h"
 
+#define DEBUG(x) x
 
 // boards constants
 // IO space len
