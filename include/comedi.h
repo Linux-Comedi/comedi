@@ -62,6 +62,19 @@ typedef unsigned short sampl_t;
 #define AREF_DIFF	0x02		/* analog ref = differential */
 #define AREF_OTHER	0x03		/* analog ref = other (undefined) */
 
+/* instructions */
+
+#define INSN_MASK_WRITE		0x8000000
+#define INSN_MASK_READ		0x4000000
+#define INSN_MASK_SPECIAL	0x2000000
+
+#define INSN_READ		( 0 | INSN_MASK_READ)
+#define INSN_WRITE		( 1 | INSN_MASK_WRITE)
+#define INSN_READBITS		( 2 | INSN_MASK_READ)
+#define INSN_WRITEBITS		( 3 | INSN_MASK_WRITE)
+#define INSN_GTOD		( 4 | INSN_MASK_READ|INSN_MASK_SPECIAL)
+#define INSN_WAIT		( 5 | INSN_MASK_WRITE|INSN_MASK_SPECIAL)
+
 /* trigger flags */
 
 #define TRIG_BOGUS	0x0001		/* do the motions */
@@ -155,6 +168,8 @@ typedef unsigned short sampl_t;
 #define COMEDI_RANGEINFO _IOR(CIO,8,comedi_rangeinfo)
 #define COMEDI_CMD _IOR(CIO,9,comedi_cmd)
 #define COMEDI_CMDTEST _IOR(CIO,10,comedi_cmd)
+#define COMEDI_INSNLIST _IOR(CIO,11,comedi_insnlist)
+#define COMEDI_INSN _IOR(CIO,12,comedi_insn)
 
 
 
@@ -162,6 +177,8 @@ typedef unsigned short sampl_t;
 
 typedef struct comedi_trig_struct comedi_trig;
 typedef struct comedi_cmd_struct comedi_cmd;
+typedef struct comedi_insn_struct comedi_insn;
+typedef struct comedi_insnlist_struct comedi_insnlist;
 typedef struct comedi_chaninfo_struct comedi_chaninfo;
 typedef struct comedi_subdinfo_struct comedi_subdinfo;
 typedef struct comedi_devinfo_struct comedi_devinfo;
@@ -182,6 +199,19 @@ struct comedi_trig_struct{
 	unsigned int trigvar1;
 	unsigned int data_len;
 	unsigned int unused[3];
+};
+
+struct comedi_insn_struct{
+	unsigned int insn;
+	unsigned int n;
+	lsampl_t *data;
+	unsigned int subdev;
+	unsigned int chanspec;
+};
+
+struct comedi_insnlist_struct{
+	unsigned int n_insns;
+	comedi_insn *insns;
 };
 
 struct comedi_cmd_struct{
