@@ -80,6 +80,7 @@ void mite_init(void);
 void mite_cleanup(void);
 int mite_setup(struct mite_struct *mite);
 void mite_unsetup(struct mite_struct *mite);
+void mite_list_devices(void);
 
 void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s);
 
