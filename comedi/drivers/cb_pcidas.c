@@ -17,7 +17,7 @@
     Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
     David Schleef and the rest of the Comedi developers comunity.
 
-    Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>
+    Copyright (C) 2001-2003 Ivan Martinez <imr@oersted.dtu.dk>
     Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -43,27 +43,23 @@
 Driver: cb_pcidas.o
 Description: Driver for the ComputerBoards/MeasurementComputing cards
   of the PCI-DAS series with the AMCC S5933 PCI controller.
-Author: Ivan Martinez <ivanmr@altavista.com>,
+Author: Ivan Martinez <imr@oersted.dtu.dk>,
   Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: 2002-12-30
+Updated: 2003-3-11
 Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
   PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
   PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
 
 Status:
-  - PCI-DAS1602/16: Analog input is tested, works.  Analog output untested.
-  - PCI-DAS1602/16jr: Driver should work, but untested.  Please
-      report usage.
-  - PCI-DAS1602/12: Same as above.
-  - PCI-DAS1200, 1200jr: Tested, works.
-  - PCI-DAS1000, 1001, 1002: Should work, but untested.  Please report
-    usage.
+  There are many reports of the driver being used with most of the
+  supported cards. Despite no detailed log is maintained, it can
+  be said that the driver is quite tested and stable.
 
 Configuration options:
   [0] - PCI bus of device (optional)
   [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first available PCI
-  device will be used.
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 
 For commands, the scanned channels must be consecutive
 (i.e. 4-5-6-7, 2-3-4,...), and must all have the same
@@ -565,19 +561,6 @@ found:
 
 	printk("Found %s on bus %i, slot %i\n", cb_pcidas_boards[index].name,
 		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
-
-	// Warn about non-tested features
-	switch(thisboard->device_id)
-	{
-		case 0x10:
-		case 0x1C:
-		case 0x4C:
-		case 0x1A:
-		case 0x1B:
-			printk("DRIVER HASN'T BEEN TESTED WITH THIS CARD. PLEASE REPORT "
-				"USAGE TO <ivanmr@altavista.com>\n");
-	};
-
 
 	/*
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
