@@ -281,7 +281,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16",	// cio-das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	20000,
 	ai_pg:		das16_pg_none,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -295,7 +295,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/f",	// das16.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	10000,
 	ai_pg:		das16_pg_none,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -309,7 +309,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/jr",	// cio-das16jr.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	7692,
 	ai_pg:		das16_pg_16jr,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -323,6 +323,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1401/12",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
+	ai_speed:	6250,
 	ai_pg:		das16_pg_1601,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -336,7 +337,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1402/12",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	6250,
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -350,7 +351,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1402/16",	// cio-das1400_series.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	10000,
 	ai_pg:		das16_pg_1602,
 	ao:		NULL,
 	ao_nbits:	12,
@@ -364,7 +365,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1601/12",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	6250,
 	ai_pg:		das16_pg_1601,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -378,7 +379,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1602/12",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	10000,
 	ai_pg:		das16_pg_1602,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -392,7 +393,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das1602/16",	// cio-das160x-1x.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	16,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	10000,
 	ai_pg:		das16_pg_1602,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -406,7 +407,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"das16/330",	// ?
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	10000,	// 100kHz, I made this up need to check
+	ai_speed:	3030,
 	ai_pg:		das16_pg_16jr,
 	ao:		das16_ao_winsn,
 	ao_nbits:	12,
@@ -569,7 +570,8 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 
 static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
 	unsigned int byte;
 	unsigned long flags;
 
@@ -613,6 +615,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 
 	/* clear interrupt bit */
 	outb(0x00, dev->iobase + DAS16_STATUS);
+	async->events = 0;
 	/* enable interrupts, dma and pacer clocked conversions */
 	devpriv->control_state |= DAS16_INTE | DMA_ENABLE;
 	if(cmd->convert_src == TRIG_EXT)
