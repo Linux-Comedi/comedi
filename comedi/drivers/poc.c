@@ -35,11 +35,6 @@ Configuration options:
 /*
     dac02 - Keithley DAC-02 analog output board driver
 
-The card's ranges are set by the wiring you use.  The driver only
-uses the range specified to decide whether or not to take the
-complement of the data before sending it to the card (since the
-bipolar outputs of the card are inverted.)
-
 */
 
 #include <linux/kernel.h>
