@@ -370,6 +370,12 @@ static int waveform_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 
+	if( cmd->flags & TRIG_RT )
+	{
+		comedi_error( dev, "commands at RT priority not supported in this driver" );
+		return -1;
+	}
+
 	devpriv->timer_running = 1;
 	devpriv->ai_count = 0;
 	devpriv->scan_period = cmd->scan_begin_arg / nano_per_micro;
