@@ -148,7 +148,7 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	{
 		sampl_t sdata;
 		if(copy_from_user(&sdata,user_trig->data,sizeof(sdata))){
-			DPRINTK("bad address %p,%p\n",s->cur_trig.data,user_trig->data);
+			DPRINTK("bad address %p\n",user_trig->data);
 			return -EFAULT;
 		}
 		ldata=sdata;
@@ -166,23 +166,31 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	return ret;
 }
 
-static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_trig *user_trig)
+static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,
+	comedi_trig *user_trig)
 {
 	int ret=0;
 	comedi_async *async = s->async;
+void *file = NULL;
 
-	if(async == NULL)
+	if(!s->do_cmd || !async)
 	{
-		DPRINTK("subdevice has no buffer, trig failed\n");
-		return -ENODEV;
-		goto cleanup;
+		DPRINTK("subdevice %i does not support commands\n", user_trig->subdev);
+		return -EIO;
 	}
 
-	if(s->cur_trig.mode>=5 || s->trig[s->cur_trig.mode]==NULL){
-		DPRINTK("bad mode %d\n",s->cur_trig.mode);
-		ret=-EINVAL;
-		goto cleanup;
+	/* are we locked? (ioctl lock) */
+	if(s->lock && s->lock!=file){
+		DPRINTK("subdevice locked\n");
+		return -EACCES;
 	}
+
+	/* are we busy? */
+	if(s->busy){
+		DPRINTK("subdevice busy\n");
+		return -EBUSY;
+	}
+	s->busy=file;
 
 	/* make sure channel/gain list isn't too long */
 	if(user_trig->n_chan > s->len_chanlist){
@@ -191,32 +199,44 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 		goto cleanup;
 	}
 
+	mode_to_command(&async->cmd,user_trig);
+	ret=s->do_cmdtest(dev,s,&async->cmd);
+	// let it fix up arguments if necessary
+	if(ret == 3)
+		ret=s->do_cmdtest(dev,s,&async->cmd);
+	if(ret == 4)
+		ret=s->do_cmdtest(dev,s,&async->cmd);
+	if(ret){
+		ret = -EINVAL;
+		goto cleanup;
+	}
+	async->cmd.chanlist = NULL;
+	async->cmd.data = NULL;
+
 	/* load channel/gain list */
-	s->cur_trig.chanlist=kmalloc(s->cur_trig.n_chan*sizeof(int),GFP_KERNEL);
-	if(!s->cur_trig.chanlist){
+	async->cmd.chanlist=kmalloc(user_trig->n_chan*sizeof(int),GFP_KERNEL);
+	if(!async->cmd.chanlist){
 		DPRINTK("allocation failed\n");
 		ret = -ENOMEM;
 		goto cleanup;
 	}
 
-	if(copy_from_user(s->cur_trig.chanlist,user_trig->chanlist,s->cur_trig.n_chan*sizeof(int))){
+	if(copy_from_user(async->cmd.chanlist,user_trig->chanlist,user_trig->n_chan*sizeof(int))){
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
 		goto cleanup;
 	}
 
 	/* make sure each element in channel/gain list is valid */
-	if((ret=check_chanlist(s,s->cur_trig.n_chan,s->cur_trig.chanlist))<0){
+	if((ret=check_chanlist(s,user_trig->n_chan,async->cmd.chanlist))<0){
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
 	}
 
-	if(!s->async->prealloc_buf){
-		printk("comedi: bug: s->async->prealloc_buf==NULL\n");
-	}
+	ret = s->do_cmdtest(dev,s,&async->cmd);
 
-//	s->cur_trig.data=async->prealloc_buf;
-//	s->cur_trig.data_len=async->prealloc_bufsz;
+	/* XXX */
+
 	async->data=async->prealloc_buf;
 	async->data_len=async->prealloc_bufsz;
 
@@ -228,18 +248,16 @@ static int do_trig_ioctl_modeN(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	}
 
 	async->cur_chan=0;
-	async->cur_chanlist_len=s->cur_trig.n_chan;
+	async->cur_chanlist_len=user_trig->n_chan;
 
 	async->cb_mask=COMEDI_CB_EOA|COMEDI_CB_BLOCK|COMEDI_CB_ERROR;
-	if(s->cur_trig.flags & TRIG_WAKE_EOS){
+	if(user_trig->flags & TRIG_WAKE_EOS){
 		async->cb_mask|=COMEDI_CB_EOS;
 	}
 
 	s->runflags=SRF_USER;
 
 	s->subdev_flags|=SDF_RUNNING;
-
-	ret=s->trig[s->cur_trig.mode](dev,s,&s->cur_trig);
 
 	if(ret==0)return 0;
 
@@ -257,14 +275,6 @@ int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 	ret=mode_to_command(&async->cmd,it);
 	if(ret)return ret;
 
-	ret=s->do_cmdtest(dev,s,&async->cmd);
-	// let it fix up arguments if necessary
-	if(ret == 3)
-		ret=s->do_cmdtest(dev,s,&async->cmd);
-	if(ret == 4)
-		ret=s->do_cmdtest(dev,s,&async->cmd);
-	if(ret)
-		return -EINVAL;
 
 	ret=s->do_cmd(dev,s);
 	if(ret)return -EINVAL;
@@ -280,8 +290,6 @@ int mode_to_command(comedi_cmd *cmd,comedi_trig *it)
 	cmd->subdev=it->subdev;
 	cmd->chanlist_len=it->n_chan;
 	cmd->chanlist=it->chanlist;
-	cmd->data=it->data;
-	cmd->data_len=it->data_len;
 
 	cmd->start_src=TRIG_NOW;
 
