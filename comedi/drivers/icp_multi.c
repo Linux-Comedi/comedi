@@ -26,7 +26,24 @@ Driver: icp_multi.o
 Description: Inova ICP_MULTI
 Author: Anne Smorthit <anne.smorthit@sfwte.ch>
 Devices: [Inova] ICP_MULTI (icp_multi)
-Status: unknown
+Status: works
+
+The driver works for analog input and output and digital input and output.
+It does not work with interrupts or with the counters.  Currently no support
+for DMA.
+
+It has 16 single-ended or 8 differential Analogue Input channels with 12-bit
+resolution.  Ranges : 5V, 10V, +/-5V, +/-10V, 0..20mA and 4..20mA.  Input
+ranges can be individually programmed for each channel.  Voltage or current
+measurement is selected by jumper.
+
+There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
+
+16 x Digital Inputs, 24V
+
+8 x Digital Outputs, 24V, 1A
+
+4 x 16-bit counters
 
 Options:
  [0] - PCI bus number - if bus number and slot number are 0, 
