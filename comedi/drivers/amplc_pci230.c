@@ -1133,6 +1133,10 @@ static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 	/* Read interrupt status/enable register. */
 	status_int = inb(devpriv->pci_iobase + PCI230_INT_SCE);
 
+	if (status_int == PCI230_INT_DISABLE) {
+		return IRQ_NONE;
+	}
+
 	/* Disable all of board's interrupts.
 	 * (Only those interrrupts that need re-enabling, are, later in the handler).  */
 	devpriv->ier = PCI230_INT_DISABLE; 
@@ -1144,9 +1148,6 @@ static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs)
 	 * However, at present (Comedi-0.7.60) does not allow concurrent
 	 * execution of commands, instructions or a mixture of the two.
 	 */
-	if (status_int == PCI230_INT_DISABLE) {
-		return IRQ_NONE;
-	}
 	
 	if (status_int & PCI230_INT_ZCLK_CT1) {
 		s = dev->write_subdev;
