@@ -409,7 +409,8 @@ static void mite_handle_interrupt(comedi_device *dev,unsigned int m_status)
 		ni_handle_block_dma(dev);
 	}
 	MDPRINTK("exit mite_handle_interrupt\n");
-	return;
+
+	comedi_event(dev,s,s->async->events);
 }
 
 #endif //PCIDMA
@@ -703,9 +704,7 @@ static void ni_handle_block_dma(comedi_device *dev)
 	comedi_subdevice *s = dev->subdevices + 0;
 
 	MDPRINTK("ni_handle_block_dma\n");
-	//mite_dump_regs(devpriv->mite);  
 	mite_dma_disarm(devpriv->mite);
-	//TIM 4/17/01 win_out(0x0000,Interrupt_A_Enable_Register);
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
 		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
 		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
