@@ -52,6 +52,9 @@ ComputerBoards			CIO-DAS1601/12			das16
 ComputerBoards			CIO-DAS1602/12			das16
 ComputerBoards			CIO-DAS1602/16			das16
 ComputerBoards			CIO-DAS16/330			das16
+ComputerBoards			CIO-DAS800			das800
+ComputerBoards			CIO-DAS801			das800
+ComputerBoards			CIO-DAS802			das800
 Data Translation		DT21-EZ				dt282x
 Data Translation		DT23-EZ				dt282x
 Data Translation		DT24-EZ				dt282x
@@ -94,6 +97,27 @@ Keithley Metrabyte		DAS-8				das08
 Keithley Metrabyte		DAS-8/AO			das08
 Keithley Metrabyte		DAS-8PGA			das08
 Keithley Metrabyte		DAS-8PGA/G2		*	das08
+Keithley Metrabyte		DAS-800			das800
+Keithley Metrabyte		DAS-801			das800
+Keithley Metrabyte		DAS-802			das800
+Keithley Metrabyte		DAS-1701st			das1800
+Keithley Metrabyte		DAS-1701st-da			das1800
+Keithley Metrabyte		DAS-1701ao			das1800
+Keithley Metrabyte		DAS-1702st			das1800
+Keithley Metrabyte		DAS-1702st-da			das1800
+Keithley Metrabyte		DAS-1702hr			das1800
+Keithley Metrabyte		DAS-1702hr-da			das1800
+Keithley Metrabyte		DAS-1702ao			das1800
+Keithley Metrabyte		DAS-1801st			das1800
+Keithley Metrabyte		DAS-1801st-da			das1800
+Keithley Metrabyte		DAS-1801hc			das1800
+Keithley Metrabyte		DAS-1801ao			das1800
+Keithley Metrabyte		DAS-1802st			das1800
+Keithley Metrabyte		DAS-1802st-da			das1800
+Keithley Metrabyte		DAS-1802hr			das1800
+Keithley Metrabyte		DAS-1802hr-da			das1800
+Keithley Metrabyte		DAS-1802hc			das1800
+Keithley Metrabyte		DAS-1802ao			das1800
 National Instruments		AT-AI-16XE-10			ni_atmio
 National Instruments		AT-MIO-16D			ni_atmio16d
 National Instruments		AT-MIO-16DE-10			ni_atmio
