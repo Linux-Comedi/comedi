@@ -238,6 +238,10 @@ static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 	int i;
 	unsigned int status;
 	
+	/* XXX my gcc has a bug that causes a warning if the following
+	 * is not there */
+	status = 0;
+
 	writew(cmd,dev->iobase+DPR_Command_Mbx);
 	
 	for(i=0;i<TIMEOUT;i++){
@@ -282,6 +286,7 @@ static void dt3k_writesingle(comedi_device *dev,unsigned int subsys,
 
 
 
+#if 0
 static int dt3k_ai_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 {
 	int i;
@@ -308,6 +313,7 @@ static int dt3k_ai_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *it
 	
 	return dt3k_send_cmd(dev,CMD_CONFIG);
 }
+#endif
 	
 
 static int dt3k_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)

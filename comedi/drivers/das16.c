@@ -950,6 +950,7 @@ static int SetPacerFreq(BoardRec * board)
 }
 #endif
 
+#if 0
 /***************************************************************************
  *
  * Load two part frequency to pacer counter chip.
@@ -1021,6 +1022,7 @@ static void stop_pacer(comedi_device *dev)
 	mask = C1 | MODE2 | LSBFIRST;
 	outb(mask, dev->iobase + COUNTERA_CONTROL);
 }
+#endif
 
 /***************************************************************************
  *
