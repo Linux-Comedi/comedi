@@ -156,14 +156,12 @@ static comedi_lrange *das800_range_lkup[] = {
  */
 static int das800_attach(comedi_device *dev,comedi_devconfig *it);
 static int das800_detach(comedi_device *dev);
-static int das800_recognize(char *name);
 
 comedi_driver driver_das800={
 	driver_name:	"das800",
 	module:		THIS_MODULE,
 	attach:		das800_attach,
 	detach:		das800_detach,
-	recognize:	das800_recognize,
 };
 
 /* static int das800_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -177,22 +175,6 @@ static int das800_do_cmd(comedi_device *dev, comedi_subdevice *s);
 int das800_probe(comedi_device *dev);
 int das800SetFrequency( unsigned int period, comedi_device *dev);
 int das800LoadCounter(unsigned int counterNumber, int counterValue, comedi_device *dev);
-
-/*
- * The function das800_recognize() is called when the Comedi core
- * gets a request to configure a device.  If the name of the device
- * being configured matches with one of the devices that this
- * driver can service, then a non-negative index should be returned.
- * This index is put into dev->board, and then _attach() is called.
- */
-static int das800_recognize(char *name)
-{
-	if(!strcmp("das800", name)) return 0;
-	if(!strcmp("das801", name)) return 1;
-  if(!strcmp("das802", name)) return 2;
-
-	return -1;
-}
 
 int das800_probe(comedi_device *dev)
 {
@@ -361,6 +343,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata=(1 << 12) - 1;
 	s->range_table = das800_range_lkup[dev->board];
 	s->do_cmd = &das800_do_cmd;
+	s->do_cmdtest = &das800_do_cmdtest;
 
 	return 1;
 };
@@ -443,58 +426,54 @@ static int das800_do_cmd(comedi_device *dev, comedi_subdevice *s)
 	int gain;
 	unsigned int numChannels = s->cmd.chanlist_len;
 
-	/* if cmd is for analog input subdevice */
-  if(s == dev->subdevices + 0)
-  {
-		disableDAS800(dev);
+	disableDAS800(dev);
 
-		/* set channel scan limits */
-		outb(SCAN_LIMITS, dev->iobase + DAS800_GAIN);	/* select base address + 2 to be scan limits register */
-		outb((numChannels - 1) << 3, dev->iobase + DAS800_SCAN_LIMITS); /* set scan limits */
-		outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
+	/* set channel scan limits */
+	outb(SCAN_LIMITS, dev->iobase + DAS800_GAIN);	/* select base address + 2 to be scan limits register */
+	outb((numChannels - 1) << 3, dev->iobase + DAS800_SCAN_LIMITS); /* set scan limits */
+	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
 
-		/* set gain */
-		gain = s->cmd.chanlist[0];
-		if( gain > 0)
-			gain += 0x7;
-		gain = gain & 0xf;
-		outb(gain, DAS800_GAIN);
+	/* set gain */
+	gain = s->cmd.chanlist[0];
+	if( gain > 0)
+		gain += 0x7;
+	gain = gain & 0xf;
+	outb(gain, DAS800_GAIN);
 
 
-		switch(s->cmd.stop_src)
-		{
-			case TRIG_COUNT:
-				devpriv->count = s->cmd.stop_arg;
-				devpriv->forever = 0;
-				break;
-			case TRIG_NONE:
-				devpriv->forever = 1;
-				devpriv->count = 0;
-				break;
-			default :
-				break;
-		}
+	switch(s->cmd.stop_src)
+	{
+		case TRIG_COUNT:
+			devpriv->count = s->cmd.stop_arg;
+			devpriv->forever = 0;
+			break;
+		case TRIG_NONE:
+			devpriv->forever = 1;
+			devpriv->count = 0;
+			break;
+		default :
+			break;
+	}
 
-		/* enable auto channel scan, send interrupts on end of conversion
-		 * and set clock source to internal or external
-		 */
-		switch(s->cmd.convert_src)
-		{
-			case TRIG_TIMER:
-				outb(EACS | IEOC | CASC| ITE, dev->iobase + DAS800_CONV_CONTROL);
-				/* set conversion frequency */
-				if( das800SetFrequency( s->cmd.convert_arg, dev) < 0)
-				{
-					comedi_error(dev, "Error setting up counters");
-					return -1;
-				}
-				break;
-			case TRIG_EXT:
-				outb(EACS | IEOC, dev->iobase + DAS800_CONV_CONTROL);
-				break;
-			default:
-				break;
-		}
+	/* enable auto channel scan, send interrupts on end of conversion
+	 * and set clock source to internal or external
+	 */
+	switch(s->cmd.convert_src)
+	{
+		case TRIG_TIMER:
+			outb(EACS | IEOC | CASC| ITE, dev->iobase + DAS800_CONV_CONTROL);
+			/* set conversion frequency */
+			if( das800SetFrequency( s->cmd.convert_arg, dev) < 0)
+			{
+				comedi_error(dev, "Error setting up counters");
+				return -1;
+			}
+			break;
+		case TRIG_EXT:
+			outb(EACS | IEOC, dev->iobase + DAS800_CONV_CONTROL);
+			break;
+		default:
+			break;
 	}
 
 	enableDAS800(dev);
