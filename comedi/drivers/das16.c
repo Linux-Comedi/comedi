@@ -844,13 +844,10 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	int chan;
 	int msb,lsb;
 
-	/* clear crap */
-	inb(dev->iobase+DAS16_AI_LSB);
-	inb(dev->iobase+DAS16_AI_MSB);
-
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
-	outb_p(chan,dev->iobase+DAS16_MUX);
+	chan |= CR_CHAN(insn->chanspec) << 4;
+	outb(chan,dev->iobase+DAS16_MUX);
 
 	/* set gain */
 	if(thisboard->ai_pg != das16_pg_none){
@@ -874,7 +871,7 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		msb = inb(dev->iobase + DAS16_AI_MSB);
 		lsb = inb(dev->iobase + DAS16_AI_LSB);
 		if(thisboard->ai_nbits==12){
-			data[n] = (lsb>>4) | (msb << 4);
+			data[n] = ((lsb >> 4) & 0xff) | (msb << 4);
 		}else{
 			data[n] = lsb | (msb << 8);
 		}
@@ -949,7 +946,7 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 	int status;
 	unsigned long flags;
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices;
+	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async;
 	unsigned int max_points, num_points, residue, leftover;
 	sampl_t dpnt;
