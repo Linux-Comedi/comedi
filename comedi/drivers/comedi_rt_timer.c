@@ -32,7 +32,6 @@ TODO:
 	Support for digital io commands could be added, except I can't see why
 		anyone would want to use them
 	What happens if device we are emulating for is de-configured?
-	Make it work from kernel space (fix problems with comedi_switch_to_rt() etc.)
 
 */
 
@@ -354,14 +353,6 @@ static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(err)return 3;
 
 	/* step 4: fix up and arguments */
-
-	/* TRIG_RT flag will cause a null dereference, since this is a weird driver
-	 * so zero it! */
-	if(cmd->flags & TRIG_RT)
-	{
-		cmd->flags &= ~TRIG_RT;
-		err++;
-	}
 
 	if(err)return 4;
 

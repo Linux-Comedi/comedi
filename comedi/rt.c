@@ -127,6 +127,9 @@ void comedi_switch_to_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
 
+	if(it == NULL)
+		return;
+
 	spin_lock_irq(&dev->spinlock);
 	RT_protect();
 	sti();
@@ -143,6 +146,9 @@ void comedi_switch_to_rt(comedi_device *dev)
 void comedi_switch_to_non_rt(comedi_device *dev)
 {
 	struct comedi_irq_struct *it=comedi_irqs[dev->irq];
+
+	if(it == NULL)
+		return;
 
 	RT_spin_lock_irq(&dev->spinlock);
 
