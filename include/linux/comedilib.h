@@ -71,6 +71,10 @@ int comedi_data_write(comedi_t *dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t data);
 int comedi_data_read(comedi_t *dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t *data);
+int comedi_data_read_hint(comedi_t *dev,unsigned int subdev,unsigned int chan,
+	unsigned int range,unsigned int aref);
+int comedi_data_read_delayed(comedi_t *dev,unsigned int subdev,unsigned int chan,
+	unsigned int range,unsigned int aref,lsampl_t *data,unsigned int nano_sec);
 int comedi_dio_config(comedi_t *dev,unsigned int subdev,unsigned int chan,
 	unsigned int io);
 int comedi_dio_read(comedi_t *dev,unsigned int subdev,unsigned int chan,
