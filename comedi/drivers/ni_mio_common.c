@@ -2667,6 +2667,14 @@ static void mio_common_detach(comedi_device *dev)
 		subdev_8255_cleanup(dev,dev->subdevices+3);
 }
 
+static void init_ao_67xx(comedi_device *dev, comedi_subdevice *s)
+{
+	int i;
+
+	for(i = 0; i < s->n_chan; i++)
+		ni_ao_win_outw(dev, AO_Channel(i) | 0x0, AO_Configuration_2_67xx);
+}
+
 static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
@@ -2730,6 +2738,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
+	if((boardtype.reg_type & ni_reg_67xx_mask))
+		init_ao_67xx(dev, s);
 
 	/* digital i/o subdevice */
 
@@ -2925,7 +2935,7 @@ static int ni_read_eeprom(comedi_device *dev,int addr)
 		bitstring|=((ni_readb(XXX_Status)&PROMOUT)?bit:0);
 	}
 	ni_writeb(0x00,Serial_Command);
-	
+
 	return bitstring;
 }
 
