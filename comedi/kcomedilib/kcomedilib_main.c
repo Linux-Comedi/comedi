@@ -761,9 +761,6 @@ int comedi_lock(unsigned int minor,unsigned int subdev)
 	}else{
 		__MOD_INC_USE_COUNT(dev->driver->module);
 		s->lock=(void *)&rtcomedi_lock_semaphore;
-
-		if(s->do_lock)
-			s->do_lock(dev,s);
 	}
 	
 	return ret;
@@ -807,9 +804,6 @@ int comedi_unlock(unsigned int minor,unsigned int subdev)
 
 	if(s->lock && s->lock!=&rtcomedi_lock_semaphore)
 		return -EACCES;
-
-	if(s->do_unlock)
-		s->do_unlock(dev,s);
 
 	if(s->lock==&rtcomedi_lock_semaphore){
 		s->lock=NULL;
