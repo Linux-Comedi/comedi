@@ -71,7 +71,7 @@ pcmcia_modules=
 endif
 
 if CONFIG_USB
-usb_modules=usbdux.ko
+usb_modules=usbdux.ko usbduxfast.ko
 else
 usb_modules=
 endif
@@ -221,4 +221,6 @@ skel_ko_SOURCES = skel.c
 ssv_dnp_ko_SOURCES = ssv_dnp.c
 comedi_test_ko_SOURCES = comedi_test.c
 usbdux_ko_SOURCES = usbdux.c
+usbduxfast_ko_SOURCES = usbduxfast.c
+
 
