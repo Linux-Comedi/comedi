@@ -316,7 +316,6 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 
 
 
-#undef __ISAPNP__
 #ifdef __ISAPNP__
 static struct isapnp_device_id device_ids[] = {
 	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x0000), },
