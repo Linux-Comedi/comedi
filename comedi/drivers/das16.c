@@ -439,7 +439,7 @@ static struct das16_board_struct das16_boards[]={
 	name:		"pc104-das16jr",	// pc104-das16jr_xx.pdf
 	ai:		das16_ai_rinsn,
 	ai_nbits:	12,
-	ai_speed:	6667,
+	ai_speed:	3300,
 	ai_pg:		das16_pg_16jr,
 	ao:		NULL,
 	di:		das16_di_rbits,

@@ -1754,7 +1754,6 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
 	// XXX check for buffer overrun somehow
-	async->events |= COMEDI_CB_BLOCK;
 }
 
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs)

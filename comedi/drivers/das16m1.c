@@ -538,9 +538,11 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 	insw(dev->iobase, data, num_samples);
 	for(i = 0; i < num_samples; i++)
 	{
-		comedi_buf_put(async, AI_DATA(data[i]));
-		devpriv->adc_count++;
+		data[i] = AI_DATA(data[i]);
 	}
+	comedi_buf_put_array(async, data, num_samples);
+	devpriv->adc_count += num_samples;
+
 	if(cmd->stop_src == TRIG_COUNT)
 	{
 		if(devpriv->adc_count >= cmd->stop_arg * cmd->chanlist_len)
@@ -559,7 +561,6 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 		comedi_error(dev, "fifo overflow");
 	}
 
-	async->events |= COMEDI_CB_BLOCK;
 	comedi_event(dev, s, async->events);
 
 }

@@ -349,6 +349,7 @@ static inline void comedi_buf_put_array(comedi_async *async, sampl_t* array, uns
 		async->buf_int_count += num_bytes;
 		xfer_count += num_bytes;
 	}
+	async->events |= COMEDI_CB_BLOCK;
 }
 
 /* Reads a data point from comedi's buffer, used for output.

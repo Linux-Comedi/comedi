@@ -311,9 +311,12 @@ static void a2150_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 	}
 	// re-enable  dma
-	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
-	set_dma_count(devpriv->dma, leftover * sample_size);
-	enable_dma(devpriv->dma);
+	if(leftover)
+	{
+		set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
+		set_dma_count(devpriv->dma, leftover * sample_size);
+		enable_dma(devpriv->dma);
+	}
 	release_dma_lock(flags);
 
 	async->events |= COMEDI_CB_BLOCK;

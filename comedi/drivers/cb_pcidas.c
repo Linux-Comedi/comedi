@@ -1285,7 +1285,7 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	int half_fifo = thisboard->fifo_size / 2;
 	static const int max_half_fifo = 512;	// maximum possible half-fifo size
 	sampl_t data[max_half_fifo];
-	int i;
+	unsigned int num_samples, i;
 	static const int timeout = 10000;
 
 	if(dev->attached == 0)
@@ -1332,23 +1332,23 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(status & ADHFI)
 	{
 		// read data
-		insw(devpriv->adc_fifo + ADCDATA, data, half_fifo);
-		for(i = 0; i < half_fifo; i++)
+		num_samples = half_fifo;
+		if(async->cmd.stop_src == TRIG_COUNT &&
+			num_samples > devpriv->count)
 		{
-			comedi_buf_put(async, data[i]);
-			if(async->cmd.stop_src == TRIG_COUNT)
-			{
-				if(--devpriv->count == 0)
-				{		/* end of acquisition */
-					cb_pcidas_cancel(dev, s);
-					async->events |= COMEDI_CB_EOA;
-					break;
-				}
-			}
+			num_samples = devpriv->count;
+		}
+		insw(devpriv->adc_fifo + ADCDATA, data, num_samples);
+		comedi_buf_put_array(async, data, num_samples);
+		devpriv->count -= num_samples;
+		if(async->cmd.stop_src == TRIG_COUNT &&
+			devpriv->count == 0)
+		{
+			async->events |= COMEDI_CB_EOA;
+			cb_pcidas_cancel(dev, s);
 		}
 		// clear half-full interrupt latch
 		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
-		async->events |= COMEDI_CB_BLOCK;
 	// else if fifo not empty
 	}else if(status & (ADNEI | EOBI))
 	{
@@ -1367,9 +1367,9 @@ static void cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 				break;
 			}
 		}
+		async->events |= COMEDI_CB_BLOCK;
 		// clear not-empty interrupt latch
 		outw(devpriv->adc_fifo_bits | INT, devpriv->control_status + INT_ADCFIFO);
-		async->events |= COMEDI_CB_BLOCK;
 	}else if(status & EOAI)
 	{
 		comedi_error(dev, "bug! encountered end of aquisition interrupt?");

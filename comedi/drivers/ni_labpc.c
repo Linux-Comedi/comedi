@@ -1405,7 +1405,6 @@ static void labpc_drain_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	comedi_async *async = s->async;
-	int i;
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;
@@ -1442,12 +1441,9 @@ static void labpc_drain_dma(comedi_device *dev)
 			leftover = max_points;
 	}
 
-	for(i = 0; i < num_points; i++)
-	{
-		/* write data point to comedi buffer */
-		comedi_buf_put(async, devpriv->dma_buffer[i]);
-		if(async->cmd.stop_src == TRIG_COUNT) devpriv->count--;
-	}
+	/* write data to comedi buffer */
+	comedi_buf_put_array(async, devpriv->dma_buffer, num_points);
+	if(async->cmd.stop_src == TRIG_COUNT) devpriv->count -= num_points;
 
 	// set address and count for next transfer
 	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
