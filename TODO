@@ -1,8 +1,6 @@
 
 das6402 needs cleanup
 
-merge das08, das16, das1600 and do cleanup
-
 check each driver init for stuff
 
 grep XXX
@@ -14,11 +12,7 @@ allocate private
 
 fix PCI code, use pci_find_device()
 
-make a skeleton driver
-
 standardize error codes
-
-writes to linux source
 
 implement ioctl for comedi_dio_bitfield()
 
@@ -33,4 +27,12 @@ develop 8253 and Am9513 code
 increase mod use count for RT
 
 different error code for board error vs buffer overflow
+
+change _recognize to const char *
+
+implement comedi_poll
+
+implement poll/select
+
+fix mmap
 
