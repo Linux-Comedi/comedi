@@ -443,6 +443,9 @@ typedef struct{
 	unsigned int divisor2; 	/* value to load into board's counter 2 for timed conversions */
 	int do_bits;	/* digital output bits */
 	int irq_dma_bits;	/* bits for control register b */
+	/* dma bits for control register b, stored so that dma can be
+	 * turned on and off */
+	int dma_bits;
 	unsigned int dma0;	/* dma channels used */
 	unsigned int dma1;
 	unsigned int dma_current;	/* dma channel currently in use */
@@ -619,22 +622,22 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 			switch((dma0 & 0x7) | (dma1 << 4))
 			{
 				case 0x5:	// dma0 == 5
-					devpriv->irq_dma_bits |= DMA_CH5;
+					devpriv->dma_bits |= DMA_CH5;
 					break;
 				case 0x6:	// dma0 == 6
-					devpriv->irq_dma_bits |= DMA_CH6;
+					devpriv->dma_bits |= DMA_CH6;
 					break;
 				case 0x7:	// dma0 == 7
-					devpriv->irq_dma_bits |= DMA_CH7;
+					devpriv->dma_bits |= DMA_CH7;
 					break;
 				case 0x65:	// dma0 == 5, dma1 == 6
-					devpriv->irq_dma_bits |= DMA_CH5_CH6;
+					devpriv->dma_bits |= DMA_CH5_CH6;
 					break;
 				case 0x76:	// dma0 == 6, dma1 == 7
-					devpriv->irq_dma_bits |= DMA_CH6_CH7;
+					devpriv->dma_bits |= DMA_CH6_CH7;
 					break;
 				case 0x57:	// dma0 == 7, dma1 == 5
-					devpriv->irq_dma_bits |= DMA_CH7_CH5;
+					devpriv->dma_bits |= DMA_CH7_CH5;
 					break;
 				default:
 					printk(" only supports dma channels 5 through 7\n"
@@ -1483,14 +1486,26 @@ static int das1800_ai_do_cmd(comedi_device *dev, comedi_subdevice *s)
 		return -1;
 	}
 
-	devpriv->irq_dma_bits |= FIMD;	// interrupt fifo half full by default
+	if(cmd.flags & TRIG_WAKE_EOS)
+	{
+		// interrupt fifo not empty
+		devpriv->irq_dma_bits &= ~FIMD;
+		// turn off dma
+		devpriv->irq_dma_bits &= ~DMA_ENABLED;
+	}else
+	{
+		// interrupt fifo half full
+		devpriv->irq_dma_bits |= FIMD;
+		// turn on dma if configured
+		devpriv->irq_dma_bits |= devpriv->dma_bits;
+	}
 
 	// determine how many conversions we need
 	if(cmd.stop_src == TRIG_COUNT)
 	{
 		devpriv->count = cmd.stop_arg * cmd.chanlist_len;
 		devpriv->forever = 0;
-		// if they want just a few points, interrupt fifo not empty
+		/* if they want just a few points, interrupt fifo not empty */
 		if(cmd.stop_arg < HALF_FIFO)
 			devpriv->irq_dma_bits &= ~FIMD;
 	}else
