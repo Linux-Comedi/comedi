@@ -109,7 +109,7 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <8255.h>
 #ifdef CONFIG_COMEDI_DAQBOARD2000_FPGA
 #include <daqboard2000_fpga.h>

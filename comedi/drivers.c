@@ -21,7 +21,7 @@
 
 */
 
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <kvmem.h>
 
 #define __NO_VERSION__

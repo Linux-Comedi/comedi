@@ -33,7 +33,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 
 static comedi_lrange range_dt2815_ao_32_current = { 1, {

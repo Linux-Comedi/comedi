@@ -40,7 +40,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <asm/io.h>

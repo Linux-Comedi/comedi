@@ -41,7 +41,7 @@
 #include <linux/timer.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <8253.h>
 
 /* #define MD_DEBUG */

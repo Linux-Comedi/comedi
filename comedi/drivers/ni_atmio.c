@@ -67,7 +67,7 @@
 #ifdef CONFIG_COMEDI_RTL
 #include <linux/rtl.h>
 #endif
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <ni_stc.h>
 #include <8255.h>
 

@@ -33,7 +33,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 
 #define RTI802_SIZE 4

@@ -28,7 +28,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <asm/io.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <amcc_s5933.h>
 #include <8253.h>
 

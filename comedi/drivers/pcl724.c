@@ -33,7 +33,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <8255.h>
 
 #define PCL722_SIZE    32

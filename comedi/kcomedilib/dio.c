@@ -23,7 +23,7 @@
 
 
 
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 #include <linux/errno.h>
 #include <linux/kernel.h>

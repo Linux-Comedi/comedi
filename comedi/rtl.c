@@ -5,7 +5,7 @@
 
 #define __NO_VERSION__
 
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 #include <linux/kernel.h>
 #include <linux/string.h>

@@ -22,7 +22,7 @@
 */
 
 
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>

@@ -14,7 +14,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

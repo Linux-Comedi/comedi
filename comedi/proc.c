@@ -29,7 +29,7 @@
 */
 
 
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 

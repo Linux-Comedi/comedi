@@ -39,7 +39,7 @@
  *
  */
 
-#include <linuxcomedidev.h>
+#include <linux/comedidev.h>
 
 #include <linux/module.h>	/* modularer Kernel */
 #include <linux/kernel.h>	/* printk() */
