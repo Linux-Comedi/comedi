@@ -6,7 +6,11 @@ void * rvmalloc(unsigned long size)
 	void * mem;
 	unsigned long adr, page;
         
+#if LINUX_VERSION_CODE < 0x020300
 	mem=vmalloc(size);
+#else
+	mem=vmalloc_32(size);
+#endif
 	if (mem) 
 	{
 		memset(mem, 0, size); /* Clear the ram out, no junk to the user */
@@ -18,7 +22,7 @@ void * rvmalloc(unsigned long size)
 			mem_map_reserve(MAP_NR(phys_to_virt(page)));
 #else
 	                page = kvirt_to_pa(adr);
-			mem_map_reserve(MAP_NR(__va(page)));
+			mem_map_reserve(virt_to_page(__va(page)));
 #endif
 			adr+=PAGE_SIZE;
 			size-=PAGE_SIZE;
@@ -41,7 +45,7 @@ void rvfree(void * mem, unsigned long size)
 			mem_map_unreserve(MAP_NR(phys_to_virt(page)));
 #else
 	                page = kvirt_to_pa(adr);
-			mem_map_unreserve(MAP_NR(__va(page)));
+			mem_map_unreserve(virt_to_page(__va(page)));
 #endif
 			adr+=PAGE_SIZE;
 			size-=PAGE_SIZE;

@@ -59,14 +59,15 @@ static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 
-
 	if(!pgd_none(*pgd)) {
 		pmd = pmd_offset(pgd, adr);
 		if (!pmd_none(*pmd)) {
 			ptep = pte_offset(pmd, adr);
 			pte = *ptep;
-			if(pte_present(pte))
-				ret = (page_address(pte_page(pte))|(adr&(PAGE_SIZE-1)));
+			if(pte_present(pte)){
+				ret = (unsigned long) page_address(pte_page(pte));
+				ret |= (adr&(PAGE_SIZE-1));
+			}
 		}
 	}
 	return ret;
