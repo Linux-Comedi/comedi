@@ -16,15 +16,11 @@ fix PCI code, use pci_find_device()
 
 pci_enable_device() needs to be added to many drivers
 
-standardize error codes
-
 get rid of spurious "char-major-98-0 not found"
 
 spinlocks
 
 autoloading causes BUG on failure.
-
-need realtime examples
 
 das1800: kmalloc could fail on large buffer sizes (see dt282x).  Needs
 to be fixed to use a bounce buffer.
@@ -45,6 +41,6 @@ remove SDF_RT globally
 
 ni_mio_common: starting AO without anything in buffer causes oops
 
-resetting AO sets ao chan 1 to -10V
+ni_mio_common: resetting AO sets ao chan 1 to -10V
 
 
