@@ -5,6 +5,8 @@
 # don't necessarily apply to every driver.
 #
 
+check_all=no
+
 if [ "$1" ];then
 	driver=$1
 else
@@ -111,21 +113,24 @@ else
 	echo "E: board_name not set"
 fi
 
-# Do we use trig?
-# trig[0] is going away.
+# Do we use trig?  trig[0] has been eliminated
+if [ "$check_all" = yes ]; then
 if grep 'trig\[0\]' ${driver} &>/dev/null;then
 	echo "E: uses trig[0]"
 else
 	echo "doesn't use trig[0]"
 fi
+fi
 
-# trig[1234] is going away, but not as rapidly.
+# trig[1234] has been eliminated
+if [ "$check_all" = yes ]; then
 if grep 'trig\[[1234]\]' ${driver} &>/dev/null;then
 	echo "E: uses trig[1234]"
 	trig1234=yes
 else
 	echo "doesn't use trig[1234]"
 	trig1234=no
+fi
 fi
 
 if grep 'comedi_cmd' ${driver} &>/dev/null;then 
@@ -152,20 +157,25 @@ fi
 # which is basically everything except *_attach() and *_detach().
 # However, since it works correctly in non-real-time code, just use
 # it everywhere.
+if [ "$check_all" = yes ]; then
 if grep 'printk' ${driver} &>/dev/null;then
 	if ! grep 'rt_printk' ${driver} &>/dev/null;then
 		echo "W: doesn't use rt_printk"
 	fi
 fi
+fi
 
 # comedi_request_irq() handles real-time interrupts.
 if grep request_irq ${driver} &>/dev/null;then
+	irq=yes
 	if ! grep 'comedi_request_irq' ${driver} &>/dev/null;then
 		echo "E: doesn't use comedi_request_irq"
 	fi
-	if ! grep 'free_irq' ${driver} &>/dev/null;then
+	if ! grep 'comedi_free_irq' ${driver} &>/dev/null;then
 		echo "E: doesn't use comedi_free_irq"
 	fi
+else
+	irq=no
 fi
 if grep SA_INTERRUPT ${driver} &>/dev/null;then
 	echo "E: uses SA_INTERRUPT"
@@ -178,6 +188,7 @@ if grep 'request_region' ${driver} &>/dev/null;then
 fi
 
 if grep 'pci_dev' ${driver} &>/dev/null;then
+	pci=yes
 	echo uses pci
 	if ! grep 'pci_find_device' ${driver} &>/dev/null;then
 		echo "W: doesn't use pci_find_device"
@@ -191,27 +202,35 @@ if grep 'pci_dev' ${driver} &>/dev/null;then
 	if grep 'pcibios_' ${driver} &>/dev/null;then
 		echo "W: has pcibios_*() calls"
 	fi
+else
+	pci=no
 fi
 
 # Who doesn't use comments like this to indicate something needs
 # to be fixed?
+if [ "$check_all" = yes ]; then
 if grep '\(XXX\)\|\(FIX\)' ${driver} &>/dev/null;then
 	echo "W: has FIXME-like comments"
+fi
 fi
 
 # COMEDI_INITCLEANUP isn't strictly necessary, but it's a one-stop
 # cleanup to get Comedi to compile as part of the kernel.  It is
 # recommended to use it unless something else is necessary in module
 # init.
+if [ "$check_all" = yes ]; then
 if grep 'int init_module' ${driver} &>/dev/null;then
 	echo "W: suggest using COMEDI_INITCLEANUP"
+fi
 fi
 
 # range_unknown _should_ be used if the driver can't determine
 # the I/O range.  However, it's commonly used as a marker where
 # the author has not added more accurate range information.
+if [ "$check_all" = yes ]; then
 if grep 'range_unknown' ${driver} &>/dev/null;then
 	echo "W: uses range_unknown"
+fi
 fi
 
 # cur_trig was removed around 0.7.56
@@ -236,12 +255,12 @@ fi
 
 # remnants of trig[0]
 if grep 'di_unpack' ${driver} &>/dev/null;then
-	echo "W: di_unpack() going away soon, (not too soon)"
+	echo "E: di_unpack() is gone"
 fi
 
 # remnants of trig[0]
 if grep 'do_pack' ${driver} &>/dev/null;then
-	echo "W: do_pack() going away soon, (not too soon)"
+	echo "E: do_pack() is gone"
 fi
 
 # This is a bug that causes difficulty to unload a driver.  Easy
@@ -275,11 +294,13 @@ if grep 'comedi_\(\(done\)\|\(error_done\)\|\(bufcheck\)\|\(eos\)\|\(eobuf\)\)[[
 fi
 
 # Drivers should have documentation in Documentation/comedi/drivers.txt
+if false; then
 if grep "^Driver: ${basedriver}.o$" ../../Documentation/comedi/drivers.txt \
     &>/dev/null;then
 	echo "entry in drivers.txt"
 else
 	echo "E: not documented in drivers.txt"
+fi
 fi
 
 # Drivers should have documentation in the source
@@ -314,6 +335,24 @@ if [ -f "${basedriver}.o" ];then
 	echo "number of exported symbols: $n_xsyms"
 	if [ $(($n_syms-$n_xsyms)) -gt 2 ];then
 		echo "W: driver leaks symbols"
+	fi
+fi
+
+if [ $irq = yes ];then
+if [ $pci = yes ];then
+	if ! grep SA_SHIRQ ${driver} &>/dev/null;then
+		echo "E: PCI drivers need to use SA_SHIRQ"
+	fi
+else
+	if grep SA_SHIRQ ${driver} &>/dev/null;then
+		echo "E: non PCI device using SA_SHIRQ"
+	fi
+fi
+fi
+
+if [ $pci = yes ];then
+	if ! grep pci_device_id ${driver} &>/dev/null;then
+		echo "E: PCI drivers should have pci_device_id tables"
 	fi
 fi
 
