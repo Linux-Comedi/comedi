@@ -286,6 +286,46 @@ static inline int alloc_private(comedi_device *dev,int size)
 	return 0;
 }
 
+// writes a data point to comedi's buffer, used for input
+static inline void comedi_buf_put(comedi_async *async, sampl_t x)
+{
+
+	*(sampl_t *)(async->data + async->buf_int_ptr) = x;
+	async->buf_int_ptr += sizeof(sampl_t);
+	if(async->buf_int_ptr >= async->data_len){
+		async->buf_int_ptr = 0;
+		async->events |= COMEDI_CB_EOBUF;
+	}
+	if(++async->cur_chan >= async->cur_chanlist_len){
+		async->cur_chan = 0;
+		async->events |= COMEDI_CB_EOS;
+	}
+	async->buf_int_count += sizeof(sampl_t);
+}
+
+/* Reads a data point from comedi's buffer, used for output.
+ * returns signed int so error can be returned as negative. */
+static inline int comedi_buf_get(comedi_async *async)
+{
+	sampl_t data;
+
+	if(async->buf_int_count == async->buf_user_count)
+		return -EAGAIN;
+
+	data = *(sampl_t *)(async->data + async->buf_int_ptr);
+	async->buf_int_ptr += sizeof(sampl_t);
+	if(async->buf_int_ptr >= async->data_len){
+		async->buf_int_ptr = 0;
+		async->events |= COMEDI_CB_EOBUF;
+	}
+	if(++async->cur_chan >= async->cur_chanlist_len){
+		async->cur_chan = 0;
+		async->events |= COMEDI_CB_EOS;
+	}
+	async->buf_int_count += sizeof(sampl_t);
+
+	return data;
+}
 
 #ifdef LINUX_V20
 extern struct symbol_table comedi_syms;
