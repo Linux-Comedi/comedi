@@ -87,5 +87,8 @@ void rt_pend_tq_cleanup(void)
 #ifdef CONFIG_COMEDI_RTAI
 	rt_free_srq(rt_pend_tq_irq);
 #endif
+#ifdef CONFIG_COMEDI_RTL
+	free_irq(rt_pend_tq_irq,NULL);
+#endif
 }
 
