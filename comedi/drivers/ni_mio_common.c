@@ -27,11 +27,11 @@
 
 	Interrupt support added by Truxton Fulton <trux@truxton.com>
 
-	References for specifications:
+	References (from ftp://ftp.natinst.com/support/manuals):
 	
-	   321747b.pdf  Register Level Programmer Manual (obsolete)
-	   321747c.pdf  Register Level Programmer Manual (new)
-	   DAQ-STC reference manual
+	   340747b.pdf  AT-MIO E series Register Level Programmer Manual
+	   341079b.pdf  PCI E Series RLPM
+	   340934b.pdf  DAQ-STC reference manual
 
 	Other possibly relevant info:
 	
