@@ -28,6 +28,15 @@
 #define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(a,b,c,d,e)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
+static inline int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
+	unsigned long pfn, unsigned long size, pgprot_t prot)
+{
+	return REMAP_PAGE_RANGE(vma, from, pfn << PAGE_SHIFT, size, prot);
+};
+
+#endif
+
 #endif /* _COMPAT_MM_H */
 
 

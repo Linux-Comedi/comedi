@@ -1309,7 +1309,7 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 
 	n_pages = size >> PAGE_SHIFT;
 	for(i=0;i<n_pages;i++){
-		if(REMAP_PAGE_RANGE(vma, start, __pa(async->buf_page_list[i]),
+		if(remap_pfn_range(vma, start, __pa(async->buf_page_list[i]) >> PAGE_SHIFT,
 				PAGE_SIZE, PAGE_SHARED)){
 			return -EAGAIN;
 		}
