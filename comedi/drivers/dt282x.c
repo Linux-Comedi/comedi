@@ -383,16 +383,16 @@ static void copy_to_buf(comedi_device *dev,comedi_subdevice *s,void *buf,unsigne
 	unsigned int n;
 
 	n=n_bytes;
-	if(s->async->buf_int_ptr+n >= s->cur_trig.data_len){
-		n=s->cur_trig.data_len-s->async->buf_int_ptr;
-		memcpy(((void *)(s->cur_trig.data))+s->async->buf_int_ptr,buf,n);
+	if(s->async->buf_int_ptr+n >= s->async->data_len){
+		n=s->async->data_len-s->async->buf_int_ptr;
+		memcpy(s->async->data+s->async->buf_int_ptr,buf,n);
 		buf+=n;
 		s->async->buf_int_count+=n;
 		s->async->buf_int_ptr=0;
 
 		n=n_bytes-n;
 	}
-	memcpy(((void *)(s->cur_trig.data))+s->async->buf_int_ptr,buf,n);
+	memcpy(s->async->data+s->async->buf_int_ptr,buf,n);
 	buf+=n;
 	s->async->buf_int_count+=n;
 	s->async->buf_int_ptr+=n;
@@ -408,16 +408,16 @@ static int copy_from_buf(comedi_device *dev,comedi_subdevice *s,void *buf,unsign
 		n=n_bytes;
 
 	n_bytes=n;
-	if(s->async->buf_int_ptr+n >= s->cur_trig.data_len){
-		m=s->cur_trig.data_len-s->async->buf_int_ptr;
-		memcpy(buf,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m);
+	if(s->async->buf_int_ptr+n >= s->async->data_len){
+		m=s->async->data_len-s->async->buf_int_ptr;
+		memcpy(buf,s->async->data+s->async->buf_int_ptr,m);
 		buf+=m;
 		s->async->buf_int_count+=m;
 		s->async->buf_int_ptr=0;
 
 		n-=m;
 	}
-	memcpy(buf,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	memcpy(buf,s->async->data+s->async->buf_int_ptr,n);
 	s->async->buf_int_count+=n;
 	s->async->buf_int_ptr+=n;
 
@@ -434,8 +434,8 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	update_supcsr(DT2821_CLRDMADNE);
 
-	if(!s->cur_trig.data){
-		printk("cur_trig.data disappeared.  dang!\n");
+	if(!s->async->data){
+		printk("async->data disappeared.  dang!\n");
 		return;
 	}
 
@@ -470,8 +470,8 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 
 	update_supcsr(DT2821_CLRDMADNE);
 
-	if(!s->cur_trig.data){
-		printk("cur_trig.data disappeared.  dang!\n");
+	if(!s->async->data){
+		printk("async->data disappeared.  dang!\n");
 		return;
 	}
 
@@ -610,7 +610,13 @@ static void dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		if(devpriv->ad_2scomp){
 			data^=1<<(boardtype.adbits-1);
 		}
-		s->cur_trig.data[s->async->buf_int_ptr++]=data;
+		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=data;
+		s->async->buf_int_ptr+=sizeof(sampl_t);
+		s->async->buf_int_count+=sizeof(sampl_t);
+		if(s->async->buf_int_ptr>=s->async->data_len){
+			s->async->buf_int_ptr = 0;
+			//s->events |= COMEDI_EOBUF;
+		}
 
 		devpriv->nread--;
 		if(!devpriv->nread){

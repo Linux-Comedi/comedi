@@ -452,16 +452,16 @@ static void ni_handle_fifo_half_full(comedi_device *dev)
 	/* this makes the assumption that the buffer length is
 	   greater than the half-fifo depth. */
 
-	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>=s->cur_trig.data_len){
-		m=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		ni_ai_fifo_read(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m);
+	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>=s->async->data_len){
+		m=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		ni_ai_fifo_read(dev,s,s->async->data+s->async->buf_int_ptr,m);
 		s->async->buf_int_count+=m*sizeof(sampl_t);
 		n-=m;
 		s->async->buf_int_ptr=0;
 
 		comedi_eobuf(dev,s);
 	}
-	ni_ai_fifo_read(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	ni_ai_fifo_read(dev,s,s->async->data+s->async->buf_int_ptr,n);
 	s->async->buf_int_count+=n*sizeof(sampl_t);
 	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
@@ -486,9 +486,9 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 
 	mask=(1<<boardtype.adbits)-1;
 	j=s->async->cur_chan;
-	data=((void *)s->cur_trig.data)+s->async->buf_int_ptr;
+	data=s->async->data+s->async->buf_int_ptr;
 	while(1){
-		n=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
 			if(ni_readw(AI_Status_1)&AI_FIFO_Empty_St){
 				s->async->cur_chan=j;
@@ -508,7 +508,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 			s->async->buf_int_count+=sizeof(sampl_t);
 		}
 		s->async->buf_int_ptr=0;
-		data=s->cur_trig.data;
+		data=s->async->data;
 		comedi_eobuf(dev,s);
 	}
 }
@@ -1122,14 +1122,14 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 	if(n>boardtype.ao_fifo_depth/2)
 		n=boardtype.ao_fifo_depth/2;
 
-	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>s->cur_trig.data_len){
-		m=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m);
+	if(s->async->buf_int_ptr+n*sizeof(sampl_t)>s->async->data_len){
+		m=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,m);
 		s->async->buf_int_count+=m*sizeof(sampl_t);
 		s->async->buf_int_ptr=0;
 		n-=m;
 	}
-	ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
 	s->async->buf_int_count+=n*sizeof(sampl_t);
 	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 
@@ -1151,7 +1151,7 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	if(n>boardtype.ao_fifo_depth)
 		n=boardtype.ao_fifo_depth;
 
-	ni_ao_fifo_load(dev,s,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,n);
+	ni_ao_fifo_load(dev,s,s->async->data+s->async->buf_int_ptr,n);
 	s->async->buf_int_count+=n*sizeof(sampl_t);
 	s->async->buf_int_ptr+=n*sizeof(sampl_t);
 

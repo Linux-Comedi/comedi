@@ -215,10 +215,10 @@ static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
 		return;
 	}
 
-	*(sampl_t *)(((void *)s->cur_trig.data)+s->async->buf_int_ptr)=0;
+	*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=0;
 	s->async->buf_int_ptr+=sizeof(sampl_t);
 	s->async->buf_int_count+=sizeof(sampl_t);
-	if(s->async->buf_int_ptr>=s->cur_trig.data_len){
+	if(s->async->buf_int_ptr>=s->async->data_len){
 		s->async->buf_int_ptr=0;
 		comedi_eobuf(dev,s);
 	}

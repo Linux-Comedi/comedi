@@ -75,6 +75,8 @@
 
 #define PCL812_DRDY 0x10
 
+#define AI_LEN_CHANLIST 16
+
 /*
   For PCL-813B: 
   I don't know if timeouts which are specified at a documentation 
@@ -214,7 +216,7 @@ typedef struct {
 	int int812_mode; /*1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	//int int13_act_ptr;
 	int int13_act_scan;
-	int int13_act_chan;
+	unsigned int chanlist[AI_LEN_CHANLIST];
 } pcl812_private;
 
 #define devpriv ((pcl812_private *)dev->private)
@@ -351,34 +353,39 @@ static void interrupt_pcl812_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 
       conv_finish:
 
-	s->cur_trig.data[s->async->buf_int_ptr++] = ((hi << 8) | inb(dev->iobase + PCL812_AD_LO)) & 0xfff;
+	*(sampl_t *)(s->async->data+s->async->buf_int_ptr) =
+		((hi << 8) | inb(dev->iobase + PCL812_AD_LO)) & 0xfff;
+	s->async->buf_int_ptr+=sizeof(sampl_t);
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
 	s->async->buf_int_count += sizeof(sampl_t);
 
-	if ((++devpriv->int13_act_chan) >= s->cur_trig.n_chan) {	/* one scan done */
-		devpriv->int13_act_chan = 0;
-		outb(CR_RANGE(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_GAIN);	/* select next gain */
-		outb(CR_CHAN(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_MUX);	/* select next channel */
-		if (s->cur_trig.flags & TRIG_WAKE_EOS) {
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= s->async->cur_chanlist_len) {	/* one scan done */
+		s->async->cur_chan=0;
+#if 0
+		/* this uses comedi_eos and comedi_bufcheck incorrectly */
+		if (devpriv->cur_flags & TRIG_WAKE_EOS) {
 			comedi_eos(dev, s);
 		} else {
 			comedi_bufcheck(dev, s);
 		}
-		devpriv->int13_act_scan++;
-	} else {
-		outb(CR_RANGE(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_GAIN);	/* select next gain */
-		outb(CR_CHAN(s->cur_trig.chanlist[devpriv->int13_act_chan]), dev->iobase + PCL812_MUX);	/* select next channel */
+#else
+		comedi_bufcheck(dev, s);
+#endif
+		devpriv->int13_act_scan--;
 	}
+	outb(CR_RANGE(devpriv->chanlist[s->async->cur_chan]), dev->iobase + PCL812_GAIN);	/* select next gain */
+	outb(CR_CHAN(devpriv->chanlist[s->async->cur_chan]), dev->iobase + PCL812_MUX);	/* select next channel */
 
-	if (s->async->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
+	if (s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
 		s->async->buf_int_ptr = 0;
 		//devpriv->int13_act_ptr=0;
 		comedi_eobuf(dev, s);
 	}
 
-	if (devpriv->int13_act_scan >= s->cur_trig.n) {	/* all data sampled */
+	if (devpriv->int13_act_scan == 0) {	/* all data sampled */
 		outb(0, dev->iobase + PCL812_MODE);	/* Stop A/D */
 		outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 		if (devpriv->int812_mode == 1) {
@@ -467,10 +474,11 @@ static int pcl812_ai_mode1_int(comedi_device * dev, comedi_subdevice * s, comedi
 
 	//devpriv->int13_act_ptr=0;
 	devpriv->int13_act_scan = 0;
-	devpriv->int13_act_chan = 0;
 	devpriv->int812_mode = INT_TYPE_AI1_INT;	/* analog in, mode 0, int driven */
 	devpriv->irq_blocked = 1;
 	devpriv->irq_was_now_closed = 0;
+
+	memcpy(devpriv->chanlist,it->chanlist,sizeof(int)*it->n_chan);
 
 	outb(6, dev->iobase + PCL812_MODE);	/* Pacer+IRQ */
 
@@ -530,10 +538,11 @@ static int pcl812_ai_mode3_int(comedi_device * dev, comedi_subdevice * s, comedi
 	outb(0, dev->iobase + PCL812_CLRINT);
 
 	//devpriv->int13_act_ptr=0;
-	devpriv->int13_act_scan = 0;
-	devpriv->int13_act_chan = 0;
+	devpriv->int13_act_scan = it->n;
 	devpriv->int812_mode = 3;	/* analog in, mode 3, int driven */
 	devpriv->irq_blocked = 1;
+
+	memcpy(devpriv->chanlist,it->chanlist,sizeof(int)*it->n_chan);
 
 	outb(6, dev->iobase + PCL812_MODE);	/* external trigger+IRQ */
 
@@ -726,7 +735,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		s->subdev_flags = SDF_READABLE;
 		s->n_chan = this_board->n_aichan;
 		s->maxdata = 0xfff;
-		s->len_chanlist = 1024;
+		s->len_chanlist = AI_LEN_CHANLIST;
 		s->range_table = this_board->ai_range_type;
 		s->subdev_flags |= SDF_GROUND;
 		s->trig[0] = pcl812_ai_mode0;

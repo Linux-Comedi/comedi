@@ -364,8 +364,8 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 
 	if(s->async->buf_int_ptr+samplesinbuf*sizeof(sampl_t)>=devpriv->ai1234_data_len){
 		m=(devpriv->ai1234_data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
-		if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m); }
-					    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,m); }
+		if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->async->data))+s->async->buf_int_ptr,m); }
+					    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->async->data))+s->async->buf_int_ptr,m); }
 		s->async->buf_int_count+=m*sizeof(sampl_t);
 		ptr+=m*sizeof(sampl_t);
 		samplesinbuf-=m;
@@ -373,8 +373,8 @@ static void interrupt_pci9118_ai_dma(int irq, void *d, struct pt_regs *regs)
 
 		comedi_eobuf(dev,s);
 	}
-	if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,samplesinbuf); }
-				    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->cur_trig.data))+s->async->buf_int_ptr,samplesinbuf); }
+	if (this_board->ai_maxdata==0xfff) { move_block_from_dma_12bit(dev,s,(void *)ptr,((void *)(s->async->data))+s->async->buf_int_ptr,samplesinbuf); }
+				    else   { move_block_from_dma_16bit(dev,s,(void *)ptr,((void *)(s->async->data))+s->async->buf_int_ptr,samplesinbuf); }
 	s->async->buf_int_count+=samplesinbuf*sizeof(sampl_t);
 	s->async->buf_int_ptr+=samplesinbuf*sizeof(sampl_t);
 

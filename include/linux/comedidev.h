@@ -113,12 +113,16 @@ struct comedi_async_struct{
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
 	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
+
 	volatile unsigned int buf_int_ptr;	/* buffer marker for interrupt */
 	unsigned int buf_user_ptr;		/* buffer marker for read() and write() */
 	volatile unsigned int buf_int_count;	/* byte count for interrupt */
 	unsigned int buf_user_count;		/* byte count for read() and write() */
 	unsigned int cur_chan;		/* useless channel marker for interrupt */
 	unsigned int cur_chanlist_len;
+
+	void		*data;
+	unsigned int	data_len;
 
 	comedi_cmd cmd;
 

@@ -252,7 +252,7 @@ void mite_dma_prep(struct mite_struct *mite,comedi_subdevice *s)
 
 	for(i=0;i<MITE_RING_SIZE;i++){
 		n=s->async->prealloc_bufsz-s->async->buf_int_ptr;
-		n=mite_kvmem_segment_load(mite,i,((void *)s->cur_trig.data)+s->async->buf_int_ptr,n);
+		n=mite_kvmem_segment_load(mite,i,s->async->data+s->async->buf_int_ptr,n);
 		s->async->buf_int_ptr+=n;
 		if(s->async->buf_int_ptr>=s->async->prealloc_bufsz)
 			s->async->buf_int_ptr=0;

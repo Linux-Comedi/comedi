@@ -628,7 +628,8 @@ static int do_trig_ioctl_mode0(comedi_device *dev,comedi_subdevice *s,comedi_tri
 	}
 cleanup:
 
-	do_become_nonbusy(dev,s);
+	s->busy=NULL;
+	//do_become_nonbusy(dev,s);
 
 	return ret;
 }
@@ -992,13 +993,13 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		DPRINTK("no buffer (?)\n");
 		goto cleanup;
 	}
+
+	/* XXX this needs to be removed when the drivers are ready */
 	async->cmd.data = async->prealloc_buf;
 	async->cmd.data_len=async->prealloc_bufsz;
 
-#ifdef CONFIG_COMEDI_MODE_CORE
-	s->cur_trig.data=async->prealloc_buf;	/* XXX */
-	s->cur_trig.data_len=async->prealloc_bufsz;
-#endif
+	async->data = async->prealloc_buf;
+	async->data_len=async->prealloc_bufsz;
 
 	async->buf_int_ptr=0;
 	async->buf_int_count=0;
@@ -1450,16 +1451,16 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 		return -EIO;
 
 	if(!s->busy){
+		/* XXX this is going to change soon -- write cmds
+		 * will require start_src=TRIG_READY */
 		buf_ptr=async->prealloc_buf;
 		buf_len=async->prealloc_bufsz;
 	}else{
 		if(s->busy != file)
 			return -EACCES;
 
-#ifdef CONFIG_COMEDI_MODE_CORE
-		buf_ptr=s->cur_trig.data; /* XXX */
-		buf_len=s->cur_trig.data_len;
-#endif
+		buf_ptr=async->data;
+		buf_len=async->data_len;
 	}
 
 	if(!buf_ptr)
@@ -1550,11 +1551,6 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 	if(!s->busy)
 		return 0;
 
-#ifdef CONFIG_COMEDI_MODE_CORE
-	if(!s->cur_trig.data || !(s->subdev_flags&SDF_READABLE))	/* XXX */
-		return -EIO;
-#endif
-
 	if(s->busy != file)
 		return -EACCES;
 
@@ -1566,8 +1562,8 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 
 		m=async->buf_int_count-async->buf_user_count;
 
-		if(async->buf_user_ptr+m > s->cur_trig.data_len){ /* XXX MODE */
-			m=s->cur_trig.data_len - async->buf_user_ptr;
+		if(async->buf_user_ptr+m > async->data_len){
+			m=async->data_len - async->buf_user_ptr;
 #if 0
 printk("m is %d\n",m);
 #endif
@@ -1591,12 +1587,12 @@ printk("m is %d\n",m);
 			schedule();
 			continue;
 		}
-		m=copy_to_user(buf,((void *)(s->cur_trig.data))+async->buf_user_ptr,n);
+		m=copy_to_user(buf,async->data+async->buf_user_ptr,n);
 		if(m) retval=-EFAULT;
 		n-=m;
 
 		// check for buffer overrun
-		if(async->buf_int_count - async->buf_user_count > s->cur_trig.data_len){	/* XXX MODE */
+		if(async->buf_int_count - async->buf_user_count > async->data_len){	/* XXX MODE */
 			async->buf_user_count = async->buf_int_count;
 			async->buf_user_ptr = async->buf_int_ptr;
 			retval=-EINVAL;
@@ -1610,7 +1606,7 @@ printk("m is %d\n",m);
 		async->buf_user_ptr+=n;
 		async->buf_user_count+=n;
 
-		if(async->buf_user_ptr>=s->cur_trig.data_len ){
+		if(async->buf_user_ptr>=async->data_len ){
 			async->buf_user_ptr=0;
 		}
 
@@ -1650,19 +1646,13 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 		s->cur_trig.chanlist=NULL;
 	}
 
-	if(s->cur_trig.data){
-		if(async == NULL || s->cur_trig.data != async->prealloc_buf)
-			kfree(s->cur_trig.data);
-
-		s->cur_trig.data=NULL;
-	}
-
-	if(async)
-	{
+	if(async){
 		async->buf_user_ptr=0;
 		async->buf_int_ptr=0;
 		async->buf_user_count=0;
 		async->buf_int_count=0;
+	}else{
+		printk("BUG: (?) do_become_nonbusy called with async=0\n");
 	}
 
 	s->busy=NULL;

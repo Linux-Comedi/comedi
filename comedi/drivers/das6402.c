@@ -197,9 +197,9 @@ static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s)
 	int n,i;
 	sampl_t *data;
 
-	data=((void *)s->cur_trig.data);
 	while(1){
-		n=(s->cur_trig.data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
+		data=s->async->data+s->async->buf_int_ptr;
+		n=(s->async->data_len-s->async->buf_int_ptr)/sizeof(sampl_t);
 		for(i=0;i<n;i++){
 			if(!(inb(dev->iobase+8)&0x01))
 				return;
@@ -209,7 +209,6 @@ static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s)
 			s->async->buf_int_count+=sizeof(sampl_t);
 		}
 		s->async->buf_int_ptr=0;
-		data=s->cur_trig.data;
 		comedi_eobuf(dev,s);
 	}
 #if 0

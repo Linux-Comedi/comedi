@@ -446,7 +446,8 @@ static void interrupt_pcl818_ai_mode13_int(int irq, void *d, struct pt_regs *reg
 
 conv_finish:
         low=inb(dev->iobase + PCL818_AD_LO);
-	s->cur_trig.data[devpriv->buf_ptr++]=((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)); // get one sample
+	*(sampl_t *)(s->async->data+devpriv->buf_ptr)=((inb(dev->iobase + PCL818_AD_HI) << 4) | (low >> 4)); // get one sample
+	devpriv->buf_ptr+=sizeof(sampl_t);
         outb(0,dev->iobase+PCL818_CLRINT); /* clear INT request */
 
         if ((low & 0xf)!=devpriv->act_chanlist[devpriv->act_chanlist_pos]) { // dropout!
@@ -458,18 +459,23 @@ conv_finish:
         s->async->buf_int_ptr+=sizeof(sampl_t);
         s->async->buf_int_count+=sizeof(sampl_t);
 
-
-        if (++devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
-
-        if ((++devpriv->int13_act_chan)>=s->cur_trig.n_chan) { /* one scan done */
-		devpriv->int13_act_chan=0;
-		if (s->cur_trig.flags & TRIG_WAKE_EOS) { comedi_eos(dev,s); }
-						    else { comedi_bufcheck(dev,s); }
+	s->async->cur_chan++;
+        if (s->async->cur_chan>=s->async->cur_chanlist_len){
+		s->async->cur_chan=0;
+#if 0
+		if (devpriv->cur_flags & TRIG_WAKE_EOS){
+			comedi_eos(dev,s);
+		} else {
+			comedi_bufcheck(dev,s);
+		}
+#else
+		comedi_bufcheck(dev,s);
+#endif
 		// rt_printk("E");
-		devpriv->int13_act_scan++;
+		devpriv->int13_act_scan--;
         }
 
-	if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+	if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 		s->async->buf_int_ptr=0;
 		devpriv->buf_ptr=0;
 		//printk("B ");
@@ -477,7 +483,7 @@ conv_finish:
         }
 
 	if (!devpriv->neverending_ai)
-		if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
+		if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 			pcl818_ai_cancel(dev,s);
 	        	comedi_done(dev,s);
 			return;
@@ -523,27 +529,27 @@ static void interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *reg
 			return;
 		}
 
-		s->cur_trig.data[devpriv->buf_ptr++]=ptr[bufptr++] >> 4; // get one sample
+		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
+			ptr[bufptr++] >> 4; // get one sample
+		devpriv->buf_ptr++;
 
 		s->async->buf_int_ptr+=sizeof(sampl_t);
 		s->async->buf_int_count+=sizeof(sampl_t);
 		devpriv->act_chanlist_pos++;
 
-		if (devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
-
-		if ((++devpriv->int13_act_chan)>=s->cur_trig.n_chan) { /* one scan done */
-			devpriv->int13_act_chan=0;
-		        devpriv->int13_act_scan++;
+		s->async->cur_chan++;
+		if(s->async->cur_chan>=s->async->cur_chanlist_len){
+			s->async->cur_chan=0;
 		}
 
-		if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 	    		s->async->buf_int_ptr=0;
 			devpriv->buf_ptr=0;
 			comedi_eobuf(dev,s);
 		}
 
 		if (!devpriv->neverending_ai)
-	    		if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
+	    		if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 				pcl818_ai_cancel(dev,s);
 				comedi_done(dev,s);
 				// printk("done int ai13 dma\n");
@@ -609,28 +615,28 @@ static void interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs 
 				return;
 			}
 
-			s->cur_trig.data[devpriv->buf_ptr++]=dmabuf[bufptr++] >> 4; // get one sample
+			*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
+				dmabuf[bufptr++] >> 4; // get one sample
+			devpriv->buf_ptr++;
 			bufptr&=(devpriv->dmasamplsize-1);
 
 			s->async->buf_int_ptr+=sizeof(sampl_t);
 			s->async->buf_int_count+=sizeof(sampl_t);
-			devpriv->act_chanlist_pos++;
 
-			if (devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
-
-			if ((++devpriv->int13_act_chan)>=s->cur_trig.n_chan) { /* one scan done */
-				devpriv->int13_act_chan=0;
-				devpriv->int13_act_scan++;
+			s->async->cur_chan++;
+			if(s->async->cur_chan>=s->async->cur_chanlist_len){
+				s->async->cur_chan++;
+				devpriv->int13_act_scan--;
 			}
 
-			if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+			if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 				s->async->buf_int_ptr=0;
 				devpriv->buf_ptr=0;
 				comedi_eobuf(dev,s);
 			}
 
 			if (!devpriv->neverending_ai)
-				if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
+				if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 					pcl818_ai_cancel(dev,s);
 					comedi_done(dev,s);
 					//printk("done int ai13 dma\n");
@@ -691,26 +697,26 @@ static void interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *re
 			return;
 		}
 
-		s->cur_trig.data[devpriv->buf_ptr++]=(lo >> 4)|(inb(dev->iobase + PCL818_FI_DATAHI) << 4); // get one sample
+		*(sampl_t *)(s->async->data+s->async->buf_int_ptr)=
+			(lo >> 4)|(inb(dev->iobase + PCL818_FI_DATAHI) << 4); // get one sample
+		devpriv->buf_ptr++;
 		s->async->buf_int_ptr+=sizeof(sampl_t);
 		s->async->buf_int_count+=sizeof(sampl_t);
-		devpriv->act_chanlist_pos++;
 
-		if (devpriv->act_chanlist_pos>=devpriv->act_chanlist_len) devpriv->act_chanlist_pos=0;
-
-		if ((++devpriv->int13_act_chan)>=s->cur_trig.n_chan) { /* one scan done */
-			devpriv->int13_act_chan=0;
-			devpriv->int13_act_scan++;
+		s->async->cur_chan++;
+		if(s->async->cur_chan>=s->async->cur_chanlist_len){
+			s->async->cur_chan = 0;
+			devpriv->int13_act_scan--;
 		}
 
-		if (s->async->buf_int_ptr>=s->cur_trig.data_len) { /* buffer rollover */
+		if (s->async->buf_int_ptr>=s->async->data_len) { /* buffer rollover */
 			s->async->buf_int_ptr=0;
 			devpriv->buf_ptr=0;
     			comedi_eobuf(dev,s);    
 		}
      
 		if (!devpriv->neverending_ai)
-			if ( devpriv->int13_act_scan>=s->cur_trig.n ) { /* all data sampled */
+			if ( devpriv->int13_act_scan == 0 ) { /* all data sampled */
 				comedi_bufcheck(dev,s);
 				pcl818_ai_cancel(dev,s);
 				comedi_done(dev,s); 
@@ -778,7 +784,7 @@ void pcl818_ai_mode13dma_int(int mode, comedi_device * dev, comedi_subdevice * s
 
         bytes=devpriv->hwdmasize[0];
         if (!devpriv->neverending_ai) {
-		bytes=s->cur_trig.n_chan*s->cur_trig.n*sizeof(sampl_t); // how many 
+		bytes=it->n_chan*it->n*sizeof(sampl_t); // how many 
 		devpriv->dma_runs_to_end=bytes / devpriv->hwdmasize[0]; // how many DMA pages we must fiil
 		devpriv->last_dma_run=bytes % devpriv->hwdmasize[0]; //on last dma transfer must be moved
 		devpriv->dma_runs_to_end--;
@@ -861,7 +867,7 @@ static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
         if (!check_and_setup_channel_list(dev, s, it)) return -EINVAL;
 	udelay(1);
 
-        devpriv->int13_act_scan=0;
+        devpriv->int13_act_scan=it->n;
         devpriv->int13_act_chan=0;
 	devpriv->irq_blocked=1;
         devpriv->irq_was_now_closed=0;
@@ -869,7 +875,7 @@ static int pcl818_ai_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
         devpriv->act_chanlist_pos=0;
         devpriv->buf_ptr=0;
   
-	if ((s->cur_trig.n==0)||(s->cur_trig.n==-1)) devpriv->neverending_ai=1; //well, user want neverending
+	if ((it->n==0)||(it->n==-1)) devpriv->neverending_ai=1; //well, user want neverending
   
         if (mode==1) {
 		if (it->trigvar<devpriv->ns_min) it->trigvar=devpriv->ns_min;
@@ -964,7 +970,7 @@ static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 
         start_pacer(dev, -1, 0, 0); // stop pacer
 
-	devpriv->int13_act_scan=0;
+	devpriv->int13_act_scan=it->n;
         devpriv->int13_act_chan=0;
         devpriv->irq_blocked=1;
         devpriv->irq_was_now_closed=0;
@@ -1053,24 +1059,36 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, come
         }
 
         if (it->n_chan > 1) {
-		chansegment[0]=it->chanlist[0]; // first channel is everytime ok
-		for (i=1, seglen=1; i<it->n_chan; i++, seglen++) { // build part of chanlist
+		// first channel is everytime ok
+		chansegment[0]=it->chanlist[0];
+		// build part of chanlist
+		for (i=1, seglen=1; i<it->n_chan; i++, seglen++) {
 			// rt_printk("%d. %d %d\n",i,CR_CHAN(it->chanlist[i]),CR_RANGE(it->chanlist[i]));
-			if (it->chanlist[0]==it->chanlist[i]) break; // we detect loop, this must by finish
+			// we detect loop, this must by finish
+			if (it->chanlist[0]==it->chanlist[i]) break;
 			nowmustbechan=(CR_CHAN(chansegment[i-1])+1) % s->n_chan;
-			if (nowmustbechan!=CR_CHAN(it->chanlist[i])) { // channel list isn't continous :-(
+			// channel list isn't continous :-(
+			if (nowmustbechan!=CR_CHAN(it->chanlist[i])) {
 				rt_printk("comedi%d: pcl818: channel list must be continous! chanlist[%i]=%d but must be %d or %d!\n",
-					    dev->minor,i,CR_CHAN(it->chanlist[i]),nowmustbechan,CR_CHAN(it->chanlist[0]) );
+					    dev->minor,i,CR_CHAN(it->chanlist[i]),
+					    nowmustbechan,CR_CHAN(it->chanlist[0]) );
 				return 0;             
 			}
-			chansegment[i]=it->chanlist[i]; // well, this is next correct channel in list
+			// well, this is next correct channel in list
+			chansegment[i]=it->chanlist[i];
 		}
 
-		for (i=0, segpos=0; i<it->n_chan; i++) {  // check whole chanlist
+		// check whole chanlist
+		for (i=0, segpos=0; i<it->n_chan; i++) {
 			//rt_printk("%d %d=%d %d\n",CR_CHAN(chansegment[i%seglen]),CR_RANGE(chansegment[i%seglen]),CR_CHAN(it->chanlist[i]),CR_RANGE(it->chanlist[i]));
 			if (it->chanlist[i]!=chansegment[i%seglen]) {
 				rt_printk("comedi%d: pcl818: bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
-					    dev->minor,i,CR_CHAN(chansegment[i]),CR_RANGE(chansegment[i]),CR_AREF(chansegment[i]),CR_CHAN(it->chanlist[i%seglen]),CR_RANGE(it->chanlist[i%seglen]),CR_AREF(chansegment[i%seglen]));
+				  dev->minor,i,CR_CHAN(chansegment[i]),
+				  CR_RANGE(chansegment[i]),
+				  CR_AREF(chansegment[i]),
+				  CR_CHAN(it->chanlist[i%seglen]),
+				  CR_RANGE(it->chanlist[i%seglen]),
+				  CR_AREF(chansegment[i%seglen]));
 				return 0; // chan/gain list is strange
 			}
 		}
@@ -1089,9 +1107,13 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, come
 
 	udelay(1);
 
-	outb(devpriv->act_chanlist[0] | (devpriv->act_chanlist[seglen-1] << 4) , dev->iobase+PCL818_MUX); /* select channel interval to sca n*/
+	/* select channel interval to sca n*/
+	outb(devpriv->act_chanlist[0] | (devpriv->act_chanlist[seglen-1] << 4),
+		dev->iobase+PCL818_MUX);
 	// printk(" MUX %x\n",devpriv->act_chanlist[0] | (devpriv->act_chanlist[seglen-1] << 4));
-	return 1; // we can serve this with MUX logic
+	
+	// we can serve this with MUX logic
+	return 1;
 }
 
 /* 

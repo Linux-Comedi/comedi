@@ -715,13 +715,13 @@ static void das16_interrupt(int irq, void *d, struct pt_regs *regs)
 			msb = inb(dev->iobase+DAS16_AI_MSB);
 			
 			/* all this just to put data into a buffer! */
-			*(sampl_t *)(((void *)s->cur_trig.data)+s->async->buf_int_ptr) =
+			*(sampl_t *)(s->async->data+s->async->buf_int_ptr) =
 				(lsb>>4) + (msb<<4);
 
 			s->async->buf_int_ptr += sizeof(sampl_t);
 			s->async->buf_int_count += sizeof(sampl_t);
 
-			if(s->async->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
+			if(s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
 				s->async->buf_int_ptr = 0;
 				comedi_eobuf(dev, s);
 			}

@@ -262,7 +262,8 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 	
 //	printk("atmio16d_interrupt!\n");
 
-	*(sampl_t *)(((void *)s->cur_trig.data)+s->async->buf_int_ptr) = inw(dev->iobase+AD_FIFO_REG);
+	*(sampl_t *)(s->async->data+s->async->buf_int_ptr) =
+		inw(dev->iobase+AD_FIFO_REG);
 	s->async->buf_int_ptr += sizeof(sampl_t);
 	s->async->buf_int_count += sizeof(sampl_t);
 
@@ -271,7 +272,7 @@ static void atmio16d_interrupt(int irq, void *d, struct pt_regs *regs)
 		comedi_eos(dev, s);
 	}
 
-	if (s->async->buf_int_ptr >= s->cur_trig.data_len) {	/* buffer rollover */
+	if (s->async->buf_int_ptr >= s->async->data_len) {	/* buffer rollover */
 		s->async->buf_int_ptr = 0;
 		comedi_eobuf(dev, s);
 	}
