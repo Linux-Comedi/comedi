@@ -17,6 +17,10 @@ MI_OBJS := comedi_fops.o dummy.o proc.o range.o drivers.o kvmem.o
 MIX_OBJS := comedi_ksyms.o
 
 
+ifeq ($(CONFIG_COMEDI_RT),y)
+MI_OBJS += rt.o
+endif
+
 ifeq ($(CONFIG_COMEDI_RTL),y)
 MI_OBJS += rtl.o
 endif

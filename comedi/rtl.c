@@ -21,6 +21,7 @@
 
 
 
+#if 0
 /* rt_printk() section */
 
 #define BUF_LEN	(16384)
@@ -76,23 +77,6 @@ int rt_printk(const char *fmt, ...)
 	return len;
 }
 
-
-void rt_printk_interrupt(int irq,void *junk,struct pt_regs *regs)
-{
-	int tmp;
-
-	for(;;){
-		tmp=buf_front;
-		if(buf_back>tmp){
-			printk("%.*s",BUF_LEN-buf_back,rt_printk_buf+buf_back);
-			buf_back=0;
-		}
-		if(buf_back==tmp)break;
-		printk("%.*s",tmp-buf_back,rt_printk_buf+buf_back);
-		buf_back=tmp;
-	}
-}
-
 void rt_printk_cleanup(void)
 {
 	free_irq(rt_printk_irq,NULL);
@@ -109,6 +93,23 @@ int rt_printk_init(void)
 
 	return 0;
 }
+
+void rt_printk_interrupt(int irq,void *junk,struct pt_regs *regs)
+{
+	int tmp;
+
+	for(;;){
+		tmp=buf_front;
+		if(buf_back>tmp){
+			printk("%.*s",BUF_LEN-buf_back,rt_printk_buf+buf_back);
+			buf_back=0;
+		}
+		if(buf_back==tmp)break;
+		printk("%.*s",tmp-buf_back,rt_printk_buf+buf_back);
+		buf_back=tmp;
+	}
+}
+#endif
 
 
 #if 0
@@ -184,13 +185,6 @@ struct rtl_file_operations comedi_rtl_fops={
 
 #endif
 
-static struct comedi_irq_struct rtl_irq_struct;
-
-struct comedi_irq_struct * get_irq_struct(unsigned int irq)
-{
-	return &rtl_irq_struct;
-}
-
 static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
 {
 	struct comedi_irq_struct *it;
@@ -219,13 +213,13 @@ int free_priority_irq(struct comedi_irq_struct *it)
 
 void comedi_rtl_init(void)
 {
-	rt_printk_init();
+	//rt_printk_init();
 	//rtl_register_chardev(COMEDI_MAJOR,"comedi",&comedi_rtl_fops);
 }
 
 void comedi_rtl_cleanup(void)
 {
-	rt_printk_cleanup();
+	//rt_printk_cleanup();
 	//rtl_unregister_chardev(COMEDI_MAJOR);
 }
 

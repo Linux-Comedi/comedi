@@ -66,6 +66,11 @@ EXPORT_SYMBOL(do_pack);
 EXPORT_SYMBOL(di_unpack);
 EXPORT_SYMBOL(comedi_eobuf);
 EXPORT_SYMBOL(comedi_eos);
+#ifdef CONFIG_COMEDI_RT
+EXPORT_SYMBOL(comedi_change_irq_flags);
+EXPORT_SYMBOL(comedi_free_irq);
+EXPORT_SYMBOL(comedi_request_irq);
+#endif
 
 /* for kcomedilib */
 EXPORT_SYMBOL(comedi_devices);
