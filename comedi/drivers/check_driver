@@ -191,3 +191,15 @@ if grep 'buf_int_count++' ${driver} &>/dev/null;then
 	echo "E: uses buf_int_count++"
 fi
 
+if grep 'di_unpack' ${driver} &>/dev/null;then
+	echo "W: di_unpack() going away soon, (not too soon)"
+fi
+
+if grep 'do_pack' ${driver} &>/dev/null;then
+	echo "W: do_pack() going away soon, (not too soon)"
+fi
+
+if grep 'request_region.*dev.*iobase' ${driver} &>/dev/null;then
+	echo "W: recommend assigning dev->iobase after successful request_region()"
+fi
+
