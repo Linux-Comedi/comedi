@@ -128,6 +128,7 @@ static void init_async_buf( comedi_async *async )
 	async->cur_chan = 0;
 	async->scan_progress = 0;
 	async->munge_chan = 0;
+	async->events = 0;
 }
 
 int comedi_command(comedi_t *d,comedi_cmd *cmd)
