@@ -115,6 +115,8 @@ struct comedi_subdevice_struct{
 	unsigned int flags;
 	unsigned int *flaglist;
 
+	unsigned int settling_time_0;
+
 	comedi_lrange *range_table;
 	comedi_lrange **range_table_list;
 

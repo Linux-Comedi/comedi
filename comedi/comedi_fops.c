@@ -384,6 +384,8 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 			us->subd_flags |= SDF_RANGETYPE;
 		if(s->do_cmd)
 			us->subd_flags |= SDF_CMD;
+
+		us->settling_time_0 = s->settling_time_0;
 	}
 	
 	ret=copy_to_user(arg,tmp,dev->n_subdevices*sizeof(comedi_subdinfo));

@@ -189,7 +189,18 @@ CONFIG_COMEDI_ADV_PCI1710
      Advantech PCI-1713
      Advantech PCI-1720
      Advantech PCI-1731
-     
+
+Advantech PCI-173x/175x/176x DIO cards
+CONFIG_COMEDI_ADV_PCI_DIO
+  Includes support for these cards:
+     Advantech PCI-1730, PCI-1733, PCI-1734
+     Advantech PCI-1750
+     Advantech PCI-1751, PCI-1753, PCI-1753+PCI-1753E,
+     Advantech PCI-1752, PCI-1754, PCI-1756
+     Advantech PCI-1760
+     Advantech PCI-1762
+ For the PCI-1751/3/3E cards you also need select the generic 8255 driver.
+
 PCL 711 driver
 CONFIG_COMEDI_PCL711
   Includes support for PCL 711, 711b and ACL 8112.
