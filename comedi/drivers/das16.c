@@ -871,7 +871,7 @@ static int das16_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		msb = inb(dev->iobase + DAS16_AI_MSB);
 		lsb = inb(dev->iobase + DAS16_AI_LSB);
 		if(thisboard->ai_nbits==12){
-			data[n] = ((lsb >> 4) & 0xff) | (msb << 4);
+			data[n] = ((lsb >> 4) & 0xf) | (msb << 4);
 		}else{
 			data[n] = lsb | (msb << 8);
 		}
