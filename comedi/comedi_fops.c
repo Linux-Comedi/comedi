@@ -1258,7 +1258,7 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 #endif
 
 	size = vma->vm_end - vma->vm_start;
-	if(size>=async->prealloc_bufsz)
+	if(size>async->prealloc_bufsz)
 		return -EFAULT;
 	if(size&(~PAGE_MASK))
 		return -EFAULT;
