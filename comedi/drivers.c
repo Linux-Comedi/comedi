@@ -38,14 +38,6 @@
 
 #include "kvmem.h"
 
-#ifdef CONFIG_COMEDI_TRIG
-/* in comedi/trig.c */
-int command_trig(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-int mode_to_command(comedi_cmd *cmd,comedi_trig *it);
-int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
-int mode0_emulate_config(comedi_device *dev,comedi_subdevice *s,comedi_trig *trig);
-#endif
-
 static int postconfig(comedi_device *dev);
 static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);

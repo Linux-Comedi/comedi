@@ -23,7 +23,6 @@
 
 #undef DEBUG
 
-
 #define __NO_VERSION__
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -66,11 +65,6 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_insn_ioctl(comedi_device *dev,void *arg,void *file);
 static int do_poll_ioctl(comedi_device *dev,unsigned int subd,void *file);
 
-#ifdef CONFIG_COMEDI_TRIG
-/* moved to trig.c */
-int do_trig_ioctl(comedi_device *dev,void *arg,void *file);
-#endif
-
 void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 int resize_buf(comedi_device *dev,comedi_async *s, unsigned int size);
 static int do_cancel(comedi_device *dev,comedi_subdevice *s);
@@ -108,10 +102,6 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 		return do_rangeinfo_ioctl(dev,(void *)arg);
 	case COMEDI_BUFINFO:
 		return do_bufinfo_ioctl(dev,(void*)arg);
-#ifdef CONFIG_COMEDI_TRIG
-	case COMEDI_TRIG:
-		return do_trig_ioctl(dev,(void *)arg,file);
-#endif
 	case COMEDI_LOCK:
 		return do_lock_ioctl(dev,arg,file);
 	case COMEDI_UNLOCK:

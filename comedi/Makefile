@@ -26,17 +26,11 @@ ifeq ($(CONFIG_COMEDI),y)
   O_TARGET := comedi.o
   O_OBJS := comedi_fops.o proc.o range.o drivers.o kvmem.o
   OX_OBJS := comedi_ksyms.o
-  ifeq ($(CONFIG_COMEDI_TRIG),y)
-    MI_OBJS += trig.o
-  endif
 else
   ifeq ($(CONFIG_COMEDI),m)
     M_OBJS := comedi.o
     MI_OBJS := comedi_fops.o proc.o range.o drivers.o kvmem.o
     MIX_OBJS := comedi_ksyms.o
-    ifeq ($(CONFIG_COMEDI_TRIG),y)
-      MI_OBJS += trig.o
-    endif
   endif
 endif
 
