@@ -188,6 +188,9 @@ if grep 'pci_dev' ${driver} &>/dev/null;then
 	if ! grep 'MODULE_DEVICE_TABLE' ${driver} &>/dev/null;then
 		echo "W: doesn't use MODULE_DEVICE_TABLE"
 	fi
+	if grep 'pcibios_' ${driver} &>/dev/null;then
+		echo "W: has pcibios_*() calls"
+	fi
 fi
 
 # Who doesn't use comments like this to indicate something needs
