@@ -335,7 +335,7 @@ struct das08_private_struct{
 };
 
 #define devpriv ((struct das08_private_struct *)dev->private)
-#define thisboard ((struct das08_board_struct *)dev->board)
+#define thisboard (das08_boards+dev->board)
 
 #define TIMEOUT 1000
 
@@ -370,7 +370,7 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		outb_p(0,dev->iobase+DAS08_TRIG_12BIT);
 
 		for(i=0;i<TIMEOUT;i++){
-			if(!(inb(DAS08_STATUS)&DAS08_EOC))
+			if(!(inb(dev->iobase+DAS08_STATUS)&DAS08_EOC))
 				break;
 		}
 		if(i==TIMEOUT){
@@ -380,9 +380,9 @@ static int das08_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 		msb = inb(dev->iobase + DAS08_MSB);
 		lsb = inb(dev->iobase + DAS08_LSB);
 		if(thisboard->ai_nbits==12){
-			insn->data[n] = (lsb>>4) | (msb << 4);
+			data[n] = (lsb>>4) | (msb << 4);
 		}else{
-			insn->data[n] = lsb | (msb << 8);
+			data[n] = lsb | (msb << 8);
 		}
 	}
 
