@@ -133,3 +133,5 @@ module_exit(comedi_fc_cleanup_module);
 
 EXPORT_SYMBOL( cfc_write_array_to_buffer );
 EXPORT_SYMBOL( cfc_read_array_from_buffer );
+EXPORT_SYMBOL( cfc_handle_events );
+
