@@ -112,7 +112,7 @@ static comedi_lrange das16cs_ai_range = { 4, {
 	RANGE( -10, 10 ),
 	RANGE( -5, 5 ),
 	RANGE( -2.5, 2.5 ),
-	RANGE( -1, 1 ),
+	RANGE( -1.25, 1.25 ),
 }};
 
 
@@ -178,6 +178,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	dev_link_t *link;
 	comedi_subdevice *s;
 	int ret;
+	int i;
 
 	printk("comedi%d: cb_das16_cs: ",dev->minor);
 	
@@ -186,6 +187,12 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->iobase = link->io.BasePort1;
 	printk("I/O base=0x%04x ",dev->iobase);
+
+	printk("fingerprint:\n");
+	for(i=0;i<48;i+=2){
+		printk("%04x ",inw(dev->iobase + i));
+	}
+	printk("\n");
 
 	ret = comedi_request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
 		SA_SHIRQ, "cb_das16_cs", dev);
@@ -293,19 +300,22 @@ static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	int to;
 	int aref;
 	int range;
+	int chan;
+	static int range_bits[] = { 0x800, 0x000, 0x100, 0x200 };
 
-	outw(CR_CHAN(insn->chanspec), dev->iobase + 2);
-
+	chan = CR_CHAN(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
 
+	outw(chan, dev->iobase + 2);
+
 	devpriv->status1 &= ~0xf320;
-	devpriv->status1 |= (aref==AREF_DIFF)?0x0020:0;
-	outw(dev->iobase + 4, devpriv->status1);
+	devpriv->status1 |= (aref==AREF_DIFF)?0:0x0020;
+	outw(devpriv->status1, dev->iobase + 4);
 
 	devpriv->status2 &= ~0xff00;
-	devpriv->status2 |= (range<<8);
-	outw(dev->iobase + 6, devpriv->status2);
+	devpriv->status2 |= range_bits[range];
+	outw(devpriv->status2, dev->iobase + 6);
 
 	for(i=0;i<insn->n;i++){
 		outw(0, dev->iobase);
@@ -318,7 +328,7 @@ static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 			printk("cb_das16_cs: ai timeout\n");
 			return -ETIME;
 		}
-		insn->data[i] = inw(dev->iobase + 0);
+		data[i] = (unsigned short)inw(dev->iobase + 0);
 	}
 
 	return i;
