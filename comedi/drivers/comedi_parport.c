@@ -170,6 +170,8 @@ static int parport_insn_c(comedi_device *dev,comedi_subdevice *s,
 static int parport_intr_insn(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+	if(insn->n<1)return -EINVAL;
+
 	data[1] = 0;
 	return 2;
 }
