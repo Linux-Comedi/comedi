@@ -171,6 +171,8 @@ typedef struct {
 	int aip[8];
 	int mode;
 	lsampl_t ao_readback[2];
+	unsigned int divisor1;
+	unsigned int divisor2;
 } pcl711_private;
 
 #define devpriv ((pcl711_private *)dev->private)
@@ -270,64 +272,140 @@ ok:
 	return n;
 }
 
-#ifdef CONFIG_COMEDI_TRIG
-static int pcl711_ai_mode4(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl711_ai_cmdtest(comedi_device *dev, comedi_subdevice *s,
+	comedi_cmd *cmd)
 {
-	if (!this_board->is_pcl711b || dev->irq == 0)
-		return -EINVAL;
+	int tmp;
+	int err = 0;
 
-	pcl711_set_changain(dev,it->chanlist[0]);
+	/* step 1 */
+	tmp=cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
-	/*
-	 *  Set mode to "no internal trigger"
-	 */
-	outb(devpriv->mode | 3, dev->iobase + PCL711_MODE);
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_NOW;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+
+	if(err)return 1;
+
+	/* step 2 */
+
+	if(cmd->scan_begin_src!=TRIG_TIMER &&
+	   cmd->scan_begin_src!=TRIG_EXT)err++;
+	if(cmd->stop_src!=TRIG_COUNT &&
+	   cmd->stop_src!=TRIG_NONE)err++;
+
+	if(err)return 2;
+
+	/* step 3 */
+
+	if(cmd->start_arg!=0){
+		cmd->start_arg=0;
+		err++;
+	}
+	if(cmd->scan_begin_src==TRIG_EXT){
+		if(cmd->scan_begin_arg!=0){
+			cmd->scan_begin_arg=0;
+			err++;
+		}
+	}else{
+#define MAX_SPEED 1000
+#define TIMER_BASE 100
+		if(cmd->scan_begin_arg<MAX_SPEED){
+			cmd->scan_begin_arg=MAX_SPEED;
+			err++;
+		}
+	}
+	if(cmd->convert_arg!=0){
+		cmd->convert_arg=0;
+		err++;
+	}
+	if(cmd->scan_end_arg!=cmd->chanlist_len){
+		cmd->scan_end_arg=cmd->chanlist_len;
+		err++;
+	}
+	if(cmd->stop_src==TRIG_NONE){
+		if(cmd->stop_arg!=0){
+			cmd->stop_arg=0;
+			err++;
+		}
+	}else{
+		/* ignore */
+	}
+
+	if(err)return 3;
+
+	/* step 4 */
+
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		tmp = cmd->scan_begin_arg;
+		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
+			&devpriv->divisor1,&devpriv->divisor2,
+			&cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
+		if(tmp!=cmd->scan_begin_arg)
+			err++;
+	}
+
+	if(err)return 4;
 
 	return 0;
 }
-#endif
 
-
-#ifdef CONFIG_COMEDI_TRIG
-static int pcl711_ai_mode1(comedi_device * dev, comedi_subdevice * s, comedi_trig * it)
+static int pcl711_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	int timer1,timer2;
+	comedi_cmd *cmd = &s->async->cmd;
 
-	if (!dev->irq)
-		return -EINVAL;
+	pcl711_set_changain(dev,cmd->chanlist[0]);
 
-	pcl711_set_changain(dev,it->chanlist[0]);
+	if(cmd->scan_begin_src==TRIG_TIMER){
+		/*
+		 *  Set timers
+		 *	timer chip is an 8253, with timers 1 and 2
+		 *	cascaded
+		 *  0x74 = Select Counter 1 | LSB/MSB | Mode=2 | Binary
+		 *        Mode 2 = Rate generator
+		 *
+		 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
+		 */
 
-	/*
-	 *  Set timers
-	 *	timer chip is an 8253, with timers 1 and 2
-	 *	cascaded
-	 *  0x74 = Select Counter 1 | LSB/MSB | Mode=2 | Binary
-	 *        Mode 2 = Rate generator
-	 *
-	 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
-	 */
+		i8253_cascade_ns_to_timer(i8253_osc_base,&timer1,&timer2,
+			&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 
-	i8253_cascade_ns_to_timer(i8253_osc_base,&timer1,&timer2,&it->trigvar,TRIG_ROUND_NEAREST);
+		outb(0x74, dev->iobase + PCL711_CTRCTL);
+		outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
+		outb((timer1 >> 8) & 0xff, dev->iobase + PCL711_CTR1);
+		outb(0xb4, dev->iobase + PCL711_CTRCTL);
+		outb(timer2 & 0xff, dev->iobase + PCL711_CTR2);
+		outb((timer2 >> 8) & 0xff, dev->iobase + PCL711_CTR2);
 
-	outb(0x74, dev->iobase + PCL711_CTRCTL);
-	outb(timer1 & 0xff, dev->iobase + PCL711_CTR1);
-	outb((timer1 >> 8) & 0xff, dev->iobase + PCL711_CTR1);
-	outb(0xb4, dev->iobase + PCL711_CTRCTL);
-	outb(timer2 & 0xff, dev->iobase + PCL711_CTR2);
-	outb((timer2 >> 8) & 0xff, dev->iobase + PCL711_CTR2);
+		/* clear pending interrupts (just in case) */
+		outb(0, dev->iobase + PCL711_CLRINTR);
 
-	/* clear pending interrupts (just in case) */
-	outb(0, dev->iobase + PCL711_CLRINTR);
-
-	/*
-	 *  Set mode to IRQ transfer
-	 */
-	outb(devpriv->mode | 6, dev->iobase + PCL711_MODE);
+		/*
+		 *  Set mode to IRQ transfer
+		 */
+		outb(devpriv->mode | 6, dev->iobase + PCL711_MODE);
+	}else{
+		/* external trigger */
+		outb(devpriv->mode | 3, dev->iobase + PCL711_MODE);
+	}
 
 	return 0;
 }
-#endif
 
 /*
    analog output
@@ -463,10 +541,10 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s->len_chanlist = 1;
 	s->range_table = this_board->ai_range_type;
 	s->insn_read = pcl711_ai_insn;
-#ifdef CONFIG_COMEDI_TRIG
-	s->trig[1] = pcl711_ai_mode1;
-	s->trig[4] = pcl711_ai_mode4;
-#endif
+	if(irq){
+		s->do_cmdtest = pcl711_ai_cmdtest;
+		s->do_cmd = pcl711_ai_cmd;
+	}
 
 	s++;
 	/* AO subdevice */
