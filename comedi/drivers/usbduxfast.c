@@ -1333,7 +1333,7 @@ static unsigned hex2unsigned(char *h) {
 #define FIRMWARE_MAX_LEN 0x2000
 
 // taken from David Brownell's fxload and adjusted for this driver
-static int read_firmware(usbduxfastsub_t* usbduxfastsub,int firmwarePtr,long size) {
+static int read_firmware(usbduxfastsub_t* usbduxfastsub, void *firmwarePtr,long size) {
 	int i=0;
 	unsigned char* fp=(char*)firmwarePtr;
 	unsigned char* firmwareBinary=NULL;
@@ -1670,10 +1670,10 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	usbduxfastsub[index].comedidev=dev;
 
 	// trying to upload the firmware into the chip
-	if(it->options[COMEDI_DEVCONF_AUX_DATA] && 
+	if(comedi_aux_data(it->options, 0) && 
 	   it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
 		read_firmware(usbduxfastsub,
-			      it->options[COMEDI_DEVCONF_AUX_DATA],
+			comedi_aux_data(it->options, 0),
 			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	} 
 

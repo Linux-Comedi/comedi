@@ -741,7 +741,7 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
     printk("Interrupt before is: %x\n", interrupt);
   */
 
-  aux_data = (void *)it->options[COMEDI_DEVCONF_AUX_DATA];
+  aux_data = comedi_aux_data(it->options, 0);
   aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
 
   if(aux_data && aux_len){

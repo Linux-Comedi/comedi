@@ -41,8 +41,14 @@ extern "C" {
 
 /* number of config options in the config structure */
 #define COMEDI_NDEVCONFOPTS 32
-#define COMEDI_DEVCONF_AUX_DATA		30
-#define COMEDI_DEVCONF_AUX_DATA_LENGTH	31
+/*length of nth chunk of firmware data*/
+#define COMEDI_DEVCONF_AUX_DATA3_LENGTH		25
+#define COMEDI_DEVCONF_AUX_DATA2_LENGTH		26
+#define COMEDI_DEVCONF_AUX_DATA1_LENGTH		27
+#define COMEDI_DEVCONF_AUX_DATA0_LENGTH		28
+#define COMEDI_DEVCONF_AUX_DATA_HI		29	/*most significant 32 bits of pointer address (if needed)*/
+#define COMEDI_DEVCONF_AUX_DATA_LO		30	/*least significant 32 bits of pointer address*/
+#define COMEDI_DEVCONF_AUX_DATA_LENGTH	31	/* total data length */
 
 /* max length of device and driver names */
 #define COMEDI_NAMELEN 20
@@ -438,9 +444,12 @@ struct comedi_bufinfo_struct{
 	information about their use
 */
 
-#define GPCT_X1                 0x01 // X1 encoding
-#define GPCT_X2                 0x02 // X2 encoding
-#define GPCT_X4                 0x04 // X3 encoding
+// X1 encoding
+#define GPCT_X1                 0x01
+// X2 encoding
+#define GPCT_X2                 0x02
+// X3 encoding
+#define GPCT_X4                 0x04 
 // When to take into account the indexpulse:
 #define GPCT_IndexPhaseHighHigh 0
 #define GPCT_IndexPhaseLowHigh 1

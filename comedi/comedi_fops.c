@@ -168,8 +168,9 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg, unsigned
 
 	it.board_name[COMEDI_NAMELEN-1]=0;
 
-	if(it.options[COMEDI_DEVCONF_AUX_DATA] &&
-	   it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
+	if(comedi_aux_data(it.options, 0) &&
+		it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
+		int bit_shift;
 		aux_len = it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
 		if(aux_len<0)return -EFAULT;
 
@@ -177,12 +178,17 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg, unsigned
 		if(!aux_data)return -EFAULT;
 
 		if(copy_from_user(aux_data,
-		    (void *)it.options[COMEDI_DEVCONF_AUX_DATA], aux_len)){
+			comedi_aux_data(it.options, 0), aux_len)){
 			kfree(aux_data);
 			return -EFAULT;
 		}
-
-		it.options[COMEDI_DEVCONF_AUX_DATA] = (unsigned long)aux_data;
+		it.options[COMEDI_DEVCONF_AUX_DATA_LO] = (unsigned long)aux_data;
+		if(sizeof(void*) > sizeof(int))
+		{
+			bit_shift = sizeof(int) * 8;
+			it.options[COMEDI_DEVCONF_AUX_DATA_HI] = ((unsigned long)aux_data) >> bit_shift;
+		}else
+			it.options[COMEDI_DEVCONF_AUX_DATA_HI] = 0;
 	}
 
 	ret = comedi_device_attach(dev,&it);

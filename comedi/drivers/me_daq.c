@@ -810,7 +810,7 @@ found:
     unsigned char *aux_data;
     int aux_len;
 
-    aux_data = (unsigned char *)it->options[COMEDI_DEVCONF_AUX_DATA];
+    aux_data = comedi_aux_data(it->options, 0);
     aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
 
     if(!aux_data || aux_len)return -EINVAL;
