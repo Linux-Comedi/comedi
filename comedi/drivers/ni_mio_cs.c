@@ -47,8 +47,6 @@
 #include <ni_stc.h>
 #include <8255.h>
 
-#undef Status
-
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
