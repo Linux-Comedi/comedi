@@ -72,46 +72,6 @@ struct mite_struct *mite_devices = NULL;
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
-#ifdef PCI_SUPPORT_VER1
-/* routines for the old PCI code (before 2.1.55) */
-
-void mite_init(void)
-{
-	struct mite_struct *mite;
-	int pci_index;
-	unsigned char pci_bus, pci_device_fn;
-	u16 vendor;
-	u16 device_id;
-
-	for(pci_index=0;pci_index<0xff;pci_index++){
-		if(pcibios_find_class(PCI_CLASS_OTHERS << 8,
-			pci_index,&pci_bus,&pci_device_fn)!=PCIBIOS_SUCCESSFUL)
-				break;
-
-		pcibios_read_config_word(pci_bus,pci_device_fn,PCI_VENDOR_ID,&vendor);
-		if(vendor==PCI_VENDOR_ID_NATINST){
-			mite=kmalloc(sizeof(*mite),GFP_KERNEL);
-			if(!mite){
-				printk("mite: allocation failed\n");
-				return;
-			}
-			memset(mite,0,sizeof(*mite));
-
-			mite->pci_bus=pci_bus;
-			mite->pci_device_fn=pci_device_fn;
-
-			pcibios_read_config_word(pci_bus,pci_device_fn,PCI_DEVICE_ID,&device_id);
-			mite->device_id=device_id;
-
-			mite->next=mite_devices;
-			mite_devices=mite;
-		}
-	}
-}
-
-#else
-
-/* functions for the new PCI code (after 2.1.55) */
 
 void mite_init(void)
 {
@@ -135,7 +95,6 @@ void mite_init(void)
 	}
 }
 
-#endif
 
 int mite_setup(struct mite_struct *mite)
 {
@@ -143,17 +102,13 @@ int mite_setup(struct mite_struct *mite)
 	u32				addr;
 	int i;
 
-#ifdef PCI_SUPPORT_VER1
-	pcibios_read_config_dword(mite->pci_bus,mite->pci_device_fn,PCI_BASE_ADDRESS_0,&addr);
-#else
-
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
 		return -EIO;
 	}
 	pci_set_master(mite->pcidev);
 	addr=pci_resource_start(mite->pcidev, 0);
-#endif
+
 	mite->mite_phys_addr=addr;
 	offset = mite->mite_phys_addr & ~PAGE_MASK;
 	start = mite->mite_phys_addr & PAGE_MASK;
@@ -168,11 +123,7 @@ int mite_setup(struct mite_struct *mite)
 	mite->mite_io_addr = ioremap(start, length) + offset;
 	printk("MITE:0x%08lx mapped to %p ",mite->mite_phys_addr,mite->mite_io_addr);
 
-#ifdef PCI_SUPPORT_VER1
-	pcibios_read_config_dword(mite->pci_bus,mite->pci_device_fn,PCI_BASE_ADDRESS_1,&addr);
-#else
 	addr=pci_resource_start(mite->pcidev, 1);
-#endif
 	mite->daq_phys_addr=addr;
 	offset = mite->daq_phys_addr & ~PAGE_MASK;
 	start = mite->daq_phys_addr & PAGE_MASK;
@@ -191,15 +142,7 @@ int mite_setup(struct mite_struct *mite)
 	/* It must be here for the driver to work though */
 	writel(mite->daq_phys_addr | 0x80 , mite->mite_io_addr + 0xc0 );
 
-#ifdef PCI_SUPPORT_VER1
-	{
-		unsigned char irq;
-		pcibios_read_config_byte(mite->pci_bus,mite->pci_device_fn,PCI_INTERRUPT_LINE,&irq);
-		mite->irq=irq;
-	}
-#endif
-
-#ifdef PCIMIO_COMPAT
+#if 0
 	/* DMA setup */
 	for(i=0;i<MITE_RING_SIZE-1;i++){
 		mite->ring[i].next=cpu_to_le32(virt_to_bus(mite->ring+i+1));
@@ -274,7 +217,6 @@ int mite_kvmem_segment_load(struct mite_struct *mite,int i,char *kvmem,unsigned 
 	offset=((int)kvmem)&(PAGE_SIZE-1);
 
 	mite->ring[i].addr = cpu_to_le32(kvirt_to_bus((int)kvmem));
-	//mite->ring[i].dar = cpu_to_le32(0x1c);
 
 	count=PAGE_SIZE-offset;
 	if(count>len)count=len;
@@ -317,7 +259,6 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 		if(count>len-size_so_far) count = len-size_so_far;
 		mite->ring[i].addr = cpu_to_le32(kvirt_to_bus((void *)nup));// it's already a kernel address :-)
 		mite->ring[i].count = cpu_to_le32(count);
-		//mite->ring[i].dar = cpu_to_le32(0x1c);
 		mite->ring[i].next = cpu_to_le32(virt_to_bus(mite->ring+i+1));
 		size_so_far += count;
 		nup += count;
@@ -349,8 +290,8 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 	}
 #ifdef DEBUG_MITE
 	for(i=0; i<MITE_RING_SIZE;i++){
-		printk("i=%3d, addr=0x%08x, next=0x%08x, count=0x%08x dar=%08x\n",i,mite->ring[i].addr,
-			mite->ring[i].next, mite->ring[i].count, mite->ring[i].dar);
+		printk("i=%3d, addr=0x%08x, next=0x%08x, count=0x%08x\n",i,mite->ring[i].addr,
+			mite->ring[i].next, mite->ring[i].count);
 	}
 #endif
 	MDPRINTK("exit mite_ll_from_kvmem\n");
@@ -457,7 +398,6 @@ int mite_load_buffer(struct mite_struct *mite, comedi_async *async)
 		mite->ring[i].addr = cpu_to_le32(
 			virt_to_bus(async->prealloc_buf + i*PAGE_SIZE));
 		mite->ring[i].next = cpu_to_le32(virt_to_bus(mite->ring+i+1));
-		mite->ring[i].dar = 0x1c;
 	}
 
 	mite->ring[n_links-1].next = cpu_to_le32(virt_to_bus(mite->ring));
@@ -578,6 +518,7 @@ void mite_dma_disarm(struct mite_struct *mite)
 	writel(chor,mite->mite_io_addr+CHAN_OFFSET(mite->chan)+MITE_CHOR);
 }
 
+#ifdef DEBUG_MITE
 void mite_dump_regs(struct mite_struct *mite)
 {
 	unsigned long mite_io_addr = (unsigned long) mite->mite_io_addr;
@@ -586,41 +527,40 @@ void mite_dump_regs(struct mite_struct *mite)
 
 	printk("mite address is  =0x%08lx\n",mite_io_addr);
 		
-	addr = mite_io_addr+MITE_CHOR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_CHOR+CHAN_OFFSET(mite->chan);
 	printk("mite status[CHOR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	//mite_decode(mite_CHOR_strings,temp);
-	addr = mite_io_addr+MITE_CHCR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_CHCR+CHAN_OFFSET(mite->chan);
 	printk("mite status[CHCR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	//mite_decode(mite_CHCR_strings,temp);
-	addr = mite_io_addr+MITE_TCR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_TCR+CHAN_OFFSET(mite->chan);
 	printk("mite status[TCR] at 0x%08lx =0x%08x\n",addr, readl(addr));
-	addr = mite_io_addr+MITE_MCR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_MCR+CHAN_OFFSET(mite->chan);
 	printk("mite status[MCR] at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	//mite_decode(mite_MCR_strings,temp);
 	
-	addr = mite_io_addr+MITE_MAR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_MAR+CHAN_OFFSET(mite->chan);
 	printk("mite status[MAR] at 0x%08lx =0x%08x\n",addr, readl(addr));
-	addr = mite_io_addr+MITE_DCR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_DCR+CHAN_OFFSET(mite->chan);
 	printk("mite status[DCR] at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	//mite_decode(mite_CR_strings,temp);
-	addr = mite_io_addr+MITE_DAR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_DAR+CHAN_OFFSET(mite->chan);
 	printk("mite status[DAR] at 0x%08lx =0x%08x\n",addr, readl(addr));
-	addr = mite_io_addr+MITE_LKCR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_LKCR+CHAN_OFFSET(mite->chan);
 	printk("mite status[LKCR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	//mite_decode(mite_CR_strings,temp);
-	addr = mite_io_addr+MITE_LKAR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_LKAR+CHAN_OFFSET(mite->chan);
 	printk("mite status[LKAR]at 0x%08lx =0x%08x\n",addr, readl(addr));
 
-	addr = mite_io_addr+MITE_CHSR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_CHSR+CHAN_OFFSET(mite->chan);
 	printk("mite status[CHSR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
 	mite_print_chsr(temp);
 	//mite_decode(mite_CHSR_strings,temp);
-	addr = mite_io_addr+MITE_FCR+CHAN_OFFSET(0);
+	addr = mite_io_addr+MITE_FCR+CHAN_OFFSET(mite->chan);
 	printk("mite status[FCR] at 0x%08lx =0x%08x\n\n",addr, readl(addr));
 }
 
 
-#ifdef DEBUG_MITE
 static char *chsr_strings[] = {
 	"d.err0", "d.err1", "m.err0", "m.err1",
 	"l.err0", "l.err1", "drq0", "drq1",
@@ -660,22 +600,6 @@ void cleanup_module(void)
 	mite_cleanup();
 }
 
-#if LINUX_VERSION_CODE < 0x020100
-
-struct symbol_table mite_syms = {
-#include <linux/symtab_begin.h>
-	X(mite_dma_arm),
-	X(mite_dma_disarm),
-	X(mite_setup),
-	X(mite_unsetup),
-	X(mite_kvmem_segment_load),
-	X(mite_devices),
-	X(mite_list_devices),
-#include <linux/symtab_end.h>
-};
-
-#else
-
 EXPORT_SYMBOL(mite_dma_tcr);
 EXPORT_SYMBOL(mite_dma_arm);
 EXPORT_SYMBOL(mite_dma_disarm);
@@ -684,16 +608,14 @@ EXPORT_SYMBOL(mite_unsetup);
 EXPORT_SYMBOL(mite_kvmem_segment_load);
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
-EXPORT_SYMBOL(mite_print_chsr);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_alloc);
-
-//Tim's debugging function
-EXPORT_SYMBOL(mite_dump_regs);
 EXPORT_SYMBOL(mite_ll_from_kvmem);
 EXPORT_SYMBOL(mite_setregs);
 EXPORT_SYMBOL(mite_bytes_transferred);
-
+#ifdef DEBUG_MITE
+EXPORT_SYMBOL(mite_print_chsr);
+EXPORT_SYMBOL(mite_dump_regs);
 #endif
 
 #endif
