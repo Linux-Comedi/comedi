@@ -60,10 +60,10 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 		dep_tristate '  NI PCI-DIO series' CONFIG_COMEDI_NI_PCIDIO $CONFIG_COMEDI
 		dep_tristate '  NI 6527 series' CONFIG_COMEDI_NI_6527 $CONFIG_COMEDI
 		dep_tristate '  NI 670x series' CONFIG_COMEDI_NI_670X $CONFIG_COMEDI
-		if [ "$CONFIG_COMEDI_NI_PCIMIO" = "y" -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" -o "$CONFIG_COMEDI_NI_670X" = "y" ];then
+		if [ "$CONFIG_COMEDI_NI_PCIMIO" = "y" -o "$CONFIG_COMEDI_NI_PCIDIO" = "y" -o "$CONFIG_COMEDI_NI_670X" = "y" -o "$CONFIG_COMEDI_NI_6527" = "y" ];then
 			define_bool CONFIG_COMEDI_MITE y
 		else
-			if [ "$CONFIG_COMEDI_NI_PCIMIO" = "m" -o "$CONFIG_COMEDI_NI_PCIDIO" = "m" -o "$CONFIG_COMEDI_NI_670X" = "m" ];then
+			if [ "$CONFIG_COMEDI_NI_PCIMIO" = "m" -o "$CONFIG_COMEDI_NI_PCIDIO" = "m" -o "$CONFIG_COMEDI_NI_670X" = "m" -o "$CONFIG_COMEDI_NI_6527" = "m" ];then
 				define_bool CONFIG_COMEDI_MITE m
 			fi
 		fi
