@@ -8,7 +8,7 @@ almost certainly also want to download Comedilib, which is a user
 space library, a few utilities, and some example programs.
 
 Comedi has a mailing list.  Send "subscribe comedi" to
-majordomo@stm.lbl.gov to subscribe.  Traffic is light, and mainly
+comedi-request@stm.lbl.gov to subscribe.  Traffic is light, and mainly
 questions/answers about comedi installation, bugs, and programming.
 General questions about data acquisition are also welcome.
 
@@ -19,5 +19,5 @@ Comedi may be freely distibuted and modified in accordance with the
 GNU General Public License.
 
 The person behind all this misspelled humor is David Schleef
-<ds@stm.lbl.gov>, or http://stm.lbl.gov/~ds.
+<ds@schleef.org>, or http://stm.lbl.gov/~ds.
 
