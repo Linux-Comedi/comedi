@@ -71,7 +71,6 @@
 struct mite_struct *mite_devices = NULL;
 	
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
-#define min(a,b) (((a)<(b))?(a):(b))
 
 #ifdef PCI_SUPPORT_VER1
 /* routines for the old PCI code (before 2.1.55) */
@@ -360,8 +359,11 @@ unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,in
 		(unsigned long)prealloc_buf,prealloc_bufsz);
 	
 	while(((void*)nup < (async->data+len))&&(i<(MITE_RING_SIZE-1))) {
+		int n;
+		count = 1+TOP_OF_PAGE(nup)-nup;
+		if(count>len-size_so_far) count = len-size_so_far;
 		mite->ring[i].addr =kvirt_to_bus(nup);// it's already a kernel address :-)
-		mite->ring[i].count=min(1+TOP_OF_PAGE(nup)-nup,len-size_so_far);
+		mite->ring[i].count=count;
 		mite->ring[i].next=virt_to_bus(mite->ring+i+1);
 		size_so_far += mite->ring[i].count;
 		nup += mite->ring[i].count;
