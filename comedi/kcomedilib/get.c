@@ -106,7 +106,7 @@ lsampl_t comedi_get_maxdata(comedi_t *d,unsigned int subdevice,unsigned int chan
 
 	if (s->maxdata_list)
 		return s->maxdata_list[chan];
-		
+
 	return s->maxdata;
 }
 
@@ -122,7 +122,7 @@ int comedi_get_rangetype(comedi_t *d,unsigned int subdevice,unsigned int chan)
 	} else {
 		ret=s->range_table->length;
 	}
-	
+
 	ret=ret|(dev->minor<<28)|(subdevice<<24)|(chan<<16);
 
 	return ret;
@@ -140,7 +140,7 @@ int comedi_get_n_ranges(comedi_t *d,unsigned int subdevice,unsigned int chan)
 	} else {
 		ret=s->range_table->length;
 	}
-	
+
 	return ret;
 }
 
@@ -192,6 +192,7 @@ int comedi_set_user_int_count(comedi_t *d,unsigned int subdevice,unsigned int bu
 	unsigned int num_bytes;
 
 	async = s->async;
+	if( async == NULL ) return -1;
 
 	num_bytes =  buf_user_count - async->buf_read_count;
 	comedi_buf_read_free( async, num_bytes );
@@ -200,4 +201,16 @@ int comedi_set_user_int_count(comedi_t *d,unsigned int subdevice,unsigned int bu
 	return 0;
 }
 
+int comedi_get_buffer_size(comedi_t *d,unsigned int subdev)
+{
+	comedi_device *dev = (comedi_device *)d;
+	comedi_subdevice *s = dev->subdevices + subdev;
+	comedi_async *async;
+
+	if( subdev >= dev->n_subdevices ) return -1;
+	async = s->async;
+	if(async == NULL) return 0;
+
+	return async->prealloc_bufsz;
+}
 
