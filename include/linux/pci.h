@@ -1,0 +1,33 @@
+/*
+ * linux/pci.h compatibility header
+ */
+
+#ifndef _COMPAT_PCI_H
+#define _COMPAT_PCI_H
+
+#include <linux/version.h>
+
+
+#if LINUX_VERSION_CODE < 0x020155
+#include <linux/bios32.h>
+#define PCI_SUPPORT_VER1
+#else
+#include_next <linux/pci.h>
+#define PCI_SUPPORT_VER2
+
+#if LINUX_VERSION_CODE < 0x020300 /* XXX */
+
+#define pci_for_each_dev(x)	\
+	for((x)=pci_devices;(x);(x)=(x)->next)
+
+#else
+
+#endif
+#endif
+
+
+#endif /* _COMPAT_PCI_H */
+
+
+
+
