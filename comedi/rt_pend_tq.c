@@ -1,3 +1,4 @@
+#define __NO_VERSION__
 /* rt_pend_tq.c */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -52,6 +53,7 @@ int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
 #endif
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(rt_pend_tq_irq);
+
 #endif
 	return 0;
 }
