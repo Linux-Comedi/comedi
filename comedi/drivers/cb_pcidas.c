@@ -249,9 +249,6 @@ comedi_driver driver_cb_pcidas={
 	module:		THIS_MODULE,
 	attach:		cb_pcidas_attach,
 	detach:		cb_pcidas_detach,
-	board_name:	cb_pcidas_boards,
-	num_names:	sizeof(cb_pcidas_boards)/sizeof(cb_pcidas_board),
-	offset:		sizeof(cb_pcidas_board),
 };
 
 static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
