@@ -3,6 +3,8 @@
 
     Computer Boards PCIM-DDA06-16 Comedi driver
 
+    Author: Calin Culianu <calin@ajvar.org>
+
     This is a driver for the Computer Boards PCIM-DDA06-16 Analog Output
     card.  This board has a unique register layout and as such probably 
     deserves its own driver file.  
@@ -11,12 +13,15 @@
     file, but since that isn't my code, I didn't want to significantly
     modify that file to support this board (I thought it impolite to do so).
 
-    At any rate, if yo ufeel ambitious, please feel free to take
+    At any rate, if you feel ambitious, please feel free to take
     the code out of this file and combine it with a more unified driver
     file.
 
-    -Calin Culianu <calin@ajvar.org>
+    I would like to thank Timothy Curry <Timothy.Curry@rdec.redstone.army.mil>
+    for lending me a board so that I could write this driver.
 
+    -Calin Culianu <calin@ajvar.org>
+    
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
 
@@ -132,8 +137,6 @@ Configuration Options:
 #include <linux/comedidev.h>
 #include "8255.h"
 
-/* IO Region for the control, analog output, and DIO registers */
-#define REGS_BADRINDEX 3
 
 /* device ids of the cards we support -- currently only 1 card supported */
 #define PCI_ID_PCIM_DDA06_16 0x0053
@@ -151,7 +154,10 @@ typedef struct board_struct {
 	int ai_bits;
 	int dio_chans;
     int dio_method;
-    int dio_offset;
+    int dio_offset; /* how many bytes into the BADR are the DIO ports */
+    int regs_badrindex; /* IO Region for the control, analog output, 
+                           and DIO registers */
+    int reg_sz;     /* number of bytes of registers in io region */
     comedi_lrange *ai_range_table;
     comedi_lrange *ao_range_table;
 } board;
@@ -165,14 +171,16 @@ enum DIO_METHODS {
 static board boards[] = {
     {
         name:		"cb_pcimdda06-16",
-        device_id:    PCI_ID_PCIM_DDA06_16,
-        ao_chans:	6,
-        ao_bits:      16,
-        ai_chans:	0,   /* No AI on this board */
-        ai_bits:	0,
-        dio_chans:	24,
-        dio_method: DIO_8255,
-        dio_offset: 12, /* how many bytes into the BADR are the DIO ports */
+        device_id:       PCI_ID_PCIM_DDA06_16,
+        ao_chans:	 6,
+        ao_bits:         16,
+        ai_chans:	 0,   /* No AI on this board */
+        ai_bits:	 0,
+        dio_chans:	 24,
+        dio_method:      DIO_8255,
+        dio_offset:      12, 
+        regs_badrindex:  3,
+        reg_sz:          16,
         ai_range_table:  &range_bipolar5, // dummy, since we have no AI
         /* this board only has one, jumper setable range, +/-5V 
            you can also set it to +/-10V via jumper, but we will 
@@ -188,9 +196,15 @@ static board boards[] = {
     }
 };
 
+/*
+ * Useful for shorthand access to the particular board structure
+ */
+#define thisboard    ((board *)dev->board_ptr)
+
 /* Number of boards in boards[] */
 #define N_BOARDS	(sizeof(boards) / sizeof(board))
-
+#define REG_SZ (thisboard->reg_sz)
+#define REGS_BADRINDEX (thisboard->regs_badrindex)
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
@@ -202,10 +216,6 @@ static struct pci_device_id pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, pci_table);
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard    ((board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -213,13 +223,15 @@ MODULE_DEVICE_TABLE(pci, pci_table);
 typedef struct {
         int registers; /* set by probe */
         int dio_registers;
-        int attached_to_8255;
-	/* would be useful for a PCI device */
+        char  attached_to_8255; /* boolean */
+        char  attached_successfully; /* boolean */
+  /* would be useful for a PCI device */
         struct pci_dev *pci_dev;
 
 #define MAX_AO_READBACK_CHANNELS 6
-    /* Used for AO readback */
-    lsampl_t ao_readback[MAX_AO_READBACK_CHANNELS];
+      /* Used for AO readback */
+       lsampl_t ao_readback[MAX_AO_READBACK_CHANNELS];
+    
 } private;
 
 /*
@@ -286,16 +298,21 @@ static inline lsampl_t figure_out_maxdata(int bits);
  *
  *  Prerequisite: private be allocated already inside dev
  *   
- *  If the device is found, it returns 1 and has the following side effects:
+ *  If the device is found, it returns 0 and has the following side effects:
  *
  *  o  assigns a struct pci_dev * to dev->private->pci_dev 
  *  o  assigns a struct board * to dev->board_ptr
  *  o  sets dev->private->registers
  *  o  sets dev->private->dio_registers
  *
- *  Otherwise, returns 0 if a supported device is not found 
+ *  Otherwise, returns a -errno on error
  */
 static int probe(comedi_device *dev, const comedi_devconfig *it);
+
+
+/*---------------------------------------------------------------------------
+  FUNCTION DEFINITIONS
+-----------------------------------------------------------------------------*/
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -306,7 +323,8 @@ static int probe(comedi_device *dev, const comedi_devconfig *it);
 static int attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-
+	int err;
+    
 /*
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
@@ -320,14 +338,9 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  * If you can probe the device to determine what device in a series
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
- */
-	 
-
-	if (!probe(dev, it)) {
-	    	printk("No supported ComputerBoards/MeasurementComputing "
-		       "card found at the requested position\n");
-		return -ENODEV;
-	}
+ */	 
+	if ( (err = probe(dev, it)) ) return err;
+	
 
 /* Output some info */
 	printk("comedi%d: %s: ",dev->minor, thisboard->name);
@@ -404,8 +417,10 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
       s->type = COMEDI_SUBD_UNUSED;
     }
 	
-    printk("attached\n");
+    devpriv->attached_successfully = 1;
 
+    printk("attached\n");
+    
     return 1;
 }
 
@@ -420,14 +435,23 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  */
 static int detach(comedi_device *dev)
 {
-    if (dev->subdevices && devpriv && devpriv->attached_to_8255) {
-        /* de-register us from the 8255 driver */
-        subdev_8255_cleanup(dev,dev->subdevices + 2);
-        devpriv->attached_to_8255 = 0;
-    }
+    if (devpriv) {
 
-    if (thisboard) 
-      printk("comedi%d: %s: detached\n",dev->minor, thisboard->name);
+        if (devpriv->registers && thisboard) {
+            release_region(devpriv->registers, REG_SZ);
+            devpriv->registers = 0;
+        }
+
+        if (dev->subdevices && devpriv->attached_to_8255) {
+            /* de-register us from the 8255 driver */
+            subdev_8255_cleanup(dev,dev->subdevices + 2);
+            devpriv->attached_to_8255 = 0;
+        }
+
+        if (devpriv->attached_successfully && thisboard)
+            printk("comedi%d: %s: detached\n", dev->minor, thisboard->name);
+
+    }
 	
 	return 0;
 }
@@ -480,13 +504,14 @@ static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
     int chan = CR_CHAN(insn->chanspec);
 
 
-    for(i=0;i<insn->n;i++)
-      data[i] = inw(devpriv->registers + chan*2);
-#if 0
-	/* for testing! */
-	if (*data != devpriv->ao_readback[chan])  BUG();
-#endif
-	return i;
+    for(i=0;i<insn->n;i++) {
+      inw(devpriv->registers + chan*2);
+      /* should I set data[i] to the result of the actual read on the register
+	 or the cached lsampl_t in devpriv->ao_readback[]? */
+      data[i] = devpriv->ao_readback[chan];
+    }
+
+    return i;
 }
 
 /* stub... */
@@ -508,19 +533,19 @@ static int ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
  *
  *  Prerequisite: private be allocated already inside dev
  *   
- *  If the device is found, it returns 1 and has the following side effects:
+ *  If the device is found, it returns 0 and has the following side effects:
  *
  *  o  assigns a struct pci_dev * to dev->private->pci_dev 
  *  o  assigns a struct board * to dev->board_ptr
  *  o  sets dev->private->registers
  *  o  sets dev->private->dio_registers
  *
- *  Otherwise, returns 0 if a supported device is not found 
+ *  Otherwise, returns a -errno on error
  */
 static int probe(comedi_device *dev, const comedi_devconfig *it) 
 {
     struct pci_dev *pcidev;
-	int index;
+	int index, registers;
 
 	pci_for_each_dev(pcidev)
 	{
@@ -544,19 +569,30 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 			}
 			/* found ! */
 
-            /* todo: if we support more than 1 board, revise
-               this to be more generic */
+			/* todo: if we support more than 1 board, revise
+			   this to be more generic */            
 			devpriv->pci_dev = pcidev;
+			pci_enable_device(devpriv->pci_dev); /* make sure board is on */
 			dev->board_ptr = boards + index;
-			devpriv->registers 
-			    = pci_resource_start(devpriv->pci_dev,REGS_BADRINDEX);
-            devpriv->dio_registers 
-                = devpriv->registers + thisboard->dio_offset;
-			return 1;
+			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);
+			if (!request_region(registers, REG_SZ,thisboard->name))
+			{
+			  printk("cb_pcimdda: "
+				 "I/O port conflict failed to allocate ports "
+				 "0x%x to 0x%x\n", registers, 
+				 registers + REG_SZ - 1);
+			  return -EBUSY;
+			}
+			devpriv->registers = registers;                        
+			devpriv->dio_registers 
+			  = devpriv->registers + thisboard->dio_offset;
+			return 0;
 		}
 	}
-	dev->board_ptr = (void *)0;
-	return 0;
+
+    printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
+           "card found at the requested position\n");
+	return -ENODEV;
 }
 
 
@@ -593,5 +629,6 @@ int init_module(void)
 void cleanup_module(void)                  
 {
   comedi_driver_unregister(&cb_pcimdda_driver);
-}                       
+}
+
 
