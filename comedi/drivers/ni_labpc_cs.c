@@ -285,7 +285,7 @@ static dev_link_t *labpc_cs_attach(void)
     link->release.data = (u_long)link;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_FORCE_PULSED;
+    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_FORCED_PULSE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID | IRQ_PULSE_ID;
     if (irq_list[0] == -1)
 		link->irq.IRQInfo2 = irq_mask;
