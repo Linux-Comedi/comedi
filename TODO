@@ -43,3 +43,4 @@ ni_mio_common: starting AO without anything in buffer causes oops
 
 ni_mio_common: resetting AO sets ao chan 1 to -10V
 
+
