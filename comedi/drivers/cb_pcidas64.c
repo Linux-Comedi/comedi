@@ -1225,7 +1225,8 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// set gain
 		bits |= board(dev)->ai_range_bits[CR_RANGE(insn->chanspec)];
 		// set single-ended / differential
-		if(aref != AREF_DIFF)
+		if( ( board(dev)->layout == LAYOUT_64XX && aref != AREF_DIFF ) ||
+			( board(dev)->layout == LAYOUT_60XX && aref == AREF_DIFF ) )
 			bits |= ADC_SE_DIFF_BIT;
 		if( aref == AREF_COMMON)
 			bits |= ADC_COMMON_BIT;
@@ -1330,7 +1331,10 @@ static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 	lsampl_t source = data[1];
 
 	if(source >= num_calibration_sources)
+	{
+		printk( "invalid calibration source: %i\n", source );
 		return -EINVAL;
+	}
 
 	DEBUG_PRINT("setting calibration source to %i\n", source);
 	private(dev)->calibration_source = source;
@@ -1614,7 +1618,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			// set gain
 			bits |= board(dev)->ai_range_bits[CR_RANGE(cmd->chanlist[i])];
 			// set single-ended / differential
-			if(CR_AREF(cmd->chanlist[i]) != AREF_DIFF)
+			if( ( board(dev)->layout == LAYOUT_64XX && CR_AREF(cmd->chanlist[i]) != AREF_DIFF ) ||
+				( board(dev)->layout == LAYOUT_60XX && CR_AREF(cmd->chanlist[i]) == AREF_DIFF ) )
 				bits |= ADC_SE_DIFF_BIT;
 			if(CR_AREF(cmd->chanlist[i]) == AREF_COMMON)
 				bits |= ADC_COMMON_BIT;
