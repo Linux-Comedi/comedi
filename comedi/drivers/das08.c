@@ -28,9 +28,11 @@ Support for pci-das08 card added by Frank M. Hess
 Driver: das08.o
 Description: DAS-08 compatible boards
 Authors: Warren Jasper, ds
-Device-Names: das08, das08-pgm, das08-pgh, das08-pgl, das08-aoh,
-  das08-aol, das08-aom, das08/jr-ao, das08jr-16-ao, pci-das08,
-  das08jr/16
+Devices: [ComputerBoards] DAS08 (das08), DAS08-PGM (das08-pgm),
+  DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
+  DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
+  DAS08/JR-16-AO (das08jr-16-ao), (PCI-DAS08) pci-das08,
+  DAS08/JR/16 (das08jr/16)
 Status: works
 
 This is a rewrite of the das08 and das08jr drivers.

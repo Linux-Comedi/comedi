@@ -28,6 +28,7 @@
 Driver: comedi_rt_timer.o
 Description: Command emulator using real-time tasks
 Authors: ds, fmhess
+Devices:
 Status: works
 
 This driver requires RTAI or RTLinux to work correctly.  It doesn't

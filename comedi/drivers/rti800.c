@@ -25,7 +25,7 @@ Driver: rti800.o
 Description: Analog Devices RTI-800/815
 Author: ds
 Status: unknown
-Drivers: (Analog Devices) RTI-800 (rti800), RTI-815 (rti815)
+Devices: [Analog Devices] RTI-800 (rti800), RTI-815 (rti815)
 
 Configuration options:
   [0] - I/O port base address

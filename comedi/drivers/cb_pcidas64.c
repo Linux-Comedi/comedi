@@ -39,6 +39,11 @@ Description: Driver for the ComputerBoards/MeasurementComputing
 Author: Frank Mori Hess <fmhess@uiuc.edu>
 Status: Experimental
 Updated: 2001-8-27
+Devices: [MeasurementComputing] PCI-DAS6402/16 (cb_pcidas64),
+  PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
+  PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
+  PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
+  PCI-DAS64/M2/14, PCI-DAS64/M3/14
 Configuration options:
    [0] - PCI bus of device (optional)
    [1] - PCI slot of device (optional)
@@ -50,6 +55,8 @@ This driver is in need of stout-hearted testers who aren't afraid to
 crash their computers in the name of progress.
 Feel free to send and success/failure reports to author.
 
+Some devices are not identified because the PCI device IDs are not
+known.
 */
 
 /*

@@ -23,6 +23,7 @@
 /*
 Driver: skel.o
 Description: Skeleton driver, an example for driver writers
+Devices:
 Author: ds
 
 This driver is a documented example on how Comedi drivers are

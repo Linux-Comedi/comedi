@@ -25,10 +25,16 @@
 Driver: das1800.o
 Description: Keithley Metrabyte DAS1800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
-Device-Names: das-1701st, das-1701st-da, das-1701ao, das-1702st,
-  das-1702st-da, das-1702hr, das-1702hr-da, das-1702ao, das-1801st,
-  das-1801st-da, das-1801hc, das-1801ao, das-1802st, das-1802st-da,
-  das-1802hr, das-1802hr-da, das-1802hc, das-1802ao
+Devices: [Keithley Metrabyte] DAS-1701ST (das-1701st),
+  DAS-1701ST-DA (das-1701st-da), DAS-1701/AO (das-1701ao),
+  DAS-1702ST (das-1702st), DAS-1702ST-DA (das-1702st-da),
+  DAS-1702HR (das-1702hr), DAS-1702HR-DA (das-1702hr-da),
+  DAS-1702/AO (das-1702ao), DAS-1801ST (das-1801st),
+  DAS-1801ST-DA (das-1801st-da), DAS-1801HC (das-1801hc),
+  DAS-1801AO (das-1801ao), DAS-1802ST (das-1802st),
+  DAS-1802ST-DA (das-1802st-da), DAS-1802HR (das-1802hr),
+  DAS-1802HR-DA (das-1802hr-da), DAS1802-HC (das-1802hc),
+  DAS-1802AO (das-1802ao)
 Status: works
 
 The waveform analog output on the 'ao' cards is not supported.

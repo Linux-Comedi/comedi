@@ -27,10 +27,16 @@
 Driver: das16.o
 Description: DAS16 compatible boards
 Authors: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess
-Device-Names: das-16, das-16g, das-16f, cio-das16/jr, pc104-das16jr,
-  pc104-das16jr/16, das-1201, das-1202, das-1401, das-1402, das-1601,
-  das-1602, cio-das1401/12, cio-das1402/12, cio-das1402/16,
-  cio-das1601/12, cio-das1602/12, cio-das1602/16, cio-das16/330
+Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
+  DAS-16F (das-16f), DAS-1201 (das-1201), DAS-1202 (das-1202),
+  DAS-1401 (das-1401), DAS-1402 (das-1402), DAS-1601 (das-1601),
+  DAS-1602 (das-1602),
+  [ComputerBoards] PC104-DAS16/JR (pc104-das16jr),
+  PC104-DAS16JR/16 (pc104-das16jr/16),
+  CIO-DAS16/JR (cio-das16/jr), CIO-DAS1401/12 (cio-das1401/12),
+  CIO-DAS1402/12 (cio-das1402/12), CIO-DAS1402/16 (cio-das1402/16),
+  CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
+  CIO-DAS1602/16 (cio-das1602/16), CIO-DAS16/330 (cio-das16/330)
 Status: works in das16 mode, das-1600 enhanced mode features untested.
 Updated: 2001-8-27
 

@@ -25,8 +25,11 @@
 Driver: das800.o
 Description: Keithley Metrabyte DAS800 (& compatibles)
 Author: Frank Mori Hess <fmhess@uiuc.edu>
-Device-Names: das-800, das-801, das-802, cio-das800, cio-das801,
-  cio-das802, cio-das802/16
+Devices: [Keithley Metrabyte] DAS-800 (das-800), DAS-801 (das-801),
+  DAS-802 (das-802),
+  [Measurement Computing] CIO-DAS800 (cio-das800),
+  CIO-DAS801 (cio-das801), CIO-DAS802 (cio-das802),
+  CIO-DAS802/16 (cio-das802/16)
 Status: works, cio-das802/16 untested - email me if you have tested it
 
 Configuration options:

@@ -24,7 +24,7 @@
 Driver: rti802.o
 Description: Analog Devices RTI-802
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
-Drivers: (Analog Devices) RTI-802 (rti802)
+Devices: [Analog Devices] RTI-802 (rti802)
 Status: works
 */
 

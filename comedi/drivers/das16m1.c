@@ -27,6 +27,7 @@
 Driver: das16m1.o
 Description: CIO-DAS16/M1
 Authors: Frank Mori Hess <fmhess@uiuc.edu>
+Devices: [MeasurementComputing] CIO-DAS16/M1 (cio-das16/m1)
 Status: works
 
 This driver supports a single board - the CIO-DAS16/M1.
