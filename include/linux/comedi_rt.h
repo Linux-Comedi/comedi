@@ -60,9 +60,11 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 #define comedi_free_irq(a,b) free_irq(a,b)
 #define comedi_rt_init() do{}while(0)
 #define comedi_rt_cleanup() do{}while(0)
-#define comedi_swtich_to_rt(a) do{}while(0)
-#define comedi_swtich_to_non_rt(a) do{}while(0)
+#define comedi_switch_to_rt(a) do{}while(0)
+#define comedi_switch_to_non_rt(a) do{}while(0)
 #define comedi_rt_pend_wakeup(a) do{}while(0)
+
+#define rt_printk(format,args...)	printk(format,##args)
 
 #endif
 
@@ -88,9 +90,8 @@ void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 	rtl_spin_unlock_irqrestore(x, flags)
 
 #else
-// These are defined in comedidev.h
-//#define comedi_spin_lock_irqsave(x, flags)	spin_lock_irqsave(x, flags)
-//#define comedi_spin_unlock_irqrestore(x, flags)	spin_unlock_irqrestore(x, flags)
+#define comedi_spin_lock_irqsave(x, flags)	spin_lock_irqsave(x, flags)
+#define comedi_spin_unlock_irqrestore(x, flags)	spin_unlock_irqrestore(x, flags)
 
 #endif
 

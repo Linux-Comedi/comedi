@@ -215,21 +215,6 @@ int di_unpack(unsigned int bits,comedi_trig *it);
 int do_pack(unsigned int *bits,comedi_trig *it);
 #endif
 
-#ifndef CONFIG_COMEDI_RT
-
-#define rt_printk(format,args...)	printk(format,##args)
-#define rt_printk_init()
-#define rt_printk_cleanup()
-
-#define comedi_request_irq		request_irq
-#define comedi_change_irq_flags(a,b,c)	/* */
-#define comedi_free_irq			free_irq
-
-#define comedi_spin_lock_irqsave(x, flags)	spin_lock_irqsave(x, flags)
-#define comedi_spin_unlock_irqrestore(x, flags)	spin_unlock_irqrestore(x, flags)
-
-#endif
-
 
 #define SRF_USER		0x00000001
 #define SRF_RT			0x00000002
@@ -296,9 +281,9 @@ static inline int alloc_private(comedi_device *dev,int size)
 extern struct symbol_table comedi_syms;
 #endif
 
-#ifdef CONFIG_COMEDI_RT
+//#ifdef CONFIG_COMEDI_RT
 #include <linux/comedi_rt.h>
-#endif
+//#endif
 
 
 #endif /* _COMEDIDEV_H */

@@ -56,6 +56,8 @@ EXPORT_SYMBOL(range_unknown);
 #ifdef CONFIG_COMEDI_RT
 EXPORT_SYMBOL(comedi_free_irq);
 EXPORT_SYMBOL(comedi_request_irq);
+EXPORT_SYMBOL(comedi_switch_to_rt);
+EXPORT_SYMBOL(comedi_switch_to_non_rt);
 #endif
 
 /* for kcomedilib */
