@@ -65,7 +65,7 @@ TODO:
 	there are a number of boards this driver will support when they are
 		fully released, but does not yet since the pci device id numbers
 		are not yet available.
-	need to take care to prevent ai and ao from affecting each others register bits
+	need to take care to prevent ai and ao from affecting each other's register bits
 	support prescaled 100khz clock for slow pacing (not available on 6000 series?)
 */
 
@@ -114,7 +114,7 @@ TODO:
 #define MAIN_BADRINDEX 2
 #define DIO_COUNTER_BADRINDEX 3
 
-// devpriv->main_iobase registers
+// private(dev)->main_iobase registers
 // write-only
 #define INTR_ENABLE_REG	0x0	// interrupt enable register
 #define    ADC_INTR_SRC_MASK	0x3	// bits that set adc interrupt source
@@ -133,7 +133,7 @@ TODO:
 #define HW_CONFIG_REG	0x2	// hardware config register
 #define    MASTER_CLOCK_4020_MASK	0x3	// bits that specify master clock source for 4020
 #define    INTERNAL_CLOCK_4020_BITS	0x1	// user 40 MHz internal master clock for 4020
-#define    EXT_QUEUE	0x200	// use external channel/gain queue (more versatile than internal queue)
+#define    EXT_QUEUE_BIT	0x200	// use external channel/gain queue (more versatile than internal queue)
 #define    SLOW_DAC_BIT	0x400	// use 225 nanosec strobe when loading dac instead of 50 nanosec
 #define    HW_CONFIG_DUMMY_BITS	0x2000	// bit with unknown function yet given as default value in pci-das64 manual
 #define FIFO_SIZE_REG	0x4	// allows adjustment of fifo sizes, we will always use maximum
@@ -163,7 +163,7 @@ TODO:
 #define    ADC_QUEUE_CONFIG_BIT	0x1	// should be set for boards with > 16 channels
 #define    CONVERT_POLARITY_BIT	0x10
 #define    EOC_POLARITY_BIT	0x20
-#define    SW_GATE_BIT	0x40	// disables software gate of adc
+#define    SW_GATE_BIT	0x40	// software gate of adc
 #define    RETRIGGER_BIT	0x800
 #define    LO_CHANNEL_4020_BITS(x)	(((x) & 0x3) << 8)	// low channel for 4020 two channel mode
 #define    HI_CHANNEL_4020_BITS(x)	(((x) & 0x3) << 10)	// high channel for 4020 two channel mode
@@ -171,8 +171,23 @@ TODO:
 #define    FOUR_CHANNEL_4020_BITS	0x2000	// four channel mode for 4020
 #define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
 #define CALIBRATION_REG	0x14
+#define    SELECT_8800_BIT	0x1
+#define    SELECT_1590_BIT	0x2	// XXX 60xx only
+/* calibration sources for 6025 appear to be:
+ *  0 : ground
+ *  1 : 10V
+ *  2 : 5V
+ *  3 : 0.5V
+ *  4 : 0.05V
+ *  5 : ground
+ *  6 : dac channel 0
+ *  7 : dac channel 1
+ */
+#define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)	// XXX 60xx only
+#define    SERIAL_DATA_IN_BIT	0x80
+#define    SERIAL_CLOCK_BIT	0x100
+#define    CAL_GAIN_BIT	0x800
 #define    CAL_EN_BIT	0x200	// calibration enable XXX 0x40 for 6402?
-#define    CAL_SRC_BITS(x)	(((x) & 0xf) << 3)
 #define ADC_SAMPLE_INTERVAL_LOWER_REG	0x16	// lower 16 bits of sample interval counter
 #define ADC_SAMPLE_INTERVAL_UPPER_REG	0x18	// upper 8 bits of sample interval counter
 #define ADC_DELAY_INTERVAL_LOWER_REG	0x1a	// lower 16 bits of delay interval counter
@@ -220,12 +235,14 @@ TODO:
 #define PREPOST_REG	0x14
 #define   ADC_UPP_READ_PNTR_CODE(x)	(((x) >> 12) & 0x3)
 #define   ADC_UPP_WRITE_PNTR_CODE(x)	(((x) >> 14) & 0x3)
+#define   CHAIN_FLAG_BITS(x)	(((x) >> 6) & 0x3)
 // read-write
 #define I8255_4020_REG 0x48	// 8255 offset, for 4020 only
 #define ADC_QUEUE_FIFO_REG	0x100	// external channel/gain queue, uses same bits as ADC_QUEUE_LOAD_REG
 #define ADC_FIFO_REG 0x200	// adc data fifo
 
-// devpriv->dio_counter_iobase registers
+// private(dev)->dio_counter_iobase registers
+// XXX board dependent
 #define DIO_8255_OFFSET	0x0
 #define DO_REG	0x20
 #define DI_REG	0x28
@@ -269,14 +286,14 @@ static comedi_lrange ai_ranges_60xx =
 	{
 		BIP_RANGE(10),
 		BIP_RANGE(5),
-		BIP_RANGE(0.1),
+		BIP_RANGE(0.5),
 		BIP_RANGE(0.05),
 	}
 };
 static int ai_range_bits_60xx[] = {
 	0x000,
 	0x100,
-	0x600,
+	0x400,
 	0x700,
 };
 
@@ -560,9 +577,7 @@ MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
  */
 #define thisboard ((pcidas64_board *)dev->board_ptr)
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+/* this structure is for data unique to this hardware driver. */
 typedef struct
 {
 	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
@@ -592,11 +607,13 @@ typedef struct
 	volatile u16 fifo_size_bits;	// bits to send to FIFO_SIZE_REG register
 } pcidas64_private;
 
-/*
- * most drivers define the following macro to make it easy to
+/* inline function that makes it easier to
  * access the private structure.
  */
-#define devpriv ((pcidas64_private *)dev->private)
+extern inline pcidas64_private* private(comedi_device *dev)
+{
+	return dev->private;
+}
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -628,8 +645,11 @@ static int dio_callback(int dir, int port, int data, unsigned long arg);
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
 static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
+static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value);
+static int caldac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b);
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
@@ -702,14 +722,11 @@ found:
 
 	printk("Found %s on bus %i, slot %i\n", pcidas64_boards[index].name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
-	devpriv->hw_dev = pcidev;
+	private(dev)->hw_dev = pcidev;
 
 	//Initialize dev->board_name
 	dev->board_name = thisboard->name;
 
-	/* Initialize devpriv->control_status and devpriv->adc_fifo to point to
-	 * their base address.
-	 */
 	if(pci_enable_device(pcidev))
 		return -EIO;
 	pci_set_master(pcidev);
@@ -725,29 +742,29 @@ found:
 		return -EIO;
 	}
 
-	devpriv->plx9080_phys_iobase = plx9080_iobase;
-	devpriv->main_phys_iobase = main_iobase;
-	devpriv->dio_counter_phys_iobase = dio_counter_iobase;
+	private(dev)->plx9080_phys_iobase = plx9080_iobase;
+	private(dev)->main_phys_iobase = main_iobase;
+	private(dev)->dio_counter_phys_iobase = dio_counter_iobase;
 
 	// remap, won't work with 2.0 kernels but who cares
-	devpriv->plx9080_iobase = (unsigned long)ioremap(plx9080_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
-	devpriv->main_iobase = (unsigned long)ioremap(main_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
-	devpriv->dio_counter_iobase = (unsigned long)ioremap(dio_counter_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
+	private(dev)->plx9080_iobase = (unsigned long)ioremap(plx9080_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
+	private(dev)->main_iobase = (unsigned long)ioremap(main_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
+	private(dev)->dio_counter_iobase = (unsigned long)ioremap(dio_counter_iobase, pci_resource_len(pcidev, PLX9080_BADRINDEX));
 
 	// figure out what local addresses are
-	local_range = readl(devpriv->plx9080_iobase + PLX_LAS0RNG_REG) & LRNG_MEM_MASK;
-	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS0MAP_REG) & local_range & LMAP_MEM_MASK ;
-	devpriv->local0_iobase = (devpriv->main_phys_iobase & ~local_range) | local_decode;
-	local_range = readl(devpriv->plx9080_iobase + PLX_LAS1RNG_REG) & LRNG_MEM_MASK;
-	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS1MAP_REG) & local_range & LMAP_MEM_MASK ;
-	devpriv->local1_iobase = (devpriv->dio_counter_phys_iobase & ~local_range) | local_decode;
+	local_range = readl(private(dev)->plx9080_iobase + PLX_LAS0RNG_REG) & LRNG_MEM_MASK;
+	local_decode = readl(private(dev)->plx9080_iobase + PLX_LAS0MAP_REG) & local_range & LMAP_MEM_MASK ;
+	private(dev)->local0_iobase = (private(dev)->main_phys_iobase & ~local_range) | local_decode;
+	local_range = readl(private(dev)->plx9080_iobase + PLX_LAS1RNG_REG) & LRNG_MEM_MASK;
+	local_decode = readl(private(dev)->plx9080_iobase + PLX_LAS1MAP_REG) & local_range & LMAP_MEM_MASK ;
+	private(dev)->local1_iobase = (private(dev)->dio_counter_phys_iobase & ~local_range) | local_decode;
 
-	devpriv->hw_revision = HW_REVISION(readw(devpriv->main_iobase + HW_STATUS_REG));
+	private(dev)->hw_revision = HW_REVISION(readw(private(dev)->main_iobase + HW_STATUS_REG));
 	if( thisboard->layout == LAYOUT_4020)
-		devpriv->hw_revision >>= 1;
+		private(dev)->hw_revision >>= 1;
 
 	// disable interrupts on plx 9080
-	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// get irq
 	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
@@ -759,56 +776,56 @@ found:
 
 	printk(" irq %i\n", dev->irq);
 
-	printk(" plx9080 remapped to 0x%lx\n", devpriv->plx9080_iobase);
-	printk(" main remapped to 0x%lx\n", devpriv->main_iobase);
-	printk(" diocounter remapped to 0x%lx\n", devpriv->dio_counter_iobase);
+	printk(" plx9080 remapped to 0x%lx\n", private(dev)->plx9080_iobase);
+	printk(" main remapped to 0x%lx\n", private(dev)->main_iobase);
+	printk(" diocounter remapped to 0x%lx\n", private(dev)->dio_counter_iobase);
 
-	DEBUG_PRINT(" local 0 io addr 0x%x\n", devpriv->local0_iobase);
-	DEBUG_PRINT(" local 1 io addr 0x%x\n", devpriv->local1_iobase);
+	DEBUG_PRINT(" local 0 io addr 0x%x\n", private(dev)->local0_iobase);
+	DEBUG_PRINT(" local 1 io addr 0x%x\n", private(dev)->local1_iobase);
 
-	printk(" stc hardware revision %i\n", devpriv->hw_revision);
+	printk(" stc hardware revision %i\n", private(dev)->hw_revision);
 
 	// plx9080 dump
-	DEBUG_PRINT(" plx interrupt status 0x%x\n", readl(devpriv->plx9080_iobase + PLX_INTRCS_REG));
-	printk(" plx id bits 0x%x\n", readl(devpriv->plx9080_iobase + PLX_ID_REG));
-	printk(" plx hardware revision 0x%x\n", readl(devpriv->plx9080_iobase + PLX_REVISION_REG));
-	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_MODE_REG));
-	DEBUG_PRINT(" plx dma channel 0 pci address 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG));
-	DEBUG_PRINT(" plx dma channel 0 local address 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
-	DEBUG_PRINT(" plx dma channel 0 transfer size 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG));
-	DEBUG_PRINT(" plx dma channel 0 descriptor 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG));
-	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG));
-	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PLX_DMA0_THRESHOLD_REG));
+	DEBUG_PRINT(" plx interrupt status 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG));
+	printk(" plx id bits 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_ID_REG));
+	printk(" plx hardware revision 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_REVISION_REG));
+	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_MODE_REG));
+	DEBUG_PRINT(" plx dma channel 0 pci address 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG));
+	DEBUG_PRINT(" plx dma channel 0 local address 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
+	DEBUG_PRINT(" plx dma channel 0 transfer size 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_TRANSFER_SIZE_REG));
+	DEBUG_PRINT(" plx dma channel 0 descriptor 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG));
+	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n", readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG));
+	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_DMA0_THRESHOLD_REG));
 
-	DEBUG_PRINT(" plx queue control/status 0x%x\n", readl(devpriv->plx9080_iobase + PLX_QUEUE_SC_REG));
-	DEBUG_PRINT(" queue configuration 0x%x\n", readl(devpriv->plx9080_iobase + PLX_QUEUE_CONFIG_REG));
+	DEBUG_PRINT(" plx queue control/status 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_QUEUE_SC_REG));
+	DEBUG_PRINT(" queue configuration 0x%x\n", readl(private(dev)->plx9080_iobase + PLX_QUEUE_CONFIG_REG));
 
 	// alocate pci dma buffers
 	for(index = 0; index < DMA_RING_COUNT; index++)
 	{
-		devpriv->ai_buffer[index] =
-			pci_alloc_consistent(devpriv->hw_dev, DMA_TRANSFER_SIZE, &devpriv->ai_buffer_phys_addr[index]);
+		private(dev)->ai_buffer[index] =
+			pci_alloc_consistent(private(dev)->hw_dev, DMA_TRANSFER_SIZE, &private(dev)->ai_buffer_phys_addr[index]);
 	}
 	// allocate dma descriptors
-	devpriv->dma_desc =
-		pci_alloc_consistent(devpriv->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
-		&devpriv->dma_desc_phys_addr);
+	private(dev)->dma_desc =
+		pci_alloc_consistent(private(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+		&private(dev)->dma_desc_phys_addr);
 	// initialize dma descriptors
 	for(index = 0; index < DMA_RING_COUNT; index++)
 	{
-		devpriv->dma_desc[index].pci_start_addr = devpriv->ai_buffer_phys_addr[index];
+		private(dev)->dma_desc[index].pci_start_addr = private(dev)->ai_buffer_phys_addr[index];
 		if(thisboard->layout == LAYOUT_4020)
-			devpriv->dma_desc[index].local_start_addr = devpriv->local1_iobase;
+			private(dev)->dma_desc[index].local_start_addr = private(dev)->local1_iobase;
 		else
-			devpriv->dma_desc[index].local_start_addr = devpriv->local0_iobase + ADC_FIFO_REG;
-		devpriv->dma_desc[index].transfer_size = DMA_TRANSFER_SIZE;
-		devpriv->dma_desc[index].next = (devpriv->dma_desc_phys_addr + ((index + 1) % (DMA_RING_COUNT)) * sizeof(devpriv->dma_desc[0])) |
+			private(dev)->dma_desc[index].local_start_addr = private(dev)->local0_iobase + ADC_FIFO_REG;
+		private(dev)->dma_desc[index].transfer_size = DMA_TRANSFER_SIZE;
+		private(dev)->dma_desc[index].next = (private(dev)->dma_desc_phys_addr + ((index + 1) % (DMA_RING_COUNT)) * sizeof(private(dev)->dma_desc[0])) |
 			PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 	}
 
 	// disable dma transfers
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+	writeb(0, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(0, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 
 /*
  * Allocate the subdevice structures.
@@ -821,7 +838,7 @@ found:
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_OTHER;
 	/* XXX Number of inputs in differential mode is ignored */
 	s->n_chan = thisboard->ai_se_chans;
 	s->len_chanlist = 0x2000;
@@ -878,11 +895,11 @@ found:
 	s = dev->subdevices + 4;
 	if(thisboard->layout == LAYOUT_4020)
 	{
-		dio_8255_iobase = devpriv->main_iobase + I8255_4020_REG;
+		dio_8255_iobase = private(dev)->main_iobase + I8255_4020_REG;
 		subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
 	} else
 	{
-		dio_8255_iobase = devpriv->dio_counter_iobase + DIO_8255_OFFSET;
+		dio_8255_iobase = private(dev)->dio_counter_iobase + DIO_8255_OFFSET;
 		subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
 	}
 
@@ -892,16 +909,26 @@ found:
 
 	// calibration subd XXX
 	s = dev->subdevices + 6;
-	s->type = COMEDI_SUBD_UNUSED;
+	if(thisboard->layout == LAYOUT_60XX)
+	{
+		s->type=COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		s->n_chan = 8;
+		s->maxdata = 0xff;
+//		s->insn_read = calib_read_insn;
+		s->insn_write = calib_write_insn;
+	}else
+		s->type = COMEDI_SUBD_UNUSED;
 
 	// manual says to set this bit for boards with > 16 channels
-	if(thisboard->ai_se_chans > 16)
-		devpriv->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
-	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
+//	if(thisboard->ai_se_chans > 16)
+	if(1)	// bit should be set for 6025, although docs say 6034 and 6035 should be cleared XXX
+		private(dev)->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
+	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
 	// initialize various registers
-	writew(0, devpriv->main_iobase + DAQ_SYNC_REG);
-	writew(0, devpriv->main_iobase + CALIBRATION_REG);
+	writew(0, private(dev)->main_iobase + DAQ_SYNC_REG);
+	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
 
 	// do some initialization of plx9080 dma registers
 	bits = 0;
@@ -927,31 +954,42 @@ found:
 	else
 		// localspace0 bus is 16 bits wide
 		bits |= PLX_LOCAL_BUS_16_WIDE_BITS;
-	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_MODE_REG);
+	writel(bits, private(dev)->plx9080_iobase + PLX_DMA0_MODE_REG);
 
 	// set fifos to maximum size
-	devpriv->fifo_size_bits = DAC_FIFO_BITS;
+	private(dev)->fifo_size_bits = DAC_FIFO_BITS;
 	switch(thisboard->layout)
 	{
 		case LAYOUT_64XX:
-			devpriv->fifo_size_bits |= ADC_FIFO_64XX_BITS;
+			private(dev)->fifo_size_bits |= ADC_FIFO_64XX_BITS;
 			break;
 		case LAYOUT_60XX:
-			devpriv->fifo_size_bits |= ADC_FIFO_60XX_BITS;
+			private(dev)->fifo_size_bits |= ADC_FIFO_60XX_BITS;
 			break;
 		case LAYOUT_4020:
-			devpriv->fifo_size_bits |= ADC_FIFO_4020_BITS;
+			private(dev)->fifo_size_bits |= ADC_FIFO_4020_BITS;
 			break;
 		default:
 			printk(" bug! unknown register layout\n");
 			return -1;
 			break;
 	}
-	writew(devpriv->fifo_size_bits, devpriv->main_iobase + FIFO_SIZE_REG);
+	writew(private(dev)->fifo_size_bits, private(dev)->main_iobase + FIFO_SIZE_REG);
+
+#if 0
+{
+int i;
+for(i = 0; i < 8; i++)
+	if(i == 0)
+		caldac_8800_write(dev, i, 128);
+	else
+		caldac_8800_write(dev, i, 128);
+}
+caldac_1590_write(dev, 0x800, 0x800);
+#endif
 
 	return 0;
 }
-
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
@@ -969,28 +1007,28 @@ static int detach(comedi_device *dev)
 
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
-	if(devpriv)
+	if(private(dev))
 	{
-		if(devpriv->plx9080_iobase)
-			iounmap((void*)devpriv->plx9080_iobase);
-		if(devpriv->main_iobase)
-			iounmap((void*)devpriv->main_iobase);
-		if(devpriv->dio_counter_iobase)
-			iounmap((void*)devpriv->dio_counter_iobase);
-		if(devpriv->plx9080_phys_iobase ||
-			devpriv->main_phys_iobase || devpriv->dio_counter_phys_iobase)
-			pci_release_regions(devpriv->hw_dev);
+		if(private(dev)->plx9080_iobase)
+			iounmap((void*)private(dev)->plx9080_iobase);
+		if(private(dev)->main_iobase)
+			iounmap((void*)private(dev)->main_iobase);
+		if(private(dev)->dio_counter_iobase)
+			iounmap((void*)private(dev)->dio_counter_iobase);
+		if(private(dev)->plx9080_phys_iobase ||
+			private(dev)->main_phys_iobase || private(dev)->dio_counter_phys_iobase)
+			pci_release_regions(private(dev)->hw_dev);
 		// free pci dma buffers
 		for(i = 0; i < DMA_RING_COUNT; i++)
 		{
-			if(devpriv->ai_buffer[i])
-				pci_free_consistent(devpriv->hw_dev, DMA_TRANSFER_SIZE,
-					devpriv->ai_buffer[i], devpriv->ai_buffer_phys_addr[i]);
+			if(private(dev)->ai_buffer[i])
+				pci_free_consistent(private(dev)->hw_dev, DMA_TRANSFER_SIZE,
+					private(dev)->ai_buffer[i], private(dev)->ai_buffer_phys_addr[i]);
 		}
 		// free dma descriptors
-		if(devpriv->dma_desc)
-			pci_free_consistent(devpriv->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
-				devpriv->dma_desc, devpriv->dma_desc_phys_addr);
+		if(private(dev)->dma_desc)
+			pci_free_consistent(private(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
+				private(dev)->dma_desc, private(dev)->dma_desc_phys_addr);
 	}
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 4);
@@ -1000,31 +1038,35 @@ static int detach(comedi_device *dev)
 
 static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int bits, n, i;
+	unsigned int bits = 0, n, i;
 	const int timeout = 100;
 
-	// disable interrupts on plx 9080
-	writel(0, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	// disable interrupts on plx 9080 XXX
+	writel(0, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// disable card's analog input interrupt sources
-	devpriv->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT;
-	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
+	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
+
+	// make sure internal calibration source is turned off
+	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
 
 	/* disable pacing, enable software triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
-	devpriv->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
-	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
+	writew(ADC_DMA_DISABLE_BIT, private(dev)->main_iobase + ADC_CONTROL0_REG);
+	private(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
 	if(thisboard->layout != LAYOUT_4020)
 	{
 		// use internal queue
-		writew(SLOW_DAC_BIT, devpriv->main_iobase + HW_CONFIG_REG);
+		writew(SLOW_DAC_BIT, private(dev)->main_iobase + HW_CONFIG_REG);
 
 		// load internal queue
 		bits = 0;
 		// set channel
 		bits |= CHAN_BITS(CR_CHAN(insn->chanspec));
+//bits |= CHAN_BITS(0);
 		// set gain
 		bits |= thisboard->ai_range_bits[CR_RANGE(insn->chanspec)];
 		// set single-ended / differential
@@ -1033,30 +1075,34 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		if(CR_AREF(insn->chanspec) == AREF_COMMON)
 			bits |= ADC_COMMON_BIT;
 		// set stop channel
-		writew(CHAN_BITS(CR_CHAN(insn->chanspec)), devpriv->main_iobase + ADC_QUEUE_HIGH_REG);
+		writew(CHAN_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
+//writew(CHAN_BITS(0), private(dev)->main_iobase + ADC_QUEUE_HIGH_REG);
 		// set start channel, and rest of settings
-		writew(bits, devpriv->main_iobase + ADC_QUEUE_LOAD_REG);
+		writew(bits, private(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 	}
 
 // calibration testing
-//writew(CAL_EN_BIT | CAL_SRC_BITS(CR_CHAN(insn->chanspec)), devpriv->main_iobase + CALIBRATION_REG);
+//writew(CAL_EN_BIT | CAL_SRC_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + CALIBRATION_REG);
+//udelay(10);
 
 	// clear adc buffer
-	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
+	writew(0, private(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
 
 	for(n = 0; n < insn->n; n++)
 	{
 		/* trigger conversion, bits sent only matter for 4020 */
-		writew(ADC_CONVERT_CHANNEL_4020_BITS(CR_CHAN(insn->chanspec)), devpriv->main_iobase + ADC_CONVERT_REG);
+		writew(ADC_CONVERT_CHANNEL_4020_BITS(CR_CHAN(insn->chanspec)), private(dev)->main_iobase + ADC_CONVERT_REG);
 
 		// wait for data
 		for(i = 0; i < timeout; i++)
 		{
-			bits = readw(devpriv->main_iobase + HW_STATUS_REG);
+			bits = readw(private(dev)->main_iobase + HW_STATUS_REG);
+			DEBUG_PRINT(" pipe bits 0x%x\n", PIPE_FULL_BITS(bits));
 			if(PIPE_FULL_BITS(bits))
 				break;
 			udelay(1);
 		}
+		DEBUG_PRINT(" looped %i times waiting for data\n", i);
 		if(i == timeout)
 		{
 			comedi_error(dev, " analog input read insn timed out");
@@ -1064,9 +1110,9 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			return -ETIME;
 		}
 		if(thisboard->layout == LAYOUT_4020)
-			data[n] = readl(devpriv->dio_counter_iobase) & 0xffff;
+			data[n] = readl(private(dev)->dio_counter_iobase) & 0xffff;
 		else
-			data[n] = readw(devpriv->main_iobase + PIPE1_READ_REG);
+			data[n] = readw(private(dev)->main_iobase + PIPE1_READ_REG);
 	}
 
 	return n;
@@ -1238,23 +1284,23 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	unsigned int i;
 
 	// disable card's analog input interrupt sources
-	devpriv->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
 		~ADC_INTR_SRC_MASK;
-	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
+	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 
 	/* disable pacing, triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
-	devpriv->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
-	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
+	writew(ADC_DMA_DISABLE_BIT, private(dev)->main_iobase + ADC_CONTROL0_REG);
+	private(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
 	// set hardware configuration register
 	bits = 0;
 	if(thisboard->layout == LAYOUT_4020)
 		bits |= INTERNAL_CLOCK_4020_BITS;
 	// use external queue
-	else bits |= EXT_QUEUE | SLOW_DAC_BIT;
-	writew(bits, devpriv->main_iobase + HW_CONFIG_REG);
+	else bits |= EXT_QUEUE_BIT | SLOW_DAC_BIT;
+	writew(bits, private(dev)->main_iobase + HW_CONFIG_REG);
 
 	// set conversion pacing
 	if(cmd->convert_src == TRIG_TIMER)
@@ -1267,10 +1313,10 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		else
 			convert_counter_value = cmd->convert_arg / TIMER_BASE - 3;
 		// load lower 16 bits
-		writew(convert_counter_value & 0xffff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
+		writew(convert_counter_value & 0xffff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
 		DEBUG_PRINT("convert counter 0x%x\n", convert_counter_value);
 		// load upper 8 bits
-		writew((convert_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
+		writew((convert_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
 
 		// set scan pacing
 		if(thisboard->layout != LAYOUT_4020)
@@ -1286,26 +1332,26 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 				scan_counter_value = cmd->convert_arg / TIMER_BASE;
 			}
 			// load lower 16 bits
-			writew(scan_counter_value & 0xffff, devpriv->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
+			writew(scan_counter_value & 0xffff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_LOWER_REG);
 			// load upper 8 bits
-			writew((scan_counter_value >> 16) & 0xff, devpriv->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
+			writew((scan_counter_value >> 16) & 0xff, private(dev)->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
 			DEBUG_PRINT("scan counter 0x%x\n", scan_counter_value);
 		}
 	}
 
 	// load hardware conversion counter with non-zero value so it doesn't mess with us
-	writew(1, devpriv->main_iobase + ADC_COUNT_LOWER_REG);
+	writew(1, private(dev)->main_iobase + ADC_COUNT_LOWER_REG);
 
 	// set software count
 	if(cmd->stop_src == TRIG_COUNT)
-		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
+		private(dev)->ai_count = cmd->stop_arg * cmd->chanlist_len;
 
 	if(thisboard->layout != LAYOUT_4020)
 	{
 		/* XXX cannot write to queue fifo while dac fifo is being written to
 		* ( need spinlock, or try to use internal queue instead */
 		// clear queue pointer
-		writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
+		writew(0, private(dev)->main_iobase + ADC_QUEUE_CLEAR_REG);
 		// load external queue
 		for(i = 0; i < cmd->chanlist_len; i++)
 		{
@@ -1322,70 +1368,70 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			// mark end of queue
 			if(i == cmd->chanlist_len - 1)
 				bits |= QUEUE_EOSCAN_BIT | QUEUE_EOSEQ_BIT;
-			writew(bits, devpriv->main_iobase + ADC_QUEUE_FIFO_REG);
+			writew(bits, private(dev)->main_iobase + ADC_QUEUE_FIFO_REG);
 		}
 
 		// prime queue holding register
-		writew(0, devpriv->main_iobase + ADC_QUEUE_LOAD_REG);
+		writew(0, private(dev)->main_iobase + ADC_QUEUE_LOAD_REG);
 	}
 
 	// clear adc buffer
-	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
+	writew(0, private(dev)->main_iobase + ADC_BUFFER_CLEAR_REG);
 
-	devpriv->dma_index = 0;
+	private(dev)->dma_index = 0;
 
 	// enable interrupts on plx 9080
 	// XXX enabling more interrupt sources than are actually used
 	bits = ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_PDIE | ICS_LIE | ICS_LDIE | ICS_DMA0_E | ICS_DMA1_E | ICS_MBIE
 		| ICS_RAE;	// XXX
-	writel(bits, devpriv->plx9080_iobase + PLX_INTRCS_REG);
+	writel(bits, private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 
 	// enable interrupts
-	devpriv->intr_enable_bits |= EN_ADC_OVERRUN_BIT |
+	private(dev)->intr_enable_bits |= EN_ADC_OVERRUN_BIT |
 		EN_ADC_DONE_INTR_BIT | EN_ADC_ACTIVE_INTR_BIT;
 	if(cmd->stop_src == TRIG_EXT)
-		devpriv->intr_enable_bits |= EN_ADC_STOP_INTR_BIT;
+		private(dev)->intr_enable_bits |= EN_ADC_STOP_INTR_BIT;
 	// Use pio transfer and interrupt on end of conversion if TRIG_WAKE_EOS flag is set.
 	if(cmd->flags & TRIG_WAKE_EOS)
-		devpriv->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
-	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
-	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
+		private(dev)->intr_enable_bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
+	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
+	DEBUG_PRINT("intr enable bits 0x%x\n", private(dev)->intr_enable_bits);
 
-	/* set mode, disable software conversion gate */
-	devpriv->adc_control1_bits |= SW_GATE_BIT;
+	/* set mode, allow software conversions */
+	private(dev)->adc_control1_bits |= SW_GATE_BIT;
 	if(thisboard->layout != LAYOUT_4020)
 	{
 		if(cmd->convert_src == TRIG_EXT)
-			devpriv->adc_control1_bits |= ADC_MODE_BITS(13);	// good old mode 13
+			private(dev)->adc_control1_bits |= ADC_MODE_BITS(13);	// good old mode 13
 		else
-			devpriv->adc_control1_bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
+			private(dev)->adc_control1_bits |= ADC_MODE_BITS(8);	// mode 8.  What else could you need?
 	} else
 	{
 		if(cmd->chanlist_len == 4)
-			devpriv->adc_control1_bits |= FOUR_CHANNEL_4020_BITS;
+			private(dev)->adc_control1_bits |= FOUR_CHANNEL_4020_BITS;
 		else
-			devpriv->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
-		devpriv->adc_control1_bits |= LO_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[0]));
-		devpriv->adc_control1_bits |= HI_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]));
+			private(dev)->adc_control1_bits |= TWO_CHANNEL_4020_BITS;
+		private(dev)->adc_control1_bits |= LO_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[0]));
+		private(dev)->adc_control1_bits |= HI_CHANNEL_4020_BITS(CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]));
 	}
 	// use pio transfer and interrupt on end of scan if TRIG_WAKE_EOS flag is set
 #if 0
 // this causes interrupt on end of scan to be disabled on 60xx?
 	if(cmd->flags & TRIG_WAKE_EOS)
-		devpriv->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
+		private(dev)->adc_control1_bits |= ADC_DMA_DISABLE_BIT;
 #endif
-	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
-	DEBUG_PRINT("control1 bits 0x%x\n", devpriv->adc_control1_bits);
+	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
+	DEBUG_PRINT("control1 bits 0x%x\n", private(dev)->adc_control1_bits);
 
 	if(cmd->flags & TRIG_WAKE_EOS)
-		writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		writeb(0, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	else
 	{
 		// give location of first dma descriptor
-		bits = devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
-		writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
+		bits = private(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;;
+		writel(bits, private(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 		// enable dma transfer
-		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	}
 
 	/* enable pacing, triggering, etc */
@@ -1395,14 +1441,14 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= ADC_START_TRIG_EXT_BITS;
 	else if(cmd->start_src == TRIG_NOW)
 		bits |= ADC_START_TRIG_SOFT_BITS;
-	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
+	writew(bits, private(dev)->main_iobase + ADC_CONTROL0_REG);
 	DEBUG_PRINT("control0 bits 0x%x\n", bits);
 
 	// start aquisition
-	writew(0, devpriv->main_iobase + ADC_START_REG);
+	writew(0, private(dev)->main_iobase + ADC_START_REG);
 	DEBUG_PRINT("soft trig\n");
 
-	DEBUG_PRINT("trying to start, hw status is 0x%x\n", readw(devpriv->main_iobase + HW_STATUS_REG));
+	DEBUG_PRINT("trying to start, hw status is 0x%x\n", readw(private(dev)->main_iobase + HW_STATUS_REG));
 
 	return 0;
 }
@@ -1416,11 +1462,11 @@ static void pio_drain_ai_fifo_16(comedi_device *dev, unsigned int num_samples)
 
 	DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
 
-	devpriv->ai_count -= num_samples;
+	private(dev)->ai_count -= num_samples;
 
 	for(i = 0; i < num_samples; i++)
 	{
-		comedi_buf_put(async, readw(devpriv->main_iobase + ADC_FIFO_REG));
+		comedi_buf_put(async, readw(private(dev)->main_iobase + ADC_FIFO_REG));
 	}
 }
 
@@ -1434,11 +1480,11 @@ static void pio_drain_ai_fifo_32(comedi_device *dev, unsigned int num_samples)
 
 	DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
 
-	devpriv->ai_count -= num_samples;
+	private(dev)->ai_count -= num_samples;
 
 	for(i = 0; i < num_samples / 2; i++)
 	{
-		fifo_data = readl(devpriv->dio_counter_iobase);
+		fifo_data = readl(private(dev)->dio_counter_iobase);
 		comedi_buf_put(async, fifo_data & 0xffff);
 		comedi_buf_put(async, (fifo_data >> 16) & 0xffff);
 	}
@@ -1460,11 +1506,11 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 	{
 		/* Get most significant bits.  Different boards encode the meaning of these bits
 		* differently, so use a scheme that doesn't depend on encoding */
-		read_segment = ADC_UPP_READ_PNTR_CODE(readw(devpriv->main_iobase + PREPOST_REG));
-		write_segment = ADC_UPP_WRITE_PNTR_CODE(readw(devpriv->main_iobase + PREPOST_REG));
+		read_segment = ADC_UPP_READ_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
+		write_segment = ADC_UPP_WRITE_PNTR_CODE(readw(private(dev)->main_iobase + PREPOST_REG));
 		// get least significant 15 bits
-		read_index = readw(devpriv->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
-		write_index = readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
+		read_index = readw(private(dev)->main_iobase + ADC_READ_PNTR_REG) & 0x7fff;
+		write_index = readw(private(dev)->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 
 		/* if read and write pointers are not on the same fifo segment, read to the
 		* end of the read segment */
@@ -1479,9 +1525,9 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 
 		if(cmd->stop_src == TRIG_COUNT)
 		{
-			if(num_samples > devpriv->ai_count)
+			if(num_samples > private(dev)->ai_count)
 			{
-				num_samples = devpriv->ai_count;
+				num_samples = private(dev)->ai_count;
 			}
 		}
 
@@ -1490,7 +1536,7 @@ static void pio_drain_ai_fifo(comedi_device *dev)
 		else
 			pio_drain_ai_fifo_16(dev, num_samples);
 
-		if(cmd->stop_src == TRIG_COUNT && devpriv->ai_count <= 0)
+		if(cmd->stop_src == TRIG_COUNT && private(dev)->ai_count <= 0)
 		{
 			break;
 		}
@@ -1513,13 +1559,13 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	u32 plx_bits;
 	unsigned int dma0_status;
 
-	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
-	status = readw(devpriv->main_iobase + HW_STATUS_REG);
-	dma0_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
+	status = readw(private(dev)->main_iobase + HW_STATUS_REG);
+	dma0_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
 	DEBUG_PRINT(" isr hw status 0x%x\n", status);
 	DEBUG_PRINT(" plx status 0x%x\n", plx_status);
-	DEBUG_PRINT(" user counter 0x%x\n", readw(devpriv->main_iobase + LOWER_XFER_REG));
+	DEBUG_PRINT(" user counter 0x%x\n", readw(private(dev)->main_iobase + LOWER_XFER_REG));
 
 	if((status &
 		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
@@ -1543,24 +1589,25 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	if(plx_status & ICS_DMA0_A)
 	{	// dma chan 0 interrupt
 		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
+		DEBUG_PRINT("dma chain flags 0x%x\n", CHAIN_FLAG_BITS(readw(private(dev)->main_iobase + PREPOST_REG)));
 		// XXX possible race
-		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 
 		if(dma0_status & PLX_DMA_EN_BIT)
 		{
 			// transfer data from dma buffer to comedi buffer
-			num_samples = DMA_TRANSFER_SIZE / sizeof(devpriv->ai_buffer[0][0]);
+			num_samples = DMA_TRANSFER_SIZE / sizeof(private(dev)->ai_buffer[0][0]);
 			if(cmd->stop_src == TRIG_COUNT)
 			{
-				if(num_samples > devpriv->ai_count)
-					num_samples = devpriv->ai_count;
-				devpriv->ai_count -= num_samples;
+				if(num_samples > private(dev)->ai_count)
+					num_samples = private(dev)->ai_count;
+				private(dev)->ai_count -= num_samples;
 			}
 			for(i = 0; i < num_samples; i++)
 			{
-				comedi_buf_put(async, devpriv->ai_buffer[devpriv->dma_index][i]);
+				comedi_buf_put(async, private(dev)->ai_buffer[private(dev)->dma_index][i]);
 			}
-			devpriv->dma_index = (devpriv->dma_index + 1) % DMA_RING_COUNT;
+			private(dev)->dma_index = (private(dev)->dma_index + 1) % DMA_RING_COUNT;
 			async->events |= COMEDI_CB_BLOCK;
 		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
@@ -1575,18 +1622,18 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	// clear possible plx9080 interrupt sources
 	if(plx_status & ICS_LDIA)
 	{ // clear local doorbell interrupt
-		plx_bits = readl(devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
-		writel(plx_bits, devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
+		plx_bits = readl(private(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
+		writel(plx_bits, private(dev)->plx9080_iobase + PLX_DBR_OUT_REG);
 		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
 	}
 	if(plx_status & ICS_DMA1_A)
 	{	// dma chan 1 interrupt
-		writeb(PLX_CLEAR_DMA_INTR_BIT, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+		writeb(PLX_CLEAR_DMA_INTR_BIT, private(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
 
 	// if we are have all the data, then quit
-	if((cmd->stop_src == TRIG_COUNT && devpriv->ai_count <= 0) ||
+	if((cmd->stop_src == TRIG_COUNT && private(dev)->ai_count <= 0) ||
 		(cmd->stop_src == TRIG_EXT && (status & ADC_STOP_BIT)))
 	{
 		ai_cancel(dev, s);
@@ -1603,25 +1650,25 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	unsigned int dma_status, i;
 
 	// disable ai interrupts
-	devpriv->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
 		~ADC_INTR_SRC_MASK;
-	writew(devpriv->intr_enable_bits, devpriv->main_iobase + INTR_ENABLE_REG);
+	writew(private(dev)->intr_enable_bits, private(dev)->main_iobase + INTR_ENABLE_REG);
 
 	/* disable pacing, triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT, devpriv->main_iobase + ADC_CONTROL0_REG);
-	devpriv->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
-	writew(devpriv->adc_control1_bits, devpriv->main_iobase + ADC_CONTROL1_REG);
+	writew(ADC_DMA_DISABLE_BIT, private(dev)->main_iobase + ADC_CONTROL0_REG);
+	private(dev)->adc_control1_bits &= ADC_QUEUE_CONFIG_BIT;
+	writew(private(dev)->adc_control1_bits, private(dev)->main_iobase + ADC_CONTROL1_REG);
 
 	// abort dma transfer if necessary
-	dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	if((dma_status & PLX_DMA_EN_BIT) == 0)
 		return 0;
 
 	// wait to make sure done bit is zero
 	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++)
 	{
-		dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 		udelay(1);
 	}
 	if(i == timeout)
@@ -1630,15 +1677,15 @@ static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 		return 0;
 	}
 	// disable channel
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(0, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	// abort channel
-	writeb(PLX_DMA_ABORT_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(PLX_DMA_ABORT_BIT, private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	// wait for dma done bit
-	dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	for(i = 0; (dma_status & PLX_DMA_DONE_BIT) == 0 && i < timeout; i++)
 	{
 		udelay(1);
-		dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		dma_status = readb(private(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	}
 	if(i == timeout)
 		comedi_error(dev, "cancel() timed out waiting for dma done set");
@@ -1654,28 +1701,28 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	unsigned int bits;
 
 	// do some initializing
-	writew(DAC_ENABLE_BIT, devpriv->main_iobase + DAC_CONTROL0_REG);
+	writew(DAC_ENABLE_BIT, private(dev)->main_iobase + DAC_CONTROL0_REG);
 
 	// set range
 	bits = DAC_OUTPUT_ENABLE_BIT;
 	bits |= DAC_RANGE_BITS(chan, range);
-	writew(bits, devpriv->main_iobase + DAC_CONTROL1_REG);
+	writew(bits, private(dev)->main_iobase + DAC_CONTROL1_REG);
 
 	// clear buffer
-	writew(0, devpriv->main_iobase + DAC_BUFFER_CLEAR_REG);
+	writew(0, private(dev)->main_iobase + DAC_BUFFER_CLEAR_REG);
 
 	// write to channel
-	writew(data[0], devpriv->main_iobase + DAC_CONVERT_REG(chan));
+	writew(data[0], private(dev)->main_iobase + DAC_CONVERT_REG(chan));
 
 	// remember output value
-	devpriv->ao_value[chan] = data[0];
+	private(dev)->ao_value[chan] = data[0];
 
 	return 1;
 }
 
 static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
+	data[0] = private(dev)->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
 }
@@ -1685,6 +1732,7 @@ static int dio_callback(int dir, int port, int data, unsigned long iobase)
 	if(dir)
 	{
 		writeb(data, iobase + port);
+		DEBUG_PRINT("wrote 0x%x to port %i\n", data, port);
 		return 0;
 	}else
 	{
@@ -1708,7 +1756,7 @@ static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 {
 	lsampl_t bits;
 
-	bits = readb(devpriv->dio_counter_iobase + DI_REG);
+	bits = readb(private(dev)->dio_counter_iobase + DI_REG);
 	bits &= 0xf;
 	data[1] = bits;
 	data[0] = 0;
@@ -1721,19 +1769,38 @@ static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 	lsampl_t wbits;
 
 	data[0] &= 0xf;
-	wbits = devpriv->do_bits;
+	wbits = private(dev)->do_bits;
 	// zero bits we are going to change
 	wbits &= ~data[0];
 	// set new bits
 	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits;
+	private(dev)->do_bits = wbits;
 
-	writeb(devpriv->do_bits, devpriv->dio_counter_iobase + DO_REG);
+	writeb(private(dev)->do_bits, private(dev)->dio_counter_iobase + DO_REG);
 
 	data[1] = wbits;
 
 	return 2;
 }
+
+static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	int channel = CR_CHAN(insn->chanspec);
+
+	caldac_8800_write(dev, channel, data[0]);
+
+	return 1;
+
+}
+
+#if 0
+static int calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+        data[0] = ;
+
+        return 1;
+}
+#endif
 
 /* utility function that rounds desired timing to an achievable time, and
  * sets cmd members appropriately.
@@ -1792,3 +1859,68 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 
 	return divisor;
 }
+
+/* 6025 caldacs:
+ * address 4 == fine adc offset
+ * address 5 == coarse adc offset
+ * address 6 == coarse adc gain
+ * address 7 == fine adc gain
+ */
+static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value)
+{
+	const int num_caldac_channels = 8;
+	const int bitstream_length = 11;
+	unsigned int bitstream = ((address & 0x7) << 8) | value;
+	unsigned int bit, register_bits;
+
+	if(address >= num_caldac_channels)
+	{
+		comedi_error(dev, "illegal caldac channel");
+		return -1;
+	}
+
+        for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
+	{
+		register_bits = SERIAL_CLOCK_BIT;
+		if(bitstream & bit)
+			register_bits |= SERIAL_DATA_IN_BIT;
+		udelay(1);
+		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
+        }
+
+	udelay(1);
+	writew(SELECT_8800_BIT, private(dev)->main_iobase + CALIBRATION_REG);
+	udelay(1);
+	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
+
+	return 0;
+}
+
+static int caldac_1590_write(comedi_device *dev, unsigned int dac_a, unsigned int dac_b)
+{
+	const int bitstream_length = 24;
+	const int max_caldac_value = 0xfff;
+	unsigned int bitstream = ((dac_a & 0xfff) << 12) | (dac_b & 0xfff);
+	unsigned int bit, register_bits;
+
+	if(dac_a > max_caldac_value || dac_b > max_caldac_value)
+	{
+		comedi_error(dev, "illegal 1590 caldac channel");
+		return -1;
+	}
+
+        for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
+	{
+		register_bits = SELECT_1590_BIT | SERIAL_CLOCK_BIT;
+		if(bitstream & bit)
+			register_bits |= SERIAL_DATA_IN_BIT;
+		udelay(1);
+		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
+        }
+
+	udelay(1);
+	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
+
+	return 0;
+}
+
