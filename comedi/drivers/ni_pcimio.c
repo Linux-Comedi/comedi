@@ -489,7 +489,7 @@ static ni_board ni_boards[]={
 		n_aochan:	4,
 		aobits:         12,
 		ao_unipolar:    0,
-		ao_fifo_depth:  8192,
+		ao_fifo_depth:  16384, /* data sheet says 8192, but fifo really holds 16384 samples */
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
@@ -652,11 +652,6 @@ static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 }
 
-#define win_out2(data,addr) do{ \
-	win_out((data)>>16, (addr)); \
-	win_out((data)&0xffff, (addr)+1); \
-}while(0)
-
 #define win_in(addr) __win_in(dev,addr)
 static inline unsigned short __win_in(comedi_device *dev, int addr)
 {
@@ -670,23 +665,6 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 
 	return ret;
 }
-
-#define ao_win_out(data,addr) __ao_win_out(dev,data,addr)
-static inline void __ao_win_out( comedi_device *dev, uint16_t data, int addr )
-{
-       unsigned long flags;
-
-       comedi_spin_lock_irqsave(&dev->spinlock,flags);
-       ni_writew(addr,AO_Window_Address_671x);
-       ni_writew(data,AO_Window_Data_671x);
-       comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
-}
-
-#define ao_win_out2(data,addr) do{ \
-       ao_win_out((data)>>16, (addr)); \
-       ao_win_out((data)&0xffff, (addr)+1); \
-}while(0)
-
 
 #define interrupt_pin(a)	0
 #define IRQ_POLARITY 1

@@ -286,11 +286,6 @@ static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
 	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
 }
 
-#define win_out2(data,addr) do{ \
-	win_out((data)>>16, (addr)); \
-	win_out((data)&0xffff, (addr)+1); \
-}while(0)
-
 #define win_in(addr) __win_in(dev,addr)
 static inline unsigned short __win_in(comedi_device *dev, int addr)
 {
@@ -308,13 +303,6 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 
 	return ret;
 }
-
-#define ao_win_out(a,b) do{ \
-	ni_writew((b),AO_Window_Address_671x); \
-	ni_writew((a),AO_Window_Data_671x); \
-}while(0)
-
-
 
 #ifdef __ISAPNP__
 static struct isapnp_device_id device_ids[] = {

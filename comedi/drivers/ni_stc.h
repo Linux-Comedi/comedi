@@ -647,7 +647,7 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 #define Calibration_Channel_Select_611x	0x1a /* w16 (new) */
 #define ADC_FIFO_Data_611x		0x1c /* r32 (incompatible) */
 #define AI_FIFO_Offset_Load_611x	0x05 /* r8 (new) */
-#define AO_FIFO_Offset_Load_611x       0x13 /* W32? */
+#define AO_FIFO_Offset_Load_611x       0x13 /* W32 */
 #define DAC_FIFO_Data_611x		0x14 /* w32 (incompatible) */
 #define AO_Window_Addr_611x		0x18 /* w16 */
 #define AO_Window_Data_611x		0x1e /* w16 */

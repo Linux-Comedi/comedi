@@ -257,9 +257,36 @@ static void get_last_sample_611x( comedi_device *dev );
 static int ni_ai_drain_dma(comedi_device *dev );
 #endif
 
+#define win_out2(data,addr) do{ \
+	win_out((data)>>16, (addr)); \
+	win_out((data)&0xffff, (addr)+1); \
+}while(0)
+
+
+#define ao_win_out(data,addr) ni_ao_win_outw(dev,data,addr)
+static inline void ni_ao_win_outw( comedi_device *dev, uint16_t data, int addr )
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	ni_writew(addr,AO_Window_Address_671x);
+	ni_writew(data,AO_Window_Data_671x);
+	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+}
+
+static inline void ni_ao_win_outl(comedi_device *dev, uint32_t data, int addr)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	ni_writew(addr,AO_Window_Address_671x);
+	ni_writel(data,AO_Window_Data_671x);
+	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+}
+
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to
 * share registers (such as Interrupt_A_Register) without interfering with
-* each other.  
+* each other.
 *
 * NOTE: the switch/case statements are optimized out for a constant argument
 * so this is actually quite fast---  If you must wrap another function around this
@@ -465,16 +492,20 @@ static int ni_ao_wait_for_dma_load( comedi_device *dev )
 	static const int timeout = 10000;
 	int i;
 
-	for( i = 0; i < timeout; i++ )
+	for(i = 0; i < timeout; i++)
 	{
 		unsigned short b_status;
 
 		b_status = win_in( AO_Status_1_Register );
 		if( b_status & AO_FIFO_Half_Full_St )
 			break;
+		comedi_udelay(1);
 	}
-	if( i == timeout ) return -EPIPE;
-
+	if( i == timeout )
+	{
+		comedi_error(dev, "timed out waiting for dma load");
+		return -EPIPE;
+	}
 	return 0;
 }
 
@@ -814,8 +845,8 @@ static int ni_ao_fifo_half_empty(comedi_device *dev,comedi_subdevice *s)
 	}
 
 	n /= sizeof(sampl_t);
-	if(n>boardtype.ao_fifo_depth/sizeof(sampl_t))
-		n=boardtype.ao_fifo_depth/sizeof(sampl_t);
+	if(n > boardtype.ao_fifo_depth / 2)
+		n = boardtype.ao_fifo_depth / 2;
 
 	ni_ao_fifo_load(dev,s,n);
 
@@ -830,14 +861,15 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 
 	/* reset fifo */
 	win_out(0,DAC_FIFO_Clear);
+	ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
 	/* load some data */
 	n = comedi_buf_read_n_available(s);
 	if(n==0)return 0;
 
 	n /= sizeof(sampl_t);
-	if(n>boardtype.ao_fifo_depth)
-		n=boardtype.ao_fifo_depth;
+	if(n > boardtype.ao_fifo_depth)
+		n = boardtype.ao_fifo_depth;
 
 	ni_ao_fifo_load(dev,s,n);
 
@@ -2071,8 +2103,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	bits = AO_Error_Interrupt_Enable;
 #ifdef PCIDMA
 	win_out(0, DAC_FIFO_Clear);
-	// offset load doesn't seem to be necessary
-	//ao_win_out( 0x6, AO_FIFO_Offset_Load_611x );
+	ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 	ni_ao_setup_MITE_dma(dev, &s->async->cmd);
 	ret = ni_ao_wait_for_dma_load(dev);
 	if(ret < 0) return ret;
