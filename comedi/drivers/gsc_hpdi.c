@@ -60,11 +60,9 @@ static int hpdi_cmd_test( comedi_device *dev, comedi_subdevice *s, comedi_cmd *c
 static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s );
 static void handle_interrupt(int irq, void *d, struct pt_regs *regs);
 static int dio_config_block_size( comedi_device *dev, lsampl_t *data );
-static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
-	void *data, unsigned int num_bytes );
 
-//#undef HPDI_DEBUG	// disable debugging messages
-#define HPDI_DEBUG	// enable debugging code
+#undef HPDI_DEBUG	// disable debugging messages
+//#define HPDI_DEBUG	// enable debugging code
 
 #ifdef HPDI_DEBUG
 #define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
@@ -326,7 +324,6 @@ typedef struct
 	volatile unsigned long dio_count;
 	volatile uint32_t bits[ 24 ];	// software copies of values written to hpdi registers
 	volatile unsigned int block_size;	// number of bytes at which to generate COMEDI_CB_BLOCK events
-	volatile unsigned int block_progress;	// number of bytes since last COMEDI_CB_BLOCK event
 	unsigned dio_config_output : 1;
 } hpdi_private;
 
@@ -816,7 +813,6 @@ static int di_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	priv(dev)->dma_buf_index = 0;
 	priv(dev)->dma_desc_index = 0;
-	priv(dev)->block_progress = 0;
 
 	// give location of first dma descriptor
 	bits = priv(dev)->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
@@ -877,7 +873,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 				num_samples = priv(dev)->dio_count;
 			priv(dev)->dio_count -= num_samples;
 		}
-		hpdi_write_array_to_buffer( dev, priv(dev)->desc_dio_buffer[ priv(dev)->dma_desc_index ],
+		cfc_write_array_to_buffer( dev->read_subdev, priv(dev)->desc_dio_buffer[ priv(dev)->dma_desc_index ],
 			num_samples * sizeof( uint32_t ) );
 		priv(dev)->dma_desc_index++;
 		priv(dev)->dma_desc_index %= priv(dev)->num_dma_descriptors;
@@ -982,20 +978,4 @@ static int hpdi_cancel( comedi_device *dev, comedi_subdevice *s )
 	abort_dma(dev, 0);
 
 	return 0;
-}
-
-// fix up event handling
-static inline unsigned int hpdi_write_array_to_buffer( comedi_device *dev,
-	void *data, unsigned int num_bytes )
-{
-	unsigned int retval;
-	comedi_subdevice *s = dev->read_subdev;
-
-	retval = cfc_write_array_to_buffer( s, data, num_bytes );
-	priv(dev)->block_progress += retval;
-	if( priv(dev)->block_progress < priv(dev)->block_size )
-		s->async->events &= ~COMEDI_CB_BLOCK;
-	priv(dev)->block_progress %= priv(dev)->block_size;
-
-	return retval;
 }
