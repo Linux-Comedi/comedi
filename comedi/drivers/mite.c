@@ -140,7 +140,7 @@ void mite_init(void)
 
 int mite_setup(struct mite_struct *mite)
 {
-	unsigned long			offset;
+	unsigned long			offset, start, length;
 	u32				addr;
 	int i;
 
@@ -158,9 +158,18 @@ int mite_setup(struct mite_struct *mite)
 #endif
 	mite->mite_phys_addr=addr;
 	offset = mite->mite_phys_addr & ~PAGE_MASK;
-	mite->mite_io_addr = ioremap(mite->mite_phys_addr & PAGE_MASK, PCI_MITE_SIZE + offset ) + offset;
+	start = mite->mite_phys_addr & PAGE_MASK;
+	length = PCI_MITE_SIZE + offset;
+	// check and request io memory region
+	if(check_mem_region(start, length)){
+
+		printk("io memory region already in use\n");
+		return -EIO;
+	}
+	request_mem_region(start, length, "mite");
+	mite->mite_io_addr = ioremap(start, length) + offset;
 	printk("MITE:0x%08lx mapped to %p ",mite->mite_phys_addr,mite->mite_io_addr);
-	
+
 #ifdef PCI_SUPPORT_VER1
 	pcibios_read_config_dword(mite->pci_bus,mite->pci_device_fn,PCI_BASE_ADDRESS_1,&addr);
 #else
@@ -172,7 +181,16 @@ int mite_setup(struct mite_struct *mite)
 #endif
 	mite->daq_phys_addr=addr;
 	offset = mite->daq_phys_addr & ~PAGE_MASK;
-	mite->daq_io_addr = ioremap(mite->daq_phys_addr & PAGE_MASK, PCI_DAQ_SIZE + offset ) + offset;
+	start = mite->daq_phys_addr & PAGE_MASK;
+	length = PCI_DAQ_SIZE + offset;
+	// check and request io memory region
+	if(check_mem_region(start, length)){
+
+		printk("io memory region already in use\n");
+		return -EIO;
+	}
+	request_mem_region(start, length, "mite (daq)");
+	mite->daq_io_addr = ioremap(start, length) + offset;
 	printk("DAQ:0x%08lx mapped to %p, ",mite->daq_phys_addr,mite->daq_io_addr);
 
 	/* XXX don't know what the 0xc0 and 0x80 mean */
@@ -212,15 +230,27 @@ void mite_cleanup(void)
 
 void mite_unsetup(struct mite_struct *mite)
 {
+	unsigned long offset, start, length;
+
 	if(!mite)return;
 
 	if(mite->mite_io_addr){
 		iounmap(mite->mite_io_addr);
 		mite->mite_io_addr=NULL;
+		// release io memory region
+		offset = mite->mite_phys_addr & ~PAGE_MASK;
+		start = mite->mite_phys_addr & PAGE_MASK;
+		length = PCI_MITE_SIZE + offset;
+		release_mem_region(start, length);
 	}
 	if(mite->daq_io_addr){
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr=NULL;
+		// release io memory region
+		offset = mite->daq_phys_addr & ~PAGE_MASK;
+		start = mite->daq_phys_addr & PAGE_MASK;
+		length = PCI_DAQ_SIZE + offset;
+		release_mem_region(start, length);
 	}
 
 	mite->used = 0;
