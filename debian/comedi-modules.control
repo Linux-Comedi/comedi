@@ -8,6 +8,6 @@ Package: comedi-modules-$KVERS
 Section: admin
 Architecture: any
 Description: Comedi modules
- This package provides the source code for Comedi.  The kernel source
- is required to compile these modules.
+ This package provides the modules for Comedi for a specific kernel
+ version.
 
