@@ -27,7 +27,7 @@
 /*
 Driver: comedi_rt_timer.o
 Description: Command emulator using real-time tasks
-Authors: ds, fmhess
+Author: ds, fmhess
 Devices:
 Status: works
 

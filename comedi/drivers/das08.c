@@ -25,7 +25,7 @@
 /*
 Driver: das08.o
 Description: DAS-08 compatible boards
-Authors: Warren Jasper, ds, Frank Hess
+Author: Warren Jasper, ds, Frank Hess
 Devices: [ComputerBoards] DAS08 (das08), DAS08-PGM (das08-pgm),
   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),

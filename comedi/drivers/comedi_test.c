@@ -30,7 +30,7 @@
 /*
 Driver: comedi_test.o
 Description: generates fake waveforms
-Authors: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess <fmhess@uiuc.edu>
+Author: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess <fmhess@uiuc.edu>
 Devices:
 Status: works
 Updated: 2002-03-05

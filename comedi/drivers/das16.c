@@ -26,7 +26,7 @@
 /*
 Driver: das16.o
 Description: DAS16 compatible boards
-Authors: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess
+Author: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess
 Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
   DAS-16F (das-16f), DAS-1201 (das-1201), DAS-1202 (das-1202),
   DAS-1401 (das-1401), DAS-1402 (das-1402), DAS-1601 (das-1601),
