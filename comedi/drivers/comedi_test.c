@@ -56,6 +56,7 @@ zero volts).
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/comedidev.h>
+#include <asm/div64.h>
 
 /* Board descriptions */
 typedef struct waveform_board_struct{
@@ -395,54 +396,22 @@ static int waveform_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-// divides an unsigned long long
-static unsigned long long my_ull_div(unsigned long long numerator, unsigned long denominator)
-{
-	u32 value;
-	unsigned long long remainder;
-	unsigned int shift = 0;
-	const unsigned long max_u32 = 0xffffffff;
-
-	if(numerator <= max_u32)
-	{
-		// numerator is small enough that we can return correct result
-		value = numerator;
-		return value / denominator;
-	}
-
-	remainder = numerator;
-
-	// otherwise shift most significant bits into 32 bit variable
-	while(numerator > max_u32)
-	{
-		numerator >>= 1;
-		shift++;
-	}
-	value = numerator;
-	value /= denominator;
-	value <<= shift;
-
-	remainder -= ((unsigned long long) value) * denominator;
-
-	return value + my_ull_div(remainder, denominator);
-}
-
 static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range_index, unsigned long current_time)
 {
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
-	unsigned long long value;
+	u64 value;
 	comedi_krange *krange = &s->range_table->range[range_index];
-	unsigned long long binary_amplitude;
+	u64 binary_amplitude;
 
 	binary_amplitude = s->maxdata;
 	binary_amplitude *= devpriv->uvolt_amplitude;
-	binary_amplitude = my_ull_div(binary_amplitude, krange->max - krange->min);
+	do_div(binary_amplitude, krange->max - krange->min);
 
 	current_time %= devpriv->usec_period;
 	value = current_time;
 	value *= binary_amplitude * 2;
-	value = my_ull_div(value, devpriv->usec_period);
+	do_div(value, devpriv->usec_period);
 	value -= binary_amplitude;	// get rid of sawtooth's dc offset
 
 	return offset + value;
@@ -451,13 +420,13 @@ static sampl_t fake_squarewave(comedi_device *dev, unsigned int range_index, uns
 {
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
-	unsigned long long value;
+	u64 value;
 	comedi_krange *krange = &s->range_table->range[range_index];
 	current_time %= devpriv->usec_period;
 
 	value = s->maxdata;
 	value *= devpriv->uvolt_amplitude;
-	value = my_ull_div(value, krange->max - krange->min);
+	do_div(value, krange->max - krange->min);
 
 	if(current_time < devpriv->usec_period / 2)
 		value *= -1;

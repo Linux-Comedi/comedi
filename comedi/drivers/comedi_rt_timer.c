@@ -66,6 +66,7 @@ TODO:
 #include <rtl.h>
 #include <rtl_sched.h>
 #include <rtl_compat.h>
+#include <asm/div64.h>
 
 #ifndef RTLINUX_VERSION_CODE
 #define RTLINUX_VERSION_CODE 0
@@ -79,26 +80,7 @@ TODO:
 // this function sole purpose is to divide a long long by 838
 static inline RTIME nano2count(long long ns)
 {
-	unsigned long denom = 838;	// divisor
-	long ms32 = ns >> 32;	// most significant 32 bits
-	unsigned long ms32rem = ms32 % denom;	// remainder of ms32 / denom
-	unsigned long ls32 = ns & 0xffffffff;	// least significant 32 bits
-	unsigned long ls32rem = ls32 % denom;
-	unsigned long big = 0xffffffff;
-	unsigned long big_rem = big % denom;
-	unsigned long rem_rem;
-
-	// divide most significant bits
-	ns = ms32 / denom;
-	ns = ns << 32;
-	// add corrections due to rounding errors
-	ns += ms32rem * (big / denom) + (ms32rem * (big_rem + 1)) / denom;
-	// divide least significant bits
-	ns += ls32 / denom;
-	// add really small correction
-	rem_rem = (ms32rem * (big_rem + 1)) % denom;
-	ns += (ls32rem + rem_rem) / denom;
-
+	do_div(ns, 838);
 	return ns;
 }
 #ifdef rt_get_time()
