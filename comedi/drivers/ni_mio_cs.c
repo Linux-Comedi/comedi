@@ -102,7 +102,7 @@ static ni_board ni_boards[]={
 		name:		"DAQCard-6062E",
 		n_adchan:	16,
 		adbits:		12,
-		ai_fifo_depth:	1024,
+		ai_fifo_depth:	8192,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
 		ai_speed:	2000,
