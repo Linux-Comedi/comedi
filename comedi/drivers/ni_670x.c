@@ -24,12 +24,9 @@
 Driver: ni_670x.o
 Description: National Instruments 670x
 Author: Bart Joris <bjoris@advalvas.be>
-Updated: Wed, 22 Aug 2001 22:47:32 -0700
+Updated: Wed, 11 Dec 2002 18:25:35 -0800
 Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704
 Status: unknown
-
-The driver currently does not recognize the 6704, because the PCI
-ID is not known.
 
 Commands are not supported.
 */
@@ -73,14 +70,8 @@ static ni_670x_board ni_670x_boards[] =
 	ao_bits		: 16,
 	},
 	{
-	dev_id		: 0x0,			/* ????? */
-	name		: "PCI-6704",
-	ao_chans	: 32,
-	ao_bits		: 16,
-	},
-	{
-	dev_id		: 0x1920,		/* ????? */
-	name		: "PXI-6704",
+	dev_id		: 0x1920,
+	name		: "PCI-6704", /* also PXI-6704 */
 	ao_chans	: 32,
 	ao_bits		: 16,
 	},
@@ -88,6 +79,7 @@ static ni_670x_board ni_670x_boards[] =
 
 static struct pci_device_id ni_670x_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	//{ PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
@@ -118,6 +110,8 @@ static comedi_driver driver_ni_670x=
 };
 COMEDI_INITCLEANUP(driver_ni_670x);
 
+static comedi_lrange range_0_20mA = { 1, { RANGE_mA(0,20)}};
+
 static int ni_670x_find_device(comedi_device *dev,int bus,int slot);
 
 static int ni_670x_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -130,6 +124,7 @@ static int ni_670x_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret;
+	int i;
 	
 	printk("comedi%d: ni_670x: ",dev->minor);
 
@@ -161,7 +156,16 @@ static int ni_670x_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags		=	SDF_WRITABLE;
 	s->n_chan		= 	thisboard->ao_chans;
 	s->maxdata		=	0xffff;
-	s->range_table		=	&range_bipolar10; 
+	if(s->n_chan == 32){
+		s->range_table_list = kmalloc(sizeof(comedi_lrange *)*32,
+			GFP_KERNEL);
+		for(i=0;i<16;i++){
+			s->range_table_list[i] = &range_bipolar10; 
+			s->range_table_list[16+i] = &range_0_20mA;
+		}
+	}else{
+		s->range_table	=	&range_bipolar10; 
+	}
 	s->insn_write 		= 	&ni_670x_ao_winsn;
 	s->insn_read 		= 	&ni_670x_ao_rinsn;
 
@@ -188,6 +192,9 @@ static int ni_670x_detach(comedi_device *dev)
 {
 	printk("comedi%d: ni_670x: remove\n",dev->minor);
 	
+	if(dev->subdevices[0].range_table_list){
+		kfree(dev->subdevices[0].range_table_list);
+	}
 	if(dev->private && devpriv->mite)
 		mite_unsetup(devpriv->mite);
 		
@@ -216,15 +223,9 @@ static int ni_670x_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	  .	:	.	|   .			.
 	vch(15)	:	30	| ich(31)	:	31	*/
 	
-	
-	if (chan>15)			
-		chan = (chan-15)*2-1;	
-	else				
-		chan = chan*2;
-
-	for(i=0;i<insn->n;i++)
-	{
-		writel(chan,dev->iobase + AO_CHAN_OFFSET);		/* First write in channel register which channel to use */
+	for(i=0;i<insn->n;i++){
+		writel(((chan&15)<<1) | ((chan&16)>>4),
+			dev->iobase + AO_CHAN_OFFSET);		/* First write in channel register which channel to use */
 		writel(data[i],dev->iobase + AO_VALUE_OFFSET);  /* write channel value */
 		devpriv->ao_readback[chan] = data[i];
 	}
