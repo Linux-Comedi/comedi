@@ -124,6 +124,8 @@ struct comedi_async_struct{
 	void		*data;
 	unsigned int	data_len;
 
+	unsigned int	events;		/* events that have occurred */
+
 	comedi_cmd cmd;
 
 	// callback stuff
