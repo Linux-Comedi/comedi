@@ -279,6 +279,7 @@ static void parport_interrupt(int irq,void *d,struct pt_regs *regs)
 		s->async->buf_int_ptr=0;
 		s->async->events |= COMEDI_CB_EOBUF;
 	}
+	s->async->events |= COMEDI_CB_EOS;
 	
 	comedi_event(dev,s,s->async->events);
 }
