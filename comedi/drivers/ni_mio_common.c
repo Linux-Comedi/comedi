@@ -960,7 +960,8 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 		}else{
 			d = ni_readw(ADC_FIFO_Data_Register);
 		}
-		data[n] = d + signbits;
+		d += signbits; /* subtle: needs to be short addition */
+		data[n] = d;
 	}
 	win_restore(wsave);
 	return insn->n;
