@@ -30,20 +30,6 @@
 
 
 
-#ifdef LINUX_V20
-
-struct symbol_table comedi_syms = {
-#include <linux/symtab_begin.h>
-	X(comedi_trig_ioctl),
-	X(__comedi_trig_ioctl),
-	X(comedi_lock_ioctl),
-	X(comedi_unlock_ioctl),
-	X(comedi_cancel_ioctl),
-	X(comedi_register_callback),
-#include <linux/symtab_end.h>
-};
-
-#endif
 
 #ifdef LINUX_V22
 
