@@ -89,6 +89,11 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 fi
 
 dep_tristate 'DAS08 compatible driver' CONFIG_COMEDI_DAS08 $CONFIG_COMEDI
+dep_tristate 'PCMCIA DAS08 compatible driver' CONFIG_COMEDI_DAS08_CS $CONFIG_COMEDI
+if [ "$CONFIG_COMEDI_DAS08_CS" = "m" \
+	-o "$CONFIG_COMEDI_DAS08_CS" = "y" ];then
+		define_bool CONFIG_COMEDI_DAS08 m
+fi
 dep_tristate 'DAS16 compatible driver' CONFIG_COMEDI_DAS16 $CONFIG_COMEDI
 dep_tristate 'CIO-DAS16/M1 driver' CONFIG_COMEDI_DAS16M1 $CONFIG_COMEDI
 dep_tristate 'DAS-6402 and compatibles' CONFIG_COMEDI_DAS6402 $CONFIG_COMEDI
