@@ -96,7 +96,6 @@ install:	dummy
 	#/sbin/depmod -a ${UTS_VERSION}
 
 
-MODFLAGS += -DMODULE
 ifeq ($(CONFIG_MODVERSIONS),y)
 MODFLAGS += -DMODVERSIONS -include $(LINUXDIR)/include/linux/modversions.h
 endif
