@@ -273,6 +273,7 @@ static int postconfig(comedi_device *dev)
 		if(!s->insn_read)s->insn_read = insn_inval;
 		if(!s->insn_write)s->insn_write = insn_inval;
 		if(!s->insn_bits)s->insn_bits = insn_inval;
+		if(!s->insn_config)s->insn_config = insn_inval;
 
 		if(!s->poll)s->poll=poll_invalid;
 	}
