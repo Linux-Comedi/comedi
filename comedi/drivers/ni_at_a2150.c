@@ -681,13 +681,13 @@ static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
 	int i, j;
 
-	// initialize greatest upper and least lower bounds
+	// initialize greatest lower and least upper bounds
 	lub_divisor_shift = 3;
 	lub_index = 0;
 	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
 	glb_divisor_shift = 0;
 	glb_index = thisboard->num_clocks - 1;
-	glb = thisboard->clock[glb_index] * (1 << lub_divisor_shift);
+	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
 
 	// make sure period is in available range
 	if(*period < glb)
@@ -699,9 +699,8 @@ static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
 	for(i = 0; i < 4; i = i++)
 	{
 		// there are a maximum of 4 master clocks
-		for(j = 0; j < 4; j++)
+		for(j = 0; j < thisboard->num_clocks; j++)
 		{
-			if(thisboard->clock[j] == 0) break;
 			// temp is the period in nanosec we are evaluating
 			temp = thisboard->clock[j] * (1 << i);
 			// if it is the best match yet
