@@ -5,6 +5,7 @@
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
     Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+    Copyright (C) 2004 Salvador E. Tropea <set@users.sf.net> <set@ieee.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -667,6 +668,135 @@ static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	return n;
 }
 
+
+static unsigned int i8254_read_channel_low(unsigned int base, int chan)
+{
+	unsigned int msb, lsb;
+
+        /* The following instructions must be in order.
+           We must avoid other process reading the counter's value in the
+           middle.
+           The spin_lock isn't needed since ioctl calls grab the big kernel 
+           lock automatically */
+        /*spin_lock(sp);*/
+        outb(chan<<6,base+I8254_CTRL);
+        base+=chan;
+	lsb=inb(base);
+	msb=inb(base);
+        /*spin_unlock(sp);*/
+
+	return lsb | (msb<<8);
+}
+
+static void i8254_write_channel_low(unsigned int base, int chan, unsigned int value)
+{
+	unsigned int msb, lsb;
+
+	lsb=value & 0xFF;
+	msb=value>>8;
+
+	/* write lsb, then msb */
+        base+=chan;
+        /* See comments in i8254_read_channel_low */
+        /*spin_lock(sp);*/
+	outb(lsb,base);
+	outb(msb,base);
+        /*spin_unlock(sp);*/
+}
+
+static unsigned int i8254_read_channel(struct i8254_struct *st, int channel)
+{
+        int chan=st->logic2phys[channel];
+
+        return i8254_read_channel_low(st->iobase,chan);
+}
+
+static void i8254_write_channel(struct i8254_struct *st, int channel, unsigned int value)
+{
+        int chan=st->logic2phys[channel];
+
+        i8254_write_channel_low(st->iobase,chan,value);
+}
+
+#define I8254_CH0_LM  0x30
+#define I8254_CH1_LM  0x60
+#define I8254_CH2_LM  0x80
+
+static void i8254_initialize(struct i8254_struct *st)
+{
+        unsigned int port=st->iobase+I8254_CTRL;
+        outb(I8254_CH0_LM | st->mode[0],port);
+        outb(I8254_CH1_LM | st->mode[1],port);
+        outb(I8254_CH2_LM | st->mode[2],port);
+}
+
+
+static void i8254_set_mode_low(unsigned int base, int channel, unsigned int mode)
+{
+        outb((channel<<6) | 0x30 | (mode & 0x0F),base+I8254_CTRL);
+}
+
+static void i8254_set_mode(struct i8254_struct *st, int channel, unsigned int mode)
+{
+        int chan=st->logic2phys[channel];
+
+        st->mode[chan]=mode;
+        return i8254_set_mode_low(st->iobase,chan,mode);
+}
+
+static unsigned int i8254_read_status_low(unsigned int base, int channel)
+{
+        outb(0xE0 | (2<<channel),base+I8254_CTRL);
+        return inb(base+channel);
+}
+
+static unsigned int i8254_read_status(struct i8254_struct *st, int channel)
+{
+        int chan=st->logic2phys[channel];
+        
+        return i8254_read_status_low(st->iobase,chan);
+}
+
+static int das08_counter_read(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+{
+        int chan=insn->chanspec;
+
+        //printk("Reading counter channel %d ",chan);
+        data[0]=i8254_read_channel(&devpriv->i8254,chan);
+        //printk("=> 0x%08X\n",data[0]);
+           
+	return 1;
+}
+
+static int das08_counter_write(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data)
+{
+        int chan=insn->chanspec;
+
+        //printk("Writing counter channel %d with 0x%04X\n",chan,data[0]);
+        i8254_write_channel(&devpriv->i8254,chan,data[0]);
+           
+	return 1;
+}
+
+static int das08_counter_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+{
+        int chan=insn->chanspec;
+
+	if(insn->n != 2)return -EINVAL;
+
+        switch (data[0]){
+                case INSN_CONFIG_8254_SET_MODE:
+                        i8254_set_mode(&devpriv->i8254,chan,data[1]);
+                        break;
+                case INSN_CONFIG_8254_READ_STATUS:
+                        data[1]=i8254_read_status(&devpriv->i8254,chan);
+                        break;
+                default:
+                        return -EINVAL;
+        }
+        return 1;
+}
+
 static int das08_attach(comedi_device *dev,comedi_devconfig *it);
 
 static comedi_driver driver_das08={
@@ -698,7 +828,7 @@ int das08_common_attach(comedi_device *dev, unsigned long iobase )
 
 	dev->board_name = thisboard->name;
 
-	if((ret=alloc_subdevices(dev, 5))<0)
+	if((ret=alloc_subdevices(dev, 6))<0)
 		return ret;
 
 	s=dev->subdevices+0;
@@ -762,6 +892,30 @@ int das08_common_attach(comedi_device *dev, unsigned long iobase )
 	if(thisboard->i8255_offset!=0){
 		subdev_8255_init(dev,s,NULL,(unsigned long)(dev->iobase+
 			thisboard->i8255_offset));
+	}else{
+		s->type=COMEDI_SUBD_UNUSED;
+	}
+
+	s=dev->subdevices+5;
+	/* 8254 */
+	if(thisboard->i8254_offset!=0){
+		s->type = COMEDI_SUBD_COUNTER;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->n_chan = 3;
+		s->maxdata = 0xFFFF;
+		s->insn_read = das08_counter_read;
+		s->insn_write = das08_counter_write;
+		s->insn_config = das08_counter_config;
+                /* Set-up the 8254 structure */
+                devpriv->i8254.channels=3;
+                devpriv->i8254.logic2phys[0]=0;
+                devpriv->i8254.logic2phys[1]=1;
+                devpriv->i8254.logic2phys[2]=2;
+                devpriv->i8254.iobase=iobase+thisboard->i8254_offset;
+                devpriv->i8254.mode[0]=
+                devpriv->i8254.mode[1]=
+                devpriv->i8254.mode[2]=I8254_MODE0 | I8254_BINARY;
+                i8254_initialize(&devpriv->i8254);
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}

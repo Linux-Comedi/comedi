@@ -233,6 +233,8 @@ enum configuration_ids
 	INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001, // Use CTR as single pulsegenerator
 	INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002, // Use CTR as pulsetraingenerator
 	INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003, // Use the counter as encoder
+	INSN_CONFIG_8254_SET_MODE = 4097,
+	INSN_CONFIG_8254_READ_STATUS = 4098
 };
 
 /* ioctls */
@@ -446,6 +448,36 @@ struct comedi_bufinfo_struct{
 // Reset when index pulse arrives?
 #define GPCT_RESET_COUNTER_ON_INDEX 1
 
+/*
+  8254 specific configuration.
+
+  It supports two config commands:
+
+  0 ID: INSN_CONFIG_8254_SET_MODE
+  1 8254 Mode
+    I8254_MODE0, I8254_MODE1, ..., I8254_MODE5
+    OR'ed with:
+    I8254_BCD, I8254_BINARY
+
+  0 ID: INSN_CONFIG_8254_READ_STATUS
+  1 <-- Status byte returned here.
+    B7=Output
+    B6=NULL Count
+    B5-B0 Current mode.
+
+*/
+
+enum i8254_mode
+{
+	I8254_MODE0 = (0<<1),  /* Interrupt on terminal count */
+	I8254_MODE1 = (1<<1),  /* Hardware retriggerable one-shot */
+	I8254_MODE2 = (2<<1),  /* Rate generator */
+	I8254_MODE3 = (3<<1),  /* Square wave mode */
+	I8254_MODE4 = (4<<1),  /* Software triggered strobe */
+	I8254_MODE5 = (5<<1),  /* Hardware triggered strobe (retriggerable) */
+	I8254_BCD = 1, /* use binary-coded decimal instead of binary (pretty useless) */
+	I8254_BINARY = 0
+};
 #ifdef __cplusplus
 }
 #endif
