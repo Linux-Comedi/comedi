@@ -1,0 +1,11 @@
+
+mainmenu_option next_comment
+comment 'Comedi'
+
+tristate "Comedi support" CONFIG_COMEDI
+if [ "$CONFIG_COMEDI" != "n" ]; then
+  source drivers/comedi/Config.in
+fi
+
+endmenu
+

@@ -1,0 +1,14 @@
+
+expsyms(comedi_ksyms.o)
+
+objlink(comedi.o comedi_fops.o proc.o range.o drivers.o kvmem.o comedi_ksyms.o)
+
+#if CONFIG_COMEDI_RT  += rt_pend_tq/rt_pend_tq.o
+#if CONFIG_COMEDI_TRIG  += trig.o
+#if CONFIG_COMEDI_RT  += rt.o
+
+select(CONFIG_COMEDI comedi.o)
+
+link_subdirs(kcomedilib)
+link_subdirs(drivers)
+
