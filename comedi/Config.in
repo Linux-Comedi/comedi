@@ -85,6 +85,7 @@ dep_tristate 'Computer Boards PCI-DAS series' CONFIG_COMEDI_CB_PCIDAS $CONFIG_CO
 dep_tristate 'Computer Boards PCI-DAS64xx series' CONFIG_COMEDI_CB_PCIDAS64 $CONFIG_COMEDI
 dep_tristate 'Computer Boards PCI-DDA series' CONFIG_COMEDI_CB_PCIDDA $CONFIG_COMEDI
 dep_tristate 'Computer Boards PCIM-DDA06-16 driver' CONFIG_COMEDI_CB_PCIMDDA $CONFIG_COMEDI
+dep_tristate 'Computer Boards PC-CARD-DAS16/16 driver' CONFIG_COMEDI_CB_DAS16_CS $CONFIG_COMEDI
 dep_tristate 'Generic 8255 support' CONFIG_COMEDI_8255 $CONFIG_COMEDI
 dep_tristate 'Quanser Consulting MultiQ-3' CONFIG_COMEDI_MULTIQ3 $CONFIG_COMEDI
 dep_tristate 'Generic parallel port support' CONFIG_COMEDI_PARPORT $CONFIG_COMEDI
