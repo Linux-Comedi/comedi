@@ -61,9 +61,9 @@ pin     subdev  chan    aka
 
 Notes:
 
-Subdevices 0 and 2 are digital output, subdevice 1 is digital
-input.  I know that it is possible to change this with ECP/EPP
-parallel ports, but this driver is a cheap hack.
+Subdevices 0 is digital I/O, subdevice 1 is digital input, and
+subdevice 2 is digital output.  Unlike other Comedi devices,
+subdevice 0 defaults to output.
 
 Pins 13 and 14 are inverted once by Comedi and once by the
 hardware, thus cancelling the effect.
@@ -73,16 +73,12 @@ to change this, at least on a standard parallel port.
 
 Subdevice 3 pretends to be a digital input subdevice, but it always
 returns 0 when read.  However, if you run a command with
-scan_begin_src=TRIG_EXT, it uses pin 13 as a external triggering
-pin, which can be used to wake up tasks.  (or is that pin 10. --ds)
+scan_begin_src=TRIG_EXT, it uses pin 10 as a external triggering
+pin, which can be used to wake up tasks.
 */
 /*
-
-   TODO:
-
-   - EPP/ECP support
-
    see http://www.beyondlogic.org/ for information.
+   or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
  */
 
 #include <linux/kernel.h>
@@ -134,9 +130,24 @@ static int parport_insn_a(comedi_device *dev,comedi_subdevice *s,
 		outb(devpriv->a_data,dev->iobase+PARPORT_A);
 	}
 
-	data[1] = devpriv->a_data;
+	data[1] = inb(devpriv->a_data);
 
 	return 2;
+}
+	
+static int parport_insn_config_a(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	if(data[0]){
+		s->io_bits = 0xff;
+		devpriv->c_data &= ~(1<<5);
+	}else{
+		s->io_bits = 0;
+		devpriv->c_data |= (1<<5);
+	}
+	outb(devpriv->c_data,dev->iobase+PARPORT_C);
+
+	return 1;
 }
 	
 static int parport_insn_b(comedi_device *dev,comedi_subdevice *s,
@@ -320,12 +331,13 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 
 	s=dev->subdevices+0;
-	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITABLE;
+	s->type=COMEDI_SUBD_DIO;
+	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
 	s->n_chan=8;
 	s->maxdata=1;
 	s->range_table=&range_digital;
 	s->insn_bits = parport_insn_a;
+	s->insn_config = parport_insn_config_a;
 
 	s=dev->subdevices+1;
 	s->type=COMEDI_SUBD_DI;
