@@ -134,6 +134,11 @@ extern inline void pci_release_regions(struct pci_dev *dev)
 
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,14)
+extern inline void pci_set_master(struct pci_dev *dev)
+{ return; }
+#endif	// 2.2.14
+
 #endif
 
 #endif /* _COMPAT_PCI_H */
