@@ -479,7 +479,7 @@ void comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
 		s->munge( dev, s, s->async->prealloc_buf + offset,
 			block_size, s->async->munge_chan );
 
-		s->async->munge_chan += num_bytes / bytes_per_sample( s );
+		s->async->munge_chan += block_size / bytes_per_sample( s );
 		s->async->munge_chan %= s->async->cmd.chanlist_len;
 		num_bytes -= block_size;
 		offset = 0;
