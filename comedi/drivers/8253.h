@@ -131,9 +131,11 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	/* exit early if everything is already correct (this can save time
 	 * since this function may be called repeatedly during command tests
 	 * and execution) */
-	if(*d1 * *d2 * i8253_osc_base == *nanosec &&
-		*d1 > 1 && *d1 < 0x10000 &&
-		*d2 > 1 && *d2 < 0x10000)
+	div1 = *d1 ? *d1 : 0x10000;
+	div2 = *d2 ? *d2 : 0x10000;
+	if(div1 * div2 * i8253_osc_base == *nanosec &&
+		div1 > 1 && div1 <= 0x10000 &&
+		div2 > 1 && div2 <= 0x10000)
 	{
 		return;
 	}
