@@ -75,7 +75,7 @@ static ni_board ni_boards[]={
 	// This board apparently doesn't have DIO.  Not accounted for.
 		n_adchan:	16,
 		adbits:		16,
-		ai_fifo_depth:	8192,
+		ai_fifo_depth:	1024,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
 		ai_speed:	50000,
@@ -90,7 +90,7 @@ static ni_board ni_boards[]={
 		name:		"DAQCard-ai-16e-4",
 		n_adchan:	16,
 		adbits:		16,
-		ai_fifo_depth:	8192,
+		ai_fifo_depth:	1024,
 		alwaysdither:	0,
 		gainlkup:	ai_gain_16,
 		ai_speed:	4000,
