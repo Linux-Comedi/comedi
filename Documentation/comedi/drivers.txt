@@ -247,6 +247,7 @@ Description: Data Translation DT2811
 Author: ds
 Status: might work
 
+The driver recognizes the names dt2811-pgl and dt2811-pgh.
 
 
 Driver: dt2814.o
