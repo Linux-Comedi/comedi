@@ -615,6 +615,9 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 
 
 #ifdef MODULE
+
+MODULE_LICENSE("GPL");
+
 int init_module(void)
 {
 	servinfo_t serv;

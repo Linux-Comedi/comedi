@@ -726,6 +726,7 @@ void labpc_exit_module(void)
 	comedi_driver_unregister(&driver_labpc_cs);
 }
 
+MODULE_LICENSE("GPL");
 module_init( labpc_init_module );
 module_exit( labpc_exit_module );
 

@@ -695,6 +695,7 @@ static void das08_cs_exit_module(void)
 	comedi_driver_unregister(&driver_das08_cs);
 }
 
+MODULE_LICENSE("GPL");
 module_init( das08_cs_init_module );
 module_exit( das08_cs_exit_module );
 
