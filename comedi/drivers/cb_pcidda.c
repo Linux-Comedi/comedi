@@ -52,6 +52,8 @@
 /* PCI-DDA base addresses */
 #define DIGITALIO_BADRINDEX	2
 	// DIGITAL I/O is devpriv->pci_dev->base_address[2]
+#define DIGITALIO_SIZE 8
+	// DIGITAL I/O uses 8 I/O port addresses
 #define DAC_BADRINDEX	3
 	// DAC is devpriv->pci_dev->base_address[3]
 
@@ -84,27 +86,11 @@
 #define UNIP	0000400	// Unipolar outputs
 #define BIP	0000000	// Bipolar outputs
 
-#define DACALIBRATION1	1	// D/A CALIBRATION REGISTER 1
+#define DACALIBRATION1	4	// D/A CALIBRATION REGISTER 1
 
-#define DACALIBRATION2	2 // D/A CALIBRATION REGISTER 2
+#define DACALIBRATION2	6 // D/A CALIBRATION REGISTER 2
 
 #define DADATA	8	// FIRST D/A DATA REGISTER (0)
-
-/*
-#define DA1	0xA	// D/A 1 DATA
-
-#define DA2	0xC	// D/A 2 DATA
-
-#define DA3	0xE	// D/A 3 DATA
-
-#define DA4	0x10	// D/A 4 DATA
-
-#define DA5	0x12	// D/A 5 DATA
-
-#define DA6	0x14	// D/A 6 DATA
-
-#define DA7	0x16	// D/A 7 DATA
-*/
 
 comedi_lrange cb_pcidda_ranges =
 {
@@ -203,6 +189,7 @@ typedef struct
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 
+	unsigned long digitalio;
 	unsigned long dac;
 	//unsigned long control_status;
 	//unsigned long adc_fifo;
@@ -274,7 +261,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	if(!pcidev){
-		printk("Not a ComputerBoards card on requested position\n");
+		printk("Not a ComputerBoards/MeasurementComputing card on requested position\n");
 		return -EIO;
 	}
 
@@ -283,27 +270,57 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 			goto found;
 		}
 	}
-	printk("Not a supported ComputerBoards card on requested position\n");			
+	printk("Not a supported ComputerBoards/MeasurementComputing card on "
+		"requested position\n");			
 	return -EIO;
 
 found:
 	devpriv->pci_dev = pcidev;
 	dev->board_ptr = cb_pcidda_boards+index;
-	printk("Found %s at requested position\n",cb_pcidda_boards[index].name);
+	// "thisboard" macro can be used from here.
+	printk("Found %s at requested position\n",thisboard->name);
 
 	/*
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
+	devpriv->digitalio =
+		devpriv->pci_dev->base_address[DIGITALIO_BADRINDEX] &
+			PCI_BASE_ADDRESS_IO_MASK;
 	devpriv->dac =
 		devpriv->pci_dev->base_address[DAC_BADRINDEX] &
 			PCI_BASE_ADDRESS_IO_MASK;
 #else
+	devpriv->digitalio =
+		devpriv->pci_dev->resource[DIGITALIO_BADRINDEX].start &
+			PCI_BASE_ADDRESS_IO_MASK;
 	devpriv->dac =
 		devpriv->pci_dev->resource[DAC_BADRINDEX].start &
 			PCI_BASE_ADDRESS_IO_MASK;
 #endif
+
+/*
+ * Allocate the I/O ports.
+ */
+	if (check_region(devpriv->digitalio, DIGITALIO_SIZE) == 0)
+		request_region(devpriv->digitalio, DIGITALIO_SIZE, thisboard->name);
+	else
+	{
+		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
+			devpriv->digitalio, devpriv->digitalio + DIGITALIO_SIZE - 1);
+		return -EIO;
+	}
+
+	if (check_region(devpriv->dac, 8 + thisboard->ao_chans*2) == 0)
+		request_region(devpriv->dac, 8 + thisboard->ao_chans*2,
+			thisboard->name);
+	else
+	{
+		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
+			devpriv->dac, devpriv->dac + 7 + thisboard->ao_chans*2);
+		return -EIO;
+	}
 
 /*
  * Warn about the status of the driver.
@@ -314,8 +331,7 @@ found:
 			"PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
 
 /*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
+ * Initialize dev->board_name.
  */
 	dev->board_name = thisboard->name;
 
@@ -327,10 +343,9 @@ found:
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
-	/* WARNING: Number of inputs in differential mode is ignored */
+	/* analog output subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = thisboard->ranges;
@@ -352,6 +367,12 @@ found:
  */
 static int cb_pcidda_detach(comedi_device *dev)
 {
+/*
+ * Deallocate the I/O ports.
+ */
+	release_region(devpriv->digitalio, DIGITALIO_SIZE);
+	release_region(devpriv->dac, 8 + thisboard->ao_chans*2),
+	
 	printk("comedi%d: cb_pcidda: remove\n",dev->minor);
 
 	return 0;
