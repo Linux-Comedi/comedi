@@ -176,6 +176,7 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s);
 static int ni_read_eeprom(comedi_device *dev,int addr);
 
 static void ni_mio_print_status_a(int status);
+static void ni_mio_print_status_b(int status);
 
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s);
 static void ni_handle_fifo_half_full(comedi_device *dev);
@@ -206,7 +207,7 @@ static void pfi_setup(comedi_device *dev);
 #define AIMODE_SAMPLE		3
 
 
-//static
+static
 void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 {
 	comedi_device *dev=d;
@@ -229,7 +230,8 @@ void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 #ifdef DEBUG_INTERRUPT
 printk("ni_mio_common interrupt: ");
 ni_mio_print_status_a(status);
-printk(" b_status=0x%04x\n",b_status);
+ni_mio_print_status_b(b_status);
+printk("\n");
 #endif
 #ifdef PCIDMA
 printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
@@ -298,29 +300,31 @@ printk("ni_mio_common: SC_TC interrupt\n");
 		break;
 	}
 
-	if(b_status&AO_Overrun_St){
-		printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
-	}
-
-	if(b_status&AO_BC_TC_St){
-		printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
-	}
-
-	if(b_status&AO_FIFO_Request_St)
-		ni_ao_fifo_half_empty(dev,dev->subdevices+1);
-
-	b_status=ni_readw(AO_Status_1);
-	if(b_status&Interrupt_B_St){
-		if(b_status&AO_FIFO_Request_St){
-			printk("AO buffer underrun\n");
-		}
-		printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
-		win_out(0,Interrupt_B_Enable_Register);
-	}
-
 	if(ack){
 		ack|=AI_START1_Interrupt_Ack;
 		ni_writew(ack,Interrupt_A_Ack);
+	}
+
+	if(b_status&Interrupt_B_St){
+		if(b_status&AO_Overrun_St){
+			printk("ni-E: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
+		}
+	
+		if(b_status&AO_BC_TC_St){
+			printk("ni-E: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,ni_readw(AO_Status_2));
+		}
+	
+		if(b_status&AO_FIFO_Request_St)
+			ni_ao_fifo_half_empty(dev,dev->subdevices+1);
+	
+		b_status=ni_readw(AO_Status_1);
+		if(b_status&Interrupt_B_St){
+			if(b_status&AO_FIFO_Request_St){
+				printk("AO buffer underrun\n");
+			}
+			printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
+			win_out(0,Interrupt_B_Enable_Register);
+		}
 	}
 
 	win_restore(wsave);
@@ -341,6 +345,25 @@ static void ni_mio_print_status_a(int status)
 	for(i=15;i>=0;i--){
 		if(status&(1<<i)){
 			printk(" %s",status_a_strings[i]);
+		}
+	}
+}
+
+static char *status_b_strings[]={
+	"passthru1","fifo","G1_gate","G1_TC",
+	"UI2_TC","UPDATE","UC_TC","BC_TC",
+	"start1","overrun","start","bc_tc_error",
+	"fifo_empty","fifo_half_full","fifo_full","interrupt_b"
+};
+
+static void ni_mio_print_status_b(int status)
+{
+	int i;
+
+	printk("b_status=0x%04x",status);
+	for(i=15;i>=0;i--){
+		if(status&(1<<i)){
+			printk(" %s",status_b_strings[i]);
 		}
 	}
 }
