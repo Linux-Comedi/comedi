@@ -141,6 +141,7 @@ static void timer_ai_task_func(int d)
 		}
 		s->async->events |= COMEDI_CB_EOS;
 		comedi_event(dev,s,s->async->events);
+		s->async->events = 0;
 #ifdef CONFIG_COMEDI_RTL
 		rt_task_wait();
 #endif
@@ -150,6 +151,7 @@ static void timer_ai_task_func(int d)
 	}
 	s->async->events |= COMEDI_CB_EOA;
 	comedi_event(dev,s,s->async->events);
+	s->async->events = 0;
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(devpriv->soft_irq);
 #endif
@@ -192,6 +194,7 @@ static void timer_ao_task_func(int d)
 			}
 			s->async->events |= COMEDI_CB_EOS;
 			comedi_event(dev,s,s->async->events);
+			s->async->events = 0;
 #ifdef CONFIG_COMEDI_RTL
 			rt_task_wait();
 #endif
@@ -202,6 +205,7 @@ static void timer_ao_task_func(int d)
 	}while(ao_repeat_flag);
 	s->async->events |= COMEDI_CB_EOA;
 	comedi_event(dev,s,s->async->events);
+	s->async->events = 0;
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(devpriv->soft_irq);
 #endif
@@ -302,6 +306,8 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	RTIME now,period;
 	struct timespec ts;
 	comedi_cmd *cmd = &s->async->cmd;
+
+	s->async->events = 0;
 
 	/* hack attack: drivers are not supposed to do this: */
 	dev->rt = 1;
