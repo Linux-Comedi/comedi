@@ -3,6 +3,8 @@
 export CVSROOT=ds@oss.lineo.com:/var/cvs
 export CVS_RSH=ssh
 
+topdir=$(pwd)
+
 if [ ! "$1" ]
 then
 	echo -n "minor version: "
@@ -31,13 +33,14 @@ cvs rdiff -u -r $lasttag -r $tag comedi >../patch-comedi-$version
 
 mv comedi comedi-$version
 
-#mkdir comedi-$version/include/comedi
-#mkdir comedi-$version/include/modbuild
+cd comedi-$version
 
 sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" -e \
 	"s/^EXTRAVERSION.*/EXTRAVERSION = /" \
-	comedi-$version/Makefile >Makefile.tmp
-mv Makefile.tmp comedi-$version/Makefile
+	Makefile >Makefile.tmp
+mv Makefile.tmp Makefile
+make drivers.txt
 
+cd $topdir
 tar -czvf ../comedi-$version.tgz comedi-$version
 
