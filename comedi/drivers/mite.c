@@ -63,7 +63,6 @@
 #include <linux/slab.h>
 
 #include "mite.h"
-#include "../kvmem.h"
 
 #define PCI_MITE_SIZE		4096
 #define PCI_DAQ_SIZE		4096
