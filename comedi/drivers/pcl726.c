@@ -72,7 +72,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 
 
 #undef ACL6126_IRQ	/* no interrupt support (yet) */

@@ -48,7 +48,7 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If

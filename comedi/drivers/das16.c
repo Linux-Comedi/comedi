@@ -15,7 +15,7 @@
  * by David Schleef.
  */
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>

@@ -21,7 +21,7 @@
 
 */
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #ifdef LINUX_V22
 #include <asm/uaccess.h>
 #endif

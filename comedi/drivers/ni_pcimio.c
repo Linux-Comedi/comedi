@@ -72,7 +72,7 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 #include <linux/malloc.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <ni_stc.h>
 #include <mite.h>
 

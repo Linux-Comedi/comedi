@@ -48,7 +48,7 @@
 
 */
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>

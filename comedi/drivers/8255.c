@@ -38,7 +38,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 
 
 

@@ -69,7 +69,7 @@
 #include <linux/module.h>
 #include <linux/mc146818rtc.h>
 #include <asm/dma.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <8253.h>
 
 // #define PCL818_MODE13_AO 1

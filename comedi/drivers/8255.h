@@ -24,7 +24,7 @@
 #ifndef _8255_H
 #define _8255_H
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 
 #ifdef CONFIG_COMEDI_8255
 

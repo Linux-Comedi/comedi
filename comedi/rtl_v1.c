@@ -3,7 +3,7 @@
  *
  */
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 
 #include <linux/kernel.h>
 #include <linux/string.h>

@@ -36,7 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <asm/io.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 
 static char *driver_name = "dt2811";
 

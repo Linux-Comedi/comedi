@@ -21,7 +21,7 @@
 
 */
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <kvmem.h>
 
 #define __NO_VERSION__
@@ -424,7 +424,7 @@ static int mode0_emulate(comedi_device *dev,comedi_subdevice *s,comedi_trig *tri
 	insn.chanspec=trig->chanlist[0];
 
 	if(trig->flags&TRIG_CONFIG)
-		return mode0_emulate_config();
+		return mode0_emulate_config(dev,s,trig);
 
 	if(s->subdev_flags & SDF_WRITEABLE){
 		if(s->subdev_flags & SDF_READABLE){

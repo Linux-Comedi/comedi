@@ -24,7 +24,7 @@
 #ifndef _MITE_H_
 #define _MITE_H_
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <linux/pci.h>
 #ifdef PCI_SUPPORT_VER1
 #include <linux/bios32.h>

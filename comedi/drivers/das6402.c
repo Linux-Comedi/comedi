@@ -30,7 +30,7 @@
  */
 
 #include <linux/module.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <asm/io.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

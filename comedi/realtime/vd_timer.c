@@ -33,7 +33,7 @@
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <asm/io.h>
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #ifdef CONFIG_COMEDI_RTL_V1
 #include <rtl_sched.h>
 #include <asm/rt_irq.h>

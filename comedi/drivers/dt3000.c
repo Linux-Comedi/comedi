@@ -38,7 +38,7 @@
    you the docs without one, also.
 */
 
-#include <comedi_module.h>
+#include <linuxcomedidev.h>
 #include <linux/module.h>
 #include <asm/io.h>
 #include <linux/delay.h>
