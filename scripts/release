@@ -1,0 +1,58 @@
+#!/bin/bash
+
+export LINUXDIR=/d/ds/linux/linux-2.2.17
+export CVSROOT=ds@oss.lineo.com:/var/cvs
+export CVS_RSH=ssh
+
+if [ ! "$1" ]
+then
+	echo -n "minor version: "
+	read minor
+else
+	minor=$1
+fi
+
+lastminor=$(echo $minor-1|bc)
+
+tag=r0_7_$minor
+version=0.7.$minor
+lasttag=r0_7_$lastminor
+
+echo 'removing export_tmp'
+rm -rf export_tmp
+
+mkdir export_tmp
+
+cd export_tmp
+
+echo "deleting tag $tag"
+cvs rtag -d $tag comedi
+
+echo "tagging $tag"
+cvs rtag $tag comedi
+
+echo "exporting"
+cvs export -r $tag comedi
+
+echo "generating patch"
+cvs rdiff -u -r $lasttag -r $tag comedi >../patch-comedi-$version
+
+mv comedi comedi-$version
+
+mkdir comedi-$version/include/comedi
+mkdir comedi-$version/include/modbuild
+
+sed "s/^SUBLEVEL.*/SUBLEVEL = $minor/" comedi-$version/Makefile >Makefile.tmp
+mv Makefile.tmp comedi-$version/Makefile
+
+tar -czvf ../comedi-$version.tgz comedi-$version
+
+exit
+
+cd comedi-$version
+
+yes "" | make
+make
+make
+
+
