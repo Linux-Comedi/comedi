@@ -1290,8 +1290,8 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 		s = dev->read_subdev;
 		async = s->async;
 		if(s->busy){
-			if((!s->subdev_flags&SDF_RUNNING) ||
-			   (async->buf_user_count < async->buf_int_count)){
+			if((async->buf_user_count < async->buf_int_count) ||
+			   !(s->subdev_flags&SDF_RUNNING)){
 				mask |= POLLIN | POLLRDNORM;
 			}
 		}
@@ -1300,8 +1300,9 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 		s = dev->write_subdev;
 		async = s->async;
 		if(s->busy){
-			if((!s->subdev_flags&SDF_RUNNING) ||
-			   (async->buf_user_count < async->buf_int_count)){
+			if(!(s->subdev_flags&SDF_RUNNING) ||
+			   (async->buf_user_count < async->buf_int_count +
+			      async->prealloc_bufsz)){
 				mask |= POLLOUT | POLLWRNORM;
 			}
 		}
@@ -1519,9 +1520,6 @@ printk("m is %d\n",m);
 void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
-#if 0
-	printk("becoming non-busy\n");
-#endif
 	/* we do this because it's useful for the non-standard cases */
 	s->subdev_flags &= ~SDF_RUNNING;
 
@@ -1797,6 +1795,17 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 
 	//DPRINTK("comedi_event %x\n",mask);
 
+	if(mask&COMEDI_CB_EOA){
+		s->subdev_flags &= ~SDF_RUNNING;
+	}
+
+	/* remember if an error event has occured, so an error
+	 * can be returned the next time the user does a read() */
+	if(mask & COMEDI_CB_ERROR){
+		s->runflags |= SRF_ERROR;
+	}
+
+	s->async->events = 0;
 	if(async->cb_mask&mask){
 		if(s->runflags&SRF_USER){
 
@@ -1829,18 +1838,6 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 			 * common, I'm not going to worry about it. */
 		}
 	}
-
-	if(mask&COMEDI_CB_EOA){
-		s->subdev_flags &= ~SDF_RUNNING;
-	}
-
-	/* remember if an error event has occured, so an error
-	 * can be returned the next time the user does a read() */
-	if(mask & COMEDI_CB_ERROR){
-		s->runflags |= SRF_ERROR;
-	}
-
-	s->async->events = 0;
 }
 
 #if 0
