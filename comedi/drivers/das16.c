@@ -1004,7 +1004,7 @@ static int das16_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 static int das16_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	/* disable interrupts, dma and pacer clocked conversions */
-	devpriv->control_state &= ~DAS16_INTE & ~INT_PACER & ~DMA_ENABLE;
+	devpriv->control_state &= ~DAS16_INTE & ~INT_PACER & ~EXT_PACER & ~DMA_ENABLE;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 	if(devpriv->dma_chan)
 		disable_dma(devpriv->dma_chan);
