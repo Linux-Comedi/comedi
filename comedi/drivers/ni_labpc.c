@@ -559,7 +559,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 			return -EINVAL;
 			break;
 	}
-	printk("comedi%d: ni_labpc: io 0x%x", dev->minor, iobase);
+	printk("comedi%d: ni_labpc: %s, io 0x%x", dev->minor, thisboard->name, iobase);
 	if(irq)
 	{
 		printk(", irq %i", irq);
@@ -1082,7 +1082,6 @@ static int labpc_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ai_range)
 		{
-			devpriv->ai_range = range;
 			labpc_load_ai_calibration(dev, range);
 		}
 	}
@@ -1348,6 +1347,9 @@ static int labpc_drain_fifo(comedi_device *dev)
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		return -1;
 	}
+
+	async->events |= COMEDI_CB_BLOCK;
+
 	return 0;
 }
 
@@ -1476,7 +1478,6 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ai_range)
 		{
-			devpriv->ai_range = range;
 			labpc_load_ai_calibration(dev, range);
 		}
 	}
@@ -1550,7 +1551,6 @@ static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 		// if range has changed, update calibration dacs
 		if(range != devpriv->ao_range[channel])
 		{
-			devpriv->ao_range[channel] = range;
 			labpc_load_ao_calibration(dev, channel, range);
 		}
 	}
@@ -1722,6 +1722,10 @@ static void labpc_load_ai_calibration(comedi_device *dev, unsigned int range)
 		-0x7,
 	};
 
+
+	// store new range index in dev->private struct
+	devpriv->ai_range = range;
+
 	if(thisboard->ai_range_is_unipolar[range])
 	{
 		ai_frame = ai_unip_frame;
@@ -1756,6 +1760,9 @@ static void labpc_load_ao_calibration(comedi_device *dev, unsigned int channel, 
 	unsigned int *ao_unip_frame = devpriv->eeprom_data + devpriv->eeprom_data[124];
 	const int offset_index[NUM_AO_CHAN] = {0, -2};
 	const int gain_index[NUM_AO_CHAN] = {-1, -3};
+
+	// store new range index in dev->private struct
+	devpriv->ao_range[channel] = range;
 
 	if(range & AO_RANGE_IS_UNIPOLAR)
 	{
