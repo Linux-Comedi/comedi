@@ -87,7 +87,7 @@ static inline int comedi_counter_trigger_bits(unsigned int input_num, int flags)
 {
 	static const int low_bit = 0x1;
 	static const int edge_bit = 0x2;
-	static const int valid_bit = 0x3;
+	static const int valid_bit = 0x4;
 	static const int bits_per_channel = 3;
 	int bits = valid_bit;
 
