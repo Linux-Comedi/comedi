@@ -22,6 +22,40 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: das16.o
+Description: DAS16 compatible boards
+Authors: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess
+Device-Names: das-16, das-16g, das-16f, cio-das16/jr, pc104-das16jr,
+  pc104-das16jr/16, das-1201, das-1202, das-1401, das-1402, das-1601,
+  das-1602, cio-das1401/12, cio-das1402/12, cio-das1402/16,
+  cio-das1601/12, cio-das1602/12, cio-das1602/16, cio-das16/330
+Status: works in das16 mode, das-1600 enhanced mode features untested.
+Updated: 2001-8-27
+
+A rewrite of the das16 and das1600 drivers.
+Options:
+        [0] - base io address
+        [1] - irq (optional)
+        [2] - dma (optional)
+        [3] - master clock speed in MHz (optional, 1 or 10, ignored if
+	        board can probe clock, defaults to 1)
+        [4] - analog input range lowest voltage in microvolts (optional,
+	        only useful if your board does not have software
+		programmable gain)
+        [5] - analog input range highest voltage in microvolts (optional,
+	        only useful if board does not have software programmable
+		gain)
+        [6] - analog output range lowest voltage in microvolts (optional)
+        [7] - analog output range highest voltage in microvolts (optional)
+
+Passing a zero for an option is the same as leaving it unspecified.
+
+Both an irq line and dma channel are required for timed or externally
+triggered conversions.
+*/
+/*
 
 Testing and debugging help provided by Daniel Koch.
 

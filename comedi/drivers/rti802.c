@@ -20,6 +20,12 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: rti802.o
+Description: Analog Devices RTI-802
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

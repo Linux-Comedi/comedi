@@ -20,6 +20,35 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: rti800.o
+Description: Analog Devices RTI-800/815
+Author: ds
+Status: unknown
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ
+  [2] - A/D reference
+          0 = differential
+          1 = pseudodifferential (common)
+          2 = single-ended
+  [3] - A/D range
+          0 = [-10,10]
+          1 = [-5,5]
+          2 = [0,10]
+  [4] - A/D encoding
+          0 = two's complement
+          1 = straight binary
+  [5] - DAC 0 range
+          0 = [-10,10]
+          1 = [0,10]
+  [5] - DAC 0 encoding
+          0 = two's complement
+          1 = straight binary
+  [6] - DAC 1 range (same as DAC 0)
+  [7] - DAC 1 encoding (same as DAC 0)
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

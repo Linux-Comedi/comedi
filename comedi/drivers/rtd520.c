@@ -19,7 +19,17 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
+/*
+Driver: rtd520.o
+Description: Real Time Devices PCI4520/DM7520
+Author: Dan Christian
 
+Configuration options:
+  [0] - PCI bus of device (optional)
+          If bus/slot is not specified, the first available PCI
+          device will be used.
+  [1] - PCI slot of device (optional)
+*/
 /*
     Created by Dan Christian, NASA Ames Research Center.
 

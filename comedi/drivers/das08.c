@@ -24,6 +24,30 @@
 Support for pci-das08 card added by Frank M. Hess
 
 */
+/*
+Driver: das08.o
+Description: DAS-08 compatible boards
+Authors: Warren Jasper, ds
+Device-Names: das08, das08-pgm, das08-pgh, das08-pgl, das08-aoh,
+  das08-aol, das08-aom, das08/jr-ao, das08jr-16-ao, pci-das08,
+  das08jr/16
+Status: works
+
+This is a rewrite of the das08 and das08jr drivers.
+
+Options (for ISA cards):
+        [0] - base io address
+
+Options (for pci-das08):
+        [0] - bus  (optional)
+        [1] = slot (optional)
+Use the name 'pci-das08' for the pci-das08, NOT 'das08'.
+
+The das08 driver doesn't support asynchronous commands, since
+the cheap das08 hardware doesn't really support them.  The
+comedi_rt_timer driver can be used to emulate commands for this
+driver.
+*/
 
 
 #include <linux/kernel.h>

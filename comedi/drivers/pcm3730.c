@@ -3,6 +3,14 @@
  * Blaine Lee
  * from pcl725 by David S.
  */
+/*
+Driver: pcm3730.o
+Description: PCM3730
+Author: Blaine Lee
+
+Configuration options:
+  [0] - I/O port base
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

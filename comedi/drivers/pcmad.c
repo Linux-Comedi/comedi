@@ -20,6 +20,26 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: pcmad.o
+Description: Winsystems PCM-A/D12, PCM-A/D16
+Author: ds
+Devices: [Winsystems] PCM-A/D12 (pcmad12), PCM-A/D16 (pcmad16)
+Status: untested
+
+This driver was written on a bet that I couldn't write a driver
+in less than 2 hours.  I won the bet, but never got paid.  =(
+
+Configuration options:
+  [0] - I/O port base
+  [1] - unused
+  [2] - Analog input reference
+          0 = single ended
+          1 = differential
+  [3] - Analog input encoding (must match jumpers)
+          0 = straight binary
+          1 = two's complement
+*/
 
 
 #include <linux/kernel.h>

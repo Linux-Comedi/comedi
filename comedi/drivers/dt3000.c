@@ -20,6 +20,14 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: dt3000.o
+Description: Data Translation DT3000 series
+Author: ds
+Devices: [Data Translation] DT3001, DT3001-PGL, DT3002, DT3003,
+  DT3003-PGL, DT3004, DT3005, DT3004-200
+Status: untested
+*/
 
 /*
    The DT3000 series is Data Translation's attempt to make a PCI

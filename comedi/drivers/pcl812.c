@@ -14,6 +14,30 @@
  *  driver: iso813,  a821pgh,  a-821pgl, a-821pglnda,  a822pgh,  a822pgl,
  *  card:   A-823PGH, A-823PGL, A-826PG 
  * driver:  a823pgh,  a823pgl,  a826pg
+ */
+/*
+Driver: pcl812.o
+Description: Advantech PCL-812/PG, PCL-813/B,
+             ADLink ACL-8112DG/HG/PG, ACL-8113, ACL-8216,
+             ICP DAS A-821PGH/PGL/PGL-NDA, A-822PGH/PGL, A-823PGH/PGL, A-826PG,
+             ICP DAS ISO-813
+Author: Michal Dobes <majkl@tesnet.cz>
+Devices: [Advantech] PCL-812 (pcl812), PCL-812PG (pcl812pg),
+  PCL-813 (pcl813), PCL-813B (pcl813b), [ADLink] ACL-8112DG (acl8112dg),
+  ACL-8112HG (acl8112hg), ACL-8113 (acl-8113), ACL-8216 (acl8216),
+  [ICP] ISO-813 (iso813), A-821PGH (a821pgh), A-821PGL (a821pgl),
+  A-821PGL-NDA (a821pclnda), A-822PGH (a822pgh), A-822PGL (a822pgl),
+  A-823PGH (a823pgh), A-823PGL (a823pgl), A-826PG (a826pg)
+Status: works (I hope. My board fire up under my hands
+               and I cann't test all features.)
+
+This driver supports insn and cmd interfaces. Some boards support only insn
+becouse their hardware don't allow more (PCL-813/B, ACL-8113, ISO-813).
+Data transfer over DMA is supported only when you measure only one
+channel, this is too hardware limitation of these boards.
+See the head of the source file pcl812.c for configuration options.
+*/
+/*
  *
  * Options for PCL-812:
  *  [0] - IO Base

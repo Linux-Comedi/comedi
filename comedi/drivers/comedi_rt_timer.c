@@ -23,7 +23,28 @@
 
 
 **************************************************************************
+*/
+/*
+Driver: comedi_rt_timer.o
+Description: Command emulator using real-time tasks
+Authors: ds, fmhess
+Status: works
 
+This driver requires RTAI or RTLinux to work correctly.  It doesn't
+actually drive hardware directly, but calls other drivers and uses
+a real-time task to emulate commands for drivers and devices that
+are incapable of native commands.  Thus, you can get accurately
+timed I/O on any device.
+
+Since the timing is all done in software, sampling jitter is much
+higher than with a device that has an on-board timer, and maximum
+sample rate is much lower.
+
+Configuration options:
+  [0] - device index
+  [1] - subdevice index
+*/
+/*
 Options:
 	[0] - minor number of device you wish to emulate commands for
 	[1] - subdevice number you wish to emulate commands for

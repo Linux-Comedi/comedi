@@ -20,6 +20,27 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: das1800.o
+Description: Keithley Metrabyte DAS1800 (& compatibles)
+Author: Frank Mori Hess <fmhess@uiuc.edu>
+Device-Names: das-1701st, das-1701st-da, das-1701ao, das-1702st,
+  das-1702st-da, das-1702hr, das-1702hr-da, das-1702ao, das-1801st,
+  das-1801st-da, das-1801hc, das-1801ao, das-1802st, das-1802st-da,
+  das-1802hr, das-1802hr-da, das-1802hc, das-1802ao
+Status: works
+
+The waveform analog output on the 'ao' cards is not supported.
+If you need it, send me (Frank Hess) an email.
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed or externally triggered conversions)
+  [2] - DMA0 (optional, requires irq)
+  [3] - DMA1 (optional, requires irq and dma0)
+*/
+/*
 
 This driver supports the following Keithley boards:
 

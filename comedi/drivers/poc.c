@@ -19,9 +19,19 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
- * This driver is a kind of miscellaneous driver for very
- * simple ISA boards.  
- */
+Driver: poc.o
+Description: Generic driver for very simple devices
+Device names: dac02
+Author: ds
+Devices: [Keithley Metrabyte] DAC-02 (dac02)
+
+This driver is indended to support very simple ISA-based devices,
+including:
+  dac02 - Keithley DAC-02 analog output board
+
+Configuration options:
+  [0] - I/O port base
+*/
 /*
     dac02 - Keithley DAC-02 analog output board driver
 

@@ -20,6 +20,14 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: mpc8260cpm.o
+Description: MPC8260 CPM module generic digital I/O lines
+Author: ds
+
+This driver is specific to the Motorola MPC8260 processor, allowing
+you to access the processor's generic digital I/O lines.
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

@@ -20,6 +20,30 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: 8255.o
+Description: generic 8255 support
+Author: ds
+
+The classic in digital I/O.  Three channels of 8 bit digital I/O,
+each channel is I/O configurable, channels 0 and 1 in 8 bit units,
+channel 2 in 4 bit units.  The driver does not support modes 1 or 2
+yet, since I don't really understand how they would potentially be used.
+(Send me email if you want to use these modes.)  If and when
+modes 1 and 2 are supported, there is a strong possibility that the
+3rd channel will be split into two 4-bit channels.  (Refer to the
+8255 spec for clues as to why.)
+
+You should configure this driver if you plan to use a board that
+has an 8255 chip.  For multifunction boards, the main driver will
+configure the 8255 subdevice automatically.
+
+This driver also works independently with ISA cards that directly
+map the 8255 registers to I/O ports, including cards with multiple
+8255 chips.  To configure the driver for such a card, the option
+list should be a list of the I/O port bases for each of the 8255
+chips.
+*/
 
 /*
    This file contains an exported subdevice for driving an 8255.

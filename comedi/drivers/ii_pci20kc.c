@@ -38,6 +38,42 @@
  *	COMEDILIB 0.7.9
  *
  */
+/*
+Driver: ii_pci20kc.o
+Description: Intelligent Instruments PCI-20001C carrier board
+Author: Markus Kempf <kempf@matsci.uni-sb.de>
+Status: works
+
+Supports the PCI-20001 C-2a Carrier board, and could probably support
+the other carrier boards with small modifications.  Modules supported
+are:
+	PCI-20006 M-2 16-bit analog output module
+	PCI-20341 M-1A 16-bit analog input module
+
+Options:
+  0   Board base address
+  1   IRQ
+  2   first option for module 1
+  3   second option for module 1
+  4   first option for module 2
+  5   second option for module 2
+  6   first option for module 3
+  7   second option for module 3
+
+options for PCI-20006M:
+  first:   Analog output channel 0 range configuration
+             0  bipolar 10  (-10V -- +10V)
+             1  unipolar 10  (0V -- +10V)
+             2  bipolar 5  (-5V -- 5V)
+  second:  Analog output channel 1 range configuration
+
+options for PCI-20341M:
+  first:   Analog input gain configuration
+             0  1
+             1  10
+             2  100
+             3  200
+*/
 
 /* XXX needs to use ioremap() for compatibility with 2.4 kernels.  Should also
  * check_mem_region() etc. - fmhess */

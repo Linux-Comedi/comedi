@@ -1,5 +1,5 @@
 /*
-    module/ni_670x.c
+    comedi/drivers/ni_670x.c
     Hardware driver for NI 670x devices
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -19,6 +19,16 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+*/
+/*
+Driver: ni_670x.o
+Description: National Instruments 670x
+Author: Bart Joris <bjoris@advalvas.be>
+Updated: Wed, 22 Aug 2001 22:47:32 -0700
+Devices: [National Instruments] PCI-6703 (ni_670x), PCI-6704
+
+The driver currently does not recognize the 6704, because the PCI
+ID is not known.
 */
 
 /*
@@ -66,13 +76,13 @@ ni_670x_board ni_670x_boards[] =
 {
 	{
 	dev_id		: 0x2c90,
-	name		: "ni 6703",
+	name		: "PCI-6703",
 	ao_chans	: 16,
 	ao_bits		: 16,
 	},
 	{
 	dev_id		: 0x0,			/* ????? */
-	name		: "ni 6704",
+	name		: "PCI-6704",
 	ao_chans	: 32,
 	ao_bits		: 16,
 	},
@@ -80,7 +90,7 @@ ni_670x_board ni_670x_boards[] =
 
 static struct pci_device_id ni_670x_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	//{ PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	//{ PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);

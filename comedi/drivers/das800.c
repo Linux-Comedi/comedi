@@ -20,6 +20,20 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: das800.o
+Description: Keithley Metrabyte DAS800 (& compatibles)
+Author: Frank Mori Hess <fmhess@uiuc.edu>
+Device-Names: das-800, das-801, das-802, cio-das800, cio-das801,
+  cio-das802, cio-das802/16
+Status: works, cio-das802/16 untested - email me if you have tested it
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed or externally triggered conversions)
+*/
+/*
 
 This driver supports the Keithley boards:
 das-800

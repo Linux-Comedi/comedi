@@ -20,7 +20,23 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: ni_at_a2150.o
+Description: National Instruments AT-A2150
+Author: Frank Mori Hess
+Status: works
+Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_2150s)
 
+If you want to ac couple the board's inputs, use AREF_OTHER.
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ (optional, required for timed conversions)
+  [2] - DMA (optional, required for timed conversions)
+
+*/
+/*
 Yet another driver for obsolete hardware brought to you by Frank Hess.
 Testing and debugging help provided by Dave Andruczyk.
 

@@ -29,7 +29,24 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: cb_pcidas64.o
+Description: Driver for the ComputerBoards/MeasurementComputing
+  PCI-DAS64xxx series with the PLX 9080 PCI controller.
+Author: Frank Mori Hess <fmhess@uiuc.edu>
+Status: Experimental
+Updated: 2001-8-27
 
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+
+Basic insn support should work, but untested as far as I know.
+  Feel free to send and success/failure reports to author.  No
+  command support yet.
+*/
+/*
 STATUS:
 	insn supported
 

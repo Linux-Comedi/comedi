@@ -20,6 +20,12 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: multiq3.o
+Description: Quanser Consulting MultiQ-3
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

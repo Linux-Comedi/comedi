@@ -20,6 +20,14 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: skel.o
+Description: Skeleton driver, an example for driver writers
+Author: ds
+
+This driver is a documented example on how Comedi drivers are
+written.
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

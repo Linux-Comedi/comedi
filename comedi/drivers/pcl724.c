@@ -21,6 +21,18 @@
 	      1,  96:  96 DIO configuration
 */
 /*
+Driver: pcl724.o
+Description: Advantech PCL-724, PCL-722, PCL-731 ADLink ACL-7122, ACL-7124,
+  PET-48DIO
+Author: Michal Dobes <majkl@tesnet.cz>
+Status: untested
+
+This is driver for digital I/O boards PCL-722/724/731 with 144/24/48 DIO
+and for digital I/O boards ACL-7122/7124/PET-48DIO with 144/24/48 DIO.
+It need 8255.o for operations and only immediate mode is supported.
+See the source for configuration details.
+*/
+/*
  * check_driver overrides:
  *   comedi_insn
  */

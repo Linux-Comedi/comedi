@@ -23,6 +23,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+/*
+Driver: dt2811.o
+Description: Data Translation DT2811
+Author: ds
+Devices: [Data Translation] DT2811-PGL (dt2811-pgl), DT2811-PGH (dt2811-pgh)
+Status: works
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ, although this is currently unused
+  [2] - A/D reference
+          0 = signle-ended
+          1 = differential
+	  2 = pseudo-differential (common reference)
+  [3] - A/D range
+          0 = [-5,5]
+	  1 = [-2.5,2.5]
+	  2 = [0,5]
+  [4] - D/A 0 range (same choices)
+  [4] - D/A 1 range (same choices)
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

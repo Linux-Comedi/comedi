@@ -38,6 +38,40 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: cb_pcidas.o
+Description: Driver for the ComputerBoards/MeasurementComputing cards
+  of the PCI-DAS series with the AMCC S5933 PCI controller.
+Author: Ivan Martinez <ivanmr@altavista.com>,
+  Frank Mori Hess <fmhess@uiuc.edu>
+Status:
+  - PCI-DAS1602/16, 16jr: Driver should work, but untested.  Please
+      report usage.
+  - PCI-DAS1602/12: Same as above.
+  - PCI-DAS1200, 1200jr: Tested, works.
+  - PCI-DAS1000, 1001, 1002: Should work, but untested.  Please report
+    usage.
+Updated: 2001-8-27
+Devices: [Measurement Computing] PCI-DAS1602/16, PCI-DAS1602/16jr,
+  PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr, PCI-DAS1000,
+  PCI-DAS1001, PCI_DAS1002
+
+This driver originally intended to support the whole PCI-DAS series,
+but cards based on the PLX PCI controller are excluded for being
+too different.
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first available PCI
+  device will be used.
+
+For commands, the scanned channels must be consecutive
+(i.e. 4-5-6-7, 2-3-4,...), and must all have the same
+range and aref.
+*/
+/*
 
 TODO:
 

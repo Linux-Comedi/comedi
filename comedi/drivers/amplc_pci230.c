@@ -21,6 +21,13 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
+/*
+Driver: amplc_pci230.o
+Description: Driver for Amplicom PCI230 and PCI260 Multifunction I/O boards
+Author: Allan Willcox <allanwillcox@ozemail.com.au>
+Updated: Mon,  3 Sep 2001 17:37:12 -0700
+Devices: [Amplicon] PCI230, PCI260
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

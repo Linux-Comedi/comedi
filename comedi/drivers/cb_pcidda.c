@@ -30,6 +30,22 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: cb_pcidda.o
+Description: ComputerBoards/MeasurementComputing PCI-DDA series
+Author: Ivan Martinez <ivanmr@altavista.com>
+Status: Supports 08/16, 04/16, 02/16, 08/12, 04/12, and 02/12
+Devices: [Measurement Computing] PCI-DDA08/12, PCI-DDA04/12, PCI-DDA02/12,
+  PCI-DDA08/16, PCI-DDA04/16, PCI-DDA02/16
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first available PCI
+  device will be used.
+
+Only simple analog output writing is supported.
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

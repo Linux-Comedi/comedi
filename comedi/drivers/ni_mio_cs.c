@@ -3,7 +3,7 @@
     Hardware driver for NI PCMCIA MIO E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-2000 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,16 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: ni_mio_cs.o
+Description: National Instruments DAQCard E series
+Author: ds
+Status: works
+Known-Devices: [National Instruments] DAQCard-AI-16XE-50,
+  DAQCard-AI-16E-4, DAQCard-6062E, DAQCard-6024E
 
+See the notes in the ni_atmio.o driver.
+*/
 /*
 	The real guts of the driver is in ni_mio_common.c, which is
 	included by all the E series drivers.

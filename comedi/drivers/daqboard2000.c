@@ -20,7 +20,27 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: daqboard2000.o
+Description: IOTech DAQBoard/2000
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+Devices: [IOTech] DAQBoard/2000
 
+Much of the functionality of this driver was determined from reading
+the source code for the Windows driver.
+
+The FPGA on the board requires initialization code, which can either
+be compiled into the driver or loaded by comedi_config using the -i
+option.  The latter is recommended, in order to save a bit of kernel
+memory.
+
+Configuration options:
+  [0] - pointer to FPGA initialization data
+          The pointer and size options are handled automatically
+          by comedi_config when you use the -i option.
+  [1] - size of FPGA data
+*/
 /*
    This card was obviously never intended to leave the Windows world, 
    since it lacked all kind of hardware documentation (except for cable 

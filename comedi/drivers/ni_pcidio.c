@@ -22,6 +22,27 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: ni_pcidio.o
+Description: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
+Author: ds
+Status: works in immediate mode
+Known-Devices: [National Instruments] PCI-DIO-32HS, PXI-6533,
+  PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
+  PXI-6503
+
+The DIO-96 appears as four 8255 subdevices.  See the 8255
+driver notes for details.
+
+The DIO32HS board appears as one subdevice, with 32 channels.
+Each channel is individually I/O configurable.  The channel order,
+as one might guess, is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.
+
+DMA is halfway completed, but not operational, for the PCI-DIO32HS.
+
+This driver could be easily modified to support AT-MIO32HS and
+AT-MIO96.
+*/
 
 /*
    This driver is for both the NI PCI-DIO-32HS and the PCI-DIO-96,

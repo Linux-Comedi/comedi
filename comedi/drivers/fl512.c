@@ -1,9 +1,17 @@
 /*
-    module/fl512.c
+    comedi/drivers/fl512.c
 */
-/* Option for this board
- * [0] IO base addres
- */
+
+/*
+Driver: fl512.o
+Description: unknown
+Author: unknown
+
+Digital I/O is not supported.
+
+Configuration options:
+  [0] - I/O port base address
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

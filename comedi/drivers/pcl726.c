@@ -26,13 +26,22 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
-
 /*
+Driver: pcl726.o
+Description: Advantech PCL-726 & compatibles
+Author: ds
+Status: untested
+Device-Names: pcl726, pcl727, pcl728, acl6126, acl6128
+Known-Devices: [Advantech] PCL-726, PCL-727, PCL-728, [ADLink] ACL-6126,
+  ACL-6128
+
+Interrupts are not supported.
+
     Options for PCL-726:
      [0] - IO Base
      [2]...[7] - D/A output range for channel 1-6: 
                0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
-	       4: 4-20mA, 5: unknow (external reference)
+	       4: 4-20mA, 5: unknown (external reference)
 	       
     Options for PCL-727:
      [0] - IO Base

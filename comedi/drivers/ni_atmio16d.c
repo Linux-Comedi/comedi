@@ -19,6 +19,13 @@
 
  */
 /*
+Driver: ni_atmio16d.o
+Description: National Instruments AT-MIO-16D
+Author: Chris R. Baugher <baugher@enteract.com>
+Status: unknown
+Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
+*/
+/*
  * I must give credit here to Michal Dobes <majkl@tesnet.cz> who
  * wrote the driver for Advantec's pcl812 boards. I used the interrupt 
  * handling code from his driver as an example for this one.

@@ -2,6 +2,12 @@
  * Driver for PCL725 and clones
  * David A. Schleef
  */
+/*
+Driver: pcl725.o
+Description: PC-LabCard PCL-725 (& compatibles)
+Author: ds
+Status: unknown
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

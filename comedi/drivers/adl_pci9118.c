@@ -15,6 +15,40 @@
  *                       you can select from 1 to 256 channels (0=16 SE/8 DIFF channels)
  * 
 */
+/*
+Driver: adl_pci9118.o
+Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
+Author: Michal Dobes <majkl@tesnet.cz>
+Devices: [ADLink] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),
+  PCI-9118HR (pci9118hr)
+Status: works
+
+This driver supports AI, AO, DI and DO subdevices.
+AI subdevice supports cmd and insn interface,
+other subdevices support only insn interface.
+For AI:
+- If cmd->scan_begin_src=TRIG_EXT then trigger input is TGIN (pin 46).
+- If cmd->convert_src=TRIG_EXT then trigger input is EXTTRG (pin 44).
+- If cmd->start_src/stop_src=TRIG_EXT then trigger input is TGIN (pin 46).
+- It is not neccessary to have cmd.scan_end_arg=cmd.chanlist_len but
+  cmd.scan_end_arg modulo cmd.chanlist_len must by 0.
+- If return value of cmdtest is 5 then you've bad channel list
+  (it isn't possible mixture S.E. and DIFF inputs or bipolar and unipolar
+  ranges).
+There is know problem with this driver:
+- If you use scan_begin_src=TRIG_EXT & convert_src=TRIG_TIMER
+  then this mode sometimes discards some samples. :-((
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+          If bus/slot is not specified, the first available PCI
+          device will be used.
+
+If you have an external multiplexer, the third option in the option
+list should be used to indicate the number of channels in the
+multiplexer.
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

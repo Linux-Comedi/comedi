@@ -20,6 +20,41 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: dt2815.o
+Description: Data Translation DT2815
+Author: ds
+Status: mostly complete, untested
+Devices: [Data Translation] DT2815 (dt2815)
+
+I'm not sure anyone has ever tested this board.  If you have information
+contrary, please update.
+
+Configuration options:
+  [0] - I/O port base base address
+  [1] - IRQ (unused)
+  [2] - Voltage unipolar/bipolar configuration
+          0 == unipolar 5V  (0V -- +5V)
+	  1 == bipolar 5V  (-5V -- +5V)
+  [3] - Current offset configuration
+          0 == disabled  (0mA -- +32mAV)
+          1 == enabled  (+4mA -- +20mAV)
+  [4] - Firmware program configuration
+          0 == program 1 (see manual table 5-4)
+          1 == program 2 (see manual table 5-4)
+          2 == program 3 (see manual table 5-4)
+          3 == program 4 (see manual table 5-4)
+  [5] - Analog output 0 range configuration
+          0 == voltage
+          1 == current
+  [6] - Analog output 1 range configuration (same options)
+  [7] - Analog output 2 range configuration (same options)
+  [8] - Analog output 3 range configuration (same options)
+  [9] - Analog output 4 range configuration (same options)
+  [10] - Analog output 5 range configuration (same options)
+  [11] - Analog output 6 range configuration (same options)
+  [12] - Analog output 7 range configuration (same options)
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

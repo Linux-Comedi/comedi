@@ -20,6 +20,23 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: dt2817.o
+Description: Data Translation DT2817
+Author: ds
+Status: complete
+Devices: [Data Translation] DT2817 (dt2817)
+
+A very simple digital I/O card.  Four banks of 8 lines, each bank
+is configurable for input or output.  One wonders why it takes a
+50 page manual to describe this thing.
+
+The driver (which, btw, is much less than 50 pages) has 1 subdevice
+with 32 channels, configurable in groups of 8.
+
+Configuration options:
+  [0] - I/O port base base address
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

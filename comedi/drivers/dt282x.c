@@ -20,7 +20,38 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: dt282x.o
+Description: Data Translation DT2821 series (including DT-EZ)
+Author: ds
+Devices: [Data Translation] DT2821 (dt2821), DT2823 (dt2823),
+  DT2824-PGH (dt2824-pgh), DT2824-PGL (dt2824-pgl), DT2825 (dt2825),
+  DT2827 (dt2827), DT2828 (dt2828), DT21-EZ (dt21-ez), DT23-EZ (dt23-ez),
+  DT24-EZ (dt24-ez), DT24-EZ-PGL (dt24-ez-pgl)
+Status: complete
+Updated: Wed, 22 Aug 2001 17:11:34 -0700
 
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ
+  [2] - DMA 1
+  [3] - DMA 2
+  [4] - AI jumpered for 0=single ended, 1=differential
+  [5] - AI jumpered for 0=straight binary, 1=2's complement
+  [6] - AO 0 jumpered for 0=straight binary, 1=2's complement
+  [7] - AO 1 jumpered for 0=straight binary, 1=2's complement
+  [8] - AI jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5]
+  [9] - AO 0 jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5],
+        4=[-2.5,2.5]
+  [10]- A0 1 jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5],
+        4=[-2.5,2.5]
+
+Notes:
+  - AO commands might be broken.
+  - If you try to run a command on both the AI and AO subdevices
+    simultaneously, bad things will happen.  The driver needs to
+    be fixed to check for this situation and return an error.
+*/
 
 #include <linux/comedidev.h>
 #include <linux/module.h>

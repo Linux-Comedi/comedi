@@ -16,6 +16,30 @@
  *  [1] - PCI slot number 
  * 
 */
+/*
+Driver: adv_pci1710.o
+Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
+             Advantech PCI-1720, PCI-1731
+Author: Michal Dobes <majkl@tesnet.cz>
+Devices: [Advantech] PCI-1710 (pci1710), PCI-1710HG (pci1710hg),
+  PCI-1711 (pci1711), PCI-1713 (pci1713), PCI-1720 (pci1720),
+  PCI-1731 (pci1731)
+Status: works
+
+This driver supports AI, AO, DI and DO subdevices.
+AI subdevice supports cmd and insn interface,
+other subdevices support only insn interface.
+
+The PCI-1710 and PCI-1710HG have the same PCI device ID, so the
+driver cannot distinguish between them, as would be normal for a
+PCI driver.
+
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+          If bus/slot is not specified, the first available PCI
+          device will be used.
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>

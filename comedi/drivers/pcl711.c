@@ -23,6 +23,19 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: pcl711.o
+Description: Advantech PCL-711 and 711b, ADLink ACL-8112
+Authors: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
+Status: mostly complete
+Device-Names: pcl711, pcl711b, acl8112hg, acl8112dg
+Known-Devices: [Advantech] PCL-711, PCL-711B, [AdLink] ACL-8112HG,
+  ACL-8112DG
+
+Since these boards do not have DMA or FIFOs, only immediate mode is
+supported.
+
+*/
 
 /*
    Dave Andruczyk <dave@tech.buffalostate.edu> also wrote a

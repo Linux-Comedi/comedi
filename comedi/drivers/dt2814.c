@@ -20,6 +20,24 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: dt2814.o
+Description: Data Translation DT2814
+Author: ds
+Status: complete
+Devices: [Data Translation] DT2814 (dt2814)
+
+Configuration options:
+  [0] - I/O port base address
+  [1] - IRQ
+
+This card has 16 analog inputs multiplexed onto a 12 bit ADC.  There
+is a minimally useful onboard clock.  The base frequency for the
+clock is selected by jumpers, and the clock divider can be selected
+via programmed I/O.  Unfortunately, the clock divider can only be
+a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
+addition, the clock does not seem to be very accurate.
+*/
 
 
 #include <linux/kernel.h>

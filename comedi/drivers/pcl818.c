@@ -6,7 +6,40 @@
    hardware driver for Advantech cards:
     card:   PCL-818L, PCL-818H, PCL-818HD, PCL-818HG, PCL-818, PCL-718
     driver: pcl818l,  pcl818h,  pcl818hd,  pcl818hg,  pcl818,  pcl718
+*/
+/*
+Driver: pcl818.o
+Description: Advantech PCL-818 cards (818, 818L, 818H, 818HD, 818HG),
+  Advantech PCL-718
+Author: Michal Dobes <majkl@tesnet.cz>
+Status: works
 
+All cards have 16 SE/8 DIFF ADCs, one or two DACs, 16 DI and 16 DO.
+Differences are only at maximal sample speed, range list and FIFO
+support.
+The driver support AI mode 0, 1, 3 other subdevices (AO, DI, DO) support
+only mode 0. If DMA/FIFO/INT are disabled then AI support only mode 0.
+PCL-818HD and PCL-818HG support 1kword FIFO. Driver support this FIFO
+but this code is untested.
+A word or two about DMA. Driver support DMA operations at two ways:
+1) DMA uses two buffers and after one is filled then is generated
+   INT and DMA restart with second buffer. With this mode I'm unable run
+   more that 80Ksamples/secs without data dropouts on K6/233.
+2) DMA uses one buffer and run in autoinit mode and the data are
+   from DMA buffer moved on the fly with 2kHz interrupts from RTC.
+   This mode is used if the interrupt 8 is available for allocation.
+   If not, then first DMA mode is used. With this I can run at
+   full speed one card (100ksamples/secs) or two cards with
+   60ksamples/secs each (more is problem on account of ISA limitations).
+   To use this mode you must have compiled  kernel with disabled
+   "Enhanced Real Time Clock Support".
+   Maybe you can have problems if you use xntpd or similar.
+   If you've data dropouts with DMA mode 2 then:
+    a) disable IDE DMA
+    b) switch text mode console to fb.
+See the head of the source file pcl818.c for configuration options.
+*/
+/*
    Options for PCL-818L:
     [0] - IO Base
     [1] - IRQ	(0=disable, 2, 3, 4, 5, 6, 7)

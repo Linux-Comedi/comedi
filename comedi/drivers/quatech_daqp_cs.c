@@ -27,6 +27,13 @@
 
 ======================================================================*/
 
+/*
+Driver: quatech_daqp_cs.o
+Description: Quatech DAQP PCMCIA data capture cards
+Author: Brent Baccala <baccala@freesoft.org>
+Status: unkown
+Devices: [Quatech] DAQP-208 (daqp), DAQP-308
+*/
 
 //#include <pcmcia/config.h>
 //#include <pcmcia/k_compat.h>

@@ -1,9 +1,9 @@
 /*
-    module/ni_atmio.c
+    comedi/drivers/ni_atmio.c
     Hardware driver for NI AT-MIO E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
+    Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,9 +18,31 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
+/*
+Driver: ni_atmio.o
+Description: National Instruments AT-MIO-E series
+Author: ds
+Devices: [National Instruments] AT-MIO-16E-1 (ni_atmio),
+  AT-MIO-16E-2, AT-MIO-16E-10, AT-MIO-16DE-10, AT-MIO-64E-3,
+  AT-MIO-16XE-50, AT-MIO-16XE-10, AT-AI-16XE-10
 
+The isapnptools package is required to use this board.  Use isapnp to
+configure the I/O base for the board, and then pass the same value as
+a parameter in comedi_config.  A sample isapnp.conf file is included
+in the etc/ directory.
+
+Assuming that the NI spec is correct, the driver should correctly
+identify every board in the series.  Each channel should have the
+appropriate parameters, i.e., input/output ranges, number of bits,
+etc.  If the driver fails to recognize your card or does not have
+the correct parameters, please contact me.
+
+Comedilib includes a utility to autocalibrate these boards.  The
+boards seem to boot into a state where the all calibration DACs
+are at one extreme of their range, thus the default calibration
+is terrible.  Calibration at boot is strongly encouraged.
+*/
 /*
 	The real guts of the driver is in ni_mio_common.c, which is included
 	both here and in ni_pcimio.c

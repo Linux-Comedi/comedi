@@ -20,7 +20,31 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
+/*
+Driver: ni_pcimio.o
+Description: National Instruments PCI-MIO-E series (all boards)
+Author: ds
+Status: mainly limited by Comedi infrastructure
+Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
+  PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6040E,
+  PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
+  PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
+  PCI-6110E, PCI-6111E, PCI-6711, PCI-6713, PXI-6071E, PXI-6070E,
+  PXI-6052E
 
+These boards are almost identical to the AT-MIO E series, except that
+they use the PCI bus instead of ISA (i.e., AT).  See the notes above for
+ni_atmio.o for additional information about these boards.
+
+Comedi knows the PCI ID codes for many of the boards in this series,
+but the NI documentation is incomplete in this matter.  If you have
+a PCI-MIO board that Comedi doesn't recognize, send me the PCI device
+ID, as can be found in /proc/pci or the output of lspci.  The vendor
+code for National Instruments is 0x1093.  I will include the ID in
+the next version.
+
+DMA is halfway completed, but not yet operational.
+*/
 /*
 	The PCI-MIO E series driver was originally written by
 	Tomasz Motylewski <...>, and ported to comedi by ds.

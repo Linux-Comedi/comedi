@@ -22,7 +22,33 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ************************************************************************
+*/
+/*
+Driver: das16m1.o
+Description: CIO-DAS16/M1
+Authors: Frank Mori Hess <fmhess@uiuc.edu>
+Status: works
 
+This driver supports a single board - the CIO-DAS16/M1.
+As far as I know, there are no other boards that have
+the same register layout.  Even the CIO-DAS16/M1/16 is
+significantly different.
+
+I was _barely_ able to reach the full 1 MHz capability
+of this board, using a hard real-time interrupt
+(set the TRIG_RT flag in your comedi_cmd and use
+rtlinux or RTAI).  The board can't do dma, so the bottleneck is
+pulling the data across the ISA bus.  I timed the interrupt
+handler, and it took my computer ~470 microseconds to pull 512
+samples from the board.  So at 1 Mhz sampling rate,
+expect your CPU to be spending almost all of its
+time in the interrupt handler.
+
+Options:
+        [0] - base io address
+        [1] - irq (optional, but you probably want it)
+*/
+/*
 This driver is for the (freakish) Measurement Computing (Computer Boards)
 CIO-DAS16/M1 board.  The similarly namced CIO-DAS16/M1/16 board actually
 has a different register layout and is not supported by this driver

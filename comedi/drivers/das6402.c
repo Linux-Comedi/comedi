@@ -28,6 +28,12 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: das6402.o
+Description: Keithley Metrabyte DAS6402 (& compatibles)
+Author: Oystein Svendsen <svendsen@pvv.org>
+Status: unknown
+*/
 
 #include <linux/module.h>
 #include <linux/comedidev.h>
