@@ -222,8 +222,9 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	b_status=ni_readw(AO_Status_1);
 	status=ni_readw(AI_Status_1);
 #ifdef DEBUG_INTERRUPT
-printk("status=0x%04x,0x%04x\n",status,b_status);
+printk("ni_mio_common interrupt: ");
 ni_mio_print_status_a(status);
+printk(" b_status=0x%04x\n",b_status);
 #endif
 #ifdef PCIDMA
 printk("mite status=0x%08x\n",readw(devpriv->mite->mite_io_addr+0x14));
@@ -324,13 +325,12 @@ static void ni_mio_print_status_a(int status)
 {
 	int i;
 
-	printk("ni_mio_common: error status=0x%04x",status);
+	printk("status=0x%04x",status);
 	for(i=15;i>=0;i--){
 		if(status&(1<<i)){
 			printk(" %s",status_a_strings[i]);
 		}
 	}
-	printk("\n");
 }
 
 static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
@@ -446,11 +446,6 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 	unsigned int mask;
 
 	/*
-	   Too bad NI didn't have the foresight to return a
-	   "fifo empty" value if we read past the end of the
-	   FIFO.  It would have made this procedure twice
-	   as fast.
-
 	   We can calculate how many samples to transfer.
 	   This would save a lot of time.
 	*/
@@ -489,7 +484,6 @@ int ni_ai_setup_block(comedi_device *dev,int frob,int mode1)
 {
 	int n;
 	int last=0;
-	comedi_subdevice *s=dev->subdevices;
 
 printk("n_left = %d\n",devpriv->n_left);
 	n=devpriv->n_left;
@@ -505,19 +499,21 @@ printk("n_left = %d\n",devpriv->n_left);
 		/* stage number of scans */
 		win_out((n-1)>>16,AI_SC_Load_A_Registers);
 		win_out((n-1)&0xffff,AI_SC_Load_A_Registers+1);
-
-		if(!last){
-			//mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-			mode1 |= 0xe;
-s->cur_trig.n=0; /* XXX */
-		}else{
-			mode1 |= 0xd;
-s->cur_trig.n=1; /* XXX */
-		}
-		win_out(mode1,AI_Mode_1_Register);
+		win_out((n-1)>>16,AI_SC_Load_B_Registers);
+		win_out((n-1)&0xffff,AI_SC_Load_B_Registers+1);
 
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
+#if 0
+		if(!last){
+			mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
+		}else{
+			mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
+		}
+#endif
+		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
+		win_out(mode1,AI_Mode_1_Register);
+
 	}
 
 	return mode1;
@@ -896,14 +892,11 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		win_out((cmd->stop_arg-1)>>16,AI_SC_Load_A_Registers);
 		win_out((cmd->stop_arg-1)&0xffff,AI_SC_Load_A_Registers+1);
 
-		//mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
-		mode1 |= 0xd;
+		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
 		win_out(mode1,AI_Mode_1_Register);
 	
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
-
-s->cur_trig.n=1; /* XXX */
 
 		break;
 	case TRIG_NONE:
@@ -911,20 +904,17 @@ s->cur_trig.n=1; /* XXX */
 		win_out(0,AI_SC_Load_A_Registers);
 		win_out(0,AI_SC_Load_A_Registers+1);
 	
-		//mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-		mode1 |= 0xe;
+		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
 		win_out(mode1,AI_Mode_1_Register);
 
 		/* load SC (Scan Count) */
 		win_out(AI_SC_Load,AI_Command_1_Register);
 
-s->cur_trig.n=0; /* XXX */
-
 		break;
 	}
 #else
 
-	devpriv->blocksize = 0x10000;
+	devpriv->blocksize = 0x4000;
 	devpriv->n_left = cmd->stop_arg;
 
 	mode1 = ni_ai_setup_block(dev,1,mode1);
@@ -989,8 +979,10 @@ s->cur_trig.n=0; /* XXX */
 		/* AI_SI2_Load */
 		win_out(AI_SI2_Load,AI_Command_1_Register);
 
-		mode2 |= AI_SI_Reload_Mode(0);
-		mode2 |= 0&AI_SI_Initial_Load_Source;
+		//mode2 |= AI_SI_Reload_Mode(0);
+		mode2 |= AI_SI_Reload_Mode(1);
+		//mode2 |= 0&AI_SI_Initial_Load_Source;
+		mode2 |= AI_SI_Initial_Load_Source;
 		mode2 |= AI_SI2_Reload_Mode; // alternate
 		mode2 |= AI_SI2_Initial_Load_Source; // B
 
@@ -999,8 +991,7 @@ s->cur_trig.n=0; /* XXX */
 		break;
 	case TRIG_EXT:
 		mode1 |= AI_CONVERT_Source_Select(1+cmd->convert_arg) |
-			AI_CONVERT_Source_Polarity |
-			AI_Start_Stop;
+			AI_CONVERT_Source_Polarity;
 		win_out(mode1,AI_Mode_1_Register);
 
 		win_out(mode2 | AI_SI2_Reload_Mode,AI_Mode_2_Register);
@@ -1023,16 +1014,13 @@ s->cur_trig.n=0; /* XXX */
 			AI_Error_Interrupt_Enable|
 			AI_SC_TC_Interrupt_Enable;
 
-#ifndef TRY_DMA
 		if(s->cb_mask&COMEDI_CB_EOS){
 			/* wake on end-of-scan */
 			devpriv->aimode=AIMODE_SCAN;
 		}else{
 			devpriv->aimode=AIMODE_HALF_FULL;
 		}
-#else
-		devpriv->aimode = AIMODE_HALF_FULL;
-#endif
+
 		switch(devpriv->aimode){
 		case AIMODE_HALF_FULL:
 			/*generate FIFO interrupts on half-full */
