@@ -1,7 +1,7 @@
 
 SUBDIRS = comedi
 
-EXTRA_DIST = Documentation include m4 scripts modtool.in
+EXTRA_DIST = Documentation include m4 scripts modtool.in autogen.sh
 
 ACLOCAL_AMFLAGS = -I m4
 
