@@ -817,7 +817,7 @@ static const pcidas64_board pcidas64_boards[] =
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
 		ai_fifo:	&ai_fifo_60xx,
-		has_8255 : 1,
+		has_8255 : 0,
 	},
 	{
 		name:		"pci-das6035",
@@ -832,7 +832,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ao_range_table:	&ao_ranges_60xx,
 		ao_range_code:	ao_range_code_60xx,
 		ai_fifo:	&ai_fifo_60xx,
-		has_8255 : 1,
+		has_8255 : 0,
 	},
 	{
 		name:		"pci-das6036",
