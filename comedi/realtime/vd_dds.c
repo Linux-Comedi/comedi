@@ -115,10 +115,10 @@ static void dds_ao_task_func(int d)
 		if(ret<0){
 			/* eek! */
 		}
-#ifdef CONFIG_COMEDI_RTAI
+#ifdef CONFIG_COMEDI_RTL
 		rt_task_wait();
 #endif
-#ifdef CONFIG_COMEDI_RTL
+#ifdef CONFIG_COMEDI_RTAI
 		rt_task_yield();
 #endif
 	}
@@ -163,9 +163,15 @@ static int dds_ao_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
 
 	ts.tv_sec=0;
 	ts.tv_nsec=it->trigvar;
-	period=timespec_to_RTIME(ts);
 
+#ifdef CONFIG_COMEDI_RTAI
+	//period=timespec_to_RTIME(ts);
+	//rt_task_init(&devpriv->rt_task,dds_ao_task_func,(int)dev,3000,4);
+#endif
+#ifdef CONFIG_COMEDI_RTL
+	period=timespec_to_RTIME(ts);
 	rt_task_init(&devpriv->rt_task,dds_ao_task_func,(int)dev,3000,4);
+#endif
 
 	now=rt_get_time();
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
@@ -218,7 +224,11 @@ int dds_attach(comedi_device *dev,comedi_devconfig *it)
 	s->range_table=devpriv->s->range_table;
 	s->range_table_list=devpriv->s->range_table_list;
 
+#ifdef CONFIG_COMEDI_RTAI
+#endif
+#ifdef CONFIG_COMEDI_RTL
 	devpriv->soft_irq=rtl_get_soft_irq(dds_interrupt,"dds");
+#endif
 	broken_rtl_dev=dev;
 
 	printk("\n");

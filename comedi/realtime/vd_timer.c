@@ -121,9 +121,19 @@ static void timer_ai_task_func(int d)
 		for(i=0;i<n_chan;i++){
 			buf_add(dev,s,devpriv->data[i]);
 		}
+#ifdef CONFIG_COMEDI_RTL
 		rt_task_wait();
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+		//rt_task_wait();
+#endif
 	}
+#ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(devpriv->soft_irq);
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	//rtl_global_pend_irq(devpriv->soft_irq);
+#endif
 
 	rt_task_delete(&devpriv->rt_task);
 
@@ -137,11 +147,12 @@ static int timer_ai_mode0(comedi_device *dev,comedi_subdevice *s,comedi_trig *it
 
 static int timer_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
-	if(cmd->scan_start_arg<100000)	/* 10 khz */
-		cmd->scan_start_arg=100000;
-	if(cmd->scan_start_arg>1e9)	/* 1 hz */
-		cmd->scan_start_arg=1e9;
+	if(cmd->scan_begin_arg<100000)	/* 10 khz */
+		cmd->scan_begin_arg=100000;
+	if(cmd->scan_begin_arg>1e9)	/* 1 hz */
+		cmd->scan_begin_arg=1e9;
 
+	return 0;
 }
 
 static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
@@ -149,6 +160,7 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	int ret;
 	RTIME now,period;
 	struct timespec ts;
+	comedi_cmd *cmd = &s->cmd;
 
 	ret=comedi_lock_ioctl(devpriv->device,devpriv->subd);
 	if(ret<0)return ret;
@@ -166,10 +178,17 @@ static int timer_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->trig.n=1;
 
 	ts.tv_sec=0;
-	ts.tv_nsec=it->trigvar;
-	period=timespec_to_RTIME(ts);
+	ts.tv_nsec=cmd->scan_begin_arg;
 
+#ifdef CONFIG_COMEDI_RTL
+	period=timespec_to_RTIME(ts);
 	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	period = 0;
+	//period=timespec_to_RTIME(ts);
+	//rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+#endif
 
 	now=rt_get_time();
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
@@ -214,9 +233,15 @@ static int timer_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it
 
 	ts.tv_sec=0;
 	ts.tv_nsec=it->trigvar;
+#ifdef CONFIG_COMEDI_RTL
 	period=timespec_to_RTIME(ts);
-
 	rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	period = 0;
+	//period=timespec_to_RTIME(ts);
+	//rt_task_init(&devpriv->rt_task,timer_ai_task_func,(int)dev,3000,4);
+#endif
 
 	now=rt_get_time();
 	rt_task_make_periodic(&devpriv->rt_task,now+period,period);
@@ -272,8 +297,13 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	s->range_table=devpriv->s->range_table;
 	s->range_table_list=devpriv->s->range_table_list;
 
+#ifdef CONFIG_COMEDI_RTL
 	devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
 	broken_rtl_dev=dev;
+#endif
+#ifdef CONFIG_COMEDI_RTAI
+	//devpriv->soft_irq=rtl_get_soft_irq(timer_interrupt,"timer");
+#endif
 
 	printk("\n");
 
