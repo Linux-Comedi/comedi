@@ -373,26 +373,11 @@ comedi_driver driver_pcimio={
 
 /*
  * this is how we access windowed registers
- * 
- * from a driver perspective, using windowed registers
- * on the PCI-MIO is really dumb.  I'd bet that the
- * registers can actually be acessed without windowing...
- * must try this sometime...
- *
- * but it doesn't work...
  */
-
-#if 0
-#define win_out(a,b) (ni_writew((a),(b)*2))
-#define win_in(b) (ni_readw((b)*2))
-#define win_save() 0
-#define win_restore(a)
-#else
 #define win_out(a,b) (ni_writew((b),Window_Address),ni_writew((a),Window_Data))
 #define win_in(b) (ni_writew((b),Window_Address),ni_readw(Window_Data))
 #define win_save() (ni_readw(Window_Address))
 #define win_restore(a) (ni_writew((a),Window_Address))
-#endif
 
 /*
    If interrupts _still_ don't work, play with the
