@@ -54,8 +54,8 @@ starting channel to scan and the gain is determined from chanlist[0].
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>
+#include <linux/comedidev.h>
 #include <asm/io.h>
-#include <comedi_module.h>
 
 #define DAS800_SIZE           8
 /* Registers for the das800 */
