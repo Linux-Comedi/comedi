@@ -88,8 +88,11 @@ endif
 -include arch/$(ARCH)/Makefile
 -include arch/Makefile.noarch
 
+oldconfig:	dummy
+	$(CONFIG_SHELL) scripts/Configure -d
+
 config:	dummy
-	scripts/Configure
+	$(CONFIG_SHELL) scripts/Configure
 
 MODULES		= $(wildcard modules/*.o)
 MODULES_PCMCIA	= $(filter %_cs.o, $(MODULES))
