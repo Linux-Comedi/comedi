@@ -244,13 +244,11 @@ typedef struct
  */
 static int cb_pcidas_attach(comedi_device *dev,comedi_devconfig *it);
 static int cb_pcidas_detach(comedi_device *dev);
-static int cb_pcidas_recognize(char *name);
 comedi_driver driver_cb_pcidas={
 	driver_name:	"cb_pcidas",
 	module:		THIS_MODULE,
 	attach:		cb_pcidas_attach,
 	detach:		cb_pcidas_detach,
-	recognize:	cb_pcidas_recognize,
 };
 
 static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -259,20 +257,6 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn
 static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int cb_pcidas_ns_to_timer(unsigned int *ns,int round);
-
-/*
- * The function cb_pcidas_recognize() is called when the Comedi core
- * gets a request to configure a device.  If the name of the device
- * being configured matches with one of the devices that this
- * driver can service, then a non-negative index should be returned.
- * This index is put into dev->board, and then _attach() is called.
- */
-static int cb_pcidas_recognize(char *name)
-{
-	if(!strcmp("cb_pcidas",name))return 0;
-
-	return -1;
-}
 
 /*
  * Attach is called by the Comedi core to configure the driver
