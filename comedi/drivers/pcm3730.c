@@ -37,70 +37,46 @@ comedi_driver driver_pcm3730={
 	attach:		pcm3730_attach,
 	detach:		pcm3730_detach,
 };
+COMEDI_INITCLEANUP(driver_pcm3730);
 
-static int pcm3730_doa(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int pcm3730_dob(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int pcm3730_doc(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int pcm3730_dia(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int pcm3730_dib(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
-static int pcm3730_dic(comedi_device *dev,comedi_subdevice *s,comedi_trig *it);
 
-static int pcm3730_doa(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcm3730_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
-	outb(s->state,dev->iobase+PCM3730_DOA);
-	return it->n_chan;
+	if(insn->n!=2)return -EINVAL;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0]&data[1]);
+		outb(s->state,dev->iobase+(int)(s->private));
+	}
+	data[1] = s->state;
+
+	return 2;
 }
 
-static int pcm3730_dob(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int pcm3730_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
 {
-	do_pack(&s->state,it);
-	outb(s->state,dev->iobase+PCM3730_DOB);
-	return it->n_chan;
-}
-
-static int pcm3730_doc(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	do_pack(&s->state,it);
-	outb(s->state,dev->iobase+PCM3730_DOC);
-	return it->n_chan;
-}
-
-static int pcm3730_dia(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	unsigned int bits;
-	bits=inb(dev->iobase+PCM3730_DIA);
-	return di_unpack(bits,it);
-}
-
-static int pcm3730_dib(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	unsigned int bits;
-	bits=inb(dev->iobase+PCM3730_DIB);
-	return di_unpack(bits,it);
-}
-
-static int pcm3730_dic(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
-{
-	unsigned int bits;
-	bits=inb(dev->iobase+PCM3730_DIC);
-	return di_unpack(bits,it);
+	if(insn->n!=2)return -EINVAL;
+	data[1] = inb(dev->iobase+(int)(s->private));
+	return 2;
 }
 
 static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
+	int iobase;
 
-	dev->iobase=it->options[0];
-	printk("comedi%d: pcm3730: 0x%04x ",dev->minor,dev->iobase);
-	if(check_region(dev->iobase,PCM3730_SIZE)<0){
+	iobase=it->options[0];
+	printk("comedi%d: pcm3730: 0x%04x ",dev->minor,iobase);
+	if(check_region(iobase,PCM3730_SIZE)<0){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(dev->iobase,PCM3730_SIZE,"pcm3730");
+	request_region(iobase,PCM3730_SIZE,"pcm3730");
+	dev->iobase=iobase;
 	dev->board_name="pcm3730";
 	dev->iobase=dev->iobase;
-	dev->iosize=PCM3730_SIZE;
 	dev->irq=0;
 
 	dev->n_subdevices=6;
@@ -113,48 +89,54 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags=SDF_WRITEABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcm3730_doa;
+	s->insn_bits = pcm3730_do_insn_bits;
 	s->range_table=&range_digital;
+	s->private = (void *) PCM3730_DOA;
 
 	s=dev->subdevices+1;
 	s->type=COMEDI_SUBD_DO;
 	s->subdev_flags=SDF_WRITEABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcm3730_dob;
+	s->insn_bits = pcm3730_do_insn_bits;
 	s->range_table=&range_digital;
+	s->private = (void *) PCM3730_DOB;
 
 	s=dev->subdevices+2;
 	s->type=COMEDI_SUBD_DO;
 	s->subdev_flags=SDF_WRITEABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcm3730_doc;
+	s->insn_bits = pcm3730_do_insn_bits;
 	s->range_table=&range_digital;
+	s->private = (void *) PCM3730_DOC;
 
 	s=dev->subdevices+3;
 	s->type=COMEDI_SUBD_DI;
 	s->subdev_flags=SDF_READABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcm3730_dia;
+	s->insn_bits = pcm3730_di_insn_bits;
 	s->range_table=&range_digital;
+	s->private = (void *) PCM3730_D!A;
 
 	s=dev->subdevices+4;
 	s->type=COMEDI_SUBD_DI;
 	s->subdev_flags=SDF_READABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcm3730_dib;
+	s->insn_bits = pcm3730_di_insn_bits;
 	s->range_table=&range_digital;
+	s->private = (void *) PCM3730_DIB;
 
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_DI;
 	s->subdev_flags=SDF_READABLE;
 	s->maxdata=1;
 	s->n_chan=8;
-	s->trig[0]=pcm3730_dic;
+	s->insn_bits = pcm3730_di_insn_bits;
 	s->range_table=&range_digital;
+	s->private = (void *) PCM3730_DIC;
 
 	printk("\n");
 
@@ -165,20 +147,10 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 static int pcm3730_detach(comedi_device *dev)
 {
 	printk("comedi%d: pcm3730: remove\n",dev->minor);
+
+	if(dev->iobase)
+		release_region(dev->iobase,PCM3730_SIZE);
 	
 	return 0;
 }
 
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_pcm3730);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcm3730);
-}
-#endif
