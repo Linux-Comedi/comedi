@@ -986,8 +986,7 @@ static int dt282x_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
-	//cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	cmd->stop_src &= TRIG_COUNT;	/* XXX */
+	cmd->stop_src &= TRIG_NONE;
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err)return 1;
