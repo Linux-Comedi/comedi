@@ -56,6 +56,26 @@ I/O port base address can be found in the output of 'lspci -v'.
 /*
    This file contains an exported subdevice for driving an 8255.
 
+   To use this subdevice as part of another driver, you need to
+   set up the subdevice in the attach function of the driver by
+   calling:
+
+     subdev_8255_init(device, subdevice, callback_function, arg)
+
+   device and subdevice are pointers to the device and subdevice
+   structures.  callback_function will be called to provide the
+   low-level input/output to the device, i.e., actual register
+   access.  callback_function will be called with the value of arg
+   as the last parameter.  If the 8255 device is mapped as 4
+   consecutive I/O ports, you can use NULL for callback_function
+   and the I/O port base for arg, and an internal function will
+   handle the register access.
+
+   In addition, if the main driver handles interrupts, you can
+   enable commands on the subdevice by calling subdev_8255_init_irq()
+   instead.  Then, when you get an interrupt that is likely to be
+   from the 8255, you should call subdev_8255_interrupt(), which
+   will copy the latched value to a Comedi buffer.
  */
 
 #include <linux/kernel.h>
@@ -90,10 +110,12 @@ I/O port base address can be found in the output of 'lspci -v'.
 struct subdev_8255_struct{
 	unsigned long cb_arg;
 	int (*cb_func)(int,int,int,unsigned long);
+	int have_irq;
 };
 
 #define CALLBACK_ARG	(((struct subdev_8255_struct *)s->private)->cb_arg)
 #define CALLBACK_FUNC	(((struct subdev_8255_struct *)s->private)->cb_func)
+#define subdevpriv	((struct subdev_8255_struct *)s->private)
 
 static int dev_8255_attach(comedi_device * dev, comedi_devconfig * it);
 static int dev_8255_detach(comedi_device * dev);
@@ -106,6 +128,19 @@ static comedi_driver driver_8255={
 COMEDI_INITCLEANUP(driver_8255);
 
 static void do_config(comedi_device *dev,comedi_subdevice *s);
+
+void subdev_8255_interrupt(comedi_device *dev, comedi_subdevice *s)
+{
+	sampl_t d;
+
+	d = CALLBACK_FUNC(0,_8255_DATA,0,CALLBACK_ARG);
+	d |= (CALLBACK_FUNC(0,_8255_DATA+1,0,CALLBACK_ARG)<<8);
+
+	comedi_buf_put(s->async, d);
+	s->async->events |= COMEDI_CB_EOS;
+
+	comedi_event(dev,s,s->async->events);
+}
 
 static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
@@ -191,6 +226,85 @@ static void do_config(comedi_device *dev,comedi_subdevice *s)
 	CALLBACK_FUNC(1,_8255_CR,config,CALLBACK_ARG);
 }
 
+static int subdev_8255_cmdtest(comedi_device *dev, comedi_subdevice *s,
+	comedi_cmd *cmd)
+{
+	int err = 0;
+	unsigned int tmp;
+
+	/* step 1 */
+
+	tmp = cmd->start_src;
+	cmd->start_src &= TRIG_NOW;
+	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+
+	tmp=cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_EXT;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+
+	tmp=cmd->convert_src;
+	cmd->convert_src &= TRIG_FOLLOW;
+	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+
+	tmp=cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_NONE;
+	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+
+	if(err) return 1;
+	
+	/* step 2 */
+
+	if(err) return 2;
+
+	/* step 3 */
+
+	if(cmd->start_arg != 0){
+		cmd->start_arg = 1;
+		err++;
+	}
+	if(cmd->scan_begin_arg!=0){
+		cmd->scan_begin_arg = 0;
+		err++;
+	}
+	if(cmd->convert_arg!=0){
+		cmd->convert_arg = 0;
+		err++;
+	}
+	if(cmd->scan_end_arg != 1){
+		cmd->scan_end_arg = 1;
+		err++;
+	}
+	if(cmd->stop_arg!= 0){
+		cmd->stop_arg = 0;
+		err++;
+	}
+
+	if(err)return 3;
+
+	/* step 4 */
+
+	if(err)return 4;
+
+	return 0;
+}
+
+static int subdev_8255_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	/* FIXME */
+
+	return 0;
+}
+
+static int subdev_8255_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	/* FIXME */
+
+	return 0;
+}
 
 int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,unsigned long),unsigned long arg)
 {
@@ -219,10 +333,30 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	return 0;
 }
 
+int subdev_8255_init_irq(comedi_device *dev,comedi_subdevice *s,
+	int (*cb)(int,int,int,unsigned long),unsigned long arg)
+{
+	int ret;
+
+	ret = subdev_8255_init(dev,s,cb,arg);
+	if(ret<0)return ret;
+
+	s->do_cmdtest = subdev_8255_cmdtest;
+	s->do_cmd = subdev_8255_cmd;
+	s->cancel = subdev_8255_cancel;
+
+	subdevpriv->have_irq = 1;
+
+	return 0;
+}
+
 void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s)
 {
-	if(s->private)
+	if(s->private){
+		if(subdevpriv->have_irq){}
+
 		kfree(s->private);
+	}
 }
 
 /*
@@ -295,5 +429,7 @@ static int dev_8255_detach(comedi_device *dev)
 
 
 EXPORT_SYMBOL(subdev_8255_init);
+EXPORT_SYMBOL(subdev_8255_init_irq);
 EXPORT_SYMBOL(subdev_8255_cleanup);
+EXPORT_SYMBOL(subdev_8255_interrupt);
 
