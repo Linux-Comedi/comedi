@@ -176,6 +176,7 @@ static void labpc_serial_out(comedi_device *dev, unsigned int value, unsigned in
 static unsigned int labpc_serial_in(comedi_device *dev);
 static unsigned int labpc_eeprom_read(comedi_device *dev, unsigned int address);
 static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address, unsigned int value);
+static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value);
 
 enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
@@ -1271,7 +1272,7 @@ static int labpc_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	return n;
 }
 
-// analog output insn for pcidas-1602 series
+// analog output insn
 static int labpc_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
@@ -1328,9 +1329,10 @@ static int labpc_calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi
 static int labpc_calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int channel = CR_CHAN(insn->chanspec);
+	int caldac = channel + 3;	// first caldac used by boards is number 3
 
 	devpriv->caldac[channel] = data[0];
-	write_caldac(dev, channel + 3, data[0]);	// first caldac used by boards is number 3
+	write_caldac(dev, caldac, data[0]);
 
 	return 1;
 }
@@ -1516,7 +1518,7 @@ static unsigned int labpc_eeprom_write(comedi_device *dev, unsigned int address,
 }
 
 // writes to 8 bit calibration dacs
-static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
+static void __write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
 {
 	unsigned int reordered_channel, i;
 	const int num_channel_bits = 4;	// caldacs use 4 bit channel specification
@@ -1526,7 +1528,8 @@ static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int 
 	udelay(1);
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 
-	// write 4 bit channel, LSB first
+	/* write 4 bit channel, LSB first (NI appears to have gotten confused here
+	 * about how the caldac chip works) */
 	reordered_channel = 0;
 	for(i = 0; i < num_channel_bits; i++)
 	{
@@ -1546,3 +1549,13 @@ static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int 
 	thisboard->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 
+// work around NI's screw up on bit order for caldac channels
+static void write_caldac(comedi_device *dev, unsigned int channel, unsigned int value)
+{
+	__write_caldac(dev, channel, value);
+	// do some weirdness to make caldacs 3 and 7 work
+	if(channel == 3)
+		__write_caldac(dev, 14, value);
+	if(channel == 7)
+		__write_caldac(dev, 13, value);
+}
