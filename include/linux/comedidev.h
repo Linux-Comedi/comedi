@@ -37,6 +37,7 @@
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <linux/interrupt.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

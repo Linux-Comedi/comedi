@@ -7,6 +7,12 @@
 
 #include <linux/version.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
+#define __MOD_INC_USE_COUNT(x)
+#define __MOD_DEC_USE_COUNT(x)
+#define MOD_IN_USE (0)
+#endif
+
 #if LINUX_VERSION_CODE < 0x020115
 #define MODULE_AUTHOR(a)
 #define MODULE_DESCRIPTION(a)
