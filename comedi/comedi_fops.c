@@ -52,6 +52,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
 static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg);
+static int do_bufinfo_ioctl(comedi_device *dev,void *arg);
 #ifdef CONFIG_COMEDI_MODE_CORE
 static int do_trig_ioctl(comedi_device *dev,void *arg,void *file);
 #endif
@@ -71,7 +72,7 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 {
 	kdev_t minor=MINOR(inode->i_rdev);
 	comedi_device *dev=comedi_get_device_by_minor(minor);
-	
+
 	switch(cmd)
 	{
 	case COMEDI_DEVCONFIG:
@@ -86,6 +87,8 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 		return do_chaninfo_ioctl(dev,(void *)arg);
 	case COMEDI_RANGEINFO:
 		return do_rangeinfo_ioctl(dev,(void *)arg);
+	case COMEDI_BUFINFO:
+		return do_bufinfo_ioctl(dev,(void*)arg);
 #ifdef CONFIG_COMEDI_MODE_CORE
 	case COMEDI_TRIG:
 		return do_trig_ioctl(dev,(void *)arg,file);
@@ -111,20 +114,20 @@ static int comedi_ioctl(struct inode * inode,struct file * file,unsigned int cmd
 /*
 	COMEDI_DEVCONFIG
 	device config ioctl
-	
+
 	arg:
 		pointer to devconfig structure
-	
+
 	reads:
 		devconfig structure at arg
-	
+
 	writes:
 		none
 */
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t minor)
 {
 	comedi_devconfig it;
-	
+
 	if(!suser())
 		return -EPERM;
 
@@ -134,7 +137,7 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,kdev_t mi
 
 	if(copy_from_user(&it,arg,sizeof(comedi_devconfig)))
 		return -EFAULT;
-	
+
 	it.board_name[COMEDI_NAMELEN-1]=0;
 
 	return comedi_device_attach(dev,&it);
@@ -173,7 +176,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 
 	if(bc.subdevice>=dev->n_subdevices || bc.subdevice<0)
 		return -EINVAL;
-	
+
 	s=dev->subdevices+bc.subdevice;
 	async=s->async;
 
@@ -260,20 +263,20 @@ int resize_buf(comedi_device *dev, comedi_async *async, unsigned int size)
 
 	arg:
 		pointer to devinfo structure
-	
+
 	reads:
 		none
-	
+
 	writes:
 		devinfo structure
-		
+
 */
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
 {
 	comedi_devinfo devinfo;
-	
+
 	memset(&devinfo,0,sizeof(devinfo));
-	
+
 	/* fill devinfo structure */
 	devinfo.version_code=COMEDI_VERSION_CODE;
 	devinfo.n_subdevs=dev->n_subdevices;
@@ -319,19 +322,19 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 	int ret,i;
 	comedi_subdinfo *tmp,*us;
 	comedi_subdevice *s;
-	
+
 
 	tmp=kmalloc(dev->n_subdevices*sizeof(comedi_subdinfo),GFP_KERNEL);
 	if(!tmp)
 		return -ENOMEM;
-	
+
 	memset(tmp,0,sizeof(comedi_subdinfo)*dev->n_subdevices);
 
 	/* fill subdinfo structs */
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
 		us=tmp+i;
-		
+
 		us->type		= s->type;
 		us->n_chan		= s->n_chan;
 		us->subd_flags		= s->subdev_flags;
@@ -394,23 +397,23 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 	
 	reads:
 		chaninfo structure at arg
-	
+
 	writes:
 		arrays at elements of chaninfo structure
-	
+
 */
 static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 {
 	comedi_subdevice *s;
 	comedi_chaninfo it;
-	
+
 	if(copy_from_user(&it,arg,sizeof(comedi_chaninfo)))
 		return -EFAULT;
-	
+
 	if(it.subdev>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+it.subdev;
-	
+
 	if(it.maxdata_list){
 		if(s->maxdata || !s->maxdata_list)
 			return -EINVAL;
@@ -438,10 +441,85 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 		//if(copy_to_user(it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
 		//	return -EFAULT;
 	}
-	
+
 	return 0;
 }
 
+ /*
+	COMEDI_BUFINFO
+	buffer information ioctl
+
+	arg:
+		pointer to bufinfo structure
+
+	reads:
+		bufinfo at arg
+
+	writes:
+		modified bufinfo at arg
+
+*/
+static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
+{
+	comedi_bufinfo bi;
+	comedi_subdevice *s;
+	comedi_async *async;
+	spinlock_t bufinfo_lock = SPIN_LOCK_UNLOCKED;
+	unsigned long irq_flags;
+	int m;
+
+	// perform sanity checks
+	if(!dev->attached)
+	{
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		return -ENODEV;
+	}
+
+	if(copy_from_user(&bi,arg, sizeof(comedi_bufinfo)))
+		return -EFAULT;
+
+	if(bi.subdevice >= dev->n_subdevices || bi.subdevice < 0)
+		return -EINVAL;
+
+	s=dev->subdevices + bi.subdevice;
+	async=s->async;
+
+	if(!async){
+		DPRINTK("subdevice does not have async capability\n");
+		bi.buf_int_ptr = 0;
+		bi.buf_user_ptr = 0;
+		bi.buf_int_count = 0;
+		bi.buf_user_count = 0;
+		goto copyback;
+	}
+
+	if(bi.bytes_read){
+
+		// check for buffer underflow
+		m = async->buf_int_count - async->buf_user_count;
+		if(bi.bytes_read > m)
+		{
+			DPRINTK("buffer underflow\n");
+			return -EIO;
+		}
+
+		async->buf_user_ptr += bi.bytes_read;
+		async->buf_user_count += bi.bytes_read;
+	}
+
+	comedi_spin_lock_irqsave(&bufinfo_lock, irq_flags);
+	bi.buf_int_count = async->buf_int_count;
+	bi.buf_int_ptr = async->buf_int_ptr;
+	comedi_spin_unlock_irqrestore(&bufinfo_lock, irq_flags);
+	bi.buf_user_count = async->buf_user_count;
+	bi.buf_user_ptr = async->buf_user_ptr;
+
+copyback:
+	if(copy_to_user(arg, &bi, sizeof(comedi_bufinfo)))
+		return -EFAULT;
+
+	return 0;
+}
 
 #ifdef CONFIG_COMEDI_MODE_CORE
 /*
@@ -1172,7 +1250,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 {
 	int ret=0;
 	comedi_subdevice *s;
-	
+
 	if(!dev->attached)
 	{
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -1211,7 +1289,7 @@ static int do_lock_ioctl(comedi_device *dev,unsigned int arg,void * file)
 /*
 	COMEDI_UNLOCK
 	unlock subdevice
-	
+
 	arg:
 		subdevice number
 

@@ -171,6 +171,7 @@ typedef unsigned short sampl_t;
 #define COMEDI_INSNLIST _IOR(CIO,11,comedi_insnlist)
 #define COMEDI_INSN _IOR(CIO,12,comedi_insn)
 #define COMEDI_BUFCONFIG _IOR(CIO,13,comedi_bufconfig)
+#define COMEDI_BUFINFO _IOWR(CIO,14,comedi_bufinfo)
 
 
 /* structures */
@@ -186,6 +187,7 @@ typedef struct comedi_devconfig_struct comedi_devconfig;
 typedef struct comedi_rangeinfo_struct comedi_rangeinfo;
 typedef struct comedi_krange_struct comedi_krange;
 typedef struct comedi_bufconfig_struct comedi_bufconfig;
+typedef struct comedi_bufinfo_struct comedi_bufinfo;
 
 struct comedi_trig_struct{
 	unsigned int subdev;		/* subdevice */
@@ -296,6 +298,18 @@ struct comedi_bufconfig_struct{
 	unsigned int size;
 
 	unsigned int unused[4];
+};
+
+struct comedi_bufinfo_struct{
+	unsigned int subdevice;
+	unsigned int bytes_read;
+
+	unsigned int buf_int_ptr;
+	unsigned int buf_user_ptr;
+	unsigned int buf_int_count;
+	unsigned int buf_user_count;
+
+	unsigned int unused[5];
 };
 
 /* range stuff */
