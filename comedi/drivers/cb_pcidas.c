@@ -890,17 +890,18 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int bits, channel;
+	unsigned long flags;
 
 	// clear dac fifo
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
 
 	// set channel and range
-	channel = CR_CHAN(insn->chanspec);
-	bits = DACEN;
-	bits |= DAC_RANGE(channel, CR_RANGE(insn->chanspec));
-	bits |= DAC_CHAN_EN(channel);
-	bits |= DAC_START;	// not sure if this is necessary
-	outw(bits, devpriv->control_status + DAC_CSR);
+	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	devpriv->ao_control_bits &= ~DAC_MODE_UPDATE_BOTH & ~DAC_RANGE_MASK( channel ) &
+		~DAC_START & ~DAC_PACER_MASK;
+	devpriv->ao_control_bits |= DACEN | DAC_RANGE( channel, CR_RANGE( insn->chanspec ) );
+	outw( devpriv->ao_control_bits, devpriv->control_status + DAC_CSR );
+	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 
 	// remember value for readback
 	devpriv->ao_value[channel] = data[0];
