@@ -698,6 +698,7 @@ typedef struct
 	// states of various devices stored to enable read-back
 	unsigned int ad8402_state[2];
 	unsigned int caldac_state[8];
+	volatile unsigned ai_cmd_running : 1;
 } pcidas64_private;
 
 /* inline function that makes it easier to
@@ -1789,6 +1790,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew(0, private(dev)->main_iobase + ADC_START_REG);
 	DEBUG_PRINT("soft trig\n");
 
+	private(dev)->ai_cmd_running = 1;
+	
 	return 0;
 }
 
@@ -2006,7 +2009,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	if( ( async->events & COMEDI_CB_EOA) && ( status & ADC_ACTIVE_BIT ) )
+	if( ( async->events & COMEDI_CB_EOA) )
 		ai_cancel(dev, s);
 
 	comedi_event(dev, s, async->events);
@@ -2063,6 +2066,10 @@ void abort_dma(comedi_device *dev, unsigned int channel)
 
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	if( private(dev)->ai_cmd_running == 0 ) return 0;
+
+	private(dev)->ai_cmd_running = 0;
+
 	// disable ai interrupts
 	private(dev)->intr_enable_bits &= ~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
 		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT & ~EN_ADC_OVERRUN_BIT &
