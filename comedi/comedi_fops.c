@@ -516,6 +516,9 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 			DPRINTK("buffer overrun\n");
 			return -EIO;
 		}
+		if(!(s->subdev_flags&SDF_RUNNING) && async->buf_int_count==async->buf_user_count){
+			do_become_nonbusy(dev,s);
+		}
 	}
 
 	comedi_spin_lock_irqsave(&bufinfo_lock, irq_flags);
