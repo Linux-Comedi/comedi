@@ -200,7 +200,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
-		caldac:		{ad8804_debug,ad8804_debug}, // ad8804 dac8043
+		caldac:		{dac8800,dac8043},
 		has_8255:	0,
 	},
 	{	device_id:	50,
@@ -215,7 +215,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,	/* unknown */
 		ao_unipolar:	0,	/* unknown */
-		caldac:		{ad8804,dac8043},
+		caldac:		{dac8800,dac8043,ad8522},
 		has_8255:	0,
 	},
 	{	device_id:	51,
@@ -231,7 +231,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		aorangelkup:	0,
 		ao_unipolar:	0,
-		caldac:		{dac8800,dac8043},
+		caldac:		{dac8800,dac8043,ad8522},
 		has_8255:	0,
 	}
 };
