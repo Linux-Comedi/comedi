@@ -115,7 +115,7 @@ static struct caldac_struct *type2[]={&caldac_dac8800,&caldac_dac8043,&caldac_ad
 static struct caldac_struct *type3[]={&caldac_mb88341,NULL,NULL};
 static struct caldac_struct *type4[]={&caldac_mb88341,&caldac_mb88341,&caldac_ad8522};
 
-#define MAX_N_CALDACS (12+12+1)
+#define MAX_N_CALDACS (12+12+2)
 
 #define NI_VENDOR_ID 0x1093
 /* The following two tables must be in the same order */
