@@ -44,8 +44,8 @@ Driver: cb_pcidas.o
 Description: Driver for the ComputerBoards/MeasurementComputing cards
   of the PCI-DAS series with the AMCC S5933 PCI controller.
 Author: Ivan Martinez <ivanmr@altavista.com>,
-  Frank Mori Hess <fmhess@uiuc.edu>
-Updated: 2002-1-09
+  Frank Mori Hess <fmhess@users.sourceforge.net>
+Updated: 2002-12-30
 Devices: [Measurement Computing] PCI-DAS1602/16 (cb_pcidas),
   PCI-DAS1602/16jr, PCI-DAS1602/12, PCI-DAS1200, PCI-DAS1200jr,
   PCI-DAS1000, PCI-DAS1001, PCI_DAS1002
@@ -58,8 +58,6 @@ Status:
   - PCI-DAS1200, 1200jr: Tested, works.
   - PCI-DAS1000, 1001, 1002: Should work, but untested.  Please report
     usage.
-
-  The boards' autocalibration features are not yet supported.
 
 Configuration options:
   [0] - PCI bus of device (optional)
@@ -185,7 +183,10 @@ analog triggering on 1602 series
 #define DAC8254 8
 
 // analog output registers for 100x, 1200 series
-#define DAC_DATA_REG(channel)	((channel) & 0x1)
+static inline unsigned int DAC_DATA_REG( unsigned int channel )
+{
+	return 2 * ( channel & 0x1 );
+}
 /* analog output registers for 1602 series*/
 #define DACDATA	0	// DAC DATA register
 #define DACFIFOCLR	2	// DAC FIFO CLEAR
