@@ -405,31 +405,9 @@ comedi_driver driver_pcimio={
 
 
 typedef struct{
-	int dio;
-	int ao0p,ao1p;
-	int aip[64];
-	int lastchan;
-	int last_do;
 	struct mite_struct *mite;
-	int rt_irq;
-	int irqmask;
-	int aimode;
 
-	unsigned short ao_mode1;
-	unsigned short ao_mode2;
-	unsigned short ao_mode3;
-	unsigned short ao_cmd1;
-	unsigned short ao_cmd2;
-	unsigned short ao_cmd3;
-	unsigned short ao_trigger_select;
-	unsigned short gpct_mode0;
-	unsigned short gpct_mode1;
-	unsigned short gpct_command0;
-	unsigned short gpct_command1;
-	unsigned short gpct_input_select0;
-	unsigned short gpct_input_select1;
-
-	unsigned short ai_xorlist[512];
+	NI_PRIVATE_COMMON
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 

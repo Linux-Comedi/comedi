@@ -248,29 +248,7 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 
 
 typedef struct{
-	int dio;
-	int ao0p,ao1p;
-	int lastchan;
-	int last_do;
-	int rt_irq;
-	int irqmask;
-	int aimode;
-
-	unsigned short ao_mode1;
-	unsigned short ao_mode2;
-	unsigned short ao_mode3;
-	unsigned short ao_cmd1;
-	unsigned short ao_cmd2;
-	unsigned short ao_cmd3;
-	unsigned short ao_trigger_select;
-	unsigned short gpct_mode0;
-	unsigned short gpct_mode1;
-	unsigned short gpct_command0;
-	unsigned short gpct_command1;
-	unsigned short gpct_input_select0;
-	unsigned short gpct_input_select1;
-
-	unsigned short ai_xorlist[512];
+	NI_PRIVATE_COMMON
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 
