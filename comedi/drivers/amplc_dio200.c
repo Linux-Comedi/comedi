@@ -364,19 +364,20 @@ dio200_stop_intr(comedi_device *dev, comedi_subdevice *s)
 /*
  * Called to start acquisition for an 'INTERRUPT' subdevice.
  */
-static void
+static int
 dio200_start_intr(comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned int n;
 	unsigned isn_bits;
 	dio200_subdev_intr *subpriv = s->private;
 	comedi_cmd *cmd = &s->async->cmd;
+	int retval = 0;
 
 	if (!subpriv->continuous && subpriv->stopcount == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s, s->async->events);
 		subpriv->active = 0;
+		retval = 1;
 	} else {
 		/* Determine interrupt sources to enable. */
 		isn_bits = 0;
@@ -390,6 +391,8 @@ dio200_start_intr(comedi_device *dev, comedi_subdevice *s)
 		subpriv->enabled_isns = isn_bits;
 		outb(isn_bits, subpriv->iobase);
 	}
+
+	return retval;
 }
 
 /*
@@ -401,6 +404,7 @@ dio200_inttrig_start_intr(comedi_device *dev, comedi_subdevice *s,
 {
 	dio200_subdev_intr *subpriv;
 	unsigned long flags;
+	int event = 0;
 
 	if (trignum != 0) return -EINVAL;
 
@@ -409,9 +413,13 @@ dio200_inttrig_start_intr(comedi_device *dev, comedi_subdevice *s,
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	s->async->inttrig = 0;
 	if (subpriv->active) {
-		dio200_start_intr(dev, s);
+		event = dio200_start_intr(dev, s);
 	}
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+
+	if (event) {
+		comedi_event(dev, s, s->async->events);
+	}
 
 	return 1;
 }
@@ -427,11 +435,13 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 	unsigned triggered;
 	unsigned intstat;
 	unsigned cur_enabled;
+	unsigned int oldevents;
 	unsigned long flags;
 
 	triggered = 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	oldevents = s->async->events;
 	/*
 	 * Collect interrupt sources that have triggered and disable them
 	 * temporarily.  Loop around until no extra interrupt sources have
@@ -497,14 +507,14 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 						}
 					}
 				}
-
-				if (s->async->events) {
-					comedi_event(dev, s, s->async->events);
-				}
 			}
 		}
 	}
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+
+	if (oldevents != s->async->events) {
+		comedi_event(dev, s, s->async->events);
+	}
 
 	return (triggered != 0);
 }
@@ -630,6 +640,7 @@ dio200_subdev_intr_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_cmd *cmd = &s->async->cmd;
 	dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
+	int event = 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	subpriv->active = 1;
@@ -654,10 +665,14 @@ dio200_subdev_intr_cmd(comedi_device *dev, comedi_subdevice *s)
 		break;
 	default:
 		/* TRIG_NOW */
-		dio200_start_intr(dev, s);
+		event = dio200_start_intr(dev, s);
 		break;
 	}
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+
+	if (event) {
+		comedi_event(dev, s, s->async->events);
+	}
 
 	return 0;
 }
