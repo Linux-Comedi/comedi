@@ -1,13 +1,4 @@
 
-#mainmenu_option next_comment
-#comment 'Comedi support'
-
-#tristate 'Comedi support' CONFIG_COMEDI
-
-define_bool CONFIG_COMEDI m
-
-if [ "$CONFIG_COMEDI" != "n" ];then
-
 comment 'Comedi Features'
 
 #bool 'Backwards compatibility' CONFIG_COMEDI_BACKWARDS
@@ -65,6 +56,8 @@ if [ "$CONFIG_COMEDI_NI" = "y" ];then
 	tristate '  AT-MIO-16D' CONFIG_COMEDI_NI_ATMIO16D
 fi
 
+tristate 'new DAS08 compatible driver' CONFIG_COMEDI_DAS08_NEW
+tristate 'new DAS16 compatible driver' CONFIG_COMEDI_DAS16_NEW
 tristate 'Computer Boards DAS-08 series' CONFIG_COMEDI_DAS08
 tristate 'Computer Boards DAS-08jr' CONFIG_COMEDI_DAS08JR
 tristate 'Keithley Metrabyte DAS-1600 and compatibles' CONFIG_COMEDI_DAS1600
@@ -92,6 +85,4 @@ if [ "$CONFIG_COMEDI_RT" = "y" ];then
 	tristate 'Direct Digital Synthesis' CONFIG_COMEDI_VD_DDS
 fi
 
-fi
-#endmenu
 
