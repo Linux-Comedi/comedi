@@ -7,7 +7,7 @@ MOD_IN_SUB_DIRS :=
 
 EXTRA_CFLAGS := -I .
 
-ifneq ($(CONFIG_COMEDI_KLIB),n)
+ifneq ($(CONFIG_COMEDI_KLIB),)
 	MOD_SUB_DIRS += kcomedilib
 	SUB_DIRS += kcomedilib
 endif
