@@ -162,14 +162,19 @@ static nidio_board nidio_boards[]={
 	n_8255:		4,
 	is_diodaq:	0,
 	},
+	{
+	dev_id:		0x17d0,
+	name:		"pci-6503",
+	n_8255:		1,
+	is_diodaq:	0,
+	},
 };
-#define n_nidio_boards 2
+#define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
 
 typedef struct{
 	struct mite_struct *mite;
 	int boardtype;
 	int dio;
-	int aip[16];
 }nidio96_private;
 #define devpriv ((nidio96_private *)dev->private)
 
