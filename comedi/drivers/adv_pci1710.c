@@ -255,7 +255,9 @@ typedef struct{
 ==============================================================================
 */
 
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan, char check);
+int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan);
+void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
+	unsigned int n_chan, unsigned int seglen);
 void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
 static int pci1710_reset(comedi_device *dev);
 int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
@@ -285,7 +287,7 @@ int pci171x_insn_read_ai(comedi_device * dev, comedi_subdevice * s, comedi_insn 
 	outb(0,dev->iobase + PCI171x_CLRFIFO);
 	outb(0,dev->iobase + PCI171x_CLRINT);
 	
-	if (!check_and_setup_channel_list(dev,s,&insn->chanspec, 1, 0))  return -EINVAL;
+	setup_channel_list(dev,s,&insn->chanspec, 1, 1);
 
 #ifdef PCI171X_EXTDEBUG
 	rt_printk("adv_pci1710 A ST=%4x IO=%x\n",inw(dev->iobase+PCI171x_STATUS), dev->iobase+PCI171x_STATUS);
@@ -678,13 +680,18 @@ static void interrupt_service_pci1710(int irq, void *d, struct pt_regs *regs)
 static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subdevice * s) 
 {
         unsigned int divisor1, divisor2;
+	unsigned int seglen;
 
 #ifdef PCI171X_EXTDEBUG
 	rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_docmd_and_mode(%d,...)\n",mode);
 #endif
 	start_pacer(dev, -1, 0, 0); // stop pacer
 
-        if (!check_and_setup_channel_list(dev, s, devpriv->ai_chanlist, devpriv->ai_n_chan, 0)) return -EINVAL;
+        seglen = check_channel_list(dev, s, devpriv->ai_chanlist,
+		devpriv->ai_n_chan);
+	if(seglen<1)return -EINVAL;
+        setup_channel_list(dev, s, devpriv->ai_chanlist,
+		devpriv->ai_n_chan,seglen);
 	udelay(1);
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
@@ -883,14 +890,18 @@ static int pci171x_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 		if(tmp!=cmd->convert_arg)err++;
 	}
 
-	if (cmd->chanlist)
-		if (!check_and_setup_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len, 1)) return 5; // incorrect channels list
-
 	if(err) {
 #ifdef PCI171X_EXTDEBUG
 		rt_printk("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...) err=%d ret=4\n",err);
 #endif
 		return 4;
+	}
+
+	/* step 5: complain about special chanlist considerations */
+
+	if (cmd->chanlist){
+		if (!check_channel_list(dev, s, cmd->chanlist,
+			cmd->chanlist_len)) return 5; // incorrect channels list
 	}
 
 #ifdef PCI171X_EXTDEBUG
@@ -939,18 +950,18 @@ static int pci171x_ai_cmd(comedi_device *dev,comedi_subdevice *s)
  If it's ok, then program scan/gain logic.
  This works for all cards.
 */
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan, char check) 
+int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan)
 {
         unsigned int chansegment[32];  
-        unsigned int i, nowmustbechan, seglen, segpos,range,chanprog;
+        unsigned int i, nowmustbechan, seglen, segpos;
     
 #ifdef PCI171X_EXTDEBUG
-	rt_printk("adv_pci1710 EDBG:  check_and_setup_channel_list(...,%d)\n",n_chan);
+	rt_printk("adv_pci1710 EDBG:  check_channel_list(...,%d)\n",n_chan);
 #endif
     /* correct channel and range number check itself comedi/range.c */
 	if (n_chan<1) {
-		if (!check) comedi_error(dev,"range/channel list is empty!");
-		return 0;             
+		comedi_error(dev,"range/channel list is empty!");
+		return 0;
         }
 
         if (n_chan > 1) {
@@ -960,16 +971,16 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsi
 			if (chanlist[0]==chanlist[i]) break; // we detect loop, this must by finish
 			if (CR_CHAN(chanlist[i]) & 1) // odd channel cann't by differencial
 				if (CR_AREF(chanlist[i])==AREF_DIFF) {
-					if (!check) rt_printk("comedi%d: adv_pci171x: Odd channel cann't be differencial input!\n", dev->minor);
-					return 0;             
+					comedi_error(dev,"Odd channel can't be differential input!\n");
+					return 0;
 				}
 			nowmustbechan=(CR_CHAN(chansegment[i-1])+1) % s->n_chan;
 			if (CR_AREF(chansegment[i-1])==AREF_DIFF) 
 				nowmustbechan=(nowmustbechan+1) % s->n_chan;
 			if (nowmustbechan!=CR_CHAN(chanlist[i])) { // channel list isn't continous :-(
-				if (!check) rt_printk("comedi%d: adv_pci171x: channel list must be continous! chanlist[%i]=%d but must be %d or %d!\n",
-					    dev->minor,i,CR_CHAN(chanlist[i]),nowmustbechan,CR_CHAN(chanlist[0]) );
-				return 0;             
+				rt_printk("channel list must be continous! chanlist[%i]=%d but must be %d or %d!\n",
+					    i,CR_CHAN(chanlist[i]),nowmustbechan,CR_CHAN(chanlist[0]) );
+				return 0;
 			}
 			chansegment[i]=chanlist[i]; // well, this is next correct channel in list
 		}
@@ -977,17 +988,25 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsi
 		for (i=0, segpos=0; i<n_chan; i++) {  // check whole chanlist
 			//rt_printk("%d %d=%d %d\n",CR_CHAN(chansegment[i%seglen]),CR_RANGE(chansegment[i%seglen]),CR_CHAN(chanlist[i]),CR_RANGE(chanlist[i]));
 			if (chanlist[i]!=chansegment[i%seglen]) {
-				if (!check) rt_printk("comedi%d: adv_pci171x: bad channel, reference or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
-					    dev->minor,i,CR_CHAN(chansegment[i]),CR_RANGE(chansegment[i]),CR_AREF(chansegment[i]),CR_CHAN(chanlist[i%seglen]),CR_RANGE(chanlist[i%seglen]),CR_AREF(chansegment[i%seglen]));
+				rt_printk("bad channel, reference or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+					    i,CR_CHAN(chansegment[i]),CR_RANGE(chansegment[i]),CR_AREF(chansegment[i]),CR_CHAN(chanlist[i%seglen]),CR_RANGE(chanlist[i%seglen]),CR_AREF(chansegment[i%seglen]));
 				return 0; // chan/gain list is strange
 			}
 		}
 	} else {
 		seglen=1;
 	}
+	return seglen;
+}
 	
-	if (check) return 1;
+void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist,
+	unsigned int n_chan, unsigned int seglen)
+{
+	unsigned int i, range, chanprog;
 	
+#ifdef PCI171X_EXTDEBUG
+	rt_printk("adv_pci1710 EDBG:  setup_channel_list(...,%d,%d)\n",n_chan,seglen);
+#endif
 	devpriv->act_chanlist_len=seglen;
 	devpriv->act_chanlist_pos=0;
 
@@ -1014,7 +1033,6 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsi
 #ifdef PCI171X_EXTDEBUG
 	rt_printk("MUX: %4x L%4x.H%4x\n", CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen-1]) << 8), CR_CHAN(chanlist[0]), CR_CHAN(chanlist[seglen-1]));
 #endif
-	return 1; // we can serve this with MUX logic
 }
 
 /*

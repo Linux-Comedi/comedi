@@ -237,7 +237,10 @@ typedef struct{
 ==============================================================================
 */
 
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan, unsigned int *chanlist,char rot, char check);
+int check_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
+	unsigned int *chanlist);
+int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
+	unsigned int *chanlist,int rot);
 void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
 static int pci9118_reset(comedi_device *dev);
 int pci9118_exttrg_add(comedi_device * dev, unsigned char source);
@@ -497,7 +500,10 @@ static int pci9118_ai_docmd_and_mode(int mode, comedi_device * dev, comedi_subde
 
 	devpriv->AdControlReg=0; 	// bipolar, S.E., use 8254, stop 8354, internal trigger, soft trigger, disable DMA
 
-	if (!check_and_setup_channel_list(dev, s, devpriv->ai1234_n_chan, devpriv->ai1234_chanlist, 8, 0)) return -EINVAL;
+	if (!check_channel_list(dev, s, devpriv->ai1234_n_chan,
+		devpriv->ai1234_chanlist)) return -EINVAL;
+	if (!setup_channel_list(dev, s, devpriv->ai1234_n_chan,
+		devpriv->ai1234_chanlist, 8)) return -EINVAL;
 
 	outl(devpriv->AdControlReg,dev->iobase+PCI9118_ADCNTRL);
 	devpriv->AdFunctionReg=AdFunction_PDTrg|AdFunction_PETrg;	// positive triggers, no S&H, no burst, burst stop, no post trigger, no about trigger, trigger stop
@@ -649,7 +655,7 @@ int pci9118_insn_read_ai(comedi_device *dev,comedi_subdevice *s, comedi_insn *in
 	devpriv->AdFunctionReg=AdFunction_PDTrg|AdFunction_PETrg;
 	outl(devpriv->AdFunctionReg,dev->iobase+PCI9118_ADFUNC);// positive triggers, no S&H, no burst, burst stop, no post trigger, no about trigger, trigger stop
 
-	if (!check_and_setup_channel_list(dev,s,1,&insn->chanspec, 0, 0))  return -EINVAL;
+	if (!setup_channel_list(dev,s,1,&insn->chanspec, 0))  return -EINVAL;
 
 	outl(0,dev->iobase+PCI9118_DELFIFO); // flush FIFO
 
@@ -897,10 +903,11 @@ static int pci9118_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd 
 		}
 	}
 
-	if (cmd->chanlist)
-		if (!check_and_setup_channel_list(dev, s, cmd->chanlist_len, cmd->chanlist, 0, 1)) return 5; // incorrect channels list
-
 	if(err) return 4;
+
+	if (cmd->chanlist)
+		if (!check_channel_list(dev, s, cmd->chanlist_len,
+			cmd->chanlist)) return 5; // incorrect channels list
 
 	return 0;
 }
@@ -954,14 +961,14 @@ static int pci9118_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 /*
 ==============================================================================
 */
-int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan, unsigned int *chanlist,char rot,char check) 
+int check_channel_list(comedi_device * dev, comedi_subdevice * s,
+	int n_chan, unsigned int *chanlist)
 {
         unsigned int i, differencial=0, bipolar=0;
-	unsigned int scanquad, gain;
 	    
-    /* correct channel and range number check itself comedi/range.c */
+	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan<1) {
-		if (!check) comedi_error(dev,"range/channel list is empty!");
+		comedi_error(dev,"range/channel list is empty!");
 		return 0;             
         }
 
@@ -972,21 +979,33 @@ int check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s, int 
         if (n_chan > 1)
 		for (i=1 ; i<n_chan; i++) { // check S.E/diff
 			if ((CR_AREF(chanlist[i])==AREF_DIFF)!=(differencial)) {
-			    	if (!check) comedi_error(dev,"Differencial and single ended inputs cann't be mixtured!");
+			    	comedi_error(dev,"Differencial and single ended inputs cann't be mixtured!");
 				return 0;             
 			}
 			if ((CR_RANGE(chanlist[i])<PCI9118_BIPOLAR_RANGES)!=(bipolar)) {
-			    	if (!check) comedi_error(dev,"Bipolar and unipolar ranges cann't be mixtured!");
+			    	comedi_error(dev,"Bipolar and unipolar ranges cann't be mixtured!");
 				return 0;             
 			}
 			if ((!devpriv->usemux)&(differencial)&(CR_CHAN(chanlist[i])>=this_board->n_aichand)) {
-			    	if (!check) comedi_error(dev,"If AREF_DIFF is used then is available only 8 channels!");
+			    	comedi_error(dev,"If AREF_DIFF is used then is available only 8 channels!");
 				return 0;             
 			}
 		}
 		
-	if (check) return 1;
-	
+	return 1;
+}
+
+int setup_channel_list(comedi_device * dev, comedi_subdevice * s, int n_chan,
+	unsigned int *chanlist,int rot)
+{
+        unsigned int i, differencial=0, bipolar=0;
+	unsigned int scanquad, gain;
+
+	if (CR_AREF(chanlist[0])==AREF_DIFF)
+		differencial=1;  // all input must be diff
+	if (CR_RANGE(chanlist[0])<PCI9118_BIPOLAR_RANGES)
+		bipolar=1;  // all input must be bipolar
+
 	// All is ok, so we can setup channel/range list
 
 	if (!bipolar) {
