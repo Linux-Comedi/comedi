@@ -6,6 +6,7 @@ all:
 
 modules:
 	echo LINUXDIR=$(LINUXDIR) >flags
+	echo MODVERSIONS_H_PATH=$(LINUXDIR)/include/linux/modversions.h >flags
 	echo ARCH=$(ARCH) >>flags
 	echo AFLAGS="$(AFLAGS)" >>flags
 	echo LDFLAGS="$(LDFLAGS)" >>flags

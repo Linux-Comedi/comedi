@@ -20,17 +20,24 @@ if [ ! -f "$LINUXDIR/.config" ];then
 	exit 1
 fi
 
-if [ ! -f "$LINUXDIR/.hdepend" ];then
-	echo
-	echo You need to run \'make dep\' on the kernel source before
-	echo continuing.
-	echo
-	exit 1
-fi
+UTS_VERSION=$(grep UTS_RELEASE ${LINUXDIR}/include/linux/version.h| \
+	sed 's/[^"]*"\(.*\)\{1\}"/\1/')
+LINUX_VERSION_CODE=$(grep LINUX_VERSION_CODE ${LINUXDIR}/include/linux/version.h| \
+	sed 's/.*LINUX_VERSION_CODE\([0-9xXa-fA-F]*\)/\1/')
 
 echo using LINUXDIR=$LINUXDIR
 
 export LINUXDIR
+
+if (( $LINUX_VERSION_CODE < 0x20500 )); then
+	if [ ! -f "$LINUXDIR/.hdepend" ];then
+		echo
+		echo You need to run \'make dep\' on the kernel source before
+		echo continuing.
+		echo
+		exit 1
+	fi
+fi
 
 . $LINUXDIR/.config
 
@@ -54,9 +61,6 @@ fi
 #
 # check running kernel vs. /usr/src/linux and warn if necessary
 #
-UTS_VERSION=$(grep UTS_RELEASE ${LINUXDIR}/include/linux/version.h| \
-	sed 's/[^"]*"\(.*\)\{1\}"/\1/')
-
 echo "Kernel source version is ${UTS_VERSION}"
 
 UNAME=$(uname -r)
@@ -78,18 +82,22 @@ EOF
 fi
 
 topdir=$(pwd)
-
-cd ${topdir}/scripts/linux_flags
-make LINUXDIR=${LINUXDIR}
+if (( $LINUX_VERSION_CODE >= 0x20500 )); then
+	FLAGDIR=${topdir}/scripts/linux_flags-2.6
+	make -C ${LINUXDIR} V=1 SUBDIRS=${FLAGDIR} LINUXDIR=${LINUXDIR} modules
+else
+	FLAGDIR=${topdir}/scripts/linux_flags
+	make -C ${FLAGDIR} LINUXDIR=${LINUXDIR}
+fi
 if [ $? != 0 ]; then
 	echo "make in linux source directory failed, do you have write permission?"
 	exit $?
 fi
 cd ${topdir}
-mv scripts/linux_flags/flags .buildvars
+mv $FLAGDIR/flags .buildvars
 
 
-if [ "$(echo ${UTS_VERSION} | grep '^2.[45]')" != "" ];then
+if (( $LINUX_VERSION_CODE >= 0x00020300 ));then
 	echo "FLAT_MODULES := no" >>.buildvars
 else
 	echo "FLAT_MODULES := yes" >>.buildvars

@@ -80,7 +80,7 @@ _modinst_%:
 
 
 ifeq ($(CONFIG_MODVERSIONS),y)
-MODFLAGS += -DMODVERSIONS -include $(LINUXDIR)/include/linux/modversions.h
+MODFLAGS += -DMODVERSIONS -include $(MODVERSIONS_H_PATH)
 endif
 
 
