@@ -7,6 +7,10 @@
 
 #include <linux/version.h>
 
+#if LINUX_VERSION_CODE < 0x020300
+#define vmalloc_32(x) vmalloc((x))
+#endif
+
 #if LINUX_VERSION_CODE < 0x020200
 
 #else
