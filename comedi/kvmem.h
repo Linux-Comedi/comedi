@@ -6,6 +6,7 @@
 #define _KVMEM_H
 #include <linux/version.h>
 #include <linux/malloc.h>
+#include <linux/vmalloc.h>
 #include <linux/wrapper.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
