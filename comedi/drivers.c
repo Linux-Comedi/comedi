@@ -245,7 +245,7 @@ static int postconfig(comedi_device *dev)
 			s->async = async;
 
 #define DEFAULT_BUF_MAXSIZE (64*1024)
-#define DEFAULT_BUF_SIZE (16*1024)
+#define DEFAULT_BUF_SIZE (64*1024)
 
 			async->max_bufsize = DEFAULT_BUF_MAXSIZE;
 			if(!s->buf_alloc) s->buf_alloc = buf_alloc;
