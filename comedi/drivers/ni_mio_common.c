@@ -575,6 +575,17 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 	unsigned int hi,lo;
 	unsigned short sign;
 
+	if(n_chan==1){
+		if(devpriv->changain_state && devpriv->changain_spec==list[0]){
+			// ready to go.
+			return;
+		}
+		devpriv->changain_state=1;
+		devpriv->changain_spec=list[0];
+	}else{
+		devpriv->changain_state=0;
+	}
+	
 	win_out(1,Configuration_Memory_Clear);
 
 	sign=1<<(boardtype.adbits-1);
@@ -597,12 +608,12 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,unsi
 	/* prime the channel/gain list */
 
 	win_out(1,AI_Command_1_Register);
-	for(i=0;i<40;i++){
+	for(i=0;i<1000;i++){
 		if(!(ni_readw(AI_Status_1)&AI_FIFO_Empty_St)){
 			win_out(1,ADC_FIFO_Clear);
 			return;
 		}
-		udelay(25);
+		//udelay(25);
 	}
 	rt_printk("ni_E: timeout 1\n");
 }

@@ -142,6 +142,9 @@ typedef struct{
 	int irqmask;
 	int aimode;
 
+int changain_state;
+unsigned int changain_spec;
+
 	unsigned short ao_mode1;
 	unsigned short ao_mode2;
 	unsigned short ao_mode3;
