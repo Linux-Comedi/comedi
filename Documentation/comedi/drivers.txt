@@ -401,5 +401,39 @@ Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
 
 
+pcl812.o: Advantech PCL-812PG and Advantech PCL-813B
+
+Author: Michal Dobes <majkl@tesnet.cz>
+Status: works (I hope. My board fire up under my hands 
+               and I haven't time to finish tests.)
+
+ Card: Advantech PCL-812PG
+  This card have integrated 16SE A/D 30kHz, 2 D/A, 16DI, 16DO.
+  Driver support mode0, 1 and 3 for A/D and mode0 for others.
+  If you disable IRQ then only mode0 for A/D is allowed.
+  
+ Driver name: pcl812pg
+ Options:
+    [0] - IO Base
+    [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
+    [2] - 0=trigger source is internal 8253 with 2MHz clock
+          1=trigger source is external 
+    [3] - 0=A/D have max +/-5V input
+          1=A/D have max +/-10V input
+    [4] - 0=D/A outputs 0-5V  (internal reference -5V)
+          1=D/A outputs 0-10V (internal reference -10V)
+	  2=D/A outputs unknow (external reference)
+
+ Card: Advantech PCL-813B
+  This card have integrated 32SE A/D 25kHz.
+  Driver support only mode0 A/D becouse construction of this card 
+  don't allow anything else.
+  
+ Driver name: pcl813b
+ Options:
+    [0] - IO Base
+    [1] - 0= bipolar inputs
+          1= unipolar inputs
+    [2] - max number of samples in ai_mode0 (defaul=1scan)
 
 

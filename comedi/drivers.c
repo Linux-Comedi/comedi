@@ -401,6 +401,9 @@ void init_drivers(void)
 #ifdef CONFIG_COMEDI_DAS16
 	REG(driver_das16);
 #endif
+#ifdef CONFIG_COMEDI_PCL812
+	REG(driver_pcl812);
+#endif
 #endif
 }
 

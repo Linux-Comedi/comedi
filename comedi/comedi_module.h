@@ -273,6 +273,7 @@ struct comedi_lrange_struct{
 #define TIMER_atmio			3
 #define TIMER_acl8112			4
 #define TIMER_nanosec			5
+#define TIMER_pcl812			6	
 
 
 /* some silly little inline functions */

@@ -41,6 +41,7 @@ obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
 obj-$(CONFIG_COMEDI_PCL725)		+= pcl725.o
 obj-$(CONFIG_COMEDI_PCL726)		+= pcl726.o
+obj-$(CONFIG_COMEDI_PCL812)		+= pcl812.o
 
 obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
 
