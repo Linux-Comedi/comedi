@@ -162,4 +162,8 @@ National Instruments		PCI-MIO-16E-4			ni_pcimio
 National Instruments		PCI-MIO-16XE-10			ni_pcimio
 National Instruments		PCI-MIO-16XE-50			ni_pcimio
 Quanser Consulting		MultiQ				multiq3
+Real Time Devices		PCI4520				rtd520
+Real Time Devices		PCI4520-8			rtd520
+Real Time Devices		DM7520				rtd520
+Real Time Devices		DM7520-8			rtd520
 
