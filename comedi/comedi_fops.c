@@ -294,14 +294,12 @@ static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg)
 	memcpy(devinfo.board_name,dev->board_name,COMEDI_NAMELEN);
 
 	if(dev->read_subdev){
-		devinfo.read_subdevice = (dev->read_subdev - dev->subdevices)/
-			sizeof(comedi_subdevice);
+		devinfo.read_subdevice = dev->read_subdev - dev->subdevices;
 	}else{
 		devinfo.read_subdevice = -1;
 	}
 	if(dev->write_subdev){
-		devinfo.write_subdevice = (dev->write_subdev - dev->subdevices)/
-			sizeof(comedi_subdevice);
+		devinfo.write_subdevice = dev->write_subdev - dev->subdevices;
 	}else{
 		devinfo.write_subdevice = -1;
 	}
