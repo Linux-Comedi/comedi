@@ -1,6 +1,11 @@
 /*
+ *	ii_pci20kc.c
+ *	driver for Intelligent Instruments PCI-20001C carrier board
+ *	and modules
  *
- *	PCI20xxx.c
+ * 	COMEDI - Linux Control and Measurement Device Interface
+ *	Copyright (C) 2000 Markus Kempf <kempf@matsci.uni-sb.de>
+ *			   25.2.2000	
  *
  *	Linux device driver for COMEDI
  *	Intelligent Instrumentation
@@ -31,12 +36,6 @@
  *	COMEDI 0.7.39
  *	COMEDILIB 0.7.8
  *
- * 	COMEDI - Linux Control and Measurement Device Interface
- *	Copyright (C) 1997-8 David A. Schleef <ds@stm.lbl.gov>
- *
- *	pci20xxx by Markus Kempf <kempf@matsci.uni-sb.de>
- *		(GPL)
- *	25.2.2000	
  */
 
 #include <linux/module.h>	/* modularer Kernel */
@@ -69,7 +68,7 @@
 typedef struct { 
 		unsigned int ai_mod_pos;			/* block address of ai module */
 		unsigned int ao_mod_pos;			/* block address of ao module */
-		unsigned int ao_range_list[2];		/* range of channels of ao module */
+		comedi_lrange *ao_range_list[2];		/* range of channels of ao module */
 		int dio_port[PCI20000_MODULES+1];	/* port address */
 		int timebase;						/* timebase ai module */
 		int settling_time;					/* settling time ai module */
@@ -215,17 +214,17 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 	switch	(it->options[3])
 		{
-		case 0: devpriv->ao_range_list[0] = RANGE_bipolar10; break;
-		case 1: devpriv->ao_range_list[0] = RANGE_unipolar10; break;
-		case 2: devpriv->ao_range_list[0] = RANGE_bipolar5; break;
-		default:	devpriv->ao_range_list[0] = RANGE_bipolar10; break;
+		case 0: devpriv->ao_range_list[0] = &range_bipolar10; break;
+		case 1: devpriv->ao_range_list[0] = &range_unipolar10; break;
+		case 2: devpriv->ao_range_list[0] = &range_bipolar5; break;
+		default:	devpriv->ao_range_list[0] = &range_bipolar10; break;
 		}
 	switch	(it->options[4])
 		{
-		case 0: devpriv->ao_range_list[1] = RANGE_bipolar10; break;
-		case 1: devpriv->ao_range_list[1] = RANGE_unipolar10; break;
-		case 2: devpriv->ao_range_list[1] = RANGE_bipolar5; break;
-		default:	devpriv->ao_range_list[1] = RANGE_bipolar10; break;
+		case 0: devpriv->ao_range_list[1] = &range_bipolar10; break;
+		case 1: devpriv->ao_range_list[1] = &range_unipolar10; break;
+		case 2: devpriv->ao_range_list[1] = &range_bipolar5; break;
+		default:	devpriv->ao_range_list[1] = &range_bipolar10; break;
 		}		
 		
 	/* initialize the analog subdevices */
@@ -236,7 +235,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 4;
 	s->trig[0] = pci20xxx_ai_mode0;
 	s->maxdata = 0xffff;
-	s->range_type = RANGE_bipolar5;
+	s->range_table = &range_bipolar5;
 	pci20xxx_ai_init(dev);
 
 	/* ao subdevice */	
@@ -246,7 +245,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 2;
 	s->trig[0] = pci20xxx_ao;
 	s->maxdata = 0xffff;
-	s->range_type_list = devpriv->ao_range_list;
+	s->range_table_list = devpriv->ao_range_list;
 
 	/* di subdevice */
 	s = dev->subdevices + 2;
@@ -255,7 +254,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	s->n_chan = 8;			/* every bit of a port is one channel */
 	s->trig[0] = pci20xxx_di;
 	s->maxdata = 1;
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 	pci20xxx_di_init(dev);
 
 	/* do subdevice */
@@ -266,7 +265,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	s->trig[0] = pci20xxx_do;
 	s->maxdata = 1;
 	s->state = 0;		
-	s->range_type = RANGE_digital;
+	s->range_table = &range_digital;
 	pci20xxx_do_init(dev);
 
 	return 1;
