@@ -902,10 +902,8 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 
 	async->buf_int_ptr=0;
 	async->buf_int_count=0;
-	if(s->subdev_flags & SDF_READABLE){
-		async->buf_user_ptr=0;
-		async->buf_user_count=0;
-	}
+	async->buf_user_ptr=0;
+	async->buf_user_count=0;
 
 	async->cur_chan = 0;
 
@@ -913,6 +911,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	if(async->cmd.flags & TRIG_WAKE_EOS){
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
+	async->events = 0;
 
 	s->runflags=SRF_USER;
 
@@ -1318,16 +1317,22 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 	if(dev->read_subdev && dev->read_subdev->async){
 		s = dev->read_subdev;
 		async = s->async;
-		if(!(s->subdev_flags&SDF_RUNNING) ||
-		   (async->buf_user_count < async->buf_int_count))
-			mask |= POLLIN | POLLRDNORM;
+		if(s->busy){
+			if((!s->subdev_flags&SDF_RUNNING) ||
+			   (async->buf_user_count < async->buf_int_count)){
+				mask |= POLLIN | POLLRDNORM;
+			}
+		}
 	}
 	if(dev->write_subdev && dev->write_subdev->async){
 		s = dev->write_subdev;
 		async = s->async;
-		if(!(s->subdev_flags&SDF_RUNNING) ||
-		   (async->buf_user_count < async->buf_int_count + async->prealloc_bufsz))
-			mask |= POLLOUT | POLLWRNORM;
+		if(s->busy){
+			if((!s->subdev_flags&SDF_RUNNING) ||
+			   (async->buf_user_count < async->buf_int_count)){
+				mask |= POLLOUT | POLLWRNORM;
+			}
+		}
 	}
 
 	return mask;
@@ -1816,6 +1821,8 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 {
 	comedi_async *async = s->async;
 
+	mask = s->async->events;
+
 	//DPRINTK("comedi_event %x\n",mask);
 
 	if(async->cb_mask&mask){
@@ -1860,6 +1867,8 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 	if(mask & COMEDI_CB_ERROR){
 		s->runflags |= SRF_ERROR;
 	}
+
+	s->async->events = 0;
 }
 
 #if 0
