@@ -66,7 +66,7 @@ this utility.  The options (numbers at the end, above) have
 different meanings for different drivers, and you should consult
 the file Documentation/comedi/drivers.txt for details about
 each driver.  Scripts have been written for a few of the drivers
-with very complicated command lists -- these are found in the etc
+with very complicated option lists -- these are found in the etc
 directory.
 
 If you like to autoload your modules, put the lines
