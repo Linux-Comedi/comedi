@@ -67,6 +67,7 @@ PLEASE REPORT IF YOU ARE USING IT WITH A DIFFERENT CARD
 #define PCI_VENDOR_ID_CB	0x1307	// PCI vendor number of ComputerBoards
 #define N_BOARDS	10	// Number of boards in cb_pcidda_boards
 #define EEPROM_SIZE	128	// number of entries in eeprom
+#define MAX_AO_CHANNELS 8	// maximum number of ao channels for supported boards
 
 /* PCI-DDA base addresses */
 #define DIGITALIO_BADRINDEX	2
@@ -237,6 +238,7 @@ typedef struct
 	//unsigned long control_status;
 	//unsigned long adc_fifo;
 	unsigned int dac_cal1_bits;	// bits last written to da calibration register 1
+	unsigned int ao_range[MAX_AO_CHANNELS];	// current range settings for output channels
 	u16 eeprom_data[EEPROM_SIZE];	// software copy of board's eeprom
 } cb_pcidda_private;
 
@@ -254,7 +256,10 @@ static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn
 static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
 static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
+static unsigned int cb_pcidda_serial_in(comedi_device *dev);
+static void cb_pcidda_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int cb_pcidda_read_eeprom(comedi_device *dev, unsigned int address);
+static void cb_pcidda_calibrate(comedi_device *dev, unsigned int channel, unsigned int range);
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -414,6 +419,10 @@ found:
 		printk(" %i:0x%x ", index, devpriv->eeprom_data[index]);
 	}
 	printk("\n");
+
+	// set calibrations dacs
+	for(index = 0; index < thisboard->ao_chans; index++)
+		cb_pcidda_calibrate(dev, index, devpriv->ao_range[index]);
 
 	return 1;
 }
@@ -653,12 +662,20 @@ static int cb_pcidda_ns_to_timer(unsigned int *ns,int round)
 static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	unsigned int command;
+	unsigned int channel, range;
+
+	channel = CR_CHAN(insn->chanspec);
+	range = CR_RANGE(insn->chanspec);
+
+	// adjust calibration dacs if range has changed
+	if(range != devpriv->ao_range[channel])
+		cb_pcidda_calibrate(dev, channel, range);
 
 	/* output channel configuration */
 	command = NOSU | ENABLEDAC;
 
 	/* output channel range */
-	switch (CR_RANGE(insn->chanspec))
+	switch (range)
 	{
 		case 0:
 			command |= BIP | RANGE10V;
@@ -681,11 +698,11 @@ static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn
 	};
 
 	/* output channel specification */
-	command |= CR_CHAN(insn->chanspec) << 2;
+	command |= channel << 2;
 	outw(command, devpriv->dac + DACONTROL);
 
 	/* write data */
-	outw(data[0], devpriv->dac + DADATA + CR_CHAN(insn->chanspec)*2);
+	outw(data[0], devpriv->dac + DADATA + channel * 2);
 
 	/* return the number of samples read/written */
 	return 1;
@@ -759,6 +776,117 @@ static unsigned int cb_pcidda_read_eeprom(comedi_device *dev, unsigned int addre
 	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
 
 	return value;
+}
+
+// writes to 8 bit calibration dacs
+static void cb_pcidda_write_caldac(comedi_device *dev, unsigned int caldac,
+	unsigned int channel, unsigned int value)
+{
+	unsigned int cal2_bits;
+	unsigned int i;
+	const int num_channel_bits = 3;	// caldacs use 3 bit channel specification
+	const int num_caldac_bits = 8;	// 8 bit calibration dacs
+	const int max_num_caldacs = 4;	// one caldac for every two dac channels
+
+	/* write 3 bit channel */
+	cb_pcidda_serial_out(dev, channel, num_channel_bits);
+	// write 8 bit caldac value
+	cb_pcidda_serial_out(dev, value, num_caldac_bits);
+
+	// latch stream into appropriate caldac
+	// deselect reference dac
+	cal2_bits = DESELECT_REF_DAC_BIT;
+	// deactivate caldacs (one caldac for every two channels)
+	for(i = 0; i < max_num_caldacs; i++)
+	{
+		cal2_bits |= DESELECT_CALDAC_BIT(i);
+	}
+	// activate the caldac we want
+	cal2_bits &= ~DESELECT_CALDAC_BIT(caldac);
+	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
+	// deactivate caldac
+	cal2_bits |= DESELECT_CALDAC_BIT(caldac);
+	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
+
+// debug message
+rt_printk("cb_pcidda: cdac %i ch %i: 0x%x\n", caldac, channel, value);
+}
+
+// returns caldac that calibrates given analog out channel
+static unsigned int caldac_number(unsigned int channel)
+{
+	return channel / 2;
+}
+
+// returns caldac channel that provides fine gain for given ao channel
+static unsigned int fine_gain_channel(unsigned int ao_channel)
+{
+	return 4 * (ao_channel % 2);
+}
+// returns caldac channel that provides coarse gain for given ao channel
+static unsigned int coarse_gain_channel(unsigned int ao_channel)
+{
+	return 1 + 4 * (ao_channel % 2);
+}
+
+// returns caldac channel that provides coarse offset for given ao channel
+static unsigned int coarse_offset_channel(unsigned int ao_channel)
+{
+	return 2 + 4 * (ao_channel % 2);
+}
+
+// returns caldac channel that provides fine offset for given ao channel
+static unsigned int fine_offset_channel(unsigned int ao_channel)
+{
+	return 3 + 4 * (ao_channel % 2);
+}
+
+// returns eeprom address that provides offset for given ao channel and range
+static unsigned int offset_eeprom_address(unsigned int ao_channel, unsigned int range)
+{
+	return 0x7 + 2 * range + 12 * ao_channel;
+}
+
+// returns eeprom address that provides gain calibration for given ao channel and range
+static unsigned int gain_eeprom_address(unsigned int ao_channel, unsigned int range)
+{
+	return 0x8 + 2 * range + 12 * ao_channel;
+}
+
+// returns upper byte of eeprom entry, which gives the coarse adjustment values
+static unsigned int eeprom_coarse_byte(unsigned int word)
+{
+	return (word >> 8) & 0xff;
+}
+
+// returns lower byte of eeprom entry, which gives the fine adjustment values
+static unsigned int eeprom_fine_byte(unsigned int word)
+{
+	return word & 0xff;
+}
+
+// set caldacs to eeprom values for given channel and range
+static void cb_pcidda_calibrate(comedi_device *dev, unsigned int channel, unsigned int range)
+{
+	unsigned int coarse_offset, fine_offset, coarse_gain, fine_gain;
+
+	// remember range so we can tell when we need to readjust calibration
+	devpriv->ao_range[channel] = range;
+
+	// get values from eeprom data
+	coarse_offset = eeprom_coarse_byte(devpriv->eeprom_data[offset_eeprom_address(channel, range)]);
+	fine_offset = eeprom_fine_byte(devpriv->eeprom_data[offset_eeprom_address(channel, range)]);
+	coarse_gain = eeprom_coarse_byte(devpriv->eeprom_data[gain_eeprom_address(channel, range)]);
+	fine_gain = eeprom_fine_byte(devpriv->eeprom_data[gain_eeprom_address(channel, range)]);
+
+//debug message
+rt_printk("cb_pcidda: range %i\n", range);
+
+	// set caldacs
+	cb_pcidda_write_caldac(dev, caldac_number(channel), coarse_offset_channel(channel), coarse_offset);
+	cb_pcidda_write_caldac(dev, caldac_number(channel), fine_offset_channel(channel), fine_offset);
+	cb_pcidda_write_caldac(dev, caldac_number(channel), coarse_gain_channel(channel), coarse_gain);
+	cb_pcidda_write_caldac(dev, caldac_number(channel), fine_gain_channel(channel), fine_gain);
 }
 
 /*
