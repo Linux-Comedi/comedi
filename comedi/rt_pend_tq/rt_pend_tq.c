@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/comedi_rt.h>	// for rt spinlocks
+#include <linux/comedidev.h>	// for rt spinlocks
 #include "rt_pend_tq.h"
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
