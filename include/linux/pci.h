@@ -15,14 +15,6 @@
 #include_next <linux/pci.h>
 #define PCI_SUPPORT_VER2
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-/* we should get rid of this, as it has been dropped from 2.6 */
-#define pci_for_each_dev(x) \
-	for((x) = pci_find_device(PCI_ANY_ID,PCI_ANY_ID,NULL); \
-		(x); \
-		(x) = pci_find_device(PCI_ANY_ID,PCI_ANY_ID,(x)))
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0) /* XXX */
 
 struct pci_driver {
@@ -38,9 +30,6 @@ struct pci_driver {
 };
 static inline int pci_module_init(struct pci_driver *drv) { return 0; }
 static inline void pci_unregister_driver(struct pci_driver *) { return; }
-
-#define pci_for_each_dev(x)	\
-	for((x)=pci_devices;(x);(x)=(x)->next)
 
 static inline int pci_enable_device(struct pci_dev *dev){return 0;}
 #define pci_disable_device(x)

@@ -31,7 +31,8 @@ void pci_card_list_init(unsigned short pci_vendor, char display)
 	amcc_devices=NULL;
 	last=NULL;
 
-	pci_for_each_dev(pcidev){
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==pci_vendor){
 			amcc=kmalloc(sizeof(*amcc),GFP_KERNEL);
 			memset(amcc,0,sizeof(*amcc));

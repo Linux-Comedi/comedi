@@ -284,7 +284,8 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	pci_for_each_dev(pcidev){
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_CB){
 			if(it->options[0] || it->options[1]){
 				if(pcidev->bus->number==it->options[0] &&

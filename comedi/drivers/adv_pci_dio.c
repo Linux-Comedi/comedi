@@ -896,7 +896,8 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	pci_for_each_dev(pcidev) {
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if ((pcidev->vendor!=this_board->vendor_id)||
 		    (pcidev->device!=this_board->device_id))
 			continue;

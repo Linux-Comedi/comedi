@@ -332,7 +332,8 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("comedi%d: amplc_pci230\n",dev->minor);
 	
 	/* Find card */
-	pci_for_each_dev(pci_dev){
+	for(pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
+		pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 		if(pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
 			continue;
 		for(i=0;i<n_pci230_boards;i++){

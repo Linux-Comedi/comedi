@@ -774,7 +774,8 @@ static int rtd_attach (
     /*
      * Probe the device to determine what device in the series it is.
      */
-    pci_for_each_dev (pcidev) {
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 	if (pcidev->vendor == PCI_VENDOR_ID_RTD) {
 	    if (it->options[0] || it->options[1]) {
 		if (pcidev->bus->number == it->options[0]

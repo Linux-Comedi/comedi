@@ -198,7 +198,8 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 
 		/* Look for matching PCI device. */
-		pci_for_each_dev(pci_dev) {
+		for(pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
+			pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 			/* If bus/slot specified, check them. */
 			if (bus || slot) {
 				if (bus != pci_dev->bus->number

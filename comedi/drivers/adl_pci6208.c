@@ -303,8 +303,8 @@ pci6208_find_device(comedi_device *dev, int bus, int slot)
 	struct pci_dev *pci_dev;
 	int i;
 	
-	pci_for_each_dev(pci_dev)
-	{
+	for(pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
+		pci_dev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK)
 		{
 			for (i= 0; i< pci6208_board_nbr; i++)

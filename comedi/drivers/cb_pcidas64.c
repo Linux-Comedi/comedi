@@ -1644,7 +1644,8 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	pci_for_each_dev( pcidev )
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
 	{
 		// is it not a computer boards card?
 		if( pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS )

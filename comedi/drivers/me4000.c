@@ -397,7 +397,8 @@ static int me4000_probe(comedi_device *dev, comedi_devconfig *it){
     /*
      * Probe the device to determine what device in the series it is.
      */
-    pci_for_each_dev(pci_device){
+ 	for(pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+		pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
 	if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS){
 	    for(i = 0; i < ME4000_BOARD_VERSIONS; i++){
 		if(me4000_boards[i].device_id == pci_device->device){

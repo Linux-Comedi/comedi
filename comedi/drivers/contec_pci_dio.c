@@ -107,7 +107,8 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_subdevices(dev, 2)<0)
 		return -ENOMEM;
 
-	pci_for_each_dev ( pcidev ) {
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		
 		if ( pcidev->vendor == PCI_VENDOR_ID_CONTEC && 
 		     pcidev->device == PCI_DEVICE_ID_PIO1616L ) {

@@ -60,11 +60,8 @@ static void pci_card_list_init(unsigned short pci_vendor, char display)
 	inova_devices=NULL;
 	last=NULL;
 	
-#if LINUX_VERSION_CODE < 0x020300
-	for(pcidev=pci_devices;pcidev;pcidev=pcidev->next){
-#else
-	pci_for_each_dev(pcidev){
-#endif
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==pci_vendor){
 			inova=kmalloc(sizeof(*inova),GFP_KERNEL);
 			memset(inova,0,sizeof(*inova));

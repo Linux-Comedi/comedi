@@ -943,7 +943,8 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		printk("\n");
 		// find card
-		pci_for_each_dev(pdev){
+		for(pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pdev != NULL ; 
+			pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
 			if(pdev->vendor == PCI_VENDOR_ID_COMPUTERBOARDS &&
 				pdev->device == PCI_DEVICE_ID_PCIDAS08){
 				if(it->options[0] || it->options[1]){

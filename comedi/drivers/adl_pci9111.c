@@ -1192,143 +1192,143 @@ static int pci9111_reset (comedi_device *dev)
 
 static int pci9111_attach(comedi_device *dev,comedi_devconfig *it)
 {
+	comedi_subdevice *subdevice;
+	int io_base, io_range, lcr_io_base, lcr_io_range;
+	struct pci_dev* pci_device;
+	int error,i;
+	pci9111_board_struct* board;
+	
+	//
+	// Probe the device to determine what device in the series it is.
+	//
+	
+	printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n",dev->minor);
 
-  comedi_subdevice *subdevice;
-  int io_base, io_range, lcr_io_base, lcr_io_range;
-  struct pci_dev* pci_device;
-  int error,i;
-  pci9111_board_struct* board;
-
-//
-// Probe the device to determine what device in the series it is.
-//
-  
-  printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n",dev->minor);
-
-  pci_for_each_dev(pci_device)
-  {
-    if (pci_device->vendor == PCI_VENDOR_ID_ADLINK)
-    {
-      for (i= 0; i< pci9111_board_nbr; i++)
-      {
-	if(pci9111_boards[i].device_id == pci_device->device)
+	for(pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+		pci_device = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) 
 	{
-	  // was a particular bus/slot requested?
-	  if((it->options[0] != 0) || (it->options[1] != 0))
-	  {
-	    // are we on the wrong bus/slot?
-	    if(pci_device->bus->number != it->options[0] ||
-	       PCI_SLOT(pci_device->devfn) != it->options[1])
-	    {
-	      continue;
-	    }
-	  }
-	  
-	  dev->board_ptr = pci9111_boards + i;
-	  board = (pci9111_board_struct *) dev->board_ptr;
-	  goto found;
+		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK)
+		{
+			for (i= 0; i< pci9111_board_nbr; i++)
+			{
+				if(pci9111_boards[i].device_id == pci_device->device)
+				{
+					// was a particular bus/slot requested?
+					if((it->options[0] != 0) || (it->options[1] != 0))
+					{
+						// are we on the wrong bus/slot?
+						if(pci_device->bus->number != it->options[0] ||
+							PCI_SLOT(pci_device->devfn) != it->options[1])
+						{
+							continue;
+						}
+					}
+					
+					dev->board_ptr = pci9111_boards + i;
+					board = (pci9111_board_struct *) dev->board_ptr;
+					goto found;
+				}
+			}
+		}
 	}
-      }
-    }
-  }
-  
-  printk ("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-	  dev->minor,it->options[0], it->options[1]);
-  return -EIO;
-
+	
+	printk ("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor,it->options[0], it->options[1]);
+	return -EIO;
+	
 found:
-
-  printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n", 
-	 dev->minor,
-	 pci9111_boards[i].name,
-	 pci_device->bus->number,
-	 PCI_SLOT(pci_device->devfn),
-	 PCI_FUNC(pci_device->devfn),
-	 pci_device->irq);
-
-  // TODO: Warn about non-tested boards.
-
-  switch(board->device_id)
-  {
-  };
-
-  // Read local configuration register base address [PCI_BASE_ADDRESS #1].
-  
-  lcr_io_base = pci_resource_start (pci_device, 1);
-  lcr_io_range = pci_resource_end (pci_device, 1) - lcr_io_base +1;
-  
-  printk ("comedi%d: local configuration registers at address 0x%4x [0x%4x]\n",
-	  dev->minor,
-	  lcr_io_base,
-	  lcr_io_range);
-
-  // Read PCI6308 register base address [PCI_BASE_ADDRESS #2].
-
-  io_base = pci_resource_start (pci_device, 2);
-  io_range = pci_resource_end (pci_device, 2) - io_base +1;
-
-  printk ("comedi%d: 6503 registers at address 0x%4x [0x%4x]\n",
-	  dev->minor,
-	  io_base,
-	  io_range);
-
-  // Allocate IO ressources
+	
+	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n", 
+		dev->minor,
+		pci9111_boards[i].name,
+		pci_device->bus->number,
+		PCI_SLOT(pci_device->devfn),
+		PCI_FUNC(pci_device->devfn),
+		pci_device->irq);
+	
+	// TODO: Warn about non-tested boards.
+	
+	switch(board->device_id)
+	{
+	};
+	
+	// Read local configuration register base address [PCI_BASE_ADDRESS #1].
+	
+	lcr_io_base = pci_resource_start (pci_device, 1);
+	lcr_io_range = pci_resource_end (pci_device, 1) - lcr_io_base +1;
+	
+	printk ("comedi%d: local configuration registers at address 0x%4x [0x%4x]\n",
+		dev->minor,
+		lcr_io_base,
+		lcr_io_range);
+	
+	// Read PCI6308 register base address [PCI_BASE_ADDRESS #2].
+	
+	io_base = pci_resource_start (pci_device, 2);
+	io_range = pci_resource_end (pci_device, 2) - io_base +1;
+	
+	printk ("comedi%d: 6503 registers at address 0x%4x [0x%4x]\n",
+		dev->minor,
+		io_base,
+		io_range);
+	
+	// Allocate IO ressources
 	if(pci_request_regions(pci_device, PCI9111_DRIVER_NAME))
 	{
 		printk("comedi%d: I/O port conflict\n",dev->minor);
 		return -EIO;
 	}
+	
+	dev->iobase=io_base;
+	dev->board_name = board->name;
+	
+	if(alloc_private(dev,sizeof(pci9111_private_data_struct))<0)
+		return -ENOMEM;
+	
+	dev_private->pci_device = pci_device;
+	dev_private->io_range = io_range;
+	dev_private->is_valid=0;
+	dev_private->lcr_io_base=lcr_io_base;
+	dev_private->lcr_io_range=lcr_io_range;
+	
+	pci9111_reset(dev);
 
-  dev->iobase=io_base;
-  dev->board_name = board->name;
-  
-  if(alloc_private(dev,sizeof(pci9111_private_data_struct))<0)
-    return -ENOMEM;
-  
-  dev_private->pci_device = pci_device;
-  dev_private->io_range = io_range;
-  dev_private->is_valid=0;
-  dev_private->lcr_io_base=lcr_io_base;
-  dev_private->lcr_io_range=lcr_io_range;
-  
-  pci9111_reset(dev);
-
-  // Irq setup
-  
-  dev->irq=0;
-  if (pci_device->irq>0) 
-  {
-    if (comedi_request_irq (pci_device->irq,
-			    pci9111_interrupt, 
-			    SA_SHIRQ, 
-			    PCI9111_DRIVER_NAME, 
-			    dev)!=0)
-    {
-      printk ("comedi%d: unable to allocate irq  %d\n", dev->minor, pci_device->irq);
-      return -EINVAL;
-    }
-  }
-  dev->irq = pci_device->irq;
-  
-//
-// TODO: Add external multiplexer setup (according to option[2]).
-//
-
-  if((error=alloc_subdevices(dev, 4))<0)
-    return  error;
-
-  subdevice 			= dev->subdevices + 0;
-  dev->read_subdev = subdevice;
-
-  subdevice->type 		= COMEDI_SUBD_AI;
-  subdevice->subdev_flags 	= SDF_READABLE|SDF_COMMON;
-
-//
-// TODO: Add external multiplexer data
-//
-//    if (devpriv->usemux) { subdevice->n_chan = devpriv->usemux; }
-//    else { subdevice->n_chan = this_board->n_aichan; }
-//
+	// Irq setup
+	
+	dev->irq=0;
+	if (pci_device->irq>0) 
+	{
+		if (comedi_request_irq (pci_device->irq,
+			pci9111_interrupt, 
+			SA_SHIRQ, 
+			PCI9111_DRIVER_NAME, 
+			dev)!=0)
+		{
+			printk ("comedi%d: unable to allocate irq  %d\n", dev->minor, pci_device->irq);
+			return -EINVAL;
+		}
+	}
+	dev->irq = pci_device->irq;
+	
+	//
+	// TODO: Add external multiplexer setup (according to option[2]).
+	//
+	
+	if((error=alloc_subdevices(dev, 4))<0)
+		return  error;
+	
+	subdevice 			= dev->subdevices + 0;
+	dev->read_subdev = subdevice;
+	
+	subdevice->type 		= COMEDI_SUBD_AI;
+	subdevice->subdev_flags 	= SDF_READABLE|SDF_COMMON;
+	
+	//
+	// TODO: Add external multiplexer data
+	//
+	//    if (devpriv->usemux) { subdevice->n_chan = devpriv->usemux; }
+	//    else { subdevice->n_chan = this_board->n_aichan; }
+	//
 
 	subdevice->n_chan 		= board->ai_channel_nbr;
 	subdevice->maxdata 		= board->ai_resolution_mask;

@@ -438,7 +438,8 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
     struct pci_dev *pcidev;
 	int index, registers;
 
-	pci_for_each_dev(pcidev)
+	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
 	{
 		// is it not a computer boards card?
 		if(pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
