@@ -44,3 +44,5 @@ inline unsigned int cfc_write_long_to_buffer( comedi_subdevice *subd, lsampl_t d
 
 unsigned int cfc_read_array_from_buffer( comedi_subdevice *subd, void *data,
 	unsigned int num_bytes );
+
+unsigned int cfc_handle_events( comedi_device *dev, comedi_subdevice *subd );
