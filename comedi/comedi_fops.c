@@ -1206,7 +1206,7 @@ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 
 	return do_cancel(dev,s);
 }
-	
+
 static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret=0;
@@ -1425,12 +1425,7 @@ static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t
 		n=nbytes;
 
 		m=s->buf_int_count-s->buf_user_count;
-		if(m>s->cur_trig.data_len){	/* XXX MODE */
-			s->buf_user_count=s->buf_int_count;
-			s->buf_user_ptr=s->buf_int_ptr;
-			retval=-EINVAL; /* OVERRUN */
-			break;
-		}
+
 		if(s->buf_user_ptr+m > s->cur_trig.data_len){ /* XXX MODE */
 			m=s->cur_trig.data_len - s->buf_user_ptr;
 #if 0
@@ -1459,7 +1454,17 @@ printk("m is %d\n",m);
 		m=copy_to_user(buf,((void *)(s->cur_trig.data))+s->buf_user_ptr,n);
 		if(m) retval=-EFAULT;
 		n-=m;
-		
+
+		// check for buffer overrun
+		if(s->buf_int_count - s->buf_user_count > s->cur_trig.data_len){	/* XXX MODE */
+			s->buf_user_count = s->buf_int_count;
+			s->buf_user_ptr = s->buf_int_ptr;
+			retval=-EINVAL;
+			do_cancel_ioctl(dev, dev->read_subdev, file);
+			DPRINTK("buffer overrun\n");
+			break;
+		}
+
 		count+=n;
 		nbytes-=n;
 		s->buf_user_ptr+=n;
