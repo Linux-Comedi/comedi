@@ -182,21 +182,21 @@ unsigned int comedi_get_buf_head_pos(comedi_t *d,unsigned int subdevice)
 }
 
 /*
- * ALPHA (not necessary)
+ * ALPHA
 */
 int comedi_set_user_int_count(comedi_t *d,unsigned int subdevice,unsigned int buf_user_count)
 {
 	comedi_device *dev = (comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
-	unsigned int num_bytes;
+	int num_bytes;
 
 	async = s->async;
 	if( async == NULL ) return -1;
 
 	num_bytes =  buf_user_count - async->buf_read_count;
+	if( num_bytes < 0 ) return -1;
 	comedi_buf_read_free( async, num_bytes );
-	async->buf_read_count = buf_user_count;
 
 	return 0;
 }
