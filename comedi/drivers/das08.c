@@ -593,8 +593,9 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		pci_iobase = pdev->base_address[1] & PCI_BASE_ADDRESS_IO_MASK;
 		iobase = pdev->base_address[2] & PCI_BASE_ADDRESS_IO_MASK;
 #else
-		pci_iobase = pdev->resource[1].start;
-		iobase = pdev->resource[2].start;
+		pci_enable_device(pdev);
+		pci_iobase = pdev->resource[1].start & PCI_BASE_ADDRESS_IO_MASK;
+		iobase = pdev->resource[2].start & PCI_BASE_ADDRESS_IO_MASK;
 #endif
 
 		// reserve io ports for 9052 pci chip

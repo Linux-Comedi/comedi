@@ -419,6 +419,7 @@ found:
 		devpriv->pci_dev->base_address[AO_BADRINDEX] &
 		PCI_BASE_ADDRESS_IO_MASK;
 #else
+	pci_enable_device(pci_dev);
 	s5933_config =
 		devpriv->pci_dev->resource[S5933_BADRINDEX].start &
 		PCI_BASE_ADDRESS_IO_MASK;
