@@ -112,7 +112,6 @@ if [ "$CONFIG_PCMCIA" = "y" -o "$CONFIG_PCMCIA" = "m" ];then
 fi
 if [ "$CONFIG_PCI" = "y" ];then
 	dep_tristate 'IOtech DaqBoard/2000' CONFIG_COMEDI_DAQBOARD2000 $CONFIG_COMEDI
-	bool '  Compile in DaqBoard/2000 FPGA code' CONFIG_COMEDI_DAQBOARD2000_FPGA
 fi
 dep_tristate 'FL512' CONFIG_COMEDI_FL512 $CONFIG_COMEDI
 if [ "$CONFIG_8260" = "y" ];then
