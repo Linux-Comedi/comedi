@@ -24,6 +24,8 @@
 #include <linux/comedi.h>
 #include <linux/comedilib.h>
 
+#include <linux/string.h>
+
 
 int comedi_dio_config(comedi_t * dev,unsigned int subdev,unsigned int chan,
 	unsigned int io)
