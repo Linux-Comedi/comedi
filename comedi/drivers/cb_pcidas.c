@@ -1,12 +1,21 @@
 /*
     cb_pcidas.c
-    This intends to be a driver for the ComputerBoards PCI-DAS series.
-    SO FAR IT WAS ONLY TESTED WITH PCI-DAS1200. PLEASE REPORT IF YOU ARE
-		USING IT WITH A DIFFERENT CARD <ivanmr@altavista.com>.
+    This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
+    cards using the AMCC S5933 PCI controller:
+    - PCI-DAS1602/12, 16, 16jr
+    - PCI-DAS1200, 1200jr
+    - PCI-DAS1000, 1001, 1002
 
-		Options:
-		[0] - PCI bus number
-		[1] - PCI slot number
+
+    SO FAR IT WAS ONLY TESTED WITH PCI-DAS1200. PLEASE REPORT IF YOU ARE
+    USING IT WITH A DIFFERENT CARD <ivanmr@altavista.com>.
+
+    Options:
+    [0] - PCI bus number
+    [1] - PCI slot number
+
+    Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
+    David Schleef and the rest of the Comedi developers comunity.
 
     Copyright (C) 2001 Ivan Martinez <ivanmr@altavista.com>, with
     valuable help from David Schleef, Frank Mori Hess, and the rest of
@@ -32,8 +41,6 @@
 
 ************************************************************************
 
-Asynchronous analog input support added by Frank Mori Hess.
-
 TODO:
 
 add a calibration subdevice
@@ -58,7 +65,8 @@ add analog out support
 #include "8253.h"
 #include "8255.h"
 
-#define PCI_VENDOR_CB	0x1307	// PCI vendor number of ComputerBoards
+// PCI vendor number of ComputerBoards/MeasurementComputing
+#define PCI_VENDOR_CB	0x1307
 #define TIMER_BASE 100	// 10MHz master clock
 
 /* PCI-DAS base addresses */
@@ -159,10 +167,6 @@ comedi_lrange cb_pcidas_alt_ranges =
 typedef struct cb_pcidas_board_struct
 {
 	char *name;
-	char status;		// Driver status:
-				// 0 - tested
-				// 1 - manual read, not tested
-				// 2 - manual not read
 	unsigned short device_id;
 	int ai_se_chans;	// Inputs in single-ended mode
 	int ai_diff_chans;	// Inputs in differential mode
@@ -172,11 +176,11 @@ typedef struct cb_pcidas_board_struct
 	int ao_nchan;
 	comedi_lrange *ranges;
 } cb_pcidas_board;
+
 static cb_pcidas_board cb_pcidas_boards[] =
 {
 	{
 		name:		"pci-das1602/16",
-		status:		2,
 		device_id:	0x1,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -186,7 +190,6 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	},
 	{
 		name:		"pci-das1200",
-		status:		0,
 		device_id:	0xF,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -196,7 +199,6 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	},
 	{
 		name:		"pci-das1602/12",
-		status:		2,
 		device_id:	0x10,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -206,7 +208,6 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	},
 	{
 		name:		"pci-das1200/jr",
-		status:		1,
 		device_id:	0x19,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -216,7 +217,6 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	},
 	{
 		name:		"pci-das1602/16/jr",
-		status:		2,
 		device_id:	0x1C,
 		ai_se_chans:	64,
 		ai_diff_chans:	8,
@@ -225,48 +225,7 @@ static cb_pcidas_board cb_pcidas_boards[] =
 		ranges:	&cb_pcidas_ranges,
 	},
 	{
-		name:		"pci-das6402/16",
-		status:		2,
-		device_id:	0x1D,
-		ai_se_chans:	64,
-		ai_diff_chans:	32,
-		ai_bits:	16,
-		ai_speed:	5000,
-		ranges:	&cb_pcidas_ranges,
-	},
-	{
-		name:		"pci-das64/m1/16",
-		status:		2,
-		device_id:	0x35,
-		ai_se_chans:	64,
-		ai_diff_chans:	32,
-		ai_bits:	16,
-		ai_speed:	1000,
-		ranges:	&cb_pcidas_ranges,
-	},
-	{
-		name:		"pci-das64/m2/16",
-		status:		2,
-		device_id:	0x36,
-		ai_se_chans:	64,
-		ai_diff_chans:	32,
-		ai_bits:	16,
-		ai_speed:	500,
-		ranges:	&cb_pcidas_ranges,
-	},
-	{
-		name:		"pci-das64/m3/16",
-		status:		2,
-		device_id:	0x37,
-		ai_se_chans:	64,
-		ai_diff_chans:	32,
-		ai_bits:	16,
-		ai_speed:	333,
-		ranges:	&cb_pcidas_ranges,
-	},
-	{
 		name:		"pci-das1000",
-		status:		1,
 		device_id:	0x4C,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -277,7 +236,6 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	},
 	{
 		name:		"pci-das1001",
-		status:		1,
 		device_id:	0x1a,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -288,7 +246,6 @@ static cb_pcidas_board cb_pcidas_boards[] =
 	},
 	{
 		name:		"pci-das1002",
-		status:		1,
 		device_id:	0x1b,
 		ai_se_chans:	16,
 		ai_diff_chans:	8,
@@ -397,7 +354,8 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	if(!pcidev){
-		printk("Not a ComputerBoards card on requested position\n");
+		printk("Not a ComputerBoards/MeasurementComputing card on requested "
+			"position\n");
 		return -EIO;
 	}
 
@@ -406,13 +364,30 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 			goto found;
 		}
 	}
-	printk("Not a supported ComputerBoards card on requested position\n");
+	printk("Not a supported ComputerBoards/MeasurementComputing card on "
+		"requested position\n");
 	return -EIO;
 
 found:
 	devpriv->pci_dev = pcidev;
 	dev->board_ptr = cb_pcidas_boards+index;
+	// thisboard macro can be used from here
+
 	printk("Found %s at requested position\n",cb_pcidas_boards[index].name);
+
+	// Warn about non-tested features
+	switch(thisboard->device_id)
+	{
+		case 0x1:
+		case 0x10:
+		case 0x1C:
+		case 0x4C:
+		case 0x1A:
+		case 0x1B:
+			printk("DRIVER HASN'T BEEN TESTED WITH THIS CARD. PLEASE REPORT "
+				"USAGE TO <ivanmr@altavista.com>\n");
+	};
+
 
 	/*
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
@@ -492,18 +467,7 @@ found:
 	}
 	dev->irq = devpriv->pci_dev->irq;
 
-/*
- * Warn about the status of the driver.
- */
-	if (thisboard->status == 2)
-		printk("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. "
-			"WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DAS1200. "
-			"PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
-
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
+	//Initialize dev->board_name
 	dev->board_name = thisboard->name;
 
 /*
@@ -590,26 +554,20 @@ static int cb_pcidas_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 {
 	int n,i;
 	unsigned int d;
-	unsigned int command;
+	unsigned int bits;
 	static const int timeout = 10000;
 
-	/* a typical programming sequence */
-
-	/* inputs mode */
-	command = 0;
-	if (CR_AREF(insn->chanspec) != AREF_DIFF)
-		command |= SE;
-
-	/* input signals range */
-	if (CR_RANGE(insn->chanspec) & IS_UNIPOLAR)
-		command |= UNIP | GAIN_BITS(CR_RANGE(insn->chanspec));
-	else
-		command |= GAIN_BITS(CR_RANGE(insn->chanspec));
-
-	/* write channel to multiplexer */
-	command |= CR_CHAN(insn->chanspec) | (CR_CHAN(insn->chanspec) << 4);
-
-	outw_p(command,	devpriv->control_status + ADCMUX_CONT);
+	// set mux limits and gain
+	bits = BEGIN_SCAN(CR_CHAN(insn->chanspec)) |
+		END_SCAN(CR_CHAN(insn->chanspec)) |
+		GAIN_BITS(CR_RANGE(insn->chanspec));
+	// set unipolar/bipolar
+	if(CR_RANGE(insn->chanspec) & IS_UNIPOLAR)
+		bits |= UNIP;
+	// set singleended/differential
+	if(CR_AREF(insn->chanspec) != AREF_DIFF)
+		bits |= SE;
+	outw_p(bits,	devpriv->control_status + ADCMUX_CONT);
 
 	/* wait for mux to settle */
 	/* I suppose I made it with outw_p... */
