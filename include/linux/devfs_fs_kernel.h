@@ -43,6 +43,13 @@ static inline devfs_handle_t devfs_get_handle (devfs_handle_t dir,
 	    return NULL;
 }
 
+static inline devfs_handle_t devfs_find_handle (devfs_handle_t dir,
+	const char *name, unsigned int major, unsigned int minor,
+	char type, int traverse_symlinks)
+{
+	    return NULL;
+}
+
 #else
 #include_next <linux/devfs_fs_kernel.h>
 #endif
