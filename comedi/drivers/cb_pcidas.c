@@ -43,9 +43,9 @@ TODO:
 
 add a calibration subdevice
 
-add analog out support for 1600 series
+finish analog out support for 1602 series
 
-fix pci detection to ignore unsupported boards from computerboards
+analog triggering on 1602 series
 */
 
 #include <linux/kernel.h>
@@ -137,6 +137,10 @@ fix pci detection to ignore unsupported boards from computerboards
 #define DAC_CSR	0x8	// dac control and status register
 #define   DACEN	0x2	// dac enable
 #define   DAC_RANGE(channel, range)	(((range) & 0x3) << (8 + 2 * channel) )	// dac range
+// bits for 1602 series only
+#define   DAC_EMPTY	0x1	// dac fifo empty, read, write clear
+#define   DAC_START	0x4	// start/arm dac fifo operations
+#define   DAC_CHAN_EN(x)		(1 << (5 + ((x) & 0x1)))	// enable channel 0 or 1
 
 // analog output registers for 100x, 1200 series
 #define DAC_DATA_REG(channel)	((channel) & 0x1)
@@ -364,6 +368,7 @@ comedi_driver driver_cb_pcidas={
 
 static int cb_pcidas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int cb_pcidas_ao_fifo_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidas_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidas_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
@@ -555,20 +560,20 @@ found:
 	s = dev->subdevices + 1;
 	if(thisboard->ao_nchan)
 	{
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
+		s->n_chan = thisboard->ao_nchan;
+		// ao_bits is the same as ai_bits
+		s->maxdata = (1 << thisboard->ai_bits) - 1;
+		s->range_table = &cb_pcidas_ao_ranges;
+		s->insn_read = cb_pcidas_ao_readback_insn;
 		if(thisboard->has_ao_fifo)
 		{
-			// XXX todo: support fancy analog output
-			s->type = COMEDI_SUBD_UNUSED;
+			s->insn_write = cb_pcidas_ao_fifo_winsn;
+			// XXX todo: support analog output cmd
 		}else
 		{
-			s->type = COMEDI_SUBD_AO;
-			s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_GROUND;
-			s->n_chan = thisboard->ao_nchan;
-			// ao_bits is the same as ai_bits
-			s->maxdata = (1 << thisboard->ai_bits) - 1;
-			s->range_table = &cb_pcidas_ao_ranges;
 			s->insn_write = cb_pcidas_ao_nofifo_winsn;
-			s->insn_read = cb_pcidas_ao_readback_insn;
 		}
 	}else
 	{
@@ -695,6 +700,31 @@ static int cb_pcidas_ao_nofifo_winsn(comedi_device *dev, comedi_subdevice *s,
 	devpriv->ao_value[channel] = data[0];
 	// send data
 	outw(data[0], devpriv->ao_registers + DAC_DATA_REG(channel));
+
+	return 1;
+}
+
+// analog output insn for pcidas-1602 series
+static int cb_pcidas_ao_fifo_winsn(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	int bits, channel;
+
+	// clear dac fifo
+	outw(0, devpriv->ao_registers + ADCFIFOCLR);
+
+	// set channel and range
+	channel = CR_CHAN(insn->chanspec);
+	bits = DACEN;
+	bits |= DAC_RANGE(channel, CR_RANGE(insn->chanspec));
+	bits |= DAC_CHAN_EN(channel);
+	bits |= DAC_START;	// not sure if this is necessary
+	outw(bits, devpriv->control_status + DAC_CSR);
+
+	// remember value for readback
+	devpriv->ao_value[channel] = data[0];
+	// send data
+	outw(data[0], devpriv->ao_registers + ADCDATA);
 
 	return 1;
 }
