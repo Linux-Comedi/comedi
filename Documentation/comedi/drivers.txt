@@ -533,6 +533,13 @@ Status: works
 
 
 
+Driver: ni_at_a2150.o
+Description: National Instruments AT-A2150
+Author: Frank Mori Hess
+Status: development
+
+
+
 Driver: ni_atmio.o
 Description: National Instruments AT-MIO-E series  (all boards)
 Author: ds
