@@ -599,6 +599,11 @@ static void interrupt_pci1710_every_sample(void *d)
 #else
 		comedi_buf_put( s->async, inw(dev->iobase+PCI171x_AD_DATA) & 0x0fff);
 #endif
+		++s->async->cur_chan;
+
+		if(s->async->cur_chan>=devpriv->ai_n_chan){
+			s->async->cur_chan=0;
+		}
 
 		if(s->async->cur_chan == 0){	// one scan done
 		        devpriv->ai_act_scan++;
@@ -724,7 +729,9 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d, struct pt_regs *r
 
 	if (devpriv->ai_et) {	// Switch from initial TRIG_EXT to TRIG_xxx.
 		devpriv->ai_et = 0;
-		outw(Control_SW, dev->iobase+PCI171x_CONTROL);
+		devpriv->CntrlReg&=Control_CNT0;
+		devpriv->CntrlReg|=Control_SW;  // set software trigger
+		outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
 		devpriv->CntrlReg=devpriv->ai_et_CntrlReg;
 		outb(0,dev->iobase + PCI171x_CLRFIFO);
 		outb(0,dev->iobase + PCI171x_CLRINT);
