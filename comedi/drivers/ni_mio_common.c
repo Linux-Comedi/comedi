@@ -974,9 +974,9 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 			hi=ni_modebits1[aref]|(chan&ni_modebits2[aref]);
 		}else{
 			/* bits 12-14 channel type */
-			/* map everything to differential */
+			/* map everything to differential, except AREF_OTHER */
 			hi = (aref==AREF_OTHER)?0x0000:0x1000;
-			/* bit 11 coupling */
+			/* bit 11 AC/DC coupling */
 			/* not handled */
 			hi |= 0x0000;
 			/* bits 0-2 channel */
