@@ -678,7 +678,7 @@ static int das16_cmd_test(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cm
 	{
 		if(cmd->scan_begin_arg < thisboard->ai_speed * cmd->chanlist_len)
 		{
-			cmd->convert_arg = thisboard->ai_speed * cmd->chanlist_len;
+			cmd->scan_begin_arg = thisboard->ai_speed * cmd->chanlist_len;
 			err++;
 		}
 	}
