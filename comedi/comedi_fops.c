@@ -125,6 +125,7 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 	default:
 		return -EIO;
 	}
+	return -EIO;
 }
 
 
