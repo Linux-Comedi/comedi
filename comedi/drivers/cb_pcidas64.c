@@ -38,8 +38,8 @@ Description: Driver for the ComputerBoards/MeasurementComputing
    PCI-DAS64xxx series with the PLX 9080 PCI controller.
 Author: Frank Mori Hess <fmhess@uiuc.edu>
 Status: Experimental
-Updated: 2001-8-27
-Devices: [MeasurementComputing] PCI-DAS6402/16 (cb_pcidas64),
+Updated: 2001-9-19
+Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
@@ -49,25 +49,24 @@ Configuration options:
    [1] - PCI slot of device (optional)
 
 Basic insn support should work, but untested as far as I know.
-Has command support for analog input, which may also work.  Still
-needs dma support to be added to support very fast aquisition rates.
-This driver is in need of stout-hearted testers who aren't afraid to
-crash their computers in the name of progress.
+Has command support for analog input, which may also work.  Support
+for pci dma transfers can be enabled by editing the source to #define
+PCIDMA instead of #undef'ing it. This driver is in need of stout-hearted
+testers who aren't afraid to crash their computers in the name of progress.
 Feel free to send and success/failure reports to author.
 
-Some devices are not identified because the PCI device IDs are not
-known.
+Some devices are not identified because the PCI device IDs are not known.
 */
 
 /*
 
 TODO:
+	needs to be tested and debugged
 	command support for ao
-	pci-dma support
 	calibration subdevice
 	user counter subdevice
 	there are a number of boards this driver will support when they are
-		fully released, but does not since yet since the pci device id numbers
+		fully released, but does not yet since the pci device id numbers
 		are not yet available.
 	need to take care to prevent ai and ao from affecting each others register bits
 	support prescaled 100khz clock for slow pacing
@@ -401,6 +400,7 @@ typedef struct
 	u16 *ai_buffer[DMA_RING_COUNT];	// dma buffers for analog input
 	dma_addr_t ai_buffer_phys_addr[DMA_RING_COUNT];	// physical addresses of ai dma buffers
 	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
+	volatile unsigned int dma_index;	// index of the dma descriptor/buffer that is currently being used
 	volatile unsigned int ao_count;	// number of analog output samples remaining
 	unsigned int ao_value[2];	// remember what the analog outputs are set to, to allow readback
 	unsigned int hw_revision;	// stc chip hardware revision number
@@ -669,6 +669,10 @@ printk(" plx dma channel 0 threshold 0x%x\n", readl(devpriv->plx9080_iobase + PL
 
 #endif
 
+	// disable dma transfers
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
+
 /*
  * Allocate the subdevice structures.
  */
@@ -764,6 +768,8 @@ static int detach(comedi_device *dev)
 
 	printk("comedi%d: cb_pcidas: remove\n",dev->minor);
 
+	if(dev->irq)
+		comedi_free_irq(dev->irq, dev);
 	if(devpriv)
 	{
 		if(devpriv->plx9080_iobase)
@@ -790,8 +796,6 @@ static int detach(comedi_device *dev)
 		kfree(devpriv->dma_desc);
 #endif
 	}
-	if(dev->irq)
-		comedi_free_irq(dev->irq, dev);
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 4);
 
@@ -1028,6 +1032,7 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew(EXT_QUEUE | HW_CONFIG_DUMMY_BITS, devpriv->main_iobase + HW_CONFIG_REG);
 
 	// set fifo size
+	// XXX this sets dac fifo size too
 	writew(ADC_FIFO_8K_BITS | FIFO_SIZE_DUMMY_BITS, devpriv->main_iobase + FIFO_SIZE_REG);
 
 	// set conversion pacing
@@ -1093,16 +1098,15 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
 
 #ifdef PCIDMA
+	devpriv->dma_index = 0;
 	// give location of first dma descriptor
 	bits = virt_to_bus(devpriv->dma_desc);
 	bits |= PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
 	writel(bits, devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 	// enable dma transfer
 	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
 #else
 	writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
-	writeb(0, devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
 #endif
 
 	// enable interrupts
@@ -1154,6 +1158,7 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned int status;
 	u32 plx_status;
 	u32 plx_bits;
+	unsigned int dma_status;
 #ifdef PCIDAS64_DEBUG
 	static unsigned int intr_count = 0;
 	const int debug_count = 10;
@@ -1247,6 +1252,17 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 	if(plx_status & ICS_DMA0_A)
 	{	// dma chan 0 interrupt
+		dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		if(dma_status & PLX_DMA_EN_BIT)
+		{
+			// transfer data from dma buffer to comedi buffer
+			num_samples = DMA_TRANSFER_SIZE / sizeof(devpriv->ai_buffer[0][0]);
+			for(i = 0; i < num_samples; i++)
+			{
+				comedi_buf_put(async, devpriv->ai_buffer[devpriv->dma_index][i]);
+			}
+			devpriv->dma_index = (devpriv->dma_index + 1) % DMA_RING_COUNT;
+		}
 		writeb(PLX_CLEAR_DMA_INTR_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 #ifdef PCIDAS64_DEBUG
 		if(intr_count < debug_count)
@@ -1268,9 +1284,39 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
+	const int timeout = 10000;
+	unsigned int dma_status, i;
+
 	/* disable pacing, triggering, etc */
 	writew(0, devpriv->main_iobase + ADC_CONTROL0_REG);
 	writew(ADC_CONTROL1_DUMMY_BITS, devpriv->main_iobase + ADC_CONTROL1_REG);
+
+	// abort dma transfer if necessary
+	dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+	if(dma_status & PLX_DMA_EN_BIT)
+	{
+		// wait to make sure done bit is zero
+		for(i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++)
+		{
+			udelay(1);
+			dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		}
+		if(i == timeout)
+			comedi_error(dev, "cancel() timed out waiting for dma done clear");
+		// disable channel
+		writeb(0, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		// abort channel
+		writeb(PLX_DMA_ABORT_BIT, devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		// wait for dma done bit
+		dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		for(i = 0; (dma_status & PLX_DMA_DONE_BIT) == 0 && i < timeout; i++)
+		{
+			udelay(1);
+			dma_status = readb(devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
+		}
+		if(i == timeout)
+			comedi_error(dev, "cancel() timed out waiting for dma done set");
+	}
 
 	return 0;
 }

@@ -210,7 +210,9 @@ struct plx_dma_desc
 #define PLX_DMA1_CS_REG	0xa9
 #define  PLX_DMA_EN_BIT	0x1	// enable dma channel
 #define  PLX_DMA_START_BIT	0x2	// start dma transfer
-#define  PLX_CLEAR_DMA_INTR_BIT	0x8
+#define  PLX_DMA_ABORT_BIT	0x4	// abort dma transfer
+#define  PLX_CLEAR_DMA_INTR_BIT	0x8	// clear dma interrupt
+#define  PLX_DMA_DONE_BIT	0x10	// transfer done status bit
 
 #define PLX_DMA0_THRESHOLD_REG	0xb0	// command status register
 
