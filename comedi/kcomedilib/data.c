@@ -37,16 +37,13 @@
 #include <linux/malloc.h>
 #include <asm/io.h>
 
-#define USE_INSN
-
 extern volatile int rtcomedi_lock_semaphore;
 
 int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t data)
 {
-#ifdef USE_INSN
 	comedi_insn insn;
-	
+
 	memset(&insn,0,sizeof(insn));
 	insn.insn = INSN_WRITE;
 	insn.n = 1;
@@ -55,33 +52,13 @@ int comedi_data_write(unsigned int dev,unsigned int subdev,unsigned int chan,
 	insn.chanspec = CR_PACK(chan,range,aref);
 
 	return comedi_do_insn(dev,&insn);
-#else
-	comedi_trig cmd;
-	sampl_t sdata = data;
-
-	memset(&cmd,0,sizeof(cmd));
-
-	cmd.flags = TRIG_WRITE;
-	cmd.n_chan = 1;
-	cmd.n = 1;
-
-	chan = CR_PACK(chan,range,aref);
-	cmd.subdev = subdev;
-	cmd.data = &sdata;
-	cmd.data_len = sizeof(sampl_t);
-
-	cmd.chanlist = &chan;
-
-	return comedi_trigger(dev,subdev,&cmd);
-#endif
 }
 
 int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	unsigned int range,unsigned int aref,lsampl_t *data)
 {
-#ifdef USE_INSN
 	comedi_insn insn;
-	
+
 	memset(&insn,0,sizeof(insn));
 	insn.insn = INSN_READ;
 	insn.n = 1;
@@ -90,28 +67,5 @@ int comedi_data_read(unsigned int dev,unsigned int subdev,unsigned int chan,
 	insn.chanspec = CR_PACK(chan,range,aref);
 
 	return comedi_do_insn(dev,&insn);
-#else
-	comedi_trig cmd;
-	int ret;
-	sampl_t sdata;
-
-	memset(&cmd,0,sizeof(cmd));
-
-	cmd.n_chan = 1;
-	cmd.n = 1;
-
-	chan = CR_PACK(chan,range,aref);
-	cmd.subdev = subdev;
-	cmd.data = &sdata;
-	cmd.data_len = sizeof(sampl_t);
-
-	cmd.chanlist = &chan;
-
-	ret = comedi_trigger(dev,subdev,&cmd);
-
-	*data = sdata;
-
-	return ret;
-#endif
 }
 
