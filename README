@@ -25,14 +25,18 @@ For installation instructions, look at the file INSTALL.
 
 * Mailing List:
 
-Comedi has a mailing list.  Send "subscribe comedi" to
-comedi-request@stm.lbl.gov to subscribe.  Traffic is light, and mainly
-questions/answers about comedi installation, bugs, and programming.
-General questions about data acquisition are also welcome.
-Alternatively, you can subscribe and unsubscribe at
-http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi.
-You can always unsubscribe by sendinging "unsubscribe" (spell
-it correctly!) to comedi-request@stm.lbl.gov.
+Questions about Comedi should be sent to the Comedi mailing list,
+<comedi@stm.lbl.gov>.  Mailing the maintainer directly is always
+acceptable, but since the mailing list is archived and questions
+are often answered more quickly by other, the mailing list is
+preferred.
+
+To subscribe to ans unsubscribe from the mailing list, go to
+http://stm.lbl.gov/cgi-bin/mailman/listinfo/comedi. Alternatively,
+you can send "subscribe comedi" to <comedi-request@stm.lbl.gov>
+Traffic on the list is light, and mainly questions/answers about
+comedi installation, bugs, and programming.  General questions
+about data acquisition are also welcome.
 
 * More Information:
 
@@ -48,5 +52,5 @@ Comedi may be freely distibuted and modified in accordance with the
 GNU General Public License.
 
 The person behind all this misspelled humor is David Schleef
-<ds@schleef.org>, or http://stm.lbl.gov/~ds.
+<ds@schleef.org>.
 
