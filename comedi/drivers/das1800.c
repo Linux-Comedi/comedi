@@ -139,11 +139,16 @@ TODO:
 #define DAS1800_COUNTER(a)        (0xc + a)
 #define DAS1800_COUNTER_CONTROL 0xf
 
-enum{das1701st, das1701st_da, das1702st, das1702st_da, das1702hr, das1702hr_da, das1701ao, das1702ao, das1801st, das1801st_da, das1802st, das1802st_da, das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao};
+enum{
+	das1701st, das1701st_da, das1702st, das1702st_da, das1702hr, das1702hr_da,
+	das1701ao, das1702ao, das1801st, das1801st_da, das1802st, das1802st_da,
+	das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao
+};
 
 static int das1800_attach(comedi_device *dev, comedi_devconfig *it);
 static int das1800_detach(comedi_device *dev);
 static int das1800_recognize(char *name);
+static void das1800_register_boards(void);
 int das1800_probe(comedi_device *dev);
 static int das1800_cancel(comedi_device *dev, comedi_subdevice *s);
 static void das1800_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -164,6 +169,35 @@ int das1800_set_frequency(comedi_device *dev);
 int das1800_load_counter(comedi_device *dev, unsigned int counterNumber, unsigned int counterValue, unsigned int mode);
 unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
 
+// analog input ranges
+static comedi_lrange range_ai_das1801 = {
+	8,
+	{
+		RANGE( -5, 5 ),
+		RANGE( -1, 1 ),
+		RANGE( -0.1, 0.1 ),
+		RANGE( -0.02, 0.02 ),
+		RANGE( 0, 5 ),
+		RANGE( 0, 1 ),
+		RANGE( 0, 0.1 ),
+		RANGE( 0, 0.02 ),
+	}
+};
+
+static comedi_lrange range_ai_das1802 = {
+	8,
+	{
+		RANGE(-10, 10),
+		RANGE(-5, 5),
+		RANGE(-2.5, 2.5),
+		RANGE(-1.25, 1.25),
+		RANGE(0, 10),
+		RANGE(0, 5),
+		RANGE(0, 2.5),
+		RANGE(0, 1.25),
+	}
+};
+
 typedef struct das1800_board_struct{
 	char *name;
 	int ai_speed;	/* max conversion period in nanoseconds */
@@ -173,6 +207,7 @@ typedef struct das1800_board_struct{
 	int do_n_chan;	/* number of digital output channels */
 	int ao_ability;	/* 0 == no analog out, 1 == basic analog out, 2 == waveform analog out */
 	int ao_n_chan;	/* number of analog out channels */
+	comedi_lrange *range_ai;	/* available input ranges */
 }das1800_board;
 
 das1800_board das1800_boards[] =
@@ -190,6 +225,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	0,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:	"das-1701st-da",
@@ -200,6 +236,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	1,
 		ao_n_chan:	4,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:		"das-1702st",
@@ -210,6 +247,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	0,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1702st-da",
@@ -220,6 +258,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	1,
 		ao_n_chan:	4,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1702hr",
@@ -230,6 +269,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	0,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1702hr-da",
@@ -240,6 +280,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	1,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:	"das-1701ao",
@@ -250,6 +291,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	2,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:		"das-1702ao",
@@ -260,6 +302,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	2,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:	"das-1801st",
@@ -270,6 +313,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	0,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:	"das-1801st-da",
@@ -280,6 +324,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	4,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:		"das-1802st",
@@ -290,6 +335,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	0,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1802st-da",
@@ -300,6 +346,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	1,
 		ao_n_chan:	4,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1802hr",
@@ -310,6 +357,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	0,
 		ao_n_chan:	0,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1802hr-da",
@@ -320,6 +368,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	1,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:		"das-1801hc",
@@ -330,6 +379,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	8,
 		ao_ability:	1,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:		"das-1802hc",
@@ -340,6 +390,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	8,
 		ao_ability:	1,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1802,
 	},
 	{
 		name:	"das-1801ao",
@@ -350,6 +401,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	2,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1801,
 	},
 	{
 		name:		"das-1802ao",
@@ -360,6 +412,7 @@ das1800_board das1800_boards[] =
 		do_n_chan:	4,
 		ao_ability:	2,
 		ao_n_chan:	2,
+		range_ai:	&range_ai_das1802,
 	},
 };
 /*
@@ -388,57 +441,6 @@ typedef struct{
 
 #define devpriv ((das1800_private *)dev->private)
 
-// analog input ranges
-static comedi_lrange range_das1801_ai = {
-	8,
-	{
-		RANGE( -5, 5 ),
-		RANGE( -1, 1 ),
-		RANGE( -0.1, 0.1 ),
-		RANGE( -0.02, 0.02 ),
-		RANGE( 0, 5 ),
-		RANGE( 0, 1 ),
-		RANGE( 0, 0.1 ),
-		RANGE( 0, 0.02 ),
-	}
-};
-
-static comedi_lrange range_das1802_ai = {
-	8,
-	{
-		RANGE(-10, 10),
-		RANGE(-5, 5),
-		RANGE(-2.5, 2.5),
-		RANGE(-1.25, 1.25),
-		RANGE(0, 10),
-		RANGE(0, 5),
-		RANGE(0, 2.5),
-		RANGE(0, 1.25),
-	}
-};
-
-// analog input range lookup table
-static comedi_lrange *das1800_ai_range_lkup[] = {
-	&range_das1801_ai,
-	&range_das1801_ai,
-	&range_das1802_ai,
-	&range_das1802_ai,
-	&range_das1802_ai,
-	&range_das1802_ai,
-	&range_das1801_ai,
-	&range_das1802_ai,
-	&range_das1801_ai,
-	&range_das1801_ai,
-	&range_das1802_ai,
-	&range_das1802_ai,
-	&range_das1802_ai,
-	&range_das1802_ai,
-	&range_das1801_ai,
-	&range_das1802_ai,
-	&range_das1801_ai,
-	&range_das1802_ai,
-};
-
 // analog out range for boards with basic analog out
 static comedi_lrange range_ao_1 = {
 	1,
@@ -464,6 +466,8 @@ comedi_driver driver_das1800={
 	attach:		das1800_attach,
 	detach:		das1800_detach,
 	recognize:		das1800_recognize,
+	register_boards:		das1800_register_boards,
+	num_names:		sizeof(das1800_boards) / sizeof(das1800_board),
 };
 
 /*
@@ -675,7 +679,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	s->n_chan = thisboard->qram_len;
 	s->len_chanlist = thisboard->qram_len;
 	s->maxdata = (1 << thisboard->resolution) - 1;
-	s->range_table = das1800_ai_range_lkup[dev->board];
+	s->range_table = thisboard->range_ai;
 	s->do_cmd = das1800_ai_do_cmd;
 	s->do_cmdtest = das1800_ai_do_cmdtest;
 	s->insn_read = das1800_ai_rinsn;
@@ -796,6 +800,17 @@ static int das1800_recognize(char *name)
 		return das1802ao;
 
 	return -1;
+}
+void das1800_register_boards(void)
+{
+	int i;
+
+	for(i = 0; i < driver_das1800.num_names; i++)
+	{
+		driver_das1800.board_name[i] = das1800_boards[i].name;
+		driver_das1800.board_id[i] = i;
+	}
+	return;
 }
 
 /* probes and checks das-1800 series board type
