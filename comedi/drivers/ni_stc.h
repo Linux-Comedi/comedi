@@ -805,6 +805,7 @@ static ni_board ni_boards[];
 	int blocksize;						\
 	int n_left;						\
 	unsigned int ai_calib_source;				\
+	spinlock_t window_lock; \
 								\
 	int changain_state;					\
 	unsigned int changain_spec;				\

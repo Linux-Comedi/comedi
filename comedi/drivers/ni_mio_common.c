@@ -286,20 +286,20 @@ static inline void ni_ao_win_outw( comedi_device *dev, uint16_t data, int addr )
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	ni_writew(addr,AO_Window_Address_611x);
 	ni_writew(data,AO_Window_Data_611x);
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 }
 
 static inline void ni_ao_win_outl(comedi_device *dev, uint32_t data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	ni_writew(addr,AO_Window_Address_611x);
 	ni_writel(data,AO_Window_Data_611x);
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 }
 
 static inline unsigned short ni_ao_win_inw( comedi_device *dev, int addr )
@@ -307,10 +307,10 @@ static inline unsigned short ni_ao_win_inw( comedi_device *dev, int addr )
 	unsigned long flags;
 	unsigned short data;
 
-	comedi_spin_lock_irqsave(&dev->spinlock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	ni_writew(addr, AO_Window_Address_611x);
 	data = ni_readw(AO_Window_Data_611x);
-	comedi_spin_unlock_irqrestore(&dev->spinlock,flags);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 	return data;
 }
 
@@ -328,14 +328,14 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	comedi_spin_lock_irqsave( &devpriv->window_lock, flags );
 	switch (reg){
 		case Interrupt_A_Enable_Register:
 			if(value)
 				devpriv->int_a_enable_reg |= bits;
 			else
 				devpriv->int_a_enable_reg &= ~bits;
-			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+			comedi_spin_unlock_irqrestore( &devpriv->window_lock, flags );
 			win_out(devpriv->int_a_enable_reg,Interrupt_A_Enable_Register);
 			break;
 		case Interrupt_B_Enable_Register:
@@ -343,7 +343,7 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 				devpriv->int_b_enable_reg |= bits;
 			else
 				devpriv->int_b_enable_reg &= ~bits;
-			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+			comedi_spin_unlock_irqrestore( &devpriv->window_lock, flags );
 			win_out(devpriv->int_b_enable_reg,Interrupt_B_Enable_Register);
 			break;
 		case IO_Bidirection_Pin_Register:
@@ -351,13 +351,13 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 				devpriv->io_bidirection_pin_reg |= bits;
 			else
 				devpriv->io_bidirection_pin_reg &= ~bits;
-			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+			comedi_spin_unlock_irqrestore( &devpriv->window_lock, flags );
 			win_out(devpriv->io_bidirection_pin_reg,IO_Bidirection_Pin_Register);
 			break;
 		default:
 			printk("Warning ni_set_bits() called with invalid arguments\n");
 			printk("reg is %d\n",reg);
-			comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+			comedi_spin_unlock_irqrestore( &devpriv->window_lock, flags );
 			break;
 	}
 }
@@ -1149,16 +1149,20 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 
 static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 {
+	unsigned long flags;
+	int count;
+
+	// lock to avoid race with interrupt handler
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 #ifndef PCIDMA
 	ni_handle_fifo_dregs(dev);
-
-	//comedi_event(dev,s,s->async->events);
-
-	return s->async->buf_write_count - s->async->buf_read_count;
 #else
-	/* XXX we don't support this yet. */
-	return -EINVAL;
+	ni_sync_ai_dma(devpriv->mite, dev);
 #endif
+	count = s->async->buf_write_count - s->async->buf_read_count;
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	return count;
 }
 
 
@@ -2630,6 +2634,18 @@ static void init_ao_67xx(comedi_device *dev, comedi_subdevice *s)
 	for(i = 0; i < s->n_chan; i++)
 		ni_ao_win_outw(dev, AO_Channel(i) | 0x0, AO_Configuration_2_67xx);
 }
+
+static int ni_alloc_private(comedi_device *dev)
+{
+	int ret;
+
+	ret = alloc_private(dev, sizeof(ni_private));
+	if(ret < 0) return ret;
+
+	spin_lock_init(&devpriv->window_lock);
+
+	return 0;
+};
 
 static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 {

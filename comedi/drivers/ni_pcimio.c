@@ -742,7 +742,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("comedi%d: ni_pcimio:",dev->minor);
 
-	ret=alloc_private(dev,sizeof(ni_private));
+	ret=ni_alloc_private(dev);
 	if(ret<0)return ret;
 
 	ret=pcimio_find_device(dev,it->options[0],it->options[1]);

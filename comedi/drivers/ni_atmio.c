@@ -411,7 +411,7 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	int		irq;
 
 	/* allocate private area */
-	if((ret = alloc_private(dev, sizeof(ni_private))) < 0)
+	if((ret = ni_alloc_private(dev)) < 0)
 		return ret;
 
 	iobase=it->options[0];

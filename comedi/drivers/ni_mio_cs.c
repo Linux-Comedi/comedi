@@ -553,7 +553,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	
 	/* allocate private area */
-	if((ret=alloc_private(dev,sizeof(ni_private)))<0)
+	if((ret=ni_alloc_private(dev))<0)
 		return ret;
 	
 	if( (ret=ni_E_init(dev,it))<0 ){
