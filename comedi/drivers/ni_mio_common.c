@@ -567,6 +567,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 
 static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 {
+	int ret;
 	comedi_subdevice *s=dev->subdevices+1;
 	//unsigned short ack=0;
 
@@ -582,8 +583,16 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status)
 		s->async->events |= COMEDI_CB_EOA;
 	}
 
-	if(b_status&AO_FIFO_Request_St)
-		ni_ao_fifo_half_empty(dev,s);
+	if(b_status&AO_FIFO_Request_St){
+		ret = ni_ao_fifo_half_empty(dev,s);
+		
+		if(!ret){
+			rt_printk("ni_mio_common: AO buffer underrun\n");
+			ni_set_bits(dev, Interrupt_B_Enable_Register,
+				AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 0);
+			s->async->events |= COMEDI_CB_OVERFLOW;
+		}
+	}
 
 	b_status=win_in(AO_Status_1_Register);
 	if(b_status&Interrupt_B_St){
