@@ -846,10 +846,12 @@ if(s->subdev_flags & SDF_READABLE){
 
 	s->subdev_flags|=SDF_RUNNING;
 
+#ifdef CONFIG_COMEDI_RT
 	if(s->cmd.flags&TRIG_RT){
 		comedi_switch_to_rt(dev);
 		s->runflags |= SRF_RT;
 	}
+#endif
 
 	ret=s->do_cmd(dev,s);
 	
@@ -1103,12 +1105,6 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 }
 
 #ifdef LINUX_V22
-static void comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y);
-
-static struct vm_operations_struct comedi_vm_ops={
-	unmap:		comedi_unmap,
-};
-
 /*
    comedi_mmap_v22
 
@@ -1133,7 +1129,7 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	}
 	s=dev->subdevices+subdev;
 
-	if(vma->vm_pgoff != 0){
+	if(VM_OFFSET(vma) != 0){
 		DPRINTK("comedi: mmap() offset must be 0.\n");
 		return -EINVAL;
 	}
@@ -1148,12 +1144,6 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	
 	return 0;
 }
-
-static void comedi_unmap(struct vm_area_struct *area,unsigned long x,size_t y)
-{
-	printk("comedi unmap\n");
-}
-
 #endif
 
 #if LINUX_VERSION_CODE >= 0x020100
@@ -1387,10 +1377,12 @@ static void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	/* we do this because it's useful for the non-standard cases */
 	s->subdev_flags &= ~SDF_RUNNING;
 
+#ifdef CONFIG_COMEDI_RT
 	if(s->runflags&SRF_RT){
 		comedi_switch_to_non_rt(dev);
 		s->runflags &= ~SRF_RT;
 	}
+#endif
 
 	if(s->cur_trig.chanlist){		/* XXX wrong? */
 		kfree(s->cur_trig.chanlist);
@@ -1658,11 +1650,13 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask)
 
 			subdev = s - dev->subdevices;
 			if(dev->rt){
+#ifdef CONFIG_COMEDI_RT
 				// pend wake up
 				if(subdev==dev->read_subdev)
 					comedi_rt_pend_wakeup(&dev->read_wait);
 				if(subdev==dev->write_subdev)
 					comedi_rt_pend_wakeup(&dev->write_wait);
+#endif
 			}else{
 				if(subdev==dev->read_subdev)
 					wake_up_interruptible(&dev->read_wait);
