@@ -255,7 +255,7 @@ int code = LINUX_VERSION_CODE;
 ],[
   return KERNEL_VERSION_MAJOR(LINUX_VERSION_CODE);
 ]),
-		LINUX_VERSION_MAJOR=0, 
+		LINUX_VERSION_MAJOR=0,
 		LINUX_VERSION_MAJOR=$?)
         AC_RUN_IFELSE(AC_LANG_PROGRAM([
 #include "version.h"
@@ -263,7 +263,7 @@ int code = LINUX_VERSION_CODE;
 ],[
   return KERNEL_VERSION_MINOR(LINUX_VERSION_CODE);
 ]),
-		LINUX_VERSION_MINOR=0, 
+		LINUX_VERSION_MINOR=0,
 		LINUX_VERSION_MINOR=$?)
         AC_MSG_RESULT($LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR)
 	dnl restore CFLAGS
@@ -306,7 +306,7 @@ flags:
 	echo LINUX_CROSS_COMPILE=\"\$(CROSS_COMPILE)\" >>\$(obj)/flags
 	echo LINUX_KERNELRELEASE=\"\$(KERNELRELEASE)\" >>\$(obj)/flags
 	echo LINUX_CFLAGS=\"\$(CFLAGS)\" | sed 's_Iinclude_I"\$(LINUXDIR)/include"_g'>>\$(obj)/flags
-	echo LINUX_FLAGS=\"\$(CFLAGS)\" | sed 's_Iinclude_I"\$(LINUXDIR)/include"_g'>>\$(obj)/flags
+	echo LINUX_CFLAGS_MODULE=\"\$(CFLAGS_MODULE)\" >>\$(obj)/flags
 	echo LINUX_CC=\"\$(CC)\" >>\$(obj)/flags
 	echo LINUX_LD=\"\$(LD) \$(LDFLAGS)\" >>\$(obj)/flags
 	echo LINUX_AS=\"\$(AS)\" >>\$(obj)/flags
@@ -318,6 +318,8 @@ EOF
 	rm -rf ${tmpdir}
 
 	LINUX_MODULE_EXT=".ko"
+
+	LINUX_CFLAGS="$LINUX_CFLAGS $LINUX_CFLAGS_MODULE"
 
 	AC_SUBST(LINUX_ARCH)
 	AC_SUBST(LINUX_AFLAGS)
