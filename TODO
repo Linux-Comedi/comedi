@@ -25,11 +25,7 @@ develop 8253 and Am9513 code
 
 different error code for board error vs buffer overflow
 
-change _recognize to const char *
-
 ni_mio_common: gpct code broken
-
-ni_mio_common: external trigger doesn't work
 
 spinlocks
 
@@ -37,7 +33,5 @@ add pci_enable_device where appropriate
 
 autoloading causes BUG on failure.
 
-should insn_config be a bitfield?
-
-ledclock demo: RT irq allocated at removal
+fix comedi_report_boards to use /proc
 
