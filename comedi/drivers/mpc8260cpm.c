@@ -36,6 +36,8 @@
 #include <linux/comedidev.h>
 
 
+extern unsigned long mpc8260_dio_reserved[4];
+
 typedef struct{
 	int data;
 
@@ -50,6 +52,7 @@ comedi_driver driver_mpc8260cpm={
 	attach:		mpc8260cpm_attach,
 	detach:		mpc8260cpm_detach,
 };
+COMEDI_INITCLEANUP(driver_mpc8260cpm);
 
 static int mpc8260cpm_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int mpc8260cpm_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
@@ -93,23 +96,67 @@ static int mpc8260cpm_detach(comedi_device *dev)
 	return 0;
 }
 
+static unsigned long *cpm_pdat(int port)
+{
+	switch(port){
+	case 0:
+		return &io->iop_pdata;
+	case 1:
+		return &io->iop_pdatb;
+	case 2:
+		return &io->iop_pdatc;
+	case 3:
+		return &io->iop_pdatd;
+	}
+}
+
 static int mpc8260cpm_dio_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int n;
 	unsigned int d;
+	unsigned int mask;
+	int port;
+
+	if(insn->n!=1)return -EINVAL;
+
+	port = (int)s->private;
+	mask = 1<<CR_CHAN(insn->chanspec);
+	if(mask&cpm_reserved_bits[port]){
+		return -EINVAL;
+	}
+
+	switch(data[0]){
+	case COMEDI_OUTPUT:
+		s->io_bits |= mask;
+		break;
+	case COMEDI_INPUT:
+		s->io_bits &= ~mask;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch(port){
+	case 0: return &io->iop_pdira;
+	case 1: return &io->iop_pdirb;
+	case 2: return &io->iop_pdirc;
+	case 3: return &io->iop_pdird;
+	}
 
 
-	return 2;
+	return 1;
 }
 
 static int mpc8260cpm_dio_bits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
-	int n;
-	unsigned int d;
+	int port;
+	unsigned long *p;
+	
+	p = cpm_pdat((int)s->private);
+
+	
 
 
 	return 2;
 }
-
-COMEDI_INITCLEANUP(driver_mpc8260cpm);
 
