@@ -970,9 +970,10 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 		irq structure is initialized.
 	*/
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	last_fn = RequestIRQ;
-	if((last_ret = pcmcia_request_irq(link->handle, &link->irq)) != 0) goto cs_failed;
-
+	{
+		last_fn = RequestIRQ;
+		if((last_ret = pcmcia_request_irq(link->handle, &link->irq)) != 0) goto cs_failed;
+	}
 	/*
 		This actually configures the PCMCIA socket -- setting up
 		the I/O windows and the interrupt mapping, and putting the
