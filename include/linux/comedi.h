@@ -118,6 +118,8 @@ typedef unsigned short sampl_t;
 /* trigger sources */
 
 #define TRIG_ANY	0xffffffff
+#define TRIG_INVALID	0x00000000
+
 #define TRIG_NONE	0x00000001	/* never trigger */
 #define TRIG_NOW	0x00000002	/* trigger now + N ns */
 #define TRIG_FOLLOW	0x00000004	/* trigger on next lower level trig */
