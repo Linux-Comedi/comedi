@@ -40,5 +40,5 @@ mv Makefile.tmp Makefile
 make drivers.txt
 
 cd $topdir
-tar -czvf ../comedi-$version.tgz comedi-$version
+tar -czvf comedi-$version.tgz comedi-$version
 
