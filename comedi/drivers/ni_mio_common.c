@@ -328,6 +328,15 @@ static void ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
 	if(a_status&Interrupt_A_St)handle_a_interrupt(dev,a_status);
 	if(b_status&Interrupt_B_St)handle_b_interrupt(dev,b_status);
 	
+#ifdef DEBUG_INTERRUPT
+	a_status=win_in(AI_Status_1_Register);
+	b_status=win_in(AO_Status_1_Register);
+	if(a_status&Interrupt_A_St || b_status&Interrupt_B_St){
+		printk("ni_mio_common: BUG, didn't clear interrupt. disabling.\n");
+                win_out(0,Interrupt_Control_Register);
+	}
+#endif
+
 	win_restore(wsave);
 }
 
