@@ -51,7 +51,7 @@ case \$mode in
 	;;
 --install)
 	module_src=\$[1]
-	module_dest=\`echo \$2 | sed "s/\.ko$/\${LINUX_MODULE_EXT}/"\`
+	module_dest=\`echo \$[2] | sed "s/\.ko$/\${LINUX_MODULE_EXT}/"\`
 	echo \$INSTALL -m644 "\$module_src" "\$module_dest"
 	\$INSTALL -m644 "\$module_src" "\$module_dest"
 	\$STRIP -g "\$module_dest"
