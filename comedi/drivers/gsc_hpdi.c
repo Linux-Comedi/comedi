@@ -452,6 +452,11 @@ static int init_hpdi( comedi_device *dev )
 	writel( BOARD_RESET_BIT, priv(dev)->hpdi_iobase + BOARD_CONTROL_REG );
 	udelay( 10 );
 
+	writel( almost_empty_bits( 32 ) | almost_full_bits( 32 ),
+		priv(dev)->hpdi_iobase + RX_PROG_ALMOST_REG );
+	writel( almost_empty_bits( 32 ) | almost_full_bits( 32 ),
+		priv(dev)->hpdi_iobase + TX_PROG_ALMOST_REG );
+
 	priv(dev)->tx_fifo_size = fifo_size( readl( priv(dev)->hpdi_iobase +
 		TX_FIFO_SIZE_REG ) );
 	priv(dev)->rx_fifo_size = fifo_size( readl( priv(dev)->hpdi_iobase +
