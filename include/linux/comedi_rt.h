@@ -133,8 +133,6 @@ static inline void comedi_udelay( unsigned int usec )
 #if defined(CONFIG_COMEDI_RTAI)
 	static const int nanosec_per_usec = 1000;
 	rt_busy_sleep( usec * nanosec_per_usec );
-#elif defined(CONFIG_COMEDI_RTL)
-	usleep( usec );
 #else
 	udelay( usec );
 #endif
