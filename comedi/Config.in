@@ -1,7 +1,7 @@
 
 comment 'Comedi Features'
 
-bool 'Trig compatibility (say yes)' CONFIG_COMEDI_TRIG
+bool 'comedi_trig compatibility (deprecated)' CONFIG_COMEDI_TRIG
 
 if [ "$CONFIG_RTL" = "y" ];then
 	bool 'Real-time support' CONFIG_COMEDI_RT
