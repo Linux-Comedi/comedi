@@ -23,6 +23,7 @@
 
 /*
 Driver: icp_multi.o
+Description: Inova ICP_MULTI
 Author: Anne Smorthit <anne.smorthit@sfwte.ch>
 Devices: [Inova] ICP_MULTI (icp_multi)
 Status: unknown
