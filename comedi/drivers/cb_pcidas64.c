@@ -91,7 +91,7 @@ TODO:
 //#define PCIDAS64_DEBUG	// enable debugging code
 
 #ifdef PCIDAS64_DEBUG
-#define DEBUG_PRINT(format, args...)  rt_printk("comedi: " format , ## args )
+#define DEBUG_PRINT(format, args...)  rt_printk(format , ## args )
 #else
 #define DEBUG_PRINT(format, args...)
 #endif
@@ -171,9 +171,9 @@ TODO:
 #define    ADC_MODE_BITS(x)	(((x) & 0xf) << 12)
 #define CALIBRATION_REG	0x14
 #define    SELECT_8800_BIT	0x1
-#define    SELECT_8402_64XX_BIT	0x1
+#define    SELECT_8402_64XX_BIT	0x2
 #define    SELECT_1590_60XX_BIT	0x2
-/* calibration sources for 6025 appear to be:
+/* calibration sources for 6025 are:
  *  0 : ground
  *  1 : 10V
  *  2 : 5V
@@ -202,7 +202,7 @@ TODO:
 #define ADC_QUEUE_LOAD_REG	0x28	// loads adc queue
 #define    CHAN_BITS(x)	((x) & 0x3f)
 #define    UNIP_BIT	0x800	// unipolar/bipolar bit
-#define    ADC_DIFFERENTIAL_BIT	0x1000	// single-ended/ differential bit
+#define    ADC_SE_DIFF_BIT	0x1000	// single-ended/ differential bit
 #define    ADC_COMMON_BIT	0x2000	// non-referenced single-ended (common-mode input)
 #define    QUEUE_EOSEQ_BIT	0x4000	// queue end of sequence
 #define    QUEUE_EOSCAN_BIT	0x8000	// queue end of scan
@@ -676,6 +676,9 @@ typedef struct
 	volatile uint32_t plx_intcsr_bits;	// last bits written to plx interrupt control and status register
 	volatile int calibration_source;	// index of calibration source readable through ai ch0
 	volatile uint8_t i2c_cal_range_bits;	// bits written to i2c calibration/range register
+	// states of various devices stored to enable read-back
+	unsigned int ad8402_state[2];
+	unsigned int dac8800_state[8];
 } pcidas64_private;
 
 /* inline function that makes it easier to
@@ -719,7 +722,10 @@ static int di_rbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 static int do_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int dio_60xx_config_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int dio_60xx_wbits(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int ad8402_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
+static int ad8402_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static int eeprom_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
 static void check_adc_timing(comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
@@ -796,7 +802,7 @@ static int setup_subdevices(comedi_device *dev)
 	comedi_subdevice *s;
 	unsigned long dio_8255_iobase;	
 
-	dev->n_subdevices = 9;
+	dev->n_subdevices = 10;
 	if(alloc_subdevices(dev)<0)
 		return -ENOMEM;
 
@@ -905,20 +911,33 @@ static int setup_subdevices(comedi_device *dev)
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
 
-	// calibration subd
+	// 8 channel 8800 caldac
 	s = dev->subdevices + 6;
 	s->type=COMEDI_SUBD_CALIB;
 	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
-	s->n_chan = 8;	// XXX 64xx has digital pots too
+	s->n_chan = 8;
 	if(board(dev)->layout == LAYOUT_4020)
 		s->maxdata = 0xfff;
 	else
 		s->maxdata = 0xff;
-//	s->insn_read = calib_read_insn;
+	s->insn_read = calib_read_insn;
 	s->insn_write = calib_write_insn;
 
-	//serial EEPROM, if present
+	// 2 channel ad8402 potentiometer
 	s = dev->subdevices + 7;
+	if(board(dev)->layout == LAYOUT_64XX)
+	{
+		s->type = COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_INTERNAL;
+		s->n_chan = 2;
+		s->insn_read = ad8402_read_insn;
+		s->insn_write = ad8402_write_insn;
+		s->maxdata = 0xff;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	//serial EEPROM, if present
+	s = dev->subdevices + 8;
 	if(private(dev)->plx_control_bits & CTL_EECHK)
 	{
 		s->type = COMEDI_SUBD_MEMORY;
@@ -928,8 +947,9 @@ static int setup_subdevices(comedi_device *dev)
 		s->insn_read = eeprom_read_insn;
 	} else
 		s->type = COMEDI_SUBD_UNUSED;
+
 	// user counter subd XXX
-	s = dev->subdevices + 8;
+	s = dev->subdevices + 9;
 	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
@@ -1161,6 +1181,7 @@ static int detach(comedi_device *dev)
 		if(private(dev)->dma_desc)
 			pci_free_consistent(private(dev)->hw_dev, sizeof(struct plx_dma_desc) * DMA_RING_COUNT,
 				private(dev)->dma_desc, private(dev)->dma_desc_phys_addr);
+		pci_disable_device(private(dev)->hw_dev);
 	}
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 4);
@@ -1203,8 +1224,8 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 		// set gain
 		bits |= board(dev)->ai_range_bits[CR_RANGE(insn->chanspec)];
 		// set single-ended / differential
-		if( aref == AREF_DIFF)
-			bits |= ADC_DIFFERENTIAL_BIT;
+		if(aref != AREF_DIFF)
+			bits |= ADC_SE_DIFF_BIT;
 		if( aref == AREF_COMMON)
 			bits |= ADC_COMMON_BIT;
 		// ALT_SOURCE is internal calibration reference
@@ -1561,8 +1582,8 @@ static int ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			// set gain
 			bits |= board(dev)->ai_range_bits[CR_RANGE(cmd->chanlist[i])];
 			// set single-ended / differential
-			if(CR_AREF(cmd->chanlist[i]) == AREF_DIFF)
-				bits |= ADC_DIFFERENTIAL_BIT;
+			if(CR_AREF(cmd->chanlist[i]) != AREF_DIFF)
+				bits |= ADC_SE_DIFF_BIT;
 			if(CR_AREF(cmd->chanlist[i]) == AREF_COMMON)
 				bits |= ADC_COMMON_BIT;
 			// mark end of queue
@@ -1839,6 +1860,9 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	plx_status = readl(private(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(private(dev)->main_iobase + HW_STATUS_REG);
 
+	DEBUG_PRINT("cb_pcidas64: hw status 0x%x ", status);
+	DEBUG_PRINT("plx status 0x%x\n", plx_status);
+
 	if((status &
 		(ADC_INTR_PENDING_BIT | ADC_DONE_BIT | ADC_STOP_BIT |
 		DAC_INTR_PENDING_BIT | DAC_DONE_BIT | EXT_INTR_PENDING_BIT)) == 0 &&
@@ -1846,10 +1870,6 @@ static void handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	{
 		return;
 	}
-
-	DEBUG_PRINT(" isr hw status 0x%x\n", status);
-	DEBUG_PRINT(" plx status 0x%x\n", plx_status);
-	DEBUG_PRINT(" user counter 0x%x\n", readw(private(dev)->main_iobase + LOWER_XFER_REG));
 
 	async->events = 0;
 
@@ -2105,6 +2125,8 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 {
 	int channel = CR_CHAN(insn->chanspec);
 
+	private(dev)->dac8800_state[channel] = data[0];
+
 	switch(board(dev)->layout)
 	{
 		case LAYOUT_60XX:
@@ -2121,15 +2143,56 @@ static int calib_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn
 	return 1;
 }
 
-// XXX
-#if 0
 static int calib_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-        data[0] = ;
+	unsigned int channel = CR_CHAN(insn->chanspec);
+
+        data[0] = private(dev)->dac8800_state[channel];
 
         return 1;
 }
-#endif
+
+/* for pci-das6402/16, channel 0 is analog input gain and channel 1 is offset */
+static int ad8402_write_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	static const int bitstream_length = 10;
+	int channel = CR_CHAN(insn->chanspec);
+	unsigned int bitstream = ((channel & 0x3) << 8) | (data[0] & 0xff);
+	unsigned int bit, register_bits;
+	static const int ad8402_udelay = 1;
+
+	private(dev)->ad8402_state[channel] = data[0];
+
+	register_bits = SELECT_8402_64XX_BIT;
+	udelay(ad8402_udelay);
+	writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
+
+	for(bit = 1 << (bitstream_length - 1); bit; bit >>= 1)
+	{
+		if(bitstream & bit)
+			register_bits |= SERIAL_DATA_IN_BIT;
+		else
+			register_bits &= ~SERIAL_DATA_IN_BIT;
+		udelay(ad8402_udelay);
+		writew(register_bits, private(dev)->main_iobase + CALIBRATION_REG);
+		udelay(ad8402_udelay);
+		writew(register_bits | SERIAL_CLOCK_BIT, private(dev)->main_iobase + CALIBRATION_REG);
+        }
+
+	udelay(ad8402_udelay);
+	writew(0, private(dev)->main_iobase + CALIBRATION_REG);
+
+	return 1;
+}
+
+static int ad8402_read_insn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	unsigned int channel = CR_CHAN(insn->chanspec);
+
+	data[0] = private(dev)->ad8402_state[channel];
+
+        return 1;
+}
 
 static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 {
@@ -2279,6 +2342,17 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
  * address 6 == coarse adc gain
  * address 7 == fine adc gain
  */
+/* pci-6402/16 uses all 8 channels for dac:
+ * address 0 == dac channel 0 fine gain
+ * address 1 == dac channel 0 coarse gain
+ * address 2 == dac channel 0 coarse offset
+ * address 3 == dac channel 1 coarse offset
+ * address 4 == dac channel 1 fine gain
+ * address 5 == dac channel 1 coarse gain
+ * address 6 == dac channel 0 fine offset
+ * address 7 == dac channel 1 fine offset
+*/
+
 static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t value)
 {
 	static const int num_caldac_channels = 8;
@@ -2320,10 +2394,11 @@ static int caldac_i2c_write(comedi_device *dev, unsigned int caldac_channel, uns
 	uint8_t i2c_addr;
 	enum pointer_bits
 	{
-		GAIN_0_2 = 0x1,
-		OFFSET_0_2 = 0x2,
-		GAIN_1_3 = 0x4,
-		OFFSET_1_3 = 0x8,
+		// manual has gain and offset bits switched
+		OFFSET_0_2 = 0x1,
+		GAIN_0_2 = 0x2,
+		OFFSET_1_3 = 0x4,
+		GAIN_1_3 = 0x8,
 	};
 	enum data_bits
 	{
