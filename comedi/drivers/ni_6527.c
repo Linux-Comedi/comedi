@@ -141,7 +141,7 @@ static int ni6527_di_insn_config(comedi_device *dev,comedi_subdevice *s,
 		if(interval!=devpriv->filter_interval){
 			writeb(interval&0xff, dev->iobase + Filter_Interval(0));
 			writeb((interval>>8)&0xff, dev->iobase + Filter_Interval(1));
-			writeb((interval>>16)&0x0f, dev->iobase + Filter_Interval(1));
+			writeb((interval>>16)&0x0f, dev->iobase + Filter_Interval(2));
 
 			writeb(ClrInterval, dev->iobase + Clear_Register);
 
@@ -166,8 +166,8 @@ static int ni6527_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	if(insn->n!=2)return -EINVAL;
 
 	data[1] = readb(dev->iobase+Port_Register(0));
-	data[1] |= readb(dev->iobase+Port_Register(0))<<8;
-	data[1] |= readb(dev->iobase+Port_Register(0))<<16;
+	data[1] |= readb(dev->iobase+Port_Register(1))<<8;
+	data[1] |= readb(dev->iobase+Port_Register(2))<<16;
 
 	return 2;
 }
@@ -354,7 +354,7 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk(" ID=0x%02x", readb(dev->iobase + ID_Register));
 
-	if((ret=alloc_subdevices(dev,2))<0)
+	if((ret=alloc_subdevices(dev,3))<0)
 		return ret;
 
 	s=dev->subdevices+0;
