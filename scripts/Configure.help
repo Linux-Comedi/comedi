@@ -156,6 +156,12 @@ PCL 711 driver
 CONFIG_COMEDI_PCL711
   Includes support for PCL 711, 711b and ACL 8112.
 
+Advantech PCL-722/724/731 and ADLink ACL-7122/7124/PET-48DIO driver
+CONFIG_COMEDI_PCL724
+  Includes support for Advantech DIO boards PCL-722, PCL-724 and PCL-731.
+  Includes support for ADLink DIO boards ACL-7122, ACL-7124 and PET-48DIO.
+  This driver need 8255 chip support for correct work.
+
 PCL 725 driver
 CONFIG_COMEDI_PCL725
   Includes support for PCL 725.

@@ -1,0 +1,222 @@
+/*
+    module/pcl724.c
+
+    Michal Dobes <majkl@tesnet.cz>  
+
+    hardware driver for Advantech cards:
+     card:   PCL-724, PCL-722, PCL-731
+     driver: pcl724,  pcl722,  pcl731
+    and ADLink cards:
+     card:   ACL-7122, ACL-7124, PET-48DIO
+     driver: acl7122,  acl7124,  pet48dio
+    	       
+    Options for PCL-724, PCL-731, ACL-7124 and PET-48DIO:
+     [0] - IO Base
+
+    Options for PCL-722 and ACL-7122:
+     [0] - IO Base
+     [1] - IRQ (0=disable IRQ) IRQ isn't supported at this time!
+     [2] -number of DIO:
+              0, 144: 144 DIO configuration
+	      1,  96:  96 DIO configuration
+*/
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/mm.h>
+#include <linux/malloc.h>
+#include <linux/errno.h>
+#include <linux/ioport.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/timex.h>
+#include <linux/timer.h>
+#include <asm/io.h>
+#include <comedi_module.h>
+#include <8255.h>
+
+#define PCL722_SIZE    32
+#define PCL722_96_SIZE 16
+#define PCL724_SIZE     4
+#define PCL731_SIZE     8
+#define PET48_SIZE      2
+
+#define SIZE_8255	4
+
+// #define PCL724_IRQ	1  /* no IRQ support now */
+
+static int pcl724_attach(comedi_device *dev,comedi_devconfig *it);
+static int pcl724_detach(comedi_device *dev);
+static int pcl724_recognize(char *name);
+
+comedi_driver driver_pcl724={
+	driver_name:	"pcl724",
+	module:		THIS_MODULE,
+	attach:		pcl724_attach,
+	detach:		pcl724_detach,
+	recognize:	pcl724_recognize,
+};
+
+typedef struct {
+	char 		*name;		// driver name
+	int 		dio;		// num of DIO
+	int		numofports;	// num of 8255 subdevices
+	unsigned int 	IRQbits;	// allowed interrupts
+	int 		io_range;	// len of IO space
+	char		can_have96;	
+	char		is_pet48;
+} boardtype;
+
+static boardtype boardtypes[] =
+{
+	{"pcl724",    24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
+	{"pcl722",   144, 6, 0x00fc, PCL722_SIZE, 1, 0, },
+	{"pcl731",    48, 2, 0x9cfc, PCL731_SIZE, 0, 0, }, 
+	{"acl7122",  144, 6, 0x9ee8, PCL722_SIZE, 1, 0, },
+	{"acl7124",   24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
+	{"pet48dio",  48, 2, 0x9eb8, PET48_SIZE,  0, 1, },
+};
+
+#define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
+
+static int subdev_8255_cb(int dir,int port,int data,void *arg)
+{
+	int iobase=(int)arg;
+
+	if(dir){
+		outb(data,iobase+port);
+		return 0;
+	}else{
+		return inb(iobase+port);
+	}
+}
+
+static int subdev_8255mapped_cb(int dir,int port,int data,void *arg)
+{
+	int iobase=(int)arg;
+	int movport=SIZE_8255*(iobase>>12);
+
+	iobase&=0x0fff;
+
+	if(dir){
+		outb(port+movport,iobase);
+		outb(data,iobase+1);
+		return 0;
+	}else{
+		outb(port+movport,iobase);
+		return inb(iobase+1);
+	}
+}
+
+static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
+{
+        int board,iobase,iorange;
+	int ret,i;
+	
+        board=dev->board;
+
+        iobase=it->options[0];
+        iorange=boardtypes[board].io_range;
+	if ((boardtypes[board].can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
+		iorange=PCL722_96_SIZE;	// PCL-724 in 96 DIO configuration
+	printk("comedi%d: pcl724: board=%s, 0x%03x ",dev->minor,boardtypes[board].name,iobase);
+	if(check_region(iobase,iorange)<0){
+		printk("I/O port conflict\n");
+		return -EIO;
+	}
+	
+        request_region(iobase, iorange, "pcl724");
+        dev->iobase=iobase;
+        dev->iosize=iorange;
+    
+	dev->board_name = boardtypes[board].name;
+
+#ifdef PCL724_IRQ
+        irq=0;
+        if (boardtypes[board].IRQbits!=0) { /* board support IRQ */
+		irq=it->options[1];
+		if (irq>0)  {/* we want to use IRQ */
+		        if (((1<<irq)&boardtypes[board].IRQbits)==0) {
+				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
+				irq=0; /* Bad IRQ */
+			} else { 
+				if (request_irq(irq, interrupt_pcl724, SA_INTERRUPT, "pcl724", dev)) {
+					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
+					irq=0; /* Can't use IRQ */
+				} else {
+					rt_printk(", irq=%d", irq);
+				}    
+			}  
+		}
+	}
+
+        dev->irq = irq;
+#endif
+	
+	printk("\n");
+
+	dev->n_subdevices=boardtypes[board].numofports;
+	if ((boardtypes[board].can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
+		dev->n_subdevices=4;	// PCL-724 in 96 DIO configuration
+
+	
+	if((ret=alloc_subdevices(dev))<0)
+		return ret;
+
+	for(i=0;i<dev->n_subdevices;i++){
+		if (boardtypes[board].is_pet48) {
+			subdev_8255_init(dev,dev->subdevices+i,
+				subdev_8255mapped_cb,(void *)(dev->iobase+i*0x1000));
+		} else
+			subdev_8255_init(dev,dev->subdevices+i,
+				subdev_8255_cb,(void *)(dev->iobase+SIZE_8255*i));
+	};
+
+	return 0;
+}
+
+
+static int pcl724_detach(comedi_device *dev)
+{
+//	printk("comedi%d: pcl724: remove\n",dev->minor);
+	
+#ifdef PCL724_IRQ
+	if(dev->irq){
+		free_irq(dev->irq,dev);
+	}
+#endif
+
+	release_region(dev->iobase,dev->iosize);
+
+	return 0;
+}
+
+static int pcl724_recognize(char *name) 
+{
+        int i;
+
+        for (i = 0; i < n_boardtypes; i++) {
+		if (!strcmp(boardtypes[i].name, name)) {
+			return i;
+		}
+	}
+
+        return -1;
+}
+
+
+
+#ifdef MODULE
+int init_module(void)
+{
+	comedi_driver_register(&driver_pcl724);
+	
+	return 0;
+}
+
+void cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl724);
+}
+#endif

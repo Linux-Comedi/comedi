@@ -32,6 +32,12 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 
 #else
 
+#ifdef CONFIG_COMEDI_8255_MODULE
+
+int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,int,void *),void *arg);
+
+#else
+
 static inline int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,void *x,void *y)
 {
 	printk("8255 support not configured -- disabling subdevice\n");
@@ -41,6 +47,7 @@ static inline int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,void *
 	return 0;
 }
 
+#endif
 
 #endif
 

@@ -49,6 +49,7 @@ obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_NI_ATMIO16D)	+= ni_atmio16d.o
 
 obj-$(CONFIG_COMEDI_PCL711)		+= pcl711.o
+obj-$(CONFIG_COMEDI_PCL724)		+= pcl724.o
 obj-$(CONFIG_COMEDI_PCL725)		+= pcl725.o
 obj-$(CONFIG_COMEDI_PCL726)		+= pcl726.o
 obj-$(CONFIG_COMEDI_PCL812)		+= pcl812.o
