@@ -422,6 +422,10 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	int		board;
 	int		irq;
 
+	/* allocate private area */
+	if((ret = alloc_private(dev, sizeof(ni_private))) < 0)
+		return ret;
+
 	iobase=it->options[0];
 	irq=it->options[1];
 	isapnp_dev = NULL;
@@ -461,14 +465,14 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
                }
        }
 #endif
-	
+
 	/* get board type */
 
 	board=ni_getboardtype(dev);
 	if(board<0)return -EIO;
 
 	dev->board_ptr=ni_boards + board;
-	
+
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
 
@@ -486,18 +490,13 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		dev->irq=irq;
 	}
-	
-	/* allocate private area */
-	
-	if((ret=alloc_private(dev,sizeof(ni_private)))<0)
-		return ret;
 
 	/* generic E series stuff in ni_mio_common.c */
 
 	if( (ret=ni_E_init(dev,it))<0 ){
 		return ret;
 	}
-	
+
 	return 0;
 }
 
@@ -506,7 +505,7 @@ static int ni_getboardtype(comedi_device *dev)
 {
 	int device_id=ni_read_eeprom(dev,511);
 	int i;
-	
+
 	for(i=0;i<n_ni_boards;i++){
 		if(ni_boards[i].device_id==device_id){
 			return i;
