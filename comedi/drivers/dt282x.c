@@ -24,7 +24,10 @@
 Driver: dt282x.o
 Description: Data Translation DT2821 series (including DT-EZ)
 Author: ds
-Devices: [Data Translation] DT2821 (dt2821), DT2823 (dt2823),
+Devices: [Data Translation] DT2821 (dt2821),
+  DT2821-F-16SE (dt2821-f), DT2821-F-8DI (dt2821-f),
+  DT2821-G-16SE (dt2821-f), DT2821-G-8DI (dt2821-g),
+  DT2823 (dt2823),
   DT2824-PGH (dt2824-pgh), DT2824-PGL (dt2824-pgl), DT2825 (dt2825),
   DT2827 (dt2827), DT2828 (dt2828), DT21-EZ (dt21-ez), DT23-EZ (dt23-ez),
   DT24-EZ (dt24-ez), DT24-EZ-PGL (dt24-ez-pgl)
@@ -206,6 +209,24 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
+		ai_speed:	20000,
+		ispgl:		0,
+		dachan:		2,
+		dabits:		12,
+	},
+	{	name:		"dt2821-f",
+		adbits:		12,
+		adchan_se:	16,
+		adchan_di:	8,
+		ai_speed:	6500,
+		ispgl:		0,
+		dachan:		2,
+		dabits:		12,
+	},
+	{	name:		"dt2821-g",
+		adbits:		12,
+		adchan_se:	16,
+		adchan_di:	8,
 		ai_speed:	4000,
 		ispgl:		0,
 		dachan:		2,
@@ -215,7 +236,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	0,
 		adchan_di:	4,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		16,
@@ -224,7 +245,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
+		ai_speed:	20000,
 		ispgl:		0,
 		dachan:		0,
 		dabits:		0,
@@ -233,7 +254,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
+		ai_speed:	20000,
 		ispgl:		1,
 		dachan:		0,
 		dabits:		0,
@@ -242,8 +263,8 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
-		ispgl:		0,
+		ai_speed:	20000,
+		ispgl:		1,
 		dachan:		2,
 		dabits:		12,
 	},
@@ -251,7 +272,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	0,
 		adchan_di:	4,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -260,16 +281,25 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	4,
 		adchan_di:	0,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
+	},
+	{	name:		"dt2829",
+		adbits:		16,
+		adchan_se:	8,
+		adchan_di:	0,
+		ai_speed:	33250,
+		ispgl:		0,
+		dachan:		2,
+		dabits:		16,
 	},
 	{	name:		"dt21-ez",
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		0,
 		dachan:		2,
 		dabits:		12,
@@ -278,7 +308,7 @@ static boardtype_t boardtypes[] =
 		adbits:		16,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		0,
 		dachan:		0,
 		dabits:		0,
@@ -287,7 +317,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		0,
 		dachan:		0,
 		dabits:		0,
@@ -296,7 +326,7 @@ static boardtype_t boardtypes[] =
 		adbits:		12,
 		adchan_se:	16,
 		adchan_di:	8,
-		ai_speed:	4000,
+		ai_speed:	10000,
 		ispgl:		1,
 		dachan:		0,
 		dabits:		0,
@@ -315,21 +345,21 @@ typedef struct {
 
 	sampl_t ao[2];
 
-	int dacsr;		/* software copies of registers */
-	int adcsr;
-	int supcsr;
+	volatile int dacsr;		/* software copies of registers */
+	volatile int adcsr;
+	volatile int supcsr;
 
-	int ntrig;
-	int nread;
+	volatile int ntrig;
+	volatile int nread;
 
 	struct{
 		int chan;
 		short *buf;	/* DMA buffer */
-		int size;	/* size of current transfer */
+		volatile int size;	/* size of current transfer */
 	}dma[2];
 	int dma_maxsize;	/* max size of DMA transfer (in bytes) */
 	int usedma;		/* driver uses DMA              */
-	int current_dma_chan;
+	volatile int current_dma_index;
 	int dma_dir;
 } dt282x_private;
 
@@ -419,12 +449,12 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 		return;
 	}
 
-	i=devpriv->current_dma_chan;
+	i=devpriv->current_dma_index;
 	ptr=devpriv->dma[i].buf;
 
 	disable_dma(devpriv->dma[i].chan);
 
-	devpriv->current_dma_chan=1-i;
+	devpriv->current_dma_index=1-i;
 
 	size = comedi_buf_read_n_available(s->async);
 	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
@@ -455,18 +485,21 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 		return;
 	}
 
-	i = devpriv->current_dma_chan;
+	i = devpriv->current_dma_index;
 	ptr = devpriv->dma[i].buf;
 	size = devpriv->dma[i].size;
 
 	disable_dma(devpriv->dma[i].chan);
 
-	devpriv->current_dma_chan = 1-i;
+	devpriv->current_dma_index = 1-i;
 
 	dt282x_munge(dev, ptr, size );
 	ret = cfc_write_array_to_buffer( s, ptr, size );
-	if( ret == 0 ) return;
-
+	if( ret != size )
+	{
+		dt282x_ai_cancel(dev,s);
+		return;
+	}
 	devpriv->nread-=size/2;
 
 	if(devpriv->nread<0){
@@ -474,13 +507,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 		devpriv->nread=0;
 	}
 	if (!devpriv->nread) {
-		devpriv->adcsr=0;
-		update_adcsr(0);
-
-		/* this eliminates "extra sample" issues */
-		devpriv->supcsr = 0;
-		update_supcsr(DT2821_ADCINIT);
-
+		dt282x_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
 		return;
 	}
@@ -497,7 +524,7 @@ static void dt282x_ai_dma_interrupt(comedi_device * dev)
 	prep_ai_dma(dev,i,0);
 }
 
-static int prep_ai_dma(comedi_device * dev,int chan,int n)
+static int prep_ai_dma(comedi_device * dev,int dma_index,int n)
 {
 	int dma_chan;
 	unsigned long dma_ptr;
@@ -508,13 +535,13 @@ static int prep_ai_dma(comedi_device * dev,int chan,int n)
 
 	if(n==0)
 		n = devpriv->dma_maxsize;
-	if (n >= devpriv->ntrig*2)
+	if (n > devpriv->ntrig*2)
 		n = devpriv->ntrig*2;
 	devpriv->ntrig -= n/2;
 
-	devpriv->dma[chan].size = n;
-	dma_chan = devpriv->dma[chan].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[chan].buf);
+	devpriv->dma[dma_index].size = n;
+	dma_chan = devpriv->dma[dma_index].chan;
+	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
 
 	set_dma_mode(dma_chan, DMA_MODE_READ);
 	flags=claim_dma_lock();
@@ -528,15 +555,15 @@ static int prep_ai_dma(comedi_device * dev,int chan,int n)
 	return n;
 }
 
-static int prep_ao_dma(comedi_device * dev,int chan,int n)
+static int prep_ao_dma(comedi_device * dev,int dma_index,int n)
 {
 	int dma_chan;
 	unsigned long dma_ptr;
 	unsigned long flags;
 
-	devpriv->dma[chan].size = n;
-	dma_chan = devpriv->dma[chan].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[chan].buf);
+	devpriv->dma[dma_index].size = n;
+	dma_chan = devpriv->dma[dma_index].chan;
+	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
 
 	set_dma_mode(dma_chan, DMA_MODE_WRITE);
 	flags=claim_dma_lock();
@@ -558,9 +585,9 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned int supcsr, adcsr, dacsr;
 	int handled = 0;
 
-	adcsr=inw(dev->iobase + DT2821_ADCSR);
+	adcsr = inw(dev->iobase + DT2821_ADCSR);
+	dacsr = inw(dev->iobase + DT2821_DACSR);
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
-	/*printk("supcsr=%02x\n",supcsr);*/
 	if (supcsr & DT2821_DMAD) {
 		if(devpriv->dma_dir==DMA_MODE_READ)
 			dt282x_ai_dma_interrupt(dev);
@@ -577,7 +604,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 		}
 		handled = 1;
 	}
-	if ((dacsr = inw(dev->iobase + DT2821_DACSR)) & DT2821_DAERR) {
+	if (dacsr & DT2821_DAERR) {
 #if 0
 		static int warn = 5;
 		if(--warn<=0){
@@ -616,6 +643,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 #endif
 	comedi_event(dev, s, s->async->events);
+	/* printk("adcsr=0x%02x dacsr-0x%02x supcsr=0x%02x\n", adcsr, dacsr, supcsr); */
 	return IRQ_RETVAL(handled);
 }
 
@@ -646,6 +674,7 @@ static int dt282x_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 {
 	int i;
 
+	/* XXX should we really be enabling the ad clock here? */
 	devpriv->adcsr = DT2821_ADCLK;
 	update_adcsr(0);
 
@@ -777,6 +806,8 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd=&s->async->cmd;
 	int timer;
 
+	if(cmd->convert_arg < this_board->ai_speed )
+		cmd->convert_arg = this_board->ai_speed;
 	timer=dt282x_ns_to_timer(&cmd->convert_arg,TRIG_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
 
@@ -788,13 +819,12 @@ static int dt282x_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0 | DT2821_DS1;
 	}
 	update_supcsr(DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_ADCINIT);
-	devpriv->adcsr = 0;
 
 	devpriv->ntrig=cmd->stop_arg*cmd->scan_end_arg;
 	devpriv->nread=devpriv->ntrig;
 
 	devpriv->dma_dir=DMA_MODE_READ;
-	devpriv->current_dma_chan=0;
+	devpriv->current_dma_index=0;
 	prep_ai_dma(dev,0,0);
 	if(devpriv->ntrig){
 		prep_ai_dma(dev,1,0);
@@ -1041,7 +1071,7 @@ static int dt282x_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->nread=devpriv->ntrig;
 
 	devpriv->dma_dir=DMA_MODE_WRITE;
-	devpriv->current_dma_chan=0;
+	devpriv->current_dma_index=0;
 
 	timer=dt282x_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
 	outw(timer, dev->iobase + DT2821_TMRCTR);
