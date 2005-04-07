@@ -34,7 +34,6 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/irq.h>
 #include <asm/io.h>
 
 #include "rt_pend_tq.h"
