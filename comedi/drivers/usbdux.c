@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v1.00pre10"
+#define DRIVER_VERSION "v1.00pre11"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 04 Jan 2005
+Updated: 13 Apr 2005
 Status: Stable
 Configuration options:
   You have to upload firmware with the -i option. The
@@ -2541,9 +2541,9 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 
 	// trying to upload the firmware into the chip
 	if(comedi_aux_data(it->options, 0) && 
-	   it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
-		read_firmware(usbduxsub,
-			comedi_aux_data(it->options, 0),
+	        it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
+	        read_firmware(usbduxsub+index,
+			      comedi_aux_data(it->options, 0),
 			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	} 
 
