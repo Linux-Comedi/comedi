@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.92"
+#define DRIVER_VERSION "v0.93"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 07 Feb 2005
+Updated: 17 Apr 2005
 Status: testing
 */
 
@@ -1716,8 +1716,8 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	s->do_cmdtest=usbduxfast_ai_cmdtest;
 	s->do_cmd=usbduxfast_ai_cmd;
 	s->cancel=usbduxfast_ai_cancel;
-	// max value from the A/D converter (12bit)
-	s->maxdata=0xfff;
+	// max value from the A/D converter (12bit+1 bit for overflow)
+	s->maxdata=0x1000;
 	// range table to convert to physical units
 	s->range_table = &range_usbduxfast_ai_range;
 
