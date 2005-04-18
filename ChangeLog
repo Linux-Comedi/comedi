@@ -1,3 +1,8 @@
+2005-04-17  Frank Hess  <fmhess@users.sourceforge.net>
+
+	* comedi/kcomedilib/get.c: Added comedi_mark_buffer_written() to
+	kcomedilib.
+
 2005-04-07  David Schleef  <ds@schleef.org>
 
 	* ChangeLog-0.7: Move ChangeLog to ChangeLog-0.7, and start

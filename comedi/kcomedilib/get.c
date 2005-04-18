@@ -232,6 +232,24 @@ int comedi_mark_buffer_read( comedi_t *d, unsigned int subdevice,
 	return 0;
 }
 
+int comedi_mark_buffer_written( comedi_t *d, unsigned int subdevice,
+	unsigned int num_bytes )
+{
+	comedi_device *dev = (comedi_device *)d;
+	comedi_subdevice *s = dev->subdevices + subdevice;
+	comedi_async *async;
+	int bytes_written;
+	
+	if( subdevice >= dev->n_subdevices ) return -1;
+	async = s->async;
+	if( async == NULL ) return -1;
+	bytes_written = comedi_buf_write_alloc(async, num_bytes);
+	comedi_buf_munge(dev, s, async->buf_write_alloc_count - async->munge_count);
+	comedi_buf_write_free(async, bytes_written);
+	if(bytes_written != num_bytes) return -1;
+	return 0;
+}
+
 
 int comedi_get_buffer_size(comedi_t *d,unsigned int subdev)
 {
