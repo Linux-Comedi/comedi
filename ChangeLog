@@ -1,3 +1,16 @@
+2005-04-20  David Schleef  <ds@schleef.org>
+
+	Remove the debian directory, since it's not maintained here.
+	* debian/changelog:
+	* debian/comedi-modules.control:
+	* debian/comedi-modules.postinst:
+	* debian/comedi-modules.prerm:
+	* debian/comedi-source.postinst:
+	* debian/comedi-source.prerm:
+	* debian/control:
+	* debian/copyright:
+	* debian/rules:
+
 2005-04-17  Frank Hess  <fmhess@users.sourceforge.net>
 
 	* comedi/kcomedilib/get.c: Added comedi_mark_buffer_written() to
