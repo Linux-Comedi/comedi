@@ -731,7 +731,10 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	if(irq>0){
 		if((ret=comedi_request_irq(irq,atmio16d_interrupt,
 			0, "atmio16d", dev))<0)
+		{
+			printk("failed to allocate irq %d\n", irq); 
 			return ret;
+		}
 		dev->irq=irq;
 		printk("( irq = %d )\n",irq);
 	} else if(irq == 0){
