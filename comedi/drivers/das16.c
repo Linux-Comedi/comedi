@@ -1171,6 +1171,41 @@ static void das16_timer_interrupt(unsigned long arg)
 		mod_timer(&devpriv->timer, jiffies + timer_period());
 }
 
+/* the pc104-das16jr (at least) has problems if the dma
+	transfer is interrupted in the middle of transferring
+	a 16 bit sample, so this function takes care to get
+	an even transfer count after disabling dma
+	channel.
+*/
+static int disable_dma_on_even(comedi_device *dev)
+{
+	int residue;
+	int i;
+	static const int disable_limit = 100;
+	static const int enable_timeout = 100;
+	disable_dma(devpriv->dma_chan);
+	residue = get_dma_residue(devpriv->dma_chan);
+	for(i = 0; i < disable_limit && (residue % 2); ++i)
+	{
+		int j;
+		enable_dma(devpriv->dma_chan);
+		for(j = 0; j < enable_timeout; ++j)
+		{
+			int new_residue;
+			comedi_udelay(2);
+			new_residue = get_dma_residue(devpriv->dma_chan);
+			if(new_residue != residue) break;
+		}
+		disable_dma(devpriv->dma_chan);
+		residue = get_dma_residue(devpriv->dma_chan);
+	}
+	if(i == disable_limit)
+	{
+		comedi_error(dev, "failed to get an even dma transfer, could be trouble.");
+	}
+	return residue;
+}
+
 static void das16_interrupt( comedi_device *dev )
 {
 	unsigned long dma_flags, spin_flags;
@@ -1204,17 +1239,10 @@ static void das16_interrupt( comedi_device *dev )
 	}
 
 	dma_flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma_chan);
+	residue = disable_dma_on_even(dev);
 
 	// figure out how many points to read
-
-	/* residue is the number of bytes left to be done on the dma
-	 * transfer.
-	 */
-	residue = get_dma_residue(devpriv->dma_chan);
 	if(residue > devpriv->dma_transfer_size)
 	{
 		comedi_error(dev, "residue > transfer size!\n");
