@@ -24,10 +24,8 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,3) && !defined(tlb_vma)
 #define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(b,c,d,e)
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11) && !defined(tlb_vma)
-#define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(a,b,c,d,e)
 #else
-#define REMAP_PAGE_RANGE(a,b,c,d,e) remap_pfn_range(a,b,c,d,e)
+#define REMAP_PAGE_RANGE(a,b,c,d,e) remap_page_range(a,b,c,d,e)
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
