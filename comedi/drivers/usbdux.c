@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v1.00pre11"
+#define DRIVER_VERSION "v1.00pre12"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbdux.c
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 13 Apr 2005
+Updated: 23 May 2005
 Status: Stable
 Configuration options:
   You have to upload firmware with the -i option. The
@@ -80,13 +80,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 
 // generates loads of debug info
 // #define NOISY_DUX_DEBUGBUG
-
-// generates moderate amount of debug info
-#define CONFIG_COMEDI_DEBUG
-
-// uncomment this if you don't want to have debug infos from CVS versions
-#undef CONFIG_COMEDI_DEBUG
-
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -299,7 +292,10 @@ static DECLARE_MUTEX (start_stop_sem);
 // Stops the data acquision
 // It should be safe to call this function from any context
 static int usbduxsub_unlink_InURBs(usbduxsub_t* usbduxsub_tmp) {
-	int i,j=0;
+	int i=0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+	int j=0;
+#endif
 	int err=0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbIn) {
@@ -316,10 +312,9 @@ static int usbduxsub_unlink_InURBs(usbduxsub_t* usbduxsub_tmp) {
                                 usb_kill_urb(usbduxsub_tmp->urbIn[i]);
 #endif
 			}
-#ifdef CONFIG_COMEDI_DEBUG
-			printk("comedi: usbdux: unlinked InURB %d: res=%d\n",
-			       i,
-			       j);
+#ifdef NOISY_DUX_DEBUGBUG
+			printk("comedi: usbdux: unlinked InURB %d, err=%d\n",
+			       i,err);
 #endif
 		}
 	}
@@ -341,7 +336,7 @@ static int usbdux_ai_stop(usbduxsub_t* this_usbduxsub,
 		return -EFAULT;
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi: usbdux_ai_stop\n");
 #endif
 
@@ -367,7 +362,7 @@ static int usbdux_ai_cancel(comedi_device *dev,
 	int res=0;
 
 	// force unlink of all urbs
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi: usbdux_ai_cancel\n");
 #endif
 	this_usbduxsub=dev->private;
@@ -565,7 +560,11 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb, struct pt_regs *regs)
 
 
 static int usbduxsub_unlink_OutURBs(usbduxsub_t* usbduxsub_tmp) {
-	int i,j=0;
+	int i=0;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+	int j=0;
+#endif
+
 	int err=0;
 
 	if (usbduxsub_tmp && usbduxsub_tmp->urbOut) {
@@ -580,8 +579,9 @@ static int usbduxsub_unlink_OutURBs(usbduxsub_t* usbduxsub_tmp) {
                                 usb_kill_urb(usbduxsub_tmp->urbOut[i]);
 #endif
 			}
-#ifdef CONFIG_COMEDI_DEBUG
-			printk("comedi: usbdux: unlinked OutURB %d: res=%d\n",i,j);
+#ifdef NOISY_DUX_DEBUGBUG
+			printk("comedi: usbdux: unlinked OutURB %d: res=%d\n",
+			       i,err);
 #endif
 		}
 	}
@@ -600,13 +600,13 @@ static int usbdux_ao_stop(usbduxsub_t* this_usbduxsub,
 	int ret=0;
 
 	if (!this_usbduxsub) {
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi?: usbdux_ao_stop: this_usbduxsub=NULL!\n");
 #endif
 		return -EFAULT;
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi: usbdux_ao_cancel\n");
 #endif
 	if (do_unlink) {
@@ -927,7 +927,7 @@ static int usbduxsub_upload(usbduxsub_t* usbduxsub,
 			 // timeout
 			 EZTIMEOUT
 			 );
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi_: usbdux: result=%d\n",errcode);
 #endif
 		if (errcode<0) {
@@ -993,7 +993,7 @@ int usbduxsub_submit_InURBs(usbduxsub_t* usbduxsub) {
 		usbduxsub->urbIn[i]->dev = usbduxsub->usbdev;
 		usbduxsub->urbIn[i]->status = 0;
 		usbduxsub->urbIn[i]->transfer_flags = URB_ISO_ASAP;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi%d: usbdux: submitting in-urb[%d]: %p,%p intv=%d\n",
 		       usbduxsub->comedidev->minor,
 		       i,
@@ -1023,7 +1023,7 @@ int usbduxsub_submit_OutURBs(usbduxsub_t* usbduxsub) {
 		return -EFAULT;
 	}
 	for (i=0; i < usbduxsub->numOfOutBuffers; i++) {
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi_: usbdux: submitting out-urb[%d]\n",i);
 #endif
 		// in case of a resubmission after an unlink...
@@ -1057,7 +1057,7 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi%d: usbdux_ai_cmdtest\n",dev->minor);
 #endif
 	/* make sure triggers are valid */
@@ -1269,7 +1269,7 @@ static int usbdux_ai_inttrig(comedi_device *dev,
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi%d: usbdux_ai_inttrig\n",dev->minor);
 #endif
 
@@ -1313,7 +1313,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	usbduxsub_t* this_usbduxsub=dev->private;
 	int result;
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi%d: usbdux_ai_cmd\n",dev->minor);
 #endif
 	if (!this_usbduxsub) {
@@ -1349,7 +1349,7 @@ static int usbdux_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	}
 
 
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi %d: sending commands to the usb device: ",
 	       dev->minor);
 	printk("size=%u\n",
@@ -1627,7 +1627,7 @@ static int usbdux_ao_cmdtest(comedi_device *dev,
 	if (!(this_usbduxsub->probed)) {
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi%d: usbdux_ao_cmdtest\n",dev->minor);
 #endif
 	/* make sure triggers are valid */
@@ -1735,7 +1735,7 @@ static int usbdux_ao_cmdtest(comedi_device *dev,
 		}
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG 
+#ifdef NOISY_DUX_DEBUGBUG 
 	printk("comedi%d: err=%d, scan_begin_src=%d, scan_begin_arg=%d, convert_src=%d, convert_arg=%d\n", 
 	       dev->minor, 
 	       err,
@@ -1768,7 +1768,7 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 		up(&this_usbduxsub->sem);
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 	printk("comedi%d: usbdux_ao_cmd\n",dev->minor);
 #endif
 
@@ -1782,7 +1782,7 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 			break;
 		}
 		this_usbduxsub->dac_commands[i]=(chan<<6);
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
 		printk("comedi%d: dac command for ch %d is %x\n",
 		       dev->minor,
 		       i,
@@ -1801,7 +1801,7 @@ static int usbdux_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 		// 1ms
 		// timing of the scan: we get all channels at once
 		this_usbduxsub->ao_timer = cmd->scan_begin_arg/1000000;
-#ifdef CONFIG_COMEDI_DEBUG
+#ifdef NOISY_DUX_DEBUGBUG
                 printk("comedi%d: usbdux: scan_begin_src=%d, scan_begin_arg=%d, convert_src=%d, convert_arg=%d\n",
                        dev->minor,
 		       cmd->scan_begin_src,
@@ -2464,7 +2464,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	// we've reached the bottom of the function
 	usbduxsub[index].probed=1;
 	up(&start_stop_sem);	
-	printk("comedi_: usbdux%d has been successfully initialized.\n",index);
+	printk("comedi_: usbdux%d has been successfully initialised.\n",index);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 	return (void*)(&usbduxsub[index]);
 #else
@@ -2647,7 +2647,7 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 
 	up(&start_stop_sem);
 
-	printk("comedi%d: successfully attached to usbdux.\n",
+	printk("comedi%d: attached to usbdux.\n",
 	       dev->minor);
 
 	return 0;
