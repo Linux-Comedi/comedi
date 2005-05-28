@@ -66,7 +66,7 @@ Status: testing
 #define BOARDNAME "usbduxfast"
 
 // timeout for the USB-transfer
-#define EZTIMEOUT 3
+#define EZTIMEOUT 30
 
 // constants for "firmware" upload and download
 #define USBDUXFASTSUB_FIRMWARE 0xA0
@@ -208,13 +208,13 @@ static int send_dux_commands(usbduxfastsub_t* this_usbduxfastsub,int cmd_type) {
 	}
 	printk("\n");
 #endif
-	result = usb_bulk_msg(this_usbduxfastsub->usbdev,
+	result = USB_BULK_MSG(this_usbduxfastsub->usbdev,
 			      usb_sndbulkpipe(this_usbduxfastsub->usbdev,
 					      CHANNELLISTEP),
 			      this_usbduxfastsub->dux_commands,
 			      SIZEOFDUXBUFFER,
 			      &nsent, 
-			      10*HZ);
+			      10000);
 	if (result<0) {
 		printk("comedi%d: could not transmit dux_commands to the usb-device, err=%d\n",
 		       this_usbduxfastsub->comedidev->minor,result);
@@ -466,7 +466,7 @@ static int usbduxfastsub_start(usbduxfastsub_t* usbduxfastsub) {
 	if (usbduxfastsub->probed) {
 		// 7f92 to zero
 		local_transfer_buffer[0]=0; 
-		errcode=usb_control_msg
+		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 // create a pipe for a control transfer
 			 usb_sndctrlpipe(usbduxfastsub->usbdev,0),
@@ -503,7 +503,7 @@ static int usbduxfastsub_stop(usbduxfastsub_t* usbduxfastsub) {
 	if (usbduxfastsub->probed) {
 		// 7f92 to one
 		local_transfer_buffer[0]=1; 
-		errcode=usb_control_msg
+		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 usb_sndctrlpipe(usbduxfastsub->usbdev,0),
 			 // bRequest, "Firmware"
@@ -546,7 +546,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t* usbduxfastsub,
 		       startAddr,
 		       local_transfer_buffer[0]);
 #endif
-		errcode=usb_control_msg
+		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 			 // brequest, firmware
@@ -1267,12 +1267,12 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	       (int)(usbduxfastsub->urbIn->dev));
 #endif
 	for(i=0;i<PACKETS_TO_IGNORE;i++) {
-		err=usb_bulk_msg(usbduxfastsub->usbdev, 
+		err=USB_BULK_MSG(usbduxfastsub->usbdev, 
 				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
 				 usbduxfastsub->transfer_buffer,
 				 SIZEINBUF,
 				 &actual_length,
-				 10*HZ);
+				 10000);
 		if (err<0) {
 			printk("comedi%d: insn timeout. No data.\n",
 			       dev->minor);
@@ -1282,12 +1282,12 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	}
 	// data points
 	for(i=0;i<insn->n;) {
-		err=usb_bulk_msg(usbduxfastsub->usbdev, 
+		err=USB_BULK_MSG(usbduxfastsub->usbdev, 
 				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
 				 usbduxfastsub->transfer_buffer,
 				 SIZEINBUF,
 				 &actual_length,
-				 10*HZ);
+				 10000);
 		if (err<0) {
 			printk("comedi%d: insn data error: %d\n",
 			       dev->minor,err);
