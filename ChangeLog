@@ -1,3 +1,9 @@
+2005-05-28  Frank Hess,,,  <fmhess@users.sourceforge.net>
+
+	* include/linux/delay.h: Added msleep_interruptible() 
+	* include/linux/time.h:i Added msecs_to_jiffies() and jiffies_to_msecs()
+	* include/linux/usb.h: Added USB_CONTROL_MSG() and USB_BULK_MSG()
+
 2005-04-20  David Schleef  <ds@schleef.org>
 
 	Remove the debian directory, since it's not maintained here.
