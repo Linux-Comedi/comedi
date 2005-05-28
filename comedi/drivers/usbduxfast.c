@@ -234,7 +234,7 @@ static int usbduxfastsub_unlink_InURBs(usbduxfastsub_t* usbduxfastsub_tmp) {
 
 	if (usbduxfastsub_tmp && usbduxfastsub_tmp->urbIn) {
 		usbduxfastsub_tmp->ai_cmd_running=0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 		j=usb_unlink_urb(usbduxfastsub_tmp->urbIn);
 		if (j<0) {
 			err=j;
@@ -1448,7 +1448,7 @@ static void tidy_up(usbduxfastsub_t* usbduxfastsub_tmp) {
 	usbduxfastsub_tmp->probed=0;
 
 	if (usbduxfastsub_tmp->urbIn) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 		// waits until a running transfer is over
 		// thus, under 2.4 hotplugging while a command
 		// is running is not safe
