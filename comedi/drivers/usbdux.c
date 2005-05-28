@@ -293,7 +293,7 @@ static DECLARE_MUTEX (start_stop_sem);
 // It should be safe to call this function from any context
 static int usbduxsub_unlink_InURBs(usbduxsub_t* usbduxsub_tmp) {
 	int i=0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 	int j=0;
 #endif
 	int err=0;
@@ -301,7 +301,7 @@ static int usbduxsub_unlink_InURBs(usbduxsub_t* usbduxsub_tmp) {
 	if (usbduxsub_tmp && usbduxsub_tmp->urbIn) {
 		for (i=0; i < usbduxsub_tmp->numOfInBuffers; i++) {
 			if (usbduxsub_tmp->urbIn[i]) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 				j=usb_unlink_urb(usbduxsub_tmp->urbIn[i]);
                                 if (j<0) {
                                         err=j;
@@ -561,7 +561,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb, struct pt_regs *regs)
 
 static int usbduxsub_unlink_OutURBs(usbduxsub_t* usbduxsub_tmp) {
 	int i=0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 	int j=0;
 #endif
 
@@ -570,7 +570,7 @@ static int usbduxsub_unlink_OutURBs(usbduxsub_t* usbduxsub_tmp) {
 	if (usbduxsub_tmp && usbduxsub_tmp->urbOut) {
 		for (i=0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
 			if (usbduxsub_tmp->urbOut[i]) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 				j=usb_unlink_urb(usbduxsub_tmp->urbOut[i]);
                                 if (j<err) {
                                         err=j;
@@ -1052,6 +1052,7 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 			     comedi_cmd *cmd)
 {
 	int err=0,tmp,i;
+	unsigned int tmpTimer;	
 	usbduxsub_t* this_usbduxsub=dev->private;
 	if (!(this_usbduxsub->probed)) {
 		return -ENODEV;
@@ -1130,10 +1131,22 @@ static int usbdux_ai_cmdtest(comedi_device *dev,
 				cmd->scan_begin_arg=1000000/8*i;
 				err++;
 			}
+			// now calc the real sampling rate with all the rounding errors
+			tmpTimer = ((unsigned int)(cmd->scan_begin_arg/125000))*125000;
+			if (cmd->scan_begin_arg != tmpTimer) {
+				cmd->scan_begin_arg = tmpTimer;
+				err++;
+			}
 		} else { // full speed
 			// 1kHz scans every USB frame
 			if(cmd->scan_begin_arg<1000000){
 				cmd->scan_begin_arg=1000000;
+				err++;
+			}
+			// calc the real sampling rate with the rounding errors
+			tmpTimer = ((unsigned int)(cmd->scan_begin_arg/1000000))*1000000;
+			if (cmd->scan_begin_arg != tmpTimer) {
+				cmd->scan_begin_arg = tmpTimer;
 				err++;
 			}
 		}
@@ -2056,6 +2069,9 @@ static void tidy_up(usbduxsub_t* usbduxsub_tmp) {
 				usbduxsub_tmp->urbIn[i]->transfer_buffer=NULL;
 			}
 			if (usbduxsub_tmp->urbIn[i]) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
+				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
+#endif
 				usb_free_urb (usbduxsub_tmp->urbIn[i]);
 				usbduxsub_tmp->urbIn[i]=NULL;
 			}
@@ -2074,6 +2090,9 @@ static void tidy_up(usbduxsub_t* usbduxsub_tmp) {
 				usbduxsub_tmp->urbOut[i]->transfer_buffer=NULL;
 			}
 			if (usbduxsub_tmp->urbOut[i]) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
+				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
+#endif
 				usb_free_urb (usbduxsub_tmp->urbOut[i]);
 				usbduxsub_tmp->urbOut[i]=NULL;
 			}
