@@ -290,11 +290,10 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 
 	iobase=it->options[0];
 	printk("comedi%d: parport: 0x%04x ",dev->minor,iobase);
-	if(check_region(iobase,PARPORT_SIZE)<0){
+	if(!request_region(iobase,PARPORT_SIZE,"parport (comedi)")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,PARPORT_SIZE,"parport (comedi)");
 	dev->iobase=iobase;
 
 	irq=it->options[1];

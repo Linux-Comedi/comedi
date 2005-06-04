@@ -385,13 +385,11 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 		iobase=it->options[i];
 
 		printk(" 0x%04x",iobase);
-		if(check_region(iobase,_8255_SIZE)<0){
+		if(!request_region(iobase,_8255_SIZE,"8255")){
 			printk(" (I/O port conflict)");
 
 			dev->subdevices[i].type=COMEDI_SUBD_UNUSED;
 		}else{
-			request_region(iobase,_8255_SIZE,"8255");
-
 			subdev_8255_init(dev,dev->subdevices+i,NULL,iobase);
 		}
 	}

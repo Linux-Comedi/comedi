@@ -141,11 +141,10 @@ static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
 
   iobase = it->options[0];
   printk("comedi:%d fl512: 0x%04x",dev->minor,iobase);
-  if (check_region(iobase, FL512_SIZE) < 0) {
+  if (!request_region(iobase, FL512_SIZE, "fl512")) {
     printk(" I/O port conflict\n");
     return -EIO;
   }
-  request_region(iobase, FL512_SIZE, "fl512");
   dev->iobase = iobase;
   dev->board_name = "fl512";
   if(alloc_private(dev,sizeof(fl512_private)) < 0)

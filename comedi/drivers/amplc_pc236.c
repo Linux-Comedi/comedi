@@ -366,11 +366,10 @@ static int pc236_detach(comedi_device *dev)
  */
 static int pc236_request_region(unsigned long from, unsigned long extent)
 {
-	if (check_region(from, extent) < 0) {
+	if (!request_region(from, extent, PC236_DRIVER_NAME)) {
 		printk("I/O port conflict (%#lx,%lu)!\n", from, extent);
 		return -EIO;
 	}
-	request_region(from, extent, PC236_DRIVER_NAME);
 	return 0;
 }
 

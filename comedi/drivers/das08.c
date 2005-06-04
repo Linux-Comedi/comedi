@@ -819,11 +819,10 @@ int das08_common_attach(comedi_device *dev, unsigned long iobase )
 	if(thisboard->bustype != pcmcia)
 	{
 		printk(" iobase 0x%lx\n", iobase);
-		if(check_region(iobase, thisboard->iosize)<0){
+		if(!request_region(iobase, thisboard->iosize,"das08")){
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
-		request_region(iobase, thisboard->iosize,"das08");
 	}
 	dev->iobase = iobase;
 
@@ -969,11 +968,10 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		iobase = pci_resource_start(pdev, 2);
 		printk("pcibase 0x%lx ", pci_iobase);
 		// reserve io ports for 9052 pci chip
-		if(check_region(pci_iobase,PCIDAS08_SIZE)<0){
+		if(!request_region(pci_iobase,PCIDAS08_SIZE,"das08")){
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
-		request_region(pci_iobase,PCIDAS08_SIZE,"das08");
 		devpriv->pci_iobase = pci_iobase;
 #if 0
 /* We could enable to pci-das08's interrupt here to make it possible

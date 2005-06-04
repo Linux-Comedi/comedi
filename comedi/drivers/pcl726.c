@@ -245,12 +245,11 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
         iobase=it->options[0];
         iorange=this_board->io_range;
 	printk("comedi%d: pcl726: board=%s, 0x%03x ",dev->minor,this_board->name,iobase);
-	if(check_region(iobase,iorange)<0){
+	if(!request_region(iobase, iorange, "pcl726")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 	
-        request_region(iobase, iorange, "pcl726");
         dev->iobase=iobase;
     
 	dev->board_name = this_board->name;

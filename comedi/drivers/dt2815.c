@@ -182,11 +182,10 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 
   iobase = it->options[0];
   printk("comedi%d: dt2815: 0x%04x ", dev->minor, iobase);
-  if (check_region(iobase, DT2815_SIZE) < 0) {
+  if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
     printk("I/O port conflict\n");
     return -EIO;
   }
-  request_region(iobase, DT2815_SIZE, "dt2815");
 
   dev->iobase = iobase;
   dev->board_name = "dt2815";

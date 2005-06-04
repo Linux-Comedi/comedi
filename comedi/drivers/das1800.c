@@ -617,13 +617,12 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	/* check if io addresses are available */
-	if(check_region(iobase, DAS1800_SIZE) < 0)
+	if(!request_region(iobase, DAS1800_SIZE, driver_das1800.driver_name))
 	{
 		printk(" I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
 			iobase, iobase + DAS1800_SIZE - 1);
 		return -EIO;
 	}
-	request_region(iobase, DAS1800_SIZE, driver_das1800.driver_name);
 	dev->iobase = iobase;
 
 	board = das1800_probe(dev);
@@ -640,13 +639,12 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	if(thisboard->ao_ability == 2)
 	{
 		iobase2 = iobase + IOBASE2;
-		if(check_region(iobase2, DAS1800_SIZE) < 0)
+		if(!request_region(iobase2, DAS1800_SIZE, driver_das1800.driver_name))
 		{
 			printk(" I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
 				iobase2, iobase2 + DAS1800_SIZE - 1);
 			return -EIO;
 		}
-		request_region(iobase2, DAS1800_SIZE, driver_das1800.driver_name);
 		devpriv->iobase2 = iobase2;
 	}
 

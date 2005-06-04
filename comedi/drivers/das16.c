@@ -1421,7 +1421,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 
 	if(thisboard->size<0x400){
 		printk(" 0x%04x-0x%04x\n", iobase, iobase+thisboard->size);
-		if(check_region(iobase,thisboard->size)<0){
+		if(!request_region(iobase,thisboard->size,"das16")){
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
@@ -1429,24 +1429,18 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		printk(" 0x%04x-0x%04x 0x%04x-0x%04x\n",
 			   iobase,iobase+0x0f,
 			   iobase+0x400,iobase+0x400+(thisboard->size&0x3ff));
-		if(check_region(iobase,0x10) < 0) {
+		if(!request_region(iobase,0x10,"das16")){
 			printk(" I/O port conflict:  0x%04x-0x%04x\n",
 				   iobase,iobase+0x0f);
 			return -EIO;
 		}
-		if(check_region(iobase+0x400,thisboard->size&0x3ff)<0){
+		if(!request_region(iobase+0x400,thisboard->size&0x3ff,"das16")){
+			release_region(iobase, 0x10);
 			printk(" I/O port conflict:  0x%04x-0x%04x\n",
 				   iobase+0x400,
 				   iobase+0x400+(thisboard->size&0x3ff));
 			return -EIO;
 		}
-	}
-
-	if(thisboard->size < 0x400){
-		request_region(iobase,thisboard->size,"das16");
-	}else{
-		request_region(iobase,0x10,"das16");
-		request_region(iobase+0x400,thisboard->size&0x3ff,"das16");
 	}
 
 	dev->iobase = iobase;

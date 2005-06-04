@@ -1024,12 +1024,11 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
   printk("comedi%d: pcl816:  board=%s, ioport=0x%03x", dev->minor,
 		this_board->name, iobase);
 		 
-  if (check_region (iobase, this_board->io_range) < 0) {
+  if (!request_region (iobase, this_board->io_range, "pcl816")) {
       rt_printk ("I/O port conflict\n");
       return -EIO;
   }
 
-  request_region (iobase, this_board->io_range, "pcl816");
   dev->iobase = iobase;
 
   if (pcl816_check (iobase)) {
@@ -1084,9 +1083,8 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
     {				// we want to use DMA
       if (RTC_lock == 0)
 	{
-	  if (check_region (RTC_PORT (0), RTC_IO_EXTENT) < 0)
+	  if (!request_region (RTC_PORT (0), RTC_IO_EXTENT, "pcl816 (RTC)"))
 	    goto no_rtc;
-	  request_region (RTC_PORT (0), RTC_IO_EXTENT, "pcl816 (RTC)");
 	}
       devpriv->rtc_iobase = RTC_PORT (0);
       devpriv->rtc_iosize = RTC_IO_EXTENT;

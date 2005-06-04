@@ -241,11 +241,10 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 
 	iobase=it->options[0];
 	printk("comedi%d: dt2814: 0x%04lx ",dev->minor,dev->iobase);
-	if(check_region(iobase,DT2814_SIZE)<0){
+	if(!request_region(iobase,DT2814_SIZE,"dt2814")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,DT2814_SIZE,"dt2814");
 	dev->iobase=iobase;
 	dev->board_name = "dt2814";
 

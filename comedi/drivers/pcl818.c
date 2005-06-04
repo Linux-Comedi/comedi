@@ -1597,12 +1597,11 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->io_range=PCLx1xFIFO_RANGE;
 		devpriv->usefifo = 1;
 	}
-	if (check_region(iobase, this_board->io_range) < 0) {
+	if (!request_region(iobase, devpriv->io_range, "pcl818")) {
 		rt_printk("I/O port conflict\n");
 		return -EIO;
 	}
 
-	request_region(iobase, devpriv->io_range, "pcl818");
 	dev->iobase=iobase;
 
 	if (pcl818_check(iobase)) {
@@ -1642,8 +1641,8 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
         devpriv->dma_rtc=0;
         if (it->options[2]>0) { // we want to use DMA
 		if (RTC_lock==0) {
-			if (check_region(RTC_PORT(0), RTC_IO_EXTENT) < 0) goto no_rtc;
-			request_region(RTC_PORT(0), RTC_IO_EXTENT, "pcl818 (RTC)");
+			if (!request_region(RTC_PORT(0), RTC_IO_EXTENT, "pcl818 (RTC)"))
+				goto no_rtc;
 		} 
 		devpriv->rtc_iobase=RTC_PORT(0);
 		devpriv->rtc_iosize=RTC_IO_EXTENT;

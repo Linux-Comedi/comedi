@@ -103,26 +103,26 @@ static inline int pci_request_regions(struct pci_dev *dev, char *name)
 		if(dev->base_address[i])
 		{
 			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
-				retval = check_region(pci_resource_start(dev, i),
-					fake_length);
-			if( retval )
-				break;
+				if(!request_region(pci_resource_start(dev, i),
+					fake_length, name))
+				{
+					retval = -EBUSY;
+					break;
+				}
 		}
 	}
 
-	if(retval) return retval;
-
-	for(i = 0; i < max_num_base_addr; i++)
+	if(retval)
 	{
-		if(dev->base_address[i])
+		while(--i >= 0)
 		{
 			if(dev->base_address[i] & PCI_BASE_ADDRESS_SPACE_IO)
-				request_region(pci_resource_start(dev, i),
-					fake_length, name);
+				release_region(pci_resource_start(dev, i),
+					fake_length);
 		}
 	}
 
-	return 0;
+	return retval;
 }
 
 static inline void pci_release_regions(struct pci_dev *dev)

@@ -135,11 +135,10 @@ static int pcmad_attach(comedi_device *dev,comedi_devconfig *it)
 
 	iobase=it->options[0];
 	printk("comedi%d: pcmad: 0x%04x ",dev->minor,iobase);
-	if(check_region(iobase,PCMAD_SIZE)<0){
+	if(!request_region(iobase,PCMAD_SIZE,"pcmad")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,PCMAD_SIZE,"pcmad");
 	dev->iobase=iobase;
 
 	if((ret=alloc_subdevices(dev, 1))<0)

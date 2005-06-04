@@ -492,11 +492,10 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 	int n_ai_chans;
 
 	iobase=it->options[0];
-	if(check_region(iobase,DT2801_IOSIZE)<0){
+	if(!request_region(iobase, DT2801_IOSIZE, "dt2801")){
 		comedi_error(dev,"I/O port conflict");
 		return -EIO;
 	}
-	request_region(iobase, DT2801_IOSIZE, "dt2801");
 	dev->iobase=iobase;
 
 	/* do some checking */

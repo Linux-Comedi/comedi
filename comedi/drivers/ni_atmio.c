@@ -434,11 +434,10 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	/* reserve our I/O region */
 
 	printk("comedi%d: ni_atmio: 0x%04x",dev->minor,iobase);
-	if(check_region(iobase,NI_SIZE)<0){
+	if(!request_region(iobase,NI_SIZE,"ni_atmio")){
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,NI_SIZE,"ni_atmio");
 
 	dev->iobase=iobase;
 

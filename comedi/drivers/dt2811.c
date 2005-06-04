@@ -307,11 +307,10 @@ static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: dt2811: base=0x%04x\n", dev->minor, iobase);
 
-	if (check_region(iobase, DT2811_SIZE) < 0) {
+	if (!request_region(iobase, DT2811_SIZE, driver_name)) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, DT2811_SIZE, driver_name);
 
 	dev->iobase = iobase;
 	dev->board_name = this_board->name;

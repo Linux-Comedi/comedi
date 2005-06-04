@@ -494,12 +494,11 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	if(thisboard->bustype == isa_bustype)
 	{
 		/* check if io addresses are available */
-		if(check_region(iobase, LABPC_SIZE) < 0)
+		if(!request_region(iobase, LABPC_SIZE, driver_labpc.driver_name))
 		{
 			printk("I/O port conflict\n");
 			return -EIO;
 		}
-		request_region(iobase, LABPC_SIZE, driver_labpc.driver_name);
 	}
 	dev->iobase = iobase;
 

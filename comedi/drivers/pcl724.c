@@ -133,12 +133,11 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 		iorange=PCL722_96_SIZE;	// PCL-724 in 96 DIO configuration
 	printk("comedi%d: pcl724: board=%s, 0x%03x ",dev->minor,
 		this_board->name,iobase);
-	if(check_region(iobase,iorange)<0){
+	if(!request_region(iobase, iorange, "pcl724")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
-        request_region(iobase, iorange, "pcl724");
         dev->iobase=iobase;
 
 	dev->board_name = this_board->name;

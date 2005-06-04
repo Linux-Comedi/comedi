@@ -1218,11 +1218,10 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	if(!iobase)iobase = 0x240;
 
 	printk("comedi%d: dt282x: 0x%04x", dev->minor, iobase);
-	if (check_region(iobase, DT2821_SIZE) < 0) {
+	if (!request_region(iobase, DT2821_SIZE, "dt282x")) {
 		printk(" I/O port conflict\n");
 		return -EBUSY;
 	}
-	request_region(iobase, DT2821_SIZE, "dt282x");
 	dev->iobase = iobase;
 
 	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);

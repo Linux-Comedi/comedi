@@ -1255,13 +1255,12 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",pci_bus,pci_slot,pci_func,iobase);
 
-        if (check_region(iobase, this_board->iorange) < 0) {
+	if (!request_region(iobase, this_board->iorange, "Advantech PCI-1710")) {
 		pci_card_free(card);
 		rt_printk("I/O port conflict\n");
 		return -EIO;
         }
 
-        request_region(iobase, this_board->iorange, "Advantech PCI-1710");
         dev->iobase=iobase;
 
 	dev->board_name = this_board->name;

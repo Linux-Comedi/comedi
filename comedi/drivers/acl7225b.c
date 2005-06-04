@@ -90,13 +90,11 @@ static int acl7225b_attach(comedi_device *dev,comedi_devconfig *it)
 	iorange=this_board->io_range;
 	printk("comedi%d: acl7225b: board=%s 0x%04x ", dev->minor,
            this_board->name, iobase);
-	if( check_region(iobase, iorange) < 0 )
-    {
+	if( !request_region(iobase, iorange, "acl7225b") ) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, iorange, "acl7225b");
-    dev->board_name=this_board->name;
+	dev->board_name=this_board->name;
 	dev->iobase=iobase;
 	dev->irq=0;
 

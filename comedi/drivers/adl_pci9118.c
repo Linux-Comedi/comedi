@@ -1706,16 +1706,10 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, 0x%4x",pci_bus,pci_slot,pci_func,iobase_9,iobase_a);
 	
-        if (check_region(iobase_9, this_board->iorange_9118) < 0) {
+	if (!request_region(iobase_9, this_board->iorange_9118, "ADLink PCI-9118")) {
 		rt_printk("I/O port conflict\n");
 		return -EIO;
         }
-        if (check_region(iobase_a, this_board->iorange_amcc) < 0) {
-		rt_printk("I/O port conflict\n");
-		return -EIO;
-        }
-
-        request_region(iobase_9, this_board->iorange_9118, "ADLink PCI-9118");
 
         dev->iobase=iobase_9;
 	dev->board_name = this_board->name;
@@ -1726,7 +1720,10 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	devpriv->amcc=card;
 	devpriv->pcidev=card->pcidev;
-        request_region(iobase_a, this_board->iorange_amcc, "ADLink PCI-9118");
+	if (!request_region(iobase_a, this_board->iorange_amcc, "ADLink PCI-9118")) {
+		rt_printk("I/O port conflict\n");
+		return -EIO;
+	}
 	devpriv->iobase_a=iobase_a;
 	
 	if (it->options[3]&2) irq=0; // user don't want use IRQ
@@ -1871,7 +1868,7 @@ static int pci9118_detach(comedi_device *dev)
 {
 	if (dev->private) {
 		if (devpriv->valid) pci9118_reset(dev);
-		release_region(devpriv->iobase_a,this_board->iorange_amcc);
+		if (devpriv->iobase_a) release_region(devpriv->iobase_a,this_board->iorange_amcc);
 		if (devpriv->allocated)	pci_card_free(devpriv->amcc);
 		if (devpriv->dmabuf_virt[0]) free_pages((unsigned long)devpriv->dmabuf_virt[0],devpriv->dmabuf_pages[0]);
 		if (devpriv->dmabuf_virt[1]) free_pages((unsigned long)devpriv->dmabuf_virt[1],devpriv->dmabuf_pages[1]);

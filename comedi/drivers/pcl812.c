@@ -1183,11 +1183,10 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: pcl812:  board=%s, ioport=0x%03x", dev->minor,
 		this_board->name, iobase);
 
-	if (check_region(iobase, this_board->io_range) < 0) {
+	if (!request_region(iobase, this_board->io_range, "pcl812")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, this_board->io_range, "pcl812");
 	dev->iobase = iobase;
 
 	if ((ret = alloc_private(dev, sizeof(pcl812_private))) < 0) {

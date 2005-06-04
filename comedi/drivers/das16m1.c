@@ -648,16 +648,15 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	printk(" io 0x%x-0x%x 0x%x-0x%x",
 		   iobase, iobase + DAS16M1_SIZE,
 		   iobase + DAS16M1_82C55, iobase + DAS16M1_82C55 + DAS16M1_SIZE2);
-	if(check_region(iobase, DAS16M1_SIZE) < 0) {
+	if(!request_region(iobase, DAS16M1_SIZE, driver_das16m1.driver_name)) {
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	if(check_region(iobase + DAS16M1_82C55, DAS16M1_SIZE2) < 0){
+	if(!request_region(iobase + DAS16M1_82C55, DAS16M1_SIZE2, driver_das16m1.driver_name)) {
+		release_region(iobase , DAS16M1_SIZE);
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, DAS16M1_SIZE, driver_das16m1.driver_name);
-	request_region(iobase + DAS16M1_82C55, DAS16M1_SIZE2, driver_das16m1.driver_name);
 	dev->iobase = iobase;
 
 	/* now for the irq */
