@@ -1,4 +1,13 @@
-2005-05-28  Frank Hess,,,  <fmhess@users.sourceforge.net>
+2005-06-04  Frank Hess  <fmhess@users.sourceforge.net>
+
+	Patch from abbotti@mev.co.uk (Ian Abbott) to
+	make it possible to remove deprecated check_region()
+	calls from drivers. 
+	* include/linux/ioport.h: Added compat__request_region()
+	* include/linux/pci.h: Replace use of check_region() with
+		modern version of request_region().
+
+2005-05-28  Frank Hess  <fmhess@users.sourceforge.net>
 
 	* include/linux/delay.h: Added msleep_interruptible() 
 	* include/linux/time.h:i Added msecs_to_jiffies() and jiffies_to_msecs()
