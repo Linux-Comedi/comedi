@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.93"
+#define DRIVER_VERSION "v0.94"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 17 Apr 2005
+Updated: 12 Jun 2005
 Status: testing
 */
 
@@ -115,7 +115,7 @@ Status: testing
 // Analogue in subdevice
 #define SUBDEV_AD             0
 
-// minimal time in nanoseconds between two samples
+// min delay steps
 #define MIN_SAMPLING_PERIOD 9 // steps at 30MHz in the FX2
 
 // Max number of 1/30MHz delay steps:
@@ -656,6 +656,7 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 {
 	int err=0, stop_mask=0;
 	long int steps,tmp=0;
+	int minSamplPer;
 	usbduxfastsub_t* this_usbduxfastsub=dev->private;
 	if (!(this_usbduxfastsub->probed)) {
 		return -ENODEV;
@@ -730,11 +731,17 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 		err++;
 	}
 
+	if (cmd->chanlist_len==1) {
+		minSamplPer=1;
+	} else {
+		minSamplPer=MIN_SAMPLING_PERIOD;
+	}
+
 	if(cmd->convert_src == TRIG_TIMER)
 	{
 		steps=cmd->convert_arg*30;
-		if (steps<(MIN_SAMPLING_PERIOD*1000)) {
-			steps=MIN_SAMPLING_PERIOD*1000;
+		if (steps<(minSamplPer*1000)) {
+			steps=minSamplPer*1000;
 		}
 		if (steps>(MAX_SAMPLING_PERIOD*1000)) {
 			steps=MAX_SAMPLING_PERIOD*1000;
@@ -906,7 +913,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	if(cmd->convert_src == TRIG_TIMER) {
 		steps=(cmd->convert_arg*30)/1000;
 	}
-	if (steps<MIN_SAMPLING_PERIOD) {
+	if ((steps<MIN_SAMPLING_PERIOD)&&(cmd->chanlist_len!=1)) {
 		printk("comedi%d: usbduxfast: ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n", 
 		       dev->minor, 
 		       steps,
@@ -934,45 +941,66 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	case 1:
 		if (CR_RANGE(cmd->chanlist[0])>0) rngmask=0xff-0x04; else rngmask=0xff;
 		// commit data to the FIFO
-		this_usbduxfastsub->dux_commands[LENBASE+0]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
-		this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
 
-		// we have 6 states with duration 1
-		steps=steps-6;
-
-		// do the first part of the delay
-		this_usbduxfastsub->dux_commands[LENBASE+1]=steps/2;
-		this_usbduxfastsub->dux_commands[OPBASE+1]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+1]=0;
-
-		// and the second part
-		this_usbduxfastsub->dux_commands[LENBASE+2]=steps-steps/2;
-		this_usbduxfastsub->dux_commands[OPBASE+2]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
-		
-		this_usbduxfastsub->dux_commands[LENBASE+3]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+3]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+3]=0;
-		
-		this_usbduxfastsub->dux_commands[LENBASE+4]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+4]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+4]=0;
-		
-		this_usbduxfastsub->dux_commands[LENBASE+5]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+5]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+5]=0;
-
-		this_usbduxfastsub->dux_commands[LENBASE+6]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+6]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+6]=0;
+		if (steps<MIN_SAMPLING_PERIOD) {
+			if (steps<=1) {
+				// we just stay here
+				this_usbduxfastsub->dux_commands[LENBASE+0]=0x80; // branch back to state 0
+				this_usbduxfastsub->dux_commands[OPBASE+0]=0x03; // deceision state with data
+				this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+				this_usbduxfastsub->dux_commands[LOGBASE+0]=0xFF; // doesn't matter
+			} else {
+				this_usbduxfastsub->dux_commands[LENBASE+0]=steps-1;
+				this_usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
+				this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+				this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
+			}			
+			this_usbduxfastsub->dux_commands[LENBASE+1]=0x00; // branch back to state 0
+			this_usbduxfastsub->dux_commands[OPBASE+1]=0x01; // deceision state w/o data
+			this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+1]=0xFF; // doesn't matter
+		} else {
+			// for slower sampling rate we loop through the idle state
+			this_usbduxfastsub->dux_commands[LENBASE+0]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
+			this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
+			
+			// we have 6 states with duration 1
+			steps=steps-6;
+			
+			// do the first part of the delay
+			this_usbduxfastsub->dux_commands[LENBASE+1]=steps/2;
+			this_usbduxfastsub->dux_commands[OPBASE+1]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+1]=0;
+			
+			// and the second part
+			this_usbduxfastsub->dux_commands[LENBASE+2]=steps-steps/2;
+			this_usbduxfastsub->dux_commands[OPBASE+2]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+3]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+3]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+3]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+4]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+4]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+4]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+5]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+5]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+5]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+6]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+6]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+6]=0;
+		}
 		break;
 
 	case 2:
