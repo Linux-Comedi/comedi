@@ -8,6 +8,9 @@
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
 #endif
+#ifdef CONFIG_COMEDI_FUSION
+#include <nucleus/asm/hal.h>
+#endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
 #endif
@@ -51,6 +54,9 @@ int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
 #ifdef CONFIG_COMEDI_RTAI
 	rt_pend_linux_srq(rt_pend_tq_irq);
 #endif
+#ifdef CONFIG_COMEDI_FUSION
+	rthal_apc_schedule(rt_pend_tq_irq);
+#endif
 #ifdef CONFIG_COMEDI_RTL
 	rtl_global_pend_irq(rt_pend_tq_irq);
 
@@ -60,8 +66,9 @@ int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2)
 
 #ifdef CONFIG_COMEDI_RTAI
 void rt_pend_irq_handler(void)
-#endif
-#ifdef CONFIG_COMEDI_RTL
+#elif defined(CONFIG_COMEDI_FUSION)
+void rt_pend_irq_handler(void * cookie)
+#elif defined(CONFIG_COMEDI_RTL)
 void rt_pend_irq_handler(int irq, void *dev, struct pt_regs * regs)
 #endif
 {
@@ -76,6 +83,9 @@ int rt_pend_tq_init(void)
 	rt_pend_head=rt_pend_tail=rt_pend_tq;
 #ifdef CONFIG_COMEDI_RTAI
 	rt_pend_tq_irq=rt_request_srq(0,rt_pend_irq_handler,NULL);
+#endif
+#ifdef CONFIG_COMEDI_FUSION
+	rt_pend_tq_irq=rthal_apc_alloc("comedi APC" ,rt_pend_irq_handler, NULL);
 #endif
 #ifdef CONFIG_COMEDI_RTL
 	rt_pend_tq_irq=rtl_get_soft_irq(rt_pend_irq_handler,"rt_pend_irq");
@@ -92,6 +102,9 @@ void rt_pend_tq_cleanup(void)
 	printk("rt_pend_tq: unloading\n");
 #ifdef CONFIG_COMEDI_RTAI
 	rt_free_srq(rt_pend_tq_irq);
+#endif
+#ifdef CONFIG_COMEDI_FUSION
+	rthal_apc_free(rt_pend_tq_irq);
 #endif
 #ifdef CONFIG_COMEDI_RTL
 	free_irq(rt_pend_tq_irq,NULL);

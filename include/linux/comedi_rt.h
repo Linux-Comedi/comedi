@@ -51,6 +51,9 @@
 //#endif
 #define rt_printk rtl_printf
 #endif
+#ifdef CONFIG_COMEDI_FUSION
+#define rt_printk(format, args...) printk(format , ## args )
+#endif /* CONFIG_COMEDI_FUSION */
 #ifdef CONFIG_PRIORITY_IRQ
 #define rt_printk printk
 #endif
@@ -100,6 +103,8 @@ static inline unsigned long __comedi_spin_lock_irqsave(spinlock_t *lock_ptr)
 #elif defined(CONFIG_COMEDI_RTL_V1)
 	rtl_spin_lock_irqsave(lock_ptr, flags);
 
+#elif defined(CONFIG_COMEDI_FUSION)
+	rthal_spin_lock_irqsave(lock_ptr, flags);
 #else
 	spin_lock_irqsave(lock_ptr, flags);
 
@@ -119,7 +124,8 @@ static inline void comedi_spin_unlock_irqrestore(spinlock_t *lock_ptr, unsigned 
 
 #elif defined(CONFIG_COMEDI_RTL_V1)
 	rtl_spin_unlock_irqrestore(lock_ptr, flags);
-
+#elif defined(CONFIG_COMEDI_FUSION)
+	rthal_spin_unlock_irqrestore(lock_ptr, flags);
 #else
 	spin_unlock_irqrestore(lock_ptr, flags);
 

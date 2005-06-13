@@ -47,6 +47,10 @@
 #define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
 #endif
 
+#ifdef CONFIG_COMEDI_FUSION
+#include <nucleus/asm/hal.h>
+#endif
+
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
 #include <rtl_sync.h>
@@ -383,6 +387,43 @@ void comedi_rt_cleanup(void)
 
 #endif
 
+/* Fusion section */
+#ifdef CONFIG_COMEDI_FUSION
+
+static void fusion_handle_irq(unsigned int irq, void *cookie)
+{
+	int i;
+	struct comedi_irq_struct *it = cookie;
+
+	it->handler(irq, it->dev_id, NULL);
+	rthal_irq_enable(irq);
+}
+
+static int comedi_rt_get_irq(struct comedi_irq_struct *it)
+{
+	rthal_irq_request(it->irq, fusion_handle_irq, it);
+	rthal_irq_enable(it->irq);
+	return 0;
+}
+
+static int comedi_rt_release_irq(struct comedi_irq_struct *it)
+{
+	rthal_irq_disable(it->irq);
+	rthal_irq_release(it->irq);
+	return 0;
+}
+
+void comedi_rt_init(void)
+{
+	rt_pend_tq_init();
+}
+
+void comedi_rt_cleanup(void)
+{
+	rt_pend_tq_cleanup();
+}
+
+#endif	/*CONFIG_COMEDI_FUSION*/
 
 /* RTLinux section */
 #ifdef CONFIG_COMEDI_RTL
