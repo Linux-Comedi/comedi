@@ -40,11 +40,6 @@
 
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
-
-#define RT_protect()	hard_cli()
-#define RT_unprotect()	hard_sti()
-#define RT_spin_lock_irq(x)	rt_spin_lock_irq(x)
-#define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
 #endif
 
 #ifdef CONFIG_COMEDI_FUSION
@@ -54,20 +49,6 @@
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
 #include <rtl_sync.h>
-
-#define RT_protect()	rtl_make_rt_system_active()
-#define RT_unprotect()	rtl_make_rt_system_idle()
-/* RTL doesn't have the necessary primitives, so we have to hack
- * it, dealing with the race */
-#define RT_spin_lock_irq(x)	do{RT_protect();rtl_spin_lock(x);}while(0)
-#define RT_spin_unlock_irq(x)	do{rtl_spin_unlock(x);RT_unprotect();}while(0)
-#endif
-
-#ifdef CONFIG_PRIORITY_IRQ
-#define RT_protect()	__local_irq_disable()
-#define RT_unprotect()	__local_irq_enable()
-#define RT_spin_lock_irq(x)	spin_lock_hard_irq(x)
-#define RT_spin_unlock_irq(x)	spin_unlock_hard_irq(x)
 #endif
 
 struct comedi_irq_struct {
