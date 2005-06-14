@@ -70,38 +70,36 @@ int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *,struct p
 {
 	struct comedi_irq_struct *it;
 	int ret;
-
-	it=kmalloc(sizeof(struct comedi_irq_struct),GFP_KERNEL);
-	if(!it)
-		return -ENOMEM;
-	memset(it,0,sizeof(struct comedi_irq_struct));
-
-	it->handler=handler;
-	it->irq=irq;
-	it->dev_id=dev_id;
-	it->device=device;
-
 	/* null shared interrupt flag, since rt interrupt handlers do not
-	 * support it, and this version of comedi_request_irq() is only
-	 * called for kernels with rt support */
-	it->flags = flags & ~SA_SHIRQ;
-
-	ret=request_irq(irq,handler,it->flags,device,dev_id);
+	* support it, and this version of comedi_request_irq() is only
+	* called for kernels with rt support */
+	unsigned long unshared_flags = flags & ~SA_SHIRQ;
+	
+	ret = request_irq(irq, handler, unshared_flags, device, dev_id);
 	if(ret<0){
 		// we failed, so fall back on allowing shared interrupt (which we won't ever make RT)
 		if(flags & SA_SHIRQ)
 		{
 			rt_printk("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
-			it->flags = flags;
-			ret=request_irq(irq,handler,it->flags,device,dev_id);
+			ret=request_irq(irq, handler, flags, device, dev_id);
 		}
 		if(ret<0){
-			kfree(it);
 			return ret;
 		}
 	}else
+	{
+		it = kmalloc(sizeof(struct comedi_irq_struct), GFP_KERNEL);
+		if(!it)
+			return -ENOMEM;
+		memset(it, 0, sizeof(struct comedi_irq_struct));
+	
+		it->handler=handler;
+		it->irq=irq;
+		it->dev_id=dev_id;
+		it->device=device;	
+		it->flags = unshared_flags;
 		comedi_irqs[irq] = it;
-
+	}
 	return 0;
 }
 
