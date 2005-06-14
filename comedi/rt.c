@@ -54,7 +54,7 @@
 struct comedi_irq_struct {
 	int rt;
 	int irq;
-	void (*handler)(int irq,void *dev_id,struct pt_regs *regs);
+	irqreturn_t (*handler)(int irq,void *dev_id,struct pt_regs *regs);
 	unsigned long flags;
 	const char *device;
 	comedi_device *dev_id;
