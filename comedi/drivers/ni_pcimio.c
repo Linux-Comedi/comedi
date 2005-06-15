@@ -45,7 +45,7 @@ By default, the driver uses DMA to transfer analog input data to
 memory.  When DMA is enabled, not all triggering features are
 supported.
 
-PCI IDs are not known for PCI-6731 and PCI-6733.  Digital I/O may not
+PCI IDs are not known for PCI-6733.  Digital I/O may not
 work on 673x.
 
 Information (number of channels, bits, etc.) for some devices may be
@@ -538,8 +538,7 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
-#if 0	/* need device ids */
-	{       device_id:      0x0,
+	{	device_id:	0x2430,
 		name:           "pci-6731",
 		n_adchan:       0, /* no analog input */
 		n_aochan:	4,
@@ -549,6 +548,7 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug},
 	},
+#if 0	/* need device ids */
 	{       device_id:      0x0,
 		name:           "pxi-6731",
 		n_adchan:       0, /* no analog input */
