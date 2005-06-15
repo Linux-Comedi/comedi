@@ -88,8 +88,8 @@ moo:
 DISTCLEANFILES = modtool
 
 install-data-hook:
-	if test x"$(DESTDIR)" = x ; then \
-	  if test x"$(prefix)" = x/ ; then \
+	if test x$(DESTDIR) = x ; then \
+	  if test x$(prefix) = x/ ; then \
 	    $(DEPMOD) -ae $(LINUX_KERNELRELEASE) ; \
 	  fi \
 	fi

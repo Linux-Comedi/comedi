@@ -1,3 +1,20 @@
+2005-06-15  Frank Hess <fmhess@users.sourceforge.net>
+
+	* Contributors: Added Alexis Berlemont and Simone Mannori.
+	* Makefile.am: Fix depmod call on "make install".
+	* comedi/rt.c: (comedi_request_irq), (comedi_free_irq),
+	(comedi_switch_to_rt), (comedi_switch_to_non_rt),
+	(handle_void_irq), (comedi_rt_get_irq), (fusion_handle_irq),
+	(comedi_rt_release_irq), (comedi_rt_init), (comedi_rt_cleanup),
+	(handle_rtl_irq): rtai fusion support from Alexis Berlemont,
+	plus some cleanups by me.
+	* comedi/rt_pend_tq.c: (rt_pend_call), (rt_pend_tq_init),
+	(rt_pend_tq_cleanup): rtai fusion support from Alexis Berlemont.
+	* include/linux/comedi_rt.h: Implemented comedi_spinlock_irqsave()
+	and comedi_spinlock_irqrestore for rtai fusion.
+	* m4/rtai.m4: rtai fusion support from Alexis Berlemont.
+
+
 2005-06-04  Frank Hess  <fmhess@users.sourceforge.net>
 
 	Patch from abbotti@mev.co.uk (Ian Abbott) to

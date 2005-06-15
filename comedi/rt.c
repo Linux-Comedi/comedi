@@ -40,36 +40,21 @@
 
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
+#endif
 
-#define RT_protect()	hard_cli()
-#define RT_unprotect()	hard_sti()
-#define RT_spin_lock_irq(x)	rt_spin_lock_irq(x)
-#define RT_spin_unlock_irq(x)	rt_spin_unlock_irq(x)
+#ifdef CONFIG_COMEDI_FUSION
+#include <nucleus/asm/hal.h>
 #endif
 
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
 #include <rtl_sync.h>
-
-#define RT_protect()	rtl_make_rt_system_active()
-#define RT_unprotect()	rtl_make_rt_system_idle()
-/* RTL doesn't have the necessary primitives, so we have to hack
- * it, dealing with the race */
-#define RT_spin_lock_irq(x)	do{RT_protect();rtl_spin_lock(x);}while(0)
-#define RT_spin_unlock_irq(x)	do{rtl_spin_unlock(x);RT_unprotect();}while(0)
-#endif
-
-#ifdef CONFIG_PRIORITY_IRQ
-#define RT_protect()	__local_irq_disable()
-#define RT_unprotect()	__local_irq_enable()
-#define RT_spin_lock_irq(x)	spin_lock_hard_irq(x)
-#define RT_spin_unlock_irq(x)	spin_unlock_hard_irq(x)
 #endif
 
 struct comedi_irq_struct {
 	int rt;
 	int irq;
-	void (*handler)(int irq,void *dev_id,struct pt_regs *regs);
+	irqreturn_t (*handler)(int irq,void *dev_id,struct pt_regs *regs);
 	unsigned long flags;
 	const char *device;
 	comedi_device *dev_id;
@@ -78,97 +63,43 @@ struct comedi_irq_struct {
 static int comedi_rt_get_irq(struct comedi_irq_struct *it);
 static int comedi_rt_release_irq(struct comedi_irq_struct *it);
 
-#define MAX_IRQ_SHARING 6
-static struct comedi_irq_struct *comedi_irqs[NR_IRQS][MAX_IRQ_SHARING];
-
-static struct comedi_irq_struct * find_comedi_irq_struct( int irq, comedi_device *dev_id )
-{
-	int i;
-
-	for( i = 0; i < MAX_IRQ_SHARING; i++)
-	{
-		if( comedi_irqs[ irq ][ i ] &&
-			comedi_irqs[ irq ][ i ]->dev_id == dev_id )
-		{
-			return comedi_irqs[ irq ][ i ];
-		}
-	}
-	return NULL;
-}
-
-static void free_comedi_irq_struct( int irq, comedi_device *dev_id )
-{
-	int i;
-
-	for( i = 0; i < MAX_IRQ_SHARING; i++)
-	{
-		if( comedi_irqs[ irq ][ i ] &&
-			comedi_irqs[ irq ][ i ]->dev_id == dev_id )
-		{
-			kfree( comedi_irqs[ irq ][ i ] );
-			comedi_irqs[ irq ][ i ] = NULL;
-			return;
-		}
-	}
-}
-
-static int insert_comedi_irq_struct( int irq,
-	struct comedi_irq_struct *it )
-{
-	int i;
-
-	for( i = 0; i < MAX_IRQ_SHARING; i++ )
-	{
-		if( comedi_irqs[ irq ][ i ] == NULL )
-		{
-			comedi_irqs[ irq ][ i ] = it;
-			return 0;
-		}
-	}
-	return -1;
-}
+static struct comedi_irq_struct *comedi_irqs[NR_IRQS];
 
 int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *,struct pt_regs *),
 		unsigned long flags,const char *device,comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
 	int ret;
-
-	it=kmalloc(sizeof(struct comedi_irq_struct),GFP_KERNEL);
-	if(!it)
-		return -ENOMEM;
-	memset(it,0,sizeof(struct comedi_irq_struct));
-
-	it->handler=handler;
-	it->irq=irq;
-	it->dev_id=dev_id;
-	it->device=device;
-
 	/* null shared interrupt flag, since rt interrupt handlers do not
-	 * support it, and this version of comedi_request_irq() is only
-	 * called for kernels with rt support */
-	it->flags = flags & ~SA_SHIRQ;
-
-	ret=request_irq(irq,handler,it->flags,device,dev_id);
+	* support it, and this version of comedi_request_irq() is only
+	* called for kernels with rt support */
+	unsigned long unshared_flags = flags & ~SA_SHIRQ;
+	
+	ret = request_irq(irq, handler, unshared_flags, device, dev_id);
 	if(ret<0){
-		// we failed, so fall back on allowing shared interrupt
+		// we failed, so fall back on allowing shared interrupt (which we won't ever make RT)
 		if(flags & SA_SHIRQ)
 		{
-			it->flags = flags;
-			ret=request_irq(irq,handler,it->flags,device,dev_id);
+			rt_printk("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
+			ret=request_irq(irq, handler, flags, device, dev_id);
 		}
 		if(ret<0){
-			kfree(it);
 			return ret;
 		}
-	}
-
-	if( insert_comedi_irq_struct( irq, it ) )
+	}else
 	{
-		kfree(it);
-		return -1;
+		it = kmalloc(sizeof(struct comedi_irq_struct), GFP_KERNEL);
+		if(!it)
+			return -ENOMEM;
+		memset(it, 0, sizeof(struct comedi_irq_struct));
+	
+		it->handler=handler;
+		it->irq=irq;
+		it->dev_id=dev_id;
+		it->device=device;	
+		it->flags = unshared_flags;
+		comedi_irqs[irq] = it;
 	}
-
 	return 0;
 }
 
@@ -176,7 +107,9 @@ void comedi_free_irq(unsigned int irq,comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
 
-	it = find_comedi_irq_struct( irq, dev_id );
+	free_irq(irq, dev_id);
+
+	it = comedi_irqs[irq];
 	if( it == NULL ) return;
 
 	if(it->rt){
@@ -184,9 +117,8 @@ void comedi_free_irq(unsigned int irq,comedi_device *dev_id)
 		comedi_rt_release_irq(it);
 	}
 
-	free_irq(it->irq,it->dev_id);
-
-	free_comedi_irq_struct( irq, dev_id );
+	kfree(it);
+	comedi_irqs[irq] = NULL;
 }
 
 
@@ -196,15 +128,10 @@ int comedi_switch_to_rt(comedi_device *dev)
 	struct comedi_irq_struct *it;
 	unsigned long flags;
 
-	it = find_comedi_irq_struct( dev->irq, dev );
-	/* drivers might not be using an interrupt for commands */
+	it = comedi_irqs[dev->irq];
+	/* drivers might not be using an interrupt for commands,
+		or we might not have been able to get an unshared irq */
 	if( it == NULL ) return -1;
-
-	/* rt interrupts and shared interrupts don't mix */
-	if(it->flags & SA_SHIRQ){
-		rt_printk("comedi: cannot switch shared interrupt to RT priority\n");
-		return -1;
-	}
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 
@@ -224,12 +151,8 @@ void comedi_switch_to_non_rt(comedi_device *dev)
 	struct comedi_irq_struct *it;
 	unsigned long flags;
 
-	it = find_comedi_irq_struct( dev->irq, dev );
+	it = comedi_irqs[dev->irq];
 	if(it == NULL)
-		return;
-
-	/* rt interrupts and shared interrupts don't mix */
-	if(it->flags & SA_SHIRQ)
 		return;
 
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
@@ -263,15 +186,15 @@ static void handle_void_irq_ ## irq (void){ handle_void_irq(irq);}
 
 static void handle_void_irq(int irq)
 {
-	int i;
 	struct comedi_irq_struct *it;
 
-	for( i = 0; i < MAX_IRQ_SHARING; i++ )
+	it = comedi_irqs[irq];
+	if(it == NULL) 
 	{
-		it = comedi_irqs[ irq ][ i ];
-		if( it == NULL ) continue;
-		it->handler( irq, it->dev_id, NULL );
+		rt_printk("comedi: null irq struct?\n");
+		return;
 	}
+	it->handler(irq, it->dev_id, NULL);
 	rt_enable_irq(irq);	//needed by rtai-adeos, seems like it shouldn't hurt earlier versions
 }
 
@@ -327,11 +250,10 @@ static V_FP_V handle_void_irq_ptrs[]={
 	handle_void_irq_22,
 	handle_void_irq_23,
 };
-/* if you need more, fix it yourself... */
 
 static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
-	rt_request_global_irq(it->irq,handle_void_irq_ptrs[it->irq]);
+	rt_request_global_irq(it->irq, handle_void_irq_ptrs[it->irq]);
 	rt_startup_irq(it->irq);
 
 	return 0;
@@ -383,21 +305,53 @@ void comedi_rt_cleanup(void)
 
 #endif
 
+/* Fusion section */
+#ifdef CONFIG_COMEDI_FUSION
+
+static void fusion_handle_irq(unsigned int irq, void *cookie)
+{
+	struct comedi_irq_struct *it = cookie;
+
+	it->handler(irq, it->dev_id, NULL);
+	rthal_irq_enable(irq);
+}
+
+static int comedi_rt_get_irq(struct comedi_irq_struct *it)
+{
+	rthal_irq_request(it->irq, fusion_handle_irq, it);
+	rthal_irq_enable(it->irq);
+	return 0;
+}
+
+static int comedi_rt_release_irq(struct comedi_irq_struct *it)
+{
+	rthal_irq_disable(it->irq);
+	rthal_irq_release(it->irq);
+	return 0;
+}
+
+void comedi_rt_init(void)
+{
+	rt_pend_tq_init();
+}
+
+void comedi_rt_cleanup(void)
+{
+	rt_pend_tq_cleanup();
+}
+
+#endif	/*CONFIG_COMEDI_FUSION*/
 
 /* RTLinux section */
 #ifdef CONFIG_COMEDI_RTL
 
 static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
 {
-	int i;
 	struct comedi_irq_struct *it;
 
-	for( i = 0; i < MAX_IRQ_SHARING; i++ )
-	{
-		it = comedi_irqs[ irq ][ i ];
-		if( it == NULL ) continue;
-		it->handler( irq, it->dev_id, regs );
-	}
+	it = comedi_irqs[irq];
+	if( it == NULL ) return 0;
+	it->handler( irq, it->dev_id, regs );
 	rtl_hard_enable_irq(irq);
 	return 0;
 }
