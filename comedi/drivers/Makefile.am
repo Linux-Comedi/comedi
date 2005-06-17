@@ -48,7 +48,8 @@ EXTRA_DIST = \
  ni_stc.h \
  plx9052.h \
  plx9080.h \
- rtd520.h
+ rtd520.h \
+ s626.h
 
 # mpc8260cpm.ko
 
@@ -147,6 +148,7 @@ module_PROGRAMS = \
  rti802.ko \
  skel.ko \
  ssv_dnp.ko \
+ s626.ko \
  comedi_test.ko \
  $(pcmcia_modules) \
  $(usb_modules) \
