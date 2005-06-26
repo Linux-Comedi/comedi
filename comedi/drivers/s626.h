@@ -59,15 +59,8 @@
    comedi_do_insn(cf,&insn); //executing configuration
 */
 
-#include <limits.h>
-#include <float.h>
-
 #ifdef _DEBUG_
-#ifdef RTAI 
 #define DEBUG(...);        rt_printk(__VA_ARGS__);
-#else
-#define DEBUG(...);        printk(__VA_ARGS__);
-#endif
 #else 
 #define DEBUG(...)
 #endif
