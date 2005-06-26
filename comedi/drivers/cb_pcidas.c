@@ -525,8 +525,8 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
 	{
 		// is it not a computer boards card?
 		if(pcidev->vendor != PCI_VENDOR_ID_CB)
@@ -592,10 +592,12 @@ found:
 	else
 		err++;
 	if(thisboard->ao_nchan)
+	{
 		if(request_region(ao_registers, AO_SIZE, "cb_pcidas"))
 			devpriv->ao_registers = ao_registers;
 		else
 			err++;
+	}
 	if(err)
 	{
 		printk(" I/O port conflict\n");
