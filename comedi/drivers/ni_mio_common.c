@@ -2248,6 +2248,8 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		AO_TMRDACWR_Pulse_Width;
 	if( boardtype.ao_fifo_depth )
 		bits |= AO_FIFO_Enable;
+	else
+		bits |= AO_DMA_PIO_Control;
 	win_out(bits, AO_Personal_Register);
 	// enable sending of ao dma requests
 	win_out(AO_AOFREQ_Enable, AO_Start_Select_Register);
@@ -2373,7 +2375,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 	win_out(AO_Disarm,AO_Command_1_Register);
 	ni_set_bits(dev,Interrupt_B_Enable_Register,~0,0);
-	win_out(0x0010,AO_Personal_Register);
+	win_out(AO_BC_Source_Select, AO_Personal_Register);
 	win_out(0x3f98,Interrupt_B_Ack_Register);
 	win_out(AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
 		AO_TMRDACWR_Pulse_Width, AO_Personal_Register);
@@ -2720,7 +2722,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		}else{
 			s->insn_write=ni_ao_insn_write;
 		}
-		if(boardtype.ao_fifo_depth){
+#ifdef PCIDMA
+		if(boardtype.n_aochan){
+#else		
+		if(boardtype.ao_fifo_depth){ 
+#endif
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
 			s->len_chanlist = boardtype.n_aochan;
