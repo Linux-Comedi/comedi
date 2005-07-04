@@ -476,7 +476,7 @@ static int pci1760_mbxrequest(comedi_device *dev,
 	if(inb(dev->iobase + IMB2) == omb[2])
 	{
 		int retval;
-		retval = pci1860_clear_imb2(dev);
+		retval = pci1760_clear_imb2(dev);
 		if(retval < 0) return retval;
 	}
 	return pci1760_unchecked_mbxrequest(dev, omb, imb, OMBCMD_RETRY);
