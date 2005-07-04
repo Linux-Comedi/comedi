@@ -152,7 +152,6 @@ static int ni_670x_attach(comedi_device *dev,comedi_devconfig *it)
 		printk("error setting up mite\n");
 		return ret;
 	}
-	dev->iobase=mite_iobase(devpriv->mite);
 	dev->board_name=thisboard->name;
 	dev->irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);
@@ -189,8 +188,8 @@ static int ni_670x_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_bits 	= 	ni_670x_dio_insn_bits;
 	s->insn_config 	= 	ni_670x_dio_insn_config;
 	
-	writel(0x10 ,dev->iobase + MISC_CONTROL_OFFSET);	/* Config of misc registers */	
-	writel(0x00 ,dev->iobase + AO_CONTROL_OFFSET);		/* Config of ao registers */
+	writel(0x10 ,devpriv->mite->daq_io_addr + MISC_CONTROL_OFFSET);	/* Config of misc registers */	
+	writel(0x00 ,devpriv->mite->daq_io_addr + AO_CONTROL_OFFSET);		/* Config of ao registers */
 	
 	printk("attached\n");
 
@@ -235,8 +234,8 @@ static int ni_670x_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	
 	for(i=0;i<insn->n;i++){
 		writel(((chan&15)<<1) | ((chan&16)>>4),
-			dev->iobase + AO_CHAN_OFFSET);		/* First write in channel register which channel to use */
-		writel(data[i],dev->iobase + AO_VALUE_OFFSET);  /* write channel value */
+			devpriv->mite->daq_io_addr + AO_CHAN_OFFSET);		/* First write in channel register which channel to use */
+		writel(data[i],devpriv->mite->daq_io_addr + AO_VALUE_OFFSET);  /* write channel value */
 		devpriv->ao_readback[chan] = data[i];
 	}
 
@@ -264,12 +263,12 @@ static int ni_670x_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,comedi_i
 	{
 		s->state &= ~data[0];
 		s->state |= data[0]&data[1];
-		writel(s->state,dev->iobase + DIO_PORT0_DATA_OFFSET);
+		writel(s->state,devpriv->mite->daq_io_addr + DIO_PORT0_DATA_OFFSET);
 	}
 	
 	/* on return, data[1] contains the value of the digital
 	 * input lines. */
-	data[1]=readl(dev->iobase + DIO_PORT0_DATA_OFFSET);
+	data[1]=readl(devpriv->mite->daq_io_addr + DIO_PORT0_DATA_OFFSET);
 
 	return 2;
 }
@@ -294,7 +293,7 @@ static int ni_670x_dio_insn_config(comedi_device *dev,comedi_subdevice *s,comedi
 		return -EINVAL;
 		break;
 	}
-	writel(s->io_bits,dev->iobase + DIO_PORT0_DIR_OFFSET);
+	writel(s->io_bits,devpriv->mite->daq_io_addr + DIO_PORT0_DIR_OFFSET);
 
 	return insn->n;
 }

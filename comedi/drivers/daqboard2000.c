@@ -662,10 +662,10 @@ static int daqboard2000_8255_cb(int dir, int port, int data, unsigned long ioadd
 {
   int result = 0;
   if(dir){
-    writew(data,ioaddr+port*2);
+    writew(data, (void*)(ioaddr+port*2));
     result = 0;
   }else{
-    result = readw(ioaddr+port*2);
+    result = readw((void*)(ioaddr+port*2));
   }
 /*
   printk("daqboard2000_8255_cb %x %d %d %2.2x -> %2.2x\n",

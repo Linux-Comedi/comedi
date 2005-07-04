@@ -258,44 +258,44 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
 #endif
 	// Disable A/D conversion ready interrupt
 	devpriv->IntEnable &= ~ADC_READY;
-	writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+	writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
 	
 	// Clear interrupt status
 	devpriv->IntStatus |= ADC_READY;
-	writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+	writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
 
 	// Set up appropriate channel, mode and range data, for specified channel
 	setup_channel_list(dev, s, &insn->chanspec, 1);
 
 #ifdef ICP_MULTI_EXTDEBUG
-	printk("icp_multi A ST=%4x IO=%lx\n",readw(dev->iobase+ICP_MULTI_ADC_CSR), dev->iobase+ICP_MULTI_ADC_CSR);
+	printk("icp_multi A ST=%4x IO=%p\n",readw(devpriv->io_addr+ICP_MULTI_ADC_CSR), devpriv->io_addr+ICP_MULTI_ADC_CSR);
 #endif
 
 	for (n=0; n<insn->n; n++) {
 		// Set start ADC bit
 		devpriv->AdcCmdStatus |= ADC_ST;
-		writew(devpriv->AdcCmdStatus, dev->iobase+ICP_MULTI_ADC_CSR);
+		writew(devpriv->AdcCmdStatus, devpriv->io_addr+ICP_MULTI_ADC_CSR);
 		devpriv->AdcCmdStatus &= ~ADC_ST;
 
 #ifdef ICP_MULTI_EXTDEBUG
-    		printk("icp multi B n=%d ST=%4x\n",n,readw(dev->iobase+ICP_MULTI_ADC_CSR));
+    		printk("icp multi B n=%d ST=%4x\n",n,readw(devpriv->io_addr+ICP_MULTI_ADC_CSR));
 #endif
 
 		comedi_udelay(1);
 
 #ifdef ICP_MULTI_EXTDEBUG
-    		printk("icp multi C n=%d ST=%4x\n",n,readw(dev->iobase+ICP_MULTI_ADC_CSR));
+    		printk("icp multi C n=%d ST=%4x\n",n,readw(devpriv->io_addr+ICP_MULTI_ADC_CSR));
 #endif
 
 		// Wait for conversion to complete, or get fed up waiting
     		timeout=100;
     		while (timeout--) {
-			if (!(readw(dev->iobase+ICP_MULTI_ADC_CSR) & ADC_BSY))
+			if (!(readw(devpriv->io_addr+ICP_MULTI_ADC_CSR) & ADC_BSY))
 				goto conv_finish;
 
 #ifdef ICP_MULTI_EXTDEBUG
 			if (!(timeout%10))
-				printk("icp multi D n=%d tm=%d ST=%4x\n",n,timeout,readw(dev->iobase+ICP_MULTI_ADC_CSR));
+				printk("icp multi D n=%d tm=%d ST=%4x\n",n,timeout,readw(devpriv->io_addr+ICP_MULTI_ADC_CSR));
 #endif
 
 			comedi_udelay(1);
@@ -306,11 +306,11 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
 
 		// Disable interrupt
 		devpriv->IntEnable &= ~ADC_READY;
-		writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+		writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
 
 		// Clear interrupt status
 		devpriv->IntStatus |= ADC_READY;
-		writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+		writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
 
 		// Clear data received
     		data[n]=0;
@@ -321,16 +321,16 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
     		return -ETIME;
 
 conv_finish:
-		data[n] = (readw(dev->iobase+ICP_MULTI_AI) >> 4 ) & 0x0fff;
+		data[n] = (readw(devpriv->io_addr+ICP_MULTI_AI) >> 4 ) & 0x0fff;
 	}
 	
 	// Disable interrupt
 	devpriv->IntEnable &= ~ADC_READY;
-	writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+	writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
 
 	// Clear interrupt status
 	devpriv->IntStatus |= ADC_READY;
-	writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+	writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
 
 #ifdef ICP_MULTI_EXTDEBUG
 		printk("icp multi EDBG: END: icp_multi_insn_read_ai(...) n=%d\n",n);
@@ -365,11 +365,11 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 #endif
 	// Disable D/A conversion ready interrupt
 	devpriv->IntEnable &= ~DAC_READY;
-	writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+	writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
 	
 	// Clear interrupt status
 	devpriv->IntStatus |= DAC_READY;
-	writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+	writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
 
 	// Get channel number and range
 	chan = CR_CHAN(insn->chanspec);
@@ -384,18 +384,18 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 	devpriv->DacCmdStatus |= this_board->rangecode[range];
 	devpriv->DacCmdStatus |= (chan << 8);
 	
-	writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
+	writew(devpriv->DacCmdStatus, devpriv->io_addr+ICP_MULTI_DAC_CSR);
 
 	for (n=0; n<insn->n; n++) {
 		// Wait for analogue output data register to be ready for new data, or get fed up waiting
     		timeout=100;
     		while (timeout--) {
-			if (!(readw(dev->iobase+ICP_MULTI_DAC_CSR) & DAC_BSY))
+			if (!(readw(devpriv->io_addr+ICP_MULTI_DAC_CSR) & DAC_BSY))
 				goto dac_ready;
 
 #ifdef ICP_MULTI_EXTDEBUG
 			if (!(timeout%10))
-				printk("icp multi A n=%d tm=%d ST=%4x\n",n,timeout,readw(dev->iobase+ICP_MULTI_DAC_CSR));
+				printk("icp multi A n=%d tm=%d ST=%4x\n",n,timeout,readw(devpriv->io_addr+ICP_MULTI_DAC_CSR));
 #endif
 
 			comedi_udelay(1);
@@ -406,11 +406,11 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 
 		// Disable interrupt
 		devpriv->IntEnable &= ~DAC_READY;
-		writew(devpriv->IntEnable,dev->iobase + ICP_MULTI_INT_EN);
+		writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
 
 		// Clear interrupt status
 		devpriv->IntStatus |= DAC_READY;
-		writew(devpriv->IntStatus,dev->iobase + ICP_MULTI_INT_STAT);
+		writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
 
 		// Clear data received
     		devpriv->ao_data[chan]=0;
@@ -422,11 +422,11 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 
 dac_ready:
 		// Write data to analogue output data register
-		writew(data[n], dev->iobase + ICP_MULTI_AO);
+		writew(data[n], devpriv->io_addr + ICP_MULTI_AO);
 
 		// Set DAC_ST bit to write the data to selected channel
 		devpriv->DacCmdStatus |= DAC_ST;
-		writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
+		writew(devpriv->DacCmdStatus, devpriv->io_addr+ICP_MULTI_DAC_CSR);
 		devpriv->DacCmdStatus &= ~DAC_ST;
 
 		// Save analogue output data
@@ -491,7 +491,7 @@ static int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, com
 */
 static int icp_multi_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
-	data[1] = readw(dev->iobase + ICP_MULTI_DI);
+	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
 	return 2;
 }
@@ -526,10 +526,10 @@ static int icp_multi_insn_bits_do(comedi_device *dev,comedi_subdevice *s, comedi
 
 		printk("Digital outputs = %4x \n", s->state);
 
-		writew(s->state, dev->iobase + ICP_MULTI_DO);
+		writew(s->state, devpriv->io_addr + ICP_MULTI_DO);
 	}
 
-	data[1] = readw(dev->iobase + ICP_MULTI_DI);
+	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
 #ifdef ICP_MULTI_EXTDEBUG
 		printk("icp multi EDBG: END: icp_multi_insn_bits_do(...)\n");
@@ -613,13 +613,13 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d, struct pt_regs 
 #endif
 
 	// Is this interrupt from our board?
-	int_no = readw(dev->iobase + ICP_MULTI_INT_STAT) & Status_IRQ;
+	int_no = readw(devpriv->io_addr + ICP_MULTI_INT_STAT) & Status_IRQ;
 	if (!int_no)
 		// No, exit
 		return IRQ_NONE;
 
 #ifdef ICP_MULTI_EXTDEBUG
-	printk("icp multi EDBG: interrupt_service_icp_multi() ST: %4x\n",readw(dev->iobase + ICP_MULTI_INT_STAT));
+	printk("icp multi EDBG: interrupt_service_icp_multi() ST: %4x\n",readw(devpriv->io_addr + ICP_MULTI_INT_STAT));
 #endif
 
 	// Determine which interrupt is active & handle it
@@ -774,7 +774,7 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsign
 		devpriv->AdcCmdStatus |= range;
 
 		/* Output channel, range, mode to ICP Multi*/
-		writew(devpriv->AdcCmdStatus, dev->iobase+ICP_MULTI_ADC_CSR);
+		writew(devpriv->AdcCmdStatus, devpriv->io_addr+ICP_MULTI_ADC_CSR);
 
 #ifdef ICP_MULTI_EXTDEBUG
 		printk("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range, devpriv->act_chanlist[i]);
@@ -807,8 +807,8 @@ static int icp_multi_reset(comedi_device *dev)
 	printk("icp_multi EDBG: BGN: icp_multi_reset(...)\n");
 #endif
 	// Clear INT enables and requests
-	writew(0, dev->iobase + ICP_MULTI_INT_EN);
-	writew(0x00ff, dev->iobase + ICP_MULTI_INT_STAT);
+	writew(0, devpriv->io_addr + ICP_MULTI_INT_EN);
+	writew(0x00ff, devpriv->io_addr + ICP_MULTI_INT_STAT);
 
 	if (this_board->n_aochan)
 		// Set DACs to 0..5V range and 0V output
@@ -819,20 +819,20 @@ static int icp_multi_reset(comedi_device *dev)
 			devpriv->DacCmdStatus |= (i << 8);
 
 			// Output 0V
-			writew(0, dev->iobase+ICP_MULTI_AO);
+			writew(0, devpriv->io_addr+ICP_MULTI_AO);
 
 			// Set start conversion bit
 			devpriv->DacCmdStatus |= DAC_ST;
 
 			// Output to command / status register
-			writew(devpriv->DacCmdStatus, dev->iobase+ICP_MULTI_DAC_CSR);
+			writew(devpriv->DacCmdStatus, devpriv->io_addr+ICP_MULTI_DAC_CSR);
 			
 			// Delay to allow DAC time to recover
 			comedi_udelay(1);
 		}
 	
 	// Digital outputs to 0
-	writew(0, dev->iobase + ICP_MULTI_DO);
+	writew(0, devpriv->io_addr + ICP_MULTI_DO);
 
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: END: icp_multi_reset(...)\n");
@@ -897,13 +897,12 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 
 	iobase=io_addr[2];
 
-//	if(check_mem_region(iobase, ICP_MULTI_SIZE))
-//	{
+	if(!request_mem_region(iobase, ICP_MULTI_SIZE, "icp_multi"))
+	{
 		/* Couldn't allocate io space */
-//		printk(KERN_WARNING "couldn't allocate IO space\n");
-//		return -EIO;
-//	}
-//	request_mem_region(iobase, ICP_MULTI_SIZE, "icp_multi");
+		printk(KERN_WARNING "couldn't allocate IO space\n");
+		return -EIO;
+	}
 	devpriv->phys_iobase = iobase;
 
 	printk(", b:s:f=%d:%d:%d, io=0x%8lx \n", pci_bus, pci_slot, pci_func, iobase);
@@ -918,8 +917,6 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("0x%08lx mapped to %p, ", iobase, devpriv->io_addr);
 #endif
-
-	dev->iobase = (unsigned long)devpriv->io_addr;
 
 	dev->board_name = this_board->name;
 
@@ -1061,9 +1058,9 @@ static int icp_multi_detach(comedi_device *dev)
 	if (dev->irq)
 		comedi_free_irq(dev->irq,dev);
 
-	if (dev->iobase) {
+	if (dev->private && devpriv->io_addr) {
 		iounmap(devpriv->io_addr);
-//		release_mem_region(iobase, ICP_MULTI_SIZE);
+		release_mem_region(devpriv->phys_iobase, ICP_MULTI_SIZE);
 	}
 
 	if (pci_list_builded) {

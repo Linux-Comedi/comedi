@@ -243,7 +243,7 @@ static inline int i8254_load(unsigned long base_address,
 	return 0;
 }
 
-static inline int i8254_mm_load(unsigned long base_address,
+static inline int i8254_mm_load(void *base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;

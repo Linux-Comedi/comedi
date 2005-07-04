@@ -339,11 +339,11 @@ static inline void labpc_outb(unsigned int byte, unsigned long address)
 }
 static inline unsigned int labpc_readb(unsigned long address)
 {
-	return readb(address);
+	return readb((void*) address);
 }
 static inline void labpc_writeb(unsigned int byte, unsigned long address)
 {
-	writeb(byte, address);
+	writeb(byte, (void*) address);
 }
 
 static labpc_board labpc_boards[] =
@@ -460,7 +460,7 @@ static inline int labpc_counter_load(comedi_device *dev, unsigned long base_addr
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	if(thisboard->memory_mapped_io)
-		return i8254_mm_load(base_address, counter_number, count, mode);
+		return i8254_mm_load((void*)base_address, counter_number, count, mode);
 	else
 		return i8254_load(base_address, counter_number, count, mode);
 }
@@ -1802,11 +1802,11 @@ static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long iob
 {
 	if(dir)
 	{
-		writeb(data, iobase + port);
+		writeb(data, (void*) (iobase + port));
 		return 0;
 	}else
 	{
-		return readb(iobase + port);
+		return readb((void*)(iobase + port));
 	}
 }
 

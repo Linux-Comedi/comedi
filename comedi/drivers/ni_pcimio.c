@@ -682,12 +682,12 @@ typedef struct{
 
 /* How we access registers */
 
-#define ni_writel(a,b)		(writel((a),dev->iobase+(b)))
-#define ni_readl(a)		(readl(dev->iobase+(a)))
-#define ni_writew(a,b)		(writew((a),dev->iobase+(b)))
-#define ni_readw(a)		(readw(dev->iobase+(a)))
-#define ni_writeb(a,b)		(writeb((a),dev->iobase+(b)))
-#define ni_readb(a)		(readb(dev->iobase+(a)))
+#define ni_writel(a,b)	(writel((a), (void*)(dev->iobase + (b))))
+#define ni_readl(a)	(readl((void*)(dev->iobase + (a))))
+#define ni_writew(a,b)	(writew((a), (void*)(dev->iobase + (b))))
+#define ni_readw(a)	(readw((void*)(dev->iobase + (a))))
+#define ni_writeb(a,b)	(writeb((a), (void*)(dev->iobase + (b))))
+#define ni_readb(a)	(readb((void*)(dev->iobase + (a))))
 
 /* How we access STC registers */
 

@@ -81,11 +81,6 @@ static inline unsigned int mite_device_id(struct mite_struct *mite)
 {
 	return mite->pcidev->device;
 };
-static inline unsigned long mite_iobase(struct mite_struct *mite)
-{
-	return (unsigned long) mite->daq_io_addr;
-};
-
 
 void mite_init(void);
 void mite_cleanup(void);
