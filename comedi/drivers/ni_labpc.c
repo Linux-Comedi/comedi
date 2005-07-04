@@ -698,7 +698,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 			}
 			ret = mite_setup(devpriv->mite);
 			if(ret < 0) return ret;
-			iobase = mite_iobase(devpriv->mite);
+			iobase = (unsigned long) devpriv->mite->daq_io_addr;
 			irq = mite_irq(devpriv->mite);
 			break;
 		case pcmcia_bustype:

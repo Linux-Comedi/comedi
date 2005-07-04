@@ -682,12 +682,12 @@ typedef struct{
 
 /* How we access registers */
 
-#define ni_writel(a,b)	(writel((a), (void*)(dev->iobase + (b))))
-#define ni_readl(a)	(readl((void*)(dev->iobase + (a))))
-#define ni_writew(a,b)	(writew((a), (void*)(dev->iobase + (b))))
-#define ni_readw(a)	(readw((void*)(dev->iobase + (a))))
-#define ni_writeb(a,b)	(writeb((a), (void*)(dev->iobase + (b))))
-#define ni_readb(a)	(readb((void*)(dev->iobase + (a))))
+#define ni_writel(a,b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_readl(a)	(readl(devpriv->mite->daq_io_addr + (a)))
+#define ni_writew(a,b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_readw(a)	(readw(devpriv->mite->daq_io_addr + (a)))
+#define ni_writeb(a,b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_readb(a)	(readb(devpriv->mite->daq_io_addr + (a)))
 
 /* How we access STC registers */
 
@@ -775,7 +775,6 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = mite_iobase(devpriv->mite);
 
 	dev->irq=mite_irq(devpriv->mite);
 
