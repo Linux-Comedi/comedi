@@ -853,8 +853,11 @@ static int dt3000_detach(comedi_device *dev)
 {
 	if(dev->irq)comedi_free_irq(dev->irq,dev);
 
-	if(devpriv && devpriv->pci_dev) pci_dev_put(devpriv->pci_dev);
-
+	if(devpriv)
+	{
+		if(devpriv->pci_dev) pci_dev_put(devpriv->pci_dev);
+		if(devpriv->io_addr) iounmap(devpriv->io_addr);
+	}	
 	/* XXX */
 
 	return 0;
