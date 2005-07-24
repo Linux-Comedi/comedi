@@ -4,6 +4,9 @@
 
   COMEDI - Linux Control and Measurement Device Interface
   Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+  
+  Sensoray Model 626 Linux driver Version 0.2
+  Copyright (C) 2002-2004 Sensoray Co., Inc.	
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +29,7 @@
   Description: Sensoray 626 driver
   Devices: Sensoray s626
   Authors: Gianluca Palli <gpalli@deis.unibo.it>,
-  Updated: Thu, 14 Jun 2005
+  Updated: Thu, 12 Jul 2005
   Status: experimental
 
   Configuration Options:
@@ -220,7 +223,7 @@ COMEDI_INITCLEANUP(driver_s626);
 
 //ioctl routines
 static int s626_ai_insn_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int s626_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+/* static int s626_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data); */
 static int s626_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int s626_ai_cmd(comedi_device *dev,comedi_subdevice *s);
 static int s626_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
@@ -241,7 +244,7 @@ static int s626_ai_inttrig(comedi_device *dev,comedi_subdevice *s,
 			   unsigned int trignum);
 static irqreturn_t s626_irq_handler(int irq,void *d,struct pt_regs * regs);
 static lsampl_t s626_ai_reg_to_uint(int data);
-static lsampl_t s626_uint_to_reg(comedi_subdevice *s, int data);
+/* static lsampl_t s626_uint_to_reg(comedi_subdevice *s, int data); */
 
 //end ioctl routines 
  
@@ -298,7 +301,7 @@ static void SetEnable_B( comedi_device *dev,enc_private *k, uint16_t enab );
 static uint16_t GetEnable_A(comedi_device *dev, enc_private *k );
 static uint16_t GetEnable_B( comedi_device *dev,enc_private *k );
 static void SetLatchSource(comedi_device *dev, enc_private *k, uint16_t value );
-static uint16_t GetLatchSource(comedi_device *dev, enc_private *k );
+/* static uint16_t GetLatchSource(comedi_device *dev, enc_private *k ); */
 static void SetLoadTrig_A(comedi_device *dev, enc_private *k, uint16_t Trig );
 static void SetLoadTrig_B(comedi_device *dev, enc_private *k, uint16_t Trig );
 static uint16_t GetLoadTrig_A(comedi_device *dev, enc_private *k );
@@ -307,14 +310,14 @@ static void SetIntSrc_B(comedi_device *dev, enc_private *k, uint16_t IntSource )
 static void SetIntSrc_A(comedi_device *dev, enc_private *k, uint16_t IntSource );
 static uint16_t GetIntSrc_A(comedi_device *dev, enc_private *k );
 static uint16_t GetIntSrc_B(comedi_device *dev, enc_private *k );
-static void SetClkMult(comedi_device *dev, enc_private *k, uint16_t value ) ;
-static uint16_t GetClkMult(comedi_device *dev, enc_private *k ) ;
-static void SetIndexPol(comedi_device *dev, enc_private *k, uint16_t value );
-static uint16_t GetClkPol(comedi_device *dev, enc_private *k ) ;
-static void SetIndexSrc( comedi_device *dev,enc_private *k, uint16_t value ); 
-static uint16_t GetClkSrc( comedi_device *dev,enc_private *k ); 
-static void SetIndexSrc( comedi_device *dev,enc_private *k, uint16_t value ); 
-static uint16_t GetIndexSrc( comedi_device *dev,enc_private *k ); 
+/* static void SetClkMult(comedi_device *dev, enc_private *k, uint16_t value ) ; */
+/* static uint16_t GetClkMult(comedi_device *dev, enc_private *k ) ; */
+/* static void SetIndexPol(comedi_device *dev, enc_private *k, uint16_t value ); */
+/* static uint16_t GetClkPol(comedi_device *dev, enc_private *k ) ; */
+/* static void SetIndexSrc( comedi_device *dev,enc_private *k, uint16_t value );  */
+/* static uint16_t GetClkSrc( comedi_device *dev,enc_private *k );  */
+/* static void SetIndexSrc( comedi_device *dev,enc_private *k, uint16_t value );  */
+/* static uint16_t GetIndexSrc( comedi_device *dev,enc_private *k );  */
 static void PulseIndex_A(comedi_device *dev, enc_private *k );
 static void PulseIndex_B( comedi_device *dev,enc_private *k );
 static void Preload( comedi_device *dev,enc_private *k, uint32_t value );
@@ -467,14 +470,14 @@ static comedi_lrange s626_range_table={ 2,{
 
 static int s626_attach(comedi_device *dev,comedi_devconfig *it)
 { 
-  uint8_t	PollList;
-  uint16_t	AdcData;
-  uint16_t	StartVal;
-  uint16_t	index;
+/*   uint8_t	PollList; */
+/*   uint16_t	AdcData; */
+/*   uint16_t	StartVal; */
+/*   uint16_t	index; */
+/*   unsigned int data[16]; */
   int result;
   int i;
   int ret;
-  unsigned int data[16];
   uint64_t resourceStart;
   dma_addr_t appdma;
   
@@ -557,7 +560,6 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   if(dev->irq==0){
     printk(" unknown irq (bad)\n");
   }else{
-    //    printk(" ( irq = %d\n )",dev->irq);
     if( (ret=comedi_request_irq(dev->irq,s626_irq_handler,SA_SHIRQ,"s626",dev))<0 ){
       printk(" irq not available\n");
       dev->irq=0;
@@ -869,7 +871,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     // events are requesting interrupt service.
     devpriv->CounterIntEnabs = 0;
     
-    // Init counter objects.
+    // Init counters.
     CountersInit(dev);	
     
     // Without modifying the state of the Battery Backup enab, disable
@@ -902,9 +904,9 @@ static lsampl_t s626_ai_reg_to_uint(int data){
   return tempdata;
 }
 
-static lsampl_t s626_uint_to_reg(comedi_subdevice *s, int data){
-  return 0;
-}
+/* static lsampl_t s626_uint_to_reg(comedi_subdevice *s, int data){ */
+/*   return 0; */
+/* } */
 
 static irqreturn_t s626_irq_handler(int irq,void *d,struct pt_regs * regs)
 {
@@ -998,7 +1000,7 @@ static irqreturn_t s626_irq_handler(int irq,void *d,struct pt_regs * regs)
     if(devpriv->ai_sample_count<=0){
       devpriv->ai_cmd_running=0;
 
-      // Stop RPS program in case it is currently running.
+      // Stop RPS program.
       MC_DISABLE( P_MC1, MC1_ERPS1 );
 
       //send end of acquisition
@@ -1183,7 +1185,6 @@ static irqreturn_t s626_irq_handler(int irq,void *d,struct pt_regs * regs)
 
   //enable interrupt
   writel(irqstatus,devpriv->base_addr+P_IER);  
-  //writel(IRQ_RPS1,devpriv->base_addr+P_IER);  
    
   DEBUG("s626_irq_handler: exit interrupt service routine.\n");
 
@@ -1608,7 +1609,7 @@ static int s626_ai_cmd(comedi_device *dev,comedi_subdevice *s){
   case TRIG_TIMER:
     // set a conter to generate adc trigger at scan_begin_arg interval
     k=&encpriv[5];
-    tick=s626_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+    tick=s626_ns_to_timer((int *)&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
 
     //load timer value and enable interrupt
     s626_timer_load(dev, k, tick);
@@ -1632,7 +1633,7 @@ static int s626_ai_cmd(comedi_device *dev,comedi_subdevice *s){
   case TRIG_TIMER:
     // set a conter to generate adc trigger at convert_arg interval
     k=&encpriv[4];
-    tick=s626_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+    tick=s626_ns_to_timer((int *)&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
 
     //load timer value and enable interrupt
     s626_timer_load(dev, k, tick);
@@ -1688,11 +1689,6 @@ static int s626_ai_cmd(comedi_device *dev,comedi_subdevice *s){
     s->async->inttrig=s626_ai_inttrig;
     break;
   }
-
-/*   switch(cmd->scan_begin_src){ */
-/*   case TRIG_TIMER: */
-/*   case TRIG_EXT: */
-/*   } */
   
   //enable interrupt
   writel(IRQ_GPIO3 | IRQ_RPS1,devpriv->base_addr+P_IER);
@@ -1768,6 +1764,26 @@ static int s626_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
     err++;
   }
 
+  if(cmd->scan_begin_src==TRIG_EXT && cmd->scan_begin_arg<0){
+    cmd->scan_begin_arg=0;
+    err++;
+  }
+
+  if(cmd->scan_begin_src==TRIG_EXT && cmd->scan_begin_arg>39){
+    cmd->scan_begin_arg=39;
+    err++;
+  }
+
+  if(cmd->convert_src==TRIG_EXT && cmd->convert_arg<0){
+    cmd->convert_arg=0;
+    err++;
+  }
+
+  if(cmd->convert_src==TRIG_EXT && cmd->convert_arg>39){
+    cmd->convert_arg=39;
+    err++;
+  }
+
 #define MAX_SPEED	200000		/* in nanoseconds */
 #define MIN_SPEED	2000000000	/* in nanoseconds */
 
@@ -1784,10 +1800,10 @@ static int s626_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
     /* external trigger */
     /* should be level/edge, hi/lo specification here */
     /* should specify multiple external triggers */
-    if(cmd->scan_begin_arg>9){
-      cmd->scan_begin_arg=9;
-      err++;
-    }
+/*     if(cmd->scan_begin_arg>9){ */
+/*       cmd->scan_begin_arg=9; */
+/*       err++; */
+/*     } */
   }
   if(cmd->convert_src==TRIG_TIMER){
     if(cmd->convert_arg<MAX_SPEED){
@@ -1801,10 +1817,10 @@ static int s626_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
   }else{
     /* external trigger */
     /* see above */
-    if(cmd->convert_arg>9){
-      cmd->convert_arg=9;
-      err++;
-    }
+/*     if(cmd->convert_arg>9){ */
+/*       cmd->convert_arg=9; */
+/*       err++; */
+/*     } */
   }
 
   if(cmd->scan_end_arg!=cmd->chanlist_len){
@@ -1830,12 +1846,12 @@ static int s626_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
   if(cmd->scan_begin_src==TRIG_TIMER){
     tmp=cmd->scan_begin_arg;
-    s626_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+    s626_ns_to_timer((int *)&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
     if(tmp!=cmd->scan_begin_arg)err++;
   }
   if(cmd->convert_src==TRIG_TIMER){
     tmp=cmd->convert_arg;
-    s626_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+    s626_ns_to_timer((int *)&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
     if(tmp!=cmd->convert_arg)err++;
     if(cmd->scan_begin_src==TRIG_TIMER &&
        cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
@@ -1994,29 +2010,24 @@ static int s626_dio_insn_config(comedi_device *dev,comedi_subdevice *s,comedi_in
 { 
 
   switch(data[0]){
-  case INSN_CONFIG_DIO_QUERY:{
+  case INSN_CONFIG_DIO_QUERY:
     data[1] = (s->io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT : COMEDI_INPUT;
     return insn->n;
     break;
-  }
-  case COMEDI_INPUT:{
+  case COMEDI_INPUT:
     s->io_bits&= ~(1 << CR_CHAN(insn->chanspec)); 
     break;
-  }
-  case COMEDI_OUTPUT:{
+  case COMEDI_OUTPUT:
     s->io_bits|= 1 << CR_CHAN(insn->chanspec);
     break;
-  }
-  default:{ 
+  default:
     return -EINVAL;
     break;
-  }
   }
   DEBIwrite(dev,diopriv->WRDOut,s->io_bits);
   
   return 1;
 }
-
 
 static int s626_dio_set_irq(comedi_device *dev, unsigned int chan)
 {
@@ -2854,10 +2865,10 @@ static void SetLatchSource(comedi_device *dev, enc_private *k, uint16_t value )
  DEBUG("SetLatchSource: SetLatchSource exit \n");
 }
 
-static uint16_t GetLatchSource(comedi_device *dev, enc_private *k )
-{
-  return ( DEBIread( dev, k->MyCRB) >> CRBBIT_LATCHSRC ) & 3;
-}
+/* static uint16_t GetLatchSource(comedi_device *dev, enc_private *k ) */
+/* { */
+/*   return ( DEBIread( dev, k->MyCRB) >> CRBBIT_LATCHSRC ) & 3; */
+/* } */
 
 /////////////////////////////////////////////////////////////////////////
 // Return/set the event that will trigger transfer of the preload
@@ -2934,68 +2945,68 @@ static uint16_t GetIntSrc_B( comedi_device *dev,enc_private *k )
 /////////////////////////////////////////////////////////////////////////
 // Return/set the clock multiplier.
 
-static void SetClkMult(comedi_device *dev, enc_private *k, uint16_t value ) 
-{
-  k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKMULT ) | ( value << STDBIT_CLKMULT ) ), FALSE );
-}
+/* static void SetClkMult(comedi_device *dev, enc_private *k, uint16_t value )  */
+/* { */
+/*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKMULT ) | ( value << STDBIT_CLKMULT ) ), FALSE ); */
+/* } */
 
-static uint16_t GetClkMult(comedi_device *dev, enc_private *k ) 
-{
-  return ( k->GetMode(dev, k ) >> STDBIT_CLKMULT ) & 3;
-}
+/* static uint16_t GetClkMult(comedi_device *dev, enc_private *k )  */
+/* { */
+/*   return ( k->GetMode(dev, k ) >> STDBIT_CLKMULT ) & 3; */
+/* } */
 
-//////////////////////////////////////////////////////////////////////////
-// Return/set the clock polarity.
+/* ////////////////////////////////////////////////////////////////////////// */
+/* // Return/set the clock polarity. */
 
-static void SetClkPol( comedi_device *dev,enc_private *k, uint16_t value ) 
-{
-  k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKPOL ) | ( value << STDBIT_CLKPOL ) ), FALSE );
-}
+/* static void SetClkPol( comedi_device *dev,enc_private *k, uint16_t value )  */
+/* { */
+/*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKPOL ) | ( value << STDBIT_CLKPOL ) ), FALSE ); */
+/* } */
 
-static uint16_t GetClkPol(comedi_device *dev, enc_private *k ) 
-{
-  return ( k->GetMode(dev, k ) >> STDBIT_CLKPOL ) & 1;
-}
+/* static uint16_t GetClkPol(comedi_device *dev, enc_private *k )  */
+/* { */
+/*   return ( k->GetMode(dev, k ) >> STDBIT_CLKPOL ) & 1; */
+/* } */
 
-///////////////////////////////////////////////////////////////////////
-// Return/set the clock source.
+/* /////////////////////////////////////////////////////////////////////// */
+/* // Return/set the clock source. */
 
-static void SetClkSrc( comedi_device *dev,enc_private *k, uint16_t value ) 
-{
-  k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKSRC ) | ( value << STDBIT_CLKSRC ) ), FALSE );
-}
+/* static void SetClkSrc( comedi_device *dev,enc_private *k, uint16_t value )  */
+/* { */
+/*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_CLKSRC ) | ( value << STDBIT_CLKSRC ) ), FALSE ); */
+/* } */
 
-static uint16_t GetClkSrc( comedi_device *dev,enc_private *k ) 
-{
-  return ( k->GetMode(dev, k ) >> STDBIT_CLKSRC ) & 3;
-}
+/* static uint16_t GetClkSrc( comedi_device *dev,enc_private *k )  */
+/* { */
+/*   return ( k->GetMode(dev, k ) >> STDBIT_CLKSRC ) & 3; */
+/* } */
 
-////////////////////////////////////////////////////////////////////////
-// Return/set the index polarity.
+/* //////////////////////////////////////////////////////////////////////// */
+/* // Return/set the index polarity. */
 
-static void SetIndexPol(comedi_device *dev, enc_private *k, uint16_t value ) 
-{
-  k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_INDXPOL ) | ( (value != 0) << STDBIT_INDXPOL ) ), FALSE );
-}
+/* static void SetIndexPol(comedi_device *dev, enc_private *k, uint16_t value )  */
+/* { */
+/*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_INDXPOL ) | ( (value != 0) << STDBIT_INDXPOL ) ), FALSE ); */
+/* } */
 
-static uint16_t GetIndexPol(comedi_device *dev, enc_private *k ) 
-{
-  return ( k->GetMode(dev, k ) >> STDBIT_INDXPOL ) & 1;
-}
+/* static uint16_t GetIndexPol(comedi_device *dev, enc_private *k )  */
+/* { */
+/*   return ( k->GetMode(dev, k ) >> STDBIT_INDXPOL ) & 1; */
+/* } */
 
-////////////////////////////////////////////////////////////////////////
-// Return/set the index source.
+/* //////////////////////////////////////////////////////////////////////// */
+/* // Return/set the index source. */
 
-static void SetIndexSrc(comedi_device *dev, enc_private *k, uint16_t value ) 
-{
-  DEBUG("SetIndexSrc: set index src enter 3700\n");
-  k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_INDXSRC ) | ( (value != 0) << STDBIT_INDXSRC ) ), FALSE );
-}
+/* static void SetIndexSrc(comedi_device *dev, enc_private *k, uint16_t value )  */
+/* { */
+/*   DEBUG("SetIndexSrc: set index src enter 3700\n"); */
+/*   k->SetMode(dev, k, (uint16_t)( ( k->GetMode(dev, k ) & ~STDMSK_INDXSRC ) | ( (value != 0) << STDBIT_INDXSRC ) ), FALSE ); */
+/* } */
 
-static uint16_t GetIndexSrc(comedi_device *dev, enc_private *k ) 
-{
-  return ( k->GetMode(dev, k ) >> STDBIT_INDXSRC ) & 1;
-}
+/* static uint16_t GetIndexSrc(comedi_device *dev, enc_private *k )  */
+/* { */
+/*   return ( k->GetMode(dev, k ) >> STDBIT_INDXSRC ) & 1; */
+/* } */
 
 ///////////////////////////////////////////////////////////////////
 // Generate an index pulse.
