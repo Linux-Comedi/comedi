@@ -231,6 +231,7 @@ rti800_ko_SOURCES = rti800.c
 rti802_ko_SOURCES = rti802.c
 skel_ko_SOURCES = skel.c
 ssv_dnp_ko_SOURCES = ssv_dnp.c
+s626_ko_SOURCES = s626.c
 comedi_test_ko_SOURCES = comedi_test.c
 usbdux_ko_SOURCES = usbdux.c
 usbduxfast_ko_SOURCES = usbduxfast.c
