@@ -4,7 +4,10 @@
 
   COMEDI - Linux Control and Measurement Device Interface
   Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
+  
+  Based on Sensoray Model 626 Linux driver Version 0.2
+  Copyright (C) 2002-2004 Sensoray Co., Inc.	
+  
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
@@ -26,7 +29,7 @@
   Description: Sensoray 626 driver
   Devices: Sensoray s626
   Authors: Gianluca Palli <gpalli@deis.unibo.it>,
-  Updated: Thu, 14 Jun 2005
+  Updated: Thu, 12 Jul 2005
   Status: experimental
 
   Configuration Options:
