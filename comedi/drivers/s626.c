@@ -219,7 +219,7 @@ static dio_private *dio_private_word[]={
 #define devpriv ((s626_private *)dev->private)
 #define diopriv ((dio_private *)s->private)
 
-COMEDI_INITCLEANUP(driver_s626);
+COMEDI_INITCLEANUP_NOMODULE(driver_s626);
 
 //ioctl routines
 static int s626_ai_insn_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
