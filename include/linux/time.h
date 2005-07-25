@@ -6,7 +6,7 @@
 
 #include_next <linux/time.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,29)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,29) || ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7) )
 
 static inline unsigned int jiffies_to_msecs(const unsigned long j)
 {
