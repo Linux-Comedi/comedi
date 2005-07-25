@@ -1784,7 +1784,7 @@ static struct file_operations comedi_fops={
 };
 #endif
 
-static struct class_simple *comedi_class;
+static struct class *comedi_class;
 
 static int __init comedi_init(void)
 {
@@ -1795,7 +1795,7 @@ static int __init comedi_init(void)
 		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
 		return -EIO;
 	}
-	comedi_class = class_simple_create(THIS_MODULE, "comedi");
+	comedi_class = class_create(THIS_MODULE, "comedi");
 	if(IS_ERR(comedi_class))
 	{
 		printk("comedi: failed to create class");
@@ -1805,7 +1805,7 @@ static int __init comedi_init(void)
 	comedi_devices=(comedi_device *)kmalloc(sizeof(comedi_device)*COMEDI_NDEVICES,GFP_KERNEL);
 	if(!comedi_devices)
 	{
-		class_simple_destroy(comedi_class);
+		class_destroy(comedi_class);
 		devfs_unregister_chrdev(COMEDI_MAJOR,"comedi");
 		return -ENOMEM;
 	}
@@ -1823,7 +1823,7 @@ static int __init comedi_init(void)
 		sprintf(name, "comedi%d", i);
 		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
 			COMEDI_MAJOR, i, 0666 | S_IFCHR, &comedi_fops, NULL);
-		class_simple_device_add(comedi_class, MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
+		class_device_create(comedi_class, MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	}
 
 	comedi_rt_init();
@@ -1840,12 +1840,12 @@ static void __exit comedi_cleanup(void)
 
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		char name[20];
-		class_simple_device_remove(MKDEV(COMEDI_MAJOR, i));
+		class_device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, i));
 		sprintf(name, "comedi%d", i);
 		devfs_unregister(devfs_find_handle(NULL, name,
 			COMEDI_MAJOR, i, DEVFS_SPECIAL_CHR, 0));
 	}
-	class_simple_destroy(comedi_class);
+	class_destroy(comedi_class);
 	devfs_unregister_chrdev(COMEDI_MAJOR,"comedi");
 
 	comedi_proc_cleanup();
