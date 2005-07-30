@@ -39,7 +39,7 @@
 #define MDPRINTK(format,args...)
 #endif
 
-#define NUM_MITE_DMA_CHANNELS 4
+#define MAX_MITE_DMA_CHANNELS 4
 
 struct mite_dma_chain{
 	u32 count;
@@ -68,7 +68,8 @@ struct mite_struct{
 	unsigned long daq_phys_addr;
 	void *daq_io_addr;
 
-	struct mite_channel channels[ NUM_MITE_DMA_CHANNELS ];
+	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
+	int num_channels;
 };
 
 extern struct mite_struct *mite_devices;
@@ -196,15 +197,53 @@ enum MITE_IODWBSR_bits
 	WENAB = 0x80,	// window enable
 	WENAB_6602 = 0x8c // window enable for 6602 boards
 };
+
+static inline int mite_csigr_version(u32 csigr_bits)
+{
+	return csigr_bits & 0xf;
+};
+static inline int mite_csigr_type(u32 csigr_bits)
+{	// original mite = 0, minimite = 1
+	return (csigr_bits >> 4) & 0xf;
+};
+static inline int mite_csigr_mmode(u32 csigr_bits)
+{	// mite mode, minimite = 1
+	return (csigr_bits >> 8) & 0x3;
+};
+static inline int mite_csigr_imode(u32 csigr_bits)
+{	// cpu port interface mode, pci = 0x3
+	return (csigr_bits >> 12) & 0x3;
+};
+static inline int mite_csigr_dmac(u32 csigr_bits)
+{	// number of dma channels
+	return (csigr_bits >> 16) & 0xf;
+};
+static inline int mite_csigr_wpdep(u32 csigr_bits)
+{	// write post fifo depth
+	unsigned int wpdep_bits = (csigr_bits >> 16) & 0xf;
+	if(wpdep_bits == 0) return 0;
+	else return 1 << (wpdep_bits - 1);
+};
+static inline int mite_csigr_wins(u32 csigr_bits)
+{
+	return (csigr_bits >> 24) & 0x1f;
+};
+static inline int mite_csigr_iowins(u32 csigr_bits)
+{	// number of io windows
+	return (csigr_bits >> 29) & 0x7;
+};
+
 enum MITE_MCR_bits
 {
 	MCRPON = 0,
 };
+
 enum MITE_DCR_bits
 {
 	DCR_NORMAL = (1<<29),
 	DCRPON = 0,
 };
+
 enum MITE_CHOR_bits
 {
 	CHOR_DMARESET			= (1<<31),
@@ -222,6 +261,7 @@ enum MITE_CHOR_bits
 	CHOR_START			= (1<<0),
 	CHOR_PON		= (CHOR_CLR_SEND_TC|CHOR_CLR_LPAUSE),
 };
+
 enum MITE_CHCR_bits
 {
 	CHCR_SET_DMA_IE			= (1<<31),
@@ -256,6 +296,7 @@ enum MITE_CHCR_bits
 	CHCR_LINKLONG			= (5<<0),
 	CHCRPON				= (CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE | CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE),
 };
+
 enum ConfigRegister_bits
 {
 	CR_REQS_MASK = 0x7 << 16,

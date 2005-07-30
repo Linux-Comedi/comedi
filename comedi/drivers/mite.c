@@ -92,13 +92,23 @@ void mite_init(void)
 	}
 }
 
+static void dump_chip_signature(u32 csigr_bits)
+{
+	printk("mite: version = %i, type = %i, mite mode = %i, interface mode = %i\n",
+		mite_csigr_version(csigr_bits), mite_csigr_type(csigr_bits),
+		mite_csigr_mmode(csigr_bits), mite_csigr_imode(csigr_bits));
+	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n", 
+		mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits),
+		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
+}
 
 int mite_setup(struct mite_struct *mite)
 {
-	unsigned long			offset, start, length;
-	u32				addr;
+	unsigned long offset, start, length;
+	u32 addr;
 	int i;
-
+	u32 csigr_bits;
+	
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
 		return -EIO;
@@ -140,7 +150,16 @@ int mite_setup(struct mite_struct *mite)
 	}
 	else writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
 
-	for( i = 0; i < NUM_MITE_DMA_CHANNELS; i++ ) {
+	csigr_bits = readl(mite->mite_io_addr + MITE_CSIGR);
+	mite->num_channels = mite_csigr_dmac(csigr_bits);
+	if(mite->num_channels > MAX_MITE_DMA_CHANNELS)
+	{
+		printk("mite: bug? chip claims to have %i dma channels.  Setting to %i.\n",
+			mite->num_channels, MAX_MITE_DMA_CHANNELS);
+		mite->num_channels = MAX_MITE_DMA_CHANNELS;
+	}
+	dump_chip_signature(csigr_bits);
+	for( i = 0; i < mite->num_channels; i++ ) {
 		writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(i));
 		/* disable interrupts */
 		writel(0, mite->mite_io_addr + MITE_CHCR(i));
