@@ -1387,7 +1387,6 @@ static int setup_subdevices(comedi_device *dev)
 	s = dev->subdevices + 1;
 	if(board(dev)->ao_nchan)
 	{
-		dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board(dev)->ao_nchan;
@@ -1397,6 +1396,7 @@ static int setup_subdevices(comedi_device *dev)
 		s->insn_write = ao_winsn;
 		if(ao_cmd_is_supported(board(dev)))
 		{
+			dev->write_subdev = s;
 			s->do_cmdtest = ao_cmdtest;
 			s->do_cmd = ao_cmd;
 			s->len_chanlist = board(dev)->ao_nchan;
@@ -1405,7 +1405,6 @@ static int setup_subdevices(comedi_device *dev)
 	} else
 	{
 		s->type = COMEDI_SUBD_UNUSED;
-		dev->write_subdev = NULL;
 	}
 
 	// digital input
