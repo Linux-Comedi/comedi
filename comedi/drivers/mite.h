@@ -92,9 +92,11 @@ void mite_list_devices(void);
 int mite_dma_tcr(struct mite_struct *mite, unsigned int channel );
 void mite_dma_arm(struct mite_struct *mite, unsigned int channel );
 void mite_dma_disarm(struct mite_struct *mite, unsigned int channel );
-unsigned int mite_bytes_transferred(struct mite_struct *mite, unsigned int chan);
-unsigned int mite_bytes_read(struct mite_struct *mite, unsigned int chan);
-unsigned int mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan);
+u32 mite_bytes_written_to_memory_lb(struct mite_struct *mite, unsigned int chan);
+u32 mite_bytes_written_to_memory_ub(struct mite_struct *mite, unsigned int chan);
+u32 mite_bytes_read_from_memory_lb(struct mite_struct *mite, unsigned int chan);
+u32 mite_bytes_read_from_memory_ub(struct mite_struct *mite, unsigned int chan);
+u32 mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan);
 
 #if 0
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);

@@ -410,13 +410,9 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	// write alloc as much as we can
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
+	nbytes = mite_bytes_written_to_memory_lb(mite, AI_DMA_CHAN);
 	rmb();
-	/* We use mite_bytes_read() for the overrun check
-	 * because it returns an upper bound, and mite_bytes_transferred
-	 * returns a lower bound on the number of bytes actually
-	 * transferred */
-	if( (int)(mite_bytes_read(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
+	if( (int)(mite_bytes_written_to_memory_ub(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
 		printk("ni_mio_common: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
@@ -445,29 +441,35 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	int count;
 	comedi_subdevice *s = dev->subdevices + 1;
 	comedi_async *async = s->async;
-	unsigned int nbytes, new_write_count;
-
+	u32 nbytes_ub, nbytes_lb;
+	unsigned int new_write_count;
+	u32 stop_count = async->cmd.stop_arg * sizeof(sampl_t);
+	
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
 
 	new_write_count = async->buf_write_count;
-
-	nbytes = mite_bytes_read(mite, AO_DMA_CHAN);
-	if( async->cmd.stop_src == TRIG_COUNT &&
-		(int) (nbytes - async->cmd.stop_arg * sizeof( sampl_t ) ) > 0 )
-		nbytes = async->cmd.stop_arg * sizeof( sampl_t );
-	if( (int)(nbytes - devpriv->last_buf_write_count) > 0 ){
+	mb();
+	nbytes_lb = mite_bytes_read_from_memory_lb(mite, AO_DMA_CHAN);
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes_lb - stop_count) > 0)
+		nbytes_lb = stop_count;
+	mb();
+	nbytes_ub = mite_bytes_read_from_memory_ub(mite, AO_DMA_CHAN);
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes_ub - stop_count) > 0)
+		nbytes_ub = stop_count;
+	if((int)(nbytes_ub - devpriv->last_buf_write_count) > 0){
 		rt_printk("ni_mio_common: DMA underrun\n");
 		ni_ao_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
-
+	mb();
 	devpriv->last_buf_write_count = new_write_count;
 
-	count = nbytes - async->buf_read_count;
-	if( count < 0 ){
-		rt_printk("ni_mio_common: BUG: negative ao count\n");
-		count = 0;
+	count = nbytes_lb - async->buf_read_count;
+	if(count < 0){
+		return;
 	}
 	comedi_buf_read_free(async, count);
 

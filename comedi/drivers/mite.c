@@ -305,9 +305,6 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	 * of buf_int_ptr and buf_int_count at each interrupt.  A
 	 * better method is to poll the MITE before each user
 	 * "read()" to calculate the number of bytes available.
-	 * mite_bytes_transferred(), mite_bytes_read(), and
-	 * mite_bytes_in_transit() are provided to get the number
-	 * of bytes transferred by the mite so far.
 	 */
 	chcr |= CHCR_SET_LC_IE;
 
@@ -367,25 +364,54 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	MDPRINTK("exit mite_prep_dma\n");
 }
 
-unsigned int mite_bytes_read(struct mite_struct *mite, unsigned int chan)
+u32 mite_device_bytes_transferred(struct mite_struct *mite, unsigned int chan)
 {
-       return readl(mite->mite_io_addr+MITE_DAR(chan));
+	return readl(mite->mite_io_addr + MITE_DAR(chan));
 }
 
-unsigned int mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan)
 {
 	return readl(mite->mite_io_addr + MITE_FCR(chan)) & 0x000000FF;
 }
 
-unsigned int mite_bytes_transferred(struct mite_struct *mite, unsigned int chan)
+// returns lower bound for number of bytes transferred from device to memory
+u32 mite_bytes_written_to_memory_lb(struct mite_struct *mite, unsigned int chan)
 {
-	unsigned int bytes_read;
+	u32 device_byte_count;
 
-	bytes_read = mite_bytes_read( mite, chan );
-	/* to avoid race, we want to read bytes read before reading bytes
-	 * in transit */
+	device_byte_count = mite_device_bytes_transferred(mite, chan);
 	rmb();
-	return bytes_read - mite_bytes_in_transit( mite, chan );
+	return device_byte_count - mite_bytes_in_transit(mite, chan);
+}
+
+// returns upper bound for number of bytes transferred from device to memory
+u32 mite_bytes_written_to_memory_ub(struct mite_struct *mite, unsigned int chan)
+{
+	u32 in_transit_count;
+
+	in_transit_count = mite_bytes_in_transit(mite, chan);
+	rmb();
+	return mite_device_bytes_transferred(mite, chan) - in_transit_count;
+}
+
+// returns lower bound for number of bytes read from memory for transfer to device
+u32 mite_bytes_read_from_memory_lb(struct mite_struct *mite, unsigned int chan)
+{
+	u32 device_byte_count;
+
+	device_byte_count = mite_device_bytes_transferred(mite, chan);
+	rmb();
+	return device_byte_count + mite_bytes_in_transit(mite, chan);
+}
+
+// returns upper bound for number of bytes read from memory for transfer to device
+u32 mite_bytes_read_from_memory_ub(struct mite_struct *mite, unsigned int chan)
+{
+	u32 in_transit_count;
+
+	in_transit_count = mite_bytes_in_transit(mite, chan);
+	rmb();
+	return mite_device_bytes_transferred(mite, chan) + in_transit_count;
 }
 
 int mite_dma_tcr(struct mite_struct *mite, unsigned int channel)
@@ -566,8 +592,10 @@ EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_change);
-EXPORT_SYMBOL(mite_bytes_transferred);
-EXPORT_SYMBOL(mite_bytes_read);
+EXPORT_SYMBOL(mite_bytes_written_to_memory_lb);
+EXPORT_SYMBOL(mite_bytes_written_to_memory_ub);
+EXPORT_SYMBOL(mite_bytes_read_from_memory_lb);
+EXPORT_SYMBOL(mite_bytes_read_from_memory_ub);
 EXPORT_SYMBOL(mite_bytes_in_transit);
 #ifdef DEBUG_MITE
 EXPORT_SYMBOL(mite_decode);
