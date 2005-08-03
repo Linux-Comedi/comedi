@@ -174,12 +174,12 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg, unsigned
 		aux_len = it.options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
 		if(aux_len<0)return -EFAULT;
 
-		aux_data = kmalloc(aux_len, GFP_KERNEL);
-		if(!aux_data)return -EFAULT;
+		aux_data = vmalloc(aux_len);
+		if(!aux_data) return -ENOMEM;
 
 		if(copy_from_user(aux_data,
 			comedi_aux_data(it.options, 0), aux_len)){
-			kfree(aux_data);
+			vfree(aux_data);
 			return -EFAULT;
 		}
 		it.options[COMEDI_DEVCONF_AUX_DATA_LO] = (unsigned long)aux_data;
@@ -193,7 +193,7 @@ static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg, unsigned
 
 	ret = comedi_device_attach(dev,&it);
 
-	if(aux_data) kfree(aux_data);
+	if(aux_data) vfree(aux_data);
 
 	return ret;
 }
