@@ -29,7 +29,6 @@
 #endif
 
 #include <linux/version.h>
-#include <linux/config.h>
 #include <linux/kdev_t.h>
 #include <linux/config.h>
 #include <linux/slab.h>
