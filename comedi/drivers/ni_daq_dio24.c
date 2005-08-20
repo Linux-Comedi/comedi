@@ -91,6 +91,12 @@ static dio24_board dio24_boards[] =
 		bustype:	pcmcia_bustype,
 		have_dio:	1,
 	},
+	{
+		name:	"ni_daq_dio24",
+		device_id:	0x475c,	// 0x10b is manufacturer id, 0x475c is device id
+		bustype:	pcmcia_bustype,
+		have_dio:	1,
+	},
 };
 
 /*
