@@ -750,7 +750,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	5000,
 		ao_nchan: 2,
-		ao_bits:	16,
+		ao_bits:	12,
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
@@ -867,7 +867,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	2000,
 		ao_nchan: 2,
-		ao_bits:	16,
+		ao_bits:	12,
 		ao_scan_speed:	1000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6052,
@@ -3142,7 +3142,7 @@ static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 static void set_dac_control0_reg(comedi_device *dev, const comedi_cmd *cmd)
 {
-	unsigned int bits = DAC_ENABLE_BIT | 	WAVEFORM_GATE_LEVEL_BIT |
+	unsigned int bits = DAC_ENABLE_BIT | WAVEFORM_GATE_LEVEL_BIT |
 		WAVEFORM_GATE_ENABLE_BIT | WAVEFORM_GATE_SELECT_BIT;
 
 	if(cmd->start_src == TRIG_EXT)
