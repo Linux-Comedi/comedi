@@ -1963,9 +1963,13 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 
 static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 {
-	static const int num_calibration_sources = 8;
 	lsampl_t source = data[1];
-
+	int num_calibration_sources;
+	
+	if( board(dev)->layout == LAYOUT_60XX)
+		num_calibration_sources = 16;
+	else
+		num_calibration_sources = 8;
 	if(source >= num_calibration_sources)
 	{
 		printk( "invalid calibration source: %i\n", source );
