@@ -220,11 +220,13 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
  *
  * FMH
  */
+
+static const int i8254_control_reg = 3;
+
 static inline int i8254_load(unsigned long base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;
-	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 	if(count > 0xffff) return -1;
@@ -234,7 +236,7 @@ static inline int i8254_load(unsigned long base_address,
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
 	byte |= (mode << 1);	// set counter mode
-	outb(byte, base_address + counter_control);
+	outb(byte, base_address + i8254_control_reg);
 	byte = count & 0xff;	// lsb of counter value
 	outb(byte, base_address + counter_number);
 	byte = (count >> 8) & 0xff;	// msb of counter value
@@ -247,7 +249,6 @@ static inline int i8254_mm_load(void *base_address,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;
-	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 	if(count > 0xffff) return -1;
@@ -257,7 +258,7 @@ static inline int i8254_mm_load(void *base_address,
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
 	byte |= (mode << 1);	// set counter mode
-	writeb(byte, base_address + counter_control);
+	writeb(byte, base_address + i8254_control_reg);
 	byte = count & 0xff;	// lsb of counter value
 	writeb(byte, base_address + counter_number);
 	byte = (count >> 8) & 0xff;	// msb of counter value
@@ -271,13 +272,12 @@ static inline int i8254_read(unsigned long base_address, unsigned int counter_nu
 {
 	unsigned int byte;
 	int ret;
-	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 
 	// latch counter
 	byte = counter_number << 6;
-	outb(byte, base_address + counter_control);
+	outb(byte, base_address + i8254_control_reg);
 
 	// read lsb
 	ret = inb(base_address + counter_number);
@@ -286,6 +286,13 @@ static inline int i8254_read(unsigned long base_address, unsigned int counter_nu
 
 	return ret;
 }
+
+static inline int i8254_status(unsigned long base_address, int counter_number)
+{
+	outb(0xE0 | (2 << counter_number), base_address + i8254_control_reg);
+	return inb(base_address + counter_number);
+}
+
 #endif
 
 #endif
