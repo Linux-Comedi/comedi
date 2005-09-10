@@ -190,7 +190,7 @@ static dio200_layout dio200_layouts[] = {
 	[pc272_layout] = {
 		n_subdevs:	4,
 		sdtype:		{ sd_8255, sd_8255, sd_8255, sd_intr },
-		sdinfo:		{ 0x00, 0x08, 0x0C, 0x3F },
+		sdinfo:		{ 0x00, 0x08, 0x10, 0x3F },
 	},
 };
 
