@@ -162,6 +162,7 @@ static int das08jr_di_rbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static int das08jr_do_wbits(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static void i8254_set_mode_low(unsigned int base, int channel, unsigned int mode);
 
 static comedi_lrange range_das08_pgl = { 9, {
 	BIP_RANGE(10),
@@ -718,18 +719,12 @@ static void i8254_write_channel(struct i8254_struct *st, int channel, unsigned i
         i8254_write_channel_low(st->iobase,chan,value);
 }
 
-#define I8254_CH0_LM  0x30
-#define I8254_CH1_LM  0x60
-#define I8254_CH2_LM  0x80
-
 static void i8254_initialize(struct i8254_struct *st)
 {
-        unsigned int port=st->iobase+I8254_CTRL;
-        outb(I8254_CH0_LM | st->mode[0],port);
-        outb(I8254_CH1_LM | st->mode[1],port);
-        outb(I8254_CH2_LM | st->mode[2],port);
+	int i;
+	for(i = 0 ; i < 3; ++i)
+		i8254_set_mode_low(st->iobase, i, st->mode[i]);
 }
-
 
 static void i8254_set_mode_low(unsigned int base, int channel, unsigned int mode)
 {
