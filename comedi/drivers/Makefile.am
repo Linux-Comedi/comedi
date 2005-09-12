@@ -107,6 +107,7 @@ module_PROGRAMS = \
  das6402.ko \
  das800.ko \
  das1800.ko \
+ dmm32at.ko \
  dt2801.ko \
  dt2811.ko \
  dt2814.ko \
@@ -183,6 +184,7 @@ das16m1_ko_SOURCES = das16m1.c
 das6402_ko_SOURCES = das6402.c
 das800_ko_SOURCES = das800.c
 das1800_ko_SOURCES = das1800.c
+dmm32at_ko_SOURCES = dmm32at.c
 dt2801_ko_SOURCES = dt2801.c
 dt2811_ko_SOURCES = dt2811.c
 dt2814_ko_SOURCES = dt2814.c
