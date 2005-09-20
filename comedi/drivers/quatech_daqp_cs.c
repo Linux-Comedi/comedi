@@ -49,6 +49,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #include <linux/comedidev.h>
 
+#include <linux/version.h>
 #include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -1147,11 +1148,13 @@ static dev_link_t *daqp_cs_attach(void)
     /* Register with Card Services */
     client_reg.dev_info = &dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &daqp_cs_event;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
+	client_reg.EventMask =
+		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
+		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
+		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
+	client_reg.event_handler = &daqp_cs_event;
+#endif
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -1517,6 +1520,9 @@ struct pcmcia_driver daqp_cs_driver =
 {
 	.attach = daqp_cs_attach,
 	.detach = daqp_cs_detach,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+	.event = daqp_cs_event,
+#endif
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = "quatech_daqp_cs",
