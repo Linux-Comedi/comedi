@@ -3708,6 +3708,10 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case COMEDI_INPUT:
 		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1<<chan, 0);
 		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (devpriv->io_bidirection_pin_reg & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
 	default:
 		return -EINVAL;
 	}
