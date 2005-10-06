@@ -1,14 +1,38 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : INP_CPT.C       |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : Inp_CPT.C       | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 27.08.98             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 pulse encoder module                        |
   |                                                                       |
@@ -116,14 +140,15 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	b_InputLevelSelection	=(BYTE)  data[1];
 	b_TriggerOutputAction	=(BYTE)  data[2];
 	ul_StartValue			=(ULONG) data[3];
-       i_ReturnValue           =insn->n;
+
+       i_ReturnValue           =insn->n;
 	
 
 	/***********************************/
 	/* Test the selected module number */
 	/***********************************/
 
-	if (b_ModulNbr >= 0 && b_ModulNbr <= 3)
+	if (b_ModulNbr <= 3)
 	   {
 	   /*************************/
 	   /* Test if pulse encoder */
@@ -136,7 +161,7 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	      /* Test the selected pulse encoder number */
 	      /******************************************/
 
-	      if (b_PulseEncoderNbr >= 0 && b_PulseEncoderNbr <= 3)
+	      if (b_PulseEncoderNbr <= 3)
 		 {
 		 /************************/
 		 /* Test the input level */
@@ -148,7 +173,7 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		    /* Test the ouput TRIGGER action selection */
 		    /*******************************************/
 
-		    if ((b_TriggerOutputAction >= 0 && b_TriggerOutputAction <= 2) || (b_PulseEncoderNbr > 0))
+		    if ((b_TriggerOutputAction <= 2) || (b_PulseEncoderNbr > 0))
 		       {
 		       if (ul_StartValue > 1)
 			  {
@@ -232,7 +257,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 			  /**************************************/
 			  /* Pulse encoder start value is wrong */
 			  /**************************************/
-			  DPRINTK("Pulse encoder start value is wrong\n");
+
+			  DPRINTK("Pulse encoder start value is wrong\n");
 			  i_ReturnValue = -6;
 			  }
 		       }
@@ -241,7 +267,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		       /****************************************************/
 		       /* Digital TRIGGER output action selection is wrong */
 		       /****************************************************/
-			   DPRINTK("Digital TRIGGER output action selection is wrong\n"); 	
+
+			   DPRINTK("Digital TRIGGER output action selection is wrong\n"); 	
 		       i_ReturnValue = -5;
 		       }
 		    }
@@ -250,7 +277,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		    /**********************************/
 		    /* Input level selection is wrong */
 		    /**********************************/
-		    DPRINTK("Input level selection is wrong\n");
+
+		    DPRINTK("Input level selection is wrong\n");
 		    i_ReturnValue = -4;
 		    }
 		 }
@@ -259,7 +287,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		 /************************************/
 		 /* Pulse encoder selection is wrong */
 		 /************************************/
-		 DPRINTK("Pulse encoder selection is wrong\n");
+
+		 DPRINTK("Pulse encoder selection is wrong\n");
 		 i_ReturnValue = -3;
 		 }
 	      }
@@ -268,7 +297,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	      /********************************************/
 	      /* The module is not a pulse encoder module */
 	      /********************************************/
-	      DPRINTK("The module is not a pulse encoder module\n");	
+
+	      DPRINTK("The module is not a pulse encoder module\n");	
 	      i_ReturnValue = -2;
 	      }
 	   }
@@ -277,7 +307,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	   /********************************************/
 	   /* The module is not a pulse encoder module */
 	   /********************************************/
-	   DPRINTK("The module is not a pulse encoder module\n");	
+
+	   DPRINTK("The module is not a pulse encoder module\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -368,18 +399,19 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	b_CycleSelection	=(BYTE) data[2];
 	b_InterruptHandling	=(BYTE) data[3];
 
-       
+
+       
 	/***********************************/
 	/* Test the selected module number */
 	/***********************************/
 
-	if (b_ModulNbr >= 0 && b_ModulNbr <= 3)
+	if (b_ModulNbr <= 3)
 	   {
 	   /******************************************/
 	   /* Test the selected pulse encoder number */
 	   /******************************************/
 
-	   if (b_PulseEncoderNbr >= 0 && b_PulseEncoderNbr <= 3)
+	   if (b_PulseEncoderNbr <= 3)
 	      {
 	      /*************************************/
 	      /* Test if pulse encoder initialised */
@@ -487,7 +519,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		       /************************************/
 		       /* Interrupt handling mode is wrong */
 		       /************************************/
-			   DPRINTK("Interrupt handling mode is wrong\n");
+
+			   DPRINTK("Interrupt handling mode is wrong\n");
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -496,7 +529,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		    /*********************************/
 		    /* Cycle selection mode is wrong */
 		    /*********************************/
-			DPRINTK("Cycle selection mode is wrong\n");
+
+			DPRINTK("Cycle selection mode is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 break;
@@ -527,7 +561,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 		 /*********************************/
 		 /* Pulse encoder not initialised */
 		 /*********************************/
-		 DPRINTK("Pulse encoder not initialised\n");
+
+		 DPRINTK("Pulse encoder not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -536,7 +571,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	      /************************************/
 	      /* Pulse encoder selection is wrong */
 	      /************************************/
-	      DPRINTK("Pulse encoder selection is wrong\n");	
+
+	      DPRINTK("Pulse encoder selection is wrong\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -545,7 +581,8 @@ INT  i_APCI1710_InsnConfigInitPulseEncoder(comedi_device *dev,comedi_subdevice *
 	   /*****************************/
 	   /* Module selection is wrong */
 	   /*****************************/
-	   DPRINTK("Module selection is wrong\n");	
+
+	   DPRINTK("Module selection is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -628,13 +665,13 @@ INT   i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device *dev,comedi_subdevi
 	/* Test the selected module number */
 	/***********************************/
 
-	if (b_ModulNbr >= 0 && b_ModulNbr <= 3)
+	if (b_ModulNbr <= 3)
 	   {
 	   /******************************************/
 	   /* Test the selected pulse encoder number */
 	   /******************************************/
 
-	   if (b_PulseEncoderNbr >= 0 && b_PulseEncoderNbr <= 3)
+	   if (b_PulseEncoderNbr <= 3)
 	      {
 	      /*************************************/
 	      /* Test if pulse encoder initialised */
@@ -700,7 +737,8 @@ INT   i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device *dev,comedi_subdevi
 		 /*********************************/
 		 /* Pulse encoder not initialised */
 		 /*********************************/
-		 DPRINTK("Pulse encoder not initialised\n");
+
+		 DPRINTK("Pulse encoder not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -709,7 +747,8 @@ INT   i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device *dev,comedi_subdevi
 	      /************************************/
 	      /* Pulse encoder selection is wrong */
 	      /************************************/
-	      DPRINTK("Pulse encoder selection is wrong\n"); 		
+
+	      DPRINTK("Pulse encoder selection is wrong\n"); 		
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -718,7 +757,8 @@ INT   i_APCI1710_InsnBitsReadWritePulseEncoder(comedi_device *dev,comedi_subdevi
 	   /*****************************/
 	   /* Module selection is wrong */
 	   /*****************************/
-	   DPRINTK("Module selection is wrong\n");
+
+	   DPRINTK("Module selection is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 

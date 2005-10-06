@@ -1,3 +1,27 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
+
 // Card Specific information
 #define APCI3200_BOARD_VENDOR_ID                 0x15B8
 //#define APCI3200_ADDRESS_RANGE                   264
@@ -27,6 +51,14 @@ comedi_lrange range_apci3200_ai={ 8, {
 		BIP_RANGE(5),
 		BIP_RANGE(2),
 		BIP_RANGE(1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1)
+	}
+};
+
+comedi_lrange range_apci3300_ai={ 4, {
 		UNI_RANGE(10),
 		UNI_RANGE(5),
 		UNI_RANGE(2),
@@ -73,12 +105,69 @@ comedi_lrange range_apci3200_ai={ 8, {
 #define ADDIDATA_ENABLE                            1
 #define ADDIDATA_DISABLE                           0
 
+//BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
+#define MAX_MODULE				4
+//END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
+
 typedef struct
    {
    ULONG ul_NumberOfValue;
    ULONG *pul_ResistanceValue;
    ULONG *pul_TemperatureValue;
    }str_ADDIDATA_RTDStruct,*pstr_ADDIDATA_RTDStruct;
+
+//BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
+typedef struct
+   {
+   // Begin JK 05/08/2003 change for Linux    
+   unsigned long ul_CurrentSourceCJC;
+   unsigned long ul_CurrentSource [5];
+   // End JK 05/08/2003 change for Linux
+
+   // Begin CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
+   unsigned long  ul_GainFactor [8]; // Gain Factor 
+   unsigned int w_GainValue [10];
+   // End CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
+   }str_Module;
+//END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
+   
+//BEGIN JK 06.07.04: Management of sevrals boards
+typedef struct 
+   {
+   INT i_CJCAvailable; 
+   INT i_CJCPolarity;
+   INT i_CJCGain;
+   INT i_InterruptFlag;
+   INT i_ADDIDATAPolarity;
+   INT i_ADDIDATAGain;                  
+   INT i_AutoCalibration;
+   INT i_ADDIDATAConversionTime;
+   INT i_ADDIDATAConversionTimeUnit; 
+   INT i_ADDIDATAType;
+   INT i_ChannelNo;
+   INT i_ChannelCount;
+   INT i_ScanType;
+   INT i_FirstChannel;
+   INT i_LastChannel;
+   INT i_Sum;
+   INT i_Offset;
+   UINT ui_Channel_num;
+   INT i_Count;
+   INT i_Initialised;
+   //UINT ui_InterruptChannelValue[96]; //Buffer
+   UINT ui_InterruptChannelValue[144]; //Buffer
+   BYTE b_StructInitialized;
+   //Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
+   lsampl_t ui_ScanValueArray [7+12]; // 7 is the maximal number of channels
+   //End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
+   
+   //Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values   
+   INT i_ConnectionType;
+   INT     i_NbrOfModule;
+   str_Module s_Module [MAX_MODULE];
+   //End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
+   } str_BoardInfos;
+//END JK 06.07.04: Management of sevrals boards
 
 
 // Hardware Layer  functions for Apci3200

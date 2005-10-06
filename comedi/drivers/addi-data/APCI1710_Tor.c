@@ -1,14 +1,38 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : TOR.C           |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : TOR.C           | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 14.12.98             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 tor counter module                          |
   |                                                                       |
@@ -116,15 +140,15 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 	comedi_insn *insn,lsampl_t *data)
 	{
 	INT    i_ReturnValue = 0;
-	ULONG ul_TimerValue;
+	ULONG ul_TimerValue  = 0;
 	DWORD dw_Command;
-	double d_RealTimingInterval;
+	double d_RealTimingInterval = 0;
 	BYTE     b_ModulNbr;
 	BYTE     b_TorCounter;
 	BYTE     b_PCIInputClock;
 	BYTE     b_TimingUnit;
 	ULONG    ul_TimingInterval;
-	ULONG   ul_RealTimingInterval;
+	ULONG   ul_RealTimingInterval = 0;
 
 	i_ReturnValue			=   insn->n;
 	b_ModulNbr				=   (BYTE)  CR_AREF(insn->chanspec);
@@ -152,7 +176,7 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 	      /* Test the tor counter selection */
 	      /**********************************/
 
-	      if (b_TorCounter >= 0 && b_TorCounter <= 1)
+	      if (b_TorCounter <= 1)
 		 {
 		 /**************************/
 		 /* Test the PCI bus clock */
@@ -167,7 +191,7 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 		    /* Test the timing unit */
 		    /************************/
 
-		    if (((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) || (b_PCIInputClock == APCI1710_GATE_INPUT))
+		    if ((b_TimingUnit <= 4) || (b_PCIInputClock == APCI1710_GATE_INPUT))
 		       {
 		       /**********************************/
 		       /* Test the base timing selection */
@@ -194,18 +218,18 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 				/* Test the board version */
 				/**************************/
 
-			  if ((b_PCIInputClock == APCI1710_40MHZ) && (devpriv->s_BoardInfos.
-								      b_BoardVersion > 0) ||
+			  if (((b_PCIInputClock == APCI1710_40MHZ) && (devpriv->s_BoardInfos.
+								      b_BoardVersion > 0)) ||
 			      (b_PCIInputClock != APCI1710_40MHZ))
 			     {
 			     /************************/
 			     /* Test the TOR version */
 			     /************************/
 
-			     if ((b_PCIInputClock == APCI1710_40MHZ) && ((devpriv->s_BoardInfos.
-									  dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3131) ||
-				 (b_PCIInputClock == APCI1710_GATE_INPUT) && ((devpriv->s_BoardInfos.
-									       dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3132) ||
+			     if (((b_PCIInputClock == APCI1710_40MHZ) && ((devpriv->s_BoardInfos.
+									  dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3131)) ||
+				 ((b_PCIInputClock == APCI1710_GATE_INPUT) && ((devpriv->s_BoardInfos.
+									       dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3132)) ||
 				 (b_PCIInputClock == APCI1710_30MHZ) ||
 				 (b_PCIInputClock == APCI1710_33MHZ))
 				{
@@ -215,6 +239,7 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 
 				if (b_PCIInputClock != APCI1710_GATE_INPUT)
 				   {
+				   fpu_begin ();
 				   /****************************************/
 				   /* Calculate the timer 0 division fator */
 				   /****************************************/
@@ -440,6 +465,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 					   
 					   break;
 				      }
+				      
+				   fpu_end ();
 				   } // if (b_PCIInputClock != APCI1710_GATE_INPUT)
 				else
 				   {
@@ -548,7 +575,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 				/***********************************************/
 				/* TOR version error for 40MHz clock selection */
 				/***********************************************/
-                       DPRINTK("TOR version error for 40MHz clock selection\n");
+
+                       DPRINTK("TOR version error for 40MHz clock selection\n");
 				i_ReturnValue = -9;
 				}
 			     }
@@ -557,7 +585,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 			     /**************************************************************/
 			     /* You can not used the 40MHz clock selection wich this board */
 			     /**************************************************************/
-				 DPRINTK("You can not used the 40MHz clock selection wich this board\n");
+
+				 DPRINTK("You can not used the 40MHz clock selection wich this board\n");
 			     i_ReturnValue = -8;
 			     }
 			  }
@@ -566,7 +595,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 			  /**********************************/
 			  /* Base timing selection is wrong */
 			  /**********************************/
-			  DPRINTK("Base timing selection is wrong\n");
+
+			  DPRINTK("Base timing selection is wrong\n");
 			  i_ReturnValue = -7;
 			  }
 		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
@@ -575,7 +605,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 		       /**********************************/
 		       /* Timing unit selection is wrong */
 		       /**********************************/
-			   DPRINTK("Timing unit selection is wrong\n"); 	 
+
+			   DPRINTK("Timing unit selection is wrong\n"); 	 
 		       i_ReturnValue = -6;
 		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
 		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
@@ -584,7 +615,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 		    /*****************************************/
 		    /* The selected PCI input clock is wrong */
 		    /*****************************************/
-			DPRINTK("The selected PCI input clock is wrong\n");
+
+			DPRINTK("The selected PCI input clock is wrong\n");
 		    i_ReturnValue = -5;
 		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
 		 } // if (b_TorCounterMode >= 0 && b_TorCounterMode <= 7)
@@ -593,7 +625,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 		 /**********************************/
 		 /* Tor Counter selection is wrong */
 		 /**********************************/
-		 DPRINTK("Tor Counter selection is wrong\n");
+
+		 DPRINTK("Tor Counter selection is wrong\n");
 		 i_ReturnValue = -4;
 		 } // if (b_TorCounterMode >= 0 && b_TorCounterMode <= 7)
 	      }
@@ -602,7 +635,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 	      /******************************************/
 	      /* The module is not a tor counter module */
 	      /******************************************/
-	      DPRINTK("The module is not a tor counter module\n"); 		
+
+	      DPRINTK("The module is not a tor counter module\n"); 		
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -611,7 +645,8 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-          DPRINTK("Module number error\n");
+
+          DPRINTK("Module number error\n");
 	   i_ReturnValue = -2;
 	   }
     data[0] = (UINT) ul_RealTimingInterval;
@@ -789,7 +824,7 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 	      /* Test the tor counter selection */
 	      /**********************************/
 
-	      if (b_TorCounter >= 0 && b_TorCounter <= 1)
+	      if (b_TorCounter <= 1)
 		 {
           switch(b_Action)// Enable or Disable
 		  {
@@ -946,7 +981,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 				/********************************/
 				/* Interrupt parameter is wrong */
 				/********************************/
-				DPRINTK("Interrupt parameter is wrong\n");
+
+				DPRINTK("Interrupt parameter is wrong\n");
 				i_ReturnValue = -9;
 				} // if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
 			     } // if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
@@ -955,7 +991,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 			     /***********************************************/
 			     /* Tor counter acquisition mode cycle is wrong */
 			     /***********************************************/
-				 DPRINTK("Tor counter acquisition mode cycle is wrong\n");
+
+				 DPRINTK("Tor counter acquisition mode cycle is wrong\n");
 			     i_ReturnValue = -8;
 			     } // if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
 			  } // if (b_ExternGate >= 0 && b_ExternGate <= 1)
@@ -964,7 +1001,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 			  /***********************************/
 			  /* Extern gate input mode is wrong */
 			  /***********************************/
-			  DPRINTK("Extern gate input mode is wrong\n");
+
+			  DPRINTK("Extern gate input mode is wrong\n");
 			  i_ReturnValue = -7;
 			  } // if (b_ExternGate >= 0 && b_ExternGate <= 1)
 		       } // if (b_InputMode >= 0 && b_InputMode <= 1)
@@ -973,7 +1011,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 		       /***************************************/
 		       /* Tor input signal selection is wrong */
 		       /***************************************/
-			   DPRINTK("Tor input signal selection is wrong\n");
+
+			   DPRINTK("Tor input signal selection is wrong\n");
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -982,7 +1021,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 		    /*******************************/
 		    /* Tor counter not initialised */
 		    /*******************************/
-			DPRINTK("Tor counter not initialised\n");
+
+			DPRINTK("Tor counter not initialised\n");
 		    i_ReturnValue = -5;
 		    }
 		 break;
@@ -1027,7 +1067,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 		       /***************************/
 		       /* Tor counter not enabled */
 		       /***************************/
-				DPRINTK("Tor counter not enabled \n");
+
+				DPRINTK("Tor counter not enabled \n");
 		       i_ReturnValue = -6;
 		       } // if (dw_Status & 0x1)
 		    } // if (dw_Status & 0x10)
@@ -1036,29 +1077,32 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 		    /*******************************/
 		    /* Tor counter not initialised */
 		    /*******************************/
-			DPRINTK("Tor counter not initialised\n");	
+
+			DPRINTK("Tor counter not initialised\n");	
 		    i_ReturnValue = -5;
 		    } // // if (dw_Status & 0x10)
 		 
 
 
 		 } // switch
-		} // if (b_TorCounter >= 0 && b_TorCounter <= 1)
+		} // if (b_TorCounter <= 1)
 	      else
 		 {
 		 /**********************************/
 		 /* Tor counter selection is wrong */
 		 /**********************************/
-                DPRINTK("Tor counter selection is wrong\n");	
+
+                DPRINTK("Tor counter selection is wrong\n");	
 		 i_ReturnValue = -4;
-		 } // if (b_TorCounter >= 0 && b_TorCounter <= 1)
+		 } // if (b_TorCounter <= 1)
 	      }
 	   else
 	      {
 	      /******************************************/
 	      /* The module is not a tor counter module */
 	      /******************************************/
-	      DPRINTK("The module is not a tor counter module \n");	
+
+	      DPRINTK("The module is not a tor counter module \n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1067,7 +1111,8 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error \n");	
+
+	   DPRINTK("Module number error \n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -1204,7 +1249,7 @@ INT i_APCI1710_InsnReadGetTorCounterInitialisation(comedi_device *dev,comedi_sub
 	      /* Test the tor counter selection */
 	      /**********************************/
 
-	      if (b_TorCounter >= 0 && b_TorCounter <= 1)
+	      if (b_TorCounter <= 1)
 		 {
           
 		  
@@ -1303,26 +1348,29 @@ INT i_APCI1710_InsnReadGetTorCounterInitialisation(comedi_device *dev,comedi_sub
 		    /*******************************/
 		    /* Tor counter not initialised */
 		    /*******************************/
-			DPRINTK("Tor counter not initialised\n");
+
+			DPRINTK("Tor counter not initialised\n");
 		    i_ReturnValue = -5;
 		    }
 		   
-		 } // if (b_TorCounter >= 0 && b_TorCounter <= 1)
+		 } // if (b_TorCounter <= 1)
 	      else
 		 {
 		 /**********************************/
 		 /* Tor counter selection is wrong */
 		 /**********************************/
-		 DPRINTK("Tor counter selection is wrong \n");
+
+		 DPRINTK("Tor counter selection is wrong \n");
 		 i_ReturnValue = -4;
-		 } // if (b_TorCounter >= 0 && b_TorCounter <= 1)
+		 } // if (b_TorCounter <= 1)
 	      }
 	   else
 	      {
 	      /******************************************/
 	      /* The module is not a tor counter module */
 	      /******************************************/
-             DPRINTK("The module is not a tor counter module\n");
+
+             DPRINTK("The module is not a tor counter module\n");
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1331,7 +1379,8 @@ INT i_APCI1710_InsnReadGetTorCounterInitialisation(comedi_device *dev,comedi_sub
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-          DPRINTK("Module number error\n");
+
+          DPRINTK("Module number error\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -1472,7 +1521,7 @@ INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device *dev,co
 	      /* Test the tor counter selection */
 	      /**********************************/
 
-	      if (b_TorCounter >= 0 && b_TorCounter <= 1)
+	      if (b_TorCounter <= 1)
 		 {
 		 /***********************************/
 		 /* Test if tor counter initialised */
@@ -1607,7 +1656,8 @@ INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device *dev,co
 				   /******************/
 				   /* Read the value */
 				   /******************/
-
+
+
 				     *pul_TorCounterValue=inl(devpriv->s_BoardInfos.
 					  ui_Address + 0 + (16 * b_TorCounter) + (64 * b_ModulNbr));
 
@@ -1676,7 +1726,8 @@ INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device *dev,co
 			  /******************************/
 			  /* Timeout parameter is wrong */
 			  /******************************/
-                     DPRINTK("Timeout parameter is wrong\n");
+
+                     DPRINTK("Timeout parameter is wrong\n");
 			  i_ReturnValue = -7;
 			  }
 			   break;
@@ -1691,7 +1742,8 @@ INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device *dev,co
 		       /***************************/
 		       /* Tor counter not enabled */
 		       /***************************/
-			   DPRINTK("Tor counter not enabled\n");
+
+			   DPRINTK("Tor counter not enabled\n");
 		       i_ReturnValue = -6;
 		       } // if (dw_Status & 0x1)
 		    }
@@ -1700,25 +1752,28 @@ INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device *dev,co
 		    /*******************************/
 		    /* Tor counter not initialised */
 		    /*******************************/
-			DPRINTK("Tor counter not initialised\n");
+
+			DPRINTK("Tor counter not initialised\n");
 		    i_ReturnValue = -5;
 		    }
-		 } // if (b_TorCounter >= 0 && b_TorCounter <= 1)
+		 } // if (b_TorCounter <= 1)
 	      else
 		 {
 		 /**********************************/
 		 /* Tor counter selection is wrong */
 		 /**********************************/
-		  DPRINTK("Tor counter selection is wrong\n");
+
+		  DPRINTK("Tor counter selection is wrong\n");
 		 i_ReturnValue = -4;
-		 } // if (b_TorCounter >= 0 && b_TorCounter <= 1)
+		 } // if (b_TorCounter <= 1)
 	      }
 	   else
 	      {
 	      /******************************************/
 	      /* The module is not a tor counter module */
 	      /******************************************/
-	       DPRINTK("The module is not a tor counter module\n");  	
+
+	       DPRINTK("The module is not a tor counter module\n");  	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1727,10 +1782,12 @@ INT i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(comedi_device *dev,co
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	    DPRINTK("Module number error\n");	
+
+	    DPRINTK("Module number error\n");	
 	   i_ReturnValue = -2;
 	   }
-       
+
+       
 	return (i_ReturnValue);
 	}
 

@@ -1,5 +1,52 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
+/*
+  +-----------------------------------------------------------------------+
+  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
+  +-----------------------------------------------------------------------+
+  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
+  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
+  +-------------------------------+---------------------------------------+
+  | Project     : APCI-1710       | Compiler   : GCC                      |
+  | Module name : hwdrv_apci1710.c| Version    : 2.96                     |
+  +-------------------------------+---------------------------------------+
+  | Project manager: Eric Stolz   | Date       :  02/12/2002              |
+  +-------------------------------+---------------------------------------+
+  | Description :   Hardware Layer Acces For APCI-1710                    |
+  +-----------------------------------------------------------------------+
+  |                             UPDATES                                   |
+  +----------+-----------+------------------------------------------------+
+  |   Date   |   Author  |          Description of updates                |
+  +----------+-----------+------------------------------------------------+
+  |          |           |                                                |
+  |          |           |                                                |
+  |          |           |                                                |
+  +----------+-----------+------------------------------------------------+
+*/
  #include "hwdrv_APCI1710.h"
- #include "APCI1710_Inp_cpt.c" 
+ #include "APCI1710_Inp_cpt.c"
+ 
  #include "APCI1710_Ssi.c"
  #include "APCI1710_Tor.c"
  #include "APCI1710_Ttl.c"
@@ -9,6 +56,145 @@
  #include "APCI1710_Pwm.c"
  #include "APCI1710_INCCPT.c"
 
+
+void	i_ADDI_AttachPCI1710 (comedi_device *dev)
+	{
+	comedi_subdevice *s;
+	int ret          = 0;
+	int n_subdevices = 9;
+	
+	//Update-0.7.57->0.7.68dev->n_subdevices = 9;
+	if((ret=alloc_subdevices(dev,n_subdevices))<0)
+    	return ret;
+ 
+        // Allocate and Initialise Timer Subdevice Structures		
+    	s = dev->subdevices + 0;
+        
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_WRITEABLE|SDF_RT|SDF_GROUND|SDF_COMMON; 
+	s->n_chan = 3; 
+	s->maxdata = 0; 
+	s->len_chanlist = 3;
+	s->range_table = &range_digital;       
+        s->insn_write=i_APCI1710_InsnWriteEnableDisableTimer;
+	s->insn_read=i_APCI1710_InsnReadAllTimerValue;
+	s->insn_config=i_APCI1710_InsnConfigInitTimer;
+	s->insn_bits=i_APCI1710_InsnBitsTimer;
+       
+
+	// Allocate and Initialise DIO Subdevice Structures	
+	s = dev->subdevices + 1;
+        
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan = 7;
+	s->maxdata = 1;
+	s->len_chanlist = 7;
+    	s->range_table = &range_digital;	
+       	s->insn_config=i_APCI1710_InsnConfigDigitalIO;
+       	s->insn_read= i_APCI1710_InsnReadDigitalIOChlValue;
+	s->insn_bits=i_APCI1710_InsnBitsDigitalIOPortOnOff;
+ 	s->insn_write=i_APCI1710_InsnWriteDigitalIOChlOnOff;
+        
+
+        // Allocate and Initialise Chrono Subdevice Structures		
+    	s = dev->subdevices + 2;
+        
+	s->type = COMEDI_SUBD_CHRONO;
+	s->subdev_flags = SDF_WRITEABLE|SDF_RT|SDF_GROUND|SDF_COMMON; 
+	s->n_chan = 4; 
+	s->maxdata = 0; 
+	s->len_chanlist = 4;
+	s->range_table = &range_digital;        
+        s->insn_write=i_APCI1710_InsnWriteEnableDisableChrono;
+	s->insn_read=i_APCI1710_InsnReadChrono;
+	s->insn_config=i_APCI1710_InsnConfigInitChrono;
+	s->insn_bits=i_APCI1710_InsnBitsChronoDigitalIO;
+       
+	
+       // Allocate and Initialise PWM Subdevice Structures		    
+	s = dev->subdevices + 3;
+	s->type = COMEDI_SUBD_PWM;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan = 3;
+	s->maxdata = 1;
+	s->len_chanlist = 3;
+    	s->range_table = &range_digital;
+	s->io_bits=0;		//all bits input 	
+	s->insn_config = i_APCI1710_InsnConfigPWM;
+	s->insn_read   = i_APCI1710_InsnReadGetPWMStatus;
+ 	s->insn_write  = i_APCI1710_InsnWritePWM;
+        s->insn_bits   = i_APCI1710_InsnBitsReadPWMInterrupt;
+
+	// Allocate and Initialise TTLIO Subdevice Structures
+	s = dev->subdevices + 4;
+	s->type = COMEDI_SUBD_TTLIO;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan = 8;
+	s->maxdata = 1;
+	s->len_chanlist = 8;
+    	s->range_table = &range_apci1710_ttl; // to pass arguments in range	
+        s->insn_config 	= i_APCI1710_InsnConfigInitTTLIO;
+	s->insn_bits   	= i_APCI1710_InsnBitsReadTTLIO;
+ 	s->insn_write  	= i_APCI1710_InsnWriteSetTTLIOChlOnOff;
+        s->insn_read	= i_APCI1710_InsnReadTTLIOAllPortValue;
+
+
+	// Allocate and Initialise TOR Subdevice Structures
+	s = dev->subdevices + 5;
+	s->type = COMEDI_SUBD_TOR;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan = 8;
+	s->maxdata = 1;
+	s->len_chanlist = 8;
+    	s->range_table = &range_digital;
+	s->io_bits=0;		//all bits input 	
+        s->insn_config = i_APCI1710_InsnConfigInitTorCounter;
+	s->insn_read   = i_APCI1710_InsnReadGetTorCounterInitialisation;
+ 	s->insn_write  = i_APCI1710_InsnWriteEnableDisableTorCounter;
+	s->insn_bits   = i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue;
+ 
+	// Allocate and Initialise SSI Subdevice Structures
+	s = dev->subdevices + 6;
+	s->type = COMEDI_SUBD_SSI;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan =4;
+	s->maxdata = 1;
+	s->len_chanlist = 4;
+    	s->range_table = &range_apci1710_ssi;	
+	s->insn_config = i_APCI1710_InsnConfigInitSSI;
+	s->insn_read   = i_APCI1710_InsnReadSSIValue;
+ 	s->insn_bits  = i_APCI1710_InsnBitsSSIDigitalIO;
+ 
+	// Allocate and Initialise PULSEENCODER Subdevice Structures       
+	s 			= dev->subdevices + 7;
+	s->type 		= COMEDI_SUBD_PULSEENCODER;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan 		= 4;
+	s->maxdata 		= 1;
+	s->len_chanlist = 4;
+    	s->range_table  = &range_digital;	
+	s->insn_config  = i_APCI1710_InsnConfigInitPulseEncoder;
+	s->insn_write   = i_APCI1710_InsnWriteEnableDisablePulseEncoder;
+ 	s->insn_bits    = i_APCI1710_InsnBitsReadWritePulseEncoder;
+	s->insn_read    = i_APCI1710_InsnReadInterruptPulseEncoder;
+
+	// Allocate and Initialise INCREMENTALCOUNTER Subdevice Structures     
+	s 			= dev->subdevices + 8;
+	s->type 		= COMEDI_SUBD_INCREMENTALCOUNTER;
+	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
+	s->n_chan 		= 500;
+	s->maxdata 		= 1;
+	s->len_chanlist = 500;
+    	s->range_table  = &range_apci1710_inccpt;	
+	s->insn_config  = i_APCI1710_InsnConfigINCCPT;
+	s->insn_write   = i_APCI1710_InsnWriteINCCPT;
+	s->insn_read    = i_APCI1710_InsnReadINCCPT;
+ 	s->insn_bits    = i_APCI1710_InsnBitsINCCPT;
+	}
+ 
+ 
+ 
 int i_APCI1710_Reset(comedi_device *dev);
 VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs) ;
 //for 1710
@@ -35,6 +221,8 @@ VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs) ;
 
 	// outl(0x80808082,devpriv->s_BoardInfos.ui_Address+0x60);
 	outl(0x83838383,devpriv->s_BoardInfos.ui_Address+0x60);  
+	
+	devpriv->s_BoardInfos.b_BoardVersion = 1;
 
     	// Enable the interrupt for the controler 	
 	dw_Dummy =  inl(devpriv->s_BoardInfos.ui_Address+ 0x38);
@@ -67,15 +255,13 @@ VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs) ;
 VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs)  
 {
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;	
 	BYTE   b_ModuleCpt       = 0;
 	BYTE   b_InterruptFlag   = 0;
 	BYTE   b_PWMCpt          = 0;
-	BYTE   b_ETMCpt          = 0;
 	BYTE   b_TorCounterCpt   = 0;
 	BYTE   b_PulseIncoderCpt = 0;
 	UINT  ui_16BitValue;
-	ULONG ul_InterruptLatchReg;
+	ULONG ul_InterruptLatchReg = 0;
 	ULONG ul_LatchRegisterValue;
 	ULONG ul_82X54InterruptStatus;
 	ULONG ul_StatusRegister;
