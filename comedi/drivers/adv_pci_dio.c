@@ -295,7 +295,7 @@ static boardtype boardtypes[] =
 	  { 4, PCI175x_BOARDID, 1, SDF_INTERNAL},
 	 IO_16b
 	},
-	{"pci1760", PCI_VENDOR_ID_ADVANTECH, 0x1760, PCIDIO_MAINREG,
+	{"pci1760", PCI_VENDOR_ID_ADVANTECH, 0x1760, 0,
 	 TYPE_PCI1760,
 	 {{ 0, 0, 0, 0}, { 0, 0, 0, 0}},	// This card have own setup work
 	 {{ 0, 0, 0, 0}, { 0, 0, 0, 0}},
@@ -428,7 +428,7 @@ static int pci_dio_insn_bits_do_w(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci1760_mbxrequest(comedi_device *dev, comedi_subdevice *s,
+static int pci1760_unchecked_mbxrequest(comedi_device *dev,
 	unsigned char *omb, unsigned char *imb, 
 	int repeats)
 {
@@ -456,49 +456,41 @@ static int pci1760_mbxrequest(comedi_device *dev, comedi_subdevice *s,
 	return -ETIME;
 }
 
+static int pci1760_clear_imb2(comedi_device *dev)
+{
+	unsigned char omb[4] = {0x0, 0x0, CMD_ClearIMB2, 0x0};
+	unsigned char imb[4];
+	/* check if imb2 is already clear */
+	if(inb(dev->iobase + IMB2) == CMD_ClearIMB2) return 0;
+	return pci1760_unchecked_mbxrequest(dev, omb, imb, OMBCMD_RETRY);
+}
+
+static int pci1760_mbxrequest(comedi_device *dev,
+	unsigned char *omb, unsigned char *imb)
+{
+	if(omb[2] == CMD_ClearIMB2)
+	{
+		comedi_error(dev, "bug! this function should not be used for CMD_ClearIMB2 command");
+		return -EINVAL;
+	}
+	if(inb(dev->iobase + IMB2) == omb[2])
+	{
+		int retval;
+		retval = pci1760_clear_imb2(dev);
+		if(retval < 0) return retval;
+	}
+	return pci1760_unchecked_mbxrequest(dev, omb, imb, OMBCMD_RETRY);
+}
+
 /*
 ==============================================================================
 */
 static int pci1760_insn_bits_di(comedi_device *dev, comedi_subdevice *s, 
 	comedi_insn *insn, lsampl_t *data)
 {
-	int ret;
-	unsigned char omb[4]={
-		0x00, 
-		0x00, 
-		CMD_ClearIMB2, 
-		0x00};
-	unsigned char imb[4];
-	
-	if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
-		return ret;
-
-	data[1]=imb[3];
+	data[1]=inb(dev->iobase + IMB3);
 
 	return 2;
-}
-
-/*
-==============================================================================
-*/
-static int pci1760_insn_read_di(comedi_device *dev, comedi_subdevice *s, 
-	comedi_insn *insn, lsampl_t *data)
-{
-	int ret, n;
-	unsigned char omb[4]={
-		0x00, 
-		0x00, 
-		CMD_ClearIMB2, 
-		0x00};
-	unsigned char imb[4];
-	
-	for (n=0; n<insn->n; n++) {
-		if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
-			return ret;
-		data[n] = imb[3];
-	}
-
-	return n;
 }
 
 /*
@@ -519,7 +511,7 @@ static int pci1760_insn_bits_do(comedi_device *dev, comedi_subdevice *s,
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
 		omb[0] = s->state;
-		if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
+		if (!(ret=pci1760_mbxrequest(dev, omb, imb)))
 			return ret;
 	}
 	data[1] = s->state;
@@ -542,7 +534,7 @@ static int pci1760_insn_cnt_read(comedi_device *dev, comedi_subdevice *s,
 	unsigned char imb[4];
 
 	for (n=0; n<insn->n; n++) {
-		if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
+		if (!(ret=pci1760_mbxrequest(dev, omb, imb)))
 			return ret;
 		data[n] = (imb[1]<<8) + imb[0];
 	}
@@ -567,20 +559,20 @@ static int pci1760_insn_cnt_write(comedi_device *dev, comedi_subdevice *s,
 	unsigned char imb[4];
 
 	if (devpriv->CntResValue[chan] != (data[0]&0xffff)) { // Set reset value if different
-		if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
+		if (!(ret=pci1760_mbxrequest(dev, omb, imb)))
 			return ret;
 		devpriv->CntResValue[chan] = data[0]&0xffff;
 	}
 
 	omb[0] = bitmask;	// reset counter to it reset value
 	omb[2] = CMD_ResetIDICounters;
-	if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
+	if (!(ret=pci1760_mbxrequest(dev, omb, imb)))
 		return ret;
 
 	if (!(bitmask & devpriv->IDICntEnable)) {	// start counter if it don't run
 		omb[0] = bitmask;
 		omb[2] = CMD_EnableIDICounters;
-		if (!(ret=pci1760_mbxrequest(dev, s, omb, imb, OMBCMD_RETRY)))
+		if (!(ret=pci1760_mbxrequest(dev, omb, imb)))
 			return ret;
 		devpriv->IDICntEnable |= bitmask;
 	}
@@ -604,28 +596,28 @@ static int pci1760_reset(comedi_device *dev)
 
 	omb[0] = 0x00;
 	omb[2] = CMD_SetRelaysOutput;	// reset relay outputs
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	
 	omb[0] = 0x00;
 	omb[2] = CMD_EnableIDICounters;	// disable IDI up counters
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntEnable = 0;
 
 	omb[0] = 0x00;
 	omb[2] = CMD_OverflowIDICounters;	// disable counters overflow interrupts
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntOverEnable = 0;
 
 	omb[0] = 0x00;
 	omb[2] = CMD_MatchIntIDICounters;	// disable counters match value interrupts
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntMatchEnable = 0;
 
 	omb[0] = 0x00;
 	omb[1] = 0x80;
 	for (i=0; i<8; i++) {	// set IDI up counters match value
 		omb[2] = CMD_SetIDI0CntMatchValue+i;
-		pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+		pci1760_mbxrequest(dev, omb, imb);
 		devpriv->CntMatchValue[i] = 0x8000;
 	}
 
@@ -633,32 +625,32 @@ static int pci1760_reset(comedi_device *dev)
 	omb[1] = 0x00;
 	for (i=0; i<8; i++) {	// set IDI up counters reset value
 		omb[2] = CMD_SetIDI0CntResetValue+i;
-		pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+		pci1760_mbxrequest(dev, omb, imb);
 		devpriv->CntResValue[i] = 0x0000;
 	}
 	
 	omb[0] = 0xff;
 	omb[2] = CMD_ResetIDICounters;	// reset IDI up counters to reset values
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 
 	omb[0] = 0x00;
 	omb[2] = CMD_EdgeIDICounters;	// set IDI up counters count edge
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDICntEdge = 0x00;
 
 	omb[0] = 0x00;
 	omb[2] = CMD_EnableIDIFilters;	// disable all digital in filters
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDIFiltersEn = 0x00;
 
 	omb[0] = 0x00;
 	omb[2] = CMD_EnableIDIPatternMatch;	// disable pattern matching
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDIPatMatchEn = 0x00;
 
 	omb[0] = 0x00;
 	omb[2] = CMD_SetIDIPatternMatch;	// set pattern match value
-	pci1760_mbxrequest(dev, NULL, omb, imb, OMBCMD_RETRY);
+	pci1760_mbxrequest(dev, omb, imb);
 	devpriv->IDIPatMatchValue = 0x00;
 
 	return 0;
@@ -753,8 +745,6 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 1;
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
-	s->io_bits=0;		/* all bits input */
-	s->insn_read=pci1760_insn_read_di;
 	s->insn_bits=pci1760_insn_bits_di;
 	subdev++;	
 
@@ -765,7 +755,6 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 1;
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
-	s->io_bits=255;	/* all bits output */
 	s->state=0;
 	s->insn_bits=pci1760_insn_bits_do;
 	subdev++;	
@@ -806,7 +795,6 @@ static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s,
 	s->maxdata = 1;
 	s->len_chanlist = d->chans;
 	s->range_table = &range_digital;
-	s->io_bits=0;		/* all bits input */
 	switch (this_board->io_access) {
 	case IO_8b:
 		s->insn_bits=pci_dio_insn_bits_di_b;
@@ -833,7 +821,6 @@ static int pci_dio_add_do(comedi_device *dev, comedi_subdevice *s,
 	s->maxdata = 1;
 	s->len_chanlist = d->chans;
 	s->range_table = &range_digital;
-	s->io_bits=(1 << d->chans)-1;	/* all bits output */
 	s->state=0;
 	switch (this_board->io_access) {
 	case IO_8b:

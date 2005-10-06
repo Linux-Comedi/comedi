@@ -190,7 +190,7 @@ static dio200_layout dio200_layouts[] = {
 	[pc272_layout] = {
 		n_subdevs:	4,
 		sdtype:		{ sd_8255, sd_8255, sd_8255, sd_intr },
-		sdinfo:		{ 0x00, 0x08, 0x0C, 0x3F },
+		sdinfo:		{ 0x00, 0x08, 0x10, 0x3F },
 	},
 };
 
@@ -323,12 +323,11 @@ dio200_find_pci(comedi_device *dev, int bus, int slot,
 static int
 dio200_request_region(unsigned minor, unsigned long from, unsigned long extent)
 {
-	if (check_region(from, extent) < 0) {
+	if (!request_region(from, extent, DIO200_DRIVER_NAME)) {
 		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
 				minor, from, extent);
 		return -EIO;
 	}
-	request_region(from, extent, DIO200_DRIVER_NAME);
 	return 0;
 }
 

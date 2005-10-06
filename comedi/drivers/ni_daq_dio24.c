@@ -43,6 +43,7 @@ the PCMCIA interface.
 #include <linux/comedidev.h>
 
 #include <linux/ioport.h>
+#include <linux/version.h>
 
 #include "8255.h"
 
@@ -87,6 +88,12 @@ static dio24_board dio24_boards[] =
 {
 	{
 		name:	"daqcard-dio24",
+		device_id:	0x475c,	// 0x10b is manufacturer id, 0x475c is device id
+		bustype:	pcmcia_bustype,
+		have_dio:	1,
+	},
+	{
+		name:	"ni_daq_dio24",
 		device_id:	0x475c,	// 0x10b is manufacturer id, 0x475c is device id
 		bustype:	pcmcia_bustype,
 		have_dio:	1,
@@ -361,11 +368,13 @@ static dev_link_t *dio24_cs_attach(void)
     pcmcia_dev_list = link;
     client_reg.dev_info = &dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &dio24_event;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
+	client_reg.EventMask =
+		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
+		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
+		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
+	client_reg.event_handler = &dio24_event;
+#endif
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -778,8 +787,11 @@ static int dio24_event(event_t event, int priority,
 
 struct pcmcia_driver dio24_cs_driver =
 {
-	.attach = dio24_cs_attach,
-	.detach = dio24_cs_detach,
+	.attach = &dio24_cs_attach,
+	.detach = &dio24_cs_detach,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+	.event = &dio24_event,
+#endif
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = "ni_daq_dio24",

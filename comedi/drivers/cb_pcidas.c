@@ -525,8 +525,8 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
 	{
 		// is it not a computer boards card?
 		if(pcidev->vendor != PCI_VENDOR_ID_CB)
@@ -575,34 +575,33 @@ found:
 
 	// reserve io ports
 	err = 0;
-	if(check_region(s5933_config, AMCC_OP_REG_SIZE) < 0)
+	if(request_region(s5933_config, AMCC_OP_REG_SIZE, "cb_pcidas"))
+		devpriv->s5933_config = s5933_config;
+	else
 		err++;
-	if(check_region(control_status, CONT_STAT_SIZE) < 0)
+	if(request_region(control_status, CONT_STAT_SIZE, "cb_pcidas"))
+		devpriv->control_status = control_status;
+	else
 		err++;
-	if(check_region(adc_fifo, ADC_FIFO_SIZE) < 0)
+	if(request_region(adc_fifo, ADC_FIFO_SIZE, "cb_pcidas"))
+		devpriv->adc_fifo = adc_fifo;
+	else
 		err++;
-	if(check_region(pacer_counter_dio, PACER_SIZE) < 0)
+	if(request_region(pacer_counter_dio, PACER_SIZE, "cb_pcidas"))
+		devpriv->pacer_counter_dio = pacer_counter_dio;
+	else
 		err++;
 	if(thisboard->ao_nchan)
-		if(check_region(ao_registers, AO_SIZE) < 0)
+	{
+		if(request_region(ao_registers, AO_SIZE, "cb_pcidas"))
+			devpriv->ao_registers = ao_registers;
+		else
 			err++;
+	}
 	if(err)
 	{
 		printk(" I/O port conflict\n");
 		return -EIO;
-	}
-	request_region(s5933_config, AMCC_OP_REG_SIZE, "cb_pcidas");
-	devpriv->s5933_config = s5933_config;
-	request_region(control_status, CONT_STAT_SIZE, "cb_pcidas");
-	devpriv->control_status = control_status;
-	request_region(adc_fifo, ADC_FIFO_SIZE, "cb_pcidas");
-	devpriv->adc_fifo = adc_fifo;
-	request_region(pacer_counter_dio, PACER_SIZE, "cb_pcidas");
-	devpriv->pacer_counter_dio = pacer_counter_dio;
-	if(thisboard->ao_nchan)
-	{
-		request_region(ao_registers, AO_SIZE, "cb_pcidas");
-		devpriv->ao_registers = ao_registers;
 	}
 
 	// get irq

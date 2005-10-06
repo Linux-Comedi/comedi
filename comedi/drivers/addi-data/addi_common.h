@@ -1,37 +1,41 @@
-/***********ADDI_COMMON.H*********************/
+/**
+@verbatim
 
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
 
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstrasse 3      D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : ADDI DATA	      | Compiler : GCC 		          		  |
+  | Project   : ADDI-DATA	  | Compiler : GCC 		          |
   | Modulname : addi_common.h     | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    :           | Date     :                                    |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description : ADDI COMMON Header File                                 |
   +-----------------------------------------------------------------------+
-  |                             UPDATE'S                                  |
-  +-----------------------------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  |          | 			 | 												  |
-  |          |           | 												  |
-  |          |           | 			                                      |
-  |          |           | 												  |
-  |          |           | 					                              |
-  +----------+-----------+------------------------------------------------+
-  | 	     | 			 | 						                          |
-  |          |           | 												  |
-  |          |           | 								                  |
-  +----------+-----------+------------------------------------------------+
 */
 
 
@@ -43,7 +47,8 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/malloc.h>
+//#include <linux/malloc.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -94,6 +99,7 @@
 #define ADDIDATA_93C76        "93C76"
 #define ADDIDATA_S5920        "S5920"
 #define ADDIDATA_S5933        "S5933"
+#define ADDIDATA_9054         "9054"
 
 // Structures
 // structure for the boardtype
@@ -120,9 +126,13 @@ typedef struct {
 		INT         i_NbrDiChannel;      // Number of DI channels
 		INT         i_NbrDoChannel;    // Number of DO channels
 		INT         i_DoMaxdata;     // data to set all chanels high
-                 
+
+		INT         i_NbrTTLChannel;	// Number of TTL channels
+		PRANGE      pr_TTLRangelist;	// rangelist for TTL
+		                 
                 INT         i_Dma;            // dma present or not
                 INT         i_Timer;         //   timer subdevice present or not     
+                BYTE        b_AvailableConvertUnit;
 		UINT        ui_MinAcquisitiontimeNs; // Minimum Acquisition in Nano secs
 		UINT        ui_MinDelaytimeNs;       // Minimum Delay in Nano secs
 
@@ -159,11 +169,18 @@ int (*i_hwdrv_InsnConfigDigitalOutput)(comedi_device *dev,comedi_subdevice *s,co
 int (*i_hwdrv_InsnWriteDigitalOutput)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 int (*i_hwdrv_InsnBitsDigitalOutput)(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
 int (*i_hwdrv_InsnReadDigitalOutput)(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
+
 //TIMER
  int (*i_hwdrv_InsnConfigTimer)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
  int (*i_hwdrv_InsnWriteTimer)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
  int (*i_hwdrv_InsnReadTimer)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
  int (*i_hwdrv_InsnBitsTimer)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);  
+
+//TTL IO
+ int (*i_hwdr_ConfigInitTTLIO)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+ int (*i_hwdr_ReadTTLIOBits)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+ int (*i_hwdr_ReadTTLIOAllPortValue)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+ int (*i_hwdr_WriteTTLIOChlOnOff)(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 } boardtype;
 
 
@@ -368,11 +385,13 @@ typedef struct{
  		INT      i_IobaseAmcc;  // base+size for AMCC chip
 		INT      i_IobaseAddon; //addon base address
                 INT      i_IobaseReserved;
+                DWORD    dw_AiBase;
    		struct pcilst_struct	*amcc;		// ptr too AMCC data
 		UINT		        master;		// master capable
 		BYTE         		allocated;	// we have blocked card
 		BYTE                b_ValidDriver;// driver is ok
 		BYTE                b_AiContinuous;	// we do unlimited AI  
+		BYTE                b_AiInitialisation;
 		UINT                ui_AiActualScan; //how many scans we finished
    		UINT                ui_AiBufferPtr;// data buffer ptr in samples
 		UINT                ui_AiNbrofChannels;// how many channels is measured
@@ -380,7 +399,9 @@ typedef struct{
 		UINT                ui_AiActualScanPosition;  // position in actual scan
    		PUINT               pui_AiChannelList; // actual chanlist
                 UINT                ui_AiChannelList[32]; // actual chanlist    
+                BYTE                b_AiChannelConfiguration[32]; // actual chanlist    
                 UINT                ui_AiReadData[32];    
+                DWORD               dw_AiInitialised;
 		UINT                ui_AiTimer0;    //Timer Constant for Timer0
 		UINT                ui_AiTimer1;    //Timer constant for Timer1 
    		UINT                ui_AiFlags;
@@ -390,10 +411,12 @@ typedef struct{
 		USHORT              us_UseDma; // To use Dma or not
    		BYTE                b_DmaDoubleBuffer;// we can use double buffering
    		UINT                ui_DmaActualBuffer;	// which buffer is used now
-   		ULONG               ul_DmaBufferVirtual[2];// pointers to begin of DMA buffer
+   		//*UPDATE-0.7.57->0.7.68
+		//ULONG               ul_DmaBufferVirtual[2];// pointers to begin of DMA buffer
+		sampl_t               *ul_DmaBufferVirtual[2];// pointers to begin of DMA buffer
    		ULONG               ul_DmaBufferHw[2]; // hw address of DMA buff
    		UINT                ui_DmaBufferSize[2];// size of dma buffer in bytes
-   		UINT                ui_DmaBufferUsesize[2];// which size e may now used for transfer
+   		UINT                ui_DmaBufferUsesize[2];// which size we may now used for transfer
    		UINT                ui_DmaBufferSamples[2];// size in samples
    		UINT                ui_DmaBufferPages[2];// number of pages in buffer
    		BYTE                b_DigitalOutputRegister; // Digital Output Register   
@@ -412,10 +435,14 @@ typedef struct{
                 BYTE                b_InterruptMode; // eoc eos or dma
                 BYTE                b_EocEosInterrupt; // Enable disable eoc eos interrupt
                 UINT                ui_EocEosConversionTime;  
+                BYTE                b_EocEosConversionTimeBase;
+                BYTE                b_SingelDiff;
    		BYTE				b_ExttrigEnable; //  To enable or disable external trigger
-                struct task_struct *tsk_Current;               // Pointer to the current process
-
-
+                
+		struct task_struct *tsk_Current;               // Pointer to the current process
+		boardtype   *ps_BoardInfo;
+		
+		
 
    	// Hardware board infos for 1710
 
@@ -450,6 +477,7 @@ typedef struct{
 	      }s_InterruptParameters;
   
  	   str_ModuleInfo s_ModuleInfo [4];
+ 	   ULONG         ul_TTLPortConfiguration[10];
 
 	}	addi_private;
 
@@ -468,7 +496,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it);
 static int i_ADDI_Detach(comedi_device *dev);
 static int i_ADDI_Reset(comedi_device *dev);
 
-static void v_ADDI_Interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t v_ADDI_Interrupt(int irq, void *d, struct pt_regs *regs);
 static int i_ADDIDATA_InsnReadEeprom(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 

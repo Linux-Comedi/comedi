@@ -368,11 +368,6 @@ pci6208_pci_setup(struct pci_dev *pci_dev, int *io_base_ptr, int dev_minor)
 		lcr_io_base,
 		lcr_io_range);
 	  
-	if (check_region (lcr_io_base, lcr_io_range) < 0) {
-		printk("comedi%d: I/O port conflict\n",dev_minor);
-		return -EIO;
-	}
-  
 	// Read PCI6208 register base address [PCI_BASE_ADDRESS #2].
 	io_base = pci_resource_start (pci_dev, 2);
 	io_range = pci_resource_end (pci_dev, 2) - io_base +1;
@@ -382,13 +377,11 @@ pci6208_pci_setup(struct pci_dev *pci_dev, int *io_base_ptr, int dev_minor)
 		io_base,
 		io_range);
 	
-	if (check_region (io_base, io_range) < 0) {
+	// Allocate IO ressources	  
+	if (pci_request_regions(pci_dev, PCI6208_DRIVER_NAME) < 0) {
 		printk("comedi%d: I/O port conflict\n",dev_minor);
 		return -EIO;
 	}
-  
-	// Allocate IO ressources	  
-	pci_request_regions(pci_dev, PCI6208_DRIVER_NAME);
 	
 	*io_base_ptr = io_base;
 	//devpriv->io_range = io_range;

@@ -44,6 +44,7 @@ See the notes in the ni_atmio.o driver.
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
+#include <linux/version.h>
 
 #include "ni_stc.h"
 #include "8255.h"
@@ -289,11 +290,13 @@ static dev_link_t *cs_attach(void)
 
 	client_reg.dev_info = &dev_info;
 	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
 	client_reg.EventMask =
 		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
 		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
 		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
 	client_reg.event_handler = &mio_cs_event;
+#endif
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
 	ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -606,8 +609,11 @@ MODULE_LICENSE("GPL");
 
 struct pcmcia_driver ni_mio_cs_driver =
 {
-	.attach = cs_attach,
-	.detach = cs_detach,
+	.attach = &cs_attach,
+	.detach = &cs_detach,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+	.event = &mio_cs_event,
+#endif	
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = "ni_mio_cs",

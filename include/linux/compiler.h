@@ -7,7 +7,8 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10)) \
+	|| (LINUX_VERSION_CODE == KERNEL_VERSION(2,4,4))
 
 #include_next <linux/compiler.h>
 

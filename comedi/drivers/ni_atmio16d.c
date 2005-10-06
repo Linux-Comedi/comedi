@@ -706,11 +706,10 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* make sure the address range is free and allocate it */
 	iobase = it->options[0];
 	printk("comedi%d: atmio16d: 0x%04x ", dev->minor, iobase);
-	if (check_region(iobase, ATMIO16D_SIZE) < 0) {
+	if (!request_region(iobase, ATMIO16D_SIZE, "ni_atmio16d")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, ATMIO16D_SIZE, "ni_atmio16d");
 	dev->iobase = iobase;
 
 	
@@ -731,7 +730,10 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	if(irq>0){
 		if((ret=comedi_request_irq(irq,atmio16d_interrupt,
 			0, "atmio16d", dev))<0)
+		{
+			printk("failed to allocate irq %d\n", irq); 
 			return ret;
+		}
 		dev->irq=irq;
 		printk("( irq = %d )\n",irq);
 	} else if(irq == 0){

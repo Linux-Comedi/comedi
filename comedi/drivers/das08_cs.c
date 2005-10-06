@@ -43,6 +43,7 @@ Command support does not exist, but could be added for this board.
 
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/version.h>
 
 #include "das08.h"
 
@@ -284,11 +285,13 @@ static dev_link_t *das08_pcmcia_attach(void)
     dev_list = link;
     client_reg.dev_info = &dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &das08_pcmcia_event;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
+	client_reg.EventMask =
+		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
+		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
+		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
+	client_reg.event_handler = &das08_pcmcia_event;
+#endif
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
@@ -655,8 +658,11 @@ the device state and restart IO.
 
 struct pcmcia_driver das08_cs_driver =
 {
-	.attach = das08_pcmcia_attach,
-	.detach = das08_pcmcia_detach,
+	.attach = &das08_pcmcia_attach,
+	.detach = &das08_pcmcia_detach,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+	.event = &das08_pcmcia_event,
+#endif
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,

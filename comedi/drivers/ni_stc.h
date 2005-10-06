@@ -422,6 +422,7 @@ enum AO_Personal_Bits
 {
 	AO_BC_Source_Select = 1 << 4,
 	AO_UPDATE_Pulse_Width = 1 << 5,
+	AO_DMA_PIO_Control = 1 << 8,
 	AO_AOFREQ_Polarity = 1 << 9,
 	AO_FIFO_Enable = 1 << 10,
 	AO_TMRDACWR_Pulse_Width = 1 << 12,

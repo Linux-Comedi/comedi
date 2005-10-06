@@ -64,6 +64,7 @@ NI manuals:
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
+#include <linux/version.h>
 
 #include "8253.h"
 #include "8255.h"
@@ -99,13 +100,13 @@ static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
 
 static comedi_driver driver_labpc_cs =
 {
-	driver_name: "ni_labpc_cs",
-	module: THIS_MODULE,
-	attach: labpc_attach,
-	detach: labpc_common_detach,
-	num_names: sizeof(labpc_cs_boards) / sizeof(labpc_board),
-	board_name: (char **)labpc_cs_boards,
-	offset: sizeof(labpc_board),
+	.driver_name = "ni_labpc_cs",
+	.module = THIS_MODULE,
+	.attach = &labpc_attach,
+	.detach = &labpc_common_detach,
+	.num_names = sizeof(labpc_cs_boards) / sizeof(labpc_board),
+	.board_name = (char **)labpc_cs_boards,
+	.offset = sizeof(labpc_board),
 };
 
 static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
@@ -299,12 +300,14 @@ static dev_link_t *labpc_cs_attach(void)
     pcmcia_dev_list = link;
     client_reg.dev_info = &dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-    client_reg.EventMask =
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &labpc_event;
-    client_reg.Version = 0x0210;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
+	client_reg.EventMask =
+		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
+		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
+		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
+	client_reg.event_handler = &labpc_event;
+#endif    
+	client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
@@ -709,6 +712,9 @@ struct pcmcia_driver labpc_cs_driver =
 {
 	.attach = labpc_cs_attach,
 	.detach = labpc_cs_detach,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+	.event = &labpc_event,
+#endif	
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = "daqcard-1200",

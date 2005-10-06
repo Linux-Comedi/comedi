@@ -127,13 +127,12 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	iosize = this_board->iosize;
 	/* check if io addresses are available */
-	if(check_region(iobase, iosize) < 0)
+	if(!request_region(iobase, iosize, "dac02"))
 	{
 		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
 			iobase, iobase + iosize - 1);
 		return -EIO;
 	}
-	request_region(iobase, iosize, "dac02");
 	dev->iobase = iobase;
 
 	if(alloc_subdevices(dev, 1) < 0)

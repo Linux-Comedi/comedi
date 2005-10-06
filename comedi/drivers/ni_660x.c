@@ -729,7 +729,6 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("error setting up mite\n");
 	return ret;
 	}
-	dev->iobase = mite_iobase(devpriv->mite);
 	dev->board_name = thisboard->name;
 	/* we don't support the interrupt yet */
 	//dev->irq = mite_irq(devpriv->mite);
@@ -850,7 +849,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 		value is
 	*/
 	int tmpdata[2];
-	unsigned long address;
+	void *address;
 
 	/* ============================================================ */
 	/* 1 subdevice with 8 channels, differentation based on channel */
@@ -865,9 +864,9 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 			return -EINVAL;
 		}
 		// Now proceed with reading data
-		address = dev->iobase
-		+ GPCT_OFFSET[chipset] +
-		registerData[GxSWSaveRegister(counter_channel)].offset;
+		address = devpriv->mite->daq_io_addr
+			+ GPCT_OFFSET[chipset] +
+			registerData[GxSWSaveRegister(counter_channel)].offset;
 		for ( i=0 ; i < insn->n ; i++ )
 		{
 			tmpdata[0] = readl(address);
@@ -902,10 +901,10 @@ static void init_tio_chip(comedi_device *dev, int chipset)
 		it will try to use the same pins as the first chip.
 	*/
 	if(chipset)
-		writel(CounterSwap,dev->iobase + GPCT_OFFSET[1]
+		writel(CounterSwap,devpriv->mite->daq_io_addr + GPCT_OFFSET[1]
 			+ registerData[ClockConfigRegister].offset);
 	else
-		writel(0,dev->iobase + GPCT_OFFSET[0]
+		writel(0,devpriv->mite->daq_io_addr + GPCT_OFFSET[0]
 			+ registerData[ClockConfigRegister].offset);	
 }
 
@@ -970,16 +969,16 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 			(ni_660x_gpct_config[subdev_channel]).data[2] = 0;
 
 		// Reset the counter
-		writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
+		writew(GxReset(counter_channel),devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 		+ registerData[GxxJointResetRegister(counter_channel)].offset);
 		// Disarm
-		writew(Disarm,dev->iobase + GPCT_OFFSET[chipset]
+		writew(Disarm,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		// Put 0 as initial counter value in the load register
-		writel(0x0,dev->iobase + GPCT_OFFSET[chipset]
+		writel(0x0,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxLoadARegister(counter_channel)].offset);
 		// Load (latch) this value into the counter
-		writew(Load,dev->iobase + GPCT_OFFSET[chipset]
+		writew(Load,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		/* - Set Counting Mode into GPCT_X1 / 2 / 4 (as set by user)
 		   - When to take into account index pulse (as set by user)
@@ -988,17 +987,17 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		writew(((ni_660x_gpct_config[subdev_channel]).data[0] |
 			(ni_660x_gpct_config[subdev_channel]).data[1] |
 			(ni_660x_gpct_config[subdev_channel]).data[2] ),
-			dev->iobase + GPCT_OFFSET[chipset]
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCountingModeRegister(counter_channel)].offset);
 		// Put counter in input mode
 		// Not necessary since this is the default ...
-		/*  writel(Counter_A_Is_Input, dev->iobase
+		/*  writel(Counter_A_Is_Input, devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[IOConfigReg36_39].offset);
 		*/
 		// Arm the counter and put it into Hardware UpDown mode (depending
 		// on the UP/DOWN IO pin: 0 = down
-		writew(UpDownHardware|Arm,dev->iobase + GPCT_OFFSET[chipset]
+		writew(UpDownHardware|Arm,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		break;
 	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
@@ -1021,21 +1020,21 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 			return -EINVAL;
 		}
 		// Reset the counter
-		writew(GxReset(counter_channel), dev->iobase + GPCT_OFFSET[chipset]
+		writew(GxReset(counter_channel), devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxxJointResetRegister(counter_channel)].offset);
 		// Disarm
-		writew(Disarm, dev->iobase + GPCT_OFFSET[chipset]
+		writew(Disarm, devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 		+ registerData[GxCommandRegister(counter_channel)].offset);
 		/* Put PULSE_DELAY as initial counter value into load
 		register A */
-		writel((ni_660x_gpct_config[subdev_channel]).data[1], dev->iobase
+		writel((ni_660x_gpct_config[subdev_channel]).data[1], devpriv->mite->daq_io_addr
 		+ GPCT_OFFSET[chipset]
 		+ registerData[GxLoadARegister(counter_channel)].offset);
 		// Load (latch) this value into the counter
-		writew(Load,dev->iobase + GPCT_OFFSET[chipset]
+		writew(Load,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		// Now Put PULSE_WIDTH in the LOAD register A
-		writel((ni_660x_gpct_config[subdev_channel]).data[0],dev->iobase
+		writel((ni_660x_gpct_config[subdev_channel]).data[0],devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[GxLoadARegister(counter_channel)].offset);
 		// Put Source input to internal 20 MHz clock
@@ -1043,7 +1042,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		TODO: MAKE THIS A DATA FIELD!! to allow different clocks
 			(See TODO)
 		================================================== */
-		writew(SourceSelectTimebase1, dev->iobase
+		writew(SourceSelectTimebase1, devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[GxInputSelectRegister(counter_channel)].offset);
 		/* Choose to Load on reaching TC and
@@ -1051,10 +1050,10 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		Stop counting after second TC
 		Choose Load register A to load from */
 		writew(LoadOnTC | OutputTogglesOnTC | StopOn2ndTC | LoadSourceSelectA,
-			dev->iobase + GPCT_OFFSET[chipset]
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxModeRegister(counter_channel)].offset);
 		// Configure Counter for output
-		writel(pin_is_output(0), dev->iobase
+		writel(pin_is_output(0), devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[IOConfigReg(chipset, counter_channel)].offset);
 	case INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR:
@@ -1082,29 +1081,29 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 			return -EINVAL;
 		}
 		// Reset the counter
-		writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
+		writew(GxReset(counter_channel),devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxxJointResetRegister(counter_channel)].offset);
 		// Disarm counter
-		writew(Disarm,dev->iobase + GPCT_OFFSET[chipset]
+		writew(Disarm,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		// Put PULSE_WIDTH as initial counter value into load register A
-		writel((ni_660x_gpct_config[subdev_channel]).data[0],dev->iobase
+		writel((ni_660x_gpct_config[subdev_channel]).data[0],devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[GxLoadARegister(counter_channel)].offset);
 		// Load (latch) this value into the counter
-		writew(Load,dev->iobase + GPCT_OFFSET[chipset]
+		writew(Load,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		// Now Put (PULSE_PERIOD - PULSE_WIDTH) in the load register B
 		writel((ni_660x_gpct_config[subdev_channel]).data[1]
 			- (ni_660x_gpct_config[subdev_channel]).data[0],
-			dev->iobase + GPCT_OFFSET[chipset]
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxLoadBRegister(counter_channel)].offset);
 		// Put Source input to internal 20 MHz clock
 		/* ==================================================
 		TODO: MAKE THIS A DATA FIELD!! to allow different clocks
 			(See TODO)
 		================================================== */
-		writew(SourceSelectTimebase1,dev->iobase
+		writew(SourceSelectTimebase1,devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[GxInputSelectRegister(counter_channel)].offset);
 		/* Switch between Load registers everytime
@@ -1112,14 +1111,14 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		Change State of G_OUT on TC (Terminal Count)
 		Choose Load register A to load from */
 		writew(ReloadSourceSwitching|LoadOnTC|OutputTogglesOnTC,
-			dev->iobase + GPCT_OFFSET[chipset]
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxModeRegister(counter_channel)].offset);
 		// Configure Counter for output
-		writel(pin_is_output(0), dev->iobase
+		writel(pin_is_output(0), devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[IOConfigReg(chipset, counter_channel)].offset);
 		// Arm the counter and tell it to count down
-		writew(Arm|UpDownDown,dev->iobase + GPCT_OFFSET[chipset]
+		writew(Arm|UpDownDown,devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		break;
 	case GPCT_SIMPLE_EVENT:
@@ -1128,41 +1127,41 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 			CountingAndTimeMeasurement;
 		// Reset the counter
 		writew(GxReset(counter_channel),
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxxJointResetRegister(counter_channel)].offset);
 		// Disarm
 		writew(Disarm,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxCommandRegister(counter_channel)].offset);
 		// Put 0 as initial counter value in the load register
 		writel(0x0,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxLoadARegister(counter_channel)].offset);
 		// Load (latch) this value into the counter
 		writew(Load,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxCommandRegister(counter_channel)].offset);
 		// Set gate logic low, & select source pin dedicated to channel
 		writew(GateSelectLogicLow|SourceSelectSourcePinI,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 		 		GxInputSelectRegister(counter_channel)].offset);
 		// Disable gate for simple event counting
 		writew(GatingModeDisabled,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxModeRegister(counter_channel)].offset);
 		// Use normal counting mode (instead of synchronous)
 		writew(CountingModeNormal,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxCountingModeRegister(counter_channel)].offset
 		);
 		// Put counter in input mode
 		// Not necessary since this is the default ...
 		/* writel(Counter_A_Is_Input, //NOT WORKING -- REFER KG's file.
-		 * 	dev->iobase + GPCT_OFFSET[chipset] + registerData[
+		 * 	devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 		 * 		IOConfigReg36_39].offset); */
 		// Arm the counter and put it into always counting up mode
 		writew(UpDownUp|Arm,
-			dev->iobase + GPCT_OFFSET[chipset] + registerData[
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset] + registerData[
 				GxCommandRegister(counter_channel)].offset);
 		break;
 	default:
@@ -1189,22 +1188,22 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 	{
 	case PositionMeasurement:
 		// Disarm the counter
-		writew(Disarm, dev->iobase + GPCT_OFFSET[chipset]
+		writew(Disarm, devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		// Write the value into the load register
-		writel(*data, dev->iobase + GPCT_OFFSET[chipset]
+		writel(*data, devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxLoadARegister(counter_channel)].offset);
 		// Latch the value into the counter
-		writew(Load, dev->iobase + GPCT_OFFSET[chipset]
+		writew(Load, devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		// Arm the counter again and put UpDownHardware in!
-		writew(UpDownHardware|Arm, dev->iobase + GPCT_OFFSET[chipset]
+		writew(UpDownHardware|Arm, devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		break;
 	case SinglePulseGeneration:
 		DPRINTK("NI_660X: INSN_WRITE: SPG: Arming the counter\n");
 		// Tell the counter to count down and arm
-		writew(Arm|UpDownDown, dev->iobase + GPCT_OFFSET[chipset]
+		writew(Arm|UpDownDown, devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxCommandRegister(counter_channel)].offset);
 		break;
 	case PulseTrainGeneration:
@@ -1227,13 +1226,13 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 			return -EINVAL;
 		}
 		// Put PULSE_WIDTH as initial counter value into load register A
-		writel((ni_660x_gpct_config[subdev_channel]).data[0],dev->iobase
+		writel((ni_660x_gpct_config[subdev_channel]).data[0],devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[GxLoadARegister(counter_channel)].offset);
 		// Put (PULSE_PERIOD - PULSE_WIDTH) in the load register B
 		writel(  (ni_660x_gpct_config[subdev_channel]).data[1]
 			- (ni_660x_gpct_config[subdev_channel]).data[0],
-			dev->iobase + GPCT_OFFSET[chipset]
+			devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 			+ registerData[GxLoadBRegister(counter_channel)].offset);
 		break;
 	default: // Impossible
@@ -1260,7 +1259,7 @@ static int ni_660x_GPCT_inttrig(comedi_device *dev,
 	DPRINTK("Triggering channel %d\n", subdev_channel);
 
 	// Reset the counter
-	writew(GxReset(counter_channel),dev->iobase + GPCT_OFFSET[chipset]
+	writew(GxReset(counter_channel),devpriv->mite->daq_io_addr + GPCT_OFFSET[chipset]
 		+ registerData[GxxJointResetRegister(counter_channel)].offset);
 	return 0;
 }
@@ -1309,11 +1308,11 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
       s->state |= data[0]&data[1];
       /* Write out the new digital output lines */
       /* Check if data < n_chan ?? */
-      writew(s->state,dev->iobase + registerData[STCDIOOutput].offset);
+      writew(s->state,devpriv->mite->daq_io_addr + registerData[STCDIOOutput].offset);
     }
   /* on return, data[1] contains the value of the digital
    * input and output lines. */
-  data[1]=readw(dev->iobase + registerData[STCDIOParallelInput].offset);
+  data[1]=readw(devpriv->mite->daq_io_addr + registerData[STCDIOParallelInput].offset);
   return 2;
 }
 
@@ -1345,7 +1344,7 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 		break;
 	};
 	// No GPCT_OFFSET[chipset] offset here??
-	writew(s->io_bits,dev->iobase + registerData[STCDIOControl].offset);
+	writew(s->io_bits,devpriv->mite->daq_io_addr + registerData[STCDIOControl].offset);
 	/* Should we do also something with the IO configuration registers,
 		see p 3-38 of register level prog. manual
 	*/

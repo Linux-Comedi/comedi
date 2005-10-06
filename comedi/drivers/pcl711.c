@@ -499,11 +499,10 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 
 	iobase = it->options[0];
 	printk("comedi%d: pcl711: 0x%04x ", dev->minor, iobase);
-	if (check_region(iobase, PCL711_SIZE) < 0) {
+	if (!request_region(iobase, PCL711_SIZE, "pcl711")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, PCL711_SIZE, "pcl711");
 	dev->iobase = iobase;
 
 	/* there should be a sanity check here */

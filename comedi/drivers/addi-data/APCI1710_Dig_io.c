@@ -1,14 +1,38 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : DIG_IO.C        |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : DIG_IO.C        | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 16.06.98             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 digital I/O module                          |
   |                                                                       |
@@ -85,7 +109,8 @@ INT i_APCI1710_InsnConfigDigitalIO(comedi_device *dev,comedi_subdevice *s,
 	DWORD  dw_WriteConfig = 0;
 	
 	b_ModulNbr		=	(BYTE) CR_AREF(insn->chanspec);
-        b_ConfigType   =   (BYTE) data[0];// Memory or  Init
+        b_ConfigType
+   =   (BYTE) data[0];// Memory or  Init
 	b_ChannelAMode	=	(BYTE) data[1];
 	b_ChannelBMode	=	(BYTE) data[2];
         b_MemoryOnOff   =	(BYTE) data[1]; // if memory operation 
@@ -309,7 +334,7 @@ INT i_APCI1710_InsnReadDigitalIOChlValue(comedi_device *dev,comedi_subdevice *s,
 	      /* Test the digital imnput channel number */
 	      /******************************************/
 
-	      if ((b_InputChannel >= 0) && (b_InputChannel <= 6))
+	      if (b_InputChannel <= 6)
 		 {
 		 /**********************************************/
 		 /* Test if the digital I/O module initialised */
@@ -470,7 +495,7 @@ INT i_APCI1710_InsnWriteDigitalIOChlOnOff(comedi_device *dev,comedi_subdevice *s
 	comedi_insn *insn,lsampl_t *data)
 	{
 	INT    i_ReturnValue = 0;
-	DWORD dw_WriteValue;
+	DWORD dw_WriteValue  = 0;
 	BYTE b_ModulNbr,b_OutputChannel;
 	i_ReturnValue	=	insn->n; 
 	b_ModulNbr		=   CR_AREF(insn->chanspec);  
@@ -714,17 +739,20 @@ INT i_APCI1710_InsnBitsDigitalIOPortOnOff(comedi_device *dev,comedi_subdevice *s
 	comedi_insn *insn,lsampl_t *data)
 	{
 	INT    i_ReturnValue = 0;
-	DWORD dw_WriteValue,dw_StatusReg;
+	DWORD dw_WriteValue = 0;
+	DWORD dw_StatusReg;
 	BYTE b_ModulNbr,b_PortValue;
         BYTE b_PortOperation,b_PortOnOFF;
-       PBYTE pb_PortValue;
+
+       PBYTE pb_PortValue;
           
     	b_ModulNbr		= (BYTE) CR_AREF(insn->chanspec);
 	b_PortOperation = (BYTE) data[0];// Input or output 
 	b_PortOnOFF		= (BYTE) data[1];// if output then On or Off
 	b_PortValue		= (BYTE) data[2];// if out put then Value
 	i_ReturnValue	= insn->n;
-        pb_PortValue    = (PBYTE) &data[0];// if input then read value
+        pb_PortValue    = (PBYTE) &data[0];
+// if input then read value
 	
 
 
@@ -820,7 +848,7 @@ INT i_APCI1710_InsnBitsDigitalIOPortOnOff(comedi_device *dev,comedi_subdevice *s
 		 /* Test the port value */
 		 /***********************/
 
-		 if ((b_PortValue >= 0) && (b_PortValue <= 7))
+		 if (b_PortValue <= 7)
 		    {
 		    /***********************************/
 		    /* Test the digital output channel */

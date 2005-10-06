@@ -1,14 +1,38 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : SSI.C           |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : SSI.C           | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 14.01.98             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 SSI counter module                          |
   |                                                                       |
@@ -242,7 +266,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 				   /*****************************************************/
 				   /* The selected SSI counting mode parameter is wrong */
 				   /*****************************************************/
-                          DPRINTK("The selected SSI counting mode parameter is wrong\n");
+
+                          DPRINTK("The selected SSI counting mode parameter is wrong\n");
 				   i_ReturnValue = -9;
 				   }
 				}
@@ -251,7 +276,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 				/******************************************/
 				/* The selected SSI output clock is wrong */
 				/******************************************/
-				DPRINTK("The selected SSI output clock is wrong\n");
+
+				DPRINTK("The selected SSI output clock is wrong\n");
 				i_ReturnValue = -8;
 				}
 			     }
@@ -260,7 +286,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 			     /*****************************************/
 			     /* The selected PCI input clock is wrong */
 			     /*****************************************/
-				 DPRINTK("The selected PCI input clock is wrong\n");
+
+				 DPRINTK("The selected PCI input clock is wrong\n");
 			     i_ReturnValue = -7;
 			     }
 			  }
@@ -269,7 +296,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 			  /********************************************/
 			  /* The selected SSI profile length is wrong */
 			  /********************************************/
-			  DPRINTK("The selected SSI profile length is wrong\n");	
+
+			  DPRINTK("The selected SSI profile length is wrong\n");	
 			  i_ReturnValue = -4;
 			  }
 		       }
@@ -278,7 +306,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 		       /******************************************************/
 		       /* The selected SSI turn counter data length is wrong */
 		       /******************************************************/
-			   DPRINTK("The selected SSI turn counter data length is wrong\n");	
+
+			   DPRINTK("The selected SSI turn counter data length is wrong\n");	
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -287,7 +316,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 		    /**************************************************/
 		    /* The selected SSI position data length is wrong */
 		    /**************************************************/
-			DPRINTK("The selected SSI position data length is wrong\n");
+
+			DPRINTK("The selected SSI position data length is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -296,7 +326,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 		 /********************************************/
 		 /* The selected SSI profile length is wrong */
 		 /********************************************/
-		 DPRINTK("The selected SSI profile length is wrong\n");
+
+		 DPRINTK("The selected SSI profile length is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -305,7 +336,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 	      /**********************************/
 	      /* The module is not a SSI module */
 	      /**********************************/
-	      DPRINTK("The module is not a SSI module\n");	
+
+	      DPRINTK("The module is not a SSI module\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -314,7 +346,8 @@ INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
+
+	   DPRINTK("Module number error\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -392,8 +425,10 @@ pul_Position	=	(PULONG) &data[0];
 
 
 	i_ReturnValue	=	insn->n;	 
-	pul_Position1	=	(PULONG) &data[0];// For Read1
-	pul_TurnCpt1	=	(PULONG) &data[1];// For Read all
+	pul_Position1	=	(PULONG) &data[0];
+// For Read1
+	pul_TurnCpt1	=	(PULONG) &data[1];
+// For Read all
        	pul_Position	=	(PULONG) &data[0];//0-2
 	pul_TurnCpt	=	(PULONG) &data[3];//3-5
 	b_ModulNbr		=   (BYTE) CR_AREF(insn->chanspec);
@@ -435,7 +470,8 @@ pul_Position	=	(PULONG) &data[0];
 		    /************************/
 		    /* Start the conversion */
 		    /************************/
-
+
+
 			outl(0,devpriv->s_BoardInfos.ui_Address + 8 + (64 * b_ModulNbr));
 			
 
@@ -498,7 +534,8 @@ pul_Position	=	(PULONG) &data[0];
 		    /*****************************/
 		    /* The selected SSI is wrong */
 		    /*****************************/
-                   DPRINTK("The selected SSI is wrong\n");
+
+                   DPRINTK("The selected SSI is wrong\n");
 		    i_ReturnValue = -5;
 		    }
           	break;
@@ -582,7 +619,8 @@ pul_Position	=	(PULONG) &data[0];
 		 /***********************/
 		 /* SSI not initialised */
 		 /***********************/
-                DPRINTK("SSI not initialised\n");
+
+                DPRINTK("SSI not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -591,8 +629,10 @@ pul_Position	=	(PULONG) &data[0];
 	      /**********************************/
 	      /* The module is not a SSI module */
 	      /**********************************/
-             DPRINTK("The module is not a SSI module\n");
-	      i_ReturnValue = -3; 
+
+             DPRINTK("The module is not a SSI module\n");
+	      i_ReturnValue = -3;
+ 
 	      }
 	   }
 	else
@@ -600,7 +640,8 @@ pul_Position	=	(PULONG) &data[0];
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
+
+	   DPRINTK("Module number error\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -708,7 +749,7 @@ lsampl_t *data)
            				b_InputChannel = (BYTE) CR_CHAN(insn->chanspec);
 		   			pb_ChannelStatus = (PBYTE) &data[0];
 
-	      				if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+	      				if (b_InputChannel <= 2)
 		 			{
 		 			/**************************/
 		 			/* Read all digital input */
@@ -723,7 +764,8 @@ lsampl_t *data)
 		 			/********************************/
 		 			/* Selected digital input error */
 		 			/********************************/
-                           DPRINTK("Selected digital input error\n");
+
+                           DPRINTK("Selected digital input error\n");
 		 			i_ReturnValue = -4;
 		 			}
 		  			break;
@@ -749,7 +791,8 @@ lsampl_t *data)
 	      /**********************************/
 	      /* The module is not a SSI module */
 	      /**********************************/
-	      DPRINTK("The module is not a SSI module\n"); 	
+
+	      DPRINTK("The module is not a SSI module\n"); 	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -758,7 +801,8 @@ lsampl_t *data)
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
+
+	   DPRINTK("Module number error\n");
 	   i_ReturnValue = -2;
 	   }
 

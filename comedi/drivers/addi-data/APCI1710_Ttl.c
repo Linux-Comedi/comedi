@@ -1,17 +1,38 @@
+/**
+@verbatim
 
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
 
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : TTL.C           |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : TTL.C           | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 04.06.98             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 TTL I/O module                              |
   |                                                                       |
@@ -246,7 +267,8 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 			     /**********************************/
 			     /* Port D mode selection is wrong */
 			     /**********************************/
-                        DPRINTK("Port D mode selection is wrong\n");
+
+                        DPRINTK("Port D mode selection is wrong\n");
 			     i_ReturnValue = -8;
 			     }
 			  }
@@ -255,7 +277,8 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 			  /**********************************/
 			  /* Port C mode selection is wrong */
 			  /**********************************/
-			  DPRINTK("Port C mode selection is wrong\n");
+
+			  DPRINTK("Port C mode selection is wrong\n");
 			  i_ReturnValue = -7;
 			  }
 		       }
@@ -264,7 +287,8 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 		       /**********************************/
 		       /* Port B mode selection is wrong */
 		       /**********************************/
-			   DPRINTK("Port B mode selection is wrong\n");
+
+			   DPRINTK("Port B mode selection is wrong\n");
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -273,7 +297,8 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 		    /**********************************/
 		    /* Port A mode selection is wrong */
 		    /**********************************/
-			DPRINTK("Port A mode selection is wrong\n");
+
+			DPRINTK("Port A mode selection is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -282,11 +307,13 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 		 /*******************************************/
 		 /* Function not available for this version */
 		 /*******************************************/
-		 DPRINTK("Function not available for this version\n");
+
+		 DPRINTK("Function not available for this version\n");
 		 i_ReturnValue = -4;
 		 }
 		  break;
-		  DPRINTK("\n");
+
+		  DPRINTK("\n");
 		  default:
 			  printk("Bad Config Type\n");
 		  }// switch end
@@ -296,7 +323,8 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 	      /**********************************/
 	      /* The module is not a TTL module */
 	      /**********************************/
-	      DPRINTK("The module is not a TTL module\n");
+
+	      DPRINTK("The module is not a TTL module\n");
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -305,7 +333,8 @@ INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-          DPRINTK("Module number error\n");
+
+          DPRINTK("Module number error\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -422,17 +451,17 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 	      /* Test the TTL I/O port number */
 	      /********************************/
 
-	      if ((((b_SelectedPort >= 0) && (b_SelectedPort <= 2)) && ((devpriv->s_BoardInfos.
-									 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
-		  (((b_SelectedPort >= 0) && (b_SelectedPort <= 3)) && ((devpriv->s_BoardInfos.
-									 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
+	      if (((b_SelectedPort <= 2) && ((devpriv->s_BoardInfos.
+					      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
+		  ((b_SelectedPort <= 3) && ((devpriv->s_BoardInfos.
+					     dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
 		 {
 		 /******************************************/
 		 /* Test the digital imnput channel number */
 		 /******************************************/
 
-		 if ((((b_InputChannel >= 0) && (b_InputChannel <= 7)) && (b_SelectedPort < 3)) ||
-		     (((b_InputChannel >= 0) && (b_InputChannel <= 1)) && (b_SelectedPort == 3)))
+		 if (((b_InputChannel <= 7) && (b_SelectedPort < 3)) ||
+		     ((b_InputChannel <= 1) && (b_SelectedPort == 3)))
 		    {
 		    /******************************************/
 		    /* Test if the TTL I/O module initialised */
@@ -468,7 +497,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 			  /*******************************/
 			  /* Selected TTL I/O port error */
 			  /*******************************/
-			  DPRINTK("Selected TTL I/O port error\n");
+
+			  DPRINTK("Selected TTL I/O port error\n");
 			  i_ReturnValue = -4;
 			  }
 		       }
@@ -477,7 +507,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 		       /***************************/
 		       /* TTL I/O not initialised */
 		       /***************************/
-			   DPRINTK("TTL I/O not initialised\n");	
+
+			   DPRINTK("TTL I/O not initialised\n");	
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -486,7 +517,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 		    /********************************/
 		    /* Selected digital input error */
 		    /********************************/
-			DPRINTK("Selected digital input error\n");
+
+			DPRINTK("Selected digital input error\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -495,7 +527,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 		 /*******************************/
 		 /* Selected TTL I/O port error */
 		 /*******************************/
-                DPRINTK("Selected TTL I/O port error\n");
+
+                DPRINTK("Selected TTL I/O port error\n");
 		 i_ReturnValue = -4;
 		 }
 		  break;
@@ -506,10 +539,10 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 	      		  /* Test the TTL I/O port number */
 	      		  /********************************/
 
-	      if ((((b_SelectedPort >= 0) && (b_SelectedPort <= 2)) && ((devpriv->s_BoardInfos.
-									 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
-		  (((b_SelectedPort >= 0) && (b_SelectedPort <= 3)) && ((devpriv->s_BoardInfos.
-									 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
+	      if (((b_SelectedPort <= 2) && ((devpriv->s_BoardInfos.
+					      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
+		  ((b_SelectedPort <= 3) && ((devpriv->s_BoardInfos.
+					      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
 		 {
 		 /******************************************/
 		 /* Test if the TTL I/O module initialised */
@@ -544,7 +577,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 		       /*******************************/
 		       /* Selected TTL I/O port error */
 		       /*******************************/
-                      DPRINTK("Selected TTL I/O port error\n");
+
+                      DPRINTK("Selected TTL I/O port error\n");
 		       i_ReturnValue = -4;
 		       }
 		    }
@@ -553,7 +587,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 		    /***************************/
 		    /* TTL I/O not initialised */
 		    /***************************/
-			DPRINTK("TTL I/O not initialised\n");
+
+			DPRINTK("TTL I/O not initialised\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -562,7 +597,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 		 /*******************************/
 		 /* Selected TTL I/O port error */
 		 /*******************************/
-		 DPRINTK("Selected TTL I/O port error\n");	
+
+		 DPRINTK("Selected TTL I/O port error\n");	
 		 i_ReturnValue = -4;
 		 }
 		  break;
@@ -577,7 +613,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 	      /**********************************/
 	      /* The module is not a TTL module */
 	      /**********************************/
-	      DPRINTK("The module is not a TTL module\n");	
+
+	      DPRINTK("The module is not a TTL module\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -586,7 +623,8 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
+
+	   DPRINTK("Module number error\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -833,16 +871,16 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 		 /* Test the TTL I/O channel number */
 		 /***********************************/
 
-		 if ((((b_OutputChannel >= 0) && (b_OutputChannel <= 1)) && ((devpriv->s_BoardInfos.
-									      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
-		     (((b_OutputChannel >= 0) && (b_OutputChannel <= 25)) && ((devpriv->s_BoardInfos.
-									       dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
+		 if (((b_OutputChannel <= 1) && ((devpriv->s_BoardInfos.
+						 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
+		     ((b_OutputChannel <= 25) && ((devpriv->s_BoardInfos.
+						  dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
 		    {
 		    /****************************************************/
 		    /* Test if the selected channel is a output channel */
 		    /****************************************************/
 
-		    if (((b_OutputChannel >= 0) && (b_OutputChannel <= 1) && (devpriv->
+		    if (((b_OutputChannel <= 1) && (devpriv->
 			s_ModuleInfo [b_ModulNbr].
 									      s_TTLIOInfo.
 									      b_PortConfiguration [3] == 1)) ||
@@ -915,7 +953,8 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 		       /************************************/
 		       /* The selected TTL output is wrong */
 		       /************************************/
-			   DPRINTK(" The selected TTL output is wrong\n");	
+
+			   DPRINTK(" The selected TTL output is wrong\n");	
 		       i_ReturnValue = -4;
 		       }
 		    }
@@ -924,7 +963,8 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 		    /************************************/
 		    /* The selected TTL output is wrong */
 		    /************************************/
-			DPRINTK("The selected TTL output is wrong\n");	
+
+			DPRINTK("The selected TTL output is wrong\n");	
 		    i_ReturnValue = -4;
 		    }
 		 }
@@ -933,7 +973,8 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 		 /***************************/
 		 /* TTL I/O not initialised */
 		 /***************************/
-		 DPRINTK("TTL I/O not initialised\n");	
+
+		 DPRINTK("TTL I/O not initialised\n");	
 		 i_ReturnValue = -5;
 		 }
 	      }
@@ -942,7 +983,8 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 	      /**************************************/
 	      /* The module is not a TTL I/O module */
 	      /**************************************/
-	      DPRINTK("The module is not a TTL I/O module\n");		
+
+	      DPRINTK("The module is not a TTL I/O module\n");		
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -951,7 +993,8 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
+
+	   DPRINTK("Module number error\n");	
 	   i_ReturnValue = -2;
 	   }
 

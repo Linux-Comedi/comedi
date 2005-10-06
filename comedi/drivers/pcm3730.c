@@ -69,11 +69,10 @@ static int pcm3730_attach(comedi_device *dev,comedi_devconfig *it)
 
 	iobase=it->options[0];
 	printk("comedi%d: pcm3730: 0x%04x ",dev->minor,iobase);
-	if(check_region(iobase,PCM3730_SIZE)<0){
+	if(!request_region(iobase,PCM3730_SIZE,"pcm3730")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,PCM3730_SIZE,"pcm3730");
 	dev->iobase=iobase;
 	dev->board_name="pcm3730";
 	dev->iobase=dev->iobase;

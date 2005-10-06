@@ -139,11 +139,11 @@ static int ni6527_di_insn_config(comedi_device *dev,comedi_subdevice *s,
 		data[1] = interval*200;
 
 		if(interval!=devpriv->filter_interval){
-			writeb(interval&0xff, dev->iobase + Filter_Interval(0));
-			writeb((interval>>8)&0xff, dev->iobase + Filter_Interval(1));
-			writeb((interval>>16)&0x0f, dev->iobase + Filter_Interval(2));
+			writeb(interval&0xff, devpriv->mite->daq_io_addr + Filter_Interval(0));
+			writeb((interval>>8)&0xff, devpriv->mite->daq_io_addr + Filter_Interval(1));
+			writeb((interval>>16)&0x0f, devpriv->mite->daq_io_addr + Filter_Interval(2));
 
-			writeb(ClrInterval, dev->iobase + Clear_Register);
+			writeb(ClrInterval, devpriv->mite->daq_io_addr + Clear_Register);
 
 			devpriv->filter_interval = interval;
 		}
@@ -153,9 +153,9 @@ static int ni6527_di_insn_config(comedi_device *dev,comedi_subdevice *s,
 		devpriv->filter_enable &= ~(1<<chan);
 	}
 	
-	writeb(devpriv->filter_enable, dev->iobase + Filter_Enable(0));
-	writeb(devpriv->filter_enable>>8, dev->iobase + Filter_Enable(1));
-	writeb(devpriv->filter_enable>>16, dev->iobase + Filter_Enable(2));
+	writeb(devpriv->filter_enable, devpriv->mite->daq_io_addr + Filter_Enable(0));
+	writeb(devpriv->filter_enable>>8, devpriv->mite->daq_io_addr + Filter_Enable(1));
+	writeb(devpriv->filter_enable>>16, devpriv->mite->daq_io_addr + Filter_Enable(2));
 
 	return 2;
 }
@@ -165,9 +165,9 @@ static int ni6527_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 {
 	if(insn->n!=2)return -EINVAL;
 
-	data[1] = readb(dev->iobase+Port_Register(0));
-	data[1] |= readb(dev->iobase+Port_Register(1))<<8;
-	data[1] |= readb(dev->iobase+Port_Register(2))<<16;
+	data[1] = readb(devpriv->mite->daq_io_addr+Port_Register(0));
+	data[1] |= readb(devpriv->mite->daq_io_addr+Port_Register(1))<<8;
+	data[1] |= readb(devpriv->mite->daq_io_addr+Port_Register(2))<<16;
 
 	return 2;
 }
@@ -183,13 +183,13 @@ static int ni6527_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		/* The open relay state on the board cooresponds to 1,
 		 * but in Comedi, it is represented by 0. */
 		if(data[0]&0x0000ff){
-			writeb((s->state^0xff),dev->iobase+Port_Register(3));
+			writeb((s->state^0xff),devpriv->mite->daq_io_addr+Port_Register(3));
 		}
 		if(data[0]&0x00ff00){
-			writeb((s->state>>8)^0xff,dev->iobase+Port_Register(4));
+			writeb((s->state>>8)^0xff,devpriv->mite->daq_io_addr+Port_Register(4));
 		}
 		if(data[0]&0xff0000){
-			writeb((s->state>>16)^0xff,dev->iobase+Port_Register(5));
+			writeb((s->state>>16)^0xff,devpriv->mite->daq_io_addr+Port_Register(5));
 		}
 	}
 	data[1] = s->state;
@@ -203,11 +203,11 @@ static irqreturn_t ni6527_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->subdevices + 2;
 	unsigned int status;
 
-	status = readb(dev->iobase + Change_Status);
+	status = readb(devpriv->mite->daq_io_addr + Change_Status);
 	if((status & MasterInterruptStatus) == 0) return IRQ_NONE;
 	if((status & EdgeStatus) == 0) return IRQ_NONE;
 
-	writeb(ClrEdge | ClrOverflow, dev->iobase + Clear_Register);
+	writeb(ClrEdge | ClrOverflow, devpriv->mite->daq_io_addr + Clear_Register);
 
 	comedi_buf_put(s->async, 0);
 	s->async->events |= COMEDI_CB_EOS;
@@ -286,17 +286,17 @@ static int ni6527_intr_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	//comedi_cmd *cmd = &s->async->cmd;
 	
-	writeb(ClrEdge|ClrOverflow, dev->iobase + Clear_Register);
+	writeb(ClrEdge|ClrOverflow, devpriv->mite->daq_io_addr + Clear_Register);
 	writeb(FallingEdgeIntEnable|RisingEdgeIntEnable|
 		MasterInterruptEnable|EdgeIntEnable,
-		dev->iobase + Master_Interrupt_Control);
+		devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 	
 	return 0;
 }
 
 static int ni6527_intr_cancel(comedi_device *dev,comedi_subdevice *s)
 {
-	writeb(0x00, dev->iobase + Master_Interrupt_Control);
+	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	return 0;
 }
@@ -316,13 +316,13 @@ static int ni6527_intr_insn_config(comedi_device *dev, comedi_subdevice *s,
 	if(insn->n < 1)return -EINVAL;
 	if(data[0] != INSN_CONFIG_CHANGE_NOTIFY)return -EINVAL;
 
-	writeb(data[1], dev->iobase + Rising_Edge_Detection_Enable(0));
-	writeb(data[1]>>8, dev->iobase + Rising_Edge_Detection_Enable(1));
-	writeb(data[1]>>16, dev->iobase + Rising_Edge_Detection_Enable(2));
+	writeb(data[1], devpriv->mite->daq_io_addr + Rising_Edge_Detection_Enable(0));
+	writeb(data[1]>>8, devpriv->mite->daq_io_addr + Rising_Edge_Detection_Enable(1));
+	writeb(data[1]>>16, devpriv->mite->daq_io_addr + Rising_Edge_Detection_Enable(2));
 
-	writeb(data[2], dev->iobase + Falling_Edge_Detection_Enable(0));
-	writeb(data[2]>>8, dev->iobase + Falling_Edge_Detection_Enable(1));
-	writeb(data[2]>>16, dev->iobase + Falling_Edge_Detection_Enable(2));
+	writeb(data[2], devpriv->mite->daq_io_addr + Falling_Edge_Detection_Enable(0));
+	writeb(data[2]>>8, devpriv->mite->daq_io_addr + Falling_Edge_Detection_Enable(1));
+	writeb(data[2]>>16, devpriv->mite->daq_io_addr + Falling_Edge_Detection_Enable(2));
 
 	return 2;
 }
@@ -347,13 +347,12 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 		printk("error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = mite_iobase(devpriv->mite);
 
 	dev->board_name=this_board->name;
 	dev->irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);
 
-	printk(" ID=0x%02x", readb(dev->iobase + ID_Register));
+	printk(" ID=0x%02x", readb(devpriv->mite->daq_io_addr + ID_Register));
 
 	if((ret=alloc_subdevices(dev,3))<0)
 		return ret;
@@ -388,13 +387,13 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_bits = ni6527_intr_insn_bits;
 	s->insn_config = ni6527_intr_insn_config;
 
-	writeb(0x00, dev->iobase + Filter_Enable(0));
-	writeb(0x00, dev->iobase + Filter_Enable(1));
-	writeb(0x00, dev->iobase + Filter_Enable(2));
+	writeb(0x00, devpriv->mite->daq_io_addr + Filter_Enable(0));
+	writeb(0x00, devpriv->mite->daq_io_addr + Filter_Enable(1));
+	writeb(0x00, devpriv->mite->daq_io_addr + Filter_Enable(2));
 
 	writeb(ClrEdge|ClrOverflow|ClrFilter|ClrInterval,
-		dev->iobase + Clear_Register);
-	writeb(0x00, dev->iobase + Master_Interrupt_Control);
+		devpriv->mite->daq_io_addr + Clear_Register);
+	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
 	ret=comedi_request_irq(dev->irq,ni6527_interrupt,SA_SHIRQ,"ni6527",dev);
 	if(ret<0){
@@ -409,8 +408,8 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int ni6527_detach(comedi_device *dev)
 {
-	if(dev->iobase){
-		writeb(0x00, dev->iobase + Master_Interrupt_Control);
+	if(devpriv && devpriv->mite && devpriv->mite->daq_io_addr){
+		writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 	}
 
 	if(dev->irq){

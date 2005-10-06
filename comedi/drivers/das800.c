@@ -477,12 +477,11 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	/* check if io addresses are available */
-	if(check_region(iobase, DAS800_SIZE) < 0)
+	if(!request_region(iobase, DAS800_SIZE, "das800"))
 	{
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, DAS800_SIZE, "das800");
 	dev->iobase = iobase;
 
 	board = das800_probe(dev);

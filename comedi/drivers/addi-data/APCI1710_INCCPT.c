@@ -1,14 +1,37 @@
-/*
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
+/*    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : INC_CPT.C       |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : INC_CPT.C       | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 08.01.98             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 incremental counter module                  |
   |                                                                       |
@@ -60,7 +83,10 @@ comedi_insn *insn,lsampl_t *data)
 	UINT  ui_ConfigType; 
 	INT    i_ReturnValue = 0;
 	ui_ConfigType=CR_CHAN(insn->chanspec);
-       devpriv->tsk_Current=current; // Save the current process task structure
+	
+	printk ("\nINC_CPT");
+
+       devpriv->tsk_Current=current; // Save the current process task structure
 	switch(ui_ConfigType)
 	{
 	case	APCI1710_INCCPT_INITCOUNTER	:				
@@ -367,7 +393,8 @@ INT   i_APCI1710_InitCounter (comedi_device *dev,
 			     /*********************************************************/
 			     /* The selected second counter operating option is wrong */
 			     /*********************************************************/
-                        DPRINTK("The selected second counter operating option is wrong\n");
+
+                        DPRINTK("The selected second counter operating option is wrong\n");
 			     i_ReturnValue = -7;
 			     }
 			  }
@@ -376,7 +403,8 @@ INT   i_APCI1710_InitCounter (comedi_device *dev,
 			  /*******************************************************/
 			  /* The selected second counter operating mode is wrong */
 			  /*******************************************************/
-			  DPRINTK("The selected second counter operating mode is wrong\n");
+
+			  DPRINTK("The selected second counter operating mode is wrong\n");
 			  i_ReturnValue = -6;
 			  }
 		       }
@@ -386,7 +414,8 @@ INT   i_APCI1710_InitCounter (comedi_device *dev,
 		    /********************************************************/
 		    /* The selected first counter operating option is wrong */
 		    /********************************************************/
-                   DPRINTK("The selected first counter operating option is wrong\n");
+
+                   DPRINTK("The selected first counter operating option is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -404,7 +433,8 @@ INT   i_APCI1710_InitCounter (comedi_device *dev,
 	      /***************************************/
 	      /* The selected counter range is wrong */
 	      /***************************************/
-             DPRINTK("The selected counter range is wrong\n");
+
+             DPRINTK("The selected counter range is wrong\n");
 	      i_ReturnValue = -3;
 	      }
 
@@ -487,7 +517,8 @@ INT   i_APCI1710_InitCounter (comedi_device *dev,
 	   /**************************************/
 	   /* The module is not a counter module */
 	   /**************************************/
-          DPRINTK("The module is not a counter module\n");
+
+          DPRINTK("The module is not a counter module\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -618,7 +649,8 @@ INT  i_APCI1710_CounterAutoTest  (comedi_device *dev,PBYTE   pb_TestStatus)
 	   /***************************/
 	   /* No counter module found */
 	   /***************************/
-          DPRINTK("No counter module found\n");
+
+          DPRINTK("No counter module found\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -1003,7 +1035,8 @@ INT   i_APCI1710_InitIndex    (comedi_device *dev,
 		       /************************************/
 		       /* The auto mode parameter is wrong */
 		       /************************************/
-			   DPRINTK("The auto mode parameter is wrong\n");
+
+			   DPRINTK("The auto mode parameter is wrong\n");
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -1012,7 +1045,8 @@ INT   i_APCI1710_InitIndex    (comedi_device *dev,
 		    /***********************************************/
 		    /* The index operating mode parameter is wrong */
 		    /***********************************************/
-		    DPRINTK("The index operating mode parameter is wrong\n");
+
+		    DPRINTK("The index operating mode parameter is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -1021,7 +1055,8 @@ INT   i_APCI1710_InitIndex    (comedi_device *dev,
 		 /*******************************************/
 		 /* The reference action parameter is wrong */
 		 /*******************************************/
-		 DPRINTK("The reference action parameter is wrong\n");
+
+		 DPRINTK("The reference action parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -1031,7 +1066,8 @@ INT   i_APCI1710_InitIndex    (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n"); 	
+
+	      DPRINTK("Counter not initialised\n"); 	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1040,7 +1076,8 @@ INT   i_APCI1710_InitIndex    (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -1162,7 +1199,8 @@ INT   i_APCI1710_InitReference        (comedi_device *dev,
 		 /**************************************/
 		 /* Reference level parameter is wrong */
 		 /**************************************/
-		 DPRINTK("Reference level parameter is wrong\n");
+
+		 DPRINTK("Reference level parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -1172,7 +1210,8 @@ INT   i_APCI1710_InitReference        (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1181,7 +1220,8 @@ INT   i_APCI1710_InitReference        (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -1287,7 +1327,8 @@ INT	i_APCI1710_InitExternalStrobe	(comedi_device *dev,
 		    /********************************************/
 		    /* External strobe level parameter is wrong */
 		    /********************************************/
-			DPRINTK("External strobe level parameter is wrong\n");
+
+			DPRINTK("External strobe level parameter is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 } // if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
@@ -1296,7 +1337,8 @@ INT	i_APCI1710_InitExternalStrobe	(comedi_device *dev,
 		 /**************************************/
 		 /* External strobe selection is wrong */
 		 /**************************************/
-		 DPRINTK("External strobe selection is wrong\n");
+
+		 DPRINTK("External strobe selection is wrong\n");
 		 i_ReturnValue = -4;
 		 } // if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
 	      }
@@ -1306,7 +1348,8 @@ INT	i_APCI1710_InitExternalStrobe	(comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1315,7 +1358,8 @@ INT	i_APCI1710_InitExternalStrobe	(comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -1388,7 +1432,8 @@ INT   i_APCI1710_InitCompareLogic     (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");  	
+
+	      DPRINTK("Counter not initialised\n");  	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1397,7 +1442,8 @@ INT   i_APCI1710_InitCompareLogic     (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -1463,7 +1509,7 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 						 PULONG      pul_RealTimingInterval)
 	{
 	INT    i_ReturnValue = 0;
-	ULONG ul_TimerValue;
+	ULONG ul_TimerValue  = 0;
 	double d_RealTimingInterval;
 	DWORD dw_Status      = 0;
 	
@@ -1495,7 +1541,7 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 		 /* Test the timing unit */
 		 /************************/
 
-		 if ((b_TimingUnity >= 0) && (b_TimingUnity <= 2))
+		 if (b_TimingUnity <= 2)
 		    {
 		    /**********************************/
 		    /* Test the base timing selection */
@@ -1545,7 +1591,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 				/*****************************/
 				/* 40MHz quartz not on board */
 				/*****************************/
-				DPRINTK("40MHz quartz not on board\n");
+
+				DPRINTK("40MHz quartz not on board\n");
 				i_ReturnValue = -7;
 				}
 			     }
@@ -1620,6 +1667,7 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 			     /* Calculate the division fator */
 			     /********************************/
 
+			     fpu_begin ();
 			     switch (b_TimingUnity)
 				{
 				/******/
@@ -1664,7 +1712,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 				/* æs */
 				/******/
 
-				case 1:				
+				case 1:
+				
 				     
 					/******************/
 					/* Timer 0 factor */
@@ -1703,7 +1752,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 				/* ms */
 				/******/
 
-				case 2:				
+				case 2:
+				
 				     
 					/******************/
 					/* Timer 0 factor */
@@ -1738,6 +1788,7 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 				     break;
 				}
 
+			     fpu_end ();
 			     /*************************/
 			     /* Write the timer value */
 			     /*************************/
@@ -1761,7 +1812,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 			     /***************************/
 			     /* Counter not initialised */
 			     /***************************/
-                        DPRINTK("Counter not initialised\n");  
+
+                        DPRINTK("Counter not initialised\n");  
 			     i_ReturnValue = -3;
 			     }
 			  } // if (i_ReturnValue == 0)
@@ -1771,7 +1823,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 		       /**********************************/
 		       /* Base timing selection is wrong */
 		       /**********************************/
-			   DPRINTK("Base timing selection is wrong\n");	 
+
+			   DPRINTK("Base timing selection is wrong\n");	 
 		       i_ReturnValue = -6;
 		       }
 		    }
@@ -1780,7 +1833,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 		    /***********************************/
 		    /* Timing unity selection is wrong */
 		    /***********************************/
-			DPRINTK("Timing unity selection is wrong\n");
+
+			DPRINTK("Timing unity selection is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -1789,7 +1843,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 		 /*****************************************/
 		 /* The selected PCI input clock is wrong */
 		 /*****************************************/
-		 DPRINTK("The selected PCI input clock is wrong\n");	
+
+		 DPRINTK("The selected PCI input clock is wrong\n");	
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -1799,7 +1854,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n"); 	
+
+	      DPRINTK("Counter not initialised\n"); 	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1808,7 +1864,8 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -1951,7 +2008,8 @@ INT   i_APCI1710_ClearCounterValue    (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");		
+
+	      DPRINTK("Counter not initialised\n");		
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -1960,7 +2018,8 @@ INT   i_APCI1710_ClearCounterValue    (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");			
+
+	   DPRINTK("The selected module number parameter is wrong\n");			
 	   i_ReturnValue = -2;
 	   }
 
@@ -2029,7 +2088,8 @@ INT   i_APCI1710_ClearAllCounterValue (comedi_device *dev)
 	   /***************************/
 	   /* No counter module found */
 	   /***************************/
-	   DPRINTK("No counter module found\n");	
+
+	   DPRINTK("No counter module found\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -2200,7 +2260,8 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 			     /*****************************/
 			     /* 40MHz quartz not on board */
 			     /*****************************/
-                        DPRINTK("40MHz quartz not on board\n"); 
+
+                        DPRINTK("40MHz quartz not on board\n"); 
 			     i_ReturnValue = -6;
 			     }
 			  } // if (b_PCIInputClock == APCI1710_40MHZ)
@@ -2297,7 +2358,8 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 		       /**************************************/
 		       /* The selected filter value is wrong */
 		       /**************************************/
-			   DPRINTK("The selected filter value is wrong\n");	 
+
+			   DPRINTK("The selected filter value is wrong\n");	 
 		       i_ReturnValue = -5;
 		       } // if (b_Filter < 16)
 		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
@@ -2306,7 +2368,8 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 		    /*****************************************/
 		    /* The selected PCI input clock is wrong */
 		    /*****************************************/
-			DPRINTK("The selected PCI input clock is wrong\n");
+
+			DPRINTK("The selected PCI input clock is wrong\n");
 		    i_ReturnValue = 4;
 		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
 		 }
@@ -2315,7 +2378,8 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 		 /**************************************/
 		 /* The module is not a counter module */
 		 /**************************************/
-		 DPRINTK("The module is not a counter module\n");
+
+		 DPRINTK("The module is not a counter module\n");
 		 i_ReturnValue = -3;
 		 }
 	      }
@@ -2324,7 +2388,8 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 	      /**************************************/
 	      /* The module is not a counter module */
 	      /**************************************/
-	      DPRINTK("The module is not a counter module\n");	
+
+	      DPRINTK("The module is not a counter module\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2333,7 +2398,8 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -2409,7 +2475,8 @@ INT   i_APCI1710_LatchCounter (comedi_device *dev,
 		 /**************************************************/
 		 /* The selected latch register parameter is wrong */
 		 /**************************************************/
-		 DPRINTK("The selected latch register parameter is wrong\n");
+
+		 DPRINTK("The selected latch register parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -2419,7 +2486,8 @@ INT   i_APCI1710_LatchCounter (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2428,7 +2496,8 @@ INT   i_APCI1710_LatchCounter (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -2553,7 +2622,8 @@ INT	i_APCI1710_SetIndexAndReferenceSource	(comedi_device *dev,
 		    /*********************************/
 		    /* The source selection is wrong */
                     /*********************************/
-                   DPRINTK("The source selection is wrong\n");
+
+                   DPRINTK("The source selection is wrong\n");
 		    i_ReturnValue = -4;
 		    } // if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
 		 }
@@ -2562,7 +2632,8 @@ INT	i_APCI1710_SetIndexAndReferenceSource	(comedi_device *dev,
 		 /**************************************/
 		 /* The module is not a counter module */
 		 /**************************************/
-		 DPRINTK("The module is not a counter module\n");	
+
+		 DPRINTK("The module is not a counter module\n");	
 		 i_ReturnValue = -3;
 		 }
 	      }
@@ -2571,7 +2642,8 @@ INT	i_APCI1710_SetIndexAndReferenceSource	(comedi_device *dev,
 	      /**************************************/
 	      /* The module is not a counter module */
 	      /**************************************/
-	      DPRINTK("The module is not a counter module\n");	
+
+	      DPRINTK("The module is not a counter module\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2580,7 +2652,8 @@ INT	i_APCI1710_SetIndexAndReferenceSource	(comedi_device *dev,
 	   /***************************************/
 	   /* The selected module number is wrong */
 	   /***************************************/
-	   DPRINTK("The selected module number is wrong\n");	
+
+	   DPRINTK("The selected module number is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -2659,7 +2732,8 @@ INT	i_APCI1710_SetDigitalChlOn (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-             DPRINTK("Counter not initialised\n");
+
+             DPRINTK("Counter not initialised\n");
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2668,7 +2742,8 @@ INT	i_APCI1710_SetDigitalChlOn (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -2747,7 +2822,8 @@ INT	i_APCI1710_SetDigitalChlOff (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2756,7 +2832,8 @@ INT	i_APCI1710_SetDigitalChlOff (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -2936,7 +3013,8 @@ INT  i_APCI1710_EnableLatchInterrupt (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2945,7 +3023,8 @@ INT  i_APCI1710_EnableLatchInterrupt (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -3035,7 +3114,8 @@ INT   i_APCI1710_DisableLatchInterrupt        (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3044,7 +3124,8 @@ INT   i_APCI1710_DisableLatchInterrupt        (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -3123,7 +3204,8 @@ INT   i_APCI1710_Write16BitCounterValue       (comedi_device *dev,
 		 /**************************************************/
 		 /* The selected 16-Bit counter parameter is wrong */
 		 /**************************************************/
-		 DPRINTK("The selected 16-Bit counter parameter is wrong\n");
+
+		 DPRINTK("The selected 16-Bit counter parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3133,7 +3215,8 @@ INT   i_APCI1710_Write16BitCounterValue       (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3142,7 +3225,8 @@ INT   i_APCI1710_Write16BitCounterValue       (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -3210,7 +3294,8 @@ INT   i_APCI1710_Write32BitCounterValue       (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3219,7 +3304,8 @@ INT   i_APCI1710_Write32BitCounterValue       (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -3310,7 +3396,8 @@ INT   i_APCI1710_EnableIndex  (comedi_device *dev,
 		 /*************************************************************/
 		 /* Index not initialised see function "i_APCI1710_InitIndex" */
 		 /*************************************************************/
-		 DPRINTK("Index not initialised \n");
+
+		 DPRINTK("Index not initialised \n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3320,7 +3407,8 @@ INT   i_APCI1710_EnableIndex  (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3329,7 +3417,8 @@ INT   i_APCI1710_EnableIndex  (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -3414,7 +3503,8 @@ INT  i_APCI1710_DisableIndex (comedi_device *dev,
 		 /*************************************************************/
 		 /* Index not initialised see function "i_APCI1710_InitIndex" */
 		 /*************************************************************/
-		 DPRINTK("Index not initialised  \n");
+
+		 DPRINTK("Index not initialised  \n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3424,7 +3514,8 @@ INT  i_APCI1710_DisableIndex (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3433,7 +3524,8 @@ INT  i_APCI1710_DisableIndex (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -3528,7 +3620,8 @@ INT   i_APCI1710_EnableCompareLogic   (comedi_device *dev,
 		 /*********************************/
 		 /* Compare logic not initialised */
 		 /*********************************/
-		 DPRINTK("Compare logic not initialised\n");
+
+		 DPRINTK("Compare logic not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3538,7 +3631,8 @@ INT   i_APCI1710_EnableCompareLogic   (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n"); 	
+
+	      DPRINTK("Counter not initialised\n"); 	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3547,7 +3641,8 @@ INT   i_APCI1710_EnableCompareLogic   (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -3636,7 +3731,8 @@ INT   i_APCI1710_DisableCompareLogic  (comedi_device *dev,
 		 /*********************************/
 		 /* Compare logic not initialised */
 		 /*********************************/
-		 DPRINTK("Compare logic not initialised\n");
+
+		 DPRINTK("Compare logic not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3646,7 +3742,8 @@ INT   i_APCI1710_DisableCompareLogic  (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3655,7 +3752,8 @@ INT   i_APCI1710_DisableCompareLogic  (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -3790,7 +3888,8 @@ INT	i_APCI1710_EnableFrequencyMeasurement	(comedi_device *dev,
 		    /********************************/
 		    /* Interrupt parameter is wrong */
 		    /********************************/
-		    DPRINTK("Interrupt parameter is wrong\n");
+
+		    DPRINTK("Interrupt parameter is wrong\n");
 		    i_ReturnValue = -5;
 		    }
 		 }
@@ -3799,7 +3898,8 @@ INT	i_APCI1710_EnableFrequencyMeasurement	(comedi_device *dev,
 		 /***********************************************/
 		 /* Frequency measurement logic not initialised */
 		 /***********************************************/
-		 DPRINTK("Frequency measurement logic not initialised\n");
+
+		 DPRINTK("Frequency measurement logic not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3809,7 +3909,8 @@ INT	i_APCI1710_EnableFrequencyMeasurement	(comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3818,7 +3919,8 @@ INT	i_APCI1710_EnableFrequencyMeasurement	(comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-          DPRINTK("The selected module number parameter is wrong\n"); 
+
+          DPRINTK("The selected module number parameter is wrong\n"); 
 	   i_ReturnValue = -2;
 	   }
 
@@ -3924,7 +4026,8 @@ INT	i_APCI1710_DisableFrequencyMeasurement	(comedi_device *dev,
 		 /***********************************************/
 		 /* Frequency measurement logic not initialised */
 		 /***********************************************/
-		 DPRINTK("Frequency measurement logic not initialised\n");
+
+		 DPRINTK("Frequency measurement logic not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -3934,7 +4037,8 @@ INT	i_APCI1710_DisableFrequencyMeasurement	(comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -3943,7 +4047,8 @@ INT	i_APCI1710_DisableFrequencyMeasurement	(comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -3980,7 +4085,8 @@ comedi_insn *insn,lsampl_t *data)
 	INT  i_ReturnValue=0;
 	 
 	ui_ReadType=CR_CHAN(insn->chanspec);
-       devpriv->tsk_Current=current; // Save the current process task structure
+
+       devpriv->tsk_Current=current; // Save the current process task structure
 	switch(ui_ReadType)
 	{
 	case APCI1710_INCCPT_READLATCHREGISTERSTATUS:
@@ -4175,7 +4281,8 @@ INT   i_APCI1710_ReadLatchRegisterStatus      (comedi_device *dev,
 		 /**************************************************/
 		 /* The selected latch register parameter is wrong */
 		 /**************************************************/
-                DPRINTK("The selected latch register parameter is wrong\n");
+
+                DPRINTK("The selected latch register parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -4185,7 +4292,8 @@ INT   i_APCI1710_ReadLatchRegisterStatus      (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");
+
+	      DPRINTK("Counter not initialised\n");
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4194,7 +4302,8 @@ INT   i_APCI1710_ReadLatchRegisterStatus      (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -4270,7 +4379,8 @@ INT   i_APCI1710_ReadLatchRegisterValue       (comedi_device *dev,
 		 /**************************************************/
 		 /* The selected latch register parameter is wrong */
 		 /**************************************************/
-		 DPRINTK("The selected latch register parameter is wrong\n");
+
+		 DPRINTK("The selected latch register parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -4280,7 +4390,8 @@ INT   i_APCI1710_ReadLatchRegisterValue       (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n"); 	
+
+	      DPRINTK("Counter not initialised\n"); 	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4289,7 +4400,8 @@ INT   i_APCI1710_ReadLatchRegisterValue       (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n"); 	
+
+	   DPRINTK("The selected module number parameter is wrong\n"); 	
 	   i_ReturnValue = -2;
 	   }
 
@@ -4377,7 +4489,8 @@ INT   i_APCI1710_Read16BitCounterValue        (comedi_device *dev,
 		 /**************************************************/
 		 /* The selected 16-Bit counter parameter is wrong */
 		 /**************************************************/
-		 DPRINTK("The selected 16-Bit counter parameter is wrong\n");
+
+		 DPRINTK("The selected 16-Bit counter parameter is wrong\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -4387,7 +4500,8 @@ INT   i_APCI1710_Read16BitCounterValue        (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4396,7 +4510,8 @@ INT   i_APCI1710_Read16BitCounterValue        (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -4471,7 +4586,8 @@ INT   i_APCI1710_Read32BitCounterValue        (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");
+
+	      DPRINTK("Counter not initialised\n");
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4480,7 +4596,8 @@ INT   i_APCI1710_Read32BitCounterValue        (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -4556,7 +4673,8 @@ INT   i_APCI1710_GetIndexStatus      (comedi_device *dev,
 		 /*************************************************************/
 		 /* Index not initialised see function "i_APCI1710_InitIndex" */
 		 /*************************************************************/
-		 DPRINTK("Index not initialised\n");
+
+		 DPRINTK("Index not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -4566,7 +4684,8 @@ INT   i_APCI1710_GetIndexStatus      (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4575,7 +4694,8 @@ INT   i_APCI1710_GetIndexStatus      (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -4651,7 +4771,8 @@ INT   i_APCI1710_GetReferenceStatus      (comedi_device *dev,
 		 /*********************************************************************/
 		 /* Reference not initialised see function "i_APCI1710_InitReference" */
 		 /*********************************************************************/
-		 DPRINTK("Reference not initialised\n");
+
+		 DPRINTK("Reference not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -4661,7 +4782,8 @@ INT   i_APCI1710_GetReferenceStatus      (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4670,7 +4792,8 @@ INT   i_APCI1710_GetReferenceStatus      (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -4738,7 +4861,8 @@ INT   i_APCI1710_GetUASStatus (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4747,8 +4871,10 @@ INT   i_APCI1710_GetUASStatus (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
+	   i_ReturnValue = -2;
+	
 	   }
 
 	return (i_ReturnValue);
@@ -4806,7 +4932,8 @@ INT   i_APCI1710_GetCBStatus  (comedi_device *dev,
 			dw_StatusReg=inl(devpriv->s_BoardInfos.
 		      ui_Address + 16 + (64 * b_ModulNbr));
 
-	      *pb_CBStatus = (BYTE) (dw_StatusReg & 1);	      	      	      
+	      *pb_CBStatus = (BYTE) (dw_StatusReg & 1);
+	      	      	      
 	      }
 	   else
 	      {
@@ -4814,7 +4941,8 @@ INT   i_APCI1710_GetCBStatus  (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");  	
+
+	      DPRINTK("Counter not initialised\n");  	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -4823,7 +4951,8 @@ INT   i_APCI1710_GetCBStatus  (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -4877,7 +5006,8 @@ INT 	i_APCI1710_Get16BitCBStatus	(comedi_device *dev,
 	INT    i_ReturnValue = 0;
 	DWORD dw_StatusReg   = 0;
 	
-       
+
+       
 	/**************************/
 	/* Test the module number */
 	/**************************/
@@ -4934,7 +5064,8 @@ INT 	i_APCI1710_Get16BitCBStatus	(comedi_device *dev,
 		 /* Counter not initialised to 2*16-bit mode */
 		 /* "i_APCI1710_InitCounter"                 */
 		 /********************************************/
-		 DPRINTK("Counter not initialised\n");
+
+		 DPRINTK("Counter not initialised\n");
 		 i_ReturnValue = -4;
 		 } // if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
 	      } // if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
@@ -4944,7 +5075,8 @@ INT 	i_APCI1710_Get16BitCBStatus	(comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");		
+
+	      DPRINTK("Counter not initialised\n");		
 	      i_ReturnValue = -3;
 	      } // if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
 	   } // if (b_ModulNbr < 4)
@@ -4953,7 +5085,8 @@ INT 	i_APCI1710_Get16BitCBStatus	(comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   } // if (b_ModulNbr < 4)
 
@@ -5024,7 +5157,8 @@ INT   i_APCI1710_GetUDStatus  (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -5033,7 +5167,8 @@ INT   i_APCI1710_GetUDStatus  (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -5130,7 +5265,8 @@ INT   i_APCI1710_GetInterruptUDLatchedStatus  (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -5139,7 +5275,8 @@ INT   i_APCI1710_GetInterruptUDLatchedStatus  (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");	
+
+	   DPRINTK("The selected module number parameter is wrong\n");	
 	   i_ReturnValue = -2;
 	   }
 
@@ -5258,7 +5395,8 @@ INT	i_APCI1710_ReadFrequencyMeasurement (comedi_device *dev,
 		       /******************/
 
 			   *pul_ReadValue=inl(devpriv->s_BoardInfos.
-			      ui_Address + 28 + (64 * b_ModulNbr));			    			     
+			      ui_Address + 28 + (64 * b_ModulNbr));
+			    			     
 
 		       if (*pb_UDStatus == 0)
 			  {
@@ -5349,7 +5487,8 @@ INT	i_APCI1710_ReadFrequencyMeasurement (comedi_device *dev,
 		 /***********************************************/
 		 /* Frequency measurement logic not initialised */
 		 /***********************************************/
-		 DPRINTK("Frequency measurement logic not initialised\n");
+
+		 DPRINTK("Frequency measurement logic not initialised\n");
 		 i_ReturnValue = -4;
 		 }
 	      }
@@ -5359,7 +5498,8 @@ INT	i_APCI1710_ReadFrequencyMeasurement (comedi_device *dev,
 	      /* Counter not initialised see function */
 	      /* "i_APCI1710_InitCounter"             */
 	      /****************************************/
-	      DPRINTK("Counter not initialised\n");	
+
+	      DPRINTK("Counter not initialised\n");	
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -5368,7 +5508,8 @@ INT	i_APCI1710_ReadFrequencyMeasurement (comedi_device *dev,
 	   /*************************************************/
 	   /* The selected module number parameter is wrong */
 	   /*************************************************/
-	   DPRINTK("The selected module number parameter is wrong\n");
+
+	   DPRINTK("The selected module number parameter is wrong\n");
 	   i_ReturnValue = -2;
 	   }
 

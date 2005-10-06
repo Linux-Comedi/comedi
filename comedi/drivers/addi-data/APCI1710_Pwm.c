@@ -1,18 +1,38 @@
+/**
+@verbatim
 
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
 
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-----------------------------------------------------------------------+
-  | Project   : API APCI1710      |     Compiler   : BORLANDC/MICROSOFT C |
-  | Module name : PWM.C           |     Version    : 3.1     / 6.0        |
+  | Project     : API APCI1710    | Compiler : gcc                        |
+  | Module name : PWM.C           | Version  : 2.96                       |
   +-------------------------------+---------------------------------------+
-  | Author    : S.WEBER           |     Date       : 22.01.99             |
+  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
   +-----------------------------------------------------------------------+
   | Description :   APCI-1710 Wulse wide modulation module                |
   |                                                                       |
@@ -59,6 +79,7 @@ comedi_insn *insn,lsampl_t *data)
 	BYTE b_ConfigType;
 	INT i_ReturnValue=0;
         b_ConfigType=CR_CHAN(insn->chanspec);
+	
 
 	switch(b_ConfigType)
 	{
@@ -177,13 +198,12 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 				 PULONG pul_RealHighTiming)
 	{
 	INT    i_ReturnValue = 0;
-	ULONG ul_LowTimerValue;
-	ULONG ul_HighTimerValue;
+	ULONG ul_LowTimerValue = 0;
+	ULONG ul_HighTimerValue = 0;
 	DWORD dw_Command;
-	double d_RealLowTiming;
-	double d_RealHighTiming;
+	double d_RealLowTiming = 0;
+	double d_RealHighTiming = 0;
 	
-
 
 	/**************************/
 	/* Test the module number */
@@ -203,7 +223,7 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 	      /* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM >= 0 && b_PWM <= 1)
+	      if (b_PWM <= 1)
 		 {
 		 /******************/
 		 /* Test the clock */
@@ -217,7 +237,7 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 		    /* Test the timing unit */
 		    /************************/
 
-		    if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+		    if (b_TimingUnit <= 4)
 		       {
 		       /*********************************/
 		       /* Test the low timing selection */
@@ -263,9 +283,9 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 			     /* Test the board version */
 			     /**************************/
 
-			     if ((b_ClockSelection == APCI1710_40MHZ) && (devpriv->
-									  s_BoardInfos.
-									  b_BoardVersion > 0) ||
+			     if (((b_ClockSelection == APCI1710_40MHZ) && (devpriv->
+									   s_BoardInfos.
+									   b_BoardVersion > 0)) ||
 				 (b_ClockSelection != APCI1710_40MHZ))
 				{
 
@@ -273,6 +293,8 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 				/* Calculate the low division fator */
 				/************************************/
 
+				fpu_begin ();
+				
 				switch (b_TimingUnit)
 				   {
 				   /******/
@@ -719,6 +741,7 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 					break;
 				   }
 
+				fpu_end ();
 				/****************************/
 				/* Save the clock selection */
 				/****************************/
@@ -1003,7 +1026,8 @@ INT  i_APCI1710_GetPWMInitialisation (comedi_device *dev,
 	INT    i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_Command;
-	
+
+		
 	
 	/**************************/
 	/* Test the module number */
@@ -1023,7 +1047,7 @@ INT  i_APCI1710_GetPWMInitialisation (comedi_device *dev,
 	      /* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM >= 0 && b_PWM <= 1)
+	      if (b_PWM <= 1)
 		 {
 		 /***************************/
 		 /* Test if PWM initialised */
@@ -1146,6 +1170,7 @@ comedi_insn *insn,lsampl_t *data)
 	INT i_ReturnValue=0;
     b_WriteType=CR_CHAN(insn->chanspec);
 
+    
 	switch(b_WriteType)
 	{
 	case APCI1710_PWM_ENABLE :
@@ -1284,7 +1309,8 @@ INT   i_APCI1710_EnablePWM    (comedi_device *dev,
 	INT    i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_Command;
-	
+
+		
         devpriv->tsk_Current=current; // Save the current process task structure
 	/**************************/
 	/* Test the module number */
@@ -1304,7 +1330,7 @@ INT   i_APCI1710_EnablePWM    (comedi_device *dev,
 	      /* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM >= 0 && b_PWM <= 1)
+	      if (b_PWM <= 1)
 		 {
 		 /***************************/
 		 /* Test if PWM initialised */
@@ -1319,25 +1345,25 @@ INT   i_APCI1710_EnablePWM    (comedi_device *dev,
 		    /* Test the start level selection */
 		    /**********************************/
 
-		    if (b_StartLevel >= 0 && b_StartLevel <= 1)
+		    if (b_StartLevel <= 1)
 		       {
 		       /**********************/
 		       /* Test the stop mode */
 		       /**********************/
 
-		       if (b_StopMode >= 0 && b_StopMode <= 1)
+		       if (b_StopMode <= 1)
 			  {
 			  /***********************/
 			  /* Test the stop level */
 			  /***********************/
 
-			  if (b_StopLevel >= 0 && b_StopLevel <= 2)
+			  if (b_StopLevel <= 2)
 			     {
 			     /*****************************/
 			     /* Test the extern gate mode */
 			     /*****************************/
 
-			     if (b_ExternGate >= 0 && b_ExternGate <= 1)
+			     if (b_ExternGate <= 1)
 				{
 				/*****************************/
 				/* Test the interrupt action */
@@ -1514,7 +1540,7 @@ INT   i_APCI1710_DisablePWM   (comedi_device *dev,
 	{
 	INT    i_ReturnValue = 0;
 	DWORD dw_Status;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
@@ -1532,7 +1558,7 @@ INT   i_APCI1710_DisablePWM   (comedi_device *dev,
 	      /* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM >= 0 && b_PWM <= 1)
+	      if (b_PWM <= 1)
 		 {
 		 /***************************/
 		 /* Test if PWM initialised */
@@ -1654,16 +1680,15 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 	{
 	BYTE   b_ClockSelection;
 	INT    i_ReturnValue = 0;
-	ULONG ul_LowTimerValue;
-	ULONG ul_HighTimerValue;
-	ULONG ul_RealLowTiming;
-	ULONG ul_RealHighTiming;
+	ULONG ul_LowTimerValue = 0;
+	ULONG ul_HighTimerValue = 0;
+	ULONG ul_RealLowTiming = 0;
+	ULONG ul_RealHighTiming = 0;
 	DWORD dw_Status;
 	DWORD dw_Command;
-	double d_RealLowTiming;
-	double d_RealHighTiming;
+	double d_RealLowTiming = 0;
+	double d_RealHighTiming = 0;
 	
-
 
 	/**************************/
 	/* Test the module number */
@@ -1682,7 +1707,7 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 	      /* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM >= 0 && b_PWM <= 1)
+	      if (b_PWM <= 1)
 		 {
 		 /***************************/
 		 /* Test if PWM initialised */
@@ -1702,7 +1727,7 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 		    /* Test the timing unit */
 		    /************************/
 
-		    if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+		    if (b_TimingUnit <= 4)
 		       {
 		       /*********************************/
 		       /* Test the low timing selection */
@@ -1748,6 +1773,7 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 			     /* Calculate the low division fator */
 			     /************************************/
 
+			     fpu_begin ();
 			     switch (b_TimingUnit)
 				{
 				/******/
@@ -2189,6 +2215,9 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 				     
 				     break;
 				}
+				
+			     fpu_end ();
+			     
 			     /************************/
 			     /* Save the timing unit */
 			     /************************/
@@ -2416,7 +2445,7 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 	      /* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM >= 0 && b_PWM <= 1)
+	      if (b_PWM <= 1)
 		 {
 		 /***************************/
 		 /* Test if PWM initialised */
@@ -2441,7 +2470,8 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 		       /*******************/
 		       /* PWM not enabled */
 		       /*******************/
-                      DPRINTK("PWM not enabled \n");
+
+                      DPRINTK("PWM not enabled \n");
 		       i_ReturnValue = -6;
 		       } // if (dw_Status & 0x1)
 		    } // if (dw_Status & 0x10)
@@ -2450,7 +2480,8 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 		    /***********************/
 		    /* PWM not initialised */
 		    /***********************/
-			DPRINTK("PWM not initialised\n");
+
+			DPRINTK("PWM not initialised\n");
 		    i_ReturnValue = -5;
 		    } // if (dw_Status & 0x10)
 		 } // if (b_PWM >= 0 && b_PWM <= 1)
@@ -2459,7 +2490,8 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 		 /******************************/
 		 /* Tor PWM selection is wrong */
 		 /******************************/
-		 DPRINTK("Tor PWM selection is wrong\n");
+
+		 DPRINTK("Tor PWM selection is wrong\n");
 		 i_ReturnValue = -4;
 		 } // if (b_PWM >= 0 && b_PWM <= 1)
 	      }
@@ -2468,7 +2500,8 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 	      /**********************************/
 	      /* The module is not a PWM module */
 	      /**********************************/
-             DPRINTK("The module is not a PWM module\n");
+
+             DPRINTK("The module is not a PWM module\n");
 	      i_ReturnValue = -3;
 	      }
 	   }
@@ -2477,7 +2510,8 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 	   /***********************/
 	   /* Module number error */
 	   /***********************/
-          DPRINTK("Module number error\n");
+
+          DPRINTK("Module number error\n");
 	   i_ReturnValue = -2;
 	   }
 
@@ -2487,6 +2521,7 @@ INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
 
 INT i_APCI1710_InsnBitsReadPWMInterrupt(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
+
 {
 				data[0]=devpriv->s_InterruptParameters.
 						      s_FIFOInterruptParameters [devpriv->

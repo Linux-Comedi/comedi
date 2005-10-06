@@ -92,13 +92,23 @@ void mite_init(void)
 	}
 }
 
+static void dump_chip_signature(u32 csigr_bits)
+{
+	printk("mite: version = %i, type = %i, mite mode = %i, interface mode = %i\n",
+		mite_csigr_version(csigr_bits), mite_csigr_type(csigr_bits),
+		mite_csigr_mmode(csigr_bits), mite_csigr_imode(csigr_bits));
+	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n", 
+		mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits),
+		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
+}
 
 int mite_setup(struct mite_struct *mite)
 {
-	unsigned long			offset, start, length;
-	u32				addr;
+	unsigned long offset, start, length;
+	u32 addr;
 	int i;
-
+	u32 csigr_bits;
+	
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
 		return -EIO;
@@ -140,7 +150,16 @@ int mite_setup(struct mite_struct *mite)
 	}
 	else writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
 
-	for( i = 0; i < NUM_MITE_DMA_CHANNELS; i++ ) {
+	csigr_bits = readl(mite->mite_io_addr + MITE_CSIGR);
+	mite->num_channels = mite_csigr_dmac(csigr_bits);
+	if(mite->num_channels > MAX_MITE_DMA_CHANNELS)
+	{
+		printk("mite: bug? chip claims to have %i dma channels.  Setting to %i.\n",
+			mite->num_channels, MAX_MITE_DMA_CHANNELS);
+		mite->num_channels = MAX_MITE_DMA_CHANNELS;
+	}
+	dump_chip_signature(csigr_bits);
+	for( i = 0; i < mite->num_channels; i++ ) {
 		writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(i));
 		/* disable interrupts */
 		writel(0, mite->mite_io_addr + MITE_CHCR(i));
@@ -286,9 +305,6 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	 * of buf_int_ptr and buf_int_count at each interrupt.  A
 	 * better method is to poll the MITE before each user
 	 * "read()" to calculate the number of bytes available.
-	 * mite_bytes_transferred(), mite_bytes_read(), and
-	 * mite_bytes_in_transit() are provided to get the number
-	 * of bytes transferred by the mite so far.
 	 */
 	chcr |= CHCR_SET_LC_IE;
 
@@ -348,25 +364,54 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	MDPRINTK("exit mite_prep_dma\n");
 }
 
-unsigned int mite_bytes_read(struct mite_struct *mite, unsigned int chan)
+u32 mite_device_bytes_transferred(struct mite_struct *mite, unsigned int chan)
 {
-       return readl(mite->mite_io_addr+MITE_DAR(chan));
+	return readl(mite->mite_io_addr + MITE_DAR(chan));
 }
 
-unsigned int mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan)
 {
 	return readl(mite->mite_io_addr + MITE_FCR(chan)) & 0x000000FF;
 }
 
-unsigned int mite_bytes_transferred(struct mite_struct *mite, unsigned int chan)
+// returns lower bound for number of bytes transferred from device to memory
+u32 mite_bytes_written_to_memory_lb(struct mite_struct *mite, unsigned int chan)
 {
-	unsigned int bytes_read;
+	u32 device_byte_count;
 
-	bytes_read = mite_bytes_read( mite, chan );
-	/* to avoid race, we want to read bytes read before reading bytes
-	 * in transit */
+	device_byte_count = mite_device_bytes_transferred(mite, chan);
 	rmb();
-	return bytes_read - mite_bytes_in_transit( mite, chan );
+	return device_byte_count - mite_bytes_in_transit(mite, chan);
+}
+
+// returns upper bound for number of bytes transferred from device to memory
+u32 mite_bytes_written_to_memory_ub(struct mite_struct *mite, unsigned int chan)
+{
+	u32 in_transit_count;
+
+	in_transit_count = mite_bytes_in_transit(mite, chan);
+	rmb();
+	return mite_device_bytes_transferred(mite, chan) - in_transit_count;
+}
+
+// returns lower bound for number of bytes read from memory for transfer to device
+u32 mite_bytes_read_from_memory_lb(struct mite_struct *mite, unsigned int chan)
+{
+	u32 device_byte_count;
+
+	device_byte_count = mite_device_bytes_transferred(mite, chan);
+	rmb();
+	return device_byte_count + mite_bytes_in_transit(mite, chan);
+}
+
+// returns upper bound for number of bytes read from memory for transfer to device
+u32 mite_bytes_read_from_memory_ub(struct mite_struct *mite, unsigned int chan)
+{
+	u32 in_transit_count;
+
+	in_transit_count = mite_bytes_in_transit(mite, chan);
+	rmb();
+	return mite_device_bytes_transferred(mite, chan) + in_transit_count;
 }
 
 int mite_dma_tcr(struct mite_struct *mite, unsigned int channel)
@@ -547,8 +592,10 @@ EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_change);
-EXPORT_SYMBOL(mite_bytes_transferred);
-EXPORT_SYMBOL(mite_bytes_read);
+EXPORT_SYMBOL(mite_bytes_written_to_memory_lb);
+EXPORT_SYMBOL(mite_bytes_written_to_memory_ub);
+EXPORT_SYMBOL(mite_bytes_read_from_memory_lb);
+EXPORT_SYMBOL(mite_bytes_read_from_memory_ub);
 EXPORT_SYMBOL(mite_bytes_in_transit);
 #ifdef DEBUG_MITE
 EXPORT_SYMBOL(mite_decode);

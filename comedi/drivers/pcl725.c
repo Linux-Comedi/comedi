@@ -64,11 +64,10 @@ static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 
 	iobase=it->options[0];
 	printk("comedi%d: pcl725: 0x%04x ",dev->minor,iobase);
-	if(check_region(iobase,PCL725_SIZE)<0){
+	if(!request_region(iobase,PCL725_SIZE,"pcl725")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,PCL725_SIZE,"pcl725");
 	dev->board_name="pcl725";
 	dev->iobase=iobase;
 	dev->irq=0;

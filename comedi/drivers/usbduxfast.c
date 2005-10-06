@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.92"
+#define DRIVER_VERSION "v0.94"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 07 Feb 2005
+Updated: 12 Jun 2005
 Status: testing
 */
 
@@ -66,7 +66,7 @@ Status: testing
 #define BOARDNAME "usbduxfast"
 
 // timeout for the USB-transfer
-#define EZTIMEOUT 3
+#define EZTIMEOUT 30
 
 // constants for "firmware" upload and download
 #define USBDUXFASTSUB_FIRMWARE 0xA0
@@ -115,7 +115,7 @@ Status: testing
 // Analogue in subdevice
 #define SUBDEV_AD             0
 
-// minimal time in nanoseconds between two samples
+// min delay steps
 #define MIN_SAMPLING_PERIOD 9 // steps at 30MHz in the FX2
 
 // Max number of 1/30MHz delay steps:
@@ -208,13 +208,13 @@ static int send_dux_commands(usbduxfastsub_t* this_usbduxfastsub,int cmd_type) {
 	}
 	printk("\n");
 #endif
-	result = usb_bulk_msg(this_usbduxfastsub->usbdev,
+	result = USB_BULK_MSG(this_usbduxfastsub->usbdev,
 			      usb_sndbulkpipe(this_usbduxfastsub->usbdev,
 					      CHANNELLISTEP),
 			      this_usbduxfastsub->dux_commands,
 			      SIZEOFDUXBUFFER,
 			      &nsent, 
-			      10*HZ);
+			      10000);
 	if (result<0) {
 		printk("comedi%d: could not transmit dux_commands to the usb-device, err=%d\n",
 		       this_usbduxfastsub->comedidev->minor,result);
@@ -234,7 +234,7 @@ static int usbduxfastsub_unlink_InURBs(usbduxfastsub_t* usbduxfastsub_tmp) {
 
 	if (usbduxfastsub_tmp && usbduxfastsub_tmp->urbIn) {
 		usbduxfastsub_tmp->ai_cmd_running=0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
 		j=usb_unlink_urb(usbduxfastsub_tmp->urbIn);
 		if (j<0) {
 			err=j;
@@ -466,7 +466,7 @@ static int usbduxfastsub_start(usbduxfastsub_t* usbduxfastsub) {
 	if (usbduxfastsub->probed) {
 		// 7f92 to zero
 		local_transfer_buffer[0]=0; 
-		errcode=usb_control_msg
+		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 // create a pipe for a control transfer
 			 usb_sndctrlpipe(usbduxfastsub->usbdev,0),
@@ -503,7 +503,7 @@ static int usbduxfastsub_stop(usbduxfastsub_t* usbduxfastsub) {
 	if (usbduxfastsub->probed) {
 		// 7f92 to one
 		local_transfer_buffer[0]=1; 
-		errcode=usb_control_msg
+		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 usb_sndctrlpipe(usbduxfastsub->usbdev,0),
 			 // bRequest, "Firmware"
@@ -546,7 +546,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t* usbduxfastsub,
 		       startAddr,
 		       local_transfer_buffer[0]);
 #endif
-		errcode=usb_control_msg
+		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
 			 // brequest, firmware
@@ -656,6 +656,7 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 {
 	int err=0, stop_mask=0;
 	long int steps,tmp=0;
+	int minSamplPer;
 	usbduxfastsub_t* this_usbduxfastsub=dev->private;
 	if (!(this_usbduxfastsub->probed)) {
 		return -ENODEV;
@@ -730,11 +731,17 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 		err++;
 	}
 
+	if (cmd->chanlist_len==1) {
+		minSamplPer=1;
+	} else {
+		minSamplPer=MIN_SAMPLING_PERIOD;
+	}
+
 	if(cmd->convert_src == TRIG_TIMER)
 	{
 		steps=cmd->convert_arg*30;
-		if (steps<(MIN_SAMPLING_PERIOD*1000)) {
-			steps=MIN_SAMPLING_PERIOD*1000;
+		if (steps<(minSamplPer*1000)) {
+			steps=minSamplPer*1000;
 		}
 		if (steps>(MAX_SAMPLING_PERIOD*1000)) {
 			steps=MAX_SAMPLING_PERIOD*1000;
@@ -906,7 +913,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	if(cmd->convert_src == TRIG_TIMER) {
 		steps=(cmd->convert_arg*30)/1000;
 	}
-	if (steps<MIN_SAMPLING_PERIOD) {
+	if ((steps<MIN_SAMPLING_PERIOD)&&(cmd->chanlist_len!=1)) {
 		printk("comedi%d: usbduxfast: ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n", 
 		       dev->minor, 
 		       steps,
@@ -934,45 +941,66 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	case 1:
 		if (CR_RANGE(cmd->chanlist[0])>0) rngmask=0xff-0x04; else rngmask=0xff;
 		// commit data to the FIFO
-		this_usbduxfastsub->dux_commands[LENBASE+0]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
-		this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
 
-		// we have 6 states with duration 1
-		steps=steps-6;
-
-		// do the first part of the delay
-		this_usbduxfastsub->dux_commands[LENBASE+1]=steps/2;
-		this_usbduxfastsub->dux_commands[OPBASE+1]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+1]=0;
-
-		// and the second part
-		this_usbduxfastsub->dux_commands[LENBASE+2]=steps-steps/2;
-		this_usbduxfastsub->dux_commands[OPBASE+2]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
-		
-		this_usbduxfastsub->dux_commands[LENBASE+3]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+3]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+3]=0;
-		
-		this_usbduxfastsub->dux_commands[LENBASE+4]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+4]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+4]=0;
-		
-		this_usbduxfastsub->dux_commands[LENBASE+5]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+5]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+5]=0;
-
-		this_usbduxfastsub->dux_commands[LENBASE+6]=1;
-		this_usbduxfastsub->dux_commands[OPBASE+6]=0;
-		this_usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
-		this_usbduxfastsub->dux_commands[LOGBASE+6]=0;
+		if (steps<MIN_SAMPLING_PERIOD) {
+			if (steps<=1) {
+				// we just stay here
+				this_usbduxfastsub->dux_commands[LENBASE+0]=0x80; // branch back to state 0
+				this_usbduxfastsub->dux_commands[OPBASE+0]=0x03; // deceision state with data
+				this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+				this_usbduxfastsub->dux_commands[LOGBASE+0]=0xFF; // doesn't matter
+			} else {
+				this_usbduxfastsub->dux_commands[LENBASE+0]=steps-1;
+				this_usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
+				this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+				this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
+			}			
+			this_usbduxfastsub->dux_commands[LENBASE+1]=0x00; // branch back to state 0
+			this_usbduxfastsub->dux_commands[OPBASE+1]=0x01; // deceision state w/o data
+			this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+1]=0xFF; // doesn't matter
+		} else {
+			// for slower sampling rate we loop through the idle state
+			this_usbduxfastsub->dux_commands[LENBASE+0]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
+			this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
+			
+			// we have 6 states with duration 1
+			steps=steps-6;
+			
+			// do the first part of the delay
+			this_usbduxfastsub->dux_commands[LENBASE+1]=steps/2;
+			this_usbduxfastsub->dux_commands[OPBASE+1]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+1]=0;
+			
+			// and the second part
+			this_usbduxfastsub->dux_commands[LENBASE+2]=steps-steps/2;
+			this_usbduxfastsub->dux_commands[OPBASE+2]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+3]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+3]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+3]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+4]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+4]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+4]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+5]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+5]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+5]=0;
+			
+			this_usbduxfastsub->dux_commands[LENBASE+6]=1;
+			this_usbduxfastsub->dux_commands[OPBASE+6]=0;
+			this_usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
+			this_usbduxfastsub->dux_commands[LOGBASE+6]=0;
+		}
 		break;
 
 	case 2:
@@ -1267,12 +1295,12 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	       (int)(usbduxfastsub->urbIn->dev));
 #endif
 	for(i=0;i<PACKETS_TO_IGNORE;i++) {
-		err=usb_bulk_msg(usbduxfastsub->usbdev, 
+		err=USB_BULK_MSG(usbduxfastsub->usbdev, 
 				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
 				 usbduxfastsub->transfer_buffer,
 				 SIZEINBUF,
 				 &actual_length,
-				 10*HZ);
+				 10000);
 		if (err<0) {
 			printk("comedi%d: insn timeout. No data.\n",
 			       dev->minor);
@@ -1282,12 +1310,12 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	}
 	// data points
 	for(i=0;i<insn->n;) {
-		err=usb_bulk_msg(usbduxfastsub->usbdev, 
+		err=USB_BULK_MSG(usbduxfastsub->usbdev, 
 				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
 				 usbduxfastsub->transfer_buffer,
 				 SIZEINBUF,
 				 &actual_length,
-				 10*HZ);
+				 10000);
 		if (err<0) {
 			printk("comedi%d: insn data error: %d\n",
 			       dev->minor,err);
@@ -1448,7 +1476,7 @@ static void tidy_up(usbduxfastsub_t* usbduxfastsub_tmp) {
 	usbduxfastsub_tmp->probed=0;
 
 	if (usbduxfastsub_tmp->urbIn) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 		// waits until a running transfer is over
 		// thus, under 2.4 hotplugging while a command
 		// is running is not safe
@@ -1716,8 +1744,8 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	s->do_cmdtest=usbduxfast_ai_cmdtest;
 	s->do_cmd=usbduxfast_ai_cmd;
 	s->cancel=usbduxfast_ai_cancel;
-	// max value from the A/D converter (12bit)
-	s->maxdata=0xfff;
+	// max value from the A/D converter (12bit+1 bit for overflow)
+	s->maxdata=0x1000;
 	// range table to convert to physical units
 	s->range_table = &range_usbduxfast_ai_range;
 

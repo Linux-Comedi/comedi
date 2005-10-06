@@ -268,8 +268,8 @@ COMEDI_INITCLEANUP(me_driver);
 typedef struct
 {
   struct pci_dev* pci_device;
-  unsigned long plx_regbase;         // PLX configuration base address
-  unsigned long me_regbase;          // Base address of the Meilhaus card
+  void *plx_regbase;         // PLX configuration base address
+  void *me_regbase;          // Base address of the Meilhaus card
   unsigned int plx_regbase_size;    // Size of PLX configuration space
   unsigned int me_regbase_size;     // Size of Meilhaus space
 
@@ -794,7 +794,7 @@ found:
 
   plx_regbase_tmp &= PCI_BASE_ADDRESS_MEM_MASK;
   dev_private->plx_regbase_size = plx_regbase_size_tmp;
-  dev_private->plx_regbase = (unsigned int) ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
+  dev_private->plx_regbase = ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
 
   // Read Meilhaus register base address [PCI_BASE_ADDRESS #2].
 
@@ -809,7 +809,7 @@ found:
 
   me_regbase_tmp &= PCI_BASE_ADDRESS_MEM_MASK;
   dev_private->me_regbase_size = me_regbase_size_tmp;
-  dev_private->me_regbase = (unsigned int) ioremap(me_regbase_tmp, me_regbase_size_tmp);
+  dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
 
   // Download firmware and reset card
   if(board->device_id == ME2600_DEVICE_ID)

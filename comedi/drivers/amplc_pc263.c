@@ -169,9 +169,9 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 
 		/* Look for matching PCI device. */
-		for(pci_dev = pci_find_device(pci_id->vendor, pci_id->device,
+		for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device,
 					NULL); pci_dev != NULL; 
-				pci_dev = pci_find_device(pci_id->vendor,
+				pci_dev = pci_get_device(pci_id->vendor,
 					pci_id->device, pci_dev)) {
 			/* If bus/slot specified, check them. */
 			if (bus || slot) {
@@ -300,11 +300,10 @@ static int pc263_detach(comedi_device *dev)
  */
 static int pc263_request_region(unsigned long from, unsigned long extent)
 {
-	if (check_region(from, extent) < 0) {
+	if (!request_region(from, extent, PC263_DRIVER_NAME)) {
 		printk("I/O port conflict (%#lx,%lu)!\n", from, extent);
 		return -EIO;
 	}
-	request_region(from, extent, PC263_DRIVER_NAME);
 	return 0;
 }
 

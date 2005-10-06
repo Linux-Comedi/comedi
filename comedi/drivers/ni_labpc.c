@@ -339,11 +339,11 @@ static inline void labpc_outb(unsigned int byte, unsigned long address)
 }
 static inline unsigned int labpc_readb(unsigned long address)
 {
-	return readb(address);
+	return readb((void*) address);
 }
 static inline void labpc_writeb(unsigned int byte, unsigned long address)
 {
-	writeb(byte, address);
+	writeb(byte, (void*) address);
 }
 
 static labpc_board labpc_boards[] =
@@ -460,7 +460,7 @@ static inline int labpc_counter_load(comedi_device *dev, unsigned long base_addr
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	if(thisboard->memory_mapped_io)
-		return i8254_mm_load(base_address, counter_number, count, mode);
+		return i8254_mm_load((void*)base_address, counter_number, count, mode);
 	else
 		return i8254_load(base_address, counter_number, count, mode);
 }
@@ -494,12 +494,11 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	if(thisboard->bustype == isa_bustype)
 	{
 		/* check if io addresses are available */
-		if(check_region(iobase, LABPC_SIZE) < 0)
+		if(!request_region(iobase, LABPC_SIZE, driver_labpc.driver_name))
 		{
 			printk("I/O port conflict\n");
 			return -EIO;
 		}
-		request_region(iobase, LABPC_SIZE, driver_labpc.driver_name);
 	}
 	dev->iobase = iobase;
 
@@ -699,7 +698,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 			}
 			ret = mite_setup(devpriv->mite);
 			if(ret < 0) return ret;
-			iobase = mite_iobase(devpriv->mite);
+			iobase = (unsigned long) devpriv->mite->daq_io_addr;
 			irq = mite_irq(devpriv->mite);
 			break;
 		case pcmcia_bustype:
@@ -1803,11 +1802,11 @@ static int labpc_dio_mem_callback(int dir, int port, int data, unsigned long iob
 {
 	if(dir)
 	{
-		writeb(data, iobase + port);
+		writeb(data, (void*) (iobase + port));
 		return 0;
 	}else
 	{
-		return readb(iobase + port);
+		return readb((void*)(iobase + port));
 	}
 }
 

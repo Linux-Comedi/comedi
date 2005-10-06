@@ -302,11 +302,10 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 
 	iobase = it->options[0];
 	printk("comedi%d: rti800: 0x%04x ", dev->minor, iobase);
-	if (check_region(iobase, RTI800_SIZE) < 0) {
+	if (!request_region(iobase, RTI800_SIZE, "rti800")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, RTI800_SIZE, "rti800");
 	dev->iobase = iobase;
 
 #ifdef DEBUG

@@ -365,12 +365,11 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	/* check if io addresses are available */
-	if(check_region(iobase, A2150_SIZE) < 0)
+	if(!request_region(iobase, A2150_SIZE, driver_a2150.driver_name))
 	{
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, A2150_SIZE, driver_a2150.driver_name);
 	dev->iobase = iobase;
 
 	/* grab our IRQ */

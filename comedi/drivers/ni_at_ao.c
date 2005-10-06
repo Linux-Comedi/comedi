@@ -216,11 +216,10 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	
 	printk("comedi%d: ni_at_ao: 0x%04lx",dev->minor,iobase);
 	
-	if(check_region(iobase, ATAO_SIZE) < 0){
+	if(!request_region(iobase, ATAO_SIZE, "ni_at_ao")){
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase, ATAO_SIZE, "ni_at_ao");
 	dev->iobase = iobase;
 
 	//dev->board_ptr = atao_probe(dev);

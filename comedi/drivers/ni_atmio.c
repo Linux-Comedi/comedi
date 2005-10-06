@@ -165,7 +165,7 @@ static ni_board ni_boards[]={
 		has_8255:	0,
 	},
 	{	device_id:	37,
-		isapnp_id:	0x0000,	/* XXX unknown */
+		isapnp_id:	0x2500,
 		name:		"at-mio-16de-10",
 		n_adchan:	16,
 		adbits:		12,
@@ -177,7 +177,7 @@ static ni_board ni_boards[]={
 		aobits:		12,
 		ao_fifo_depth:	0,
 		ao_unipolar:	1,
-		caldac:		{mb88341},
+		caldac:		{ad8804_debug},
 		has_8255:	1,
 	},
 	{	device_id:	38,
@@ -311,8 +311,10 @@ static inline unsigned short __win_in(comedi_device *dev, int addr)
 
 #ifdef __ISAPNP__
 static struct isapnp_device_id device_ids[] = {
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x0000), },
+	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x1900), },
 	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2400,'N','I','C',0x2400), },
+	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2500,'N','I','C',0x2500), },
+	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2600,'N','I','C',0x2600), },
 	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2700,'N','I','C',0x2700), },
 	{ ISAPNP_DEVICE_SINGLE_END, },
 };
@@ -434,11 +436,10 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	/* reserve our I/O region */
 
 	printk("comedi%d: ni_atmio: 0x%04x",dev->minor,iobase);
-	if(check_region(iobase,NI_SIZE)<0){
+	if(!request_region(iobase,NI_SIZE,"ni_atmio")){
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	request_region(iobase,NI_SIZE,"ni_atmio");
 
 	dev->iobase=iobase;
 

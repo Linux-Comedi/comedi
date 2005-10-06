@@ -1,5 +1,5 @@
 
-#SUBDIRS = addi-data
+SUBDIRS = addi-data
 
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@ \
@@ -48,7 +48,8 @@ EXTRA_DIST = \
  ni_stc.h \
  plx9052.h \
  plx9080.h \
- rtd520.h
+ rtd520.h \
+ s626.h
 
 # mpc8260cpm.ko
 
@@ -106,6 +107,7 @@ module_PROGRAMS = \
  das6402.ko \
  das800.ko \
  das1800.ko \
+ dmm32at.ko \
  dt2801.ko \
  dt2811.ko \
  dt2814.ko \
@@ -147,6 +149,7 @@ module_PROGRAMS = \
  rti802.ko \
  skel.ko \
  ssv_dnp.ko \
+ s626.ko \
  comedi_test.ko \
  $(pcmcia_modules) \
  $(usb_modules) \
@@ -181,6 +184,7 @@ das16m1_ko_SOURCES = das16m1.c
 das6402_ko_SOURCES = das6402.c
 das800_ko_SOURCES = das800.c
 das1800_ko_SOURCES = das1800.c
+dmm32at_ko_SOURCES = dmm32at.c
 dt2801_ko_SOURCES = dt2801.c
 dt2811_ko_SOURCES = dt2811.c
 dt2814_ko_SOURCES = dt2814.c
@@ -229,6 +233,7 @@ rti800_ko_SOURCES = rti800.c
 rti802_ko_SOURCES = rti802.c
 skel_ko_SOURCES = skel.c
 ssv_dnp_ko_SOURCES = ssv_dnp.c
+s626_ko_SOURCES = s626.c
 comedi_test_ko_SOURCES = comedi_test.c
 usbdux_ko_SOURCES = usbdux.c
 usbduxfast_ko_SOURCES = usbduxfast.c

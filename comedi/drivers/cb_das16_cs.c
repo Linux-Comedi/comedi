@@ -481,32 +481,30 @@ static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 		devpriv->ao_readback[chan] = data[i];
 		d = data[i];
 
-		//devpriv->status1 |= 0x0009;
 		outw(devpriv->status1, dev->iobase + 4);
 		comedi_udelay(1);
 
-		status1 = devpriv->status1;
-		//if(chan)status1 &= ~0x0008;
-		//else status1 &= ~0x0001;
-		if(chan)status1 |= 0x0008;
-		else status1 |= 0x0001;
+		status1 = devpriv->status1 & ~0xf;
+		if(chan) status1 |= 0x0001;
+		else status1 |= 0x0008;
 
-		printk("0x%04x\n",status1);
+/* 		printk("0x%04x\n",status1);*/
 		outw(status1, dev->iobase + 4);
 		comedi_udelay(1);
 
 		for(bit=15;bit>=0;bit--){
-			int b = (d>>bit)&1;
-
-			printk("0x%04x\n",status1 | b | 0x0000);
+			int b = (d >> bit) & 0x1;
+			b <<= 1;
+/*			printk("0x%04x\n",status1 | b | 0x0000);*/
 			outw(status1 | b | 0x0000, dev->iobase + 4);
 			comedi_udelay(1);
-			printk("0x%04x\n",status1 | b | 0x0004);
+/*			printk("0x%04x\n",status1 | b | 0x0004);*/
 			outw(status1 | b | 0x0004, dev->iobase + 4);
 			comedi_udelay(1);
 		}
-
-		outw(devpriv->status1, dev->iobase + 4);
+/*		make high both DAC0CS and DAC1CS to load
+		new data and update analog output*/
+		outw(status1 | 0x9, dev->iobase + 4);
 	}
 
 	return i;

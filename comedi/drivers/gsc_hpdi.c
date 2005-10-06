@@ -309,8 +309,8 @@ typedef struct
 	unsigned long plx9080_phys_iobase;
 	unsigned long hpdi_phys_iobase;
 	// base addresses (ioremapped)
-	unsigned long plx9080_iobase;
-	unsigned long hpdi_iobase;
+	void *plx9080_iobase;
+	void *hpdi_iobase;
 	uint32_t *dio_buffer[ NUM_DMA_BUFFERS ];	// dma buffers
 	dma_addr_t dio_buffer_phys_addr[ NUM_DMA_BUFFERS ];	// physical addresses of dma buffers
 	struct plx_dma_desc *dma_desc;	// array of dma descriptors read by plx9080, allocated to get proper alignment
@@ -377,7 +377,7 @@ static void disable_plx_interrupts( comedi_device *dev )
 static void init_plx9080(comedi_device *dev)
 {
 	uint32_t bits;
-	unsigned long plx_iobase = priv(dev)->plx9080_iobase;
+	void *plx_iobase = priv(dev)->plx9080_iobase;
 
 	// plx9080 dump
 	DEBUG_PRINT(" plx interrupt status 0x%x\n", readl(plx_iobase + PLX_INTRCS_REG));
@@ -598,9 +598,9 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	priv(dev)->hpdi_phys_iobase = pci_resource_start(pcidev, HPDI_BADDRINDEX);
 
 	// remap, won't work with 2.0 kernels but who cares
-	priv(dev)->plx9080_iobase = (unsigned long) ioremap( priv(dev)->plx9080_phys_iobase,
+	priv(dev)->plx9080_iobase = ioremap( priv(dev)->plx9080_phys_iobase,
 		pci_resource_len( pcidev, PLX9080_BADDRINDEX ) );
-	priv(dev)->hpdi_iobase = (unsigned long) ioremap( priv(dev)->hpdi_phys_iobase,
+	priv(dev)->hpdi_iobase = ioremap( priv(dev)->hpdi_phys_iobase,
 		pci_resource_len( pcidev, HPDI_BADDRINDEX ) );
 
 	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
@@ -877,7 +877,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
-	unsigned long pci_addr_reg;
+	void *pci_addr_reg;
 
 	if(channel)
 		pci_addr_reg = priv(dev)->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;

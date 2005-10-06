@@ -750,7 +750,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	5000,
 		ao_nchan: 2,
-		ao_bits:	16,
+		ao_bits:	12,
 		ao_scan_speed:	100000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_60xx,
@@ -867,7 +867,7 @@ static const pcidas64_board pcidas64_boards[] =
 		ai_bits:	12,
 		ai_speed:	2000,
 		ao_nchan: 2,
-		ao_bits:	16,
+		ao_bits:	12,
 		ao_scan_speed:	1000,
 		layout:	LAYOUT_60XX,
 		ai_range_table:	&ai_ranges_6052,
@@ -1092,9 +1092,9 @@ typedef struct
 	unsigned long main_phys_iobase;
 	unsigned long dio_counter_phys_iobase;
 	// base addresses (ioremapped)
-	unsigned long plx9080_iobase;
-	unsigned long main_iobase;
-	unsigned long dio_counter_iobase;
+	void *plx9080_iobase;
+	void *main_iobase;
+	void *dio_counter_iobase;
 	// local address (used by dma controller)
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
@@ -1269,7 +1269,7 @@ static inline int ao_cmd_is_supported(const pcidas64_board *board)
 static void init_plx9080(comedi_device *dev)
 {
 	uint32_t bits;
-	unsigned long plx_iobase = priv(dev)->plx9080_iobase;
+	void *plx_iobase = priv(dev)->plx9080_iobase;
 
 	priv(dev)->plx_control_bits = readl(priv(dev)->plx9080_iobase + PLX_CONTROL_REG);
 
@@ -1345,7 +1345,7 @@ static void init_plx9080(comedi_device *dev)
 static int setup_subdevices(comedi_device *dev)
 {
 	comedi_subdevice *s;
-	unsigned long dio_8255_iobase;
+	void *dio_8255_iobase;
 	int i;
 
 	if( alloc_subdevices( dev, 10 ) < 0 )
@@ -1387,7 +1387,6 @@ static int setup_subdevices(comedi_device *dev)
 	s = dev->subdevices + 1;
 	if(board(dev)->ao_nchan)
 	{
-		dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = board(dev)->ao_nchan;
@@ -1397,6 +1396,7 @@ static int setup_subdevices(comedi_device *dev)
 		s->insn_write = ao_winsn;
 		if(ao_cmd_is_supported(board(dev)))
 		{
+			dev->write_subdev = s;
 			s->do_cmdtest = ao_cmdtest;
 			s->do_cmd = ao_cmd;
 			s->len_chanlist = board(dev)->ao_nchan;
@@ -1405,7 +1405,6 @@ static int setup_subdevices(comedi_device *dev)
 	} else
 	{
 		s->type = COMEDI_SUBD_UNUSED;
-		dev->write_subdev = NULL;
 	}
 
 	// digital input
@@ -1441,11 +1440,11 @@ static int setup_subdevices(comedi_device *dev)
 		if(board(dev)->layout == LAYOUT_4020)
 		{
 			dio_8255_iobase = priv(dev)->main_iobase + I8255_4020_REG;
-			subdev_8255_init(dev, s, dio_callback_4020, dio_8255_iobase);
+			subdev_8255_init(dev, s, dio_callback_4020, (unsigned long) dio_8255_iobase);
 		} else
 		{
 			dio_8255_iobase = priv(dev)->dio_counter_iobase + DIO_8255_OFFSET;
-			subdev_8255_init(dev, s, dio_callback, dio_8255_iobase);
+			subdev_8255_init(dev, s, dio_callback, (unsigned long) dio_8255_iobase);
 		}
 	}else
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1719,11 +1718,11 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	priv(dev)->dio_counter_phys_iobase = pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
 
 	// remap, won't work with 2.0 kernels but who cares
-	priv(dev)->plx9080_iobase = (unsigned long)ioremap(priv(dev)->plx9080_phys_iobase,
+	priv(dev)->plx9080_iobase = ioremap(priv(dev)->plx9080_phys_iobase,
 		pci_resource_len(pcidev, PLX9080_BADDRINDEX));
-	priv(dev)->main_iobase = (unsigned long)ioremap(priv(dev)->main_phys_iobase,
+	priv(dev)->main_iobase = ioremap(priv(dev)->main_phys_iobase,
 		pci_resource_len(pcidev, MAIN_BADDRINDEX));
-	priv(dev)->dio_counter_iobase = (unsigned long)ioremap(priv(dev)->dio_counter_phys_iobase,
+	priv(dev)->dio_counter_iobase = ioremap(priv(dev)->dio_counter_phys_iobase,
 		pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
 
 	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
@@ -1964,9 +1963,13 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 
 static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 {
-	static const int num_calibration_sources = 8;
 	lsampl_t source = data[1];
-
+	int num_calibration_sources;
+	
+	if( board(dev)->layout == LAYOUT_60XX)
+		num_calibration_sources = 16;
+	else
+		num_calibration_sources = 8;
 	if(source >= num_calibration_sources)
 	{
 		printk( "invalid calibration source: %i\n", source );
@@ -2833,7 +2836,7 @@ static void drain_dma_buffers(comedi_device *dev, unsigned int channel)
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
-	unsigned long pci_addr_reg;
+	void *pci_addr_reg;
 
 	if(channel)
 		pci_addr_reg = priv(dev)->plx9080_iobase + PLX_DMA1_PCI_ADDRESS_REG;
@@ -3143,7 +3146,7 @@ static int ao_readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 static void set_dac_control0_reg(comedi_device *dev, const comedi_cmd *cmd)
 {
-	unsigned int bits = DAC_ENABLE_BIT | 	WAVEFORM_GATE_LEVEL_BIT |
+	unsigned int bits = DAC_ENABLE_BIT | WAVEFORM_GATE_LEVEL_BIT |
 		WAVEFORM_GATE_ENABLE_BIT | WAVEFORM_GATE_SELECT_BIT;
 
 	if(cmd->start_src == TRIG_EXT)
@@ -3255,7 +3258,7 @@ static void load_ao_dma(comedi_device *dev, const comedi_cmd *cmd)
 {
 	unsigned int num_bytes;
 	unsigned int next_transfer_addr;
-	unsigned long pci_addr_reg = priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+	void *pci_addr_reg = priv(dev)->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
 	unsigned int buffer_index;
 
 	do
@@ -3480,12 +3483,12 @@ static int dio_callback(int dir, int port, int data, unsigned long iobase)
 {
 	if(dir)
 	{
-		writeb(data, iobase + port);
+		writeb(data, (void*) (iobase + port));
 		DEBUG_PRINT("wrote 0x%x to port %i\n", data, port);
 		return 0;
 	}else
 	{
-		return readb(iobase + port);
+		return readb((void*)(iobase + port));
 	}
 }
 
@@ -3493,11 +3496,11 @@ static int dio_callback_4020(int dir, int port, int data, unsigned long iobase)
 {
 	if(dir)
 	{
-		writew(data, iobase + 2 * port);
+		writew(data, (void*)(iobase + 2 * port));
 		return 0;
 	}else
 	{
-		return readw(iobase + 2 * port);
+		return readw((void*)(iobase + 2 * port));
 	}
 }
 
@@ -3670,7 +3673,7 @@ static uint16_t read_eeprom(comedi_device *dev, uint8_t address)
 	static const int read_command = 0x6;
 	unsigned int bitstream = (read_command << 8) | address;
 	unsigned int bit;
-	const unsigned long plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	void * const plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
 	uint16_t value;
 	static const int value_length = 16;
 	static const int eeprom_comedi_udelay = 1;
@@ -3987,7 +3990,7 @@ static const int i2c_low_comedi_udelay = 10;
 static void i2c_set_sda(comedi_device *dev, int state)
 {
 	static const int data_bit = CTL_EE_W;
-	unsigned long plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	void *plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
 
 	if(state)
 	{
@@ -4007,7 +4010,7 @@ static void i2c_set_sda(comedi_device *dev, int state)
 static void i2c_set_scl(comedi_device *dev, int state)
 {
 	static const int clock_bit = CTL_USERO;
-	unsigned long plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
+	void *plx_control_addr = priv(dev)->plx9080_iobase + PLX_CONTROL_REG;
 
 	if(state)
 	{

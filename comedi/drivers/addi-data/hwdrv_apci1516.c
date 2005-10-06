@@ -1,14 +1,38 @@
+/**
+@verbatim
+
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
   +-------------------------------+---------------------------------------+
-  | Project     : 13Card Linux Driver | Compiler   : GCC                  |
-  | Module name : hwdrv_apci1516.c|     Version    : 2.96                 |
+  | Project     : APCI-1516       | Compiler   : GCC                      |
+  | Module name : hwdrv_apci1516.c| Version    : 2.96                     |
   +-------------------------------+---------------------------------------+
-  | Author : Shitalkumar S Chavan |     Date       : 31.10.2001           |
+  | Project manager: Eric Stolz   | Date       :  02/12/2002              |
   +-------------------------------+---------------------------------------+
   | Description :   Hardware Layer Acces For APCI-1516                    |
   +-----------------------------------------------------------------------+
@@ -177,6 +201,9 @@ INT i_APCI1516_WriteDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_
 {
 UINT ui_Temp,ui_Temp1;
 UINT ui_NoOfChannel = CR_CHAN(insn->chanspec); // get the channel
+
+printk("EL311003 : @=%x\n",devpriv->iobase+APCI1516_DIGITAL_OP); 
+
  if(devpriv->b_OutputMemoryStatus )
    {
    ui_Temp=inw(devpriv->iobase+APCI1516_DIGITAL_OP);
@@ -192,6 +219,9 @@ if(data[3]==0)
     {
      data[0]=(data[0] << ui_NoOfChannel)|ui_Temp;
      outw(data[0],devpriv->iobase+APCI1516_DIGITAL_OP); 
+     
+     printk("EL311003 : d=%d @=%x\n",data[0],devpriv->iobase+APCI1516_DIGITAL_OP); 
+     
     }//if(data[1]==0) 
   else
     {
@@ -218,6 +248,8 @@ if(data[3]==0)
          }//switch(ui_NoOfChannels)
    
      outw(data[0],devpriv->iobase+APCI1516_DIGITAL_OP);
+     
+     printk("EL311003 : d=%d @=%x\n",data[0],devpriv->iobase+APCI1516_DIGITAL_OP); 
      }// if(data[1]==1)
    else
      {
@@ -238,6 +270,9 @@ else
           data[0]=(data[0] << ui_NoOfChannel)^0xff;
           data[0]=data[0]& ui_Temp; 
           outw(data[0],devpriv->iobase+APCI1516_DIGITAL_OP); 
+          
+          printk("EL311003 : d=%d @=%x\n",data[0],devpriv->iobase+APCI1516_DIGITAL_OP); 
+          
           }//if(data[1]==0) 
         else
           {
@@ -271,6 +306,8 @@ else
               }//switch(ui_NoOfChannels)
    
             outw(data[0],devpriv->iobase+APCI1516_DIGITAL_OP);
+            
+            printk("EL311003 : d=%d @=%x\n",data[0],devpriv->iobase+APCI1516_DIGITAL_OP); 
             }// if(data[1]==1)
          else
            {

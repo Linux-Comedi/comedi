@@ -410,13 +410,9 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	// write alloc as much as we can
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	nbytes = mite_bytes_transferred(mite, AI_DMA_CHAN);
+	nbytes = mite_bytes_written_to_memory_lb(mite, AI_DMA_CHAN);
 	rmb();
-	/* We use mite_bytes_read() for the overrun check
-	 * because it returns an upper bound, and mite_bytes_transferred
-	 * returns a lower bound on the number of bytes actually
-	 * transferred */
-	if( (int)(mite_bytes_read(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
+	if( (int)(mite_bytes_written_to_memory_ub(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
 		printk("ni_mio_common: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
@@ -445,29 +441,35 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	int count;
 	comedi_subdevice *s = dev->subdevices + 1;
 	comedi_async *async = s->async;
-	unsigned int nbytes, new_write_count;
-
+	u32 nbytes_ub, nbytes_lb;
+	unsigned int new_write_count;
+	u32 stop_count = async->cmd.stop_arg * sizeof(sampl_t);
+	
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
 
 	new_write_count = async->buf_write_count;
-
-	nbytes = mite_bytes_read(mite, AO_DMA_CHAN);
-	if( async->cmd.stop_src == TRIG_COUNT &&
-		(int) (nbytes - async->cmd.stop_arg * sizeof( sampl_t ) ) > 0 )
-		nbytes = async->cmd.stop_arg * sizeof( sampl_t );
-	if( (int)(nbytes - devpriv->last_buf_write_count) > 0 ){
+	mb();
+	nbytes_lb = mite_bytes_read_from_memory_lb(mite, AO_DMA_CHAN);
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes_lb - stop_count) > 0)
+		nbytes_lb = stop_count;
+	mb();
+	nbytes_ub = mite_bytes_read_from_memory_ub(mite, AO_DMA_CHAN);
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes_ub - stop_count) > 0)
+		nbytes_ub = stop_count;
+	if((int)(nbytes_ub - devpriv->last_buf_write_count) > 0){
 		rt_printk("ni_mio_common: DMA underrun\n");
 		ni_ao_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
-
+	mb();
 	devpriv->last_buf_write_count = new_write_count;
 
-	count = nbytes - async->buf_read_count;
-	if( count < 0 ){
-		rt_printk("ni_mio_common: BUG: negative ao count\n");
-		count = 0;
+	count = nbytes_lb - async->buf_read_count;
+	if(count < 0){
+		return;
 	}
 	comedi_buf_read_free(async, count);
 
@@ -2248,6 +2250,8 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		AO_TMRDACWR_Pulse_Width;
 	if( boardtype.ao_fifo_depth )
 		bits |= AO_FIFO_Enable;
+	else
+		bits |= AO_DMA_PIO_Control;
 	win_out(bits, AO_Personal_Register);
 	// enable sending of ao dma requests
 	win_out(AO_AOFREQ_Enable, AO_Start_Select_Register);
@@ -2373,7 +2377,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	win_out(AO_Configuration_Start,Joint_Reset_Register);
 	win_out(AO_Disarm,AO_Command_1_Register);
 	ni_set_bits(dev,Interrupt_B_Enable_Register,~0,0);
-	win_out(0x0010,AO_Personal_Register);
+	win_out(AO_BC_Source_Select, AO_Personal_Register);
 	win_out(0x3f98,Interrupt_B_Ack_Register);
 	win_out(AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
 		AO_TMRDACWR_Pulse_Width, AO_Personal_Register);
@@ -2720,7 +2724,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		}else{
 			s->insn_write=ni_ao_insn_write;
 		}
-		if(boardtype.ao_fifo_depth){
+#ifdef PCIDMA
+		if(boardtype.n_aochan){
+#else		
+		if(boardtype.ao_fifo_depth){ 
+#endif
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
 			s->len_chanlist = boardtype.n_aochan;
@@ -3699,6 +3707,10 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case COMEDI_INPUT:
 		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1<<chan, 0);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (devpriv->io_bidirection_pin_reg & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
 		break;
 	default:
 		return -EINVAL;

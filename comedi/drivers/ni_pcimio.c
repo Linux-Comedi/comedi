@@ -45,7 +45,7 @@ By default, the driver uses DMA to transfer analog input data to
 memory.  When DMA is enabled, not all triggering features are
 supported.
 
-PCI IDs are not known for PCI-6731 and PCI-6733.  Digital I/O may not
+PCI IDs are not known for PCI-6733.  Digital I/O may not
 work on 673x.
 
 Information (number of channels, bits, etc.) for some devices may be
@@ -112,31 +112,36 @@ Bugs:
 static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x0162, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1170, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x11d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1190, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x11b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x11c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x1330, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x11d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1270, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1330, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1340, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1350, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x14e0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x14f0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1580, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x15b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1880, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1870, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x18b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x18c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2410, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2420, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2430, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2890, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x28c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2a60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2a70, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2a80, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2ab0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x2ca0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2b80, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2b90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2c80, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x18b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x14e0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x14f0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x1880, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x1870, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x15b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x11b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x18c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x1580, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x2890, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_NATINST, 0x28c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2ca0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
@@ -538,8 +543,7 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
-#if 0	/* need device ids */
-	{       device_id:      0x0,
+	{	device_id:	0x2430,
 		name:           "pci-6731",
 		n_adchan:       0, /* no analog input */
 		n_aochan:	4,
@@ -549,6 +553,7 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug},
 	},
+#if 0	/* need device ids */
 	{       device_id:      0x0,
 		name:           "pxi-6731",
 		n_adchan:       0, /* no analog input */
@@ -677,12 +682,12 @@ typedef struct{
 
 /* How we access registers */
 
-#define ni_writel(a,b)		(writel((a),dev->iobase+(b)))
-#define ni_readl(a)		(readl(dev->iobase+(a)))
-#define ni_writew(a,b)		(writew((a),dev->iobase+(b)))
-#define ni_readw(a)		(readw(dev->iobase+(a)))
-#define ni_writeb(a,b)		(writeb((a),dev->iobase+(b)))
-#define ni_readb(a)		(readb(dev->iobase+(a)))
+#define ni_writel(a,b)	(writel((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_readl(a)	(readl(devpriv->mite->daq_io_addr + (a)))
+#define ni_writew(a,b)	(writew((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_readw(a)	(readw(devpriv->mite->daq_io_addr + (a)))
+#define ni_writeb(a,b)	(writeb((a), devpriv->mite->daq_io_addr + (b)))
+#define ni_readb(a)	(readb(devpriv->mite->daq_io_addr + (a)))
 
 /* How we access STC registers */
 
@@ -770,7 +775,6 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" error setting up mite\n");
 		return ret;
 	}
-	dev->iobase = mite_iobase(devpriv->mite);
 
 	dev->irq=mite_irq(devpriv->mite);
 

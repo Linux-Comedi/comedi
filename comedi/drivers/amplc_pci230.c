@@ -368,20 +368,12 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	devpriv->pci_dev = pci_dev;
 
-	/* Reserve I/O space 1. */
-	if(check_region(pci_iobase,PCI230_IO1_SIZE)<0){
-		printk("comedi%d: amplc_pci230: I/O space 1 conflict\n",dev->minor);
+	/* Reserve I/O spaces. */
+	if(pci_request_regions(pci_dev,"PCI230")<0){
+		printk("comedi%d: amplc_pci230: I/O space conflict\n",dev->minor);
 		return -EIO;
 	}
-	request_region(pci_iobase,PCI230_IO1_SIZE,"PCI230");
 	devpriv->pci_iobase = pci_iobase;
-
-	/* Reserve I/O space 2. */
-	if(check_region(iobase,PCI230_IO2_SIZE)<0){
-		printk("comedi%d: amplc_pci230: I/O space 2 conflict\n",dev->minor);
-		return -EIO;
-	}
-	request_region(iobase,PCI230_IO2_SIZE,"PCI230");
 	dev->iobase = iobase;
 
 /*
@@ -481,17 +473,13 @@ static int pci230_detach(comedi_device *dev)
 	if(dev->subdevices && thisboard->have_dio)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);	/* Clean up dio subdevice. */
 
-	if(dev->iobase)
-		release_region(dev->iobase,PCI230_IO2_SIZE);
-
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
 
 	if(devpriv){
-		if(devpriv->pci_iobase){
-			release_region(devpriv->pci_iobase, PCI230_IO1_SIZE);
-		}
 		if(devpriv->pci_dev){
+			if(devpriv->pci_iobase)
+				pci_release_regions(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}

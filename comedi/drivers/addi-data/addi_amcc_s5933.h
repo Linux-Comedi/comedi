@@ -1,7 +1,28 @@
+/**
+@verbatim
 
-//addi_amcc_s5933.h  
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
+        
+        ADDI-DATA GmbH 
+        Dieselstrasse 3 
+        D-77833 Ottersweier 
+        Tel: +19(0)7223/9493-0 
+        Fax: +49(0)7223/9493-92 
+        http://www.addi-data-com 
+        info@addi-data.com 
 
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+You shoud also find the complete GPL in the COPYING file accompanying this source code.
+
+@endverbatim
+*/
 /*
+    
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstrasse 3      D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
@@ -234,14 +255,14 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display);
 void v_pci_card_list_cleanup(unsigned short pci_vendor);
 struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id);
 int i_find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card);
-struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot);
+struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, int i_Master);
 
-int i_pci_card_alloc(struct pcilst_struct *amcc);
+int pci_card_alloc(struct pcilst_struct *amcc, int master);
 int i_pci_card_free(struct pcilst_struct *amcc);
 void v_pci_card_list_display(void);
 int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned short *io_addr, unsigned short *irq, unsigned short *master);
+	unsigned long *io_addr, unsigned short *irq, unsigned short *master);
 
 /****************************************************************************/
 
@@ -257,6 +278,10 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 	
 #if LINUX_VERSION_CODE < 0x020300
 	for(pcidev=pci_devices;pcidev;pcidev=pcidev->next){
+#elif LINUX_VERSION_CODE >= 0x020600
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); 
+	    pcidev != NULL ; 
+	    pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 #else
 	pci_for_each_dev(pcidev){
 #endif           
@@ -357,12 +382,17 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id, unsigned short de
 
 /****************************************************************************/
 /* mark card as used */
-int i_pci_card_alloc(struct pcilst_struct *amcc)
+int pci_card_alloc(struct pcilst_struct *amcc, int master)
 {
 	if (!amcc) return -1;
 
 	if (amcc->used) return 1;
+#if LINUX_VERSION_CODE >= 0x020600
+	if (pci_enable_device(amcc->pcidev)) return -1;
+	if (master) pci_set_master(amcc->pcidev);
+#endif
 	amcc->used=1;
+
 	return 0;
 }
 
@@ -399,7 +429,7 @@ void v_pci_card_list_display(void)
 /* return all card information for driver */
 int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned short *io_addr, unsigned short *irq, unsigned short *master)
+	unsigned long *io_addr, unsigned short *irq, unsigned short *master)
 {
 	int	i;
 	
@@ -416,7 +446,7 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 
 /****************************************************************************/
 /* select and alloc card */
-struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot)
+struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, int i_Master)
 {
 	struct pcilst_struct *card;
 	
@@ -437,9 +467,11 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, un
 	}
 
 
-	if (i_pci_card_alloc(card)!=0) {
+	if (pci_card_alloc(card, i_Master)!=0) {
 		rt_printk(" - Can't allocate card!\n");
 		return NULL;
+	
+	
 	}
 
 	return card;

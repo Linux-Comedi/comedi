@@ -289,10 +289,10 @@ static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 	int i;
 	unsigned int status = 0;
 
-	writew(cmd,dev->iobase+DPR_Command_Mbx);
+	writew(cmd,devpriv->io_addr+DPR_Command_Mbx);
 	
 	for(i=0;i<TIMEOUT;i++){
-		status=readw(dev->iobase+DPR_Command_Mbx);
+		status=readw(devpriv->io_addr+DPR_Command_Mbx);
 		if((status&DT3000_COMPLETION_MASK)!=DT3000_NOTPROCESSED)
 			break;
 		comedi_udelay(1);
@@ -309,24 +309,24 @@ static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 static unsigned int dt3k_readsingle(comedi_device *dev,unsigned int subsys,
 	unsigned int chan,unsigned int gain)
 {
-	writew(subsys,dev->iobase+DPR_SubSys);
+	writew(subsys,devpriv->io_addr+DPR_SubSys);
 	
-	writew(chan,dev->iobase+DPR_Params(0));
-	writew(gain,dev->iobase+DPR_Params(1));
+	writew(chan,devpriv->io_addr+DPR_Params(0));
+	writew(gain,devpriv->io_addr+DPR_Params(1));
 	
 	dt3k_send_cmd(dev,CMD_READSINGLE);
 
-	return readw(dev->iobase+DPR_Params(2));
+	return readw(devpriv->io_addr+DPR_Params(2));
 }
 
 static void dt3k_writesingle(comedi_device *dev,unsigned int subsys,
 	unsigned int chan,unsigned int data)
 {
-	writew(subsys,dev->iobase+DPR_SubSys);
+	writew(subsys,devpriv->io_addr+DPR_SubSys);
 	
-	writew(chan,dev->iobase+DPR_Params(0));
-	writew(0,dev->iobase+DPR_Params(1));
-	writew(data,dev->iobase+DPR_Params(2));
+	writew(chan,devpriv->io_addr+DPR_Params(0));
+	writew(0,devpriv->io_addr+DPR_Params(1));
+	writew(data,devpriv->io_addr+DPR_Params(2));
 	
 	dt3k_send_cmd(dev,CMD_WRITESINGLE);
 }
@@ -339,7 +339,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d, struct pt_regs *regs)
 	comedi_subdevice *s = dev->subdevices + 0;
 	unsigned int status;
 
-	status = readw(dev->iobase+DPR_Intr_Flag);
+	status = readw(devpriv->io_addr+DPR_Intr_Flag);
 	debug_intr_flags(status);
 
 	if(status & DT3000_ADFULL){
@@ -387,7 +387,7 @@ static void dt3k_ai_empty_fifo(comedi_device *dev,comedi_subdevice *s)
 	int i;
 	sampl_t data;
 
-	front = readw(dev->iobase + DPR_AD_Buf_Front);
+	front = readw(devpriv->io_addr + DPR_AD_Buf_Front);
 	count = front - devpriv->ai_front;
 	if(count<0)count += AI_FIFO_DEPTH;
 
@@ -396,14 +396,14 @@ printk("reading %d samples\n",count);
 	rear = devpriv->ai_rear;
 
 	for(i=0;i<count;i++){
-		data = readw(dev->iobase + DPR_ADC_buffer + rear);
+		data = readw(devpriv->io_addr + DPR_ADC_buffer + rear);
 		comedi_buf_put(s->async, data);
 		rear++;
 		if(rear>=AI_FIFO_DEPTH)rear = 0;
 	}
 	
 	devpriv->ai_rear = rear;
-	writew(rear,dev->iobase + DPR_AD_Buf_Rear);
+	writew(rear,devpriv->io_addr + DPR_AD_Buf_Rear);
 }
 
 
@@ -573,19 +573,19 @@ printk("dt3k_ai_cmd:\n");
 		chan=CR_CHAN(cmd->chanlist[i]);
 		range=CR_RANGE(cmd->chanlist[i]);
 		
-		writew((range<<6)|chan,dev->iobase+DPR_ADC_buffer+i);
+		writew((range<<6)|chan,devpriv->io_addr+DPR_ADC_buffer+i);
 	}
 	aref=CR_AREF(cmd->chanlist[0]);
 	
-	writew(cmd->scan_end_arg,dev->iobase+DPR_Params(0));
+	writew(cmd->scan_end_arg,devpriv->io_addr+DPR_Params(0));
 printk("param[0]=0x%04x\n",cmd->scan_end_arg);
 
 	if(cmd->convert_src==TRIG_TIMER){
 		divider = dt3k_ns_to_timer(50,&cmd->convert_arg,
 			cmd->flags&TRIG_ROUND_MASK);
-		writew((divider>>16),dev->iobase+DPR_Params(1));
+		writew((divider>>16),devpriv->io_addr+DPR_Params(1));
 printk("param[1]=0x%04x\n",divider>>16);
-		writew((divider&0xffff),dev->iobase+DPR_Params(2));
+		writew((divider&0xffff),devpriv->io_addr+DPR_Params(2));
 printk("param[2]=0x%04x\n",divider&0xffff);
 	}else{
 		/* not supported */
@@ -594,32 +594,32 @@ printk("param[2]=0x%04x\n",divider&0xffff);
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		tscandiv = dt3k_ns_to_timer(100,&cmd->scan_begin_arg,
 			cmd->flags&TRIG_ROUND_MASK);
-		writew((tscandiv>>16),dev->iobase+DPR_Params(3));
+		writew((tscandiv>>16),devpriv->io_addr+DPR_Params(3));
 printk("param[3]=0x%04x\n",tscandiv>>16);
-		writew((tscandiv&0xffff),dev->iobase+DPR_Params(4));
+		writew((tscandiv&0xffff),devpriv->io_addr+DPR_Params(4));
 printk("param[4]=0x%04x\n",tscandiv&0xffff);
 	}else{
 		/* not supported */
 	}
 	
 	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
-	writew(mode,dev->iobase+DPR_Params(5));
+	writew(mode,devpriv->io_addr+DPR_Params(5));
 printk("param[5]=0x%04x\n",mode);
-	writew(aref==AREF_DIFF,dev->iobase+DPR_Params(6));
+	writew(aref==AREF_DIFF,devpriv->io_addr+DPR_Params(6));
 printk("param[6]=0x%04x\n",aref==AREF_DIFF);
 
-	writew(AI_FIFO_DEPTH/2,dev->iobase+DPR_Params(7));
+	writew(AI_FIFO_DEPTH/2,devpriv->io_addr+DPR_Params(7));
 printk("param[7]=0x%04x\n",AI_FIFO_DEPTH/2);
 	
-	writew(SUBS_AI,dev->iobase+DPR_SubSys);
+	writew(SUBS_AI,devpriv->io_addr+DPR_SubSys);
 	ret = dt3k_send_cmd(dev,CMD_CONFIG);
 
 	writew(DT3000_ADFULL | DT3000_ADSWERR | DT3000_ADHWERR,
-		dev->iobase + DPR_Int_Mask);
+		devpriv->io_addr + DPR_Int_Mask);
 
 debug_n_ints = 0;
 
-	writew(SUBS_AI,dev->iobase+DPR_SubSys);
+	writew(SUBS_AI,devpriv->io_addr+DPR_SubSys);
 	ret = dt3k_send_cmd(dev,CMD_START);
 
 	return 0;
@@ -629,10 +629,10 @@ static int dt3k_ai_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret;
 
-	writew(SUBS_AI,dev->iobase+DPR_SubSys);
+	writew(SUBS_AI,devpriv->io_addr+DPR_SubSys);
 	ret = dt3k_send_cmd(dev,CMD_STOP);
 
-	writew(0, dev->iobase + DPR_Int_Mask);
+	writew(0, devpriv->io_addr + DPR_Int_Mask);
 
 	return 0;
 }
@@ -687,13 +687,13 @@ static int dt3k_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
 static void dt3k_dio_config(comedi_device *dev,int bits)
 {
 	/* XXX */
-	writew(SUBS_DOUT,dev->iobase+DPR_SubSys);
+	writew(SUBS_DOUT,devpriv->io_addr+DPR_SubSys);
 	
-	writew(bits,dev->iobase+DPR_Params(0));
+	writew(bits,devpriv->io_addr+DPR_Params(0));
 #if 0
 	/* don't know */
-	writew(0,dev->iobase+DPR_Params(1));
-	writew(0,dev->iobase+DPR_Params(2));
+	writew(0,devpriv->io_addr+DPR_Params(1));
+	writew(0,devpriv->io_addr+DPR_Params(2));
 #endif
 	
 	dt3k_send_cmd(dev,CMD_CONFIG);
@@ -750,13 +750,13 @@ static int dt3k_mem_insn_read(comedi_device *dev,comedi_subdevice *s,
 	int i;
 
 	for(i=0;i<insn->n;i++){
-		writew(SUBS_MEM,dev->iobase+DPR_SubSys);
-		writew(addr,dev->iobase+DPR_Params(0));
-		writew(1,dev->iobase+DPR_Params(1));
+		writew(SUBS_MEM,devpriv->io_addr+DPR_SubSys);
+		writew(addr,devpriv->io_addr+DPR_Params(0));
+		writew(1,devpriv->io_addr+DPR_Params(1));
 
 		dt3k_send_cmd(dev,CMD_READCODE);
 
-		data[i]=readw(dev->iobase+DPR_Params(2));
+		data[i]=readw(devpriv->io_addr+DPR_Params(2));
 	}
 	
 	return i;
@@ -853,8 +853,11 @@ static int dt3000_detach(comedi_device *dev)
 {
 	if(dev->irq)comedi_free_irq(dev->irq,dev);
 
-	if(devpriv && devpriv->pci_dev) pci_dev_put(devpriv->pci_dev);
-
+	if(devpriv)
+	{
+		if(devpriv->pci_dev) pci_dev_put(devpriv->pci_dev);
+		if(devpriv->io_addr) iounmap(devpriv->io_addr);
+	}	
 	/* XXX */
 
 	return 0;
@@ -896,8 +899,6 @@ static int setup_pci(comedi_device *dev)
 #if DEBUG
 	printk("0x%08lx mapped to %p, ",devpriv->phys_addr,devpriv->io_addr);
 #endif
-
-	dev->iobase = (unsigned long)devpriv->io_addr;
 
 	return 0;
 }

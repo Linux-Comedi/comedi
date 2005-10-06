@@ -19,6 +19,13 @@
 #ifndef __COMPAT_ASM_PGTABLE_H_
 #define __COMPAT_ASM_PGTABLE_H_
 
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
+#define pud_t pgd_t
+#define pud_offset(pgd, start)	(pgd)
+#endif
+
 #include_next <asm/pgtable.h>
 
 #ifndef pte_offset_kernel
