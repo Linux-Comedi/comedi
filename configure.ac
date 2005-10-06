@@ -81,7 +81,7 @@ AC_OUTPUT([
 Makefile
 comedi/Makefile
 comedi/drivers/Makefile
+comedi/drivers/addi-data/Makefile
 comedi/kcomedilib/Makefile
 ])
-#comedi/drivers/addi-data/Makefile
 

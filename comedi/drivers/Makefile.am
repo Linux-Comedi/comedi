@@ -1,5 +1,5 @@
 
-#SUBDIRS = addi-data
+SUBDIRS = addi-data
 
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@ \
