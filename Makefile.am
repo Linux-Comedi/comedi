@@ -34,33 +34,20 @@ EXTRA_DIST = autogen.sh \
 	include/linux/comedi_rt.h \
 	include/linux/comedidev.h \
 	include/linux/comedilib.h \
+	include/linux/compiler.h \
 	include/linux/config.h \
 	include/linux/devfs_fs_kernel.h \
-	include/linux/fs.h \
-	include/linux/highmem.h \
-	include/linux/init.h \
+	include/linux/device.h \
 	include/linux/interrupt.h \
-	include/linux/ioport.h \
-	include/linux/irq.h \
-	include/linux/isapnp.h \
-	include/linux/kdev_t.h \
 	include/linux/kern_compat.h \
-	include/linux/kmod.h \
 	include/linux/mm.h \
 	include/linux/module.h \
 	include/linux/pci.h \
-	include/linux/poll.h \
 	include/linux/sched.h \
-	include/linux/slab.h \
-	include/linux/spinlock.h \
-	include/linux/timer.h \
+	include/linux/time.h \
 	include/linux/usb.h \
 	include/linux/version.h \
-	include/linux/vmalloc.h \
-	include/linux/wait.h \
 	include/linux/wrapper.h \
-	include/linux/compiler.h \
-	include/linux/device.h \
 	include/pcmcia/ds.h \
 	scripts/check_driver \
 	scripts/check_cmdtest \
@@ -88,9 +75,9 @@ moo:
 DISTCLEANFILES = modtool
 
 install-data-hook:
-	if test x$(DESTDIR) = x ; then \
-	  if test x$(prefix) = x/ ; then \
-	    $(DEPMOD) -ae $(LINUX_KERNELRELEASE) ; \
-	  fi \
-	fi
+	@echo "***"
+	@echo "***"
+	@echo "*** Don't forget to run 'depmod -a'"
+	@echo "***"
+	@echo "***"
 
