@@ -23,7 +23,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 /*    
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraﬂe 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          Dieselstra√üe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -1483,7 +1483,7 @@ INT   i_APCI1710_InitCompareLogic     (comedi_device *dev,
 |						  of 33 MHz                  |
 |		      BYTE_  b_TimingUnity    : Base time unit (0 to 2)      |
 |						  0 : ns                     |
-|						  1 : Ês                     |
+|						  1 : √¶s                     |
 |						  2 : ms                     |
 |		      ULONG_ ul_TimingInterval: Base time value.             |
 +----------------------------------------------------------------------------+
@@ -1709,7 +1709,7 @@ INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
 				     break;
 
 				/******/
-				/* Ês */
+				/* √¶s */
 				/******/
 
 				case 1:

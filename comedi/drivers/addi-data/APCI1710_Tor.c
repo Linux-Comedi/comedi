@@ -24,7 +24,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
     
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          DieselstraÃŸe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -110,7 +110,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |						   enabled the acquisition   |
 |           data[2] BYTE_   b_TimingUnit    : Base timing unit (0 to 4)    |
 |                                                 0 : ns                     |
-|                                                 1 : µs                     |
+|                                                 1 : Âµs                     |
 |                                                 2 : ms                     |
 |                                                 3 : s                      |
 |                                                 4 : mn                     |
@@ -291,7 +291,7 @@ INT   i_APCI1710_InsnConfigInitTorCounter(comedi_device *dev,comedi_subdevice *s
 					   break;
 
 				      /******/
-				      /* æs */
+				      /* Ã¦s */
 				      /******/
 
 				      case 1:
@@ -1157,7 +1157,7 @@ INT  i_APCI1710_InsnWriteEnableDisableTorCounter (comedi_device *dev,comedi_subd
 +----------------------------------------------------------------------------+
 | Output Parameters : PBYTE_  pb_TimingUnit    : Base timing unit (0 to 4)   |
 |                                                 0 : ns                     |
-|                                                 1 : µs                     |
+|                                                 1 : Âµs                     |
 |                                                 2 : ms                     |
 |                                                 3 : s                      |
 |                                                 4 : mn                     |

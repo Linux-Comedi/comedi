@@ -24,7 +24,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
     
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          DieselstraÃŸe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -106,7 +106,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 |                                                  quartz.                   |
 |               BYTE_   b_TimingUnit	data[2]    : Base timing unity (0 to 4) |
 |                                                 0 : ns                     |
-|                                                 1 : µs                     |
+|                                                 1 : Âµs                     |
 |                                                 2 : ms                     |
 |                                                 3 : s                      |
 |                                                 4 : mn                     |
@@ -271,7 +271,7 @@ INT i_APCI1710_InsnConfigInitChrono(comedi_device *dev,comedi_subdevice *s,
 					break;
 
 				   /******/
-				   /* æs */
+				   /* Ã¦s */
 				   /******/
 
 				   case 1:
@@ -1425,7 +1425,7 @@ INT   i_APCI1710_ReadChronoValue      (comedi_device *dev,
 |                                PUINT_  pui_NanoSecond)                     |
 +----------------------------------------------------------------------------+
 | Task              : Convert the chronometer measured timing                |
-|                     (ul_ChronoValue) in to h, mn, s, ms, µs, ns.           |
+|                     (ul_ChronoValue) in to h, mn, s, ms, Âµs, ns.           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : BYTE_   b_BoardHandle : Handle of board APCI-1710      |
 |                     BYTE_   b_ModulNbr    : Selected module number (0 to 3)|

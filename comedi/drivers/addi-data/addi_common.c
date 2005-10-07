@@ -2539,38 +2539,6 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	
 	if ((this_board->pc_EepromChip == NULL) || (strcmp (this_board->pc_EepromChip, ADDIDATA_9054) != 0))
 	   {
-	   if (iobase_main)
-	      {
-	      if (check_region(iobase_main, this_board->i_IorangeBase1) < 0) 
-	         {
-	         printk("I/O port conflict\n");
-	         return -EIO;
-	         }
-	      }
-	   
-           //if(this_board->i_Dma)
-           if(iobase_a) 
-              {
-	      if (check_region(iobase_a, this_board->i_IorangeBase0) < 0) 
-	         {
-	         printk("AMCC check region failed\n"); 
-	         printk("I/O port conflict\n");
-	         return -EIO;
-	        }
-	      }
-
-	   // ##
-	   if(io_addr[2])
-	      {
-	      if (check_region(io_addr[2], this_board->i_IorangeBase2) < 0) 
-	         {
-	         printk("\nBase 2 check region failed"); 
-	         printk("\nI/O port conflict");
-	         return -EIO;
-	         }
-	      }
-	   //##
-       
 	   /************************************/
 	   /* Test if more that 1 address used */
 	   /************************************/
@@ -2714,7 +2682,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	         {
 	         for (pages=4; pages>=0; pages--)
 	            {
-	            if((devpriv->ul_DmaBufferVirtual[i]=__get_free_pages(GFP_KERNEL,pages)))
+	            if((devpriv->ul_DmaBufferVirtual[i]=(void *)__get_free_pages(GFP_KERNEL,pages)))
 	               {
 	               break;
 	               }

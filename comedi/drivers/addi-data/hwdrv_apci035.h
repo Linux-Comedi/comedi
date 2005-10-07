@@ -67,7 +67,7 @@ comedi_lrange range_apci035_ai={ 8, {
 #define APCI035_TCW_WARN_TIMEBASE                28
 
 #define ADDIDATA_TIMER                            0
-#define ADDIDATA_WATCHDOG                         1
+//#define ADDIDATA_WATCHDOG                         1
 
 #define APCI035_TW1                               0
 #define APCI035_TW2                               32

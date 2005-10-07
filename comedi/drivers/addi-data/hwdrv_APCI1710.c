@@ -23,7 +23,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 */
 /*
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          DieselstraÃŸe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -65,7 +65,7 @@ void	i_ADDI_AttachPCI1710 (comedi_device *dev)
 	
 	//Update-0.7.57->0.7.68dev->n_subdevices = 9;
 	if((ret=alloc_subdevices(dev,n_subdevices))<0)
-    	return ret;
+    	return;
  
         // Allocate and Initialise Timer Subdevice Structures		
     	s = dev->subdevices + 0;
@@ -262,7 +262,7 @@ VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs)
 	BYTE   b_PulseIncoderCpt = 0;
 	UINT  ui_16BitValue;
 	ULONG ul_InterruptLatchReg = 0;
-	ULONG ul_LatchRegisterValue;
+	ULONG ul_LatchRegisterValue = 0;
 	ULONG ul_82X54InterruptStatus;
 	ULONG ul_StatusRegister;
 

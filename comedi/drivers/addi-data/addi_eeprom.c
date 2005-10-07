@@ -62,7 +62,9 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define PWORD				unsigned short *
 #define PDWORD				unsigned int  *
 
+#ifndef DWORD
 #define	DWORD				unsigned int
+#endif
 
 
 

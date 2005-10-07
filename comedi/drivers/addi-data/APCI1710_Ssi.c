@@ -24,7 +24,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
     
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          DieselstraÃŸe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -45,7 +45,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   | 13/05/98 | S. Weber  | SSI digital input / output implementation      |
   |----------|-----------|------------------------------------------------|
   | 22/03/00 | C.Guinot  | 0100/0226 -> 0200/0227                         |
-  |          |           | Änderung in InitSSI Funktion                   |
+  |          |           | Ã„nderung in InitSSI Funktion                   |
   |          |           | b_SSIProfile >= 2 anstatt b_SSIProfile > 2     |
   |          |           |                                                |
   +-----------------------------------------------------------------------+

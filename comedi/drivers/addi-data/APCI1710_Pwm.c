@@ -24,7 +24,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
     
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraﬂe 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          Dieselstra√üe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -161,7 +161,7 @@ comedi_insn *insn,lsampl_t *data)
 |                                                     quartz.                |
 |                     BYTE_     b_TimingUnit     : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
-|                                                       1 : Ês               |
+|                                                       1 : √¶s               |
 |                                                       2 : ms               |
 |                                                       3 : s                |
 |                                                       4 : mn               |
@@ -342,7 +342,7 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 					break;
 
 				   /******/
-				   /* Ês */
+				   /* √¶s */
 				   /******/
 
 				   case 1:
@@ -566,7 +566,7 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 					break;
 
 				   /******/
-				   /* Ês */
+				   /* √¶s */
 				   /******/
 
 				   case 1:
@@ -942,7 +942,7 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 | Output Parameters : PBYTE_  pb_TimingUnit      : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
-|                                                       1 : Ês               |
+|                                                       1 : √¶s               |
 |                                                       2 : ms               |
 |                                                       3 : s                |
 |                                                       4 : mn               |
@@ -1650,7 +1650,7 @@ INT   i_APCI1710_DisablePWM   (comedi_device *dev,
 |                     BYTE_     b_PWM            : Selected PWM (0 or 1).    |
 |                     BYTE_     b_TimingUnit     : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
-|                                                       1 : Ês               |
+|                                                       1 : √¶s               |
 |                                                       2 : ms               |
 |                                                       3 : s                |
 |                                                       4 : mn               |
@@ -1821,7 +1821,7 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 				     break;
 
 				/******/
-				/* Ês */
+				/* √¶s */
 				/******/
 
 				case 1:
@@ -2044,7 +2044,7 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 				     break;
 
 				/******/
-				/* Ês */
+				/* √¶s */
 				/******/
 
 				case 1:

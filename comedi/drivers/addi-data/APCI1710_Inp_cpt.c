@@ -24,7 +24,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 /*
     
   +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraﬂe 3       D-77833 Ottersweier  |
+  | (C) ADDI-DATA GmbH          Dieselstra√üe 3       D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
   | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
   | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
@@ -796,5 +796,6 @@ INT   i_APCI1710_InsnReadInterruptPulseEncoder(comedi_device *dev,comedi_subdevi
 
 
 }
+
 
 
