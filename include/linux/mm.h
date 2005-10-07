@@ -7,13 +7,6 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,0)
-#define VM_OFFSET(a)	((a)->vm_offset)
-#define page_address(page) page
-#else
-#define VM_OFFSET(a)	((a)->vm_pgoff * PAGE_SIZE)
-#endif
-
 #include_next <linux/mm.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10) \

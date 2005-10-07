@@ -414,7 +414,7 @@ static inline unsigned long kvirt_to_kva(unsigned long adr)
 {
 	unsigned long va, kva;
 
-	va = VMALLOC_VMADDR(adr);
+	va = adr;
 	kva = uvirt_to_kva(pgd_offset_k(va), va);
 
 	return kva;

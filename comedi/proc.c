@@ -35,33 +35,12 @@
 //#include <linux/string.h>
 
 
-#if LINUX_VERSION_CODE < 0x020100
-int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int unused);
-
-struct proc_dir_entry comedi_proc_entry =
-{
-	0,
-	6, "comedi",
-	S_IFREG | S_IRUGO,
-	1, 0, 0,
-	0, NULL,
-	&comedi_read_procmem,
-};
-
-#else
 int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,void *data);
 
 
-
-#endif
-
 extern comedi_driver *comedi_drivers;
 
-#if LINUX_VERSION_CODE < 0x020100
-int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int unused)
-#else
 int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,void *data)
-#endif
 {
 	int i;
 	int devices_q=0;
@@ -108,24 +87,16 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 
 void comedi_proc_init(void)
 {
-#if LINUX_VERSION_CODE < 0x020100
-	proc_register_dynamic(&proc_root,&comedi_proc_entry);
-#else
 	struct proc_dir_entry *comedi_proc;
 	
 	comedi_proc = create_proc_entry("comedi",S_IFREG | S_IRUGO,0);
 	if(comedi_proc)
 		comedi_proc->read_proc = comedi_read_procmem;
-#endif
 }
 
 void comedi_proc_cleanup(void)
 {
-#if LINUX_VERSION_CODE < 0x020100
-	proc_unregister(&proc_root,comedi_proc_entry.low_ino);
-#else
 	remove_proc_entry("comedi",0);
-#endif
 }
 
 

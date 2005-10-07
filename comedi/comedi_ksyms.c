@@ -32,8 +32,6 @@
 
 
 
-#if LINUX_VERSION_CODE >= 0x020200
-
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
@@ -77,7 +75,6 @@ EXPORT_SYMBOL(comedi_buf_write_alloc);
 EXPORT_SYMBOL(comedi_buf_read_free);
 EXPORT_SYMBOL(comedi_buf_memcpy_to);
 EXPORT_SYMBOL(comedi_buf_memcpy_from);
-#endif
 
 
 

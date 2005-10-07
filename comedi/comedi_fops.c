@@ -78,9 +78,7 @@ static int do_poll_ioctl(comedi_device *dev,unsigned int subd,void *file);
 void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
-#if LINUX_VERSION_CODE >= 0x020100
 static int comedi_fasync (int fd, struct file *file, int on);
-#endif
 static void init_async_buf( comedi_async *async );
 
 static int comedi_ioctl(struct inode * inode,struct file * file,
@@ -1240,22 +1238,13 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 }
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)  /* XXX */
-#define RDEV_OF_FILE(x)        ((x)->f_inode->i_rdev)
-#else
 #define RDEV_OF_FILE(x)        ((x)->f_dentry->d_inode->i_rdev)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,0)
 void comedi_unmap(struct vm_area_struct *area)
 {
 	comedi_async *async;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
-	async = (void *)area->vm_pte;
-#else
 	async = area->vm_private_data;
-#endif
 
 	async->mmap_count--;
 }
@@ -1263,14 +1252,8 @@ void comedi_unmap(struct vm_area_struct *area)
 static struct vm_operations_struct comedi_vm_ops={
 	close:		comedi_unmap,
 };
-/*
-   comedi_mmap_v22
- */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,3,17)
-#define page_address(x) x
-#endif
 
-static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
+static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 {
 	unsigned int minor=MINOR(RDEV_OF_FILE(file));
 	comedi_device *dev=comedi_get_device_by_minor(minor);
@@ -1295,17 +1278,10 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-#if LINUX_VERSION_CODE < 0x020300
-	if(vma->vm_offset != 0){
-		DPRINTK("comedi: mmap() offset must be 0.\n");
-		return -EINVAL;
-	}
-#else
 	if(vma->vm_pgoff != 0){
 		DPRINTK("comedi: mmap() offset must be 0.\n");
 		return -EINVAL;
 	}
-#endif
 
 	size = vma->vm_end - vma->vm_start;
 	if(size>async->prealloc_bufsz)
@@ -1323,21 +1299,15 @@ static int comedi_mmap_v22(struct file * file, struct vm_area_struct *vma)
 	}
 
 	vma->vm_ops = &comedi_vm_ops;
-#if LINUX_VERSION_CODE < 0x020300
-	(void *)vma->vm_pte = async;
-#else
 	vma->vm_private_data = async;
-#endif
 
 	async->mmap_count++;
 
 	return 0;
 }
-#endif
 
-#if LINUX_VERSION_CODE >= 0x020100
 
-static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
+static unsigned int comedi_poll(struct file *file, poll_table * wait)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
@@ -1376,9 +1346,8 @@ static unsigned int comedi_poll_v22(struct file *file, poll_table * wait)
 
 	return mask;
 }
-#endif
 
-static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,loff_t *offset)
+static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff_t *offset)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
@@ -1464,7 +1433,7 @@ static ssize_t comedi_write_v22(struct file *file,const char *buf,size_t nbytes,
 }
 
 
-static ssize_t comedi_read_v22(struct file * file,char *buf,size_t nbytes,loff_t *offset)
+static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *offset)
 {
 	comedi_device *dev;
 	comedi_subdevice *s;
@@ -1585,7 +1554,7 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
+static loff_t comedi_lseek(struct file *file,loff_t offset,int origin)
 {
 	comedi_device *dev;
 	loff_t new_offset;
@@ -1611,7 +1580,7 @@ static loff_t comedi_lseek_v22(struct file *file,loff_t offset,int origin)
 	return file->f_pos=new_offset;
 }
 
-static int comedi_fop_open(struct inode *inode,struct file *file)
+static int comedi_open(struct inode *inode,struct file *file)
 {
 	unsigned int minor=MINOR(inode->i_rdev);
 	comedi_device *dev;
@@ -1675,7 +1644,7 @@ ok:
 	return 0;
 }
 
-static int comedi_close_v22(struct inode *inode,struct file *file)
+static int comedi_close(struct inode *inode,struct file *file)
 {
 	comedi_device *dev=comedi_get_device_by_minor(MINOR(inode->i_rdev));
 	comedi_subdevice *s = NULL;
@@ -1705,84 +1674,33 @@ static int comedi_close_v22(struct inode *inode,struct file *file)
 
 	dev->use_count--;
 
-#if LINUX_VERSION_CODE >= 0x020100
 	if(file->f_flags & FASYNC){
 		comedi_fasync(-1,file,0);
 	}
-#endif
 
 	return 0;
 }
 
-#if LINUX_VERSION_CODE >= 0x020100
 static int comedi_fasync (int fd, struct file *file, int on)
 {
 	comedi_device *dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
 
 	return fasync_helper(fd,file,on,&dev->async_queue);
 }
-#endif
 
-/*
-	kernel compatibility
-*/
-
-#if LINUX_VERSION_CODE < 0x020100
-
-static int comedi_write_v20(struct inode *inode,struct file *file,const char *buf,int nbytes)
-{
-	return comedi_write_v22(file,buf,nbytes,NULL);
-}
-
-static int comedi_read_v20(struct inode *inode,struct file *file,char *buf,int nbytes)
-{
-	return comedi_read_v22(file,buf,nbytes,NULL);
-}
-
-static int comedi_lseek_v20(struct inode * inode,struct file *file,off_t offset,int origin)
-{
-	return comedi_lseek_v22(file,offset,origin);
-}
-
-static void comedi_close_v20(struct inode *inode,struct file *file)
-{
-	comedi_close_v22(inode,file);
-}
-
-#define comedi_ioctl_v20 comedi_ioctl
-#define comedi_open_v20 comedi_fop_open
 
 static struct file_operations comedi_fops={
-	lseek		: comedi_lseek_v20,
-	ioctl		: comedi_ioctl_v20,
-	open		: comedi_open_v20,
-	release		: comedi_close_v20,
-	read		: comedi_read_v20,
-	write		: comedi_write_v20,
-};
-
-#endif
-
-#if LINUX_VERSION_CODE >= 0x020200
-
-#define comedi_ioctl_v22 comedi_ioctl
-#define comedi_open_v22 comedi_fop_open
-
-static struct file_operations comedi_fops={
-#if LINUX_VERSION_CODE >= 0x020400
 	owner		: THIS_MODULE,
-#endif
-	llseek		: comedi_lseek_v22,
-	ioctl		: comedi_ioctl_v22,
-	open		: comedi_open_v22,
-	release		: comedi_close_v22,
-	read		: comedi_read_v22,
-	write		: comedi_write_v22,
-	mmap		: comedi_mmap_v22,
-	poll		: comedi_poll_v22,
+	llseek		: comedi_lseek,
+	ioctl		: comedi_ioctl,
+	open		: comedi_open,
+	release		: comedi_close,
+	read		: comedi_read,
+	write		: comedi_write,
+	mmap		: comedi_mmap,
+	poll		: comedi_poll,
 	fasync		: comedi_fasync,
 };
-#endif
 
 static struct class *comedi_class;
 
@@ -1907,11 +1825,11 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 			}else{
 				if(s==dev->read_subdev){
 					wake_up_interruptible(&dev->read_wait);
-					KILL_FASYNC(dev->async_queue, SIGIO, POLL_IN);
+					kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
 				}
 				if(s==dev->write_subdev){
 					wake_up_interruptible(&dev->write_wait);
-					KILL_FASYNC(dev->async_queue, SIGIO, POLL_OUT);
+					kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
 				}
 			}
 		}else{
