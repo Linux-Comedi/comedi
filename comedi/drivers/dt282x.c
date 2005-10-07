@@ -1201,9 +1201,9 @@ enum{	opt_iobase=0, opt_irq, opt_dma1, opt_dma2,	/* i/o base, irq, dma channels 
    5	ai 0=straight binary, 1=2's comp
    6	ao0 0=straight binary, 1=2's comp
    7	ao1 0=straight binary, 1=2's comp
-   8	ai 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V
-   9	ao0 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
-   10	ao1 0=±10 V, 1=0-10 V, 2=±5 V, 3=0-5 V, 4=±2.5 V
+   8	ai 0=Â±10 V, 1=0-10 V, 2=Â±5 V, 3=0-5 V
+   9	ao0 0=Â±10 V, 1=0-10 V, 2=Â±5 V, 3=0-5 V, 4=Â±2.5 V
+   10	ao1 0=Â±10 V, 1=0-10 V, 2=Â±5 V, 3=0-5 V, 4=Â±2.5 V
  */
 static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 {

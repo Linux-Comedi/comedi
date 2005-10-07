@@ -1,11 +1,11 @@
 /*
  * Driver for Advantech PCL-730 and clones
- * José Luis Sánchez
+ * JosÃ© Luis SÃ¡nchez
  */
 /*
 Driver: pcl730.o
 Description: Advantech PCL-730 (& compatibles)
-Author: José Luis Sánchez (jsanchezv@teleline.es)
+Author: JosÃ© Luis SÃ¡nchez (jsanchezv@teleline.es)
 Status: untested
 Devices: [Advantech] PCL-730 (pcl730), [ICP] ISO-730 (iso730),
 		 [Adlink] ACL-7130 (acl7130)

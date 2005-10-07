@@ -74,9 +74,9 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADCG    0x0E
 
 /* Convertor related constants. */
-#define PCI230_DAC_SETTLE 5		/* Analogue output settling time in µs (DAC itself is 1µs nominally). */  
-#define PCI230_ADC_SETTLE 1		/* Analogue input settling time in µs (ADC itself is 1.6µs nominally but we poll anyway). */  
-#define PCI230_MUX_SETTLE 10	/* ADC MUX settling time in µS - 10µs for se, 20µs de. */
+#define PCI230_DAC_SETTLE 5		/* Analogue output settling time in Âµs (DAC itself is 1Âµs nominally). */  
+#define PCI230_ADC_SETTLE 1		/* Analogue input settling time in Âµs (ADC itself is 1.6Âµs nominally but we poll anyway). */  
+#define PCI230_MUX_SETTLE 10	/* ADC MUX settling time in ÂµS - 10Âµs for se, 20Âµs de. */
 
 /* DACCON values. */
 #define PCI230_DAC_BUSY_BIT		1
@@ -265,14 +265,20 @@ static int pci230_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 static int pci230_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int pci230_ct_insn_config(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int pci230_ct_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+#if 0
 static void pci230_ns_to_timer(unsigned int *ns,int round);
+#endif
 static void pci230_ns_to_single_timer(unsigned int *ns,int round);
 static void i8253_single_ns_to_timer(unsigned int i8253_osc_base, unsigned int *d, unsigned int *nanosec, int round_mode);
 static void pci230_setup_monostable_ct0(comedi_device *dev, unsigned int ns, unsigned int n_chan);
+#if 0
 static void pci230_z2_ct0(comedi_device *dev, unsigned int *ns,int round);
+#endif
 static void pci230_z2_ct1(comedi_device *dev, unsigned int *ns,int round);
 static void pci230_z2_ct2(comedi_device *dev, unsigned int *ns,int round);
+#if 0
 static void pci230_cancel_ct0(comedi_device *dev);
+#endif
 static void pci230_cancel_ct1(comedi_device *dev);
 static void pci230_cancel_ct2(comedi_device *dev);
 static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs);
@@ -1145,6 +1151,7 @@ static int pci230_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 }
 
 
+#if 0
 /* This function doesn't require a particular form, this is just
  * what happens to be used in some of the drivers.  It should
  * convert ns nanoseconds to a counter value suitable for programming
@@ -1156,6 +1163,7 @@ static void pci230_ns_to_timer(unsigned int *ns,int round)
 	i8253_cascade_ns_to_timer_2div(PCI230_TIMEBASE_10MHZ, &divisor0, &divisor1, ns, TRIG_ROUND_MASK);
 	return;
 }
+#endif
 
 
 /* This function is used for analogue input. Only one counter/timer can be used,
@@ -1191,7 +1199,6 @@ static void pci230_ns_to_single_timer(unsigned int *ns,int round)
 
 static void i8253_single_ns_to_timer(unsigned int i8253_osc_base, unsigned int *d, unsigned int *nanosec, int round_mode)
 {
-        int divider;
         unsigned int div;
 
         /* exit early if everything is already correct (this can save time
@@ -1262,6 +1269,7 @@ static void pci230_setup_monostable_ct0(comedi_device *dev, unsigned int ns, uns
 }
 
 
+#if 0
 /* 
  *  Set ZCLK_CT0 to square wave mode with period of ns.
  */
@@ -1294,12 +1302,15 @@ static void pci230_z2_ct0(comedi_device *dev, unsigned int *ns,int round)
 	}
 	return;
 }
+#endif
 
+#if 0
 static void pci230_cancel_ct0(comedi_device *dev)
 {
 	devpriv->divisor0 = 0;
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 0);	/* Counter 0, divisor0, 8254 mode 0. */
 }
+#endif
 
 /* 
  *  Set ZCLK_CT1 to square wave mode with period of ns.

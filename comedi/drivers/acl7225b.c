@@ -1,11 +1,11 @@
 /*
  * Driver for Adlink NuDAQ ACL-7225b and clones
- * José Luis Sánchez
+ * JosÃ© Luis SÃ¡nchez
  */
 /*
 Driver: acl7225b.o
 Description: Adlink NuDAQ ACL-7225b & compatibles
-Author: José Luis Sánchez (jsanchezv@teleline.es)
+Author: JosÃ© Luis SÃ¡nchez (jsanchezv@teleline.es)
 Status: testing
 Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 */

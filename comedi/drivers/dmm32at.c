@@ -332,7 +332,7 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->irq = it->options[1];
 
 	printk("comedi%d: dmm32at: attaching\n",dev->minor);
-	printk("dmm32at: probing at address 0x%04x, irq %d\n", 
+	printk("dmm32at: probing at address 0x%04lx, irq %d\n", 
 	       dev->iobase, dev->irq);
 
 

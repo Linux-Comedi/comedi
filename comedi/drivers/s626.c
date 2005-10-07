@@ -480,6 +480,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   int ret;
   uint64_t resourceStart;
   dma_addr_t appdma;
+  comedi_subdevice *s;
   
   if(alloc_private(dev,sizeof(s626_private))<0)
     return -ENOMEM;
@@ -545,8 +546,6 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     
   } 
    
-  comedi_subdevice *s;
-	
   dev->board_ptr = s626_boards;
   dev->board_name = thisboard->name;
 
@@ -648,6 +647,8 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   devpriv->ai_cmd_running=0;    
     
   if (devpriv->base_addr && (devpriv->allocatedBuf==2)){
+    uint32_t *pPhysBuf;
+    uint16_t chan;
 
     // enab DEBI and audio pins, enable I2C interface.
     MC_ENABLE( P_MC1, MC1_DEBI | MC1_AUDIO | MC1_I2C );
@@ -782,7 +783,6 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     // end initADC 
     
     // init the DAC interface 
-    uint32_t *pPhysBuf;
     
     // Init Audio2's output DMAC attributes: burst length = 1 DWORD,
     // threshold = 1 DWORD.
@@ -852,7 +852,6 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     
     // Init all DAC outputs to 0V and init all DAC setpoint and
     // polarity images.
-    uint16_t chan;
     for ( chan = 0; chan < S626_DAC_CHANNELS; chan++)
       SetDAC(dev,chan, 0 );
     
