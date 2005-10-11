@@ -293,7 +293,8 @@ static int bonding_detach(comedi_device *dev)
 static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
                                  comedi_insn *insn, lsampl_t *data)
 {
-        unsigned nchans = 32, num_done = 0, i;
+#define LSAMPL_BITS (sizeof(lsampl_t)*8)
+        unsigned nchans = LSAMPL_BITS, num_done = 0, i;
 	if(insn->n != 2) return -EINVAL;
 
         if (devpriv->nchans < nchans) nchans = devpriv->nchans;
@@ -303,16 +304,29 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
         for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
             BondedDevice *bdev = devpriv->devs[i];
             /* Grab the channel mask and data of only the bits corresponding 
-               to this subdevice.. */
-            unsigned mask = (data[0]>>num_done) & ((1<<bdev->nchans)-1);
-            unsigned dataBits = (data[1]>>num_done) & ((1<<bdev->nchans)-1);
-            if ( mask ) {
-                s->state &= ~(mask << num_done);
-                s->state |= (mask&dataBits) << num_done;
-                /* Write out the new digital output lines */
-                if ( comedi_dio_bitfield(bdev->dev, bdev->subdev, mask, &dataBits) != 2 )
-                  return -EINVAL;
-            }
+               to this subdevice.. need to shift them to zero position of 
+               course. */
+            lsampl_t subdevMask = ((1<<bdev->nchans)-1); /* Bits corresponding 
+                                                            to this subdev. */
+            lsampl_t writeMask, dataBits;
+
+            /* Argh, we have >= LSAMPL_BITS chans.. take all bits */
+            if (bdev->nchans >= LSAMPL_BITS) subdevMask = (lsampl_t)(-1);
+
+            writeMask = (data[0]>>num_done) & subdevMask;
+            dataBits = (data[1]>>num_done) & subdevMask;
+
+            /* Read/Write the new digital lines */
+            if ( comedi_dio_bitfield(bdev->dev, bdev->subdev, writeMask, &dataBits) != 2 )
+              return -EINVAL;            
+
+            /* Make room for the new bits in data[1], the return value */
+            data[1] &= ~(subdevMask << num_done);
+            /* Put the bits in the return value */
+            data[1] |= (dataBits & subdevMask) << num_done;
+            /* Save the new bits to the saved state.. */
+            s->state = data[1];
+
             num_done += bdev->nchans;
         }
 
@@ -322,7 +336,7 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 static int bonding_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
                                    comedi_insn *insn,lsampl_t *data)
 {
-        int chan = CR_CHAN(insn->chanspec), ret;
+        int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
         unsigned int io;
         BondedDevice *bdev;
 
@@ -337,12 +351,14 @@ static int bonding_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
                 io = COMEDI_OUTPUT; /* is this really necessary? */
+		io_bits |= 1<<chan;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
                 io = COMEDI_INPUT; /* is this really necessary? */
+		io_bits &= ~(1<<chan);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] = (io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -352,15 +368,18 @@ static int bonding_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
         chan -= bdev->chanid_offset; /* 'real' channel id for this subdev.. */
         ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, io);
         if (ret != 1) return -EINVAL;
-
+        /* Finally, save the new io_bits values since we didn't get
+           an error above. */
+        s->io_bits = io_bits;
 	return insn->n;
 }
 
 static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 {
+#define MIN(a,b) (a < b ? a : b)
   void *newmem = kmalloc(newlen, GFP_KERNEL);
-  if (!newmem) { kfree(oldmem); oldmem = 0; }
-  if (newmem && oldmem) memcpy(newmem, oldmem, oldlen);      
+  if (newmem && oldmem) memcpy(newmem, oldmem, MIN(oldlen, newlen));
+  if (oldmem) kfree(oldmem);
   return newmem;
 }
 
