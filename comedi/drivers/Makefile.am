@@ -100,6 +100,7 @@ module_PROGRAMS = \
  cb_pcidda.ko \
  cb_pcimdas.ko \
  cb_pcimdda.ko \
+ comedi_bond.ko \
  contec_pci_dio.ko \
  daqboard2000.ko \
  das16.ko \
@@ -174,6 +175,7 @@ cb_pcidda_ko_SOURCES = cb_pcidda.c
 cb_pcimdas_ko_SOURCES = cb_pcimdas.c
 cb_pcimdda_ko_SOURCES = cb_pcimdda.c
 cb_das16_cs_ko_SOURCES = cb_das16_cs.c
+comedi_bond_ko_SOURCES = comedi_bond.c
 comedi_fc_ko_SOURCES = comedi_fc.c
 contec_pci_dio_ko_SOURCES = contec_pci_dio.c
 daqboard2000_ko_SOURCES = daqboard2000.c
