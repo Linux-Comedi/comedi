@@ -6,9 +6,6 @@
 
     Copyright (C) 2005 MEV Ltd. <http://www.mev.co.uk/>
 
-    Includes parts of the 8255 driver
-    Copyright (C) 1998 David A. Schleef <ds@schleef.org>
-
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
 
@@ -31,15 +28,16 @@
 Driver: amplc_dio200.o
 Description: Amplicon PC272E, PCI272
 Author: Ian Abbott <abbotti@mev.co.uk>
-Devices: [Amplicon] PC272E (pc272e), PCI272 (pci272)
-Updated: Fri, 11 Feb 2005 13:13:13 +0000
+Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
+  PCI215 (pci215), PC218E (pc218e), PC272E (pc272e), PCI272 (pci272)
+Updated: Fri, 07 Oct 2005 16:59:59 +0100
 Status: works
 
-Configuration options - PC272E:
+Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
   [0] - I/O port base address
   [1] - IRQ (optional, but commands won't work without it)
 
-Configuration options - PCI272:
+Configuration options - PCI215, PCI272:
   [0] - PCI bus of device (optional)
   [1] - PCI slot of device (optional)
   If bus/slot is not specified, the first available PCI device will
@@ -50,13 +48,24 @@ Passing a zero for an option is the same as leaving it unspecified.
 
 SUBDEVICES
 
-                 PC272E/PCI272
-                 -------------
-  Subdevices           4
-   0                 PPI-X
-   1                 PPI-Y
-   2                 PPI-Z
-   3               INTERRUPT
+                    PC218E         PC212E      PC215E/PCI215
+                 -------------  -------------  -------------
+  Subdevices           7              6              5
+   0                 CTR-X1         PPI-X          PPI-X
+   1                 CTR-X2         CTR-Y1         PPI-Y
+   2                 CTR-Y1         CTR-Y2         CTR-Z1
+   3                 CTR-Y2         CTR-Z1         CTR-Z2
+   4                 CTR-Z1         CTR-Z2       INTERRUPT
+   5                 CTR-Z2       INTERRUPT
+   6               INTERRUPT
+
+                    PC214E      PC272E/PCI272
+                 -------------  -------------
+  Subdevices           4              4 
+   0                 PPI-X          PPI-X
+   1                 PPI-Y          PPI-Y
+   2                 CTR-Z1*        PPI-Z
+   3               INTERRUPT*     INTERRUPT
 
 
 Each PPI is a 8255 chip providing 24 DIO channels.  The DIO channels
@@ -69,22 +78,101 @@ are configurable as inputs or outputs in four groups:
 
 Only mode 0 of the 8255 chips is supported.
 
-The 'INTERRUPT' subdevice pretends to be a digital input subdevice.
-The digital inputs come from the interrupt status register. The number
-of channels matches the number of interrupt sources.
+Each CTR is a 8254 chip providing 3 16-bit counter channels.  Each
+channel is configured individually with INSN_CONFIG instructions.  The
+specific type of configuration instruction is specified in data[0].
+Some configuration instructions expect an additional parameter in
+data[1]; others return a value in data[1].  The following configuration
+instructions are supported:
+
+  INSN_CONFIG_8254_SET_MODE.  Sets the counter channel's mode and
+    BCD/binary setting specified in data[1].
+
+  INSN_CONFIG_8254_READ_STATUS.  Reads the status register value for the
+    counter channel into data[1].
+
+  INSN_CONFIG_SET_CLOCK_SRC.  Sets the counter channel's clock source as
+    specified in data[1] (this is a hardware-specific value).  Not
+    supported on PC214E.  For the other boards, valid clock sources are
+    0 to 7 as follows:
+
+      0.  CLK n, the counter channel's dedicated CLK input from the SK1
+        connector.  (N.B. for other values, the counter channel's CLKn
+        pin on the SK1 connector is an output!)
+      1.  Internal 10 MHz clock.
+      2.  Internal 1 MHz clock.
+      3.  Internal 100 kHz clock.
+      4.  Internal 10 kHz clock.
+      5.  Internal 1 kHz clock.
+      6.  OUT n-1, the output of counter channel n-1 (see note 1 below).
+      7.  Ext Clock, the counter chip's dedicated Ext Clock input from
+        the SK1 connector.  This pin is shared by all three counter
+        channels on the chip.
+
+  INSN_CONFIG_GET_CLOCK_SRC.  Returns the counter channel's current
+    clock source in data[1].
+
+  INSN_CONFIG_SET_GATE_SRC.  Sets the counter channel's gate source as
+    specified in data[1] (this is a hardware-specific value).  Not
+    supported on PC214E.  For the other boards, valid gate sources are 0
+    to 7 as follows:
+
+      0.  VCC (internal +5V d.c.), i.e. gate permanently enabled.
+      1.  GND (internal 0V d.c.), i.e. gate permanently disabled.
+      2.  GAT n, the counter channel's dedicated GAT input from the SK1
+        connector.  (N.B. for other values, the counter channel's GATn
+        pin on the SK1 connector is an output!)
+      3.  /OUT n-2, the inverted output of counter channel n-2 (see note
+        2 below).
+      4.  Reserved.
+      5.  Reserved.
+      6.  Reserved.
+      7.  Reserved.
+
+  INSN_CONFIG_GET_GATE_SRC.  Returns the counter channel's current gate
+    source in data[1].
+
+Clock and gate interconnection notes:
+
+  1.  Clock source OUT n-1 is the output of the preceding channel on the
+  same counter subdevice if n > 0, or the output of channel 2 on the
+  preceding counter subdevice (see note 3) if n = 0.
+
+  2.  Gate source /OUT n-2 is the inverted output of channel 0 on the
+  same counter subdevice if n = 2, or the inverted output of channel n+1
+  on the preceding counter subdevice (see note 3) if n < 2.
+  
+  3.  The counter subdevices are connected in a ring, so the highest
+  counter subdevice precedes the lowest.
+
+The 'INTERRUPT' subdevice pretends to be a digital input subdevice.  The
+digital inputs come from the interrupt status register.  The number of
+channels matches the number of interrupt sources.  The PC214E does not
+have an interrupt status register; see notes on 'INTERRUPT SOURCES'
+below.
 
 
 INTERRUPT SOURCES
 
-                 PC272E/PCI272
-                 -------------
-  Sources              6
-   0               PPI-X-C0
-   1               PPI-X-C3
-   2               PPI-Y-C0
-   3               PPI-Y-C3
-   4               PPI-Z-C0
-   5               PPI-Z-C3
+                    PC218E         PC212E      PC215E/PCI215
+                 -------------  -------------  -------------
+  Sources              6              6              6
+   0              CTR-X1-OUT      PPI-X-C0       PPI-X-C0
+   1              CTR-X2-OUT      PPI-X-C3       PPI-X-C3
+   2              CTR-Y1-OUT     CTR-Y1-OUT      PPI-Y-C0
+   3              CTR-Y2-OUT     CTR-Y2-OUT      PPI-Y-C3
+   4              CTR-Z1-OUT     CTR-Z1-OUT     CTR-Z1-OUT
+   5              CTR-Z2-OUT     CTR-Z2-OUT     CTR-Z2-OUT
+
+                    PC214E      PC272E/PCI272
+                 -------------  -------------
+  Sources              1              6
+   0               JUMPER-J5      PPI-X-C0
+   1                              PPI-X-C3
+   2                              PPI-Y-C0
+   3                              PPI-Y-C3
+   4                              PPI-Z-C0
+   5                              PPI-Z-C3
 
 When an interrupt source is enabled in the interrupt source enable
 register, a rising edge on the source signal latches the corresponding
@@ -101,6 +189,11 @@ status register, the corresponding interrupt source must be disabled
 in the interrupt source enable register (there is no separate interrupt
 clear register).
 
+The PC214E does not have an interrupt source enable register or an
+interrupt status register; its 'INTERRUPT' subdevice has a single
+channel and its interrupt source is selected by the position of jumper
+J5.
+
 
 COMMANDS
 
@@ -112,15 +205,6 @@ occurs, subject to interrupt latencies (scan_begin_src == TRIG_EXT,
 scan_begin_arg == 0).  The value read from the interrupt status register
 is packed into a sampl_t value, one bit per requested channel, in the
 order they appear in the channel list.
-
-
-TODO LIST
-
-Support for PC212E, PC215E, PCI215 and possibly PC218E should be added.
-Apart from the PC218E, these consist of a mixture of 8255 DIO chips and
-8254 counter chips with software configuration of the clock and gate
-sources for the 8254 chips.  (The PC218E has 6 8254 counter chips but
-no 8255 DIO chips.)
 */
 
 #include <linux/comedidev.h>
@@ -128,24 +212,57 @@ no 8255 DIO chips.)
 #include <linux/pci.h>
 
 #include "8255.h"
+#include "8253.h"
 
 #define DIO200_DRIVER_NAME	"amplc_dio200"
 
 /* PCI IDs */
 /* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
 #define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
+#define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
 
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
+#define DIO200_XCLK_SCE		0x18	/* Group X clock selection register */
+#define DIO200_YCLK_SCE		0x19	/* Group Y clock selection register */
+#define DIO200_ZCLK_SCE		0x1a	/* Group Z clock selection register */
+#define DIO200_XGAT_SCE		0x1b	/* Group X gate selection register */
+#define DIO200_YGAT_SCE		0x1c	/* Group Y gate selection register */
+#define DIO200_ZGAT_SCE		0x1d	/* Group Z gate selection register */
 #define DIO200_INT_SCE		0x1e	/* Interrupt enable/status register */
+
+/*
+ * Macros for constructing value for DIO_200_?CLK_SCE and
+ * DIO_200_?GAT_SCE registers:
+ *
+ * 'which' is: 0 for CTR-X1, CTR-Y1, CTR-Z1; 1 for CTR-X2, CTR-Y2 or CTR-Z2.
+ * 'chan' is the channel: 0, 1 or 2.
+ * 'source' is the signal source: 0 to 7.
+ */
+#define CLK_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
+#define GAT_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
 
 /*
  * Board descriptions.
  */
 
 enum dio200_bustype	{ isa_bustype, pci_bustype };
-enum dio200_model	{ pc272e_model, pci272_model };
-enum dio200_layout	{ pc272_layout };
+
+enum dio200_model {
+	pc212e_model,
+	pc214e_model,
+	pc215e_model, pci215_model,
+	pc218e_model,
+	pc272e_model, pci272_model
+};
+
+enum dio200_layout {
+	pc212_layout,
+	pc214_layout,
+	pc215_layout,
+	pc218_layout,
+	pc272_layout
+};
 
 typedef struct dio200_board_struct {
 	char *name;
@@ -155,6 +272,36 @@ typedef struct dio200_board_struct {
 } dio200_board;
 
 static dio200_board dio200_boards[] = {
+	{
+	name:		"pc212e",
+	bustype:	isa_bustype,
+	model:		pc212e_model,
+	layout:		pc212_layout,
+	},
+	{
+	name:		"pc214e",
+	bustype:	isa_bustype,
+	model:		pc214e_model,
+	layout:		pc214_layout,
+	},
+	{
+	name:		"pc215e",
+	bustype:	isa_bustype,
+	model:		pc215e_model,
+	layout:		pc215_layout,
+	},
+	{
+	name:		"pci215",
+	bustype:	pci_bustype,
+	model:		pci215_model,
+	layout:		pc215_layout,
+	},
+	{
+	name:		"pc218e",
+	bustype:	isa_bustype,
+	model:		pc218e_model,
+	layout:		pc218_layout,
+	},
 	{
 	name:		"pc272e",
 	bustype:	isa_bustype,
@@ -174,23 +321,54 @@ static dio200_board dio200_boards[] = {
  * layout.
  */
 
-enum dio200_sdtype	{ sd_none, sd_intr, sd_8255 };
+enum dio200_sdtype	{ sd_none, sd_intr, sd_8255, sd_8254 };
 
-#define DIO200_MAX_SUBDEVS	4
+#define DIO200_MAX_SUBDEVS	7
 #define DIO200_MAX_ISNS		6
 
 typedef struct dio200_layout_struct {
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS]; /* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS]; /* depends on sdtype */
-	short read_sd;			/* 'read' subdevice' if >= 0 */
+	char has_int_sce;		/* has interrupt enable/status register */
+	char has_clk_gat_sce;		/* has clock/gate selection registers */
 } dio200_layout;
 
 static dio200_layout dio200_layouts[] = {
+	[pc212_layout] = {
+		n_subdevs:	6,
+		sdtype:		{ sd_8255, sd_8254, sd_8254, sd_8254, sd_8254, sd_intr },
+		sdinfo:		{ 0x00, 0x08, 0x0C, 0x10, 0x14, 0x3F },
+		has_int_sce: 1,
+		has_clk_gat_sce: 1,
+	},
+	[pc214_layout] = {
+		n_subdevs:	4,
+		sdtype:		{ sd_8255, sd_8255, sd_8254, sd_intr },
+		sdinfo:		{ 0x00, 0x08, 0x10, 0x01 },
+		has_int_sce: 0,
+		has_clk_gat_sce: 0,
+	},
+	[pc215_layout] = {
+		n_subdevs:	5,
+		sdtype:		{ sd_8255, sd_8255, sd_8254, sd_8254, sd_intr },
+		sdinfo:		{ 0x00, 0x08, 0x10, 0x14, 0x3F },
+		has_int_sce: 1,
+		has_clk_gat_sce: 1,
+	},
+	[pc218_layout] = {
+		n_subdevs:	7,
+		sdtype:		{ sd_8254, sd_8254, sd_8255, sd_8254, sd_8254, sd_intr },
+		sdinfo:		{ 0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x3F },
+		has_int_sce: 1,
+		has_clk_gat_sce: 1,
+	},
 	[pc272_layout] = {
 		n_subdevs:	4,
 		sdtype:		{ sd_8255, sd_8255, sd_8255, sd_intr },
 		sdinfo:		{ 0x00, 0x08, 0x10, 0x3F },
+		has_int_sce: 1,
+		has_clk_gat_sce: 0,
 	},
 };
 
@@ -199,6 +377,8 @@ static dio200_layout dio200_layouts[] = {
  */
 
 static struct pci_device_id dio200_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci215_model },
 	{ PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci272_model },
 	{ 0 }
@@ -223,9 +403,20 @@ typedef struct {
 #define devpriv ((dio200_private *)dev->private)
 
 typedef struct {
+	unsigned long iobase;		/* Counter base address */
+	unsigned long clk_sce_iobase;	/* CLK_SCE base address */
+	unsigned long gat_sce_iobase;	/* GAT_SCE base address */
+	int which;			/* Bit 5 of CLK_SCE or GAT_SCE */
+	int has_clk_gat_sce;
+	unsigned clock_src[3];		/* Current clock sources */
+	unsigned gate_src[3];		/* Current gate sources */
+} dio200_subdev_8254;
+
+typedef struct {
 	unsigned long iobase;
 	spinlock_t spinlock;
 	int active;
+	int has_int_sce;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
 	unsigned int stopcount;
@@ -340,8 +531,13 @@ dio200_subdev_intr_insn_bits(comedi_device *dev, comedi_subdevice *s,
 {
 	dio200_subdev_intr *subpriv = s->private;
 
-	/* Just read the interrupt status register.  */
-	data[1] = inb(subpriv->iobase) & subpriv->valid_isns;
+	if (subpriv->has_int_sce) {
+		/* Just read the interrupt status register.  */
+		data[1] = inb(subpriv->iobase) & subpriv->valid_isns;
+	} else {
+		/* No interrupt status register. */
+		data[0] = 0;
+	}
 
 	return 2;
 }
@@ -357,7 +553,9 @@ dio200_stop_intr(comedi_device *dev, comedi_subdevice *s)
 	s->async->inttrig = 0;
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
-	outb(0, subpriv->iobase);
+	if (subpriv->has_int_sce) {
+		outb(0, subpriv->iobase);
+	}
 }
 
 /*
@@ -388,7 +586,9 @@ dio200_start_intr(comedi_device *dev, comedi_subdevice *s)
 		isn_bits &= subpriv->valid_isns;
 		/* Enable interrupt sources. */
 		subpriv->enabled_isns = isn_bits;
-		outb(isn_bits, subpriv->iobase);
+		if (subpriv->has_int_sce) {
+			outb(isn_bits, subpriv->iobase);
+		}
 	}
 
 	return retval;
@@ -441,17 +641,30 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	oldevents = s->async->events;
-	/*
-	 * Collect interrupt sources that have triggered and disable them
-	 * temporarily.  Loop around until no extra interrupt sources have
-	 * triggered, at which point, the valid part of the interrupt status
-	 * register will read zero, clearing the cause of the interrupt.
-	 */
-	cur_enabled = subpriv->enabled_isns;
-	while ((intstat = (inb(subpriv->iobase) & subpriv->valid_isns)) != 0) {
-		triggered |= intstat;
-		cur_enabled &= ~triggered;
-		outb(cur_enabled, subpriv->iobase);
+	if (subpriv->has_int_sce) {
+		/*
+		 * Collect interrupt sources that have triggered and disable
+		 * them temporarily.  Loop around until no extra interrupt
+		 * sources have triggered, at which point, the valid part of
+		 * the interrupt status register will read zero, clearing the
+		 * cause of the interrupt.
+		 *
+		 * Mask off interrupt sources already seen to avoid infinite
+		 * loop in case of misconfiguration.
+		 */
+		cur_enabled = subpriv->enabled_isns;
+		while ((intstat = (inb(subpriv->iobase) & subpriv->valid_isns
+						& ~triggered)) != 0) {
+			triggered |= intstat;
+			cur_enabled &= ~triggered;
+			outb(cur_enabled, subpriv->iobase);
+		}
+	} else {
+		/*
+		 * No interrupt status register.  Assume the single interrupt
+		 * source has triggered.
+		 */
+		triggered = subpriv->enabled_isns;
 	}
 	
 	if (triggered) {
@@ -462,7 +675,9 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 		 * Reenable them NOW to minimize the time they are disabled.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		outb(cur_enabled, subpriv->iobase);
+		if (subpriv->has_int_sce) {
+			outb(cur_enabled, subpriv->iobase);
+		}
 		
 		if (subpriv->active) {
 			/*
@@ -681,7 +896,7 @@ dio200_subdev_intr_cmd(comedi_device *dev, comedi_subdevice *s)
  */
 static int
 dio200_subdev_intr_init(comedi_device *dev, comedi_subdevice *s,
-		unsigned long iobase, unsigned valid_isns)
+		unsigned long iobase, unsigned valid_isns, int has_int_sce)
 {
 	dio200_subdev_intr *subpriv;
 
@@ -692,16 +907,25 @@ dio200_subdev_intr_init(comedi_device *dev, comedi_subdevice *s,
 	}
 	memset(subpriv, 0, sizeof(*subpriv));
 	subpriv->iobase = iobase;
+	subpriv->has_int_sce = has_int_sce;
 	subpriv->valid_isns = valid_isns;
 	spin_lock_init(&subpriv->spinlock);
 
-	outb(0, subpriv->iobase);	/* Disable interrupt sources. */
+	if (has_int_sce) {
+		outb(0, subpriv->iobase);	/* Disable interrupt sources. */
+	}
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = DIO200_MAX_ISNS;
-	s->len_chanlist = DIO200_MAX_ISNS;
+	if (has_int_sce) {
+		s->n_chan = DIO200_MAX_ISNS;
+		s->len_chanlist = DIO200_MAX_ISNS;
+	} else {
+		/* No interrupt source register.  Support single channel. */
+		s->n_chan = 1;
+		s->len_chanlist = 1;
+	}
 	s->range_table = &range_digital;
 	s->maxdata = 1;
 	s->insn_bits = dio200_subdev_intr_insn_bits;
@@ -742,6 +966,215 @@ dio200_interrupt(int irq, void *d, struct pt_regs *regs)
 	}
 
 	return IRQ_RETVAL(handled);
+}
+
+/*
+ * Handle 'insn_read' for an '8254' counter subdevice.
+ */
+static int
+dio200_subdev_8254_read(comedi_device *dev, comedi_subdevice *s,
+		comedi_insn *insn, lsampl_t *data)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+	int chan = CR_CHAN(insn->chanspec);
+
+	data[0] = i8254_read(subpriv->iobase, chan);
+
+	return 1;
+}
+
+/*
+ * Handle 'insn_write' for an '8254' counter subdevice.
+ */
+static int
+dio200_subdev_8254_write(comedi_device *dev, comedi_subdevice *s,
+		comedi_insn *insn, lsampl_t *data)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+	int chan = CR_CHAN(insn->chanspec);
+
+	i8254_write(subpriv->iobase, chan, data[0]);
+
+	return 1;
+}
+
+/*
+ * Set gate source for an '8254' counter subdevice channel.
+ */
+static int
+dio200_set_gate_src(dio200_subdev_8254 *subpriv, unsigned int counter_number,
+		unsigned int gate_src)
+{
+	unsigned char byte;
+
+	if (!subpriv->has_clk_gat_sce) return -1;
+	if (counter_number > 2) return -1;
+	if (gate_src > 7) return -1;
+
+	subpriv->gate_src[counter_number] = gate_src;
+	byte = GAT_SCE(subpriv->which, counter_number, gate_src);
+	outb(byte, subpriv->gat_sce_iobase);
+
+	return 0;
+}
+
+/*
+ * Get gate source for an '8254' counter subdevice channel.
+ */
+static int
+dio200_get_gate_src(dio200_subdev_8254 *subpriv, unsigned int counter_number)
+{
+	if (!subpriv->has_clk_gat_sce) return -1;
+	if (counter_number > 2) return -1;
+
+	return subpriv->gate_src[counter_number];
+}
+
+/*
+ * Set clock source for an '8254' counter subdevice channel.
+ */
+static int
+dio200_set_clock_src(dio200_subdev_8254 *subpriv, unsigned int counter_number,
+		unsigned int clock_src)
+{
+	unsigned char byte;
+
+	if (!subpriv->has_clk_gat_sce) return -1;
+	if (counter_number > 2) return -1;
+	if (clock_src > 7) return -1;
+
+	subpriv->clock_src[counter_number] = clock_src;
+	byte = CLK_SCE(subpriv->which, counter_number, clock_src);
+	outb(byte, subpriv->clk_sce_iobase);
+
+	return 0;
+}
+
+/*
+ * Get clock source for an '8254' counter subdevice channel.
+ */
+static int
+dio200_get_clock_src(dio200_subdev_8254 *subpriv, unsigned int counter_number)
+{
+	if (!subpriv->has_clk_gat_sce) return -1;
+	if (counter_number > 2) return -1;
+
+	return subpriv->clock_src[counter_number];
+}
+
+/*
+ * Handle 'insn_config' for an '8254' counter subdevice.
+ */
+static int
+dio200_subdev_8254_config(comedi_device *dev, comedi_subdevice *s,
+		comedi_insn *insn, lsampl_t *data)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+	int ret;
+	int chan = CR_CHAN(insn->chanspec);
+
+	if (insn->n != 2) return -EINVAL;
+
+	switch (data[0]) {
+	case INSN_CONFIG_8254_SET_MODE:
+		ret = i8254_set_mode(subpriv->iobase, chan, data[1]);
+		if (ret < 0) return -EINVAL;
+		break;
+	case INSN_CONFIG_8254_READ_STATUS:
+		data[1] = i8254_status(subpriv->iobase, chan);
+		break;
+	case INSN_CONFIG_SET_GATE_SRC:
+		ret = dio200_set_gate_src(subpriv, chan, data[1]);
+		if (ret < 0) return -EINVAL;
+		break;
+	case INSN_CONFIG_GET_GATE_SRC:
+		ret = dio200_get_gate_src(subpriv, chan);
+		if (ret < 0) return -EINVAL;
+		data[1] = ret;
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		ret = dio200_set_clock_src(subpriv, chan, data[1]);
+		if (ret < 0) return -EINVAL;
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		ret = dio200_get_clock_src(subpriv, chan);
+		if (ret < 0) return -EINVAL;
+		data[1] = ret;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 2;
+}
+
+/*
+ * This function initializes an '8254' counter subdevice.
+ *
+ * Note: iobase is the base address of the board, not the subdevice;
+ * offset is the offset to the 8254 chip.
+ */
+static int
+dio200_subdev_8254_init(comedi_device *dev, comedi_subdevice *s,
+		unsigned long iobase, unsigned offset, int has_clk_gat_sce)
+{
+	dio200_subdev_8254 *subpriv;
+	unsigned int chan;
+
+	subpriv = kmalloc(sizeof(*subpriv), GFP_KERNEL);
+	if (!subpriv) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n", dev->minor);
+		return -ENOMEM;
+	}
+	memset(subpriv, 0, sizeof(*subpriv));
+
+	s->private = subpriv;
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 3;
+	s->maxdata = 0xFFFF;
+	s->insn_read = dio200_subdev_8254_read;
+	s->insn_write = dio200_subdev_8254_write;
+	s->insn_config = dio200_subdev_8254_config;
+
+	subpriv->iobase = offset + iobase;
+	subpriv->has_clk_gat_sce = has_clk_gat_sce;
+	if (has_clk_gat_sce) {
+		/* Derive CLK_SCE and GAT_SCE register offsets from
+		 * 8254 offset. */
+		subpriv->clk_sce_iobase =
+			DIO200_XCLK_SCE + (offset >> 3) + iobase;
+		subpriv->gat_sce_iobase =
+			DIO200_XGAT_SCE + (offset >> 3) + iobase;
+		subpriv->which = (offset >> 2) & 1;
+	}
+
+	/* Initialize channels. */
+	for (chan = 0; chan < 3; chan++) {
+		i8254_set_mode(subpriv->iobase, chan,
+				I8254_MODE0 | I8254_BINARY);
+		if (subpriv->has_clk_gat_sce) {
+			/* Gate source 0 is VCC (logic 1). */
+			dio200_set_gate_src(subpriv, chan, 0);
+			/* Clock source 0 is the dedicated clock input. */
+			dio200_set_clock_src(subpriv, chan, 0);
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * This function cleans up an '8254' counter subdevice.
+ */
+static void
+dio200_subdev_8254_cleanup(comedi_device *dev, comedi_subdevice *s)
+{
+	dio200_subdev_intr *subpriv = s->private;
+
+	if (subpriv) {
+		kfree(subpriv);
+	}
 }
 
 /*
@@ -825,6 +1258,15 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 	for (n = 0; n < dev->n_subdevices; n++) {
 		s = &dev->subdevices[n];
 		switch (layout->sdtype[n]) {
+		case sd_8254:
+			/* counter subdevice (8254) */
+			ret = dio200_subdev_8254_init(dev, s, iobase,
+					layout->sdinfo[n],
+					layout->has_clk_gat_sce);
+			if (ret < 0) {
+				return ret;
+			}
+			break;
 		case sd_8255:
 			/* digital i/o subdevice (8255) */
 			ret = subdev_8255_init(dev, s, 0,
@@ -838,7 +1280,8 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 			if (irq) {
 				ret = dio200_subdev_intr_init(dev, s,
 						iobase + DIO200_INT_SCE,
-						layout->sdinfo[n]);
+						layout->sdinfo[n],
+						layout->has_int_sce);
 				if (ret < 0) {
 					return ret;
 				}
@@ -916,6 +1359,9 @@ dio200_detach(comedi_device *dev)
 		for (n = 0; n < dev->n_subdevices; n++) {
 			comedi_subdevice *s = &dev->subdevices[n];
 			switch (layout->sdtype[n]) {
+			case sd_8254:
+				dio200_subdev_8254_cleanup(dev, s);
+				break;
 			case sd_8255:
 				subdev_8255_cleanup(dev, s);
 				break;

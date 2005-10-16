@@ -240,6 +240,10 @@ enum configuration_ids
 	INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001, // Use CTR as single pulsegenerator
 	INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002, // Use CTR as pulsetraingenerator
 	INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003, // Use the counter as encoder
+	INSN_CONFIG_SET_GATE_SRC = 2001,	// Set CTR gate source
+	INSN_CONFIG_GET_GATE_SRC = 2002,	// Get CTR gate source
+	INSN_CONFIG_SET_CLOCK_SRC = 2003,	// Set CTR clock source
+	INSN_CONFIG_GET_CLOCK_SRC = 2004,	// Get CTR clock source
 	INSN_CONFIG_8254_SET_MODE = 4097,
 	INSN_CONFIG_8254_READ_STATUS = 4098
 };
@@ -457,6 +461,29 @@ struct comedi_bufinfo_struct{
 #define GPCT_IndexPhaseHighLow 3
 // Reset when index pulse arrives?
 #define GPCT_RESET_COUNTER_ON_INDEX 1
+
+/*
+  Counter clock and gate source configuration.
+
+  Four config commands to set/get the gate/clock source for a counter channel:
+
+  0 ID: INSN_CONFIG_SET_GATE_SRC
+  1 gate source
+
+  0 ID: INSN_CONFIG_GET_GATE_SRC
+  1 <-- Current gate source returned here.
+
+  0 ID: INSN_CONFIG_SET_CLOCK_SRC
+  1 clock source
+
+  0 ID: INSN_CONFIG_GET_CLOCK_SRC
+  1 <-- Current clock source returned here.
+
+  Notes:
+  1. Gate and clock sources are hardware-specific.
+  2. 'chanspec' indicates the channel to configure (if the hardware supports
+     per-channel configuration of the gate and clock sources).
+*/
 
 /*
   8254 specific configuration.
