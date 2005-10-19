@@ -892,11 +892,10 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 
+	if(async->cmd.chanlist) kfree(async->cmd.chanlist);
 	async->cmd=user_cmd;
 	async->cmd.data=NULL;
-
 	/* load channel/gain list */
-	if(async->cmd.chanlist) kfree(async->cmd.chanlist);
 	async->cmd.chanlist=kmalloc(async->cmd.chanlist_len*sizeof(int),GFP_KERNEL);
 	if(!async->cmd.chanlist){
 		DPRINTK("allocation failed\n");
