@@ -893,11 +893,10 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 	}
 
 	async->cmd=user_cmd;
-	async->cmd.chanlist=NULL;
 	async->cmd.data=NULL;
 
 	/* load channel/gain list */
-	/* we should have this already allocated */
+	if(async->cmd.chanlist) kfree(async->cmd.chanlist);
 	async->cmd.chanlist=kmalloc(async->cmd.chanlist_len*sizeof(int),GFP_KERNEL);
 	if(!async->cmd.chanlist){
 		DPRINTK("allocation failed\n");
