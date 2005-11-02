@@ -35,7 +35,6 @@ Status: experimental
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -1155,15 +1154,7 @@ struct pcmcia_driver das16cs_driver =
 
 static int __init init_das16cs_pcmcia_cs(void)
 {
-	servinfo_t serv;
 	DEBUG(0, "%s\n", version);
-	pcmcia_get_card_services_info(&serv);
-	if (serv.Revision != CS_RELEASE_CODE)
-	{
-		printk(KERN_NOTICE "das16cs: Card Services release "
-			"does not match!\n");
-		//return -1;
-	}
 	pcmcia_register_driver(&das16cs_driver);
 	return 0;
 }

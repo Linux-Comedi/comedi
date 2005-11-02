@@ -48,7 +48,6 @@ Command support does not exist, but could be added for this board.
 #include "das08.h"
 
 // pcmcia includes
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -671,15 +670,7 @@ struct pcmcia_driver das08_cs_driver =
 
 static int __init init_das08_pcmcia_cs(void)
 {
-	servinfo_t serv;
 	DEBUG(0, "%s\n", version);
-	pcmcia_get_card_services_info(&serv);
-	if (serv.Revision != CS_RELEASE_CODE)
-	{
-		printk(KERN_NOTICE "das08: Card Services release "
-			"does not match!\n");
-		return -1;
-	}
 	pcmcia_register_driver(&das08_cs_driver);
 	return 0;
 }

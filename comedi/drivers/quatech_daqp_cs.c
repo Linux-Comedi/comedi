@@ -50,7 +50,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <linux/comedidev.h>
 
 #include <linux/version.h>
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -1531,14 +1530,7 @@ struct pcmcia_driver daqp_cs_driver =
 
 int init_module(void)
 {
-    servinfo_t serv;
     DEBUG(0, "%s\n", version);
-    pcmcia_get_card_services_info(&serv);
-    if (serv.Revision != CS_RELEASE_CODE) {
-	printk(KERN_NOTICE "daqp_cs: Card Services release "
-	       "does not match!\n");
-	return -1;
-    }
 	pcmcia_register_driver(&daqp_cs_driver);
     comedi_driver_register(&driver_daqp);
     return 0;

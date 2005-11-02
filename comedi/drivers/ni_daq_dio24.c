@@ -47,7 +47,6 @@ the PCMCIA interface.
 
 #include "8255.h"
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -800,15 +799,8 @@ struct pcmcia_driver dio24_cs_driver =
 
 static int __init init_dio24_cs(void)
 {
-    servinfo_t serv;
     printk("ni_daq_dio24: HOLA SOY YO!\n");
     DEBUG(0, "%s\n", version);
-	pcmcia_get_card_services_info(&serv);
-    if (serv.Revision != CS_RELEASE_CODE) {
-		printk(KERN_NOTICE "ni_daq_dio24: Card Services release "
-			"does not match! Vaya putada\n");
-		return -1;
-    }
 	pcmcia_register_driver(&dio24_cs_driver);
     return 0;
 }

@@ -49,7 +49,6 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -622,14 +621,6 @@ struct pcmcia_driver ni_mio_cs_driver =
 
 int init_module(void)
 {
-	servinfo_t serv;
-
-	pcmcia_get_card_services_info(&serv);
-	if(serv.Revision != CS_RELEASE_CODE){
-		printk(KERN_NOTICE "mio_cs: Card Services release "
-			"does not match!\n");
-		//return -EPERM; /* XXX what to return? */
-	}
 	pcmcia_register_driver(&ni_mio_cs_driver);
 	comedi_driver_register(&driver_ni_mio_cs);
 	return 0;
