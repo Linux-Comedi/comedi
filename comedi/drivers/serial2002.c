@@ -36,6 +36,10 @@ Status: in development
 #include <linux/delay.h>
 #include <linux/ioport.h>
 
+#include <termios.h>
+#include <asm/ioctls.h>
+#include <linux/serial.h>
+#include <linux/poll.h>
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
@@ -71,8 +75,10 @@ typedef struct {
   unsigned char digital_out_mapping[32];
   unsigned char analog_in_mapping[32];
   unsigned char analog_out_mapping[32];
+  unsigned char encoder_in_mapping[32];
   serial2002_range_table_t in_range[32], out_range[32];
 } serial2002_private;
+
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
@@ -135,26 +141,51 @@ static int tty_available(struct file *f)
 
 static int tty_read(struct file *f, int timeout) 
 {
-  int result, retries;
-  mm_segment_t oldfs;
+  int result;
 
   result = -1;
   if (!IS_ERR(f)) {
-    retries = 0;
+    mm_segment_t oldfs;
+
     oldfs = get_fs();
     set_fs(KERNEL_DS);
-    while (retries < timeout) {
+    if (f->f_op->poll) {
+      struct poll_wqueues table;
+      struct timeval start, now;
+	
+      do_gettimeofday(&start);
+      poll_initwait(&table);
+      while (1) {
+	long elapsed;
+	int mask;
+
+	mask = f->f_op->poll(f, &table);
+	if (mask & (POLLRDNORM|POLLRDBAND|POLLIN|POLLHUP|POLLERR)) { break; }
+	do_gettimeofday(&now);
+	elapsed = (1000000 * (now.tv_sec - start.tv_sec) + 
+		   now.tv_usec - start.tv_usec);
+	if (elapsed > timeout) { break;	}
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(((timeout - elapsed)* HZ) / 10000);
+      }
+      poll_freewait(&table);
+    } else {
+      /* Device does not support poll, busy wait */
+      int retries = 0;
+      while (1) {
       retries++;
+	if (retries >= timeout) { break; }
+	if (tty_available(f) > 0) { break; }
+	comedi_udelay(100);
+      }
+    }      
       if (tty_available(f) > 0) {
-	int count;
 	unsigned char ch; 
 
 	f->f_pos = 0;
-	count = f->f_op->read(f, &ch, 1, &f->f_pos);
-	if (count == 1) {	result = ch; }
-	break;
+      if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
+	result = ch; 
       }
-      comedi_udelay(100);
     }
     set_fs(oldfs);
   }
@@ -195,7 +226,6 @@ static void tty_setspeed(struct file *f, int speed)
   {
     // Set low latency
     struct serial_struct settings;
-    int i;
     f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCGSERIAL, (int)&settings);
     settings.flags |= ASYNC_LOW_LATENCY;
     f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCSSERIAL, (int)&settings);
@@ -232,6 +262,7 @@ static struct serial_data serial_read(struct file *f, int timeout)
 
     length++;
     if (data < 0) {
+      printk("serial2002 error\n");
       break;
     } else if (data & 0x80) {
       result.value = (result.value << 7) | (data & 0x7f);
@@ -271,7 +302,7 @@ static void serial_write(struct file *f, struct serial_data data)
   }
 }
 
-static int serial_2002_open(comedi_device *dev) {
+static void serial_2002_open(comedi_device *dev) {
   char port[20];
 
   sprintf(port, "/dev/ttyS%d", devpriv->port);
@@ -363,7 +394,7 @@ static int serial_2002_open(comedi_device *dev) {
 	}
       }
     }
-    for (i = 0 ; i < 4 ; i++) {
+    for (i = 0 ; i <= 4 ; i++) {
       // Fill in subdev data
       config_t *c;
       unsigned char *mapping = 0;
@@ -395,7 +426,8 @@ static int serial_2002_open(comedi_device *dev) {
 	} break;
 	case  4: { 
 	  c = chan_in_config; 
-	  c = 0; // Counters/encoder not implemented yet
+	  mapping = devpriv->encoder_in_mapping;
+	  range = devpriv->in_range;
 	  kind = 5; 
 	} break;
 	default: { c = 0; } break;
@@ -427,21 +459,19 @@ static int serial_2002_open(comedi_device *dev) {
 	      range[j].range.max = c[j].max;
 	      s->range_table_list[chan] = (comedi_lrange*)&range[j];
 	    }
-	    s->maxdata_list[chan] = (1<<c[j].bits) - 1;
+	    s->maxdata_list[chan] = ((long long)1<<c[j].bits) - 1;
 	    chan++;
 	  }
 	}
       }
     }      
   }
-  return 0;
 }
 
-static int serial_2002_close(comedi_device *dev) {
+static void serial_2002_close(comedi_device *dev) {
   if (!IS_ERR(devpriv->tty) && (devpriv->tty != 0)) {
     filp_close(devpriv->tty, 0);
   }
-  return 0;
 }
 
 static int serial2002_di_rinsn(comedi_device *dev, comedi_subdevice *s,
@@ -534,7 +564,27 @@ static int serial2002_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
   return n;
 }
 
-static int serial2002_attach(comedi_device *dev,comedi_devconfig *it)
+static int serial2002_ei_rinsn(comedi_device *dev, comedi_subdevice *s,
+			       comedi_insn *insn, lsampl_t *data)
+{
+  int n;
+  int chan;
+  
+  chan = devpriv->encoder_in_mapping[CR_CHAN(insn->chanspec)];
+  for(n = 0 ; n < insn->n ; n++){
+    struct serial_data read;
+    
+    poll_channel(devpriv->tty, chan);
+    while (1) {
+      read = serial_read(devpriv->tty, 1000);
+      if (read.kind != is_channel || read.index == chan) { break; } 
+    }
+    data[n] = read.value;
+  }
+  return n;
+}
+
+static int serial2002_attach(comedi_device *dev, comedi_devconfig *it)
 {
   comedi_subdevice *s;
 
@@ -549,7 +599,7 @@ static int serial2002_attach(comedi_device *dev,comedi_devconfig *it)
   devpriv->speed = it->options[1];
   printk("/dev/ttyS%d @ %d\n", devpriv->port, devpriv->speed);
 
-  if(alloc_subdevices(dev, 4)<0)
+  if(alloc_subdevices(dev, 5)<0)
     return -ENOMEM;
   
   /* digital input subdevice */
@@ -588,6 +638,15 @@ static int serial2002_attach(comedi_device *dev,comedi_devconfig *it)
   s->range_table = 0;
   s->insn_write = &serial2002_ao_winsn;
   s->insn_read = &serial2002_ao_rinsn;
+  
+  /* encoder input subdevice */
+  s=dev->subdevices+4;
+  s->type = COMEDI_SUBD_COUNTER;
+  s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
+  s->n_chan = 0;
+  s->maxdata = 1;
+  s->range_table = 0;
+  s->insn_read = &serial2002_ei_rinsn;
   
   printk("attached\n");
   

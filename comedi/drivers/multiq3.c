@@ -103,8 +103,7 @@ static int multiq3_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 {
 	int i,n;
 	int chan;
-	unsigned short hi, lo;
-	int16_t raw_data;
+	unsigned int hi, lo;
 
 	chan = CR_CHAN(insn->chanspec);
 	outw(MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3),
@@ -126,9 +125,7 @@ static int multiq3_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 		hi = inb(dev->iobase + MULTIQ3_AD_CS);
 		lo = inb(dev->iobase + MULTIQ3_AD_CS);
-		raw_data = ((hi << 8) & 0xff00) | (lo & 0xff);
-		raw_data += 0x1000;
-		data[n] = raw_data & 0x1fff;
+		data[n] = (((hi << 8) | lo) + 0x1000) & 0x1fff;
 	}
 
 	return n;
@@ -197,12 +194,14 @@ static int multiq3_encoder_insn_read(comedi_device *dev,comedi_subdevice *s,
 	int control = MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan<<3);
 
 	for(n=0;n<insn->n;n++){
+                int value;
 		outw(control, dev->iobase+MULTIQ3_CONTROL);
 		outb(MULTIQ3_BP_RESET, dev->iobase+MULTIQ3_ENC_CONTROL);
 		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase+MULTIQ3_ENC_CONTROL);
-		data[n] = inb(dev->iobase+MULTIQ3_ENC_DATA);
-		data[n] |= (inb(dev->iobase+MULTIQ3_ENC_DATA)<<8);
-		data[n] |= (inb(dev->iobase+MULTIQ3_ENC_DATA)<<16);
+                value = inb(dev->iobase+MULTIQ3_ENC_DATA);
+                value |= (inb(dev->iobase+MULTIQ3_ENC_DATA)<<8);
+                value |= (inb(dev->iobase+MULTIQ3_ENC_DATA)<<16);
+                data[n] = (value + 0x800000) & 0xffffff;
 	}
 
 	return n;

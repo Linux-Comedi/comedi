@@ -335,9 +335,9 @@ static void writeAcqScanListEntry(comedi_device *dev, u16 entry)
 {
   daqboard2000_hw *fpga = devpriv->daq;
 
-  comedi_udelay(4);
+//  comedi_udelay(4);
   fpga->acqScanListFIFO = entry & 0x00ff;
-  comedi_udelay(4);
+//  comedi_udelay(4);
   fpga->acqScanListFIFO = (entry >> 8) & 0x00ff;
 }
 
@@ -380,9 +380,15 @@ static int daqboard2000_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
   daqboard2000_hw *fpga = devpriv->daq;
   int gain, chan, timeout;
 
-  /* Could these two be merged? */
-  fpga->acqControl = DAQBOARD2000_AcqResetScanListFifo;
-  fpga->acqControl = DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
+  fpga->acqControl = 
+    DAQBOARD2000_AcqResetScanListFifo |
+    DAQBOARD2000_AcqResetResultsFifo | 
+    DAQBOARD2000_AcqResetConfigPipe;
+
+  /* If pacer clock is not set to some high value (> 10 us), we
+     risk multiple samples to be put into the result FIFO. */
+  fpga->acqPacerClockDivLow = 1000000; /* 1 second, should be long enough */
+  fpga->acqPacerClockDivHigh = 0;
 
   gain = CR_RANGE(insn->chanspec);
   chan = CR_CHAN(insn->chanspec);		
@@ -662,10 +668,10 @@ static int daqboard2000_8255_cb(int dir, int port, int data, unsigned long ioadd
 {
   int result = 0;
   if(dir){
-    writew(data, (void*)(ioaddr+port*2));
+    writew(data,ioaddr+port*2);
     result = 0;
   }else{
-    result = readw((void*)(ioaddr+port*2));
+    result = readw(ioaddr+port*2);
   }
 /*
   printk("daqboard2000_8255_cb %x %d %d %2.2x -> %2.2x\n",
