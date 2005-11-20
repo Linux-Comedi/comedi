@@ -2361,20 +2361,22 @@ static uint32_t ai_convert_counter_6xxx( const comedi_device *dev, const comedi_
 
 static uint32_t ai_scan_counter_6xxx( comedi_device *dev, comedi_cmd *cmd )
 {
+	uint32_t count;
 	// figure out how long we need to delay at end of scan
 	switch( cmd->scan_begin_src )
 	{
 	case TRIG_TIMER:
-		return ( cmd->scan_begin_arg - ( cmd->convert_arg * ( cmd->chanlist_len - 1 ) ) )
+		count = (cmd->scan_begin_arg - (cmd->convert_arg * (cmd->chanlist_len - 1)))
 			/ TIMER_BASE;
 		break;
 	case TRIG_FOLLOW:
-		return cmd->convert_arg / TIMER_BASE;
+		count = cmd->convert_arg / TIMER_BASE;
 		break;
 	default:
+		return 0;
 		break;
 	}
-	return 0;
+	return count - 3;
 }
 
 static uint32_t ai_convert_counter_4020( comedi_device *dev, comedi_cmd *cmd )
