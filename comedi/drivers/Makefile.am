@@ -40,6 +40,7 @@ EXTRA_DIST = \
  amcc_s5933.h \
  comedi_fc.h \
  das08.h \
+ dt9812.h \
  icp_multi.h \
  mite.h \
  me4000.h \
@@ -72,7 +73,10 @@ pcmcia_modules=
 endif
 
 if CONFIG_USB
-usb_modules=usbdux.ko usbduxfast.ko
+usb_modules= \
+ usbdux.ko \
+ usbduxfast.ko \
+ dt9812.ko
 else
 usb_modules=
 endif
