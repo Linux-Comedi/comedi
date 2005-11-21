@@ -159,7 +159,7 @@ static int tty_read(struct file *f, int timeout)
 	long elapsed;
 	int mask;
 
-	mask = f->f_op->poll(f, &table);
+	mask = f->f_op->poll(f, &table.pt);
 	if (mask & (POLLRDNORM|POLLRDBAND|POLLIN|POLLHUP|POLLERR)) { break; }
 	do_gettimeofday(&now);
 	elapsed = (1000000 * (now.tv_sec - start.tv_sec) + 
