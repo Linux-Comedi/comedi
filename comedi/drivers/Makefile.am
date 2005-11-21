@@ -99,6 +99,7 @@ module_PROGRAMS = \
  amplc_pc236.ko \
  amplc_pc263.ko \
  amplc_dio200.ko \
+ c6xdigio.ko \
  cb_pcidas.ko \
  cb_pcidas64.ko \
  cb_pcidda.ko \
