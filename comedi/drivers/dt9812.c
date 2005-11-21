@@ -23,6 +23,19 @@
  */
 
 /*
+Driver: dt9812.o
+Description: Data Translation DT9812 USB module
+Author: anders.blomdell@control.lth.se (Anders Blomdell)
+Status: in development
+Devices: [Data Translation] DT9812 (dt9812)
+Updated: Sun Nov 20 20:18:34 EST 2005
+
+This driver works, but bulk transfers not implemented. Might be a starting point
+for someone else. I found out too late that USB has too high latencies (>1 ms)
+for my needs.
+*/
+
+/*
  * Nota Bene:
  *   1. All writes to command pipe has to be 32 bytes (ISP1181B SHRTP=0 ?)
  *   2. The DDK source (as of sep 2005) is in error regarding the 
