@@ -21,6 +21,17 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
  */
+/*
+Driver: c6xdigio.o
+Description: Mechatronic Systems Inc. C6x_DIGIO DSP daughter card
+Author: Dan Block
+Status: unknown
+Devices: [Mechatronic Systems Inc.] C6x_DIGIO DSP daughter card (c6xdigio)
+Updated: Sun Nov 20 20:18:34 EST 2005
+
+http://robot0.ge.uiuc.edu/~spong/mecha/
+
+*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
