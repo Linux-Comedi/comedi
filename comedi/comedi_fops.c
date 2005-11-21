@@ -58,7 +58,7 @@ MODULE_PARM(comedi_debug, "i");
 #endif
 
 comedi_device *comedi_devices;
-spinlock_t big_comedi_lock = SPIN_LOCK_UNLOCKED;
+spinlock_t big_comedi_lock; /* Dynamic initialization */
 
 static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,unsigned int minor);
 static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
@@ -1707,6 +1707,7 @@ static int __init comedi_init(void)
 	int i;
 
 	printk("comedi: version " COMEDI_RELEASE " - David Schleef <ds@schleef.org>\n");
+	spin_lock_init(&big_comedi_lock);
 	if(devfs_register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
 		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
 		return -EIO;
