@@ -1056,6 +1056,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		writel(pin_is_output(0), devpriv->mite->daq_io_addr
 			+ GPCT_OFFSET[chipset]
 			+ registerData[IOConfigReg(chipset, counter_channel)].offset);
+		break;
 	case INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR:
 		DPRINTK("NI_660x: INSN_CONFIG: PTG linking inttrig\n");
 		s->async->inttrig = ni_660x_GPCT_inttrig;
