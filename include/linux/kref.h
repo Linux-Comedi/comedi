@@ -98,7 +98,16 @@ static inline void KREF_INIT(struct kref *kref, void (*release) (struct kref *kr
 
 static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref))
 {
-	return kref_put(kref, release);
+	int retval;
+	if(atomic_read(&kref->refcount) == 1)
+	{
+		retval = 1;
+	}else
+	{
+		retval = 0;
+	}
+	kref_put(kref, release);
+	return retval;
 }
 
 #endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
