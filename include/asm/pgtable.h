@@ -21,7 +21,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
 #define pud_t pgd_t
 #define pud_offset(pgd, start)	(pgd)
 #endif
