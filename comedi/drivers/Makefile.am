@@ -138,6 +138,7 @@ module_PROGRAMS = \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
  ni_at_ao.ko \
+ pcm3724.ko \
  pcm3730.ko \
  pcmad.ko \
  poc.ko \
