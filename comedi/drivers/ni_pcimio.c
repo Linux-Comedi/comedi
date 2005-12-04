@@ -45,8 +45,7 @@ By default, the driver uses DMA to transfer analog input data to
 memory.  When DMA is enabled, not all triggering features are
 supported.
 
-PCI IDs are not known for PCI-6733.  Digital I/O may not
-work on 673x.
+Digital I/O may not work on 673x.
 
 Information (number of channels, bits, etc.) for some devices may be
 incorrect.  Please check this and submit a bug if there are problems
