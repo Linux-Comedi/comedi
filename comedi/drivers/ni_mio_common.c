@@ -1637,8 +1637,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		break;
 	case TRIG_NONE:
 		/* stage number of scans */
-		win_out(0,AI_SC_Load_A_Registers);
-		win_out(0,AI_SC_Load_A_Registers+1);
+		win_out2(0,AI_SC_Load_A_Registers);
 
 		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
 		win_out(mode1,AI_Mode_1_Register);
