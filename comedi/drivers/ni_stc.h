@@ -48,7 +48,7 @@
 
 /* Registers in the National Instruments DAQ-STC chip */
 
-#define Interrupt_A_Ack_Register	2
+#define Interrupt_A_Ack_Register	2	/* M Series: 0x104 */
 #define G0_Gate_Interrupt_Ack			_bit15
 #define G0_TC_Interrupt_Ack			_bit14
 #define AI_Error_Interrupt_Ack			_bit13
@@ -61,7 +61,7 @@
 #define G0_TC_Error_Confirm			_bit6
 #define G0_Gate_Error_Confirm			_bit5
 
-#define AI_Status_1_Register		2
+#define AI_Status_1_Register		2	/* M Series: 0x104 */
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
 #define AI_FIFO_Half_Full_St			0x2000
@@ -81,14 +81,14 @@
 
 #define AI_Status_2_Register		5
 
-#define Interrupt_B_Ack_Register	3
+#define Interrupt_B_Ack_Register	3	/* M Series: 0x106 */
 enum Interrupt_B_Ack_Bits
 {
 	AO_BC_TC_Interrupt_Ack = _bit8,
 	AO_Error_Interrupt_Ack = _bit13,
 };
 
-#define AO_Status_1_Register		3
+#define AO_Status_1_Register		3	/* M Series: 0x106 */
 #define Interrupt_B_St				_bit15
 #define AO_FIFO_Full_St				_bit14
 #define AO_FIFO_Half_Full_St			_bit13
@@ -107,7 +107,7 @@ enum Interrupt_B_Ack_Bits
 #define Pass_Thru_1_Interrupt_St		_bit0
 
 
-#define AI_Command_2_Register		4
+#define AI_Command_2_Register		4	/* M Series: 0x108 */
 #define AI_End_On_SC_TC				_bit15
 #define AI_End_On_End_Of_Scan			_bit14
 #define AI_START1_Disable			_bit11
@@ -121,8 +121,8 @@ enum Interrupt_B_Ack_Bits
 #define AI_START2_Pulse				_bit1
 #define AI_START1_Pulse				_bit0
 
-#define AO_Command_2_Register		5
-#define AO_End_On_BC_TC(x)			((x)<<14)
+#define AO_Command_2_Register		5	/* M Series: 0x10a */
+#define AO_End_On_BC_TC(x)			(((x) & 0x3) << 14)
 #define AO_Start_Stop_Gate_Enable		_bit13
 #define AO_UC_Save_Trace			_bit12
 #define AO_BC_Gate_Enable			_bit11
@@ -138,11 +138,11 @@ enum Interrupt_B_Ack_Bits
 #define AO_UPDATE2_Pulse			_bit1
 #define AO_START1_Pulse				_bit0
 
-#define AO_Status_2_Register		6
+#define AO_Status_2_Register		6	/* M Series: 0x10c */
 
 #define DIO_Parallel_Input_Register	7
 
-#define AI_Command_1_Register		8
+#define AI_Command_1_Register		8	/* M Series: 0x110 */
 #define AI_Analog_Trigger_Reset			_bit14
 #define AI_Disarm				_bit13
 #define AI_SI2_Arm				_bit12
@@ -159,7 +159,7 @@ enum Interrupt_B_Ack_Bits
 #define AI_SC_TC_Pulse			 	_bit1
 #define AI_CONVERT_Pulse			_bit0
 
-#define AO_Command_1_Register		9
+#define AO_Command_1_Register		9	/* M Series: 0x112 */
 #define AO_Analog_Trigger_Reset			_bit15
 #define AO_START_Pulse				_bit14
 #define AO_Disarm				_bit13
@@ -194,16 +194,17 @@ enum Interrupt_B_Ack_Bits
 #define DIO_Pins_Dir(a)                         ((a)&0xff)
 #define DIO_Pins_Dir_Mask                       0xff
 
-#define AI_Mode_1_Register		12
-#define AI_CONVERT_Source_Select(a)		((a)<<11)
-#define AI_SI_Source_select(a)			((a)<<6)
+#define AI_Mode_1_Register		12	/* M Series: 0x118 */
+#define AI_CONVERT_Source_Select(a)		(((a) & 0x1f) << 11)
+#define AI_SI_Source_select(a)			(((a) & 0x1f) << 6)
 #define AI_CONVERT_Source_Polarity		_bit5
+#define AI_SI_Source_Polarity		_bit4
 #define AI_Start_Stop				_bit3
 #define AI_Mode_1_Reserved			_bit2
 #define AI_Continuous				_bit1
 #define AI_Trigger_Once				_bit0
 
-#define AI_Mode_2_Register		13
+#define AI_Mode_2_Register		13	/* M Series: 0x11a */
 #define AI_SC_Gate_Enable			_bit15
 #define AI_Start_Stop_Gate_Enable		_bit14
 #define AI_Pre_Trigger				_bit13
@@ -211,30 +212,33 @@ enum Interrupt_B_Ack_Bits
 #define AI_SI2_Initial_Load_Source		_bit9
 #define AI_SI2_Reload_Mode			_bit8
 #define AI_SI_Initial_Load_Source		_bit7
-#define AI_SI_Reload_Mode(a)			((a)<<4)
+#define AI_SI_Reload_Mode(a)			(((a) & 0x7)<<4)
 #define AI_SI_Write_Switch			_bit3
 #define AI_SC_Initial_Load_Source		_bit2
 #define AI_SC_Reload_Mode			_bit1
 #define AI_SC_Write_Switch			_bit0
 
-#define AI_SI_Load_A_Registers		14
-#define AI_SI_Load_B_Registers		16
-#define AI_SC_Load_A_Registers		18
-#define AI_SC_Load_B_Registers		20
-#define AI_SI2_Load_A_Register		23
-#define AI_SI2_Load_B_Register		25
+#define AI_SI_Load_A_Registers		14	/* M Series: 0x11c  and 32 bits wide */
+#define AI_SI_Load_B_Registers		16	/* M Series: 0x120 and 32 bits wide */
+#define AI_SC_Load_A_Registers		18	/* M Series: 0x124 and 32 bits wide */
+#define AI_SC_Load_B_Registers		20	/* M Series: 0x128 and 32 bits wide */
+#define AI_SI_Save_Registers		64	/* M Series: 0x180 and 32 bits wide */
+#define AI_SC_Save_Registers		66	/* M Series: 0x184 and 32 bits wide */
 
-#define Joint_Status_1_Register         27
+#define AI_SI2_Load_A_Register		23	/* M Series: 0x12c and 32 bits wide */
+#define AI_SI2_Load_B_Register		25	/* M Series: 0x130 and 32 bits wide */
+
+#define Joint_Status_1_Register         27	/* M Series: 0x136 */
 #define DIO_Serial_IO_In_Progress_St            _bit12
 
 #define DIO_Serial_Input_Register       28
-#define Joint_Status_2_Register         29
+#define Joint_Status_2_Register         29	/* M Series: 0x13a */
 enum Joint_Status_2_Bits
 {
 	AO_TMRDACWRs_In_Progress_St = 0x20,
 };
 
-#define AO_Mode_1_Register		38
+#define AO_Mode_1_Register		38	/* M Series: 0x14c */
 #define AO_UPDATE_Source_Select(x)		(((x)&0x1f)<<11)
 #define AO_UI_Source_Select(x)			(((x)&0x1f)<<6)
 #define AO_Multiple_Channels			_bit5
@@ -244,7 +248,7 @@ enum Joint_Status_2_Bits
 #define AO_Continuous				_bit1
 #define AO_Trigger_Once				_bit0
 
-#define AO_Mode_2_Register		39
+#define AO_Mode_2_Register		39	/* M Series: 0x14e */
 #define AO_FIFO_Mode_Mask ( 0x3 << 14 )
 enum AO_FIFO_Mode_Bits
 {
@@ -260,26 +264,31 @@ enum AO_FIFO_Mode_Bits
 #define AO_UI2_Initial_Load_Source		_bit9
 #define AO_UI2_Reload_Mode			_bit8
 #define AO_UI_Initial_Load_Source		_bit7
-#define AO_UI_Reload_Mode(x)			((x)<<4)
+#define AO_UI_Reload_Mode(x)			(((x) & 0x7) << 4)
 #define AO_UI_Write_Switch			_bit3
 #define AO_BC_Initial_Load_Source		_bit2
 #define AO_BC_Reload_Mode			_bit1
 #define AO_BC_Write_Switch			_bit0
 
-#define AO_UI_Load_A_Register		40
+#define AO_UI_Load_A_Register		40	/* M Series: 0x150 and 32 bits wide */
 #define AO_UI_Load_A_Register_High	40
 #define AO_UI_Load_A_Register_Low	41
-#define AO_BC_Load_A_Register		44
+#define AO_UI_Load_B_Register		42	/* M Series: 0x154 and 32 bits wide */
+#define AO_UI_Save_Registers		16	/* M Series: 0x120 and 32 bits wide */
+#define AO_BC_Load_A_Register		44	/* M Series: 0x158 and 32 bits wide */
 #define AO_BC_Load_A_Register_High	44
 #define AO_BC_Load_A_Register_Low	45
-#define AO_BC_Load_B_Register		46
+#define AO_BC_Load_B_Register		46	/* M Series: 0x15c and 32 bits wide */
 #define AO_BC_Load_B_Register_High	46
 #define AO_BC_Load_B_Register_Low	47
-#define AO_UC_Load_A_Register		48
+#define AO_BC_Save_Registers		18	/* M Series: 0x124 and 32 bits wide */
+#define AO_UC_Load_A_Register		48	/* M Series: 0x160 and 32 bits wide */
 #define AO_UC_Load_A_Register_High	48
 #define AO_UC_Load_A_Register_Low	49
+#define AO_UC_Load_B_Register		50	/* M Series: 0x164 and 32 bits wide */
+#define AO_UC_Save_Registers		20	/* M Series: 0x128 and 32 bits wide */
 
-#define Clock_and_FOUT_Register		56
+#define Clock_and_FOUT_Register		56	/* M Series: 0x170 */
 #define FOUT_Enable				_bit15
 #define FOUT_Timebase_Select			_bit14
 #define DIO_Serial_Out_Divide_By_2		_bit13
@@ -292,11 +301,11 @@ enum AO_FIFO_Mode_Bits
 #define AI_Source_Divide_By_2			_bit6
 #define AO_Output_Divide_By_2			_bit5
 #define AO_Source_Divide_By_2			_bit4
-#define FOUT_Divider(x)				((x)<<0)
+#define FOUT_Divider(x)				(((x) & 0xf) << 0)
 
-#define IO_Bidirection_Pin_Register	57
+#define IO_Bidirection_Pin_Register	57	/* M Series: 0x172 */
 
-#define Interrupt_Control_Register	59
+#define Interrupt_Control_Register	59	/* M Series: 0x176 */
 #define Interrupt_B_Enable			_bit15
 #define Interrupt_B_Output_Select(x)		((x)<<12)
 #define Interrupt_A_Enable			_bit11
@@ -306,47 +315,47 @@ enum AO_FIFO_Mode_Bits
 #define Interrupt_Output_On_3_Pins		_bit1
 #define Interrupt_Output_Polarity		_bit0
 
-#define AI_Output_Control_Register	60
+#define AI_Output_Control_Register	60	/* M Series: 0x178 */
 #define AI_START_Output_Select			_bit10
-#define AI_SCAN_IN_PROG_Output_Select(x)	((x)<<8)
-#define AI_EXTMUX_CLK_Output_Select(x)		((x)<<6)
+#define AI_SCAN_IN_PROG_Output_Select(x)	(((x) & 0x3) << 8)
+#define AI_EXTMUX_CLK_Output_Select(x)		(((x) & 0x3) << 6)
 #define AI_LOCALMUX_CLK_Output_Select(x)	((x)<<4)
 #define AI_SC_TC_Output_Select(x)		((x)<<2)
-#define AI_CONVERT_Output_Select(x)		((x)<<0)
+#define AI_CONVERT_Output_Select(x)		(((x) & 0x3) << 0)
 
-#define AI_START_STOP_Select_Register	62
+#define AI_START_STOP_Select_Register	62	/* M Series: 0x17c */
 #define AI_START_Polarity			_bit15
 #define AI_STOP_Polarity			_bit14
 #define AI_STOP_Sync				_bit13
 #define AI_STOP_Edge				_bit12
-#define AI_STOP_Select(a)			((a)<<7)
+#define AI_STOP_Select(a)			(((a) & 0x1f)<<7)
 #define AI_START_Sync				_bit6
 #define AI_START_Edge				_bit5
-#define AI_START_Select(a)			(a)
+#define AI_START_Select(a)			((a) & 0x1f)
 
-#define AI_Trigger_Select_Register	63
+#define AI_Trigger_Select_Register	63	/* M Series: 0x17e */
 #define AI_START1_Polarity			_bit15
 #define AI_START2_Polarity			_bit14
 #define AI_START2_Sync				_bit13
 #define AI_START2_Edge				_bit12
-#define AI_START2_Select(a)			((a)<<7)
+#define AI_START2_Select(a)			(((a) & 0x1f) << 7)
 #define AI_START1_Sync				_bit6
 #define AI_START1_Edge				_bit5
-#define AI_START1_Select(a)			(a)
+#define AI_START1_Select(a)			((a) & 0x1f)
 
-#define AI_DIV_Load_A_Register	64
+#define AI_DIV_Load_A_Register	64	/* M Series: 0x180 */
 
-#define AO_Start_Select_Register	66
+#define AO_Start_Select_Register	66	/* M Series: 0x184 */
 #define AO_UI2_Software_Gate			_bit15
 #define AO_UI2_External_Gate_Polarity		_bit14
 #define AO_START_Polarity			_bit13
 #define AO_AOFREQ_Enable			_bit12
-#define AO_UI2_External_Gate_Select(a)		((a)<<7)
+#define AO_UI2_External_Gate_Select(a)		(((a) & 0x1f) << 7)
 #define AO_START_Sync				_bit6
 #define AO_START_Edge				_bit5
-#define AO_START_Select(a)			(a)
+#define AO_START_Select(a)			((a) & 0x1f)
 
-#define AO_Trigger_Select_Register	67
+#define AO_Trigger_Select_Register	67	/* M Series: 0x186 */
 #define AO_UI2_External_Gate_Enable		_bit15
 #define AO_Delayed_START1			_bit14
 #define AO_START1_Polarity			_bit13
@@ -356,7 +365,7 @@ enum AO_FIFO_Mode_Bits
 #define AO_START1_Edge				_bit5
 #define AO_START1_Select(x)			(((x)&0x1f)<<0)
 
-#define AO_Mode_3_Register		70
+#define AO_Mode_3_Register		70	/* M Series: 0x18c */
 #define AO_UI2_Switch_Load_Next_TC		_bit13
 #define AO_UC_Switch_Load_Every_BC_TC		_bit12
 #define AO_Trigger_Length			_bit11
@@ -365,8 +374,10 @@ enum AO_FIFO_Mode_Bits
 #define AO_Stop_On_BC_TC_Error			_bit3
 #define AO_Not_An_UPDATE			_bit2
 #define AO_Software_Gate			_bit1
+#define AO_Last_Gate_Disable		_bit0	/* M Series only */
 
-#define Joint_Reset_Register		72
+#define Joint_Reset_Register		72	/* M Series: 0x190 */
+#define Software_Reset			_bit11
 #define AO_Configuration_End			_bit9
 #define AI_Configuration_End			_bit8
 #define AO_Configuration_Start			_bit5
@@ -376,7 +387,7 @@ enum AO_FIFO_Mode_Bits
 #define AO_Reset				_bit1
 #define AI_Reset				_bit0
 
-#define Interrupt_A_Enable_Register	73
+#define Interrupt_A_Enable_Register	73	/* M Series: 0x192 */
 #define Pass_Thru_0_Interrupt_Enable		_bit9
 #define G0_Gate_Interrupt_Enable		_bit8
 #define AI_FIFO_Interrupt_Enable		_bit7
@@ -388,7 +399,7 @@ enum AO_FIFO_Mode_Bits
 #define AI_START1_Interrupt_Enable		_bit1
 #define AI_SC_TC_Interrupt_Enable		_bit0
 
-#define Interrupt_B_Enable_Register	75
+#define Interrupt_B_Enable_Register	75	/* M Series: 0x196 */
 #define Pass_Thru_1_Interrupt_Enable		_bit11
 #define G1_Gate_Interrupt_Enable		_bit10
 #define G1_TC_Interrupt_Enable			_bit9
@@ -403,7 +414,7 @@ enum AO_FIFO_Mode_Bits
 #define AO_BC_TC_Interrupt_Enable		_bit0
 
 #define Second_IRQ_B_Enable_Register	76
-#define AI_Personal_Register		77
+#define AI_Personal_Register		77	/* M Series: 0x19a */
 #define AI_SHIFTIN_Pulse_Width			_bit15
 #define AI_EOC_Polarity				_bit14
 #define AI_SOC_Polarity				_bit13
@@ -417,13 +428,14 @@ enum AO_FIFO_Mode_Bits
 #define AI_LOCALMUX_CLK_Pulse_Width		_bit5
 #define AI_AIFREQ_Polarity			_bit4
 
-#define AO_Personal_Register		78
+#define AO_Personal_Register		78	/* M Series: 0x19c */
 enum AO_Personal_Bits
 {
+	AO_Interval_Buffer_Mode = 1 << 3,
 	AO_BC_Source_Select = 1 << 4,
 	AO_UPDATE_Pulse_Width = 1 << 5,
-	AO_DMA_PIO_Control = 1 << 8,
-	AO_AOFREQ_Polarity = 1 << 9,
+	AO_DMA_PIO_Control = 1 << 8,	/* M Series: reserved */
+	AO_AOFREQ_Polarity = 1 << 9,	/* M Series: reserved */
 	AO_FIFO_Enable = 1 << 10,
 	AO_TMRDACWR_Pulse_Width = 1 << 12,
 };
@@ -432,7 +444,7 @@ enum AO_Personal_Bits
 #define Write_Strobe_2_Register		84
 #define Write_Strobe_3_Register		85
 
-#define AO_Output_Control_Register	86
+#define AO_Output_Control_Register	86	/* M Series: 0x1ac */
 #define AO_External_Gate_Enable			_bit15
 #define AO_External_Gate_Select(x)		(((x)&0x1f)<<10)
 #define AO_Number_Of_Channels(x)		(((x)&0xf)<<6)
@@ -441,7 +453,7 @@ enum AO_Personal_Bits
 #define AO_UPDATE2_Output_Toggle		_bit2
 #define AO_UPDATE_Output_Select(x)		(((x)&0x3)<<0)
 
-#define AI_Mode_3_Register		87
+#define AI_Mode_3_Register		87	/* M Series: 0x1ae */
 #define AI_Trigger_Length			_bit15
 #define AI_Delay_START				_bit14
 #define AI_Software_Gate			_bit13
@@ -455,7 +467,7 @@ enum AO_Personal_Bits
 #define AI_FIFO_Mode_HF				(1<<6)
 #define AI_FIFO_Mode_NE				(0<<6)
 #define AI_External_Gate_Polarity		_bit5
-#define AI_External_Gate_Select(a)		(a)
+#define AI_External_Gate_Select(a)		((a) & 0x1f)
 
 #define G_Autoincrement_Register(a)	(68+(a))
 #define G_Command_Register(a)		(6+(a))
@@ -474,7 +486,7 @@ enum AO_Personal_Bits
 #define G_Save_Register_High(a)		(12+(a)*2)
 #define G_Save_Register_Low(a)		(13+(a)*2)
 #define G_Status_Register		4
-#define Analog_Trigger_Etc_Register	61
+#define Analog_Trigger_Etc_Register	61	/* M Series: 0x17a */
 
 /* command register */
 #define G_Disarm_Copy			_bit15		/* strobe */
@@ -577,24 +589,10 @@ enum AO_Personal_Bits
 /* 16 bit registers shadowed from DAQ-STC */
 #define Window_Address			0x00
 #define Window_Data			0x02
-#if 0
-#define Interrupt_A_Ack			0x04
-#define AI_Status_1			0x04
-#define Interrupt_B_Ack			0x06
-#define AO_Status_1			0x06
-#define AI_Command_2			0x08
-#define G_Status			0x08
-#define AO_Command_2			0x0a
-#define AI_Status_2			0x0a
-#define G0_Command			0x0c
-#define AO_Status_2			0x0c
-#define G1_Command			0x0e
-#define DIO_Parallel_Input		0x0e
-#endif
 
-#define Configuration_Memory_Clear	82
-#define ADC_FIFO_Clear			83
-#define DAC_FIFO_Clear			84
+#define Configuration_Memory_Clear	82	/* M Series: 0x1a4 */
+#define ADC_FIFO_Clear			83	/* M Series: 0x1a6*/
+#define DAC_FIFO_Clear			84	/* M Series: 0x1a8 */
 
 /* i/o port offsets */
 
@@ -639,7 +637,7 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 	return ( channel & 0x3f );
 }
 
-#define ADC_FIFO_Data_Register		0x1c
+#define ADC_FIFO_Data_Register		0x1c	/* M Series: 0x1c and 32 bits wide */
 
 #define AO_Configuration		0x16
 #define AO_Bipolar		_bit0
@@ -648,7 +646,7 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 #define AO_Ground_Ref		_bit3
 #define AO_Channel(x)		((x) << 8)
 
-#define DAC_FIFO_Data			0x1e
+#define DAC_FIFO_Data			0x1e	/* M Series: 0xa4 and 32 bits wide */
 #define DAC0_Direct_Data		0x18
 #define DAC1_Direct_Data		0x1a
 
