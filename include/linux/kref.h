@@ -26,7 +26,7 @@ Copyright (C) 2002-2003 Patrick Mochel <mochel@osdl.org>
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,5)
 
 #include <linux/types.h>
 #include <asm/atomic.h>
@@ -98,6 +98,7 @@ static inline void KREF_INIT(struct kref *kref, void (*release) (struct kref *kr
 
 static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref))
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
 	int retval;
 	if(atomic_read(&kref->refcount) == 1)
 	{
@@ -108,6 +109,9 @@ static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref
 	}
 	kref_put(kref, release);
 	return retval;
+#else
+	return kref_put(kref, release);
+#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
 }
 
 #endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
