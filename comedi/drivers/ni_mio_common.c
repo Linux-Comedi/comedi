@@ -2675,6 +2675,12 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int bits;
 
+	if(boardtype.n_aochan > MAX_N_AO_CHAN)
+	{
+		printk("bug! boardtype.n_aochan > MAX_N_AO_CHAN\n");
+		return -EINVAL;
+	}
+	
 	if(alloc_subdevices(dev, 10) < 0)
 		return -ENOMEM;
 

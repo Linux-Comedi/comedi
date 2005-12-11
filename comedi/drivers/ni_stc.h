@@ -913,6 +913,8 @@ static ni_board ni_boards[];
 
 #define boardtype (*(ni_board *)dev->board_ptr)
 
+#define MAX_N_AO_CHAN 8
+
 #define NI_PRIVATE_COMMON					\
 	unsigned short dio_output;				\
 	unsigned short dio_control;				\
@@ -932,12 +934,12 @@ static ni_board ni_boards[];
 	unsigned int changain_spec;				\
 								\
 	unsigned int caldac_maxdata_list[MAX_N_CALDACS];	\
-	unsigned short ao[2];					\
+	unsigned short ao[MAX_N_AO_CHAN];					\
 	unsigned short caldacs[MAX_N_CALDACS];				\
 								\
 	volatile unsigned short ai_cmd2;	\
 								\
-	unsigned short ao_conf[2];				\
+	unsigned short ao_conf[MAX_N_AO_CHAN];				\
 	unsigned short ao_mode1;				\
 	unsigned short ao_mode2;				\
 	unsigned short ao_mode3;				\
