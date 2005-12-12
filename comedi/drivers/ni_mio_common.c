@@ -1102,7 +1102,16 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 	devpriv->stc_writew(dev, 0x0000,AI_Mode_2_Register);
 	/* generate FIFO interrupts on non-empty */
 	devpriv->stc_writew(dev, (0<<6)|0x0000,AI_Mode_3_Register);
-	if(boardtype.reg_type == ni_reg_normal){
+	if(boardtype.reg_type == ni_reg_611x){
+		devpriv->stc_writew(dev, AI_SHIFTIN_Pulse_Width |
+			AI_SOC_Polarity |
+			AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
+		devpriv->stc_writew(dev, AI_SCAN_IN_PROG_Output_Select(3) |
+			AI_EXTMUX_CLK_Output_Select(0) |
+			AI_LOCALMUX_CLK_Output_Select(2) |
+			AI_SC_TC_Output_Select(3) |
+			AI_CONVERT_Output_Select(3),AI_Output_Control_Register);
+	}else{
 		devpriv->stc_writew(dev, AI_SHIFTIN_Pulse_Width |
 			AI_SOC_Polarity |
 			AI_CONVERT_Pulse_Width |
@@ -1112,17 +1121,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 			AI_LOCALMUX_CLK_Output_Select(2) |
 			AI_SC_TC_Output_Select(3) |
 			AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
-	}else{/* 611x boards */
-		devpriv->stc_writew(dev, AI_SHIFTIN_Pulse_Width |
-			AI_SOC_Polarity |
-			AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
-		devpriv->stc_writew(dev, AI_SCAN_IN_PROG_Output_Select(3) |
-			AI_EXTMUX_CLK_Output_Select(0) |
-			AI_LOCALMUX_CLK_Output_Select(2) |
-			AI_SC_TC_Output_Select(3) |
-			AI_CONVERT_Output_Select(3),AI_Output_Control_Register);
 	}
-
 	/* the following registers should not be changed, because there
 	 * are no backup registers in devpriv.  If you want to change
 	 * any of these, add a backup register and other appropriate code:
@@ -1260,7 +1259,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned short offset;
 	unsigned int dither;
 
-	if(n_chan == 1 && boardtype.reg_type == ni_reg_normal){
+	if(n_chan == 1 && boardtype.reg_type != ni_reg_611x){
 		if(devpriv->changain_state && devpriv->changain_spec==list[0]){
 			// ready to go.
 			return;
@@ -1327,7 +1326,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	}
 
 	/* prime the channel/gain list */
-	if(boardtype.reg_type == ni_reg_normal){
+	if(boardtype.reg_type != ni_reg_611x){
 		devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
 		for(i=0;i<NI_TIMEOUT;i++){
 			if(!(devpriv->stc_readw(dev, AI_Status_1_Register)&AI_FIFO_Empty_St)){
@@ -1526,7 +1525,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
 	if(cmd->convert_src==TRIG_TIMER){
-		if(boardtype.reg_type == ni_reg_normal){
+		if(boardtype.reg_type != ni_reg_611x){
 			tmp=cmd->convert_arg;
 			ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
 			if(tmp!=cmd->convert_arg)err++;
@@ -2216,7 +2215,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->stc_writew(dev, AO_UI_Load,AO_Command_1_Register);
 	devpriv->stc_writel(dev, trigvar,AO_UI_Load_A_Register);
 
-	if(boardtype.reg_type == ni_reg_normal){
+	if((boardtype.reg_type & ni_reg_6xxx_mask) == 0){
 		if(cmd->scan_end_arg>1){
 			devpriv->ao_mode1|=AO_Multiple_Channels;
 			devpriv->stc_writew(dev, AO_Number_Of_Channels(cmd->scan_end_arg-1)|
@@ -2691,7 +2690,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
 		s->subdev_flags=SDF_READABLE|SDF_DIFF;
-		if(boardtype.reg_type == ni_reg_normal)
+		if(boardtype.reg_type != ni_reg_611x)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		s->subdev_flags|=SDF_DITHER;
 		s->n_chan=boardtype.n_adchan;
@@ -2839,7 +2838,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
-	if(boardtype.reg_type == ni_reg_normal){
+	if((boardtype.reg_type & ni_reg_6xxx_mask) == 0){
 		devpriv->clock_and_fout =
 			Slow_Internal_Time_Divide_By_2 |
 			Slow_Internal_Timebase |
@@ -2882,7 +2881,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	ni_writeb( bits, G0_G1_Select);
 
 	/* 611x init */
-	if(boardtype.reg_type != ni_reg_normal)
+	if(boardtype.reg_type & ni_reg_6xxx_mask)
 	{
 		ni_writeb( 0, Magic_611x );
 	}
