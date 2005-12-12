@@ -893,6 +893,13 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	ret=ni_alloc_private(dev);
 	if(ret<0)return ret;
+	
+	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
+	if(ret<0)return ret;
+
+	printk(" %s",boardtype.name);
+	dev->board_name=boardtype.name;
+	
 	if(boardtype.reg_type == ni_reg_m_series)
 	{
 		devpriv->stc_writew = &m_series_stc_writew;
@@ -904,11 +911,6 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		devpriv->stc_readw = &e_series_win_in;
 		devpriv->stc_writel = &win_out2;
 	}
-	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
-	if(ret<0)return ret;
-
-	printk(" %s",boardtype.name);
-	dev->board_name=boardtype.name;
 
 	ret = mite_setup(devpriv->mite);
 	if(ret < 0)
