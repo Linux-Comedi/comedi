@@ -184,8 +184,7 @@ typedef struct{
  * read/written directly in the I/O space of the board.  The
  * DAQCard devices map the low 8 STC registers to iobase+addr*2. */
 
-#define win_out(data,addr) __win_out(dev,data,addr)
-static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
+static void mio_cs_win_out(comedi_device *dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
@@ -199,11 +198,10 @@ static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 }
 
-#define win_in(addr) __win_in(dev,addr)
-static inline unsigned short __win_in(comedi_device *dev, int addr)
+static uint16_t mio_cs_win_in(comedi_device *dev, int addr)
 {
 	unsigned long flags;
-	int ret;
+	uint16_t ret;
 
 	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
 	if(addr<8){
@@ -554,6 +552,9 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	/* allocate private area */
 	if((ret=ni_alloc_private(dev))<0)
 		return ret;
+	devpriv->stc_writew = &mio_cs_win_out;
+	devpriv->stc_readw = &mio_cs_win_in;
+	devpriv->stc_writel = &win_out2;
 	
 	if( (ret=ni_E_init(dev,it))<0 ){
 		return ret;

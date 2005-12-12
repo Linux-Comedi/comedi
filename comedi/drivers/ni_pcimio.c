@@ -698,29 +698,161 @@ typedef struct{
 /* However, the 611x boards still aren't working, so I'm disabling
  * non-windowed STC access temporarily */
 
-#define win_out(data,addr) __win_out(dev,data,addr)
-static inline void __win_out(comedi_device *dev, unsigned short data, int addr)
+static void e_series_win_out(comedi_device *dev, uint16_t data, int reg)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
-	ni_writew(addr,Window_Address);
-	ni_writew(data,Window_Data);
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
+	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	ni_writew(reg, Window_Address);
+	ni_writew(data, Window_Data);
+	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-#define win_in(addr) __win_in(dev,addr)
-static inline unsigned short __win_in(comedi_device *dev, int addr)
+static uint16_t e_series_win_in(comedi_device *dev, int reg)
 {
 	unsigned long flags;
-	int ret;
+	uint16_t ret;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock,flags);
-	ni_writew(addr,Window_Address);
+	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	ni_writew(reg, Window_Address);
 	ret = ni_readw(Window_Data);
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock,flags);
 
 	return ret;
+}
+
+static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
+{
+	unsigned offset;
+	switch(reg)
+	{
+	case ADC_FIFO_Clear:
+		offset = M_Offset_AI_FIFO_Clear;
+		break;
+	case AI_Command_1_Register:
+		offset = M_Offset_AI_Command_1;
+		break;
+	case AI_Mode_1_Register:
+		offset = M_Offset_AI_Mode_1;
+		break;
+	case AI_Mode_2_Register:
+		offset = M_Offset_AI_Mode_2;
+		break;
+	case AI_Mode_3_Register:
+		offset = M_Offset_AI_Mode_3;
+		break;
+	case AI_Output_Control_Register:
+		offset = M_Offset_AI_Output_Control;
+		break;
+	case AI_Personal_Register:
+		offset = M_Offset_AI_Personal;
+		break;
+	case AO_Mode_1_Register:
+		offset = M_Offset_AO_Mode_1;
+		break;
+	case AO_Mode_2_Register:
+		offset = M_Offset_AO_Mode_2;
+		break;
+	case AO_Mode_3_Register:
+		offset = M_Offset_AO_Mode_3;
+		break;
+	case Configuration_Memory_Clear:
+		offset = M_Offset_Configuration_Memory_Clear;
+		break;
+	case DAC_FIFO_Clear:
+		offset = M_Offset_AO_FIFO_Clear;
+		break;
+	case Interrupt_A_Ack_Register:
+		offset = M_Offset_Interrupt_A_Ack;
+		break;
+	case Interrupt_A_Enable_Register:
+		offset = M_Offset_Interrupt_A_Enable;
+		break;
+	case Interrupt_B_Ack_Register:
+		offset = M_Offset_Interrupt_B_Ack;
+		break;
+	case Interrupt_B_Enable_Register:
+		offset = M_Offset_Interrupt_B_Enable;
+		break;
+	case IO_Bidirection_Pin_Register:
+		offset = M_Offset_IO_Bidirection_Pin;
+		break;
+	case Joint_Reset_Register:
+		offset = M_Offset_Joint_Reset;
+		break;
+	case Analog_Trigger_Etc_Register:
+		offset = M_Offset_Analog_Trigger_Etc;
+		break;
+	/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
+	 and M_Offset_SCXI_Serial_Data_Out (8 bit) */
+	/* FIXME: G_Mode_Registers don't exist on m series, maybe the CDIO registers replaced them? */
+	default:
+		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		return;
+		break;
+	}
+	ni_writew(data, offset);
+}
+
+static uint16_t m_series_stc_readw(comedi_device *dev, int reg)
+{
+	unsigned offset;
+	switch(reg)
+	{
+	case AI_Status_1_Register:
+		offset = M_Offset_AI_Status_1;
+		break;
+	case AO_Status_1_Register:
+		offset = M_Offset_AO_Status_1;
+		break;
+	case AO_Status_2_Register:
+		offset = M_Offset_AO_Status_2;
+		break;
+	case DIO_Serial_Input_Register:
+		return ni_readb(M_Offset_SCXI_Serial_Data_In);
+		break;
+	case Joint_Status_1_Register:
+		offset = M_Offset_Joint_Status_1;
+		break;
+	case Joint_Status_2_Register:
+		offset = M_Offset_Joint_Status_2;
+		break;
+	/* FIXME: DIO_Parallel_Input_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Input (32 bit) */
+	/* FIXME: most G_* registers don't exist on m series, maybe the CDIO registers replaced them? */
+	default:
+		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		return 0;
+		break;
+	}
+	return ni_readw(offset);
+}
+
+static void m_series_stc_writel(comedi_device *dev, uint32_t data, int reg)
+{
+	unsigned offset;
+	switch(reg)
+	{
+	case AI_SC_Load_A_Registers:
+		offset = M_Offset_AI_SC_Load_A;
+		break;
+	case AI_SI_Load_A_Registers:
+		offset = M_Offset_AI_SI_Load_A;
+		break;
+	case AO_BC_Load_A_Register:
+		offset = M_Offset_AO_BC_Load_A;
+		break;
+	case AO_UC_Load_A_Register:
+		offset = M_Offset_AO_UC_Load_A;
+		break;
+	case AO_UI_Load_A_Register:
+		offset = M_Offset_AO_UI_Load_A;
+		break;
+	default:
+		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		return;
+		break;
+	}
+	ni_writel(data, offset);
 }
 
 #define interrupt_pin(a)	0
@@ -761,7 +893,17 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	ret=ni_alloc_private(dev);
 	if(ret<0)return ret;
-
+	if(boardtype.reg_type == ni_reg_m_series)
+	{
+		devpriv->stc_writew = &m_series_stc_writew;
+		devpriv->stc_readw = &m_series_stc_readw;
+		devpriv->stc_writel = &m_series_stc_writel;
+	}else
+	{
+		devpriv->stc_writew = &e_series_win_out;
+		devpriv->stc_readw = &e_series_win_in;
+		devpriv->stc_writel = &win_out2;
+	}
 	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 

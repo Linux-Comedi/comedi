@@ -916,6 +916,10 @@ static ni_board ni_boards[];
 #define MAX_N_AO_CHAN 8
 
 #define NI_PRIVATE_COMMON					\
+	uint16_t (*stc_readw)(comedi_device *dev, int register);	\
+	void (*stc_writew)(comedi_device *dev, uint16_t value, int register);	\
+	void (*stc_writel)(comedi_device *dev, uint32_t value, int register);	\
+	\
 	unsigned short dio_output;				\
 	unsigned short dio_control;				\
 	int ao0p,ao1p;						\
