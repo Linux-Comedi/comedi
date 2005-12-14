@@ -29,7 +29,10 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014, PCI-6040E,
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
-  PCI-6110, PCI-6111, PCI-6711, PXI-6711, PCI-6713, PXI-6713,
+  PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PCI-6225, PCI-6229,
+  PCI-6250, PCI-6251, PCI-6254, PCI-6259,
+  PCI-6280, PCI-6281, PCI-6284, PCI-6289,
+  PCI-6711, PXI-6711, PCI-6713, PXI-6713,
   PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
 Updated: Mon Jan 19 11:00:27 EST 2004
@@ -141,6 +144,20 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2b90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2c80, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x2ca0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70aa, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70ab, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70ac, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70af, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70b4, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70b6, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70b7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70b8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70bd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70f2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x716c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x71bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
@@ -642,7 +659,7 @@ static ni_board ni_boards[]={
 		ao_unipolar:    1,
 		caldac:         {dac8800,dac8043,ad8522},
 	},
-	{       device_id:      0x2890,
+	{	device_id:      0x2890,
 		name:           "pci-6036e",
 		n_adchan:       16,
 		adbits:         16,
@@ -655,6 +672,225 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  0,
 		ao_unipolar:    0,
 		caldac:         {ad8804_debug},
+		has_8255:	0,
+	},
+	{	device_id:      0x70b0,
+		name:           "pci-6220",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	4000,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70af,
+		name:           "pci-6221",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	4000,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	1200,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x71bc,
+		name:           "pci-6221_37pin",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	4000,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	1200,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70f2,
+		name:           "pci-6224",
+		n_adchan:       32,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	4000,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	0,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x716c,
+		name:           "pci-6225",
+		n_adchan:       80,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	4000,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	1200,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70aa,
+		name:           "pci-6229",
+		n_adchan:       32,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	4000,
+		n_aochan:       4,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	1200,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70b4,
+		name:           "pci-6250",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	800,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70b8,
+		name:           "pci-6251",
+		n_adchan:       16,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	800,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	357,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70b7,
+		name:           "pci-6254",
+		n_adchan:       32,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	800,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70ab,
+		name:           "pci-6259",
+		n_adchan:       32,
+		adbits:         16,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	800,
+		n_aochan:       4,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	357,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70b6,
+		name:           "pci-6280",
+		n_adchan:       16,
+		adbits:         18,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	2000,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70bd,
+		name:           "pci-6281",
+		n_adchan:       16,
+		adbits:         18,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	800,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	357,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70bc,
+		name:           "pci-6284",
+		n_adchan:       32,
+		adbits:         18,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	2000,
+		n_aochan:       0,
+		aobits:         0,
+		ao_fifo_depth:  0,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+		caldac:         {ad8804_debug},	//FIXME: guess
+		has_8255:	0,
+	},
+	{	device_id:      0x70ac,
+		name:           "pci-6289",
+		n_adchan:       32,
+		adbits:         18,
+		ai_fifo_depth:  512,	//FIXME: guess
+		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_speed:	800,
+		n_aochan:       4,
+		aobits:         16,
+		ao_fifo_depth:  512,	//FIXME: guess
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	357,
+		caldac:         {ad8804_debug},	//FIXME: guess
 		has_8255:	0,
 	},
 };
