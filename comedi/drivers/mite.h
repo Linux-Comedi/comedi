@@ -39,7 +39,7 @@
 #define MDPRINTK(format,args...)
 #endif
 
-#define MAX_MITE_DMA_CHANNELS 4
+#define MAX_MITE_DMA_CHANNELS 8
 
 struct mite_dma_chain{
 	u32 count;
