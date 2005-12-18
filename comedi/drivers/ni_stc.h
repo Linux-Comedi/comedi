@@ -801,14 +801,29 @@ enum m_series_register_offsets
 	M_Offset_AI_Status_1 = 0x104,	// read
 	M_Offset_Interrupt_B_Ack = 0x106,	// write
 	M_Offset_AO_Status_1 = 0x106,	// read
-	M_Offset_AI_Command_2 = 0x108,
+	M_Offset_AI_Command_2 = 0x108,	// write
+	M_Offset_G01_Status = 0x108,	// read
 	M_Offset_AO_Command_2 = 0x10a,
-	M_Offset_AO_Status_2 = 0x10c,
+	M_Offset_AO_Status_2 = 0x10c,	// read
+	M_Offset_G0_Command = 0x10c,	// write
+	M_Offset_G1_Command = 0x10e,	// write
+	M_Offset_G0_HW_Save = 0x110,
+	M_Offset_G0_HW_Save_High = 0x110,
 	M_Offset_AI_Command_1 = 0x110,
+	M_Offset_G0_HW_Save_Low = 0x112,
 	M_Offset_AO_Command_1 = 0x112,
+	M_Offset_G1_HW_Save = 0x114,
+	M_Offset_G1_HW_Save_High = 0x114,
+	M_Offset_G1_HW_Save_Low = 0x116,
 	M_Offset_AI_Mode_1 = 0x118,
+	M_Offset_G0_Save = 0x118,
+	M_Offset_G0_Save_High = 0x118,
 	M_Offset_AI_Mode_2 = 0x11a,
+	M_Offset_G0_Save_Low = 0x11a,
 	M_Offset_AI_SI_Load_A = 0x11c,
+	M_Offset_G1_Save = 0x11c,
+	M_Offset_G1_Save_High = 0x11c,
+	M_Offset_G1_Save_Low = 0x11e,
 	M_Offset_AI_SI_Load_B = 0x120,	// write
 	M_Offset_AO_UI_Save = 0x120,	// read
 	M_Offset_AI_SC_Load_A = 0x124,	// write
@@ -817,8 +832,16 @@ enum m_series_register_offsets
 	M_Offset_AO_UC_Save = 0x128,	//read
 	M_Offset_AI_SI2_Load_A = 0x12c,
 	M_Offset_AI_SI2_Load_B = 0x130,
-	M_Offset_Joint_Status_1 = 0x136,
+	M_Offset_G0_Mode = 0x134,
+	M_Offset_G1_Mode = 0x136,	// write
+	M_Offset_Joint_Status_1 = 0x136,	// read
+	M_Offset_G0_Load_A = 0x138,
 	M_Offset_Joint_Status_2 = 0x13a,
+	M_Offset_G0_Load_B = 0x13c,
+	M_Offset_G1_Load_A = 0x140,
+	M_Offset_G1_Load_B = 0x144,
+	M_Offset_G0_Input_Select = 0x148,
+	M_Offset_G1_Input_Select = 0x14a,
 	M_Offset_AO_Mode_1 = 0x14c,
 	M_Offset_AO_Mode_2 = 0x14e,
 	M_Offset_AO_UI_Load_A = 0x150,
@@ -841,6 +864,8 @@ enum m_series_register_offsets
 	M_Offset_AO_Start_Select = 0x184,	// write
 	M_Offset_AO_Trigger_Select = 0x186,
 	M_Offset_AO_Mode_3 = 0x18c,
+	M_Offset_G0_Autoincrement = 0x188,
+	M_Offset_G1_Autoincrement = 0x18a,
 	M_Offset_Joint_Reset = 0x190,
 	M_Offset_Interrupt_A_Enable = 0x192,
 	M_Offset_Interrupt_B_Enable = 0x196,
@@ -853,10 +878,16 @@ enum m_series_register_offsets
 	M_Offset_Configuration_Memory_Clear = 0x1a4,
 	M_Offset_AI_FIFO_Clear = 0x1a6,
 	M_Offset_AO_FIFO_Clear = 0x1a8,
+	M_Offset_G0_Counting_Mode = 0x1b0,
+	M_Offset_G1_Counting_Mode = 0x1b2,
+	M_Offset_G0_Second_Gate = 0x1b4,
+	M_Offset_G1_Second_Gate = 0x1b6,
 	M_Offset_G0_DMA_Config = 0x1b8,	// write
 	M_Offset_G0_DMA_Status = 0x1b8,	// read
 	M_Offset_G1_DMA_Config = 0x1ba,	// write
 	M_Offset_G1_DMA_Status = 0x1ba,	// read
+	M_Offset_G0_MSeries_ABZ = 0x1c0,
+	M_Offset_G1_MSeries_ABZ = 0x1c2,
 	M_Offset_Clock_And_Fout2 = 0x1c4,
 	M_Offset_PLL_Control = 0x1c6,
 	M_Offset_PLL_Status = 0x1c8,
@@ -879,6 +910,7 @@ enum m_series_register_offsets
 	M_Offset_CDI_Mask_Enable = 0x230,
 	M_Offset_CDO_Mask_Enable = 0x234,
 };
+
 
 typedef struct ni_board_struct{
 	int device_id;
