@@ -983,6 +983,9 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case AI_Personal_Register:
 		offset = M_Offset_AI_Personal;
 		break;
+	case AO_Command_1_Register:
+		offset = M_Offset_AO_Command_1;
+		break;
 	case AO_Mode_1_Register:
 		offset = M_Offset_AO_Mode_1;
 		break;
@@ -992,12 +995,42 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case AO_Mode_3_Register:
 		offset = M_Offset_AO_Mode_3;
 		break;
+	case AO_Output_Control_Register:
+		offset = M_Offset_AO_Output_Control;
+		break;
+	case AO_Personal_Register:
+		offset = M_Offset_AO_Personal;
+		break;
+	case AO_Start_Select_Register:
+		offset = M_Offset_AO_Start_Select;
+		break;
+	case Clock_and_FOUT_Register:
+		offset = M_Offset_Clock_and_FOUT;
+		break;
 	case Configuration_Memory_Clear:
 		offset = M_Offset_Configuration_Memory_Clear;
 		break;
 	case DAC_FIFO_Clear:
 		offset = M_Offset_AO_FIFO_Clear;
 		break;
+	case G_Autoincrement_Register(0):
+		offset = M_Offset_G0_Autoincrement;
+		break;
+	case G_Autoincrement_Register(1):
+		offset = M_Offset_G1_Autoincrement;
+		break;
+	case G_Input_Select_Register(0):
+		offset = M_Offset_G0_Input_Select;
+		break;	
+	case G_Input_Select_Register(1):
+		offset = M_Offset_G1_Input_Select;
+		break;	
+	case G_Mode_Register(0):
+		offset = M_Offset_G0_Mode;
+		break;	
+	case G_Mode_Register(1):
+		offset = M_Offset_G1_Mode;
+		break;	
 	case Interrupt_A_Ack_Register:
 		offset = M_Offset_Interrupt_A_Ack;
 		break;
@@ -1010,6 +1043,9 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case Interrupt_B_Enable_Register:
 		offset = M_Offset_Interrupt_B_Enable;
 		break;
+	case Interrupt_Control_Register:
+		offset = M_Offset_Interrupt_Control;
+		break;
 	case IO_Bidirection_Pin_Register:
 		offset = M_Offset_IO_Bidirection_Pin;
 		break;
@@ -1019,9 +1055,12 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case Analog_Trigger_Etc_Register:
 		offset = M_Offset_Analog_Trigger_Etc;
 		break;
+	case DIO_Control_Register:
+		rt_printk("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n", __FUNCTION__, reg);
+		return;
+		break;
 	/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
 	 and M_Offset_SCXI_Serial_Data_Out (8 bit) */
-	/* FIXME: G_Mode_Registers don't exist on m series, maybe the CDIO registers replaced them? */
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
 		return;
