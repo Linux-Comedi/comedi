@@ -2083,7 +2083,9 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	devpriv->ao[chan] = data[0];
 
 	if(boardtype.reg_type == ni_reg_m_series)
+	{
 		ni_writew(data[0] ^ invert, M_Offset_DAC_Direct_Data(chan));
+	}
 	else
 		ni_writew(data[0] ^ invert,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 
@@ -2422,12 +2424,17 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ao_cmd2=0;
 	devpriv->ao_mode1=0;
 	devpriv->ao_mode2=0;
-	devpriv->ao_mode3=0;
+	if(boardtype.reg_type == ni_reg_m_series)
+		devpriv->ao_mode3 = AO_Last_Gate_Disable;
+	else
+		devpriv->ao_mode3 = 0;
+	devpriv->stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
 	devpriv->ao_trigger_select=0;
 	if(boardtype.reg_type & ni_reg_6xxx_mask){
 		ao_win_out(0x3, AO_Immediate_671x);
 		ao_win_out(CLEAR_WG, AO_Misc_611x);
 	}
+	devpriv->stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
 
 	return 0;
 }
@@ -2928,6 +2935,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			ni_writeb(0xf, M_Offset_AO_Waveform_Order(channel));
 			ni_writeb(0x0, M_Offset_AO_Reference_Attenuation(channel));
 		}
+		ni_writeb(0x0, M_Offset_AO_Calibration);
 	}
 
 	printk("\n");

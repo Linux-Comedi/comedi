@@ -438,6 +438,7 @@ enum AO_Personal_Bits
 	AO_AOFREQ_Polarity = 1 << 9,	/* M Series: reserved */
 	AO_FIFO_Enable = 1 << 10,
 	AO_TMRDACWR_Pulse_Width = 1 << 12,
+	AO_Number_Of_DAC_Packages = 1 << 14,	// 1 for "single" mode, 0 for "dual"
 };
 #define Write_Strobe_0_Register		82
 #define Write_Strobe_1_Register		83
