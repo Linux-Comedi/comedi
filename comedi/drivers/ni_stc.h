@@ -910,7 +910,64 @@ enum m_series_register_offsets
 	M_Offset_CDI_Mask_Enable = 0x230,
 	M_Offset_CDO_Mask_Enable = 0x234,
 };
+static inline int M_Offset_AO_Waveform_Order(int channel)
+{
+	return 0xc2 + 0x4 * channel;
+};
+static inline int M_Offset_AO_Config_Bank(int channel)
+{
+	return 0xc3 + 0x4 * channel;
+};
+static inline int M_Offset_DAC_Direct_Data(int channel)
+{
+	return 0xc0 + 0x4 * channel;
+}
+static inline int M_Offset_Gen_PWM(int channel)
+{
+	return 0x44 + 0x2 * channel;
+}
+static inline int M_Offset_Static_AI_Control(int i)
+{
+	int offset[] =
+	{
+		0x64,
+		0x261,
+		0x262,
+		0x263,
+	};
+	if(((unsigned)i) >= sizeof(offset) / sizeof(offset[0]))
+	{
+		rt_printk("%s: invalid channel=%i\n", __FUNCTION__, i);
+		return offset[0];
+	}
+	return offset[i];
+};
+static inline int M_Offset_AO_Reference_Attenuation(int channel)
+{
+	int offset[] =
+	{
+		0x264,
+		0x265,
+		0x266,
+		0x267
+	};
+	if(((unsigned)channel) >= sizeof(offset) / sizeof(offset[0]))
+	{
+		rt_printk("%s: invalid channel=%i\n", __FUNCTION__, channel);
+		return offset[0];
+	}
+	return offset[channel];
+};
 
+enum MSeries_AO_Config_Bank_Bits
+{
+	MSeries_AO_DAC_Offset_Select_Mask = 0x7,
+	MSeries_AO_DAC_Offset_AO_Ground_Bits = 0x0,
+	MSeries_AO_DAC_Reference_Mask = 0x38,
+	MSeries_AO_DAC_Reference_Internal_Bits = 0x0,
+	MSeries_AO_Update_Timed_Bit = 0x40,
+	MSeries_AO_Bipolar_Bit = 0x80
+};
 
 typedef struct ni_board_struct{
 	int device_id;
