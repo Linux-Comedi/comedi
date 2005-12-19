@@ -1213,9 +1213,16 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 				rt_printk("ni_mio_common: timeout in ni_ai_insn_read\n");
 				return -ETIME;
 			}
-			d = ni_readw(ADC_FIFO_Data_Register);
-			d += signbits; /* subtle: needs to be short addition */
-			data[n] = d;
+			if(boardtype.reg_type == ni_reg_m_series)
+			{
+				data[n] = ni_readl(M_Offset_AI_FIFO_Data);
+				data[n] += signbits;
+			}else
+			{
+				d = ni_readw(ADC_FIFO_Data_Register);
+				d += signbits; /* subtle: needs to be short addition */
+				data[n] = d;
+			}
 		}
 	}
 	return insn->n;
@@ -1999,34 +2006,60 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	for(i=0;i<n_chans;i++){
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
-
-		conf = AO_Channel(chan);
-
-		if(boardtype.ao_unipolar){
+		if(boardtype.reg_type == ni_reg_m_series)
+		{
+			conf = 0;
 			if((range&1) == 0){
-				conf |= AO_Bipolar;
+				conf |= MSeries_AO_Bipolar_Bit;
 				invert = (1<<(boardtype.aobits-1));
 			}else{
 				invert = 0;
 			}
 			if(range&2)
-				conf |= AO_Ext_Ref;
-		}else{
-			conf |= AO_Bipolar;
-			invert = (1<<(boardtype.aobits-1));
+			{
+			//FIXME: don't know external ao reference bit for m series
+				/*conf |= AO_Ext_Ref;*/
+			}else
+			{
+				conf |= MSeries_AO_DAC_Reference_Internal_Bits;
+			}
+			if(CR_AREF(chanspec[i])==AREF_OTHER)
+			{
+			//FIXME: don't know code for unusual ao offset configurations
+			}else
+			{
+				conf |= MSeries_AO_DAC_Offset_AO_Ground_Bits;
+			}
+			ni_writeb(conf, M_Offset_AO_Config_Bank(chan));
+		}else
+		{
+			conf = AO_Channel(chan);
+	
+			if(boardtype.ao_unipolar){
+				if((range&1) == 0){
+					conf |= AO_Bipolar;
+					invert = (1<<(boardtype.aobits-1));
+				}else{
+					invert = 0;
+				}
+				if(range&2)
+					conf |= AO_Ext_Ref;
+			}else{
+				conf |= AO_Bipolar;
+				invert = (1<<(boardtype.aobits-1));
+			}
+	
+			/* not all boards can deglitch, but this shouldn't hurt */
+			if(chanspec[i] & CR_DEGLITCH)
+				conf |= AO_Deglitch;
+	
+			/* analog reference */
+			/* AREF_OTHER connects AO ground to AI ground, i think */
+			conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
+
+			ni_writew(conf,AO_Configuration);
 		}
-
-		/* not all boards can deglitch, but this shouldn't hurt */
-		if(chanspec[i] & CR_DEGLITCH)
-			conf |= AO_Deglitch;
-
-		/* analog reference */
-		/* AREF_OTHER connects AO ground to AI ground, i think */
-		conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
-
 		devpriv->ao_conf[chan] = conf;
-
-		ni_writew(conf,AO_Configuration);
 	}
 	return invert;
 }
@@ -2049,7 +2082,10 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 	devpriv->ao[chan] = data[0];
 
-	ni_writew(data[0] ^ invert,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
+	if(boardtype.reg_type == ni_reg_m_series)
+		ni_writew(data[0] ^ invert, M_Offset_DAC_Direct_Data(chan));
+	else
+		ni_writew(data[0] ^ invert,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
 
 	return 1;
 }
@@ -2689,10 +2725,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev=s;
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
-		s->subdev_flags=SDF_READABLE|SDF_DIFF;
+		s->subdev_flags=SDF_READABLE | SDF_DIFF | SDF_DITHER;
 		if(boardtype.reg_type != ni_reg_611x)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
-		s->subdev_flags|=SDF_DITHER;
+		if(boardtype.adbits > 16)
+			s->subdev_flags |= SDF_LSAMPL;
 		s->n_chan=boardtype.n_adchan;
 		s->len_chanlist=512;
 		s->maxdata=(1<<boardtype.adbits)-1;
@@ -2880,10 +2917,17 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	bits |= 1 << ( GPC1_DMA_CHAN + 4 );
 	ni_writeb( bits, G0_G1_Select);
 
-	/* 611x init */
 	if(boardtype.reg_type & ni_reg_6xxx_mask)
 	{
 		ni_writeb( 0, Magic_611x );
+	}else if(boardtype.reg_type == ni_reg_m_series)
+	{
+		int channel;
+		for(channel = 0; channel < boardtype.n_aochan; ++channel)
+		{
+			ni_writeb(0xf, M_Offset_AO_Waveform_Order(channel));
+			ni_writeb(0x0, M_Offset_AO_Reference_Attenuation(channel));
+		}
 	}
 
 	printk("\n");
