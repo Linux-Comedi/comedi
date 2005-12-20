@@ -963,11 +963,18 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 enum MSeries_AO_Config_Bank_Bits
 {
 	MSeries_AO_DAC_Offset_Select_Mask = 0x7,
-	MSeries_AO_DAC_Offset_AO_Ground_Bits = 0x0,
+	MSeries_AO_DAC_Offset_0V_Bits = 0x0,
+	MSeries_AO_DAC_Offset_5V_Bits = 0x1,
 	MSeries_AO_DAC_Reference_Mask = 0x38,
-	MSeries_AO_DAC_Reference_Internal_Bits = 0x0,
+	MSeries_AO_DAC_Reference_10V_Internal_Bits = 0x0,
+	MSeries_AO_DAC_Reference_5V_Internal_Bits = 0x8,
 	MSeries_AO_Update_Timed_Bit = 0x40,
-	MSeries_AO_Bipolar_Bit = 0x80
+	MSeries_AO_Bipolar_Bit = 0x80	// turns on 2's complement encoding
+};
+
+enum MSeries_AO_Reference_Attenuation_Bits
+{
+	MSeries_Attenuate_x5_Bit = 0x1
 };
 
 typedef struct ni_board_struct{
