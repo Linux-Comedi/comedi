@@ -822,7 +822,7 @@ found:
 
 		if(!aux_data || aux_len < 1)
 		{
-			comedi_error("You must provide me2600 firmware using the --init-data option of comedi_config");
+			comedi_error(dev, "You must provide me2600 firmware using the --init-data option of comedi_config");
 			return -EINVAL;
 		}
     me2600_xilinx_download(dev, aux_data, aux_len);
