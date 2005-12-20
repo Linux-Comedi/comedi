@@ -679,7 +679,7 @@ static ni_board ni_boards[]={
 		n_adchan:       16,
 		adbits:         16,
 		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		gainlkup:       ai_gain_622x,
 		ai_speed:	4000,
 		n_aochan:       0,
 		aobits:         0,
@@ -693,12 +693,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6221",
 		n_adchan:       16,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_622x,
 		ai_speed:	4000,
 		n_aochan:       2,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -709,12 +709,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6221_37pin",
 		n_adchan:       16,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_622x,
 		ai_speed:	4000,
 		n_aochan:       2,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -725,12 +725,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6224",
 		n_adchan:       32,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_622x,
 		ai_speed:	4000,
 		n_aochan:       0,
 		aobits:         0,
-		ao_fifo_depth:  0,	//FIXME: guess
+		ao_fifo_depth:  0,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	0,
@@ -741,12 +741,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6225",
 		n_adchan:       80,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_622x,
 		ai_speed:	4000,
 		n_aochan:       2,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -757,12 +757,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6229",
 		n_adchan:       32,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_622x,
 		ai_speed:	4000,
 		n_aochan:       4,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -773,8 +773,8 @@ static ni_board ni_boards[]={
 		name:           "pci-6250",
 		n_adchan:       16,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_14,
 		ai_speed:	800,
 		n_aochan:       0,
 		aobits:         0,
@@ -788,12 +788,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6251",
 		n_adchan:       16,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_14,
 		ai_speed:	800,
 		n_aochan:       2,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
@@ -804,8 +804,8 @@ static ni_board ni_boards[]={
 		name:           "pci-6254",
 		n_adchan:       32,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_14,
 		ai_speed:	800,
 		n_aochan:       0,
 		aobits:         0,
@@ -819,12 +819,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6259",
 		n_adchan:       32,
 		adbits:         16,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  4095,
+		gainlkup:       ai_gain_14,
 		ai_speed:	800,
 		n_aochan:       4,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
@@ -835,12 +835,12 @@ static ni_board ni_boards[]={
 		name:           "pci-6280",
 		n_adchan:       16,
 		adbits:         18,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  2047,
+		gainlkup:       ai_gain_14,
 		ai_speed:	2000,
 		n_aochan:       0,
 		aobits:         0,
-		ao_fifo_depth:  0,
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 		caldac:         {ad8804_debug},	//FIXME: guess
@@ -850,14 +850,14 @@ static ni_board ni_boards[]={
 		name:           "pci-6281",
 		n_adchan:       16,
 		adbits:         18,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  2047,
+		gainlkup:       ai_gain_14,
 		ai_speed:	800,
 		n_aochan:       2,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
-		ao_unipolar:    0,
+		ao_unipolar:    1,
 // 		ao_speed:	357,
 		caldac:         {ad8804_debug},	//FIXME: guess
 		has_8255:	0,
@@ -866,8 +866,8 @@ static ni_board ni_boards[]={
 		name:           "pci-6284",
 		n_adchan:       32,
 		adbits:         18,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  2047,
+		gainlkup:       ai_gain_14,
 		ai_speed:	2000,
 		n_aochan:       0,
 		aobits:         0,
@@ -881,14 +881,14 @@ static ni_board ni_boards[]={
 		name:           "pci-6289",
 		n_adchan:       32,
 		adbits:         18,
-		ai_fifo_depth:  512,	//FIXME: guess
-		gainlkup:       ai_gain_4,	//FIXME: guess
+		ai_fifo_depth:  2047,
+		gainlkup:       ai_gain_14,
 		ai_speed:	800,
 		n_aochan:       4,
 		aobits:         16,
-		ao_fifo_depth:  512,	//FIXME: guess
+		ao_fifo_depth:  8191,
 		reg_type:	ni_reg_m_series,
-		ao_unipolar:    0,
+		ao_unipolar:    1,
 // 		ao_speed:	357,
 		caldac:         {ad8804_debug},	//FIXME: guess
 		has_8255:	0,
