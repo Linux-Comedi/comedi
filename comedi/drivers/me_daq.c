@@ -820,8 +820,11 @@ found:
     aux_data = comedi_aux_data(it->options, 0);
     aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
 
-    if(!aux_data || aux_len)return -EINVAL;
-
+		if(!aux_data || aux_len < 1)
+		{
+			comedi_error("You must provide me2600 firmware using the --init-data option of comedi_config");
+			return -EINVAL;
+		}
     me2600_xilinx_download(dev, aux_data, aux_len);
   }
 
