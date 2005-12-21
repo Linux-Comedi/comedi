@@ -149,7 +149,7 @@ static comedi_lrange range_ni_E_ai_611x={ 8, {
 	RANGE( -0.5,	0.5	),
 	RANGE( -0.2,	0.2	),
 }};
-static comedi_lrange range_ni_E_ai_622x={ 8, {
+static comedi_lrange range_ni_M_ai_622x={ 8, {
 	RANGE(-10, 10),
 	RANGE(-5, 5),
 	RANGE(-1, 1),
@@ -172,7 +172,7 @@ static comedi_lrange *ni_range_lkup[]={
 	&range_ni_E_ai_limited14,
 	&range_ni_E_ai_bipolar4,
 	&range_ni_E_ai_611x,
-	&range_ni_E_ai_622x
+	&range_ni_M_ai_622x
 };
 
 
@@ -2021,27 +2021,42 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 		range = CR_RANGE(chanspec[i]);
 		if(boardtype.reg_type == ni_reg_m_series)
 		{
+ 			comedi_krange *krange = s->range_table->range + range;
+			invert = 0;
 			conf = 0;
-			if((range&1) == 0){
-				conf |= MSeries_AO_Bipolar_Bit;
-				invert = (1<<(boardtype.aobits-1));
-			}else{
-				invert = 0;
+			switch(krange->max - krange->min)
+			{
+			case 20000000:
+				conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
+				ni_writeb(0, M_Offset_AO_Reference_Attenuation(chan));
+				break;
+			case 10000000:
+				conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
+				ni_writeb(0, M_Offset_AO_Reference_Attenuation(chan));
+				break;
+			case 4000000:
+				conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
+				ni_writeb(MSeries_Attenuate_x5_Bit, M_Offset_AO_Reference_Attenuation(chan));
+				break;
+			case 2000000:
+				conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
+				ni_writeb(MSeries_Attenuate_x5_Bit, M_Offset_AO_Reference_Attenuation(chan));
+				break;
+			default:
+				rt_printk("%s: bug! unhandled ao reference voltage\n", __FUNCTION__);
+				break;
 			}
-			if(range&2)
+			switch(krange->max + krange->min)
 			{
-			//FIXME: don't know external ao reference bit for m series
-				/*conf |= AO_Ext_Ref;*/
-			}else
-			{
-				conf |= MSeries_AO_DAC_Reference_Internal_Bits;
-			}
-			if(CR_AREF(chanspec[i])==AREF_OTHER)
-			{
-			//FIXME: don't know code for unusual ao offset configurations
-			}else
-			{
-				conf |= MSeries_AO_DAC_Offset_AO_Ground_Bits;
+			case 0:
+				conf |= MSeries_AO_DAC_Offset_0V_Bits;
+				break;
+			case 10000000:
+				conf |= MSeries_AO_DAC_Offset_5V_Bits;
+				break;
+			default:
+				rt_printk("%s: bug! unhandled ao offset voltage\n", __FUNCTION__);
+				break;
 			}
 			ni_writeb(conf, M_Offset_AO_Config_Bank(chan));
 		}else
@@ -2774,11 +2789,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->subdev_flags=SDF_WRITABLE|SDF_DEGLITCH|SDF_GROUND;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
-		if(boardtype.ao_unipolar){
-			s->range_table=&range_ni_E_ao_ext;	/* XXX wrong for some boards */
-		}else{
-			s->range_table=&range_bipolar10;
-		}
+		s->range_table = boardtype.ao_range_table;
 		s->insn_read=ni_ao_insn_read;
 		if(boardtype.reg_type & ni_reg_6xxx_mask){
 			s->insn_write=ni_ao_insn_write_671x;

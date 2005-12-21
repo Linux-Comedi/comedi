@@ -162,6 +162,33 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
 
+/* These are not all the possible ao ranges for 628x boards.
+ They can do OFFSET +- REFERENCE where OFFSET can be
+ 0V, 5V, APFI<0,1>, or AO<0...3> and RANGE can
+ be 10V, 5V, 2V, 1V, APFI<0,1>, AO<0...3>.  That's
+ 63 different possibilities.  An AO channel
+ can not act as it's own OFFSET or REFERENCE.
+*/
+static comedi_lrange range_ni_M_628x_ao = { 8, {
+	RANGE(-10, 10),
+	RANGE(-5, 5),
+	RANGE(-2, 2),
+	RANGE(-1, 1),
+	RANGE(-5, 15),
+	RANGE(0, 10),
+	RANGE(3, 7),
+	RANGE(4, 6),
+	RANGE_ext(-1, 1)
+}};
+static comedi_lrange range_ni_M_625x_ao = { 3, {
+	RANGE(-10, 10),
+	RANGE(-5, 5),
+	RANGE_ext(-1, 1)
+}};
+static comedi_lrange range_ni_M_622x_ao = { 1, {
+	RANGE(-10, 10),
+}};
+
 static ni_board ni_boards[]={
 	{       device_id:      0x0162, // NI also says 0x1620.  typo?
 		name:           "pci-mio-16xe-50",
@@ -174,6 +201,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		caldac:         {dac8800,dac8043},
 		has_8255:       0,
@@ -189,6 +217,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
@@ -204,6 +233,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		caldac:         {ad8804_debug},
 		has_8255:       0,
@@ -219,6 +249,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
@@ -235,6 +266,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {mb88341},
 		has_8255:       0,
@@ -252,6 +284,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  512,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {ad8804_debug}, // doc says mb88341
 		has_8255:       0,
@@ -267,6 +300,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  512,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {mb88341},
 		has_8255:       0,
@@ -283,6 +317,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
@@ -298,7 +333,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		ao_unipolar:    1,
+		ao_unipolar:    0,
 		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
@@ -313,7 +348,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		ao_unipolar:    1,
+		ao_unipolar:    0,
 		caldac:         {dac8800,dac8043,ad8522},
 		has_8255:       0,
 	},
@@ -328,6 +363,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {ad8804_debug},
 		has_8255:       0,
@@ -357,6 +393,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		caldac:         {ad8804}, /* manual is wrong */
 		has_8255:	0,
@@ -372,6 +409,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		caldac:         {ad8804}, /* manual is wrong */
 		has_8255:	1,
@@ -387,6 +425,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {ad8804}, /* manual is wrong */
 		has_8255:	1,
@@ -418,6 +457,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		caldac:         {ad8804_debug},
 		has_8255:	0,
@@ -434,6 +474,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		caldac:         {ad8804_debug,ad8804_debug,ad8522}, /* manual is wrong */
 	},
 #if 0
@@ -449,6 +490,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		caldac:         {ad8804,mb88341,ad8522}, /* manual is wrong */
 	},
 #endif
@@ -463,6 +505,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		reg_type:	ni_reg_611x,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
 		caldac:         {ad8804,ad8804},
@@ -478,6 +521,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		reg_type:	ni_reg_611x,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		ao_fifo_depth:  2048,
 		caldac:         {ad8804,ad8804},
@@ -526,6 +570,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384, /* data sheet says 8192, but fifo really holds 16384 samples */
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug},
 	},
@@ -536,6 +581,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug},
 	},
@@ -546,6 +592,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
@@ -556,6 +603,7 @@ static ni_board ni_boards[]={
 		aobits:         12,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
@@ -566,6 +614,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug},
 	},
@@ -577,6 +626,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  8192,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6711,
 		caldac:         {ad8804_debug},
 	},
@@ -588,6 +638,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
@@ -598,6 +649,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    0,
 		ao_fifo_depth:  16384,
+		.ao_range_table = &range_bipolar10,
 		reg_type:	ni_reg_6713,
 		caldac:         {ad8804_debug,ad8804_debug},
 	},
@@ -612,6 +664,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {ad8804_debug},
 		has_8255:       0,
@@ -627,6 +680,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         12,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {mb88341},
 		has_8255:       0,
@@ -643,6 +697,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_unipolar:    1,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		caldac:         {mb88341,mb88341,ad8522},
 	},
 	{	device_id:      0x1580,
@@ -656,6 +711,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  2048,
+		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
 		caldac:         {dac8800,dac8043,ad8522},
 	},
@@ -670,6 +726,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  0,
+		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
 		caldac:         {ad8804_debug},
 		has_8255:	0,
@@ -699,6 +756,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_622x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -715,6 +773,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_622x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -747,6 +806,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_622x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -763,6 +823,7 @@ static ni_board ni_boards[]={
 		n_aochan:       4,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_622x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
@@ -794,6 +855,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_625x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
@@ -825,6 +887,7 @@ static ni_board ni_boards[]={
 		n_aochan:       4,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_625x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
@@ -856,6 +919,7 @@ static ni_board ni_boards[]={
 		n_aochan:       2,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_628x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    1,
 // 		ao_speed:	357,
@@ -887,6 +951,7 @@ static ni_board ni_boards[]={
 		n_aochan:       4,
 		aobits:         16,
 		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_628x_ao,
 		reg_type:	ni_reg_m_series,
 		ao_unipolar:    1,
 // 		ao_speed:	357,
