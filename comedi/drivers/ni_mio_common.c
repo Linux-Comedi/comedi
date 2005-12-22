@@ -1178,7 +1178,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 {
 	int i,n;
 	unsigned int mask;
-	unsigned short signbits;
+	unsigned signbits;
 	unsigned short d;
 
 	ni_load_channelgain_list(dev,1,&insn->chanspec);
@@ -1212,7 +1212,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 				rt_printk("ni_mio_common: timeout in 611x ni_ai_insn_read\n");
 				return -ETIME;
 			}
-			d += signbits; /* subtle: needs to be short addition */
+			d += signbits;
 			data[ n ] = d;
 		}
 	}else{
@@ -1276,7 +1276,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned int chan,range,aref;
 	unsigned int i;
 	unsigned int hi,lo;
-	unsigned short offset;
+	unsigned offset;
 	unsigned int dither;
 
 	if(n_chan == 1 && boardtype.reg_type != ni_reg_611x){
