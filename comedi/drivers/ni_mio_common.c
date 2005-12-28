@@ -1028,15 +1028,22 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 {
 	comedi_async *async = s->async;
 	unsigned int i;
-	unsigned int length = num_bytes / sizeof( sampl_t );
+	unsigned int length = num_bytes / bytes_per_sample(s);
 	sampl_t *array = data;
-
+	lsampl_t *larray = data;
+	
 	for(i = 0; i < length; i++)
 	{
 #ifdef PCIDMA
-		array[i] = le16_to_cpu(array[i]);
+		if(s->subdev_flags & SDF_LSAMPL)
+			larray[i] = le32_to_cpu(larray[i]);
+		else
+			array[i] = le16_to_cpu(array[i]);
 #endif
-		array[i] += devpriv->ai_offset[ chan_index ];
+		if(s->subdev_flags & SDF_LSAMPL)
+			larray[i] += devpriv->ai_offset[chan_index];
+		else
+			array[i] += devpriv->ai_offset[chan_index];
 		chan_index++;
 		chan_index %= async->cmd.chanlist_len;
 	}
@@ -1055,11 +1062,21 @@ static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_INPUT;
-	if(boardtype.reg_type == ni_reg_611x)
+	switch(boardtype.reg_type)
+	{
+	case ni_reg_611x:
 		mite_prep_dma(mite, AI_DMA_CHAN, 32, 16);
-	else
+		break;
+	case ni_reg_m_series:
+		if(boardtype.adbits > 16)
+			mite_prep_dma(mite, AI_DMA_CHAN, 32, 32);
+		else
+			mite_prep_dma(mite, AI_DMA_CHAN, 16, 16);	//guess
+		break;
+	default:
 		mite_prep_dma(mite, AI_DMA_CHAN, 16, 16);
-
+		break;
+	};
 	/*start the MITE*/
 	mite_dma_arm(mite, AI_DMA_CHAN);
 }
