@@ -1033,6 +1033,9 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case AI_Command_1_Register:
 		offset = M_Offset_AI_Command_1;
 		break;
+	case AI_Command_2_Register:
+		offset = M_Offset_AI_Command_2;
+		break;
 	case AI_Mode_1_Register:
 		offset = M_Offset_AI_Mode_1;
 		break;
@@ -1047,6 +1050,22 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 		break;
 	case AI_Personal_Register:
 		offset = M_Offset_AI_Personal;
+		break;
+	case AI_SI2_Load_A_Register:
+		// this is actually a 32 bit register on m series boards
+		ni_writel(data, M_Offset_AI_SI2_Load_A);
+		return;
+		break;
+	case AI_SI2_Load_B_Register:
+		// this is actually a 32 bit register on m series boards
+		ni_writel(data, M_Offset_AI_SI2_Load_B);
+		return;
+		break;
+	case AI_START_STOP_Select_Register:
+		offset = M_Offset_AI_START_STOP_Select;
+		break;
+	case AI_Trigger_Select_Register:
+		offset = M_Offset_AI_Trigger_Select;
 		break;
 	case AO_Command_1_Register:
 		offset = M_Offset_AO_Command_1;
