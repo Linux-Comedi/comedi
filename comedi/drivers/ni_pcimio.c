@@ -1070,6 +1070,9 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case AO_Command_1_Register:
 		offset = M_Offset_AO_Command_1;
 		break;
+	case AO_Command_2_Register:
+		offset = M_Offset_AO_Command_2;
+		break;
 	case AO_Mode_1_Register:
 		offset = M_Offset_AO_Mode_1;
 		break;
@@ -1087,6 +1090,9 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 		break;
 	case AO_Start_Select_Register:
 		offset = M_Offset_AO_Start_Select;
+		break;
+	case AO_Trigger_Select_Register:
+		offset = M_Offset_AO_Trigger_Select;
 		break;
 	case Clock_and_FOUT_Register:
 		offset = M_Offset_Clock_and_FOUT;

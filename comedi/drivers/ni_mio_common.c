@@ -878,7 +878,7 @@ static int ni_ao_prep_fifo(comedi_device *dev,comedi_subdevice *s)
 	int n;
 
 	/* reset fifo */
-	devpriv->stc_writew(dev, 0,DAC_FIFO_Clear);
+	devpriv->stc_writew(dev, 1,DAC_FIFO_Clear);
 	if(boardtype.reg_type & ni_reg_6xxx_mask)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
@@ -2167,7 +2167,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	ni_set_bits(dev, Interrupt_B_Enable_Register, AO_FIFO_Interrupt_Enable | AO_Error_Interrupt_Enable, 0);
 	interrupt_b_bits = AO_Error_Interrupt_Enable;
 #ifdef PCIDMA
-	devpriv->stc_writew(dev, 0, DAC_FIFO_Clear);
+	devpriv->stc_writew(dev, 1, DAC_FIFO_Clear);
 	if(boardtype.reg_type & ni_reg_6xxx_mask)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 	ni_ao_setup_MITE_dma(dev, &s->async->cmd);
