@@ -2137,7 +2137,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 	if(boardtype.reg_type == ni_reg_m_series)
 	{
-		ni_writew(data[0] ^ invert, M_Offset_DAC_Direct_Data(chan));
+		ni_writew(data[0], M_Offset_DAC_Direct_Data(chan));
 	}
 	else
 		ni_writew(data[0] ^ invert,(chan)? DAC1_Direct_Data : DAC0_Direct_Data);
@@ -2829,7 +2829,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
 			s->len_chanlist = boardtype.n_aochan;
-			s->munge=ni_ao_munge;
+			if(boardtype.reg_type != ni_reg_m_series)
+				s->munge=ni_ao_munge;
 		}
 		s->cancel=ni_ao_reset;
 	}else{
