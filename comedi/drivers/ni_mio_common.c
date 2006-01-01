@@ -86,7 +86,9 @@ static short ni_gainlkup[][16]={
 	/* ai_gain_611x */
 	{ 0x00a, 0x00b, 0x001, 0x002, 0x003, 0x004, 0x005, 0x006 },
 	/* ai_gain_622x FIXME: guesses */
-	{ 1, 2, 3, 4, 0x101, 0x102, 0x103, 0x104 }
+	{ 1, 2, 3, 4},
+	/* ai_gain_628x */
+	{ 1, 2, 3, 4, 5, 6, 7}
 };
 
 static comedi_lrange range_ni_E_ai={	16, {
@@ -149,15 +151,20 @@ static comedi_lrange range_ni_E_ai_611x={ 8, {
 	RANGE( -0.5,	0.5	),
 	RANGE( -0.2,	0.2	),
 }};
-static comedi_lrange range_ni_M_ai_622x={ 8, {
+static comedi_lrange range_ni_M_ai_622x={ 4, {
 	RANGE(-10, 10),
 	RANGE(-5, 5),
 	RANGE(-1, 1),
 	RANGE(-0.2, 0.2),
-	RANGE(0, 10),
-	RANGE(0, 5),
-	RANGE(0, 1),
-	RANGE(0, 0.2),
+}};
+static comedi_lrange range_ni_M_ai_628x={ 7, {
+	RANGE( -10,	10	),
+	RANGE( -5,	5	),
+	RANGE( -2,	2	),
+	RANGE( -1,	1	),
+	RANGE( -0.5,	0.5	),
+	RANGE( -0.2,	0.2	),
+	RANGE( -0.1,	0.1	),
 }};
 static comedi_lrange range_ni_E_ao_ext = { 4, {
 	RANGE( -10,	10	),
@@ -172,7 +179,8 @@ static comedi_lrange *ni_range_lkup[]={
 	&range_ni_E_ai_limited14,
 	&range_ni_E_ai_bipolar4,
 	&range_ni_E_ai_611x,
-	&range_ni_M_ai_622x
+	&range_ni_M_ai_622x,
+	&range_ni_M_ai_628x
 };
 
 

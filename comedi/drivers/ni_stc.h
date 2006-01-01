@@ -757,7 +757,7 @@ enum mite_dma_channel{
 	GPC1_DMA_CHAN = 3,
 };
 
-enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x };
+enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x, ai_gain_628x };
 enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
 	ad8804, ad8842, ad8804_debug };
 enum ni_reg_type {
