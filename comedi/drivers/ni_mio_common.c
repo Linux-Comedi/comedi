@@ -85,8 +85,8 @@ static short ni_gainlkup[][16]={
 	{ 0, 1, 4, 7 },
 	/* ai_gain_611x */
 	{ 0x00a, 0x00b, 0x001, 0x002, 0x003, 0x004, 0x005, 0x006 },
-	/* ai_gain_622x FIXME: guesses */
-	{ 1, 2, 3, 4},
+	/* ai_gain_622x */
+	{ 0, 1, 4, 5},
 	/* ai_gain_628x */
 	{ 1, 2, 3, 4, 5, 6, 7}
 };
