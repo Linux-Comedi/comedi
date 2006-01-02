@@ -1339,7 +1339,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 		if( ( list[i] & CR_ALT_SOURCE ) )
 		{
 			if(boardtype.reg_type == ni_reg_611x)
-				ni_writew(CR_CHAN(list[i])&0x0003, Calibration_Channel_Select_611x);
+				ni_writew(devpriv->ai_calib_source & 0x0003, Calibration_Channel_Select_611x);
 		}else
 		{
 			if(boardtype.reg_type == ni_reg_611x)
