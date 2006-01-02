@@ -204,6 +204,8 @@ static int ni_calib_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 static int ni_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
+static int ni_m_series_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
 
 static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
@@ -1266,6 +1268,91 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 	return insn->n;
 }
 
+void ni_prime_channelgain_list(comedi_device *dev)
+{
+	int i;
+	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+	for(i = 0; i < NI_TIMEOUT; ++i)
+	{
+		if(!(devpriv->stc_readw(dev, AI_Status_1_Register) & AI_FIFO_Empty_St))
+		{
+			devpriv->stc_writew(dev, 1, ADC_FIFO_Clear);
+			return;
+		}
+		comedi_udelay(1);
+	}
+	rt_printk("ni_mio_common: timeout loading channel/gain list\n");
+}
+
+/* m series boards have new ai_config_fifo_data register which replaces
+ * old configuration_memory_low and high registers.  But the old registers still
+ * seem to work, so I'm not going to bother to change it yet. */
+static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
+	unsigned int *list)
+{
+	unsigned int chan, range, aref;
+	unsigned int i;
+	unsigned int hi,lo;
+	unsigned offset;
+	unsigned int dither;
+	unsigned int use_alt_src;
+	unsigned range_code;
+	
+	devpriv->stc_writew(dev, 1, Configuration_Memory_Clear);
+
+	offset = 1 << (boardtype.adbits - 1);
+	for(i = 0; i < n_chan; i++)
+	{
+		chan = CR_CHAN(list[i]);
+		aref = CR_AREF(list[i]);
+		range = CR_RANGE(list[i]);
+		dither = ((list[i] & CR_ALT_FILTER) != 0);
+		use_alt_src = ((list[i] & CR_ALT_SOURCE) != 0);
+		
+		range_code = ni_gainlkup[boardtype.gainlkup][range];
+		devpriv->ai_offset[i] = offset;
+
+		hi = 0;
+		if(use_alt_src)
+		{
+			unsigned bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
+			bypass_bits |= chan;
+			bypass_bits |= MSeries_AI_Bypass_Cal_Sel_Pos_Bits(devpriv->ai_calib_source);
+			bypass_bits |= MSeries_AI_Bypass_Gain_Bits(range_code);
+			if(dither)
+				bypass_bits |= MSeries_AI_Bypass_Dither_Bit;
+			ni_writel(bypass_bits, M_Offset_AI_Config_FIFO_Bypass);
+		}else
+		{
+			ni_writel(0, M_Offset_AI_Config_FIFO_Bypass);
+			switch( aref )
+			{
+				case AREF_DIFF:
+					hi |= AI_DIFFERENTIAL;
+					break;
+				case AREF_COMMON:
+					hi |= AI_COMMON;
+					break;
+				case AREF_GROUND:
+					hi |= AI_GROUND;
+					break;
+				case AREF_OTHER:
+					break;
+			}
+		}
+		hi |= AI_CONFIG_CHANNEL( chan );
+
+		ni_writew(hi,Configuration_Memory_High);
+
+		lo = range_code;
+		if(i == n_chan - 1) lo |= AI_LAST_CHANNEL;
+		if( dither ) lo |= AI_DITHER;
+
+		ni_writew(lo,Configuration_Memory_Low);
+	}
+	ni_prime_channelgain_list(dev);
+}
+
 /*
  * Notes on the 6110 and 6111:
  * These boards a slightly different than the rest of the series, since
@@ -1304,6 +1391,11 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned offset;
 	unsigned int dither;
 
+	if(boardtype.reg_type == ni_reg_m_series)
+	{
+		ni_m_series_load_channelgain_list(dev, n_chan, list);
+		return;
+	}
 	if(n_chan == 1 && boardtype.reg_type != ni_reg_611x){
 		if(devpriv->changain_state && devpriv->changain_spec==list[0]){
 			// ready to go.
@@ -1372,15 +1464,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 
 	/* prime the channel/gain list */
 	if(boardtype.reg_type != ni_reg_611x){
-		devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
-		for(i=0;i<NI_TIMEOUT;i++){
-			if(!(devpriv->stc_readw(dev, AI_Status_1_Register)&AI_FIFO_Empty_St)){
-				devpriv->stc_writew(dev, 1,ADC_FIFO_Clear);
-				return;
-			}
-			comedi_udelay(1);
-		}
-		rt_printk("ni_mio_common: timeout loading channel/gain list\n");
+		ni_prime_channelgain_list(dev);
 	}
 }
 
@@ -2888,10 +2972,16 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+6;
 	s->type=COMEDI_SUBD_MEMORY;
 	s->subdev_flags=SDF_READABLE|SDF_INTERNAL;
-	s->n_chan=512;
 	s->maxdata=0xff;
-	s->insn_read=ni_eeprom_insn_read;
-
+	if(boardtype.reg_type == ni_reg_m_series)
+	{
+		s->n_chan = M_SERIES_EEPROM_SIZE;
+		s->insn_read = &ni_m_series_eeprom_insn_read;
+	}else
+	{
+		s->n_chan = 512;
+		s->insn_read = &ni_eeprom_insn_read;
+	}
 	/* PFI */
 	s=dev->subdevices+7;
 	s->type=COMEDI_SUBD_DIO;
@@ -3043,6 +3133,14 @@ static int ni_read_eeprom(comedi_device *dev,int addr)
 	ni_writeb(0x00,Serial_Command);
 
 	return bitstring;
+}
+
+static int ni_m_series_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data)
+{
+	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
+
+	return 1;
 }
 
 static void ni_write_caldac(comedi_device *dev,int addr,int val);

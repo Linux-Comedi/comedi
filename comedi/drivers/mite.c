@@ -144,9 +144,9 @@ int mite_setup(struct mite_struct *mite)
 	// The 6602 board needs different initalisation, see the
 	// _updated_ (nov 2002) reg. Level Manual (filename 370505b.pdf) p. 3.55
 	if (mite->pcidev->device == 0x1310 ){
-	        printk("mite: detected NI6602, using other I/O Window Base Size register\n");
-	        writel((mite->daq_phys_addr & 0xffffff00L) | WENAB_6602 , mite->mite_io_addr + MITE_IODWBSR_NI6602);
-	        writel(0 , mite->mite_io_addr + MITE_IODWCR_NI6602);
+		printk("mite: detected NI6602, using other I/O Window Base Size register\n");
+		writel((mite->daq_phys_addr & 0xffffff00L) | WENAB_6602 , mite->mite_io_addr + MITE_IODWBSR_1);
+		writel(0 , mite->mite_io_addr + MITE_IODWCR_1);
 	}
 	else writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
 

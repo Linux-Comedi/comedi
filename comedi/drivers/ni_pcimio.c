@@ -1233,6 +1233,33 @@ static int pcimio_ai_change(comedi_device *dev, comedi_subdevice *s,
 static int pcimio_ao_change(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size);
 
+static void m_series_init_eeprom_buffer(comedi_device *dev)
+{
+	static const int Start_Cal_EEPROM = 0x400;
+	static const unsigned window_size = 10;
+	unsigned old_iodwbsr_bits;
+	unsigned old_iodwbsr1_bits;
+	unsigned old_iodwcr1_bits;
+	int i;
+	
+	old_iodwbsr_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR);
+	old_iodwbsr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
+	old_iodwcr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWCR_1);
+	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWBSR);
+	writel(((0x80 | window_size) | devpriv->mite->daq_phys_addr), devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
+	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
+	writel(0xf, devpriv->mite->mite_io_addr + 0x30);
+	
+	for(i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
+	{
+		devpriv->eeprom_buffer[i] = ni_readb(Start_Cal_EEPROM + i);
+	}
+    
+	writel(old_iodwbsr1_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
+	writel(old_iodwbsr_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR);
+	writel(old_iodwcr1_bits, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
+	writel(0x0, devpriv->mite->mite_io_addr + 0x30);
+}
 
 /* cleans up allocated resources */
 static int pcimio_detach(comedi_device *dev)
@@ -1282,6 +1309,8 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" error setting up mite\n");
 		return ret;
 	}
+	if(boardtype.reg_type == ni_reg_m_series)
+		m_series_init_eeprom_buffer(dev);
 
 	dev->irq=mite_irq(devpriv->mite);
 

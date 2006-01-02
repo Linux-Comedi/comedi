@@ -962,6 +962,32 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 	return offset[channel];
 };
 
+enum MSeries_AI_Config_FIFO_Bypass_Bits
+{
+	MSeries_AI_Bypass_Channel_Mask = 0x7,
+	MSeries_AI_Bypass_Bank_Mask = 0x38,
+	MSeries_AI_Bypass_Cal_Sel_Pos_Mask = 0x380,
+	MSeries_AI_Bypass_Cal_Sel_Neg_Mask = 0x1c00,
+	MSeries_AI_Bypass_Mode_Mux_Mask = 0x6000,
+	MSeries_AO_Bypass_AO_Cal_Sel_Mask = 0x38000,
+	MSeries_AI_Bypass_Gain_Mask = 0x1c0000,
+	MSeries_AI_Bypass_Dither_Bit = 0x200000,
+	MSeries_AI_Bypass_Polarity_Bit = 0x400000,
+	MSeries_AI_Bypass_Config_FIFO_Bit = 0x80000000
+};
+static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int calibration_source)
+{
+	return (calibration_source << 7) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
+}
+static inline unsigned MSeries_AI_Bypass_Cal_Sel_Neg_Bits(int calibration_source)
+{
+	return (calibration_source << 10) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
+}
+static inline unsigned MSeries_AI_Bypass_Gain_Bits(int gain)
+{
+	return (gain << 18) & MSeries_AI_Bypass_Gain_Mask;
+}
+
 enum MSeries_AO_Config_Bank_Bits
 {
 	MSeries_AO_DAC_Offset_Select_Mask = 0x7,
@@ -978,6 +1004,8 @@ enum MSeries_AO_Reference_Attenuation_Bits
 {
 	MSeries_Attenuate_x5_Bit = 0x1
 };
+
+#define M_SERIES_EEPROM_SIZE 1024
 
 typedef struct ni_board_struct{
 	int device_id;
@@ -1072,6 +1100,7 @@ static ni_board ni_boards[];
 	unsigned short atrig_low;				\
 								\
 	sampl_t ai_fifo_buffer[0x2000];				\
-
+	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
+	
 #endif /* _COMEDI_NI_STC_H */
 
