@@ -965,7 +965,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 enum MSeries_AI_Config_FIFO_Bypass_Bits
 {
 	MSeries_AI_Bypass_Channel_Mask = 0x7,
-	MSeries_AI_Bypass_Bank_Mask = 0x38,
+	MSeries_AI_Bypass_Bank_Mask = 0x78,
 	MSeries_AI_Bypass_Cal_Sel_Pos_Mask = 0x380,
 	MSeries_AI_Bypass_Cal_Sel_Neg_Mask = 0x1c00,
 	MSeries_AI_Bypass_Mode_Mux_Mask = 0x6000,
