@@ -1317,7 +1317,9 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 		{
 			unsigned bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
 			bypass_bits |= chan;
-			bypass_bits |= MSeries_AI_Bypass_Cal_Sel_Pos_Bits(devpriv->ai_calib_source);
+			bypass_bits |= (devpriv->ai_calib_source) & (MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
+				MSeries_AI_Bypass_Cal_Sel_Neg_Mask | MSeries_AI_Bypass_Mode_Mux_Mask |
+				MSeries_AO_Bypass_AO_Cal_Sel_Mask);
 			bypass_bits |= MSeries_AI_Bypass_Gain_Bits(range_code);
 			if(dither)
 				bypass_bits |= MSeries_AI_Bypass_Dither_Bit;
@@ -1975,21 +1977,31 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_ANALOG_TRIG:
 		return ni_ai_config_analog_trig(dev,s,insn,data);
 	case INSN_CONFIG_ALT_SOURCE:
+		if(boardtype.reg_type == ni_reg_m_series)
 		{
-		unsigned int calib_source;
-		unsigned int calib_source_adjust;
-
-		calib_source = data[1] & 0xf;
-		calib_source_adjust = ( data[1] >> 4 ) & 0xff;
-
-		if(calib_source >= 8)
-			return -EINVAL;
-		devpriv->ai_calib_source = calib_source;
-		if(boardtype.reg_type == ni_reg_611x){
-			ni_writeb( calib_source_adjust, Cal_Gain_Select_611x );
+			if(data[1] & ~(MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
+				MSeries_AI_Bypass_Cal_Sel_Neg_Mask | MSeries_AI_Bypass_Mode_Mux_Mask |
+				MSeries_AO_Bypass_AO_Cal_Sel_Mask))
+			{
+				return -EINVAL;
+			}
+			devpriv->ai_calib_source = data[1];
+		}else
+		{
+			unsigned int calib_source;
+			unsigned int calib_source_adjust;
+	
+			calib_source = data[1] & 0xf;
+			calib_source_adjust = ( data[1] >> 4 ) & 0xff;
+	
+			if(calib_source >= 8)
+				return -EINVAL;
+			devpriv->ai_calib_source = calib_source;
+			if(boardtype.reg_type == ni_reg_611x){
+				ni_writeb( calib_source_adjust, Cal_Gain_Select_611x );
+			}
 		}
 		return 2;
-		}
 	default:
 		break;
 	}
