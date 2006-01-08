@@ -85,8 +85,6 @@ ID=xxx: set software gate
   [1] - set/clear gate
 
 
-
-
 Applications:
 
  - Pulse counting:
@@ -167,13 +165,13 @@ Applications:
 
     invert output on gate?primary:secondary source trigger
 
-  -
 
 ID=INSN_CONFIG_ALT_SOURCE: select alternate input source (internal calibration reference)
 
   [0] - ID
   [1] - source
 
+  
 ID=INSN_CONFIG_TIMER_1: Configure an external master clock and divisor
 	to divide clock by.  Used with commands by setting scan_begin_src or
 	convert_src set to TRIG_OTHER.
@@ -183,3 +181,12 @@ ID=INSN_CONFIG_TIMER_1: Configure an external master clock and divisor
   [2] - primary input chanspec (also specifies polarity and edge/level )
   [3] - primary combining machine configuration (should always be 0x04)
   [4] - divisor
+
+  
+ID=INSN_CONFIG_PWM_OUTPUT: Configure a pulse-width-modulation output.  Returns
+	EAGAIN error with modified values if exact timing is not achievable.
+
+	[0] - ID
+	[1] - flags (rounding mode for up/down times: TRIG_ROUND_NEAREST, etc.)
+	[2] - up time (nanoseconds)
+	[3] - down time (nanoseconds)

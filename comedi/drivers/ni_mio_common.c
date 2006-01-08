@@ -274,6 +274,9 @@ static int cs5529_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_ins
 static unsigned int cs5529_config_read(comedi_device *dev, unsigned int reg_select_bits);
 static void cs5529_config_write(comedi_device *dev, unsigned int value, unsigned int reg_select_bits);
 
+static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn,lsampl_t *data);
+	
 enum aimodes
 {
 	AIMODE_NONE = 0,
@@ -2975,11 +2978,22 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_CALIB;
-	s->subdev_flags=SDF_WRITABLE|SDF_INTERNAL;
-	s->insn_read=ni_calib_insn_read;
-	s->insn_write=ni_calib_insn_write;
-	caldac_setup(dev,s);
-
+	if(boardtype.reg_type == ni_reg_m_series)
+	{
+		// internal PWM analog output used for AI nonlinearity calibration
+		s->subdev_flags = SDF_INTERNAL;
+		s->insn_config = &ni_m_series_pwm_config;
+		s->n_chan = 1;
+		s->maxdata = 0;
+		ni_writel(0x0, M_Offset_Cal_PWM);
+	}else
+	{
+		s->subdev_flags = SDF_WRITABLE | SDF_INTERNAL;
+		s->insn_read = &ni_calib_insn_read;
+		s->insn_write = &ni_calib_insn_write;
+		caldac_setup(dev, s);
+	}
+	
 	/* EEPROM */
 	s=dev->subdevices+6;
 	s->type=COMEDI_SUBD_MEMORY;
@@ -3153,6 +3167,48 @@ static int ni_m_series_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
 
 	return 1;
+}
+
+static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	unsigned up_count, down_count;
+	switch(data[0])
+	{
+	case INSN_CONFIG_PWM_OUTPUT:
+		switch(data[1])
+		{
+		case TRIG_ROUND_NEAREST:
+			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE; 
+			down_count = (data[3] + TIMER_BASE / 2) / TIMER_BASE;
+			break;
+		case TRIG_ROUND_DOWN:
+			up_count = data[2] / TIMER_BASE;
+			down_count = data[3] / TIMER_BASE;
+			break;
+		case TRIG_ROUND_UP:
+			up_count = (data[2] + TIMER_BASE - 1) / TIMER_BASE;
+			down_count = (data[3] + TIMER_BASE - 1) / TIMER_BASE;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		if(up_count * TIMER_BASE != data[2] ||
+			down_count * TIMER_BASE != data[3])
+		{
+			data[2] = up_count * TIMER_BASE;
+			data[3] = down_count * TIMER_BASE;
+			return -EAGAIN;
+		}
+		ni_writel(MSeries_Cal_PWM_High_Time_Bits(up_count) | MSeries_Cal_PWM_Low_Time_Bits(down_count), M_Offset_Cal_PWM);
+		return 4;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return 0;
 }
 
 static void ni_write_caldac(comedi_device *dev,int addr,int val);

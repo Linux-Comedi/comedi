@@ -1005,6 +1005,16 @@ enum MSeries_AO_Reference_Attenuation_Bits
 	MSeries_Attenuate_x5_Bit = 0x1
 };
 
+static inline unsigned MSeries_Cal_PWM_High_Time_Bits(unsigned count)
+{
+	return (count << 16) & 0xffff0000;
+}
+
+static inline unsigned MSeries_Cal_PWM_Low_Time_Bits(unsigned count)
+{
+	return count & 0xffff;
+}
+
 #define M_SERIES_EEPROM_SIZE 1024
 
 typedef struct ni_board_struct{
