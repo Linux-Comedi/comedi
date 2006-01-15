@@ -150,6 +150,7 @@ module_PROGRAMS = \
  pcl812.ko \
  pcl816.ko \
  pcl818.ko \
+ pcmuio.ko \
  comedi_parport.ko \
  rtd520.ko \
  rti800.ko \
@@ -233,6 +234,7 @@ pcl730_ko_SOURCES = pcl730.c
 pcl812_ko_SOURCES = pcl812.c
 pcl816_ko_SOURCES = pcl816.c
 pcl818_ko_SOURCES = pcl818.c
+pcmuio_ko_SOURCES = pcmuio.c
 quatech_daqp_cs_ko_SOURCES = quatech_daqp_cs.c
 comedi_parport_ko_SOURCES = comedi_parport.c
 comedi_rt_timer_ko_SOURCES = comedi_rt_timer.c
