@@ -229,7 +229,7 @@ static boardtype boardtypes[] =
 	 10000, 2048 },
 	{"pci1711", 0x1711,
 	 IORANGE_171x, 1, TYPE_PCI171X,
-	 16, 0, 2, 16, 16, 0,  0x0fff, 0x0fff,
+	 16, 0, 2, 16, 16, 1,  0x0fff, 0x0fff,
 	 &range_pci17x1, range_codes_pci17x1, &range_pci171x_da,
 	 10000, 512 },
 	{"pci1713", 0x1713,
