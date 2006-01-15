@@ -492,7 +492,8 @@ flags:
 	echo LINUX_ARFLAGS=\"\$(ARFLAGS)\" >>\$(obj)/flags
 	echo LINUX_CROSS_COMPILE=\"\$(CROSS_COMPILE)\" >>\$(obj)/flags
 	echo LINUX_KERNELRELEASE=\"\$(KERNELRELEASE)\" >>\$(obj)/flags
-	echo LINUX_CFLAGS=\"\$(CFLAGS) \$(CPPFLAGS)\" | sed 's,Iinclude,I\$(LINUXDIR)/include,g' >>\$(obj)/flags
+	echo LINUX_CFLAGS=\"\$(CFLAGS) \$(CPPFLAGS)\" \
+		| sed -e 's,-Iinclude,-I\$(LINUXDIR)/include,g' -e 's,-include include,-include \$(LINUXDIR)/include,g' >>\$(obj)/flags
 	echo LINUX_CFLAGS_MODULE=\"\$(CFLAGS_MODULE)\" >>\$(obj)/flags
 	echo LINUX_CC=\"\$(CC)\" >>\$(obj)/flags
 	echo LINUX_LD=\"\$(LD) \$(LDFLAGS) \$(LDFLAGS_MODULE)\" >>\$(obj)/flags
