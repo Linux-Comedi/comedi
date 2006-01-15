@@ -575,7 +575,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 out:
 	comedi_event(dev,s,async->events);
 
-#if unused
+#if 0
 	if(!tag){
 		writeb(0x03,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 	}

@@ -457,7 +457,7 @@ static int pci171x_insn_counter_read(comedi_device *dev,comedi_subdevice *s, com
 
 		data[0] = lsb | (msb << 8);
 	}
-#if unused
+#if 0
 	if ( /* count and status */ )
 		ccntrl = 0xC2;
 		/* status, if latched, first */
