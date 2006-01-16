@@ -1157,7 +1157,7 @@ static int pci171x_reset(comedi_device *dev)
 {
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_reset(...)\n");
 	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
-	devpriv->CntrlReg=Control_SW;	// Software trigger, CNT0=100kHz
+	devpriv->CntrlReg=Control_SW | Control_CNT0;	// Software trigger, CNT0=external
 	outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);	// reset any operations
 	outb(0, dev->iobase + PCI171x_CLRFIFO);		// clear FIFO
 	outb(0, dev->iobase + PCI171x_CLRINT);		// clear INT request
