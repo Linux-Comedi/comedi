@@ -44,13 +44,39 @@ version uses 32-bytes (in case you are worried about conflicts).  The
 48-channel board is split into two comedi subdevices, a 32-channel and
 a 16-channel subdevice (so that comedi_dio_bitfield works correctly
 for all channels).  The 96-channel board is split into 3 32-channel
-DIO subdevices.  Note that IRQ support hasn't been added yet.  Let me know
-if you need it and I may get around to doing it.
+DIO subdevices.  
+
+Note that IRQ support has been added, but it is untested.
+
+To use edge-detection IRQ support, pass the IRQs of both ASICS 
+(for the 96 channel version) or just 1 ASIC (for 48-channel version).  
+Then, use use comedi_commands with TRIG_NOW.  
+Your callback will be called each time an edge is triggered, and the data
+values will be two sample_t's, which should be concatenated to form one
+32-bit unsigned int.  This value is the mask of channels that had
+edges detected from your channel list.  Note that the bits positions
+in the mask correspond to positions in your chanlist when you specified
+the command and *not* channel id's!
+
+To set the polarity of the edge-detection interrupts pass a nonzero value for 
+either CR_RANGE or CR_AREF for edge-up polarity, or a zero value for both
+CR_RANGE and CR_AREF if you want edge-down polarity.
+
+In the 48-channel version:
+
+On subdev 0, the first 24 channels channels are edge-detect channels.
+
+In the 96-channel board you have the collowing channels that can do edge detection:
+
+subdev 0, channels 0-24  (24 channels)
+subdev 1, channels 16-31 (16 channels - first 16 channels of 2nd ASIC are here)
+subdev 2, channels 0-8   (+8 channels == 24 total channels for 2nd ASIC)
+
 
 Configuration Options:
   [0] - I/O port base address
-  [1] - IRQ (not yet supported)
-  [2] - IRQ for second ASIC (pcmuio96 only) (not yet supported)
+  [1] - IRQ (for first ASIC, or first 24 channels)
+  [2] - IRQ for second ASIC (pcmuio96 only - IRQ for chans 48-72 .. can be the same as first irq!)
 */
 
 
@@ -72,7 +98,7 @@ Configuration Options:
 #define SDEV_NO ((int)(s - dev->subdevices))
 #define CALC_N_SUBDEVS(nchans) ((nchans)/32 + (!!((nchans)%32)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
-#define ASIC_IOSIZE 16
+#define ASIC_IOSIZE (0x10)
 #define PCMUIO48_IOSIZE ASIC_IOSIZE
 #define PCMUIO96_IOSIZE (ASIC_IOSIZE*2)
 
@@ -158,14 +184,22 @@ typedef struct
     /* mapping of halfwords (bytes) in port/chanarray to iobase */
     unsigned long iobases[PORTS_PER_SUBDEV];
   
-    /* The below is only used for intr subdevices 
+    /* The below is only used for intr subdevices */
     struct {
-      int asic;
+      int asic; /* if non-negative, this subdev has an interrupt asic */
+      int first_chan; /* if nonnegative, the first channel id for 
+                         interrupts. */
+      int num_asic_chans; /* the number of asic channels in this subdev
+                             that have interrutps */
+      int asic_chan; /* if nonnegative, the first channel id with
+                        respect to the asic that has interrupts */
+      int enabled_mask; /* subdev-relative channel mask for channels
+                           we are interested in */
       int active;
       int stop_count;
-      spinlock_t spin_lock;
+      int continuous;
+      spinlock_t spinlock;
     } intr;
-    */
 } pcmuio_subdev_private;
 
 /* this structure is for data unique to this hardware driver.  If
@@ -181,6 +215,7 @@ typedef struct
     int num;
     unsigned long iobase;
     int irq;
+    spinlock_t spinlock;
   } asics[MAX_ASICS];  
   pcmuio_subdev_private *sprivs;
 } pcmuio_private;
@@ -233,16 +268,12 @@ static int pcmuio_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
                                 comedi_insn *insn,lsampl_t *data);
 static int pcmuio_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
                                   comedi_insn *insn,lsampl_t *data);
-/*
-static int pcmuio_intr_insn_bits(comedi_device *dev,comedi_subdevice *s,
-                                comedi_insn *insn,lsampl_t *data);
-static int pcmuio_intr_insn_config(comedi_device *dev,comedi_subdevice *s,
-                                   comedi_insn *insn,lsampl_t *data);
-static int pcmuio_intr_cmdtest(comedi_device *dev, comedi_subdevice *s,
-                               comedi_cmd *cmd);
-static int pcmuio_intr_cmd(comedi_device *dev, comedi_subdevice *s,
-                           comedi_cmd *cmd);
-*/
+
+static irqreturn_t interrupt_pcmuio(int irq, void *d, struct pt_regs *regs);
+static void pcmuio_stop_intr(comedi_device *, comedi_subdevice *);
+static int  pcmuio_cancel(comedi_device *dev, comedi_subdevice *s);
+static int pcmuio_cmd(comedi_device *dev, comedi_subdevice *s);
+static int pcmuio_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 
 /* some helper functions to deal with specifics of this device's registers */
 static void init_asics(comedi_device *dev); /* sets up/clears ASIC chips to defaults */
@@ -259,14 +290,13 @@ static void unlock_port(comedi_device *dev, int asic, int port);
 static int pcmuio_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-    int sdev_no, chans_left, n_subdevs, iobase, irq[MAX_ASICS], port, asic;
+        int sdev_no, chans_left, n_subdevs, iobase, irq[MAX_ASICS], port, asic, thisasic_chanct = 0;
 
     iobase = it->options[0];
     irq[0] = it->options[1];
     irq[1] = it->options[2];
-    
 
-printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
+    printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
 	
     dev->iobase = iobase;
     
@@ -276,40 +306,30 @@ printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
       printk("I/O port conflict\n");
       return -EIO;
     }
-
-    if (irq[0]) {
-      printk("irq: %x ", irq[0]);
-      if (irq[1] && thisboard->num_asics == 2) 
-        printk("second ASIC irq: %x ", irq[1]);
-    } else {
-      printk("(IRQ mode disabled) ");
-    }
-    
-
-    if (irq[0]) {
-      /* TODO: irq request/handling here.. */
-    }
-    /* dev->irq = irq[0]; */
-
+        
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
  * macro now, since we just initialized it in the last line.
  */
-	dev->board_name = thisboard->name;
+    dev->board_name = thisboard->name;
 
 /*
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if (alloc_private(dev,sizeof(pcmuio_private)) < 0) {
+    if (alloc_private(dev,sizeof(pcmuio_private)) < 0) {
       printk("cannot allocate private data structure\n");
       return -ENOMEM;
     }
+
     for (asic = 0; asic < MAX_ASICS; ++asic) {
       devpriv->asics[asic].num = asic;
       devpriv->asics[asic].iobase = dev->iobase + asic*ASIC_IOSIZE;
-      devpriv->asics[asic].irq = irq[asic];
-    }      
+      devpriv->asics[asic].irq = 0; /* this gets actually set at the end of 
+                                       this function when we 
+                                       comedi_request_irqs */
+      spin_lock_init(&devpriv->asics[asic].spinlock);
+    }
     
     chans_left = CHANS_PER_ASIC * thisboard->num_asics;    
     n_subdevs = CALC_N_SUBDEVS(chans_left);
@@ -326,12 +346,15 @@ printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
        * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the 
        * 96-channel version of the board.
        */
-	if ( alloc_subdevices(dev, n_subdevs ) < 0 ) {
+    if ( alloc_subdevices(dev, n_subdevs ) < 0 ) {
         printk("cannot allocate subdevice data structures\n");
         return -ENOMEM;
     }
+
+    memset(dev->subdevices, 0, sizeof(*dev->subdevices) * n_subdevs);
+
     port = 0;
-    asic = 0;
+    asic = 0;    
     for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no)
     {      
       int byte_no;
@@ -339,43 +362,47 @@ printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
       s = dev->subdevices + sdev_no;
       s->private = devpriv->sprivs + sdev_no;
       s->maxdata = 1;
-      s->range_table = &range_digital;
-      
-/*       if (!chans_left) { /\* INTERRUPT subdevice(s) *\/ */
-        
-/*         s->subdev_flags = SDF_READABLE|SDF_PACKED; */
-/*         s->type = COMEDI_SUBD_DI; */
-/*         s->do_cmdtest = pcmuio_intr_cmdtest; */
-/*         s->do_cmd = pcmuio_intr_cmd; */
-/*         s->insn_bits = pcmuio_intr_insn_bits; */
-/*         s->insn_config = pcmuio_intr_insn_config; */
-/*         s->n_chan = INTR_PORTS_PER_ASIC * CHANS_PER_PORT; */
-        
-/*         /\* save the ioport address for each 'port' of 8 channels in the  */
-/*            interrupt subdevice *\/ */
-/*         for (byte_no = 0; byte_no < INTR_PORTS_PER_ASIC; ++byte_no) */
-/*           subpriv->iobases[byte_no] = devpriv->asics[asic].iobase + port++; */
-        
-/*         subpriv->intr.asic = asic; */
-/*         asic++; */
-/*         port = 0; */
-
-/*       } else { */
-
-      s->subdev_flags = SDF_READABLE|SDF_WRITABLE|SDF_PACKED;
+      s->range_table = &range_digital;      
+      s->subdev_flags = SDF_READABLE|SDF_WRITABLE;
       s->type = COMEDI_SUBD_DIO;
       s->insn_bits = pcmuio_dio_insn_bits;
       s->insn_config = pcmuio_dio_insn_config;
       s->n_chan = MIN(chans_left, MAX_CHANS_PER_SUBDEV);
+      subpriv->intr.asic = -1;
+      subpriv->intr.first_chan = -1;
+      subpriv->intr.asic_chan = -1;
+      subpriv->intr.num_asic_chans = -1;
+      subpriv->intr.active = 0;
+      s->len_chanlist = 1; 
+
       /* save the ioport address for each 'port' of 8 channels in the 
          subdevice */         
-      for (byte_no = 0; byte_no < PORTS_PER_SUBDEV; ++byte_no) {
+      for (byte_no = 0; byte_no < PORTS_PER_SUBDEV; ++byte_no, ++port) {
           if (port >= PORTS_PER_ASIC) {
             port = 0;
-            asic++;
+            ++asic;
+            thisasic_chanct = 0;
           }
-          subpriv->iobases[byte_no] = devpriv->asics[asic].iobase + port++;
+          subpriv->iobases[byte_no] = devpriv->asics[asic].iobase + port;
+
+          if (thisasic_chanct < CHANS_PER_PORT*INTR_PORTS_PER_ASIC
+              && subpriv->intr.asic < 0) {
+            /* this is an interrupt subdevice, so setup the struct */
+            subpriv->intr.asic = asic;
+            subpriv->intr.active = 0;
+            subpriv->intr.stop_count = 0;
+            subpriv->intr.first_chan = byte_no * 8;
+            subpriv->intr.asic_chan = thisasic_chanct;
+            subpriv->intr.num_asic_chans = s->n_chan - subpriv->intr.first_chan;
+            s->cancel = pcmuio_cancel;
+            s->do_cmd = pcmuio_cmd;
+            s->do_cmdtest = pcmuio_cmdtest;
+            s->len_chanlist = subpriv->intr.num_asic_chans; 
+          }
+          thisasic_chanct += CHANS_PER_PORT;
       }
+      spin_lock_init(&subpriv->intr.spinlock);
+
       chans_left -= s->n_chan;
 
       if (!chans_left) {
@@ -383,14 +410,37 @@ printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
         port = 0;
       }
       
-        /*}*/
     }
 
-	init_asics(dev); /* clear out all the registers, basically */
+    init_asics(dev); /* clear out all the registers, basically */
 
-	printk("attached\n");
+    for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
+      if (irq[asic] && comedi_request_irq(irq[asic], interrupt_pcmuio, SA_SHIRQ, thisboard->name, dev)) {
+        int i;
+        /* unroll the allocated irqs.. */
+        for (i = asic-1; i >= 0; --i) {
+          comedi_free_irq(irq[i], dev);          
+          devpriv->asics[i].irq = irq[i] = 0;
+        }
+        irq[asic] = 0;
+      }
+      devpriv->asics[asic].irq = irq[asic];
+    }
+    
+    dev->irq = irq[0]; /* grr.. wish comedi dev struct supported multiple 
+                          irqs.. */
 
-	return 1;
+    if (irq[0]) {
+      printk("irq: %d ", irq[0]);
+      if (irq[1] && thisboard->num_asics == 2) 
+        printk("second ASIC irq: %d ", irq[1]);
+    } else {
+      printk("(IRQ mode disabled) ");
+    }
+
+    printk("attached\n");
+    
+    return 1;
 }
 
 
@@ -404,13 +454,20 @@ printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
  */
 static int pcmuio_detach(comedi_device *dev)
 {
+    int i;
+
     printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
     if (dev->iobase)
       release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
-    if (dev->irq)
-      free_irq(dev->irq, dev);
+
+    for (i = 0; i < MAX_ASICS; ++i) {
+      if (devpriv->asics[i].irq) 
+        comedi_free_irq(devpriv->asics[i].irq, dev);
+    }
+    
     if (devpriv && devpriv->sprivs)
       kfree(devpriv->sprivs);
+
     return 0;
 }
 
@@ -423,83 +480,130 @@ static int pcmuio_detach(comedi_device *dev)
 static int pcmuio_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
                                 comedi_insn *insn, lsampl_t *data)
 {
+    int byte_no;
     if (insn->n != 2) return -EINVAL;
 
      /* NOTE:
-        reading a 0 means this channel was high
+        reading a 0 means this channel was high 
+        writine a 0 sets the channel high
         reading a 1 means this channel was low 
+        writing a 1 means set this channel low
 
-        therefore s->state is always inverted.  it also contains
-        forced-zeros for all channels that were configured as INPUT 
-        (s->iobit == 0 for a bit means it is INPUT) */
+        Therefore everything is always inverted. */
 
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
-    int byte_no;
-     s->state &= ~(data[0] & s->io_bits);  /* clear bits for  
-                                              write_mask&output_bits.  */
-    s->state |= (data[0] & s->io_bits & data[1]); /* set the bits for write_mask&output_bits with the data. */
-    data[1] = 0; /* clear what we will return */
-    for (byte_no = 0; byte_no < s->n_chan/CHANS_PER_PORT; byte_no++) {
-        int ioaddr = subpriv->iobases[byte_no];
-        /* Write out the new digital output lines */
-        outb(s->state >> byte_no*8, ioaddr);
-         /* read back the digital input lines.. note they come in inverted! */ 
-        data[1] |= (unsigned int)~inb(ioaddr) << byte_no*8; 
+
+#ifdef DAMMIT_ITS_BROKEN
+        /* DEBUG */
+    printk("write mask: %08x  data: %08x\n", data[0], data[1]);
+#endif
+
+    s->state = 0;
+
+    for (byte_no = 0; byte_no < s->n_chan/CHANS_PER_PORT; ++byte_no) {
+           /* address of 8-bit port */
+        int ioaddr = subpriv->iobases[byte_no], 
+           /* bit offset of port in 32-bit doubleword */
+            offset = byte_no * 8; 
+                      /* this 8-bit port's data */
+        unsigned char byte = 0,   
+                      /* The write mask for this port (if any) */
+                      write_mask_byte = (data[0] >> offset) & 0xff, 
+                      /* The data byte for this port */
+                      data_byte = (data[1] >> offset) & 0xff;
+
+        byte = inb(ioaddr); /* read all 8-bits for this port */
+
+#ifdef DAMMIT_ITS_BROKEN
+        /* DEBUG */
+        printk("byte %d wmb %02x db %02x offset %02d io %04x, data_in %02x ", byte_no, (unsigned)write_mask_byte, (unsigned)data_byte, offset, ioaddr, (unsigned)byte);
+#endif
+
+        if ( write_mask_byte ) { 
+          /* this byte has some write_bits -- so set the output lines */
+          byte &= ~write_mask_byte; /* clear bits for write mask */
+          byte |= ~data_byte & write_mask_byte; /* set to inverted data_byte */
+          /* Write out the new digital output state */
+          outb(byte, ioaddr);
+        }
+
+#ifdef DAMMIT_ITS_BROKEN
+        /* DEBUG */
+        printk("data_out_byte %02x\n", (unsigned)byte);
+#endif
+        /* save the digital input lines for this byte.. */
+        s->state |= ((unsigned int)byte) << offset; 
     }
 
-	return 2;
+    /* now return the DIO lines to data[1] - note they came inverted! */
+    data[1] = ~s->state; 
+
+#ifdef DAMMIT_ITS_BROKEN
+    /* DEBUG */
+    printk("s->state %08x data_out %08x\n", s->state, data[1]);
+#endif
+    
+    return 2;
 }
 
+/* The input or output configuration of each digital line is
+ * configured by a special insn_config instruction.  chanspec
+ * contains the channel to be changed, and data[0] contains the
+ * value COMEDI_INPUT or COMEDI_OUTPUT. */
 static int pcmuio_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
                                   comedi_insn *insn, lsampl_t *data)
 {
-    int chan = CR_CHAN(insn->chanspec), byte_no = chan/8, ioaddr;
+    int chan = CR_CHAN(insn->chanspec), byte_no = chan/8, bit_no = chan % 8, ioaddr;
     unsigned char byte;
 
     /* Compute ioaddr for this channel */
     ioaddr = subpriv->iobases[byte_no];
-
+    
      /* NOTE:
         writing a 0 an IO channel's bit sets the channel to INPUT 
         and pulls the line high as well
         
-        writing a 1 to an IO channel's  bit means set this channel to OUTPUT 
-        and it pulls the line low as well
-        
-        note: s->state is the last real bitpattern written
-        to the device! */
+        writing a 1 to an IO channel's  bit pulls the line low
 
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+        All channels are implicitly always in OUTPUT mode -- but when 
+        they are high they can be considered to be in INPUT mode..
+
+        Thus, we only force channels low if the config request was INPUT, 
+        otherwise we do nothing to the hardware.    */
+
 	switch(data[0])
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
-      /* save to shadow registers */
-		s->io_bits |= 1<<chan;
-        s->state |= 1<<chan; /* reflect the change in the state. */
-		break;
+          /* save to io_bits -- don't actually do anything since 
+             all input channels are also output channels... */
+          s->io_bits |= 1<<chan;
+          break;
 	case INSN_CONFIG_DIO_INPUT:
-      /* save to shadow registers */
-		s->io_bits &= ~(1<<chan);
-        s->state &= ~(1<<chan); /* reflect the change in the state. */
-		break;
+          /* write a 0 to the actual register representing the channel
+             to set it to 'input'.  0 means "float high". */
+          byte = inb(ioaddr);
+          byte &= ~(1<<bit_no); /**< set input channel to '0' */
+
+          /* write out byte -- this is the only time we actually affect the 
+             hardware as all channels are implicitly output -- but input 
+             channels are set to float-high */
+          outb(byte, ioaddr);
+          
+          /* save to io_bits */
+          s->io_bits &= ~(1<<chan);
+          break;
+
 	case INSN_CONFIG_DIO_QUERY:
-      /* retreive from shadow registers */
-		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
+          /* retreive from shadow register */
+          data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+          return insn->n;
+          break;
+
 	default:
-		return -EINVAL;
-		break;
+          return -EINVAL;
+          break;
 	}    
-    /* now write out the saved shadow register to reconfigure */
-    byte = (s->state >> byte_no*8) & 0xff;
-
-	outb(byte, ioaddr);
-
 
 	return insn->n;    
 }
@@ -514,6 +618,8 @@ static void init_asics(comedi_device *dev) /* sets up an
     int port, page;
     int baseaddr = dev->iobase + asic*ASIC_IOSIZE;
 
+    switch_page(dev, asic,  0); /* switch back to page 0 */
+
     /* first, clear all the DIO port bits */
     for (port = 0; port < PORTS_PER_ASIC; ++port) 
       outb(0, baseaddr + REG_PORT0 + port);
@@ -527,7 +633,16 @@ static void init_asics(comedi_device *dev) /* sets up an
       for (reg = FIRST_PAGED_REG; reg < FIRST_PAGED_REG+NUM_PAGED_REGS; ++reg)
         outb(0, baseaddr + reg);
     }
+
+    /* DEBUG  set rising edge interrupts on port0 of both asics*/
+    /*switch_page(dev, asic, PAGE_POL);
+      outb(0xff, baseaddr + REG_POL0);
+      switch_page(dev, asic, PAGE_ENAB);
+      outb(0xff, baseaddr + REG_ENAB0);*/
+    /* END DEBUG */
+
     switch_page(dev, asic,  0); /* switch back to default page 0 */
+    
   }
 }
 
@@ -536,6 +651,7 @@ static void switch_page(comedi_device *dev, int asic, int page)
 {
   if (asic < 0 || asic >= thisboard->num_asics) return; /* paranoia */
   if (page < 0 || page >= NUM_PAGES) return; /* more paranoia */
+
   devpriv->asics[asic].pagelock &= ~REG_PAGE_MASK;
   devpriv->asics[asic].pagelock |= page<<REG_PAGE_BITOFFSET;
 
@@ -548,6 +664,7 @@ static void lock_port(comedi_device *dev, int asic, int port)
 {
   if (asic < 0 || asic >= thisboard->num_asics) return; /* paranoia */
   if (port < 0 || port >= PORTS_PER_ASIC) return; /* more paranoia */
+
   devpriv->asics[asic].pagelock |= 0x1<<port;  
   /* now write out the shadow register */
   outb(devpriv->asics[asic].pagelock, dev->iobase + ASIC_IOSIZE*asic + REG_PAGELOCK);
@@ -563,6 +680,349 @@ static void unlock_port(comedi_device *dev, int asic, int port)
   /* now write out the shadow register */
   outb(devpriv->asics[asic].pagelock, dev->iobase + ASIC_IOSIZE*asic + REG_PAGELOCK);
   (void)unlock_port(dev, asic, port); /* not reached, suppress compiler warnings*/
+}
+
+static irqreturn_t interrupt_pcmuio(int irq, void *d, struct pt_regs *regs)
+{
+  int asic, got1 = 0;
+  comedi_device *dev = (comedi_device *)d;
+  
+  for (asic = 0; asic < MAX_ASICS; ++asic) {
+    if (irq == devpriv->asics[asic].irq) {
+      unsigned long flags;    
+      unsigned triggered = 0;
+      int iobase = devpriv->asics[asic].iobase;
+      /* it is an interrupt for ASIC #asic */
+      unsigned char int_pend;
+
+      comedi_spin_lock_irqsave(&devpriv->asics[asic].spinlock, flags);
+
+      int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
+
+      if (int_pend) {
+        int port;
+        for (port = 0; port < INTR_PORTS_PER_ASIC; ++port) {
+          if (int_pend & (0x1<<port)) {
+            unsigned char io_lines_with_edges = 0;
+            switch_page(dev, asic, PAGE_INT_ID);
+            io_lines_with_edges = inb(iobase + REG_INT_ID0 + port);
+           
+            if (io_lines_with_edges) 
+              /* clear pending interrupt */
+              outb(0, iobase + REG_INT_ID0 + port);
+
+            triggered |= io_lines_with_edges << port*8;
+          }
+        }
+
+        ++got1;
+      }
+
+      comedi_spin_unlock_irqrestore(&devpriv->asics[asic].spinlock, flags);
+
+      if (triggered) {        
+        comedi_subdevice *s;
+        /* TODO here: dispatch io lines to subdevs with commands.. */
+        printk("PCMUIO DEBUG: got edge detect interrupt %d asic %d which_chans: %06x\n", irq, asic, triggered);
+        for (s = dev->subdevices; s < dev->subdevices + dev->n_subdevices; ++s) {
+          if (subpriv->intr.asic == asic) { /* this is an interrupt subdev, and it matches this asic! */
+            unsigned long flags;
+            unsigned oldevents;
+            
+            comedi_spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+            
+            oldevents = s->async->events;
+
+            if (subpriv->intr.active) {
+              unsigned mytrig = ((triggered >> subpriv->intr.asic_chan) & ((0x1<<subpriv->intr.num_asic_chans)-1)) << subpriv->intr.first_chan;
+              if (mytrig & subpriv->intr.enabled_mask) {
+                lsampl_t val = 0;
+                unsigned int n, ch, len;
+                
+                len = s->async->cmd.chanlist_len;
+                for (n = 0; n < len; n++) {
+                  ch = CR_CHAN(s->async->cmd.chanlist[n]);
+                  if (mytrig & (1U << ch)) {
+                    val |= (1U << n);
+                  }
+                }
+                /* Write the scan to the buffer. */
+                if (comedi_buf_put(s->async, ((sampl_t *)&val)[0])
+                    && comedi_buf_put(s->async, ((sampl_t *)&val)[1]) ) {
+                  s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+                } else {
+                  /* Overflow! Stop acquisition!! */
+                  /* TODO: STOP_ACQUISITION_CALL_HERE!! */
+                  pcmuio_stop_intr(dev, s); 
+                }
+                
+                /* Check for end of acquisition. */
+                if (!subpriv->intr.continuous) {
+                  /* stop_src == TRIG_COUNT */
+                  if (subpriv->intr.stop_count > 0) {
+                    subpriv->intr.stop_count--;
+                    if (subpriv->intr.stop_count == 0) {
+                      s->async->events |= COMEDI_CB_EOA;
+                      /* TODO: STOP_ACQUISITION_CALL_HERE!! */
+                      pcmuio_stop_intr(dev, s); 
+                    }
+                  }
+                }
+              }
+            }
+
+            comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+            
+            if (oldevents != s->async->events) {
+              comedi_event(dev, s, s->async->events);
+            }
+
+          }
+          
+        }
+      }
+
+    }
+  }
+  if (!got1) return IRQ_NONE; /* interrupt from other source */
+  return IRQ_HANDLED;
+}
+
+
+static void pcmuio_stop_intr(comedi_device *dev, comedi_subdevice *s)
+{
+  int nports, firstport, asic, port;
+  
+  if ( (asic = subpriv->intr.asic) < 0 ) return; /* not an interrupt subdev */
+  
+  subpriv->intr.enabled_mask = 0;
+  subpriv->intr.active = 0;
+  s->async->inttrig = 0;
+  nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
+  firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
+  switch_page(dev, asic, PAGE_ENAB);
+  for (port = firstport; port < firstport+nports; ++port) {
+    /* disable all intrs for this subdev.. */
+    outb(0, devpriv->asics[asic].iobase + REG_ENAB0 + port);
+  }
+}
+
+static int pcmuio_start_intr(comedi_device *dev, comedi_subdevice *s)
+{
+  if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
+    /* An empty acquisition! */
+    s->async->events |= COMEDI_CB_EOA;
+    subpriv->intr.active = 0;
+    return 1;
+  } else {
+    unsigned bits = 0, pol_bits = 0, n;
+    int nports, firstport, asic, port;
+    comedi_cmd *cmd = &s->async->cmd;  
+    
+    if ( (asic = subpriv->intr.asic) < 0 ) return 1; /* not an interrupt 
+                                                        subdev */
+    subpriv->intr.enabled_mask = 0;
+    subpriv->intr.active = 1;
+    nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
+    firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
+    if (cmd->chanlist) {
+      for (n = 0; n < cmd->chanlist_len; n++) {
+        bits |= (1U << CR_CHAN(cmd->chanlist[n]));
+        pol_bits |= 
+          (CR_AREF(cmd->chanlist[n]) || CR_RANGE(cmd->chanlist[n]) ? 1U : 0U)
+            << CR_CHAN(cmd->chanlist[n]);
+      }
+    }
+    bits &=  ((0x1<<subpriv->intr.num_asic_chans)-1) << subpriv->intr.first_chan;
+    subpriv->intr.enabled_mask = bits;
+
+    switch_page(dev, asic, PAGE_ENAB);
+    for (port = firstport; port < firstport+nports; ++port) {
+      unsigned enab = bits >> (subpriv->intr.first_chan + (port-firstport)*8) & 0xff, 
+               pol = pol_bits >> (subpriv->intr.first_chan + (port-firstport)*8) & 0xff ;
+      /* set enab intrs for this subdev.. */
+      outb(enab, devpriv->asics[asic].iobase + REG_ENAB0 + port);
+      switch_page(dev, asic, PAGE_POL);
+      outb(pol, devpriv->asics[asic].iobase + REG_ENAB0 + port);
+    }
+  }
+  return 0;
+}
+
+static int  pcmuio_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+  unsigned long flags;
+
+  comedi_spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+  if (subpriv->intr.active)  pcmuio_stop_intr(dev, s);
+  comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+
+  return 0;  
+}
+
+/*
+ * Internal trigger function to start acquisition for an 'INTERRUPT' subdevice.
+ */
+static int
+pcmuio_inttrig_start_intr(comedi_device *dev, comedi_subdevice *s, unsigned int trignum)
+{
+	unsigned long flags;
+	int event = 0;
+
+	if (trignum != 0) return -EINVAL;
+
+	comedi_spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+	s->async->inttrig = 0;
+	if (subpriv->intr.active) {
+		event = pcmuio_start_intr(dev, s);
+	}
+	comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+
+	if (event) {
+		comedi_event(dev, s, s->async->events);
+	}
+
+	return 1;
+}
+
+
+/*
+ * 'do_cmd' function for an 'INTERRUPT' subdevice.
+ */
+static int
+pcmuio_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	comedi_cmd *cmd = &s->async->cmd;
+	unsigned long flags;
+	int event = 0;
+
+	comedi_spin_lock_irqsave(&subpriv->intr.spinlock, flags);
+	subpriv->intr.active = 1;
+
+	/* Set up end of acquisition. */
+	switch (cmd->stop_src) {
+	case TRIG_COUNT:
+		subpriv->intr.continuous = 0;
+		subpriv->intr.stop_count = cmd->stop_arg;
+		break;
+	default:
+		/* TRIG_NONE */
+		subpriv->intr.continuous = 1;
+		subpriv->intr.stop_count = 0;
+		break;
+	}
+
+	/* Set up start of acquisition. */
+	switch (cmd->start_src) {
+	case TRIG_INT:
+		s->async->inttrig = pcmuio_inttrig_start_intr;
+		break;
+	default:
+		/* TRIG_NOW */
+		event = pcmuio_start_intr(dev, s);
+		break;
+	}
+	comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
+
+	if (event) {
+		comedi_event(dev, s, s->async->events);
+	}
+
+	return 0;
+}
+
+/*
+ * 'do_cmdtest' function for an 'INTERRUPT' subdevice.
+ */
+static int
+pcmuio_cmdtest(comedi_device *dev, comedi_subdevice *s,
+               comedi_cmd *cmd)
+{
+	int err = 0;
+	unsigned int tmp;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp = cmd->start_src;
+	cmd->start_src &= (TRIG_NOW | TRIG_INT);
+	if (!cmd->start_src || tmp != cmd->start_src) err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_EXT;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
+
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_NOW;
+	if (!cmd->convert_src || tmp != cmd->convert_src) err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;  
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
+
+	tmp = cmd->stop_src;
+	cmd->stop_src &= (TRIG_COUNT | TRIG_NONE);
+	if (!cmd->stop_src || tmp != cmd->stop_src) err++;
+
+	if (err) return 1;
+
+	/* step 2: make sure trigger sources are unique and mutually compatible */
+
+	/* these tests are true if more than one _src bit is set */
+	if ((cmd->start_src & (cmd->start_src - 1)) != 0) err++;
+	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0) err++;
+	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0) err++;
+	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0) err++;
+	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0) err++;
+
+	if (err) return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+
+	/* cmd->start_src == TRIG_NOW || cmd->start_src == TRIG_INT */
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
+		err++;
+	}
+
+	/* cmd->scan_begin_src == TRIG_EXT */
+	if (cmd->scan_begin_arg != 0) {
+		cmd->scan_begin_arg = 0;
+		err++;
+	}
+
+	/* cmd->convert_src == TRIG_NOW */
+	if (cmd->convert_arg != 0) {
+		cmd->convert_arg = 0;
+		err++;
+	}
+
+	/* cmd->scan_end_src == TRIG_COUNT */
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
+		cmd->scan_end_arg = cmd->chanlist_len;
+		err++;
+	}
+
+	switch (cmd->stop_src) {
+	case TRIG_COUNT:
+		/* any count allowed */
+		break;
+	case TRIG_NONE:
+		if (cmd->stop_arg != 0) {
+                  cmd->stop_arg = 0;
+                  err++;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (err) return 3;
+
+	/* step 4: fix up any arguments */
+
+	/* if (err) return 4; */
+
+	return 0;
 }
 
 /*
