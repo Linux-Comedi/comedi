@@ -559,7 +559,7 @@ static int pci230_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 		/* wait for conversion to end */
 		for(i=0;i<TIMEOUT;i++){
 			status = inw(dev->iobase + PCI230_ADCCON);
-			if(PCI230_TEST_BIT(status, PCI230_ADC_BUSY_BIT))break;
+			if(!PCI230_TEST_BIT(status, PCI230_ADC_BUSY_BIT)) break;
 		}
 		if(i==TIMEOUT){
 			/* rt_printk() should be used instead of printk()
