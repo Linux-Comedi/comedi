@@ -29,7 +29,7 @@ Devices: [National Instruments] AT-MIO-16E-1 (ni_atmio),
 Status: works
 Updated: Thu May  1 20:03:02 CDT 2003
 
-The driver now has (2.4) kernel isapnp support, and
+The driver has 2.6 kernel isapnp support, and
 will automatically probe for a supported board if the
 I/O base is left unspecified with comedi_config.
 However, many of
@@ -262,7 +262,7 @@ static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 #define NI_E_IRQ_FLAGS		0
 
 typedef struct{
-	struct pci_dev *isapnp_dev;
+	struct pnp_dev *isapnp_dev;
 	NI_PRIVATE_COMMON
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
@@ -313,18 +313,15 @@ static uint16_t ni_atmio_win_in(comedi_device *dev, int addr)
 	return ret;
 }
 
-#undef __ISAPNP__
-#ifdef __ISAPNP__
-static struct isapnp_device_id device_ids[] = {
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x1900,'N','I','C',0x1900), },
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2400,'N','I','C',0x2400), },
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2500,'N','I','C',0x2500), },
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2600,'N','I','C',0x2600), },
-	{ ISAPNP_DEVICE_SINGLE('N','I','C',0x2700,'N','I','C',0x2700), },
-	{ ISAPNP_DEVICE_SINGLE_END, },
+static struct pnp_device_id device_ids[] = {
+	{.id = "NIC1900", .driver_data = 0},
+	{.id = "NIC2400", .driver_data = 0},
+	{.id = "NIC2500", .driver_data = 0},
+	{.id = "NIC2600", .driver_data = 0},
+	{.id = "NIC2700", .driver_data = 0},
+	{.id = ""}
 };
-MODULE_DEVICE_TABLE(isapnp, device_ids);
-#endif
+MODULE_DEVICE_TABLE(pnp, device_ids);
 
 static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_atmio_detach(comedi_device *dev);
@@ -351,51 +348,40 @@ static int ni_atmio_detach(comedi_device *dev)
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
-#ifdef __ISAPNP__
 	if(devpriv->isapnp_dev)
-		devpriv->isapnp_dev->deactivate(devpriv->isapnp_dev);
-#endif
+		pnp_device_detach(devpriv->isapnp_dev);
 
 	return 0;
 }
 
-static int ni_isapnp_find_board( struct pci_dev **dev )
+static int ni_isapnp_find_board( struct pnp_dev **dev )
 {
-#ifdef __ISAPNP__
-	struct pci_dev *isapnp_dev = NULL;
+	struct pnp_dev *isapnp_dev = NULL;
 	int i;
 	
 	for( i = 0; i < n_ni_boards; i++ )
 	{
-		isapnp_dev = isapnp_find_dev(NULL,
+		isapnp_dev = pnp_find_dev(NULL,
 			ISAPNP_VENDOR('N','I','C'),
 			ISAPNP_FUNCTION( ni_boards[ i ].isapnp_id ),
 			NULL);
 
-		if(!isapnp_dev) continue;
+		if(isapnp_dev == NULL || isapnp_dev->card == NULL) continue;
 
-		if(isapnp_dev->active)
+		if(pnp_device_attach(isapnp_dev) < 0)
 		{
 			printk( "ni_atmio: %s found but already active, skipping.\n", ni_boards[ i ].name );
 			continue;
 		}
-		if(isapnp_dev->prepare(isapnp_dev)<0)
+		if(pnp_activate_dev(isapnp_dev) < 0)
+		{
+			pnp_device_detach(isapnp_dev);
 			return -EAGAIN;
-
-		if(!(isapnp_dev->resource[0].flags & IORESOURCE_IO))
-			return -ENODEV;
-
-#if 0
-		if(!isapnp_dev->ro){
-			/* override resource */
-			if(it->options[0] != 0){
-				isapnp_resource_change(&isapnp_dev->resource[0],
-					it->options[0], NI_SIZE);
-			}
 		}
-#endif
-		if(isapnp_dev->activate(isapnp_dev)<0){
-			printk("ni_atmio: isapnp configure failed!\n");
+		if(!pnp_port_valid(isapnp_dev, 0) || !pnp_irq_valid(isapnp_dev, 0))
+		{
+			pnp_device_detach(isapnp_dev);
+			printk("ni_atmio: pnp invalid port or irq, aborting\n");
 			return -ENOMEM;
 		}
 		break;
@@ -403,15 +389,11 @@ static int ni_isapnp_find_board( struct pci_dev **dev )
 	if( i == n_ni_boards ) return -ENODEV;
 	*dev = isapnp_dev;
 	return 0;
-#else
-	printk("ni_atmio: kernel does not have isapnp support available\n");
-	return -EIO;
-#endif
 }
 
 static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	struct pci_dev *isapnp_dev;
+	struct pnp_dev *isapnp_dev;
 	int		ret;
 	int		iobase;
 	int		board;
@@ -432,13 +414,9 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 		ret = ni_isapnp_find_board( &isapnp_dev );
 		if( ret < 0 ) return ret;
 
-#ifdef __ISAPNP__
-		iobase = isapnp_dev->resource[0].start;
-		irq = isapnp_dev->irq_resource[0].start;
+		iobase = pnp_port_start(isapnp_dev, 0);
+		irq = pnp_irq(isapnp_dev, 0);
 		devpriv->isapnp_dev = isapnp_dev;
-#else
-		return -EIO;
-#endif
 	}
 
 	/* reserve our I/O region */
