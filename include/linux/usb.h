@@ -27,14 +27,19 @@
 #include <linux/time.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#include <linux/kernel.h>
+
 #define USB_ALLOC_URB(x) usb_alloc_urb(x)
 #define USB_SUBMIT_URB(x) usb_submit_urb(x)
 #define URB_ISO_ASAP USB_ISO_ASAP
 #define PROBE_ERR_RETURN(x) NULL
+#define usb_get_dev(x) (x)
+#define usb_put_dev(x)
+#define interface_to_usbdev(intf) NULL
 #else
 #define USB_ALLOC_URB(x) usb_alloc_urb(x,GFP_KERNEL)
 #define USB_SUBMIT_URB(x) usb_submit_urb(x,GFP_ATOMIC)
-#define PROBE_ERR_RETURN(x) x
+#define PROBE_ERR_RETURN(x) (x)
 #endif
 
 
