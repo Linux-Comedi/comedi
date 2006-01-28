@@ -141,6 +141,7 @@ module_PROGRAMS = \
  pcm3724.ko \
  pcm3730.ko \
  pcmad.ko \
+ pcmda12.ko \
  poc.ko \
  pcl711.ko \
  pcl724.ko \
@@ -226,7 +227,6 @@ ni_daq_dio24_ko_SOURCES = ni_daq_dio24.c
 ni_at_ao_ko_SOURCES = ni_at_ao.c
 pcm3730_ko_SOURCES = pcm3730.c
 pcmad_ko_SOURCES = pcmad.c
-poc_ko_SOURCES = poc.c
 pcl711_ko_SOURCES = pcl711.c
 pcl724_ko_SOURCES = pcl724.c
 pcl725_ko_SOURCES = pcl725.c
@@ -235,7 +235,9 @@ pcl730_ko_SOURCES = pcl730.c
 pcl812_ko_SOURCES = pcl812.c
 pcl816_ko_SOURCES = pcl816.c
 pcl818_ko_SOURCES = pcl818.c
+pcmda12_ko_SOURCES = pcmda12.c
 pcmuio_ko_SOURCES = pcmuio.c
+poc_ko_SOURCES = poc.c
 quatech_daqp_cs_ko_SOURCES = quatech_daqp_cs.c
 comedi_parport_ko_SOURCES = comedi_parport.c
 comedi_rt_timer_ko_SOURCES = comedi_rt_timer.c
