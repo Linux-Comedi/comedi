@@ -31,7 +31,6 @@
 #include <linux/device.h>
 
 struct pnp_protocol;
-struct pnp_dev;
 struct pnp_card;
 struct pnp_irq;
 struct pnp_dma;
@@ -41,6 +40,10 @@ struct pnp_resource_table;
 struct pnp_id;
 struct pnp_card_link;
 struct pnp_card_driver;
+struct pnp_dev
+{
+        struct pnp_card * card;
+};
 struct pnp_driver {
 	char * name;
 	const struct pnp_device_id *id_table;
@@ -90,6 +93,11 @@ static inline int compare_pnp_id(struct pnp_id * pos, const char * id) { return 
 static inline int pnp_add_id(struct pnp_id *id, struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_register_driver(struct pnp_driver *drv) { return -ENODEV; }
 static inline void pnp_unregister_driver(struct pnp_driver *drv) { ; }
+
+#define pnp_port_valid(dev, bar) (0)
+#define pnp_irq_valid(dev, bar) (0)
+#define pnp_irq(dev, bar) (0)
+#define pnp_port_start(dev,bar) (0)
 
 #else
 #include_next <linux/pnp.h>
