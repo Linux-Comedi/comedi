@@ -388,6 +388,9 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
+	/* Disable board's interrupts. */
+	outb(0, devpriv->pci_iobase + PCI230_INT_SCE);
+
 	/* Register the interrupt handler. */
 	irq_hdl = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt, SA_SHIRQ, "amplc_pci230", dev);
 	if(irq_hdl<0) {
@@ -397,7 +400,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 		dev->irq = devpriv->pci_dev->irq;
 		printk("comedi%d: amplc_pci230: registered irq %d\n", dev->minor, devpriv->pci_dev->irq);
 	}
-
+	
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
@@ -1504,13 +1507,11 @@ static void pci230_handle_ai(comedi_device *dev, comedi_subdevice *s) {
 		/* Cancel sampled conversion. */
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		pci230_ai_cancel(dev, s);	
-	}
-	if(devpriv->ai_count == 0 && devpriv->ai_stop == 0) {
+	}else if(devpriv->ai_count == 0 && devpriv->ai_stop == 0) {
 		/* Acquisition complete. */
 		s->async->events |= COMEDI_CB_EOA;
 		pci230_ai_cancel(dev, s);			/* disable hardware conversions */
-	}
-	else {
+	}else {
 		/* More samples required, tell Comedi to block. */
 		s->async->events |= COMEDI_CB_BLOCK;
 
