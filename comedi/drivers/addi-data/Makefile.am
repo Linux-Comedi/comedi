@@ -1,5 +1,5 @@
 
-AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS)
+AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@
 
 module_PROGRAMS = addi_common.ko
