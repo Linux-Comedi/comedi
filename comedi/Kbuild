@@ -1,0 +1,9 @@
+
+obj-m += comedi.o
+comedi-y := comedi_fops.o proc.o range.o drivers.o comedi_ksyms.o
+#FIXME: these should be added for rt-enabled kernels
+#comedi-y += rt_pend_tq.o rt.o
+
+obj-y += kcomedilib/
+obj-y += drivers/
+

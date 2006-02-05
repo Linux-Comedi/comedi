@@ -67,6 +67,8 @@ else
 	AC_MSG_NOTICE([PCMCIA support disabled])
 	AM_CONDITIONAL(CONFIG_PCMCIA,false)
 fi
+AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Build modules using kernel's kbuild system (needs recent 2.6 kernel)],
+	[ENABLE_KBUILD=$enableval], [ENABLE_KBUILD="no"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)
@@ -77,11 +79,12 @@ AC_DEFINE(CONFIG_COMEDI_8255, true, [Define if 8255 support is enabled])
 DISTCHECK_CONFIGURE_FLAGS="--with-modulesdir=\\\$\$\(prefix\)/modules"
 AC_SUBST(DISTCHECK_CONFIGURE_FLAGS)
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 Makefile
 comedi/Makefile
 comedi/drivers/Makefile
 comedi/drivers/addi-data/Makefile
 comedi/kcomedilib/Makefile
 ])
+AC_OUTPUT
 
