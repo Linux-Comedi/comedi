@@ -29,6 +29,7 @@ Status: unknown
 Devices: [Mechatronic Systems Inc.] C6x_DIGIO DSP daughter card (c6xdigio)
 Updated: Sun Nov 20 20:18:34 EST 2005
 
+This driver will not work with a 2.4 kernel.
 http://robot0.ge.uiuc.edu/~spong/mecha/
 
 */
@@ -510,20 +511,6 @@ static int c6xdigio_detach(comedi_device * dev)
   return 0;
 }
 
-
-#ifdef MODULE
-int init_module(void)
-{
-	comedi_driver_register(&driver_c6xdigio);
-	
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_c6xdigio);
-}
-#endif
-
+COMEDI_INITCLEANUP(driver_c6xdigio);
 
 
