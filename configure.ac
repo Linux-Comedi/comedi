@@ -69,6 +69,7 @@ else
 fi
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Build modules using kernel's kbuild system (needs recent 2.6 kernel)],
 	[ENABLE_KBUILD=$enableval], [ENABLE_KBUILD="no"])
+AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)

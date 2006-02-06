@@ -1,7 +1,20 @@
 
 SUBDIRS = . kcomedilib drivers
 
+if CONFIG_KBUILD
+module_PROGRAMS =
+all-local: comedi_kbuild.inc
+	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ -I @abs_top_srcdir@/include" V=1 modules
+install-data-local: comedi_kbuild.inc
+	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ -I @abs_top_srcdir@/include" V=1 modules_install
+clean-local: comedi_kbuild.inc
+	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ -I @abs_top_srcdir@/include" V=1 clean
+else
 module_PROGRAMS = comedi.ko
+all-local:
+install-data-local:
+clean-local:
+endif
 
 EXTRA_DIST = \
  rt_pend_tq.h
@@ -30,3 +43,15 @@ clean-modulePROGRAMS:
 	-test -z "$(module_PROGRAMS)" || rm -f $(module_PROGRAMS)
 	-rm -rf .mods
 
+comedi_kbuild.inc: Makefile
+	echo > $@
+if CONFIG_COMEDI_RT
+	echo CONFIG_COMEDI_RT=y >> $@
+	echo CONFIG_COMEDI_RT_MODULES=m >> $@
+endif
+if CONFIG_PCMCIA
+	echo CONFIG_COMEDI_PCMCIA_MODULES=m >> $@
+endif
+if CONFIG_USB
+	echo CONFIG_COMEDI_USB_MODULES=m >> $@
+endif

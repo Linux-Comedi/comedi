@@ -2,7 +2,11 @@
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@
 
+if CONFIG_KBUILD
+module_PROGRAMS =
+else
 module_PROGRAMS = addi_common.ko
+endif
 
 addi_common_ko_SOURCES = addi_common.c
 

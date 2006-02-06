@@ -81,6 +81,9 @@ else
 usb_modules=
 endif
 
+if CONFIG_KBUILD
+module_PROGRAMS =
+else !CONFIG_KBUILD
 module_PROGRAMS = \
  8255.ko \
  amcc_s5933.ko \
@@ -163,6 +166,7 @@ module_PROGRAMS = \
  $(pcmcia_modules) \
  $(usb_modules) \
  $(rt_modules)
+endif !CONFIG_KBUILD
 
 8255_ko_SOURCES = 8255.c
 acl7225b_ko_SOURCES = acl7225b.c

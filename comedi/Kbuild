@@ -1,8 +1,9 @@
 
+include comedi_kbuild.inc
+
 obj-m += comedi.o
 comedi-y := comedi_fops.o proc.o range.o drivers.o comedi_ksyms.o
-#FIXME: these should be added for rt-enabled kernels
-#comedi-y += rt_pend_tq.o rt.o
+comedi-$(CONFIG_COMEDI_RT) += rt_pend_tq.o rt.o
 
 obj-y += kcomedilib/
 obj-y += drivers/

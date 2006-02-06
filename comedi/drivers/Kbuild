@@ -1,30 +1,20 @@
 
+include comedi_kbuild.inc
+
 obj-y += addi-data/
 
-#FIXME: deal with conditionally compiled rt/pcmcia/usb modules
+obj-$(CONFIG_COMEDI_RT_MODULES) += comedi_rt_timer.o
 
-#if CONFIG_COMEDI_RT
-#rt_modules = comedi_rt_timer.ko
-#endif
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += cb_das16_cs.o
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += das08_cs.o
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_daq_dio24.o
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_mio_cs.o
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_labpc_cs.o
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += quatech_daqp_cs.o
 
-#if CONFIG_PCMCIA
-#pcmcia_modules= \
-# cb_das16_cs.ko \
-# das08_cs.ko \
-# ni_daq_dio24.ko \
-# ni_mio_cs.ko \
-# ni_labpc_cs.ko \
-# quatech_daqp_cs.ko
-#endif
-
-#if CONFIG_USB
-#usb_modules= \
-# usbdux.ko \
-# usbduxfast.ko \
-# dt9812.ko
-#else
-#usb_modules=
-#endif
+obj-$(CONFIG_COMEDI_USB_MODULES) += usbdux.o
+obj-$(CONFIG_COMEDI_USB_MODULES) += usbduxfast.o
+obj-$(CONFIG_COMEDI_USB_MODULES) += dt9812.o
 
 obj-m += 8255.o
 obj-m += amcc_s5933.o
