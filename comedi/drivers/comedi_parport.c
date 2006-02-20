@@ -119,7 +119,7 @@ static int parport_insn_a(comedi_device *dev,comedi_subdevice *s,
 		outb(devpriv->a_data,dev->iobase+PARPORT_A);
 	}
 
-	data[1] = inb(devpriv->a_data);
+	data[1] = inb(dev->iobase + PARPORT_A);
 
 	return 2;
 }
