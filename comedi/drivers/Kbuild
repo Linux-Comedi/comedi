@@ -1,7 +1,8 @@
 
 include comedi_kbuild.inc
 
-obj-y += addi-data/
+#disabling addi-data driver until its floating-point house is put in order
+#obj-y += addi-data/
 
 obj-$(CONFIG_COMEDI_RT_MODULES) += comedi_rt_timer.o
 

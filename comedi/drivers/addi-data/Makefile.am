@@ -5,7 +5,9 @@ LINK = $(top_builddir)/modtool --link -o $@
 if CONFIG_KBUILD
 module_PROGRAMS =
 else
-module_PROGRAMS = addi_common.ko
+#disabling addi driver until its floating-point house is put in order
+#module_PROGRAMS = addi_common.ko
+module_PROGRAMS =
 endif
 
 addi_common_ko_SOURCES = addi_common.c
