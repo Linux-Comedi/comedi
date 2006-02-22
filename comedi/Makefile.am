@@ -4,11 +4,12 @@ SUBDIRS = . kcomedilib drivers
 if CONFIG_KBUILD
 module_PROGRAMS =
 all-local: comedi_kbuild.inc
-	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ -I @abs_top_srcdir@/include" V=1 modules
+	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" V=1 modules
 install-data-local: comedi_kbuild.inc
-	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ -I @abs_top_srcdir@/include" V=1 modules_install
+	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@" V=1 modules_install
 clean-local: comedi_kbuild.inc
-	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ -I @abs_top_srcdir@/include" V=1 clean
+	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@" V=1 clean
 else
 module_PROGRAMS = comedi.ko
 all-local:
