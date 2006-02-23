@@ -707,12 +707,25 @@ static int labpc_event(event_t event, int priority,
 } /* labpc_event */
 
 /*====================================================================*/
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+static struct pcmcia_device_id labpc_cs_ids[] =
+{
+	/* N.B. These IDs should match those in labpc_cs_boards (ni_labpc.c) */
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0103), /* daqcard-1200 */
+	PCMCIA_DEVICE_NULL
+};
+
+MODULE_DEVICE_TABLE(pcmcia, labpc_cs_ids);
+#endif
+
 struct pcmcia_driver labpc_cs_driver =
 {
 	.attach = labpc_cs_attach,
 	.detach = labpc_cs_detach,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.event = &labpc_event,
+	.id_table = labpc_cs_ids,
 #endif	
 	.owner = THIS_MODULE,
 	.drv = {

@@ -156,6 +156,7 @@ static ni_board ni_boards[]={
 		caldac:		{mb88341,mb88341},
 	},
 #endif
+	/* N.B. Update ni_mio_cs_ids[] when entries added above. */
 };
 
 
@@ -610,12 +611,27 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 
 MODULE_LICENSE("GPL");
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+static struct pcmcia_device_id ni_mio_cs_ids[] =
+{
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d), /* DAQCard-ai-16xe-50 */
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010c), /* DAQCard-ai-16e-4 */
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x02c4), /* DAQCard-6062E */
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x075e), /* DAQCard-6024E */
+	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0245), /* DAQCard-6036E */
+	PCMCIA_DEVICE_NULL
+};
+
+MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
+#endif
+
 struct pcmcia_driver ni_mio_cs_driver =
 {
 	.attach = &cs_attach,
 	.detach = &cs_detach,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.event = &mio_cs_event,
+	.id_table = ni_mio_cs_ids,
 #endif	
 	.owner = THIS_MODULE,
 	.drv = {
