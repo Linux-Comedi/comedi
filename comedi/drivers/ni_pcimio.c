@@ -35,6 +35,7 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
   PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
+  PCI-6143
 Updated: Mon Jan 19 11:00:27 EST 2004
 
 These boards are almost identical to the AT-MIO E series, except that
@@ -53,6 +54,9 @@ Digital I/O may not work on 673x.
 Information (number of channels, bits, etc.) for some devices may be
 incorrect.  Please check this and submit a bug if there are problems
 for your device.
+
+2006-02-07: S-Series PCI-6143: Support has been added but is not
+	fully tested as yet. Terry Barnaby, BEAM Ltd.
 
 Bugs:
  - When DMA is enabled, COMEDI_EV_SCAN_END and COMEDI_EV_CONVERT do
@@ -158,6 +162,7 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x70f2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x716c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x71bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70C0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
@@ -958,6 +963,21 @@ static ni_board ni_boards[]={
 		.caldac = {caldac_none},
 		has_8255:	0,
 	},
+	{       device_id:      0x70C0,
+		name:           "pci-6143",
+		n_adchan:       8,
+		adbits:         16,
+		ai_fifo_depth:  1024,
+		alwaysdither:   0,
+		gainlkup:       ai_gain_6143,
+		ai_speed:	4000,
+		n_aochan:       0,
+		aobits:         0,
+		reg_type:	ni_reg_6143,
+		ao_unipolar:    0,
+		ao_fifo_depth:  0,
+		caldac:         {ad8804,ad8804},
+	},
 };
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
 
@@ -1261,6 +1281,24 @@ static void m_series_init_eeprom_buffer(comedi_device *dev)
 	writel(0x0, devpriv->mite->mite_io_addr + 0x30);
 }
 
+static void init_6143(comedi_device *dev)
+{
+	// Disable interrupts
+	devpriv->stc_writew(dev, 0, Interrupt_Control_Register);
+
+	// Initialise 6143 AI specific bits
+	ni_writeb(0x00, Magic_6143);		// Set G0,G1 DMA mode to E series version
+	ni_writeb(0x80, PipelineDelay_6143);	// Set EOCMode, ADCMode and pipelinedelay
+	ni_writeb(0x00, EOC_Set_6143);		// Set EOC Delay
+	
+	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	// Set the FIFO half full level
+
+	// Strobe Relay disable bit
+	devpriv->ai_calib_source_enabled = 0;
+	ni_writew(devpriv->ai_calib_source | Calibration_Channel_6143_RelayOff, Calibration_Channel_6143);
+	ni_writew(devpriv->ai_calib_source, Calibration_Channel_6143);
+}
+
 /* cleans up allocated resources */
 static int pcimio_detach(comedi_device *dev)
 {
@@ -1309,8 +1347,11 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" error setting up mite\n");
 		return ret;
 	}
+
 	if(boardtype.reg_type == ni_reg_m_series)
 		m_series_init_eeprom_buffer(dev);
+	if(boardtype.reg_type == ni_reg_6143)
+		init_6143(dev);
 
 	dev->irq=mite_irq(devpriv->mite);
 

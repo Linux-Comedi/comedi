@@ -304,6 +304,7 @@ enum AO_FIFO_Mode_Bits
 #define FOUT_Divider(x)				(((x) & 0xf) << 0)
 
 #define IO_Bidirection_Pin_Register	57
+#define	RTSI_Trig_Direction_Register	58
 
 #define Interrupt_Control_Register	59
 #define Interrupt_B_Enable			_bit15
@@ -440,6 +441,9 @@ enum AO_Personal_Bits
 	AO_TMRDACWR_Pulse_Width = 1 << 12,
 	AO_Number_Of_DAC_Packages = 1 << 14,	// 1 for "single" mode, 0 for "dual"
 };
+#define	RTSI_Trig_A_Output_Register	79
+#define	RTSI_Trig_B_Output_Register	80
+#define	RTSI_Board_Register		81
 #define Write_Strobe_0_Register		82
 #define Write_Strobe_1_Register		83
 #define Write_Strobe_2_Register		84
@@ -664,6 +668,36 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 #define AO_Window_Address_611x		0x18
 #define AO_Window_Data_611x		0x1e
 
+/* 6143 registers */
+#define Magic_6143			0x19 /* w8 */
+#define G0G1_DMA_Select_6143		0x0B /* w8 */
+#define PipelineDelay_6143		0x1f /* w8 */
+#define EOC_Set_6143			0x1D /* w8 */
+#define AIDMA_Select_6143		0x09 /* w8 */
+#define AIFIFO_Data_6143		0x8C /* w32 */
+#define AIFIFO_Flag_6143		0x84 /* w32 */
+#define AIFIFO_Control_6143		0x88 /* w32 */
+#define AIFIFO_Status_6143		0x88 /* w32 */
+#define AIFIFO_DMAThreshold_6143	0x90 /* w32 */
+#define AIFIFO_Words_Available_6143	0x94 /* w32 */
+
+#define Calibration_Channel_6143	0x42 /* w16 */
+#define Calibration_LowTime_6143	0x20 /* w16 */
+#define Calibration_HighTime_6143	0x22 /* w16 */
+#define Relay_Counter_Load_Val__6143	0x4C /* w32 */
+#define Signature_6143			0x50 /* w32 */
+#define Release_Date_6143		0x54 /* w32 */
+#define Release_Oldest_Date_6143	0x58 /* w32 */
+
+#define Calibration_Channel_6143_RelayOn	0x8000	/* Calibration relay switch On */
+#define Calibration_Channel_6143_RelayOff	0x4000	/* Calibration relay switch Off */
+#define Calibration_Channel_Gnd_Gnd	0x00	/* Offset Calibration */
+#define Calibration_Channel_2v5_Gnd	0x02	/* 2.5V Reference */
+#define Calibration_Channel_Pwm_Gnd	0x05	/* +/- 5V Self Cal */
+#define Calibration_Channel_2v5_Pwm	0x0a	/* PWM Calibration */
+#define Calibration_Channel_Pwm_Pwm	0x0d	/* CMRR */
+#define Calibration_Channel_Gnd_Pwm	0x0e	/* PWM Calibration */
+
 /* 671x, 611x registers */
 
 /* 671xi, 611x windowed ao registers */
@@ -757,7 +791,7 @@ enum mite_dma_channel{
 	GPC1_DMA_CHAN = 3,
 };
 
-enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x, ai_gain_628x };
+enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x, ai_gain_628x,  ai_gain_6143};
 enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
 	ad8804, ad8842, ad8804_debug };
 enum ni_reg_type {
@@ -767,7 +801,8 @@ enum ni_reg_type {
 	ni_reg_6713 = 0x4,
 	ni_reg_67xx_mask = 0x6,
 	ni_reg_6xxx_mask = 0x7,
-	ni_reg_m_series = 0x8
+	ni_reg_m_series = 0x8,
+	ni_reg_6143 = 0x10
 };
 
 static comedi_lrange range_ni_E_ao_ext;
@@ -1069,6 +1104,7 @@ static ni_board ni_boards[];
 	int blocksize;						\
 	int n_left;						\
 	unsigned int ai_calib_source;				\
+	unsigned int ai_calib_source_enabled;			\
 	spinlock_t window_lock; \
 								\
 	int changain_state;					\
@@ -1104,6 +1140,7 @@ static ni_board ni_boards[];
 	volatile unsigned short int_a_enable_reg;			\
 	volatile unsigned short int_b_enable_reg;			\
 	unsigned short io_bidirection_pin_reg;			\
+	unsigned short rtsi_trig_direction_reg;			\
 								\
 	unsigned short atrig_mode;				\
 	unsigned short atrig_high;				\

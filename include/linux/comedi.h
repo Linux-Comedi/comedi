@@ -246,8 +246,10 @@ enum configuration_ids
 	INSN_CONFIG_SET_CLOCK_SRC = 2003,	// Set CTR clock source
 	INSN_CONFIG_GET_CLOCK_SRC = 2004,	// Get CTR clock source
 	INSN_CONFIG_8254_SET_MODE = 4097,
-	INSN_CONFIG_8254_READ_STATUS = 4098
+	INSN_CONFIG_8254_READ_STATUS = 4098,
+	INSN_CONFIG_SET_RTSI_CLOCK_MODE = 5000	// Set RTSI bus clock mode
 };
+
 
 /* ioctls */
 
@@ -516,6 +518,54 @@ enum i8254_mode
 	I8254_BCD = 1, /* use binary-coded decimal instead of binary (pretty useless) */
 	I8254_BINARY = 0
 };
+
+/* RTSI Clock mode */
+#define COMEDI_RTSI_CLOCK_MODE_INTERNAL	0x00	// Internal clock mode
+#define COMEDI_RTSI_CLOCK_MODE_OUTPUT	0x01	// Outputs clock to RTSI
+#define COMEDI_RTSI_CLOCK_MODE_SLAVE	0x02	// Runs from RTSI clock
+#define COMEDI_RTSI_CLOCK_MODE_MASTER	0x03	// Outputs clock to RTSI and runs from this external clock
+
+/* RTSI BUS pins */
+#define NI_RTSI_0		0
+#define NI_RTSI_1		1
+#define NI_RTSI_2		2
+#define NI_RTSI_3		3
+#define NI_RTSI_4		4
+#define NI_RTSI_5		5
+#define NI_RTSI_6		6
+#define NI_RTSI_7		7
+
+/* RTSI BUS pin usage in standard configuration */
+#define NI_RTSI_STD_AI_START1		0
+#define NI_RTSI_STD_AI_START2		1
+#define NI_RTSI_STD_AI_CONV		2
+#define NI_RTSI_STD_CT1_SRC		3
+#define NI_RTSI_STD_CT1_GATE		4
+#define NI_RTSI_STD_AO_SAMP_CLOCK	5
+#define NI_RTSI_STD_AO_START_TRIG	6
+#define NI_RTSI_STD_AI_SAMP_CLOCK	7
+#define NI_RTSI_STD_CTR0_SRC		8
+#define NI_RTSI_STD_CTR0_GATE		9
+
+/* NI External Trigger lines */
+#define NI_EXT_PFI_0			0
+#define NI_EXT_PFI_1			1
+#define NI_EXT_PFI_2			2
+#define NI_EXT_PFI_3			3
+#define NI_EXT_PFI_4			4
+#define NI_EXT_PFI_5			5
+#define NI_EXT_PFI_6			6
+#define NI_EXT_PFI_7			7
+#define NI_EXT_PFI_8			8
+#define NI_EXT_PFI_9			9
+#define NI_EXT_RTSI_0			10
+#define NI_EXT_RTSI_1			11
+#define NI_EXT_RTSI_2			12
+#define NI_EXT_RTSI_3			13
+#define NI_EXT_RTSI_4			14
+#define NI_EXT_RTSI_5			15
+#define NI_EXT_RTSI_6			16
+
 #ifdef __cplusplus
 }
 #endif
