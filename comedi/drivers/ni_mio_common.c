@@ -3341,6 +3341,13 @@ static int ni_m_series_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
+static int ni_get_pwm_config(comedi_device *dev, lsampl_t *data)
+{
+	data[1] = devpriv->pwm_up_count * TIMER_BASE;
+	data[2] = devpriv->pwm_down_count * TIMER_BASE;
+	return 3;
+}
+
 static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
@@ -3386,7 +3393,12 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 			return -EAGAIN;
 		}
 		ni_writel(MSeries_Cal_PWM_High_Time_Bits(up_count) | MSeries_Cal_PWM_Low_Time_Bits(down_count), M_Offset_Cal_PWM);
+		devpriv->pwm_up_count = up_count;
+		devpriv->pwm_down_count = down_count;
 		return 5;
+		break;
+	case INSN_CONFIG_GET_PWM_OUTPUT:
+		return ni_get_pwm_config(dev, data);
 		break;
 	default:
 		return -EINVAL;
@@ -3440,9 +3452,13 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 			return -EAGAIN;
 		}
 		ni_writel(up_count, Calibration_HighTime_6143);
+		devpriv->pwm_up_count = up_count;
 		ni_writel(down_count, Calibration_LowTime_6143);
+		devpriv->pwm_down_count = down_count;
 		return 5;
 		break;
+	case INSN_CONFIG_GET_PWM_OUTPUT:
+		return ni_get_pwm_config(dev, data);
 	default:
 		return -EINVAL;
 		break;

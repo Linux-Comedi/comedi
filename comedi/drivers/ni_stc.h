@@ -1145,7 +1145,10 @@ static ni_board ni_boards[];
 	unsigned short atrig_mode;				\
 	unsigned short atrig_high;				\
 	unsigned short atrig_low;				\
-								\
+	\
+	unsigned short pwm_up_count;	\
+	unsigned short pwm_down_count;	\
+	\
 	sampl_t ai_fifo_buffer[0x2000];				\
 	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
 	
