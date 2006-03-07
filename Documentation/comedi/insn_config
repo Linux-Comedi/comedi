@@ -187,6 +187,13 @@ ID=INSN_CONFIG_PWM_OUTPUT: Configure a pulse-width-modulation output.  Returns
 	EAGAIN error with modified values if exact timing is not achievable.
 
 	[0] - ID
-	[1] - flags (rounding mode for up/down times: TRIG_ROUND_NEAREST, etc.)
+	[1] - up time flags (rounding mode for time: TRIG_ROUND_NEAREST, etc.)
 	[2] - up time (nanoseconds)
-	[3] - down time (nanoseconds)
+	[3] - down time flags (rounding mode for time: TRIG_ROUND_NEAREST, etc.)
+	[4] - down time (nanoseconds)
+
+ID=INSN_CONFIG_GET_PWM_OUTPUT: Query a pulse-width-modulation output.
+
+	[0] - ID
+	[1] - up time (nanoseconds)
+	[2] - down time (nanoseconds)

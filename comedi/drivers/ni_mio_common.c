@@ -3352,29 +3352,41 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		{
 		case TRIG_ROUND_NEAREST:
 			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE; 
-			down_count = (data[3] + TIMER_BASE / 2) / TIMER_BASE;
 			break;
 		case TRIG_ROUND_DOWN:
 			up_count = data[2] / TIMER_BASE;
-			down_count = data[3] / TIMER_BASE;
 			break;
 		case TRIG_ROUND_UP:
 			up_count = (data[2] + TIMER_BASE - 1) / TIMER_BASE;
-			down_count = (data[3] + TIMER_BASE - 1) / TIMER_BASE;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		switch(data[3])
+		{
+		case TRIG_ROUND_NEAREST:
+			down_count = (data[4] + TIMER_BASE / 2) / TIMER_BASE;
+			break;
+		case TRIG_ROUND_DOWN:
+			down_count = data[4] / TIMER_BASE;
+			break;
+		case TRIG_ROUND_UP:
+			down_count = (data[4] + TIMER_BASE - 1) / TIMER_BASE;
 			break;
 		default:
 			return -EINVAL;
 			break;
 		}
 		if(up_count * TIMER_BASE != data[2] ||
-			down_count * TIMER_BASE != data[3])
+			down_count * TIMER_BASE != data[4])
 		{
 			data[2] = up_count * TIMER_BASE;
-			data[3] = down_count * TIMER_BASE;
+			data[4] = down_count * TIMER_BASE;
 			return -EAGAIN;
 		}
 		ni_writel(MSeries_Cal_PWM_High_Time_Bits(up_count) | MSeries_Cal_PWM_Low_Time_Bits(down_count), M_Offset_Cal_PWM);
-		return 4;
+		return 5;
 		break;
 	default:
 		return -EINVAL;
@@ -3394,30 +3406,42 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		{
 		case TRIG_ROUND_NEAREST:
 			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE; 
-			down_count = (data[3] + TIMER_BASE / 2) / TIMER_BASE;
 			break;
 		case TRIG_ROUND_DOWN:
 			up_count = data[2] / TIMER_BASE;
-			down_count = data[3] / TIMER_BASE;
 			break;
 		case TRIG_ROUND_UP:
 			up_count = (data[2] + TIMER_BASE - 1) / TIMER_BASE;
-			down_count = (data[3] + TIMER_BASE - 1) / TIMER_BASE;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		switch(data[3])
+		{
+		case TRIG_ROUND_NEAREST:
+			down_count = (data[4] + TIMER_BASE / 2) / TIMER_BASE;
+			break;
+		case TRIG_ROUND_DOWN:
+			down_count = data[4] / TIMER_BASE;
+			break;
+		case TRIG_ROUND_UP:
+			down_count = (data[4] + TIMER_BASE - 1) / TIMER_BASE;
 			break;
 		default:
 			return -EINVAL;
 			break;
 		}
 		if(up_count * TIMER_BASE != data[2] ||
-			down_count * TIMER_BASE != data[3])
+			down_count * TIMER_BASE != data[4])
 		{
 			data[2] = up_count * TIMER_BASE;
-			data[3] = down_count * TIMER_BASE;
+			data[4] = down_count * TIMER_BASE;
 			return -EAGAIN;
 		}
 		ni_writel(up_count, Calibration_HighTime_6143);
 		ni_writel(down_count, Calibration_LowTime_6143);
-		return 4;
+		return 5;
 		break;
 	default:
 		return -EINVAL;
