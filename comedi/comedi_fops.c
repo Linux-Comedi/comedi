@@ -638,6 +638,8 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 		if( insn->n == 2 ) return 0;
 	//by default we allow the insn since we don't have checks for all possible cases yet 
 	default:
+		rt_printk("No check for data length of config insn id %i implemented.  Assuming n=%i is correct.\n",
+				data[0], insn->n);
 		return 0;
 		break;
 	}
