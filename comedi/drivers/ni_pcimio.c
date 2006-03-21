@@ -36,7 +36,7 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
   PCI-6143
-Updated: Mon Jan 19 11:00:27 EST 2004
+Updated: Tue Mar 21 17:40:10 EST 2006
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes for
@@ -57,6 +57,8 @@ for your device.
 
 2006-02-07: S-Series PCI-6143: Support has been added but is not
 	fully tested as yet. Terry Barnaby, BEAM Ltd.
+
+The support for the M-Series boards is still under development.
 
 Bugs:
  - When DMA is enabled, COMEDI_EV_SCAN_END and COMEDI_EV_CONVERT do
