@@ -1658,7 +1658,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	tmp=cmd->convert_src;
 	sources = TRIG_TIMER | TRIG_EXT;
-	if(boardtype.reg_type == ni_reg_611x) sources |= TRIG_NOW;
+	if((boardtype.reg_type == ni_reg_611x) || (boardtype.reg_type == ni_reg_6143)) sources |= TRIG_NOW;
 	cmd->convert_src &= sources;
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
@@ -1734,7 +1734,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		}
 	}
 	if(cmd->convert_src==TRIG_TIMER){
-		if(boardtype.reg_type == ni_reg_611x){
+		if((boardtype.reg_type == ni_reg_611x) || (boardtype.reg_type == ni_reg_6143)){
 			if(cmd->convert_arg != 0){
 				cmd->convert_arg = 0;
 				err++;
@@ -1801,7 +1801,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
 	if(cmd->convert_src==TRIG_TIMER){
-		if(boardtype.reg_type != ni_reg_611x){
+		if((boardtype.reg_type != ni_reg_611x) && (boardtype.reg_type != ni_reg_6143)){
 			tmp=cmd->convert_arg;
 			ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
 			if(tmp!=cmd->convert_arg)err++;
