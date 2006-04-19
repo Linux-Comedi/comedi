@@ -41,10 +41,8 @@ the board.  You need to pass that information to this driver as the
 first and second comedi_config option, respectively.  Note that the
 48-channel version uses 16 bytes of IO memory and the 96-channel
 version uses 32-bytes (in case you are worried about conflicts).  The
-48-channel board is split into two comedi subdevices, a 32-channel and
-a 16-channel subdevice (so that comedi_dio_bitfield works correctly
-for all channels).  The 96-channel board is split into 3 32-channel
-DIO subdevices.  
+48-channel board is split into two 24-channel comedi subdevices. 
+The 96-channel board is split into 4 24-channel DIO subdevices.  
 
 Note that IRQ support has been added, but it is untested.
 
@@ -68,10 +66,8 @@ On subdev 0, the first 24 channels channels are edge-detect channels.
 
 In the 96-channel board you have the collowing channels that can do edge detection:
 
-subdev 0, channels 0-24  (24 channels)
-subdev 1, channels 16-31 (16 channels - first 16 channels of 2nd ASIC are here)
-subdev 2, channels 0-8   (+8 channels == 24 total channels for 2nd ASIC)
-
+subdev 0, channels 0-24  (first 24 channels of 1st ASIC)
+subdev 2, channels 0-24  (first 24 channels of 2nd ASIC)
 
 Configuration Options:
   [0] - I/O port base address
@@ -88,7 +84,7 @@ Configuration Options:
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
 #define INTR_PORTS_PER_ASIC   3
-#define MAX_CHANS_PER_SUBDEV 32 /* number of channels per comedi subdevice */
+#define MAX_CHANS_PER_SUBDEV 24 /* number of channels per comedi subdevice */
 #define PORTS_PER_SUBDEV (MAX_CHANS_PER_SUBDEV/CHANS_PER_PORT)
 #define CHANS_PER_ASIC (CHANS_PER_PORT*PORTS_PER_ASIC)
 #define INTR_CHANS_PER_ASIC 24
@@ -96,7 +92,7 @@ Configuration Options:
 #define MAX_DIO_CHANS   (PORTS_PER_ASIC*2*CHANS_PER_PORT)
 #define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
 #define SDEV_NO ((int)(s - dev->subdevices))
-#define CALC_N_SUBDEVS(nchans) ((nchans)/32 + (!!((nchans)%32)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
+#define CALC_N_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
 #define ASIC_IOSIZE (0x10)
 #define PCMUIO48_IOSIZE ASIC_IOSIZE
