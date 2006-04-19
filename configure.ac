@@ -41,7 +41,14 @@ fi
 AS_LINUX()
 AS_LINUX_MODTOOL()
 
-DS_RTAI([USE_RTAI=yes],[USE_RTAI=no])
+AC_ARG_ENABLE([rtai], [  --disable-rtai	disable use of rtai],
+	[ENABLE_RTAI=$enableval], [ENABLE_RTAI="yes"])
+DS_RTAI([HAVE_RTAI=yes],[HAVE_RTAI=no])
+if test "$HAVE_RTAI" == "yes" -a "$ENABLE_RTAI" == "yes"; then
+	USE_RTAI="yes"
+else
+	USE_RTAI="no"
+fi
 DS_RTLINUX([USE_RTLINUX=yes],[USE_RTLINUX=no])
 AM_CONDITIONAL([CONFIG_COMEDI_RT],
 	[test ${USE_RTAI} = "yes" -o ${USE_RTLINUX} = "yes"])
