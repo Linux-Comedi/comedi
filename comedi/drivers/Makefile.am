@@ -93,6 +93,8 @@ module_PROGRAMS = \
  ni_labpc.ko \
  acl7225b.ko \
  adl_pci6208.ko \
+ adl_pci7432.ko \
+ adl_pci8164.ko \
  adl_pci9111.ko \
  adl_pci9118.ko \
  adv_pci1710.ko \
@@ -171,6 +173,8 @@ endif !CONFIG_KBUILD
 8255_ko_SOURCES = 8255.c
 acl7225b_ko_SOURCES = acl7225b.c
 adl_pci6208_ko_SOURCES = adl_pci6208.c
+adl_pci7432_ko_SOURCES = adl_pci7432.c
+adl_pci8164_ko_SOURCES = adl_pci8164.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
 adl_pci9118_ko_SOURCES = adl_pci9118.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
