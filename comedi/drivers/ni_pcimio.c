@@ -23,7 +23,7 @@
 Driver: ni_pcimio.o
 Description: National Instruments PCI-MIO-E series (all boards)
 Author: ds, John Hallen, Frank Mori Hess, Rolf Mueller, Herbert Peremans,
-  Herman Bruyninckx
+  Herman Bruyninckx, Terry Barnaby
 Status: works
 Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014, PCI-6040E,
@@ -51,12 +51,17 @@ supported.
 
 Digital I/O may not work on 673x.
 
+Note that the PCI-6143 is a simultaineous sampling device with 8 convertors.
+With this board all of the convertors perform one simultaineous sample during
+a scan interval. The period for a scan is used for the convert time in a
+Comedi cmd. The convert trigger source is normally set to TRIG_NOW by default.
+
+Basic support for the RTSI trigger bus is supported on these cards on
+subdevice 10. See the comedilib documentation for details.
+
 Information (number of channels, bits, etc.) for some devices may be
 incorrect.  Please check this and submit a bug if there are problems
 for your device.
-
-2006-02-07: S-Series PCI-6143: Support has been added but is not
-	fully tested as yet. Terry Barnaby, BEAM Ltd.
 
 The support for the M-Series boards is still under development.
 
