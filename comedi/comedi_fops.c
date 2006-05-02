@@ -632,10 +632,11 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 		if(insn->n == 1) return 0;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		if(insn->n == 2) return 0;
-		break;
 	case INSN_CONFIG_BLOCK_SIZE:
+	case INSN_CONFIG_SERIAL_CLOCK:
+	case INSN_CONFIG_BIDIRECTIONAL_DATA:
 		if( insn->n == 2 ) return 0;
+		break;
 	//by default we allow the insn since we don't have checks for all possible cases yet 
 	default:
 		rt_printk("No check for data length of config insn id %i implemented.  Assuming n=%i is correct.\n",
