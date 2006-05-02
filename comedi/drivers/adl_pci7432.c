@@ -31,6 +31,7 @@ Configuration Options:
 */
 
 #include <linux/comedidev.h>
+#include <linux/kernel.h>
 #include <linux/pci.h>
 
 #define PCI7432_DI      0x00
@@ -101,12 +102,14 @@ static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_subdevices(dev, 2)<0)
 		return -ENOMEM;
 
-	pci_for_each_dev ( pcidev ) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
+	{
 
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI7432 ) {
 			dev->iobase = pci_resource_start ( pcidev, 2 );
-			printk ( "comedi: base addr %4x\n", dev->iobase );
+			printk ( "comedi: base addr %4lx\n", dev->iobase );
 
 			dev->board_ptr = adl_pci7432_boards + 0;
 
@@ -157,7 +160,7 @@ static int adl_pci7432_do_insn_bits(comedi_device *dev,comedi_subdevice *s, come
 		s->state &= ~data[0];
   		s->state |= (data[0]&data[1]);
 
-		printk ( "comedi: out: %8x on iobase %4x\n", s->state, dev->iobase + PCI7432_DO);
+		printk ( "comedi: out: %8x on iobase %4lx\n", s->state, dev->iobase + PCI7432_DO);
 		outl(s->state & 0xffffffff, dev->iobase + PCI7432_DO);
 	}
 	return 2;
