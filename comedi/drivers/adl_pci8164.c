@@ -120,12 +120,14 @@ static int adl_pci8164_attach(comedi_device *dev,comedi_devconfig *it)
 	if(alloc_subdevices(dev, 4)<0)
 		return -ENOMEM;
 
-	pci_for_each_dev ( pcidev ) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
+	{
 
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI8164 ) {
 			dev->iobase = pci_resource_start ( pcidev, 2 );
-			printk ( "comedi: base addr %4x\n", dev->iobase );
+			printk ( "comedi: base addr %4lx\n", dev->iobase );
 
 			dev->board_ptr = adl_pci8164_boards + 0;
 
