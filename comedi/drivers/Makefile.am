@@ -133,6 +133,7 @@ module_PROGRAMS = \
  ke_counter.ko \
  me_daq.ko \
  me4000.ko \
+ mpc624.ko \
  multiq3.ko \
  ni_660x.ko \
  ni_670x.ko \
@@ -220,6 +221,7 @@ ke_counter_ko_SOURCES = ke_counter.c
 me4000_ko_SOURCES = me4000.c
 me_daq_ko_SOURCES = me_daq.c
 mite_ko_SOURCES = mite.c
+mpc624_ko_SOURCES = mpc624.c
 multiq3_ko_SOURCES = multiq3.c
 ni_660x_ko_SOURCES = ni_660x.c
 ni_670x_ko_SOURCES = ni_670x.c

@@ -65,6 +65,7 @@ obj-m += icp_multi.o
 obj-m += ke_counter.o
 obj-m += me_daq.o
 obj-m += me4000.o
+obj-m += mpc624.o
 obj-m += multiq3.o
 obj-m += ni_660x.o
 obj-m += ni_670x.o
