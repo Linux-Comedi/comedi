@@ -230,6 +230,7 @@ ni_labpc_ko_SOURCES = ni_labpc.c
 ni_labpc_cs_ko_SOURCES = ni_labpc_cs.c
 ni_daq_dio24_ko_SOURCES = ni_daq_dio24.c
 ni_at_ao_ko_SOURCES = ni_at_ao.c
+pcm3724_ko_SOURCES = pcm3724.c
 pcm3730_ko_SOURCES = pcm3730.c
 pcmad_ko_SOURCES = pcmad.c
 pcl711_ko_SOURCES = pcl711.c
