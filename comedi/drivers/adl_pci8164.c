@@ -33,8 +33,8 @@ Configuration Options:
 #include <linux/comedidev.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <comedi_fc.h>
-#include <8253.h>
+#include "comedi_fc.h"
+#include "8253.h"
 
 #define PCI8164_AXIS_X  0x00
 #define PCI8164_AXIS_Y  0x08
