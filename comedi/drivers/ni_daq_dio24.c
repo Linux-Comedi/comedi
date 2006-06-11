@@ -314,7 +314,7 @@ static int dio24_cs_attach(struct pcmcia_device *p_dev)
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
+    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
 
     /*

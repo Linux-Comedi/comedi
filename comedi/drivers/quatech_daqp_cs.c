@@ -1121,7 +1121,7 @@ static  int daqp_cs_attach(struct pcmcia_device *p_dev)
     
 	/* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
+    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     if (irq_list[0] == -1)
 	link->irq.IRQInfo2 = irq_mask;
     else
