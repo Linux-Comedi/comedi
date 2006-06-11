@@ -174,12 +174,20 @@ MODULE_PARM(irq_list, "1-4i");
    used to configure or release a socket, in response to card
    insertion and ejection events.  They are invoked from the dummy
    event handler.
+
+   Kernel version 2.6.16 upwards uses suspend() and resume() functions
+   instead of an event() function.
 */
 
 static void labpc_config(dev_link_t *link);
 static void labpc_release(u_long arg);
+#ifdef COMEDI_PCMCIA_2_6_16
+static int labpc_cs_suspend(struct pcmcia_device *p_dev);
+static int labpc_cs_resume(struct pcmcia_device *p_dev);
+#else
 static int labpc_event(event_t event, int priority,
 		       event_callback_args_t *args);
+#endif
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -187,8 +195,13 @@ static int labpc_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static int labpc_cs_attach(struct pcmcia_device *);
+static void labpc_cs_detach(struct pcmcia_device *);
+#else
 static dev_link_t *labpc_cs_attach(void);
 static void labpc_cs_detach(dev_link_t *);
+#endif
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -254,18 +267,29 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static int labpc_cs_attach(struct pcmcia_device *p_dev)
+#else
 static dev_link_t *labpc_cs_attach(void)
+#endif
 {
     local_info_t *local;
     dev_link_t *link;
+#ifndef COMEDI_PCMCIA_2_6_16
     client_reg_t client_reg;
-    int ret, i;
+    int ret;
+#endif
+    int i;
 
     DEBUG(0, "labpc_cs_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+#ifdef COMEDI_PCMCIA_2_6_16
+    if (!local) return -ENOMEM;
+#else
     if (!local) return NULL;
+#endif
     memset(local, 0, sizeof(local_info_t));
     link = &local->link; link->priv = local;
 
@@ -294,9 +318,18 @@ static dev_link_t *labpc_cs_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
     link->next = pcmcia_dev_list;
     pcmcia_dev_list = link;
+
+#ifdef COMEDI_PCMCIA_2_6_16
+    link->handle = p_dev;
+    p_dev->instance = link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    labpc_config(link);
+
+    return 0;
+#else
+    /* Register with Card Services */
     client_reg.dev_info = &dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
@@ -316,6 +349,7 @@ static dev_link_t *labpc_cs_attach(void)
     }
 
     return link;
+#endif
 } /* labpc_cs_attach */
 
 /*======================================================================
@@ -327,8 +361,15 @@ static dev_link_t *labpc_cs_attach(void)
 
 ======================================================================*/
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static void labpc_cs_detach(struct pcmcia_device *p_dev)
+#else
 static void labpc_cs_detach(dev_link_t *link)
+#endif
 {
+#ifdef COMEDI_PCMCIA_2_6_16
+    dev_link_t *link = dev_to_instance(p_dev);
+#endif
     dev_link_t **linkp;
 
     DEBUG(0, "labpc_cs_detach(0x%p)\n", link);
@@ -346,17 +387,24 @@ static void labpc_cs_detach(dev_link_t *link)
        detach().
     */
     if (link->state & DEV_CONFIG) {
+#ifdef COMEDI_PCMCIA_2_6_16
+	((local_info_t *)link->priv)->stop = 1;
+	labpc_release((u_long)link);
+#else
 #ifdef PCMCIA_DEBUG
 	printk(KERN_DEBUG "ni_labpc: detach postponed, '%s' "
 	       "still locked\n", link->dev->dev_name);
 #endif
 	link->state |= DEV_STALE_LINK;
 	return;
+#endif
     }
 
+#ifndef COMEDI_PCMCIA_2_6_16
     /* Break the link with Card Services */
     if (link->handle)
 		pcmcia_deregister_client(link->handle);
+#endif
 
     /* Unlink device structure, and free it */
     *linkp = link->next;
@@ -609,6 +657,7 @@ static void labpc_release(u_long arg)
 
     DEBUG(0, "labpc_release(0x%p)\n", link);
 
+#ifndef COMEDI_PCMCIA_2_6_16
     /*
        If the device is currently in use, we won't release until it
        is actually closed, because until then, we can't be sure that
@@ -620,6 +669,7 @@ static void labpc_release(u_long arg)
 	link->state |= DEV_STALE_CONFIG;
 	return;
     }
+#endif
 
     /* Unlink the device chain */
     link->dev = NULL;
@@ -639,8 +689,10 @@ static void labpc_release(u_long arg)
 		pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
 
+#ifndef COMEDI_PCMCIA_2_6_16
     if (link->state & DEV_STALE_LINK)
 	labpc_cs_detach(link);
+#endif
 
 } /* labpc_release */
 
@@ -656,6 +708,7 @@ static void labpc_release(u_long arg)
 
 ======================================================================*/
 
+#ifndef COMEDI_PCMCIA_2_6_16
 static int labpc_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
@@ -705,6 +758,35 @@ static int labpc_event(event_t event, int priority,
     }
     return 0;
 } /* labpc_event */
+#endif
+
+#ifdef COMEDI_PCMCIA_2_6_16
+static int labpc_cs_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	/* Mark the device as stopped, to block IO until later */
+	local->stop = 1;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+} /* labpc_cs_suspend */
+
+static int labpc_cs_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+	local->stop = 0;
+	return 0;
+} /* labpc_cs_resume */
+#endif
 
 /*====================================================================*/
 
@@ -721,15 +803,24 @@ MODULE_DEVICE_TABLE(pcmcia, labpc_cs_ids);
 
 struct pcmcia_driver labpc_cs_driver =
 {
+#ifdef COMEDI_PCMCIA_2_6_16
+	.probe = labpc_cs_attach,
+	.remove = labpc_cs_detach,
+	.suspend = labpc_cs_suspend,
+	.resume = labpc_cs_resume,
+#else
 	.attach = labpc_cs_attach,
 	.detach = labpc_cs_detach,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.event = &labpc_event,
+#endif
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.id_table = labpc_cs_ids,
 #endif	
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = "daqcard-1200",
+		.name = dev_info,
 	},	
 };
 
@@ -750,7 +841,11 @@ static void __exit exit_labpc_cs(void)
 #endif
 	if (pcmcia_dev_list->state & DEV_CONFIG)
 	    labpc_release((u_long)pcmcia_dev_list);
+#ifndef COMEDI_PCMCIA_2_6_16
 	labpc_cs_detach(pcmcia_dev_list);
+#else
+	labpc_cs_detach(pcmcia_dev_list->handle);
+#endif
     }
 }
 

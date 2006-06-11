@@ -1857,7 +1857,7 @@ MODULE_DEVICE_TABLE (usb, usbduxfastsub_table);
 
 // The usbduxfastsub-driver
 static struct usb_driver usbduxfastsub_driver = {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,19)
+#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
         owner:          THIS_MODULE,
 #endif
 	name:		BOARDNAME,

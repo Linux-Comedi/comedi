@@ -251,7 +251,11 @@ static int mio_cs_detach(comedi_device *dev)
 
 static void mio_cs_config(dev_link_t *link);
 static void cs_release(u_long arg);
+#ifdef COMEDI_PCMCIA_2_6_16
+static void cs_detach(struct pcmcia_device *);
+#else
 static void cs_detach(dev_link_t *);
+#endif
 static int irq_mask;
 
 static dev_link_t *dev_list = NULL;
@@ -261,16 +265,28 @@ static dev_node_t dev_node = {
 	COMEDI_MAJOR,0,
 	NULL
 };
+#ifndef COMEDI_PCMCIA_2_6_16
 static int mio_cs_event(event_t event, int priority, event_callback_args_t *args);
+#endif
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static int cs_attach(struct pcmcia_device *p_dev)
+#else
 static dev_link_t *cs_attach(void)
+#endif
 {
 	dev_link_t *link;
+#ifndef COMEDI_PCMCIA_2_6_16
 	client_reg_t client_reg;
 	int ret;
+#endif
 
 	link=kmalloc(sizeof(*link),GFP_KERNEL);
+#ifdef COMEDI_PCMCIA_2_6_16
+	if(!link)return -ENOMEM;
+#else
 	if(!link)return NULL;
+#endif
 	memset(link,0,sizeof(*link));
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
@@ -289,6 +305,14 @@ static dev_link_t *cs_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 
+#ifdef COMEDI_PCMCIA_2_6_16
+	link->handle = p_dev;
+	p_dev->instance = link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	mio_cs_config(link);
+
+	return 0;
+#else
 	client_reg.dev_info = &dev_info;
 	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
@@ -309,6 +333,7 @@ static dev_link_t *cs_attach(void)
 	}
 
 	return link;
+#endif
 }
 
 static void cs_release(u_long arg)
@@ -322,8 +347,15 @@ static void cs_release(u_long arg)
 	link->state &= ~DEV_CONFIG;
 }
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static void cs_detach(struct pcmcia_device *p_dev)
+#else
 static void cs_detach(dev_link_t *link)
+#endif
 {
+#ifdef COMEDI_PCMCIA_2_6_16
+	dev_link_t *link = dev_to_instance(p_dev);
+#endif
 	dev_link_t **linkp;
 	
 	DPRINTK("cs_detach(link=%p)\n",link);
@@ -346,18 +378,26 @@ static void cs_detach(dev_link_t *link)
 
 	if(link->state & DEV_CONFIG) {
 		cs_release((u_long)link);
+#ifndef COMEDI_PCMCIA_2_6_16
 		if(link->state & DEV_STALE_CONFIG) {
 			link->state |= DEV_STALE_LINK;
 			return;
 		}
+#endif
 	}
 
+#ifndef COMEDI_PCMCIA_2_6_16
 	if(link->handle){
 		pcmcia_deregister_client(link->handle);
 	}
+#endif
 
+	/* Unlink device structure, and free it */
+	*linkp = link->next;
+	kfree(link);
 }
 
+#ifndef COMEDI_PCMCIA_2_6_16
 static int mio_cs_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
@@ -407,6 +447,34 @@ static int mio_cs_event(event_t event, int priority, event_callback_args_t *args
 	}
 	return 0;
 }
+#endif
+
+
+#ifdef COMEDI_PCMCIA_2_6_16
+static int mio_cs_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+
+	DPRINTK("pm suspend\n");
+	link->state |= DEV_SUSPEND;
+	if(link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int mio_cs_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+
+	DPRINTK("pm resume\n");
+	link->state &= ~DEV_SUSPEND;
+	if(DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+#endif
 
 
 
@@ -627,15 +695,24 @@ MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
 
 struct pcmcia_driver ni_mio_cs_driver =
 {
+#ifdef COMEDI_PCMCIA_2_6_16
+	.probe = &cs_attach,
+	.remove = &cs_detach,
+	.suspend = &mio_cs_suspend,
+	.resume = &mio_cs_resume,
+#else
 	.attach = &cs_attach,
 	.detach = &cs_detach,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.event = &mio_cs_event,
+#endif
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.id_table = ni_mio_cs_ids,
 #endif	
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = "ni_mio_cs",
+		.name = dev_info,
 	},	
 };
 
@@ -651,7 +728,11 @@ void cleanup_module(void)
 	pcmcia_unregister_driver(&ni_mio_cs_driver);
 #if 0
 	while(dev_list != NULL)
+#ifndef COMEDI_PCMCIA_2_6_16
 		cs_detach(dev_list);
+#else
+		cs_detach(dev_list->handle);
+#endif
 #endif
 	comedi_driver_unregister(&driver_ni_mio_cs);
 }

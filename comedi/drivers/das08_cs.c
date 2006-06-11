@@ -159,12 +159,20 @@ MODULE_PARM(irq_list, "1-4i");
    used to configure or release a socket, in response to card
    insertion and ejection events.  They are invoked from the das08_pcmcia
    event handler.
+
+   Kernel version 2.6.16 upwards uses suspend() and resume() functions
+   instead of an event() function.
 */
 
 static void das08_pcmcia_config(dev_link_t *link);
 static void das08_pcmcia_release(u_long arg);
+#ifdef COMEDI_PCMCIA_2_6_16
+static int das08_pcmcia_suspend(struct pcmcia_device *p_dev);
+static int das08_pcmcia_resume(struct pcmcia_device *p_dev);
+#else
 static int das08_pcmcia_event(event_t event, int priority,
 		       event_callback_args_t *args);
+#endif
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -172,8 +180,13 @@ static int das08_pcmcia_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static int das08_pcmcia_attach(struct pcmcia_device *);
+static void das08_pcmcia_detach(struct pcmcia_device *);
+#else
 static dev_link_t *das08_pcmcia_attach(void);
 static void das08_pcmcia_detach(dev_link_t *);
+#endif
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -238,18 +251,29 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static int das08_pcmcia_attach(struct pcmcia_device *p_dev)
+#else
 static dev_link_t *das08_pcmcia_attach(void)
+#endif
 {
     local_info_t *local;
     dev_link_t *link;
+#ifndef COMEDI_PCMCIA_2_6_16
     client_reg_t client_reg;
-    int ret, i;
+    int ret;
+#endif
+    int i;
 
     DEBUG(0, "das08_pcmcia_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+#ifdef COMEDI_PCMCIA_2_6_16
+    if (!local) return -ENOMEM;
+#else
     if (!local) return NULL;
+#endif
     memset(local, 0, sizeof(local_info_t));
     link = &local->link; link->priv = local;
 
@@ -279,9 +303,18 @@ static dev_link_t *das08_pcmcia_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
     link->next = dev_list;
     dev_list = link;
+
+#ifdef COMEDI_PCMCIA_2_6_16
+    link->handle = p_dev;
+    p_dev->instance = link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    das08_pcmcia_config(link);
+
+    return 0;
+#else
+    /* Register with Card Services */
     client_reg.dev_info = &dev_info;
     client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
@@ -301,6 +334,7 @@ static dev_link_t *das08_pcmcia_attach(void)
     }
 
     return link;
+#endif
 } /* das08_pcmcia_attach */
 
 /*======================================================================
@@ -312,8 +346,15 @@ static dev_link_t *das08_pcmcia_attach(void)
 
 ======================================================================*/
 
+#ifdef COMEDI_PCMCIA_2_6_16
+static void das08_pcmcia_detach(struct pcmcia_device *p_dev)
+#else
 static void das08_pcmcia_detach(dev_link_t *link)
+#endif
 {
+#ifdef COMEDI_PCMCIA_2_6_16
+	dev_link_t *link = dev_to_instance(p_dev);
+#endif
 	dev_link_t **linkp;
 
 	DEBUG(0, "das08_pcmcia_detach(0x%p)\n", link);
@@ -322,7 +363,7 @@ static void das08_pcmcia_detach(dev_link_t *link)
 	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 	if (*linkp == link) break;
 	if (*linkp == NULL)
-	return;
+		return;
 
 	/*
 	If the device is currently configured and active, we won't
@@ -332,17 +373,24 @@ static void das08_pcmcia_detach(dev_link_t *link)
 	*/
 	if (link->state & DEV_CONFIG)
 	{
+#ifdef COMEDI_PCMCIA_2_6_16
+		((local_info_t *)link->priv)->stop = 1;
+		das08_pcmcia_release((u_long)link);
+#else
 #ifdef PCMCIA_DEBUG
 		printk(KERN_DEBUG "das08: detach postponed, '%s' "
 			"still locked\n", link->dev->dev_name);
 #endif
 		link->state |= DEV_STALE_LINK;
 		return;
+#endif
 	}
 
+#ifndef COMEDI_PCMCIA_2_6_16
 	/* Break the link with Card Services */
 	if (link->handle)
 		pcmcia_deregister_client(link->handle);
+#endif
 
 	/* Unlink device structure, and free it */
 	*linkp = link->next;
@@ -550,6 +598,7 @@ static void das08_pcmcia_release(u_long arg)
 
 	DEBUG(0, "das08_pcmcia_release(0x%p)\n", link);
 
+#ifndef COMEDI_PCMCIA_2_6_16
     /*
        If the device is currently in use, we won't release until it
        is actually closed, because until then, we can't be sure that
@@ -562,6 +611,7 @@ static void das08_pcmcia_release(u_long arg)
 		link->state |= DEV_STALE_CONFIG;
 		return;
 	}
+#endif
 
 	/* Unlink the device chain */
 	link->dev = NULL;
@@ -581,8 +631,10 @@ static void das08_pcmcia_release(u_long arg)
 		pcmcia_release_irq(link->handle, &link->irq);
 	link->state &= ~DEV_CONFIG;
 
+#ifndef COMEDI_PCMCIA_2_6_16
 	if (link->state & DEV_STALE_LINK)
 		das08_pcmcia_detach(link);
+#endif
 
 } /* das08_pcmcia_release */
 
@@ -598,6 +650,7 @@ static void das08_pcmcia_release(u_long arg)
 
 ======================================================================*/
 
+#ifndef COMEDI_PCMCIA_2_6_16
 static int das08_pcmcia_event(event_t event, int priority,
 	event_callback_args_t *args)
 {
@@ -652,15 +705,54 @@ the device state and restart IO.
 
 	return 0;
 } /* das08_pcmcia_event */
+#endif
+
+#ifdef COMEDI_PCMCIA_2_6_16
+static int das08_pcmcia_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	/* Mark the device as stopped, to block IO until later */
+	local->stop = 1;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+} /* das08_pcmcia_suspend */
+
+static int das08_pcmcia_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+	local->stop = 0;
+	return 0;
+} /* das08_pcmcia_resume */
+#endif
 
 /*====================================================================*/
 
 struct pcmcia_driver das08_cs_driver =
 {
+#ifdef COMEDI_PCMCIA_2_6_16
+	.probe = das08_pcmcia_attach,
+	.remove = das08_pcmcia_detach,
+	.suspend = das08_pcmcia_suspend,
+	.resume = das08_pcmcia_resume,
+#else
 	.attach = &das08_pcmcia_attach,
 	.detach = &das08_pcmcia_detach,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.event = &das08_pcmcia_event,
+#endif
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+	.id_table = NULL,	/* FIXME */
 #endif
 	.owner = THIS_MODULE,
 	.drv = {
@@ -686,7 +778,11 @@ static void __exit exit_das08_pcmcia_cs(void)
 #endif
 		if (dev_list->state & DEV_CONFIG)
 			das08_pcmcia_release((u_long)dev_list);
+#ifndef COMEDI_PCMCIA_2_6_16
 		das08_pcmcia_detach(dev_list);
+#else
+		das08_pcmcia_detach(dev_list->handle);
+#endif
 	}
 }
 

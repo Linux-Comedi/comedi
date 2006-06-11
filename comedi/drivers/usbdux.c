@@ -2763,7 +2763,7 @@ MODULE_DEVICE_TABLE (usb, usbduxsub_table);
 
 // The usbduxsub-driver
 static struct usb_driver usbduxsub_driver = {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,19)
+#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
         owner:          THIS_MODULE,
 #endif
 	name:		BOARDNAME,
