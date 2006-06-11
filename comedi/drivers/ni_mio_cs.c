@@ -252,7 +252,6 @@ static int mio_cs_detach(comedi_device *dev)
 static void mio_cs_config(dev_link_t *link);
 static void cs_release(u_long arg);
 static void cs_detach(struct pcmcia_device *);
-static int irq_mask;
 
 static dev_link_t *dev_list = NULL;
 static dev_info_t dev_info = "ni_mio_cs";
@@ -273,7 +272,6 @@ static int cs_attach(struct pcmcia_device *p_dev)
 	link->io.NumPorts1 = 16;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
-	link->irq.IRQInfo2 = irq_mask;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
