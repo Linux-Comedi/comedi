@@ -251,11 +251,7 @@ static int mio_cs_detach(comedi_device *dev)
 
 static void mio_cs_config(dev_link_t *link);
 static void cs_release(u_long arg);
-#ifdef COMEDI_PCMCIA_2_6_16
 static void cs_detach(struct pcmcia_device *);
-#else
-static void cs_detach(dev_link_t *);
-#endif
 static int irq_mask;
 
 static dev_link_t *dev_list = NULL;
@@ -265,34 +261,14 @@ static dev_node_t dev_node = {
 	COMEDI_MAJOR,0,
 	NULL
 };
-#ifndef COMEDI_PCMCIA_2_6_16
-static int mio_cs_event(event_t event, int priority, event_callback_args_t *args);
-#endif
-
-#ifdef COMEDI_PCMCIA_2_6_16
 static int cs_attach(struct pcmcia_device *p_dev)
-#else
-static dev_link_t *cs_attach(void)
-#endif
 {
 	dev_link_t *link;
-#ifndef COMEDI_PCMCIA_2_6_16
-	client_reg_t client_reg;
-	int ret;
-#endif
 
 	link=kmalloc(sizeof(*link),GFP_KERNEL);
-#ifdef COMEDI_PCMCIA_2_6_16
 	if(!link)return -ENOMEM;
-#else
-	if(!link)return NULL;
-#endif
 	memset(link,0,sizeof(*link));
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-	link->release.function = &cs_release;
-	link->release.data = (u_long)link;
-#endif	
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -305,35 +281,12 @@ static dev_link_t *cs_attach(void)
 	link->next = dev_list;
 	dev_list = link;
 
-#ifdef COMEDI_PCMCIA_2_6_16
 	link->handle = p_dev;
 	p_dev->instance = link;
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	mio_cs_config(link);
 
 	return 0;
-#else
-	client_reg.dev_info = &dev_info;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &mio_cs_event;
-#endif
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		printk("detaching...\n");
-		cs_detach(link);
-		return NULL;
-	}
-
-	return link;
-#endif
 }
 
 static void cs_release(u_long arg)
@@ -347,15 +300,9 @@ static void cs_release(u_long arg)
 	link->state &= ~DEV_CONFIG;
 }
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static void cs_detach(struct pcmcia_device *p_dev)
-#else
-static void cs_detach(dev_link_t *link)
-#endif
 {
-#ifdef COMEDI_PCMCIA_2_6_16
 	dev_link_t *link = dev_to_instance(p_dev);
-#endif
 	dev_link_t **linkp;
 	
 	DPRINTK("cs_detach(link=%p)\n",link);
@@ -369,88 +316,19 @@ static void cs_detach(dev_link_t *link)
 	//cli
 	if (link->state & DEV_RELEASE_PENDING){
 		printk("dev release pending bug\n");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-		del_timer(&link->release);
-#endif
 		link->state &= ~DEV_RELEASE_PENDING;
 	}
 	//restore_flags
 
 	if(link->state & DEV_CONFIG) {
 		cs_release((u_long)link);
-#ifndef COMEDI_PCMCIA_2_6_16
-		if(link->state & DEV_STALE_CONFIG) {
-			link->state |= DEV_STALE_LINK;
-			return;
-		}
-#endif
 	}
-
-#ifndef COMEDI_PCMCIA_2_6_16
-	if(link->handle){
-		pcmcia_deregister_client(link->handle);
-	}
-#endif
 
 	/* Unlink device structure, and free it */
 	*linkp = link->next;
 	kfree(link);
 }
 
-#ifndef COMEDI_PCMCIA_2_6_16
-static int mio_cs_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DPRINTK("mio_cs_event(event=%x,priority=%d,args=%p)\n",event,priority,args);
-
-	switch(event){
-	case CS_EVENT_CARD_REMOVAL:
-		DPRINTK("removal event\n");
-		link->state &= ~DEV_PRESENT;
-		if(link->state & DEV_CONFIG) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-			link->release.expires = jiffies+HZ/20;
-			link->state |= DEV_RELEASE_PENDING;
-			add_timer(&link->release);
-#else
-			cs_release((ulong)link);	
-#endif
-		}
-		/* XXX disable irq here, to get rid of spurious interrupts */
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		DPRINTK("card insertion event\n");
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		mio_cs_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		DPRINTK("pm suspend event\n");
-		link->state |= DEV_SUSPEND;
-		/* fall through */
-	case CS_EVENT_RESET_PHYSICAL:
-		DPRINTK("reset physical event\n");
-		if(link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		DPRINTK("pm resume event\n");
-		link->state &= ~DEV_SUSPEND;
-		/* fall through */
-	case CS_EVENT_CARD_RESET:
-		DPRINTK("card reset event\n");
-		if(DEV_OK(link))
-			pcmcia_request_configuration(link->handle, &link->conf);
-		break;
-	default:
-		DPRINTK("unknown event (ignored)\n");
-	}
-	return 0;
-}
-#endif
-
-
-#ifdef COMEDI_PCMCIA_2_6_16
 static int mio_cs_suspend(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
@@ -474,9 +352,6 @@ static int mio_cs_resume(struct pcmcia_device *p_dev)
 
 	return 0;
 }
-#endif
-
-
 
 static void mio_cs_config(dev_link_t *link)
 {
@@ -679,7 +554,6 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 
 MODULE_LICENSE("GPL");
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 static struct pcmcia_device_id ni_mio_cs_ids[] =
 {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d), /* DAQCard-ai-16xe-50 */
@@ -691,25 +565,14 @@ static struct pcmcia_device_id ni_mio_cs_ids[] =
 };
 
 MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
-#endif
 
 struct pcmcia_driver ni_mio_cs_driver =
 {
-#ifdef COMEDI_PCMCIA_2_6_16
 	.probe = &cs_attach,
 	.remove = &cs_detach,
 	.suspend = &mio_cs_suspend,
 	.resume = &mio_cs_resume,
-#else
-	.attach = &cs_attach,
-	.detach = &cs_detach,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
-	.event = &mio_cs_event,
-#endif
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.id_table = ni_mio_cs_ids,
-#endif	
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
@@ -728,11 +591,7 @@ void cleanup_module(void)
 	pcmcia_unregister_driver(&ni_mio_cs_driver);
 #if 0
 	while(dev_list != NULL)
-#ifndef COMEDI_PCMCIA_2_6_16
-		cs_detach(dev_list);
-#else
 		cs_detach(dev_list->handle);
-#endif
 #endif
 	comedi_driver_unregister(&driver_ni_mio_cs);
 }

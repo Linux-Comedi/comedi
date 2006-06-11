@@ -1061,13 +1061,8 @@ static int daqp_detach(comedi_device *dev)
 
 static void daqp_cs_config(dev_link_t *link);
 static void daqp_cs_release(u_long arg);
-#ifdef COMEDI_PCMCIA_2_6_16
 static int daqp_cs_suspend(struct pcmcia_device *p_dev);
 static int daqp_cs_resume(struct pcmcia_device *p_dev);
-#else
-static int daqp_cs_event(event_t event, int priority,
-		       event_callback_args_t *args);
-#endif
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -1075,13 +1070,8 @@ static int daqp_cs_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static  int daqp_cs_attach(struct pcmcia_device *);
 static void daqp_cs_detach(struct pcmcia_device *);
-#else
-static dev_link_t *daqp_cs_attach(void);
-static void daqp_cs_detach(dev_link_t *);
-#endif
 
 /*
    The dev_info variable is the "key" that is used to match up this
@@ -1104,18 +1094,10 @@ static dev_info_t dev_info = "quatech_daqp_cs";
     
 ======================================================================*/
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static  int daqp_cs_attach(struct pcmcia_device *p_dev)
-#else
-static dev_link_t *daqp_cs_attach(void)
-#endif
 {
     local_info_t *local;
     dev_link_t *link;
-#ifndef COMEDI_PCMCIA_2_6_16
-    client_reg_t client_reg;
-    int ret;
-#endif
     int i;
     
     DEBUG(0, "daqp_cs_attach()\n");
@@ -1124,33 +1106,20 @@ static dev_link_t *daqp_cs_attach(void)
       if (dev_table[i] == NULL) break;
     if (i == MAX_DEV) {
       printk(KERN_NOTICE "daqp_cs: no devices available\n");
-#ifdef COMEDI_PCMCIA_2_6_16
       return -ENODEV;
-#else
-      return NULL;
-#endif
     }
     
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-#ifdef COMEDI_PCMCIA_2_6_16
     if (!local) return -ENOMEM;
-#else
-    if (!local) return NULL;
-#endif
     memset(local, 0, sizeof(local_info_t));
 
     local->table_index = i;
     dev_table[i] = local;
     link = &local->link;
     link->priv = local;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-    /* Initialize the dev_link_t structure */
-    link->release.function = &daqp_cs_release;
-    link->release.data = (u_long)link;
-#endif
-    /* Interrupt setup */
+    
+	/* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
     if (irq_list[0] == -1)
@@ -1172,35 +1141,12 @@ static dev_link_t *daqp_cs_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-#ifdef COMEDI_PCMCIA_2_6_16
     link->handle = p_dev;
     p_dev->instance = link;
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     daqp_cs_config(link);
 
     return 0;
-#else
-    /* Register with Card Services */
-    client_reg.dev_info = &dev_info;
-    client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &daqp_cs_event;
-#endif
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		daqp_cs_detach(link);
-		return NULL;
-    }
-
-    return link;
-#endif
 } /* daqp_cs_attach */
 
 /*======================================================================
@@ -1212,15 +1158,9 @@ static dev_link_t *daqp_cs_attach(void)
 
 ======================================================================*/
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static void daqp_cs_detach(struct pcmcia_device *p_dev)
-#else
-static void daqp_cs_detach(dev_link_t *link)
-#endif
 {
-#ifdef COMEDI_PCMCIA_2_6_16
     dev_link_t *link = dev_to_instance(p_dev);
-#endif
     local_info_t *dev = link->priv;
 
     DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
@@ -1232,25 +1172,10 @@ static void daqp_cs_detach(dev_link_t *link)
        detach().
     */
     if (link->state & DEV_CONFIG) {
-#ifdef COMEDI_PCMCIA_2_6_16
 	dev->stop = 1;
 	daqp_cs_release((u_long)link);
-#else
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "daqp_cs: detach postponed, '%s' "
-	       "still locked\n", link->dev->dev_name);
-#endif
-	link->state |= DEV_STALE_LINK;
-	return;
-#endif
     }
 
-#ifndef COMEDI_PCMCIA_2_6_16
-    /* Break the link with Card Services */
-    if (link->handle)
-		pcmcia_deregister_client(link->handle);
-#endif
-    
     /* Unlink device structure, and free it */
     dev_table[dev->table_index] = NULL;
     kfree(dev);
@@ -1470,20 +1395,6 @@ static void daqp_cs_release(u_long arg)
 
     DEBUG(0, "daqp_cs_release(0x%p)\n", link);
 
-#ifndef COMEDI_PCMCIA_2_6_16
-    /*
-       If the device is currently in use, we won't release until it
-       is actually closed, because until then, we can't be sure that
-       no one will try to access the device or its data structures.
-    */
-    if (link->open) {
-	DEBUG(1, "daqp_cs: release postponed, '%s' still open\n",
-	      link->dev->dev_name);
-	link->state |= DEV_STALE_CONFIG;
-	return;
-    }
-#endif
-
     /* Unlink the device chain */
     link->dev = NULL;
 
@@ -1501,11 +1412,6 @@ static void daqp_cs_release(u_long arg)
 		pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
     
-#ifndef COMEDI_PCMCIA_2_6_16
-    if (link->state & DEV_STALE_LINK)
-	daqp_cs_detach(link);
-#endif
-    
 } /* daqp_cs_release */
 
 /*======================================================================
@@ -1520,55 +1426,6 @@ static void daqp_cs_release(u_long arg)
     
 ======================================================================*/
 
-#ifndef COMEDI_PCMCIA_2_6_16
-static int daqp_cs_event(event_t event, int priority,
-		       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    local_info_t *dev = link->priv;
-    
-    DEBUG(1, "daqp_cs_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    dev->stop = 1;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-	    link->release.expires = jiffies + HZ/20;
-	    add_timer(&link->release);
-#else
-		daqp_cs_release((ulong)link);
-#endif
-	}
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	daqp_cs_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	/* Mark the device as stopped, to block IO until later */
-        dev->stop = 1;
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG)
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	dev->stop = 0;
-	break;
-    }
-    return 0;
-} /* daqp_cs_event */
-#endif
-
-#ifdef COMEDI_PCMCIA_2_6_16
 static int daqp_cs_suspend(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
@@ -1595,7 +1452,6 @@ static int daqp_cs_resume(struct pcmcia_device *p_dev)
 
     return 0;
 }
-#endif
 
 /*====================================================================*/
 
@@ -1603,21 +1459,11 @@ static int daqp_cs_resume(struct pcmcia_device *p_dev)
 
 struct pcmcia_driver daqp_cs_driver =
 {
-#ifdef COMEDI_PCMCIA_2_6_16
 	.probe = daqp_cs_attach,
 	.remove = daqp_cs_detach,
 	.suspend = daqp_cs_suspend,
 	.resume = daqp_cs_resume,
-#else
-	.attach = daqp_cs_attach,
-	.detach = daqp_cs_detach,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
-	.event = daqp_cs_event,
-#endif
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.id_table = NULL,	/* FIXME */
-#endif
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
@@ -1649,11 +1495,7 @@ void cleanup_module(void)
 	 * do it again or oops()... that's why this test is here
 	 */
 	if (dev_table[i]) {
-#ifndef COMEDI_PCMCIA_2_6_16
-	  daqp_cs_detach(&dev_table[i]->link);
-#else
 	  daqp_cs_detach(dev_table[i]->link.handle);
-#endif
 	}
       }
     }

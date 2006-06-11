@@ -220,40 +220,10 @@ static char *version =
 
 /*====================================================================*/
 
-/* Parameters that can be set with 'insmod' */
-
-/* The old way: bit map of interrupts to choose from */
-/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-static u_int irq_mask = 0xdeb8;
-/* Newer, simpler way of listing specific interrupts */
-static int irq_list[4] = { -1 };
-
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
-
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the dummy
-   event handler.
-
-   Kernel version 2.6.16 upwards uses suspend() and resume() functions
-   instead of an event() function.
-*/
-
 static void dio24_config(dev_link_t *link);
 static void dio24_release(u_long arg);
-#ifdef COMEDI_PCMCIA_2_6_16
 static int dio24_cs_suspend(struct pcmcia_device *p_dev);
 static int dio24_cs_resume(struct pcmcia_device *p_dev);
-#else
-static int dio24_event(event_t event, int priority,
-		       event_callback_args_t *args);
-#endif
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -261,13 +231,8 @@ static int dio24_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static int dio24_cs_attach(struct pcmcia_device *);
 static void dio24_cs_detach(struct pcmcia_device *);
-#else
-static dev_link_t *dio24_cs_attach(void);
-static void dio24_cs_detach(dev_link_t *);
-#endif
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -332,19 +297,10 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static int dio24_cs_attach(struct pcmcia_device *p_dev)
-#else
-static dev_link_t *dio24_cs_attach(void)
-#endif
 {
     local_info_t *local;
     dev_link_t *link;
-#ifndef COMEDI_PCMCIA_2_6_16
-    client_reg_t client_reg;
-    int ret;
-#endif
-    int i;
 
     printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
@@ -352,27 +308,13 @@ static dev_link_t *dio24_cs_attach(void)
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-#ifdef COMEDI_PCMCIA_2_6_16
     if (!local) return -ENOMEM;
-#else
-    if (!local) return NULL;
-#endif
     memset(local, 0, sizeof(local_info_t));
     link = &local->link; link->priv = local;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-    /* Initialize the dev_link_t structure */
-    link->release.function = &dio24_release;
-    link->release.data = (u_long)link;
-#endif
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_INFO2_VALID|IRQ_LEVEL_ID;
-    if (irq_list[0] == -1)
-	link->irq.IRQInfo2 = irq_mask;
-    else
-	for (i = 0; i < 4; i++)
-	    link->irq.IRQInfo2 |= 1 << irq_list[i];
     link->irq.Handler = NULL;
 
     /*
@@ -389,35 +331,12 @@ static dev_link_t *dio24_cs_attach(void)
     link->next = pcmcia_dev_list;
     pcmcia_dev_list = link;
 
-#ifdef COMEDI_PCMCIA_2_6_16
     link->handle = p_dev;
     p_dev->instance = link;
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     dio24_config(link);
 
     return 0;
-#else
-    /* Register with Card Services */
-    client_reg.dev_info = &dev_info;
-    client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)	
-	client_reg.EventMask =
-		CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-		CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-		CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.event_handler = &dio24_event;
-#endif
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	dio24_cs_detach(link);
-	return NULL;
-    }
-
-    return link;
-#endif
 } /* dio24_cs_attach */
 
 /*======================================================================
@@ -429,15 +348,9 @@ static dev_link_t *dio24_cs_attach(void)
 
 ======================================================================*/
 
-#ifdef COMEDI_PCMCIA_2_6_16
 static void dio24_cs_detach(struct pcmcia_device *p_dev)
-#else
-static void dio24_cs_detach(dev_link_t *link)
-#endif
 {
-#ifdef COMEDI_PCMCIA_2_6_16
     dev_link_t *link = dev_to_instance(p_dev);
-#endif
     dev_link_t **linkp;
 
     printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - cs-detach!\n");
@@ -457,24 +370,9 @@ static void dio24_cs_detach(dev_link_t *link)
        detach().
     */
     if (link->state & DEV_CONFIG) {
-#ifdef COMEDI_PCMCIA_2_6_16
 	((local_info_t *)link->priv)->stop = 1;
 	dio24_release((u_long)link);
-#else
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "ni_daq_dio24: detach postponed, '%s' "
-	       "still locked\n", link->dev->dev_name);
-#endif
-	link->state |= DEV_STALE_LINK;
-	return;
-#endif
     }
-
-#ifndef COMEDI_PCMCIA_2_6_16
-    /* Break the link with Card Services */
-    if (link->handle)
-		pcmcia_deregister_client(link->handle);
-#endif
 
     /* Unlink device structure, and free it */
     *linkp = link->next;
@@ -733,20 +631,6 @@ static void dio24_release(u_long arg)
 
     DEBUG(0, "dio24_release(0x%p)\n", link);
 
-#ifndef COMEDI_PCMCIA_2_6_16
-    /*
-       If the device is currently in use, we won't release until it
-       is actually closed, because until then, we can't be sure that
-       no one will try to access the device or its data structures.
-    */
-    if (link->open) {
-	DEBUG(1, "ni_dio24: release postponed, '%s' still open\n",
-	      link->dev->dev_name);
-	link->state |= DEV_STALE_CONFIG;
-	return;
-    }
-#endif
-
     /* Unlink the device chain */
     link->dev = NULL;
 
@@ -765,11 +649,6 @@ static void dio24_release(u_long arg)
 		pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
 
-#ifndef COMEDI_PCMCIA_2_6_16
-    if (link->state & DEV_STALE_LINK)
-	dio24_cs_detach(link);
-#endif
-
 } /* dio24_release */
 
 /*======================================================================
@@ -784,59 +663,7 @@ static void dio24_release(u_long arg)
 
 ======================================================================*/
 
-#ifndef COMEDI_PCMCIA_2_6_16
-static int dio24_event(event_t event, int priority,
-		       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    local_info_t *dev = link->priv;
 
-    DEBUG(1, "dio24_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-		((local_info_t *)link->priv)->stop = 1;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-		mod_timer(&link->release, jiffies + HZ/20);
-#else	    
-		dio24_release((u_long)pcmcia_dev_list);
-#endif
-	}
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-//	dev->bus = args->bus;
-	dio24_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	/* Mark the device as stopped, to block IO until later */
-	dev->stop = 1;
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-	dev->stop = 0;
-	/*
-	  In a normal driver, additional code may go here to restore
-	  the device state and restart IO.
-	*/
-	break;
-    }
-    return 0;
-} /* dio24_event */
-#endif
-
-#ifdef COMEDI_PCMCIA_2_6_16
 static int dio24_cs_suspend(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
@@ -862,11 +689,9 @@ static int dio24_cs_resume(struct pcmcia_device *p_dev)
 	local->stop = 0;
 	return 0;
 } /* dio24_cs_resume */
-#endif
 
 /*====================================================================*/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 static struct pcmcia_device_id dio24_cs_ids[] =
 {
 	/* N.B. These IDs should match those in dio24_boards */
@@ -875,25 +700,14 @@ static struct pcmcia_device_id dio24_cs_ids[] =
 };
 
 MODULE_DEVICE_TABLE(pcmcia, dio24_cs_ids);
-#endif
 
 struct pcmcia_driver dio24_cs_driver =
 {
-#ifdef COMEDI_PCMCIA_2_6_16
 	.probe = dio24_cs_attach,
 	.remove = dio24_cs_detach,
 	.suspend = dio24_cs_suspend,
 	.resume = dio24_cs_resume,
-#else
-	.attach = &dio24_cs_attach,
-	.detach = &dio24_cs_detach,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
-	.event = &dio24_event,
-#endif
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
 	.id_table = dio24_cs_ids,
-#endif
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
@@ -913,16 +727,9 @@ static void __exit exit_dio24_cs(void)
     DEBUG(0, "ni_dio24: unloading\n");
 	pcmcia_unregister_driver(&dio24_cs_driver);
     while (pcmcia_dev_list != NULL) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 5, 0)
-		del_timer(&pcmcia_dev_list->release);
-#endif
 		if (pcmcia_dev_list->state & DEV_CONFIG)
 			dio24_release((u_long)pcmcia_dev_list);
-#ifndef COMEDI_PCMCIA_2_6_16
-		dio24_cs_detach(pcmcia_dev_list);
-#else
 		dio24_cs_detach(pcmcia_dev_list->handle);
-#endif
     }
 }
 
