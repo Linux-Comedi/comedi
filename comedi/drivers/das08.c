@@ -955,19 +955,17 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 			printk("No pci das08 cards found\n");
 			return -EIO;
 		}
+		devpriv->pdev = pdev;
 		// enable PCI device
 		if(pci_enable_device(pdev)){
 			printk(" Error enabling PCI device\n");
-			pci_dev_put(pdev);
 			return -EIO;
 		}
 		// reserve I/O spaces
 		if(pci_request_regions(pdev, "das08")){
 			printk(" I/O port conflict\n");
-			pci_dev_put(pdev);
 			return -EIO;
 		}
-		devpriv->pdev = pdev;
 		// read base addresses
 		pci_iobase = pci_resource_start(pdev, 1);
 		iobase = pci_resource_start(pdev, 2);
@@ -1008,8 +1006,11 @@ int das08_common_detach(comedi_device *dev)
 
 	if(devpriv){
 		if(devpriv->pdev){
-			pci_release_regions(devpriv->pdev);
-			pci_disable_device(devpriv->pdev);
+			if(devpriv->pci_iobase)
+			{
+				pci_release_regions(devpriv->pdev);
+				pci_disable_device(devpriv->pdev);
+			}
 			pci_dev_put(devpriv->pdev);
 		}
 	}

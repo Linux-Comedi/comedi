@@ -1262,6 +1262,10 @@ static int pci9111_attach(comedi_device *dev,comedi_devconfig *it)
 	int error,i;
 	pci9111_board_struct* board;
 	
+	if(alloc_private(dev, sizeof(pci9111_private_data_struct)) < 0)
+	{
+		return -ENOMEM;
+	}
 	//
 	// Probe the device to determine what device in the series it is.
 	//
@@ -1290,6 +1294,7 @@ static int pci9111_attach(comedi_device *dev,comedi_devconfig *it)
 					
 					dev->board_ptr = pci9111_boards + i;
 					board = (pci9111_board_struct *) dev->board_ptr;
+					dev_private->pci_device = pci_device;
 					goto found;
 				}
 			}
@@ -1330,7 +1335,6 @@ found:
 	if(pci_enable_device (pci_device) < 0)
 	{
 		printk("comedi%d: Failed to enable PCI device\n", dev->minor);
-		pci_dev_put(pci_device);
 		return -EIO;
 	}
 	
@@ -1348,22 +1352,11 @@ found:
 	if(pci_request_regions(pci_device, PCI9111_DRIVER_NAME))
 	{
 		printk("comedi%d: I/O port conflict\n",dev->minor);
-		pci_dev_put(pci_device);
 		return -EIO;
 	}
 	
 	dev->iobase=io_base;
 	dev->board_name = board->name;
-	
-	if(alloc_private(dev,sizeof(pci9111_private_data_struct))<0)
-	{
-		pci_release_regions(pci_device);
-		pci_disable_device(pci_device);
-		pci_dev_put(pci_device);
-		return -ENOMEM;
-	}
-	
-	dev_private->pci_device = pci_device;
 	dev_private->io_range = io_range;
 	dev_private->is_valid=0;
 	dev_private->lcr_io_base=lcr_io_base;
@@ -1456,29 +1449,32 @@ found:
 
 static int pci9111_detach(comedi_device *dev)
 {
-  // Reset device
-  
-  if (dev->private!=0) 
-  {
-    if (dev_private->is_valid) pci9111_reset(dev);
-
-  }
-
-  // Release previously allocated irq
-  
-  if (dev->irq!=0)
-  {
-    comedi_free_irq(dev->irq,dev);
-  }
-
-  if (dev_private!=0 && dev_private->pci_device!=0)
-  {
-    pci_release_regions(dev_private->pci_device);
-    pci_disable_device(dev_private->pci_device);
-    pci_dev_put(dev_private->pci_device);
-  }
-
-  return 0;
+	// Reset device
+	
+	if (dev->private!=0)
+	{
+		if (dev_private->is_valid) pci9111_reset(dev);
+	
+	}
+	
+	// Release previously allocated irq
+	
+	if (dev->irq!=0)
+	{
+		comedi_free_irq(dev->irq,dev);
+	}
+	
+	if (dev_private!=0 && dev_private->pci_device!=0)
+	{
+		if(dev->iobase)
+		{
+			pci_release_regions(dev_private->pci_device);
+			pci_disable_device(dev_private->pci_device);
+		}
+		pci_dev_put(dev_private->pci_device);
+	}
+	
+	return 0;
 }
 
 

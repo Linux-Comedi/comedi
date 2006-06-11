@@ -1334,33 +1334,25 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 
 	bus = it->options[0];
 	slot = it->options[1];
-
+	if ((ret=alloc_private(dev,sizeof(pci224_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+				dev->minor);
+		return ret;
+	}
 	if ((ret=pci224_find_pci(dev, bus, slot, &pci_dev)) < 0)
 		return ret;
+	devpriv->pci_dev = pci_dev;
 
 	if ((ret=pci_enable_device(pci_dev)) < 0) {
 		printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
 				dev->minor);
-		pci_dev_put(pci_dev);
 		return ret;
 	}
 	if (pci_request_regions(pci_dev, DRIVER_NAME)) {
 		printk(KERN_ERR "comedi%d: error! cannot allocate PCI regions!\n",
 				dev->minor);
-		pci_dev_put(pci_dev);
 		return -EIO;
 	}
-
-	if ((ret=alloc_private(dev,sizeof(pci224_private))) < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n",
-				dev->minor);
-		pci_release_regions(pci_dev);
-		pci_disable_device(pci_dev);
-		pci_dev_put(pci_dev);
-		return ret; 
-	}
-
-	devpriv->pci_dev = pci_dev;
 	spin_lock_init(&devpriv->ao_spinlock);
 
 	devpriv->iobase1 = pci_resource_start(pci_dev, 2);
@@ -1400,14 +1392,14 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 			PCI224_DACCON_FIFOENAB | PCI224_DACCON_FIFOINTR_EMPTY);
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 			dev->iobase + PCI224_DACCON);
-
+	
 	/* Allocate subdevices.  There is only one!  */
 	if ((ret=alloc_subdevices(dev, 1)) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 				dev->minor);
 		return ret;
 	}
-
+	
 	s = dev->subdevices + 0;
 	/* Analog output subdevice. */
 	s->type = COMEDI_SUBD_AO;
@@ -1545,8 +1537,11 @@ pci224_detach(comedi_device *dev)
 			kfree(devpriv->ao_scan_order);
 		}
 		if (devpriv->pci_dev) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			if(dev->iobase)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}

@@ -334,29 +334,28 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  */
 static int detach(comedi_device *dev)
 {
-    if (devpriv) {
+	if (devpriv) {
 
-        if (devpriv->registers && thisboard) {
-            devpriv->registers = 0;
-        }
+		if (dev->subdevices && devpriv->attached_to_8255) {
+			/* de-register us from the 8255 driver */
+			subdev_8255_cleanup(dev,dev->subdevices + 2);
+			devpriv->attached_to_8255 = 0;
+		}
 
-        if (dev->subdevices && devpriv->attached_to_8255) {
-            /* de-register us from the 8255 driver */
-            subdev_8255_cleanup(dev,dev->subdevices + 2);
-            devpriv->attached_to_8255 = 0;
-        }
+		if (devpriv->pci_dev) {
+			if(devpriv->registers)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
+			pci_dev_put(devpriv->pci_dev);
+		}
 
-	if (devpriv->pci_dev) {
-		pci_release_regions(devpriv->pci_dev);
-		pci_disable_device(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
+		if (devpriv->attached_successfully && thisboard)
+			printk("comedi%d: %s: detached\n", dev->minor, thisboard->name);
+
 	}
 
-        if (devpriv->attached_successfully && thisboard)
-            printk("comedi%d: %s: detached\n", dev->minor, thisboard->name);
-
-    }
-	
 	return 0;
 }
 
@@ -466,20 +465,18 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 			}
 			/* found ! */
 
+			devpriv->pci_dev = pcidev;
 			dev->board_ptr = boards + index;
 			if (pci_enable_device(pcidev))
 			{
 				printk("cb_pcimdda: Failed to enable PCI device\n");
-				pci_dev_put(pcidev);
 				return -EIO;
 			}
 			if (pci_request_regions(pcidev, thisboard->name))
 			{
 				printk("cb_pcimdda: I/O port conflict\n");
-				pci_dev_put(pcidev);
 				return -EIO;
 			}
-			devpriv->pci_dev = pcidev;
 			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);
 			devpriv->registers = registers;                        
 			devpriv->dio_registers 

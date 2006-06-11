@@ -561,6 +561,7 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 			}
 			if( pcidev )
 			{
+				priv(dev)->hw_dev = pcidev;
 				dev->board_ptr = hpdi_boards + i;
 				break;
 			}
@@ -578,19 +579,15 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	if( pci_enable_device( pcidev ) )
 	{
 		printk(KERN_WARNING " failed enable PCI device\n");
-		pci_dev_put( pcidev );
 		return -EIO;
 	}
 	if( pci_request_regions( pcidev, driver_hpdi.driver_name ) )
 	{
 		/* Couldn't allocate io space */
 		printk(KERN_WARNING " failed to allocate io memory\n");
-		pci_dev_put( pcidev );
 		return -EIO;
 	}
 	pci_set_master( pcidev );
-
-	priv(dev)->hw_dev = pcidev;
 
 	//Initialize dev->board_name
 	dev->board_name = board(dev)->name;
@@ -679,8 +676,11 @@ static int hpdi_detach(comedi_device *dev)
 			if( priv(dev)->dma_desc )
 				pci_free_consistent( priv(dev)->hw_dev, sizeof( struct plx_dma_desc ) *
 				NUM_DMA_DESCRIPTORS, priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
-			pci_release_regions( priv(dev)->hw_dev );
-			pci_disable_device( priv(dev)->hw_dev );
+			if(priv(dev)->hpdi_phys_iobase)
+			{
+				pci_release_regions( priv(dev)->hw_dev );
+				pci_disable_device( priv(dev)->hw_dev );
+			}
 			pci_dev_put(priv(dev)->hw_dev);
 		}
 	}

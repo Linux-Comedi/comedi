@@ -172,7 +172,14 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 
 	printk("comedi%d: %s: ",dev->minor, PC236_DRIVER_NAME);
-
+/*
+ * Allocate the private structure area.  alloc_private() is a
+ * convenient macro defined in comedidev.h.
+ */
+	if ((ret=alloc_private(dev,sizeof(pc236_private))) < 0) {
+		printk("out of memory!\n");
+		return ret;
+	}
 	/* Process options. */
 	switch (thisboard->bustype) {
 	case isa_bustype:
@@ -219,6 +226,7 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 			if (((pci_dev->class ^ pci_id->class) & pci_id->class_mask) != 0)
 				continue;
 			/* Found a match. */
+			devpriv->pci_dev = pci_dev;
 			break;
 		}
 		if (!pci_dev) {
@@ -238,30 +246,16 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 	printk("%s ", dev->board_name);
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if ((ret=alloc_private(dev,sizeof(pc236_private))) < 0) {
-		printk("out of memory!\n");
-		if (pci_dev)
-			pci_dev_put(pci_dev);
-		return ret; 
-	}
-
 	/* Enable device and reserve I/O spaces. */
 	if (pci_dev) {
 		if ((ret=pci_enable_device(pci_dev)) < 0) {
 			printk("error enabling PCI device!\n");
-			pci_dev_put(pci_dev);
 			return ret;
 		}
 		if ((ret=pci_request_regions(pci_dev, PC236_DRIVER_NAME)) < 0) {
 			printk("I/O port conflict (PCI)!\n");
-			pci_dev_put(pci_dev);
 			return ret;
 		}
-		devpriv->pci_dev = pci_dev;
 		devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
 		iobase = pci_resource_start(pci_dev, 2);
 		irq = pci_dev->irq;
@@ -347,14 +341,16 @@ static int pc236_detach(comedi_device *dev)
 	}
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			if(dev->iobase)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
 			pci_dev_put(devpriv->pci_dev);
 		} else if (dev->iobase) {
 			release_region(dev->iobase, PC236_IO_SIZE);
 		}
 	}
-	
 	return 0;
 }
 

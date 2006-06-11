@@ -688,6 +688,12 @@ static int me_attach(comedi_device *dev,comedi_devconfig *it)
   unsigned int regbase_tmp;
   int result, error, i;
 
+  // Allocate private memory
+  if(alloc_private(dev,sizeof(me_private_data_struct)) < 0)
+  {
+    return -ENOMEM;
+  }
+
 //
 // Probe the device to determine what device in the series it is.
 //
@@ -713,6 +719,7 @@ static int me_attach(comedi_device *dev,comedi_devconfig *it)
 
           dev->board_ptr = me_boards + i;
           board = (me_board_struct *) dev->board_ptr;
+          dev_private->pci_device = pci_device;
           goto found;
         }
       }
@@ -729,19 +736,10 @@ found:
          dev->minor, me_boards[i].name,
          pci_device->bus->number, PCI_SLOT(pci_device->devfn));
 
-  // Allocate private memory
-
-  if(alloc_private(dev,sizeof(me_private_data_struct)) < 0)
-  {
-    pci_dev_put(pci_device);
-    return -ENOMEM;
-  }
-
   // Enable PCI device
   if(pci_enable_device(pci_device) < 0)
   {
     printk("comedi%d: Failed to enable PCI device\n", dev->minor);
-    pci_dev_put(pci_device);
     return -EIO;
   }
 
@@ -749,25 +747,19 @@ found:
   if(pci_request_regions(pci_device, ME_DRIVER_NAME) < 0)
   {
     printk("comedi%d: I/O memory conflict\n", dev->minor);
-    pci_dev_put(pci_device);
     return -EIO;
   }
 
   // Set data in device structure
 
   dev->board_name = board->name;
-  dev_private->pci_device = pci_device;
 
   // Read PLX register base address [PCI_BASE_ADDRESS #0].
 
   plx_regbase_tmp = pci_resource_start(pci_device, 0);
   plx_regbase_size_tmp = pci_resource_end(pci_device, 0) - plx_regbase_tmp + 1;
-
-  if(plx_regbase_tmp & PCI_BASE_ADDRESS_SPACE)
-  {
-    printk("comedi%d: PLX space is not MEM\n", dev->minor);
-    return -EIO;
-  }
+  dev_private->plx_regbase = ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
+  dev_private->plx_regbase_size = plx_regbase_size_tmp;
 
   // Read Swap base address [PCI_BASE_ADDRESS #5].
 
@@ -808,22 +800,11 @@ found:
   }
   /*----------------------------------------------------- Workaround end -----*/
 
-  plx_regbase_tmp &= PCI_BASE_ADDRESS_MEM_MASK;
-  dev_private->plx_regbase_size = plx_regbase_size_tmp;
-  dev_private->plx_regbase = ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
 
   // Read Meilhaus register base address [PCI_BASE_ADDRESS #2].
 
   me_regbase_tmp = pci_resource_start(pci_device, 2);
   me_regbase_size_tmp = pci_resource_end(pci_device, 2) - me_regbase_tmp + 1;
-
-  if(me_regbase_tmp & PCI_BASE_ADDRESS_SPACE)
-  {
-    printk("comedi%d: Meilhaus space is not MEM\n", dev->minor);
-    return -EIO;
-  }
-
-  me_regbase_tmp &= PCI_BASE_ADDRESS_MEM_MASK;
   dev_private->me_regbase_size = me_regbase_size_tmp;
   dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
 
@@ -895,20 +876,21 @@ found:
 
 static int me_detach(comedi_device *dev)
 {
-  if(dev_private)
-  {
-    if (dev_private->me_regbase)
-    {
-      me_reset(dev);
-    }
-
-    if(dev_private->pci_device)
-    {
-      pci_release_regions(dev_private->pci_device);
-      pci_disable_device(dev_private->pci_device);
-      pci_dev_put(dev_private->pci_device);
-    }
-  }
-
-  return 0;
+	if(dev_private)
+	{
+		if (dev_private->me_regbase)
+		{
+			me_reset(dev);
+		}
+		if(dev_private->pci_device)
+		{
+			if(dev_private->plx_regbase)
+			{
+				pci_release_regions(dev_private->pci_device);
+				pci_disable_device(dev_private->pci_device);
+			}
+			pci_dev_put(dev_private->pci_device);
+		}
+	}
+	return 0;
 }

@@ -235,6 +235,7 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
 					continue;
 				}
 			}
+			devpriv->pci_dev = pcidev;
 			dev->board_ptr = cb_pcimdas_boards + index;
 			goto found;
 		}
@@ -262,16 +263,13 @@ found:
 	if(pci_enable_device(pcidev))
 	{
 		printk(" Failed to enable PCI device\n");
-		pci_dev_put(pcidev);
 		return -EIO;
 	}
 	if(pci_request_regions(pcidev, "cb_pcimdas"))
 	{
 		printk(" I/O port conflict\n");
-		pci_dev_put(pcidev);
 		return -EIO;
 	}
-	devpriv->pci_dev = pcidev;
 
 	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0); 
 	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1); 
@@ -372,8 +370,11 @@ static int cb_pcimdas_detach(comedi_device *dev)
 	{
 		if(devpriv->pci_dev)
 		{
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			if(devpriv->BADR0)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}

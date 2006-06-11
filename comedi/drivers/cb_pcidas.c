@@ -543,6 +543,7 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 					continue;
 				}
 			}
+			devpriv->pci_dev = pcidev;
 			dev->board_ptr = cb_pcidas_boards + index;
 			goto found;
 		}
@@ -563,17 +564,13 @@ found:
 	if(pci_enable_device(pcidev))
 	{
 		printk(" Failed to enable PCI device\n");
-		pci_dev_put(pcidev);
 		return -EIO;
 	}
 	if(pci_request_regions(pcidev, "cb_pcidas"))
 	{
 		printk(" I/O port conflict\n");
-		pci_dev_put(pcidev);
 		return -EIO;
 	}
-	devpriv->pci_dev = pcidev;
-
 	/*
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
@@ -743,8 +740,11 @@ static int cb_pcidas_detach(comedi_device *dev)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);
 	if(devpriv && devpriv->pci_dev)
 	{
-		pci_release_regions(devpriv->pci_dev);
-		pci_disable_device(devpriv->pci_dev);
+		if(devpriv->s5933_config)
+		{
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
+		}
 		pci_dev_put(devpriv->pci_dev);
 	}
 

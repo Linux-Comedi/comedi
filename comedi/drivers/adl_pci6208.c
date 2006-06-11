@@ -100,7 +100,6 @@ MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
 typedef struct{
 	int data;
 	struct pci_dev *pci_dev; /* for a PCI device */
-	int pci_setup;		 /* non-zero in PCI set up okay */
 	lsampl_t ao_readback[2]; /* Used for AO readback */
 }pci6208_private;
 
@@ -157,9 +156,6 @@ static int pci6208_attach(comedi_device *dev,comedi_devconfig *it)
 	retval = pci6208_pci_setup(devpriv->pci_dev, &io_base, dev->minor);
 	if (retval < 0) return retval;
 
-	// Allow resources to be freed and PCI device to be disabled.
-	devpriv->pci_setup = 1;
-		
 	dev->iobase=io_base;
 	dev->board_name = thisboard->name;
 	
@@ -209,7 +205,7 @@ static int pci6208_detach(comedi_device *dev)
 	printk("comedi%d: pci6208: remove\n",dev->minor);
 	
 	if(devpriv && devpriv->pci_dev){
-		if (devpriv->pci_setup) {
+		if(dev->iobase) {
 			pci_release_regions(devpriv->pci_dev);
 			pci_disable_device(devpriv->pci_dev);
 		}

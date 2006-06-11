@@ -1198,6 +1198,11 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
 			DIO200_DRIVER_NAME);
 
+	if ((ret=alloc_private(dev,sizeof(dio200_private))) < 0) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n", dev->minor);
+		return ret;
+	}
+
 	/* Process options. */
 	switch (thisboard->bustype) {
 	case isa_bustype:
@@ -1212,20 +1217,13 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 
 		if ((ret=dio200_find_pci(dev, bus, slot, &pci_dev)) < 0)
 			return ret;
+		devpriv->pci_dev = pci_dev;
 		break;
 	default:
 		printk(KERN_ERR "comedi%d: %s: BUG! cannot determine board type!\n",
 				dev->minor, DIO200_DRIVER_NAME);
 		return -EINVAL;
 		break;
-	}
-
-	if ((ret=alloc_private(dev,sizeof(dio200_private))) < 0) {
-		printk(KERN_ERR "comedi%d: error! out of memory!\n", dev->minor);
-		if (pci_dev) {
-			pci_dev_put(pci_dev);
-		}
-		return ret; 
 	}
 
 	devpriv->intr_sd = -1;
@@ -1236,7 +1234,6 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 		if (ret < 0) {
 			printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
 					dev->minor);
-			pci_dev_put(pci_dev);
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
@@ -1245,10 +1242,8 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 		if (ret < 0) {
 			printk(KERN_ERR "comedi%d: I/O port conflict (PCI)!\n",
 					dev->minor);
-			pci_dev_put(pci_dev);
 			return ret;
 		}
-		devpriv->pci_dev = pci_dev;
 	} else {
 		ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
 		if (ret < 0) {
@@ -1383,8 +1378,11 @@ dio200_detach(comedi_device *dev)
 	}
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			if(dev->iobase)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
 			pci_dev_put(devpriv->pci_dev);
 		} else if (dev->iobase) {
 			release_region(dev->iobase, DIO200_IO_SIZE);

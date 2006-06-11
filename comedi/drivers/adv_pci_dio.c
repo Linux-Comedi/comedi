@@ -330,7 +330,6 @@ struct pci_dio_private_st {
 	pci_dio_private		*next;		// next private struct
 	struct pci_dev 		*pcidev;	// pointer to board's pci_dev
 	char			valid;		// card is usable
-	char			enabled;	// PCI card is enabled
 	char			GlobalIrqEnabled;// 1= any IRQ source is enabled
 	// PCI-1760 specific data
 	unsigned char		IDICntEnable;	// counter's counting enable status
@@ -915,9 +914,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 	if (pci_request_regions(pcidev, driver_pci_dio.driver_name)) {
 		rt_printk(", Error: Can't allocate PCI device!\n");
 		return -EIO;
-	}
-	devpriv->enabled=1;
-	
+	}	
 	iobase=pci_resource_start(pcidev, this_board->main_pci_region);
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn), PCI_FUNC(pcidev->devfn),
@@ -1027,9 +1024,12 @@ static int pci_dio_detach(comedi_device *dev)
 			s->private=NULL;
 		}
 
-		if (devpriv->enabled) {
-			pci_release_regions(devpriv->pcidev);
-			pci_disable_device(devpriv->pcidev);
+		if (devpriv->pcidev) {
+			if (dev->iobase) {
+				pci_release_regions(devpriv->pcidev);
+				pci_disable_device(devpriv->pcidev);
+			}
+			pci_dev_put(devpriv->pcidev);
 		}
 		
 		if (devpriv->prev) {
@@ -1040,11 +1040,7 @@ static int pci_dio_detach(comedi_device *dev)
 		if (devpriv->next) {
 			devpriv->next->prev=devpriv->prev;
 		}
-
-		if (devpriv->pcidev) {
-			pci_dev_put(devpriv->pcidev);
-		}
-	}	
+	}
 
 	return 0;
 }

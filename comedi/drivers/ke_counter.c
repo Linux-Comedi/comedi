@@ -148,6 +148,12 @@ static int cnt_attach(comedi_device *dev, comedi_devconfig *it)
   int              io_base;
   int              error, i;
 
+	/* allocate device private structure */
+	if((error = alloc_private(dev, sizeof(cnt_device_private))) < 0)
+	{
+		return error;
+	}
+
   /* Probe the device to determine what device in the series it is. */
 	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
 		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device))
@@ -183,34 +189,24 @@ static int cnt_attach(comedi_device *dev, comedi_devconfig *it)
 found:
   printk("comedi%d: found %s at PCI bus %d, slot %d\n",dev->minor,
          board->name, pci_device->bus->number, PCI_SLOT(pci_device->devfn));
+  devpriv->pcidev = pci_device;
   dev->board_name = board->name;
 
   /* enable PCI device */
   if((error = pci_enable_device(pci_device)) < 0)
   {
-    pci_dev_put(pci_device);
     return error;
   }
 
   /* request PCI regions */
   if((error = pci_request_regions(pci_device, CNT_DRIVER_NAME)) < 0)
   {
-    pci_dev_put(pci_device);
     return error;
   }
 
   /* read register base address [PCI_BASE_ADDRESS #0] */
   io_base = pci_resource_start(pci_device, 0);
   dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
-
-  /* allocate device private structure */
-  if((error = alloc_private(dev, sizeof(cnt_device_private))) < 0)
-  {
-    pci_dev_put(pci_device);
-    return error;
-  }
-
-  devpriv->pcidev = pci_device;
 
   /* allocate the subdevice structures */
   if((error = alloc_subdevices(dev, 1)) < 0)
@@ -244,13 +240,15 @@ found:
 
 static int cnt_detach(comedi_device *dev)
 {
-  if (devpriv && devpriv->pcidev)
-  {
-    pci_release_regions(devpriv->pcidev);
-    pci_disable_device(devpriv->pcidev);
-    pci_dev_put(devpriv->pcidev);
-  }
-
-  printk("comedi%d: " CNT_DRIVER_NAME " remove\n",dev->minor);
-  return 0;
+	if (devpriv && devpriv->pcidev)
+	{
+		if(dev->iobase)
+		{
+			pci_release_regions(devpriv->pcidev);
+			pci_disable_device(devpriv->pcidev);
+		}
+		pci_dev_put(devpriv->pcidev);
+	}
+	printk("comedi%d: " CNT_DRIVER_NAME " remove\n",dev->minor);
+	return 0;
 }

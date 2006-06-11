@@ -288,32 +288,24 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_CB){
 			if(it->options[0] || it->options[1]){
-				if(pcidev->bus->number==it->options[0] &&
-				   PCI_SLOT(pcidev->devfn)==it->options[1]){
-					break;
+				if(pcidev->bus->number != it->options[0] ||
+				   PCI_SLOT(pcidev->devfn) != it->options[1]){
+					continue;
 				}
-			}else{
-				break;
+			}
+			for(index=0;index<N_BOARDS;index++){
+				if(cb_pcidda_boards[index].device_id == pcidev->device){
+					goto found;
+				}
 			}
 		}
 	}
-
 	if(!pcidev){
 		printk("Not a ComputerBoards/MeasurementComputing card on requested position\n");
 		return -EIO;
 	}
-
-	for(index=0;index<N_BOARDS;index++){
-		if(cb_pcidda_boards[index].device_id == pcidev->device){
-			goto found;
-		}
-	}
-	printk("Not a supported ComputerBoards/MeasurementComputing card on "
-		"requested position\n");
-	pci_dev_put(pcidev);
-	return -EIO;
-
 found:
+	devpriv->pci_dev = pcidev;
 	dev->board_ptr = cb_pcidda_boards+index;
 	// "thisboard" macro can be used from here.
 	printk("Found %s at requested position\n",thisboard->name);
@@ -325,7 +317,6 @@ found:
 	if(pci_enable_device(pcidev))
 	{
 		printk("cb_pcidda: failed to enable PCI device\n");
-		pci_dev_put(pcidev);
 		return -EIO;
 	}
 
@@ -335,10 +326,8 @@ found:
 	if (pci_request_regions(pcidev, thisboard->name))
 	{
 		printk("cb_pcidda: I/O port conflict\n");
-		pci_dev_put(pcidev);
 		return -EIO;
 	}
-	devpriv->pci_dev = pcidev;
 	devpriv->digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
 	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
 
@@ -412,8 +401,11 @@ static int cb_pcidda_detach(comedi_device *dev)
 	{
 		if(devpriv->pci_dev)
 		{
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			if(devpriv->dac)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}

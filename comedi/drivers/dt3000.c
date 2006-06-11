@@ -253,7 +253,6 @@ MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
 
 typedef struct{
 	struct pci_dev *pci_dev;
-	int pci_enabled;
 	unsigned long phys_addr;
 	void *io_addr;
 	unsigned int lock;
@@ -858,7 +857,7 @@ static int dt3000_detach(comedi_device *dev)
 	{
 		if(devpriv->pci_dev)
 		{
-			if (devpriv->pci_enabled)
+			if(devpriv->phys_addr)
 			{
 				pci_release_regions(devpriv->pci_dev);
 				pci_disable_device(devpriv->pci_dev);
@@ -905,8 +904,6 @@ static int setup_pci(comedi_device *dev)
 
 	ret = pci_request_regions(devpriv->pci_dev, "dt3000");
 	if(ret<0)return ret;
-
-	devpriv->pci_enabled = 1;
 
 	addr=pci_resource_start(devpriv->pci_dev,0);
 	devpriv->phys_addr=addr;

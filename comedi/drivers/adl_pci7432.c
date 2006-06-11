@@ -60,7 +60,6 @@ MODULE_DEVICE_TABLE(pci, adl_pci7432_pci_table);
 typedef struct{
 	int data;
 	struct pci_dev *pci_dev;
-	int pci_setup;
 } adl_pci7432_private;
 
 #define devpriv ((adl_pci7432_private *)dev->private)
@@ -118,7 +117,6 @@ static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it)
 				printk("comedi%d: I/O port conflict\n", dev->minor);
 				return -EIO;
 			}
-			devpriv->pci_setup = 1;	/* Allow resources to be freed on detach */
 			dev->iobase = pci_resource_start ( pcidev, 2 );
 			printk ( "comedi: base addr %4lx\n", dev->iobase );
 
@@ -159,7 +157,7 @@ static int adl_pci7432_detach(comedi_device *dev)
 	printk("comedi%d: pci7432: remove\n",dev->minor);
 
 	if (devpriv && devpriv->pci_dev) {
-		if (devpriv->pci_setup) {
+		if (dev->iobase) {
 			pci_release_regions(devpriv->pci_dev);
 			pci_disable_device(devpriv->pci_dev);
 		}

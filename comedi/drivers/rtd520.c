@@ -774,50 +774,41 @@ static int rtd_attach (
     /*
      * Probe the device to determine what device in the series it is.
      */
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-	if (pcidev->vendor == PCI_VENDOR_ID_RTD) {
-	    if (it->options[0] || it->options[1]) {
-		if (pcidev->bus->number == it->options[0]
-		    && PCI_SLOT(pcidev->devfn) == it->options[1]) {
-		    DPRINTK("rtd520: found bus=%d slot=%d\n",
-			   it->options[0], it->options[1]);
-		    break;		/* found it */
+		if (pcidev->vendor == PCI_VENDOR_ID_RTD) {
+			if (it->options[0] || it->options[1]) {
+				if (pcidev->bus->number != it->options[0]
+					|| PCI_SLOT(pcidev->devfn) != it->options[1]) {
+					continue;
+				}
+			}
+			break;		/* found one */
 		}
-	    } else {		/* specific board/slot not specified */
-		break;		/* found one */
-	    }
 	}
-    }
-
     if (!pcidev) {
-	if (it->options[0] && it->options[1]) {
-	    printk ("No RTD card at bus=%d slot=%d.\n",
-		    it->options[0], it->options[1]);
-	} else {
-	    printk ("No RTD card found.\n");
+		if (it->options[0] && it->options[1]) {
+			printk ("No RTD card at bus=%d slot=%d.\n",
+				it->options[0], it->options[1]);
+		} else {
+			printk ("No RTD card found.\n");
+		}
+		return -EIO;
 	}
-	return -EIO;
-    }
-
-    if (pcidev->device != thisboard->device_id) {
-	printk ("Found an RTD card, but not the supported type (%x).\n",
-		pcidev->device);
-	pci_dev_put(pcidev);
-	return -EIO;
-    }
+	devpriv->pci_dev = pcidev;
+	if (pcidev->device != thisboard->device_id) {
+		printk ("Found an RTD card, but not the supported type (%x).\n",
+			pcidev->device);
+		return -EIO;
+	}
     dev->board_name = thisboard->name;
 
-    if((ret=pci_enable_device(pcidev))<0){
-	pci_dev_put(pcidev);
-	return ret;
-    }
-    if((ret=pci_request_regions(pcidev, "rtd520"))<0){
-	pci_dev_put(pcidev);
-	return ret;
-    }
-
-    devpriv->pci_dev = pcidev;
+	if((ret=pci_enable_device(pcidev))<0){
+		return ret;
+	}
+	if((ret=pci_request_regions(pcidev, "rtd520"))<0){
+		return ret;
+	}
 
     /*
      * Initialize base addresses
@@ -928,19 +919,14 @@ static int rtd_attach (
     s->n_chan=3;
     s->maxdata=0xffff;
 
-    /* check if our interrupt is available and get it */
-    dev->irq = devpriv->pci_dev->irq;
-    if (dev->irq > 0) {
-	if((ret=comedi_request_irq (dev->irq, rtd_interrupt,
-				    SA_SHIRQ, "rtd520", dev)) < 0) {
-	    printk("Could not get interrupt! (%d)\n", dev->irq);
-	    dev->irq = 0;
-	    return ret;
+	/* check if our interrupt is available and get it */
+	if((ret=comedi_request_irq (devpriv->pci_dev->irq, rtd_interrupt,
+		SA_SHIRQ, "rtd520", dev)) < 0) {
+		printk("Could not get interrupt! (%d)\n", devpriv->pci_dev->irq);
+		return ret;
 	}
+	dev->irq = devpriv->pci_dev->irq;
 	printk("( irq=%d )", dev->irq);
-    } else {
-	printk("( NO IRQ )");
-    }
 
 #ifdef USE_DMA
     if (dev->irq > 0) {
@@ -1164,9 +1150,12 @@ static int rtd_detach (
 	    iounmap (devpriv->lcfg);
 	}
 	if (devpriv->pci_dev) {
-	    pci_release_regions(devpriv->pci_dev);
-	    pci_disable_device(devpriv->pci_dev);
-	    pci_dev_put(devpriv->pci_dev);
+		if(devpriv->las0)
+		{
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
+		}    
+		pci_dev_put(devpriv->pci_dev);
 	}
     }
 

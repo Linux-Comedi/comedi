@@ -401,29 +401,33 @@ static int me4000_probe(comedi_device *dev, comedi_devconfig *it){
 
     CALL_PDEBUG("In me4000_probe()\n");
 
+	/* Allocate private memory */
+	if(alloc_private(dev, sizeof(me4000_info_t)) < 0){
+		return -ENOMEM;
+	}
     /*
      * Probe the device to determine what device in the series it is.
      */
  	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
 		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
-	if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS){
-	    for(i = 0; i < ME4000_BOARD_VERSIONS; i++){
-		if(me4000_boards[i].device_id == pci_device->device){
-		    /* Was a particular bus/slot requested? */
-		    if((it->options[0] != 0) || (it->options[1] != 0)){
-			/* Are we on the wrong bus/slot? */
-			if(pci_device->bus->number != it->options[0] ||
-				PCI_SLOT(pci_device->devfn) != it->options[1]){
-			    continue;
+		if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS){
+			for(i = 0; i < ME4000_BOARD_VERSIONS; i++){
+				if(me4000_boards[i].device_id == pci_device->device){
+					/* Was a particular bus/slot requested? */
+					if((it->options[0] != 0) || (it->options[1] != 0)){
+						/* Are we on the wrong bus/slot? */
+						if(pci_device->bus->number != it->options[0] ||
+							PCI_SLOT(pci_device->devfn) != it->options[1]){
+							continue;
+						}
+					}
+					dev->board_ptr = me4000_boards + i;
+					board = (me4000_board_t *) dev->board_ptr;
+					info->pci_dev_p = pci_device;
+					goto found;
+				}
 			}
-		    }
-
-		    dev->board_ptr = me4000_boards + i;
-		    board = (me4000_board_t *) dev->board_ptr;
-		    goto found;
 		}
-	    }
-	}
     }
 
     printk(KERN_ERR"comedi%d: me4000: me4000_probe(): No supported board found (req. bus/slot : %d/%d)\n",
@@ -436,87 +440,75 @@ found:
 	    dev->minor, me4000_boards[i].name,
 	    pci_device->bus->number, PCI_SLOT(pci_device->devfn));
 
-    /* Allocate private memory */
-    if(alloc_private(dev, sizeof(me4000_info_t)) < 0){
-	pci_dev_put(pci_device);
-	return -ENOMEM;
-    }
-
     /* Set data in device structure */
     dev->board_name = board->name;
 
     /* Enable PCI device */
     result = pci_enable_device(pci_device);
     if(result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot enable PCI device\n", dev->minor);
-	pci_dev_put(pci_device);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot enable PCI device\n", dev->minor);
+		return result;
     }
 
     /* Request the PCI register regions */
     result = pci_request_regions(pci_device, dev->board_name);
     if (result < 0){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot request I/O regions\n", dev->minor);
-	pci_dev_put(pci_device);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot request I/O regions\n", dev->minor);
+		return result;
     }
-
     /* Get the PCI base registers */
     result = get_registers(dev, pci_device);
     if(result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot get registers\n", dev->minor);
-	pci_release_regions(pci_device);
-	pci_disable_device(pci_device);
-	pci_dev_put(pci_device);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot get registers\n", dev->minor);
+		return result;
     }
-    /* Initialize board info (sets info->pci_dev_p) */
+    /* Initialize board info */
     result = init_board_info(dev, pci_device);
     if (result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init baord info\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init baord info\n", dev->minor);
+		return result;
     }
 
     /* Init analog output context */
     result = init_ao_context(dev);
     if (result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init ao context\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init ao context\n", dev->minor);
+		return result;
     }
 
     /* Init analog input context */
     result = init_ai_context(dev);
     if (result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init ai context\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init ai context\n", dev->minor);
+		return result;
     }
 
     /* Init digital I/O context */
     result = init_dio_context(dev);
     if (result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init dio context\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init dio context\n", dev->minor);
+		return result;
     }
 
     /* Init counter context */
     result = init_cnt_context(dev);
     if (result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init cnt context\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init cnt context\n", dev->minor);
+		return result;
     }
 
     /* Download the xilinx firmware */
     result = xilinx_download(dev);
     if(result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Can't download firmware\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Can't download firmware\n", dev->minor);
+		return result;
     }
 
     /* Make a hardware reset */
     result = reset_board(dev);
     if(result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Can't reset board\n", dev->minor);
-	return result;
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Can't reset board\n", dev->minor);
+		return result;
     }
 
     return 0;
@@ -574,7 +566,6 @@ static int get_registers(comedi_device *dev, struct pci_dev *pci_dev_p){
 
 static int init_board_info(comedi_device *dev, struct pci_dev *pci_dev_p){
     int result;
-    info->pci_dev_p = pci_dev_p;
 
     CALL_PDEBUG("In init_board_info()\n");
 
@@ -856,17 +847,21 @@ static int reset_board(comedi_device *dev){
 
 
 static int me4000_detach(comedi_device *dev){
-    CALL_PDEBUG("In me4000_detach()\n");
+	CALL_PDEBUG("In me4000_detach()\n");
 
-    if(info){
-	if(info->pci_dev_p) {
-	    reset_board(dev);
-	    pci_release_regions(info->pci_dev_p);
-	    pci_dev_put(info->pci_dev_p);
+	if(info){
+		if(info->pci_dev_p) {
+			reset_board(dev);
+			if(info->plx_regbase)
+			{
+				pci_release_regions(info->pci_dev_p);
+				pci_disable_device(info->pci_dev_p);
+			}
+			pci_dev_put(info->pci_dev_p);
+		}
 	}
-    }
 
-    return 0;
+	return 0;
 }
 
 

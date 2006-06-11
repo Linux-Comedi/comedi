@@ -682,64 +682,55 @@ static int daqboard2000_8255_cb(int dir, int port, int data, unsigned long ioadd
 
 static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 {
-  int result = 0;
-  comedi_subdevice *s;
-  struct pci_dev *card = NULL;
-  void *aux_data;
-  unsigned int aux_len;
+	int result = 0;
+	comedi_subdevice *s;
+	struct pci_dev *card = NULL;
+	void *aux_data;
+	unsigned int aux_len;
+	
+	printk("comedi%d: daqboard2000:", dev->minor);
+	
+	result = alloc_private(dev,sizeof(daqboard2000_private));
+	if(result < 0){
+		return -ENOMEM;
+	}
+	/* FIXME: we should handle multiple cards, have to make David decide
+		how, so we will be consistent among all PCI card drivers... */
+	card = pci_get_device(0x1616, 0x0409, NULL);
+	if (!card) {
+		printk(" no daqboard2000 found\n");
+		return -EIO;
+	}else{
+		u32 id;
+		int i;
+		devpriv->pci_dev = card;
+		id = ((u32)card->subsystem_device << 16) | card->subsystem_vendor;
+		for(i=0;i<n_boardtypes;i++){
+			if(boardtypes[i].id==id){
+				printk(" %s",boardtypes[i].name);
+				dev->board_ptr=boardtypes+i;
+			}
+		}
+		if(!dev->board_ptr){
+			printk(" unknown subsystem id %08x (pretend it is an ids2)",id);
+			dev->board_ptr=boardtypes;
+		}
+	}
 
-  printk("comedi%d: daqboard2000:", dev->minor);
 
-  /* FIXME: we should handle multiple cards, have to make David decide 
-            how, so we will be consistent among all PCI card drivers... */
-  card = pci_get_device(0x1616, 0x0409, NULL);
+	if((result = pci_enable_device(card))<0){
+		return -EIO;
+	}
+	if((result = pci_request_regions(card, "daqboard2000")) < 0) {
+		return -EIO;	
+	}
+	devpriv->plx = ioremap(pci_resource_start(card,0), DAQBOARD2000_PLX_SIZE);
+	devpriv->daq = ioremap(pci_resource_start(card,2), DAQBOARD2000_DAQ_SIZE);
 
-  if (!card) {
-    printk(" no daqboard2000 found\n");
-    result = -EIO;
-    goto out;
-  }else{
-    u32 id;
-    int i;
-    id = ((u32)card->subsystem_device << 16) | card->subsystem_vendor;
-    for(i=0;i<n_boardtypes;i++){
-      if(boardtypes[i].id==id){
-	printk(" %s",boardtypes[i].name);
-	dev->board_ptr=boardtypes+i;
-      }
-    }
-    if(!dev->board_ptr){
-      printk(" unknown subsystem id %08x (pretend it is an ids2)",id);
-      dev->board_ptr=boardtypes;
-    }
-  }
-
-  if((result = pci_enable_device(card))<0){
-    pci_dev_put(card);
-    goto out;
-  }
-
-  if((result = pci_request_regions(card, "daqboard2000")) < 0) {
-    pci_dev_put(card);
-    goto out;
-  }
-
-  result = alloc_private(dev,sizeof(daqboard2000_private));
-  if(result<0){
-    pci_release_regions(card);
-    pci_disable_device(card);
-    pci_dev_put(card);
-    goto out;
-  }
-
-  devpriv->pci_dev = card;
-
-  result = alloc_subdevices(dev, 3);
-  if(result<0)goto out;
-  
-  devpriv->plx = ioremap(pci_resource_start(card,0), DAQBOARD2000_PLX_SIZE);
-  devpriv->daq = ioremap(pci_resource_start(card,2), DAQBOARD2000_DAQ_SIZE);
-  readl(devpriv->plx + 0x6c); 
+	result = alloc_subdevices(dev, 3);
+	if(result<0)goto out;
+	
+	readl(devpriv->plx + 0x6c);
 
   /*
     u8 interrupt;
@@ -800,26 +791,31 @@ out:
 
 static int daqboard2000_detach(comedi_device * dev)
 {
-  printk("comedi%d: daqboard2000: remove\n", dev->minor);
-
-  if(dev->subdevices)
-    subdev_8255_cleanup(dev,dev->subdevices+2);
-
-  if (devpriv && devpriv->daq) {
-    iounmap(devpriv->daq);
-  }
-  if (devpriv && devpriv->plx) {
-    iounmap(devpriv->plx);
-  }
-  if (dev->irq) {
-    free_irq(dev->irq, dev);
-  }
-  if (devpriv && devpriv->pci_dev) {
-    pci_release_regions(devpriv->pci_dev);
-    pci_disable_device(devpriv->pci_dev);
-    pci_dev_put(devpriv->pci_dev);
-  }
-  return 0;
+	printk("comedi%d: daqboard2000: remove\n", dev->minor);
+	
+	if(dev->subdevices)
+		subdev_8255_cleanup(dev,dev->subdevices+2);
+	
+	if (dev->irq) {
+		free_irq(dev->irq, dev);
+	}
+	if(devpriv)
+	{
+		if(devpriv->daq)
+			iounmap(devpriv->daq);
+		if(devpriv->plx) 
+			iounmap(devpriv->plx);
+		if(devpriv->pci_dev)
+		{
+			if(devpriv->daq)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
+			pci_dev_put(devpriv->pci_dev);
+		}
+	}
+	return 0;
 }
 
 COMEDI_INITCLEANUP(driver_daqboard2000);

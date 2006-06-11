@@ -487,6 +487,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     return -ENOMEM;
     
   pdev=pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, NULL);
+	devpriv->pdev = pdev;
   
   if(pdev==NULL) {
     printk("s626_attach: Board not present!!!");    
@@ -495,17 +496,13 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   
   if((result = pci_enable_device(pdev))<0){
     printk("s626_attach: pci_enable_device fails\n");
-    pci_dev_put(pdev);
     return -ENODEV;
   }
 
   if((result = pci_request_regions(pdev, "s626"))<0){
     printk("s626_attach: pci_request_regions fails\n");
-    pci_dev_put(pdev);
     return -ENODEV;
   }
-
-  devpriv->pdev = pdev;
 
   resourceStart=(uint64_t)pci_resource_start(devpriv->pdev,0);
   
@@ -1201,46 +1198,47 @@ static irqreturn_t s626_irq_handler(int irq,void *d,struct pt_regs * regs)
 
 static int s626_detach(comedi_device *dev)
 {
-
-  if(devpriv){
-    //stop ai_command 
-    devpriv->ai_cmd_running=0;    
-    
-    if(devpriv->base_addr){
-      //interrupt mask
-      WR7146( P_IER, 0 );		// Disable master interrupt.
-      WR7146( P_ISR, IRQ_GPIO3 | IRQ_RPS1 );	// Clear board's IRQ status
-						    // flag.
-      
-      // Disable the watchdog timer and battery charger.
-      WriteMISC2(dev,0);      
-      
-      // Close all interfaces on 7146 device.
-      WR7146( P_MC1, MC1_SHUTDOWN );
-      WR7146( P_ACON1, ACON1_BASE );
-      
-      CloseDMAB(dev,&devpriv->RPSBuf,DMABUF_SIZE);	
-      CloseDMAB(dev,&devpriv->ANABuf,DMABUF_SIZE);	
-    }
-
-    if(dev->irq){
-      comedi_free_irq(dev->irq,dev);
-    }
-
-    if(devpriv->base_addr){
-      iounmap(devpriv->base_addr);
-    }
-
-    if(devpriv->pdev){
-      pci_release_regions(devpriv->pdev);
-      pci_disable_device(devpriv->pdev);
-      pci_dev_put(devpriv->pdev);
-    }
-  }
-  
-  DEBUG("s626_detach: S626 detached!\n");
-    
-  return 0; 
+	if(devpriv){
+		//stop ai_command
+		devpriv->ai_cmd_running=0;
+	
+		if(devpriv->base_addr){
+			//interrupt mask
+			WR7146( P_IER, 0 );		// Disable master interrupt.
+			WR7146( P_ISR, IRQ_GPIO3 | IRQ_RPS1 );	// Clear board's IRQ status flag.
+	
+			// Disable the watchdog timer and battery charger.
+			WriteMISC2(dev,0);
+		
+			// Close all interfaces on 7146 device.
+			WR7146( P_MC1, MC1_SHUTDOWN );
+			WR7146( P_ACON1, ACON1_BASE );
+		
+			CloseDMAB(dev,&devpriv->RPSBuf,DMABUF_SIZE);
+			CloseDMAB(dev,&devpriv->ANABuf,DMABUF_SIZE);
+		}
+	
+		if(dev->irq){
+			comedi_free_irq(dev->irq,dev);
+		}
+	
+		if(devpriv->base_addr){
+			iounmap(devpriv->base_addr);
+		}
+	
+		if(devpriv->pdev){
+			if(devpriv->base_addr)
+			{
+				pci_release_regions(devpriv->pdev);
+				pci_disable_device(devpriv->pdev);
+			}
+			pci_dev_put(devpriv->pdev);
+		}
+	}
+	
+	DEBUG("s626_detach: S626 detached!\n");
+	
+	return 0;
 }
 
 /*

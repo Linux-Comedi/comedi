@@ -337,6 +337,11 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("comedi%d: amplc_pci230\n",dev->minor);
 	
+	/* Allocate the private structure area using alloc_private().
+	 * Macro defined in comedidev.h - memsets struct fields to 0. */
+	if((alloc_private(dev,sizeof(struct pci230_private)))<0){
+		return -ENOMEM;
+	}
 	/* Find card */
 	for(pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ; 
 		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
@@ -353,11 +358,11 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 		printk("comedi%d: amplc_pci230: No PCI230 found\n",dev->minor);
 		return -EIO;
 	}
+	devpriv->pci_dev = pci_dev;
 	dev->board_ptr = pci230_boards+i;
 	
 	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register. */
 	if(pci_enable_device(pci_dev)<0){
-		pci_dev_put(pci_dev);
 		return -EIO;
 	}
 
@@ -367,21 +372,11 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	/* Reserve I/O spaces. */
 	if(pci_request_regions(pci_dev,"PCI230")<0){
 		printk("comedi%d: amplc_pci230: I/O space conflict\n",dev->minor);
-		pci_dev_put(pci_dev);
 		return -EIO;
 	}
 
 	printk("comedi%d: amplc_pci230: I/O region 1 0x%04x I/O region 2 0x%04x\n",dev->minor, pci_iobase, iobase);
 
-	/* Allocate the private structure area using alloc_private().
-	 * Macro defined in comedidev.h - memsets struct fields to 0. */
-	if((alloc_private(dev,sizeof(struct pci230_private)))<0){
-		pci_release_regions(pci_dev);
-		pci_disable_device(pci_dev);
-		pci_dev_put(pci_dev);
-		return -ENOMEM;
-	}
-	devpriv->pci_dev = pci_dev;
 	devpriv->pci_iobase = pci_iobase;
 	dev->iobase = iobase;
 
@@ -490,8 +485,11 @@ static int pci230_detach(comedi_device *dev)
 
 	if(devpriv){
 		if(devpriv->pci_dev){
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			if(dev->iobase)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
