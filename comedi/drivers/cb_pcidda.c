@@ -314,7 +314,6 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
 	return -EIO;
 
 found:
-	devpriv->pci_dev = pcidev;
 	dev->board_ptr = cb_pcidda_boards+index;
 	// "thisboard" macro can be used from here.
 	printk("Found %s at requested position\n",thisboard->name);
@@ -323,17 +322,23 @@ found:
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
-	if(pci_enable_device(devpriv->pci_dev))
+	if(pci_enable_device(pcidev))
+	{
+		printk("cb_pcidda: failed to enable PCI device\n");
+		pci_dev_put(pcidev);
 		return -EIO;
+	}
 
 /*
  * Allocate the I/O ports.
  */
-	if (pci_request_regions(devpriv->pci_dev, thisboard->name))
+	if (pci_request_regions(pcidev, thisboard->name))
 	{
 		printk("cb_pcidda: I/O port conflict\n");
+		pci_dev_put(pcidev);
 		return -EIO;
 	}
+	devpriv->pci_dev = pcidev;
 	devpriv->digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
 	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
 
@@ -405,12 +410,12 @@ static int cb_pcidda_detach(comedi_device *dev)
  */
 	if(devpriv)
 	{
-		if(devpriv->digitalio)
-			release_region(devpriv->digitalio, DIGITALIO_SIZE);
-		if(devpriv->dac)
-			release_region(devpriv->dac, 8 + thisboard->ao_chans*2);
 		if(devpriv->pci_dev)
+		{
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
+		}
 	}
 	// cleanup 8255
 	if(dev->subdevices)

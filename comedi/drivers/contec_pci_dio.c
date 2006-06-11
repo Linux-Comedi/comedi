@@ -112,6 +112,14 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 		
 		if ( pcidev->vendor == PCI_VENDOR_ID_CONTEC && 
 		     pcidev->device == PCI_DEVICE_ID_PIO1616L ) {
+			if (pci_enable_device(pcidev)) {
+				printk("error enabling PCI device!\n");
+				return -EIO;
+			}
+			if (pci_request_regions(pcidev, "contec_pci_dio")) {
+				printk("I/O port conflict!\n");
+				return -EIO;
+			}
 			devpriv->pci_dev = pcidev;
 			dev->iobase = pci_resource_start ( pcidev, 0 );
 			printk ( " base addr %lx ", dev->iobase );
@@ -135,12 +143,15 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 			s->range_table = &range_digital;
 			s->insn_bits  = contec_do_insn_bits;
 
+			printk("attached\n");
+
+			return 1;
 		}
 	}
 
-	printk("attached\n");
+	printk("card not present!\n");
 
-	return 1;
+	return -EIO;
 }
 
 
@@ -148,8 +159,11 @@ static int contec_detach(comedi_device *dev)
 {
 	printk("comedi%d: contec: remove\n",dev->minor);
 
-	if (devpriv && devpriv->pci_dev)
+	if (devpriv && devpriv->pci_dev) {
+		pci_release_regions(devpriv->pci_dev);
+		pci_disable_device(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
+	}
 	
 	return 0;
 }

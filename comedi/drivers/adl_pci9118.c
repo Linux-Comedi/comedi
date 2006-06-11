@@ -180,7 +180,7 @@ static comedi_lrange range_pci9118hg={ 8, {
 static int pci9118_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci9118_detach(comedi_device *dev);
 
-static unsigned short pci_list_builded=0;	/*=1 list of cards is know */
+static unsigned short pci_list_builded=0;	/*>0 list of cards is known */
 
 typedef struct {
 	char 		*name;		// driver name
@@ -245,7 +245,6 @@ typedef struct{
 	int			iobase_a;	// base+size for AMCC chip
 	struct pcilst_struct	*amcc;		// ptr too AMCC data
 	unsigned int		master;		// master capable
-	unsigned char		allocated;	// we have blocked card
 	struct pci_dev		*pcidev;		// ptr to actual pcidev
 	unsigned int		usemux;		// we want to use external multiplexor!
 #ifdef PCI9118_PARANOIDCHECK
@@ -1677,9 +1676,8 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	unsigned char pci_bus,pci_slot,pci_func;
 	u16 u16w;
 	
-	if (!pci_list_builded) {
+	if (pci_list_builded++ == 0) {
 		pci_card_list_init(PCI_VENDOR_ID_AMCC,0);
-		pci_list_builded=1;
 	}
 
 	rt_printk("comedi%d: adl_pci9118: board=%s",dev->minor,this_board->name);
@@ -1690,7 +1688,8 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 		master=1;
 	}
 
-	/* this call pci_enable_device() and pci_set_master() */
+	/* this call pci_enable_device(), pci_request_regions(),
+	 * and pci_set_master() */
 	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_AMCC, this_board->device_id, it->options[0], it->options[1], master))==NULL) 
 		return -EIO;
 	
@@ -1706,24 +1705,18 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, 0x%4x",pci_bus,pci_slot,pci_func,iobase_9,iobase_a);
 	
-	if (!request_region(iobase_9, this_board->iorange_9118, "ADLink PCI-9118")) {
-		rt_printk("I/O port conflict\n");
-		return -EIO;
-        }
-
         dev->iobase=iobase_9;
 	dev->board_name = this_board->name;
 
 	
-	if((ret=alloc_private(dev,sizeof(pci9118_private)))<0)
+	if((ret=alloc_private(dev,sizeof(pci9118_private)))<0) {
+		pci_card_free(card);
+		rt_printk(" - Allocation failed!\n");
 		return -ENOMEM;
+	}
 
 	devpriv->amcc=card;
 	devpriv->pcidev=card->pcidev;
-	if (!request_region(iobase_a, this_board->iorange_amcc, "ADLink PCI-9118")) {
-		rt_printk("I/O port conflict\n");
-		return -EIO;
-	}
 	devpriv->iobase_a=iobase_a;
 	
 	if (it->options[3]&2) irq=0; // user don't want use IRQ
@@ -1868,19 +1861,14 @@ static int pci9118_detach(comedi_device *dev)
 {
 	if (dev->private) {
 		if (devpriv->valid) pci9118_reset(dev);
-		if (devpriv->iobase_a) release_region(devpriv->iobase_a,this_board->iorange_amcc);
-		if (devpriv->allocated)	pci_card_free(devpriv->amcc);
+		if(dev->irq) comedi_free_irq(dev->irq,dev);
+		if (devpriv->amcc) pci_card_free(devpriv->amcc);
 		if (devpriv->dmabuf_virt[0]) free_pages((unsigned long)devpriv->dmabuf_virt[0],devpriv->dmabuf_pages[0]);
 		if (devpriv->dmabuf_virt[1]) free_pages((unsigned long)devpriv->dmabuf_virt[1],devpriv->dmabuf_pages[1]);
 	}
 
-	if(dev->irq) comedi_free_irq(dev->irq,dev);
-
-	if(dev->iobase)	release_region(dev->iobase,this_board->iorange_9118);
-		
-	if (pci_list_builded) {
+	if (--pci_list_builded == 0) {
 	    	pci_card_list_cleanup(PCI_VENDOR_ID_AMCC);
-		pci_list_builded=0;
 	}
 
 	return 0;

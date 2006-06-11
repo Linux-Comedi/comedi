@@ -396,7 +396,6 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
 	struct pci_dev *pci_dev;	/* PCI device */
-	int share_irq;
 	int intr_sd;
 } dio200_private;
 
@@ -514,7 +513,7 @@ dio200_find_pci(comedi_device *dev, int bus, int slot,
 static int
 dio200_request_region(unsigned minor, unsigned long from, unsigned long extent)
 {
-	if (!request_region(from, extent, DIO200_DRIVER_NAME)) {
+	if (!from || !request_region(from, extent, DIO200_DRIVER_NAME)) {
 		printk(KERN_ERR "comedi%d: I/O port conflict (%#lx,%lu)!\n",
 				minor, from, extent);
 		return -EIO;
@@ -1199,7 +1198,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
 			DIO200_DRIVER_NAME);
 
-	/* Get card bus position and base address. */
+	/* Process options. */
 	switch (thisboard->bustype) {
 	case isa_bustype:
 		iobase = it->options[0];
@@ -1213,15 +1212,6 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 
 		if ((ret=dio200_find_pci(dev, bus, slot, &pci_dev)) < 0)
 			return ret;
-
-		if ((ret=pci_enable_device(pci_dev)) < 0) {
-			printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
-					dev->minor);
-			pci_dev_put(pci_dev);
-			return ret;
-		}
-		iobase = pci_resource_start(pci_dev, 2);
-		irq = pci_dev->irq;
 		break;
 	default:
 		printk(KERN_ERR "comedi%d: %s: BUG! cannot determine board type!\n",
@@ -1238,14 +1228,32 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret; 
 	}
 
-	devpriv->pci_dev = pci_dev;
-	devpriv->share_irq = share_irq;
 	devpriv->intr_sd = -1;
 
-	/* Reserve I/O spaces. */
-	ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
-	if (ret < 0) {
-		return ret;
+	/* Enable device and reserve I/O spaces. */
+	if (pci_dev) {
+		ret = pci_enable_device(pci_dev);
+		if (ret < 0) {
+			printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
+					dev->minor);
+			pci_dev_put(pci_dev);
+			return ret;
+		}
+		iobase = pci_resource_start(pci_dev, 2);
+		irq = pci_dev->irq;
+		ret = pci_request_regions(pci_dev, DIO200_DRIVER_NAME);
+		if (ret < 0) {
+			printk(KERN_ERR "comedi%d: I/O port conflict (PCI)!\n",
+					dev->minor);
+			pci_dev_put(pci_dev);
+			return ret;
+		}
+		devpriv->pci_dev = pci_dev;
+	} else {
+		ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
+		if (ret < 0) {
+			return ret;
+		}
 	}
 	dev->iobase = iobase;
 
@@ -1373,11 +1381,14 @@ dio200_detach(comedi_device *dev)
 			}
 		}
 	}
-	if (dev->iobase) {
-		release_region(dev->iobase, DIO200_IO_SIZE);
-	}
-	if (devpriv && devpriv->pci_dev) {
-		pci_dev_put(devpriv->pci_dev);
+	if (devpriv) {
+		if (devpriv->pci_dev) {
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
+			pci_dev_put(devpriv->pci_dev);
+		} else if (dev->iobase) {
+			release_region(dev->iobase, DIO200_IO_SIZE);
+		}
 	}
 	if (dev->board_name) {
 		printk(KERN_INFO "comedi%d: %s removed\n",

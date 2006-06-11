@@ -119,7 +119,6 @@ typedef struct{
 	struct pci_dev *pci_dev;
 	int lcr_iobase;	/* PLX PCI9052 config registers in PCIBAR1 */
 	int enable_irq;
-	int share_irq;
 }pc236_private;
 
 #define devpriv ((pc236_private *)dev->private)
@@ -167,7 +166,6 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev = NULL;
 	int iobase = 0, irq = 0;
-	int lcr_iobase = 0;
 	int bus = 0, slot = 0;
 	struct pci_device_id *pci_id;
 	int share_irq = 0;
@@ -175,7 +173,7 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("comedi%d: %s: ",dev->minor, PC236_DRIVER_NAME);
 
-	/* Get card bus position and base address. */
+	/* Process options. */
 	switch (thisboard->bustype) {
 	case isa_bustype:
 		iobase = it->options[0];
@@ -227,14 +225,6 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 			printk("no %s found!\n", thisboard->fancy_name);
 			return -EIO;
 		}
-		if ((ret=pci_enable_device(pci_dev)) < 0) {
-			printk("error enabling PCI device!\n");
-			pci_dev_put(pci_dev);
-			return ret;
-		}
-		lcr_iobase = pci_resource_start(pci_dev, 1);
-		iobase = pci_resource_start(pci_dev, 2);
-		irq = pci_dev->irq;
 		break;
 	default:
 		printk("bug! cannot determine board type!\n");
@@ -259,18 +249,26 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret; 
 	}
 
-	devpriv->pci_dev = pci_dev;
-	devpriv->share_irq = share_irq;
-
-	/* Reserve I/O spaces. */
-	if (lcr_iobase) {
-		if ((ret=pc236_request_region(lcr_iobase, PC236_LCR_IO_SIZE)) < 0) {
+	/* Enable device and reserve I/O spaces. */
+	if (pci_dev) {
+		if ((ret=pci_enable_device(pci_dev)) < 0) {
+			printk("error enabling PCI device!\n");
+			pci_dev_put(pci_dev);
 			return ret;
 		}
-		devpriv->lcr_iobase = lcr_iobase;
-	}
-	if ((ret=pc236_request_region(iobase, PC236_IO_SIZE)) < 0) {
-		return ret;
+		if ((ret=pci_request_regions(pci_dev, PC236_DRIVER_NAME)) < 0) {
+			printk("I/O port conflict (PCI)!\n");
+			pci_dev_put(pci_dev);
+			return ret;
+		}
+		devpriv->pci_dev = pci_dev;
+		devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
+		iobase = pci_resource_start(pci_dev, 2);
+		irq = pci_dev->irq;
+	} else {
+		if ((ret=pc236_request_region(iobase, PC236_IO_SIZE)) < 0) {
+			return ret;
+		}
 	}
 	dev->iobase = iobase;
 
@@ -347,14 +345,14 @@ static int pc236_detach(comedi_device *dev)
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices+0);
 	}
-	if (dev->iobase) {
-		release_region(dev->iobase, PC236_IO_SIZE);
-	}
 	if (devpriv) {
-		if (devpriv->lcr_iobase)
-			release_region(devpriv->lcr_iobase, PC236_LCR_IO_SIZE);
-		if (devpriv->pci_dev)
+		if (devpriv->pci_dev) {
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
+		} else if (dev->iobase) {
+			release_region(dev->iobase, PC236_IO_SIZE);
+		}
 	}
 	
 	return 0;
@@ -366,7 +364,7 @@ static int pc236_detach(comedi_device *dev)
  */
 static int pc236_request_region(unsigned long from, unsigned long extent)
 {
-	if (!request_region(from, extent, PC236_DRIVER_NAME)) {
+	if (!from || !request_region(from, extent, PC236_DRIVER_NAME)) {
 		printk("I/O port conflict (%#lx,%lu)!\n", from, extent);
 		return -EIO;
 	}

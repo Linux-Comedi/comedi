@@ -507,9 +507,6 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 	comedi_subdevice *s;
 	struct pci_dev* pcidev;
 	int index;
-	unsigned long s5933_config, control_status, adc_fifo,
-		pacer_counter_dio, ao_registers;
-	int err;
 	int i;
 
 	printk("comedi%d: cb_pcidas: ",dev->minor);
@@ -546,7 +543,6 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 					continue;
 				}
 			}
-			devpriv->pci_dev = pcidev;
 			dev->board_ptr = cb_pcidas_boards + index;
 			goto found;
 		}
@@ -559,49 +555,36 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
 found:
 
 	printk("Found %s on bus %i, slot %i\n", cb_pcidas_boards[index].name,
-		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
+		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+
+	/*
+	 * Enable PCI device and reserve I/O ports.
+	 */
+	if(pci_enable_device(pcidev))
+	{
+		printk(" Failed to enable PCI device\n");
+		pci_dev_put(pcidev);
+		return -EIO;
+	}
+	if(pci_request_regions(pcidev, "cb_pcidas"))
+	{
+		printk(" I/O port conflict\n");
+		pci_dev_put(pcidev);
+		return -EIO;
+	}
+	devpriv->pci_dev = pcidev;
 
 	/*
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
-	if(pci_enable_device(devpriv->pci_dev))
-		return -EIO;
-	s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX); 
-	control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX); 
-	adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX); 
-	pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX); 
-	ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX); 
-
-	// reserve io ports
-	err = 0;
-	if(request_region(s5933_config, AMCC_OP_REG_SIZE, "cb_pcidas"))
-		devpriv->s5933_config = s5933_config;
-	else
-		err++;
-	if(request_region(control_status, CONT_STAT_SIZE, "cb_pcidas"))
-		devpriv->control_status = control_status;
-	else
-		err++;
-	if(request_region(adc_fifo, ADC_FIFO_SIZE, "cb_pcidas"))
-		devpriv->adc_fifo = adc_fifo;
-	else
-		err++;
-	if(request_region(pacer_counter_dio, PACER_SIZE, "cb_pcidas"))
-		devpriv->pacer_counter_dio = pacer_counter_dio;
-	else
-		err++;
+	devpriv->s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX); 
+	devpriv->control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX); 
+	devpriv->adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX); 
+	devpriv->pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX); 
 	if(thisboard->ao_nchan)
 	{
-		if(request_region(ao_registers, AO_SIZE, "cb_pcidas"))
-			devpriv->ao_registers = ao_registers;
-		else
-			err++;
-	}
-	if(err)
-	{
-		printk(" I/O port conflict\n");
-		return -EIO;
+		devpriv->ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX); 
 	}
 
 	// get irq
@@ -752,23 +735,18 @@ static int cb_pcidas_detach(comedi_device *dev)
 #ifdef CB_PCIDAS_DEBUG
 			rt_printk("detaching, incsr is 0x%x\n", inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR));
 #endif
-			release_region(devpriv->s5933_config, AMCC_OP_REG_SIZE);
 		}
-		if(devpriv->control_status)
-			release_region(devpriv->control_status, CONT_STAT_SIZE);
-		if(devpriv->adc_fifo)
-			release_region(devpriv->adc_fifo, ADC_FIFO_SIZE);
-		if(devpriv->pacer_counter_dio)
-			release_region(devpriv->pacer_counter_dio, PACER_SIZE);
-		if(devpriv->ao_registers)
-			release_region(devpriv->ao_registers, AO_SIZE);
 	}
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices + 2);
 	if(devpriv && devpriv->pci_dev)
+	{
+		pci_release_regions(devpriv->pci_dev);
+		pci_disable_device(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
+	}
 
 	return 0;
 }

@@ -737,6 +737,22 @@ found:
     return -ENOMEM;
   }
 
+  // Enable PCI device
+  if(pci_enable_device(pci_device) < 0)
+  {
+    printk("comedi%d: Failed to enable PCI device\n", dev->minor);
+    pci_dev_put(pci_device);
+    return -EIO;
+  }
+
+  // Request PCI regions
+  if(pci_request_regions(pci_device, ME_DRIVER_NAME) < 0)
+  {
+    printk("comedi%d: I/O memory conflict\n", dev->minor);
+    pci_dev_put(pci_device);
+    return -EIO;
+  }
+
   // Set data in device structure
 
   dev->board_name = board->name;
@@ -881,10 +897,15 @@ static int me_detach(comedi_device *dev)
 {
   if(dev_private)
   {
-    me_reset(dev);
+    if (dev_private->me_regbase)
+    {
+      me_reset(dev);
+    }
 
     if(dev_private->pci_device)
     {
+      pci_release_regions(dev_private->pci_device);
+      pci_disable_device(dev_private->pci_device);
       pci_dev_put(dev_private->pci_device);
     }
   }

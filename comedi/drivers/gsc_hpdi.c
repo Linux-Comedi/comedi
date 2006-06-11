@@ -577,6 +577,14 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 
 	if( pci_enable_device( pcidev ) )
 	{
+		printk(KERN_WARNING " failed enable PCI device\n");
+		pci_dev_put( pcidev );
+		return -EIO;
+	}
+	if( pci_request_regions( pcidev, driver_hpdi.driver_name ) )
+	{
+		/* Couldn't allocate io space */
+		printk(KERN_WARNING " failed to allocate io memory\n");
 		pci_dev_put( pcidev );
 		return -EIO;
 	}
@@ -586,13 +594,6 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 
 	//Initialize dev->board_name
 	dev->board_name = board(dev)->name;
-
-	if( pci_request_regions( pcidev, driver_hpdi.driver_name ) )
-	{
-		/* Couldn't allocate io space */
-		printk(KERN_WARNING " failed to allocate io memory\n");
-		return -EIO;
-	}
 
 	priv(dev)->plx9080_phys_iobase = pci_resource_start(pcidev, PLX9080_BADDRINDEX);
 	priv(dev)->hpdi_phys_iobase = pci_resource_start(pcidev, HPDI_BADDRINDEX);
@@ -667,9 +668,6 @@ static int hpdi_detach(comedi_device *dev)
 			}
 			if( priv(dev)->hpdi_iobase )
 				iounmap((void*)priv(dev)->hpdi_iobase);
-			if( priv(dev)->plx9080_phys_iobase ||
-				priv(dev)->hpdi_phys_iobase )
-				pci_release_regions( priv(dev)->hw_dev );
 			// free pci dma buffers
 			for( i = 0; i < NUM_DMA_BUFFERS; i++ )
 			{
@@ -681,6 +679,7 @@ static int hpdi_detach(comedi_device *dev)
 			if( priv(dev)->dma_desc )
 				pci_free_consistent( priv(dev)->hw_dev, sizeof( struct plx_dma_desc ) *
 				NUM_DMA_DESCRIPTORS, priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
+			pci_release_regions( priv(dev)->hw_dev );
 			pci_disable_device( priv(dev)->hw_dev );
 			pci_dev_put(priv(dev)->hw_dev);
 		}

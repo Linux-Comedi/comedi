@@ -698,17 +698,10 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
     printk(" no daqboard2000 found\n");
     result = -EIO;
     goto out;
-  }
-
-  if((result = pci_enable_device(card))<0){
-    pci_dev_put(card);
-    goto out;
-  }
-
-  if (card->hdr_type == PCI_HEADER_TYPE_NORMAL) {
+  }else{
     u32 id;
     int i;
-    pci_read_config_dword(card, PCI_SUBSYSTEM_VENDOR_ID, &id);
+    id = ((u32)card->subsystem_device << 16) | card->subsystem_vendor;
     for(i=0;i<n_boardtypes;i++){
       if(boardtypes[i].id==id){
 	printk(" %s",boardtypes[i].name);
@@ -719,15 +712,22 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
       printk(" unknown subsystem id %08x (pretend it is an ids2)",id);
       dev->board_ptr=boardtypes;
     }
-  }else{
-    printk(" abnormal pci header type !?!?\n");
-    result=-EIO;
+  }
+
+  if((result = pci_enable_device(card))<0){
     pci_dev_put(card);
     goto out;
   }
-  
+
+  if((result = pci_request_regions(card, "daqboard2000")) < 0) {
+    pci_dev_put(card);
+    goto out;
+  }
+
   result = alloc_private(dev,sizeof(daqboard2000_private));
   if(result<0){
+    pci_release_regions(card);
+    pci_disable_device(card);
     pci_dev_put(card);
     goto out;
   }
@@ -815,6 +815,8 @@ static int daqboard2000_detach(comedi_device * dev)
     free_irq(dev->irq, dev);
   }
   if (devpriv && devpriv->pci_dev) {
+    pci_release_regions(devpriv->pci_dev);
+    pci_disable_device(devpriv->pci_dev);
     pci_dev_put(devpriv->pci_dev);
   }
   return 0;

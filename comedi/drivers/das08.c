@@ -810,8 +810,8 @@ int das08_common_attach(comedi_device *dev, unsigned long iobase )
 	comedi_subdevice *s;
 	int ret;
 
-	// allocate ioports for non-pcmcia boards
-	if(thisboard->bustype != pcmcia)
+	// allocate ioports for non-pcmcia, non-pci boards
+	if((thisboard->bustype != pcmcia) && (thisboard->bustype != pci))
 	{
 		printk(" iobase 0x%lx\n", iobase);
 		if(!request_region(iobase, thisboard->iosize,"das08")){
@@ -955,18 +955,23 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 			printk("No pci das08 cards found\n");
 			return -EIO;
 		}
-		devpriv->pdev = pdev;
-		// read base addresses
-		if(pci_enable_device(pdev))
-			return -EIO;
-		pci_iobase = pci_resource_start(pdev, 1);
-		iobase = pci_resource_start(pdev, 2);
-		printk("pcibase 0x%lx ", pci_iobase);
-		// reserve io ports for 9052 pci chip
-		if(!request_region(pci_iobase,PCIDAS08_SIZE,"das08")){
-			printk(" I/O port conflict\n");
+		// enable PCI device
+		if(pci_enable_device(pdev)){
+			printk(" Error enabling PCI device\n");
+			pci_dev_put(pdev);
 			return -EIO;
 		}
+		// reserve I/O spaces
+		if(pci_request_regions(pdev, "das08")){
+			printk(" I/O port conflict\n");
+			pci_dev_put(pdev);
+			return -EIO;
+		}
+		devpriv->pdev = pdev;
+		// read base addresses
+		pci_iobase = pci_resource_start(pdev, 1);
+		iobase = pci_resource_start(pdev, 2);
+		printk("pcibase 0x%lx  iobase 0x%lx\n", pci_iobase, iobase);
 		devpriv->pci_iobase = pci_iobase;
 #if 0
 /* We could enable to pci-das08's interrupt here to make it possible
@@ -994,18 +999,17 @@ int das08_common_detach(comedi_device *dev)
 	if(dev->subdevices)
 		subdev_8255_cleanup(dev,dev->subdevices+4);
 
-	// deallocate ioports for non-pcmcia boards
-	if(thisboard->bustype != pcmcia)
+	// deallocate ioports for non-pcmcia, non-pci boards
+	if((thisboard->bustype != pcmcia) && (thisboard->bustype != pci))
 	{
 		if(dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
 	}
 
 	if(devpriv){
-		if(devpriv->pci_iobase){
-			release_region(devpriv->pci_iobase, PCIDAS08_SIZE);
-		}
 		if(devpriv->pdev){
+			pci_release_regions(devpriv->pdev);
+			pci_disable_device(devpriv->pdev);
 			pci_dev_put(devpriv->pdev);
 		}
 	}

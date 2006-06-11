@@ -1355,6 +1355,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 				dev->minor);
 		pci_release_regions(pci_dev);
+		pci_disable_device(pci_dev);
 		pci_dev_put(pci_dev);
 		return ret; 
 	}
@@ -1545,6 +1546,7 @@ pci224_detach(comedi_device *dev)
 		}
 		if (devpriv->pci_dev) {
 			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}

@@ -235,7 +235,6 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
 					continue;
 				}
 			}
-			devpriv->pci_dev = pcidev;
 			dev->board_ptr = cb_pcimdas_boards + index;
 			goto found;
 		}
@@ -248,7 +247,7 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
 found:
 
 	printk("Found %s on bus %i, slot %i\n", cb_pcimdas_boards[index].name,
-		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
+		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	// Warn about non-tested features
 	switch(thisboard->device_id)
@@ -260,19 +259,26 @@ found:
 				"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
 	};
 
-	if(pci_request_regions(devpriv->pci_dev, "cb_pcimdas"))
+	if(pci_enable_device(pcidev))
 	{
-		printk(" I/O port conflict\n");
+		printk(" Failed to enable PCI device\n");
+		pci_dev_put(pcidev);
 		return -EIO;
 	}
+	if(pci_request_regions(pcidev, "cb_pcimdas"))
+	{
+		printk(" I/O port conflict\n");
+		pci_dev_put(pcidev);
+		return -EIO;
+	}
+	devpriv->pci_dev = pcidev;
+
 	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0); 
 	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1); 
 	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2); 
 	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3); 
 	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4); 
 
-	if(pci_enable_device(devpriv->pci_dev))
-		return -EIO;
 #ifdef CBPCIMDAS_DEBUG
 	printk("devpriv->BADR0 = %d\n",devpriv->BADR0);
 	printk("devpriv->BADR1 = %d\n",devpriv->BADR1);
@@ -360,18 +366,17 @@ static int cb_pcimdas_detach(comedi_device *dev)
 	}
 #endif
 	printk("comedi%d: cb_pcimdas: remove\n",dev->minor);
-	if(devpriv)
-	{
-		if(devpriv->BADR0)
-		{
-			pci_release_regions(devpriv->pci_dev);
-		}
-		if(devpriv->pci_dev)
-			pci_dev_put(devpriv->pci_dev);
-	}
-	
 	if(dev->irq)
 		comedi_free_irq(dev->irq, dev);
+	if(devpriv)
+	{
+		if(devpriv->pci_dev)
+		{
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
+			pci_dev_put(devpriv->pci_dev);
+		}
+	}
 
 	return 0;
 }

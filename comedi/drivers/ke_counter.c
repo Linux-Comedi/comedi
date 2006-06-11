@@ -185,9 +185,22 @@ found:
          board->name, pci_device->bus->number, PCI_SLOT(pci_device->devfn));
   dev->board_name = board->name;
 
+  /* enable PCI device */
+  if((error = pci_enable_device(pci_device)) < 0)
+  {
+    pci_dev_put(pci_device);
+    return error;
+  }
+
+  /* request PCI regions */
+  if((error = pci_request_regions(pci_device, CNT_DRIVER_NAME)) < 0)
+  {
+    pci_dev_put(pci_device);
+    return error;
+  }
+
   /* read register base address [PCI_BASE_ADDRESS #0] */
   io_base = pci_resource_start(pci_device, 0);
-  request_region(io_base & PCI_BASE_ADDRESS_IO_MASK, 0x08, CNT_DRIVER_NAME);
   dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
 
   /* allocate device private structure */
@@ -231,12 +244,10 @@ found:
 
 static int cnt_detach(comedi_device *dev)
 {
-  if (dev->iobase)
+  if (devpriv && devpriv->pcidev)
   {
-    release_region(dev->iobase, 0x08);
-  }
-  if (devpriv->pcidev)
-  {
+    pci_release_regions(devpriv->pcidev);
+    pci_disable_device(devpriv->pcidev);
     pci_dev_put(devpriv->pcidev);
   }
 

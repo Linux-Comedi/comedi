@@ -800,17 +800,24 @@ static int rtd_attach (
 	return -EIO;
     }
 
-    devpriv->pci_dev = pcidev;
     if (pcidev->device != thisboard->device_id) {
 	printk ("Found an RTD card, but not the supported type (%x).\n",
 		pcidev->device);
+	pci_dev_put(pcidev);
 	return -EIO;
     }
     dev->board_name = thisboard->name;
 
     if((ret=pci_enable_device(pcidev))<0){
+	pci_dev_put(pcidev);
 	return ret;
     }
+    if((ret=pci_request_regions(pcidev, "rtd520"))<0){
+	pci_dev_put(pcidev);
+	return ret;
+    }
+
+    devpriv->pci_dev = pcidev;
 
     /*
      * Initialize base addresses
@@ -824,6 +831,10 @@ static int rtd_attach (
     devpriv->las0 = ioremap_nocache(physLas0, LAS0_PCISIZE);
     devpriv->las1 = ioremap_nocache(physLas1, LAS1_PCISIZE);
     devpriv->lcfg = ioremap_nocache(physLcfg, LCFG_PCISIZE);
+
+    if(!devpriv->las0 || !devpriv->las1 || !devpriv->lcfg){
+    	return -ENOMEM;
+    }
 
     DPRINTK ("%s: LAS0=%lx, LAS1=%lx, CFG=%lx.\n", dev->board_name,
 	     physLas0, physLas1, physLcfg);
@@ -923,6 +934,7 @@ static int rtd_attach (
 	if((ret=comedi_request_irq (dev->irq, rtd_interrupt,
 				    SA_SHIRQ, "rtd520", dev)) < 0) {
 	    printk("Could not get interrupt! (%d)\n", dev->irq);
+	    dev->irq = 0;
 	    return ret;
 	}
 	printk("( irq=%d )", dev->irq);
@@ -1086,23 +1098,30 @@ static int rtd_detach (
     int index;
 #endif
 
-    DPRINTK("comedi%d: rtd520: removing (%ld ints)\n(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n",
-	   dev->minor, devpriv->intCount, 
-	   0xffff & RtdInterruptStatus (dev),
-	   0xffff & RtdInterruptOverrunStatus (dev),
-	   (0xffff & RtdFifoStatus (dev)) ^ 0x6666);
+    DPRINTK("comedi%d: rtd520: removing (%ld ints)\n",
+	   dev->minor, (devpriv ? devpriv->intCount : 0L));
+    if (devpriv && devpriv->lcfg) {
+	DPRINTK("(int status 0x%x, overrun status 0x%x, fifo status 0x%x)...\n",
+	       0xffff & RtdInterruptStatus (dev),
+	       0xffff & RtdInterruptOverrunStatus (dev),
+	       (0xffff & RtdFifoStatus (dev)) ^ 0x6666);
+    }
 
     if (devpriv) {
 	/* Shut down any board ops by resetting it */
 #ifdef USE_DMA
-	RtdDma0Control (dev, 0);	/* disable DMA */
-	RtdDma1Control (dev, 0);	/* disable DMA */
-	RtdPlxInterruptWrite (dev, ICS_PIE | ICS_PLIE);
+	if (devpriv->lcfg) {
+	    RtdDma0Control (dev, 0);	/* disable DMA */
+	    RtdDma1Control (dev, 0);	/* disable DMA */
+	    RtdPlxInterruptWrite (dev, ICS_PIE | ICS_PLIE);
+	}
 #endif /* USE_DMA */
-	RtdResetBoard (dev);
-	RtdInterruptMask (dev, 0);
-	RtdInterruptClearMask (dev,~0);
-	RtdInterruptClear(dev);		/* clears bits set by mask */
+	if (devpriv->las0) {
+	    RtdResetBoard (dev);
+	    RtdInterruptMask (dev, 0);
+	    RtdInterruptClearMask (dev,~0);
+	    RtdInterruptClear(dev);		/* clears bits set by mask */
+	}
 
 #ifdef USE_DMA
 	/* release DMA */
@@ -1145,6 +1164,8 @@ static int rtd_detach (
 	    iounmap (devpriv->lcfg);
 	}
 	if (devpriv->pci_dev) {
+	    pci_release_regions(devpriv->pci_dev);
+	    pci_disable_device(devpriv->pci_dev);
 	    pci_dev_put(devpriv->pci_dev);
 	}
     }

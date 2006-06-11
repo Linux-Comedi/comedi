@@ -843,12 +843,7 @@ static int CheckAndAllocCard(comedi_device *dev, comedi_devconfig *it,
 {
 	pci_dio_private	*pr, *prev;
 	
-	if (!pci_priv) {	// well, first card in system
-		pci_priv=devpriv;
-		return 1;
-	}
-	
-	for (pr=pci_priv, prev=NULL; pr!=NULL; prev=pr, pr=pr->next)
+	for (pr=pci_priv, prev=NULL; pr!=NULL; prev=pr, pr=pr->next) {
 		if (pr->pcidev==pcidev) {
 			if (it->options[0]||it->options[1]) {
 				if ((pr->pcidev->bus->number==it->options[0])&&
@@ -859,9 +854,16 @@ static int CheckAndAllocCard(comedi_device *dev, comedi_devconfig *it,
 			}
 			return 0;	// this card is used, look for another
 		}
+	}
 
-	if (prev) { devpriv->prev=prev; }
-		{ pci_priv=devpriv; }
+	if (prev) {
+		devpriv->prev=prev;
+		prev->next = devpriv;
+	} else {
+		pci_priv = devpriv;
+	}
+
+	devpriv->pcidev = pcidev;
 	
 	return 1;
 }
@@ -897,37 +899,29 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		ret=CheckAndAllocCard(dev, it, pcidev);	
 		if (ret==1) { found=1; break; }
 		if (ret>1) { 
-			pci_dio_detach(dev);
-			pci_dev_put(pcidev);
 			return -EIO;
 		}
 	}
 
 	if (!found) {
 		rt_printk(", Error: Requested type of the card was not found!\n");
-		pci_dio_detach(dev);
 		return -EIO;
 	}
+	
+	if (pci_enable_device(pcidev)) {
+		rt_printk(", Error: Can't enable PCI device!\n");
+		return -EIO;
+	}
+	if (pci_request_regions(pcidev, driver_pci_dio.driver_name)) {
+		rt_printk(", Error: Can't allocate PCI device!\n");
+		return -EIO;
+	}
+	devpriv->enabled=1;
 	
 	iobase=pci_resource_start(pcidev, this_board->main_pci_region);
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn), PCI_FUNC(pcidev->devfn),
 		iobase);
-	
-	if (pci_request_regions(pcidev, driver_pci_dio.driver_name)) {
-		pci_dio_detach(dev);
-		pci_dev_put(pcidev);
-		rt_printk(", Error: Cann't allocate PCI device!\n");
-		return -EIO;
-	}
-	devpriv->pcidev=pcidev;
-	
-	if (pci_enable_device(pcidev)) {
-		pci_dio_detach(dev);
-		rt_printk(", Error: Cann't enable PCI device!\n");
-		return -EIO;
-	}
-	devpriv->enabled=1;
 	
 	dev->iobase=iobase;
 	dev->board_name=this_board->name;
@@ -947,7 +941,6 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 
         if((ret=alloc_subdevices(dev, n_subdevices))<0) {
 		rt_printk(", Error: Cann't allocate subdevice memory!\n");
-		pci_dio_detach(dev);
     		return ret;
 	}
 
@@ -1034,18 +1027,23 @@ static int pci_dio_detach(comedi_device *dev)
 			s->private=NULL;
 		}
 
-		if (devpriv->enabled)
-			pci_disable_device(devpriv->pcidev);
-
-		if (devpriv->pcidev) {
+		if (devpriv->enabled) {
 			pci_release_regions(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
+			pci_disable_device(devpriv->pcidev);
 		}
 		
-		if (devpriv->prev) { devpriv->prev->next=devpriv->next; }
-				    { pci_priv=devpriv->next; }
-		if (devpriv->next) { devpriv->next->prev=devpriv->prev; }
+		if (devpriv->prev) {
+			devpriv->prev->next=devpriv->next;
+		} else {
+			pci_priv=devpriv->next;
+		}
+		if (devpriv->next) {
+			devpriv->next->prev=devpriv->prev;
+		}
 
+		if (devpriv->pcidev) {
+			pci_dev_put(devpriv->pcidev);
+		}
 	}	
 
 	return 0;

@@ -195,8 +195,10 @@ void mite_unsetup(struct mite_struct *mite)
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr=NULL;
 	}
-	if( mite->used )
+	if( mite->used ){
 		pci_release_regions( mite->pcidev );
+		pci_disable_device( mite->pcidev );
+	}
 
 	mite->used = 0;
 }

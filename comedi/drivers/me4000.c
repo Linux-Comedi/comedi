@@ -444,79 +444,82 @@ found:
 
     /* Set data in device structure */
     dev->board_name = board->name;
-    info->pci_dev_p = pci_device;
 
-    /* Get the PCI base registers */
-    result = get_registers(dev, pci_device);
+    /* Enable PCI device */
+    result = pci_enable_device(pci_device);
     if(result){
-	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot get registers\n", dev->minor);
-	goto PROBE_ERROR_1;
+	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot enable PCI device\n", dev->minor);
+	pci_dev_put(pci_device);
+	return result;
     }
 
     /* Request the PCI register regions */
     result = pci_request_regions(pci_device, dev->board_name);
     if (result < 0){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot request I/O regions\n", dev->minor);
-	goto PROBE_ERROR_1;
+	pci_dev_put(pci_device);
+	return result;
     }
 
-    /* Initialize board info */
+    /* Get the PCI base registers */
+    result = get_registers(dev, pci_device);
+    if(result){
+	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot get registers\n", dev->minor);
+	pci_release_regions(pci_device);
+	pci_disable_device(pci_device);
+	pci_dev_put(pci_device);
+	return result;
+    }
+    /* Initialize board info (sets info->pci_dev_p) */
     result = init_board_info(dev, pci_device);
     if (result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init baord info\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     /* Init analog output context */
     result = init_ao_context(dev);
     if (result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init ao context\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     /* Init analog input context */
     result = init_ai_context(dev);
     if (result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init ai context\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     /* Init digital I/O context */
     result = init_dio_context(dev);
     if (result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init dio context\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     /* Init counter context */
     result = init_cnt_context(dev);
     if (result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot init cnt context\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     /* Download the xilinx firmware */
     result = xilinx_download(dev);
     if(result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Can't download firmware\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     /* Make a hardware reset */
     result = reset_board(dev);
     if(result){
 	printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Can't reset board\n", dev->minor);
-	goto PROBE_ERROR_2;
+	return result;
     }
 
     return 0;
-
-PROBE_ERROR_2:
-    pci_release_regions(pci_device);
-
-PROBE_ERROR_1:
-
-    return result;
 }
 
 
@@ -856,9 +859,8 @@ static int me4000_detach(comedi_device *dev){
     CALL_PDEBUG("In me4000_detach()\n");
 
     if(info){
-	reset_board(dev);
-
 	if(info->pci_dev_p) {
+	    reset_board(dev);
 	    pci_release_regions(info->pci_dev_p);
 	    pci_dev_put(info->pci_dev_p);
 	}

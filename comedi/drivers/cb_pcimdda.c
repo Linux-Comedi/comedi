@@ -337,7 +337,6 @@ static int detach(comedi_device *dev)
     if (devpriv) {
 
         if (devpriv->registers && thisboard) {
-            release_region(devpriv->registers, REG_SZ);
             devpriv->registers = 0;
         }
 
@@ -348,6 +347,8 @@ static int detach(comedi_device *dev)
         }
 
 	if (devpriv->pci_dev) {
+		pci_release_regions(devpriv->pci_dev);
+		pci_disable_device(devpriv->pci_dev);
 		pci_dev_put(devpriv->pci_dev);
 	}
 
@@ -465,22 +466,21 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 			}
 			/* found ! */
 
-			/* todo: if we support more than 1 board, revise
-			   this to be more generic */            
-			devpriv->pci_dev = pcidev;
-			pci_enable_device(devpriv->pci_dev); /* make sure board is on */
 			dev->board_ptr = boards + index;
-			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);
-			request_region(registers, REG_SZ,thisboard->name);
-#if 0
+			if (pci_enable_device(pcidev))
 			{
-			  printk("cb_pcimdda: "
-				 "I/O port conflict failed to allocate ports "
-				 "0x%x to 0x%x\n", registers, 
-				 registers + REG_SZ - 1);
-			  return -EBUSY;
+				printk("cb_pcimdda: Failed to enable PCI device\n");
+				pci_dev_put(pcidev);
+				return -EIO;
 			}
-#endif
+			if (pci_request_regions(pcidev, thisboard->name))
+			{
+				printk("cb_pcimdda: I/O port conflict\n");
+				pci_dev_put(pcidev);
+				return -EIO;
+			}
+			devpriv->pci_dev = pcidev;
+			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);
 			devpriv->registers = registers;                        
 			devpriv->dio_registers 
 			  = devpriv->registers + thisboard->dio_offset;

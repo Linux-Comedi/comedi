@@ -253,6 +253,7 @@ MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
 
 typedef struct{
 	struct pci_dev *pci_dev;
+	int pci_enabled;
 	unsigned long phys_addr;
 	void *io_addr;
 	unsigned int lock;
@@ -855,7 +856,15 @@ static int dt3000_detach(comedi_device *dev)
 
 	if(devpriv)
 	{
-		if(devpriv->pci_dev) pci_dev_put(devpriv->pci_dev);
+		if(devpriv->pci_dev)
+		{
+			if (devpriv->pci_enabled)
+			{
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
+			pci_dev_put(devpriv->pci_dev);
+		}
 		if(devpriv->io_addr) iounmap(devpriv->io_addr);
 	}	
 	/* XXX */
@@ -870,14 +879,17 @@ static int setup_pci(comedi_device *dev);
 static int dt_pci_probe(comedi_device *dev)
 {
 	int board;
+	int ret;
 
 	devpriv->pci_dev=dt_pci_find_device(NULL,&board);
-	dev->board_ptr=dt3k_boardtypes+board;
+	if(board >= 0)
+		dev->board_ptr=dt3k_boardtypes+board;
 
 	if(!devpriv->pci_dev)
 		return 0;
 
-	setup_pci(dev);
+	if ((ret=setup_pci(dev)) < 0)
+		return ret;
 
 	return 1;
 }
@@ -890,6 +902,11 @@ static int setup_pci(comedi_device *dev)
 
 	ret = pci_enable_device(devpriv->pci_dev);
 	if(ret<0)return ret;
+
+	ret = pci_request_regions(devpriv->pci_dev, "dt3000");
+	if(ret<0)return ret;
+
+	devpriv->pci_enabled = 1;
 
 	addr=pci_resource_start(devpriv->pci_dev,0);
 	devpriv->phys_addr=addr;

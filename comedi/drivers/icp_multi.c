@@ -136,7 +136,7 @@ static int icp_multi_detach(comedi_device *dev);
 	Data & Structure declarations
 ==============================================================================
 */
-static unsigned short	pci_list_builded=0;	/*=1 list of card is know */
+static unsigned short	pci_list_builded=0;	/*>0 list of card is known */
 
 typedef struct {
 	char 		*name;		// driver name
@@ -191,6 +191,7 @@ static comedi_driver driver_icp_multi={
 COMEDI_INITCLEANUP(driver_icp_multi);
 
 typedef struct{
+	struct pcilst_struct	*card;			// pointer to card
 	char			valid;			// card is usable
 	void			*io_addr;		// Pointer to mapped io address
 	unsigned long		phys_iobase;		// Physical io address
@@ -873,7 +874,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 
 	// Initialise list of PCI cards in system, if not already done so
-	if (!pci_list_builded) {
+	if (pci_list_builded++ == 0) {
 		pci_card_list_init(PCI_VENDOR_ID_ICP,
 #ifdef ICP_MULTI_EXTDEBUG
 						    1
@@ -881,7 +882,6 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 						    0
 #endif
 			);
-			pci_list_builded=1;
 	}
 
 	printk("Anne's comedi%d: icp_multi: board=%s", dev->minor, this_board->name);
@@ -889,20 +889,14 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ICP, this_board->device_id, it->options[0], it->options[1]))==NULL)
 		return -EIO;
 
+	devpriv->card = card;
+
 	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0], &irq, &master))<0) {
-		pci_card_free(card);
 		printk(" - Can't get configuration data!\n");
 		return -EIO;
 	}
 
 	iobase=io_addr[2];
-
-	if(!request_mem_region(iobase, ICP_MULTI_SIZE, "icp_multi"))
-	{
-		/* Couldn't allocate io space */
-		printk(KERN_WARNING "couldn't allocate IO space\n");
-		return -EIO;
-	}
 	devpriv->phys_iobase = iobase;
 
 	printk(", b:s:f=%d:%d:%d, io=0x%8lx \n", pci_bus, pci_slot, pci_func, iobase);
@@ -928,7 +922,6 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->n_ctrs)	  n_subdevices++;
 
         if((ret=alloc_subdevices(dev, n_subdevices))<0) {
-		pci_card_free(card);
     		return ret;
 	}
 
@@ -1058,14 +1051,14 @@ static int icp_multi_detach(comedi_device *dev)
 	if (dev->irq)
 		comedi_free_irq(dev->irq,dev);
 
-	if (dev->private && devpriv->io_addr) {
+	if (dev->private && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-		release_mem_region(devpriv->phys_iobase, ICP_MULTI_SIZE);
-	}
 
-	if (pci_list_builded) {
+	if (dev->private && devpriv->card)
+		pci_card_free(devpriv->card);
+
+	if (--pci_list_builded == 0) {
 	    	pci_card_list_cleanup(PCI_VENDOR_ID_ICP);
-		pci_list_builded=0;
 	}
 
 

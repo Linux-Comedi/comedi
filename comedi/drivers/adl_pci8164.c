@@ -72,9 +72,10 @@ MODULE_DEVICE_TABLE(pci, adl_pci8164_pci_table);
 typedef struct{
 	int data;
 	struct pci_dev *pci_dev;
+	int pci_setup;
 } adl_pci8164_private;
 
-#define devpriv ((pci8164_private *)dev->private)
+#define devpriv ((adl_pci8164_private *)dev->private)
 
 static int adl_pci8164_attach(comedi_device *dev,comedi_devconfig *it);
 static int adl_pci8164_detach(comedi_device *dev);
@@ -126,6 +127,16 @@ static int adl_pci8164_attach(comedi_device *dev,comedi_devconfig *it)
 
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI8164 ) {
+			devpriv->pci_dev = pcidev;
+			if (pci_enable_device(pcidev) < 0) {
+				printk("comedi%d: Failed to enable PCI device\n", dev->minor);
+				return -EIO;
+			}
+			if (pci_request_regions(pcidev, "adl_pci8164") < 0) {
+				printk("comedi%d: I/O port conflict\n", dev->minor);
+				return -EIO;
+			}
+			devpriv->pci_setup = 1;	/* Allow resources to be freed on detach */
 			dev->iobase = pci_resource_start ( pcidev, 2 );
 			printk ( "comedi: base addr %4lx\n", dev->iobase );
 
@@ -171,6 +182,7 @@ static int adl_pci8164_attach(comedi_device *dev,comedi_devconfig *it)
 			s->insn_read = adl_pci8164_insn_read_buf1;
 			s->insn_write = adl_pci8164_insn_write_buf1;
 
+			break;
 		}
 	}
 
@@ -183,6 +195,14 @@ static int adl_pci8164_attach(comedi_device *dev,comedi_devconfig *it)
 static int adl_pci8164_detach(comedi_device *dev)
 {
 	printk("comedi%d: pci8164: remove\n",dev->minor);
+
+	if (devpriv && devpriv->pci_dev) {
+		if (devpriv->pci_setup) {
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
+		}
+		pci_dev_put(devpriv->pci_dev);
+	}
 
 	return 0;
 }

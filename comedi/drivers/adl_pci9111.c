@@ -1326,6 +1326,14 @@ found:
 		lcr_io_base,
 		lcr_io_range);
 	
+	// Enable PCI device
+	if(pci_enable_device (pci_device) < 0)
+	{
+		printk("comedi%d: Failed to enable PCI device\n", dev->minor);
+		pci_dev_put(pci_device);
+		return -EIO;
+	}
+	
 	// Read PCI6308 register base address [PCI_BASE_ADDRESS #2].
 	
 	io_base = pci_resource_start (pci_device, 2);
@@ -1350,6 +1358,7 @@ found:
 	if(alloc_private(dev,sizeof(pci9111_private_data_struct))<0)
 	{
 		pci_release_regions(pci_device);
+		pci_disable_device(pci_device);
 		pci_dev_put(pci_device);
 		return -ENOMEM;
 	}
@@ -1465,6 +1474,7 @@ static int pci9111_detach(comedi_device *dev)
   if (dev_private!=0 && dev_private->pci_device!=0)
   {
     pci_release_regions(dev_private->pci_device);
+    pci_disable_device(dev_private->pci_device);
     pci_dev_put(dev_private->pci_device);
   }
 

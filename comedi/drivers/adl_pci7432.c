@@ -60,9 +60,10 @@ MODULE_DEVICE_TABLE(pci, adl_pci7432_pci_table);
 typedef struct{
 	int data;
 	struct pci_dev *pci_dev;
+	int pci_setup;
 } adl_pci7432_private;
 
-#define devpriv ((pci7432_private *)dev->private)
+#define devpriv ((adl_pci7432_private *)dev->private)
 
 static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it);
 static int adl_pci7432_detach(comedi_device *dev);
@@ -108,6 +109,16 @@ static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it)
 
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI7432 ) {
+			devpriv->pci_dev = pcidev;
+			if (pci_enable_device(pcidev) < 0) {
+				printk("comedi%d: Failed to enable PCI device\n", dev->minor);
+				return -EIO;
+			}
+			if (pci_request_regions(pcidev, "adl_pci7432") < 0) {
+				printk("comedi%d: I/O port conflict\n", dev->minor);
+				return -EIO;
+			}
+			devpriv->pci_setup = 1;	/* Allow resources to be freed on detach */
 			dev->iobase = pci_resource_start ( pcidev, 2 );
 			printk ( "comedi: base addr %4lx\n", dev->iobase );
 
@@ -132,6 +143,8 @@ static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it)
 			s->io_bits = 0xffffffff;
             s->range_table = &range_digital;
             s->insn_bits = adl_pci7432_do_insn_bits;
+
+			break;
 		}
 	}
 
@@ -144,6 +157,14 @@ static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it)
 static int adl_pci7432_detach(comedi_device *dev)
 {
 	printk("comedi%d: pci7432: remove\n",dev->minor);
+
+	if (devpriv && devpriv->pci_dev) {
+		if (devpriv->pci_setup) {
+			pci_release_regions(devpriv->pci_dev);
+			pci_disable_device(devpriv->pci_dev);
+		}
+		pci_dev_put(devpriv->pci_dev);
+	}
 
 	return 0;
 }
