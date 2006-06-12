@@ -74,12 +74,19 @@ else
 	AC_MSG_NOTICE([PCMCIA support disabled])
 	AM_CONDITIONAL(CONFIG_PCMCIA,false)
 fi
+AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],
+	[ENABLE_USB=$enableval],[ENABLE_USB="yes"])
+if test "$ENABLE_USB" = "yes" ; then
+	AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)
+else
+	AC_MSG_NOTICE([USB support disabled])
+	AM_CONDITIONAL(CONFIG_USB,false)
+fi
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Build modules using kernel's kbuild system (needs recent 2.6 kernel)],
 	[ENABLE_KBUILD=$enableval], [ENABLE_KBUILD="no"])
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
-AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)
 
 AC_DEFINE(CONFIG_COMEDI_DEBUG, true, [Define if debugging is enabled])
 AC_DEFINE(CONFIG_COMEDI_8255, true, [Define if 8255 support is enabled])
