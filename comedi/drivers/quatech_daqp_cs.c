@@ -145,23 +145,6 @@ typedef struct local_info_t {
 
 static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */ };
 
-
-/*====================================================================*/
-
-/* Parameters that can be set with 'insmod' */
-
-/* The old way: bit map of interrupts to choose from */
-/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-static u_int irq_mask = 0xdeb8;
-/* Newer, simpler way of listing specific interrupts */
-#define IRQ_LIST_LEN	4
-static int irq_list[IRQ_LIST_LEN] = { -1 };
-
-module_param(irq_mask, uint, 0444);
-MODULE_PARAM_ARRAY(irq_list, int, IRQ_LIST_LEN, 0444);
-
-/*====================================================================*/
-
 /* The DAQP communicates with the system through a 16 byte I/O window. */
 
 #define DAQP_FIFO_SIZE		4096
@@ -1123,11 +1106,6 @@ static  int daqp_cs_attach(struct pcmcia_device *p_dev)
 	/* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    if (irq_list[0] == -1)
-	link->irq.IRQInfo2 = irq_mask;
-    else
-	for (i = 0; i < 4; i++)
-	    link->irq.IRQInfo2 |= 1 << irq_list[i];
     link->irq.Handler = daqp_interrupt;
     link->irq.Instance = local;
     
