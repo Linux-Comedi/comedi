@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
-MODULE_PARM(comedi_debug, "i");
+module_param(comedi_debug, int, 0644);
 #endif
 
 comedi_device *comedi_devices;

@@ -67,7 +67,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
-MODULE_PARM(pc_debug, "i");
+module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
 "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
@@ -154,10 +154,11 @@ static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */ };
 /* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
 static u_int irq_mask = 0xdeb8;
 /* Newer, simpler way of listing specific interrupts */
-static int irq_list[4] = { -1 };
+#define IRQ_LIST_LEN	4
+static int irq_list[IRQ_LIST_LEN] = { -1 };
 
-MODULE_PARM(irq_mask, "i");
-MODULE_PARM(irq_list, "1-4i");
+module_param(irq_mask, uint, 0444);
+MODULE_PARAM_ARRAY(irq_list, int, IRQ_LIST_LEN, 0444);
 
 /*====================================================================*/
 

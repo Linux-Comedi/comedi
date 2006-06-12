@@ -34,6 +34,10 @@ static inline void module_put(struct module *module)
 #define MOD_IN_USE (0)
 #endif
 
+#ifndef module_param
+#include <linux/moduleparam.h>
+#endif
+
 #endif /* _COMPAT_MODULE_H */
 
 

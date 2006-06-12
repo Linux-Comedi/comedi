@@ -103,7 +103,7 @@ Configuration Options:
 #endif
 
 int debug = 0;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "If true, print extra cryptic debugging output useful only to developers probably.");
 
 #define LOG_MSG(x...) printk(KERN_INFO MODULE_NAME": "x)
