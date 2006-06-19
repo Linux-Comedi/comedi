@@ -272,12 +272,11 @@ static int pcm3724_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("comedi%d: pcm3724: board=%s, 0x%03x ",dev->minor,
 		this_board->name,iobase);
-	if(check_region(iobase,iorange)<0){
+	if(!iobase || !request_region(iobase, iorange, "pcm3724")){
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
-        request_region(iobase, iorange, "pcm3724");
         dev->iobase=iobase;
 	dev->board_name = this_board->name;
 	printk("\n");
@@ -299,10 +298,14 @@ static int pcm3724_detach(comedi_device *dev)
 {
 	int i;
 
-	for(i=0;i<dev->n_subdevices;i++){
-		subdev_8255_cleanup(dev,dev->subdevices+i);
+	if(dev->subdevices){
+		for(i=0;i<dev->n_subdevices;i++){
+			subdev_8255_cleanup(dev,dev->subdevices+i);
+		}
 	}
-	release_region(dev->iobase,this_board->io_range);
+	if(dev->iobase){
+		release_region(dev->iobase,this_board->io_range);
+	}
 
 	return 0;
 }
