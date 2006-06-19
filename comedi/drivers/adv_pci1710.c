@@ -182,8 +182,6 @@ static comedi_lrange range_pci171x_da={ 2, {
 static int pci1710_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci1710_detach(comedi_device *dev);
 
-static unsigned short	pci_list_builded=0;	/*>0 list of card is known */
-
 typedef struct {
 	char 		*name;		// driver name
 	int		device_id;
@@ -262,7 +260,7 @@ static comedi_driver driver_pci1710={
 };
 
 typedef struct{
-	struct pcilst_struct	*amcc;		// ptr to AMCC data
+	struct pci_dev		*pcidev;	// ptr to PCI device
 	char			valid;		// card is usable
 	char			neverending_ai;	// we do unlimited AI
 	unsigned int		CntrlReg;	// Control register
@@ -1223,49 +1221,72 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret,subdev,n_subdevices;
-	unsigned short io_addr[5],master,irq;
-	struct pcilst_struct *card=NULL;
+	unsigned short irq;
         unsigned int iobase;
+	struct pci_dev *pcidev;
+	int opt_bus, opt_slot;
+	const char *errstr;
 	unsigned char pci_bus,pci_slot,pci_func;
-
-	if (pci_list_builded++ == 0) {
-		pci_card_list_init(PCI_VENDOR_ID_ADVANTECH,
-#ifdef PCI171X_EXTDEBUG
-						    1
-#else
-						    0
-#endif
-		);
-	}
 
 	rt_printk("comedi%d: adv_pci1710: board=%s",dev->minor,this_board->name);
 
-	/* this call pci_enable_device() and pci_request_regions() */
-	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_ADVANTECH, this_board->device_id, it->options[0], it->options[1], 0))==NULL)
-		return -EIO;
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
 
-	if ((pci_card_data(card,&pci_bus,&pci_slot,&pci_func,
-	                    &io_addr[0],&irq,&master))<0) {
-		pci_card_free(card);
-		rt_printk(" - Can't get configuration data!\n");
+	if((ret=alloc_private(dev,sizeof(pci1710_private)))<0) {
+		rt_printk(" - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/* Look for matching PCI device */
+	errstr = "not found!";
+	pcidev = NULL;
+	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
+					this_board->device_id, pcidev))) {
+		/* Found matching vendor/device. */
+		if (opt_bus || opt_slot) {
+			/* Check bus/slot. */
+			if (opt_bus != pcidev->bus->number
+					|| opt_slot != PCI_SLOT(pcidev->devfn))
+				continue;	/* no match */
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (pci_enable_device(pcidev)) {
+			errstr = "failed to enable PCI device!";
+			continue;
+		}
+		if (pci_request_regions(pcidev, "adl_pci9118")) {
+			errstr = "in use or I/O port conflict!";
+			continue;
+		}
+		break;
+	}
+
+	if (!pcidev) {
+		if (opt_bus || opt_slot) {
+			rt_printk(" - Card at b:s %d:%d %s\n",
+					opt_bus, opt_slot, errstr);
+		} else {
+			rt_printk(" - Card %s\n", errstr);
+		}
 		return -EIO;
 	}
 
-	iobase=io_addr[2];
+	pci_bus = pcidev->bus->number;
+	pci_slot = PCI_SLOT(pcidev->devfn);
+	pci_func = PCI_FUNC(pcidev->devfn);
+	irq = pcidev->irq;
+	iobase = pci_resource_start(pcidev, 2);
 
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",pci_bus,pci_slot,pci_func,iobase);
 
         dev->iobase=iobase;
 
 	dev->board_name = this_board->name;
-
-	if((ret=alloc_private(dev,sizeof(pci1710_private)))<0) {
-		pci_card_free(card);
-		rt_printk(" - Allocation failed!\n");
-		return -ENOMEM;
-	}
-
-	devpriv->amcc = card;
+	devpriv->pcidev = pcidev;
 
         n_subdevices = 0;
 	if (this_board->n_aichan) n_subdevices++;
@@ -1397,11 +1418,13 @@ static int pci1710_detach(comedi_device *dev)
 	if (dev->private) {
 		if (devpriv->valid) pci1710_reset(dev);
 		if (dev->irq) comedi_free_irq(dev->irq,dev);
-		if (devpriv->amcc) pci_card_free(devpriv->amcc);
-	}
-
-	if (--pci_list_builded == 0) {
-	    	pci_card_list_cleanup(PCI_VENDOR_ID_ADVANTECH);
+		if (devpriv->pcidev) {
+			if (dev->iobase) {
+				pci_release_regions(devpriv->pcidev);
+				pci_disable_device(devpriv->pcidev);
+			}
+			pci_dev_put(devpriv->pcidev);
+		}
 	}
 
 

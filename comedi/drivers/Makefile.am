@@ -5,15 +5,12 @@ AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers \
 	-i .mods/8255.o.symvers \
-	-i .mods/amcc_s5933.o.symvers \
 	-i .mods/comedi_fc.o.symvers \
 	-i .mods/das08.o.symvers \
 	-i .mods/mite.o.symvers \
 	-i .mods/ni_labpc.o.symvers
 
 8255_ko_LINK = $(top_builddir)/modtool --link -o $@ \
-	-i ../.mods/comedi.o.symvers
-amcc_s5933_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 comedi_fc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
@@ -25,7 +22,6 @@ ni_labpc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 
 8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-amcc_s5933_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 comedi_fc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 das08_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
@@ -86,7 +82,6 @@ module_PROGRAMS =
 else !CONFIG_KBUILD
 module_PROGRAMS = \
  8255.ko \
- amcc_s5933.ko \
  comedi_fc.ko \
  das08.ko \
  mite.ko \
@@ -179,7 +174,6 @@ adl_pci8164_ko_SOURCES = adl_pci8164.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
 adl_pci9118_ko_SOURCES = adl_pci9118.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
-amcc_s5933_ko_SOURCES = amcc_s5933.c
 adv_pci_dio_ko_SOURCES = adv_pci_dio.c
 amplc_pci224_ko_SOURCES = amplc_pci224.c
 amplc_pci230_ko_SOURCES = amplc_pci230.c

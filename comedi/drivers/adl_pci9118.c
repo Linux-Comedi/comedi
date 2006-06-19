@@ -63,6 +63,7 @@ Configuration options:
 
 */
 #include <linux/comedidev.h>
+#include <linux/pci.h>
 
 #include <linux/delay.h>
 
@@ -180,8 +181,6 @@ static comedi_lrange range_pci9118hg={ 8, {
 static int pci9118_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci9118_detach(comedi_device *dev);
 
-static unsigned short pci_list_builded=0;	/*>0 list of cards is known */
-
 typedef struct {
 	char 		*name;		// driver name
 	int		vendor_id;	// PCI vendor a device ID of card
@@ -243,7 +242,6 @@ COMEDI_INITCLEANUP(driver_pci9118);
 
 typedef struct{
 	int			iobase_a;	// base+size for AMCC chip
-	struct pcilst_struct	*amcc;		// ptr too AMCC data
 	unsigned int		master;		// master capable
 	struct pci_dev		*pcidev;		// ptr to actual pcidev
 	unsigned int		usemux;		// we want to use external multiplexor!
@@ -1670,53 +1668,84 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret,pages,i;
-	unsigned short io_addr[5],master,irq,m;
+	unsigned short master,irq;
         unsigned int iobase_a,iobase_9;
-	struct pcilst_struct *card=NULL;
+	struct pci_dev *pcidev;
+	int opt_bus, opt_slot;
+	const char *errstr;
 	unsigned char pci_bus,pci_slot,pci_func;
 	u16 u16w;
 	
-	if (pci_list_builded++ == 0) {
-		pci_card_list_init(PCI_VENDOR_ID_AMCC,0);
-	}
-
 	rt_printk("comedi%d: adl_pci9118: board=%s",dev->minor,this_board->name);
 
+	opt_bus = it->options[0];
+	opt_slot = it->options[1];
 	if (it->options[3]&1) {
 		master=0; // user don't want use bus master
 	} else {
 		master=1;
 	}
 
-	/* this call pci_enable_device(), pci_request_regions(),
-	 * and pci_set_master() */
-	if ((card=select_and_alloc_pci_card(PCI_VENDOR_ID_AMCC, this_board->device_id, it->options[0], it->options[1], master))==NULL) 
-		return -EIO;
-	
-	if ((pci_card_data(card,&pci_bus,&pci_slot,&pci_func,
-	                    &io_addr[0],&irq,&m))<0) {
-		pci_card_free(card);
-		rt_printk(" - Can't get AMCC data!\n");
+	if((ret=alloc_private(dev,sizeof(pci9118_private)))<0) {
+		rt_printk(" - Allocation failed!\n");
+		return -ENOMEM;
+	}
+
+	/* Look for matching PCI device */
+	errstr = "not found!";
+	pcidev = NULL;
+	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_AMCC,
+					this_board->device_id, pcidev))) {
+		/* Found matching vendor/device. */
+		if (opt_bus || opt_slot) {
+			/* Check bus/slot. */
+			if (opt_bus != pcidev->bus->number
+					|| opt_slot != PCI_SLOT(pcidev->devfn))
+				continue;	/* no match */
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (pci_enable_device(pcidev)) {
+			errstr = "failed to enable PCI device!";
+			continue;
+		}
+		if (pci_request_regions(pcidev, "adl_pci9118")) {
+			errstr = "in use or I/O port conflict!";
+			continue;
+		}
+		break;
+	}
+
+	if (!pcidev) {
+		if (opt_bus || opt_slot) {
+			rt_printk(" - Card at b:s %d:%d %s\n",
+					opt_bus, opt_slot, errstr);
+		} else {
+			rt_printk(" - Card %s\n", errstr);
+		}
 		return -EIO;
 	}
 
-	iobase_a=io_addr[0];
-	iobase_9=io_addr[2];
+	if (master) {
+		pci_set_master(pcidev);
+	}
+
+	pci_bus = pcidev->bus->number;
+	pci_slot = PCI_SLOT(pcidev->devfn);
+	pci_func = PCI_FUNC(pcidev->devfn);
+	irq = pcidev->irq;
+	iobase_a = pci_resource_start(pcidev, 0);
+	iobase_9 = pci_resource_start(pcidev, 2);
 
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, 0x%4x",pci_bus,pci_slot,pci_func,iobase_9,iobase_a);
 	
         dev->iobase=iobase_9;
 	dev->board_name = this_board->name;
 
-	
-	if((ret=alloc_private(dev,sizeof(pci9118_private)))<0) {
-		pci_card_free(card);
-		rt_printk(" - Allocation failed!\n");
-		return -ENOMEM;
-	}
 
-	devpriv->amcc=card;
-	devpriv->pcidev=card->pcidev;
+	devpriv->pcidev=pcidev;
 	devpriv->iobase_a=iobase_a;
 	
 	if (it->options[3]&2) irq=0; // user don't want use IRQ
@@ -1862,13 +1891,15 @@ static int pci9118_detach(comedi_device *dev)
 	if (dev->private) {
 		if (devpriv->valid) pci9118_reset(dev);
 		if(dev->irq) comedi_free_irq(dev->irq,dev);
-		if (devpriv->amcc) pci_card_free(devpriv->amcc);
+		if (devpriv->pcidev) {
+			if (dev->iobase) {
+				pci_release_regions(devpriv->pcidev);
+				pci_disable_device(devpriv->pcidev);
+			}
+			pci_dev_put(devpriv->pcidev);
+		}
 		if (devpriv->dmabuf_virt[0]) free_pages((unsigned long)devpriv->dmabuf_virt[0],devpriv->dmabuf_pages[0]);
 		if (devpriv->dmabuf_virt[1]) free_pages((unsigned long)devpriv->dmabuf_virt[1],devpriv->dmabuf_pages[1]);
-	}
-
-	if (--pci_list_builded == 0) {
-	    	pci_card_list_cleanup(PCI_VENDOR_ID_AMCC);
 	}
 
 	return 0;

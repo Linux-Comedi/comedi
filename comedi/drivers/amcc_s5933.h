@@ -15,9 +15,6 @@
 #ifndef _AMCC_S5933_H_
 #define _AMCC_S5933_H_
 
-#include <linux/comedidev.h>
-#include <linux/pci.h>
-
 
 /****************************************************************************/
 /* AMCC Operation Register Offsets - PCI                                    */
@@ -172,40 +169,5 @@
 #define MASTER_ABORT_INT	0x00100000L
 #define TARGET_ABORT_INT	0x00200000L
 #define BUS_MASTER_INT		0x00200000L
-
-/****************************************************************************/
-
-struct pcilst_struct{
-	struct 		pcilst_struct *next;
-	int 		used;
-	struct pci_dev 	*pcidev;
-	unsigned short	vendor;
-	unsigned short	device;
-	unsigned int	master;
-	unsigned char	pci_bus;
-	unsigned char	pci_slot;
-	unsigned char	pci_func;
-	unsigned int	io_addr[5];
-	unsigned int	irq;
-};
-
-struct pcilst_struct *amcc_devices;	// ptr to root list of all amcc devices
-
-/****************************************************************************/
-
-void pci_card_list_init(unsigned short pci_vendor, char display);
-void pci_card_list_cleanup(unsigned short pci_vendor);
-struct pcilst_struct *find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id);
-int find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card);
-struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, char master);
-
-//int pci_card_alloc(struct pcilst_struct *amcc);
-int pci_card_free(struct pcilst_struct *amcc);
-void pci_card_list_display(void);
-int pci_card_data(struct pcilst_struct *amcc,
-	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned short *io_addr, unsigned short *irq, unsigned short *master);
-
-/****************************************************************************/
 
 #endif

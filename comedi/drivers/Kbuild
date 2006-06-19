@@ -18,7 +18,6 @@ obj-$(CONFIG_COMEDI_USB_MODULES) += usbduxfast.o
 obj-$(CONFIG_COMEDI_USB_MODULES) += dt9812.o
 
 obj-m += 8255.o
-obj-m += amcc_s5933.o
 obj-m += comedi_fc.o
 obj-m += das08.o
 obj-m += mite.o
