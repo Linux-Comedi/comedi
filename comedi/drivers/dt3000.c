@@ -895,7 +895,6 @@ static int dt_pci_probe(comedi_device *dev)
 
 static int setup_pci(comedi_device *dev)
 {
-	unsigned long		offset;
 	u32			addr;
 	int ret;
 
@@ -907,9 +906,8 @@ static int setup_pci(comedi_device *dev)
 
 	addr=pci_resource_start(devpriv->pci_dev,0);
 	devpriv->phys_addr=addr;
-	offset = devpriv->phys_addr & ~PAGE_MASK;
-	devpriv->io_addr = ioremap(devpriv->phys_addr & PAGE_MASK, DT3000_SIZE + offset )
-		+ offset;
+	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
+	if(!devpriv->io_addr) return -ENOMEM;
 #if DEBUG
 	printk("0x%08lx mapped to %p, ",devpriv->phys_addr,devpriv->io_addr);
 #endif

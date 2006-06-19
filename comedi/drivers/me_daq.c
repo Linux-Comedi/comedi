@@ -760,6 +760,11 @@ found:
   plx_regbase_size_tmp = pci_resource_end(pci_device, 0) - plx_regbase_tmp + 1;
   dev_private->plx_regbase = ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
   dev_private->plx_regbase_size = plx_regbase_size_tmp;
+  if(!dev_private->plx_regbase)
+  {
+    printk("comedi%d: Failed to remap I/O memory\n", dev->minor);
+    return -ENOMEM;
+  }
 
   // Read Swap base address [PCI_BASE_ADDRESS #5].
 
@@ -807,6 +812,11 @@ found:
   me_regbase_size_tmp = pci_resource_end(pci_device, 2) - me_regbase_tmp + 1;
   dev_private->me_regbase_size = me_regbase_size_tmp;
   dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
+  if(!dev_private->me_regbase)
+  {
+    printk("comedi%d: Failed to remap I/O memory\n", dev->minor);
+    return -ENOMEM;
+  }
 
   // Download firmware and reset card
   if(board->device_id == ME2600_DEVICE_ID)
@@ -881,10 +891,13 @@ static int me_detach(comedi_device *dev)
 		if (dev_private->me_regbase)
 		{
 			me_reset(dev);
+			iounmap(dev_private->me_regbase);
 		}
+		if (dev_private->plx_regbase)
+			iounmap(dev_private->plx_regbase);
 		if(dev_private->pci_device)
 		{
-			if(dev_private->plx_regbase)
+			if(dev_private->plx_regbase_size)
 			{
 				pci_release_regions(dev_private->pci_device);
 				pci_disable_device(dev_private->pci_device);

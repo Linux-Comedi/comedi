@@ -326,6 +326,7 @@ typedef struct {
   struct pci_dev *pci_dev;
   void *daq;
   void *plx;
+  int got_regions;
   lsampl_t ao_readback[2];
 } daqboard2000_private;
 
@@ -724,8 +725,12 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 	if((result = pci_request_regions(card, "daqboard2000")) < 0) {
 		return -EIO;	
 	}
+	devpriv->got_regions = 1;
 	devpriv->plx = ioremap(pci_resource_start(card,0), DAQBOARD2000_PLX_SIZE);
 	devpriv->daq = ioremap(pci_resource_start(card,2), DAQBOARD2000_DAQ_SIZE);
+	if(!devpriv->plx || !devpriv->daq){
+		return -ENOMEM;
+	}
 
 	result = alloc_subdevices(dev, 3);
 	if(result<0)goto out;
@@ -807,7 +812,7 @@ static int daqboard2000_detach(comedi_device * dev)
 			iounmap(devpriv->plx);
 		if(devpriv->pci_dev)
 		{
-			if(devpriv->daq)
+			if(devpriv->got_regions)
 			{
 				pci_release_regions(devpriv->pci_dev);
 				pci_disable_device(devpriv->pci_dev);

@@ -347,6 +347,7 @@ typedef struct{
 
 					/* PCI device info */
     struct pci_dev *pci_dev;
+    int got_regions;			/* non-zero if PCI regions owned */
 
     /* channel list info */
     /* chanBipolar tracks whether a channel is bipolar (and needs +2048) */
@@ -809,6 +810,7 @@ static int rtd_attach (
 	if((ret=pci_request_regions(pcidev, "rtd520"))<0){
 		return ret;
 	}
+	devpriv->got_regions = 1;
 
     /*
      * Initialize base addresses
@@ -1150,7 +1152,7 @@ static int rtd_detach (
 	    iounmap (devpriv->lcfg);
 	}
 	if (devpriv->pci_dev) {
-		if(devpriv->las0)
+		if(devpriv->got_regions)
 		{
 			pci_release_regions(devpriv->pci_dev);
 			pci_disable_device(devpriv->pci_dev);

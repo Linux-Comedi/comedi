@@ -600,6 +600,11 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 		pci_resource_len( pcidev, PLX9080_BADDRINDEX ) );
 	priv(dev)->hpdi_iobase = ioremap( priv(dev)->hpdi_phys_iobase,
 		pci_resource_len( pcidev, HPDI_BADDRINDEX ) );
+	if (!priv(dev)->plx9080_iobase || !priv(dev)->hpdi_iobase)
+	{
+		printk(" failed to remap io memory\n");
+		return -ENOMEM;
+	}
 
 	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
 	DEBUG_PRINT(" hpdi remapped to 0x%lx\n", priv(dev)->hpdi_iobase);

@@ -1723,6 +1723,12 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	priv(dev)->dio_counter_iobase = ioremap(priv(dev)->dio_counter_phys_iobase,
 		pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
 
+	if (!priv(dev)->plx9080_iobase || !priv(dev)->main_iobase || !priv(dev)->dio_counter_iobase)
+	{
+		printk(" failed to remap io memory\n");
+		return -ENOMEM;
+	}
+
 	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
 	DEBUG_PRINT(" main remapped to 0x%lx\n", priv(dev)->main_iobase);
 	DEBUG_PRINT(" diocounter remapped to 0x%lx\n", priv(dev)->dio_counter_iobase);

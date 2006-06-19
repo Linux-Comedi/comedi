@@ -104,7 +104,7 @@ static void dump_chip_signature(u32 csigr_bits)
 
 int mite_setup(struct mite_struct *mite)
 {
-	unsigned long offset, start, length;
+	unsigned long length;
 	u32 addr;
 	int i;
 	u32 csigr_bits;
@@ -121,24 +121,27 @@ int mite_setup(struct mite_struct *mite)
 
 	addr = pci_resource_start(mite->pcidev, 0);
 	mite->mite_phys_addr = addr;
-	offset = mite->mite_phys_addr & ~PAGE_MASK;
-	start = mite->mite_phys_addr & PAGE_MASK;
-	length = PCI_MITE_SIZE + offset;
-	mite->mite_io_addr = ioremap(start, length) + offset;
+	mite->mite_io_addr = ioremap(addr, PCI_MITE_SIZE);
+	if( !mite->mite_io_addr ) {
+		printk("failed to remap mite io memory address\n");
+		return -ENOMEM;
+	}
 	printk("MITE:0x%08lx mapped to %p ",mite->mite_phys_addr,mite->mite_io_addr);
 
 	addr=pci_resource_start(mite->pcidev, 1);
 	mite->daq_phys_addr=addr;
-	offset = mite->daq_phys_addr & ~PAGE_MASK;
-	start = mite->daq_phys_addr & PAGE_MASK;
 
 	// In case of a 660x board, DAQ size is 8k instead of 4k (see as shown by lspci output)
 	if ((mite->pcidev->device == 0x1310) || (mite->pcidev->device == 0x2c60)){
-	        length = PCI_DAQ_SIZE_660X + offset;
+	        length = PCI_DAQ_SIZE_660X;
 		printk("mite: detected NI660X board, using PCI DAQ SIZE of 8k\n");
 	}
-        else length = PCI_DAQ_SIZE + offset;
-	mite->daq_io_addr = ioremap(start, length) + offset;
+	else length = PCI_DAQ_SIZE;
+	mite->daq_io_addr = ioremap(mite->daq_phys_addr, length);
+	if( !mite->daq_io_addr ) {
+		printk("failed to remap daq io memory address\n");
+		return -ENOMEM;
+	}
 	printk("DAQ:0x%08lx mapped to %p\n",mite->daq_phys_addr,mite->daq_io_addr);
 
 	// The 6602 board needs different initalisation, see the
@@ -195,7 +198,7 @@ void mite_unsetup(struct mite_struct *mite)
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr=NULL;
 	}
-	if( mite->used ){
+	if( mite->mite_phys_addr ){
 		pci_release_regions( mite->pcidev );
 		pci_disable_device( mite->pcidev );
 	}

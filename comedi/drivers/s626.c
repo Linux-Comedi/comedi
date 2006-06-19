@@ -124,6 +124,7 @@ static comedi_driver driver_s626={
 typedef struct{
   struct pci_dev *pdev;
   void          *base_addr;
+  int           got_regions;
   short         allocatedBuf;
   uint8_t       ai_cmd_running;         // ai_cmd is running
   uint8_t       ai_continous;	        // continous aquisition
@@ -503,6 +504,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     printk("s626_attach: pci_request_regions fails\n");
     return -ENODEV;
   }
+  devpriv->got_regions = 1;
 
   resourceStart=(uint64_t)pci_resource_start(devpriv->pdev,0);
   
@@ -1227,7 +1229,7 @@ static int s626_detach(comedi_device *dev)
 		}
 	
 		if(devpriv->pdev){
-			if(devpriv->base_addr)
+			if(devpriv->got_regions)
 			{
 				pci_release_regions(devpriv->pdev);
 				pci_disable_device(devpriv->pdev);
