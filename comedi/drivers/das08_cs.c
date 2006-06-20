@@ -555,13 +555,20 @@ static int das08_pcmcia_resume(struct pcmcia_device *p_dev)
 
 /*====================================================================*/
 
+static struct pcmcia_device_id das08_cs_id_table[] =
+{
+	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4001),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, das08_cs_id_table);
+
 struct pcmcia_driver das08_cs_driver =
 {
 	.probe = das08_pcmcia_attach,
 	.remove = das08_pcmcia_detach,
 	.suspend = das08_pcmcia_suspend,
 	.resume = das08_pcmcia_resume,
-	.id_table = NULL,	/* FIXME */
+	.id_table = das08_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,

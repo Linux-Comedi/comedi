@@ -1436,13 +1436,20 @@ static int daqp_cs_resume(struct pcmcia_device *p_dev)
 
 #ifdef MODULE
 
+static struct pcmcia_device_id daqp_cs_id_table[] =
+{
+	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
+	PCMCIA_DEVICE_NULL
+};
+MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
+
 struct pcmcia_driver daqp_cs_driver =
 {
 	.probe = daqp_cs_attach,
 	.remove = daqp_cs_detach,
 	.suspend = daqp_cs_suspend,
 	.resume = daqp_cs_resume,
-	.id_table = NULL,	/* FIXME */
+	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
