@@ -733,7 +733,7 @@ static void __exit exit_dio24_cs(void)
     }
 }
 
-int init_module(void)
+int __init init_module(void)
 {
 	int ret;
 
@@ -744,7 +744,7 @@ int init_module(void)
 	return comedi_driver_register(&driver_dio24);
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	exit_dio24_cs();
 	comedi_driver_unregister(&driver_dio24);

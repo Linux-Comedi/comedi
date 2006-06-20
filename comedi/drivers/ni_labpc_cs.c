@@ -668,7 +668,7 @@ static void __exit exit_labpc_cs(void)
     }
 }
 
-int labpc_init_module(void)
+int __init labpc_init_module(void)
 {
 	int ret;
 
@@ -679,7 +679,7 @@ int labpc_init_module(void)
 	return comedi_driver_register(&driver_labpc_cs);
 }
 
-void labpc_exit_module(void)
+void __exit labpc_exit_module(void)
 {
 	exit_labpc_cs();
 	comedi_driver_unregister(&driver_labpc_cs);

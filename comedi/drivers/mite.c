@@ -570,7 +570,7 @@ static void mite_decode(char **bit_str, unsigned int bits)
 
 
 #ifdef MODULE
-int init_module(void)
+int __init init_module(void)
 {
 	mite_init();
 	mite_list_devices();
@@ -578,7 +578,7 @@ int init_module(void)
 	return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
 	mite_cleanup();
 }

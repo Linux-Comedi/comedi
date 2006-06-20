@@ -1456,7 +1456,7 @@ struct pcmcia_driver daqp_cs_driver =
 	},	
 };
 
-int init_module(void)
+int __init init_module(void)
 {
     DEBUG(0, "%s\n", version);
 	pcmcia_register_driver(&daqp_cs_driver);
@@ -1464,7 +1464,7 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+void __exit cleanup_module(void)
 {
     int i;
 

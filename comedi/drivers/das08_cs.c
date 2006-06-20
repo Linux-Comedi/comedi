@@ -594,7 +594,7 @@ static void __exit exit_das08_pcmcia_cs(void)
 	}
 }
 
-static int das08_cs_init_module(void)
+static int __init das08_cs_init_module(void)
 {
 	int ret;
 
@@ -605,7 +605,7 @@ static int das08_cs_init_module(void)
 	return comedi_driver_register(&driver_das08_cs);
 }
 
-static void das08_cs_exit_module(void)
+static void __exit das08_cs_exit_module(void)
 {
 	exit_das08_pcmcia_cs();
 	comedi_driver_unregister(&driver_das08_cs);
