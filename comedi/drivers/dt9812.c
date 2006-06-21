@@ -724,7 +724,7 @@ static int dt9812_di_rinsn(comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, lsampl_t *data)
 {
   int n;
-  u8 bits;
+  u8 bits = 0;
 
   dt9812_digital_in(devpriv->slot, &bits); 
   for(n = 0 ; n < insn->n ; n++){
@@ -737,7 +737,7 @@ static int dt9812_do_winsn(comedi_device *dev, comedi_subdevice *s,
 			   comedi_insn *insn, lsampl_t *data)
 {
   int n;
-  u8 bits;
+  u8 bits = 0;
 
   dt9812_digital_out_shadow(devpriv->slot, &bits); 
   for(n = 0 ; n < insn->n ; n++){
@@ -759,7 +759,7 @@ static int dt9812_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
   int n;
 
   for(n = 0 ; n < insn->n ; n++){
-    u16 value;
+    u16 value = 0;
     
     dt9812_analog_in(devpriv->slot, insn->chanspec, &value, DT9812_GAIN_1); 
     data[n] = value;
@@ -774,7 +774,7 @@ static int dt9812_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
   int n;
 
   for(n = 0 ; n < insn->n ; n++){
-    u16 value;
+    u16 value = 0;
 
     dt9812_analog_out_shadow(devpriv->slot, insn->chanspec, &value); 
     data[n] = value;    

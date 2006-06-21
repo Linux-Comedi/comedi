@@ -723,7 +723,7 @@ static int pcl812_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *
 */
 static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	unsigned int	divisor1, divisor2, i, dma_flags, bytes;
+	unsigned int	divisor1=0, divisor2=0, i, dma_flags, bytes;
 	comedi_cmd 	*cmd=&s->async->cmd;
 	
 #ifdef PCL812_EXTDEBUG
