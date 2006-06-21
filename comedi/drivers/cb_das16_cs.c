@@ -804,7 +804,6 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	int last_fn, last_ret;
 	u_char buf[64];
 	config_info_t conf;
-	win_req_t req;
 	cistpl_cftable_entry_t dflt = { 0 };
 
 	DEBUG(0, "das16cs_pcmcia_config(0x%p)\n", link);
@@ -957,9 +956,6 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	if (link->io.NumPorts2)
 	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2+link->io.NumPorts2-1);
-	if (link->win)
-	printk(", mem 0x%06lx-0x%06lx", req.Base,
-			req.Base+req.Size-1);
 	printk("\n");
 
 	link->state &= ~DEV_CONFIG_PENDING;
@@ -994,8 +990,6 @@ static void das16cs_pcmcia_release(u_long arg)
     */
 
     /* Don't bother checking to see if these succeed or not */
-	if (link->win)
-		pcmcia_release_window(link->win);
 	pcmcia_release_configuration(link->handle);
 	if (link->io.NumPorts1)
 		pcmcia_release_io(link->handle, &link->io);
