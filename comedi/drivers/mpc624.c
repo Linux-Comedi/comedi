@@ -276,7 +276,7 @@ static int mpc624_detach(comedi_device *dev)
 static int mpc624_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int n, i;
-    unsigned long int data_in, data_out, j;
+    unsigned long int data_in, data_out;
     unsigned char ucPort;
 
     // WARNING: We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc
@@ -363,9 +363,9 @@ static int mpc624_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
         //   00: sub-LSB
 
 	if(data_in & MPC624_EOC_BIT)
-		rt_printk("MPC624: EOC bit is set (data_in=%d)!", data_in);
+		rt_printk("MPC624: EOC bit is set (data_in=%lu)!", data_in);
 	if(data_in & MPC624_DMY_BIT)
-		rt_printk("MPC624: DMY bit is set (data_in=%d)!", data_in);
+		rt_printk("MPC624: DMY bit is set (data_in=%lu)!", data_in);
         if(data_in & MPC624_SGN_BIT)  // check the sign bit
         { // The voltage is positive
             data_in &= 0x3FFFFFFF;  // EOC and DMY should be 0, but we will mask them out just to be sure
