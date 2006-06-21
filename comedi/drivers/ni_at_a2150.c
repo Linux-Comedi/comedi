@@ -849,7 +849,7 @@ static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
 		*period = lub;
 
 	// we can multiply period by 1, 2, 4, or 8, using (1 << i)
-	for(i = 0; i < 4; i = i++)
+	for(i = 0; i < 4; i++)
 	{
 		// there are a maximum of 4 master clocks
 		for(j = 0; j < thisboard->num_clocks; j++)
