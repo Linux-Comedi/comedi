@@ -190,7 +190,7 @@ static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	chan = CR_CHAN(insn->chanspec);
 	((lsampl_t *)dev->private)[chan] = data[0];
 	output = data[0];
-#if wrong
+#ifdef wrong
 	// convert to complementary binary if range is bipolar
 	if((CR_RANGE(insn->chanspec) & 0x2) == 0)
 		output = ~output;
