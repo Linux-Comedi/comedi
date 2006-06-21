@@ -604,7 +604,7 @@ DEBUG(
 
 static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	unsigned int	divisor1, divisor2, dma_flags, bytes, dmairq;
+	unsigned int	divisor1=0, divisor2=0, dma_flags, bytes, dmairq;
 	comedi_cmd 	*cmd=&s->async->cmd;
 	
 
