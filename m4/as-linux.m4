@@ -703,3 +703,18 @@ int code = LINUX_VERSION_CODE;
         CFLAGS="$ac_save_CFLAGS"
 ])
 
+# COMEDI_CHECK_LINUX_KBUILD([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel source tree is recent enough to support "Kbuild" files.
+AC_DEFUN([COMEDI_CHECK_LINUX_KBUILD],
+[
+	AC_MSG_CHECKING([for Kbuild in $1])
+	if test -a $1/Kbuild; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])

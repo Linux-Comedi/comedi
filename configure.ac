@@ -82,8 +82,9 @@ else
 	AC_MSG_NOTICE([USB support disabled])
 	AM_CONDITIONAL(CONFIG_USB,false)
 fi
-AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Build modules using kernel's kbuild system (needs recent 2.6 kernel)],
-	[ENABLE_KBUILD=$enableval], [ENABLE_KBUILD="no"])
+COMEDI_CHECK_LINUX_KBUILD([$LINUX_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
+AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
+	[ENABLE_KBUILD=$enableval], [])
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
