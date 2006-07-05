@@ -500,8 +500,8 @@ flags:
 	echo LINUX_AS=\"\$(AS)\" >>\$(obj)/flags
 EOF
 
-	echo ${MAKE-make} -C ${LINUX_DIR} V=1 SUBDIRS=${tmpdir} LINUXDIR=${LINUX_DIR} MODVERDIR=${tmpdir} modules >&5 2>&5
-	${MAKE-make} -C ${LINUX_DIR} V=1 SUBDIRS=${tmpdir} LINUXDIR=${LINUX_DIR} MODVERDIR=${tmpdir} modules >&5 2>&5
+	echo ${MAKE-make} -C ${LINUX_DIR} V=1 SUBDIRS=${tmpdir} LINUXDIR=${LINUX_DIR} modules >&5 2>&5
+	${MAKE-make} -C ${LINUX_DIR} V=1 SUBDIRS=${tmpdir} LINUXDIR=${LINUX_DIR} modules >&5 2>&5
 	. ${tmpdir}/flags
 	rm -rf ${tmpdir}
 
