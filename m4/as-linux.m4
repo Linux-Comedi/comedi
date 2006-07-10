@@ -678,12 +678,23 @@ AC_DEFUN([AS_LINUX_VERSION_MAJOR_MINOR],
 # Check if kernel source tree is recent enough to support "Kbuild" files.
 AC_DEFUN([COMEDI_CHECK_LINUX_KBUILD],
 [
-	AC_MSG_CHECKING([for Kbuild in $1])
-	if test -a $1/Kbuild; then
+	AC_MSG_CHECKING([for Kbuild support in $1])
+	dnl For combined kernel source and build directory,
+	dnl if $1/scripts/Makefile.build refers to $(<something>)/Kbuild
+	dnl then we support Kbuild (2.6.10 onwards).
+	dnl For separate kernel source and build directory, if $1/Makefile
+	dnl contains KERNELOUTPUT variable then this is from a separate
+	dnl kernel build directory, so Kbuild is required
+	dnl (but it will not work prior to 2.6.10).
+	if grep -q '/Kbuild' "$1/scripts/Makefile.build" 2>/dev/null; then
+		AC_MSG_RESULT([yes])
+		$2
+	else if grep -q '^KERNELOUTPUT *:=' "$1/Makefile" 2>/dev/null; then
 		AC_MSG_RESULT([yes])
 		$2
 	else
 		AC_MSG_RESULT([no])
 		$3
+	fi
 	fi
 ])
