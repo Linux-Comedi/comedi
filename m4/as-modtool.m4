@@ -28,7 +28,7 @@ dnl modpost step
 
 AC_DEFUN([AS_LINUX_MODTOOL],
 [
-	AC_PATH_PROG(STRIP, strip)
+	AC_PATH_TOOL([STRIP], [strip])
 	AC_PATH_PROG([DEPMOD], [depmod], [no], [$PATH:/sbin:/usr/sbin:/usr/local/sbin])
 
 	dnl this can be overridden in Makefile.am
