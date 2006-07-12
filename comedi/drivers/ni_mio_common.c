@@ -3211,7 +3211,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+10;
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
-	s->n_chan=8;
+	s->n_chan=7;
 	s->maxdata=1;
 	s->insn_bits = ni_rtsi_insn_bits;
 	s->insn_config = ni_rtsi_insn_config;
