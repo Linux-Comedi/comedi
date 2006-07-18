@@ -66,8 +66,9 @@ CC=$LINUX_CC
  -DKBUILD_BASENAME=\$(shell basename \$< .c)"]
 AC_SUBST(COMEDI_CFLAGS)
 
+COMEDI_CHECK_PCMCIA_PROBE([$LINUX_DIR], [ENABLE_PCMCIA="yes"], [ENABLE_PCMCIA="no"])
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
-	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="yes"])
+	[ENABLE_PCMCIA=$enableval],[])
 if test "$ENABLE_PCMCIA" = "yes" ; then
 	AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
 else

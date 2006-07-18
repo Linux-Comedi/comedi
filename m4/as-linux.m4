@@ -698,3 +698,22 @@ AC_DEFUN([COMEDI_CHECK_LINUX_KBUILD],
 	fi
 	fi
 ])
+
+# COMEDI_CHECK_PCMCIA_PROBE([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is new enough to have a probe member in the pcmcia_driver
+# struct.
+AC_DEFUN([COMEDI_CHECK_PCMCIA_PROBE],
+[
+	AC_REQUIRE([AC_PROG_EGREP])
+	AC_MSG_CHECKING([$1 for probe in pcmcia_driver struct])
+	cat "$1/include/pcmcia/ds.h" | tr \\n ' ' | [$EGREP "struct[[:space:]]+pcmcia_driver[[:space:]]*[{][^}]*probe"] > /dev/null
+	if (($?)); then
+		AC_MSG_RESULT([no])
+		$3
+	else
+		AC_MSG_RESULT([yes])
+		$2
+	fi
+])
