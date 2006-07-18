@@ -201,6 +201,7 @@ void mite_unsetup(struct mite_struct *mite)
 	if( mite->mite_phys_addr ){
 		pci_release_regions( mite->pcidev );
 		pci_disable_device( mite->pcidev );
+		mite->mite_phys_addr = 0;
 	}
 
 	mite->used = 0;
