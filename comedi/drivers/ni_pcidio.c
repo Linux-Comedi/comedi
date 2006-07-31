@@ -435,7 +435,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
 	int status;
 	int work = 0;
 	unsigned int m_status;
-	int retval = 1;
 
 	status = readb(devpriv->mite->daq_io_addr+Interrupt_And_Window_Status);
 	flags = readb(devpriv->mite->daq_io_addr+Group_1_Flags);
@@ -580,7 +579,7 @@ out:
 		writeb(0x03,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 	}
 #endif
-	return IRQ_RETVAL(retval);
+	return IRQ_HANDLED;
 }
 
 #ifdef DEBUG_FLAGS

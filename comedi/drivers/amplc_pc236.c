@@ -539,15 +539,14 @@ static irqreturn_t pc236_interrupt(int irq,void *d,struct pt_regs *regs)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices+1;
-	int retval = 1;
+	int handled;
 
-	if(!pc236_intr_check(dev))
-		return IRQ_RETVAL(retval);
-
-	comedi_buf_put(s->async,0);
-	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-
-	comedi_event(dev,s,s->async->events);
-	return IRQ_RETVAL(retval);
+	handled = pc236_intr_check(dev);
+	if (handled) {
+		comedi_buf_put(s->async,0);
+		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+		comedi_event(dev,s,s->async->events);
+	}
+	return IRQ_RETVAL(handled);
 }
 

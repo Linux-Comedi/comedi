@@ -3050,7 +3050,6 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned short status;
 	uint32_t plx_status;
 	uint32_t plx_bits;
-	int retval = 1;
 
 	plx_status = readl(priv(dev)->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(priv(dev)->main_iobase + HW_STATUS_REG);
@@ -3079,7 +3078,7 @@ static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	DEBUG_PRINT("exiting handler\n");
 
-	return IRQ_RETVAL( retval );
+	return IRQ_HANDLED;
 }
 
 void abort_dma(comedi_device *dev, unsigned int channel)

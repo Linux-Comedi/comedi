@@ -1502,7 +1502,6 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 	unsigned int num_samples, i;
 	static const int timeout = 10000;
 	unsigned long flags;
-	int retval = 1;
 
 	if(dev->attached == 0)
 	{
@@ -1607,7 +1606,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
 
 	comedi_event(dev, s, async->events);
 
-	return IRQ_RETVAL(retval);
+	return IRQ_HANDLED;
 }
 
 static void handle_ao_interrupt(comedi_device *dev, unsigned int status)

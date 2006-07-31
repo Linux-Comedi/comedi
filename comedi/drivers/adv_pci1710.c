@@ -718,7 +718,6 @@ static void interrupt_pci1710_half_fifo(void *d)
 static irqreturn_t interrupt_service_pci1710(int irq, void *d, struct pt_regs *regs)
 {
 	comedi_device *dev = d;
-	int retval = 1;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_service_pci1710(%d,...)\n",irq);
 	if (!(inw(dev->iobase + PCI171x_STATUS) & Status_IRQ)) 	// is this interrupt from our board?
@@ -738,7 +737,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d, struct pt_regs *r
 		outw(devpriv->CntrlReg, dev->iobase+PCI171x_CONTROL);
 		// start pacer
 		start_pacer(dev, 1, devpriv->ai_et_div1, devpriv->ai_et_div2);
-		return IRQ_RETVAL(retval);
+		return IRQ_HANDLED;
 	}
 	if (devpriv->ai_eos) {  // We use FIFO half full INT or not?
 		interrupt_pci1710_every_sample(d);
@@ -746,7 +745,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d, struct pt_regs *r
 		interrupt_pci1710_half_fifo(d);
 	}
 	DPRINTK("adv_pci1710 EDBG: END: interrupt_service_pci1710(...)\n");
-	return IRQ_RETVAL(retval);
+	return IRQ_HANDLED;
 }
 
 /*

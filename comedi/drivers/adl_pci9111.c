@@ -956,7 +956,6 @@ pci9111_interrupt (int irq, void *p_device, struct pt_regs *regs)
 	comedi_subdevice *subdevice = dev->read_subdev;
 	comedi_async *async;
 	unsigned long irq_flags;
-	int handled = 1;
 
 	async = subdevice->async;
 
@@ -976,7 +975,7 @@ pci9111_interrupt (int irq, void *p_device, struct pt_regs *regs)
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			comedi_event (dev, subdevice, async->events);
 
-			return IRQ_RETVAL(handled);
+			return IRQ_HANDLED;
 		}
 
 		if (pci9111_is_fifo_half_full())
@@ -1049,7 +1048,7 @@ pci9111_interrupt (int irq, void *p_device, struct pt_regs *regs)
 
 	comedi_event (dev, subdevice, async->events);
 
-	return IRQ_RETVAL(handled);
+	return IRQ_HANDLED;
 }
 
 // ------------------------------------------------------------------
