@@ -1,3 +1,41 @@
+Comedi-0.7.71:
+Ian Abbot:  Various pci and other fixes to many drivers.  Various
+	compatibility fixes for newer kernel versions.  Enhanced amplc_dio200
+	driver to support more boards and improve counter support.
+	Bug fixes for various drivers.  Ported pcmcia drivers to compile
+	under 2.6.16 kernels.  Added configure option to disable usb
+	support.  Cross-compilation fixes.
+Terry Barnaby:  Added support for NI PCI-6143 DAQ card, and RTSI.
+Alexis Berlemont:  RTAI Fusion patches.
+Anders Blomdell:  Fixes for daqboard2000, multiq3, and serial2002 drivers.
+	Removed static spinlock initializations.  new dt9812 driver.
+Calin Culianu:  New comedi_bond driver.  New pcmuio driver for the
+	PCM-UIO48A and PCM-UIO96A boards from Winsystems.
+Drew Csillag:  New pcm3724 driver for Advantech PCM-3724.
+Dave Felson: ni_660x fix for INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR.
+Derek Foreman:  Fixed scan timing in cb_pcidas64.
+Ben Gardiner:  Added configure option to force disabling of RTAI support.
+Jan Gukelberger:  Implemented INSN_CONFIG_DIO_QUERY for PFI subdevice
+	in ni_mio_common.  Compile fix when building with kbuild.
+Frank Hess:  Various compatibility fixes for newer kernel versions.
+	Added beginnings of support for NI m-series boards.  Fixed
+	array overrun in ni_mio_common for boards with more than 2 AO
+	channels.  Bugfixes for various drivers.  Added kbuild support
+	for building against recent 2.6 kernels.  Dropped pcmcia support
+	for kernels older than 2.6.16.
+Bill Jennings:  Fixed adv_pci_dio to use proper base address on pci1760.
+Mike Lachaine:  New adl_pci7432 and adl_pci8164 drivers.
+Andreas Leuner:  Added RTAI ipipe support to configure script.
+Simone Mannori:  Analog output fix for cb_das16_cs.
+David MacMahon:  Fixed number of channels in ni_mio_common RTSI subdevice.
+Gianluca Palli:  New s626 driver for Sensoray 626.
+Perry J. Piplani:  New dmm32at driver for Diamond Systems mm32at.
+Berd Porr:  usbdux and usbduxfast fixes.  
+Stanislaw Raczynski:  New mpc624 driver.
+Dave Schleef:  Removed references to linux/irq.h.  Converted various
+	files to UTF-8 encoding.
+Edwin Steiner:  Fixed RTAI build when using kbuild .
+
 Comedi-0.7.70:
 Ian Abbot:  Replaced use of obsolete kernel pci_find_*() functions with 
 	pci_get_*() replacements.  Fixed loading of dt3000 driver.  
