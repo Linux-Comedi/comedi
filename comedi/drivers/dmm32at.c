@@ -327,13 +327,22 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	int ret;
 	comedi_subdevice *s;
 	unsigned char aihi,ailo,fifostat,aistat,intstat,airback;
+	unsigned long iobase;
+	unsigned int irq;
 
-	dev->iobase = it->options[0];
-	dev->irq = it->options[1];
+	iobase = it->options[0];
+	irq = it->options[1];
 
 	printk("comedi%d: dmm32at: attaching\n",dev->minor);
-	printk("dmm32at: probing at address 0x%04lx, irq %d\n", 
-	       dev->iobase, dev->irq);
+	printk("dmm32at: probing at address 0x%04lx, irq %u\n", 
+	       iobase, irq);
+	
+	/* register address space */
+	if (!request_region(iobase,DMM32AT_MEMSIZE,thisboard->name)) {
+		printk("I/O port conflict\n");
+		return -EIO;
+	}
+	dev->iobase = iobase;
 
 
 	/* the following just makes sure the board is there and gets
@@ -377,16 +386,18 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	if( (ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
 	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c) ){
 		printk("dmmat32: board detection failed\n");
-		return -1;
+		return -EIO;
 	}
-	
-	/* board is there, register interrupt and address space */
-	request_region(dev->iobase,DMM32AT_MEMSIZE,thisboard->name);
-	ret=comedi_request_irq(dev->irq, dmm32at_isr,0,thisboard->name,dev);
-        if(ret<0){
-                printk("irq conflict\n");
-                return ret;
-        }
+
+	/* board is there, register interrupt */
+	if (irq) {
+		ret=comedi_request_irq(irq, dmm32at_isr,0,thisboard->name,dev);
+		if(ret<0){
+			printk("irq conflict\n");
+			return ret;
+		}
+		dev->irq = irq;
+	}
 
 
 	
