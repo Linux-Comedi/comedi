@@ -1064,6 +1064,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	int i;
 	int ret;
 	int n_subdevices;
+	int irq;
 
 	printk("comedi%d: nidio:",dev->minor);
 
@@ -1081,7 +1082,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	dev->board_name=this_board->name;
-	dev->irq=mite_irq(devpriv->mite);
+	irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);
 	if(this_board->uses_firmware)
 	{
@@ -1129,11 +1130,11 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		/* disable interrupts on board */
 		writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 
-		ret=comedi_request_irq(dev->irq,nidio_interrupt,SA_SHIRQ,"ni_pcidio",dev);
+		ret=comedi_request_irq(irq,nidio_interrupt,SA_SHIRQ,"ni_pcidio",dev);
 		if(ret<0){
-			dev->irq=0;
 			printk(" irq not available");
 		}
+		dev->irq = irq;
 	}
 
 	printk("\n");
