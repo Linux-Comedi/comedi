@@ -306,9 +306,7 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 	if (thisboard->bustype == isa_bustype) {
 		printk("(base %#lx) ", iobase);
 	} else {
-		printk("(pci %02x:%02x.%x) ", pci_dev->bus->number,
-				PCI_SLOT(pci_dev->devfn),
-				PCI_FUNC(pci_dev->devfn));
+		printk("(pci %s) ", pci_name(pci_dev));
 	}
 	if (irq) {
 		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
