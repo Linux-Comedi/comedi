@@ -1,6 +1,8 @@
 
 SUBDIRS = . kcomedilib drivers
 
+CLEANFILES = Modules.symvers
+
 if CONFIG_KBUILD
 module_PROGRAMS =
 all-local: comedi_kbuild.inc
