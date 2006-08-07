@@ -188,7 +188,7 @@ static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int fl512_detach(comedi_device *dev)
 {
-  release_region(dev->iobase,FL512_SIZE);
+  if (dev->iobase) release_region(dev->iobase,FL512_SIZE);
   printk("comedi%d: fl512: dummy i detach\n",dev->minor);
   return 0;
 }
