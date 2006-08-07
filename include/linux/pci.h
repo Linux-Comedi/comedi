@@ -16,6 +16,13 @@
 #define pci_dev_put(x)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,22)
+static inline char *pci_name(struct pci_dev *pdev)
+{
+	return pdev->slot_name;
+}
+#endif
+
 #endif /* _COMPAT_PCI_H */
 
 
