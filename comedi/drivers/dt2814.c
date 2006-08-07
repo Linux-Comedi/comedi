@@ -237,10 +237,10 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	int i,irq;
 	int ret;
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 
 	iobase=it->options[0];
-	printk("comedi%d: dt2814: 0x%04lx ",dev->minor,dev->iobase);
+	printk("comedi%d: dt2814: 0x%04lx ",dev->minor,iobase);
 	if(!request_region(iobase,DT2814_SIZE,"dt2814")){
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -286,7 +286,11 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	}else if(irq==0){
 		printk("(no irq)\n");
 	}else{
+#if 0
 		printk("(probe returned multiple irqs--bad)\n");
+#else
+		printk("(irq probe not implemented)\n");
+#endif
 	}
 
 	if((ret=alloc_subdevices(dev, 1))<0)

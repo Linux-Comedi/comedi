@@ -633,8 +633,9 @@ static int das16m1_irq_bits(unsigned int irq)
 static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int ret, irq;
-	int iobase;
+	int ret;
+	unsigned int irq;
+	unsigned long iobase;
 
 	iobase = it->options[0];
 
@@ -645,7 +646,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	printk(" io 0x%x-0x%x 0x%x-0x%x",
+	printk(" io 0x%lx-0x%lx 0x%lx-0x%lx",
 		   iobase, iobase + DAS16M1_SIZE,
 		   iobase + DAS16M1_82C55, iobase + DAS16M1_82C55 + DAS16M1_SIZE2);
 	if(!request_region(iobase, DAS16M1_SIZE, driver_das16m1.driver_name)) {
@@ -672,7 +673,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 			return ret;
 		}
 		dev->irq = irq;
-		printk(", irq %d\n", irq);
+		printk(", irq %u\n", irq);
 	}else if(irq == 0){
 		printk(", no irq\n");
 	}else {
@@ -720,7 +721,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 
 	s = dev->subdevices + 3;
 	/* 8255 */
-	subdev_8255_init(dev, s, NULL, (unsigned long)(dev->iobase + DAS16M1_82C55));
+	subdev_8255_init(dev, s, NULL, dev->iobase + DAS16M1_82C55);
 
 	// disable upper half of hardware conversion counter so it doesn't mess with us
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);

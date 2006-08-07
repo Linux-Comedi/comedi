@@ -1324,7 +1324,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev;
-	int irq;
+	unsigned int irq;
 	int bus = 0, slot = 0;
 	unsigned n;
 	int ret;
@@ -1478,7 +1478,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 				DRIVER_NAME, dev);
 		if (ret < 0) {
 			printk(KERN_ERR "comedi%d: error! "
-					"unable to allocate irq %d\n",
+					"unable to allocate irq %u\n",
 					dev->minor, irq);
 			return ret;
 		} else {
@@ -1491,7 +1491,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 			PCI_SLOT(pci_dev->devfn),
 			PCI_FUNC(pci_dev->devfn));
 	if (irq) {
-		printk("(irq %d%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
+		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
 	} else {
 		printk("(no irq) ");
 	}

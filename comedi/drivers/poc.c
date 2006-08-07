@@ -53,7 +53,7 @@ static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
 
 struct boarddef_struct{
 	char *name;
-	int iosize;
+	unsigned int iosize;
 	int (*setup)(comedi_device *);
 	int type;
 	int n_chan;
@@ -111,10 +111,11 @@ static comedi_driver driver_poc=
 static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iosize, iobase;
+	unsigned long iobase;
+	unsigned int iosize;
 
 	iobase = it->options[0];
-	printk("comedi%d: poc: using %s iobase 0x%x\n", dev->minor,
+	printk("comedi%d: poc: using %s iobase 0x%lx\n", dev->minor,
 		this_board->name, iobase);
 
 	dev->board_name = this_board->name;
@@ -129,7 +130,7 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 	/* check if io addresses are available */
 	if(!request_region(iobase, iosize, "dac02"))
 	{
-		printk("I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
 			iobase, iobase + iosize - 1);
 		return -EIO;
 	}

@@ -63,9 +63,9 @@ struct mite_struct{
 	int used;
 
 	struct pci_dev *pcidev;
-	unsigned long mite_phys_addr;
+	resource_size_t mite_phys_addr;
 	void *mite_io_addr;
-	unsigned long daq_phys_addr;
+	resource_size_t daq_phys_addr;
 	void *daq_io_addr;
 
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];

@@ -241,7 +241,7 @@ static comedi_driver driver_pci9118={
 COMEDI_INITCLEANUP(driver_pci9118);
 
 typedef struct{
-	int			iobase_a;	// base+size for AMCC chip
+	unsigned long		iobase_a;	// base+size for AMCC chip
 	unsigned int		master;		// master capable
 	struct pci_dev		*pcidev;		// ptr to actual pcidev
 	unsigned int		usemux;		// we want to use external multiplexor!
@@ -1668,8 +1668,9 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret,pages,i;
-	unsigned short master,irq;
-        unsigned int iobase_a,iobase_9;
+	unsigned short master;
+	unsigned int irq;
+        unsigned long iobase_a,iobase_9;
 	struct pci_dev *pcidev;
 	int opt_bus, opt_slot;
 	const char *errstr;
@@ -1739,7 +1740,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	iobase_a = pci_resource_start(pcidev, 0);
 	iobase_9 = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x, 0x%4x",pci_bus,pci_slot,pci_func,iobase_9,iobase_a);
+	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx",pci_bus,pci_slot,pci_func,iobase_9,iobase_a);
 	
         dev->iobase=iobase_9;
 	dev->board_name = this_board->name;
@@ -1754,7 +1755,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 			rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 			irq=0; /* Can't use IRQ */
 		} else {
-			rt_printk(", irq=%d", irq);
+			rt_printk(", irq=%u", irq);
 		}    
 	} else {
 			rt_printk(", IRQ disabled");

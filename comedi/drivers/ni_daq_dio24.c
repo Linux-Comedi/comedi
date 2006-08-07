@@ -123,9 +123,9 @@ static comedi_driver driver_dio24={
 static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase = 0;
+	unsigned long iobase = 0;
 #ifdef incomplete
-	int irq = 0;
+	unsigned int irq = 0;
 #endif
 	dev_link_t *link;
 
@@ -149,11 +149,11 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 			return -EINVAL;
 			break;
 	}
-	printk("comedi%d: ni_daq_dio24: %s, io 0x%x", dev->minor, thisboard->name, iobase);
+	printk("comedi%d: ni_daq_dio24: %s, io 0x%lx", dev->minor, thisboard->name, iobase);
 #ifdef incomplete
 	if(irq)
 	{
-		printk(", irq %i", irq);
+		printk(", irq %u", irq);
 	}
 #endif
 
@@ -169,11 +169,6 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 
 #ifdef incomplete
 	/* grab our IRQ */
-	if(irq < 0)
-	{
-		printk("irq out of range\n");
-		return -EINVAL;
-	}
 	dev->irq = irq;
 #endif
 

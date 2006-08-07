@@ -468,7 +468,7 @@ typedef struct{
 	uint16_t *ai_buf1;
 	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
 	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
-	int iobase2;	/* secondary io address used for analog out on 'ao' boards */
+	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	short ao_update_bits; /* remembers the last write to the 'update' dac */
 }das1800_private;
 
@@ -586,11 +586,11 @@ static int das1800_init_dma( comedi_device *dev, unsigned int dma0, unsigned int
 static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase = it->options[0];
-	int irq = it->options[1];
-	int dma0 = it->options[2];
-	int dma1 = it->options[3];
-	int iobase2;
+	unsigned long iobase = it->options[0];
+	unsigned int irq = it->options[1];
+	unsigned int dma0 = it->options[2];
+	unsigned int dma1 = it->options[3];
+	unsigned long iobase2;
 	int board;
 	int retval;
 
@@ -598,14 +598,14 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	if(alloc_private(dev, sizeof(das1800_private)) < 0)
 		return -ENOMEM;
 
-	printk("comedi%d: %s: io 0x%x", dev->minor, driver_das1800.driver_name, iobase);
+	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_das1800.driver_name, iobase);
 	if(irq)
 	{
-		printk(", irq %i", irq);
+		printk(", irq %u", irq);
 		if(dma0)
 		{
-			printk(", dma %i", dma0);
-			if(dma1) printk(" and %i", dma1);
+			printk(", dma %u", dma0);
+			if(dma1) printk(" and %u", dma1);
 		}
 	}
 	printk("\n");
@@ -619,7 +619,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	/* check if io addresses are available */
 	if(!request_region(iobase, DAS1800_SIZE, driver_das1800.driver_name))
 	{
-		printk(" I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+		printk(" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
 			iobase, iobase + DAS1800_SIZE - 1);
 		return -EIO;
 	}
@@ -641,7 +641,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 		iobase2 = iobase + IOBASE2;
 		if(!request_region(iobase2, DAS1800_SIZE, driver_das1800.driver_name))
 		{
-			printk(" I/O port conflict: failed to allocate ports 0x%x to 0x%x\n",
+			printk(" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
 				iobase2, iobase2 + DAS1800_SIZE - 1);
 			return -EIO;
 		}
@@ -653,7 +653,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		if(comedi_request_irq( irq, das1800_interrupt, 0, driver_das1800.driver_name, dev ))
 		{
-			printk(" unable to allocate irq %d\n", irq);
+			printk(" unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		}
 	}

@@ -697,15 +697,15 @@ static int atmio16d_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
 
 static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	int irq;
-	int iobase;
+	unsigned int irq;
+	unsigned long iobase;
 	int ret;
 	
 	comedi_subdevice *s;
 
 	/* make sure the address range is free and allocate it */
 	iobase = it->options[0];
-	printk("comedi%d: atmio16d: 0x%04x ", dev->minor, iobase);
+	printk("comedi%d: atmio16d: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, ATMIO16D_SIZE, "ni_atmio16d")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -727,16 +727,16 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	
 	/* check if our interrupt is available and get it */
 	irq=it->options[1];
-	if(irq>0){
+	if(irq){
 		if((ret=comedi_request_irq(irq,atmio16d_interrupt,
 			0, "atmio16d", dev))<0)
 		{
-			printk("failed to allocate irq %d\n", irq); 
+			printk("failed to allocate irq %u\n", irq); 
 			return ret;
 		}
 		dev->irq=irq;
-		printk("( irq = %d )\n",irq);
-	} else if(irq == 0){
+		printk("( irq = %u )\n",irq);
+	} else {
 		printk("( no irq )");
 	}
 
@@ -819,7 +819,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* 8255 subdevice */
 	s++;
 	if(boardtype->has_8255){
-		subdev_8255_init(dev,s,NULL,(unsigned long)dev->iobase);
+		subdev_8255_init(dev,s,NULL,dev->iobase);
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}

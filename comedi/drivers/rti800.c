@@ -295,13 +295,13 @@ static int rti800_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 
 static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	int irq;
-	int iobase;
+	unsigned int irq;
+	unsigned long iobase;
 	int ret;
 	comedi_subdevice *s;
 
 	iobase = it->options[0];
-	printk("comedi%d: rti800: 0x%04x ", dev->minor, iobase);
+	printk("comedi%d: rti800: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, RTI800_SIZE, "rti800")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -322,12 +322,14 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	outb(0,dev->iobase+RTI800_CLRFLAGS);
 
 	irq=it->options[1];
-	if(irq>0){
-		printk("( irq = %d )\n",irq);
-		if((ret=comedi_request_irq(irq,rti800_interrupt, 0, "rti800", dev))<0)
+	if(irq){
+		printk("( irq = %u )",irq);
+		if((ret=comedi_request_irq(irq,rti800_interrupt, 0, "rti800", dev))<0){
+			printk(" Failed to allocate IRQ\n");
 			return ret;
+		}
 		dev->irq=irq;
-	}else if(irq == 0){
+	}else{
 		printk("( no irq )");
 	}
 

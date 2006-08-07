@@ -479,7 +479,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   int result;
   int i;
   int ret;
-  uint64_t resourceStart;
+  resource_size_t resourceStart;
   dma_addr_t appdma;
   comedi_subdevice *s;
   struct pci_dev *pdev;
@@ -506,7 +506,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   }
   devpriv->got_regions = 1;
 
-  resourceStart=(uint64_t)pci_resource_start(devpriv->pdev,0);
+  resourceStart=pci_resource_start(devpriv->pdev,0);
   
   devpriv->base_addr=ioremap(resourceStart, SIZEOF_ADDRESS_SPACE);
   if (devpriv->base_addr==NULL)	{
@@ -559,7 +559,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   if(alloc_subdevices(dev, 6)<0)
     return -ENOMEM;
 
-  dev->iobase = (int)devpriv->base_addr;
+  dev->iobase = (unsigned long)devpriv->base_addr;
   dev->irq = devpriv->pdev->irq;
 
   //set up interrupt handler

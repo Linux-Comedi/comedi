@@ -134,7 +134,7 @@ void subdev_8255_interrupt(comedi_device *dev, comedi_subdevice *s)
 
 static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
-	int iobase=arg;
+	unsigned long iobase=arg;
 
 	if(dir){
 		outb(data,iobase+port);
@@ -362,7 +362,7 @@ void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s)
 static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
-	int iobase;
+	unsigned long iobase;
 	int i;
 
 	printk("comedi%d: 8255:",dev->minor);
@@ -384,7 +384,7 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 	for(i=0;i<dev->n_subdevices;i++){
 		iobase=it->options[i];
 
-		printk(" 0x%04x",iobase);
+		printk(" 0x%04lx",iobase);
 		if(!request_region(iobase,_8255_SIZE,"8255")){
 			printk(" (I/O port conflict)");
 
@@ -401,7 +401,8 @@ static int dev_8255_attach(comedi_device *dev,comedi_devconfig *it)
 
 static int dev_8255_detach(comedi_device *dev)
 {
-	int i,iobase;
+	int i;
+	unsigned long iobase;
 	comedi_subdevice *s;
 
 	printk("comedi%d: 8255: remove\n",dev->minor);

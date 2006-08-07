@@ -127,10 +127,10 @@ static int dt2817_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 
 	iobase=it->options[0];
-	printk("comedi%d: dt2817: 0x%04x ",dev->minor,iobase);
+	printk("comedi%d: dt2817: 0x%04lx ",dev->minor,iobase);
 	if(!request_region(iobase,DT2817_SIZE,"dt2817")){
 		printk("I/O port conflict\n");
 		return -EIO;

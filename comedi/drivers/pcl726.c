@@ -121,7 +121,7 @@ typedef struct {
 	int 		n_aochan;	// num of D/A chans
 	int		num_of_ranges;	// num of ranges
 	unsigned int 	IRQbits;	// allowed interrupts
-	int 		io_range;	// len of IO space
+	unsigned int 	io_range;	// len of IO space
 	char		have_dio;	// 1=card have DI/DO ports
 	int		di_hi;		// ports for DI/DO operations
 	int		di_lo;
@@ -239,12 +239,16 @@ static int pcl726_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-        int iobase,iorange;
+        unsigned long iobase;
+	unsigned int iorange;
 	int ret,i;
+#ifdef ACL6126_IRQ
+	unsigned int irq;
+#endif
 	
         iobase=it->options[0];
         iorange=this_board->io_range;
-	printk("comedi%d: pcl726: board=%s, 0x%03x ",dev->minor,this_board->name,iobase);
+	printk("comedi%d: pcl726: board=%s, 0x%03lx ",dev->minor,this_board->name,iobase);
 	if(!request_region(iobase, iorange, "pcl726")){
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -267,7 +271,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
         if (boardtypes[board].IRQbits!=0) { /* board support IRQ */
 		irq=it->options[1];
 		devpriv->first_chan=2;
-		if (irq>0)  {/* we want to use IRQ */
+		if (irq)  {/* we want to use IRQ */
 		        if (((1<<irq)&boardtypes[board].IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */

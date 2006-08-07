@@ -449,7 +449,7 @@ typedef struct me4000_info {
 
     struct pci_dev *pci_dev_p;			// General PCI information
 
-    char irq;					// IRQ assigned from the PCI BIOS
+    unsigned int irq;				// IRQ assigned from the PCI BIOS
 
     struct me4000_ai_context ai_context;	// Analog input  specific context
     struct me4000_ao_context ao_context[4];	// Vector with analog output specific context

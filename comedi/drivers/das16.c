@@ -1384,9 +1384,10 @@ static int das1600_mode_detect(comedi_device *dev)
 static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int ret, irq;
-	int iobase;
-	int dma_chan;
+	int ret;
+	unsigned int irq;
+	unsigned long iobase;
+	unsigned int dma_chan;
 	int timer_mode;
 	unsigned long flags;
 	comedi_krange *user_ai_range, *user_ao_range;
@@ -1420,23 +1421,23 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		return ret;
 
 	if(thisboard->size<0x400){
-		printk(" 0x%04x-0x%04x\n", iobase, iobase+thisboard->size);
+		printk(" 0x%04lx-0x%04lx\n", iobase, iobase+thisboard->size);
 		if(!request_region(iobase,thisboard->size,"das16")){
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
 	}else{
-		printk(" 0x%04x-0x%04x 0x%04x-0x%04x\n",
+		printk(" 0x%04lx-0x%04lx 0x%04lx-0x%04lx\n",
 			   iobase,iobase+0x0f,
 			   iobase+0x400,iobase+0x400+(thisboard->size&0x3ff));
 		if(!request_region(iobase,0x10,"das16")){
-			printk(" I/O port conflict:  0x%04x-0x%04x\n",
+			printk(" I/O port conflict:  0x%04lx-0x%04lx\n",
 				   iobase,iobase+0x0f);
 			return -EIO;
 		}
 		if(!request_region(iobase+0x400,thisboard->size&0x3ff,"das16")){
 			release_region(iobase, 0x10);
-			printk(" I/O port conflict:  0x%04x-0x%04x\n",
+			printk(" I/O port conflict:  0x%04lx-0x%04lx\n",
 				   iobase+0x400,
 				   iobase+0x400+(thisboard->size&0x3ff));
 			return -EIO;
@@ -1471,7 +1472,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		if((ret=comedi_request_irq(irq, das16_dma_interrupt, 0, "das16",dev)) < 0)
 			return ret;
 		dev->irq = irq;
-		printk(" ( irq = %d )",irq);
+		printk(" ( irq = %u )",irq);
 	}else if(irq == 0){
 		printk(" ( no irq )");
 	}else
@@ -1503,7 +1504,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 		disable_dma(devpriv->dma_chan);
 		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 		release_dma_lock(flags);
-		printk(" ( dma = %d)\n", dma_chan);
+		printk(" ( dma = %u)\n", dma_chan);
 	}else if(dma_chan == 0){
 		printk(" ( no dma )\n");
 	}else
@@ -1634,7 +1635,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 4;
 	/* 8255 */
 	if(thisboard->i8255_offset!=0){
-		subdev_8255_init(dev,s,NULL,(unsigned long)(dev->iobase+
+		subdev_8255_init(dev,s,NULL,(dev->iobase+
 			thisboard->i8255_offset));
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;

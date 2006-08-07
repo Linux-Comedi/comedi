@@ -1172,15 +1172,15 @@ static void pcl812_reset(comedi_device * dev)
 static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret,subdev;
-	int iobase;
-	int irq;
-	int dma;
+	unsigned long iobase;
+	unsigned int irq;
+	unsigned int dma;
 	unsigned long pages;
 	comedi_subdevice *s;
 	int n_subdevices;
 
 	iobase = it->options[0];
-	printk("comedi%d: pcl812:  board=%s, ioport=0x%03x", dev->minor,
+	printk("comedi%d: pcl812:  board=%s, ioport=0x%03lx", dev->minor,
 		this_board->name, iobase);
 
 	if (!request_region(iobase, this_board->io_range, "pcl812")) {
@@ -1201,14 +1201,14 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
-				printk(", IRQ %d is out of allowed range, DISABLING IT", irq);
+				printk(", IRQ %u is out of allowed range, DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (comedi_request_irq(irq, interrupt_pcl812, 0, "pcl812", dev)) {
-					printk(", unable to allocate IRQ %d, DISABLING IT", irq);
+					printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
-					printk(", irq=%d", irq);
+					printk(", irq=%u", irq);
 				}
 			}
 		}
@@ -1228,11 +1228,11 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 		ret = request_dma(dma, "pcl812");
 		if (ret) {
-			printk(", unable to allocate DMA %d, FAIL!\n", dma);
+			printk(", unable to allocate DMA %u, FAIL!\n", dma);
 			return -EBUSY;	/* DMA isn't free */
 		}
 		devpriv->dma = dma;
-		printk(", dma=%d", dma);
+		printk(", dma=%u", dma);
 		pages = 1;	/* we want 8KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[0]) {

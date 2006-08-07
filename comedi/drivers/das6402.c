@@ -299,8 +299,8 @@ static int das6402_detach(comedi_device *dev)
 
 static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	int irq;
-	int iobase;
+	unsigned int irq;
+	unsigned long iobase;
 	int ret;
 	comedi_subdevice *s;
 
@@ -320,7 +320,7 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 	/* should do a probe here */
 
 	irq=it->options[0];
-	printk(" ( irq = %d )", irq);
+	printk(" ( irq = %u )", irq);
 	ret=comedi_request_irq(irq, intr_handler, 0, "das6402", dev);
 	if(ret<0){
 		printk("irq conflict\n");

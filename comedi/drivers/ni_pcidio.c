@@ -1064,7 +1064,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 	int i;
 	int ret;
 	int n_subdevices;
-	int irq;
+	unsigned int irq;
 
 	printk("comedi%d: nidio:",dev->minor);
 

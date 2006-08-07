@@ -297,15 +297,16 @@ static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
 
 static int dt2811_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	//int i, irq, irqs;
+	//int i, irq;
+	//unsigned long irqs;
 	//long flags;
 	int ret;
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 
 	iobase = it->options[0];
 
-	printk("comedi%d: dt2811: base=0x%04x\n", dev->minor, iobase);
+	printk("comedi%d: dt2811: base=0x%04lx\n", dev->minor, iobase);
 
 	if (!request_region(iobase, DT2811_SIZE, driver_name)) {
 		printk("I/O port conflict\n");

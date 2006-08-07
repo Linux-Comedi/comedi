@@ -111,7 +111,7 @@ static comedi_driver driver_labpc_cs =
 static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	unsigned long iobase = 0;
-	int irq = 0;
+	unsigned int irq = 0;
 	dev_link_t *link;
 
 	/* allocate and initialize dev->private */

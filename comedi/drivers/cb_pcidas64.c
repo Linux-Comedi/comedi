@@ -1088,9 +1088,9 @@ typedef struct
 {
 	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
 	// base addresses (physical)
-	unsigned long plx9080_phys_iobase;
-	unsigned long main_phys_iobase;
-	unsigned long dio_counter_phys_iobase;
+	resource_size_t plx9080_phys_iobase;
+	resource_size_t main_phys_iobase;
+	resource_size_t dio_counter_phys_iobase;
 	// base addresses (ioremapped)
 	void *plx9080_iobase;
 	void *main_iobase;
@@ -1729,17 +1729,17 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
-	DEBUG_PRINT(" main remapped to 0x%lx\n", priv(dev)->main_iobase);
-	DEBUG_PRINT(" diocounter remapped to 0x%lx\n", priv(dev)->dio_counter_iobase);
+	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", priv(dev)->plx9080_iobase);
+	DEBUG_PRINT(" main remapped to 0x%p\n", priv(dev)->main_iobase);
+	DEBUG_PRINT(" diocounter remapped to 0x%p\n", priv(dev)->dio_counter_iobase);
 
 	// figure out what local addresses are
 	local_range = readl(priv(dev)->plx9080_iobase + PLX_LAS0RNG_REG) & LRNG_MEM_MASK;
 	local_decode = readl(priv(dev)->plx9080_iobase + PLX_LAS0MAP_REG) & local_range & LMAP_MEM_MASK ;
-	priv(dev)->local0_iobase = (priv(dev)->main_phys_iobase & ~local_range) | local_decode;
+	priv(dev)->local0_iobase = ((uint32_t)priv(dev)->main_phys_iobase & ~local_range) | local_decode;
 	local_range = readl(priv(dev)->plx9080_iobase + PLX_LAS1RNG_REG) & LRNG_MEM_MASK;
 	local_decode = readl(priv(dev)->plx9080_iobase + PLX_LAS1MAP_REG) & local_range & LMAP_MEM_MASK ;
-	priv(dev)->local1_iobase = (priv(dev)->dio_counter_phys_iobase & ~local_range) | local_decode;
+	priv(dev)->local1_iobase = ((uint32_t)priv(dev)->dio_counter_phys_iobase & ~local_range) | local_decode;
 
 	DEBUG_PRINT(" local 0 io addr 0x%x\n", priv(dev)->local0_iobase);
 	DEBUG_PRINT(" local 1 io addr 0x%x\n", priv(dev)->local1_iobase);
@@ -1752,11 +1752,11 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	// get irq
 	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
 	{
-		printk(" unable to allocate irq %d\n", pcidev->irq);
+		printk(" unable to allocate irq %u\n", pcidev->irq);
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
-	printk(" irq %i\n", dev->irq);
+	printk(" irq %u\n", dev->irq);
 
 	init_plx9080(dev);
 	init_stc_registers( dev );

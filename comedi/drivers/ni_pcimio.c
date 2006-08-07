@@ -1365,7 +1365,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	if(dev->irq==0){
 		printk(" unknown irq (bad)\n");
 	}else{
-		printk(" ( irq = %d )",dev->irq);
+		printk(" ( irq = %u )",dev->irq);
 		if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_pcimio",dev))<0 ){
 			printk(" irq not available\n");
 			dev->irq=0;

@@ -1187,7 +1187,8 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev = NULL;
-	int iobase = 0, irq = 0;
+	unsigned long iobase = 0;
+	unsigned int irq = 0;
 	int bus = 0, slot = 0;
 	dio200_layout *layout;
 	int share_irq = 0;
@@ -1313,21 +1314,21 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 					DIO200_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 		} else {
-			printk(KERN_WARNING "comedi%d: warning! irq %d unavailable!\n",
+			printk(KERN_WARNING "comedi%d: warning! irq %u unavailable!\n",
 					dev->minor, irq);
 		}
 	}
 
 	printk(KERN_INFO "comedi%d: %s ", dev->minor, dev->board_name);
 	if (thisboard->bustype == isa_bustype) {
-		printk("(base %#x) ", iobase);
+		printk("(base %#lx) ", iobase);
 	} else {
 		printk("(pci %02x:%02x.%x) ", pci_dev->bus->number,
 				PCI_SLOT(pci_dev->devfn),
 				PCI_FUNC(pci_dev->devfn));
 	}
 	if (irq) {
-		printk("(irq %d%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
+		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
 	} else {
 		printk("(no irq) ");
 	}

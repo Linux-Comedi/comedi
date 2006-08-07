@@ -48,13 +48,13 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 #include <linux/comedidev.h>
 #include <linux/pnp.h>
 
-static u8 ReadByteFromHwPort(int addr)
+static u8 ReadByteFromHwPort(unsigned long addr)
 {
   u8 result = inb(addr);
   return result;
 }
 
-static void WriteByteToHwPort(int addr, u8 val)
+static void WriteByteToHwPort(unsigned long addr, u8 val)
 {
   outb_p(val, addr);
 }
@@ -103,7 +103,7 @@ comedi_driver driver_c6xdigio={
 	detach:		c6xdigio_detach,
 };
 
-static void  C6X_pwmInit( unsigned baseAddr ) {
+static void  C6X_pwmInit( unsigned long baseAddr ) {
 	int timeout=0;
 
 //printk("Inside C6X_pwmInit\n");
@@ -133,7 +133,7 @@ static void  C6X_pwmInit( unsigned baseAddr ) {
 	
 }
 
-static void  C6X_pwmOutput( unsigned baseAddr, unsigned channel, int value )
+static void  C6X_pwmOutput( unsigned long baseAddr, unsigned channel, int value )
 {
 	unsigned ppcmd;
 	union pwmcmdtype pwm;
@@ -202,7 +202,7 @@ static void  C6X_pwmOutput( unsigned baseAddr, unsigned channel, int value )
 	
 }
 
-static int C6X_encInput( unsigned baseAddr, unsigned channel)
+static int C6X_encInput( unsigned long baseAddr, unsigned channel)
 {
 	unsigned ppcmd;
 	union encvaluetype enc;
@@ -301,7 +301,7 @@ static int C6X_encInput( unsigned baseAddr, unsigned channel)
 	return(enc.value ^ 0x800000);
 }
 
-static void C6X_encResetAll( unsigned baseAddr )
+static void C6X_encResetAll( unsigned long baseAddr )
 {
     unsigned timeout=0;
 
@@ -429,12 +429,12 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 static int c6xdigio_attach(comedi_device * dev, comedi_devconfig * it)
 {
   int result = 0;
-  int iobase;
-  int irq;
+  unsigned long iobase;
+  unsigned int irq;
   comedi_subdevice *s;
 
     iobase = it->options[0];
-    printk("comedi%d: c6xdigio: 0x%04x\n", dev->minor, iobase);
+    printk("comedi%d: c6xdigio: 0x%04lx\n", dev->minor, iobase);
     if (!request_region(iobase, C6XDIGIO_SIZE, "c6xdigio")) {
       printk("comedi%d: I/O port conflict\n", dev->minor);
       return -EIO;
@@ -451,7 +451,7 @@ static int c6xdigio_attach(comedi_device * dev, comedi_devconfig * it)
 
       irq = it->options[1];
       if (irq > 0) {
-       printk("comedi%d: irq = %d ignored\n", dev->minor, irq);
+       printk("comedi%d: irq = %u ignored\n", dev->minor, irq);
       } else if(irq == 0) {
        printk("comedi%d: no irq\n", dev->minor);
       }

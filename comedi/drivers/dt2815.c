@@ -178,10 +178,10 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
   comedi_subdevice *s;
   int i;
   comedi_lrange *current_range_type, *voltage_range_type;
-  int iobase;
+  unsigned long iobase;
 
   iobase = it->options[0];
-  printk("comedi%d: dt2815: 0x%04x ", dev->minor, iobase);
+  printk("comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
   if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
     printk("I/O port conflict\n");
     return -EIO;

@@ -873,7 +873,8 @@ static int CheckAndAllocCard(comedi_device *dev, comedi_devconfig *it,
 static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int ret, subdev, n_subdevices, i, j, iobase, found=0;
+	int ret, subdev, n_subdevices, i, j, found=0;
+	unsigned long iobase;
 	struct pci_dev* pcidev;
 
 	rt_printk("comedi%d: adv_pci_dio: board=%s",
@@ -916,7 +917,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EIO;
 	}	
 	iobase=pci_resource_start(pcidev, this_board->main_pci_region);
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",
+	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn), PCI_FUNC(pcidev->devfn),
 		iobase);
 	

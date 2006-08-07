@@ -122,7 +122,7 @@ COMEDI_INITCLEANUP(driver_pci6208);
 static int
 pci6208_find_device(comedi_device *dev, int bus, int slot);
 static int
-pci6208_pci_setup(struct pci_dev *pci_dev, int *io_base_ptr, int dev_minor);
+pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr, int dev_minor);
 
 /*read/write functions*/
 static int pci6208_ao_winsn(comedi_device *dev,comedi_subdevice *s,
@@ -143,7 +143,8 @@ static int pci6208_ao_rinsn(comedi_device *dev,comedi_subdevice *s,
 static int pci6208_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int retval, io_base;
+	int retval;
+	unsigned long io_base;
 	
 	printk("comedi%d: pci6208: ", dev->minor);
 
@@ -358,9 +359,9 @@ found:
 }
 
 static int 
-pci6208_pci_setup(struct pci_dev *pci_dev, int *io_base_ptr, int dev_minor)
+pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr, int dev_minor)
 {
-	int io_base, io_range, lcr_io_base, lcr_io_range;
+	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 
 	// Enable PCI device
 	if (pci_enable_device(pci_dev) < 0) {
@@ -370,9 +371,9 @@ pci6208_pci_setup(struct pci_dev *pci_dev, int *io_base_ptr, int dev_minor)
 	
 	// Read local configuration register base address [PCI_BASE_ADDRESS #1].
 	lcr_io_base = pci_resource_start(pci_dev, 1);
-	lcr_io_range = pci_resource_end(pci_dev, 1) - lcr_io_base +1;
+	lcr_io_range = pci_resource_len(pci_dev, 1);
 	  
-	printk("comedi%d: local config registers at address 0x%4x [0x%4x]\n",
+	printk("comedi%d: local config registers at address 0x%4lx [0x%4lx]\n",
 		dev_minor,
 		lcr_io_base,
 		lcr_io_range);
@@ -381,7 +382,7 @@ pci6208_pci_setup(struct pci_dev *pci_dev, int *io_base_ptr, int dev_minor)
 	io_base = pci_resource_start (pci_dev, 2);
 	io_range = pci_resource_end (pci_dev, 2) - io_base +1;
 	
-	printk ("comedi%d: 6208 registers at address 0x%4x [0x%4x]\n",
+	printk ("comedi%d: 6208 registers at address 0x%4lx [0x%4lx]\n",
 		dev_minor,
 		io_base,
 		io_range);

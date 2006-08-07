@@ -60,10 +60,10 @@ static int pcl725_di_insn(comedi_device *dev,comedi_subdevice *s,
 static int pcl725_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 
 	iobase=it->options[0];
-	printk("comedi%d: pcl725: 0x%04x ",dev->minor,iobase);
+	printk("comedi%d: pcl725: 0x%04lx ",dev->minor,iobase);
 	if(!request_region(iobase,PCL725_SIZE,"pcl725")){
 		printk("I/O port conflict\n");
 		return -EIO;

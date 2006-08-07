@@ -363,10 +363,9 @@ found:
 
 	// two 8255 digital io subdevices
 	s = dev->subdevices + 1;
-	subdev_8255_init(dev, s, NULL, (unsigned long)(devpriv->digitalio));
+	subdev_8255_init(dev, s, NULL, devpriv->digitalio);
 	s = dev->subdevices + 2;
-	subdev_8255_init(dev, s, NULL,
-		(unsigned long)(devpriv->digitalio + PORT2A));
+	subdev_8255_init(dev, s, NULL, devpriv->digitalio + PORT2A);
 
 	printk(" eeprom:");
 	for(index = 0; index < EEPROM_SIZE; index++)

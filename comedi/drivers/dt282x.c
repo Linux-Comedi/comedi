@@ -1210,14 +1210,14 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	int i, irq;
 	int ret;
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 
 	dev->board_name = this_board->name;
 
 	iobase = it->options[opt_iobase];
 	if(!iobase)iobase = 0x240;
 
-	printk("comedi%d: dt282x: 0x%04x", dev->minor, iobase);
+	printk("comedi%d: dt282x: 0x%04lx", dev->minor, iobase);
 	if (!request_region(iobase, DT2821_SIZE, "dt282x")) {
 		printk(" I/O port conflict\n");
 		return -EBUSY;
@@ -1283,7 +1283,11 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	} else if (irq == 0) {
 		printk(" (no irq)");
 	} else {
+#if 0
 		printk(" (probe returned multiple irqs--bad)");
+#else
+		printk(" (irq probe not implemented)");
+#endif
 	}
 
 	if((ret=alloc_private(dev,sizeof(dt282x_private)))<0)

@@ -395,9 +395,9 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	struct pnp_dev *isapnp_dev;
 	int		ret;
-	int		iobase;
+	unsigned long	iobase;
 	int		board;
-	int		irq;
+	unsigned int	irq;
 
 	/* allocate private area */
 	if((ret = ni_alloc_private(dev)) < 0)
@@ -421,7 +421,7 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* reserve our I/O region */
 
-	printk("comedi%d: ni_atmio: 0x%04x",dev->minor,iobase);
+	printk("comedi%d: ni_atmio: 0x%04lx",dev->minor,iobase);
 	if(!request_region(iobase,NI_SIZE,"ni_atmio")){
 		printk(" I/O port conflict\n");
 		return -EIO;
@@ -454,11 +454,11 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	/* irq stuff */
 
 	if(irq!=0){
-		if(irq<0 || irq>15 || ni_irqpin[irq]==-1){
-			printk(" invalid irq\n");
+		if(irq>15 || ni_irqpin[irq]==-1){
+			printk(" invalid irq %u\n",irq);
 			return -EINVAL;
 		}
-		printk(" ( irq = %d )",irq);
+		printk(" ( irq = %u )",irq);
 		if( (ret=comedi_request_irq(irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_atmio",dev))<0 ){
 			printk(" irq not available\n");
 			return -EINVAL;

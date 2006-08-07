@@ -253,7 +253,7 @@ MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
 
 typedef struct{
 	struct pci_dev *pci_dev;
-	unsigned long phys_addr;
+	resource_size_t phys_addr;
 	void *io_addr;
 	unsigned int lock;
 	lsampl_t ao_readback[2];
@@ -785,7 +785,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if(comedi_request_irq(devpriv->pci_dev->irq, dt3k_interrupt,
 			SA_SHIRQ, "dt3000", dev)){
-		printk(" unable to allocate IRQ %d\n", devpriv->pci_dev->irq);
+		printk(" unable to allocate IRQ %u\n", devpriv->pci_dev->irq);
 		return -EINVAL;
 	}
 	dev->irq = devpriv->pci_dev->irq;
@@ -895,7 +895,7 @@ static int dt_pci_probe(comedi_device *dev)
 
 static int setup_pci(comedi_device *dev)
 {
-	u32			addr;
+	resource_size_t	addr;
 	int ret;
 
 	ret = pci_enable_device(devpriv->pci_dev);
@@ -909,7 +909,7 @@ static int setup_pci(comedi_device *dev)
 	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
 	if(!devpriv->io_addr) return -ENOMEM;
 #if DEBUG
-	printk("0x%08lx mapped to %p, ",devpriv->phys_addr,devpriv->io_addr);
+	printk("0x%08llx mapped to %p, ",(unsigned long long)devpriv->phys_addr,devpriv->io_addr);
 #endif
 
 	return 0;

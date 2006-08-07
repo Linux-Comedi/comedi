@@ -466,7 +466,7 @@ static inline int labpc_counter_load(comedi_device *dev, unsigned long base_addr
 }
 
 int labpc_common_attach( comedi_device *dev, unsigned long iobase,
-	int irq, int dma_chan )
+	unsigned int irq, unsigned int dma_chan )
 {
 	comedi_subdevice *s;
 	int i;
@@ -476,11 +476,11 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	printk("comedi%d: ni_labpc: %s, io 0x%lx", dev->minor, thisboard->name, iobase);
 	if(irq)
 	{
-		printk(", irq %i", irq);
+		printk(", irq %u", irq);
 	}
 	if(dma_chan)
 	{
-		printk(", dma %i", dma_chan);
+		printk(", dma %u", dma_chan);
 	}
 	printk("\n");
 
@@ -523,11 +523,6 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	}
 
 	/* grab our IRQ */
-	if(irq < 0)
-	{
-		printk("irq out of range\n");
-		return -EINVAL;
-	}
 	if(irq)
 	{
 		isr_flags = 0;
@@ -535,16 +530,16 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 			isr_flags |= SA_SHIRQ;
 		if(comedi_request_irq( irq, labpc_interrupt, isr_flags, driver_labpc.driver_name, dev))
 		{
-			printk( "unable to allocate irq %d\n", irq);
+			printk( "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		}
 	}
 	dev->irq = irq;
 
 	// grab dma channel
-	if(dma_chan < 0 || dma_chan > 3)
+	if(dma_chan > 3)
 	{
-		printk(" invalid dma channel\n");
+		printk(" invalid dma channel %u\n", dma_chan);
 		return -EINVAL;
 	}else if(dma_chan)
 	{
@@ -557,7 +552,7 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 		}
 		if(request_dma(dma_chan, driver_labpc.driver_name))
 		{
-			printk(" failed to allocate dma channel %i\n", dma_chan);
+			printk(" failed to allocate dma channel %u\n", dma_chan);
 			return -EINVAL;
 		}
 		devpriv->dma_chan = dma_chan;
@@ -669,8 +664,8 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	unsigned long iobase = 0;
-	int irq = 0;
-	int dma_chan = 0;
+	unsigned int irq = 0;
+	unsigned int dma_chan = 0;
 	int ret;
 
 	/* allocate and initialize dev->private */

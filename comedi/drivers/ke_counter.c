@@ -145,7 +145,7 @@ static int cnt_attach(comedi_device *dev, comedi_devconfig *it)
   comedi_subdevice *subdevice;
   struct pci_dev   *pci_device;
   cnt_board_struct *board;
-  int              io_base;
+  unsigned long    io_base;
   int              error, i;
 
 	/* allocate device private structure */
@@ -206,7 +206,7 @@ found:
 
   /* read register base address [PCI_BASE_ADDRESS #0] */
   io_base = pci_resource_start(pci_device, 0);
-  dev->iobase = io_base & PCI_BASE_ADDRESS_IO_MASK;
+  dev->iobase = io_base;
 
   /* allocate the subdevice structures */
   if((error = alloc_subdevices(dev, 1)) < 0)

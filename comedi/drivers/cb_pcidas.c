@@ -408,11 +408,11 @@ typedef struct
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 	// base addresses
-	unsigned int s5933_config;
-	unsigned int control_status;
-	unsigned int adc_fifo;
-	unsigned int pacer_counter_dio;
-	unsigned int ao_registers;
+	unsigned long s5933_config;
+	unsigned long control_status;
+	unsigned long adc_fifo;
+	unsigned long pacer_counter_dio;
+	unsigned long ao_registers;
 	// divisors of master clock for analog input pacing
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -646,8 +646,7 @@ found:
 
 	/* 8255 */
 	s = dev->subdevices + 2;
-	subdev_8255_init(dev, s, NULL,
-		(unsigned long)(devpriv->pacer_counter_dio + DIO_8255));
+	subdev_8255_init(dev, s, NULL, devpriv->pacer_counter_dio + DIO_8255);
 
 	// serial EEPROM,
 	s = dev->subdevices + 3;

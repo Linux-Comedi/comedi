@@ -105,7 +105,7 @@ static void dump_chip_signature(u32 csigr_bits)
 int mite_setup(struct mite_struct *mite)
 {
 	unsigned long length;
-	u32 addr;
+	resource_size_t addr;
 	int i;
 	u32 csigr_bits;
 	
@@ -126,7 +126,7 @@ int mite_setup(struct mite_struct *mite)
 		printk("failed to remap mite io memory address\n");
 		return -ENOMEM;
 	}
-	printk("MITE:0x%08lx mapped to %p ",mite->mite_phys_addr,mite->mite_io_addr);
+	printk("MITE:0x%08llx mapped to %p ",(unsigned long long)mite->mite_phys_addr,mite->mite_io_addr);
 
 	addr=pci_resource_start(mite->pcidev, 1);
 	mite->daq_phys_addr=addr;
@@ -142,7 +142,7 @@ int mite_setup(struct mite_struct *mite)
 		printk("failed to remap daq io memory address\n");
 		return -ENOMEM;
 	}
-	printk("DAQ:0x%08lx mapped to %p\n",mite->daq_phys_addr,mite->daq_io_addr);
+	printk("DAQ:0x%08llx mapped to %p\n",(unsigned long long)mite->daq_phys_addr,mite->daq_io_addr);
 
 	// The 6602 board needs different initalisation, see the
 	// _updated_ (nov 2002) reg. Level Manual (filename 370505b.pdf) p. 3.55

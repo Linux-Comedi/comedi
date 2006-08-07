@@ -1220,8 +1220,8 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret,subdev,n_subdevices;
-	unsigned short irq;
-        unsigned int iobase;
+	unsigned int irq;
+        unsigned long iobase;
 	struct pci_dev *pcidev;
 	int opt_bus, opt_slot;
 	const char *errstr;
@@ -1280,7 +1280,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 	irq = pcidev->irq;
 	iobase = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x",pci_bus,pci_slot,pci_func,iobase);
+	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx",pci_bus,pci_slot,pci_func,iobase);
 
         dev->iobase=iobase;
 
@@ -1305,7 +1305,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 				rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 				irq=0; /* Can't use IRQ */
 			} else {
-				rt_printk(", irq=%d", irq);
+				rt_printk(", irq=%u", irq);
 			}    
 		} else {
 			rt_printk(", IRQ disabled");

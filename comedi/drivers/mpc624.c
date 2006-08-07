@@ -163,10 +163,10 @@ static int mpc624_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 static int mpc624_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-    int iobase;
+    unsigned long iobase;
 
     iobase = it->options[0];
-	rt_printk("comedi%d: mpc624 [0x%04x, ", dev->minor, iobase);
+	rt_printk("comedi%d: mpc624 [0x%04lx, ", dev->minor, iobase);
     if(request_region(iobase, MPC624_SIZE, "mpc624") == NULL)
     {
         rt_printk("I/O port(s) in use\n");

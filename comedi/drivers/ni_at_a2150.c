@@ -331,23 +331,23 @@ static int a2150_probe(comedi_device *dev)
 static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase = it->options[0];
-	int irq = it->options[1];
-	int dma = it->options[2];
+	unsigned long iobase = it->options[0];
+	unsigned int irq = it->options[1];
+	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
 
-	printk("comedi%d: %s: io 0x%x", dev->minor, driver_a2150.driver_name, iobase);
+	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name, iobase);
 	if(irq)
 	{
-		printk(", irq %i", irq);
+		printk(", irq %u", irq);
 	}else
 	{
 		printk(", no irq");
 	}
 	if(dma)
 	{
-		printk(", dma %i", dma);
+		printk(", dma %u", dma);
 	}else
 	{
 		printk(", no dma");
@@ -378,12 +378,12 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 		// check that irq is supported
 		if(irq < 3 || irq == 8 || irq == 13 || irq > 15)
 		{
-			printk(" invalid irq line\n");
+			printk(" invalid irq line %u\n", irq);
 			return -EINVAL;
 		}
 		if(comedi_request_irq( irq, a2150_interrupt, 0, driver_a2150.driver_name, dev ))
 		{
-			printk( "unable to allocate irq %d\n", irq);
+			printk( "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		}
 		devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
@@ -393,14 +393,14 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	// initialize dma
 	if(dma)
 	{
-		if(dma < 0 || dma == 4 || dma > 7)
+		if(dma == 4 || dma > 7)
 		{
-			printk(" invalid dma channel %i\n", dma);
+			printk(" invalid dma channel %u\n", dma);
 			return -EINVAL;
 		}
 		if(request_dma(dma, driver_a2150.driver_name))
 		{
-			printk(" failed to allocate dma channel %i\n", dma);
+			printk(" failed to allocate dma channel %u\n", dma);
 			return -EINVAL;
 		}
 		devpriv->dma = dma;

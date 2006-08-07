@@ -64,7 +64,7 @@ typedef struct {
 	int 		dio;		// num of DIO
 	int		numofports;	// num of 8255 subdevices
 	unsigned int 	IRQbits;	// allowed interrupts
-	int 		io_range;	// len of IO space
+	unsigned int	io_range;	// len of IO space
 	char		can_have96;	
 	char		is_pet48;
 } boardtype;
@@ -96,7 +96,7 @@ COMEDI_INITCLEANUP(driver_pcl724);
 
 static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
-	int iobase=arg;
+	unsigned long iobase=arg;
 
 	if(dir){
 		outb(data,iobase+port);
@@ -124,14 +124,18 @@ static int subdev_8255mapped_cb(int dir,int port,int data,unsigned long iobase)
 
 static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
 {
-        int iobase,iorange;
+        unsigned long iobase;
+	unsigned int iorange;
 	int ret,i,n_subdevices;
+#ifdef PCL724_IRQ
+	unsigned int irq;
+#endif
 
         iobase=it->options[0];
         iorange=this_board->io_range;
 	if ((this_board->can_have96)&&((it->options[1]==1)||(it->options[1]==96)))
 		iorange=PCL722_96_SIZE;	// PCL-724 in 96 DIO configuration
-	printk("comedi%d: pcl724: board=%s, 0x%03x ",dev->minor,
+	printk("comedi%d: pcl724: board=%s, 0x%03lx ",dev->minor,
 		this_board->name,iobase);
 	if(!request_region(iobase, iorange, "pcl724")){
 		printk("I/O port conflict\n");
@@ -146,16 +150,16 @@ static int pcl724_attach(comedi_device *dev,comedi_devconfig *it)
         irq=0;
         if (this_board->IRQbits!=0) { /* board support IRQ */
 		irq=it->options[1];
-		if (irq>0)  {/* we want to use IRQ */
+		if (irq)  {/* we want to use IRQ */
 		        if (((1<<irq)&this_board->IRQbits)==0) {
-				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
+				rt_printk(", IRQ %u is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
 			} else {
 				if (comedi_request_irq(irq, interrupt_pcl724, 0, "pcl724", dev)) {
-					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
+					rt_printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
 				} else {
-					rt_printk(", irq=%d", irq);
+					rt_printk(", irq=%u", irq);
 				}
 			}
 		}

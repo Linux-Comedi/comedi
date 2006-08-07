@@ -491,14 +491,14 @@ static int pcl711_detach(comedi_device * dev)
 static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
-	int iobase;
-	int irq;
+	unsigned long iobase;
+	unsigned int irq;
 	comedi_subdevice *s;
 
 	/* claim our I/O space */
 
 	iobase = it->options[0];
-	printk("comedi%d: pcl711: 0x%04x ", dev->minor, iobase);
+	printk("comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCL711_SIZE, "pcl711")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -512,16 +512,16 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* grab our IRQ */
 	irq = it->options[1];
-	if (irq < 0 || irq > this_board->maxirq) {
+	if (irq > this_board->maxirq) {
 		printk("irq out of range\n");
 		return -EINVAL;
 	}
 	if (irq) {
 		if (comedi_request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
-			printk("unable to allocate irq %d\n", irq);
+			printk("unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		} else {
-			printk("( irq = %d )\n", irq);
+			printk("( irq = %u )\n", irq);
 		}
 	}
 	dev->irq = irq;

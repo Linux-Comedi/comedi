@@ -210,7 +210,7 @@ typedef struct
     unsigned char enab[NUM_PAGED_REGS]; /* shadow of ENABx registers */
     int num;
     unsigned long iobase;
-    int irq;
+    unsigned int irq;
     spinlock_t spinlock;
   } asics[MAX_ASICS];  
   pcmuio_subdev_private *sprivs;
@@ -286,13 +286,15 @@ static void unlock_port(comedi_device *dev, int asic, int port);
 static int pcmuio_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-        int sdev_no, chans_left, n_subdevs, iobase, irq[MAX_ASICS], port, asic, thisasic_chanct = 0;
+        int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
+	unsigned long iobase;
+	unsigned int irq[MAX_ASICS];
 
     iobase = it->options[0];
     irq[0] = it->options[1];
     irq[1] = it->options[2];
 
-    printk("comedi%d: %s: io: %x ", dev->minor, driver.driver_name, iobase);
+    printk("comedi%d: %s: io: %lx ", dev->minor, driver.driver_name, iobase);
 	
     dev->iobase = iobase;
     
@@ -427,9 +429,9 @@ static int pcmuio_attach(comedi_device *dev, comedi_devconfig *it)
                           irqs.. */
 
     if (irq[0]) {
-      printk("irq: %d ", irq[0]);
+      printk("irq: %u ", irq[0]);
       if (irq[1] && thisboard->num_asics == 2) 
-        printk("second ASIC irq: %d ", irq[1]);
+        printk("second ASIC irq: %u ", irq[1]);
     } else {
       printk("(IRQ mode disabled) ");
     }
@@ -499,7 +501,7 @@ static int pcmuio_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 
     for (byte_no = 0; byte_no < s->n_chan/CHANS_PER_PORT; ++byte_no) {
            /* address of 8-bit port */
-        int ioaddr = subpriv->iobases[byte_no], 
+        unsigned long ioaddr = subpriv->iobases[byte_no], 
            /* bit offset of port in 32-bit doubleword */
             offset = byte_no * 8; 
                       /* this 8-bit port's data */
@@ -550,7 +552,8 @@ static int pcmuio_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 static int pcmuio_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
                                   comedi_insn *insn, lsampl_t *data)
 {
-    int chan = CR_CHAN(insn->chanspec), byte_no = chan/8, bit_no = chan % 8, ioaddr;
+    int chan = CR_CHAN(insn->chanspec), byte_no = chan/8, bit_no = chan % 8;
+    unsigned long ioaddr;
     unsigned char byte;
 
     /* Compute ioaddr for this channel */
@@ -612,7 +615,7 @@ static void init_asics(comedi_device *dev) /* sets up an
   for (asic = 0; asic < thisboard->num_asics; ++asic)
   {
     int port, page;
-    int baseaddr = dev->iobase + asic*ASIC_IOSIZE;
+    unsigned long baseaddr = dev->iobase + asic*ASIC_IOSIZE;
 
     switch_page(dev, asic,  0); /* switch back to page 0 */
 
@@ -687,7 +690,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d, struct pt_regs *regs)
     if (irq == devpriv->asics[asic].irq) {
       unsigned long flags;    
       unsigned triggered = 0;
-      int iobase = devpriv->asics[asic].iobase;
+      unsigned long iobase = devpriv->asics[asic].iobase;
       /* it is an interrupt for ASIC #asic */
       unsigned char int_pend;
 

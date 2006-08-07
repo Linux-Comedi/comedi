@@ -270,8 +270,8 @@ typedef struct
   struct pci_dev* pci_device;
   void *plx_regbase;         // PLX configuration base address
   void *me_regbase;          // Base address of the Meilhaus card
-  unsigned int plx_regbase_size;    // Size of PLX configuration space
-  unsigned int me_regbase_size;     // Size of Meilhaus space
+  unsigned long plx_regbase_size;   // Size of PLX configuration space
+  unsigned long me_regbase_size;    // Size of Meilhaus space
 
   unsigned short control_1;         // Mirror of CONTROL_1 register
   unsigned short control_2;         // Mirror of CONTROL_2 register
@@ -679,13 +679,13 @@ static int me_attach(comedi_device *dev,comedi_devconfig *it)
   struct pci_dev* pci_device;
   comedi_subdevice *subdevice;
   me_board_struct* board;
-  unsigned int plx_regbase_tmp;
-  unsigned int plx_regbase_size_tmp;
-  unsigned int me_regbase_tmp;
-  unsigned int me_regbase_size_tmp;
-  unsigned int swap_regbase_tmp;
-  unsigned int swap_regbase_size_tmp;
-  unsigned int regbase_tmp;
+  resource_size_t plx_regbase_tmp;
+  unsigned long plx_regbase_size_tmp;
+  resource_size_t me_regbase_tmp;
+  unsigned long me_regbase_size_tmp;
+  resource_size_t swap_regbase_tmp;
+  unsigned long swap_regbase_size_tmp;
+  resource_size_t regbase_tmp;
   int result, error, i;
 
   // Allocate private memory
@@ -757,7 +757,7 @@ found:
   // Read PLX register base address [PCI_BASE_ADDRESS #0].
 
   plx_regbase_tmp = pci_resource_start(pci_device, 0);
-  plx_regbase_size_tmp = pci_resource_end(pci_device, 0) - plx_regbase_tmp + 1;
+  plx_regbase_size_tmp = pci_resource_len(pci_device, 0);
   dev_private->plx_regbase = ioremap(plx_regbase_tmp, plx_regbase_size_tmp);
   dev_private->plx_regbase_size = plx_regbase_size_tmp;
   if(!dev_private->plx_regbase)
@@ -769,7 +769,7 @@ found:
   // Read Swap base address [PCI_BASE_ADDRESS #5].
 
   swap_regbase_tmp = pci_resource_start(pci_device, 5);
-  swap_regbase_size_tmp = pci_resource_end(pci_device, 5) - swap_regbase_tmp + 1;
+  swap_regbase_size_tmp = pci_resource_len(pci_device, 5);
 
   if(!swap_regbase_tmp)
   {
@@ -809,7 +809,7 @@ found:
   // Read Meilhaus register base address [PCI_BASE_ADDRESS #2].
 
   me_regbase_tmp = pci_resource_start(pci_device, 2);
-  me_regbase_size_tmp = pci_resource_end(pci_device, 2) - me_regbase_tmp + 1;
+  me_regbase_size_tmp = pci_resource_len(pci_device, 2);
   dev_private->me_regbase_size = me_regbase_size_tmp;
   dev_private->me_regbase = ioremap(me_regbase_tmp, me_regbase_size_tmp);
   if(!dev_private->me_regbase)

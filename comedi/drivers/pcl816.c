@@ -114,7 +114,7 @@ typedef struct {
   int n_dochan;			// num of DO chans
   comedi_lrange *ai_range_type;	// default A/D rangelist
   comedi_lrange *ao_range_type;	// dafault D/A rangelist
-  int io_range;			// len of IO space
+  unsigned int io_range;	// len of IO space
   unsigned int IRQbits;		// allowed interrupts
   unsigned int DMAbits;		// allowed DMA chans
   int ai_maxdata;		// maxdata for A/D
@@ -172,10 +172,10 @@ COMEDI_INITCLEANUP(driver_pcl816);
 
 typedef struct
 {
-  int dma;			// used DMA, 0=don't use DMA
+  unsigned int dma;		// used DMA, 0=don't use DMA
   int dma_rtc;			// 1=RTC used with DMA, 0=no RTC alloc
 #ifdef unused
-  unsigned int rtc_iobase;	// RTC port region
+  unsigned long rtc_iobase;	// RTC port region
   unsigned int rtc_iosize;
   unsigned int rtc_irq;
 #endif
@@ -793,7 +793,7 @@ pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 ==============================================================================
  chech for PCL816
 */
-static int pcl816_check (int iobase)
+static int pcl816_check (unsigned long iobase)
 {
   outb (0x00, iobase + PCL816_MUX);
   comedi_udelay (1);
@@ -1013,15 +1013,15 @@ static int
 pcl816_attach (comedi_device * dev, comedi_devconfig * it)
 {
   int ret;
-  int iobase;
-  int irq, dma;
+  unsigned long iobase;
+  unsigned int irq, dma;
   unsigned long pages;
   //int i;
   comedi_subdevice *s;
 
   /* claim our I/O space */
   iobase = it->options[0];
-  printk("comedi%d: pcl816:  board=%s, ioport=0x%03x", dev->minor,
+  printk("comedi%d: pcl816:  board=%s, ioport=0x%03lx", dev->minor,
 		this_board->name, iobase);
 		 
   if (!request_region (iobase, this_board->io_range, "pcl816")) {
@@ -1046,21 +1046,21 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
   irq = 0;
   if (this_board->IRQbits != 0) {	/* board support IRQ */
 		irq = it->options[1];
-      if (irq > 0)
+      if (irq)
 	{			/* we want to use IRQ */
 	  if (((1 << irq) & this_board->IRQbits) == 0)
 	    {
-	      rt_printk (", IRQ %d is out of allowed range, DISABLING IT", irq);
+	      rt_printk (", IRQ %u is out of allowed range, DISABLING IT", irq);
 	      irq = 0;		/* Bad IRQ */
 	    }
 	  else
 	    {
 	      if (comedi_request_irq(irq, interrupt_pcl816, 0, "pcl816", dev)) {
-			 rt_printk (", unable to allocate IRQ %d, DISABLING IT",irq);
+			 rt_printk (", unable to allocate IRQ %u, DISABLING IT",irq);
   			 irq = 0;	/* Can't use IRQ */
 			}
 	      else	{
-		  rt_printk (", irq=%d", irq);
+		  rt_printk (", irq=%u", irq);
 		}
 	    }
 	}
@@ -1094,7 +1094,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
 	   0, "pcl816 DMA (RTC)", dev))	{
 		  devpriv->dma_rtc = 1;
 		  devpriv->rtc_irq = RTC_IRQ;
-		  rt_printk (", dma_irq=%d", devpriv->rtc_irq);
+		  rt_printk (", dma_irq=%u", devpriv->rtc_irq);
 	  } else {
 		  RTC_lock--;
 		  if (RTC_lock == 0)
@@ -1130,12 +1130,12 @@ no_rtc:
 	  }
       ret = request_dma (dma, "pcl816");
       if (ret) {
-	  	rt_printk (", unable to allocate DMA %d, FAIL!\n", dma);
+	  	rt_printk (", unable to allocate DMA %u, FAIL!\n", dma);
 	 	return -EBUSY;	/* DMA isn't free */
 	  }
       
 	  devpriv->dma = dma;
-      rt_printk (", dma=%d", dma);
+      rt_printk (", dma=%u", dma);
       pages = 2;		/* we need 16KB */
       devpriv->dmabuf[0] = __get_dma_pages (GFP_KERNEL, pages);
       

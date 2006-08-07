@@ -157,8 +157,8 @@ MODULE_DEVICE_TABLE(pci, pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
-        int registers; /* set by probe */
-        int dio_registers;
+        unsigned long registers; /* set by probe */
+        unsigned long dio_registers;
         char  attached_to_8255; /* boolean */
         char  attached_successfully; /* boolean */
   /* would be useful for a PCI device */
@@ -302,8 +302,7 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
         switch(thisboard->dio_method) {
         case DIO_8255:
            /* this is a straight 8255, so register us with the 8255 driver */
-            subdev_8255_init(dev, s, NULL,  
-                             (unsigned long)(devpriv->dio_registers));
+            subdev_8255_init(dev, s, NULL, devpriv->dio_registers);
             devpriv->attached_to_8255 = 1;
             break;
         case DIO_INTERNAL:
@@ -366,7 +365,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
 {
    int i;
    int chan = CR_CHAN(insn->chanspec);
-   int offset = devpriv->registers + chan*2;
+   unsigned long offset = devpriv->registers + chan*2;
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
@@ -439,8 +438,9 @@ static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
  */
 static int probe(comedi_device *dev, const comedi_devconfig *it) 
 {
-    struct pci_dev *pcidev;
-	int index, registers;
+	struct pci_dev *pcidev;
+	int index;
+	unsigned long registers;
 
 	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))

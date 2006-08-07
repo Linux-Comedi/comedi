@@ -214,7 +214,7 @@ struct comedi_device_struct{
 
 	/* dumb */
 	unsigned long iobase;
-	int irq;
+	unsigned int irq;
 
 	comedi_subdevice *read_subdev;
 	wait_queue_head_t read_wait;

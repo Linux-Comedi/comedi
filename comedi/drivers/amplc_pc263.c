@@ -142,7 +142,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev = NULL;
-	int iobase = 0;
+	unsigned long iobase = 0;
 	int bus = 0, slot = 0;
 	struct pci_device_id *pci_id;
 	int ret;
@@ -262,7 +262,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 	s->state = s->state | (inb(dev->iobase) << 8);
 
 	if (thisboard->bustype == isa_bustype) {
-		printk("(base %#x) ", iobase);
+		printk("(base %#lx) ", iobase);
 	} else {
 		printk("(pci %02x:%02x.%x) ", pci_dev->bus->number,
 				PCI_SLOT(pci_dev->devfn),

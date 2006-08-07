@@ -207,7 +207,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
 struct pci230_private{
 	struct pci_dev *pci_dev;
 	lsampl_t ao_readback[2];  	/* Used for AO readback */
-	unsigned int pci_iobase;	/* PCI230's I/O space 1 */	
+	unsigned long pci_iobase;	/* PCI230's I/O space 1 */	
 	/* Divisors for 8254 counter/timer. */    
 	unsigned int clk_src0;		/* which clock to use for the counter/timers: 10MHz, 1MHz, 100kHz etc */
 	unsigned int clk_src1;
@@ -331,7 +331,7 @@ static void pci230_ao_write(comedi_device *dev, sampl_t data, int chan)
 static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int pci_iobase, iobase = 0;		/* PCI230's I/O spaces 1 and 2 respectively. */
+	unsigned long pci_iobase, iobase;		/* PCI230's I/O spaces 1 and 2 respectively. */
 	struct pci_dev *pci_dev;
 	int i=0,irq_hdl;
 
@@ -375,7 +375,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 		return -EIO;
 	}
 
-	printk("comedi%d: amplc_pci230: I/O region 1 0x%04x I/O region 2 0x%04x\n",dev->minor, pci_iobase, iobase);
+	printk("comedi%d: amplc_pci230: I/O region 1 0x%04lx I/O region 2 0x%04lx\n",dev->minor, pci_iobase, iobase);
 
 	devpriv->pci_iobase = pci_iobase;
 	dev->iobase = iobase;
@@ -396,7 +396,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	else {
 		dev->irq = devpriv->pci_dev->irq;
-		printk("comedi%d: amplc_pci230: registered irq %d\n", dev->minor, devpriv->pci_dev->irq);
+		printk("comedi%d: amplc_pci230: registered irq %u\n", dev->minor, devpriv->pci_dev->irq);
 	}
 	
 /*

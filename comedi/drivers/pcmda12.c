@@ -158,10 +158,10 @@ static int ao_rinsn(comedi_device *dev,comedi_subdevice *s,
 static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-    int iobase;
+    unsigned long iobase;
 
     iobase = it->options[0];
-	printk("comedi%d: %s: io: %x %s ", dev->minor, driver.driver_name, iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
+	printk("comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name, iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
     if ( !request_region(iobase, 
                          IOSIZE, 

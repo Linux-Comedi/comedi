@@ -1343,7 +1343,7 @@ next_entry:
     if (link->conf.Vpp1)
 	printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %u", link->irq.AssignedIRQ);
     if (link->io.NumPorts1)
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);

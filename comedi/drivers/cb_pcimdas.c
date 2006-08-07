@@ -146,11 +146,11 @@ typedef struct{
 	struct pci_dev *pci_dev;
 
 	//base addresses
-	unsigned int BADR0;
-	unsigned int BADR1;
-	unsigned int BADR2;
-	unsigned int BADR3;
-	unsigned int BADR4;
+	unsigned long BADR0;
+	unsigned long BADR1;
+	unsigned long BADR2;
+	unsigned long BADR3;
+	unsigned long BADR4;
 
 	/* Used for AO readback */
 	lsampl_t ao_readback[2];
@@ -278,11 +278,11 @@ found:
 	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4); 
 
 #ifdef CBPCIMDAS_DEBUG
-	printk("devpriv->BADR0 = %d\n",devpriv->BADR0);
-	printk("devpriv->BADR1 = %d\n",devpriv->BADR1);
-	printk("devpriv->BADR2 = %d\n",devpriv->BADR2);
-	printk("devpriv->BADR3 = %d\n",devpriv->BADR3);
-	printk("devpriv->BADR4 = %d\n",devpriv->BADR4);
+	printk("devpriv->BADR0 = 0x%lx\n",devpriv->BADR0);
+	printk("devpriv->BADR1 = 0x%lx\n",devpriv->BADR1);
+	printk("devpriv->BADR2 = 0x%lx\n",devpriv->BADR2);
+	printk("devpriv->BADR3 = 0x%lx\n",devpriv->BADR3);
+	printk("devpriv->BADR4 = 0x%lx\n",devpriv->BADR4);
 #endif
 
 
@@ -290,7 +290,7 @@ found:
 //	// get irq
 //	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, SA_SHIRQ, "cb_pcimdas", dev ))
 //	{
-//		printk(" unable to allocate irq %d\n", devpriv->pci_dev->irq);
+//		printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq);
 //		return -EINVAL;
 //	}
 //	dev->irq = devpriv->pci_dev->irq;
@@ -331,8 +331,7 @@ found:
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
 	if(thisboard->has_dio){
-		subdev_8255_init(dev, s, NULL,
-			(unsigned long)(devpriv->BADR4));
+		subdev_8255_init(dev, s, NULL, devpriv->BADR4);
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -356,11 +355,11 @@ static int cb_pcimdas_detach(comedi_device *dev)
 #ifdef CBPCIMDAS_DEBUG
 	if(devpriv)
 	{
-		printk("devpriv->BADR0 = %d\n",devpriv->BADR0);
-		printk("devpriv->BADR1 = %d\n",devpriv->BADR1);
-		printk("devpriv->BADR2 = %d\n",devpriv->BADR2);
-		printk("devpriv->BADR3 = %d\n",devpriv->BADR3);
-		printk("devpriv->BADR4 = %d\n",devpriv->BADR4);
+		printk("devpriv->BADR0 = 0x%lx\n",devpriv->BADR0);
+		printk("devpriv->BADR1 = 0x%lx\n",devpriv->BADR1);
+		printk("devpriv->BADR2 = 0x%lx\n",devpriv->BADR2);
+		printk("devpriv->BADR3 = 0x%lx\n",devpriv->BADR3);
+		printk("devpriv->BADR4 = 0x%lx\n",devpriv->BADR4);
 	}
 #endif
 	printk("comedi%d: cb_pcimdas: remove\n",dev->minor);

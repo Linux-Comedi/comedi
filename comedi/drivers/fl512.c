@@ -75,7 +75,7 @@ static int fl512_ai_insn(comedi_device *dev,
   int n;
   unsigned int lo_byte, hi_byte;
   char chan = CR_CHAN(insn->chanspec);
-  int iobase = dev->iobase;
+  unsigned long iobase = dev->iobase;
 
   for(n=0; n<insn->n; n++) {          /* sample n times on selected channel */
     /* XXX probably can move next step out of for() loop -- will make
@@ -101,7 +101,7 @@ static int fl512_ao_insn(comedi_device *dev,
 {
   int n;
   int chan = CR_CHAN(insn->chanspec);                  /* get chan to write */
-  int iobase = dev->iobase;                             /* get base address  */
+  unsigned long iobase = dev->iobase;                  /* get base address  */
 
   for (n=0; n<insn->n; n++) {                            /* write n data set */
     outb(data[n] & 0x0ff, iobase+4+2*chan);            /* write low byte   */
@@ -137,12 +137,12 @@ static int fl512_ao_insn_readback(comedi_device *dev,
  */
 static int fl512_attach(comedi_device *dev,comedi_devconfig *it)
 {
-  int iobase;
+  unsigned long iobase;
   comedi_subdevice *s;      /* pointer to the subdevice:
           Analog in, Analog out, ( not made ->and Digital IO) */
 
   iobase = it->options[0];
-  printk("comedi:%d fl512: 0x%04x",dev->minor,iobase);
+  printk("comedi:%d fl512: 0x%04lx",dev->minor,iobase);
   if (!request_region(iobase, FL512_SIZE, "fl512")) {
     printk(" I/O port conflict\n");
     return -EIO;

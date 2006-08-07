@@ -306,8 +306,8 @@ typedef struct
 {
 	struct pci_dev *hw_dev;	// pointer to board's pci_dev struct
 	// base addresses (physical)
-	unsigned long plx9080_phys_iobase;
-	unsigned long hpdi_phys_iobase;
+	resource_size_t plx9080_phys_iobase;
+	resource_size_t hpdi_phys_iobase;
 	// base addresses (ioremapped)
 	void *plx9080_iobase;
 	void *hpdi_iobase;
@@ -606,19 +606,19 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	DEBUG_PRINT(" plx9080 remapped to 0x%lx\n", priv(dev)->plx9080_iobase);
-	DEBUG_PRINT(" hpdi remapped to 0x%lx\n", priv(dev)->hpdi_iobase);
+	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", priv(dev)->plx9080_iobase);
+	DEBUG_PRINT(" hpdi remapped to 0x%p\n", priv(dev)->hpdi_iobase);
 
 	// get irq
 	if( comedi_request_irq( pcidev->irq, handle_interrupt, SA_SHIRQ, driver_hpdi.driver_name,
 		 dev ) )
 	{
-		printk( " unable to allocate irq %d\n", pcidev->irq );
+		printk( " unable to allocate irq %u\n", pcidev->irq );
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
 
-	printk(" irq %i\n", dev->irq);
+	printk(" irq %u\n", dev->irq);
 
 	init_plx9080(dev);
 

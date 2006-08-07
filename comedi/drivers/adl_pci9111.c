@@ -353,10 +353,10 @@ COMEDI_INITCLEANUP(pci9111_driver);
 typedef struct
 {
 	struct pci_dev*	pci_device;
-	int		io_range;			// PCI6503 io range
+	unsigned long	io_range;			// PCI6503 io range
 
-	int		lcr_io_base;			// Local configuration register base address
-	int		lcr_io_range;
+	unsigned long	lcr_io_base;			// Local configuration register base address
+	unsigned long	lcr_io_range;
 
 	int		stop_counter;
 	int		stop_is_none;
@@ -397,7 +397,7 @@ pci9111_private_data_struct;
 #define PLX9050_PCI_INTERRUPT_ENABLE	(1 << 6)
 #define PLX9050_SOFTWARE_INTERRUPT	(1 << 7)
 
-static void plx9050_interrupt_control (int io_base,
+static void plx9050_interrupt_control (unsigned long io_base,
 				       bool LINTi1_enable,
 				       bool LINTi1_active_high,
 				       bool LINTi2_enable,
@@ -1256,7 +1256,7 @@ static int pci9111_reset (comedi_device *dev)
 static int pci9111_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *subdevice;
-	int io_base, io_range, lcr_io_base, lcr_io_range;
+	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 	struct pci_dev* pci_device;
 	int error,i;
 	pci9111_board_struct* board;
@@ -1323,9 +1323,9 @@ found:
 	// Read local configuration register base address [PCI_BASE_ADDRESS #1].
 	
 	lcr_io_base = pci_resource_start (pci_device, 1);
-	lcr_io_range = pci_resource_end (pci_device, 1) - lcr_io_base +1;
+	lcr_io_range = pci_resource_len (pci_device, 1);
 	
-	printk ("comedi%d: local configuration registers at address 0x%4x [0x%4x]\n",
+	printk ("comedi%d: local configuration registers at address 0x%4lx [0x%4lx]\n",
 		dev->minor,
 		lcr_io_base,
 		lcr_io_range);
@@ -1340,9 +1340,9 @@ found:
 	// Read PCI6308 register base address [PCI_BASE_ADDRESS #2].
 	
 	io_base = pci_resource_start (pci_device, 2);
-	io_range = pci_resource_end (pci_device, 2) - io_base +1;
+	io_range = pci_resource_len (pci_device, 2);
 	
-	printk ("comedi%d: 6503 registers at address 0x%4x [0x%4x]\n",
+	printk ("comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
 		dev->minor,
 		io_base,
 		io_range);
@@ -1374,7 +1374,7 @@ found:
 			PCI9111_DRIVER_NAME, 
 			dev)!=0)
 		{
-			printk ("comedi%d: unable to allocate irq  %d\n", dev->minor, pci_device->irq);
+			printk ("comedi%d: unable to allocate irq  %u\n", dev->minor, pci_device->irq);
 			return -EINVAL;
 		}
 	}

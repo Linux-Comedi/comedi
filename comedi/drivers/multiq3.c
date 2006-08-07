@@ -231,12 +231,12 @@ static void encoder_reset(comedi_device *dev) {
 static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
 {
   int result = 0;
-  int iobase;
-      int irq;
+  unsigned long iobase;
+      unsigned int irq;
       comedi_subdevice *s;
 
     iobase = it->options[0];
-    printk("comedi%d: multiq3: 0x%04x ", dev->minor, iobase);
+    printk("comedi%d: multiq3: 0x%04lx ", dev->minor, iobase);
     if (!request_region(iobase, MULTIQ3_SIZE, "multiq3")) {
       printk("comedi%d: I/O port conflict\n", dev->minor);
       return -EIO;
@@ -245,9 +245,9 @@ static int multiq3_attach(comedi_device * dev, comedi_devconfig * it)
       dev->iobase = iobase;
 
       irq = it->options[1];
-      if (irq > 0) {
-       printk("comedi%d: irq = %d ignored\n", dev->minor, irq);
-      } else if(irq == 0) {
+      if (irq) {
+       printk("comedi%d: irq = %u ignored\n", dev->minor, irq);
+      } else {
        printk("comedi%d: no irq\n", dev->minor);
       }
       dev->board_name = "multiq3";

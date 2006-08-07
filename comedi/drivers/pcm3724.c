@@ -70,7 +70,7 @@ typedef struct {
 	int 		dio;		// num of DIO
 	int		numofports;	// num of 8255 subdevices
 	unsigned int 	IRQbits;	// allowed interrupts
-	int 		io_range;	// len of IO space
+	unsigned int 	io_range;	// len of IO space
 } boardtype;
 
 //used to track configured dios 
@@ -101,16 +101,16 @@ COMEDI_INITCLEANUP(driver_pcm3724);
 
 static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
-	int iobase=arg;
+	unsigned long iobase=arg;
 	unsigned char inbres;
-	//printk("8255cb %d %d %d %x\n", dir,port,data,arg);
+	//printk("8255cb %d %d %d %lx\n", dir,port,data,arg);
 	if(dir){
-		//printk("8255 cb   outb(%x, %x)\n", data, iobase+port);
+		//printk("8255 cb   outb(%x, %lx)\n", data, iobase+port);
 	        outb(data,iobase+port);
 		return 0;
 	}else{
 		inbres = inb(iobase+port);
-		//printk("8255 cb   inb(%x) = %x\n", iobase+port, inbres);
+		//printk("8255 cb   inb(%lx) = %x\n", iobase+port, inbres);
 		return inbres;
 	}
 }
@@ -150,7 +150,7 @@ static void do_3724_config(comedi_device *dev,comedi_subdevice *s,
 {
 	int config;
 	int buffer_config;
-	int port_8255_cfg;
+	unsigned long port_8255_cfg;
 
 	config=CR_CW;
 	buffer_config = 0;
@@ -176,7 +176,7 @@ static void do_3724_config(comedi_device *dev,comedi_subdevice *s,
 		port_8255_cfg = dev->iobase + SIZE_8255 + _8255_CR;
 	}
 	outb(buffer_config, dev->iobase + 8); /* update buffer register */
-	//printk("pcm3724 buffer_config (%x) %d, %x\n", dev->iobase + _8255_CR, chanspec, buffer_config);
+	//printk("pcm3724 buffer_config (%lx) %d, %x\n", dev->iobase + _8255_CR, chanspec, buffer_config);
 	outb(config, port_8255_cfg);
 }
 
@@ -259,7 +259,8 @@ static int subdev_3724_insn_config(comedi_device *dev, comedi_subdevice *s,
 
 static int pcm3724_attach(comedi_device *dev,comedi_devconfig *it)
 {
-        int iobase,iorange;
+        unsigned long iobase;
+	unsigned int iorange;
 	int ret,i,n_subdevices;
 
         iobase=it->options[0];
@@ -270,7 +271,7 @@ static int pcm3724_attach(comedi_device *dev,comedi_devconfig *it)
 	((priv_pcm3724*)(dev->private))->dio_1 = 0;
 	((priv_pcm3724*)(dev->private))->dio_2 = 0;
 
-	printk("comedi%d: pcm3724: board=%s, 0x%03x ",dev->minor,
+	printk("comedi%d: pcm3724: board=%s, 0x%03lx ",dev->minor,
 		this_board->name,iobase);
 	if(!iobase || !request_region(iobase, iorange, "pcm3724")){
 		printk("I/O port conflict\n");

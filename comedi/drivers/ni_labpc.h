@@ -77,7 +77,7 @@ typedef struct{
 extern labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
 
 int labpc_common_attach( comedi_device *dev, unsigned long iobase,
-	int irq, int dma );
+	unsigned int irq, unsigned int dma );
 int labpc_common_detach( comedi_device *dev );
 
 

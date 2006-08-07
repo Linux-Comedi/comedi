@@ -187,7 +187,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	}
 	dev->irq = link->irq.AssignedIRQ;
-	printk("irq=%d ",dev->irq);
+	printk("irq=%u ",dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
 	if(!dev->board_ptr)return -EIO;
@@ -949,7 +949,7 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	if (link->conf.Vpp1)
 	printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %u", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1+link->io.NumPorts1-1);

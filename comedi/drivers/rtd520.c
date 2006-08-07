@@ -750,9 +750,9 @@ static int rtd_attach (
     comedi_subdevice *s;
     struct pci_dev* pcidev;
     int	ret;
-    unsigned long physLas0;		/* configuation */
-    unsigned long physLas1;		/* data area */
-    unsigned long physLcfg;		/* PLX9080 */
+    resource_size_t physLas0;		/* configuation */
+    resource_size_t physLas1;		/* data area */
+    resource_size_t physLcfg;		/* PLX9080 */
 #ifdef USE_DMA
     int index;
 #endif
@@ -829,8 +829,9 @@ static int rtd_attach (
     	return -ENOMEM;
     }
 
-    DPRINTK ("%s: LAS0=%lx, LAS1=%lx, CFG=%lx.\n", dev->board_name,
-	     physLas0, physLas1, physLcfg);
+    DPRINTK ("%s: LAS0=%llx, LAS1=%llx, CFG=%llx.\n", dev->board_name,
+	     (unsigned long long)physLas0, (unsigned long long)physLas1,
+	     (unsigned long long)physLcfg);
     {					/* The RTD driver does this */
 	unsigned char pci_latency;
 	u16 revision;
@@ -924,11 +925,11 @@ static int rtd_attach (
 	/* check if our interrupt is available and get it */
 	if((ret=comedi_request_irq (devpriv->pci_dev->irq, rtd_interrupt,
 		SA_SHIRQ, "rtd520", dev)) < 0) {
-		printk("Could not get interrupt! (%d)\n", devpriv->pci_dev->irq);
+		printk("Could not get interrupt! (%u)\n", devpriv->pci_dev->irq);
 		return ret;
 	}
 	dev->irq = devpriv->pci_dev->irq;
-	printk("( irq=%d )", dev->irq);
+	printk("( irq=%u )", dev->irq);
 
 #ifdef USE_DMA
     if (dev->irq > 0) {

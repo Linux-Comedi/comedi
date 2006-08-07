@@ -486,7 +486,7 @@ static comedi_lrange *ai_range_lkup(int type,int opt)
 static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase;
+	unsigned long iobase;
 	int board_code,type;
 	int ret=0;
 	int n_ai_chans;
@@ -514,7 +514,7 @@ static int dt2801_attach(comedi_device *dev,comedi_devconfig *it)
 
 havetype:
 	dev->board_ptr = boardtypes+type;
-	printk("dt2801: %s at port 0x%x",boardtype.name,iobase);
+	printk("dt2801: %s at port 0x%lx",boardtype.name,iobase);
 
 	n_ai_chans=probe_number_of_ai_chans(dev);
 	printk(" (ai channels = %d)",n_ai_chans);

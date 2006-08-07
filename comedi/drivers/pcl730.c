@@ -30,7 +30,7 @@ static int pcl730_detach(comedi_device *dev);
 
 typedef struct {
 	char	*name;		// driver name
-	int		io_range;	// len of I/O space
+	unsigned int	io_range;	// len of I/O space
 } boardtype;
 
 static boardtype boardtypes[] =
@@ -89,11 +89,12 @@ static int pcl730_di_insn(comedi_device *dev,comedi_subdevice *s,
 static int pcl730_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase, iorange;
+	unsigned long iobase;
+	unsigned int iorange;
 
 	iobase=it->options[0];
 	iorange=this_board->io_range;
-	printk("comedi%d: pcl730: board=%s 0x%04x ", dev->minor,
+	printk("comedi%d: pcl730: board=%s 0x%04lx ", dev->minor,
 		   	this_board->name, iobase);
 	if( !request_region(iobase, iorange, "pcl730") ) {
 		printk("I/O port conflict\n");

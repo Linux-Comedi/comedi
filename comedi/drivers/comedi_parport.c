@@ -284,12 +284,12 @@ static irqreturn_t parport_interrupt(int irq,void *d,struct pt_regs *regs)
 static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	int ret;
-	int irq;
-	int iobase;
+	unsigned int irq;
+	unsigned long iobase;
 	comedi_subdevice *s;
 
 	iobase=it->options[0];
-	printk("comedi%d: parport: 0x%04x ",dev->minor,iobase);
+	printk("comedi%d: parport: 0x%04lx ",dev->minor,iobase);
 	if(!request_region(iobase,PARPORT_SIZE,"parport (comedi)")){
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -298,7 +298,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 
 	irq=it->options[1];
 	if(irq){
-		printk(" irq=%d",irq);
+		printk(" irq=%u",irq);
 		ret = comedi_request_irq(irq,parport_interrupt,0,
 			"comedi_parport",dev);
 		if(ret<0){

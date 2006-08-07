@@ -117,7 +117,7 @@ MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 typedef struct{
 	/* PCI device */
 	struct pci_dev *pci_dev;
-	int lcr_iobase;	/* PLX PCI9052 config registers in PCIBAR1 */
+	unsigned long lcr_iobase;	/* PLX PCI9052 config registers in PCIBAR1 */
 	int enable_irq;
 }pc236_private;
 
@@ -165,7 +165,8 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev = NULL;
-	int iobase = 0, irq = 0;
+	unsigned long iobase = 0;
+	unsigned int irq = 0;
 	int bus = 0, slot = 0;
 	struct pci_device_id *pci_id;
 	int share_irq = 0;
@@ -303,14 +304,14 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 	}
 	if (thisboard->bustype == isa_bustype) {
-		printk("(base %#x) ", iobase);
+		printk("(base %#lx) ", iobase);
 	} else {
 		printk("(pci %02x:%02x.%x) ", pci_dev->bus->number,
 				PCI_SLOT(pci_dev->devfn),
 				PCI_FUNC(pci_dev->devfn));
 	}
 	if (irq) {
-		printk("(irq %d%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
+		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
 	} else {
 		printk("(no irq) ");
 	}

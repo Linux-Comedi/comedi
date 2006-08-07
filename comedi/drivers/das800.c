@@ -454,15 +454,15 @@ static irqreturn_t das800_interrupt(int irq, void *d, struct pt_regs *regs)
 static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
-	int iobase = it->options[0];
-	int irq = it->options[1];
+	unsigned long iobase = it->options[0];
+	unsigned int irq = it->options[1];
 	unsigned long irq_flags;
 	int board;
 
-	printk("comedi%d: das800: io 0x%x", dev->minor, iobase);
+	printk("comedi%d: das800: io 0x%lx", dev->minor, iobase);
 	if(irq)
 	{
-		printk(", irq %i", irq);
+		printk(", irq %u", irq);
 	}
 	printk("\n");
 
@@ -493,7 +493,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->board_ptr = das800_boards + board;
 
 	/* grab our IRQ */
-	if(irq == 1 || irq > 7 || irq < 0)
+	if(irq == 1 || irq > 7)
 	{
 		printk("irq out of range\n");
 		return -EINVAL;
@@ -502,7 +502,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	{
 		if(comedi_request_irq( irq, das800_interrupt, 0, "das800", dev ))
 		{
-			printk( "unable to allocate irq %d\n", irq);
+			printk( "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		}
 	}

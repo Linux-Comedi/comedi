@@ -27,7 +27,7 @@ struct pcilst_struct{
 	unsigned char	pci_bus;
 	unsigned char	pci_slot;
 	unsigned char	pci_func;
-	unsigned long	io_addr[5];
+	resource_size_t	io_addr[5];
 	unsigned int	irq;
 };
 
@@ -46,7 +46,7 @@ static int pci_card_free(struct pcilst_struct *amcc);
 static void pci_card_list_display(void);
 static int pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned long *io_addr, unsigned short *irq, unsigned short *master);
+	resource_size_t *io_addr, unsigned int *irq, unsigned short *master);
 
 /****************************************************************************/
 
@@ -197,9 +197,9 @@ static void pci_card_list_display(void)
 
 	for (inova=inova_devices; inova; inova=next) {
 		next=inova->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%8lx 0x%8lx  %2d  %2d\n",
+		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%8llx 0x%8llx  %2u  %2d\n",
 			inova->pci_bus,inova->pci_slot,inova->pci_func,inova->vendor,inova->device,inova->master?"yes":"no",
-			inova->io_addr[0],inova->io_addr[2],inova->irq,inova->used);
+			(unsigned long long)inova->io_addr[0],(unsigned long long)inova->io_addr[2],inova->irq,inova->used);
 		
 	}
 }
@@ -208,7 +208,7 @@ static void pci_card_list_display(void)
 /* return all card information for driver */
 static int pci_card_data(struct pcilst_struct *inova,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned long *io_addr, unsigned short *irq, unsigned short *master)
+	resource_size_t *io_addr, unsigned int *irq, unsigned short *master)
 {
 	int	i;
 	

@@ -101,10 +101,10 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int i;
-	int iobase;
+	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: rti802: 0x%04x ", dev->minor, iobase);
+	printk("comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, RTI802_SIZE, "rti802")) {
 		printk("I/O port conflict\n");
 		return -EIO;

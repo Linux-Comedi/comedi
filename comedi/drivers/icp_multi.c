@@ -194,7 +194,7 @@ typedef struct{
 	struct pcilst_struct	*card;			// pointer to card
 	char			valid;			// card is usable
 	void			*io_addr;		// Pointer to mapped io address
-	unsigned long		phys_iobase;		// Physical io address
+	resource_size_t		phys_iobase;		// Physical io address
 	unsigned int		AdcCmdStatus;		// ADC Command/Status register
 	unsigned int		DacCmdStatus;		// DAC Command/Status register
 	unsigned int		IntEnable;		// Interrupt Enable register
@@ -862,9 +862,10 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice 	*s;
 	int ret, subdev, n_subdevices;
-	unsigned short 		master,irq;
+	unsigned short 		master;
+	unsigned int		irq;
 	struct pcilst_struct 	*card=NULL;
-        unsigned long 		io_addr[5], iobase;
+        resource_size_t		io_addr[5], iobase;
 	unsigned char 		pci_bus, pci_slot, pci_func;
 
 	printk("icp_multi EDBG: BGN: icp_multi_attach(...)\n");
@@ -899,7 +900,8 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	iobase=io_addr[2];
 	devpriv->phys_iobase = iobase;
 
-	printk(", b:s:f=%d:%d:%d, io=0x%8lx \n", pci_bus, pci_slot, pci_func, iobase);
+	printk(", b:s:f=%d:%d:%d, io=0x%8llx \n", pci_bus, pci_slot, pci_func,
+			(unsigned long long)iobase);
 
 	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
 
@@ -909,7 +911,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 #ifdef ICP_MULTI_EXTDEBUG
-	printk("0x%08lx mapped to %p, ", iobase, devpriv->io_addr);
+	printk("0x%08llx mapped to %p, ", (unsigned long long)iobase, devpriv->io_addr);
 #endif
 
 	dev->board_name = this_board->name;
@@ -928,11 +930,11 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	if (this_board->have_irq) {
 		if (irq)  {
 			if (comedi_request_irq(irq, interrupt_service_icp_multi, SA_SHIRQ, "Inova Icp Multi", dev)) {
-				printk(", unable to allocate IRQ %d, DISABLING IT", irq);
+				printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 				irq=0; /* Can't use IRQ */
 			}
 			else
-				printk(", irq=%d", irq);
+				printk(", irq=%u", irq);
 		}
 		else
 			printk(", IRQ disabled");
