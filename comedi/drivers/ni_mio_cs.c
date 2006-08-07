@@ -451,6 +451,7 @@ static void mio_cs_config(dev_link_t *link)
 static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	dev_link_t *link;
+	int irq;
 	int ret;
 	
 	DPRINTK("mio_cs_attach(dev=%p,it=%p)\n",dev,it);
@@ -461,11 +462,11 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->driver=&driver_ni_mio_cs;
 	dev->iobase=link->io.BasePort1;
 
-	dev->irq=link->irq.AssignedIRQ;
+	irq=link->irq.AssignedIRQ;
 
 	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %d, ",
 		dev->minor,dev->driver->driver_name,dev->iobase,
-		dev->irq);
+		irq);
 
 #if 0
 	{
@@ -493,6 +494,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" irq not available\n");
 		return -EINVAL;
 	}
+	dev->irq = irq;
 	
 	/* allocate private area */
 	if((ret=ni_alloc_private(dev))<0)
