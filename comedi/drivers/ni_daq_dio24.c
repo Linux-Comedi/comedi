@@ -124,7 +124,9 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int iobase = 0;
+#ifdef incomplete
 	int irq = 0;
+#endif
 	dev_link_t *link;
 
 	/* allocate and initialize dev->private */
@@ -138,7 +140,9 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 			link = pcmcia_dev_list; /* XXX hack */
 			if(!link) return -EIO;
 			iobase = link->io.BasePort1;
+#ifdef incomplete
 			irq = link->irq.AssignedIRQ;
+#endif
 			break;
 		default:
 			printk("bug! couldn't determine board type\n");
@@ -146,10 +150,12 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 			break;
 	}
 	printk("comedi%d: ni_daq_dio24: %s, io 0x%x", dev->minor, thisboard->name, iobase);
+#ifdef incomplete
 	if(irq)
 	{
 		printk(", irq %i", irq);
 	}
+#endif
 
 	printk("\n");
 
@@ -161,6 +167,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->iobase = iobase;
 
+#ifdef incomplete
 	/* grab our IRQ */
 	if(irq < 0)
 	{
@@ -168,6 +175,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EINVAL;
 	}
 	dev->irq = irq;
+#endif
 
 	dev->board_name = thisboard->name;
 
