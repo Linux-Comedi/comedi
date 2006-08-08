@@ -520,7 +520,7 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	bi.buf_read_ptr = async->buf_read_ptr;
 	if(s==dev->read_subdev){
 		unsigned int n_munge_bytes;
-		
+
 		n_munge_bytes = bi.buf_write_count - s->async->munge_count;
 		comedi_buf_munge(dev, s, n_munge_bytes);
 	}
@@ -636,7 +636,11 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_SERIAL_CLOCK:
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
 	case INSN_CONFIG_SET_RTSI_CLOCK_MODE:
+	case INSN_CONFIG_ALT_SOURCE:
 		if( insn->n == 2 ) return 0;
+		break;
+	case INSN_CONFIG_PWM_OUTPUT:
+		if(insn->n == 5) return 0;
 		break;
 	//by default we allow the insn since we don't have checks for all possible cases yet
 	default:
