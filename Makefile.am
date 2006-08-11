@@ -22,8 +22,6 @@ EXTRA_DIST = autogen.sh \
 	Documentation/comedi/redhat-notes \
 	Documentation/comedi/drivers.txt \
 	Documentation/comedi/devices.txt \
-	Documentation/Configure.help \
-	Documentation/Configure.help.append \
 	include/asm/pgtable.h \
 	include/asm/div64.h \
 	include/asm/dma.h \

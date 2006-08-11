@@ -33,8 +33,6 @@ ni_pcimio: doesn't do DMA with AO
 
 ni_pcimio: ai COMEDI_WAKE_EOS doesn't work with DMA
 
-don't need Configure.help and Configure.help.append
-
 create separate fops structure for unconfigured devices (probably not)
 
 ni_mio_common: resetting AO sets ao chan 1 to -10V
