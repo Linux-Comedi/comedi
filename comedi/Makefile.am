@@ -20,6 +20,7 @@ clean-local:
 endif
 
 EXTRA_DIST = \
+ Kbuild \
  rt_pend_tq.h
 
 if CONFIG_COMEDI_RT

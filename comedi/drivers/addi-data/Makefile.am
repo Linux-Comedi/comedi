@@ -13,6 +13,7 @@ endif
 addi_common_ko_SOURCES = addi_common.c
 
 EXTRA_DIST = \
+	Kbuild \
 	APCI1710_82x54.c \
 	APCI1710_82x54.h \
 	APCI1710_Chrono.c \

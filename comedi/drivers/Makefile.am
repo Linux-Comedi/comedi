@@ -30,6 +30,7 @@ ni_labpc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 
 
 EXTRA_DIST = \
+ Kbuild \
  8253.h \
  8255.h \
  am9513.h \
