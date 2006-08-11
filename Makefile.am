@@ -36,15 +36,24 @@ EXTRA_DIST = autogen.sh \
 	include/linux/comedilib.h \
 	include/linux/compiler.h \
 	include/linux/config.h \
+	include/linux/delay.h \
 	include/linux/devfs_fs_kernel.h \
 	include/linux/device.h \
 	include/linux/interrupt.h \
+	include/linux/isapnp.h \
 	include/linux/kern_compat.h \
+	include/linux/kernel.h \
+	include/linux/kref.h \
 	include/linux/mm.h \
+	include/linux/mod_devicetable.h \
 	include/linux/module.h \
+	include/linux/moduleparam.h \
 	include/linux/pci.h \
+	include/linux/pci_ids.h \
+	include/linux/pnp.h \
 	include/linux/sched.h \
 	include/linux/time.h \
+	include/linux/types.h \
 	include/linux/usb.h \
 	include/linux/version.h \
 	include/linux/wrapper.h \
