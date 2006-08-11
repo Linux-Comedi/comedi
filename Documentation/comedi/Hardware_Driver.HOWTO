@@ -4,6 +4,7 @@ Hardware driver interface
 [ this is a little outdated -ds ]
 [ this is a lot outdated -fmh ]
 [ this is a little bit less outdated, hopefully -rs ]
+[ the 'adding new drivers' section has been updated -ija ]
 
 
 Table of Contents
@@ -71,13 +72,21 @@ the 'skel' driver) and modify it to your own needs. For integrating new
 drivers in the comedi source tree the following things have to be done:
 
 - Put your new driver into 'comedi/drivers/mydriver.c'. 
-- Edit 'comedi/Config.in' and add a new 'dep_tristate' line (look at the
-  other examples). Invent a senseful name for the driver's variable. 
-- Add a line to 'comedi/drivers/Makefile', using your freshly defined 
-  variable. 
+- Edit 'comedi/drivers/Makefile.am' and update 'module_PROGRAMS',
+  'pcmcia_modules', or 'usb_modules', depending on the type of driver.
+  Add a 'mydriver_KO_sources' macro set to your 'mydriver.c' file (look
+  at the other examples).  If your driver has its own include files, add
+  them to the EXTRA_DIST macro.
+- Edit 'comedi/drivers/Kbuild' and add a 'obj-m += mydriver.o',
+  'obj-$(COMEDI_CONFIG_PCMCIA_MODULES) += mydriver.o', or
+  'obj-$(COMEDI_CONFIG_USB_MODULES) += mydriver.o' line, depending on the
+  type of driver.
 
-Now 'make distclean', reconfigure comedi with a new 'make', rebuild and be
-happy. If you want to have your driver included in the comedi distribution
+Now run 'autoreconf' to update the configure script, re-run './configure'
+with any necessary command-line options to update the makefiles, and run
+'make' to rebuild comedi and be happy.
+
+If you want to have your driver included in the comedi distribution
 (you _definitely_ want to :) ) send it to David Schleef <ds@schleef.org> for
 review and integration.
 
