@@ -21,13 +21,13 @@ basedriver=$(basename ${driver} .c)
 # special cases
 case ${driver} in
 	ni_pcimio.c)
-		driver="${driver} ni_mio_common.c"
+		driver="${driver} ni_mio_common.c mite.c"
 		;;
 	ni_atmio.c)
-		driver="${driver} ni_mio_common.c"
+		driver="${driver} ni_mio_common.c mite.c"
 		;;
 	ni_mio_cs.c)
-		driver="${driver} ni_mio_common.c"
+		driver="${driver} ni_mio_common.c mite.c"
 		;;
 esac
 
@@ -45,17 +45,17 @@ if ! grep '[[:space:]]\+module:[[:space:]]*THIS_MODULE' ${driver} &>/dev/null;th
 	echo "E: doesn't set driver->module to THIS_MODULE"
 fi
 
-# check the Makefile for the config option
-config=$(grep "CONFIG.*${basedriver}.o" Makefile|sed 's/.*\(CONFIG_.*\)\{1\}).*/\1/')
-if [ "$config" = "" ];then
-	echo "E: can't find config option!"
-else
-	echo config option $config
+# check Makefile.am for the driver
+if ! grep "${basedriver}\.ko" Makefile.am &>/dev/null; then
+	echo "E: ${basedriver}.ko missing from module_PROGRAMS in Makefile.am"
+fi
+if ! grep "${basedriver}_ko_SOURCES" Makefile.am &>/dev/null; then
+	echo "E: ${basedriver}_ko_SOURCES line missing from Makefile.am"
 fi
 
-# check Makefile.in for the config option
-if [ $(grep "CONFIG.*${basedriver}.o" Makefile &>/dev/null) ];then
-	echo "E: driver missing from Makefile.in"
+# check Kbuild for the driver
+if ! grep "obj-.*+=.*${basedriver}\.o" Kbuild &>/dev/null; then
+	echo "E: driver missing from Kbuild"
 fi
 
 # check to see if it uses name recognition
@@ -194,11 +194,34 @@ fi
 if grep 'pci_dev' ${driver} &>/dev/null;then
 	pci=yes
 	echo uses pci
-	if ! grep 'pci_find_device' ${driver} &>/dev/null;then
-		echo "W: doesn't use pci_find_device"
+	if ! grep 'pci_get_\(device\|subsys\)' ${driver} &>/dev/null; then
+		echo "W: doesn't use pci_get_device or pci_get_subsys"
+		if grep 'pci_find_device' ${driver} &>/dev/null; then
+			echo "W: recommend using pci_get_device instead of pci_find_device"
+		fi
+		if grep 'pci_find_subsys' ${driver} &>/dev/null; then
+			echo "W: recommend using pci_get_subsys instead of pci_find_subsys"
+		fi
+	else
+		if ! grep 'pci_dev_put' ${driver} &>/dev/null; then
+			echo "E: doesn't use pci_dev_put"
+		fi
 	fi
 	if ! grep 'pci_enable_device' ${driver} &>/dev/null;then
 		echo "W: doesn't use pci_enable_device"
+	else
+		if ! grep 'pci_disable_device' ${driver} &>/dev/null; then
+			echo "W: doesn't use pci_disable_device"
+			echo "W: recommend calling pci_disable_device after pci_release_regions"
+			echo "   if pci_enable_device and pci_request_regions succeeded"
+		fi
+	fi
+	if ! grep 'pci_request_regions' ${driver} &>/dev/null; then
+		echo "W: doesn't use pci_request_regions"
+	else
+		if ! grep 'pci_release_regions' ${driver} &>/dev/null; then
+			echo "E: doesn't use pci_release_regions"
+		fi
 	fi
 	if ! grep 'MODULE_DEVICE_TABLE' ${driver} &>/dev/null;then
 		echo "W: doesn't use MODULE_DEVICE_TABLE"
@@ -269,7 +292,7 @@ fi
 
 # This is a bug that causes difficulty to unload a driver.  Easy
 # to fix.
-if grep 'request_region.*dev.*iobase' ${driver} &>/dev/null;then
+if grep 'request_region.*dev *-> *iobase' ${driver} &>/dev/null;then
 	echo "W: recommend assigning dev->iobase after successful request_region()"
 fi
 
@@ -339,13 +362,6 @@ else
 	echo "E: not documented in source"
 fi
 
-# Check that the config option is in Config.in
-if grep "dep_tristate.* ${config} \$CONFIG_COMEDI" ../Config.in &>/dev/null;then
-	echo "config option in Config.in"
-else
-	echo "E: config option not in Config.in (or broken)"
-fi
-
 # Check if the driver contains ^M
 if grep '' ${driver} &>/dev/null;then
 	echo "E: driver has ^M characters"
@@ -357,7 +373,7 @@ if [ -f "${basedriver}.o" ];then
 	echo "number of global symbols: $n_syms"
 	n_xsyms=$(nm ${basedriver}.o |grep -c ' __ksymtab')
 	echo "number of exported symbols: $n_xsyms"
-	if [ $(($n_syms-$n_xsyms)) -gt 2 ];then
+	if [ $(($n_syms-$n_xsyms)) -gt $(($(grep -c 'MODULE_DEVICE_TABLE' ${basedriver}.c)+2)) ];then
 		echo "W: driver leaks symbols"
 	fi
 fi
