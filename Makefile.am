@@ -41,7 +41,6 @@ EXTRA_DIST = autogen.sh \
 	include/linux/device.h \
 	include/linux/interrupt.h \
 	include/linux/isapnp.h \
-	include/linux/kern_compat.h \
 	include/linux/kernel.h \
 	include/linux/kref.h \
 	include/linux/mm.h \
