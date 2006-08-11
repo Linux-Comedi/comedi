@@ -309,7 +309,7 @@ static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
 	iobase=it->options[0];
 	if(iobase==0)iobase=0x300;
 
-	printk("comedi%d: das6402: 0x%04x",dev->minor,iobase);
+	printk("comedi%d: das6402: 0x%04lx",dev->minor,iobase);
 
 	if(!request_region(iobase,DAS6402_SIZE,"das6402")){
 		printk(" I/O port conflict\n");
