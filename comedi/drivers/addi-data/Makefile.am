@@ -10,7 +10,8 @@ else
 module_PROGRAMS =
 endif
 
-addi_common_ko_SOURCES = addi_common.c
+#moving addi_common.c into EXTRA_DIST until the driver is fixed.
+#addi_common_ko_SOURCES = addi_common.c
 
 EXTRA_DIST = \
 	Kbuild \
@@ -35,6 +36,7 @@ EXTRA_DIST = \
 	addi_amcc_S5920.c \
 	addi_amcc_S5920.h \
 	addi_amcc_s5933.h \
+	addi_common.c \
 	addi_common.h \
 	addi_eeprom.c \
 	amcc_s5933_58.h \
