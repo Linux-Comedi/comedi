@@ -100,6 +100,8 @@ module_PROGRAMS = \
  amplc_pc236.ko \
  amplc_pc263.ko \
  amplc_dio200.ko \
+ aio_aio12_8.ko \
+ aio_iiro_16.ko \
  c6xdigio.ko \
  cb_pcidas.ko \
  cb_pcidas64.ko \
@@ -176,6 +178,8 @@ adl_pci9111_ko_SOURCES = adl_pci9111.c
 adl_pci9118_ko_SOURCES = adl_pci9118.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
 adv_pci_dio_ko_SOURCES = adv_pci_dio.c
+aio_aio12_8_ko_SOURCES = aio_aio12_8.c
+aio_iiro_16_ko_SOURCES = aio_iiro_16.c
 amplc_pci224_ko_SOURCES = amplc_pci224.c
 amplc_pci230_ko_SOURCES = amplc_pci230.c
 amplc_pc236_ko_SOURCES = amplc_pc236.c
