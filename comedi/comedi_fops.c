@@ -258,7 +258,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 
 		/* make sure buffer is an integral number of pages
 		 * (we round up) */
-		bc.size = (bc.size + 1)&PAGE_MASK;
+		bc.size = (bc.size + PAGE_SIZE - 1) & PAGE_MASK;
 
 		ret = comedi_buf_alloc(dev, s, bc.size);
 		if(ret < 0) return ret;
