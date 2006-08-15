@@ -293,7 +293,7 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
-	
+
 enum aimodes
 {
 	AIMODE_NONE = 0,
@@ -460,7 +460,7 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	comedi_subdevice *s = dev->subdevices + 0;
 	comedi_async *async = s->async;
 	unsigned int nbytes, old_alloc_count;
-	unsigned int bytes_per_scan = 2 * async->cmd.chanlist_len;
+	unsigned int bytes_per_scan = bytes_per_sample(s) * async->cmd.chanlist_len;
 
 	old_alloc_count = async->buf_write_alloc_count;
 	// write alloc as much as we can
@@ -500,7 +500,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int new_write_count;
 	u32 stop_count = async->cmd.stop_arg * sizeof(sampl_t);
-	
+
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
 
 	new_write_count = async->buf_write_count;
@@ -664,7 +664,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			s->async->events |= COMEDI_CB_ERROR;
 			if(status & (AI_Overrun_St | AI_Overflow_St))
 				s->async->events |= COMEDI_CB_OVERFLOW;
-			
+
 			comedi_event(dev,s,s->async->events);
 
 			return;
@@ -686,7 +686,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	if(status&AI_FIFO_Half_Full_St){
 		int i;
 		static const int timeout = 10;
-		/* pcmcia cards (at least 6036) seem to stop producing interrupts if we 
+		/* pcmcia cards (at least 6036) seem to stop producing interrupts if we
 		 *fail to get the fifo less than half full, so loop to be sure.*/
 		for(i = 0; i < timeout; ++i)
 		{
@@ -1132,7 +1132,7 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 	unsigned int length = num_bytes / bytes_per_sample(s);
 	sampl_t *array = data;
 	lsampl_t *larray = data;
-	
+
 	for(i = 0; i < length; i++)
 	{
 #ifdef PCIDMA
@@ -1420,7 +1420,7 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 	unsigned int dither;
 	unsigned int use_alt_src;
 	unsigned range_code;
-	
+
 	devpriv->stc_writew(dev, 1, Configuration_Memory_Clear);
 
 	offset = 1 << (boardtype.adbits - 1);
@@ -1431,7 +1431,7 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 		range = CR_RANGE(list[i]);
 		dither = ((list[i] & CR_ALT_FILTER) != 0);
 		use_alt_src = ((list[i] & CR_ALT_SOURCE) != 0);
-		
+
 		range_code = ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_offset[i] = offset;
 
@@ -1859,7 +1859,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			unsigned int bits = AI_START2_Select(0)|
 				AI_START1_Sync |
 				AI_START1_Select(chan + 1);
-				
+
 			if(cmd->start_arg & CR_INVERT)
 				bits |= AI_START1_Polarity;
 			if(cmd->start_arg & CR_EDGE)
@@ -2136,21 +2136,21 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 			unsigned int calib_source;
 
 			calib_source = data[1] & 0xf;
-	
-	
+
+
 			if(calib_source > 0xF)
 				return -EINVAL;
-			
+
 			devpriv->ai_calib_source = calib_source;
 			ni_writew(calib_source, Calibration_Channel_6143);
 		}else
 		{
 			unsigned int calib_source;
 			unsigned int calib_source_adjust;
-	
+
 			calib_source = data[1] & 0xf;
 			calib_source_adjust = ( data[1] >> 4 ) & 0xff;
-	
+
 			if(calib_source >= 8)
 				return -EINVAL;
 			devpriv->ai_calib_source = calib_source;
@@ -2340,7 +2340,7 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 		}else
 		{
 			conf = AO_Channel(chan);
-	
+
 			if(boardtype.ao_unipolar){
 				if((range&1) == 0){
 					conf |= AO_Bipolar;
@@ -2354,11 +2354,11 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 				conf |= AO_Bipolar;
 				invert = (1<<(boardtype.aobits-1));
 			}
-	
+
 			/* not all boards can deglitch, but this shouldn't hurt */
 			if(chanspec[i] & CR_DEGLITCH)
 				conf |= AO_Deglitch;
-	
+
 			/* analog reference */
 			/* AREF_OTHER connects AO ground to AI ground, i think */
 			conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
@@ -2422,7 +2422,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	int interrupt_b_bits;
 	int i;
 	static const int timeout = 1000;
-	
+
 	if(trignum!=0)return -EINVAL;
 
 	ni_set_bits(dev, Interrupt_B_Enable_Register, AO_FIFO_Interrupt_Enable | AO_Error_Interrupt_Enable, 0);
@@ -2441,7 +2441,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	interrupt_b_bits |= AO_FIFO_Interrupt_Enable;
 #endif
-	
+
 	devpriv->stc_writew(dev, devpriv->ao_mode3|AO_Not_An_UPDATE,AO_Mode_3_Register);
 	devpriv->stc_writew(dev, devpriv->ao_mode3,AO_Mode_3_Register);
 	/* wait for DACs to be loaded */
@@ -2458,7 +2458,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	}
 	// stc manual says we are need to clear error interrupt after AO_TMRDACWRs_In_Progress_St clears
 	devpriv->stc_writew(dev, AO_Error_Interrupt_Ack, Interrupt_B_Ack_Register);
-	
+
 	ni_set_bits(dev, Interrupt_B_Enable_Register, interrupt_b_bits, 1);
 
 	devpriv->stc_writew(dev, devpriv->ao_cmd1|AO_UI_Arm|AO_UC_Arm|AO_BC_Arm|AO_DAC1_Update_Mode|AO_DAC0_Update_Mode,
@@ -2477,7 +2477,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	int trigvar;
 	int bits;
 	int i;
-	
+
 	if(dev->irq == 0)
 	{
 		comedi_error(dev, "cannot run command without an irq");
@@ -3028,7 +3028,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		printk("bug! boardtype.n_aochan > MAX_N_AO_CHAN\n");
 		return -EINVAL;
 	}
-	
+
 	if(alloc_subdevices(dev, 11) < 0)
 		return -ENOMEM;
 
@@ -3057,7 +3057,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
-		
+
 	/* analog output subdevice */
 
 	s=dev->subdevices+1;
@@ -3076,8 +3076,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		}
 #ifdef PCIDMA
 		if(boardtype.n_aochan){
-#else		
-		if(boardtype.ao_fifo_depth){ 
+#else
+		if(boardtype.ao_fifo_depth){
 #endif
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
@@ -3107,7 +3107,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* dio setup */
 	devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
 	devpriv->stc_writew(dev, devpriv->dio_control,DIO_Control_Register);
-	
+
 	/* 8255 device */
 	s=dev->subdevices+3;
 	if(boardtype.has_8255){
@@ -3154,7 +3154,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_write = &ni_calib_insn_write;
 		caldac_setup(dev, s);
 	}
-	
+
 	/* EEPROM */
 	s=dev->subdevices+6;
 	s->type=COMEDI_SUBD_MEMORY;
@@ -3358,7 +3358,7 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		switch(data[1])
 		{
 		case TRIG_ROUND_NEAREST:
-			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE; 
+			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE;
 			break;
 		case TRIG_ROUND_DOWN:
 			up_count = data[2] / TIMER_BASE;
@@ -3417,7 +3417,7 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		switch(data[1])
 		{
 		case TRIG_ROUND_NEAREST:
-			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE; 
+			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE;
 			break;
 		case TRIG_ROUND_DOWN:
 			up_count = data[2] / TIMER_BASE;
@@ -3624,7 +3624,7 @@ static int pack_dac8043(int addr,int val,int *bitstring)
 	*bitstring=val&0xfff;
 	return 12;
 }
-	
+
 static int pack_ad8522(int addr,int val,int *bitstring)
 {
 	*bitstring=(val&0xfff)|(addr ? 0xc000:0xa000);
@@ -3683,15 +3683,15 @@ static void GPCT_Load_Using_A(comedi_device *dev, int chan, unsigned int value)
 }
 
 /*
- *	Read the GPCTs current value.  
+ *	Read the GPCTs current value.
  */
 static int GPCT_G_Watch(comedi_device *dev, int chan)
 {
 	unsigned int hi1,hi2,lo;
-	
+
 	devpriv->gpct_command[chan] &= ~G_Save_Trace;
 	devpriv->stc_writew(dev,  devpriv->gpct_command[chan],G_Command_Register(chan));
-	
+
 	devpriv->gpct_command[chan] |= G_Save_Trace;
 	devpriv->stc_writew(dev,  devpriv->gpct_command[chan], G_Command_Register(chan));
 
@@ -3719,13 +3719,13 @@ static int GPCT_Arm(comedi_device *dev, int chan)
 	devpriv->stc_writew(dev,  devpriv->gpct_command[chan] | G_Arm,G_Command_Register(chan));
 	/* If the counter is doing pulse width measurement, then make
 	 sure that the counter did not start counting right away.  This would
-	 indicate that we started acquiring the pulse after it had already 
+	 indicate that we started acquiring the pulse after it had already
 	 started and our measurement would be inaccurate */
 	if(devpriv->gpct_cur_operation[chan] == GPCT_SINGLE_PW){
-		int g_status; 
+		int g_status;
 
 		g_status=devpriv->stc_readw(dev, G_Status_Register);
-		
+
 		if(chan == 0){
 			//TIM 5/2/01 possible error with very short pulses
 			if((G0_Counting_St & g_status)|| !(G0_Armed_St&g_status)) {
@@ -3793,7 +3793,7 @@ static int GPCT_Set_Gate(comedi_device *dev,int chan ,int gate)
 static int GPCT_Set_Direction(comedi_device *dev,int chan,int direction)
 {
 	//printk("GPCT_Set_Direction...");
-	
+
 	devpriv->gpct_command[chan] &= ~G_Up_Down(0x3);
 	switch (direction) {
 		case GPCT_UP:
@@ -3820,15 +3820,15 @@ static void GPCT_Event_Counting(comedi_device *dev,int chan)
 
 	//NOTE: possible residual bits from multibit masks can corrupt
 	//If you config for several measurements between Resets, watch out!
-	
+
 	//printk("GPCT_Event_Counting...");
-	
+
 	devpriv->gpct_cur_operation[chan] = GPCT_SIMPLE_EVENT;
-	
+
 	// Gating_Mode = 1
 	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Gating_Mode(1);
-	
+
 	// Trigger_Mode_For_Edge_Gate = 1
 	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
 	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
@@ -3840,24 +3840,24 @@ static void GPCT_Event_Counting(comedi_device *dev,int chan)
 static void GPCT_Period_Meas(comedi_device *dev, int chan)
 {
 	//printk("GPCT_Period_Meas...");
-	
+
 	devpriv->gpct_cur_operation[chan] = GPCT_SINGLE_PERIOD;
 
-	
+
 	//NOTE: possible residual bits from multibit masks can corrupt
-	//If you config for several measurements between Resets, watch out!	
+	//If you config for several measurements between Resets, watch out!
 	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
 	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
-	
-	// Output_Mode = 3 
+
+	// Output_Mode = 3
 	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Output_Mode(3);
-	
-	
+
+
 	//Gating Mode=2
 	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Gating_Mode(2);
-	
+
 	// Trigger_Mode_For_Edge_Gate=0
 	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
 	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(0);
@@ -3870,12 +3870,12 @@ static void GPCT_Period_Meas(comedi_device *dev, int chan)
 	// Stop_Mode = 2
 	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Stop_Mode(0);
-	
-	// Counting_Once = 2 
+
+	// Counting_Once = 2
 	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
 	devpriv->gpct_mode[chan] |= G_Counting_Once(2);
 
-	// Up_Down = 1 
+	// Up_Down = 1
 	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
 	devpriv->gpct_command[chan] |= G_Up_Down(1);
 
@@ -3893,14 +3893,14 @@ static void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan)
 	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
 	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 
-	// Output_Mode = 3 
+	// Output_Mode = 3
 	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Output_Mode(3);
-	
+
 	//Gating Mode=1
 	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Gating_Mode(1);//TIM 4/24/01 was 2
-	
+
 	// Trigger_Mode_For_Edge_Gate=2
 	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
 	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);//TIM 4/24/01 was 0
@@ -3915,12 +3915,12 @@ static void GPCT_Pulse_Width_Meas(comedi_device *dev, int chan)
 	// Stop_Mode = 0
 	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Stop_Mode(0);
-	
-	// Counting_Once = 2 
+
+	// Counting_Once = 2
 	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
 	devpriv->gpct_mode[chan] |= G_Counting_Once(2);
 
-	// Up_Down = 1 
+	// Up_Down = 1
 	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
 	devpriv->gpct_command[chan] |= G_Up_Down(1);
 
@@ -3944,18 +3944,18 @@ static void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int len
 
 	//Load next time using B, This is reset by GPCT_Load_Using_A()
 	devpriv->gpct_mode[chan] |= G_Load_Source_Select;
-	
+
 	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
 	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 
-	// Output_Mode = 3 
+	// Output_Mode = 3
 	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
-	
+
 	//Gating Mode=0 for untriggered single pulse
 	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Gating_Mode(0); //TIM 4/25/01 was 1
-	
+
 	// Trigger_Mode_For_Edge_Gate=0
 	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
 	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
@@ -3969,12 +3969,12 @@ static void GPCT_Gen_Single_Pulse(comedi_device *dev, int chan, unsigned int len
 	// Stop_Mode = 2
 	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Stop_Mode(2); //TIM 4/25/01
-	
-	// Counting_Once = 2 
+
+	// Counting_Once = 2
 	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
 	devpriv->gpct_mode[chan] |= G_Counting_Once(1); //TIM 4/25/01
 
-	// Up_Down = 1 
+	// Up_Down = 1
 	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
 	devpriv->gpct_command[chan] |= G_Up_Down(0); //TIM 4/25/01 was 1
 
@@ -3995,18 +3995,18 @@ static void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int lengt
 
 	//Load next time using B, This is reset by GPCT_Load_Using_A()
 	devpriv->gpct_mode[chan] |= G_Load_Source_Select;
-	
+
 	devpriv->gpct_mode[chan] &= ~G_OR_Gate;
 	devpriv->gpct_mode[chan] &= ~G_Gate_Select_Load_Source;
 
-	// Output_Mode = 3 
+	// Output_Mode = 3
 	devpriv->gpct_mode[chan] &= ~(G_Output_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Output_Mode(2); //TIM 4/26/01 was 3
-	
+
 	//Gating Mode=0 for untriggered single pulse
 	devpriv->gpct_mode[chan] &= ~(G_Gating_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Gating_Mode(0); //TIM 4/26/01 was 0
-	
+
 	// Trigger_Mode_For_Edge_Gate=0
 	devpriv->gpct_mode[chan] &= ~(G_Trigger_Mode_For_Edge_Gate(0x3));
 	devpriv->gpct_mode[chan] |= G_Trigger_Mode_For_Edge_Gate(2);
@@ -4014,27 +4014,27 @@ static void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int lengt
 
 	devpriv->gpct_mode[chan] |= G_Reload_Source_Switching;
 	devpriv->gpct_mode[chan] &= ~G_Loading_On_Gate;
-	devpriv->gpct_mode[chan] |= G_Loading_On_TC; 
+	devpriv->gpct_mode[chan] |= G_Loading_On_TC;
 	devpriv->gpct_mode[chan] &= ~G_Gate_On_Both_Edges;
 
 	// Stop_Mode = 2
 	devpriv->gpct_mode[chan] &= ~(G_Stop_Mode(0x3));
 	devpriv->gpct_mode[chan] |= G_Stop_Mode(0); //TIM 4/26/01
-	
-	// Counting_Once = 2 
+
+	// Counting_Once = 2
 	devpriv->gpct_mode[chan] &= ~(G_Counting_Once(0x3));
 	devpriv->gpct_mode[chan] |= G_Counting_Once(0); //TIM 4/26/01
 
-	// Up_Down = 1 
+	// Up_Down = 1
 	devpriv->gpct_command[chan] &= ~(G_Up_Down(0x3));
-	devpriv->gpct_command[chan] |= G_Up_Down(0); 
+	devpriv->gpct_command[chan] |= G_Up_Down(0);
 
 	//TIM 4/26/01
 	//This seems pretty unsafe since I don't think it is cleared anywhere.
 	//I don't think this is working
 	//devpriv->gpct_command[chan] &= ~G_Bank_Switch_Enable;
 	//devpriv->gpct_command[chan] &= ~G_Bank_Switch_Mode;
-	
+
 
 	devpriv->stc_writew(dev,  devpriv->gpct_mode[chan],G_Mode_Register(chan));
 	devpriv->stc_writew(dev,  devpriv->gpct_command[chan],G_Command_Register(chan));
@@ -4045,7 +4045,7 @@ static void GPCT_Gen_Cont_Pulse(comedi_device *dev, int chan, unsigned int lengt
 static void GPCT_Reset(comedi_device *dev, int chan)
 {
 	int temp_ack_reg=0;
-	
+
 	//printk("GPCT_Reset...");
 	devpriv->gpct_cur_operation[chan] = GPCT_RESET;
 
@@ -4059,7 +4059,7 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 			temp_ack_reg |= G0_TC_Interrupt_Ack;
 			temp_ack_reg |= G0_Gate_Interrupt_Ack;
 			devpriv->stc_writew(dev, temp_ack_reg,Interrupt_A_Ack_Register);
-		
+
 			//problem...this interferes with the other ctr...
 			devpriv->an_trig_etc_reg |= GPFO_0_Output_Enable;
 			devpriv->stc_writew(dev, devpriv->an_trig_etc_reg, Analog_Trigger_Etc_Register);
@@ -4073,22 +4073,22 @@ static void GPCT_Reset(comedi_device *dev, int chan)
 			temp_ack_reg |= G1_TC_Interrupt_Ack;
 			temp_ack_reg |= G1_Gate_Interrupt_Ack;
 			devpriv->stc_writew(dev, temp_ack_reg,Interrupt_B_Ack_Register);
-		
+
 			devpriv->an_trig_etc_reg |= GPFO_1_Output_Enable;
 			devpriv->stc_writew(dev, devpriv->an_trig_etc_reg, Analog_Trigger_Etc_Register);
 			break;
 	};
-	
+
 	devpriv->gpct_mode[chan] = 0;
 	devpriv->gpct_input_select[chan] = 0;
 	devpriv->gpct_command[chan] = 0;
-	
+
 	devpriv->gpct_command[chan] |= G_Synchronized_Gate;
-	
+
 	devpriv->stc_writew(dev,  devpriv->gpct_mode[chan],G_Mode_Register(chan));
 	devpriv->stc_writew(dev,  devpriv->gpct_input_select[chan],G_Input_Select_Register(chan));
 	devpriv->stc_writew(dev,  0,G_Autoincrement_Register(chan));
-		
+
 	//printk("exit GPCT_Reset\n");
 }
 
@@ -4161,7 +4161,7 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	if(retval==0){
 		return insn->n;
 	}else{
-		if(data[0]!=GPCT_ARM){ 
+		if(data[0]!=GPCT_ARM){
 			printk("error: retval was %d\n",retval);
 			printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
 		}
@@ -4178,11 +4178,11 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 	//printk("in ni_gpct_insn_read, n=%d, data[0]=%d\n",insn->chanspec,data[0]);
 	if(insn->n!=1)return -EINVAL;
-		
+
 	data[0] = GPCT_G_Watch(dev,insn->chanspec);
-		
+
 	/* for certain modes (period and pulse width measurment), the value
-	in the counter is not valid until the counter stops.  If the value is 
+	in the counter is not valid until the counter stops.  If the value is
 	invalid, return a 0 */
 	if((cur_op == GPCT_SINGLE_PERIOD) || (cur_op == GPCT_SINGLE_PW)){
 		/* is the counter still running? */
@@ -4254,14 +4254,14 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 static void ni_rtsi_init(comedi_device *dev)
 {
 	// Initialises the RTSI bus signal switch to a default state
-	
+
 	// Set clock mode to internal
 	devpriv->stc_writew(dev, COMEDI_RTSI_CLOCK_MODE_INTERNAL, RTSI_Trig_Direction_Register);
 
 	// Standard internal lines are routed to standard RTSI bus lines
 	devpriv->stc_writew(dev, 0x3210, RTSI_Trig_A_Output_Register);
 	devpriv->stc_writew(dev, 0x0654, RTSI_Trig_B_Output_Register);
-	
+
 	// Sets the source and direction of the 4 on board lines
 //	devpriv->stc_writew(dev, 0x0000, RTSI_Board_Register);
 }
@@ -4295,7 +4295,7 @@ static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	else {
 		chan = CR_CHAN(insn->chanspec);
 		if(chan > 6) return -EINVAL;
-		
+
 		bit = 9 + chan;
 
 		switch(data[0]){
