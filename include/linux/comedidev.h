@@ -345,7 +345,7 @@ static inline int alloc_private(comedi_device *dev,int size)
 
 static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 {
-	if( subd->flags & SDF_LSAMPL )
+	if( subd->subdev_flags & SDF_LSAMPL )
 		return sizeof( lsampl_t );
 	else
 		return sizeof( sampl_t );
