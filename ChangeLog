@@ -1,3 +1,10 @@
+Comedi-0.7.73:
+Frank Hess:
+	Fixed max a/d speed for NI 628x boards.  Fixed some bugs with
+	subdevices using lsampl_t for commands.
+	Fixed rounding up of comedi's buffer size to integer multiple of
+	page size.
+
 Comedi-0.7.72:
 Ian Abbott:  Fixed building with Kbuild in release tarballs, and added
 	some missing compatibility headers to release tarballs. Added
