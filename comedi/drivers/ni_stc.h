@@ -997,6 +997,32 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 	return offset[channel];
 };
 
+enum MSeries_AI_Config_FIFO_Data_Bits
+{
+	MSeries_AI_Config_Channel_Type_Mask = 0x7 << 6,
+	MSeries_AI_Config_Channel_Type_Calibration_Bits = 0x0,
+	MSeries_AI_Config_Channel_Type_Differential_Bits = 0x1 << 6,
+	MSeries_AI_Config_Channel_Type_Common_Ref_Bits = 0x2 << 6,
+	MSeries_AI_Config_Channel_Type_Ground_Ref_Bits = 0x3 << 6,
+	MSeries_AI_Config_Channel_Type_Aux_Bits = 0x5 << 6,
+	MSeries_AI_Config_Channel_Type_Ghost_Bits = 0x7 << 6,
+	MSeries_AI_Config_Polarity_Bit = 0x1000,  // 0 for 2's complement encoding
+	MSeries_AI_Config_Dither_Bit = 0x2000,
+	MSeries_AI_Config_Last_Channel_Bit = 0x4000,
+};
+static inline unsigned MSeries_AI_Config_Channel_Bits(unsigned channel)
+{
+	return channel & 0xf;
+}
+static inline unsigned MSeries_AI_Config_Bank_Bits(unsigned channel)
+{
+	return channel & 0x30;
+}
+static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
+{
+	return (range & 0x7) << 9;
+}
+
 enum MSeries_AI_Config_FIFO_Bypass_Bits
 {
 	MSeries_AI_Bypass_Channel_Mask = 0x7,
@@ -1007,7 +1033,7 @@ enum MSeries_AI_Config_FIFO_Bypass_Bits
 	MSeries_AO_Bypass_AO_Cal_Sel_Mask = 0x38000,
 	MSeries_AI_Bypass_Gain_Mask = 0x1c0000,
 	MSeries_AI_Bypass_Dither_Bit = 0x200000,
-	MSeries_AI_Bypass_Polarity_Bit = 0x400000,
+	MSeries_AI_Bypass_Polarity_Bit = 0x400000, // 0 for 2's complement encoding
 	MSeries_AI_Bypass_Config_FIFO_Bit = 0x80000000
 };
 static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int calibration_source)
