@@ -1132,7 +1132,6 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 	unsigned int length = num_bytes / bytes_per_sample(s);
 	sampl_t *array = data;
 	lsampl_t *larray = data;
-
 	for(i = 0; i < length; i++)
 	{
 #ifdef PCIDMA
@@ -1407,15 +1406,12 @@ void ni_prime_channelgain_list(comedi_device *dev)
 	rt_printk("ni_mio_common: timeout loading channel/gain list\n");
 }
 
-/* m series boards have new ai_config_fifo_data register which replaces
- * old configuration_memory_low and high registers.  But the old registers still
- * seem to work, so I'm not going to bother to change it yet. */
 static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned int *list)
 {
 	unsigned int chan, range, aref;
 	unsigned int i;
-	unsigned int hi,lo;
+	unsigned config_bits = 0;
 	unsigned offset;
 	unsigned int dither;
 	unsigned int use_alt_src;
@@ -1423,7 +1419,8 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 
 	devpriv->stc_writew(dev, 1, Configuration_Memory_Clear);
 
-	offset = 1 << (boardtype.adbits - 1);
+// 	offset = 1 << (boardtype.adbits - 1);
+	offset = 0;
 	for(i = 0; i < n_chan; i++)
 	{
 		chan = CR_CHAN(list[i]);
@@ -1435,7 +1432,6 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 		range_code = ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_offset[i] = offset;
 
-		hi = 0;
 		if(use_alt_src)
 		{
 			unsigned bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
@@ -1446,6 +1442,8 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 			bypass_bits |= MSeries_AI_Bypass_Gain_Bits(range_code);
 			if(dither)
 				bypass_bits |= MSeries_AI_Bypass_Dither_Bit;
+			// don't use 2's complement encoding
+			bypass_bits |= MSeries_AI_Bypass_Polarity_Bit;
 			ni_writel(bypass_bits, M_Offset_AI_Config_FIFO_Bypass);
 		}else
 		{
@@ -1453,27 +1451,26 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 			switch( aref )
 			{
 				case AREF_DIFF:
-					hi |= AI_DIFFERENTIAL;
+					config_bits |= MSeries_AI_Config_Channel_Type_Differential_Bits;
 					break;
 				case AREF_COMMON:
-					hi |= AI_COMMON;
+					config_bits |= MSeries_AI_Config_Channel_Type_Common_Ref_Bits;
 					break;
 				case AREF_GROUND:
-					hi |= AI_GROUND;
+					config_bits |= MSeries_AI_Config_Channel_Type_Ground_Ref_Bits;
 					break;
 				case AREF_OTHER:
 					break;
 			}
+			config_bits |= MSeries_AI_Config_Channel_Bits(chan);
+			config_bits |= MSeries_AI_Config_Bank_Bits(chan);
+			config_bits |= MSeries_AI_Config_Gain_Bits(range_code);
+			if(i == n_chan - 1) config_bits |= MSeries_AI_Config_Last_Channel_Bit;
+			if(dither) config_bits |= MSeries_AI_Config_Dither_Bit;
+			// don't use 2's complement encoding
+ 			config_bits |= MSeries_AI_Config_Polarity_Bit;
+			ni_writew(config_bits, M_Offset_AI_Config_FIFO_Data);
 		}
-		hi |= AI_CONFIG_CHANNEL( chan );
-
-		ni_writew(hi,Configuration_Memory_High);
-
-		lo = range_code;
-		if(i == n_chan - 1) lo |= AI_LAST_CHANNEL;
-		if( dither ) lo |= AI_DITHER;
-
-		ni_writew(lo,Configuration_Memory_Low);
 	}
 	ni_prime_channelgain_list(dev);
 }
