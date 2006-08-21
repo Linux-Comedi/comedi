@@ -10,24 +10,14 @@
 
 static inline unsigned int jiffies_to_msecs(const unsigned long j)
 {
-#if HZ <= 1000 && !(1000 % HZ)
-	return (1000 / HZ) * j;
-#elif HZ > 1000 && !(HZ % 1000)
-	return (j + (HZ / 1000) - 1)/(HZ / 1000);
-#else
-	return (j * 1000) / HZ;
-#endif
+	/* This works for jiffies values up to ((ULONG_MAX + 1 - HZ) / 1000) */
+	return (j * 1000 + HZ - 1) / HZ;
 }
 
 static inline unsigned long msecs_to_jiffies(const unsigned int m)
 {
-#if HZ <= 1000 && !(1000 % HZ)
-	return (m + (1000 / HZ) - 1) / (1000 / HZ);
-#elif HZ > 1000 && !(HZ % 1000)
-	return m * (HZ / 1000);
-#else
+	/* This works for msecs values up to ((ULONG_MAX - 999) / HZ) */
 	return (m * HZ + 999) / 1000;
-#endif
 };
 
 #endif
