@@ -27,7 +27,7 @@ static inline struct class *class_create(struct module *owner, char *name)
 static inline void class_destroy(struct class *cs)
 {};
 
-static inline struct class_device *CLASS_DEVICE_CREATE(struct class *cls,
+static inline struct class_device *COMEDI_CLASS_DEVICE_CREATE(struct class *cls,
 	struct class_device *parent, dev_t devt, struct device *device,
 	char *fmt, ...)
 {
@@ -47,7 +47,7 @@ static inline void class_device_destroy(struct class *cs, dev_t dev)
 	(struct class *)class_simple_create(owner, name)
 #define class_destroy(cs) \
 	class_simple_destroy((struct class_simple *)(cs))
-#define CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
+#define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
 	class_simple_device_add((struct class_simple *)(cs), \
 		dev, device, fmt)
 #define class_device_destroy(cs, dev) \
@@ -57,12 +57,12 @@ static inline void class_device_destroy(struct class *cs, dev_t dev)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
-#define CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
+#define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
 	class_device_create(cs, dev, device, fmt)
 
 #else
 
-#define CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
+#define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
 	class_device_create(cs, parent, dev, device, fmt)
 
 #endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
