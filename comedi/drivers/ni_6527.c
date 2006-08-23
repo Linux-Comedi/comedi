@@ -152,7 +152,7 @@ static int ni6527_di_insn_config(comedi_device *dev,comedi_subdevice *s,
 	}else{
 		devpriv->filter_enable &= ~(1<<chan);
 	}
-	
+
 	writeb(devpriv->filter_enable, devpriv->mite->daq_io_addr + Filter_Enable(0));
 	writeb(devpriv->filter_enable>>8, devpriv->mite->daq_io_addr + Filter_Enable(1));
 	writeb(devpriv->filter_enable>>16, devpriv->mite->daq_io_addr + Filter_Enable(2));
@@ -276,7 +276,7 @@ static int ni6527_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(err)return 3;
 
 	/* step 4: fix up any arguments */
-	
+
 	if(err)return 4;
 
 	return 0;
@@ -285,12 +285,12 @@ static int ni6527_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,
 static int ni6527_intr_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	//comedi_cmd *cmd = &s->async->cmd;
-	
+
 	writeb(ClrEdge|ClrOverflow, devpriv->mite->daq_io_addr + Clear_Register);
 	writeb(FallingEdgeIntEnable|RisingEdgeIntEnable|
 		MasterInterruptEnable|EdgeIntEnable,
 		devpriv->mite->daq_io_addr + Master_Interrupt_Control);
-	
+
 	return 0;
 }
 
@@ -332,12 +332,12 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret;
-	
+
 	printk("comedi%d: ni6527:",dev->minor);
 
 	if((ret=alloc_private(dev,sizeof(ni6527_private)))<0)
 		return ret;
-	
+
 	ret=ni6527_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
@@ -349,7 +349,6 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	dev->board_name=this_board->name;
-	dev->irq=mite_irq(devpriv->mite);
 	printk(" %s",dev->board_name);
 
 	printk(" ID=0x%02x", readb(devpriv->mite->daq_io_addr + ID_Register));
@@ -395,11 +394,11 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 		devpriv->mite->daq_io_addr + Clear_Register);
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
-	ret=comedi_request_irq(dev->irq,ni6527_interrupt,SA_SHIRQ,"ni6527",dev);
+	ret = comedi_request_irq(mite_irq(devpriv->mite), ni6527_interrupt, SA_SHIRQ, "ni6527", dev);
 	if(ret<0){
-		dev->irq=0;
 		printk(" irq not available");
-	}
+	}else
+		dev->irq = mite_irq(devpriv->mite);
 
 	printk("\n");
 
@@ -427,7 +426,7 @@ static int ni6527_find_device(comedi_device *dev,int bus,int slot)
 {
 	struct mite_struct *mite;
 	int i;
-	
+
 	for(mite=mite_devices;mite;mite=mite->next){
 		if(mite->used)continue;
 		if(bus || slot){
