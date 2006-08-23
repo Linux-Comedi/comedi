@@ -437,6 +437,10 @@ static void mio_cs_config(dev_link_t *link)
 	link->irq.IRQInfo1=parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2=parse.cftable_entry.irq.IRQInfo2;
 	ret = pcmcia_request_irq(handle, &link->irq);
+	if(ret)
+	{
+		printk("pcmcia_request_irq() returned error: %i\n", ret);
+	}
 	//printk("RequestIRQ 0x%02x\n",ret);
 
 	link->conf.ConfigIndex=1;
@@ -490,7 +494,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
 
-	if( (ret=comedi_request_irq(dev->irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_mio_cs",dev))<0 ){
+	if( (ret=comedi_request_irq(irq,ni_E_interrupt,NI_E_IRQ_FLAGS,"ni_mio_cs",dev))<0 ){
 		printk(" irq not available\n");
 		return -EINVAL;
 	}
