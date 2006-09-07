@@ -3042,6 +3042,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		if(boardtype.adbits > 16)
 			s->subdev_flags |= SDF_LSAMPL;
+		if(boardtype.reg_type == ni_reg_m_series)
+			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan=boardtype.n_adchan;
 		s->len_chanlist=512;
 		s->maxdata=(1<<boardtype.adbits)-1;
@@ -3064,6 +3066,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		dev->write_subdev=s;
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITABLE|SDF_DEGLITCH|SDF_GROUND;
+		if(boardtype.reg_type == ni_reg_m_series)
+			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
 		s->range_table = boardtype.ao_range_table;

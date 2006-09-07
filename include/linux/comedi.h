@@ -180,6 +180,7 @@ typedef unsigned short sampl_t;
 #define SDF_MODE3	0x0400		/* can do mode 3 */
 #define SDF_MODE4	0x0800		/* can do mode 4 */
 #define SDF_CMD		0x1000		/* can do commands */
+#define SDF_SOFT_CALIBRATED	0x2000	/* subdevice uses software calibration */
 
 #define SDF_READABLE	0x00010000	/* subdevice can be read (e.g. analog input) */
 #define SDF_WRITABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
@@ -457,7 +458,7 @@ struct comedi_bufinfo_struct{
 // X2 encoding
 #define GPCT_X2                 0x02
 // X3 encoding
-#define GPCT_X4                 0x04 
+#define GPCT_X4                 0x04
 // When to take into account the indexpulse:
 #define GPCT_IndexPhaseHighHigh 0
 #define GPCT_IndexPhaseLowHigh 1
