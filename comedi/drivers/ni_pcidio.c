@@ -705,7 +705,7 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
 
 	tmp=cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;  
+	cmd->scan_end_src &= TRIG_COUNT;
 	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
 
 	tmp=cmd->stop_src;
@@ -770,7 +770,7 @@ static int ni_pcidio_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(err)return 3;
 
 	/* step 4: fix up any arguments */
-	
+
 	if(cmd->scan_begin_src == TRIG_TIMER){
 		tmp = cmd->scan_begin_arg;
 		ni_pcidio_ns_to_timer(&cmd->scan_begin_arg,
@@ -883,7 +883,7 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 #else
 	writeb(0x00,devpriv->mite->daq_io_addr+DMA_Line_Control);
 #endif
-  
+
 	/* clear and enable interrupts */
 	writeb(0xff,devpriv->mite->daq_io_addr+Group_1_First_Clear);
 	//writeb(ClearExpired,devpriv->mite->daq_io_addr+Group_1_Second_Clear);
@@ -1023,7 +1023,7 @@ static int pci_6534_reset_fpgas(comedi_device *dev)
 	return ret;
 }
 
-static void pci_6534_init_main_fpga(comedi_device *dev)	
+static void pci_6534_init_main_fpga(comedi_device *dev)
 {
 	writel(0, devpriv->mite->daq_io_addr + FPGA_Control1_Register);
 	writel(0, devpriv->mite->daq_io_addr + FPGA_Control2_Register);
@@ -1038,7 +1038,7 @@ static int pci_6534_upload_firmware(comedi_device *dev, int options[])
 	int ret;
 	void *main_fpga_data, *scarab_a_data, *scarab_b_data;
 	int main_fpga_data_len, scarab_a_data_len, scarab_b_data_len;
-	
+
 	if(options[COMEDI_DEVCONF_AUX_DATA_LENGTH] == 0) return 0;
 	ret = pci_6534_reset_fpgas(dev);
 	if(ret < 0) return ret;
@@ -1048,13 +1048,13 @@ static int pci_6534_upload_firmware(comedi_device *dev, int options[])
 	if(ret < 0) return ret;
 	pci_6534_init_main_fpga(dev);
 	scarab_a_data = comedi_aux_data(options, 1);
-	scarab_a_data_len = options[COMEDI_DEVCONF_AUX_DATA1_LENGTH];	
+	scarab_a_data_len = options[COMEDI_DEVCONF_AUX_DATA1_LENGTH];
 	ret = pci_6534_load_fpga(dev, 0, scarab_a_data, scarab_a_data_len);
 	if(ret < 0) return ret;
 	scarab_b_data = comedi_aux_data(options, 2);
-	scarab_b_data_len = options[COMEDI_DEVCONF_AUX_DATA2_LENGTH];	
+	scarab_b_data_len = options[COMEDI_DEVCONF_AUX_DATA2_LENGTH];
 	ret = pci_6534_load_fpga(dev, 1, scarab_b_data, scarab_b_data_len);
-	if(ret < 0) return ret;	
+	if(ret < 0) return ret;
 	return 0;
 }
 
@@ -1111,7 +1111,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 		dev->read_subdev = s;
 		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_LSAMPL;
+		s->subdev_flags=SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_PACKED;
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
@@ -1166,7 +1166,7 @@ static int nidio_find_device(comedi_device *dev,int bus,int slot)
 {
 	struct mite_struct *mite;
 	int i;
-	
+
 	for(mite=mite_devices;mite;mite=mite->next){
 		if(mite->used)continue;
 		if(bus || slot){
