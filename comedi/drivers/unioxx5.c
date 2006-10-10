@@ -1,4 +1,4 @@
-/***************************************************************************\
+/***************************************************************************
  *                                                                         *
  *  comedi/drivers/unioxx5.c                                               *
  *  Driver for Fastwel UNIOxx-5 (analog and digital i/o) boards.           *
@@ -22,24 +22,25 @@
  *  along with this program; if not, write to the Free Software            *
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.              *
  *                                                                         *
- *                                                                         *
- *  --------------------------------                                       *
- *   Fastwal UNIOxx-5 specification                                        *
- *  --------------------------------                                       *
- *                                                                         *
- *  driver name: unioxx5.o                                                 *
- *  kernel module: unioxx5.ko                                              *
- *                                                                         *
- *  This card supports digital and analog I/O. It written for g01          *
- *  subdevices only.                                                       *
- *  channels range: 0 .. 23 dio channels                                   *
- *  and 0 .. 11 analog modules range                                       *
- *                                                                         *
- *  During attaching unioxx5 module displays modules identifiers           *
- *  (see dmesg after comedi_config) in format:                             *
- *  | [module_number] module_id |                                          *
- *                                                                         *  
-\***************************************************************************/
+ ***************************************************************************/
+/*
+
+Driver: unioxx5.o
+Description: Driver for Fastwel UNIOxx-5 (analog and digital i/o) boards.
+Author: Kruchinin Daniil (asgard) <asgard@etersoft.ru>
+Status: unknown
+Updated: 2006-10-09
+Devices: [Fastwel] UNIOxx-5 (unioxx5),
+
+ This card supports digital and analog I/O. It written for g01          
+ subdevices only.                                                       
+ channels range: 0 .. 23 dio channels                                   
+ and 0 .. 11 analog modules range                                       
+ During attaching unioxx5 module displays modules identifiers           
+ (see dmesg after comedi_config) in format:                             
+ | [module_number] module_id |                                          
+
+*/
 
 #include <linux/comedidev.h>
 #include <linux/ioport.h>
