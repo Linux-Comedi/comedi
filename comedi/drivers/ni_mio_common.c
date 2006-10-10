@@ -1305,7 +1305,7 @@ static int ni_ai_poll(comedi_device *dev,comedi_subdevice *s)
 static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {
 	int i,n;
-	unsigned int mask;
+	const unsigned int mask = (1 << boardtype.adbits) - 1;
 	unsigned signbits;
 	unsigned short d;
 	unsigned long dl;
@@ -1314,7 +1314,6 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 
 	ni_flush_ai_fifo(dev);
 
-	mask=(1<<boardtype.adbits)-1;
 	signbits=devpriv->ai_offset[0];
 	if(boardtype.reg_type == ni_reg_611x){
 		for(n=0; n < num_adc_stages_611x; n++){
@@ -1377,8 +1376,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			}
 			if(boardtype.reg_type == ni_reg_m_series)
 			{
-				data[n] = ni_readl(M_Offset_AI_FIFO_Data);
-				data[n] += signbits;
+				data[n] = ni_readl(M_Offset_AI_FIFO_Data) & mask;
 			}else
 			{
 				d = ni_readw(ADC_FIFO_Data_Register);
