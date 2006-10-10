@@ -100,4 +100,4 @@ obj-m += ssv_dnp.o
 obj-m += s526.o
 obj-m += s626.o
 obj-m += comedi_test.o
-
+obj-m += unioxx5.o

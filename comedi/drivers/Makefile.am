@@ -165,6 +165,7 @@ module_PROGRAMS = \
  s526.ko \
  s626.ko \
  comedi_test.ko \
+ unioxx5.ko \
  $(pcmcia_modules) \
  $(usb_modules) \
  $(rt_modules)
@@ -261,6 +262,7 @@ ssv_dnp_ko_SOURCES = ssv_dnp.c
 s526_ko_SOURCES = s526.c
 s626_ko_SOURCES = s626.c
 comedi_test_ko_SOURCES = comedi_test.c
+unioxx5_ko_SOURCES = unioxx5.c
 usbdux_ko_SOURCES = usbdux.c
 usbduxfast_ko_SOURCES = usbduxfast.c
 
