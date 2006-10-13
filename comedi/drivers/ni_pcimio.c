@@ -30,8 +30,8 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6040E, PCI-6031E, PCI-6032E, PCI-6033E, PCI-6071E, PCI-6023E,
   PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E, PCI-6035E, PCI-6052E,
   PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PCI-6225, PCI-6229,
-  PCI-6250, PCI-6251, PCI-6254, PCI-6259,
-  PCI-6280, PCI-6281, PCI-6284, PCI-6289,
+  PCI-6250, PCI-6251, PCI-6254, PCI-6259, PCIe-6259,
+  PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
   PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
@@ -166,8 +166,10 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x70b8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70bd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70bf, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70f2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x716c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x717f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x71bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70C0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
@@ -906,6 +908,23 @@ static ni_board ni_boards[]={
 		.caldac = {caldac_none},
 		has_8255:	0,
 	},
+	{	device_id:      0x717f,
+		name:           "pcie-6259",
+		n_adchan:       32,
+		adbits:         16,
+		ai_fifo_depth:  4095,
+		.gainlkup = ai_gain_628x,
+		ai_speed:	800,
+		n_aochan:       4,
+		aobits:         16,
+		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_625x_ao,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    0,
+// 		ao_speed:	357,
+		.caldac = {caldac_none},
+		has_8255:	0,
+	},
 	{	device_id:      0x70b6,
 		name:           "pci-6280",
 		n_adchan:       16,
@@ -923,6 +942,23 @@ static ni_board ni_boards[]={
 	},
 	{	device_id:      0x70bd,
 		name:           "pci-6281",
+		n_adchan:       16,
+		adbits:         18,
+		ai_fifo_depth:  2047,
+		.gainlkup = ai_gain_628x,
+		ai_speed:	1600,
+		n_aochan:       2,
+		aobits:         16,
+		ao_fifo_depth:  8191,
+		.ao_range_table = &range_ni_M_628x_ao,
+		reg_type:	ni_reg_m_series,
+		ao_unipolar:    1,
+// 		ao_speed:	357,
+		.caldac = {caldac_none},
+		has_8255:	0,
+	},
+	{	device_id:      0x70bf,
+		name:           "pxi-6281",
 		n_adchan:       16,
 		adbits:         18,
 		ai_fifo_depth:  2047,
@@ -1138,16 +1174,16 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 		break;
 	case G_Input_Select_Register(0):
 		offset = M_Offset_G0_Input_Select;
-		break;	
+		break;
 	case G_Input_Select_Register(1):
 		offset = M_Offset_G1_Input_Select;
-		break;	
+		break;
 	case G_Mode_Register(0):
 		offset = M_Offset_G0_Mode;
-		break;	
+		break;
 	case G_Mode_Register(1):
 		offset = M_Offset_G1_Mode;
-		break;	
+		break;
 	case Interrupt_A_Ack_Register:
 		offset = M_Offset_Interrupt_A_Ack;
 		break;
@@ -1268,7 +1304,7 @@ static void m_series_init_eeprom_buffer(comedi_device *dev)
 	unsigned old_iodwbsr1_bits;
 	unsigned old_iodwcr1_bits;
 	int i;
-	
+
 	old_iodwbsr_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR);
 	old_iodwbsr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	old_iodwcr1_bits = readl(devpriv->mite->mite_io_addr + MITE_IODWCR_1);
@@ -1276,12 +1312,12 @@ static void m_series_init_eeprom_buffer(comedi_device *dev)
 	writel(((0x80 | window_size) | devpriv->mite->daq_phys_addr), devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	writel(0x0, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
 	writel(0xf, devpriv->mite->mite_io_addr + 0x30);
-	
+
 	for(i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
 	{
 		devpriv->eeprom_buffer[i] = ni_readb(Start_Cal_EEPROM + i);
 	}
-    
+
 	writel(old_iodwbsr1_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	writel(old_iodwbsr_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR);
 	writel(old_iodwcr1_bits, devpriv->mite->mite_io_addr + MITE_IODWCR_1);
@@ -1297,7 +1333,7 @@ static void init_6143(comedi_device *dev)
 	ni_writeb(0x00, Magic_6143);		// Set G0,G1 DMA mode to E series version
 	ni_writeb(0x80, PipelineDelay_6143);	// Set EOCMode, ADCMode and pipelinedelay
 	ni_writeb(0x00, EOC_Set_6143);		// Set EOC Delay
-	
+
 	ni_writel(boardtype.ai_fifo_depth / 2, AIFIFO_Flag_6143);	// Set the FIFO half full level
 
 	// Strobe Relay disable bit
@@ -1313,7 +1349,7 @@ static int pcimio_detach(comedi_device *dev)
 
 	if(dev->private && devpriv->mite)
 		mite_unsetup(devpriv->mite);
-	
+
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}
@@ -1329,13 +1365,13 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	ret=ni_alloc_private(dev);
 	if(ret<0)return ret;
-	
+
 	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
-	
+
 	if(boardtype.reg_type == ni_reg_m_series)
 	{
 		devpriv->stc_writew = &m_series_stc_writew;
