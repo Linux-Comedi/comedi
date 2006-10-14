@@ -89,6 +89,7 @@ module_PROGRAMS = \
  ni_labpc.ko \
  acl7225b.ko \
  adl_pci6208.ko \
+ adl_pci7296.ko \
  adl_pci7432.ko \
  adl_pci8164.ko \
  adl_pci9111.ko \
@@ -139,6 +140,7 @@ module_PROGRAMS = \
  ni_pcimio.ko \
  ni_pcidio.ko \
  ni_6527.ko \
+ ni_65xx.ko \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
  ni_at_ao.ko \
@@ -174,6 +176,7 @@ endif !CONFIG_KBUILD
 8255_ko_SOURCES = 8255.c
 acl7225b_ko_SOURCES = acl7225b.c
 adl_pci6208_ko_SOURCES = adl_pci6208.c
+adl_pci7296_ko_SOURCES = adl_pci7296.c
 adl_pci7432_ko_SOURCES = adl_pci7432.c
 adl_pci8164_ko_SOURCES = adl_pci8164.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
@@ -231,6 +234,7 @@ ni_mio_cs_ko_SOURCES = ni_mio_cs.c
 ni_pcimio_ko_SOURCES = ni_pcimio.c
 ni_pcidio_ko_SOURCES = ni_pcidio.c
 ni_6527_ko_SOURCES = ni_6527.c
+ni_65xx_ko_SOURCES = ni_65xx.c
 ni_atmio16d_ko_SOURCES = ni_atmio16d.c
 ni_at_a2150_ko_SOURCES = ni_at_a2150.c
 ni_labpc_ko_SOURCES = ni_labpc.c
