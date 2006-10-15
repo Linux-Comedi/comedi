@@ -2795,6 +2795,51 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
+static int ni_m_series_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+#ifdef DEBUG_DIO
+	printk("ni_m_series_dio_insn_config() chan=%d io=%d\n",
+		CR_CHAN(insn->chanspec), data[0]);
+#endif
+	switch(data[0])
+	{
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= 1 << CR_CHAN(insn->chanspec);
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~(1 << CR_CHAN(insn->chanspec));
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & (1<<CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ni_writel(s->io_bits, M_Offset_DIO_Direction);
+
+	return 1;
+}
+
+static int ni_m_series_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+#ifdef DEBUG_DIO
+	printk("ni_m_series_dio_insn_bits() mask=0x%x bits=0x%x\n",data[0],data[1]);
+#endif
+	if(insn->n!=2)return -EINVAL;
+	if(data[0]){
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+		ni_writel(s->state, M_Offset_Static_Digital_Output);
+	}
+	data[1] = ni_readl(M_Offset_Static_Digital_Input);
+
+	return 2;
+}
+
 static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
 				 comedi_insn *insn,lsampl_t *data)
 {
@@ -3098,16 +3143,23 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+2;
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_WRITABLE|SDF_READABLE;
-	s->n_chan=8;
 	s->maxdata=1;
-	s->range_table=&range_digital;
 	s->io_bits=0;		/* all bits input */
-	s->insn_bits=ni_dio_insn_bits;
-	s->insn_config=ni_dio_insn_config;
-
-	/* dio setup */
-	devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
-	devpriv->stc_writew(dev, devpriv->dio_control,DIO_Control_Register);
+	s->range_table=&range_digital;
+	if(boardtype.reg_type == ni_reg_m_series)
+	{
+		s->n_chan = 32;
+		s->insn_bits = ni_m_series_dio_insn_bits;
+		s->insn_config=ni_m_series_dio_insn_config;
+		ni_writel(s->io_bits, M_Offset_DIO_Direction);
+	}else
+	{
+		s->n_chan=8;
+		s->insn_bits=ni_dio_insn_bits;
+		s->insn_config=ni_dio_insn_config;
+		devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
+		ni_writew(devpriv->dio_control, DIO_Control_Register);
+	}
 
 	/* 8255 device */
 	s=dev->subdevices+3;
