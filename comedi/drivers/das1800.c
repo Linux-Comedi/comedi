@@ -499,7 +499,7 @@ static comedi_driver driver_das1800={
 	attach:		das1800_attach,
 	detach:		das1800_detach,
 	num_names:	sizeof(das1800_boards) / sizeof(das1800_board),
-	board_name:	das1800_boards,
+	board_name:	(const char**)das1800_boards,
 	offset:		sizeof(das1800_board),
 };
 
@@ -512,7 +512,7 @@ COMEDI_INITCLEANUP(driver_das1800);
 static int das1800_init_dma( comedi_device *dev, unsigned int dma0, unsigned int dma1 )
 {
 	unsigned long flags;
-	
+
 	// need an irq to do dma
 	if( dev->irq && dma0 )
 	{

@@ -6,7 +6,7 @@
     hardware driver for Advantech card:
      card:   PCM-3724
      driver: pcm3724
-    	       
+
     Options for PCM-3724
      [0] - IO Base
 */
@@ -53,7 +53,7 @@ Copy/pasted/hacked from pcm724.c
 #define GATE_C1 0x8
 
 /* from 8255.c */
-#define CR_CW		0x80 
+#define CR_CW		0x80
 #define _8255_CR 3
 #define CR_B_IO		0x02
 #define CR_B_MODE	0x04
@@ -73,7 +73,7 @@ typedef struct {
 	unsigned int 	io_range;	// len of IO space
 } boardtype;
 
-//used to track configured dios 
+//used to track configured dios
 typedef struct {
 	int dio_1;
 	int dio_2;
@@ -91,13 +91,13 @@ static comedi_driver driver_pcm3724={
 	module:		THIS_MODULE,
 	attach:		pcm3724_attach,
 	detach:		pcm3724_detach,
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
 COMEDI_INITCLEANUP(driver_pcm3724);
 
-//	    (setq c-basic-offset 8)	
+//	    (setq c-basic-offset 8)
 
 static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)
 {
@@ -145,7 +145,7 @@ static int compute_buffer(int config, int devno, comedi_subdevice *s)
 	return config;
 }
 
-static void do_3724_config(comedi_device *dev,comedi_subdevice *s, 
+static void do_3724_config(comedi_device *dev,comedi_subdevice *s,
 			   int chanspec)
 {
 	int config;
@@ -180,7 +180,7 @@ static void do_3724_config(comedi_device *dev,comedi_subdevice *s,
 	outb(config, port_8255_cfg);
 }
 
-static void enable_chan(comedi_device *dev, comedi_subdevice *s, 
+static void enable_chan(comedi_device *dev, comedi_subdevice *s,
 			int chanspec)
 {
 	unsigned int mask;
@@ -195,24 +195,24 @@ static void enable_chan(comedi_device *dev, comedi_subdevice *s,
 		priv->dio_1 |= mask;
 	}
 	else { //subdev 1
-		priv->dio_2 |= mask; 
+		priv->dio_2 |= mask;
 	}
-	if (priv->dio_1 & 0xff0000){ 
+	if (priv->dio_1 & 0xff0000){
 		gatecfg |= GATE_C0;
 	}
-	if (priv->dio_1 & 0xff00){ 
+	if (priv->dio_1 & 0xff00){
 		gatecfg |= GATE_B0;
 	}
 	if (priv->dio_1 & 0xff){
 		gatecfg |= GATE_A0;
 	}
-	if (priv->dio_2 & 0xff0000){ 
+	if (priv->dio_2 & 0xff0000){
 		gatecfg |= GATE_C1;
 	}
-	if (priv->dio_2 & 0xff00){ 
+	if (priv->dio_2 & 0xff00){
 		gatecfg |= GATE_B1;
 	}
-	if (priv->dio_2 & 0xff){ 
+	if (priv->dio_2 & 0xff){
 		gatecfg |= GATE_A1;
 	}
 	//	printk("gate control %x\n", gatecfg);

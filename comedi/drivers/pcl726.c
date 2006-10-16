@@ -7,10 +7,10 @@
     and for ADLink cards:
      card:   ACL-6126, ACL-6128
      driver: acl6126,  acl6128
-	       
+
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1998 David A. Schleef <ds@schleef.org>
-    
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -38,27 +38,27 @@ Interrupts are not supported.
 
     Options for PCL-726:
      [0] - IO Base
-     [2]...[7] - D/A output range for channel 1-6: 
-               0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
+     [2]...[7] - D/A output range for channel 1-6:
+               0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V,
 	       4: 4-20mA, 5: unknown (external reference)
-	       
+
     Options for PCL-727:
      [0] - IO Base
-     [2]...[13] - D/A output range for channel 1-12: 
-               0: 0-5V, 1: 0-10V, 2: +/-5V, 
+     [2]...[13] - D/A output range for channel 1-12:
+               0: 0-5V, 1: 0-10V, 2: +/-5V,
 	       3: 4-20mA
-	       
+
     Options for PCL-728 and ACL-6128:
      [0] - IO Base
-     [2], [3] - D/A output range for channel 1 and 2: 
-               0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
+     [2], [3] - D/A output range for channel 1 and 2:
+               0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V,
 	       4: 4-20mA, 5: 0-20mA
-	       
+
     Options for ACL-6126:
      [0] - IO Base
      [1] - IRQ (0=disable, 3, 5, 6, 7, 9, 10, 11, 12, 15) (currently ignored)
-     [2]...[7] - D/A output range for channel 1-6: 
-               0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 
+     [2]...[7] - D/A output range for channel 1-6:
+               0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V,
 	       4: 4-20mA
 */
 
@@ -96,19 +96,19 @@ static comedi_lrange range_4_20mA={ 1, {RANGE_mA(4,20)}};
 static comedi_lrange range_0_20mA={ 1, {RANGE_mA(0,20)}};
 
 static comedi_lrange *rangelist_726[]={
-	&range_unipolar5, &range_unipolar10, 
+	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5,  &range_bipolar10,
 	&range_4_20mA,    &range_unknown
 };
 
 static comedi_lrange *rangelist_727[]={
-	&range_unipolar5, &range_unipolar10, 
-	&range_bipolar5,  
+	&range_unipolar5, &range_unipolar10,
+	&range_bipolar5,
 	&range_4_20mA
 };
 
 static comedi_lrange *rangelist_728[]={
-	&range_unipolar5, &range_unipolar10, 
+	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5,  &range_bipolar10,
 	&range_4_20mA,    &range_0_20mA
 };
@@ -132,17 +132,17 @@ typedef struct {
 
 static boardtype boardtypes[] =
 {
-	{"pcl726",   6, 6, 0x0000, PCL726_SIZE, 1, 
-	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO, 
+	{"pcl726",   6, 6, 0x0000, PCL726_SIZE, 1,
+	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
 	 &rangelist_726[0], },
-	{"pcl727",  12, 4, 0x0000, PCL727_SIZE, 1, 
-	 PCL727_DI_HI, PCL727_DI_LO, PCL727_DO_HI, PCL727_DO_LO, 
+	{"pcl727",  12, 4, 0x0000, PCL727_SIZE, 1,
+	 PCL727_DI_HI, PCL727_DI_LO, PCL727_DO_HI, PCL727_DO_LO,
 	 &rangelist_727[0], },
-	{"pcl728",   2, 6, 0x0000, PCL728_SIZE, 0, 
-	 0, 0, 0, 0, 
+	{"pcl728",   2, 6, 0x0000, PCL728_SIZE, 0,
+	 0, 0, 0, 0,
 	 &rangelist_728[0], },
 	{"acl6126",  6, 5, 0x96e8, PCL726_SIZE, 1,
-	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO, 
+	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
 	 &rangelist_726[0], },
 	{"acl6128",  2, 6, 0x0000, PCL728_SIZE, 0,
 	 0, 0, 0, 0,
@@ -156,7 +156,7 @@ static comedi_driver driver_pcl726={
 	module:		THIS_MODULE,
 	attach:		pcl726_attach,
 	detach:		pcl726_detach,
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
@@ -190,7 +190,7 @@ static int pcl726_ao_insn(comedi_device *dev,comedi_subdevice *s,
 		outb(lo,dev->iobase+PCL726_DAC0_LO + 2*chan);
 		devpriv->ao_readback[chan]=data[n];
 	}
-	
+
 	return n;
 }
 
@@ -210,10 +210,10 @@ static int pcl726_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	if(insn->n!=2)return -EINVAL;
-	
+
 	data[1]=inb(dev->iobase+this_board->di_lo)|
 		(inb(dev->iobase+this_board->di_hi)<<8);
-	
+
 	return 2;
 }
 
@@ -221,7 +221,7 @@ static int pcl726_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	if(insn->n!=2)return -EINVAL;
-	
+
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= data[0]&data[1];
@@ -232,7 +232,7 @@ static int pcl726_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		outb((s->state>>8),dev->iobase+this_board->do_hi);
 
 	data[1] = s->state;
-		
+
 	return 2;
 }
 
@@ -245,7 +245,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 #ifdef ACL6126_IRQ
 	unsigned int irq;
 #endif
-	
+
         iobase=it->options[0];
         iorange=this_board->io_range;
 	printk("comedi%d: pcl726: board=%s, 0x%03lx ",dev->minor,this_board->name,iobase);
@@ -253,9 +253,9 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	
+
         dev->iobase=iobase;
-    
+
 	dev->board_name = this_board->name;
 
 	if((ret=alloc_private(dev,sizeof(pcl726_private)))<0)
@@ -275,20 +275,20 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 		        if (((1<<irq)&boardtypes[board].IRQbits)==0) {
 				rt_printk(", IRQ %d is out of allowed range, DISABLING IT",irq);
 				irq=0; /* Bad IRQ */
-			} else { 
+			} else {
 				if (comedi_request_irq(irq, interrupt_pcl818, 0, "pcl726", dev)) {
 					rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 					irq=0; /* Can't use IRQ */
 				} else {
 					rt_printk(", irq=%d", irq);
-				}    
-			}  
+				}
+			}
 		}
 	}
 
         dev->irq = irq;
 #endif
-	
+
 	printk("\n");
 
 	if((ret=alloc_subdevices(dev, 3))<0)
@@ -353,7 +353,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it)
 static int pcl726_detach(comedi_device *dev)
 {
 //	printk("comedi%d: pcl726: remove\n",dev->minor);
-	
+
 #ifdef ACL6126_IRQ
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);

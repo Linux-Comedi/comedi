@@ -1,7 +1,7 @@
 /*
     comedi/drivers/ssv_dnp.c
     generic comedi driver for SSV Embedded Systems' DIL/Net-PCs
-    Copyright (C) 2001 Robert Schwebel <robert@schwebel.de> 
+    Copyright (C) 2001 Robert Schwebel <robert@schwebel.de>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -100,7 +100,7 @@ static comedi_driver driver_dnp = {
   module:       THIS_MODULE,
   attach:       dnp_attach,
   detach:       dnp_detach,
-  board_name:   dnp_boards,             /* only necessary for non-PnP devs   */
+  board_name:   (const char**)dnp_boards,             /* only necessary for non-PnP devs   */
   offset:       sizeof(dnp_board),      /* like ISA-PnP, PCI or PCMCIA.      */
   num_names:	sizeof(dnp_boards) / sizeof(dnp_board),
 };
@@ -133,10 +133,10 @@ static int dnp_attach(comedi_device *dev,comedi_devconfig *it)
   comedi_subdevice *s;
 
   printk("comedi%d: dnp: ",dev->minor);
-	
+
   /* Autoprobing: this should find out which board we have. Currently only   */
   /* the 1486 board is supported and autoprobing is not implemented :-)      */
-  //dev->board_ptr = dnp_probe(dev);    
+  //dev->board_ptr = dnp_probe(dev);
 
   /* Initialize the name of the board. We can use the "thisboard" macro now. */
   dev->board_name = thisboard->name;
@@ -159,7 +159,7 @@ static int dnp_attach(comedi_device *dev,comedi_devconfig *it)
   s->range_table  =& range_digital;
   s->insn_bits    =  dnp_dio_insn_bits;
   s->insn_config  =  dnp_dio_insn_config;
-	
+
   printk("attached\n");
 
   /* We use the I/O ports 0x22,0x23 and 0xa3-0xa9, which are always
@@ -190,11 +190,11 @@ static int dnp_detach(comedi_device *dev)
   /* configure all ports as input (default)                                  */
   outb(PAMR,CSCIR); outb(0x00,CSCDR);
   outb(PBMR,CSCIR); outb(0x00,CSCDR);
-  outb(PCMR,CSCIR); outb((inb(CSCDR) & 0xAA),CSCDR); 
+  outb(PCMR,CSCIR); outb((inb(CSCDR) & 0xAA),CSCDR);
 
   /* announce that we are finished                                           */
   printk("comedi%d: dnp: remove\n",dev->minor);
-	
+
   return 0;
 
 }
@@ -226,7 +226,7 @@ static int dnp_dio_insn_bits(
 
     outb(PADR,CSCIR);
     outb(
-      (inb(CSCDR) 
+      (inb(CSCDR)
       & ~(u8)(data[0] & 0x0000FF))
       |  (u8)(data[1] & 0x0000FF),
       CSCDR
@@ -234,7 +234,7 @@ static int dnp_dio_insn_bits(
 
     outb(PBDR,CSCIR);
     outb(
-      (inb(CSCDR) 
+      (inb(CSCDR)
       & ~(u8)((data[0] & 0x00FF00) >> 8))
       |  (u8)((data[1] & 0x00FF00) >> 8),
       CSCDR
@@ -243,7 +243,7 @@ static int dnp_dio_insn_bits(
     outb(PCDR,CSCIR);
     outb(
       (inb(CSCDR)
-      & ~(u8)((data[0] & 0x0F0000) >> 12)) 
+      & ~(u8)((data[0] & 0x0F0000) >> 12))
       |  (u8)((data[1] & 0x0F0000) >> 12),
       CSCDR
     );
@@ -256,7 +256,7 @@ static int dnp_dio_insn_bits(
   data[0] += inb(CSCDR) << 8;
   outb(PCDR,CSCIR);
   data[0] += ((inb(CSCDR) & 0xF0) << 12);
-  
+
   return 2;
 
 }
@@ -273,7 +273,7 @@ static int dnp_dio_insn_config(
   comedi_subdevice *s,
   comedi_insn      *insn,
   lsampl_t         *data
-) 
+)
 {
 
   u8 register_buffer;
@@ -294,21 +294,21 @@ static int dnp_dio_insn_config(
     break;
   }
   /* Test: which port does the channel belong to?                            */
-  
+
   /* We have to pay attention with port C: this is the meaning of PCMR:      */
   /* Bit in PCMR:              7 6 5 4 3 2 1 0                               */
   /* Corresponding port C pin: d 3 d 2 d 1 d 0   d= don't touch              */
-  
-  if      ((chan >=  0) && (chan <=  7)) { 
+
+  if      ((chan >=  0) && (chan <=  7)) {
     /* this is port A */
     outb(PAMR,CSCIR);
   }
-  else if ((chan >=  8) && (chan <= 15)) { 
+  else if ((chan >=  8) && (chan <= 15)) {
     /* this is port B */
-    chan -= 8; 
+    chan -= 8;
     outb(PBMR,CSCIR);
   }
-  else if ((chan >= 16) && (chan <= 19)) { 
+  else if ((chan >= 16) && (chan <= 19)) {
     /* this is port C; multiplication with 2 brings bits into correct        */
     /* position for PCMR!                                                    */
     chan -= 16;
@@ -318,10 +318,10 @@ static int dnp_dio_insn_config(
   else { return -EINVAL; }
 
   /* read 'old' direction of the port and set bits (out=1, in=0)             */
-  register_buffer = inb(CSCDR);         
+  register_buffer = inb(CSCDR);
   if (data[0] == COMEDI_OUTPUT) { register_buffer |= (1<<chan);  }
   else {                          register_buffer &= ~(1<<chan); }
-  outb(register_buffer,CSCDR); 
+  outb(register_buffer,CSCDR);
 
   return 1;
 

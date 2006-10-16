@@ -118,7 +118,7 @@ typedef struct {
   unsigned int IRQbits;		// allowed interrupts
   unsigned int DMAbits;		// allowed DMA chans
   int ai_maxdata;		// maxdata for A/D
-  int ao_maxdata;		// maxdata for D/A           
+  int ao_maxdata;		// maxdata for D/A
   int ai_chanlist;		// allowed len of channel list A/D
   int ao_chanlist;		// allowed len of channel list D/A
   int i8254_osc_base;		// 1/frequency of on board oscilator in ns
@@ -127,20 +127,20 @@ boardtype;
 
 static boardtype boardtypes[] = {
     {"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-		&range_pcl816, PCLx1x_RANGE, 
-		0x00fc,			// IRQ mask 
+		&range_pcl816, PCLx1x_RANGE,
+		0x00fc,			// IRQ mask
 		0x0a, 			// DMA mask
-		0xffff,			// 16-bit card 
+		0xffff,			// 16-bit card
 		0xffff,			// D/A maxdata
-		1024, 
-		1,				// ao chan list 
+		1024,
+		1,				// ao chan list
 		100 },
     {"pcl814b", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-		&range_pcl816, PCLx1x_RANGE, 
+		&range_pcl816, PCLx1x_RANGE,
 		0x00fc,
-		0x0a, 
+		0x0a,
 		0x3fff, 		/* 14 bit card */
-		0x3fff, 
+		0x3fff,
 		1024,
 		1,
 		100},
@@ -163,7 +163,7 @@ static comedi_driver driver_pcl816 = {
   module:       THIS_MODULE,
   attach:       pcl816_attach,
   detach:       pcl816_detach,
-  board_name:	boardtypes,
+  board_name:	(const char**)boardtypes,
   num_names:	n_boardtypes,
   offset:		sizeof(boardtype),
 };
@@ -197,7 +197,7 @@ typedef struct
   int rtc_irq_blocked;		// 1=we now do AI with DMA&RTC
 #endif
   int irq_was_now_closed;	// when IRQ finish, there's stored int816_mode for last interrupt
-  int int816_mode;		// who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma 
+  int int816_mode;		// who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma
   comedi_subdevice *last_int_sub;	// ptr to subdevice which now finish
   int ai_act_scan;		// how many scans we finished
   unsigned int ai_act_chanlist[16];	// MUX setting for actual AI operations
@@ -214,7 +214,7 @@ typedef struct
 
 
 
-/* 
+/*
 ==============================================================================
 */
 static int check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, int chanlen);
@@ -229,7 +229,7 @@ static int pcl816_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd
 static int pcl816_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 
 
-/* 
+/*
 ==============================================================================
    ANALOG INPUT MODE0, 816 cards, slow version
 */
@@ -240,13 +240,13 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	int timeout;
 
 	DPRINTK("mode 0 analog input\n");
-	// software trigger, DMA and INT off 
-	outb (0, dev->iobase + PCL816_CONTROL);	
-	// clear INT (conversion end) flag 
-	outb (0, dev->iobase + PCL816_CLRINT);	
-	
+	// software trigger, DMA and INT off
+	outb (0, dev->iobase + PCL816_CONTROL);
+	// clear INT (conversion end) flag
+	outb (0, dev->iobase + PCL816_CLRINT);
+
 	// Set the input channel
-	outb (CR_CHAN(insn->chanspec) & 0xf, dev->iobase + PCL816_MUX);	
+	outb (CR_CHAN(insn->chanspec) & 0xf, dev->iobase + PCL816_MUX);
 	outb (CR_RANGE(insn->chanspec), dev->iobase + PCL816_RANGE);	/* select gain */
 
 	for(n=0;n<insn->n;n++){
@@ -257,7 +257,7 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 		timeout=100;
 		while (timeout--) {
     		if (!(inb (dev->iobase + PCL816_STATUS) & PCL816_STATUS_DRDY_MASK)) {
-			// return read value		
+			// return read value
 				data[n] =
 			    	((inb (dev->iobase + PCL816_AD_HI) << 8 ) |
 					(inb (dev->iobase + PCL816_AD_LO)));
@@ -274,7 +274,7 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 			outb (0, dev->iobase + PCL816_CLRINT);	/* clear INT (conversion end) flag */
 			return -EIO;
 		}
-	
+
 	}
 	return n;
 }
@@ -282,7 +282,7 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
    analog input interrupt mode 1 & 3, 818 cards
-   one sample per interrupt version   
+   one sample per interrupt version
 */
 static irqreturn_t
 interrupt_pcl816_ai_mode13_int (int irq, void *d, struct pt_regs *regs)
@@ -344,7 +344,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 	sampl_t *ptr, unsigned int bufptr, unsigned int len)
 {
 	int i;
-	
+
 	s->async->events = 0;
 
 	for (i = 0; i < len; i++)  {
@@ -466,7 +466,7 @@ static void pcl816_cmdtest_out(int e,comedi_cmd *cmd) {
 	rt_printk("pcl816 e=%d stoparg=%d scanendarg=%d chanlistlen=%d\n",e,cmd->stop_arg,cmd->scan_end_arg,cmd->chanlist_len);
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl816_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
@@ -520,7 +520,7 @@ DEBUG(
 			cmd->convert_src=TRIG_TIMER;
 			err++;
 	}
-	
+
 
 	if(cmd->scan_end_src!=TRIG_COUNT) {
 		cmd->scan_end_src=TRIG_COUNT;
@@ -606,7 +606,7 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	unsigned int	divisor1=0, divisor2=0, dma_flags, bytes, dmairq;
 	comedi_cmd 	*cmd=&s->async->cmd;
-	
+
 
 	if(cmd->start_src!=TRIG_NOW) return -EINVAL;
 	if(cmd->scan_begin_src!=TRIG_FOLLOW) return -EINVAL;
@@ -617,12 +617,12 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
     	return -EBUSY;
 
 	if (cmd->convert_src==TRIG_TIMER) {
-		if(cmd->convert_arg < this_board->ai_ns_min) 
+		if(cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg=this_board->ai_ns_min;
 
  	     i8253_cascade_ns_to_timer (this_board->i8254_osc_base, &divisor1,
 				 &divisor2, &cmd->convert_arg, cmd->flags&TRIG_ROUND_MASK);
- 	     if (divisor1 == 1) {			// PCL816 crash if any divisor is set to 1 
+ 	     if (divisor1 == 1) {			// PCL816 crash if any divisor is set to 1
 			  divisor1 = 2;
 			  divisor2 /= 2;
 		 }
@@ -638,33 +638,33 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	    return -EINVAL;
 	comedi_udelay (1);
 
-		
+
     devpriv->ai_act_scan=0;
     s->async->cur_chan=0;
 	devpriv->irq_blocked = 1;
 	devpriv->ai_poll_ptr=0;
 	devpriv->irq_was_now_closed = 0;
-	
-	if (cmd->stop_src==TRIG_COUNT) { 
-		devpriv->ai_scans = cmd->stop_arg; 
-		devpriv->ai_neverending = 0; 
-	} else { 
-		devpriv->ai_scans = 0; 
-		devpriv->ai_neverending = 1; 
+
+	if (cmd->stop_src==TRIG_COUNT) {
+		devpriv->ai_scans = cmd->stop_arg;
+		devpriv->ai_neverending = 0;
+	} else {
+		devpriv->ai_scans = 0;
+		devpriv->ai_neverending = 1;
 	}
 
 
-	if ((cmd->flags & TRIG_WAKE_EOS)) { 	// don't we want wake up every scan?		
+	if ((cmd->flags & TRIG_WAKE_EOS)) { 	// don't we want wake up every scan?
 		printk("pl816: You wankt WAKE_EOS but I dont want handle it");
 		//		devpriv->ai_eos=1;
 		//if (devpriv->ai_n_chan==1)
 		//	devpriv->dma=0;	// DMA is useless for this situation
 	}
 
-	if (devpriv->dma) {	
+	if (devpriv->dma) {
 	    bytes = devpriv->hwdmasize[0];
 		if (!devpriv->ai_neverending) {
-	      bytes = s->async->cmd.chanlist_len * s->async->cmd.chanlist_len * sizeof (sampl_t);	// how many 
+	      bytes = s->async->cmd.chanlist_len * s->async->cmd.chanlist_len * sizeof (sampl_t);	// how many
     	  devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize[0];	// how many DMA pages we must fill
    		  devpriv->last_dma_run = bytes % devpriv->hwdmasize[0];	//on last dma transfer must be moved
  	      devpriv->dma_runs_to_end--;
@@ -682,7 +682,7 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		release_dma_lock (dma_flags);
 		enable_dma (devpriv->dma);
 	}
-	
+
 
 	start_pacer(dev, 1, divisor1, divisor2);
 	dmairq = ((devpriv->dma & 0x3)<<4) | (dev->irq & 0x7);
@@ -690,7 +690,7 @@ static int pcl816_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
         devpriv->int816_mode = INT_TYPE_AI1_DMA;
-        outb (0x32, dev->iobase + PCL816_CONTROL);  // Pacer+IRQ+DMA 
+        outb (0x32, dev->iobase + PCL816_CONTROL);  // Pacer+IRQ+DMA
   	    outb(dmairq, dev->iobase + PCL816_STATUS);  // write irq and DMA to card
 		break;
 
@@ -744,7 +744,7 @@ static int pcl816_ai_poll(comedi_device *dev,comedi_subdevice *s)
 }
 
 
-/* 
+/*
 ==============================================================================
  cancel any mode 1-4 AI
 */
@@ -752,7 +752,7 @@ static int
 pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 {
 //  DEBUG(rt_printk("pcl816_ai_cancel()\n");)
-  
+
   if (devpriv->irq_blocked > 0) {
   switch (devpriv->int816_mode)	{
 #ifdef unused
@@ -784,12 +784,12 @@ pcl816_ai_cancel (comedi_device * dev, comedi_subdevice * s)
 	  break;
 	}
 	}
-    
+
 	DEBUG(rt_printk("comedi: pcl816_ai_cancel() successful\n");)
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
  chech for PCL816
 */
@@ -812,7 +812,7 @@ static int pcl816_check (unsigned long iobase)
   return 0;			// ok, card exist
 }
 
-/* 
+/*
 ==============================================================================
  reset whole PCL-816 cards
 */
@@ -858,14 +858,14 @@ start_pacer (comedi_device * dev, int mode, unsigned int divisor1,
 		outb(divisor1  & 0xff, dev->iobase + PCL816_CTR1);
 		outb((divisor1 >> 8) & 0xff, dev->iobase + PCL816_CTR1);
     }
-	
+
 	/* clear pending interrupts (just in case) */
 //	outb(0, dev->iobase + PCL816_CLRINT);
 }
 
 /*
 ==============================================================================
- Check if channel list from user is builded correctly 
+ Check if channel list from user is builded correctly
  If it's ok, then program scan/gain logic
 */
 static int
@@ -874,7 +874,7 @@ check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigne
   unsigned int chansegment[16];
   unsigned int i, nowmustbechan, seglen, segpos;
 
-  // correct channel and range number check itself comedi/range.c 
+  // correct channel and range number check itself comedi/range.c
   if (chanlen < 1) {
       comedi_error (dev, "range/channel list is empty!");
       return 0;
@@ -883,7 +883,7 @@ check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigne
   if (chanlen > 1)
     {
       chansegment[0] = chanlist[0];	// first channel is everytime ok
-      for (i = 1, seglen = 1; i < chanlen; i++, seglen++)	{	
+      for (i = 1, seglen = 1; i < chanlen; i++, seglen++)	{
 	  		// build part of chanlist
 	  DEBUG(rt_printk("%d. %d %d\n",i,CR_CHAN(chanlist[i]),CR_RANGE(chanlist[i]));)
 	  if (chanlist[0] == chanlist[i])
@@ -922,7 +922,7 @@ check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigne
 
   for (i = 0; i < seglen; i++) {				// store range list to card
       devpriv->ai_act_chanlist[i] = CR_CHAN (chanlist[i]);
-	  outb (CR_CHAN(chanlist[0]) & 0xf, dev->iobase + PCL816_MUX);	
+	  outb (CR_CHAN(chanlist[0]) & 0xf, dev->iobase + PCL816_MUX);
 	  outb (CR_RANGE(chanlist[0]), dev->iobase + PCL816_RANGE);	/* select gain */
   }
 
@@ -935,7 +935,7 @@ check_and_setup_channel_list (comedi_device * dev, comedi_subdevice * s, unsigne
 }
 
 #ifdef unused
-/* 
+/*
 ==============================================================================
   Enable(1)/disable(0) periodic interrupts from RTC
 */
@@ -943,7 +943,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 {
         unsigned char val;
         unsigned long flags;
- 
+
         if (bit==1) {
 		RTC_timer_lock++;
 		if (RTC_timer_lock>1) return 0;
@@ -952,7 +952,7 @@ static int set_rtc_irq_bit(unsigned char bit)
 		if (RTC_timer_lock<0) RTC_timer_lock=0;
 		if (RTC_timer_lock>0) return 0;
 	}
-  
+
         save_flags(flags);
         cli();
         val = CMOS_READ(RTC_CONTROL);
@@ -966,9 +966,9 @@ static int set_rtc_irq_bit(unsigned char bit)
 #endif
 
 
-/* 
+/*
 ==============================================================================
-  Free any resources that we have claimed  
+  Free any resources that we have claimed
 */
 static void
 free_resources (comedi_device * dev)
@@ -1003,10 +1003,10 @@ free_resources (comedi_device * dev)
 }
 
 
-/* 
+/*
 ==============================================================================
 
-   Initialization 
+   Initialization
 
 */
 static int
@@ -1023,7 +1023,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
   iobase = it->options[0];
   printk("comedi%d: pcl816:  board=%s, ioport=0x%03lx", dev->minor,
 		this_board->name, iobase);
-		 
+
   if (!request_region (iobase, this_board->io_range, "pcl816")) {
       rt_printk ("I/O port conflict\n");
       return -EIO;
@@ -1108,7 +1108,7 @@ pcl816_attach (comedi_device * dev, comedi_devconfig * it)
 #else
 	printk("pcl816: RTC code missing");
 #endif
-	  
+
     }
 
 no_rtc:
@@ -1118,12 +1118,12 @@ no_rtc:
   devpriv->dma = dma;
   if ((devpriv->irq_free == 0) && (devpriv->dma_rtc == 0))
     goto no_dma;		/* if we haven't IRQ, we can't use DMA */
-  
+
   if (this_board->DMAbits != 0) {  /* board support DMA */
       dma = it->options[2];
       if (dma < 1)
 			goto no_dma;		/* DMA disabled */
-			
+
       if (((1 << dma) & this_board->DMAbits) == 0)	{
 	  	rt_printk (", DMA is out of allowed range, FAIL!\n");
 		return -EINVAL;	/* Bad DMA */
@@ -1133,12 +1133,12 @@ no_rtc:
 	  	rt_printk (", unable to allocate DMA %u, FAIL!\n", dma);
 	 	return -EBUSY;	/* DMA isn't free */
 	  }
-      
+
 	  devpriv->dma = dma;
       rt_printk (", dma=%u", dma);
       pages = 2;		/* we need 16KB */
       devpriv->dmabuf[0] = __get_dma_pages (GFP_KERNEL, pages);
-      
+
 	  if (!devpriv->dmabuf[0])	{
 	  		rt_printk (", unable to allocate DMA buffer, FAIL!\n");
 	  		/* maybe experiment with try_to_free_pages() will help .... */

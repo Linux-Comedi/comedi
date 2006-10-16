@@ -42,7 +42,7 @@ static comedi_driver driver_acl7225b = {
 	module:		THIS_MODULE,
 	attach:		acl7225b_attach,
 	detach:		acl7225b_detach,
-	board_name: boardtypes,
+	board_name: (const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
@@ -63,7 +63,7 @@ static int acl7225b_do_insn(comedi_device *dev,comedi_subdevice *s,
         outb(s->state & 0xff, dev->iobase+(unsigned long)s->private);
     if( data[0] & 0xff00 )
         outb((s->state >> 8), dev->iobase+(unsigned long)s->private+1);
-	
+
 	data[1]=s->state;
 
 	return 2;
@@ -142,6 +142,6 @@ static int acl7225b_detach(comedi_device *dev)
 
 	if(dev->iobase)
         release_region(dev->iobase, this_board->io_range);
-	
+
 	return 0;
 }

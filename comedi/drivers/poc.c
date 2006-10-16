@@ -103,7 +103,7 @@ static comedi_driver driver_poc=
 	module:		THIS_MODULE,
 	attach:		poc_attach,
 	detach:		poc_detach,
-	board_name:	boards,
+	board_name:	(const char**)boards,
 	num_names:	n_boards,
 	offset:		sizeof(boards[0]),
 };
@@ -208,7 +208,7 @@ static int pcl733_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	if(insn->n!=2)return -EINVAL;
-	
+
 	data[1] = inb(dev->iobase + 0);
 	data[1] |= (inb(dev->iobase + 1) << 8);
 	data[1] |= (inb(dev->iobase + 2) << 16);

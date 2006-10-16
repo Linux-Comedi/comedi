@@ -13,7 +13,7 @@ Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1730 (pci1730), PCI-1733 (pci1733),
   PCI-1734 (pci1734), PCI-1750 (pci1750), PCI-1751 (pci1751),
   PCI-1752 (pci1752), PCI-1753 (pci1753), PCI-1753+PCI-1753E (pci1753e),
-  PCI-1754 (pci1754), PCI-1756 (pci1756), PCI-1760(pci1760), 
+  PCI-1754 (pci1754), PCI-1756 (pci1756), PCI-1760(pci1760),
   PCI-1762 (pci1762)
 Status: untested
 Updated: 2003-04-06
@@ -47,9 +47,9 @@ Configuration options:
 // hardware types of the cards
 typedef enum {
 	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734,
-	TYPE_PCI1750, 
+	TYPE_PCI1750,
 	TYPE_PCI1751,
-	TYPE_PCI1752, 
+	TYPE_PCI1752,
 	TYPE_PCI1753, TYPE_PCI1753E,
 	TYPE_PCI1754, TYPE_PCI1756,
 	TYPE_PCI1760,
@@ -221,7 +221,7 @@ static boardtype boardtypes[] =
 	 {{16, PCI1730_DO, 2, 0}, {16, PCI1730_IDO, 2, 0}},
 	 {{ 0, 0, 0, 0}, { 0, 0, 0, 0}},
 	  { 4, PCI173x_BOARDID, 1, SDF_INTERNAL},
-	 IO_8b, 
+	 IO_8b,
 	},
 	{"pci1733", PCI_VENDOR_ID_ADVANTECH, 0x1733, PCIDIO_MAINREG,
 	 TYPE_PCI1733,
@@ -321,7 +321,7 @@ static comedi_driver driver_pci_dio={
 	attach:		pci_dio_attach,
 	detach:		pci_dio_detach,
 	num_names:	n_boardtypes,
-	board_name:	boardtypes,
+	board_name: (const char**)boardtypes,
 	offset:		sizeof(boardtype),
 };
 typedef struct pci_dio_private_st pci_dio_private;
@@ -353,12 +353,12 @@ static pci_dio_private	*pci_priv=NULL;	/* list of allocated cards */
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_di_b(comedi_device *dev, comedi_subdevice *s, 
+static int pci_dio_insn_bits_di_b(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	diosubd_data *d=(diosubd_data *)s->private;
 	int i;
-	
+
 	data[1]=0;
 	for (i=0; i<d->regs;i++) {
 		data[1]|=inb(dev->iobase+d->addr+i)<<(8*i);
@@ -370,12 +370,12 @@ static int pci_dio_insn_bits_di_b(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_di_w(comedi_device *dev, comedi_subdevice *s, 
+static int pci_dio_insn_bits_di_w(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	diosubd_data *d=(diosubd_data *)s->private;
 	int i;
-	
+
 	data[1]=0;
 	for (i=0; i<d->regs; i++)
 		data[1]|=inw(dev->iobase+d->addr+2*i)<<(16*i);
@@ -386,7 +386,7 @@ static int pci_dio_insn_bits_di_w(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_do_b(comedi_device *dev, comedi_subdevice *s, 
+static int pci_dio_insn_bits_do_b(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	diosubd_data *d=(diosubd_data *)s->private;
@@ -406,7 +406,7 @@ static int pci_dio_insn_bits_do_b(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_do_w(comedi_device *dev, comedi_subdevice *s, 
+static int pci_dio_insn_bits_do_w(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	diosubd_data *d=(diosubd_data *)s->private;
@@ -428,11 +428,11 @@ static int pci_dio_insn_bits_do_w(comedi_device *dev, comedi_subdevice *s,
 ==============================================================================
 */
 static int pci1760_unchecked_mbxrequest(comedi_device *dev,
-	unsigned char *omb, unsigned char *imb, 
+	unsigned char *omb, unsigned char *imb,
 	int repeats)
 {
 	int cnt, tout, ok=0;
-	
+
 	for (cnt=0; cnt<repeats; cnt++) {
 		outb(omb[0], dev->iobase+OMB0);
 		outb(omb[1], dev->iobase+OMB1);
@@ -450,7 +450,7 @@ static int pci1760_unchecked_mbxrequest(comedi_device *dev,
 		}
 		if (ok) return 0;
 	}
-	
+
 	comedi_error(dev, "PCI-1760 mailbox request timeout!");
 	return -ETIME;
 }
@@ -484,7 +484,7 @@ static int pci1760_mbxrequest(comedi_device *dev,
 /*
 ==============================================================================
 */
-static int pci1760_insn_bits_di(comedi_device *dev, comedi_subdevice *s, 
+static int pci1760_insn_bits_di(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	data[1]=inb(dev->iobase + IMB3);
@@ -495,14 +495,14 @@ static int pci1760_insn_bits_di(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci1760_insn_bits_do(comedi_device *dev, comedi_subdevice *s, 
+static int pci1760_insn_bits_do(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int ret;
 	unsigned char omb[4]={
-		0x00, 
-		0x00, 
-		CMD_SetRelaysOutput, 
+		0x00,
+		0x00,
+		CMD_SetRelaysOutput,
 		0x00};
 	unsigned char imb[4];
 
@@ -521,14 +521,14 @@ static int pci1760_insn_bits_do(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci1760_insn_cnt_read(comedi_device *dev, comedi_subdevice *s, 
+static int pci1760_insn_cnt_read(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int ret, n;
 	unsigned char omb[4]={
-		CR_CHAN(insn->chanspec)&0x07, 
-		0x00, 
-		CMD_GetIDICntCurValue, 
+		CR_CHAN(insn->chanspec)&0x07,
+		0x00,
+		CMD_GetIDICntCurValue,
 		0x00};
 	unsigned char imb[4];
 
@@ -544,16 +544,16 @@ static int pci1760_insn_cnt_read(comedi_device *dev, comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static int pci1760_insn_cnt_write(comedi_device *dev, comedi_subdevice *s, 
+static int pci1760_insn_cnt_write(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	int ret;
 	unsigned char chan=CR_CHAN(insn->chanspec)&0x07;
 	unsigned char bitmask=1<<chan;
 	unsigned char omb[4]={
-		data[0]&0xff, 
-		(data[0]>>8)&0xff, 
-		CMD_SetIDI0CntResetValue+chan, 
+		data[0]&0xff,
+		(data[0]>>8)&0xff,
+		CMD_SetIDI0CntResetValue+chan,
 		0x00};
 	unsigned char imb[4];
 
@@ -596,7 +596,7 @@ static int pci1760_reset(comedi_device *dev)
 	omb[0] = 0x00;
 	omb[2] = CMD_SetRelaysOutput;	// reset relay outputs
 	pci1760_mbxrequest(dev, omb, imb);
-	
+
 	omb[0] = 0x00;
 	omb[2] = CMD_EnableIDICounters;	// disable IDI up counters
 	pci1760_mbxrequest(dev, omb, imb);
@@ -627,7 +627,7 @@ static int pci1760_reset(comedi_device *dev)
 		pci1760_mbxrequest(dev, omb, imb);
 		devpriv->CntResValue[i] = 0x0000;
 	}
-	
+
 	omb[0] = 0xff;
 	omb[2] = CMD_ResetIDICounters;	// reset IDI up counters to reset values
 	pci1760_mbxrequest(dev, omb, imb);
@@ -655,13 +655,13 @@ static int pci1760_reset(comedi_device *dev)
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pci_dio_reset(comedi_device *dev)
 {
 	DPRINTK("adv_pci_dio EDBG: BGN: pci171x_reset(...)\n");
-	
+
 	switch (this_board->cardtype) {
 	case TYPE_PCI1730:
 		outb(0, dev->iobase+PCI1730_DO);	// clear outputs
@@ -704,14 +704,14 @@ static int pci_dio_reset(comedi_device *dev)
 		outb(0x80, dev->iobase+PCI1753_ICR3);
 		break;
 	case TYPE_PCI1754:
-		outw(0x08, dev->iobase+PCI1754_6_ICR0);	// disable and clear interrupts 
+		outw(0x08, dev->iobase+PCI1754_6_ICR0);	// disable and clear interrupts
 		outw(0x08, dev->iobase+PCI1754_6_ICR1);
 		outw(0x08, dev->iobase+PCI1754_ICR2);
 		outw(0x08, dev->iobase+PCI1754_ICR3);
 		break;
 	case TYPE_PCI1756:
 		outw(0, dev->iobase+PCI1752_6_CFC);	// disable channel freeze function
-		outw(0x08, dev->iobase+PCI1754_6_ICR0);	// disable and clear interrupts 
+		outw(0x08, dev->iobase+PCI1754_6_ICR0);	// disable and clear interrupts
 		outw(0x08, dev->iobase+PCI1754_6_ICR1);
 		outw(0, dev->iobase+PCI1756_IDO);	// clear outputs
 		outw(0, dev->iobase+PCI1756_IDO+2);
@@ -729,7 +729,7 @@ static int pci_dio_reset(comedi_device *dev)
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
@@ -745,7 +745,7 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
 	s->insn_bits=pci1760_insn_bits_di;
-	subdev++;	
+	subdev++;
 
 	s = dev->subdevices + subdev;
 	s->type = COMEDI_SUBD_DO;
@@ -756,7 +756,7 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->state=0;
 	s->insn_bits=pci1760_insn_bits_do;
-	subdev++;	
+	subdev++;
 
 	s = dev->subdevices + subdev;
 	s->type = COMEDI_SUBD_TIMER;
@@ -765,7 +765,7 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 	s->maxdata = 0xffffffff;
 	s->len_chanlist = 2;
 //	s->insn_config=pci1760_insn_pwm_cfg;
-	subdev++;	
+	subdev++;
 
 	s = dev->subdevices + subdev;
 	s->type = COMEDI_SUBD_COUNTER;
@@ -776,15 +776,15 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 	s->insn_read=pci1760_insn_cnt_read;
 	s->insn_write=pci1760_insn_cnt_write;
 //	s->insn_config=pci1760_insn_cnt_cfg;
-	subdev++;	
+	subdev++;
 
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
-static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s, 
+static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s,
 	diosubd_data *d, int subdev)
 {
 	s->type = COMEDI_SUBD_DI;
@@ -807,10 +807,10 @@ static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
-static int pci_dio_add_do(comedi_device *dev, comedi_subdevice *s, 
+static int pci_dio_add_do(comedi_device *dev, comedi_subdevice *s,
 	diosubd_data *d, int subdev)
 {
 	s->type = COMEDI_SUBD_DO;
@@ -834,14 +834,14 @@ static int pci_dio_add_do(comedi_device *dev, comedi_subdevice *s,
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int CheckAndAllocCard(comedi_device *dev, comedi_devconfig *it,
 	struct pci_dev* pcidev)
 {
 	pci_dio_private	*pr, *prev;
-	
+
 	for (pr=pci_priv, prev=NULL; pr!=NULL; prev=pr, pr=pr->next) {
 		if (pr->pcidev==pcidev) {
 			if (it->options[0]||it->options[1]) {
@@ -863,11 +863,11 @@ static int CheckAndAllocCard(comedi_device *dev, comedi_devconfig *it,
 	}
 
 	devpriv->pcidev = pcidev;
-	
+
 	return 1;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
@@ -885,7 +885,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		return -ENOMEM;
 	}
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if ((pcidev->vendor!=this_board->vendor_id)||
 		    (pcidev->device!=this_board->device_id))
@@ -896,9 +896,9 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 				continue;
 			}
 		}
-		ret=CheckAndAllocCard(dev, it, pcidev);	
+		ret=CheckAndAllocCard(dev, it, pcidev);
 		if (ret==1) { found=1; break; }
-		if (ret>1) { 
+		if (ret>1) {
 			return -EIO;
 		}
 	}
@@ -907,7 +907,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		rt_printk(", Error: Requested type of the card was not found!\n");
 		return -EIO;
 	}
-	
+
 	if (pci_enable_device(pcidev)) {
 		rt_printk(", Error: Can't enable PCI device!\n");
 		return -EIO;
@@ -915,17 +915,17 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 	if (pci_request_regions(pcidev, driver_pci_dio.driver_name)) {
 		rt_printk(", Error: Can't allocate PCI device!\n");
 		return -EIO;
-	}	
+	}
 	iobase=pci_resource_start(pcidev, this_board->main_pci_region);
 	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn), PCI_FUNC(pcidev->devfn),
 		iobase);
-	
+
 	dev->iobase=iobase;
 	dev->board_name=this_board->name;
-	
+
 	if (this_board->cardtype==TYPE_PCI1760) {
-		n_subdevices=4; // 8 IDI, 8 IDO, 2 PWM, 8 CNT 
+		n_subdevices=4; // 8 IDI, 8 IDO, 2 PWM, 8 CNT
 	} else {
 	        n_subdevices=0;
 		for (i=0; i<MAX_DI_SUBDEVS; i++)
@@ -943,9 +943,9 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 	rt_printk(".\n");
-	
+
 	subdev=0;
-	
+
 	for (i=0; i<MAX_DI_SUBDEVS; i++)
 		if (this_board->sdi[i].chans) {
 			s = dev->subdevices + subdev;
@@ -963,7 +963,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 	for (i=0; i<MAX_DIO_SUBDEVG; i++)
 		for (j=0; j<this_board->sdio[i].regs; j++) {
 			s = dev->subdevices + subdev;
-			subdev_8255_init(dev, s, NULL, 
+			subdev_8255_init(dev, s, NULL,
 				dev->iobase+this_board->sdio[i].addr+SIZE_8255*j);
 			subdev++;
 		}
@@ -974,10 +974,10 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		pci_dio_add_di(dev, s, &this_board->boardid, subdev);
 		subdev++;
 	}
-	
-	if (this_board->cardtype==TYPE_PCI1760) 
+
+	if (this_board->cardtype==TYPE_PCI1760)
 		pci1760_attach(dev, it);
-		
+
 	devpriv->valid=1;
 
 	pci_dio_reset(dev);
@@ -985,7 +985,7 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pci_dio_detach(comedi_device *dev)
@@ -993,7 +993,7 @@ static int pci_dio_detach(comedi_device *dev)
 	int i, j;
 	comedi_subdevice *s;
 	int subdev;
-		
+
 	if (dev->private) {
 		if (devpriv->valid) {
 			pci_dio_reset(dev);
@@ -1032,7 +1032,7 @@ static int pci_dio_detach(comedi_device *dev)
 			}
 			pci_dev_put(devpriv->pcidev);
 		}
-		
+
 		if (devpriv->prev) {
 			devpriv->prev->next=devpriv->next;
 		} else {
@@ -1046,10 +1046,10 @@ static int pci_dio_detach(comedi_device *dev)
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 COMEDI_INITCLEANUP(driver_pci_dio);
-/* 
+/*
 ==============================================================================
 */

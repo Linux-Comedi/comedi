@@ -32,8 +32,8 @@ Status: works
 This driver allows you to 'bond' (merge) multiple comedi subdevices
 (coming from possibly difference boards and/or drivers) together.  For
 example, if you had a board with 2 different DIO subdevices, and
-another with 1 DIO subdevice, you could 'bond' them with this driver 
-so that they look like one big fat DIO subdevice.  This makes writing 
+another with 1 DIO subdevice, you could 'bond' them with this driver
+so that they look like one big fat DIO subdevice.  This makes writing
 applications slightly easier as you don't have to worry about managing
 different subdevices in the application -- you just worry about
 indexing one linear array of channel id's.
@@ -91,7 +91,7 @@ Configuration Options:
 #include <linux/string.h>
 
 /* The maxiumum number of channels per subdevice. */
-#define MAX_CHANS 256 
+#define MAX_CHANS 256
 
 #define MODULE_NAME "comedi_bond"
 #ifdef MODULE_LICENSE
@@ -118,7 +118,7 @@ MODULE_DESCRIPTION(MODULE_NAME ": A driver for COMEDI to bond multiple COMEDI de
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-struct BondingBoard 
+struct BondingBoard
 {
 	char *name;
 };
@@ -135,14 +135,14 @@ static BondingBoard bondingBoards[] = {
  */
 #define thisboard ((BondingBoard *)dev->board_ptr)
 
-struct BondedDevice 
+struct BondedDevice
 {
   comedi_t *dev;
   unsigned minor;
   unsigned subdev;
   unsigned subdev_type;
   unsigned nchans;
-  unsigned chanid_offset; /* The offset into our unified linear channel-id's 
+  unsigned chanid_offset; /* The offset into our unified linear channel-id's
                              of chanid 0 on this subdevice. */
 };
 typedef struct BondedDevice BondedDevice;
@@ -205,7 +205,7 @@ static comedi_driver driver_bonding = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	bondingBoards,
+	board_name:	(const char**)bondingBoards,
 	offset:		sizeof(BondingBoard),
 	num_names:	sizeof(bondingBoards) / sizeof(BondingBoard),
 };
@@ -233,13 +233,13 @@ static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	if ( alloc_private(dev, sizeof(Private)) < 0 )
           return -ENOMEM;
-	
+
 /*
  * Setup our bonding from config params.. sets up our Private struct..
  */
-        if ( !doDevConfig(dev, it) ) 
+        if ( !doDevConfig(dev, it) )
           return -EINVAL;
-        
+
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -263,7 +263,7 @@ static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
         s->range_table = &range_digital;
         s->insn_bits = bonding_dio_insn_bits;
         s->insn_config = bonding_dio_insn_config;
-	
+
 	LOG_MSG("attached with %u DIO channels coming from %u different subdevices all bonded together.  John Lennon would be proud!\n", devpriv->nchans, devpriv->ndevs);
 
 	return 1;
@@ -272,7 +272,7 @@ static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -298,15 +298,15 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	if(insn->n != 2) return -EINVAL;
 
         if (devpriv->nchans < nchans) nchans = devpriv->nchans;
-        
+
         /* The insn data is a mask in data[0] and the new data
          * in data[1], each channel cooresponding to a bit. */
         for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
             BondedDevice *bdev = devpriv->devs[i];
-            /* Grab the channel mask and data of only the bits corresponding 
-               to this subdevice.. need to shift them to zero position of 
+            /* Grab the channel mask and data of only the bits corresponding
+               to this subdevice.. need to shift them to zero position of
                course. */
-            lsampl_t subdevMask = ((1<<bdev->nchans)-1); /* Bits corresponding 
+            lsampl_t subdevMask = ((1<<bdev->nchans)-1); /* Bits corresponding
                                                             to this subdev. */
             lsampl_t writeMask, dataBits;
 
@@ -318,7 +318,7 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 
             /* Read/Write the new digital lines */
             if ( comedi_dio_bitfield(bdev->dev, bdev->subdev, writeMask, &dataBits) != 2 )
-              return -EINVAL;            
+              return -EINVAL;
 
             /* Make room for the new bits in data[1], the return value */
             data[1] &= ~(subdevMask << num_done);
@@ -387,13 +387,13 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 {
   int i;
   comedi_t *devs_opened[COMEDI_NDEVICES];
-  
+
   memset(devs_opened, 0, sizeof(devs_opened));
   devpriv->name[0] = 0;;
-  /* Loop through all comedi devices specified on the command-line, 
+  /* Loop through all comedi devices specified on the command-line,
      building our device list */
   for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
-    char file[] = "/dev/comediXXXXXX";  
+    char file[] = "/dev/comediXXXXXX";
     int minor = it->options[i];
     comedi_t *d;
     int sdev = -1, nchans, tmp;
@@ -421,10 +421,10 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
       ERROR("Minor %u could not be opened\n", minor);
       return 0;
     }
-    
+
     /* Do DIO, as that's all we support now.. */
     while ( (sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO, sdev+1)) > -1 ) {
-      if ( (nchans = comedi_get_n_channels(d, sdev)) <= 0) { 
+      if ( (nchans = comedi_get_n_channels(d, sdev)) <= 0) {
         ERROR("comedi_get_n_channels() returned %d on minor %u subdev %d!\n", nchans, minor, sdev);
         return 0;
       }
@@ -451,7 +451,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
       if (!devpriv->devs) {
         ERROR("Could not allocate memory. Out of memory?");
         return 0;
-      }      
+      }
 
       devpriv->devs[devpriv->ndevs-1] = bdev;
       { /** Append dev:subdev to devpriv->name */
@@ -478,7 +478,7 @@ static void doDevUnconfig(comedi_device *dev)
   unsigned long devs_closed = 0;
 
   if (devpriv) {
-      while(devpriv->ndevs-- && devpriv->devs) {        
+      while(devpriv->ndevs-- && devpriv->devs) {
           BondedDevice *bdev = devpriv->devs[devpriv->ndevs];
           if (!bdev) continue;
           if (! (devs_closed & (0x1<<bdev->minor)) ) {

@@ -127,7 +127,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 			continue;
 		}
 		if(driv->num_names){
-			dev->board_ptr=comedi_recognize(driv, it->board_name);
+			dev->board_ptr = comedi_recognize(driv, it->board_name);
 			if(dev->board_ptr==NULL){
 				module_put( driv->module );
 				continue;
@@ -231,7 +231,7 @@ comedi_device *comedi_allocate_dev(comedi_driver *driver)
 	comedi_device *dev;
 
 	// XXX we need to do actual allocation here.
-	
+
 	dev=comedi_get_device_by_minor(0);
 
 	dev->driver=driver;
@@ -309,13 +309,11 @@ static int postconfig(comedi_device *dev)
 // generic recognize function for drivers that register their supported board names
 void *comedi_recognize(comedi_driver *driv, const char *name)
 {
-	unsigned int i = 0;
-	void *name_ptr;
-
-	name_ptr=driv->board_name;
+	unsigned i;
+	const char **name_ptr = driv->board_name;
 	for(i = 0; i < driv->num_names; i++)
 	{
-		if(strcmp(*(char **)name_ptr, name) == 0)
+		if(strcmp(*name_ptr, name) == 0)
 			return name_ptr;
 		name_ptr += driv->offset;
 	}
@@ -326,14 +324,14 @@ void *comedi_recognize(comedi_driver *driv, const char *name)
 void comedi_report_boards(comedi_driver *driv)
 {
 	unsigned int i;
-	void *name_ptr;
+	const char **name_ptr;
 
 	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
 
-	name_ptr=driv->board_name;
+	name_ptr = driv->board_name;
 	for(i = 0; i < driv->num_names; i++)
 	{
-		printk(" %s\n", *(char **)name_ptr);
+		printk(" %s\n", *name_ptr);
 		name_ptr += driv->offset;
 	}
 
@@ -394,7 +392,7 @@ static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 	pud_t *pud;
-	
+
 	if(!pgd_none(*pgd)){
 		pud = pud_offset(pgd, adr);
 		pmd = pmd_offset(pud, adr);

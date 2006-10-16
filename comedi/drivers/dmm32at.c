@@ -162,7 +162,7 @@ Configuration Options:
 
 /* DMM32AT_DIOCONF 0x0f */
 #define DMM32AT_DIENABLE 0x80
-#define DMM32AT_DIRA 0x10 
+#define DMM32AT_DIRA 0x10
 #define DMM32AT_DIRB 0x02
 #define DMM32AT_DIRCL 0x01
 #define DMM32AT_DIRCH 0x08
@@ -226,7 +226,7 @@ static dmm32at_board dmm32at_boards[] = {
 		ai_ranges:      &dmm32at_airanges,
 		ao_chans:	4,
 		ao_bits:	12,
-		ao_ranges:      &dmm32at_aoranges,		
+		ao_ranges:      &dmm32at_aoranges,
 		have_dio:	1,
 		dio_chans:      24,
 	},
@@ -240,14 +240,14 @@ static dmm32at_board dmm32at_boards[] = {
 
 /* this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
- * feel free to suggest moving the variable to the comedi_device struct.  
+ * feel free to suggest moving the variable to the comedi_device struct.
  */
 typedef struct {
-	
+
 	int data;
 	int ai_inuse;
 	unsigned int ai_scans_left;
-	
+
 	/* Used for AO readback */
 	lsampl_t ao_readback[4];
 	unsigned char dio_config;
@@ -293,7 +293,7 @@ static comedi_driver driver_dmm32at={
  * the type of board in software.  ISA PnP, PCI, and PCMCIA
  * devices are such boards.
  */
-	board_name:	dmm32at_boards,
+	board_name:	(const char**)dmm32at_boards,
 	offset:		sizeof(dmm32at_board),
 	num_names:	sizeof(dmm32at_boards) / sizeof(dmm32at_board),
 };
@@ -334,9 +334,9 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	irq = it->options[1];
 
 	printk("comedi%d: dmm32at: attaching\n",dev->minor);
-	printk("dmm32at: probing at address 0x%04lx, irq %u\n", 
+	printk("dmm32at: probing at address 0x%04lx, irq %u\n",
 	       iobase, irq);
-	
+
 	/* register address space */
 	if (!request_region(iobase,DMM32AT_MEMSIZE,thisboard->name)) {
 		printk("I/O port conflict\n");
@@ -350,13 +350,13 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* reset the board */
 	dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_RESET);
-	
+
 	/* allow a millisecond to reset */
 	udelay(1000);
 
 	/* zero scan and fifo control */
 	dmm_outb(dev,DMM32AT_FIFOCNTRL,0x0);
-	
+
 	/* zero interrupt and clock control */
 	dmm_outb(dev,DMM32AT_INTCLOCK,0x0);
 
@@ -377,12 +377,12 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	aistat = dmm_inb(dev,DMM32AT_AISTAT);
 	intstat = dmm_inb(dev,DMM32AT_INTCLOCK);
 	airback = dmm_inb(dev,DMM32AT_AIRBACK);
-	
+
 	printk("dmm32at: lo=0x%02x hi=0x%02x fifostat=0x%02x\n",
 	       ailo,aihi,fifostat);
 	printk("dmm32at: aistat=0x%02x intstat=0x%02x airback=0x%02x\n",
 	       aistat,intstat,airback);
-	
+
 	if( (ailo != 0x00) || (aihi != 0x1f) || (fifostat != 0x80) ||
 	    (aistat != 0x60 || (intstat != 0x00) || airback != 0x0c) ){
 		printk("dmmat32: board detection failed\n");
@@ -400,7 +400,7 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 
-	
+
 /*
  * If you can probe the device to determine what device in a series
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
@@ -457,14 +457,14 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+2;
 	/* digital i/o subdevice */
 	if(thisboard->have_dio){
-		
+
 		/* get access to the DIO regs */
 		dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_DIOACC);
 		/* set the DIO's to the defualt input setting */
 		devpriv->dio_config = DMM32AT_DIRA|DMM32AT_DIRB|
 			DMM32AT_DIRCL|DMM32AT_DIRCH|DMM32AT_DIENABLE;
 		dmm_outb(dev,DMM32AT_DIOCONF,devpriv->dio_config);
-		
+
 		/* set up the subdevice */
 		s->type=COMEDI_SUBD_DIO;
 		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
@@ -477,7 +477,7 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	
+
 	/* success */
 	printk("comedi%d: dmm32at: attached\n",dev->minor);
 
@@ -488,7 +488,7 @@ static int dmm32at_attach(comedi_device *dev,comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -499,7 +499,7 @@ static int dmm32at_detach(comedi_device *dev)
 	printk("comedi%d: dmm32at: remove\n",dev->minor);
 	if(dev->irq)comedi_free_irq(dev->irq,dev);
         if(dev->iobase)release_region(dev->iobase,DMM32AT_MEMSIZE);
-	
+
 	return 0;
 }
 
@@ -519,22 +519,22 @@ static int dmm32at_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	int range;
 
 	/* get the channel and range number */
-	
+
 	chan = CR_CHAN(insn->chanspec)&(s->n_chan-1);
 	range = CR_RANGE(insn->chanspec);
-	
+
 	//printk("channel=0x%02x, range=%d\n",chan,range);
-	
+
 	/* zero scan and fifo control and reset fifo*/
 	dmm_outb(dev,DMM32AT_FIFOCNTRL,DMM32AT_FIFORESET);
-	
+
 	/* write the ai channel range regs */
 	dmm_outb(dev,DMM32AT_AILOW,chan);
 	dmm_outb(dev,DMM32AT_AIHIGH,chan);
 	/* set the range bits */
 	dmm_outb(dev,DMM32AT_AICONF,dmm32at_rangebits[range]);
 
-       
+
 	/* wait for circuit to settle */
 	for(i=0;i<40000;i++){
 		status = dmm_inb(dev,DMM32AT_AIRBACK);
@@ -545,7 +545,7 @@ static int dmm32at_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 		printk("timeout\n");
 		return -ETIMEDOUT;
 	}
-	
+
 
 	/* convert n samples */
 	for(n=0;n<insn->n;n++){
@@ -574,7 +574,7 @@ static int dmm32at_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 		   used by comedi */
 		d = ((msb^0x0080)<<8) + lsb;
 
-		
+
 
 		data[n] = d;
 	}
@@ -623,7 +623,7 @@ static int dmm32at_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(err)return 1;
 
-	
+
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
@@ -636,8 +636,8 @@ static int dmm32at_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(err)return 2;
 
-	
-	
+
+
 	/* step 3: make sure arguments are trivially compatible */
 
 	if(cmd->start_arg!=0){
@@ -675,7 +675,7 @@ static int dmm32at_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 			cmd->convert_arg=10000;
 		else
 			cmd->convert_arg=5000;
-		
+
 	}else{
 		/* external trigger */
 		/* see above */
@@ -708,7 +708,7 @@ static int dmm32at_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(err)return 3;
 
-	
+
 	/* step 4: fix up any arguments */
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
@@ -729,10 +729,10 @@ static int dmm32at_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	if(err)return 4;
 
-	
+
 	/* step 5 check the channel list, the channel list for this
 	   board must be consecutive and gains must be the same */
-       
+
         if(cmd->chanlist){
                 gain = CR_RANGE(cmd->chanlist[0]);
                 start_chan = CR_CHAN(cmd->chanlist[0]);
@@ -749,10 +749,10 @@ static int dmm32at_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
                         }
                 }
         }
-	
-	
+
+
         if(err)return 5;
-	
+
 
 	return 0;
 }
@@ -790,11 +790,11 @@ static int dmm32at_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_INTRESET);
 
 	if(cmd->stop_src==TRIG_COUNT)
-		devpriv->ai_scans_left = cmd->stop_arg;	
+		devpriv->ai_scans_left = cmd->stop_arg;
 	else {  /* TRIG_NONE */
 		devpriv->ai_scans_left = 0xffffffff; /* indicates TRIG_NONE to isr */
 	}
-	
+
 	/* wait for circuit to settle */
 	for(i=0;i<40000;i++){
 		status = dmm_inb(dev,DMM32AT_AIRBACK);
@@ -805,9 +805,9 @@ static int dmm32at_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		printk("timeout\n");
 		return -ETIMEDOUT;
 	}
-	
-      
-	
+
+
+
 	if(devpriv->ai_scans_left > 1){
 		/* start the clock and enable the interrupts */
 		dmm32at_setaitimer(dev,cmd->scan_begin_arg);
@@ -817,16 +817,16 @@ static int dmm32at_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		dmm_outb(dev,DMM32AT_INTCLOCK,DMM32AT_ADINT);
 		dmm_outb(dev,DMM32AT_CONV,0xff);
 	}
-	
+
 
 /* 	printk("dmmat32 in command\n"); */
-	
+
 /* 	for(i=0;i<cmd->chanlist_len;i++) */
 /* 		comedi_buf_put(s->async,i*100); */
 
 /* 	s->async->events |= COMEDI_CB_EOA; */
 /* 	comedi_event(dev,s,s->async->events); */
-	
+
 	return 0;
 
 }
@@ -845,7 +845,7 @@ static irqreturn_t dmm32at_isr(int irq,void *d,struct pt_regs *regs){
 	comedi_device *dev=d;
         comedi_subdevice *s=dev->read_subdev;
 	comedi_cmd *cmd = &s->async->cmd;
-	
+
 	intstat = dmm_inb(dev,DMM32AT_INTCLOCK);
 
 	if(intstat & DMM32AT_ADINT){
@@ -853,12 +853,12 @@ static irqreturn_t dmm32at_isr(int irq,void *d,struct pt_regs *regs){
 			/* read data */
 			lsb = dmm_inb(dev,DMM32AT_AILSB);
 			msb = dmm_inb(dev,DMM32AT_AIMSB);
-			
+
 			/* invert sign bit to make range unsigned */
 			samp = ((msb^0x0080)<<8) + lsb;
 			comedi_buf_put(s->async,samp);
 		}
-		
+
 		if(devpriv->ai_scans_left != 0xffffffff){ /* TRIG_COUNT */
 			devpriv->ai_scans_left--;
 			if(devpriv->ai_scans_left == 0){
@@ -867,12 +867,12 @@ static irqreturn_t dmm32at_isr(int irq,void *d,struct pt_regs *regs){
 				/* set the buffer to be flushed with an EOF */
 				s->async->events |= COMEDI_CB_EOA;
 			}
-			
+
 		}
 		/* flush the buffer */
 		comedi_event(dev,s,s->async->events);
 	}
-	
+
 	/* reset the interrupt */
 	dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_INTRESET);
 	return IRQ_HANDLED;
@@ -917,7 +917,7 @@ static int dmm32at_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 		/* write the low and high values to the board */
 		dmm_outb(dev,DMM32AT_DACLSB,lo);
 		dmm_outb(dev,DMM32AT_DACMSB,hi);
-		
+
 		/* wait for circuit to settle */
 		for(i=0;i<40000;i++){
 			status = dmm_inb(dev,DMM32AT_DACSTAT);
@@ -930,7 +930,7 @@ static int dmm32at_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 		}
 		/* dummy read to update trigger the output */
 		status = dmm_inb(dev,DMM32AT_DACMSB);
-		
+
 	}
 
 	/* return the number of samples read/written */
@@ -959,7 +959,7 @@ static int dmm32at_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	unsigned char diobits;
-	
+
 	if(insn->n!=2)return -EINVAL;
 
 	/* The insn data is a mask in data[0] and the new data
@@ -974,9 +974,9 @@ static int dmm32at_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	/* get access to the DIO regs */
 	dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_DIOACC);
 
-	
 
-	       	
+
+
 	/* if either part of dio is set for output */
 	if( ((devpriv->dio_config&DMM32AT_DIRCL) == 0) ||
 	    ((devpriv->dio_config&DMM32AT_DIRCH) == 0) ){
@@ -991,16 +991,16 @@ static int dmm32at_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		diobits = (s->state&0x000000ff);
 		dmm_outb(dev,DMM32AT_DIOA,diobits);
 	}
-	
+
 	/* now read the state back in */
-	s->state = dmm_inb(dev,DMM32AT_DIOC);	
+	s->state = dmm_inb(dev,DMM32AT_DIOC);
 	s->state <<= 8;
-	s->state |= dmm_inb(dev,DMM32AT_DIOB);	
+	s->state |= dmm_inb(dev,DMM32AT_DIOB);
 	s->state <<= 8;
-	s->state |= dmm_inb(dev,DMM32AT_DIOA);	
+	s->state |= dmm_inb(dev,DMM32AT_DIOA);
 	data[1]=s->state;
-	
-	       
+
+
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
@@ -1028,13 +1028,13 @@ static int dmm32at_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 		chanbit = DMM32AT_DIRCL;
 	else
 		chanbit = DMM32AT_DIRCH;
-	
+
 
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	
+
 	/* if output clear the bit, otherwise set it */
 	if(data[0]==COMEDI_OUTPUT){
 		devpriv->dio_config &= ~chanbit;
@@ -1045,14 +1045,14 @@ static int dmm32at_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_DIOACC);
 	/* set the DIO's to the new configuration setting */
 	dmm_outb(dev,DMM32AT_DIOCONF,devpriv->dio_config);
-	
+
 	return 1;
 }
 
 void dmm32at_setaitimer(comedi_device *dev,unsigned int nansec){
 	unsigned char lo1, lo2, hi2;
 	unsigned short both2;
-	
+
 	/* based on 10mhz clock */
 	lo1=200;
 	both2 = nansec/20000;
@@ -1061,7 +1061,7 @@ void dmm32at_setaitimer(comedi_device *dev,unsigned int nansec){
 
 	/* set the counter frequency to 10mhz*/
 	dmm_outb(dev,DMM32AT_CNTRDIO,0);
-	
+
 
 	/* get access to the clock regs */
 	dmm_outb(dev,DMM32AT_CNTRL,DMM32AT_CLKACC);
@@ -1080,7 +1080,7 @@ void dmm32at_setaitimer(comedi_device *dev,unsigned int nansec){
 
 
 }
-	
+
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),

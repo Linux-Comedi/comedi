@@ -37,7 +37,7 @@ base address.  Each address corresponds to the LSB then MSB of a
 particular channel from 0-7.
 
 Note that the board is not ISA-PNP capable and thus
-needs the I/O port comedi_config parameter.  
+needs the I/O port comedi_config parameter.
 
 Note that passing a nonzero value as the second config option will
 enable "simultaneous xfer" mode for this board, in which AO writes
@@ -62,7 +62,7 @@ Configuration Options:
 #define IOSIZE 16
 #define LSB(x) ((unsigned char)((x) & 0xff))
 #define MSB(x) ((unsigned char)((((unsigned short)(x))>>8) & 0xff))
-#define LSB_PORT(chan) (dev->iobase + (chan)*2) 
+#define LSB_PORT(chan) (dev->iobase + (chan)*2)
 #define MSB_PORT(chan) (LSB_PORT(chan)+1)
 #define BITS 12
 
@@ -71,20 +71,20 @@ Configuration Options:
  */
 typedef struct pcmda12_board_struct
 {
-	char * const name; 
+	char * const name;
 } pcmda12_board;
 
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
-static comedi_lrange pcmda12_ranges = 
-{ 
-  3, 
-  { 
-    UNI_RANGE( 5 ), UNI_RANGE( 10 ), BIP_RANGE( 5 ) 
-  } 
+static comedi_lrange pcmda12_ranges =
+{
+  3,
+  {
+    UNI_RANGE( 5 ), UNI_RANGE( 10 ), BIP_RANGE( 5 )
+  }
 };
 
-static pcmda12_board pcmda12_boards[] = 
+static pcmda12_board pcmda12_boards[] =
 {
 	{
 		name:                   "pcmda12",
@@ -115,7 +115,7 @@ static int pcmda12_detach(comedi_device *dev);
 
 static void zero_chans(comedi_device *dev);
 
-static comedi_driver driver = 
+static comedi_driver driver =
 {
 	driver_name:	"pcmda12",
 	module:		THIS_MODULE,
@@ -139,7 +139,7 @@ static comedi_driver driver =
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	pcmda12_boards,
+	board_name:	(const char**)pcmda12_boards,
 	offset:		sizeof(pcmda12_board),
 	num_names:	sizeof(pcmda12_boards) / sizeof(pcmda12_board),
 };
@@ -163,8 +163,8 @@ static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
     iobase = it->options[0];
 	printk("comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name, iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
-    if ( !request_region(iobase, 
-                         IOSIZE, 
+    if ( !request_region(iobase,
+                         IOSIZE,
                          driver.driver_name) ) {
       printk("I/O port conflict\n");
       return -EIO;
@@ -186,16 +186,16 @@ static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
       printk("cannot allocate private data structure\n");
       return -ENOMEM;
     }
-   
+
     memset(devpriv, 0, sizeof(*devpriv));
-   
+
     devpriv->simultaneous_xfer_mode = it->options[1];
- 
+
       /*
        * Allocate the subdevice structures.  alloc_subdevice() is a
        * convenient macro defined in comedidev.h.
        *
-       * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the 
+       * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
        * 96-channel version of the board.
        */
 	if ( alloc_subdevices(dev, 1) < 0 ) {
@@ -223,7 +223,7 @@ static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -237,7 +237,7 @@ static int pcmda12_detach(comedi_device *dev)
 	return 0;
 }
 
-static void zero_chans(comedi_device *dev) /* sets up an 
+static void zero_chans(comedi_device *dev) /* sets up an
                                               ASIC chip to defaults */
 {
   int i;
@@ -273,7 +273,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
        /* save shadow register */
        devpriv->ao_readback[chan] = data[i];
 
-       if (!devpriv->simultaneous_xfer_mode) 
+       if (!devpriv->simultaneous_xfer_mode)
          inb(LSB_PORT(chan));
    }
 
@@ -283,7 +283,7 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
 
 /* AO subdevices should have a read insn as well as a write insn.
 
-   Usually this means copying a value stored in devpriv->ao_readback. 
+   Usually this means copying a value stored in devpriv->ao_readback.
    However, since this driver supports simultaneous xfer then sometimes
    this function actually accomplishes work.
 

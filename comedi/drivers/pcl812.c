@@ -10,9 +10,9 @@
  *  card:   ACL-8112DG, ACL-8112HG, ACL-8112PG, ACL-8113, ACL-8216
  *  driver: acl8112dg,  acl8112hg,  acl8112pg,  acl8113,  acl8216
  * and for ICP DAS cards
- *  card:   ISO-813, A-821PGH, A-821PGL, A-821PGL-NDA, A-822PGH, A-822PGL, 
+ *  card:   ISO-813, A-821PGH, A-821PGL, A-821PGL-NDA, A-822PGH, A-822PGL,
  *  driver: iso813,  a821pgh,  a-821pgl, a-821pglnda,  a822pgh,  a822pgl,
- *  card:   A-823PGH, A-823PGL, A-826PG 
+ *  card:   A-823PGH, A-823PGL, A-826PG
  * driver:  a823pgh,  a823pgl,  a826pg
  */
 /*
@@ -44,7 +44,7 @@ See the head of the source file pcl812.c for configuration options.
  *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
  *  [2] - DMA  (0=disable, 1, 3)
  *  [3] - 0=trigger source is internal 8253 with 2MHz clock
- *        1=trigger source is external 
+ *        1=trigger source is external
  *  [4] - 0=A/D input range is +/-10V
  *        1=A/D input range is +/-5V
  *        2=A/D input range is +/-2.5V
@@ -60,7 +60,7 @@ See the head of the source file pcl812.c for configuration options.
  *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
  *  [2] - DMA  (0=disable, 1, 3)
  *  [3] - 0=trigger source is internal 8253 with 2MHz clock
- *        1=trigger source is external 
+ *        1=trigger source is external
  *  [4] - 0=A/D have max +/-5V input
  *        1=A/D have max +/-10V input
  *  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
@@ -72,7 +72,7 @@ See the head of the source file pcl812.c for configuration options.
  *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
  *  [2] - DMA  (0=disable, 1, 3)
  *  [3] - 0=trigger source is internal 8253 with 2MHz clock
- *        1=trigger source is external 
+ *        1=trigger source is external
  *  [4] - 0=A/D channels are S.E.
  *        1=A/D channels are DIFF
  *  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
@@ -84,7 +84,7 @@ See the head of the source file pcl812.c for configuration options.
  *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7)
  *  [2] - 0=A/D channels are S.E.
  *        1=A/D channels are DIFF
- *  [3] - 0=D/A output 0-5V  (internal reference -5V) 
+ *  [3] - 0=D/A output 0-5V  (internal reference -5V)
  *        1=D/A output 0-10V (internal reference -10V)
  *
  * Options for A-821PGL-NDA:
@@ -100,14 +100,14 @@ See the head of the source file pcl812.c for configuration options.
  *  [0] - IO Base
  *  [1] - 0= bipolar inputs
  *        1= unipolar inputs
- *     
+ *
  * Options for ACL-8113, ISO-813:
  *  [0] - IO Base
  *  [1] - 0= 10V bipolar inputs
  *        1= 10V unipolar inputs
  *        2= 20V bipolar inputs
  *        3= 20V unipolar inputs
- *     
+ *
  */
 
 #include <linux/comedidev.h>
@@ -368,7 +368,7 @@ static comedi_driver driver_pcl812={
 	module:		THIS_MODULE,
 	attach:		pcl812_attach,
 	detach:		pcl812_detach,
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
@@ -391,7 +391,7 @@ typedef struct {
 	unsigned int	ai_scans;		// len of scanlist
 	unsigned int	ai_act_scan;		// how many scans we finished
 	unsigned int 	ai_chanlist[MAX_CHANLIST_LEN];// our copy of channel/range list
-	unsigned int	ai_n_chan;		// how many channels is measured	
+	unsigned int	ai_n_chan;		// how many channels is measured
 	unsigned int	ai_flags;		// flaglist
 	unsigned int	ai_data_len;		// len of data buffer
 	sampl_t		*ai_data;		// data buffer
@@ -410,14 +410,14 @@ typedef struct {
 
 #define devpriv ((pcl812_private *)dev->private)
 
-/* 
+/*
 ==============================================================================
 */
 static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2);
-static void setup_range_channel(comedi_device * dev, comedi_subdevice * s, 
+static void setup_range_channel(comedi_device * dev, comedi_subdevice * s,
 	unsigned int rangechan, char wait);
 static int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s);
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -449,7 +449,7 @@ static int pcl812_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	return n;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int acl8216_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -480,7 +480,7 @@ static int acl8216_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	return n;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
@@ -498,7 +498,7 @@ static int pcl812_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	return i;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -514,7 +514,7 @@ static int pcl812_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
 	return i;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
@@ -528,7 +528,7 @@ static int pcl812_di_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
@@ -548,7 +548,7 @@ static int pcl812_do_insn_bits(comedi_device *dev,comedi_subdevice *s,
 }
 
 #ifdef PCL812_EXTDEBUG
-/* 
+/*
 ==============================================================================
 */
 static void pcl812_cmdtest_out(int e,comedi_cmd *cmd) {
@@ -559,7 +559,7 @@ static void pcl812_cmdtest_out(int e,comedi_cmd *cmd) {
 }
 #endif
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
@@ -718,14 +718,14 @@ static int pcl812_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	unsigned int	divisor1=0, divisor2=0, i, dma_flags, bytes;
 	comedi_cmd 	*cmd=&s->async->cmd;
-	
+
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cmd(...)\n");
 #endif
@@ -743,8 +743,8 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if (cmd->convert_src==TRIG_TIMER) {
 		if(cmd->convert_arg<this_board->ai_ns_min) cmd->convert_arg=this_board->ai_ns_min;
-		i8253_cascade_ns_to_timer(this_board->i8254_osc_base, 
-			&divisor1, &divisor2, &cmd->convert_arg, 
+		i8253_cascade_ns_to_timer(this_board->i8254_osc_base,
+			&divisor1, &divisor2, &cmd->convert_arg,
 			cmd->flags&TRIG_ROUND_MASK);
 	}
 
@@ -756,13 +756,13 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 	if (devpriv->dma) { // check if we can use DMA transfer
 		devpriv->ai_dma=1;
-		for (i=1; i<devpriv->ai_n_chan; i++) 
+		for (i=1; i<devpriv->ai_n_chan; i++)
 			if (devpriv->ai_chanlist[0]!=devpriv->ai_chanlist[i]) {
 				devpriv->ai_dma=0;	// we cann't use DMA :-(
 				break;
 			}
 	} else devpriv->ai_dma=0;
-		
+
 	devpriv->ai_flags=cmd->flags;
 	devpriv->ai_data_len=s->async->prealloc_bufsz;
 	devpriv->ai_data=s->async->prealloc_buf;
@@ -773,31 +773,31 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ai_poll_ptr=0;
         s->async->cur_chan=0;
 
-	if ((devpriv->ai_flags & TRIG_WAKE_EOS)) { 	// don't we want wake up every scan?		
+	if ((devpriv->ai_flags & TRIG_WAKE_EOS)) { 	// don't we want wake up every scan?
 		devpriv->ai_eos=1;
 		if (devpriv->ai_n_chan==1)
 			devpriv->ai_dma=0;	// DMA is useless for this situation
 	}
 
-	if (devpriv->ai_dma) {	
+	if (devpriv->ai_dma) {
 		if (devpriv->ai_eos) {  // we use EOS, so adapt DMA buffer to one scan
 			devpriv->dmabytestomove[0]=devpriv->ai_n_chan*sizeof(sampl_t);
 			devpriv->dmabytestomove[1]=devpriv->ai_n_chan*sizeof(sampl_t);
-			devpriv->dma_runs_to_end=1; 
+			devpriv->dma_runs_to_end=1;
 		} else {
-			devpriv->dmabytestomove[0]=devpriv->hwdmasize[0]; 
+			devpriv->dmabytestomove[0]=devpriv->hwdmasize[0];
 			devpriv->dmabytestomove[1]=devpriv->hwdmasize[1];
 			if (devpriv->ai_data_len<devpriv->hwdmasize[0])
 				devpriv->dmabytestomove[0]=devpriv->ai_data_len;
 			if (devpriv->ai_data_len<devpriv->hwdmasize[1])
 				devpriv->dmabytestomove[1]=devpriv->ai_data_len;
 			if (devpriv->ai_neverending) {
-				devpriv->dma_runs_to_end=1; 
+				devpriv->dma_runs_to_end=1;
 			} else {
 				bytes=devpriv->ai_n_chan*devpriv->ai_scans*sizeof(sampl_t); // how many samples we must transfer?
 				devpriv->dma_runs_to_end=bytes / devpriv->dmabytestomove[0]; // how many DMA pages we must fill
 				devpriv->last_dma_run=bytes % devpriv->dmabytestomove[0]; //on last dma transfer must be moved
-				if (devpriv->dma_runs_to_end==0) 
+				if (devpriv->dma_runs_to_end==0)
 					devpriv->dmabytestomove[0]=devpriv->last_dma_run;
 				devpriv->dma_runs_to_end--;
 			}
@@ -825,14 +825,14 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			devpriv->ai_eos);
 #endif
 	}
-	
+
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
 		start_pacer(dev, 1, divisor1, divisor2);
 		break;
 	}
-	
-	if (devpriv->ai_dma) {	
+
+	if (devpriv->ai_dma) {
 		outb(devpriv->mode_reg_int|2, dev->iobase + PCL812_MODE);	// let's go!
 	} else {
 		outb(devpriv->mode_reg_int|6, dev->iobase + PCL812_MODE);	// let's go!
@@ -845,7 +845,7 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
         return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
@@ -909,7 +909,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 	sampl_t *ptr, unsigned int bufptr, unsigned int len)
 {
 	unsigned int i;
-	
+
 	s->async->events = 0;
         for (i=len; i; i--) {
 		comedi_buf_put( s->async, ptr[bufptr++] ); // get one sample
@@ -928,7 +928,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 	comedi_event(dev,s,s->async->events);
 }
 
-/* 
+/*
 ==============================================================================
 */
 static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d, struct pt_regs *regs)
@@ -1028,21 +1028,21 @@ static int pcl812_ai_poll(comedi_device *dev,comedi_subdevice *s)
 /*
 ==============================================================================
 */
-static void setup_range_channel(comedi_device * dev, comedi_subdevice * s, 
+static void setup_range_channel(comedi_device * dev, comedi_subdevice * s,
 	unsigned int rangechan, char wait)
 {
 	unsigned char chan_reg=CR_CHAN(rangechan); // normal board
 	unsigned char gain_reg=CR_RANGE(rangechan)+devpriv->range_correction; // gain index
-	
-	if ((chan_reg==devpriv->old_chan_reg)&&(gain_reg==devpriv->old_gain_reg)) 
+
+	if ((chan_reg==devpriv->old_chan_reg)&&(gain_reg==devpriv->old_gain_reg))
 		return;	// we can return, no change
-		
+
 	devpriv->old_chan_reg=chan_reg;
 	devpriv->old_gain_reg=gain_reg;
-	
+
 	if (devpriv->use_MPC) {
 		if (devpriv->use_diff) {
-			chan_reg=chan_reg | 0x30; // DIFF inputs 
+			chan_reg=chan_reg | 0x30; // DIFF inputs
 		} else {
 			if (chan_reg&0x80) {
 				chan_reg=chan_reg | 0x20; // SE inputs 8-15
@@ -1051,7 +1051,7 @@ static void setup_range_channel(comedi_device * dev, comedi_subdevice * s,
 			}
 		}
 	}
-	
+
 	outb(chan_reg, dev->iobase + PCL812_MUX); /* select channel */
 	outb(gain_reg, dev->iobase + PCL812_GAIN); /* select gain */
 
@@ -1064,7 +1064,7 @@ static void setup_range_channel(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
-static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2) 
+static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, unsigned int divisor2)
 {
 #ifdef PCL812_EXTDEBUG
 	rt_printk("pcl812 EDBG: BGN: start_pacer(%d,%u,%u)\n",mode,divisor1,divisor2);
@@ -1072,7 +1072,7 @@ static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, un
         outb(0xb4, dev->iobase + PCL812_CTRCTL);
         outb(0x74, dev->iobase + PCL812_CTRCTL);
         comedi_udelay(1);
-  
+
         if (mode==1) {
 		outb(divisor2 & 0xff, dev->iobase + PCL812_CTR2);
 		outb((divisor2 >> 8) & 0xff, dev->iobase + PCL812_CTR2);
@@ -1084,7 +1084,7 @@ static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, un
 #endif
 }
 
-/* 
+/*
 ==============================================================================
 */
 static void free_resources(comedi_device * dev)
@@ -1104,7 +1104,7 @@ static void free_resources(comedi_device * dev)
 		release_region(dev->iobase, this_board->io_range);
 }
 
-/* 
+/*
 ==============================================================================
 */
 static int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s)
@@ -1123,7 +1123,7 @@ static int pcl812_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 	return 0;
 }
 
-/* 
+/*
 ==============================================================================
 */
 static void pcl812_reset(comedi_device * dev)
@@ -1285,7 +1285,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 				s->n_chan = this_board->n_aichan;
 				s->subdev_flags |= SDF_GROUND;
 			}
-			break;		
+			break;
 		case boardACL8112:
 		case boardACL8216:
 			if (it->options[4] == 1) {
@@ -1296,11 +1296,11 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 				s->n_chan = this_board->n_aichan;
 				s->subdev_flags |= SDF_GROUND;
 			}
-			break;		
+			break;
 		default:
 			s->n_chan = this_board->n_aichan;
 			s->subdev_flags |= SDF_GROUND;
-			break;		
+			break;
 		}
 		s->maxdata = this_board->ai_maxdata;
 		s->len_chanlist = MAX_CHANLIST_LEN;
@@ -1443,7 +1443,7 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->max_812_ai_mode0_rangewait = 5;	/* maybe there must by greatest timeout */
 		break;
 	}
-	
+
 	printk("\n");
 	devpriv->valid=1;
 

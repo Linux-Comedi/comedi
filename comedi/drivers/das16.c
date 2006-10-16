@@ -701,7 +701,7 @@ static comedi_driver driver_das16={
 	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
-	board_name:	das16_boards,
+	board_name:	(const char**)das16_boards,
 	num_names:	n_das16_boards,
 	offset:		sizeof(das16_boards[0]),
 };

@@ -72,7 +72,7 @@ static comedi_driver driver_adl_pci7432={
 	attach:		adl_pci7432_attach,
 	detach:		adl_pci7432_detach,
 	num_names:  1,
-	board_name: adl_pci7432_boards,
+	board_name: (const char**)adl_pci7432_boards,
 	offset:     sizeof(adl_pci7432_board),
 };
 

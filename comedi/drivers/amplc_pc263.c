@@ -121,7 +121,7 @@ static comedi_driver driver_amplc_pc263={
 	module:		THIS_MODULE,
 	attach:		pc263_attach,
 	detach:		pc263_detach,
-	board_name:	pc263_boards,
+	board_name:	(const char**)pc263_boards,
 	offset:		sizeof(pc263_board),
 	num_names:	sizeof(pc263_boards) / sizeof(pc263_board),
 };
@@ -177,7 +177,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 
 		/* Look for matching PCI device. */
 		for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device,
-					NULL); pci_dev != NULL; 
+					NULL); pci_dev != NULL;
 				pci_dev = pci_get_device(pci_id->vendor,
 					pci_id->device, pci_dev)) {
 			/* If bus/slot specified, check them. */
@@ -266,7 +266,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 	} else {
 		printk("(pci %s) ", pci_name(pci_dev));
 	}
-	
+
 	printk("attached\n");
 
 	return 1;
@@ -275,7 +275,7 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are

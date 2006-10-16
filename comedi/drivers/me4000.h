@@ -37,28 +37,28 @@
 #ifdef ME4000_CALL_DEBUG
 #undef CALL_PDEBUG
 #define CALL_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor, ##args)
-#else 
+#else
 # define CALL_PDEBUG(fmt, args...) // no debugging, do nothing
 #endif
 
 #ifdef ME4000_PORT_DEBUG
 #undef PORT_PDEBUG
 #define PORT_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else 
+#else
 #define PORT_PDEBUG(fmt, args...) // no debugging, do nothing
 #endif
 
 #ifdef ME4000_ISR_DEBUG
 #undef ISR_PDEBUG
 #define ISR_PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else 
+#else
 #define ISR_PDEBUG(fmt, args...) // no debugging, do nothing
 #endif
 
 #ifdef ME4000_DEBUG
 #undef PDEBUG
 #define PDEBUG(fmt, args...) printk(KERN_DEBUG"comedi%d: me4000: " fmt, dev->minor,  ##args)
-#else 
+#else
 #define PDEBUG(fmt, args...) // no debugging, do nothing
 #endif
 
@@ -92,25 +92,25 @@
   ME-4000 base register offsets
   ===========================================================================*/
 
-#define ME4000_AO_00_CTRL_REG			0x00  // R/W 
+#define ME4000_AO_00_CTRL_REG			0x00  // R/W
 #define ME4000_AO_00_STATUS_REG			0x04  // R/_
 #define ME4000_AO_00_FIFO_REG			0x08  // _/W
 #define ME4000_AO_00_SINGLE_REG			0x0C  // R/W
 #define ME4000_AO_00_TIMER_REG			0x10  // _/W
 
-#define ME4000_AO_01_CTRL_REG			0x18  // R/W 
+#define ME4000_AO_01_CTRL_REG			0x18  // R/W
 #define ME4000_AO_01_STATUS_REG			0x1C  // R/_
 #define ME4000_AO_01_FIFO_REG			0x20  // _/W
 #define ME4000_AO_01_SINGLE_REG			0x24  // R/W
 #define ME4000_AO_01_TIMER_REG			0x28  // _/W
 
-#define ME4000_AO_02_CTRL_REG			0x30  // R/W 
+#define ME4000_AO_02_CTRL_REG			0x30  // R/W
 #define ME4000_AO_02_STATUS_REG			0x34  // R/_
 #define ME4000_AO_02_FIFO_REG			0x38  // _/W
 #define ME4000_AO_02_SINGLE_REG			0x3C  // R/W
 #define ME4000_AO_02_TIMER_REG			0x40  // _/W
 
-#define ME4000_AO_03_CTRL_REG			0x48  // R/W 
+#define ME4000_AO_03_CTRL_REG			0x48  // R/W
 #define ME4000_AO_03_STATUS_REG			0x4C  // R/_
 #define ME4000_AO_03_FIFO_REG			0x50  // _/W
 #define ME4000_AO_03_SINGLE_REG			0x54  // R/W
@@ -149,7 +149,7 @@
   Value to adjust Demux
   ===========================================================================*/
 
-#define ME4000_AO_DEMUX_ADJUST_VALUE            0x4C  
+#define ME4000_AO_DEMUX_ADJUST_VALUE            0x4C
 
 
 /*=============================================================================
@@ -334,7 +334,7 @@ typedef struct me4000_cnt_info {
 
 
 typedef struct me4000_board {
-    char *name;
+    const char *name;
     unsigned short device_id;
     me4000_ao_info_t ao;
     me4000_ai_info_t ai;
@@ -440,7 +440,7 @@ typedef struct me4000_info {
     unsigned long plx_regbase_size;		// PLX register set space
     unsigned long me4000_regbase_size;		// ME4000 register set space
     unsigned long timer_regbase_size; 		// Timer circuit register set space
-    unsigned long program_regbase_size;		// Size of program base address of the ME4000 
+    unsigned long program_regbase_size;		// Size of program base address of the ME4000
 
     unsigned int serial_no;			// Serial number of the board
     unsigned char hw_revision;			// Hardware revision of the board
@@ -462,7 +462,7 @@ typedef struct me4000_info {
 
 
 /*-----------------------------------------------------------------------------
-  Defines for analog input 
+  Defines for analog input
  ----------------------------------------------------------------------------*/
 
 /* General stuff */

@@ -184,14 +184,14 @@ struct comedi_async_struct{
 struct comedi_driver_struct{
 	struct comedi_driver_struct *next;
 
-	char *driver_name;
+	const char *driver_name;
 	struct module *module;
 	int (*attach)(comedi_device *,comedi_devconfig *);
 	int (*detach)(comedi_device *);
 
 	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
-	void *board_name;
+	const char **board_name;
 	/* offset in bytes from one board name pointer to the next */
 	int offset;
 };
@@ -201,7 +201,7 @@ struct comedi_device_struct{
 	comedi_driver *driver;
 	void *private;
 	unsigned int minor;
-	char *board_name;
+	const char *board_name;
 	const void * board_ptr;
 	int attached;
 	int rt;

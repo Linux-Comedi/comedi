@@ -230,7 +230,7 @@ static comedi_driver driver_aio_aio12_8 =
 	module:		THIS_MODULE,
 	attach:		aio_aio12_8_attach,
 	detach:		aio_aio12_8_detach,
-	board_name:	board_types,
+	board_name:	(const char**)board_types,
 	num_names:	1,
 	offset:		sizeof (board_type),
 };

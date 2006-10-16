@@ -134,7 +134,7 @@ static comedi_driver driver_rti800={
 	attach:		rti800_attach,
 	detach:		rti800_detach,
 	num_names:	sizeof(boardtypes)/sizeof(boardtype),
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	offset:		sizeof(boardtype),
 };
 COMEDI_INITCLEANUP(driver_rti800);
@@ -339,7 +339,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		return ret;
 	if((ret=alloc_private(dev,sizeof(rti800_private)))<0)
 		return ret;
-	
+
 	devpriv->adc_mux = it->options[2];
 	devpriv->adc_range = it->options[3];
 	devpriv->adc_coding = it->options[4];

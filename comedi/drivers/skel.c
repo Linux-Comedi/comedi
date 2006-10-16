@@ -176,7 +176,7 @@ static comedi_driver driver_skel={
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	skel_boards,
+	board_name:	(const char**)skel_boards,
 	offset:		sizeof(skel_board),
 	num_names:	sizeof(skel_boards) / sizeof(skel_board),
 };
@@ -203,7 +203,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 
 	printk("comedi%d: skel: ",dev->minor);
-	
+
 /*
  * If you can probe the device to determine what device in a series
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
@@ -269,7 +269,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	
+
 	printk("attached\n");
 
 	return 1;
@@ -278,7 +278,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -287,7 +287,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 static int skel_detach(comedi_device *dev)
 {
 	printk("comedi%d: skel: remove\n",dev->minor);
-	
+
 	return 0;
 }
 

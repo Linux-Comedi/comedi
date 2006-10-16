@@ -419,7 +419,7 @@ static comedi_driver driver_amplc_pci224 = {
 	module:		THIS_MODULE,
 	attach:		pci224_attach,
 	detach:		pci224_detach,
-	board_name:	pci224_boards,
+	board_name:	(const char**)pci224_boards,
 	offset:		sizeof(pci224_board),
 	num_names:	sizeof(pci224_boards) / sizeof(pci224_board),
 };
@@ -1274,7 +1274,7 @@ pci224_find_pci(comedi_device *dev, int bus, int slot,
 
 	/* Look for matching PCI device. */
 	for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device, NULL);
-			pci_dev != NULL ; 
+			pci_dev != NULL ;
 			pci_dev = pci_get_device(pci_id->vendor,
 				pci_id->device, pci_dev)) {
 		/* If bus/slot specified, check them. */
@@ -1392,14 +1392,14 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 			PCI224_DACCON_FIFOENAB | PCI224_DACCON_FIFOINTR_EMPTY);
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 			dev->iobase + PCI224_DACCON);
-	
+
 	/* Allocate subdevices.  There is only one!  */
 	if ((ret=alloc_subdevices(dev, 1)) < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 				dev->minor);
 		return ret;
 	}
-	
+
 	s = dev->subdevices + 0;
 	/* Analog output subdevice. */
 	s->type = COMEDI_SUBD_AO;
@@ -1493,7 +1493,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 	} else {
 		printk("(no irq) ");
 	}
-	
+
 	printk("attached\n");
 
 	return 1;
@@ -1501,7 +1501,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -1547,7 +1547,7 @@ pci224_detach(comedi_device *dev)
 		printk(KERN_INFO "comedi%d: %s removed\n",
 				dev->minor, dev->board_name);
 	}
-	
+
 	return 0;
 }
 

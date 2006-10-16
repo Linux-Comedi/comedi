@@ -212,7 +212,7 @@ static comedi_driver driver_dt2811={
 	module:		THIS_MODULE,
 	attach:		dt2811_attach,
 	detach:		dt2811_detach,
-	board_name:	boardtypes,
+	board_name:	(const char **)boardtypes,
 	num_names:	sizeof(boardtypes)/sizeof(boardtype),
 	offset:		sizeof(boardtype),
 };

@@ -47,7 +47,7 @@ static comedi_driver driver_pcl730 = {
 	module:		THIS_MODULE,
 	attach:		pcl730_attach,
 	detach:		pcl730_detach,
-	board_name: boardtypes,
+	board_name: (const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
@@ -68,7 +68,7 @@ static int pcl730_do_insn(comedi_device *dev,comedi_subdevice *s,
         outb(s->state & 0xff, dev->iobase+((unsigned long)s->private));
     if( data[0] & 0xff00 )
         outb((s->state >> 8), dev->iobase+((unsigned long)s->private)+1);
-	
+
 	data[1]=s->state;
 
 	return 2;
@@ -80,7 +80,7 @@ static int pcl730_di_insn(comedi_device *dev,comedi_subdevice *s,
 	if( insn->n != 2 )
         return -EINVAL;
 
-	data[1]=inb(dev->iobase+((unsigned long)s->private)) | 
+	data[1]=inb(dev->iobase+((unsigned long)s->private)) |
 			(inb(dev->iobase+((unsigned long)s->private)+1)<<8);
 
 	return 2;
@@ -115,7 +115,7 @@ static int pcl730_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=16;
 	s->insn_bits = pcl730_do_insn;
 	s->range_table=&range_digital;
-	s->private = (void *)PCL730_IDIO_LO;	
+	s->private = (void *)PCL730_IDIO_LO;
 
 	s=dev->subdevices+1;
 	/* Isolated di */
@@ -125,7 +125,7 @@ static int pcl730_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=16;
 	s->insn_bits = pcl730_di_insn;
 	s->range_table=&range_digital;
-	s->private = (void *)PCL730_IDIO_LO;	
+	s->private = (void *)PCL730_IDIO_LO;
 
 	s=dev->subdevices+2;
 	/* TTL do */
@@ -135,7 +135,7 @@ static int pcl730_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=16;
 	s->insn_bits = pcl730_do_insn;
 	s->range_table=&range_digital;
-	s->private = (void *)PCL730_DIO_LO;	
+	s->private = (void *)PCL730_DIO_LO;
 
 	s=dev->subdevices+3;
 	/* TTL di */
@@ -145,7 +145,7 @@ static int pcl730_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan=16;
 	s->insn_bits = pcl730_di_insn;
 	s->range_table=&range_digital;
-	s->private = (void *)PCL730_DIO_LO;	
+	s->private = (void *)PCL730_DIO_LO;
 
 	printk("\n");
 
@@ -158,6 +158,6 @@ static int pcl730_detach(comedi_device *dev)
 
 	if(dev->iobase)
         release_region(dev->iobase, this_board->io_range);
-	
+
 	return 0;
 }

@@ -84,7 +84,7 @@ static comedi_driver driver_pcmad={
 	module:		THIS_MODULE,
 	attach:		pcmad_attach,
 	detach:		pcmad_detach,
-	board_name:	pcmad_boards,
+	board_name:	(const char**)pcmad_boards,
 	num_names:	n_pcmad_boards,
 	offset:		sizeof(pcmad_boards[0]),
 };
@@ -116,7 +116,7 @@ static int pcmad_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 			data[n] ^= (1<<(this_board->n_ai_bits-1));
 		}
 	}
-	
+
 	return n;
 }
 
@@ -164,7 +164,7 @@ static int pcmad_attach(comedi_device *dev,comedi_devconfig *it)
 static int pcmad_detach(comedi_device *dev)
 {
 	printk("comedi%d: pcmad: remove\n",dev->minor);
-	
+
 	if(dev->irq){
 		free_irq(dev->irq,dev);
 	}

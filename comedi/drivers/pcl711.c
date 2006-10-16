@@ -162,7 +162,7 @@ static comedi_driver driver_pcl711={
 	module:		THIS_MODULE,
 	attach:		pcl711_attach,
 	detach:		pcl711_detach,
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
@@ -212,7 +212,7 @@ static void pcl711_set_changain(comedi_device * dev, int chan)
 	int chan_register;
 
 	outb(CR_RANGE(chan), dev->iobase + PCL711_GAIN);
-	
+
 	chan_register=CR_CHAN(chan);
 
 	if (this_board->is_8112) {
@@ -263,7 +263,7 @@ static int pcl711_ai_insn(comedi_device *dev,comedi_subdevice *s,
 		}
 		rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;
-	
+
 ok:
 		lo = inb(dev->iobase + PCL711_AD_LO);
 

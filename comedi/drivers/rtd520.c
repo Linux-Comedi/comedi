@@ -1,7 +1,7 @@
 /*
     comedi/drivers/rtd520.c
     Comedi driver for Real Time Devices (RTD) PCI4520/DM7520
-    
+
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2001 David A. Schleef <ds@schleef.org>
 
@@ -86,7 +86,7 @@ Configuration options:
 /*
   driver status:
 
-  Analog-In supports instruction and command mode.  
+  Analog-In supports instruction and command mode.
 
   With DMA, you can sample at 1.15Mhz with 70% idle on a 400Mhz K6-2
   (single channel, 64K read buffer).  I get random system lockups when
@@ -96,7 +96,7 @@ Configuration options:
 
   Without DMA, you can do 620Khz sampling with 20% idle on a 400Mhz K6-2
   (with a 256K read buffer).
-  
+
   Digital-IO and Analog-Out only support instruction mode.
 
 */
@@ -188,7 +188,7 @@ Configuration options:
 #define DMA_TRANSFER_BITS (\
 /* descriptors in PCI memory*/ 	PLX_DESC_IN_PCI_BIT \
 /* interrupt at end of block */ | PLX_INTR_TERM_COUNT \
-/* from board to PCI */		| PLX_XFER_LOCAL_TO_PCI) 
+/* from board to PCI */		| PLX_XFER_LOCAL_TO_PCI)
 
 /*======================================================================
   Comedi specific stuff
@@ -713,7 +713,7 @@ static comedi_driver rtd520Driver={
     module:		THIS_MODULE,
     attach:		rtd_attach,
     detach:		rtd_detach,
-    board_name:		rtd520Boards,
+    board_name:		(const char**)rtd520Boards,
     offset:		sizeof(rtdBoard),
     num_names:		sizeof(rtd520Boards) / sizeof(rtdBoard),
 };
@@ -816,9 +816,9 @@ static int rtd_attach (
      * Initialize base addresses
      */
     /* Get the physical address from PCI config */
-	physLas0 = pci_resource_start(devpriv->pci_dev, LAS0_PCIINDEX); 
-	physLas1 = pci_resource_start(devpriv->pci_dev, LAS1_PCIINDEX); 
-	physLcfg = pci_resource_start(devpriv->pci_dev, LCFG_PCIINDEX); 
+	physLas0 = pci_resource_start(devpriv->pci_dev, LAS0_PCIINDEX);
+	physLas1 = pci_resource_start(devpriv->pci_dev, LAS1_PCIINDEX);
+	physLcfg = pci_resource_start(devpriv->pci_dev, LCFG_PCIINDEX);
     /* Now have the kernel map this into memory */
 					/* ASSUME page aligned */
     devpriv->las0 = ioremap_nocache(physLas0, LAS0_PCISIZE);
@@ -993,7 +993,7 @@ static int rtd_attach (
 #else /* USE_DMA */
     printk("\n");			/* end configuration line */
 #endif /* USE_DMA */
-	
+
 					/* initialize board, per RTD spec */
 					/* also, initialize shadow registers */
     RtdResetBoard (dev);
@@ -1074,7 +1074,7 @@ static int rtd_attach (
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -1157,13 +1157,13 @@ static int rtd_detach (
 		{
 			pci_release_regions(devpriv->pci_dev);
 			pci_disable_device(devpriv->pci_dev);
-		}    
+		}
 		pci_dev_put(devpriv->pci_dev);
 	}
     }
 
     printk("comedi%d: rtd520: removed.\n",dev->minor);
-	
+
     return 0;
 }
 
@@ -1260,9 +1260,9 @@ static int rtd_ai_rinsn (
 					/* clear any old fifo data */
     RtdAdcClearFifo (dev);
 
-    /* write channel to multiplexer and clear channel gain table */ 
+    /* write channel to multiplexer and clear channel gain table */
     rtd_load_channelgain_list (dev, 1, &insn->chanspec);
-	
+
 					/* set conversion source */
     RtdAdcConversionSource (dev, 0);	/* software */
 
@@ -1676,7 +1676,7 @@ static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s)
   cmdtest tests a particular command to see if it is valid.
   Using the cmdtest ioctl, a user can create a valid cmd
   and then have it executed by the cmd ioctl (asyncronously).
- 
+
   cmdtest returns 1,2,3,4 or 0, depending on which tests
   the command passes.
 */
@@ -2050,7 +2050,7 @@ static int rtd_ai_cmd (
     else {			       /* 1/2 FIFO transfers */
 #ifdef USE_DMA
 	devpriv->flags |= DMA0_ACTIVE;
-	
+
 	/* point to first transfer in ring */
 	devpriv->dma0Offset = 0;
 	RtdDma0Mode (dev, DMA_MODE_BITS);
@@ -2064,7 +2064,7 @@ static int rtd_ai_cmd (
 	/* Must be 2 steps.  See PLX app note about "Starting a DMA transfer"*/
 	RtdDma0Control (dev, PLX_DMA_EN_BIT); /* enable DMA (clear INTR?) */
 	RtdDma0Control (dev, PLX_DMA_EN_BIT | PLX_DMA_START_BIT); /*start DMA*/
-	DPRINTK ("rtd520: Using DMA0 transfers. plxInt %x RtdInt %x\n", 
+	DPRINTK ("rtd520: Using DMA0 transfers. plxInt %x RtdInt %x\n",
 		 RtdPlxInterruptRead (dev), devpriv->intMask);
 #else /* USE_DMA */
 	RtdInterruptMask (dev, IRQM_ADC_ABOUT_CNT );
@@ -2232,10 +2232,10 @@ static int rtd_ao_rinsn (
     return i;
 }
 
-/* 
+/*
    Write a masked set of bits and the read back the port.
    We track what the bits should be (i.e. we don't read the port first).
-   
+
    DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
@@ -2255,7 +2255,7 @@ static int rtd_dio_insn_bits (
     if (data[0]) {
 	s->state &= ~data[0];
 	s->state |= data[0]&data[1];
-	
+
 	/* Write out the new digital output lines */
 	RtdDio0Write (dev, s->state);
     }
@@ -2281,7 +2281,7 @@ static int rtd_dio_insn_config (
 
     /* The input or output configuration of each digital line is
      * configured by a special insn_config instruction.  chanspec
-     * contains the channel to be changed, and data[0] contains the 
+     * contains the channel to be changed, and data[0] contains the
      * value COMEDI_INPUT or COMEDI_OUTPUT. */
 	switch(data[0])
 	{

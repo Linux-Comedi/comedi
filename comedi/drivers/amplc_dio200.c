@@ -61,7 +61,7 @@ SUBDEVICES
 
                     PC214E      PC272E/PCI272
                  -------------  -------------
-  Subdevices           4              4 
+  Subdevices           4              4
    0                 PPI-X          PPI-X
    1                 PPI-Y          PPI-Y
    2                 CTR-Z1*        PPI-Z
@@ -141,7 +141,7 @@ Clock and gate interconnection notes:
   2.  Gate source /OUT n-2 is the inverted output of channel 0 on the
   same counter subdevice if n = 2, or the inverted output of channel n+1
   on the preceding counter subdevice (see note 3) if n < 2.
-  
+
   3.  The counter subdevices are connected in a ring, so the highest
   counter subdevice precedes the lowest.
 
@@ -436,7 +436,7 @@ static comedi_driver driver_amplc_dio200 = {
 	module:		THIS_MODULE,
 	attach:		dio200_attach,
 	detach:		dio200_detach,
-	board_name:	dio200_boards,
+	board_name:	(const char**)dio200_boards,
 	offset:		sizeof(dio200_board),
 	num_names:	sizeof(dio200_boards) / sizeof(dio200_board),
 };
@@ -468,7 +468,7 @@ dio200_find_pci(comedi_device *dev, int bus, int slot,
 
 	/* Look for matching PCI device. */
 	for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device, NULL);
-			pci_dev != NULL ; 
+			pci_dev != NULL ;
 			pci_dev = pci_get_device(pci_id->vendor,
 				pci_id->device, pci_dev)) {
 		/* If bus/slot specified, check them. */
@@ -665,7 +665,7 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 		 */
 		triggered = subpriv->enabled_isns;
 	}
-	
+
 	if (triggered) {
 		/*
 		 * Some interrupt sources have triggered and have been
@@ -677,7 +677,7 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 		if (subpriv->has_int_sce) {
 			outb(cur_enabled, subpriv->iobase);
 		}
-		
+
 		if (subpriv->active) {
 			/*
 			 * The command is still active.
@@ -775,7 +775,7 @@ dio200_subdev_intr_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	if (!cmd->convert_src || tmp != cmd->convert_src) err++;
 
 	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;  
+	cmd->scan_end_src &= TRIG_COUNT;
 	if (!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
 
 	tmp = cmd->stop_src;
@@ -1330,7 +1330,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 	} else {
 		printk("(no irq) ");
 	}
-	
+
 	printk("attached\n");
 
 	return 1;
@@ -1338,7 +1338,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -1391,7 +1391,7 @@ dio200_detach(comedi_device *dev)
 		printk(KERN_INFO "comedi%d: %s removed\n",
 				dev->minor, dev->board_name);
 	}
-	
+
 	return 0;
 }
 

@@ -30,7 +30,7 @@
 int comedi_get_n_subdevices(comedi_t *d)
 {
 	comedi_device *dev = (comedi_device *)d;
-	
+
 	return dev->n_subdevices;
 }
 
@@ -39,14 +39,14 @@ int comedi_get_version_code(comedi_t *d)
 	return COMEDI_VERSION_CODE;
 }
 
-char *comedi_get_driver_name(comedi_t *d)
+const char *comedi_get_driver_name(comedi_t *d)
 {
 	comedi_device *dev = (comedi_device *)d;
 
 	return dev->driver->driver_name;
 }
 
-char *comedi_get_board_name(comedi_t *d)
+const char *comedi_get_board_name(comedi_t *d)
 {
 	comedi_device *dev = (comedi_device *)d;
 
@@ -239,7 +239,7 @@ int comedi_mark_buffer_written( comedi_t *d, unsigned int subdevice,
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 	int bytes_written;
-	
+
 	if( subdevice >= dev->n_subdevices ) return -1;
 	async = s->async;
 	if( async == NULL ) return -1;

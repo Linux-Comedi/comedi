@@ -131,7 +131,7 @@ static int me4000_dio_insn_config(
 static int cnt_reset(comedi_device *dev, unsigned int channel);
 
 static int cnt_config(
-	comedi_device *dev, 
+	comedi_device *dev,
 	unsigned int channel,
 	unsigned int mode);
 
@@ -206,14 +206,14 @@ static int me4000_ao_insn_write(
 	lsampl_t *data);
 
 static int me4000_ao_insn_read(
-       	comedi_device * dev, 
-	comedi_subdevice * s, 
-	comedi_insn *insn, 
+       	comedi_device * dev,
+	comedi_subdevice * s,
+	comedi_insn *insn,
 	lsampl_t *data);
 
 
 /*-----------------------------------------------------------------------------
-  Meilhaus inline functions 
+  Meilhaus inline functions
   ---------------------------------------------------------------------------*/
 static void inline me4000_outb(comedi_device *dev, unsigned char value, unsigned long port);
 static void inline me4000_outl(comedi_device *dev, unsigned long value, unsigned long port);
@@ -279,8 +279,6 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it){
     result = me4000_probe(dev, it);
     if(result) return result;
 
-    dev->board_name = thisboard->name;
-
     /*
      * Allocate the subdevice structures.  alloc_subdevice() is a
      * convenient macro defined in comedidev.h.  It relies on
@@ -313,7 +311,7 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it){
 		s->cancel        = me4000_ai_cancel;
 		s->do_cmdtest    = me4000_ai_do_cmd_test;
 		s->do_cmd        = me4000_ai_do_cmd;
-	    }    
+	    }
 	}
        	else{
 	    printk(KERN_WARNING"comedi%d: me4000: me4000_attach(): No interrupt available\n", dev->minor);
@@ -369,7 +367,7 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it){
 	s->io_bits |= 0xFF;
 	me4000_outl(dev, ME4000_DIO_CTRL_BIT_MODE_0, info->dio_context.dir_reg);
     }
-       
+
     /*=========================================================================
       Counter subdevice
       ========================================================================*/
@@ -408,7 +406,7 @@ static int me4000_probe(comedi_device *dev, comedi_devconfig *it){
     /*
      * Probe the device to determine what device in the series it is.
      */
- 	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+ 	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ;
 		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
 		if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS){
 			for(i = 0; i < ME4000_BOARD_VERSIONS; i++){
@@ -723,14 +721,14 @@ static int xilinx_download(comedi_device *dev){
 
     init_waitqueue_head(&queue);
 
-    /* 
+    /*
      * Set PLX local interrupt 2 polarity to high.
      * Interrupt is thrown by init pin of xilinx.
      */
     outl(0x10, info->plx_regbase + PLX_INTCSR);
 
     /* Set /CS and /WRITE of the Xilinx */
-    value = inl(info->plx_regbase + PLX_ICR); 
+    value = inl(info->plx_regbase + PLX_ICR);
     value |= 0x100;
     outl(value, info->plx_regbase + PLX_ICR);
 
@@ -794,7 +792,7 @@ static int reset_board(comedi_device *dev){
     CALL_PDEBUG("In reset_board()\n");
 
     /* Make a hardware reset */
-    icr = me4000_inl(dev, info->plx_regbase + PLX_ICR);    
+    icr = me4000_inl(dev, info->plx_regbase + PLX_ICR);
     icr |= 0x40000000;
     me4000_outl(dev, icr, info->plx_regbase + PLX_ICR);
     icr &= ~0x40000000;
@@ -808,8 +806,8 @@ static int reset_board(comedi_device *dev){
 
     /* Set both stop bits in the analog input control register */
     me4000_outl(
-	    dev, 
-	    ME4000_AI_CTRL_BIT_IMMEDIATE_STOP | ME4000_AI_CTRL_BIT_STOP, 
+	    dev,
+	    ME4000_AI_CTRL_BIT_IMMEDIATE_STOP | ME4000_AI_CTRL_BIT_STOP,
 	    info->me4000_regbase + ME4000_AI_CTRL_REG);
 
     /* Set both stop bits in the analog output control register */
@@ -946,7 +944,7 @@ static int me4000_ai_insn_read(
     /* Clear channel list, data fifo and both stop bits */
     tmp = me4000_inl(dev, info->ai_context.ctrl_reg);
     tmp &= ~(ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
-	     ME4000_AI_CTRL_BIT_DATA_FIFO | 
+	     ME4000_AI_CTRL_BIT_DATA_FIFO |
 	     ME4000_AI_CTRL_BIT_STOP |
 	     ME4000_AI_CTRL_BIT_IMMEDIATE_STOP);
     me4000_outl(dev, tmp, info->ai_context.ctrl_reg);
@@ -1004,8 +1002,8 @@ static int me4000_ai_cancel(comedi_device *dev, comedi_subdevice *s){
 
 
 static int ai_check_chanlist(
-	comedi_device *dev, 
-	comedi_subdevice *s, 
+	comedi_device *dev,
+	comedi_subdevice *s,
 	comedi_cmd *cmd){
     int aref;
     int i;
@@ -1060,7 +1058,7 @@ static int ai_check_chanlist(
     /* Check if bipolar is set for all entries when in differential mode */
     if(aref == SDF_DIFF){
 	for(i = 0; i < cmd->chanlist_len; i++){
-	    if(CR_RANGE(cmd->chanlist[i]) != 1 && 
+	    if(CR_RANGE(cmd->chanlist[i]) != 1 &&
 		    CR_RANGE(cmd->chanlist[i]) != 2){
 		printk(KERN_ERR"comedi%d: me4000: ai_check_chanlist(): Bipolar is not selected in differential mode\n",
 			dev->minor);
@@ -1192,7 +1190,7 @@ static int ai_prepare(
        (cmd->start_src == TRIG_EXT &&
 	cmd->scan_begin_src == TRIG_FOLLOW &&
 	cmd->convert_src == TRIG_TIMER)){
-	tmp = 
+	tmp =
 	    ME4000_AI_CTRL_BIT_MODE_1 |
 	    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
 	    ME4000_AI_CTRL_BIT_DATA_FIFO;
@@ -1200,7 +1198,7 @@ static int ai_prepare(
     else if(cmd->start_src == TRIG_EXT &&
 	    cmd->scan_begin_src == TRIG_EXT &&
 	    cmd->convert_src == TRIG_TIMER){
-	tmp = 
+	tmp =
 	    ME4000_AI_CTRL_BIT_MODE_2 |
 	    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
 	    ME4000_AI_CTRL_BIT_DATA_FIFO;
@@ -1208,14 +1206,14 @@ static int ai_prepare(
     else if(cmd->start_src == TRIG_EXT &&
 	    cmd->scan_begin_src == TRIG_EXT &&
 	    cmd->convert_src == TRIG_EXT){
-	tmp = 
+	tmp =
 	    ME4000_AI_CTRL_BIT_MODE_0 |
 	    ME4000_AI_CTRL_BIT_MODE_1 |
 	    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
 	    ME4000_AI_CTRL_BIT_DATA_FIFO;
     }
     else{
-	tmp = 
+	tmp =
 	    ME4000_AI_CTRL_BIT_MODE_0 |
 	    ME4000_AI_CTRL_BIT_CHANNEL_FIFO |
 	    ME4000_AI_CTRL_BIT_DATA_FIFO;
@@ -1350,7 +1348,7 @@ static int me4000_ai_do_cmd_test(
 	comedi_device *dev,
 	comedi_subdevice *s,
 	comedi_cmd *cmd){
-    
+
     unsigned int init_ticks;
     unsigned int chan_ticks;
     unsigned int scan_ticks;
@@ -1562,7 +1560,7 @@ static int me4000_ai_do_cmd_test(
 	}
 	if(scan_ticks <= cmd->chanlist_len * chan_ticks){
 	    printk(KERN_ERR"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid scan end arg\n", dev->minor);
-	    cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31; // At least one tick more 
+	    cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31; // At least one tick more
 	    err++;
 	}
     }
@@ -1599,7 +1597,7 @@ static int me4000_ai_do_cmd_test(
 	}
 	if(scan_ticks <= cmd->chanlist_len * chan_ticks){
 	    printk(KERN_ERR"comedi%d: me4000: me4000_ai_do_cmd_test(): Invalid scan end arg\n", dev->minor);
-	    cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31; // At least one tick more 
+	    cmd->scan_end_arg = 2000 * cmd->chanlist_len + 31; // At least one tick more
 	    err++;
 	}
     }
@@ -1702,7 +1700,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
 	tmp = me4000_inl(dev, ai_context->ctrl_reg);
 
 	if(!(tmp & ME4000_AI_STATUS_BIT_FF_DATA) &&
-		!(tmp & ME4000_AI_STATUS_BIT_HF_DATA) && 
+		!(tmp & ME4000_AI_STATUS_BIT_HF_DATA) &&
 		(tmp & ME4000_AI_STATUS_BIT_EF_DATA)){
 	    ISR_PDEBUG("me4000_ai_isr(): Fifo full\n");
 	    c = ME4000_AI_FIFO_COUNT;
@@ -1717,7 +1715,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
 	    printk(KERN_ERR"comedi%d: me4000: me4000_ai_isr(): FIFO overflow\n", dev->minor);
 	}
 	else if((tmp & ME4000_AI_STATUS_BIT_FF_DATA) &&
-		!(tmp & ME4000_AI_STATUS_BIT_HF_DATA) && 
+		!(tmp & ME4000_AI_STATUS_BIT_HF_DATA) &&
 		(tmp & ME4000_AI_STATUS_BIT_EF_DATA)){
 	    ISR_PDEBUG("me4000_ai_isr(): Fifo half full\n");
 
@@ -1761,12 +1759,12 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
 	}
 
 	/* Work is done, so reset the interrupt */
-	ISR_PDEBUG("me4000_ai_isr(): Reset fifo half full interrupt\n");    
+	ISR_PDEBUG("me4000_ai_isr(): Reset fifo half full interrupt\n");
 	tmp |= ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
 	me4000_outl(dev, tmp, ai_context->ctrl_reg);
 	tmp &= ~ME4000_AI_CTRL_BIT_HF_IRQ_RESET;
 	me4000_outl(dev, tmp, ai_context->ctrl_reg);
-    }  
+    }
 
     if(me4000_inl(dev, ai_context->irq_status_reg) & ME4000_IRQ_STATUS_BIT_SC){
 	ISR_PDEBUG("me4000_ai_isr(): Sample counter interrupt occured\n");
@@ -1793,7 +1791,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
 	}
 
 	/* Work is done, so reset the interrupt */
-	ISR_PDEBUG("me4000_ai_isr(): Reset interrupt from sample counter\n");    
+	ISR_PDEBUG("me4000_ai_isr(): Reset interrupt from sample counter\n");
 	tmp |= ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
 	me4000_outl(dev, tmp, ai_context->ctrl_reg);
 	tmp &= ~ME4000_AI_CTRL_BIT_SC_IRQ_RESET;
@@ -1806,7 +1804,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
 	comedi_event(dev, s, s->async->events);
 
     return IRQ_HANDLED;
-} 
+}
 
 
 
@@ -1874,9 +1872,9 @@ static int me4000_ao_insn_write(
 
 
 static int me4000_ao_insn_read(
-       	comedi_device * dev, 
-	comedi_subdevice * s, 
-	comedi_insn *insn, 
+       	comedi_device * dev,
+	comedi_subdevice * s,
+	comedi_insn *insn,
 	lsampl_t *data){
     int chan = CR_CHAN(insn->chanspec);
 
@@ -1916,17 +1914,17 @@ static int me4000_dio_insn_bits(
 	return -EINVAL;
     }
 
-    /* 
+    /*
      * The insn data consists of a mask in data[0] and the new data
-     * in data[1]. The mask defines which bits we are concerning about. 
-     * The new data must be anded with the mask. 
+     * in data[1]. The mask defines which bits we are concerning about.
+     * The new data must be anded with the mask.
      * Each channel corresponds to a bit.
      */
     if(data[0]){
 	/* Check if requested ports are configured for output */
 	if((s->io_bits & data[0]) != data[0])
 	    return -EIO;
-	
+
 	s->state &= ~data[0];
 	s->state |= data[0] & data[1];
 
@@ -1937,7 +1935,7 @@ static int me4000_dio_insn_bits(
 	me4000_outl(dev, (s->state >> 24) & 0xFF, info->dio_context.port_3_reg);
     }
 
-    /* On return, data[1] contains the value of 
+    /* On return, data[1] contains the value of
        the digital input and output lines. */
     data[1] =
 	((me4000_inl(dev, info->dio_context.port_0_reg) & 0xFF) <<  0) |
@@ -1966,7 +1964,7 @@ static int me4000_dio_insn_config(
 		return insn->n;
 	}
 
-    /* 
+    /*
      * The input or output configuration of each digital line is
      * configured by a special insn_config instruction.  chanspec
      * contains the channel to be changed, and data[0] contains the

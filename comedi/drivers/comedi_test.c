@@ -100,7 +100,7 @@ static comedi_driver driver_waveform={
 	module:         THIS_MODULE,
 	attach:         waveform_attach,
 	detach:         waveform_detach,
-	board_name:     waveform_boards,
+	board_name:     (const char**)waveform_boards,
 	offset:         sizeof(waveform_board),
 	num_names:      sizeof(waveform_boards) / sizeof(waveform_board),
 };
@@ -216,7 +216,7 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
-	s->insn_read = waveform_ai_insn_read; 
+	s->insn_read = waveform_ai_insn_read;
 	s->do_cmd = waveform_ai_cmd;
 	s->do_cmdtest = waveform_ai_cmdtest;
 	s->cancel = waveform_ai_cancel;
@@ -230,14 +230,14 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
-	s->insn_write = waveform_ao_insn_write; 
+	s->insn_write = waveform_ao_insn_write;
 	s->do_cmd = 0;
 	s->do_cmdtest = 0;
 	s->cancel = 0;
 	{
 		/* Our default loopback value is just a 0V flatline */
 		int i;
-		for (i = 0; i < s->n_chan; i++) 
+		for (i = 0; i < s->n_chan; i++)
 			devpriv->ao_loopbacks[i] = s->maxdata / 2;
 	}
 
@@ -504,7 +504,7 @@ static int waveform_ai_insn_read(comedi_device *dev, comedi_subdevice *s, comedi
 static int waveform_ao_insn_write(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
 {
 	int i, chan = CR_CHAN(insn->chanspec);
-	
+
 	for(i = 0; i < insn->n; i++)
 		devpriv->ao_loopbacks[chan] = data[i];
 

@@ -43,10 +43,10 @@ Configuration options:
     device will be used.
 
 The 2600 requires a firmware upload, which can be accomplished
-using the -i or --init-data option of comedi_config. 
+using the -i or --init-data option of comedi_config.
 The firmware can be
 found in the comedi_nonfree_firmware tarball available
-from http://www.comedi.org 
+from http://www.comedi.org
 
 */
 
@@ -256,7 +256,7 @@ static comedi_driver me_driver=
   attach:      me_attach,
   detach:      me_detach,
   num_names:   me_board_nbr,
-  board_name:  me_boards,
+  board_name:  (const char**)me_boards,
   offset:      sizeof(me_board_struct),
 };
 COMEDI_INITCLEANUP(me_driver);
@@ -697,7 +697,7 @@ static int me_attach(comedi_device *dev,comedi_devconfig *it)
 //
 // Probe the device to determine what device in the series it is.
 //
-	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ; 
+	for(pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_device != NULL ;
 		pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device))
   {
     if(pci_device->vendor == PCI_VENDOR_ID_MEILHAUS)

@@ -27,12 +27,12 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 */
 /*
  * I must give credit here to Michal Dobes <dobes@tesnet.cz> who
- * wrote the driver for Advantec's pcl812 boards. I used the interrupt 
+ * wrote the driver for Advantec's pcl812 boards. I used the interrupt
  * handling code from his driver as an example for this one.
- * 
+ *
  * Chris Baugher
  * 5/1/2000
- * 
+ *
  */
 
 #include <linux/comedidev.h>
@@ -140,7 +140,7 @@ static comedi_driver driver_atmio16d={
 	module:     THIS_MODULE,
 	attach:     atmio16d_attach,
 	detach:     atmio16d_detach,
-	board_name:	atmio16_boards,
+	board_name:	(const char**)atmio16_boards,
 	num_names:	n_atmio16_boards,
 	offset:		sizeof(atmio16_board_t),
 };
@@ -225,11 +225,11 @@ static void reset_counters(comedi_device *dev)
 static void reset_atmio16d(comedi_device *dev)
 {
 	int i;
-	
+
 	/* now we need to initialize the board */
 	outw(0, dev->iobase+COM_REG_1);
 	outw(0, dev->iobase+COM_REG_2);
-	outw(0, dev->iobase+MUX_GAIN_REG);	
+	outw(0, dev->iobase+MUX_GAIN_REG);
 	/* init AM9513A timer */
 	outw(0xFFFF, dev->iobase+AM9513A_COM_REG);
 	outw(0xFFEF, dev->iobase+AM9513A_COM_REG);
@@ -375,7 +375,7 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	reset_counters(dev);
 	s->async->cur_chan	= 0;
-	
+
 	/* check if scanning multiple channels */
 	if(cmd->chanlist_len < 2) {
 		devpriv->com_reg_1_state &= ~COMREG1_SCANEN;
@@ -396,7 +396,7 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		if( i == cmd->scan_end_arg-1 ) tmp |= 0x0010;	/* set LASTONE bit */
 		outw(tmp, dev->iobase+MUX_GAIN_REG);
 	}
-	
+
 	/* Now program the sample interval timer */
 	/* Figure out which clock to use then get an
 	 * appropriate timer value */
@@ -421,9 +421,9 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	outw(0xFFF3, dev->iobase+AM9513A_COM_REG);
 	outw(timer, dev->iobase+AM9513A_DATA_REG);
 	outw(0xFF24, dev->iobase+AM9513A_COM_REG);
-	
-	
-	
+
+
+
 	/* Now figure out how many samples to get */
 	/* and program the sample counter */
 	sample_count = cmd->stop_arg*cmd->scan_end_arg;
@@ -488,7 +488,7 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		outw(timer, dev->iobase+AM9513A_DATA_REG);
 		outw(0xFF22, dev->iobase+AM9513A_COM_REG);
 	}
-	
+
 	/* Clear the A/D FIFO and reset the MUX counter */
 	outw(0, dev->iobase+AD_CLEAR_REG);
 	outw(0, dev->iobase+MUX_CNTR_REG);
@@ -511,7 +511,7 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	reset_atmio16d(dev);
-	
+
 	return 0;
 }
 
@@ -523,7 +523,7 @@ static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice *s,
 	int chan;
 	int gain;
 	int status;
-		
+
 #ifdef DEBUG1
 	printk("atmio16d_ai_insn_read\n");
 #endif
@@ -571,7 +571,7 @@ static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice *s,
 			return -ETIME;
 		}
 	}
-	
+
 	return i;
 }
 
@@ -689,7 +689,7 @@ static int atmio16d_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
     0=internal, 1=external
    options[9] - dac0 coding
    	0=2's comp, 1=straight binary
-   
+
    options[10] - dac1 range
    options[11] - dac1 reference
    options[12] - dac1 coding
@@ -700,7 +700,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
-	
+
 	comedi_subdevice *s;
 
 	/* make sure the address range is free and allocate it */
@@ -712,7 +712,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	dev->iobase = iobase;
 
-	
+
 	/* board name */
 	dev->board_name = boardtype->name;
 
@@ -724,14 +724,14 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);
-	
+
 	/* check if our interrupt is available and get it */
 	irq=it->options[1];
 	if(irq){
 		if((ret=comedi_request_irq(irq,atmio16d_interrupt,
 			0, "atmio16d", dev))<0)
 		{
-			printk("failed to allocate irq %u\n", irq); 
+			printk("failed to allocate irq %u\n", irq);
 			return ret;
 		}
 		dev->irq=irq;
@@ -744,7 +744,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	/* set device options */
 	devpriv->adc_mux = it->options[5];
 	devpriv->adc_range = it->options[6];
-	
+
 	devpriv->dac0_range = it->options[7];
 	devpriv->dac0_reference = it->options[8];
 	devpriv->dac0_coding = it->options[9];
@@ -752,7 +752,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->dac1_reference = it->options[11];
 	devpriv->dac1_coding = it->options[12];
 
-	
+
 	/* setup sub-devices */
 	s=dev->subdevices+0;
 	dev->read_subdev = s;
@@ -815,7 +815,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata=1;
 	s->range_table=&range_digital;
 
-	
+
 	/* 8255 subdevice */
 	s++;
 	if(boardtype->has_8255){
@@ -850,7 +850,7 @@ static int atmio16d_detach(comedi_device * dev)
 		comedi_free_irq(dev->irq,dev);
 
 	reset_atmio16d(dev);
-	
+
 	if(dev->iobase)
 		release_region(dev->iobase, ATMIO16D_SIZE);
 

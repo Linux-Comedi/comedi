@@ -46,9 +46,9 @@ There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
 4 x 16-bit counters
 
 Options:
- [0] - PCI bus number - if bus number and slot number are 0, 
+ [0] - PCI bus number - if bus number and slot number are 0,
                         then driver search for first unused card
- [1] - PCI slot number 
+ [1] - PCI slot number
 */
 
 #include <linux/comedidev.h>
@@ -66,7 +66,7 @@ Options:
 // Hardware types of the cards
 #define TYPE_ICP_MULTI	0
 
-#define IORANGE_ICP_MULTI 	32		
+#define IORANGE_ICP_MULTI 	32
 
 #define ICP_MULTI_ADC_CSR	0	/* R/W:	ADC command/status register */
 #define ICP_MULTI_AI		2	/* R:	Analogue input data */
@@ -185,8 +185,8 @@ static comedi_driver driver_icp_multi={
 	attach:		icp_multi_attach,
 	detach:		icp_multi_detach,
 	num_names:	n_boardtypes,
-	board_name:	boardtypes,
-	offset:		sizeof(boardtype),	
+	board_name:	(const char**)boardtypes,
+	offset:		sizeof(boardtype),
 };
 COMEDI_INITCLEANUP(driver_icp_multi);
 
@@ -212,7 +212,7 @@ typedef struct{
 #define devpriv ((icp_multi_private *)dev->private)
 #define this_board ((boardtype *)dev->board_ptr)
 
-/* 
+/*
 ==============================================================================
 	More forward declarations
 ==============================================================================
@@ -225,7 +225,7 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsign
 static int icp_multi_reset(comedi_device *dev);
 
 
-/* 
+/*
 ==============================================================================
 	Functions
 ==============================================================================
@@ -260,7 +260,7 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
 	// Disable A/D conversion ready interrupt
 	devpriv->IntEnable &= ~ADC_READY;
 	writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
-	
+
 	// Clear interrupt status
 	devpriv->IntStatus |= ADC_READY;
 	writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
@@ -324,7 +324,7 @@ static int icp_multi_insn_read_ai(comedi_device * dev, comedi_subdevice * s, com
 conv_finish:
 		data[n] = (readw(devpriv->io_addr+ICP_MULTI_AI) >> 4 ) & 0x0fff;
 	}
-	
+
 	// Disable interrupt
 	devpriv->IntEnable &= ~ADC_READY;
 	writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
@@ -341,7 +341,7 @@ conv_finish:
 
 /*
 ==============================================================================
-	
+
 	Name:	icp_multi_insn_write_ao
 
 	Description:
@@ -367,7 +367,7 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 	// Disable D/A conversion ready interrupt
 	devpriv->IntEnable &= ~DAC_READY;
 	writew(devpriv->IntEnable,devpriv->io_addr + ICP_MULTI_INT_EN);
-	
+
 	// Clear interrupt status
 	devpriv->IntStatus |= DAC_READY;
 	writew(devpriv->IntStatus,devpriv->io_addr + ICP_MULTI_INT_STAT);
@@ -384,7 +384,7 @@ static int icp_multi_insn_write_ao(comedi_device * dev, comedi_subdevice * s, co
 	devpriv->DacCmdStatus &= 0xfccf;
 	devpriv->DacCmdStatus |= this_board->rangecode[range];
 	devpriv->DacCmdStatus |= (chan << 8);
-	
+
 	writew(devpriv->DacCmdStatus, devpriv->io_addr+ICP_MULTI_DAC_CSR);
 
 	for (n=0; n<insn->n; n++) {
@@ -442,7 +442,7 @@ dac_ready:
 
 /*
 ==============================================================================
-	
+
 	Name:	icp_multi_insn_read_ao
 
 	Description:
@@ -462,11 +462,11 @@ static int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, com
 {
 	int n,chan;
 
-	// Get channel number	
+	// Get channel number
 	chan = CR_CHAN(insn->chanspec);
 
 	// Read analogue outputs
-	for (n=0; n<insn->n; n++) 
+	for (n=0; n<insn->n; n++)
 		data[n]=devpriv->ao_data[chan];
 
 	return n;
@@ -474,7 +474,7 @@ static int icp_multi_insn_read_ao(comedi_device * dev, comedi_subdevice * s, com
 
 /*
 ==============================================================================
-	
+
 	Name:	icp_multi_insn_bits_di
 
 	Description:
@@ -499,7 +499,7 @@ static int icp_multi_insn_bits_di(comedi_device *dev,comedi_subdevice *s, comedi
 
 /*
 ==============================================================================
-	
+
 	Name:	icp_multi_insn_bits_do
 
 	Description:
@@ -678,7 +678,7 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d, struct pt_regs 
 static int check_channel_list(comedi_device * dev, comedi_subdevice * s, unsigned int *chanlist, unsigned int n_chan)
 {
         unsigned int i;
-    
+
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG:  check_channel_list(...,%d)\n",n_chan);
 #endif
@@ -792,7 +792,7 @@ static void setup_channel_list(comedi_device * dev, comedi_subdevice * s, unsign
 
 	Description:
 		This function resets the icp multi device to a 'safe' state
-	
+
 	Parameters:
 		comedi_device *dev	Pointer to current sevice structure
 
@@ -827,11 +827,11 @@ static int icp_multi_reset(comedi_device *dev)
 
 			// Output to command / status register
 			writew(devpriv->DacCmdStatus, devpriv->io_addr+ICP_MULTI_DAC_CSR);
-			
+
 			// Delay to allow DAC time to recover
 			comedi_udelay(1);
 		}
-	
+
 	// Digital outputs to 0
 	writew(0, devpriv->io_addr + ICP_MULTI_DO);
 
@@ -845,7 +845,7 @@ static int icp_multi_reset(comedi_device *dev)
 ==============================================================================
 
 	Name:	icp_multi_attach
-	
+
 	Description:
 		This function sets up all the appropriate data for the current
 		device.
@@ -941,13 +941,13 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	else
 		irq=0;
-	
+
         dev->irq = irq;
 
 	printk(".\n");
 
 	subdev=0;
-	
+
 	if (this_board->n_aichan) {
 		s = dev->subdevices + subdev;
 		dev->read_subdev = s;
@@ -962,7 +962,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 		s->insn_read=icp_multi_insn_read_ai;
 		subdev++;
 	}
-	
+
 	if (this_board->n_aochan) {
 		s = dev->subdevices + subdev;
 		s->type = COMEDI_SUBD_AO;
@@ -1015,7 +1015,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 		s->insn_write=icp_multi_insn_write_ctr;
 		subdev++;
 	}
-	
+
 	devpriv->valid = 1;
 
 	icp_multi_reset(dev);
@@ -1031,11 +1031,11 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 ==============================================================================
 
 	Name:	icp_multi_detach
-	
+
 	Description:
 		This function releases all the resources used by the current
 		device.
-	
+
 	Parameters:
 		comedi_device *dev	Pointer to current device structure
 
@@ -1046,10 +1046,10 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 static int icp_multi_detach(comedi_device *dev)
 {
 
-	if (dev->private) 
+	if (dev->private)
 		if (devpriv->valid)
 			icp_multi_reset(dev);
-	
+
 	if (dev->irq)
 		comedi_free_irq(dev->irq,dev);
 

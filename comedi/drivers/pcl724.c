@@ -1,7 +1,7 @@
 /*
     module/pcl724.c
 
-    Michal Dobes <dobes@tesnet.cz>  
+    Michal Dobes <dobes@tesnet.cz>
 
     hardware driver for Advantech cards:
      card:   PCL-724, PCL-722, PCL-731
@@ -9,7 +9,7 @@
     and ADLink cards:
      card:   ACL-7122, ACL-7124, PET-48DIO
      driver: acl7122,  acl7124,  pet48dio
-    	       
+
     Options for PCL-724, PCL-731, ACL-7124 and PET-48DIO:
      [0] - IO Base
 
@@ -65,7 +65,7 @@ typedef struct {
 	int		numofports;	// num of 8255 subdevices
 	unsigned int 	IRQbits;	// allowed interrupts
 	unsigned int	io_range;	// len of IO space
-	char		can_have96;	
+	char		can_have96;
 	char		is_pet48;
 } boardtype;
 
@@ -73,7 +73,7 @@ static boardtype boardtypes[] =
 {
 	{"pcl724",    24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
 	{"pcl722",   144, 6, 0x00fc, PCL722_SIZE, 1, 0, },
-	{"pcl731",    48, 2, 0x9cfc, PCL731_SIZE, 0, 0, }, 
+	{"pcl731",    48, 2, 0x9cfc, PCL731_SIZE, 0, 0, },
 	{"acl7122",  144, 6, 0x9ee8, PCL722_SIZE, 1, 0, },
 	{"acl7124",   24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
 	{"pet48dio",  48, 2, 0x9eb8, PET48_SIZE,  0, 1, },
@@ -87,7 +87,7 @@ static comedi_driver driver_pcl724={
 	module:		THIS_MODULE,
 	attach:		pcl724_attach,
 	detach:		pcl724_detach,
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };
@@ -195,7 +195,7 @@ static int pcl724_detach(comedi_device *dev)
 	int i;
 
 //	printk("comedi%d: pcl724: remove\n",dev->minor);
-	
+
 	for(i=0;i<dev->n_subdevices;i++){
 		subdev_8255_cleanup(dev,dev->subdevices+i);
 	}

@@ -185,7 +185,7 @@ static comedi_driver driver_atao={
 	module:		THIS_MODULE,
 	attach:		atao_attach,
 	detach:		atao_detach,
-	board_name:	atao_boards,
+	board_name:	(const char**)atao_boards,
 	offset:		sizeof(atao_board),
 	num_names:	sizeof(atao_boards) / sizeof(atao_board),
 };
@@ -209,13 +209,13 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	unsigned long iobase;
 	int ao_unipolar;
-	
+
 	iobase = it->options[0];
 	if(iobase==0)iobase = 0x1c0;
 	ao_unipolar = it->options[3];
-	
+
 	printk("comedi%d: ni_at_ao: 0x%04lx",dev->minor,iobase);
-	
+
 	if(!request_region(iobase, ATAO_SIZE, "ni_at_ao")){
 		printk(" I/O port conflict\n");
 		return -EIO;
@@ -254,7 +254,7 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	s->range_table=&range_digital;
 	s->insn_bits = atao_dio_insn_bits;
 	s->insn_config = atao_dio_insn_config;
-	
+
 	s=dev->subdevices+2;
 	/* caldac subdevice */
 	s->type=COMEDI_SUBD_CALIB;
@@ -268,7 +268,7 @@ static int atao_attach(comedi_device *dev,comedi_devconfig *it)
 	/* eeprom subdevice */
 	//s->type=COMEDI_SUBD_EEPROM;
 	s->type=COMEDI_SUBD_UNUSED;
-	
+
 	atao_reset(dev);
 
 	printk("\n");
@@ -283,7 +283,7 @@ static int atao_detach(comedi_device *dev)
 
 	if(dev->iobase)
 		release_region(dev->iobase, ATAO_SIZE);
-	
+
 	return 0;
 }
 
@@ -301,10 +301,10 @@ static void atao_reset(comedi_device *dev)
 
 	devpriv->cfg2 = 0;
 	outw(devpriv->cfg2, dev->iobase + ATAO_CFG2);
-	
+
 	devpriv->cfg3 = 0;
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);
-	
+
 	inw(dev->iobase + ATAO_FIFO_CLEAR);
 
 	devpriv->cfg1 |= GRP2WR;
@@ -324,7 +324,7 @@ static int atao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	short bits;
-	
+
 	for(i=0;i<insn->n;i++){
 		bits = data[i] - 0x800;
 		if(chan == 0)

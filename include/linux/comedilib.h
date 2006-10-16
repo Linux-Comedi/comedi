@@ -85,8 +85,8 @@ int comedi_dio_bitfield(comedi_t *dev,unsigned int subdev,unsigned int mask,
 	unsigned int *bits);
 int comedi_get_n_subdevices(comedi_t *dev);
 int comedi_get_version_code(comedi_t *dev);
-char *comedi_get_driver_name(comedi_t *dev);
-char *comedi_get_board_name(comedi_t *dev);
+const char *comedi_get_driver_name(comedi_t *dev);
+const char *comedi_get_board_name(comedi_t *dev);
 int comedi_get_subdevice_type(comedi_t *dev,unsigned int subdevice);
 int comedi_find_subdevice_by_type(comedi_t *dev,int type,unsigned int subd);
 int comedi_get_n_channels(comedi_t *dev,unsigned int subdevice);

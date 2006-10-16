@@ -84,7 +84,7 @@ static comedi_driver driver_adl_pci8164={
 	attach:		adl_pci8164_attach,
 	detach:		adl_pci8164_detach,
 	num_names:  1,
-	board_name: adl_pci8164_boards,
+	board_name: (const char**)adl_pci8164_boards,
 	offset:     sizeof(adl_pci8164_board),
 };
 

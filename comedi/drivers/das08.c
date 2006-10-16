@@ -677,7 +677,7 @@ static unsigned int i8254_read_channel_low(unsigned int base, int chan)
         /* The following instructions must be in order.
            We must avoid other process reading the counter's value in the
            middle.
-           The spin_lock isn't needed since ioctl calls grab the big kernel 
+           The spin_lock isn't needed since ioctl calls grab the big kernel
            lock automatically */
         /*spin_lock(sp);*/
         outb(chan<<6,base+I8254_CTRL);
@@ -748,7 +748,7 @@ static unsigned int i8254_read_status_low(unsigned int base, int channel)
 static unsigned int i8254_read_status(struct i8254_struct *st, int channel)
 {
         int chan=st->logic2phys[channel];
-        
+
         return i8254_read_status_low(st->iobase,chan);
 }
 
@@ -759,7 +759,7 @@ static int das08_counter_read(comedi_device *dev,comedi_subdevice *s, comedi_ins
         //printk("Reading counter channel %d ",chan);
         data[0]=i8254_read_channel(&devpriv->i8254,chan);
         //printk("=> 0x%08X\n",data[0]);
-           
+
 	return 1;
 }
 
@@ -769,7 +769,7 @@ static int das08_counter_write(comedi_device *dev,comedi_subdevice *s, comedi_in
 
         //printk("Writing counter channel %d with 0x%04X\n",chan,data[0]);
         i8254_write_channel(&devpriv->i8254,chan,data[0]);
-           
+
 	return 1;
 }
 
@@ -800,7 +800,7 @@ static comedi_driver driver_das08={
 	module:		THIS_MODULE,
 	attach:		das08_attach,
 	detach:		das08_common_detach,
-	board_name:	das08_boards,
+	board_name:	(const char**)(das08_boards),
 	num_names:	sizeof(das08_boards)/sizeof(struct das08_board_struct),
 	offset:		sizeof(struct das08_board_struct),
 };
@@ -937,7 +937,7 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 		printk("\n");
 		// find card
-		for(pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pdev != NULL ; 
+		for(pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pdev != NULL ;
 			pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
 			if(pdev->vendor == PCI_VENDOR_ID_COMPUTERBOARDS &&
 				pdev->device == PCI_DEVICE_ID_PCIDAS08){

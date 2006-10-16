@@ -80,7 +80,7 @@ static comedi_driver driver_adl_pci7296={
 	attach:		adl_pci7296_attach,
 	detach:		adl_pci7296_detach,
 
-	board_name:	adl_pci7296_boards,
+	board_name:	(const char**)adl_pci7296_boards,
 	offset:		sizeof(adl_pci7296_board),
 	num_names:	sizeof(adl_pci7296_boards) / sizeof(adl_pci7296_board),
 };
@@ -157,7 +157,7 @@ static int adl_pci7296_detach(comedi_device *dev)
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}
-	
+
 	// detach four 8255 digital io subdevices
 	if(dev->subdevices)
 	{

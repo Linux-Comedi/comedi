@@ -397,7 +397,7 @@ static comedi_driver driver_dt282x={
 	module:		THIS_MODULE,
 	attach:		dt282x_attach,
 	detach:		dt282x_detach,
-	board_name:	boardtypes,
+	board_name:	(const char**)boardtypes,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype_t),
 };
@@ -1256,7 +1256,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	if (irq < 0) {
 		unsigned long flags;
 		int irqs;
-		
+
 		save_flags(flags);
 		sti();
 		irqs = probe_irq_on();

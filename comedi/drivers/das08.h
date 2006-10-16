@@ -30,7 +30,7 @@ enum das08_ai_encoding {das08_encode12, das08_encode16, das08_pcm_encode12};
 enum das08_lrange {das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl, das08_pgm};
 
 typedef struct das08_board_struct{
-	char		*name;
+	const char * name;
 	unsigned int	id;	// id for pci/pcmcia boards
 	enum das08_bustype	bustype;
 	void		*ai;

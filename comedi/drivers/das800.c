@@ -251,7 +251,7 @@ static comedi_driver driver_das800={
 	attach:		das800_attach,
 	detach:		das800_detach,
 	num_names:	sizeof(das800_boards) / sizeof(das800_board),
-	board_name:	(char **)das800_boards,
+	board_name:	(const char **)das800_boards,
 	offset:		sizeof(das800_board),
 };
 
