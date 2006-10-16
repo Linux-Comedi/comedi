@@ -25,7 +25,7 @@ Driver: ni_65xx.o
 Description: National Instruments 65xx static dio boards
 Author: Jon Grierson <jd@renko.co.uk>
 Status: testing
-Devices: [National Instruments] PCI-6514 (ni6514), PXI-6514
+Devices: [National Instruments] PCI-6514 (ni_65xx), PXI-6514, PXI-6509
 Updated: Mon, 17 Jul 2006 16:40:10 +0100
 
 Based on the PCI-6527 driver by ds.
@@ -82,7 +82,7 @@ Should be easily modified for 6509, 651x, 6520, 6521 and 6528
 static int ni6514_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni6514_detach(comedi_device *dev);
 static comedi_driver driver_ni6514={
-	driver_name:	"ni6514",
+	driver_name:	"ni_65xx",
 	module:		THIS_MODULE,
 	attach:		ni6514_attach,
 	detach:		ni6514_detach,
@@ -95,12 +95,16 @@ typedef struct{
 }ni6514_board;
 static ni6514_board ni6514_boards[] = {
 	{
-	dev_id:		0x7088,
-	name:		"pci-6514",
+		dev_id:		0x1710,
+		name:		"pxi-6509",
 	},
 	{
-	dev_id:		0x70CD,
-	name:		"pxi-6514",
+		dev_id:		0x7088,
+		name:		"pci-6514",
+	},
+	{
+		dev_id:		0x70CD,
+		name:		"pxi-6514",
 	},
 };
 
@@ -108,6 +112,7 @@ static ni6514_board ni6514_boards[] = {
 #define this_board ((ni6514_board *)dev->board_ptr)
 
 static struct pci_device_id ni6514_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_NATINST, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x7088, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70CD, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
@@ -148,7 +153,7 @@ static int ni6514_di_insn_config(comedi_device *dev,comedi_subdevice *s,
 	}else{
 		devpriv->filter_enable &= ~(1<<chan);
 	}
-	
+
 	writeb(devpriv->filter_enable, devpriv->mite->daq_io_addr + Filter_Enable(0));
 	writeb(devpriv->filter_enable>>8, devpriv->mite->daq_io_addr + Filter_Enable(0x10));
 	writeb(devpriv->filter_enable>>16, devpriv->mite->daq_io_addr + Filter_Enable(0x20));
@@ -277,7 +282,7 @@ static int ni6514_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	if(err)return 3;
 
 	/* step 4: fix up any arguments */
-	
+
 	if(err)return 4;
 
 	return 0;
@@ -286,12 +291,12 @@ static int ni6514_intr_cmdtest(comedi_device *dev,comedi_subdevice *s,
 static int ni6514_intr_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	//comedi_cmd *cmd = &s->async->cmd;
-	
+
 	writeb(ClrEdge|ClrOverflow, devpriv->mite->daq_io_addr + Clear_Register);
 	writeb(FallingEdgeIntEnable|RisingEdgeIntEnable|
 		MasterInterruptEnable|EdgeIntEnable,
 		devpriv->mite->daq_io_addr + Master_Interrupt_Control);
-	
+
 	return 0;
 }
 
@@ -335,12 +340,12 @@ static int ni6514_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret;
-	
+
 	printk("comedi%d: ni6514:",dev->minor);
 
 	if((ret=alloc_private(dev,sizeof(ni6514_private)))<0)
 		return ret;
-	
+
 	ret=ni6514_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
 
@@ -403,10 +408,10 @@ static int ni6514_attach(comedi_device *dev,comedi_devconfig *it)
 	writeb(ClrEdge|ClrOverflow,
 		devpriv->mite->daq_io_addr + Clear_Register);
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
-	
+
 	/* Set filter interval to 0  (32bit reg) */
 	writeb(0x00000000, devpriv->mite->daq_io_addr + Filter_Interval);
-	
+
 	ret=comedi_request_irq(dev->irq,ni6514_interrupt,SA_SHIRQ,"ni6514",dev);
 	if(ret<0){
 		dev->irq=0;
@@ -439,7 +444,7 @@ static int ni6514_find_device(comedi_device *dev,int bus,int slot)
 {
 	struct mite_struct *mite;
 	int i;
-	
+
 	for(mite=mite_devices;mite;mite=mite->next){
 		if(mite->used)continue;
 		if(bus || slot){
