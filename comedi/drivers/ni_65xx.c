@@ -340,13 +340,13 @@ static int ni_65xx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_DIO_OUTPUT:
 		if(s->type != COMEDI_SUBD_DIO) return -EINVAL;
 		private(dev)->dio_direction[port] = COMEDI_OUTPUT;
-		writeb(1, private(dev)->mite->daq_io_addr + Port_Select(port));
+		writeb(0, private(dev)->mite->daq_io_addr + Port_Select(port));
 		return 1;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
 		if(s->type != COMEDI_SUBD_DIO) return -EINVAL;
 		private(dev)->dio_direction[port] = COMEDI_INPUT;
-		writeb(0, private(dev)->mite->daq_io_addr + Port_Select(port));
+		writeb(1, private(dev)->mite->daq_io_addr + Port_Select(port));
 		return 1;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
@@ -371,7 +371,7 @@ static int ni_65xx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	{
 		const unsigned ports_per_bitfield = 4;
 		const unsigned array_offset = i * elements_per_bitfield;
-		data[array_offset + 1] = 0;
+		unsigned read_bits = 0;
 		unsigned j;
 		for(j = 0; j < ports_per_bitfield; ++j)
 		{
@@ -386,8 +386,9 @@ static int ni_65xx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 				if(board(dev)->invert_outputs) bits = ~bits;
 				writeb(bits, private(dev)->mite->daq_io_addr + Port_Data(port));
 			}
-			data[array_offset + 1] |= readb(private(dev)->mite->daq_io_addr + Port_Data(port));
+			read_bits |= readb(private(dev)->mite->daq_io_addr + Port_Data(port)) << (j * 8);
 		}
+		data[array_offset + 1] = read_bits;
 	}
 	return insn->n;
 }
@@ -602,6 +603,12 @@ static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 		s->private = ni_65xx_alloc_subdevice_private();
 		if(s->private == NULL) return -ENOMEM;
 		sprivate(s)->base_port = 0;
+		unsigned i;
+		for(i = 0; i < board(dev)->num_dio_ports; ++i)
+		{
+			// configure all ports for input
+			writeb(0x1, private(dev)->mite->daq_io_addr + Port_Select(i));
+		}
 	}else
 	{
 		s->type = COMEDI_SUBD_UNUSED;
@@ -624,7 +631,7 @@ static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 	for(i = 0; i < ni_65xx_total_num_ports(board(dev)); ++i)
 	{
 		writeb(0x00, private(dev)->mite->daq_io_addr + Filter_Enable(i));
-		writeb(0x00,private(dev)->mite->daq_io_addr + Port_Data(i));
+		writeb(0x00, private(dev)->mite->daq_io_addr + Port_Data(i));
 	}
 	writeb(ClrEdge|ClrOverflow,
 		private(dev)->mite->daq_io_addr + Clear_Register);
