@@ -363,33 +363,52 @@ static int ni_65xx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_65xx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	const unsigned elements_per_bitfield = 2;
-	if(insn->n % elements_per_bitfield) return -EINVAL;
-	const unsigned num_bitfields = insn->n / elements_per_bitfield;
-	unsigned i;
-	for(i = 0; i < num_bitfields; ++i)
+	if(insn->n != 2) return -EINVAL;
+	const unsigned base_bitfield_channel = CR_CHAN(insn->chanspec);
+	const unsigned max_ports_per_bitfield = 5;
+	unsigned read_bits = 0;
+	unsigned j;
+	for(j = 0; j < max_ports_per_bitfield; ++j)
 	{
-		const unsigned ports_per_bitfield = 4;
-		const unsigned array_offset = i * elements_per_bitfield;
-		unsigned read_bits = 0;
-		unsigned j;
-		for(j = 0; j < ports_per_bitfield; ++j)
+		const unsigned port = sprivate(s)->base_port + ni_65xx_port_by_channel(base_bitfield_channel) + j;
+		if(port >= ni_65xx_total_num_ports(board(dev))) break;
+		const unsigned base_port_channel = port * ni_65xx_channels_per_port;
+		unsigned port_mask = data[0];
+		unsigned port_data = data[1];
+		int bitshift = base_port_channel - base_bitfield_channel;
+		if(bitshift >= 32 || bitshift <= -32) break;
+		if(bitshift > 0)
 		{
-			const unsigned port = sprivate(s)->base_port + i * ports_per_bitfield + j;
-			if(port >= ni_65xx_total_num_ports(board(dev))) break;
-			const unsigned port_mask = (data[array_offset] >> (j * 8)) & 0xff;
-			if(port_mask)
-			{
-				private(dev)->output_bits[port] &= ~port_mask;
-				private(dev)->output_bits[port] |= (data[array_offset + 1] >> (j * 8)) & port_mask;
-				unsigned bits = private(dev)->output_bits[port];
-				if(board(dev)->invert_outputs) bits = ~bits;
-				writeb(bits, private(dev)->mite->daq_io_addr + Port_Data(port));
-			}
-			read_bits |= readb(private(dev)->mite->daq_io_addr + Port_Data(port)) << (j * 8);
+			port_mask >>= bitshift;
+			port_data >>= bitshift;
+		}else
+		{
+			port_mask <<= -bitshift;
+			port_data <<= -bitshift;
 		}
-		data[array_offset + 1] = read_bits;
+		port_mask &= 0xff;
+		port_data &= 0xff;
+		if(port_mask)
+		{
+			private(dev)->output_bits[port] &= ~port_mask;
+			private(dev)->output_bits[port] |= port_data & port_mask;
+			unsigned bits = private(dev)->output_bits[port];
+			if(board(dev)->invert_outputs) bits = ~bits;
+			writeb(bits, private(dev)->mite->daq_io_addr + Port_Data(port));
+// 			rt_printk("wrote 0x%x to port %i\n", bits, port);
+		}
+		unsigned port_read_bits = readb(private(dev)->mite->daq_io_addr + Port_Data(port));
+// 		rt_printk("read 0x%x from port %i\n", port_read_bits, port);
+		if(bitshift > 0)
+		{
+			port_read_bits <<= bitshift;
+		}else
+		{
+			port_read_bits >>= -bitshift;
+		}
+		read_bits |= port_read_bits;
 	}
+	data[1] = read_bits;
 	return insn->n;
 }
 
