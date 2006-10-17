@@ -121,12 +121,14 @@ static ni_65xx_board ni_65xx_boards[] = {
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pci-6509",
-		num_dio_ports: 12
+		num_dio_ports: 12,
+		invert_outputs: 0
 	},
 	{
 		dev_id:		0x1710,
 		name:		"pxi-6509",
-		num_dio_ports: 12
+		num_dio_ports: 12,
+		invert_outputs: 0
 	},
 	{
 		dev_id:		0x0,	//XXX
@@ -156,12 +158,14 @@ static ni_65xx_board ni_65xx_boards[] = {
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pci-6513",
-		num_do_ports: 8
+		num_do_ports: 8,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pxi-6513",
-		num_do_ports: 8
+		num_do_ports: 8,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x7088,
@@ -182,34 +186,40 @@ static ni_65xx_board ni_65xx_boards[] = {
 		name:		"pci-6515",
 		num_di_ports: 4,
 		num_do_ports: 4,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pxi-6515",
 		num_di_ports: 4,
 		num_do_ports: 4,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pci-6516",
 		num_do_ports: 4,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pci-6517",
 		num_do_ports: 4,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pci-6518",
 		num_di_ports: 2,
 		num_do_ports: 2,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
 		name:		"pci-6519",
 		num_di_ports: 2,
 		num_do_ports: 2,
+		invert_outputs: 1
 	},
 	{
 		dev_id:		0x0,	//XXX
@@ -650,7 +660,10 @@ static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 	for(i = 0; i < ni_65xx_total_num_ports(board(dev)); ++i)
 	{
 		writeb(0x00, private(dev)->mite->daq_io_addr + Filter_Enable(i));
-		writeb(0x00, private(dev)->mite->daq_io_addr + Port_Data(i));
+		if(board(dev)->invert_outputs)
+			writeb(0x01, private(dev)->mite->daq_io_addr + Port_Data(i));
+		else
+			writeb(0x00, private(dev)->mite->daq_io_addr + Port_Data(i));
 	}
 	writeb(ClrEdge|ClrOverflow,
 		private(dev)->mite->daq_io_addr + Clear_Register);
