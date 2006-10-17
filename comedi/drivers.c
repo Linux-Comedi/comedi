@@ -359,6 +359,7 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 
 	chan = CR_CHAN(insn->chanspec);
 	const unsigned num_bitfields = (chan + channels_per_bitfield) / channels_per_bitfield;
+	const unsigned array_offset = 2 * (num_bitfields - 1);
 	lsampl_t new_data[2 * num_bitfields];
 	memset(new_data, 0, sizeof(new_data));
 	memset(&new_insn, 0, sizeof(new_insn));
@@ -371,7 +372,6 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	{
 		if(!(s->subdev_flags & SDF_WRITABLE))
 			return -EINVAL;
-		const unsigned array_offset = 2 * (num_bitfields - 1);
 		new_data[array_offset] = 1 << (chan % channels_per_bitfield); /* mask */
 		new_data[array_offset + 1] = data[0] ? (1 << (chan % channels_per_bitfield)) : 0; /* bits */
 	}
@@ -380,7 +380,7 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	if(ret<0)return ret;
 
 	if(insn->insn == INSN_READ){
-		data[0] = (new_data[1]>>chan)&1;
+		data[0] = (new_data[array_offset + 1] >> (chan % channels_per_bitfield)) & 1;
 	}
 
 	return 1;
