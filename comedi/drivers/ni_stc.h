@@ -1054,7 +1054,7 @@ enum MSeries_PLL_Control_Bits
 };
 static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
-	static const unsigned max_divisor = 0x10;
+	static const unsigned max_divisor = 0xf;
 	if(divisor < 1 || divisor > max_divisor)
 	{
 		rt_printk("%s: bug, invalid divisor=%i\n", __FUNCTION__, divisor);
@@ -1064,7 +1064,7 @@ static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 }
 static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
-	static const unsigned max_multiplier = 0x100;
+	static const unsigned max_multiplier = 0xff;
 	if(multiplier < 1 || multiplier > max_multiplier)
 	{
 		rt_printk("%s: bug, invalid multiplier=%i\n", __FUNCTION__, multiplier);
