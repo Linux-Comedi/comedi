@@ -28,12 +28,15 @@ Driver: ni_65xx.o
 Description: National Instruments 65xx static dio boards
 Author: Jon Grierson <jd@renko.co.uk>, Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: testing
-Devices: [National Instruments] PCI-6514 (ni_65xx), PXI-6514, PXI-6509
-Updated: Mon, 17 Jul 2006 16:40:10 +0100
+Devices: [National Instruments] PCI-6509 (ni_65xx), PXI-6509, PCI-6510, PCI-6511,
+  PXI-6511, PCI-6512, PXI-6512, PCI-6513, PXI-6513, PCI-6514, PXI-6514, PCI-6515,
+  PXI-6515, PCI-6516, PCI-6517, PCI-6518, PCI-6519, PCI-6520, PCI-6521, PXI-6521,
+  PCI-6528, PXI-6528
+Updated: Wed Oct 18 08:59:11 EDT 2006
 
 Based on the PCI-6527 driver by ds.
-Should be easily modified for 6509, 651x, 6520, 6521 and 6528 if you
-send in the pci device id of your board.
+The interrupt subdevice (subdevice 3) is probably broken for all boards
+except maybe the 6514.
 
 */
 
@@ -119,7 +122,7 @@ typedef struct{
 }ni_65xx_board;
 static ni_65xx_board ni_65xx_boards[] = {
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7085,
 		name:		"pci-6509",
 		num_dio_ports: 12,
 		invert_outputs: 0
@@ -131,38 +134,38 @@ static ni_65xx_board ni_65xx_boards[] = {
 		invert_outputs: 0
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7124,
 		name:		"pci-6510",
 		num_di_ports: 4
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70c3,
 		name:		"pci-6511",
 		num_di_ports: 8
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70d3,
 		name:		"pxi-6511",
 		num_di_ports: 8
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70cc,
 		name:		"pci-6512",
 		num_do_ports: 8
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70d2,
 		name:		"pxi-6512",
 		num_do_ports: 8
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70c8,
 		name:		"pci-6513",
 		num_do_ports: 8,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70d1,
 		name:		"pxi-6513",
 		num_do_ports: 8,
 		invert_outputs: 1
@@ -182,71 +185,71 @@ static ni_65xx_board ni_65xx_boards[] = {
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7087,
 		name:		"pci-6515",
 		num_di_ports: 4,
 		num_do_ports: 4,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70c9,
 		name:		"pxi-6515",
 		num_di_ports: 4,
 		num_do_ports: 4,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7125,
 		name:		"pci-6516",
 		num_do_ports: 4,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7126,
 		name:		"pci-6517",
 		num_do_ports: 4,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7127,
 		name:		"pci-6518",
 		num_di_ports: 2,
 		num_do_ports: 2,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7128,
 		name:		"pci-6519",
 		num_di_ports: 2,
 		num_do_ports: 2,
 		invert_outputs: 1
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x71c5,
 		name:		"pci-6520",
 		num_di_ports: 1,
 		num_do_ports: 1,
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x718b,
 		name:		"pci-6521",
 		num_di_ports: 1,
 		num_do_ports: 1,
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x718c,
 		name:		"pxi-6521",
 		num_di_ports: 1,
 		num_do_ports: 1,
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x70a9,
 		name:		"pci-6528",
 		num_di_ports: 3,
 		num_do_ports: 3,
 	},
 	{
-		dev_id:		0x0,	//XXX
+		dev_id:		0x7086,
 		name:		"pxi-6528",
 		num_di_ports: 3,
 		num_do_ports: 3,
@@ -269,8 +272,27 @@ static inline unsigned ni_65xx_total_num_ports(const ni_65xx_board *board)
 
 static struct pci_device_id ni_65xx_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7085, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7086, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7087, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x7088, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70a9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70c3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70c8, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70c9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70cc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70CD, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70d1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70d2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x70d3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7125, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7126, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7127, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x7128, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x718b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x718c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x71c5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_65xx_pci_table);
