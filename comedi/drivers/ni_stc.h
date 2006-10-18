@@ -910,7 +910,7 @@ enum m_series_register_offsets
 	M_Offset_AI_Personal = 0x19a,
 	M_Offset_AO_Personal = 0x19c,
 	M_Offset_RTSI_Trig_B_Output = 0x1a0,
-	M_Offset_RTSI_Shared_MUX = 0x1a2,	
+	M_Offset_RTSI_Shared_MUX = 0x1a2,
 	M_Offset_AO_Output_Control = 0x1ac,
 	M_Offset_AI_Mode_3 = 0x1ae,
 	M_Offset_Configuration_Memory_Clear = 0x1a4,
@@ -926,7 +926,7 @@ enum m_series_register_offsets
 	M_Offset_G1_DMA_Status = 0x1ba,	// read
 	M_Offset_G0_MSeries_ABZ = 0x1c0,
 	M_Offset_G1_MSeries_ABZ = 0x1c2,
-	M_Offset_Clock_And_Fout2 = 0x1c4,
+	M_Offset_Clock_and_Fout2 = 0x1c4,
 	M_Offset_PLL_Control = 0x1c6,
 	M_Offset_PLL_Status = 0x1c8,
 	M_Offset_PFI_Output_Select_1 = 0x1d0,
@@ -1023,6 +1023,61 @@ static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
 	return (range & 0x7) << 9;
 }
 
+enum MSeries_Clock_and_Fout2_Bits
+{
+	MSeries_PLL_In_Source_Select_RTSI0_Bits = 0xb,
+	MSeries_PLL_In_Source_Select_Star_Trigger_Bits = 0x14,
+	MSeries_PLL_In_Source_Select_RTSI7_Bits = 0x1b,
+	MSeries_PLL_In_Source_Select_PXI_Clock10 = 0x1d,
+	MSeries_Timebase1_Select_Bit = 0x20,	// use PLL for timebase 1
+	MSeries_Timebase3_Select_Bit = 0x40,	// use PLL for timebase 3
+	MSeries_RTSI_10MHz_Bit = 0x80	// use 10MHz instead of 20MHz for RTSI clock frequency
+};
+static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned RTSI_channel)
+{
+	if(RTSI_channel > 7)
+	{
+		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__, RTSI_channel);
+		return 0;
+	}
+	if(RTSI_channel == 7) return MSeries_PLL_In_Source_Select_RTSI7_Bits;
+	else return MSeries_PLL_In_Source_Select_RTSI0_Bits + RTSI_channel;
+}
+
+enum MSeries_PLL_Control_Bits
+{
+	MSeries_PLL_Enable_Bit = 0x1000,
+	MSeries_PLL_VCO_Mode_200_325MHz_Bits = 0x0,
+	MSeries_PLL_VCO_Mode_175_225MHz_Bits  = 0x2000,
+	MSeries_PLL_VCO_Mode_100_225MHz_Bits  = 0x4000,
+	MSeries_PLL_VCO_Mode_75_150MHz_Bits   = 0x7000,
+};
+static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
+{
+	static const unsigned max_divisor = 0x10;
+	if(divisor < 1 || divisor > max_divisor)
+	{
+		rt_printk("%s: bug, invalid divisor=%i\n", __FUNCTION__, divisor);
+		return 0;
+	}
+	return divisor << 8;
+}
+static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
+{
+	static const unsigned max_multiplier = 0x100;
+	if(multiplier < 1 || multiplier > max_multiplier)
+	{
+		rt_printk("%s: bug, invalid multiplier=%i\n", __FUNCTION__, multiplier);
+		return 0;
+	}
+	return multiplier;
+}
+
+enum MSeries_PLL_Status
+{
+	MSeries_PLL_Locked_Bit = 0x1
+};
+
 enum MSeries_AI_Config_FIFO_Bypass_Bits
 {
 	MSeries_AI_Bypass_Channel_Mask = 0x7,
@@ -1076,6 +1131,7 @@ static inline unsigned MSeries_Cal_PWM_Low_Time_Bits(unsigned count)
 	return count & 0xffff;
 }
 
+
 #define M_SERIES_EEPROM_SIZE 1024
 
 typedef struct ni_board_struct{
@@ -1096,7 +1152,7 @@ typedef struct ni_board_struct{
 
 	int ao_fifo_depth;
 	comedi_lrange *ao_range_table;
-	
+
 	int reg_type;
 
 	unsigned int ao_unipolar : 1;
@@ -1177,6 +1233,6 @@ static ni_board ni_boards[];
 	\
 	sampl_t ai_fifo_buffer[0x2000];				\
 	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
-	
+
 #endif /* _COMEDI_NI_STC_H */
 
