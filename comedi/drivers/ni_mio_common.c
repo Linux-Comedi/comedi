@@ -52,7 +52,6 @@
 	ISSUES:
 
 	 - the interrupt routine needs to be cleaned up
-	 - many printk's need to be changed to rt_printk()
 
 	2006-02-07: S-Series PCI-6143: Support has been added but is not
 		fully tested as yet. Terry Barnaby, BEAM Ltd.
@@ -412,8 +411,8 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 			devpriv->stc_writew(dev, devpriv->io_bidirection_pin_reg,IO_Bidirection_Pin_Register);
 			break;
 		default:
-			printk("Warning ni_set_bits() called with invalid arguments\n");
-			printk("reg is %d\n",reg);
+			rt_printk("Warning ni_set_bits() called with invalid arguments\n");
+			rt_printk("reg is %d\n",reg);
 			comedi_spin_unlock_irqrestore( &devpriv->window_lock, flags );
 			break;
 	}
@@ -469,7 +468,7 @@ static void ni_sync_ai_dma(struct mite_struct *mite, comedi_device *dev)
 	nbytes = mite_bytes_written_to_memory_lb(mite, AI_DMA_CHAN);
 	rmb();
 	if( (int)(mite_bytes_written_to_memory_ub(mite, AI_DMA_CHAN) - old_alloc_count) > 0 ){
-		printk("ni_mio_common: DMA overwrite of free area\n");
+		rt_printk("ni_mio_common: DMA overwrite of free area\n");
 		ni_ai_reset(dev,s);
 		async->events |= COMEDI_CB_OVERFLOW;
 		return;
@@ -631,7 +630,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	}
 
 	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
-		printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
+		rt_printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
 		//mite_print_chsr(m_status);
 		mite_dma_disarm(devpriv->mite, AI_DMA_CHAN );
 		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR(AI_DMA_CHAN));
@@ -716,7 +715,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #ifdef DEBUG_INTERRUPT
 	status=devpriv->stc_readw(dev, AI_Status_1_Register);
 	if(status&Interrupt_A_St){
-		printk("handle_a_interrupt: didn't clear interrupt? status=0x%x\n", status);
+		rt_printk("handle_a_interrupt: didn't clear interrupt? status=0x%x\n", status);
 	}
 #endif
 }
@@ -743,7 +742,7 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsig
 	}
 
 	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
-		printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
+		rt_printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
 		//mite_print_chsr(m_status);
 		mite_dma_disarm(devpriv->mite, AO_DMA_CHAN );
 		writel(CHOR_DMARESET, devpriv->mite->mite_io_addr + MITE_CHOR(AO_DMA_CHAN));
@@ -2746,7 +2745,7 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 #ifdef DEBUG_DIO
-	printk("ni_dio_insn_config() chan=%d io=%d\n",
+	rt_printk("ni_dio_insn_config() chan=%d io=%d\n",
 		CR_CHAN(insn->chanspec),data[0]);
 #endif
 	switch(data[0]){
@@ -2775,7 +2774,7 @@ static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 #ifdef DEBUG_DIO
-	printk("ni_dio_insn_bits() mask=0x%x bits=0x%x\n",data[0],data[1]);
+	rt_printk("ni_dio_insn_bits() mask=0x%x bits=0x%x\n",data[0],data[1]);
 #endif
 	if(insn->n!=2)return -EINVAL;
 	if(data[0]){
@@ -2799,7 +2798,7 @@ static int ni_m_series_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 #ifdef DEBUG_DIO
-	printk("ni_m_series_dio_insn_config() chan=%d io=%d\n",
+	rt_printk("ni_m_series_dio_insn_config() chan=%d io=%d\n",
 		CR_CHAN(insn->chanspec), data[0]);
 #endif
 	switch(data[0])
@@ -2827,7 +2826,7 @@ static int ni_m_series_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 #ifdef DEBUG_DIO
-	printk("ni_m_series_dio_insn_bits() mask=0x%x bits=0x%x\n",data[0],data[1]);
+	rt_printk("ni_m_series_dio_insn_bits() mask=0x%x bits=0x%x\n",data[0],data[1]);
 #endif
 	if(insn->n!=2)return -EINVAL;
 	if(data[0]){
@@ -2852,7 +2851,7 @@ static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_SERIAL_CLOCK:
 
 #ifdef DEBUG_DIO
-		printk("SPI serial clock Config cd\n", data[1]);
+		rt_printk("SPI serial clock Config cd\n", data[1]);
 #endif
 		devpriv->serial_hw_mode = 1;
 		devpriv->dio_control |= DIO_HW_Serial_Enable;
@@ -2918,7 +2917,7 @@ static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
 		} else if(devpriv->serial_interval_ns > 0) {
 			err = ni_serial_sw_readwrite8(dev,s,byte_out,&byte_in);
 		} else {
-			printk("ni_serial_insn_config: serial disabled!\n");
+			rt_printk("ni_serial_insn_config: serial disabled!\n");
 			return -EINVAL;
 		}
 		if(err < 0) return err;
@@ -2940,7 +2939,7 @@ static int ni_serial_hw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 	int err = 0, count = 20;
 
 #ifdef DEBUG_DIO
-	printk("ni_serial_hw_readwrite8: outputting 0x%x\n", data_out);
+	rt_printk("ni_serial_hw_readwrite8: outputting 0x%x\n", data_out);
 #endif
 
 	devpriv->dio_output &= ~DIO_Serial_Data_Mask;
@@ -2962,7 +2961,7 @@ static int ni_serial_hw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 		/* Delay one bit per loop */
 		comedi_udelay((devpriv->serial_interval_ns + 999) / 1000);
 		if(--count < 0) {
-			printk("ni_serial_hw_readwrite8: SPI serial I/O didn't finish in time!\n");
+			rt_printk("ni_serial_hw_readwrite8: SPI serial I/O didn't finish in time!\n");
 			err = -ETIME;
 			goto Error;
 		}
@@ -2975,7 +2974,7 @@ static int ni_serial_hw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 	if(data_in != NULL) {
 		*data_in = devpriv->stc_readw(dev, DIO_Serial_Input_Register);
 #ifdef DEBUG_DIO
-		printk("ni_serial_hw_readwrite8: inputted 0x%x\n", *data_in);
+		rt_printk("ni_serial_hw_readwrite8: inputted 0x%x\n", *data_in);
 #endif
 	}
 
@@ -2992,7 +2991,7 @@ static int ni_serial_sw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 	unsigned char mask, input = 0;
 
 #ifdef DEBUG_DIO
-	printk("ni_serial_sw_readwrite8: outputting 0x%x\n", data_out);
+	rt_printk("ni_serial_sw_readwrite8: outputting 0x%x\n", data_out);
 #endif
 
 	/* Wait for one bit before transfer */
@@ -3022,12 +3021,12 @@ static int ni_serial_sw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 
 		/* Input current bit */
 		if(devpriv->stc_readw(dev, DIO_Parallel_Input_Register) & DIO_SDIN) {
-/*			printk("DIO_P_I_R: 0x%x\n", devpriv->stc_readw(dev, DIO_Parallel_Input_Register)); */
+/*			rt_printk("DIO_P_I_R: 0x%x\n", devpriv->stc_readw(dev, DIO_Parallel_Input_Register)); */
 			input |= mask;
 		}
 	}
 #ifdef DEBUG_DIO
-	printk("ni_serial_sw_readwrite8: inputted 0x%x\n", input);
+	rt_printk("ni_serial_sw_readwrite8: inputted 0x%x\n", input);
 #endif
 	if(data_in) *data_in = input;
 
@@ -3859,7 +3858,7 @@ static int GPCT_Set_Direction(comedi_device *dev,int chan,int direction)
 			devpriv->gpct_command[chan] |= G_Up_Down(2);
 			break;
 		default:
-			printk("Error direction=0x%08x..",direction);
+			rt_printk("Error direction=0x%08x..",direction);
 			return -EINVAL;
 	}
 	devpriv->stc_writew(dev, devpriv->gpct_command[chan], G_Command_Register(chan));
@@ -4194,7 +4193,7 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 				GPCT_Gen_Cont_Pulse(dev,insn->chanspec,data[2]);
 				break;
 			default:
-				printk("unsupported GPCT operation!\n");
+				rt_printk("unsupported GPCT operation!\n");
 				return -EINVAL;
 		}
 		break;
@@ -4215,8 +4214,8 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 		return insn->n;
 	}else{
 		if(data[0]!=GPCT_ARM){
-			printk("error: retval was %d\n",retval);
-			printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
+			rt_printk("error: retval was %d\n",retval);
+			rt_printk("data[0] is 0x%08x, data[1] is 0x%08x\n",data[0],data[1]);
 		}
 
 		return retval;
