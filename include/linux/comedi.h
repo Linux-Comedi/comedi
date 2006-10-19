@@ -243,13 +243,12 @@ enum configuration_ids
 	INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR = 1001, // Use CTR as single pulsegenerator
 	INSN_CONFIG_GPCT_PULSE_TRAIN_GENERATOR = 1002, // Use CTR as pulsetraingenerator
 	INSN_CONFIG_GPCT_QUADRATURE_ENCODER = 1003, // Use the counter as encoder
-	INSN_CONFIG_SET_GATE_SRC = 2001,	// Set CTR gate source
-	INSN_CONFIG_GET_GATE_SRC = 2002,	// Get CTR gate source
-	INSN_CONFIG_SET_CLOCK_SRC = 2003,	// Set CTR clock source
-	INSN_CONFIG_GET_CLOCK_SRC = 2004,	// Get CTR clock source
+	INSN_CONFIG_SET_GATE_SRC = 2001,	// Set gate source
+	INSN_CONFIG_GET_GATE_SRC = 2002,	// Get gate source
+	INSN_CONFIG_SET_CLOCK_SRC = 2003,	// Set master clock source
+	INSN_CONFIG_GET_CLOCK_SRC = 2004,	// Get master clock source
 	INSN_CONFIG_8254_SET_MODE = 4097,
-	INSN_CONFIG_8254_READ_STATUS = 4098,
-	INSN_CONFIG_SET_RTSI_CLOCK_MODE = 5000	// Set RTSI bus clock mode
+	INSN_CONFIG_8254_READ_STATUS = 4098
 };
 
 
@@ -521,21 +520,19 @@ enum i8254_mode
 	I8254_BINARY = 0
 };
 
-/* RTSI Clock mode */
-#define COMEDI_RTSI_CLOCK_MODE_INTERNAL	0x00	// Internal clock mode
-#define COMEDI_RTSI_CLOCK_MODE_OUTPUT	0x01	// Outputs clock to RTSI
-#define COMEDI_RTSI_CLOCK_MODE_SLAVE	0x02	// Runs from RTSI clock
-#define COMEDI_RTSI_CLOCK_MODE_MASTER	0x03	// Outputs clock to RTSI and runs from this external clock
-
-/* RTSI BUS pins */
-#define NI_RTSI_0		0
-#define NI_RTSI_1		1
-#define NI_RTSI_2		2
-#define NI_RTSI_3		3
-#define NI_RTSI_4		4
-#define NI_RTSI_5		5
-#define NI_RTSI_6		6
-#define NI_RTSI_7		7
+/* clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
+enum ni_mio_clock_source
+{
+	NI_MIO_INTERNAL_CLOCK = 0,
+	NI_MIO_RTSI_CLOCK = 1,
+	NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK = 2,
+	NI_MIO_PLL_PXI10_CLOCK = 3,
+	NI_MIO_PLL_RTSI0_CLOCK = 4
+};
+static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel)
+{
+	return NI_MIO_PLL_RTSI0_CLOCK + rtsi_channel;
+}
 
 /* RTSI BUS pin usage in standard configuration */
 #define NI_RTSI_STD_AI_START1		0

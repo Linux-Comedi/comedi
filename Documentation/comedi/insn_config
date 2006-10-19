@@ -171,8 +171,10 @@ ID=INSN_CONFIG_ALT_SOURCE: select alternate input source (internal calibration r
   [0] - ID
   [1] - source
 
-  
-ID=INSN_CONFIG_TIMER_1: Configure an external master clock and divisor
+
+ID=INSN_CONFIG_TIMER_1: Deprecated.  Use INSN_CONFIG_SET_CLOCK_SRC and
+	TRIG_COUNT or TRIG_TIMER.
+	Configure an external master clock and divisor
 	to divide clock by.  Used with commands by setting scan_begin_src or
 	convert_src set to TRIG_OTHER.
 
@@ -182,7 +184,7 @@ ID=INSN_CONFIG_TIMER_1: Configure an external master clock and divisor
   [3] - primary combining machine configuration (should always be 0x04)
   [4] - divisor
 
-  
+
 ID=INSN_CONFIG_PWM_OUTPUT: Configure a pulse-width-modulation output.  Returns
 	EAGAIN error with modified values if exact timing is not achievable.
 
@@ -197,3 +199,22 @@ ID=INSN_CONFIG_GET_PWM_OUTPUT: Query a pulse-width-modulation output.
 	[0] - ID
 	[1] - up time (nanoseconds)
 	[2] - down time (nanoseconds)
+
+ID=INSN_CONFIG_SET_CLOCK_SRC: Choose a source for the master clock.
+	The frequency of the clock is specified in data[2], or left
+	unspecified by using a value of 0.  The driver will ignore the clock
+	period setting if it already knows what the clock period should be
+	for the specified source (i.e. for an internal master clock).  Certain
+	boards which use a phase-locked loop to synchronize to an external
+	clock source must be told the frequency of the external clock.
+	Specifying a clock period for an external clock may also allow
+	the driver to support TRIG_TIMER sources in commands while
+	using the external clock.
+	[0] - ID
+	[1] - clock source
+	[2] - clock period (nanoseconds)
+
+ID=INSN_CONFIG_GET_CLOCK_SRC: Ask which master clock is being used
+	[0] - ID
+	[1] - clock source
+	[2] - clock period (nanoseconds)

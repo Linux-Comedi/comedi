@@ -305,6 +305,20 @@ enum AO_FIFO_Mode_Bits
 
 #define IO_Bidirection_Pin_Register	57
 #define	RTSI_Trig_Direction_Register	58
+enum RTSI_Trig_Direction_Bits
+{
+	Drive_RTSI_Clock_Bit = 0x1,
+	Use_RTSI_Clock_Bit = 0x2,
+};
+static inline unsigned RTSI_Output_Bit(unsigned channel)
+{
+	if(channel > 6)
+	{
+		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__, channel);
+		return 0;
+	}
+	return 1 << (9 + channel);
+}
 
 #define Interrupt_Control_Register	59
 #define Interrupt_B_Enable			_bit15
@@ -1029,6 +1043,7 @@ enum MSeries_Clock_and_Fout2_Bits
 	MSeries_PLL_In_Source_Select_Star_Trigger_Bits = 0x14,
 	MSeries_PLL_In_Source_Select_RTSI7_Bits = 0x1b,
 	MSeries_PLL_In_Source_Select_PXI_Clock10 = 0x1d,
+	MSeries_PLL_In_Source_Select_Mask = 0x1f,
 	MSeries_Timebase1_Select_Bit = 0x20,	// use PLL for timebase 1
 	MSeries_Timebase3_Select_Bit = 0x40,	// use PLL for timebase 3
 	MSeries_RTSI_10MHz_Bit = 0x80	// use 10MHz instead of 20MHz for RTSI clock frequency
@@ -1054,23 +1069,23 @@ enum MSeries_PLL_Control_Bits
 };
 static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
-	static const unsigned max_divisor = 0xf;
+	static const unsigned max_divisor = 0x10;
 	if(divisor < 1 || divisor > max_divisor)
 	{
 		rt_printk("%s: bug, invalid divisor=%i\n", __FUNCTION__, divisor);
 		return 0;
 	}
-	return divisor << 8;
+	return (divisor & 0xf) << 8;
 }
 static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
-	static const unsigned max_multiplier = 0xff;
+	static const unsigned max_multiplier = 0x100;
 	if(multiplier < 1 || multiplier > max_multiplier)
 	{
 		rt_printk("%s: bug, invalid multiplier=%i\n", __FUNCTION__, multiplier);
 		return 0;
 	}
-	return multiplier;
+	return multiplier & 0xff;
 }
 
 enum MSeries_PLL_Status
@@ -1218,11 +1233,14 @@ static ni_board ni_boards[];
 	unsigned long serial_interval_ns;                       \
 	unsigned char serial_hw_mode;                           \
 	unsigned short clock_and_fout;				\
+	unsigned short clock_and_fout2;				\
 								\
 	volatile unsigned short int_a_enable_reg;			\
 	volatile unsigned short int_b_enable_reg;			\
 	unsigned short io_bidirection_pin_reg;			\
 	unsigned short rtsi_trig_direction_reg;			\
+								\
+	unsigned clock_ns; \
 								\
 	unsigned short atrig_mode;				\
 	unsigned short atrig_high;				\

@@ -259,7 +259,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s);
 
 static int ni_8255_callback(int dir,int port,int data,unsigned long arg);
 
-static int ni_ns_to_timer(int *nanosec,int round_mode);
+static int ni_ns_to_timer(comedi_device *dev, int *nanosec, int round_mode);
 
 
 /*GPCT function def's*/
@@ -292,6 +292,8 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
+
+static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned period_ns);
 
 enum aimodes
 {
@@ -1611,29 +1613,25 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	}
 }
 
-#define TIMER_BASE 50 /* 20 Mhz base */
-
-static int ni_ns_to_timer(int *nanosec,int round_mode)
+static int ni_ns_to_timer(comedi_device *dev, int *nanosec, int round_mode)
 {
-	int divider,base;
-
-	base=TIMER_BASE;
-
-	switch(round_mode){
+	int divider;
+	switch(round_mode)
+	{
 	case TRIG_ROUND_NEAREST:
 	default:
-		divider=(*nanosec+base/2)/base;
+		divider = (*nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
 		break;
 	case TRIG_ROUND_DOWN:
-		divider=(*nanosec)/base;
+		divider = (*nanosec) / devpriv->clock_ns;
 		break;
 	case TRIG_ROUND_UP:
-		divider=(*nanosec+base-1)/base;
+		divider=(*nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
 		break;
 	}
 
-	*nanosec=base*divider;
-	return divider-1;
+	*nanosec = devpriv->clock_ns * divider;
+	return divider - 1;
 }
 
 static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
@@ -1709,8 +1707,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 			cmd->scan_begin_arg=boardtype.ai_speed;
 			err++;
 		}
-		if(cmd->scan_begin_arg>TIMER_BASE*0xffffff){
-			cmd->scan_begin_arg=TIMER_BASE*0xffffff;
+		if(cmd->scan_begin_arg > devpriv->clock_ns * 0xffffff){
+			cmd->scan_begin_arg = devpriv->clock_ns * 0xffffff;
 			err++;
 		}
 	}else if(cmd->scan_begin_src==TRIG_EXT){
@@ -1740,8 +1738,8 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 				cmd->convert_arg=boardtype.ai_speed;
 				err++;
 			}
-			if(cmd->convert_arg>TIMER_BASE*0xffff){
-				cmd->convert_arg=TIMER_BASE*0xffff;
+			if(cmd->convert_arg>devpriv->clock_ns*0xffff){
+				cmd->convert_arg=devpriv->clock_ns*0xffff;
 				err++;
 			}
 		}
@@ -1793,13 +1791,13 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		tmp=cmd->scan_begin_arg;
-		ni_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+		ni_ns_to_timer(dev, &cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
 	if(cmd->convert_src==TRIG_TIMER){
 		if((boardtype.reg_type != ni_reg_611x) && (boardtype.reg_type != ni_reg_6143)){
 			tmp=cmd->convert_arg;
-			ni_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
+			ni_ns_to_timer(dev, &cmd->convert_arg, cmd->flags&TRIG_ROUND_MASK);
 			if(tmp!=cmd->convert_arg)err++;
 			if(cmd->scan_begin_src==TRIG_TIMER &&
 			cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
@@ -1947,7 +1945,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		devpriv->stc_writew(dev, mode2, AI_Mode_2_Register);
 
 		/* load SI */
-		timer=ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
+		timer = ni_ns_to_timer(dev, &cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
 		devpriv->stc_writel(dev, timer,AI_SI_Load_A_Registers);
 		devpriv->stc_writew(dev, AI_SI_Load,AI_Command_1_Register);
 		break;
@@ -1971,7 +1969,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		if( cmd->convert_arg == 0 || cmd->convert_src == TRIG_NOW )
 			timer = 1;
 		else
-			timer=ni_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_NEAREST);
+			timer = ni_ns_to_timer(dev, &cmd->convert_arg, TRIG_ROUND_NEAREST);
 		devpriv->stc_writew(dev, 1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
 		devpriv->stc_writew(dev, timer,AI_SI2_Load_B_Register);
 
@@ -2479,7 +2477,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "cannot run command without an irq");
 		return -EIO;
 	}
-	trigvar = ni_ns_to_timer(&cmd->scan_begin_arg,TRIG_ROUND_NEAREST);
+	trigvar = ni_ns_to_timer(dev, &cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
 
 	devpriv->stc_writew(dev, AO_Configuration_Start,Joint_Reset_Register);
 
@@ -2656,8 +2654,8 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		err++;
 	}
 #endif
-	if(cmd->scan_begin_arg>TIMER_BASE*0xffffff){ /* XXX check */
-		cmd->scan_begin_arg=TIMER_BASE*0xffffff;
+	if(cmd->scan_begin_arg>devpriv->clock_ns*0xffffff){ /* XXX check */
+		cmd->scan_begin_arg=devpriv->clock_ns*0xffffff;
 		err++;
 	}
 	if(cmd->convert_arg!=0){
@@ -2686,7 +2684,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 4: fix up any arguments */
 
 	tmp = cmd->scan_begin_arg;
-	ni_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+	ni_ns_to_timer(dev, &cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
 	if(tmp!=cmd->scan_begin_arg)err++;
 
 	if(err)return 4;
@@ -3263,7 +3261,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+10;
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
-	s->n_chan=7;
+	s->n_chan=8;
 	s->maxdata=1;
 	s->insn_bits = ni_rtsi_insn_bits;
 	s->insn_config = ni_rtsi_insn_config;
@@ -3329,7 +3327,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	printk("\n");
-
 	return 0;
 }
 
@@ -3395,8 +3392,8 @@ static int ni_m_series_eeprom_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 static int ni_get_pwm_config(comedi_device *dev, lsampl_t *data)
 {
-	data[1] = devpriv->pwm_up_count * TIMER_BASE;
-	data[2] = devpriv->pwm_down_count * TIMER_BASE;
+	data[1] = devpriv->pwm_up_count * devpriv->clock_ns;
+	data[2] = devpriv->pwm_down_count * devpriv->clock_ns;
 	return 3;
 }
 
@@ -3410,13 +3407,13 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		switch(data[1])
 		{
 		case TRIG_ROUND_NEAREST:
-			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE;
+			up_count = (data[2] + devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_DOWN:
-			up_count = data[2] / TIMER_BASE;
+			up_count = data[2] / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_UP:
-			up_count = (data[2] + TIMER_BASE - 1) / TIMER_BASE;
+			up_count = (data[2] + devpriv->clock_ns - 1) / devpriv->clock_ns;
 			break;
 		default:
 			return -EINVAL;
@@ -3425,23 +3422,23 @@ static int ni_m_series_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		switch(data[3])
 		{
 		case TRIG_ROUND_NEAREST:
-			down_count = (data[4] + TIMER_BASE / 2) / TIMER_BASE;
+			down_count = (data[4] + devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_DOWN:
-			down_count = data[4] / TIMER_BASE;
+			down_count = data[4] / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_UP:
-			down_count = (data[4] + TIMER_BASE - 1) / TIMER_BASE;
+			down_count = (data[4] + devpriv->clock_ns - 1) / devpriv->clock_ns;
 			break;
 		default:
 			return -EINVAL;
 			break;
 		}
-		if(up_count * TIMER_BASE != data[2] ||
-			down_count * TIMER_BASE != data[4])
+		if(up_count * devpriv->clock_ns != data[2] ||
+			down_count * devpriv->clock_ns != data[4])
 		{
-			data[2] = up_count * TIMER_BASE;
-			data[4] = down_count * TIMER_BASE;
+			data[2] = up_count * devpriv->clock_ns;
+			data[4] = down_count * devpriv->clock_ns;
 			return -EAGAIN;
 		}
 		ni_writel(MSeries_Cal_PWM_High_Time_Bits(up_count) | MSeries_Cal_PWM_Low_Time_Bits(down_count), M_Offset_Cal_PWM);
@@ -3469,13 +3466,13 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		switch(data[1])
 		{
 		case TRIG_ROUND_NEAREST:
-			up_count = (data[2] + TIMER_BASE / 2) / TIMER_BASE;
+			up_count = (data[2] + devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_DOWN:
-			up_count = data[2] / TIMER_BASE;
+			up_count = data[2] / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_UP:
-			up_count = (data[2] + TIMER_BASE - 1) / TIMER_BASE;
+			up_count = (data[2] + devpriv->clock_ns - 1) / devpriv->clock_ns;
 			break;
 		default:
 			return -EINVAL;
@@ -3484,23 +3481,23 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 		switch(data[3])
 		{
 		case TRIG_ROUND_NEAREST:
-			down_count = (data[4] + TIMER_BASE / 2) / TIMER_BASE;
+			down_count = (data[4] + devpriv->clock_ns / 2) / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_DOWN:
-			down_count = data[4] / TIMER_BASE;
+			down_count = data[4] / devpriv->clock_ns;
 			break;
 		case TRIG_ROUND_UP:
-			down_count = (data[4] + TIMER_BASE - 1) / TIMER_BASE;
+			down_count = (data[4] + devpriv->clock_ns - 1) / devpriv->clock_ns;
 			break;
 		default:
 			return -EINVAL;
 			break;
 		}
-		if(up_count * TIMER_BASE != data[2] ||
-			down_count * TIMER_BASE != data[4])
+		if(up_count * devpriv->clock_ns != data[2] ||
+			down_count * devpriv->clock_ns != data[4])
 		{
-			data[2] = up_count * TIMER_BASE;
-			data[4] = down_count * TIMER_BASE;
+			data[2] = up_count * devpriv->clock_ns;
+			data[4] = down_count * devpriv->clock_ns;
 			return -EAGAIN;
 		}
 		ni_writel(up_count, Calibration_HighTime_6143);
@@ -4308,8 +4305,11 @@ static void ni_rtsi_init(comedi_device *dev)
 	// Initialises the RTSI bus signal switch to a default state
 
 	// Set clock mode to internal
-	devpriv->stc_writew(dev, COMEDI_RTSI_CLOCK_MODE_INTERNAL, RTSI_Trig_Direction_Register);
-
+	devpriv->clock_and_fout2 = MSeries_RTSI_10MHz_Bit;
+	if(ni_set_master_clock(dev, NI_MIO_INTERNAL_CLOCK, 0) < 0)
+	{
+		rt_printk("ni_set_master_clock failed, bug?");
+	}
 	// Standard internal lines are routed to standard RTSI bus lines
 	devpriv->stc_writew(dev, 0x3210, RTSI_Trig_A_Output_Register);
 	devpriv->stc_writew(dev, 0x0654, RTSI_Trig_B_Output_Register);
@@ -4328,46 +4328,204 @@ static int ni_rtsi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
+/* Find best multiplier/divider to try and get the PLL running at 80 MHz
+ * given an arbitrary frequency input clock */
+static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
+	unsigned *freq_divider, unsigned *freq_multiplier, unsigned *actual_period_ns)
+{
+	unsigned div;
+	unsigned best_div = 1;
+	static const unsigned max_div = 16;
+	unsigned mult;
+	unsigned best_mult = 1;
+	static const unsigned max_mult = 256;
+	static const unsigned pico_per_nano = 1000;
+
+	const unsigned reference_picosec = reference_period_ns * pico_per_nano;
+	/* m-series wants the phased-locked loop to output 80MHz, which is divided by 4 to
+	 * 20 MHz for most timing clocks */
+	static const unsigned target_picosec = 12500;
+	int best_period_picosec = 0;
+	for(div = 1; div <= max_div; ++div)
+	{
+		for(mult = 1; mult <= max_mult; ++mult)
+		{
+			unsigned new_period_ps = (reference_picosec * div) / mult;
+			if((new_period_ps < best_period_picosec && new_period_ps >= target_picosec) ||
+				(new_period_ps > best_period_picosec && new_period_ps <= target_picosec))
+			{
+				best_period_picosec = new_period_ps;
+				best_div = div;
+				best_mult = mult;
+			}
+		}
+	}
+	if(best_period_picosec == 0)
+	{
+		rt_printk("%s: bug, failed to find pll parameters\n", __FUNCTION__);
+		return -EIO;
+	}
+	*freq_divider = best_div;
+	*freq_multiplier = best_mult;
+	*actual_period_ns = best_period_picosec + (pico_per_nano / 2) / pico_per_nano;
+	return 0;
+}
+
+static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, unsigned period_ns)
+{
+	// these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that
+	static const unsigned min_period_ns = 50;
+	static const unsigned max_period_ns = 1000;
+	if(period_ns < min_period_ns || period_ns > max_period_ns)
+	{
+		rt_printk("%s: you must specify an input clock frequency between %i and %i nanosec "
+			"for the phased-lock loop.\n", __FUNCTION__, min_period_ns, max_period_ns);
+		return -EINVAL;
+	}
+	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
+	devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
+	unsigned pll_control_bits = MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
+	devpriv->clock_and_fout2 |= MSeries_Timebase1_Select_Bit;
+	devpriv->clock_and_fout2 &= ~MSeries_PLL_In_Source_Select_Mask;
+	int retval;
+	unsigned freq_divider;
+	unsigned freq_multiplier;
+	switch(source)
+	{
+	case NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK:
+		devpriv->clock_and_fout2 |= MSeries_PLL_In_Source_Select_Star_Trigger_Bits;
+		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
+			&freq_multiplier, &devpriv->clock_ns);
+		if(retval < 0) return retval;
+		break;
+	case NI_MIO_PLL_PXI10_CLOCK:
+		/* pxi clock is 10MHz */
+		devpriv->clock_and_fout2 |= MSeries_PLL_In_Source_Select_PXI_Clock10;
+		retval = ni_mseries_get_pll_parameters(100, &freq_divider,
+			&freq_multiplier, &devpriv->clock_ns);
+		if(retval < 0) return retval;
+	default:
+		{
+			unsigned rtsi_channel;
+			static const unsigned max_rtsi_channel = 7; /* channel 7 should be rtsi clock */
+			for(rtsi_channel = 0; rtsi_channel <= max_rtsi_channel; ++rtsi_channel)
+			{
+				if(source == NI_MIO_PLL_RTSI_CLOCK(rtsi_channel))
+				{
+					devpriv->clock_and_fout2 |= MSeries_PLL_In_Source_Select_RTSI_Bits(rtsi_channel);
+					break;
+				}
+			}
+			if(rtsi_channel > max_rtsi_channel) return -EINVAL;
+			retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
+				&freq_multiplier, &devpriv->clock_ns);
+			if(retval < 0) return retval;
+		}
+		break;
+	}
+	ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
+	pll_control_bits |= MSeries_PLL_Divisor_Bits(freq_divider) | MSeries_PLL_Multiplier_Bits(freq_multiplier);
+	// rt_printk("using divider=%i, multiplier=%i for PLL.\n", freq_divider, freq_multiplier);
+	ni_writew(pll_control_bits, M_Offset_PLL_Control);
+	unsigned i;
+	static const unsigned timeout = 1000;
+	/* it seems to typically take a few hundred microseconds for PLL to lock */
+	for(i = 0; i < timeout; ++i)
+	{
+		if(ni_readw(M_Offset_PLL_Status) & MSeries_PLL_Locked_Bit)
+		{
+			break;
+		}
+		udelay(1);
+	}
+	if(i == timeout)
+	{
+		rt_printk("%s: timed out waiting for PLL to lock to reference clock source %i with period %i ns.\n",
+			__FUNCTION__, source, period_ns);
+		return -ETIMEDOUT;
+	}
+	return 3;
+}
+
+static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned period_ns)
+{
+	switch(source)
+	{
+	case NI_MIO_INTERNAL_CLOCK:
+		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
+		devpriv->clock_ns = 50;
+		if(boardtype.reg_type == ni_reg_m_series)
+		{
+			devpriv->clock_and_fout2 &= ~(MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit);
+			ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
+			ni_writew(0, M_Offset_PLL_Control);
+		}
+		break;
+	case NI_MIO_RTSI_CLOCK:
+		devpriv->rtsi_trig_direction_reg |= Use_RTSI_Clock_Bit;
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
+		devpriv->clock_ns = period_ns;
+		if(boardtype.reg_type == ni_reg_m_series)
+		{
+			devpriv->clock_and_fout2 &= ~(MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit);
+			devpriv->clock_and_fout2 |= MSeries_RTSI_10MHz_Bit;
+			ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
+			ni_writew(0, M_Offset_PLL_Control);
+		}
+		break;
+	default:
+		if(boardtype.reg_type == ni_reg_m_series)
+		{
+			return ni_mseries_set_pll_master_clock(dev, source, period_ns);
+		}
+		return -EINVAL;
+	}
+	return 3;
+}
+
 static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	unsigned int chan;
-	unsigned int bit;
-
-	if(insn->n < 1) return -EINVAL;
-
-	if(data[0] == INSN_CONFIG_SET_RTSI_CLOCK_MODE){
-		if(data[1] > 3)
-			return -EINVAL;
-
-		devpriv->rtsi_trig_direction_reg &= ~0x03;
-		devpriv->rtsi_trig_direction_reg |= data[1];
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-	}
-	else {
-		chan = CR_CHAN(insn->chanspec);
-		if(chan > 6) return -EINVAL;
-
-		bit = 9 + chan;
-
-		switch(data[0]){
-		case INSN_CONFIG_DIO_OUTPUT:
-			devpriv->rtsi_trig_direction_reg |= (1 << bit);
-			devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-			break;
-		case INSN_CONFIG_DIO_INPUT:
-			devpriv->rtsi_trig_direction_reg &= ~(1 << bit);
-			devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-			break;
-		case INSN_CONFIG_DIO_QUERY:
-			data[1] = (devpriv->rtsi_trig_direction_reg & (1<<bit)) ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
-			return 2;
-			break;
-		default:
-			return -EINVAL;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	static const unsigned RTSI_clock_channel = 7;
+	switch(data[0]){
+	case INSN_CONFIG_DIO_OUTPUT:
+		if(chan == RTSI_clock_channel)
+		{
+			devpriv->rtsi_trig_direction_reg |= Drive_RTSI_Clock_Bit;
+		}else
+		{
+			devpriv->rtsi_trig_direction_reg |= RTSI_Output_Bit(chan);
 		}
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
+		break;
+	case INSN_CONFIG_DIO_INPUT:
+		if(chan == RTSI_clock_channel)
+		{
+			devpriv->rtsi_trig_direction_reg &= ~Drive_RTSI_Clock_Bit;
+		}else
+		{
+			devpriv->rtsi_trig_direction_reg &= ~RTSI_Output_Bit(chan);
+		}
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		if(chan == RTSI_clock_channel)
+		{
+			data[1] = (devpriv->rtsi_trig_direction_reg & Drive_RTSI_Clock_Bit) ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
+		}else
+		{
+			data[1] = (devpriv->rtsi_trig_direction_reg & RTSI_Output_Bit(chan)) ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
+		}
+		return 2;
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		return ni_set_master_clock(dev, data[1], data[2]);
+		break;
+	default:
+		return -EINVAL;
 	}
-
 	return 1;
 }
 

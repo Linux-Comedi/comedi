@@ -1245,7 +1245,6 @@ static uint16_t m_series_stc_readw(comedi_device *dev, int reg)
 	case Joint_Status_2_Register:
 		offset = M_Offset_Joint_Status_2;
 		break;
-	/* FIXME: DIO_Parallel_Input_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Input (32 bit) */
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
 		return 0;
