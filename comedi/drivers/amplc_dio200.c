@@ -1072,8 +1072,6 @@ dio200_subdev_8254_config(comedi_device *dev, comedi_subdevice *s,
 	int ret;
 	int chan = CR_CHAN(insn->chanspec);
 
-	if (insn->n != 2) return -EINVAL;
-
 	switch (data[0]) {
 	case INSN_CONFIG_8254_SET_MODE:
 		ret = i8254_set_mode(subpriv->iobase, chan, data[1]);
@@ -1104,7 +1102,7 @@ dio200_subdev_8254_config(comedi_device *dev, comedi_subdevice *s,
 		return -EINVAL;
 		break;
 	}
-	return 2;
+	return insn->n;
 }
 
 /*

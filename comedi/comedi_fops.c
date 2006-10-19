@@ -635,17 +635,26 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_BLOCK_SIZE:
 	case INSN_CONFIG_SERIAL_CLOCK:
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
-	case INSN_CONFIG_SET_RTSI_CLOCK_MODE:
 	case INSN_CONFIG_ALT_SOURCE:
-		if( insn->n == 2 ) return 0;
+	case INSN_CONFIG_8254_SET_MODE:
+	case INSN_CONFIG_8254_READ_STATUS:
+	case INSN_CONFIG_SET_GATE_SRC:
+	case INSN_CONFIG_GET_GATE_SRC:
+		if(insn->n == 2) return 0;
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		if(insn->n == 3) return 0;
 		break;
 	case INSN_CONFIG_PWM_OUTPUT:
 		if(insn->n == 5) return 0;
 		break;
 	//by default we allow the insn since we don't have checks for all possible cases yet
 	default:
-		rt_printk("comedi: no check for data length of config insn id %i implemented.  Assuming n=%i is correct.\n",
-				data[0], insn->n);
+		rt_printk("comedi: no check for data length of config insn id %i is implemented.\n"
+			" Add a check to %s in %s.\n"
+			" Assuming n=%i is correct.\n",
+			data[0], __FUNCTION__, __FILE__, insn->n);
 		return 0;
 		break;
 	}
