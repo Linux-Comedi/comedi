@@ -923,6 +923,7 @@ enum m_series_register_offsets
 	M_Offset_Interrupt_B_Enable = 0x196,
 	M_Offset_AI_Personal = 0x19a,
 	M_Offset_AO_Personal = 0x19c,
+	M_Offset_RTSI_Trig_A_Output = 0x19e,
 	M_Offset_RTSI_Trig_B_Output = 0x1a0,
 	M_Offset_RTSI_Shared_MUX = 0x1a2,
 	M_Offset_AO_Output_Control = 0x1ac,

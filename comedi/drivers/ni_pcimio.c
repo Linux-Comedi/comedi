@@ -1130,6 +1130,9 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case AI_Trigger_Select_Register:
 		offset = M_Offset_AI_Trigger_Select;
 		break;
+	case Analog_Trigger_Etc_Register:
+		offset = M_Offset_Analog_Trigger_Etc;
+		break;
 	case AO_Command_1_Register:
 		offset = M_Offset_AO_Command_1;
 		break;
@@ -1165,6 +1168,10 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 		break;
 	case DAC_FIFO_Clear:
 		offset = M_Offset_AO_FIFO_Clear;
+		break;
+	case DIO_Control_Register:
+		rt_printk("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n", __FUNCTION__, reg);
+		return;
 		break;
 	case G_Autoincrement_Register(0):
 		offset = M_Offset_G0_Autoincrement;
@@ -1205,12 +1212,19 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case Joint_Reset_Register:
 		offset = M_Offset_Joint_Reset;
 		break;
-	case Analog_Trigger_Etc_Register:
-		offset = M_Offset_Analog_Trigger_Etc;
+	case RTSI_Trig_A_Output_Register:
+		offset = M_Offset_RTSI_Trig_A_Output;
 		break;
-	case DIO_Control_Register:
-		rt_printk("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n", __FUNCTION__, reg);
-		return;
+	case RTSI_Trig_B_Output_Register:
+		offset = M_Offset_RTSI_Trig_B_Output;
+		break;
+	case RTSI_Board_Register:
+		offset = M_Offset_RTSI_Shared_MUX;
+		break;
+	case RTSI_Trig_Direction_Register:
+		/* m-series register map bit shifts all the RTSI direction bits by one,
+		compared to the e-series, but I'm guessing that's a typo. */
+		offset = M_Offset_RTSI_Trig_Direction;
 		break;
 	/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
 	 and M_Offset_SCXI_Serial_Data_Out (8 bit) */
