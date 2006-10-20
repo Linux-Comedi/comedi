@@ -4427,6 +4427,7 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 	pll_control_bits |= MSeries_PLL_Divisor_Bits(freq_divider) | MSeries_PLL_Multiplier_Bits(freq_multiplier);
 	// rt_printk("using divider=%i, multiplier=%i for PLL.\n", freq_divider, freq_multiplier);
 	ni_writew(pll_control_bits, M_Offset_PLL_Control);
+	devpriv->clock_source = source;
 	unsigned i;
 	static const unsigned timeout = 1000;
 	/* it seems to typically take a few hundred microseconds for PLL to lock */
@@ -4461,6 +4462,7 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 			ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
 			ni_writew(0, M_Offset_PLL_Control);
 		}
+		devpriv->clock_source = source;
 		break;
 	case NI_MIO_RTSI_CLOCK:
 		devpriv->rtsi_trig_direction_reg |= Use_RTSI_Clock_Bit;
@@ -4473,6 +4475,7 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 			ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
 			ni_writew(0, M_Offset_PLL_Control);
 		}
+		devpriv->clock_source = source;
 		break;
 	default:
 		if(boardtype.reg_type == ni_reg_m_series)
@@ -4522,6 +4525,11 @@ static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		return ni_set_master_clock(dev, data[1], data[2]);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		data[1] = devpriv->clock_source;
+		data[2] = devpriv->clock_ns;
+		return 3;
 		break;
 	default:
 		return -EINVAL;

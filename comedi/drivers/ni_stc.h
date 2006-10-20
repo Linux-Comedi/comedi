@@ -1241,7 +1241,8 @@ static ni_board ni_boards[];
 	unsigned short rtsi_trig_direction_reg;			\
 								\
 	unsigned clock_ns; \
-								\
+	unsigned clock_source; \
+	\
 	unsigned short atrig_mode;				\
 	unsigned short atrig_high;				\
 	unsigned short atrig_low;				\
