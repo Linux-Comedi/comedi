@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.94"
+#define DRIVER_VERSION "v0.99"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxfast.c
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 12 Jun 2005
+Updated: 21 Oct 2006
 Status: testing
 */
 
@@ -43,6 +43,7 @@ Status: testing
  *      Buffer overflows in the FX2 are handed over to comedi.
  * 0.92: Dropping now 4 packets. The quad buffer has to be emptied.
  *       Added insn command basically for testing. Sample rate is 1MHz/16ch=62.5kHz
+ * 0.99: Ian Abbott pointed out a bug which has been corrected. Thanks!
  */
 
 
@@ -672,7 +673,7 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 	/* step 1: make sure trigger sources are trivially valid */
 
 	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
+	cmd->start_src &= TRIG_NOW;
 	if(!cmd->start_src || tmp != cmd->start_src) err++;
 
 	tmp = cmd->scan_begin_src;
@@ -715,7 +716,7 @@ static int usbduxfast_ai_cmdtest(comedi_device *dev,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg == TRIG_NOW && cmd->start_arg != 0)
+	if(cmd->start_src == TRIG_NOW && cmd->start_arg != 0)
 	{
 		cmd->start_arg = 0;
 		err++;
