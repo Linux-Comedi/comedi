@@ -70,8 +70,8 @@
 #endif
 
 /* A timeout count */
-
 #define NI_TIMEOUT 1000
+static const unsigned old_RTSI_clock_channel = 7;
 
 /* Note: this table must match the ai_gain_* definitions */
 static short ni_gainlkup[][16]={
@@ -3258,11 +3258,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	devpriv->serial_hw_mode = 0;
 
 	/* RTSI */
-	s=dev->subdevices+10;
-	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
-	s->n_chan=8;
-	s->maxdata=1;
+	s=dev->subdevices + 10;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan = 8;
+	s->maxdata = 1;
 	s->insn_bits = ni_rtsi_insn_bits;
 	s->insn_config = ni_rtsi_insn_config;
 	ni_rtsi_init(dev);
@@ -4310,9 +4310,20 @@ static void ni_rtsi_init(comedi_device *dev)
 	{
 		rt_printk("ni_set_master_clock failed, bug?");
 	}
-	// Standard internal lines are routed to standard RTSI bus lines
-	devpriv->stc_writew(dev, 0x3210, RTSI_Trig_A_Output_Register);
-	devpriv->stc_writew(dev, 0x0654, RTSI_Trig_B_Output_Register);
+	// default internal lines routing to RTSI bus lines
+	devpriv->rtsi_trig_a_output_reg = RTSI_Trig_Output_Bits(0, NI_RTSI_OUTPUT_ADR_START1) |
+		RTSI_Trig_Output_Bits(1, NI_RTSI_OUTPUT_ADR_START2) |
+		RTSI_Trig_Output_Bits(2, NI_RTSI_OUTPUT_SCLKG) |
+		RTSI_Trig_Output_Bits(3, NI_RTSI_OUTPUT_DACUPDN);
+	devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
+		RTSI_Trig_A_Output_Register);
+	devpriv->rtsi_trig_b_output_reg = RTSI_Trig_Output_Bits(4, NI_RTSI_OUTPUT_DA_START1) |
+		RTSI_Trig_Output_Bits(5, NI_RTSI_OUTPUT_G_SRC_0) |
+		RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE_0);
+	if(boardtype.reg_type == ni_reg_m_series)
+		devpriv->rtsi_trig_b_output_reg |= RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
+	devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
+		RTSI_Trig_B_Output_Register);
 
 	// Sets the source and direction of the 4 on board lines
 //	devpriv->stc_writew(dev, 0x0000, RTSI_Board_Register);
@@ -4335,10 +4346,10 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 {
 	unsigned div;
 	unsigned best_div = 1;
-	static const unsigned max_div = 16;
+	static const unsigned max_div = 0x10;
 	unsigned mult;
 	unsigned best_mult = 1;
-	static const unsigned max_mult = 256;
+	static const unsigned max_mult = 0x100;
 	static const unsigned pico_per_nano = 1000;
 
 	const unsigned reference_picosec = reference_period_ns * pico_per_nano;
@@ -4367,12 +4378,20 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	}
 	*freq_divider = best_div;
 	*freq_multiplier = best_mult;
-	*actual_period_ns = best_period_picosec + (pico_per_nano / 2) / pico_per_nano;
+	static const unsigned fudge_factor_80_to_20Mhz = 4;
+	*actual_period_ns = (best_period_picosec * fudge_factor_80_to_20Mhz + (pico_per_nano / 2)) / pico_per_nano;
 	return 0;
+}
+
+static inline unsigned num_configurable_rtsi_channels(comedi_device *dev)
+{
+	if(boardtype.reg_type == ni_reg_m_series) return 8;
+	else return 7;
 }
 
 static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, unsigned period_ns)
 {
+	if(source == NI_MIO_PLL_PXI10_CLOCK) period_ns = 100;
 	// these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that
 	static const unsigned min_period_ns = 50;
 	static const unsigned max_period_ns = 1000;
@@ -4401,13 +4420,14 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 	case NI_MIO_PLL_PXI10_CLOCK:
 		/* pxi clock is 10MHz */
 		devpriv->clock_and_fout2 |= MSeries_PLL_In_Source_Select_PXI_Clock10;
-		retval = ni_mseries_get_pll_parameters(100, &freq_divider,
+		retval = ni_mseries_get_pll_parameters(period_ns, &freq_divider,
 			&freq_multiplier, &devpriv->clock_ns);
 		if(retval < 0) return retval;
+		break;
 	default:
 		{
 			unsigned rtsi_channel;
-			static const unsigned max_rtsi_channel = 7; /* channel 7 should be rtsi clock */
+			static const unsigned max_rtsi_channel = 7;
 			for(rtsi_channel = 0; rtsi_channel <= max_rtsi_channel; ++rtsi_channel)
 			{
 				if(source == NI_MIO_PLL_RTSI_CLOCK(rtsi_channel))
@@ -4425,7 +4445,8 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 	}
 	ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
 	pll_control_bits |= MSeries_PLL_Divisor_Bits(freq_divider) | MSeries_PLL_Multiplier_Bits(freq_multiplier);
-	// rt_printk("using divider=%i, multiplier=%i for PLL.\n", freq_divider, freq_multiplier);
+// 	rt_printk("using divider=%i, multiplier=%i for PLL.  pll_control_bits = 0x%x\n", freq_divider, freq_multiplier, pll_control_bits);
+// 	rt_printk("clock_ns=%d\n", devpriv->clock_ns);
 	ni_writew(pll_control_bits, M_Offset_PLL_Control);
 	devpriv->clock_source = source;
 	unsigned i;
@@ -4450,9 +4471,8 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 
 static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned period_ns)
 {
-	switch(source)
+	if(source == NI_MIO_INTERNAL_CLOCK)
 	{
-	case NI_MIO_INTERNAL_CLOCK:
 		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
 		devpriv->clock_ns = 50;
@@ -4463,63 +4483,135 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 			ni_writew(0, M_Offset_PLL_Control);
 		}
 		devpriv->clock_source = source;
-		break;
-	case NI_MIO_RTSI_CLOCK:
-		devpriv->rtsi_trig_direction_reg |= Use_RTSI_Clock_Bit;
-		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-		devpriv->clock_ns = period_ns;
-		if(boardtype.reg_type == ni_reg_m_series)
-		{
-			devpriv->clock_and_fout2 &= ~(MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit);
-			devpriv->clock_and_fout2 |= MSeries_RTSI_10MHz_Bit;
-			ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
-			ni_writew(0, M_Offset_PLL_Control);
-		}
-		devpriv->clock_source = source;
-		break;
-	default:
+	}else
+	{
 		if(boardtype.reg_type == ni_reg_m_series)
 		{
 			return ni_mseries_set_pll_master_clock(dev, source, period_ns);
+		}else
+		{
+			if(source == NI_MIO_RTSI_CLOCK)
+			{
+				devpriv->rtsi_trig_direction_reg |= Use_RTSI_Clock_Bit;
+				devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
+				devpriv->clock_ns = period_ns;
+				devpriv->clock_source = source;
+			}else
+				return -EINVAL;
 		}
-		return -EINVAL;
 	}
 	return 3;
+}
+
+int ni_valid_rtsi_output_source(comedi_device *dev, unsigned chan, unsigned source)
+{
+	if(chan >= num_configurable_rtsi_channels(dev))
+	{
+		if(chan == old_RTSI_clock_channel)
+		{
+			if(source == NI_RTSI_OUTPUT_RTSI_OSC) return 1;
+			else
+			{
+				rt_printk("%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards.\n",
+					__FUNCTION__, chan, old_RTSI_clock_channel);
+				return 0;
+			}
+		}
+		return 0;
+	}
+	switch(source)
+	{
+	case NI_RTSI_OUTPUT_ADR_START1:
+	case NI_RTSI_OUTPUT_ADR_START2:
+	case NI_RTSI_OUTPUT_SCLKG:
+	case NI_RTSI_OUTPUT_DACUPDN:
+	case NI_RTSI_OUTPUT_DA_START1:
+	case NI_RTSI_OUTPUT_G_SRC_0:
+	case NI_RTSI_OUTPUT_G_GATE_0:
+	case NI_RTSI_OUTPUT_RGOUT0:
+	case NI_RTSI_OUTPUT_RTSI_BRD_0:
+		return 1;
+		break;
+	case NI_RTSI_OUTPUT_RTSI_OSC:
+		if(boardtype.reg_type == ni_reg_m_series)
+			return 1;
+		else return 0;
+		break;
+	default:
+		return 0;
+		break;
+	}
+}
+
+int ni_set_rtsi_routing(comedi_device *dev, unsigned chan, unsigned source)
+{
+	if(ni_valid_rtsi_output_source(dev, chan, source) == 0) return -EINVAL;
+	if(chan < 4)
+	{
+		devpriv->rtsi_trig_a_output_reg &= ~RTSI_Trig_Output_Mask(chan);
+		devpriv->rtsi_trig_a_output_reg |= RTSI_Trig_Output_Bits(chan, source);
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
+			RTSI_Trig_A_Output_Register);
+	}else if(chan < 8)
+	{
+		devpriv->rtsi_trig_b_output_reg &= ~RTSI_Trig_Output_Mask(chan);
+		devpriv->rtsi_trig_b_output_reg |= RTSI_Trig_Output_Bits(chan, source);
+		devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
+			RTSI_Trig_B_Output_Register);
+	}
+	return 2;
+}
+
+unsigned ni_get_rtsi_routing(comedi_device *dev, unsigned chan)
+{
+	if(chan < 4)
+	{
+		return RTSI_Trig_Output_Source(chan, devpriv->rtsi_trig_a_output_reg);
+	}else if(chan < num_configurable_rtsi_channels(dev))
+	{
+		return RTSI_Trig_Output_Source(chan, devpriv->rtsi_trig_b_output_reg);
+	}else
+	{
+		if(chan == old_RTSI_clock_channel)
+			return NI_RTSI_OUTPUT_RTSI_OSC;
+		rt_printk("%s: invalid channel=%i\n", __FUNCTION__, chan);
+		return -EINVAL;
+	}
 }
 
 static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	static const unsigned RTSI_clock_channel = 7;
 	switch(data[0]){
 	case INSN_CONFIG_DIO_OUTPUT:
-		if(chan == RTSI_clock_channel)
+		if(chan < num_configurable_rtsi_channels(dev))
+		{
+			devpriv->rtsi_trig_direction_reg |= RTSI_Output_Bit(chan, boardtype.reg_type == ni_reg_m_series);
+		}else if(chan == old_RTSI_clock_channel)
 		{
 			devpriv->rtsi_trig_direction_reg |= Drive_RTSI_Clock_Bit;
-		}else
-		{
-			devpriv->rtsi_trig_direction_reg |= RTSI_Output_Bit(chan);
 		}
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		if(chan == RTSI_clock_channel)
+		if(chan < num_configurable_rtsi_channels(dev))
+		{
+			devpriv->rtsi_trig_direction_reg &= ~RTSI_Output_Bit(chan, boardtype.reg_type == ni_reg_m_series);
+		}else if(chan == old_RTSI_clock_channel)
 		{
 			devpriv->rtsi_trig_direction_reg &= ~Drive_RTSI_Clock_Bit;
-		}else
-		{
-			devpriv->rtsi_trig_direction_reg &= ~RTSI_Output_Bit(chan);
 		}
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		if(chan == RTSI_clock_channel)
+		if(chan < num_configurable_rtsi_channels(dev))
+		{
+			data[1] = (devpriv->rtsi_trig_direction_reg & RTSI_Output_Bit(chan, boardtype.reg_type == ni_reg_m_series)) ?
+				INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
+		}else if(chan == old_RTSI_clock_channel)
 		{
 			data[1] = (devpriv->rtsi_trig_direction_reg & Drive_RTSI_Clock_Bit) ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
-		}else
-		{
-			data[1] = (devpriv->rtsi_trig_direction_reg & RTSI_Output_Bit(chan)) ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
 		}
 		return 2;
 		break;
@@ -4531,8 +4623,16 @@ static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 		data[2] = devpriv->clock_ns;
 		return 3;
 		break;
+	case INSN_CONFIG_SET_ROUTING:
+		return ni_set_rtsi_routing(dev, chan, data[1]);
+		break;
+	case INSN_CONFIG_GET_ROUTING:
+		data[1] = ni_get_rtsi_routing(dev, chan);
+		return 2;
+		break;
 	default:
 		return -EINVAL;
+		break;
 	}
 	return 1;
 }

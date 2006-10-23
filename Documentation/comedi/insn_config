@@ -166,11 +166,32 @@ Applications:
     invert output on gate?primary:secondary source trigger
 
 
-ID=INSN_CONFIG_ALT_SOURCE: select alternate input source (internal calibration reference)
+ID=INSN_CONFIG_ALT_SOURCE: Select alternate input source.  This is
+	used by comedi_calibrate to configure an
+	analog input channel which can be redirected to read internal calibration
+	references.
+	You need to set the CR_ALT_SOURCE flag in the chanlist/chanspec when
+	reading to read from the configured alternate input source.
 
   [0] - ID
   [1] - source
 
+ID=INSN_CONFIG_SET_ROUTING: This is used to configure an output channel
+	which can be multiplexed to output a variety of
+	different signals (such as NI's RTSI and PFI lines).
+
+  chanspec: channel whose routing is being configured
+
+  [0] - ID
+  [1] - source
+
+ID=INSN_CONFIG_GET_ROUTING: Queries the routing configuration.  See
+	INSN_CONFIG_SET_ROUTING.
+
+  chanspec: channel whose routing is being queried
+
+  [0] - ID
+  [1] - source
 
 ID=INSN_CONFIG_TIMER_1: Deprecated.  Use INSN_CONFIG_SET_CLOCK_SRC and
 	TRIG_COUNT or TRIG_TIMER.
@@ -218,3 +239,4 @@ ID=INSN_CONFIG_GET_CLOCK_SRC: Ask which master clock is being used
 	[0] - ID
 	[1] - clock source
 	[2] - clock period (nanoseconds)
+

@@ -310,14 +310,25 @@ enum RTSI_Trig_Direction_Bits
 	Drive_RTSI_Clock_Bit = 0x1,
 	Use_RTSI_Clock_Bit = 0x2,
 };
-static inline unsigned RTSI_Output_Bit(unsigned channel)
+static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 {
-	if(channel > 6)
+	unsigned max_channel;
+	unsigned base_bit_shift;
+	if(is_mseries)
+	{
+		base_bit_shift = 8;
+		max_channel = 7;
+	}else
+	{
+		base_bit_shift = 9;
+		max_channel = 6;
+	}
+	if(channel > max_channel)
 	{
 		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__, channel);
 		return 0;
 	}
-	return 1 << (9 + channel);
+	return 1 << (base_bit_shift + channel);
 }
 
 #define Interrupt_Control_Register	59
@@ -457,6 +468,24 @@ enum AO_Personal_Bits
 };
 #define	RTSI_Trig_A_Output_Register	79
 #define	RTSI_Trig_B_Output_Register	80
+enum RTSI_Trig_B_Output_Bits
+{
+	RTSI_Sub_Selection_1_Bit = 0x8000	// not for m-series
+};
+static inline unsigned RTSI_Trig_Output_Bits(unsigned rtsi_channel, unsigned source)
+{
+	return (source & 0xf) << ((rtsi_channel % 4) * 4);
+};
+static inline unsigned RTSI_Trig_Output_Mask(unsigned rtsi_channel)
+{
+	return 0xf << ((rtsi_channel % 4) * 4);
+};
+// inverse to RTSI_Trig_Output_Bits()
+static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel, unsigned bits)
+{
+	return (bits >> ((rtsi_channel % 4) * 4)) & 0xf;
+};
+
 #define	RTSI_Board_Register		81
 #define Write_Strobe_0_Register		82
 #define Write_Strobe_1_Register		83
@@ -1047,7 +1076,10 @@ enum MSeries_Clock_and_Fout2_Bits
 	MSeries_PLL_In_Source_Select_Mask = 0x1f,
 	MSeries_Timebase1_Select_Bit = 0x20,	// use PLL for timebase 1
 	MSeries_Timebase3_Select_Bit = 0x40,	// use PLL for timebase 3
-	MSeries_RTSI_10MHz_Bit = 0x80	// use 10MHz instead of 20MHz for RTSI clock frequency
+	/* use 10MHz instead of 20MHz for RTSI clock frequency.  Appears
+	 to have no effect, at least on pxi-6281, which always uses
+	 20MHz rtsi clock frequency */
+	MSeries_RTSI_10MHz_Bit = 0x80
 };
 static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned RTSI_channel)
 {
@@ -1066,7 +1098,7 @@ enum MSeries_PLL_Control_Bits
 	MSeries_PLL_VCO_Mode_200_325MHz_Bits = 0x0,
 	MSeries_PLL_VCO_Mode_175_225MHz_Bits  = 0x2000,
 	MSeries_PLL_VCO_Mode_100_225MHz_Bits  = 0x4000,
-	MSeries_PLL_VCO_Mode_75_150MHz_Bits   = 0x7000,
+	MSeries_PLL_VCO_Mode_75_150MHz_Bits   = 0x6000,
 };
 static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
@@ -1146,7 +1178,6 @@ static inline unsigned MSeries_Cal_PWM_Low_Time_Bits(unsigned count)
 {
 	return count & 0xffff;
 }
-
 
 #define M_SERIES_EEPROM_SIZE 1024
 
@@ -1240,7 +1271,9 @@ static ni_board ni_boards[];
 	volatile unsigned short int_b_enable_reg;			\
 	unsigned short io_bidirection_pin_reg;			\
 	unsigned short rtsi_trig_direction_reg;			\
-								\
+	unsigned short rtsi_trig_a_output_reg; \
+	unsigned short rtsi_trig_b_output_reg; \
+	\
 	unsigned clock_ns; \
 	unsigned clock_source; \
 	\

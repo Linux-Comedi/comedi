@@ -1218,12 +1218,7 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case RTSI_Trig_B_Output_Register:
 		offset = M_Offset_RTSI_Trig_B_Output;
 		break;
-	case RTSI_Board_Register:
-		offset = M_Offset_RTSI_Shared_MUX;
-		break;
 	case RTSI_Trig_Direction_Register:
-		/* m-series register map bit shifts all the RTSI direction bits by one,
-		compared to the e-series, but I'm guessing that's a typo. */
 		offset = M_Offset_RTSI_Trig_Direction;
 		break;
 	/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)

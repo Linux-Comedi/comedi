@@ -248,7 +248,9 @@ enum configuration_ids
 	INSN_CONFIG_SET_CLOCK_SRC = 2003,	// Set master clock source
 	INSN_CONFIG_GET_CLOCK_SRC = 2004,	// Get master clock source
 	INSN_CONFIG_8254_SET_MODE = 4097,
-	INSN_CONFIG_8254_READ_STATUS = 4098
+	INSN_CONFIG_8254_READ_STATUS = 4098,
+	INSN_CONFIG_SET_ROUTING = 4099,
+	INSN_CONFIG_GET_ROUTING = 4109,
 };
 
 
@@ -524,7 +526,8 @@ enum i8254_mode
 enum ni_mio_clock_source
 {
 	NI_MIO_INTERNAL_CLOCK = 0,
-	NI_MIO_RTSI_CLOCK = 1,
+	NI_MIO_RTSI_CLOCK = 1,	/* doesn't work for m-series, use NI_MIO_PLL_RTSI_CLOCK() */
+	/* the NI_MIO_PLL_* sources are m-series only */
 	NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK = 2,
 	NI_MIO_PLL_PXI10_CLOCK = 3,
 	NI_MIO_PLL_RTSI0_CLOCK = 4
@@ -534,17 +537,26 @@ static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel)
 	return NI_MIO_PLL_RTSI0_CLOCK + rtsi_channel;
 }
 
-/* RTSI BUS pin usage in standard configuration */
-#define NI_RTSI_STD_AI_START1		0
-#define NI_RTSI_STD_AI_START2		1
-#define NI_RTSI_STD_AI_CONV		2
-#define NI_RTSI_STD_CT1_SRC		3
-#define NI_RTSI_STD_CT1_GATE		4
-#define NI_RTSI_STD_AO_SAMP_CLOCK	5
-#define NI_RTSI_STD_AO_START_TRIG	6
-#define NI_RTSI_STD_AI_SAMP_CLOCK	7
-#define NI_RTSI_STD_CTR0_SRC		8
-#define NI_RTSI_STD_CTR0_GATE		9
+/* Signals which can be routed to an NI RTSI pin with INSN_CONFIG_SET_ROUTING.
+ The numbers are assigned are not arbitrary, they correspond to the bits required
+ to program the board. */
+enum ni_rtsi_output
+{
+	NI_RTSI_OUTPUT_ADR_START1 = 0,
+	NI_RTSI_OUTPUT_ADR_START2 = 1,
+	NI_RTSI_OUTPUT_SCLKG = 2,
+	NI_RTSI_OUTPUT_DACUPDN = 3,
+	NI_RTSI_OUTPUT_DA_START1 = 4,
+	NI_RTSI_OUTPUT_G_SRC_0 = 5,
+	NI_RTSI_OUTPUT_G_GATE_0 = 6,
+	NI_RTSI_OUTPUT_RGOUT0 = 7,
+	NI_RTSI_OUTPUT_RTSI_BRD_0 = 8,
+	NI_RTSI_OUTPUT_RTSI_OSC = 12 /* m-series only */
+};
+static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n)
+{
+	return NI_RTSI_OUTPUT_RTSI_BRD_0 + n;
+}
 
 /* NI External Trigger lines */
 #define NI_EXT_PFI_0			0

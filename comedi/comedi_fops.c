@@ -640,6 +640,8 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_8254_READ_STATUS:
 	case INSN_CONFIG_SET_GATE_SRC:
 	case INSN_CONFIG_GET_GATE_SRC:
+	case INSN_CONFIG_SET_ROUTING:
+	case INSN_CONFIG_GET_ROUTING:
 		if(insn->n == 2) return 0;
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
