@@ -21,7 +21,7 @@
 */
 /*
 Driver: ni_pcimio.o
-Description: National Instruments PCI-MIO-E series (all boards)
+Description: National Instruments PCI-MIO-E series and M series (all boards)
 Author: ds, John Hallen, Frank Mori Hess, Rolf Mueller, Herbert Peremans,
   Herman Bruyninckx, Terry Barnaby
 Status: works
@@ -36,7 +36,7 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
   PCI-6143
-Updated: Tue Mar 21 17:40:10 EST 2006
+Updated: Tue Oct 24 10:51:58 EDT 2006
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes for
@@ -56,19 +56,23 @@ With this board all of the convertors perform one simultaineous sample during
 a scan interval. The period for a scan is used for the convert time in a
 Comedi cmd. The convert trigger source is normally set to TRIG_NOW by default.
 
-Basic support for the RTSI trigger bus is supported on these cards on
+The RTSI trigger bus is supported on these cards on
 subdevice 10. See the comedilib documentation for details.
 
 Information (number of channels, bits, etc.) for some devices may be
 incorrect.  Please check this and submit a bug if there are problems
 for your device.
 
-The support for the M-Series boards is still under development.
+M-Series boards do analog input and analog output calibration entirely
+in software. The software calibration corrects
+the analog input for offset, gain and
+nonlinearity.  The analog outputs are corrected for offset and gain.
+See the comedilib documentation on comedi_get_softcal_converter() for
+more information.
 
 Bugs:
  - When DMA is enabled, COMEDI_EV_SCAN_END and COMEDI_EV_CONVERT do
    not work correctly.
- - There are reported problems with the 67xx boards.
 
 */
 /*
