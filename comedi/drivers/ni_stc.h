@@ -46,6 +46,8 @@
 #define _bit1		0x0002
 #define _bit0		0x0001
 
+#define NUM_PFI_OUTPUT_SELECT_REGS 6
+
 /* Registers in the National Instruments DAQ-STC chip */
 
 #define Interrupt_A_Ack_Register	2
@@ -1042,7 +1044,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 };
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
-	if(n < 1 || n > 6)
+	if(n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS)
 	{
 		rt_printk("%s: invalid pfi output select register=%i\n", __FUNCTION__, n);
 		return M_Offset_PFI_Output_Select_1;
@@ -1296,7 +1298,7 @@ static ni_board ni_boards[];
 	unsigned short rtsi_trig_direction_reg;			\
 	unsigned short rtsi_trig_a_output_reg; \
 	unsigned short rtsi_trig_b_output_reg; \
-	unsigned short pfi_output_select_reg[6]; \
+	unsigned short pfi_output_select_reg[NUM_PFI_OUTPUT_SELECT_REGS]; \
 	\
 	unsigned clock_ns; \
 	unsigned clock_source; \
