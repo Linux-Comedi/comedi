@@ -768,6 +768,11 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 				ret=s->insn_write(dev,s,insn,data);
 				break;
 			case INSN_BITS:
+				if(insn->n != 2)
+				{
+					ret=-EINVAL;
+					break;
+				}
 				ret=s->insn_bits(dev,s,insn,data);
 				break;
 			case INSN_CONFIG:
