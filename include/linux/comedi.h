@@ -547,35 +547,29 @@ enum ni_rtsi_output
 	NI_RTSI_OUTPUT_SCLKG = 2,
 	NI_RTSI_OUTPUT_DACUPDN = 3,
 	NI_RTSI_OUTPUT_DA_START1 = 4,
-	NI_RTSI_OUTPUT_G_SRC_0 = 5,
-	NI_RTSI_OUTPUT_G_GATE_0 = 6,
+	NI_RTSI_OUTPUT_G_SRC0 = 5,
+	NI_RTSI_OUTPUT_G_GATE0 = 6,
 	NI_RTSI_OUTPUT_RGOUT0 = 7,
 	NI_RTSI_OUTPUT_RTSI_BRD_0 = 8,
-	NI_RTSI_OUTPUT_RTSI_OSC = 12 /* m-series only */
+	NI_RTSI_OUTPUT_RTSI_OSC = 12 /* pre-m-series always have RTSI clock on line 7 */
 };
 static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n)
 {
 	return NI_RTSI_OUTPUT_RTSI_BRD_0 + n;
 }
 
-/* NI External Trigger lines */
-#define NI_EXT_PFI_0			0
-#define NI_EXT_PFI_1			1
-#define NI_EXT_PFI_2			2
-#define NI_EXT_PFI_3			3
-#define NI_EXT_PFI_4			4
-#define NI_EXT_PFI_5			5
-#define NI_EXT_PFI_6			6
-#define NI_EXT_PFI_7			7
-#define NI_EXT_PFI_8			8
-#define NI_EXT_PFI_9			9
-#define NI_EXT_RTSI_0			10
-#define NI_EXT_RTSI_1			11
-#define NI_EXT_RTSI_2			12
-#define NI_EXT_RTSI_3			13
-#define NI_EXT_RTSI_4			14
-#define NI_EXT_RTSI_5			15
-#define NI_EXT_RTSI_6			16
+/* NI External Trigger lines.  These values are not arbitrary, but are related to
+	the bits required to program the board (offset by 1 for historical reasons). */
+static inline unsigned NI_EXT_PFI(unsigned pfi_channel)
+{
+	if(pfi_channel < 10) return pfi_channel;
+	else return pfi_channel + 10;
+}
+static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel)
+{
+	if(rtsi_channel < 7) return 10 + rtsi_channel;
+	else return 19 + rtsi_channel;
+}
 
 #ifdef __cplusplus
 }

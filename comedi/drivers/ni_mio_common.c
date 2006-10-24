@@ -4318,8 +4318,8 @@ static void ni_rtsi_init(comedi_device *dev)
 	devpriv->stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
 		RTSI_Trig_A_Output_Register);
 	devpriv->rtsi_trig_b_output_reg = RTSI_Trig_Output_Bits(4, NI_RTSI_OUTPUT_DA_START1) |
-		RTSI_Trig_Output_Bits(5, NI_RTSI_OUTPUT_G_SRC_0) |
-		RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE_0);
+		RTSI_Trig_Output_Bits(5, NI_RTSI_OUTPUT_G_SRC0) |
+		RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE0);
 	if(boardtype.reg_type == ni_reg_m_series)
 		devpriv->rtsi_trig_b_output_reg |= RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
 	devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
@@ -4494,7 +4494,15 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 			{
 				devpriv->rtsi_trig_direction_reg |= Use_RTSI_Clock_Bit;
 				devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-				devpriv->clock_ns = period_ns;
+				if(devpriv->clock_ns == 0)
+				{
+					rt_printk("%s: we don't handle an unspecified clock period correctly yet, returning error.\n",
+						__FUNCTION__);
+					return -EINVAL;
+				}else
+				{
+					devpriv->clock_ns = period_ns;
+				}
 				devpriv->clock_source = source;
 			}else
 				return -EINVAL;
@@ -4526,8 +4534,8 @@ int ni_valid_rtsi_output_source(comedi_device *dev, unsigned chan, unsigned sour
 	case NI_RTSI_OUTPUT_SCLKG:
 	case NI_RTSI_OUTPUT_DACUPDN:
 	case NI_RTSI_OUTPUT_DA_START1:
-	case NI_RTSI_OUTPUT_G_SRC_0:
-	case NI_RTSI_OUTPUT_G_GATE_0:
+	case NI_RTSI_OUTPUT_G_SRC0:
+	case NI_RTSI_OUTPUT_G_GATE0:
 	case NI_RTSI_OUTPUT_RGOUT0:
 	case NI_RTSI_OUTPUT_RTSI_BRD_0:
 		return 1;
