@@ -538,9 +538,9 @@ static inline unsigned NI_MIO_PLL_RTSI_CLOCK(unsigned rtsi_channel)
 }
 
 /* Signals which can be routed to an NI RTSI pin with INSN_CONFIG_SET_ROUTING.
- The numbers are assigned are not arbitrary, they correspond to the bits required
+ The numbers assigned are not arbitrary, they correspond to the bits required
  to program the board. */
-enum ni_rtsi_output
+enum ni_rtsi_routing
 {
 	NI_RTSI_OUTPUT_ADR_START1 = 0,
 	NI_RTSI_OUTPUT_ADR_START2 = 1,
@@ -556,6 +556,44 @@ enum ni_rtsi_output
 static inline unsigned NI_RTSI_OUTPUT_RTSI_BRD(unsigned n)
 {
 	return NI_RTSI_OUTPUT_RTSI_BRD_0 + n;
+}
+
+/* Signals which can be routed to an NI PFI pin on an m-series board
+ with INSN_CONFIG_SET_ROUTING.  These numbers are also returned
+ by INSN_CONFIG_GET_ROUTING on pre-m-series boards, even though
+ their routing cannot be changed.  The numbers assigned are
+ not arbitrary, they correspond to the bits required
+ to program the board. */
+enum ni_pfi_routing
+{
+	NI_PFI_OUTPUT_PFI_DEFAULT = 0,
+	NI_PFI_OUTPUT_AI_START1 = 1,
+	NI_PFI_OUTPUT_AI_START2 = 2,
+	NI_PFI_OUTPUT_AI_CONVERT = 3,
+	NI_PFI_OUTPUT_G_SRC1 = 4,
+	NI_PFI_OUTPUT_G_GATE1 = 5,
+	NI_PFI_OUTPUT_AO_UPDATE_N = 6,
+	NI_PFI_OUTPUT_AO_START1 = 7,
+	NI_PFI_OUTPUT_AI_START_PULSE = 8,
+	NI_PFI_OUTPUT_G_SRC0 = 9,
+	NI_PFI_OUTPUT_G_GATE0 = 10,
+	NI_PFI_OUTPUT_EXT_STROBE = 11,
+	NI_PFI_OUTPUT_AI_EXT_MUX_CLK = 12,
+	NI_PFI_OUTPUT_GOUT0 = 13,
+	NI_PFI_OUTPUT_GOUT1 = 14,
+	NI_PFI_OUTPUT_FREQ_OUT = 15,
+	NI_PFI_OUTPUT_PFI_DO = 16,
+	NI_PFI_OUTPUT_I_ATRIG = 17,
+	NI_PFI_OUTPUT_RTSI0 = 18,
+	NI_PFI_OUTPUT_PXI_STAR_TRIGGER_IN = 26,
+	NI_PFI_OUTPUT_SCXI_TRIG1 = 27,
+	NI_PFI_OUTPUT_DIO_CHANGE_DETECT_RTSI = 28,
+	NI_PFI_OUTPUT_CDI_SAMPLE = 29,
+	NI_PFI_OUTPUT_CDO_UPDATE = 30
+};
+static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel)
+{
+	return NI_PFI_OUTPUT_RTSI0 + rtsi_channel;
 }
 
 /* NI External Trigger lines.  These values are not arbitrary, but are related to

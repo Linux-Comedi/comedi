@@ -4263,6 +4263,88 @@ static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
  *
  */
 
+int ni_m_series_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+{
+	if((source & 0x1f) != source) return -EINVAL;
+	const unsigned pfi_reg_index = 1 + chan / 3;
+	const unsigned array_offset = pfi_reg_index - 1;
+	devpriv->pfi_output_select_reg[array_offset] &= ~MSeries_PFI_Output_Select_Mask(chan);
+	devpriv->pfi_output_select_reg[array_offset] |= MSeries_PFI_Output_Select_Bits(chan, source);
+	ni_writew(devpriv->pfi_output_select_reg[array_offset], M_Offset_PFI_Output_Select(pfi_reg_index));
+	return 2;
+}
+
+int ni_old_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+{
+	// pre-m-series boards have fixed signals on pfi pins
+	if(source != ni_old_get_pfi_routing(dev, chan)) return -EINVAL;
+	return 2;
+}
+
+int ni_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+{
+	if(boardtype.reg_type == ni_reg_m_series)
+		return ni_m_series_set_pfi_routing(dev, chan, source);
+	else
+		return ni_old_set_pfi_routing(dev, chan, source);
+}
+
+unsigned ni_m_series_get_pfi_routing(comedi_device *dev, unsigned chan)
+{
+	const unsigned array_offset = chan / 3;
+	return MSeries_PFI_Output_Select_Source(chan, devpriv->pfi_output_select_reg[array_offset]);
+}
+
+unsigned ni_old_get_pfi_routing(comedi_device *dev, unsigned chan)
+{
+	// pre-m-series boards have fixed signals on pfi pins
+	switch(chan)
+	{
+	case 0:
+		return NI_PFI_OUTPUT_AI_START1;
+		break;
+	case 1:
+		return NI_PFI_OUTPUT_AI_START2;
+		break;
+	case 2:
+		return NI_PFI_OUTPUT_AI_CONVERT;
+		break;
+	case 3:
+		return NI_PFI_OUTPUT_G_SRC1;
+		break;
+	case 4:
+		return NI_PFI_OUTPUT_G_GATE1;
+		break;
+	case 5:
+		return NI_PFI_OUTPUT_AO_UPDATE_N;
+		break;
+	case 6:
+		return NI_PFI_OUTPUT_AO_START1;
+		break;
+	case 7:
+		return NI_PFI_OUTPUT_AI_START_PULSE;
+		break;
+	case 8:
+		return NI_PFI_OUTPUT_G_SRC0;
+		break;
+	case 9:
+		return NI_PFI_OUTPUT_G_GATE0;
+		break;
+	default:
+		rt_printk("%s: bug, unhandled case in switch.\n", __FUNCTION__);
+		break;
+	}
+	return 0;
+}
+
+unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
+{
+	if(boardtype.reg_type == ni_reg_m_series)
+		return ni_m_series_get_pfi_routing(dev, chan);
+	else
+		return ni_old_get_pfi_routing(dev, chan);
+}
+
 static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -4292,6 +4374,13 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] = (devpriv->io_bidirection_pin_reg & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
+		break;
+	case INSN_CONFIG_SET_ROUTING:
+		return ni_set_pfi_routing(dev, chan, data[1]);
+		break;
+	case INSN_CONFIG_GET_ROUTING:
+		data[1] = ni_get_pfi_routing(dev, chan);
+		return 2;
 		break;
 	default:
 		return -EINVAL;
@@ -4586,8 +4675,8 @@ unsigned ni_get_rtsi_routing(comedi_device *dev, unsigned chan)
 	{
 		if(chan == old_RTSI_clock_channel)
 			return NI_RTSI_OUTPUT_RTSI_OSC;
-		rt_printk("%s: invalid channel=%i\n", __FUNCTION__, chan);
-		return -EINVAL;
+		rt_printk("%s: bug! should never get here?\n", __FUNCTION__);
+		return 0;
 	}
 }
 

@@ -1040,6 +1040,15 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 	}
 	return offset[channel];
 };
+static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
+{
+	if(n < 1 || n > 6)
+	{
+		rt_printk("%s: invalid pfi output select register=%i\n", __FUNCTION__, n);
+		return M_Offset_PFI_Output_Select_1;
+	}
+	return M_Offset_PFI_Output_Select_1 + (n - 1) * 2;
+}
 
 enum MSeries_AI_Config_FIFO_Data_Bits
 {
@@ -1179,6 +1188,20 @@ static inline unsigned MSeries_Cal_PWM_Low_Time_Bits(unsigned count)
 	return count & 0xffff;
 }
 
+static inline unsigned MSeries_PFI_Output_Select_Mask(unsigned channel)
+{
+	return 0x1f << (channel % 3) * 5;
+};
+static inline unsigned MSeries_PFI_Output_Select_Bits(unsigned channel, unsigned source)
+{
+	return (source & 0x1f) << ((channel % 3) * 5);
+};
+// inverse to MSeries_PFI_Output_Select_Bits
+static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel, unsigned bits)
+{
+	return (bits >> ((channel % 3) * 5)) & 0x1f;
+};
+
 #define M_SERIES_EEPROM_SIZE 1024
 
 typedef struct ni_board_struct{
@@ -1273,6 +1296,7 @@ static ni_board ni_boards[];
 	unsigned short rtsi_trig_direction_reg;			\
 	unsigned short rtsi_trig_a_output_reg; \
 	unsigned short rtsi_trig_b_output_reg; \
+	unsigned short pfi_output_select_reg[6]; \
 	\
 	unsigned clock_ns; \
 	unsigned clock_source; \
