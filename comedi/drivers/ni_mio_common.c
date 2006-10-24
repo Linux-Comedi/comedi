@@ -3220,11 +3220,17 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_read = &ni_eeprom_insn_read;
 	}
 	/* PFI */
-	s=dev->subdevices+7;
-	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
-	s->n_chan=10;
-	s->maxdata=1;
+	s=dev->subdevices + 7;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	if(boardtype.reg_type == ni_reg_m_series)
+	{
+		s->n_chan = 16;
+	}else
+	{
+		s->n_chan = 10;
+	}
+	s->maxdata = 1;
 	s->insn_bits = ni_pfi_insn_bits;
 	s->insn_config = ni_pfi_insn_config;
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
@@ -4275,7 +4281,6 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	if(insn->n < 1)return -EINVAL;
 
 	chan = CR_CHAN(insn->chanspec);
-	if(chan>10)return -EINVAL;
 
 	switch(data[0]){
 	case COMEDI_OUTPUT:
