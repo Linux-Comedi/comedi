@@ -4362,8 +4362,7 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 		for(mult = 1; mult <= max_mult; ++mult)
 		{
 			unsigned new_period_ps = (reference_picosec * div) / mult;
-			if((new_period_ps < best_period_picosec && new_period_ps >= target_picosec) ||
-				(new_period_ps > best_period_picosec && new_period_ps <= target_picosec))
+			if(abs(new_period_ps - target_picosec) < abs(best_period_picosec - target_picosec))
 			{
 				best_period_picosec = new_period_ps;
 				best_div = div;
