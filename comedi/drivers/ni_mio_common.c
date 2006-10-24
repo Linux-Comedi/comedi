@@ -219,6 +219,7 @@ static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
+static unsigned ni_old_get_pfi_routing(comedi_device *dev, unsigned chan);
 
 static void ni_rtsi_init(comedi_device *dev);
 static int ni_rtsi_insn_bits(comedi_device *dev,comedi_subdevice *s,
@@ -4263,7 +4264,7 @@ static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
  *
  */
 
-int ni_m_series_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+static int ni_m_series_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
 	if((source & 0x1f) != source) return -EINVAL;
 	const unsigned pfi_reg_index = 1 + chan / 3;
@@ -4274,14 +4275,14 @@ int ni_m_series_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned sour
 	return 2;
 }
 
-int ni_old_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+static int ni_old_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
 	// pre-m-series boards have fixed signals on pfi pins
 	if(source != ni_old_get_pfi_routing(dev, chan)) return -EINVAL;
 	return 2;
 }
 
-int ni_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+static int ni_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
 	if(boardtype.reg_type == ni_reg_m_series)
 		return ni_m_series_set_pfi_routing(dev, chan, source);
@@ -4289,13 +4290,13 @@ int ni_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 		return ni_old_set_pfi_routing(dev, chan, source);
 }
 
-unsigned ni_m_series_get_pfi_routing(comedi_device *dev, unsigned chan)
+static unsigned ni_m_series_get_pfi_routing(comedi_device *dev, unsigned chan)
 {
 	const unsigned array_offset = chan / 3;
 	return MSeries_PFI_Output_Select_Source(chan, devpriv->pfi_output_select_reg[array_offset]);
 }
 
-unsigned ni_old_get_pfi_routing(comedi_device *dev, unsigned chan)
+static unsigned ni_old_get_pfi_routing(comedi_device *dev, unsigned chan)
 {
 	// pre-m-series boards have fixed signals on pfi pins
 	switch(chan)
@@ -4337,7 +4338,7 @@ unsigned ni_old_get_pfi_routing(comedi_device *dev, unsigned chan)
 	return 0;
 }
 
-unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
+static unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
 {
 	if(boardtype.reg_type == ni_reg_m_series)
 		return ni_m_series_get_pfi_routing(dev, chan);
@@ -4348,10 +4349,18 @@ unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
 static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	if(insn->n!=2)return -EINVAL;
-
-	data[1] = 0;
-
+	if(boardtype.reg_type != ni_reg_m_series)
+	{
+		data[1] = 0;
+		return 2;
+	}
+	if(data[0])
+	{
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+		ni_writew(s->state, M_Offset_PFI_DO);
+	}
+	data[1] = ni_readw(M_Offset_PFI_DI);
 	return 2;
 }
 
@@ -4604,7 +4613,7 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 	return 3;
 }
 
-int ni_valid_rtsi_output_source(comedi_device *dev, unsigned chan, unsigned source)
+static int ni_valid_rtsi_output_source(comedi_device *dev, unsigned chan, unsigned source)
 {
 	if(chan >= num_configurable_rtsi_channels(dev))
 	{
@@ -4644,7 +4653,7 @@ int ni_valid_rtsi_output_source(comedi_device *dev, unsigned chan, unsigned sour
 	}
 }
 
-int ni_set_rtsi_routing(comedi_device *dev, unsigned chan, unsigned source)
+static int ni_set_rtsi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
 	if(ni_valid_rtsi_output_source(dev, chan, source) == 0) return -EINVAL;
 	if(chan < 4)
@@ -4663,7 +4672,7 @@ int ni_set_rtsi_routing(comedi_device *dev, unsigned chan, unsigned source)
 	return 2;
 }
 
-unsigned ni_get_rtsi_routing(comedi_device *dev, unsigned chan)
+static unsigned ni_get_rtsi_routing(comedi_device *dev, unsigned chan)
 {
 	if(chan < 4)
 	{
