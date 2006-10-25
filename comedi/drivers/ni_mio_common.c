@@ -3227,6 +3227,12 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.reg_type == ni_reg_m_series)
 	{
 		s->n_chan = 16;
+		ni_writew(s->state, M_Offset_PFI_DO);
+		unsigned i;
+		for(i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i)
+		{
+			ni_writew(devpriv->pfi_output_select_reg[i], M_Offset_PFI_Output_Select(i + 1));
+		}
 	}else
 	{
 		s->n_chan = 10;
@@ -3235,11 +3241,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->insn_bits = ni_pfi_insn_bits;
 	s->insn_config = ni_pfi_insn_config;
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
-	unsigned i;
-	for(i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i)
-	{
-		ni_writew(devpriv->pfi_output_select_reg[i], M_Offset_PFI_Output_Select(i + 1));
-	}
+
 	/* cs5529 calibration adc */
 	s = dev->subdevices + 8;
 	if(boardtype.reg_type & ni_reg_67xx_mask)
