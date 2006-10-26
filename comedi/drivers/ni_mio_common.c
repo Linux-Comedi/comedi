@@ -2172,9 +2172,8 @@ static int ni_ai_config_analog_trig(comedi_device *dev,comedi_subdevice *s,
 	 * data[3] is set level
 	 * data[4] is reset level */
 	if(!boardtype.has_analog_trig)return -EINVAL;
-	if(insn->n!=5)return -EINVAL;
 	if((data[1]&0xffff0000) != COMEDI_EV_SCAN_BEGIN){
-		data[1]&=~(COMEDI_EV_SCAN_BEGIN&0xffff);
+		data[1]&= (COMEDI_EV_SCAN_BEGIN | 0xffff);
 		err++;
 	}
 	if(data[2]>=boardtype.n_adchan){
@@ -2280,7 +2279,7 @@ static void ni_ao_munge(comedi_device *dev, comedi_subdevice *s,
 	}
 }
 
-static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
+static int ni_m_series_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	unsigned int chanspec[], unsigned int n_chans)
 {
 	unsigned int range;
@@ -2289,82 +2288,109 @@ static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	int i;
 	int invert = 0;
 
-	for(i=0;i<n_chans;i++){
+	for(i = 0; i < boardtype.n_aochan; ++i)
+	{
+		ni_writeb(0xf, M_Offset_AO_Waveform_Order(i));
+	}
+	for(i=0;i<n_chans;i++)
+	{
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
-		if(boardtype.reg_type == ni_reg_m_series)
+		comedi_krange *krange = s->range_table->range + range;
+		invert = 0;
+		conf = 0;
+		switch(krange->max - krange->min)
 		{
- 			comedi_krange *krange = s->range_table->range + range;
-			invert = 0;
-			conf = 0;
-			switch(krange->max - krange->min)
-			{
-			case 20000000:
-				conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
-				ni_writeb(0, M_Offset_AO_Reference_Attenuation(chan));
-				break;
-			case 10000000:
-				conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
-				ni_writeb(0, M_Offset_AO_Reference_Attenuation(chan));
-				break;
-			case 4000000:
-				conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
-				ni_writeb(MSeries_Attenuate_x5_Bit, M_Offset_AO_Reference_Attenuation(chan));
-				break;
-			case 2000000:
-				conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
-				ni_writeb(MSeries_Attenuate_x5_Bit, M_Offset_AO_Reference_Attenuation(chan));
-				break;
-			default:
-				rt_printk("%s: bug! unhandled ao reference voltage\n", __FUNCTION__);
-				break;
-			}
-			switch(krange->max + krange->min)
-			{
-			case 0:
-				conf |= MSeries_AO_DAC_Offset_0V_Bits;
-				break;
-			case 10000000:
-				conf |= MSeries_AO_DAC_Offset_5V_Bits;
-				break;
-			default:
-				rt_printk("%s: bug! unhandled ao offset voltage\n", __FUNCTION__);
-				break;
-			}
-			ni_writeb(conf, M_Offset_AO_Config_Bank(chan));
-		}else
+		case 20000000:
+			conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
+			ni_writeb(0, M_Offset_AO_Reference_Attenuation(chan));
+			break;
+		case 10000000:
+			conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
+			ni_writeb(0, M_Offset_AO_Reference_Attenuation(chan));
+			break;
+		case 4000000:
+			conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
+			ni_writeb(MSeries_Attenuate_x5_Bit, M_Offset_AO_Reference_Attenuation(chan));
+			break;
+		case 2000000:
+			conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
+			ni_writeb(MSeries_Attenuate_x5_Bit, M_Offset_AO_Reference_Attenuation(chan));
+			break;
+		default:
+			rt_printk("%s: bug! unhandled ao reference voltage\n", __FUNCTION__);
+			break;
+		}
+		switch(krange->max + krange->min)
 		{
-			conf = AO_Channel(chan);
+		case 0:
+			conf |= MSeries_AO_DAC_Offset_0V_Bits;
+			break;
+		case 10000000:
+			conf |= MSeries_AO_DAC_Offset_5V_Bits;
+			break;
+		default:
+			rt_printk("%s: bug! unhandled ao offset voltage\n", __FUNCTION__);
+			break;
+		}
+		ni_writeb(conf, M_Offset_AO_Config_Bank(chan));
+		devpriv->ao_conf[chan] = conf;
+		ni_writeb(i, M_Offset_AO_Waveform_Order(chan));
+	}
+	return invert;
+}
 
-			if(boardtype.ao_unipolar){
-				if((range&1) == 0){
-					conf |= AO_Bipolar;
-					invert = (1<<(boardtype.aobits-1));
-				}else{
-					invert = 0;
-				}
-				if(range&2)
-					conf |= AO_Ext_Ref;
-			}else{
+static int ni_old_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
+	unsigned int chanspec[], unsigned int n_chans)
+{
+	unsigned int range;
+	unsigned int chan;
+	unsigned int conf;
+	int i;
+	int invert = 0;
+
+	for(i=0;i<n_chans;i++)
+	{
+		chan = CR_CHAN(chanspec[i]);
+		range = CR_RANGE(chanspec[i]);
+		conf = AO_Channel(chan);
+
+		if(boardtype.ao_unipolar){
+			if((range&1) == 0){
 				conf |= AO_Bipolar;
 				invert = (1<<(boardtype.aobits-1));
+			}else{
+				invert = 0;
 			}
-
-			/* not all boards can deglitch, but this shouldn't hurt */
-			if(chanspec[i] & CR_DEGLITCH)
-				conf |= AO_Deglitch;
-
-			/* analog reference */
-			/* AREF_OTHER connects AO ground to AI ground, i think */
-			conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
-
-			ni_writew(conf,AO_Configuration);
+			if(range&2)
+				conf |= AO_Ext_Ref;
+		}else{
+			conf |= AO_Bipolar;
+			invert = (1<<(boardtype.aobits-1));
 		}
+
+		/* not all boards can deglitch, but this shouldn't hurt */
+		if(chanspec[i] & CR_DEGLITCH)
+			conf |= AO_Deglitch;
+
+		/* analog reference */
+		/* AREF_OTHER connects AO ground to AI ground, i think */
+		conf |= (CR_AREF(chanspec[i])==AREF_OTHER)? AO_Ground_Ref : 0;
+
+		ni_writew(conf,AO_Configuration);
 		devpriv->ao_conf[chan] = conf;
 	}
 	return invert;
 }
 
+static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
+	unsigned int chanspec[], unsigned int n_chans)
+{
+	if(boardtype.reg_type == ni_reg_m_series)
+		return ni_m_series_ao_config_chanlist(dev, s, chanspec, n_chans);
+	else
+		return ni_old_ao_config_chanlist(dev, s, chanspec, n_chans);
+}
 static int ni_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -2562,9 +2588,12 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 				AO_Output_Control_Register);
 		}else{
 			devpriv->ao_mode1&=~AO_Multiple_Channels;
-			devpriv->stc_writew(dev, AO_Number_Of_Channels(CR_CHAN(cmd->chanlist[0]))|
-				AO_UPDATE_Output_Select(1),
-				AO_Output_Control_Register);
+			unsigned bits = AO_UPDATE_Output_Select(1);
+			if(boardtype.reg_type == ni_reg_m_series)
+				bits |= AO_Number_Of_Channels(0);
+			else
+				bits |= AO_Number_Of_Channels(CR_CHAN(cmd->chanlist[0]));
+			devpriv->stc_writew(dev, bits, AO_Output_Control_Register);
 		}
 		devpriv->stc_writew(dev, devpriv->ao_mode1,AO_Mode_1_Register);
 	}
