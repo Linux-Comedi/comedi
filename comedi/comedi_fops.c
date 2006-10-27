@@ -649,6 +649,7 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 		if(insn->n == 3) return 0;
 		break;
 	case INSN_CONFIG_PWM_OUTPUT:
+	case INSN_CONFIG_ANALOG_TRIG:
 		if(insn->n == 5) return 0;
 		break;
 	//by default we allow the insn since we don't have checks for all possible cases yet
