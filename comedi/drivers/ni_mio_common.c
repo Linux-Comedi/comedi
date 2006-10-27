@@ -2280,7 +2280,7 @@ static void ni_ao_munge(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int ni_m_series_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
-	unsigned int chanspec[], unsigned int n_chans)
+	unsigned int chanspec[], unsigned int n_chans, int timed)
 {
 	unsigned int range;
 	unsigned int chan;
@@ -2333,6 +2333,7 @@ static int ni_m_series_ao_config_chanlist(comedi_device *dev, comedi_subdevice *
 			rt_printk("%s: bug! unhandled ao offset voltage\n", __FUNCTION__);
 			break;
 		}
+		if(timed) conf |= MSeries_AO_Update_Timed_Bit;
 		ni_writeb(conf, M_Offset_AO_Config_Bank(chan));
 		devpriv->ao_conf[chan] = conf;
 		ni_writeb(i, M_Offset_AO_Waveform_Order(chan));
@@ -2384,10 +2385,10 @@ static int ni_old_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 }
 
 static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
-	unsigned int chanspec[], unsigned int n_chans)
+	unsigned int chanspec[], unsigned int n_chans, int timed)
 {
 	if(boardtype.reg_type == ni_reg_m_series)
-		return ni_m_series_ao_config_chanlist(dev, s, chanspec, n_chans);
+		return ni_m_series_ao_config_chanlist(dev, s, chanspec, n_chans, timed);
 	else
 		return ni_old_ao_config_chanlist(dev, s, chanspec, n_chans);
 }
@@ -2405,7 +2406,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert;
 
-	invert = ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
+	invert = ni_ao_config_chanlist(dev,s,&insn->chanspec, 1, 0);
 
 	devpriv->ao[chan] = data[0];
 
@@ -2428,7 +2429,7 @@ static int ni_ao_insn_write_671x(comedi_device *dev,comedi_subdevice *s,
 	ao_win_out(1 << chan, AO_Immediate_671x);
 	invert = 1 << (boardtype.aobits - 1);
 
-	ni_ao_config_chanlist(dev,s,&insn->chanspec,1);
+	ni_ao_config_chanlist(dev,s,&insn->chanspec, 1, 0);
 
 	devpriv->ao[chan] = data[0];
 	ao_win_out(data[0] ^ invert, DACx_Direct_Data_671x(chan));
@@ -2526,7 +2527,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		ao_win_out(bits, AO_Timed_611x);
 	}
 
-	ni_ao_config_chanlist(dev,s,cmd->chanlist,cmd->chanlist_len);
+	ni_ao_config_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len, 1);
 
 	if(cmd->stop_src==TRIG_NONE){
 		devpriv->ao_mode1|=AO_Continuous;
