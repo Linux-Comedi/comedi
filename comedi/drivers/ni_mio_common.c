@@ -2469,7 +2469,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	/* wait for DACs to be loaded */
 	for(i = 0; i < timeout; i++)
 	{
-		comedi_udelay(10);
+		comedi_udelay(1);
 		if((devpriv->stc_readw(dev, Joint_Status_2_Register) & AO_TMRDACWRs_In_Progress_St) == 0)
 			break;
 	}
@@ -2619,6 +2619,8 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= AO_FIFO_Enable;
 	else
 		bits |= AO_DMA_PIO_Control;
+	if(boardtype.reg_type == ni_reg_m_series)
+		bits |= AO_Number_Of_DAC_Packages;
 	devpriv->stc_writew(dev, bits, AO_Personal_Register);
 	// enable sending of ao dma requests
 	devpriv->stc_writew(dev, AO_AOFREQ_Enable, AO_Start_Select_Register);
