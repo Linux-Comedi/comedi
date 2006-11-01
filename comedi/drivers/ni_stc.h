@@ -462,11 +462,16 @@ enum AO_Personal_Bits
 	AO_Interval_Buffer_Mode = 1 << 3,
 	AO_BC_Source_Select = 1 << 4,
 	AO_UPDATE_Pulse_Width = 1 << 5,
+	AO_UPDATE_Pulse_Timebase = 1 << 6,
+	AO_UPDATE_Original_Pulse = 1 << 7,
 	AO_DMA_PIO_Control = 1 << 8,	/* M Series: reserved */
 	AO_AOFREQ_Polarity = 1 << 9,	/* M Series: reserved */
 	AO_FIFO_Enable = 1 << 10,
+	AO_FIFO_Flags_Polarity = 1 << 11,	/* M Series: reserved */
 	AO_TMRDACWR_Pulse_Width = 1 << 12,
+	AO_Fast_CPU = 1 << 13,	/* M Series: reserved */
 	AO_Number_Of_DAC_Packages = 1 << 14,	// 1 for "single" mode, 0 for "dual"
+	AO_Multiple_DACS_Per_Package = 1 << 15	// m-series only
 };
 #define	RTSI_Trig_A_Output_Register	79
 #define	RTSI_Trig_B_Output_Register	80
