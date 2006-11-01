@@ -2604,7 +2604,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ao_mode3|=AO_Stop_On_Overrun_Error;
 	devpriv->stc_writew(dev, devpriv->ao_mode3,AO_Mode_3_Register);
 
-	devpriv->ao_mode2 &= AO_FIFO_Mode_Mask;
+	devpriv->ao_mode2 &= ~AO_FIFO_Mode_Mask;
 #ifdef PCIDMA
 	devpriv->ao_mode2 |= AO_FIFO_Mode_HF_to_F;
 #else
