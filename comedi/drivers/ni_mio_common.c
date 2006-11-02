@@ -533,23 +533,43 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 
 	async->events |= COMEDI_CB_BLOCK;
 }
-
+// #define DEBUG_DMA_TIMING
 static int ni_ao_wait_for_dma_load( comedi_device *dev )
 {
 	static const int timeout = 10000;
 	int i;
-
+#ifdef DEBUG_DMA_TIMING
+	struct timeval start;
+	do_gettimeofday(&start);
+#endif
 	for(i = 0; i < timeout; i++)
 	{
 		unsigned short b_status;
 
-		b_status = devpriv->stc_readw(dev,  AO_Status_1_Register );
+		b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
 		if( b_status & AO_FIFO_Half_Full_St )
 			break;
 		/* if we poll too often, the pci bus activity seems
 		 to slow the dma transfer down */
 		comedi_udelay(10);
 	}
+#ifdef DEBUG_DMA_TIMING
+	rt_printk("looped %i times waiting for ao fifo load.\n", i);
+	struct timeval now;
+	do_gettimeofday(&now);
+	unsigned elapsed_usec = 1000000 * (now.tv_sec - start.tv_sec) + now.tv_usec - start.tv_usec;
+	rt_printk("total elapsed usec=%i\n", elapsed_usec);
+	do_gettimeofday(&start);
+	unsigned b_status;
+	for(i = 0; i < 100; ++i)
+	{
+// 		devpriv->stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
+		b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
+	}
+	do_gettimeofday(&now);
+	elapsed_usec = 1000000 * (now.tv_sec - start.tv_sec) + now.tv_usec - start.tv_usec;
+	rt_printk("usec to do 100 word xfers=%i\n", elapsed_usec);
+#endif
 	if( i == timeout )
 	{
 		comedi_error(dev, "timed out waiting for dma load");
@@ -2620,7 +2640,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 	else
 		bits |= AO_DMA_PIO_Control;
 	if(boardtype.reg_type == ni_reg_m_series)
-		bits |= AO_Number_Of_DAC_Packages;
+		bits |= AO_Number_Of_DAC_Packages/* | AO_Multiple_DACS_Per_Package*/;
 	devpriv->stc_writew(dev, bits, AO_Personal_Register);
 	// enable sending of ao dma requests
 	devpriv->stc_writew(dev, AO_AOFREQ_Enable, AO_Start_Select_Register);
