@@ -1231,6 +1231,15 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 #endif // PCIDMA
 
+void ni_m_series_adc_reset(comedi_device *dev)
+{
+	ni_writeb(0, M_Offset_Static_AI_Control(0));
+	ni_writeb(1, M_Offset_Static_AI_Control(0));
+	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+}
+
 /*
    used for both cancel ioctl and board initialization
 
@@ -3340,6 +3349,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
+	if(boardtype.reg_type == ni_reg_m_series)
+		ni_m_series_adc_reset(dev);
 	if((boardtype.reg_type & ni_reg_6xxx_mask) == 0){
 		// BEAM is this needed for PCI-6143 ??
 		devpriv->clock_and_fout =
