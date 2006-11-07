@@ -1220,7 +1220,9 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	}else
 	{
 		/* doing 32 instead of 16 bit wide transfers from memory
-		 makes the mite do 32 bit pci transfers, doubling pci bandwidth. */
+		 makes the mite do 32 bit pci transfers, doubling pci bandwidth.
+		 However, it causes the sample order to get screwed up so
+		 I'm not going to bother. */
 		mite_prep_dma(mite, AO_DMA_CHAN, 16, 16);
 	}
 	/*start the MITE*/
