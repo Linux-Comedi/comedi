@@ -143,6 +143,8 @@ struct comedi_subdevice_struct{
 		unsigned int num_bytes, unsigned int start_chan_index );
 
 	unsigned int state;
+
+	dev_t devt;
 };
 
 struct comedi_async_struct{
@@ -200,7 +202,8 @@ struct comedi_device_struct{
 	int use_count;
 	comedi_driver *driver;
 	void *private;
-	unsigned int minor;
+	unsigned minor;
+	dev_t devt;
 	const char *board_name;
 	const void * board_ptr;
 	int attached;
@@ -210,7 +213,6 @@ struct comedi_device_struct{
 
 	int n_subdevices;
 	comedi_subdevice *subdevices;
-	int options[COMEDI_NDEVCONFOPTS];
 
 	/* dumb */
 	unsigned long iobase;

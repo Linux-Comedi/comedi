@@ -282,6 +282,9 @@ static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
+static int ni_gpct_cmd(comedi_device *dev,comedi_subdevice *s);
+static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
+static int ni_gpct_cancel(comedi_device *dev,comedi_subdevice *s);
 
 static int init_cs5529(comedi_device *dev);
 static int cs5529_do_conversion(comedi_device *dev, unsigned short *data);
@@ -1211,7 +1214,6 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	comedi_subdevice *s = dev->subdevices + 1;
 
 	devpriv->last_buf_write_count = s->async->buf_write_count;
-
 	mite_chan->current_link = 0;
 	mite_chan->dir = COMEDI_OUTPUT;
 	if(boardtype.reg_type & (ni_reg_611x | ni_reg_6713))
@@ -3236,13 +3238,18 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* general purpose counter/timer device */
 	s=dev->subdevices+4;
-	s->type=COMEDI_SUBD_COUNTER;
-	s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
-	s->insn_read=  ni_gpct_insn_read;
-	s->insn_write= ni_gpct_insn_write;
-	s->insn_config=ni_gpct_insn_config;
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->insn_read = ni_gpct_insn_read;
+	s->insn_write = ni_gpct_insn_write;
+	s->insn_config = ni_gpct_insn_config;
 	s->n_chan=2;
 	s->maxdata=1;
+	s->do_cmdtest = ni_gpct_cmdtest;
+	s->do_cmd = ni_gpct_cmd;
+	s->cancel = ni_gpct_cancel;
+// 	s->poll=ni_gpct_poll;
+// 	s->munge=ni_gpct_munge;
 	devpriv->an_trig_etc_reg = 0;
 	GPCT_Reset(dev,0);
 	GPCT_Reset(dev,1);
@@ -4332,6 +4339,20 @@ static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 	return 1;
 }
 
+static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	return 0;
+}
+
+static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
+{
+	return 0;
+}
+
+static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	return 0;
+}
 
 /*
  *

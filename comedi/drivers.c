@@ -76,6 +76,7 @@ static void cleanup_device_allocations(comedi_device *dev)
 		}
 		kfree(dev->subdevices);
 		dev->subdevices = NULL;
+		dev->n_subdevices = 0;
 	}
 	if(dev->private)
 	{
@@ -101,6 +102,15 @@ int comedi_device_detach(comedi_device *dev)
 	}
 
 	cleanup_device_allocations(dev);
+	dev->driver = 0;
+	dev->board_name = 0;
+	dev->board_ptr = 0;
+	dev->iobase = 0;
+	dev->irq = 0;
+	dev->read_subdev = NULL;
+	dev->write_subdev = NULL;
+	dev->open = NULL;
+	dev->close = NULL;
 	return 0;
 }
 
@@ -108,18 +118,10 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_driver *driv;
 	int ret;
-	int minor;
-	int use_count;
 
 	if(dev->attached)
 		return -EBUSY;
 
-	minor = dev->minor;
-	use_count = dev->use_count;
-	memset(dev,0,sizeof(comedi_device));
-	spin_lock_init(&dev->spinlock);
-	dev->minor=minor;
-	dev->use_count = use_count;
 	for(driv=comedi_drivers;driv;driv=driv->next){
 		if(!try_module_get( driv->module ))
 		{
@@ -142,9 +144,7 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 		dev->driver=driv;
 		ret=driv->attach(dev,it);
 		if(ret<0){
-			driv->detach(dev);
-			cleanup_device_allocations(dev);
-			module_put( driv->module );
+			comedi_device_detach(dev);
 			return ret;
 		}
 		goto attached;

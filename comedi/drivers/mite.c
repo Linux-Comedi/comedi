@@ -27,13 +27,13 @@
 
 
 	References for specifications:
-	
+
 	   321747b.pdf  Register Level Programmer Manual (obsolete)
 	   321747c.pdf  Register Level Programmer Manual (new)
 	   DAQ-STC reference manual
 
 	Other possibly relevant info:
-	
+
 	   320517c.pdf  User manual (obsolete)
 	   320517f.pdf  User manual (new)
 	   320889a.pdf  delete
@@ -73,7 +73,7 @@ void mite_init(void)
 	struct pci_dev *pcidev;
 	struct mite_struct *mite;
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_NATINST){
 			mite=kmalloc(sizeof(*mite),GFP_KERNEL);
@@ -97,7 +97,7 @@ static void dump_chip_signature(u32 csigr_bits)
 	printk("mite: version = %i, type = %i, mite mode = %i, interface mode = %i\n",
 		mite_csigr_version(csigr_bits), mite_csigr_type(csigr_bits),
 		mite_csigr_mmode(csigr_bits), mite_csigr_imode(csigr_bits));
-	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n", 
+	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n",
 		mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits),
 		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
@@ -108,7 +108,7 @@ int mite_setup(struct mite_struct *mite)
 	resource_size_t addr;
 	int i;
 	u32 csigr_bits;
-	
+
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
 		return -EIO;
@@ -338,7 +338,7 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	writel(mcr, mite->mite_io_addr + MITE_MCR(channel));
 
 	/* from/to device */
-	dcr = CR_RL(64) |  CR_ASEQUP;
+	dcr = CR_RL(64) | CR_ASEQUP;
 	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQSDRQ(channel);
 	switch( num_device_bits ){
 		case 8:

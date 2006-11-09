@@ -94,7 +94,7 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 	}
 
 	if(!dev->attached){
-		DPRINTK("no driver configured on /dev/comedi%i\n", dev->minor);
+		DPRINTK("no driver configured on /dev/comedi%i\n", minor);
 		return -ENODEV;
 	}
 
@@ -269,7 +269,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		}
 
 		DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
-			dev->minor, bc.subdevice, async->prealloc_bufsz);
+			MINOR(dev->devt), bc.subdevice, async->prealloc_bufsz);
 	}
 
 	bc.size = async->prealloc_bufsz;
@@ -366,8 +366,8 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->len_chanlist	= s->len_chanlist;
 		us->maxdata		= s->maxdata;
 		if(s->range_table){
-			us->range_type	= (dev->minor<<28)|(i<<24)|(0<<16)|
-					(s->range_table->length);
+			us->range_type	= (MINOR(dev->devt) << 28) | (i << 24) | (0 << 16) |
+				(s->range_table->length);
 		}else{
 			us->range_type	= 0; /* XXX */
 		}
@@ -447,7 +447,7 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 		for(i=0;i<s->n_chan;i++){
 			int x;
 
-			x=(dev->minor<<28)|(it.subdev<<24)|(i<<16)|
+			x=(MINOR(dev->devt) << 28) | (it.subdev << 24) | (i << 16) |
 				(s->range_table_list[i]->length);
 			put_user(x,it.rangelist+i);
 		}
@@ -1278,8 +1278,8 @@ static struct vm_operations_struct comedi_vm_ops={
 
 static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 {
-	unsigned int minor=MINOR(RDEV_OF_FILE(file));
-	comedi_device *dev=comedi_get_device_by_minor(minor);
+	unsigned int minor = MINOR(RDEV_OF_FILE(file));
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 	comedi_async *async = NULL;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
@@ -1288,7 +1288,7 @@ static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		DPRINTK("no driver configured on comedi%i\n", minor);
 		return -ENODEV;
 	}
 
@@ -1341,7 +1341,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		DPRINTK("no driver configured on comedi%i\n", MINOR(dev->devt));
 		return -ENODEV;
 	}
 
@@ -1382,7 +1382,7 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		DPRINTK("no driver configured on comedi%i\n", MINOR(dev->devt));
 		return -ENODEV;
 	}
 
@@ -1468,7 +1468,7 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		DPRINTK("no driver configured on comedi%i\n", MINOR(dev->devt));
 		return -ENODEV;
 	}
 
@@ -1752,10 +1752,6 @@ static int __init comedi_init(void)
 		return -ENOMEM;
 	}
 	memset(comedi_devices,0,sizeof(comedi_device)*COMEDI_NDEVICES);
-	for(i=0;i<COMEDI_NDEVICES;i++){
-		comedi_devices[i].minor=i;
-		spin_lock_init(&(comedi_devices[i].spinlock));
-	}
 
 	/* XXX requires /proc interface */
 	comedi_proc_init();
@@ -1765,8 +1761,11 @@ static int __init comedi_init(void)
 		sprintf(name, "comedi%d", i);
 		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
 			COMEDI_MAJOR, i, 0666 | S_IFCHR, &comedi_fops, NULL);
-		COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
-				MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
+		struct class_device *class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
+			MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
+		comedi_devices[i].devt = class_dev->devt;
+		comedi_devices[i].minor = MINOR(class_dev->devt);
+		spin_lock_init(&comedi_devices[i].spinlock);
 	}
 
 	comedi_rt_init();
@@ -1781,9 +1780,17 @@ static void __exit comedi_cleanup(void)
 	if(MOD_IN_USE)
 		printk("comedi: module in use -- remove delayed\n");
 
-	for(i=0;i<COMEDI_NDEVICES;i++){
+	for(i = 0; i < COMEDI_NDEVICES; i++){
+		comedi_device *dev;
+
+		dev=comedi_get_device_by_minor(i);
+		if(dev->attached)
+			comedi_device_detach(dev);
+	}
+
+	for(i = 0; i < COMEDI_NDEVICES; i++){
 		char name[20];
-		class_device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, i));
+		class_device_destroy(comedi_class, comedi_devices[i].devt);
 		sprintf(name, "comedi%d", i);
 		devfs_unregister(devfs_find_handle(NULL, name,
 			COMEDI_MAJOR, i, DEVFS_SPECIAL_CHR, 0));
@@ -1793,13 +1800,6 @@ static void __exit comedi_cleanup(void)
 
 	comedi_proc_cleanup();
 
-	for(i=0;i<COMEDI_NDEVICES;i++){
-		comedi_device *dev;
-
-		dev=comedi_get_device_by_minor(i);
-		if(dev->attached)
-			comedi_device_detach(dev);
-	}
 	kfree(comedi_devices);
 
 	comedi_rt_cleanup();
@@ -1810,7 +1810,7 @@ module_exit(comedi_cleanup);
 
 void comedi_error(const comedi_device *dev,const char *s)
 {
-	rt_printk("comedi%d: %s: %s\n",dev->minor,dev->driver->driver_name,s);
+	rt_printk("comedi%d: %s: %s\n", MINOR(dev->devt), dev->driver->driver_name, s);
 }
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)

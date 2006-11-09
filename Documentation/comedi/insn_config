@@ -206,7 +206,7 @@ ID=INSN_CONFIG_TIMER_1: Deprecated.  Use INSN_CONFIG_SET_CLOCK_SRC and
   [4] - divisor
 
 
-ID=INSN_CONFIG_PWM_OUTPUT: Configure a pulse-width-modulation output.  Returns
+ID=INSN_CONFIG_PWM_OUTPUT: Configure a pulse-width-modulated output.  Returns
 	EAGAIN error with modified values if exact timing is not achievable.
 
 	[0] - ID
