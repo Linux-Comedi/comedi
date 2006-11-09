@@ -21,6 +21,7 @@
 
 */
 
+#define _GNU_SOURCE
 
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -103,8 +104,8 @@ int comedi_device_detach(comedi_device *dev)
 
 	cleanup_device_allocations(dev);
 	dev->driver = 0;
-	dev->board_name = 0;
-	dev->board_ptr = 0;
+	dev->board_name = NULL;
+	dev->board_ptr = NULL;
 	dev->iobase = 0;
 	dev->irq = 0;
 	dev->read_subdev = NULL;
@@ -315,7 +316,9 @@ void *comedi_recognize(comedi_driver *driv, const char *name)
 	{
 		if(strcmp(*name_ptr, name) == 0)
 			return name_ptr;
-		name_ptr += driv->offset;
+		unsigned long address = (unsigned long)name_ptr;
+		address += driv->offset;
+		name_ptr = (const char**)address;
 	}
 
 	return NULL;
@@ -332,7 +335,9 @@ void comedi_report_boards(comedi_driver *driv)
 	for(i = 0; i < driv->num_names; i++)
 	{
 		printk(" %s\n", *name_ptr);
-		name_ptr += driv->offset;
+		unsigned long address = (unsigned long)name_ptr;
+		address += driv->offset;
+		name_ptr = (const char**)address;
 	}
 
 	if(driv->num_names == 0)
