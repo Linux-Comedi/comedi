@@ -395,19 +395,23 @@ static int ni_65xx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_65xx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	if(insn->n != 2) return -EINVAL;
-	const unsigned base_bitfield_channel = CR_CHAN(insn->chanspec);
+	unsigned base_bitfield_channel;
 	const unsigned max_ports_per_bitfield = 5;
 	unsigned read_bits = 0;
 	unsigned j;
+	if(insn->n != 2) return -EINVAL;
+	base_bitfield_channel = CR_CHAN(insn->chanspec);
 	for(j = 0; j < max_ports_per_bitfield; ++j)
 	{
 		const unsigned port = sprivate(s)->base_port + ni_65xx_port_by_channel(base_bitfield_channel) + j;
+		unsigned base_port_channel;
+		unsigned port_mask, port_data, port_read_bits;
+		int bitshift;
 		if(port >= ni_65xx_total_num_ports(board(dev))) break;
-		const unsigned base_port_channel = port * ni_65xx_channels_per_port;
-		unsigned port_mask = data[0];
-		unsigned port_data = data[1];
-		int bitshift = base_port_channel - base_bitfield_channel;
+		base_port_channel = port * ni_65xx_channels_per_port;
+		port_mask = data[0];
+		port_data = data[1];
+		bitshift = base_port_channel - base_bitfield_channel;
 		if(bitshift >= 32 || bitshift <= -32) break;
 		if(bitshift > 0)
 		{
@@ -422,14 +426,15 @@ static int ni_65xx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 		port_data &= 0xff;
 		if(port_mask)
 		{
+			unsigned bits;
 			private(dev)->output_bits[port] &= ~port_mask;
 			private(dev)->output_bits[port] |= port_data & port_mask;
-			unsigned bits = private(dev)->output_bits[port];
+			bits = private(dev)->output_bits[port];
 			if(board(dev)->invert_outputs) bits = ~bits;
 			writeb(bits, private(dev)->mite->daq_io_addr + Port_Data(port));
 // 			rt_printk("wrote 0x%x to port %i\n", bits, port);
 		}
-		unsigned port_read_bits = readb(private(dev)->mite->daq_io_addr + Port_Data(port));
+		port_read_bits = readb(private(dev)->mite->daq_io_addr + Port_Data(port));
 // 		rt_printk("read 0x%x from port %i\n", port_read_bits, port);
 		if(bitshift > 0)
 		{
@@ -580,6 +585,7 @@ static int ni_65xx_intr_insn_config(comedi_device *dev, comedi_subdevice *s,
 static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
+	unsigned i;
 	int ret;
 
 	printk("comedi%d: ni_65xx:",dev->minor);
@@ -654,7 +660,6 @@ static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 		s->private = ni_65xx_alloc_subdevice_private();
 		if(s->private == NULL) return -ENOMEM;
 		sprivate(s)->base_port = 0;
-		unsigned i;
 		for(i = 0; i < board(dev)->num_dio_ports; ++i)
 		{
 			// configure all ports for input
@@ -678,7 +683,6 @@ static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_bits = ni_65xx_intr_insn_bits;
 	s->insn_config = ni_65xx_intr_insn_config;
 
-	unsigned i;
 	for(i = 0; i < ni_65xx_total_num_ports(board(dev)); ++i)
 	{
 		writeb(0x00, private(dev)->mite->daq_io_addr + Filter_Enable(i));

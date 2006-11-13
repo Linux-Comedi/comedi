@@ -1758,10 +1758,11 @@ static int __init comedi_init(void)
 
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		char name[20];
+		struct class_device *class_dev;
 		sprintf(name, "comedi%d", i);
 		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
 			COMEDI_MAJOR, i, 0666 | S_IFCHR, &comedi_fops, NULL);
-		struct class_device *class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
+		class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
 			MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 		comedi_devices[i].devt = class_dev->devt;
 		comedi_devices[i].minor = MINOR(class_dev->devt);

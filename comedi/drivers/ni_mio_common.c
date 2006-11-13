@@ -1458,11 +1458,12 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 // 	offset = 1 << (boardtype.adbits - 1);
 	if((list[0] & CR_ALT_SOURCE))
 	{
+		unsigned bypass_bits;
 		chan = CR_CHAN(list[0]);
 		range = CR_RANGE(list[0]);
 		range_code = ni_gainlkup[boardtype.gainlkup][range];
 		dither = ((list[0] & CR_ALT_FILTER) != 0);
-		unsigned bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
+		bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
 		bypass_bits |= chan;
 		bypass_bits |= (devpriv->ai_calib_source) & (MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
 			MSeries_AI_Bypass_Cal_Sel_Neg_Mask | MSeries_AI_Bypass_Mode_Mux_Mask |
@@ -2331,9 +2332,10 @@ static int ni_m_series_ao_config_chanlist(comedi_device *dev, comedi_subdevice *
 	}
 	for(i=0;i<n_chans;i++)
 	{
+		comedi_krange *krange;
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
-		comedi_krange *krange = s->range_table->range + range;
+		krange = s->range_table->range + range;
 		invert = 0;
 		conf = 0;
 		switch(krange->max - krange->min)
@@ -2625,8 +2627,9 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 				AO_UPDATE_Output_Select(1),
 				AO_Output_Control_Register);
 		}else{
+			unsigned bits;
 			devpriv->ao_mode1&=~AO_Multiple_Channels;
-			unsigned bits = AO_UPDATE_Output_Select(1);
+			bits = AO_UPDATE_Output_Select(1);
 			if(boardtype.reg_type == ni_reg_m_series)
 				bits |= AO_Number_Of_Channels(0);
 			else
@@ -3300,9 +3303,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	if(boardtype.reg_type == ni_reg_m_series)
 	{
+		unsigned i;
 		s->n_chan = 16;
 		ni_writew(s->state, M_Offset_PFI_DO);
-		unsigned i;
 		for(i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i)
 		{
 			ni_writew(devpriv->pfi_output_select_reg[i], M_Offset_PFI_Output_Select(i + 1));
@@ -4362,9 +4365,11 @@ static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 
 static int ni_m_series_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
+	unsigned pfi_reg_index;
+	unsigned array_offset;
 	if((source & 0x1f) != source) return -EINVAL;
-	const unsigned pfi_reg_index = 1 + chan / 3;
-	const unsigned array_offset = pfi_reg_index - 1;
+	pfi_reg_index = 1 + chan / 3;
+	array_offset = pfi_reg_index - 1;
 	devpriv->pfi_output_select_reg[array_offset] &= ~MSeries_PFI_Output_Select_Mask(chan);
 	devpriv->pfi_output_select_reg[array_offset] |= MSeries_PFI_Output_Select_Bits(chan, source);
 	ni_writew(devpriv->pfi_output_select_reg[array_offset], M_Offset_PFI_Output_Select(pfi_reg_index));
@@ -4555,6 +4560,7 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	/* m-series wants the phased-locked loop to output 80MHz, which is divided by 4 to
 	 * 20 MHz for most timing clocks */
 	static const unsigned target_picosec = 12500;
+	static const unsigned fudge_factor_80_to_20Mhz = 4;
 	int best_period_picosec = 0;
 	for(div = 1; div <= max_div; ++div)
 	{
@@ -4576,7 +4582,6 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	}
 	*freq_divider = best_div;
 	*freq_multiplier = best_mult;
-	static const unsigned fudge_factor_80_to_20Mhz = 4;
 	*actual_period_ns = (best_period_picosec * fudge_factor_80_to_20Mhz + (pico_per_nano / 2)) / pico_per_nano;
 	return 0;
 }
@@ -4589,10 +4594,16 @@ static inline unsigned num_configurable_rtsi_channels(comedi_device *dev)
 
 static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, unsigned period_ns)
 {
-	if(source == NI_MIO_PLL_PXI10_CLOCK) period_ns = 100;
-	// these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that
 	static const unsigned min_period_ns = 50;
 	static const unsigned max_period_ns = 1000;
+	static const unsigned timeout = 1000;
+	unsigned pll_control_bits;
+	unsigned freq_divider;
+	unsigned freq_multiplier;
+	unsigned i;
+	int retval;
+	if(source == NI_MIO_PLL_PXI10_CLOCK) period_ns = 100;
+	// these limits are somewhat arbitrary, but NI advertises 1 to 20MHz range so we'll use that
 	if(period_ns < min_period_ns || period_ns > max_period_ns)
 	{
 		rt_printk("%s: you must specify an input clock frequency between %i and %i nanosec "
@@ -4601,12 +4612,9 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 	}
 	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
 	devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-	unsigned pll_control_bits = MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
+	pll_control_bits = MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
 	devpriv->clock_and_fout2 |= MSeries_Timebase1_Select_Bit;
 	devpriv->clock_and_fout2 &= ~MSeries_PLL_In_Source_Select_Mask;
-	int retval;
-	unsigned freq_divider;
-	unsigned freq_multiplier;
 	switch(source)
 	{
 	case NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK:
@@ -4647,8 +4655,6 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 // 	rt_printk("clock_ns=%d\n", devpriv->clock_ns);
 	ni_writew(pll_control_bits, M_Offset_PLL_Control);
 	devpriv->clock_source = source;
-	unsigned i;
-	static const unsigned timeout = 1000;
 	/* it seems to typically take a few hundred microseconds for PLL to lock */
 	for(i = 0; i < timeout; ++i)
 	{

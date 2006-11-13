@@ -316,9 +316,7 @@ void *comedi_recognize(comedi_driver *driv, const char *name)
 	{
 		if(strcmp(*name_ptr, name) == 0)
 			return name_ptr;
-		unsigned long address = (unsigned long)name_ptr;
-		address += driv->offset;
-		name_ptr = (const char**)address;
+		name_ptr = (const char **)((char *)name_ptr + driv->offset);
 	}
 
 	return NULL;
@@ -335,9 +333,7 @@ void comedi_report_boards(comedi_driver *driv)
 	for(i = 0; i < driv->num_names; i++)
 	{
 		printk(" %s\n", *name_ptr);
-		unsigned long address = (unsigned long)name_ptr;
-		address += driv->offset;
-		name_ptr = (const char**)address;
+		name_ptr = (const char **)((char *)name_ptr + driv->offset);
 	}
 
 	if(driv->num_names == 0)
