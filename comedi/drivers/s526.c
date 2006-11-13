@@ -279,11 +279,10 @@ static int s526_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("comedi%d: s526: ", dev->minor);
 
         iobase=it->options[0];
-        if(check_region(iobase, S526_IOSIZE) < 0){
+	if(!iobase || !request_region(iobase, S526_IOSIZE, thisboard->name)){
                 comedi_error(dev,"I/O port conflict");
                 return -EIO;
         }
-        request_region(iobase, S526_IOSIZE, thisboard->name);
         dev->iobase=iobase;
 
 	printk("iobase=0x%lux\n", dev->iobase);
