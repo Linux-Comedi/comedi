@@ -1333,6 +1333,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 		s->cancel=pci171x_ai_cancel;
 		s->insn_read=pci171x_insn_read_ai;
 		if (irq) {
+			s->subdev_flags |= SDF_CMD_READ;
 			s->do_cmdtest=pci171x_ai_cmdtest;
 			s->do_cmd=pci171x_ai_cmd;
 		}

@@ -571,7 +571,7 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF | SDF_CMD_READ;
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = (1 << 12) - 1;	// 12 bit resolution

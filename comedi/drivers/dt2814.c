@@ -110,7 +110,7 @@ comedi_udelay(10);
 
 		data[n]=(hi<<4)|(lo>>4);
 	}
-	
+
 	return n;
 }
 
@@ -227,7 +227,7 @@ static int dt2814_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ntrig=cmd->stop_arg;
 	outb(chan|DT2814_ENB|(trigvar<<5),
 		dev->iobase+DT2814_CSR);
-	
+
 	return 0;
 
 }
@@ -263,7 +263,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 		save_flags(flags);
 		sti();
 		irqs=probe_irq_on();
-	
+
 		outb(0,dev->iobase+DT2814_CSR);
 
 		comedi_udelay(100);
@@ -301,7 +301,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	dev->read_subdev = s;
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
 	s->n_chan=16;			/* XXX */
 	s->len_chanlist=1;
 	s->insn_read = dt2814_ai_insn_read;
@@ -317,7 +317,7 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 static int dt2814_detach(comedi_device *dev)
 {
 	printk("comedi%d: dt2814: remove\n",dev->minor);
-	
+
 	if(dev->irq){
 		comedi_free_irq(dev->irq,dev);
 	}

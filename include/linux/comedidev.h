@@ -96,6 +96,7 @@ typedef struct comedi_lrange_struct comedi_lrange;
 
 
 struct comedi_subdevice_struct{
+	comedi_device *device;
 	int type;
 	int n_chan;
 	volatile int subdev_flags;
@@ -144,7 +145,7 @@ struct comedi_subdevice_struct{
 
 	unsigned int state;
 
-	dev_t devt;
+	struct class_device *class_dev;
 };
 
 struct comedi_async_struct{
@@ -202,8 +203,10 @@ struct comedi_device_struct{
 	int use_count;
 	comedi_driver *driver;
 	void *private;
+
+	struct class_device *class_dev;
 	unsigned minor;
-	dev_t devt;
+
 	const char *board_name;
 	const void * board_ptr;
 	int attached;
@@ -230,7 +233,11 @@ struct comedi_device_struct{
 	void (*close)(comedi_device *dev);
 };
 
-
+struct comedi_inode_private
+{
+	comedi_device *device;
+	comedi_subdevice *subdevice;
+};
 
 extern comedi_device *comedi_devices;
 extern spinlock_t big_comedi_lock;
@@ -248,9 +255,47 @@ static const int comedi_debug = 0;
 void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
 void comedi_error(const comedi_device *dev,const char *s);
 
-static inline comedi_device * comedi_get_device_by_minor( unsigned int minor )
+/* we can expand the number of bits used to encode devices/subdevices into
+ the minor number soon, after more distros support > 8 bit minor numbers
+ (like after Debian Etch gets released) */
+enum comedi_minor_bits
 {
-	return comedi_devices + minor;
+	COMEDI_DEVICE_MINOR_MASK = 0xf,
+	COMEDI_SUBDEVICE_MINOR_MASK = 0xf0
+};
+static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
+static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
+static const unsigned COMEDI_NUM_MINORS = 0x100;
+
+static inline comedi_device * comedi_get_device_by_minor(unsigned minor)
+{
+	unsigned device_index;
+	if(minor >= COMEDI_NUM_MINORS) return NULL;
+	device_index = minor & COMEDI_DEVICE_MINOR_MASK;
+	if(device_index >= COMEDI_NDEVICES) return NULL;
+	return comedi_devices + device_index;
+}
+
+static inline comedi_subdevice * comedi_get_subdevice_by_minor(unsigned minor)
+{
+	unsigned subdevice_index;
+	comedi_device * dev;
+
+	if((minor & COMEDI_SUBDEVICE_MINOR_MASK) == 0) return NULL;
+	dev = comedi_get_device_by_minor(minor);
+	if(dev == NULL) return NULL;
+	subdevice_index = ((minor & COMEDI_SUBDEVICE_MINOR_MASK) >> COMEDI_SUBDEVICE_MINOR_SHIFT) - COMEDI_SUBDEVICE_MINOR_OFFSET;
+	if(subdevice_index >= dev->n_subdevices) return NULL;
+	return dev->subdevices + subdevice_index;
+}
+
+static inline unsigned comedi_construct_minor_for_subdevice(comedi_device *dev, unsigned subdevice_index)
+{
+	unsigned minor = 0;
+	minor |= dev->minor & COMEDI_DEVICE_MINOR_MASK;
+	minor |= ((subdevice_index + COMEDI_SUBDEVICE_MINOR_OFFSET) << COMEDI_SUBDEVICE_MINOR_SHIFT) & COMEDI_SUBDEVICE_MINOR_MASK;
+	BUG_ON(minor >= COMEDI_NUM_MINORS);
+	return minor;
 }
 
 int comedi_device_detach(comedi_device *dev);
@@ -326,13 +371,18 @@ struct comedi_lrange_struct{
 
 static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevices)
 {
-	int size=sizeof(comedi_subdevice)*num_subdevices;
+	const int size = sizeof(comedi_subdevice) * num_subdevices;
 
 	dev->n_subdevices = num_subdevices;
-	dev->subdevices=kmalloc(size,GFP_KERNEL);
+	dev->subdevices = kmalloc(size,GFP_KERNEL);
 	if(!dev->subdevices)
 		return -ENOMEM;
 	memset(dev->subdevices,0,size);
+	unsigned i;
+	for(i = 0; i < num_subdevices; ++i)
+	{
+		dev->subdevices[i].device = dev;
+	}
 	return 0;
 }
 

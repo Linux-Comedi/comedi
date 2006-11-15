@@ -534,13 +534,15 @@ static int pcl711_attach(comedi_device * dev, comedi_devconfig * it)
 	s = dev->subdevices + 0;
 	/* AI subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE|SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = this_board->n_aichan;
 	s->maxdata = 0xfff;
 	s->len_chanlist = 1;
 	s->range_table = this_board->ai_range_type;
 	s->insn_read = pcl711_ai_insn;
 	if(irq){
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
 		s->do_cmdtest = pcl711_ai_cmdtest;
 		s->do_cmd = pcl711_ai_cmd;
 	}

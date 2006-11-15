@@ -517,7 +517,7 @@ static int das800_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
 	s->n_chan = 8;
 	s->len_chanlist = 8;
 	s->maxdata = (1 << thisboard->resolution) - 1;

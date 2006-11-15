@@ -24,6 +24,8 @@
 #define _GNU_SOURCE
 
 #define __NO_VERSION__
+#include "comedi_fops.h"
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -37,6 +39,7 @@
 #include <linux/wrapper.h>
 #include <linux/highmem.h>  /* for SuSE brokenness */
 #include <linux/vmalloc.h>
+#include <linux/cdev.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -68,6 +71,10 @@ static void cleanup_device_allocations(comedi_device *dev)
 		for(i = 0; i < dev->n_subdevices; i++)
 		{
 			s = dev->subdevices + i;
+			if(s->class_dev)
+			{
+				class_device_destroy(comedi_class, s->class_dev->devt);
+			}
 			if(s->async)
 			{
 				comedi_buf_alloc(dev, s, 0);
@@ -205,7 +212,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		comedi_device *dev;
 
-		dev=comedi_get_device_by_minor(i);
+		dev = comedi_devices + i;
 		if(dev->attached && dev->driver==driver){
 			if(dev->use_count)
 				printk("BUG! detaching device with use_count=%d\n",dev->use_count);
@@ -229,15 +236,7 @@ int comedi_driver_unregister(comedi_driver *driver)
 
 comedi_device *comedi_allocate_dev(comedi_driver *driver)
 {
-	comedi_device *dev;
-
-	// XXX we need to do actual allocation here.
-
-	dev=comedi_get_device_by_minor(0);
-
-	dev->driver=driver;
-
-	return dev;
+	return NULL;
 }
 
 void comedi_deallocate_dev(comedi_device *dev)
@@ -262,6 +261,9 @@ static int postconfig(comedi_device *dev)
 			s->len_chanlist=1;
 
 		if(s->do_cmd){
+			unsigned minor;
+			dev_t devt;
+
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{
@@ -286,6 +288,10 @@ static int postconfig(comedi_device *dev)
 				ret = s->buf_change(dev,s,DEFAULT_BUF_SIZE);
 				if(ret < 0)return ret;
 			}
+			minor = comedi_construct_minor_for_subdevice(dev, i);
+			devt = MKDEV(COMEDI_MAJOR, minor);
+			s->class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, dev->class_dev,
+				devt, NULL, "comedi%i_sub%i", dev->minor, i);
 		}
 
 		if(!s->range_table && !s->range_table_list)

@@ -23,7 +23,7 @@
 
 /*
 	This is some serious bloatware.
-	
+
 	Taken from Dave A.'s PCL-711 driver, 'cuz I thought it
 	was cool.
 */
@@ -46,7 +46,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 	int devices_q=0;
 	int l=0;
 	comedi_driver *driv;
-	
+
 	l+=sprintf(buf+l,
 		"comedi version " COMEDI_RELEASE "\n"
 		"format string: %s\n",
@@ -55,7 +55,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		comedi_device *dev;
 
-		dev=comedi_get_device_by_minor(i);
+		dev = comedi_devices + i;
 		if(dev->attached){
 			devices_q=1;
 			l+=sprintf(buf+l,"%2d: %-20s %-20s %4d\n",
@@ -88,7 +88,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 void comedi_proc_init(void)
 {
 	struct proc_dir_entry *comedi_proc;
-	
+
 	comedi_proc = create_proc_entry("comedi",S_IFREG | S_IRUGO,0);
 	if(comedi_proc)
 		comedi_proc->read_proc = comedi_read_procmem;

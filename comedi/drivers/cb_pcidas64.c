@@ -46,7 +46,7 @@ Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
-  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6014, 
+  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6014,
   PCI-DAS6023, PCI-DAS6025, PCI-DAS6030,
   PCI-DAS6031, PCI-DAS6032, PCI-DAS6033, PCI-DAS6034,
   PCI-DAS6035, PCI-DAS6036, PCI-DAS6040, PCI-DAS6052,
@@ -1355,7 +1355,7 @@ static int setup_subdevices(comedi_device *dev)
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DITHER;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DITHER | SDF_CMD_READ;
 	if(board(dev)->layout == LAYOUT_60XX)
 		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
 	else if(board(dev)->layout == LAYOUT_64XX)
@@ -1388,7 +1388,7 @@ static int setup_subdevices(comedi_device *dev)
 	if(board(dev)->ao_nchan)
 	{
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
 		s->n_chan = board(dev)->ao_nchan;
 		s->maxdata = (1 << board(dev)->ao_bits) - 1;
 		s->range_table = board(dev)->ao_range_table;
@@ -1658,8 +1658,8 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
 	{
 		// is it not a computer boards card?
 		if( pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS )
@@ -1970,7 +1970,7 @@ static int ai_config_calibration_source( comedi_device *dev, lsampl_t *data )
 {
 	lsampl_t source = data[1];
 	int num_calibration_sources;
-	
+
 	if( board(dev)->layout == LAYOUT_60XX)
 		num_calibration_sources = 16;
 	else
@@ -2440,7 +2440,7 @@ static void select_master_clock( comedi_device *dev, const comedi_cmd *cmd )
 static inline void dma_start_sync(comedi_device *dev, unsigned int channel)
 {
 	unsigned long flags;
-	
+
 	// spinlock for plx dma control/status reg
 	comedi_spin_lock_irqsave( &dev->spinlock, flags );
 	if(channel)
@@ -3921,7 +3921,7 @@ static int caldac_8800_write(comedi_device *dev, unsigned int address, uint8_t v
 	writew(SELECT_8800_BIT, priv(dev)->main_iobase + CALIBRATION_REG);
 	comedi_udelay(caldac_8800_udelay);
 	writew(0, priv(dev)->main_iobase + CALIBRATION_REG);
-	comedi_udelay(caldac_8800_udelay);	
+	comedi_udelay(caldac_8800_udelay);
 	return 0;
 }
 

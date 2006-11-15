@@ -1272,7 +1272,6 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 	/* analog input */
 	if (this_board->n_aichan>0) {
 		s = dev->subdevices + subdev;
-		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE;
 		switch (this_board->board_type) {
@@ -1313,6 +1312,8 @@ static int pcl812_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->use_MPC = this_board->haveMPC508;
 		s->cancel = pcl812_ai_cancel;
 		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
 			s->do_cmdtest = pcl812_ai_cmdtest;
 			s->do_cmd = pcl812_ai_cmd;
 			s->poll = pcl812_ai_poll;

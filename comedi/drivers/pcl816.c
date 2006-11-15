@@ -1178,7 +1178,7 @@ no_dma:
     s->type = COMEDI_SUBD_AI;
     devpriv->sub_ai = s;
     dev->read_subdev = s;
-    s->subdev_flags = SDF_READABLE;
+    s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
     s->n_chan = this_board->n_aichan;
     s->subdev_flags |= SDF_DIFF;
     //printk (", %dchans DIFF DAC - %d", s->n_chan, i);

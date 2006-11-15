@@ -24,6 +24,8 @@
 #undef DEBUG
 
 #define __NO_VERSION__
+#include "comedi_fops.h"
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -40,8 +42,8 @@
 #include <linux/device.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-
 #include <linux/comedidev.h>
+#include <linux/cdev.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -60,7 +62,7 @@ module_param(comedi_debug, int, 0644);
 comedi_device *comedi_devices;
 spinlock_t big_comedi_lock; /* Dynamic initialization */
 
-static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg,unsigned int minor);
+static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg);
 static int do_bufconfig_ioctl(comedi_device *dev,void *arg);
 static int do_devinfo_ioctl(comedi_device *dev,comedi_devinfo *arg);
 static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file);
@@ -82,19 +84,19 @@ static int comedi_fasync (int fd, struct file *file, int on);
 static void init_async_buf( comedi_async *async );
 
 static int comedi_ioctl(struct inode * inode,struct file * file,
-	unsigned int cmd,unsigned long arg)
+	unsigned int cmd, unsigned long arg)
 {
-	unsigned int minor=MINOR(inode->i_rdev);
-	comedi_device *dev=comedi_get_device_by_minor(minor);
+	const unsigned minor = iminor(inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 
 	/* Device config is special, because it must work on
 	 * an unconfigured device. */
 	if(cmd==COMEDI_DEVCONFIG){
-		return do_devconfig_ioctl(dev,(void *)arg,minor);
+		return do_devconfig_ioctl(dev,(void *)arg);
 	}
 
 	if(!dev->attached){
-		DPRINTK("no driver configured on /dev/comedi%i\n", minor);
+		DPRINTK("no driver configured on /dev/comedi%i\n", dev->minor);
 		return -ENODEV;
 	}
 
@@ -147,7 +149,7 @@ static int comedi_ioctl(struct inode * inode,struct file * file,
 	writes:
 		none
 */
-static int do_devconfig_ioctl(comedi_device *dev,comedi_devconfig *arg, unsigned int minor)
+static int do_devconfig_ioctl(comedi_device *dev, comedi_devconfig *arg)
 {
 	comedi_devconfig it;
 	int ret;
@@ -269,7 +271,7 @@ static int do_bufconfig_ioctl(comedi_device *dev,void *arg)
 		}
 
 		DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
-			MINOR(dev->devt), bc.subdevice, async->prealloc_bufsz);
+			dev->minor, bc.subdevice, async->prealloc_bufsz);
 	}
 
 	bc.size = async->prealloc_bufsz;
@@ -366,7 +368,7 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->len_chanlist	= s->len_chanlist;
 		us->maxdata		= s->maxdata;
 		if(s->range_table){
-			us->range_type	= (MINOR(dev->devt) << 28) | (i << 24) | (0 << 16) |
+			us->range_type	= (dev->minor << 28) | (i << 24) | (0 << 16) |
 				(s->range_table->length);
 		}else{
 			us->range_type	= 0; /* XXX */
@@ -447,7 +449,7 @@ static int do_chaninfo_ioctl(comedi_device *dev,comedi_chaninfo *arg)
 		for(i=0;i<s->n_chan;i++){
 			int x;
 
-			x=(MINOR(dev->devt) << 28) | (it.subdev << 24) | (i << 16) |
+			x=(dev->minor << 28) | (it.subdev << 24) | (i << 16) |
 				(s->range_table_list[i]->length);
 			put_user(x,it.rangelist+i);
 		}
@@ -484,10 +486,8 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	if(bi.subdevice >= dev->n_subdevices || bi.subdevice < 0)
 		return -EINVAL;
 
-	s=dev->subdevices + bi.subdevice;
-	async=s->async;
-
-	if(s!=dev->read_subdev && s!=dev->write_subdev)return -EINVAL;
+	s = dev->subdevices + bi.subdevice;
+	async = s->async;
 
 	if(!async){
 		DPRINTK("subdevice does not have async capability\n");
@@ -498,7 +498,7 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		goto copyback;
 	}
 
-	if(bi.bytes_read && s==dev->read_subdev){
+	if(bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)){
 		comedi_buf_read_free(async, bi.bytes_read);
 
 		if(!(s->subdev_flags&SDF_RUNNING) &&
@@ -508,7 +508,7 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		}
 	}
 
-	if(bi.bytes_written && s==dev->write_subdev){
+	if(bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)){
 		bi.bytes_written = comedi_buf_write_alloc( async, bi.bytes_written );
 		comedi_buf_munge(dev, s, async->buf_write_alloc_count - async->munge_count);
 		comedi_buf_write_free(async, bi.bytes_written);
@@ -518,9 +518,10 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
 	bi.buf_read_ptr = async->buf_read_ptr;
-	if(s==dev->read_subdev){
+	/* FIXME this will bug if we ever have a subdevice that supports both read and write commands.
+	We need a flag saying which direction the current command is going (CMDF_WRITE?) */
+	if((s->subdev_flags & SDF_CMD_READ)){
 		unsigned int n_munge_bytes;
-
 		n_munge_bytes = bi.buf_write_count - s->async->munge_count;
 		comedi_buf_munge(dev, s, n_munge_bytes);
 	}
@@ -1261,8 +1262,6 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 }
 
 
-#define RDEV_OF_FILE(x)        ((x)->f_dentry->d_inode->i_rdev)
-
 void comedi_unmap(struct vm_area_struct *area)
 {
 	comedi_async *async;
@@ -1278,7 +1277,7 @@ static struct vm_operations_struct comedi_vm_ops={
 
 static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 {
-	unsigned int minor = MINOR(RDEV_OF_FILE(file));
+	const unsigned minor = iminor(file->f_dentry->d_inode);
 	comedi_device *dev = comedi_get_device_by_minor(minor);
 	comedi_async *async = NULL;
 	unsigned long start = vma->vm_start;
@@ -1288,15 +1287,19 @@ static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", minor);
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		return -ENODEV;
 	}
-
-	if(vma->vm_flags & VM_WRITE){
-		async=dev->write_subdev->async;
-	}else{
-		async=dev->read_subdev->async;
+	comedi_subdevice *s = comedi_get_subdevice_by_minor(minor);
+	if(s == NULL)
+	{	if(vma->vm_flags & VM_WRITE){
+			s = dev->write_subdev;
+		}else{
+			s = dev->read_subdev;
+		}
+		if(s == NULL) return -EINVAL;
 	}
+	async = s->async;
 	if(async==NULL){
 		return -EINVAL;
 	}
@@ -1332,16 +1335,15 @@ static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 
 static unsigned int comedi_poll(struct file *file, poll_table * wait)
 {
-	comedi_device *dev;
 	comedi_subdevice *s;
 	comedi_async *async;
 	unsigned int mask;
-
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	const unsigned minor = iminor(file->f_dentry->d_inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", MINOR(dev->devt));
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		return -ENODEV;
 	}
 
@@ -1377,17 +1379,19 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 	comedi_async *async;
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
-
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	const unsigned minor = iminor(file->f_dentry->d_inode);
+	dev = comedi_get_device_by_minor(minor);
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", MINOR(dev->devt));
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		return -ENODEV;
 	}
 
-	if(dev->write_subdev == NULL)return -EIO;
-	s = dev->write_subdev;
+	s = comedi_get_subdevice_by_minor(minor);
+	if(s == NULL)
+		s = dev->write_subdev;
+	if(s == NULL || s->async == NULL || (s->subdev_flags & SDF_CMD_WRITE) == 0) return -EIO;
 	async = s->async;
 
 	if(!nbytes)return 0;
@@ -1458,22 +1462,23 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 
 static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *offset)
 {
-	comedi_device *dev;
 	comedi_subdevice *s;
 	comedi_async *async;
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
-
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	const unsigned minor = iminor(file->f_dentry->d_inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 
 	if(!dev->attached)
 	{
-		DPRINTK("no driver configured on comedi%i\n", MINOR(dev->devt));
+		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		return -ENODEV;
 	}
 
-	s = dev->read_subdev;
-	if(s == NULL)return -EIO;
+	s = comedi_get_subdevice_by_minor(minor);
+	if(s == NULL)
+		s = dev->read_subdev;
+	if(s == NULL || s->async == NULL || (s->subdev_flags & SDF_CMD_READ) == 0) return -EIO;
 	async = s->async;
 
 	if(!nbytes)return 0;
@@ -1579,10 +1584,9 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 
 static loff_t comedi_lseek(struct file *file,loff_t offset,int origin)
 {
-	comedi_device *dev;
 	loff_t new_offset;
-
-	dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	const unsigned minor = iminor(file->f_dentry->d_inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 
 	switch(origin){
 	case SEEK_SET:
@@ -1603,17 +1607,16 @@ static loff_t comedi_lseek(struct file *file,loff_t offset,int origin)
 	return file->f_pos=new_offset;
 }
 
-static int comedi_open(struct inode *inode,struct file *file)
+static int comedi_open(struct inode *inode, struct file *file)
 {
-	unsigned int minor=MINOR(inode->i_rdev);
-	comedi_device *dev;
 	char mod[32];
-
-	if(minor>=COMEDI_NDEVICES){
+	const unsigned minor = iminor(inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
+	if(dev == NULL)
+	{
 		DPRINTK("invalid minor number\n");
 		return -ENODEV;
 	}
-	dev=comedi_get_device_by_minor(minor);
 
 	/* This is slightly hacky, but we want module autoloading
 	 * to work for root.
@@ -1639,7 +1642,7 @@ static int comedi_open(struct inode *inode,struct file *file)
 
 	dev->in_request_module=1;
 
-	sprintf(mod,"char-major-%i-%i",COMEDI_MAJOR,minor);
+	sprintf(mod,"char-major-%i-%i", COMEDI_MAJOR, dev->minor);
 #ifdef CONFIG_KMOD
 	request_module(mod);
 #endif
@@ -1669,7 +1672,8 @@ ok:
 
 static int comedi_close(struct inode *inode,struct file *file)
 {
-	comedi_device *dev=comedi_get_device_by_minor(MINOR(inode->i_rdev));
+	const unsigned minor = iminor(inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 	comedi_subdevice *s = NULL;
 	int i;
 
@@ -1706,13 +1710,14 @@ static int comedi_close(struct inode *inode,struct file *file)
 
 static int comedi_fasync (int fd, struct file *file, int on)
 {
-	comedi_device *dev=comedi_get_device_by_minor(MINOR(RDEV_OF_FILE(file)));
+	const unsigned minor = iminor(file->f_dentry->d_inode);
+	comedi_device *dev = comedi_get_device_by_minor(minor);
 
 	return fasync_helper(fd,file,on,&dev->async_queue);
 }
 
 
-static struct file_operations comedi_fops={
+struct file_operations comedi_fops={
 	owner		: THIS_MODULE,
 	llseek		: comedi_lseek,
 	ioctl		: comedi_ioctl,
@@ -1725,30 +1730,40 @@ static struct file_operations comedi_fops={
 	fasync		: comedi_fasync,
 };
 
-static struct class *comedi_class;
+struct class *comedi_class = NULL;
+static struct cdev comedi_cdev;
 
 static int __init comedi_init(void)
 {
 	int i;
+	int retval;
 
 	printk("comedi: version " COMEDI_RELEASE " - David Schleef <ds@schleef.org>\n");
 	spin_lock_init(&big_comedi_lock);
-	if(devfs_register_chrdev(COMEDI_MAJOR,"comedi",&comedi_fops)){
-		printk("comedi: unable to get major %d\n",COMEDI_MAJOR);
+	retval = register_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS, "comedi");
+	if(retval) return -EIO;
+	cdev_init(&comedi_cdev, &comedi_fops);
+	comedi_cdev.owner = THIS_MODULE;
+	kobject_set_name(&comedi_cdev.kobj, "comedi");
+	if(cdev_add(&comedi_cdev, MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS))
+	{
+		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
 		return -EIO;
 	}
 	comedi_class = class_create(THIS_MODULE, "comedi");
 	if(IS_ERR(comedi_class))
 	{
 		printk("comedi: failed to create class");
-		devfs_unregister_chrdev(COMEDI_MAJOR,"comedi");
+		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
+		cdev_del(&comedi_cdev);
 		return PTR_ERR(comedi_class);
 	}
 	comedi_devices=(comedi_device *)kmalloc(sizeof(comedi_device)*COMEDI_NDEVICES,GFP_KERNEL);
 	if(!comedi_devices)
 	{
+		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
+		cdev_del(&comedi_cdev);
 		class_destroy(comedi_class);
-		devfs_unregister_chrdev(COMEDI_MAJOR,"comedi");
 		return -ENOMEM;
 	}
 	memset(comedi_devices,0,sizeof(comedi_device)*COMEDI_NDEVICES);
@@ -1758,14 +1773,10 @@ static int __init comedi_init(void)
 
 	for(i=0;i<COMEDI_NDEVICES;i++){
 		char name[20];
-		struct class_device *class_dev;
 		sprintf(name, "comedi%d", i);
-		devfs_register(NULL, name, DEVFS_FL_DEFAULT,
-			COMEDI_MAJOR, i, 0666 | S_IFCHR, &comedi_fops, NULL);
-		class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
+		comedi_devices[i].minor = i;
+		comedi_devices[i].class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
 			MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
-		comedi_devices[i].devt = class_dev->devt;
-		comedi_devices[i].minor = MINOR(class_dev->devt);
 		spin_lock_init(&comedi_devices[i].spinlock);
 	}
 
@@ -1784,20 +1795,19 @@ static void __exit comedi_cleanup(void)
 	for(i = 0; i < COMEDI_NDEVICES; i++){
 		comedi_device *dev;
 
-		dev=comedi_get_device_by_minor(i);
+		dev = comedi_devices + i;
 		if(dev->attached)
 			comedi_device_detach(dev);
 	}
 
 	for(i = 0; i < COMEDI_NDEVICES; i++){
 		char name[20];
-		class_device_destroy(comedi_class, comedi_devices[i].devt);
+		class_device_destroy(comedi_class, comedi_devices[i].class_dev->devt);
 		sprintf(name, "comedi%d", i);
-		devfs_unregister(devfs_find_handle(NULL, name,
-			COMEDI_MAJOR, i, DEVFS_SPECIAL_CHR, 0));
 	}
 	class_destroy(comedi_class);
-	devfs_unregister_chrdev(COMEDI_MAJOR,"comedi");
+	cdev_del(&comedi_cdev);
+	unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
 
 	comedi_proc_cleanup();
 
@@ -1811,7 +1821,7 @@ module_exit(comedi_cleanup);
 
 void comedi_error(const comedi_device *dev,const char *s)
 {
-	rt_printk("comedi%d: %s: %s\n", MINOR(dev->devt), dev->driver->driver_name, s);
+	rt_printk("comedi%d: %s: %s\n", dev->minor, dev->driver->driver_name, s);
 }
 
 void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
@@ -1841,19 +1851,19 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 			if(dev->rt){
 #ifdef CONFIG_COMEDI_RT
 				// pend wake up
-				if(s==dev->read_subdev)
+				if(s->subdev_flags & SDF_CMD_READ)
 					comedi_rt_pend_wakeup(&dev->read_wait);
-				if(s==dev->write_subdev)
+				if(s->subdev_flags & SDF_CMD_WRITE)
 					comedi_rt_pend_wakeup(&dev->write_wait);
 #else
 				printk("BUG: comedi_event() code unreachable\n");
 #endif
 			}else{
-				if(s==dev->read_subdev){
+				if(s->subdev_flags & SDF_CMD_READ){
 					wake_up_interruptible(&dev->read_wait);
 					kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
 				}
-				if(s==dev->write_subdev){
+				if(s->subdev_flags & SDF_CMD_WRITE){
 					wake_up_interruptible(&dev->write_wait);
 					kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
 				}

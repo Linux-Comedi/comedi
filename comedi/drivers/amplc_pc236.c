@@ -293,7 +293,7 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 					PC236_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags = SDF_READABLE;
+			s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 			s->n_chan = 1;
 			s->maxdata = 1;
 			s->range_table = &range_digital;

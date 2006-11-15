@@ -161,7 +161,7 @@ static inline int MITE_LKAR(int channel)	// link address
 {
 	return CHAN_OFFSET(channel) + 0x20;
 };
-static inline int MITE_LLKAR(int channel)	// ?
+static inline int MITE_LLKAR(int channel)	// see mite section of tnt5002 manual
 {
 	return CHAN_OFFSET(channel) + 0x24;
 };
@@ -257,8 +257,8 @@ enum MITE_CHOR_bits
 	CHOR_CLRRB			= (1<<6),
 	CHOR_CLRLC			= (1<<5),
 	CHOR_FRESET			= (1<<4),
-	CHOR_ABORT			= (1<<3),
-	CHOR_STOP			= (1<<2),
+	CHOR_ABORT			= (1<<3),	/* stop without emptying fifo */
+	CHOR_STOP			= (1<<2),	/* stop after emptying fifo */
 	CHOR_CONT			= (1<<1),
 	CHOR_START			= (1<<0),
 	CHOR_PON		= (CHOR_CLR_SEND_TC|CHOR_CLR_LPAUSE),

@@ -308,6 +308,7 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it){
 	    }
 	    else{
 		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
 		s->cancel        = me4000_ai_cancel;
 		s->do_cmdtest    = me4000_ai_do_cmd_test;
 		s->do_cmd        = me4000_ai_do_cmd;

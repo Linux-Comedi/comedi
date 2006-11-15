@@ -392,6 +392,8 @@ static int pcmuio_attach(comedi_device *dev, comedi_devconfig *it)
             subpriv->intr.first_chan = byte_no * 8;
             subpriv->intr.asic_chan = thisasic_chanct;
             subpriv->intr.num_asic_chans = s->n_chan - subpriv->intr.first_chan;
+            dev->read_subdev = s;
+            s->subdev_flags |= SDF_CMD_READ;
             s->cancel = pcmuio_cancel;
             s->do_cmd = pcmuio_cmd;
             s->do_cmdtest = pcmuio_cmdtest;

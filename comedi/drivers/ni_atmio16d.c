@@ -758,7 +758,7 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
 	s->n_chan=(devpriv->adc_mux? 16 : 8);
 	s->len_chanlist=16;
 	s->insn_read = atmio16d_ai_insn_read;

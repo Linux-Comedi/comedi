@@ -424,7 +424,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_OTHER | SDF_CMD_READ;
 	s->n_chan = 4;
 	s->len_chanlist = 4;
 	s->maxdata = 0xffff;

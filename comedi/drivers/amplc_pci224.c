@@ -1403,7 +1403,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	/* Analog output subdevice. */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
+	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->insn_write = &pci224_ao_insn_write;

@@ -243,7 +243,8 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 	s->len_chanlist=16;  /* This is the maximum chanlist length that
 				the board can handle */
 	s->insn_read = skel_ai_rinsn;
-	//s->do_cmd = skel_ai_cmd;
+// 	s->subdev_flags |= SDF_CMD_READ;
+// 	s->do_cmd = skel_ai_cmd;
 	s->do_cmdtest = skel_ai_cmdtest;
 
 	s=dev->subdevices+1;
@@ -272,7 +273,7 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("attached\n");
 
-	return 1;
+	return 0;
 }
 
 

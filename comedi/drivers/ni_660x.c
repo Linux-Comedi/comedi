@@ -744,7 +744,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+0;
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
 	s->type         = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_CMD_READ | SDF_CMD_WRITE;
 	/* KG: What does SDF_LSAMPL (see multiq3.c) mean? */
 	s->n_chan       = thisboard->n_ctrs;
 	s->maxdata      = 0xffffffff; /* 32 bit counter */
@@ -788,11 +788,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	printk("attached\n");
-
-	/* What does this "return value" mean?  Is this fixed by API??
-	- skel_attach in skel.c returns 1;
-	- ni_E_init in ni_mio_common.c returns "0" ... */
-	return 1;
+	return 0;
 }
 
 
@@ -856,7 +852,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 	// Check what Application of Counter this channel is configured for
 	switch(ni_660x_gpct_config[subdev_channel].App)
 	{
-	case PositionMeasurement: case CountingAndTimeMeasurement: 
+	case PositionMeasurement: case CountingAndTimeMeasurement:
 		// Check if (n > 0)
 		if ( insn->n <= 0 )
 		{
@@ -897,7 +893,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 static void init_tio_chip(comedi_device *dev, int chipset)
 {
 	/* See P. 3.5 of the Register-Level Programming manual.  The
-		CounterSwap bit has to be set on the second chip, otherwise 
+		CounterSwap bit has to be set on the second chip, otherwise
 		it will try to use the same pins as the first chip.
 	*/
 	if(chipset)
@@ -905,7 +901,7 @@ static void init_tio_chip(comedi_device *dev, int chipset)
 			+ registerData[ClockConfigRegister].offset);
 	else
 		writel(0,devpriv->mite->daq_io_addr + GPCT_OFFSET[0]
-			+ registerData[ClockConfigRegister].offset);	
+			+ registerData[ClockConfigRegister].offset);
 }
 
 static int
@@ -1124,7 +1120,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 		break;
 	case GPCT_SIMPLE_EVENT:
 		DPRINTK("NI_660x: INSN_CONFIG: Config Simple Event Counter\n");
-		ni_660x_gpct_config[subdev_channel].App = 
+		ni_660x_gpct_config[subdev_channel].App =
 			CountingAndTimeMeasurement;
 		// Reset the counter
 		writew(GxReset(counter_channel),
@@ -1323,12 +1319,12 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 				   lsampl_t *data)
 {
 	int chan=CR_CHAN(insn->chanspec);
-	
+
 	/* The input or output configuration of each digital line is
 	* configured by a special insn_config instruction.  chanspec
 	* contains the channel to be changed, and data[0] contains the
 	* value COMEDI_INPUT or COMEDI_OUTPUT. */
-	
+
 	switch(data[0])
 	{
 	case INSN_CONFIG_DIO_OUTPUT:

@@ -376,7 +376,7 @@ static int ni6527_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices + 2;
 	dev->read_subdev = s;
 	s->type=COMEDI_SUBD_DI;
-	s->subdev_flags=SDF_READABLE;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 	s->n_chan=1;
 	s->range_table=&range_unknown;
 	s->maxdata=1;

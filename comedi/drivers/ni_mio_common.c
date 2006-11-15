@@ -2795,14 +2795,18 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	devpriv->ao_cmd1=0;
 	devpriv->stc_writew(dev, devpriv->ao_cmd1,AO_Command_1_Register);
 	devpriv->ao_cmd2=0;
+	devpriv->stc_writew(dev, devpriv->ao_cmd2, AO_Command_2_Register);
 	devpriv->ao_mode1=0;
+	devpriv->stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
 	devpriv->ao_mode2=0;
+	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
 	if(boardtype.reg_type == ni_reg_m_series)
 		devpriv->ao_mode3 = AO_Last_Gate_Disable;
 	else
 		devpriv->ao_mode3 = 0;
 	devpriv->stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
-	devpriv->ao_trigger_select=0;
+	devpriv->ao_trigger_select = 0;
+	devpriv->stc_writew(dev, devpriv->ao_trigger_select,AO_Trigger_Select_Register);
 	if(boardtype.reg_type & ni_reg_6xxx_mask){
 		ao_win_out(0x3, AO_Immediate_671x);
 		ao_win_out(CLEAR_WG, AO_Misc_611x);
@@ -3150,7 +3154,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev=s;
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
-		s->subdev_flags=SDF_READABLE | SDF_DIFF | SDF_DITHER;
+		s->subdev_flags=SDF_READABLE | SDF_DIFF | SDF_DITHER | SDF_CMD_READ;
 		if(boardtype.reg_type != ni_reg_611x)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		if(boardtype.adbits > 16)
@@ -3176,7 +3180,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+1;
 	if(boardtype.n_aochan){
-		dev->write_subdev=s;
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITABLE|SDF_DEGLITCH|SDF_GROUND;
 		if(boardtype.reg_type == ni_reg_m_series)
@@ -3195,6 +3198,8 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 #else
 		if(boardtype.ao_fifo_depth){
 #endif
+			dev->write_subdev=s;
+			s->subdev_flags |= SDF_CMD_WRITE;
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
 			s->len_chanlist = boardtype.n_aochan;
@@ -3242,7 +3247,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* general purpose counter/timer device */
 	s=dev->subdevices+4;
 	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_CMD_READ;
 	s->insn_read = ni_gpct_insn_read;
 	s->insn_write = ni_gpct_insn_write;
 	s->insn_config = ni_gpct_insn_config;

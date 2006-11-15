@@ -440,7 +440,7 @@ static int setup_subdevices(comedi_device *dev)
 	dev->read_subdev = s;
 /*	dev->write_subdev = s; */
 	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL;
+	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL | SDF_CMD_READ;
 	s->n_chan = 32;
 	s->len_chanlist = 32;
 	s->maxdata = 1;

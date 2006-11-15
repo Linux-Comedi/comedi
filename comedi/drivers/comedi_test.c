@@ -211,7 +211,7 @@ static int waveform_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
 	s->n_chan = thisboard->ai_chans;
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &waveform_ai_ranges;

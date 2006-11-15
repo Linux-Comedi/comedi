@@ -41,11 +41,11 @@ comedi_lrange range_unknown={ 1, {{0,1000000,UNIT_none}}};
 
 	reads:
 		range info structure
-	
+
 	writes:
 		n comedi_krange structures to rangeinfo->range_ptr
 */
-int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
+int do_rangeinfo_ioctl(comedi_device *dev, comedi_rangeinfo *arg)
 {
 	comedi_rangeinfo it;
 	int minor,subd,chan;
@@ -54,36 +54,37 @@ int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg)
 
 	if(copy_from_user(&it,arg,sizeof(comedi_rangeinfo)))
 		return -EFAULT;
+	/* FIXME why do we have to support queries to devices that are different
+	 * than the one passed as the dev argument? */
+	minor=(it.range_type>>28) & 0xf;
+	subd=(it.range_type>>24) & 0xf;
+	chan=(it.range_type>>16) & 0xff;
 
-	minor=(it.range_type>>28)&0xf;
-	subd=(it.range_type>>24)&0xf;
-	chan=(it.range_type>>16)&0xff;
-
-	if(minor>COMEDI_NDEVICES)
+	if(minor > COMEDI_NDEVICES)
 		return -EINVAL;
-	dev=comedi_get_device_by_minor(minor);
-	if(!dev->attached)return -EINVAL;
-	if(subd>=dev->n_subdevices)return -EINVAL;
-	s=dev->subdevices+subd;
+	comedi_device *query_dev = comedi_devices + minor;
+	if(!query_dev->attached) return -EINVAL;
+	if(subd>=query_dev->n_subdevices) return -EINVAL;
+	s = query_dev->subdevices + subd;
 	if(s->range_table){
-		lr=s->range_table;
+		lr = s->range_table;
 	}else if(s->range_table_list){
-		if(chan>=s->n_chan)return -EINVAL;
-		lr=s->range_table_list[chan];
+		if(chan >= s->n_chan) return -EINVAL;
+		lr = s->range_table_list[chan];
 	}else{
 		return -EINVAL;
 	}
 
 	if( RANGE_LENGTH(it.range_type) != lr->length){
 		DPRINTK("wrong length %d should be %d (0x%08x)\n",
-			RANGE_LENGTH(it.range_type),lr->length,it.range_type);
+			RANGE_LENGTH(it.range_type), lr->length, it.range_type);
 		return -EINVAL;
 	}
 
-	if(copy_to_user(it.range_ptr,lr->range,
-		sizeof(comedi_krange)*lr->length))
+	if(copy_to_user(it.range_ptr, lr->range,
+		sizeof(comedi_krange) * lr->length))
 		return -EFAULT;
-	
+
 	return 0;
 }
 

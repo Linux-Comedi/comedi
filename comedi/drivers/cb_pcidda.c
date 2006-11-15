@@ -284,7 +284,7 @@ static int cb_pcidda_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_CB){
 			if(it->options[0] || it->options[1]){
@@ -358,8 +358,9 @@ found:
 	s->maxdata = (1 << thisboard->ao_bits) - 1;
 	s->range_table = thisboard->ranges;
 	s->insn_write = cb_pcidda_ao_winsn;
-//	s->do_cmd = cb_pcidda_ai_cmd;
-	s->do_cmdtest = cb_pcidda_ai_cmdtest;
+// 	s->subdev_flags |= SDF_CMD_READ;
+// 	s->do_cmd = cb_pcidda_ai_cmd;
+// 	s->do_cmdtest = cb_pcidda_ai_cmdtest;
 
 	// two 8255 digital io subdevices
 	s = dev->subdevices + 1;

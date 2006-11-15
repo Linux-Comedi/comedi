@@ -844,7 +844,7 @@ found:
 
   subdevice = dev->subdevices + 0;
   subdevice->type         = COMEDI_SUBD_AI;
-  subdevice->subdev_flags = SDF_READABLE | SDF_COMMON;
+  subdevice->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
   subdevice->n_chan       = board->ai_channel_nbr;
   subdevice->maxdata      = board->ai_resolution_mask;
   subdevice->len_chanlist = board->ai_channel_nbr;

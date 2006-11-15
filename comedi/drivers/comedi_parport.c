@@ -123,7 +123,7 @@ static int parport_insn_a(comedi_device *dev,comedi_subdevice *s,
 
 	return 2;
 }
-	
+
 static int parport_insn_config_a(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -138,7 +138,7 @@ static int parport_insn_config_a(comedi_device *dev,comedi_subdevice *s,
 
 	return 1;
 }
-	
+
 static int parport_insn_b(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -340,10 +340,10 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_bits = parport_insn_c;
 
 	s=dev->subdevices+3;
-	dev->read_subdev=s;
 	if(irq){
+		dev->read_subdev=s;
 		s->type=COMEDI_SUBD_DI;
-		s->subdev_flags=SDF_READABLE;
+		s->subdev_flags=SDF_READABLE | SDF_CMD_READ;
 		s->n_chan=1;
 		s->maxdata=1;
 		s->range_table=&range_digital;
@@ -368,7 +368,7 @@ static int parport_attach(comedi_device *dev,comedi_devconfig *it)
 static int parport_detach(comedi_device *dev)
 {
 	printk("comedi%d: parport: remove\n",dev->minor);
-	
+
 	if(dev->iobase)release_region(dev->iobase,PARPORT_SIZE);
 
 	if(dev->irq)comedi_free_irq(dev->irq,dev);

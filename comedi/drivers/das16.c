@@ -1557,7 +1557,7 @@ static int das16_attach(comedi_device *dev, comedi_devconfig *it)
 	/* ai */
 	if(thisboard->ai){
 		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE;
+		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 		if(devpriv->ai_singleended){
 			s->n_chan = 16;
 			s->len_chanlist = 16;

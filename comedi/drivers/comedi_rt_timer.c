@@ -634,12 +634,14 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	case COMEDI_SUBD_AI:
 		s->insn_read=timer_insn;
 		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
 		devpriv->io_function = timer_data_read;
 		break;
 	case COMEDI_SUBD_AO:
 		s->insn_write=timer_insn;
 		s->insn_read=timer_insn;
 		dev->write_subdev = s;
+		s->subdev_flags |= SDF_CMD_WRITE;
 		devpriv->io_function = timer_data_write;
 		break;
 	case COMEDI_SUBD_DIO:
@@ -647,6 +649,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		s->insn_read=timer_insn;
 		s->insn_bits=timer_insn;
 		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
 		devpriv->io_function = timer_dio_read;
 		break;
 	default:
@@ -703,7 +706,7 @@ static int timer_detach(comedi_device *dev)
 		if(devpriv->timer_running)
 			stop_rt_timer();
 		if(devpriv->device)
-			comedi_close(devpriv->device);	
+			comedi_close(devpriv->device);
 	}
 	return 0;
 }

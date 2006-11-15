@@ -43,7 +43,7 @@ Status:
 
   The boards may be autocalibrated using the comedi_calibrate
   utility.
-	
+
 Configuration options:
   [0] - PCI bus of device (optional)
   [1] - PCI slot of device (optional)
@@ -522,8 +522,8 @@ static int cb_pcidas_attach(comedi_device *dev, comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
 	{
 		// is it not a computer boards card?
 		if(pcidev->vendor != PCI_VENDOR_ID_CB)
@@ -575,13 +575,13 @@ found:
 	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
 	 * their base address.
 	 */
-	devpriv->s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX); 
-	devpriv->control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX); 
-	devpriv->adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX); 
-	devpriv->pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX); 
+	devpriv->s5933_config = pci_resource_start(devpriv->pci_dev, S5933_BADRINDEX);
+	devpriv->control_status = pci_resource_start(devpriv->pci_dev, CONT_STAT_BADRINDEX);
+	devpriv->adc_fifo = pci_resource_start(devpriv->pci_dev, ADC_FIFO_BADRINDEX);
+	devpriv->pacer_counter_dio = pci_resource_start(devpriv->pci_dev, PACER_BADRINDEX);
 	if(thisboard->ao_nchan)
 	{
-		devpriv->ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX); 
+		devpriv->ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX);
 	}
 
 	// get irq
@@ -605,7 +605,7 @@ found:
 	/* analog input subdevice */
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
 	/* WARNING: Number of inputs in differential mode is ignored */
 	s->n_chan = thisboard->ai_se_chans;
 	s->len_chanlist = thisboard->ai_se_chans;
@@ -631,6 +631,7 @@ found:
 		if(thisboard->has_ao_fifo)
 		{
 			dev->write_subdev = s;
+			s->subdev_flags |= SDF_CMD_WRITE;
 			s->insn_write = cb_pcidas_ao_fifo_winsn;
 			s->do_cmdtest = cb_pcidas_ao_cmdtest;
 			s->do_cmd = cb_pcidas_ao_cmd;

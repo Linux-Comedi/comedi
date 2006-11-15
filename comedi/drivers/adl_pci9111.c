@@ -1391,7 +1391,7 @@ found:
 	dev->read_subdev = subdevice;
 
 	subdevice->type 		= COMEDI_SUBD_AI;
-	subdevice->subdev_flags 	= SDF_READABLE|SDF_COMMON;
+	subdevice->subdev_flags 	= SDF_READABLE | SDF_COMMON | SDF_CMD_READ;
 
 	//
 	// TODO: Add external multiplexer data

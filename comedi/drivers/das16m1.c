@@ -689,7 +689,7 @@ static int das16m1_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->read_subdev = s;
 	/* ai */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 	s->n_chan = 8;
 	s->subdev_flags = SDF_DIFF;
 	s->len_chanlist = 256;

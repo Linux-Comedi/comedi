@@ -290,7 +290,7 @@ static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 	unsigned int status = 0;
 
 	writew(cmd,devpriv->io_addr+DPR_Command_Mbx);
-	
+
 	for(i=0;i<TIMEOUT;i++){
 		status=readw(devpriv->io_addr+DPR_Command_Mbx);
 		if((status&DT3000_COMPLETION_MASK)!=DT3000_NOTPROCESSED)
@@ -302,7 +302,7 @@ static int dt3k_send_cmd(comedi_device *dev,unsigned int cmd)
 	}
 
 	printk("dt3k_send_cmd() timeout/error status=0x%04x\n",status);
-	
+
 	return -ETIME;
 }
 
@@ -310,10 +310,10 @@ static unsigned int dt3k_readsingle(comedi_device *dev,unsigned int subsys,
 	unsigned int chan,unsigned int gain)
 {
 	writew(subsys,devpriv->io_addr+DPR_SubSys);
-	
+
 	writew(chan,devpriv->io_addr+DPR_Params(0));
 	writew(gain,devpriv->io_addr+DPR_Params(1));
-	
+
 	dt3k_send_cmd(dev,CMD_READSINGLE);
 
 	return readw(devpriv->io_addr+DPR_Params(2));
@@ -323,11 +323,11 @@ static void dt3k_writesingle(comedi_device *dev,unsigned int subsys,
 	unsigned int chan,unsigned int data)
 {
 	writew(subsys,devpriv->io_addr+DPR_SubSys);
-	
+
 	writew(chan,devpriv->io_addr+DPR_Params(0));
 	writew(0,devpriv->io_addr+DPR_Params(1));
 	writew(data,devpriv->io_addr+DPR_Params(2));
-	
+
 	dt3k_send_cmd(dev,CMD_WRITESINGLE);
 }
 
@@ -401,7 +401,7 @@ printk("reading %d samples\n",count);
 		rear++;
 		if(rear>=AI_FIFO_DEPTH)rear = 0;
 	}
-	
+
 	devpriv->ai_rear = rear;
 	writew(rear,devpriv->io_addr + DPR_AD_Buf_Rear);
 }
@@ -549,7 +549,7 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 			return (prescale<<16)|(divider);
 		}
 	}
-	
+
 	prescale = 15;
 	base = timer_base * (1<<prescale);
 	divider = 65535;
@@ -572,11 +572,11 @@ printk("dt3k_ai_cmd:\n");
 	for(i=0;i<cmd->chanlist_len;i++){
 		chan=CR_CHAN(cmd->chanlist[i]);
 		range=CR_RANGE(cmd->chanlist[i]);
-		
+
 		writew((range<<6)|chan,devpriv->io_addr+DPR_ADC_buffer+i);
 	}
 	aref=CR_AREF(cmd->chanlist[0]);
-	
+
 	writew(cmd->scan_end_arg,devpriv->io_addr+DPR_Params(0));
 printk("param[0]=0x%04x\n",cmd->scan_end_arg);
 
@@ -601,7 +601,7 @@ printk("param[4]=0x%04x\n",tscandiv&0xffff);
 	}else{
 		/* not supported */
 	}
-	
+
 	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
 	writew(mode,devpriv->io_addr+DPR_Params(5));
 printk("param[5]=0x%04x\n",mode);
@@ -610,7 +610,7 @@ printk("param[6]=0x%04x\n",aref==AREF_DIFF);
 
 	writew(AI_FIFO_DEPTH/2,devpriv->io_addr+DPR_Params(7));
 printk("param[7]=0x%04x\n",AI_FIFO_DEPTH/2);
-	
+
 	writew(SUBS_AI,devpriv->io_addr+DPR_SubSys);
 	ret = dt3k_send_cmd(dev,CMD_CONFIG);
 
@@ -688,14 +688,14 @@ static void dt3k_dio_config(comedi_device *dev,int bits)
 {
 	/* XXX */
 	writew(SUBS_DOUT,devpriv->io_addr+DPR_SubSys);
-	
+
 	writew(bits,devpriv->io_addr+DPR_Params(0));
 #if 0
 	/* don't know */
 	writew(0,devpriv->io_addr+DPR_Params(1));
 	writew(0,devpriv->io_addr+DPR_Params(2));
 #endif
-	
+
 	dt3k_send_cmd(dev,CMD_CONFIG);
 }
 
@@ -705,7 +705,7 @@ static int dt3k_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	int mask;
 
 	mask=(CR_CHAN(insn->chanspec)<4)?0x0f:0xf0;
-	
+
 	switch(data[0])
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
@@ -721,7 +721,7 @@ static int dt3k_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	default:
 		return -EINVAL;
 		break;
-	}	
+	}
 	mask=(s->io_bits&0x01)|((s->io_bits&0x10)>>3);
 	dt3k_dio_config(dev,mask);
 
@@ -758,7 +758,7 @@ static int dt3k_mem_insn_read(comedi_device *dev,comedi_subdevice *s,
 
 		data[i]=readw(devpriv->io_addr+DPR_Params(2));
 	}
-	
+
 	return i;
 }
 
@@ -768,9 +768,9 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice *s;
 	int ret=0;
-	
+
 	printk("dt3000:");
-	
+
 	if((ret=alloc_private(dev,sizeof(dt3k_private)))<0)
 		return ret;
 
@@ -798,7 +798,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
 	s->n_chan=this_board->adchan;
 	s->insn_read=dt3k_ai_insn;
 	s->maxdata=(1<<this_board->adbits)-1;
@@ -865,7 +865,7 @@ static int dt3000_detach(comedi_device *dev)
 			pci_dev_put(devpriv->pci_dev);
 		}
 		if(devpriv->io_addr) iounmap(devpriv->io_addr);
-	}	
+	}
 	/* XXX */
 
 	return 0;
@@ -918,7 +918,7 @@ static int setup_pci(comedi_device *dev)
 static struct pci_dev *dt_pci_find_device(struct pci_dev *from,int *board)
 {
 	int i;
-	
+
 	for(from=pci_get_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from); from!=NULL;
 			from=pci_get_device(PCI_VENDOR_ID_DT,PCI_ANY_ID,from)){
 		for(i=0;i<n_dt3k_boards;i++){

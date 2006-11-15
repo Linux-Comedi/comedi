@@ -1305,7 +1305,8 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->read_subdev=s;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|((it->options[opt_diff])?SDF_DIFF:SDF_COMMON);
+	s->subdev_flags=SDF_READABLE | SDF_CMD_READ |
+		((it->options[opt_diff])?SDF_DIFF:SDF_COMMON);
 	s->n_chan=(it->options[opt_diff])?boardtype.adchan_di:boardtype.adchan_se;
 	s->insn_read=dt282x_ai_insn_read;
 	s->do_cmdtest=dt282x_ai_cmdtest;
@@ -1321,7 +1322,7 @@ static int dt282x_attach(comedi_device * dev, comedi_devconfig * it)
 		/* ao subsystem */
 		s->type=COMEDI_SUBD_AO;
 		dev->write_subdev=s;
-		s->subdev_flags=SDF_WRITABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_CMD_WRITE;
 		s->insn_read=dt282x_ao_insn_read;
 		s->insn_write=dt282x_ao_insn_write;
 		s->do_cmdtest=dt282x_ao_cmdtest;

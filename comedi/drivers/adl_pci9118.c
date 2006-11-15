@@ -1833,6 +1833,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	s->cancel=pci9118_ai_cancel;
 	s->insn_read=pci9118_insn_read_ai;
 	if (dev->irq) {
+		s->subdev_flags |= SDF_CMD_READ;
 		s->do_cmdtest=pci9118_ai_cmdtest;
 		s->do_cmd=pci9118_ai_cmd;
 		s->munge=pci9118_ai_munge;

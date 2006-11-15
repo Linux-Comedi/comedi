@@ -179,8 +179,10 @@ typedef unsigned short sampl_t;
 #define SDF_MODE2	0x0200		/* can do mode 2 */
 #define SDF_MODE3	0x0400		/* can do mode 3 */
 #define SDF_MODE4	0x0800		/* can do mode 4 */
-#define SDF_CMD		0x1000		/* can do commands */
+#define SDF_CMD		0x1000		/* can do commands (deprecated) */
 #define SDF_SOFT_CALIBRATED	0x2000	/* subdevice uses software calibration */
+#define SDF_CMD_WRITE		0x4000		/* can do output commands */
+#define SDF_CMD_READ		0x8000		/* can do input commands */
 
 #define SDF_READABLE	0x00010000	/* subdevice can be read (e.g. analog input) */
 #define SDF_WRITABLE	0x00020000	/* subdevice can be written (e.g. analog output) */

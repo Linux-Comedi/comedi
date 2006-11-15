@@ -303,7 +303,7 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
 
 	/* short link chaining mode */
-	chcr = CHCR_SET_DMA_IE| CHCR_LINKSHORT | CHCR_SET_DONE_IE | CHCR_BURSTEN;
+	chcr = CHCR_SET_DMA_IE | CHCR_LINKSHORT | CHCR_SET_DONE_IE | CHCR_BURSTEN;
 	/*
 	 * Link Complete Interrupt: interrupt every time a link
 	 * in MITE_RING is completed. This can generate a lot of

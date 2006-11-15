@@ -168,7 +168,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	int i;
 
 	printk("comedi%d: cb_das16_cs: ",dev->minor);
-	
+
 	link = dev_list; /* XXX hack */
 	if(!link)return -EIO;
 
@@ -204,7 +204,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev=s;
 	/* analog input subdevice */
 	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_DIFF;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
 	s->n_chan=16;
 	s->maxdata=0xffff;
 	s->range_table=&das16cs_ai_range;
@@ -238,7 +238,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	
+
 	s=dev->subdevices+3;
 	/* timer subdevice */
 	if(0){
@@ -265,7 +265,7 @@ static int das16cs_detach(comedi_device *dev)
 	if(dev->irq){
 		comedi_free_irq(dev->irq, dev);
 	}
-	
+
 	return 0;
 }
 
@@ -445,7 +445,7 @@ static int das16cs_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		unsigned int div1, div2;
 
 		tmp=cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2, 
+		i8253_cascade_ns_to_timer(100, &div1, &div2,
 			&cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
@@ -453,7 +453,7 @@ static int das16cs_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 		unsigned int div1, div2;
 
 		tmp=cmd->convert_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2, 
+		i8253_cascade_ns_to_timer(100, &div1, &div2,
 			&cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
 		if(tmp!=cmd->convert_arg)err++;
 		if(cmd->scan_begin_src==TRIG_TIMER &&
@@ -1043,7 +1043,7 @@ struct pcmcia_driver das16cs_driver =
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
-	},	
+	},
 };
 
 static int __init init_das16cs_pcmcia_cs(void)

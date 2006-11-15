@@ -705,7 +705,7 @@ static int das1800_attach(comedi_device *dev, comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND;
+	s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_GROUND | SDF_CMD_READ;
 	if(thisboard->common)
 		s->subdev_flags |= SDF_COMMON;
 	s->n_chan = thisboard->qram_len;
