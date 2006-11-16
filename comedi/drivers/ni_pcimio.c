@@ -397,7 +397,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_unipolar:    0,
-		caldac:         {ad8804}, /* manual is wrong */
+		caldac:         {ad8804_debug}, /* manual is wrong */
 		has_8255:	0,
 	},
 	{       device_id:      0x2a70,
@@ -413,7 +413,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  0,
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
-		caldac:         {ad8804}, /* manual is wrong */
+		caldac:         {ad8804_debug}, /* manual is wrong */
 		has_8255:	0,
 	},
 	{       device_id:      0x2a80,
@@ -429,7 +429,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  0,
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:    0,
-		caldac:         {ad8804}, /* manual is wrong */
+		caldac:         {ad8804_debug}, /* manual is wrong */
 		has_8255:	1,
 	},
 	{       device_id:      0x2ab0,
@@ -445,7 +445,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:  0,
 		.ao_range_table = &range_ni_E_ao_ext,
 		ao_unipolar:    1,
-		caldac:         {ad8804}, /* manual is wrong */
+		caldac:         {ad8804_debug}, /* manual is wrong */
 		has_8255:	1,
 	},
 
