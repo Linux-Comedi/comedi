@@ -30,7 +30,7 @@
 
 #define PCI_VENDOR_ID_NATINST		0x1093
 
-//#define DEBUG_MITE
+// #define DEBUG_MITE
 #define PCIMIO_COMPAT
 
 #ifdef DEBUG_MITE
@@ -286,8 +286,8 @@ enum MITE_CHCR_bits
 	CHCR_FIFO_ON			= 0,
 	CHCR_BURSTEN			= (1<<14),
 	CHCR_NO_BURSTEN			= 0,
-	CHCR_CHEND1			= (1<<5),
-	CHCR_CHEND0			= (1<<4),
+	CHCR_BYTE_SWAP16	= (1 << 6),
+	CHCR_BYTE_SWAP32	= (1 << 4),
 	CHCR_DIR			= (1<<3),
 	CHCR_DEV_TO_MEM		= CHCR_DIR,
 	CHCR_MEM_TO_DEV		= 0,
