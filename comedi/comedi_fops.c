@@ -1802,7 +1802,7 @@ static void __exit comedi_cleanup(void)
 
 	for(i = 0; i < COMEDI_NDEVICES; i++){
 		char name[20];
-		class_device_destroy(comedi_class, comedi_devices[i].class_dev->devt);
+		class_device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, i));
 		sprintf(name, "comedi%d", i);
 	}
 	class_destroy(comedi_class);

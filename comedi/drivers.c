@@ -73,7 +73,9 @@ static void cleanup_device_allocations(comedi_device *dev)
 			s = dev->subdevices + i;
 			if(s->class_dev)
 			{
-				class_device_destroy(comedi_class, s->class_dev->devt);
+				unsigned minor = comedi_construct_minor_for_subdevice(dev, i);
+				dev_t devt = MKDEV(COMEDI_MAJOR, minor);
+				class_device_destroy(comedi_class, devt);
 			}
 			if(s->async)
 			{
