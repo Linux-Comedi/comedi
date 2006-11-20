@@ -316,7 +316,8 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	if(num_memory_bits == 32 && num_device_bits == 16)
 	{
 		/* Doing a combined 32 and 16 bit byteswap gets the 16 bit samples into the fifo in the right order.
-		 Tested doing 32 bit memory to 16 bit device transfers to the analog out of a pxi-6281 */
+		 Tested doing 32 bit memory to 16 bit device transfers to the analog out of a pxi-6281,
+		 which has mite version = 1, type = 4*/
 		chcr |= CHCR_BYTE_SWAP16 | CHCR_BYTE_SWAP32;
 	}
 	if(mite_chan->dir == COMEDI_INPUT){

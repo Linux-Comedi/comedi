@@ -759,7 +759,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_622x,
 		ao_unipolar:    0,
 		.caldac = {caldac_none},
 		has_8255:	0,
@@ -775,7 +775,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_622x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_622x,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
 		.caldac = {caldac_none},
@@ -792,7 +792,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_622x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_622x,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
 		.caldac = {caldac_none},
@@ -808,7 +808,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_622x,
 		ao_unipolar:    0,
 // 		ao_speed:	0,
 		.caldac = {caldac_none},
@@ -825,7 +825,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_622x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_622x,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
 		.caldac = {caldac_none},
@@ -842,7 +842,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_622x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_622x,
 		ao_unipolar:    0,
 // 		ao_speed:	1200,
 		.caldac = {caldac_none},
@@ -858,7 +858,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_625x,
 		ao_unipolar:    0,
 		.caldac = {caldac_none},
 		has_8255:	0,
@@ -874,7 +874,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_625x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_625x,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
 		.caldac = {caldac_none},
@@ -890,7 +890,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_625x,
 		ao_unipolar:    0,
 		.caldac = {caldac_none},
 		has_8255:	0,
@@ -906,7 +906,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_625x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_625x,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
 		.caldac = {caldac_none},
@@ -923,7 +923,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_625x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_625x,
 		ao_unipolar:    0,
 // 		ao_speed:	357,
 		.caldac = {caldac_none},
@@ -939,7 +939,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  8191,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_628x,
 		ao_unipolar:    0,
 		.caldac = {caldac_none},
 		has_8255:	0,
@@ -955,7 +955,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_628x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_628x,
 		ao_unipolar:    1,
 // 		ao_speed:	357,
 		.caldac = {caldac_none},
@@ -972,7 +972,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_628x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_628x,
 		ao_unipolar:    1,
 // 		ao_speed:	357,
 		.caldac = {caldac_none},
@@ -988,7 +988,7 @@ static ni_board ni_boards[]={
 		n_aochan:       0,
 		aobits:         0,
 		ao_fifo_depth:  0,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_628x,
 		ao_unipolar:    0,
 		.caldac = {caldac_none},
 		has_8255:	0,
@@ -1004,7 +1004,7 @@ static ni_board ni_boards[]={
 		aobits:         16,
 		ao_fifo_depth:  8191,
 		.ao_range_table = &range_ni_M_628x_ao,
-		reg_type:	ni_reg_m_series,
+		reg_type:	ni_reg_628x,
 		ao_unipolar:    1,
 // 		ao_speed:	357,
 		.caldac = {caldac_none},
@@ -1384,7 +1384,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
 
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		devpriv->stc_writew = &m_series_stc_writew;
 		devpriv->stc_readw = &m_series_stc_readw;
@@ -1403,7 +1403,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	}
 
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		m_series_init_eeprom_buffer(dev);
 	if(boardtype.reg_type == ni_reg_6143)
 		init_6143(dev);

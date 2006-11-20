@@ -4,7 +4,7 @@
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1997-2001 David A. Schleef <ds@schleef.org>
-    Copyright (C) 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net
+    Copyright (C) 2002-2006 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -334,6 +334,14 @@ static void ni_flush_ai_fifo(comedi_device *dev){
 	}
 	else {
 		devpriv->stc_writew(dev, 1,ADC_FIFO_Clear);
+		if(boardtype.reg_type == ni_reg_625x)
+		{
+			ni_writeb(0, M_Offset_Static_AI_Control(0));
+			ni_writeb(1, M_Offset_Static_AI_Control(0));
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+		}
 	}
 }
 
@@ -1193,11 +1201,8 @@ static void ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	case ni_reg_6143:
 		mite_prep_dma(mite, AI_DMA_CHAN, 32, 16);
 		break;
-	case ni_reg_m_series:
-		if(boardtype.adbits > 16)
-			mite_prep_dma(mite, AI_DMA_CHAN, 32, 32);
-		else
-			mite_prep_dma(mite, AI_DMA_CHAN, 16, 16);	//guess
+	case ni_reg_628x:
+		mite_prep_dma(mite, AI_DMA_CHAN, 32, 32);
 		break;
 	default:
 		mite_prep_dma(mite, AI_DMA_CHAN, 16, 16);
@@ -1222,25 +1227,14 @@ static void ni_ao_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	}else
 	{
 		/* doing 32 instead of 16 bit wide transfers from memory
-		 makes the mite do 32 bit pci transfers, doubling pci bandwidth.
-		 However, it causes the sample order to get screwed up so
-		 I'm not going to bother. */
-		mite_prep_dma(mite, AO_DMA_CHAN, 16, 16);
+		 makes the mite do 32 bit pci transfers, doubling pci bandwidth. */
+		mite_prep_dma(mite, AO_DMA_CHAN, 16, 32);
 	}
 	/*start the MITE*/
 	mite_dma_arm(mite, AO_DMA_CHAN);
 }
 
 #endif // PCIDMA
-
-void ni_m_series_adc_reset(comedi_device *dev)
-{
-	ni_writeb(0, M_Offset_Static_AI_Control(0));
-	ni_writeb(1, M_Offset_Static_AI_Control(0));
-	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
-	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
-	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
-}
 
 /*
    used for both cancel ioctl and board initialization
@@ -1281,7 +1275,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 			AI_EXTMUX_CLK_Output_Select(0) |
 			AI_LOCALMUX_CLK_Output_Select(2) |
 			AI_SC_TC_Output_Select(3) |
-			AI_CONVERT_Output_Select(3),AI_Output_Control_Register);
+			AI_CONVERT_Output_Select(AI_CONVERT_Output_Enable_High), AI_Output_Control_Register);
 	}else if(boardtype.reg_type == ni_reg_6143){
 		devpriv->stc_writew(dev, AI_SHIFTIN_Pulse_Width |
 			AI_SOC_Polarity |
@@ -1290,17 +1284,22 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 			AI_EXTMUX_CLK_Output_Select(0) |
 			AI_LOCALMUX_CLK_Output_Select(2) |
 			AI_SC_TC_Output_Select(3) |
-			AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
+			AI_CONVERT_Output_Select(AI_CONVERT_Output_Enable_Low),AI_Output_Control_Register);
 	}else{
+		unsigned ai_output_control_bits;
 		devpriv->stc_writew(dev, AI_SHIFTIN_Pulse_Width |
 			AI_SOC_Polarity |
 			AI_CONVERT_Pulse_Width |
 			AI_LOCALMUX_CLK_Pulse_Width, AI_Personal_Register);
-		devpriv->stc_writew(dev, AI_SCAN_IN_PROG_Output_Select(3) |
+		ai_output_control_bits = AI_SCAN_IN_PROG_Output_Select(3) |
 			AI_EXTMUX_CLK_Output_Select(0) |
 			AI_LOCALMUX_CLK_Output_Select(2) |
-			AI_SC_TC_Output_Select(3) |
-			AI_CONVERT_Output_Select(2),AI_Output_Control_Register);
+			AI_SC_TC_Output_Select(3);
+		if(boardtype.reg_type == ni_reg_622x)
+			ai_output_control_bits |= AI_CONVERT_Output_Select(AI_CONVERT_Output_Enable_High);
+		else
+			ai_output_control_bits |= AI_CONVERT_Output_Select(AI_CONVERT_Output_Enable_Low);
+		devpriv->stc_writew(dev, ai_output_control_bits, AI_Output_Control_Register);
 	}
 	/* the following registers should not be changed, because there
 	 * are no backup registers in devpriv.  If you want to change
@@ -1403,17 +1402,17 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 			data[n] = (((dl >> 16) & 0xFFFF) + signbits) & 0xFFFF;
 		}
 	}else{
-		for(n=0;n<insn->n;n++){
+		for(n = 0; n < insn->n; n++){
 			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
-			for(i=0;i<NI_TIMEOUT;i++){
+			for(i = 0; i < NI_TIMEOUT; i++){
 				if(!(devpriv->stc_readw(dev, AI_Status_1_Register)&AI_FIFO_Empty_St))
 			 		break;
 			}
-			if(i==NI_TIMEOUT){
+			if(i == NI_TIMEOUT){
 				rt_printk("ni_mio_common: timeout in ni_ai_insn_read\n");
 				return -ETIME;
 			}
-			if(boardtype.reg_type == ni_reg_m_series)
+			if(boardtype.reg_type & ni_reg_m_series_mask)
 			{
 				data[n] = ni_readl(M_Offset_AI_FIFO_Data) & mask;
 			}else
@@ -1553,7 +1552,7 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	unsigned offset;
 	unsigned int dither;
 
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		ni_m_series_load_channelgain_list(dev, n_chan, list);
 		return;
@@ -2155,7 +2154,7 @@ static int ni_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_ANALOG_TRIG:
 		return ni_ai_config_analog_trig(dev,s,insn,data);
 	case INSN_CONFIG_ALT_SOURCE:
-		if(boardtype.reg_type == ni_reg_m_series)
+		if(boardtype.reg_type & ni_reg_m_series_mask)
 		{
 			if(data[1] & ~(MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
 				MSeries_AI_Bypass_Cal_Sel_Neg_Mask | MSeries_AI_Bypass_Mode_Mux_Mask |
@@ -2426,7 +2425,7 @@ static int ni_old_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 static int ni_ao_config_chanlist(comedi_device *dev, comedi_subdevice *s,
 	unsigned int chanspec[], unsigned int n_chans, int timed)
 {
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		return ni_m_series_ao_config_chanlist(dev, s, chanspec, n_chans, timed);
 	else
 		return ni_old_ao_config_chanlist(dev, s, chanspec, n_chans);
@@ -2449,7 +2448,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 
 	devpriv->ao[chan] = data[0];
 
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		ni_writew(data[0], M_Offset_DAC_Direct_Data(chan));
 	}
@@ -2624,16 +2623,19 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		if(cmd->scan_end_arg>1){
 			devpriv->ao_mode1|=AO_Multiple_Channels;
 			devpriv->stc_writew(dev, AO_Number_Of_Channels(cmd->scan_end_arg-1)|
-				AO_UPDATE_Output_Select(1),
+				AO_UPDATE_Output_Select(AO_Update_Output_High_Z),
 				AO_Output_Control_Register);
 		}else{
 			unsigned bits;
 			devpriv->ao_mode1&=~AO_Multiple_Channels;
-			bits = AO_UPDATE_Output_Select(1);
-			if(boardtype.reg_type == ni_reg_m_series)
+			bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
+			if(boardtype.reg_type & ni_reg_m_series_mask)
+			{
 				bits |= AO_Number_Of_Channels(0);
-			else
+			}else
+			{
 				bits |= AO_Number_Of_Channels(CR_CHAN(cmd->chanlist[0]));
+			}
 			devpriv->stc_writew(dev, bits, AO_Output_Control_Register);
 		}
 		devpriv->stc_writew(dev, devpriv->ao_mode1,AO_Mode_1_Register);
@@ -2659,7 +2661,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= AO_FIFO_Enable;
 	else
 		bits |= AO_DMA_PIO_Control;
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		bits |= AO_Number_Of_DAC_Packages/* | AO_Multiple_DACS_Per_Package*/;
 	devpriv->stc_writew(dev, bits, AO_Personal_Register);
 	// enable sending of ao dma requests
@@ -2800,7 +2802,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	devpriv->stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
 	devpriv->ao_mode2=0;
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		devpriv->ao_mode3 = AO_Last_Gate_Disable;
 	else
 		devpriv->ao_mode3 = 0;
@@ -3159,7 +3161,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		if(boardtype.adbits > 16)
 			s->subdev_flags |= SDF_LSAMPL;
-		if(boardtype.reg_type == ni_reg_m_series)
+		if(boardtype.reg_type & ni_reg_m_series_mask)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan=boardtype.n_adchan;
 		s->len_chanlist=512;
@@ -3182,7 +3184,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.n_aochan){
 		s->type=COMEDI_SUBD_AO;
 		s->subdev_flags=SDF_WRITABLE|SDF_DEGLITCH|SDF_GROUND;
-		if(boardtype.reg_type == ni_reg_m_series)
+		if(boardtype.reg_type & ni_reg_m_series_mask)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan=boardtype.n_aochan;
 		s->maxdata=(1<<boardtype.aobits)-1;
@@ -3203,7 +3205,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			s->do_cmd=ni_ao_cmd;
 			s->do_cmdtest=ni_ao_cmdtest;
 			s->len_chanlist = boardtype.n_aochan;
-			if(boardtype.reg_type != ni_reg_m_series)
+			if((boardtype.reg_type & ni_reg_m_series_mask) == 0)
 				s->munge=ni_ao_munge;
 		}
 		s->cancel=ni_ao_reset;
@@ -3221,7 +3223,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->io_bits=0;		/* all bits input */
 	s->range_table=&range_digital;
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		s->n_chan = 32;
 		s->insn_bits = ni_m_series_dio_insn_bits;
@@ -3265,7 +3267,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* calibration subdevice -- ai and ao */
 	s=dev->subdevices+5;
 	s->type=COMEDI_SUBD_CALIB;
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		// internal PWM analog output used for AI nonlinearity calibration
 		s->subdev_flags = SDF_INTERNAL;
@@ -3293,7 +3295,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->type=COMEDI_SUBD_MEMORY;
 	s->subdev_flags=SDF_READABLE|SDF_INTERNAL;
 	s->maxdata=0xff;
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		s->n_chan = M_SERIES_EEPROM_SIZE;
 		s->insn_read = &ni_m_series_eeprom_insn_read;
@@ -3306,7 +3308,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices + 7;
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		unsigned i;
 		s->n_chan = 16;
@@ -3364,8 +3366,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices+0);
-	if(boardtype.reg_type == ni_reg_m_series)
-		ni_m_series_adc_reset(dev);
 	if((boardtype.reg_type & ni_reg_6xxx_mask) == 0){
 		// BEAM is this needed for PCI-6143 ??
 		devpriv->clock_and_fout =
@@ -3412,7 +3412,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	if(boardtype.reg_type & ni_reg_6xxx_mask)
 	{
 		ni_writeb( 0, Magic_611x );
-	}else if(boardtype.reg_type == ni_reg_m_series)
+	}else if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
 		int channel;
 		for(channel = 0; channel < boardtype.n_aochan; ++channel)
@@ -4390,7 +4390,7 @@ static int ni_old_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned so
 
 static int ni_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		return ni_m_series_set_pfi_routing(dev, chan, source);
 	else
 		return ni_old_set_pfi_routing(dev, chan, source);
@@ -4446,7 +4446,7 @@ static unsigned ni_old_get_pfi_routing(comedi_device *dev, unsigned chan)
 
 static unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
 {
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		return ni_m_series_get_pfi_routing(dev, chan);
 	else
 		return ni_old_get_pfi_routing(dev, chan);
@@ -4455,7 +4455,7 @@ static unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
 static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	if(boardtype.reg_type != ni_reg_m_series)
+	if((boardtype.reg_type & ni_reg_m_series_mask) == 0)
 	{
 		data[1] = 0;
 		return 2;
@@ -4529,7 +4529,7 @@ static void ni_rtsi_init(comedi_device *dev)
 	devpriv->rtsi_trig_b_output_reg = RTSI_Trig_Output_Bits(4, NI_RTSI_OUTPUT_DA_START1) |
 		RTSI_Trig_Output_Bits(5, NI_RTSI_OUTPUT_G_SRC0) |
 		RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE0);
-	if(boardtype.reg_type == ni_reg_m_series)
+	if(boardtype.reg_type & ni_reg_m_series_mask)
 		devpriv->rtsi_trig_b_output_reg |= RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
 	devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
 		RTSI_Trig_B_Output_Register);
@@ -4593,7 +4593,7 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 
 static inline unsigned num_configurable_rtsi_channels(comedi_device *dev)
 {
-	if(boardtype.reg_type == ni_reg_m_series) return 8;
+	if(boardtype.reg_type & ni_reg_m_series_mask) return 8;
 	else return 7;
 }
 
@@ -4618,7 +4618,7 @@ static int ni_mseries_set_pll_master_clock(comedi_device *dev, unsigned source, 
 	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
 	devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
 	pll_control_bits = MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
-	devpriv->clock_and_fout2 |= MSeries_Timebase1_Select_Bit;
+	devpriv->clock_and_fout2 |= MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit;
 	devpriv->clock_and_fout2 &= ~MSeries_PLL_In_Source_Select_Mask;
 	switch(source)
 	{
@@ -4685,7 +4685,7 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
 		devpriv->clock_ns = 50;
-		if(boardtype.reg_type == ni_reg_m_series)
+		if(boardtype.reg_type & ni_reg_m_series_mask)
 		{
 			devpriv->clock_and_fout2 &= ~(MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit);
 			ni_writew(devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
@@ -4694,7 +4694,7 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 		devpriv->clock_source = source;
 	}else
 	{
-		if(boardtype.reg_type == ni_reg_m_series)
+		if(boardtype.reg_type & ni_reg_m_series_mask)
 		{
 			return ni_mseries_set_pll_master_clock(dev, source, period_ns);
 		}else
@@ -4750,7 +4750,7 @@ static int ni_valid_rtsi_output_source(comedi_device *dev, unsigned chan, unsign
 		return 1;
 		break;
 	case NI_RTSI_OUTPUT_RTSI_OSC:
-		if(boardtype.reg_type == ni_reg_m_series)
+		if(boardtype.reg_type & ni_reg_m_series_mask)
 			return 1;
 		else return 0;
 		break;
@@ -4804,7 +4804,7 @@ static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_DIO_OUTPUT:
 		if(chan < num_configurable_rtsi_channels(dev))
 		{
-			devpriv->rtsi_trig_direction_reg |= RTSI_Output_Bit(chan, boardtype.reg_type == ni_reg_m_series);
+			devpriv->rtsi_trig_direction_reg |= RTSI_Output_Bit(chan, (boardtype.reg_type & ni_reg_m_series_mask) != 0);
 		}else if(chan == old_RTSI_clock_channel)
 		{
 			devpriv->rtsi_trig_direction_reg |= Drive_RTSI_Clock_Bit;
@@ -4814,7 +4814,7 @@ static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_DIO_INPUT:
 		if(chan < num_configurable_rtsi_channels(dev))
 		{
-			devpriv->rtsi_trig_direction_reg &= ~RTSI_Output_Bit(chan, boardtype.reg_type == ni_reg_m_series);
+			devpriv->rtsi_trig_direction_reg &= ~RTSI_Output_Bit(chan, (boardtype.reg_type & ni_reg_m_series_mask) != 0);
 		}else if(chan == old_RTSI_clock_channel)
 		{
 			devpriv->rtsi_trig_direction_reg &= ~Drive_RTSI_Clock_Bit;
@@ -4824,7 +4824,7 @@ static int ni_rtsi_insn_config(comedi_device *dev,comedi_subdevice *s,
 	case INSN_CONFIG_DIO_QUERY:
 		if(chan < num_configurable_rtsi_channels(dev))
 		{
-			data[1] = (devpriv->rtsi_trig_direction_reg & RTSI_Output_Bit(chan, boardtype.reg_type == ni_reg_m_series)) ?
+			data[1] = (devpriv->rtsi_trig_direction_reg & RTSI_Output_Bit(chan, (boardtype.reg_type & ni_reg_m_series_mask) != 0)) ?
 				INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
 		}else if(chan == old_RTSI_clock_channel)
 		{

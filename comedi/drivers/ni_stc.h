@@ -349,7 +349,17 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 #define AI_EXTMUX_CLK_Output_Select(x)		(((x) & 0x3) << 6)
 #define AI_LOCALMUX_CLK_Output_Select(x)	((x)<<4)
 #define AI_SC_TC_Output_Select(x)		((x)<<2)
-#define AI_CONVERT_Output_Select(x)		(((x) & 0x3) << 0)
+enum ai_convert_output_selection
+{
+	AI_CONVERT_Output_High_Z = 0,
+	AI_CONVERT_Output_Ground = 1,
+	AI_CONVERT_Output_Enable_Low = 2,
+	AI_CONVERT_Output_Enable_High = 3
+};
+static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection selection)
+{
+	return selection & 0x3;
+}
 
 #define AI_START_STOP_Select_Register	62
 #define AI_START_Polarity			_bit15
@@ -506,7 +516,17 @@ static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel, unsigned b
 #define AO_UPDATE2_Output_Select(x)		(((x)&0x3)<<4)
 #define AO_External_Gate_Polarity		_bit3
 #define AO_UPDATE2_Output_Toggle		_bit2
-#define AO_UPDATE_Output_Select(x)		(((x)&0x3)<<0)
+enum ao_update_output_selection
+{
+	AO_Update_Output_High_Z = 0,
+	AO_Update_Output_Ground = 1,
+	AO_Update_Output_Enable_Low = 2,
+	AO_Update_Output_Enable_High = 3
+};
+static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selection)
+{
+	return selection & 0x3;
+}
 
 #define AI_Mode_3_Register		87
 #define AI_Trigger_Length			_bit15
@@ -851,8 +871,11 @@ enum ni_reg_type {
 	ni_reg_6713 = 0x4,
 	ni_reg_67xx_mask = 0x6,
 	ni_reg_6xxx_mask = 0x7,
-	ni_reg_m_series = 0x8,
-	ni_reg_6143 = 0x10
+	ni_reg_622x = 0x8,
+	ni_reg_625x = 0x10,
+	ni_reg_628x = 0x18,
+	ni_reg_m_series_mask = 0x18,
+	ni_reg_6143 = 0x20
 };
 
 static comedi_lrange range_ni_E_ao_ext;
