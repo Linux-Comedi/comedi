@@ -36,14 +36,20 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PXI-6071E, PXI-6070E,
   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
   PCI-6143
-Updated: Tue Oct 24 10:51:58 EDT 2006
+Updated: Wed Nov 29 10:30:36 EST 2006
 
 These boards are almost identical to the AT-MIO E series, except that
 they use the PCI bus instead of ISA (i.e., AT).  See the notes for
 the ni_atmio.o driver for additional information about these boards.
 
 Autocalibration is supported on many of the devices, using the
-calibration utility in Comedilib.
+comedi_calibrate (or comedi_soft_calibrate for m-series) utility.
+M-Series boards do analog input and analog output calibration entirely
+in software. The software calibration corrects
+the analog input for offset, gain and
+nonlinearity.  The analog outputs are corrected for offset and gain.
+See the comedilib documentation on comedi_get_softcal_converter() for
+more information.
 
 By default, the driver uses DMA to transfer analog input data to
 memory.  When DMA is enabled, not all triggering features are
@@ -63,15 +69,10 @@ Information (number of channels, bits, etc.) for some devices may be
 incorrect.  Please check this and submit a bug if there are problems
 for your device.
 
-M-Series boards do analog input and analog output calibration entirely
-in software. The software calibration corrects
-the analog input for offset, gain and
-nonlinearity.  The analog outputs are corrected for offset and gain.
-See the comedilib documentation on comedi_get_softcal_converter() for
-more information.
+SCXI is probably broken for m-series boards.
 
 Bugs:
- - When DMA is enabled, COMEDI_EV_SCAN_END and COMEDI_EV_CONVERT do
+ - When DMA is enabled, COMEDI_EV_CONVERT does
    not work correctly.
 
 */
