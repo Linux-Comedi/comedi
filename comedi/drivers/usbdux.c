@@ -387,7 +387,7 @@ static int usbdux_ai_cancel(comedi_device *dev,
 
 // analogue IN
 // interrupt service routine
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static void usbduxsub_ai_IsocIrq(struct urb *urb)
 #else
 static void usbduxsub_ai_IsocIrq(struct urb *urb, struct pt_regs *regs)
@@ -651,7 +651,7 @@ static int usbdux_ao_cancel(comedi_device *dev,
 
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static void usbduxsub_ao_IsocIrq(struct urb *urb) {
 #else
 static void usbduxsub_ao_IsocIrq(struct urb *urb, struct pt_regs *regs) {
