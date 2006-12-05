@@ -82,12 +82,6 @@ TODO:
 #include "8253.h"
 #include "comedi_fc.h"
 
-typedef enum
-{
-  false,
-  true
-} bool;
-
 #define PCI9111_DRIVER_NAME 	"adl_pci9111"
 #define PCI9111_HR_DEVICE_ID 	0x9111
 

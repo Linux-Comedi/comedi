@@ -122,8 +122,6 @@ static comedi_lrange range_acl8112dg_ai = { 9, {
 	BIP_RANGE( 10 )
 }};
 
-typedef int bool;
-
 /*
  * flags
  */
