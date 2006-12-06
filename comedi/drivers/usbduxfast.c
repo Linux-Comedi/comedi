@@ -1742,8 +1742,8 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	// analog input
 	s->type=COMEDI_SUBD_AI;
 	// readable and ref is to ground
-	s->subdev_flags=SDF_READABLE|SDF_GROUND;
-	// 8 channels
+	s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_CMD_READ;
+	// 16 channels
 	s->n_chan=16;
 	// length of the channellist
 	s->len_chanlist=16;
