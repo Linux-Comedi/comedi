@@ -780,7 +780,7 @@ static int das08_counter_config(comedi_device *dev,comedi_subdevice *s,comedi_in
 	if(insn->n != 2)return -EINVAL;
 
 	switch (data[0]){
-	case INSN_CONFIG_8254_SET_MODE:
+	case INSN_CONFIG_SET_COUNTER_MODE:
 		i8254_set_mode(&devpriv->i8254,chan,data[1]);
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:

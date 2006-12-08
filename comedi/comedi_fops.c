@@ -630,6 +630,8 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
 	case INSN_CONFIG_DIO_INPUT:
+	case INSN_CONFIG_ARM:
+	case INSN_CONFIG_DISARM:
 		if(insn->n == 1) return 0;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
@@ -637,16 +639,17 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_SERIAL_CLOCK:
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
 	case INSN_CONFIG_ALT_SOURCE:
-	case INSN_CONFIG_8254_SET_MODE:
+	case INSN_CONFIG_SET_COUNTER_MODE:
 	case INSN_CONFIG_8254_READ_STATUS:
-	case INSN_CONFIG_SET_GATE_SRC:
-	case INSN_CONFIG_GET_GATE_SRC:
 	case INSN_CONFIG_SET_ROUTING:
 	case INSN_CONFIG_GET_ROUTING:
 		if(insn->n == 2) return 0;
 		break;
+	case INSN_CONFIG_SET_GATE_SRC:
+	case INSN_CONFIG_GET_GATE_SRC:
 	case INSN_CONFIG_SET_CLOCK_SRC:
 	case INSN_CONFIG_GET_CLOCK_SRC:
+	case INSN_CONFIG_GET_COUNTER_STATUS:
 		if(insn->n == 3) return 0;
 		break;
 	case INSN_CONFIG_PWM_OUTPUT:

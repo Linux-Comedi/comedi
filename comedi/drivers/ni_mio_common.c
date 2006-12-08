@@ -3803,8 +3803,6 @@ static int pack_ad8842(int addr,int val,int *bitstring)
  * Low level stuff...Each STC counter has two 24 bit load registers
  * (A&B).  Just make it easier to access them.
  *
- * These are inlined _only_ because they are used once in subsequent
- * code.  Otherwise they should not be inlined.
  */
 static inline void GPCT_Load_A(comedi_device *dev, int chan, unsigned int value)
 {

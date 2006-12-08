@@ -8,7 +8,8 @@ LINK = $(top_builddir)/modtool --link -o $@ \
 	-i .mods/comedi_fc.o.symvers \
 	-i .mods/das08.o.symvers \
 	-i .mods/mite.o.symvers \
-	-i .mods/ni_labpc.o.symvers
+	-i .mods/ni_labpc.o.symvers \
+	-i .mods/ni_tio.o.symvers
 
 8255_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
@@ -20,13 +21,15 @@ mite_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 ni_labpc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
+ni_tio_ko_LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers
 
 8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 comedi_fc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 das08_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 ni_labpc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
-
+ni_tio_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 
 
 EXTRA_DIST = \
@@ -44,6 +47,7 @@ EXTRA_DIST = \
  ni_labpc.h \
  ni_mio_common.c \
  ni_stc.h \
+ ni_tio.h \
  plx9052.h \
  plx9080.h \
  rtd520.h \
@@ -144,6 +148,7 @@ module_PROGRAMS = \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
  ni_at_ao.ko \
+ ni_tio.ko \
  pcm3724.ko \
  pcm3730.ko \
  pcmad.ko \
@@ -241,6 +246,7 @@ ni_labpc_ko_SOURCES = ni_labpc.c
 ni_labpc_cs_ko_SOURCES = ni_labpc_cs.c
 ni_daq_dio24_ko_SOURCES = ni_daq_dio24.c
 ni_at_ao_ko_SOURCES = ni_at_ao.c
+ni_tio_ko_SOURCES = ni_tio.c
 pcm3724_ko_SOURCES = pcm3724.c
 pcm3730_ko_SOURCES = pcm3730.c
 pcmad_ko_SOURCES = pcmad.c
