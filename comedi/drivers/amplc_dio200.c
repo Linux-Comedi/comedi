@@ -113,7 +113,7 @@ instructions are supported:
     clock source in data[1].
 
   INSN_CONFIG_SET_GATE_SRC.  Sets the counter channel's gate source as
-    specified in data[1] (this is a hardware-specific value).  Not
+    specified in data[2] (this is a hardware-specific value).  Not
     supported on PC214E.  For the other boards, valid gate sources are 0
     to 7 as follows:
 
@@ -130,7 +130,7 @@ instructions are supported:
       7.  Reserved.
 
   INSN_CONFIG_GET_GATE_SRC.  Returns the counter channel's current gate
-    source in data[1].
+    source in data[2].
 
 Clock and gate interconnection notes:
 
@@ -1081,13 +1081,13 @@ dio200_subdev_8254_config(comedi_device *dev, comedi_subdevice *s,
 		data[1] = i8254_status(subpriv->iobase, chan);
 		break;
 	case INSN_CONFIG_SET_GATE_SRC:
-		ret = dio200_set_gate_src(subpriv, chan, data[1]);
+		ret = dio200_set_gate_src(subpriv, chan, data[2]);
 		if (ret < 0) return -EINVAL;
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
 		ret = dio200_get_gate_src(subpriv, chan);
 		if (ret < 0) return -EINVAL;
-		data[1] = ret;
+		data[2] = ret;
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		ret = dio200_set_clock_src(subpriv, chan, data[1]);

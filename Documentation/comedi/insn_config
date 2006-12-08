@@ -240,3 +240,13 @@ ID=INSN_CONFIG_GET_CLOCK_SRC: Ask which master clock is being used
 	[1] - clock source
 	[2] - clock period (nanoseconds)
 
+ID=INSN_CONFIG_SET_GATE_SRC: Select gate source.
+	[0] - ID
+	[1] - index identifying which gate we are configuring (0 if there is only one gate)
+	[2] - gate source
+
+ID=INSN_CONFIG_GET_GATE_SRC: Query gate
+	chanspec - the gate whose source is being queried (if the subdevice has multiple gates)
+	[0] - ID
+	[1] - index identifying which gate we are querying (0 if there is only one gate)
+	[2] - gate source
