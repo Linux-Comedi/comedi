@@ -560,7 +560,39 @@ enum ni_gpct_mode_bits
 	NI_GPCT_INVERT_OUTPUT_BIT = 0x20000000
 };
 
-/* clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
+/* Bits for setting a clock source with
+ * INSN_CONFIG_SET_CLOCK_SRC when using NI general-purpose counters. */
+enum ni_gpct_clock_source_bits
+{
+	NI_GPCT_CLOCK_SRC_SELECT_MASK = 0x2f,
+	NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS = 0x0,
+	NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS = 0x1,
+	NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS = 0x2,
+	NI_GPCT_LOGIC_LOW_CLOCK_SRC_BITS = 0x3,
+	NI_GPCT_NEXT_GATE_CLOCK_SRC_BITS = 0x4,
+	NI_GPCT_NEXT_TC_CLOCK_SRC_BITS = 0x5,
+	NI_GPCT_SOURCE_PIN_i_CLOCK_SRC_BITS = 0x6, /* NI 660x-specific */
+	NI_GPCT_PXI10_CLOCK_SRC_BITS = 0x7,
+	NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS = 0x8,
+	NI_GPCT_ANALOG_TRIGGER_CLOCK_SRC_BITS = 0x9,
+	/* modifier bits */
+	NI_GPCT_PRESCALE_CLOCK_SRC_BIT = 0x20000000,	/* divide source by 8 */
+	NI_GPCT_INVERT_CLOCK_SRC_BIT = 0x80000000
+};
+static inline unsigned NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(unsigned n) /* NI 660x-specific */
+{
+	return 0x10 + n;
+}
+static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n)
+{
+	return 0x18 + n;
+}
+static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n) /* no pfi on NI 660x */
+{
+	return 0x20 + n;
+}
+
+/* master clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
 enum ni_mio_clock_source
 {
 	NI_MIO_INTERNAL_CLOCK = 0,

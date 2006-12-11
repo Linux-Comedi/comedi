@@ -78,6 +78,13 @@ enum ni_gpct_register
 	NITIO_Num_Registers,
 };
 
+enum ni_gpct_variant
+{
+	ni_gpct_variant_e_series,
+	ni_gpct_variant_m_series,
+	ni_gpct_variant_660x
+};
+
 #define MAX_NUM_NITIO_REGS 0x40
 struct ni_gpct
 {
@@ -86,13 +93,8 @@ struct ni_gpct
 	unsigned chip_index;
 	void (*write_register)(struct ni_gpct *this, unsigned bits, enum ni_gpct_register);
 	unsigned (*read_register)(struct ni_gpct *this, enum ni_gpct_register);
-	/* update_clock_period() should update the clock_period_ns field appropriately for the
-	given source.  It is needed since the different hardware families provide different
-	clock sources. */
-	void (*update_clock_period)(struct ni_gpct *this, lsampl_t clock_source, lsampl_t period_ns);
-	lsampl_t clock_period_ns;
-	unsigned counting_mode_registers_present : 1;
-	unsigned second_gate_registers_present : 1;
+	enum ni_gpct_variant variant;
+	uint64_t clock_period_ps; /* clock period in picoseconds */
 	unsigned regs[MAX_NUM_NITIO_REGS];
 };
 
