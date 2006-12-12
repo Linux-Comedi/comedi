@@ -281,7 +281,7 @@ static void pci230_cancel_ct0(comedi_device *dev);
 #endif
 static void pci230_cancel_ct1(comedi_device *dev);
 static void pci230_cancel_ct2(comedi_device *dev);
-static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG);
 static int pci230_ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 static int pci230_ao_cmd(comedi_device *dev, comedi_subdevice *s);
 static int pci230_ao_cancel(comedi_device *dev, comedi_subdevice *s);
@@ -1399,7 +1399,7 @@ static void pci230_cancel_ct2(comedi_device *dev)
 }
 
 /* Interrupt handler */
-static irqreturn_t pci230_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int status_int;
 	comedi_device *dev = (comedi_device*) d;

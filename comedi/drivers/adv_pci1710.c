@@ -715,7 +715,7 @@ static void interrupt_pci1710_half_fifo(void *d)
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_service_pci1710(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 

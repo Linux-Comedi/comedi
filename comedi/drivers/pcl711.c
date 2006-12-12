@@ -179,7 +179,7 @@ typedef struct {
 
 #define devpriv ((pcl711_private *)dev->private)
 
-static irqreturn_t pcl711_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int lo, hi;
 	int data;

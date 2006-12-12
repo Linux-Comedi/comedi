@@ -944,7 +944,7 @@ static void pci9111_ai_munge(comedi_device *dev, comedi_subdevice *s, void *data
 #undef INTERRUPT_DEBUG
 
 static irqreturn_t
-pci9111_interrupt (int irq, void *p_device, struct pt_regs *regs)
+pci9111_interrupt (int irq, void *p_device PT_REGS_ARG)
 {
 	comedi_device *dev=p_device;
 	comedi_subdevice *subdevice = dev->read_subdev;

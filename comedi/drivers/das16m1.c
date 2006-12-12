@@ -141,7 +141,7 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s);
 static int das16m1_cancel(comedi_device *dev, comedi_subdevice *s);
 
 static int das16m1_poll(comedi_device *dev, comedi_subdevice *s);
-static irqreturn_t das16m1_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das16m1_interrupt(int irq, void *d PT_REGS_ARG);
 static void das16m1_handler(comedi_device *dev, unsigned int status);
 
 static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int round_flag);
@@ -464,7 +464,7 @@ static int das16m1_poll(comedi_device *dev, comedi_subdevice *s)
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
 
-static irqreturn_t das16m1_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das16m1_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int status;
 	comedi_device *dev = d;

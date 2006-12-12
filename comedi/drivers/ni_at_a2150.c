@@ -177,7 +177,7 @@ static comedi_driver driver_a2150={
 	detach:		a2150_detach,
 };
 
-static irqreturn_t a2150_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG);
 static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
 static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s);
 static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
@@ -202,7 +202,7 @@ static void ni_dump_regs(comedi_device *dev)
 #endif
 
 /* interrupt service routine */
-static irqreturn_t a2150_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int i;
 	int status;

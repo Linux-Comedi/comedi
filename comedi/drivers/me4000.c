@@ -189,8 +189,8 @@ static int ai_write_chanlist(
 
 static irqreturn_t me4000_ai_isr(
 	int irq,
-	void *dev_id,
-	struct pt_regs *regs);
+	void *dev_id
+	PT_REGS_ARG);
 
 static int me4000_ai_do_cmd_test(
 	comedi_device *dev,
@@ -1674,7 +1674,7 @@ static int me4000_ai_do_cmd_test(
 
 
 
-static irqreturn_t me4000_ai_isr(int irq, void *dev_id, struct pt_regs *regs){
+static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG){
     unsigned int tmp;
     comedi_device *dev = dev_id;
     comedi_subdevice *s = dev->subdevices;

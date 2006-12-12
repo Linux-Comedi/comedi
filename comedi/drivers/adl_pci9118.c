@@ -640,7 +640,7 @@ static void interrupt_pci9118_ai_dma(comedi_device *dev,comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_pci9118(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pci9118(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	unsigned int	int_daq=0,int_amcc,int_adstat;

@@ -734,7 +734,7 @@ static int rtd_ai_cmd ( comedi_device *dev, comedi_subdevice *s);
 static int rtd_ai_cancel ( comedi_device *dev, comedi_subdevice *s);
 //static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
 static int rtd_ns_to_timer (unsigned int *ns, int roundMode);
-static irqreturn_t rtd_interrupt ( int irq, void *d, struct pt_regs *regs);
+static irqreturn_t rtd_interrupt ( int irq, void *d PT_REGS_ARG);
 
 
 /*
@@ -1501,8 +1501,8 @@ static int ai_process_dma (
 */
 static irqreturn_t rtd_interrupt (
     int irq,				/* interrupt number (ignored) */
-    void *d,				/* our data */
-    struct pt_regs *regs)		/* cpu context (ignored) */
+    void *d				/* our data */
+    PT_REGS_ARG)		/* cpu context (ignored) */
 {
 	comedi_device *dev = d;		/* must be called "dev" for devpriv */
 	u16 status;

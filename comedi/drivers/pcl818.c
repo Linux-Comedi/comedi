@@ -499,7 +499,7 @@ static int pcl818_do_insn_bits(comedi_device *dev, comedi_subdevice *s,
    analog input interrupt mode 1 & 3, 818 cards
    one sample per interrupt version
 */
-static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -549,7 +549,7 @@ conv_finish:
 ==============================================================================
    analog input dma mode 1 & 3, 818 cards
 */
-static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -613,7 +613,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d, struct pt_re
 ==============================================================================
    analog input dma mode 1 & 3 over RTC, 818 cards
 */
-static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -701,7 +701,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d, struct p
 ==============================================================================
    analog input interrupt mode 1 & 3, 818HD/HG cards
 */
-static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -763,7 +763,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d, struct pt_r
 ==============================================================================
     INT procedure
 */
-static irqreturn_t interrupt_pcl818(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl818(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 
@@ -778,17 +778,17 @@ static irqreturn_t interrupt_pcl818(int irq, void *d, struct pt_regs *regs)
 	switch (devpriv->ai_mode) {
 	case INT_TYPE_AI1_DMA:
 	case INT_TYPE_AI3_DMA:
-		return interrupt_pcl818_ai_mode13_dma(irq, d, regs);
+		return interrupt_pcl818_ai_mode13_dma(irq, d);
 	case INT_TYPE_AI1_INT:
 	case INT_TYPE_AI3_INT:
-		return interrupt_pcl818_ai_mode13_int(irq, d, regs);
+		return interrupt_pcl818_ai_mode13_int(irq, d);
 	case INT_TYPE_AI1_FIFO:
 	case INT_TYPE_AI3_FIFO:
-		return interrupt_pcl818_ai_mode13_fifo(irq, d, regs);
+		return interrupt_pcl818_ai_mode13_fifo(irq, d);
 #ifdef PCL818_MODE13_AO
 	case INT_TYPE_AO1_INT:
 	case INT_TYPE_AO3_INT:
-		return interrupt_pcl818_ao_mode13_int(irq, d, regs);
+		return interrupt_pcl818_ao_mode13_int(irq, d);
 #endif
 	default:
 		break;

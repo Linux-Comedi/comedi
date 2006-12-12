@@ -1201,7 +1201,7 @@ pci224_ao_munge(comedi_device *dev, comedi_subdevice *s, void *data,
  * Interrupt handler.
  */
 static irqreturn_t
-pci224_interrupt(int irq, void *d, struct pt_regs *regs)
+pci224_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = &dev->subdevices[0];

@@ -1163,7 +1163,7 @@ static int ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
 static int ao_cmd(comedi_device *dev,comedi_subdevice *s);
 static int ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
 static int ao_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
-static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG);
 static int ai_cancel(comedi_device *dev, comedi_subdevice *s);
 static int ao_cancel(comedi_device *dev, comedi_subdevice *s);
 static int dio_callback(int dir, int port, int data, unsigned long arg);
@@ -3044,7 +3044,7 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned short status,
 	cfc_handle_events( dev, s );
 }
 
-static irqreturn_t handle_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	unsigned short status;

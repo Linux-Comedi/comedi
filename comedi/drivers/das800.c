@@ -255,7 +255,7 @@ static comedi_driver driver_das800={
 	offset:		sizeof(das800_board),
 };
 
-static irqreturn_t das800_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG);
 static void enable_das800(comedi_device *dev);
 static void disable_das800(comedi_device *dev);
 static int das800_ai_do_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
@@ -345,7 +345,7 @@ static int das800_probe(comedi_device *dev)
 COMEDI_INITCLEANUP(driver_das800);
 
 /* interrupt service routine */
-static irqreturn_t das800_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	short i;		/* loop index */
 	sampl_t dataPoint = 0;

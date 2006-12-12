@@ -139,7 +139,7 @@ static comedi_driver driver_rti800={
 };
 COMEDI_INITCLEANUP(driver_rti800);
 
-static irqreturn_t rti800_interrupt(int irq, void *dev, struct pt_regs *regs);
+static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG);
 
 typedef struct {
 	enum {
@@ -165,7 +165,7 @@ typedef struct {
 
 #define RTI800_TIMEOUT 100
 
-static irqreturn_t rti800_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 {
 	return IRQ_HANDLED;
 }

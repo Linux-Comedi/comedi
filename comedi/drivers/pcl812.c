@@ -848,7 +848,7 @@ static int pcl812_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 {
 	char err=1;
 	unsigned int mask, timeout;
@@ -931,7 +931,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -976,12 +976,12 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d, struct pt_regs *reg
 /*
 ==============================================================================
 */
-static irqreturn_t interrupt_pcl812(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl812(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 
-	if (devpriv->ai_dma) { return interrupt_pcl812_ai_dma(irq, d, regs); }
-			else { return interrupt_pcl812_ai_int(irq, d, regs); };
+	if (devpriv->ai_dma) { return interrupt_pcl812_ai_dma(irq, d); }
+			else { return interrupt_pcl812_ai_int(irq, d); };
 }
 
 /*

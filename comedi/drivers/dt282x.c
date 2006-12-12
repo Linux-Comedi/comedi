@@ -578,7 +578,7 @@ static int prep_ao_dma(comedi_device * dev,int dma_index,int n)
 	return n;
 }
 
-static irqreturn_t dt282x_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices+0;

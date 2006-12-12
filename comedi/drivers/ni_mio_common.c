@@ -433,7 +433,7 @@ static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
 }
 
 
-static irqreturn_t ni_E_interrupt(int irq,void *d,struct pt_regs * regs)
+static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev=d;
 	unsigned short a_status;

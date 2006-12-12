@@ -466,7 +466,7 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s);
 static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *subdev, unsigned int trig_num);
 static int cb_pcidas_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd);
-static irqreturn_t cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG);
 static void handle_ao_interrupt(comedi_device *dev, unsigned int status);
 static int cb_pcidas_cancel(comedi_device *dev, comedi_subdevice *s);
 static int cb_pcidas_ao_cancel(comedi_device *dev, comedi_subdevice *s);
@@ -1492,7 +1492,7 @@ static int cb_pcidas_ao_inttrig(comedi_device *dev, comedi_subdevice *s, unsigne
 	return 0;
 }
 
-static irqreturn_t cb_pcidas_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = (comedi_device*) d;
 	comedi_subdevice *s = dev->read_subdev;

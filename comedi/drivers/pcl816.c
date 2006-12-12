@@ -285,7 +285,7 @@ static int pcl816_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
    one sample per interrupt version
 */
 static irqreturn_t
-interrupt_pcl816_ai_mode13_int (int irq, void *d, struct pt_regs *regs)
+interrupt_pcl816_ai_mode13_int (int irq, void *d)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -370,7 +370,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 }
 
 
-static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d)
 {
   comedi_device *dev = d;
   comedi_subdevice *s = dev->subdevices + 0;
@@ -417,7 +417,7 @@ static irqreturn_t interrupt_pcl816_ai_mode13_dma(int irq, void *d, struct pt_re
     INT procedure
 */
 static irqreturn_t
-interrupt_pcl816 (int irq, void *d, struct pt_regs *regs)
+interrupt_pcl816 (int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	DPRINTK("<I>");
@@ -431,10 +431,10 @@ interrupt_pcl816 (int irq, void *d, struct pt_regs *regs)
 	switch (devpriv->int816_mode)  {
     case INT_TYPE_AI1_DMA:
     case INT_TYPE_AI3_DMA:
-		return interrupt_pcl816_ai_mode13_dma (irq, d, regs);
+		return interrupt_pcl816_ai_mode13_dma (irq, d);
     case INT_TYPE_AI1_INT:
     case INT_TYPE_AI3_INT:
-		return interrupt_pcl816_ai_mode13_int (irq, d, regs);
+		return interrupt_pcl816_ai_mode13_int (irq, d);
     }
 
 

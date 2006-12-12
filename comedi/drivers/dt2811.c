@@ -255,7 +255,7 @@ static comedi_lrange *dac_range_types[] =
 #define DT2811_TIMEOUT 5
 
 #if 0
-static void dt2811_interrupt(int irq, void *d, struct pt_regs *regs)
+static void dt2811_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int lo, hi;
 	int data;

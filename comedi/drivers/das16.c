@@ -333,7 +333,7 @@ static void das16_ai_munge(comedi_device *dev, comedi_subdevice *s, void *array,
 	unsigned int num_bytes, unsigned int start_chan_index);
 
 static void das16_reset(comedi_device *dev);
-static irqreturn_t das16_dma_interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG);
 static void das16_timer_interrupt(unsigned long arg);
 static void das16_interrupt(comedi_device *dev);
 
@@ -1142,7 +1142,7 @@ static int das16_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 }
 
 
-static irqreturn_t das16_dma_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int status;
 	comedi_device *dev = d;

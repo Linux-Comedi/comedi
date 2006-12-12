@@ -264,7 +264,7 @@ static int parport_intr_cancel(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
-static irqreturn_t parport_interrupt(int irq,void *d,struct pt_regs *regs)
+static irqreturn_t parport_interrupt(int irq,void *d PT_REGS_ARG)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices+3;

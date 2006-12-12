@@ -97,7 +97,7 @@ This driver has suffered bitrot.
 #define	C0 0x00
 #define	C1 0x40
 #define	C2 0x80
-#define	RWLH 0x30 
+#define	RWLH 0x30
 
 static int das6402_attach(comedi_device *dev,comedi_devconfig *it);
 static int das6402_detach(comedi_device *dev);
@@ -124,7 +124,7 @@ static void das6402_setcounter(comedi_device *dev)
 	BYTE p;
 	unsigned short ctrlwrd;
 
-	/* set up counter0 first, mode 0 */    
+	/* set up counter0 first, mode 0 */
 	p=M0|C0|RWLH;
 	outb_p(p,dev->iobase+15);
 	ctrlwrd=2000;
@@ -152,7 +152,7 @@ static void das6402_setcounter(comedi_device *dev)
 	outb_p(p,dev->iobase+14);
 }
 
-static irqreturn_t intr_handler(int irq,void *d,struct pt_regs *regs)
+static irqreturn_t intr_handler(int irq,void *d PT_REGS_ARG)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices;
@@ -220,7 +220,7 @@ static int das6402_ai_cancel(comedi_device *dev,comedi_subdevice *s)
 	outw_p(SCANL,dev->iobase+2);  /* resets the card fifo */
 	outb_p(0,dev->iobase+9); /* disables interrupts */
 
-	outw_p(SCANL,dev->iobase+2);	
+	outw_p(SCANL,dev->iobase+2);
 
 	return 0;
 }
@@ -242,7 +242,7 @@ static int das6402_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *
 	/* um... ignoreirq is a nasty race condition */
 	devpriv->das6402_ignoreirq=0;
 
-	outw_p(SCANL,dev->iobase+2);	
+	outw_p(SCANL,dev->iobase+2);
 
 	return 0;
 }
@@ -256,12 +256,12 @@ static int board_init(comedi_device *dev)
 	devpriv->das6402_ignoreirq=1;
 
 	outb(0x07,dev->iobase+8);
-	
+
 	/* register 11  */
 	outb_p(MODE,dev->iobase+11);
 	b=BIP|SEM|MODE|GAIN|FIFOHFULL;
 	outb_p(b, dev->iobase+11);
-	
+
 	/* register 8   */
 	outb_p(EXTEND,dev->iobase+8);
 	b=EXTEND|MHZ;
@@ -274,7 +274,7 @@ static int board_init(comedi_device *dev)
 	outb_p(b,dev->iobase+9);
 
 	/* register 10   */
-	b=TGSEL|TGEN; 
+	b=TGSEL|TGEN;
 	outb_p(b,dev->iobase+10);
 
 	b=0x07;

@@ -952,7 +952,7 @@ dio200_subdev_intr_cleanup(comedi_device *dev, comedi_subdevice *s)
  * Interrupt service routine.
  */
 static irqreturn_t
-dio200_interrupt(int irq, void *d, struct pt_regs *regs)
+dio200_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev=d;
 	int handled;

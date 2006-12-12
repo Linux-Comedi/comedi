@@ -600,11 +600,10 @@ static int icp_multi_insn_write_ctr(comedi_device * dev, comedi_subdevice * s, c
 	Parameters:
 		int irq
 		void *d			Pointer to current device
-		struct pt_regs *regs	Pointer to
 
 ==============================================================================
 */
-static irqreturn_t interrupt_service_icp_multi(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t interrupt_service_icp_multi(int irq, void *d PT_REGS_ARG)
 {
         comedi_device *dev = d;
 	int	int_no;

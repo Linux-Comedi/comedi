@@ -311,7 +311,7 @@ static int daqp_ai_cancel(comedi_device *dev, comedi_subdevice *s)
  * which run pretty quick.
  */
 
-static void daqp_interrupt(int irq, void * dev_id, struct pt_regs *regs)
+static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 {
 	local_info_t *local = (local_info_t *)dev_id;
 	comedi_device *dev = local->dev;

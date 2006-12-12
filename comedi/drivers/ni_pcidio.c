@@ -420,7 +420,7 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 	}
 }
 
-static irqreturn_t nidio_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s = dev->subdevices;

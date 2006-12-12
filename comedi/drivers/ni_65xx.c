@@ -449,7 +449,7 @@ static int ni_65xx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return insn->n;
 }
 
-static irqreturn_t ni_65xx_interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t ni_65xx_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 2;
