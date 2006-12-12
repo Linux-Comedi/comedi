@@ -28,6 +28,12 @@ typedef void irqreturn_t;
 #define IRQ_RETVAL(x) (void)(x)
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
+#define PT_REGS_ARG , struct pt_regs *regs
+#else
+#define PT_REGS_ARG
+#endif
+
 #include_next <linux/interrupt.h>
 
 #endif
