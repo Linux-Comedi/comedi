@@ -56,6 +56,29 @@ MODULE_AUTHOR("Comedi <comedi@comedi.org>");
 MODULE_DESCRIPTION("Comedi support for NI general-purpose counters");
 MODULE_LICENSE("GPL");
 
+static inline enum ni_gpct_register NITIO_Gi_Autoincrement_Reg(unsigned counter_index)
+{
+	switch(counter_index)
+	{
+	case 0:
+		return NITIO_G0_Autoincrement_Reg;
+		break;
+	case 1:
+		return NITIO_G1_Autoincrement_Reg;
+		break;
+	case 2:
+		return NITIO_G2_Autoincrement_Reg;
+		break;
+	case 3:
+		return NITIO_G3_Autoincrement_Reg;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+
 static inline enum ni_gpct_register NITIO_Gi_Command_Reg(unsigned counter_index)
 {
 	switch(counter_index)
@@ -578,15 +601,21 @@ enum Gxx_Status_Bits
 	G0_TC_Error_Bit = 0x1000,
 	G1_TC_Error_Bit = 0x2000
 };
-static inline unsigned G_Counting_Bit(unsigned counter_index)
+static inline unsigned Gi_Counting_Bit(unsigned counter_index)
 {
 	if(counter_index % 2) return G1_Counting_Bit;
 	return G0_Counting_Bit;
 }
-static inline unsigned G_Armed_Bit(unsigned counter_index)
+static inline unsigned Gi_Armed_Bit(unsigned counter_index)
 {
 	if(counter_index % 2) return G1_Armed_Bit;
 	return G0_Armed_Bit;
+}
+
+/* joint reset register bits */
+static inline unsigned Gi_Reset_Bit(unsigned counter_index)
+{
+	return 0x1 << (2 + (counter_index % 2));
 }
 
 static const lsampl_t counter_status_mask = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
@@ -638,14 +667,52 @@ static int ni_tio_second_gate_registers_present(struct ni_gpct *counter)
 	return 0;
 }
 
+void ni_tio_init_counter(struct ni_gpct *counter)
+{
+	/* reset counter */
+	counter->write_register(counter, Gi_Reset_Bit(counter->counter_index),
+		NITIO_Gxx_Joint_Reset_Reg(counter->counter_index));
+	/* initialize counter registers */
+	counter->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)] = 0x0;
+	counter->write_register(counter, counter->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)],
+		NITIO_Gi_Autoincrement_Reg(counter->counter_index));
+	counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)] = 0x0;
+	counter->write_register(counter, counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)],
+		NITIO_Gi_Command_Reg(counter->counter_index));
+	counter->regs[NITIO_Gi_Mode_Reg(counter->counter_index)] = 0x0;
+	counter->write_register(counter, counter->regs[NITIO_Gi_Mode_Reg(counter->counter_index)],
+		NITIO_Gi_Mode_Reg(counter->counter_index));
+	counter->regs[NITIO_Gi_LoadA_Reg(counter->counter_index)] = 0x0;
+	counter->write_register(counter, counter->regs[NITIO_Gi_LoadA_Reg(counter->counter_index)],
+		NITIO_Gi_LoadA_Reg(counter->counter_index));
+	counter->regs[NITIO_Gi_LoadB_Reg(counter->counter_index)] = 0x0;
+	counter->write_register(counter, counter->regs[NITIO_Gi_LoadB_Reg(counter->counter_index)],
+		NITIO_Gi_LoadB_Reg(counter->counter_index));
+	counter->regs[NITIO_Gi_Input_Select_Reg(counter->counter_index)] = 0x0;
+	counter->write_register(counter, counter->regs[NITIO_Gi_Input_Select_Reg(counter->counter_index)],
+		NITIO_Gi_Input_Select_Reg(counter->counter_index));
+	if(ni_tio_counting_mode_registers_present(counter))
+	{
+		counter->regs[NITIO_Gi_Counting_Mode_Reg(counter->counter_index)] = 0x0;
+		counter->write_register(counter, counter->regs[NITIO_Gi_Counting_Mode_Reg(counter->counter_index)],
+			NITIO_Gi_Counting_Mode_Reg(counter->counter_index));
+	}
+	if(ni_tio_second_gate_registers_present(counter))
+	{
+		counter->regs[NITIO_Gi_Second_Gate_Reg(counter->counter_index)] = 0x0;
+		counter->write_register(counter, counter->regs[NITIO_Gi_Second_Gate_Reg(counter->counter_index)],
+			NITIO_Gi_Second_Gate_Reg(counter->counter_index));
+	}
+}
+
 static lsampl_t ni_tio_counter_status(struct ni_gpct *counter)
 {
 	lsampl_t status = 0;
 	const unsigned bits = counter->read_register(counter, NITIO_Gxx_Status_Reg(counter->counter_index));
-	if(bits & G_Armed_Bit(counter->counter_index))
+	if(bits & Gi_Armed_Bit(counter->counter_index))
 	{
 		status |= COMEDI_COUNTER_ARMED;
-		if(bits & G_Counting_Bit(counter->counter_index))
+		if(bits & Gi_Counting_Bit(counter->counter_index))
 			status |= COMEDI_COUNTER_COUNTING;
 	}
 	return status;
@@ -1715,3 +1782,8 @@ int ni_tio_winsn(struct ni_gpct *counter,
 	}
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(ni_tio_rinsn);
+EXPORT_SYMBOL_GPL(ni_tio_winsn);
+EXPORT_SYMBOL_GPL(ni_tio_insn_config);
+EXPORT_SYMBOL_GPL(ni_tio_init_counter);
