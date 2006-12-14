@@ -554,6 +554,7 @@ enum ni_gpct_mode_bits
 	NI_GPCT_COUNTING_DIRECTION_HW_UP_DOWN_BITS = 0x2 << NI_GPCT_COUNTING_DIRECTION_SHIFT,
 	NI_GPCT_COUNTING_DIRECTION_HW_GATE_BITS = 0x3 << NI_GPCT_COUNTING_DIRECTION_SHIFT,
 	NI_GPCT_RELOAD_SOURCE_MASK = 0xc000000,
+	NI_GPCT_RELOAD_SOURCE_FIXED_BITS = 0x0,
 	NI_GPCT_RELOAD_SOURCE_SWITCHING_BITS = 0x4000000,
 	NI_GPCT_RELOAD_SOURCE_GATE_SELECT_BITS = 0x8000000,
 	NI_GPCT_OR_GATE_BIT = 0x10000000,
@@ -574,7 +575,7 @@ enum ni_gpct_clock_source_bits
 	NI_GPCT_SOURCE_PIN_i_CLOCK_SRC_BITS = 0x6, /* NI 660x-specific */
 	NI_GPCT_PXI10_CLOCK_SRC_BITS = 0x7,
 	NI_GPCT_PXI_STAR_TRIGGER_CLOCK_SRC_BITS = 0x8,
-	NI_GPCT_ANALOG_TRIGGER_CLOCK_SRC_BITS = 0x9,
+	NI_GPCT_ANALOG_TRIGGER_OUT_CLOCK_SRC_BITS = 0x9,
 	/* modifier bits */
 	NI_GPCT_PRESCALE_CLOCK_SRC_BIT = 0x20000000,	/* divide source by 8 */
 	NI_GPCT_INVERT_CLOCK_SRC_BIT = 0x80000000
@@ -590,6 +591,51 @@ static inline unsigned NI_GPCT_RTSI_CLOCK_SRC_BITS(unsigned n)
 static inline unsigned NI_GPCT_PFI_CLOCK_SRC_BITS(unsigned n) /* no pfi on NI 660x */
 {
 	return 0x20 + n;
+}
+
+/* Possibilities for setting a gate source with
+INSN_CONFIG_SET_GATE_SRC when using NI general-purpose counters.
+May be bitwise-or'd with CR_EDGE or CR_INVERT. */
+enum ni_gpct_gate_select
+{
+	/* m-series gates */
+	NI_GPCT_AI_START2_GATE_SELECT = 0x12,
+	NI_GPCT_PXI_STAR_TRIGGER_GATE_SELECT = 0x13,
+	NI_GPCT_NEXT_OUT_GATE_SELECT = 0x14,
+	NI_GPCT_AI_START1_GATE_SELECT = 0x1c,
+	NI_GPCT_NEXT_SOURCE_GATE_SELECT = 0x1d,
+	NI_GPCT_ANALOG_TRIGGER_OUT_GATE_SELECT = 0x1e,
+	NI_GPCT_LOGIC_LOW_GATE_SELECT = 0x1f,
+	/* more gates for 660x */
+	NI_GPCT_SOURCE_PIN_i_GATE_SELECT = 0x100,
+	NI_GPCT_GATE_PIN_i_GATE_SELECT = 0x101,
+	/* more gates for 660x "second gate" */
+	NI_GPCT_UP_DOWN_PIN_i_GATE_SELECT = 0x201,
+	NI_GPCT_SELECTED_GATE_GATE_SELECT = 0x21e,
+	/* m-series "second gate" sources are unknown */
+	NI_GPCT_DISABLED_GATE_SELECT = 0x10000,
+};
+static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n)
+{
+	return 0x102 + n;
+}
+static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n)
+{
+	if(n < 7)
+		return 0xb + n;
+	else
+		return 0x1b;
+}
+static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n)
+{
+	if(n < 10)
+		return 0x1 + n;
+	else
+		return 0xb + n;
+}
+static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
+{
+	return 0x202 + n;
 }
 
 /* master clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
