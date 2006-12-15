@@ -667,11 +667,15 @@ static int ni_tio_second_gate_registers_present(struct ni_gpct *counter)
 	return 0;
 }
 
-void ni_tio_init_counter(struct ni_gpct *counter)
+static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
 {
-	/* reset counter */
 	counter->write_register(counter, Gi_Reset_Bit(counter->counter_index),
 		NITIO_Gxx_Joint_Reset_Reg(counter->counter_index));
+}
+
+void ni_tio_init_counter(struct ni_gpct *counter)
+{
+	ni_tio_reset_count_and_disarm(counter);
 	/* initialize counter registers */
 	counter->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)] = 0x0;
 	counter->write_register(counter, counter->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)],
@@ -1701,6 +1705,10 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
 		return ni_tio_get_gate_src(counter, data[1], &data[2]);
+		break;
+	case INSN_CONFIG_RESET_COUNT:
+		ni_tio_reset_count_and_disarm(counter);
+		return 0;
 		break;
 	default:
 		break;
