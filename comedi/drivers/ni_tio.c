@@ -375,6 +375,25 @@ static inline unsigned Gi_Alternate_Sync_Bit(enum ni_gpct_variant variant)
 	}
 	return 0;
 }
+static inline unsigned Gi_Prescale_X2_Bit(enum ni_gpct_variant variant)
+{
+	switch(variant)
+	{
+	case ni_gpct_variant_e_series:
+		return 0;
+		break;
+	case ni_gpct_variant_m_series:
+		return Gi_M_Series_Prescale_X2_Bit;
+		break;
+	case ni_gpct_variant_660x:
+		return Gi_660x_Prescale_X2_Bit;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
 static inline unsigned Gi_Prescale_X8_Bit(enum ni_gpct_variant variant)
 {
 	switch(variant)
@@ -495,7 +514,6 @@ static inline unsigned NI_M_Series_PFI_Gate_Select(unsigned n)
 
 #define Gi_Source_Select_Shift 2
 #define Gi_Gate_Select_Shift 7
-/*FIXME: these gates are 660x specific.  See m-series example code for its gates/sources*/
 enum Gi_Input_Select_Bits
 {
 	Gi_Source_Select_Mask = 0x7c,
@@ -975,7 +993,7 @@ static void ni_tio_update_clock_period(struct ni_gpct *counter, lsampl_t clock_s
 	}
 }
 
-static void ni_tio_set_second_source_select(struct ni_gpct *counter, lsampl_t clock_source)
+static void ni_tio_set_source_subselect(struct ni_gpct *counter, lsampl_t clock_source)
 {
 	const unsigned second_gate_reg = NITIO_Gi_Second_Gate_Reg(counter->counter_index);
 
@@ -1006,7 +1024,7 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter, lsampl_t clock_source, 
 
 /*FIXME: add support for prescale in counting mode register */
 /*FIXME: add support for prescale x2*/
-/*FIXME: is clock period specified before or after prescaling? */
+/*FIXME: is clock period specified before or after prescaling?  I'm going to say after. */
 /*FIXME: validate clock source */
 	counter->regs[input_select_reg] &= ~Gi_Source_Select_Mask;
 	switch(counter->variant)
@@ -1027,15 +1045,29 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter, lsampl_t clock_source, 
 	else
 		counter->regs[input_select_reg] &= ~Gi_Source_Polarity_Bit;
 	counter->write_register(counter, counter->regs[input_select_reg], input_select_reg);
-	ni_tio_set_second_source_select(counter, clock_source);
+	ni_tio_set_source_subselect(counter, clock_source);
 	if(ni_tio_counting_mode_registers_present(counter))
 	{
 		const unsigned counting_mode_reg = NITIO_Gi_Counting_Mode_Reg(counter->counter_index);
+		const unsigned prescaling_mode = clock_source & NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK;
 
-		if(clock_source & NI_GPCT_PRESCALE_CLOCK_SRC_BIT)
-			counter->regs[counting_mode_reg] |= Gi_Prescale_X8_Bit(counter->variant);
-		else
+		switch(prescaling_mode)
+		{
+		case NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS:
+			counter->regs[counting_mode_reg] &= ~(Gi_Prescale_X2_Bit(counter->variant) | Gi_Prescale_X8_Bit(counter->variant));
+			break;
+		case NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS:
+			counter->regs[counting_mode_reg] |= Gi_Prescale_X2_Bit(counter->variant);
 			counter->regs[counting_mode_reg] &= ~Gi_Prescale_X8_Bit(counter->variant);
+			break;
+		case NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS:
+			counter->regs[counting_mode_reg] |= Gi_Prescale_X8_Bit(counter->variant);
+			counter->regs[counting_mode_reg] &= ~Gi_Prescale_X2_Bit(counter->variant);
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
 		counter->write_register(counter, counter->regs[counting_mode_reg], counting_mode_reg);
 	}
 	ni_tio_update_clock_period(counter, clock_source, period_ns);
@@ -1051,8 +1083,10 @@ static unsigned ni_tio_clock_src_modifiers(struct ni_gpct *counter)
 
 	if(counter->regs[input_select_reg] & Gi_Source_Polarity_Bit)
 		bits |= NI_GPCT_INVERT_CLOCK_SRC_BIT;
+	if(counter->regs[counting_mode_reg] & Gi_Prescale_X2_Bit(counter->variant))
+		bits |= NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS;
 	if(counter->regs[counting_mode_reg] & Gi_Prescale_X8_Bit(counter->variant))
-		bits |= NI_GPCT_PRESCALE_CLOCK_SRC_BIT;
+		bits |= NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS;
 	return bits;
 }
 
