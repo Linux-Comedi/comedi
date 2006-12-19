@@ -44,12 +44,6 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 
 */
 
-/* TODO:
-need to provide init function(s) that will init hardware and
-gpct_counter struct
-
- */
-
 #include "ni_tio.h"
 
 MODULE_AUTHOR("Comedi <comedi@comedi.org>");
@@ -319,7 +313,7 @@ enum Gi_Command_Reg_Bits
 	Gi_Up_Down_Hardware_IO_Bits = 0x2 << Gi_Up_Down_Shift,
 	Gi_Up_Down_Hardware_Gate_Bits = 0x3  << Gi_Up_Down_Shift,
 	Gi_Write_Switch_Bit = 0x80,
-	Gi_Synchronize_Gate_Bit = 0x100, /*FIXME: use as appropriate*/
+	Gi_Synchronize_Gate_Bit = 0x100,
 	Gi_Little_Big_Endian_Bit = 0x200,
 	Gi_Bank_Switch_Start_Bit = 0x400,
 	Gi_Bank_Switch_Mode_Bit = 0x800,
@@ -330,6 +324,7 @@ enum Gi_Command_Reg_Bits
 };
 
 #define Gi_Index_Phase_Bitshift 5
+#define Gi_HW_Arm_Select_Shift 8
 enum Gi_Counting_Mode_Reg_Bits
 {
 	Gi_Counting_Mode_Mask = 0x7,
@@ -346,10 +341,10 @@ enum Gi_Counting_Mode_Reg_Bits
 	Gi_Index_Phase_HighA_LowB = 0x2 << Gi_Index_Phase_Bitshift,
 	Gi_Index_Phase_HighA_HighB = 0x3 << Gi_Index_Phase_Bitshift,
 	Gi_HW_Arm_Enable_Bit = 0x80, /* from m-series example code, not documented in 660x register level manual */
-	Gi_660x_HW_Arm_Select_Mask = 0x700,  /* from m-series example code, not documented in 660x register level manual */
+	Gi_660x_HW_Arm_Select_Mask = 0x7 << Gi_HW_Arm_Select_Shift,  /* from m-series example code, not documented in 660x register level manual */
 	Gi_660x_Prescale_X8_Bit = 0x1000,
 	Gi_M_Series_Prescale_X8_Bit = 0x2000,
-	Gi_M_Series_HW_Arm_Select_Mask = 0x1f00,
+	Gi_M_Series_HW_Arm_Select_Mask = 0x1f << Gi_HW_Arm_Select_Shift,
 	/* must be set for clocks over 40MHz, which includes synchronous counting and quadrature modes */
 	Gi_660x_Alternate_Sync_Bit = 0x2000,
 	Gi_M_Series_Alternate_Sync_Bit = 0x4000,
@@ -406,6 +401,25 @@ static inline unsigned Gi_Prescale_X8_Bit(enum ni_gpct_variant variant)
 		break;
 	case ni_gpct_variant_660x:
 		return Gi_660x_Prescale_X8_Bit;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+static inline unsigned Gi_HW_Arm_Select_Mask(enum ni_gpct_variant variant)
+{
+	switch(variant)
+	{
+	case ni_gpct_variant_e_series:
+		return 0;
+		break;
+	case ni_gpct_variant_m_series:
+		return Gi_M_Series_HW_Arm_Select_Mask;
+		break;
+	case ni_gpct_variant_660x:
+		return Gi_660x_HW_Arm_Select_Mask;
 		break;
 	default:
 		BUG();
@@ -698,7 +712,7 @@ void ni_tio_init_counter(struct ni_gpct *counter)
 	counter->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)] = 0x0;
 	counter->write_register(counter, counter->regs[NITIO_Gi_Autoincrement_Reg(counter->counter_index)],
 		NITIO_Gi_Autoincrement_Reg(counter->counter_index));
-	counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)] = 0x0;
+	counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)] = Gi_Synchronize_Gate_Bit;
 	counter->write_register(counter, counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)],
 		NITIO_Gi_Command_Reg(counter->counter_index));
 	counter->regs[NITIO_Gi_Mode_Reg(counter->counter_index)] = 0x0;
@@ -848,14 +862,54 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 	return 0;
 }
 
-static void ni_tio_arm(struct ni_gpct *counter, int arm)
+static int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 {
-	unsigned bits = counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)];
+	unsigned command_bits = counter->regs[NITIO_Gi_Command_Reg(counter->counter_index)];
 	if(arm)
-		bits |= Gi_Arm_Bit;
-	else
-		bits |= Gi_Disarm_Bit;
-	counter->write_register(counter, bits, NITIO_Gi_Command_Reg(counter->counter_index));
+	{
+		switch(start_trigger)
+		{
+		case NI_GPCT_ARM_IMMEDIATE_START:
+			command_bits |= Gi_Arm_Bit;
+			break;
+		case NI_GPCT_ARM_PAIRED_IMMEDIATE_START:
+			command_bits |= Gi_Arm_Bit | Gi_Arm_Copy_Bit;
+			break;
+		default:
+			break;
+		}
+		if(ni_tio_counting_mode_registers_present(counter))
+		{
+			const unsigned counting_mode_reg = NITIO_Gi_Counting_Mode_Reg(counter->counter_index);
+			switch(start_trigger)
+			{
+			case NI_GPCT_ARM_IMMEDIATE_START:
+			case NI_GPCT_ARM_PAIRED_IMMEDIATE_START:
+				counter->regs[counting_mode_reg] &= ~Gi_HW_Arm_Enable_Bit;
+				break;
+			default:
+				if(start_trigger & NI_GPCT_ARM_UNKNOWN)
+				{
+					/* pass-through the least significant bits so we can figure out what select later */
+					unsigned hw_arm_select_bits;
+
+					counter->regs[counting_mode_reg] &= ~Gi_HW_Arm_Select_Mask(counter->variant);
+					hw_arm_select_bits = (start_trigger << Gi_HW_Arm_Select_Shift) & Gi_HW_Arm_Select_Mask(counter->variant);
+					counter->regs[counting_mode_reg] |= Gi_HW_Arm_Enable_Bit | hw_arm_select_bits;
+					counter->write_register(counter, counter->regs[counting_mode_reg], counting_mode_reg);
+				}else
+				{
+					return -EINVAL;
+				}
+				break;
+			}
+		}
+	}else
+	{
+		command_bits |= Gi_Disarm_Bit;
+	}
+	counter->write_register(counter, command_bits, NITIO_Gi_Command_Reg(counter->counter_index));
+	return 0;
 }
 
 static unsigned ni_660x_source_select_bits(lsampl_t clock_source)
@@ -1022,8 +1076,6 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter, lsampl_t clock_source, 
 {
 	const unsigned input_select_reg = NITIO_Gi_Input_Select_Reg(counter->counter_index);
 
-/*FIXME: add support for prescale in counting mode register */
-/*FIXME: add support for prescale x2*/
 /*FIXME: is clock period specified before or after prescaling?  I'm going to say after. */
 /*FIXME: validate clock source */
 	counter->regs[input_select_reg] &= ~Gi_Source_Select_Mask;
@@ -1715,11 +1767,10 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 		return ni_tio_set_counter_mode(counter, data[1]);
 		break;
 	case INSN_CONFIG_ARM:
-		ni_tio_arm(counter, 1);
-		return 0;
+		return ni_tio_arm(counter, 1, data[1]);
 		break;
 	case INSN_CONFIG_DISARM:
-		ni_tio_arm(counter, 0);
+		ni_tio_arm(counter, 0, 0);
 		return 0;
 		break;
 	case INSN_CONFIG_GET_COUNTER_STATUS:

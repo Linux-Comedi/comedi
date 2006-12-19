@@ -250,3 +250,10 @@ ID=INSN_CONFIG_GET_GATE_SRC: Query gate
 	[0] - ID
 	[1] - index identifying which gate we are querying (0 if there is only one gate)
 	[2] - gate source
+
+ID=INSN_CONFIG_ARM: Arm a device (such as a counter) to start on the specified source
+	[0] - ID
+	[1] - Source
+
+ID=INSN_CONFIG_DISARM: Disarm a device (such as a counter) and force it to stop.
+	[0] - ID

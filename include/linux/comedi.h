@@ -641,6 +641,19 @@ static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
 	return 0x202 + n;
 }
 
+/* start sources for ni general-purpose counters for use with
+INSN_CONFIG_ARM */
+enum ni_gpct_arm_source
+{
+	NI_GPCT_ARM_IMMEDIATE_START = 0x0,
+	NI_GPCT_ARM_PAIRED_IMMEDIATE_START = 0x1, /* Start both the counter and the adjacent paired counter simultaneously */
+	/* NI doesn't document bits for selecting hardware start triggers.  If
+	the NI_GPCT_ARM_UNKNOWN bit is set, we will pass the least significant
+	bits (3 bits for 660x or 5 bits for m-series) through to the hardware.
+	This will at least allow someone to figure out what the bits do later.*/
+	NI_GPCT_ARM_UNKNOWN = 0x1000,
+};
+
 /* master clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
 enum ni_mio_clock_source
 {
