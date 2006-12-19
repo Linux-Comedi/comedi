@@ -131,6 +131,7 @@ EXPORT_SYMBOL(comedi_poll);
 
 /* buffer configuration */
 EXPORT_SYMBOL(comedi_mark_buffer_read);
+EXPORT_SYMBOL(comedi_mark_buffer_written);
 
 //EXPORT_SYMBOL(comedi_get_range);
 EXPORT_SYMBOL(comedi_get_len_chanlist);
