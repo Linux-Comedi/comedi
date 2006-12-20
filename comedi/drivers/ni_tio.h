@@ -91,8 +91,8 @@ struct ni_gpct
 	comedi_device *dev;
 	unsigned counter_index;
 	unsigned chip_index;
-	void (*write_register)(struct ni_gpct *this, unsigned bits, enum ni_gpct_register);
-	unsigned (*read_register)(struct ni_gpct *this, enum ni_gpct_register);
+	void (*write_register)(struct ni_gpct *this, unsigned bits, enum ni_gpct_register reg);
+	unsigned (*read_register)(struct ni_gpct *this, enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	uint64_t clock_period_ps; /* clock period in picoseconds */
 	unsigned regs[MAX_NUM_NITIO_REGS];

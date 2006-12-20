@@ -46,6 +46,9 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 
 #include "ni_tio.h"
 
+static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter, unsigned generic_clock_source);
+static unsigned ni_tio_generic_clock_src_select(struct ni_gpct *counter);
+
 MODULE_AUTHOR("Comedi <comedi@comedi.org>");
 MODULE_DESCRIPTION("Comedi support for NI general-purpose counters");
 MODULE_LICENSE("GPL");
@@ -758,6 +761,7 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 {
 	const unsigned counting_mode_reg = NITIO_Gi_Counting_Mode_Reg(counter->counter_index);
 	static const uint64_t min_normal_sync_period_ps = 25000;
+	const uint64_t clock_period_ps = ni_tio_clock_period_ps(counter, ni_tio_generic_clock_src_select(counter));
 
 	if(ni_tio_counting_mode_registers_present(counter) == 0) return;
 
@@ -772,12 +776,11 @@ static void ni_tio_set_sync_mode(struct ni_gpct *counter, int force_alt_sync)
 	default:
 		break;
 	}
-	/* It's not clear what we should do if clock_period_ns is set to zero, so we are not
+	/* It's not clear what we should do if clock_period is unknown, so we are not
 	using the alt sync bit in that case, but allow the caller to decide by using the
 	force_alt_sync parameter. */
-	/* FIXME: take into account possibility of the divide-by-8 prescale*/
 	if(force_alt_sync ||
-		(counter->clock_period_ps && counter->clock_period_ps < min_normal_sync_period_ps))
+		(clock_period_ps && clock_period_ps < min_normal_sync_period_ps))
 	{
 		counter->regs[counting_mode_reg] |= Gi_Alternate_Sync_Bit(counter->variant);
 	}else
@@ -1023,30 +1026,6 @@ static unsigned ni_m_series_source_select_bits(lsampl_t clock_source)
 	return Gi_Source_Select_Bits(ni_m_series_clock);
 };
 
-static void ni_tio_update_clock_period(struct ni_gpct *counter, lsampl_t clock_source, lsampl_t period_ns)
-{
-	static const uint64_t pico_per_nano = 1000;
-
-	switch(clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK)
-	{
-	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
-		counter->clock_period_ps = 50000;
-		break;
-	case NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS:
-		counter->clock_period_ps = 10000000;
-		break;
-	case NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS:
-		counter->clock_period_ps = 12500;
-		break;
-	case NI_GPCT_PXI10_CLOCK_SRC_BITS:
-		counter->clock_period_ps = 100000;
-		break;
-	default:
-		counter->clock_period_ps = period_ns * pico_per_nano;
-		break;
-	}
-}
-
 static void ni_tio_set_source_subselect(struct ni_gpct *counter, lsampl_t clock_source)
 {
 	const unsigned second_gate_reg = NITIO_Gi_Second_Gate_Reg(counter->counter_index);
@@ -1075,8 +1054,8 @@ static void ni_tio_set_source_subselect(struct ni_gpct *counter, lsampl_t clock_
 static int ni_tio_set_clock_src(struct ni_gpct *counter, lsampl_t clock_source, lsampl_t period_ns)
 {
 	const unsigned input_select_reg = NITIO_Gi_Input_Select_Reg(counter->counter_index);
+	static const uint64_t pico_per_nano = 1000;
 
-/*FIXME: is clock period specified before or after prescaling?  I'm going to say after. */
 /*FIXME: validate clock source */
 	counter->regs[input_select_reg] &= ~Gi_Source_Select_Mask;
 	switch(counter->variant)
@@ -1122,7 +1101,7 @@ static int ni_tio_set_clock_src(struct ni_gpct *counter, lsampl_t clock_source, 
 		}
 		counter->write_register(counter, counter->regs[counting_mode_reg], counting_mode_reg);
 	}
-	ni_tio_update_clock_period(counter, clock_source, period_ns);
+	counter->clock_period_ps = pico_per_nano * period_ns;
 	ni_tio_set_sync_mode(counter, 0);
 	return 0;
 }
@@ -1257,24 +1236,71 @@ static unsigned ni_660x_clock_src_select(struct ni_gpct *counter)
 	return clock_source;
 }
 
-static void ni_tio_get_clock_src(struct ni_gpct *counter, lsampl_t *clock_source, lsampl_t *period_ns)
+static unsigned ni_tio_generic_clock_src_select(struct ni_gpct *counter)
 {
-	static const unsigned pico_per_nano = 1000;
-	uint64_t temp64;
 	switch(counter->variant)
 	{
 	case ni_gpct_variant_e_series:
 	case ni_gpct_variant_m_series:
-		*clock_source = ni_m_series_clock_src_select(counter);
+		return ni_m_series_clock_src_select(counter);
 		break;
 	case ni_gpct_variant_660x:
-		*clock_source = ni_660x_clock_src_select(counter);
+		return ni_660x_clock_src_select(counter);
 		break;
 	default:
 		BUG();
 		break;
 	}
-	temp64 = counter->clock_period_ps;
+	return 0;
+}
+
+static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter, unsigned generic_clock_source)
+{
+	uint64_t clock_period_ps;
+
+	switch(generic_clock_source & NI_GPCT_CLOCK_SRC_SELECT_MASK)
+	{
+	case NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS:
+		clock_period_ps = 50000;
+		break;
+	case NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS:
+		clock_period_ps = 10000000;
+		break;
+	case NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS:
+		clock_period_ps = 12500;
+		break;
+	case NI_GPCT_PXI10_CLOCK_SRC_BITS:
+		clock_period_ps = 100000;
+		break;
+	default:
+		/* clock period is specified by user with prescaling already taken into account. */
+		return counter->clock_period_ps;
+		break;
+	}
+
+	switch(generic_clock_source & NI_GPCT_PRESCALE_MODE_CLOCK_SRC_MASK)
+	{
+	case NI_GPCT_NO_PRESCALE_CLOCK_SRC_BITS:
+		break;
+	case NI_GPCT_PRESCALE_X2_CLOCK_SRC_BITS:
+		clock_period_ps *= 2;
+		break;
+	case NI_GPCT_PRESCALE_X8_CLOCK_SRC_BITS:
+		clock_period_ps *= 8;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return clock_period_ps;
+}
+
+static void ni_tio_get_clock_src(struct ni_gpct *counter, lsampl_t *clock_source, lsampl_t *period_ns)
+{
+	static const unsigned pico_per_nano = 1000;
+	uint64_t temp64;
+	*clock_source = ni_tio_generic_clock_src_select(counter);
+	temp64 = ni_tio_clock_period_ps(counter, *clock_source);
 	do_div(temp64, pico_per_nano);
 	*period_ns = temp64;
 }
