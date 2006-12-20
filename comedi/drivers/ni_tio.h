@@ -98,6 +98,7 @@ struct ni_gpct
 	unsigned regs[MAX_NUM_NITIO_REGS];
 };
 
+extern void ni_tio_init_counter(struct ni_gpct *counter);
 extern int ni_tio_rinsn(struct ni_gpct *counter,
 	comedi_insn *insn,
 	lsampl_t *data);
