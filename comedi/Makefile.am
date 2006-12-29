@@ -6,14 +6,14 @@ CLEANFILES = Modules.symvers
 if CONFIG_KBUILD
 module_PROGRAMS =
 all-local: comedi_kbuild.inc
-	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" V=1 modules
 install-data-local: comedi_kbuild.inc
-	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR="comedi" \
 		V=1 modules_install
 clean-local: comedi_kbuild.inc
-	make -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" V=1 clean
 else
 module_PROGRAMS = comedi.ko
