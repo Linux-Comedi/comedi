@@ -631,7 +631,7 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_DIO_OUTPUT:
 	case INSN_CONFIG_DIO_INPUT:
 	case INSN_CONFIG_DISARM:
-	case INSN_CONFIG_RESET_COUNT:
+	case INSN_CONFIG_RESET:
 		if(insn->n == 1) return 0;
 		break;
 	case INSN_CONFIG_ARM:

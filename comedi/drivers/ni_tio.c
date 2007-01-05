@@ -1818,7 +1818,7 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 	case INSN_CONFIG_GET_GATE_SRC:
 		return ni_tio_get_gate_src(counter, data[1], &data[2]);
 		break;
-	case INSN_CONFIG_RESET_COUNT:
+	case INSN_CONFIG_RESET:
 		ni_tio_reset_count_and_disarm(counter);
 		return 0;
 		break;
@@ -1877,16 +1877,24 @@ int ni_tio_winsn(struct ni_gpct *counter,
 	const unsigned channel = CR_CHAN(insn->chanspec);
 	const unsigned command_reg = NITIO_Gi_Command_Reg(counter->counter_index);
 	const unsigned mode_reg = NITIO_Gi_Mode_Reg(counter->counter_index);
+	unsigned load_reg;
 
 	if(insn->n < 1) return 0;
 	switch(channel)
 	{
 	case 0:
-		counter->regs[NITIO_Gi_LoadA_Reg(counter->counter_index)] = data[0];
-		counter->write_register(counter, data[0], NITIO_Gi_LoadA_Reg(counter->counter_index));
-		counter->regs[mode_reg] &= ~Gi_Load_Source_Select_Bit;
-		counter->write_register(counter, counter->regs[mode_reg], mode_reg);
+		/* don't disturb load source select, just use whichever load register is already selected. */
+		if(counter->regs[mode_reg] & Gi_Load_Source_Select_Bit)
+		{
+			load_reg = NITIO_Gi_LoadB_Reg(counter->counter_index);
+		}else
+		{
+			load_reg = NITIO_Gi_LoadA_Reg(counter->counter_index);
+		}
+		counter->write_register(counter, data[0], load_reg);
 		counter->write_register(counter, counter->regs[command_reg] | Gi_Load_Bit, command_reg);
+		/* restore state of load reg to whatever the user set last set it to */
+		counter->write_register(counter, counter->regs[load_reg], load_reg);
 		break;
 	case 1:
 		counter->regs[NITIO_Gi_LoadA_Reg(counter->counter_index)] = data[0];
