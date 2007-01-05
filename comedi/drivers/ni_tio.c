@@ -800,7 +800,8 @@ static int ni_tio_set_counter_mode(struct ni_gpct *counter, unsigned mode)
 	static const unsigned mode_reg_direct_mask = NI_GPCT_GATE_ON_BOTH_EDGES_BIT |
 		NI_GPCT_EDGE_GATE_MODE_MASK | NI_GPCT_STOP_MODE_MASK |
 		NI_GPCT_OUTPUT_MODE_MASK | NI_GPCT_HARDWARE_DISARM_MASK |
-		NI_GPCT_LOADING_ON_TC_BIT | NI_GPCT_LOADING_ON_GATE_BIT;
+		NI_GPCT_LOADING_ON_TC_BIT | NI_GPCT_LOADING_ON_GATE_BIT |
+		NI_GPCT_LOAD_B_SELECT_BIT;
 
 	switch(mode & NI_GPCT_RELOAD_SOURCE_MASK)
 	{
@@ -872,10 +873,10 @@ static int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 	{
 		switch(start_trigger)
 		{
-		case NI_GPCT_ARM_IMMEDIATE_START:
+		case NI_GPCT_ARM_IMMEDIATE:
 			command_bits |= Gi_Arm_Bit;
 			break;
-		case NI_GPCT_ARM_PAIRED_IMMEDIATE_START:
+		case NI_GPCT_ARM_PAIRED_IMMEDIATE:
 			command_bits |= Gi_Arm_Bit | Gi_Arm_Copy_Bit;
 			break;
 		default:
@@ -886,8 +887,8 @@ static int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 			const unsigned counting_mode_reg = NITIO_Gi_Counting_Mode_Reg(counter->counter_index);
 			switch(start_trigger)
 			{
-			case NI_GPCT_ARM_IMMEDIATE_START:
-			case NI_GPCT_ARM_PAIRED_IMMEDIATE_START:
+			case NI_GPCT_ARM_IMMEDIATE:
+			case NI_GPCT_ARM_PAIRED_IMMEDIATE:
 				counter->regs[counting_mode_reg] &= ~Gi_HW_Arm_Enable_Bit;
 				break;
 			default:

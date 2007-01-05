@@ -525,6 +525,7 @@ enum ni_gpct_mode_bits
 	NI_GPCT_STOP_ON_GATE_BITS = 0x00,
 	NI_GPCT_STOP_ON_GATE_OR_TC_BITS = 0x20,
 	NI_GPCT_STOP_ON_GATE_OR_SECOND_TC_BITS = 0x40,
+	NI_GPCT_LOAD_B_SELECT_BIT = 0x80,
 	NI_GPCT_OUTPUT_MODE_MASK = 0x300,
 	NI_GPCT_OUTPUT_TC_PULSE_BITS = 0x100,
 	NI_GPCT_OUTPUT_TC_TOGGLE_BITS = 0x200,
@@ -645,9 +646,9 @@ static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
 INSN_CONFIG_ARM */
 enum ni_gpct_arm_source
 {
-	NI_GPCT_ARM_IMMEDIATE_START = 0x0,
-	NI_GPCT_ARM_PAIRED_IMMEDIATE_START = 0x1, /* Start both the counter and the adjacent paired counter simultaneously */
-	/* NI doesn't document bits for selecting hardware start triggers.  If
+	NI_GPCT_ARM_IMMEDIATE = 0x0,
+	NI_GPCT_ARM_PAIRED_IMMEDIATE = 0x1, /* Start both the counter and the adjacent paired counter simultaneously */
+	/* NI doesn't document bits for selecting hardware arm triggers.  If
 	the NI_GPCT_ARM_UNKNOWN bit is set, we will pass the least significant
 	bits (3 bits for 660x or 5 bits for m-series) through to the hardware.
 	This will at least allow someone to figure out what the bits do later.*/

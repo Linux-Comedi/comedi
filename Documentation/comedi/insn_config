@@ -257,3 +257,12 @@ ID=INSN_CONFIG_ARM: Arm a device (such as a counter) to start on the specified s
 
 ID=INSN_CONFIG_DISARM: Disarm a device (such as a counter) and force it to stop.
 	[0] - ID
+
+ID=INSN_CONFIG_RESET_COUNT: Resets a counter's count to zero.  On NI general-purpose
+	counters, it also has the side-effect of disarming the counter.
+	[0] - ID
+
+ID=INSN_CONFIG_SET_COUNTER_MODE: Set a counter's mode.  The specific meaning of the
+	the mode field is hardware-dependent.
+	[0] - ID
+	[1] - mode
