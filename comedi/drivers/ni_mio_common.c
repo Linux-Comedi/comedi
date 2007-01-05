@@ -3134,6 +3134,18 @@ unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 	case NITIO_G1_Command_Reg:
 		stc_register = G_Command_Register(1);
 		break;
+	case NITIO_G0_HW_Save_Reg:
+		stc_register = G_HW_Save_Register(0);
+		break;
+	case NITIO_G1_HW_Save_Reg:
+		stc_register = G_HW_Save_Register(1);
+		break;
+	case NITIO_G0_SW_Save_Reg:
+		stc_register = G_Save_Register(0);
+		break;
+	case NITIO_G1_SW_Save_Reg:
+		stc_register = G_Save_Register(1);
+		break;
 	case NITIO_G0_Mode_Reg:
 		stc_register = G_Mode_Register(0);
 		break;
@@ -3171,6 +3183,7 @@ unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 		stc_register = Joint_Status_2_Register;
 		break;
 	default:
+		rt_printk("%s: unhandled register 0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();
 		return 0;
 		break;
