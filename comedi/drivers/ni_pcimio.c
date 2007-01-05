@@ -1184,6 +1184,12 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	case G_Autoincrement_Register(1):
 		offset = M_Offset_G1_Autoincrement;
 		break;
+	case G_Command_Register(0):
+		offset = M_Offset_G0_Command;
+		break;
+	case G_Command_Register(1):
+		offset = M_Offset_G1_Command;
+		break;
 	case G_Input_Select_Register(0):
 		offset = M_Offset_G0_Input_Select;
 		break;
@@ -1230,6 +1236,7 @@ static void m_series_stc_writew(comedi_device *dev, uint16_t data, int reg)
 	 and M_Offset_SCXI_Serial_Data_Out (8 bit) */
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		BUG();
 		return;
 		break;
 	}
@@ -1261,6 +1268,7 @@ static uint16_t m_series_stc_readw(comedi_device *dev, int reg)
 		break;
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		BUG();
 		return 0;
 		break;
 	}
@@ -1287,12 +1295,51 @@ static void m_series_stc_writel(comedi_device *dev, uint32_t data, int reg)
 	case AO_UI_Load_A_Register:
 		offset = M_Offset_AO_UI_Load_A;
 		break;
+	case G_Load_A_Register(0):
+		offset = M_Offset_G0_Load_A;
+		break;
+	case G_Load_A_Register(1):
+		offset = M_Offset_G1_Load_A;
+		break;
+	case G_Load_B_Register(0):
+		offset = M_Offset_G0_Load_B;
+		break;
+	case G_Load_B_Register(1):
+		offset = M_Offset_G1_Load_B;
+		break;
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		BUG();
 		return;
 		break;
 	}
 	ni_writel(data, offset);
+}
+
+static uint32_t m_series_stc_readl(comedi_device *dev, int reg)
+{
+	unsigned offset;
+	switch(reg)
+	{
+	case G_HW_Save_Register(0):
+		offset = M_Offset_G0_HW_Save;
+		break;
+	case G_HW_Save_Register(1):
+		offset = M_Offset_G1_HW_Save;
+		break;
+	case G_Save_Register(0):
+		offset = M_Offset_G0_Save;
+		break;
+	case G_Save_Register(1):
+		offset = M_Offset_G1_Save;
+		break;
+	default:
+		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
+		BUG();
+		return 0;
+		break;
+	}
+	return ni_readl(offset);
 }
 
 #define interrupt_pin(a)	0
@@ -1390,11 +1437,13 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		devpriv->stc_writew = &m_series_stc_writew;
 		devpriv->stc_readw = &m_series_stc_readw;
 		devpriv->stc_writel = &m_series_stc_writel;
+		devpriv->stc_readl = &m_series_stc_readl;
 	}else
 	{
 		devpriv->stc_writew = &e_series_win_out;
 		devpriv->stc_readw = &e_series_win_in;
 		devpriv->stc_writel = &win_out2;
+		devpriv->stc_readl = &win_in2;
 	}
 
 	ret = mite_setup(devpriv->mite);

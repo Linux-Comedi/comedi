@@ -358,7 +358,7 @@ static int ni_isapnp_find_board( struct pnp_dev **dev )
 {
 	struct pnp_dev *isapnp_dev = NULL;
 	int i;
-	
+
 	for( i = 0; i < n_ni_boards; i++ )
 	{
 		isapnp_dev = pnp_find_dev(NULL,
@@ -405,6 +405,7 @@ static int ni_atmio_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->stc_writew = &ni_atmio_win_out;
 	devpriv->stc_readw = &ni_atmio_win_in;
 	devpriv->stc_writel = &win_out2;
+	devpriv->stc_readl = &win_in2;
 
 	iobase=it->options[0];
 	irq=it->options[1];

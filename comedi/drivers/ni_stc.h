@@ -29,6 +29,8 @@
 #ifndef _COMEDI_NI_STC_H
 #define _COMEDI_NI_STC_H
 
+#include "ni_tio.h"
+
 #define _bit15		0x8000
 #define _bit14		0x4000
 #define _bit13		0x2000
@@ -1268,9 +1270,11 @@ static ni_board ni_boards[];
 #define boardtype (*(ni_board *)dev->board_ptr)
 
 #define MAX_N_AO_CHAN 8
+#define NUM_GPCT 2
 
 #define NI_PRIVATE_COMMON					\
 	uint16_t (*stc_readw)(comedi_device *dev, int register);	\
+	uint32_t (*stc_readl)(comedi_device *dev, int register);	\
 	void (*stc_writew)(comedi_device *dev, uint16_t value, int register);	\
 	void (*stc_writel)(comedi_device *dev, uint32_t value, int register);	\
 	\
@@ -1307,10 +1311,7 @@ static ni_board ni_boards[];
 	unsigned short ao_cmd3;					\
 	unsigned short ao_trigger_select;			\
 								\
-	unsigned short gpct_mode[2];				\
-	unsigned short gpct_command[2];				\
-	unsigned short gpct_input_select[2];			\
-	int gpct_cur_operation[2];				\
+	struct ni_gpct counters[NUM_GPCT];	\
 	unsigned short an_trig_etc_reg;				\
 								\
 	unsigned ai_offset[512];				\

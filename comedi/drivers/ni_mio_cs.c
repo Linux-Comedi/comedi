@@ -36,9 +36,9 @@ See the notes in the ni_atmio.o driver.
 	included by all the E series drivers.
 
 	References for specifications:
-	
+
 	   341080a.pdf  DAQCard E Series Register Level Programmer Manual
-	
+
 */
 
 #include <linux/comedidev.h>
@@ -275,7 +275,7 @@ static int cs_attach(struct pcmcia_device *p_dev)
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-	
+
 	link->next = dev_list;
 	dev_list = link;
 
@@ -302,9 +302,9 @@ static void cs_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
-	
+
 	DPRINTK("cs_detach(link=%p)\n",link);
-	
+
 	for(linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 		if (*linkp == link) break;
 	if (*linkp==NULL)
@@ -367,7 +367,7 @@ static void mio_cs_config(dev_link_t *link)
 	tuple.TupleOffset = 0;
 	tuple.TupleDataMax = 255;
 	tuple.Attributes = 0;
-	
+
 	tuple.DesiredTuple = CISTPL_CONFIG;
 	ret = pcmcia_get_first_tuple(handle, &tuple);
 	ret = pcmcia_get_tuple_data(handle, &tuple);
@@ -457,7 +457,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 	dev_link_t *link;
 	unsigned int irq;
 	int ret;
-	
+
 	DPRINTK("mio_cs_attach(dev=%p,it=%p)\n",dev,it);
 
 	link = dev_list; /* XXX hack */
@@ -490,7 +490,7 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 #endif
 
 	dev->board_ptr = ni_boards + ni_getboardtype(dev,link);
-	
+
 	printk(" %s",boardtype.name);
 	dev->board_name=boardtype.name;
 
@@ -499,14 +499,15 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 		return -EINVAL;
 	}
 	dev->irq = irq;
-	
+
 	/* allocate private area */
 	if((ret=ni_alloc_private(dev))<0)
 		return ret;
 	devpriv->stc_writew = &mio_cs_win_out;
 	devpriv->stc_readw = &mio_cs_win_in;
 	devpriv->stc_writel = &win_out2;
-	
+	devpriv->stc_readl = &win_in2;
+
 	if( (ret=ni_E_init(dev,it))<0 ){
 		return ret;
 	}
@@ -531,7 +532,7 @@ static int get_prodid(comedi_device *dev,dev_link_t *link)
 	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
 		prodid = le16_to_cpu(buf[1]);
 	}
-	
+
 	return prodid;
 }
 
@@ -539,7 +540,7 @@ static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
 {
 	int id;
 	int i;
-	
+
 	id = get_prodid(dev,link);
 
 	for(i=0;i<n_ni_boards;i++){
@@ -580,7 +581,7 @@ struct pcmcia_driver ni_mio_cs_driver =
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
-	},	
+	},
 };
 
 int init_module(void)
