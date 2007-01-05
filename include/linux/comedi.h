@@ -616,8 +616,9 @@ enum ni_gpct_gate_select
 	/* more gates for 660x "second gate" */
 	NI_GPCT_UP_DOWN_PIN_i_GATE_SELECT = 0x201,
 	NI_GPCT_SELECTED_GATE_GATE_SELECT = 0x21e,
-	/* m-series "second gate" sources are unknown */
-	NI_GPCT_DISABLED_GATE_SELECT = 0x10000,
+	/* m-series "second gate" sources are unknown,
+	we should add them here with an offset of 0x300 when known. */
+	NI_GPCT_DISABLED_GATE_SELECT = 0x8000,
 };
 static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n)
 {
