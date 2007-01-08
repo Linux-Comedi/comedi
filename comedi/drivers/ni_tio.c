@@ -959,6 +959,7 @@ static unsigned ni_660x_source_select_bits(lsampl_t clock_source)
 				break;
 			}
 		}
+		if(i <= ni_660x_max_rtsi_channel) break;
 		for(i = 0; i <= ni_660x_max_source_pin; ++i)
 		{
 			if(clock_select_bits == NI_GPCT_SOURCE_PIN_CLOCK_SRC_BITS(i))
@@ -967,6 +968,7 @@ static unsigned ni_660x_source_select_bits(lsampl_t clock_source)
 				break;
 			}
 		}
+		if(i <= ni_660x_max_source_pin) break;
 		ni_660x_clock = 0;
 		BUG();
 		break;
@@ -1017,6 +1019,7 @@ static unsigned ni_m_series_source_select_bits(lsampl_t clock_source)
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_rtsi_channel) break;
 		for(i = 0; i <= ni_m_series_max_pfi_channel; ++i)
 		{
 			if(clock_select_bits == NI_GPCT_PFI_CLOCK_SRC_BITS(i))
@@ -1025,6 +1028,8 @@ static unsigned ni_m_series_source_select_bits(lsampl_t clock_source)
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_pfi_channel) break;
+		rt_printk("invalid clock source 0x%lx\n", (unsigned long)clock_source);
 		BUG();
 		ni_m_series_clock = 0;
 		break;
@@ -1173,6 +1178,7 @@ static unsigned ni_m_series_clock_src_select(struct ni_gpct *counter)
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_rtsi_channel) break;
 		for(i = 0; i <= ni_m_series_max_pfi_channel; ++i)
 		{
 			if(input_select == NI_M_Series_PFI_Clock(i))
@@ -1181,6 +1187,7 @@ static unsigned ni_m_series_clock_src_select(struct ni_gpct *counter)
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_pfi_channel) break;
 		BUG();
 		break;
 	}
@@ -1227,6 +1234,7 @@ static unsigned ni_660x_clock_src_select(struct ni_gpct *counter)
 				break;
 			}
 		}
+		if(i <= ni_660x_max_rtsi_channel) break;
 		for(i = 0; i <= ni_660x_max_source_pin; ++i)
 		{
 			if(input_select == NI_660x_Source_Pin_Clock(i))
@@ -1235,6 +1243,7 @@ static unsigned ni_660x_clock_src_select(struct ni_gpct *counter)
 				break;
 			}
 		}
+		if(i <= ni_660x_max_source_pin) break;
 		BUG();
 		break;
 	}
@@ -1362,14 +1371,16 @@ static int ni_660x_set_first_gate(struct ni_gpct *counter, lsampl_t gate_source)
 				break;
 			}
 		}
-		for(i = 0; i <= ni_660x_max_source_pin; ++i)
+		if(i <= ni_660x_max_rtsi_channel) break;
+		for(i = 0; i <= ni_660x_max_gate_pin; ++i)
 		{
-			if(selected_gate == NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i))
+			if(selected_gate == NI_GPCT_GATE_PIN_GATE_SELECT(i))
 			{
 				ni_660x_gate_select = selected_gate & selected_gate_mask;
 				break;
 			}
 		}
+		if(i <= ni_660x_max_gate_pin) break;
 		return -EINVAL;
 		break;
 	}
@@ -1408,6 +1419,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter, lsampl_t gate_sou
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_rtsi_channel) break;
 		for(i = 0; i <= ni_m_series_max_pfi_channel; ++i)
 		{
 			if(selected_gate == NI_GPCT_PFI_GATE_SELECT(i))
@@ -1416,6 +1428,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter, lsampl_t gate_sou
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_pfi_channel) break;
 		return -EINVAL;
 		break;
 	}
@@ -1455,7 +1468,8 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter, lsampl_t gate_source
 				break;
 			}
 		}
-		for(i = 0; i <= ni_660x_max_source_pin; ++i)
+		if(i <= ni_660x_max_rtsi_channel) break;
+		for(i = 0; i <= ni_660x_max_up_down_pin; ++i)
 		{
 			if(selected_second_gate == NI_GPCT_UP_DOWN_PIN_GATE_SELECT(i))
 			{
@@ -1463,6 +1477,7 @@ static int ni_660x_set_second_gate(struct ni_gpct *counter, lsampl_t gate_source
 				break;
 			}
 		}
+		if(i <= ni_660x_max_up_down_pin) break;
 		return -EINVAL;
 		break;
 	};
@@ -1591,6 +1606,7 @@ static unsigned ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_
 				break;
 			}
 		}
+		if(i <= ni_660x_max_rtsi_channel) break;
 		for(i = 0; i <= ni_660x_max_gate_pin; ++i)
 		{
 			if(ni_660x_gate_select == NI_660x_Gate_Pin_Gate_Select(i))
@@ -1599,6 +1615,7 @@ static unsigned ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_
 				break;
 			}
 		}
+		if(i <= ni_660x_max_gate_pin) break;
 		BUG();
 		break;
 	}
@@ -1635,6 +1652,7 @@ static unsigned ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_seri
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_rtsi_channel) break;
 		for(i = 0; i <= ni_m_series_max_pfi_channel; ++i)
 		{
 			if(ni_m_series_gate_select == NI_M_Series_PFI_Gate_Select(i))
@@ -1643,6 +1661,7 @@ static unsigned ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_seri
 				break;
 			}
 		}
+		if(i <= ni_m_series_max_pfi_channel) break;
 		BUG();
 		break;
 	}
@@ -1682,6 +1701,7 @@ static unsigned ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate
 				break;
 			}
 		}
+		if(i <= ni_660x_max_rtsi_channel) break;
 		for(i = 0; i <= ni_660x_max_up_down_pin; ++i)
 		{
 			if(ni_660x_gate_select == NI_660x_Up_Down_Pin_Second_Gate_Select(i))
@@ -1690,6 +1710,7 @@ static unsigned ni_660x_second_gate_to_generic_gate_source(unsigned ni_660x_gate
 				break;
 			}
 		}
+		if(i <= ni_660x_max_up_down_pin) break;
 		BUG();
 		break;
 	}
