@@ -567,7 +567,7 @@ enum ni_gpct_mode_bits
  * INSN_CONFIG_SET_CLOCK_SRC when using NI general-purpose counters. */
 enum ni_gpct_clock_source_bits
 {
-	NI_GPCT_CLOCK_SRC_SELECT_MASK = 0x1f,
+	NI_GPCT_CLOCK_SRC_SELECT_MASK = 0x3f,
 	NI_GPCT_TIMEBASE_1_CLOCK_SRC_BITS = 0x0,
 	NI_GPCT_TIMEBASE_2_CLOCK_SRC_BITS = 0x1,
 	NI_GPCT_TIMEBASE_3_CLOCK_SRC_BITS = 0x2,
