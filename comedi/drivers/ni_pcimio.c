@@ -1266,6 +1266,9 @@ static uint16_t m_series_stc_readw(comedi_device *dev, int reg)
 	case Joint_Status_2_Register:
 		offset = M_Offset_Joint_Status_2;
 		break;
+	case G_Status_Register:
+		offset = M_Offset_G01_Status;
+		break;
 	default:
 		rt_printk("%s: bug! unhandled register=0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();
