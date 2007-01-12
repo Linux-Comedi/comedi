@@ -3117,7 +3117,7 @@ static void init_ao_67xx(comedi_device *dev, comedi_subdevice *s)
 		ni_ao_win_outw(dev, AO_Channel(i) | 0x0, AO_Configuration_2_67xx);
 }
 
-unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
+static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 {
 	unsigned stc_register;
 	switch(reg)
