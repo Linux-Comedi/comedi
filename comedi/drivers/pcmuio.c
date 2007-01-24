@@ -22,7 +22,7 @@
 /*
 Driver: pcmuio.o
 Description: A driver for the PCM-UIO48A and PCM-UIO96A boards from Winsystems.
-Devices: (Winsystems) PCM-UIO48A [pcmuio48], (Winsystems) PCM-UIO96A [pcmuio96]
+Devices: [Winsystems] PCM-UIO48A (pcmuio48), PCM-UIO96A
 Author: Calin Culianu <calin@ajvar.org>
 Updated: Fri, 13 Jan 2006 12:01:01 -0500
 Status: works
