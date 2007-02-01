@@ -683,7 +683,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 
 	for(i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i)
 	{
-		s = dev->subdevices + 1 + i;
+		s = dev->subdevices + 2 + i;
 		if(i < thisboard->n_ctrs)
 		{
 			s->type = COMEDI_SUBD_COUNTER;
