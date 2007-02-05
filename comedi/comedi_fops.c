@@ -599,11 +599,6 @@ static int do_insnlist_ioctl(comedi_device *dev,void *arg,void *file)
 		}
 		ret = parse_insn(dev,insns+i,data,file);
 		if(ret<0)goto error;
-		if(ret!=insns[i].n){
-			printk("BUG: result of insn != insn.n\n");
-			ret=-EINVAL;
-			goto error;
-		}
 		if(insns[i].insn&INSN_MASK_READ){
 			if(copy_to_user(insns[i].data,data,
 					insns[i].n*sizeof(lsampl_t))){
