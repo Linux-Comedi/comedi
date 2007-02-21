@@ -1440,7 +1440,6 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 {
 	unsigned int chan, range, aref;
 	unsigned int i;
-	unsigned config_bits = 0;
 	unsigned offset;
 	unsigned int dither;
 	unsigned range_code;
@@ -1473,6 +1472,7 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 	offset = 0;
 	for(i = 0; i < n_chan; i++)
 	{
+		unsigned config_bits = 0;
 		chan = CR_CHAN(list[i]);
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
@@ -1480,7 +1480,6 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 
 		range_code = ni_gainlkup[boardtype.gainlkup][range];
 		devpriv->ai_offset[i] = offset;
-
 		switch( aref )
 		{
 			case AREF_DIFF:
