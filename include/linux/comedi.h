@@ -656,6 +656,19 @@ enum ni_gpct_arm_source
 	NI_GPCT_ARM_UNKNOWN = 0x1000,
 };
 
+/* digital filtering options for ni 660x for use with INSN_CONFIG_FILTER
+(support for m-series should also be added). */
+enum ni_gpct_filter_select
+{
+	NI_GPCT_FILTER_OFF = 0x0,
+	NI_GPCT_FILTER_TIMEBASE_3_SYNC = 0x1,
+	NI_GPCT_FILTER_100x_TIMEBASE_1= 0x2,
+	NI_GPCT_FILTER_20x_TIMEBASE_1 = 0x3,
+	NI_GPCT_FILTER_10x_TIMEBASE_1 = 0x4,
+	NI_GPCT_FILTER_2x_TIMEBASE_1 = 0x5,
+	NI_GPCT_FILTER_2x_TIMEBASE_3 = 0x6
+};
+
 /* master clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
 enum ni_mio_clock_source
 {

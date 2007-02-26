@@ -266,3 +266,7 @@ ID=INSN_CONFIG_SET_COUNTER_MODE: Set a counter's mode.  The specific meaning of 
 	the mode field is hardware-dependent.
 	[0] - ID
 	[1] - mode
+
+ID=INSN_CONFIG_FILTER:  Select an input filter.
+	[0] - ID
+	[1] - filter

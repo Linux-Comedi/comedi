@@ -333,7 +333,6 @@ static int ni_65xx_config_filter(comedi_device *dev, comedi_subdevice *s,
 	const unsigned chan = CR_CHAN(insn->chanspec);
 	const unsigned port = sprivate(s)->base_port + ni_65xx_port_by_channel(chan);
 
-	if(insn->n != 2)return -EINVAL;
 	if(data[0] != INSN_CONFIG_FILTER) return -EINVAL;
 	if(data[1])
 	{

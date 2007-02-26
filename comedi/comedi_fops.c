@@ -632,6 +632,7 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_ARM:
 	case INSN_CONFIG_DIO_QUERY:
 	case INSN_CONFIG_BLOCK_SIZE:
+	case INSN_CONFIG_FILTER:
 	case INSN_CONFIG_SERIAL_CLOCK:
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
 	case INSN_CONFIG_ALT_SOURCE:

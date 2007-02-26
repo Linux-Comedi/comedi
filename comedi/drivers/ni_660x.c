@@ -50,6 +50,7 @@ Things to do:
 #include "ni_tio.h"
 
 #define CTRS_PER_CHIP 4 // The number of counters per ni-tio chip
+#define NUM_PFI_CHANNELS 40
 
 /* See Register-Level Programmer Manual page 3.1 */
 typedef enum
@@ -123,16 +124,26 @@ typedef enum
 	G3DMAConfigRegister,
 	G3DMAStatusRegister,
 	ClockConfigRegister,
-	IOConfigReg0_3,
-	IOConfigReg4_7,
-	IOConfigReg8_11,
-	IOConfigReg12_15,
-	IOConfigReg16_19,
-	IOConfigReg20_23,
-	IOConfigReg24_27,
-	IOConfigReg28_31,
-	IOConfigReg32_35,
-	IOConfigReg36_39,
+	IOConfigReg0_1,
+	IOConfigReg2_3,
+	IOConfigReg4_5,
+	IOConfigReg6_7,
+	IOConfigReg8_9,
+	IOConfigReg10_11,
+	IOConfigReg12_13,
+	IOConfigReg14_15,
+	IOConfigReg16_17,
+	IOConfigReg18_19,
+	IOConfigReg20_21,
+	IOConfigReg22_23,
+	IOConfigReg24_25,
+	IOConfigReg26_27,
+	IOConfigReg28_29,
+	IOConfigReg30_31,
+	IOConfigReg32_33,
+	IOConfigReg34_35,
+	IOConfigReg36_37,
+	IOConfigReg38_39,
 	STCDIOParallelInput,
 	STCDIOOutput,
 	STCDIOControl,
@@ -140,50 +151,11 @@ typedef enum
 	NumRegisters,
 } NI_660x_Register;
 
-static inline int IOConfigReg(int chipset, int counter_channel)
+static inline unsigned IOConfigReg(unsigned pfi_channel)
 {
-	if(chipset == 0)
-	{
-		switch(counter_channel)
-		{
-		case 0:
-			return IOConfigReg36_39;
-			break;
-		case 1:
-			return IOConfigReg32_35;
-			break;
-		case 2:
-			return IOConfigReg28_31;
-			break;
-		case 3:
-			return IOConfigReg24_27;
-			break;
-		default:
-			DPRINTK("ni_660x: bug!, line %i\n", __LINE__);
-			break;
-		}
-	}else
-	{
-		switch(counter_channel)
-		{
-		case 0:
-			return IOConfigReg20_23;
-			break;
-		case 1:
-			return IOConfigReg16_19;
-			break;
-		case 2:
-			return IOConfigReg12_15;
-			break;
-		case 3:
-			return IOConfigReg8_11;
-			break;
-		default:
-			DPRINTK("ni_660x: bug!, line %i\n", __LINE__);
-			break;
-		}
-	}
-	return 0;
+	unsigned reg = IOConfigReg0_1 + pfi_channel / 2;
+	BUG_ON(reg > IOConfigReg38_39);
+	return reg;
 }
 
 enum ni_660x_register_width
@@ -280,16 +252,26 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"G3 DMA Config Register", 0x1BA, NI_660x_WRITE, DATA_2B},
 	{"G3 DMA Status Register", 0x1BA, NI_660x_READ, DATA_2B},
 	{"Clock Config Register", 0x73C, NI_660x_WRITE, DATA_4B},
-	{"IO Config Register 0-3", 0x77C, NI_660x_READ_WRITE, DATA_4B}, // READWRITE
-	{"IO Config Register 4-7", 0x780, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 8-11", 0x784, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 12-15", 0x788, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 16-19", 0x78C, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 20-23", 0x790, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 24-27", 0x794, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 28-31", 0x798, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 32-35", 0x79C, NI_660x_READ_WRITE, DATA_4B},
-	{"IO Config Register 36-39", 0x7A0, NI_660x_READ_WRITE, DATA_4B},
+	{"IO Config Register 0-1", 0x77C, NI_660x_READ_WRITE, DATA_2B}, // READWRITE
+	{"IO Config Register 2-3", 0x77E, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 4-5", 0x780, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 6-7", 0x782, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 8-9", 0x784, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 10-11", 0x786, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 12-13", 0x788, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 14-15", 0x78A, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 16-17", 0x78C, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 18-19", 0x78E, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 20-21", 0x790, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 22-23", 0x792, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 24-25", 0x794, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 26-27", 0x796, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 28-29", 0x798, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 30-31", 0x79A, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 32-33", 0x79C, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 34-35", 0x79E, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 36-37", 0x7A0, NI_660x_READ_WRITE, DATA_2B},
+	{"IO Config Register 38-39", 0x7A2, NI_660x_READ_WRITE, DATA_2B},
 	{"STD DIO Parallel Input", 0x00E, NI_660x_READ, DATA_2B},
 	{"STD DIO Output", 0x014, NI_660x_WRITE, DATA_2B},
 	{"STD DIO Control", 0x016, NI_660x_WRITE, DATA_2B},
@@ -302,25 +284,22 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 #define CounterSwap             0x1<<21
 
 // ioconfigreg
-/*pin index 0 corresponds to pin A in manual, index 1 is pin B, etc*/
-static inline int pin_is_output(int pin_index)
+static inline unsigned pfi_output_select_mask(unsigned pfi_channel)
 {
-	return 0x1 << (24 - 8 * pin_index);
+	return 0x3 << (8 * (pfi_channel % 2));
 }
-static inline int pin_input_select(int pin_index, int input_selection)
+static inline unsigned pfi_output_select_bits(unsigned pfi_channel, unsigned output_select)
 {
-	input_selection &= 0x7;
-	return input_selection << (28 - 8 * pin_index);
+	return (output_select & 0x3) << (8 * (pfi_channel % 2));
 }
-
-// For configuring input pins
-#define Digital_Filter_A_Is_Off             0x000<<28
-#define Digital_Filter_A_Is_Timebase3       0x001<<28
-#define Digital_Filter_A_Is_100_Timebase1             0x010<<28
-#define Digital_Filter_A_Is_20_Timebase1             0x011<<28
-#define Digital_Filter_A_Is_10_Timebase1              0x100<<28
-#define Digital_Filter_A_Is_2_Timebase1               0x101<<28
-#define Digital_Filter_A_Is_2_Timebase3     0x110<<28
+static inline unsigned pfi_input_select_mask(unsigned pfi_channel)
+{
+	return 0x7 << (4 + 8 * (pfi_channel % 2));
+}
+static inline unsigned pfi_input_select_bits(unsigned pfi_channel, unsigned input_select)
+{
+	return (input_select & 0x7) << (4 + 8 * (pfi_channel % 2));
+}
 
 // Offset of the GPCT chips from the base-adress of the card
 static const unsigned GPCT_OFFSET[2] = {0x0, 0x800}; /* First chip is at base-adress +
@@ -367,6 +346,7 @@ typedef struct
 	struct mite_struct *mite;
 	int boardtype;
 	struct ni_gpct counters[NI_660X_MAX_NUM_COUNTERS];
+	uint64_t pfi_direction_bits;
 }ni_660x_private;
 
 #define devpriv ((ni_660x_private *)dev->private)
@@ -667,19 +647,14 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	/* DIGITAL I/O SUBDEVICE */
 	s->type	  = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE|SDF_WRITABLE;
-	s->n_chan       = 8; // Only using 8 bits for now, instead of 32!!
+	s->n_chan       = NUM_PFI_CHANNELS;
 	s->maxdata      = 1;
 	s->range_table  = &range_digital;
-	/* (Copied from skel.c) DIO devices are slightly special.  Although
-	* it is possible to implement the insn_read/insn_write interface,
-	* it is much more useful to applications if you implement the
-	* insn_bits interface.  This allows packed reading/writing of the
-	* DIO channels.  The comedi core can convert between insn_bits and
-	* insn_read/write */
-	// Not implemented yet
 	s->insn_bits    = ni_660x_dio_insn_bits;
 	s->insn_config  = ni_660x_dio_insn_config;
 	s->io_bits      = 0;     /* all bits default to input */
+	// we use the ioconfig registers to control dio direction, so zero output enables in stc dio control reg
+	writew(0, devpriv->mite->daq_io_addr + registerData[STCDIOControl].offset);
 
 	for(i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i)
 	{
@@ -804,34 +779,56 @@ ni_660x_find_device(comedi_device *dev, int bus, int slot)
 
 
 static int ni_660x_dio_insn_bits(comedi_device *dev,
-				 comedi_subdevice *s,
-				 comedi_insn *insn,
-				 lsampl_t *data)
+	comedi_subdevice *s,
+	comedi_insn *insn,
+	lsampl_t *data)
 {
-  if(insn->n!=2)return -EINVAL;
-  /* The insn data is a write_mask in data[0] and the new data
-   * in data[1], each channel corresponding to a bit. */
+	unsigned base_bitfield_channel = CR_CHAN(insn->chanspec);
 
-  // Check if we have to write some bits
-  if(data[0])
-    {
-      // Copied from skel.c, unverified
-      s->state &= ~data[0];
-      s->state |= data[0]&data[1];
-      /* Write out the new digital output lines */
-      /* Check if data < n_chan ?? */
-      writew(s->state,devpriv->mite->daq_io_addr + registerData[STCDIOOutput].offset);
-    }
-  /* on return, data[1] contains the value of the digital
-   * input and output lines. */
-  data[1]=readw(devpriv->mite->daq_io_addr + registerData[STCDIOParallelInput].offset);
-  return 2;
+	// Check if we have to write some bits
+	if(data[0])
+	{
+		/* Only the first 8 lines can be read/written.  The rest can
+		only have their input/output configuration changed (although
+		the user manual implies the first 32 channels can be used as
+		general purpose dio, the register manual doesn't tell you how
+		this can be accomplished. */
+		if((data[0] << base_bitfield_channel) > 0xff)
+		{
+			return -EINVAL;
+		}
+		s->state &= ~(data[0] << base_bitfield_channel);
+		s->state |= (data[0] & data[1]) << base_bitfield_channel;
+		/* Write out the new digital output lines */
+		writew(s->state,devpriv->mite->daq_io_addr + registerData[STCDIOOutput].offset);
+	}
+	/* on return, data[1] contains the value of the digital
+	* input and output lines. */
+	data[1] = (readw(devpriv->mite->daq_io_addr + registerData[STCDIOParallelInput].offset) >> base_bitfield_channel) &
+		(0xff >> base_bitfield_channel);
+	return 2;
+}
+
+static void ni_660x_select_pfi_output(comedi_device *dev, unsigned pfi_channel, unsigned output_select)
+{
+	unsigned bits = readw(devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+	bits &= ~pfi_output_select_mask(pfi_channel);
+	bits |= pfi_output_select_bits(pfi_channel, output_select);
+	writew(bits, devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+}
+
+static void ni660x_config_filter(comedi_device *dev, unsigned pfi_channel, enum ni_gpct_filter_select filter)
+{
+	unsigned bits = readw(devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+	bits &= ~pfi_input_select_mask(pfi_channel);
+	bits |= pfi_input_select_bits(pfi_channel, filter);
+	writew(bits, devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
 }
 
 static int ni_660x_dio_insn_config(comedi_device *dev,
-				   comedi_subdevice *s,
-				   comedi_insn *insn,
-				   lsampl_t *data)
+	comedi_subdevice *s,
+	comedi_insn *insn,
+	lsampl_t *data)
 {
 	int chan=CR_CHAN(insn->chanspec);
 
@@ -843,23 +840,23 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 	switch(data[0])
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1<<chan;
+		devpriv->pfi_direction_bits |= ((uint64_t)1) << chan;
+		ni_660x_select_pfi_output(dev, chan, 1);
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1<<chan);
+		devpriv->pfi_direction_bits &= ~(((uint64_t)1) << chan);
+		ni_660x_select_pfi_output(dev, chan, 0);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] = (devpriv->pfi_direction_bits & (((uint64_t)1) << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
+	case INSN_CONFIG_FILTER:
+		ni660x_config_filter(dev, chan, data[1]);
+		return 0;
 	default:
 		return -EINVAL;
 		break;
 	};
-	// No GPCT_OFFSET[chipset] offset here??
-	writew(s->io_bits,devpriv->mite->daq_io_addr + registerData[STCDIOControl].offset);
-	/* We should also do something (INSN_CONFIG_ALT_FILTER) with the IO configuration registers,
-		see p 3-38 of register level prog. manual
-	*/
 	return insn->n;
 }
 
