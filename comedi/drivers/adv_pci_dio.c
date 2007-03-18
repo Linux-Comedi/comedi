@@ -720,7 +720,7 @@ static int pci_dio_reset(comedi_device *dev)
 		pci1760_reset(dev);
 		break;
 	case TYPE_PCI1762:
-		outw(0x0101, dev->iobase+PCI1750_ICR);	// disable & clear interrupts
+		outw(0x0101, dev->iobase+PCI1762_ICR);	// disable & clear interrupts
 		break;
 	}
 
