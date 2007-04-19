@@ -51,6 +51,7 @@ int do_rangeinfo_ioctl(comedi_device *dev, comedi_rangeinfo *arg)
 	int minor,subd,chan;
 	comedi_lrange *lr;
 	comedi_subdevice *s;
+	comedi_device *query_dev;
 
 	if(copy_from_user(&it,arg,sizeof(comedi_rangeinfo)))
 		return -EFAULT;
@@ -62,7 +63,7 @@ int do_rangeinfo_ioctl(comedi_device *dev, comedi_rangeinfo *arg)
 
 	if(minor > COMEDI_NDEVICES)
 		return -EINVAL;
-	comedi_device *query_dev = comedi_devices + minor;
+	query_dev = comedi_devices + minor;
 	if(!query_dev->attached) return -EINVAL;
 	if(subd>=query_dev->n_subdevices) return -EINVAL;
 	s = query_dev->subdevices + subd;
