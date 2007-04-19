@@ -32,6 +32,7 @@ AC_DEFINE_UNQUOTED(COMEDI_MINORVERSION, $COMEDI_MINORVERSION, [Comedi minor vers
 AC_DEFINE_UNQUOTED(COMEDI_MICROVERSION, $COMEDI_MICROVERSION, [Comedi micro version])
 
 AC_PROG_CC()
+AM_PROG_CC_C_O
 AC_PATH_TOOL([STRIP],[strip])
 AC_PATH_PROG([DEPMOD], [depmod], [no], [$PATH:/sbin:/usr/sbin:/usr/local/sbin])
 if test "$DEPMOD" == "no" ; then
