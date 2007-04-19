@@ -71,6 +71,7 @@ struct mite_struct{
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
 	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
+	spinlock_t lock;
 };
 
 extern struct mite_struct *mite_devices;

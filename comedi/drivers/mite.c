@@ -83,7 +83,7 @@ void mite_init(void)
 				return;
 			}
 			memset(mite,0,sizeof(*mite));
-
+			spin_lock_init(&mite->lock);
 			mite->pcidev=pci_dev_get(pcidev);
 
 			mite->next=mite_devices;
@@ -224,24 +224,34 @@ void mite_list_devices(void)
 
 int mite_alloc_channel(struct mite_struct *mite)
 {
-	//FIXME spin lock so mite_free_channel can be called safely from interrupts
 	int i;
+	unsigned long flags;
+	int retval = -1;
+
+	// spin lock so mite_free_channel can be called safely from interrupts
+	comedi_spin_lock_irqsave(&mite->lock, flags);
 	for(i = 0; i < mite->num_channels; ++i)
 	{
 		if(mite->channel_allocated[i] == 0)
 		{
 			mite->channel_allocated[i] = 1;
-			return i;
+			retval = i;
+			break;
 		}
 	}
-	return -1;
+	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	return retval;
 }
 
 void mite_free_channel(struct mite_struct *mite, unsigned channel)
 {
-	//FIXME spin lock to prevent races with mite_alloc_channel
+	unsigned long flags;
+
 	BUG_ON(channel >= mite->num_channels);
+	// spin lock to prevent races with mite_alloc_channel
+	comedi_spin_lock_irqsave(&mite->lock, flags);
 	mite->channel_allocated[channel] = 0;
+	comedi_spin_unlock_irqrestore(&mite->lock, flags);
 }
 
 void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
