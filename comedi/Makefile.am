@@ -5,8 +5,10 @@ CLEANFILES = Modules.symvers
 
 if CONFIG_KBUILD
 module_PROGRAMS =
+#ignore errors from kernel's make modules in all-local, to avoid failure of make install
+#on nfs filesystem with root_squash
 all-local: comedi_kbuild.inc
-	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" V=1 modules
 install-data-local: comedi_kbuild.inc
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
