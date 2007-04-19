@@ -361,8 +361,10 @@ static int ni_65xx_config_filter(comedi_device *dev, comedi_subdevice *s,
 static int ni_65xx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
+	unsigned port;
+
 	if(insn->n < 1) return -EINVAL;
-	unsigned port = sprivate(s)->base_port + ni_65xx_port_by_channel(CR_CHAN(insn->chanspec));
+	port = sprivate(s)->base_port + ni_65xx_port_by_channel(CR_CHAN(insn->chanspec));
 	switch(data[0])
 	{
 	case INSN_CONFIG_FILTER:
