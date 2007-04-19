@@ -69,6 +69,7 @@ struct mite_struct{
 	void *daq_io_addr;
 
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
+	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
 };
 
@@ -88,10 +89,14 @@ void mite_cleanup(void);
 int mite_setup(struct mite_struct *mite);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
+int mite_alloc_channel(struct mite_struct *mite);
+void mite_free_channel(struct mite_struct *mite, unsigned channel);
 
 int mite_dma_tcr(struct mite_struct *mite, unsigned int channel );
 void mite_dma_arm(struct mite_struct *mite, unsigned int channel );
 void mite_dma_disarm(struct mite_struct *mite, unsigned int channel );
+int mite_sync_input_dma(struct mite_struct *mite, unsigned mite_channel, comedi_async *async);
+int mite_sync_output_dma(struct mite_struct *mite, unsigned mite_channel, comedi_async *async);
 u32 mite_bytes_written_to_memory_lb(struct mite_struct *mite, unsigned int chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_struct *mite, unsigned int chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_struct *mite, unsigned int chan);

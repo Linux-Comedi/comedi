@@ -1043,8 +1043,6 @@ typedef struct{
 	struct mite_struct *mite;
 
 	NI_PRIVATE_COMMON
-
-	unsigned int last_buf_write_count;
 }ni_private;
 #define devpriv ((ni_private *)dev->private)
 

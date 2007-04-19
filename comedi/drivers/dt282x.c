@@ -457,16 +457,13 @@ static void dt282x_ao_dma_interrupt(comedi_device * dev)
 
 	devpriv->current_dma_index=1-i;
 
-	size = comedi_buf_read_n_available(s);
-	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
+	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev,s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
-	comedi_buf_memcpy_from(s->async, 0, ptr, size);
-	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,i,size);
 	return;
 }
@@ -1049,24 +1046,18 @@ static int dt282x_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	if(x!=0)return -EINVAL;
 
-	size = comedi_buf_read_n_available(s);
-	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
+	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf, devpriv->dma_maxsize);
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
-	comedi_buf_memcpy_from(s->async, 0, devpriv->dma[0].buf, size);
-	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,0,size);
 
-	size = comedi_buf_read_n_available(s);
-	if(size>devpriv->dma_maxsize)size=devpriv->dma_maxsize;
+	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf, devpriv->dma_maxsize);
 	if( size == 0){
 		rt_printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
-	comedi_buf_memcpy_from(s->async, 0, devpriv->dma[1].buf, size);
-	comedi_buf_read_free(s->async, size);
 	prep_ao_dma(dev,1,size);
 
 	update_supcsr(DT2821_STRIG);

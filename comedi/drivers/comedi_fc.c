@@ -32,7 +32,7 @@ static inline unsigned int bytes_per_scan( comedi_subdevice *subd )
 {
 	int num_samples;
 	int bits_per_sample;
-	
+
 	switch( subd->type )
 	{
 		case COMEDI_SUBD_DI:
@@ -90,16 +90,10 @@ unsigned int cfc_read_array_from_buffer( comedi_subdevice *subd, void *data,
 	unsigned int num_bytes )
 {
 	comedi_async *async = subd->async;
-	unsigned int bytes_available;
 
 	if( num_bytes == 0 ) return 0;
 
-	bytes_available = comedi_buf_read_n_available(subd);
-	if( bytes_available < num_bytes )
-	{
-		num_bytes = bytes_available;
-	}
-
+	num_bytes = comedi_buf_read_alloc(async, num_bytes);
 	comedi_buf_memcpy_from( async, 0, data, num_bytes);
 	comedi_buf_read_free( async, num_bytes );
 	increment_scan_progress( subd, num_bytes );

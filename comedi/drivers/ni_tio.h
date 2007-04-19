@@ -25,6 +25,9 @@
 
 #include <linux/comedidev.h>
 
+// forward declarations
+struct mite_struct;
+
 enum ni_gpct_register
 {
 	NITIO_G0_Autoincrement_Reg,
@@ -75,6 +78,14 @@ enum ni_gpct_register
 	NITIO_G23_Joint_Status1_Reg,
 	NITIO_G01_Joint_Status2_Reg,
 	NITIO_G23_Joint_Status2_Reg,
+	NITIO_G0_DMA_Config_Reg,
+	NITIO_G1_DMA_Config_Reg,
+	NITIO_G2_DMA_Config_Reg,
+	NITIO_G3_DMA_Config_Reg,
+	NITIO_G0_DMA_Status_Reg,
+	NITIO_G1_DMA_Status_Reg,
+	NITIO_G2_DMA_Status_Reg,
+	NITIO_G3_DMA_Status_Reg,
 	NITIO_Num_Registers,
 };
 
@@ -95,6 +106,8 @@ struct ni_gpct
 	unsigned (*read_register)(struct ni_gpct *this, enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	uint64_t clock_period_ps; /* clock period in picoseconds */
+	struct mite_struct *mite;
+	int mite_channel; /* -1 when no channel is allocated to the counter */
 	unsigned regs[MAX_NUM_NITIO_REGS];
 };
 
@@ -108,6 +121,9 @@ extern int ni_tio_insn_config(struct ni_gpct *counter,
 extern int ni_tio_winsn(struct ni_gpct *counter,
 	comedi_insn *insn,
 	lsampl_t * data);
+extern int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async);
+extern int ni_tio_cmdtest(struct ni_gpct *counter);
+extern int ni_tio_cancel(struct ni_gpct *counter);
 
 #endif /* _COMEDI_NI_TIO_H */
 

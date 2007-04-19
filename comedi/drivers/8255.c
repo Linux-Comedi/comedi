@@ -150,7 +150,7 @@ static int subdev_8255_insn(comedi_device *dev,comedi_subdevice *s,
 	if(data[0]){
 		s->state &= ~data[0];
 		s->state |= (data[0]&data[1]);
-		
+
 		if(data[0]&0xff)
 			CALLBACK_FUNC(1,_8255_DATA,s->state&0xff,CALLBACK_ARG);
 		if(data[0]&0xff00)
@@ -249,7 +249,7 @@ static int subdev_8255_cmdtest(comedi_device *dev, comedi_subdevice *s,
 	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
 
 	if(err) return 1;
-	
+
 	/* step 2 */
 
 	if(err) return 2;
@@ -323,7 +323,7 @@ int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,int (*cb)(int,int,in
 	s->state=0;
 	s->io_bits=0;
 	do_config(dev,s);
-	
+
 	return 0;
 }
 
@@ -406,7 +406,7 @@ static int dev_8255_detach(comedi_device *dev)
 	comedi_subdevice *s;
 
 	printk("comedi%d: 8255: remove\n",dev->minor);
-	
+
 	for(i=0;i<dev->n_subdevices;i++){
 		s=dev->subdevices+i;
 		if(s->type!=COMEDI_SUBD_UNUSED){

@@ -45,6 +45,7 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 */
 
 #include "ni_tio.h"
+#include "mite.h"
 
 static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter, unsigned generic_clock_source);
 static unsigned ni_tio_generic_clock_src_select(struct ni_gpct *counter);
@@ -290,6 +291,29 @@ static inline enum ni_gpct_register NITIO_Gi_Second_Gate_Reg(int counter_index)
 		break;
 	case 3:
 		return NITIO_G3_Second_Gate_Reg;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+
+static inline enum ni_gpct_register NITIO_Gi_DMA_Config_Reg(int counter_index)
+{
+	switch(counter_index)
+	{
+	case 0:
+		return NITIO_G0_DMA_Config_Reg;
+		break;
+	case 1:
+		return NITIO_G1_DMA_Config_Reg;
+		break;
+	case 2:
+		return NITIO_G2_DMA_Config_Reg;
+		break;
+	case 3:
+		return NITIO_G3_DMA_Config_Reg;
 		break;
 	default:
 		BUG();
@@ -657,6 +681,13 @@ static inline unsigned Gi_Reset_Bit(unsigned counter_index)
 {
 	return 0x1 << (2 + (counter_index % 2));
 }
+
+enum Gi_DMA_Config_Reg_Bits
+{
+	Gi_DMA_Enable_Bit = 0x1,
+	Gi_DMA_Write_Bit = 0x2,
+	Gi_DMA_Int_Bit = 0x4
+};
 
 static const lsampl_t counter_status_mask = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 
@@ -1944,7 +1975,70 @@ int ni_tio_winsn(struct ni_gpct *counter,
 	return 0;
 }
 
+static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
+{
+	comedi_cmd *cmd = &async->cmd;
+	struct mite_channel *mite_chan = &counter->mite->channels[counter->mite_channel];
+
+	/* write alloc the entire buffer */
+	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+
+	mite_chan->current_link = 0;
+	mite_chan->dir = COMEDI_INPUT;
+	mite_prep_dma(counter->mite, counter->mite_channel, 32, 32);
+	if(counter->variant == ni_gpct_variant_m_series ||
+		counter->variant == ni_gpct_variant_660x)
+	{
+		counter->write_register(counter, Gi_DMA_Enable_Bit, NITIO_Gi_DMA_Config_Reg(counter->counter_index));
+	}
+	/*start the MITE*/
+	mite_dma_arm(counter->mite, counter->mite_channel);
+	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+}
+
+static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async *async)
+{
+	return 0;
+}
+
+int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async)
+{
+	comedi_cmd *cmd = &async->cmd;
+
+	if(counter->mite == NULL || counter->mite_channel < 0)
+	{
+		rt_printk("ni_tio: commands only supported with DMA.  Interrupt-driven commands not yet implemented.\n");
+		return -EIO;
+	}
+	ni_tio_reset_count_and_disarm(counter);
+	if(cmd->flags & CMDF_WRITE)
+	{
+		return ni_tio_output_cmd(counter, async);
+	}else
+	{
+		return ni_tio_input_cmd(counter, async);
+	}
+}
+
+int ni_tio_cmdtest(struct ni_gpct *counter)
+{
+	return 0;
+}
+
+int ni_tio_cancel(struct ni_gpct *counter)
+{
+	if(counter->mite == NULL || counter->mite_channel < 0) return 0;
+	mite_dma_disarm(counter->mite, counter->mite_channel);
+	return 0;
+}
+
+void ni_tio_interrupt_handler(struct ni_gpct *counter, struct mite_struct *mite, unsigned mite_channel)
+{}
+
 EXPORT_SYMBOL_GPL(ni_tio_rinsn);
 EXPORT_SYMBOL_GPL(ni_tio_winsn);
+EXPORT_SYMBOL_GPL(ni_tio_cmd);
+EXPORT_SYMBOL_GPL(ni_tio_cmdtest);
+EXPORT_SYMBOL_GPL(ni_tio_cancel);
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 EXPORT_SYMBOL_GPL(ni_tio_init_counter);

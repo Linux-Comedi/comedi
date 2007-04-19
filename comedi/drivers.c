@@ -194,7 +194,7 @@ attached:
 		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
 		dev->board_name="BUG";
 	}
-	mb();
+	smp_wmb();
 	dev->attached=1;
 
 	return 0;
@@ -276,6 +276,7 @@ static int postconfig(comedi_device *dev)
 				return -ENOMEM;
 			}
 			memset(async, 0, sizeof(comedi_async));
+			async->subdevice = s;
 			s->async = async;
 
 #define DEFAULT_BUF_MAXSIZE (64*1024)
@@ -484,15 +485,21 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 
 /* munging is applied to data by core as it passes between user
  * and kernel space */
-unsigned int comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
-	unsigned int num_bytes )
+unsigned int comedi_buf_munge(comedi_async *async,
+	unsigned int num_bytes)
 {
+	comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
+	const unsigned num_sample_bytes = bytes_per_sample(s);
 
-	if( s->munge == NULL || ( s->async->cmd.flags & CMDF_RAWDATA ) )
-		return count;
+	if( s->munge == NULL || ( async->cmd.flags & CMDF_RAWDATA ) )
+	{
+		async->munge_count += num_bytes;
+		if((int)(async->munge_count - async->buf_write_count) > 0) BUG();
+		return num_bytes;
+	}
 	/* don't munge partial samples */
-	num_bytes -= num_bytes % bytes_per_sample(s);
+	num_bytes -= num_bytes % num_sample_bytes;
 	while( count < num_bytes )
 	{
 		int block_size;
@@ -503,33 +510,44 @@ unsigned int comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
 			rt_printk("%s: %s: bug! block_size is negative\n", __FILE__, __FUNCTION__);
 			break;
 		}
-		if( (int)(s->async->munge_ptr + block_size - s->async->prealloc_bufsz) > 0 )
-			block_size = s->async->prealloc_bufsz - s->async->munge_ptr;
+		if( (int)(async->munge_ptr + block_size - async->prealloc_bufsz) > 0 )
+			block_size = async->prealloc_bufsz - async->munge_ptr;
 
-		s->munge( dev, s, s->async->prealloc_buf + s->async->munge_ptr,
-			block_size, s->async->munge_chan );
+		s->munge(s->device, s, async->prealloc_buf + async->munge_ptr,
+			block_size, async->munge_chan );
 
-		s->async->munge_chan += block_size / bytes_per_sample( s );
-		s->async->munge_chan %= s->async->cmd.chanlist_len;
-		s->async->munge_count += block_size;
-		s->async->munge_ptr += block_size;
-		s->async->munge_ptr %= s->async->prealloc_bufsz;
+		smp_wmb(); //barrier insures data is munged in buffer before munge_count is incremented
+
+		async->munge_chan += block_size / num_sample_bytes;
+		async->munge_chan %= async->cmd.chanlist_len;
+		async->munge_count += block_size;
+		async->munge_ptr += block_size;
+		async->munge_ptr %= async->prealloc_bufsz;
 		count += block_size;
 	}
+	if((int)(async->munge_count - async->buf_write_count) > 0) BUG();
 	return count;
 }
 
-unsigned int comedi_buf_write_n_available(comedi_subdevice *s)
+unsigned int comedi_buf_write_n_available(comedi_async *async)
 {
-	comedi_async *async=s->async;
-	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+	unsigned int free_end;
 	unsigned int nbytes;
 
+	if(async == NULL) return 0;
+
+	free_end = async->buf_read_count + async->prealloc_bufsz;
 	nbytes = free_end - async->buf_write_alloc_count;
-	nbytes -= nbytes % bytes_per_sample(s);
+	nbytes -= nbytes % bytes_per_sample(async->subdevice);
+	/* barrier insures the read of buf_read_count in this
+	query occurs before any following writes to the buffer which
+	might be based on the return value from this query.
+	*/
+	smp_mb();
 	return nbytes;
 }
 
+/* allocates chunk for the writer from free buffer space */
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
@@ -537,12 +555,14 @@ unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
 	if((int)(async->buf_write_alloc_count + nbytes - free_end) > 0){
 		nbytes = free_end - async->buf_write_alloc_count;
 	}
-
 	async->buf_write_alloc_count += nbytes;
-
+	/* barrier insures the read of buf_read_count above occurs before
+	we write data to the write-alloc'ed buffer space */
+	smp_mb();
 	return nbytes;
 }
 
+/* allocates nothing unless it can completely fulfill the request */
 unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
 	unsigned int nbytes)
 {
@@ -551,29 +571,59 @@ unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
 	if((int)(async->buf_write_alloc_count + nbytes - free_end) > 0){
 		nbytes = 0;
 	}
-
 	async->buf_write_alloc_count += nbytes;
-
+	/* barrier insures the read of buf_read_count above occurs before
+	we write data to the write-alloc'ed buffer space */
+	smp_mb();
 	return nbytes;
 }
 
-/* transfers control of a chunk from writer to reader */
-void comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
+/* transfers a chunk from writer to filled buffer space */
+unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
 {
+	if((int)(async->buf_write_count + nbytes - async->buf_write_alloc_count) > 0)
+	{
+		rt_printk("comedi: attempted to write-free more bytes than have been write-allocated.\n");
+		nbytes = async->buf_write_alloc_count - async->buf_write_count;
+	}
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
+	comedi_buf_munge(async, async->buf_write_count - async->munge_count);
 	if(async->buf_write_ptr >= async->prealloc_bufsz){
 		async->buf_write_ptr %= async->prealloc_bufsz;
 		async->events |= COMEDI_CB_EOBUF;
 	}
+	return nbytes;
 }
 
-/* transfers control of a chunk from reader to free area */
-void comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
+/* allocates a chunk for the reader from filled (and munged) buffer space */
+unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes)
 {
+	if((int)(async->buf_read_alloc_count + nbytes - async->munge_count) > 0)
+	{
+		nbytes = async->munge_count - async->buf_read_alloc_count;
+	}
+	async->buf_read_alloc_count += nbytes;
+	/* barrier insures read of munge_count occurs before we actually read
+	data out of buffer */
+	smp_rmb();
+	return nbytes;
+}
+
+/* transfers control of a chunk from reader to free buffer space */
+unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
+{
+	// barrier insures data has been read out of buffer before read count is incremented
+	smp_mb();
+	if((int)(async->buf_read_count + nbytes - async->buf_read_alloc_count) > 0)
+	{
+		rt_printk("comedi: attempted to read-free more bytes than have been read-allocated.\n");
+		nbytes = async->buf_read_alloc_count - async->buf_read_count;
+	}
 	async->buf_read_count += nbytes;
 	async->buf_read_ptr += nbytes;
 	async->buf_read_ptr %= async->prealloc_bufsz;
+	return nbytes;
 }
 
 void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *data,
@@ -600,7 +650,6 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 
 		write_ptr = 0;
 	}
-	barrier();
 }
 
 void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
@@ -612,7 +661,6 @@ void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	if( read_ptr >= async->prealloc_bufsz )
 		read_ptr %= async->prealloc_bufsz;
 
-	barrier();
 	while( nbytes )
 	{
 		unsigned int block_size;
@@ -631,29 +679,27 @@ void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
 	}
 }
 
-static inline unsigned int _comedi_buf_read_n_available(comedi_async *async)
+unsigned int comedi_buf_read_n_available(comedi_async *async)
 {
-	return async->buf_write_count - async->buf_read_count;
-}
-
-unsigned int comedi_buf_read_n_available(comedi_subdevice *s)
-{
-	comedi_async *async = s->async;
-	unsigned int nbytes;
+	unsigned num_bytes;
 
 	if(async == NULL)
 		return 0;
-
-	nbytes = _comedi_buf_read_n_available(async);
-	nbytes -= nbytes % bytes_per_sample(s);
-	return nbytes;
+	num_bytes = async->munge_count - async->buf_read_count;
+	/* barrier insures the read of munge_count in this
+	query occurs before any following reads of the buffer which
+	might be based on the return value from this query.
+	*/
+	smp_rmb();
+	return num_bytes;
 }
 
 int comedi_buf_get(comedi_async *async, sampl_t *x)
 {
-	unsigned int n = _comedi_buf_read_n_available(async);
+	unsigned int n = comedi_buf_read_n_available(async);
 
-	if(n<sizeof(sampl_t))return 0;
+	if(n < sizeof(sampl_t)) return 0;
+	comedi_buf_read_alloc(async, sizeof(sampl_t));
 	*x = *(sampl_t *)(async->prealloc_buf + async->buf_read_ptr);
 	comedi_buf_read_free(async, sizeof(sampl_t));
 	return 1;
@@ -670,5 +716,24 @@ int comedi_buf_put(comedi_async *async, sampl_t x)
 	*(sampl_t *)(async->prealloc_buf + async->buf_write_ptr) = x;
 	comedi_buf_write_free(async, sizeof(sampl_t));
 	return 1;
+}
+
+void comedi_reset_async_buf(comedi_async *async)
+{
+	async->buf_write_alloc_count = 0;
+	async->buf_write_count = 0;
+	async->buf_read_alloc_count = 0;
+	async->buf_read_count = 0;
+
+	async->buf_write_ptr = 0;
+	async->buf_read_ptr = 0;
+
+	async->cur_chan = 0;
+	async->scan_progress = 0;
+	async->munge_chan = 0;
+	async->munge_count = 0;
+	async->munge_ptr = 0;
+
+	async->events = 0;
 }
 

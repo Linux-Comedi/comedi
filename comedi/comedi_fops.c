@@ -81,7 +81,6 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s);
 static int do_cancel(comedi_device *dev,comedi_subdevice *s);
 
 static int comedi_fasync (int fd, struct file *file, int on);
-static void init_async_buf( comedi_async *async );
 
 static int comedi_ioctl(struct inode * inode,struct file * file,
 	unsigned int cmd, unsigned long arg)
@@ -499,6 +498,7 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	}
 
 	if(bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)){
+		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
 		comedi_buf_read_free(async, bi.bytes_read);
 
 		if(!(s->subdev_flags&SDF_RUNNING) &&
@@ -510,7 +510,6 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 
 	if(bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)){
 		bi.bytes_written = comedi_buf_write_alloc( async, bi.bytes_written );
-		comedi_buf_munge(dev, s, async->buf_write_alloc_count - async->munge_count);
 		comedi_buf_write_free(async, bi.bytes_written);
 	}
 
@@ -518,13 +517,6 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
 	bi.buf_read_ptr = async->buf_read_ptr;
-	/* FIXME this will bug if we ever have a subdevice that supports both read and write commands.
-	We need a flag saying which direction the current command is going (CMDF_WRITE?) */
-	if((s->subdev_flags & SDF_CMD_READ)){
-		unsigned int n_munge_bytes;
-		n_munge_bytes = bi.buf_write_count - s->async->munge_count;
-		comedi_buf_munge(dev, s, n_munge_bytes);
-	}
 
 copyback:
 	if(copy_to_user(arg, &bi, sizeof(comedi_bufinfo)))
@@ -964,7 +956,7 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		goto cleanup;
 	}
 
-	init_async_buf( async );
+	comedi_reset_async_buf( async );
 
 	async->cb_mask = COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
 	if(async->cmd.flags & TRIG_WAKE_EOS){
@@ -1284,13 +1276,14 @@ static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 	unsigned long size;
 	int n_pages;
 	int i;
+	comedi_subdevice *s;
 
 	if(!dev->attached)
 	{
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		return -ENODEV;
 	}
-	comedi_subdevice *s = comedi_get_subdevice_by_minor(minor);
+	s = comedi_get_subdevice_by_minor(minor);
 	if(s == NULL)
 	{	if(vma->vm_flags & VM_WRITE){
 			s = dev->write_subdev;
@@ -1354,7 +1347,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		s = dev->read_subdev;
 		async = s->async;
 		if(!s->busy
-		   || comedi_buf_read_n_available(s)>0
+		   || comedi_buf_read_n_available(async)>0
 		   || !(s->subdev_flags&SDF_RUNNING)){
 			mask |= POLLIN | POLLRDNORM;
 		}
@@ -1364,7 +1357,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		async = s->async;
 		if(!s->busy
 		   || !(s->subdev_flags&SDF_RUNNING)
-		   || comedi_buf_write_n_available(s)>0){
+		   || comedi_buf_write_n_available(async) > 0){
 			mask |= POLLOUT | POLLWRNORM;
 		}
 	}
@@ -1444,7 +1437,6 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_munge(dev, s, async->buf_write_alloc_count - async->munge_count);
 		comedi_buf_write_free(async, n);
 
 		count+=n;
@@ -1495,7 +1487,7 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 
 		n=nbytes;
 
-		m = comedi_buf_read_n_available(s);
+		m = comedi_buf_read_n_available(async);
 //printk("%d available\n",m);
 		if(async->buf_read_ptr + m > async->prealloc_bufsz){
 			m = async->prealloc_bufsz - async->buf_read_ptr;
@@ -1524,7 +1516,6 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 			schedule();
 			continue;
 		}
-		comedi_buf_munge(dev, s, async->buf_write_count - async->munge_count);
 		m = copy_to_user(buf, async->prealloc_buf +
 			async->buf_read_ptr, n);
 		if(m){
@@ -1532,6 +1523,7 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 			retval = -EFAULT;
 		}
 
+		comedi_buf_read_alloc(async, n);
 		comedi_buf_read_free(async, n);
 
 		count+=n;
@@ -1569,7 +1561,7 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 #endif
 
 	if(async){
-		init_async_buf( async );
+		comedi_reset_async_buf( async );
 	}else{
 		printk("BUG: (?) do_become_nonbusy called with async=0\n");
 	}
@@ -1878,22 +1870,3 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 		}
 	}
 }
-
-static void init_async_buf( comedi_async *async )
-{
-	async->buf_write_alloc_count = 0;
-	async->buf_write_count = 0;
-	async->buf_read_count = 0;
-
-	async->buf_write_ptr = 0;
-	async->buf_read_ptr = 0;
-
-	async->cur_chan = 0;
-	async->scan_progress = 0;
-	async->munge_chan = 0;
-	async->munge_count = 0;
-	async->munge_ptr = 0;
-
-	async->events = 0;
-}
-

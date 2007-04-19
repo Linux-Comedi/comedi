@@ -118,21 +118,6 @@ int comedi_fileno(comedi_t *d)
 	return dev->minor;
 }
 
-static void init_async_buf( comedi_async *async )
-{
-	async->buf_read_count = 0;
-	async->buf_write_count = 0;
-	async->buf_write_alloc_count = 0;
-	async->buf_read_ptr = 0;
-	async->buf_write_ptr = 0;
-	async->cur_chan = 0;
-	async->scan_progress = 0;
-	async->munge_chan = 0;
-	async->munge_count = 0;
-	async->munge_ptr = 0;
-	async->events = 0;
-}
-
 int comedi_command(comedi_t *d,comedi_cmd *cmd)
 {
 	comedi_device *dev = (comedi_device *)d;
@@ -164,7 +149,7 @@ int comedi_command(comedi_t *d,comedi_cmd *cmd)
 
 	s->subdev_flags |= SDF_RUNNING;
 
-	init_async_buf( async );
+	comedi_reset_async_buf( async );
 
 	return s->do_cmd(dev,s);
 }

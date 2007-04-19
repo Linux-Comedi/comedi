@@ -222,6 +222,28 @@ void mite_list_devices(void)
 
 }
 
+int mite_alloc_channel(struct mite_struct *mite)
+{
+	//FIXME spin lock so mite_free_channel can be called safely from interrupts
+	int i;
+	for(i = 0; i < mite->num_channels; ++i)
+	{
+		if(mite->channel_allocated[i] == 0)
+		{
+			mite->channel_allocated[i] = 1;
+			return i;
+		}
+	}
+	return -1;
+}
+
+void mite_free_channel(struct mite_struct *mite, unsigned channel)
+{
+	//FIXME spin lock to prevent races with mite_alloc_channel
+	BUG_ON(channel >= mite->num_channels);
+	mite->channel_allocated[channel] = 0;
+}
+
 void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
 {
 	int chor;
@@ -230,7 +252,7 @@ void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
 	/* arm */
 	chor = CHOR_START;
 	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
-	mite_dma_tcr(mite, channel);
+// 	mite_dma_tcr(mite, channel);
 }
 
 
@@ -392,7 +414,6 @@ u32 mite_bytes_written_to_memory_lb(struct mite_struct *mite, unsigned int chan)
 	u32 device_byte_count;
 
 	device_byte_count = mite_device_bytes_transferred(mite, chan);
-	rmb();
 	return device_byte_count - mite_bytes_in_transit(mite, chan);
 }
 
@@ -402,7 +423,6 @@ u32 mite_bytes_written_to_memory_ub(struct mite_struct *mite, unsigned int chan)
 	u32 in_transit_count;
 
 	in_transit_count = mite_bytes_in_transit(mite, chan);
-	rmb();
 	return mite_device_bytes_transferred(mite, chan) - in_transit_count;
 }
 
@@ -412,7 +432,6 @@ u32 mite_bytes_read_from_memory_lb(struct mite_struct *mite, unsigned int chan)
 	u32 device_byte_count;
 
 	device_byte_count = mite_device_bytes_transferred(mite, chan);
-	rmb();
 	return device_byte_count + mite_bytes_in_transit(mite, chan);
 }
 
@@ -422,7 +441,6 @@ u32 mite_bytes_read_from_memory_ub(struct mite_struct *mite, unsigned int chan)
 	u32 in_transit_count;
 
 	in_transit_count = mite_bytes_in_transit(mite, chan);
-	rmb();
 	return mite_device_bytes_transferred(mite, chan) + in_transit_count;
 }
 
@@ -445,6 +463,78 @@ void mite_dma_disarm(struct mite_struct *mite, unsigned int channel)
 	/* disarm */
 	chor = CHOR_ABORT;
 	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
+}
+
+int mite_sync_input_dma(struct mite_struct *mite, unsigned mite_channel, comedi_async *async)
+{
+	int count;
+	unsigned int nbytes, old_alloc_count;
+	unsigned int bytes_per_scan = bytes_per_sample(async->subdevice) * async->cmd.chanlist_len;
+
+	old_alloc_count = async->buf_write_alloc_count;
+	// write alloc as much as we can
+	comedi_buf_write_alloc(async, async->prealloc_bufsz);
+
+	nbytes = mite_bytes_written_to_memory_lb(mite, mite_channel);
+	if((int)(mite_bytes_written_to_memory_ub(mite, mite_channel) - old_alloc_count) > 0)
+	{
+		rt_printk("mite: DMA overwrite of free area\n");
+		async->events |= COMEDI_CB_OVERFLOW;
+		return -1;
+	}
+
+	count = nbytes - async->buf_write_count;
+	/* it's possible count will be negative due to
+	 * conservative value returned by mite_bytes_written_to_memory_lb */
+	if( count <= 0 )
+	{
+		return 0;
+	}
+	comedi_buf_write_free(async, count);
+
+	async->scan_progress += count;
+	if(async->scan_progress >= bytes_per_scan)
+	{
+		async->scan_progress %= bytes_per_scan;
+		async->events |= COMEDI_CB_EOS;
+	}
+	async->events |= COMEDI_CB_BLOCK;
+	return 0;
+}
+
+int mite_sync_output_dma(struct mite_struct *mite, unsigned mite_channel, comedi_async *async)
+{
+	int count;
+	u32 nbytes_ub, nbytes_lb;
+	unsigned int old_alloc_count;
+	u32 stop_count = async->cmd.stop_arg * bytes_per_sample(async->subdevice);
+
+	old_alloc_count = async->buf_read_alloc_count;
+	// read alloc as much as we can
+	comedi_buf_read_alloc(async, async->prealloc_bufsz);
+	nbytes_lb = mite_bytes_read_from_memory_lb(mite, mite_channel);
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes_lb - stop_count) > 0)
+		nbytes_lb = stop_count;
+	nbytes_ub = mite_bytes_read_from_memory_ub(mite, mite_channel);
+	if(async->cmd.stop_src == TRIG_COUNT &&
+		(int) (nbytes_ub - stop_count) > 0)
+		nbytes_ub = stop_count;
+	if((int)(nbytes_ub - old_alloc_count) > 0)
+	{
+		rt_printk("mite: DMA underrun\n");
+		async->events |= COMEDI_CB_OVERFLOW;
+		return -1;
+	}
+	count = nbytes_lb - async->buf_read_count;
+	if(count <= 0)
+	{
+		return 0;
+	}
+	comedi_buf_read_free(async, count);
+
+	async->events |= COMEDI_CB_BLOCK;
+	return 0;
 }
 
 #ifdef DEBUG_MITE
@@ -593,6 +683,8 @@ void __exit cleanup_module(void)
 EXPORT_SYMBOL(mite_dma_tcr);
 EXPORT_SYMBOL(mite_dma_arm);
 EXPORT_SYMBOL(mite_dma_disarm);
+EXPORT_SYMBOL(mite_sync_input_dma);
+EXPORT_SYMBOL(mite_sync_output_dma);
 EXPORT_SYMBOL(mite_setup);
 EXPORT_SYMBOL(mite_unsetup);
 #if 0
@@ -602,6 +694,8 @@ EXPORT_SYMBOL(mite_setregs);
 #endif
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
+EXPORT_SYMBOL(mite_alloc_channel);
+EXPORT_SYMBOL(mite_free_channel);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_change);
 EXPORT_SYMBOL(mite_bytes_written_to_memory_lb);

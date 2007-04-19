@@ -149,15 +149,18 @@ struct comedi_subdevice_struct{
 };
 
 struct comedi_async_struct{
+	comedi_subdevice *subdevice;
+
 	void		*prealloc_buf;		/* pre-allocated buffer */
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
 	unsigned long	*buf_page_list;		/* physical address of each page */
 	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 
-	volatile unsigned int buf_write_count;	/* byte count for writer (write completed) */
-	volatile unsigned int buf_write_alloc_count;	/* byte count for writer (allocated for writing) */
-	volatile unsigned int buf_read_count;	/* byte count for reader (read completed)*/
+	unsigned int buf_write_count;	/* byte count for writer (write completed) */
+	unsigned int buf_write_alloc_count;	/* byte count for writer (allocated for writing) */
+	unsigned int buf_read_count;	/* byte count for reader (read completed)*/
+	unsigned int buf_read_alloc_count;	/* byte count for reader (allocated for reading)*/
 
 	unsigned int buf_write_ptr;	/* buffer marker for writer */
 	unsigned int buf_read_ptr;	/* buffer marker for reader */
@@ -372,13 +375,13 @@ struct comedi_lrange_struct{
 static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevices)
 {
 	const int size = sizeof(comedi_subdevice) * num_subdevices;
+	unsigned i;
 
 	dev->n_subdevices = num_subdevices;
 	dev->subdevices = kmalloc(size,GFP_KERNEL);
 	if(!dev->subdevices)
 		return -ENOMEM;
 	memset(dev->subdevices,0,size);
-	unsigned i;
 	for(i = 0; i < num_subdevices; ++i)
 	{
 		dev->subdevices[i].device = dev;
@@ -406,18 +409,19 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 int comedi_buf_put(comedi_async *async, sampl_t x);
 int comedi_buf_get(comedi_async *async, sampl_t *x);
 
-unsigned int comedi_buf_write_n_available(comedi_subdevice *s);
+unsigned int comedi_buf_write_n_available(comedi_async *async);
 unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes);
 unsigned int comedi_buf_write_alloc_strict(comedi_async *async, unsigned int nbytes);
-void comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
-void comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
-unsigned int comedi_buf_read_n_available(comedi_subdevice *s);
+unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes);
+unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes);
+unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes);
+unsigned int comedi_buf_read_n_available(comedi_async *async);
 void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *source,
 	unsigned int num_bytes );
 void comedi_buf_memcpy_from( comedi_async *async, unsigned int offset, void *destination,
 	unsigned int num_bytes );
-unsigned int comedi_buf_munge( comedi_device *dev, comedi_subdevice *s,
-	unsigned int num_bytes );
+
+void comedi_reset_async_buf(comedi_async *async);
 
 static inline void* comedi_aux_data(int options[], int n)
 {
@@ -441,6 +445,7 @@ static inline void* comedi_aux_data(int options[], int n)
 		address += options[COMEDI_DEVCONF_AUX_DATA1_LENGTH];
 	if(n >= 3)
 		address += options[COMEDI_DEVCONF_AUX_DATA2_LENGTH];
+	BUG_ON(n > 3);
 	return (void*) address;
 }
 //#ifdef CONFIG_COMEDI_RT
