@@ -68,7 +68,6 @@ NI manuals:
 
 #include "8253.h"
 #include "8255.h"
-#include "mite.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 
@@ -647,7 +646,7 @@ struct pcmcia_driver labpc_cs_driver =
 	.owner = THIS_MODULE,
 	.drv = {
 		.name = dev_info,
-	},	
+	},
 };
 
 static int __init init_labpc_cs(void)
