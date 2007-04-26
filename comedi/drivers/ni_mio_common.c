@@ -317,8 +317,6 @@ static inline void ni_set_ai_dma_channel(comedi_device *dev, int channel)
 
 	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
 	devpriv->ai_ao_select_reg &= ~AI_DMA_Select_Mask;
-	/*FIXME this only works for channels 0,1,2.  Need to reverse
-	engineer proper bits for higher mite channels with m-series */
 	if(channel >= 0)
 	{
 		devpriv->ai_ao_select_reg |= (1 << (channel + AI_DMA_Select_Shift)) & AI_DMA_Select_Mask;
@@ -334,8 +332,6 @@ static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 
 	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
 	devpriv->ai_ao_select_reg &= ~AO_DMA_Select_Mask;
-	/*FIXME this only works for channels 0,1,2.  Need to reverse
-	engineer proper bits for higher mite channels with m-series */
 	if(channel >= 0)
 	{
 		devpriv->ai_ao_select_reg |= (1 << (channel + AO_DMA_Select_Shift)) & AO_DMA_Select_Mask;
@@ -348,10 +344,11 @@ static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 static int ni_request_ai_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
+	static const unsigned max_dma_channel = 3;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->ai_mite_chan);
-	devpriv->ai_mite_chan = mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
+	devpriv->ai_mite_chan = mite_request_channel_in_range(devpriv->mite, devpriv->ai_mite_ring, 0, max_dma_channel);
 	if(devpriv->ai_mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -366,10 +363,11 @@ static int ni_request_ai_mite_channel(comedi_device *dev)
 static int ni_request_ao_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
+	static const unsigned max_dma_channel = 3;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->ao_mite_chan);
-	devpriv->ao_mite_chan = mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
+	devpriv->ao_mite_chan = mite_request_channel_in_range(devpriv->mite, devpriv->ao_mite_ring, 0, max_dma_channel);
 	if(devpriv->ao_mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -415,7 +413,7 @@ static void ni_release_ao_mite_channel(comedi_device *dev)
 #endif	// PCIDMA
 }
 
-static void ni_flush_ai_fifo(comedi_device *dev){
+static void ni_clear_ai_fifo(comedi_device *dev){
 	if(boardtype.reg_type == ni_reg_6143){
 		// Flush the 6143 data FIFO
 		ni_writel(0x10, AIFIFO_Control_6143);		// Flush fifo
@@ -427,9 +425,13 @@ static void ni_flush_ai_fifo(comedi_device *dev){
 		{
 			ni_writeb(0, M_Offset_Static_AI_Control(0));
 			ni_writeb(1, M_Offset_Static_AI_Control(0));
+#if 0
+		/* the NI example code does 3 convert pulses for 625x boards,
+		but that appears to be wrong in practice. */
 			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
 			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
 			devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+#endif
 		}
 	}
 }
@@ -1317,7 +1319,7 @@ static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 		AI_STOP_Interrupt_Enable|   AI_Error_Interrupt_Enable|
 		AI_FIFO_Interrupt_Enable,0);
 
-	ni_flush_ai_fifo(dev);
+	ni_clear_ai_fifo(dev);
 
 	if(boardtype.reg_type != ni_reg_6143)
 		ni_writeb(0, Misc_Command);
@@ -1411,7 +1413,7 @@ static int ni_ai_insn_read(comedi_device *dev,comedi_subdevice *s,comedi_insn *i
 
 	ni_load_channelgain_list(dev,1,&insn->chanspec);
 
-	ni_flush_ai_fifo(dev);
+	ni_clear_ai_fifo(dev);
 
 	signbits=devpriv->ai_offset[0];
 	if(boardtype.reg_type == ni_reg_611x){
@@ -1931,7 +1933,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "cannot run command without an irq");
 		return -EIO;
 	}
-	ni_flush_ai_fifo(dev);
+	ni_clear_ai_fifo(dev);
 
 	ni_load_channelgain_list(dev,cmd->chanlist_len,cmd->chanlist);
 

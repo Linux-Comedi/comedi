@@ -111,12 +111,13 @@ void mite_cleanup(void);
 int mite_setup(struct mite_struct *mite);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
-struct mite_channel* mite_offset_request_channel(struct mite_struct *mite, struct mite_dma_descriptor_ring *ring,
-	unsigned first_channel_to_try);
+struct mite_channel* mite_request_channel_in_range(
+	struct mite_struct *mite, struct mite_dma_descriptor_ring *ring,
+	unsigned min_channel, unsigned max_channel);
 static inline struct mite_channel* mite_request_channel(
 	struct mite_struct *mite, struct mite_dma_descriptor_ring *ring)
 {
-	return mite_offset_request_channel(mite, ring, 0);
+	return mite_request_channel_in_range(mite, ring, 0, mite->num_channels - 1);
 }
 void mite_release_channel(struct mite_channel *mite_chan);
 

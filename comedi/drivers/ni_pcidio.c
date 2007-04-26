@@ -423,7 +423,7 @@ static int ni_pcidio_request_di_mite_channel(comedi_device *dev)
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->di_mite_chan);
-	devpriv->di_mite_chan = mite_offset_request_channel(devpriv->mite, devpriv->di_mite_ring, 1);
+	devpriv->di_mite_chan = mite_request_channel_in_range(devpriv->mite, devpriv->di_mite_ring, 1, 2);
 	if(devpriv->di_mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);

@@ -229,8 +229,8 @@ void mite_list_devices(void)
 
 }
 
-struct mite_channel* mite_offset_request_channel(struct mite_struct *mite, struct mite_dma_descriptor_ring *ring,
-	unsigned first_channel_to_try)
+struct mite_channel* mite_request_channel_in_range(struct mite_struct *mite, struct mite_dma_descriptor_ring *ring,
+	unsigned min_channel, unsigned max_channel)
 {
 	int i;
 	unsigned long flags;
@@ -238,7 +238,7 @@ struct mite_channel* mite_offset_request_channel(struct mite_struct *mite, struc
 
 	// spin lock so mite_release_channel can be called safely from interrupts
 	comedi_spin_lock_irqsave(&mite->lock, flags);
-	for(i = first_channel_to_try; i < mite->num_channels; ++i)
+	for(i = min_channel; i <= max_channel; ++i)
 	{
 		if(mite->channel_allocated[i] == 0)
 		{
@@ -707,7 +707,7 @@ EXPORT_SYMBOL(mite_setregs);
 #endif
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
-EXPORT_SYMBOL(mite_offset_request_channel);
+EXPORT_SYMBOL(mite_request_channel_in_range);
 EXPORT_SYMBOL(mite_release_channel);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_change);
