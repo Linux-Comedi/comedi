@@ -106,8 +106,7 @@ struct ni_gpct
 	unsigned (*read_register)(struct ni_gpct *this, enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	uint64_t clock_period_ps; /* clock period in picoseconds */
-	struct mite_struct *mite;
-	int mite_channel; /* -1 when no channel is allocated to the counter */
+	struct mite_channel *mite_chan;
 	unsigned regs[MAX_NUM_NITIO_REGS];
 };
 

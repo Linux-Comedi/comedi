@@ -677,8 +677,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 			devpriv->counters[i].read_register = ni_gpct_read_register;
 			devpriv->counters[i].variant = ni_gpct_variant_660x;
 			devpriv->counters[i].clock_period_ps = 0;
-			devpriv->counters[i].mite = devpriv->mite;
-			devpriv->counters[i].mite_channel = -1;
+			devpriv->counters[i].mite_chan = NULL;
 		}else
 		{
 			s->type = COMEDI_SUBD_UNUSED;

@@ -1041,6 +1041,12 @@ COMEDI_INITCLEANUP(driver_pcimio);
 
 typedef struct{
 	struct mite_struct *mite;
+	struct mite_channel *ai_mite_chan;
+	struct mite_channel *ao_mite_chan;
+	struct mite_channel *gpct_mite_chan[2];
+	struct mite_dma_descriptor_ring *ai_mite_ring;
+	struct mite_dma_descriptor_ring *ao_mite_ring;
+	struct mite_dma_descriptor_ring *gpct_mite_ring[2];
 
 	NI_PRIVATE_COMMON
 }ni_private;
@@ -1407,12 +1413,17 @@ static void init_6143(comedi_device *dev)
 static int pcimio_detach(comedi_device *dev)
 {
 	mio_common_detach(dev);
-
-	if(dev->private && devpriv->mite)
-		mite_unsetup(devpriv->mite);
-
 	if(dev->irq){
-		comedi_free_irq(dev->irq,dev);
+		comedi_free_irq(dev->irq, dev);
+	}
+	if(dev->private)
+	{
+		mite_free_ring(devpriv->ai_mite_ring);
+		mite_free_ring(devpriv->ao_mite_ring);
+		mite_free_ring(devpriv->gpct_mite_ring[0]);
+		mite_free_ring(devpriv->gpct_mite_ring[1]);
+		if(devpriv->mite)
+			mite_unsetup(devpriv->mite);
 	}
 
 	return 0;
@@ -1426,6 +1437,14 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	ret=ni_alloc_private(dev);
 	if(ret<0)return ret;
+	devpriv->ai_mite_ring = mite_alloc_ring();
+	if(devpriv->ai_mite_ring == NULL) return -ENOMEM;
+	devpriv->ao_mite_ring = mite_alloc_ring();
+	if(devpriv->ao_mite_ring == NULL) return -ENOMEM;
+	devpriv->gpct_mite_ring[0] = mite_alloc_ring();
+	if(devpriv->gpct_mite_ring[0] == NULL) return -ENOMEM;
+	devpriv->gpct_mite_ring[1] = mite_alloc_ring();
+	if(devpriv->gpct_mite_ring[1] == NULL) return -ENOMEM;
 
 	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
@@ -1513,8 +1532,8 @@ static int pcimio_ai_change(comedi_device *dev, comedi_subdevice *s,
 {
 	int ret;
 
-	ret = mite_buf_change(devpriv->mite, AI_DMA_CHAN, s->async, new_size);
-	if(ret<0)return ret;
+	ret = mite_buf_change(devpriv->ai_mite_ring, s->async);
+	if(ret < 0) return ret;
 
 	return 0;
 }
@@ -1524,8 +1543,8 @@ static int pcimio_ao_change(comedi_device *dev, comedi_subdevice *s,
 {
 	int ret;
 
-	ret = mite_buf_change(devpriv->mite, AO_DMA_CHAN, s->async, new_size);
-	if(ret<0)return ret;
+	ret = mite_buf_change(devpriv->ao_mite_ring, s->async);
+	if(ret < 0) return ret;
 
 	return 0;
 }

@@ -205,8 +205,17 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #define Interrupt_Control		75
   /* bits same as flags */
 
-#define DMA_Line_Control		76
-  #define DMAChannel(x)		((x)&0xf)
+#define DMA_Line_Control_Group1		76
+#define DMA_Line_Control_Group2		108
+// channel zero is none
+static inline unsigned primary_DMAChannel_bits(unsigned channel)
+{
+	return channel & 0x3;
+}
+static inline unsigned secondary_DMAChannel_bits(unsigned channel)
+{
+	return (channel << 2) & 0xc;
+}
 
 #define Transfer_Size_Control		77
   #define TransferWidth(x)	((x)&3)
@@ -281,11 +290,6 @@ enum FPGA_Control_Bits
 #else
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
-
-enum mite_dma_channels
-{
-	DI_DMA_CHAN = 1,
-};
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
@@ -390,6 +394,9 @@ typedef struct{
 	int boardtype;
 	int dio;
 	unsigned short OpModeBits;
+	struct mite_channel *di_mite_chan;
+	struct mite_dma_descriptor_ring *di_mite_ring;
+	spinlock_t mite_channel_lock;
 }nidio96_private;
 #define devpriv ((nidio96_private *)dev->private)
 
@@ -400,7 +407,7 @@ static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
 	unsigned int trignum);
 static int nidio_find_device(comedi_device *dev,int bus,int slot);
 static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
-static void setup_mite_dma(comedi_device *dev,comedi_subdevice *s);
+static int setup_mite_dma(comedi_device *dev,comedi_subdevice *s);
 
 #ifdef DEBUG_FLAGS
 static void ni_pcidio_print_flags(unsigned int flags);
@@ -409,6 +416,43 @@ static void ni_pcidio_print_status(unsigned int status);
 #define ni_pcidio_print_flags(x)
 #define ni_pcidio_print_status(x)
 #endif
+
+static int ni_pcidio_request_di_mite_channel(comedi_device *dev)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	BUG_ON(devpriv->di_mite_chan);
+	devpriv->di_mite_chan = mite_offset_request_channel(devpriv->mite, devpriv->di_mite_ring, 1);
+	if(devpriv->di_mite_chan == NULL)
+	{
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+		comedi_error(dev, "failed to reserve mite dma channel.");
+		return -EBUSY;
+	}
+	writeb(primary_DMAChannel_bits(devpriv->di_mite_chan->channel) |
+		secondary_DMAChannel_bits(devpriv->di_mite_chan->channel),
+		devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	return 0;
+}
+
+static void ni_pcidio_release_di_mite_channel(comedi_device *dev)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->di_mite_chan)
+	{
+		mite_release_channel(devpriv->di_mite_chan);
+		writeb(primary_DMAChannel_bits(0) |
+			secondary_DMAChannel_bits(0),
+			devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
+		mmiowb();
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+}
 
 static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 {
@@ -420,13 +464,28 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 	}
 }
 
+static void nidio_disarm_and_reset_di_mite_channel(comedi_device *dev)
+{
+#ifdef USE_DMA
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->di_mite_chan)
+	{
+		mite_dma_disarm(devpriv->di_mite_chan);
+		mite_dma_reset(devpriv->di_mite_chan);
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+#endif	// USE_DMA
+}
+
 static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev=d;
 	comedi_subdevice *s = dev->subdevices;
 	comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
-	struct mite_channel *mite_chan = &mite->channels[ DI_DMA_CHAN ];
+
 	//int i, j;
 	long int AuxData = 0;
 	sampl_t data1 = 0;
@@ -434,11 +493,11 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	int flags;
 	int status;
 	int work = 0;
-	unsigned int m_status;
+	unsigned int m_status = 0;
+	unsigned long irq_flags;
 
 	status = readb(devpriv->mite->daq_io_addr+Interrupt_And_Window_Status);
 	flags = readb(devpriv->mite->daq_io_addr+Group_1_Flags);
-	m_status = readl(mite->mite_io_addr + MITE_CHSR(DI_DMA_CHAN));
 
 	//interrupcions parasites
 	if(dev->attached == 0){
@@ -446,48 +505,46 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;
 	}
 
-	DPRINTK("ni_pcidio_interrupt: status=0x%02x,flags=0x%02x,m_status=0x%08x\n",
-		status,flags,m_status);
+	DPRINTK("ni_pcidio_interrupt: status=0x%02x,flags=0x%02x\n",
+		status,flags);
 	ni_pcidio_print_flags(flags);
 	ni_pcidio_print_status(status);
+
+	//printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf);
+	//printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096));
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
+	if(devpriv->di_mite_chan)
+		m_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->di_mite_chan->channel));
 #ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
 #endif
 	//printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,DI_DMA_CHAN));
 	//mite_dump_regs(mite);
-
-	//printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf);
-	//printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096));
-
 	if(m_status & CHSR_INT){
 		if(m_status & CHSR_LINKC){
-			unsigned int count;
+			int retval;
 
-			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
-			count = le32_to_cpu(mite_chan->ring[mite_chan->current_link].count);
-
+			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->di_mite_chan->channel));
+			retval = mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+			if(retval)
+			{
+				mite_dma_disarm(devpriv->di_mite_chan);
+				mite_dma_reset(devpriv->di_mite_chan);
+			}
 			/* XXX need to byteswap */
-
-			async->buf_write_count += count;
-			async->buf_write_ptr += count;
-			if(async->buf_write_ptr >= async->prealloc_bufsz){
-				async->buf_write_ptr -= async->prealloc_bufsz;
-			}
-			mite_chan->current_link++;
-			if(mite_chan->current_link >= mite_chan->n_links){
-				mite_chan->current_link=0;
-			}
 		}
 		if(m_status & CHSR_DONE){
-			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
+			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(devpriv->di_mite_chan->channel));
 		}
 		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1 | CHSR_MRDY)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
-			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
+			mite_dma_disarm(devpriv->di_mite_chan);
+			mite_dma_reset(devpriv->di_mite_chan);
 			disable_irq(dev->irq);
 		}
-		async->events |= COMEDI_CB_BLOCK;
 	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, irq_flags);
 
 	while(status&DataLeft){
 		work++;
@@ -530,20 +587,14 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 
 			writeb(0x00,devpriv->mite->daq_io_addr+OpMode);
 			writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
-#ifdef USE_DMA
-			mite_dma_disarm(mite, DI_DMA_CHAN);
-			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
-#endif
+			nidio_disarm_and_reset_di_mite_channel(dev);
 			break;
 		}else if(flags & Waited){
 			DPRINTK("Waited\n");
 			writeb(ClearWaited,devpriv->mite->daq_io_addr+Group_1_First_Clear);
 			writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-#ifdef USE_DMA
-			mite_dma_disarm(mite, DI_DMA_CHAN);
-			writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(DI_DMA_CHAN));
-#endif
+			nidio_disarm_and_reset_di_mite_channel(dev);
 			break;
 		}else if(flags & PrimaryTC){
 			DPRINTK("PrimaryTC\n");
@@ -573,7 +624,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 
 out:
 	comedi_event(dev,s,async->events);
-
 #if 0
 	if(!tag){
 		writeb(0x03,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
@@ -807,6 +857,10 @@ static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
 	return divider;
 }
 
+static void ni_pcidio_cmd_cleanup(comedi_device *dev,comedi_subdevice *s)
+{
+	ni_pcidio_release_di_mite_channel(dev);
+}
 
 static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 {
@@ -876,13 +930,17 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 	}
 
 #ifdef USE_DMA
-	writeb(0x05,devpriv->mite->daq_io_addr+DMA_Line_Control);
-	writeb(0x30,devpriv->mite->daq_io_addr+Group_1_First_Clear);
+	writeb(ClearPrimaryTC | ClearSecondaryTC,
+		devpriv->mite->daq_io_addr + Group_1_First_Clear);
 
-	setup_mite_dma(dev,s);
+	{
+		int retval = setup_mite_dma(dev,s);
+		if(retval) return retval;
+	}
 #else
-	writeb(0x00,devpriv->mite->daq_io_addr+DMA_Line_Control);
+	writeb(0x00, devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
 #endif
+	writeb(0x00, devpriv->mite->daq_io_addr + DMA_Line_Control_Group2);
 
 	/* clear and enable interrupts */
 	writeb(0xff,devpriv->mite->daq_io_addr+Group_1_First_Clear);
@@ -909,19 +967,19 @@ static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
-
-static void setup_mite_dma(comedi_device *dev,comedi_subdevice *s)
+static int setup_mite_dma(comedi_device *dev,comedi_subdevice *s)
 {
-	struct mite_struct *mite = devpriv->mite;
-	struct mite_channel *mite_chan = &mite->channels[ DI_DMA_CHAN ];
+	int retval;
 
-	mite_chan->current_link = 0;
+	retval = ni_pcidio_request_di_mite_channel(dev);
+	if(retval) return retval;
 
-	mite_chan->dir = COMEDI_INPUT;
+	devpriv->di_mite_chan->dir = COMEDI_INPUT;
 
-	mite_prep_dma(mite, DI_DMA_CHAN, 32, 32);
+	mite_prep_dma(devpriv->di_mite_chan, 32, 32);
 
-	mite_dma_arm(mite, DI_DMA_CHAN);
+	mite_dma_arm(devpriv->di_mite_chan);
+	return 0;
 }
 
 
@@ -950,7 +1008,7 @@ static int ni_pcidio_change(comedi_device *dev, comedi_subdevice *s,
 {
 	int ret;
 
-	ret = mite_buf_change(devpriv->mite, DI_DMA_CHAN, s->async, new_size);
+	ret = mite_buf_change(devpriv->di_mite_ring, s->async);
 	if(ret<0)return ret;
 
 	memset(s->async->prealloc_buf, 0xaa, s->async->prealloc_bufsz);
@@ -1070,6 +1128,9 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if((ret=alloc_private(dev,sizeof(nidio96_private)))<0)
 		return ret;
+	devpriv->di_mite_ring = mite_alloc_ring();
+	if(devpriv->di_mite_ring == NULL) return -ENOMEM;
+	spin_lock_init(&devpriv->mite_channel_lock);
 
 	ret=nidio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
@@ -1118,6 +1179,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->insn_config = ni_pcidio_insn_config;
 		s->insn_bits = ni_pcidio_insn_bits;
 		s->do_cmd = ni_pcidio_cmd;
+		s->cmd_cleanup = ni_pcidio_cmd_cleanup;
 		s->do_cmdtest = ni_pcidio_cmdtest;
 		s->cancel = ni_pcidio_cancel;
 		s->len_chanlist=32;		/* XXX */
@@ -1155,9 +1217,16 @@ static int nidio_detach(comedi_device *dev)
 	if(dev->irq)
 		comedi_free_irq(dev->irq,dev);
 
-	if(devpriv && devpriv->mite)
-		mite_unsetup(devpriv->mite);
-
+	if(devpriv)
+	{
+		if(devpriv->di_mite_ring)
+		{
+			mite_free_ring(devpriv->di_mite_ring);
+			devpriv->di_mite_ring = NULL;
+		}
+		if(devpriv->mite)
+			mite_unsetup(devpriv->mite);
+	}
 	return 0;
 }
 

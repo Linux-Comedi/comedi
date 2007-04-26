@@ -76,6 +76,8 @@ void mite_init(void)
 	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==PCI_VENDOR_ID_NATINST){
+			unsigned i;
+
 			mite=kmalloc(sizeof(*mite),GFP_KERNEL);
 			if(!mite){
 				printk("mite: allocation failed\n");
@@ -85,7 +87,11 @@ void mite_init(void)
 			memset(mite,0,sizeof(*mite));
 			spin_lock_init(&mite->lock);
 			mite->pcidev=pci_dev_get(pcidev);
-
+			for(i = 0; i < MAX_MITE_DMA_CHANNELS; ++i)
+			{
+				mite->channels[i].mite = mite;
+				mite->channels[i].channel = i;
+			}
 			mite->next=mite_devices;
 			mite_devices=mite;
 		}
@@ -190,6 +196,7 @@ void mite_unsetup(struct mite_struct *mite)
 
 	if(!mite)return;
 
+	pci_disable_device(mite->pcidev);
 	if(mite->mite_io_addr){
 		iounmap(mite->mite_io_addr);
 		mite->mite_io_addr=NULL;
@@ -222,64 +229,66 @@ void mite_list_devices(void)
 
 }
 
-int mite_alloc_channel(struct mite_struct *mite)
+struct mite_channel* mite_offset_request_channel(struct mite_struct *mite, struct mite_dma_descriptor_ring *ring,
+	unsigned first_channel_to_try)
 {
 	int i;
 	unsigned long flags;
-	int retval = -1;
+	struct mite_channel *channel = NULL;
 
-	// spin lock so mite_free_channel can be called safely from interrupts
+	// spin lock so mite_release_channel can be called safely from interrupts
 	comedi_spin_lock_irqsave(&mite->lock, flags);
-	for(i = 0; i < mite->num_channels; ++i)
+	for(i = first_channel_to_try; i < mite->num_channels; ++i)
 	{
 		if(mite->channel_allocated[i] == 0)
 		{
 			mite->channel_allocated[i] = 1;
-			retval = i;
+			channel = &mite->channels[i];
+			channel->ring = ring;
 			break;
 		}
 	}
 	comedi_spin_unlock_irqrestore(&mite->lock, flags);
-	return retval;
+	return channel;
 }
 
-void mite_free_channel(struct mite_struct *mite, unsigned channel)
+void mite_release_channel(struct mite_channel *mite_chan)
 {
+	struct mite_struct *mite = mite_chan->mite;
 	unsigned long flags;
 
-	BUG_ON(channel >= mite->num_channels);
-	// spin lock to prevent races with mite_alloc_channel
+	// spin lock to prevent races with mite_request_channel
 	comedi_spin_lock_irqsave(&mite->lock, flags);
-	mite->channel_allocated[channel] = 0;
+	mite->channel_allocated[mite_chan->channel] = 0;
+	mite_chan->ring = NULL;
 	comedi_spin_unlock_irqrestore(&mite->lock, flags);
 }
 
-void mite_dma_arm( struct mite_struct *mite, unsigned int channel )
+void mite_dma_arm(struct mite_channel *mite_chan)
 {
+	struct mite_struct *mite = mite_chan->mite;
 	int chor;
 
 	MDPRINTK("mite_dma_arm ch%i\n", channel);
 	/* arm */
 	chor = CHOR_START;
-	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
+	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 // 	mite_dma_tcr(mite, channel);
 }
 
 
 /**************************************/
 
-int mite_load_buffer(struct mite_struct *mite, unsigned int channel, comedi_async *async)
+int mite_buf_change(struct mite_dma_descriptor_ring *ring, comedi_async *async)
 {
 	unsigned int n_links;
 	int i;
-	struct mite_channel *mite_chan = &mite->channels[ channel ];
 
-	MDPRINTK("mite_load_buffer ch%i\n", channel);
-
-	if(mite_chan->ring){
-		kfree(mite_chan->ring);
-		mite_chan->ring = NULL;
+	if(ring->descriptors){
+		kfree(ring->descriptors);
 	}
+	ring->descriptors = NULL;
+	ring->n_links = 0;
 
 	if(async->prealloc_bufsz==0){
 		return 0;
@@ -290,49 +299,39 @@ int mite_load_buffer(struct mite_struct *mite, unsigned int channel, comedi_asyn
 	MDPRINTK("buf=%p buf(bus)=%08lx bufsz=0x%08x n_links=0x%04x\n",
 		async->prealloc_buf, virt_to_bus(async->prealloc_buf), async->prealloc_bufsz, n_links);
 
-	mite_chan->ring = kmalloc(n_links * sizeof(struct mite_dma_chain), GFP_KERNEL);
-	if(!mite_chan->ring){
+	ring->descriptors = kmalloc(n_links * sizeof(struct mite_dma_descriptor), GFP_KERNEL);
+	if(!ring->descriptors){
 		printk("mite: ring buffer allocation failed\n");
 		return -ENOMEM;
 	}
-	mite_chan->n_links = n_links;
-	mite_chan->current_link = 0;
+	ring->n_links = n_links;
 
-	for(i=0;i<n_links;i++){
-		mite_chan->ring[i].count = cpu_to_le32(PAGE_SIZE);
-		mite_chan->ring[i].addr = cpu_to_le32(virt_to_bus(
-				(void *)async->buf_page_list[i]));
-		mite_chan->ring[i].next = cpu_to_le32(virt_to_bus(
-				mite_chan->ring+i+1));
+	for(i = 0; i < n_links; i++){
+		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
+		ring->descriptors[i].addr = cpu_to_le32(virt_to_bus(
+			(void *)async->buf_page_list[i]));
+		ring->descriptors[i].next = cpu_to_le32(virt_to_bus(
+			ring->descriptors + i + 1));
 	}
-
-	mite_chan->ring[n_links-1].next = cpu_to_le32(virt_to_bus(
-				mite_chan->ring));
-
+	ring->descriptors[n_links - 1].next = cpu_to_le32(virt_to_bus(
+		ring->descriptors));
+	/* barrier is meant to insure that all the writes to the dma descriptors
+	have completed before the dma controller is commanded to read them */
+	smp_wmb();
 	return 0;
 }
 
-int mite_buf_change(struct mite_struct *mite, unsigned int channel,
-	comedi_async *async, unsigned long new_size)
-{
-	MDPRINTK("mite_buf_change ch%i\n", channel);
-
-	mite_load_buffer(mite, channel, async);
-
-	return 0;
-}
-
-void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
+void mite_prep_dma(struct mite_channel *mite_chan,
 	unsigned int num_device_bits, unsigned int num_memory_bits )
 {
 	unsigned int chor,chcr,mcr,dcr,lkcr;
-	struct mite_channel *mite_chan = &mite->channels[ channel ];
+	struct mite_struct *mite = mite_chan->mite;
 
-	MDPRINTK("mite_prep_dma ch%i\n", channel );
+	MDPRINTK("mite_prep_dma ch%i\n", mite_chan->channel);
 
 	/* reset DMA and FIFO */
 	chor = CHOR_DMARESET | CHOR_FRESET;
-	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
+	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 
 	/* short link chaining mode */
 	chcr = CHCR_SET_DMA_IE | CHCR_LINKSHORT | CHCR_SET_DONE_IE | CHCR_BURSTEN;
@@ -355,7 +354,7 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 	if(mite_chan->dir == COMEDI_INPUT){
 		chcr |= CHCR_DEV_TO_MEM;
 	}
-	writel(chcr, mite->mite_io_addr + MITE_CHCR(channel));
+	writel(chcr, mite->mite_io_addr + MITE_CHCR(mite_chan->channel));
 
 	/* to/from memory */
 	mcr = CR_RL(64) | CR_ASEQUP;
@@ -373,11 +372,11 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 			rt_printk( "mite: bug! invalid mem bit width for dma transfer\n" );
 			break;
 	}
-	writel(mcr, mite->mite_io_addr + MITE_MCR(channel));
+	writel(mcr, mite->mite_io_addr + MITE_MCR(mite_chan->channel));
 
 	/* from/to device */
 	dcr = CR_RL(64) | CR_ASEQUP;
-	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQSDRQ(channel);
+	dcr |= CR_PORTIO | CR_AMDEVICE | CR_REQSDRQ(mite_chan->channel);
 	switch( num_device_bits ){
 		case 8:
 			dcr |= CR_PSIZE8;
@@ -392,90 +391,94 @@ void mite_prep_dma( struct mite_struct *mite, unsigned int channel,
 			rt_printk( "mite: bug! invalid dev bit width for dma transfer\n" );
 			break;
 	}
-	writel(dcr, mite->mite_io_addr + MITE_DCR(channel));
+	writel(dcr, mite->mite_io_addr + MITE_DCR(mite_chan->channel));
 
 	/* reset the DAR */
-	writel(0, mite->mite_io_addr + MITE_DAR(channel));
+	writel(0, mite->mite_io_addr + MITE_DAR(mite_chan->channel));
 
 	/* the link is 32bits */
 	lkcr = CR_RL(64) | CR_ASEQUP | CR_PSIZE32;
-	writel(lkcr, mite->mite_io_addr + MITE_LKCR(channel));
+	writel(lkcr, mite->mite_io_addr + MITE_LKCR(mite_chan->channel));
 
 	/* starting address for link chaining */
-	writel(virt_to_bus(mite_chan->ring),
-		mite->mite_io_addr + MITE_LKAR(channel));
+	writel(virt_to_bus(mite_chan->ring->descriptors),
+		mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 
 	MDPRINTK("exit mite_prep_dma\n");
 }
 
-u32 mite_device_bytes_transferred(struct mite_struct *mite, unsigned int chan)
+u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
-	return readl(mite->mite_io_addr + MITE_DAR(chan));
+	struct mite_struct *mite = mite_chan->mite;
+	return readl(mite->mite_io_addr + MITE_DAR(mite_chan->channel));
 }
 
-u32 mite_bytes_in_transit(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 {
-	return readl(mite->mite_io_addr + MITE_FCR(chan)) & 0x000000FF;
+	struct mite_struct *mite = mite_chan->mite;
+	return readl(mite->mite_io_addr + MITE_FCR(mite_chan->channel)) & 0x000000FF;
 }
 
 // returns lower bound for number of bytes transferred from device to memory
-u32 mite_bytes_written_to_memory_lb(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan)
 {
 	u32 device_byte_count;
 
-	device_byte_count = mite_device_bytes_transferred(mite, chan);
-	return device_byte_count - mite_bytes_in_transit(mite, chan);
+	device_byte_count = mite_device_bytes_transferred(mite_chan);
+	return device_byte_count - mite_bytes_in_transit(mite_chan);
 }
 
 // returns upper bound for number of bytes transferred from device to memory
-u32 mite_bytes_written_to_memory_ub(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan)
 {
 	u32 in_transit_count;
 
-	in_transit_count = mite_bytes_in_transit(mite, chan);
-	return mite_device_bytes_transferred(mite, chan) - in_transit_count;
+	in_transit_count = mite_bytes_in_transit(mite_chan);
+	return mite_device_bytes_transferred(mite_chan) - in_transit_count;
 }
 
 // returns lower bound for number of bytes read from memory for transfer to device
-u32 mite_bytes_read_from_memory_lb(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan)
 {
 	u32 device_byte_count;
 
-	device_byte_count = mite_device_bytes_transferred(mite, chan);
-	return device_byte_count + mite_bytes_in_transit(mite, chan);
+	device_byte_count = mite_device_bytes_transferred(mite_chan);
+	return device_byte_count + mite_bytes_in_transit(mite_chan);
 }
 
 // returns upper bound for number of bytes read from memory for transfer to device
-u32 mite_bytes_read_from_memory_ub(struct mite_struct *mite, unsigned int chan)
+u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 {
 	u32 in_transit_count;
 
-	in_transit_count = mite_bytes_in_transit(mite, chan);
-	return mite_device_bytes_transferred(mite, chan) + in_transit_count;
+	in_transit_count = mite_bytes_in_transit(mite_chan);
+	return mite_device_bytes_transferred(mite_chan) + in_transit_count;
 }
 
-int mite_dma_tcr(struct mite_struct *mite, unsigned int channel)
+unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 {
+	struct mite_struct *mite = mite_chan->mite;
 	int tcr;
 	int lkar;
 
-	lkar = readl(mite->mite_io_addr + MITE_LKAR(channel));
-	tcr = readl(mite->mite_io_addr + MITE_TCR(channel));
-	MDPRINTK("mite_dma_tcr ch%i, lkar=0x%08x tcr=%d\n", channel, lkar, tcr);
+	lkar = readl(mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
+	tcr = readl(mite->mite_io_addr + MITE_TCR(mite_chan->channel));
+	MDPRINTK("mite_dma_tcr ch%i, lkar=0x%08x tcr=%d\n", mite_chan->channel, lkar, tcr);
 
 	return tcr;
 }
 
-void mite_dma_disarm(struct mite_struct *mite, unsigned int channel)
+void mite_dma_disarm(struct mite_channel *mite_chan)
 {
-	int chor;
+	struct mite_struct *mite = mite_chan->mite;
+	unsigned chor;
 
 	/* disarm */
 	chor = CHOR_ABORT;
-	writel(chor, mite->mite_io_addr + MITE_CHOR(channel));
+	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 }
 
-int mite_sync_input_dma(struct mite_struct *mite, unsigned mite_channel, comedi_async *async)
+int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async *async)
 {
 	int count;
 	unsigned int nbytes, old_alloc_count;
@@ -485,8 +488,8 @@ int mite_sync_input_dma(struct mite_struct *mite, unsigned mite_channel, comedi_
 	// write alloc as much as we can
 	comedi_buf_write_alloc(async, async->prealloc_bufsz);
 
-	nbytes = mite_bytes_written_to_memory_lb(mite, mite_channel);
-	if((int)(mite_bytes_written_to_memory_ub(mite, mite_channel) - old_alloc_count) > 0)
+	nbytes = mite_bytes_written_to_memory_lb(mite_chan);
+	if((int)(mite_bytes_written_to_memory_ub(mite_chan) - old_alloc_count) > 0)
 	{
 		rt_printk("mite: DMA overwrite of free area\n");
 		async->events |= COMEDI_CB_OVERFLOW;
@@ -512,7 +515,7 @@ int mite_sync_input_dma(struct mite_struct *mite, unsigned mite_channel, comedi_
 	return 0;
 }
 
-int mite_sync_output_dma(struct mite_struct *mite, unsigned mite_channel, comedi_async *async)
+int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async *async)
 {
 	int count;
 	u32 nbytes_ub, nbytes_lb;
@@ -522,11 +525,11 @@ int mite_sync_output_dma(struct mite_struct *mite, unsigned mite_channel, comedi
 	old_alloc_count = async->buf_read_alloc_count;
 	// read alloc as much as we can
 	comedi_buf_read_alloc(async, async->prealloc_bufsz);
-	nbytes_lb = mite_bytes_read_from_memory_lb(mite, mite_channel);
+	nbytes_lb = mite_bytes_read_from_memory_lb(mite_chan);
 	if(async->cmd.stop_src == TRIG_COUNT &&
 		(int) (nbytes_lb - stop_count) > 0)
 		nbytes_lb = stop_count;
-	nbytes_ub = mite_bytes_read_from_memory_ub(mite, mite_channel);
+	nbytes_ub = mite_bytes_read_from_memory_ub(mite_chan);
 	if(async->cmd.stop_src == TRIG_COUNT &&
 		(int) (nbytes_ub - stop_count) > 0)
 		nbytes_ub = stop_count;
@@ -621,14 +624,14 @@ static char *mite_CHSR_strings[] = {
 	"28", "lpauses", "30", "int",
 };
 
-void mite_dump_regs(struct mite_struct *mite, int channel)
+void mite_dump_regs(struct mite_channel *mite_chan)
 {
-	unsigned long mite_io_addr = (unsigned long) mite->mite_io_addr;
+	unsigned long mite_io_addr = (unsigned long) mite_chan->mite->mite_io_addr;
 	unsigned long addr=0;
 	unsigned long temp=0;
 
-	printk("mite_dump_regs ch%i\n", channel);
-	printk("mite address is  =0x%08lx\n",mite_io_addr);
+	printk("mite_dump_regs ch%i\n", mite_chan->channel);
+	printk("mite address is  =0x%08lx\n", mite_io_addr);
 
 	addr = mite_io_addr+MITE_CHOR(channel);
 	printk("mite status[CHOR]at 0x%08lx =0x%08lx\n",addr, temp=readl(addr));
@@ -704,8 +707,8 @@ EXPORT_SYMBOL(mite_setregs);
 #endif
 EXPORT_SYMBOL(mite_devices);
 EXPORT_SYMBOL(mite_list_devices);
-EXPORT_SYMBOL(mite_alloc_channel);
-EXPORT_SYMBOL(mite_free_channel);
+EXPORT_SYMBOL(mite_offset_request_channel);
+EXPORT_SYMBOL(mite_release_channel);
 EXPORT_SYMBOL(mite_prep_dma);
 EXPORT_SYMBOL(mite_buf_change);
 EXPORT_SYMBOL(mite_bytes_written_to_memory_lb);

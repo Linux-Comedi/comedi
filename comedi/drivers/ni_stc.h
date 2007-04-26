@@ -691,6 +691,13 @@ enum XXX_Status_Bits
 #define Channel_B_Mode			0x05
 #define Channel_C_Mode			0x07
 #define AI_AO_Select			0x09
+enum AI_AO_Select_Bits
+{
+	AI_DMA_Select_Shift = 0,
+	AI_DMA_Select_Mask = 0xf,
+	AO_DMA_Select_Shift = 4,
+	AO_DMA_Select_Mask = 0xf << AO_DMA_Select_Shift
+};
 #define G0_G1_Select			0x0b
 
 /* 16 bit registers */
@@ -854,14 +861,6 @@ enum cs5529_status_bits
 	This is stuff unique to the NI E series drivers,
 	but I thought I'd put it here anyway.
 */
-
-/* our default usage of mite channels */
-enum mite_dma_channel{
-	AI_DMA_CHAN = 0,
-	AO_DMA_CHAN = 1,
-	GPC0_DMA_CHAN = 2,
-	GPC1_DMA_CHAN = 3,
-};
 
 enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x, ai_gain_628x,  ai_gain_6143};
 enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
@@ -1292,6 +1291,8 @@ static ni_board ni_boards[];
 	unsigned int ai_calib_source;				\
 	unsigned int ai_calib_source_enabled;			\
 	spinlock_t window_lock; \
+	spinlock_t soft_reg_copy_lock; \
+	spinlock_t mite_channel_lock; \
 								\
 	int changain_state;					\
 	unsigned int changain_spec;				\
@@ -1300,7 +1301,7 @@ static ni_board ni_boards[];
 	unsigned short ao[MAX_N_AO_CHAN];					\
 	unsigned short caldacs[MAX_N_CALDACS];				\
 								\
-	volatile unsigned short ai_cmd2;	\
+	unsigned short ai_cmd2;	\
 								\
 	unsigned short ao_conf[MAX_N_AO_CHAN];				\
 	unsigned short ao_mode1;				\
@@ -1321,13 +1322,15 @@ static ni_board ni_boards[];
 	unsigned short clock_and_fout;				\
 	unsigned short clock_and_fout2;				\
 								\
-	volatile unsigned short int_a_enable_reg;			\
-	volatile unsigned short int_b_enable_reg;			\
+	unsigned short int_a_enable_reg;			\
+	unsigned short int_b_enable_reg;			\
 	unsigned short io_bidirection_pin_reg;			\
 	unsigned short rtsi_trig_direction_reg;			\
 	unsigned short rtsi_trig_a_output_reg; \
 	unsigned short rtsi_trig_b_output_reg; \
 	unsigned short pfi_output_select_reg[NUM_PFI_OUTPUT_SELECT_REGS]; \
+	unsigned short ai_ao_select_reg; \
+	unsigned short g0_g1_select_reg; \
 	\
 	unsigned clock_ns; \
 	unsigned clock_source; \

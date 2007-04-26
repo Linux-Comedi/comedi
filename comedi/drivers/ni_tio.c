@@ -1978,21 +1978,19 @@ int ni_tio_winsn(struct ni_gpct *counter,
 static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 {
 	comedi_cmd *cmd = &async->cmd;
-	struct mite_channel *mite_chan = &counter->mite->channels[counter->mite_channel];
 
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(async, async->prealloc_bufsz);
 
-	mite_chan->current_link = 0;
-	mite_chan->dir = COMEDI_INPUT;
-	mite_prep_dma(counter->mite, counter->mite_channel, 32, 32);
+	counter->mite_chan->dir = COMEDI_INPUT;
+	mite_prep_dma(counter->mite_chan, 32, 32);
 	if(counter->variant == ni_gpct_variant_m_series ||
 		counter->variant == ni_gpct_variant_660x)
 	{
 		counter->write_register(counter, Gi_DMA_Enable_Bit, NITIO_Gi_DMA_Config_Reg(counter->counter_index));
 	}
 	/*start the MITE*/
-	mite_dma_arm(counter->mite, counter->mite_channel);
+	mite_dma_arm(counter->mite_chan);
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
@@ -2005,7 +2003,7 @@ int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async)
 {
 	comedi_cmd *cmd = &async->cmd;
 
-	if(counter->mite == NULL || counter->mite_channel < 0)
+	if(counter->mite_chan == NULL)
 	{
 		rt_printk("ni_tio: commands only supported with DMA.  Interrupt-driven commands not yet implemented.\n");
 		return -EIO;
@@ -2027,8 +2025,8 @@ int ni_tio_cmdtest(struct ni_gpct *counter)
 
 int ni_tio_cancel(struct ni_gpct *counter)
 {
-	if(counter->mite == NULL || counter->mite_channel < 0) return 0;
-	mite_dma_disarm(counter->mite, counter->mite_channel);
+	if(counter->mite_chan == NULL) return 0;
+	mite_dma_disarm(counter->mite_chan);
 	return 0;
 }
 
