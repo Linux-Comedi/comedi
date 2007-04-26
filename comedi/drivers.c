@@ -80,7 +80,6 @@ static void cleanup_device(comedi_device *dev)
 			if(s->async)
 			{
 				comedi_buf_alloc(dev, s, 0);
-				if(s->buf_change) s->buf_change(dev, s, 0);
 				kfree(s->async);
 			}
 		}
@@ -104,24 +103,24 @@ static void cleanup_device(comedi_device *dev)
 	dev->close = NULL;
 }
 
-int comedi_device_detach(comedi_device *dev)
+static int __comedi_device_detach(comedi_device *dev)
 {
-	if(!dev->attached)
-		return 0;
-
-	/* this is not correct for the kmod case? */
-	module_put(dev->driver->module);
-
-	dev->attached=0;
-
+	dev->attached = 0;
 	if(dev->driver){
 		dev->driver->detach(dev);
 	}else{
 		printk("BUG: dev->driver=NULL in comedi_device_detach()\n");
 	}
-
+	module_put(dev->driver->module);
 	cleanup_device(dev);
 	return 0;
+}
+
+int comedi_device_detach(comedi_device *dev)
+{
+	if(!dev->attached)
+		return 0;
+	return __comedi_device_detach(dev);
 }
 
 int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
@@ -154,13 +153,10 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 		dev->driver=driv;
 		ret=driv->attach(dev,it);
 		if(ret<0){
-			driv->detach(dev);
-			cleanup_device(dev);
-			module_put(driv->module);
+			__comedi_device_detach(dev);
 			return ret;
 		}
 		goto attached;
-		module_put( driv->module );
 	}
 
 	// recognize has failed if we get here
@@ -181,9 +177,7 @@ attached:
 	ret = postconfig(dev);
 	if(ret < 0)
 	{
-		driv->detach(dev);
-		cleanup_device(dev);
-		module_put(driv->module);
+		__comedi_device_detach(dev);
 		return ret;
 	}
 
