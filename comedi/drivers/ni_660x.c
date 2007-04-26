@@ -148,6 +148,8 @@ typedef enum
 	STCDIOOutput,
 	STCDIOControl,
 	STCDIOSerialInput,
+	DIO32Input,
+	DIO32Output,
 	NumRegisters,
 } NI_660x_Register;
 
@@ -276,6 +278,8 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"STD DIO Output", 0x014, NI_660x_WRITE, DATA_2B},
 	{"STD DIO Control", 0x016, NI_660x_WRITE, DATA_2B},
 	{"STD DIO Serial Input", 0x038, NI_660x_READ, DATA_2B},
+	{"32 bit Digital Input", 0x414, NI_660x_READ, DATA_4B},
+	{"32 bit Digital Output", 0x414, NI_660x_WRITE, DATA_4B}
 };
 
 #define GateSelectPin38		0x1<<8 // Take internal time-based 20
@@ -794,6 +798,8 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
 		the user manual implies the first 32 channels can be used as
 		general purpose dio, the register manual doesn't tell you how
 		this can be accomplished. */
+		/*FIXME: use DIO32Input and DIO32Output registers for dio
+		to the 32 bit port */
 		if((data[0] << base_bitfield_channel) > 0xff)
 		{
 			return -EINVAL;
@@ -842,6 +848,7 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
 		devpriv->pfi_direction_bits |= ((uint64_t)1) << chan;
+		//FIXME: output select 1 is counter output, 2 is digital output
 		ni_660x_select_pfi_output(dev, chan, 1);
 		break;
 	case INSN_CONFIG_DIO_INPUT:
