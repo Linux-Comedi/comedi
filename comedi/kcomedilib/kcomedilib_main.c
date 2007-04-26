@@ -424,7 +424,9 @@ int comedi_cancel(comedi_t *d,unsigned int subdevice)
 		s->runflags &= ~SRF_RT;
 		comedi_switch_to_non_rt(dev);
 	}
-
+	// XXX cmd_cleanup() doesn't really belong here, but comedi_cancel() is the closest thing to
+	// do_become_nonbusy() in kcomedilib.
+	if(s->cmd_cleanup) s->cmd_cleanup(dev, s);
 	s->busy=NULL;
 
 	return 0;

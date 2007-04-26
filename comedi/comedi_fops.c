@@ -1550,16 +1550,21 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
-	/* we do this because it's useful for the non-standard cases */
-	s->subdev_flags &= ~SDF_RUNNING;
 
+	s->subdev_flags &= ~SDF_RUNNING;
 #ifdef CONFIG_COMEDI_RT
 	if(s->runflags&SRF_RT){
 		comedi_switch_to_non_rt(dev);
 		s->runflags &= ~SRF_RT;
 	}
 #endif
-
+	if(s->busy)
+	{
+		if(s->cmd_cleanup)
+		{
+			(*s->cmd_cleanup)(dev, s);
+		}
+	}
 	if(async){
 		comedi_reset_async_buf( async );
 	}else{
