@@ -38,7 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-
+#include <linux/dma-mapping.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -143,10 +143,17 @@ struct comedi_subdevice_struct{
 
 	void (*munge)( comedi_device *dev, comedi_subdevice *s, void *data,
 		unsigned int num_bytes, unsigned int start_chan_index );
+	enum dma_data_direction async_dma_dir;
 
 	unsigned int state;
 
 	struct class_device *class_dev;
+};
+
+struct comedi_buf_page
+{
+	void *virt_addr;
+	dma_addr_t dma_addr;
 };
 
 struct comedi_async_struct{
@@ -154,7 +161,9 @@ struct comedi_async_struct{
 
 	void		*prealloc_buf;		/* pre-allocated buffer */
 	unsigned int	prealloc_bufsz;		/* buffer size, in bytes */
-	unsigned long	*buf_page_list;		/* physical address of each page */
+	struct comedi_buf_page *buf_page_list;		/* virtual and dma address of each page */
+	unsigned n_buf_pages;	/* num elements in buf_page_list */
+
 	unsigned int	max_bufsize;		/* maximum buffer size, bytes */
 	unsigned int	mmap_count;	/* current number of mmaps of prealloc_buf */
 
@@ -210,6 +219,9 @@ struct comedi_device_struct{
 
 	struct class_device *class_dev;
 	unsigned minor;
+	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers for subdevices
+	that have async_dma_dir set to something other than DMA_NONE */
+	struct device *hw_dev;
 
 	const char *board_name;
 	const void * board_ptr;
@@ -386,6 +398,7 @@ static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevic
 	for(i = 0; i < num_subdevices; ++i)
 	{
 		dev->subdevices[i].device = dev;
+		dev->subdevices[i].async_dma_dir = DMA_NONE;
 	}
 	return 0;
 }
@@ -405,6 +418,19 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 		return sizeof( lsampl_t );
 	else
 		return sizeof( sampl_t );
+}
+
+static inline void comedi_set_hw_dev(comedi_device *dev, struct device *hw_dev)
+{
+	if(dev->hw_dev)
+	{
+		put_device(dev->hw_dev);
+	}
+	dev->hw_dev = hw_dev;
+	if(dev->hw_dev)
+	{
+		get_device(dev->hw_dev);
+	}
 }
 
 int comedi_buf_put(comedi_async *async, sampl_t x);

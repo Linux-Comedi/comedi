@@ -350,11 +350,14 @@ enum ConfigRegister_bits
 };
 static inline int CR_REQS(int source)
 {
-	return (source & 0x7) <<16;
+	return (source & 0x7) << 16;
 };
-static inline int CR_REQSDRQ(int drq_line)
+static inline int CR_REQSDRQ(unsigned drq_line)
 {
-	return CR_REQS(drq_line + 0x4);
+	/* m-series are supposed to have 6 dma channels, but
+	I not sure how to set the drq line on the mite when
+	using channels 4 or 5. */
+	return CR_REQS((drq_line & 0x3) | 0x4);
 }
 static inline int CR_RL(unsigned int retry_limit)
 {

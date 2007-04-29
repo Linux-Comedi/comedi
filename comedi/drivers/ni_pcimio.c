@@ -1472,6 +1472,7 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk(" error setting up mite\n");
 		return ret;
 	}
+	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
 
 	if(boardtype.reg_type & ni_reg_m_series_mask)
 		m_series_init_eeprom_buffer(dev);

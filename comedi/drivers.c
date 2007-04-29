@@ -40,6 +40,7 @@
 #include <linux/highmem.h>  /* for SuSE brokenness */
 #include <linux/vmalloc.h>
 #include <linux/cdev.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -92,6 +93,7 @@ static void cleanup_device(comedi_device *dev)
 		kfree(dev->private);
 		dev->private = NULL;
 	}
+	module_put(dev->driver->module);
 	dev->driver = 0;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
@@ -101,6 +103,7 @@ static void cleanup_device(comedi_device *dev)
 	dev->write_subdev = NULL;
 	dev->open = NULL;
 	dev->close = NULL;
+	comedi_set_hw_dev(dev, NULL);
 }
 
 static int __comedi_device_detach(comedi_device *dev)
@@ -111,7 +114,6 @@ static int __comedi_device_detach(comedi_device *dev)
 	}else{
 		printk("BUG: dev->driver=NULL in comedi_device_detach()\n");
 	}
-	module_put(dev->driver->module);
 	cleanup_device(dev);
 	return 0;
 }
@@ -430,48 +432,106 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size)
 {
 	comedi_async *async = s->async;
-
+	unsigned long adr;
+	
 	/* if no change is required, do nothing */
 	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
 		return 0;
 	}
-
-	if(async->prealloc_bufsz){
+	// cleanup old buffer
+	if(async->prealloc_bufsz)
+	{
 		int i;
-		int n_pages = async->prealloc_bufsz >> PAGE_SHIFT;
+		unsigned n_pages = async->prealloc_bufsz >> PAGE_SHIFT;
 
-		for(i=0;i<n_pages;i++){
-			mem_map_unreserve(virt_to_page(__va(__pa(async->buf_page_list[i]))));
+		adr = (unsigned long) async->prealloc_buf;
+		for(i = 0; i < n_pages; i++){
+			mem_map_unreserve(virt_to_page(adr));
+			adr += PAGE_SIZE;
 		}
-
-		vfree(async->prealloc_buf);
-		async->prealloc_buf = NULL;
-		kfree(async->buf_page_list);
-		async->buf_page_list = NULL;
+		async->prealloc_bufsz = 0;
 	}
-
-	if(new_size){
-		unsigned long adr;
-		int n_pages = new_size >> PAGE_SHIFT;
-		int i;
-
-		async->buf_page_list = kmalloc(sizeof(unsigned long)*n_pages, GFP_KERNEL);
-		async->prealloc_buf = vmalloc_32(new_size);
-		if(async->prealloc_buf == NULL){
-			async->prealloc_bufsz = 0;
-			kfree(async->buf_page_list);
-			return -ENOMEM;
+	if(async->prealloc_buf)
+	{
+		if(s->async_dma_dir != DMA_NONE)
+		{
+			vunmap(async->prealloc_buf);
+		}else
+		{
+			vfree(async->prealloc_buf);
 		}
-		memset(async->prealloc_buf,0,new_size);
+		async->prealloc_buf = NULL;
+	}
+	if(async->buf_page_list)
+	{
+		unsigned i;
+		for(i = 0; i < async->n_buf_pages; ++i)
+		{
+			if(async->buf_page_list[i].virt_addr)
+			{
+				dma_free_coherent(dev->hw_dev, PAGE_SIZE,
+					async->buf_page_list[i].virt_addr, async->buf_page_list[i].dma_addr);
+			}
+		}
+		vfree(async->buf_page_list);
+		async->buf_page_list = NULL;
+		async->n_buf_pages = 0;
+	}
+	// allocate new buffer
+	if(new_size){
+		int i;
+		unsigned n_pages = (new_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+		// size is rounded up to nearest multiple of PAGE_SIZE
+		new_size = n_pages << PAGE_SHIFT;
+
+		if(s->async_dma_dir != DMA_NONE)
+		{
+			struct page** pages = NULL;
+
+			async->buf_page_list = vmalloc(sizeof(struct comedi_buf_page) * n_pages);
+			if(async->buf_page_list == NULL)
+			{
+				return -ENOMEM;
+			}
+			memset(async->buf_page_list, 0, sizeof(struct comedi_buf_page) * n_pages);
+			async->n_buf_pages = n_pages;
+
+			pages = vmalloc(sizeof(struct page*) * n_pages);
+			if(pages == NULL)
+			{
+				return -ENOMEM;
+			}
+			for(i = 0; i < n_pages; i++)
+			{
+				async->buf_page_list[i].virt_addr = dma_alloc_coherent(dev->hw_dev,
+					PAGE_SIZE, &async->buf_page_list[i].dma_addr, GFP_KERNEL | __GFP_COMP);
+				if(async->buf_page_list[i].virt_addr == NULL)
+				{
+					vfree(pages);
+					return -ENOMEM;
+				}
+				pages[i] = virt_to_page(async->buf_page_list[i].virt_addr);
+			}
+			async->prealloc_buf = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL_NOCACHE);
+			vfree(pages);
+			if(async->prealloc_buf == NULL) return -ENOMEM;
+		}else
+		{
+			async->prealloc_buf = vmalloc(new_size);
+			if(async->prealloc_buf == NULL)
+			{
+				return -ENOMEM;
+			}
+		}
 
 		adr = (unsigned long)async->prealloc_buf;
-		for(i=0;i<n_pages;i++){
-			async->buf_page_list[i] = kvirt_to_kva(adr);
-			mem_map_reserve(virt_to_page(__va(__pa(async->buf_page_list[i]))));
+		for(i = 0; i < n_pages; i++)
+		{
+			mem_map_reserve(virt_to_page(adr));
 			adr += PAGE_SIZE;
 		}
 	}
-
 	async->prealloc_bufsz = new_size;
 
 	return 0;

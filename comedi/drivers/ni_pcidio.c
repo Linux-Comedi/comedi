@@ -1141,6 +1141,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		printk("error setting up mite\n");
 		return ret;
 	}
+	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
 
 	dev->board_name=this_board->name;
 	irq=mite_irq(devpriv->mite);
@@ -1184,6 +1185,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->cancel = ni_pcidio_cancel;
 		s->len_chanlist=32;		/* XXX */
 		s->buf_change = ni_pcidio_change;
+		s->async_dma_dir = DMA_BIDIRECTIONAL;
 
 		writel(0,devpriv->mite->daq_io_addr+Port_IO(0));
 		writel(0,devpriv->mite->daq_io_addr+Port_Pin_Directions(0));

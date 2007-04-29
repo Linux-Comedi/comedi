@@ -311,6 +311,7 @@ static void get_last_sample_6143( comedi_device *dev );
 static int ni_ai_drain_dma(comedi_device *dev );
 
 /* DMA channel setup */
+
 static inline void ni_set_ai_dma_channel(comedi_device *dev, int channel)
 {
 	unsigned long flags;
@@ -319,7 +320,7 @@ static inline void ni_set_ai_dma_channel(comedi_device *dev, int channel)
 	devpriv->ai_ao_select_reg &= ~AI_DMA_Select_Mask;
 	if(channel >= 0)
 	{
-		devpriv->ai_ao_select_reg |= (1 << (channel + AI_DMA_Select_Shift)) & AI_DMA_Select_Mask;
+		devpriv->ai_ao_select_reg |= (ni_stc_dma_channel_select_bitfield(channel) << AI_DMA_Select_Shift) & AI_DMA_Select_Mask;
 	}
 	ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
 	mmiowb();
@@ -334,7 +335,7 @@ static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 	devpriv->ai_ao_select_reg &= ~AO_DMA_Select_Mask;
 	if(channel >= 0)
 	{
-		devpriv->ai_ao_select_reg |= (1 << (channel + AO_DMA_Select_Shift)) & AO_DMA_Select_Mask;
+		devpriv->ai_ao_select_reg |= (ni_stc_dma_channel_select_bitfield(channel) << AO_DMA_Select_Shift) & AO_DMA_Select_Mask;
 	}
 	ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
 	mmiowb();
@@ -344,6 +345,8 @@ static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 static int ni_request_ai_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
+	/* really should be 5 for m-series, but I don't know how to get
+	mite dma channels 4 and 5 working */
 	static const unsigned max_dma_channel = 3;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -363,6 +366,8 @@ static int ni_request_ai_mite_channel(comedi_device *dev)
 static int ni_request_ao_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
+	/* really should be 5 for m-series, but I don't know how to get
+	mite dma channels 4 and 5 working */
 	static const unsigned max_dma_channel = 3;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -1239,7 +1244,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 	retval = ni_request_ai_mite_channel(dev);
 	if(retval) return retval;
-	//rt_printk("comedi_debug: using mite channel %i for ai.\n", devpriv->ai_mite_chan->channel);
+// 	rt_printk("comedi_debug: using mite channel %i for ai.\n", devpriv->ai_mite_chan->channel);
 
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
@@ -2513,7 +2518,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert;
-
+	
 	invert = ni_ao_config_chanlist(dev,s,&insn->chanspec, 1, 0);
 
 	devpriv->ao[chan] = data[0];
@@ -3392,29 +3397,33 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->cancel = &ni_ai_reset;
 		s->poll = &ni_ai_poll;
 		s->munge = &ni_ai_munge;
+#ifdef PCIDMA
+		s->async_dma_dir = DMA_FROM_DEVICE;
+#endif
 	}else{
 		s->type=COMEDI_SUBD_UNUSED;
 	}
 
 	/* analog output subdevice */
 
-	s=dev->subdevices+1;
+	s = dev->subdevices + 1;
 	if(boardtype.n_aochan){
-		s->type=COMEDI_SUBD_AO;
-		s->subdev_flags=SDF_WRITABLE|SDF_DEGLITCH|SDF_GROUND;
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITABLE | SDF_DEGLITCH | SDF_GROUND;
 		if(boardtype.reg_type & ni_reg_m_series_mask)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
-		s->n_chan=boardtype.n_aochan;
-		s->maxdata=(1<<boardtype.aobits)-1;
+		s->n_chan = boardtype.n_aochan;
+		s->maxdata = (1 << boardtype.aobits) - 1;
 		s->range_table = boardtype.ao_range_table;
-		s->insn_read=ni_ao_insn_read;
+		s->insn_read = &ni_ao_insn_read;
 		if(boardtype.reg_type & ni_reg_6xxx_mask){
-			s->insn_write=ni_ao_insn_write_671x;
+			s->insn_write = &ni_ao_insn_write_671x;
 		}else{
-			s->insn_write=ni_ao_insn_write;
+			s->insn_write = &ni_ao_insn_write;
 		}
 #ifdef PCIDMA
 		if(boardtype.n_aochan){
+			s->async_dma_dir = DMA_TO_DEVICE;
 #else
 		if(boardtype.ao_fifo_depth){
 #endif
@@ -3427,9 +3436,9 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			if((boardtype.reg_type & ni_reg_m_series_mask) == 0)
 				s->munge=ni_ao_munge;
 		}
-		s->cancel=ni_ao_reset;
+		s->cancel = &ni_ao_reset;
 	}else{
-		s->type=COMEDI_SUBD_UNUSED;
+		s->type = COMEDI_SUBD_UNUSED;
 	}
 	if((boardtype.reg_type & ni_reg_67xx_mask))
 		init_ao_67xx(dev, s);
@@ -3586,6 +3595,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->do_cmd = ni_gpct_cmd;
 		s->do_cmdtest = ni_gpct_cmdtest;
 		s->cancel = ni_gpct_cancel;
+		s->async_dma_dir = DMA_BIDIRECTIONAL;
 		s->private = &devpriv->counters[j];
 
 		devpriv->counters[j].dev = dev;

@@ -1309,8 +1309,8 @@ static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 		return -EFAULT;
 
 	n_pages = size >> PAGE_SHIFT;
-	for(i=0;i<n_pages;i++){
-		if(remap_pfn_range(vma, start, __pa(async->buf_page_list[i]) >> PAGE_SHIFT,
+	for(i = 0; i < n_pages; ++i){
+		if(remap_pfn_range(vma, start, page_to_pfn(virt_to_page(async->prealloc_buf + PAGE_SIZE * i)),
 				PAGE_SIZE, PAGE_SHARED)){
 			return -EAGAIN;
 		}

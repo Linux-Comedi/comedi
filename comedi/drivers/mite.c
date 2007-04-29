@@ -196,7 +196,6 @@ void mite_unsetup(struct mite_struct *mite)
 
 	if(!mite)return;
 
-	pci_disable_device(mite->pcidev);
 	if(mite->mite_io_addr){
 		iounmap(mite->mite_io_addr);
 		mite->mite_io_addr=NULL;
@@ -308,8 +307,8 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring, comedi_async *async)
 
 	for(i = 0; i < n_links; i++){
 		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
-		ring->descriptors[i].addr = cpu_to_le32(virt_to_bus(
-			(void *)async->buf_page_list[i]));
+		ring->descriptors[i].addr = cpu_to_le32(async->buf_page_list[i].dma_addr);
+		// FIXME: virt_to_bus is deprecated
 		ring->descriptors[i].next = cpu_to_le32(virt_to_bus(
 			ring->descriptors + i + 1));
 	}

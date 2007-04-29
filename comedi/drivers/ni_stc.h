@@ -699,6 +699,14 @@ enum AI_AO_Select_Bits
 	AO_DMA_Select_Mask = 0xf << AO_DMA_Select_Shift
 };
 #define G0_G1_Select			0x0b
+static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
+{
+	if(channel < 4) return 1 << channel;
+	if(channel == 4) return 0x3;
+	if(channel == 5) return 0x5;
+	BUG();
+	return 0;
+}
 
 /* 16 bit registers */
 
