@@ -345,9 +345,7 @@ static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 static int ni_request_ai_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
-	/* really should be 5 for m-series, but I don't know how to get
-	mite dma channels 4 and 5 working */
-	static const unsigned max_dma_channel = 3;
+	static const unsigned max_dma_channel = 5;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->ai_mite_chan);
@@ -366,9 +364,7 @@ static int ni_request_ai_mite_channel(comedi_device *dev)
 static int ni_request_ao_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
-	/* really should be 5 for m-series, but I don't know how to get
-	mite dma channels 4 and 5 working */
-	static const unsigned max_dma_channel = 3;
+	static const unsigned max_dma_channel = 5;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->ao_mite_chan);
@@ -1244,7 +1240,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 
 	retval = ni_request_ai_mite_channel(dev);
 	if(retval) return retval;
-// 	rt_printk("comedi_debug: using mite channel %i for ai.\n", devpriv->ai_mite_chan->channel);
+//	rt_printk("comedi_debug: using mite channel %i for ai.\n", devpriv->ai_mite_chan->channel);
 
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
@@ -2518,7 +2514,7 @@ static int ni_ao_insn_write(comedi_device *dev,comedi_subdevice *s,
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert;
-	
+
 	invert = ni_ao_config_chanlist(dev,s,&insn->chanspec, 1, 0);
 
 	devpriv->ao[chan] = data[0];

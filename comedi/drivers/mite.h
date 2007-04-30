@@ -354,9 +354,8 @@ static inline int CR_REQS(int source)
 };
 static inline int CR_REQSDRQ(unsigned drq_line)
 {
-	/* m-series are supposed to have 6 dma channels, but
-	I not sure how to set the drq line on the mite when
-	using channels 4 or 5. */
+	/* This also works on m-series when
+	using channels (drq_line) 4 or 5. */
 	return CR_REQS((drq_line & 0x3) | 0x4);
 }
 static inline int CR_RL(unsigned int retry_limit)
