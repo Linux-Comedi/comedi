@@ -519,7 +519,8 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async *async)
 	int count;
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int old_alloc_count;
-	u32 stop_count = async->cmd.stop_arg * bytes_per_sample(async->subdevice);
+	u32 stop_count = async->cmd.stop_arg * bytes_per_sample(async->subdevice) *
+		async->cmd.chanlist_len;
 
 	old_alloc_count = async->buf_read_alloc_count;
 	// read alloc as much as we can
