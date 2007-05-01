@@ -433,7 +433,7 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 {
 	comedi_async *async = s->async;
 	unsigned long adr;
-	
+
 	/* if no change is required, do nothing */
 	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
 		return 0;
@@ -645,7 +645,6 @@ unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
 	comedi_buf_munge(async, async->buf_write_count - async->munge_count);
 	if(async->buf_write_ptr >= async->prealloc_bufsz){
 		async->buf_write_ptr %= async->prealloc_bufsz;
-		async->events |= COMEDI_CB_EOBUF;
 	}
 	return nbytes;
 }
