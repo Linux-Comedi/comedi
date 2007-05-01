@@ -1394,7 +1394,6 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 
 	if(s->busy != file)
 		return -EACCES;
-
 	add_wait_queue(&dev->write_wait,&wait);
 	while(nbytes>0 && !retval){
 		current->state=TASK_INTERRUPTIBLE;
@@ -1405,7 +1404,9 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 		if(async->buf_write_ptr + m > async->prealloc_bufsz){
 			m = async->prealloc_bufsz - async->buf_write_ptr;
 		}
-		m = comedi_buf_write_alloc(async, m);
+		comedi_buf_write_alloc(async, async->prealloc_bufsz);
+		if(m > comedi_buf_write_n_allocated(async))
+			m = comedi_buf_write_n_allocated(async);
 
 		if(m < n) n = m;
 
@@ -1828,7 +1829,7 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 	mask = s->async->events;
 	s->async->events = 0;
 
-	//DPRINTK("comedi_event %x\n",mask);
+	//DPRINTK("comedi_event 0x%x\n",mask);
 
 	if( (s->subdev_flags & SDF_RUNNING) == 0)
 		return;
