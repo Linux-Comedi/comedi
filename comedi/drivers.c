@@ -437,15 +437,10 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
 		return 0;
 	}
-	if(async->prealloc_buf)
+	// deallocate old buffer
+	if(async->prealloc_buf && s->async_dma_dir != DMA_NONE)
 	{
-		if(s->async_dma_dir != DMA_NONE)
-		{
-			vunmap(async->prealloc_buf);
-		}else
-		{
-			vfree(async->prealloc_buf);
-		}
+		vunmap(async->prealloc_buf);
 		async->prealloc_buf = NULL;
 		async->prealloc_bufsz = 0;
 	}
@@ -465,6 +460,12 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 		vfree(async->buf_page_list);
 		async->buf_page_list = NULL;
 		async->n_buf_pages = 0;
+	}
+	if(async->prealloc_buf && s->async_dma_dir == DMA_NONE)
+	{
+		vfree(async->prealloc_buf);
+		async->prealloc_buf = NULL;
+		async->prealloc_bufsz = 0;
 	}
 	// allocate new buffer
 	if(new_size){
