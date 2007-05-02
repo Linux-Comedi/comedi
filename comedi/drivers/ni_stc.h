@@ -1261,6 +1261,7 @@ typedef struct ni_board_struct{
 
 	int ao_fifo_depth;
 	comedi_lrange *ao_range_table;
+	unsigned ao_speed;
 
 	int reg_type;
 

@@ -111,6 +111,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	2048,
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:	0,
+		ao_speed:	1176,
 		has_8255:	0,
 		caldac:		{ad8804_debug},	/* verified */
 	},
@@ -127,6 +128,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:	0,
+		ao_speed:	1000000,
 		has_8255:	0,
 		caldac:		{ad8804_debug},
 	},
@@ -143,6 +145,7 @@ static ni_board ni_boards[]={
 		ao_fifo_depth:	0,
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:	0,
+		ao_speed:	1000000,
 		has_8255:	0,
 		caldac:		{ad8804_debug},
 	},
