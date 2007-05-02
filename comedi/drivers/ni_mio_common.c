@@ -1735,6 +1735,22 @@ static int ni_ns_to_timer(comedi_device *dev, int *nanosec, int round_mode)
 	return divider - 1;
 }
 
+static unsigned ni_min_ai_scan_period_ns(comedi_device *dev, unsigned num_channels)
+{
+	switch(boardtype.reg_type)
+	{
+	case ni_reg_611x:
+	case ni_reg_6143:
+	// simultaneously-sampled inputs
+		return boardtype.ai_speed;
+		break;
+	default:
+	// multiplexed inputs
+		break;
+	};
+	return boardtype.ai_speed * num_channels;
+}
+
 static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 {
 	int err=0;
@@ -1804,8 +1820,9 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		}
 	}
 	if(cmd->scan_begin_src==TRIG_TIMER){
-		if(cmd->scan_begin_arg<boardtype.ai_speed){
-			cmd->scan_begin_arg=boardtype.ai_speed;
+		if(cmd->scan_begin_arg < ni_min_ai_scan_period_ns(dev, cmd->chanlist_len))
+		{
+			cmd->scan_begin_arg = ni_min_ai_scan_period_ns(dev, cmd->chanlist_len);
 			err++;
 		}
 		if(cmd->scan_begin_arg > devpriv->clock_ns * 0xffffff){
