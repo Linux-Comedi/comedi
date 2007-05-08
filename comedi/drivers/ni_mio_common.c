@@ -2816,15 +2816,12 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		cmd->start_arg=0;
 		err++;
 	}
-#if 0
-	/* XXX need ao_speed */
-	if(cmd->scan_begin_arg<boardtype.ao_speed){
-		cmd->scan_begin_arg=boardtype.ao_speed;
+	if(cmd->scan_begin_arg < boardtype.ao_speed){
+		cmd->scan_begin_arg = boardtype.ao_speed;
 		err++;
 	}
-#endif
-	if(cmd->scan_begin_arg>devpriv->clock_ns*0xffffff){ /* XXX check */
-		cmd->scan_begin_arg=devpriv->clock_ns*0xffffff;
+	if(cmd->scan_begin_arg > devpriv->clock_ns * 0xffffff){ /* XXX check */
+		cmd->scan_begin_arg = devpriv->clock_ns * 0xffffff;
 		err++;
 	}
 	if(cmd->convert_arg!=0){
