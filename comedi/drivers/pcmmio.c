@@ -24,7 +24,7 @@ Driver: pcmmio.o
 Description: A driver for the PCM-MIO multifunction board
 Devices: [Winsystems] PCM-MIO (pcmmio)
 Author: Calin Culianu <calin@ajvar.org>
-Updated: Tue, 30 Jan 2007 16:04:41 -0500
+Updated: Wed, May 16 2007 16:21:10 -0500
 Status: works
 
 A driver for the relatively new PCM-MIO multifunction board from
@@ -1160,12 +1160,13 @@ static int ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, 
 
     /* need to do this twice to make sure mux settled */
     outb(command_byte, iobase + iooffset + 2);  /* chan/range/aref select */
-    (void)inb(iobase+iooffset+0); /* discard junk lo byte */
-    (void)inb(iobase+iooffset+1); /* discard junk hi byte */
     
     adc_wait_ready(iobase + iooffset); /* wait for the adc to say it finised the conversion */
     
     outb(command_byte, iobase + iooffset + 2);  /* select the chan/range/aref AGAIN */
+
+    adc_wait_ready(iobase + iooffset);
+
     sample = inb(iobase+iooffset+0); /* read data lo byte */
     sample |= inb(iobase+iooffset+1)<<8; /* read data hi byte */
     sample += adc_adjust; /* adjustment .. munge data */
