@@ -1037,7 +1037,7 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6143,
 		ao_unipolar:    0,
 		ao_fifo_depth:  0,
-		caldac:         {ad8804,ad8804},
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
 	{	device_id:      0x710D,
 		name:           "pxi-6143",
@@ -1052,7 +1052,7 @@ static ni_board ni_boards[]={
 		reg_type:	ni_reg_6143,
 		ao_unipolar:    0,
 		ao_fifo_depth:  0,
-		caldac:         {ad8804,ad8804},
+		caldac:         {ad8804_debug,ad8804_debug},
 	},
 };
 #define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
