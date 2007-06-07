@@ -34,8 +34,8 @@ Devices: [National Instruments] PCI-MIO-16XE-50 (ni_pcimio),
   PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
   PXI-6071E, PCI-6070E, PXI-6070E,
-  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733
-  PCI-6143
+  PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733,
+  PCI-6143, PXI-6143
 Updated: Wed Nov 29 10:30:36 EST 2006
 
 These boards are almost identical to the AT-MIO E series, except that
@@ -177,6 +177,7 @@ static struct pci_device_id ni_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x717f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x71bc, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x70C0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x710D, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pci_table);
@@ -1023,8 +1024,23 @@ static ni_board ni_boards[]={
 		.caldac = {caldac_none},
 		has_8255:	0,
 	},
-	{       device_id:      0x70C0,
+	{	device_id:      0x70C0,
 		name:           "pci-6143",
+		n_adchan:       8,
+		adbits:         16,
+		ai_fifo_depth:  1024,
+		alwaysdither:   0,
+		gainlkup:       ai_gain_6143,
+		ai_speed:	4000,
+		n_aochan:       0,
+		aobits:         0,
+		reg_type:	ni_reg_6143,
+		ao_unipolar:    0,
+		ao_fifo_depth:  0,
+		caldac:         {ad8804,ad8804},
+	},
+	{	device_id:      0x710D,
+		name:           "pxi-6143",
 		n_adchan:       8,
 		adbits:         16,
 		ai_fifo_depth:  1024,
