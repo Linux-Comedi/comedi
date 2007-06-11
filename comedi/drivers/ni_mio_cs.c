@@ -80,6 +80,7 @@ static ni_board ni_boards[]={
 		aobits:		0,
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
+		.num_p0_dio_channels = 8,
 		has_8255:	0,
 		caldac:		{dac8800,dac8043},
 	},
@@ -95,6 +96,7 @@ static ni_board ni_boards[]={
 		aobits:		0,
 		ao_fifo_depth:	0,
 		ao_unipolar:	0,
+		.num_p0_dio_channels = 8,
 		has_8255:	0,
 		caldac:		{mb88341}, /* verified */
 	},
@@ -112,6 +114,7 @@ static ni_board ni_boards[]={
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:	0,
 		ao_speed:	1176,
+		.num_p0_dio_channels = 8,
 		has_8255:	0,
 		caldac:		{ad8804_debug},	/* verified */
 	},
@@ -129,6 +132,7 @@ static ni_board ni_boards[]={
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:	0,
 		ao_speed:	1000000,
+		.num_p0_dio_channels = 8,
 		has_8255:	0,
 		caldac:		{ad8804_debug},
 	},
@@ -146,6 +150,7 @@ static ni_board ni_boards[]={
 		.ao_range_table = &range_bipolar10,
 		ao_unipolar:	0,
 		ao_speed:	1000000,
+		.num_p0_dio_channels = 8,
 		has_8255:	0,
 		caldac:		{ad8804_debug},
 	},
@@ -156,6 +161,7 @@ static ni_board ni_boards[]={
 		n_aochan:	8,
 		aobits:		12,
 		ao_671x:	8192,
+		.num_p0_dio_channels = 8,
 		caldac:		{mb88341,mb88341},
 	},
 #endif

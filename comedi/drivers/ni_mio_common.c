@@ -3461,15 +3461,14 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->maxdata=1;
 	s->io_bits=0;		/* all bits input */
 	s->range_table=&range_digital;
+	s->n_chan = boardtype.num_p0_dio_channels;
 	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
-		s->n_chan = 32;
 		s->insn_bits = ni_m_series_dio_insn_bits;
 		s->insn_config=ni_m_series_dio_insn_config;
 		ni_writel(s->io_bits, M_Offset_DIO_Direction);
 	}else
 	{
-		s->n_chan=8;
 		s->insn_bits=ni_dio_insn_bits;
 		s->insn_config=ni_dio_insn_config;
 		devpriv->dio_control = DIO_Pins_Dir(s->io_bits);

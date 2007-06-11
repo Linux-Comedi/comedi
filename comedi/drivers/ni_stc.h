@@ -1258,13 +1258,13 @@ typedef struct ni_board_struct{
 
 	int n_aochan;
 	int aobits;
-
 	int ao_fifo_depth;
 	comedi_lrange *ao_range_table;
 	unsigned ao_speed;
 
-	int reg_type;
+	unsigned num_p0_dio_channels;
 
+	int reg_type;
 	unsigned int ao_unipolar : 1;
 	unsigned int has_8255 : 1;
 	unsigned int has_analog_trig : 1;
