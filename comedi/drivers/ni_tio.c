@@ -2030,9 +2030,6 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	return 0;
 }
 
-void ni_tio_interrupt_handler(struct ni_gpct *counter, struct mite_struct *mite, unsigned mite_channel)
-{}
-
 EXPORT_SYMBOL_GPL(ni_tio_rinsn);
 EXPORT_SYMBOL_GPL(ni_tio_winsn);
 EXPORT_SYMBOL_GPL(ni_tio_cmd);

@@ -707,6 +707,17 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 	BUG();
 	return 0;
 }
+static inline unsigned GPCT_DMA_Select_Bits(unsigned gpct_index, unsigned mite_channel)
+{
+	BUG_ON(gpct_index > 1);
+	return ni_stc_dma_channel_select_bitfield(mite_channel) << (4 * gpct_index);
+}
+static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
+{
+	BUG_ON(gpct_index > 1);
+	return 0xf << (4 * gpct_index);
+}
+
 
 /* 16 bit registers */
 
@@ -1352,7 +1363,16 @@ static ni_board ni_boards[];
 	unsigned short pwm_down_count;	\
 	\
 	sampl_t ai_fifo_buffer[0x2000];				\
-	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
+	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE]; \
+	\
+	struct mite_struct *mite; \
+	struct mite_channel *ai_mite_chan; \
+	struct mite_channel *ao_mite_chan;\
+	struct mite_channel *gpct_mite_chan[2]; \
+	struct mite_dma_descriptor_ring *ai_mite_ring; \
+	struct mite_dma_descriptor_ring *ao_mite_ring; \
+	struct mite_dma_descriptor_ring *gpct_mite_ring[2];
+
 
 #endif /* _COMEDI_NI_STC_H */
 

@@ -1559,13 +1559,6 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 		s->runflags &= ~SRF_RT;
 	}
 #endif
-	if(s->busy)
-	{
-		if(s->cmd_cleanup)
-		{
-			(*s->cmd_cleanup)(dev, s);
-		}
-	}
 	if(async){
 		comedi_reset_async_buf( async );
 	}else{

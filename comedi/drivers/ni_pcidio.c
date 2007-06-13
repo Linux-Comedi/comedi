@@ -293,6 +293,8 @@ enum FPGA_Control_Bits
 
 static int nidio_attach(comedi_device *dev,comedi_devconfig *it);
 static int nidio_detach(comedi_device *dev);
+static int ni_pcidio_cancel(comedi_device *dev, comedi_subdevice *s);
+
 static comedi_driver driver_pcidio={
 	driver_name:	"ni_pcidio",
 	module:		THIS_MODULE,
@@ -445,6 +447,8 @@ static void ni_pcidio_release_di_mite_channel(comedi_device *dev)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if(devpriv->di_mite_chan)
 	{
+		mite_dma_disarm(devpriv->di_mite_chan);
+		mite_dma_reset(devpriv->di_mite_chan);
 		mite_release_channel(devpriv->di_mite_chan);
 		writeb(primary_DMAChannel_bits(0) |
 			secondary_DMAChannel_bits(0),
@@ -464,19 +468,13 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 	}
 }
 
-static void nidio_disarm_and_reset_di_mite_channel(comedi_device *dev)
+void ni_pcidio_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
 {
-#ifdef USE_DMA
-	unsigned long flags;
-
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if(devpriv->di_mite_chan)
+	if(events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
 	{
-		mite_dma_disarm(devpriv->di_mite_chan);
-		mite_dma_reset(devpriv->di_mite_chan);
+		ni_pcidio_cancel(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-#endif	// USE_DMA
+	comedi_event(dev, s, events);
 }
 
 static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
@@ -526,12 +524,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 			int retval;
 
 			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->di_mite_chan->channel));
-			retval = mite_sync_input_dma(devpriv->di_mite_chan, s->async);
-			if(retval)
-			{
-				mite_dma_disarm(devpriv->di_mite_chan);
-				mite_dma_reset(devpriv->di_mite_chan);
-			}
+			mite_sync_input_dma(devpriv->di_mite_chan, s->async);
 			/* XXX need to byteswap */
 		}
 		if(m_status & CHSR_DONE){
@@ -539,8 +532,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 		}
 		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1 | CHSR_MRDY)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");
-			mite_dma_disarm(devpriv->di_mite_chan);
-			mite_dma_reset(devpriv->di_mite_chan);
+			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			disable_irq(dev->irq);
 		}
 	}
@@ -586,26 +578,20 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 			async->events |= COMEDI_CB_EOA;
 
 			writeb(0x00,devpriv->mite->daq_io_addr+OpMode);
-			writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
-			nidio_disarm_and_reset_di_mite_channel(dev);
 			break;
 		}else if(flags & Waited){
 			DPRINTK("Waited\n");
 			writeb(ClearWaited,devpriv->mite->daq_io_addr+Group_1_First_Clear);
-			writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-			nidio_disarm_and_reset_di_mite_channel(dev);
 			break;
 		}else if(flags & PrimaryTC){
 			DPRINTK("PrimaryTC\n");
 			writeb(ClearPrimaryTC,devpriv->mite->daq_io_addr+Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA;
-			writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 		}else if(flags & SecondaryTC){
 			DPRINTK("SecondaryTC\n");
 			writeb(ClearSecondaryTC,devpriv->mite->daq_io_addr+Group_1_First_Clear);
 			async->events |= COMEDI_CB_EOA;
-			writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 		}
 #if 0
 		else{
@@ -623,7 +609,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	}
 
 out:
-	comedi_event(dev,s,async->events);
+	ni_pcidio_event(dev, s, async->events);
 #if 0
 	if(!tag){
 		writeb(0x03,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
@@ -857,11 +843,6 @@ static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode)
 	return divider;
 }
 
-static void ni_pcidio_cmd_cleanup(comedi_device *dev,comedi_subdevice *s)
-{
-	ni_pcidio_release_di_mite_channel(dev);
-}
-
 static int ni_pcidio_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
@@ -997,7 +978,8 @@ static int ni_pcidio_inttrig(comedi_device *dev, comedi_subdevice *s,
 
 static int ni_pcidio_cancel(comedi_device *dev, comedi_subdevice *s)
 {
-	writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
+	writeb(0x00, devpriv->mite->daq_io_addr + Master_DMA_And_Interrupt_Control);
+	ni_pcidio_release_di_mite_channel(dev);
 
 	return 0;
 }
@@ -1177,14 +1159,13 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan=32;
 		s->range_table=&range_digital;
 		s->maxdata=1;
-		s->insn_config = ni_pcidio_insn_config;
-		s->insn_bits = ni_pcidio_insn_bits;
-		s->do_cmd = ni_pcidio_cmd;
-		s->cmd_cleanup = ni_pcidio_cmd_cleanup;
-		s->do_cmdtest = ni_pcidio_cmdtest;
-		s->cancel = ni_pcidio_cancel;
+		s->insn_config = &ni_pcidio_insn_config;
+		s->insn_bits = &ni_pcidio_insn_bits;
+		s->do_cmd = &ni_pcidio_cmd;
+		s->do_cmdtest = &ni_pcidio_cmdtest;
+		s->cancel = &ni_pcidio_cancel;
 		s->len_chanlist=32;		/* XXX */
-		s->buf_change = ni_pcidio_change;
+		s->buf_change = &ni_pcidio_change;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
 
 		writel(0,devpriv->mite->daq_io_addr+Port_IO(0));

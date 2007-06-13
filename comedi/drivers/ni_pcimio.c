@@ -1140,14 +1140,6 @@ static comedi_driver driver_pcimio={
 COMEDI_INITCLEANUP(driver_pcimio);
 
 typedef struct{
-	struct mite_struct *mite;
-	struct mite_channel *ai_mite_chan;
-	struct mite_channel *ao_mite_chan;
-	struct mite_channel *gpct_mite_chan[2];
-	struct mite_dma_descriptor_ring *ai_mite_ring;
-	struct mite_dma_descriptor_ring *ao_mite_ring;
-	struct mite_dma_descriptor_ring *gpct_mite_ring[2];
-
 	NI_PRIVATE_COMMON
 }ni_private;
 #define devpriv ((ni_private *)dev->private)

@@ -300,10 +300,10 @@ enum aimodes
 
 static const int num_adc_stages_611x = 3;
 
-static void handle_a_interrupt(comedi_device *dev,unsigned short status,
-	unsigned int m_status);
-static void handle_b_interrupt(comedi_device *dev,unsigned short status,
-	unsigned int m_status);
+static void handle_a_interrupt(comedi_device *dev, unsigned short status,
+	unsigned ai_mite_status, unsigned gpct0_mite_status);
+static void handle_b_interrupt(comedi_device *dev, unsigned short status,
+	unsigned ao_mite_status, unsigned gpct1_mite_status);
 static void get_last_sample_611x( comedi_device *dev );
 static void get_last_sample_6143( comedi_device *dev );
 #ifdef PCIDMA
@@ -338,6 +338,22 @@ static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 		devpriv->ai_ao_select_reg |= (ni_stc_dma_channel_select_bitfield(channel) << AO_DMA_Select_Shift) & AO_DMA_Select_Mask;
 	}
 	ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+}
+
+// negative mite_channel means no channel
+static inline void ni_set_gpct_dma_channel(comedi_device *dev, unsigned gpct_index, int mite_channel)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	devpriv->g0_g1_select_reg &= ~GPCT_DMA_Select_Mask(gpct_index);
+	if(mite_channel >= 0)
+	{
+		devpriv->g0_g1_select_reg |= GPCT_DMA_Select_Bits(gpct_index, mite_channel);
+	}
+	ni_writeb(devpriv->g0_g1_select_reg, G0_G1_Select);
 	mmiowb();
 	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
@@ -390,9 +406,11 @@ static void ni_release_ai_mite_channel(comedi_device *dev)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if(devpriv->ai_mite_chan)
 	{
+		ni_set_ai_dma_channel(dev, -1);
+		mite_dma_disarm(devpriv->ai_mite_chan);
+		mite_dma_reset(devpriv->ai_mite_chan);
 		mite_release_channel(devpriv->ai_mite_chan);
 		devpriv->ai_mite_chan = NULL;
-		ni_set_ai_dma_channel(dev, -1);
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif	// PCIDMA
@@ -406,9 +424,11 @@ static void ni_release_ao_mite_channel(comedi_device *dev)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if(devpriv->ao_mite_chan)
 	{
+		ni_set_ao_dma_channel(dev, -1);
+		mite_dma_disarm(devpriv->ao_mite_chan);
+		mite_dma_reset(devpriv->ao_mite_chan);
 		mite_release_channel(devpriv->ao_mite_chan);
 		devpriv->ao_mite_chan = NULL;
-		ni_set_ao_dma_channel(dev, -1);
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif	// PCIDMA
@@ -537,27 +557,37 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
 	unsigned int ao_mite_status = 0;
+	unsigned gpct0_mite_status = 0;
+	unsigned gpct1_mite_status = 0;
 	unsigned long flags;
-#ifdef PCIDMA
 	struct mite_struct *mite = devpriv->mite;
-#endif
 
 	if(dev->attached == 0) return IRQ_NONE;
+	smp_mb();	// make sure dev->attached is checked before handler does anything else.
+
 	// lock to avoid race with comedi_poll
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
-	a_status=devpriv->stc_readw(dev, AI_Status_1_Register);
-	b_status=devpriv->stc_readw(dev, AO_Status_1_Register);
-#ifdef PCIDMA
-	if(devpriv->ai_mite_chan)
-		ai_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ai_mite_chan->channel));
-	if(devpriv->ao_mite_chan)
-		ao_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ao_mite_chan->channel));
-#endif
+	a_status = devpriv->stc_readw(dev, AI_Status_1_Register);
+	b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
+	if(mite)
+	{
+		unsigned long flags_too;
 
-	if(a_status & Interrupt_A_St || ai_mite_status & CHSR_INT )
-		handle_a_interrupt(dev, a_status, ai_mite_status);
-	if(b_status & Interrupt_B_St || ao_mite_status & CHSR_INT )
-		handle_b_interrupt(dev, b_status, ao_mite_status);
+		comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
+		if(devpriv->ai_mite_chan)
+			ai_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ai_mite_chan->channel));
+		if(devpriv->ao_mite_chan)
+			ao_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ao_mite_chan->channel));
+		if(devpriv->gpct_mite_chan[0])
+			gpct0_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->gpct_mite_chan[0]->channel));
+		if(devpriv->gpct_mite_chan[1])
+			gpct1_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->gpct_mite_chan[1]->channel));
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
+	}
+	if((a_status & Interrupt_A_St) || ((ai_mite_status | gpct0_mite_status) & CHSR_INT))
+		handle_a_interrupt(dev, a_status, ai_mite_status, gpct0_mite_status);
+	if((b_status & Interrupt_B_St) || ((ao_mite_status | gpct1_mite_status) & CHSR_INT))
+		handle_b_interrupt(dev, b_status, ao_mite_status, gpct1_mite_status);
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
 }
@@ -566,15 +596,12 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 static void ni_sync_ai_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 0;
-	int retval;
+	unsigned long flags;
 
-	if(devpriv->ai_mite_chan == NULL) return;
-	retval = mite_sync_input_dma(devpriv->ai_mite_chan, s->async);
-	if(retval < 0)
-	{
-		ni_ai_reset(dev,s);
-		return;
-	}
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->ai_mite_chan)
+		mite_sync_input_dma(devpriv->ai_mite_chan, s->async);
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
 static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
@@ -586,7 +613,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 
 	if(mite_sync_output_dma(devpriv->ao_mite_chan, s->async) < 0)
 	{
-		ni_ao_reset(dev, s);
+		s->async->events |= COMEDI_CB_ERROR;
 		return;
 	}
 }
@@ -659,7 +686,6 @@ static void ni_handle_eos(comedi_device *dev, comedi_subdevice *s)
 	/* handle special case of single scan using AI_End_On_End_Of_Scan */
 	if((devpriv->ai_cmd2 & AI_End_On_End_Of_Scan)){
 		shutdown_ai_command( dev );
-		ni_ai_reset(dev, s);
 	}
 }
 
@@ -669,26 +695,44 @@ static void shutdown_ai_command( comedi_device *dev )
 
 #ifdef PCIDMA
 	ni_ai_drain_dma( dev );
-	if(devpriv->ai_mite_chan)
-	{
-		mite_dma_disarm(devpriv->ai_mite_chan);
-	}
 #endif
 	ni_handle_fifo_dregs(dev);
 	get_last_sample_611x(dev);
 	get_last_sample_6143(dev);
 
-	ni_set_bits(dev, Interrupt_A_Enable_Register,
-		AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable|
-		AI_START2_Interrupt_Enable| AI_START_Interrupt_Enable|
-		AI_STOP_Interrupt_Enable| AI_Error_Interrupt_Enable|
-		AI_FIFO_Interrupt_Enable,0);
-
 	s->async->events |= COMEDI_CB_EOA;
 }
 
-static void handle_a_interrupt(comedi_device *dev,unsigned short status,
-	unsigned int m_status)
+static void handle_gpct_interrupt(comedi_device *dev, struct mite_channel *mite_chan, unsigned short is_terminal_count)
+{
+	unsigned gpct_mite_status;
+
+	gpct_mite_status = readl(mite_chan->mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
+	if(gpct_mite_status & CHSR_INT)
+	{}
+}
+
+static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
+{
+	if(events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW | COMEDI_CB_EOA))
+	{
+		switch(s->type)
+		{
+		case COMEDI_SUBD_AI:
+			ni_ai_reset(dev, s);
+			break;
+		case COMEDI_SUBD_AO:
+			ni_ao_reset(dev, s);
+			break;
+		default:
+			break;
+		}
+	}
+	comedi_event(dev, s, events);
+}
+
+static void handle_a_interrupt(comedi_device *dev, unsigned short status,
+	unsigned ai_mite_status, unsigned gpct0_mite_status)
 {
 	comedi_subdevice *s=dev->subdevices+0;
 	unsigned short ack=0;
@@ -696,28 +740,27 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 	s->async->events = 0;
 
 #ifdef DEBUG_INTERRUPT
-	rt_printk("ni_mio_common: interrupt: a_status=%04x m0_status=%08x\n",
-		status, m_status);
+	rt_printk("ni_mio_common: interrupt: a_status=%04x ai_mite_status=%08x\n",
+		status, ai_mite_status);
 	ni_mio_print_status_a(status);
 #endif
 
 
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
-	if(m_status & CHSR_LINKC){
+	if(ai_mite_status & CHSR_LINKC){
 		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ai_mite_chan->channel));
 		ni_sync_ai_dma(dev);
 	}
 
-	if(m_status & CHSR_DONE){
+	if(ai_mite_status & CHSR_DONE){
 		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ai_mite_chan->channel));
 	}
 
-	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
-		rt_printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
-		//mite_print_chsr(m_status);
-		mite_dma_disarm(devpriv->ai_mite_chan);
-		mite_dma_reset(devpriv->ai_mite_chan);
+	if(ai_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
+		rt_printk("unknown mite interrupt, ack! (ai_mite_status=%08x)\n", ai_mite_status);
+		//mite_print_chsr(ai_mite_status);
+		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		//disable_irq(dev->irq);
 	}
 #endif
@@ -730,7 +773,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			 * so it's a good idea to be careful. */
 			if(s->subdev_flags&SDF_RUNNING){
 				s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-				comedi_event(dev,s,s->async->events);
+				ni_event(dev, s, s->async->events);
 			}
 			return;
 		}
@@ -739,16 +782,13 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 				status);
 			ni_mio_print_status_a(status);
 
-			ni_ai_reset(dev,dev->subdevices);
-
-
 			shutdown_ai_command( dev );
 
 			s->async->events |= COMEDI_CB_ERROR;
 			if(status & (AI_Overrun_St | AI_Overflow_St))
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
-			comedi_event(dev,s,s->async->events);
+			ni_event(dev, s, s->async->events);
 
 			return;
 		}
@@ -757,7 +797,7 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 			rt_printk("ni_mio_common: SC_TC interrupt\n");
 #endif
 			if(!devpriv->ai_continuous){
-				shutdown_ai_command( dev );
+				shutdown_ai_command(dev);
 			}
 			ack|=AI_SC_TC_Interrupt_Ack;
 		}
@@ -785,15 +825,27 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 		/* we need to ack the START, also */
 		ack |= AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
 	}
-#if 0
-	if(devpriv->aimode==AIMODE_SAMPLE){
-		ni_handle_fifo_dregs(dev);
 
-		//s->async->events |= COMEDI_CB_SAMPLE;
+	if(status & G0_TC_St)
+	{
+		ack |= G0_TC_Interrupt_Ack;
 	}
-#endif
+	if(status & G0_Gate_Interrupt_St)
+	{
+		ack |= G0_Gate_Interrupt_Ack;
+	}
+	if(status & (G0_TC_St | G0_Gate_Interrupt_St))
+	{
+		unsigned long flags;
+
+		comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+		if(devpriv->gpct_mite_chan)
+			handle_gpct_interrupt(dev, devpriv->gpct_mite_chan[0], (status & G0_TC_St));
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	}
+
 	if(ack) devpriv->stc_writew(dev, ack,Interrupt_A_Ack_Register);
-	comedi_event(dev,s,s->async->events);
+	ni_event(dev,s,s->async->events);
 
 #ifdef DEBUG_INTERRUPT
 	status=devpriv->stc_readw(dev, AI_Status_1_Register);
@@ -803,45 +855,43 @@ static void handle_a_interrupt(comedi_device *dev,unsigned short status,
 #endif
 }
 
-static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsigned int m_status)
+static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
+	unsigned ao_mite_status, unsigned gpct1_mite_status)
 {
 	comedi_subdevice *s=dev->subdevices+1;
 	//unsigned short ack=0;
 #ifdef DEBUG_INTERRUPT
 	rt_printk("ni_mio_common: interrupt: b_status=%04x m1_status=%08x\n",
-		b_status,m_status);
+		b_status,ao_mite_status);
 	ni_mio_print_status_b(b_status);
 #endif
 
 
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
-	if(m_status & CHSR_LINKC){
+	if(ao_mite_status & CHSR_LINKC){
 		mite_handle_b_linkc(devpriv->mite, dev);
 	}
 
-	if(m_status & CHSR_DONE){
+	if(ao_mite_status & CHSR_DONE){
 		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ao_mite_chan->channel));
 	}
 
-	if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
-		rt_printk("unknown mite interrupt, ack! (m_status=%08x)\n", m_status);
-		//mite_print_chsr(m_status);
-		mite_dma_disarm(devpriv->ao_mite_chan);
-		mite_dma_reset(devpriv->ao_mite_chan);
+	if(ao_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
+		rt_printk("unknown mite interrupt, ack! (ao_mite_status=%08x)\n", ao_mite_status);
+		//mite_print_chsr(ao_mite_status);
+		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 #endif
 
 	if(b_status==0xffff)return;
 	if(b_status&AO_Overrun_St){
 		rt_printk("ni_mio_common: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,devpriv->stc_readw(dev, AO_Status_2_Register));
-		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
 	if(b_status&AO_BC_TC_St){
 		MDPRINTK("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,devpriv->stc_readw(dev, AO_Status_2_Register));
-		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_EOA;
 	}
 
@@ -866,11 +916,10 @@ static void handle_b_interrupt(comedi_device *dev,unsigned short b_status, unsig
 		}
 		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
 		ni_set_bits(dev,Interrupt_B_Enable_Register,~0,0);
-		ni_ao_reset(dev,s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
-	comedi_event(dev,s,s->async->events);
+	ni_event(dev,s,s->async->events);
 }
 
 #ifdef DEBUG_STATUS_A
@@ -1275,10 +1324,6 @@ static int ni_ao_setup_MITE_dma(comedi_device *dev, comedi_cmd *cmd)
 
 	/* read alloc the entire buffer */
 	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
-	/* Barrier is intended to insure comedi_buf_read_alloc
-	is done touching the async struct before we write
-	to the mite's registers and arm it.  */
-	smp_wmb();
 
 	devpriv->ao_mite_chan->dir = COMEDI_OUTPUT;
 	if(boardtype.reg_type & (ni_reg_611x | ni_reg_6713))
@@ -1305,12 +1350,7 @@ static int ni_ao_setup_MITE_dma(comedi_device *dev, comedi_cmd *cmd)
 
 static int ni_ai_reset(comedi_device *dev,comedi_subdevice *s)
 {
-#ifdef PCIDMA
-	if(devpriv->ai_mite_chan)
-	{
-		mite_dma_disarm(devpriv->ai_mite_chan);
-	}
-#endif
+	ni_release_ai_mite_channel(dev);
 	/* ai configuration */
 	devpriv->stc_writew(dev, AI_Configuration_Start | AI_Reset, Joint_Reset_Register);
 
@@ -1928,11 +1968,6 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(err)return 4;
 
 	return 0;
-}
-
-static void ni_ai_cmd_cleanup(comedi_device *dev, comedi_subdevice *s)
-{
-	ni_release_ai_mite_channel(dev);
 }
 
 static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
@@ -2620,11 +2655,6 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	return 0;
 }
 
-static void ni_ao_cmd_cleanup(comedi_device *dev,comedi_subdevice *s)
-{
-	ni_release_ao_mite_channel(dev);
-}
-
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
@@ -2871,13 +2901,7 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	//devpriv->ao1p=AO_Channel(1);
 	//ni_writew(devpriv->ao1p,AO_Configuration);
 
-#ifdef PCIDMA
-	if(devpriv->ao_mite_chan)
-	{
-		mite_dma_disarm(devpriv->ao_mite_chan);
-		mite_dma_reset(devpriv->ao_mite_chan);
-	}
-#endif
+	ni_release_ao_mite_channel(dev);
 
 	devpriv->stc_writew(dev, AO_Configuration_Start,Joint_Reset_Register);
 	devpriv->stc_writew(dev, AO_Disarm,AO_Command_1_Register);
@@ -3403,7 +3427,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_config = &ni_ai_insn_config;
 		s->do_cmdtest = &ni_ai_cmdtest;
 		s->do_cmd = &ni_ai_cmd;
-		s->cmd_cleanup = &ni_ai_cmd_cleanup;
 		s->cancel = &ni_ai_reset;
 		s->poll = &ni_ai_poll;
 		s->munge = &ni_ai_munge;
@@ -3440,7 +3463,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 			dev->write_subdev=s;
 			s->subdev_flags |= SDF_CMD_WRITE;
 			s->do_cmd = &ni_ao_cmd;
-			s->cmd_cleanup = &ni_ao_cmd_cleanup;
 			s->do_cmdtest = &ni_ao_cmdtest;
 			s->len_chanlist = boardtype.n_aochan;
 			if((boardtype.reg_type & ni_reg_m_series_mask) == 0)

@@ -269,6 +269,9 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	int chor;
 
 	MDPRINTK("mite_dma_arm ch%i\n", channel);
+	/* memory barrier is intended to insure any twiddling with the buffer
+	is done before writing to the mite to arm dma transfer */
+	smp_mb();
 	/* arm */
 	chor = CHOR_START;
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
