@@ -1406,8 +1406,9 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 		}
 		comedi_buf_write_alloc(async, async->prealloc_bufsz);
 		if(m > comedi_buf_write_n_allocated(async))
+		{
 			m = comedi_buf_write_n_allocated(async);
-
+		}
 		if(m < n) n = m;
 
 		if(n==0){

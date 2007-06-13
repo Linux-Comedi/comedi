@@ -909,16 +909,6 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 	}
 #endif
 
-	b_status=devpriv->stc_readw(dev, AO_Status_1_Register);
-	if(b_status&Interrupt_B_St){
-		if(b_status&AO_FIFO_Request_St){
-			rt_printk("ni_mio_common: AO buffer underrun\n");
-		}
-		rt_printk("Ack! didn't clear AO interrupt. b_status=0x%04x\n",b_status);
-		ni_set_bits(dev,Interrupt_B_Enable_Register,~0,0);
-		s->async->events |= COMEDI_CB_OVERFLOW;
-	}
-
 	ni_event(dev,s,s->async->events);
 }
 
