@@ -153,6 +153,9 @@ static inline int CHAN_OFFSET(int channel)
 
 enum mite_registers
 {
+	/* The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
+	written and read back.  The bits 0x1f always read as 1.
+	The rest always read as zero. */
 	MITE_UNKNOWN_DMA_BURST_REG = 0x28,
 	MITE_IODWBSR = 0xc0, //IO Device Window Base Size Register
 	MITE_IODWBSR_1 = 0xc4, // IO Device Window Base Size Register 1
@@ -239,6 +242,11 @@ static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned order)
 	BUG_ON(order < 1);
 	return (order - 1) & 0x1f;
 }
+
+enum MITE_UNKNOWN_DMA_BURST_bits
+{
+	UNKNOWN_DMA_BURST_ENABLE_BITS = 0x600
+};
 
 static inline int mite_csigr_version(u32 csigr_bits)
 {

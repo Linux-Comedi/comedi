@@ -167,15 +167,11 @@ int mite_setup(struct mite_struct *mite)
 	/* make sure dma bursts work.  I got this from running a bus analyzer
 	on a pxi-6281 and a pxi-6713.  6713 powered up with register value
 	of 0x61f and bursts worked.  6281 powered up with register value of
-	0x1f and bursts didn't work.  The NI windows driver read the register, then
-	wrote 0x61f to it, so it looked like it was trying to preserve some
-	of the register bits instead of overwriting them all, I am only
-	guessing which ones though.  Later I'll try initializing the register with
-	all ones and all zeros to see if I can determine which bits the
-	windows driver is really changing.
+	0x1f and bursts didn't work.  The NI windows driver reads the register,
+	then does a bitwise-or of 0x600 with it and writes it back.
 	*/
 	unknown_dma_burst_bits = readl(mite->mite_io_addr + MITE_UNKNOWN_DMA_BURST_REG);
-	unknown_dma_burst_bits |= 0x600;
+	unknown_dma_burst_bits |= UNKNOWN_DMA_BURST_ENABLE_BITS;
 	writel(unknown_dma_burst_bits, mite->mite_io_addr + MITE_UNKNOWN_DMA_BURST_REG);
 
 	csigr_bits = readl(mite->mite_io_addr + MITE_CSIGR);
