@@ -114,6 +114,7 @@ int mite_setup(struct mite_struct *mite)
 	resource_size_t addr;
 	int i;
 	u32 csigr_bits;
+	unsigned unknown_dma_burst_bits;
 
 	if(pci_enable_device(mite->pcidev)){
 		printk("error enabling mite\n");
@@ -153,11 +154,29 @@ int mite_setup(struct mite_struct *mite)
 	// The 6602 board needs different initalisation, see the
 	// _updated_ (nov 2002) reg. Level Manual (filename 370505b.pdf) p. 3.55
 	if (mite->pcidev->device == 0x1310 ){
+		unsigned window_size_order;
+
 		printk("mite: detected NI6602, using other I/O Window Base Size register\n");
-		writel((mite->daq_phys_addr & 0xffffff00L) | WENAB_6602 , mite->mite_io_addr + MITE_IODWBSR_1);
-		writel(0 , mite->mite_io_addr + MITE_IODWCR_1);
+		window_size_order = 13; // 8 kbyte
+		writel(mite->daq_phys_addr | WENAB | MITE_IODWBSR_1_WSIZE_bits(window_size_order), mite->mite_io_addr + MITE_IODWBSR_1);
+		writel(0 ,mite->mite_io_addr + MITE_IODWCR_1);
+	}else
+	{
+		writel(mite->daq_phys_addr | WENAB, mite->mite_io_addr + MITE_IODWBSR);
 	}
-	else writel(mite->daq_phys_addr | WENAB , mite->mite_io_addr + MITE_IODWBSR);
+	/* make sure dma bursts work.  I got this from running a bus analyzer
+	on a pxi-6281 and a pxi-6713.  6713 powered up with register value
+	of 0x61f and bursts worked.  6281 powered up with register value of
+	0x1f and bursts didn't work.  The NI windows driver read the register, then
+	wrote 0x61f to it, so it looked like it was trying to preserve some
+	of the register bits instead of overwriting them all, I am only
+	guessing which ones though.  Later I'll try initializing the register with
+	all ones and all zeros to see if I can determine which bits the
+	windows driver is really changing.
+	*/
+	unknown_dma_burst_bits = readl(mite->mite_io_addr + MITE_UNKNOWN_DMA_BURST_REG);
+	unknown_dma_burst_bits |= 0x600;
+	writel(unknown_dma_burst_bits, mite->mite_io_addr + MITE_UNKNOWN_DMA_BURST_REG);
 
 	csigr_bits = readl(mite->mite_io_addr + MITE_CSIGR);
 	mite->num_channels = mite_csigr_dmac(csigr_bits);

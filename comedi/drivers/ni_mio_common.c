@@ -2775,8 +2775,12 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		bits |= AO_FIFO_Enable;
 	else
 		bits |= AO_DMA_PIO_Control;
+#if 0
+	/* F Hess: windows driver does not set AO_Number_Of_DAC_Packages bit for 6281,
+	verified with bus analyzer. */
 	if(boardtype.reg_type & ni_reg_m_series_mask)
-		bits |= AO_Number_Of_DAC_Packages/* | AO_Multiple_DACS_Per_Package*/;
+		bits |= AO_Number_Of_DAC_Packages;
+#endif
 	devpriv->stc_writew(dev, bits, AO_Personal_Register);
 	// enable sending of ao dma requests
 	devpriv->stc_writew(dev, AO_AOFREQ_Enable, AO_Start_Select_Register);
