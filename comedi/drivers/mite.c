@@ -186,7 +186,9 @@ int mite_setup(struct mite_struct *mite)
 	for( i = 0; i < mite->num_channels; i++ ) {
 		writel(CHOR_DMARESET, mite->mite_io_addr + MITE_CHOR(i));
 		/* disable interrupts */
-		writel(0, mite->mite_io_addr + MITE_CHCR(i));
+		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE |
+			CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE | CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
+			mite->mite_io_addr + MITE_CHCR(i));
 	}
 	mite->used = 1;
 
