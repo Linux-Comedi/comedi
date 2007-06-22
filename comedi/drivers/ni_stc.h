@@ -904,9 +904,9 @@ enum m_series_register_offsets
 {
 	M_Offset_CDIO_DMA_Select = 0x7,	// write
 	M_Offset_SCXI_Status = 0x7,	// read
-	M_Offset_AI_AO_Select = 0x9,	// write
+	M_Offset_AI_AO_Select = 0x9,	// write, same offset as e-series
 	M_Offset_SCXI_Serial_Data_In = 0x9,	// read
-	M_Offset_G0_G1_Select = 0xb,
+	M_Offset_G0_G1_Select = 0xb,	// write, same offset as e-series
 	M_Offset_Misc_Command = 0xf,
 	M_Offset_SCXI_Serial_Data_Out = 0x11,
 	M_Offset_SCXI_Control = 0x13,
@@ -1252,6 +1252,15 @@ static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel, unsign
 	return (bits >> ((channel % 3) * 5)) & 0x1f;
 };
 
+enum MSeries_Gi_DMA_Config_Bits
+{
+	Gi_DMA_BankSW_Error_Bit = 0x10,
+	Gi_DMA_Reset_Bit = 0x8,
+	Gi_DMA_Int_Enable_Bit = 0x4,
+	Gi_DMA_Write_Bit = 0x2,
+	Gi_DMA_Enable_Bit = 0x1,
+};
+
 #define M_SERIES_EEPROM_SIZE 1024
 
 typedef struct ni_board_struct{
@@ -1368,10 +1377,10 @@ static ni_board ni_boards[];
 	struct mite_struct *mite; \
 	struct mite_channel *ai_mite_chan; \
 	struct mite_channel *ao_mite_chan;\
-	struct mite_channel *gpct_mite_chan[2]; \
+	struct mite_channel *gpct_mite_chan[NUM_GPCT]; \
 	struct mite_dma_descriptor_ring *ai_mite_ring; \
 	struct mite_dma_descriptor_ring *ao_mite_ring; \
-	struct mite_dma_descriptor_ring *gpct_mite_ring[2];
+	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
 
 
 #endif /* _COMEDI_NI_STC_H */

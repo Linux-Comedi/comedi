@@ -260,8 +260,6 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s);
 
 static int ni_8255_callback(int dir,int port,int data,unsigned long arg);
 
-static int ni_ns_to_timer(comedi_device *dev, int *nanosec, int round_mode);
-
 static int ni_gpct_insn_write(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_gpct_insn_read(comedi_device *dev,comedi_subdevice *s,
@@ -312,6 +310,7 @@ static int ni_ai_drain_dma(comedi_device *dev );
 
 /* DMA channel setup */
 
+// negative channel means no channel
 static inline void ni_set_ai_dma_channel(comedi_device *dev, int channel)
 {
 	unsigned long flags;
@@ -327,6 +326,7 @@ static inline void ni_set_ai_dma_channel(comedi_device *dev, int channel)
 	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
 
+// negative channel means no channel
 static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 {
 	unsigned long flags;
@@ -361,11 +361,10 @@ static inline void ni_set_gpct_dma_channel(comedi_device *dev, unsigned gpct_ind
 static int ni_request_ai_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
-	static const unsigned max_dma_channel = 5;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->ai_mite_chan);
-	devpriv->ai_mite_chan = mite_request_channel_in_range(devpriv->mite, devpriv->ai_mite_ring, 0, max_dma_channel);
+	devpriv->ai_mite_chan = mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
 	if(devpriv->ai_mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -380,11 +379,10 @@ static int ni_request_ai_mite_channel(comedi_device *dev)
 static int ni_request_ao_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
-	static const unsigned max_dma_channel = 5;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->ao_mite_chan);
-	devpriv->ao_mite_chan = mite_request_channel_in_range(devpriv->mite, devpriv->ao_mite_ring, 0, max_dma_channel);
+	devpriv->ao_mite_chan = mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
 	if(devpriv->ao_mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -392,6 +390,25 @@ static int ni_request_ao_mite_channel(comedi_device *dev)
 		return -EBUSY;
 	}
 	ni_set_ao_dma_channel(dev, devpriv->ao_mite_chan->channel);
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	return 0;
+}
+
+static int ni_request_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
+{
+	unsigned long flags;
+
+	BUG_ON(gpct_index >= NUM_GPCT);
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	BUG_ON(devpriv->gpct_mite_chan[gpct_index]);
+	devpriv->gpct_mite_chan[gpct_index] = mite_request_channel(devpriv->mite, devpriv->gpct_mite_ring[gpct_index]);
+	if(devpriv->gpct_mite_chan[gpct_index] == NULL)
+	{
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+		comedi_error(dev, "failed to reserve mite dma channel for counter.");
+		return -EBUSY;
+	}
+	ni_set_gpct_dma_channel(dev, gpct_index, devpriv->gpct_mite_chan[gpct_index]->channel);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
@@ -429,6 +446,25 @@ static void ni_release_ao_mite_channel(comedi_device *dev)
 		mite_dma_reset(devpriv->ao_mite_chan);
 		mite_release_channel(devpriv->ao_mite_chan);
 		devpriv->ao_mite_chan = NULL;
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+#endif	// PCIDMA
+}
+
+void ni_release_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
+{
+#ifdef PCIDMA
+	unsigned long flags;
+
+	BUG_ON(gpct_index >= NUM_GPCT);
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->gpct_mite_chan[gpct_index])
+	{
+		ni_set_gpct_dma_channel(dev, gpct_index, -1);
+		mite_dma_disarm(devpriv->gpct_mite_chan[gpct_index]);
+		mite_dma_reset(devpriv->gpct_mite_chan[gpct_index]);
+		mite_release_channel(devpriv->gpct_mite_chan[gpct_index]);
+		devpriv->gpct_mite_chan[gpct_index] = NULL;
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif	// PCIDMA
@@ -1272,7 +1308,7 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 
 #ifdef PCIDMA
 
-static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
+static int ni_ai_setup_MITE_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 0;
 	int retval;
@@ -1303,7 +1339,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev,comedi_cmd *cmd)
 	return 0;
 }
 
-static int ni_ao_setup_MITE_dma(comedi_device *dev, comedi_cmd *cmd)
+static int ni_ao_setup_MITE_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + 1;
 	int retval;
@@ -1744,25 +1780,28 @@ static void ni_load_channelgain_list(comedi_device *dev,unsigned int n_chan,
 	}
 }
 
-static int ni_ns_to_timer(comedi_device *dev, int *nanosec, int round_mode)
+static int ni_ns_to_timer(const comedi_device *dev, unsigned nanosec, int round_mode)
 {
 	int divider;
 	switch(round_mode)
 	{
 	case TRIG_ROUND_NEAREST:
 	default:
-		divider = (*nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
+		divider = (nanosec + devpriv->clock_ns / 2) / devpriv->clock_ns;
 		break;
 	case TRIG_ROUND_DOWN:
-		divider = (*nanosec) / devpriv->clock_ns;
+		divider = (nanosec) / devpriv->clock_ns;
 		break;
 	case TRIG_ROUND_UP:
-		divider=(*nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
+		divider=(nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
 		break;
 	}
-
-	*nanosec = devpriv->clock_ns * divider;
 	return divider - 1;
+}
+
+static unsigned ni_timer_to_ns(const comedi_device *dev, int timer)
+{
+	return devpriv->clock_ns * (timer + 1);
 }
 
 static unsigned ni_min_ai_scan_period_ns(comedi_device *dev, unsigned num_channels)
@@ -1939,16 +1978,17 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	if(cmd->scan_begin_src==TRIG_TIMER){
 		tmp=cmd->scan_begin_arg;
-		ni_ns_to_timer(dev, &cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
+		cmd->scan_begin_arg = ni_timer_to_ns(dev, ni_ns_to_timer(dev, cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK));
 		if(tmp!=cmd->scan_begin_arg)err++;
 	}
 	if(cmd->convert_src==TRIG_TIMER){
 		if((boardtype.reg_type != ni_reg_611x) && (boardtype.reg_type != ni_reg_6143)){
 			tmp=cmd->convert_arg;
-			ni_ns_to_timer(dev, &cmd->convert_arg, cmd->flags&TRIG_ROUND_MASK);
+			cmd->convert_arg = ni_timer_to_ns(dev, ni_ns_to_timer(dev, cmd->convert_arg, cmd->flags & TRIG_ROUND_MASK));
 			if(tmp!=cmd->convert_arg)err++;
 			if(cmd->scan_begin_src==TRIG_TIMER &&
-			cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
+				cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg)
+			{
 				cmd->scan_begin_arg=cmd->convert_arg*cmd->scan_end_arg;
 				err++;
 			}
@@ -1962,7 +2002,7 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd=&s->async->cmd;
+	const comedi_cmd *cmd=&s->async->cmd;
 	int timer;
 	int mode1=0; /* mode1 is needed for both stop and convert */
 	int mode2=0;
@@ -2093,7 +2133,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		devpriv->stc_writew(dev, mode2, AI_Mode_2_Register);
 
 		/* load SI */
-		timer = ni_ns_to_timer(dev, &cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
+		timer = ni_ns_to_timer(dev, cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
 		devpriv->stc_writel(dev, timer,AI_SI_Load_A_Registers);
 		devpriv->stc_writew(dev, AI_SI_Load,AI_Command_1_Register);
 		break;
@@ -2117,7 +2157,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		if( cmd->convert_arg == 0 || cmd->convert_src == TRIG_NOW )
 			timer = 1;
 		else
-			timer = ni_ns_to_timer(dev, &cmd->convert_arg, TRIG_ROUND_NEAREST);
+			timer = ni_ns_to_timer(dev, cmd->convert_arg, TRIG_ROUND_NEAREST);
 		devpriv->stc_writew(dev, 1,AI_SI2_Load_A_Register); /* 0,0 does not work. */
 		devpriv->stc_writew(dev, timer,AI_SI2_Load_B_Register);
 
@@ -2219,7 +2259,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 
 #ifdef PCIDMA
 	{
-		int retval = ni_ai_setup_MITE_dma(dev,cmd);
+		int retval = ni_ai_setup_MITE_dma(dev);
 		if(retval) return retval;
 	}
 	//mite_dump_regs(devpriv->mite);
@@ -2604,7 +2644,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	devpriv->stc_writew(dev, 1, DAC_FIFO_Clear);
 	if(boardtype.reg_type & ni_reg_6xxx_mask)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
-	ret = ni_ao_setup_MITE_dma(dev, &s->async->cmd);
+	ret = ni_ao_setup_MITE_dma(dev);
 	if(ret) return ret;
 	ret = ni_ao_wait_for_dma_load(dev);
 	if(ret < 0) return ret;
@@ -2647,7 +2687,7 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
-	comedi_cmd *cmd = &s->async->cmd;
+	const comedi_cmd *cmd = &s->async->cmd;
 	int trigvar;
 	int bits;
 	int i;
@@ -2657,7 +2697,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		comedi_error(dev, "cannot run command without an irq");
 		return -EIO;
 	}
-	trigvar = ni_ns_to_timer(dev, &cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
+	trigvar = ni_ns_to_timer(dev, cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
 
 	devpriv->stc_writew(dev, AO_Configuration_Start,Joint_Reset_Register);
 
@@ -2874,7 +2914,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	/* step 4: fix up any arguments */
 
 	tmp = cmd->scan_begin_arg;
-	ni_ns_to_timer(dev, &cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
+	cmd->scan_begin_arg = ni_timer_to_ns(dev, ni_ns_to_timer(dev, cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK));
 	if(tmp!=cmd->scan_begin_arg)err++;
 
 	if(err)return 4;
@@ -4159,24 +4199,35 @@ static int ni_gpct_insn_write(comedi_device *dev, comedi_subdevice *s,
 
 static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 {
+// XXX set M_Offset_GX_DMA_Config for m-series
 #ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
+	const comedi_cmd *cmd = &s->async->cmd;
+	int retval = ni_request_gpct_mite_channel(dev, counter->counter_index);
+	if(retval)
+	{
+		comedi_error(dev, "no dma channel available for use by counter");
+		return retval;
+	}
 	return ni_tio_cmd(counter, s->async);
 #else
-	return -EIO;
+	return -ENOTSUPP;
 #endif
 }
 
 static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
 {
 	struct ni_gpct *counter = s->private;
+	//XXX check chanlist_len == 1
 	return ni_tio_cmdtest(counter);
 }
 
 static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_cancel(counter);
+	int retval = ni_tio_cancel(counter);
+	ni_release_gpct_mite_channel(dev, counter->counter_index);
+	return retval;
 }
 
 /*
