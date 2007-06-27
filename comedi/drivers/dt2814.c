@@ -280,9 +280,12 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 #endif
 	dev->irq=0;
 	if(irq>0){
-		printk("( irq = %d )\n",irq);
-		comedi_request_irq(irq,dt2814_interrupt,0,"dt2814",dev);
-		dev->irq=irq;
+		if(comedi_request_irq(irq,dt2814_interrupt,0,"dt2814",dev)){
+			printk("(irq %d unavailable)\n", irq);
+		}else{
+			printk("( irq = %d )\n",irq);
+			dev->irq=irq;
+		}
 	}else if(irq==0){
 		printk("(no irq)\n");
 	}else{
