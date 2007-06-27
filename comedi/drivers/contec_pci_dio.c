@@ -24,11 +24,14 @@ Driver: contec_pci_dio.o
 Description: Contec PIO1616L digital I/O board
 Devices: [Contec] PIO1616L (contec_pci_dio)
 Author: Stefano Rivoir <s.rivoir@gts.it>
-Updated: Mon, 18 Mar 2002 15:34:01 -0800
+Updated: Wed, 27 Jun 2007 13:00:06 +0100
 Status: works
 
 Configuration Options:
-  none
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 */
 
 #include <linux/comedidev.h>
@@ -112,6 +115,14 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 		
 		if ( pcidev->vendor == PCI_VENDOR_ID_CONTEC && 
 		     pcidev->device == PCI_DEVICE_ID_PIO1616L ) {
+			if (it->options[0] || it->options[1]) {
+				/* Check bus and slot. */
+				if (it->options[0] != pcidev->bus->number ||
+						it->options[1] !=
+						PCI_SLOT(pcidev->devfn)) {
+					continue;
+				}
+			}
 			devpriv->pci_dev = pcidev;
 			if (pci_enable_device(pcidev)) {
 				printk("error enabling PCI device!\n");
