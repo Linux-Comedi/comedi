@@ -25,10 +25,15 @@
 Driver: amplc_pci230.o
 Description: Amplicom PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>, Steve D Sharples <steve.sharples@nottingham.ac.uk>
-Updated: Fri,  30 April 2004
+Updated: Wed, 27 Jun 2007 13:22:57 +0100
 Devices: [Amplicon] PCI230 (amplc_pci230), PCI260
 Status: works
 
+Configuration options:
+  [0] - PCI bus of device (optional).
+  [1] - PCI slot of device (optional).
+          If bus/slot is not specified, the first available PCI device
+          will be used.
 */
 /*
 extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
@@ -345,6 +350,13 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	/* Find card */
 	for(pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pci_dev != NULL ;
 		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+		if(it->options[0] || it->options[1]){
+			/* Match against bus/slot options. */
+			if(it->options[0] != pci_dev->bus->number ||
+					it->options[1] !=
+					PCI_SLOT(pci_dev->devfn))
+				continue;
+		}
 		if(pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
 			continue;
 		for(i=0;i<n_pci230_boards;i++){
