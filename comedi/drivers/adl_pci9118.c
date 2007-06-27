@@ -1751,7 +1751,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if (it->options[3]&2) irq=0; // user don't want use IRQ
 	if (irq>0)  {
-		if (comedi_request_irq(irq, interrupt_pci9118, SA_SHIRQ, "ADLink PCI-9118", dev)) {
+		if (comedi_request_irq(irq, interrupt_pci9118, IRQF_SHARED, "ADLink PCI-9118", dev)) {
 			rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 			irq=0; /* Can't use IRQ */
 		} else {

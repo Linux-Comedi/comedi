@@ -784,7 +784,7 @@ static int dt3000_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = this_board->name;
 
 	if(comedi_request_irq(devpriv->pci_dev->irq, dt3k_interrupt,
-			SA_SHIRQ, "dt3000", dev)){
+			IRQF_SHARED, "dt3000", dev)){
 		printk(" unable to allocate IRQ %u\n", devpriv->pci_dev->irq);
 		return -EINVAL;
 	}

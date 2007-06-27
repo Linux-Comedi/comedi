@@ -527,7 +527,7 @@ int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	{
 		isr_flags = 0;
 		if(thisboard->bustype == pci_bustype)
-			isr_flags |= SA_SHIRQ;
+			isr_flags |= IRQF_SHARED;
 		if(comedi_request_irq( irq, labpc_interrupt, isr_flags, driver_labpc.driver_name, dev))
 		{
 			printk( "unable to allocate irq %u\n", irq);

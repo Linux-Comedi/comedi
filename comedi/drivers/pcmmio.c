@@ -485,7 +485,7 @@ static int pcmmio_attach(comedi_device *dev, comedi_devconfig *it)
     init_asics(dev); /* clear out all the registers, basically */
 
     for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
-      if (irq[asic] && comedi_request_irq(irq[asic], interrupt_pcmmio, SA_SHIRQ, thisboard->name, dev)) {
+      if (irq[asic] && comedi_request_irq(irq[asic], interrupt_pcmmio, IRQF_SHARED, thisboard->name, dev)) {
         int i;
         /* unroll the allocated irqs.. */
         for (i = asic-1; i >= 0; --i) {

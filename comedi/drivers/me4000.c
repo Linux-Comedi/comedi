@@ -303,7 +303,7 @@ static int me4000_attach(comedi_device *dev, comedi_devconfig *it){
 	s->insn_read    = me4000_ai_insn_read;
 
 	if(info->irq > 0){
-	    if(comedi_request_irq(info->irq, me4000_ai_isr, SA_SHIRQ, "ME-4000", dev)) {
+	    if(comedi_request_irq(info->irq, me4000_ai_isr, IRQF_SHARED, "ME-4000", dev)) {
 		printk("comedi%d: me4000: me4000_attach(): Unable to allocate irq\n", dev->minor);
 	    }
 	    else{

@@ -73,12 +73,12 @@ int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *,struct p
 	/* null shared interrupt flag, since rt interrupt handlers do not
 	* support it, and this version of comedi_request_irq() is only
 	* called for kernels with rt support */
-	unsigned long unshared_flags = flags & ~SA_SHIRQ;
+	unsigned long unshared_flags = flags & ~IRQF_SHARED;
 	
 	ret = request_irq(irq, handler, unshared_flags, device, dev_id);
 	if(ret<0){
 		// we failed, so fall back on allowing shared interrupt (which we won't ever make RT)
-		if(flags & SA_SHIRQ)
+		if(flags & IRQF_SHARED)
 		{
 			rt_printk("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
 			ret=request_irq(irq, handler, flags, device, dev_id);

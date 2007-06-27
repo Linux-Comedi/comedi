@@ -699,7 +699,7 @@ static int ni_65xx_attach(comedi_device *dev,comedi_devconfig *it)
 	/* Set filter interval to 0  (32bit reg) */
 	writeb(0x00000000, private(dev)->mite->daq_io_addr + Filter_Interval);
 
-	ret=comedi_request_irq(dev->irq,ni_65xx_interrupt,SA_SHIRQ,"ni_65xx",dev);
+	ret=comedi_request_irq(dev->irq,ni_65xx_interrupt,IRQF_SHARED,"ni_65xx",dev);
 	if(ret<0){
 		dev->irq=0;
 		printk(" irq not available");

@@ -1301,7 +1301,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if (this_board->have_irq) {
 		if (irq)  {
-			if (comedi_request_irq(irq, interrupt_service_pci1710, SA_SHIRQ, "Advantech PCI-1710", dev)) {
+			if (comedi_request_irq(irq, interrupt_service_pci1710, IRQF_SHARED, "Advantech PCI-1710", dev)) {
 				rt_printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 				irq=0; /* Can't use IRQ */
 			} else {

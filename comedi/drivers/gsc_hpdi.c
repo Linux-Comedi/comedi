@@ -610,7 +610,7 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	DEBUG_PRINT(" hpdi remapped to 0x%p\n", priv(dev)->hpdi_iobase);
 
 	// get irq
-	if( comedi_request_irq( pcidev->irq, handle_interrupt, SA_SHIRQ, driver_hpdi.driver_name,
+	if( comedi_request_irq( pcidev->irq, handle_interrupt, IRQF_SHARED, driver_hpdi.driver_name,
 		 dev ) )
 	{
 		printk( " unable to allocate irq %u\n", pcidev->irq );

@@ -182,7 +182,7 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("\n");
 
 	ret = comedi_request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
-		SA_SHIRQ, "cb_das16_cs", dev);
+		IRQF_SHARED, "cb_das16_cs", dev);
 	if(ret<0){
 		return ret;
 	}

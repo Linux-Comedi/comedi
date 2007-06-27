@@ -288,7 +288,7 @@ found:
 
 // Dont support IRQ yet
 //	// get irq
-//	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, SA_SHIRQ, "cb_pcimdas", dev ))
+//	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev ))
 //	{
 //		printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq);
 //		return -EINVAL;

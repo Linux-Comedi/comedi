@@ -173,7 +173,7 @@ static ni_board ni_boards[]={
 
 #define IRQ_POLARITY 1
 
-#define NI_E_IRQ_FLAGS		SA_SHIRQ
+#define NI_E_IRQ_FLAGS		IRQF_SHARED
 
 typedef struct{
 	dev_link_t *link;

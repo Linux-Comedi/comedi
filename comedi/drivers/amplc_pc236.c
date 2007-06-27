@@ -287,7 +287,7 @@ static int pc236_attach(comedi_device *dev,comedi_devconfig *it)
 	s->type = COMEDI_SUBD_UNUSED;
 	pc236_intr_disable(dev);
 	if (irq) {
-		unsigned long flags = share_irq ? SA_SHIRQ : 0;
+		unsigned long flags = share_irq ? IRQF_SHARED : 0;
 
 		if (comedi_request_irq(irq, pc236_interrupt, flags,
 					PC236_DRIVER_NAME, dev) >= 0) {

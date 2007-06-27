@@ -2614,7 +2614,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 
 	if (irq>0)  
 	   {
-	   if (comedi_request_irq(irq, v_ADDI_Interrupt, SA_SHIRQ, c_Identifier, dev) < 0) 
+	   if (comedi_request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED, c_Identifier, dev) < 0) 
 	      {
 	      printk(", unable to allocate IRQ %d, DISABLING IT", irq);
 	      irq=0; /* Can't use IRQ */

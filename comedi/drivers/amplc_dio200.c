@@ -1306,7 +1306,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	if (irq) {
-		unsigned long flags = share_irq ? SA_SHIRQ : 0;
+		unsigned long flags = share_irq ? IRQF_SHARED : 0;
 
 		if (comedi_request_irq(irq, dio200_interrupt, flags,
 					DIO200_DRIVER_NAME, dev) >= 0) {

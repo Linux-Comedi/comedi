@@ -585,7 +585,7 @@ found:
 	}
 
 	// get irq
-	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt, SA_SHIRQ, "cb_pcidas", dev ))
+	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt, IRQF_SHARED, "cb_pcidas", dev ))
 	{
 		printk(" unable to allocate irq %d\n", devpriv->pci_dev->irq);
 		return -EINVAL;

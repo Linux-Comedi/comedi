@@ -1750,7 +1750,7 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
 	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
 	// get irq
-	if(comedi_request_irq(pcidev->irq, handle_interrupt, SA_SHIRQ, "cb_pcidas64", dev ))
+	if(comedi_request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED, "cb_pcidas64", dev ))
 	{
 		printk(" unable to allocate irq %u\n", pcidev->irq);
 		return -EINVAL;

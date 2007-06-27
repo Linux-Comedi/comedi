@@ -928,7 +928,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if (this_board->have_irq) {
 		if (irq)  {
-			if (comedi_request_irq(irq, interrupt_service_icp_multi, SA_SHIRQ, "Inova Icp Multi", dev)) {
+			if (comedi_request_irq(irq, interrupt_service_icp_multi, IRQF_SHARED, "Inova Icp Multi", dev)) {
 				printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 				irq=0; /* Can't use IRQ */
 			}

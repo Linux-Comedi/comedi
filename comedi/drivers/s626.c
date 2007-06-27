@@ -566,7 +566,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   if(dev->irq==0){
     printk(" unknown irq (bad)\n");
   }else{
-    if( (ret=comedi_request_irq(dev->irq,s626_irq_handler,SA_SHIRQ,"s626",dev))<0 ){
+    if( (ret=comedi_request_irq(dev->irq,s626_irq_handler,IRQF_SHARED,"s626",dev))<0 ){
       printk(" irq not available\n");
       dev->irq=0;
     }

@@ -924,7 +924,7 @@ static int rtd_attach (
 
 	/* check if our interrupt is available and get it */
 	if((ret=comedi_request_irq (devpriv->pci_dev->irq, rtd_interrupt,
-		SA_SHIRQ, "rtd520", dev)) < 0) {
+		IRQF_SHARED, "rtd520", dev)) < 0) {
 		printk("Could not get interrupt! (%u)\n", devpriv->pci_dev->irq);
 		return ret;
 	}

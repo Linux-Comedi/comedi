@@ -1175,7 +1175,7 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		/* disable interrupts on board */
 		writeb(0x00,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);
 
-		ret=comedi_request_irq(irq,nidio_interrupt,SA_SHIRQ,"ni_pcidio",dev);
+		ret=comedi_request_irq(irq,nidio_interrupt,IRQF_SHARED,"ni_pcidio",dev);
 		if(ret<0){
 			printk(" irq not available");
 		}

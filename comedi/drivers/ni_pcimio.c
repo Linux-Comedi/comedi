@@ -1444,7 +1444,7 @@ static uint32_t m_series_stc_readl(comedi_device *dev, int reg)
 #define interrupt_pin(a)	0
 #define IRQ_POLARITY 1
 
-#define NI_E_IRQ_FLAGS		SA_SHIRQ
+#define NI_E_IRQ_FLAGS		IRQF_SHARED
 
 #include "ni_mio_common.c"
 

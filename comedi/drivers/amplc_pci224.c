@@ -1474,7 +1474,7 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	if (irq) {
-		ret = comedi_request_irq(irq, pci224_interrupt, SA_SHIRQ,
+		ret = comedi_request_irq(irq, pci224_interrupt, IRQF_SHARED,
 				DRIVER_NAME, dev);
 		if (ret < 0) {
 			printk(KERN_ERR "comedi%d: error! "

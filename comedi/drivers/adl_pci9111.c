@@ -1364,7 +1364,7 @@ found:
 	{
 		if (comedi_request_irq (pci_device->irq,
 			pci9111_interrupt,
-			SA_SHIRQ,
+			IRQF_SHARED,
 			PCI9111_DRIVER_NAME,
 			dev)!=0)
 		{
