@@ -60,13 +60,18 @@ static void pci_card_list_init(unsigned short pci_vendor, char display)
 	inova_devices=NULL;
 	last=NULL;
 	
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if(pcidev->vendor==pci_vendor){
 			inova=kmalloc(sizeof(*inova),GFP_KERNEL);
+			if(!inova){
+				printk("icp_multi: pci_card_list_init: allocation failed\n");
+				pci_dev_put(pcidev);
+				break;
+			}
 			memset(inova,0,sizeof(*inova));
 
-			inova->pcidev=pcidev;
+			inova->pcidev=pci_dev_get(pcidev);
 			if (last) { last->next=inova; }
 			     else { inova_devices=inova; }
 			last=inova;
@@ -100,7 +105,8 @@ static void pci_card_list_cleanup(unsigned short pci_vendor)
 	struct pcilst_struct *inova,*next;
 
 	for(inova=inova_devices; inova; inova=next){
-		next=inova->next;
+	 	next=inova->next;
+		pci_dev_put(inova->pcidev);
 		kfree(inova);
 	}
 	
