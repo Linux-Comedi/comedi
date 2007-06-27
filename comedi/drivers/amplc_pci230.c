@@ -351,8 +351,6 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 			if(pci_dev->device == pci230_boards[i].id)break;
 		}
 		if(i<n_pci230_boards)break;
- 		printk("comedi%d: found an unknown Amplicon board, dev id=0x%04x\n",
-			dev->minor,pci_dev->device);
 	}
 	if(!pci_dev){
 		printk("comedi%d: amplc_pci230: No PCI230 found\n",dev->minor);
