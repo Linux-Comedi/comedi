@@ -25,8 +25,9 @@
 Driver: amplc_pci230.o
 Description: Amplicom PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>, Steve D Sharples <steve.sharples@nottingham.ac.uk>
-Updated: Wed, 27 Jun 2007 13:22:57 +0100
-Devices: [Amplicon] PCI230 (amplc_pci230), PCI260
+Updated: Wed, 27 Jun 2007 15:21:41 +0100
+Devices: [Amplicon] PCI230 (pci230 or amplc_pci230),
+  PCI260 (pci260 or amplc_pci230)
 Status: works
 
 Configuration options:
@@ -51,6 +52,7 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_PCI230 0x0000
 #define PCI_DEVICE_ID_PCI260 0x0006
+#define PCI_DEVICE_ID_INVALID 0xffff
 
 #define PCI230_IO1_SIZE 32		/* Size of I/O space 1 */
 #define PCI230_IO2_SIZE 16		/* Size of I/O space 2 */
@@ -173,7 +175,7 @@ typedef struct pci230_board_struct{
 }pci230_board;
 static pci230_board pci230_boards[] = {
 	{
-	name:		"Amplicon PCI230",
+	name:		"pci230",
 	id:		PCI_DEVICE_ID_PCI230,
 	ai_chans:	16,
 	ai_bits:	12,
@@ -183,7 +185,7 @@ static pci230_board pci230_boards[] = {
 	have_dio:	1,
 	},
 	{
-	name:		"Amplicon PCI260",
+	name:		"pci260",
 	id:		PCI_DEVICE_ID_PCI260,
 	ai_chans:	16,
 	ai_bits:	12,
@@ -191,6 +193,10 @@ static pci230_board pci230_boards[] = {
 	ao_chans:	0,
 	ao_bits:	0,
 	have_dio:	0,
+	},
+	{
+	name:		"amplc_pci230",	/* Legacy name matches any above */
+	id:		PCI_DEVICE_ID_INVALID,
 	},
 };
 
@@ -262,6 +268,9 @@ static comedi_driver driver_amplc_pci230={
 	module:		THIS_MODULE,
 	attach:		pci230_attach,
 	detach:		pci230_detach,
+	board_name:	(const char**)pci230_boards,
+	offset:		sizeof(pci230_boards[0]),
+	num_names:	sizeof(pci230_boards) / sizeof(pci230_boards[0]),
 };
 COMEDI_INITCLEANUP(driver_amplc_pci230);
 
@@ -340,7 +349,8 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	struct pci_dev *pci_dev;
 	int i=0,irq_hdl;
 
-	printk("comedi%d: amplc_pci230\n",dev->minor);
+	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
+			thisboard->name, it->options[0], it->options[1]);
 
 	/* Allocate the private structure area using alloc_private().
 	 * Macro defined in comedidev.h - memsets struct fields to 0. */
@@ -353,23 +363,41 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 		if(it->options[0] || it->options[1]){
 			/* Match against bus/slot options. */
 			if(it->options[0] != pci_dev->bus->number ||
-					it->options[1] !=
-					PCI_SLOT(pci_dev->devfn))
+					it->options[1] != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
 		if(pci_dev->vendor != PCI_VENDOR_ID_AMPLICON)
 			continue;
-		for(i=0;i<n_pci230_boards;i++){
-			if(pci_dev->device == pci230_boards[i].id)break;
+		if(thisboard->id == PCI_DEVICE_ID_INVALID){
+			/* The name was specified as "amplc_pci230" which is
+			 * used to match any supported device.  Replace the
+			 * current dev->board_ptr with one that matches the
+			 * PCI device ID. */
+			for(i=0;i<n_pci230_boards;i++){
+				if(pci_dev->device == pci230_boards[i].id){
+					/* Change board_ptr to matched board */
+					dev->board_ptr = &pci230_boards[i];
+					break;
+				}
+			}
+			if(i<n_pci230_boards)break;
+		}else{
+			/* The name was specified as a specific device name.
+			 * The current dev->board_ptr is correct.  Check
+			 * whether it matches the PCI device ID. */
+			if(thisboard->id == pci_dev->device) break;
 		}
-		if(i<n_pci230_boards)break;
 	}
 	if(!pci_dev){
-		printk("comedi%d: amplc_pci230: No PCI230 found\n",dev->minor);
+		printk("comedi%d: No %s card found\n",dev->minor, thisboard->name);
 		return -EIO;
 	}
 	devpriv->pci_dev = pci_dev;
-	dev->board_ptr = pci230_boards+i;
+
+/*
+ * Initialize dev->board_name.
+ */
+	dev->board_name = thisboard->name;
 
 	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register. */
 	if(pci_enable_device(pci_dev)<0){
@@ -380,21 +408,16 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	iobase = pci_resource_start(pci_dev, 3);
 
 	/* Reserve I/O spaces. */
-	if(pci_request_regions(pci_dev,"PCI230")<0){
-		printk("comedi%d: amplc_pci230: I/O space conflict\n",dev->minor);
+	if(pci_request_regions(pci_dev,"amplc_pci230")<0){
+		printk("comedi%d: I/O space conflict\n",dev->minor);
 		return -EIO;
 	}
 
-	printk("comedi%d: amplc_pci230: I/O region 1 0x%04lx I/O region 2 0x%04lx\n",dev->minor, pci_iobase, iobase);
+	printk("comedi%d: %s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
+			dev->minor, dev->board_name, pci_iobase, iobase);
 
 	devpriv->pci_iobase = pci_iobase;
 	dev->iobase = iobase;
-
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
 
 	/* Disable board's interrupts. */
 	outb(0, devpriv->pci_iobase + PCI230_INT_SCE);
@@ -402,11 +425,11 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	/* Register the interrupt handler. */
 	irq_hdl = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt, IRQF_SHARED, "amplc_pci230", dev);
 	if(irq_hdl<0) {
-		printk("comedi%d: amplc_pci230: unable to register irq, commands will not be available %d\n", dev->minor, devpriv->pci_dev->irq);
+		printk("comedi%d: unable to register irq, commands will not be available %d\n", dev->minor, devpriv->pci_dev->irq);
 	}
 	else {
 		dev->irq = devpriv->pci_dev->irq;
-		printk("comedi%d: amplc_pci230: registered irq %u\n", dev->minor, devpriv->pci_dev->irq);
+		printk("comedi%d: registered irq %u\n", dev->minor, devpriv->pci_dev->irq);
 	}
 
 /*
