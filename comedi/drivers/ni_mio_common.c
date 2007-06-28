@@ -3371,6 +3371,13 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 	case NITIO_G1_Second_Gate_Reg:
 		ni_writew(bits, M_Offset_G1_Second_Gate);
 		break;
+	case NITIO_G0_ABZ_Reg:
+		ni_writew(bits, M_Offset_G0_MSeries_ABZ);
+		break;
+	case NITIO_G1_ABZ_Reg:
+		ni_writew(bits, M_Offset_G1_MSeries_ABZ);
+		break;
+	  
 	/* 32 bit registers */
 	case NITIO_G0_LoadA_Reg:
 	case NITIO_G1_LoadA_Reg:

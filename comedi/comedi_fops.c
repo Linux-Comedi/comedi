@@ -638,6 +638,7 @@ static int check_insn_config_length(comedi_insn *insn, lsampl_t *data)
 	case INSN_CONFIG_GET_GATE_SRC:
 	case INSN_CONFIG_SET_CLOCK_SRC:
 	case INSN_CONFIG_GET_CLOCK_SRC:
+	case INSN_CONFIG_SET_OTHER_SRC:
 	case INSN_CONFIG_GET_COUNTER_STATUS:
 		if(insn->n == 3) return 0;
 		break;

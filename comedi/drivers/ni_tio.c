@@ -322,6 +322,23 @@ static inline enum ni_gpct_register NITIO_Gi_DMA_Config_Reg(int counter_index)
 	return 0;
 }
 
+static inline enum ni_gpct_register NITIO_Gi_ABZ_Reg(int counter_index)
+{
+	switch(counter_index)
+	{
+	case 0:
+		return NITIO_G0_ABZ_Reg;
+		break;
+	case 1:
+		return NITIO_G1_ABZ_Reg;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+
 enum Gi_Auto_Increment_Reg_Bits
 {
 	Gi_Auto_Increment_Mask = 0xff
@@ -1607,6 +1624,41 @@ static int ni_tio_set_gate_src(struct ni_gpct *counter, unsigned gate_index, lsa
 	return 0;
 }
 
+static int ni_tio_set_other_src(struct ni_gpct *counter, 
+				unsigned index, lsampl_t source)
+{
+  	if (counter->variant == ni_gpct_variant_m_series && 
+	    (index == NI_GPCT_SOURCE_ENCODER_A ||
+	     index == NI_GPCT_SOURCE_ENCODER_B ||
+	     index == NI_GPCT_SOURCE_ENCODER_Z)) {
+	      	unsigned int abz_reg, shift, mask;
+		abz_reg = NITIO_Gi_ABZ_Reg(counter->counter_index);
+
+		switch(index) {
+		case NI_GPCT_SOURCE_ENCODER_A:
+		  	shift = 10;
+			break;
+		case NI_GPCT_SOURCE_ENCODER_B:
+		  	shift = 5;
+			break;
+		case NI_GPCT_SOURCE_ENCODER_Z:
+		  	shift = 0;
+			break;
+		}
+		mask = 0x1f << shift;
+		if (source > 0x1f) {
+		  /* Disable gate */
+		  source = 0x1f;
+		}
+		counter->regs[abz_reg] &= ~mask;
+		counter->regs[abz_reg] |= source << shift;
+		counter->write_register(counter, counter->regs[abz_reg], abz_reg);
+		printk("%s %x %d %d\n", __FUNCTION__, counter->regs[abz_reg], index, source);
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static unsigned ni_660x_first_gate_to_generic_gate_source(unsigned ni_660x_gate_select)
 {
 	unsigned i;
@@ -1874,6 +1926,9 @@ int ni_tio_insn_config(struct ni_gpct *counter,
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
 		return ni_tio_get_gate_src(counter, data[1], &data[2]);
+		break;
+	case INSN_CONFIG_SET_OTHER_SRC:
+		return ni_tio_set_other_src(counter, data[1], data[2]);
 		break;
 	case INSN_CONFIG_RESET:
 		ni_tio_reset_count_and_disarm(counter);

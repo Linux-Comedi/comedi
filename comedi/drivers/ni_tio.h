@@ -86,6 +86,8 @@ enum ni_gpct_register
 	NITIO_G1_DMA_Status_Reg,
 	NITIO_G2_DMA_Status_Reg,
 	NITIO_G3_DMA_Status_Reg,
+	NITIO_G0_ABZ_Reg,
+	NITIO_G1_ABZ_Reg,
 	NITIO_Num_Registers,
 };
 

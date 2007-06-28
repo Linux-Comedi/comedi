@@ -250,6 +250,8 @@ enum configuration_ids
 	INSN_CONFIG_GET_GATE_SRC = 2002,	// Get gate source
 	INSN_CONFIG_SET_CLOCK_SRC = 2003,	// Set master clock source
 	INSN_CONFIG_GET_CLOCK_SRC = 2004,	// Get master clock source
+	INSN_CONFIG_SET_OTHER_SRC = 2005,       // Set other source
+//	INSN_CONFIG_GET_OTHER_SRC = 2006,	// Get other source
 	INSN_CONFIG_SET_COUNTER_MODE = 4097,
 	INSN_CONFIG_8254_SET_MODE = INSN_CONFIG_SET_COUNTER_MODE,	/* deprecated */
 	INSN_CONFIG_8254_READ_STATUS = 4098,
@@ -642,6 +644,32 @@ static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
 {
 	return 0x202 + n;
 }
+
+/* Possibilities for setting a source with
+INSN_CONFIG_SET_OTHER_SRC when using NI general-purpose counters. */
+enum ni_gpct_other_index {
+  NI_GPCT_SOURCE_ENCODER_A,
+  NI_GPCT_SOURCE_ENCODER_B,
+  NI_GPCT_SOURCE_ENCODER_Z
+};
+enum ni_gpct_other_select
+{
+  	/* m-series gates */
+        // Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT 
+	NI_GPCT_DISABLED_OTHER_SELECT = 0x8000,
+};
+static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n)
+{
+  	if (n < 10) {
+		return 0x1 + n;
+	} else if (n < 16) {
+		return 0xb + n;
+	} else {
+	  	// Really should report this error somehow
+	        return NI_GPCT_DISABLED_OTHER_SELECT;
+	}
+}
+
 
 /* start sources for ni general-purpose counters for use with
 INSN_CONFIG_ARM */
