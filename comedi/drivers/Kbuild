@@ -64,6 +64,7 @@ obj-m += fl512.o
 obj-m += gsc_hpdi.o
 obj-m += ii_pci20kc.o
 obj-m += icp_multi.o
+obj-m += jr3_pci.o
 obj-m += ke_counter.o
 obj-m += me_daq.o
 obj-m += me4000.o

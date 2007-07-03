@@ -133,6 +133,7 @@ module_PROGRAMS = \
  gsc_hpdi.ko \
  ii_pci20kc.ko \
  icp_multi.ko \
+ jr3_pci.ko \
  ke_counter.ko \
  me_daq.ko \
  me4000.ko \
@@ -227,6 +228,7 @@ fl512_ko_SOURCES = fl512.c
 gsc_hpdi_ko_SOURCES = gsc_hpdi.c
 ii_pci20kc_ko_SOURCES = ii_pci20kc.c
 icp_multi_ko_SOURCES = icp_multi.c
+jr3_pci_ko_SOURCES = jr3_pci.c
 ke_counter_ko_SOURCES = ke_counter.c
 me4000_ko_SOURCES = me4000.c
 me_daq_ko_SOURCES = me_daq.c
