@@ -175,7 +175,7 @@ static poll_delay_t poll_delay_min_max(int min, int max)
 
 static int is_complete(volatile jr3_channel_t *channel)
 {
-  return get_s16(channel->command_word0) == 0;
+  return get_s16(&channel->command_word0) == 0;
 }
  
 typedef struct {
@@ -253,24 +253,24 @@ static void set_full_scales(volatile jr3_channel_t *channel,
 static six_axis_t get_min_full_scales(volatile jr3_channel_t *channel)
 {
   six_axis_t result;
-  result.fx = get_s16(channel->min_full_scale.fx);
-  result.fy = get_s16(channel->min_full_scale.fy);
-  result.fz = get_s16(channel->min_full_scale.fz);
-  result.mx = get_s16(channel->min_full_scale.mx);
-  result.my = get_s16(channel->min_full_scale.my);
-  result.mz = get_s16(channel->min_full_scale.mz);
+  result.fx = get_s16(&channel->min_full_scale.fx);
+  result.fy = get_s16(&channel->min_full_scale.fy);
+  result.fz = get_s16(&channel->min_full_scale.fz);
+  result.mx = get_s16(&channel->min_full_scale.mx);
+  result.my = get_s16(&channel->min_full_scale.my);
+  result.mz = get_s16(&channel->min_full_scale.mz);
   return result;
 }
  
 static six_axis_t get_max_full_scales(volatile jr3_channel_t *channel)
 {
   six_axis_t result;
-  result.fx = get_s16(channel->max_full_scale.fx);
-  result.fy = get_s16(channel->max_full_scale.fy);
-  result.fz = get_s16(channel->max_full_scale.fz);
-  result.mx = get_s16(channel->max_full_scale.mx);
-  result.my = get_s16(channel->max_full_scale.my);
-  result.mz = get_s16(channel->max_full_scale.mz);
+  result.fx = get_s16(&channel->max_full_scale.fx);
+  result.fy = get_s16(&channel->max_full_scale.fy);
+  result.fz = get_s16(&channel->max_full_scale.fz);
+  result.mx = get_s16(&channel->max_full_scale.mx);
+  result.my = get_s16(&channel->max_full_scale.my);
+  result.mz = get_s16(&channel->max_full_scale.mz);
   return result;
 }
  
@@ -290,7 +290,8 @@ static int jr3_pci_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 
     result = insn->n;
     if (p->state != state_jr3_done || 
-	(get_u16(p->channel->errors) & 0xe800) != 0) {
+	(get_u16(&p->channel->errors) & (watch_dog | watch_dog2 | 
+					 sensor_change))) {
       /* No sensor or sensor changed */
       if (p->state == state_jr3_done) {
 	/* Restart polling */
@@ -310,28 +311,28 @@ static int jr3_pci_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	  int F = 0;
 	  switch (axis) {
 	    case 0: {
-	      F = get_s16(p->channel->filter[filter].fx);
+	      F = get_s16(&p->channel->filter[filter].fx);
 	    } break;
 	    case 1: {
-	      F = get_s16(p->channel->filter[filter].fy);
+	      F = get_s16(&p->channel->filter[filter].fy);
 	    } break;
 	    case 2: {
-	      F = get_s16(p->channel->filter[filter].fz);
+	      F = get_s16(&p->channel->filter[filter].fz);
 	    } break;
 	    case 3: {
-	      F = get_s16(p->channel->filter[filter].mx);
+	      F = get_s16(&p->channel->filter[filter].mx);
 	    } break;
 	    case 4: {
-	      F = get_s16(p->channel->filter[filter].my);
+	      F = get_s16(&p->channel->filter[filter].my);
 	    } break;
 	    case 5: {
-	      F = get_s16(p->channel->filter[filter].mz);
+	      F = get_s16(&p->channel->filter[filter].mz);
 	    } break;
 	    case 6: {
-	      F = get_s16(p->channel->filter[filter].v1);
+	      F = get_s16(&p->channel->filter[filter].v1);
 	    } break;
 	    case 7: {
-	      F = get_s16(p->channel->filter[filter].v2);
+	      F = get_s16(&p->channel->filter[filter].v2);
 	    } break;
 	  }
 	  data[i] = F + 0x4000;
@@ -340,13 +341,13 @@ static int jr3_pci_ai_insn_read(comedi_device *dev, comedi_subdevice *s,
 	if (p->state != state_jr3_done) {
 	  data[i] = 0;
 	} else {
-	  data[i] = get_u16(p->channel->model_no);
+	  data[i] = get_u16(&p->channel->model_no);
 	}
       } else if (channel == 57) {
 	if (p->state != state_jr3_done) {
 	  data[i] = 0;
 	} else {
-	  data[i] = get_u16(p->channel->serial_no);
+	  data[i] = get_u16(&p->channel->serial_no);
 	}
       }
     }
@@ -480,22 +481,23 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice *s)
 
   if (p) {
     volatile jr3_channel_t *channel = p->channel;
-    int errors = get_u16(channel->errors);
+    int errors = get_u16(&channel->errors);
     
     if (errors != p->errors) {
       printk("Errors: %x -> %x\n", p->errors, errors);
       p->errors = errors;
     }
-    if ((errors & 0xe800) != 0) {
+    if (errors & (watch_dog | watch_dog2 | sensor_change)) {
       // Sensor communication lost, force poll mode
       p->state = state_jr3_poll;
       
     }
     switch (p->state) {
       case state_jr3_poll: {
-	u16 model_no = get_u16(channel->model_no);
-	u16 serial_no = get_u16(channel->serial_no);
-	if ((errors & 0xe000) != 0 || model_no == 0 || serial_no == 0) {
+	u16 model_no = get_u16(&channel->model_no);
+	u16 serial_no = get_u16(&channel->serial_no);
+	if ((errors & (watch_dog | watch_dog2)) || 
+	    model_no == 0 || serial_no == 0) {
 	  // Still no sensor, keep on polling. Since it takes up to 
 	  // 10 seconds for offsets to stabilize, polling each
 	  // second should suffice.
@@ -514,8 +516,8 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice *s)
 	} else {
 	  transform_t transf;
   
-	  p->model_no = get_u16(channel->model_no);
-	  p->serial_no = get_u16(channel->serial_no);
+	  p->model_no = get_u16(&channel->model_no);
+	  p->serial_no = get_u16(&channel->serial_no);
 
 	  printk("Setting transform for channel %d\n", p->channel_no);
 	  printk("Sensor Model     = %i\n", p->model_no);
@@ -584,22 +586,22 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice *s)
 
 	  // Use ranges in kN or we will overflow arount 2000N!
 	  full_scale = &channel->full_scale;
-	  p->range[0].range.min = -get_s16(full_scale->fx) * 1000;
-	  p->range[0].range.max =  get_s16(full_scale->fx) * 1000;
-	  p->range[1].range.min = -get_s16(full_scale->fy) * 1000;
-	  p->range[1].range.max =  get_s16(full_scale->fy) * 1000;
-	  p->range[2].range.min = -get_s16(full_scale->fz) * 1000;
-	  p->range[2].range.max =  get_s16(full_scale->fz) * 1000;
-	  p->range[3].range.min = -get_s16(full_scale->mx) * 100;
-	  p->range[3].range.max =  get_s16(full_scale->mx) * 100;
-	  p->range[4].range.min = -get_s16(full_scale->my) * 100;
-	  p->range[4].range.max =  get_s16(full_scale->my) * 100;
-	  p->range[5].range.min = -get_s16(full_scale->mz) * 100;
-	  p->range[5].range.max =  get_s16(full_scale->mz) * 100;
-	  p->range[6].range.min = -get_s16(full_scale->v1) * 100; // ??
-	  p->range[6].range.max =  get_s16(full_scale->v1) * 100; // ??
-	  p->range[7].range.min = -get_s16(full_scale->v2) * 100; // ??
-	  p->range[7].range.max =  get_s16(full_scale->v2) * 100; // ??
+	  p->range[0].range.min = -get_s16(&full_scale->fx) * 1000;
+	  p->range[0].range.max =  get_s16(&full_scale->fx) * 1000;
+	  p->range[1].range.min = -get_s16(&full_scale->fy) * 1000;
+	  p->range[1].range.max =  get_s16(&full_scale->fy) * 1000;
+	  p->range[2].range.min = -get_s16(&full_scale->fz) * 1000;
+	  p->range[2].range.max =  get_s16(&full_scale->fz) * 1000;
+	  p->range[3].range.min = -get_s16(&full_scale->mx) * 100;
+	  p->range[3].range.max =  get_s16(&full_scale->mx) * 100;
+	  p->range[4].range.min = -get_s16(&full_scale->my) * 100;
+	  p->range[4].range.max =  get_s16(&full_scale->my) * 100;
+	  p->range[5].range.min = -get_s16(&full_scale->mz) * 100;
+	  p->range[5].range.max =  get_s16(&full_scale->mz) * 100;
+	  p->range[6].range.min = -get_s16(&full_scale->v1) * 100; // ??
+	  p->range[6].range.max =  get_s16(&full_scale->v1) * 100; // ??
+	  p->range[7].range.min = -get_s16(&full_scale->v2) * 100; // ??
+	  p->range[7].range.max =  get_s16(&full_scale->v2) * 100; // ??
 	  p->range[8].range.min = 0;
 	  p->range[8].range.max = 65535;
 
@@ -623,12 +625,12 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice *s)
 	  result = poll_delay_min_max(20, 100);
 	} else {
 	  printk("Default offsets %d %d %d %d %d %d\n",
-		 get_s16(channel->offsets.fx),
-		 get_s16(channel->offsets.fy),
-		 get_s16(channel->offsets.fz),
-		 get_s16(channel->offsets.mx),
-		 get_s16(channel->offsets.my),
-		 get_s16(channel->offsets.mz));
+		 get_s16(&channel->offsets.fx),
+		 get_s16(&channel->offsets.fy),
+		 get_s16(&channel->offsets.fz),
+		 get_s16(&channel->offsets.mx),
+		 get_s16(&channel->offsets.my),
+		 get_s16(&channel->offsets.mz));
 
 	  set_s16(&channel->offsets.fx, 0);
 	  set_s16(&channel->offsets.fy, 0);
@@ -829,7 +831,7 @@ static int jr3_pci_attach(comedi_device *dev, comedi_devconfig *it)
   // as much as we can read firmware version
   msleep_interruptible(25);
   for (i=0 ; i < 0x18 ; i++){
-    printk("%c", get_u16(devpriv->iobase->channel[0].data.copyright[i])>>8);
+    printk("%c", get_u16(&devpriv->iobase->channel[0].data.copyright[i])>>8);
   }
 
   // Start card timer

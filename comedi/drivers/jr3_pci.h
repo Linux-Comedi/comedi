@@ -1,43 +1,27 @@
 // Helper types to take care of the fact that the DSP card memory
 //   is 16 bits, but aligned on a 32 bit PCI boundary
-typedef union {
-  u8 as_u8;
-  u16 as_u16;
-  u32 as_u32;
-} u_val_t;
+typedef u32 u_val_t;
 
-typedef union {
-  s8 as_s8;
-  s16 as_s16;
-  s32 as_s32;
-} s_val_t;
+typedef s32 s_val_t;
 
-static inline u16 get_u16(volatile u_val_t val) 
+static inline u16 get_u16(volatile const u_val_t *p) 
 {
-  u_val_t tmp;
-  tmp.as_u32 = le32_to_cpu(val.as_u32);
-  return tmp.as_u16;
+  return (u16)readl(p);
 } 
 
 static inline void set_u16(volatile u_val_t *p, u16 val) 
 {
-  u_val_t tmp;
-  tmp.as_u16 = val;
-  p->as_u32 = cpu_to_le32(tmp.as_u32);
+  writel(val, p);
 } 
 
-static inline s16 get_s16(volatile s_val_t val) 
+static inline s16 get_s16(volatile const s_val_t *p) 
 {
-  s_val_t tmp;
-  tmp.as_s32 = le32_to_cpu(val.as_s32);
-  return tmp.as_s16;
+  return (s16)readl(p);
 } 
 
 static inline void set_s16(volatile s_val_t *p, s16 val) 
 {
-  s_val_t tmp;
-  tmp.as_s16 = val;
-  p->as_s32 = cpu_to_le32(tmp.as_s32);
+  writel(val, p);
 } 
 
 // The raw data is stored in a format which facilitates rapid
@@ -90,75 +74,116 @@ typedef struct six_axis_array
   s_val_t mz;
 } six_axis_array_t;
 
-// VECT_BITS
-// Indicates which axis are to be used when computing the vectors. A vector
-// is composed by 3 components and its "magnitude" is placed in V1 and V2.
-// V1 defaults to a force vector and V2 defaults to a moment vector.
-// Setting changeV1 or changeV2 will change that vector to be the opposite of
-// its default.
+// VECT_BITS 
+// The vect_bits structure shows the layout for indicating
+// which axes to use in computing the vectors. Each bit signifies
+// selection of a single axis. The V1x axis bit corresponds to a hex
+// value of 0x0001 and the V2z bit corresponds to a hex value of
+// 0x0020. Example: to specify the axes V1x, V1y, V2x, and V2z the
+// pattern would be 0x002b. Vector 1 defaults to a force vector and
+// vector 2 defaults to a moment vector. It is possible to change one
+// or the other so that two force vectors or two moment vectors are
+// calculated. Setting the changeV1 bit or the changeV2 bit will
+// change that vector to be the opposite of its default. Therefore to
+// have two force vectors, set changeV1 to 1.
 
-// *** Check this norby ***
-// This is badly defined at JR3 Manual. Correct definition follows:
-typedef struct vect_bits
-{
- unsigned fx : 1;
- unsigned fy : 1;
- unsigned fz : 1;
- unsigned mx : 1;
- unsigned my : 1;
- unsigned mz : 1;
- unsigned changeV1 : 1;
- unsigned changeV2 : 1;
- unsigned reserved : 8;
-} vect_bits;
+typedef enum {
+  fx = 0x0001,
+  fy = 0x0002,
+  fz = 0x0004,
+  mx = 0x0008,
+  my = 0x0010,
+  mz = 0x0020,
+  changeV2 = 0x0040,
+  changeV1 = 0x0080
+} vect_bits_t;
 
-// WARNINGS
-// Bit pattern for the warning word: xx_near_sat means that a near saturation
-// has been reached or exceeded.
-typedef struct warning_bits
-{
- unsigned fx_near_sat : 1;
- unsigned fy_near_sat : 1;
- unsigned fz_near_sat : 1;
- unsigned mx_near_sat : 1;
- unsigned my_near_sat : 1;
- unsigned mz_near_sat : 1;
- unsigned reserved : 10;
-} warning_bits;
+// WARNING_BITS
+// The warning_bits structure shows the bit pattern for the warning
+// word. The bit fields are shown from bit 0 (lsb) to bit 15 (msb).
+//
+// XX_NEAR_SET
+// The xx_near_sat bits signify that the indicated axis has reached or
+// exceeded the near saturation value.
+
+typedef enum {
+  fx_near_sat = 0x0001,
+  fy_near_sat = 0x0002,
+  fz_near_sat = 0x0004,
+  mx_near_sat = 0x0008,
+  my_near_sat = 0x0010,
+  mz_near_sat = 0x0020
+} warning_bits_t;
 
 // ERROR_BITS
-// Bit pattern for the error word:
-// 1. xx_sat means that a near saturation has been reached or exceeded.
-// 2. memory_error indicates RAM memory error during power up.
-// 3. sensor_change indicates that the sensor plugged in (different from the
-//    original one) has passed CRC check. The user must reset this bit.
-// 4. system_busyindicates system busy: transf. change, new full scale or new
-//    sennsor plugged in.
-// 5. cal_crc_bad means that it was a problem transmiting the calibration data
-//    stored inside the sensor. If this bit does not come to zero 2s after the
-//    sensor has been plugged in, there is a problem with the sensor's calibra-
-//    tion data.
-// 6. watch_dog2 indicates that sensor data and clock are being received.
-// 7. watch_dog indicates that data line seems to be acting correctly.
-// If either watch dog barks, the sensor data is not beig receive correctly.
-#if 0
-typedef struct error_bits
-{
- unsigned fx_sat : 1;
- unsigned fy_sat : 1;
- unsigned fz_sat : 1;
- unsigned mx_sat : 1;
- unsigned my_sat : 1;
- unsigned mz_sat : 1;
- unsigned reserved : 4;
- unsigned memory_error : 1;
- unsigned sensor_change : 1;
- unsigned system_busy : 1;
- unsigned cal_crc_bad : 1;
- unsigned watch_dog2 : 1;
- unsigned watch_dog : 1;
-} error_bits;
-#endif
+// XX_SAT
+// MEMORY_ERROR
+// SENSOR_CHANGE
+// 
+// The error_bits structure shows the bit pattern for the error word.
+// The bit fields are shown from bit 0 (lsb) to bit 15 (msb). The
+// xx_sat bits signify that the indicated axis has reached or exceeded
+// the saturation value. The memory_error bit indicates that a problem
+// was detected in the on-board RAM during the power-up
+// initialization. The sensor_change bit indicates that a sensor other
+// than the one originally plugged in has passed its CRC check. This
+// bit latches, and must be reset by the user.
+//
+// SYSTEM_BUSY
+//
+// The system_busy bit indicates that the JR3 DSP is currently busy
+// and is not calculating force data. This occurs when a new
+// coordinate transformation, or new sensor full scale is set by the
+// user. A very fast system using the force data for feedback might
+// become unstable during the approximately 4 ms needed to accomplish
+// these calculations. This bit will also become active when a new
+// sensor is plugged in and the system needs to recalculate the
+// calibration CRC.
+//
+// CAL_CRC_BAD
+//
+// The cal_crc_bad bit indicates that the calibration CRC has not
+// calculated to zero. CRC is short for cyclic redundancy code. It is
+// a method for determining the integrity of messages in data
+// communication. The calibration data stored inside the sensor is
+// transmitted to the JR3 DSP along with the sensor data. The
+// calibration data has a CRC attached to the end of it, to assist in
+// determining the completeness and integrity of the calibration data
+// received from the sensor. There are two reasons the CRC may not
+// have calculated to zero. The first is that all the calibration data
+// has not yet been received, the second is that the calibration data
+// has been corrupted. A typical sensor transmits the entire contents
+// of its calibration matrix over 30 times a second. Therefore, if
+// this bit is not zero within a couple of seconds after the sensor
+// has been plugged in, there is a problem with the sensor's
+// calibration data.
+//
+// WATCH_DOG
+// WATCH_DOG2
+//
+// The watch_dog and watch_dog2 bits are sensor, not processor, watch
+// dog bits. Watch_dog indicates that the sensor data line seems to be
+// acting correctly, while watch_dog2 indicates that sensor data and
+// clock are being received. It is possible for watch_dog2 to go off
+// while watch_dog does not. This would indicate an improper clock
+// signal, while data is acting correctly. If either watch dog barks,
+// the sensor data is not being received correctly.
+
+typedef enum {
+  fx_sat = 0x0001,
+  fy_sat = 0x0002,
+  fz_sat = 0x0004,
+  mx_sat = 0x0008,
+  my_sat = 0x0010,
+  mz_sat = 0x0020,
+  memory_error = 0x0400,
+  sensor_change = 0x0800,
+  system_busy = 0x1000,
+  cal_crc_bad = 0x2000,
+  watch_dog2 = 0x4000,
+  watch_dog = 0x8000
+} error_bits_t;
+
 
 // THRESH_STRUCT
 // This structure shows the layout for a single threshold packet inside of a
