@@ -269,6 +269,8 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_gpct_cmd(comedi_device *dev,comedi_subdevice *s);
 static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 static int ni_gpct_cancel(comedi_device *dev,comedi_subdevice *s);
+static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index,
+	unsigned short is_terminal_count);
 
 static int init_cs5529(comedi_device *dev);
 static int cs5529_do_conversion(comedi_device *dev, unsigned short *data);
@@ -291,6 +293,38 @@ enum aimodes
 	AIMODE_SAMPLE = 3,
 };
 
+enum ni_common_subdevices
+{
+	NI_AI_SUBDEV,
+	NI_AO_SUBDEV,
+	NI_DIO_SUBDEV,
+	NI_8255_DIO_SUBDEV,
+	NI_UNUSED_SUBDEV,
+	NI_CALIBRATION_SUBDEV,
+	NI_EEPROM_SUBDEV,
+	NI_PFI_DIO_SUBDEV,
+	NI_CS5529_CALIBRATION_SUBDEV,
+	NI_SERIAL_SUBDEV,
+	NI_RTSI_SUBDEV,
+	NI_GPCT0_SUBDEV,
+	NI_GPCT1_SUBDEV,
+	NI_NUM_SUBDEVICES
+};
+static inline unsigned NI_GPCT_SUBDEV(unsigned counter_index)
+{
+	switch(counter_index)
+	{
+	case 0: return NI_GPCT0_SUBDEV;
+		break;
+	case 1: return NI_GPCT1_SUBDEV;
+		break;
+	default:
+		break;
+	}
+	BUG();
+	return NI_GPCT0_SUBDEV;
+}
+
 #define SERIAL_DISABLED		0
 #define SERIAL_600NS		600
 #define SERIAL_1_2US		1200
@@ -299,9 +333,9 @@ enum aimodes
 static const int num_adc_stages_611x = 3;
 
 static void handle_a_interrupt(comedi_device *dev, unsigned short status,
-	unsigned ai_mite_status, unsigned gpct0_mite_status);
+	unsigned ai_mite_status);
 static void handle_b_interrupt(comedi_device *dev, unsigned short status,
-	unsigned ao_mite_status, unsigned gpct1_mite_status);
+	unsigned ao_mite_status);
 static void get_last_sample_611x( comedi_device *dev );
 static void get_last_sample_6143( comedi_device *dev );
 #ifdef PCIDMA
@@ -593,8 +627,6 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
 	unsigned int ao_mite_status = 0;
-	unsigned gpct0_mite_status = 0;
-	unsigned gpct1_mite_status = 0;
 	unsigned long flags;
 	struct mite_struct *mite = devpriv->mite;
 
@@ -614,16 +646,15 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 			ai_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ai_mite_chan->channel));
 		if(devpriv->ao_mite_chan)
 			ao_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ao_mite_chan->channel));
-		if(devpriv->gpct_mite_chan[0])
-			gpct0_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->gpct_mite_chan[0]->channel));
-		if(devpriv->gpct_mite_chan[1])
-			gpct1_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->gpct_mite_chan[1]->channel));
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
-	if((a_status & Interrupt_A_St) || ((ai_mite_status | gpct0_mite_status) & CHSR_INT))
-		handle_a_interrupt(dev, a_status, ai_mite_status, gpct0_mite_status);
-	if((b_status & Interrupt_B_St) || ((ao_mite_status | gpct1_mite_status) & CHSR_INT))
-		handle_b_interrupt(dev, b_status, ao_mite_status, gpct1_mite_status);
+	if((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
+		handle_a_interrupt(dev, a_status, ai_mite_status);
+	if((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
+		handle_b_interrupt(dev, b_status, ao_mite_status);
+	handle_gpct_interrupt(dev, 0, (a_status & G0_TC_St));
+	handle_gpct_interrupt(dev, 1, (b_status & G1_TC_St));
+
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
 }
@@ -631,7 +662,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 #ifdef PCIDMA
 static void ni_sync_ai_dma(comedi_device *dev)
 {
-	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -642,7 +673,7 @@ static void ni_sync_ai_dma(comedi_device *dev)
 
 static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 {
-	comedi_subdevice *s = dev->subdevices + 1;
+	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
 
 	if(devpriv->ao_mite_chan == NULL) return;
 	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->ao_mite_chan->channel));
@@ -727,7 +758,7 @@ static void ni_handle_eos(comedi_device *dev, comedi_subdevice *s)
 
 static void shutdown_ai_command( comedi_device *dev )
 {
-	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 
 #ifdef PCIDMA
 	ni_ai_drain_dma( dev );
@@ -739,13 +770,24 @@ static void shutdown_ai_command( comedi_device *dev )
 	s->async->events |= COMEDI_CB_EOA;
 }
 
-static void handle_gpct_interrupt(comedi_device *dev, struct mite_channel *mite_chan, unsigned short is_terminal_count)
+static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index, unsigned short is_terminal_count)
 {
 	unsigned gpct_mite_status;
+	unsigned long flags;
+	struct mite_channel *mite_chan;
+	comedi_subdevice *s = dev->subdevices + NI_GPCT_SUBDEV(counter_index);
 
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	mite_chan = devpriv->gpct_mite_chan[counter_index];
+	if(mite_chan == NULL)
+	{
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+		return;
+	}
 	gpct_mite_status = readl(mite_chan->mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
-	if(gpct_mite_status & CHSR_INT)
-	{}
+	mite_sync_input_dma(mite_chan, s->async);
+
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
 static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
@@ -801,9 +843,9 @@ static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
 }
 
 static void handle_a_interrupt(comedi_device *dev, unsigned short status,
-	unsigned ai_mite_status, unsigned gpct0_mite_status)
+	unsigned ai_mite_status)
 {
-	comedi_subdevice *s=dev->subdevices+0;
+	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 
 	s->async->events = 0;
 
@@ -887,16 +929,6 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 		ni_handle_eos(dev, s);
 	}
 
-	if(status & (G0_TC_St | G0_Gate_Interrupt_St))
-	{
-		unsigned long flags;
-
-		comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-		if(devpriv->gpct_mite_chan)
-			handle_gpct_interrupt(dev, devpriv->gpct_mite_chan[0], (status & G0_TC_St));
-		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-	}
-
 	ni_event(dev,s,s->async->events);
 
 #ifdef DEBUG_INTERRUPT
@@ -950,9 +982,9 @@ static void ack_b_interrupt(comedi_device *dev, unsigned short b_status)
 }
 
 static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
-	unsigned ao_mite_status, unsigned gpct1_mite_status)
+	unsigned ao_mite_status)
 {
-	comedi_subdevice *s=dev->subdevices+1;
+	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
 	//unsigned short ack=0;
 #ifdef DEBUG_INTERRUPT
 	rt_printk("ni_mio_common: interrupt: b_status=%04x m1_status=%08x\n",
@@ -978,26 +1010,26 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 	}
 #endif
 
-	if(b_status==0xffff)return;
-	if(b_status&AO_Overrun_St){
+	if(b_status == 0xffff)return;
+	if(b_status & AO_Overrun_St){
 		rt_printk("ni_mio_common: AO FIFO underrun status=0x%04x status2=0x%04x\n",b_status,devpriv->stc_readw(dev, AO_Status_2_Register));
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
-	if(b_status&AO_BC_TC_St){
+	if(b_status & AO_BC_TC_St){
 		MDPRINTK("ni_mio_common: AO BC_TC status=0x%04x status2=0x%04x\n",b_status,devpriv->stc_readw(dev, AO_Status_2_Register));
 		s->async->events |= COMEDI_CB_EOA;
 	}
 
 #ifndef PCIDMA
-	if(b_status&AO_FIFO_Request_St){
+	if(b_status & AO_FIFO_Request_St){
 		int ret;
 
-		ret = ni_ao_fifo_half_empty(dev,s);
+		ret = ni_ao_fifo_half_empty(dev, s);
 		if(!ret){
 			rt_printk("ni_mio_common: AO buffer underrun\n");
 			ni_set_bits(dev, Interrupt_B_Enable_Register,
-				AO_FIFO_Interrupt_Enable|AO_Error_Interrupt_Enable, 0);
+				AO_FIFO_Interrupt_Enable | AO_Error_Interrupt_Enable, 0);
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 	}
@@ -1214,7 +1246,7 @@ static void ni_ai_fifo_read(comedi_device *dev,comedi_subdevice *s,
 static void ni_handle_fifo_half_full(comedi_device *dev)
 {
 	int n;
-	comedi_subdevice *s=dev->subdevices+0;
+	comedi_subdevice *s=dev->subdevices + NI_AI_SUBDEV;
 
 	n=boardtype.ai_fifo_depth/2;
 
@@ -1254,7 +1286,7 @@ static int ni_ai_drain_dma(comedi_device *dev )
 */
 static void ni_handle_fifo_dregs(comedi_device *dev)
 {
-	comedi_subdevice *s=dev->subdevices+0;
+	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	sampl_t data[2];
 	u32 dl;
 	short fifo_empty;
@@ -1306,7 +1338,7 @@ static void ni_handle_fifo_dregs(comedi_device *dev)
 
 static void get_last_sample_611x( comedi_device *dev )
 {
-	comedi_subdevice *s=dev->subdevices+0;
+	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	sampl_t data;
 	u32 dl;
 
@@ -1322,7 +1354,7 @@ static void get_last_sample_611x( comedi_device *dev )
 
 static void get_last_sample_6143(comedi_device* dev)
 {
-	comedi_subdevice*	s = dev->subdevices + 0;
+	comedi_subdevice*	s = dev->subdevices + NI_AI_SUBDEV;
 	sampl_t			data;
 	u32			dl;
 
@@ -1368,7 +1400,7 @@ static void ni_ai_munge(comedi_device *dev, comedi_subdevice *s,
 
 static int ni_ai_setup_MITE_dma(comedi_device *dev)
 {
-	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	int retval;
 
 	retval = ni_request_ai_mite_channel(dev);
@@ -1399,7 +1431,7 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev)
 
 static int ni_ao_setup_MITE_dma(comedi_device *dev)
 {
-	comedi_subdevice *s = dev->subdevices + 1;
+	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
 	int retval;
 
 	retval = ni_request_ao_mite_channel(dev);
@@ -3323,7 +3355,7 @@ static int ni_serial_sw_readwrite8(comedi_device *dev,comedi_subdevice *s,
 static void mio_common_detach(comedi_device *dev)
 {
 	if(dev->subdevices && boardtype.has_8255)
-		subdev_8255_cleanup(dev,dev->subdevices+3);
+		subdev_8255_cleanup(dev, dev->subdevices + NI_8255_DIO_SUBDEV);
 }
 
 static void init_ao_67xx(comedi_device *dev, comedi_subdevice *s)
@@ -3502,12 +3534,12 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		return -EINVAL;
 	}
 
-	if(alloc_subdevices(dev, 11 + NUM_GPCT) < 0)
+	if(alloc_subdevices(dev, NI_NUM_SUBDEVICES) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */
 
-	s=dev->subdevices+0;
+	s = dev->subdevices + NI_AI_SUBDEV;
 	dev->read_subdev=s;
 	if(boardtype.n_adchan){
 		s->type=COMEDI_SUBD_AI;
@@ -3538,7 +3570,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* analog output subdevice */
 
-	s = dev->subdevices + 1;
+	s = dev->subdevices + NI_AO_SUBDEV;
 	if(boardtype.n_aochan){
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_DEGLITCH | SDF_GROUND;
@@ -3576,7 +3608,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	/* digital i/o subdevice */
 
-	s=dev->subdevices+2;
+	s = dev->subdevices + NI_DIO_SUBDEV;
 	s->type=COMEDI_SUBD_DIO;
 	s->subdev_flags=SDF_WRITABLE|SDF_READABLE;
 	s->maxdata=1;
@@ -3597,7 +3629,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	/* 8255 device */
-	s=dev->subdevices+3;
+	s = dev->subdevices + NI_8255_DIO_SUBDEV;
 	if(boardtype.has_8255){
 		subdev_8255_init(dev,s,ni_8255_callback,(unsigned long)dev);
 	}else{
@@ -3605,11 +3637,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	/* formerly general purpose counter/timer device, but no longer used */
-	s=dev->subdevices+4;
+	s = dev->subdevices + NI_UNUSED_SUBDEV;
 	s->type = COMEDI_SUBD_UNUSED;
 
 	/* calibration subdevice -- ai and ao */
-	s=dev->subdevices+5;
+	s = dev->subdevices + NI_CALIBRATION_SUBDEV;
 	s->type=COMEDI_SUBD_CALIB;
 	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
@@ -3635,7 +3667,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	/* EEPROM */
-	s=dev->subdevices+6;
+	s = dev->subdevices + NI_EEPROM_SUBDEV;
 	s->type=COMEDI_SUBD_MEMORY;
 	s->subdev_flags=SDF_READABLE|SDF_INTERNAL;
 	s->maxdata=0xff;
@@ -3649,7 +3681,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_read = &ni_eeprom_insn_read;
 	}
 	/* PFI */
-	s=dev->subdevices + 7;
+	s = dev->subdevices + NI_PFI_DIO_SUBDEV;
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	if(boardtype.reg_type & ni_reg_m_series_mask)
@@ -3671,7 +3703,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
 	/* cs5529 calibration adc */
-	s = dev->subdevices + 8;
+	s = dev->subdevices + NI_CS5529_CALIBRATION_SUBDEV;
 	if(boardtype.reg_type & ni_reg_67xx_mask)
 	{
 		s->type = COMEDI_SUBD_AI;
@@ -3689,7 +3721,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	/* Serial */
-	s=dev->subdevices+9;
+	s = dev->subdevices + NI_SERIAL_SUBDEV;
 	s->type=COMEDI_SUBD_SERIAL;
 	s->subdev_flags=SDF_READABLE|SDF_WRITABLE|SDF_INTERNAL;
 	s->n_chan=1;
@@ -3699,7 +3731,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	devpriv->serial_hw_mode = 0;
 
 	/* RTSI */
-	s=dev->subdevices + 10;
+	s = dev->subdevices + NI_RTSI_SUBDEV;
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 	s->n_chan = 8;
@@ -3711,7 +3743,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	/* General purpose counters */
 	for(j = 0; j < NUM_GPCT; ++j)
 	{
-		s = dev->subdevices + 11 + j;
+		s = dev->subdevices + NI_GPCT_SUBDEV(j);
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan = 3;
@@ -3746,7 +3778,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	/* ai configuration */
-	ni_ai_reset(dev,dev->subdevices+0);
+	ni_ai_reset(dev,dev->subdevices + NI_AI_SUBDEV);
 	if((boardtype.reg_type & ni_reg_6xxx_mask) == 0){
 		// BEAM is this needed for PCI-6143 ??
 		devpriv->clock_and_fout =
@@ -3766,7 +3798,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	devpriv->stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
 
 	/* analog output configuration */
-	ni_ao_reset(dev,dev->subdevices + 1);
+	ni_ao_reset(dev,dev->subdevices + NI_AO_SUBDEV);
 
 	if(dev->irq){
 		devpriv->stc_writew(dev, (IRQ_POLARITY?Interrupt_Output_Polarity:0) |
