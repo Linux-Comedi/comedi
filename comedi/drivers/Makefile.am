@@ -169,6 +169,7 @@ module_PROGRAMS = \
  rtd520.ko \
  rti800.ko \
  rti802.ko \
+ serial2002.ko \
  skel.ko \
  ssv_dnp.ko \
  s526.ko \
@@ -271,6 +272,7 @@ comedi_rt_timer_ko_SOURCES = comedi_rt_timer.c
 rtd520_ko_SOURCES = rtd520.c
 rti800_ko_SOURCES = rti800.c
 rti802_ko_SOURCES = rti802.c
+serial2002_ko_SOURCES = serial2002.c
 skel_ko_SOURCES = skel.c
 ssv_dnp_ko_SOURCES = ssv_dnp.c
 s526_ko_SOURCES = s526.c

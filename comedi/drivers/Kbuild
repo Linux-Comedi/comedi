@@ -99,6 +99,7 @@ obj-m += comedi_parport.o
 obj-m += rtd520.o
 obj-m += rti800.o
 obj-m += rti802.o
+obj-m += serial2002.o
 obj-m += skel.o
 obj-m += ssv_dnp.o
 obj-m += s526.o

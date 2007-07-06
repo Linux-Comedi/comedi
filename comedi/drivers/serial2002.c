@@ -36,7 +36,7 @@ Status: in development
 #include <linux/delay.h>
 #include <linux/ioport.h>
 
-#include <termios.h>
+#include <asm/termios.h>
 #include <asm/ioctls.h>
 #include <linux/serial.h>
 #include <linux/poll.h>
