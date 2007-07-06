@@ -88,8 +88,21 @@
 #define Interrupt_B_Ack_Register	3
 enum Interrupt_B_Ack_Bits
 {
+	G1_Gate_Error_Confirm = _bit1,
+	G1_TC_Error_Confirm = _bit2,
+	AO_BC_TC_Trigger_Error_Confirm = _bit3,
+	AO_BC_TC_Error_Confirm = _bit4,
+	AO_UI2_TC_Error_Confrim = _bit5,
+	AO_UI2_TC_Interrupt_Ack = _bit6,
+	AO_UC_TC_Interrupt_Ack = _bit7,
 	AO_BC_TC_Interrupt_Ack = _bit8,
+	AO_START1_Interrupt_Ack = _bit9,
+	AO_UPDATE_Interrupt_Ack = _bit10,
+	AO_START_Interrupt_Ack = _bit11,
+	AO_STOP_Interrupt_Ack = _bit12,
 	AO_Error_Interrupt_Ack = _bit13,
+	G1_TC_Interrupt_Ack = _bit14,
+	G1_Gate_Interrupt_Ack = _bit15
 };
 
 #define AO_Status_1_Register		3

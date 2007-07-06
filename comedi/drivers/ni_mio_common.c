@@ -767,11 +767,43 @@ static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
 	comedi_event(dev, s, events);
 }
 
+static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
+{
+	unsigned short ack = 0;
+
+	/* test for all uncommon interrupt events at the same time */
+	if(a_status & AI_SC_TC_St)
+	{
+		ack |= AI_SC_TC_Interrupt_Ack;
+	}
+	if(a_status & AI_START1_St)
+	{
+			ack |= AI_START1_Interrupt_Ack;
+	}
+	if(a_status & AI_START_St)
+	{
+		ack |= AI_START_Interrupt_Ack;
+	}
+	if(a_status & AI_STOP_St)
+	{
+		/* not sure why we used to ack the START here also, instead of doing it independently. Frank Hess 2007-07-06 */
+		ack |= AI_STOP_Interrupt_Ack /*| AI_START_Interrupt_Ack*/;
+	}
+	if(a_status & G0_TC_St)
+	{
+		ack |= G0_TC_Interrupt_Ack;
+	}
+	if(a_status & G0_Gate_Interrupt_St)
+	{
+		ack |= G0_Gate_Interrupt_Ack;
+	}
+	if(ack) devpriv->stc_writew(dev, ack, Interrupt_A_Ack_Register);
+}
+
 static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 	unsigned ai_mite_status, unsigned gpct0_mite_status)
 {
 	comedi_subdevice *s=dev->subdevices+0;
-	unsigned short ack=0;
 
 	s->async->events = 0;
 
@@ -780,8 +812,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 		status, ai_mite_status);
 	ni_mio_print_status_a(status);
 #endif
-
-
+	ack_a_interrupt(dev, status);
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
 	if(ai_mite_status & CHSR_LINKC){
@@ -835,10 +866,6 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 			if(!devpriv->ai_continuous){
 				shutdown_ai_command(dev);
 			}
-			ack|=AI_SC_TC_Interrupt_Ack;
-		}
-		if(status&AI_START1_St){
-			ack|=AI_START1_Interrupt_Ack;
 		}
 	}
 #ifndef PCIDMA
@@ -858,18 +885,8 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 
 	if( (status & AI_STOP_St) ){
 		ni_handle_eos(dev, s);
-		/* we need to ack the START, also */
-		ack |= AI_STOP_Interrupt_Ack|AI_START_Interrupt_Ack;
 	}
 
-	if(status & G0_TC_St)
-	{
-		ack |= G0_TC_Interrupt_Ack;
-	}
-	if(status & G0_Gate_Interrupt_St)
-	{
-		ack |= G0_Gate_Interrupt_Ack;
-	}
 	if(status & (G0_TC_St | G0_Gate_Interrupt_St))
 	{
 		unsigned long flags;
@@ -880,7 +897,6 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	}
 
-	if(ack) devpriv->stc_writew(dev, ack,Interrupt_A_Ack_Register);
 	ni_event(dev,s,s->async->events);
 
 #ifdef DEBUG_INTERRUPT
@@ -889,6 +905,48 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 		rt_printk("handle_a_interrupt: didn't clear interrupt? status=0x%x\n", status);
 	}
 #endif
+}
+
+static void ack_b_interrupt(comedi_device *dev, unsigned short b_status)
+{
+	unsigned short ack = 0;
+	if(b_status & AO_BC_TC_St)
+	{
+		ack |= AO_BC_TC_Interrupt_Ack;
+	}
+	if(b_status & AO_Overrun_St)
+	{
+		ack |= AO_Error_Interrupt_Ack;
+	}
+	if(b_status & AO_START_St)
+	{
+		ack |= AO_START_Interrupt_Ack;
+	}
+	if(b_status & AO_START1_St)
+	{
+		ack |= AO_START1_Interrupt_Ack;
+	}
+	if(b_status & AO_UC_TC_St)
+	{
+		ack |= AO_UC_TC_Interrupt_Ack;
+	}
+	if(b_status & AO_UI2_TC_St)
+	{
+		ack |= AO_UI2_TC_Interrupt_Ack;
+	}
+	if(b_status & AO_UPDATE_St)
+	{
+		ack |= AO_UPDATE_Interrupt_Ack;
+	}
+	if(b_status & G1_Gate_Interrupt_St)
+	{
+		ack |= G1_Gate_Interrupt_Ack;
+	}
+	if(b_status & G1_TC_St)
+	{
+		ack |= G1_TC_Interrupt_Ack;
+	}
+	if(ack) devpriv->stc_writew(dev, ack, Interrupt_B_Ack_Register);
 }
 
 static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
@@ -901,7 +959,7 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 		b_status,ao_mite_status);
 	ni_mio_print_status_b(b_status);
 #endif
-
+	ack_b_interrupt(dev, b_status);
 
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
@@ -3377,7 +3435,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 	case NITIO_G1_ABZ_Reg:
 		ni_writew(bits, M_Offset_G1_MSeries_ABZ);
 		break;
-	  
+
 	/* 32 bit registers */
 	case NITIO_G0_LoadA_Reg:
 	case NITIO_G1_LoadA_Reg:
