@@ -1354,7 +1354,7 @@ static ni_board ni_boards[];
 	unsigned short ao_cmd3;					\
 	unsigned short ao_trigger_select;			\
 								\
-	struct ni_gpct counters[NUM_GPCT];	\
+	struct ni_gpct_device *counter_dev;	\
 	unsigned short an_trig_etc_reg;				\
 								\
 	unsigned ai_offset[512];				\
@@ -1390,7 +1390,6 @@ static ni_board ni_boards[];
 	struct mite_struct *mite; \
 	struct mite_channel *ai_mite_chan; \
 	struct mite_channel *ao_mite_chan;\
-	struct mite_channel *gpct_mite_chan[NUM_GPCT]; \
 	struct mite_dma_descriptor_ring *ai_mite_ring; \
 	struct mite_dma_descriptor_ring *ao_mite_ring; \
 	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];

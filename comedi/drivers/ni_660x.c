@@ -124,6 +124,7 @@ typedef enum
 	G3DMAConfigRegister,
 	G3DMAStatusRegister,
 	ClockConfigRegister,
+	DMAConfigRegister,	// XXX will need to use this according to mite channel used
 	IOConfigReg0_1,
 	IOConfigReg2_3,
 	IOConfigReg4_5,
@@ -254,6 +255,7 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"G3 DMA Config Register", 0x1BA, NI_660x_WRITE, DATA_2B},
 	{"G3 DMA Status Register", 0x1BA, NI_660x_READ, DATA_2B},
 	{"Clock Config Register", 0x73C, NI_660x_WRITE, DATA_4B},
+	{"DMA Configuration Register", 0x76c, NI_660x_WRITE, DATA_4B},
 	{"IO Config Register 0-1", 0x77C, NI_660x_READ_WRITE, DATA_2B}, // READWRITE
 	{"IO Config Register 2-3", 0x77E, NI_660x_READ_WRITE, DATA_2B},
 	{"IO Config Register 4-5", 0x780, NI_660x_READ_WRITE, DATA_2B},
@@ -349,7 +351,7 @@ typedef struct
 {
 	struct mite_struct *mite;
 	int boardtype;
-	struct ni_gpct counters[NI_660X_MAX_NUM_COUNTERS];
+	struct ni_gpct_device *counter_dev;
 	uint64_t pfi_direction_bits;
 }ni_660x_private;
 
@@ -572,10 +574,11 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 	return ni_660x_register;
 }
 
-static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
+static void ni_gpct_write_register(struct ni_gpct_device *counter_dev,
+	const struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
 {
 	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	comedi_device *dev = counter->dev;
+	comedi_device *dev = counter_dev->dev;
 	void * const write_address = devpriv->mite->daq_io_addr + GPCT_OFFSET[counter->chip_index] + registerData[ni_660x_register].offset;
 
 	switch(registerData[ni_660x_register].size)
@@ -593,10 +596,11 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 	}
 }
 
-static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_register reg)
+static unsigned ni_gpct_read_register(struct ni_gpct_device *counter_dev,
+	const struct ni_gpct *counter, enum ni_gpct_register reg)
 {
 	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	comedi_device *dev = counter->dev;
+	comedi_device *dev = counter_dev->dev;
 	void * const read_address = devpriv->mite->daq_io_addr + GPCT_OFFSET[counter->chip_index] + registerData[ni_660x_register].offset;
 
 	switch(registerData[ni_660x_register].size)
@@ -660,6 +664,10 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	// we use the ioconfig registers to control dio direction, so zero output enables in stc dio control reg
 	writew(0, devpriv->mite->daq_io_addr + registerData[STCDIOControl].offset);
 
+	devpriv->counter_dev = ni_gpct_device_construct(dev,
+		&ni_gpct_write_register, &ni_gpct_read_register,
+		ni_gpct_variant_660x, thisboard->n_ctrs);
+	if(devpriv->counter_dev == NULL) return -ENOMEM;
 	for(i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i)
 	{
 		s = dev->subdevices + 2 + i;
@@ -672,16 +680,12 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 			s->insn_read = ni_660x_GPCT_rinsn;
 			s->insn_write = ni_660x_GPCT_winsn;
 			s->insn_config = ni_660x_GPCT_insn_config;
-			s->private = &devpriv->counters[i];
+			s->private = &devpriv->counter_dev->counters[i];
 
-			devpriv->counters[i].dev = dev;
-			devpriv->counters[i].chip_index = i / CTRS_PER_CHIP;
-			devpriv->counters[i].counter_index = i % CTRS_PER_CHIP;
-			devpriv->counters[i].write_register = ni_gpct_write_register;
-			devpriv->counters[i].read_register = ni_gpct_read_register;
-			devpriv->counters[i].variant = ni_gpct_variant_660x;
-			devpriv->counters[i].clock_period_ps = 0;
-			devpriv->counters[i].mite_chan = NULL;
+			devpriv->counter_dev->counters[i].chip_index = i / CTRS_PER_CHIP;
+			devpriv->counter_dev->counters[i].counter_index = i % CTRS_PER_CHIP;
+			devpriv->counter_dev->counters[i].clock_period_ps = 0;
+			devpriv->counter_dev->counters[i].mite_chan = NULL;
 		}else
 		{
 			s->type = COMEDI_SUBD_UNUSED;
@@ -693,7 +697,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	for(i = 0; i < thisboard->n_ctrs; ++i)
 	{
-		ni_tio_init_counter(&devpriv->counters[i]);
+		ni_tio_init_counter(devpriv->counter_dev, &devpriv->counter_dev->counters[i]);
 	}
 
 	printk("attached\n");
@@ -706,9 +710,13 @@ ni_660x_detach(comedi_device *dev)
 {
 	printk("comedi%d: ni_660x: remove\n",dev->minor);
 
-	if (dev->private && devpriv->mite)
-		mite_unsetup(devpriv->mite);
-
+	if(dev->private)
+	{
+		if(devpriv->counter_dev)
+			ni_gpct_device_destroy(devpriv->counter_dev);
+		if(devpriv->mite)
+			mite_unsetup(devpriv->mite);
+	}
 	/* Free irq */
 
 	if(dev->irq) comedi_free_irq(dev->irq,dev);
@@ -722,7 +730,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_rinsn(counter, insn, data);
+	return ni_tio_rinsn(devpriv->counter_dev, counter, insn, data);
 }
 
 static void init_tio_chip(comedi_device *dev, int chipset)
@@ -744,7 +752,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_insn_config(counter, insn, data);
+	return ni_tio_insn_config(devpriv->counter_dev, counter, insn, data);
 }
 
 static int ni_660x_GPCT_winsn(comedi_device *dev,
@@ -753,7 +761,7 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 	lsampl_t * data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_winsn(counter, insn, data);
+	return ni_tio_winsn(devpriv->counter_dev, counter, insn, data);
 }
 
 static int
