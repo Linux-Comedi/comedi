@@ -27,6 +27,7 @@
 
 // forward declarations
 struct mite_struct;
+struct ni_gpct_device;
 
 enum ni_gpct_register
 {
@@ -102,6 +103,7 @@ enum ni_gpct_variant
 
 struct ni_gpct
 {
+	struct ni_gpct_device *counter_dev;
 	unsigned counter_index;
 	unsigned chip_index;
 	uint64_t clock_period_ps; /* clock period in picoseconds */
@@ -111,8 +113,8 @@ struct ni_gpct
 struct ni_gpct_device
 {
 	comedi_device *dev;
-	void (*write_register)(struct ni_gpct_device *this, const struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg);
-	unsigned (*read_register)(struct ni_gpct_device *this, const struct ni_gpct *counter, enum ni_gpct_register reg);
+	void (*write_register)(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg);
+	unsigned (*read_register)(struct ni_gpct *counter, enum ni_gpct_register reg);
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned num_counters;
@@ -120,29 +122,23 @@ struct ni_gpct_device
 };
 
 extern struct ni_gpct_device* ni_gpct_device_construct(comedi_device *dev,
-	void (*write_register)(struct ni_gpct_device *this, const struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg),
-	unsigned (*read_register)(struct ni_gpct_device *this, const struct ni_gpct *counter, enum ni_gpct_register reg),
+	void (*write_register)(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg),
+	unsigned (*read_register)(struct ni_gpct *counter, enum ni_gpct_register reg),
 	enum ni_gpct_variant variant, unsigned num_counters);
 extern void ni_gpct_device_destroy(struct ni_gpct_device *counter_dev);
-extern void ni_tio_init_counter(struct ni_gpct_device *counter_dev, const struct ni_gpct *counter);
-extern int ni_tio_rinsn(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter,
+extern void ni_tio_init_counter(struct ni_gpct *counter);
+extern int ni_tio_rinsn(struct ni_gpct *counter,
 	comedi_insn *insn,
 	lsampl_t *data);
-extern int ni_tio_insn_config(struct ni_gpct_device *counter_dev,
-	struct ni_gpct *counter,
+extern int ni_tio_insn_config(struct ni_gpct *counter,
 	comedi_insn *insn,
 	lsampl_t *data);
-extern int ni_tio_winsn(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter,
+extern int ni_tio_winsn(struct ni_gpct *counter,
 	comedi_insn *insn,
 	lsampl_t * data);
-extern int ni_tio_cmd(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter, comedi_async *async);
-extern int ni_tio_cmdtest(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter);
-extern int ni_tio_cancel(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter);
+extern int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async);
+extern int ni_tio_cmdtest(struct ni_gpct *counter);
+extern int ni_tio_cancel(struct ni_gpct *counter);
 
 #endif /* _COMEDI_NI_TIO_H */
 

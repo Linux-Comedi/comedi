@@ -3447,10 +3447,9 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 	return stc_register;
 }
 
-static void ni_gpct_write_register(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
+static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
 {
-	comedi_device *dev = counter_dev->dev;
+	comedi_device *dev = counter->counter_dev->dev;
 	unsigned stc_register;
 	/* bits in the join reset register which are relevant to counters */
 	static const unsigned gpct_joint_reset_mask = G0_Reset | G1_Reset;
@@ -3494,10 +3493,9 @@ static void ni_gpct_write_register(struct ni_gpct_device *counter_dev,
 	}
 }
 
-static unsigned ni_gpct_read_register(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter, enum ni_gpct_register reg)
+static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_register reg)
 {
-	comedi_device *dev = counter_dev->dev;
+	comedi_device *dev = counter->counter_dev->dev;
 	unsigned stc_register;
 	switch(reg)
 	{
@@ -3784,7 +3782,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		devpriv->counter_dev->counters[j].counter_index = j;
 		devpriv->counter_dev->counters[j].clock_period_ps = 0;
 		devpriv->counter_dev->counters[j].mite_chan = NULL;
-		ni_tio_init_counter(devpriv->counter_dev, &devpriv->counter_dev->counters[j]);
+		ni_tio_init_counter(&devpriv->counter_dev->counters[j]);
 	}
 
 	/* ai configuration */
@@ -4287,21 +4285,21 @@ static int ni_gpct_insn_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_insn_config(devpriv->counter_dev, counter, insn, data);
+	return ni_tio_insn_config(counter, insn, data);
 }
 
 static int ni_gpct_insn_read(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_rinsn(devpriv->counter_dev, counter, insn, data);
+	return ni_tio_rinsn(counter, insn, data);
 }
 
 static int ni_gpct_insn_write(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_winsn(devpriv->counter_dev, counter, insn, data);
+	return ni_tio_winsn(counter, insn, data);
 }
 
 static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
@@ -4319,7 +4317,7 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 		return retval;
 	}
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	retval = ni_tio_cmd(devpriv->counter_dev, counter, s->async);
+	retval = ni_tio_cmd(counter, s->async);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #else
 	retval = -ENOTSUPP;
@@ -4331,7 +4329,7 @@ static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *
 {
 	struct ni_gpct *counter = s->private;
 	//XXX check chanlist_len == 1
-	return ni_tio_cmdtest(devpriv->counter_dev, counter);
+	return ni_tio_cmdtest(counter);
 }
 
 static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
@@ -4341,7 +4339,7 @@ static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 	int retval;
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	retval = ni_tio_cancel(devpriv->counter_dev, counter);
+	retval = ni_tio_cancel(counter);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);
 	return retval;

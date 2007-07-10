@@ -574,11 +574,10 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 	return ni_660x_register;
 }
 
-static void ni_gpct_write_register(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
+static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
 {
 	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	comedi_device *dev = counter_dev->dev;
+	comedi_device *dev = counter->counter_dev->dev;
 	void * const write_address = devpriv->mite->daq_io_addr + GPCT_OFFSET[counter->chip_index] + registerData[ni_660x_register].offset;
 
 	switch(registerData[ni_660x_register].size)
@@ -596,11 +595,10 @@ static void ni_gpct_write_register(struct ni_gpct_device *counter_dev,
 	}
 }
 
-static unsigned ni_gpct_read_register(struct ni_gpct_device *counter_dev,
-	const struct ni_gpct *counter, enum ni_gpct_register reg)
+static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_register reg)
 {
 	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	comedi_device *dev = counter_dev->dev;
+	comedi_device *dev = counter->counter_dev->dev;
 	void * const read_address = devpriv->mite->daq_io_addr + GPCT_OFFSET[counter->chip_index] + registerData[ni_660x_register].offset;
 
 	switch(registerData[ni_660x_register].size)
@@ -697,7 +695,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	for(i = 0; i < thisboard->n_ctrs; ++i)
 	{
-		ni_tio_init_counter(devpriv->counter_dev, &devpriv->counter_dev->counters[i]);
+		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
 	}
 
 	printk("attached\n");
@@ -730,7 +728,7 @@ ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_rinsn(devpriv->counter_dev, counter, insn, data);
+	return ni_tio_rinsn(counter, insn, data);
 }
 
 static void init_tio_chip(comedi_device *dev, int chipset)
@@ -752,7 +750,7 @@ ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_insn_config(devpriv->counter_dev, counter, insn, data);
+	return ni_tio_insn_config(counter, insn, data);
 }
 
 static int ni_660x_GPCT_winsn(comedi_device *dev,
@@ -761,7 +759,7 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 	lsampl_t * data)
 {
 	struct ni_gpct *counter = s->private;
-	return ni_tio_winsn(devpriv->counter_dev, counter, insn, data);
+	return ni_tio_winsn(counter, insn, data);
 }
 
 static int
