@@ -785,6 +785,14 @@ static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_ind
 		return;
 	}
 	gpct_mite_status = readl(mite_chan->mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
+	if(gpct_mite_status & CHSR_LINKC)
+	{
+		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	}
+	if(gpct_mite_status & CHSR_DONE)
+	{
+		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	}
 	mite_sync_input_dma(mite_chan, s->async);
 
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
