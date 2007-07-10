@@ -1454,6 +1454,10 @@ static int pcimio_ai_change(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size);
 static int pcimio_ao_change(comedi_device *dev, comedi_subdevice *s,
 	unsigned long new_size);
+static int pcimio_gpct0_change(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size);
+static int pcimio_gpct1_change(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size);
 
 static void m_series_init_eeprom_buffer(comedi_device *dev)
 {
@@ -1586,8 +1590,10 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 	ret = ni_E_init(dev,it);
 	if(ret<0)return ret;
 
-	dev->subdevices[0].buf_change = pcimio_ai_change;
-	dev->subdevices[1].buf_change = pcimio_ao_change;
+	dev->subdevices[NI_AI_SUBDEV].buf_change = &pcimio_ai_change;
+	dev->subdevices[NI_AO_SUBDEV].buf_change = &pcimio_ao_change;
+	dev->subdevices[NI_GPCT_SUBDEV(0)].buf_change = &pcimio_gpct0_change;
+	dev->subdevices[NI_GPCT_SUBDEV(1)].buf_change = &pcimio_gpct1_change;
 
 	return ret;
 }
@@ -1637,6 +1643,28 @@ static int pcimio_ao_change(comedi_device *dev, comedi_subdevice *s,
 	int ret;
 
 	ret = mite_buf_change(devpriv->ao_mite_ring, s->async);
+	if(ret < 0) return ret;
+
+	return 0;
+}
+
+static int pcimio_gpct0_change(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	int ret;
+
+	ret = mite_buf_change(devpriv->gpct_mite_ring[0], s->async);
+	if(ret < 0) return ret;
+
+	return 0;
+}
+
+static int pcimio_gpct1_change(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	int ret;
+
+	ret = mite_buf_change(devpriv->gpct_mite_ring[1], s->async);
 	if(ret < 0) return ret;
 
 	return 0;
