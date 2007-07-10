@@ -2104,7 +2104,11 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 	if(counter_dev->variant == ni_gpct_variant_m_series ||
 		counter_dev->variant == ni_gpct_variant_660x)
 	{
-		counter_dev->write_register(counter, Gi_DMA_Enable_Bit, NITIO_Gi_DMA_Config_Reg(counter->counter_index));
+		const unsigned gi_dma_config_reg = NITIO_Gi_DMA_Config_Reg(counter->counter_index);
+
+		counter_dev->regs[gi_dma_config_reg] |= Gi_DMA_Enable_Bit;
+		counter_dev->regs[gi_dma_config_reg] &= ~Gi_DMA_Write_Bit;
+		counter_dev->write_register(counter, counter_dev->regs[gi_dma_config_reg], gi_dma_config_reg);
 	}
 	/*start the MITE*/
 	mite_dma_arm(counter->mite_chan);
@@ -2113,8 +2117,22 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 
 static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async *async)
 {
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+
 	rt_printk("ni_tio: output commands not yet implemented.\n");
 	return -ENOTSUPP;
+
+	counter->mite_chan->dir = COMEDI_OUTPUT;
+	mite_prep_dma(counter->mite_chan, 32, 32);
+	if(counter_dev->variant == ni_gpct_variant_m_series ||
+		counter_dev->variant == ni_gpct_variant_660x)
+	{
+		const unsigned gi_dma_config_reg = NITIO_Gi_DMA_Config_Reg(counter->counter_index);
+
+		counter_dev->regs[gi_dma_config_reg] |= Gi_DMA_Enable_Bit | Gi_DMA_Write_Bit;
+		counter_dev->write_register(counter, counter_dev->regs[gi_dma_config_reg], gi_dma_config_reg);
+	}
+	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
 int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async)
@@ -2156,7 +2174,10 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	if(counter_dev->variant == ni_gpct_variant_m_series ||
 		counter_dev->variant == ni_gpct_variant_660x)
 	{
-		counter_dev->write_register(counter, 0, NITIO_Gi_DMA_Config_Reg(counter->counter_index));
+		const unsigned gi_dma_config_reg = NITIO_Gi_DMA_Config_Reg(counter->counter_index);
+
+		counter_dev->regs[gi_dma_config_reg] &= ~Gi_DMA_Enable_Bit;
+		counter_dev->write_register(counter, counter_dev->regs[gi_dma_config_reg], gi_dma_config_reg);
 	}
 	mite_dma_disarm(counter->mite_chan);
 	return 0;
