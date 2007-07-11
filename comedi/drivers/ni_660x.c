@@ -565,6 +565,30 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 	case NITIO_G3_Second_Gate_Reg:
 		ni_660x_register = G3SecondGateRegister;
 		break;
+	case NITIO_G0_DMA_Config_Reg:
+		ni_660x_register = G0DMAConfigRegister;
+		break;
+	case NITIO_G0_DMA_Status_Reg:
+		ni_660x_register = G0DMAStatusRegister;
+		break;
+	case NITIO_G1_DMA_Config_Reg:
+		ni_660x_register = G1DMAConfigRegister;
+		break;
+	case NITIO_G1_DMA_Status_Reg:
+		ni_660x_register = G1DMAStatusRegister;
+		break;
+	case NITIO_G2_DMA_Config_Reg:
+		ni_660x_register = G2DMAConfigRegister;
+		break;
+	case NITIO_G2_DMA_Status_Reg:
+		ni_660x_register = G2DMAStatusRegister;
+		break;
+	case NITIO_G3_DMA_Config_Reg:
+		ni_660x_register = G3DMAConfigRegister;
+		break;
+	case NITIO_G3_DMA_Status_Reg:
+		ni_660x_register = G3DMAStatusRegister;
+		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();

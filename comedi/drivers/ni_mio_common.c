@@ -3476,6 +3476,12 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 	case NITIO_G1_Second_Gate_Reg:
 		ni_writew(bits, M_Offset_G1_Second_Gate);
 		break;
+	case NITIO_G0_DMA_Config_Reg:
+		ni_writew(bits, M_Offset_G0_DMA_Config);
+		break;
+	case NITIO_G1_DMA_Config_Reg:
+		ni_writew(bits, M_Offset_G1_DMA_Config);
+		break;
 	case NITIO_G0_ABZ_Reg:
 		ni_writew(bits, M_Offset_G0_MSeries_ABZ);
 		break;
@@ -3491,6 +3497,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 		stc_register = ni_gpct_to_stc_register(reg);
 		devpriv->stc_writel(dev, bits, stc_register);
 		break;
+
 	/* 16 bit registers */
 	case NITIO_G01_Joint_Reset_Reg:
 		BUG_ON(bits & ~gpct_joint_reset_mask);
@@ -3507,6 +3514,14 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_regi
 	unsigned stc_register;
 	switch(reg)
 	{
+	/* m-series only registers */
+	case NITIO_G0_DMA_Status_Reg:
+		return ni_readw(M_Offset_G0_DMA_Status);
+		break;
+	case NITIO_G1_DMA_Status_Reg:
+		return ni_readw(M_Offset_G1_DMA_Status);
+		break;
+
 	/* 32 bit registers */
 	case NITIO_G0_HW_Save_Reg:
 	case NITIO_G1_HW_Save_Reg:
@@ -3515,6 +3530,7 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_regi
 		stc_register = ni_gpct_to_stc_register(reg);
 		return devpriv->stc_readl(dev, stc_register);
 		break;
+
 	/* 16 bit registers */
 	default:
 		stc_register = ni_gpct_to_stc_register(reg);
