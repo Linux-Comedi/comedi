@@ -1434,10 +1434,10 @@ static void ni_tio_set_first_gate_modifiers(struct ni_gpct *counter, lsampl_t ga
 	counter_dev->regs[mode_reg] &= ~Gi_Gating_Mode_Mask;
 	if(gate_source & CR_EDGE)
 	{
-		counter_dev->regs[mode_reg] |= Gi_Level_Gating_Bits;
+		counter_dev->regs[mode_reg] |= Gi_Rising_Edge_Gating_Bits;
 	}else
 	{
-		counter_dev->regs[mode_reg] |= Gi_Rising_Edge_Gating_Bits;
+		counter_dev->regs[mode_reg] |= Gi_Level_Gating_Bits;
 	}
 	counter_dev->write_register(counter, counter_dev->regs[mode_reg], mode_reg);
 }
