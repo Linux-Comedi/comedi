@@ -655,7 +655,7 @@ enum ni_gpct_other_index {
 enum ni_gpct_other_select
 {
   	/* m-series gates */
-        // Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT 
+        // Still unknown, probably only need NI_GPCT_PFI_OTHER_SELECT
 	NI_GPCT_DISABLED_OTHER_SELECT = 0x8000,
 };
 static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n)
@@ -684,8 +684,7 @@ enum ni_gpct_arm_source
 	NI_GPCT_ARM_UNKNOWN = 0x1000,
 };
 
-/* digital filtering options for ni 660x for use with INSN_CONFIG_FILTER
-(support for m-series should also be added). */
+/* digital filtering options for ni 660x for use with INSN_CONFIG_FILTER. */
 enum ni_gpct_filter_select
 {
 	NI_GPCT_FILTER_OFF = 0x0,
@@ -695,6 +694,15 @@ enum ni_gpct_filter_select
 	NI_GPCT_FILTER_10x_TIMEBASE_1 = 0x4,
 	NI_GPCT_FILTER_2x_TIMEBASE_1 = 0x5,
 	NI_GPCT_FILTER_2x_TIMEBASE_3 = 0x6
+};
+
+/* PFI digital filtering options for ni m-series for use with INSN_CONFIG_FILTER. */
+enum ni_pfi_filter_select
+{
+	NI_PFI_FILTER_OFF = 0x0,
+	NI_PFI_FILTER_125ns = 0x1,
+	NI_PFI_FILTER_6425ns = 0x2,
+	NI_PFI_FILTER_2550us = 0x3
 };
 
 /* master clock sources for ni mio boards and INSN_CONFIG_SET_CLOCK_SRC */
