@@ -887,15 +887,15 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] = (devpriv->pfi_direction_bits & (((uint64_t)1) << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
+		return 0;
 	case INSN_CONFIG_FILTER:
 		ni660x_config_filter(dev, chan, data[1]);
-		return 0;
+		break;
 	default:
 		return -EINVAL;
 		break;
 	};
-	return insn->n;
+	return 0;
 }
 
 

@@ -466,7 +466,38 @@ static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection select
 #define AO_START1_Interrupt_Enable		_bit1
 #define AO_BC_TC_Interrupt_Enable		_bit0
 
+#define Second_IRQ_A_Enable_Register	74
+enum Second_IRQ_A_Enable_Bits
+{
+	AI_SC_TC_Second_Irq_Enable = _bit0,
+	AI_START1_Second_Irq_Enable = _bit1,
+	AI_START2_Second_Irq_Enable = _bit2,
+	AI_START_Second_Irq_Enable = _bit3,
+	AI_STOP_Second_Irq_Enable = _bit4,
+	AI_Error_Second_Irq_Enable = _bit5,
+	G0_TC_Second_Irq_Enable = _bit6,
+	AI_FIFO_Second_Irq_Enable = _bit7,
+	G0_Gate_Second_Irq_Enable = _bit8,
+	Pass_Thru_0_Second_Irq_Enable = _bit9
+};
+
 #define Second_IRQ_B_Enable_Register	76
+enum Second_IRQ_B_Enable_Bits
+{
+	AO_BC_TC_Second_Irq_Enable = _bit0,
+	AO_START1_Second_Irq_Enable = _bit1,
+	AO_UPDATE_Second_Irq_Enable = _bit2,
+	AO_START_Second_Irq_Enable = _bit3,
+	AO_STOP_Second_Irq_Enable = _bit4,
+	AO_Error_Second_Irq_Enable = _bit5,
+	AO_UC_TC_Second_Irq_Enable = _bit6,
+	AO_UI2_TC_Second_Irq_Enable = _bit7,
+	AO_FIFO_Second_Irq_Enable = _bit8,
+	G1_TC_Second_Irq_Enable = _bit9,
+	G1_Gate_Second_Irq_Enable = _bit10,
+	Pass_Thru_1_Second_Irq_Enable = _bit11
+};
+
 #define AI_Personal_Register		77
 #define AI_SHIFTIN_Pulse_Width			_bit15
 #define AI_EOC_Polarity				_bit14
@@ -597,7 +628,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selectio
 #define G_Bank_Switch_Mode		_bit11
 #define G_Load				_bit2		/* strobe */
 
-
 /* input select register */
 #define G_Gate_Select(a)		(((a)&0x1f)<<7)
 #define G_Source_Select(a)		(((a)&0x1f)<<2)
@@ -609,7 +639,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selectio
 #define G_Output_Polarity		_bit14
 #define G_OR_Gate			_bit13
 #define G_Gate_Select_Load_Source	_bit12
-
 
 /* mode register */
 #define G_Loading_On_TC			_bit12
@@ -646,24 +675,7 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selectio
 #define G0_Save_St			_bit0
 
 /* general purpose counter timer */
-#define G0_TC_Interrupt_Enable          _bit6
-#define G1_TC_Interrupt_Enable          _bit9
-#define G0_Gate_Interrupt_Enable        _bit8
-#define G1_Gate_Interrupt_Enable        _bit10
-#define G0_Synchronized_Gate            _bit8
-#define G1_Synchronized_Gate            _bit8
-#define G0_Gate_Error_Confirm           _bit5
-#define G1_Gate_Error_Confirm           _bit1
-#define G0_TC_Error_Confirm             _bit6
-#define G1_TC_Error_Confirm             _bit2
-#define G0_TC_Interrupt_Ack             _bit14
-#define G1_TC_Interrupt_Ack             _bit14
-#define G0_Gate_Interrupt_Ack           _bit15
-#define G1_Gate_Interrupt_Ack           _bit15
 #define G_Autoincrement(a)              ((a)<<0)
-#define G_Autoincrement(a)              ((a)<<0)
-#define G0_Arm                          _bit0
-#define G1_Arm                          _bit0
 
 /*Analog_Trigger_Etc_Register*/
 #define Analog_Trigger_Mode(x) ((x) & 0x7)
@@ -1273,6 +1285,15 @@ enum MSeries_Gi_DMA_Config_Bits
 	Gi_DMA_Write_Bit = 0x2,
 	Gi_DMA_Enable_Bit = 0x1,
 };
+
+static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
+{
+	return 0x3 << (channel * 2);
+}
+static inline unsigned MSeries_PFI_Filter_Select_Bits(unsigned channel, unsigned filter)
+{
+	return (filter << (channel * 2)) & MSeries_PFI_Filter_Select_Mask(channel);
+}
 
 #define M_SERIES_EEPROM_SIZE 1024
 

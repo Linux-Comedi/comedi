@@ -459,28 +459,6 @@ struct comedi_bufinfo_struct{
 /**********************************************************/
 
 /*
-	Added by Klaas Gadeyne after implementation of driver for comedi NI
-	660x counter card.
-	Please see
-	<http://people.mech.kuleuven.ac.be/~kgadeyne/linux/> for more
-	information about their use
-*/
-
-// X1 encoding
-#define GPCT_X1                 0x01
-// X2 encoding
-#define GPCT_X2                 0x02
-// X3 encoding
-#define GPCT_X4                 0x04
-// When to take into account the indexpulse:
-#define GPCT_IndexPhaseHighHigh 0
-#define GPCT_IndexPhaseLowHigh 1
-#define GPCT_IndexPhaseLowLow 2
-#define GPCT_IndexPhaseHighLow 3
-// Reset when index pulse arrives?
-#define GPCT_RESET_COUNTER_ON_INDEX 1
-
-/*
   8254 specific configuration.
 
   It supports two config commands:
@@ -605,6 +583,7 @@ May be bitwise-or'd with CR_EDGE or CR_INVERT. */
 enum ni_gpct_gate_select
 {
 	/* m-series gates */
+	NI_GPCT_TIMESTAMP_MUX_GATE_SELECT = 0x0,
 	NI_GPCT_AI_START2_GATE_SELECT = 0x12,
 	NI_GPCT_PXI_STAR_TRIGGER_GATE_SELECT = 0x13,
 	NI_GPCT_NEXT_OUT_GATE_SELECT = 0x14,

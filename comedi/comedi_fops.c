@@ -976,7 +976,6 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 #endif
 
 	ret=s->do_cmd(dev,s);
-
 	if(ret==0)return 0;
 
 cleanup:
@@ -1475,7 +1474,6 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 		s = dev->read_subdev;
 	if(s == NULL || s->async == NULL || (s->subdev_flags & SDF_CMD_READ) == 0) return -EIO;
 	async = s->async;
-
 	if(!nbytes)return 0;
 
 	if(!s->busy)

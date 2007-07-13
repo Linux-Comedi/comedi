@@ -284,6 +284,8 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
 static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned period_ns);
+static void ack_a_interrupt(comedi_device *dev, unsigned short a_status);
+static void ack_b_interrupt(comedi_device *dev, unsigned short b_status);
 
 enum aimodes
 {
@@ -339,7 +341,6 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short status,
 static void get_last_sample_611x( comedi_device *dev );
 static void get_last_sample_6143( comedi_device *dev );
 #ifdef PCIDMA
-//static void mite_handle_interrupt(comedi_device *dev,unsigned int status);
 static int ni_ai_drain_dma(comedi_device *dev );
 
 /* DMA channel setup */
@@ -648,6 +649,8 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 			ao_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ao_mite_chan->channel));
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
+	ack_a_interrupt(dev, a_status);
+	ack_b_interrupt(dev, b_status);
 	if((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
 	if((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
@@ -770,6 +773,29 @@ static void shutdown_ai_command( comedi_device *dev )
 	s->async->events |= COMEDI_CB_EOA;
 }
 
+static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
+{
+	if(events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW | COMEDI_CB_EOA))
+	{
+		switch(dev->subdevices - s)
+		{
+		case 	NI_AI_SUBDEV:
+			ni_ai_reset(dev, s);
+			break;
+		case NI_AO_SUBDEV:
+			ni_ao_reset(dev, s);
+			break;
+		case NI_GPCT0_SUBDEV:
+		case NI_GPCT1_SUBDEV:
+			ni_gpct_cancel(dev, s);
+			break;
+		default:
+			break;
+		}
+	}
+	comedi_event(dev, s, events);
+}
+
 static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index, unsigned short is_terminal_count)
 {
 	unsigned gpct_mite_status;
@@ -796,32 +822,14 @@ static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_ind
 	mite_sync_input_dma(mite_chan, s->async);
 
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-}
-
-static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
-{
-	if(events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW | COMEDI_CB_EOA))
-	{
-		switch(s->type)
-		{
-		case COMEDI_SUBD_AI:
-			ni_ai_reset(dev, s);
-			break;
-		case COMEDI_SUBD_AO:
-			ni_ao_reset(dev, s);
-			break;
-		default:
-			break;
-		}
-	}
-	comedi_event(dev, s, events);
+	if(s->async->events)
+		ni_event(dev, s, s->async->events);
 }
 
 static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
 {
 	unsigned short ack = 0;
 
-	/* test for all uncommon interrupt events at the same time */
 	if(a_status & AI_SC_TC_St)
 	{
 		ack |= AI_SC_TC_Interrupt_Ack;
@@ -855,14 +863,14 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 
-	s->async->events = 0;
+	//67xx boards don't have ai subdevice, but their gpct0 might generate an a interrupt
+	if(s->type == COMEDI_SUBD_UNUSED) return;
 
 #ifdef DEBUG_INTERRUPT
 	rt_printk("ni_mio_common: interrupt: a_status=%04x ai_mite_status=%08x\n",
 		status, ai_mite_status);
 	ni_mio_print_status_a(status);
 #endif
-	ack_a_interrupt(dev, status);
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
 	if(ai_mite_status & CHSR_LINKC){
@@ -999,7 +1007,6 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 		b_status,ao_mite_status);
 	ni_mio_print_status_b(b_status);
 #endif
-	ack_b_interrupt(dev, b_status);
 
 #ifdef PCIDMA
 	/* Currently, mite.c requires us to handle LINKC and DONE */
@@ -2327,7 +2334,14 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 			break;
 		}
 
-		devpriv->stc_writew(dev, 0x3f80,Interrupt_A_Ack_Register); /* clear interrupts */
+		devpriv->stc_writew(dev, AI_Error_Interrupt_Ack |
+			AI_STOP_Interrupt_Ack |
+			AI_START_Interrupt_Ack |
+			AI_START2_Interrupt_Ack |
+			AI_START1_Interrupt_Ack |
+			AI_SC_TC_Interrupt_Ack |
+			AI_SC_TC_Error_Confirm,
+			Interrupt_A_Ack_Register); /* clear interrupts */
 
 		ni_set_bits(dev, Interrupt_A_Enable_Register, interrupt_a_enable, 1);
 
@@ -3649,13 +3663,13 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan = boardtype.num_p0_dio_channels;
 	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
-		s->insn_bits = ni_m_series_dio_insn_bits;
-		s->insn_config=ni_m_series_dio_insn_config;
+		s->insn_bits = &ni_m_series_dio_insn_bits;
+		s->insn_config = &ni_m_series_dio_insn_config;
 		ni_writel(s->io_bits, M_Offset_DIO_Direction);
 	}else
 	{
-		s->insn_bits=ni_dio_insn_bits;
-		s->insn_config=ni_dio_insn_config;
+		s->insn_bits = &ni_dio_insn_bits;
+		s->insn_config = &ni_dio_insn_config;
 		devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
 		ni_writew(devpriv->dio_control, DIO_Control_Register);
 	}
@@ -3712,6 +3726,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan = 512;
 		s->insn_read = &ni_eeprom_insn_read;
 	}
+
 	/* PFI */
 	s = dev->subdevices + NI_PFI_DIO_SUBDEV;
 	s->type = COMEDI_SUBD_DIO;
@@ -3730,8 +3745,11 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->n_chan = 10;
 	}
 	s->maxdata = 1;
-	s->insn_bits = ni_pfi_insn_bits;
-	s->insn_config = ni_pfi_insn_config;
+	if(boardtype.reg_type & ni_reg_m_series_mask)
+	{
+		s->insn_bits = &ni_pfi_insn_bits;
+	}
+	s->insn_config = &ni_pfi_insn_config;
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
 
 	/* cs5529 calibration adc */
@@ -3787,18 +3805,18 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	{
 		s = dev->subdevices + NI_GPCT_SUBDEV(j);
 		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_CMD_READ;
 		s->n_chan = 3;
 		if(boardtype.reg_type & ni_reg_m_series_mask)
 			s->maxdata = 0xffffffff;
 		else
 			s->maxdata = 0xffffff;
-		s->insn_read = ni_gpct_insn_read;
-		s->insn_write = ni_gpct_insn_write;
-		s->insn_config = ni_gpct_insn_config;
-		s->do_cmd = ni_gpct_cmd;
-		s->do_cmdtest = ni_gpct_cmdtest;
-		s->cancel = ni_gpct_cancel;
+		s->insn_read = &ni_gpct_insn_read;
+		s->insn_write = &ni_gpct_insn_write;
+		s->insn_config = &ni_gpct_insn_config;
+		s->do_cmd = &ni_gpct_cmd;
+		s->do_cmdtest = &ni_gpct_cmdtest;
+		s->cancel = &ni_gpct_cancel;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
 		s->private = &devpriv->counter_dev->counters[j];
 
@@ -4326,6 +4344,86 @@ static int ni_gpct_insn_write(comedi_device *dev, comedi_subdevice *s,
 	return ni_tio_winsn(counter, insn, data);
 }
 
+static inline unsigned Gi_Interrupt_Enable_Register(unsigned counter_index)
+{
+	unsigned reg;
+
+	switch(counter_index)
+	{
+	case 0:
+		reg = Interrupt_A_Enable_Register;
+		break;
+	case 1:
+		reg = Interrupt_B_Enable_Register;
+		break;
+	default:
+		BUG();
+		return 0;
+		break;
+	}
+	return reg;
+}
+
+static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
+{
+	unsigned bit;
+
+	switch(counter_index)
+	{
+	case 0:
+		bit = G0_Gate_Interrupt_Enable;
+		break;
+	case 1:
+		bit = G1_Gate_Interrupt_Enable;
+		break;
+	default:
+		BUG();
+		return 0;
+		break;
+	}
+	return bit;
+}
+
+static inline unsigned Gi_Interrupt_Ack_Register(unsigned counter_index)
+{
+	unsigned reg;
+
+	switch(counter_index)
+	{
+	case 0:
+		reg = Interrupt_A_Ack_Register;
+		break;
+	case 1:
+		reg = Interrupt_B_Ack_Register;
+		break;
+	default:
+		BUG();
+		return 0;
+		break;
+	}
+	return reg;
+}
+
+static inline unsigned Gi_Gate_Interrupt_Ack_Bit(unsigned counter_index)
+{
+	unsigned bit;
+
+	switch(counter_index)
+	{
+	case 0:
+		bit = G0_Gate_Interrupt_Ack;
+		break;
+	case 1:
+		bit = G1_Gate_Interrupt_Ack;
+		break;
+	default:
+		BUG();
+		return 0;
+		break;
+	}
+	return bit;
+}
+
 static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	int retval;
@@ -4340,6 +4438,14 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 		comedi_error(dev, "no dma channel available for use by counter");
 		return retval;
 	}
+	if(cmd->flags & TRIG_WAKE_EOS)
+	{
+		devpriv->stc_writew(dev, Gi_Gate_Interrupt_Ack_Bit(counter->counter_index),
+			Gi_Interrupt_Ack_Register(counter->counter_index));
+		ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
+			Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 1);
+	}
+
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	retval = ni_tio_cmd(counter, s->async);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -4365,6 +4471,8 @@ static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	retval = ni_tio_cancel(counter);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
+		Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 0);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);
 	return retval;
 }
@@ -4459,13 +4567,26 @@ static unsigned ni_get_pfi_routing(comedi_device *dev, unsigned chan)
 		return ni_old_get_pfi_routing(dev, chan);
 }
 
+static int ni_config_filter(comedi_device *dev, unsigned pfi_channel, enum ni_pfi_filter_select filter)
+{
+	unsigned bits;
+	if((boardtype.reg_type & ni_reg_m_series_mask) == 0)
+	{
+		return -ENOTSUPP;
+	}
+	bits = ni_readl(M_Offset_PFI_Filter);
+	bits &= ~MSeries_PFI_Filter_Select_Mask(pfi_channel);
+	bits |= MSeries_PFI_Filter_Select_Bits(pfi_channel, filter);
+	ni_writel(bits, M_Offset_PFI_Filter);
+	return 0;
+}
+
 static int ni_pfi_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
 	if((boardtype.reg_type & ni_reg_m_series_mask) == 0)
 	{
-		data[1] = 0;
-		return 2;
+		return -ENOTSUPP;
 	}
 	if(data[0])
 	{
@@ -4495,20 +4616,21 @@ static int ni_pfi_insn_config(comedi_device *dev,comedi_subdevice *s,
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] = (devpriv->io_bidirection_pin_reg & (1<<chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
+		return 0;
 		break;
 	case INSN_CONFIG_SET_ROUTING:
 		return ni_set_pfi_routing(dev, chan, data[1]);
 		break;
 	case INSN_CONFIG_GET_ROUTING:
 		data[1] = ni_get_pfi_routing(dev, chan);
-		return 2;
+		break;
+	case INSN_CONFIG_FILTER:
+		return ni_config_filter(dev, chan, data[1]);
 		break;
 	default:
 		return -EINVAL;
 	}
-
-	return 1;
+	return 0;
 }
 
 /*

@@ -322,6 +322,29 @@ static inline enum ni_gpct_register NITIO_Gi_DMA_Config_Reg(int counter_index)
 	return 0;
 }
 
+static inline enum ni_gpct_register NITIO_Gi_DMA_Status_Reg(int counter_index)
+{
+	switch(counter_index)
+	{
+	case 0:
+		return NITIO_G0_DMA_Status_Reg;
+		break;
+	case 1:
+		return NITIO_G1_DMA_Status_Reg;
+		break;
+	case 2:
+		return NITIO_G2_DMA_Status_Reg;
+		break;
+	case 3:
+		return NITIO_G3_DMA_Status_Reg;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+
 static inline enum ni_gpct_register NITIO_Gi_ABZ_Reg(int counter_index)
 {
 	switch(counter_index)
@@ -596,7 +619,7 @@ enum Gi_Mode_Bits
 	Gi_Gating_Disabled_Bits = 0x0,
 	Gi_Level_Gating_Bits = 0x1,
 	Gi_Rising_Edge_Gating_Bits = 0x2,
-	Gi_Falling_Edge_Gating_Bits = 0x2,
+	Gi_Falling_Edge_Gating_Bits = 0x3,
 	Gi_Gate_On_Both_Edges_Bit = 0x4, /* used in conjunction with rising edge gating mode */
 	Gi_Trigger_Mode_for_Edge_Gate_Mask = 0x18,
 	Gi_Edge_Gate_Starts_Stops_Bits = 0x0,
@@ -1503,6 +1526,7 @@ static int ni_m_series_set_first_gate(struct ni_gpct *counter, lsampl_t gate_sou
 
 	switch(selected_gate)
 	{
+	case NI_GPCT_TIMESTAMP_MUX_GATE_SELECT:
 	case NI_GPCT_AI_START2_GATE_SELECT:
 	case NI_GPCT_PXI_STAR_TRIGGER_GATE_SELECT:
 	case NI_GPCT_NEXT_OUT_GATE_SELECT:
@@ -1771,19 +1795,28 @@ static unsigned ni_m_series_first_gate_to_generic_gate_source(unsigned ni_m_seri
 
 	switch(ni_m_series_gate_select)
 	{
-	case NI_660x_Source_Pin_i_Gate_Select:
-		return NI_GPCT_SOURCE_PIN_i_GATE_SELECT;
+	case NI_M_Series_Timestamp_Mux_Gate_Select:
+		return NI_GPCT_TIMESTAMP_MUX_GATE_SELECT;
 		break;
-	case NI_660x_Gate_Pin_i_Gate_Select:
-		return NI_GPCT_GATE_PIN_i_GATE_SELECT;
+	case NI_M_Series_AI_START2_Gate_Select:
+		return NI_GPCT_AI_START2_GATE_SELECT;
 		break;
-	case NI_660x_Next_SRC_Gate_Select:
-		return NI_GPCT_NEXT_SOURCE_GATE_SELECT;
+	case NI_M_Series_PXI_Star_Trigger_Gate_Select:
+		return NI_GPCT_PXI_STAR_TRIGGER_GATE_SELECT;
 		break;
-	case NI_660x_Next_Out_Gate_Select:
+	case NI_M_Series_Next_Out_Gate_Select:
 		return NI_GPCT_NEXT_OUT_GATE_SELECT;
 		break;
-	case NI_660x_Logic_Low_Gate_Select:
+	case NI_M_Series_AI_START1_Gate_Select:
+		return NI_GPCT_AI_START1_GATE_SELECT;
+		break;
+	case NI_M_Series_Next_SRC_Gate_Select:
+		return NI_GPCT_NEXT_SOURCE_GATE_SELECT;
+		break;
+	case NI_M_Series_Analog_Trigger_Out_Gate_Select:
+		return NI_GPCT_ANALOG_TRIGGER_OUT_GATE_SELECT;
+		break;
+	case NI_M_Series_Logic_Low_Gate_Select:
 		return NI_GPCT_LOGIC_LOW_GATE_SELECT;
 		break;
 	default:
@@ -1905,7 +1938,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index, lsa
 			BUG();
 			break;
 		}
-		if(counter_dev->regs[input_select_reg] & Gi_Gate_Polarity_Bit)
+		if(counter_dev->regs[mode_reg] & Gi_Gate_Polarity_Bit)
 		{
 			*gate_source |= CR_INVERT;
 		}
@@ -2095,12 +2128,14 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	comedi_cmd *cmd = &async->cmd;
+	const unsigned command_reg = NITIO_Gi_Command_Reg(counter->counter_index);
 
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(async, async->prealloc_bufsz);
-
 	counter->mite_chan->dir = COMEDI_INPUT;
 	mite_prep_dma(counter->mite_chan, 32, 32);
+	counter_dev->regs[command_reg] &= ~Gi_Save_Trace_Bit;
+	counter_dev->write_register(counter, counter_dev->regs[command_reg], command_reg);
 	if(counter_dev->variant == ni_gpct_variant_m_series ||
 		counter_dev->variant == ni_gpct_variant_660x)
 	{
@@ -2108,9 +2143,9 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 
 		counter_dev->regs[gi_dma_config_reg] |= Gi_DMA_Enable_Bit;
 		counter_dev->regs[gi_dma_config_reg] &= ~Gi_DMA_Write_Bit;
+		counter_dev->regs[gi_dma_config_reg] |= Gi_DMA_Int_Bit;
 		counter_dev->write_register(counter, counter_dev->regs[gi_dma_config_reg], gi_dma_config_reg);
 	}
-	/*start the MITE*/
 	mite_dma_arm(counter->mite_chan);
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
@@ -2132,6 +2167,7 @@ static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async *async)
 		counter_dev->regs[gi_dma_config_reg] |= Gi_DMA_Enable_Bit | Gi_DMA_Write_Bit;
 		counter_dev->write_register(counter, counter_dev->regs[gi_dma_config_reg], gi_dma_config_reg);
 	}
+	mite_dma_arm(counter->mite_chan);
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
@@ -2146,7 +2182,6 @@ int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async)
 		retval = -EIO;
 	}else
 	{
-		ni_tio_reset_count_and_disarm(counter);
 		if(cmd->flags & CMDF_WRITE)
 		{
 			retval = ni_tio_output_cmd(counter, async);
@@ -2166,10 +2201,7 @@ int ni_tio_cmdtest(struct ni_gpct *counter)
 int ni_tio_cancel(struct ni_gpct *counter)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	if(counter->mite_chan == NULL)
-	{
-		return 0;
-	}
+
 	ni_tio_arm(counter, 0, 0);
 	if(counter_dev->variant == ni_gpct_variant_m_series ||
 		counter_dev->variant == ni_gpct_variant_660x)
@@ -2177,9 +2209,13 @@ int ni_tio_cancel(struct ni_gpct *counter)
 		const unsigned gi_dma_config_reg = NITIO_Gi_DMA_Config_Reg(counter->counter_index);
 
 		counter_dev->regs[gi_dma_config_reg] &= ~Gi_DMA_Enable_Bit;
+		counter_dev->regs[gi_dma_config_reg] &= ~Gi_DMA_Int_Bit;
 		counter_dev->write_register(counter, counter_dev->regs[gi_dma_config_reg], gi_dma_config_reg);
 	}
-	mite_dma_disarm(counter->mite_chan);
+	if(counter->mite_chan)
+	{
+		mite_dma_disarm(counter->mite_chan);
+	}
 	return 0;
 }
 
