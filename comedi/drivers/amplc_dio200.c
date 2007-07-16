@@ -265,7 +265,7 @@ enum dio200_layout {
 };
 
 typedef struct dio200_board_struct {
-	char *name;
+	const char *name;
 	enum dio200_bustype bustype;
 	enum dio200_model model;
 	enum dio200_layout layout;
@@ -436,7 +436,7 @@ static comedi_driver driver_amplc_dio200 = {
 	module:		THIS_MODULE,
 	attach:		dio200_attach,
 	detach:		dio200_detach,
-	board_name:	(const char**)dio200_boards,
+	board_name:	&dio200_boards[0].name,
 	offset:		sizeof(dio200_board),
 	num_names:	sizeof(dio200_boards) / sizeof(dio200_board),
 };

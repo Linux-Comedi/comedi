@@ -40,7 +40,7 @@ Configuration Options:
 #define PCI_DEVICE_ID_PCI7432 0x7432
 
 typedef struct {
-	char *name;
+	const char *name;
 	int  vendor_id;
 	int  device_id;
 } adl_pci7432_board;
@@ -72,7 +72,7 @@ static comedi_driver driver_adl_pci7432={
 	attach:		adl_pci7432_attach,
 	detach:		adl_pci7432_detach,
 	num_names:  1,
-	board_name: (const char**)adl_pci7432_boards,
+	board_name: &adl_pci7432_boards[0].name,
 	offset:     sizeof(adl_pci7432_board),
 };
 

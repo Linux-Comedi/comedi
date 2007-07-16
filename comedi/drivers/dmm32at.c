@@ -208,7 +208,7 @@ static comedi_lrange dmm32at_aoranges =
  * Some drivers use arrays such as this, other do not.
  */
 typedef struct dmm32at_board_struct{
-	char *name;
+	const char *name;
 	int ai_chans;
 	int ai_bits;
 	comedi_lrange *ai_ranges;
@@ -293,7 +293,7 @@ static comedi_driver driver_dmm32at={
  * the type of board in software.  ISA PnP, PCI, and PCMCIA
  * devices are such boards.
  */
-	board_name:	(const char**)dmm32at_boards,
+	board_name:	&dmm32at_boards[0].name,
 	offset:		sizeof(dmm32at_board),
 	num_names:	sizeof(dmm32at_boards) / sizeof(dmm32at_board),
 };

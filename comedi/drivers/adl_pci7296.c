@@ -48,7 +48,7 @@ Configuration Options:
 
 
 typedef struct skel_board_struct{
-	char *name;
+	const char *name;
 	int vendor_id;
 	int device_id;
 }adl_pci7296_board;
@@ -80,7 +80,7 @@ static comedi_driver driver_adl_pci7296={
 	attach:		adl_pci7296_attach,
 	detach:		adl_pci7296_detach,
 
-	board_name:	(const char**)adl_pci7296_boards,
+	board_name:	&adl_pci7296_boards[0].name,
 	offset:		sizeof(adl_pci7296_board),
 	num_names:	sizeof(adl_pci7296_boards) / sizeof(adl_pci7296_board),
 };

@@ -45,7 +45,7 @@ Configuration Options:
 
 typedef struct aio_iiro_16_board_struct
 {
-	char *name;
+	const char *name;
 	int do_;
 	int di;
 } aio_iiro_16_board;
@@ -81,7 +81,7 @@ static comedi_driver driver_aio_iiro_16 =
 	module:		THIS_MODULE,
 	attach:		aio_iiro_16_attach,
 	detach:		aio_iiro_16_detach,
-	board_name:	(const char**)aio_iiro_16_boards,
+	board_name:	&aio_iiro_16_boards[0].name,
 	offset:		sizeof (aio_iiro_16_board),
 	num_names:	sizeof (aio_iiro_16_boards) /
 	sizeof (aio_iiro_16_board),

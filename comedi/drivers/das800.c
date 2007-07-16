@@ -106,7 +106,7 @@ cmd triggers supported:
 #define DAS800_ID             7
 
 typedef struct das800_board_struct{
-	char *name;
+	const char *name;
 	int ai_speed;
 	comedi_lrange *ai_range;
 	int resolution;
@@ -251,7 +251,7 @@ static comedi_driver driver_das800={
 	attach:		das800_attach,
 	detach:		das800_detach,
 	num_names:	sizeof(das800_boards) / sizeof(das800_board),
-	board_name:	(const char **)das800_boards,
+	board_name:	&das800_boards[0].name,
 	offset:		sizeof(das800_board),
 };
 

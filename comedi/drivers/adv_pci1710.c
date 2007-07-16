@@ -183,7 +183,7 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci1710_detach(comedi_device *dev);
 
 typedef struct {
-	char 		*name;		// driver name
+	const  char 		*name;		// board name
 	int		device_id;
 	int		iorange;	// I/O range len
 	char		have_irq;	// 1=card support IRQ
@@ -255,7 +255,7 @@ static comedi_driver driver_pci1710={
 	attach:		pci1710_attach,
 	detach:		pci1710_detach,
 	num_names:	n_boardtypes,
-	board_name: (const char**)boardtypes,
+	board_name: &boardtypes[0].name,
 	offset:		sizeof(boardtype),
 };
 

@@ -97,7 +97,7 @@ enum pc236_bustype {isa_bustype, pci_bustype};
 enum pc236_model {pc36at_model, pci236_model};
 
 typedef struct pc236_board_struct{
-	char *name;
+	const char *name;
 	char *fancy_name;
 	enum pc236_bustype bustype;
 	enum pc236_model model;
@@ -153,7 +153,7 @@ static comedi_driver driver_amplc_pc236={
 	module:		THIS_MODULE,
 	attach:		pc236_attach,
 	detach:		pc236_detach,
-	board_name:	(const char**)pc236_boards,
+	board_name:	&pc236_boards[0].name,
 	offset:		sizeof(pc236_board),
 	num_names:	sizeof(pc236_boards) / sizeof(pc236_board),
 };

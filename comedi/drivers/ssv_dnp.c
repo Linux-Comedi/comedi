@@ -55,7 +55,7 @@ Status: unknown
 /* This data structure holds information about the supported boards -------- */
 
 typedef struct dnp_board_struct{
-	char *name;
+	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
@@ -100,7 +100,7 @@ static comedi_driver driver_dnp = {
   module:       THIS_MODULE,
   attach:       dnp_attach,
   detach:       dnp_detach,
-  board_name:   (const char**)dnp_boards,             /* only necessary for non-PnP devs   */
+  board_name:   &dnp_boards[0].name,             /* only necessary for non-PnP devs   */
   offset:       sizeof(dnp_board),      /* like ISA-PnP, PCI or PCMCIA.      */
   num_names:	sizeof(dnp_boards) / sizeof(dnp_board),
 };

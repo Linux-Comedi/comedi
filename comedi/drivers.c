@@ -321,12 +321,12 @@ static int postconfig(comedi_device *dev)
 void *comedi_recognize(comedi_driver *driv, const char *name)
 {
 	unsigned i;
-	const char **name_ptr = driv->board_name;
+	const char * const *name_ptr = driv->board_name;
 	for(i = 0; i < driv->num_names; i++)
 	{
 		if(strcmp(*name_ptr, name) == 0)
-			return name_ptr;
-		name_ptr = (const char **)((char *)name_ptr + driv->offset);
+			return (void*)name_ptr;
+		name_ptr = (const char * const *)((const char *)name_ptr + driv->offset);
 	}
 
 	return NULL;
@@ -335,7 +335,7 @@ void *comedi_recognize(comedi_driver *driv, const char *name)
 void comedi_report_boards(comedi_driver *driv)
 {
 	unsigned int i;
-	const char **name_ptr;
+	const char * const *name_ptr;
 
 	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
 

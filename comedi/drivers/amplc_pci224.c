@@ -342,7 +342,7 @@ static unsigned short hwrange_pci234[1] = {
 enum pci224_model	{ pci224_model, pci234_model };
 
 typedef struct pci224_board_struct {
-	char *name;
+	const char *name;
 	enum pci224_model model;
 	unsigned int ao_chans;
 	unsigned int ao_bits;
@@ -419,7 +419,7 @@ static comedi_driver driver_amplc_pci224 = {
 	module:		THIS_MODULE,
 	attach:		pci224_attach,
 	detach:		pci224_detach,
-	board_name:	(const char**)pci224_boards,
+	board_name:	&pci224_boards[0].name,
 	offset:		sizeof(pci224_board),
 	num_names:	sizeof(pci224_boards) / sizeof(pci224_board),
 };

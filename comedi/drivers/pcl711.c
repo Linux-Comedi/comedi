@@ -132,7 +132,7 @@ static comedi_lrange range_acl8112dg_ai = { 9, {
 static int i8253_osc_base = 500;	/* 2 Mhz */
 
 typedef struct {
-	char *name;
+	const char *name;
 	int is_pcl711b;
 	int is_8112;
 	int is_dg;
@@ -160,7 +160,7 @@ static comedi_driver driver_pcl711={
 	module:		THIS_MODULE,
 	attach:		pcl711_attach,
 	detach:		pcl711_detach,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

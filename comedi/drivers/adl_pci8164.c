@@ -52,7 +52,7 @@ Configuration Options:
 #define PCI_DEVICE_ID_PCI8164 0x8164
 
 typedef struct {
-	char *name;
+	const char *name;
 	int  vendor_id;
 	int  device_id;
 } adl_pci8164_board;
@@ -84,7 +84,7 @@ static comedi_driver driver_adl_pci8164={
 	attach:		adl_pci8164_attach,
 	detach:		adl_pci8164_detach,
 	num_names:  1,
-	board_name: (const char**)adl_pci8164_boards,
+	board_name: &adl_pci8164_boards[0].name,
 	offset:     sizeof(adl_pci8164_board),
 };
 

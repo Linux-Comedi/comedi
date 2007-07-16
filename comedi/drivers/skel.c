@@ -90,7 +90,7 @@ Configuration Options:
  * Some drivers use arrays such as this, other do not.
  */
 typedef struct skel_board_struct{
-	char *name;
+	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
@@ -176,7 +176,7 @@ static comedi_driver driver_skel={
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	(const char**)skel_boards,
+	board_name:	&skel_boards[0].name,
 	offset:		sizeof(skel_board),
 	num_names:	sizeof(skel_boards) / sizeof(skel_board),
 };

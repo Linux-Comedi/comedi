@@ -182,7 +182,7 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it);
 static int pci9118_detach(comedi_device *dev);
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// board name
 	int		vendor_id;	// PCI vendor a device ID of card
 	int		device_id;
 	int		iorange_amcc;	// iorange for own S5933 region
@@ -235,7 +235,7 @@ static comedi_driver driver_pci9118={
 	attach:		pci9118_attach,
 	detach:		pci9118_detach,
 	num_names:	n_boardtypes,
-	board_name: (const char**)boardtypes,
+	board_name: &boardtypes[0].name,
 	offset:		sizeof(boardtype),
 };
 COMEDI_INITCLEANUP(driver_pci9118);

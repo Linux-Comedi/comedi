@@ -149,7 +149,7 @@ Configuration Options:
  */
 typedef struct pcmuio_board_struct
 {
-	char * const name;
+	const char * const name;
 	const int num_asics;
 	const int num_channels_per_port;
 	const int num_ports;
@@ -255,7 +255,7 @@ static comedi_driver driver =
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	(const char**)pcmuio_boards,
+	board_name:	&pcmuio_boards[0].name,
 	offset:		sizeof(pcmuio_board),
 	num_names:	sizeof(pcmuio_boards) / sizeof(pcmuio_board),
 };

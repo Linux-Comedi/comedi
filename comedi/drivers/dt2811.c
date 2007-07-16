@@ -186,7 +186,7 @@ static comedi_lrange range_dt2811_pgl_ai_5_bipolar = { 4, {
 #define DT2811_ADMODE   0x03
 
 typedef struct {
-	char *name;
+	const char *name;
 	comedi_lrange *bip_5;
 	comedi_lrange *bip_2_5;
 	comedi_lrange *unip_5;
@@ -212,7 +212,7 @@ static comedi_driver driver_dt2811={
 	module:		THIS_MODULE,
 	attach:		dt2811_attach,
 	detach:		dt2811_detach,
-	board_name:	(const char **)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	sizeof(boardtypes)/sizeof(boardtype),
 	offset:		sizeof(boardtype),
 };

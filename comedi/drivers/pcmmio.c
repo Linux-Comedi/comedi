@@ -153,7 +153,7 @@ static int ao_winsn(comedi_device *, comedi_subdevice *, comedi_insn *, lsampl_t
  */
 typedef struct pcmmio_board_struct
 {
-	char * const name;
+	const char * const name;
 	const int dio_num_asics;
 	const int dio_num_ports;
     const int total_iosize;
@@ -181,16 +181,16 @@ static pcmmio_board pcmmio_boards[] =
 		name:              "pcmmio",
 		dio_num_asics:     1,
 		dio_num_ports:     6,
-        total_iosize:      32, 
-        ai_bits:           16,
-        ao_bits:           16,
-        n_ai_chans:        16,
-        n_ao_chans:        8,
-        ai_range_table:    (comedi_lrange *)&ranges_ai,
-        ao_range_table:    (comedi_lrange *)&ranges_ao,
-        ai_rinsn:          ai_rinsn,
-        ao_rinsn:          ao_rinsn,
-        ao_winsn:          ao_winsn
+		total_iosize:      32, 
+		ai_bits:           16,
+		ao_bits:           16,
+		n_ai_chans:        16,
+		n_ao_chans:        8,
+		ai_range_table:    (comedi_lrange *)&ranges_ai,
+		ao_range_table:    (comedi_lrange *)&ranges_ao,
+		ai_rinsn:          ai_rinsn,
+		ao_rinsn:          ao_rinsn,
+		ao_winsn:          ao_winsn
 	},
 };
 
@@ -294,7 +294,7 @@ static comedi_driver driver =
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	(const char **)pcmmio_boards,
+	board_name:	&pcmmio_boards[0].name,
 	offset:		sizeof(pcmmio_board),
 	num_names:	sizeof(pcmmio_boards) / sizeof(pcmmio_board),
 };

@@ -55,7 +55,7 @@ Configuration options:
 #define PCMAD_CONVERT		1
 
 struct pcmad_board_struct{
-	char *name;
+	const char *name;
 	int n_ai_bits;
 };
 static struct pcmad_board_struct pcmad_boards[]={
@@ -84,7 +84,7 @@ static comedi_driver driver_pcmad={
 	module:		THIS_MODULE,
 	attach:		pcmad_attach,
 	detach:		pcmad_detach,
-	board_name:	(const char**)pcmad_boards,
+	board_name:	&pcmad_boards[0].name,
 	num_names:	n_pcmad_boards,
 	offset:		sizeof(pcmad_boards[0]),
 };

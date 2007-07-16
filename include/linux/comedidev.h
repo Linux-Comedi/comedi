@@ -206,7 +206,7 @@ struct comedi_driver_struct{
 
 	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
-	const char **board_name;
+	const char * const *board_name;
 	/* offset in bytes from one board name pointer to the next */
 	int offset;
 };

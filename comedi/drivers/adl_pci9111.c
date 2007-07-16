@@ -294,7 +294,7 @@ MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
 //
 
 typedef struct {
-  char 		*name;			// driver name
+  const char 		*name;			// driver name
   int		device_id;
   int 		ai_channel_nbr;		// num of A/D chans
   int 		ao_channel_nbr;		// num of D/A chans
@@ -335,7 +335,7 @@ static comedi_driver pci9111_driver=
 	attach:	pci9111_attach,
 	detach:	pci9111_detach,
 	num_names:	pci9111_board_nbr,
-	board_name: (const char**)pci9111_boards,
+	board_name: &pci9111_boards[0].name,
 	offset:	sizeof(pci9111_board_struct),
 };
 COMEDI_INITCLEANUP(pci9111_driver);

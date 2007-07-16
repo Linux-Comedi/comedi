@@ -73,7 +73,7 @@ Notes:
 
 typedef struct
 {
-	char *name;
+	const char *name;
 } board_type;
 
 static board_type board_types[] =
@@ -230,7 +230,7 @@ static comedi_driver driver_aio_aio12_8 =
 	module:		THIS_MODULE,
 	attach:		aio_aio12_8_attach,
 	detach:		aio_aio12_8_detach,
-	board_name:	(const char**)board_types,
+	board_name:	&board_types[0].name,
 	num_names:	1,
 	offset:		sizeof (board_type),
 };

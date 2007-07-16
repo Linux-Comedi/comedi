@@ -117,7 +117,7 @@ static int pcl726_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl726_detach(comedi_device *dev);
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// driver name
 	int 		n_aochan;	// num of D/A chans
 	int		num_of_ranges;	// num of ranges
 	unsigned int 	IRQbits;	// allowed interrupts
@@ -156,7 +156,7 @@ static comedi_driver driver_pcl726={
 	module:		THIS_MODULE,
 	attach:		pcl726_attach,
 	detach:		pcl726_detach,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

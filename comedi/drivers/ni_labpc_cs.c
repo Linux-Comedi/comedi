@@ -103,7 +103,7 @@ static comedi_driver driver_labpc_cs =
 	.attach = &labpc_attach,
 	.detach = &labpc_common_detach,
 	.num_names = sizeof(labpc_cs_boards) / sizeof(labpc_board),
-	.board_name = (char **)labpc_cs_boards,
+	.board_name = &labpc_cs_boards[0].name,
 	.offset = sizeof(labpc_board),
 };
 

@@ -71,7 +71,7 @@ Configuration Options:
  */
 typedef struct pcmda12_board_struct
 {
-	char * const name;
+	const char * const name;
 } pcmda12_board;
 
 /* note these have no effect and are merely here for reference..
@@ -139,7 +139,7 @@ static comedi_driver driver =
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	(const char**)pcmda12_boards,
+	board_name:	&pcmda12_boards[0].name,
 	offset:		sizeof(pcmda12_board),
 	num_names:	sizeof(pcmda12_boards) / sizeof(pcmda12_board),
 };

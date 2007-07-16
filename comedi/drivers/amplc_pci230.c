@@ -164,7 +164,7 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
  */
 
 typedef struct pci230_board_struct{
-	char *name;
+	const char *name;
 	unsigned short id;
 	int ai_chans;
 	int ai_bits;
@@ -268,7 +268,7 @@ static comedi_driver driver_amplc_pci230={
 	module:		THIS_MODULE,
 	attach:		pci230_attach,
 	detach:		pci230_detach,
-	board_name:	(const char**)pci230_boards,
+	board_name:	&pci230_boards[0].name,
 	offset:		sizeof(pci230_boards[0]),
 	num_names:	sizeof(pci230_boards) / sizeof(pci230_boards[0]),
 };

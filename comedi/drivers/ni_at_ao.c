@@ -153,7 +153,7 @@ Configuration options:
  * Some drivers use arrays such as this, other do not.
  */
 typedef struct atao_board_struct{
-	char *name;
+	const char *name;
 	int n_ao_chans;
 }atao_board;
 static atao_board atao_boards[] = {
@@ -185,7 +185,7 @@ static comedi_driver driver_atao={
 	module:		THIS_MODULE,
 	attach:		atao_attach,
 	detach:		atao_detach,
-	board_name:	(const char**)atao_boards,
+	board_name:	&atao_boards[0].name,
 	offset:		sizeof(atao_board),
 	num_names:	sizeof(atao_boards) / sizeof(atao_board),
 };

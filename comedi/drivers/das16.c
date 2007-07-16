@@ -344,7 +344,7 @@ static unsigned int das16_suggest_transfer_size(comedi_device *dev, comedi_cmd c
 static void reg_dump(comedi_device *dev);
 
 typedef struct das16_board_struct{
-	char		*name;
+	const char		*name;
 	void		*ai;
 	unsigned int	ai_nbits;
 	unsigned int	ai_speed;	// max conversion speed in nanosec
@@ -701,7 +701,7 @@ static comedi_driver driver_das16={
 	module:		THIS_MODULE,
 	attach:		das16_attach,
 	detach:		das16_detach,
-	board_name:	(const char**)das16_boards,
+	board_name:	&das16_boards[0].name,
 	num_names:	n_das16_boards,
 	offset:		sizeof(das16_boards[0]),
 };

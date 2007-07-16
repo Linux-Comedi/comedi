@@ -29,7 +29,7 @@ static int pcl730_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl730_detach(comedi_device *dev);
 
 typedef struct {
-	char	*name;		// driver name
+	const char	*name;		// board name
 	unsigned int	io_range;	// len of I/O space
 } boardtype;
 
@@ -47,7 +47,7 @@ static comedi_driver driver_pcl730 = {
 	module:		THIS_MODULE,
 	attach:		pcl730_attach,
 	detach:		pcl730_detach,
-	board_name: (const char**)boardtypes,
+	board_name: &boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

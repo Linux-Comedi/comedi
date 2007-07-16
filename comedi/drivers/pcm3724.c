@@ -66,7 +66,7 @@ static int pcm3724_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcm3724_detach(comedi_device *dev);
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// driver name
 	int 		dio;		// num of DIO
 	int		numofports;	// num of 8255 subdevices
 	unsigned int 	IRQbits;	// allowed interrupts
@@ -91,7 +91,7 @@ static comedi_driver driver_pcm3724={
 	module:		THIS_MODULE,
 	attach:		pcm3724_attach,
 	detach:		pcm3724_detach,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

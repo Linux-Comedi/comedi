@@ -73,7 +73,7 @@ static int dio24_detach(comedi_device *dev);
 enum dio24_bustype {pcmcia_bustype};
 
 typedef struct dio24_board_struct{
-	char *name;
+	const char *name;
 	int device_id;	// device id for pcmcia board
 	enum dio24_bustype bustype;	// PCMCIA
 	int have_dio;	// have 8255 chip
@@ -116,7 +116,7 @@ static comedi_driver driver_dio24={
 	attach:		dio24_attach,
 	detach:		dio24_detach,
 	num_names:	sizeof(dio24_boards) / sizeof(dio24_board),
-	board_name:	(char **)dio24_boards,
+	board_name:	&dio24_boards[0].name,
 	offset:		sizeof(dio24_board),
 };
 

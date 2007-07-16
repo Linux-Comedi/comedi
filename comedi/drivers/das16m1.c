@@ -149,7 +149,7 @@ static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int r
 static int das16m1_irq_bits(unsigned int irq);
 
 typedef struct das16m1_board_struct{
-	char *name;
+	const char *name;
 	unsigned int ai_speed;
 }das16m1_board;
 
@@ -169,7 +169,7 @@ static comedi_driver driver_das16m1={
 	module:		THIS_MODULE,
 	attach:		das16m1_attach,
 	detach:		das16m1_detach,
-	board_name:	(const char**)das16m1_boards,
+	board_name:	&das16m1_boards[0].name,
 	num_names:	das16m1_num_boards,
 	offset:		sizeof(das16m1_boards[0]),
 };

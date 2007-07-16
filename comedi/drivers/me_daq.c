@@ -204,7 +204,7 @@ MODULE_DEVICE_TABLE(pci, me_pci_table);
 
 typedef struct
 {
-  char          *name;              // driver name
+  const char          *name;              // driver name
   int           device_id;
   int           ao_channel_nbr;     // DA config
   int           ao_resolution;
@@ -256,7 +256,7 @@ static comedi_driver me_driver=
   attach:      me_attach,
   detach:      me_detach,
   num_names:   me_board_nbr,
-  board_name:  (const char**)me_boards,
+  board_name:  &me_boards[0].name,
   offset:      sizeof(me_board_struct),
 };
 COMEDI_INITCLEANUP(me_driver);

@@ -106,7 +106,7 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 
 
 typedef struct{
-	char *name;
+	const char *name;
 	int has_8255;
 }atmio16_board_t;
 static atmio16_board_t atmio16_boards[]={
@@ -140,7 +140,7 @@ static comedi_driver driver_atmio16d={
 	module:     THIS_MODULE,
 	attach:     atmio16d_attach,
 	detach:     atmio16d_detach,
-	board_name:	(const char**)atmio16_boards,
+	board_name:	&atmio16_boards[0].name,
 	num_names:	n_atmio16_boards,
 	offset:		sizeof(atmio16_board_t),
 };

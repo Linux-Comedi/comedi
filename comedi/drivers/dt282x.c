@@ -193,7 +193,7 @@ static comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
 
 
 typedef struct {
-	char *name;
+	const char *name;
 	int adbits;
 	int adchan_se;
 	int adchan_di;
@@ -397,7 +397,7 @@ static comedi_driver driver_dt282x={
 	module:		THIS_MODULE,
 	attach:		dt282x_attach,
 	detach:		dt282x_detach,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype_t),
 };

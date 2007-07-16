@@ -284,7 +284,7 @@ static int pcl812_detach(comedi_device *dev);
 
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// board name
 	int 		board_type;	// type of this board
 	int 		n_aichan;	// num of AI chans in S.E.
 	int 		n_aichan_diff;	// DIFF num of chans
@@ -368,7 +368,7 @@ static comedi_driver driver_pcl812={
 	module:		THIS_MODULE,
 	attach:		pcl812_attach,
 	detach:		pcl812_detach,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

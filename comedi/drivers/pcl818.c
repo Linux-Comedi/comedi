@@ -249,7 +249,7 @@ static int RTC_timer_lock = 0;		/* RTC int lock */
 #endif
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// driver name
 	int 		n_ranges;	// len of range list
 	int 		n_aichan_se;	// num of A/D chans in single ended  mode
 	int 		n_aichan_diff;	// num of A/D chans in diferencial mode
@@ -294,7 +294,7 @@ static comedi_driver driver_pcl818={
 	module:		THIS_MODULE,
 	attach:		pcl818_attach,
 	detach:		pcl818_detach,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

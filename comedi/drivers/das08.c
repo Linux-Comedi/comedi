@@ -800,7 +800,7 @@ static comedi_driver driver_das08={
 	module:		THIS_MODULE,
 	attach:		das08_attach,
 	detach:		das08_common_detach,
-	board_name:	(const char**)(das08_boards),
+	board_name:	&das08_boards[0].name,
 	num_names:	sizeof(das08_boards)/sizeof(struct das08_board_struct),
 	offset:		sizeof(struct das08_board_struct),
 };

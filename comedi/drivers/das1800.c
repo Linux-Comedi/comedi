@@ -231,7 +231,7 @@ static comedi_lrange range_ai_das1802 = {
 };
 
 typedef struct das1800_board_struct{
-	char *name;
+	const char *name;
 	int ai_speed;	/* max conversion period in nanoseconds */
 	int resolution;	/* bits of ai resolution */
 	int qram_len;	/* length of card's channel / gain queue */
@@ -499,7 +499,7 @@ static comedi_driver driver_das1800={
 	attach:		das1800_attach,
 	detach:		das1800_detach,
 	num_names:	sizeof(das1800_boards) / sizeof(das1800_board),
-	board_name:	(const char**)das1800_boards,
+	board_name:	&das1800_boards[0].name,
 	offset:		sizeof(das1800_board),
 };
 

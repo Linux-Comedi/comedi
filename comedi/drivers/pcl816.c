@@ -105,7 +105,7 @@ static comedi_lrange range_pcl816 = { 8, {
 			      }
 };
 typedef struct {
-  char *name;			// driver name
+  const char *name;			// board name
   int n_ranges;			// len of range list
   int n_aichan;			// num of A/D chans in diferencial mode
   unsigned int ai_ns_min;		// minimal alllowed delay between samples (in ns)
@@ -163,7 +163,7 @@ static comedi_driver driver_pcl816 = {
   module:       THIS_MODULE,
   attach:       pcl816_attach,
   detach:       pcl816_detach,
-  board_name:	(const char**)boardtypes,
+  board_name:	&boardtypes[0].name,
   num_names:	n_boardtypes,
   offset:		sizeof(boardtype),
 };

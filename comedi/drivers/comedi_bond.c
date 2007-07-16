@@ -120,7 +120,7 @@ MODULE_DESCRIPTION(MODULE_NAME ": A driver for COMEDI to bond multiple COMEDI de
  */
 struct BondingBoard
 {
-	char *name;
+	const char *name;
 };
 typedef struct BondingBoard BondingBoard;
 
@@ -205,7 +205,7 @@ static comedi_driver driver_bonding = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	(const char**)bondingBoards,
+	board_name:	&bondingBoards[0].name,
 	offset:		sizeof(BondingBoard),
 	num_names:	sizeof(bondingBoards) / sizeof(BondingBoard),
 };

@@ -167,7 +167,7 @@ static unsigned short s526_ai_config = 0;
  * Some drivers use arrays such as this, other do not.
  */
 typedef struct s526_board_struct{
-	char *name;
+	const char *name;
 	int gpct_chans;
 	int gpct_bits;
 	int ad_chans;
@@ -247,7 +247,7 @@ static comedi_driver driver_s526={
          * the type of board in software.  ISA PnP, PCI, and PCMCIA
          * devices are such boards.
          */
-        board_name:     (const char**)s526_boards,
+        board_name:     &s526_boards[0].name,
         offset:         sizeof(s526_board),
         num_names:      sizeof(s526_boards) / sizeof(s526_board),
 };

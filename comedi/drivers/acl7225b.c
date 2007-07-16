@@ -25,7 +25,7 @@ static int acl7225b_attach(comedi_device *dev,comedi_devconfig *it);
 static int acl7225b_detach(comedi_device *dev);
 
 typedef struct {
-	char	*name;		// driver name
+	const char	*name;		// driver name
 	int		io_range;	// len of I/O space
 } boardtype;
 
@@ -42,7 +42,7 @@ static comedi_driver driver_acl7225b = {
 	module:		THIS_MODULE,
 	attach:		acl7225b_attach,
 	detach:		acl7225b_detach,
-	board_name: (const char**)boardtypes,
+	board_name: &boardtypes[0].name,
 	num_names:	n_boardtypes,
 	offset:		sizeof(boardtype),
 };

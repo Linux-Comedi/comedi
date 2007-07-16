@@ -139,7 +139,7 @@ static int icp_multi_detach(comedi_device *dev);
 static unsigned short	pci_list_builded=0;	/*>0 list of card is known */
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// driver name
 	int		device_id;
 	int		iorange;	// I/O range len
 	char		have_irq;	// 1=card support IRQ
@@ -185,7 +185,7 @@ static comedi_driver driver_icp_multi={
 	attach:		icp_multi_attach,
 	detach:		icp_multi_detach,
 	num_names:	n_boardtypes,
-	board_name:	(const char**)boardtypes,
+	board_name:	&boardtypes[0].name,
 	offset:		sizeof(boardtype),
 };
 COMEDI_INITCLEANUP(driver_icp_multi);

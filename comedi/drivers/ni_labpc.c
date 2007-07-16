@@ -446,7 +446,7 @@ static comedi_driver driver_labpc={
 	attach:		labpc_attach,
 	detach:		labpc_common_detach,
 	num_names:	sizeof(labpc_boards) / sizeof(labpc_board),
-	board_name: (const char **)labpc_boards,
+	board_name: &labpc_boards[0].name,
 	offset:		sizeof(labpc_board),
 };
 

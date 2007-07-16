@@ -32,7 +32,7 @@ enum labpc_register_layout {labpc_plus_layout, labpc_1200_layout};
 enum transfer_type {fifo_not_empty_transfer, fifo_half_full_transfer, isa_dma_transfer};
 
 typedef struct labpc_board_struct{
-	char *name;
+	const char *name;
 	int device_id;	// device id for pci and pcmcia boards
 	int ai_speed;	// maximum input speed in nanoseconds
 	enum labpc_bustype bustype;	// ISA/PCI/etc.

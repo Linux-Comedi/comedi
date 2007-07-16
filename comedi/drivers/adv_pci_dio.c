@@ -185,7 +185,7 @@ typedef struct {
 } diosubd_data;
 
 typedef struct {
-	char 		*name;		// driver name
+	const char 		*name;		// board name
 	int		vendor_id;	// vendor/device PCI ID
 	int		device_id;
 	int		main_pci_region;// main I/O OCI region
@@ -321,7 +321,7 @@ static comedi_driver driver_pci_dio={
 	attach:		pci_dio_attach,
 	detach:		pci_dio_detach,
 	num_names:	n_boardtypes,
-	board_name: (const char**)boardtypes,
+	board_name: &boardtypes[0].name,
 	offset:		sizeof(boardtype),
 };
 typedef struct pci_dio_private_st pci_dio_private;

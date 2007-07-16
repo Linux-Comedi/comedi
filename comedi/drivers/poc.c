@@ -52,7 +52,7 @@ static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
 struct boarddef_struct{
-	char *name;
+	const char *name;
 	unsigned int iosize;
 	int (*setup)(comedi_device *);
 	int type;
@@ -103,7 +103,7 @@ static comedi_driver driver_poc=
 	module:		THIS_MODULE,
 	attach:		poc_attach,
 	detach:		poc_detach,
-	board_name:	(const char**)boards,
+	board_name:	&boards[0].name,
 	num_names:	n_boards,
 	offset:		sizeof(boards[0]),
 };

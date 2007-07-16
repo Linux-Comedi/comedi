@@ -265,7 +265,7 @@ static comedi_lrange rtd_ao_range = { 4, {
   Board descriptions
  */
 typedef struct rtdBoard_struct{
-    char	*name;			/* must be first */
+    const char	*name;			/* must be first */
     int		device_id;
     int		aiChans;
     int		aiBits;
@@ -713,7 +713,7 @@ static comedi_driver rtd520Driver={
     module:		THIS_MODULE,
     attach:		rtd_attach,
     detach:		rtd_detach,
-    board_name:		(const char**)rtd520Boards,
+    board_name:		&rtd520Boards[0].name,
     offset:		sizeof(rtdBoard),
     num_names:		sizeof(rtd520Boards) / sizeof(rtdBoard),
 };

@@ -521,8 +521,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	//mite_dump_regs(mite);
 	if(m_status & CHSR_INT){
 		if(m_status & CHSR_LINKC){
-			int retval;
-
 			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->di_mite_chan->channel));
 			mite_sync_input_dma(devpriv->di_mite_chan, s->async);
 			/* XXX need to byteswap */

@@ -59,7 +59,7 @@ zero volts).
 
 /* Board descriptions */
 typedef struct waveform_board_struct{
-	char *name;
+	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
@@ -100,7 +100,7 @@ static comedi_driver driver_waveform={
 	module:         THIS_MODULE,
 	attach:         waveform_attach,
 	detach:         waveform_detach,
-	board_name:     (const char**)waveform_boards,
+	board_name:     &waveform_boards[0].name,
 	offset:         sizeof(waveform_board),
 	num_names:      sizeof(waveform_boards) / sizeof(waveform_board),
 };
