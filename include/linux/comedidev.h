@@ -304,6 +304,30 @@ static inline comedi_subdevice * comedi_get_subdevice_by_minor(unsigned minor)
 	return dev->subdevices + subdevice_index;
 }
 
+static inline comedi_subdevice* comedi_get_read_subdevice(comedi_device *dev, unsigned minor)
+{
+	comedi_subdevice *read_subdev = comedi_get_subdevice_by_minor(minor);
+	if(read_subdev == NULL)
+	{
+		read_subdev = dev->read_subdev;
+	}
+	if(read_subdev == NULL || read_subdev->async == NULL || (read_subdev->subdev_flags & SDF_CMD_READ) == 0)
+		return NULL;
+	return read_subdev;
+}
+
+static inline comedi_subdevice* comedi_get_write_subdevice(comedi_device *dev, unsigned minor)
+{
+	comedi_subdevice *write_subdev = comedi_get_subdevice_by_minor(minor);
+	if(write_subdev == NULL)
+	{
+		write_subdev = dev->write_subdev;
+	}
+	if(write_subdev == NULL || write_subdev->async == NULL || (write_subdev->subdev_flags & SDF_CMD_WRITE) == 0)
+		return NULL;
+	return write_subdev;
+}
+
 static inline unsigned comedi_construct_minor_for_subdevice(comedi_device *dev, unsigned subdevice_index)
 {
 	unsigned minor = 0;

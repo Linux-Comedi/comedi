@@ -202,18 +202,21 @@ typedef unsigned short sampl_t;
 
 /* subdevice types */
 
-#define COMEDI_SUBD_UNUSED              0	/* unused */
-#define COMEDI_SUBD_AI                  1	/* analog input */
-#define COMEDI_SUBD_AO                  2	/* analog output */
-#define COMEDI_SUBD_DI                  3	/* digital input */
-#define COMEDI_SUBD_DO                  4	/* digital output */
-#define COMEDI_SUBD_DIO                 5	/* digital input/output */
-#define COMEDI_SUBD_COUNTER             6	/* counter */
-#define COMEDI_SUBD_TIMER               7	/* timer */
-#define COMEDI_SUBD_MEMORY              8	/* memory, EEPROM, DPRAM */
-#define COMEDI_SUBD_CALIB               9	/* calibration DACs */
-#define COMEDI_SUBD_PROC                10	/* processor, DSP */
-#define COMEDI_SUBD_SERIAL              11	/* serial IO */
+enum comedi_subdevice_type
+{
+	COMEDI_SUBD_UNUSED,	/* unused by driver */
+	COMEDI_SUBD_AI,	/* analog input */
+	COMEDI_SUBD_AO,	/* analog output */
+	COMEDI_SUBD_DI,	/* digital input */
+	COMEDI_SUBD_DO,	/* digital output */
+	COMEDI_SUBD_DIO,	/* digital input/output */
+	COMEDI_SUBD_COUNTER,	/* counter */
+	COMEDI_SUBD_TIMER,	/* timer */
+	COMEDI_SUBD_MEMORY,	/* memory, EEPROM, DPRAM */
+	COMEDI_SUBD_CALIB,	/* calibration DACs */
+	COMEDI_SUBD_PROC,	/* processor, DSP */
+	COMEDI_SUBD_SERIAL	/* serial IO */
+};
 
 /* configuration instructions */
 

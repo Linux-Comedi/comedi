@@ -265,6 +265,8 @@ static int postconfig(comedi_device *dev)
 			unsigned minor;
 			dev_t devt;
 
+			BUG_ON((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0);
+
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{
