@@ -54,7 +54,7 @@
 struct comedi_irq_struct {
 	int rt;
 	int irq;
-	irqreturn_t (*handler)(int irq,void *dev_id,struct pt_regs *regs);
+	irqreturn_t (*handler)(int irq,void *dev_id PT_REGS_ARG);
 	unsigned long flags;
 	const char *device;
 	comedi_device *dev_id;
@@ -65,7 +65,8 @@ static int comedi_rt_release_irq(struct comedi_irq_struct *it);
 
 static struct comedi_irq_struct *comedi_irqs[NR_IRQS];
 
-int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *,struct pt_regs *),
+int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *
+			PT_REGS_ARG),
 		unsigned long flags,const char *device,comedi_device *dev_id)
 {
 	struct comedi_irq_struct *it;
@@ -194,7 +195,7 @@ static void handle_void_irq(int irq)
 		rt_printk("comedi: null irq struct?\n");
 		return;
 	}
-	it->handler(irq, it->dev_id, NULL);
+	it->handler(irq, it->dev_id PT_REGS_NULL);
 	rt_enable_irq(irq);	//needed by rtai-adeos, seems like it shouldn't hurt earlier versions
 }
 
@@ -312,7 +313,7 @@ static void fusion_handle_irq(unsigned int irq, void *cookie)
 {
 	struct comedi_irq_struct *it = cookie;
 
-	it->handler(irq, it->dev_id, NULL);
+	it->handler(irq, it->dev_id PT_REGS_NULL);
 	rthal_irq_enable(irq);
 }
 
@@ -345,13 +346,13 @@ void comedi_rt_cleanup(void)
 /* RTLinux section */
 #ifdef CONFIG_COMEDI_RTL
 
-static unsigned int handle_rtl_irq(unsigned int irq,struct pt_regs *regs)
+static unsigned int handle_rtl_irq(unsigned int irq PT_REGS_ARG)
 {
 	struct comedi_irq_struct *it;
 
 	it = comedi_irqs[irq];
 	if( it == NULL ) return 0;
-	it->handler( irq, it->dev_id, regs );
+	it->handler( irq, it->dev_id PT_REGS_NULL );
 	rtl_hard_enable_irq(irq);
 	return 0;
 }
