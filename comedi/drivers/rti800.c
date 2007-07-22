@@ -159,6 +159,7 @@ typedef struct {
 	} dac0_coding, dac1_coding;
 	comedi_lrange * ao_range_type_list[2];
 	lsampl_t ao_readback[2];
+	int muxgain_bits;
 } rti800_private;
 
 #define devpriv ((rti800_private *)dev->private)
@@ -171,7 +172,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 }
 
 // settling delay times in usec for different gains
-//static int gaindelay[]={10,20,40,80};
+static int gaindelay[]={10,20,40,80};
 
 static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
@@ -180,18 +181,21 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	int status;
 	int chan = CR_CHAN(insn->chanspec);
 	int gain = CR_RANGE(insn->chanspec);
-
+	unsigned muxgain_bits;
+	
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0,dev->iobase+RTI800_CLRFLAGS);
 
-	outb(chan | (gain << 5), dev->iobase + RTI800_MUXGAIN);
-
-	/* without a delay here, the RTI_OVERRUN bit
-	 * gets set, and you will have an error.  Not
-	 * sure if this is a long enough delay though.
-	 * comedi_udelay( gaindelay[ gain ] ) definitely
-	 * works */
-	comedi_udelay(1);
+	muxgain_bits = chan | (gain << 5);
+	if(muxgain_bits != devpriv->muxgain_bits)
+	{
+		devpriv->muxgain_bits = muxgain_bits;
+		outb(devpriv->muxgain_bits, dev->iobase + RTI800_MUXGAIN);
+		/* without a delay here, the RTI_OVERRUN bit
+		 * gets set, and you will have an error. */
+		if(insn->n > 0)
+			comedi_udelay(gaindelay[gain]);
+	}
 
 	for(i=0;i<insn->n;i++){
 		outb(0, dev->iobase + RTI800_CONVERT);
@@ -347,7 +351,8 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->dac0_coding = it->options[6];
 	devpriv->dac1_range = it->options[7];
 	devpriv->dac1_coding = it->options[8];
-
+	devpriv->muxgain_bits = -1;
+	
 	s=dev->subdevices+0;
 	/* ai subdevice */
 	s->type=COMEDI_SUBD_AI;
