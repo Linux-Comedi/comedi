@@ -180,7 +180,7 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	int i,t;
 	int status;
 	int chan = CR_CHAN(insn->chanspec);
-	int gain = CR_RANGE(insn->chanspec);
+	unsigned gain = CR_RANGE(insn->chanspec);
 	unsigned muxgain_bits;
 	
 	inb(dev->iobase + RTI800_ADCHI);
@@ -194,7 +194,10 @@ static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 		/* without a delay here, the RTI_OVERRUN bit
 		 * gets set, and you will have an error. */
 		if(insn->n > 0)
+		{
+			BUG_ON(gain >= sizeof(gaindelay) / sizeof(gaindelay[0]));
 			comedi_udelay(gaindelay[gain]);
+		}
 	}
 
 	for(i=0;i<insn->n;i++){
