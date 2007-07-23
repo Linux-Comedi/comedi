@@ -95,6 +95,7 @@ obj-m += pcl812.o
 obj-m += pcl816.o
 obj-m += pcl818.o
 obj-m += pcmuio.o
+obj-m += pcmmio.o
 obj-m += comedi_parport.o
 obj-m += rtd520.o
 obj-m += rti800.o
