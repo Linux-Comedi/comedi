@@ -322,10 +322,10 @@ static int usbduxfast_ai_cancel(comedi_device *dev,
 
 // analogue IN
 // interrupt service routine
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0) || LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 static void usbduxfastsub_ai_Irq(struct urb *urb)
 #else
-static void usbduxfastsub_ai_Irq(struct urb *urb, struct pt_regs *regs)
+static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 #endif
 {
 	int n,err;
