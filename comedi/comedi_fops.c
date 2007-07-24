@@ -38,7 +38,6 @@
 #include <linux/kmod.h>
 #include <linux/poll.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/device.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
