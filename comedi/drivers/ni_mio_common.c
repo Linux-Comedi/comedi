@@ -284,8 +284,8 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
 static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned period_ns);
-static void ack_a_interrupt(comedi_device *dev, unsigned short a_status);
-static void ack_b_interrupt(comedi_device *dev, unsigned short b_status);
+static void ack_a_interrupt(comedi_device *dev, unsigned short a_status, unsigned short g_status);
+static void ack_b_interrupt(comedi_device *dev, unsigned short b_status, unsigned short g_status);
 
 enum aimodes
 {
@@ -505,6 +505,36 @@ void ni_release_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 #endif	// PCIDMA
 }
 
+// e-series boards use the second irq signals to generate dma requests for their counters
+static void ni_e_series_enable_second_irq(comedi_device *dev, unsigned gpct_index, short enable)
+{
+	if(boardtype.reg_type & ni_reg_m_series_mask) return;
+	switch(gpct_index)
+	{
+	case 0:
+		if(enable)
+		{
+			devpriv->stc_writew(dev, G0_Gate_Second_Irq_Enable, Second_IRQ_A_Enable_Register);
+		}else
+		{
+			devpriv->stc_writew(dev, 0, Second_IRQ_A_Enable_Register);
+		}
+		break;
+	case 1:
+		if(enable)
+		{
+			devpriv->stc_writew(dev, G1_Gate_Second_Irq_Enable, Second_IRQ_B_Enable_Register);
+		}else
+		{
+			devpriv->stc_writew(dev, 0, Second_IRQ_B_Enable_Register);
+		}
+		break;
+	default:
+		BUG();
+		break;
+	}
+}
+
 static void ni_clear_ai_fifo(comedi_device *dev){
 	if(boardtype.reg_type == ni_reg_6143){
 		// Flush the 6143 data FIFO
@@ -628,6 +658,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
 	unsigned int ao_mite_status = 0;
+	unsigned g_status;
 	unsigned long flags;
 	struct mite_struct *mite = devpriv->mite;
 
@@ -649,8 +680,9 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 			ao_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ao_mite_chan->channel));
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
-	ack_a_interrupt(dev, a_status);
-	ack_b_interrupt(dev, b_status);
+	g_status = devpriv->stc_readw(dev, G_Status_Register);
+	ack_a_interrupt(dev, a_status, g_status);
+	ack_b_interrupt(dev, b_status, g_status);
 	if((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
 	if((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
@@ -826,7 +858,33 @@ static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_ind
 		ni_event(dev, s, s->async->events);
 }
 
-static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
+	/* During buffered input counter operation for e-series, the gate interrupt is acked
+	automatically by the dma controller, due to the Gi_Read/Write_Acknowledges_IRQ bits
+	in the input select register.  */
+int should_ack_gate(comedi_device *dev, unsigned counter_index)
+{
+	unsigned long flags;
+	int retval = 0;
+
+	if(boardtype.reg_type & ni_reg_m_series_mask) return 1;
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	{
+		struct mite_channel *mite_chan = devpriv->counter_dev->counters[counter_index].mite_chan;
+
+		if(mite_chan == NULL ||
+			mite_chan->dir != COMEDI_INPUT ||
+			(mite_get_status(devpriv->counter_dev->counters[counter_index].mite_chan) & CHSR_DONE))
+		{
+			retval = 1;
+		}
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
+	return retval;
+}
+
+static void ack_a_interrupt(comedi_device *dev, unsigned short a_status, unsigned short g_status)
 {
 	unsigned short ack = 0;
 
@@ -853,7 +911,12 @@ static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
 	}
 	if(a_status & G0_Gate_Interrupt_St)
 	{
-		ack |= G0_Gate_Interrupt_Ack;
+		if(should_ack_gate(dev, 0))
+			ack |= G0_Gate_Interrupt_Ack;
+	}
+	if(g_status & G0_Gate_Error_St)
+	{
+		ack |= G0_Gate_Error_Confirm;
 	}
 	if(ack) devpriv->stc_writew(dev, ack, Interrupt_A_Ack_Register);
 }
@@ -955,7 +1018,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 #endif
 }
 
-static void ack_b_interrupt(comedi_device *dev, unsigned short b_status)
+static void ack_b_interrupt(comedi_device *dev, unsigned short b_status, unsigned short g_status)
 {
 	unsigned short ack = 0;
 	if(b_status & AO_BC_TC_St)
@@ -988,7 +1051,12 @@ static void ack_b_interrupt(comedi_device *dev, unsigned short b_status)
 	}
 	if(b_status & G1_Gate_Interrupt_St)
 	{
-		ack |= G1_Gate_Interrupt_Ack;
+		if(should_ack_gate(dev, 1))
+			ack |= G1_Gate_Interrupt_Ack;
+	}
+	if(g_status & G1_Gate_Error_St)
+	{
+		ack |= G1_Gate_Error_Confirm;
 	}
 	if(b_status & G1_TC_St)
 	{
@@ -4424,6 +4492,46 @@ static inline unsigned Gi_Gate_Interrupt_Ack_Bit(unsigned counter_index)
 	return bit;
 }
 
+static inline unsigned Gi_Gate_Error_Confirm_Bit(unsigned counter_index)
+{
+	unsigned bit;
+
+	switch(counter_index)
+	{
+	case 0:
+		bit = G0_Gate_Error_Confirm;
+		break;
+	case 1:
+		bit = G1_Gate_Error_Confirm;
+		break;
+	default:
+		BUG();
+		return 0;
+		break;
+	}
+	return bit;
+}
+
+static inline unsigned Gi_TC_Error_Confirm_Bit(unsigned counter_index)
+{
+	unsigned bit;
+
+	switch(counter_index)
+	{
+	case 0:
+		bit = G0_TC_Error_Confirm;
+		break;
+	case 1:
+		bit = G1_TC_Error_Confirm;
+		break;
+	default:
+		BUG();
+		return 0;
+		break;
+	}
+	return bit;
+}
+
 static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	int retval;
@@ -4438,13 +4546,16 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 		comedi_error(dev, "no dma channel available for use by counter");
 		return retval;
 	}
+	devpriv->stc_writew(dev, Gi_Gate_Interrupt_Ack_Bit(counter->counter_index) |
+		Gi_Gate_Error_Confirm_Bit(counter->counter_index) |
+		Gi_TC_Error_Confirm_Bit(counter->counter_index),
+		Gi_Interrupt_Ack_Register(counter->counter_index));
 	if(cmd->flags & TRIG_WAKE_EOS)
 	{
-		devpriv->stc_writew(dev, Gi_Gate_Interrupt_Ack_Bit(counter->counter_index),
-			Gi_Interrupt_Ack_Register(counter->counter_index));
 		ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
 			Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 1);
 	}
+	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	retval = ni_tio_cmd(counter, s->async);
@@ -4471,6 +4582,8 @@ static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	retval = ni_tio_cancel(counter);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
+	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
 	ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
 		Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 0);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);

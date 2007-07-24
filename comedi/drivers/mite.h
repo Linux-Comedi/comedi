@@ -427,5 +427,12 @@ static inline void mite_dma_reset(struct mite_channel *mite_chan)
 	writel(CHOR_DMARESET | CHOR_FRESET, mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 };
 
+static inline unsigned mite_get_status(struct mite_channel *mite_chan)
+{
+	struct mite_struct *mite = mite_chan->mite;
+
+	return readl(mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
+}
+
 #endif
 
