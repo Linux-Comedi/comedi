@@ -7,14 +7,14 @@ if CONFIG_KBUILD
 module_PROGRAMS =
 #ignore errors from kernel's make modules in all-local, to avoid failure of make install
 #on nfs filesystem with root_squash
-all-local: comedi_kbuild.inc
+all-local:
 	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" V=1 modules
-install-data-local: comedi_kbuild.inc
+install-data-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR="comedi" \
 		V=1 modules_install
-clean-local: comedi_kbuild.inc
+clean-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" V=1 clean
 else
@@ -52,16 +52,3 @@ comedi_ko_LINK = $(top_builddir)/modtool --link -o $@
 clean-modulePROGRAMS:
 	-test -z "$(module_PROGRAMS)" || rm -f $(module_PROGRAMS)
 	-rm -rf .mods
-
-comedi_kbuild.inc: Makefile
-	echo > $@
-if CONFIG_COMEDI_RT
-	echo CONFIG_COMEDI_RT=y >> $@
-	echo CONFIG_COMEDI_RT_MODULES=m >> $@
-endif
-if CONFIG_PCMCIA
-	echo CONFIG_COMEDI_PCMCIA_MODULES=m >> $@
-endif
-if CONFIG_USB
-	echo CONFIG_COMEDI_USB_MODULES=m >> $@
-endif
