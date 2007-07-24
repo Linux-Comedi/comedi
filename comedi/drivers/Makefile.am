@@ -42,6 +42,7 @@ EXTRA_DIST = \
  das08.h \
  dt9812.h \
  icp_multi.h \
+ jr3_pci.h \
  mite.h \
  me4000.h \
  ni_labpc.h \
