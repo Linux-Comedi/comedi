@@ -26,7 +26,8 @@ endif
 
 EXTRA_DIST = \
  Kbuild \
- rt_pend_tq.h
+ rt_pend_tq.h \
+ comedi_fops.h
 
 if CONFIG_COMEDI_RT
 RT_SOURCES = rt_pend_tq.c rt.c
