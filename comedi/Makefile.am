@@ -1,7 +1,7 @@
 
 SUBDIRS = . kcomedilib drivers
 
-CLEANFILES = Modules.symvers
+CLEANFILES = Modules.symvers Module.symvers
 
 if CONFIG_KBUILD
 module_PROGRAMS =
