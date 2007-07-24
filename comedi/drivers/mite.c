@@ -91,6 +91,7 @@ void mite_init(void)
 			{
 				mite->channels[i].mite = mite;
 				mite->channels[i].channel = i;
+				mite->channels[i].done = 1;
 			}
 			mite->next=mite_devices;
 			mite_devices=mite;
@@ -284,6 +285,7 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	int chor;
+	unsigned long flags;
 
 	MDPRINTK("mite_dma_arm ch%i\n", channel);
 	/* memory barrier is intended to insure any twiddling with the buffer
@@ -291,7 +293,11 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	smp_mb();
 	/* arm */
 	chor = CHOR_START;
+	comedi_spin_lock_irqsave(&mite->lock, flags);
+	mite_chan->done = 0;
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&mite->lock, flags);
 // 	mite_dma_tcr(mite, channel);
 }
 
@@ -571,6 +577,36 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async *async)
 	return 0;
 }
 
+unsigned mite_get_status(struct mite_channel *mite_chan)
+{
+	struct mite_struct *mite = mite_chan->mite;
+	unsigned status;
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&mite->lock, flags);
+	status = readl(mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
+	if(status & CHSR_DONE)
+	{
+		mite_chan->done = 1;
+		writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
+	}
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	return status;
+}
+
+int mite_done(const struct mite_channel *mite_chan)
+{
+	struct mite_struct *mite = mite_chan->mite;
+	unsigned long flags;
+	int done;
+
+	comedi_spin_lock_irqsave(&mite->lock, flags);
+	done = mite_chan->done;
+	comedi_spin_unlock_irqrestore(&mite->lock, flags);
+	return done;
+}
+
 #ifdef DEBUG_MITE
 
 static void mite_decode(char **bit_str, unsigned int bits);
@@ -737,6 +773,8 @@ EXPORT_SYMBOL(mite_bytes_written_to_memory_ub);
 EXPORT_SYMBOL(mite_bytes_read_from_memory_lb);
 EXPORT_SYMBOL(mite_bytes_read_from_memory_ub);
 EXPORT_SYMBOL(mite_bytes_in_transit);
+EXPORT_SYMBOL(mite_get_status);
+EXPORT_SYMBOL(mite_done);
 #ifdef DEBUG_MITE
 EXPORT_SYMBOL(mite_decode);
 EXPORT_SYMBOL(mite_dump_regs);

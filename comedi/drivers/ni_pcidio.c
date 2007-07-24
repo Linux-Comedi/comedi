@@ -513,7 +513,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
 	if(devpriv->di_mite_chan)
-		m_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->di_mite_chan->channel));
+		m_status = mite_get_status(devpriv->di_mite_chan);
 #ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
 #endif
@@ -524,9 +524,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 			writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->di_mite_chan->channel));
 			mite_sync_input_dma(devpriv->di_mite_chan, s->async);
 			/* XXX need to byteswap */
-		}
-		if(m_status & CHSR_DONE){
-			writel(CHOR_CLRDONE, mite->mite_io_addr + MITE_CHOR(devpriv->di_mite_chan->channel));
 		}
 		if(m_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_DRDY | CHSR_DRQ1 | CHSR_MRDY)){
 			DPRINTK("unknown mite interrupt, disabling IRQ\n");

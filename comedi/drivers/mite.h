@@ -76,6 +76,7 @@ struct mite_channel{
 	struct mite_struct *mite;
 	unsigned channel;
 	int dir;
+	int done;
 	struct mite_dma_descriptor_ring *ring;
 };
 
@@ -131,6 +132,8 @@ u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan);
+unsigned mite_get_status(struct mite_channel *mite_chan);
+int mite_done(const struct mite_channel *mite_chan);
 
 #if 0
 unsigned long mite_ll_from_kvmem(struct mite_struct *mite,comedi_async *async,int len);
@@ -426,13 +429,6 @@ static inline void mite_dma_reset(struct mite_channel *mite_chan)
 {
 	writel(CHOR_DMARESET | CHOR_FRESET, mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 };
-
-static inline unsigned mite_get_status(struct mite_channel *mite_chan)
-{
-	struct mite_struct *mite = mite_chan->mite;
-
-	return readl(mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
-}
 
 #endif
 

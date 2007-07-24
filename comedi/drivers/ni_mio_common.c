@@ -675,9 +675,9 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 
 		comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
 		if(devpriv->ai_mite_chan)
-			ai_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ai_mite_chan->channel));
+			ai_mite_status = mite_get_status(devpriv->ai_mite_chan);
 		if(devpriv->ao_mite_chan)
-			ao_mite_status = readl(mite->mite_io_addr + MITE_CHSR(devpriv->ao_mite_chan->channel));
+			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
 	g_status = devpriv->stc_readw(dev, G_Status_Register);
@@ -842,14 +842,10 @@ static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_ind
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		return;
 	}
-	gpct_mite_status = readl(mite_chan->mite->mite_io_addr + MITE_CHSR(mite_chan->channel));
+	gpct_mite_status = mite_get_status(mite_chan);
 	if(gpct_mite_status & CHSR_LINKC)
 	{
 		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
-	}
-	if(gpct_mite_status & CHSR_DONE)
-	{
-		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 	}
 	mite_sync_input_dma(mite_chan, s->async);
 
@@ -874,7 +870,7 @@ int should_ack_gate(comedi_device *dev, unsigned counter_index)
 
 		if(mite_chan == NULL ||
 			mite_chan->dir != COMEDI_INPUT ||
-			(mite_get_status(devpriv->counter_dev->counters[counter_index].mite_chan) & CHSR_DONE))
+			(mite_done(devpriv->counter_dev->counters[counter_index].mite_chan)))
 		{
 			retval = 1;
 		}
@@ -935,14 +931,10 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 	ni_mio_print_status_a(status);
 #endif
 #ifdef PCIDMA
-	/* Currently, mite.c requires us to handle LINKC and DONE */
+	/* Currently, mite.c requires us to handle LINKC */
 	if(ai_mite_status & CHSR_LINKC){
 		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ai_mite_chan->channel));
 		ni_sync_ai_dma(dev);
-	}
-
-	if(ai_mite_status & CHSR_DONE){
-		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ai_mite_chan->channel));
 	}
 
 	if(ai_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
@@ -1077,13 +1069,9 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 #endif
 
 #ifdef PCIDMA
-	/* Currently, mite.c requires us to handle LINKC and DONE */
+	/* Currently, mite.c requires us to handle LINKC */
 	if(ao_mite_status & CHSR_LINKC){
 		mite_handle_b_linkc(devpriv->mite, dev);
-	}
-
-	if(ao_mite_status & CHSR_DONE){
-		writel(CHOR_CLRDONE, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ao_mite_chan->channel));
 	}
 
 	if(ao_mite_status & ~(CHSR_INT | CHSR_LINKC | CHSR_DONE | CHSR_MRDY | CHSR_DRDY | CHSR_DRQ1 | CHSR_DRQ0 | CHSR_ERROR | CHSR_SABORT | CHSR_XFERR | CHSR_LxERR_mask)){
