@@ -89,6 +89,14 @@ enum ni_gpct_register
 	NITIO_G3_DMA_Status_Reg,
 	NITIO_G0_ABZ_Reg,
 	NITIO_G1_ABZ_Reg,
+	NITIO_G0_Interrupt_Acknowledge_Reg,
+	NITIO_G1_Interrupt_Acknowledge_Reg,
+	NITIO_G2_Interrupt_Acknowledge_Reg,
+	NITIO_G3_Interrupt_Acknowledge_Reg,
+	NITIO_G0_Status_Reg,
+	NITIO_G1_Status_Reg,
+	NITIO_G2_Status_Reg,
+	NITIO_G3_Status_Reg,
 	NITIO_Num_Registers,
 };
 
@@ -108,6 +116,7 @@ struct ni_gpct
 	unsigned chip_index;
 	uint64_t clock_period_ps; /* clock period in picoseconds */
 	struct mite_channel *mite_chan;
+	spinlock_t lock;
 };
 
 struct ni_gpct_device
@@ -139,6 +148,8 @@ extern int ni_tio_winsn(struct ni_gpct *counter,
 extern int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async);
 extern int ni_tio_cmdtest(struct ni_gpct *counter);
 extern int ni_tio_cancel(struct ni_gpct *counter);
+extern void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice *s);
+extern void ni_tio_set_mite_channel(struct ni_gpct *counter, struct mite_channel *mite_chan);
 
 #endif /* _COMEDI_NI_TIO_H */
 

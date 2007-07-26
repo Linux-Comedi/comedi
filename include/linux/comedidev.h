@@ -108,7 +108,8 @@ struct comedi_subdevice_struct{
 
 	void *lock;
 	void *busy;
-	volatile unsigned int runflags;
+	unsigned runflags;
+	spinlock_t runflags_lock;
 
 	int io_bits;
 
@@ -362,10 +363,14 @@ static inline void comedi_proc_cleanup(void) {}
 #endif
 
 /* subdevice runflags */
-#define SRF_USER		0x00000001
-#define SRF_RT			0x00000002
-/* indicates an COMEDI_CB_ERROR event has occurred since the last command was started */
-#define SRF_ERROR		0x00000004
+enum subdevice_runflags
+{
+	SRF_USER = 0x00000001,
+	SRF_RT = 0x00000002,
+	/* indicates an COMEDI_CB_ERROR event has occurred since the last command was started */
+	SRF_ERROR = 0x00000004,
+	SRF_RUNNING = 0x08000000
+};
 
 /*
    various internal comedi functions
@@ -373,6 +378,8 @@ static inline void comedi_proc_cleanup(void) {}
 
 int do_rangeinfo_ioctl(comedi_device *dev,comedi_rangeinfo *arg);
 int check_chanlist(comedi_subdevice *s,int n,unsigned int *chanlist);
+void comedi_set_subdevice_runflags(comedi_subdevice *s, unsigned mask, unsigned bits);
+unsigned comedi_get_subdevice_runflags(comedi_subdevice *s);
 
 /* range stuff */
 
@@ -422,6 +429,7 @@ static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevic
 	{
 		dev->subdevices[i].device = dev;
 		dev->subdevices[i].async_dma_dir = DMA_NONE;
+		spin_lock_init(&dev->subdevices[i].runflags_lock);
 	}
 	return 0;
 }

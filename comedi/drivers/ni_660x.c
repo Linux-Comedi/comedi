@@ -40,9 +40,7 @@ DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
 DAQ 6601/6602 User Manual (NI 322137B-01)
 
 Things to do:
-- Add DMA support (see mite.c and ni_pcidio.c for examples)
-- Add commands (copy from ni_pcidio.c ?)
-- Add interrupts
+- Add commands (see ni_tio.c and ni_mio_common.c)
 */
 
 #include <linux/comedidev.h>
@@ -589,6 +587,30 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 	case NITIO_G3_DMA_Status_Reg:
 		ni_660x_register = G3DMAStatusRegister;
 		break;
+	case NITIO_G0_Interrupt_Acknowledge_Reg:
+		ni_660x_register = G0InterruptAcknowledge;
+		break;
+	case NITIO_G1_Interrupt_Acknowledge_Reg:
+		ni_660x_register = G1InterruptAcknowledge;
+		break;
+	case NITIO_G2_Interrupt_Acknowledge_Reg:
+		ni_660x_register = G2InterruptAcknowledge;
+		break;
+	case NITIO_G3_Interrupt_Acknowledge_Reg:
+		ni_660x_register = G3InterruptAcknowledge;
+		break;
+	case NITIO_G0_Status_Reg:
+		ni_660x_register = G0StatusRegister;
+		break;
+	case NITIO_G1_Status_Reg:
+		ni_660x_register = G0StatusRegister;
+		break;
+	case NITIO_G2_Status_Reg:
+		ni_660x_register = G0StatusRegister;
+		break;
+	case NITIO_G3_Status_Reg:
+		ni_660x_register = G0StatusRegister;
+		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();
@@ -706,8 +728,6 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 
 			devpriv->counter_dev->counters[i].chip_index = i / CTRS_PER_CHIP;
 			devpriv->counter_dev->counters[i].counter_index = i % CTRS_PER_CHIP;
-			devpriv->counter_dev->counters[i].clock_period_ps = 0;
-			devpriv->counter_dev->counters[i].mite_chan = NULL;
 		}else
 		{
 			s->type = COMEDI_SUBD_UNUSED;

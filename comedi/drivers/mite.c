@@ -276,8 +276,14 @@ void mite_release_channel(struct mite_channel *mite_chan)
 
 	// spin lock to prevent races with mite_request_channel
 	comedi_spin_lock_irqsave(&mite->lock, flags);
-	mite->channel_allocated[mite_chan->channel] = 0;
-	mite_chan->ring = NULL;
+	if(mite->channel_allocated[mite_chan->channel])
+	{
+		mite_dma_disarm(mite_chan);
+		mite_dma_reset(mite_chan);
+		mite->channel_allocated[mite_chan->channel] = 0;
+		mite_chan->ring = NULL;
+		mmiowb();
+	}
 	comedi_spin_unlock_irqrestore(&mite->lock, flags);
 }
 

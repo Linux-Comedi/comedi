@@ -269,8 +269,7 @@ static int ni_gpct_insn_config(comedi_device *dev,comedi_subdevice *s,
 static int ni_gpct_cmd(comedi_device *dev,comedi_subdevice *s);
 static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
 static int ni_gpct_cancel(comedi_device *dev,comedi_subdevice *s);
-static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index,
-	unsigned short is_terminal_count);
+static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index);
 
 static int init_cs5529(comedi_device *dev);
 static int cs5529_do_conversion(comedi_device *dev, unsigned short *data);
@@ -284,8 +283,8 @@ static int ni_6143_pwm_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data);
 
 static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned period_ns);
-static void ack_a_interrupt(comedi_device *dev, unsigned short a_status, unsigned short g_status);
-static void ack_b_interrupt(comedi_device *dev, unsigned short b_status, unsigned short g_status);
+static void ack_a_interrupt(comedi_device *dev, unsigned short a_status);
+static void ack_b_interrupt(comedi_device *dev, unsigned short b_status);
 
 enum aimodes
 {
@@ -432,18 +431,20 @@ static int ni_request_ao_mite_channel(comedi_device *dev)
 static int ni_request_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 {
 	unsigned long flags;
+	struct mite_channel *mite_chan;
 
 	BUG_ON(gpct_index >= NUM_GPCT);
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->counter_dev->counters[gpct_index].mite_chan);
-	devpriv->counter_dev->counters[gpct_index].mite_chan = mite_request_channel(devpriv->mite, devpriv->gpct_mite_ring[gpct_index]);
-	if(devpriv->counter_dev->counters[gpct_index].mite_chan == NULL)
+	mite_chan = mite_request_channel(devpriv->mite, devpriv->gpct_mite_ring[gpct_index]);
+	if(mite_chan == NULL)
 	{
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		comedi_error(dev, "failed to reserve mite dma channel for counter.");
 		return -EBUSY;
 	}
-	ni_set_gpct_dma_channel(dev, gpct_index, devpriv->counter_dev->counters[gpct_index].mite_chan->channel);
+	ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index], mite_chan);
+	ni_set_gpct_dma_channel(dev, gpct_index, mite_chan->channel);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
@@ -459,8 +460,6 @@ static void ni_release_ai_mite_channel(comedi_device *dev)
 	if(devpriv->ai_mite_chan)
 	{
 		ni_set_ai_dma_channel(dev, -1);
-		mite_dma_disarm(devpriv->ai_mite_chan);
-		mite_dma_reset(devpriv->ai_mite_chan);
 		mite_release_channel(devpriv->ai_mite_chan);
 		devpriv->ai_mite_chan = NULL;
 	}
@@ -477,8 +476,6 @@ static void ni_release_ao_mite_channel(comedi_device *dev)
 	if(devpriv->ao_mite_chan)
 	{
 		ni_set_ao_dma_channel(dev, -1);
-		mite_dma_disarm(devpriv->ao_mite_chan);
-		mite_dma_reset(devpriv->ao_mite_chan);
 		mite_release_channel(devpriv->ao_mite_chan);
 		devpriv->ao_mite_chan = NULL;
 	}
@@ -496,10 +493,8 @@ void ni_release_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 	if(devpriv->counter_dev->counters[gpct_index].mite_chan)
 	{
 		ni_set_gpct_dma_channel(dev, gpct_index, -1);
-		mite_dma_disarm(devpriv->counter_dev->counters[gpct_index].mite_chan);
-		mite_dma_reset(devpriv->counter_dev->counters[gpct_index].mite_chan);
 		mite_release_channel(devpriv->counter_dev->counters[gpct_index].mite_chan);
-		devpriv->counter_dev->counters[gpct_index].mite_chan = NULL;
+		ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index], NULL);
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif	// PCIDMA
@@ -658,7 +653,6 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned short b_status;
 	unsigned int ai_mite_status = 0;
 	unsigned int ao_mite_status = 0;
-	unsigned g_status;
 	unsigned long flags;
 	struct mite_struct *mite = devpriv->mite;
 
@@ -675,20 +669,27 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 
 		comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags_too);
 		if(devpriv->ai_mite_chan)
+		{
 			ai_mite_status = mite_get_status(devpriv->ai_mite_chan);
+			if(ai_mite_status & CHSR_LINKC)
+				writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ai_mite_chan->channel));
+		}
 		if(devpriv->ao_mite_chan)
+		{
 			ao_mite_status = mite_get_status(devpriv->ao_mite_chan);
+			if(ao_mite_status & CHSR_LINKC)
+				writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->ao_mite_chan->channel));
+		}
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags_too);
 	}
-	g_status = devpriv->stc_readw(dev, G_Status_Register);
-	ack_a_interrupt(dev, a_status, g_status);
-	ack_b_interrupt(dev, b_status, g_status);
+	ack_a_interrupt(dev, a_status);
+	ack_b_interrupt(dev, b_status);
 	if((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
 	if((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
 		handle_b_interrupt(dev, b_status, ao_mite_status);
-	handle_gpct_interrupt(dev, 0, (a_status & G0_TC_St));
-	handle_gpct_interrupt(dev, 1, (b_status & G1_TC_St));
+	handle_gpct_interrupt(dev, 0);
+	handle_gpct_interrupt(dev, 1);
 
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
@@ -709,26 +710,24 @@ static void ni_sync_ai_dma(comedi_device *dev)
 static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
+	unsigned long flags;
 
-	if(devpriv->ao_mite_chan == NULL) return;
-	writel(CHOR_CLRLC, mite->mite_io_addr + MITE_CHOR(devpriv->ao_mite_chan->channel));
-
-	if(mite_sync_output_dma(devpriv->ao_mite_chan, s->async) < 0)
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->ao_mite_chan)
 	{
-		s->async->events |= COMEDI_CB_ERROR;
-		return;
+		if(mite_sync_output_dma(devpriv->ao_mite_chan, s->async) < 0)
+		{
+			s->async->events |= COMEDI_CB_ERROR;
+			return;
+		}
 	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
-// #define DEBUG_DMA_TIMING
 static int ni_ao_wait_for_dma_load( comedi_device *dev )
 {
 	static const int timeout = 10000;
 	int i;
-#ifdef DEBUG_DMA_TIMING
-	struct timeval start;
-	do_gettimeofday(&start);
-#endif
 	for(i = 0; i < timeout; i++)
 	{
 		unsigned short b_status;
@@ -740,23 +739,6 @@ static int ni_ao_wait_for_dma_load( comedi_device *dev )
 		 to slow the dma transfer down */
 		comedi_udelay(10);
 	}
-#ifdef DEBUG_DMA_TIMING
-	rt_printk("looped %i times waiting for ao fifo load.\n", i);
-	struct timeval now;
-	do_gettimeofday(&now);
-	unsigned elapsed_usec = 1000000 * (now.tv_sec - start.tv_sec) + now.tv_usec - start.tv_usec;
-	rt_printk("total elapsed usec=%i\n", elapsed_usec);
-	do_gettimeofday(&start);
-	unsigned b_status;
-	for(i = 0; i < 100; ++i)
-	{
-// 		devpriv->stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
-		b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
-	}
-	do_gettimeofday(&now);
-	elapsed_usec = 1000000 * (now.tv_sec - start.tv_sec) + now.tv_usec - start.tv_usec;
-	rt_printk("usec to do 100 word xfers=%i\n", elapsed_usec);
-#endif
 	if( i == timeout )
 	{
 		comedi_error(dev, "timed out waiting for dma load");
@@ -828,59 +810,16 @@ static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
 	comedi_event(dev, s, events);
 }
 
-static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index, unsigned short is_terminal_count)
+static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index)
 {
-	unsigned gpct_mite_status;
-	unsigned long flags;
-	struct mite_channel *mite_chan;
 	comedi_subdevice *s = dev->subdevices + NI_GPCT_SUBDEV(counter_index);
 
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	mite_chan = devpriv->counter_dev->counters[counter_index].mite_chan;
-	if(mite_chan == NULL)
-	{
-		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-		return;
-	}
-	gpct_mite_status = mite_get_status(mite_chan);
-	if(gpct_mite_status & CHSR_LINKC)
-	{
-		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
-	}
-	mite_sync_input_dma(mite_chan, s->async);
-
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index], s);
 	if(s->async->events)
 		ni_event(dev, s, s->async->events);
 }
 
-	/* During buffered input counter operation for e-series, the gate interrupt is acked
-	automatically by the dma controller, due to the Gi_Read/Write_Acknowledges_IRQ bits
-	in the input select register.  */
-int should_ack_gate(comedi_device *dev, unsigned counter_index)
-{
-	unsigned long flags;
-	int retval = 0;
-
-	if(boardtype.reg_type & ni_reg_m_series_mask) return 1;
-
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	{
-		struct mite_channel *mite_chan = devpriv->counter_dev->counters[counter_index].mite_chan;
-
-		if(mite_chan == NULL ||
-			mite_chan->dir != COMEDI_INPUT ||
-			(mite_done(devpriv->counter_dev->counters[counter_index].mite_chan)))
-		{
-			retval = 1;
-		}
-	}
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-
-	return retval;
-}
-
-static void ack_a_interrupt(comedi_device *dev, unsigned short a_status, unsigned short g_status)
+static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
 {
 	unsigned short ack = 0;
 
@@ -901,19 +840,6 @@ static void ack_a_interrupt(comedi_device *dev, unsigned short a_status, unsigne
 		/* not sure why we used to ack the START here also, instead of doing it independently. Frank Hess 2007-07-06 */
 		ack |= AI_STOP_Interrupt_Ack /*| AI_START_Interrupt_Ack*/;
 	}
-	if(a_status & G0_TC_St)
-	{
-		ack |= G0_TC_Interrupt_Ack;
-	}
-	if(a_status & G0_Gate_Interrupt_St)
-	{
-		if(should_ack_gate(dev, 0))
-			ack |= G0_Gate_Interrupt_Ack;
-	}
-	if(g_status & G0_Gate_Error_St)
-	{
-		ack |= G0_Gate_Error_Confirm;
-	}
 	if(ack) devpriv->stc_writew(dev, ack, Interrupt_A_Ack_Register);
 }
 
@@ -931,9 +857,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 	ni_mio_print_status_a(status);
 #endif
 #ifdef PCIDMA
-	/* Currently, mite.c requires us to handle LINKC */
 	if(ai_mite_status & CHSR_LINKC){
-		writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->ai_mite_chan->channel));
 		ni_sync_ai_dma(dev);
 	}
 
@@ -951,7 +875,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 			rt_printk("ni_mio_common: a_status=0xffff.  Card removed?\n");
 			/* we probably aren't even running a command now,
 			 * so it's a good idea to be careful. */
-			if(s->subdev_flags&SDF_RUNNING){
+			if(comedi_get_subdevice_runflags(s) & SRF_RUNNING){
 				s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 				ni_event(dev, s, s->async->events);
 			}
@@ -1010,7 +934,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 #endif
 }
 
-static void ack_b_interrupt(comedi_device *dev, unsigned short b_status, unsigned short g_status)
+static void ack_b_interrupt(comedi_device *dev, unsigned short b_status)
 {
 	unsigned short ack = 0;
 	if(b_status & AO_BC_TC_St)
@@ -1040,19 +964,6 @@ static void ack_b_interrupt(comedi_device *dev, unsigned short b_status, unsigne
 	if(b_status & AO_UPDATE_St)
 	{
 		ack |= AO_UPDATE_Interrupt_Ack;
-	}
-	if(b_status & G1_Gate_Interrupt_St)
-	{
-		if(should_ack_gate(dev, 1))
-			ack |= G1_Gate_Interrupt_Ack;
-	}
-	if(g_status & G1_Gate_Error_St)
-	{
-		ack |= G1_Gate_Error_Confirm;
-	}
-	if(b_status & G1_TC_St)
-	{
-		ack |= G1_TC_Interrupt_Ack;
 	}
 	if(ack) devpriv->stc_writew(dev, ack, Interrupt_B_Ack_Register);
 }
@@ -1330,26 +1241,32 @@ static int ni_ai_drain_dma(comedi_device *dev )
 {
 	int i;
 	static const int timeout = 10000;
+	unsigned long flags;
+	int retval = 0;
 
-	if(devpriv->ai_mite_chan == NULL) return 0;
-	for( i = 0; i < timeout; i++ )
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->ai_mite_chan)
 	{
-		if((devpriv->stc_readw(dev, AI_Status_1_Register) & AI_FIFO_Empty_St) &&
-			mite_bytes_in_transit(devpriv->ai_mite_chan) == 0)
-			break;
-		comedi_udelay(2);
+		for(i = 0; i < timeout; i++)
+		{
+			if((devpriv->stc_readw(dev, AI_Status_1_Register) & AI_FIFO_Empty_St) &&
+				mite_bytes_in_transit(devpriv->ai_mite_chan) == 0)
+				break;
+			comedi_udelay(5);
+		}
+		if(i == timeout)
+		{
+			rt_printk("ni_mio_common: wait for dma drain timed out\n");
+			rt_printk("mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
+				mite_bytes_in_transit(devpriv->ai_mite_chan), devpriv->stc_readw(dev, AI_Status_1_Register));
+			retval = -1;
+		}
 	}
-	if(i == timeout)
-	{
-		rt_printk("ni_mio_common: wait for dma drain timed out\n");
-		rt_printk("mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
-			mite_bytes_in_transit(devpriv->ai_mite_chan), devpriv->stc_readw(dev, AI_Status_1_Register));
-		return -1;
-	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	ni_sync_ai_dma(dev);
 
-	return 0;
+	return retval;
 }
 #endif
 /*
@@ -1504,14 +1421,15 @@ static int ni_ao_setup_MITE_dma(comedi_device *dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AO_SUBDEV;
 	int retval;
+	unsigned long flags;
 
 	retval = ni_request_ao_mite_channel(dev);
 	if(retval) return retval;
-	//rt_printk("comedi_debug: using mite channel %i for ao.\n", devpriv->ao_mite_chan->channel);
 
 	/* read alloc the entire buffer */
 	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
 
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	devpriv->ao_mite_chan->dir = COMEDI_OUTPUT;
 	if(boardtype.reg_type & (ni_reg_611x | ni_reg_6713))
 	{
@@ -1522,8 +1440,9 @@ static int ni_ao_setup_MITE_dma(comedi_device *dev)
 		 makes the mite do 32 bit pci transfers, doubling pci bandwidth. */
 		mite_prep_dma(devpriv->ao_mite_chan, 16, 32);
 	}
-	/*start the MITE*/
 	mite_dma_arm(devpriv->ao_mite_chan);
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
 	return 0;
 }
 
@@ -3516,6 +3435,18 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 	case NITIO_G01_Joint_Status2_Reg:
 		stc_register = Joint_Status_2_Register;
 		break;
+	case NITIO_G0_Interrupt_Acknowledge_Reg:
+		stc_register = Interrupt_A_Ack_Register;
+		break;
+	case NITIO_G1_Interrupt_Acknowledge_Reg:
+		stc_register = Interrupt_B_Ack_Register;
+		break;
+	case NITIO_G0_Status_Reg:
+		stc_register = AI_Status_1_Register;
+		break;
+	case NITIO_G1_Status_Reg:
+		stc_register = AO_Status_1_Register;
+		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();
@@ -3878,8 +3809,6 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 		devpriv->counter_dev->counters[j].chip_index = 0;
 		devpriv->counter_dev->counters[j].counter_index = j;
-		devpriv->counter_dev->counters[j].clock_period_ps = 0;
-		devpriv->counter_dev->counters[j].mite_chan = NULL;
 		ni_tio_init_counter(&devpriv->counter_dev->counters[j]);
 	}
 
@@ -4524,7 +4453,6 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	int retval;
 #ifdef PCIDMA
-	unsigned long flags;
 	struct ni_gpct *counter = s->private;
 	const comedi_cmd *cmd = &s->async->cmd;
 
@@ -4544,10 +4472,7 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 			Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 1);
 	}
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
-
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	retval = ni_tio_cmd(counter, s->async);
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #else
 	retval = -ENOTSUPP;
 #endif
@@ -4564,13 +4489,9 @@ static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *
 static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 {
 	struct ni_gpct *counter = s->private;
-	unsigned long flags;
 	int retval;
 
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	retval = ni_tio_cancel(counter);
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
 	ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
 		Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 0);

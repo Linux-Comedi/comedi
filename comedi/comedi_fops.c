@@ -364,6 +364,8 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 		us->type		= s->type;
 		us->n_chan		= s->n_chan;
 		us->subd_flags		= s->subdev_flags;
+		if(comedi_get_subdevice_runflags(s) & SRF_RUNNING)
+			us->subd_flags |= SDF_RUNNING;
 #define TIMER_nanosec 5	/* backwards compatibility */
 		us->timer_type		= TIMER_nanosec;
 		us->len_chanlist	= s->len_chanlist;
@@ -503,9 +505,8 @@ static int do_bufinfo_ioctl(comedi_device *dev,void *arg)
 		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
 		comedi_buf_read_free(async, bi.bytes_read);
 
-		if(!(s->subdev_flags&SDF_RUNNING) &&
-		   !(s->runflags & SRF_ERROR) &&
-		   async->buf_write_count==async->buf_read_count){
+		if(!(comedi_get_subdevice_runflags(s) & (SRF_ERROR | SRF_RUNNING)) &&
+		   async->buf_write_count == async->buf_read_count){
 			do_become_nonbusy(dev,s);
 		}
 	}
@@ -966,14 +967,12 @@ static int do_cmd_ioctl(comedi_device *dev,void *arg,void *file)
 		async->cb_mask |= COMEDI_CB_EOS;
 	}
 
-	s->runflags=SRF_USER;
-
-	s->subdev_flags|=SDF_RUNNING;
+	comedi_set_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
 
 #ifdef CONFIG_COMEDI_RT
 	if(async->cmd.flags&TRIG_RT){
 		comedi_switch_to_rt(dev);
-		s->runflags |= SRF_RT;
+		comedi_set_subdevice_runflags(s, SRF_RT, SRF_RT);
 	}
 #endif
 
@@ -1247,7 +1246,7 @@ static int do_cancel(comedi_device *dev,comedi_subdevice *s)
 {
 	int ret=0;
 
-	if((s->subdev_flags&SDF_RUNNING) && s->cancel)
+	if((comedi_get_subdevice_runflags(s) & SRF_RUNNING) && s->cancel)
 		ret=s->cancel(dev,s);
 
 	do_become_nonbusy(dev,s);
@@ -1349,7 +1348,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		async = s->async;
 		if(!s->busy
 		   || comedi_buf_read_n_available(async)>0
-		   || !(s->subdev_flags&SDF_RUNNING)){
+		   || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING)){
 			mask |= POLLIN | POLLRDNORM;
 		}
 	}
@@ -1357,7 +1356,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		s = dev->write_subdev;
 		async = s->async;
 		if(!s->busy
-		   || !(s->subdev_flags&SDF_RUNNING)
+		   || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING)
 		   || comedi_buf_write_n_available(async) > 0){
 			mask |= POLLOUT | POLLWRNORM;
 		}
@@ -1420,8 +1419,8 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 				retval=-ERESTARTSYS;
 				break;
 			}
-			if(!(s->subdev_flags&SDF_RUNNING)){
-				if(s->runflags & SRF_ERROR){
+			if(!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)){
+				if(comedi_get_subdevice_runflags(s) & SRF_ERROR){
 					retval = -EPIPE;
 				}else{
 					retval = 0;
@@ -1495,9 +1494,9 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 		if(m<n)n=m;
 
 		if(n==0){
-			if(!(s->subdev_flags&SDF_RUNNING)){
+			if(!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)){
 				do_become_nonbusy(dev,s);
-				if(s->runflags & SRF_ERROR){
+				if(comedi_get_subdevice_runflags(s) & SRF_ERROR){
 					retval = -EPIPE;
 				}else{
 					retval = 0;
@@ -1531,8 +1530,7 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 		buf+=n;
 		break;	/* makes device work like a pipe */
 	}
-	if(!(s->subdev_flags&SDF_RUNNING) &&
-		!(s->runflags & SRF_ERROR) &&
+	if(!(comedi_get_subdevice_runflags(s) & (SRF_ERROR | SRF_RUNNING)) &&
 		async->buf_read_count - async->buf_write_count == 0)
 	{
 		do_become_nonbusy(dev,s);
@@ -1550,11 +1548,11 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 
-	s->subdev_flags &= ~SDF_RUNNING;
+	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
 #ifdef CONFIG_COMEDI_RT
-	if(s->runflags&SRF_RT){
+	if(comedi_get_subdevice_runflags(s) & SRF_RT){
 		comedi_switch_to_non_rt(dev);
-		s->runflags &= ~SRF_RT;
+		comedi_set_subdevice_runflags(s, SRF_RT, 0);
 	}
 #endif
 	if(async){
@@ -1813,29 +1811,26 @@ void comedi_error(const comedi_device *dev,const char *s)
 	rt_printk("comedi%d: %s: %s\n", dev->minor, dev->driver->driver_name, s);
 }
 
-void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
+void comedi_event(comedi_device *dev, comedi_subdevice *s, unsigned useless)
 {
 	comedi_async *async = s->async;
 
-	mask = s->async->events;
-	s->async->events = 0;
-
 	//DPRINTK("comedi_event 0x%x\n",mask);
 
-	if( (s->subdev_flags & SDF_RUNNING) == 0)
+	if((comedi_get_subdevice_runflags(s) & SRF_RUNNING) == 0)
 		return;
 
-	if(mask&(COMEDI_CB_EOA|COMEDI_CB_ERROR|COMEDI_CB_OVERFLOW)){
-		s->subdev_flags &= ~SDF_RUNNING;
+	if(s->async->events & (COMEDI_CB_EOA |COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)){
+		comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
 	}
 
 	/* remember if an error event has occured, so an error
 	 * can be returned the next time the user does a read() */
-	if(mask & (COMEDI_CB_ERROR|COMEDI_CB_OVERFLOW)){
-		s->runflags |= SRF_ERROR;
+	if(s->async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)){
+		comedi_set_subdevice_runflags(s, SRF_ERROR, SRF_ERROR);
 	}
-	if(async->cb_mask&mask){
-		if(s->runflags&SRF_USER){
+	if(async->cb_mask & s->async->events){
+		if(comedi_get_subdevice_runflags(s) & SRF_USER){
 
 			if(dev->rt){
 #ifdef CONFIG_COMEDI_RT
@@ -1858,7 +1853,7 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 				}
 			}
 		}else{
-			if(async->cb_func)async->cb_func(mask,async->cb_arg);
+			if(async->cb_func)async->cb_func(s->async->events, async->cb_arg);
 			/* XXX bug here.  If subdevice A is rt, and
 			 * subdevice B tries to callback to a normal
 			 * linux kernel function, it will be at the
@@ -1866,4 +1861,26 @@ void comedi_event(comedi_device *dev,comedi_subdevice *s, unsigned int mask)
 			 * common, I'm not going to worry about it. */
 		}
 	}
+	s->async->events = 0;
+}
+
+void comedi_set_subdevice_runflags(comedi_subdevice *s, unsigned mask, unsigned bits)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&s->runflags_lock, flags);
+	s->runflags &= ~mask;
+	s->runflags |= (bits & mask);
+	comedi_spin_unlock_irqrestore(&s->runflags_lock, flags);
+}
+
+unsigned comedi_get_subdevice_runflags(comedi_subdevice *s)
+{
+	unsigned long flags;
+	unsigned runflags;
+
+	comedi_spin_lock_irqsave(&s->runflags_lock, flags);
+	runflags = s->runflags;
+	comedi_spin_unlock_irqrestore(&s->runflags_lock, flags);
+	return runflags;
 }
