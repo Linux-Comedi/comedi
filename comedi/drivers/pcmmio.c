@@ -153,7 +153,7 @@ static int ao_winsn(comedi_device *, comedi_subdevice *, comedi_insn *, lsampl_t
  */
 typedef struct pcmmio_board_struct
 {
-	const char * const name;
+	const char *name;
 	const int dio_num_asics;
 	const int dio_num_ports;
     const int total_iosize;
@@ -161,21 +161,17 @@ typedef struct pcmmio_board_struct
     const int ao_bits;
     const int n_ai_chans;
     const int n_ao_chans;
-    comedi_lrange *ai_range_table, *ao_range_table;
+    const comedi_lrange *ai_range_table, *ao_range_table;
     comedi_insn_fn_t ai_rinsn, ao_rinsn, ao_winsn;
 } pcmmio_board;
 
-static struct {
-  int length;
-  comedi_krange ranges[4];
-} ranges_ai = { 4, { RANGE(-5.,5.), RANGE(-10.,10.), RANGE(0.,5.), RANGE(0.,10.) } };
+static const comedi_lrange ranges_ai =
+{ 4, { RANGE(-5.,5.), RANGE(-10.,10.), RANGE(0.,5.), RANGE(0.,10.) } };
 
-static struct {
-  int length;
-  comedi_krange ranges[6];
-} ranges_ao = { 6, { RANGE(0.,5.), RANGE(0.,10.) , RANGE(-5.,5.), RANGE(-10.,10.), RANGE(-2.5, 2.5), RANGE(-2.5, 7.5) } };
+static const comedi_lrange ranges_ao =
+{ 6, { RANGE(0.,5.), RANGE(0.,10.) , RANGE(-5.,5.), RANGE(-10.,10.), RANGE(-2.5, 2.5), RANGE(-2.5, 7.5) } };
 
-static pcmmio_board pcmmio_boards[] = 
+static const pcmmio_board pcmmio_boards[] = 
 {
 	{
 		name:              "pcmmio",
@@ -186,8 +182,8 @@ static pcmmio_board pcmmio_boards[] =
 		ao_bits:           16,
 		n_ai_chans:        16,
 		n_ao_chans:        8,
-		ai_range_table:    (comedi_lrange *)&ranges_ai,
-		ao_range_table:    (comedi_lrange *)&ranges_ao,
+		ai_range_table:    &ranges_ai,
+		ao_range_table:    &ranges_ao,
 		ai_rinsn:          ai_rinsn,
 		ao_rinsn:          ao_rinsn,
 		ao_winsn:          ao_winsn
@@ -197,7 +193,7 @@ static pcmmio_board pcmmio_boards[] =
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pcmmio_board *)dev->board_ptr)
+#define thisboard ((const pcmmio_board *)dev->board_ptr)
 
 /* this structure is for data unique to this subdevice.  */
 typedef struct 

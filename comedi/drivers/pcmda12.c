@@ -71,12 +71,12 @@ Configuration Options:
  */
 typedef struct pcmda12_board_struct
 {
-	const char * const name;
+	const char *name;
 } pcmda12_board;
 
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
-static comedi_lrange pcmda12_ranges =
+static const comedi_lrange pcmda12_ranges =
 {
   3,
   {
@@ -84,7 +84,7 @@ static comedi_lrange pcmda12_ranges =
   }
 };
 
-static pcmda12_board pcmda12_boards[] =
+static const pcmda12_board pcmda12_boards[] =
 {
 	{
 		name:                   "pcmda12",
@@ -94,7 +94,7 @@ static pcmda12_board pcmda12_boards[] =
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pcmda12_board *)dev->board_ptr)
+#define thisboard ((const pcmda12_board *)dev->board_ptr)
 
 typedef struct
 {

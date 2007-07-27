@@ -25,12 +25,12 @@
 #include <asm/uaccess.h>
 
 
-comedi_lrange range_bipolar10={ 1, {BIP_RANGE(10)}};
-comedi_lrange range_bipolar5={ 1, {BIP_RANGE(5)}};
-comedi_lrange range_bipolar2_5={ 1, {BIP_RANGE(2.5)}};
-comedi_lrange range_unipolar10={ 1, {UNI_RANGE(10)}};
-comedi_lrange range_unipolar5={ 1, {UNI_RANGE(5)}};
-comedi_lrange range_unknown={ 1, {{0,1000000,UNIT_none}}};
+const comedi_lrange range_bipolar10={ 1, {BIP_RANGE(10)}};
+const comedi_lrange range_bipolar5={ 1, {BIP_RANGE(5)}};
+const comedi_lrange range_bipolar2_5={ 1, {BIP_RANGE(2.5)}};
+const comedi_lrange range_unipolar10={ 1, {UNI_RANGE(10)}};
+const comedi_lrange range_unipolar5={ 1, {UNI_RANGE(5)}};
+const comedi_lrange range_unknown={ 1, {{0,1000000,UNIT_none}}};
 
 /*
    	COMEDI_RANGEINFO
@@ -49,7 +49,7 @@ int do_rangeinfo_ioctl(comedi_device *dev, comedi_rangeinfo *arg)
 {
 	comedi_rangeinfo it;
 	int minor,subd,chan;
-	comedi_lrange *lr;
+	const comedi_lrange *lr;
 	comedi_subdevice *s;
 	comedi_device *query_dev;
 

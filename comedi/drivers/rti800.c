@@ -97,19 +97,19 @@ Configuration options:
 
 #include "am9513.h"
 
-static comedi_lrange range_rti800_ai_10_bipolar = { 4, {
+static const comedi_lrange range_rti800_ai_10_bipolar = { 4, {
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 1 ),
 	BIP_RANGE( 0.1 ),
 	BIP_RANGE( 0.02 )
 }};
-static comedi_lrange range_rti800_ai_5_bipolar = { 4, {
+static const comedi_lrange range_rti800_ai_5_bipolar = { 4, {
 	BIP_RANGE( 5 ),
 	BIP_RANGE( 0.5 ),
 	BIP_RANGE( 0.05 ),
 	BIP_RANGE( 0.01 )
 }};
-static comedi_lrange range_rti800_ai_unipolar = { 4, {
+static const comedi_lrange range_rti800_ai_unipolar = { 4, {
 	UNI_RANGE( 10 ),
 	UNI_RANGE( 1 ),
 	UNI_RANGE( 0.1 ),
@@ -120,11 +120,11 @@ typedef struct{
 	const char *name;
 	int has_ao;
 }boardtype;
-static boardtype boardtypes[]={
+static const boardtype boardtypes[]={
 	{ "rti800", 0 },
 	{ "rti815", 1 },
 };
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static int rti800_attach(comedi_device *dev,comedi_devconfig *it);
 static int rti800_detach(comedi_device *dev);
@@ -157,7 +157,7 @@ typedef struct {
 	enum {
 		dac_2comp, dac_straight
 	} dac0_coding, dac1_coding;
-	comedi_lrange * ao_range_type_list[2];
+	const comedi_lrange * ao_range_type_list[2];
 	lsampl_t ao_readback[2];
 	int muxgain_bits;
 } rti800_private;
@@ -172,7 +172,7 @@ static irqreturn_t rti800_interrupt(int irq, void *dev PT_REGS_ARG)
 }
 
 // settling delay times in usec for different gains
-static int gaindelay[]={10,20,40,80};
+static const int gaindelay[]={10,20,40,80};
 
 static int rti800_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)

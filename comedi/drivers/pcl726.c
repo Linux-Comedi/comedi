@@ -92,22 +92,22 @@ Interrupts are not supported.
 #define PCL727_DI_HI  0
 #define PCL727_DI_LO  1
 
-static comedi_lrange range_4_20mA={ 1, {RANGE_mA(4,20)}};
-static comedi_lrange range_0_20mA={ 1, {RANGE_mA(0,20)}};
+static const comedi_lrange range_4_20mA={ 1, {RANGE_mA(4,20)}};
+static const comedi_lrange range_0_20mA={ 1, {RANGE_mA(0,20)}};
 
-static comedi_lrange *rangelist_726[]={
+static const comedi_lrange * const rangelist_726[]={
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5,  &range_bipolar10,
 	&range_4_20mA,    &range_unknown
 };
 
-static comedi_lrange *rangelist_727[]={
+static const comedi_lrange * const rangelist_727[]={
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5,
 	&range_4_20mA
 };
 
-static comedi_lrange *rangelist_728[]={
+static const comedi_lrange * const rangelist_728[]={
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5,  &range_bipolar10,
 	&range_4_20mA,    &range_0_20mA
@@ -127,10 +127,10 @@ typedef struct {
 	int		di_lo;
 	int		do_hi;
 	int		do_lo;
-	comedi_lrange	**range_type_list;// list of supported ranges
+	const comedi_lrange * const *range_type_list;// list of supported ranges
 } boardtype;
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pcl726",   6, 6, 0x0000, PCL726_SIZE, 1,
 	 PCL726_DI_HI, PCL726_DI_LO, PCL726_DO_HI, PCL726_DO_LO,
@@ -149,7 +149,7 @@ static boardtype boardtypes[] =
 	 &rangelist_728[0], },
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcl726={
 	driver_name:	"pcl726",
@@ -164,7 +164,7 @@ COMEDI_INITCLEANUP(driver_pcl726);
 
 typedef struct{
 	int bipolar[12];
-	comedi_lrange *rangelist[12];
+	const comedi_lrange *rangelist[12];
 	lsampl_t ao_readback[12];
 }pcl726_private;
 #define devpriv ((pcl726_private *)dev->private)

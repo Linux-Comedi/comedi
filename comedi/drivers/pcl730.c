@@ -33,14 +33,14 @@ typedef struct {
 	unsigned int	io_range;	// len of I/O space
 } boardtype;
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{ "pcl730",  PCL730_SIZE, },
 	{ "iso730",  PCL730_SIZE, },
 	{ "acl7130", ACL7130_SIZE, },
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcl730 = {
 	driver_name:	"pcl730",

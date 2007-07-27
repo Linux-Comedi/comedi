@@ -120,7 +120,7 @@ typedef struct{
 	unsigned num_do_ports;
 	unsigned invert_outputs : 1;
 }ni_65xx_board;
-static ni_65xx_board ni_65xx_boards[] = {
+static const ni_65xx_board ni_65xx_boards[] = {
 	{
 		dev_id:		0x7085,
 		name:		"pci-6509",

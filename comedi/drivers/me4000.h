@@ -343,7 +343,7 @@ typedef struct me4000_board {
 } me4000_board_t;
 
 
-#define thisboard ((me4000_board_t *)dev->board_ptr)
+#define thisboard ((const me4000_board_t *)dev->board_ptr)
 
 
 /*=============================================================================

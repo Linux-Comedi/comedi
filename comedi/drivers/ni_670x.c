@@ -63,11 +63,11 @@ Commands are not supported.
 typedef struct ni_670x_board_struct
 {
 	unsigned short dev_id;
-	char *name;
+	const char *name;
 	unsigned short ao_chans;
 	unsigned short ao_bits;
 }ni_670x_board;
-static ni_670x_board ni_670x_boards[] = 
+static const ni_670x_board ni_670x_boards[] = 
 {
 	{
 	dev_id		: 0x2c90,
@@ -166,11 +166,16 @@ static int ni_670x_attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan		= 	thisboard->ao_chans;
 	s->maxdata		=	0xffff;
 	if(s->n_chan == 32){
-		s->range_table_list = kmalloc(sizeof(comedi_lrange *)*32,
+		const comedi_lrange **range_table_list;
+
+		range_table_list = kmalloc(sizeof(comedi_lrange *)*32,
 			GFP_KERNEL);
+		if(!range_table_list)
+			return -ENOMEM;
+		s->range_table_list = range_table_list;
 		for(i=0;i<16;i++){
-			s->range_table_list[i] = &range_bipolar10; 
-			s->range_table_list[16+i] = &range_0_20mA;
+			range_table_list[i] = &range_bipolar10; 
+			range_table_list[16+i] = &range_0_20mA;
 		}
 	}else{
 		s->range_table	=	&range_bipolar10; 

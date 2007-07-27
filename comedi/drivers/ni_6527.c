@@ -91,9 +91,9 @@ COMEDI_INITCLEANUP(driver_ni6527);
 
 typedef struct{
 	int dev_id;
-	char *name;
+	const char *name;
 }ni6527_board;
-static ni6527_board ni6527_boards[] = {
+static const ni6527_board ni6527_boards[] = {
 	{
 	dev_id:		0x2b20,
 	name:		"pci-6527",
@@ -105,7 +105,7 @@ static ni6527_board ni6527_boards[] = {
 };
 
 #define n_ni6527_boards (sizeof(ni6527_boards)/sizeof(ni6527_boards[0]))
-#define this_board ((ni6527_board *)dev->board_ptr)
+#define this_board ((const ni6527_board *)dev->board_ptr)
 
 static struct pci_device_id ni6527_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2b10, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },

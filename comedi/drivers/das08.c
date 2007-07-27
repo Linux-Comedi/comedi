@@ -164,7 +164,7 @@ static int das08jr_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 static int das08ao_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static void i8254_set_mode_low(unsigned int base, int channel, unsigned int mode);
 
-static comedi_lrange range_das08_pgl = { 9, {
+static const comedi_lrange range_das08_pgl = { 9, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
@@ -175,7 +175,7 @@ static comedi_lrange range_das08_pgl = { 9, {
 	UNI_RANGE(2.5),
 	UNI_RANGE(1.25)
 }};
-static comedi_lrange range_das08_pgh = { 12, {
+static const comedi_lrange range_das08_pgh = { 12, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(1),
@@ -189,7 +189,7 @@ static comedi_lrange range_das08_pgh = { 12, {
 	UNI_RANGE(0.1),
 	UNI_RANGE(0.01),
 }};
-static comedi_lrange range_das08_pgm = { 9, {
+static const comedi_lrange range_das08_pgm = { 9, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(0.5),
@@ -215,7 +215,7 @@ static comedi_lrange range_das08_pgm = { 9, {
 
 */
 
-static comedi_lrange *das08_ai_lranges[]={
+static const comedi_lrange * const das08_ai_lranges[]={
 	&range_unknown,
 	&range_bipolar5,
 	&range_das08_pgh,
@@ -223,11 +223,11 @@ static comedi_lrange *das08_ai_lranges[]={
 	&range_das08_pgm,
 };
 
-static int das08_pgh_gainlist[] = { 8, 0, 10, 2, 12, 4, 14, 6, 1, 3, 5, 7 };
-static int das08_pgl_gainlist[] = { 8, 0, 2, 4, 6, 1, 3, 5, 7 };
-static int das08_pgm_gainlist[] = { 8, 0, 10, 12, 14, 9, 11, 13, 15 };
+static const int das08_pgh_gainlist[] = { 8, 0, 10, 2, 12, 4, 14, 6, 1, 3, 5, 7 };
+static const int das08_pgl_gainlist[] = { 8, 0, 2, 4, 6, 1, 3, 5, 7 };
+static const int das08_pgm_gainlist[] = { 8, 0, 10, 12, 14, 9, 11, 13, 15 };
 
-static int *das08_gainlists[] = {
+static const int * const das08_gainlists[] = {
 	NULL,
 	NULL,
 	das08_pgh_gainlist,
@@ -235,7 +235,7 @@ static int *das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
-static struct das08_board_struct das08_boards[]={
+static const struct das08_board_struct das08_boards[]={
 	{
 	name:		"das08",		// cio-das08.pdf
 	bustype:	isa,
@@ -489,7 +489,7 @@ static struct pci_device_id das08_pci_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, das08_pci_table);
 
 #define devpriv ((struct das08_private_struct *)dev->private)
-#define thisboard ((struct das08_board_struct *)dev->board_ptr)
+#define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
 #define TIMEOUT 100000
 

@@ -286,7 +286,7 @@ typedef struct dio200_board_struct {
 	enum dio200_layout layout;
 } dio200_board;
 
-static dio200_board dio200_boards[] = {
+static const dio200_board dio200_boards[] = {
 	{
 	name:		"pc212e",
 	bustype:	isa_bustype,
@@ -349,7 +349,7 @@ typedef struct dio200_layout_struct {
 	char has_clk_gat_sce;		/* has clock/gate selection registers */
 } dio200_layout;
 
-static dio200_layout dio200_layouts[] = {
+static const dio200_layout dio200_layouts[] = {
 	[pc212_layout] = {
 		n_subdevs:	6,
 		sdtype:		{ sd_8255, sd_8254, sd_8254, sd_8254, sd_8254, sd_intr },
@@ -403,7 +403,7 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((dio200_board *)dev->board_ptr)
+#define thisboard ((const dio200_board *)dev->board_ptr)
 #define thislayout (&dio200_layouts[((dio200_board *)dev->board_ptr)->layout])
 
 /* this structure is for data unique to this hardware driver.  If
@@ -1208,7 +1208,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	int bus = 0, slot = 0;
-	dio200_layout *layout;
+	const dio200_layout *layout;
 	int share_irq = 0;
 	int sdx;
 	unsigned n;
@@ -1365,7 +1365,7 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 static int
 dio200_detach(comedi_device *dev)
 {
-	dio200_layout *layout;
+	const dio200_layout *layout;
 	unsigned n;
 
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,

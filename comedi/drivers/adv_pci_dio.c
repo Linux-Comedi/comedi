@@ -213,7 +213,7 @@ static struct pci_device_id pci_dio_pci_table[] = __devinitdata {
 };
 MODULE_DEVICE_TABLE(pci, pci_dio_pci_table);
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pci1730", PCI_VENDOR_ID_ADVANTECH, 0x1730, PCIDIO_MAINREG,
 	 TYPE_PCI1730,
@@ -348,7 +348,7 @@ struct pci_dio_private_st {
 static pci_dio_private	*pci_priv=NULL;	/* list of allocated cards */
 
 #define devpriv ((pci_dio_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
@@ -356,7 +356,7 @@ static pci_dio_private	*pci_priv=NULL;	/* list of allocated cards */
 static int pci_dio_insn_bits_di_b(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	diosubd_data *d=(diosubd_data *)s->private;
+	const diosubd_data *d=(const diosubd_data *)s->private;
 	int i;
 
 	data[1]=0;
@@ -373,7 +373,7 @@ static int pci_dio_insn_bits_di_b(comedi_device *dev, comedi_subdevice *s,
 static int pci_dio_insn_bits_di_w(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	diosubd_data *d=(diosubd_data *)s->private;
+	const diosubd_data *d=(const diosubd_data *)s->private;
 	int i;
 
 	data[1]=0;
@@ -389,7 +389,7 @@ static int pci_dio_insn_bits_di_w(comedi_device *dev, comedi_subdevice *s,
 static int pci_dio_insn_bits_do_b(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	diosubd_data *d=(diosubd_data *)s->private;
+	const diosubd_data *d=(const diosubd_data *)s->private;
 	int i;
 
 	if (data[0]) {
@@ -409,7 +409,7 @@ static int pci_dio_insn_bits_do_b(comedi_device *dev, comedi_subdevice *s,
 static int pci_dio_insn_bits_do_w(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
-	diosubd_data *d=(diosubd_data *)s->private;
+	const diosubd_data *d=(const diosubd_data *)s->private;
 	int i;
 
 	if (data[0]) {
@@ -785,7 +785,7 @@ static int pci1760_attach(comedi_device *dev, comedi_devconfig *it)
 ==============================================================================
 */
 static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s,
-	diosubd_data *d, int subdev)
+	const diosubd_data *d, int subdev)
 {
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE|SDF_GROUND|SDF_COMMON|d->specflags;
@@ -802,7 +802,7 @@ static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s,
 		s->insn_bits=pci_dio_insn_bits_di_w;
 		break;
 	}
-	s->private=d;
+	s->private=(void *)d;
 
 	return 0;
 }
@@ -811,7 +811,7 @@ static int pci_dio_add_di(comedi_device *dev, comedi_subdevice *s,
 ==============================================================================
 */
 static int pci_dio_add_do(comedi_device *dev, comedi_subdevice *s,
-	diosubd_data *d, int subdev)
+	const diosubd_data *d, int subdev)
 {
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE|SDF_GROUND|SDF_COMMON;
@@ -829,7 +829,7 @@ static int pci_dio_add_do(comedi_device *dev, comedi_subdevice *s,
 		s->insn_bits=pci_dio_insn_bits_do_w;
 		break;
 	}
-	s->private=d;
+	s->private=(void *)d;
 
 	return 0;
 }

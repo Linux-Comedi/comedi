@@ -60,13 +60,13 @@ AO commands are not supported.
 
 #define PCI_VENDOR_ID_DT	0x1116
 
-static comedi_lrange range_dt3000_ai = { 4, {
+static const comedi_lrange range_dt3000_ai = { 4, {
 	RANGE( -10,	10 ),
 	RANGE( -5,	5 ),
 	RANGE( -2.5,	2.5 ),
 	RANGE( -1.25,	1.25 )
 }};
-static comedi_lrange range_dt3000_ai_pgl = { 4, {
+static const comedi_lrange range_dt3000_ai_pgl = { 4, {
 	RANGE( -10,	10 ),
 	RANGE( -1,	1 ),
 	RANGE( -0.1,	0.1 ),
@@ -74,17 +74,17 @@ static comedi_lrange range_dt3000_ai_pgl = { 4, {
 }};
 
 typedef struct{
-	char *name;
+	const char *name;
 	unsigned int device_id;
 	int adchan;
 	int adbits;
 	int ai_speed;
-	comedi_lrange *adrange;
+	const comedi_lrange *adrange;
 	int dachan;
 	int dabits;
 }dt3k_boardtype;
 
-static dt3k_boardtype dt3k_boardtypes[]={
+static const dt3k_boardtype dt3k_boardtypes[]={
 	{	name:		"dt3001",
 		device_id:	0x22,
 		adchan:		16,
@@ -150,7 +150,7 @@ static dt3k_boardtype dt3k_boardtypes[]={
 	},
 };
 #define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(dt3k_boardtype)
-#define this_board ((dt3k_boardtype *)dev->board_ptr)
+#define this_board ((const dt3k_boardtype *)dev->board_ptr)
 
 static struct pci_device_id dt3k_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_DT, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },

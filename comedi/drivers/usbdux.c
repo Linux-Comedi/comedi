@@ -194,7 +194,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 
 /////////////////////////////////////////////
 // comedi constants
-static comedi_lrange range_usbdux_ai_range = { 4, {
+static const comedi_lrange range_usbdux_ai_range = { 4, {
         BIP_RANGE( 4.096 ),
         BIP_RANGE( 4.096/2 ),
         UNI_RANGE( 4.096 ),
@@ -202,7 +202,7 @@ static comedi_lrange range_usbdux_ai_range = { 4, {
 } };
 
 
-static comedi_lrange range_usbdux_ao_range = { 2, {
+static const comedi_lrange range_usbdux_ao_range = { 2, {
         BIP_RANGE( 4.096 ),
         UNI_RANGE( 4.096 ),
 } };

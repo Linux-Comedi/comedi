@@ -112,7 +112,7 @@ Please report sucess/failure with other different cards to
 
 #define DADATA	8	// FIRST D/A DATA REGISTER (0)
 
-static comedi_lrange cb_pcidda_ranges =
+static const comedi_lrange cb_pcidda_ranges =
 {
 	6,
 	{
@@ -132,7 +132,7 @@ static comedi_lrange cb_pcidda_ranges =
  */
 typedef struct cb_pcidda_board_struct
 {
-	char *name;
+	const char *name;
 	char status;		// Driver status:
 				// 0 - tested
 				// 1 - manual read, not tested
@@ -140,9 +140,9 @@ typedef struct cb_pcidda_board_struct
 	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
-	comedi_lrange *ranges;
+	const comedi_lrange *ranges;
 } cb_pcidda_board;
-static cb_pcidda_board cb_pcidda_boards[] =
+static const cb_pcidda_board cb_pcidda_boards[] =
 {
 	{
 		name:		"pci-dda02/12",
@@ -208,7 +208,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((cb_pcidda_board *)dev->board_ptr)
+#define thisboard ((const cb_pcidda_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

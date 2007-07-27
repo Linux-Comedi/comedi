@@ -236,31 +236,31 @@ static const int sample_size = 2;	// size in bytes of a sample from board
 #define   DAS1600_WS			0x02
 #define   DAS1600_CLK_10MHZ		0x01
 
-static comedi_lrange range_das1x01_bip = { 4, {
+static const comedi_lrange range_das1x01_bip = { 4, {
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 1 ),
 	BIP_RANGE( 0.1 ),
 	BIP_RANGE( 0.01 ),
 }};
-static comedi_lrange range_das1x01_unip = { 4, {
+static const comedi_lrange range_das1x01_unip = { 4, {
 	UNI_RANGE( 10 ),
 	UNI_RANGE( 1 ),
 	UNI_RANGE( 0.1 ),
 	UNI_RANGE( 0.01 ),
 }};
-static comedi_lrange range_das1x02_bip = { 4, {
+static const comedi_lrange range_das1x02_bip = { 4, {
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 5 ),
 	BIP_RANGE( 2.5 ),
 	BIP_RANGE( 1.25 ),
 }};
-static comedi_lrange range_das1x02_unip = { 4, {
+static const comedi_lrange range_das1x02_unip = { 4, {
 	UNI_RANGE( 10 ),
 	UNI_RANGE( 5 ),
 	UNI_RANGE( 2.5 ),
 	UNI_RANGE( 1.25 ),
 }};
-static comedi_lrange range_das16jr = { 9, {
+static const comedi_lrange range_das16jr = { 9, {
 	// also used by 16/330
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 5 ),
@@ -272,7 +272,7 @@ static comedi_lrange range_das16jr = { 9, {
 	UNI_RANGE( 2.5 ),
 	UNI_RANGE( 1.25 ),
 }};
-static comedi_lrange range_das16jr_16 = { 8, {
+static const comedi_lrange range_das16jr_16 = { 8, {
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 5 ),
 	BIP_RANGE( 2.5 ),
@@ -283,9 +283,9 @@ static comedi_lrange range_das16jr_16 = { 8, {
 	UNI_RANGE( 1.25 ),
 }};
 
-static int das16jr_gainlist[] = { 8, 0, 1, 2, 3, 4, 5, 6, 7 };
-static int das16jr_16_gainlist[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-static int das1600_gainlist[] = { 0, 1, 2, 3 };
+static const int das16jr_gainlist[] = { 8, 0, 1, 2, 3, 4, 5, 6, 7 };
+static const int das16jr_16_gainlist[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+static const int das1600_gainlist[] = { 0, 1, 2, 3 };
 enum {
 	das16_pg_none = 0,
 	das16_pg_16jr,
@@ -293,21 +293,21 @@ enum {
 	das16_pg_1601,
 	das16_pg_1602,
 };
-static int *das16_gainlists[] = {
+static const int * const das16_gainlists[] = {
 	NULL,
 	das16jr_gainlist,
 	das16jr_16_gainlist,
 	das1600_gainlist,
 	das1600_gainlist,
 };
-static comedi_lrange *das16_ai_uni_lranges[]={
+static const comedi_lrange * const das16_ai_uni_lranges[]={
 	&range_unknown,
 	&range_das16jr,
 	&range_das16jr_16,
 	&range_das1x01_unip,
 	&range_das1x02_unip,
 };
-static comedi_lrange *das16_ai_bip_lranges[]={
+static const comedi_lrange *const das16_ai_bip_lranges[]={
 	&range_unknown,
 	&range_das16jr,
 	&range_das16jr_16,
@@ -361,7 +361,7 @@ typedef struct das16_board_struct{
 	unsigned int id;
 } das16_board;
 
-static struct das16_board_struct das16_boards[]={
+static const struct das16_board_struct das16_boards[]={
 	{
 	name:		"das-16",
 	ai:		das16_ai_rinsn,

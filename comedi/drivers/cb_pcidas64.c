@@ -417,7 +417,7 @@ static inline uint8_t attenuate_bit( unsigned int channel )
 };
 
 // analog input ranges for 64xx boards
-static comedi_lrange ai_ranges_64xx =
+static const comedi_lrange ai_ranges_64xx =
 {
 	8,
 	{
@@ -433,7 +433,7 @@ static comedi_lrange ai_ranges_64xx =
 };
 
 /* analog input ranges for 60xx boards */
-static comedi_lrange ai_ranges_60xx =
+static const comedi_lrange ai_ranges_60xx =
 {
 	4,
 	{
@@ -445,7 +445,7 @@ static comedi_lrange ai_ranges_60xx =
 };
 
 /* analog input ranges for 6030, etc boards */
-static comedi_lrange ai_ranges_6030 =
+static const comedi_lrange ai_ranges_6030 =
 {
 	14,
 	{
@@ -467,7 +467,7 @@ static comedi_lrange ai_ranges_6030 =
 };
 
 /* analog input ranges for 6052, etc boards */
-static comedi_lrange ai_ranges_6052 =
+static const comedi_lrange ai_ranges_6052 =
 {
 	15,
 	{
@@ -490,7 +490,7 @@ static comedi_lrange ai_ranges_6052 =
 };
 
 // analog input ranges for 4020 board
-static comedi_lrange ai_ranges_4020 =
+static const comedi_lrange ai_ranges_4020 =
 {
 	2,
 	{
@@ -500,7 +500,7 @@ static comedi_lrange ai_ranges_4020 =
 };
 
 // analog output ranges
-static comedi_lrange ao_ranges_64xx =
+static const comedi_lrange ao_ranges_64xx =
 {
 	4,
 	{
@@ -510,7 +510,7 @@ static comedi_lrange ao_ranges_64xx =
 		UNI_RANGE(10),
 	}
 };
-static int ao_range_code_64xx[] =
+static const int ao_range_code_64xx[] =
 {
 	0x0,
 	0x1,
@@ -518,19 +518,19 @@ static int ao_range_code_64xx[] =
 	0x3,
 };
 
-static comedi_lrange ao_ranges_60xx =
+static const comedi_lrange ao_ranges_60xx =
 {
 	1,
 	{
 		BIP_RANGE(10),
 	}
 };
-static int ao_range_code_60xx[] =
+static const int ao_range_code_60xx[] =
 {
 	0x0,
 };
 
-static comedi_lrange ao_ranges_6030 =
+static const comedi_lrange ao_ranges_6030 =
 {
 	2,
 	{
@@ -538,13 +538,13 @@ static comedi_lrange ao_ranges_6030 =
 		UNI_RANGE(10),
 	}
 };
-static int ao_range_code_6030[] =
+static const int ao_range_code_6030[] =
 {
 	0x0,
 	0x2,
 };
 
-static comedi_lrange ao_ranges_4020 =
+static const comedi_lrange ao_ranges_4020 =
 {
 	2,
 	{
@@ -552,7 +552,7 @@ static comedi_lrange ao_ranges_4020 =
 		BIP_RANGE(10),
 	}
 };
-static int ao_range_code_4020[] =
+static const int ao_range_code_4020[] =
 {
 	0x1,
 	0x0,
@@ -575,17 +575,17 @@ typedef struct hw_fifo_info_struct
 
 typedef struct pcidas64_board_struct
 {
-	char *name;
+	const char *name;
 	int device_id;	// pci device id
 	int ai_se_chans;	// number of ai inputs in single-ended mode
 	int ai_bits;	// analog input resolution
 	int ai_speed;	// fastest conversion period in ns
-	comedi_lrange *ai_range_table;
+	const comedi_lrange *ai_range_table;
 	int ao_nchan;	// number of analog out channels
 	int ao_bits;	// analog output resolution
 	int ao_scan_speed;	// analog output speed (for a scan, not conversion)
-	comedi_lrange *ao_range_table;
-	int *ao_range_code;
+	const comedi_lrange *ao_range_table;
+	const int *ao_range_code;
 	const hw_fifo_info_t *const ai_fifo;
 	enum register_layout layout;	// different board families have slightly different registers
 	unsigned has_8255 : 1;
@@ -1200,7 +1200,7 @@ COMEDI_INITCLEANUP(driver_cb_pcidas);
 
 static unsigned int ai_range_bits_6xxx( const comedi_device *dev, unsigned int range_index )
 {
-	comedi_krange *range = &board( dev )->ai_range_table->range[ range_index ];
+	const comedi_krange *range = &board( dev )->ai_range_table->range[ range_index ];
 	unsigned int bits = 0;
 
 	switch( range->max )

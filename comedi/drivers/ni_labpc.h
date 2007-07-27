@@ -38,9 +38,9 @@ typedef struct labpc_board_struct{
 	enum labpc_bustype bustype;	// ISA/PCI/etc.
 	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
 	int has_ao;	// has analog output true/false
-	comedi_lrange *ai_range_table;
-	int *ai_range_code;
-	int *ai_range_is_unipolar;
+	const comedi_lrange *ai_range_table;
+	const int *ai_range_code;
+	const int *ai_range_is_unipolar;
 	unsigned ai_scan_up : 1;	// board can auto scan up in ai channels, not just down
 	unsigned memory_mapped_io : 1; /* uses memory mapped io instead of ioports */
 }labpc_board;
@@ -74,7 +74,7 @@ typedef struct{
 }labpc_private;
 
 #define NUM_LABPC_CS_BOARDS 2
-extern labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
+extern const labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
 
 int labpc_common_attach( comedi_device *dev, unsigned long iobase,
 	unsigned int irq, unsigned int dma );

@@ -177,7 +177,7 @@ typedef struct s526_board_struct{
 	int have_dio;
 }s526_board;
 
-static s526_board s526_boards[] = {
+static const s526_board s526_boards[] = {
 	{
 	name:		"s526",
 	gpct_chans:	4,
@@ -196,7 +196,7 @@ static s526_board s526_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((s526_board *)dev->board_ptr)
+#define thisboard ((const s526_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

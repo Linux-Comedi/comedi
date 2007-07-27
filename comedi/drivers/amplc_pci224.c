@@ -272,7 +272,7 @@ Caveats:
  */
 
 /* The software selectable internal ranges for PCI224 (option[2] == 0). */
-static comedi_lrange range_pci224_internal = {
+static const comedi_lrange range_pci224_internal = {
 	8,
 	{
 		BIP_RANGE(10),
@@ -286,7 +286,7 @@ static comedi_lrange range_pci224_internal = {
 	}
 };
 
-static unsigned short hwrange_pci224_internal[8] = {
+static const unsigned short hwrange_pci224_internal[8] = {
 	PCI224_DACCON_POLAR_BI | PCI224_DACCON_VREF_10,
 	PCI224_DACCON_POLAR_BI | PCI224_DACCON_VREF_5,
 	PCI224_DACCON_POLAR_BI | PCI224_DACCON_VREF_2_5,
@@ -298,7 +298,7 @@ static unsigned short hwrange_pci224_internal[8] = {
 };
 
 /* The software selectable external ranges for PCI224 (option[2] == 1). */
-static comedi_lrange range_pci224_external = {
+static const comedi_lrange range_pci224_external = {
 	2,
 	{
 		RANGE_ext(-1, 1),	/* bipolar [-Vref,+Vref] */
@@ -306,14 +306,14 @@ static comedi_lrange range_pci224_external = {
 	}
 };
 
-static unsigned short hwrange_pci224_external[2] = {
+static const unsigned short hwrange_pci224_external[2] = {
 	PCI224_DACCON_POLAR_BI,
 	PCI224_DACCON_POLAR_UNI,
 };
 
 /* The hardware selectable Vref*2 external range for PCI234
  * (option[2] == 1, option[3+n] == 0). */
-static comedi_lrange range_pci234_ext2 = {
+static const comedi_lrange range_pci234_ext2 = {
 	1,
 	{
 		RANGE_ext(-2, 2),
@@ -322,7 +322,7 @@ static comedi_lrange range_pci234_ext2 = {
 
 /* The hardware selectable Vref external range for PCI234
  * (option[2] == 1, option[3+n] == 1). */
-static comedi_lrange range_pci234_ext = {
+static const comedi_lrange range_pci234_ext = {
 	1,
 	{
 		RANGE_ext(-1, 1),
@@ -330,7 +330,7 @@ static comedi_lrange range_pci234_ext = {
 };
 
 /* This serves for all the PCI234 ranges. */
-static unsigned short hwrange_pci234[1] = {
+static const unsigned short hwrange_pci234[1] = {
 	PCI224_DACCON_POLAR_BI,		/* bipolar - hardware ignores it! */
 };
 
@@ -348,7 +348,7 @@ typedef struct pci224_board_struct {
 	unsigned int ao_bits;
 } pci224_board;
 
-static pci224_board pci224_boards[] = {
+static const pci224_board pci224_boards[] = {
 	{
 	name:		"pci224",
 	model:		pci224_model,
@@ -386,7 +386,7 @@ MODULE_DEVICE_TABLE(pci, pci224_pci_table);
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
 	struct pci_dev *pci_dev;	/* PCI device */
-	unsigned short *hwrange;
+	const unsigned short *hwrange;
 	unsigned long iobase1;
 	spinlock_t ao_spinlock;
 	lsampl_t *ao_readback;
@@ -1419,7 +1419,9 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
         /* Sort out channel range options. */
         if (thisboard->model == pci234_model) {
                 /* PCI234 range options. */
-                s->range_table_list = kmalloc(
+		const comedi_lrange **range_table_list;
+
+                s->range_table_list = range_table_list = kmalloc(
                                 sizeof(comedi_lrange *) * s->n_chan,
                                 GFP_KERNEL);
                 if (!s->range_table_list) {
@@ -1437,18 +1439,18 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
                         if (n < COMEDI_NDEVCONFOPTS - 3 &&
                                         it->options[3+n] == 1) {
                                 if (it->options[2] == 1) {
-                                        s->range_table_list[n] =
+                                        range_table_list[n] =
                                                 &range_pci234_ext;
                                 } else {
-                                        s->range_table_list[n] =
+                                        range_table_list[n] =
                                                 &range_bipolar5;
                                 }
                         } else {
                                 if (it->options[2] == 1) {
-                                        s->range_table_list[n] =
+                                        range_table_list[n] =
                                                 &range_pci234_ext2;
                                 } else {
-                                        s->range_table_list[n] =
+                                        range_table_list[n] =
                                                 &range_bipolar10;
                                 }
                         }

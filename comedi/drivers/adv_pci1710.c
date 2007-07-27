@@ -121,7 +121,7 @@ Configuration options:
 #define Syncont_SC0	 1		/* set synchronous output mode */
 
 
-static comedi_lrange range_pci1710_3={ 9, {
+static const comedi_lrange range_pci1710_3={ 9, {
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
 	BIP_RANGE(1.25),
@@ -134,9 +134,9 @@ static comedi_lrange range_pci1710_3={ 9, {
 	}
 };
 
-static char range_codes_pci1710_3[]={0x00, 0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13 };
+static const char range_codes_pci1710_3[]={0x00, 0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13 };
 
-static comedi_lrange range_pci1710hg={ 12, {
+static const comedi_lrange range_pci1710hg={ 12, {
 	BIP_RANGE(5),
 	BIP_RANGE(0.5),
 	BIP_RANGE(0.05),
@@ -152,9 +152,9 @@ static comedi_lrange range_pci1710hg={ 12, {
 	}
 };
 
-static char range_codes_pci1710hg[]={0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13 };
+static const char range_codes_pci1710hg[]={0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13 };
 
-static comedi_lrange range_pci17x1={ 5, {
+static const comedi_lrange range_pci17x1={ 5, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
@@ -163,9 +163,9 @@ static comedi_lrange range_pci17x1={ 5, {
 	}
 };
 
-static char range_codes_pci17x1[]={0x00, 0x01, 0x02, 0x03, 0x04 };
+static const char range_codes_pci17x1[]={0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static comedi_lrange range_pci1720={ 4, {
+static const comedi_lrange range_pci1720={ 4, {
 	UNI_RANGE(5),
 	UNI_RANGE(10),
 	BIP_RANGE(5),
@@ -173,7 +173,7 @@ static comedi_lrange range_pci1720={ 4, {
 	}
 };
 
-static comedi_lrange range_pci171x_da={ 2, {
+static const comedi_lrange range_pci171x_da={ 2, {
 	UNI_RANGE(5),
 	UNI_RANGE(10),
 	}
@@ -196,9 +196,9 @@ typedef struct {
 	int             n_counter;      // num of counters
 	int		ai_maxdata;	// resolution of A/D
 	int		ao_maxdata;	// resolution of D/A
-	comedi_lrange	*rangelist_ai;	// rangelist for A/D
-	char		*rangecode_ai;	// range codes for programming
-	comedi_lrange	*rangelist_ao;	// rangelist for D/A
+	const comedi_lrange *rangelist_ai; // rangelist for A/D
+	const char	*rangecode_ai;	// range codes for programming
+	const comedi_lrange *rangelist_ao; // rangelist for D/A
 	unsigned int	ai_ns_min;	// max sample speed of card v ns
 	unsigned int	fifo_half_size;	// size of FIFO/2
 } boardtype;
@@ -213,7 +213,7 @@ static struct pci_device_id pci1710_pci_table[] = __devinitdata {
 };
 MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pci1710", 0x1710,
 	 IORANGE_171x, 1, TYPE_PCI171X,
@@ -291,7 +291,7 @@ typedef struct{
 } pci1710_private;
 
 #define devpriv ((pci1710_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================
@@ -304,7 +304,7 @@ static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1, un
 static int pci1710_reset(comedi_device *dev);
 static int pci171x_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 
-static unsigned int muxonechan[] ={ 0x0000, 0x0101, 0x0202, 0x0303, 0x0404, 0x0505, 0x0606, 0x0707, // used for gain list programming
+static const unsigned int muxonechan[] ={ 0x0000, 0x0101, 0x0202, 0x0303, 0x0404, 0x0505, 0x0606, 0x0707, // used for gain list programming
                                     0x0808, 0x0909, 0x0a0a, 0x0b0b, 0x0c0c, 0x0d0d, 0x0e0e, 0x0f0f,
                                     0x1010, 0x1111, 0x1212, 0x1313, 0x1414, 0x1515, 0x1616, 0x1717,
                                     0x1818, 0x1919, 0x1a1a, 0x1b1b, 0x1c1c, 0x1d1d, 0x1e1e, 0x1f1f};

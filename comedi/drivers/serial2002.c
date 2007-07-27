@@ -50,7 +50,7 @@ typedef struct serial2002_board_struct {
 	const char *name;
 } serial2002_board;
 
-serial2002_board serial2002_boards[] = {
+static const serial2002_board serial2002_boards[] = {
   {
     name:		"serial2002"
   }
@@ -58,7 +58,7 @@ serial2002_board serial2002_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((serial2002_board *)dev->board_ptr)
+#define thisboard ((const serial2002_board *)dev->board_ptr)
 
 typedef struct {
   // HACK...
@@ -434,6 +434,8 @@ static void serial_2002_open(comedi_device *dev) {
       }
       if (c) {
 	comedi_subdevice *s;
+	const comedi_lrange **range_table_list = NULL;
+	unsigned int *maxdata_list;
 	int j, chan;
 
 	for (chan = 0, j = 0 ; j < 32 ; j++) {
@@ -443,11 +445,12 @@ static void serial_2002_open(comedi_device *dev) {
 	s->n_chan = chan;
 	s->maxdata = 0;
 	if (s->maxdata_list) { kfree(s->maxdata_list); }
-	s->maxdata_list = kmalloc(sizeof(lsampl_t)*s->n_chan, GFP_KERNEL);
+	s->maxdata_list = maxdata_list =
+	  kmalloc(sizeof(lsampl_t)*s->n_chan, GFP_KERNEL);
 	if (s->range_table_list) { kfree(s->range_table_list); }
 	if (range) {
 	  s->range_table = 0;
-	  s->range_table_list =
+	  s->range_table_list = range_table_list =
 	    kmalloc(sizeof(serial2002_range_table_t)*s->n_chan, GFP_KERNEL);
 	}
 	for (chan = 0, j = 0 ; j < 32 ; j++) {
@@ -457,9 +460,9 @@ static void serial_2002_open(comedi_device *dev) {
 	      range[j].length = 1;
 	      range[j].range.min = c[j].min;
 	      range[j].range.max = c[j].max;
-	      s->range_table_list[chan] = (comedi_lrange*)&range[j];
+	      range_table_list[chan] = (const comedi_lrange*)&range[j];
 	    }
-	    s->maxdata_list[chan] = ((long long)1<<c[j].bits) - 1;
+	    maxdata_list[chan] = ((long long)1<<c[j].bits) - 1;
 	    chan++;
 	  }
 	}

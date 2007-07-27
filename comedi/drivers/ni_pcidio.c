@@ -305,12 +305,12 @@ COMEDI_INITCLEANUP(driver_pcidio);
 
 typedef struct{
 	int dev_id;
-	char *name;
+	const char *name;
 	int n_8255;
 	unsigned int is_diodaq : 1;
 	unsigned int uses_firmware : 1;
 }nidio_board;
-static nidio_board nidio_boards[]={
+static const nidio_board nidio_boards[]={
 	{
 		dev_id:		0x1150,
 		name:		"pci-dio-32hs",
@@ -374,7 +374,7 @@ static nidio_board nidio_boards[]={
 	},
 };
 #define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
-#define this_board ((nidio_board *)dev->board_ptr)
+#define this_board ((const nidio_board *)dev->board_ptr)
 
 static struct pci_device_id ni_pcidio_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x1150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -614,7 +614,7 @@ out:
 }
 
 #ifdef DEBUG_FLAGS
-static char *flags_strings[] = {
+static const char * const flags_strings[] = {
 	"TransferReady", "CountExpired", "2", "3",
 	"4", "Waited", "PrimaryTC", "SecondaryTC",
 };

@@ -111,7 +111,7 @@ Options:
 
 
 // Define analogue range
-static comedi_lrange range_analog={ 4, {
+static const comedi_lrange range_analog={ 4, {
 	UNI_RANGE(5),
 	UNI_RANGE(10),
 	BIP_RANGE(5),
@@ -119,7 +119,7 @@ static comedi_lrange range_analog={ 4, {
 	}
 };
 
-static char range_codes_analog[]={0x00, 0x20, 0x10, 0x30};
+static const char range_codes_analog[]={0x00, 0x20, 0x10, 0x30};
 
 
 /*
@@ -152,12 +152,12 @@ typedef struct {
 	int		n_ctrs;		// num of counters
 	int		ai_maxdata;	// resolution of A/D
 	int		ao_maxdata;	// resolution of D/A
-	comedi_lrange	*rangelist_ai;	// rangelist for A/D
-	char		*rangecode;	// range codes for programming
-	comedi_lrange	*rangelist_ao;	// rangelist for D/A
+	const comedi_lrange *rangelist_ai; // rangelist for A/D
+	const char	*rangecode;	// range codes for programming
+	const comedi_lrange *rangelist_ao; // rangelist for D/A
 } boardtype;
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"icp_multi",		// Driver name
 	 DEVICE_ID,		// PCI device ID
@@ -210,7 +210,7 @@ typedef struct{
 } icp_multi_private;
 
 #define devpriv ((icp_multi_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================

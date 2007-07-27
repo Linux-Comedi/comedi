@@ -141,7 +141,7 @@ Configuration options:
 #define DAQBOARD2000_CPLD_DONE 		0x0004
 
 // Available ranges
-static comedi_lrange range_daqboard2000_ai = { 13, {
+static const comedi_lrange range_daqboard2000_ai = { 13, {
   RANGE(-10, 10),
   RANGE(-5, 5),
   RANGE(-2.5, 2.5),
@@ -157,7 +157,7 @@ static comedi_lrange range_daqboard2000_ai = { 13, {
   RANGE(0, 0.3125)
 }};
 
-static comedi_lrange range_daqboard2000_ao = { 1, {
+static const comedi_lrange range_daqboard2000_ao = { 1, {
   RANGE(-10, 10)
 }};
 
@@ -303,15 +303,15 @@ static comedi_driver driver_daqboard2000 = {
 };
 
 typedef struct {
-	char *name;
+	const char *name;
 	int id;
 }boardtype;
-static boardtype boardtypes[]={
+static const boardtype boardtypes[]={
 	{ "ids2", DAQBOARD2000_SUBSYSTEM_IDS2 },
 	{ "ids4", DAQBOARD2000_SUBSYSTEM_IDS4 },
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static struct pci_device_id daqboard2000_pci_table[] __devinitdata = {
 	{ 0x1616, 0x0409, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },

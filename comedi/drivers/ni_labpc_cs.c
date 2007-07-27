@@ -94,7 +94,7 @@ static int labpc_attach(comedi_device *dev,comedi_devconfig *it);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((labpc_board *)dev->board_ptr)
+#define thisboard ((const labpc_board *)dev->board_ptr)
 
 static comedi_driver driver_labpc_cs =
 {
@@ -145,7 +145,7 @@ static int labpc_attach(comedi_device *dev, comedi_devconfig *it)
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
+static const char *version =
 "ni_labpc.c, based on dummy_cs.c 1.31 2001/08/24 12:13:13";
 #else
 #define DEBUG(n, args...)
@@ -192,7 +192,7 @@ static void labpc_cs_detach(struct pcmcia_device *);
    database.
 */
 
-static dev_info_t dev_info = "daqcard-1200";
+static const dev_info_t dev_info = "daqcard-1200";
 
 /*
    A dev_link_t structure has fields for most things that are needed

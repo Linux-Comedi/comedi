@@ -150,7 +150,7 @@ from http://www.comedi.org
 static int me_attach(comedi_device *dev, comedi_devconfig *it);
 static int me_detach(comedi_device *dev);
 
-static comedi_lrange me2000_ai_range=
+static const comedi_lrange me2000_ai_range=
 {
   8,
   {
@@ -165,7 +165,7 @@ static comedi_lrange me2000_ai_range=
   }
 };
 
-static comedi_lrange me2600_ai_range=
+static const comedi_lrange me2600_ai_range=
 {
   8,
   {
@@ -180,7 +180,7 @@ static comedi_lrange me2600_ai_range=
   }
 };
 
-static comedi_lrange me2600_ao_range=
+static const comedi_lrange me2600_ao_range=
 {
   3,
   {
@@ -209,15 +209,15 @@ typedef struct
   int           ao_channel_nbr;     // DA config
   int           ao_resolution;
   int           ao_resolution_mask;
-  comedi_lrange *ao_range_list;
+  const comedi_lrange *ao_range_list;
   int           ai_channel_nbr;     // AD config
   int           ai_resolution;
   int           ai_resolution_mask;
-  comedi_lrange *ai_range_list;
+  const comedi_lrange *ai_range_list;
   int           dio_channel_nbr;    // DIO config
 } me_board_struct;
 
-static me_board_struct me_boards[] =
+static const me_board_struct me_boards[] =
 {
   {                                                     // -- ME-2600i --
     name:                         ME_DRIVER_NAME,

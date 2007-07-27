@@ -117,7 +117,7 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_82C55                  0x400
 #define DAS16M1_8254_THIRD             0x404
 
-static comedi_lrange range_das16m1 =
+static const comedi_lrange range_das16m1 =
 { 9,
 	{
 		BIP_RANGE( 5 ),
@@ -153,7 +153,7 @@ typedef struct das16m1_board_struct{
 	unsigned int ai_speed;
 }das16m1_board;
 
-static das16m1_board das16m1_boards[]={
+static const das16m1_board das16m1_boards[]={
 	{
 	name:		"cio-das16/m1",	// CIO-DAS16_M1.pdf
 	ai_speed:	1000,		// 1MHz max speed
@@ -187,7 +187,7 @@ struct das16m1_private_struct {
 	unsigned int divisor2;	// divides master clock to obtain conversion speed
 };
 #define devpriv ((struct das16m1_private_struct *)(dev->private))
-#define thisboard ((struct das16m1_board_struct *)(dev->board_ptr))
+#define thisboard ((const das16m1_board *)(dev->board_ptr))
 
 COMEDI_INITCLEANUP(driver_das16m1);
 

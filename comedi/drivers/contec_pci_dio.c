@@ -43,7 +43,7 @@ typedef enum contec_model {
 } contec_model;
 
 typedef struct contec_board {
-	char *name;
+	const char *name;
 	int  model;
 	int  in_ports;
 	int  out_ports;
@@ -51,7 +51,7 @@ typedef struct contec_board {
 	int  out_offs;
 	int  out_boffs;
 } contec_board;
-static contec_board contec_boards[] = {
+static const contec_board contec_boards[] = {
 	{ "PIO1616L", PIO1616L, 16, 16, 0, 2, 10 },
 };
 
@@ -62,7 +62,7 @@ static struct pci_device_id contec_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, contec_pci_table);
 
-#define thisboard ((contec_board *)dev->board_ptr)
+#define thisboard ((const contec_board *)dev->board_ptr)
 
 typedef struct{
 	int data;

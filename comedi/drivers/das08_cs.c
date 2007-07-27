@@ -63,7 +63,7 @@ Command support does not exist, but could be added for this board.
 */
 static dev_link_t *dev_list = NULL;
 
-#define thisboard ((struct das08_board_struct *)dev->board_ptr)
+#define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
 static int das08_cs_attach(comedi_device *dev,comedi_devconfig *it);
 
@@ -131,7 +131,7 @@ static int das08_cs_attach(comedi_device *dev,comedi_devconfig *it)
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
+static const char *version =
 "das08.c pcmcia code (Frank Hess), modified from dummy_cs.c 1.31 2001/08/24 12:13:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
@@ -165,7 +165,7 @@ static void das08_pcmcia_detach(struct pcmcia_device *);
    database.
 */
 
-static dev_info_t dev_info = "pcm-das08";
+static const dev_info_t dev_info = "pcm-das08";
 
 /*
    A dev_link_t structure has fields for most things that are needed

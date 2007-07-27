@@ -83,7 +83,7 @@ typedef struct dio24_board_struct{
 }dio24_board;
 
 
-static dio24_board dio24_boards[] =
+static const dio24_board dio24_boards[] =
 {
 	{
 		name:	"daqcard-dio24",
@@ -102,7 +102,7 @@ static dio24_board dio24_boards[] =
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((dio24_board *)dev->board_ptr)
+#define thisboard ((const dio24_board *)dev->board_ptr)
 
 typedef struct{
 	int data;  /* number of data points left to be taken */
@@ -250,7 +250,7 @@ static void dio24_cs_detach(struct pcmcia_device *);
    database.
 */
 
-static dev_info_t dev_info = "ni_daq_dio24";
+static const dev_info_t dev_info = "ni_daq_dio24";
 
 /*
    A dev_link_t structure has fields for most things that are needed

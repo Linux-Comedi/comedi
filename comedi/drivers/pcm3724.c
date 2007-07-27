@@ -78,13 +78,13 @@ typedef struct {
 	int dio_1;
 	int dio_2;
 } priv_pcm3724;
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pcm3724",   48, 2, 0x00fc, PCM3724_SIZE,},
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcm3724={
 	driver_name:	"pcm3724",

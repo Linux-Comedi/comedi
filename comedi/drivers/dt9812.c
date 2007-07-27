@@ -99,22 +99,22 @@ typedef struct slot_dt9812 {
   comedi_dt9812_t *comedi;
 } slot_dt9812_t;
 
-static comedi_lrange dt9812_10_ain_range={ 1, {
+static const comedi_lrange dt9812_10_ain_range={ 1, {
     BIP_RANGE(10),
   }
 };
 
-static comedi_lrange dt9812_2pt5_ain_range={ 1, {
+static const comedi_lrange dt9812_2pt5_ain_range={ 1, {
     UNI_RANGE(2.5),
   }
 };
 
-static comedi_lrange dt9812_10_aout_range={ 1, {
+static const comedi_lrange dt9812_10_aout_range={ 1, {
     BIP_RANGE(10),
   }
 };
 
-static comedi_lrange dt9812_2pt5_aout_range={ 1, {
+static const comedi_lrange dt9812_2pt5_aout_range={ 1, {
     UNI_RANGE(2.5),
   }
 };

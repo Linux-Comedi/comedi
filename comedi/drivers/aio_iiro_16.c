@@ -50,7 +50,7 @@ typedef struct aio_iiro_16_board_struct
 	int di;
 } aio_iiro_16_board;
 
-static aio_iiro_16_board aio_iiro_16_boards[] =
+static const aio_iiro_16_board aio_iiro_16_boards[] =
 {
 	{
 		name:	"aio_iiro_16",
@@ -59,7 +59,7 @@ static aio_iiro_16_board aio_iiro_16_boards[] =
 	},
 };
 
-#define	thisboard	((aio_iiro_16_board *) dev->board_ptr)
+#define	thisboard	((const aio_iiro_16_board *) dev->board_ptr)
 
 typedef struct
 {

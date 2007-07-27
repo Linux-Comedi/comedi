@@ -168,7 +168,7 @@ Configuration Options:
 #define DMM32AT_DIRCH 0x08
 
 /* board AI ranges in comedi structure */
-static comedi_lrange dmm32at_airanges =
+static const comedi_lrange dmm32at_airanges =
 {
         4,
         {
@@ -181,7 +181,7 @@ static comedi_lrange dmm32at_airanges =
 
 
 /* register values for above ranges */
-static unsigned char dmm32at_rangebits[] = {
+static const unsigned char dmm32at_rangebits[] = {
 	DMM32AT_RANGE_U10,
 	DMM32AT_RANGE_U5,
 	DMM32AT_RANGE_B10,
@@ -191,7 +191,7 @@ static unsigned char dmm32at_rangebits[] = {
 /* only one of these ranges is valid, as set by a jumper on the
  * board. The application should only use the range set by the jumper
  */
-static comedi_lrange dmm32at_aoranges =
+static const comedi_lrange dmm32at_aoranges =
 {
         4,
         {
@@ -211,14 +211,14 @@ typedef struct dmm32at_board_struct{
 	const char *name;
 	int ai_chans;
 	int ai_bits;
-	comedi_lrange *ai_ranges;
+	const comedi_lrange *ai_ranges;
 	int ao_chans;
 	int ao_bits;
-	comedi_lrange *ao_ranges;
+	const comedi_lrange *ao_ranges;
 	int have_dio;
 	int dio_chans;
 }dmm32at_board;
-static dmm32at_board dmm32at_boards[] = {
+static const dmm32at_board dmm32at_boards[] = {
 	{
 		name:		"dmm32at",
 		ai_chans:	32,
@@ -236,7 +236,7 @@ static dmm32at_board dmm32at_boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((dmm32at_board *)dev->board_ptr)
+#define thisboard ((const dmm32at_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,

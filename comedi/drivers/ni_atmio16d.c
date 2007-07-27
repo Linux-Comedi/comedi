@@ -109,7 +109,7 @@ typedef struct{
 	const char *name;
 	int has_8255;
 }atmio16_board_t;
-static atmio16_board_t atmio16_boards[]={
+static const atmio16_board_t atmio16_boards[]={
 	{
 	name:		"atmio16",
 	has_8255:	0,
@@ -121,7 +121,7 @@ static atmio16_board_t atmio16_boards[]={
 };
 #define n_atmio16_boards sizeof(atmio16_boards)/sizeof(atmio16_boards[0])
 
-#define boardtype ((atmio16_board_t *)dev->board_ptr)
+#define boardtype ((const atmio16_board_t *)dev->board_ptr)
 
 
 /* function prototypes */
@@ -147,21 +147,21 @@ static comedi_driver driver_atmio16d={
 COMEDI_INITCLEANUP(driver_atmio16d);
 
 /* range structs */
-static comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
+static const comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
 	BIP_RANGE( 10 ),
 	BIP_RANGE( 1 ),
 	BIP_RANGE( 0.1 ),
 	BIP_RANGE( 0.02 )
 } };
 
-static comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
+static const comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
 	BIP_RANGE( 5 ),
 	BIP_RANGE( 0.5 ),
 	BIP_RANGE( 0.05 ),
 	BIP_RANGE( 0.01 )
 } };
 
-static comedi_lrange range_atmio16d_ai_unipolar = { 4, {
+static const comedi_lrange range_atmio16d_ai_unipolar = { 4, {
 	UNI_RANGE( 10 ),
 	UNI_RANGE( 1 ),
 	UNI_RANGE( 0.1 ),
@@ -177,7 +177,7 @@ typedef struct {
 	enum { dac_bipolar, dac_unipolar } dac0_range, dac1_range;
 	enum { dac_internal, dac_external } dac0_reference, dac1_reference;
 	enum { dac_2comp, dac_straight } dac0_coding, dac1_coding;
-	comedi_lrange *ao_range_type_list[2];
+	const comedi_lrange *ao_range_type_list[2];
 	lsampl_t ao_readback[2];
 	unsigned int com_reg_1_state;	/* current state of command register 1 */
 	unsigned int com_reg_2_state;	/* current state of command register 2 */

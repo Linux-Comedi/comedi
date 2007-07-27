@@ -62,10 +62,10 @@ Configuration options:
 #include <linux/delay.h>
 
 
-static comedi_lrange range_dt2815_ao_32_current = { 1, {
+static const comedi_lrange range_dt2815_ao_32_current = { 1, {
 	RANGE_mA( 0,	32 )
 }};
-static comedi_lrange range_dt2815_ao_20_current = { 1, {
+static const comedi_lrange range_dt2815_ao_20_current = { 1, {
 	RANGE_mA( 4,	20 )
 }};
 
@@ -87,7 +87,7 @@ COMEDI_INITCLEANUP(driver_dt2815);
 static void dt2815_free_resources(comedi_device * dev);
 
 typedef struct {
-  comedi_lrange * range_type_list[8];
+  const comedi_lrange * range_type_list[8];
   lsampl_t ao_readback[8];
 } dt2815_private;
 
@@ -177,7 +177,7 @@ static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 {
   comedi_subdevice *s;
   int i;
-  comedi_lrange *current_range_type, *voltage_range_type;
+  const comedi_lrange *current_range_type, *voltage_range_type;
   unsigned long iobase;
 
   iobase = it->options[0];

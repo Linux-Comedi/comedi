@@ -85,7 +85,7 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 /* Board description */
 typedef struct cb_pcimdas_board_struct
 {
-	char *name;
+	const char *name;
 	unsigned short device_id;
 	int ai_se_chans;	// Inputs in single-ended mode
 	int ai_diff_chans;	// Inputs in differential mode
@@ -98,10 +98,10 @@ typedef struct cb_pcimdas_board_struct
 	int fifo_size;	// number of samples fifo can hold
 	int dio_bits;  // number of dio bits
 	int has_dio;	// has DIO
-	comedi_lrange *ranges;
+	const comedi_lrange *ranges;
 } cb_pcimdas_board;
 
-static cb_pcimdas_board cb_pcimdas_boards[] =
+static const cb_pcimdas_board cb_pcimdas_boards[] =
 {
 	{
 		name:		"PCIM-DAS1602/16",
@@ -134,7 +134,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((cb_pcimdas_board *)dev->board_ptr)
+#define thisboard ((const cb_pcimdas_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

@@ -67,7 +67,7 @@ typedef struct waveform_board_struct{
 
 #define N_CHANS 8
 
-static waveform_board waveform_boards[] = {
+static const waveform_board waveform_boards[] = {
 	{
 	name:           "comedi_test",
 	ai_chans:       N_CHANS,
@@ -75,7 +75,7 @@ static waveform_board waveform_boards[] = {
 	have_dio:       0,
 	},
 };
-#define thisboard ((waveform_board *)dev->board_ptr)
+#define thisboard ((const waveform_board *)dev->board_ptr)
 
 /* Data unique to this driver */
 typedef struct{
@@ -121,7 +121,7 @@ static sampl_t fake_waveform(comedi_device *dev, unsigned int channel,
 static const int nano_per_micro = 1000;	// 1000 nanosec in a microsec
 
 // fake analog input ranges
-static comedi_lrange waveform_ai_ranges =
+static const comedi_lrange waveform_ai_ranges =
 {
 	2,
 	{
@@ -429,7 +429,7 @@ static sampl_t fake_sawtooth(comedi_device *dev, unsigned int range_index, unsig
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
 	u64 value;
-	comedi_krange *krange = &s->range_table->range[range_index];
+	const comedi_krange *krange = &s->range_table->range[range_index];
 	u64 binary_amplitude;
 
 	binary_amplitude = s->maxdata;
@@ -449,7 +449,7 @@ static sampl_t fake_squarewave(comedi_device *dev, unsigned int range_index, uns
 	comedi_subdevice *s = dev->read_subdev;
 	unsigned int offset = s->maxdata / 2;
 	u64 value;
-	comedi_krange *krange = &s->range_table->range[range_index];
+	const comedi_krange *krange = &s->range_table->range[range_index];
 	current_time %= devpriv->usec_period;
 
 	value = s->maxdata;

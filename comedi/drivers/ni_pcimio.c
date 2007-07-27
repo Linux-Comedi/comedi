@@ -190,7 +190,7 @@ MODULE_DEVICE_TABLE(pci, ni_pci_table);
  63 different possibilities.  An AO channel
  can not act as it's own OFFSET or REFERENCE.
 */
-static comedi_lrange range_ni_M_628x_ao = { 8, {
+static const comedi_lrange range_ni_M_628x_ao = { 8, {
 	RANGE(-10, 10),
 	RANGE(-5, 5),
 	RANGE(-2, 2),
@@ -201,16 +201,16 @@ static comedi_lrange range_ni_M_628x_ao = { 8, {
 	RANGE(4, 6),
 	RANGE_ext(-1, 1)
 }};
-static comedi_lrange range_ni_M_625x_ao = { 3, {
+static const comedi_lrange range_ni_M_625x_ao = { 3, {
 	RANGE(-10, 10),
 	RANGE(-5, 5),
 	RANGE_ext(-1, 1)
 }};
-static comedi_lrange range_ni_M_622x_ao = { 1, {
+static const comedi_lrange range_ni_M_622x_ao = { 1, {
 	RANGE(-10, 10),
 }};
 
-static ni_board ni_boards[]={
+static const ni_board ni_boards[]={
 	{       device_id:      0x0162, // NI also says 0x1620.  typo?
 		name:           "pci-mio-16xe-50",
 		n_adchan:       16,

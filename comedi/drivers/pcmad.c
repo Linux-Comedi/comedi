@@ -58,7 +58,7 @@ struct pcmad_board_struct{
 	const char *name;
 	int n_ai_bits;
 };
-static struct pcmad_board_struct pcmad_boards[]={
+static const struct pcmad_board_struct pcmad_boards[]={
 	{
 	name:		"pcmad12",
 	n_ai_bits:	12,
@@ -68,7 +68,7 @@ static struct pcmad_board_struct pcmad_boards[]={
 	n_ai_bits:	16,
 	},
 };
-#define this_board ((struct pcmad_board_struct *)(dev->board_ptr))
+#define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
 #define n_pcmad_boards (sizeof(pcmad_boards)/sizeof(pcmad_boards[0]))
 
 struct pcmad_priv_struct{

@@ -158,7 +158,7 @@ typedef struct {
     int length;
     comedi_krange range;
   } range[9];
-  comedi_lrange *range_table_list[8 * 7 + 2];
+  const comedi_lrange * range_table_list[8 * 7 + 2];
   lsampl_t maxdata_list[8 * 7 + 2];
   u16 errors;
   int retries;

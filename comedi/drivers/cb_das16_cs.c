@@ -56,11 +56,11 @@ Status: experimental
 
 
 typedef struct das16cs_board_struct{
-	char *name;
+	const char *name;
 	int device_id;
 	int n_ao_chans;
 }das16cs_board;
-static das16cs_board das16cs_boards[] = {
+static const das16cs_board das16cs_boards[] = {
 	{
 	device_id:	0x0000, /* unknown */
 	name:		"PC-CARD DAS16/16",
@@ -73,7 +73,7 @@ static das16cs_board das16cs_boards[] = {
 	},
 };
 #define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
-#define thisboard ((das16cs_board *)dev->board_ptr)
+#define thisboard ((const das16cs_board *)dev->board_ptr)
 
 typedef struct{
 	dev_link_t *link;
@@ -95,7 +95,7 @@ static comedi_driver driver_das16cs={
 
 static dev_link_t *dev_list = NULL;
 
-static comedi_lrange das16cs_ai_range = { 4, {
+static const comedi_lrange das16cs_ai_range = { 4, {
 	RANGE( -10, 10 ),
 	RANGE( -5, 5 ),
 	RANGE( -2.5, 2.5 ),

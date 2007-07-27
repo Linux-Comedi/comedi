@@ -69,7 +69,7 @@ typedef struct {
 	char		is_pet48;
 } boardtype;
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pcl724",    24, 1, 0x00fc, PCL724_SIZE, 0, 0, },
 	{"pcl722",   144, 6, 0x00fc, PCL722_SIZE, 1, 0, },
@@ -80,7 +80,7 @@ static boardtype boardtypes[] =
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static comedi_driver driver_pcl724={
 	driver_name:	"pcl724",

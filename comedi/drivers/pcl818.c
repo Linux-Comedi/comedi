@@ -194,7 +194,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 #define MAGIC_DMA_WORD 0x5a5a
 
-static comedi_lrange range_pcl818h_ai = { 9, {
+static const comedi_lrange range_pcl818h_ai = { 9, {
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
 	BIP_RANGE(1.25),
@@ -206,7 +206,7 @@ static comedi_lrange range_pcl818h_ai = { 9, {
 	BIP_RANGE(10),
 }};
 
-static comedi_lrange range_pcl818hg_ai = { 10, {
+static const comedi_lrange range_pcl818hg_ai = { 10, {
 	BIP_RANGE(5),
 	BIP_RANGE(0.5),
 	BIP_RANGE(0.05),
@@ -221,24 +221,24 @@ static comedi_lrange range_pcl818hg_ai = { 10, {
 	BIP_RANGE(0.01),
 }};
 
-static comedi_lrange range_pcl818l_l_ai = { 4, {
+static const comedi_lrange range_pcl818l_l_ai = { 4, {
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
 	BIP_RANGE(1.25),
 	BIP_RANGE(0.625),
 }};
 
-static comedi_lrange range_pcl818l_h_ai = { 4, {
+static const comedi_lrange range_pcl818l_h_ai = { 4, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
 	BIP_RANGE(1.25),
 }};
 
-static comedi_lrange range718_bipolar1 = { 1, { BIP_RANGE(1), }};
-static comedi_lrange range718_bipolar0_5 = { 1, { BIP_RANGE(0.5), }};
-static comedi_lrange range718_unipolar2 = { 1, { UNI_RANGE(2), }};
-static comedi_lrange range718_unipolar1 = { 1, { BIP_RANGE(1), }};
+static const comedi_lrange range718_bipolar1 = { 1, { BIP_RANGE(1), }};
+static const comedi_lrange range718_bipolar0_5 = { 1, { BIP_RANGE(0.5), }};
+static const comedi_lrange range718_unipolar2 = { 1, { UNI_RANGE(2), }};
+static const comedi_lrange range718_unipolar1 = { 1, { BIP_RANGE(1), }};
 
 static int pcl818_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl818_detach(comedi_device *dev);
@@ -257,8 +257,8 @@ typedef struct {
 	int 		n_aochan;	// num of D/A chans
 	int 		n_dichan;	// num of DI chans
 	int 		n_dochan;	// num of DO chans
-	comedi_lrange 	*ai_range_type;	// default A/D rangelist
-	comedi_lrange 	*ao_range_type;	// default D/A rangelist
+	const comedi_lrange *ai_range_type; // default A/D rangelist
+	const comedi_lrange *ao_range_type; // default D/A rangelist
 	unsigned int	io_range;	// len of IO space
 	unsigned int 	IRQbits;	// allowed interrupts
 	unsigned int 	DMAbits; 	// allowed DMA chans
@@ -268,7 +268,7 @@ typedef struct {
 	int		is_818;
 } boardtype;
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pcl818l",   4, 16, 8, 25000, 1, 16, 16, &range_pcl818l_l_ai, &range_unipolar5, PCLx1x_RANGE, 0x00fc,
 	  0x0a, 0xfff, 0xfff, 0, 1 },
@@ -349,11 +349,11 @@ typedef struct {
 } pcl818_private;
 
 
-static unsigned int muxonechan[] ={ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, // used for gain list programming
+static const unsigned int muxonechan[] ={ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, // used for gain list programming
                                     0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
 
 #define devpriv ((pcl818_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 /*
 ==============================================================================

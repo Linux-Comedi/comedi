@@ -318,7 +318,7 @@ typedef struct
 	int cnt_bits; /* number of bits in each counter */
 } ni_660x_board;
 
-static ni_660x_board ni_660x_boards[] =
+static const ni_660x_board ni_660x_boards[] =
 {
 	{
 		dev_id       : 0x2c60,
@@ -342,7 +342,7 @@ static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 
-#define thisboard ((ni_660x_board *)dev->board_ptr)
+#define thisboard ((const ni_660x_board *)dev->board_ptr)
 /* initialized in ni_660x_find_device() */
 
 typedef struct

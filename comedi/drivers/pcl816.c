@@ -93,7 +93,7 @@ Configuration Options:
 
 #define MAGIC_DMA_WORD 0x5a5a
 
-static comedi_lrange range_pcl816 = { 8, {
+static const comedi_lrange range_pcl816 = { 8, {
 					      BIP_RANGE (10),
 					      BIP_RANGE (5),
 					      BIP_RANGE (2.5),
@@ -112,8 +112,8 @@ typedef struct {
   int n_aochan;			// num of D/A chans
   int n_dichan;			// num of DI chans
   int n_dochan;			// num of DO chans
-  comedi_lrange *ai_range_type;	// default A/D rangelist
-  comedi_lrange *ao_range_type;	// dafault D/A rangelist
+  const comedi_lrange *ai_range_type;	// default A/D rangelist
+  const comedi_lrange *ao_range_type;	// dafault D/A rangelist
   unsigned int io_range;	// len of IO space
   unsigned int IRQbits;		// allowed interrupts
   unsigned int DMAbits;		// allowed DMA chans
@@ -125,7 +125,7 @@ typedef struct {
 }
 boardtype;
 
-static boardtype boardtypes[] = {
+static const boardtype boardtypes[] = {
     {"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
 		&range_pcl816, PCLx1x_RANGE,
 		0x00fc,			// IRQ mask
@@ -148,7 +148,7 @@ static boardtype boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define devpriv ((pcl816_private *)dev->private)
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static int pcl816_attach (comedi_device * dev, comedi_devconfig * it);
 static int pcl816_detach (comedi_device * dev);

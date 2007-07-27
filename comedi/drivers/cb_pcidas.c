@@ -196,7 +196,7 @@ static inline unsigned int DAC_DATA_REG( unsigned int channel )
 // bit in hexadecimal representation of range index that indicates unipolar input range
 #define IS_UNIPOLAR 0x4
 // analog input ranges for most boards
-static comedi_lrange cb_pcidas_ranges =
+static const comedi_lrange cb_pcidas_ranges =
 {
 	8,
 	{
@@ -212,7 +212,7 @@ static comedi_lrange cb_pcidas_ranges =
 };
 
 // pci-das1001 input ranges
-static comedi_lrange cb_pcidas_alt_ranges =
+static const comedi_lrange cb_pcidas_alt_ranges =
 {
 	8,
 	{
@@ -228,7 +228,7 @@ static comedi_lrange cb_pcidas_alt_ranges =
 };
 
 // analog output ranges
-static comedi_lrange cb_pcidas_ao_ranges =
+static const comedi_lrange cb_pcidas_ao_ranges =
 {
 	4,
 	{
@@ -247,7 +247,7 @@ enum trimpot_model
 
 typedef struct cb_pcidas_board_struct
 {
-	char *name;
+	const char *name;
 	unsigned short device_id;
 	int ai_se_chans;	// Inputs in single-ended mode
 	int ai_diff_chans;	// Inputs in differential mode
@@ -257,12 +257,12 @@ typedef struct cb_pcidas_board_struct
 	int has_ao_fifo;	// analog output has fifo
 	int ao_scan_speed;	// analog output speed for 1602 series (for a scan, not conversion)
 	int fifo_size;	// number of samples fifo can hold
-	comedi_lrange *ranges;
+	const comedi_lrange *ranges;
 	enum trimpot_model trimpot;
 	unsigned has_dac08 : 1;
 } cb_pcidas_board;
 
-static cb_pcidas_board cb_pcidas_boards[] =
+static const cb_pcidas_board cb_pcidas_boards[] =
 {
 	{
 		name:		"pci-das1602/16",
@@ -398,7 +398,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((cb_pcidas_board *)dev->board_ptr)
+#define thisboard ((const cb_pcidas_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

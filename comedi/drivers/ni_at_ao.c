@@ -156,7 +156,7 @@ typedef struct atao_board_struct{
 	const char *name;
 	int n_ao_chans;
 }atao_board;
-static atao_board atao_boards[] = {
+static const atao_board atao_boards[] = {
 	{
 	name:		"ai-ao-6",
 	n_ao_chans:	6,

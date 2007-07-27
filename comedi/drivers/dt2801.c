@@ -103,14 +103,14 @@ COMEDI_INITCLEANUP(driver_dt2801);
 
 #if 0
 // ignore 'defined but not used' warning
-static comedi_lrange range_dt2801_ai_pgh_bipolar={ 4, {
+static const comedi_lrange range_dt2801_ai_pgh_bipolar={ 4, {
 	RANGE( -10,	10 ),
 	RANGE( -5,	5 ),
 	RANGE( -2.5,	2.5 ),
 	RANGE( -1.25,	1.25 ),
 }};
 #endif
-static comedi_lrange range_dt2801_ai_pgl_bipolar={ 4, {
+static const comedi_lrange range_dt2801_ai_pgl_bipolar={ 4, {
 	RANGE( -10,	10 ),
 	RANGE( -1,	1 ),
 	RANGE( -0.1,	0.1 ),
@@ -118,14 +118,14 @@ static comedi_lrange range_dt2801_ai_pgl_bipolar={ 4, {
 }};
 #if 0
 // ignore 'defined but not used' warning
-static comedi_lrange range_dt2801_ai_pgh_unipolar={ 4, {
+static const comedi_lrange range_dt2801_ai_pgh_unipolar={ 4, {
 	RANGE( 0,	10 ),
 	RANGE( 0,	5 ),
 	RANGE( 0,	2.5 ),
 	RANGE( 0,	1.25 ),
 }};
 #endif
-static comedi_lrange range_dt2801_ai_pgl_unipolar={ 4, {
+static const comedi_lrange range_dt2801_ai_pgl_unipolar={ 4, {
 	RANGE( 0,	10 ),
 	RANGE( 0,	1 ),
 	RANGE( 0,	0.1 ),
@@ -133,7 +133,7 @@ static comedi_lrange range_dt2801_ai_pgl_unipolar={ 4, {
 }};
 
 typedef struct{
-	char *name;
+	const char *name;
 	int boardcode;
 	int ad_diff;
 	int ad_chan;
@@ -145,7 +145,7 @@ typedef struct{
 /* Typeid's for the different boards of the DT2801-series
    (taken from the test-software, that comes with the board)
    */
-static boardtype_t boardtypes[] =
+static const boardtype_t boardtypes[] =
 {
 	{
 	name:		"dt2801",
@@ -221,11 +221,11 @@ static boardtype_t boardtypes[] =
 	},
 };
 #define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
-#define boardtype (*(boardtype_t *)dev->board_ptr)
+#define boardtype (*(const boardtype_t *)dev->board_ptr)
 
 
 typedef struct{
-	comedi_lrange *dac_range_types[2];
+	const comedi_lrange *dac_range_types[2];
 	lsampl_t ao_readback[2];
 }dt2801_private;
 #define devpriv ((dt2801_private *)dev->private)
@@ -441,7 +441,7 @@ static int probe_number_of_ai_chans(comedi_device *dev)
 }
 
 
-static comedi_lrange *dac_range_table[]={
+static const comedi_lrange *dac_range_table[]={
 	&range_bipolar10,
 	&range_bipolar5,
 	&range_bipolar2_5,
@@ -449,13 +449,13 @@ static comedi_lrange *dac_range_table[]={
 	&range_unipolar5
 };
 
-static comedi_lrange *dac_range_lkup(int opt)
+static const comedi_lrange *dac_range_lkup(int opt)
 {
 	if(opt<0 || opt>5)return &range_unknown;
 	return dac_range_table[opt];
 }
 
-static comedi_lrange *ai_range_lkup(int type,int opt)
+static const comedi_lrange *ai_range_lkup(int type,int opt)
 {
 	switch(type){
 	case 0:

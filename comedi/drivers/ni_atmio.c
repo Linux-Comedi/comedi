@@ -115,7 +115,7 @@ are not supported.
 
 #define MAX_N_CALDACS 32
 
-static ni_board ni_boards[]={
+static const ni_board ni_boards[]={
 	{	device_id:	44,
 		isapnp_id:	0x0000,	/* XXX unknown */
 		name:		"at-mio-16e-1",
@@ -268,7 +268,7 @@ static ni_board ni_boards[]={
 	}
 };
 
-static int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
+static const int ni_irqpin[]={-1,-1,-1,0,1,2,-1,3,-1,-1,4,5,6,-1,-1,7};
 
 #define interrupt_pin(a)	(ni_irqpin[(a)])
 

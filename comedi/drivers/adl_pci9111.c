@@ -270,7 +270,7 @@ static int pci9111_detach (comedi_device *dev);
 static void pci9111_ai_munge(comedi_device *dev, comedi_subdevice *s, void *data,
 	unsigned int num_bytes, unsigned int start_chan_index );
 
-static comedi_lrange pci9111_hr_ai_range=
+static const comedi_lrange pci9111_hr_ai_range=
 {
   5,
   {
@@ -302,13 +302,13 @@ typedef struct {
   int		ai_resolution_mask;
   int		ao_resolution;		// resolution of D/A
   int		ao_resolution_mask;
-  comedi_lrange	*ai_range_list;		// rangelist for A/D
-  comedi_lrange	*ao_range_list;		// rangelist for D/A
+  const comedi_lrange *ai_range_list;	// rangelist for A/D
+  const comedi_lrange *ao_range_list;	// rangelist for D/A
   unsigned int	ai_acquisition_period_min_ns;
 } pci9111_board_struct;
 
 
-static pci9111_board_struct pci9111_boards[] =
+static const pci9111_board_struct pci9111_boards[] =
 {
   {
     name: 		"pci9111_hr",
@@ -1253,7 +1253,7 @@ static int pci9111_attach(comedi_device *dev,comedi_devconfig *it)
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 	struct pci_dev* pci_device;
 	int error,i;
-	pci9111_board_struct* board;
+	const pci9111_board_struct* board;
 
 	if(alloc_private(dev, sizeof(pci9111_private_data_struct)) < 0)
 	{

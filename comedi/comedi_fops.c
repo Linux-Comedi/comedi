@@ -1704,7 +1704,7 @@ static int comedi_fasync (int fd, struct file *file, int on)
 }
 
 
-struct file_operations comedi_fops={
+const struct file_operations comedi_fops={
 	owner		: THIS_MODULE,
 	llseek		: comedi_lseek,
 	ioctl		: comedi_ioctl,

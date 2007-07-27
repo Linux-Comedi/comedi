@@ -173,7 +173,7 @@ typedef struct pci230_board_struct{
 	int ao_bits;
 	int have_dio;
 }pci230_board;
-static pci230_board pci230_boards[] = {
+static const pci230_board pci230_boards[] = {
 	{
 	name:		"pci230",
 	id:		PCI_DEVICE_ID_PCI230,
@@ -210,7 +210,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
  * Useful for shorthand access to the particular board structure
  */
 #define n_pci230_boards (sizeof(pci230_boards)/sizeof(pci230_boards[0]))
-#define thisboard ((pci230_board *)dev->board_ptr)
+#define thisboard ((const pci230_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
@@ -239,7 +239,7 @@ struct pci230_private{
 #define devpriv ((struct pci230_private *)dev->private)
 
 /* PCI230 analogue input range table */
-static comedi_lrange pci230_ai_range = { 7, {
+static const comedi_lrange pci230_ai_range = { 7, {
 	BIP_RANGE(10),
 	BIP_RANGE(5),
 	BIP_RANGE(2.5),
@@ -250,7 +250,7 @@ static comedi_lrange pci230_ai_range = { 7, {
 }};
 
 /* PCI230 analogue output range table */
-static comedi_lrange pci230_ao_range = { 2, {
+static const comedi_lrange pci230_ao_range = { 2, {
 	UNI_RANGE(10),
 	BIP_RANGE(10)
 }};

@@ -67,7 +67,7 @@ See the notes in the ni_atmio.o driver.
 
 #define MAX_N_CALDACS 32
 
-static ni_board ni_boards[]={
+static const ni_board ni_boards[]={
 	{	device_id:	0x010d,
 		name:		"DAQCard-ai-16xe-50",
 		n_adchan:	16,
@@ -263,7 +263,7 @@ static void cs_release(u_long arg);
 static void cs_detach(struct pcmcia_device *);
 
 static dev_link_t *dev_list = NULL;
-static dev_info_t dev_info = "ni_mio_cs";
+static const dev_info_t dev_info = "ni_mio_cs";
 static dev_node_t dev_node = {
 	"ni_mio_cs",
 	COMEDI_MAJOR,0,

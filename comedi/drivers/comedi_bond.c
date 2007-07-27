@@ -124,7 +124,7 @@ struct BondingBoard
 };
 typedef struct BondingBoard BondingBoard;
 
-static BondingBoard bondingBoards[] = {
+static const BondingBoard bondingBoards[] = {
   {
     name:		MODULE_NAME,
   },
@@ -133,7 +133,7 @@ static BondingBoard bondingBoards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((BondingBoard *)dev->board_ptr)
+#define thisboard ((const BondingBoard *)dev->board_ptr)
 
 struct BondedDevice
 {

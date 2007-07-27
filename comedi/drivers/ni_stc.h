@@ -923,7 +923,7 @@ enum ni_reg_type {
 	ni_reg_6143 = 0x20
 };
 
-static comedi_lrange range_ni_E_ao_ext;
+static const comedi_lrange range_ni_E_ao_ext;
 
 enum m_series_register_offsets
 {
@@ -1313,7 +1313,7 @@ typedef struct ni_board_struct{
 	int n_aochan;
 	int aobits;
 	int ao_fifo_depth;
-	comedi_lrange *ao_range_table;
+	const comedi_lrange *ao_range_table;
 	unsigned ao_speed;
 
 	unsigned num_p0_dio_channels;
@@ -1326,7 +1326,6 @@ typedef struct ni_board_struct{
 	enum caldac_enum caldac[3];
 }ni_board;
 
-static ni_board ni_boards[];
 #define n_ni_boards  (sizeof(ni_boards)/sizeof(ni_board))
 
 #define boardtype (*(ni_board *)dev->board_ptr)

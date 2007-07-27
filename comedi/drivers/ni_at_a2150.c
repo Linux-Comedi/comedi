@@ -119,14 +119,14 @@ TRIG_WAKE_EOS
 #define   HW_COUNT_DISABLE		0x30	// disable hardware counting of conversions
 
 typedef struct a2150_board_struct{
-	char *name;
+	const char *name;
 	int clock[4];	// master clock periods, in nanoseconds
 	int num_clocks;	// number of available master clock speeds
 	int ai_speed;	// maximum conversion rate in nanoseconds
 }a2150_board;
 
 //analog input range
-static comedi_lrange range_a2150 = {
+static const comedi_lrange range_a2150 = {
 	1,
 	{
 		RANGE( -2.828, 2.828 ),
@@ -135,7 +135,7 @@ static comedi_lrange range_a2150 = {
 
 // enum must match board indices
 enum{a2150_c, a2150_s};
-static a2150_board a2150_boards[] =
+static const a2150_board a2150_boards[] =
 {
 	{
 		name:	"at-a2150c",
@@ -153,7 +153,7 @@ static a2150_board a2150_boards[] =
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((a2150_board *)dev->board_ptr)
+#define thisboard ((const a2150_board *)dev->board_ptr)
 
 typedef struct{
 	volatile unsigned int count;  /* number of data points left to be taken */

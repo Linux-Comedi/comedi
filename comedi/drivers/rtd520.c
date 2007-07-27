@@ -197,7 +197,7 @@ Configuration options:
 /*
   The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
 */
-static comedi_lrange rtd_ai_7520_range = { 18, {
+static const comedi_lrange rtd_ai_7520_range = { 18, {
 					/* +-5V input range gain steps */
     BIP_RANGE(5.0),
     BIP_RANGE(5.0/2),
@@ -223,7 +223,7 @@ static comedi_lrange rtd_ai_7520_range = { 18, {
 }};
 
 /* PCI4520 has two more gains (6 more entries) */
-static comedi_lrange rtd_ai_4520_range = { 24, {
+static const comedi_lrange rtd_ai_4520_range = { 24, {
 					/* +-5V input range gain steps */
     BIP_RANGE(5.0),
     BIP_RANGE(5.0/2),
@@ -254,7 +254,7 @@ static comedi_lrange rtd_ai_4520_range = { 24, {
 }};
 
 /* Table order matches range values */
-static comedi_lrange rtd_ao_range = { 4, {
+static const comedi_lrange rtd_ao_range = { 4, {
     RANGE(0, 5),
     RANGE(0, 10),
     RANGE(-5, 5),
@@ -275,7 +275,7 @@ typedef struct rtdBoard_struct{
     int		rangeUniStart;		/* start of +10V range */
 } rtdBoard;
 
-static rtdBoard rtd520Boards[] = {
+static const rtdBoard rtd520Boards[] = {
     {
 	name:		"DM7520",
 	device_id:	0x7520,
@@ -328,7 +328,7 @@ MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((rtdBoard *)dev->board_ptr)
+#define thisboard ((const rtdBoard *)dev->board_ptr)
 
 /*
    This structure is for data unique to this hardware driver.

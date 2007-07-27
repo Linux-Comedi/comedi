@@ -76,14 +76,14 @@ typedef struct
 	const char *name;
 } board_type;
 
-static board_type board_types[] =
+static const board_type board_types[] =
 {
 	{
 		name:	"aio_aio12_8"
 	},
 };
 
-#define	thisboard	((board_type *) dev->board_ptr)
+#define	thisboard	((const board_type *) dev->board_ptr)
 
 typedef struct
 {
@@ -160,7 +160,7 @@ static int aio_aio12_8_ao_write (comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static comedi_lrange range_aio_aio12_8 =
+static const comedi_lrange range_aio_aio12_8 =
 {
 	4,
 	{

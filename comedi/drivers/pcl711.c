@@ -89,14 +89,14 @@ supported.
 #define PCL711_DO_LO 13
 #define PCL711_DO_HI 14
 
-static comedi_lrange range_pcl711b_ai = { 5, {
+static const comedi_lrange range_pcl711b_ai = { 5, {
         BIP_RANGE( 5 ),
         BIP_RANGE( 2.5 ),
         BIP_RANGE( 1.25 ),
         BIP_RANGE( 0.625 ),
         BIP_RANGE( 0.3125 )
 }};
-static comedi_lrange range_acl8112hg_ai = { 12, {
+static const comedi_lrange range_acl8112hg_ai = { 12, {
 	BIP_RANGE( 5 ),
 	BIP_RANGE( 0.5 ),
 	BIP_RANGE( 0.05 ),
@@ -110,7 +110,7 @@ static comedi_lrange range_acl8112hg_ai = { 12, {
 	BIP_RANGE( 0.1 ),
 	BIP_RANGE( 0.01 )
 }};
-static comedi_lrange range_acl8112dg_ai = { 9, {
+static const comedi_lrange range_acl8112dg_ai = { 9, {
         BIP_RANGE( 5 ),
         BIP_RANGE( 2.5 ),
         BIP_RANGE( 1.25 ),
@@ -129,7 +129,7 @@ static comedi_lrange range_acl8112dg_ai = { 9, {
 #define PCL711_TIMEOUT 100
 #define PCL711_DRDY 0x10
 
-static int i8253_osc_base = 500;	/* 2 Mhz */
+static const int i8253_osc_base = 500;	/* 2 Mhz */
 
 typedef struct {
 	const char *name;
@@ -140,10 +140,10 @@ typedef struct {
 	int n_aichan;
 	int n_aochan;
 	int maxirq;
-	comedi_lrange * ai_range_type;
+	const comedi_lrange * ai_range_type;
 } boardtype;
 
-static boardtype boardtypes[] =
+static const boardtype boardtypes[] =
 {
 	{"pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5},
 	{"pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai},
@@ -151,7 +151,7 @@ static boardtype boardtypes[] =
 	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
 };
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
-#define this_board ((boardtype *)dev->board_ptr)
+#define this_board ((const boardtype *)dev->board_ptr)
 
 static int pcl711_attach(comedi_device *dev,comedi_devconfig *it);
 static int pcl711_detach(comedi_device *dev);

@@ -77,7 +77,7 @@ MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
 MODULE_LICENSE("GPL");
 
 typedef struct s626_board_struct{
-  char *name;
+  const char *name;
   int ai_chans;
   int ai_bits;
   int ao_chans;
@@ -87,7 +87,7 @@ typedef struct s626_board_struct{
   int enc_chans;
 } s626_board;
 
-static s626_board s626_boards[] = {
+static const s626_board s626_boards[] = {
   {
     name:	"s626",
     ai_chans:	S626_ADC_CHANNELS,
@@ -100,7 +100,7 @@ static s626_board s626_boards[] = {
   }
 };
 
-#define thisboard ((s626_board *)dev->board_ptr)
+#define thisboard ((const s626_board *)dev->board_ptr)
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
 
@@ -464,7 +464,7 @@ static enc_private enc_private_data[]={
 #define I2C_B1(ATTR,VAL)	( ( (ATTR) << 4 ) | ( (VAL) << 16 ) )
 #define I2C_B0(ATTR,VAL)	( ( (ATTR) << 2 ) | ( (VAL) <<  8 ) )
 
-static comedi_lrange s626_range_table={ 2,{
+static const comedi_lrange s626_range_table={ 2,{
   RANGE(-5 , 5),
   RANGE(-10, 10),
 }};

@@ -154,37 +154,37 @@ Notes:
 #define DT2821_XCLK	0x0002	/* (R/W) external clock enable            */
 #define DT2821_BDINIT	0x0001	/* (W)   initialize board         */
 
-static comedi_lrange range_dt282x_ai_lo_bipolar = { 4, {
+static const comedi_lrange range_dt282x_ai_lo_bipolar = { 4, {
 	RANGE( -10,	10 ),
 	RANGE( -5,	5 ),
 	RANGE( -2.5,	2.5 ),
 	RANGE( -1.25,	1.25 )
 }};
-static comedi_lrange range_dt282x_ai_lo_unipolar = { 4, {
+static const comedi_lrange range_dt282x_ai_lo_unipolar = { 4, {
 	RANGE( 0,	10 ),
 	RANGE( 0,	5 ),
 	RANGE( 0,	2.5 ),
 	RANGE( 0,	1.25 )
 }};
-static comedi_lrange range_dt282x_ai_5_bipolar = { 4, {
+static const comedi_lrange range_dt282x_ai_5_bipolar = { 4, {
 	RANGE( -5,	5 ),
 	RANGE( -2.5,	2.5 ),
 	RANGE( -1.25,	1.25 ),
 	RANGE( -0.625,	0.625 ),
 }};
-static comedi_lrange range_dt282x_ai_5_unipolar = { 4, {
+static const comedi_lrange range_dt282x_ai_5_unipolar = { 4, {
 	RANGE( 0,	5 ),
 	RANGE( 0,	2.5 ),
 	RANGE( 0,	1.25 ),
 	RANGE( 0,	0.625 ),
 }};
-static comedi_lrange range_dt282x_ai_hi_bipolar = { 4, {
+static const comedi_lrange range_dt282x_ai_hi_bipolar = { 4, {
 	RANGE( -10,	10 ),
 	RANGE( -1,	1 ),
 	RANGE( -0.1,	0.1 ),
 	RANGE( -0.02,	0.02 )
 }};
-static comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
+static const comedi_lrange range_dt282x_ai_hi_unipolar = { 4, {
 	RANGE( 0,	10 ),
 	RANGE( 0,	1 ),
 	RANGE( 0,	0.1 ),
@@ -203,7 +203,7 @@ typedef struct {
 	int dabits;
 } boardtype_t;
 
-static boardtype_t boardtypes[] =
+static const boardtype_t boardtypes[] =
 {
 	{	name:		"dt2821",
 		adbits:		12,
@@ -333,7 +333,7 @@ static boardtype_t boardtypes[] =
 	},
 };
 #define n_boardtypes sizeof(boardtypes)/sizeof(boardtype_t)
-#define this_board ((boardtype_t *)dev->board_ptr)
+#define this_board ((const boardtype_t *)dev->board_ptr)
 
 
 typedef struct {
@@ -341,7 +341,7 @@ typedef struct {
 	int da0_2scomp;		/* same, for DAC0               */
 	int da1_2scomp;		/* same, for DAC1               */
 
-	comedi_lrange *darangelist[2];
+	const comedi_lrange *darangelist[2];
 
 	sampl_t ao[2];
 
@@ -364,7 +364,7 @@ typedef struct {
 } dt282x_private;
 
 #define devpriv ((dt282x_private *)dev->private)
-#define boardtype (*(boardtype_t *)dev->board_ptr)
+#define boardtype (*(const boardtype_t *)dev->board_ptr)
 
 /*
  *    Some useless abstractions
@@ -1145,15 +1145,15 @@ static int dt282x_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 }
 
 
-static comedi_lrange *ai_range_table[]={
+static const comedi_lrange * const ai_range_table[]={
 	&range_dt282x_ai_lo_bipolar,
 	&range_dt282x_ai_lo_unipolar,
 	&range_dt282x_ai_5_bipolar,
 	&range_dt282x_ai_5_unipolar };
-static comedi_lrange *ai_range_pgl_table[]={
+static const comedi_lrange * const ai_range_pgl_table[]={
 	&range_dt282x_ai_hi_bipolar,
 	&range_dt282x_ai_hi_unipolar };
-static comedi_lrange *opt_ai_range_lkup(int ispgl,int x)
+static const comedi_lrange *opt_ai_range_lkup(int ispgl,int x)
 {
 	if(ispgl){
 		if(x<0 || x>=2)x=0;
@@ -1163,13 +1163,13 @@ static comedi_lrange *opt_ai_range_lkup(int ispgl,int x)
 		return ai_range_table[x];
 	}
 }
-static comedi_lrange *ao_range_table[]={
+static const comedi_lrange * const ao_range_table[]={
 	&range_bipolar10,
 	&range_unipolar10,
 	&range_bipolar5,
 	&range_unipolar5,
 	&range_bipolar2_5 };
-static comedi_lrange *opt_ao_range_lkup(int x)
+static const comedi_lrange *opt_ao_range_lkup(int x)
 {
 	if(x<0 || x>=5)x=0;
 	return ao_range_table[x];

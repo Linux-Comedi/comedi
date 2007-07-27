@@ -58,12 +58,12 @@ References:
 
 /* Board descriptions */
 typedef struct {
-	char *name;
+	const char *name;
 	unsigned short dev_id; /* `lspci` will show you this */
 	int ao_chans;
 	//int ao_bits;
 } pci6208_board;
-static pci6208_board pci6208_boards[] = {
+static const pci6208_board pci6208_boards[] = {
 	/*{
 		name	:  "pci6208v",
 		dev_id	:  0x6208,	//not sure
@@ -95,7 +95,7 @@ static struct pci_device_id pci6208_pci_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
 
 /* Will be initialized in pci6208_find device(). */
-#define thisboard ((pci6208_board *)dev->board_ptr)
+#define thisboard ((const pci6208_board *)dev->board_ptr)
 
 typedef struct{
 	int data;

@@ -151,7 +151,7 @@ int comedi_get_krange(comedi_t *d,unsigned int subdevice,unsigned int chan,unsig
 {
 	comedi_device *dev = (comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
-	comedi_lrange *lr;
+	const comedi_lrange *lr;
 
 	if (s->range_table_list) {
 		lr=s->range_table_list[chan];

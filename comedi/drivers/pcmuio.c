@@ -149,13 +149,13 @@ Configuration Options:
  */
 typedef struct pcmuio_board_struct
 {
-	const char * const name;
+	const char *name;
 	const int num_asics;
 	const int num_channels_per_port;
 	const int num_ports;
 } pcmuio_board;
 
-static pcmuio_board pcmuio_boards[] =
+static const pcmuio_board pcmuio_boards[] =
 {
 	{
 		name:                   "pcmuio48",
@@ -172,7 +172,7 @@ static pcmuio_board pcmuio_boards[] =
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pcmuio_board *)dev->board_ptr)
+#define thisboard ((const pcmuio_board *)dev->board_ptr)
 
 /* this structure is for data unique to this subdevice.  */
 typedef struct

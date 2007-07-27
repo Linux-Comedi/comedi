@@ -95,7 +95,7 @@ typedef struct skel_board_struct{
 	int ai_bits;
 	int have_dio;
 }skel_board;
-static skel_board skel_boards[] = {
+static const skel_board skel_boards[] = {
 	{
 	name:		"skel-100",
 	ai_chans:	16,
@@ -125,7 +125,7 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((skel_board *)dev->board_ptr)
+#define thisboard ((const skel_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

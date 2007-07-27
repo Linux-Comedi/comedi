@@ -114,15 +114,15 @@ struct comedi_subdevice_struct{
 	int io_bits;
 
 	lsampl_t maxdata;		/* if maxdata==0, use list */
-	lsampl_t *maxdata_list;		/* list is channel specific */
+	const lsampl_t *maxdata_list;	/* list is channel specific */
 
 	unsigned int flags;
-	unsigned int *flaglist;
+	const unsigned int *flaglist;
 
 	unsigned int settling_time_0;
 
-	comedi_lrange *range_table;
-	comedi_lrange **range_table_list;
+	const comedi_lrange *range_table;
+	const comedi_lrange * const *range_table_list;
 
 	unsigned int *chanlist;		/* driver-owned chanlist (not used) */
 
@@ -391,12 +391,12 @@ unsigned comedi_get_subdevice_runflags(comedi_subdevice *s);
 #define BIP_RANGE(a)		{-(a)*1e6,(a)*1e6,0}
 #define UNI_RANGE(a)		{0,(a)*1e6,0}
 
-extern comedi_lrange range_bipolar10;
-extern comedi_lrange range_bipolar5;
-extern comedi_lrange range_bipolar2_5;
-extern comedi_lrange range_unipolar10;
-extern comedi_lrange range_unipolar5;
-extern comedi_lrange range_unknown;
+extern const comedi_lrange range_bipolar10;
+extern const comedi_lrange range_bipolar5;
+extern const comedi_lrange range_bipolar2_5;
+extern const comedi_lrange range_unipolar10;
+extern const comedi_lrange range_unipolar5;
+extern const comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
 

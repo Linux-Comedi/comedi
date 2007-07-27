@@ -61,7 +61,7 @@ typedef struct dnp_board_struct{
 	int have_dio;
 } dnp_board;
 
-static dnp_board dnp_boards[] = {              /* we only support one DNP 'board'   */
+static const dnp_board dnp_boards[] = {              /* we only support one DNP 'board'   */
 	{                               /* variant at the moment             */
 	name:		"dnp-1486",
 	ai_chans:	16,
@@ -72,7 +72,7 @@ static dnp_board dnp_boards[] = {              /* we only support one DNP 'board
 
 
 /* Useful for shorthand access to the particular board structure ----------- */
-#define thisboard ((dnp_board *)dev->board_ptr)
+#define thisboard ((const dnp_board *)dev->board_ptr)
 
 
 /* This structure is for data unique to the DNP driver --------------------- */

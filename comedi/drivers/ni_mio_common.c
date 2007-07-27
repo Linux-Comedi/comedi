@@ -74,7 +74,7 @@
 static const unsigned old_RTSI_clock_channel = 7;
 
 /* Note: this table must match the ai_gain_* definitions */
-static short ni_gainlkup[][16]={
+static const short ni_gainlkup[][16]={
 	/* ai_gain_16 */
 	{ 0, 1, 2, 3, 4, 5, 6, 7, 0x100, 0x101, 0x102, 0x103, 0x104, 0x105,
 		0x106, 0x107 },
@@ -95,7 +95,7 @@ static short ni_gainlkup[][16]={
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 };
 
-static comedi_lrange range_ni_E_ai={	16, {
+static const comedi_lrange range_ni_E_ai={	16, {
 	RANGE( -10,	10	),
 	RANGE( -5,	5	),
 	RANGE( -2.5,	2.5	),
@@ -113,7 +113,7 @@ static comedi_lrange range_ni_E_ai={	16, {
 	RANGE( 0,	0.2	),
 	RANGE( 0,	0.1	),
 }};
-static comedi_lrange range_ni_E_ai_limited={	8, {
+static const comedi_lrange range_ni_E_ai_limited={	8, {
 	RANGE( -10,	10	),
 	RANGE( -5,	5	),
 	RANGE( -1,	1	),
@@ -123,7 +123,7 @@ static comedi_lrange range_ni_E_ai_limited={	8, {
 	RANGE( 0,	1	),
 	RANGE( 0,	0.1	),
 }};
-static comedi_lrange range_ni_E_ai_limited14={	14, {
+static const comedi_lrange range_ni_E_ai_limited14={	14, {
 	RANGE( -10,	10	),
 	RANGE( -5,	5	),
 	RANGE( -2,	2	),
@@ -139,13 +139,13 @@ static comedi_lrange range_ni_E_ai_limited14={	14, {
 	RANGE( 0,	0.2	),
 	RANGE( 0,	0.1	),
 }};
-static comedi_lrange range_ni_E_ai_bipolar4={ 4, {
+static const comedi_lrange range_ni_E_ai_bipolar4={ 4, {
 	RANGE( -10,	10	),
 	RANGE( -5,	5	),
 	RANGE( -0.5,	0.5	),
 	RANGE( -0.05,	0.05	),
 }};
-static comedi_lrange range_ni_E_ai_611x={ 8, {
+static const comedi_lrange range_ni_E_ai_611x={ 8, {
 	RANGE( -50,	50	),
 	RANGE( -20,	20	),
 	RANGE( -10,	10	),
@@ -155,13 +155,13 @@ static comedi_lrange range_ni_E_ai_611x={ 8, {
 	RANGE( -0.5,	0.5	),
 	RANGE( -0.2,	0.2	),
 }};
-static comedi_lrange range_ni_M_ai_622x={ 4, {
+static const comedi_lrange range_ni_M_ai_622x={ 4, {
 	RANGE(-10, 10),
 	RANGE(-5, 5),
 	RANGE(-1, 1),
 	RANGE(-0.2, 0.2),
 }};
-static comedi_lrange range_ni_M_ai_628x={ 7, {
+static const comedi_lrange range_ni_M_ai_628x={ 7, {
 	RANGE( -10,	10	),
 	RANGE( -5,	5	),
 	RANGE( -2,	2	),
@@ -170,17 +170,17 @@ static comedi_lrange range_ni_M_ai_628x={ 7, {
 	RANGE( -0.2,	0.2	),
 	RANGE( -0.1,	0.1	),
 }};
-static comedi_lrange range_ni_S_ai_6143 = { 1, {
+static const comedi_lrange range_ni_S_ai_6143 = { 1, {
 	RANGE( -5,	+5	),
 }};
-static comedi_lrange range_ni_E_ao_ext = { 4, {
+static const comedi_lrange range_ni_E_ao_ext = { 4, {
 	RANGE( -10,	10	),
 	RANGE( 0,	10	),
 	RANGE_ext( -1,	1	),
 	RANGE_ext( 0,	1	),
 }};
 
-static comedi_lrange *ni_range_lkup[]={
+static const comedi_lrange * const ni_range_lkup[]={
 	&range_ni_E_ai,
 	&range_ni_E_ai_limited,
 	&range_ni_E_ai_limited14,
@@ -1021,7 +1021,7 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 }
 
 #ifdef DEBUG_STATUS_A
-static char *status_a_strings[]={
+static const char * const status_a_strings[]={
 	"passthru0","fifo","G0_gate","G0_TC",
 	"stop","start","sc_tc","start1",
 	"start2","sc_tc_error","overflow","overrun",
@@ -1043,7 +1043,7 @@ static void ni_mio_print_status_a(int status)
 #endif
 
 #ifdef DEBUG_STATUS_B
-static char *status_b_strings[]={
+static const char * const status_b_strings[]={
 	"passthru1","fifo","G1_gate","G1_TC",
 	"UI2_TC","UPDATE","UC_TC","BC_TC",
 	"start1","overrun","start","bc_tc_error",
@@ -2571,7 +2571,7 @@ static int ni_m_series_ao_config_chanlist(comedi_device *dev, comedi_subdevice *
 	}
 	for(i=0;i<n_chans;i++)
 	{
-		comedi_krange *krange;
+		const comedi_krange *krange;
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
 		krange = s->range_table->range + range;
@@ -4119,16 +4119,17 @@ static void caldac_setup(comedi_device *dev,comedi_subdevice *s)
 	s->n_chan=n_chans;
 
 	if(diffbits){
+		unsigned int *maxdata_list;
 
 		if(n_chans>MAX_N_CALDACS){
 			printk("BUG! MAX_N_CALDACS too small\n");
 		}
-		s->maxdata_list=devpriv->caldac_maxdata_list;
+		s->maxdata_list=maxdata_list=devpriv->caldac_maxdata_list;
 		chan=0;
 		for(i=0;i<n_dacs;i++){
 			type = boardtype.caldac[i];
 			for(j=0;j<caldacs[type].n_chans;j++){
-				s->maxdata_list[chan]=
+				maxdata_list[chan]=
 					(1<<caldacs[type].n_bits)-1;
 				chan++;
 			}

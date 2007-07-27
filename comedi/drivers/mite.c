@@ -619,7 +619,7 @@ static void mite_decode(char **bit_str, unsigned int bits);
 
 /* names of bits in mite registers */
 
-static char *mite_CHOR_strings[] = {
+static const char * const mite_CHOR_strings[] = {
 	"start", "cont", "stop", "abort",
 	"freset", "clrlc", "clrrb", "clrdone",
 	"clr_lpause", "set_lpause", "clr_send_tc",
@@ -631,7 +631,7 @@ static char *mite_CHOR_strings[] = {
 	"dmareset",
 };
 
-static char *mite_CHCR_strings[] = {
+static const char * const mite_CHCR_strings[] = {
 	"continue", "ringbuff", "2", "3",
 	"4", "5", "6", "7",
 	"8", "9", "10", "11",
@@ -642,7 +642,7 @@ static char *mite_CHCR_strings[] = {
 	"clr_linkp_ie", "set_linkp_ie", "clr_dma_ie", "set_dma_ie",
 };
 
-static char *mite_MCR_strings[] = {
+static const char * const mite_MCR_strings[] = {
 	"amdevice", "1", "2", "3",
 	"4", "5", "portio", "portvxi",
 	"psizebyte", "psizehalf (byte & half = word)", "aseqxp1", "11",
@@ -653,7 +653,7 @@ static char *mite_MCR_strings[] = {
 	"28", "29", "30", "stopen",
 };
 
-static char *mite_DCR_strings[] = {
+static const char * const mite_DCR_strings[] = {
 	"amdevice", "1", "2", "3",
 	"4", "5", "portio", "portvxi",
 	"psizebyte", "psizehalf (byte & half = word)", "aseqxp1", "aseqxp2",
@@ -664,7 +664,7 @@ static char *mite_DCR_strings[] = {
 	"28", "wsdevc", "wsdevs", "rwdevpack",
 };
 
-static char *mite_LKCR_strings[] = {
+static const char * const mite_LKCR_strings[] = {
 	"amdevice", "1", "2", "3",
 	"4", "5", "portio", "portvxi",
 	"psizebyte", "psizehalf (byte & half = word)", "asequp", "aseqdown",
@@ -676,7 +676,7 @@ static char *mite_LKCR_strings[] = {
 };
 
 
-static char *mite_CHSR_strings[] = {
+static const char * const mite_CHSR_strings[] = {
 	"d.err0", "d.err1", "m.err0", "m.err1",
 	"l.err0", "l.err1", "drq0", "drq1",
 	"end", "xferr", "operr0", "operr1",

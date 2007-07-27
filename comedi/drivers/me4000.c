@@ -64,7 +64,7 @@ broken.
 #include "me4000_fw.h"
 #endif
 
-me4000_board_t me4000_boards[] = {
+static const me4000_board_t me4000_boards[] = {
     { "ME-4650"  , 0x4650, { 0, 0 }, { 16, 0,  0, 0 }, { 4 }, { 0 } },
 
     { "ME-4660"  , 0x4660, { 0, 0 }, { 32, 0, 16, 0 }, { 4 }, { 3 } },
@@ -247,7 +247,7 @@ static unsigned char me4000_inb(comedi_device *dev, unsigned long port){
 
 
 
-static comedi_lrange me4000_ai_range=
+static const comedi_lrange me4000_ai_range=
 {
     4,
     {
@@ -260,7 +260,7 @@ static comedi_lrange me4000_ai_range=
 
 
 
-static comedi_lrange me4000_ao_range=
+static const comedi_lrange me4000_ao_range=
 {
     1,
     {

@@ -127,7 +127,7 @@ typedef struct
 
 #define devpriv ((skel_private *)dev->private)
 //----------------------------------------------------------------------------
-static comedi_lrange range_mpc624_bipolar1 =
+static const comedi_lrange range_mpc624_bipolar1 =
 { 
   1, 
   {
@@ -136,7 +136,7 @@ static comedi_lrange range_mpc624_bipolar1 =
     BIP_RANGE(2.02)
   }
 };
-static comedi_lrange range_mpc624_bipolar10 =
+static const comedi_lrange range_mpc624_bipolar10 =
 { 
   1,
   {

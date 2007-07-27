@@ -61,9 +61,9 @@ struct boarddef_struct{
 	int (*winsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*rinsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
 	int (*insnbits)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
-	comedi_lrange* range;
+	const comedi_lrange *range;
 };
-static struct boarddef_struct boards[]={
+static const struct boarddef_struct boards[]={
 	{
 	name:		"dac02",
 	iosize:		8,
@@ -95,7 +95,7 @@ static struct boarddef_struct boards[]={
 	},
 };
 #define n_boards (sizeof(boards)/sizeof(boards[0]))
-#define this_board ((struct boarddef_struct *)dev->board_ptr)
+#define this_board ((const struct boarddef_struct *)dev->board_ptr)
 
 static comedi_driver driver_poc=
 {

@@ -68,11 +68,11 @@ enum pc263_model {pc263_model, pci263_model};
 
 typedef struct pc263_board_struct{
 	const char *name;
-	char *fancy_name;
+	const char *fancy_name;
 	enum pc263_bustype bustype;
 	enum pc263_model model;
 }pc263_board;
-static pc263_board pc263_boards[] = {
+static const pc263_board pc263_boards[] = {
 	{
 	name:		"pc263",
 	fancy_name:	"PC263",
@@ -96,7 +96,7 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pc263_board *)dev->board_ptr)
+#define thisboard ((const pc263_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,

@@ -100,7 +100,7 @@ Configuration Options:
  * will someday support more than 1 board...
  */
 typedef struct board_struct {
-    char *name;
+    const char *name;
     unsigned short device_id;
     int ao_chans;
     int ao_bits;
@@ -118,7 +118,7 @@ enum DIO_METHODS {
   DIO_INTERNAL /* unimplemented */
 };
 
-static board boards[] = {
+static const board boards[] = {
     {
         name:		"cb_pcimdda06-16",
         device_id:       PCI_ID_PCIM_DDA06_16,
@@ -135,7 +135,7 @@ static board boards[] = {
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard    ((board *)dev->board_ptr)
+#define thisboard    ((const board *)dev->board_ptr)
 
 /* Number of boards in boards[] */
 #define N_BOARDS	(sizeof(boards) / sizeof(board))

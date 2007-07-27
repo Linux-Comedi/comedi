@@ -199,7 +199,7 @@ enum scan_mode
 //analog input ranges
 #define NUM_LABPC_PLUS_AI_RANGES 16
 // indicates unipolar ranges
-static int labpc_plus_is_unipolar[NUM_LABPC_PLUS_AI_RANGES] =
+static const int labpc_plus_is_unipolar[NUM_LABPC_PLUS_AI_RANGES] =
 {
 	0,
 	0,
@@ -219,7 +219,7 @@ static int labpc_plus_is_unipolar[NUM_LABPC_PLUS_AI_RANGES] =
 	1,
 };
 // map range index to gain bits
-static int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] =
+static const int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] =
 {
 	0x00,
 	0x10,
@@ -238,7 +238,7 @@ static int labpc_plus_ai_gain_bits[NUM_LABPC_PLUS_AI_RANGES] =
 	0x60,
 	0x70,
 };
-static comedi_lrange range_labpc_plus_ai = {
+static const comedi_lrange range_labpc_plus_ai = {
 	NUM_LABPC_PLUS_AI_RANGES,
 	{
 		BIP_RANGE(5),
@@ -262,7 +262,7 @@ static comedi_lrange range_labpc_plus_ai = {
 
 #define NUM_LABPC_1200_AI_RANGES 14
 // indicates unipolar ranges
-static int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
+static const int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
 {
 	0,
 	0,
@@ -280,7 +280,7 @@ static int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] =
 	1,
 };
 // map range index to gain bits
-static int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
+static const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
 {
 	0x00,
 	0x20,
@@ -297,7 +297,7 @@ static int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] =
 	0x60,
 	0x70,
 };
-static comedi_lrange range_labpc_1200_ai = {
+static const comedi_lrange range_labpc_1200_ai = {
 	NUM_LABPC_1200_AI_RANGES,
 	{
 		BIP_RANGE(5),
@@ -319,7 +319,7 @@ static comedi_lrange range_labpc_1200_ai = {
 
 //analog output ranges
 #define AO_RANGE_IS_UNIPOLAR 0x1
-comedi_lrange range_labpc_ao = {
+static const comedi_lrange range_labpc_ao = {
 	2,
 	{
 		BIP_RANGE(5),
@@ -346,7 +346,7 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 	writeb(byte, (void*) address);
 }
 
-static labpc_board labpc_boards[] =
+static const labpc_board labpc_boards[] =
 {
 	{
 		name:	"lab-pc-1200",
@@ -399,7 +399,7 @@ static labpc_board labpc_boards[] =
 	},
 };
 
-labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS] =
+const labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS] =
 {
 	{
 		name:	"daqcard-1200",

@@ -45,7 +45,7 @@ typedef struct {
 	int  device_id;
 } adl_pci7432_board;
 
-static adl_pci7432_board adl_pci7432_boards[] = {
+static const adl_pci7432_board adl_pci7432_boards[] = {
 	{ "pci7432", PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432 },
 };
 
@@ -55,7 +55,7 @@ static struct pci_device_id adl_pci7432_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, adl_pci7432_pci_table);
 
-#define thisboard ((adl_pci7432_board *)dev->board_ptr)
+#define thisboard ((const adl_pci7432_board *)dev->board_ptr)
 
 typedef struct{
 	int data;

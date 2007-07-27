@@ -56,13 +56,13 @@ MODULE_DEVICE_TABLE(pci, cnt_pci_table);
 
 typedef struct
 {
-  char *name;
+  const char *name;
   int device_id;
   int cnt_channel_nbr;
   int cnt_bits;
 } cnt_board_struct;
 
-static cnt_board_struct cnt_boards[] =
+static const cnt_board_struct cnt_boards[] =
 {
   {
     name:            CNT_DRIVER_NAME,

@@ -108,19 +108,19 @@ cmd triggers supported:
 typedef struct das800_board_struct{
 	const char *name;
 	int ai_speed;
-	comedi_lrange *ai_range;
+	const comedi_lrange *ai_range;
 	int resolution;
 }das800_board;
 
 //analog input ranges
-static comedi_lrange range_das800_ai = {
+static const comedi_lrange range_das800_ai = {
 	1,
 	{
 		RANGE( -5, 5 ),
 	}
 };
 
-static comedi_lrange range_das801_ai = {
+static const comedi_lrange range_das801_ai = {
 	9,
 	{
 		RANGE(-5, 5),
@@ -135,7 +135,7 @@ static comedi_lrange range_das801_ai = {
 	}
 };
 
-static comedi_lrange range_cio_das801_ai = {
+static const comedi_lrange range_cio_das801_ai = {
 	9,
 	{
 		RANGE(-5, 5),
@@ -150,7 +150,7 @@ static comedi_lrange range_cio_das801_ai = {
 	}
 };
 
-static comedi_lrange range_das802_ai = {
+static const comedi_lrange range_das802_ai = {
 	9,
 	{
 		RANGE(-5, 5),
@@ -165,7 +165,7 @@ static comedi_lrange range_das802_ai = {
 	}
 };
 
-static comedi_lrange range_das80216_ai = {
+static const comedi_lrange range_das80216_ai = {
 	8,
 	{
 		RANGE(-10, 10),
@@ -181,7 +181,7 @@ static comedi_lrange range_das80216_ai = {
 
 enum{das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216};
 
-static das800_board das800_boards[] =
+static const das800_board das800_boards[] =
 {
 	{
 		name:	"das-800",
@@ -229,7 +229,7 @@ static das800_board das800_boards[] =
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((das800_board *)dev->board_ptr)
+#define thisboard ((const das800_board *)dev->board_ptr)
 
 typedef struct{
 	volatile unsigned int count;  /* number of data points left to be taken */
