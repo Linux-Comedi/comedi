@@ -158,8 +158,6 @@ typedef struct s526GPCTConfig
 	int data[MAX_GPCT_CONFIG_DATA];
 } s526_gpct_config_t;
 
-static s526_gpct_config_t s526_gpct_config[4];
-static unsigned short s526_ai_config = 0;
 
 /*
  * Board descriptions for two imaginary boards.  Describing the
@@ -209,6 +207,9 @@ typedef struct{
 
 	/* Used for AO readback */
 	lsampl_t ao_readback[2];
+
+	s526_gpct_config_t s526_gpct_config[4];
+	unsigned short s526_ai_config;
 }s526_private;
 /*
  * most drivers define the following macro to make it easy to
@@ -507,7 +508,7 @@ static int s526_gpct_insn_config(comedi_device *dev, comedi_subdevice *s, comedi
 //        printk("s526: GPCT_INSN_CONFIG: Configuring Channel %d\n", subdev_channel);
 
 	for(i = 0; i < MAX_GPCT_CONFIG_DATA; i++) {
-		s526_gpct_config[subdev_channel].data[i] = insn->data[i];
+		devpriv->s526_gpct_config[subdev_channel].data[i] = insn->data[i];
 //		printk("data[%d]=%x\n", i, insn->data[i]);
 	}
 
@@ -523,7 +524,7 @@ static int s526_gpct_insn_config(comedi_device *dev, comedi_subdevice *s, comedi
 			data[3]: Conter Control Register
 			*/
                 	printk("s526: GPCT_INSN_CONFIG: Configuring Encoder\n");
-		        s526_gpct_config[subdev_channel].app = PositionMeasurement;
+		        devpriv->s526_gpct_config[subdev_channel].app = PositionMeasurement;
 
 /*
 			// Example of Counter Application
@@ -634,7 +635,7 @@ static int s526_gpct_insn_config(comedi_device *dev, comedi_subdevice *s, comedi
 			data[4]: Conter Control Register
 			*/
         	        printk("s526: GPCT_INSN_CONFIG: Configuring SPG\n");
-			s526_gpct_config[subdev_channel].app = SinglePulseGeneration;
+			devpriv->s526_gpct_config[subdev_channel].app = SinglePulseGeneration;
 
 			// Set Counter Mode Register
 			cmReg.value = (sampl_t)(insn->data[1] & 0xFFFF);
@@ -678,7 +679,7 @@ static int s526_gpct_insn_config(comedi_device *dev, comedi_subdevice *s, comedi
 			data[4]: Conter Control Register
 			*/
                 	printk("s526: GPCT_INSN_CONFIG: Configuring PTG\n");
-			s526_gpct_config[subdev_channel].app = PulseTrainGeneration;
+			devpriv->s526_gpct_config[subdev_channel].app = PulseTrainGeneration;
 
 			// Set Counter Mode Register
 			cmReg.value = (sampl_t)(insn->data[1] & 0xFFFF);
@@ -731,7 +732,7 @@ static int s526_gpct_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	cmReg.value = inw(ADDR_CHAN_REG(REG_C0M, subdev_channel));
 	printk("s526: Counter Mode Register: %x\n", cmReg.value);
         // Check what Application of Counter this channel is configured for
-        switch(s526_gpct_config[subdev_channel].app)
+        switch(devpriv->s526_gpct_config[subdev_channel].app)
         {
 	        case PositionMeasurement:
         	        printk("S526: INSN_WRITE: PM\n");
@@ -755,8 +756,8 @@ static int s526_gpct_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
         	        printk("S526: INSN_WRITE: PTG\n");
                 	if ( (insn->data[1] > insn->data[0]) && (insn->data[0] > 0 ) )
 	                {
-        	                (s526_gpct_config[subdev_channel]).data[0] = insn->data[0];
-                	        (s526_gpct_config[subdev_channel]).data[1] = insn->data[1];
+        	                (devpriv->s526_gpct_config[subdev_channel]).data[0] = insn->data[0];
+                	        (devpriv->s526_gpct_config[subdev_channel]).data[1] = insn->data[1];
 	                }
         	        else
                 	{
@@ -772,7 +773,7 @@ static int s526_gpct_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn 
 	                break;
         	default: // Impossible
                 	printk("s526: INSN_WRITE: Functionality %d not implemented yet\n",
-	                s526_gpct_config[subdev_channel].app);
+	                devpriv->s526_gpct_config[subdev_channel].app);
         	        return -EINVAL;
                 	break;
         }
@@ -797,11 +798,11 @@ static int s526_ai_insn_config(comedi_device *dev,comedi_subdevice *s,
 	// Enable ADC interrupt
 	outw(ISR_ADC_DONE, ADDR_REG(REG_IER));
 //	printk("s526: ADC current value: 0x%04x\n", inw(ADDR_REG(REG_ADC)));
-	s526_ai_config = (data[0] & 0x3FF) << 5;
+	devpriv->s526_ai_config = (data[0] & 0x3FF) << 5;
 	if (data[1] > 0)
-		s526_ai_config |= 0x8000; //set the delay
+		devpriv->s526_ai_config |= 0x8000; //set the delay
 
-	s526_ai_config |= 0x0001;  // ADC start bit.
+	devpriv->s526_ai_config |= 0x0001;  // ADC start bit.
 
         return result;
 }
@@ -819,7 +820,7 @@ static int s526_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	unsigned int d;
 	unsigned int status;
 
-	value = s526_ai_config | (chan << 1);
+	value = devpriv->s526_ai_config | (chan << 1);
 	// outw(value, ADDR_REG(REG_ADC)); do it with ADC start
 
 
