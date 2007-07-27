@@ -84,7 +84,7 @@ comedi_config /dev/comedi0 s526 0x2C0,0x3
 #define REG_EEC 0x34
 
 
-int s526_ports[] =
+static const int s526_ports[] =
 {
 REG_TCR,
 REG_WDC,
