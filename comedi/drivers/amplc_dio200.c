@@ -30,7 +30,7 @@ Description: Amplicon PC272E, PCI272
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
   PCI215 (pci215), PC218E (pc218e), PC272E (pc272e), PCI272 (pci272)
-Updated: Fri, 07 Oct 2005 16:59:59 +0100
+Updated: Fri, 27 Jul 2007 14:28:41 +0100
 Status: works
 
 Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
@@ -110,7 +110,8 @@ instructions are supported:
         channels on the chip.
 
   INSN_CONFIG_GET_CLOCK_SRC.  Returns the counter channel's current
-    clock source in data[1].
+    clock source in data[1].  For internal clock sources, data[2] is set
+    to the period in ns.
 
   INSN_CONFIG_SET_GATE_SRC.  Sets the counter channel's gate source as
     specified in data[2] (this is a hardware-specific value).  Not
@@ -241,6 +242,20 @@ order they appear in the channel list.
  */
 #define CLK_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
 #define GAT_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
+
+/*
+ * Periods of the internal clock sources in nanoseconds.
+ */
+static const unsigned clock_period[8] = {
+	0,		/* dedicated clock input/output pin */
+	100,		/* 10 MHz */
+	1000,		/* 1 MHz */
+	10000,		/* 100 kHz */
+	100000,		/* 10 kHz */
+	1000000,	/* 1 kHz */
+	0,		/* OUT N-1 */
+	0		/* group clock input pin */
+};
 
 /*
  * Board descriptions.
@@ -1053,12 +1068,17 @@ dio200_set_clock_src(dio200_subdev_8254 *subpriv, unsigned int counter_number,
  * Get clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_clock_src(dio200_subdev_8254 *subpriv, unsigned int counter_number)
+dio200_get_clock_src(dio200_subdev_8254 *subpriv, unsigned int counter_number,
+		lsampl_t *period_ns)
 {
+	unsigned clock_src;
+
 	if (!subpriv->has_clk_gat_sce) return -1;
 	if (counter_number > 2) return -1;
 
-	return subpriv->clock_src[counter_number];
+	clock_src = subpriv->clock_src[counter_number];
+	*period_ns = clock_period[clock_src];
+	return clock_src;
 }
 
 /*
@@ -1094,7 +1114,7 @@ dio200_subdev_8254_config(comedi_device *dev, comedi_subdevice *s,
 		if (ret < 0) return -EINVAL;
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		ret = dio200_get_clock_src(subpriv, chan);
+		ret = dio200_get_clock_src(subpriv, chan, &data[2]);
 		if (ret < 0) return -EINVAL;
 		data[1] = ret;
 		break;
