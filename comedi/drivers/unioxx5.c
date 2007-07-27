@@ -93,7 +93,7 @@ static int __unioxx5_digital_write(unioxx5_subd_priv* usp, lsampl_t* data,
 								   int channel, int minor);
 static int __unioxx5_digital_read(unioxx5_subd_priv* usp, lsampl_t* data,
 								  int channel, int minor);
-static void __unioxx5_digital_config(unioxx5_subd_priv* usp, int mode);
+//static void __unioxx5_digital_config(unioxx5_subd_priv* usp, int mode);
 static int __unioxx5_analog_write(unioxx5_subd_priv* usp, lsampl_t* data, 
 								  int channel, int minor);
 static int __unioxx5_analog_read(unioxx5_subd_priv* usp, lsampl_t* data,
@@ -372,6 +372,7 @@ static int __unioxx5_digital_read(unioxx5_subd_priv* usp, lsampl_t* data,
   return 1;
 }
 
+#if 0 /* not used? */
 static void __unioxx5_digital_config(unioxx5_subd_priv* usp, int mode)
 {
   int i, mask;
@@ -386,6 +387,7 @@ static void __unioxx5_digital_config(unioxx5_subd_priv* usp, int mode)
 
   outb(0, usp->usp_iobase + 0);
 }
+#endif
 
 static int __unioxx5_analog_write(unioxx5_subd_priv* usp, lsampl_t* data, 
 									int channel, int minor)

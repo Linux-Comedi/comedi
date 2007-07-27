@@ -2285,7 +2285,7 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable, short re
 static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	comedi_cmd *cmd = &async->cmd;
+	//comedi_cmd *cmd = &async->cmd;
 	const unsigned command_reg = NITIO_Gi_Command_Reg(counter->counter_index);
 
 	/* write alloc the entire buffer */

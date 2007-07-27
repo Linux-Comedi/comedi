@@ -240,9 +240,8 @@ static int cb_pcidda_detach(comedi_device *dev);
 //static int cb_pcidda_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 //static int cb_pcidda_ai_cmd(comedi_device *dev,comedi_subdevice *s);
-static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd);
-static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
+//static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s, comedi_cmd *cmd);
+//static int cb_pcidda_ns_to_timer(unsigned int *ns,int round);
 static unsigned int cb_pcidda_serial_in(comedi_device *dev);
 static void cb_pcidda_serial_out(comedi_device *dev, unsigned int value, unsigned int num_bits);
 static unsigned int cb_pcidda_read_eeprom(comedi_device *dev, unsigned int address);
@@ -424,7 +423,8 @@ static int cb_pcidda_detach(comedi_device *dev)
 
 /*
  * I will program this later... ;-)
- *
+ */
+#if 0
 static int cb_pcidda_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	printk("cb_pcidda_ai_cmd\n");
@@ -441,8 +441,9 @@ static int cb_pcidda_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 	printk("stop_arg: %d\n", cmd->stop_arg);
 	printk("chanlist_len: %d\n", cmd->chanlist_len);
 }
-*/
+#endif
 
+#if 0
 static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	comedi_cmd *cmd)
 {
@@ -608,17 +609,20 @@ static int cb_pcidda_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	return 0;
 }
+#endif
 
 /* This function doesn't require a particular form, this is just
  * what happens to be used in some of the drivers.  It should
  * convert ns nanoseconds to a counter value suitable for programming
  * the device.  Also, it should adjust ns so that it cooresponds to
  * the actual time that the device will use. */
+#if 0
 static int cb_pcidda_ns_to_timer(unsigned int *ns,int round)
 {
 	/* trivial timer */
 	return *ns;
 }
+#endif
 
 static int cb_pcidda_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
 {

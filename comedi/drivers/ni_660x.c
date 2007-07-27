@@ -387,9 +387,11 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 			      lsampl_t * data);
 
 // NYI
+#if 0
 static int ni_660x_GPCT_cmdtest(comedi_device *dev,comedi_subdevice *s,
 				comedi_cmd *cmd);
 static int ni_660x_GPCT_cmd(comedi_device *dev,comedi_subdevice *s);
+#endif
 
 /* Possible instructions for Digital IO */
 static int ni_660x_dio_insn_config(comedi_device *dev,
@@ -401,6 +403,7 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
 				 comedi_insn *insn,
 				 lsampl_t *data);
 
+#if 0
 static int ni_660x_GPCT_cmdtest(comedi_device *dev,comedi_subdevice *s,
 				comedi_cmd *cmd)
 {
@@ -413,6 +416,7 @@ static int ni_660x_GPCT_cmd(comedi_device *dev,comedi_subdevice *s)
 	DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
 	return -EINVAL;
 }
+#endif
 
 static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 {

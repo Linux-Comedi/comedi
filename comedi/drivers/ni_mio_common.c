@@ -3159,7 +3159,7 @@ static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
 				 comedi_insn *insn,lsampl_t *data)
 {
 	int err = insn->n;
-	unsigned char byte_out, byte_in;
+	unsigned char byte_out, byte_in = 0;
 
 	if(insn->n!=2)return -EINVAL;
 
