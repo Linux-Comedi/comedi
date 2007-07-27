@@ -567,14 +567,14 @@ static void interrupt_pci1710_every_sample(void *d)
 		rt_printk("comedi%d: A/D FIFO empty (%4x)\n", dev->minor, m);
 		pci171x_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
 		rt_printk("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n", dev->minor, m);
 		pci171x_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 		return;
 	}
 
@@ -590,7 +590,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	    			rt_printk("comedi: A/D data dropout: received data from channel %d, expected %d!\n",(sampl & 0xf000)>>12,(devpriv->act_chanlist[s->async->cur_chan] & 0xf000)>>12);
 	    			pci171x_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-				comedi_event(dev,s,s->async->events);
+				comedi_event(dev, s);
 				return;
 			}
 		DPRINTK("%8d %2d %8d~",s->async->buf_int_ptr,s->async->cur_chan,s->async->buf_int_count);
@@ -611,7 +611,7 @@ static void interrupt_pci1710_every_sample(void *d)
     			if ((!devpriv->neverending_ai)&&(devpriv->ai_act_scan>=devpriv->ai_scans)) { // all data sampled
 		    		pci171x_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev,s,s->async->events);
+				comedi_event(dev, s);
 				return;
 			}
 		}
@@ -620,7 +620,7 @@ static void interrupt_pci1710_every_sample(void *d)
 	outb(0, dev->iobase + PCI171x_CLRINT);			// clear our INT request
 	DPRINTK("adv_pci1710 EDBG: END: interrupt_pci1710_every_sample(...)\n");
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 }
 
 /*
@@ -643,7 +643,7 @@ static int move_block_from_fifo(comedi_device *dev,comedi_subdevice *s, int n, i
 					 dev->minor, (sampl & 0xf000)>>12,(devpriv->act_chanlist[j] & 0xf000)>>12, i, j, devpriv->ai_act_scan, n, turn, sampl);
 	    			pci171x_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-				comedi_event(dev,s,s->async->events);
+				comedi_event(dev, s);
 				return 1;
 			}
 		comedi_buf_put( s->async, sampl & 0x0fff );
@@ -675,14 +675,14 @@ static void interrupt_pci1710_half_fifo(void *d)
 		rt_printk("comedi%d: A/D FIFO not half full! (%4x)\n", dev->minor, m);
 		pci171x_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
 		rt_printk("comedi%d: A/D FIFO Full status (Fatal Error!) (%4x)\n", dev->minor, m);
 		pci171x_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 		return;
 	}
 
@@ -703,13 +703,13 @@ static void interrupt_pci1710_half_fifo(void *d)
     		if ( devpriv->ai_act_scan>=devpriv->ai_scans ) { /* all data sampled */
 		        pci171x_ai_cancel(dev,s);
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev,s,s->async->events);
+			comedi_event(dev, s);
 			return;
 		}
 	outb(0, dev->iobase + PCI171x_CLRINT);			// clear our INT request
 	DPRINTK("adv_pci1710 EDBG: END: interrupt_pci1710_half_fifo(...)\n");
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 }
 
 /*

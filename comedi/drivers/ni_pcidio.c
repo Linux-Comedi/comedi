@@ -468,13 +468,13 @@ static int nidio96_8255_cb(int dir,int port,int data,unsigned long iobase)
 	}
 }
 
-void ni_pcidio_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
+void ni_pcidio_event(comedi_device *dev, comedi_subdevice *s)
 {
-	if(events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+	if(s->async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
 	{
 		ni_pcidio_cancel(dev, s);
 	}
-	comedi_event(dev, s, events);
+	comedi_event(dev, s);
 }
 
 static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
@@ -604,7 +604,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	}
 
 out:
-	ni_pcidio_event(dev, s, async->events);
+	ni_pcidio_event(dev, s);
 #if 0
 	if(!tag){
 		writeb(0x03,devpriv->mite->daq_io_addr+Master_DMA_And_Interrupt_Control);

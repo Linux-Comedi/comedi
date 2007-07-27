@@ -1802,7 +1802,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG){
     ISR_PDEBUG("me4000_ai_isr(): Events = 0x%X\n", s->async->events);
 
     if(s->async->events)
-	comedi_event(dev, s, s->async->events);
+	comedi_event(dev, s);
 
     return IRQ_HANDLED;
 }

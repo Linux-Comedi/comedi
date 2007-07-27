@@ -568,7 +568,7 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 		comedi_error(dev, "fifo overflow");
 	}
 
-	comedi_event(dev, s, async->events);
+	comedi_event(dev, s);
 
 }
 

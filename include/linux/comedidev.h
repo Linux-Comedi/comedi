@@ -268,7 +268,7 @@ static const int comedi_debug = 0;
  * function prototypes
  */
 
-void comedi_event(comedi_device *dev,comedi_subdevice *s,unsigned int mask);
+void comedi_event(comedi_device *dev, comedi_subdevice *s);
 void comedi_error(const comedi_device *dev,const char *s);
 
 /* we can expand the number of bits used to encode devices/subdevices into

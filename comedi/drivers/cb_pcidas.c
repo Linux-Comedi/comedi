@@ -1604,7 +1604,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 	}
 
-	comedi_event(dev, s, async->events);
+	comedi_event(dev, s);
 
 	return IRQ_HANDLED;
 }
@@ -1661,7 +1661,7 @@ static void handle_ao_interrupt(comedi_device *dev, unsigned int status)
 		comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
 	}
 
-	comedi_event(dev, s, async->events);
+	comedi_event(dev, s);
 }
 
 // cancel analog input command

@@ -575,7 +575,7 @@ pci224_ao_start(comedi_device *dev, comedi_subdevice *s)
 		/* An empty acquisition! */
 		pci224_ao_stop(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	} else {
 		/* Enable interrupts. */
 		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
@@ -714,7 +714,7 @@ pci224_ao_handle_fifo(comedi_device *dev, comedi_subdevice *s)
 		}
 	}
 	if (s->async->events) {
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 }
 

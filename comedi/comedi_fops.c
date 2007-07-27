@@ -1811,7 +1811,7 @@ void comedi_error(const comedi_device *dev,const char *s)
 	rt_printk("comedi%d: %s: %s\n", dev->minor, dev->driver->driver_name, s);
 }
 
-void comedi_event(comedi_device *dev, comedi_subdevice *s, unsigned useless)
+void comedi_event(comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
 

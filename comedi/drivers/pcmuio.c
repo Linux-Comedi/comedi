@@ -775,7 +775,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
             comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
             if (oldevents != s->async->events) {
-              comedi_event(dev, s, s->async->events);
+              comedi_event(dev, s);
             }
 
           }
@@ -880,7 +880,7 @@ pcmuio_inttrig_start_intr(comedi_device *dev, comedi_subdevice *s, unsigned int 
 	comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
 	if (event) {
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 
 	return 1;
@@ -926,7 +926,7 @@ pcmuio_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
 	if (event) {
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 
 	return 0;

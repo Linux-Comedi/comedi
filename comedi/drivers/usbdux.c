@@ -452,8 +452,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(this_usbduxsub->comedidev,
-				     s,
-				     s->async->events);
+				     s);
 			// stop the transfer w/o unlink
 			usbdux_ai_stop(this_usbduxsub,0);
 		}
@@ -468,8 +467,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(this_usbduxsub->comedidev,
-				     s,
-				     s->async->events);
+				     s);
 			// don't do an unlink here
 			usbdux_ai_stop(this_usbduxsub,0);
 		}
@@ -500,8 +498,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(this_usbduxsub->comedidev,
-			     s,
-			     s->async->events);
+			     s);
 		// don't do an unlink here
 		usbdux_ai_stop(this_usbduxsub,0);
 		return;
@@ -527,8 +524,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 			// say comedi that the acquistion is over
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(this_usbduxsub->comedidev,
-				     s,
-				     s->async->events);
+				     s);
 			return;
 		}
 	}
@@ -550,8 +546,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb PT_REGS_ARG)
 	}
 	// tell comedi that data is there
 	comedi_event(this_usbduxsub->comedidev,
-		     s,
-		     s->async->events);
+		     s);
 }
 
 
@@ -697,8 +692,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG) {
 		if (this_usbduxsub->ao_cmd_running) {
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(this_usbduxsub->comedidev,
-				     s,
-				     s->async->events);
+				     s);
 			usbdux_ao_stop(this_usbduxsub,0);
 		}
 		return;
@@ -711,8 +705,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG) {
 			s->async->events |= COMEDI_CB_ERROR;
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(this_usbduxsub->comedidev,
-				     s,
-				     s->async->events);
+				     s);
 		        // we do an unlink if we are in the high speed mode
 			usbdux_ao_stop(this_usbduxsub,0);
 		}
@@ -740,8 +733,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG) {
 					       0);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(this_usbduxsub->comedidev,
-					     s,
-					     s->async->events);
+					     s);
 				// no resubmit of the urb
 				return;
 			}
@@ -773,8 +765,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG) {
 		// transmit data to comedi
 		s->async->events |= COMEDI_CB_BLOCK;
 		comedi_event(this_usbduxsub->comedidev,
-			     s,
-			     s->async->events);
+			     s);
 		}
 	}
 	urb->transfer_buffer_length = SIZEOUTBUF;
@@ -803,8 +794,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG) {
 			s->async->events |= COMEDI_CB_EOA;
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(this_usbduxsub->comedidev,
-				     s,
-				     s->async->events);
+				     s);
 			// don't do an unlink here
 			usbdux_ao_stop(this_usbduxsub,0);
 		}

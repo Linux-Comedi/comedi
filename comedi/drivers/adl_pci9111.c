@@ -967,7 +967,7 @@ pci9111_interrupt (int irq, void *p_device PT_REGS_ARG)
 			pci9111_interrupt_clear();
 			pci9111_ai_cancel (dev, subdevice);
 			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-			comedi_event (dev, subdevice, async->events);
+			comedi_event (dev, subdevice);
 
 			return IRQ_HANDLED;
 		}
@@ -1040,7 +1040,7 @@ pci9111_interrupt (int irq, void *p_device PT_REGS_ARG)
 
 	comedi_spin_unlock_irqrestore (&dev->spinlock, irq_flags);
 
-	comedi_event (dev, subdevice, async->events);
+	comedi_event (dev, subdevice);
 
 	return IRQ_HANDLED;
 }

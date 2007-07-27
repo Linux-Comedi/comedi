@@ -825,7 +825,7 @@ static int dmm32at_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 /* 		comedi_buf_put(s->async,i*100); */
 
 /* 	s->async->events |= COMEDI_CB_EOA; */
-/* 	comedi_event(dev,s,s->async->events); */
+/* 	comedi_event(dev, s); */
 
 	return 0;
 
@@ -870,7 +870,7 @@ static irqreturn_t dmm32at_isr(int irq,void *d PT_REGS_ARG){
 
 		}
 		/* flush the buffer */
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 	}
 
 	/* reset the interrupt */

@@ -1026,7 +1026,7 @@ static irqreturn_t s626_irq_handler(int irq,void *d PT_REGS_ARG)
 
     // tell comedi that data is there
     DEBUG("s626_irq_handler: events %d\n",s->async->events);
-    comedi_event(dev, s, s->async->events);
+    comedi_event(dev, s);
     break;
   case IRQ_GPIO3: //check dio and conter interrupt
 

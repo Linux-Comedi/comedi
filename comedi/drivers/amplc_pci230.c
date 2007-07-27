@@ -1461,7 +1461,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 		s = dev->write_subdev;
 		s->async->events = 0;
 		pci230_handle_ao(dev, s);
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		s->async->events = 0;
 	}
 
@@ -1469,7 +1469,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 		s = dev->read_subdev;
 		s->async->events = 0;
 		pci230_handle_ai(dev, s);
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		s->async->events = 0;
 	}
 

@@ -178,7 +178,7 @@ static void waveform_ai_interrupt(unsigned long arg)
 	else
 		del_timer(&devpriv->timer);
 
-	comedi_event(dev, dev->read_subdev, async->events);
+	comedi_event(dev, dev->read_subdev);
 }
 
 static int waveform_attach(comedi_device *dev,comedi_devconfig *it)

@@ -302,7 +302,7 @@ interrupt_pcl816_ai_mode13_int (int irq, void *d)
 		comedi_error (dev, "A/D mode1/3 IRQ without DRDY!");
 		pcl816_ai_cancel (dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		return IRQ_HANDLED;
 
   }
@@ -332,7 +332,7 @@ interrupt_pcl816_ai_mode13_int (int irq, void *d)
 		pcl816_ai_cancel (dev, s);
 		s->async->events |= COMEDI_CB_EOA;
 	}
-	comedi_event(dev, s, s->async->events);
+	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -366,7 +366,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 			}
 	}
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 }
 
 

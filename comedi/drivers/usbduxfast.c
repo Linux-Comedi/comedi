@@ -216,7 +216,7 @@ static int send_dux_commands(usbduxfastsub_t* this_usbduxfastsub,int cmd_type) {
 					      CHANNELLISTEP),
 			      this_usbduxfastsub->dux_commands,
 			      SIZEOFDUXBUFFER,
-			      &nsent, 
+			      &nsent,
 			      10000);
 	if (result<0) {
 		printk("comedi%d: could not transmit dux_commands to the usb-device, err=%d\n",
@@ -275,7 +275,7 @@ static int usbduxfast_ai_stop(usbduxfastsub_t* this_usbduxfastsub,
 #endif
 
 
-	this_usbduxfastsub->ai_cmd_running=0;		
+	this_usbduxfastsub->ai_cmd_running=0;
 
 	if (do_unlink) {
 		// stop aquistion
@@ -313,7 +313,7 @@ static int usbduxfast_ai_cancel(comedi_device *dev,
 	// unlink
 	res=usbduxfast_ai_stop(this_usbduxfastsub,1);
 	up(&this_usbduxfastsub->sem);
-	
+
 	return res;
 }
 
@@ -384,9 +384,8 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 		// tell this comedi
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(this_usbduxfastsub->comedidev, 
-			     s,
-			     s->async->events);
+		comedi_event(this_usbduxfastsub->comedidev,
+			     s);
 		// stop the transfer w/o unlink
 		usbduxfast_ai_stop(this_usbduxfastsub,0);
 		return;
@@ -397,9 +396,8 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 		       urb->status);
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(this_usbduxfastsub->comedidev, 
-			     s, 
-			     s->async->events);
+		comedi_event(this_usbduxfastsub->comedidev,
+			     s);
 		usbduxfast_ai_stop(this_usbduxfastsub,0);
 		return;
 	}
@@ -418,23 +416,21 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 						   0);
 				// say comedi that the acquistion is over
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(this_usbduxfastsub->comedidev, 
-					     s, 
-					     s->async->events);
+				comedi_event(this_usbduxfastsub->comedidev,
+					     s);
 				return;
 			}
 			this_usbduxfastsub->ai_sample_count-=n;
 		}
-		
+
 		// write the full buffer to comedi
 		cfc_write_array_to_buffer(s,
 					  urb->transfer_buffer,
 					  urb->actual_length);
-		
+
 		// tell comedi that data is there
-		comedi_event(this_usbduxfastsub->comedidev, 
-			     s,
-			     s->async->events);
+		comedi_event(this_usbduxfastsub->comedidev,
+			     s);
 
 	} else {
 		// ignore this packet
@@ -451,9 +447,8 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 		       err);
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(this_usbduxfastsub->comedidev, 
-			     s,
-			     s->async->events);
+		comedi_event(this_usbduxfastsub->comedidev,
+			     s);
 		usbduxfast_ai_stop(this_usbduxfastsub,0);
 	}
 }
@@ -468,17 +463,17 @@ static int usbduxfastsub_start(usbduxfastsub_t* usbduxfastsub) {
 
 	if (usbduxfastsub->probed) {
 		// 7f92 to zero
-		local_transfer_buffer[0]=0; 
+		local_transfer_buffer[0]=0;
 		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 // create a pipe for a control transfer
 			 usb_sndctrlpipe(usbduxfastsub->usbdev,0),
 			 // bRequest, "Firmware"
-			 USBDUXFASTSUB_FIRMWARE, 
+			 USBDUXFASTSUB_FIRMWARE,
 			 // bmRequestType
-			 VENDOR_DIR_OUT, 
+			 VENDOR_DIR_OUT,
 			 // Value
-			 USBDUXFASTSUB_CPUCS, 
+			 USBDUXFASTSUB_CPUCS,
 			 // Index
 			 0x0000,
 			 // address of the transfer buffer
@@ -486,7 +481,7 @@ static int usbduxfastsub_start(usbduxfastsub_t* usbduxfastsub) {
 			 // Length
 			 1,
 			 // Timeout
-			 EZTIMEOUT 
+			 EZTIMEOUT
 			 );
 		if (errcode<0) {
 			printk("comedi_: usbduxfast_: control msg failed (start)\n");
@@ -505,23 +500,23 @@ static int usbduxfastsub_stop(usbduxfastsub_t* usbduxfastsub) {
 	unsigned char local_transfer_buffer[16];
 	if (usbduxfastsub->probed) {
 		// 7f92 to one
-		local_transfer_buffer[0]=1; 
+		local_transfer_buffer[0]=1;
 		errcode=USB_CONTROL_MSG
 			(usbduxfastsub->usbdev,
 			 usb_sndctrlpipe(usbduxfastsub->usbdev,0),
 			 // bRequest, "Firmware"
-			 USBDUXFASTSUB_FIRMWARE, 
+			 USBDUXFASTSUB_FIRMWARE,
 			 // bmRequestType
 			 VENDOR_DIR_OUT,
 			 // Value
 			 USBDUXFASTSUB_CPUCS,
 			 // Index
-			 0x0000, 
+			 0x0000,
 			 local_transfer_buffer,
 			 // Length
 			 1,
 			 // Timeout
-			 EZTIMEOUT 
+			 EZTIMEOUT
 			 );
 		if (errcode<0) {
 			printk("comedi_: usbduxfast: control msg failed (stop)\n");
@@ -530,7 +525,7 @@ static int usbduxfastsub_stop(usbduxfastsub_t* usbduxfastsub) {
 	}
 	return 0;
 }
-		
+
 
 
 
@@ -585,7 +580,7 @@ return 0;
 
 
 
-int firmwareUpload(usbduxfastsub_t* usbduxfastsub, 
+int firmwareUpload(usbduxfastsub_t* usbduxfastsub,
 		   unsigned char* firmwareBinary,
 		   int sizeFirmware) {
 	int ret;
@@ -616,7 +611,7 @@ int firmwareUpload(usbduxfastsub_t* usbduxfastsub,
 	}
 	return 0;
 }
-	
+
 
 
 int usbduxfastsub_submit_InURBs(usbduxfastsub_t* usbduxfastsub) {
@@ -653,8 +648,8 @@ int usbduxfastsub_submit_InURBs(usbduxfastsub_t* usbduxfastsub) {
 
 
 
-static int usbduxfast_ai_cmdtest(comedi_device *dev, 
-			     comedi_subdevice *s, 
+static int usbduxfast_ai_cmdtest(comedi_device *dev,
+			     comedi_subdevice *s,
 			     comedi_cmd *cmd)
 {
 	int err=0, stop_mask=0;
@@ -909,7 +904,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	}
 	steps=0;
 	if(cmd->scan_begin_src == TRIG_TIMER) {
-		printk("comedi%d: usbduxfast: scan_begin_src==TRIG_TIMER not valid.\n", 
+		printk("comedi%d: usbduxfast: scan_begin_src==TRIG_TIMER not valid.\n",
 		       dev->minor);
 		up(&this_usbduxfastsub->sem);
 		return -EINVAL;
@@ -918,8 +913,8 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		steps=(cmd->convert_arg*30)/1000;
 	}
 	if ((steps<MIN_SAMPLING_PERIOD)&&(cmd->chanlist_len!=1)) {
-		printk("comedi%d: usbduxfast: ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n", 
-		       dev->minor, 
+		printk("comedi%d: usbduxfast: ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n",
+		       dev->minor,
 		       steps,
 		       cmd->scan_begin_arg);
 		up(&this_usbduxfastsub->sem);
@@ -963,7 +958,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			this_usbduxfastsub->dux_commands[OPBASE+0]=0;
 			this_usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
 			this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
-		}				
+		}
 
 		if (steps<MIN_SAMPLING_PERIOD) {
 			// for fast single channel aqu without mux
@@ -992,19 +987,19 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 			// we have 1 state with duration 1
 			steps=steps-1;
-			
+
 			// do the first part of the delay
 			this_usbduxfastsub->dux_commands[LENBASE+1]=steps/2;
 			this_usbduxfastsub->dux_commands[OPBASE+1]=0;
 			this_usbduxfastsub->dux_commands[OUTBASE+1]=0xFF & rngmask;
 			this_usbduxfastsub->dux_commands[LOGBASE+1]=0;
-			
+
 			// and the second part
 			this_usbduxfastsub->dux_commands[LENBASE+2]=steps-steps/2;
 			this_usbduxfastsub->dux_commands[OPBASE+2]=0;
 			this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
 			this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
-			
+
 			// get the data and branch back
 			this_usbduxfastsub->dux_commands[LENBASE+3]=0x09; // branch back to state 1
 			this_usbduxfastsub->dux_commands[OPBASE+3]=0x03; // deceision state w data
@@ -1037,7 +1032,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		this_usbduxfastsub->dux_commands[OPBASE+2]=0;
 		this_usbduxfastsub->dux_commands[OUTBASE+2]=0xFF & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+2]=0;
-		
+
 		this_usbduxfastsub->dux_commands[LENBASE+3]=1;
 		this_usbduxfastsub->dux_commands[OPBASE+3]=0x02; // data
 		this_usbduxfastsub->dux_commands[OUTBASE+3]=0xFF & rngmask;
@@ -1058,7 +1053,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		this_usbduxfastsub->dux_commands[OPBASE+5]=0;
 		this_usbduxfastsub->dux_commands[OUTBASE+5]=0xFF & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+5]=0;
-		
+
 		this_usbduxfastsub->dux_commands[LENBASE+6]=1;
 		this_usbduxfastsub->dux_commands[OPBASE+6]=0;
 		this_usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
@@ -1082,7 +1077,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			this_usbduxfastsub->dux_commands[OUTBASE+j*2+1]=0xFE & rngmask; //count
 			this_usbduxfastsub->dux_commands[LOGBASE+j*2+1]=0;
 		}
-		
+
 		// 2 steps with duration 1: the idele step and step 6:
 		steps_tmp=steps-2;
 		// commit data to the FIFO and do the first part of the delay
@@ -1090,7 +1085,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		this_usbduxfastsub->dux_commands[OPBASE+4]=0x02; // data
 		this_usbduxfastsub->dux_commands[OUTBASE+4]=0xFF & rngmask; // no change
 		this_usbduxfastsub->dux_commands[LOGBASE+4]=0;
-		
+
 		if (CR_RANGE(cmd->chanlist[0])>0) rngmask=0xff-0x04; else rngmask=0xff;
 		// do the second part of the delay
 		this_usbduxfastsub->dux_commands[LENBASE+5]=steps_tmp-steps_tmp/2;
@@ -1102,7 +1097,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		this_usbduxfastsub->dux_commands[OPBASE+6]=0;
 		this_usbduxfastsub->dux_commands[OUTBASE+6]=0xFF & rngmask;
 		this_usbduxfastsub->dux_commands[LOGBASE+6]=0;
-		
+
 	case 16:
 		if (CR_RANGE(cmd->chanlist[0])>0) rngmask=0xff-0x04; else rngmask=0xff;
 		if(cmd->start_src == TRIG_EXT) { // we loop here until ready has been set
@@ -1115,7 +1110,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			this_usbduxfastsub->dux_commands[OPBASE+0]=0;
 			this_usbduxfastsub->dux_commands[OUTBASE+0]=(0xFF-0x02) & rngmask; // reset
 			this_usbduxfastsub->dux_commands[LOGBASE+0]=0;
-		}				
+		}
 
 		// commit data to the FIFO
 		this_usbduxfastsub->dux_commands[LENBASE+1]=1;
@@ -1151,7 +1146,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 		up(&this_usbduxfastsub->sem);
 		return -EFAULT;
 	}
-		
+
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi %d: sending commands to the usb device\n",
@@ -1173,7 +1168,7 @@ static int usbduxfast_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 			up(&this_usbduxfastsub->sem);
 			return -EFAULT;
 		}
-		this_usbduxfastsub->ai_continous=0;	
+		this_usbduxfastsub->ai_continous=0;
 	} else {
 		// continous aquisition
 		this_usbduxfastsub->ai_continous=1;
@@ -1250,28 +1245,28 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	usbduxfastsub->dux_commands[OPBASE+0]=0x02; // data
 	usbduxfastsub->dux_commands[OUTBASE+0]=0xFF & rngmask;
 	usbduxfastsub->dux_commands[LOGBASE+0]=0;
-	
+
 	// do the first part of the delay
 	usbduxfastsub->dux_commands[LENBASE+1]=12;
 	usbduxfastsub->dux_commands[OPBASE+1]=0;
 	usbduxfastsub->dux_commands[OUTBASE+1]=0xFE & rngmask;
 	usbduxfastsub->dux_commands[LOGBASE+1]=0;
-	
+
 	usbduxfastsub->dux_commands[LENBASE+2]=1;
 	usbduxfastsub->dux_commands[OPBASE+2]=0;
 	usbduxfastsub->dux_commands[OUTBASE+2]=0xFE & rngmask;
 	usbduxfastsub->dux_commands[LOGBASE+2]=0;
-		
+
 	usbduxfastsub->dux_commands[LENBASE+3]=1;
 	usbduxfastsub->dux_commands[OPBASE+3]=0;
 	usbduxfastsub->dux_commands[OUTBASE+3]=0xFE & rngmask;
 	usbduxfastsub->dux_commands[LOGBASE+3]=0;
-		
+
 	usbduxfastsub->dux_commands[LENBASE+4]=1;
 	usbduxfastsub->dux_commands[OPBASE+4]=0;
 	usbduxfastsub->dux_commands[OUTBASE+4]=0xFE & rngmask;
 	usbduxfastsub->dux_commands[LOGBASE+4]=0;
-	
+
 	// second part
 	usbduxfastsub->dux_commands[LENBASE+5]=12;
 	usbduxfastsub->dux_commands[OPBASE+5]=0;
@@ -1303,7 +1298,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	       (int)(usbduxfastsub->urbIn->dev));
 #endif
 	for(i=0;i<PACKETS_TO_IGNORE;i++) {
-		err=USB_BULK_MSG(usbduxfastsub->usbdev, 
+		err=USB_BULK_MSG(usbduxfastsub->usbdev,
 				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
 				 usbduxfastsub->transfer_buffer,
 				 SIZEINBUF,
@@ -1318,7 +1313,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	}
 	// data points
 	for(i=0;i<insn->n;) {
-		err=USB_BULK_MSG(usbduxfastsub->usbdev, 
+		err=USB_BULK_MSG(usbduxfastsub->usbdev,
 				 usb_rcvbulkpipe(usbduxfastsub->usbdev,BULKINEP),
 				 usbduxfastsub->transfer_buffer,
 				 SIZEINBUF,
@@ -1336,7 +1331,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 			       dev->minor);
 			up(&usbduxfastsub->sem);
 			return -EINVAL;
-		}			
+		}
 		for(j=chan;(j<n)&&(i<insn->n);j=j+16) {
 			data[i]=((uint16_t*)(usbduxfastsub->transfer_buffer))[j];
 			i++;
@@ -1382,7 +1377,7 @@ static int read_firmware(usbduxfastsub_t* usbduxfastsub, void *firmwarePtr,long 
 		       );
 		return -ENOMEM;
 	}
-	
+
 	for (;;) {
 		char 	buf[256],*cp;
 		char	type;
@@ -1431,7 +1426,7 @@ static int read_firmware(usbduxfastsub_t* usbduxfastsub, void *firmwarePtr,long 
 			printk("comedi_: usbduxfast: firmware upload goes beyond FX2 RAM boundaries.");
 			return -EFAULT;
 		}
-		
+
 		//printk("comedi_: usbduxfast: off=%x, len=%x:",off,len);
 
 		/* Read the record type */
@@ -1522,11 +1517,11 @@ static void tidy_up(usbduxfastsub_t* usbduxfastsub_tmp) {
 
 // allocate memory for the urbs and initialise them
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void* usbduxfastsub_probe(struct usb_device *udev, 
+static void* usbduxfastsub_probe(struct usb_device *udev,
 			     unsigned int interfnum,
 			     const struct usb_device_id *id) {
 #else
-static int usbduxfastsub_probe(struct usb_interface *uinterf, 
+static int usbduxfastsub_probe(struct usb_interface *uinterf,
 			   const struct usb_device_id *id) {
         struct usb_device *udev = interface_to_usbdev(uinterf);
 #endif
@@ -1618,7 +1613,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		tidy_up(&(usbduxfastsub[index]));
 		up(&start_stop_sem);
 		return PROBE_ERR_RETURN( -ENOMEM);
-	}		
+	}
 	usbduxfastsub[index].transfer_buffer=
 		kmalloc(SIZEINBUF,GFP_KERNEL);
 	if (!(usbduxfastsub[index].transfer_buffer)) {
@@ -1629,7 +1624,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	}
 	// we've reached the bottom of the function
 	usbduxfastsub[index].probed=1;
-	up(&start_stop_sem);	
+	up(&start_stop_sem);
 	printk("comedi_: usbduxfast%d has been successfully initialized.\n",index);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 	return (void*)(&usbduxfastsub[index]);
@@ -1655,7 +1650,7 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf) {
 	if (!usbduxfastsub_tmp) {
 		printk("comedi_: usbduxfast: disconnect called with null pointer.\n");
 		return;
-	}		
+	}
 	if (usbduxfastsub_tmp->usbdev!=udev) {
 		printk("comedi_: usbduxfast: BUG! called with wrong ptr!!!\n");
 		return;
@@ -1706,15 +1701,15 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	usbduxfastsub[index].comedidev=dev;
 
 	// trying to upload the firmware into the chip
-	if(comedi_aux_data(it->options, 0) && 
+	if(comedi_aux_data(it->options, 0) &&
 	   it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]){
 		read_firmware(usbduxfastsub,
 			comedi_aux_data(it->options, 0),
 			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	} 
+	}
 
 	dev->board_name = BOARDNAME;
-	
+
 	/* set number of subdevices */
 	dev->n_subdevices=N_SUBDEVICES;
 
@@ -1901,7 +1896,7 @@ static void exit_usbduxfast(void) {
 
 
 module_init(init_usbduxfast);
-module_exit(exit_usbduxfast);                                      
+module_exit(exit_usbduxfast);
 
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );

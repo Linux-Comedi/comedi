@@ -357,7 +357,7 @@ static irqreturn_t dt3k_interrupt(int irq, void *d PT_REGS_ARG)
 		s->async->events |= COMEDI_CB_EOA;
 	}
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 

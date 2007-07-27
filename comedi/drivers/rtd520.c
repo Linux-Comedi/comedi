@@ -1541,7 +1541,7 @@ static irqreturn_t rtd_interrupt (
 		DPRINTK("rtd520: Samples Done (DMA).\n");
 		goto transferDone;
 	    }
-	    comedi_event (dev, s, s->async->events);
+	    comedi_event (dev, s);
 	} else {
 	    /*DPRINTK ("rtd520: No DMA ready: istatus %x\n", istatus);*/
 	}
@@ -1572,7 +1572,7 @@ static irqreturn_t rtd_interrupt (
 			(fifoStatus ^ 0x6666) & 0x7777); /* should be all 0s */
 		goto transferDone;
 	    }
-	    comedi_event (dev, s, s->async->events);
+	    comedi_event (dev, s);
 	} else if (devpriv->transCount > 0) {	/* read often */
 	    /*DPRINTK("rtd520: Sample int, reading %d  fifo_status 0x%x\n",
 	      devpriv->transCount, (fifoStatus ^ 0x6666) & 0x7777);*/
@@ -1587,7 +1587,7 @@ static irqreturn_t rtd_interrupt (
 			    (fifoStatus ^ 0x6666) & 0x7777);
 		    goto transferDone;
 		}
-		comedi_event (dev, s, s->async->events);
+		comedi_event (dev, s);
 	    }
 	} else {			/* wait for 1/2 FIFO (old)*/
 	    DPRINTK("rtd520: Sample int.  Wait for 1/2. fifo_status 0x%x\n",
@@ -1644,7 +1644,7 @@ transferDone:
     }
 
     s->async->events |= COMEDI_CB_EOA;/* signal end to comedi */
-    comedi_event (dev, s, s->async->events);
+    comedi_event (dev, s);
 
 					/* clear the interrupt */
     status = RtdInterruptStatus (dev);

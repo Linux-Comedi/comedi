@@ -880,7 +880,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		rt_printk("comedi%d: pcl812: (%s at 0x%lx) A/D cmd IRQ without DRDY!\n", dev->minor, dev->board_name, dev->iobase);
 		pcl812_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA|COMEDI_CB_ERROR;
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -898,7 +898,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 			}
 	}
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -925,7 +925,7 @@ static void transfer_from_dma_buf(comedi_device *dev,comedi_subdevice *s,
 		}
 	}
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 }
 
 /*

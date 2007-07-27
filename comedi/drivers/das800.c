@@ -428,7 +428,7 @@ static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 		comedi_error(dev, "DAS800 FIFO overflow");
 		das800_cancel(dev, dev->subdevices + 0);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s, async->events);
+		comedi_event(dev, s);
 		async->events = 0;
 		return IRQ_HANDLED;
 	}
@@ -446,7 +446,7 @@ static irqreturn_t das800_interrupt(int irq, void *d PT_REGS_ARG)
 		disable_das800(dev);		/* diable hardware triggered conversions */
 		async->events |= COMEDI_CB_EOA;
 	}
-	comedi_event(dev, s, async->events);
+	comedi_event(dev, s);
 	async->events = 0;
 	return IRQ_HANDLED;
 }

@@ -514,7 +514,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_int(int irq, void *d)
 	comedi_error(dev,"A/D mode1/3 IRQ without DRDY!");
 	pcl818_ai_cancel(dev,s);
 	s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-	comedi_event(dev, s, s->async->events);
+	comedi_event(dev, s);
 	return IRQ_HANDLED;
 
 conv_finish:
@@ -527,7 +527,7 @@ conv_finish:
 		rt_printk("comedi: A/D mode1/3 IRQ - channel dropout %x!=%x !\n",(low & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		pcl818_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
 	if (s->async->cur_chan == 0) {
@@ -541,7 +541,7 @@ conv_finish:
 			s->async->events |= COMEDI_CB_EOA;
 		}
 	}
-	comedi_event(dev, s, s->async->events);
+	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -582,7 +582,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 			rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d(card)!=%d(chanlist) at %d !\n",(ptr[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos], devpriv->act_chanlist_pos);
 			pcl818_ai_cancel(dev,s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-			comedi_event(dev, s, s->async->events);
+			comedi_event(dev, s);
 			return IRQ_HANDLED;
 		}
 
@@ -598,13 +598,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 	    		if ( devpriv->ai_act_scan == 0 ) { /* all data sampled */
 				pcl818_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s, s->async->events);
+				comedi_event(dev, s);
 				// printk("done int ai13 dma\n");
 				return IRQ_HANDLED;
 			}
 	}
 
-	if (len>0) comedi_event(dev, s, s->async->events);
+	if (len>0) comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -650,7 +650,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 			//rt_printk("I %d dmabuf[i] %d %d\n",i,dmabuf[i],devpriv->dmasamplsize);
 			pcl818_ai_cancel(dev,s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-			comedi_event(dev, s, s->async->events);
+			comedi_event(dev, s);
 			return IRQ_HANDLED;
 		}
 		//rt_printk("r %ld ",ofs_dats);
@@ -662,7 +662,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 				rt_printk("comedi: A/D mode1/3 DMA - channel dropout %d!=%d !\n",(dmabuf[bufptr] & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 				pcl818_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-				comedi_event(dev, s, s->async->events);
+				comedi_event(dev, s);
 				return IRQ_HANDLED;
 			}
 
@@ -677,7 +677,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 				if ( devpriv->ai_act_scan == 0 ) { /* all data sampled */
 					pcl818_ai_cancel(dev,s);
 					s->async->events |= COMEDI_CB_EOA;
-					comedi_event(dev, s, s->async->events);
+					comedi_event(dev, s);
 					//printk("done int ai13 dma\n");
 					return IRQ_HANDLED;
 				}
@@ -687,7 +687,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 		bufptr--;
 		bufptr&=(devpriv->dmasamplsize-1);
 		dmabuf[bufptr]=MAGIC_DMA_WORD;
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		//outb(0,0x378);
 		return IRQ_HANDLED;
 	}
@@ -715,7 +715,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 		comedi_error(dev,"A/D mode1/3 FIFO overflow!");
 		pcl818_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -723,7 +723,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 		comedi_error(dev,"A/D mode1/3 FIFO interrupt without data!");
 		pcl818_ai_cancel(dev,s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -736,7 +736,7 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 			rt_printk("comedi: A/D mode1/3 FIFO - channel dropout %d!=%d !\n",(lo & 0xf),devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 			pcl818_ai_cancel(dev,s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
-			comedi_event(dev, s, s->async->events);
+			comedi_event(dev, s);
 			return IRQ_HANDLED;
 		}
 
@@ -750,12 +750,12 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 			if ( devpriv->ai_act_scan == 0 ) { /* all data sampled */
 				pcl818_ai_cancel(dev,s);
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s, s->async->events);
+				comedi_event(dev, s);
 				return IRQ_HANDLED;
 			}
 	}
 
-	if (len>0) comedi_event(dev, s, s->async->events);
+	if (len>0) comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 

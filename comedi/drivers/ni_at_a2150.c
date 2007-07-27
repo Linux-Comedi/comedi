@@ -245,7 +245,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
 		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s, async->events);
+		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -313,7 +313,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	comedi_event(dev, s, async->events);
+	comedi_event(dev, s);
 
 	/* clear interrupt */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);

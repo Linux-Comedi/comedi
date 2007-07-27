@@ -129,7 +129,7 @@ void subdev_8255_interrupt(comedi_device *dev, comedi_subdevice *s)
 	comedi_buf_put(s->async, d);
 	s->async->events |= COMEDI_CB_EOS;
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 }
 
 static int subdev_8255_cb(int dir,int port,int data,unsigned long arg)

@@ -111,7 +111,7 @@ unsigned int cfc_handle_events( comedi_device *dev, comedi_subdevice *subd )
 	if( events & ( COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW ) )
 		subd->cancel( dev, subd );
 
-	comedi_event( dev, subd, events );
+	comedi_event(dev, subd);
 
 	return events;
 }

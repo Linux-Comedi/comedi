@@ -631,7 +631,7 @@ dio200_inttrig_start_intr(comedi_device *dev, comedi_subdevice *s,
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 
 	return 1;
@@ -741,7 +741,7 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (oldevents != s->async->events) {
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 
 	return (triggered != 0);
@@ -899,7 +899,7 @@ dio200_subdev_intr_cmd(comedi_device *dev, comedi_subdevice *s)
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 
 	return 0;

@@ -639,7 +639,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 		handled = 1;
 	}
 #endif
-	comedi_event(dev, s, s->async->events);
+	comedi_event(dev, s);
 	/* printk("adcsr=0x%02x dacsr-0x%02x supcsr=0x%02x\n", adcsr, dacsr, supcsr); */
 	return IRQ_RETVAL(handled);
 }

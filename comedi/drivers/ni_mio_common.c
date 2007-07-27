@@ -787,9 +787,9 @@ static void shutdown_ai_command( comedi_device *dev )
 	s->async->events |= COMEDI_CB_EOA;
 }
 
-static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
+static void ni_event(comedi_device *dev, comedi_subdevice *s)
 {
-	if(events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW | COMEDI_CB_EOA))
+	if(s->async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW | COMEDI_CB_EOA))
 	{
 		switch(dev->subdevices - s)
 		{
@@ -807,7 +807,7 @@ static void ni_event(comedi_device *dev, comedi_subdevice *s, unsigned events)
 			break;
 		}
 	}
-	comedi_event(dev, s, events);
+	comedi_event(dev, s);
 }
 
 static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_index)
@@ -816,7 +816,7 @@ static void handle_gpct_interrupt(comedi_device *dev, unsigned short counter_ind
 
 	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index], s);
 	if(s->async->events)
-		ni_event(dev, s, s->async->events);
+		ni_event(dev, s);
 }
 
 static void ack_a_interrupt(comedi_device *dev, unsigned short a_status)
@@ -877,7 +877,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 			 * so it's a good idea to be careful. */
 			if(comedi_get_subdevice_runflags(s) & SRF_RUNNING){
 				s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-				ni_event(dev, s, s->async->events);
+				ni_event(dev, s);
 			}
 			return;
 		}
@@ -892,7 +892,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 			if(status & (AI_Overrun_St | AI_Overflow_St))
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
-			ni_event(dev, s, s->async->events);
+			ni_event(dev, s);
 
 			return;
 		}
@@ -924,7 +924,7 @@ static void handle_a_interrupt(comedi_device *dev, unsigned short status,
 		ni_handle_eos(dev, s);
 	}
 
-	ni_event(dev,s,s->async->events);
+	ni_event(dev, s);
 
 #ifdef DEBUG_INTERRUPT
 	status=devpriv->stc_readw(dev, AI_Status_1_Register);
@@ -1017,7 +1017,7 @@ static void handle_b_interrupt(comedi_device *dev, unsigned short b_status,
 	}
 #endif
 
-	ni_event(dev,s,s->async->events);
+	ni_event(dev, s);
 }
 
 #ifdef DEBUG_STATUS_A

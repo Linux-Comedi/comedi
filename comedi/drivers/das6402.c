@@ -176,12 +176,12 @@ static irqreturn_t intr_handler(int irq,void *d PT_REGS_ARG)
 		printk("das6402: Got %i samples\n\n",devpriv->das6402_wordsread-diff);
 #endif
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev,s,s->async->events);
+		comedi_event(dev, s);
 	}
 
 	outb(0x01,dev->iobase+8);   /* clear only the interrupt flip-flop */
 
-	comedi_event(dev,s,s->async->events);
+	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
