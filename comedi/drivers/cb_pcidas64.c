@@ -1907,7 +1907,7 @@ static int ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsa
 			priv(dev)->i2c_cal_range_bits |= adc_src_4020_bits( 4 );
 		}
 		// select range
-		if( ai_range_bits_6xxx( dev, range ) )
+		if(range == 0)
 			priv(dev)->i2c_cal_range_bits |= attenuate_bit( channel );
 		else
 			priv(dev)->i2c_cal_range_bits &= ~attenuate_bit( channel );
@@ -2573,7 +2573,7 @@ static int setup_channel_queue(comedi_device *dev, const comedi_cmd *cmd)
 			unsigned int channel = CR_CHAN(cmd->chanlist[i]);
 			unsigned int range = CR_RANGE(cmd->chanlist[i]);
 
-			if(ai_range_bits_6xxx(dev, range))
+			if(range == 0)
 				priv(dev)->i2c_cal_range_bits |= attenuate_bit(channel);
 			else
 				priv(dev)->i2c_cal_range_bits &= ~attenuate_bit(channel);
