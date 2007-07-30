@@ -25,12 +25,12 @@
 */
 
 /*
-  Driver: s626.o (s626.ko)
-  Description: Sensoray 626 driver
-  Devices: Sensoray s626
-  Authors: Gianluca Palli <gpalli@deis.unibo.it>,
-  Updated: Thu, 12 Jul 2005
-  Status: experimental
+Driver: s626.o (s626.ko)
+Description: Sensoray 626 driver
+Devices: Sensoray s626
+Authors: Gianluca Palli <gpalli@deis.unibo.it>,
+Updated: Thu, 12 Jul 2005
+Status: experimental
 
   Configuration Options:
   analog input:

@@ -21,11 +21,11 @@
 
 */
 /*
-  Driver: jr3_pci.o
-  Description: JR3/PCI force sensor board
-  Author: Anders Blomdell <anders.blomdell@control.lth.se>
-  Status: works
-  Devices: [JR3] PCI force sensor board (jr3_pci)
+Driver: jr3_pci.o
+Description: JR3/PCI force sensor board
+Author: Anders Blomdell <anders.blomdell@control.lth.se>
+Status: works
+Devices: [JR3] PCI force sensor board (jr3_pci)
 
   The DSP on the board requires initialization code, which can 
   be loaded by placing it in /lib/firmware/comedi.  
