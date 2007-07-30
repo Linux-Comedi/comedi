@@ -2,7 +2,7 @@
 SUBDIRS = comedi
 
 EXTRA_DIST = autogen.sh \
-	Contributors \
+	AUTHORS \
 	m4/as-linux.m4 \
 	m4/as-modtool.m4 \
 	m4/rtai.m4 \
