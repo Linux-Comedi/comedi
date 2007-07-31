@@ -23,7 +23,7 @@
 /*
 Driver: cb_pcidio.o
 Description: ComputerBoards' DIO boards with PCI interface
-Devices: [ComputerBoards (currently MeasurementComputing)]
+Devices: [Measurement Computing]
 	PCI-DIO24H, PCI-DIO48H
 Author: Yoshiya Matsuzaka
 Updated: Wed, 25 Jul 2007 15:15:41 +0900
@@ -35,49 +35,10 @@ Configuration Options:
   none
 */
 
-/*
- * The previous block comment is used to automatically generate
- * documentation in Comedi and Comedilib.  The fields:
- *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
- *
- * These headers should be followed by a blank line, and any comments
- * you wish to say about the driver.  The comment area is the place
- * to put any known bugs, limitations, unsupported features, supported
- * command triggers, whether or not commands are supported on particular
- * subdevices, etc.
- *
- * Somewhere in the comment should be information about configuration
- * options that are used with comedi_config.
- */
-
-
-
 /*------------------------------ HEADER FILES ---------------------------------*/
 #include <linux/comedidev.h>
 #include <linux/pci.h> /* for PCI devices */
-
+#include "8255.h"
 
 
 /*-------------------------- MACROS and DATATYPES -----------------------------*/
@@ -92,7 +53,7 @@ typedef struct pcidio_board_struct{
 	char *name;		// anme of the board
 	int n_8255;		// number of 8255 chips on board
 
-	// indices of base address regions	
+	// indices of base address regions
 	int pcicontroler_badrindex;
 	int dioregs_badrindex;
 } pcidio_board;
@@ -103,7 +64,7 @@ static pcidio_board pcidio_boards[] = {
 	{
 	name:		"pci-dio24h",
 	n_8255:		1,
-	pcicontroler_badrindex:	1,	
+	pcicontroler_badrindex:	1,
 	dioregs_badrindex:		2,
 	},
 	{
@@ -147,7 +108,7 @@ typedef struct{
 
 	/* used for DO readback, curently unused */
 	lsampl_t do_readback[4];	/* up to 4 lsampl_t suffice to hold 96 bits for PCI-DIO96 */
-	  
+
 	unsigned long dio_reg_base;		// address of port A of the first 8255 chip on board
 } pcidio_private;
 
@@ -202,14 +163,6 @@ static comedi_driver driver_cb_pcidio={
 
 /*------------------------------- FUNCTIONS -----------------------------------*/
 
-// The 2 functions below are currently unsed
-static int pcidio_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int pcidio_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-
-
-
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -218,8 +171,9 @@ static int pcidio_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
  */
 static int pcidio_attach(comedi_device *dev, comedi_devconfig *it)
 {
-struct pci_dev* pcidev = NULL;
-int index;
+	struct pci_dev* pcidev = NULL;
+	int index;
+	int i;
 
 	printk("comedi%d: pcidio: \n", dev->minor);
 /*
@@ -274,7 +228,7 @@ found:
 	devpriv->pci_dev = pcidev;
 	printk("Found %s on bus %i, slot %i\n", pcidio_boards[index].name,
 		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
-	devpriv->dio_reg_base 
+	devpriv->dio_reg_base
 	  = pci_resource_start(devpriv->pci_dev, pcidio_boards[index].dioregs_badrindex);
 
 /*
@@ -289,8 +243,7 @@ found:
  */
 	if(alloc_subdevices(dev, thisboard->n_8255) < 0)
 		return -ENOMEM;
-	
-	int i;
+
 	for(i = 0; i < thisboard->n_8255; i++)
 	{
 		subdev_8255_init(dev, dev->subdevices + i,
@@ -302,11 +255,9 @@ found:
 	return 1;
 }
 
-
-
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -316,67 +267,6 @@ static int pcidio_detach(comedi_device *dev)
 {
 	printk("comedi%d: skel: remove\n",dev->minor);
 	return 0;
-}
-
-
-
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
-static int pcidio_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-{
-	if(insn->n!=2)return -EINVAL;
-
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if(data[0]){
-		s->state &= ~data[0];
-		s->state |= data[0]&data[1];
-		/* Write out the new digital output lines */
-		//outw(s->state,dev->iobase + SKEL_DIO);
-	}
-
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	//data[1]=inw(dev->iobase + SKEL_DIO);
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	//data[1]=s->state;
-
-	return 2;
-}
-
-static int pcidio_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-{
-	int chan=CR_CHAN(insn->chanspec);
-
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	switch(data[0])
-	{
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1<<chan;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1<<chan);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
-	//outw(s->io_bits,dev->iobase + SKEL_DIO_CONFIG);
-
-	return insn->n;
 }
 
 /*
