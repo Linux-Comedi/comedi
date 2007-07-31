@@ -71,7 +71,7 @@ dev:
 	done;
 
 Documentation/comedi/drivers.txt Documentation/comedi/devices.txt:
-	(for each in `find $(srcdir)/comedi/drivers -name "*\.c" | $(GREP) -v mod\.c`;do $(srcdir)/scripts/dump_doc $$each;\
+	(for each in `find $(srcdir)/comedi/drivers -name "*\.c" | $(GREP) -v mod\.c | sort`;do $(srcdir)/scripts/dump_doc $$each;\
 		done >$(builddir)/Documentation/comedi/drivers.txt)
 	$(srcdir)/scripts/doc_devlist $(builddir)/Documentation/comedi/drivers.txt | sort >\
 		$(builddir)/Documentation/comedi/devices.txt
