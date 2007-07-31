@@ -71,13 +71,16 @@ dev:
 	done;
 
 Documentation/comedi/drivers.txt Documentation/comedi/devices.txt:
-	(for each in comedi/drivers/*.c;do scripts/dump_doc $$each;done >Documentation/comedi/drivers.txt)
-	scripts/doc_devlist Documentation/comedi/drivers.txt | sort >Documentation/comedi/devices.txt
+	(for each in `find $(srcdir)/comedi/drivers -name "*\.c" | $(GREP) -v mod\.c`;do $(srcdir)/scripts/dump_doc $$each;\
+		done >$(builddir)/Documentation/comedi/drivers.txt)
+	$(srcdir)/scripts/doc_devlist $(builddir)/Documentation/comedi/drivers.txt | sort >\
+		$(builddir)/Documentation/comedi/devices.txt
 
 moo:
-	(cd comedi/drivers;for each in *.c;do ../../scripts/check_driver $$each;done >../../drivers.check)
-	(grep '^.:' drivers.check >drivers.summary)
-	
+	(for each in `find $(srcdir)/comedi/drivers -name "*\.c" | $(GREP) -v mod\.c`;\
+		do $(srcdir)/scripts/check_driver $$each;done >$(builddir)/drivers.check)
+	($(GREP) '^.:' $(builddir)/drivers.check >$(builddir)/drivers.summary)
+
 DISTCLEANFILES = modtool
 
 install-data-hook:
