@@ -25,9 +25,9 @@
 */
 
 /*
-Driver: s626.o (s626.ko)
+Driver: s626.ko
 Description: Sensoray 626 driver
-Devices: Sensoray s626
+Devices: [Sensoray] 626 (s626)
 Authors: Gianluca Palli <gpalli@deis.unibo.it>,
 Updated: Thu, 12 Jul 2005
 Status: experimental

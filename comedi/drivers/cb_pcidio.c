@@ -23,8 +23,7 @@
 /*
 Driver: cb_pcidio.o
 Description: ComputerBoards' DIO boards with PCI interface
-Devices: [Measurement Computing]
-	PCI-DIO24H, PCI-DIO48H
+Devices: [Measurement Computing] PCI-DIO24H (cb_pcidio), PCI-DIO48H
 Author: Yoshiya Matsuzaka
 Updated: Wed, 25 Jul 2007 15:15:41 +0900
 Status: experimental

@@ -23,7 +23,7 @@
 /*
 Driver: cb_pcimdas.o
 Description: Measurement Computing PCI Migration series boards
-Devices: [Computer Boards] PCIM-DAS1602/16 (cb_pcimdas)
+Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas)
 Author: Richard Bytheway
 Updated: Wed, 13 Nov 2002 12:34:56 +0000
 Status: experimental
@@ -34,7 +34,7 @@ Configuration Options:
     [0] - PCI bus number
     [1] - PCI slot number
 
-Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org). 
+Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
 Only supports DIO, AO and simple AI in it's present form.
 No interrupts, multi channel or FIFO AI, although the card looks like it could support this.
 See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more details.
@@ -110,11 +110,11 @@ static const cb_pcimdas_board cb_pcimdas_boards[] =
 		ai_diff_chans:	8,
 		ai_bits:	16,
 		ai_speed:	10000, //??
-		ao_nchan: 	2,     
+		ao_nchan: 	2,
 		ao_bits:	12,
 		has_ao_fifo:	0,     //??
 		ao_scan_speed:	10000, //??
-		fifo_size:	1024,   
+		fifo_size:	1024,
 		dio_bits:	24,
 		has_dio:	1,
 //		ranges:		&cb_pcimdas_ranges,
@@ -142,7 +142,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
 typedef struct{
 	int data;
 
-	// would be useful for a PCI device 
+	// would be useful for a PCI device
 	struct pci_dev *pci_dev;
 
 	//base addresses
@@ -160,7 +160,7 @@ typedef struct{
 	unsigned short int port_b;   // copy of BADR4+1
 	unsigned short int port_c;   // copy of BADR4+2
 	unsigned short int dio_mode; // copy of BADR4+3
-	
+
 }cb_pcimdas_private;
 
 /*
@@ -201,7 +201,7 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
 	int index;
 	//int i;
 
-	printk("comedi%d: cb_pcimdas: ",dev->minor);	
+	printk("comedi%d: cb_pcimdas: ",dev->minor);
 
 /*
  * Allocate the private structure area.
@@ -214,7 +214,7 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ; 
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
 	{
 		// is it not a computer boards card?
@@ -271,11 +271,11 @@ found:
 		return -EIO;
 	}
 
-	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0); 
-	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1); 
-	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2); 
-	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3); 
-	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4); 
+	devpriv->BADR0 = pci_resource_start(devpriv->pci_dev, 0);
+	devpriv->BADR1 = pci_resource_start(devpriv->pci_dev, 1);
+	devpriv->BADR2 = pci_resource_start(devpriv->pci_dev, 2);
+	devpriv->BADR3 = pci_resource_start(devpriv->pci_dev, 3);
+	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
 
 #ifdef CBPCIMDAS_DEBUG
 	printk("devpriv->BADR0 = 0x%lx\n",devpriv->BADR0);
@@ -308,14 +308,14 @@ found:
 
 	s=dev->subdevices+0;
 	//dev->read_subdev=s;
-	// analog input subdevice 
+	// analog input subdevice
 	s->type=COMEDI_SUBD_AI;
 	s->subdev_flags=SDF_READABLE|SDF_GROUND;
 	s->n_chan=thisboard->ai_se_chans;
 	s->maxdata=(1<<thisboard->ai_bits)-1;
 	s->range_table=&range_unknown;
 	s->len_chanlist=1;  // This is the maximum chanlist length that
-			     //	the board can handle 
+			     //	the board can handle
 	s->insn_read = cb_pcimdas_ai_rinsn;
 
 	s=dev->subdevices+1;
@@ -335,7 +335,7 @@ found:
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-	
+
 	printk("attached\n");
 
 	return 1;
@@ -344,7 +344,7 @@ found:
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
@@ -402,7 +402,7 @@ static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	else
 		maxchans=thisboard->ai_se_chans;
 
-	if (chan>(maxchans-1)) 
+	if (chan>(maxchans-1))
 		return -ETIMEDOUT;  //*** Wrong error code. Fixme.
 
 	//configure for sw initiated read
@@ -458,7 +458,7 @@ static int cb_pcimdas_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	 * very useful, but that's how the interface is defined. */
 	for(i=0;i<insn->n;i++){
 		switch ( chan ) {
-		case 0:	 
+		case 0:
 			outw(data[i] & 0x0FFF,devpriv->BADR2+DAC0_OFFSET);
 			break;
 		case 1:
