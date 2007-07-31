@@ -68,6 +68,8 @@ CC=$LINUX_CC
 AC_SUBST(COMEDI_CFLAGS)
 
 COMEDI_CHECK_PCMCIA_PROBE([$LINUX_DIR], [ENABLE_PCMCIA="yes"], [ENABLE_PCMCIA="no"])
+#disable pcmcia by default until someone updates it to current kernel api
+ENABLE_PCMCIA="no"
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
 	[ENABLE_PCMCIA=$enableval],[])
 if test "$ENABLE_PCMCIA" = "yes" ; then
