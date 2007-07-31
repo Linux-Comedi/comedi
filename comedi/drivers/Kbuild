@@ -42,6 +42,7 @@ obj-m += c6xdigio.o
 obj-m += cb_pcidas.o
 obj-m += cb_pcidas64.o
 obj-m += cb_pcidda.o
+obj-m += cb_pcidio.o
 obj-m += cb_pcimdas.o
 obj-m += cb_pcimdda.o
 obj-m += comedi_bond.o

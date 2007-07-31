@@ -112,6 +112,7 @@ module_PROGRAMS = \
  cb_pcidas.ko \
  cb_pcidas64.ko \
  cb_pcidda.ko \
+ cb_pcidio.ko \
  cb_pcimdas.ko \
  cb_pcimdda.ko \
  comedi_bond.ko \
@@ -203,6 +204,7 @@ c6xdigio_ko_SOURCES = c6xdigio.c
 cb_pcidas_ko_SOURCES = cb_pcidas.c
 cb_pcidas64_ko_SOURCES = cb_pcidas64.c
 cb_pcidda_ko_SOURCES = cb_pcidda.c
+cb_pcidio_ko_SOURCES = cb_pcidio.c
 cb_pcimdas_ko_SOURCES = cb_pcimdas.c
 cb_pcimdda_ko_SOURCES = cb_pcimdda.c
 cb_das16_cs_ko_SOURCES = cb_das16_cs.c
