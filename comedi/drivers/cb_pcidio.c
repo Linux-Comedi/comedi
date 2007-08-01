@@ -54,7 +54,7 @@ Passing a zero for an option is the same as leaving it unspecified.
  * Some drivers use arrays such as this, other do not.
  */
 typedef struct pcidio_board_struct{
-	char *name;		// anme of the board
+	const char *name;		// anme of the board
 	int n_8255;		// number of 8255 chips on board
 
 	// indices of base address regions
@@ -64,7 +64,7 @@ typedef struct pcidio_board_struct{
 
 
 
-static pcidio_board pcidio_boards[] = {
+static const pcidio_board pcidio_boards[] = {
 	{
 	name:		"pci-dio24h",
 	n_8255:		1,
@@ -97,7 +97,7 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((pcidio_board *)dev->board_ptr)
+#define thisboard ((const pcidio_board *)dev->board_ptr)
 
 
 
@@ -179,7 +179,14 @@ static int pcidio_attach(comedi_device *dev, comedi_devconfig *it)
 	int index;
 	int i;
 
-	printk("comedi%d: pcidio: \n", dev->minor);
+	printk("comedi%d: cb_pcidio: \n", dev->minor);
+
+/*
+ * Allocate the private structure area.  alloc_private() is a
+ * convenient macro defined in comedidev.h.
+ */
+	if(alloc_private(dev, sizeof(pcidio_private)) < 0)
+		return -ENOMEM;
 /*
  * If you can probe the device to determine what device in a series
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
@@ -189,8 +196,8 @@ static int pcidio_attach(comedi_device *dev, comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for(pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
-		pcidev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
+	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
 	{
 		// is it not a computer boards card?
 		if(pcidev->vendor != PCI_VENDOR_ID_CB)
@@ -223,23 +230,24 @@ static int pcidio_attach(comedi_device *dev, comedi_devconfig *it)
 found:
 
 /*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if(alloc_private(dev, sizeof(pcidio_private)) < 0)
-		return -ENOMEM;
-
-	devpriv->pci_dev = pcidev;
-	printk("Found %s on bus %i, slot %i\n", pcidio_boards[index].name,
-		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
-	devpriv->dio_reg_base
-	  = pci_resource_start(devpriv->pci_dev, pcidio_boards[index].dioregs_badrindex);
-
-/*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
  * macro now, since we just initialized it in the last line.
  */
 	dev->board_name = thisboard->name;
+
+	devpriv->pci_dev = pcidev;
+	printk("Found %s on bus %i, slot %i\n", thisboard->name,
+		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
+	if(pci_enable_device(pcidev)) {
+		printk("cb_pcidio: failed to enable PCI device\n");
+		return -EIO;
+	}
+	if(pci_request_regions(pcidev, thisboard->name)) {
+		printk("cb_pcidio: I/O port conflict\n");
+		return -EIO;
+	}
+	devpriv->dio_reg_base
+	  = pci_resource_start(devpriv->pci_dev, pcidio_boards[index].dioregs_badrindex);
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
@@ -269,7 +277,22 @@ found:
  */
 static int pcidio_detach(comedi_device *dev)
 {
-	printk("comedi%d: skel: remove\n",dev->minor);
+	printk("comedi%d: cb_pcidio: remove\n",dev->minor);
+	if(devpriv) {
+		if(devpriv->pci_dev) {
+			if(devpriv->dio_reg_base) {
+				pci_release_regions(devpriv->pci_dev);
+				pci_disable_device(devpriv->pci_dev);
+			}
+			pci_dev_put(devpriv->pci_dev);
+		}
+	}
+	if(dev->subdevices) {
+		int i;
+		for (i = 0; i < thisboard->n_8255; i++) {
+			subdev_8255_cleanup(dev, dev->subdevices + i);
+		}
+	}
 	return 0;
 }
 
