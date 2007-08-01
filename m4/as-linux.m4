@@ -210,11 +210,11 @@ AC_DEFUN([AS_LINUX_RPM_TARGET],
 	then
 		dnl if we have rpm, try to guess the target of the kernel
 		dnl we want to build for using rpm
-		AC_PATH_PROG(RPM, rpm, yes, no)
+		AC_PATH_PROG([RPM], [rpm], [no])
 		if test "x$RPM" != "xno" ; then
-			if rpm -q kernel-$RELEASE > /dev/null
+			if $RPM -q kernel-$RELEASE > /dev/null
 			then
-			  LINUX_RPM_TARGET=`rpm -q --queryformat %{arch} kernel-$RELEASE`
+			  LINUX_RPM_TARGET=`$RPM -q --queryformat %{arch} kernel-$RELEASE`
 			else
 			  AC_MSG_NOTICE([Cannot guess target arch, consider setting it using --with-rpm-target])
 			fi
