@@ -146,8 +146,7 @@ int comedi_command(comedi_t *d,comedi_cmd *cmd)
 
 	s->runflags |= SRF_RT;
 	comedi_switch_to_rt(dev);
-
-	s->subdev_flags |= SDF_RUNNING;
+	comedi_set_subdevice_runflags(s, SRF_RUNNING, SRF_RUNNING);
 
 	comedi_reset_async_buf( async );
 
