@@ -1,5 +1,5 @@
 
-AC_INIT
+AC_INIT([comedi],[0.7.74])
 AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
 
@@ -12,7 +12,7 @@ fi
 PACKAGE=comedi
 COMEDI_MAJORVERSION=0
 COMEDI_MINORVERSION=7
-COMEDI_MICROVERSION=73
+COMEDI_MICROVERSION=74
 # set the nanoversion to 0 for releases, 1 for CVS, >= 2 for prereleases
 COMEDI_NANOVERSION=0
 
@@ -22,7 +22,7 @@ else
   VERSION=$COMEDI_MAJORVERSION.$COMEDI_MINORVERSION.$COMEDI_MICROVERSION.$COMEDI_NANOVERSION
 fi
 
-AM_INIT_AUTOMAKE($PACKAGE,$VERSION)
+AM_INIT_AUTOMAKE([])
 AM_MAINTAINER_MODE
 
 AC_SUBST(PACKAGE)
@@ -106,6 +106,10 @@ comedi/comedi_kbuild.inc
 comedi/drivers/Makefile
 comedi/drivers/addi-data/Makefile
 comedi/kcomedilib/Makefile
+include/Makefile
+include/asm/Makefile
+include/linux/Makefile
+include/pcmcia/Makefile
 ])
 AC_OUTPUT
 

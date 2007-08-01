@@ -1,5 +1,5 @@
 
-SUBDIRS = comedi
+SUBDIRS = comedi include
 
 EXTRA_DIST = autogen.sh \
 	AUTHORS \
@@ -22,39 +22,6 @@ EXTRA_DIST = autogen.sh \
 	Documentation/comedi/redhat-notes \
 	Documentation/comedi/drivers.txt \
 	Documentation/comedi/devices.txt \
-	include/asm/pgtable.h \
-	include/asm/div64.h \
-	include/asm/dma.h \
-	include/asm/page.h \
-	include/asm/uaccess.h \
-	include/asm/types.h \
-	include/asm/semaphore.h \
-	include/linux/comedi.h \
-	include/linux/comedi_rt.h \
-	include/linux/comedidev.h \
-	include/linux/comedilib.h \
-	include/linux/compiler.h \
-	include/linux/config.h \
-	include/linux/delay.h \
-	include/linux/device.h \
-	include/linux/interrupt.h \
-	include/linux/isapnp.h \
-	include/linux/kernel.h \
-	include/linux/kref.h \
-	include/linux/mm.h \
-	include/linux/mod_devicetable.h \
-	include/linux/module.h \
-	include/linux/moduleparam.h \
-	include/linux/pci.h \
-	include/linux/pci_ids.h \
-	include/linux/pnp.h \
-	include/linux/sched.h \
-	include/linux/time.h \
-	include/linux/types.h \
-	include/linux/usb.h \
-	include/linux/version.h \
-	include/linux/wrapper.h \
-	include/pcmcia/ds.h \
 	scripts/check_driver \
 	scripts/check_cmdtest \
 	scripts/check_kernel \
