@@ -58,7 +58,7 @@ dnl modulesdir
 dnl   base install path for kernel modules
 dnl modulesdeveldir
 dnl   base install path for kernel module development files
-dnl 
+dnl
 dnl End of search list.
 
 dnl main entry point
@@ -68,25 +68,25 @@ AC_DEFUN([AS_LINUX],
 	dnl check if user supplied a uname -r, and if not use the running one
 	AS_LINUX_KERNEL_RELEASE()
 	dnl check if user supplied a uname -m, and if not use the running one
-	AS_LINUX_MACHINE() 	 
+	AS_LINUX_MACHINE()
 	dnl check if the user supplied an rpm target arch
 	dnl override the LINUX_MACHINE value if he did
-	AS_LINUX_RPM_TARGET() 	 
-  	 
-	dnl find the kernel source tree for the given uname -r 	 
+	AS_LINUX_RPM_TARGET()
+
+	dnl find the kernel source tree for the given uname -r
 	AS_LINUX_DIR()
 	dnl check if user supplied an EXTRAVERSION, and if not get from uname -r
-	AS_LINUX_EXTRAVERSION($LINUX_KERNEL_RELEASE) 	 
+	AS_LINUX_EXTRAVERSION($LINUX_KERNEL_RELEASE)
 	dnl check if user supplied a config file; if not, guess a good one
-	AS_LINUX_CONFIG($LINUX_DIR, $LINUX_KERNEL_RELEASE, $LINUX_MACHINE) 	 
+	AS_LINUX_CONFIG($LINUX_DIR, $LINUX_KERNEL_RELEASE, $LINUX_MACHINE)
 	dnl check if we're building on pre-FC2 Red Hat/Fedora,
-	dnl and add some flags if we are 	 
-	AS_CHECK_REDHAT_PRE_FC2() 	 
+	dnl and add some flags if we are
+	AS_CHECK_REDHAT_PRE_FC2()
 	dnl check for where to install modules
 	AS_LINUX_MODULESDIR($LINUX_KERNEL_RELEASE)
 	dnl check for where to install module development files
 	AS_LINUX_MODULESDEVELDIR($LINUX_DIR)
-	dnl check for the MAJOR/MINOR version of Linux 	 
+	dnl check for the MAJOR/MINOR version of Linux
 	AS_LINUX_VERSION_MAJOR_MINOR($LINUX_DIR)
 
 	dnl now call the correct macro to get compiler flags
@@ -371,7 +371,7 @@ int code = RED_HAT_LINUX_KERNEL;
 	BIGMEM='0'
 	HUGEMEM='0'
 
-	dnl get variables from the currently running kernel as default 
+	dnl get variables from the currently running kernel as default
 	KERNEL_TYPE=`uname -r | sed 's_^.*\(smp\|enterprise\|bigmem\|hugemem\)$_\1_;t;s_.*__;'`
 	KERNEL_RELEASE=`uname -r | sed 's|smp\|enterprise\|bigmem\|hugemem||g'`
 	KERNEL_ARCH=`uname -m`
@@ -488,6 +488,7 @@ flags:
 	echo LINUX_CC=\"\$(CC)\" >>\$(obj)/flags
 	echo LINUX_LD=\"\$(LD) \$(LDFLAGS) \$(LDFLAGS_MODULE)\" >>\$(obj)/flags
 	echo LINUX_AS=\"\$(AS)\" >>\$(obj)/flags
+	echo LINUX_MODLIB=\"\$(MODLIB)\" >>\$(obj)/flags
 EOF
 
 	echo ${MAKE-make} -C ${LINUX_DIR} V=1 SUBDIRS=${tmpdir} LINUXDIR=${LINUX_DIR} modules >&5 2>&5
@@ -513,9 +514,10 @@ EOF
 	AC_SUBST(LINUX_MODULE_EXT)
 	AC_SUBST(LINUX_MODULE_STYLE)
 	AC_SUBST(LINUX_MODPOST)
+	AC_SUBST(LINUX_MODLIB)
 
 	AC_MSG_RESULT([$LINUX_CFLAGS])
-	
+
 	AC_PATH_PROG([LINUX_MODPOST], ["modpost"], ["no"], ["$LINUX_DIR/scripts:$LINUX_DIR/scripts/mod"])
 ])
 

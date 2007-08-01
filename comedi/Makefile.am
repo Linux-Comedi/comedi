@@ -3,6 +3,8 @@ SUBDIRS = . kcomedilib drivers
 
 CLEANFILES = Modules.symvers Module.symvers
 
+COMEDI_MOD_DIR = "comedi"
+
 if CONFIG_KBUILD
 module_PROGRAMS =
 all-local:
@@ -24,16 +26,19 @@ all-local:
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" modules
 install-data-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
-		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR="comedi" \
+		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
 		INSTALL_MOD_PATH="$(prefix)" modules_install
 clean-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" clean
+uninstall-local:
+	find $(prefix)/$(LINUX_MODLIB)/$(COMEDI_MOD_DIR) -name '*.ko' -exec $(RM) {} \;
 else
 module_PROGRAMS = comedi.ko
 all-local:
 install-data-local:
 clean-local:
+uninstall-local:
 endif
 
 EXTRA_DIST = \
