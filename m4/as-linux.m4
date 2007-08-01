@@ -212,21 +212,11 @@ AC_DEFUN([AS_LINUX_RPM_TARGET],
 		dnl we want to build for using rpm
 		AC_PATH_PROG(RPM, rpm, yes, no)
 		if test "x$RPM" != "xno" ; then
-			AC_MSG_CHECKING([if rpm can be used to query packages])
-			if rpm -qa >/dev/null 2>/dev/null ; then
-			  rpm_check=yes
+			if rpm -q kernel-$RELEASE > /dev/null
+			then
+			  LINUX_RPM_TARGET=`rpm -q --queryformat %{arch} kernel-$RELEASE`
 			else
-			  rpm_check=no
-			fi
-			AC_MSG_RESULT($rpm_check)
-
-			if test "x$rpm_check" = yes ; then
-			  if rpm -q kernel-$RELEASE > /dev/null
-			  then
-			    LINUX_RPM_TARGET=`rpm -q --queryformat %{arch} kernel-$RELEASE`
-			  else
-			    AC_MSG_NOTICE([Cannot guess target arch, consider setting it using --with-rpm-target])
-			  fi
+			  AC_MSG_NOTICE([Cannot guess target arch, consider setting it using --with-rpm-target])
 			fi
 		fi
 	fi
