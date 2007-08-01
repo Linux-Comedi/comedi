@@ -5,17 +5,29 @@ CLEANFILES = Modules.symvers Module.symvers
 
 if CONFIG_KBUILD
 module_PROGRAMS =
+all-local:
+#if builddir is not srcdir, make symbolic links in the builddir to the source files so
+#the kernel's build system doesn't get lost.
+	if test "$(srcdir)" != "$(builddir)"; then \
+		for dir in . drivers kcomedilib drivers/addi-data; do \
+			$(mkdir_p) $(builddir)/$$dir; \
+			for file in `ls @abs_srcdir@/$$dir/*\.[ch] @abs_srcdir@/$$dir/Kbuild | $(GREP) -v \.mod\.c`; do \
+				LINK_NAME=$(builddir)/$$dir/`basename "$$file"`; \
+				if test ! -e $$LINK_NAME; then ln -vs $$file $$LINK_NAME; fi; \
+			done; \
+		done; \
+	fi
+#invoke kernel's build system
 #ignore errors from kernel's make modules in all-local, to avoid failure of make install
 #on nfs filesystem with root_squash
-all-local:
-	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" modules
 install-data-local:
-	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR="comedi" \
 		modules_install
 clean-local:
-	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_srcdir@/ \
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" clean
 else
 module_PROGRAMS = comedi.ko
