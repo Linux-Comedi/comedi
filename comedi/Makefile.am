@@ -10,11 +10,10 @@ module_PROGRAMS =
 all-local:
 #if builddir is not srcdir, make symbolic links in the builddir to the source files so
 #the kernel's build system doesn't get lost.
-	if test "$(srcdir)" != "$(builddir)"; then \
+	if test "$(srcdir)" != "."; then \
 		for dir in . drivers kcomedilib drivers/addi-data; do \
-			$(mkdir_p) $(builddir)/$$dir; \
 			for file in `ls @abs_srcdir@/$$dir/*\.[ch] @abs_srcdir@/$$dir/Kbuild | $(GREP) -v \.mod\.c`; do \
-				LINK_NAME=$(builddir)/$$dir/`basename "$$file"`; \
+				LINK_NAME=$$dir/`basename "$$file"`; \
 				if test ! -e $$LINK_NAME; then ln -vs $$file $$LINK_NAME; fi; \
 			done; \
 		done; \
