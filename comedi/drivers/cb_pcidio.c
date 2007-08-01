@@ -25,13 +25,18 @@ Driver: cb_pcidio.o
 Description: ComputerBoards' DIO boards with PCI interface
 Devices: [Measurement Computing] PCI-DIO24H (cb_pcidio), PCI-DIO48H
 Author: Yoshiya Matsuzaka
-Updated: Wed, 25 Jul 2007 15:15:41 +0900
+Updated: Wed, 01 Aug 2007 11:52:49 +0100
 Status: experimental
 
 This driver has been modified from skel.c of comedi-0.7.70.
 
 Configuration Options:
-  none
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first available PCI device will
+  be used.
+
+Passing a zero for an option is the same as leaving it unspecified.
 */
 
 /*------------------------------ HEADER FILES ---------------------------------*/
