@@ -331,7 +331,7 @@ static void scan_task_func(int d)
 				}
 			}
 			s->async->events |= COMEDI_CB_BLOCK;
-			comedi_event(dev,s,s->async->events);
+			comedi_event(dev,s);
 			s->async->events = 0;
 		}
 
@@ -339,7 +339,7 @@ cleanup:
 
 		comedi_unlock(devpriv->device,devpriv->subd);
 		async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s, async->events);
+		comedi_event(dev, s);
 		async->events = 0;
 		devpriv->scan_task_active = 0;
 		// suspend task until next comedi_cmd

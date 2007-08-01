@@ -270,7 +270,7 @@ static void dt2811_interrupt(int irq, void *d PT_REGS_ARG)
 		/* how to turn off acquisition */
 		s->async->events |= COMEDI_SB_EOA;
 	}
-	comedi_event(dev, s, s->async->events);
+	comedi_event(dev, s);
 }
 #endif
 

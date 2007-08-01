@@ -396,7 +396,7 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 
 		s->async->events |= COMEDI_CB_BLOCK;
 
-		comedi_event(dev, s, s->async->events);
+		comedi_event(dev, s);
 	}
 }
 
