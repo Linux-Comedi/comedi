@@ -36,17 +36,24 @@ dev:
 		mknod -m 666 /dev/comedi$$i c 98 $$i \
 		; \
 	done;
+.PHONY: dev
 
-Documentation/comedi/drivers.txt Documentation/comedi/devices.txt:
-	(for each in `find $(srcdir)/comedi/drivers -name "*\.c" | $(GREP) -v mod\.c | sort`;do $(srcdir)/scripts/dump_doc $$each;\
-		done >$(builddir)/Documentation/comedi/drivers.txt)
-	$(srcdir)/scripts/doc_devlist $(builddir)/Documentation/comedi/drivers.txt | sort >\
-		$(builddir)/Documentation/comedi/devices.txt
+COMEDI_DRIVER_FILES := $(shell find $(srcdir)/comedi/drivers -name '*\.c' | grep -v mod\.c | sort)
 
-moo:
-	(for each in `find $(srcdir)/comedi/drivers -name "*\.c" | $(GREP) -v mod\.c`;\
-		do $(srcdir)/scripts/check_driver $$each;done >$(builddir)/drivers.check)
-	($(GREP) '^.:' $(builddir)/drivers.check >$(builddir)/drivers.summary)
+Documentation/comedi/drivers.txt: $(COMEDI_DRIVER_FILES)
+	for each in $(COMEDI_DRIVER_FILES); do $(srcdir)/scripts/dump_doc $$each;\
+		done >Documentation/comedi/drivers.txt
+
+Documentation/comedi/devices.txt: Documentation/comedi/drivers.txt
+	$(srcdir)/scripts/doc_devlist Documentation/comedi/drivers.txt | sort >\
+		Documentation/comedi/devices.txt
+
+drivers.check: $(COMEDI_DRIVER_FILES)
+	for each in $(COMEDI_DRIVER_FILES);\
+		do $(srcdir)/scripts/check_driver $$each;done >drivers.check
+
+drivers.summary: drivers.check
+	$(GREP) '^.:' drivers.check >drivers.summary
 
 DISTCLEANFILES = modtool
 
