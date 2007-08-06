@@ -26,11 +26,11 @@
 */
 /*
 Driver: amplc_dio200.o
-Description: Amplicon PC272E, PCI272
+Description: Amplicon 200 Series Digital I/O
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
   PCI215 (pci215), PC218E (pc218e), PC272E (pc272e), PCI272 (pci272)
-Updated: Fri, 27 Jul 2007 14:28:41 +0100
+Updated: Mon, 06 Aug 2007 11:06:10 +0100
 Status: works
 
 Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
