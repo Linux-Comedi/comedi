@@ -1,5 +1,5 @@
 /*
-    comedi/drivers/pcmad
+    comedi/drivers/pcmad.c
     Hardware driver for Winsystems PCM-A/D12 and PCM-A/D16
 
     COMEDI - Linux Control and Measurement Device Interface

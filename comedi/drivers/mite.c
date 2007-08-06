@@ -1,5 +1,5 @@
 /*
-    module/mite.c
+    comedi/drivers/mite.c
     Hardware driver for NI Mite PCI interface chip
 
     COMEDI - Linux Control and Measurement Device Interface

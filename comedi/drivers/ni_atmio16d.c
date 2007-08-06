@@ -1,5 +1,5 @@
 /*
-   comedi/drivers/ni_atmio16d
+   comedi/drivers/ni_atmio16d.c
    Hardware driver for National Instruments AT-MIO16D board
    Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
 

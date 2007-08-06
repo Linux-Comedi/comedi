@@ -1,5 +1,5 @@
 /*
-    comedi_fc.c
+    comedi/drivers/comedi_fc.c
 
     This is a place for code driver writers wish to share between
     two or more drivers.  fc is short
