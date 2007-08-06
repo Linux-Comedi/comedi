@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: ni_mio_cs.o
+Driver: ni_mio_cs
 Description: National Instruments DAQCard E series
 Author: ds
 Status: works

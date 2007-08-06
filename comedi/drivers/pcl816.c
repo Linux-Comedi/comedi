@@ -1,5 +1,5 @@
 /*
-   module/pcl816.c
+   comedi/drivers/pcl816.c
 
    Author:  Juan Grigera <juan@grigera.com.ar>
             based on pcl818 by Michal Dobes <dobes@tesnet.cz> and bits of pcl812
@@ -9,7 +9,7 @@
     driver: pcl816
 */
 /*
-Driver: pcl816.o
+Driver: pcl816
 Description: Advantech PCL-816 cards, PCL-814
 Author: Juan Grigera <juan@grigera.com.ar>
 Devices: [Advantech] PCL-816 (pcl816), PCL-814B (pcl814b)

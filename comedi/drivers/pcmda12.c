@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: pcmda12.o
+Driver: pcmda12
 Description: A driver for the Winsystems PCM-D/A-12
 Devices: [Winsystems] PCM-D/A-12 (pcmda12)
 Author: Calin Culianu <calin@ajvar.org>

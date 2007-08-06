@@ -23,7 +23,7 @@
 
 */
 /*
-Driver: amplc_pci224.o
+Driver: amplc_pci224
 Description: Amplicon PCI224, PCI234
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PCI224 (pci224), PCI234 (pci234)

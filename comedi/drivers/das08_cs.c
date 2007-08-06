@@ -24,7 +24,7 @@
 
 */
 /*
-Driver: das08_cs.o
+Driver: das08_cs
 Description: DAS-08 PCMCIA boards
 Author: Warren Jasper, ds, Frank Hess
 Devices: [ComputerBoards] PCM-DAS08 (pcm-das08)

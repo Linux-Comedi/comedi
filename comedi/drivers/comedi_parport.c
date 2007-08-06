@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: comedi_parport.o
+Driver: comedi_parport
 Description: Standard PC parallel port
 Author: ds
 Status: works in immediate mode

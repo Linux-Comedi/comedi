@@ -1,5 +1,5 @@
 /*
-    cb_pcidas64.c
+    comedi/drivers/cb_pcidas64.c
     This is a driver for the ComputerBoards/MeasurementComputing PCI-DAS
     64xx, 60xx, and 4020 cards.
 
@@ -37,7 +37,7 @@
 
 /*
 
-Driver: cb_pcidas64.o
+Driver: cb_pcidas64
 Description: MeasurementComputing PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: works

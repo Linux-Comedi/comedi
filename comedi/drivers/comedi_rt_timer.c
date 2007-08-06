@@ -1,5 +1,5 @@
 /*
-    module/comedi_rt_timer.c
+    comedi/drivers/comedi_rt_timer.c
     virtual driver for using RTL timing sources
 
     Authors: David A. Schleef, Frank M. Hess
@@ -25,7 +25,7 @@
 **************************************************************************
 */
 /*
-Driver: comedi_rt_timer.o
+Driver: comedi_rt_timer
 Description: Command emulator using real-time tasks
 Author: ds, fmhess
 Devices:

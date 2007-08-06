@@ -1,9 +1,10 @@
 /*
+ * comedi/drivers/pcl730.c
  * Driver for Advantech PCL-730 and clones
  * José Luis Sánchez
  */
 /*
-Driver: pcl730.o
+Driver: pcl730
 Description: Advantech PCL-730 (& compatibles)
 Author: José Luis Sánchez (jsanchezv@teleline.es)
 Status: untested

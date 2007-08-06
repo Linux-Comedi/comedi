@@ -22,7 +22,7 @@
 */
 
 /*
-Driver: serial2002.o
+Driver: serial2002
 Description: Driver for serial connected hardware
 Devices:
 Author: Anders Blomdell

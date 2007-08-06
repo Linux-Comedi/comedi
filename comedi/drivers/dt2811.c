@@ -1,6 +1,6 @@
 /*
-   module/dt2811.c
-   hardware driver for Data Translation DT2811
+   comedi/drivers/dt2811.c
+   Hardware driver for Data Translation DT2811
 
    COMEDI - Linux Control and Measurement Device Interface
    History:
@@ -24,7 +24,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 /*
-Driver: dt2811.o
+Driver: dt2811
 Description: Data Translation DT2811
 Author: ds
 Devices: [Data Translation] DT2811-PGL (dt2811-pgl), DT2811-PGH (dt2811-pgh)

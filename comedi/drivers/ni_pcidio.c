@@ -23,7 +23,7 @@
 
 */
 /*
-Driver: ni_pcidio.o
+Driver: ni_pcidio
 Description: National Instruments PCI-DIO32HS, PCI-DIO96, PCI-6533, PCI-6503
 Author: ds
 Status: works

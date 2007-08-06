@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: ke_counter.o
+Driver: ke_counter
 Description: Driver for Kolter Electronic Counter Card
 Devices: [Kolter Electronic] PCI Counter Card (ke_counter)
 Author: Michael Hillmann

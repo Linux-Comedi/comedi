@@ -18,7 +18,7 @@
 */
 
 /*
-Driver: ni_660x.o
+Driver: ni_660x
 Description: National Instruments 660x counter/timer boards
 Devices:
 [National Instruments] PCI-6601 (ni_660x), PCI-6602

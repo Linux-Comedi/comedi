@@ -1,6 +1,6 @@
 /*
-   module/ni_atmio16d
-   hardware driver for National Instruments AT-MIO16D board
+   comedi/drivers/ni_atmio16d
+   Hardware driver for National Instruments AT-MIO16D board
    Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
 
    This program is free software; you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 
  */
 /*
-Driver: ni_atmio16d.o
+Driver: ni_atmio16d
 Description: National Instruments AT-MIO-16D
 Author: Chris R. Baugher <baugher@enteract.com>
 Status: unknown

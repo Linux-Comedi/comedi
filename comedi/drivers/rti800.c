@@ -1,6 +1,6 @@
 /*
-   module/rti800.c
-   hardware driver for Analog Devices RTI-800/815 board
+   comedi/drivers/rti800.c
+   Hardware driver for Analog Devices RTI-800/815 board
 
    COMEDI - Linux Control and Measurement Device Interface
    Copyright (C) 1998 David A. Schleef <ds@schleef.org>
@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: rti800.o
+Driver: rti800
 Description: Analog Devices RTI-800/815
 Author: ds
 Status: unknown

@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: pcmmio.o
+Driver: pcmmio
 Description: A driver for the PCM-MIO multifunction board
 Devices: [Winsystems] PCM-MIO (pcmmio)
 Author: Calin Culianu <calin@ajvar.org>

@@ -24,7 +24,7 @@
 
 */
 /*
-Driver: ni_65xx.o
+Driver: ni_65xx
 Description: National Instruments 65xx static dio boards
 Author: Jon Grierson <jd@renko.co.uk>, Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: testing

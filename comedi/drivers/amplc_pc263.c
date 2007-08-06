@@ -23,7 +23,7 @@
 
 */
 /*
-Driver: amplc_pc263.o
+Driver: amplc_pc263
 Description: Amplicon PC263, PCI263
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC263 (pc263), PCI263 (pci263)

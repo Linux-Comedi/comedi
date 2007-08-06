@@ -1,5 +1,5 @@
 /*
-    comedi_test.c driver
+    comedi/drivers/comedi_test.c
 
     Generates fake waveform signals that can be read through
     the command interface.  It does _not_ read from any board;
@@ -28,7 +28,7 @@
 
 ************************************************************************/
 /*
-Driver: comedi_test.o
+Driver: comedi_test
 Description: generates fake waveforms
 Author: Joachim Wuttke <Joachim.Wuttke@icn.siemens.de>, Frank Mori Hess
   <fmhess@users.sourceforge.net>, ds

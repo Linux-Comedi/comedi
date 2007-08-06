@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: skel.o
+Driver: skel
 Description: Skeleton driver, an example for driver writers
 Devices:
 Author: ds

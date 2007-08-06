@@ -23,7 +23,7 @@
  */
 
 /*
-Driver: dt9812.o
+Driver: dt9812
 Description: Data Translation DT9812 USB module
 Author: anders.blomdell@control.lth.se (Anders Blomdell)
 Status: in development

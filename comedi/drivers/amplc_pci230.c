@@ -22,7 +22,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: amplc_pci230.o
+Driver: amplc_pci230
 Description: Amplicom PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>, Steve D Sharples <steve.sharples@nottingham.ac.uk>
 Updated: Wed, 27 Jun 2007 15:21:41 +0100

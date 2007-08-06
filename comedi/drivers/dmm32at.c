@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: dmm32at.o
+Driver: dmm32at
 Description: Diamond Systems mm32at driver.
 Devices:
 Author: Perry J. Piplani <perry.j.piplani@nasa.gov>

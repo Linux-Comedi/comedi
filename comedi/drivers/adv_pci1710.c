@@ -17,7 +17,7 @@
  *
 */
 /*
-Driver: adv_pci1710.o
+Driver: adv_pci1710
 Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
              Advantech PCI-1720, PCI-1731
 Author: Michal Dobes <dobes@tesnet.cz>

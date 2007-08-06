@@ -19,7 +19,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: poc.o
+Driver: poc
 Description: Generic driver for very simple devices
 Author: ds
 Devices: [Keithley Metrabyte] DAC-02 (dac02), [Advantech] PCL-733 (pcl733),

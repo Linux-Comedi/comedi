@@ -1,5 +1,6 @@
 /*
-    ni_labpc.c driver for National Instruments Lab-PC series boards and compatibles
+    comedi/drivers/ni_labpc.c
+    Driver for National Instruments Lab-PC series boards and compatibles
     Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     This program is free software; you can redistribute it and/or modify
@@ -19,7 +20,7 @@
 ************************************************************************
 */
 /*
-Driver: ni_labpc.o
+Driver: ni_labpc
 Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] Lab-PC-1200 (labpc-1200),

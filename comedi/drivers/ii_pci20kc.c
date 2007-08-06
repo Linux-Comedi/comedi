@@ -1,7 +1,7 @@
 /*
- *	ii_pci20kc.c
- *	driver for Intelligent Instruments PCI-20001C carrier board
- *	and modules
+ *	comedi/drivers/ii_pci20kc.c
+ *	Driver for Intelligent Instruments PCI-20001C carrier board
+ *	and modules.
  *
  *	Copyright (C) 2000 Markus Kempf <kempf@matsci.uni-sb.de>
  *	with suggestions from David Schleef   
@@ -39,7 +39,7 @@
  *
  */
 /*
-Driver: ii_pci20kc.o
+Driver: ii_pci20kc
 Description: Intelligent Instruments PCI-20001C carrier board
 Author: Markus Kempf <kempf@matsci.uni-sb.de>
 Devices: [Intelligent Instrumentation] PCI-20001C (ii_pci20kc)

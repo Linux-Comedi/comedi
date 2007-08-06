@@ -22,7 +22,7 @@
 
 */
 /*
-Driver: cb_pcimdda.o
+Driver: cb_pcimdda
 Description: Measurement Computing PCIM-DDA06-16
 Devices: [Measurement Computing] PCIM-DDA06-16 (cb_pcimdda)
 Author: Calin Culianu <calin@ajvar.org>

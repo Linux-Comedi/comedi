@@ -25,7 +25,7 @@
  ***************************************************************************/
 /*
 
-Driver: unioxx5.o
+Driver: unioxx5
 Description: Driver for Fastwel UNIOxx-5 (analog and digital i/o) boards.
 Author: Kruchinin Daniil (asgard) <asgard@etersoft.ru>
 Status: unknown

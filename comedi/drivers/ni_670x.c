@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: ni_670x.o
+Driver: ni_670x
 Description: National Instruments 670x
 Author: Bart Joris <bjoris@advalvas.be>
 Updated: Wed, 11 Dec 2002 18:25:35 -0800

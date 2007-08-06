@@ -20,7 +20,7 @@
 
 */
 /*
-Driver: adl_pci7296.o
+Driver: adl_pci7296
 Description: Driver for the Adlink PCI-7296 96 ch. digital io board
 Devices: [ADLink] PCI-7296 (pci7296)
 Author: Jon Grierson <jd@renko.co.uk>

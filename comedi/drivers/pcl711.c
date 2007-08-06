@@ -1,5 +1,5 @@
 /*
-   module/pcl711.c
+   comedi/drivers/pcl711.c
    hardware driver for PC-LabCard PCL-711 and AdSys ACL-8112
    and compatibles
 
@@ -24,7 +24,7 @@
 
  */
 /*
-Driver: pcl711.o
+Driver: pcl711
 Description: Advantech PCL-711 and 711b, ADLink ACL-8112
 Author: ds, Janne Jalkanen <jalkanen@cs.hut.fi>, Eric Bunn <ebu@cs.hut.fi>
 Status: mostly complete

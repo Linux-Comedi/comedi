@@ -27,7 +27,7 @@
 
 */
 /*
-Driver: pcl726.o
+Driver: pcl726
 Description: Advantech PCL-726 & compatibles
 Author: ds
 Status: untested

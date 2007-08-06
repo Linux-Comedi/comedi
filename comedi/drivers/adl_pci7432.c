@@ -20,7 +20,7 @@
 
 */
 /*
-Driver: adl_pci7432.o
+Driver: adl_pci7432
 Description: Driver for the Adlink PCI-7432 64 ch. isolated digital io board
 Devices: [ADLink] PCI-7432 (pci7432)
 Author: Michel Lachaine <mike@mikelachaine.ca>

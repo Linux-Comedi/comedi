@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: ni_6527.o
+Driver: ni_6527
 Description: National Instruments 6527
 Author: ds
 Status: works

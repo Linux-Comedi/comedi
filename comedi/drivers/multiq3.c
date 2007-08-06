@@ -1,6 +1,6 @@
 /*
-   module/multiq3.c
-   hardware driver for Quanser Consulting MultiQ-3 board
+   comedi/drivers/multiq3.c
+   Hardware driver for Quanser Consulting MultiQ-3 board
 
    COMEDI - Linux Control and Measurement Device Interface
    Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: multiq3.o
+Driver: multiq3
 Description: Quanser Consulting MultiQ-3
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works

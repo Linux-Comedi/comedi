@@ -1,5 +1,6 @@
 /*
-    das1800.c driver for Keitley das1700/das1800 series boards
+    comedi/drivers/das1800.c
+    Driver for Keitley das1700/das1800 series boards
     Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -22,7 +23,7 @@
 ************************************************************************
 */
 /*
-Driver: das1800.o
+Driver: das1800
 Description: Keithley Metrabyte DAS1800 (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [Keithley Metrabyte] DAS-1701ST (das-1701st),

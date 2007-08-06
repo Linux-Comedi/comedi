@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: cb_pcimdas.o
+Driver: cb_pcimdas
 Description: Measurement Computing PCI Migration series boards
 Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas)
 Author: Richard Bytheway

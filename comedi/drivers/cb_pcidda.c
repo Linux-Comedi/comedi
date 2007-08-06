@@ -1,5 +1,5 @@
 /*
-    cb_pcidda.c
+    comedi/drivers/cb_pcidda.c
     This intends to be a driver for the ComputerBoards / MeasurementComputing
     PCI-DDA series.
 
@@ -25,7 +25,7 @@
 
 */
 /*
-Driver: cb_pcidda.o
+Driver: cb_pcidda
 Description: MeasurementComputing PCI-DDA series
 Author: Ivan Martinez <ivanmr@altavista.com>, Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: Supports 08/16, 04/16, 02/16, 08/12, 04/12, and 02/12

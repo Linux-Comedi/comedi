@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: mpc8260cpm.o
+Driver: mpc8260cpm
 Description: MPC8260 CPM module generic digital I/O lines
 Devices: [Motorola] MPC8260 CPM (mpc8260cpm)
 Author: ds

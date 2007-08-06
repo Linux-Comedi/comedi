@@ -24,7 +24,7 @@
 */
 
 /*
-Driver: adl_pci9111.o
+Driver: adl_pci9111
 Description: Adlink PCI-9111HR
 Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
 Devices: [ADLink] PCI-9111HR (adl_pci9111)

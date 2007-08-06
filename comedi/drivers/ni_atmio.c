@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: ni_atmio.o
+Driver: ni_atmio
 Description: National Instruments AT-MIO-E series
 Author: ds
 Devices: [National Instruments] AT-MIO-16E-1 (ni_atmio),

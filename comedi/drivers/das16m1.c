@@ -25,7 +25,7 @@
 ************************************************************************
 */
 /*
-Driver: das16m1.o
+Driver: das16m1
 Description: CIO-DAS16/M1
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [Measurement Computing] CIO-DAS16/M1 (cio-das16/m1)

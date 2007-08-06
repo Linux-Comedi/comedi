@@ -1,5 +1,6 @@
 /*
-    ni_labpc_cs.c driver for National Instruments daqcard-1200 boards
+    comedi/drivers/ni_labpc_cs.c
+    Driver for National Instruments daqcard-1200 boards
     Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     PCMCIA crap is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
@@ -25,7 +26,7 @@
 ************************************************************************
 */
 /*
-Driver: ni_labpc_cs.o
+Driver: ni_labpc_cs
 Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] DAQCard-1200 (daqcard-1200)

@@ -1,9 +1,10 @@
 /*
+ * comedi/drivers/acl7225b.c
  * Driver for Adlink NuDAQ ACL-7225b and clones
  * José Luis Sánchez
  */
 /*
-Driver: acl7225b.o
+Driver: acl7225b
 Description: Adlink NuDAQ ACL-7225b & compatibles
 Author: José Luis Sánchez (jsanchezv@teleline.es)
 Status: testing

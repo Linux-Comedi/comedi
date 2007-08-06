@@ -1,5 +1,5 @@
 /*
-    module/8255.c
+    comedi/drivers/8255.c
     Driver for 8255
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: 8255.o
+Driver: 8255
 Description: generic 8255 support
 Devices: [standard] 8255 (8255)
 Author: ds

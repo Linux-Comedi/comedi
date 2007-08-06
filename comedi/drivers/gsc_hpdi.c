@@ -1,5 +1,5 @@
 /*
-    gsc_hpdi.c
+    comedi/drivers/gsc_hpdi.c
     This is a driver for the General Standards Corporation High
     Speed Parallel Digital Interface rs485 boards.
 
@@ -27,7 +27,7 @@
 
 /*
 
-Driver: gsc_hpdi.o
+Driver: gsc_hpdi
 Description: General Standards Corporation High
     Speed Parallel Digital Interface rs485 boards
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>

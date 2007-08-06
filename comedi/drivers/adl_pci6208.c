@@ -26,7 +26,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: adl_pci6208.o
+Driver: adl_pci6208
 Description: ADLink PCI-6208A
 Devices: [ADLink] PCI-6208A (adl_pci6208)
 Author: nsyeow <nsyeow@pd.jaring.my>

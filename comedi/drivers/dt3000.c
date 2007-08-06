@@ -1,5 +1,5 @@
 /*
-    module/dt3000.c
+    comedi/drivers/dt3000.c
     Data Translation DT3000 series driver
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: dt3000.o
+Driver: dt3000
 Description: Data Translation DT3000 series
 Author: ds
 Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,

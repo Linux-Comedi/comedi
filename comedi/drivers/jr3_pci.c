@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: jr3_pci.o
+Driver: jr3_pci
 Description: JR3/PCI force sensor board
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works

@@ -1,6 +1,6 @@
 /*
-   modules/dt282x.c
-   hardware driver for Data Translation DT2821 series
+   comedi/drivers/dt282x.c
+   Hardware driver for Data Translation DT2821 series
 
    COMEDI - Linux Control and Measurement Device Interface
    Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: dt282x.o
+Driver: dt282x
 Description: Data Translation DT2821 series (including DT-EZ)
 Author: ds
 Devices: [Data Translation] DT2821 (dt2821),

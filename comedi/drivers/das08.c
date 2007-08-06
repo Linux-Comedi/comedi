@@ -25,7 +25,7 @@
 
 */
 /*
-Driver: das08.o
+Driver: das08
 Description: DAS-08 compatible boards
 Author: Warren Jasper, ds, Frank Hess
 Devices: [Keithley Metrabyte] DAS08 (das08), [ComputerBoards] DAS08 (das08),

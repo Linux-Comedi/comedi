@@ -2,7 +2,7 @@
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
-   module/usbdux.c
+   comedi/drivers/usbdux.c
    Copyright (C) 2003 Bernd Porr, Bernd.Porr@f2s.com
 
    This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: usbdux.c
+Driver: usbdux
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbdux.o)
 Author: Bernd Porr <BerndPorr@f2s.com>

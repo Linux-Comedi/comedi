@@ -1,5 +1,5 @@
 /*
-    module/pcl724.c
+    comedi/drivers/pcl724.c
 
     Michal Dobes <dobes@tesnet.cz>
 
@@ -21,7 +21,7 @@
 	      1,  96:  96 DIO configuration
 */
 /*
-Driver: pcl724.o
+Driver: pcl724
 Description: Advantech PCL-724, PCL-722, PCL-731 ADLink ACL-7122, ACL-7124,
   PET-48DIO
 Author: Michal Dobes <dobes@tesnet.cz>

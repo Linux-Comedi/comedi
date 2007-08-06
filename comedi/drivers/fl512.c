@@ -4,7 +4,7 @@
 */
 
 /*
-Driver: fl512.o
+Driver: fl512
 Description: unknown
 Author: Anders Gnistrup <ex18@kalman.iau.dtu.dk>
 Devices: [unknown] FL512 (fl512)

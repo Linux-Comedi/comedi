@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: rtd520.o
+Driver: rtd520
 Description: Real Time Devices PCI4520/DM7520
 Author: Dan Christian
 Devices: [Real Time Devices] DM7520HR-1 (DM7520), DM7520HR-8 (DM7520-8),

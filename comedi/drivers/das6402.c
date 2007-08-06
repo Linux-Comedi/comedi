@@ -9,6 +9,7 @@
  */
 
 /*
+   comedi/drivers/das6402.c
    An experimental driver for Computerboards' DAS6402 I/O card
 
    Copyright (C) 1999 Oystein Svendsen <svendsen@pvv.org>
@@ -29,7 +30,7 @@
 
  */
 /*
-Driver: das6402.o
+Driver: das6402
 Description: Keithley Metrabyte DAS6402 (& compatibles)
 Author: Oystein Svendsen <svendsen@pvv.org>
 Status: bitrotten

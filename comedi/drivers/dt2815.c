@@ -1,6 +1,6 @@
 /*
-   module/dt2815.c
-   hardware driver for Data Translation DT2815
+   comedi/drivers/dt2815.c
+   Hardware driver for Data Translation DT2815
 
    COMEDI - Linux Control and Measurement Device Interface
    Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: dt2815.o
+Driver: dt2815
 Description: Data Translation DT2815
 Author: ds
 Status: mostly complete, untested

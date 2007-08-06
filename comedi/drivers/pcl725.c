@@ -1,9 +1,10 @@
 /*
+ * comedi/drivers/pcl725.c
  * Driver for PCL725 and clones
  * David A. Schleef
  */
 /*
-Driver: pcl725.o
+Driver: pcl725
 Description: Advantech PCL-725 (& compatibles)
 Author: ds
 Status: unknown

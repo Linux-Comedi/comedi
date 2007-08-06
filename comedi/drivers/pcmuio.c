@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: pcmuio.o
+Driver: pcmuio
 Description: A driver for the PCM-UIO48A and PCM-UIO96A boards from Winsystems.
 Devices: [Winsystems] PCM-UIO48A (pcmuio48), PCM-UIO96A (pcmuio96)
 Author: Calin Culianu <calin@ajvar.org>

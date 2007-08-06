@@ -2,7 +2,7 @@
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
-   module/usbduxfast.c
+   comedi/drivers/usbduxfast.c
    Copyright (C) 2004 Bernd Porr, Bernd.Porr@f2s.com
 
    This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 */
 
 /*
-Driver: usbduxfast.c
+Driver: usbduxfast
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>

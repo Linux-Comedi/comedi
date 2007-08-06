@@ -1,10 +1,11 @@
 /*
+ * comedi/drivers/pcm3730.c
  * Driver for PCM3730 and clones
  * Blaine Lee
  * from pcl725 by David S.
  */
 /*
-Driver: pcm3730.o
+Driver: pcm3730
 Description: PCM3730
 Author: Blaine Lee
 Devices: [Advantech] PCM-3730 (pcm3730)

@@ -1,6 +1,6 @@
 /*
-   module/rti802.c
-   hardware driver for Analog Devices RTI-802 board
+   comedi/drivers/rti802.c
+   Hardware driver for Analog Devices RTI-802 board
 
    COMEDI - Linux Control and Measurement Device Interface
    Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: rti802.o
+Driver: rti802
 Description: Analog Devices RTI-802
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Devices: [Analog Devices] RTI-802 (rti802)

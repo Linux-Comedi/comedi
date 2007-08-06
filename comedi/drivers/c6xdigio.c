@@ -1,6 +1,7 @@
 /*
-   module/c6xdigio.c
-   hardware driver for Mechatronic Systems Inc. C6x_DIGIO DSP daughter card.
+   comedi/drivers/c6xdigio.c
+
+   Hardware driver for Mechatronic Systems Inc. C6x_DIGIO DSP daughter card.
    (http://robot0.ge.uiuc.edu/~spong/mecha/)
 
    COMEDI - Linux Control and Measurement Device Interface
@@ -22,7 +23,7 @@
 
  */
 /*
-Driver: c6xdigio.o
+Driver: c6xdigio
 Description: Mechatronic Systems Inc. C6x_DIGIO DSP daughter card
 Author: Dan Block
 Status: unknown

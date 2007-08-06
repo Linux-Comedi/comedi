@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: mpc624.o
+Driver: mpc624
 Description: Micro/sys MPC-624 PC/104 board
 Devices: [Micro/sys] MPC-624 (mpc624)
 Author: Stanislaw Raczynski <sraczynski@op.pl>

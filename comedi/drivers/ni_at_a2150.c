@@ -1,5 +1,6 @@
 /*
-    ni_at_a2150.c driver for National Instruments AT-A2150 boards
+    comedi/drivers/ni_at_a2150.c
+    Driver for National Instruments AT-A2150 boards
     Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -22,7 +23,7 @@
 ************************************************************************
 */
 /*
-Driver: ni_at_a2150.o
+Driver: ni_at_a2150
 Description: National Instruments AT-A2150
 Author: Frank Mori Hess
 Status: works

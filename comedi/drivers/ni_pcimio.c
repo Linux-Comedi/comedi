@@ -1,5 +1,5 @@
 /*
-    module/ni_pcimio.c
+    comedi/drivers/ni_pcimio.c
     Hardware driver for NI PCI-MIO E series cards
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -20,7 +20,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
-Driver: ni_pcimio.o
+Driver: ni_pcimio
 Description: National Instruments PCI-MIO-E series and M series (all boards)
 Author: ds, John Hallen, Frank Mori Hess, Rolf Mueller, Herbert Peremans,
   Herman Bruyninckx, Terry Barnaby

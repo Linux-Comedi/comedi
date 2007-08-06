@@ -1,5 +1,5 @@
 /*
-    module/pcm724.c
+    comedi/drivers/pcm724.c
 
     Drew Csillag <drew_csillag@yahoo.com>
 
@@ -11,7 +11,7 @@
      [0] - IO Base
 */
 /*
-Driver: pcm3724.o
+Driver: pcm3724
 Description: Advantech PCM-3724
 Author: Drew Csillag <drew_csillag@yahoo.com>
 Devices: [Advantech] PCM-3724 (pcm724)

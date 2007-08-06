@@ -1,5 +1,7 @@
 /*======================================================================
 
+    comedi/drivers/quatech_daqp_cs.c
+
     Quatech DAQP PCMCIA data capture cards COMEDI client driver
     Copyright (C) 2000, 2003 Brent Baccala <baccala@freesoft.org>
     The DAQP interface code in this file is released into the public domain.
@@ -8,7 +10,7 @@
     Copyright (C) 1998 David A. Schleef <ds@schleef.org>
     http://www.comedi.org/
 
-    daqp_cs.c 1.10
+    quatech_daqp_cs.c 1.10
 
 
 
@@ -40,7 +42,7 @@
 ======================================================================*/
 
 /*
-Driver: quatech_daqp_cs.o
+Driver: quatech_daqp_cs
 Description: Quatech DAQP PCMCIA data capture cards
 Author: Brent Baccala <baccala@freesoft.org>
 Status: works

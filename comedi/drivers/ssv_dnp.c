@@ -22,7 +22,7 @@
 
 */
 /*
-Driver: ssv_dnp.o
+Driver: ssv_dnp
 Description: SSV Embedded Systems DIL/Net-PC
 Author: Robert Schwebel <robert@schwebel.de>
 Devices: [SSV Embedded Systems] DIL/Net-PC 1486 (dnp-1486)

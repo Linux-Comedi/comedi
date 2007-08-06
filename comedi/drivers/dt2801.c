@@ -1,9 +1,10 @@
 /*
+ * comedi/drivers/dt2801.c
  * Device Driver for DataTranslation DT2801
  *
  */
 /*
-Driver: dt2801.o
+Driver: dt2801
 Description: Data Translation DT2801 series and DT01-EZ
 Author: ds
 Status: works

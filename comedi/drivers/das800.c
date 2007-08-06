@@ -1,5 +1,6 @@
 /*
-    das800.c driver for Keitley das800 series boards and compatibles
+    comedi/drivers/das800.c
+    Driver for Keitley das800 series boards and compatibles
     Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
 
     COMEDI - Linux Control and Measurement Device Interface
@@ -22,7 +23,7 @@
 ************************************************************************
 */
 /*
-Driver: das800.o
+Driver: das800
 Description: Keithley Metrabyte DAS800 (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [Keithley Metrabyte] DAS-800 (das-800), DAS-801 (das-801),

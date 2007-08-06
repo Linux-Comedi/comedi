@@ -16,7 +16,7 @@
  * driver:  a823pgh,  a823pgl,  a826pg
  */
 /*
-Driver: pcl812.o
+Driver: pcl812
 Description: Advantech PCL-812/PG, PCL-813/B,
              ADLink ACL-8112DG/HG/PG, ACL-8113, ACL-8216,
              ICP DAS A-821PGH/PGL/PGL-NDA, A-822PGH/PGL, A-823PGH/PGL, A-826PG,

@@ -1,6 +1,6 @@
 /*
-    module/pcmad
-    hardware driver for Winsystems PCM-A/D12 and PCM-A/D16
+    comedi/drivers/pcmad
+    Hardware driver for Winsystems PCM-A/D12 and PCM-A/D16
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000,2001 David A. Schleef <ds@schleef.org>
@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: pcmad.o
+Driver: pcmad
 Description: Winsystems PCM-A/D12, PCM-A/D16
 Author: ds
 Devices: [Winsystems] PCM-A/D12 (pcmad12), PCM-A/D16 (pcmad16)

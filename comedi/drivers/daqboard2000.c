@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: daqboard2000.o
+Driver: daqboard2000
 Description: IOTech DAQBoard/2000
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works

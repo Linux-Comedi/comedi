@@ -1,6 +1,6 @@
 /*
     comedi/drivers/das16cs.c
-    Skeleton code for a Comedi driver
+    Driver for Computer Boards PC-CARD DAS16/16.
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000, 2001, 2002 David A. Schleef <ds@schleef.org>
@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: cb_das16_cs.o
+Driver: cb_das16_cs
 Description: Computer Boards PC-CARD DAS16/16
 Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs), PC-CARD DAS16/16-AO
 Author: ds

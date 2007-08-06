@@ -1,5 +1,7 @@
 /*
 
+    comedi/drivers/aio_aio12_8.c
+
     Driver for Acces I/O Products PC-104 AIO12-8 Analog I/O Board
     Copyright (C) 2006 C&C Technologies, Inc.
 
@@ -20,7 +22,7 @@
 
 /*
 
-Driver: aio_aio12_8.o
+Driver: aio_aio12_8
 Description: Acces I/O Products PC-104 AIO12-8 Analog I/O Board
 Author: Pablo Mejia <pablo.mejia@cctechnol.com>
 Devices:

@@ -9,7 +9,7 @@
  *
 */
 /*
-Driver: adl_pci9118.o
+Driver: adl_pci9118
 Description: Adlink PCI-9118DG, PCI-9118HG, PCI-9118HR
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [ADLink] PCI-9118DG (pci9118dg), PCI-9118HG (pci9118hg),

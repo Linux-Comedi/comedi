@@ -1,5 +1,5 @@
 /*
-    cb_pcidas.c
+    comedi/drivers/cb_pcidas.c
 
     Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
     David Schleef and the rest of the Comedi developers comunity.
@@ -27,7 +27,7 @@
 ************************************************************************
 */
 /*
-Driver: cb_pcidas.o
+Driver: cb_pcidas
 Description: MeasurementComputing PCI-DAS series with the AMCC S5933 PCI controller
 Author: Ivan Martinez <imr@oersted.dtu.dk>,
   Frank Mori Hess <fmhess@users.sourceforge.net>

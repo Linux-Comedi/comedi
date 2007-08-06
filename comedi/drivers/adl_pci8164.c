@@ -20,7 +20,7 @@
 
 */
 /*
-Driver: adl_pci8164.o
+Driver: adl_pci8164
 Description: Driver for the Adlink PCI-8164 4 Axes Motion Control board
 Devices: [ADLink] PCI-8164 (pci8164)
 Author: Michel Lachaine <mike@mikelachaine.ca>

@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: s526.ko
+Driver: s526
 Description: Sensoray 526 driver
 Devices: [Sensoray] 526 (s526)
 Author: Richie

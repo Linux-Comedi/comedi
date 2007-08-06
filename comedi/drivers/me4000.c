@@ -21,7 +21,7 @@
 
  */
 /*
-Driver: me4000.o
+Driver: me4000
 Description: Meilhaus ME-4000 series boards
 Devices: [Meilhaus] ME-4650 (me4000), ME-4670i, ME-4680, ME-4680i, ME-4680is
 Author: gg (Guenter Gebhardt <g.gebhardt@meilhaus.com>)

@@ -1,5 +1,6 @@
 /*
-    ni_daq_dio24.c driver for National Instruments PCMCIA DAQ-Card DIO-24
+    comedi/drivers/ni_daq_dio24.c
+    Driver for National Instruments PCMCIA DAQ-Card DIO-24
     Copyright (C) 2002 Daniel Vecino Castel <dvecino@able.es>
 
     PCMCIA crap at end of file is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
@@ -25,7 +26,7 @@
 ************************************************************************
 */
 /*
-Driver: ni_daq_dio24.o
+Driver: ni_daq_dio24
 Description: National Instruments PCMCIA DAQ-Card DIO-24
 Author: Daniel Vecino Castel <dvecino@able.es>
 Devices: [National Instruments] PCMCIA DAQ-Card DIO-24 (ni_daq_dio24)

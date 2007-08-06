@@ -22,7 +22,7 @@
 
 */
 /*
-Driver: comedi_bond.o
+Driver: comedi_bond
 Description: A driver to 'bond' (merge) multiple subdevices from multiple devices together as one.
 Devices:
 Author: ds

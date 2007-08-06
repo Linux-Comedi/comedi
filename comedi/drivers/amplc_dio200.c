@@ -25,7 +25,7 @@
 
 */
 /*
-Driver: amplc_dio200.o
+Driver: amplc_dio200
 Description: Amplicon 200 Series Digital I/O
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),

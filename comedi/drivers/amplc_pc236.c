@@ -23,7 +23,7 @@
 
 */
 /*
-Driver: amplc_pc236.o
+Driver: amplc_pc236
 Description: Amplicon PC36AT, PCI236
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC36AT (pc36at), PCI236 (pci236)

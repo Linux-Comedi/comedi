@@ -20,7 +20,7 @@
 */
 
 /*
-Driver: ni_tio.o
+Driver: ni_tio
 Description: National Instruments general purpose counters
 Devices:
 Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
