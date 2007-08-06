@@ -28,6 +28,7 @@ Devices: [Advantech] PCL-812 (pcl812), PCL-812PG (pcl812pg),
   [ICP] ISO-813 (iso813), A-821PGH (a821pgh), A-821PGL (a821pgl),
   A-821PGL-NDA (a821pclnda), A-822PGH (a822pgh), A-822PGL (a822pgl),
   A-823PGH (a823pgh), A-823PGL (a823pgl), A-826PG (a826pg)
+Updated: Mon, 06 Aug 2007 12:03:15 +0100
 Status: works (I hope. My board fire up under my hands
                and I cann't test all features.)
 
@@ -35,80 +36,76 @@ This driver supports insn and cmd interfaces. Some boards support only insn
 becouse their hardware don't allow more (PCL-813/B, ACL-8113, ISO-813).
 Data transfer over DMA is supported only when you measure only one
 channel, this is too hardware limitation of these boards.
-See the head of the source file pcl812.c for configuration options.
+
+Options for PCL-812:
+  [0] - IO Base
+  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
+  [2] - DMA  (0=disable, 1, 3)
+  [3] - 0=trigger source is internal 8253 with 2MHz clock
+        1=trigger source is external
+  [4] - 0=A/D input range is +/-10V
+        1=A/D input range is +/-5V
+        2=A/D input range is +/-2.5V
+        3=A/D input range is +/-1.25V
+        4=A/D input range is +/-0.625V
+        5=A/D input range is +/-0.3125V
+  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
+        1=D/A outputs 0-10V (internal reference -10V)
+        2=D/A outputs unknow (external reference)
+
+Options for PCL-812PG, ACL-8112PG:
+  [0] - IO Base
+  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
+  [2] - DMA  (0=disable, 1, 3)
+  [3] - 0=trigger source is internal 8253 with 2MHz clock
+        1=trigger source is external
+  [4] - 0=A/D have max +/-5V input
+        1=A/D have max +/-10V input
+  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
+        1=D/A outputs 0-10V (internal reference -10V)
+        2=D/A outputs unknow (external reference)
+
+Options for ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH, ACL-8216, A-826PG:
+  [0] - IO Base
+  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
+  [2] - DMA  (0=disable, 1, 3)
+  [3] - 0=trigger source is internal 8253 with 2MHz clock
+        1=trigger source is external
+  [4] - 0=A/D channels are S.E.
+        1=A/D channels are DIFF
+  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
+        1=D/A outputs 0-10V (internal reference -10V)
+        2=D/A outputs unknow (external reference)
+
+Options for A-821PGL/PGH:
+  [0] - IO Base
+  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7)
+  [2] - 0=A/D channels are S.E.
+        1=A/D channels are DIFF
+  [3] - 0=D/A output 0-5V  (internal reference -5V)
+        1=D/A output 0-10V (internal reference -10V)
+
+Options for A-821PGL-NDA:
+  [0] - IO Base
+  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7)
+  [2] - 0=A/D channels are S.E.
+        1=A/D channels are DIFF
+
+Options for PCL-813:
+  [0] - IO Base
+
+Options for PCL-813B:
+  [0] - IO Base
+  [1] - 0= bipolar inputs
+        1= unipolar inputs
+
+Options for ACL-8113, ISO-813:
+  [0] - IO Base
+  [1] - 0= 10V bipolar inputs
+        1= 10V unipolar inputs
+        2= 20V bipolar inputs
+        3= 20V unipolar inputs
 */
-/*
- *
- * Options for PCL-812:
- *  [0] - IO Base
- *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
- *  [2] - DMA  (0=disable, 1, 3)
- *  [3] - 0=trigger source is internal 8253 with 2MHz clock
- *        1=trigger source is external
- *  [4] - 0=A/D input range is +/-10V
- *        1=A/D input range is +/-5V
- *        2=A/D input range is +/-2.5V
- *        3=A/D input range is +/-1.25V
- *        4=A/D input range is +/-0.625V
- *        5=A/D input range is +/-0.3125V
- *  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
- *        1=D/A outputs 0-10V (internal reference -10V)
- *        2=D/A outputs unknow (external reference)
- *
- * Options for PCL-812PG, ACL-8112PG:
- *  [0] - IO Base
- *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
- *  [2] - DMA  (0=disable, 1, 3)
- *  [3] - 0=trigger source is internal 8253 with 2MHz clock
- *        1=trigger source is external
- *  [4] - 0=A/D have max +/-5V input
- *        1=A/D have max +/-10V input
- *  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
- *        1=D/A outputs 0-10V (internal reference -10V)
- *        2=D/A outputs unknow (external reference)
- *
- * Options for ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH, ACL-8216, A-826PG:
- *  [0] - IO Base
- *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7; 10, 11, 12, 14, 15)
- *  [2] - DMA  (0=disable, 1, 3)
- *  [3] - 0=trigger source is internal 8253 with 2MHz clock
- *        1=trigger source is external
- *  [4] - 0=A/D channels are S.E.
- *        1=A/D channels are DIFF
- *  [5] - 0=D/A outputs 0-5V  (internal reference -5V)
- *        1=D/A outputs 0-10V (internal reference -10V)
- *        2=D/A outputs unknow (external reference)
- *
- * Options for A-821PGL/PGH:
- *  [0] - IO Base
- *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7)
- *  [2] - 0=A/D channels are S.E.
- *        1=A/D channels are DIFF
- *  [3] - 0=D/A output 0-5V  (internal reference -5V)
- *        1=D/A output 0-10V (internal reference -10V)
- *
- * Options for A-821PGL-NDA:
- *  [0] - IO Base
- *  [1] - IRQ  (0=disable, 2, 3, 4, 5, 6, 7)
- *  [2] - 0=A/D channels are S.E.
- *        1=A/D channels are DIFF
- *
- * Options for PCL-813:
- *  [0] - IO Base
- *
- * Options for PCL-813B:
- *  [0] - IO Base
- *  [1] - 0= bipolar inputs
- *        1= unipolar inputs
- *
- * Options for ACL-8113, ISO-813:
- *  [0] - IO Base
- *  [1] - 0= 10V bipolar inputs
- *        1= 10V unipolar inputs
- *        2= 20V bipolar inputs
- *        3= 20V unipolar inputs
- *
- */
 
 #include <linux/comedidev.h>
 
