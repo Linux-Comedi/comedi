@@ -722,7 +722,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 		if(i < thisboard->n_ctrs)
 		{
 			s->type = COMEDI_SUBD_COUNTER;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+			s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
 			s->n_chan = 3;
 			s->maxdata = 0xffffffff;
 			s->insn_read = ni_660x_GPCT_rinsn;

@@ -3792,7 +3792,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	{
 		s = dev->subdevices + NI_GPCT_SUBDEV(j);
 		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_CMD_READ;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_CMD_READ;
 		s->n_chan = 3;
 		if(boardtype.reg_type & ni_reg_m_series_mask)
 			s->maxdata = 0xffffffff;
@@ -3802,6 +3802,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		s->insn_write = &ni_gpct_insn_write;
 		s->insn_config = &ni_gpct_insn_config;
 		s->do_cmd = &ni_gpct_cmd;
+		s->len_chanlist = 1;
 		s->do_cmdtest = &ni_gpct_cmdtest;
 		s->cancel = &ni_gpct_cancel;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
@@ -4483,8 +4484,8 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 static int ni_gpct_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
 {
 	struct ni_gpct *counter = s->private;
-	//XXX check chanlist_len == 1
-	return ni_tio_cmdtest(counter);
+
+	return ni_tio_cmdtest(counter, cmd);
 }
 
 static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)

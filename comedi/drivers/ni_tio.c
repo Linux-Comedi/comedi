@@ -2330,11 +2330,33 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable, short re
 	}
 }
 
+static int ni_tio_input_inttrig(comedi_device *dev, comedi_subdevice *s,
+	unsigned int trignum)
+{
+	unsigned long flags;
+	int retval = 0;
+	struct ni_gpct *counter = s->private;
+
+	BUG_ON(counter == NULL);
+	if(trignum != 0) return -EINVAL;
+
+	comedi_spin_lock_irqsave(&counter->lock, flags);
+	if(counter->mite_chan) mite_dma_arm(counter->mite_chan);
+	else retval = -EIO;
+	comedi_spin_unlock_irqrestore(&counter->lock, flags);
+	if(retval < 0) return retval;
+	retval = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+	s->async->inttrig = NULL;
+
+	return retval;
+}
+
 static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
-	//comedi_cmd *cmd = &async->cmd;
+	comedi_cmd *cmd = &async->cmd;
 	const unsigned command_reg = NITIO_Gi_Command_Reg(counter->counter_index);
+	int retval = 0;
 
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(async, async->prealloc_bufsz);
@@ -2355,8 +2377,26 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 	counter_dev->regs[command_reg] &= ~Gi_Save_Trace_Bit;
 	write_register(counter, counter_dev->regs[command_reg], command_reg);
 	ni_tio_configure_dma(counter, 1, 1);
-	mite_dma_arm(counter->mite_chan);
-	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+	switch(cmd->start_src)
+	{
+	case TRIG_NOW:
+		mite_dma_arm(counter->mite_chan);
+		retval = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
+		break;
+	case TRIG_INT:
+		async->inttrig = &ni_tio_input_inttrig;
+		break;
+	case TRIG_EXT:
+		mite_dma_arm(counter->mite_chan);
+		retval = ni_tio_arm(counter, 1, cmd->start_arg);
+	case TRIG_OTHER:
+		mite_dma_arm(counter->mite_chan);
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return retval;
 }
 
 static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async *async)
@@ -2371,10 +2411,33 @@ static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async *async)
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
 
+static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async *async)
+{
+	comedi_cmd *cmd = &async->cmd;
+	int set_gate_source = 0;
+	unsigned gate_source;
+	int retval = 0;
+
+	if(cmd->scan_begin_src == TRIG_EXT)
+	{
+		set_gate_source = 1;
+		gate_source = cmd->scan_begin_arg;
+	}else if(cmd->convert_src == TRIG_EXT)
+	{
+		set_gate_source = 1;
+		gate_source = cmd->convert_arg;
+	}
+	if(set_gate_source)
+	{
+		retval = ni_tio_set_gate_src(counter, 0, gate_source);
+	}
+	return retval;
+}
+
 int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async)
 {
 	comedi_cmd *cmd = &async->cmd;
-	int retval;
+	int retval = 0;
 	unsigned long flags;
 
 	comedi_spin_lock_irqsave(&counter->lock, flags);
@@ -2384,20 +2447,123 @@ int ni_tio_cmd(struct ni_gpct *counter, comedi_async *async)
 		retval = -EIO;
 	}else
 	{
-		if(cmd->flags & CMDF_WRITE)
+		retval = ni_tio_cmd_setup(counter, async);
+		if(retval == 0)
 		{
-			retval = ni_tio_output_cmd(counter, async);
-		}else
-		{
-			retval = ni_tio_input_cmd(counter, async);
+			if(cmd->flags & CMDF_WRITE)
+			{
+				retval = ni_tio_output_cmd(counter, async);
+			}else
+			{
+				retval = ni_tio_input_cmd(counter, async);
+			}
 		}
 	}
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 	return retval;
 }
 
-int ni_tio_cmdtest(struct ni_gpct *counter)
+int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd *cmd)
 {
+	int err=0;
+	int tmp;
+	int sources;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp = cmd->start_src;
+	sources = TRIG_NOW | TRIG_INT | TRIG_OTHER;
+	if(ni_tio_counting_mode_registers_present(counter->counter_dev))
+		sources |= TRIG_EXT;
+	cmd->start_src &= sources;
+	if(!cmd->start_src || tmp != cmd->start_src) err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_EXT | TRIG_OTHER;
+	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src) err++;
+
+	tmp = cmd->convert_src;
+	sources = TRIG_NOW | TRIG_EXT | TRIG_OTHER;
+	cmd->convert_src &= sources;
+	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
+
+	tmp=cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if(!cmd->stop_src || tmp!=cmd->stop_src) err++;
+
+	if(err) return 1;
+
+	/* step 2: make sure trigger sources are unique...*/
+
+	if(cmd->start_src != TRIG_NOW &&
+		cmd->start_src != TRIG_INT &&
+		cmd->start_src != TRIG_EXT &&
+		cmd->start_src != TRIG_OTHER) err++;
+	if(cmd->scan_begin_src != TRIG_FOLLOW &&
+	   cmd->scan_begin_src != TRIG_EXT &&
+	   cmd->scan_begin_src != TRIG_OTHER) err++;
+	if(cmd->convert_src != TRIG_OTHER &&
+	   cmd->convert_src != TRIG_EXT &&
+	   cmd->convert_src != TRIG_NOW) err++;
+	if(cmd->stop_src != TRIG_COUNT &&
+	   cmd->stop_src != TRIG_NONE) err++;
+	/* ... and mutually compatible */
+	if(cmd->convert_src != TRIG_NOW &&
+		cmd->scan_begin_src != TRIG_FOLLOW) err++;
+
+	if(err)return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+	if(cmd->start_src != TRIG_EXT)
+	{
+		if(cmd->start_arg != 0)
+		{
+			cmd->start_arg = 0;
+			err++;
+		}
+	}
+	if(cmd->scan_begin_src != TRIG_EXT)
+	{
+		if(cmd->scan_begin_arg)
+		{
+			cmd->scan_begin_arg = 0;
+			err++;
+		}
+	}
+	if(cmd->convert_src != TRIG_EXT)
+	{
+		if(cmd->convert_arg)
+		{
+			cmd->convert_arg = 0;
+			err++;
+		}
+	}
+
+	if(cmd->scan_end_arg != cmd->chanlist_len)
+	{
+		cmd->scan_end_arg = cmd->chanlist_len;
+		err++;
+	}
+
+	if(cmd->stop_src == TRIG_NONE)
+	{
+		if(cmd->stop_arg != 0)
+		{
+			cmd->stop_arg = 0;
+			err++;
+		}
+	}
+
+	if(err)return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(err)return 4;
+
 	return 0;
 }
 
@@ -2526,7 +2692,6 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice *s)
 		writel(CHOR_CLRLC, counter->mite_chan->mite->mite_io_addr + MITE_CHOR(counter->mite_chan->channel));
 	}
 	mite_sync_input_dma(counter->mite_chan, s->async);
-
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 }
 
