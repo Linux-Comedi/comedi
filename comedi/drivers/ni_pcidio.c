@@ -1105,8 +1105,6 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	if((ret=alloc_private(dev,sizeof(nidio96_private)))<0)
 		return ret;
-	devpriv->di_mite_ring = mite_alloc_ring();
-	if(devpriv->di_mite_ring == NULL) return -ENOMEM;
 	spin_lock_init(&devpriv->mite_channel_lock);
 
 	ret=nidio_find_device(dev,it->options[0],it->options[1]);
@@ -1119,6 +1117,8 @@ static int nidio_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
+	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
+	if(devpriv->di_mite_ring == NULL) return -ENOMEM;
 
 	dev->board_name=this_board->name;
 	irq=mite_irq(devpriv->mite);

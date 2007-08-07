@@ -460,7 +460,8 @@ static inline void comedi_set_hw_dev(comedi_device *dev, struct device *hw_dev)
 	dev->hw_dev = hw_dev;
 	if(dev->hw_dev)
 	{
-		get_device(dev->hw_dev);
+		dev->hw_dev = get_device(dev->hw_dev);
+		BUG_ON(dev->hw_dev == NULL);
 	}
 }
 

@@ -316,21 +316,22 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring, comedi_async *async)
 	int i;
 
 	if(ring->descriptors){
-		kfree(ring->descriptors);
+		dma_free_coherent(ring->hw_dev, ring->n_links * sizeof(struct mite_dma_descriptor),
+			ring->descriptors, ring->descriptors_dma_addr);
 	}
 	ring->descriptors = NULL;
+	ring->descriptors_dma_addr = 0;
 	ring->n_links = 0;
 
 	if(async->prealloc_bufsz==0){
 		return 0;
 	}
-
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	MDPRINTK("buf=%p buf(bus)=%08lx bufsz=0x%08x n_links=0x%04x\n",
-		async->prealloc_buf, virt_to_bus(async->prealloc_buf), async->prealloc_bufsz, n_links);
+	MDPRINTK("ring->hw_dev=%p, n_links=0x%04x\n", ring->hw_dev, n_links);
 
-	ring->descriptors = kmalloc(n_links * sizeof(struct mite_dma_descriptor), GFP_KERNEL);
+	ring->descriptors = dma_alloc_coherent(ring->hw_dev, n_links * sizeof(struct mite_dma_descriptor),
+		&ring->descriptors_dma_addr, GFP_KERNEL);
 	if(!ring->descriptors){
 		printk("mite: ring buffer allocation failed\n");
 		return -ENOMEM;
@@ -340,12 +341,9 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring, comedi_async *async)
 	for(i = 0; i < n_links; i++){
 		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
 		ring->descriptors[i].addr = cpu_to_le32(async->buf_page_list[i].dma_addr);
-		// FIXME: virt_to_bus is deprecated
-		ring->descriptors[i].next = cpu_to_le32(virt_to_bus(
-			ring->descriptors + i + 1));
+		ring->descriptors[i].next = cpu_to_le32(ring->descriptors_dma_addr + (i + 1) * sizeof(struct mite_dma_descriptor));
 	}
-	ring->descriptors[n_links - 1].next = cpu_to_le32(virt_to_bus(
-		ring->descriptors));
+	ring->descriptors[n_links - 1].next = cpu_to_le32(ring->descriptors_dma_addr);
 	/* barrier is meant to insure that all the writes to the dma descriptors
 	have completed before the dma controller is commanded to read them */
 	smp_wmb();
@@ -433,7 +431,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	writel(lkcr, mite->mite_io_addr + MITE_LKCR(mite_chan->channel));
 
 	/* starting address for link chaining */
-	writel(virt_to_bus(mite_chan->ring->descriptors),
+	writel(mite_chan->ring->descriptors_dma_addr,
 		mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 
 	MDPRINTK("exit mite_prep_dma\n");

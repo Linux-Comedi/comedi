@@ -1533,14 +1533,6 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 
 	ret=ni_alloc_private(dev);
 	if(ret<0)return ret;
-	devpriv->ai_mite_ring = mite_alloc_ring();
-	if(devpriv->ai_mite_ring == NULL) return -ENOMEM;
-	devpriv->ao_mite_ring = mite_alloc_ring();
-	if(devpriv->ao_mite_ring == NULL) return -ENOMEM;
-	devpriv->gpct_mite_ring[0] = mite_alloc_ring();
-	if(devpriv->gpct_mite_ring[0] == NULL) return -ENOMEM;
-	devpriv->gpct_mite_ring[1] = mite_alloc_ring();
-	if(devpriv->gpct_mite_ring[1] == NULL) return -ENOMEM;
 
 	ret=pcimio_find_device(dev,it->options[0],it->options[1]);
 	if(ret<0)return ret;
@@ -1569,6 +1561,14 @@ static int pcimio_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
+	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
+	if(devpriv->ai_mite_ring == NULL) return -ENOMEM;
+	devpriv->ao_mite_ring = mite_alloc_ring(devpriv->mite);
+	if(devpriv->ao_mite_ring == NULL) return -ENOMEM;
+	devpriv->gpct_mite_ring[0] = mite_alloc_ring(devpriv->mite);
+	if(devpriv->gpct_mite_ring[0] == NULL) return -ENOMEM;
+	devpriv->gpct_mite_ring[1] = mite_alloc_ring(devpriv->mite);
+	if(devpriv->gpct_mite_ring[1] == NULL) return -ENOMEM;
 
 	if(boardtype.reg_type & ni_reg_m_series_mask)
 		m_series_init_eeprom_buffer(dev);
