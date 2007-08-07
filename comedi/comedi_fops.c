@@ -1814,21 +1814,29 @@ void comedi_error(const comedi_device *dev,const char *s)
 void comedi_event(comedi_device *dev, comedi_subdevice *s)
 {
 	comedi_async *async = s->async;
+	unsigned runflags = 0;
+	unsigned runflags_mask = 0;
 
 	//DPRINTK("comedi_event 0x%x\n",mask);
 
 	if((comedi_get_subdevice_runflags(s) & SRF_RUNNING) == 0)
 		return;
 
-	if(s->async->events & (COMEDI_CB_EOA |COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)){
-		comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
+	if(s->async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)){
+		runflags_mask |= SRF_RUNNING;
 	}
-
 	/* remember if an error event has occured, so an error
 	 * can be returned the next time the user does a read() */
 	if(s->async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)){
-		comedi_set_subdevice_runflags(s, SRF_ERROR, SRF_ERROR);
+		runflags_mask |= SRF_ERROR;
+		runflags |= SRF_ERROR;
 	}
+	if(runflags_mask)
+	{
+		/*sets SRF_ERROR and SRF_RUNNING together atomically */
+		comedi_set_subdevice_runflags(s, runflags_mask, runflags);
+	}
+
 	if(async->cb_mask & s->async->events){
 		if(comedi_get_subdevice_runflags(s) & SRF_USER){
 
