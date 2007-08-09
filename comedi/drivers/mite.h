@@ -100,8 +100,12 @@ static inline void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 {
 	if(ring)
 	{
-		if(ring->descriptors) kfree(ring->descriptors);
-		if(ring->hw_dev) put_device(ring->hw_dev);
+		if(ring->descriptors)
+		{
+			dma_free_coherent(ring->hw_dev, ring->n_links * sizeof(struct mite_dma_descriptor),
+				ring->descriptors, ring->descriptors_dma_addr);
+		}
+		put_device(ring->hw_dev);
 		kfree(ring);
 	}
 };
