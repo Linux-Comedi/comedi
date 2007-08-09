@@ -2492,8 +2492,8 @@ int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd *cmd)
 	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
 
 	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src) err++;
+	cmd->stop_src &= TRIG_NONE;
+	if(!cmd->stop_src || tmp != cmd->stop_src) err++;
 
 	if(err) return 1;
 
@@ -2509,8 +2509,7 @@ int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd *cmd)
 	if(cmd->convert_src != TRIG_OTHER &&
 	   cmd->convert_src != TRIG_EXT &&
 	   cmd->convert_src != TRIG_NOW) err++;
-	if(cmd->stop_src != TRIG_COUNT &&
-	   cmd->stop_src != TRIG_NONE) err++;
+	if(cmd->stop_src != TRIG_NONE) err++;
 	/* ... and mutually compatible */
 	if(cmd->convert_src != TRIG_NOW &&
 		cmd->scan_begin_src != TRIG_FOLLOW) err++;
