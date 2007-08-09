@@ -599,12 +599,13 @@ unsigned mite_get_status(struct mite_channel *mite_chan)
 	return status;
 }
 
-int mite_done(const struct mite_channel *mite_chan)
+int mite_done(struct mite_channel *mite_chan)
 {
 	struct mite_struct *mite = mite_chan->mite;
 	unsigned long flags;
 	int done;
 
+	mite_get_status(mite_chan);
 	comedi_spin_lock_irqsave(&mite->lock, flags);
 	done = mite_chan->done;
 	comedi_spin_unlock_irqrestore(&mite->lock, flags);
