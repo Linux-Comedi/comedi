@@ -1295,6 +1295,71 @@ static inline unsigned MSeries_PFI_Filter_Select_Bits(unsigned channel, unsigned
 	return (filter << (channel * 2)) & MSeries_PFI_Filter_Select_Mask(channel);
 }
 
+enum CDIO_DMA_Select_Bits
+{
+	CDI_DMA_Select_Shift = 0,
+	CDI_DMA_Select_Mask = 0xf,
+	CDO_DMA_Select_Shift = 4,
+	CDO_DMA_Select_Mask = 0xf << CDO_DMA_Select_Shift
+};
+
+enum CDIO_Status_Bits
+{
+	CDO_FIFO_Empty_Bit = 0x1,
+	CDO_FIFO_Full_Bit = 0x2,
+	CDO_FIFO_Request_Bit = 0x4,
+	CDO_Overrun_Bit = 0x8,
+	CDO_Underflow_Bit = 0x10,
+	CDI_FIFO_Empty_Bit = 0x10000,
+	CDI_FIFO_Full_Bit = 0x20000,
+	CDI_FIFO_Request_Bit = 0x40000,
+	CDI_Overrun_Bit = 0x80000,
+	CDI_Overflow_Bit = 0x100000
+};
+
+enum CDIO_Command_Bits
+{
+	CDO_Disarm_Bit = 0x1,
+	CDO_Arm_Bit = 0x2,
+	CDI_Disarm_Bit = 0x4,
+	CDI_Arm_Bit = 0x8,
+	CDO_Reset_Bit = 0x10,
+	CDI_Reset_Bit = 0x20,
+	CDO_Error_Interrupt_Enable_Set_Bit = 0x40,
+	CDO_Error_Interrupt_Enable_Clear_Bit = 0x80,
+	CDI_Error_Interrupt_Enable_Set_Bit = 0x100,
+	CDI_Error_Interrupt_Enable_Clear_Bit = 0x200,
+	CDO_FIFO_Request_Interrupt_Enable_Set_Bit = 0x400,
+	CDO_FIFO_Request_Interrupt_Enable_Clear_Bit = 0x800,
+	CDI_FIFO_Request_Interrupt_Enable_Set_Bit = 0x1000,
+	CDI_FIFO_Request_Interrupt_Enable_Clear_Bit = 0x2000,
+	CDO_Error_Interrupt_Confirm_Bit = 0x4000,
+	CDI_Error_Interrupt_Confirm_Bit = 0x8000,
+	CDO_Empty_FIFO_Interrupt_Enable_Set_Bit = 0x10000,
+	CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit = 0x20000,
+	CDO_SW_Update_Bit = 0x80000,
+	CDI_SW_Update_Bit = 0x100000
+};
+
+enum CDI_Mode_Bits
+{
+	CDI_Sample_Source_Select_Mask = 0x3f,
+	CDI_Halt_On_Error_Bit = 0x200,
+	CDI_Polarity_Bit = 0x400,
+	CDI_FIFO_Mode_Bit = 0x800,
+	CDI_Data_Lane_Mask = 0x3000
+};
+
+enum CDO_Mode_Bits
+{
+	CDO_Sample_Source_Select_Mask = 0x3f,
+	CDO_Retransmit_Bit = 0x100,
+	CDO_Halt_On_Error_Bit = 0x200,
+	CDO_Polarity_Bit = 0x400,
+	CDO_FIFO_Mode_Bit = 0x800,
+	CDO_Data_Lane_Mask = 0x3000
+};
+
 #define M_SERIES_EEPROM_SIZE 1024
 
 typedef struct ni_board_struct{
