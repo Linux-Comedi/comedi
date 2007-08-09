@@ -128,6 +128,7 @@ struct ni_gpct_device
 	struct ni_gpct *counters;
 	unsigned num_counters;
 	unsigned regs[MAX_NUM_NITIO_REGS];
+	spinlock_t regs_lock;
 };
 
 extern struct ni_gpct_device* ni_gpct_device_construct(comedi_device *dev,
