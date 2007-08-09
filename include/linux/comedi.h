@@ -492,6 +492,20 @@ enum i8254_mode
 	I8254_BINARY = 0
 };
 
+static inline unsigned NI_USUAL_PFI_SELECT(unsigned pfi_channel)
+{
+	if(pfi_channel < 10)
+		return 0x1 + pfi_channel;
+	else
+		return 0xb + pfi_channel;
+}
+static inline unsigned NI_USUAL_RTSI_SELECT(unsigned rtsi_channel)
+{
+	if(rtsi_channel < 7)
+		return 0xb + rtsi_channel;
+	else
+		return 0x1b;
+}
 /* mode bits for NI general-purpose counters, set with INSN_CONFIG_SET_COUNTER_MODE */
 #define NI_GPCT_COUNTING_MODE_SHIFT 16
 #define NI_GPCT_INDEX_PHASE_BITSHIFT 20
@@ -610,17 +624,11 @@ static inline unsigned NI_GPCT_GATE_PIN_GATE_SELECT(unsigned n)
 }
 static inline unsigned NI_GPCT_RTSI_GATE_SELECT(unsigned n)
 {
-	if(n < 7)
-		return 0xb + n;
-	else
-		return 0x1b;
+	return NI_USUAL_RTSI_SELECT(n);
 }
 static inline unsigned NI_GPCT_PFI_GATE_SELECT(unsigned n)
 {
-	if(n < 10)
-		return 0x1 + n;
-	else
-		return 0xb + n;
+	return NI_USUAL_PFI_SELECT(n);
 }
 static inline unsigned NI_GPCT_UP_DOWN_PIN_GATE_SELECT(unsigned n)
 {
@@ -642,14 +650,7 @@ enum ni_gpct_other_select
 };
 static inline unsigned NI_GPCT_PFI_OTHER_SELECT(unsigned n)
 {
-  	if (n < 10) {
-		return 0x1 + n;
-	} else if (n < 16) {
-		return 0xb + n;
-	} else {
-	  	// Really should report this error somehow
-	        return NI_GPCT_DISABLED_OTHER_SELECT;
-	}
+	return NI_USUAL_PFI_SELECT(n);
 }
 
 
@@ -765,13 +766,11 @@ static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel)
 	the bits required to program the board (offset by 1 for historical reasons). */
 static inline unsigned NI_EXT_PFI(unsigned pfi_channel)
 {
-	if(pfi_channel < 10) return pfi_channel;
-	else return pfi_channel + 10;
+	return NI_USUAL_PFI_SELECT(pfi_channel) - 1;
 }
 static inline unsigned NI_EXT_RTSI(unsigned rtsi_channel)
 {
-	if(rtsi_channel < 7) return 10 + rtsi_channel;
-	else return 19 + rtsi_channel;
+	return NI_USUAL_RTSI_SELECT(rtsi_channel) - 1;
 }
 
 /* status bits for INSN_CONFIG_GET_COUNTER_STATUS */
@@ -781,6 +780,30 @@ enum comedi_counter_status_flags
 	COMEDI_COUNTER_COUNTING = 0x2,
 	COMEDI_COUNTER_TERMINAL_COUNT = 0x4,
 };
+
+/* Clock sources for CDIO subdevice on NI m-series boards.
+Used as the scan_begin_arg for a comedi_command. */
+enum ni_m_series_cdio_scan_begin_src
+{
+	NI_CDIO_SCAN_BEGIN_SRC_GROUND = 0,
+	NI_CDIO_SCAN_BEGIN_SRC_AI_START = 18,
+	NI_CDIO_SCAN_BEGIN_SRC_AI_CONVERT = 19,
+	NI_CDIO_SCAN_BEGIN_SRC_PXI_STAR_TRIGGER = 20,
+	NI_CDIO_SCAN_BEGIN_SRC_G0_OUT = 28,
+	NI_CDIO_SCAN_BEGIN_SRC_G1_OUT = 29,
+	NI_CDIO_SCAN_BEGIN_SRC_ANALOG_TRIGGER = 30,
+	NI_CDIO_SCAN_BEGIN_SRC_AO_UPDATE = 31,
+	NI_CDIO_SCAN_BEGIN_SRC_FREQ_OUT = 32,
+	NI_CDIO_SCAN_BEGIN_SRC_DIO_CHANGE_DETECT_IRQ = 33
+};
+static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
+{
+	return NI_USUAL_PFI_SELECT(pfi_channel);
+}
+static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
+{
+	return NI_USUAL_RTSI_SELECT(rtsi_channel);
+}
 
 #ifdef __cplusplus
 }
