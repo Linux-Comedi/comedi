@@ -1557,6 +1557,7 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 #endif
 	if(async){
 		comedi_reset_async_buf( async );
+		async->inttrig = NULL;
 	}else{
 		printk("BUG: (?) do_become_nonbusy called with async=0\n");
 	}
