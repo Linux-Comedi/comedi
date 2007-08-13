@@ -197,6 +197,12 @@ static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 static int ni_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
+static int ni_cdio_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
+static int ni_cdio_cmd(comedi_device *dev,comedi_subdevice *s);
+static int ni_cdio_cancel(comedi_device *dev,comedi_subdevice *s);
+static void handle_cdio_interrupt(comedi_device *dev);
+static int ni_cdo_inttrig(comedi_device *dev,comedi_subdevice *s,
+	unsigned int trignum);
 
 static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
@@ -392,6 +398,25 @@ static inline void ni_set_gpct_dma_channel(comedi_device *dev, unsigned gpct_ind
 	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
 
+// negative mite_channel means no channel
+static inline void ni_set_cdo_dma_channel(comedi_device *dev, int mite_channel)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	devpriv->cdio_dma_select_reg &= ~CDO_DMA_Select_Mask;
+	if(mite_channel >= 0)
+	{
+		/*XXX just guessing ni_stc_dma_channel_select_bitfield() returns the right bits,
+		under the assumption the cdio dma selection works just like ai/ao/gpct.
+		Definitely works for dma channels 0 and 1.*/
+		devpriv->cdio_dma_select_reg |= (ni_stc_dma_channel_select_bitfield(mite_channel) << CDO_DMA_Select_Shift) & CDO_DMA_Select_Mask;
+	}
+	ni_writeb(devpriv->cdio_dma_select_reg, M_Offset_CDIO_DMA_Select);
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+}
+
 static int ni_request_ai_mite_channel(comedi_device *dev)
 {
 	unsigned long flags;
@@ -405,6 +430,7 @@ static int ni_request_ai_mite_channel(comedi_device *dev)
 		comedi_error(dev, "failed to reserve mite dma channel for analog input.");
 		return -EBUSY;
 	}
+	devpriv->ai_mite_chan->dir = COMEDI_INPUT;
 	ni_set_ai_dma_channel(dev, devpriv->ai_mite_chan->channel);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
@@ -423,12 +449,13 @@ static int ni_request_ao_mite_channel(comedi_device *dev)
 		comedi_error(dev, "failed to reserve mite dma channel for analog outut.");
 		return -EBUSY;
 	}
+	devpriv->ao_mite_chan->dir = COMEDI_OUTPUT;
 	ni_set_ao_dma_channel(dev, devpriv->ao_mite_chan->channel);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
 
-static int ni_request_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
+static int ni_request_gpct_mite_channel(comedi_device *dev, unsigned gpct_index, enum comedi_io_direction direction)
 {
 	unsigned long flags;
 	struct mite_channel *mite_chan;
@@ -443,6 +470,7 @@ static int ni_request_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 		comedi_error(dev, "failed to reserve mite dma channel for counter.");
 		return -EBUSY;
 	}
+	mite_chan->dir = direction;
 	ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index], mite_chan);
 	ni_set_gpct_dma_channel(dev, gpct_index, mite_chan->channel);
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -450,6 +478,28 @@ static int ni_request_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 }
 
 #endif	// PCIDMA
+
+static int ni_request_cdo_mite_channel(comedi_device *dev)
+{
+#ifdef PCIDMA
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	BUG_ON(devpriv->cdo_mite_chan);
+	devpriv->cdo_mite_chan = mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
+	if(devpriv->cdo_mite_chan == NULL)
+	{
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+		comedi_error(dev, "failed to reserve mite dma channel for correlated digital outut.");
+		return -EBUSY;
+	}
+	devpriv->cdo_mite_chan->dir = COMEDI_OUTPUT;
+	ni_set_cdo_dma_channel(dev, devpriv->cdo_mite_chan->channel);
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+#endif	// PCIDMA
+	return 0;
+}
+
 
 static void ni_release_ai_mite_channel(comedi_device *dev)
 {
@@ -495,6 +545,22 @@ void ni_release_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 		ni_set_gpct_dma_channel(dev, gpct_index, -1);
 		mite_release_channel(devpriv->counter_dev->counters[gpct_index].mite_chan);
 		ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index], NULL);
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+#endif	// PCIDMA
+}
+
+static void ni_release_cdo_mite_channel(comedi_device *dev)
+{
+#ifdef PCIDMA
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->cdo_mite_chan)
+	{
+		ni_set_cdo_dma_channel(dev, -1);
+		mite_release_channel(devpriv->cdo_mite_chan);
+		devpriv->cdo_mite_chan = NULL;
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif	// PCIDMA
@@ -690,6 +756,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 		handle_b_interrupt(dev, b_status, ao_mite_status);
 	handle_gpct_interrupt(dev, 0);
 	handle_gpct_interrupt(dev, 1);
+	handle_cdio_interrupt(dev);
 
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
@@ -715,11 +782,7 @@ static void mite_handle_b_linkc(struct mite_struct *mite, comedi_device *dev)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if(devpriv->ao_mite_chan)
 	{
-		if(mite_sync_output_dma(devpriv->ao_mite_chan, s->async) < 0)
-		{
-			s->async->events |= COMEDI_CB_ERROR;
-			return;
-		}
+		mite_sync_output_dma(devpriv->ao_mite_chan, s->async);
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
@@ -802,6 +865,9 @@ static void ni_event(comedi_device *dev, comedi_subdevice *s)
 		case NI_GPCT0_SUBDEV:
 		case NI_GPCT1_SUBDEV:
 			ni_gpct_cancel(dev, s);
+			break;
+		case NI_DIO_SUBDEV:
+			ni_cdio_cancel(dev, s);
 			break;
 		default:
 			break;
@@ -1398,7 +1464,6 @@ static int ni_ai_setup_MITE_dma(comedi_device *dev)
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	devpriv->ai_mite_chan->dir = COMEDI_INPUT;
 	switch(boardtype.reg_type)
 	{
 	case ni_reg_611x:
@@ -1430,20 +1495,23 @@ static int ni_ao_setup_MITE_dma(comedi_device *dev)
 	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	devpriv->ao_mite_chan->dir = COMEDI_OUTPUT;
-	if(boardtype.reg_type & (ni_reg_611x | ni_reg_6713))
+	if(devpriv->ao_mite_chan)
 	{
-		mite_prep_dma(devpriv->ao_mite_chan, 32, 32);
+		if(boardtype.reg_type & (ni_reg_611x | ni_reg_6713))
+		{
+			mite_prep_dma(devpriv->ao_mite_chan, 32, 32);
+		}else
+		{
+			/* doing 32 instead of 16 bit wide transfers from memory
+			makes the mite do 32 bit pci transfers, doubling pci bandwidth. */
+			mite_prep_dma(devpriv->ao_mite_chan, 16, 32);
+		}
+		mite_dma_arm(devpriv->ao_mite_chan);
 	}else
-	{
-		/* doing 32 instead of 16 bit wide transfers from memory
-		 makes the mite do 32 bit pci transfers, doubling pci bandwidth. */
-		mite_prep_dma(devpriv->ao_mite_chan, 16, 32);
-	}
-	mite_dma_arm(devpriv->ao_mite_chan);
+		retval = -EIO;
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
-	return 0;
+	return retval;
 }
 
 #endif // PCIDMA
@@ -1908,6 +1976,11 @@ static int ni_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 
 	/* step 1: make sure trigger sources are trivially valid */
 
+	if((cmd->flags & CMDF_WRITE))
+	{
+		cmd->flags &= ~CMDF_WRITE;
+	}
+
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_NOW|TRIG_INT|TRIG_EXT;
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
@@ -2362,7 +2435,7 @@ static int ni_ai_cmd(comedi_device *dev,comedi_subdevice *s)
 		s->async->inttrig=NULL;
 		break;
 	case TRIG_INT:
-		s->async->inttrig=ni_ai_inttrig;
+		s->async->inttrig = &ni_ai_inttrig;
 		break;
 	}
 
@@ -2920,7 +2993,7 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 			AO_BC_TC_Interrupt_Enable, 1);
 	}
 
-	s->async->inttrig=ni_ao_inttrig;
+	s->async->inttrig = &ni_ao_inttrig;
 
 	return 0;
 }
@@ -2931,6 +3004,11 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	int tmp;
 
 	/* step 1: make sure trigger sources are trivially valid */
+
+	if((cmd->flags & CMDF_WRITE) == 0)
+	{
+		cmd->flags |= CMDF_WRITE;
+	}
 
 	tmp=cmd->start_src;
 	cmd->start_src &= TRIG_INT;
@@ -3153,6 +3231,239 @@ static int ni_m_series_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	data[1] = ni_readl(M_Offset_Static_Digital_Input);
 
 	return 2;
+}
+
+static int ni_cdio_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
+{
+	int err=0;
+	int tmp;
+	int sources;
+	unsigned i;
+
+	/* step 1: make sure trigger sources are trivially valid */
+
+	tmp = cmd->start_src;
+	sources = TRIG_INT;
+	cmd->start_src &= sources;
+	if(!cmd->start_src || tmp != cmd->start_src) err++;
+
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_EXT;
+	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
+
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_NOW;
+	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
+
+	tmp = cmd->scan_end_src;
+	cmd->scan_end_src &= TRIG_COUNT;
+	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
+
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_NONE;
+	if(!cmd->stop_src || tmp != cmd->stop_src) err++;
+
+	if(err) return 1;
+
+	/* step 2: make sure trigger sources are unique...*/
+
+	if(cmd->start_src != TRIG_INT) err++;
+	if(cmd->scan_begin_src != TRIG_EXT) err++;
+	if(cmd->convert_src != TRIG_NOW) err++;
+	if(cmd->stop_src != TRIG_NONE) err++;
+	/* ... and mutually compatible */
+
+	if(err) return 2;
+
+	/* step 3: make sure arguments are trivially compatible */
+	if(cmd->start_src == TRIG_INT)
+	{
+		if(cmd->start_arg != 0)
+		{
+			cmd->start_arg = 0;
+			err++;
+		}
+	}
+	if(cmd->scan_begin_src == TRIG_EXT)
+	{
+		tmp = cmd->scan_begin_arg;
+		tmp &= CR_PACK_FLAGS(CDO_Sample_Source_Select_Mask, 0, 0, CR_INVERT);
+		if(tmp != cmd->scan_begin_arg)
+		{
+			err++;
+		}
+	}
+	if(cmd->convert_src == TRIG_NOW)
+	{
+		if(cmd->convert_arg)
+		{
+			cmd->convert_arg = 0;
+			err++;
+		}
+	}
+
+	if(cmd->scan_end_arg != cmd->chanlist_len)
+	{
+		cmd->scan_end_arg = cmd->chanlist_len;
+		err++;
+	}
+
+	if(cmd->stop_src == TRIG_NONE)
+	{
+		if(cmd->stop_arg != 0)
+		{
+			cmd->stop_arg = 0;
+			err++;
+		}
+	}
+
+	if(err) return 3;
+
+	/* step 4: fix up any arguments */
+
+	if(err) return 4;
+
+	/* step 5: check chanlist */
+
+	for(i = 0; i < cmd->chanlist_len; ++i)
+	{
+		if(cmd->chanlist[i] != i) err = 1;
+	}
+
+	if(err) return 5;
+
+	return 0;
+}
+
+static int ni_cdio_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	const comedi_cmd *cmd = &s->async->cmd;
+	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
+	int retval;
+
+	ni_writel(CDO_Reset_Bit, M_Offset_CDIO_Command);
+	switch(cmd->scan_begin_src)
+	{
+	case TRIG_EXT:
+		cdo_mode_bits |= CR_CHAN(cmd->scan_begin_arg) & CDO_Sample_Source_Select_Mask;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	if(cmd->scan_begin_arg & CR_INVERT)
+		cdo_mode_bits |= CDO_Polarity_Bit;
+	ni_writel(cdo_mode_bits, M_Offset_CDO_Mode);
+	if(s->io_bits)
+	{
+		ni_writel(s->io_bits, M_Offset_CDO_Mask_Enable);
+	}else
+	{
+		comedi_error(dev, "attempted to run digital output command with no lines configured as outputs");
+		return -EIO;
+	}
+	retval = ni_request_cdo_mite_channel(dev);
+	if(retval < 0)
+	{
+		return retval;
+	}
+	s->async->inttrig = &ni_cdo_inttrig;
+	return 0;
+}
+
+static int ni_cdo_inttrig(comedi_device *dev,comedi_subdevice *s,
+	unsigned int trignum)
+{
+	unsigned long flags;
+	int retval = 0;
+	unsigned i;
+	const unsigned timeout = 100;
+
+	s->async->inttrig = NULL;
+
+	/* read alloc the entire buffer */
+	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->cdo_mite_chan)
+	{
+		mite_prep_dma(devpriv->cdo_mite_chan, 32, 32);
+		mite_dma_arm(devpriv->cdo_mite_chan);
+	}else
+	{
+		comedi_error(dev, "BUG: no cdo mite channel?");
+		retval = -EIO;
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	if(retval < 0) return retval;
+// XXX not sure what interrupt C group does
+// 	ni_writeb(Interrupt_Group_C_Enable_Bit, M_Offset_Interrupt_C_Enable);
+	//wait for dma to fill output fifo
+	for(i = 0; i < timeout; ++i)
+	{
+		if(ni_readl(M_Offset_CDIO_Status) & CDO_FIFO_Full_Bit) break;
+		comedi_udelay(10);
+	}
+	if(i == timeout)
+	{
+		comedi_error(dev, "dma failed to fill cdo fifo!");
+		ni_cdio_cancel(dev, s);
+		return -EIO;
+	}
+	ni_writel(CDO_Arm_Bit | CDO_Error_Interrupt_Enable_Set_Bit |
+		CDO_Empty_FIFO_Interrupt_Enable_Set_Bit,
+		M_Offset_CDIO_Command);
+	return 0;
+}
+
+static int ni_cdio_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	ni_writel(CDO_Disarm_Bit | CDO_Error_Interrupt_Enable_Clear_Bit |
+		CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit | CDO_FIFO_Request_Interrupt_Enable_Clear_Bit,
+		M_Offset_CDIO_Command);
+// XXX not sure what interrupt C group does
+//	ni_writeb(0, M_Offset_Interrupt_C_Enable);
+	ni_writel(0, M_Offset_CDO_Mask_Enable);
+	ni_release_cdo_mite_channel(dev);
+	return 0;
+}
+
+static void handle_cdio_interrupt(comedi_device *dev)
+{
+	unsigned cdio_status;
+	comedi_subdevice *s = dev->subdevices + NI_DIO_SUBDEV;
+	unsigned long flags;
+
+	if((boardtype.reg_type & ni_reg_m_series_mask) == 0)
+	{
+		return;
+	}
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->cdo_mite_chan)
+	{
+		unsigned cdo_mite_status = mite_get_status(devpriv->cdo_mite_chan);
+		if(cdo_mite_status & CHSR_LINKC)
+		{
+			writel(CHOR_CLRLC, devpriv->mite->mite_io_addr + MITE_CHOR(devpriv->cdo_mite_chan->channel));
+		}
+		mite_sync_output_dma(devpriv->cdo_mite_chan, s->async);
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
+	cdio_status = ni_readl(M_Offset_CDIO_Status);
+	if(cdio_status & (CDO_Overrun_Bit | CDO_Underflow_Bit))
+	{
+// 		rt_printk("cdio error: statux=0x%x\n", cdio_status);
+		ni_writel(CDO_Error_Interrupt_Confirm_Bit, M_Offset_CDIO_Command);	// XXX just guessing this is needed and does something useful
+		s->async->events |= COMEDI_CB_OVERFLOW;
+	}
+	if(cdio_status & CDO_FIFO_Empty_Bit)
+	{
+// 		rt_printk("cdio fifo empty\n");
+		ni_writel(CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit, M_Offset_CDIO_Command);
+// 		s->async->events |= COMEDI_CB_EOA;
+	}
+	ni_event(dev, s);
 }
 
 static int ni_serial_insn_config(comedi_device *dev,comedi_subdevice *s,
@@ -3643,15 +3954,23 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 
 	s = dev->subdevices + NI_DIO_SUBDEV;
 	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_WRITABLE|SDF_READABLE;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->maxdata=1;
 	s->io_bits=0;		/* all bits input */
 	s->range_table=&range_digital;
 	s->n_chan = boardtype.num_p0_dio_channels;
 	if(boardtype.reg_type & ni_reg_m_series_mask)
 	{
+		s->subdev_flags |= SDF_LSAMPL | SDF_CMD_WRITE /* | SDF_CMD_READ */;
 		s->insn_bits = &ni_m_series_dio_insn_bits;
 		s->insn_config = &ni_m_series_dio_insn_config;
+		s->do_cmd = &ni_cdio_cmd;
+		s->do_cmdtest = &ni_cdio_cmdtest;
+		s->cancel = &ni_cdio_cancel;
+		s->async_dma_dir = DMA_BIDIRECTIONAL;
+		s->len_chanlist = s->n_chan;
+
+		ni_writel(CDO_Reset_Bit | CDI_Reset_Bit, M_Offset_CDIO_Command);
 		ni_writel(s->io_bits, M_Offset_DIO_Direction);
 	}else
 	{
@@ -3792,7 +4111,7 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 	{
 		s = dev->subdevices + NI_GPCT_SUBDEV(j);
 		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_CMD_READ;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_CMD_READ /* | SDF_CMD_WRITE */;
 		s->n_chan = 3;
 		if(boardtype.reg_type & ni_reg_m_series_mask)
 			s->maxdata = 0xffffffff;
@@ -4458,7 +4777,7 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 	struct ni_gpct *counter = s->private;
 	const comedi_cmd *cmd = &s->async->cmd;
 
-	retval = ni_request_gpct_mite_channel(dev, counter->counter_index);
+	retval = ni_request_gpct_mite_channel(dev, counter->counter_index, COMEDI_INPUT);
 	if(retval)
 	{
 		comedi_error(dev, "no dma channel available for use by counter");

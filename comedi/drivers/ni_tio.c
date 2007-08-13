@@ -2402,6 +2402,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 	switch(cmd->start_src)
 	{
 	case TRIG_NOW:
+		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
 		retval = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 		break;
@@ -2409,9 +2410,11 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async *async)
 		async->inttrig = &ni_tio_input_inttrig;
 		break;
 	case TRIG_EXT:
+		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
 		retval = ni_tio_arm(counter, 1, cmd->start_arg);
 	case TRIG_OTHER:
+		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
 		break;
 	default:

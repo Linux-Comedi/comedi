@@ -782,7 +782,8 @@ enum comedi_counter_status_flags
 };
 
 /* Clock sources for CDIO subdevice on NI m-series boards.
-Used as the scan_begin_arg for a comedi_command. */
+Used as the scan_begin_arg for a comedi_command. These
+sources may also be bitwise-or'd with CR_INVERT to change polarity. */
 enum ni_m_series_cdio_scan_begin_src
 {
 	NI_CDIO_SCAN_BEGIN_SRC_GROUND = 0,
