@@ -278,6 +278,12 @@ void mite_release_channel(struct mite_channel *mite_chan)
 	comedi_spin_lock_irqsave(&mite->lock, flags);
 	if(mite->channel_allocated[mite_chan->channel])
 	{
+		// disable all channel's interrupts
+		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE |
+			CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE |
+			CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
+			CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
+			mite->mite_io_addr + MITE_CHCR(mite_chan->channel));
 		mite_dma_disarm(mite_chan);
 		mite_dma_reset(mite_chan);
 		mite->channel_allocated[mite_chan->channel] = 0;
@@ -575,9 +581,11 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async *async)
 	{
 		return 0;
 	}
-	comedi_buf_read_free(async, count);
-
-	async->events |= COMEDI_CB_BLOCK;
+	if(count)
+	{
+		comedi_buf_read_free(async, count);
+		async->events |= COMEDI_CB_BLOCK;
+	}
 	return 0;
 }
 
