@@ -451,6 +451,8 @@ static inline unsigned int bytes_per_sample( const comedi_subdevice *subd )
 		return sizeof( sampl_t );
 }
 
+/* must be used in attach to set dev->hw_dev if you wish to dma directly
+into comedi's buffer */
 static inline void comedi_set_hw_dev(comedi_device *dev, struct device *hw_dev)
 {
 	if(dev->hw_dev)
