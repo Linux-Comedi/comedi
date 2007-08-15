@@ -97,6 +97,10 @@ enum ni_gpct_register
 	NITIO_G1_Status_Reg,
 	NITIO_G2_Status_Reg,
 	NITIO_G3_Status_Reg,
+	NITIO_G0_Interrupt_Enable_Reg,
+	NITIO_G1_Interrupt_Enable_Reg,
+	NITIO_G2_Interrupt_Enable_Reg,
+	NITIO_G3_Interrupt_Enable_Reg,
 	NITIO_Num_Registers,
 };
 
@@ -106,8 +110,6 @@ enum ni_gpct_variant
 	ni_gpct_variant_m_series,
 	ni_gpct_variant_660x
 };
-
-#define MAX_NUM_NITIO_REGS 0x40
 
 struct ni_gpct
 {
@@ -127,7 +129,7 @@ struct ni_gpct_device
 	enum ni_gpct_variant variant;
 	struct ni_gpct *counters;
 	unsigned num_counters;
-	unsigned regs[MAX_NUM_NITIO_REGS];
+	unsigned regs[NITIO_Num_Registers];
 	spinlock_t regs_lock;
 };
 
@@ -151,6 +153,13 @@ extern int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd *cmd);
 extern int ni_tio_cancel(struct ni_gpct *counter);
 extern void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice *s);
 extern void ni_tio_set_mite_channel(struct ni_gpct *counter, struct mite_channel *mite_chan);
+extern void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error, int *tc_error,
+	int *perm_stale_data, int *stale_data);
+
+static inline struct ni_gpct* subdev_to_counter(comedi_subdevice *s)
+{
+	return s->private;
+}
 
 #endif /* _COMEDI_NI_TIO_H */
 

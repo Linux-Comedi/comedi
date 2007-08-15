@@ -29,7 +29,7 @@ Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
 	Klaas.Gadeyne@mech.kuleuven.ac.be,
 	Frank Mori Hess <fmhess@users.sourceforge.net>
 Updated: Thu Nov 16 09:50:32 EST 2006
-Status: experimental
+Status: works
 
 This module is not used directly by end-users.  Rather, it
 is used by other drivers (for example ni_660x and ni_pcimio)
@@ -419,6 +419,29 @@ static inline enum ni_gpct_register NITIO_Gi_Status_Reg(int counter_index)
 		break;
 	case 3:
 		return NITIO_G3_Status_Reg;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+
+static inline enum ni_gpct_register NITIO_Gi_Interrupt_Enable_Reg(int counter_index)
+{
+	switch(counter_index)
+	{
+	case 0:
+		return NITIO_G0_Interrupt_Enable_Reg;
+		break;
+	case 1:
+		return NITIO_G1_Interrupt_Enable_Reg;
+		break;
+	case 2:
+		return NITIO_G2_Interrupt_Enable_Reg;
+		break;
+	case 3:
+		return NITIO_G3_Interrupt_Enable_Reg;
 		break;
 	default:
 		BUG();
@@ -870,6 +893,31 @@ enum Gi_Status_Bits
 	Gi_TC_Bit = 0x8,
 	Gi_Interrupt_Bit = 0x8000
 };
+
+enum G02_Interrupt_Enable_Bits
+{
+	G0_TC_Interrupt_Enable_Bit = 0x40,
+	G0_Gate_Interrupt_Enable_Bit = 0x100
+};
+enum G13_Interrupt_Enable_Bits
+{
+	G1_TC_Interrupt_Enable_Bit = 0x200,
+	G1_Gate_Interrupt_Enable_Bit = 0x400
+};
+static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
+{
+	unsigned bit;
+
+	if(counter_index % 2)
+	{
+		bit = G1_Gate_Interrupt_Enable_Bit;
+	}else
+	{
+		bit = G0_Gate_Interrupt_Enable_Bit;
+	}
+	return bit;
+}
+
 
 static const lsampl_t counter_status_mask = COMEDI_COUNTER_ARMED | COMEDI_COUNTER_COUNTING;
 
@@ -2438,10 +2486,12 @@ static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async *async)
 
 static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async *async)
 {
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	comedi_cmd *cmd = &async->cmd;
 	int set_gate_source = 0;
 	unsigned gate_source;
 	int retval = 0;
+	const unsigned interrupt_enable_reg = NITIO_Gi_Interrupt_Enable_Reg(counter->counter_index);
 
 	if(cmd->scan_begin_src == TRIG_EXT)
 	{
@@ -2455,6 +2505,11 @@ static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async *async)
 	if(set_gate_source)
 	{
 		retval = ni_tio_set_gate_src(counter, 0, gate_source);
+	}
+	if(cmd->flags & TRIG_WAKE_EOS)
+	{
+		counter_dev->regs[interrupt_enable_reg] |= Gi_Gate_Interrupt_Enable_Bit(counter->counter_index);
+		write_register(counter, counter_dev->regs[interrupt_enable_reg], interrupt_enable_reg);
 	}
 	return retval;
 }
@@ -2593,6 +2648,8 @@ int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd *cmd)
 
 int ni_tio_cancel(struct ni_gpct *counter)
 {
+	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	const unsigned interrupt_enable_reg = NITIO_Gi_Interrupt_Enable_Reg(counter->counter_index);
 	unsigned long flags;
 
 	ni_tio_arm(counter, 0, 0);
@@ -2603,6 +2660,9 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	}
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 	ni_tio_configure_dma(counter, 0, 0);
+
+	counter_dev->regs[interrupt_enable_reg] &= ~Gi_Gate_Interrupt_Enable_Bit(counter->counter_index);
+	write_register(counter, counter_dev->regs[interrupt_enable_reg], interrupt_enable_reg);
 	return 0;
 }
 
@@ -2636,7 +2696,8 @@ static int should_ack_gate(struct ni_gpct *counter)
 	return retval;
 }
 
-static void acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error, int *tc_error, int *stale_data)
+void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error, int *tc_error,
+	int *perm_stale_data, int *stale_data)
 {
 	const unsigned short gxx_status = read_register(counter, NITIO_Gxx_Status_Reg(counter->counter_index));
 	const unsigned short gi_status = read_register(counter, NITIO_Gi_Status_Reg(counter->counter_index));
@@ -2666,19 +2727,16 @@ static void acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error, in
 			ack |= Gi_Gate_Interrupt_Ack_Bit;
 	}
 	if(ack) write_register(counter, ack, NITIO_Gi_Interrupt_Acknowledge_Reg(counter->counter_index));
-	if(gxx_status & Gi_Stale_Data_Bit(counter->counter_index))
+	if(ni_tio_get_soft_copy(counter, NITIO_Gi_Mode_Reg(counter->counter_index)) & Gi_Loading_On_Gate_Bit)
 	{
-		/* If we should support interrupt transfers in addition to dma in the future,
-		then we would put a zero into the buffer instead of the (stale) counter value if
-		reload on gate is enabled. */
-// 		rt_printk("%s: Gi_Stale_Data detected.\n", __FUNCTION__);
-	}
-	if(read_register(counter, NITIO_Gxx_Joint_Status2_Reg(counter->counter_index)) & Gi_Permanent_Stale_Bit(counter->counter_index))
-	{
-		if(ni_tio_get_soft_copy(counter, NITIO_Gi_Mode_Reg(counter->counter_index)) & Gi_Loading_On_Gate_Bit)
+		if(gxx_status & Gi_Stale_Data_Bit(counter->counter_index))
+		{
+			if(stale_data) *stale_data = 1;
+		}
+		if(read_register(counter, NITIO_Gxx_Joint_Status2_Reg(counter->counter_index)) & Gi_Permanent_Stale_Bit(counter->counter_index))
 		{
 			rt_printk("%s: Gi_Permanent_Stale_Data detected.\n", __FUNCTION__);
-			if(stale_data) *stale_data = 1;
+			if(perm_stale_data) *perm_stale_data = 1;
 		}
 	}
 }
@@ -2689,15 +2747,15 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice *s)
 	unsigned long flags;
 	int gate_error;
 	int tc_error;
-	int stale_data;
+	int perm_stale_data;
 
-	acknowledge_and_confirm(counter, &gate_error, &tc_error, &stale_data);
+	ni_tio_acknowledge_and_confirm(counter, &gate_error, &tc_error, &perm_stale_data, NULL);
 	if(gate_error)
 	{
 		rt_printk("%s: Gi_Gate_Error detected.\n", __FUNCTION__);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
-	if(stale_data)
+	if(perm_stale_data)
 	{
 		s->async->events |= COMEDI_CB_ERROR;
 	}
@@ -2750,3 +2808,4 @@ EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
 EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);
 EXPORT_SYMBOL_GPL(ni_tio_handle_interrupt);
 EXPORT_SYMBOL_GPL(ni_tio_set_mite_channel);
+EXPORT_SYMBOL_GPL(ni_tio_acknowledge_and_confirm);

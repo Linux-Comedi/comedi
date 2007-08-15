@@ -49,6 +49,8 @@ Things to do:
 
 #define CTRS_PER_CHIP 4 // The number of counters per ni-tio chip
 #define NUM_PFI_CHANNELS 40
+// really there are only up to 3 dma channels, but the register layout allows for 4
+#define MAX_DMA_CHANNEL 4
 
 /* See Register-Level Programmer Manual page 3.1 */
 typedef enum
@@ -59,14 +61,18 @@ typedef enum
 	G1StatusRegister,
 	G01StatusRegister,
 	G0CommandRegister,
+	STCDIOParallelInput,
 	G1CommandRegister,
 	G0HWSaveRegister,
 	G1HWSaveRegister,
+	STCDIOOutput,
+	STCDIOControl,
 	G0SWSaveRegister,
 	G1SWSaveRegister,
 	G0ModeRegister,
 	G01JointStatus1Register,
 	G1ModeRegister,
+	STCDIOSerialInput,
 	G0LoadARegister,
 	G01JointStatus2Register,
 	G0LoadBRegister,
@@ -121,8 +127,12 @@ typedef enum
 	G2DMAStatusRegister,
 	G3DMAConfigRegister,
 	G3DMAStatusRegister,
+	DIO32Input,
+	DIO32Output,
 	ClockConfigRegister,
-	DMAConfigRegister,	// XXX will need to use this according to mite channel used
+	GlobalInterruptStatusRegister,
+	DMAConfigRegister,
+	GlobalInterruptConfigRegister,
 	IOConfigReg0_1,
 	IOConfigReg2_3,
 	IOConfigReg4_5,
@@ -143,12 +153,6 @@ typedef enum
 	IOConfigReg34_35,
 	IOConfigReg36_37,
 	IOConfigReg38_39,
-	STCDIOParallelInput,
-	STCDIOOutput,
-	STCDIOControl,
-	STCDIOSerialInput,
-	DIO32Input,
-	DIO32Output,
 	NumRegisters,
 } NI_660x_Register;
 
@@ -173,6 +177,14 @@ enum ni_660x_register_direction
 	NI_660x_READ_WRITE
 };
 
+enum ni_660x_pfi_output_select
+{
+	pfi_output_select_high_Z = 0,
+	pfi_output_select_counter = 1,
+	pfi_output_select_do = 2,
+	num_pfi_output_selects
+};
+
 typedef struct
 {
 	const char *name; // Register Name
@@ -190,14 +202,18 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"G1 Status Register", 0x006, NI_660x_READ, DATA_2B},
 	{"G01 Status Register ", 0x008, NI_660x_READ, DATA_2B},
 	{"G0 Command Register", 0x00C, NI_660x_WRITE, DATA_2B},
+	{"STD DIO Parallel Input", 0x00E, NI_660x_READ, DATA_2B},
 	{"G1 Command Register", 0x00E, NI_660x_WRITE, DATA_2B},
 	{"G0 HW Save Register", 0x010, NI_660x_READ, DATA_4B},
 	{"G1 HW Save Register", 0x014, NI_660x_READ, DATA_4B},
+	{"STD DIO Output", 0x014, NI_660x_WRITE, DATA_2B},
+	{"STD DIO Control", 0x016, NI_660x_WRITE, DATA_2B},
 	{"G0 SW Save Register", 0x018, NI_660x_READ, DATA_4B},
 	{"G1 SW Save Register", 0x01C, NI_660x_READ, DATA_4B},
 	{"G0 Mode Register", 0x034, NI_660x_WRITE, DATA_2B},
 	{"G01 Joint Status 1 Register", 0x036, NI_660x_READ, DATA_2B},
 	{"G1 Mode Register", 0x036, NI_660x_WRITE, DATA_2B},
+	{"STD DIO Serial Input", 0x038, NI_660x_READ, DATA_2B},
 	{"G0 Load A Register", 0x038, NI_660x_WRITE, DATA_4B},
 	{"G01 Joint Status 2 Register", 0x03A, NI_660x_READ, DATA_2B},
 	{"G0 Load B Register", 0x03C, NI_660x_WRITE, DATA_4B},
@@ -252,9 +268,13 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"G2 DMA Status Register", 0x1B8, NI_660x_READ, DATA_2B},
 	{"G3 DMA Config Register", 0x1BA, NI_660x_WRITE, DATA_2B},
 	{"G3 DMA Status Register", 0x1BA, NI_660x_READ, DATA_2B},
+	{"32 bit Digital Input", 0x414, NI_660x_READ, DATA_4B},
+	{"32 bit Digital Output", 0x510, NI_660x_WRITE, DATA_4B},
 	{"Clock Config Register", 0x73C, NI_660x_WRITE, DATA_4B},
-	{"DMA Configuration Register", 0x76c, NI_660x_WRITE, DATA_4B},
-	{"IO Config Register 0-1", 0x77C, NI_660x_READ_WRITE, DATA_2B}, // READWRITE
+	{"Global Interrupt Status Register", 0x754, NI_660x_READ, DATA_4B},
+	{"DMA Configuration Register", 0x76C, NI_660x_WRITE, DATA_4B},
+	{"Global Interrupt Config Register", 0x770, NI_660x_WRITE, DATA_4B},
+	{"IO Config Register 0-1", 0x77C, NI_660x_READ_WRITE, DATA_2B},
 	{"IO Config Register 2-3", 0x77E, NI_660x_READ_WRITE, DATA_2B},
 	{"IO Config Register 4-5", 0x780, NI_660x_READ_WRITE, DATA_2B},
 	{"IO Config Register 6-7", 0x782, NI_660x_READ_WRITE, DATA_2B},
@@ -273,36 +293,62 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"IO Config Register 32-33", 0x79C, NI_660x_READ_WRITE, DATA_2B},
 	{"IO Config Register 34-35", 0x79E, NI_660x_READ_WRITE, DATA_2B},
 	{"IO Config Register 36-37", 0x7A0, NI_660x_READ_WRITE, DATA_2B},
-	{"IO Config Register 38-39", 0x7A2, NI_660x_READ_WRITE, DATA_2B},
-	{"STD DIO Parallel Input", 0x00E, NI_660x_READ, DATA_2B},
-	{"STD DIO Output", 0x014, NI_660x_WRITE, DATA_2B},
-	{"STD DIO Control", 0x016, NI_660x_WRITE, DATA_2B},
-	{"STD DIO Serial Input", 0x038, NI_660x_READ, DATA_2B},
-	{"32 bit Digital Input", 0x414, NI_660x_READ, DATA_4B},
-	{"32 bit Digital Output", 0x414, NI_660x_WRITE, DATA_4B}
+	{"IO Config Register 38-39", 0x7A2, NI_660x_READ_WRITE, DATA_2B}
 };
 
-#define GateSelectPin38		0x1<<8 // Take internal time-based 20
-
 // kind of ENABLE for the second counter
-#define CounterSwap             0x1<<21
+enum clock_config_register_bits
+{
+	CounterSwap = 0x1 << 21
+};
 
 // ioconfigreg
+static inline unsigned ioconfig_bitshift(unsigned pfi_channel)
+{
+	if(pfi_channel % 2) return 0;
+	else return 8;
+}
 static inline unsigned pfi_output_select_mask(unsigned pfi_channel)
 {
-	return 0x3 << (8 * (pfi_channel % 2));
+	return 0x3 << ioconfig_bitshift(pfi_channel);
 }
 static inline unsigned pfi_output_select_bits(unsigned pfi_channel, unsigned output_select)
 {
-	return (output_select & 0x3) << (8 * (pfi_channel % 2));
+	return (output_select & 0x3) << ioconfig_bitshift(pfi_channel);
 }
 static inline unsigned pfi_input_select_mask(unsigned pfi_channel)
 {
-	return 0x7 << (4 + 8 * (pfi_channel % 2));
+	return 0x7 << (4 + ioconfig_bitshift(pfi_channel));
 }
 static inline unsigned pfi_input_select_bits(unsigned pfi_channel, unsigned input_select)
 {
-	return (input_select & 0x7) << (4 + 8 * (pfi_channel % 2));
+	return (input_select & 0x7) << (4 + ioconfig_bitshift(pfi_channel));
+}
+
+// dma configuration register bits
+static inline unsigned dma_select_mask(unsigned dma_channel)
+{
+	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
+	return 0x1f << (8 * dma_channel);
+}
+enum dma_selection
+{
+	dma_selection_none = 0x1f,
+};
+static inline unsigned dma_selection_counter(unsigned counter_index)
+{
+	BUG_ON(counter_index >= CTRS_PER_CHIP);
+	return counter_index;
+}
+static inline unsigned dma_select_bits(unsigned dma_channel, unsigned selection)
+{
+	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
+	return (selection << (8 * dma_channel)) & dma_select_mask(dma_channel);
+}
+static inline unsigned dma_reset_bit(unsigned dma_channel)
+{
+	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
+	return 0x80 << (8 * dma_channel);
 }
 
 // Offset of the GPCT chips from the base-adress of the card
@@ -314,8 +360,7 @@ typedef struct
 {
 	unsigned short dev_id; /* `lspci` will show you this */
 	const char *name;
-	int n_ctrs; /* total number of counters */
-	int cnt_bits; /* number of bits in each counter */
+	unsigned n_chips; /* total number of TIO chips */
 } ni_660x_board;
 
 static const ni_660x_board ni_660x_boards[] =
@@ -323,17 +368,16 @@ static const ni_660x_board ni_660x_boards[] =
 	{
 		dev_id       : 0x2c60,
 		name         : "PCI-6601",
-		n_ctrs       : 1*CTRS_PER_CHIP,
-		cnt_bits     : 32,
+		n_chips       : 1,
 	},
 	{
 		dev_id       : 0x1310,
 		name         : "PCI-6602",
-		n_ctrs       : 2*CTRS_PER_CHIP,
-		cnt_bits     : 32,
+		n_chips       : 2,
 	},
 };
-#define NI_660X_MAX_NUM_COUNTERS 8
+#define NI_660X_MAX_NUM_CHIPS 2
+#define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * CTRS_PER_CHIP)
 
 static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -342,23 +386,34 @@ static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
 
-#define thisboard ((const ni_660x_board *)dev->board_ptr)
-/* initialized in ni_660x_find_device() */
-
 typedef struct
 {
 	struct mite_struct *mite;
-	int boardtype;
 	struct ni_gpct_device *counter_dev;
 	uint64_t pfi_direction_bits;
+	struct mite_dma_descriptor_ring *mite_rings[NI_660X_MAX_NUM_CHIPS][CTRS_PER_CHIP];
+	spinlock_t mite_channel_lock;
+	unsigned dma_configuration_soft_copies[NI_660X_MAX_NUM_CHIPS];
+	spinlock_t soft_reg_copy_lock;
+	unsigned short pfi_output_selects[NUM_PFI_CHANNELS];
 }ni_660x_private;
 
-#define devpriv ((ni_660x_private *)dev->private)
+static inline ni_660x_private* private(comedi_device *dev)
+{
+	return dev->private;
+}
+/* initialized in ni_660x_find_device() */
+static inline const ni_660x_board* board(comedi_device *dev)
+{
+	return dev->board_ptr;
+}
+
 #define n_ni_660x_boards (sizeof(ni_660x_boards)/sizeof(ni_660x_boards[0]))
 
 static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it);
 static int ni_660x_detach(comedi_device *dev);
 static void init_tio_chip(comedi_device *dev, int chipset);
+static void ni_660x_select_pfi_output(comedi_device *dev, unsigned pfi_channel, unsigned output_select);
 
 static comedi_driver driver_ni_660x=
 {
@@ -386,13 +441,6 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 			      comedi_insn *insn,
 			      lsampl_t * data);
 
-// NYI
-#if 0
-static int ni_660x_GPCT_cmdtest(comedi_device *dev,comedi_subdevice *s,
-				comedi_cmd *cmd);
-static int ni_660x_GPCT_cmd(comedi_device *dev,comedi_subdevice *s);
-#endif
-
 /* Possible instructions for Digital IO */
 static int ni_660x_dio_insn_config(comedi_device *dev,
 				   comedi_subdevice *s,
@@ -403,20 +451,10 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
 				 comedi_insn *insn,
 				 lsampl_t *data);
 
-#if 0
-static int ni_660x_GPCT_cmdtest(comedi_device *dev,comedi_subdevice *s,
-				comedi_cmd *cmd)
+static inline unsigned ni_660x_num_counters(comedi_device *dev)
 {
-	DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
-	return -EINVAL;
+	return board(dev)->n_chips * CTRS_PER_CHIP;
 }
-
-static int ni_660x_GPCT_cmd(comedi_device *dev,comedi_subdevice *s)
-{
-	DPRINTK("NI_660X: COMMANDS not implemented yet for GPCT\n");
-	return -EINVAL;
-}
-#endif
 
 static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 {
@@ -615,6 +653,18 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 	case NITIO_G3_Status_Reg:
 		ni_660x_register = G0StatusRegister;
 		break;
+	case NITIO_G0_Interrupt_Enable_Reg:
+		ni_660x_register = G0InterruptEnable;
+		break;
+	case NITIO_G1_Interrupt_Enable_Reg:
+		ni_660x_register = G1InterruptEnable;
+		break;
+	case NITIO_G2_Interrupt_Enable_Reg:
+		ni_660x_register = G2InterruptEnable;
+		break;
+	case NITIO_G3_Interrupt_Enable_Reg:
+		ni_660x_register = G3InterruptEnable;
+		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();
@@ -624,13 +674,12 @@ static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 	return ni_660x_register;
 }
 
-static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
+static inline void ni_660x_write_register(comedi_device *dev, unsigned chip_index, unsigned bits, NI_660x_Register reg)
 {
-	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	comedi_device *dev = counter->counter_dev->dev;
-	void * const write_address = devpriv->mite->daq_io_addr + GPCT_OFFSET[counter->chip_index] + registerData[ni_660x_register].offset;
+	void * const write_address = private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
+		registerData[reg].offset;
 
-	switch(registerData[ni_660x_register].size)
+	switch(registerData[reg].size)
 	{
 	case DATA_2B:
 		writew(bits, write_address);
@@ -639,19 +688,17 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 		writel(bits, write_address);
 		break;
 	default:
-		rt_printk("%s: %s: bug! unhandled case = 0x%x in switch.\n", __FILE__, __FUNCTION__, reg);
+		rt_printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n", __FILE__, __FUNCTION__, reg);
 		BUG();
 		break;
 	}
 }
 
-static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_register reg)
+static inline unsigned ni_660x_read_register(comedi_device *dev, unsigned chip_index, NI_660x_Register reg)
 {
-	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
-	comedi_device *dev = counter->counter_dev->dev;
-	void * const read_address = devpriv->mite->daq_io_addr + GPCT_OFFSET[counter->chip_index] + registerData[ni_660x_register].offset;
+	void * const read_address = private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] + registerData[reg].offset;
 
-	switch(registerData[ni_660x_register].size)
+	switch(registerData[reg].size)
 	{
 	case DATA_2B:
 		return readw(read_address);
@@ -660,11 +707,195 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_regi
 		return readl(read_address);
 		break;
 	default:
-		rt_printk("%s: %s: bug! unhandled case = 0x%x in switch.\n", __FILE__, __FUNCTION__, reg);
+		rt_printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n", __FILE__, __FUNCTION__, reg);
 		BUG();
 		break;
 	}
 	return 0;
+}
+
+static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum ni_gpct_register reg)
+{
+	comedi_device *dev = counter->counter_dev->dev;
+	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
+	ni_660x_write_register(dev, counter->chip_index, bits, ni_660x_register);
+}
+
+static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_register reg)
+{
+	comedi_device *dev = counter->counter_dev->dev;
+	NI_660x_Register ni_660x_register = ni_gpct_to_660x_register(reg);
+	return ni_660x_read_register(dev, counter->chip_index, ni_660x_register);
+}
+
+static inline struct mite_dma_descriptor_ring* mite_ring(ni_660x_private *priv, struct ni_gpct *counter)
+{
+	return priv->mite_rings[counter->chip_index][counter->counter_index];
+}
+
+static inline void ni_660x_set_dma_channel(comedi_device *dev, unsigned mite_channel, struct ni_gpct *counter)
+{
+	unsigned long flags;
+	comedi_spin_lock_irqsave(&private(dev)->soft_reg_copy_lock, flags);
+	private(dev)->dma_configuration_soft_copies[counter->chip_index] &=
+		~dma_select_mask(mite_channel);
+	private(dev)->dma_configuration_soft_copies[counter->chip_index] |=
+		dma_select_bits(mite_channel, dma_selection_counter(counter->counter_index));
+	ni_660x_write_register(dev, counter->chip_index, private(dev)->dma_configuration_soft_copies[counter->chip_index] |
+		dma_reset_bit(mite_channel), DMAConfigRegister);
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&private(dev)->soft_reg_copy_lock, flags);
+}
+
+static inline void ni_660x_unset_dma_channel(comedi_device *dev, unsigned mite_channel, struct ni_gpct *counter)
+{
+	unsigned long flags;
+	comedi_spin_lock_irqsave(&private(dev)->soft_reg_copy_lock, flags);
+	private(dev)->dma_configuration_soft_copies[counter->chip_index] &=
+		~dma_select_mask(mite_channel);
+	private(dev)->dma_configuration_soft_copies[counter->chip_index] |=
+		dma_select_bits(mite_channel, dma_selection_none);
+	ni_660x_write_register(dev, counter->chip_index, private(dev)->dma_configuration_soft_copies[counter->chip_index],
+		DMAConfigRegister);
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&private(dev)->soft_reg_copy_lock, flags);
+}
+
+static int ni_660x_request_mite_channel(comedi_device *dev, struct ni_gpct *counter, enum comedi_io_direction direction)
+{
+	unsigned long flags;
+	struct mite_channel *mite_chan;
+
+	comedi_spin_lock_irqsave(&private(dev)->mite_channel_lock, flags);
+	BUG_ON(counter->mite_chan);
+	mite_chan = mite_request_channel(private(dev)->mite, mite_ring(private(dev), counter));
+	if(mite_chan == NULL)
+	{
+		comedi_spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
+		comedi_error(dev, "failed to reserve mite dma channel for counter.");
+		return -EBUSY;
+	}
+	mite_chan->dir = direction;
+	ni_tio_set_mite_channel(counter, mite_chan);
+	ni_660x_set_dma_channel(dev, mite_chan->channel, counter);
+	comedi_spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
+	return 0;
+}
+
+void ni_660x_release_mite_channel(comedi_device *dev, struct ni_gpct *counter)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&private(dev)->mite_channel_lock, flags);
+	if(counter->mite_chan)
+	{
+		struct mite_channel *mite_chan = counter->mite_chan;
+
+		ni_660x_unset_dma_channel(dev, mite_chan->channel, counter);
+		ni_tio_set_mite_channel(counter, NULL);
+		mite_release_channel(mite_chan);
+	}
+	comedi_spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
+}
+
+static int ni_660x_cmd(comedi_device *dev, comedi_subdevice *s)
+{
+	int retval;
+
+	struct ni_gpct *counter = subdev_to_counter(s);
+// 	const comedi_cmd *cmd = &s->async->cmd;
+
+	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
+	if(retval)
+	{
+		comedi_error(dev, "no dma channel available for use by counter");
+		return retval;
+	}
+	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
+	retval = ni_tio_cmd(counter, s->async);
+
+	return retval;
+}
+
+static int ni_660x_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
+{
+	struct ni_gpct *counter = subdev_to_counter(s);
+
+	return ni_tio_cmdtest(counter, cmd);
+}
+
+static int ni_660x_cancel(comedi_device *dev, comedi_subdevice *s)
+{
+	struct ni_gpct *counter = subdev_to_counter(s);
+	int retval;
+
+	retval = ni_tio_cancel(counter);
+	ni_660x_release_mite_channel(dev, counter);
+	return retval;
+}
+
+static irqreturn_t ni_660x_interrupt(int irq, void *d PT_REGS_ARG)
+{
+	return IRQ_HANDLED;
+}
+
+static int ni_660x_buf_change(comedi_device *dev, comedi_subdevice *s,
+	unsigned long new_size)
+{
+	int ret;
+
+	ret = mite_buf_change(mite_ring(private(dev), subdev_to_counter(s)), s->async);
+	if(ret < 0) return ret;
+
+	return 0;
+}
+
+static int ni_660x_allocate_private(comedi_device *dev)
+{
+	int retval;
+	unsigned i;
+
+	if((retval = alloc_private(dev, sizeof(ni_660x_private))) < 0) return retval;
+	spin_lock_init(&private(dev)->mite_channel_lock);
+	spin_lock_init(&private(dev)->soft_reg_copy_lock);
+	for(i = 0; i < NUM_PFI_CHANNELS; ++i)
+	{
+		private(dev)->pfi_output_selects[i] = pfi_output_select_counter;
+	}
+	return 0;
+}
+
+static int ni_660x_alloc_mite_rings(comedi_device *dev)
+{
+	unsigned i;
+	unsigned j;
+
+	for(i = 0; i < board(dev)->n_chips; ++i)
+	{
+		for(j = 0; j < CTRS_PER_CHIP; ++j)
+		{
+			private(dev)->mite_rings[i][j] = mite_alloc_ring(private(dev)->mite);
+			if(private(dev)->mite_rings[i][j] == NULL)
+			{
+				return -ENOMEM;
+			}
+		}
+	}
+	return 0;
+}
+
+static void ni_660x_free_mite_rings(comedi_device *dev)
+{
+	unsigned i;
+	unsigned j;
+
+	for(i = 0; i < board(dev)->n_chips; ++i)
+	{
+		for(j = 0; j < CTRS_PER_CHIP; ++j)
+		{
+			mite_free_ring(private(dev)->mite_rings[i][j]);
+		}
+	}
 }
 
 static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
@@ -675,19 +906,21 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 
 	printk("comedi%d: ni_660x: ",dev->minor);
 
-	if ((ret=alloc_private(dev,sizeof(ni_660x_private))) < 0) return ret;
-
+	ret = ni_660x_allocate_private(dev);
+	if(ret < 0) return ret;
 	ret = ni_660x_find_device(dev, it->options[0], it->options[1]);
 	if (ret<0) return ret;
 
-	ret = mite_setup(devpriv->mite);
+	dev->board_name = board(dev)->name;
+
+	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
-	printk("error setting up mite\n");
-	return ret;
+		printk("error setting up mite\n");
+		return ret;
 	}
-	dev->board_name = thisboard->name;
-	/* we don't support the interrupt yet */
-	//dev->irq = mite_irq(devpriv->mite);
+	comedi_set_hw_dev(dev, &private(dev)->mite->pcidev->dev);
+	ret = ni_660x_alloc_mite_rings(dev);
+	if(ret < 0) return ret;
 
 	printk(" %s ", dev->board_name);
 
@@ -710,42 +943,57 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	s->insn_config  = ni_660x_dio_insn_config;
 	s->io_bits      = 0;     /* all bits default to input */
 	// we use the ioconfig registers to control dio direction, so zero output enables in stc dio control reg
-	writew(0, devpriv->mite->daq_io_addr + registerData[STCDIOControl].offset);
+	ni_660x_write_register(dev, 0, 0, STCDIOControl);
 
-	devpriv->counter_dev = ni_gpct_device_construct(dev,
+	private(dev)->counter_dev = ni_gpct_device_construct(dev,
 		&ni_gpct_write_register, &ni_gpct_read_register,
-		ni_gpct_variant_660x, thisboard->n_ctrs);
-	if(devpriv->counter_dev == NULL) return -ENOMEM;
+		ni_gpct_variant_660x, ni_660x_num_counters(dev));
+	if(private(dev)->counter_dev == NULL) return -ENOMEM;
 	for(i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i)
 	{
 		s = dev->subdevices + 2 + i;
-		if(i < thisboard->n_ctrs)
+		if(i < ni_660x_num_counters(dev))
 		{
 			s->type = COMEDI_SUBD_COUNTER;
-			s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
+			s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL | SDF_CMD_READ /* | SDF_CMD_WRITE */;
 			s->n_chan = 3;
 			s->maxdata = 0xffffffff;
 			s->insn_read = ni_660x_GPCT_rinsn;
 			s->insn_write = ni_660x_GPCT_winsn;
 			s->insn_config = ni_660x_GPCT_insn_config;
-			s->private = &devpriv->counter_dev->counters[i];
+			s->do_cmd = &ni_660x_cmd;
+			s->len_chanlist = 1;
+			s->do_cmdtest = &ni_660x_cmdtest;
+			s->cancel = &ni_660x_cancel;
+			s->async_dma_dir = DMA_BIDIRECTIONAL;
+			s->buf_change = &ni_660x_buf_change;
+			s->private = &private(dev)->counter_dev->counters[i];
 
-			devpriv->counter_dev->counters[i].chip_index = i / CTRS_PER_CHIP;
-			devpriv->counter_dev->counters[i].counter_index = i % CTRS_PER_CHIP;
+			private(dev)->counter_dev->counters[i].chip_index = i / CTRS_PER_CHIP;
+			private(dev)->counter_dev->counters[i].counter_index = i % CTRS_PER_CHIP;
 		}else
 		{
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 	}
-	for(i = 0; i < thisboard->n_ctrs / CTRS_PER_CHIP; ++i)
+	for(i = 0; i < board(dev)->n_chips; ++i)
 	{
 		init_tio_chip(dev, i);
 	}
-	for(i = 0; i < thisboard->n_ctrs; ++i)
+	for(i = 0; i < ni_660x_num_counters(dev); ++i)
 	{
-		ni_tio_init_counter(&devpriv->counter_dev->counters[i]);
+		ni_tio_init_counter(&private(dev)->counter_dev->counters[i]);
 	}
-
+	for(i = 0; i < NUM_PFI_CHANNELS; ++i)
+	{
+		ni_660x_select_pfi_output(dev, i, pfi_output_select_high_Z);
+	}
+	if((ret = comedi_request_irq(mite_irq(private(dev)->mite), &ni_660x_interrupt, IRQF_SHARED, "ni_660x", dev)) < 0)
+	{
+		printk(" irq not available\n");
+		return ret;
+	}
+	dev->irq = mite_irq(private(dev)->mite);
 	printk("attached\n");
 	return 0;
 }
@@ -756,18 +1004,19 @@ ni_660x_detach(comedi_device *dev)
 {
 	printk("comedi%d: ni_660x: remove\n",dev->minor);
 
+	/* Free irq */
+	if(dev->irq) comedi_free_irq(dev->irq, dev);
+
 	if(dev->private)
 	{
-		if(devpriv->counter_dev)
-			ni_gpct_device_destroy(devpriv->counter_dev);
-		if(devpriv->mite)
-			mite_unsetup(devpriv->mite);
+		if(private(dev)->counter_dev)
+			ni_gpct_device_destroy(private(dev)->counter_dev);
+		if(private(dev)->mite)
+		{
+			ni_660x_free_mite_rings(dev);
+			mite_unsetup(private(dev)->mite);
+		}
 	}
-	/* Free irq */
-
-	if(dev->irq) comedi_free_irq(dev->irq,dev);
-
-	/* Same question as with attach ... */
 	return 0;
 }
 
@@ -775,30 +1024,37 @@ static int
 ni_660x_GPCT_rinsn(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	struct ni_gpct *counter = s->private;
-	return ni_tio_rinsn(counter, insn, data);
+	return ni_tio_rinsn(subdev_to_counter(s), insn, data);
 }
 
 static void init_tio_chip(comedi_device *dev, int chipset)
 {
+	unsigned i;
+
 	/* See P. 3.5 of the Register-Level Programming manual.  The
 		CounterSwap bit has to be set on the second chip, otherwise
 		it will try to use the same pins as the first chip.
 	*/
 	if(chipset)
-		writel(CounterSwap,devpriv->mite->daq_io_addr + GPCT_OFFSET[1]
-			+ registerData[ClockConfigRegister].offset);
+		ni_660x_write_register(dev, chipset, CounterSwap, ClockConfigRegister);
 	else
-		writel(0,devpriv->mite->daq_io_addr + GPCT_OFFSET[0]
-			+ registerData[ClockConfigRegister].offset);
+		ni_660x_write_register(dev, chipset, 0, ClockConfigRegister);
+	// init dma configuration register
+	private(dev)->dma_configuration_soft_copies[chipset] = 0;
+	for(i = 0; i < MAX_DMA_CHANNEL; ++i)
+	{
+		private(dev)->dma_configuration_soft_copies[chipset] |=
+			dma_select_bits(i, dma_selection_none) & dma_select_mask(i);
+	}
+	ni_660x_write_register(dev, chipset, private(dev)->dma_configuration_soft_copies[chipset],
+		DMAConfigRegister);
 }
 
 static int
 ni_660x_GPCT_insn_config(comedi_device *dev, comedi_subdevice *s,
 	comedi_insn *insn, lsampl_t *data)
 {
-	struct ni_gpct *counter = s->private;
-	return ni_tio_insn_config(counter, insn, data);
+	return ni_tio_insn_config(subdev_to_counter(s), insn, data);
 }
 
 static int ni_660x_GPCT_winsn(comedi_device *dev,
@@ -806,8 +1062,7 @@ static int ni_660x_GPCT_winsn(comedi_device *dev,
 	comedi_insn *insn,
 	lsampl_t * data)
 {
-	struct ni_gpct *counter = s->private;
-	return ni_tio_winsn(counter, insn, data);
+	return ni_tio_winsn(subdev_to_counter(s), insn, data);
 }
 
 static int
@@ -826,7 +1081,7 @@ ni_660x_find_device(comedi_device *dev, int bus, int slot)
 		for (i=0; i<n_ni_660x_boards; i++) {
 			if (mite_device_id(mite)==ni_660x_boards[i].dev_id) {
 				dev->board_ptr=ni_660x_boards+i;
-				devpriv->mite=mite;
+				private(dev)->mite=mite;
 				return 0;
 			}
 		}
@@ -847,43 +1102,49 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
 	// Check if we have to write some bits
 	if(data[0])
 	{
-		/* Only the first 8 lines can be read/written.  The rest can
-		only have their input/output configuration changed (although
-		the user manual implies the first 32 channels can be used as
-		general purpose dio, the register manual doesn't tell you how
-		this can be accomplished. */
-		/*FIXME: use DIO32Input and DIO32Output registers for dio
-		to the 32 bit port */
-		if((data[0] << base_bitfield_channel) > 0xff)
-		{
-			return -EINVAL;
-		}
 		s->state &= ~(data[0] << base_bitfield_channel);
 		s->state |= (data[0] & data[1]) << base_bitfield_channel;
 		/* Write out the new digital output lines */
-		writew(s->state,devpriv->mite->daq_io_addr + registerData[STCDIOOutput].offset);
+		ni_660x_write_register(dev, 0, s->state, DIO32Output);
 	}
 	/* on return, data[1] contains the value of the digital
 	* input and output lines. */
-	data[1] = (readw(devpriv->mite->daq_io_addr + registerData[STCDIOParallelInput].offset) >> base_bitfield_channel) &
-		(0xff >> base_bitfield_channel);
+	data[1] = (ni_660x_read_register(dev, 0, DIO32Input) >> base_bitfield_channel);
 	return 2;
 }
 
 static void ni_660x_select_pfi_output(comedi_device *dev, unsigned pfi_channel, unsigned output_select)
 {
-	unsigned bits = readw(devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+	unsigned bits = ni_660x_read_register(dev, 0, IOConfigReg(pfi_channel));
+
 	bits &= ~pfi_output_select_mask(pfi_channel);
 	bits |= pfi_output_select_bits(pfi_channel, output_select);
-	writew(bits, devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+	ni_660x_write_register(dev, 0, bits, IOConfigReg(pfi_channel));
+}
+
+static int ni_660x_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
+{
+	if(source > num_pfi_output_selects) return -EINVAL;
+	BUG_ON(chan >= NUM_PFI_CHANNELS);
+
+	private(dev)->pfi_output_selects[chan] = source;
+	if(private(dev)->pfi_direction_bits & (((uint64_t)1) << chan))
+		ni_660x_select_pfi_output(dev, chan, private(dev)->pfi_output_selects[chan]);
+	return 0;
+}
+
+static unsigned ni_660x_get_pfi_routing(comedi_device *dev, unsigned chan)
+{
+	BUG_ON(chan >= NUM_PFI_CHANNELS);
+	return private(dev)->pfi_output_selects[chan];
 }
 
 static void ni660x_config_filter(comedi_device *dev, unsigned pfi_channel, enum ni_gpct_filter_select filter)
 {
-	unsigned bits = readw(devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+	unsigned bits = ni_660x_read_register(dev, 0, IOConfigReg(pfi_channel));
 	bits &= ~pfi_input_select_mask(pfi_channel);
 	bits |= pfi_input_select_bits(pfi_channel, filter);
-	writew(bits, devpriv->mite->daq_io_addr + registerData[IOConfigReg(pfi_channel)].offset);
+	ni_660x_write_register(dev, 0, bits, IOConfigReg(pfi_channel));
 }
 
 static int ni_660x_dio_insn_config(comedi_device *dev,
@@ -891,7 +1152,7 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 	comedi_insn *insn,
 	lsampl_t *data)
 {
-	int chan=CR_CHAN(insn->chanspec);
+	int chan = CR_CHAN(insn->chanspec);
 
 	/* The input or output configuration of each digital line is
 	* configured by a special insn_config instruction.  chanspec
@@ -901,17 +1162,22 @@ static int ni_660x_dio_insn_config(comedi_device *dev,
 	switch(data[0])
 	{
 	case INSN_CONFIG_DIO_OUTPUT:
-		devpriv->pfi_direction_bits |= ((uint64_t)1) << chan;
-		//FIXME: output select 1 is counter output, 2 is digital output
-		ni_660x_select_pfi_output(dev, chan, 1);
+		private(dev)->pfi_direction_bits |= ((uint64_t)1) << chan;
+		ni_660x_select_pfi_output(dev, chan, private(dev)->pfi_output_selects[chan]);
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		devpriv->pfi_direction_bits &= ~(((uint64_t)1) << chan);
-		ni_660x_select_pfi_output(dev, chan, 0);
+		private(dev)->pfi_direction_bits &= ~(((uint64_t)1) << chan);
+		ni_660x_select_pfi_output(dev, chan, pfi_output_select_high_Z);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (devpriv->pfi_direction_bits & (((uint64_t)1) << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] = (private(dev)->pfi_direction_bits & (((uint64_t)1) << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return 0;
+	case INSN_CONFIG_SET_ROUTING:
+		return ni_660x_set_pfi_routing(dev, chan, data[1]);
+		break;
+	case INSN_CONFIG_GET_ROUTING:
+		data[1] = ni_660x_get_pfi_routing(dev, chan);
+		break;
 	case INSN_CONFIG_FILTER:
 		ni660x_config_filter(dev, chan, data[1]);
 		break;

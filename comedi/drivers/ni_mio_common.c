@@ -347,55 +347,53 @@ static void get_last_sample_611x( comedi_device *dev );
 static void get_last_sample_6143( comedi_device *dev );
 #ifdef PCIDMA
 static int ni_ai_drain_dma(comedi_device *dev );
+static inline void ni_set_bitfield(comedi_device *dev, int reg, unsigned bit_mask, unsigned bit_values);
 
 /* DMA channel setup */
 
 // negative channel means no channel
 static inline void ni_set_ai_dma_channel(comedi_device *dev, int channel)
 {
-	unsigned long flags;
+	unsigned bitfield;
 
-	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->ai_ao_select_reg &= ~AI_DMA_Select_Mask;
 	if(channel >= 0)
 	{
-		devpriv->ai_ao_select_reg |= (ni_stc_dma_channel_select_bitfield(channel) << AI_DMA_Select_Shift) & AI_DMA_Select_Mask;
+		bitfield = (ni_stc_dma_channel_select_bitfield(channel) << AI_DMA_Select_Shift) & AI_DMA_Select_Mask;
+	}else
+	{
+		bitfield = 0;
 	}
-	ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
-	mmiowb();
-	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+	ni_set_bitfield(dev, AI_AO_Select, AI_DMA_Select_Mask, bitfield);
 }
 
 // negative channel means no channel
 static inline void ni_set_ao_dma_channel(comedi_device *dev, int channel)
 {
-	unsigned long flags;
+	unsigned bitfield;
 
-	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->ai_ao_select_reg &= ~AO_DMA_Select_Mask;
 	if(channel >= 0)
 	{
-		devpriv->ai_ao_select_reg |= (ni_stc_dma_channel_select_bitfield(channel) << AO_DMA_Select_Shift) & AO_DMA_Select_Mask;
+		bitfield = (ni_stc_dma_channel_select_bitfield(channel) << AO_DMA_Select_Shift) & AO_DMA_Select_Mask;
+	}else
+	{
+		bitfield = 0;
 	}
-	ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
-	mmiowb();
-	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+	ni_set_bitfield(dev, AI_AO_Select, AO_DMA_Select_Mask, bitfield);
 }
 
 // negative mite_channel means no channel
 static inline void ni_set_gpct_dma_channel(comedi_device *dev, unsigned gpct_index, int mite_channel)
 {
-	unsigned long flags;
+	unsigned bitfield;
 
-	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->g0_g1_select_reg &= ~GPCT_DMA_Select_Mask(gpct_index);
 	if(mite_channel >= 0)
 	{
-		devpriv->g0_g1_select_reg |= GPCT_DMA_Select_Bits(gpct_index, mite_channel);
+		bitfield = GPCT_DMA_Select_Bits(gpct_index, mite_channel);
+	}else
+	{
+		bitfield = 0;
 	}
-	ni_writeb(devpriv->g0_g1_select_reg, G0_G1_Select);
-	mmiowb();
-	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+	ni_set_bitfield(dev, G0_G1_Select, GPCT_DMA_Select_Mask(gpct_index), bitfield);
 }
 
 // negative mite_channel means no channel
@@ -542,9 +540,11 @@ void ni_release_gpct_mite_channel(comedi_device *dev, unsigned gpct_index)
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if(devpriv->counter_dev->counters[gpct_index].mite_chan)
 	{
+		struct mite_channel *mite_chan = devpriv->counter_dev->counters[gpct_index].mite_chan;
+
 		ni_set_gpct_dma_channel(dev, gpct_index, -1);
-		mite_release_channel(devpriv->counter_dev->counters[gpct_index].mite_chan);
 		ni_tio_set_mite_channel(&devpriv->counter_dev->counters[gpct_index], NULL);
+		mite_release_channel(mite_chan);
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif	// PCIDMA
@@ -666,6 +666,46 @@ static inline unsigned short ni_ao_win_inw( comedi_device *dev, int addr )
 	return data;
 }
 
+static inline void ni_set_bitfield(comedi_device *dev, int reg, unsigned bit_mask, unsigned bit_values)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	switch (reg){
+		case Interrupt_A_Enable_Register:
+			devpriv->int_a_enable_reg &= ~bit_mask;
+			devpriv->int_a_enable_reg |=  bit_values & bit_mask;
+			devpriv->stc_writew(dev, devpriv->int_a_enable_reg, Interrupt_A_Enable_Register);
+			break;
+		case Interrupt_B_Enable_Register:
+			devpriv->int_b_enable_reg &= ~bit_mask;
+			devpriv->int_b_enable_reg |=  bit_values & bit_mask;
+			devpriv->stc_writew(dev, devpriv->int_b_enable_reg, Interrupt_B_Enable_Register);
+			break;
+		case IO_Bidirection_Pin_Register:
+			devpriv->io_bidirection_pin_reg &= ~bit_mask;
+			devpriv->io_bidirection_pin_reg |=  bit_values & bit_mask;
+			devpriv->stc_writew(dev, devpriv->io_bidirection_pin_reg, IO_Bidirection_Pin_Register);
+			break;
+		case AI_AO_Select:
+			devpriv->ai_ao_select_reg &= ~bit_mask;
+			devpriv->ai_ao_select_reg |=  bit_values & bit_mask;
+			ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
+			break;
+		case G0_G1_Select:
+			devpriv->g0_g1_select_reg &= ~bit_mask;
+			devpriv->g0_g1_select_reg |=  bit_values & bit_mask;
+			ni_writeb(devpriv->g0_g1_select_reg, G0_G1_Select);
+			break;
+		default:
+			rt_printk("Warning %s() called with invalid register\n", __FUNCTION__);
+			rt_printk("reg is %d\n", reg);
+			break;
+	}
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags );
+}
+
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to
 * share registers (such as Interrupt_A_Register) without interfering with
 * each other.
@@ -676,41 +716,16 @@ static inline unsigned short ni_ao_win_inw( comedi_device *dev, int addr )
 *
 * value should only be 1 or 0.
 */
-static inline void ni_set_bits(comedi_device *dev, int reg, int bits, int value)
+static inline void ni_set_bits(comedi_device *dev, int reg, unsigned bits, unsigned value)
 {
-	unsigned long flags;
+	unsigned bit_values;
 
-	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	switch (reg){
-		case Interrupt_A_Enable_Register:
-			if(value)
-				devpriv->int_a_enable_reg |= bits;
-			else
-				devpriv->int_a_enable_reg &= ~bits;
-			devpriv->stc_writew(dev, devpriv->int_a_enable_reg,Interrupt_A_Enable_Register);
-			break;
-		case Interrupt_B_Enable_Register:
-			if(value)
-				devpriv->int_b_enable_reg |= bits;
-			else
-				devpriv->int_b_enable_reg &= ~bits;
-			devpriv->stc_writew(dev, devpriv->int_b_enable_reg,Interrupt_B_Enable_Register);
-			break;
-		case IO_Bidirection_Pin_Register:
-			if(value)
-				devpriv->io_bidirection_pin_reg |= bits;
-			else
-				devpriv->io_bidirection_pin_reg &= ~bits;
-			devpriv->stc_writew(dev, devpriv->io_bidirection_pin_reg,IO_Bidirection_Pin_Register);
-			break;
-		default:
-			rt_printk("Warning ni_set_bits() called with invalid arguments\n");
-			rt_printk("reg is %d\n",reg);
-			break;
-	}
-	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags );
+	if(value)
+		bit_values = bits;
+	else
+		bit_values = 0;
+	ni_set_bitfield(dev, reg, bits, bit_values);
 }
-
 
 static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 {
@@ -3758,6 +3773,12 @@ static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
 	case NITIO_G1_Status_Reg:
 		stc_register = AO_Status_1_Register;
 		break;
+	case NITIO_G0_Interrupt_Enable_Reg:
+		stc_register = Interrupt_A_Enable_Register;
+		break;
+	case NITIO_G1_Interrupt_Enable_Reg:
+		stc_register = Interrupt_B_Enable_Register;
+		break;
 	default:
 		rt_printk("%s: unhandled register 0x%x in switch.\n", __FUNCTION__, reg);
 		BUG();
@@ -3773,6 +3794,9 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 	unsigned stc_register;
 	/* bits in the join reset register which are relevant to counters */
 	static const unsigned gpct_joint_reset_mask = G0_Reset | G1_Reset;
+	static const unsigned gpct_interrupt_a_enable_mask = G0_Gate_Interrupt_Enable | G0_TC_Interrupt_Enable;
+	static const unsigned gpct_interrupt_b_enable_mask = G1_Gate_Interrupt_Enable | G1_TC_Interrupt_Enable;
+
 	switch(reg)
 	{
 	/* m-series-only registers */
@@ -3811,6 +3835,14 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits, enum 
 		break;
 
 	/* 16 bit registers */
+	case NITIO_G0_Interrupt_Enable_Reg:
+		BUG_ON(bits & ~gpct_interrupt_a_enable_mask);
+		ni_set_bitfield(dev, Interrupt_A_Enable_Register, gpct_interrupt_a_enable_mask, bits);
+		break;
+	case NITIO_G1_Interrupt_Enable_Reg:
+		BUG_ON(bits & ~gpct_interrupt_b_enable_mask);
+		ni_set_bitfield(dev, Interrupt_B_Enable_Register, gpct_interrupt_b_enable_mask, bits);
+		break;
 	case NITIO_G01_Joint_Reset_Reg:
 		BUG_ON(bits & ~gpct_joint_reset_mask);
 		/* fall-through */
@@ -4650,132 +4682,12 @@ static int ni_gpct_insn_write(comedi_device *dev, comedi_subdevice *s,
 	return ni_tio_winsn(counter, insn, data);
 }
 
-static inline unsigned Gi_Interrupt_Enable_Register(unsigned counter_index)
-{
-	unsigned reg;
-
-	switch(counter_index)
-	{
-	case 0:
-		reg = Interrupt_A_Enable_Register;
-		break;
-	case 1:
-		reg = Interrupt_B_Enable_Register;
-		break;
-	default:
-		BUG();
-		return 0;
-		break;
-	}
-	return reg;
-}
-
-static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
-{
-	unsigned bit;
-
-	switch(counter_index)
-	{
-	case 0:
-		bit = G0_Gate_Interrupt_Enable;
-		break;
-	case 1:
-		bit = G1_Gate_Interrupt_Enable;
-		break;
-	default:
-		BUG();
-		return 0;
-		break;
-	}
-	return bit;
-}
-
-static inline unsigned Gi_Interrupt_Ack_Register(unsigned counter_index)
-{
-	unsigned reg;
-
-	switch(counter_index)
-	{
-	case 0:
-		reg = Interrupt_A_Ack_Register;
-		break;
-	case 1:
-		reg = Interrupt_B_Ack_Register;
-		break;
-	default:
-		BUG();
-		return 0;
-		break;
-	}
-	return reg;
-}
-
-static inline unsigned Gi_Gate_Interrupt_Ack_Bit(unsigned counter_index)
-{
-	unsigned bit;
-
-	switch(counter_index)
-	{
-	case 0:
-		bit = G0_Gate_Interrupt_Ack;
-		break;
-	case 1:
-		bit = G1_Gate_Interrupt_Ack;
-		break;
-	default:
-		BUG();
-		return 0;
-		break;
-	}
-	return bit;
-}
-
-static inline unsigned Gi_Gate_Error_Confirm_Bit(unsigned counter_index)
-{
-	unsigned bit;
-
-	switch(counter_index)
-	{
-	case 0:
-		bit = G0_Gate_Error_Confirm;
-		break;
-	case 1:
-		bit = G1_Gate_Error_Confirm;
-		break;
-	default:
-		BUG();
-		return 0;
-		break;
-	}
-	return bit;
-}
-
-static inline unsigned Gi_TC_Error_Confirm_Bit(unsigned counter_index)
-{
-	unsigned bit;
-
-	switch(counter_index)
-	{
-	case 0:
-		bit = G0_TC_Error_Confirm;
-		break;
-	case 1:
-		bit = G1_TC_Error_Confirm;
-		break;
-	default:
-		BUG();
-		return 0;
-		break;
-	}
-	return bit;
-}
-
 static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 {
 	int retval;
 #ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
-	const comedi_cmd *cmd = &s->async->cmd;
+// 	const comedi_cmd *cmd = &s->async->cmd;
 
 	retval = ni_request_gpct_mite_channel(dev, counter->counter_index, COMEDI_INPUT);
 	if(retval)
@@ -4783,15 +4695,7 @@ static int ni_gpct_cmd(comedi_device *dev, comedi_subdevice *s)
 		comedi_error(dev, "no dma channel available for use by counter");
 		return retval;
 	}
-	devpriv->stc_writew(dev, Gi_Gate_Interrupt_Ack_Bit(counter->counter_index) |
-		Gi_Gate_Error_Confirm_Bit(counter->counter_index) |
-		Gi_TC_Error_Confirm_Bit(counter->counter_index),
-		Gi_Interrupt_Ack_Register(counter->counter_index));
-	if(cmd->flags & TRIG_WAKE_EOS)
-	{
-		ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
-			Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 1);
-	}
+	ni_tio_acknowledge_and_confirm(counter, NULL, NULL, NULL, NULL);
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 1);
 	retval = ni_tio_cmd(counter, s->async);
 #else
@@ -4814,8 +4718,6 @@ static int ni_gpct_cancel(comedi_device *dev, comedi_subdevice *s)
 
 	retval = ni_tio_cancel(counter);
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
-	ni_set_bits(dev, Gi_Interrupt_Enable_Register(counter->counter_index),
-		Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 0);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);
 	return retval;
 }

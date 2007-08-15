@@ -1345,9 +1345,15 @@ enum CDI_Mode_Bits
 {
 	CDI_Sample_Source_Select_Mask = 0x3f,
 	CDI_Halt_On_Error_Bit = 0x200,
-	CDI_Polarity_Bit = 0x400,
-	CDI_FIFO_Mode_Bit = 0x800,
-	CDI_Data_Lane_Mask = 0x3000
+	CDI_Polarity_Bit = 0x400,	// sample clock on falling edge
+	CDI_FIFO_Mode_Bit = 0x800,	// set for half full mode, clear for not empty mode
+	CDI_Data_Lane_Mask = 0x3000,	// data lanes specify which dio channels map to byte or word accesses to the dio fifos
+	CDI_Data_Lane_0_15_Bits = 0x0,
+	CDI_Data_Lane_16_31_Bits = 0x1000,
+	CDI_Data_Lane_0_7_Bits = 0x0,
+	CDI_Data_Lane_8_15_Bits = 0x1000,
+	CDI_Data_Lane_16_23_Bits = 0x2000,
+	CDI_Data_Lane_24_31_Bits = 0x3000
 };
 
 enum CDO_Mode_Bits
@@ -1355,9 +1361,25 @@ enum CDO_Mode_Bits
 	CDO_Sample_Source_Select_Mask = 0x3f,
 	CDO_Retransmit_Bit = 0x100,
 	CDO_Halt_On_Error_Bit = 0x200,
-	CDO_Polarity_Bit = 0x400,
-	CDO_FIFO_Mode_Bit = 0x800,
-	CDO_Data_Lane_Mask = 0x3000
+	CDO_Polarity_Bit = 0x400,	// sample clock on falling edge
+	CDO_FIFO_Mode_Bit = 0x800,	// set for half full mode, clear for not full mode
+	CDO_Data_Lane_Mask = 0x3000, // data lanes specify which dio channels map to byte or word accesses to the dio fifos
+	CDO_Data_Lane_0_15_Bits = 0x0,
+	CDO_Data_Lane_16_31_Bits = 0x1000,
+	CDO_Data_Lane_0_7_Bits = 0x0,
+	CDO_Data_Lane_8_15_Bits = 0x1000,
+	CDO_Data_Lane_16_23_Bits = 0x2000,
+	CDO_Data_Lane_24_31_Bits = 0x3000
+};
+
+enum Interrupt_C_Enable_Bits
+{
+	Interrupt_Group_C_Enable_Bit = 0x1
+};
+
+enum Interrupt_C_Status_Bits
+{
+	Interrupt_Group_C_Status_Bit = 0x1
 };
 
 #define M_SERIES_EEPROM_SIZE 1024
@@ -1458,6 +1480,7 @@ typedef struct ni_board_struct{
 	unsigned short pfi_output_select_reg[NUM_PFI_OUTPUT_SELECT_REGS]; \
 	unsigned short ai_ao_select_reg; \
 	unsigned short g0_g1_select_reg; \
+	unsigned short cdio_dma_select_reg; \
 	\
 	unsigned clock_ns; \
 	unsigned clock_source; \
@@ -1475,8 +1498,10 @@ typedef struct ni_board_struct{
 	struct mite_struct *mite; \
 	struct mite_channel *ai_mite_chan; \
 	struct mite_channel *ao_mite_chan;\
+	struct mite_channel *cdo_mite_chan;\
 	struct mite_dma_descriptor_ring *ai_mite_ring; \
 	struct mite_dma_descriptor_ring *ao_mite_ring; \
+	struct mite_dma_descriptor_ring *cdo_mite_ring; \
 	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
 
 
