@@ -165,6 +165,25 @@ static inline enum ni_gpct_register NITIO_Gxx_Joint_Reset_Reg(unsigned counter_i
 	return 0;
 }
 
+static inline enum ni_gpct_register NITIO_Gxx_Joint_Status1_Reg(unsigned counter_index)
+{
+	switch(counter_index)
+	{
+	case 0:
+	case 1:
+		return NITIO_G01_Joint_Status1_Reg;
+		break;
+	case 2:
+	case 3:
+		return NITIO_G23_Joint_Status1_Reg;
+		break;
+	default:
+		BUG();
+		break;
+	}
+	return 0;
+}
+
 static inline enum ni_gpct_register NITIO_Gxx_Joint_Status2_Reg(unsigned counter_index)
 {
 	switch(counter_index)
@@ -1039,10 +1058,12 @@ static inline unsigned ni_tio_get_soft_copy(struct ni_gpct *counter, enum ni_gpc
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	unsigned long flags;
+	unsigned value;
 
 	comedi_spin_lock_irqsave(&counter_dev->regs_lock, flags);
-	return counter_dev->regs[register_index];
+	value = counter_dev->regs[register_index];
 	comedi_spin_unlock_irqrestore(&counter_dev->regs_lock, flags );
+	return value;
 }
 
 static void ni_tio_reset_count_and_disarm(struct ni_gpct *counter)
@@ -2705,6 +2726,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error, in
 
 	if(gate_error) *gate_error = 0;
 	if(tc_error) *tc_error = 0;
+	if(perm_stale_data) *perm_stale_data = 0;
 	if(stale_data) *stale_data = 0;
 
 	if(gxx_status & Gi_Gate_Error_Bit(counter->counter_index))
