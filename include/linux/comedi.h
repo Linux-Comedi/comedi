@@ -762,6 +762,18 @@ static inline unsigned NI_PFI_OUTPUT_RTSI(unsigned rtsi_channel)
 	return NI_PFI_OUTPUT_RTSI0 + rtsi_channel;
 }
 
+/* Signals which can be routed to output on a NI PFI pin on a 660x board
+ with INSN_CONFIG_SET_ROUTING.  The numbers assigned are
+ not arbitrary, they correspond to the bits required
+ to program the board.  Lines 0 to 7 can only be set to
+ NI_660X_PFI_OUTPUT_DIO.  Lines 32 to 39 can only be set to
+ NI_660X_PFI_OUTPUT_COUNTER. */
+enum ni_660x_pfi_routing
+{
+	NI_660X_PFI_OUTPUT_COUNTER = 1,	// counter
+	NI_660X_PFI_OUTPUT_DIO = 2,	// static digital output
+};
+
 /* NI External Trigger lines.  These values are not arbitrary, but are related to
 	the bits required to program the board (offset by 1 for historical reasons). */
 static inline unsigned NI_EXT_PFI(unsigned pfi_channel)
