@@ -47,7 +47,13 @@ Things to do:
 #include "mite.h"
 #include "ni_tio.h"
 
-#define CTRS_PER_CHIP 4 // The number of counters per ni-tio chip
+enum ni_660x_constants
+{
+	min_counter_pfi_chan = 8,
+	max_dio_pfi_chan = 31,
+	counters_per_chip = 4
+};
+
 #define NUM_PFI_CHANNELS 40
 // really there are only up to 3 dma channels, but the register layout allows for 4
 #define MAX_DMA_CHANNEL 4
@@ -184,6 +190,16 @@ enum ni_660x_pfi_output_select
 	pfi_output_select_do = 2,
 	num_pfi_output_selects
 };
+
+enum ni_660x_subdevices
+{
+	NI_660X_DIO_SUBDEV = 1,
+	NI_660X_GPCT_SUBDEV_0 = 2
+};
+static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
+{
+	return NI_660X_GPCT_SUBDEV_0 + index;
+}
 
 typedef struct
 {
@@ -337,7 +353,7 @@ enum dma_selection
 };
 static inline unsigned dma_selection_counter(unsigned counter_index)
 {
-	BUG_ON(counter_index >= CTRS_PER_CHIP);
+	BUG_ON(counter_index >= counters_per_chip);
 	return counter_index;
 }
 static inline unsigned dma_select_bits(unsigned dma_channel, unsigned selection)
@@ -350,6 +366,23 @@ static inline unsigned dma_reset_bit(unsigned dma_channel)
 	BUG_ON(dma_channel >= MAX_DMA_CHANNEL);
 	return 0x80 << (8 * dma_channel);
 }
+
+enum global_interrupt_status_register_bits
+{
+	Counter_0_Int_Bit = 0x100,
+	Counter_1_Int_Bit = 0x200,
+	Counter_2_Int_Bit = 0x400,
+	Counter_3_Int_Bit = 0x800,
+	Cascade_Int_Bit = 0x20000000,
+	Global_Int_Bit = 0x80000000
+};
+
+enum global_interrupt_config_register_bits
+{
+	Cascade_Int_Enable_Bit = 0x20000000,
+	Global_Int_Polarity_Bit = 0x40000000,
+	Global_Int_Enable_Bit = 0x80000000
+};
 
 // Offset of the GPCT chips from the base-adress of the card
 static const unsigned GPCT_OFFSET[2] = {0x0, 0x800}; /* First chip is at base-adress +
@@ -377,7 +410,7 @@ static const ni_660x_board ni_660x_boards[] =
 	},
 };
 #define NI_660X_MAX_NUM_CHIPS 2
-#define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * CTRS_PER_CHIP)
+#define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * counters_per_chip)
 
 static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
@@ -391,7 +424,7 @@ typedef struct
 	struct mite_struct *mite;
 	struct ni_gpct_device *counter_dev;
 	uint64_t pfi_direction_bits;
-	struct mite_dma_descriptor_ring *mite_rings[NI_660X_MAX_NUM_CHIPS][CTRS_PER_CHIP];
+	struct mite_dma_descriptor_ring *mite_rings[NI_660X_MAX_NUM_CHIPS][counters_per_chip];
 	spinlock_t mite_channel_lock;
 	unsigned dma_configuration_soft_copies[NI_660X_MAX_NUM_CHIPS];
 	spinlock_t soft_reg_copy_lock;
@@ -425,7 +458,8 @@ static comedi_driver driver_ni_660x=
 
 COMEDI_INITCLEANUP(driver_ni_660x);
 
-static int ni_660x_find_device(comedi_device *dev,int bus,int slot);
+static int ni_660x_find_device(comedi_device *dev, int bus, int slot);
+static int ni_660x_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source);
 
 /* Possible instructions for a GPCT */
 static int ni_660x_GPCT_rinsn(comedi_device *dev,
@@ -453,7 +487,7 @@ static int ni_660x_dio_insn_bits(comedi_device *dev,
 
 static inline unsigned ni_660x_num_counters(comedi_device *dev)
 {
-	return board(dev)->n_chips * CTRS_PER_CHIP;
+	return board(dev)->n_chips * counters_per_chip;
 }
 
 static NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
@@ -834,8 +868,32 @@ static int ni_660x_cancel(comedi_device *dev, comedi_subdevice *s)
 	return retval;
 }
 
+static void ni_660x_handle_gpct_interrupt(comedi_device *dev, comedi_subdevice *s)
+{
+	ni_tio_handle_interrupt(subdev_to_counter(s), s);
+	if(s->async->events)
+	{
+		if(s->async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+		{
+			ni_660x_cancel(dev, s);
+		}
+		comedi_event(dev, s);
+	}
+}
+
 static irqreturn_t ni_660x_interrupt(int irq, void *d PT_REGS_ARG)
 {
+	comedi_device *dev = d;
+	comedi_subdevice *s;
+	unsigned i;
+
+	if(dev->attached == 0) return IRQ_NONE;
+	smp_mb();
+	for(i = 0; i < ni_660x_num_counters(dev); ++i)
+	{
+		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
+		ni_660x_handle_gpct_interrupt(dev, s);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -872,7 +930,7 @@ static int ni_660x_alloc_mite_rings(comedi_device *dev)
 
 	for(i = 0; i < board(dev)->n_chips; ++i)
 	{
-		for(j = 0; j < CTRS_PER_CHIP; ++j)
+		for(j = 0; j < counters_per_chip; ++j)
 		{
 			private(dev)->mite_rings[i][j] = mite_alloc_ring(private(dev)->mite);
 			if(private(dev)->mite_rings[i][j] == NULL)
@@ -891,7 +949,7 @@ static void ni_660x_free_mite_rings(comedi_device *dev)
 
 	for(i = 0; i < board(dev)->n_chips; ++i)
 	{
-		for(j = 0; j < CTRS_PER_CHIP; ++j)
+		for(j = 0; j < counters_per_chip; ++j)
 		{
 			mite_free_ring(private(dev)->mite_rings[i][j]);
 		}
@@ -903,6 +961,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int ret;
 	unsigned i;
+	unsigned global_interrupt_config_bits;
 
 	printk("comedi%d: ni_660x: ",dev->minor);
 
@@ -932,7 +991,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
-	s = dev->subdevices + 1;
+	s = dev->subdevices + NI_660X_DIO_SUBDEV;
 	/* DIGITAL I/O SUBDEVICE */
 	s->type	  = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE|SDF_WRITABLE;
@@ -951,7 +1010,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	if(private(dev)->counter_dev == NULL) return -ENOMEM;
 	for(i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i)
 	{
-		s = dev->subdevices + 2 + i;
+		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
 		if(i < ni_660x_num_counters(dev))
 		{
 			s->type = COMEDI_SUBD_COUNTER;
@@ -969,8 +1028,8 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 			s->buf_change = &ni_660x_buf_change;
 			s->private = &private(dev)->counter_dev->counters[i];
 
-			private(dev)->counter_dev->counters[i].chip_index = i / CTRS_PER_CHIP;
-			private(dev)->counter_dev->counters[i].counter_index = i % CTRS_PER_CHIP;
+			private(dev)->counter_dev->counters[i].chip_index = i / counters_per_chip;
+			private(dev)->counter_dev->counters[i].counter_index = i % counters_per_chip;
 		}else
 		{
 			s->type = COMEDI_SUBD_UNUSED;
@@ -986,6 +1045,10 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 	for(i = 0; i < NUM_PFI_CHANNELS; ++i)
 	{
+		if(i < min_counter_pfi_chan)
+			ni_660x_set_pfi_routing(dev, i, pfi_output_select_do);
+		else
+			ni_660x_set_pfi_routing(dev, i, pfi_output_select_counter);
 		ni_660x_select_pfi_output(dev, i, pfi_output_select_high_Z);
 	}
 	if((ret = comedi_request_irq(mite_irq(private(dev)->mite), &ni_660x_interrupt, IRQF_SHARED, "ni_660x", dev)) < 0)
@@ -994,6 +1057,12 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	}
 	dev->irq = mite_irq(private(dev)->mite);
+	global_interrupt_config_bits = Global_Int_Enable_Bit;
+	if(board(dev)->n_chips > 1)
+		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
+
+	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
+		GlobalInterruptConfigRegister);
 	printk("attached\n");
 	return 0;
 }
@@ -1125,6 +1194,14 @@ static void ni_660x_select_pfi_output(comedi_device *dev, unsigned pfi_channel, 
 static int ni_660x_set_pfi_routing(comedi_device *dev, unsigned chan, unsigned source)
 {
 	if(source > num_pfi_output_selects) return -EINVAL;
+	if(source == pfi_output_select_high_Z) return -EINVAL;
+	if(chan < min_counter_pfi_chan)
+	{
+		if(source == pfi_output_select_counter) return -EINVAL;
+	}else if(chan > max_dio_pfi_chan)
+	{
+		if(source == pfi_output_select_do) return -EINVAL;
+	}
 	BUG_ON(chan >= NUM_PFI_CHANNELS);
 
 	private(dev)->pfi_output_selects[chan] = source;
