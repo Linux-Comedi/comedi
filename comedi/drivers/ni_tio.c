@@ -704,8 +704,8 @@ static inline unsigned NI_M_Series_PFI_Gate_Select(unsigned n)
 #define Gi_Gate_Select_Shift 7
 enum Gi_Input_Select_Bits
 {
-	Gi_Read_Acknowledges_Irq = 0x1,	// e-series only
-	Gi_Write_Acknowledges_Irq = 0x2,	// e-series only
+	Gi_Read_Acknowledges_Irq = 0x1,
+	Gi_Write_Acknowledges_Irq = 0x2,
 	Gi_Source_Select_Mask = 0x7c,
 	Gi_Gate_Select_Mask = 0x1f << Gi_Gate_Select_Shift,
 	Gi_Gate_Select_Load_Source_Bit = 0x1000,
@@ -2356,26 +2356,23 @@ int ni_tio_winsn(struct ni_gpct *counter,
 static void ni_tio_configure_dma(struct ni_gpct *counter, short enable, short read_not_write)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	unsigned input_select_bits = 0;
 
+	if(enable)
+	{
+		if(read_not_write)
+		{
+			input_select_bits |= Gi_Read_Acknowledges_Irq;
+		}else
+		{
+			input_select_bits |= Gi_Write_Acknowledges_Irq;
+		}
+	}
+	ni_tio_set_bits(counter, NITIO_Gi_Input_Select_Reg(counter->counter_index),
+		Gi_Read_Acknowledges_Irq | Gi_Write_Acknowledges_Irq, input_select_bits);
 	switch(counter_dev->variant)
 	{
 	case ni_gpct_variant_e_series:
-		{
-			unsigned input_select_bits = 0;
-
-			if(enable)
-			{
-				if(read_not_write)
-				{
-					input_select_bits |= Gi_Read_Acknowledges_Irq;
-				}else
-				{
-					input_select_bits |= Gi_Write_Acknowledges_Irq;
-				}
-			}
-			ni_tio_set_bits(counter, NITIO_Gi_Input_Select_Reg(counter->counter_index),
-				Gi_Read_Acknowledges_Irq | Gi_Write_Acknowledges_Irq, input_select_bits);
-		}
 		break;
 	case ni_gpct_variant_m_series:
 	case ni_gpct_variant_660x:
