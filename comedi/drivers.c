@@ -266,6 +266,7 @@ static int postconfig(comedi_device *dev)
 			dev_t devt;
 
 			BUG_ON((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0);
+			BUG_ON(!s->do_cmdtest);
 
 			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
