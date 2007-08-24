@@ -28,30 +28,10 @@
 
 #include "comedi_fc.h"
 
-static inline unsigned int bytes_per_scan( comedi_subdevice *subd )
-{
-	int num_samples;
-	int bits_per_sample;
-
-	switch( subd->type )
-	{
-		case COMEDI_SUBD_DI:
-		case COMEDI_SUBD_DO:
-		case COMEDI_SUBD_DIO:
-			bits_per_sample = 8 * bytes_per_sample(subd);
-			num_samples = (subd->async->cmd.chanlist_len + bits_per_sample - 1) / bits_per_sample;
-			break;
-		default:
-			num_samples = subd->async->cmd.chanlist_len;
-			break;
-	}
-	return num_samples * bytes_per_sample( subd );
-}
-
 static void increment_scan_progress( comedi_subdevice *subd, unsigned int num_bytes )
 {
 	comedi_async *async = subd->async;
-	unsigned int scan_length = bytes_per_scan( subd );
+	unsigned int scan_length = cfc_bytes_per_scan(subd);
 
 	async->scan_progress += num_bytes;
 	if( async->scan_progress >= scan_length )

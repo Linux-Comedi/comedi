@@ -50,12 +50,14 @@
 
 //#define USE_KMALLOC
 
+#include "mite.h"
+
+#include "comedi_fc.h"
 #include <linux/comedidev.h>
 
 #include <linux/pci.h>
 #include <asm/system.h>
 
-#include "mite.h"
 
 #define PCI_MITE_SIZE		4096
 #define PCI_DAQ_SIZE		4096
@@ -518,7 +520,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async *async)
 {
 	int count;
 	unsigned int nbytes, old_alloc_count;
-	unsigned int bytes_per_scan = bytes_per_sample(async->subdevice) * async->cmd.chanlist_len;
+	const unsigned bytes_per_scan = cfc_bytes_per_scan(async->subdevice);
 
 	old_alloc_count = async->buf_write_alloc_count;
 	// write alloc as much as we can
@@ -556,8 +558,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async *async)
 	int count;
 	u32 nbytes_ub, nbytes_lb;
 	unsigned int old_alloc_count;
-	u32 stop_count = async->cmd.stop_arg * bytes_per_sample(async->subdevice) *
-		async->cmd.chanlist_len;	//FIXME will be wrong for digital commands
+	u32 stop_count = async->cmd.stop_arg * cfc_bytes_per_scan(async->subdevice);
 
 	old_alloc_count = async->buf_read_alloc_count;
 	// read alloc as much as we can
