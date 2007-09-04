@@ -2303,13 +2303,12 @@ return insn->n;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : static void v_APCI1500_Interrupt					     |
-|					  (int irq , void *d, struct pt_regs *regs)      |
+|					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Interrupt handler                                      |
 +----------------------------------------------------------------------------+
 | Input Parameters  : int irq                 : irq number                   |
 |                     void *d                 : void pointer                 |
-|                     struct pt_regs *regs    : structure pointer            |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -2318,7 +2317,7 @@ return insn->n;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static VOID v_APCI1500_Interrupt(int irq,void* d, struct pt_regs *regs) 
+static VOID v_APCI1500_Interrupt(int irq,void* d) 
 {
  
  comedi_device *dev =d;

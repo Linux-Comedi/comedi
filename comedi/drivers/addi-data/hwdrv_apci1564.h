@@ -110,7 +110,7 @@ int i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device *dev,comedi_subd
 int i_APCI1564_ReadTimerCounterWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 // INTERRUPT
-static VOID v_APCI1564_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+static VOID v_APCI1564_Interrupt(int irq, void *d) ;
 
 // RESET
 INT i_APCI1564_Reset(comedi_device *dev);

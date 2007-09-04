@@ -466,13 +466,12 @@ return insn->n;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   :  void v_APCI2032_Interrupt					         |
-|					  (int irq , void *d, struct pt_regs *regs)      |
+|					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Writes port value  To the selected port                |
 +----------------------------------------------------------------------------+
 | Input Parameters  : int irq                 : irq number                   |
 |                     void *d                 : void pointer                 |
-|                     struct pt_regs *regs    : structure pointer            |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -481,7 +480,7 @@ return insn->n;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
- void v_APCI2032_Interrupt(int irq, void *d, struct pt_regs *regs) 
+ void v_APCI2032_Interrupt(int irq, void *d) 
 { 
 	comedi_device *dev = d;
         unsigned int ui_DO;

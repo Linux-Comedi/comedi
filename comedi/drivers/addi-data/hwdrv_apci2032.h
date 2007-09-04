@@ -79,7 +79,7 @@ int i_APCI2032_ReadWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *
  
 // Interrupt functions.....
 
-void v_APCI2032_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+void v_APCI2032_Interrupt(int irq, void *d) ;
 
 //Reset functions
  int i_APCI2032_Reset(comedi_device *dev);	

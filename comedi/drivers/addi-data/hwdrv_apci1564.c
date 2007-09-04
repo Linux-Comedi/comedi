@@ -791,13 +791,12 @@ int i_APCI1564_ReadInterruptStatus(comedi_device *dev,comedi_subdevice *s,comedi
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : static void v_APCI1564_Interrupt					     |
-|					  (int irq , void *d, struct pt_regs *regs)      |
+|					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Interrupt handler for the interruptible digital inputs |
 +----------------------------------------------------------------------------+
 | Input Parameters  : int irq                 : irq number                   |
 |                     void *d                 : void pointer                 |
-|                     struct pt_regs *regs    : structure pointer            |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -806,7 +805,7 @@ int i_APCI1564_ReadInterruptStatus(comedi_device *dev,comedi_subdevice *s,comedi
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static VOID v_APCI1564_Interrupt(int irq,void* d, struct pt_regs *regs) 
+static VOID v_APCI1564_Interrupt(int irq,void* d) 
 {
    comedi_device *dev =d; 	
    UINT ui_DO, ui_DI;

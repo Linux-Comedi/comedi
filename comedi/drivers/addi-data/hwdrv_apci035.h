@@ -131,7 +131,7 @@ INT i_APCI035_ReadAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn
 
 
 //Interrupt
-static void v_APCI035_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+static void v_APCI035_Interrupt(int irq, void *d) ;
 
 //Reset functions
 INT i_APCI035_Reset(comedi_device *dev);	

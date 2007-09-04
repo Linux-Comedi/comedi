@@ -69,8 +69,8 @@ int i_APCI2016_ReadWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 // Interrupt functions.....
 
-// VOID v_APCI2016_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+// VOID v_APCI2016_Interrupt(int irq, void *d) ;
 
- //VOID v_APCI2016_Interrupt(int irq, void *d, struct pt_regs *regs);
+ //VOID v_APCI2016_Interrupt(int irq, void *d);
 // RESET
 INT i_APCI2016_Reset(comedi_device *dev);

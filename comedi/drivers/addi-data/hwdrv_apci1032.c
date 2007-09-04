@@ -227,13 +227,12 @@ INT i_APCI1032_ReadMoreDigitalInput(comedi_device *dev,comedi_subdevice *s,comed
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : static void v_APCI1032_Interrupt					     |
-|					  (int irq , void *d, struct pt_regs *regs)      |
+|					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Interrupt handler for the interruptible digital inputs |
 +----------------------------------------------------------------------------+
 | Input Parameters  : int irq                 : irq number                   |
 |                     void *d                 : void pointer                 |
-|                     struct pt_regs *regs    : structure pointer            |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--						     |
 +----------------------------------------------------------------------------+
@@ -242,7 +241,7 @@ INT i_APCI1032_ReadMoreDigitalInput(comedi_device *dev,comedi_subdevice *s,comed
 |			                                                     |
 +----------------------------------------------------------------------------+
 */
-static VOID v_APCI1032_Interrupt(int irq,void* d, struct pt_regs *regs) 
+static VOID v_APCI1032_Interrupt(int irq,void* d) 
 {
  comedi_device *dev =d; 	
  

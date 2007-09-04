@@ -76,6 +76,6 @@ INT i_APCI1032_ReadMoreDigitalInput(comedi_device *dev,comedi_subdevice *s,comed
 
 // Interrupt functions.....
 
-static VOID v_APCI1032_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+static VOID v_APCI1032_Interrupt(int irq, void *d) ;
 //Reset
 INT i_APCI1032_Reset(comedi_device *dev);

@@ -553,13 +553,12 @@ outl(0x0 , devpriv->iobase+128 + 12);//Disable the warning delay
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : static void v_APCI035_Interrupt					     |
-|					  (int irq , void *d, struct pt_regs *regs)      |
+|					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Interrupt processing Routine                           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : int irq                 : irq number                   |
 |                     void *d                 : void pointer                 |
-|                     struct pt_regs *regs    : structure pointer            |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -568,7 +567,7 @@ outl(0x0 , devpriv->iobase+128 + 12);//Disable the warning delay
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-static void v_APCI035_Interrupt(int irq, void *d, struct pt_regs *regs) 
+static void v_APCI035_Interrupt(int irq, void *d) 
 {	
    comedi_device *dev = d;
    UINT ui_StatusRegister1 = 0;

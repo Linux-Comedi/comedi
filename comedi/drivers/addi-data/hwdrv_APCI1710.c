@@ -196,7 +196,7 @@ void	i_ADDI_AttachPCI1710 (comedi_device *dev)
  
  
 int i_APCI1710_Reset(comedi_device *dev);
-VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+VOID v_APCI1710_Interrupt(int irq, void *d) ;
 //for 1710
 
  int i_APCI1710_Reset(comedi_device *dev)
@@ -252,7 +252,7 @@ VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs) ;
 	
 
 
-VOID v_APCI1710_Interrupt(int irq, void *d, struct pt_regs *regs)  
+VOID v_APCI1710_Interrupt(int irq, void *d)  
 {
 	comedi_device *dev = d;
 	BYTE   b_ModuleCpt       = 0;

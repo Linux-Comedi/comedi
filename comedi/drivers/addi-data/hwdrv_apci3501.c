@@ -679,13 +679,12 @@ return 0;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : static void v_APCI3501_Interrupt					     |
-|					  (int irq , void *d, struct pt_regs *regs)      |
+|					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
 | Task              : Interrupt processing Routine                           |
 +----------------------------------------------------------------------------+
 | Input Parameters  : int irq                 : irq number                   |
 |                     void *d                 : void pointer                 |
-|                     struct pt_regs *regs    : structure pointer            |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 +----------------------------------------------------------------------------+
@@ -694,7 +693,7 @@ return 0;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
- void v_APCI3501_Interrupt(int irq, void *d, struct pt_regs *regs) 
+ void v_APCI3501_Interrupt(int irq, void *d) 
 {
     int i_temp;	
     comedi_device *dev = d;

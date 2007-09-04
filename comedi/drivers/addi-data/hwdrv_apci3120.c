@@ -1373,8 +1373,7 @@ int i_APCI3120_ExttrigDisable(comedi_device * dev)
 
 /*
 +----------------------------------------------------------------------------+
-| Function name     : void v_APCI3120_Interrupt(int irq, void *d,            | 
-|			  struct pt_regs *regs) 								 |
+| Function name     : void v_APCI3120_Interrupt(int irq, void *d) 								 |
 |                                        									 |
 |                                            						         |
 +----------------------------------------------------------------------------+
@@ -1386,7 +1385,6 @@ int i_APCI3120_ExttrigDisable(comedi_device * dev)
 +----------------------------------------------------------------------------+
 | Input Parameters  : 	int irq 											 |
 |                        void *d											 |
-|                     	struct pt_regs *regs								 |
 |                                                 					         |
 +----------------------------------------------------------------------------+
 | Return Value      : void         					                         |
@@ -1395,7 +1393,7 @@ int i_APCI3120_ExttrigDisable(comedi_device * dev)
 */
 
 
- void v_APCI3120_Interrupt(int irq, void *d, struct pt_regs *regs) 
+ void v_APCI3120_Interrupt(int irq, void *d) 
 {	
 	comedi_device *dev = d;
         USHORT int_daq;
@@ -1524,7 +1522,7 @@ int i_APCI3120_ExttrigDisable(comedi_device * dev)
                         
 			//UPDATE-0.7.57->0.7.68comedi_done(dev,s); 
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev,s,s->async->events);			
+			comedi_event(dev,s);			
 			
 		        break;	
 				  
@@ -1574,7 +1572,7 @@ int i_APCI3120_ExttrigDisable(comedi_device * dev)
 	   		/* Clears the timer status register */
 	   		/************************************/
 	   		inw(dev->iobase+APCI3120_TIMER_STATUS_REGISTER);             
-			v_APCI3120_InterruptDma(irq,d,regs); // do some data transfer
+			v_APCI3120_InterruptDma(irq,d); // do some data transfer
 		}
                 else
                 {
@@ -1650,7 +1648,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 	if (err==0)
 	   s->async->events |= COMEDI_CB_OVERFLOW;
 	
-        comedi_event(dev,s,s->async->events);	
+        comedi_event(dev,s);	
          
  	return 0;
 }
@@ -1659,8 +1657,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 
 /*
 +----------------------------------------------------------------------------+
-| Function name     : void v_APCI3120_InterruptDma(int irq, void *d,         |
-|			 struct pt_regs *regs) 									 |
+| Function name     : void v_APCI3120_InterruptDma(int irq, void *d) 									 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : This is a handler for the DMA interrupt                |
@@ -1669,7 +1666,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 |			  For single mode DMA it stop the acquisition.           |
 |													     			 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : int irq, void *d, struct pt_regs *regs				 |
+| Input Parameters  : int irq, void *d				 |
 |                     														 |
 +----------------------------------------------------------------------------+
 | Return Value      :  void        					                         |
@@ -1677,7 +1674,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 +----------------------------------------------------------------------------+
 */
 
- void v_APCI3120_InterruptDma(int irq, void *d, struct pt_regs *regs) 
+ void v_APCI3120_InterruptDma(int irq, void *d) 
 {
     	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;	
@@ -1793,7 +1790,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 		if (!(devpriv->ui_AiFlags & TRIG_WAKE_EOS)) 
 		{
 			s->async->events |= COMEDI_CB_EOS;
-			comedi_event(dev,s,s->async->events);
+			comedi_event(dev,s);
                 }
 	}
 	if (!devpriv->b_AiContinuous)
@@ -1803,7 +1800,7 @@ int i_APCI3120_InterruptHandleEos(comedi_device *dev)
 	    i_APCI3120_StopCyclicAcquisition(dev,s);
             devpriv->b_AiCyclicAcquisition=APCI3120_DISABLE;
 	    s->async->events |= COMEDI_CB_EOA;
-	    comedi_event(dev,s,s->async->events);			
+	    comedi_event(dev,s);			
             return;
 	}
 	

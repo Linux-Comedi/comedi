@@ -143,7 +143,7 @@ static int i_APCI1500_ReadCounterTimerWatchdog(comedi_device *dev,comedi_subdevi
 static int i_APCI1500_ReadInterruptMask(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data); 
 
 /*----------INTERRUPT HANDLER------*/
-static void v_APCI1500_Interrupt(int irq, void *d, struct pt_regs *regs);
+static void v_APCI1500_Interrupt(int irq, void *d);
 static int i_APCI1500_ConfigureInterrupt(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 /*----------RESET---------------*/
 static int i_APCI1500_Reset(comedi_device *dev) ; 

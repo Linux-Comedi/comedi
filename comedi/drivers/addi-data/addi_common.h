@@ -101,11 +101,16 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define ADDIDATA_S5933        "S5933"
 #define ADDIDATA_9054         "9054"
 
+//ADDIDATA Enable Disable
+#define ADDIDATA_ENABLE                            1
+#define ADDIDATA_DISABLE                           0
+
+
 // Structures
 // structure for the boardtype
 typedef struct {
 
-		PCHAR  		pc_DriverName; // driver name
+		const PCHAR  		pc_DriverName; // driver name
 		INT 		i_VendorId;   //PCI vendor a device ID of card
 		INT			i_DeviceId;
                 INT         i_IorangeBase0;
@@ -137,7 +142,7 @@ typedef struct {
 		UINT        ui_MinDelaytimeNs;       // Minimum Delay in Nano secs
 
 // interrupt and reset
- void (*v_hwdrv_Interrupt)(int irq, void *d, struct pt_regs *regs);
+ void (*v_hwdrv_Interrupt)(int irq, void *d);
  int (*i_hwdrv_Reset)(comedi_device *dev);
 
 //Subdevice functions 
@@ -496,7 +501,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it);
 static int i_ADDI_Detach(comedi_device *dev);
 static int i_ADDI_Reset(comedi_device *dev);
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d, struct pt_regs *regs);
+static irqreturn_t v_ADDI_Interrupt(int irq, void *d  PT_REGS_ARG);
 static int i_ADDIDATA_InsnReadEeprom(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 
 

@@ -92,24 +92,56 @@ void 	fpu_end (void)
 	}
 
 #include "addi_eeprom.c"
-#include "hwdrv_apci3120.c"
-#include "hwdrv_apci1032.c"
-#include "hwdrv_apci1516.c"
-#include "hwdrv_apci2016.c"
-#include "hwdrv_apci2032.c"
-#include "hwdrv_apci2200.c"
-#include "hwdrv_apci1564.c"
-#include "hwdrv_apci1500.c"
-#include "hwdrv_apci3501.c"
-#include "hwdrv_apci035.c"
-#include "hwdrv_apci3200.c" 
-#include "hwdrv_APCI1710.c"
-#include "hwdrv_apci16xx.c"
-#include "hwdrv_apci3xxx.c"
+#if (defined (CONFIG_APCI_3120) || defined (CONFIG_APCI_3001))
+   #include "hwdrv_apci3120.c"
+#endif
+#ifdef CONFIG_APCI_1032
+   #include "hwdrv_apci1032.c"
+#endif
+#ifdef CONFIG_APCI_1516
+   #include "hwdrv_apci1516.c"
+#endif
+#ifdef CONFIG_APCI_2016
+   #include "hwdrv_apci2016.c"
+#endif
+#ifdef CONFIG_APCI_2032
+   #include "hwdrv_apci2032.c"
+#endif
+#ifdef CONFIG_APCI_2200
+   #include "hwdrv_apci2200.c"
+#endif
+#ifdef CONFIG_APCI_1564
+   #include "hwdrv_apci1564.c"
+#endif
+#ifdef CONFIG_APCI_1500
+   #include "hwdrv_apci1500.c"
+#endif
+#ifdef CONFIG_APCI_3501
+   #include "hwdrv_apci3501.c"
+#endif
+#ifdef CONFIG_APCI_035
+   #include "hwdrv_apci035.c"
+#endif
+#if (defined (CONFIG_APCI_3200) || defined (CONFIG_APCI_3300))
+   #include "hwdrv_apci3200.c" 
+#endif
+#ifdef CONFIG_APCI_1710
+   #include "hwdrv_APCI1710.c"
+#endif
+#ifdef CONFIG_APCI_16XX
+   #include "hwdrv_apci16xx.c"
+#endif
+#ifdef CONFIG_APCI_3XXX
+   #include "hwdrv_apci3xxx.c"
+#endif
 
+#ifndef COMEDI_SUBD_TTLIO
+   #define COMEDI_SUBD_TTLIO   11  /* Digital Input Output But TTL */
+#endif
 
 static boardtype boardtypes[] =
 {
+#ifdef CONFIG_APCI_3120
 		{"apci3120", 
 		APCI3120_BOARD_VENDOR_ID,
 		0x818D,
@@ -166,7 +198,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
 		},
-    
+#endif
+#ifdef CONFIG_APCI_1032    
                 {"apci1032",
 		APCI1032_BOARD_VENDOR_ID,
 		0x1003,
@@ -223,7 +256,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-		
+#endif
+#ifdef CONFIG_APCI_1516
                 {"apci1516",
 		APCI1516_BOARD_VENDOR_ID,
 		0x1001,
@@ -279,7 +313,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-
+#endif
+#ifdef CONFIG_APCI_2016
                 {"apci2016",
 		APCI2016_BOARD_VENDOR_ID,
 		0x1002,
@@ -336,7 +371,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
- 
+#endif
+#ifdef CONFIG_APCI_2032
                 {"apci2032", 
 		APCI2032_BOARD_VENDOR_ID, 
 		0x1004,
@@ -392,7 +428,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-		
+#endif
+#ifdef CONFIG_APCI_2200
                 {"apci2200",
 		APCI2200_BOARD_VENDOR_ID,
 		0x1005,
@@ -448,7 +485,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-		
+#endif
+#ifdef CONFIG_APCI_1564
                 {"apci1564",
 		APCI1564_BOARD_VENDOR_ID,
 		0x1006,
@@ -505,7 +543,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-		
+#endif
+#ifdef CONFIG_APCI_1500
                 {"apci1500", 
 		APCI1500_BOARD_VENDOR_ID, 
 		0x80fc,
@@ -562,8 +601,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-                
-
+#endif
+#ifdef CONFIG_APCI_3001
                {"apci3001", 
 	        APCI3120_BOARD_VENDOR_ID, 
 		0x828D,
@@ -620,7 +659,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
 		},
-		
+#endif
+#ifdef CONFIG_APCI_3501
                 {"apci3501", 
 		APCI3501_BOARD_VENDOR_ID, 
 		0x3001,
@@ -676,7 +716,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
                 },
-		
+#endif
+#ifdef CONFIG_APCI_035
                 {"apci035", 
 		APCI035_BOARD_VENDOR_ID, 
 		0x0300,
@@ -733,7 +774,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
 		},
-		
+#endif
+#ifdef CONFIG_APCI_3200
                 {"apci3200", 
 		APCI3200_BOARD_VENDOR_ID, 
 		0x3000,
@@ -790,7 +832,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
 		},
-		
+#endif
+#ifdef CONFIG_APCI_3300
 		//Begin JK 20.10.2004: APCI-3300 integration
                 {"apci3300", 
 		APCI3200_BOARD_VENDOR_ID, 
@@ -848,8 +891,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
 		},
-		
-		//End JK 20.10.2004: APCI-3300 integration				
+#endif
+#ifdef CONFIG_APCI_1710
 		{"apci1710",APCI1710_BOARD_VENDOR_ID,APCI1710_BOARD_DEVICE_ID,
 	 	128,
 		8,
@@ -904,7 +947,8 @@ static boardtype boardtypes[] =
 		NULL,
 		NULL
 		},
-		
+#endif
+#ifdef CONFIG_APCI_16XX
                 {"apci1648", 
                 0x15B8,
                 0x1009,
@@ -1019,7 +1063,8 @@ static boardtype boardtypes[] =
 		i_APCI16XX_InsnReadTTLIOAllPortValue,
 		i_APCI16XX_InsnBitsWriteTTLIO
                 },
-
+#endif
+#ifdef CONFIG_APCI_3XXX
 		{"apci3000-16", 
 		0x15B8,
 		0x3010,
@@ -1381,7 +1426,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1438,7 +1483,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1495,7 +1540,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1552,7 +1597,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1609,7 +1654,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1666,7 +1711,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1721,9 +1766,9 @@ static boardtype boardtypes[] =
 		4095,
 		&range_apci3XXX_ai, 
 		&range_apci3XXX_ao,
-		4,
-		4,
-		0xF,
+		0,
+		0,
+		0,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1778,9 +1823,9 @@ static boardtype boardtypes[] =
 		4095,
 		&range_apci3XXX_ai, 
 		&range_apci3XXX_ao,
-		4,
-		4,
-		0xF,
+		0,
+		0,
+		0,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1835,9 +1880,9 @@ static boardtype boardtypes[] =
 		4095,
 		&range_apci3XXX_ai, 
 		&range_apci3XXX_ao,
-		4,
-		4,
-		0xF,
+		0,
+		0,
+		0,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1892,9 +1937,9 @@ static boardtype boardtypes[] =
 		4095,
 		&range_apci3XXX_ai, 
 		&range_apci3XXX_ao,
-		4,
-		4,
-		0xF,
+		0,
+		0,
+		0,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -1951,7 +1996,7 @@ static boardtype boardtypes[] =
 		&range_apci3XXX_ao,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -2008,7 +2053,7 @@ static boardtype boardtypes[] =
 		&range_apci3XXX_ao,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -2065,7 +2110,7 @@ static boardtype boardtypes[] =
 		&range_apci3XXX_ao,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -2122,7 +2167,7 @@ static boardtype boardtypes[] =
 		&range_apci3XXX_ao,
 		4,
 		4,
-		0xF,
+		1,
 		24,
 		&range_apci3XXX_ttl,
 		0,
@@ -2179,7 +2224,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		0,
 		NULL,
 		0,
@@ -2235,7 +2280,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		0,
 		NULL,
 		0,
@@ -2291,7 +2336,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		0,
 		NULL,
 		0,
@@ -2347,7 +2392,7 @@ static boardtype boardtypes[] =
 		NULL,
 		4,
 		4,
-		0xF,
+		1,
 		0,
 		NULL,
 		0,
@@ -2440,6 +2485,7 @@ static boardtype boardtypes[] =
 		i_APCI3XXX_InsnReadTTLIO,
 		i_APCI3XXX_InsnWriteTTLIO
 		},
+#endif
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
@@ -2450,7 +2496,7 @@ comedi_driver driver_addi ={
 		attach:		i_ADDI_Attach,
 		detach:		i_ADDI_Detach, 
 		num_names:	n_boardtypes,
-		board_name:	boardtypes,
+		board_name:	&boardtypes[0].pc_DriverName,
 		offset:		sizeof(boardtype),
 	};
 
@@ -2721,10 +2767,12 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 
 	if (!strcmp(this_board->pc_DriverName,"apci1710"))
 	   {
+#ifdef CONFIG_APCI_1710
 	   i_ADDI_AttachPCI1710 (dev);
     
 	   // save base address
 	   devpriv->s_BoardInfos.ui_Address=io_addr[2];
+#endif
 	   }       
 	else
 	{
@@ -2740,15 +2788,22 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	dev->read_subdev = s;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE|SDF_RT|SDF_COMMON|SDF_GROUND|SDF_DIFF;
-	if (this_board->i_NbrAiChannel)
-	   s->n_chan = this_board->i_NbrAiChannel;
+	if (this_board->i_NbrAiChannel) 
+	  {
+	    s->n_chan = this_board->i_NbrAiChannel;
+	    devpriv->b_SingelDiff = 0;
+	  }
 	else
-	   s->n_chan = this_board->i_NbrAiChannelDiff;
+	  {
+	    s->n_chan = this_board->i_NbrAiChannelDiff;
+	    devpriv->b_SingelDiff = 1;
+	  }
 	s->maxdata = this_board->i_AiMaxdata;
 	s->len_chanlist = this_board->i_AiChannelList;
 	s->range_table = this_board->pr_AiRangelist;
        
-        
+        /* Set the initialisation flag */
+        devpriv->b_AiInitialisation = 1;        
         
         s->insn_config=this_board->i_hwdrv_InsnConfigAnalogInput;
 	s->insn_read=this_board->i_hwdrv_InsnReadAnalogInput;
@@ -2851,10 +2906,10 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	s->type         = COMEDI_SUBD_TTLIO;
 	s->subdev_flags = SDF_WRITEABLE|SDF_READABLE|SDF_RT|SDF_GROUND|SDF_COMMON;
 	s->n_chan       = this_board->i_NbrTTLChannel;
-	s->maxdata      = 0;
+	s->maxdata      = 1;
 	s->io_bits=0;		/* all bits input */
 	s->len_chanlist = this_board->i_NbrTTLChannel;
-    	s->range_table  = this_board->pr_TTLRangelist; // to pass arguments in range	
+    	s->range_table  = &range_digital;
         s->insn_config  = this_board->i_hwdr_ConfigInitTTLIO;
 	s->insn_bits    = this_board->i_hwdr_ReadTTLIOBits;
         s->insn_read    = this_board->i_hwdr_ReadTTLIOAllPortValue;
@@ -3017,7 +3072,7 @@ static int i_ADDI_Reset(comedi_device *dev)
 /*
 +----------------------------------------------------------------------------+
 | Function name     :                                                        |
-|static void v_ADDI_Interrupt(int irq, void *d, struct pt_regs *regs)        |
+|static void v_ADDI_Interrupt(int irq, void *d  PT_REGS_ARG)                 |
 |                                        									 |
 +----------------------------------------------------------------------------+
 | Task              : Registerd interrupt routine						     |
@@ -3032,10 +3087,10 @@ static int i_ADDI_Reset(comedi_device *dev)
 +----------------------------------------------------------------------------+
 */
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d, struct pt_regs *regs)
+static irqreturn_t v_ADDI_Interrupt(int irq, void *d  PT_REGS_ARG)
 {
 comedi_device *dev = d;
-this_board->v_hwdrv_Interrupt(irq,d,regs);
+this_board->v_hwdrv_Interrupt(irq,d);
 return IRQ_RETVAL(1);
 }
 // EEPROM Read Function

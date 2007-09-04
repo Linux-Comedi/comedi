@@ -101,10 +101,6 @@ comedi_lrange range_apci3300_ai={ 4, {
 #define ADDIDATA_UNIPOLAR                        1
 #define ADDIDATA_BIPOLAR                         2
 
-//ADDIDATA Enable Disable
-#define ADDIDATA_ENABLE                            1
-#define ADDIDATA_DISABLE                           0
-
 //BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 #define MAX_MODULE				4
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
@@ -184,7 +180,7 @@ INT i_APCI3200_CommandTestAnalogInput(comedi_device *dev,comedi_subdevice *s,com
 INT i_APCI3200_CommandAnalogInput(comedi_device *dev,comedi_subdevice *s);
 INT i_APCI3200_ReadDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 //Interrupt
-void v_APCI3200_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+void v_APCI3200_Interrupt(int irq, void *d) ;
 int i_APCI3200_InterruptHandleEos(comedi_device *dev);
 //Reset functions
 INT i_APCI3200_Reset(comedi_device *dev);	

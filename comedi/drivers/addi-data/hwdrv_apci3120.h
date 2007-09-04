@@ -238,11 +238,11 @@ int i_APCI3120_StopCyclicAcquisition(comedi_device *dev,comedi_subdevice *s);
 int i_APCI3120_Reset(comedi_device *dev);
 int i_APCI3120_CyclicAnalogInput(int mode, comedi_device * dev,comedi_subdevice * s);
 // Interrupt functions
-void v_APCI3120_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+void v_APCI3120_Interrupt(int irq, void *d) ;
 //UPDATE-0.7.57->0.7.68	void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n);
 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma_buffer,unsigned int num_samples);
 int i_APCI3120_InterruptHandleEos(comedi_device *dev);
-void v_APCI3120_InterruptDma(int irq, void *d, struct pt_regs *regs) ;
+void v_APCI3120_InterruptDma(int irq, void *d) ;
 
 
 

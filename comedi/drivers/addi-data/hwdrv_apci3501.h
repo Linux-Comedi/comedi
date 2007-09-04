@@ -82,7 +82,7 @@ INT i_APCI3501_ConfigTimerCounterWatchdog (comedi_device *dev,comedi_subdevice *
 int i_APCI3501_StartStopWriteTimerCounterWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 int i_APCI3501_ReadTimerCounterWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
 //Interrupt
-void v_APCI3501_Interrupt(int irq, void *d, struct pt_regs *regs) ;
+void v_APCI3501_Interrupt(int irq, void *d) ;
 
 //Reset functions
  int i_APCI3501_Reset(comedi_device *dev);	

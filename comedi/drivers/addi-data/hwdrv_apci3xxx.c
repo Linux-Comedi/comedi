@@ -579,7 +579,7 @@ int   i_APCI3XXX_InsnReadAnalogInput (comedi_device    *dev,
 	   printk("Operating mode not configured\n");
 	   i_ReturnValue = -1;
 	   }
-	
+	printk("%x\n", i_ReturnValue);
 	return (i_ReturnValue);
 	}
 
@@ -588,8 +588,7 @@ int   i_APCI3XXX_InsnReadAnalogInput (comedi_device    *dev,
 /*
 +----------------------------------------------------------------------------+
 | Function name     : void v_APCI3XXX_Interrupt (int            irq,         |
-|                                                void           *d,          | 
-|                                                struct pt_regs *regs)       |
+|                                                void           *d)       |
 +----------------------------------------------------------------------------+
 | Task              :Interrupt handler for APCI3XXX                          |
 |                    When interrupt occurs this gets called.                 |
@@ -603,7 +602,7 @@ int   i_APCI3XXX_InsnReadAnalogInput (comedi_device    *dev,
 */
 
 
-void	v_APCI3XXX_Interrupt(int irq, void *d, struct pt_regs *regs) 
+void	v_APCI3XXX_Interrupt(int irq, void *d) 
 	{
 	comedi_device *dev       = d;
 	BYTE           b_CopyCpt = 0;

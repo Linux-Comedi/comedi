@@ -2336,7 +2336,7 @@ int i_APCI3200_ReadCJCCalGain(comedi_device *dev,lsampl_t *data)
 INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) 
 {
   UINT 	ui_Configuration=0;
-  //INT i_Temp,i_TimeUnit;
+  INT i_Temp;//,i_TimeUnit;
   //if(i_Initialised==0)
   
   if(s_BoardInfos [dev->minor].i_Initialised==0)  
@@ -2960,13 +2960,12 @@ int i_APCI3200_Reset(comedi_device *dev)
 /*
   +----------------------------------------------------------------------------+
   | Function   Name   : static void v_APCI3200_Interrupt					     |
-  |					  (int irq , void *d, struct pt_regs *regs)				 |
+  |					  (int irq , void *d)				 |
   +----------------------------------------------------------------------------+
   | Task              : Interrupt processing Routine                           |
   +----------------------------------------------------------------------------+
   | Input Parameters  : int irq                 : irq number                   |
   |                     void *d                 : void pointer                 |
-  |                     struct pt_regs *regs    : structure pointer            |
   +----------------------------------------------------------------------------+
   | Output Parameters :	--													 |
   +----------------------------------------------------------------------------+
@@ -2975,7 +2974,7 @@ int i_APCI3200_Reset(comedi_device *dev)
   |					                                                         |
   +----------------------------------------------------------------------------+
 */
-void v_APCI3200_Interrupt(int irq, void *d, struct pt_regs *regs) 
+void v_APCI3200_Interrupt(int irq, void *d) 
 {	
   comedi_device *dev = d;
   UINT ui_StatusRegister=0;
@@ -3445,7 +3444,7 @@ int i_APCI3200_InterruptHandleEos(comedi_device *dev)
 	  comedi_buf_write_free(s->async, (7+12)*sizeof(lsampl_t));  	
 
 	  // Send events
-	  comedi_event(dev,s,s->async->events);	   	  
+	  comedi_event(dev,s);	   	  
 	  //End JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
 
 	  //BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 	  
