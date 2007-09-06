@@ -12,7 +12,7 @@ all-local:
 #the kernel's build system doesn't get lost.
 	if test "$(srcdir)" != "."; then \
 		for dir in . drivers kcomedilib drivers/addi-data; do \
-			for file in `ls @abs_srcdir@/$$dir/*\.[ch] @abs_srcdir@/$$dir/Kbuild | $(GREP) -v \.mod\.c`; do \
+			for file in `ls @abs_srcdir@/$$dir/*\.[ch] @abs_srcdir@/$$dir/Kbuild | $(EGREP) -v \.mod\.c`; do \
 				LINK_NAME=$$dir/`basename "$$file"`; \
 				if test ! -e $$LINK_NAME; then ln -vs $$file $$LINK_NAME; fi; \
 			done; \
