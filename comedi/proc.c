@@ -74,7 +74,7 @@ int comedi_read_procmem(char *buf,char **start,off_t offset,int len,int *eof,voi
 		l += sprintf(buf+l,"%s:\n",driv->driver_name);
 		for(i=0;i<driv->num_names;i++){
 			l+=sprintf(buf+l," %s\n",
-				*(char **)(driv->board_name+i*driv->offset));
+				*(char **)((char *)driv->board_name+i*driv->offset));
 		}
 		if(!driv->num_names){
 			l+=sprintf(buf+l," %s\n",driv->driver_name);
