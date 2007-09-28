@@ -2813,6 +2813,11 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 
 	if(trignum!=0) return -EINVAL;
 
+	/* Null trig at beginning prevent ao start trigger from executing more than
+	once per command (and doing things like trying to allocate the ao dma channel
+	multiple times) */
+	s->async->inttrig = NULL;
+
 	ni_set_bits(dev, Interrupt_B_Enable_Register, AO_FIFO_Interrupt_Enable | AO_Error_Interrupt_Enable, 0);
 	interrupt_b_bits = AO_Error_Interrupt_Enable;
 #ifdef PCIDMA
@@ -2823,7 +2828,6 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 	if(ret) return ret;
 	ret = ni_ao_wait_for_dma_load(dev);
 	if(ret < 0) return ret;
-
 #else
 	ret = ni_ao_prep_fifo(dev,s);
 	if(ret==0)return -EPIPE;
@@ -2854,8 +2858,6 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 		AO_Command_1_Register);
 
 	devpriv->stc_writew(dev, devpriv->ao_cmd2|AO_START1_Pulse,AO_Command_2_Register);
-
-	s->async->inttrig=NULL;
 
 	return 0;
 }
