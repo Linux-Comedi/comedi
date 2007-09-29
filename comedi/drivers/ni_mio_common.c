@@ -1795,7 +1795,7 @@ static void ni_m_series_load_channelgain_list(comedi_device *dev,unsigned int n_
 				break;
 		}
 		config_bits |= MSeries_AI_Config_Channel_Bits(chan);
-		config_bits |= MSeries_AI_Config_Bank_Bits(chan);
+		config_bits |= MSeries_AI_Config_Bank_Bits(boardtype.reg_type, chan);
 		config_bits |= MSeries_AI_Config_Gain_Bits(range_code);
 		if(i == n_chan - 1) config_bits |= MSeries_AI_Config_Last_Channel_Bit;
 		if(dither) config_bits |= MSeries_AI_Config_Dither_Bit;

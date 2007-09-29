@@ -1142,9 +1142,15 @@ static inline unsigned MSeries_AI_Config_Channel_Bits(unsigned channel)
 {
 	return channel & 0xf;
 }
-static inline unsigned MSeries_AI_Config_Bank_Bits(unsigned channel)
+static inline unsigned MSeries_AI_Config_Bank_Bits(enum ni_reg_type reg_type, unsigned channel)
 {
-	return channel & 0x30;
+	unsigned bits = channel & 0x30;
+	if(reg_type == ni_reg_622x)
+	{
+		if(channel & 0x40)
+			bits |= 0x400;
+	}
+	return bits;
 }
 static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
 {
