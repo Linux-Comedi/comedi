@@ -26,12 +26,12 @@ all-local:
 install-data-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
-		INSTALL_MOD_PATH="$(prefix)" modules_install
+		INSTALL_MOD_PATH="$(DESTDIR)$(prefix)" modules_install
 clean-local:
 	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
 		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" clean
 uninstall-local:
-	find $(prefix)/$(LINUX_MODLIB)/$(COMEDI_MOD_DIR) -name '*.ko' -exec $(RM) {} \;
+	find $(DESTDIR)$(prefix)/$(LINUX_MODLIB)/$(COMEDI_MOD_DIR) -name '*.ko' -exec $(RM) {} \;
 else
 module_PROGRAMS = comedi.ko
 all-local:
