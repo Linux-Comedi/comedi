@@ -1422,7 +1422,7 @@ static int setup_counters(comedi_device *dev, comedi_cmd cmd)
 	if(cmd.stop_src == TRIG_EXT)
 	{
 		// load counter 0 in mode 0
-		i8254_load(dev->iobase + DAS1800_COUNTER, 0, 1, 0);
+		i8254_load(dev->iobase + DAS1800_COUNTER, 0, 0, 1, 0);
 	}
 
 	return 0;
@@ -1688,9 +1688,9 @@ static int das1800_set_frequency(comedi_device *dev)
 	int err = 0;
 
 	// counter 1, mode 2
-	if(i8254_load(dev->iobase + DAS1800_COUNTER, 1, devpriv->divisor1, 2)) err++;
+	if(i8254_load(dev->iobase + DAS1800_COUNTER, 0, 1, devpriv->divisor1, 2)) err++;
 	// counter 2, mode 2
-	if(i8254_load(dev->iobase + DAS1800_COUNTER, 2, devpriv->divisor2, 2)) err++;
+	if(i8254_load(dev->iobase + DAS1800_COUNTER, 0, 2, devpriv->divisor2, 2)) err++;
 	if(err)
 		return -1;
 

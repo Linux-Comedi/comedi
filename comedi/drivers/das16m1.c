@@ -332,10 +332,10 @@ static int das16m1_cmd_exec(comedi_device *dev,comedi_subdevice *s)
 	/* Initialize lower half of hardware counter, used to determine how
 	 * many samples are in fifo.  Value doesn't actually load into counter
 	 * until counter's next clock (the next a/d conversion) */
-	i8254_load(dev->iobase + DAS16M1_8254_FIRST, 1, 0, 2);
+	i8254_load(dev->iobase + DAS16M1_8254_FIRST, 0, 1, 0, 2);
 	/* remember current reading of counter so we know when counter has
 	 * actually been loaded */
-	devpriv->initial_hw_count = i8254_read(dev->iobase + DAS16M1_8254_FIRST, 1);
+	devpriv->initial_hw_count = i8254_read(dev->iobase + DAS16M1_8254_FIRST, 0, 1);
 	/* setup channel/gain queue */
 	for(i = 0; i < cmd->chanlist_len; i++)
 	{
@@ -520,7 +520,7 @@ static void das16m1_handler(comedi_device *dev, unsigned int status)
 	cmd = &async->cmd;
 
 	// figure out how many samples are in fifo
-	hw_counter = i8254_read(dev->iobase + DAS16M1_8254_FIRST, 1);
+	hw_counter = i8254_read(dev->iobase + DAS16M1_8254_FIRST, 0, 1);
 	/* make sure hardware counter reading is not bogus due to initial value
 	 * not having been loaded yet */
 	if(devpriv->adc_count == 0 && hw_counter == devpriv->initial_hw_count)
@@ -581,8 +581,8 @@ static unsigned int das16m1_set_pacer(comedi_device *dev, unsigned int ns, int r
 		&(devpriv->divisor2), &ns, rounding_flags & TRIG_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 1, devpriv->divisor1, 2);
-	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 2, devpriv->divisor2, 2);
+	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1, 2);
+	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 2, devpriv->divisor2, 2);
 
 	return ns;
 }

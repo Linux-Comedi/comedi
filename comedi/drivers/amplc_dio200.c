@@ -992,7 +992,7 @@ dio200_subdev_8254_read(comedi_device *dev, comedi_subdevice *s,
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 
-	data[0] = i8254_read(subpriv->iobase, chan);
+	data[0] = i8254_read(subpriv->iobase, 0, chan);
 
 	return 1;
 }
@@ -1007,7 +1007,7 @@ dio200_subdev_8254_write(comedi_device *dev, comedi_subdevice *s,
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 
-	i8254_write(subpriv->iobase, chan, data[0]);
+	i8254_write(subpriv->iobase, 0, chan, data[0]);
 
 	return 1;
 }
@@ -1094,11 +1094,11 @@ dio200_subdev_8254_config(comedi_device *dev, comedi_subdevice *s,
 
 	switch (data[0]) {
 	case INSN_CONFIG_8254_SET_MODE:
-		ret = i8254_set_mode(subpriv->iobase, chan, data[1]);
+		ret = i8254_set_mode(subpriv->iobase, 0, chan, data[1]);
 		if (ret < 0) return -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(subpriv->iobase, chan);
+		data[1] = i8254_status(subpriv->iobase, 0, chan);
 		break;
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = dio200_set_gate_src(subpriv, chan, data[2]);
@@ -1168,7 +1168,7 @@ dio200_subdev_8254_init(comedi_device *dev, comedi_subdevice *s,
 
 	/* Initialize channels. */
 	for (chan = 0; chan < 3; chan++) {
-		i8254_set_mode(subpriv->iobase, chan,
+		i8254_set_mode(subpriv->iobase, 0, chan,
 				I8254_MODE0 | I8254_BINARY);
 		if (subpriv->has_clk_gat_sce) {
 			/* Gate source 0 is VCC (logic 1). */

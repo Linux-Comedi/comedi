@@ -709,7 +709,7 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	// may need to wait 72 sampling periods if timing was changed
-	i8254_load(dev->iobase + I8253_BASE_REG, 2, 72, 0);
+	i8254_load(dev->iobase + I8253_BASE_REG, 0, 2, 72, 0);
 
 	// setup start triggering
 	trigger_bits = 0;

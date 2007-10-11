@@ -1106,14 +1106,14 @@ pci224_ao_cmd(comedi_device *dev, comedi_subdevice *s)
 			outb(CLK_CONFIG(2, CLK_10MHZ),
 					devpriv->iobase1 + PCI224_ZCLK_SCE);
 			/* Load Z2-2 mode (2) and counter (div1). */
-			i8254_load(devpriv->iobase1 + PCI224_Z2_CT0,
+			i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0,
 					2, div1, 2);
 			/* Z2-0 is clocked from Z2-2's output. */
 			outb(CLK_CONFIG(0, CLK_OUTNM1),
 					devpriv->iobase1 + PCI224_ZCLK_SCE);
 		}
 		/* Load Z2-0 mode (2) and counter (div2). */
-		i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0, div2, 2);
+		i8254_load(devpriv->iobase1 + PCI224_Z2_CT0, 0, 0, div2, 2);
 	}
 
 	/*

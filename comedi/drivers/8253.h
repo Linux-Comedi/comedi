@@ -221,9 +221,9 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
  * FMH
  */
 
-static const int i8254_control_reg = 3;
+#define i8254_control_reg	3
 
-static inline int i8254_load(unsigned long base_address,
+static inline int i8254_load(unsigned long base_address, unsigned int regshift,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;
@@ -236,16 +236,16 @@ static inline int i8254_load(unsigned long base_address,
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
 	byte |= (mode << 1);	// set counter mode
-	outb(byte, base_address + i8254_control_reg);
+	outb(byte, base_address + (i8254_control_reg << regshift));
 	byte = count & 0xff;	// lsb of counter value
-	outb(byte, base_address + counter_number);
+	outb(byte, base_address + (counter_number << regshift));
 	byte = (count >> 8) & 0xff;	// msb of counter value
-	outb(byte, base_address + counter_number);
+	outb(byte, base_address + (counter_number << regshift));
 
 	return 0;
 }
 
-static inline int i8254_mm_load(void *base_address,
+static inline int i8254_mm_load(void *base_address, unsigned int regshift,
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	unsigned int byte;
@@ -258,17 +258,18 @@ static inline int i8254_mm_load(void *base_address,
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
 	byte |= (mode << 1);	// set counter mode
-	writeb(byte, base_address + i8254_control_reg);
+	writeb(byte, base_address + (i8254_control_reg << regshift));
 	byte = count & 0xff;	// lsb of counter value
-	writeb(byte, base_address + counter_number);
+	writeb(byte, base_address + (counter_number << regshift));
 	byte = (count >> 8) & 0xff;	// msb of counter value
-	writeb(byte, base_address + counter_number);
+	writeb(byte, base_address + (counter_number << regshift));
 
 	return 0;
 }
 
 /* Returns 16 bit counter value, should work for 8253 also.*/
-static inline int i8254_read(unsigned long base_address, unsigned int counter_number)
+static inline int i8254_read(unsigned long base_address, unsigned int regshift,
+	unsigned int counter_number)
 {
 	unsigned int byte;
 	int ret;
@@ -277,61 +278,61 @@ static inline int i8254_read(unsigned long base_address, unsigned int counter_nu
 
 	// latch counter
 	byte = counter_number << 6;
-	outb(byte, base_address + i8254_control_reg);
+	outb(byte, base_address + (i8254_control_reg << regshift));
 
 	// read lsb
-	ret = inb(base_address + counter_number);
+	ret = inb(base_address + (counter_number << regshift));
 	// read msb
-	ret += inb(base_address + counter_number) << 8;
+	ret += inb(base_address + (counter_number << regshift)) << 8;
 
 	return ret;
 }
 
-static inline int i8254_mm_read(void *base_address, unsigned int counter_number)
+static inline int i8254_mm_read(void *base_address, unsigned int regshift,
+	unsigned int counter_number)
 {
 	unsigned int byte;
 	int ret;
-	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 
 	// latch counter
 	byte = counter_number << 6;
-	writeb(byte, base_address + counter_control);
+	writeb(byte, base_address + (i8254_control_reg << regshift));
 
 	// read lsb
-	ret = readb(base_address + counter_number);
+	ret = readb(base_address + (counter_number << regshift));
 	// read msb
-	ret += readb(base_address + counter_number) << 8;
+	ret += readb(base_address + (counter_number << regshift)) << 8;
 
 	return ret;
 }
 
 /* Loads 16 bit initial counter value, should work for 8253 also. */
 static inline void i8254_write(unsigned long base_address,
-	unsigned int counter_number, unsigned int count)
+	unsigned int regshift, unsigned int counter_number, unsigned int count)
 {
 	unsigned int byte;
 
 	if(counter_number > 2) return;
 
 	byte = count & 0xff;	// lsb of counter value
-	outb(byte, base_address + counter_number);
+	outb(byte, base_address + (counter_number << regshift));
 	byte = (count >> 8) & 0xff;	// msb of counter value
-	outb(byte, base_address + counter_number);
+	outb(byte, base_address + (counter_number << regshift));
 }
 
 static inline void i8254_mm_write(void *base_address,
-	unsigned int counter_number, unsigned int count)
+	unsigned int regshift, unsigned int counter_number, unsigned int count)
 {
 	unsigned int byte;
 
 	if(counter_number > 2) return;
 
 	byte = count & 0xff;	// lsb of counter value
-	writeb(byte, base_address + counter_number);
+	writeb(byte, base_address + (counter_number << regshift));
 	byte = (count >> 8) & 0xff;	// msb of counter value
-	writeb(byte, base_address + counter_number);
+	writeb(byte, base_address + (counter_number << regshift));
 }
 
 /* Set counter mode, should work for 8253 also.
@@ -342,10 +343,9 @@ static inline void i8254_mm_write(void *base_address,
  *   I8254_BCD, I8254_BINARY
  */
 static inline int i8254_set_mode(unsigned long base_address,
-	unsigned int counter_number, unsigned int mode)
+	unsigned int regshift, unsigned int counter_number, unsigned int mode)
 {
 	unsigned int byte;
-	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 	if(mode > (I8254_MODE5 | I8254_BINARY)) return -1;
@@ -353,16 +353,15 @@ static inline int i8254_set_mode(unsigned long base_address,
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
 	byte |= mode;	// set counter mode and BCD|binary
-	outb(byte, base_address + counter_control);
+	outb(byte, base_address + (i8254_control_reg << regshift));
 
 	return 0;
 }
 
 static inline int i8254_mm_set_mode(void *base_address,
-	unsigned int counter_number, unsigned int mode)
+	unsigned int regshift, unsigned int counter_number, unsigned int mode)
 {
 	unsigned int byte;
-	static const int counter_control = 3;
 
 	if(counter_number > 2) return -1;
 	if(mode > (I8254_MODE5 | I8254_BINARY)) return -1;
@@ -370,21 +369,25 @@ static inline int i8254_mm_set_mode(void *base_address,
 	byte = counter_number << 6;
 	byte |= 0x30;	// load low then high byte
 	byte |= mode;	// set counter mode and BCD|binary
-	writeb(byte, base_address + counter_control);
+	writeb(byte, base_address + (i8254_control_reg << regshift));
 
 	return 0;
 }
 
-static inline int i8254_status(unsigned long base_address, int counter_number)
+static inline int i8254_status(unsigned long base_address,
+	unsigned int regshift, unsigned int counter_number)
 {
-	outb(0xE0 | (2 << counter_number), base_address + i8254_control_reg);
-	return inb(base_address + counter_number);
+	outb(0xE0 | (2 << counter_number),
+			base_address + (i8254_control_reg << regshift));
+	return inb(base_address + (counter_number << regshift));
 }
 
-static inline int i8254_mm_status(void *base_address, int counter_number)
+static inline int i8254_mm_status(void *base_address,
+	unsigned int regshift, unsigned int counter_number)
 {
-	writeb(0xE0 | (2 << counter_number), base_address + i8254_control_reg);
-	return readb(base_address + counter_number);
+	writeb(0xE0 | (2 << counter_number),
+			base_address + (i8254_control_reg << regshift));
+	return readb(base_address + (counter_number << regshift));
 }
 
 #endif

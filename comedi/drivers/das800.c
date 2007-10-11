@@ -902,8 +902,8 @@ static int das800_set_frequency(comedi_device *dev)
 {
 	int err = 0;
 
-	if(i8254_load(dev->iobase + DAS800_8254, 1, devpriv->divisor1, 2)) err++;
-	if(i8254_load(dev->iobase + DAS800_8254, 2, devpriv->divisor2, 2)) err++;
+	if(i8254_load(dev->iobase + DAS800_8254, 0, 1, devpriv->divisor1, 2)) err++;
+	if(i8254_load(dev->iobase + DAS800_8254, 0, 2, devpriv->divisor2, 2)) err++;
 	if(err)
 		return -1;
 

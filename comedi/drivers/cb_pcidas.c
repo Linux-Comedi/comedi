@@ -1410,8 +1410,8 @@ static int cb_pcidas_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 			cmd->flags);
 
 		/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-		i8254_load(devpriv->pacer_counter_dio + DAC8254, 1, devpriv->ao_divisor1, 2);
-		i8254_load(devpriv->pacer_counter_dio + DAC8254, 2, devpriv->ao_divisor2, 2);
+		i8254_load(devpriv->pacer_counter_dio + DAC8254, 0, 1, devpriv->ao_divisor1, 2);
+		i8254_load(devpriv->pacer_counter_dio + DAC8254, 0, 2, devpriv->ao_divisor2, 2);
 	}
 
 	// set number of conversions
@@ -1708,8 +1708,8 @@ static void cb_pcidas_load_counters(comedi_device *dev, unsigned int *ns, int ro
 		&(devpriv->divisor2), ns, rounding_flags & TRIG_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(devpriv->pacer_counter_dio + ADC8254, 1, devpriv->divisor1, 2);
-	i8254_load(devpriv->pacer_counter_dio + ADC8254, 2, devpriv->divisor2, 2);
+	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 1, devpriv->divisor1, 2);
+	i8254_load(devpriv->pacer_counter_dio + ADC8254, 0, 2, devpriv->divisor2, 2);
 }
 
 static void write_calibration_bitstream( comedi_device *dev, unsigned int register_bits,

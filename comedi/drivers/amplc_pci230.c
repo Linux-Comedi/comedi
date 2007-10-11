@@ -1282,7 +1282,7 @@ static void pci230_setup_monostable_ct0(comedi_device *dev, unsigned int ns, uns
 
 	devpriv->divisor0=pulse_duration/devpriv->clk_src0;
 
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, devpriv->divisor0, 1);	/* Counter 1, mode 1 */
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 0, devpriv->divisor0, 1);	/* Counter 1, mode 1 */
 
 	/* PCI 230 specific - ties up counter clk input with correct clk source */
 	switch (devpriv->clk_src0) {
@@ -1361,7 +1361,7 @@ static void pci230_z2_ct1(comedi_device *dev, unsigned int *ns,int round)
 	i8253_single_ns_to_timer(devpriv->clk_src1, &devpriv->divisor1, ns, TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 1, devpriv->divisor1, 3);	/* Counter 1, divisor1, square wave (8254 mode 3). */
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 1, devpriv->divisor1, 3);	/* Counter 1, divisor1, square wave (8254 mode 3). */
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
 	switch (devpriv->clk_src1) {
@@ -1388,7 +1388,7 @@ static void pci230_z2_ct1(comedi_device *dev, unsigned int *ns,int round)
 static void pci230_cancel_ct1(comedi_device *dev)
 {
 	devpriv->divisor1 = 0;
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 1, devpriv->divisor1, 0);	/* Counter 1, divisor1, 8254 mode 0. */
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 1, devpriv->divisor1, 0);	/* Counter 1, divisor1, 8254 mode 0. */
 }
 
 /*
@@ -1401,7 +1401,7 @@ static void pci230_z2_ct2(comedi_device *dev, unsigned int *ns,int round)
 	i8253_single_ns_to_timer(devpriv->clk_src2, &devpriv->divisor2, ns, TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 2, devpriv->divisor2, 3);	/* Counter 2, divisor2, square wave (8254 mode 3). */
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 2, devpriv->divisor2, 3);	/* Counter 2, divisor2, square wave (8254 mode 3). */
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
 	switch (devpriv->clk_src2) {
@@ -1428,7 +1428,7 @@ static void pci230_z2_ct2(comedi_device *dev, unsigned int *ns,int round)
 static void pci230_cancel_ct2(comedi_device *dev)
 {
 	devpriv->divisor2 = 0;
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 2, devpriv->divisor2, 0);	/* Counter 2, divisor2, 8254 mode 0. */
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 2, devpriv->divisor2, 0);	/* Counter 2, divisor2, 8254 mode 0. */
 }
 
 /* Interrupt handler */

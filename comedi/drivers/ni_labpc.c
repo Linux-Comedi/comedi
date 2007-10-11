@@ -461,9 +461,9 @@ static inline int labpc_counter_load(comedi_device *dev, unsigned long base_addr
 	unsigned int counter_number, unsigned int count, unsigned int mode)
 {
 	if(thisboard->memory_mapped_io)
-		return i8254_mm_load((void*)base_address, counter_number, count, mode);
+		return i8254_mm_load((void*)base_address, 0, counter_number, count, mode);
 	else
-		return i8254_load(base_address, counter_number, count, mode);
+		return i8254_load(base_address, 0, counter_number, count, mode);
 }
 
 int labpc_common_attach( comedi_device *dev, unsigned long iobase,

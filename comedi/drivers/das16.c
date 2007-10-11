@@ -1296,8 +1296,8 @@ static unsigned int das16_set_pacer(comedi_device *dev, unsigned int ns, int rou
 		&(devpriv->divisor2), &ns, rounding_flags & TRIG_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 1, devpriv->divisor1, 2);
-	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 2, devpriv->divisor2, 2);
+	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 0, 1, devpriv->divisor1, 2);
+	i8254_load(dev->iobase + DAS16_CNTR0_DATA, 0, 2, devpriv->divisor2, 2);
 
 	return ns;
 }
