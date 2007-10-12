@@ -1373,8 +1373,8 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 	int n,m,count=0,retval=0;
 	DECLARE_WAITQUEUE(wait,current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	dev = comedi_get_device_by_minor(minor);
 
+	dev = comedi_get_device_by_minor(minor);
 	if(!dev->attached)
 	{
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -1389,7 +1389,9 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 	if(!nbytes)return 0;
 
 	if(!s->busy)
+	{
 		return 0;
+	}
 
 	if(s->busy != file)
 		return -EACCES;
@@ -1565,36 +1567,6 @@ void do_become_nonbusy(comedi_device *dev,comedi_subdevice *s)
 	s->busy=NULL;
 }
 
-/* no chance that these will change soon */
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-
-static loff_t comedi_lseek(struct file *file,loff_t offset,int origin)
-{
-	loff_t new_offset;
-	const unsigned minor = iminor(file->f_dentry->d_inode);
-	comedi_device *dev = comedi_get_device_by_minor(minor);
-
-	switch(origin){
-	case SEEK_SET:
-		new_offset = offset;
-		break;
-	case SEEK_CUR:
-		new_offset = file->f_pos + offset;
-		break;
-	case SEEK_END:
-		new_offset = dev->n_subdevices + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if(new_offset<0 || new_offset >= dev->n_subdevices)
-		return -EINVAL;
-
-	return file->f_pos=new_offset;
-}
-
 static int comedi_open(struct inode *inode, struct file *file)
 {
 	char mod[32];
@@ -1707,7 +1679,6 @@ static int comedi_fasync (int fd, struct file *file, int on)
 
 const struct file_operations comedi_fops={
 	owner		: THIS_MODULE,
-	llseek		: comedi_lseek,
 	ioctl		: comedi_ioctl,
 	open		: comedi_open,
 	release		: comedi_close,
