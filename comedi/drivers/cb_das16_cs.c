@@ -76,7 +76,7 @@ static const das16cs_board das16cs_boards[] = {
 #define thisboard ((const das16cs_board *)dev->board_ptr)
 
 typedef struct{
-	dev_link_t *link;
+	struct pcmcia_device *link;
 
 	lsampl_t ao_readback[2];
 	unsigned short status1;
@@ -93,7 +93,7 @@ static comedi_driver driver_das16cs={
 	detach:		das16cs_detach,
 };
 
-static dev_link_t *dev_list = NULL;
+static struct pcmcia_device *cur_dev = NULL;
 
 static const comedi_lrange das16cs_ai_range = { 4, {
 	RANGE( -10, 10 ),
@@ -122,9 +122,8 @@ static int das16cs_timer_insn_read(comedi_device *dev,comedi_subdevice *s,
 static int das16cs_timer_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data);
 
-static int get_prodid(comedi_device *dev, dev_link_t *link)
+static int get_prodid(comedi_device *dev, struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	tuple_t tuple;
 	u_short buf[128];
 	int prodid = 0;
@@ -134,15 +133,15 @@ static int get_prodid(comedi_device *dev, dev_link_t *link)
 	tuple.TupleDataMax = 255;
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
-	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
+	if((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+	   (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)){
 		prodid = le16_to_cpu(buf[1]);
 	}
 
 	return prodid;
 }
 
-static das16cs_board *das16cs_probe(comedi_device *dev, dev_link_t *link)
+static const das16cs_board *das16cs_probe(comedi_device *dev, struct pcmcia_device *link)
 {
 	int id;
 	int i;
@@ -162,14 +161,14 @@ static das16cs_board *das16cs_probe(comedi_device *dev, dev_link_t *link)
 
 static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	comedi_subdevice *s;
 	int ret;
 	int i;
 
 	printk("comedi%d: cb_das16_cs: ",dev->minor);
 
-	link = dev_list; /* XXX hack */
+	link = cur_dev; /* XXX hack */
 	if(!link)return -EIO;
 
 	dev->iobase = link->io.BasePort1;
@@ -630,8 +629,8 @@ static char *version =
 
 /*====================================================================*/
 
-static void das16cs_pcmcia_config(dev_link_t *link);
-static void das16cs_pcmcia_release(u_long arg);
+static void das16cs_pcmcia_config(struct pcmcia_device *link);
+static void das16cs_pcmcia_release(struct pcmcia_device *link);
 static int das16cs_pcmcia_suspend(struct pcmcia_device *p_dev);
 static int das16cs_pcmcia_resume(struct pcmcia_device *p_dev);
 
@@ -659,37 +658,8 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *);
 
 static dev_info_t dev_info = "cb_das16_cs";
 
-/*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
-   To simplify the data structure handling, we actually include the
-   dev_link_t structure in the device's private data structure.
-
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a dev_link_t
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-
-   The bus_operations pointer is used on platforms for which we need
-   to use special socket-specific versions of normal IO primitives
-   (inb, outb, readb, writeb, etc) for card IO.
-*/
-
 typedef struct local_info_t {
-    dev_link_t		link;
+    struct pcmcia_device		link;
     dev_node_t		node;
     int			stop;
     struct bus_operations *bus;
@@ -710,7 +680,7 @@ typedef struct local_info_t {
 static int das16cs_pcmcia_attach(struct pcmcia_device *p_dev)
 {
     local_info_t *local;
-    dev_link_t *link;
+    struct pcmcia_device *link;
 
     DEBUG(0, "das16cs_pcmcia_attach()\n");
 
@@ -720,90 +690,43 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *p_dev)
     memset(local, 0, sizeof(local_info_t));
     link = &local->link; link->priv = local;
 
-    /* Initialize the dev_link_t structure */
+    /* Initialize the pcmcia_device structure */
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
 
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
     link->conf.Attributes = 0;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->next = dev_list;
-    dev_list = link;
+    cur_dev = link;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     das16cs_pcmcia_config(link);
 
     return 0;
 } /* das16cs_pcmcia_attach */
 
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
-
-static void das16cs_pcmcia_detach(struct pcmcia_device *p_dev)
+static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
-
 	DEBUG(0, "das16cs_pcmcia_detach(0x%p)\n", link);
 
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-	if (*linkp == NULL)
-		return;
-
-	/*
-	If the device is currently configured and active, we won't
-	actually delete it yet.  Instead, it is marked so that when
-	the release() function is called, that will trigger a proper
-	detach().
-	*/
-	if (link->state & DEV_CONFIG)
+	if(link->dev_node)
 	{
 		((local_info_t *)link->priv)->stop = 1;
-		das16cs_pcmcia_release((u_long)link);
+		das16cs_pcmcia_release(link);
 	}
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
 	/* This points to the parent local_info_t struct */
-	kfree(link->priv);
+	if(link->priv)
+		kfree(link->priv);
 } /* das16cs_pcmcia_detach */
 
-/*======================================================================
-
-    das16cs_pcmcia_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
-static void das16cs_pcmcia_config(dev_link_t *link)
+static void das16cs_pcmcia_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	local_info_t *dev = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_fn, last_ret;
 	u_char buf[64];
-	config_info_t conf;
 	cistpl_cftable_entry_t dflt = { 0 };
 
 	DEBUG(0, "das16cs_pcmcia_config(0x%p)\n", link);
@@ -818,21 +741,13 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	last_fn = GetFirstTuple;
-	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)) != 0) goto cs_failed;
+	if((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) goto cs_failed;
 	last_fn = GetTupleData;
-	if((last_ret = pcmcia_get_tuple_data(handle, &tuple)) != 0) goto cs_failed;
+	if((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0) goto cs_failed;
 	last_fn = ParseTuple;
-	if((last_ret = pcmcia_parse_tuple(handle, &tuple, &parse)) != 0) goto cs_failed;
+	if((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0) goto cs_failed;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
-	/* Look up the current Vcc */
-	last_fn = GetConfigurationInfo;
-	if((last_ret = pcmcia_get_configuration_info(handle, &conf)) != 0) goto cs_failed;
-	link->conf.Vcc = conf.Vcc;
 
 	/*
 	In this loop, we scan the CIS for configuration table entries,
@@ -848,11 +763,11 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	*/
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	last_fn = GetFirstTuple;
-	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)) != 0) goto cs_failed;
+	if((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) goto cs_failed;
 	while (1) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	if(pcmcia_get_tuple_data(handle, &tuple)) goto next_entry;
-	if(pcmcia_parse_tuple(handle, &tuple, &parse)) goto next_entry;
+	if(pcmcia_get_tuple_data(link, &tuple)) goto next_entry;
+	if(pcmcia_parse_tuple(link, &tuple, &parse)) goto next_entry;
 
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
 	if (cfg->index == 0) goto next_entry;
@@ -864,23 +779,6 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 		link->conf.Status = CCSR_AUDIO_ENA;
 	}
 */
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	}
-
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-		link->conf.Vpp1 = link->conf.Vpp2 =
-		cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-		link->conf.Vpp1 = link->conf.Vpp2 =
-		dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
-
 	/* Do we need to allocate an interrupt? */
 	if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
 		link->conf.Attributes |= CONF_ENABLE_IRQ;
@@ -903,17 +801,15 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 		link->io.NumPorts2 = io->win[1].len;
 		}
 		/* This reserves IO space but doesn't actually enable it */
-		if(pcmcia_request_io(link->handle, &link->io)) goto next_entry;
+		if(pcmcia_request_io(link, &link->io)) goto next_entry;
 	}
 
 	/* If we got this far, we're cool! */
 	break;
 
 	next_entry:
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
 	last_fn = GetNextTuple;
-	if((last_ret = pcmcia_get_next_tuple(handle, &tuple)) != 0) goto cs_failed;
+	if((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0) goto cs_failed;
 	}
 
 	/*
@@ -924,7 +820,7 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	{
 		last_fn = RequestIRQ;
-		if((last_ret = pcmcia_request_irq(link->handle, &link->irq)) != 0) goto cs_failed;
+		if((last_ret = pcmcia_request_irq(link, &link->irq)) != 0) goto cs_failed;
 	}
 	/*
 		This actually configures the PCMCIA socket -- setting up
@@ -932,7 +828,7 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 		card and host interface into "Memory and IO" mode.
 	*/
 	last_fn = RequestConfiguration;
-	if((last_ret = pcmcia_request_configuration(link->handle, &link->conf)) != 0) goto cs_failed;
+	if((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0) goto cs_failed;
 
 	/*
 		At this point, the dev_node_t structure(s) need to be
@@ -940,86 +836,48 @@ static void das16cs_pcmcia_config(dev_link_t *link)
 	*/
 	sprintf(dev->node.dev_name, "cb_das16_cs");
 	dev->node.major = dev->node.minor = 0;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-		dev->node.dev_name, link->conf.ConfigIndex,
-		link->conf.Vcc/10, link->conf.Vcc%10);
-	if (link->conf.Vpp1)
-	printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+	printk(KERN_INFO "%s: index 0x%02x",
+		dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
+		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1+link->io.NumPorts1-1);
 	if (link->io.NumPorts2)
-	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
+		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2+link->io.NumPorts2-1);
 	printk("\n");
 
-	link->state &= ~DEV_CONFIG_PENDING;
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
-	das16cs_pcmcia_release((u_long)link);
-
+	cs_error(link, last_fn, last_ret);
+	das16cs_pcmcia_release(link);
 } /* das16cs_pcmcia_config */
 
-/*======================================================================
-
-    After a card is removed, das16cs_pcmcia_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
-static void das16cs_pcmcia_release(u_long arg)
+static void das16cs_pcmcia_release(struct pcmcia_device *link)
 {
-	dev_link_t *link = (dev_link_t *)arg;
-
 	DEBUG(0, "das16cs_pcmcia_release(0x%p)\n", link);
-
-	/* Unlink the device chain */
-	link->dev = NULL;
-
-    /*
-      In a normal driver, additional code may be needed to release
-      other kernel data structures associated with this device.
-    */
-
-    /* Don't bother checking to see if these succeed or not */
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link);
 } /* das16cs_pcmcia_release */
 
-static int das16cs_pcmcia_suspend(struct pcmcia_device *p_dev)
+static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state |= DEV_SUSPEND;
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 
 	return 0;
 } /* das16cs_pcmcia_suspend */
 
-static int das16cs_pcmcia_resume(struct pcmcia_device *p_dev)
+static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
 	local->stop = 0;
 	return 0;
 } /* das16cs_pcmcia_resume */
@@ -1057,12 +915,6 @@ static void __exit exit_das16cs_pcmcia_cs(void)
 {
 	DEBUG(0, "das16cs_pcmcia_cs: unloading\n");
 	pcmcia_unregister_driver(&das16cs_driver);
-	while (dev_list != NULL)
-	{
-		if (dev_list->state & DEV_CONFIG)
-			das16cs_pcmcia_release((u_long)dev_list);
-		das16cs_pcmcia_detach(dev_list->handle);
-	}
 }
 
 int __init init_module(void)
