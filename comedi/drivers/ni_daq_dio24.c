@@ -54,17 +54,7 @@ the PCMCIA interface.
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-/*
-   A linked list of "instances" of the dummy device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
-   device numbers are used to derive the corresponding array index.
-*/
-
-static dev_link_t *pcmcia_dev_list = NULL;
+static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
 #define DIO24_SIZE 4	// size of io region used by board
 
@@ -128,7 +118,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 #ifdef incomplete
 	unsigned int irq = 0;
 #endif
-	dev_link_t *link;
+	struct pcmcia_device *link;
 
 	/* allocate and initialize dev->private */
 	if(alloc_private(dev, sizeof(dio24_private)) < 0)
@@ -138,7 +128,7 @@ static int dio24_attach(comedi_device *dev, comedi_devconfig *it)
 	switch(thisboard->bustype)
 	{
 		case pcmcia_bustype:
-			link = pcmcia_dev_list; /* XXX hack */
+			link = pcmcia_cur_dev; /* XXX hack */
 			if(!link) return -EIO;
 			iobase = link->io.BasePort1;
 #ifdef incomplete
@@ -224,8 +214,8 @@ static char *version =
 
 /*====================================================================*/
 
-static void dio24_config(dev_link_t *link);
-static void dio24_release(u_long arg);
+static void dio24_config(struct pcmcia_device *link);
+static void dio24_release(struct pcmcia_device *link);
 static int dio24_cs_suspend(struct pcmcia_device *p_dev);
 static int dio24_cs_resume(struct pcmcia_device *p_dev);
 
@@ -253,39 +243,10 @@ static void dio24_cs_detach(struct pcmcia_device *);
 
 static const dev_info_t dev_info = "ni_daq_dio24";
 
-/*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
-   To simplify the data structure handling, we actually include the
-   dev_link_t structure in the device's private data structure.
-
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a dev_link_t
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-
-   The bus_operations pointer is used on platforms for which we need
-   to use special socket-specific versions of normal IO primitives
-   (inb, outb, readb, writeb, etc) for card IO.
-*/
-
 typedef struct local_info_t {
-    dev_link_t		link;
-    dev_node_t		node;
-    int			stop;
+    struct pcmcia_device *link;
+    dev_node_t node;
+    int stop;
     struct bus_operations *bus;
 } local_info_t;
 
@@ -301,10 +262,9 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static int dio24_cs_attach(struct pcmcia_device *p_dev)
+static int dio24_cs_attach(struct pcmcia_device *link)
 {
     local_info_t *local;
-    dev_link_t *link;
 
     printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - CS-attach!\n");
 
@@ -314,7 +274,7 @@ static int dio24_cs_attach(struct pcmcia_device *p_dev)
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
-    link = &local->link; link->priv = local;
+    local->link = link; link->priv = local;
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -329,15 +289,10 @@ static int dio24_cs_attach(struct pcmcia_device *p_dev)
       device, and can be hard-wired here.
     */
     link->conf.Attributes = 0;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->next = pcmcia_dev_list;
-    pcmcia_dev_list = link;
+    pcmcia_cur_dev = link;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     dio24_config(link);
 
     return 0;
@@ -352,36 +307,21 @@ static int dio24_cs_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void dio24_cs_detach(struct pcmcia_device *p_dev)
+static void dio24_cs_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
-    dev_link_t **linkp;
 
     printk(KERN_INFO "ni_daq_dio24: HOLA SOY YO - cs-detach!\n");
 
     DEBUG(0, "dio24_cs_detach(0x%p)\n", link);
 
-    /* Locate device structure */
-    for (linkp = &pcmcia_dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
-
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
-    if (link->state & DEV_CONFIG) {
-	((local_info_t *)link->priv)->stop = 1;
-	dio24_release((u_long)link);
+    if(link->dev_node) {
+		((local_info_t *)link->priv)->stop = 1;
+		dio24_release(link);
     }
 
-    /* Unlink device structure, and free it */
-    *linkp = link->next;
     /* This points to the parent local_info_t struct */
-    kfree(link->priv);
+	if(link->priv)
+		kfree(link->priv);
 
 } /* dio24_cs_detach */
 
@@ -394,15 +334,13 @@ static void dio24_cs_detach(struct pcmcia_device *p_dev)
 ======================================================================*/
 
 
-static void dio24_config(dev_link_t *link)
+static void dio24_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     local_info_t *dev = link->priv;
     tuple_t tuple;
     cisparse_t parse;
     int last_ret;
     u_char buf[64];
-    config_info_t conf;
     win_req_t req;
     memreq_t map;
     cistpl_cftable_entry_t dflt = { 0 };
@@ -420,34 +358,23 @@ static void dio24_config(dev_link_t *link)
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)) != 0)
+	if((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
 	{
-	    cs_error(handle, GetFirstTuple, last_ret);
+	    cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if((last_ret = pcmcia_get_tuple_data(handle, &tuple)) != 0)
+	if((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
 	{
-	    cs_error(handle, GetTupleData, last_ret);
+	    cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if((last_ret = pcmcia_parse_tuple(handle, &tuple, &parse)) != 0)
+	if((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0)
 	{
-	    cs_error(handle, ParseTuple, last_ret);
+	    cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
-    /* Look up the current Vcc */
-	if((last_ret = pcmcia_get_configuration_info(handle, &conf)) != 0)
-	{
-	    cs_error(handle, GetConfigurationInfo, last_ret);
-		goto cs_failed;
-	}
-    link->conf.Vcc = conf.Vcc;
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -462,15 +389,15 @@ static void dio24_config(dev_link_t *link)
       will only use the CIS to fill in implementation-defined details.
     */
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)) != 0)
+	if((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
 	{
-	    cs_error(handle, GetFirstTuple, last_ret);
+	    cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
     while (1) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	if(pcmcia_get_tuple_data(handle, &tuple) != 0) goto next_entry;
-	if(pcmcia_parse_tuple(handle, &tuple, &parse) != 0) goto next_entry;
+	if(pcmcia_get_tuple_data(link, &tuple) != 0) goto next_entry;
+	if(pcmcia_parse_tuple(link, &tuple, &parse) != 0) goto next_entry;
 
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
 	if (cfg->index == 0) goto next_entry;
@@ -481,23 +408,6 @@ static void dio24_config(dev_link_t *link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status = CCSR_AUDIO_ENA;
 	}
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-	    if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-	    if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	}
-
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
-		cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
-		dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* Do we need to allocate an interrupt? */
 	if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
@@ -521,20 +431,9 @@ static void dio24_config(dev_link_t *link)
 		link->io.NumPorts2 = io->win[1].len;
 	    }
 	    /* This reserves IO space but doesn't actually enable it */
-		if(pcmcia_request_io(link->handle, &link->io) != 0) goto next_entry;
+		if(pcmcia_request_io(link, &link->io) != 0) goto next_entry;
 	}
 
-	/*
-	  Now set up a common memory window, if needed.  There is room
-	  in the dev_link_t structure for one memory window handle,
-	  but if the base addresses need to be saved, or if multiple
-	  windows are needed, the info should go in the private data
-	  structure for this device.
-
-	  Note that the memory window base is a physical address, and
-	  needs to be mapped to virtual space with ioremap() before it
-	  is used.
-	*/
 	if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
 	    cistpl_mem_t *mem =
 		(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
@@ -545,7 +444,7 @@ static void dio24_config(dev_link_t *link)
 	    if (req.Size < 0x1000)
 		req.Size = 0x1000;
 	    req.AccessSpeed = 0;
-		if(pcmcia_request_window(&link->handle, &req, &link->win)) goto next_entry;
+		if(pcmcia_request_window(&link, &req, &link->win)) goto next_entry;
 	    map.Page = 0; map.CardOffset = mem->win[0].card_addr;
 		if(pcmcia_map_mem_page(link->win, &map)) goto next_entry;
 	}
@@ -553,11 +452,9 @@ static void dio24_config(dev_link_t *link)
 	break;
 
     next_entry:
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if((last_ret = pcmcia_get_next_tuple(link->handle, &tuple)) != 0)
+	if((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0)
 	{
-	    cs_error(handle, GetNextTuple, last_ret);
+	    cs_error(link, GetNextTuple, last_ret);
 		goto cs_failed;
 	}
     }
@@ -568,9 +465,9 @@ static void dio24_config(dev_link_t *link)
        irq structure is initialized.
     */
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if((last_ret = pcmcia_request_irq(link->handle, &link->irq)) != 0)
+		if((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
 		{
-		    cs_error(handle, RequestIRQ, last_ret);
+		    cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
 
@@ -579,9 +476,9 @@ static void dio24_config(dev_link_t *link)
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
     */
-	if((last_ret = pcmcia_request_configuration(link->handle, &link->conf)) != 0)
+	if((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
 	{
-		cs_error(handle, RequestConfiguration, last_ret);
+		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
 
@@ -591,68 +488,37 @@ static void dio24_config(dev_link_t *link)
     */
     sprintf(dev->node.dev_name, "ni_daq_dio24");
     dev->node.major = dev->node.minor = 0;
-    link->dev = &dev->node;
+    link->dev_node = &dev->node;
 
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	   dev->node.dev_name, link->conf.ConfigIndex,
-	   link->conf.Vcc/10, link->conf.Vcc%10);
-    if (link->conf.Vpp1)
-	printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+    printk(KERN_INFO "%s: index 0x%02x",
+	   dev->node.dev_name, link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq.AssignedIRQ);
+		printk(", irq %d", link->irq.AssignedIRQ);
     if (link->io.NumPorts1)
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
+		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
     if (link->io.NumPorts2)
-	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
+		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 	       link->io.BasePort2+link->io.NumPorts2-1);
     if (link->win)
 	printk(", mem 0x%06lx-0x%06lx", req.Base,
 	       req.Base+req.Size-1);
     printk("\n");
 
-    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
     printk(KERN_INFO "Fallo");
-    dio24_release((u_long)link);
+    dio24_release(link);
 
 } /* dio24_config */
 
-/*======================================================================
-
-    After a card is removed, dio24_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
-static void dio24_release(u_long arg)
+static void dio24_release(struct pcmcia_device *link)
 {
-    dev_link_t *link = (dev_link_t *)arg;
-
     DEBUG(0, "dio24_release(0x%p)\n", link);
 
-    /* Unlink the device chain */
-    link->dev = NULL;
-
-    /*
-      In a normal driver, additional code may be needed to release
-      other kernel data structures associated with this device.
-    */
-
-    /* Don't bother checking to see if these succeed or not */
-    if (link->win)
-		pcmcia_release_window(link->win);
-    pcmcia_release_configuration(link->handle);
-    if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-    if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
-
+	pcmcia_disable_device(link);
 } /* dio24_release */
 
 /*======================================================================
@@ -668,28 +534,19 @@ static void dio24_release(u_long arg)
 ======================================================================*/
 
 
-static int dio24_cs_suspend(struct pcmcia_device *p_dev)
+static int dio24_cs_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state |= DEV_SUSPEND;
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
 	return 0;
 } /* dio24_cs_suspend */
 
-static int dio24_cs_resume(struct pcmcia_device *p_dev)
+static int dio24_cs_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
 	local->stop = 0;
 	return 0;
 } /* dio24_cs_resume */
@@ -730,11 +587,6 @@ static void __exit exit_dio24_cs(void)
 {
     DEBUG(0, "ni_dio24: unloading\n");
 	pcmcia_unregister_driver(&dio24_cs_driver);
-    while (pcmcia_dev_list != NULL) {
-		if (pcmcia_dev_list->state & DEV_CONFIG)
-			dio24_release((u_long)pcmcia_dev_list);
-		dio24_cs_detach(pcmcia_dev_list->handle);
-    }
 }
 
 int __init init_module(void)
