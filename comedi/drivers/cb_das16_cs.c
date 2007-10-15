@@ -659,7 +659,7 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *);
 static dev_info_t dev_info = "cb_das16_cs";
 
 typedef struct local_info_t {
-    struct pcmcia_device		link;
+    struct pcmcia_device *link;
     dev_node_t		node;
     int			stop;
     struct bus_operations *bus;
@@ -677,10 +677,9 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static int das16cs_pcmcia_attach(struct pcmcia_device *p_dev)
+static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
     local_info_t *local;
-    struct pcmcia_device *link;
 
     DEBUG(0, "das16cs_pcmcia_attach()\n");
 
@@ -688,7 +687,8 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *p_dev)
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
-    link = &local->link; link->priv = local;
+    local->link = link;
+    link->priv = local;
 
     /* Initialize the pcmcia_device structure */
     /* Interrupt setup */
