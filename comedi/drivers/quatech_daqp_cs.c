@@ -80,55 +80,8 @@ static char *version =
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
-/* Since this is a PCMCIA device, this driver basically has two
- * pieces: the COMEDI part at the top, and the PCMCIA part at the
- * bottom.  This local_info_t structure is used to pull the two parts
- * together.  One of these structures is allocated for each DAQP card
- * we're serving, and a pointer to it is put in the dev_table[] array.
- *
- * The next comment is ripped right from the PCMCIA dummy driver and
- * talks more about the first two fields in the structure.  Note that
- * the dev_link_t's 'priv' pointer is set to point back to this
- * structure (the local_info_t), and that we only have a single
- * dev_node_t per DAQP card, so it too is just part of the
- * local_info_t.  We also set the 'local' pointer on all the COMEDI
- * subdevices to point to this structure.
- */
-
-/*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a PCMCIA socket, but there will usually be some
-   device specific information that also needs to be kept track of.
-   The 'priv' pointer in a dev_link_t structure can be used to point
-   to a device-specific private data structure, like this.
-
-   To simplify the data structure handling, we actually include the
-   dev_link_t structure in the device's private data structure.
-
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a dev_link_t
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-*/
-
-/* After the PCMCIA stuff, there is a 'stop' flag, which is used to
- * indicate that the card has been removed, but COMEDI hasn't detached
- * the device yet, so everything should pretty much return errors
- * instead of attempting I/O with the card.  Then we provide our own
- * index in the dev_table[], followed by an enum and a semaphore used
- * by the interrupt handler (see below).  Next comes the COMEDI device
- * corresponding to this card.  If we're using the interrupt handler
- * to do a timed acquisition, then 's' is the subdevice being used
- * (only the A/D converter is supported), and 'count' is how many
- * samples remain to be taken (or -1 if it's unlimited).
- */
-
 typedef struct local_info_t {
-	dev_link_t		link;
+	struct pcmcia_device *link;
 	dev_node_t		node;
 	int			stop;
 	int			table_index;
@@ -913,14 +866,14 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->board_name = local->board_name;
 
 	tuple.DesiredTuple = CISTPL_VERS_1;
-	if (pcmcia_get_first_tuple(local->link.handle, &tuple) == 0) {
+	if (pcmcia_get_first_tuple(local->link, &tuple) == 0) {
 		u_char buf[128];
 
 		buf[0] = buf[sizeof(buf)-1] = 0;
 		tuple.TupleData = buf;
 		tuple.TupleDataMax = sizeof(buf);
 		tuple.TupleOffset = 2;
-		if (pcmcia_get_tuple_data(local->link.handle, &tuple) == 0) {
+		if (pcmcia_get_tuple_data(local->link, &tuple) == 0) {
 
 			for (i=0; i<tuple.TupleDataLen - 4; i++)
 				if (buf[i] == 0) break;
@@ -935,7 +888,7 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 		}
 	}
 
-	dev->iobase=local->link.io.BasePort1;
+	dev->iobase = local->link->io.BasePort1;
 
 	if((ret=alloc_subdevices(dev,4))<0)
 		return ret;
@@ -1045,8 +998,8 @@ static int daqp_detach(comedi_device *dev)
    instead of an event() function.
 */
 
-static void daqp_cs_config(dev_link_t *link);
-static void daqp_cs_release(u_long arg);
+static void daqp_cs_config(struct pcmcia_device *link);
+static void daqp_cs_release(struct pcmcia_device *link);
 static int daqp_cs_suspend(struct pcmcia_device *p_dev);
 static int daqp_cs_resume(struct pcmcia_device *p_dev);
 
@@ -1080,10 +1033,9 @@ static const dev_info_t dev_info = "quatech_daqp_cs";
 
 ======================================================================*/
 
-static  int daqp_cs_attach(struct pcmcia_device *p_dev)
+static  int daqp_cs_attach(struct pcmcia_device *link)
 {
     local_info_t *local;
-    dev_link_t *link;
     int i;
 
     DEBUG(0, "daqp_cs_attach()\n");
@@ -1102,7 +1054,7 @@ static  int daqp_cs_attach(struct pcmcia_device *p_dev)
 
     local->table_index = i;
     dev_table[i] = local;
-    link = &local->link;
+    local->link = link;
     link->priv = local;
 
 	/* Interrupt setup */
@@ -1119,12 +1071,8 @@ static  int daqp_cs_attach(struct pcmcia_device *p_dev)
       device, and can be hard-wired here.
     */
     link->conf.Attributes = 0;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     daqp_cs_config(link);
 
     return 0;
@@ -1139,27 +1087,21 @@ static  int daqp_cs_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void daqp_cs_detach(struct pcmcia_device *p_dev)
+static void daqp_cs_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     local_info_t *dev = link->priv;
 
     DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
 
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
-    if (link->state & DEV_CONFIG) {
-	dev->stop = 1;
-	daqp_cs_release((u_long)link);
+    if (link->dev_node) {
+		dev->stop = 1;
+		daqp_cs_release(link);
     }
 
     /* Unlink device structure, and free it */
     dev_table[dev->table_index] = NULL;
-    kfree(dev);
+	if(dev)
+		kfree(dev);
 
 } /* daqp_cs_detach */
 
@@ -1171,15 +1113,13 @@ static void daqp_cs_detach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void daqp_cs_config(dev_link_t *link)
+static void daqp_cs_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     local_info_t *dev = link->priv;
     tuple_t tuple;
     cisparse_t parse;
     int last_ret;
     u_char buf[64];
-    config_info_t conf;
 
     DEBUG(0, "daqp_cs_config(0x%p)\n", link);
 
@@ -1192,34 +1132,23 @@ static void daqp_cs_config(dev_link_t *link)
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)))
+	if((last_ret = pcmcia_get_first_tuple(link, &tuple)))
 	{
-		cs_error(handle, GetFirstTuple, last_ret);
+		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if((last_ret = pcmcia_get_tuple_data(handle, &tuple)))
+	if((last_ret = pcmcia_get_tuple_data(link, &tuple)))
 	{
-		cs_error(handle, GetTupleData, last_ret);
+		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if((last_ret = pcmcia_parse_tuple(handle, &tuple, &parse)))
+	if((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)))
 	{
-		cs_error(handle, ParseTuple, last_ret);
+		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
-    /* Look up the current Vcc */
-	if((last_ret = pcmcia_get_configuration_info(handle, &conf)))
-	{
-		cs_error(handle, GetConfigurationInfo, last_ret);
-		goto cs_failed;
-	}
-    link->conf.Vcc = conf.Vcc;
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -1234,37 +1163,20 @@ static void daqp_cs_config(dev_link_t *link)
       will only use the CIS to fill in implementation-defined details.
     */
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if((last_ret = pcmcia_get_first_tuple(handle, &tuple)))
+	if((last_ret = pcmcia_get_first_tuple(link, &tuple)))
 	{
-		cs_error(handle, GetFirstTuple, last_ret);
+		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
     while (1) {
 	cistpl_cftable_entry_t dflt = { 0 };
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	if(pcmcia_get_tuple_data(handle, &tuple)) goto next_entry;
-	if(pcmcia_parse_tuple(handle, &tuple, &parse)) goto next_entry;
+	if(pcmcia_get_tuple_data(link, &tuple)) goto next_entry;
+	if(pcmcia_parse_tuple(link, &tuple, &parse)) goto next_entry;
 
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
 	if (cfg->index == 0) goto next_entry;
 	link->conf.ConfigIndex = cfg->index;
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-	    if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	} else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-	    if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
-		goto next_entry;
-	}
-
-	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
-		cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-	    link->conf.Vpp1 = link->conf.Vpp2 =
-		dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* Do we need to allocate an interrupt? */
 	if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
@@ -1290,15 +1202,15 @@ static void daqp_cs_config(dev_link_t *link)
 	}
 
 	/* This reserves IO space but doesn't actually enable it */
-	if(pcmcia_request_io(link->handle, &link->io)) goto next_entry;
+	if(pcmcia_request_io(link, &link->io)) goto next_entry;
 
 	/* If we got this far, we're cool! */
 	break;
 
 next_entry:
-	if((last_ret = pcmcia_get_next_tuple(handle, &tuple)))
+	if((last_ret = pcmcia_get_next_tuple(link, &tuple)))
 	{
-		cs_error(handle, GetNextTuple, last_ret);
+		cs_error(link, GetNextTuple, last_ret);
 		goto cs_failed;
 	}
     }
@@ -1309,9 +1221,9 @@ next_entry:
        irq structure is initialized.
     */
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if((last_ret = pcmcia_request_irq(link->handle, &link->irq)))
+		if((last_ret = pcmcia_request_irq(link, &link->irq)))
 		{
-			cs_error(handle, RequestIRQ, last_ret);
+			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
 
@@ -1320,9 +1232,9 @@ next_entry:
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
     */
-	if((last_ret = pcmcia_request_configuration(link->handle, &link->conf)))
+	if((last_ret = pcmcia_request_configuration(link, &link->conf)))
 	{
-		cs_error(handle, RequestConfiguration, last_ret);
+		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
 
@@ -1336,63 +1248,33 @@ next_entry:
     /* sprintf(dev->node.dev_name, "daqp%d", dev->table_index); */
     sprintf(dev->node.dev_name, "quatech_daqp_cs");
     dev->node.major = dev->node.minor = 0;
-    link->dev = &dev->node;
+    link->dev_node = &dev->node;
 
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	   dev->node.dev_name, link->conf.ConfigIndex,
-	   link->conf.Vcc/10, link->conf.Vcc%10);
-    if (link->conf.Vpp1)
-	printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+    printk(KERN_INFO "%s: index 0x%02x",
+	   dev->node.dev_name, link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq.AssignedIRQ);
     if (link->io.NumPorts1)
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
+		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
     if (link->io.NumPorts2)
-	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
+		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 	       link->io.BasePort2+link->io.NumPorts2-1);
     printk("\n");
 
-    link->state &= ~DEV_CONFIG_PENDING;
     return;
 
 cs_failed:
-    daqp_cs_release((u_long)link);
+    daqp_cs_release(link);
 
 } /* daqp_cs_config */
 
-/*======================================================================
-
-    After a card is removed, daqp_cs_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
-static void daqp_cs_release(u_long arg)
+static void daqp_cs_release(struct pcmcia_device *link)
 {
-    dev_link_t *link = (dev_link_t *)arg;
-
     DEBUG(0, "daqp_cs_release(0x%p)\n", link);
 
-    /* Unlink the device chain */
-    link->dev = NULL;
-
-    /*
-      In a normal driver, additional code may be needed to release
-      other kernel data structures associated with this device.
-    */
-
-    /* Don't bother checking to see if these succeed or not */
-
-    pcmcia_release_configuration(link->handle);
-    if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-    if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-    link->state &= ~DEV_CONFIG;
-
+	pcmcia_disable_device(link);
 } /* daqp_cs_release */
 
 /*======================================================================
@@ -1407,28 +1289,19 @@ static void daqp_cs_release(u_long arg)
 
 ======================================================================*/
 
-static int daqp_cs_suspend(struct pcmcia_device *p_dev)
+static int daqp_cs_suspend(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     local_info_t *local = link->priv;
 
-    link->state |= DEV_SUSPEND;
     /* Mark the device as stopped, to block IO until later */
     local->stop = 1;
-    if (link->state & DEV_CONFIG)
-	pcmcia_release_configuration(link->handle);
-
     return 0;
 }
 
-static int daqp_cs_resume(struct pcmcia_device *p_dev)
+static int daqp_cs_resume(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     local_info_t *local = link->priv;
 
-    link->state &= ~DEV_SUSPEND;
-    if (link->state & DEV_CONFIG)
-	pcmcia_request_configuration(link->handle, &link->conf);
     local->stop = 0;
 
     return 0;
@@ -1468,25 +1341,9 @@ int __init init_module(void)
 
 void __exit cleanup_module(void)
 {
-    int i;
-
     DEBUG(0, "daqp_cs: unloading\n");
     comedi_driver_unregister(&driver_daqp);
 	pcmcia_unregister_driver(&daqp_cs_driver);
-    for (i=0; i < MAX_DEV; i++) {
-      if (dev_table[i]) {
-        if (dev_table[i]->link.state & DEV_CONFIG) {
-          daqp_cs_release((u_long)(&dev_table[i]->link));
-        }
-	/* If DEV_STALE_LINK was set, the daqp_cs_release already did
-	 * a detach, which freed the memory, so make sure we don't
-	 * do it again or oops()... that's why this test is here
-	 */
-	if (dev_table[i]) {
-	  daqp_cs_detach(dev_table[i]->link.handle);
-	}
-      }
-    }
 }
 
 #endif
