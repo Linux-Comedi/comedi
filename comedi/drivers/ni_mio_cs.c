@@ -176,7 +176,7 @@ static const ni_board ni_boards[]={
 #define NI_E_IRQ_FLAGS		IRQF_SHARED
 
 typedef struct{
-	dev_link_t *link;
+	struct pcmcia_device *link;
 
 	NI_PRIVATE_COMMON
 }ni_private;
@@ -241,7 +241,7 @@ static comedi_driver driver_ni_mio_cs={
 #include "ni_mio_common.c"
 
 
-static int ni_getboardtype(comedi_device *dev,dev_link_t *link);
+static int ni_getboardtype(comedi_device *dev,struct pcmcia_device *link);
 
 /* clean up allocated resources */
 /* called when driver is removed */
@@ -258,117 +258,68 @@ static int mio_cs_detach(comedi_device *dev)
 	return 0;
 }
 
-static void mio_cs_config(dev_link_t *link);
-static void cs_release(u_long arg);
+static void mio_cs_config(struct pcmcia_device *link);
+static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
-static dev_link_t *dev_list = NULL;
+static struct pcmcia_device *cur_dev = NULL;
 static const dev_info_t dev_info = "ni_mio_cs";
 static dev_node_t dev_node = {
 	"ni_mio_cs",
 	COMEDI_MAJOR,0,
 	NULL
 };
-static int cs_attach(struct pcmcia_device *p_dev)
+static int cs_attach(struct pcmcia_device *link)
 {
-	dev_link_t *link;
-
-	link=kmalloc(sizeof(*link),GFP_KERNEL);
-	if(!link)return -ENOMEM;
-	memset(link,0,sizeof(*link));
-
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->next = dev_list;
-	dev_list = link;
+	cur_dev = link;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	mio_cs_config(link);
 
 	return 0;
 }
 
-static void cs_release(u_long arg)
+static void cs_release(struct pcmcia_device *link)
 {
-	dev_link_t *link=(void *)arg;
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link);
 }
 
-static void cs_detach(struct pcmcia_device *p_dev)
+static void cs_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
-
 	DPRINTK("cs_detach(link=%p)\n",link);
 
-	for(linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link) break;
-	if (*linkp==NULL)
-		return;
-
-	//save_flags
-	//cli
-	if (link->state & DEV_RELEASE_PENDING){
-		printk("dev release pending bug\n");
-		link->state &= ~DEV_RELEASE_PENDING;
+	if(link->dev_node)
+	{
+		cs_release(link);
 	}
-	//restore_flags
-
-	if(link->state & DEV_CONFIG) {
-		cs_release((u_long)link);
-	}
-
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
-	kfree(link);
 }
 
-static int mio_cs_suspend(struct pcmcia_device *p_dev)
+static int mio_cs_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DPRINTK("pm suspend\n");
-	link->state |= DEV_SUSPEND;
-	if(link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
+	
 	return 0;
 }
 
-static int mio_cs_resume(struct pcmcia_device *p_dev)
+static int mio_cs_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DPRINTK("pm resume\n");
-	link->state &= ~DEV_SUSPEND;
-	if(DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
 	return 0;
 }
 
-static void mio_cs_config(dev_link_t *link)
+static void mio_cs_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	tuple_t tuple;
 	u_short buf[128];
 	cisparse_t parse;
 	int manfid = 0, prodid = 0;
 	int ret;
-	config_info_t conf;
 
 	DPRINTK("mio_cs_config(link=%p)\n",link);
 
@@ -378,26 +329,22 @@ static void mio_cs_config(dev_link_t *link)
 	tuple.Attributes = 0;
 
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	ret = pcmcia_get_first_tuple(handle, &tuple);
-	ret = pcmcia_get_tuple_data(handle, &tuple);
-	ret = pcmcia_parse_tuple(handle, &tuple, &parse);
+	ret = pcmcia_get_first_tuple(link, &tuple);
+	ret = pcmcia_get_tuple_data(link, &tuple);
+	ret = pcmcia_parse_tuple(link, &tuple, &parse);
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
-	link->state |= DEV_CONFIG;
-
-	pcmcia_get_configuration_info(handle, &conf);
-	link->conf.Vcc=conf.Vcc;
 #if 0
 	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
 	tuple.Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
-	info->multi (first_tuple(handle, &tuple, &parse) == CS_SUCCESS);
+	info->multi (first_tuple(link, &tuple, &parse) == CS_SUCCESS);
 #endif
 
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
-	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
+	if((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+	   (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)){
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
@@ -405,9 +352,9 @@ static void mio_cs_config(dev_link_t *link)
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
-	ret = pcmcia_get_first_tuple(handle, &tuple);
-	ret = pcmcia_get_tuple_data(handle, &tuple);
-	ret = pcmcia_parse_tuple(handle, &tuple, &parse);
+	ret = pcmcia_get_first_tuple(link, &tuple);
+	ret = pcmcia_get_tuple_data(link, &tuple);
+	ret = pcmcia_parse_tuple(link, &tuple, &parse);
 
 #if 0
 	printk(" index: 0x%x\n",parse.cftable_entry.index);
@@ -437,7 +384,7 @@ static void mio_cs_config(dev_link_t *link)
 		int base;
 		for(base=0x000;base<0x400;base+=0x20){
 			link->io.BasePort1=base;
-			ret = pcmcia_request_io(handle, &link->io);
+			ret = pcmcia_request_io(link, &link->io);
 			//printk("RequestIO 0x%02x\n",ret);
 			if(!ret)break;
 		}
@@ -445,7 +392,7 @@ static void mio_cs_config(dev_link_t *link)
 
 	link->irq.IRQInfo1=parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2=parse.cftable_entry.irq.IRQInfo2;
-	ret = pcmcia_request_irq(handle, &link->irq);
+	ret = pcmcia_request_irq(link, &link->irq);
 	if(ret)
 	{
 		printk("pcmcia_request_irq() returned error: %i\n", ret);
@@ -454,22 +401,21 @@ static void mio_cs_config(dev_link_t *link)
 
 	link->conf.ConfigIndex=1;
 
-	ret = pcmcia_request_configuration(handle, &link->conf);
+	ret = pcmcia_request_configuration(link, &link->conf);
 	//printk("RequestConfiguration %d\n",ret);
 
-	link->dev = &dev_node;
-	link->state &= ~DEV_CONFIG_PENDING;
+	link->dev_node = &dev_node;
 }
 
 static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 {
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	unsigned int irq;
 	int ret;
 
 	DPRINTK("mio_cs_attach(dev=%p,it=%p)\n",dev,it);
 
-	link = dev_list; /* XXX hack */
+	link = cur_dev; /* XXX hack */
 	if(!link)return -EIO;
 
 	dev->driver=&driver_ni_mio_cs;
@@ -525,9 +471,8 @@ static int mio_cs_attach(comedi_device *dev,comedi_devconfig *it)
 }
 
 
-static int get_prodid(comedi_device *dev,dev_link_t *link)
+static int get_prodid(comedi_device *dev,struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	tuple_t tuple;
 	u_short buf[128];
 	int prodid = 0;
@@ -537,15 +482,15 @@ static int get_prodid(comedi_device *dev,dev_link_t *link)
 	tuple.TupleDataMax = 255;
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
-	   (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)){
+	if((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+	   (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)){
 		prodid = le16_to_cpu(buf[1]);
 	}
 
 	return prodid;
 }
 
-static int ni_getboardtype(comedi_device *dev,dev_link_t *link)
+static int ni_getboardtype(comedi_device *dev,struct pcmcia_device *link)
 {
 	int id;
 	int i;
@@ -604,8 +549,8 @@ void cleanup_module(void)
 {
 	pcmcia_unregister_driver(&ni_mio_cs_driver);
 #if 0
-	while(dev_list != NULL)
-		cs_detach(dev_list->handle);
+	while(cur_dev != NULL)
+		cs_detach(cur_dev->handle);
 #endif
 	comedi_driver_unregister(&driver_ni_mio_cs);
 }
