@@ -818,6 +818,18 @@ static inline unsigned NI_CDIO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
 	return NI_USUAL_RTSI_SELECT(rtsi_channel);
 }
 
+/* scan_begin_src for scan_begin_arg==TRIG_EXT with analog output command
+on NI boards.  These scan begin sources can also be bitwise-or'd with
+CR_INVERT to change polarity. */
+static inline unsigned NI_AO_SCAN_BEGIN_SRC_PFI(unsigned pfi_channel)
+{
+	return NI_USUAL_PFI_SELECT(pfi_channel);
+}
+static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
+{
+	return NI_USUAL_RTSI_SELECT(rtsi_channel);
+}
+
 #ifdef __cplusplus
 }
 #endif

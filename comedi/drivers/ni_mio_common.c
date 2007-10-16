@@ -2865,16 +2865,15 @@ static int ni_ao_inttrig(comedi_device *dev,comedi_subdevice *s,
 static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 {
 	const comedi_cmd *cmd = &s->async->cmd;
-	int trigvar;
 	int bits;
 	int i;
+	unsigned trigvar;
 
 	if(dev->irq == 0)
 	{
 		comedi_error(dev, "cannot run command without an irq");
 		return -EIO;
 	}
-	trigvar = ni_ns_to_timer(dev, cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
 
 	devpriv->stc_writew(dev, AO_Configuration_Start,Joint_Reset_Register);
 
@@ -2940,15 +2939,31 @@ static int ni_ao_cmd(comedi_device *dev,comedi_subdevice *s)
 		devpriv->stc_writel(dev, cmd->stop_arg,AO_UC_Load_A_Register);
 	}
 
-	devpriv->ao_cmd2&=~AO_BC_Gate_Enable;
+	devpriv->ao_mode1 &= ~(AO_UI_Source_Select(0x1f) | AO_UI_Source_Polarity |
+		AO_UPDATE_Source_Select(0x1f) | AO_UPDATE_Source_Polarity);
+	switch(cmd->scan_begin_src)
+	{
+	case TRIG_TIMER:
+		devpriv->ao_cmd2 &= ~AO_BC_Gate_Enable;
+		trigvar = ni_ns_to_timer(dev, cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
+		devpriv->stc_writel(dev, 1, AO_UI_Load_A_Register);
+		devpriv->stc_writew(dev, AO_UI_Load, AO_Command_1_Register);
+		devpriv->stc_writel(dev, trigvar, AO_UI_Load_A_Register);
+		break;
+	case TRIG_EXT:
+		devpriv->ao_mode1 |= AO_UPDATE_Source_Select(cmd->scan_begin_arg);
+		if(cmd->scan_begin_arg & CR_INVERT)
+			devpriv->ao_mode1 |= AO_UPDATE_Source_Polarity;
+		devpriv->ao_cmd2 |= AO_BC_Gate_Enable;
+		break;
+	default:
+		BUG();
+		break;
+	}
 	devpriv->stc_writew(dev, devpriv->ao_cmd2,AO_Command_2_Register);
-	devpriv->ao_mode1&=~(AO_UI_Source_Select(0x1f)|AO_UI_Source_Polarity);
 	devpriv->stc_writew(dev, devpriv->ao_mode1,AO_Mode_1_Register);
 	devpriv->ao_mode2&=~(AO_UI_Reload_Mode(3)|AO_UI_Initial_Load_Source);
 	devpriv->stc_writew(dev, devpriv->ao_mode2,AO_Mode_2_Register);
-	devpriv->stc_writel(dev, 1,AO_UI_Load_A_Register);
-	devpriv->stc_writew(dev, AO_UI_Load,AO_Command_1_Register);
-	devpriv->stc_writel(dev, trigvar,AO_UI_Load_A_Register);
 
 	if((boardtype.reg_type & ni_reg_6xxx_mask) == 0){
 		if(cmd->scan_end_arg>1){
@@ -3032,7 +3047,7 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(!cmd->start_src || tmp!=cmd->start_src)err++;
 
 	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
 	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
 
 	tmp=cmd->convert_src;
@@ -3062,13 +3077,16 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 		cmd->start_arg=0;
 		err++;
 	}
-	if(cmd->scan_begin_arg < boardtype.ao_speed){
-		cmd->scan_begin_arg = boardtype.ao_speed;
-		err++;
-	}
-	if(cmd->scan_begin_arg > devpriv->clock_ns * 0xffffff){ /* XXX check */
-		cmd->scan_begin_arg = devpriv->clock_ns * 0xffffff;
-		err++;
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		if(cmd->scan_begin_arg < boardtype.ao_speed){
+			cmd->scan_begin_arg = boardtype.ao_speed;
+			err++;
+		}
+		if(cmd->scan_begin_arg > devpriv->clock_ns * 0xffffff){ /* XXX check */
+			cmd->scan_begin_arg = devpriv->clock_ns * 0xffffff;
+			err++;
+		}
 	}
 	if(cmd->convert_arg!=0){
 		cmd->convert_arg=0;
@@ -3094,11 +3112,12 @@ static int ni_ao_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
 	if(err)return 3;
 
 	/* step 4: fix up any arguments */
-
-	tmp = cmd->scan_begin_arg;
-	cmd->scan_begin_arg = ni_timer_to_ns(dev, ni_ns_to_timer(dev, cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK));
-	if(tmp!=cmd->scan_begin_arg)err++;
-
+	if(cmd->scan_begin_src == TRIG_TIMER)
+	{
+		tmp = cmd->scan_begin_arg;
+		cmd->scan_begin_arg = ni_timer_to_ns(dev, ni_ns_to_timer(dev, cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK));
+		if(tmp!=cmd->scan_begin_arg)err++;
+	}
 	if(err)return 4;
 
 	/* step 5: fix up chanlist */
