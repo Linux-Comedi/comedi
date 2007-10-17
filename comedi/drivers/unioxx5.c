@@ -271,12 +271,11 @@ static int __unioxx5_subdev_init(comedi_subdevice* subdev, int subdev_iobase, in
 	return -EIO;
   }
   
-  if((usp = (unioxx5_subd_priv*)kmalloc(sizeof(*usp), GFP_KERNEL)) == NULL) {
+  if((usp = (unioxx5_subd_priv*)kzalloc(sizeof(*usp), GFP_KERNEL)) == NULL) {
 	printk(KERN_ERR "comedi%d: erorr! --> out of memory!\n", minor);
 	return -1;
   }
   
-  memset(usp, 0, sizeof(*usp));
   usp->usp_iobase = subdev_iobase;
   printk("comedi%d: |", minor);
   

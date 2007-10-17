@@ -1048,9 +1048,8 @@ static  int daqp_cs_attach(struct pcmcia_device *link)
     }
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
-    memset(local, 0, sizeof(local_info_t));
 
     local->table_index = i;
     dev_table[i] = local;

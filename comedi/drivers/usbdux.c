@@ -2327,16 +2327,14 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		return PROBE_ERR_RETURN( -ENOMEM);
 	}
 
-	// create space for the in buffer
-	usbduxsub[index].inBuffer=kmalloc(SIZEINBUF,GFP_KERNEL);
+	// create space for the in buffer and zero it
+	usbduxsub[index].inBuffer=kzalloc(SIZEINBUF,GFP_KERNEL);
 	if (!(usbduxsub[index].inBuffer)) {
 		printk("comedi_: usbdux: could not alloc space for inBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return PROBE_ERR_RETURN( -ENOMEM);
 	}
-	// set the buffer to zero
-	memset(usbduxsub[index].inBuffer,0,SIZEINBUF);
 
 	// create space of the instruction buffer
 	usbduxsub[index].insnBuffer=kmalloc(SIZEINSNBUF,GFP_KERNEL);
@@ -2347,16 +2345,14 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 		return PROBE_ERR_RETURN( -ENOMEM);
 	}
 
-	// create space for the outbuffer
-	usbduxsub[index].outBuffer=kmalloc(SIZEOUTBUF,GFP_KERNEL);
+	// create space for the outbuffer and zero it
+	usbduxsub[index].outBuffer=kzalloc(SIZEOUTBUF,GFP_KERNEL);
 	if (!(usbduxsub[index].outBuffer)) {
 		printk("comedi_: usbdux: could not alloc space for outBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return PROBE_ERR_RETURN( -ENOMEM);
 	}
-	// set the buffer to zero
-	memset(usbduxsub[index].outBuffer,0,SIZEOUTBUF);
 
 
 

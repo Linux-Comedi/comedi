@@ -661,8 +661,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	start_rt_timer( 1 );
 	devpriv->timer_running = 1;
 
-	devpriv->rt_task = kmalloc(sizeof(RT_TASK),GFP_KERNEL);
-	memset(devpriv->rt_task,0,sizeof(RT_TASK));
+	devpriv->rt_task = kzalloc(sizeof(RT_TASK),GFP_KERNEL);
 
 	// initialize real-time tasks
 	ret = rt_task_init(devpriv->rt_task, timer_task_func,(int)dev, 3000,
@@ -674,8 +673,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	}
 
-	devpriv->scan_task = kmalloc(sizeof(RT_TASK),GFP_KERNEL);
-	memset(devpriv->scan_task,0,sizeof(RT_TASK));
+	devpriv->scan_task = kzalloc(sizeof(RT_TASK),GFP_KERNEL);
 
 	ret = rt_task_init(devpriv->scan_task, scan_task_func,
 		(int)dev, 3000, scan_priority, 0, 0);

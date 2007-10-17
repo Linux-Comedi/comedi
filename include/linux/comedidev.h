@@ -417,14 +417,12 @@ struct comedi_lrange_struct{
 
 static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevices)
 {
-	const int size = sizeof(comedi_subdevice) * num_subdevices;
 	unsigned i;
 
 	dev->n_subdevices = num_subdevices;
-	dev->subdevices = kmalloc(size,GFP_KERNEL);
+	dev->subdevices = kcalloc(num_subdevices,sizeof(comedi_subdevice),GFP_KERNEL);
 	if(!dev->subdevices)
 		return -ENOMEM;
-	memset(dev->subdevices,0,size);
 	for(i = 0; i < num_subdevices; ++i)
 	{
 		dev->subdevices[i].device = dev;
@@ -436,10 +434,9 @@ static inline int alloc_subdevices(comedi_device *dev, unsigned int num_subdevic
 
 static inline int alloc_private(comedi_device *dev,int size)
 {
-	dev->private=kmalloc(size,GFP_KERNEL);
+	dev->private=kzalloc(size,GFP_KERNEL);
 	if(!dev->private)
 		return -ENOMEM;
-	memset(dev->private,0,size);
 	return 0;
 }
 

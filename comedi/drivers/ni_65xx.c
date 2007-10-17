@@ -319,9 +319,8 @@ static inline ni_65xx_subdevice_private* sprivate(comedi_subdevice *subdev)
 }
 static ni_65xx_subdevice_private* ni_65xx_alloc_subdevice_private(void)
 {
-	ni_65xx_subdevice_private *subdev_private = kmalloc(sizeof(ni_65xx_subdevice_private), GFP_KERNEL);
+	ni_65xx_subdevice_private *subdev_private = kzalloc(sizeof(ni_65xx_subdevice_private), GFP_KERNEL);
 	if(subdev_private == NULL) return NULL;
-	memset(subdev_private, 0, sizeof(ni_65xx_subdevice_private));
 	return subdev_private;
 }
 

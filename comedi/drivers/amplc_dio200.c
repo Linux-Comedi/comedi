@@ -914,12 +914,11 @@ dio200_subdev_intr_init(comedi_device *dev, comedi_subdevice *s,
 {
 	dio200_subdev_intr *subpriv;
 
-	subpriv = kmalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 	if (!subpriv) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n", dev->minor);
 		return -ENOMEM;
 	}
-	memset(subpriv, 0, sizeof(*subpriv));
 	subpriv->iobase = iobase;
 	subpriv->has_int_sce = has_int_sce;
 	subpriv->valid_isns = valid_isns;
@@ -1138,12 +1137,11 @@ dio200_subdev_8254_init(comedi_device *dev, comedi_subdevice *s,
 	dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
-	subpriv = kmalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
 	if (!subpriv) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n", dev->minor);
 		return -ENOMEM;
 	}
-	memset(subpriv, 0, sizeof(*subpriv));
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_COUNTER;

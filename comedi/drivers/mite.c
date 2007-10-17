@@ -80,13 +80,12 @@ void mite_init(void)
 		if(pcidev->vendor==PCI_VENDOR_ID_NATINST){
 			unsigned i;
 
-			mite=kmalloc(sizeof(*mite),GFP_KERNEL);
+			mite=kzalloc(sizeof(*mite),GFP_KERNEL);
 			if(!mite){
 				printk("mite: allocation failed\n");
 				pci_dev_put(pcidev);
 				return;
 			}
-			memset(mite,0,sizeof(*mite));
 			spin_lock_init(&mite->lock);
 			mite->pcidev=pci_dev_get(pcidev);
 			for(i = 0; i < MAX_MITE_DMA_CHANNELS; ++i)

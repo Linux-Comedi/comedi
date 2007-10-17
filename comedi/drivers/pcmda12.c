@@ -187,8 +187,6 @@ static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
       return -ENOMEM;
     }
 
-    memset(devpriv, 0, sizeof(*devpriv));
-
     devpriv->simultaneous_xfer_mode = it->options[1];
 
       /*

@@ -185,9 +185,8 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
     DEBUG(0, "das08_pcmcia_attach()\n");
 
     /* Allocate space for private device-specific data */
-    local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
-    memset(local, 0, sizeof(local_info_t));
     local->link = link;
     link->priv = local;
 

@@ -772,14 +772,13 @@ static int jr3_pci_attach(comedi_device *dev, comedi_devconfig *it)
     dev->subdevices[i].subdev_flags = SDF_READABLE|SDF_GROUND;
     dev->subdevices[i].n_chan = 8 * 7 + 2;
     dev->subdevices[i].insn_read = jr3_pci_ai_insn_read;
-    dev->subdevices[i].private = kmalloc(sizeof(jr3_pci_subdev_private), 
+    dev->subdevices[i].private = kzalloc(sizeof(jr3_pci_subdev_private), 
 					 GFP_KERNEL);
     if (dev->subdevices[i].private) {
       jr3_pci_subdev_private *p;
       int j;
 
       p = dev->subdevices[i].private;
-      memset(p, 0, sizeof(*p));
       p->channel = &devpriv->iobase->channel[i].data;
       printk("p->channel %p %p (%x)\n",
 	     p->channel, devpriv->iobase, 

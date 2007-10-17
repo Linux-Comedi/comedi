@@ -268,13 +268,12 @@ static int postconfig(comedi_device *dev)
 			BUG_ON((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0);
 			BUG_ON(!s->do_cmdtest);
 
-			async = kmalloc(sizeof(comedi_async), GFP_KERNEL);
+			async = kzalloc(sizeof(comedi_async), GFP_KERNEL);
 			if(async == NULL)
 			{
 				printk("failed to allocate async struct\n");
 				return -ENOMEM;
 			}
-			memset(async, 0, sizeof(comedi_async));
 			async->subdevice = s;
 			s->async = async;
 

@@ -489,12 +489,11 @@ static int dt9812_probe(struct usb_interface *interface,
   u8 fw;
 
   // allocate memory for our device state and initialize it
-  dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+  dev = kzalloc(sizeof(*dev), GFP_KERNEL);
   if (dev == NULL) {
     err("Out of memory");
     goto error;
   }
-  memset(dev, 0x00, sizeof(*dev));
   KREF_INIT(&dev->kref, dt9812_delete);
   
   dev->udev = usb_get_dev(interface_to_usbdev(interface));

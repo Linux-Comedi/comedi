@@ -350,11 +350,9 @@ static int do_subdinfo_ioctl(comedi_device *dev,comedi_subdinfo *arg,void *file)
 	comedi_subdevice *s;
 
 
-	tmp=kmalloc(dev->n_subdevices*sizeof(comedi_subdinfo),GFP_KERNEL);
+	tmp=kcalloc(dev->n_subdevices,sizeof(comedi_subdinfo),GFP_KERNEL);
 	if(!tmp)
 		return -ENOMEM;
-
-	memset(tmp,0,sizeof(comedi_subdinfo)*dev->n_subdevices);
 
 	/* fill subdinfo structs */
 	for(i=0;i<dev->n_subdevices;i++){
@@ -1717,7 +1715,7 @@ static int __init comedi_init(void)
 		cdev_del(&comedi_cdev);
 		return PTR_ERR(comedi_class);
 	}
-	comedi_devices=(comedi_device *)kmalloc(sizeof(comedi_device)*COMEDI_NDEVICES,GFP_KERNEL);
+	comedi_devices=kcalloc(COMEDI_NDEVICES,sizeof(comedi_device),GFP_KERNEL);
 	if(!comedi_devices)
 	{
 		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
@@ -1725,7 +1723,6 @@ static int __init comedi_init(void)
 		class_destroy(comedi_class);
 		return -ENOMEM;
 	}
-	memset(comedi_devices,0,sizeof(comedi_device)*COMEDI_NDEVICES);
 
 	/* XXX requires /proc interface */
 	comedi_proc_init();
