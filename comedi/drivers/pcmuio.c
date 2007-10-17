@@ -331,12 +331,11 @@ static int pcmuio_attach(comedi_device *dev, comedi_devconfig *it)
 
     chans_left = CHANS_PER_ASIC * thisboard->num_asics;
     n_subdevs = CALC_N_SUBDEVS(chans_left);
-    devpriv->sprivs = (pcmuio_subdev_private *)kmalloc(sizeof(pcmuio_subdev_private) * n_subdevs, GFP_KERNEL);
+    devpriv->sprivs = kcalloc(n_subdevs, sizeof(pcmuio_subdev_private), GFP_KERNEL);
     if (!devpriv->sprivs) {
         printk("cannot allocate subdevice private data structures\n");
         return -ENOMEM;
     }
-    memset(devpriv->sprivs, 0, sizeof(pcmuio_subdev_private) * n_subdevs);
       /*
        * Allocate the subdevice structures.  alloc_subdevice() is a
        * convenient macro defined in comedidev.h.
@@ -348,8 +347,6 @@ static int pcmuio_attach(comedi_device *dev, comedi_devconfig *it)
         printk("cannot allocate subdevice data structures\n");
         return -ENOMEM;
     }
-
-    memset(dev->subdevices, 0, sizeof(*dev->subdevices) * n_subdevs);
 
     port = 0;
     asic = 0;
