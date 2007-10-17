@@ -21,7 +21,7 @@
 Driver: ni_660x
 Description: National Instruments 660x counter/timer boards
 Devices:
-[National Instruments] PCI-6601 (ni_660x), PCI-6602
+[National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602
 Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
 	Herman.Bruyninckx@mech.kuleuven.ac.be,
 	Wim.Meeussen@mech.kuleuven.ac.be,
@@ -408,6 +408,11 @@ static const ni_660x_board ni_660x_boards[] =
 		name         : "PCI-6602",
 		n_chips       : 2,
 	},
+	{
+		dev_id       : 0x1360,
+		name         : "PXI-6602",
+		n_chips       : 2,
+	},
 };
 #define NI_660X_MAX_NUM_CHIPS 2
 #define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * counters_per_chip)
@@ -415,6 +420,7 @@ static const ni_660x_board ni_660x_boards[] =
 static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
