@@ -333,14 +333,24 @@ static void dt3k_writesingle(comedi_device *dev,unsigned int subsys,
 
 static int debug_n_ints = 0;
 
+// FIXME! Assumes shared interrupt is for this card.
+// What's this debug_n_ints stuff? Obviously needs some work...
 static irqreturn_t dt3k_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_subdevice *s;
 	unsigned int status;
 
+	if (!dev->attached)
+	{
+		return IRQ_NONE;
+	}
+
+	s = dev->subdevices + 0;
 	status = readw(devpriv->io_addr+DPR_Intr_Flag);
+#ifdef DEBUG
 	debug_intr_flags(status);
+#endif
 
 	if(status & DT3000_ADFULL){
 		dt3k_ai_empty_fifo(dev,s);

@@ -720,6 +720,9 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 	comedi_device *dev = d;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: interrupt_service_pci1710(%d,...)\n",irq);
+	if (!dev->attached)	// is device attached?
+		return IRQ_NONE; // no, exit
+
 	if (!(inw(dev->iobase + PCI171x_STATUS) & Status_IRQ)) 	// is this interrupt from our board?
 		return IRQ_NONE; // no, exit
 
@@ -1299,6 +1302,8 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
     		return ret;
 	}
 
+	pci1710_reset(dev);
+
 	if (this_board->have_irq) {
 		if (irq)  {
 			if (comedi_request_irq(irq, interrupt_service_pci1710, IRQF_SHARED, "Advantech PCI-1710", dev)) {
@@ -1403,8 +1408,6 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	devpriv->valid=1;
-
-	pci1710_reset(dev);
 
 	return 0;
 }

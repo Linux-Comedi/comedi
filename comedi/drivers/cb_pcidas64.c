@@ -1749,6 +1749,8 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 
 	priv(dev)->hw_revision = hw_revision( dev, readw(priv(dev)->main_iobase + HW_STATUS_REG ) );
 	printk(" stc hardware revision %i\n", priv(dev)->hw_revision);
+	init_plx9080(dev);
+	init_stc_registers( dev );
 	// get irq
 	if(comedi_request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED, "cb_pcidas64", dev ))
 	{
@@ -1758,8 +1760,6 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	dev->irq = pcidev->irq;
 	printk(" irq %u\n", dev->irq);
 
-	init_plx9080(dev);
-	init_stc_registers( dev );
 	retval = setup_subdevices(dev);
 	if(retval < 0)
 	{

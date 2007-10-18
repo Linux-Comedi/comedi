@@ -336,8 +336,16 @@ static irqreturn_t dt2814_interrupt(int irq,void *d PT_REGS_ARG)
 {
 	int lo,hi;
 	comedi_device *dev=d;
-	comedi_subdevice *s = dev->subdevices + 0;
+	comedi_subdevice *s;
 	int data;
+
+	if (!dev->attached)
+	{
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
+
+	s = dev->subdevices + 0;
 
 	hi=inb(dev->iobase+DT2814_DATA);
 	lo=inb(dev->iobase+DT2814_DATA);

@@ -926,6 +926,8 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
     		return ret;
 	}
 
+	icp_multi_reset(dev);
+
 	if (this_board->have_irq) {
 		if (irq)  {
 			if (comedi_request_irq(irq, interrupt_service_icp_multi, IRQF_SHARED, "Inova Icp Multi", dev)) {
@@ -1016,8 +1018,6 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 	}
 
 	devpriv->valid = 1;
-
-	icp_multi_reset(dev);
 
 #ifdef ICP_MULTI_EXTDEBUG
 	printk("icp multi EDBG: END: icp_multi_attach(...)\n");

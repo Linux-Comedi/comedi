@@ -558,7 +558,7 @@ static irqreturn_t pc236_interrupt(int irq,void *d PT_REGS_ARG)
 	int handled;
 
 	handled = pc236_intr_check(dev);
-	if (handled) {
+	if (dev->attached && handled) {
 		comedi_buf_put(s->async,0);
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 		comedi_event(dev, s);

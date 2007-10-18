@@ -269,8 +269,8 @@ static int daqp_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 {
 	local_info_t *local = (local_info_t *)dev_id;
-	comedi_device *dev = local->dev;
-	comedi_subdevice *s = local->s;
+	comedi_device *dev;
+	comedi_subdevice *s;
 	int loop_limit = 10000;
 	int status;
 
@@ -280,12 +280,20 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 		return;
 	}
 
+	dev = local->dev;
 	if (dev == NULL) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): NULL comedi_device.\n");
 		return;
 	}
 
+	if (!dev->attached) {
+		printk(KERN_WARNING
+		       "daqp_interrupt(): comedi_device not yet attached.\n");
+		return;
+	}
+
+	s = local->s;
 	if (s == NULL) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): NULL comedi_subdevice.\n");

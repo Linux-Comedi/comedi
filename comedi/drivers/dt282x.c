@@ -578,11 +578,19 @@ static int prep_ao_dma(comedi_device * dev,int dma_index,int n)
 static irqreturn_t dt282x_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
-	comedi_subdevice *s = dev->subdevices+0;
-	comedi_subdevice *s_ao = dev->subdevices+1;
+	comedi_subdevice *s;
+	comedi_subdevice *s_ao;
 	unsigned int supcsr, adcsr, dacsr;
 	int handled = 0;
 
+	if (!dev->attached)
+	{
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
+
+	s = dev->subdevices+0;
+	s_ao = dev->subdevices+1;
 	adcsr = inw(dev->iobase + DT2821_ADCSR);
 	dacsr = inw(dev->iobase + DT2821_DACSR);
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);

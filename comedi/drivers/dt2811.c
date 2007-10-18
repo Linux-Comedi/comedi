@@ -255,11 +255,17 @@ static const comedi_lrange *dac_range_types[] =
 #define DT2811_TIMEOUT 5
 
 #if 0
-static void dt2811_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t dt2811_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	int lo, hi;
 	int data;
 	comedi_device *dev = d;
+
+	if (!dev->attached)
+	{
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
 
 	lo = inb(dev->iobase + DT2811_ADDATLO);
 	hi = inb(dev->iobase + DT2811_ADDATHI);
@@ -271,6 +277,7 @@ static void dt2811_interrupt(int irq, void *d PT_REGS_ARG)
 		s->async->events |= COMEDI_SB_EOA;
 	}
 	comedi_event(dev, s);
+	return IRQ_HANDLED;
 }
 #endif
 

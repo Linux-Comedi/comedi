@@ -950,13 +950,39 @@ pci9111_interrupt (int irq, void *p_device PT_REGS_ARG)
 	comedi_subdevice *subdevice = dev->read_subdev;
 	comedi_async *async;
 	unsigned long irq_flags;
+	unsigned char intcsr;
+
+	if (!dev->attached)
+	{
+		// Ignore interrupt before device fully attached.
+		// Might not even have allocated subdevices yet!
+		return IRQ_NONE;
+	}
 
 	async = subdevice->async;
 
 	comedi_spin_lock_irqsave (&dev->spinlock, irq_flags);
 
-	if ((inb (dev_private->lcr_io_base + PLX9050_REGISTER_INTERRUPT_CONTROL) &
-	     PLX9050_LINTI1_STATUS) != 0)
+	// Check if we are source of interrupt
+	intcsr = inb (dev_private->lcr_io_base + PLX9050_REGISTER_INTERRUPT_CONTROL);
+	if (!(((intcsr & PLX9050_PCI_INTERRUPT_ENABLE) != 0) &&
+				(((intcsr & (PLX9050_LINTI1_ENABLE |
+					     PLX9050_LINTI1_STATUS)) ==
+				  (PLX9050_LINTI1_ENABLE |
+				   PLX9050_LINTI1_STATUS)) ||
+				 ((intcsr & (PLX9050_LINTI2_ENABLE |
+					     PLX9050_LINTI2_STATUS)) ==
+				  (PLX9050_LINTI2_ENABLE |
+				   PLX9050_LINTI2_STATUS)))))
+	{
+		// Not the source of the interrupt.
+		// (N.B. not using PLX9050_SOFTWARE_INTERRUPT)
+		comedi_spin_unlock_irqrestore (&dev->spinlock, irq_flags);
+		return IRQ_NONE;
+	}
+
+	if ((intcsr & (PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS)) ==
+			(PLX9050_LINTI1_ENABLE | PLX9050_LINTI1_STATUS))
 	{
 		// Interrupt comes from fifo_half-full signal
 

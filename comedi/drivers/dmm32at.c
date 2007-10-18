@@ -843,12 +843,19 @@ static irqreturn_t dmm32at_isr(int irq,void *d PT_REGS_ARG){
 	unsigned short msb, lsb;
 	int i;
 	comedi_device *dev=d;
-        comedi_subdevice *s=dev->read_subdev;
-	comedi_cmd *cmd = &s->async->cmd;
+
+	if (!dev->attached)
+	{
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
 
 	intstat = dmm_inb(dev,DMM32AT_INTCLOCK);
 
 	if(intstat & DMM32AT_ADINT){
+		comedi_subdevice *s=dev->read_subdev;
+		comedi_cmd *cmd = &s->async->cmd;
+
 		for(i=0;i<cmd->chanlist_len;i++){
 			/* read data */
 			lsb = dmm_inb(dev,DMM32AT_AILSB);

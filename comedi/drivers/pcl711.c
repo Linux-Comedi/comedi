@@ -186,12 +186,18 @@ static irqreturn_t pcl711_interrupt(int irq, void *d PT_REGS_ARG)
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 
+	if (!dev->attached) {
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
+
 	hi = inb(dev->iobase + PCL711_AD_HI);
 	lo = inb(dev->iobase + PCL711_AD_LO);
 	outb(0, dev->iobase + PCL711_CLRINTR);
 
 	data = (hi << 8) | lo;
 
+	/* FIXME! Nothing else sets ntrig! */
 	if (!(--devpriv->ntrig)) {
 		if (this_board->is_8112) {
 			outb(1, dev->iobase + PCL711_MODE);

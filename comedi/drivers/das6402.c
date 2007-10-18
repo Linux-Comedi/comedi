@@ -158,7 +158,7 @@ static irqreturn_t intr_handler(int irq,void *d PT_REGS_ARG)
 	comedi_device *dev=d;
 	comedi_subdevice *s=dev->subdevices;
 
-	if (devpriv->das6402_ignoreirq){
+	if (!dev->attached || devpriv->das6402_ignoreirq){
 		printk("das6402: BUG: spurious interrupt\n");
 		return IRQ_HANDLED;
 	}

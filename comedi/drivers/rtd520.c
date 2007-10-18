@@ -922,6 +922,27 @@ static int rtd_attach (
     s->n_chan=3;
     s->maxdata=0xffff;
 
+					/* initialize board, per RTD spec */
+					/* also, initialize shadow registers */
+    RtdResetBoard (dev);
+    comedi_udelay (100);			/* needed? */
+    RtdPlxInterruptWrite (dev, 0);
+    RtdInterruptMask (dev,0);		/* and sets shadow */
+    RtdInterruptClearMask (dev,~0);	/* and sets shadow */
+    RtdInterruptClear(dev);		/* clears bits set by mask */
+    RtdInterruptOverrunClear(dev);
+    RtdClearCGT (dev);
+    RtdAdcClearFifo (dev);
+    RtdDacClearFifo (dev,0);
+    RtdDacClearFifo (dev,1);
+					/* clear digital IO fifo*/
+    RtdDioStatusWrite (dev, 0);		/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 0, 0x30);	/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 1, 0x30);	/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 2, 0x30);	/* safe state, set shadow */
+    RtdUtcCtrlPut (dev, 3, 0);		/* safe state, set shadow */
+    /* TODO: set user out source ??? */
+
 	/* check if our interrupt is available and get it */
 	if((ret=comedi_request_irq (devpriv->pci_dev->irq, rtd_interrupt,
 		IRQF_SHARED, "rtd520", dev)) < 0) {
@@ -993,26 +1014,6 @@ static int rtd_attach (
 #else /* USE_DMA */
     printk("\n");			/* end configuration line */
 #endif /* USE_DMA */
-
-					/* initialize board, per RTD spec */
-					/* also, initialize shadow registers */
-    RtdResetBoard (dev);
-    comedi_udelay (100);			/* needed? */
-    RtdInterruptMask (dev,0);		/* and sets shadow */
-    RtdInterruptClearMask (dev,~0);	/* and sets shadow */
-    RtdInterruptClear(dev);		/* clears bits set by mask */
-    RtdInterruptOverrunClear(dev);
-    RtdClearCGT (dev);
-    RtdAdcClearFifo (dev);
-    RtdDacClearFifo (dev,0);
-    RtdDacClearFifo (dev,1);
-					/* clear digital IO fifo*/
-    RtdDioStatusWrite (dev, 0);		/* safe state, set shadow */
-    RtdUtcCtrlPut (dev, 0, 0x30);	/* safe state, set shadow */
-    RtdUtcCtrlPut (dev, 1, 0x30);	/* safe state, set shadow */
-    RtdUtcCtrlPut (dev, 2, 0x30);	/* safe state, set shadow */
-    RtdUtcCtrlPut (dev, 3, 0);		/* safe state, set shadow */
-    /* TODO: set user out source ??? */
 
     if (dev->irq) {			/* enable plx9080 interrupts */
 	RtdPlxInterruptWrite (dev, ICS_PIE | ICS_PLIE);
@@ -1508,6 +1509,10 @@ static irqreturn_t rtd_interrupt (
 	u16 status;
 	u16 fifoStatus;
 	comedi_subdevice *s = dev->subdevices + 0; /* analog in subdevice */
+
+	if (!dev->attached) {
+		return IRQ_NONE;
+	}
 
 	devpriv->intCount++;		/* DEBUG statistics */
 

@@ -977,6 +977,10 @@ static irqreturn_t interrupt_pcl812(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
 
+	if (!dev->attached) {
+		comedi_error(dev, "spurious interrupt");
+		return IRQ_HANDLED;
+	}
 	if (devpriv->ai_dma) { return interrupt_pcl812_ai_dma(irq, d); }
 			else { return interrupt_pcl812_ai_int(irq, d); };
 }

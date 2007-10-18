@@ -654,7 +654,7 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 	triggered = 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
-	oldevents = s->async->events;
+	oldevents = s->async ? s->async->events : 0;
 	if (subpriv->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
@@ -693,7 +693,7 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 			outb(cur_enabled, subpriv->iobase);
 		}
 
-		if (subpriv->active) {
+		if (s->async && subpriv->active) {
 			/*
 			 * The command is still active.
 			 *
@@ -740,7 +740,7 @@ dio200_handle_read_intr(comedi_device *dev, comedi_subdevice *s)
 	}
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (oldevents != s->async->events) {
+	if (s->async && (oldevents != s->async->events)) {
 		comedi_event(dev, s);
 	}
 

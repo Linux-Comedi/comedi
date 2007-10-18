@@ -470,10 +470,11 @@ static int init_hpdi( comedi_device *dev )
 	priv(dev)->rx_fifo_size = fifo_size( readl( priv(dev)->hpdi_iobase +
 		RX_FIFO_SIZE_REG ) );
 
+	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
+
 	// enable interrupts
 	plx_intcsr_bits = ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE | ICS_DMA0_E;
 	writel( plx_intcsr_bits, priv(dev)->plx9080_iobase + PLX_INTRCS_REG );
-	writel( 0, priv(dev)->hpdi_iobase + INTERRUPT_CONTROL_REG );
 
 	return 0;
 }
@@ -609,6 +610,8 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", priv(dev)->plx9080_iobase);
 	DEBUG_PRINT(" hpdi remapped to 0x%p\n", priv(dev)->hpdi_iobase);
 
+	init_plx9080(dev);
+
 	// get irq
 	if( comedi_request_irq( pcidev->irq, handle_interrupt, IRQF_SHARED, driver_hpdi.driver_name,
 		 dev ) )
@@ -619,8 +622,6 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->irq = pcidev->irq;
 
 	printk(" irq %u\n", dev->irq);
-
-	init_plx9080(dev);
 
 	// alocate pci dma buffers
 	for( i = 0; i < NUM_DMA_BUFFERS; i++ )
@@ -928,7 +929,17 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 	uint8_t dma0_status, dma1_status;
 	unsigned long flags;
 
+	if (!dev->attached)
+	{
+		return IRQ_NONE;
+	}
+
 	plx_status = readl( priv(dev)->plx9080_iobase + PLX_INTRCS_REG );
+	if( ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA ) ) == 0 )
+	{
+		return IRQ_NONE;
+	}
+
 	hpdi_intr_status = readl( priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
 	hpdi_board_status = readl( priv(dev)->hpdi_iobase + BOARD_STATUS_REG );
 
@@ -938,9 +949,6 @@ static irqreturn_t handle_interrupt(int irq, void *d PT_REGS_ARG)
 	{
 		DEBUG_PRINT("hpdi: intr status 0x%x, ", hpdi_intr_status);
 		writel( hpdi_intr_status, priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG );
-	}else if( ( plx_status & ( ICS_DMA0_A | ICS_DMA1_A | ICS_LIA ) ) == 0 )
-	{
-		return IRQ_NONE;
 	}
 
 	// spin lock makes sure noone else changes plx dma control reg

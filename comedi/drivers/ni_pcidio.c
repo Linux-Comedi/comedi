@@ -494,14 +494,14 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned int m_status = 0;
 	unsigned long irq_flags;
 
-	status = readb(devpriv->mite->daq_io_addr+Interrupt_And_Window_Status);
-	flags = readb(devpriv->mite->daq_io_addr+Group_1_Flags);
-
 	//interrupcions parasites
 	if(dev->attached == 0){
-		comedi_error(dev,"premature interrupt");
-		async->events |= COMEDI_CB_ERROR|COMEDI_CB_EOA;
+		// assume it's from another card
+		return IRQ_NONE;
 	}
+
+	status = readb(devpriv->mite->daq_io_addr+Interrupt_And_Window_Status);
+	flags = readb(devpriv->mite->daq_io_addr+Group_1_Flags);
 
 	DPRINTK("ni_pcidio_interrupt: status=0x%02x,flags=0x%02x\n",
 		status,flags);

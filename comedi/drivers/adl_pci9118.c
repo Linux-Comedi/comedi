@@ -645,6 +645,9 @@ static irqreturn_t interrupt_pci9118(int irq, void *d PT_REGS_ARG)
 	comedi_device *dev = d;
 	unsigned int	int_daq=0,int_amcc,int_adstat;
 
+	if (!dev->attached)
+		return IRQ_NONE;	// not fully initialized
+
 	int_daq=inl(dev->iobase+PCI9118_INTSRC) & 0xf;		// get IRQ reasons from card
 	int_amcc=inl(devpriv->iobase_a+AMCC_OP_REG_INTCSR);	// get INT register from AMCC chip
 
@@ -1749,6 +1752,8 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->pcidev=pcidev;
 	devpriv->iobase_a=iobase_a;
 
+	pci9118_reset(dev);
+
 	if (it->options[3]&2) irq=0; // user don't want use IRQ
 	if (irq>0)  {
 		if (comedi_request_irq(irq, interrupt_pci9118, IRQF_SHARED, "ADLink PCI-9118", dev)) {
@@ -1868,8 +1873,6 @@ static int pci9118_attach(comedi_device *dev,comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->io_bits=0xf;		/* all bits output */
 	s->insn_bits=pci9118_insn_bits_do;
-
-	pci9118_reset(dev);
 
 	devpriv->valid=1;
 	devpriv->i8254_osc_base=250;	// 250ns=4MHz

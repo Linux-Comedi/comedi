@@ -1685,6 +1685,11 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG){
 
     ISR_PDEBUG("me4000_ai_isr() is executed\n");
 
+    if(!dev->attached){
+	    ISR_PDEBUG("me4000_ai_isr() premature interrupt\n");
+	    return IRQ_NONE;
+    }
+
     /* Reset all events */
     s->async->events = 0;
 

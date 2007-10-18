@@ -584,6 +584,9 @@ found:
 		devpriv->ao_registers = pci_resource_start(devpriv->pci_dev, AO_BADRINDEX);
 	}
 
+	// disable and clear interrupts on amcc s5933
+	outl(INTCSR_INBOX_INTR_STATUS, devpriv->s5933_config + AMCC_OP_REG_INTCSR);
+
 	// get irq
 	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcidas_interrupt, IRQF_SHARED, "cb_pcidas", dev ))
 	{
@@ -1505,7 +1508,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d PT_REGS_ARG)
 
 	if(dev->attached == 0)
 	{
-		comedi_error(dev, "premature interrupt");
+		return IRQ_NONE;
 	}
 
 	async = s->async;
