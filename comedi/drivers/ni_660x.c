@@ -21,26 +21,23 @@
 Driver: ni_660x
 Description: National Instruments 660x counter/timer boards
 Devices:
-[National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602
+[National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
+	PXI-6608
 Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
 	Herman.Bruyninckx@mech.kuleuven.ac.be,
 	Wim.Meeussen@mech.kuleuven.ac.be,
 	Klaas.Gadeyne@mech.kuleuven.ac.be,
 	Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: Sun Nov 16 18:46:11 UTC 2003
+Updated: Thu Oct 18 12:56:06 EDT 2007
 Status: experimental
 
-Encoders work, but only with instructions, commands are not
-supported yet.  PulseGeneration (both single pulse and pulse train)
-works. DIO is experimental (8 channels only). Interrupts do not
-work.
+Encoders work.  PulseGeneration (both single pulse and pulse train)
+works. Buffered commands work for input but not output.
 
 References:
 DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
 DAQ 6601/6602 User Manual (NI 322137B-01)
 
-Things to do:
-- Add commands (see ni_tio.c and ni_mio_common.c)
 */
 
 #include <linux/comedidev.h>
@@ -218,18 +215,18 @@ static const NI_660xRegisterData registerData[NumRegisters] =
 	{"G1 Status Register", 0x006, NI_660x_READ, DATA_2B},
 	{"G01 Status Register ", 0x008, NI_660x_READ, DATA_2B},
 	{"G0 Command Register", 0x00C, NI_660x_WRITE, DATA_2B},
-	{"STD DIO Parallel Input", 0x00E, NI_660x_READ, DATA_2B},
+	{"STC DIO Parallel Input", 0x00E, NI_660x_READ, DATA_2B},
 	{"G1 Command Register", 0x00E, NI_660x_WRITE, DATA_2B},
 	{"G0 HW Save Register", 0x010, NI_660x_READ, DATA_4B},
 	{"G1 HW Save Register", 0x014, NI_660x_READ, DATA_4B},
-	{"STD DIO Output", 0x014, NI_660x_WRITE, DATA_2B},
-	{"STD DIO Control", 0x016, NI_660x_WRITE, DATA_2B},
+	{"STC DIO Output", 0x014, NI_660x_WRITE, DATA_2B},
+	{"STC DIO Control", 0x016, NI_660x_WRITE, DATA_2B},
 	{"G0 SW Save Register", 0x018, NI_660x_READ, DATA_4B},
 	{"G1 SW Save Register", 0x01C, NI_660x_READ, DATA_4B},
 	{"G0 Mode Register", 0x034, NI_660x_WRITE, DATA_2B},
 	{"G01 Joint Status 1 Register", 0x036, NI_660x_READ, DATA_2B},
 	{"G1 Mode Register", 0x036, NI_660x_WRITE, DATA_2B},
-	{"STD DIO Serial Input", 0x038, NI_660x_READ, DATA_2B},
+	{"STC DIO Serial Input", 0x038, NI_660x_READ, DATA_2B},
 	{"G0 Load A Register", 0x038, NI_660x_WRITE, DATA_4B},
 	{"G01 Joint Status 2 Register", 0x03A, NI_660x_READ, DATA_2B},
 	{"G0 Load B Register", 0x03C, NI_660x_WRITE, DATA_4B},
@@ -385,7 +382,7 @@ enum global_interrupt_config_register_bits
 };
 
 // Offset of the GPCT chips from the base-adress of the card
-static const unsigned GPCT_OFFSET[2] = {0x0, 0x800}; /* First chip is at base-adress +
+static const unsigned GPCT_OFFSET[2] = {0x0, 0x800}; /* First chip is at base-address +
 					   0x00, etc. */
 
 /* Board description*/
@@ -413,6 +410,11 @@ static const ni_660x_board ni_660x_boards[] =
 		name         : "PXI-6602",
 		n_chips       : 2,
 	},
+	{
+		dev_id       : 0x2cc0,
+		name         : "PXI-6608",
+		n_chips       : 2,
+	},
 };
 #define NI_660X_MAX_NUM_CHIPS 2
 #define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * counters_per_chip)
@@ -421,6 +423,7 @@ static struct pci_device_id ni_660x_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_NATINST, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VENDOR_ID_NATINST, 0x2cc0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_660x_pci_table);
@@ -874,6 +877,18 @@ static int ni_660x_cancel(comedi_device *dev, comedi_subdevice *s)
 	return retval;
 }
 
+static void set_tio_counterswap(comedi_device *dev, int chipset)
+{
+	/* See P. 3.5 of the Register-Level Programming manual.  The
+		CounterSwap bit has to be set on the second chip, otherwise
+		it will try to use the same pins as the first chip.
+	*/
+	if(chipset)
+		ni_660x_write_register(dev, chipset, CounterSwap, ClockConfigRegister);
+	else
+		ni_660x_write_register(dev, chipset, 0, ClockConfigRegister);
+}
+
 static void ni_660x_handle_gpct_interrupt(comedi_device *dev, comedi_subdevice *s)
 {
 	ni_tio_handle_interrupt(subdev_to_counter(s), s);
@@ -978,7 +993,7 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 
 	dev->board_name = board(dev)->name;
 
-	ret = mite_setup(private(dev)->mite);
+	ret = mite_setup2(private(dev)->mite, 1);
 	if (ret < 0) {
 		printk("error setting up mite\n");
 		return ret;
@@ -1057,6 +1072,12 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 			ni_660x_set_pfi_routing(dev, i, pfi_output_select_counter);
 		ni_660x_select_pfi_output(dev, i, pfi_output_select_high_Z);
 	}
+	/* to be safe, set counterswap bits on tio chips after all the counter
+	outputs have been set to high impedance mode */
+	for(i = 0; i < board(dev)->n_chips; ++i)
+	{
+		set_tio_counterswap(dev, i);
+	}
 	if((ret = comedi_request_irq(mite_irq(private(dev)->mite), &ni_660x_interrupt, IRQF_SHARED, "ni_660x", dev)) < 0)
 	{
 		printk(" irq not available\n");
@@ -1066,7 +1087,6 @@ static int ni_660x_attach(comedi_device *dev,comedi_devconfig *it)
 	global_interrupt_config_bits = Global_Int_Enable_Bit;
 	if(board(dev)->n_chips > 1)
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
-
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 		GlobalInterruptConfigRegister);
 	printk("attached\n");
@@ -1106,14 +1126,6 @@ static void init_tio_chip(comedi_device *dev, int chipset)
 {
 	unsigned i;
 
-	/* See P. 3.5 of the Register-Level Programming manual.  The
-		CounterSwap bit has to be set on the second chip, otherwise
-		it will try to use the same pins as the first chip.
-	*/
-	if(chipset)
-		ni_660x_write_register(dev, chipset, CounterSwap, ClockConfigRegister);
-	else
-		ni_660x_write_register(dev, chipset, 0, ClockConfigRegister);
 	// init dma configuration register
 	private(dev)->dma_configuration_soft_copies[chipset] = 0;
 	for(i = 0; i < MAX_DMA_CHANNEL; ++i)

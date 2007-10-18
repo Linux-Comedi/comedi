@@ -110,7 +110,7 @@ static void dump_chip_signature(u32 csigr_bits)
 		mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
 
-int mite_setup(struct mite_struct *mite)
+int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 {
 	unsigned long length;
 	resource_size_t addr;
@@ -139,13 +139,8 @@ int mite_setup(struct mite_struct *mite)
 
 	addr=pci_resource_start(mite->pcidev, 1);
 	mite->daq_phys_addr=addr;
-
+	length = pci_resource_len(mite->pcidev, 1);
 	// In case of a 660x board, DAQ size is 8k instead of 4k (see as shown by lspci output)
-	if ((mite->pcidev->device == 0x1310) || (mite->pcidev->device == 0x2c60)){
-	        length = PCI_DAQ_SIZE_660X;
-		printk("mite: detected NI660X board, using PCI DAQ SIZE of 8k\n");
-	}
-	else length = PCI_DAQ_SIZE;
 	mite->daq_io_addr = ioremap(mite->daq_phys_addr, length);
 	if( !mite->daq_io_addr ) {
 		printk("failed to remap daq io memory address\n");
@@ -153,15 +148,12 @@ int mite_setup(struct mite_struct *mite)
 	}
 	printk("DAQ:0x%08llx mapped to %p\n",(unsigned long long)mite->daq_phys_addr,mite->daq_io_addr);
 
-	// The 6602 board needs different initalisation, see the
-	// _updated_ (nov 2002) reg. Level Manual (filename 370505b.pdf) p. 3.55
-	if (mite->pcidev->device == 0x1310 ){
-		unsigned window_size_order;
-
-		printk("mite: detected NI6602, using other I/O Window Base Size register\n");
-		window_size_order = 13; // 8 kbyte
-		writel(mite->daq_phys_addr | WENAB | MITE_IODWBSR_1_WSIZE_bits(window_size_order), mite->mite_io_addr + MITE_IODWBSR_1);
-		writel(0 ,mite->mite_io_addr + MITE_IODWCR_1);
+	if(use_iodwbsr_1)
+	{
+		writel(0, mite->mite_io_addr + MITE_IODWBSR);
+		printk("mite: using I/O Window Base Size register 1\n");
+		writel(mite->daq_phys_addr | WENAB | MITE_IODWBSR_1_WSIZE_bits(length), mite->mite_io_addr + MITE_IODWBSR_1);
+		writel(0, mite->mite_io_addr + MITE_IODWCR_1);
 	}else
 	{
 		writel(mite->daq_phys_addr | WENAB, mite->mite_io_addr + MITE_IODWBSR);
@@ -197,6 +189,10 @@ int mite_setup(struct mite_struct *mite)
 	return 0;
 }
 
+int mite_setup(struct mite_struct *mite)
+{
+	return mite_setup2(mite, 0);
+}
 
 void mite_cleanup(void)
 {
@@ -769,6 +765,7 @@ EXPORT_SYMBOL(mite_dma_disarm);
 EXPORT_SYMBOL(mite_sync_input_dma);
 EXPORT_SYMBOL(mite_sync_output_dma);
 EXPORT_SYMBOL(mite_setup);
+EXPORT_SYMBOL(mite_setup2);
 EXPORT_SYMBOL(mite_unsetup);
 #if 0
 EXPORT_SYMBOL(mite_kvmem_segment_load);

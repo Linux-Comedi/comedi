@@ -124,6 +124,7 @@ static inline unsigned int mite_device_id(struct mite_struct *mite)
 void mite_init(void);
 void mite_cleanup(void);
 int mite_setup(struct mite_struct *mite);
+int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
 void mite_unsetup(struct mite_struct *mite);
 void mite_list_devices(void);
 struct mite_channel* mite_request_channel_in_range(
@@ -253,9 +254,11 @@ enum MITE_IODWBSR_bits
 {
 	WENAB = 0x80,	// window enable
 };
-// sets window size to 2 raised to the power "order"
-static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned order)
+
+static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned size)
 {
+	unsigned order = 0;
+	while(size >>= 1) ++order;
 	BUG_ON(order < 1);
 	return (order - 1) & 0x1f;
 }
