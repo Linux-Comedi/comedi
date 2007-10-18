@@ -231,6 +231,8 @@ static int labpc_cs_attach(struct pcmcia_device *link)
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
+    pcmcia_cur_dev = link;
+
     labpc_config(link);
 
     return 0;
