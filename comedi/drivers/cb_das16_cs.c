@@ -62,14 +62,19 @@ typedef struct das16cs_board_struct{
 }das16cs_board;
 static const das16cs_board das16cs_boards[] = {
 	{
-	device_id:	0x0000, /* unknown */
-	name:		"PC-CARD DAS16/16",
-	n_ao_chans:	0,
+		device_id:	0x0000, /* unknown */
+		name:		"PC-CARD DAS16/16",
+		n_ao_chans:	0,
 	},
 	{
-	device_id:	0x0039,
-	name:		"PC-CARD DAS16/16-AO",
-	n_ao_chans:	2,
+		device_id:	0x0039,
+		name:		"PC-CARD DAS16/16-AO",
+		n_ao_chans:	2,
+	},
+	{
+		device_id:	0x4009,
+		name:		"PCM-DAS16s/16",
+		n_ao_chans:	0,
 	},
 };
 #define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
@@ -886,6 +891,7 @@ static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 static struct pcmcia_device_id das16cs_id_table[] =
 {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x0039),
+	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4009),
 	PCMCIA_DEVICE_NULL
 };
 MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
