@@ -134,7 +134,7 @@ static int tty_available(struct file *f)
 
   oldfs = get_fs();
   set_fs(KERNEL_DS);
-  f->f_op->ioctl(f->f_dentry->d_inode, f, FIONREAD, (int)&result);
+  f->f_op->ioctl(f->f_dentry->d_inode, f, FIONREAD, (unsigned long)&result);
   set_fs(oldfs);
   return result;
 }
@@ -202,7 +202,7 @@ static void tty_setspeed(struct file *f, int speed)
     // Set speed
     struct termios settings;
 
-    f->f_op->ioctl(f->f_dentry->d_inode, f, TCGETS, (int)&settings);
+    f->f_op->ioctl(f->f_dentry->d_inode, f, TCGETS, (unsigned long)&settings);
 //    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
     settings.c_iflag = 0;
     settings.c_oflag = 0;
@@ -220,15 +220,15 @@ static void tty_setspeed(struct file *f, int speed)
       case 115200: { settings.c_cflag |= B115200; } break;
       default:     { settings.c_cflag |=   B9600; } break;
     }
-    f->f_op->ioctl(f->f_dentry->d_inode, f, TCSETS, (int)&settings);
+    f->f_op->ioctl(f->f_dentry->d_inode, f, TCSETS, (unsigned long)&settings);
 //    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
   }
   {
     // Set low latency
     struct serial_struct settings;
-    f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCGSERIAL, (int)&settings);
+    f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCGSERIAL, (unsigned long)&settings);
     settings.flags |= ASYNC_LOW_LATENCY;
-    f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCSSERIAL, (int)&settings);
+    f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCSSERIAL, (unsigned long)&settings);
   }
 
   set_fs(oldfs);
@@ -308,7 +308,7 @@ static void serial_2002_open(comedi_device *dev) {
   sprintf(port, "/dev/ttyS%d", devpriv->port);
   devpriv->tty = filp_open(port, 0, O_RDWR);
   if (IS_ERR(devpriv->tty)) {
-    printk("serial_2002: file open error = %x\n", (int)devpriv->tty);
+    printk("serial_2002: file open error = %ld\n", PTR_ERR(devpriv->tty));
   } else {
     typedef struct {
       int kind;

@@ -2652,7 +2652,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	   devpriv->ps_BoardInfo = this_board;
 	   devpriv->i_IobaseReserved=io_addr[3];
 	   printk ("\nioremap begin");
-	   devpriv->dw_AiBase=(UINT) ioremap(io_addr[3],this_board->i_IorangeBase3);
+	   devpriv->dw_AiBase=(ULONG_PTR) ioremap(io_addr[3],this_board->i_IorangeBase3);
 	   printk ("\nioremap end");
 	   }
 

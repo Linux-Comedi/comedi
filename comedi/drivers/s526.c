@@ -188,8 +188,8 @@ static const s526_board s526_boards[] = {
 	}
 };
 
-#define ADDR_REG(reg) (int)((int)((s526_board *)dev->iobase) + reg)
-#define ADDR_CHAN_REG(reg, chan) (int)((int)((s526_board *)dev->iobase) + reg + chan * 8)
+#define ADDR_REG(reg) (dev->iobase + (reg))
+#define ADDR_CHAN_REG(reg, chan) (dev->iobase + (reg) + (chan) * 8)
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -286,7 +286,7 @@ static int s526_attach(comedi_device *dev,comedi_devconfig *it)
         }
         dev->iobase=iobase;
 
-	printk("iobase=0x%lux\n", dev->iobase);
+	printk("iobase=0x%lx\n", dev->iobase);
 
 	/*** make it a little quieter, exw, 8/29/06
 	for (i = 0; i < S526_NUM_PORTS; i++) {
@@ -419,7 +419,7 @@ static int s526_attach(comedi_device *dev,comedi_devconfig *it)
 			cmReg.reg.reserved		= 0;
 
 			n = 0;
-			printk("Mode reg=0x%04x, 0x%04x\n", cmReg.value, ADDR_CHAN_REG(REG_C0M, n));
+			printk("Mode reg=0x%04x, 0x%04lx\n", cmReg.value, ADDR_CHAN_REG(REG_C0M, n));
 			outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, n));
 			udelay(1000);
 			printk("Read back mode reg=0x%04x\n", inw(ADDR_CHAN_REG(REG_C0M, n)));
@@ -450,7 +450,7 @@ static int s526_attach(comedi_device *dev,comedi_devconfig *it)
 	printk("Current registres:\n");
 
 	for (i = 0; i < S526_NUM_PORTS; i++) {
-		printk("0x%02x: 0x%04x\n", ADDR_REG(s526_ports[i]), inw(ADDR_REG(s526_ports[i])));
+		printk("0x%02lx: 0x%04x\n", ADDR_REG(s526_ports[i]), inw(ADDR_REG(s526_ports[i])));
 	}
 	return 1;
 }

@@ -691,7 +691,7 @@ int  i_APCI16XX_InsnBitsWriteTTLIO   (comedi_device    *dev,
                     /* The selected TTL output port is wrong */
                     /*****************************************/
                  
-                    printk("\nPort selection error %lX", devpriv->ul_TTLPortConfiguration[0]);
+                    printk("\nPort selection error %lX", (unsigned long)devpriv->ul_TTLPortConfiguration[0]);
                     i_ReturnValue = -102;
                     }
 	         }

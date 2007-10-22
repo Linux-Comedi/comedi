@@ -532,10 +532,10 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
       return -ENOMEM;
     }
 
-    devpriv->ANABuf.PhysicalBase=(void*)appdma;
+    devpriv->ANABuf.PhysicalBase=appdma;
 
-    DEBUG("s626_attach: AllocDMAB ADC Logical=0x%x, bsize=%d, Physical=0x%x\n",
-	  (uint32_t) devpriv->ANABuf.LogicalBase, DMABUF_SIZE, (uint32_t)devpriv->ANABuf.PhysicalBase);
+    DEBUG("s626_attach: AllocDMAB ADC Logical=%p, bsize=%d, Physical=0x%x\n",
+	  devpriv->ANABuf.LogicalBase, DMABUF_SIZE, (uint32_t)devpriv->ANABuf.PhysicalBase);
 
     devpriv->allocatedBuf++;
 
@@ -544,10 +544,10 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
       return -ENOMEM;
     }
 
-    devpriv->RPSBuf.PhysicalBase=(void*)appdma;
+    devpriv->RPSBuf.PhysicalBase=appdma;
 
-    DEBUG("s626_attach: AllocDMAB RPS Logical=0x%x, bsize=%d, Physical=0x%x\n",
-	  (uint32_t) devpriv->RPSBuf.LogicalBase, DMABUF_SIZE, (uint32_t)devpriv->RPSBuf.PhysicalBase);
+    DEBUG("s626_attach: AllocDMAB RPS Logical=%p, bsize=%d, Physical=0x%x\n",
+	  devpriv->RPSBuf.LogicalBase, DMABUF_SIZE, (uint32_t)devpriv->RPSBuf.PhysicalBase);
 
     devpriv->allocatedBuf++;
 
@@ -654,7 +654,7 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
   devpriv->ai_cmd_running=0;
 
   if (devpriv->base_addr && (devpriv->allocatedBuf==2)){
-    uint32_t *pPhysBuf;
+    dma_addr_t pPhysBuf;
     uint16_t chan;
 
     // enab DEBI and audio pins, enable I2C interface.
@@ -800,10 +800,10 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     // single DWORD will be transferred each time a DMA transfer is
     // enabled.
 
-    pPhysBuf = (uint32_t *)devpriv->ANABuf.PhysicalBase + DAC_WDMABUF_OS;
+    pPhysBuf = devpriv->ANABuf.PhysicalBase + (DAC_WDMABUF_OS * sizeof(uint32_t));
 
     WR7146( P_BASEA2_OUT, (uint32_t) pPhysBuf  );	// Buffer base adrs.
-    WR7146( P_PROTA2_OUT, (uint32_t) (pPhysBuf + 1) );	// Protection address.
+    WR7146( P_PROTA2_OUT, (uint32_t) (pPhysBuf + sizeof(uint32_t)) );	// Protection address.
 
     // Cache Audio2's output DMA buffer logical address.  This is
     // where DAC data is buffered for A2 output DMA transfers.
@@ -1336,7 +1336,7 @@ void ResetADC(comedi_device *dev,uint8_t *ppl )
     // here; this allows us to produce a longer delay than is
     // possible with NOPs because each RPS_JUMP flushes the RPS'
     // instruction prefetch pipeline.
-    JmpAdrs = (uint32_t)devpriv->RPSBuf.PhysicalBase + (uint32_t)pRPS - (uint32_t)devpriv->RPSBuf.LogicalBase;
+    JmpAdrs = (uint32_t)devpriv->RPSBuf.PhysicalBase + (uint32_t)((unsigned long)pRPS - (unsigned long)devpriv->RPSBuf.LogicalBase);
     for ( i = 0; i < ( 10 * RPSCLK_PER_US / 2); i++ ) {
       JmpAdrs += 8;	       	// Repeat to implement time delay:
       * pRPS++= RPS_JUMP ;	// Jump to next RPS instruction.
@@ -2582,7 +2582,8 @@ static void DEBIreplace(comedi_device *dev, uint16_t addr, uint16_t mask, uint16
 
 static void CloseDMAB (comedi_device *dev,DMABUF * pdma,size_t bsize )
 {
-  void *vbptr, *vpptr;
+  void *vbptr;
+  dma_addr_t vpptr;
 
   DEBUG("CloseDMAB: Entering S626DRV_CloseDMAB():\n");
   if (pdma == NULL)
@@ -2593,12 +2594,11 @@ static void CloseDMAB (comedi_device *dev,DMABUF * pdma,size_t bsize )
   vpptr=pdma->PhysicalBase;
   if (vbptr)
     {
-      pci_free_consistent (devpriv->pdev, bsize, vbptr,
-			   (int) vpptr);
+      pci_free_consistent (devpriv->pdev, bsize, vbptr, vpptr);
       pdma->LogicalBase = 0;
       pdma->PhysicalBase = 0;
 
-      DEBUG ("CloseDMAB(): Logical=0x%x, bsize=%d, Physical=0x%x\n", (uint32_t) vbptr, bsize, (uint32_t) vpptr);
+      DEBUG ("CloseDMAB(): Logical=%p, bsize=%d, Physical=0x%x\n", vbptr, bsize, (uint32_t) vpptr);
     }
 }
 

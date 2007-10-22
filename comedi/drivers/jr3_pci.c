@@ -703,7 +703,7 @@ static int jr3_pci_attach(comedi_device *dev, comedi_devconfig *it)
 
   if (sizeof(jr3_channel_t) != 0xc00) {
     printk("sizeof(jr3_channel_t) = %x [expected %x]\n", 
-	   sizeof(jr3_channel_t), 0xc00);
+	   (unsigned)sizeof(jr3_channel_t), 0xc00);
     return -EINVAL;
   }
 
@@ -780,9 +780,9 @@ static int jr3_pci_attach(comedi_device *dev, comedi_devconfig *it)
 
       p = dev->subdevices[i].private;
       p->channel = &devpriv->iobase->channel[i].data;
-      printk("p->channel %p %p (%x)\n",
+      printk("p->channel %p %p (%tx)\n",
 	     p->channel, devpriv->iobase, 
-	     (int)(p->channel) - (int)(devpriv->iobase));
+	     ((char *)(p->channel) - (char *)(devpriv->iobase)));
       p->channel_no = i;
       for (j = 0 ; j < 8 ; j++) {
 	int k;

@@ -806,7 +806,7 @@
 
 typedef struct bufferDMA
 {
-  void *PhysicalBase;
+  dma_addr_t PhysicalBase;
   void *LogicalBase;
   uint32_t DMAHandle;
 } DMABUF;

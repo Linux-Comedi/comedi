@@ -69,7 +69,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #define VOID void
 #define UINT unsigned int
-#define ULONG unsigned long
+#define ULONG unsigned int	/* 32-bit */
 #define USHORT unsigned short
 #define PUSHORT unsigned short *
 #define INT int
@@ -87,7 +87,8 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define HIWORD(W)                                (USHORT       )(((W)>>16)&0xFFFF)
 #define MAKEDWORD(H,L)  						(UINT         )((L)|( (H)<<16) )
 
-#define DWORD         unsigned long
+#define ULONG_PTR     unsigned long
+#define DWORD         unsigned int	/* 32-bit */
 #define WORD          unsigned short
 
 #define ADDI_ENABLE   1 
@@ -390,7 +391,7 @@ typedef struct{
  		INT      i_IobaseAmcc;  // base+size for AMCC chip
 		INT      i_IobaseAddon; //addon base address
                 INT      i_IobaseReserved;
-                DWORD    dw_AiBase;
+                ULONG_PTR dw_AiBase;
    		struct pcilst_struct	*amcc;		// ptr too AMCC data
 		UINT		        master;		// master capable
 		BYTE         		allocated;	// we have blocked card
