@@ -3171,6 +3171,8 @@ static int ni_ao_reset(comedi_device *dev,comedi_subdevice *s)
 	return 0;
 }
 
+// digital io
+
 static int ni_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	comedi_insn *insn,lsampl_t *data)
 {
@@ -3392,6 +3394,8 @@ static int ni_cdio_cmd(comedi_device *dev, comedi_subdevice *s)
 	ni_writel(cdo_mode_bits, M_Offset_CDO_Mode);
 	if(s->io_bits)
 	{
+		ni_writel(s->state, M_Offset_CDO_FIFO_Data);
+		ni_writel(CDO_SW_Update_Bit, M_Offset_CDIO_Command);
 		ni_writel(s->io_bits, M_Offset_CDO_Mask_Enable);
 	}else
 	{
