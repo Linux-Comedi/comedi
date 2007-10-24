@@ -435,12 +435,15 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 {
 	comedi_async *async = s->async;
 
+	/* Round up new_size to multiple of PAGE_SIZE */
+	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
+
 	/* if no change is required, do nothing */
 	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
 		return 0;
 	}
 	// deallocate old buffer
-	if(async->prealloc_buf && s->async_dma_dir != DMA_NONE)
+	if(async->prealloc_buf)
 	{
 		vunmap(async->prealloc_buf);
 		async->prealloc_buf = NULL;
@@ -451,77 +454,73 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 		unsigned i;
 		for(i = 0; i < async->n_buf_pages; ++i)
 		{
-			if(async->buf_page_list[i].virt_addr)
+			if(async->buf_page_list[i].virt_addr){
 				mem_map_unreserve(virt_to_page(async->buf_page_list[i].virt_addr));
-			if(async->buf_page_list[i].dma_addr)
-			{
-				dma_free_coherent(dev->hw_dev, PAGE_SIZE,
-					async->buf_page_list[i].virt_addr, async->buf_page_list[i].dma_addr);
+				if(s->async_dma_dir != DMA_NONE){
+					dma_free_coherent(dev->hw_dev, PAGE_SIZE,
+						async->buf_page_list[i].virt_addr, async->buf_page_list[i].dma_addr);
+				}else{
+					free_page((unsigned long)async->buf_page_list[i].virt_addr);
+				}
 			}
 		}
 		vfree(async->buf_page_list);
 		async->buf_page_list = NULL;
 		async->n_buf_pages = 0;
 	}
-	if(async->prealloc_buf && s->async_dma_dir == DMA_NONE)
-	{
-		vfree(async->prealloc_buf);
-		async->prealloc_buf = NULL;
-		async->prealloc_bufsz = 0;
-	}
 	// allocate new buffer
 	if(new_size){
-		int i;
-		unsigned n_pages = (new_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-		// size is rounded up to nearest multiple of PAGE_SIZE
-		new_size = n_pages << PAGE_SHIFT;
+		unsigned i = 0;
+		unsigned n_pages = new_size >> PAGE_SHIFT;
+		struct page** pages = NULL;
 
 		async->buf_page_list = vmalloc(sizeof(struct comedi_buf_page) * n_pages);
-		if(async->buf_page_list == NULL)
-		{
-			return -ENOMEM;
-		}
-		memset(async->buf_page_list, 0, sizeof(struct comedi_buf_page) * n_pages);
-		async->n_buf_pages = n_pages;
-
-		if(s->async_dma_dir != DMA_NONE)
-		{
-			struct page** pages = NULL;
-
+		if(async->buf_page_list){
+			memset(async->buf_page_list, 0, sizeof(struct comedi_buf_page) * n_pages);
 			pages = vmalloc(sizeof(struct page*) * n_pages);
-			if(pages == NULL)
-			{
-				return -ENOMEM;
-			}
-			for(i = 0; i < n_pages; i++)
-			{
-				async->buf_page_list[i].virt_addr = dma_alloc_coherent(dev->hw_dev,
-					PAGE_SIZE, &async->buf_page_list[i].dma_addr, GFP_KERNEL | __GFP_COMP);
-				if(async->buf_page_list[i].virt_addr == NULL)
-				{
-					vfree(pages);
-					return -ENOMEM;
+		}
+		if(pages){
+			for(i = 0; i < n_pages; i++){
+				if(s->async_dma_dir != DMA_NONE){
+					async->buf_page_list[i].virt_addr = dma_alloc_coherent(dev->hw_dev,
+						PAGE_SIZE, &async->buf_page_list[i].dma_addr, GFP_KERNEL | __GFP_COMP);
+				}else{
+					async->buf_page_list[i].virt_addr = (void*)__get_free_page(GFP_KERNEL);
+				}
+				if(async->buf_page_list[i].virt_addr == NULL){
+					break;
 				}
 				mem_map_reserve(virt_to_page(async->buf_page_list[i].virt_addr));
 				pages[i] = virt_to_page(async->buf_page_list[i].virt_addr);
 			}
-			async->prealloc_buf = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL_NOCACHE);
-			vfree(pages);
-			if(async->prealloc_buf == NULL) return -ENOMEM;
-		}else
-		{
-			async->prealloc_buf = vmalloc(new_size);
-			if(async->prealloc_buf == NULL)
-			{
-				return -ENOMEM;
-			}
-			for(i = 0; i < n_pages; i++)
-			{
-				async->buf_page_list[i].virt_addr = async->prealloc_buf + PAGE_SIZE * i;
-				mem_map_reserve(virt_to_page(async->buf_page_list[i].virt_addr));
-			}
 		}
+		if(i == n_pages){
+			async->prealloc_buf = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL_NOCACHE);
+		}
+		if(pages){
+			vfree(pages);
+		}
+		if(async->prealloc_buf == NULL){
+			/* Some allocation failed above. */
+			if(async->buf_page_list){
+				for(i = 0; i < n_pages; i++){
+					if(async->buf_page_list[i].virt_addr == NULL){
+						break;
+					}
+					mem_map_unreserve(virt_to_page(async->buf_page_list[i].virt_addr));
+					if(s->async_dma_dir != DMA_NONE){
+						dma_free_coherent(dev->hw_dev, PAGE_SIZE,
+							async->buf_page_list[i].virt_addr, async->buf_page_list[i].dma_addr);
+					}else{
+						free_page((unsigned long)async->buf_page_list[i].virt_addr);
+					}
+				}
+				vfree(async->buf_page_list);
+				async->buf_page_list = NULL;
+			}
+			return -ENOMEM;
+		}
+		async->n_buf_pages = n_pages;
 	}
 	async->prealloc_bufsz = new_size;
 
