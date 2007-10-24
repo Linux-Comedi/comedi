@@ -189,6 +189,8 @@ struct comedi_async_struct{
 
 	comedi_cmd cmd;
 
+	wait_queue_head_t wait_head;
+
 	// callback stuff
 	unsigned int cb_mask;
 	int (*cb_func)(unsigned int flags,void *);
@@ -238,10 +240,7 @@ struct comedi_device_struct{
 	unsigned int irq;
 
 	comedi_subdevice *read_subdev;
-	wait_queue_head_t read_wait;
-
 	comedi_subdevice *write_subdev;
-	wait_queue_head_t write_wait;
 
 	struct fasync_struct *async_queue;
 

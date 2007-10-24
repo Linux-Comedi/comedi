@@ -1191,6 +1191,8 @@ static int do_cancel_ioctl(comedi_device *dev,unsigned int arg,void *file)
 	if(arg>=dev->n_subdevices)
 		return -EINVAL;
 	s=dev->subdevices+arg;
+	if(s->async == NULL)
+		return -EINVAL;
 
 	if(s->lock && s->lock!=file)
 		return -EACCES;
@@ -1326,11 +1328,11 @@ static int comedi_mmap(struct file * file, struct vm_area_struct *vma)
 
 static unsigned int comedi_poll(struct file *file, poll_table * wait)
 {
-	comedi_subdevice *s;
-	comedi_async *async;
 	unsigned int mask;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	comedi_device *dev = comedi_get_device_by_minor(minor);
+	comedi_subdevice *read_subdev = comedi_get_read_subdevice(dev, minor);
+	comedi_subdevice *write_subdev = comedi_get_write_subdevice(dev, minor);
 
 	if(!dev->attached)
 	{
@@ -1338,24 +1340,20 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		return -ENODEV;
 	}
 
-	poll_wait(file, &dev->read_wait, wait);
-	poll_wait(file, &dev->write_wait, wait);
 	mask = 0;
-	if(dev->read_subdev && dev->read_subdev->async){
-		s = dev->read_subdev;
-		async = s->async;
-		if(!s->busy
-		   || comedi_buf_read_n_available(async)>0
-		   || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING)){
+	if(read_subdev){
+		poll_wait(file, &read_subdev->async->wait_head, wait);
+		if(!read_subdev->busy
+			|| comedi_buf_read_n_available(read_subdev->async) > 0
+			|| !(comedi_get_subdevice_runflags(read_subdev) & SRF_RUNNING)){
 			mask |= POLLIN | POLLRDNORM;
 		}
 	}
-	if(dev->write_subdev && dev->write_subdev->async){
-		s = dev->write_subdev;
-		async = s->async;
-		if(!s->busy
-		   || !(comedi_get_subdevice_runflags(s) & SRF_RUNNING)
-		   || comedi_buf_write_n_available(async) > 0){
+	if(write_subdev){
+		poll_wait(file, &write_subdev->async->wait_head, wait);
+		if(!write_subdev->busy
+			|| !(comedi_get_subdevice_runflags(write_subdev) & SRF_RUNNING)
+			|| comedi_buf_write_n_available(write_subdev->async) > 0){
 			mask |= POLLOUT | POLLWRNORM;
 		}
 	}
@@ -1393,9 +1391,9 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 
 	if(s->busy != file)
 		return -EACCES;
-	add_wait_queue(&dev->write_wait,&wait);
+	add_wait_queue(&async->wait_head, &wait);
 	while(nbytes>0 && !retval){
-		current->state=TASK_INTERRUPTIBLE;
+		set_current_state(TASK_INTERRUPTIBLE);
 
 		n=nbytes;
 
@@ -1415,10 +1413,6 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 				retval=-EAGAIN;
 				break;
 			}
-			if(signal_pending(current)){
-				retval=-ERESTARTSYS;
-				break;
-			}
 			if(!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)){
 				if(comedi_get_subdevice_runflags(s) & SRF_ERROR){
 					retval = -EPIPE;
@@ -1426,6 +1420,10 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 					retval = 0;
 				}
 				do_become_nonbusy(dev,s);
+				break;
+			}
+			if(signal_pending(current)){
+				retval=-ERESTARTSYS;
 				break;
 			}
 			schedule();
@@ -1446,8 +1444,8 @@ static ssize_t comedi_write(struct file *file,const char *buf,size_t nbytes,loff
 		buf+=n;
 		break;	/* makes device work like a pipe */
 	}
-	current->state=TASK_RUNNING;
-	remove_wait_queue(&dev->write_wait,&wait);
+	set_current_state(TASK_RUNNING);
+	remove_wait_queue(&async->wait_head, &wait);
 
 	return (count ? count : retval);
 }
@@ -1479,9 +1477,9 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 	if(s->busy != file)
 		return -EACCES;
 
-	add_wait_queue(&dev->read_wait,&wait);
+	add_wait_queue(&async->wait_head, &wait);
 	while(nbytes>0 && !retval){
-		current->state=TASK_INTERRUPTIBLE;
+		set_current_state(TASK_INTERRUPTIBLE);
 
 		n=nbytes;
 
@@ -1494,6 +1492,10 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 		if(m<n)n=m;
 
 		if(n==0){
+			if(file->f_flags&O_NONBLOCK){
+				retval=-EAGAIN;
+				break;
+			}
 			if(!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)){
 				do_become_nonbusy(dev,s);
 				if(comedi_get_subdevice_runflags(s) & SRF_ERROR){
@@ -1501,10 +1503,6 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 				}else{
 					retval = 0;
 				}
-				break;
-			}
-			if(file->f_flags&O_NONBLOCK){
-				retval=-EAGAIN;
 				break;
 			}
 			if(signal_pending(current)){
@@ -1535,8 +1533,8 @@ static ssize_t comedi_read(struct file * file,char *buf,size_t nbytes,loff_t *of
 	{
 		do_become_nonbusy(dev,s);
 	}
-	current->state=TASK_RUNNING;
-	remove_wait_queue(&dev->read_wait,&wait);
+	set_current_state(TASK_RUNNING);
+	remove_wait_queue(&async->wait_head, &wait);
 
 	return (count ? count : retval);
 }
@@ -1812,20 +1810,16 @@ void comedi_event(comedi_device *dev, comedi_subdevice *s)
 			if(dev->rt){
 #ifdef CONFIG_COMEDI_RT
 				// pend wake up
-				if(s->subdev_flags & SDF_CMD_READ)
-					comedi_rt_pend_wakeup(&dev->read_wait);
-				if(s->subdev_flags & SDF_CMD_WRITE)
-					comedi_rt_pend_wakeup(&dev->write_wait);
+				comedi_rt_pend_wakeup(&async->wait_head);
 #else
 				printk("BUG: comedi_event() code unreachable\n");
 #endif
 			}else{
+				wake_up_interruptible(&async->wait_head);
 				if(s->subdev_flags & SDF_CMD_READ){
-					wake_up_interruptible(&dev->read_wait);
 					kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
 				}
 				if(s->subdev_flags & SDF_CMD_WRITE){
-					wake_up_interruptible(&dev->write_wait);
 					kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
 				}
 			}

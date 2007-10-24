@@ -183,9 +183,6 @@ attached:
 		return ret;
 	}
 
-	init_waitqueue_head(&dev->read_wait);
-	init_waitqueue_head(&dev->write_wait);
-
 	if(!dev->board_name){
 		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
 		dev->board_name="BUG";
@@ -274,6 +271,7 @@ static int postconfig(comedi_device *dev)
 				printk("failed to allocate async struct\n");
 				return -ENOMEM;
 			}
+			init_waitqueue_head(&async->wait_head);
 			async->subdevice = s;
 			s->async = async;
 
