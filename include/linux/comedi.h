@@ -830,6 +830,14 @@ static inline unsigned NI_AO_SCAN_BEGIN_SRC_RTSI(unsigned rtsi_channel)
 	return NI_USUAL_RTSI_SELECT(rtsi_channel);
 }
 
+/* Bits for setting a clock source with
+ * INSN_CONFIG_SET_CLOCK_SRC when using NI frequency output subdevice. */
+enum ni_freq_out_clock_source_bits
+{
+	NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC,	// 10 MHz
+	NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC	// 100 KHz
+};
+
 #ifdef __cplusplus
 }
 #endif
