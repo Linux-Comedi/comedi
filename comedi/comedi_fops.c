@@ -663,6 +663,7 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 {
 	comedi_subdevice *s;
 	int ret = 0;
+	int i;
 
 	if(insn->insn&INSN_MASK_SPECIAL){
 		/* a non-subdevice instruction */
@@ -760,8 +761,12 @@ static int parse_insn(comedi_device *dev,comedi_insn *insn,lsampl_t *data,void *
 				ret=s->insn_read(dev,s,insn,data);
 				break;
 			case INSN_WRITE:
-				//XXX check against subdevice's maxdata
-				ret=s->insn_write(dev,s,insn,data);
+				for(i = 0; i < insn->n; ++i)
+				{
+					if(data[i] > s->maxdata) ret = -EINVAL;
+				}
+				if(ret == 0)
+					ret = s->insn_write(dev,s,insn,data);
 				break;
 			case INSN_BITS:
 				if(insn->n != 2)
