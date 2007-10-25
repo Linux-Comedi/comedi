@@ -43,6 +43,10 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 340934b.pdf  DAQ-STC reference manual
 
 */
+/*
+TODO:
+	Support use of both banks X and Y
+*/
 
 #include "ni_tio.h"
 #include "mite.h"
@@ -704,8 +708,8 @@ static inline unsigned NI_M_Series_PFI_Gate_Select(unsigned n)
 #define Gi_Gate_Select_Shift 7
 enum Gi_Input_Select_Bits
 {
-	Gi_Read_Acknowledges_Irq = 0x1,
-	Gi_Write_Acknowledges_Irq = 0x2,
+	Gi_Read_Acknowledges_Irq = 0x1,	// not present on 660x
+	Gi_Write_Acknowledges_Irq = 0x2,	// not present on 660x
 	Gi_Source_Select_Mask = 0x7c,
 	Gi_Gate_Select_Mask = 0x1f << Gi_Gate_Select_Shift,
 	Gi_Gate_Select_Load_Source_Bit = 0x1000,
@@ -2700,7 +2704,15 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error, in
 	if(gxx_status & Gi_Gate_Error_Bit(counter->counter_index))
 	{
 		ack |= Gi_Gate_Error_Confirm_Bit(counter->counter_index);
-		if(gate_error) *gate_error = 1;
+		if(gate_error)
+		{
+			/*660x don't support automatic acknowledgement of gate interrupt via dma read/write
+			and report bogus gate errors */
+			if(counter->counter_dev->variant != ni_gpct_variant_660x)
+			{
+				*gate_error = 1;
+			}
+		}
 	}
 	if(gxx_status & Gi_TC_Error_Bit(counter->counter_index))
 	{
