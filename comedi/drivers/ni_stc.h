@@ -306,19 +306,26 @@ enum AO_FIFO_Mode_Bits
 #define AO_UC_Save_Registers		20
 
 #define Clock_and_FOUT_Register		56
-#define FOUT_Enable				_bit15
-#define FOUT_Timebase_Select			_bit14
-#define DIO_Serial_Out_Divide_By_2		_bit13
-#define Slow_Internal_Time_Divide_By_2		_bit12
-#define Slow_Internal_Timebase			_bit11
-#define G_Source_Divide_By_2			_bit10
-#define Clock_To_Board_Divide_By_2		_bit9
-#define Clock_To_Board				_bit8
-#define AI_Output_Divide_By_2			_bit7
-#define AI_Source_Divide_By_2			_bit6
-#define AO_Output_Divide_By_2			_bit5
-#define AO_Source_Divide_By_2			_bit4
-#define FOUT_Divider(x)				(((x) & 0xf) << 0)
+enum Clock_and_FOUT_bits
+{
+	FOUT_Enable = _bit15,
+	FOUT_Timebase_Select = _bit14,
+	DIO_Serial_Out_Divide_By_2 = _bit13,
+	Slow_Internal_Time_Divide_By_2 = _bit12,
+	Slow_Internal_Timebase = _bit11,
+	G_Source_Divide_By_2 = _bit10,
+	Clock_To_Board_Divide_By_2 = _bit9,
+	Clock_To_Board = _bit8,
+	AI_Output_Divide_By_2 = _bit7,
+	AI_Source_Divide_By_2 = _bit6,
+	AO_Output_Divide_By_2 = _bit5,
+	AO_Source_Divide_By_2 = _bit4,
+	FOUT_Divider_mask = 0xf
+};
+static inline unsigned FOUT_Divider(unsigned divider)
+{
+	return (divider & FOUT_Divider_mask);
+}
 
 #define IO_Bidirection_Pin_Register	57
 #define	RTSI_Trig_Direction_Register	58

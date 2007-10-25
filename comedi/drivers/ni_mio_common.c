@@ -315,6 +315,7 @@ enum ni_common_subdevices
 	NI_RTSI_SUBDEV,
 	NI_GPCT0_SUBDEV,
 	NI_GPCT1_SUBDEV,
+	NI_FREQ_OUT_SUBDEV,
 	NI_NUM_SUBDEVICES
 };
 static inline unsigned NI_GPCT_SUBDEV(unsigned counter_index)
@@ -331,6 +332,12 @@ static inline unsigned NI_GPCT_SUBDEV(unsigned counter_index)
 	BUG();
 	return NI_GPCT0_SUBDEV;
 }
+
+enum timebase_nanoseconds
+{
+	TIMEBASE_1_NS = 50,
+	TIMEBASE_2_NS = 10000
+};
 
 #define SERIAL_DISABLED		0
 #define SERIAL_600NS		600
@@ -3909,6 +3916,72 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter, enum ni_gpct_regi
 	return 0;
 }
 
+static int ni_freq_out_insn_read(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	data[0] = devpriv->clock_and_fout & FOUT_Divider_mask;
+	return 1;
+}
+
+static int ni_freq_out_insn_write(comedi_device *dev,
+	comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+{
+	devpriv->clock_and_fout &= ~FOUT_Enable;
+	devpriv->stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
+	devpriv->clock_and_fout &= ~FOUT_Divider_mask;
+	devpriv->clock_and_fout |= FOUT_Divider(data[0]);
+	devpriv->clock_and_fout |= FOUT_Enable;
+	devpriv->stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
+	return insn->n;
+}
+
+static int ni_set_freq_out_clock(comedi_device *dev, lsampl_t clock_source)
+{
+	switch(clock_source)
+	{
+	case NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC:
+		devpriv->clock_and_fout &= ~FOUT_Timebase_Select;
+		break;
+	case NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC:
+		devpriv->clock_and_fout |= FOUT_Timebase_Select;
+		break;
+	default:
+		return -EINVAL;
+	}
+	devpriv->stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
+	return 3;
+}
+
+static void ni_get_freq_out_clock(comedi_device *dev, lsampl_t *clock_source, lsampl_t *clock_period_ns)
+{
+	if(devpriv->clock_and_fout & FOUT_Timebase_Select)
+	{
+		*clock_source = NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC;
+		*clock_period_ns = TIMEBASE_2_NS;
+	}else
+	{
+		*clock_source = NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC;
+		*clock_period_ns = TIMEBASE_1_NS * 2;
+	}
+}
+
+static int ni_freq_out_insn_config(comedi_device *dev, comedi_subdevice *s,
+	comedi_insn *insn, lsampl_t *data)
+{
+	switch(data[0])
+	{
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		return ni_set_freq_out_clock(dev, data[1]);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		ni_get_freq_out_clock(dev, &data[1], &data[2]);
+		return 3;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
 static int ni_alloc_private(comedi_device *dev)
 {
 	int ret;
@@ -4188,6 +4261,16 @@ static int ni_E_init(comedi_device *dev,comedi_devconfig *it)
 		devpriv->counter_dev->counters[j].counter_index = j;
 		ni_tio_init_counter(&devpriv->counter_dev->counters[j]);
 	}
+
+	/* Frequency output */
+	s = dev->subdevices + NI_FREQ_OUT_SUBDEV;
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 1;
+	s->maxdata = 0xf;
+	s->insn_read = &ni_freq_out_insn_read;
+	s->insn_write = &ni_freq_out_insn_write;
+	s->insn_config = &ni_freq_out_insn_config;
 
 	/* ai configuration */
 	ni_ai_reset(dev,dev->subdevices + NI_AI_SUBDEV);
@@ -5083,7 +5166,7 @@ static int ni_set_master_clock(comedi_device *dev, unsigned source, unsigned per
 	{
 		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg, RTSI_Trig_Direction_Register);
-		devpriv->clock_ns = 50;
+		devpriv->clock_ns = TIMEBASE_1_NS;
 		if(boardtype.reg_type & ni_reg_m_series_mask)
 		{
 			devpriv->clock_and_fout2 &= ~(MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit);
