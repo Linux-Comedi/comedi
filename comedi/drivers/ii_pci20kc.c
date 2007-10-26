@@ -215,7 +215,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_private(dev, sizeof(pci20xxx_private))) < 0)
 		return ret;
 
-	devpriv->ioaddr = (void*) it->options[0];
+	devpriv->ioaddr = (void*) (unsigned long) it->options[0];
 	dev->board_name = "pci20kc";
 
 	/* Check PCI-20001 C-2A Carrier Board ID */
