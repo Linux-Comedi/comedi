@@ -23,9 +23,9 @@
 /*
 Driver: cb_pcidio
 Description: ComputerBoards' DIO boards with PCI interface
-Devices: [Measurement Computing] PCI-DIO24H (cb_pcidio), PCI-DIO48H
+Devices: [Measurement Computing] PCI-DIO24 (cb_pcidio), PCI-DIO24H, PCI-DIO48H
 Author: Yoshiya Matsuzaka
-Updated: Wed, 01 Aug 2007 11:52:49 +0100
+Updated: Mon, 29 Oct 2007 15:40:47 +0000
 Status: experimental
 
 This driver has been modified from skel.c of comedi-0.7.70.
@@ -66,6 +66,12 @@ typedef struct pcidio_board_struct{
 
 static const pcidio_board pcidio_boards[] = {
 	{
+	name:		"pci-dio24",
+	n_8255:		1,
+	pcicontroler_badrindex:	1,
+	dioregs_badrindex:		2,
+	},
+	{
 	name:		"pci-dio24h",
 	n_8255:		1,
 	pcicontroler_badrindex:	1,
@@ -86,6 +92,7 @@ static const pcidio_board pcidio_boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static struct pci_device_id pcidio_pci_table[] __devinitdata = {
+	{ PCI_VENDOR_ID_CB, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_CB, 0x0014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_CB, 0x000b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0 }
