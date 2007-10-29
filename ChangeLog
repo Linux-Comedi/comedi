@@ -1,3 +1,421 @@
+2007-10-26 13:59  fmhess
+
+	* comedi/drivers/ii_pci20kc.c: Fixed compile warning on amd64.
+
+2007-10-25 16:00  fmhess
+
+	* comedi/drivers/ni_tio.c: Don't report bogus gate errors on 660x
+	  boards.
+
+2007-10-25 15:56  fmhess
+
+	* include/linux/comedi.h: Added enum for setting master clock of NI
+	  "frequency output" subdevice.
+
+2007-10-25 15:55  fmhess
+
+	* comedi/drivers/: ni_mio_common.c, ni_stc.h: Added subdevice for
+	  "frequency output" pin.
+
+2007-10-25 15:49  fmhess
+
+	* comedi/comedi_fops.c: Added check against maxdata for write
+	  instructions.
+
+2007-10-24 17:29  fmhess
+
+	* comedi/comedi_fops.c, comedi/drivers.c,
+	  include/linux/comedidev.h: Each comedi_async struct should have
+	  its own wait_queue_head_t.
+
+2007-10-24 14:14  fmhess
+
+	* comedi/drivers/ni_mio_common.c: Prevent glitches when
+	  transitioning from static control of dio lines to waveform
+	  output.
+
+2007-10-24 08:37  abbotti
+
+	* comedi/drivers.c: Allocate non-DMA buffer pages using
+	  __get_free_page().  (Use of virt_to_page on vmalloc'd memory was
+	  incorrect and failed on x86_64 for example.) Clean up fully on
+	  allocation failure.
+
+2007-10-22 10:59  abbotti
+
+	* comedi/drivers/amplc_dio200.c: Check dev->attached in interrupt
+	  routine.
+
+2007-10-22 08:19  abbotti
+
+	* comedi/drivers/: jr3_pci.c, s526.c, s626.c, s626.h, serial2002.c,
+	  addi-data/addi_common.c, addi-data/addi_common.h,
+	  addi-data/hwdrv_apci16xx.c: Some 64-bit fixes.
+
+2007-10-18 17:50  fmhess
+
+	* AUTHORS, comedi/drivers/ni_labpc_cs.c: Fix from Torben Mikael
+	  Hansen <comedi_ns@linhard.dk> for crash probably caused by my
+	  recent porting work.
+
+2007-10-18 17:48  fmhess
+
+	* comedi/drivers/cb_das16_cs.c: Patch from Torben Mikael Hansen
+	  <comedi_ns@linhard.dk> which adds device id for PCM-DAS16s/16.
+
+2007-10-18 17:40  fmhess
+
+	* comedi/drivers/: mite.c, mite.h, ni_660x.c: Got rid of fragile
+	  checks of specific device ids in mite.c (fixed problems with
+	  pxi-6602 support).  Added device id for pxi-6608.  Made sure the
+	  "window base size register" is disabled when using the "window
+	  base size register 1", since it causes problems if both are
+	  enabled simultaneously.
+
+2007-10-18 14:01  abbotti
+
+	* comedi/drivers/: adl_pci9111.c, adl_pci9118.c, adv_pci1710.c,
+	  amplc_dio200.c, amplc_pc236.c, cb_pcidas.c, cb_pcidas64.c,
+	  das6402.c, dmm32at.c, dt2811.c, dt2814.c, dt282x.c, dt3000.c,
+	  gsc_hpdi.c, icp_multi.c, me4000.c, ni_pcidio.c, pcl711.c,
+	  pcl812.c, quatech_daqp_cs.c, rtd520.c: Some changes to deal with
+	  interrupts before device fully attached.
+
+2007-10-17 16:01  fmhess
+
+	* comedi/drivers/ni_660x.c: Added pci device id for pxi-6602.
+
+2007-10-17 11:26  abbotti
+
+	* comedi/comedi_fops.c, comedi/drivers.c, comedi/rt.c,
+	  comedi/drivers/amplc_dio200.c, comedi/drivers/cb_das16_cs.c,
+	  comedi/drivers/comedi_rt_timer.c, comedi/drivers/das08_cs.c,
+	  comedi/drivers/dt9812.c, comedi/drivers/jr3_pci.c,
+	  comedi/drivers/mite.c, comedi/drivers/ni_65xx.c,
+	  comedi/drivers/ni_daq_dio24.c, comedi/drivers/ni_labpc_cs.c,
+	  comedi/drivers/pcmda12.c, comedi/drivers/quatech_daqp_cs.c,
+	  comedi/drivers/unioxx5.c, comedi/drivers/usbdux.c,
+	  include/linux/comedidev.h: Replaced kmalloc/memset sequence with
+	  kzalloc or kcalloc.
+
+2007-10-17 11:24  abbotti
+
+	* comedi/drivers/: pcmmio.c, pcmuio.c: Replaced kmalloc/memset
+	  sequence with kzalloc or kcalloc.  Removed call to memset after
+	  alloc_subdevices to avoid clobbering spinlocks.
+
+2007-10-16 15:59  fmhess
+
+	* comedi/drivers/ni_mio_common.c, include/linux/comedi.h: Added
+	  support for scan_begin_src = TRIG_EXT on analog output commands.
+
+2007-10-15 22:21  fmhess
+
+	* comedi/drivers/quatech_daqp_cs.c: Ported to linux 2.6.23 pcmcia
+	  interface. Compiles, but otherwise untested.
+
+2007-10-15 22:09  fmhess
+
+	* comedi/drivers/ni_labpc_cs.c: Ported to linux 2.6.23 pcmcia
+	  interface. Compiles, but otherwise untested.
+
+2007-10-15 20:35  fmhess
+
+	* comedi/drivers/ni_mio_cs.c: Ported to linux 2.6.23 pcmcia
+	  interface.  Compiles, but otherwise untested.
+
+2007-10-14 21:15  fmhess
+
+	* comedi/drivers/ni_daq_dio24.c: Updated to linux 2.6.23 pcmcia
+	  interface.  Compiles, but untested.
+
+2007-10-14 21:02  fmhess
+
+	* comedi/drivers/das08_cs.c: Updated to 2.6.23 pcmcia interface.
+	  Compiles, otherwise untested.
+
+2007-10-14 20:43  fmhess
+
+	* comedi/drivers/cb_das16_cs.c: More linux 2.6.23 pcmcia fixes.
+
+2007-10-14 20:08  fmhess
+
+	* comedi/drivers/cb_das16_cs.c: Updated to 2.6.23 kernel pcmcia
+	  interface.  It compiles now, don't know if it actually works.
+
+2007-10-12 15:04  fmhess
+
+	* comedi/comedi_fops.c: Pruned obsolete lseek code.
+
+2007-10-11 10:23  abbotti
+
+	* comedi/drivers/: 8253.h, amplc_dio200.c, amplc_pci224.c,
+	  amplc_pci230.c, cb_pcidas.c, das16.c, das16m1.c, das1800.c,
+	  das800.c, ni_at_a2150.c, ni_labpc.c: Added regshift parameter
+	  after base address in i8254_load(), i8254_mm_load(),
+	  i8254_read(), i8254_mm_read(), i8254_write(), i8254_mm_write(),
+	  i8254_set_mode(), i8254_mm_set_mode(), i8254_status(),
+	  i8254_mm_status().  The offsets to the four 8253/8254 registers
+	  will be shifted left by this amount.	This is to cater for cards
+	  where the four registers do not occupy consecutive bytes.
+
+2007-09-30 10:42  fmhess
+
+	* comedi/Makefile.am: Support DESTDIR for module install/uninstall.
+
+2007-09-28 20:01  fmhess
+
+	* comedi/drivers/: ni_mio_common.c, ni_stc.h: Fixed use of ai
+	  channels >= 64 on 6225.  Based on patch from Ingmar Schoegl
+	  <ischoegl@mail.utexas.edu>.
+
+2007-09-28 14:40  fmhess
+
+	* comedi/drivers/ni_mio_common.c: Eliminated the possibility of the
+	  ao dma channel getting allocated more than once, when
+	  ni_ao_inttrig gets called a second time after returning an error.
+
+2007-09-14 08:33  abbotti
+
+	* include/linux/Makefile.am: Add slab.h compatibility header.
+
+2007-09-14 08:32  abbotti
+
+	* include/linux/slab.h: Add kzalloc and kcalloc kernel
+	  compatibility functions.
+
+2007-09-07 13:04  abbotti
+
+	* comedi/proc.c: Corrected calculation of board name offset.  Fixes
+	  segmentation violation when reading /proc/comedi for comedi
+	  drivers that have num_names > 1.
+
+2007-09-05 23:22  fmhess
+
+	* comedi/Makefile.am: Change $(GREP) to $(EGREP), since we really
+	  only do a AC_PROG_EGREP in configure, and apparently GREP isn't
+	  always defined, as reported by Anders Blomdell.
+
+2007-09-05 08:37  fmhess
+
+	* comedi/drivers/: addi_apci_035.c, addi_apci_1032.c,
+	  addi_apci_1500.c, addi_apci_1516.c, addi_apci_1564.c,
+	  addi_apci_16xx.c, addi_apci_1710.c, addi_apci_2016.c,
+	  addi_apci_2032.c, addi_apci_2200.c, addi_apci_3001.c,
+	  addi_apci_3120.c, addi_apci_3200.c, addi_apci_3300.c,
+	  addi_apci_3501.c, addi_apci_3xxx.c, addi_apci_all.c: Added files
+	  I forgot to cvs add from patch by Anders Blomdell
+	  <anders.blomdell@control.lth.se>
+
+2007-09-03 23:22  fmhess
+
+	* comedi/drivers/: Kbuild, Makefile.am, addi-data/addi_common.c,
+	  addi-data/addi_common.h, addi-data/hwdrv_APCI1710.c,
+	  addi-data/hwdrv_apci035.c, addi-data/hwdrv_apci035.h,
+	  addi-data/hwdrv_apci1032.c, addi-data/hwdrv_apci1032.h,
+	  addi-data/hwdrv_apci1500.c, addi-data/hwdrv_apci1500.h,
+	  addi-data/hwdrv_apci1564.c, addi-data/hwdrv_apci1564.h,
+	  addi-data/hwdrv_apci2016.h, addi-data/hwdrv_apci2032.c,
+	  addi-data/hwdrv_apci2032.h, addi-data/hwdrv_apci3120.c,
+	  addi-data/hwdrv_apci3120.h, addi-data/hwdrv_apci3200.c,
+	  addi-data/hwdrv_apci3200.h, addi-data/hwdrv_apci3501.c,
+	  addi-data/hwdrv_apci3501.h, addi-data/hwdrv_apci3xxx.c: Patch
+	  from Anders Blomdell <anders.blomdell@control.lth.se> which makes
+	  some of the addi-data drivers useable:
+
+	  Since I need to use a driver for apci3106, I guess that I'll have
+	  to do some cleanup of the addi-data drivers, but after
+	  downloading the drivers from addi-data
+	  (http://www.addi-data.com/treiber/linux/comedi/comedi_Driver.tar.gz,
+	  v_1.13), and comparing them with cvs, I'm at a loss about which
+	  drivers to use as a starting point. I have enclosed a [tentative]
+	  patch against CVS (patch.addi-data.20070828), that seems to work
+	  with apci3106-16-4. There is also the patch against the CVS from
+	  late 2005 (patch.addi.2005-11-11) that I sent to
+	  weber.serge@addi-data.com, asking him to do additional cleanup
+	  and then submit it to the CVS maintainers, obviously this never
+	  happened :-( (and hence the last batch of cards was of another
+	  brand).
+
+2007-08-24 14:44  fmhess
+
+	* comedi/drivers/: comedi_fc.c, comedi_fc.h, mite.c: Fixed some
+	  calculations of number of bytes per scan when doing digital io
+	  commands.
+
+2007-08-21 05:47  abbotti
+
+	* comedi/: comedi_fops.c, drivers.c: Sanity check drivers setting
+	  do_cmd without setting do_cmdtest.
+
+2007-08-17 16:54  fmhess
+
+	* comedi/drivers/ni_tio.c: read acknowledges irq bit does have an
+	  effect on a 6601.
+
+2007-08-17 15:56  fmhess
+
+	* comedi/drivers/ni_660x.c: Added interrupt handler and enabled
+	  interrupts. Added initialization of output routing for pfi pins
+	  to reasonable defaults.
+
+2007-08-17 15:53  fmhess
+
+	* comedi/drivers/ni_tio.c: Fixed missing initialization of some
+	  counter registers (and their software copies).  Made
+	  ni_tio_cancel() safe to call in interrupt context without
+	  possibly corrupting software copies of registers.
+
+2007-08-17 15:49  fmhess
+
+	* include/linux/comedi.h: Added enum for setting output routing of
+	  pfi pins on 660x boards.
+
+2007-08-16 17:52  fmhess
+
+	* comedi/drivers/ni_tio.c: Fixed failure to unlock spinlock after
+	  locking it.  Fixed possibly bogus perm_stale_data result from
+	  ni_tio_acknowledge_and_confirm().  Added (unused) support for
+	  accessing joint status register 1.
+
+2007-08-15 17:22  fmhess
+
+	* comedi/drivers/: ni_660x.c, ni_mio_common.c, ni_stc.h, ni_tio.c,
+	  ni_tio.h: Moved some interrupt enable/disable and interrupt
+	  handling stuff from client drivers into ni_tio.c.  ni_stc.h:
+	  Added some stuff for correlated digital output waveforms
+	  that I missed in earlier commit.  ni_660x.c:	  Added beginnings
+	  of support for buffered input counting (untested,	 definitely
+	  doesn't work yet due to empty interrupt handler).    Added
+	  INSN_CONFIG_SET/GET_ROUTING support,	    to allow switching of
+	  output signals between    counter outputs and static digital
+	  output.  Fixed channel mix-ups       on input/output selection
+	  for static dio.  Fixed static digital 	output to work on
+	  full 32 bits.  Replaced some preprocessor macros	with inline
+	  functions.
+
+2007-08-15 17:20  fmhess
+
+	* include/linux/comedidev.h: Added comment describing purpose of
+	  comedi_set_hw_dev().
+
+2007-08-13 17:17  fmhess
+
+	* comedi/drivers/ni_mio_common.c, comedi/drivers/ni_pcimio.c,
+	  comedi/drivers/ni_tio.c, include/linux/comedi.h: Added support
+	  for dio write commands with NI M-series.
+
+2007-08-13 11:12  fmhess
+
+	* comedi/drivers/mite.c: Disable all of a channel's interrupts when
+	  it is released.
+
+2007-08-13 11:05  fmhess
+
+	* comedi/comedi_fops.c: NULL inttrig in do_become_nonbusy().
+
+2007-08-09 16:15  fmhess
+
+	* comedi/drivers/: ni_tio.c, ni_tio.h: Check for stale data error
+	  on counter input command if reloading on gate is enabled.
+
+2007-08-09 15:17  fmhess
+
+	* comedi/drivers/ni_stc.h: Added bit definitions for NI m-series
+	  correlated dio registers.
+
+2007-08-09 13:55  fmhess
+
+	* include/linux/comedi.h: Added definitions for possible
+	  scan_begin_srcs on NI m-series with upcoming correlated dio
+	  command support.
+
+2007-08-09 09:03  fmhess
+
+	* comedi/drivers/ni_tio.c: NI counters don't really support
+	  stop_src TRIG_COUNT.
+
+2007-08-09 08:58  fmhess
+
+	* comedi/drivers/: mite.c, mite.h: Made mite_done() update done
+	  status by reading status register.
+
+2007-08-08 20:22  fmhess
+
+	* comedi/drivers/mite.h: We need to use dma_free_coherent() instead
+	  of kfree() in mite_free_ring() now.
+
+2007-08-07 16:06  fmhess
+
+	* comedi/comedi_fops.c: Set SRF_RUNNING and SRF_ERROR together
+	  atomically in comedi_event().
+
+2007-08-07 15:04  fmhess
+
+	* comedi/drivers/mite.c, comedi/drivers/mite.h,
+	  comedi/drivers/ni_pcidio.c, comedi/drivers/ni_pcimio.c,
+	  include/linux/comedidev.h: Ported allocation of mite dma rings to
+	  modern kernel dma api.
+
+2007-08-07 12:22  fmhess
+
+	* comedi/drivers/: ni_660x.c, ni_mio_common.c, ni_tio.c, ni_tio.h:
+	  Set missing SDF_LSAMPL on NI GPCT subdevices.  Made command test
+	  for gpct command actually check something.  Made some of the
+	  command sources for gpct command actually have an effect.
+
+2007-08-06 07:19  abbotti
+
+	* comedi/drivers/: comedi_fc.c, mite.c, ni_atmio16d.c, pcmad.c:
+	  Corrected pathname in file header comment.
+
+2007-08-06 07:05  abbotti
+
+	* comedi/drivers/pcl812.c: Moved description of configuration
+	  options so it will appear in drivers.txt
+
+2007-08-06 06:47  abbotti
+
+	* comedi/drivers/: 8255.c, acl7225b.c, adl_pci6208.c,
+	  adl_pci7296.c, adl_pci7432.c, adl_pci8164.c, adl_pci9111.c,
+	  adl_pci9118.c, adv_pci1710.c, adv_pci_dio.c, aio_aio12_8.c,
+	  aio_iiro_16.c, amplc_dio200.c, amplc_pc236.c, amplc_pc263.c,
+	  amplc_pci224.c, amplc_pci230.c, c6xdigio.c, cb_das16_cs.c,
+	  cb_pcidas.c, cb_pcidas64.c, cb_pcidda.c, cb_pcidio.c,
+	  cb_pcimdas.c, cb_pcimdda.c, comedi_bond.c, comedi_parport.c,
+	  comedi_rt_timer.c, comedi_test.c, contec_pci_dio.c,
+	  daqboard2000.c, das08.c, das08_cs.c, das16.c, das16m1.c,
+	  das1800.c, das6402.c, das800.c, dmm32at.c, dt2801.c, dt2811.c,
+	  dt2814.c, dt2815.c, dt2817.c, dt282x.c, dt3000.c, dt9812.c,
+	  fl512.c, gsc_hpdi.c, icp_multi.c, ii_pci20kc.c, jr3_pci.c,
+	  ke_counter.c, me4000.c, me_daq.c, mpc624.c, mpc8260cpm.c,
+	  multiq3.c, ni_6527.c, ni_65xx.c, ni_660x.c, ni_670x.c,
+	  ni_at_a2150.c, ni_at_ao.c, ni_atmio.c, ni_atmio16d.c,
+	  ni_daq_dio24.c, ni_labpc.c, ni_labpc_cs.c, ni_mio_cs.c,
+	  ni_pcidio.c, ni_pcimio.c, ni_tio.c, pcl711.c, pcl724.c, pcl725.c,
+	  pcl726.c, pcl730.c, pcl812.c, pcl816.c, pcl818.c, pcm3724.c,
+	  pcm3730.c, pcmad.c, pcmda12.c, pcmmio.c, pcmuio.c, poc.c,
+	  quatech_daqp_cs.c, rtd520.c, rti800.c, rti802.c, s526.c, s626.c,
+	  serial2002.c, skel.c, ssv_dnp.c, unioxx5.c, usbdux.c,
+	  usbduxfast.c: Stripped file extension from 'Driver:' line.  Most
+	  had .o, some had .ko or .c.  Also corrected pathnames in file
+	  header comments.
+
+2007-08-06 06:07  abbotti
+
+	* comedi/drivers/amplc_dio200.c: Changed description line.
+
+2007-08-02 10:06  fmhess
+
+	* Makefile.am: Got rid of use of $(builddir), since it isn't
+	  defined by some versions of auto* tools.  Tweaked some obscure
+	  rules (used some gnu make extensions, but I don't really care).
+
+2007-08-01 15:46  fmhess
+
+	* ChangeLog (tags: r0_7_74): Autogenerated ChangeLog with "cvs2cl
+	  -t"
+
 2007-08-01 15:41  fmhess
 
 	* comedi/Makefile.am (tags: r0_7_74): Fix problems apparently
@@ -1505,7 +1923,7 @@
 
 2006-08-16 15:18  fmhess
 
-	* ChangeLog (tags: r0_7_74, r0_7_73): 0.7.73 changes
+	* ChangeLog (tags: r0_7_73): 0.7.73 changes
 
 2006-08-16 15:09  fmhess
 
