@@ -106,10 +106,19 @@ static inline RTIME nano2count(long long ns)
 #define start_rt_timer(x)
 #define stop_rt_timer()
 
+#define comedi_rt_task_context_t	int
+
 #endif
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
 #include <rtai_sched.h>
+
+#if RTAI_VERSION_CODE < RTAI_MANGLE_VERSION(3,3,0)
+#define comedi_rt_task_context_t	int
+#else
+#define comedi_rt_task_context_t	long
+#endif
+
 #endif
 
 
@@ -281,7 +290,7 @@ static int timer_dio_read(comedi_device *dev, comedi_cmd *cmd,
 }
 
 // performs scans
-static void scan_task_func(int d)
+static void scan_task_func(comedi_rt_task_context_t d)
 {
 	comedi_device *dev=(comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -347,7 +356,7 @@ cleanup:
 	}
 }
 
-static void timer_task_func(int d)
+static void timer_task_func(comedi_rt_task_context_t d)
 {
 	comedi_device *dev=(comedi_device *)d;
 	comedi_subdevice *s = dev->subdevices + 0;
@@ -664,8 +673,8 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->rt_task = kzalloc(sizeof(RT_TASK),GFP_KERNEL);
 
 	// initialize real-time tasks
-	ret = rt_task_init(devpriv->rt_task, timer_task_func,(int)dev, 3000,
-		timer_priority, 0, 0);
+	ret = rt_task_init(devpriv->rt_task, timer_task_func,
+		(comedi_rt_task_context_t)dev, 3000, timer_priority, 0, 0);
 	if(ret < 0) 	{
 		comedi_error(dev, "error initalizing rt_task");
 		kfree(devpriv->rt_task);
@@ -676,7 +685,7 @@ static int timer_attach(comedi_device *dev,comedi_devconfig *it)
 	devpriv->scan_task = kzalloc(sizeof(RT_TASK),GFP_KERNEL);
 
 	ret = rt_task_init(devpriv->scan_task, scan_task_func,
-		(int)dev, 3000, scan_priority, 0, 0);
+		(comedi_rt_task_context_t)dev, 3000, scan_priority, 0, 0);
 	if(ret < 0){
 		comedi_error(dev, "error initalizing scan_task");
 		kfree(devpriv->scan_task);
