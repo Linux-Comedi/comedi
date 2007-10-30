@@ -64,7 +64,9 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include<linux/pci.h>
 #include<linux/comedidev.h>
 #include<asm/io.h>
+#if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
 #include<asm/i387.h>
+#endif
 #include "../comedi_fc.h"
 
 #include "addi_common.h"
@@ -77,6 +79,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define devpriv ((addi_private *)dev->private)
 #define this_board ((boardtype *)dev->board_ptr)
 
+#if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
 //BYTE b_SaveFPUReg [94];
 
 void 	fpu_begin (void)
@@ -90,6 +93,7 @@ void 	fpu_end (void)
 	// asm ("frstor b_SaveFPUReg");
 	kernel_fpu_end ();
 	}
+#endif
 
 #include "addi_eeprom.c"
 #if (defined (CONFIG_APCI_3120) || defined (CONFIG_APCI_3001))
