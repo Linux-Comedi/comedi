@@ -180,7 +180,6 @@ typedef struct pci230_board_struct{
 	unsigned short id;
 	int ai_chans;
 	int ai_bits;
-	int have_ao;
 	int ao_chans;
 	int ao_bits;
 	int have_dio;
@@ -192,7 +191,6 @@ static const pci230_board pci230_boards[] = {
 	id:		PCI_DEVICE_ID_PCI230,
 	ai_chans:	16,
 	ai_bits:	12,
-	have_ao:	1,
 	ao_chans:	2,
 	ao_bits:	12,
 	have_dio:	1,
@@ -202,7 +200,6 @@ static const pci230_board pci230_boards[] = {
 	id:		PCI_DEVICE_ID_PCI260,
 	ai_chans:	16,
 	ai_bits:	12,
-	have_ao:	0,
 	ao_chans:	0,
 	ao_bits:	0,
 	have_dio:	0,
@@ -220,7 +217,6 @@ static const pci230_board pci230_boards[] = {
 	id:		PCI_DEVICE_ID_PCI230,
 	ai_chans:	16,
 	ai_bits:	16,
-	have_ao:	1,
 	ao_chans:	2,
 	ao_bits:	12,
 	have_dio:	1,
@@ -231,7 +227,6 @@ static const pci230_board pci230_boards[] = {
 	id:		PCI_DEVICE_ID_PCI260,
 	ai_chans:	16,
 	ai_bits:	16,
-	have_ao:	0,
 	ao_chans:	0,
 	ao_bits:	0,
 	have_dio:	0,
@@ -543,21 +538,25 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 
 	s=dev->subdevices+1;
 	/* analog output subdevice */
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITABLE;
-	s->n_chan=thisboard->ao_chans;;
-	s->maxdata=(1<<thisboard->ao_bits)-1;
-	s->range_table=&pci230_ao_range;
-	s->insn_write = &pci230_ao_winsn;
-	s->insn_read = &pci230_ao_rinsn;
-	s->len_chanlist = thisboard->ao_chans;
-	/* Only register commands if the interrupt handler is installed. */
-	if(irq_hdl==0) {
-		dev->write_subdev=s;
-		s->subdev_flags |= SDF_CMD_WRITE;
-		s->do_cmd = &pci230_ao_cmd;
-		s->do_cmdtest = &pci230_ao_cmdtest;
-		s->cancel = pci230_ao_cancel;
+	if(thisboard->ao_chans > 0) {
+		s->type=COMEDI_SUBD_AO;
+		s->subdev_flags=SDF_WRITABLE;
+		s->n_chan=thisboard->ao_chans;;
+		s->maxdata=(1<<thisboard->ao_bits)-1;
+		s->range_table=&pci230_ao_range;
+		s->insn_write = &pci230_ao_winsn;
+		s->insn_read = &pci230_ao_rinsn;
+		s->len_chanlist = thisboard->ao_chans;
+		/* Only register commands if the interrupt handler is installed. */
+		if(irq_hdl==0) {
+			dev->write_subdev=s;
+			s->subdev_flags |= SDF_CMD_WRITE;
+			s->do_cmd = &pci230_ao_cmd;
+			s->do_cmdtest = &pci230_ao_cmdtest;
+			s->cancel = pci230_ao_cancel;
+		}
+	} else {
+		s->type=COMEDI_SUBD_UNUSED;
 	}
 
 	s=dev->subdevices+2;
