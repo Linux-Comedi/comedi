@@ -25,9 +25,9 @@
 Driver: amplc_pci230
 Description: Amplicom PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>, Steve D Sharples <steve.sharples@nottingham.ac.uk>
-Updated: Wed, 27 Jun 2007 15:21:41 +0100
-Devices: [Amplicon] PCI230 (pci230 or amplc_pci230),
-  PCI260 (pci260 or amplc_pci230)
+Updated: Wed, 31 Oct 2007 12:58:49 +0000
+Devices: [Amplicon] PCI230 (pci230 or amplc_pci230), PCI230+ (pci230+),
+  PCI260 (pci260 or amplc_pci230), PCI260+ (pci260+)
 Status: works
 
 Configuration options:
@@ -79,6 +79,15 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADCCON  0x0A
 #define PCI230_ADCEN   0x0C
 #define PCI230_ADCG    0x0E
+/* PCI230+ i/o space 2 additional registers. */
+#define PCI230P_ADCTRIG		0x10	/* ADC start acquisition trigger */
+#define PCI230P_ADCTH		0x12	/* ADC analog trigger threshold */
+#define PCI230P_ADCFFTH		0x14	/* ADC FIFO interrupt threshold */
+#define PCI230P_ADCFFLEV	0x16	/* ADC FIFO level (r) */
+#define PCI230P_ADCPTSC		0x18	/* ADC pre-trigger sample count (r) */
+#define PCI230P_ADCHYST		0x1A	/* ADC analog trigger hysteresys */
+#define PCI230P_EXTFUNC		0x1C	/* Extended functions */
+#define PCI230P_HWVER		0x1E	/* Hardware version (r) */
 
 /* Convertor related constants. */
 #define PCI230_DAC_SETTLE 5		/* Analogue output settling time in µs (DAC itself is 1µs nominally). */
@@ -117,6 +126,9 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADC_FIFO_EMPTY		(1<<12)
 #define PCI230_ADC_FIFO_FULL		(1<<13)
 #define PCI230_ADC_FIFO_HALF		(1<<14)
+
+/* PCI230+ EXTFUNC values. */
+#define PCI230P_EXTFUNC_GAT_EXTTRIG	(1<<0)	/* Route EXTTRIG pin to external gate inputs. */
 
 /* Group Z clock configuration register values. */
 #define PCI230_ZCLK_CT0			0
@@ -172,6 +184,7 @@ typedef struct pci230_board_struct{
 	int ao_chans;
 	int ao_bits;
 	int have_dio;
+	unsigned int min_hwver;	/* Minimum hardware version supported. */
 }pci230_board;
 static const pci230_board pci230_boards[] = {
 	{
@@ -197,6 +210,32 @@ static const pci230_board pci230_boards[] = {
 	{
 	name:		"amplc_pci230",	/* Legacy name matches any above */
 	id:		PCI_DEVICE_ID_INVALID,
+	},
+	/*
+	 * The '+' versions of the above models have the same PCI device ID.
+	 * They are backwards compatible with the above models.
+	 */
+	{
+	name:		"pci230+",
+	id:		PCI_DEVICE_ID_PCI230,
+	ai_chans:	16,
+	ai_bits:	16,
+	have_ao:	1,
+	ao_chans:	2,
+	ao_bits:	12,
+	have_dio:	1,
+	min_hwver:	1,
+	},
+	{
+	name:		"pci260+",
+	id:		PCI_DEVICE_ID_PCI260,
+	ai_chans:	16,
+	ai_bits:	16,
+	have_ao:	0,
+	ao_chans:	0,
+	ao_bits:	0,
+	have_dio:	0,
+	min_hwver:	1,
 	},
 };
 
@@ -234,6 +273,7 @@ struct pci230_private{
 	unsigned int ai_bipolar;	/* Set if bipolar input range so we know to mangle it. */
 	unsigned int ao_bipolar;	/* Set if bipolar output range so we know to mangle it. */
 	unsigned int ier;		/* Copy of interrupt enables/status register. */
+	unsigned int hwver;		/* Hardware version (for '+' models). */
 };
 
 #define devpriv ((struct pci230_private *)dev->private)
@@ -313,7 +353,8 @@ static sampl_t pci230_ai_read(comedi_device *dev)
 	sampl_t data = (sampl_t) inw(dev->iobase + PCI230_ADCDATA);
 
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower four bits reserved for expansion). */
-	data = data>>4;
+	/* PCI230+ is 16 bit AI. */
+	data = data >> (16 - thisboard->ai_bits);
 
 	/* If a bipolar range was specified, mangle it (twos complement->straight binary). */
 	if (devpriv->ai_bipolar) {
@@ -330,7 +371,8 @@ static void pci230_ao_write(comedi_device *dev, sampl_t data, int chan)
 	}
 
 	/* PCI230 is 12 bit - stored in upper bits of 16 bit register (lower four bits reserved for expansion). */
-	data = data<<4;
+	/* PCI230+ is also 12 bit AO. */
+	data = data << (16 - thisboard->ao_bits);
 
 	/* Write data. */
 	outw((unsigned int) data, dev->iobase + (((chan) == 0) ? PCI230_DACOUT1 : PCI230_DACOUT2));
@@ -385,7 +427,24 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 			/* The name was specified as a specific device name.
 			 * The current dev->board_ptr is correct.  Check
 			 * whether it matches the PCI device ID. */
-			if(thisboard->id == pci_dev->device) break;
+			if(thisboard->id == pci_dev->device){
+				/* Check minimum hardware version. */
+				if(thisboard->min_hwver > 0){
+					/* Looking for a '+' model.  First
+					 * check length of registers. */
+					if(pci_resource_len(pci_dev, 3) < 32){
+						/* Not a '+' model. */
+						continue;
+					}
+					/* TODO: temporarily enable the PCI
+					 * device and read the hardware version
+					 * register.  For now, assume it's
+					 * okay. */
+					break;
+				}else{
+					break;
+				}
+			}
 		}
 	}
 	if(!pci_dev){
@@ -399,7 +458,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
-	/* Read base addressses of the PCI230's two I/O regions from PCI configuration register. */
+	/* Read base addresses of the PCI230's two I/O regions from PCI configuration register. */
 	if(pci_enable_device(pci_dev)<0){
 		return -EIO;
 	}
@@ -418,6 +477,31 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 
 	devpriv->pci_iobase = pci_iobase;
 	dev->iobase = iobase;
+
+	/* Read hardware version register and set extended function register
+	 * if they exist. */
+	if(pci_resource_len(pci_dev, 3) >= 32){
+		unsigned short extfunc = 0;
+
+		devpriv->hwver = inw(dev->iobase + PCI230P_HWVER);
+		if(devpriv->hwver < thisboard->min_hwver){
+			printk("comedi%d: %s - bad hardware version - got %u, need %u\n",
+					dev->minor, dev->board_name,
+					devpriv->hwver, thisboard->min_hwver);
+			return -EIO;
+		}
+		if(devpriv->hwver > 0){
+			if(!thisboard->have_dio){
+				/* No DIO ports.  Route counters' external gates
+				 * to the EXTTRIG signal (PCI260+ pin 17).
+				 * (Otherwise, they would be routed to DIO
+				 * inputs PC0, PC1 and PC2 which don't exist
+				 * on PCI260[+].) */
+				extfunc |= PCI230P_EXTFUNC_GAT_EXTTRIG;
+			}
+		}
+		outw(extfunc, dev->iobase + PCI230P_EXTFUNC);
+	}
 
 	/* Disable board's interrupts. */
 	outb(0, devpriv->pci_iobase + PCI230_INT_SCE);
