@@ -384,7 +384,7 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	unsigned long pci_iobase, iobase;		/* PCI230's I/O spaces 1 and 2 respectively. */
 	struct pci_dev *pci_dev;
-	int i=0,irq_hdl;
+	int i=0,irq_hdl,rc;
 
 	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
 			thisboard->name, it->options[0], it->options[1]);
@@ -562,7 +562,8 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
 	s=dev->subdevices+2;
 	/* digital i/o subdevice */
 	if(thisboard->have_dio){
-		subdev_8255_init(dev,s,NULL,(devpriv->pci_iobase + PCI230_PPI_X_A));
+		rc = subdev_8255_init(dev,s,NULL,(devpriv->pci_iobase + PCI230_PPI_X_A));
+		if(rc < 0) return rc;
 	}else{
 		s->type = COMEDI_SUBD_UNUSED;
 	}
