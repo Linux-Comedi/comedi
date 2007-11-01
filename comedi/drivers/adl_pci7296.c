@@ -33,8 +33,8 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 #include "8255.h"
 // #include "8253.h"
 
@@ -109,12 +109,9 @@ static int adl_pci7296_attach(comedi_device *dev,comedi_devconfig *it)
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI7296 ) {
 			devpriv->pci_dev = pcidev;
-			if (pci_enable_device(pcidev) < 0) {
-				printk("comedi%d: Failed to enable PCI device\n", dev->minor);
-				return -EIO;
-			}
-			if (pci_request_regions(pcidev, "adl_pci7296") < 0) {
-				printk("comedi%d: I/O port conflict\n", dev->minor);
+			if (comedi_pci_enable(pcidev, "adl_pci7296") < 0) {
+				printk("comedi%d: Failed to enable PCI device and request regions\n",
+						dev->minor);
 				return -EIO;
 			}
 
@@ -152,8 +149,7 @@ static int adl_pci7296_detach(comedi_device *dev)
 
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}

@@ -63,11 +63,11 @@ analog triggering on 1602 series
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include "8253.h"
 #include "8255.h"
 #include "amcc_s5933.h"
+#include "comedi_pci.h"
 #include "comedi_fc.h"
 
 #undef CB_PCIDAS_DEBUG	// disable debugging code
@@ -561,14 +561,9 @@ found:
 	/*
 	 * Enable PCI device and reserve I/O ports.
 	 */
-	if(pci_enable_device(pcidev))
+	if(comedi_pci_enable(pcidev, "cb_pcidas"))
 	{
-		printk(" Failed to enable PCI device\n");
-		return -EIO;
-	}
-	if(pci_request_regions(pcidev, "cb_pcidas"))
-	{
-		printk(" I/O port conflict\n");
+		printk(" Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	/*
@@ -745,8 +740,7 @@ static int cb_pcidas_detach(comedi_device *dev)
 	{
 		if(devpriv->s5933_config)
 		{
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}

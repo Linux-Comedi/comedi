@@ -32,7 +32,7 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 #define PCI7432_DI      0x00
 #define PCI7432_DO	    0x00
@@ -109,12 +109,8 @@ static int adl_pci7432_attach(comedi_device *dev,comedi_devconfig *it)
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI7432 ) {
 			devpriv->pci_dev = pcidev;
-			if (pci_enable_device(pcidev) < 0) {
-				printk("comedi%d: Failed to enable PCI device\n", dev->minor);
-				return -EIO;
-			}
-			if (pci_request_regions(pcidev, "adl_pci7432") < 0) {
-				printk("comedi%d: I/O port conflict\n", dev->minor);
+			if (comedi_pci_enable(pcidev, "adl_pci7432") < 0) {
+				printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
 				return -EIO;
 			}
 			dev->iobase = pci_resource_start ( pcidev, 2 );
@@ -158,8 +154,7 @@ static int adl_pci7432_detach(comedi_device *dev)
 
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}

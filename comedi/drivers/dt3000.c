@@ -53,10 +53,9 @@ AO commands are not supported.
 #define DEBUG 1
 
 #include <linux/comedidev.h>
-
 #include <linux/delay.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 
 #define PCI_VENDOR_ID_DT	0x1116
 
@@ -869,8 +868,7 @@ static int dt3000_detach(comedi_device *dev)
 		{
 			if(devpriv->phys_addr)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}
@@ -908,10 +906,7 @@ static int setup_pci(comedi_device *dev)
 	resource_size_t	addr;
 	int ret;
 
-	ret = pci_enable_device(devpriv->pci_dev);
-	if(ret<0)return ret;
-
-	ret = pci_request_regions(devpriv->pci_dev, "dt3000");
+	ret = comedi_pci_enable(devpriv->pci_dev, "dt3000");
 	if(ret<0)return ret;
 
 	addr=pci_resource_start(devpriv->pci_dev,0);

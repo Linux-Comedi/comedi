@@ -41,7 +41,7 @@ Passing a zero for an option is the same as leaving it unspecified.
 
 /*------------------------------ HEADER FILES ---------------------------------*/
 #include <linux/comedidev.h>
-#include <linux/pci.h> /* for PCI devices */
+#include "comedi_pci.h"
 #include "8255.h"
 
 
@@ -245,12 +245,8 @@ found:
 	devpriv->pci_dev = pcidev;
 	printk("Found %s on bus %i, slot %i\n", thisboard->name,
 		devpriv->pci_dev->bus->number, PCI_SLOT(devpriv->pci_dev->devfn));
-	if(pci_enable_device(pcidev)) {
-		printk("cb_pcidio: failed to enable PCI device\n");
-		return -EIO;
-	}
-	if(pci_request_regions(pcidev, thisboard->name)) {
-		printk("cb_pcidio: I/O port conflict\n");
+	if(comedi_pci_enable(pcidev, thisboard->name)) {
+		printk("cb_pcidio: failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	devpriv->dio_reg_base
@@ -288,8 +284,7 @@ static int pcidio_detach(comedi_device *dev)
 	if(devpriv) {
 		if(devpriv->pci_dev) {
 			if(devpriv->dio_reg_base) {
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}

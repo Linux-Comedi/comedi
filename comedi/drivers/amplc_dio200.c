@@ -210,7 +210,7 @@ order they appear in the channel list.
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 #include "8255.h"
 #include "8253.h"
@@ -1251,20 +1251,14 @@ dio200_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* Enable device and reserve I/O spaces. */
 	if (pci_dev) {
-		ret = pci_enable_device(pci_dev);
+		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 		if (ret < 0) {
-			printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
+			printk(KERN_ERR "comedi%d: error! cannot enable PCI device and request regions!\n",
 					dev->minor);
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
 		irq = pci_dev->irq;
-		ret = pci_request_regions(pci_dev, DIO200_DRIVER_NAME);
-		if (ret < 0) {
-			printk(KERN_ERR "comedi%d: I/O port conflict (PCI)!\n",
-					dev->minor);
-			return ret;
-		}
 	} else {
 		ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
 		if (ret < 0) {
@@ -1399,8 +1393,7 @@ dio200_detach(comedi_device *dev)
 		if (devpriv->pci_dev) {
 			if(dev->iobase)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		} else if (dev->iobase) {

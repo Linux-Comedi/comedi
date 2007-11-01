@@ -85,9 +85,9 @@ TODO:
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <asm/system.h>
 
+#include "comedi_pci.h"
 #include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
@@ -1695,15 +1695,9 @@ static int attach(comedi_device *dev, comedi_devconfig *it)
 	printk("Found %s on bus %i, slot %i\n", board(dev)->name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
-	if( pci_enable_device( pcidev ) )
+	if( comedi_pci_enable( pcidev, driver_cb_pcidas.driver_name ) )
 	{
-		printk(KERN_WARNING " failed to enable PCI device\n");
-		return -EIO;
-	}
-	if( pci_request_regions( pcidev, driver_cb_pcidas.driver_name ) )
-	{
-		/* Couldn't allocate io space */
-		printk(KERN_WARNING " failed to allocate io memory\n");
+		printk(KERN_WARNING " failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	pci_set_master( pcidev );
@@ -1820,8 +1814,7 @@ static int detach(comedi_device *dev)
 					priv(dev)->ao_dma_desc, priv(dev)->ao_dma_desc_bus_addr );
 			if(priv(dev)->main_phys_iobase)
 			{
-				pci_release_regions(priv(dev)->hw_dev);
-				pci_disable_device(priv(dev)->hw_dev);
+				comedi_pci_disable(priv(dev)->hw_dev);
 			}
 			pci_dev_put(priv(dev)->hw_dev);
 		}

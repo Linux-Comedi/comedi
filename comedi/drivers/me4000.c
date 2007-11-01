@@ -53,11 +53,11 @@ broken.
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+#include "comedi_pci.h"
 #include "me4000.h"
 #if 0
 /* file removed due to GPL incompatibility */
@@ -442,19 +442,13 @@ found:
     /* Set data in device structure */
     dev->board_name = board->name;
 
-    /* Enable PCI device */
-    result = pci_enable_device(pci_device);
+    /* Enable PCI device and request regions */
+    result = comedi_pci_enable(pci_device, dev->board_name);
     if(result){
-		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot enable PCI device\n", dev->minor);
+		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot enable PCI device and request I/O regions\n", dev->minor);
 		return result;
     }
 
-    /* Request the PCI register regions */
-    result = pci_request_regions(pci_device, dev->board_name);
-    if (result < 0){
-		printk(KERN_ERR"comedi%d: me4000: me4000_probe(): Cannot request I/O regions\n", dev->minor);
-		return result;
-    }
     /* Get the PCI base registers */
     result = get_registers(dev, pci_device);
     if(result){
@@ -853,8 +847,7 @@ static int me4000_detach(comedi_device *dev){
 			reset_board(dev);
 			if(info->plx_regbase)
 			{
-				pci_release_regions(info->pci_dev_p);
-				pci_disable_device(info->pci_dev_p);
+				comedi_pci_disable(info->pci_dev_p);
 			}
 			pci_dev_put(info->pci_dev_p);
 		}

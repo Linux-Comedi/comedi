@@ -43,10 +43,10 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
 #include <linux/firmware.h>
+#include "comedi_pci.h"
 #include "jr3_pci.h"
 
 /* Hotplug firmware loading stuff */
@@ -131,6 +131,7 @@ MODULE_DEVICE_TABLE(pci, jr3_pci_pci_table);
 
 typedef struct {
   struct pci_dev *pci_dev;
+  int pci_enabled;
   volatile jr3_t *iobase;
   int n_channels;
   struct timer_list timer;
@@ -756,12 +757,10 @@ static int jr3_pci_attach(comedi_device *dev, comedi_devconfig *it)
     devpriv->pci_dev = card;
     dev->board_name = "jr3_pci";
   }
-  if((result = pci_enable_device(card))<0){
-    return -EIO;
-  }
-  if((result = pci_request_regions(card, "jr3_pci")) < 0) {
+  if((result = comedi_pci_enable(card, "jr3_pci")) < 0) {
     return -EIO;	
   }
+  devpriv->pci_enabled = 1;
   devpriv->iobase = ioremap(pci_resource_start(card,0), sizeof(jr3_t));
   result = alloc_subdevices(dev, devpriv->n_channels);
   if(result < 0) goto out;
@@ -867,9 +866,9 @@ static int jr3_pci_detach(comedi_device * dev)
 
     if(devpriv->iobase) {
       iounmap((void*)devpriv->iobase);
-
-      pci_release_regions(devpriv->pci_dev);
-      pci_disable_device(devpriv->pci_dev);
+    }
+    if(devpriv->pci_enabled) {
+      comedi_pci_disable(devpriv->pci_dev);
     }
 
     if (devpriv->pci_dev) {

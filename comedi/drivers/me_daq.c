@@ -52,7 +52,7 @@ from http://www.comedi.org
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 //#include "me2600_fw.h"
 
@@ -736,17 +736,10 @@ found:
          dev->minor, me_boards[i].name,
          pci_device->bus->number, PCI_SLOT(pci_device->devfn));
 
-  // Enable PCI device
-  if(pci_enable_device(pci_device) < 0)
+  // Enable PCI device and request PCI regions
+  if(comedi_pci_enable(pci_device, ME_DRIVER_NAME) < 0)
   {
-    printk("comedi%d: Failed to enable PCI device\n", dev->minor);
-    return -EIO;
-  }
-
-  // Request PCI regions
-  if(pci_request_regions(pci_device, ME_DRIVER_NAME) < 0)
-  {
-    printk("comedi%d: I/O memory conflict\n", dev->minor);
+    printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
     return -EIO;
   }
 
@@ -899,8 +892,7 @@ static int me_detach(comedi_device *dev)
 		{
 			if(dev_private->plx_regbase_size)
 			{
-				pci_release_regions(dev_private->pci_device);
-				pci_disable_device(dev_private->pci_device);
+				comedi_pci_disable(dev_private->pci_device);
 			}
 			pci_dev_put(dev_private->pci_device);
 		}

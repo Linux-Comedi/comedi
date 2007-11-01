@@ -11,7 +11,7 @@
 #define _ICP_MULTI_H_
 
 #include <linux/comedidev.h>
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 
 
@@ -162,19 +162,14 @@ static int pci_card_alloc(struct pcilst_struct *inova)
 	}
 
 	if (inova->used) return 1;
-	if(pci_enable_device(inova->pcidev)) {
-		rt_printk(" - Can't enable PCI device!\n");
+	if (comedi_pci_enable(inova->pcidev, "icp_multi")) {
+		rt_printk(" - Can't enable PCI device and request regions!\n");
 		return -1;
 	}
 	/* Resources will be accurate now. */
 	for (i=0;i<5;i++)
 		inova->io_addr[i]=pci_resource_start(inova->pcidev, i);
 	inova->irq=inova->pcidev->irq;
-	/* Request regions on behalf of client. */
-	if (pci_request_regions(inova->pcidev, "icp_multi")) {
-		rt_printk(" - I/O port conflict!\n");
-		return -1;
-	}
 	inova->used=1;
 	return 0;
 }
@@ -187,8 +182,7 @@ static int pci_card_free(struct pcilst_struct *inova)
 
 	if (!inova->used) return 1;
 	inova->used=0;
-	pci_release_regions(inova->pcidev);
-	pci_disable_device(inova->pcidev);
+	comedi_pci_disable(inova->pcidev);
 	return 0;
 }
 

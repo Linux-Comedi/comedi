@@ -115,8 +115,8 @@ Configuration options:
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 #include "8255.h"
 
 #define DAQBOARD2000_SUBSYSTEM_IDS2 	0x00021616 /* Daqboard/2000 - 2 Dacs */
@@ -719,10 +719,8 @@ static int daqboard2000_attach(comedi_device *dev, comedi_devconfig *it)
 	}
 
 
-	if((result = pci_enable_device(card))<0){
-		return -EIO;
-	}
-	if((result = pci_request_regions(card, "daqboard2000")) < 0) {
+	if((result = comedi_pci_enable(card, "daqboard2000")) < 0) {
+		printk(" failed to enable PCI device and request regions\n");
 		return -EIO;	
 	}
 	devpriv->got_regions = 1;
@@ -814,8 +812,7 @@ static int daqboard2000_detach(comedi_device * dev)
 		{
 			if(devpriv->got_regions)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}

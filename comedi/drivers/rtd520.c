@@ -102,9 +102,9 @@ Configuration options:
 */
 
 #include <linux/comedidev.h>
-
 #include <linux/delay.h>
-#include <linux/pci.h>
+
+#include "comedi_pci.h"
 
 
 
@@ -804,10 +804,8 @@ static int rtd_attach (
 	}
     dev->board_name = thisboard->name;
 
-	if((ret=pci_enable_device(pcidev))<0){
-		return ret;
-	}
-	if((ret=pci_request_regions(pcidev, "rtd520"))<0){
+	if((ret=comedi_pci_enable(pcidev, "rtd520"))<0){
+		printk("Failed to enable PCI device and request regions.\n");
 		return ret;
 	}
 	devpriv->got_regions = 1;
@@ -1156,8 +1154,7 @@ static int rtd_detach (
 	if (devpriv->pci_dev) {
 		if(devpriv->got_regions)
 		{
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}

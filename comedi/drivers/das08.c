@@ -56,8 +56,8 @@ driver.
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 #include "8255.h"
 #include "das08.h"
 
@@ -956,14 +956,9 @@ static int das08_attach(comedi_device *dev,comedi_devconfig *it)
 			return -EIO;
 		}
 		devpriv->pdev = pdev;
-		// enable PCI device
-		if(pci_enable_device(pdev)){
-			printk(" Error enabling PCI device\n");
-			return -EIO;
-		}
-		// reserve I/O spaces
-		if(pci_request_regions(pdev, "das08")){
-			printk(" I/O port conflict\n");
+		// enable PCI device and reserve I/O spaces
+		if(comedi_pci_enable(pdev, "das08")){
+			printk(" Error enabling PCI device and requesting regions\n");
 			return -EIO;
 		}
 		// read base addresses
@@ -1008,8 +1003,7 @@ int das08_common_detach(comedi_device *dev)
 		if(devpriv->pdev){
 			if(devpriv->pci_iobase)
 			{
-				pci_release_regions(devpriv->pdev);
-				pci_disable_device(devpriv->pdev);
+				comedi_pci_disable(devpriv->pdev);
 			}
 			pci_dev_put(devpriv->pdev);
 		}

@@ -36,7 +36,7 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 typedef enum contec_model {
 	PIO1616L	=0,
@@ -124,12 +124,8 @@ static int contec_attach(comedi_device *dev,comedi_devconfig *it)
 				}
 			}
 			devpriv->pci_dev = pcidev;
-			if (pci_enable_device(pcidev)) {
-				printk("error enabling PCI device!\n");
-				return -EIO;
-			}
-			if (pci_request_regions(pcidev, "contec_pci_dio")) {
-				printk("I/O port conflict!\n");
+			if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
+				printk("error enabling PCI device and request regions!\n");
 				return -EIO;
 			}
 			dev->iobase = pci_resource_start ( pcidev, 0 );
@@ -173,8 +169,7 @@ static int contec_detach(comedi_device *dev)
 	if (devpriv && devpriv->pci_dev) {
 		if(dev->iobase)
 		{
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}

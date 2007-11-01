@@ -30,9 +30,9 @@ Configuration options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
 #include <linux/delay.h>
 
+#include "comedi_pci.h"
 #include "8255.h"
 
 #undef PCI_DIO_EXTDEBUG	/* if defined, enable extensive debug logging */
@@ -908,12 +908,8 @@ static int pci_dio_attach(comedi_device *dev, comedi_devconfig *it)
 		return -EIO;
 	}
 
-	if (pci_enable_device(pcidev)) {
-		rt_printk(", Error: Can't enable PCI device!\n");
-		return -EIO;
-	}
-	if (pci_request_regions(pcidev, driver_pci_dio.driver_name)) {
-		rt_printk(", Error: Can't allocate PCI device!\n");
+	if (comedi_pci_enable(pcidev, driver_pci_dio.driver_name)) {
+		rt_printk(", Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
 	iobase=pci_resource_start(pcidev, this_board->main_pci_region);
@@ -1027,8 +1023,7 @@ static int pci_dio_detach(comedi_device *dev)
 
 		if (devpriv->pcidev) {
 			if (dev->iobase) {
-				pci_release_regions(devpriv->pcidev);
-				pci_disable_device(devpriv->pcidev);
+				comedi_pci_disable(devpriv->pcidev);
 			}
 			pci_dev_put(devpriv->pcidev);
 		}

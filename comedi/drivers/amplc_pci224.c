@@ -104,7 +104,7 @@ Caveats:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "8253.h"
@@ -1343,15 +1343,10 @@ pci224_attach(comedi_device *dev,comedi_devconfig *it)
 		return ret;
 	devpriv->pci_dev = pci_dev;
 
-	if ((ret=pci_enable_device(pci_dev)) < 0) {
-		printk(KERN_ERR "comedi%d: error! cannot enable PCI device!\n",
+	if ((ret=comedi_pci_enable(pci_dev, DRIVER_NAME)) < 0) {
+		printk(KERN_ERR "comedi%d: error! cannot enable PCI device and request regions!\n",
 				dev->minor);
 		return ret;
-	}
-	if (pci_request_regions(pci_dev, DRIVER_NAME)) {
-		printk(KERN_ERR "comedi%d: error! cannot allocate PCI regions!\n",
-				dev->minor);
-		return -EIO;
 	}
 	spin_lock_init(&devpriv->ao_spinlock);
 
@@ -1539,8 +1534,7 @@ pci224_detach(comedi_device *dev)
 		if (devpriv->pci_dev) {
 			if(dev->iobase)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}

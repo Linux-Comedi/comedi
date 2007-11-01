@@ -42,9 +42,9 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
 #include <linux/delay.h>
 
+#include "comedi_pci.h"
 #include "plx9052.h"
 #include "8255.h"
 
@@ -260,14 +260,9 @@ found:
 				"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
 	};
 
-	if(pci_enable_device(pcidev))
+	if(comedi_pci_enable(pcidev, "cb_pcimdas"))
 	{
-		printk(" Failed to enable PCI device\n");
-		return -EIO;
-	}
-	if(pci_request_regions(pcidev, "cb_pcimdas"))
-	{
-		printk(" I/O port conflict\n");
+		printk(" Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
@@ -371,8 +366,7 @@ static int cb_pcimdas_detach(comedi_device *dev)
 		{
 			if(devpriv->BADR0)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}

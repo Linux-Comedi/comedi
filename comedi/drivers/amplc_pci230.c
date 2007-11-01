@@ -42,8 +42,8 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 #include "8253.h"
 #include "8255.h"
 
@@ -453,19 +453,15 @@ static int pci230_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	dev->board_name = thisboard->name;
 
-	/* Read base addresses of the PCI230's two I/O regions from PCI configuration register. */
-	if(pci_enable_device(pci_dev)<0){
+	/* Enable PCI device and reserve I/O spaces. */
+	if(comedi_pci_enable(pci_dev, "amplc_pci230")<0){
+		printk("comedi%d: failed to enable PCI device and request regions\n",dev->minor);
 		return -EIO;
 	}
 
+	/* Read base addresses of the PCI230's two I/O regions from PCI configuration register. */
 	pci_iobase = pci_resource_start(pci_dev, 2);
 	iobase = pci_resource_start(pci_dev, 3);
-
-	/* Reserve I/O spaces. */
-	if(pci_request_regions(pci_dev,"amplc_pci230")<0){
-		printk("comedi%d: I/O space conflict\n",dev->minor);
-		return -EIO;
-	}
 
 	printk("comedi%d: %s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
 			dev->minor, dev->board_name, pci_iobase, iobase);
@@ -606,8 +602,7 @@ static int pci230_detach(comedi_device *dev)
 		if(devpriv->pci_dev){
 			if(dev->iobase)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}

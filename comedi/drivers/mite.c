@@ -53,9 +53,9 @@
 #include "mite.h"
 
 #include "comedi_fc.h"
+#include "comedi_pci.h"
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
 #include <asm/system.h>
 
 
@@ -118,15 +118,11 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	u32 csigr_bits;
 	unsigned unknown_dma_burst_bits;
 
-	if(pci_enable_device(mite->pcidev)){
-		printk("error enabling mite\n");
+	if(comedi_pci_enable( mite->pcidev, "mite" ) ) {
+		printk("error enabling mite and requesting io regions\n");
 		return -EIO;
 	}
 	pci_set_master(mite->pcidev);
-	if( pci_request_regions( mite->pcidev, "mite" ) ) {
-		printk("failed to request mite io regions\n");
-		return -EIO;
-	};
 
 	addr = pci_resource_start(mite->pcidev, 0);
 	mite->mite_phys_addr = addr;
@@ -220,8 +216,7 @@ void mite_unsetup(struct mite_struct *mite)
 		mite->daq_io_addr=NULL;
 	}
 	if( mite->mite_phys_addr ){
-		pci_release_regions( mite->pcidev );
-		pci_disable_device( mite->pcidev );
+		comedi_pci_disable( mite->pcidev );
 		mite->mite_phys_addr = 0;
 	}
 

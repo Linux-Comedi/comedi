@@ -67,7 +67,7 @@ Status: experimental
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h> /* for PCI devices */
+#include "comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "s626.h"
@@ -495,13 +495,8 @@ static int s626_attach(comedi_device *dev,comedi_devconfig *it)
     return -ENODEV;
   }
 
-  if((result = pci_enable_device(pdev))<0){
-    printk("s626_attach: pci_enable_device fails\n");
-    return -ENODEV;
-  }
-
-  if((result = pci_request_regions(pdev, "s626"))<0){
-    printk("s626_attach: pci_request_regions fails\n");
+  if((result = comedi_pci_enable(pdev, "s626"))<0){
+    printk("s626_attach: comedi_pci_enable fails\n");
     return -ENODEV;
   }
   devpriv->got_regions = 1;
@@ -1231,8 +1226,7 @@ static int s626_detach(comedi_device *dev)
 		if(devpriv->pdev){
 			if(devpriv->got_regions)
 			{
-				pci_release_regions(devpriv->pdev);
-				pci_disable_device(devpriv->pdev);
+				comedi_pci_disable(devpriv->pdev);
 			}
 			pci_dev_put(devpriv->pdev);
 		}

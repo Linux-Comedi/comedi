@@ -47,8 +47,8 @@ support could be added to this driver.
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 #include "plx9080.h"
 #include "comedi_fc.h"
 
@@ -577,15 +577,9 @@ static int hpdi_attach(comedi_device *dev, comedi_devconfig *it)
 	printk("gsc_hpdi: found %s on bus %i, slot %i\n", board( dev )->name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
-	if( pci_enable_device( pcidev ) )
+	if( comedi_pci_enable( pcidev, driver_hpdi.driver_name ) )
 	{
-		printk(KERN_WARNING " failed enable PCI device\n");
-		return -EIO;
-	}
-	if( pci_request_regions( pcidev, driver_hpdi.driver_name ) )
-	{
-		/* Couldn't allocate io space */
-		printk(KERN_WARNING " failed to allocate io memory\n");
+		printk(KERN_WARNING " failed enable PCI device and request regions\n");
 		return -EIO;
 	}
 	pci_set_master( pcidev );
@@ -684,8 +678,7 @@ static int hpdi_detach(comedi_device *dev)
 				NUM_DMA_DESCRIPTORS, priv(dev)->dma_desc, priv(dev)->dma_desc_phys_addr );
 			if(priv(dev)->hpdi_phys_iobase)
 			{
-				pci_release_regions( priv(dev)->hw_dev );
-				pci_disable_device( priv(dev)->hw_dev );
+				comedi_pci_disable( priv(dev)->hw_dev );
 			}
 			pci_dev_put(priv(dev)->hw_dev);
 		}

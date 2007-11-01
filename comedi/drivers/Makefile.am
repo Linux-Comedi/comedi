@@ -39,6 +39,7 @@ EXTRA_DIST = \
  am9513.h \
  amcc_s5933.h \
  comedi_fc.h \
+ comedi_pci.h \
  das08.h \
  dt9812.h \
  icp_multi.h \

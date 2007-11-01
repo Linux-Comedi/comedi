@@ -52,7 +52,7 @@ References:
  * options that are used with comedi_config.
  */
 #include <linux/comedidev.h>
-#include <linux/pci.h> /* for PCI devices */
+#include "comedi_pci.h"
 
 #define PCI6208_DRIVER_NAME 	"adl_pci6208"
 
@@ -207,8 +207,7 @@ static int pci6208_detach(comedi_device *dev)
 	
 	if(devpriv && devpriv->pci_dev){
 		if(dev->iobase) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}
@@ -363,9 +362,9 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr, int dev_m
 {
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 
-	// Enable PCI device
-	if (pci_enable_device(pci_dev) < 0) {
-		printk("comedi%d: Failed to enable PCI device\n", dev_minor);
+	// Enable PCI device and request regions
+	if (comedi_pci_enable(pci_dev, PCI6208_DRIVER_NAME) < 0) {
+		printk("comedi%d: Failed to enable PCI device and request regions\n", dev_minor);
 		return -EIO;
 	}
 	
@@ -386,12 +385,6 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr, int dev_m
 		dev_minor,
 		io_base,
 		io_range);
-	
-	// Allocate IO ressources	  
-	if (pci_request_regions(pci_dev, PCI6208_DRIVER_NAME) < 0) {
-		printk("comedi%d: I/O port conflict\n",dev_minor);
-		return -EIO;
-	}
 	
 	*io_base_ptr = io_base;
 	//devpriv->io_range = io_range;

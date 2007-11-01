@@ -31,9 +31,9 @@ Configuration Options:
 */
 
 #include <linux/comedidev.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include "comedi_fc.h"
+#include "comedi_pci.h"
 #include "8253.h"
 
 #define PCI8164_AXIS_X  0x00
@@ -127,12 +127,8 @@ static int adl_pci8164_attach(comedi_device *dev,comedi_devconfig *it)
 		if ( pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		     pcidev->device == PCI_DEVICE_ID_PCI8164 ) {
 			devpriv->pci_dev = pcidev;
-			if (pci_enable_device(pcidev) < 0) {
-				printk("comedi%d: Failed to enable PCI device\n", dev->minor);
-				return -EIO;
-			}
-			if (pci_request_regions(pcidev, "adl_pci8164") < 0) {
-				printk("comedi%d: I/O port conflict\n", dev->minor);
+			if (comedi_pci_enable(pcidev, "adl_pci8164") < 0) {
+				printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
 				return -EIO;
 			}
 			dev->iobase = pci_resource_start ( pcidev, 2 );
@@ -196,8 +192,7 @@ static int adl_pci8164_detach(comedi_device *dev)
 
 	if (devpriv && devpriv->pci_dev) {
 		if (dev->iobase) {
-			pci_release_regions(devpriv->pci_dev);
-			pci_disable_device(devpriv->pci_dev);
+			comedi_pci_disable(devpriv->pci_dev);
 		}
 		pci_dev_put(devpriv->pci_dev);
 	}

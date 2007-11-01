@@ -43,7 +43,7 @@ Configuration options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 #include "8253.h"
 #include "amcc_s5933.h"
@@ -1256,12 +1256,8 @@ static int pci1710_attach(comedi_device *dev,comedi_devconfig *it)
 		 * Look for device that isn't in use.
 		 * Enable PCI device and request regions.
 		 */
-		if (pci_enable_device(pcidev)) {
-			errstr = "failed to enable PCI device!";
-			continue;
-		}
-		if (pci_request_regions(pcidev, "adl_pci9118")) {
-			errstr = "in use or I/O port conflict!";
+		if (comedi_pci_enable(pcidev, "adv_pci1710")) {
+			errstr = "failed to enable PCI device and request regions!";
 			continue;
 		}
 		break;
@@ -1423,8 +1419,7 @@ static int pci1710_detach(comedi_device *dev)
 		if (dev->irq) comedi_free_irq(dev->irq,dev);
 		if (devpriv->pcidev) {
 			if (dev->iobase) {
-				pci_release_regions(devpriv->pcidev);
-				pci_disable_device(devpriv->pcidev);
+				comedi_pci_disable(devpriv->pcidev);
 			}
 			pci_dev_put(devpriv->pcidev);
 		}

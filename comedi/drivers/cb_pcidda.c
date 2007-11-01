@@ -47,8 +47,8 @@ Please report sucess/failure with other different cards to
 */
 
 #include <linux/comedidev.h>
-#include <linux/pci.h>
 
+#include "comedi_pci.h"
 #include "8255.h"
 
 #define PCI_VENDOR_ID_CB	0x1307	// PCI vendor number of ComputerBoards
@@ -310,23 +310,17 @@ found:
 	printk("Found %s at requested position\n",thisboard->name);
 
 	/*
-	 * Initialize devpriv->control_status and devpriv->adc_fifo to point to
-	 * their base address.
+	 * Enable PCI device and request regions.
 	 */
-	if(pci_enable_device(pcidev))
+	if (comedi_pci_enable(pcidev, thisboard->name))
 	{
-		printk("cb_pcidda: failed to enable PCI device\n");
+		printk("cb_pcidda: failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
 /*
  * Allocate the I/O ports.
  */
-	if (pci_request_regions(pcidev, thisboard->name))
-	{
-		printk("cb_pcidda: I/O port conflict\n");
-		return -EIO;
-	}
 	devpriv->digitalio = pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
 	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
 
@@ -402,8 +396,7 @@ static int cb_pcidda_detach(comedi_device *dev)
 		{
 			if(devpriv->dac)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}

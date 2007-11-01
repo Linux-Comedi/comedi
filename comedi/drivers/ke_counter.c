@@ -34,7 +34,7 @@ Kolter Electronic PCI Counter Card.
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 #define CNT_DRIVER_NAME         "ke_counter"
 #define PCI_VENDOR_ID_KOLTER    0x1001
@@ -192,15 +192,11 @@ found:
   devpriv->pcidev = pci_device;
   dev->board_name = board->name;
 
-  /* enable PCI device */
-  if((error = pci_enable_device(pci_device)) < 0)
+  /* enable PCI device and request regions */
+  if((error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME)) < 0)
   {
-    return error;
-  }
-
-  /* request PCI regions */
-  if((error = pci_request_regions(pci_device, CNT_DRIVER_NAME)) < 0)
-  {
+    printk("comedi%d: failed to enable PCI device and request regions!\n",
+      dev->minor);
     return error;
   }
 
@@ -244,8 +240,7 @@ static int cnt_detach(comedi_device *dev)
 	{
 		if(dev->iobase)
 		{
-			pci_release_regions(devpriv->pcidev);
-			pci_disable_device(devpriv->pcidev);
+			comedi_pci_disable(devpriv->pcidev);
 		}
 		pci_dev_put(devpriv->pcidev);
 	}

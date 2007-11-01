@@ -87,7 +87,7 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h>
+#include "comedi_pci.h"
 
 #include "8255.h"
 
@@ -344,8 +344,7 @@ static int detach(comedi_device *dev)
 		if (devpriv->pci_dev) {
 			if(devpriv->registers)
 			{
-				pci_release_regions(devpriv->pci_dev);
-				pci_disable_device(devpriv->pci_dev);
+				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}
@@ -467,14 +466,9 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 
 			devpriv->pci_dev = pcidev;
 			dev->board_ptr = boards + index;
-			if (pci_enable_device(pcidev))
+			if (comedi_pci_enable(pcidev, thisboard->name))
 			{
-				printk("cb_pcimdda: Failed to enable PCI device\n");
-				return -EIO;
-			}
-			if (pci_request_regions(pcidev, thisboard->name))
-			{
-				printk("cb_pcimdda: I/O port conflict\n");
+				printk("cb_pcimdda: Failed to enable PCI device and request regions\n");
 				return -EIO;
 			}
 			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);

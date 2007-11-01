@@ -77,9 +77,9 @@ TODO:
 #include <linux/comedidev.h>
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include "8253.h"
+#include "comedi_pci.h"
 #include "comedi_fc.h"
 
 #define PCI9111_DRIVER_NAME 	"adl_pci9111"
@@ -1350,10 +1350,10 @@ found:
 		lcr_io_base,
 		lcr_io_range);
 
-	// Enable PCI device
-	if(pci_enable_device (pci_device) < 0)
+	// Enable PCI device and request regions
+	if(comedi_pci_enable (pci_device, PCI9111_DRIVER_NAME) < 0)
 	{
-		printk("comedi%d: Failed to enable PCI device\n", dev->minor);
+		printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
 		return -EIO;
 	}
 
@@ -1366,13 +1366,6 @@ found:
 		dev->minor,
 		io_base,
 		io_range);
-
-	// Allocate IO ressources
-	if(pci_request_regions(pci_device, PCI9111_DRIVER_NAME))
-	{
-		printk("comedi%d: I/O port conflict\n",dev->minor);
-		return -EIO;
-	}
 
 	dev->iobase=io_base;
 	dev->board_name = board->name;
@@ -1487,8 +1480,7 @@ static int pci9111_detach(comedi_device *dev)
 	{
 		if(dev->iobase)
 		{
-			pci_release_regions(dev_private->pci_device);
-			pci_disable_device(dev_private->pci_device);
+			comedi_pci_disable(dev_private->pci_device);
 		}
 		pci_dev_put(dev_private->pci_device);
 	}
