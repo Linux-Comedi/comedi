@@ -2541,9 +2541,9 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	comedi_subdevice *s;
 	int ret,pages,i,n_subdevices;
         DWORD dw_Dummy; 
-	unsigned long io_addr[5];
-	unsigned short irq;//v_58
-        unsigned long iobase_a,iobase_main,iobase_addon,iobase_reserved;
+	resource_size_t io_addr[5];
+	unsigned int irq;
+        resource_size_t iobase_a,iobase_main,iobase_addon,iobase_reserved;
 	struct pcilst_struct *card=NULL;
 	unsigned char pci_bus,pci_slot,pci_func;
 	int i_Dma = 0;
@@ -2584,8 +2584,10 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	iobase_main=io_addr[1];
 	iobase_addon=io_addr[2];
         iobase_reserved=io_addr[3];
-	printk("\nBus %d: Slot %d: Funct%d\nBase0: 0x%8lx\nBase1: 0x%8lx\nBase2: 0x%8lx\nBase3: 0x%8lx\n",
-	        pci_bus,pci_slot,pci_func,io_addr[0],io_addr[1],io_addr[2],io_addr[3]);
+	printk("\nBus %d: Slot %d: Funct%d\nBase0: 0x%8llx\nBase1: 0x%8llx\nBase2: 0x%8llx\nBase3: 0x%8llx\n",
+	        pci_bus,pci_slot,pci_func,(unsigned long long)io_addr[0],
+		(unsigned long long)io_addr[1],(unsigned long long)io_addr[2],
+		(unsigned long long)io_addr[3]);
 	
 	if ((this_board->pc_EepromChip == NULL) || (strcmp (this_board->pc_EepromChip, ADDIDATA_9054) != 0))
 	   {
@@ -2595,17 +2597,11 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	
 	   if (this_board->i_IorangeBase1 != 0)
 	      {
-	      dev->iobase=iobase_main;// DAQ base address...
-	      printk("\nrequest_region i_IorangeBase1 - 1\n");
-	      request_region(dev->iobase,  this_board->i_IorangeBase1, c_Identifier);
-	      printk("\nrequest_region i_IorangeBase1 - 1 OK\n");
+	      dev->iobase=(unsigned long)iobase_main;// DAQ base address...
 	      }
 	   else
 	      {
-	      dev->iobase=iobase_a;// DAQ base address...
-	      printk("\nrequest_region i_IorangeBase0 - 2");
-	      request_region(dev->iobase,  this_board->i_IorangeBase0, c_Identifier);
-	      printk("\nrequest_region i_IorangeBase0 - 2 %lX OK", dev->iobase);
+	      dev->iobase=(unsigned long)iobase_a;// DAQ base address...
 	      }
 
 	   dev->board_name =this_board->pc_DriverName;
@@ -2614,26 +2610,11 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	      return -ENOMEM;
 	      }
 	   devpriv->amcc=card;
-           devpriv->iobase=dev->iobase;
-	   devpriv->i_IobaseAmcc=iobase_a;//AMCC base address...
-	   devpriv->i_IobaseAddon=iobase_addon;//ADD ON base address....
-           devpriv->i_IobaseReserved=iobase_reserved; 
+           devpriv->iobase=(INT)dev->iobase;
+	   devpriv->i_IobaseAmcc=(INT)iobase_a;//AMCC base address...
+	   devpriv->i_IobaseAddon=(INT)iobase_addon;//ADD ON base address....
+           devpriv->i_IobaseReserved=(INT)iobase_reserved; 
 	   devpriv->ps_BoardInfo = this_board;
-
-           //if(this_board->i_Dma)
-	   if((iobase_a) && (iobase_a != dev->iobase))
-	      {
-	      request_region(devpriv->i_IobaseAmcc,this_board->i_IorangeBase0, c_Identifier);
-	      printk("\nrequest_region i_IorangeBase0 - 3 OK\n");
-	      }
-        
-           //##
-	   if(io_addr[2])
-	      {
-	      printk("request_region i_IorangeBase2\n");
-	      request_region(io_addr[2],this_board->i_IorangeBase2, c_Identifier);
-	      printk("request_region i_IorangeBase2 OK\n");
-	      }
 	   }
 	else
 	   {
@@ -2642,18 +2623,12 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	      return -ENOMEM;
 	      }
 	   
-	   if (pci_request_regions (card->pcidev, c_Identifier))
-	      {
-	      printk("\nRequest regions error\n");
-	      return -EIO;
-	      }
-	      
 	   dev->board_name =this_board->pc_DriverName;
-	   dev->iobase=io_addr[2];
+	   dev->iobase=(unsigned long)io_addr[2];
 	   devpriv->amcc=card;
-           devpriv->iobase=io_addr[2];
+           devpriv->iobase=(INT)io_addr[2];
 	   devpriv->ps_BoardInfo = this_board;
-	   devpriv->i_IobaseReserved=io_addr[3];
+	   devpriv->i_IobaseReserved=(INT)io_addr[3];
 	   printk ("\nioremap begin");
 	   devpriv->dw_AiBase=(ULONG_PTR) ioremap(io_addr[3],this_board->i_IorangeBase3);
 	   printk ("\nioremap end");
@@ -2665,13 +2640,12 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	   {
 	   if (comedi_request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED, c_Identifier, dev) < 0) 
 	      {
-	      printk(", unable to allocate IRQ %d, DISABLING IT", irq);
+	      printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 	      irq=0; /* Can't use IRQ */
 	      } 
 	   else 
 	      {
-	      rt_printk("\nirq=%d", irq);
-	      enable_irq (irq);
+	      rt_printk("\nirq=%u", irq);
 	      }    
 	   } 
 	else 
@@ -2975,30 +2949,14 @@ static int i_ADDI_Detach(comedi_device *dev)
 	      {
 	      i_ADDI_Reset(dev);
 	      }
+           
+	   if(dev->irq)
+	      {
+	      comedi_free_irq(dev->irq,dev);
+	      }
 	   
 	   if ((devpriv->ps_BoardInfo->pc_EepromChip == NULL) || (strcmp (devpriv->ps_BoardInfo->pc_EepromChip, ADDIDATA_9054) != 0))
 	      {
-	      if(devpriv->i_IobaseAmcc)
-	         {
-	         printk("\nrelease_region base address 0");
-	         release_region(devpriv->i_IobaseAmcc,this_board->i_IorangeBase0);
-	         printk("\nrelease_region base address 0 OK");
-	         }
-	         
-	      if(this_board->i_IorangeBase1) 
-	         {
-	         printk("\nrelease_region base address 1");
-	         release_region(dev->iobase,this_board->i_IorangeBase1);
-	         printk("\nrelease_region base address 1 OK");
-	         }
-
-	      if(this_board->i_IorangeBase2) 
-	         {
-	         printk("\nrelease_region base address 2");
-	         release_region(devpriv->i_IobaseAddon,this_board->i_IorangeBase2); 
-	         printk("\nrelease_region base address 2 OK");
-	         }
-	         
 	      if (devpriv->allocated)
 	         {          
 	         i_pci_card_free(devpriv->amcc);
@@ -3018,17 +2976,10 @@ static int i_ADDI_Detach(comedi_device *dev)
 	      {
 	      iounmap ((void *) devpriv->dw_AiBase);
 	      
-	      pci_release_regions(devpriv->amcc->pcidev);
-
 	      if (devpriv->allocated)
 	         {          
 	         i_pci_card_free(devpriv->amcc);
 	         }
-	      }
-           
-	   if(dev->irq)
-	      {
-	      free_irq(dev->irq,dev);
 	      }
        
 	   if (pci_list_builded) 
