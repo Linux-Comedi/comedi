@@ -235,7 +235,6 @@ struct pcilst_struct{
 	struct pci_dev 	*pcidev;
 	unsigned short	vendor;
 	unsigned short	device;
-	unsigned int	master;
 	unsigned char	pci_bus;
 	unsigned char	pci_slot;
 	unsigned char	pci_func;
@@ -262,7 +261,7 @@ int i_pci_card_free(struct pcilst_struct *amcc);
 void v_pci_card_list_display(void);
 int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned long *io_addr, unsigned short *irq, unsigned short *master);
+	unsigned long *io_addr, unsigned short *irq);
 
 /****************************************************************************/
 
@@ -276,15 +275,9 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 	amcc_devices=NULL;
 	last=NULL;
 	
-#if LINUX_VERSION_CODE < 0x020300
-	for(pcidev=pci_devices;pcidev;pcidev=pcidev->next){
-#elif LINUX_VERSION_CODE >= 0x020600
 	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); 
 	    pcidev != NULL ; 
 	    pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-#else
-	pci_for_each_dev(pcidev){
-#endif           
              for(i_Count=0;i_Count<2;i_Count++)
                 {
                  pci_vendor=i_ADDIDATADeviceID[i_Count];
@@ -297,29 +290,14 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 			     else { amcc_devices=amcc; }
 			last=amcc;
 			
-#if LINUX_VERSION_CODE < 0x020300
 			amcc->vendor=pcidev->vendor;		
 			amcc->device=pcidev->device;
-			amcc->master=pcidev->master;
-			amcc->pci_bus=pcidev->bus->number;
-			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
-			amcc->pci_func=PCI_FUNC(pcidev->devfn);
-			for (i=0;i<5;i++)
-				amcc->io_addr[i]=pcidev->base_address[i] & ~3UL;
-			amcc->irq=pcidev->irq;
-#else
-			amcc->vendor=pcidev->vendor;		
-			amcc->device=pcidev->device;
-#if 0
-			amcc->master=pcidev->master; // how get this information under 2.4 kernels?
-#endif
 			amcc->pci_bus=pcidev->bus->number;
 			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
 			amcc->pci_func=PCI_FUNC(pcidev->devfn);
 			for (i=0;i<5;i++)
 				amcc->io_addr[i]=pcidev->resource[i].start & ~3UL;
 			amcc->irq=pcidev->irq;
-#endif
 			
 		}
             }
@@ -387,10 +365,8 @@ int pci_card_alloc(struct pcilst_struct *amcc, int master)
 	if (!amcc) return -1;
 
 	if (amcc->used) return 1;
-#if LINUX_VERSION_CODE >= 0x020600
 	if (pci_enable_device(amcc->pcidev)) return -1;
 	if (master) pci_set_master(amcc->pcidev);
-#endif
 	amcc->used=1;
 
 	return 0;
@@ -414,12 +390,12 @@ void v_pci_card_list_display(void)
 	struct pcilst_struct *amcc,*next;
 
 	printk("List of pci cards\n");
-	printk("bus:slot:func vendor device master io_amcc io_daq irq used\n");
+	printk("bus:slot:func vendor device io_amcc io_daq irq used\n");
 
 	for (amcc=amcc_devices;amcc;amcc=next) {
 		next=amcc->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%4x 0x%4x  %2d  %2d\n",
-			amcc->pci_bus,amcc->pci_slot,amcc->pci_func,amcc->vendor,amcc->device,amcc->master?"yes":"no",
+		printk("%2d   %2d   %2d  0x%4x 0x%4x   0x%4x 0x%4x  %2d  %2d\n",
+			amcc->pci_bus,amcc->pci_slot,amcc->pci_func,amcc->vendor,amcc->device,
 			amcc->io_addr[0],amcc->io_addr[2],amcc->irq,amcc->used);
 		
 	}
@@ -429,7 +405,7 @@ void v_pci_card_list_display(void)
 /* return all card information for driver */
 int i_pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	unsigned long *io_addr, unsigned short *irq, unsigned short *master)
+	unsigned long *io_addr, unsigned short *irq)
 {
 	int	i;
 	
@@ -440,7 +416,6 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 	for (i=0;i<5;i++)
 		io_addr[i]=amcc->io_addr[i];
 	*irq=amcc->irq;
-	*master=amcc->master;
 	return 0;
 }
 

@@ -393,7 +393,6 @@ typedef struct{
                 INT      i_IobaseReserved;
                 ULONG_PTR dw_AiBase;
    		struct pcilst_struct	*amcc;		// ptr too AMCC data
-		UINT		        master;		// master capable
 		BYTE         		allocated;	// we have blocked card
 		BYTE                b_ValidDriver;// driver is ok
 		BYTE                b_AiContinuous;	// we do unlimited AI  

@@ -2542,7 +2542,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	int ret,pages,i,n_subdevices;
         DWORD dw_Dummy; 
 	unsigned long io_addr[5];
-	unsigned short master,irq;//v_58
+	unsigned short irq;//v_58
         unsigned long iobase_a,iobase_main,iobase_addon,iobase_reserved;
 	struct pcilst_struct *card=NULL;
 	unsigned char pci_bus,pci_slot,pci_func;
@@ -2573,7 +2573,7 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	   return -EIO;
 	   }
 	   
-	if ((i_pci_card_data(card,&pci_bus,&pci_slot,&pci_func,&io_addr[0],&irq,&master))<0) 
+	if ((i_pci_card_data(card,&pci_bus,&pci_slot,&pci_func,&io_addr[0],&irq))<0) 
 	   {
 	   i_pci_card_free(card);
 	   printk(" - Can't get AMCC data!\n");
@@ -2614,7 +2614,6 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	      return -ENOMEM;
 	      }
 	   devpriv->amcc=card;
-	   devpriv->master=master; //testing 
            devpriv->iobase=dev->iobase;
 	   devpriv->i_IobaseAmcc=iobase_a;//AMCC base address...
 	   devpriv->i_IobaseAddon=iobase_addon;//ADD ON base address....
@@ -2748,7 +2747,6 @@ static int i_ADDI_Attach(comedi_device *dev,comedi_devconfig *it)
 	      if (!devpriv->ul_DmaBufferVirtual[0]) 
 	         {
 	         rt_printk(", Can't allocate DMA buffer, DMA disabled!");
-	         master=0;
 	         devpriv->us_UseDma=ADDI_DISABLE;
 	         }
 
