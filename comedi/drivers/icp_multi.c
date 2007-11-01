@@ -861,7 +861,6 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 {
 	comedi_subdevice 	*s;
 	int ret, subdev, n_subdevices;
-	unsigned short 		master;
 	unsigned int		irq;
 	struct pcilst_struct 	*card=NULL;
         resource_size_t		io_addr[5], iobase;
@@ -891,7 +890,7 @@ static int icp_multi_attach(comedi_device *dev,comedi_devconfig *it)
 
 	devpriv->card = card;
 
-	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0], &irq, &master))<0) {
+	if ((pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0], &irq))<0) {
 		printk(" - Can't get configuration data!\n");
 		return -EIO;
 	}

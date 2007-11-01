@@ -23,7 +23,6 @@ struct pcilst_struct{
 	struct pci_dev 	*pcidev;
 	unsigned short	vendor;
 	unsigned short	device;
-	unsigned int	master;
 	unsigned char	pci_bus;
 	unsigned char	pci_slot;
 	unsigned char	pci_func;
@@ -46,7 +45,7 @@ static int pci_card_free(struct pcilst_struct *amcc);
 static void pci_card_list_display(void);
 static int pci_card_data(struct pcilst_struct *amcc,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	resource_size_t *io_addr, unsigned int *irq, unsigned short *master);
+	resource_size_t *io_addr, unsigned int *irq);
 
 /****************************************************************************/
 
@@ -78,11 +77,6 @@ static void pci_card_list_init(unsigned short pci_vendor, char display)
 			
 			inova->vendor=pcidev->vendor;		
 			inova->device=pcidev->device;
-#if LINUX_VERSION_CODE < 0x020300
-			inova->master=pcidev->master;
-#else
-inova->master = 1;	//XXX
-#endif
 			inova->pci_bus=pcidev->bus->number;
 			inova->pci_slot=PCI_SLOT(pcidev->devfn);
 			inova->pci_func=PCI_FUNC(pcidev->devfn);
@@ -193,12 +187,12 @@ static void pci_card_list_display(void)
 	struct pcilst_struct *inova, *next;
 
 	printk("Anne's List of pci cards\n");
-	printk("bus:slot:func vendor device master io_inova io_daq irq used\n");
+	printk("bus:slot:func vendor device io_inova io_daq irq used\n");
 
 	for (inova=inova_devices; inova; inova=next) {
 		next=inova->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%8llx 0x%8llx  %2u  %2d\n",
-			inova->pci_bus,inova->pci_slot,inova->pci_func,inova->vendor,inova->device,inova->master?"yes":"no",
+		printk("%2d   %2d   %2d  0x%4x 0x%4x   0x%8llx 0x%8llx  %2u  %2d\n",
+			inova->pci_bus,inova->pci_slot,inova->pci_func,inova->vendor,inova->device,
 			(unsigned long long)inova->io_addr[0],(unsigned long long)inova->io_addr[2],inova->irq,inova->used);
 		
 	}
@@ -208,7 +202,7 @@ static void pci_card_list_display(void)
 /* return all card information for driver */
 static int pci_card_data(struct pcilst_struct *inova,
 	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	resource_size_t *io_addr, unsigned int *irq, unsigned short *master)
+	resource_size_t *io_addr, unsigned int *irq)
 {
 	int	i;
 	
@@ -219,7 +213,6 @@ static int pci_card_data(struct pcilst_struct *inova,
 	for (i=0;i<5;i++)
 		io_addr[i]=inova->io_addr[i];
 	*irq=inova->irq;
-	*master=inova->master;
 	return 0;
 }
 
