@@ -483,7 +483,7 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 					async->buf_page_list[i].virt_addr = dma_alloc_coherent(dev->hw_dev,
 						PAGE_SIZE, &async->buf_page_list[i].dma_addr, GFP_KERNEL | __GFP_COMP);
 				}else{
-					async->buf_page_list[i].virt_addr = (void*)__get_free_page(GFP_KERNEL);
+					async->buf_page_list[i].virt_addr = (void*)get_zeroed_page(GFP_KERNEL);
 				}
 				if(async->buf_page_list[i].virt_addr == NULL){
 					break;
