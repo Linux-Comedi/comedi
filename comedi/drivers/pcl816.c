@@ -1218,9 +1218,6 @@ no_dma:
 	  s->len_chanlist = this_board->n_dochan;
 	  s->range_table = &range_digital;
 	  break;
-	}
-      s++;
-    }
 #endif
 
   pcl816_reset (dev);
