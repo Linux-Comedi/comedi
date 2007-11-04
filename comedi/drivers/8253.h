@@ -32,7 +32,9 @@
 
 #define i8253_cascade_ns_to_timer i8253_cascade_ns_to_timer_2div
 
-static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
+static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base,
+	unsigned int *d1, unsigned int *d2, unsigned int *nanosec,
+	int round_mode)
 {
 	int divider;
 	int div1, div2;
@@ -79,7 +81,9 @@ static inline void i8253_cascade_ns_to_timer_2div_old(int i8253_osc_base, unsign
 	return;
 }
 
-static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
+static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base,
+	unsigned int *d1, unsigned int *d2, unsigned int *nanosec,
+	int round_mode)
 {
 	int div1, div2;
 	int base;
@@ -99,7 +103,8 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 			div2 = (*nanosec + base - 1) / base;
 			break;
 		}
-		if (div2 < 2) div2 = 2;
+		if (div2 < 2)
+			div2 = 2;
 		if (div2 <= 65536) {
 			*nanosec = div2 * base;
 			*d1 = div1 & 0xffff;
@@ -117,7 +122,8 @@ static inline void i8253_cascade_ns_to_timer_power(int i8253_osc_base, unsigned 
 }
 
 static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
-	unsigned int *d1, unsigned int *d2, unsigned int *nanosec, int round_mode)
+	unsigned int *d1, unsigned int *d2, unsigned int *nanosec,
+	int round_mode)
 {
 	unsigned int divider;
 	unsigned int div1, div2;
@@ -133,14 +139,13 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	div1 = *d1 ? *d1 : max_count;
 	div2 = *d2 ? *d2 : max_count;
 	divider = div1 * div2;
-	if(div1 * div2 * i8253_osc_base == *nanosec &&
+	if (div1 * div2 * i8253_osc_base == *nanosec &&
 		div1 > 1 && div1 <= max_count &&
 		div2 > 1 && div2 <= max_count &&
 		/* check for overflow */
 		divider > div1 && divider > div2 &&
 		divider * i8253_osc_base > divider &&
-		divider * i8253_osc_base > i8253_osc_base)
-	{
+		divider * i8253_osc_base > i8253_osc_base) {
 		return;
 	}
 
@@ -154,9 +159,13 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 
 	div2 = max_count;
 	start = divider / div2;
-	if(start < 2) start = 2;
-	for (div1 = start; div1 <= divider / div1 + 1 && div1 <= max_count; div1++) {
-		for(div2 = divider / div1; div1 * div2 <= divider + div1 + 1 && div2 <= max_count; div2++) {
+	if (start < 2)
+		start = 2;
+	for (div1 = start; div1 <= divider / div1 + 1 && div1 <= max_count;
+		div1++) {
+		for (div2 = divider / div1;
+			div1 * div2 <= divider + div1 + 1 && div2 <= max_count;
+			div2++) {
 			ns = i8253_osc_base * div1 * div2;
 			if (ns <= *nanosec && ns > ns_glb) {
 				ns_glb = ns;
@@ -177,7 +186,7 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	default:
 		ns_high = div1_lub * div2_lub * i8253_osc_base;
 		ns_low = div1_glb * div2_glb * i8253_osc_base;
-		if( ns_high - *nanosec < *nanosec - ns_low) {
+		if (ns_high - *nanosec < *nanosec - ns_low) {
 			div1 = div1_lub;
 			div2 = div2_lub;
 		} else {
@@ -228,13 +237,17 @@ static inline int i8254_load(unsigned long base_address, unsigned int regshift,
 {
 	unsigned int byte;
 
-	if(counter_number > 2) return -1;
-	if(count > 0xffff) return -1;
-	if(mode > 5) return -1;
-	if((mode == 2 || mode == 3) && count == 1) return -1;
+	if (counter_number > 2)
+		return -1;
+	if (count > 0xffff)
+		return -1;
+	if (mode > 5)
+		return -1;
+	if ((mode == 2 || mode == 3) && count == 1)
+		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;	// load low then high byte
+	byte |= 0x30;		// load low then high byte
 	byte |= (mode << 1);	// set counter mode
 	outb(byte, base_address + (i8254_control_reg << regshift));
 	byte = count & 0xff;	// lsb of counter value
@@ -250,13 +263,17 @@ static inline int i8254_mm_load(void *base_address, unsigned int regshift,
 {
 	unsigned int byte;
 
-	if(counter_number > 2) return -1;
-	if(count > 0xffff) return -1;
-	if(mode > 5) return -1;
-	if((mode == 2 || mode == 3) && count == 1) return -1;
+	if (counter_number > 2)
+		return -1;
+	if (count > 0xffff)
+		return -1;
+	if (mode > 5)
+		return -1;
+	if ((mode == 2 || mode == 3) && count == 1)
+		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;	// load low then high byte
+	byte |= 0x30;		// load low then high byte
 	byte |= (mode << 1);	// set counter mode
 	writeb(byte, base_address + (i8254_control_reg << regshift));
 	byte = count & 0xff;	// lsb of counter value
@@ -274,7 +291,8 @@ static inline int i8254_read(unsigned long base_address, unsigned int regshift,
 	unsigned int byte;
 	int ret;
 
-	if(counter_number > 2) return -1;
+	if (counter_number > 2)
+		return -1;
 
 	// latch counter
 	byte = counter_number << 6;
@@ -294,7 +312,8 @@ static inline int i8254_mm_read(void *base_address, unsigned int regshift,
 	unsigned int byte;
 	int ret;
 
-	if(counter_number > 2) return -1;
+	if (counter_number > 2)
+		return -1;
 
 	// latch counter
 	byte = counter_number << 6;
@@ -314,7 +333,8 @@ static inline void i8254_write(unsigned long base_address,
 {
 	unsigned int byte;
 
-	if(counter_number > 2) return;
+	if (counter_number > 2)
+		return;
 
 	byte = count & 0xff;	// lsb of counter value
 	outb(byte, base_address + (counter_number << regshift));
@@ -327,7 +347,8 @@ static inline void i8254_mm_write(void *base_address,
 {
 	unsigned int byte;
 
-	if(counter_number > 2) return;
+	if (counter_number > 2)
+		return;
 
 	byte = count & 0xff;	// lsb of counter value
 	writeb(byte, base_address + (counter_number << regshift));
@@ -347,12 +368,14 @@ static inline int i8254_set_mode(unsigned long base_address,
 {
 	unsigned int byte;
 
-	if(counter_number > 2) return -1;
-	if(mode > (I8254_MODE5 | I8254_BINARY)) return -1;
+	if (counter_number > 2)
+		return -1;
+	if (mode > (I8254_MODE5 | I8254_BINARY))
+		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;	// load low then high byte
-	byte |= mode;	// set counter mode and BCD|binary
+	byte |= 0x30;		// load low then high byte
+	byte |= mode;		// set counter mode and BCD|binary
 	outb(byte, base_address + (i8254_control_reg << regshift));
 
 	return 0;
@@ -363,12 +386,14 @@ static inline int i8254_mm_set_mode(void *base_address,
 {
 	unsigned int byte;
 
-	if(counter_number > 2) return -1;
-	if(mode > (I8254_MODE5 | I8254_BINARY)) return -1;
+	if (counter_number > 2)
+		return -1;
+	if (mode > (I8254_MODE5 | I8254_BINARY))
+		return -1;
 
 	byte = counter_number << 6;
-	byte |= 0x30;	// load low then high byte
-	byte |= mode;	// set counter mode and BCD|binary
+	byte |= 0x30;		// load low then high byte
+	byte |= mode;		// set counter mode and BCD|binary
 	writeb(byte, base_address + (i8254_control_reg << regshift));
 
 	return 0;
@@ -378,7 +403,7 @@ static inline int i8254_status(unsigned long base_address,
 	unsigned int regshift, unsigned int counter_number)
 {
 	outb(0xE0 | (2 << counter_number),
-			base_address + (i8254_control_reg << regshift));
+		base_address + (i8254_control_reg << regshift));
 	return inb(base_address + (counter_number << regshift));
 }
 
@@ -386,11 +411,10 @@ static inline int i8254_mm_status(void *base_address,
 	unsigned int regshift, unsigned int counter_number)
 {
 	writeb(0xE0 | (2 << counter_number),
-			base_address + (i8254_control_reg << regshift));
+		base_address + (i8254_control_reg << regshift));
 	return readb(base_address + (counter_number << regshift));
 }
 
 #endif
 
 #endif
-

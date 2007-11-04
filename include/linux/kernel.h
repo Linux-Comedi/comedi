@@ -31,4 +31,4 @@
 
 #endif
 
-#endif	// _KERNEL_COMPAT_H
+#endif // _KERNEL_COMPAT_H

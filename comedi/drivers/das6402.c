@@ -5,7 +5,6 @@
 
    - ignoreirq creates a race condition.  It needs to be fixed.
 
-
  */
 
 /*
@@ -50,7 +49,6 @@ This driver has suffered bitrot.
 #define STOP    0
 #define START   1
 
-
 #define SCANL 0x3f00
 #define BYTE unsigned char
 #define WORD unsigned short
@@ -60,26 +58,26 @@ This driver has suffered bitrot.
 #define CLRXTR 0x02
 #define CLRXIN 0x04
 #define EXTEND 0x10
-#define ARMED 0x20   /* enable conting of post sample conv */
+#define ARMED 0x20		/* enable conting of post sample conv */
 #define POSTMODE 0x40
-#define MHZ 0x80    /* 10 MHz clock */
+#define MHZ 0x80		/* 10 MHz clock */
 /*---------------------*/
 
 /*----- register 9 ----*/
-#define IRQ (0x04 << 4)   /* these two are                         */
-#define IRQV 10           /*               dependent on each other */
+#define IRQ (0x04 << 4)		/* these two are                         */
+#define IRQV 10			/*               dependent on each other */
 
-#define CONVSRC 0x03  /* trig src is Intarnal pacer */
-#define BURSTEN 0x04  /* enable burst */
-#define XINTE 0x08     /* use external int. trig */
-#define INTE 0x80      /* enable analog interrupts */
+#define CONVSRC 0x03		/* trig src is Intarnal pacer */
+#define BURSTEN 0x04		/* enable burst */
+#define XINTE 0x08		/* use external int. trig */
+#define INTE 0x80		/* enable analog interrupts */
 /*---------------------*/
 
 /*----- register 10 ---*/
-#define TGEN 0x01   /* Use pin DI1 for externl trigging? */
-#define TGSEL 0x02  /* Use edge triggering */
-#define TGPOL 0x04  /* active edge is falling */
-#define PRETRIG 0x08 /* pretrig */
+#define TGEN 0x01		/* Use pin DI1 for externl trigging? */
+#define TGSEL 0x02		/* Use edge triggering */
+#define TGPOL 0x04		/* active edge is falling */
+#define PRETRIG 0x08		/* pretrig */
 /*---------------------*/
 
 /*----- register 11 ---*/
@@ -100,254 +98,257 @@ This driver has suffered bitrot.
 #define	C2 0x80
 #define	RWLH 0x30
 
-static int das6402_attach(comedi_device *dev,comedi_devconfig *it);
-static int das6402_detach(comedi_device *dev);
-static comedi_driver driver_das6402={
-	driver_name:	"das6402",
-	module:		THIS_MODULE,
-	attach:		das6402_attach,
-	detach:		das6402_detach,
+static int das6402_attach(comedi_device * dev, comedi_devconfig * it);
+static int das6402_detach(comedi_device * dev);
+static comedi_driver driver_das6402 = {
+      driver_name:"das6402",
+      module:THIS_MODULE,
+      attach:das6402_attach,
+      detach:das6402_detach,
 };
+
 COMEDI_INITCLEANUP(driver_das6402);
 
-typedef struct{
+typedef struct {
 	int ai_bytes_to_read;
 
 	int das6402_ignoreirq;
-}das6402_private;
+} das6402_private;
 #define devpriv ((das6402_private *)dev->private)
 
+static void das6402_ai_fifo_dregs(comedi_device * dev, comedi_subdevice * s);
 
-static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s);
-
-static void das6402_setcounter(comedi_device *dev)
+static void das6402_setcounter(comedi_device * dev)
 {
 	BYTE p;
 	unsigned short ctrlwrd;
 
 	/* set up counter0 first, mode 0 */
-	p=M0|C0|RWLH;
-	outb_p(p,dev->iobase+15);
-	ctrlwrd=2000;
-	p=(BYTE) (0xff & ctrlwrd);
-	outb_p(p,dev->iobase+12);
-	p=(BYTE) (0xff & (ctrlwrd >> 8));
-	outb_p(p,dev->iobase+12);
+	p = M0 | C0 | RWLH;
+	outb_p(p, dev->iobase + 15);
+	ctrlwrd = 2000;
+	p = (BYTE) (0xff & ctrlwrd);
+	outb_p(p, dev->iobase + 12);
+	p = (BYTE) (0xff & (ctrlwrd >> 8));
+	outb_p(p, dev->iobase + 12);
 
 	/* set up counter1, mode 2 */
-	p=M2|C1|RWLH;
-	outb_p(p,dev->iobase+15);
-	ctrlwrd=10;
-	p=(BYTE) (0xff & ctrlwrd);
-	outb_p(p,dev->iobase+13);
-	p=(BYTE) (0xff & (ctrlwrd >> 8));
-	outb_p(p,dev->iobase+13);
+	p = M2 | C1 | RWLH;
+	outb_p(p, dev->iobase + 15);
+	ctrlwrd = 10;
+	p = (BYTE) (0xff & ctrlwrd);
+	outb_p(p, dev->iobase + 13);
+	p = (BYTE) (0xff & (ctrlwrd >> 8));
+	outb_p(p, dev->iobase + 13);
 
 	/* set up counter1, mode 2 */
-	p=M2|C2|RWLH;
-	outb_p(p,dev->iobase+15);
-	ctrlwrd=1000;
-	p=(BYTE) (0xff & ctrlwrd);
-	outb_p(p,dev->iobase+14);
-	p=(BYTE) (0xff & (ctrlwrd >> 8));
-	outb_p(p,dev->iobase+14);
+	p = M2 | C2 | RWLH;
+	outb_p(p, dev->iobase + 15);
+	ctrlwrd = 1000;
+	p = (BYTE) (0xff & ctrlwrd);
+	outb_p(p, dev->iobase + 14);
+	p = (BYTE) (0xff & (ctrlwrd >> 8));
+	outb_p(p, dev->iobase + 14);
 }
 
-static irqreturn_t intr_handler(int irq,void *d PT_REGS_ARG)
+static irqreturn_t intr_handler(int irq, void *d PT_REGS_ARG)
 {
-	comedi_device *dev=d;
-	comedi_subdevice *s=dev->subdevices;
+	comedi_device *dev = d;
+	comedi_subdevice *s = dev->subdevices;
 
-	if (!dev->attached || devpriv->das6402_ignoreirq){
+	if (!dev->attached || devpriv->das6402_ignoreirq) {
 		printk("das6402: BUG: spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
-
 #ifdef DEBUG
-	printk("das6402: interrupt! das6402_irqcount=%i\n",devpriv->das6402_irqcount);
-	printk("das6402: iobase+2=%i\n",inw_p(dev->iobase+2));
+	printk("das6402: interrupt! das6402_irqcount=%i\n",
+		devpriv->das6402_irqcount);
+	printk("das6402: iobase+2=%i\n", inw_p(dev->iobase + 2));
 #endif
 
-	das6402_ai_fifo_dregs(dev,s);
+	das6402_ai_fifo_dregs(dev, s);
 
-	if(s->async->buf_write_count >= devpriv->ai_bytes_to_read){
-		outw_p(SCANL,dev->iobase+2);  /* clears the fifo */
-		outb(0x07,dev->iobase+8);  /* clears all flip-flops */
+	if (s->async->buf_write_count >= devpriv->ai_bytes_to_read) {
+		outw_p(SCANL, dev->iobase + 2);	/* clears the fifo */
+		outb(0x07, dev->iobase + 8);	/* clears all flip-flops */
 #ifdef DEBUG
-		printk("das6402: Got %i samples\n\n",devpriv->das6402_wordsread-diff);
+		printk("das6402: Got %i samples\n\n",
+			devpriv->das6402_wordsread - diff);
 #endif
 		s->async->events |= COMEDI_CB_EOA;
 		comedi_event(dev, s);
 	}
 
-	outb(0x01,dev->iobase+8);   /* clear only the interrupt flip-flop */
+	outb(0x01, dev->iobase + 8);	/* clear only the interrupt flip-flop */
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
 #if 0
-static void das6402_ai_fifo_read(comedi_device *dev,sampl_t *data,int n)
+static void das6402_ai_fifo_read(comedi_device * dev, sampl_t * data, int n)
 {
 	int i;
 
-	for(i=0;i<n;i++)data[i]=inw(dev->iobase);
+	for (i = 0; i < n; i++)
+		data[i] = inw(dev->iobase);
 }
 #endif
 
-
-static void das6402_ai_fifo_dregs(comedi_device *dev,comedi_subdevice *s)
+static void das6402_ai_fifo_dregs(comedi_device * dev, comedi_subdevice * s)
 {
-	while(1){
-		if(!(inb(dev->iobase+8)&0x01))
+	while (1) {
+		if (!(inb(dev->iobase + 8) & 0x01))
 			return;
-		comedi_buf_put( s->async, inw(dev->iobase) );
+		comedi_buf_put(s->async, inw(dev->iobase));
 	}
 }
 
-static int das6402_ai_cancel(comedi_device *dev,comedi_subdevice *s)
+static int das6402_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	/*
 	 *  This function should reset the board from whatever condition it
 	 *  is in (i.e., acquiring data), to a non-active state.
 	 */
 
-	devpriv->das6402_ignoreirq=1;
+	devpriv->das6402_ignoreirq = 1;
 #ifdef DEBUG
 	printk("das6402: Stopping acquisition\n");
 #endif
-	devpriv->das6402_ignoreirq=1;
-	outb_p(0x02,dev->iobase+10);  /* disable external trigging */
-	outw_p(SCANL,dev->iobase+2);  /* resets the card fifo */
-	outb_p(0,dev->iobase+9); /* disables interrupts */
+	devpriv->das6402_ignoreirq = 1;
+	outb_p(0x02, dev->iobase + 10);	/* disable external trigging */
+	outw_p(SCANL, dev->iobase + 2);	/* resets the card fifo */
+	outb_p(0, dev->iobase + 9);	/* disables interrupts */
 
-	outw_p(SCANL,dev->iobase+2);
+	outw_p(SCANL, dev->iobase + 2);
 
 	return 0;
 }
 
 #ifdef unused
-static int das6402_ai_mode2(comedi_device *dev,comedi_subdevice *s,comedi_trig *it)
+static int das6402_ai_mode2(comedi_device * dev, comedi_subdevice * s,
+	comedi_trig * it)
 {
-	devpriv->das6402_ignoreirq=1;
+	devpriv->das6402_ignoreirq = 1;
 
 #ifdef DEBUG
 	printk("das6402: Starting acquisition\n");
 #endif
-	outb_p(0x03,dev->iobase+10);  /* enable external trigging */
-	outw_p(SCANL,dev->iobase+2);  /* resets the card fifo */
-	outb_p(IRQ|CONVSRC|BURSTEN|INTE,dev->iobase+9);
+	outb_p(0x03, dev->iobase + 10);	/* enable external trigging */
+	outw_p(SCANL, dev->iobase + 2);	/* resets the card fifo */
+	outb_p(IRQ | CONVSRC | BURSTEN | INTE, dev->iobase + 9);
 
-	devpriv->ai_bytes_to_read=it->n*sizeof(sampl_t);
+	devpriv->ai_bytes_to_read = it->n * sizeof(sampl_t);
 
 	/* um... ignoreirq is a nasty race condition */
-	devpriv->das6402_ignoreirq=0;
+	devpriv->das6402_ignoreirq = 0;
 
-	outw_p(SCANL,dev->iobase+2);
+	outw_p(SCANL, dev->iobase + 2);
 
 	return 0;
 }
 #endif
 
-
-static int board_init(comedi_device *dev)
+static int board_init(comedi_device * dev)
 {
 	BYTE b;
 
-	devpriv->das6402_ignoreirq=1;
+	devpriv->das6402_ignoreirq = 1;
 
-	outb(0x07,dev->iobase+8);
+	outb(0x07, dev->iobase + 8);
 
 	/* register 11  */
-	outb_p(MODE,dev->iobase+11);
-	b=BIP|SEM|MODE|GAIN|FIFOHFULL;
-	outb_p(b, dev->iobase+11);
+	outb_p(MODE, dev->iobase + 11);
+	b = BIP | SEM | MODE | GAIN | FIFOHFULL;
+	outb_p(b, dev->iobase + 11);
 
 	/* register 8   */
-	outb_p(EXTEND,dev->iobase+8);
-	b=EXTEND|MHZ;
-	outb_p(b,dev->iobase+8);
-	b=       MHZ|CLRINT|CLRXTR|CLRXIN;
-	outb_p(b,dev->iobase+8);
+	outb_p(EXTEND, dev->iobase + 8);
+	b = EXTEND | MHZ;
+	outb_p(b, dev->iobase + 8);
+	b = MHZ | CLRINT | CLRXTR | CLRXIN;
+	outb_p(b, dev->iobase + 8);
 
 	/* register 9    */
-	b=IRQ|CONVSRC|BURSTEN|INTE;
-	outb_p(b,dev->iobase+9);
+	b = IRQ | CONVSRC | BURSTEN | INTE;
+	outb_p(b, dev->iobase + 9);
 
 	/* register 10   */
-	b=TGSEL|TGEN;
-	outb_p(b,dev->iobase+10);
+	b = TGSEL | TGEN;
+	outb_p(b, dev->iobase + 10);
 
-	b=0x07;
-	outb_p(b,dev->iobase+8);
+	b = 0x07;
+	outb_p(b, dev->iobase + 8);
 
 	das6402_setcounter(dev);
 
-	outw_p(SCANL,dev->iobase+2);  /* reset card fifo */
+	outw_p(SCANL, dev->iobase + 2);	/* reset card fifo */
 
-	devpriv->das6402_ignoreirq=0;
-
-        return 0;
-}
-
-static int das6402_detach(comedi_device *dev)
-{
-        if(dev->irq)comedi_free_irq(dev->irq,dev);
-	if(dev->iobase)release_region(dev->iobase,DAS6402_SIZE);
+	devpriv->das6402_ignoreirq = 0;
 
 	return 0;
 }
 
-static int das6402_attach(comedi_device *dev,comedi_devconfig *it)
+static int das6402_detach(comedi_device * dev)
+{
+	if (dev->irq)
+		comedi_free_irq(dev->irq, dev);
+	if (dev->iobase)
+		release_region(dev->iobase, DAS6402_SIZE);
+
+	return 0;
+}
+
+static int das6402_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
 	comedi_subdevice *s;
 
-	dev->board_name="das6402";
+	dev->board_name = "das6402";
 
-	iobase=it->options[0];
-	if(iobase==0)iobase=0x300;
+	iobase = it->options[0];
+	if (iobase == 0)
+		iobase = 0x300;
 
-	printk("comedi%d: das6402: 0x%04lx",dev->minor,iobase);
+	printk("comedi%d: das6402: 0x%04lx", dev->minor, iobase);
 
-	if(!request_region(iobase,DAS6402_SIZE,"das6402")){
+	if (!request_region(iobase, DAS6402_SIZE, "das6402")) {
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
-	dev->iobase=iobase;
+	dev->iobase = iobase;
 
 	/* should do a probe here */
 
-	irq=it->options[0];
+	irq = it->options[0];
 	printk(" ( irq = %u )", irq);
-	ret=comedi_request_irq(irq, intr_handler, 0, "das6402", dev);
-	if(ret<0){
+	ret = comedi_request_irq(irq, intr_handler, 0, "das6402", dev);
+	if (ret < 0) {
 		printk("irq conflict\n");
 		return ret;
 	}
-	dev->irq=irq;
+	dev->irq = irq;
 
-	if((ret=alloc_private(dev,sizeof(das6402_private)))<0)
+	if ((ret = alloc_private(dev, sizeof(das6402_private))) < 0)
 		return ret;
 
-	if((ret=alloc_subdevices(dev, 1))<0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0)
 		return ret;
 
 	/* ai subdevice */
-	s=dev->subdevices+0;
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND;
-	s->n_chan=8;
+	s = dev->subdevices + 0;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->n_chan = 8;
 	//s->trig[2]=das6402_ai_mode2;
-	s->cancel=das6402_ai_cancel;
-	s->maxdata=(1<<12)-1;
-	s->len_chanlist=16;	/* ? */
+	s->cancel = das6402_ai_cancel;
+	s->maxdata = (1 << 12) - 1;
+	s->len_chanlist = 16;	/* ? */
 	s->range_table = &range_unknown;
 
 	board_init(dev);
 
 	return 0;
 }
-

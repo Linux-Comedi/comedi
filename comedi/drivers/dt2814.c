@@ -44,7 +44,6 @@ addition, the clock does not seem to be very accurate.
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
-
 #define DT2814_SIZE 2
 
 #define DT2814_CSR 0
@@ -60,70 +59,71 @@ addition, the clock does not seem to be very accurate.
 #define DT2814_ENB 0x10
 #define DT2814_CHANMASK 0x0f
 
-static int dt2814_attach(comedi_device *dev,comedi_devconfig *it);
-static int dt2814_detach(comedi_device *dev);
-static comedi_driver driver_dt2814={
-	driver_name:	"dt2814",
-	module:		THIS_MODULE,
-	attach:		dt2814_attach,
-	detach:		dt2814_detach,
+static int dt2814_attach(comedi_device * dev, comedi_devconfig * it);
+static int dt2814_detach(comedi_device * dev);
+static comedi_driver driver_dt2814 = {
+      driver_name:"dt2814",
+      module:THIS_MODULE,
+      attach:dt2814_attach,
+      detach:dt2814_detach,
 };
+
 COMEDI_INITCLEANUP(driver_dt2814);
 
-static irqreturn_t dt2814_interrupt(int irq,void *dev PT_REGS_ARG);
+static irqreturn_t dt2814_interrupt(int irq, void *dev PT_REGS_ARG);
 
-typedef struct{
+typedef struct {
 	int ntrig;
 	int curadchan;
-}dt2814_private;
+} dt2814_private;
 #define devpriv ((dt2814_private *)dev->private)
 
-
 #define DT2814_TIMEOUT 10
-#define DT2814_MAX_SPEED 100000 /* Arbitrary 10 khz limit */
+#define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
-static int dt2814_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int dt2814_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int n,i,hi,lo;
+	int n, i, hi, lo;
 	int chan;
-	int status=0;
+	int status = 0;
 
-	for(n=0;n<insn->n;n++){
-		chan=CR_CHAN(insn->chanspec);
+	for (n = 0; n < insn->n; n++) {
+		chan = CR_CHAN(insn->chanspec);
 
-		outb(chan,dev->iobase+DT2814_CSR);
-		for(i=0;i<DT2814_TIMEOUT;i++){
-			status = inb(dev->iobase+DT2814_CSR);
-printk("dt2814: status: %02x\n",status);
-comedi_udelay(10);
-			if(status&DT2814_FINISH)
+		outb(chan, dev->iobase + DT2814_CSR);
+		for (i = 0; i < DT2814_TIMEOUT; i++) {
+			status = inb(dev->iobase + DT2814_CSR);
+			printk("dt2814: status: %02x\n", status);
+			comedi_udelay(10);
+			if (status & DT2814_FINISH)
 				break;
 		}
-		if(i>=DT2814_TIMEOUT){
-			printk("dt2814: status: %02x\n",status);
+		if (i >= DT2814_TIMEOUT) {
+			printk("dt2814: status: %02x\n", status);
 			return -ETIMEDOUT;
 		}
 
-		hi=inb(dev->iobase+DT2814_DATA);
-		lo=inb(dev->iobase+DT2814_DATA);
+		hi = inb(dev->iobase + DT2814_DATA);
+		lo = inb(dev->iobase + DT2814_DATA);
 
-		data[n]=(hi<<4)|(lo>>4);
+		data[n] = (hi << 4) | (lo >> 4);
 	}
 
 	return n;
 }
 
-static int dt2814_ns_to_timer(unsigned int *ns,unsigned int flags)
+static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	int i;
 	unsigned int f;
 
 	/* XXX ignores flags */
 
-	f = 10000; /* ns */
-	for(i=0;i<8;i++){
-		if((2*(*ns))<(f*11))break;
+	f = 10000;		/* ns */
+	for (i = 0; i < 8; i++) {
+		if ((2 * (*ns)) < (f * 11))
+			break;
 		f *= 10;
 	}
 
@@ -132,163 +132,174 @@ static int dt2814_ns_to_timer(unsigned int *ns,unsigned int flags)
 	return i;
 }
 
-static int dt2814_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd)
+static int dt2814_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd)
 {
-	int err=0;
+	int err = 0;
 	int tmp;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp=cmd->start_src;
+	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+	if (!cmd->start_src || tmp != cmd->start_src)
+		err++;
 
-	tmp=cmd->scan_begin_src;
+	tmp = cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_TIMER;
-	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
 
-	tmp=cmd->convert_src;
+	tmp = cmd->convert_src;
 	cmd->convert_src &= TRIG_NOW;
-	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
 
-	tmp=cmd->scan_end_src;
+	tmp = cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
 
-	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if (!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
 
-	if(err)return 1;
+	if (err)
+		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
-	if(cmd->stop_src!=TRIG_TIMER &&
-	   cmd->stop_src!=TRIG_EXT)err++;
+	if (cmd->stop_src != TRIG_TIMER && cmd->stop_src != TRIG_EXT)
+		err++;
 
-	if(err)return 2;
+	if (err)
+		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg!=0){
-		cmd->start_arg=0;
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
 		err++;
 	}
-	if(cmd->scan_begin_arg>1000000000){
-		cmd->scan_begin_arg=1000000000;
+	if (cmd->scan_begin_arg > 1000000000) {
+		cmd->scan_begin_arg = 1000000000;
 		err++;
 	}
-	if(cmd->scan_begin_arg<DT2814_MAX_SPEED){
-		cmd->scan_begin_arg=DT2814_MAX_SPEED;
+	if (cmd->scan_begin_arg < DT2814_MAX_SPEED) {
+		cmd->scan_begin_arg = DT2814_MAX_SPEED;
 		err++;
 	}
-	if(cmd->scan_end_arg!=cmd->chanlist_len){
-		cmd->scan_end_arg=cmd->chanlist_len;
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
+		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src==TRIG_COUNT){
-		if(cmd->stop_arg<2){
-			cmd->stop_arg=2;
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (cmd->stop_arg < 2) {
+			cmd->stop_arg = 2;
 			err++;
 		}
-	}else{
+	} else {
 		/* TRIG_NONE */
-		if(cmd->stop_arg!=0){
-			cmd->stop_arg=0;
+		if (cmd->stop_arg != 0) {
+			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
-	if(err)return 3;
+	if (err)
+		return 3;
 
 	/* step 4: fix up any arguments */
 
-	tmp=cmd->scan_begin_arg;
-	dt2814_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
-	if(tmp!=cmd->scan_begin_arg)err++;
+	tmp = cmd->scan_begin_arg;
+	dt2814_ns_to_timer(&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+	if (tmp != cmd->scan_begin_arg)
+		err++;
 
-	if(err)return 4;
+	if (err)
+		return 4;
 
 	return 0;
 }
 
-static int dt2814_ai_cmd(comedi_device *dev,comedi_subdevice *s)
+static int dt2814_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	int chan;
 	int trigvar;
 
-	trigvar = dt2814_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
+	trigvar =
+		dt2814_ns_to_timer(&cmd->scan_begin_arg,
+		cmd->flags & TRIG_ROUND_MASK);
 
-	chan=CR_CHAN(cmd->chanlist[0]);
+	chan = CR_CHAN(cmd->chanlist[0]);
 
-	devpriv->ntrig=cmd->stop_arg;
-	outb(chan|DT2814_ENB|(trigvar<<5),
-		dev->iobase+DT2814_CSR);
+	devpriv->ntrig = cmd->stop_arg;
+	outb(chan | DT2814_ENB | (trigvar << 5), dev->iobase + DT2814_CSR);
 
 	return 0;
 
 }
 
-static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
+static int dt2814_attach(comedi_device * dev, comedi_devconfig * it)
 {
-	int i,irq;
+	int i, irq;
 	int ret;
 	comedi_subdevice *s;
 	unsigned long iobase;
 
-	iobase=it->options[0];
-	printk("comedi%d: dt2814: 0x%04lx ",dev->minor,iobase);
-	if(!request_region(iobase,DT2814_SIZE,"dt2814")){
+	iobase = it->options[0];
+	printk("comedi%d: dt2814: 0x%04lx ", dev->minor, iobase);
+	if (!request_region(iobase, DT2814_SIZE, "dt2814")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	dev->iobase=iobase;
+	dev->iobase = iobase;
 	dev->board_name = "dt2814";
 
-	outb(0,dev->iobase+DT2814_CSR);
+	outb(0, dev->iobase + DT2814_CSR);
 	comedi_udelay(100);
-	if(inb(dev->iobase+DT2814_CSR)&DT2814_ERR){
+	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
 		printk("reset error (fatal)\n");
 		return -EIO;
 	}
-	i=inb(dev->iobase+DT2814_DATA);
-	i=inb(dev->iobase+DT2814_DATA);
+	i = inb(dev->iobase + DT2814_DATA);
+	i = inb(dev->iobase + DT2814_DATA);
 
-	irq=it->options[1];
+	irq = it->options[1];
 #if 0
-	if(irq<0){
+	if (irq < 0) {
 		save_flags(flags);
 		sti();
-		irqs=probe_irq_on();
+		irqs = probe_irq_on();
 
-		outb(0,dev->iobase+DT2814_CSR);
+		outb(0, dev->iobase + DT2814_CSR);
 
 		comedi_udelay(100);
 
-		irq=probe_irq_off(irqs);
+		irq = probe_irq_off(irqs);
 		restore_flags(flags);
-		if(inb(dev->iobase+DT2814_CSR)&DT2814_ERR){
+		if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
 			printk("error probing irq (bad) \n");
 		}
 
-		i=inb(dev->iobase+DT2814_DATA);
-		i=inb(dev->iobase+DT2814_DATA);
+		i = inb(dev->iobase + DT2814_DATA);
+		i = inb(dev->iobase + DT2814_DATA);
 	}
 #endif
-	dev->irq=0;
-	if(irq>0){
-		if(comedi_request_irq(irq,dt2814_interrupt,0,"dt2814",dev)){
+	dev->irq = 0;
+	if (irq > 0) {
+		if (comedi_request_irq(irq, dt2814_interrupt, 0, "dt2814", dev)) {
 			printk("(irq %d unavailable)\n", irq);
-		}else{
-			printk("( irq = %d )\n",irq);
-			dev->irq=irq;
+		} else {
+			printk("( irq = %d )\n", irq);
+			dev->irq = irq;
 		}
-	}else if(irq==0){
+	} else if (irq == 0) {
 		printk("(no irq)\n");
-	}else{
+	} else {
 #if 0
 		printk("(probe returned multiple irqs--bad)\n");
 #else
@@ -296,79 +307,75 @@ static int dt2814_attach(comedi_device *dev,comedi_devconfig *it)
 #endif
 	}
 
-	if((ret=alloc_subdevices(dev, 1))<0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0)
 		return ret;
-	if((ret=alloc_private(dev,sizeof(dt2814_private)))<0)
+	if ((ret = alloc_private(dev, sizeof(dt2814_private))) < 0)
 		return ret;
 
-	s=dev->subdevices+0;
+	s = dev->subdevices + 0;
 	dev->read_subdev = s;
-	s->type=COMEDI_SUBD_AI;
+	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan=16;			/* XXX */
-	s->len_chanlist=1;
+	s->n_chan = 16;		/* XXX */
+	s->len_chanlist = 1;
 	s->insn_read = dt2814_ai_insn_read;
 	s->do_cmd = dt2814_ai_cmd;
 	s->do_cmdtest = dt2814_ai_cmdtest;
-	s->maxdata=0xfff;
-	s->range_table=&range_unknown;	/* XXX */
+	s->maxdata = 0xfff;
+	s->range_table = &range_unknown;	/* XXX */
 
 	return 0;
 }
 
-
-static int dt2814_detach(comedi_device *dev)
+static int dt2814_detach(comedi_device * dev)
 {
-	printk("comedi%d: dt2814: remove\n",dev->minor);
+	printk("comedi%d: dt2814: remove\n", dev->minor);
 
-	if(dev->irq){
-		comedi_free_irq(dev->irq,dev);
+	if (dev->irq) {
+		comedi_free_irq(dev->irq, dev);
 	}
-	if(dev->iobase){
-		release_region(dev->iobase,DT2814_SIZE);
+	if (dev->iobase) {
+		release_region(dev->iobase, DT2814_SIZE);
 	}
 
 	return 0;
 }
 
-
-static irqreturn_t dt2814_interrupt(int irq,void *d PT_REGS_ARG)
+static irqreturn_t dt2814_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	int lo,hi;
-	comedi_device *dev=d;
+	int lo, hi;
+	comedi_device *dev = d;
 	comedi_subdevice *s;
 	int data;
 
-	if (!dev->attached)
-	{
+	if (!dev->attached) {
 		comedi_error(dev, "spurious interrupt");
 		return IRQ_HANDLED;
 	}
 
 	s = dev->subdevices + 0;
 
-	hi=inb(dev->iobase+DT2814_DATA);
-	lo=inb(dev->iobase+DT2814_DATA);
+	hi = inb(dev->iobase + DT2814_DATA);
+	lo = inb(dev->iobase + DT2814_DATA);
 
-	data=(hi<<4)|(lo>>4);
+	data = (hi << 4) | (lo >> 4);
 
-	if(!(--devpriv->ntrig)){
+	if (!(--devpriv->ntrig)) {
 		int i;
 
-		outb(0,dev->iobase+DT2814_CSR);
+		outb(0, dev->iobase + DT2814_CSR);
 		/* note: turning off timed mode triggers another
-			sample. */
+		   sample. */
 
-		for(i=0;i<DT2814_TIMEOUT;i++){
-			if(inb(dev->iobase+DT2814_CSR)&DT2814_FINISH)
+		for (i = 0; i < DT2814_TIMEOUT; i++) {
+			if (inb(dev->iobase + DT2814_CSR) & DT2814_FINISH)
 				break;
 		}
-		inb(dev->iobase+DT2814_DATA);
-		inb(dev->iobase+DT2814_DATA);
+		inb(dev->iobase + DT2814_DATA);
+		inb(dev->iobase + DT2814_DATA);
 
 		s->async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
-

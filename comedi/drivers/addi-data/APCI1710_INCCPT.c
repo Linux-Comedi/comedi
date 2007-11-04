@@ -57,7 +57,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-
 #include "APCI1710_INCCPT.h"
 
 /*
@@ -76,80 +75,69 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
+INT i_APCI1710_InsnConfigINCCPT(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	UINT ui_ConfigType;
+	INT i_ReturnValue = 0;
+	ui_ConfigType = CR_CHAN(insn->chanspec);
 
-INT	i_APCI1710_InsnConfigINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
-{ 
-	UINT  ui_ConfigType; 
-	INT    i_ReturnValue = 0;
-	ui_ConfigType=CR_CHAN(insn->chanspec);
-	
-	printk ("\nINC_CPT");
+	printk("\nINC_CPT");
 
-       devpriv->tsk_Current=current; // Save the current process task structure
-	switch(ui_ConfigType)
-	{
-	case	APCI1710_INCCPT_INITCOUNTER	:				
-			i_ReturnValue =i_APCI1710_InitCounter (dev,
-					CR_AREF(insn->chanspec),
-					(BYTE) data[0],
-					(BYTE) data[1],
-					(BYTE) data[2],
-					(BYTE) data[3],
-					(BYTE) data[4]);
-			break;
+	devpriv->tsk_Current = current;	// Save the current process task structure
+	switch (ui_ConfigType) {
+	case APCI1710_INCCPT_INITCOUNTER:
+		i_ReturnValue = i_APCI1710_InitCounter(dev,
+			CR_AREF(insn->chanspec),
+			(BYTE) data[0],
+			(BYTE) data[1],
+			(BYTE) data[2], (BYTE) data[3], (BYTE) data[4]);
+		break;
 
-	case	APCI1710_INCCPT_COUNTERAUTOTEST:
-			i_ReturnValue =i_APCI1710_CounterAutoTest (dev,
-					(PBYTE)   &data[0]);
-			break;
+	case APCI1710_INCCPT_COUNTERAUTOTEST:
+		i_ReturnValue = i_APCI1710_CounterAutoTest(dev,
+			(PBYTE) & data[0]);
+		break;
 
-	case	APCI1710_INCCPT_INITINDEX:
-			i_ReturnValue =i_APCI1710_InitIndex    (dev,
-					CR_AREF(insn->chanspec),
-					(BYTE) data[0],
-					(BYTE) data[1],
-					(BYTE) data[2],
-					(BYTE) data[3]);
-			break;
+	case APCI1710_INCCPT_INITINDEX:
+		i_ReturnValue = i_APCI1710_InitIndex(dev,
+			CR_AREF(insn->chanspec),
+			(BYTE) data[0],
+			(BYTE) data[1], (BYTE) data[2], (BYTE) data[3]);
+		break;
 
-	case	APCI1710_INCCPT_INITREFERENCE:
-			i_ReturnValue =i_APCI1710_InitReference  (dev,
-					CR_AREF(insn->chanspec),
-					(BYTE) data[0]);
-			break;
+	case APCI1710_INCCPT_INITREFERENCE:
+		i_ReturnValue = i_APCI1710_InitReference(dev,
+			CR_AREF(insn->chanspec), (BYTE) data[0]);
+		break;
 
-	case	APCI1710_INCCPT_INITEXTERNALSTROBE:		
-			i_ReturnValue =i_APCI1710_InitExternalStrobe	(dev,
-					CR_AREF(insn->chanspec),
-					(BYTE) data[0],
-					(BYTE) data[1]);
-			break;
+	case APCI1710_INCCPT_INITEXTERNALSTROBE:
+		i_ReturnValue = i_APCI1710_InitExternalStrobe(dev,
+			CR_AREF(insn->chanspec),
+			(BYTE) data[0], (BYTE) data[1]);
+		break;
 
-	case	APCI1710_INCCPT_INITCOMPARELOGIC:
-			i_ReturnValue =i_APCI1710_InitCompareLogic     (dev,
-					CR_AREF(insn->chanspec),
-					(UINT) data[0]);
-			break;
+	case APCI1710_INCCPT_INITCOMPARELOGIC:
+		i_ReturnValue = i_APCI1710_InitCompareLogic(dev,
+			CR_AREF(insn->chanspec), (UINT) data[0]);
+		break;
 
-	case	APCI1710_INCCPT_INITFREQUENCYMEASUREMENT:
-			i_ReturnValue =i_APCI1710_InitFrequencyMeasurement	(dev,
-					CR_AREF(insn->chanspec),
-					(BYTE) data[0],
-					(BYTE) data[1],
-					(ULONG) data[2],
-					(PULONG) &data[0]);
-			break;
+	case APCI1710_INCCPT_INITFREQUENCYMEASUREMENT:
+		i_ReturnValue = i_APCI1710_InitFrequencyMeasurement(dev,
+			CR_AREF(insn->chanspec),
+			(BYTE) data[0],
+			(BYTE) data[1], (ULONG) data[2], (PULONG) & data[0]);
+		break;
 
-    default: 
-		    printk("Insn Config : Config Parameter Wrong\n");
+	default:
+		printk("Insn Config : Config Parameter Wrong\n");
 
 	}
 
-    if(i_ReturnValue>=0) i_ReturnValue =insn->n;
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
 	return (i_ReturnValue);
 }
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -311,221 +299,211 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
+INT i_APCI1710_InitCounter(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_CounterRange,
+	BYTE b_FirstCounterModus,
+	BYTE b_FirstCounterOption,
+	BYTE b_SecondCounterModus, BYTE b_SecondCounterOption)
+{
+	INT i_ReturnValue = 0;
 
-
-
-
-INT   i_APCI1710_InitCounter (comedi_device *dev,
-				BYTE          b_ModulNbr,
-				BYTE          b_CounterRange,
-				BYTE          b_FirstCounterModus,
-				BYTE          b_FirstCounterOption,
-				BYTE          b_SecondCounterModus,
-				BYTE          b_SecondCounterOption)
-	{
-	INT    i_ReturnValue = 0;
-		
 	/*******************************/
 	/* Test if incremental counter */
 	/*******************************/
 
 	if ((devpriv->s_BoardInfos.
-	     dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-	   {
+			dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER) {
 	   /**************************/
-	   /* Test the counter range */
+		/* Test the counter range */
 	   /**************************/
 
-	   if (b_CounterRange == APCI1710_16BIT_COUNTER || b_CounterRange == APCI1710_32BIT_COUNTER)
-	      {
+		if (b_CounterRange == APCI1710_16BIT_COUNTER
+			|| b_CounterRange == APCI1710_32BIT_COUNTER) {
 	      /********************************/
-	      /* Test the first counter modus */
+			/* Test the first counter modus */
 	      /********************************/
 
-	      if (b_FirstCounterModus == APCI1710_QUADRUPLE_MODE ||
-		  b_FirstCounterModus == APCI1710_DOUBLE_MODE    ||
-		  b_FirstCounterModus == APCI1710_SIMPLE_MODE    ||
-		  b_FirstCounterModus == APCI1710_DIRECT_MODE)
-		 {
+			if (b_FirstCounterModus == APCI1710_QUADRUPLE_MODE ||
+				b_FirstCounterModus == APCI1710_DOUBLE_MODE ||
+				b_FirstCounterModus == APCI1710_SIMPLE_MODE ||
+				b_FirstCounterModus == APCI1710_DIRECT_MODE) {
 		 /*********************************/
-		 /* Test the first counter option */
+				/* Test the first counter option */
 		 /*********************************/
 
-		 if ((b_FirstCounterModus   == APCI1710_DIRECT_MODE   &&
-		      (b_FirstCounterOption == APCI1710_INCREMENT     ||
-		       b_FirstCounterOption == APCI1710_DECREMENT))   ||
-		     (b_FirstCounterModus   != APCI1710_DIRECT_MODE   &&
-		      (b_FirstCounterOption == APCI1710_HYSTERESIS_ON ||
-		       b_FirstCounterOption == APCI1710_HYSTERESIS_OFF)))
-		    {
+				if ((b_FirstCounterModus == APCI1710_DIRECT_MODE
+						&& (b_FirstCounterOption ==
+							APCI1710_INCREMENT
+							|| b_FirstCounterOption
+							== APCI1710_DECREMENT))
+					|| (b_FirstCounterModus !=
+						APCI1710_DIRECT_MODE
+						&& (b_FirstCounterOption ==
+							APCI1710_HYSTERESIS_ON
+							|| b_FirstCounterOption
+							==
+							APCI1710_HYSTERESIS_OFF)))
+				{
 		    /**************************/
-		    /* Test if 16-bit counter */
+					/* Test if 16-bit counter */
 		    /**************************/
 
-		    if (b_CounterRange == APCI1710_16BIT_COUNTER)
-		       {
+					if (b_CounterRange ==
+						APCI1710_16BIT_COUNTER) {
 		       /*********************************/
-		       /* Test the second counter modus */
+						/* Test the second counter modus */
 		       /*********************************/
 
-		       if ((b_FirstCounterModus != APCI1710_DIRECT_MODE      &&
-			    (b_SecondCounterModus == APCI1710_QUADRUPLE_MODE ||
-			     b_SecondCounterModus == APCI1710_DOUBLE_MODE    ||
-			     b_SecondCounterModus == APCI1710_SIMPLE_MODE))  ||
-			   (b_FirstCounterModus == APCI1710_DIRECT_MODE &&
-			    b_SecondCounterModus == APCI1710_DIRECT_MODE))
-			  {
+						if ((b_FirstCounterModus !=
+								APCI1710_DIRECT_MODE
+								&&
+								(b_SecondCounterModus
+									==
+									APCI1710_QUADRUPLE_MODE
+									||
+									b_SecondCounterModus
+									==
+									APCI1710_DOUBLE_MODE
+									||
+									b_SecondCounterModus
+									==
+									APCI1710_SIMPLE_MODE))
+							|| (b_FirstCounterModus
+								==
+								APCI1710_DIRECT_MODE
+								&&
+								b_SecondCounterModus
+								==
+								APCI1710_DIRECT_MODE))
+						{
 			  /**********************************/
-			  /* Test the second counter option */
+							/* Test the second counter option */
 			  /**********************************/
 
-			  if ((b_SecondCounterModus   == APCI1710_DIRECT_MODE   &&
-			       (b_SecondCounterOption == APCI1710_INCREMENT     ||
-				b_SecondCounterOption == APCI1710_DECREMENT))   ||
-			      (b_SecondCounterModus   != APCI1710_DIRECT_MODE   &&
-			       (b_SecondCounterOption == APCI1710_HYSTERESIS_ON ||
-				b_SecondCounterOption == APCI1710_HYSTERESIS_OFF)))
-			     {
-			     i_ReturnValue = 0;
-			     }
-			  else
-			     {
+							if ((b_SecondCounterModus == APCI1710_DIRECT_MODE && (b_SecondCounterOption == APCI1710_INCREMENT || b_SecondCounterOption == APCI1710_DECREMENT)) || (b_SecondCounterModus != APCI1710_DIRECT_MODE && (b_SecondCounterOption == APCI1710_HYSTERESIS_ON || b_SecondCounterOption == APCI1710_HYSTERESIS_OFF))) {
+								i_ReturnValue =
+									0;
+							} else {
 			     /*********************************************************/
-			     /* The selected second counter operating option is wrong */
+								/* The selected second counter operating option is wrong */
 			     /*********************************************************/
 
-                        DPRINTK("The selected second counter operating option is wrong\n");
-			     i_ReturnValue = -7;
-			     }
-			  }
-		       else
-			  {
+								DPRINTK("The selected second counter operating option is wrong\n");
+								i_ReturnValue =
+									-7;
+							}
+						} else {
 			  /*******************************************************/
-			  /* The selected second counter operating mode is wrong */
+							/* The selected second counter operating mode is wrong */
 			  /*******************************************************/
 
-			  DPRINTK("The selected second counter operating mode is wrong\n");
-			  i_ReturnValue = -6;
-			  }
-		       }
-		    }
-		 else
-		    {
+							DPRINTK("The selected second counter operating mode is wrong\n");
+							i_ReturnValue = -6;
+						}
+					}
+				} else {
 		    /********************************************************/
-		    /* The selected first counter operating option is wrong */
+					/* The selected first counter operating option is wrong */
 		    /********************************************************/
 
-                   DPRINTK("The selected first counter operating option is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+					DPRINTK("The selected first counter operating option is wrong\n");
+					i_ReturnValue = -5;
+				}
+			} else {
 		 /******************************************************/
-		 /* The selected first counter operating mode is wrong */
+				/* The selected first counter operating mode is wrong */
 		 /******************************************************/
-                 DPRINTK("The selected first counter operating mode is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected first counter operating mode is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /***************************************/
-	      /* The selected counter range is wrong */
+			/* The selected counter range is wrong */
 	      /***************************************/
 
-             DPRINTK("The selected counter range is wrong\n");
-	      i_ReturnValue = -3;
-	      }
+			DPRINTK("The selected counter range is wrong\n");
+			i_ReturnValue = -3;
+		}
 
 	   /*************************/
-	   /* Test if a error occur */
+		/* Test if a error occur */
 	   /*************************/
 
-	   if (i_ReturnValue == 0)
-	      {
+		if (i_ReturnValue == 0) {
 	      /**************************/
-	      /* Test if 16-Bit counter */
+			/* Test if 16-Bit counter */
 	      /**************************/
 
-	      if (b_CounterRange == APCI1710_32BIT_COUNTER)
-		 {
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister1 = b_CounterRange      |
-				   b_FirstCounterModus |
-				   b_FirstCounterOption;
-		 }
-	      else
-		 {
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister1 = b_CounterRange                 |
-				   (b_FirstCounterModus   & 0x5)  |
-				   (b_FirstCounterOption  & 0x20) |
-				   (b_SecondCounterModus  & 0xA)  |
-				   (b_SecondCounterOption & 0x40);
+			if (b_CounterRange == APCI1710_32BIT_COUNTER) {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister1 = b_CounterRange |
+					b_FirstCounterModus |
+					b_FirstCounterOption;
+			} else {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister1 = b_CounterRange |
+					(b_FirstCounterModus & 0x5) |
+					(b_FirstCounterOption & 0x20) |
+					(b_SecondCounterModus & 0xA) |
+					(b_SecondCounterOption & 0x40);
 
 		 /***********************/
-		 /* Test if direct mode */
+				/* Test if direct mode */
 		 /***********************/
 
-		 if (b_FirstCounterModus == APCI1710_DIRECT_MODE)
-		    {
-		    devpriv->
-		    s_ModuleInfo [b_ModulNbr].
-		    s_SiemensCounterInfo.
-		    s_ModeRegister.
-		    s_ByteModeRegister.
-		    b_ModeRegister1 = devpriv->
-				      s_ModuleInfo [b_ModulNbr].
-				      s_SiemensCounterInfo.
-				      s_ModeRegister.
-				      s_ByteModeRegister.
-				      b_ModeRegister1 | APCI1710_DIRECT_MODE;
-		    }
-		 }
+				if (b_FirstCounterModus == APCI1710_DIRECT_MODE) {
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister1 = devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister1 |
+						APCI1710_DIRECT_MODE;
+				}
+			}
 
 	      /***************************/
-	      /* Write the configuration */
+			/* Write the configuration */
 	      /***************************/
 
-	   
-		  outl(devpriv->s_ModuleInfo [b_ModulNbr].
-		      s_SiemensCounterInfo.
-		      s_ModeRegister.
-		      dw_ModeRegister1_2_3_4,
-			  devpriv->s_BoardInfos.
-		      ui_Address + 20 + (64 * b_ModulNbr));
+			outl(devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				dw_ModeRegister1_2_3_4,
+				devpriv->s_BoardInfos.
+				ui_Address + 20 + (64 * b_ModulNbr));
 
-
-	      devpriv->
-	      s_ModuleInfo [b_ModulNbr].
-	      s_SiemensCounterInfo.
-	      s_InitFlag.
-	      b_CounterInit = 1;
-	      }
-	   }
-	else
-	   {
+			devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_CounterInit = 1;
+		}
+	} else {
 	   /**************************************/
-	   /* The module is not a counter module */
+		/* The module is not a counter module */
 	   /**************************************/
 
-          DPRINTK("The module is not a counter module\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The module is not a counter module\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -567,96 +545,90 @@ INT   i_APCI1710_InitCounter (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT  i_APCI1710_CounterAutoTest  (comedi_device *dev,PBYTE   pb_TestStatus)
-	{
-	BYTE   b_ModulCpt    = 0;
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_CounterAutoTest(comedi_device * dev, PBYTE pb_TestStatus)
+{
+	BYTE b_ModulCpt = 0;
+	INT i_ReturnValue = 0;
 	DWORD dw_LathchValue;
-	
-	
+
 	*pb_TestStatus = 0;
 
 	/********************************/
 	/* Test if counter module found */
 	/********************************/
 
-	if ((devpriv->
-	     s_BoardInfos.
-	     dw_MolduleConfiguration [0] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER ||
-	    (devpriv->
-	     s_BoardInfos.
-	     dw_MolduleConfiguration [1] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER ||
-	    (devpriv->
-	     s_BoardInfos.
-	     dw_MolduleConfiguration [2] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER||
-	    (devpriv->
-	     s_BoardInfos.
-	     dw_MolduleConfiguration [3] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-	   {
-	   for (b_ModulCpt = 0; b_ModulCpt < 4 ; b_ModulCpt ++)
-	      {
+	if ((devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[0] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER
+		|| (devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[1] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER
+		|| (devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[2] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER
+		|| (devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[3] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER) {
+		for (b_ModulCpt = 0; b_ModulCpt < 4; b_ModulCpt++) {
 	      /*******************************/
-	      /* Test if incremental counter */
+			/* Test if incremental counter */
 	      /*******************************/
 
-	      if ((devpriv->
-		   s_BoardInfos.
-		   dw_MolduleConfiguration [b_ModulCpt] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-		 {
+			if ((devpriv->s_BoardInfos.
+					dw_MolduleConfiguration[b_ModulCpt] &
+					0xFFFF0000UL) ==
+				APCI1710_INCREMENTAL_COUNTER) {
 		 /******************/
-		 /* Start the test */
+				/* Start the test */
 		 /******************/
 
-		 
-			outl(3,devpriv->s_BoardInfos.
-			 ui_Address + 16 + (64 * b_ModulCpt));
+				outl(3, devpriv->s_BoardInfos.
+					ui_Address + 16 + (64 * b_ModulCpt));
 
 		 /*********************/
-		 /* Tatch the counter */
+				/* Tatch the counter */
 		 /*********************/
 
-		 
-			outl(1,devpriv->s_BoardInfos.
-			 ui_Address + (64 * b_ModulCpt));
+				outl(1, devpriv->s_BoardInfos.
+					ui_Address + (64 * b_ModulCpt));
 
 		 /************************/
-		 /* Read the latch value */
+				/* Read the latch value */
 		 /************************/
 
-		
-			dw_LathchValue=inl(devpriv->s_BoardInfos.
-			ui_Address + 4 + (64 * b_ModulCpt));
+				dw_LathchValue = inl(devpriv->s_BoardInfos.
+					ui_Address + 4 + (64 * b_ModulCpt));
 
-		 if ((dw_LathchValue & 0xFF) != ((dw_LathchValue >> 8)  & 0xFF) &&
-		     (dw_LathchValue & 0xFF) != ((dw_LathchValue >> 16) & 0xFF) &&
-		     (dw_LathchValue & 0xFF) != ((dw_LathchValue >> 24) & 0xFF))
-		    {
-		    *pb_TestStatus = *pb_TestStatus | (1 << b_ModulCpt);
-		    }
+				if ((dw_LathchValue & 0xFF) !=
+					((dw_LathchValue >> 8) & 0xFF)
+					&& (dw_LathchValue & 0xFF) !=
+					((dw_LathchValue >> 16) & 0xFF)
+					&& (dw_LathchValue & 0xFF) !=
+					((dw_LathchValue >> 24) & 0xFF)) {
+					*pb_TestStatus =
+						*pb_TestStatus | (1 <<
+						b_ModulCpt);
+				}
 
 		 /*****************/
-		 /* Stop the test */
+				/* Stop the test */
 		 /*****************/
 
-		 
-		 outl(0,devpriv->s_BoardInfos.
-			 ui_Address + 16 + (64 * b_ModulCpt));
-		 }
-	      }
-	   }
-	else
-	   {
+				outl(0, devpriv->s_BoardInfos.
+					ui_Address + 16 + (64 * b_ModulCpt));
+			}
+		}
+	} else {
 	   /***************************/
-	   /* No counter module found */
+		/* No counter module found */
 	   /***************************/
 
-          DPRINTK("No counter module found\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("No counter module found\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -736,355 +708,413 @@ INT  i_APCI1710_CounterAutoTest  (comedi_device *dev,PBYTE   pb_TestStatus)
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_InitIndex    (comedi_device *dev,
-				 BYTE b_ModulNbr,
-				 BYTE b_ReferenceAction,
-				 BYTE b_IndexOperation,
-				 BYTE b_AutoMode,
-				 BYTE b_InterruptEnable)
-	{
-	INT  i_ReturnValue = 0;
-	
+INT i_APCI1710_InitIndex(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_ReferenceAction,
+	BYTE b_IndexOperation, BYTE b_AutoMode, BYTE b_InterruptEnable)
+{
+	INT i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************/
-	      /* Test the reference parameter */
+			/* Test the reference parameter */
 	      /********************************/
 
-	      if (b_ReferenceAction == APCI1710_ENABLE ||
-		  b_ReferenceAction == APCI1710_DISABLE)
-		 {
+			if (b_ReferenceAction == APCI1710_ENABLE ||
+				b_ReferenceAction == APCI1710_DISABLE) {
 		 /****************************/
-		 /* Test the index parameter */
+				/* Test the index parameter */
 		 /****************************/
 
-		 if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_COUNTER           ||
-		     b_IndexOperation == APCI1710_LOW_EDGE_LATCH_COUNTER            ||
-		     b_IndexOperation == APCI1710_HIGH_EDGE_CLEAR_COUNTER           ||
-		     b_IndexOperation == APCI1710_LOW_EDGE_CLEAR_COUNTER            ||
-		     b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER ||
-		     b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
-		    {
-		    /********************************/
-		    /* Test the auto mode parameter */
-		    /********************************/
-
-		    if (b_AutoMode == APCI1710_ENABLE ||
-			b_AutoMode == APCI1710_DISABLE)
-		       {
-		       /***************************/
-		       /* Test the interrupt mode */
-		       /***************************/
-
-		       if (b_InterruptEnable == APCI1710_ENABLE ||
-			   b_InterruptEnable == APCI1710_DISABLE)
-			  {
-			 
-			     /************************************/
-			     /* Makte the configuration commando */
-			     /************************************/
-
-			     if (b_ReferenceAction == APCI1710_ENABLE)
+				if (b_IndexOperation ==
+					APCI1710_HIGH_EDGE_LATCH_COUNTER
+					|| b_IndexOperation ==
+					APCI1710_LOW_EDGE_LATCH_COUNTER
+					|| b_IndexOperation ==
+					APCI1710_HIGH_EDGE_CLEAR_COUNTER
+					|| b_IndexOperation ==
+					APCI1710_LOW_EDGE_CLEAR_COUNTER
+					|| b_IndexOperation ==
+					APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER
+					|| b_IndexOperation ==
+					APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
 				{
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister2 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister2 | APCI1710_ENABLE_INDEX_ACTION;
-				}
-			     else
-				{
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister2 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister2 & APCI1710_DISABLE_INDEX_ACTION;
-				}
+		    /********************************/
+					/* Test the auto mode parameter */
+		    /********************************/
+
+					if (b_AutoMode == APCI1710_ENABLE ||
+						b_AutoMode == APCI1710_DISABLE)
+					{
+		       /***************************/
+						/* Test the interrupt mode */
+		       /***************************/
+
+						if (b_InterruptEnable ==
+							APCI1710_ENABLE
+							|| b_InterruptEnable ==
+							APCI1710_DISABLE) {
+
+			     /************************************/
+							/* Makte the configuration commando */
+			     /************************************/
+
+							if (b_ReferenceAction ==
+								APCI1710_ENABLE)
+							{
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									|
+									APCI1710_ENABLE_INDEX_ACTION;
+							} else {
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									&
+									APCI1710_DISABLE_INDEX_ACTION;
+							}
 
 			     /****************************************/
-			     /* Test if low level latch or/and clear */
+							/* Test if low level latch or/and clear */
 			     /****************************************/
 
-			     if (b_IndexOperation == APCI1710_LOW_EDGE_LATCH_COUNTER ||
-				 b_IndexOperation == APCI1710_LOW_EDGE_CLEAR_COUNTER ||
-				 b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
-				{
+							if (b_IndexOperation ==
+								APCI1710_LOW_EDGE_LATCH_COUNTER
+								||
+								b_IndexOperation
+								==
+								APCI1710_LOW_EDGE_CLEAR_COUNTER
+								||
+								b_IndexOperation
+								==
+								APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							{
 				/*************************************/
-				/* Set the index level to low (DQ26) */
+								/* Set the index level to low (DQ26) */
 				/*************************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister4 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister4 | APCI1710_SET_LOW_INDEX_LEVEL;
-				}
-			     else
-				{
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									|
+									APCI1710_SET_LOW_INDEX_LEVEL;
+							} else {
 				/**************************************/
-				/* Set the index level to high (DQ26) */
+								/* Set the index level to high (DQ26) */
 				/**************************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister4 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister4 & APCI1710_SET_HIGH_INDEX_LEVEL;
-				}
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									&
+									APCI1710_SET_HIGH_INDEX_LEVEL;
+							}
 
 			     /***********************************/
-			     /* Test if latch and clear counter */
+							/* Test if latch and clear counter */
 			     /***********************************/
 
-			     if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER ||
-				 b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
-				{
+							if (b_IndexOperation ==
+								APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER
+								||
+								b_IndexOperation
+								==
+								APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							{
 				/***************************************/
-				/* Set the latch and clear flag (DQ27) */
+								/* Set the latch and clear flag (DQ27) */
 				/***************************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister4 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister4 | APCI1710_ENABLE_LATCH_AND_CLEAR;
-				} // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
-			     else
-				{
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									|
+									APCI1710_ENABLE_LATCH_AND_CLEAR;
+							}	// if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							else {
 				/*****************************************/
-				/* Clear the latch and clear flag (DQ27) */
+								/* Clear the latch and clear flag (DQ27) */
 				/*****************************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister4 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister4 & APCI1710_DISABLE_LATCH_AND_CLEAR;
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									&
+									APCI1710_DISABLE_LATCH_AND_CLEAR;
 
 				/*************************/
-				/* Test if latch counter */
+								/* Test if latch counter */
 				/*************************/
 
-				if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_COUNTER ||
-				    b_IndexOperation == APCI1710_LOW_EDGE_LATCH_COUNTER)
-				   {
+								if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_COUNTER) {
 				   /*********************************/
-				   /* Enable the latch from counter */
+									/* Enable the latch from counter */
 				   /*********************************/
 
-				   devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister2 = devpriv->
-						     s_ModuleInfo [b_ModulNbr].
-						     s_SiemensCounterInfo.
-						     s_ModeRegister.
-						     s_ByteModeRegister.
-						     b_ModeRegister2 | APCI1710_INDEX_LATCH_COUNTER;
-				   }
-				else
-				   {
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister2
+										=
+										devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister2
+										|
+										APCI1710_INDEX_LATCH_COUNTER;
+								} else {
 				   /*********************************/
-				   /* Enable the clear from counter */
+									/* Enable the clear from counter */
 				   /*********************************/
 
-				   devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister2 = devpriv->
-						     s_ModuleInfo [b_ModulNbr].
-						     s_SiemensCounterInfo.
-						     s_ModeRegister.
-						     s_ByteModeRegister.
-						     b_ModeRegister2 & (~APCI1710_INDEX_LATCH_COUNTER);
-				   }
-				} // // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister2
+										=
+										devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister2
+										&
+										(~APCI1710_INDEX_LATCH_COUNTER);
+								}
+							}	// // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
 
+							if (b_AutoMode ==
+								APCI1710_DISABLE)
+							{
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									|
+									APCI1710_INDEX_AUTO_MODE;
+							} else {
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister2
+									&
+									(~APCI1710_INDEX_AUTO_MODE);
+							}
 
-			     if (b_AutoMode == APCI1710_DISABLE)
-				{
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister2 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister2 | APCI1710_INDEX_AUTO_MODE;
-				}
-			     else
-				{
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister2 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister2 & (~APCI1710_INDEX_AUTO_MODE);
-				}
+							if (b_InterruptEnable ==
+								APCI1710_ENABLE)
+							{
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister3
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister3
+									|
+									APCI1710_ENABLE_INDEX_INT;
+							} else {
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister3
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister3
+									&
+									APCI1710_DISABLE_INDEX_INT;
+							}
 
-			     if (b_InterruptEnable == APCI1710_ENABLE)
-				{
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister3 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister3 | APCI1710_ENABLE_INDEX_INT;
-				}
-			     else
-				{
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_SiemensCounterInfo.
-				s_ModeRegister.
-				s_ByteModeRegister.
-				b_ModeRegister3 = devpriv->
-						  s_ModuleInfo [b_ModulNbr].
-						  s_SiemensCounterInfo.
-						  s_ModeRegister.
-						  s_ByteModeRegister.
-						  b_ModeRegister3 & APCI1710_DISABLE_INDEX_INT;
-				}
+							devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_SiemensCounterInfo.
+								s_InitFlag.
+								b_IndexInit = 1;
 
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_SiemensCounterInfo.
-			     s_InitFlag.
-			     b_IndexInit = 1;
-			    
-			  }
-		       else
-			  {
+						} else {
 			  /********************************/
-			  /* Interrupt parameter is wrong */
+							/* Interrupt parameter is wrong */
 			  /********************************/
-			  DPRINTK("Interrupt parameter is wrong\n");	
-			  i_ReturnValue = -7;
-			  }
-		       }
-		    else
-		       {
+							DPRINTK("Interrupt parameter is wrong\n");
+							i_ReturnValue = -7;
+						}
+					} else {
 		       /************************************/
-		       /* The auto mode parameter is wrong */
+						/* The auto mode parameter is wrong */
 		       /************************************/
 
-			   DPRINTK("The auto mode parameter is wrong\n");
-		       i_ReturnValue = -6;
-		       }
-		    }
-		 else
-		    {
+						DPRINTK("The auto mode parameter is wrong\n");
+						i_ReturnValue = -6;
+					}
+				} else {
 		    /***********************************************/
-		    /* The index operating mode parameter is wrong */
+					/* The index operating mode parameter is wrong */
 		    /***********************************************/
 
-		    DPRINTK("The index operating mode parameter is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+					DPRINTK("The index operating mode parameter is wrong\n");
+					i_ReturnValue = -5;
+				}
+			} else {
 		 /*******************************************/
-		 /* The reference action parameter is wrong */
+				/* The reference action parameter is wrong */
 		 /*******************************************/
 
-		 DPRINTK("The reference action parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The reference action parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n"); 	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1122,115 +1152,96 @@ INT   i_APCI1710_InitIndex    (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_InitReference        (comedi_device *dev,
-					 BYTE b_ModulNbr,
-					 BYTE b_ReferenceLevel)
-	{
+INT i_APCI1710_InitReference(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_ReferenceLevel)
+{
 	INT i_ReturnValue = 0;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /**************************************/
-	      /* Test the reference level parameter */
+			/* Test the reference level parameter */
 	      /**************************************/
 
-	      if (b_ReferenceLevel == 0 ||
-		  b_ReferenceLevel == 1)
-		 {
-		 if (b_ReferenceLevel == 1)
-		    {
-		    devpriv->
-		    s_ModuleInfo [b_ModulNbr].
-		    s_SiemensCounterInfo.
-		    s_ModeRegister.
-		    s_ByteModeRegister.
-		    b_ModeRegister2 = devpriv->
-				      s_ModuleInfo [b_ModulNbr].
-				      s_SiemensCounterInfo.
-				      s_ModeRegister.
-				      s_ByteModeRegister.
-				      b_ModeRegister2 | APCI1710_REFERENCE_HIGH;
-		    }
-		 else
-		    {
-		    devpriv->
-		    s_ModuleInfo [b_ModulNbr].
-		    s_SiemensCounterInfo.
-		    s_ModeRegister.
-		    s_ByteModeRegister.
-		    b_ModeRegister2 = devpriv->
-				      s_ModuleInfo [b_ModulNbr].
-				      s_SiemensCounterInfo.
-				      s_ModeRegister.
-				      s_ByteModeRegister.
-				      b_ModeRegister2 & APCI1710_REFERENCE_LOW;
-		    }
+			if (b_ReferenceLevel == 0 || b_ReferenceLevel == 1) {
+				if (b_ReferenceLevel == 1) {
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister2 = devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister2 |
+						APCI1710_REFERENCE_HIGH;
+				} else {
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister2 = devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister2 &
+						APCI1710_REFERENCE_LOW;
+				}
 
-		 
-		 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
+				outl(devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					dw_ModeRegister1_2_3_4,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
 
-
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_InitFlag.
-		 b_ReferenceInit = 1;
-		 }
-	      else
-		 {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_InitFlag.b_ReferenceInit = 1;
+			} else {
 		 /**************************************/
-		 /* Reference level parameter is wrong */
+				/* Reference level parameter is wrong */
 		 /**************************************/
 
-		 DPRINTK("Reference level parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Reference level parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
-
-	
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_	i_APCI1710_InitExternalStrobe                |
@@ -1266,190 +1277,165 @@ INT   i_APCI1710_InitReference        (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_InitExternalStrobe	(comedi_device *dev,
-					 BYTE b_ModulNbr,
-					 BYTE b_ExternalStrobe,
-					 BYTE b_ExternalStrobeLevel)
-	{
-	INT    i_ReturnValue = 0;
-	
-	
+INT i_APCI1710_InitExternalStrobe(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_ExternalStrobe, BYTE b_ExternalStrobeLevel)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /**************************************/
-	      /* Test the external strobe selection */
-              /**************************************/
+			/* Test the external strobe selection */
+	      /**************************************/
 
-	      if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
-		 {
+			if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1) {
 		 /******************/
-		 /* Test the level */
+				/* Test the level */
 		 /******************/
 
-		 if ((b_ExternalStrobeLevel == APCI1710_HIGH) ||
-		     ((b_ExternalStrobeLevel == APCI1710_LOW && (devpriv->
-								 s_BoardInfos.
-								 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3135)))
-		    {
+				if ((b_ExternalStrobeLevel == APCI1710_HIGH) ||
+					((b_ExternalStrobeLevel == APCI1710_LOW
+							&& (devpriv->
+								s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) >=
+							0x3135))) {
 		    /*****************/
-		    /* Set the level */
+					/* Set the level */
 		    /*****************/
 
-		    devpriv->
-		    s_ModuleInfo [b_ModulNbr].
-		    s_SiemensCounterInfo.
-		    s_ModeRegister.
-		    s_ByteModeRegister.
-		    b_ModeRegister4 = (devpriv->
-				       s_ModuleInfo [b_ModulNbr].
-				       s_SiemensCounterInfo.
-				       s_ModeRegister.
-				       s_ByteModeRegister.
-				       b_ModeRegister4 & (0xFF - (0x10 << b_ExternalStrobe))) |
-				       ((b_ExternalStrobeLevel^1) << (4 + b_ExternalStrobe));
-		    }
-		 else
-		    {
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister4 = (devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister4 & (0xFF -
+							(0x10 << b_ExternalStrobe))) | ((b_ExternalStrobeLevel ^ 1) << (4 + b_ExternalStrobe));
+				} else {
 		    /********************************************/
-		    /* External strobe level parameter is wrong */
+					/* External strobe level parameter is wrong */
 		    /********************************************/
 
-			DPRINTK("External strobe level parameter is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 } // if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
-	      else
-		 {
+					DPRINTK("External strobe level parameter is wrong\n");
+					i_ReturnValue = -5;
+				}
+			}	// if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
+			else {
 		 /**************************************/
-		 /* External strobe selection is wrong */
+				/* External strobe selection is wrong */
 		 /**************************************/
 
-		 DPRINTK("External strobe selection is wrong\n");
-		 i_ReturnValue = -4;
-		 } // if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
-	      }
-	   else
-	      {
+				DPRINTK("External strobe selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 	/*
-+----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_InitCompareLogic                      |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                UINT_  ui_CompareValue)                     |
-+----------------------------------------------------------------------------+
-| Task              : Set the 32-Bit compare value. At that moment that the  |
-|                     incremental counter arrive to the compare value        |
-|                     (ui_CompareValue) a interrupt is generated.            |
-+----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|                     BYTE_  b_ModulNbr       : Module number to configure   |
-|                                               (0 to 3)                     |
-|                     UINT_ ui_CompareValue   : 32-Bit compare value         |
-+----------------------------------------------------------------------------+
-| Output Parameters : -
-+----------------------------------------------------------------------------+
-| Return Value      :  0: No error                                           |
-|                     -1: The handle parameter of the board is wrong         |
-|                     -2: No counter module found                            |
-|                     -3: Counter not initialised see function               |
-|                         "i_APCI1710_InitCounter"                           |
-+----------------------------------------------------------------------------+
-*/
+	   +----------------------------------------------------------------------------+
+	   | Function Name     : _INT_ i_APCI1710_InitCompareLogic                      |
+	   |                               (BYTE_   b_BoardHandle,                      |
+	   |                                BYTE_   b_ModulNbr,                         |
+	   |                                UINT_  ui_CompareValue)                     |
+	   +----------------------------------------------------------------------------+
+	   | Task              : Set the 32-Bit compare value. At that moment that the  |
+	   |                     incremental counter arrive to the compare value        |
+	   |                     (ui_CompareValue) a interrupt is generated.            |
+	   +----------------------------------------------------------------------------+
+	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                     BYTE_  b_ModulNbr       : Module number to configure   |
+	   |                                               (0 to 3)                     |
+	   |                     UINT_ ui_CompareValue   : 32-Bit compare value         |
+	   +----------------------------------------------------------------------------+
+	   | Output Parameters : -
+	   +----------------------------------------------------------------------------+
+	   | Return Value      :  0: No error                                           |
+	   |                     -1: The handle parameter of the board is wrong         |
+	   |                     -2: No counter module found                            |
+	   |                     -3: Counter not initialised see function               |
+	   |                         "i_APCI1710_InitCounter"                           |
+	   +----------------------------------------------------------------------------+
+	 */
 
-INT   i_APCI1710_InitCompareLogic     (comedi_device *dev,
-					 BYTE   b_ModulNbr,
-					 UINT  ui_CompareValue)
-	{
-	INT    i_ReturnValue = 0;
-	
+INT i_APCI1710_InitCompareLogic(comedi_device * dev,
+	BYTE b_ModulNbr, UINT ui_CompareValue)
+{
+	INT i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
-	      
-		   outl(ui_CompareValue,devpriv->s_BoardInfos.
-		      ui_Address + 28 + (64 * b_ModulNbr));
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 
-	      devpriv->
-	      s_ModuleInfo [b_ModulNbr].
-	      s_SiemensCounterInfo.
-	      s_InitFlag.
-	      b_CompareLogicInit = 1;
-	      }
-	   else
-	      {
+			outl(ui_CompareValue, devpriv->s_BoardInfos.
+				ui_Address + 28 + (64 * b_ModulNbr));
+
+			devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_CompareLogicInit = 1;
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");  	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1501,376 +1487,513 @@ INT   i_APCI1710_InitCompareLogic     (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_InitFrequencyMeasurement	(comedi_device *dev,
-						 BYTE		 b_ModulNbr,
-						 BYTE		 b_PCIInputClock,
-						 BYTE		 b_TimingUnity,
-						 ULONG 		 ul_TimingInterval,
-						 PULONG      pul_RealTimingInterval)
-	{
-	INT    i_ReturnValue = 0;
-	ULONG ul_TimerValue  = 0;
+INT i_APCI1710_InitFrequencyMeasurement(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_PCIInputClock,
+	BYTE b_TimingUnity,
+	ULONG ul_TimingInterval, PULONG pul_RealTimingInterval)
+{
+	INT i_ReturnValue = 0;
+	ULONG ul_TimerValue = 0;
 	double d_RealTimingInterval;
-	DWORD dw_Status      = 0;
-	
+	DWORD dw_Status = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /**************************/
-	      /* Test the PCI bus clock */
+			/* Test the PCI bus clock */
 	      /**************************/
 
-	      if ((b_PCIInputClock == APCI1710_30MHZ) ||
-		  (b_PCIInputClock == APCI1710_33MHZ) ||
-		  (b_PCIInputClock == APCI1710_40MHZ))
-		 {
+			if ((b_PCIInputClock == APCI1710_30MHZ) ||
+				(b_PCIInputClock == APCI1710_33MHZ) ||
+				(b_PCIInputClock == APCI1710_40MHZ)) {
 		 /************************/
-		 /* Test the timing unit */
+				/* Test the timing unit */
 		 /************************/
 
-		 if (b_TimingUnity <= 2)
-		    {
+				if (b_TimingUnity <= 2) {
 		    /**********************************/
-		    /* Test the base timing selection */
+					/* Test the base timing selection */
 		    /**********************************/
 
-		    if (((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnity == 0) && (ul_TimingInterval >= 266) && (ul_TimingInterval <= 8738133UL)) ||
-			((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnity == 1) && (ul_TimingInterval >= 1)   && (ul_TimingInterval <= 8738UL))    ||
-			((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnity == 2) && (ul_TimingInterval >= 1)   && (ul_TimingInterval <= 8UL))       ||
-			((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnity == 0) && (ul_TimingInterval >= 242) && (ul_TimingInterval <= 7943757UL)) ||
-			((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnity == 1) && (ul_TimingInterval >= 1)   && (ul_TimingInterval <= 7943UL))    ||
-			((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnity == 2) && (ul_TimingInterval >= 1)   && (ul_TimingInterval <= 7UL))       ||
-			((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnity == 0) && (ul_TimingInterval >= 200) && (ul_TimingInterval <= 6553500UL)) ||
-			((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnity == 1) && (ul_TimingInterval >= 1)   && (ul_TimingInterval <= 6553UL))    ||
-			((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnity == 2) && (ul_TimingInterval >= 1)   && (ul_TimingInterval <= 6UL)))
-		       {
+					if (((b_PCIInputClock == APCI1710_30MHZ)
+							&& (b_TimingUnity == 0)
+							&& (ul_TimingInterval >=
+								266)
+							&& (ul_TimingInterval <=
+								8738133UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_30MHZ)
+							&& (b_TimingUnity == 1)
+							&& (ul_TimingInterval >=
+								1)
+							&& (ul_TimingInterval <=
+								8738UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_30MHZ)
+							&& (b_TimingUnity == 2)
+							&& (ul_TimingInterval >=
+								1)
+							&& (ul_TimingInterval <=
+								8UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_33MHZ)
+							&& (b_TimingUnity == 0)
+							&& (ul_TimingInterval >=
+								242)
+							&& (ul_TimingInterval <=
+								7943757UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_33MHZ)
+							&& (b_TimingUnity == 1)
+							&& (ul_TimingInterval >=
+								1)
+							&& (ul_TimingInterval <=
+								7943UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_33MHZ)
+							&& (b_TimingUnity == 2)
+							&& (ul_TimingInterval >=
+								1)
+							&& (ul_TimingInterval <=
+								7UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_40MHZ)
+							&& (b_TimingUnity == 0)
+							&& (ul_TimingInterval >=
+								200)
+							&& (ul_TimingInterval <=
+								6553500UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_40MHZ)
+							&& (b_TimingUnity == 1)
+							&& (ul_TimingInterval >=
+								1)
+							&& (ul_TimingInterval <=
+								6553UL))
+						|| ((b_PCIInputClock ==
+								APCI1710_40MHZ)
+							&& (b_TimingUnity == 2)
+							&& (ul_TimingInterval >=
+								1)
+							&& (ul_TimingInterval <=
+								6UL))) {
 		       /**********************/
-		       /* Test if 40MHz used */
+						/* Test if 40MHz used */
 		       /**********************/
 
-		       if (b_PCIInputClock == APCI1710_40MHZ)
-			  {
+						if (b_PCIInputClock ==
+							APCI1710_40MHZ) {
 			  /******************************/
-			  /* Test if firmware >= Rev1.5 */
+							/* Test if firmware >= Rev1.5 */
 			  /******************************/
 
-			  if ((devpriv->
-			       s_BoardInfos.
-			       dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3135)
-			     {
+							if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF) >= 0x3135) {
 			     /*********************************/
-			     /* Test if 40MHz quartz on board */
+								/* Test if 40MHz quartz on board */
 			     /*********************************/
 
-			     /*INPDW (ps_APCI1710Variable->
-				    s_Board [b_BoardHandle].
-				    s_BoardInfos.
-				    ui_Address + 36 + (64 * b_ModulNbr), &dw_Status);*/
-				  dw_Status=inl(devpriv->s_BoardInfos.
-				    ui_Address + 36 + (64 * b_ModulNbr));
+								/*INPDW (ps_APCI1710Variable->
+								   s_Board [b_BoardHandle].
+								   s_BoardInfos.
+								   ui_Address + 36 + (64 * b_ModulNbr), &dw_Status); */
+								dw_Status =
+									inl
+									(devpriv->
+									s_BoardInfos.
+									ui_Address
+									+ 36 +
+									(64 * b_ModulNbr));
 
 			     /******************************/
-			     /* Test the quartz flag (DQ0) */
+								/* Test the quartz flag (DQ0) */
 			     /******************************/
 
-			     if ((dw_Status & 1) != 1)
-				{
+								if ((dw_Status & 1) != 1) {
 				/*****************************/
-				/* 40MHz quartz not on board */
+									/* 40MHz quartz not on board */
 				/*****************************/
 
-				DPRINTK("40MHz quartz not on board\n");
-				i_ReturnValue = -7;
-				}
-			     }
-			  else
-			     {
+									DPRINTK("40MHz quartz not on board\n");
+									i_ReturnValue
+										=
+										-7;
+								}
+							} else {
 			     /*****************************/
-			     /* 40MHz quartz not on board */
+								/* 40MHz quartz not on board */
 			     /*****************************/
-				 DPRINTK("40MHz quartz not on board\n");
-			     i_ReturnValue = -7;
-			     }
-			  } // if (b_PCIInputClock == APCI1710_40MHZ)
+								DPRINTK("40MHz quartz not on board\n");
+								i_ReturnValue =
+									-7;
+							}
+						}	// if (b_PCIInputClock == APCI1710_40MHZ)
 
 		       /***************************/
-		       /* Test if not error occur */
+						/* Test if not error occur */
 		       /***************************/
 
-		       if (i_ReturnValue == 0)
-			  {
+						if (i_ReturnValue == 0) {
 			  /****************************/
-			  /* Test the INC_CPT version */
+							/* Test the INC_CPT version */
 			  /****************************/
 
-			  if ((devpriv->s_BoardInfos.
-			       dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3131)
-			     {
-			    
+							if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF) >= 0x3131) {
+
 				/**********************/
-				/* Test if 40MHz used */
+								/* Test if 40MHz used */
 				/**********************/
 
-				if (b_PCIInputClock == APCI1710_40MHZ)
-				   {
+								if (b_PCIInputClock == APCI1710_40MHZ) {
 				   /*********************************/
-				   /* Enable the 40MHz quarz (DQ30) */
+									/* Enable the 40MHz quarz (DQ30) */
 				   /*********************************/
 
-				   devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister4 = devpriv->
-						     s_ModuleInfo [b_ModulNbr].
-						     s_SiemensCounterInfo.
-						     s_ModeRegister.
-						     s_ByteModeRegister.
-						     b_ModeRegister4 | APCI1710_ENABLE_40MHZ_FREQUENCY;
-				   } // if (b_PCIInputClock == APCI1710_40MHZ)
-				else
-				   {
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister4
+										=
+										devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister4
+										|
+										APCI1710_ENABLE_40MHZ_FREQUENCY;
+								}	// if (b_PCIInputClock == APCI1710_40MHZ)
+								else {
 				   /**********************************/
-				   /* Disable the 40MHz quarz (DQ30) */
+									/* Disable the 40MHz quarz (DQ30) */
 				   /**********************************/
 
-				   devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister4 = devpriv->
-						     s_ModuleInfo [b_ModulNbr].
-						     s_SiemensCounterInfo.
-						     s_ModeRegister.
-						     s_ByteModeRegister.
-						     b_ModeRegister4 & APCI1710_DISABLE_40MHZ_FREQUENCY;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister4
+										=
+										devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_SiemensCounterInfo.
+										s_ModeRegister.
+										s_ByteModeRegister.
+										b_ModeRegister4
+										&
+										APCI1710_DISABLE_40MHZ_FREQUENCY;
 
-				   } // if (b_PCIInputClock == APCI1710_40MHZ)
-			    
+								}	// if (b_PCIInputClock == APCI1710_40MHZ)
 
 			     /********************************/
-			     /* Calculate the division fator */
+								/* Calculate the division fator */
 			     /********************************/
 
-			     fpu_begin ();
-			     switch (b_TimingUnity)
-				{
+								fpu_begin();
+								switch (b_TimingUnity) {
 				/******/
-				/* ns */
-				/******/
-
-				case 0:
-				     
-					/******************/
-					/* Timer 0 factor */
-					/******************/
-
-					ul_TimerValue = (ULONG) (ul_TimingInterval * (0.00025 * b_PCIInputClock));
-
-					/*******************/
-					/* Round the value */
-					/*******************/
-
-					if ((double) ((double) ul_TimingInterval * (0.00025 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					   {
-					   ul_TimerValue = ul_TimerValue + 1;
-					   }
-
-					/*****************************/
-					/* Calculate the real timing */
-					/*****************************/
-
-					*pul_RealTimingInterval = (ULONG) (ul_TimerValue / (0.00025 * (double) b_PCIInputClock));
-					d_RealTimingInterval = (double) ul_TimerValue / (0.00025 * (double) b_PCIInputClock);
-
-					if ((double) ((double) ul_TimerValue / (0.00025 * (double) b_PCIInputClock)) >= (double) ((double) *pul_RealTimingInterval + 0.5))
-					   {
-					   *pul_RealTimingInterval = *pul_RealTimingInterval + 1;
-					   }
-
-					ul_TimingInterval     = ul_TimingInterval - 1;
-					ul_TimerValue = ul_TimerValue - 2;
-				     
-				     break;
-
-				/******/
-				/* æs */
+									/* ns */
 				/******/
 
-				case 1:
-				
-				     
+								case 0:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_TimerValue = (ULONG) (ul_TimingInterval * (0.25 * b_PCIInputClock));
+									ul_TimerValue
+										=
+										(ULONG)
+										(ul_TimingInterval
+										*
+										(0.00025 * b_PCIInputClock));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_TimingInterval * (0.25 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					   {
-					   ul_TimerValue = ul_TimerValue + 1;
-					   }
+									if ((double)((double)ul_TimingInterval * (0.00025 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+										ul_TimerValue
+											=
+											ul_TimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					*pul_RealTimingInterval = (ULONG) (ul_TimerValue / (0.25 * (double) b_PCIInputClock));
-					d_RealTimingInterval    = (double) ul_TimerValue / ((double) 0.25 * (double) b_PCIInputClock);
+									*pul_RealTimingInterval
+										=
+										(ULONG)
+										(ul_TimerValue
+										/
+										(0.00025 * (double)b_PCIInputClock));
+									d_RealTimingInterval
+										=
+										(double)
+										ul_TimerValue
+										/
+										(0.00025
+										*
+										(double)
+										b_PCIInputClock);
 
-					if ((double) ((double) ul_TimerValue / (0.25 * (double) b_PCIInputClock)) >= (double) ((double) *pul_RealTimingInterval + 0.5))
-					   {
-					   *pul_RealTimingInterval = *pul_RealTimingInterval + 1;
-					   }
+									if ((double)((double)ul_TimerValue / (0.00025 * (double)b_PCIInputClock)) >= (double)((double)*pul_RealTimingInterval + 0.5)) {
+										*pul_RealTimingInterval
+											=
+											*pul_RealTimingInterval
+											+
+											1;
+									}
 
-					ul_TimingInterval     = ul_TimingInterval - 1;
-					ul_TimerValue = ul_TimerValue - 2;
-				     
+									ul_TimingInterval
+										=
+										ul_TimingInterval
+										-
+										1;
+									ul_TimerValue
+										=
+										ul_TimerValue
+										-
+										2;
 
-				     break;
+									break;
 
 				/******/
-				/* ms */
+									/* æs */
 				/******/
 
-				case 2:
-				
-				     
+								case 1:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_TimerValue = ul_TimingInterval * (250.0 * b_PCIInputClock);
+									ul_TimerValue
+										=
+										(ULONG)
+										(ul_TimingInterval
+										*
+										(0.25 * b_PCIInputClock));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_TimingInterval * (250.0 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					   {
-					   ul_TimerValue = ul_TimerValue + 1;
-					   }
+									if ((double)((double)ul_TimingInterval * (0.25 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+										ul_TimerValue
+											=
+											ul_TimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					*pul_RealTimingInterval = (ULONG) (ul_TimerValue / (250.0 * (double) b_PCIInputClock));
-					d_RealTimingInterval    = (double) ul_TimerValue / (250.0 * (double) b_PCIInputClock);
+									*pul_RealTimingInterval
+										=
+										(ULONG)
+										(ul_TimerValue
+										/
+										(0.25 * (double)b_PCIInputClock));
+									d_RealTimingInterval
+										=
+										(double)
+										ul_TimerValue
+										/
+										(
+										(double)
+										0.25
+										*
+										(double)
+										b_PCIInputClock);
 
-					if ((double) ((double) ul_TimerValue / (250.0 * (double) b_PCIInputClock)) >= (double) ((double) *pul_RealTimingInterval + 0.5))
-					   {
-					   *pul_RealTimingInterval = *pul_RealTimingInterval + 1;
-					   }
+									if ((double)((double)ul_TimerValue / (0.25 * (double)b_PCIInputClock)) >= (double)((double)*pul_RealTimingInterval + 0.5)) {
+										*pul_RealTimingInterval
+											=
+											*pul_RealTimingInterval
+											+
+											1;
+									}
 
-					ul_TimingInterval     = ul_TimingInterval - 1;
-					ul_TimerValue = ul_TimerValue - 2;
-				     
-				     break;
+									ul_TimingInterval
+										=
+										ul_TimingInterval
+										-
+										1;
+									ul_TimerValue
+										=
+										ul_TimerValue
+										-
+										2;
+
+									break;
+
+				/******/
+									/* ms */
+				/******/
+
+								case 2:
+
+					/******************/
+									/* Timer 0 factor */
+					/******************/
+
+									ul_TimerValue
+										=
+										ul_TimingInterval
+										*
+										(250.0
+										*
+										b_PCIInputClock);
+
+					/*******************/
+									/* Round the value */
+					/*******************/
+
+									if ((double)((double)ul_TimingInterval * (250.0 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+										ul_TimerValue
+											=
+											ul_TimerValue
+											+
+											1;
+									}
+
+					/*****************************/
+									/* Calculate the real timing */
+					/*****************************/
+
+									*pul_RealTimingInterval
+										=
+										(ULONG)
+										(ul_TimerValue
+										/
+										(250.0 * (double)b_PCIInputClock));
+									d_RealTimingInterval
+										=
+										(double)
+										ul_TimerValue
+										/
+										(250.0
+										*
+										(double)
+										b_PCIInputClock);
+
+									if ((double)((double)ul_TimerValue / (250.0 * (double)b_PCIInputClock)) >= (double)((double)*pul_RealTimingInterval + 0.5)) {
+										*pul_RealTimingInterval
+											=
+											*pul_RealTimingInterval
+											+
+											1;
+									}
+
+									ul_TimingInterval
+										=
+										ul_TimingInterval
+										-
+										1;
+									ul_TimerValue
+										=
+										ul_TimerValue
+										-
+										2;
+
+									break;
+								}
+
+								fpu_end();
+			     /*************************/
+								/* Write the timer value */
+			     /*************************/
+
+								outl(ul_TimerValue, devpriv->s_BoardInfos.ui_Address + 32 + (64 * b_ModulNbr));
+
+			     /*******************************/
+								/* Set the initialisation flag */
+			     /*******************************/
+
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_InitFlag.
+									b_FrequencyMeasurementInit
+									= 1;
+							} else {
+			     /***************************/
+								/* Counter not initialised */
+			     /***************************/
+
+								DPRINTK("Counter not initialised\n");
+								i_ReturnValue =
+									-3;
+							}
+						}	// if (i_ReturnValue == 0)
+					} else {
+		       /**********************************/
+						/* Base timing selection is wrong */
+		       /**********************************/
+
+						DPRINTK("Base timing selection is wrong\n");
+						i_ReturnValue = -6;
+					}
+				} else {
+		    /***********************************/
+					/* Timing unity selection is wrong */
+		    /***********************************/
+
+					DPRINTK("Timing unity selection is wrong\n");
+					i_ReturnValue = -5;
 				}
-
-			     fpu_end ();
-			     /*************************/
-			     /* Write the timer value */
-			     /*************************/
-
-			    
-					 outl(ul_TimerValue,devpriv->s_BoardInfos.
-				     ui_Address + 32 + (64 * b_ModulNbr));
-
-			     /*******************************/
-			     /* Set the initialisation flag */
-			     /*******************************/
-
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_SiemensCounterInfo.
-			     s_InitFlag.
-			     b_FrequencyMeasurementInit  = 1;
-			     }
-			  else
-			     {
-			     /***************************/
-			     /* Counter not initialised */
-			     /***************************/
-
-                        DPRINTK("Counter not initialised\n");  
-			     i_ReturnValue = -3;
-			     }
-			  } // if (i_ReturnValue == 0)
-		       }
-		    else
-		       {
-		       /**********************************/
-		       /* Base timing selection is wrong */
-		       /**********************************/
-
-			   DPRINTK("Base timing selection is wrong\n");	 
-		       i_ReturnValue = -6;
-		       }
-		    }
-		 else
-		    {
-		    /***********************************/
-		    /* Timing unity selection is wrong */
-		    /***********************************/
-
-			DPRINTK("Timing unity selection is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+			} else {
 		 /*****************************************/
-		 /* The selected PCI input clock is wrong */
+				/* The selected PCI input clock is wrong */
 		 /*****************************************/
 
-		 DPRINTK("The selected PCI input clock is wrong\n");	
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected PCI input clock is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n"); 	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*########################################################################### */
 
@@ -1892,63 +2015,58 @@ comedi_insn *insn,lsampl_t *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-
-INT	i_APCI1710_InsnBitsINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+INT i_APCI1710_InsnBitsINCCPT(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	UINT ui_BitsType;
-	INT i_ReturnValue=0;
-    	ui_BitsType=CR_CHAN(insn->chanspec);
-	devpriv->tsk_Current=current; // Save the current process task structure
+	INT i_ReturnValue = 0;
+	ui_BitsType = CR_CHAN(insn->chanspec);
+	devpriv->tsk_Current = current;	// Save the current process task structure
 
-	switch(ui_BitsType)
-	{
+	switch (ui_BitsType) {
 	case APCI1710_INCCPT_CLEARCOUNTERVALUE:
-		i_ReturnValue=i_APCI1710_ClearCounterValue    (dev,
-					 (BYTE) CR_AREF(insn->chanspec));
+		i_ReturnValue = i_APCI1710_ClearCounterValue(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_CLEARALLCOUNTERVALUE:
-		i_ReturnValue=i_APCI1710_ClearAllCounterValue (dev);
+		i_ReturnValue = i_APCI1710_ClearAllCounterValue(dev);
 		break;
 
 	case APCI1710_INCCPT_SETINPUTFILTER:
-		i_ReturnValue=i_APCI1710_SetInputFilter	(dev,
-									(BYTE) CR_AREF(insn->chanspec),
-                                    (BYTE) data[0],
-									(BYTE) data[1]);
+		i_ReturnValue = i_APCI1710_SetInputFilter(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) data[0], (BYTE) data[1]);
 		break;
 
 	case APCI1710_INCCPT_LATCHCOUNTER:
-		i_ReturnValue=i_APCI1710_LatchCounter (dev,
-				 (BYTE) CR_AREF(insn->chanspec),
-				 (BYTE) data[0]);
+		i_ReturnValue = i_APCI1710_LatchCounter(dev,
+			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
 		break;
 
 	case APCI1710_INCCPT_SETINDEXANDREFERENCESOURCE:
-		i_ReturnValue=i_APCI1710_SetIndexAndReferenceSource	(dev,
-						 (BYTE) CR_AREF(insn->chanspec),
-						 (BYTE) data[0]);
+		i_ReturnValue = i_APCI1710_SetIndexAndReferenceSource(dev,
+			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
 		break;
 
 	case APCI1710_INCCPT_SETDIGITALCHLON:
-		i_ReturnValue=i_APCI1710_SetDigitalChlOn (dev,
-				     (BYTE) CR_AREF(insn->chanspec));
+		i_ReturnValue = i_APCI1710_SetDigitalChlOn(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_SETDIGITALCHLOFF:
-		i_ReturnValue=i_APCI1710_SetDigitalChlOff (dev,
-				     (BYTE) CR_AREF(insn->chanspec));
+		i_ReturnValue = i_APCI1710_SetDigitalChlOff(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
 	default:
 		printk("Bits Config Parameter Wrong\n");
 	}
 
-	if(i_ReturnValue>=0) i_ReturnValue =insn->n;
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
 	return (i_ReturnValue);
 }
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -1973,60 +2091,48 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_ClearCounterValue    (comedi_device *dev,
-					 BYTE b_ModulNbr)
-	{
+INT i_APCI1710_ClearCounterValue(comedi_device * dev, BYTE b_ModulNbr)
+{
 	INT i_ReturnValue = 0;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*********************/
-	      /* Clear the counter */
+			/* Clear the counter */
 	      /*********************/
 
-	      
-		   outl(1,devpriv->s_BoardInfos.
-		      ui_Address + 16 + (64 * b_ModulNbr));
-	      }
-	   else
-	      {
+			outl(1, devpriv->s_BoardInfos.
+				ui_Address + 16 + (64 * b_ModulNbr));
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");		
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");			
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2045,59 +2151,55 @@ INT   i_APCI1710_ClearCounterValue    (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_ClearAllCounterValue (comedi_device *dev)
-	{
-	BYTE   b_ModulCpt    = 0;
-	INT    i_ReturnValue = 0;
-	
+INT i_APCI1710_ClearAllCounterValue(comedi_device * dev)
+{
+	BYTE b_ModulCpt = 0;
+	INT i_ReturnValue = 0;
 
 	/********************************/
 	/* Test if counter module found */
 	/********************************/
 
 	if ((devpriv->s_BoardInfos.
-	     dw_MolduleConfiguration [0] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER ||
-	    (devpriv->s_BoardInfos.
-	     dw_MolduleConfiguration [1] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER ||
-	    (devpriv->s_BoardInfos.
-	     dw_MolduleConfiguration [2] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER ||
-	    (devpriv->s_BoardInfos.
-	     dw_MolduleConfiguration [3] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-	   {
-	   for (b_ModulCpt = 0; b_ModulCpt < 4 ; b_ModulCpt ++)
-	      {
+			dw_MolduleConfiguration[0] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER
+		|| (devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[1] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER
+		|| (devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[2] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER
+		|| (devpriv->s_BoardInfos.
+			dw_MolduleConfiguration[3] & 0xFFFF0000UL) ==
+		APCI1710_INCREMENTAL_COUNTER) {
+		for (b_ModulCpt = 0; b_ModulCpt < 4; b_ModulCpt++) {
 	      /*******************************/
-	      /* Test if incremental counter */
+			/* Test if incremental counter */
 	      /*******************************/
 
-	      if ((devpriv->s_BoardInfos.
-		   dw_MolduleConfiguration [b_ModulCpt] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-		 {
+			if ((devpriv->s_BoardInfos.
+					dw_MolduleConfiguration[b_ModulCpt] &
+					0xFFFF0000UL) ==
+				APCI1710_INCREMENTAL_COUNTER) {
 		 /*********************/
-		 /* Clear the counter */
+				/* Clear the counter */
 		 /*********************/
 
-		 
-		outl(1,devpriv->s_BoardInfos.
-			 ui_Address + 16 + (64 * b_ModulCpt));
-		 }
-	      }
-	   }
-	else
-	   {
+				outl(1, devpriv->s_BoardInfos.
+					ui_Address + 16 + (64 * b_ModulCpt));
+			}
+		}
+	} else {
 	   /***************************/
-	   /* No counter module found */
+		/* No counter module found */
 	   /***************************/
 
-	   DPRINTK("No counter module found\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("No counter module found\n");
+		i_ReturnValue = -2;
 	}
 
-
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2195,216 +2297,241 @@ INT   i_APCI1710_ClearAllCounterValue (comedi_device *dev)
 +----------------------------------------------------------------------------+
 */
 
-INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
-									BYTE b_ModulNbr,
-                                    BYTE b_PCIInputClock,
-									BYTE b_Filter)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_Status      = 0;
-	
+INT i_APCI1710_SetInputFilter(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_PCIInputClock, BYTE b_Filter)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_Status = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if incremental counter */
+		/* Test if incremental counter */
 	   /*******************************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER) {
 	      /******************************/
-	      /* Test if firmware >= Rev1.5 */
+			/* Test if firmware >= Rev1.5 */
 	      /******************************/
 
-	      if ((devpriv->s_BoardInfos.
-		   dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3135)
-		 {
+			if ((devpriv->s_BoardInfos.
+					dw_MolduleConfiguration[b_ModulNbr] &
+					0xFFFF) >= 0x3135) {
 		 /**************************/
-		 /* Test the PCI bus clock */
+				/* Test the PCI bus clock */
 		 /**************************/
 
-		 if ((b_PCIInputClock == APCI1710_30MHZ) ||
-		     (b_PCIInputClock == APCI1710_33MHZ) ||
-		     (b_PCIInputClock == APCI1710_40MHZ))
-		    {
+				if ((b_PCIInputClock == APCI1710_30MHZ) ||
+					(b_PCIInputClock == APCI1710_33MHZ) ||
+					(b_PCIInputClock == APCI1710_40MHZ)) {
 		    /*************************/
-		    /* Test the filter value */
+					/* Test the filter value */
 		    /*************************/
 
-		    if (b_Filter < 16)
-		       {
+					if (b_Filter < 16) {
 		       /**********************/
-		       /* Test if 40MHz used */
+						/* Test if 40MHz used */
 		       /**********************/
 
-		       if (b_PCIInputClock == APCI1710_40MHZ)
-			  {
+						if (b_PCIInputClock ==
+							APCI1710_40MHZ) {
 			  /*********************************/
-			  /* Test if 40MHz quartz on board */
+							/* Test if 40MHz quartz on board */
 			  /*********************************/
 
-			 
-			dw_Status=	inl(devpriv->s_BoardInfos.
-				 ui_Address + 36 + (64 * b_ModulNbr));
+							dw_Status =
+								inl(devpriv->
+								s_BoardInfos.
+								ui_Address +
+								36 +
+								(64 * b_ModulNbr));
 
 			  /******************************/
-			  /* Test the quartz flag (DQ0) */
+							/* Test the quartz flag (DQ0) */
 			  /******************************/
 
-			  if ((dw_Status & 1) != 1)
-			     {
+							if ((dw_Status & 1) !=
+								1) {
 			     /*****************************/
-			     /* 40MHz quartz not on board */
+								/* 40MHz quartz not on board */
 			     /*****************************/
 
-                        DPRINTK("40MHz quartz not on board\n"); 
-			     i_ReturnValue = -6;
-			     }
-			  } // if (b_PCIInputClock == APCI1710_40MHZ)
+								DPRINTK("40MHz quartz not on board\n");
+								i_ReturnValue =
+									-6;
+							}
+						}	// if (b_PCIInputClock == APCI1710_40MHZ)
 
 		       /***************************/
-		       /* Test if error not occur */
+						/* Test if error not occur */
 		       /***************************/
 
-		       if (i_ReturnValue == 0)
-			  {
+						if (i_ReturnValue == 0) {
 			  /**********************/
-			  /* Test if 40MHz used */
+							/* Test if 40MHz used */
 			  /**********************/
 
-			  if (b_PCIInputClock == APCI1710_40MHZ)
-			     {
+							if (b_PCIInputClock ==
+								APCI1710_40MHZ)
+							{
 			     /*********************************/
-			     /* Enable the 40MHz quarz (DQ31) */
+								/* Enable the 40MHz quarz (DQ31) */
 			     /*********************************/
 
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_SiemensCounterInfo.
-			     s_ModeRegister.
-			     s_ByteModeRegister.
-			     b_ModeRegister4 = devpriv->
-					       s_ModuleInfo [b_ModulNbr].
-					       s_SiemensCounterInfo.
-					       s_ModeRegister.
-					       s_ByteModeRegister.
-					       b_ModeRegister4 | APCI1710_ENABLE_40MHZ_FILTER;
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									|
+									APCI1710_ENABLE_40MHZ_FILTER;
 
-			     } // if (b_PCIInputClock == APCI1710_40MHZ)
-			  else
-			     {
+							}	// if (b_PCIInputClock == APCI1710_40MHZ)
+							else {
 			     /**********************************/
-			     /* Disable the 40MHz quarz (DQ31) */
+								/* Disable the 40MHz quarz (DQ31) */
 			     /**********************************/
 
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_SiemensCounterInfo.
-			     s_ModeRegister.
-			     s_ByteModeRegister.
-			     b_ModeRegister4 = devpriv->
-					       s_ModuleInfo [b_ModulNbr].
-					       s_SiemensCounterInfo.
-					       s_ModeRegister.
-					       s_ByteModeRegister.
-					       b_ModeRegister4 & APCI1710_DISABLE_40MHZ_FILTER;
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									=
+									devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_SiemensCounterInfo.
+									s_ModeRegister.
+									s_ByteModeRegister.
+									b_ModeRegister4
+									&
+									APCI1710_DISABLE_40MHZ_FILTER;
 
-			     } // if (b_PCIInputClock == APCI1710_40MHZ)
+							}	// if (b_PCIInputClock == APCI1710_40MHZ)
 
 			  /************************/
-			  /* Set the filter value */
+							/* Set the filter value */
 			  /************************/
 
-			  devpriv->
-			  s_ModuleInfo [b_ModulNbr].
-			  s_SiemensCounterInfo.
-			  s_ModeRegister.
-			  s_ByteModeRegister.
-			  b_ModeRegister3 = (devpriv->s_ModuleInfo [b_ModulNbr].
-					     s_SiemensCounterInfo.
-					     s_ModeRegister.
-					     s_ByteModeRegister.
-					     b_ModeRegister3 & 0x1F) | ((b_Filter & 0x7) << 5);
+							devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_SiemensCounterInfo.
+								s_ModeRegister.
+								s_ByteModeRegister.
+								b_ModeRegister3
+								=
+								(devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_SiemensCounterInfo.
+								s_ModeRegister.
+								s_ByteModeRegister.
+								b_ModeRegister3
+								& 0x1F) |
+								((b_Filter &
+									0x7) <<
+								5);
 
-			  devpriv->s_ModuleInfo [b_ModulNbr].
-			  s_SiemensCounterInfo.
-			  s_ModeRegister.
-			  s_ByteModeRegister.
-			  b_ModeRegister4 = (devpriv->
-					     s_ModuleInfo [b_ModulNbr].
-					     s_SiemensCounterInfo.
-					     s_ModeRegister.
-					     s_ByteModeRegister.
-					     b_ModeRegister4 & 0xFE) | ((b_Filter & 0x8) >> 3);
+							devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_SiemensCounterInfo.
+								s_ModeRegister.
+								s_ByteModeRegister.
+								b_ModeRegister4
+								=
+								(devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_SiemensCounterInfo.
+								s_ModeRegister.
+								s_ByteModeRegister.
+								b_ModeRegister4
+								& 0xFE) |
+								((b_Filter &
+									0x8) >>
+								3);
 
 			  /***************************/
-			  /* Write the configuration */
+							/* Write the configuration */
 			  /***************************/
 
-			  
-			  outl(devpriv->s_ModuleInfo [b_ModulNbr].
-				  s_SiemensCounterInfo.
-				  s_ModeRegister.
-				  dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-				  ui_Address + 20 + (64 * b_ModulNbr));
-			  } // if (i_ReturnValue == 0)
-		       } // if (b_Filter < 16)
-		    else
-		       {
+							outl(devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_SiemensCounterInfo.
+								s_ModeRegister.
+								dw_ModeRegister1_2_3_4,
+								devpriv->
+								s_BoardInfos.
+								ui_Address +
+								20 +
+								(64 * b_ModulNbr));
+						}	// if (i_ReturnValue == 0)
+					}	// if (b_Filter < 16)
+					else {
 		       /**************************************/
-		       /* The selected filter value is wrong */
+						/* The selected filter value is wrong */
 		       /**************************************/
 
-			   DPRINTK("The selected filter value is wrong\n");	 
-		       i_ReturnValue = -5;
-		       } // if (b_Filter < 16)
-		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
-		 else
-		    {
+						DPRINTK("The selected filter value is wrong\n");
+						i_ReturnValue = -5;
+					}	// if (b_Filter < 16)
+				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
+				else {
 		    /*****************************************/
-		    /* The selected PCI input clock is wrong */
+					/* The selected PCI input clock is wrong */
 		    /*****************************************/
 
-			DPRINTK("The selected PCI input clock is wrong\n");
-		    i_ReturnValue = 4;
-		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
-		 }
-	      else
-		 {
+					DPRINTK("The selected PCI input clock is wrong\n");
+					i_ReturnValue = 4;
+				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
+			} else {
 		 /**************************************/
-		 /* The module is not a counter module */
+				/* The module is not a counter module */
 		 /**************************************/
 
-		 DPRINTK("The module is not a counter module\n");
-		 i_ReturnValue = -3;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The module is not a counter module\n");
+				i_ReturnValue = -3;
+			}
+		} else {
 	      /**************************************/
-	      /* The module is not a counter module */
+			/* The module is not a counter module */
 	      /**************************************/
 
-	      DPRINTK("The module is not a counter module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a counter module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2434,76 +2561,63 @@ INT 	i_APCI1710_SetInputFilter	(comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_LatchCounter (comedi_device *dev,
-				 BYTE b_ModulNbr,
-				 BYTE b_LatchReg)
-	{
+INT i_APCI1710_LatchCounter(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_LatchReg)
+{
 	INT i_ReturnValue = 0;
-	
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*************************************/
-	      /* Test the latch register parameter */
+			/* Test the latch register parameter */
 	      /*************************************/
 
-	      if (b_LatchReg < 2)
-		 {
+			if (b_LatchReg < 2) {
 		 /*********************/
-		 /* Tatch the counter */
+				/* Tatch the counter */
 		 /*********************/
 
-			outl(1 << (b_LatchReg * 4),devpriv->s_BoardInfos.
-			 ui_Address + (64 * b_ModulNbr));
-		 }
-	      else
-		 {
+				outl(1 << (b_LatchReg * 4),
+					devpriv->s_BoardInfos.ui_Address +
+					(64 * b_ModulNbr));
+			} else {
 		 /**************************************************/
-		 /* The selected latch register parameter is wrong */
+				/* The selected latch register parameter is wrong */
 		 /**************************************************/
 
-		 DPRINTK("The selected latch register parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected latch register parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2544,121 +2658,119 @@ INT   i_APCI1710_LatchCounter (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_SetIndexAndReferenceSource	(comedi_device *dev,
-						 BYTE b_ModulNbr,
-						 BYTE b_SourceSelection)
-	{
-	INT    i_ReturnValue = 0;
-	
-	
+INT i_APCI1710_SetIndexAndReferenceSource(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_SourceSelection)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if incremental counter */
+		/* Test if incremental counter */
 	   /*******************************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_INCREMENTAL_COUNTER) {
 	      /******************************/
-	      /* Test if firmware >= Rev1.5 */
+			/* Test if firmware >= Rev1.5 */
 	      /******************************/
 
-	      if ((devpriv->s_BoardInfos.
-		   dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3135)
-		 {
+			if ((devpriv->s_BoardInfos.
+					dw_MolduleConfiguration[b_ModulNbr] &
+					0xFFFF) >= 0x3135) {
 		 /*****************************/
-		 /* Test the source selection */
+				/* Test the source selection */
 		 /*****************************/
 
-		 if (b_SourceSelection == APCI1710_SOURCE_0 ||
-		     b_SourceSelection == APCI1710_SOURCE_1)
-		    {
+				if (b_SourceSelection == APCI1710_SOURCE_0 ||
+					b_SourceSelection == APCI1710_SOURCE_1)
+				{
 		    /******************************************/
-		    /* Test if invert the index and reference */
+					/* Test if invert the index and reference */
 		    /******************************************/
 
-		    if (b_SourceSelection == APCI1710_SOURCE_1)
-		       {
+					if (b_SourceSelection ==
+						APCI1710_SOURCE_1) {
 		       /********************************************/
-		       /* Invert index and reference source (DQ25) */
+						/* Invert index and reference source (DQ25) */
 		       /********************************************/
 
-		       devpriv->s_ModuleInfo [b_ModulNbr].
-		       s_SiemensCounterInfo.
-		       s_ModeRegister.
-		       s_ByteModeRegister.
-		       b_ModeRegister4 = devpriv->
-					 s_ModuleInfo [b_ModulNbr].
-					 s_SiemensCounterInfo.
-					 s_ModeRegister.
-					 s_ByteModeRegister.
-					 b_ModeRegister4 | APCI1710_INVERT_INDEX_RFERENCE;
-		       }
-		    else
-		       {
+						devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SiemensCounterInfo.
+							s_ModeRegister.
+							s_ByteModeRegister.
+							b_ModeRegister4 =
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SiemensCounterInfo.
+							s_ModeRegister.
+							s_ByteModeRegister.
+							b_ModeRegister4 |
+							APCI1710_INVERT_INDEX_RFERENCE;
+					} else {
 		       /****************************************/
-		       /* Set the default configuration (DQ25) */
+						/* Set the default configuration (DQ25) */
 		       /****************************************/
 
-		       devpriv->s_ModuleInfo [b_ModulNbr].
-		       s_SiemensCounterInfo.
-		       s_ModeRegister.
-		       s_ByteModeRegister.
-		       b_ModeRegister4 = devpriv->
-					 s_ModuleInfo [b_ModulNbr].
-					 s_SiemensCounterInfo.
-					 s_ModeRegister.
-					 s_ByteModeRegister.
-					 b_ModeRegister4 & APCI1710_DEFAULT_INDEX_RFERENCE;
-		       }
-		    } // if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
-		 else
-		    {
+						devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SiemensCounterInfo.
+							s_ModeRegister.
+							s_ByteModeRegister.
+							b_ModeRegister4 =
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SiemensCounterInfo.
+							s_ModeRegister.
+							s_ByteModeRegister.
+							b_ModeRegister4 &
+							APCI1710_DEFAULT_INDEX_RFERENCE;
+					}
+				}	// if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
+				else {
 		    /*********************************/
-		    /* The source selection is wrong */
-                    /*********************************/
+					/* The source selection is wrong */
+		    /*********************************/
 
-                   DPRINTK("The source selection is wrong\n");
-		    i_ReturnValue = -4;
-		    } // if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
-		 }
-	      else
-		 {
+					DPRINTK("The source selection is wrong\n");
+					i_ReturnValue = -4;
+				}	// if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
+			} else {
 		 /**************************************/
-		 /* The module is not a counter module */
+				/* The module is not a counter module */
 		 /**************************************/
 
-		 DPRINTK("The module is not a counter module\n");	
-		 i_ReturnValue = -3;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The module is not a counter module\n");
+				i_ReturnValue = -3;
+			}
+		} else {
 	      /**************************************/
-	      /* The module is not a counter module */
+			/* The module is not a counter module */
 	      /**************************************/
 
-	      DPRINTK("The module is not a counter module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a counter module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***************************************/
-	   /* The selected module number is wrong */
+		/* The selected module number is wrong */
 	   /***************************************/
 
-	   DPRINTK("The selected module number is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2683,72 +2795,62 @@ INT	i_APCI1710_SetIndexAndReferenceSource	(comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_SetDigitalChlOn (comedi_device *dev,
-				    BYTE  b_ModulNbr)
-	{
-	INT    i_ReturnValue = 0;
-	
+INT i_APCI1710_SetDigitalChlOn(comedi_device * dev, BYTE b_ModulNbr)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
-	      devpriv->
-	      s_ModuleInfo [b_ModulNbr].
-	      s_SiemensCounterInfo.
-	      s_ModeRegister.
-	      s_ByteModeRegister.
-	      b_ModeRegister3 = devpriv->
-				s_ModuleInfo [b_ModulNbr].
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
+			devpriv->
+				s_ModuleInfo[b_ModulNbr].
 				s_SiemensCounterInfo.
 				s_ModeRegister.
 				s_ByteModeRegister.
-				b_ModeRegister3 | 0x10;
+				b_ModeRegister3 = devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				s_ByteModeRegister.b_ModeRegister3 | 0x10;
 
 	      /*********************/
-	      /* Set the output On */
+			/* Set the output On */
 	      /*********************/
 
-		  outl(devpriv->s_ModuleInfo [b_ModulNbr].
-		      s_SiemensCounterInfo.
-		      s_ModeRegister.
-		      dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-		      ui_Address + 20 + (64 * b_ModulNbr));
-	      }
-	   else
-	      {
+			outl(devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				dw_ModeRegister1_2_3_4, devpriv->s_BoardInfos.
+				ui_Address + 20 + (64 * b_ModulNbr));
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-             DPRINTK("Counter not initialised\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2773,73 +2875,62 @@ INT	i_APCI1710_SetDigitalChlOn (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_SetDigitalChlOff (comedi_device *dev,
-				     BYTE  b_ModulNbr)
-	{
-	INT    i_ReturnValue = 0;
-	
+INT i_APCI1710_SetDigitalChlOff(comedi_device * dev, BYTE b_ModulNbr)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
-	      devpriv->
-	      s_ModuleInfo [b_ModulNbr].
-	      s_SiemensCounterInfo.
-	      s_ModeRegister.
-	      s_ByteModeRegister.
-	      b_ModeRegister3 = devpriv->
-				s_ModuleInfo [b_ModulNbr].
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
+			devpriv->
+				s_ModuleInfo[b_ModulNbr].
 				s_SiemensCounterInfo.
 				s_ModeRegister.
 				s_ByteModeRegister.
-				b_ModeRegister3 & 0xEF;
+				b_ModeRegister3 = devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				s_ByteModeRegister.b_ModeRegister3 & 0xEF;
 
 	      /**********************/
-	      /* Set the output Off */
+			/* Set the output Off */
 	      /**********************/
 
-		  outl(devpriv->s_ModuleInfo [b_ModulNbr].
-		      s_SiemensCounterInfo.
-		      s_ModeRegister.
-		      dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-		      ui_Address + 20 + (64 * b_ModulNbr));
-	      }
-	   else
-	      {
+			outl(devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				dw_ModeRegister1_2_3_4, devpriv->s_BoardInfos.
+				ui_Address + 20 + (64 * b_ModulNbr));
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*########################################################################### */
 
@@ -2860,80 +2951,75 @@ comedi_insn *insn,lsampl_t *data)                   |
 | Return Value      : 
 +----------------------------------------------------------------------------+
 */
-INT	i_APCI1710_InsnWriteINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+INT i_APCI1710_InsnWriteINCCPT(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	UINT ui_WriteType;
-	INT i_ReturnValue=0;
-	 
-	ui_WriteType=CR_CHAN(insn->chanspec);
-	devpriv->tsk_Current=current; // Save the current process task structure
+	INT i_ReturnValue = 0;
 
-	switch(ui_WriteType)
-	{
-		case APCI1710_INCCPT_ENABLELATCHINTERRUPT:
-			i_ReturnValue = i_APCI1710_EnableLatchInterrupt (dev,
-					 (BYTE) CR_AREF(insn->chanspec));
+	ui_WriteType = CR_CHAN(insn->chanspec);
+	devpriv->tsk_Current = current;	// Save the current process task structure
+
+	switch (ui_WriteType) {
+	case APCI1710_INCCPT_ENABLELATCHINTERRUPT:
+		i_ReturnValue = i_APCI1710_EnableLatchInterrupt(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		case APCI1710_INCCPT_DISABLELATCHINTERRUPT:
-			i_ReturnValue = i_APCI1710_DisableLatchInterrupt (dev,
-						 (BYTE) CR_AREF(insn->chanspec));
+	case APCI1710_INCCPT_DISABLELATCHINTERRUPT:
+		i_ReturnValue = i_APCI1710_DisableLatchInterrupt(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		case APCI1710_INCCPT_WRITE16BITCOUNTERVALUE:
-			i_ReturnValue = i_APCI1710_Write16BitCounterValue       (dev,
-						 (BYTE) CR_AREF(insn->chanspec),
-						 (BYTE)  data[0],
-						 (UINT)  data[1]);
+	case APCI1710_INCCPT_WRITE16BITCOUNTERVALUE:
+		i_ReturnValue = i_APCI1710_Write16BitCounterValue(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) data[0], (UINT) data[1]);
 		break;
 
-		case APCI1710_INCCPT_WRITE32BITCOUNTERVALUE:
-			 i_ReturnValue = i_APCI1710_Write32BitCounterValue       (dev,
-						 (BYTE) CR_AREF(insn->chanspec),
-						 (ULONG) data[0]);
+	case APCI1710_INCCPT_WRITE32BITCOUNTERVALUE:
+		i_ReturnValue = i_APCI1710_Write32BitCounterValue(dev,
+			(BYTE) CR_AREF(insn->chanspec), (ULONG) data[0]);
 
 		break;
 
-		case APCI1710_INCCPT_ENABLEINDEX:
-			i_APCI1710_EnableIndex  (dev,
-				 (BYTE) CR_AREF(insn->chanspec));
+	case APCI1710_INCCPT_ENABLEINDEX:
+		i_APCI1710_EnableIndex(dev, (BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		case APCI1710_INCCPT_DISABLEINDEX:						
-			i_ReturnValue = i_APCI1710_DisableIndex  (dev,
-				 (BYTE) CR_AREF(insn->chanspec));
+	case APCI1710_INCCPT_DISABLEINDEX:
+		i_ReturnValue = i_APCI1710_DisableIndex(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		case APCI1710_INCCPT_ENABLECOMPARELOGIC:					
-			i_ReturnValue = i_APCI1710_EnableCompareLogic   (dev,
-					 (BYTE) CR_AREF(insn->chanspec));
+	case APCI1710_INCCPT_ENABLECOMPARELOGIC:
+		i_ReturnValue = i_APCI1710_EnableCompareLogic(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		case APCI1710_INCCPT_DISABLECOMPARELOGIC:	
-			i_ReturnValue = i_APCI1710_DisableCompareLogic  (dev,
-					 (BYTE) CR_AREF(insn->chanspec));
+	case APCI1710_INCCPT_DISABLECOMPARELOGIC:
+		i_ReturnValue = i_APCI1710_DisableCompareLogic(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		case APCI1710_INCCPT_ENABLEFREQUENCYMEASUREMENT:			
-			i_ReturnValue = i_APCI1710_EnableFrequencyMeasurement	(dev,
-						 (BYTE) CR_AREF(insn->chanspec),
-						 (BYTE) 	 data[0]);
+	case APCI1710_INCCPT_ENABLEFREQUENCYMEASUREMENT:
+		i_ReturnValue = i_APCI1710_EnableFrequencyMeasurement(dev,
+			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
 		break;
 
-		case APCI1710_INCCPT_DISABLEFREQUENCYMEASUREMENT:					
-			i_ReturnValue = i_APCI1710_DisableFrequencyMeasurement	(dev,
-						 (BYTE) CR_AREF(insn->chanspec));
+	case APCI1710_INCCPT_DISABLEFREQUENCYMEASUREMENT:
+		i_ReturnValue = i_APCI1710_DisableFrequencyMeasurement(dev,
+			(BYTE) CR_AREF(insn->chanspec));
 		break;
 
-		default:
-			printk("Write Config Parameter Wrong\n");
+	default:
+		printk("Write Config Parameter Wrong\n");
 	}
 
-	if(i_ReturnValue>=0) i_ReturnValue =insn->n;
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
 	return (i_ReturnValue);
 }
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -2961,76 +3047,66 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
-INT  i_APCI1710_EnableLatchInterrupt (comedi_device *dev,
-					 BYTE b_ModulNbr)
-	{
+INT i_APCI1710_EnableLatchInterrupt(comedi_device * dev, BYTE b_ModulNbr)
+{
 	INT i_ReturnValue = 0;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 
 		 /********************/
-		 /* Enable interrupt */
+			/* Enable interrupt */
 		 /********************/
 
-		 devpriv->s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister2 = devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister2 | APCI1710_ENABLE_LATCH_INT;
+			devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				s_ByteModeRegister.
+				b_ModeRegister2 = devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				s_ByteModeRegister.
+				b_ModeRegister2 | APCI1710_ENABLE_LATCH_INT;
 
 		 /***************************/
-		 /* Write the configuration */
+			/* Write the configuration */
 		 /***************************/
 
-		 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
-	      }
-	   else
-	      {
+			outl(devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				dw_ModeRegister1_2_3_4, devpriv->s_BoardInfos.
+				ui_Address + 20 + (64 * b_ModulNbr));
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3057,80 +3133,73 @@ INT  i_APCI1710_EnableLatchInterrupt (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_DisableLatchInterrupt        (comedi_device *dev,
-						 BYTE b_ModulNbr)
-	{
+INT i_APCI1710_DisableLatchInterrupt(comedi_device * dev, BYTE b_ModulNbr)
+{
 	INT i_ReturnValue = 0;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 
 		 /***************************/
-		 /* Write the configuration */
+			/* Write the configuration */
 		 /***************************/
 
-		   outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4 & ((APCI1710_DISABLE_LATCH_INT << 8) | 0xFF),devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
+			outl(devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				dw_ModeRegister1_2_3_4 &
+				((APCI1710_DISABLE_LATCH_INT << 8) | 0xFF),
+				devpriv->s_BoardInfos.ui_Address + 20 +
+				(64 * b_ModulNbr));
 
-		   mdelay(1000);
+			mdelay(1000);
 
 		 /*********************/
-		 /* Disable interrupt */
+			/* Disable interrupt */
 		 /*********************/
 
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister2 = devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister2 & APCI1710_DISABLE_LATCH_INT;
+			devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				s_ByteModeRegister.
+				b_ModeRegister2 = devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_ModeRegister.
+				s_ByteModeRegister.
+				b_ModeRegister2 & APCI1710_DISABLE_LATCH_INT;
 
-	      }
-	   else
-	      {
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3162,76 +3231,65 @@ INT   i_APCI1710_DisableLatchInterrupt        (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_Write16BitCounterValue       (comedi_device *dev,
-						 BYTE  b_ModulNbr,
-						 BYTE  b_SelectedCounter,
-						 UINT  ui_WriteValue)
-	{
+INT i_APCI1710_Write16BitCounterValue(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_SelectedCounter, UINT ui_WriteValue)
+{
 	INT i_ReturnValue = 0;
-	
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /******************************/
-	      /* Test the counter selection */
+			/* Test the counter selection */
 	      /******************************/
 
-	      if (b_SelectedCounter < 2)
-		 {
+			if (b_SelectedCounter < 2) {
 		 /*******************/
-		 /* Write the value */
+				/* Write the value */
 		 /*******************/
 
-		outl((ULONG) ((ULONG) (ui_WriteValue) << (16 * b_SelectedCounter)),devpriv->s_BoardInfos.
-			 ui_Address + 8 + (b_SelectedCounter * 4) + (64 * b_ModulNbr));
-		 }
-	      else
-		 {
+				outl((ULONG) ((ULONG) (ui_WriteValue) << (16 *
+							b_SelectedCounter)),
+					devpriv->s_BoardInfos.ui_Address + 8 +
+					(b_SelectedCounter * 4) +
+					(64 * b_ModulNbr));
+			} else {
 		 /**************************************************/
-		 /* The selected 16-Bit counter parameter is wrong */
+				/* The selected 16-Bit counter parameter is wrong */
 		 /**************************************************/
 
-		 DPRINTK("The selected 16-Bit counter parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected 16-Bit counter parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3258,60 +3316,49 @@ INT   i_APCI1710_Write16BitCounterValue       (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_Write32BitCounterValue       (comedi_device *dev,
-						 BYTE   b_ModulNbr,
-						 ULONG ul_WriteValue)
-	{
+INT i_APCI1710_Write32BitCounterValue(comedi_device * dev,
+	BYTE b_ModulNbr, ULONG ul_WriteValue)
+{
 	INT i_ReturnValue = 0;
-	
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*******************/
-	      /* Write the value */
+			/* Write the value */
 	      /*******************/
 
-		   outl(ul_WriteValue,devpriv->s_BoardInfos.
-		      ui_Address + 4 + (64 * b_ModulNbr));
-	      }
-	   else
-	      {
+			outl(ul_WriteValue, devpriv->s_BoardInfos.
+				ui_Address + 4 + (64 * b_ModulNbr));
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3336,94 +3383,80 @@ INT   i_APCI1710_Write32BitCounterValue       (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_EnableIndex  (comedi_device *dev,
-				 BYTE b_ModulNbr)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_EnableIndex(comedi_device * dev, BYTE b_ModulNbr)
+{
+	INT i_ReturnValue = 0;
 	ULONG ul_InterruptLatchReg;
-	
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*****************************/
-	      /* Test if index initialised */
+			/* Test if index initialised */
 	      /*****************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_IndexInit)
-		 {
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister2 = devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister2 | APCI1710_ENABLE_INDEX;
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.s_InitFlag.b_IndexInit) {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister2 = devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister2 | APCI1710_ENABLE_INDEX;
 
-		  ul_InterruptLatchReg=inl(devpriv->s_BoardInfos.
-			ui_Address + 24 + (64 * b_ModulNbr));
+				ul_InterruptLatchReg =
+					inl(devpriv->s_BoardInfos.ui_Address +
+					24 + (64 * b_ModulNbr));
 
-
-		  outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
-		 }
-	      else
-		 {
+				outl(devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					dw_ModeRegister1_2_3_4,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
+			} else {
 		 /*************************************************************/
-		 /* Index not initialised see function "i_APCI1710_InitIndex" */
+				/* Index not initialised see function "i_APCI1710_InitIndex" */
 		 /*************************************************************/
 
-		 DPRINTK("Index not initialised \n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Index not initialised \n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3448,90 +3481,76 @@ INT   i_APCI1710_EnableIndex  (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT  i_APCI1710_DisableIndex (comedi_device *dev,
-				 BYTE b_ModulNbr)
-	{
+INT i_APCI1710_DisableIndex(comedi_device * dev, BYTE b_ModulNbr)
+{
 	INT i_ReturnValue = 0;
-	
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*****************************/
-	      /* Test if index initialised */
+			/* Test if index initialised */
 	      /*****************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_IndexInit)
-		 {
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister2 = devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister2 & APCI1710_DISABLE_INDEX;
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.s_InitFlag.b_IndexInit) {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister2 = devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister2 &
+					APCI1710_DISABLE_INDEX;
 
-		 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
-		 }
-	      else
-		 {
+				outl(devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					dw_ModeRegister1_2_3_4,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
+			} else {
 		 /*************************************************************/
-		 /* Index not initialised see function "i_APCI1710_InitIndex" */
+				/* Index not initialised see function "i_APCI1710_InitIndex" */
 		 /*************************************************************/
 
-		 DPRINTK("Index not initialised  \n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Index not initialised  \n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3561,93 +3580,81 @@ INT  i_APCI1710_DisableIndex (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_EnableCompareLogic   (comedi_device *dev,
-					 BYTE   b_ModulNbr)
-	{
-	INT    i_ReturnValue = 0;
-	
-	
+INT i_APCI1710_EnableCompareLogic(comedi_device * dev, BYTE b_ModulNbr)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*************************************/
-	      /* Test if compare logic initialised */
+			/* Test if compare logic initialised */
 	      /*************************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_CompareLogicInit == 1)
-		 {
-		    devpriv->
-		    s_ModuleInfo [b_ModulNbr].
-		    s_SiemensCounterInfo.
-		    s_ModeRegister.
-		    s_ByteModeRegister.
-		    b_ModeRegister3 = devpriv->
-				      s_ModuleInfo [b_ModulNbr].
-				      s_SiemensCounterInfo.
-				      s_ModeRegister.
-				      s_ByteModeRegister.
-				      b_ModeRegister3 | APCI1710_ENABLE_COMPARE_INT;
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_CompareLogicInit == 1) {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister3 = devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister3 |
+					APCI1710_ENABLE_COMPARE_INT;
 
 		    /***************************/
-		    /* Write the configuration */
+				/* Write the configuration */
 		    /***************************/
 
-			outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			    s_SiemensCounterInfo.
-			    s_ModeRegister.
-			    dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			    ui_Address + 20 + (64 * b_ModulNbr));
-		 }
-	      else
-		 {
+				outl(devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					dw_ModeRegister1_2_3_4,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
+			} else {
 		 /*********************************/
-		 /* Compare logic not initialised */
+				/* Compare logic not initialised */
 		 /*********************************/
 
-		 DPRINTK("Compare logic not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Compare logic not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n"); 	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -3673,396 +3680,360 @@ INT   i_APCI1710_EnableCompareLogic   (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_DisableCompareLogic  (comedi_device *dev,
-					 BYTE   b_ModulNbr)
-	{
-	INT    i_ReturnValue = 0;
-	
+INT i_APCI1710_DisableCompareLogic(comedi_device * dev, BYTE b_ModulNbr)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*************************************/
-	      /* Test if compare logic initialised */
+			/* Test if compare logic initialised */
 	      /*************************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_CompareLogicInit == 1)
-		 {
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister3 = devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister3 & APCI1710_DISABLE_COMPARE_INT;
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_CompareLogicInit == 1) {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister3 = devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister3 &
+					APCI1710_DISABLE_COMPARE_INT;
 
 		 /***************************/
-		 /* Write the configuration */
+				/* Write the configuration */
 		 /***************************/
 
-		 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
-		 }
-	      else
-		 {
+				outl(devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					dw_ModeRegister1_2_3_4,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
+			} else {
 		 /*********************************/
-		 /* Compare logic not initialised */
+				/* Compare logic not initialised */
 		 /*********************************/
 
-		 DPRINTK("Compare logic not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Compare logic not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 	/*
-+----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_EnableFrequencyMeasurement            |
-|				(BYTE_	 b_BoardHandle,                      |
-|				 BYTE_	 b_ModulNbr,                         |
-|				 BYTE_	 b_InterruptEnable)                  |
-+----------------------------------------------------------------------------+
-| Task              : Enables the frequency measurement function             |
-+----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
-|						configured (0 to 3)          |
-|		      BYTE_  b_InterruptEnable:	Enable or disable the        |
-|						interrupt.                   |
-|						APCI1710_ENABLE:             |
-|						Enable the interrupt         |
-|						APCI1710_DISABLE:            |
-|						Disable the interrupt        |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :  0: No error                                           |
-|                     -1: The handle parameter of the board is wrong         |
-|                     -2: The selected module number is wrong                |
-|                     -3: Counter not initialised see function               |
-|			  "i_APCI1710_InitCounter"                           |
-|                     -4: Frequency measurement logic not initialised.       |
-|			  See function "i_APCI1710_InitFrequencyMeasurement" |
-|                     -5: Interrupt parameter is wrong                       |
-|                     -6: Interrupt function not initialised.                |
-+----------------------------------------------------------------------------+
-*/
+	   +----------------------------------------------------------------------------+
+	   | Function Name     : _INT_ i_APCI1710_EnableFrequencyMeasurement            |
+	   |                            (BYTE_   b_BoardHandle,                      |
+	   |                             BYTE_   b_ModulNbr,                         |
+	   |                             BYTE_   b_InterruptEnable)                  |
+	   +----------------------------------------------------------------------------+
+	   | Task              : Enables the frequency measurement function             |
+	   +----------------------------------------------------------------------------+
+	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                  BYTE_  b_ModulNbr       : Number of the module to be   |
+	   |                                            configured (0 to 3)          |
+	   |                  BYTE_  b_InterruptEnable: Enable or disable the        |
+	   |                                            interrupt.                   |
+	   |                                            APCI1710_ENABLE:             |
+	   |                                            Enable the interrupt         |
+	   |                                            APCI1710_DISABLE:            |
+	   |                                            Disable the interrupt        |
+	   +----------------------------------------------------------------------------+
+	   | Output Parameters : -                                                      |
+	   +----------------------------------------------------------------------------+
+	   | Return Value      :  0: No error                                           |
+	   |                     -1: The handle parameter of the board is wrong         |
+	   |                     -2: The selected module number is wrong                |
+	   |                     -3: Counter not initialised see function               |
+	   |                      "i_APCI1710_InitCounter"                           |
+	   |                     -4: Frequency measurement logic not initialised.       |
+	   |                      See function "i_APCI1710_InitFrequencyMeasurement" |
+	   |                     -5: Interrupt parameter is wrong                       |
+	   |                     -6: Interrupt function not initialised.                |
+	   +----------------------------------------------------------------------------+
+	 */
 
-INT	i_APCI1710_EnableFrequencyMeasurement	(comedi_device *dev,
-						 BYTE	 b_ModulNbr,
-						 BYTE 	 b_InterruptEnable)
-	{
-	INT    i_ReturnValue = 0;
-	
-	
+INT i_APCI1710_EnableFrequencyMeasurement(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_InterruptEnable)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-	      /* Test if frequency mesurement initialised */
+			/* Test if frequency mesurement initialised */
 	      /********************************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_FrequencyMeasurementInit == 1)
-		 {
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_FrequencyMeasurementInit == 1) {
 		 /***************************/
-		 /* Test the interrupt mode */
+				/* Test the interrupt mode */
 		 /***************************/
 
-		 if ((b_InterruptEnable == APCI1710_DISABLE) ||
-		     (b_InterruptEnable == APCI1710_ENABLE))
-		    {
+				if ((b_InterruptEnable == APCI1710_DISABLE) ||
+					(b_InterruptEnable == APCI1710_ENABLE))
+				{
 
 		       /************************************/
-		       /* Enable the frequency measurement */
+					/* Enable the frequency measurement */
 		       /************************************/
 
-		       devpriv->
-		       s_ModuleInfo [b_ModulNbr].
-		       s_SiemensCounterInfo.
-		       s_ModeRegister.
-		       s_ByteModeRegister.
-		       b_ModeRegister3 = devpriv->
-					 s_ModuleInfo [b_ModulNbr].
-					 s_SiemensCounterInfo.
-					 s_ModeRegister.
-					 s_ByteModeRegister.
-					 b_ModeRegister3 | APCI1710_ENABLE_FREQUENCY;
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister3 = devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister3 |
+						APCI1710_ENABLE_FREQUENCY;
 
 		       /*********************************************/
-		       /* Disable or enable the frequency interrupt */
+					/* Disable or enable the frequency interrupt */
 		       /*********************************************/
 
-		       devpriv->
-		       s_ModuleInfo [b_ModulNbr].
-		       s_SiemensCounterInfo.
-		       s_ModeRegister.
-		       s_ByteModeRegister.
-		       b_ModeRegister3 = (devpriv->
-					  s_ModuleInfo [b_ModulNbr].
-					  s_SiemensCounterInfo.
-					  s_ModeRegister.
-					  s_ByteModeRegister.
-					  b_ModeRegister3 & APCI1710_DISABLE_FREQUENCY_INT) | (b_InterruptEnable << 3);
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister3 = (devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						s_ByteModeRegister.
+						b_ModeRegister3 &
+						APCI1710_DISABLE_FREQUENCY_INT)
+						| (b_InterruptEnable << 3);
 
 		       /***************************/
-		       /* Write the configuration */
+					/* Write the configuration */
 		       /***************************/
 
-			   outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			       s_SiemensCounterInfo.
-			       s_ModeRegister.
-			       dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			       ui_Address + 20 + (64 * b_ModulNbr));
+					outl(devpriv->s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_ModeRegister.
+						dw_ModeRegister1_2_3_4,
+						devpriv->s_BoardInfos.
+						ui_Address + 20 +
+						(64 * b_ModulNbr));
 
-		       devpriv->
-		       s_ModuleInfo [b_ModulNbr].
-		       s_SiemensCounterInfo.
-		       s_InitFlag.
-		       b_FrequencyMeasurementEnable = 1;
-		    }
-		 else
-		    {
+					devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SiemensCounterInfo.
+						s_InitFlag.
+						b_FrequencyMeasurementEnable =
+						1;
+				} else {
 		    /********************************/
-		    /* Interrupt parameter is wrong */
+					/* Interrupt parameter is wrong */
 		    /********************************/
 
-		    DPRINTK("Interrupt parameter is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+					DPRINTK("Interrupt parameter is wrong\n");
+					i_ReturnValue = -5;
+				}
+			} else {
 		 /***********************************************/
-		 /* Frequency measurement logic not initialised */
+				/* Frequency measurement logic not initialised */
 		 /***********************************************/
 
-		 DPRINTK("Frequency measurement logic not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Frequency measurement logic not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-          DPRINTK("The selected module number parameter is wrong\n"); 
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
-	/*
-+----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_DisableFrequencyMeasurement           |
-|				(BYTE_	 b_BoardHandle,                      |
-|				 BYTE_	 b_ModulNbr)                         |
-+----------------------------------------------------------------------------+
-| Task              : Disables the frequency measurement function             |
-+----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
-|						configured (0 to 3)          |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      :  0: No error                                           |
-|                     -1: The handle parameter of the board is wrong         |
-|                     -2: The selected module number is wrong                |
-|                     -3: Counter not initialised see function               |
-|			  "i_APCI1710_InitCounter"                           |
-|                     -4: Frequency measurement logic not initialised.       |
-|			  See function "i_APCI1710_InitFrequencyMeasurement" |
-+----------------------------------------------------------------------------+
-*/
+	return (i_ReturnValue);
+}
 
-INT	i_APCI1710_DisableFrequencyMeasurement	(comedi_device *dev,
-						 BYTE	 b_ModulNbr)
-	{
-	INT    i_ReturnValue = 0;
-	
+	/*
+	   +----------------------------------------------------------------------------+
+	   | Function Name     : _INT_ i_APCI1710_DisableFrequencyMeasurement           |
+	   |                            (BYTE_   b_BoardHandle,                      |
+	   |                             BYTE_   b_ModulNbr)                         |
+	   +----------------------------------------------------------------------------+
+	   | Task              : Disables the frequency measurement function             |
+	   +----------------------------------------------------------------------------+
+	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                  BYTE_  b_ModulNbr       : Number of the module to be   |
+	   |                                            configured (0 to 3)          |
+	   +----------------------------------------------------------------------------+
+	   | Output Parameters : -                                                      |
+	   +----------------------------------------------------------------------------+
+	   | Return Value      :  0: No error                                           |
+	   |                     -1: The handle parameter of the board is wrong         |
+	   |                     -2: The selected module number is wrong                |
+	   |                     -3: Counter not initialised see function               |
+	   |                      "i_APCI1710_InitCounter"                           |
+	   |                     -4: Frequency measurement logic not initialised.       |
+	   |                      See function "i_APCI1710_InitFrequencyMeasurement" |
+	   +----------------------------------------------------------------------------+
+	 */
+
+INT i_APCI1710_DisableFrequencyMeasurement(comedi_device * dev, BYTE b_ModulNbr)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-	      /* Test if frequency mesurement initialised */
+			/* Test if frequency mesurement initialised */
 	      /********************************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_FrequencyMeasurementInit == 1)
-		 {
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_FrequencyMeasurementInit == 1) {
 		 /*************************************/
-		 /* Disable the frequency measurement */
+				/* Disable the frequency measurement */
 		 /*************************************/
 
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_ModeRegister.
-		 s_ByteModeRegister.
-		 b_ModeRegister3 = devpriv->
-				   s_ModuleInfo [b_ModulNbr].
-				   s_SiemensCounterInfo.
-				   s_ModeRegister.
-				   s_ByteModeRegister.
-				   b_ModeRegister3 & APCI1710_DISABLE_FREQUENCY
-				   // Begin CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
-				   & APCI1710_DISABLE_FREQUENCY_INT;
-				   // End CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister3 = devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister3 &
+					APCI1710_DISABLE_FREQUENCY
+					// Begin CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
+					& APCI1710_DISABLE_FREQUENCY_INT;
+				// End CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
 
 		 /***************************/
-		 /* Write the configuration */
+				/* Write the configuration */
 		 /***************************/
 
-		 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_SiemensCounterInfo.
-			 s_ModeRegister.
-			 dw_ModeRegister1_2_3_4,devpriv->s_BoardInfos.
-			 ui_Address + 20 + (64 * b_ModulNbr));
+				outl(devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					dw_ModeRegister1_2_3_4,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
 
 		 /*************************************/
-		 /* Disable the frequency measurement */
+				/* Disable the frequency measurement */
 		 /*************************************/
 
-		 devpriv->
-		 s_ModuleInfo [b_ModulNbr].
-		 s_SiemensCounterInfo.
-		 s_InitFlag.
-		 b_FrequencyMeasurementEnable = 0;
-		 }
-	      else
-		 {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_InitFlag.
+					b_FrequencyMeasurementEnable = 0;
+			} else {
 		 /***********************************************/
-		 /* Frequency measurement logic not initialised */
+				/* Frequency measurement logic not initialised */
 		 /***********************************************/
 
-		 DPRINTK("Frequency measurement logic not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Frequency measurement logic not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*########################################################################### */
 
 							// INSN READ
 
 /*########################################################################### */
-
-					 
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -4078,134 +4049,115 @@ comedi_insn *insn,lsampl_t *data)                   |
 | Return Value      : 
 +----------------------------------------------------------------------------+
 */
-INT	i_APCI1710_InsnReadINCCPT(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+INT i_APCI1710_InsnReadINCCPT(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	UINT ui_ReadType;
-	INT  i_ReturnValue=0;
-	 
-	ui_ReadType=CR_CHAN(insn->chanspec);
+	INT i_ReturnValue = 0;
 
-       devpriv->tsk_Current=current; // Save the current process task structure
-	switch(ui_ReadType)
-	{
+	ui_ReadType = CR_CHAN(insn->chanspec);
+
+	devpriv->tsk_Current = current;	// Save the current process task structure
+	switch (ui_ReadType) {
 	case APCI1710_INCCPT_READLATCHREGISTERSTATUS:
-		i_ReturnValue=i_APCI1710_ReadLatchRegisterStatus      (dev,
-						 (BYTE)   CR_AREF(insn->chanspec),
-						 (BYTE)   CR_RANGE(insn->chanspec),
-						 (PBYTE)  &data[0]);
-	break;
+		i_ReturnValue = i_APCI1710_ReadLatchRegisterStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) CR_RANGE(insn->chanspec), (PBYTE) & data[0]);
+		break;
 
 	case APCI1710_INCCPT_READLATCHREGISTERVALUE:
-		i_ReturnValue=i_APCI1710_ReadLatchRegisterValue       (dev,
-						 (BYTE)   CR_AREF(insn->chanspec),
-						 (BYTE)   CR_RANGE(insn->chanspec),
-						 (PULONG) &data[0]);
-                printk("Latch Register Value %d\n",data[0]);
-	break;
+		i_ReturnValue = i_APCI1710_ReadLatchRegisterValue(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) CR_RANGE(insn->chanspec), (PULONG) & data[0]);
+		printk("Latch Register Value %d\n", data[0]);
+		break;
 
 	case APCI1710_INCCPT_READ16BITCOUNTERVALUE:
-		i_ReturnValue=i_APCI1710_Read16BitCounterValue        (dev,
-						 (BYTE)   CR_AREF(insn->chanspec),
-						 (BYTE)   CR_RANGE(insn->chanspec),
-						 (PUINT) &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_READ32BITCOUNTERVALUE:
-		i_ReturnValue=i_APCI1710_Read32BitCounterValue        (dev,
-						 (BYTE)   CR_AREF(insn->chanspec),
-						 (PULONG)  &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_GETINDEXSTATUS:
-		 i_ReturnValue=i_APCI1710_GetIndexStatus      (dev,
-					(BYTE)   CR_AREF(insn->chanspec),
-					(PBYTE) &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_GETREFERENCESTATUS:
-		 i_ReturnValue=i_APCI1710_GetReferenceStatus      (dev,
-					    (BYTE)   CR_AREF(insn->chanspec),
-					    (PBYTE)  &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_GETUASSTATUS:
-		i_ReturnValue=i_APCI1710_GetUASStatus (dev,
-				 (BYTE)   CR_AREF(insn->chanspec),
-				 (PBYTE) &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_GETCBSTATUS:
-		i_ReturnValue=i_APCI1710_GetCBStatus  (dev,
-				 (BYTE)   CR_AREF(insn->chanspec),
-				 (PBYTE) &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_GET16BITCBSTATUS:
-		i_ReturnValue=i_APCI1710_Get16BitCBStatus	(dev,
-				 (BYTE)   CR_AREF(insn->chanspec),
-				 (PBYTE) &data[0],
-				 (PBYTE) &data[1]);
-	break;
-    
-	case APCI1710_INCCPT_GETUDSTATUS:
-		i_ReturnValue=i_APCI1710_GetUDStatus  (dev,
-				 (BYTE)   CR_AREF(insn->chanspec),
-				 (PBYTE) &data[0]);
- 	
-	break;
-    
-	case APCI1710_INCCPT_GETINTERRUPTUDLATCHEDSTATUS:
-		i_ReturnValue=i_APCI1710_GetInterruptUDLatchedStatus  (dev,
-				 (BYTE)   CR_AREF(insn->chanspec),
-				 (PBYTE) &data[0]);
-	break;
-    
-	case APCI1710_INCCPT_READFREQUENCYMEASUREMENT:
-		i_ReturnValue=i_APCI1710_ReadFrequencyMeasurement (dev,
-				 (BYTE)   CR_AREF(insn->chanspec),
-				 (PBYTE)  &data[0],
-				 (PBYTE)  &data[1],
-				 (PULONG) &data[2]);
-	break;
-         
-        case APCI1710_INCCPT_READINTERRUPT:
-               data[0]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].b_OldModuleMask;
-               data[1]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].ul_OldInterruptMask;
-               data[2]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].ul_OldCounterLatchValue;
+		i_ReturnValue = i_APCI1710_Read16BitCounterValue(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) CR_RANGE(insn->chanspec), (PUINT) & data[0]);
+		break;
 
-			     
+	case APCI1710_INCCPT_READ32BITCOUNTERVALUE:
+		i_ReturnValue = i_APCI1710_Read32BitCounterValue(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PULONG) & data[0]);
+		break;
+
+	case APCI1710_INCCPT_GETINDEXSTATUS:
+		i_ReturnValue = i_APCI1710_GetIndexStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+		break;
+
+	case APCI1710_INCCPT_GETREFERENCESTATUS:
+		i_ReturnValue = i_APCI1710_GetReferenceStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+		break;
+
+	case APCI1710_INCCPT_GETUASSTATUS:
+		i_ReturnValue = i_APCI1710_GetUASStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+		break;
+
+	case APCI1710_INCCPT_GETCBSTATUS:
+		i_ReturnValue = i_APCI1710_GetCBStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+		break;
+
+	case APCI1710_INCCPT_GET16BITCBSTATUS:
+		i_ReturnValue = i_APCI1710_Get16BitCBStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(PBYTE) & data[0], (PBYTE) & data[1]);
+		break;
+
+	case APCI1710_INCCPT_GETUDSTATUS:
+		i_ReturnValue = i_APCI1710_GetUDStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+
+		break;
+
+	case APCI1710_INCCPT_GETINTERRUPTUDLATCHEDSTATUS:
+		i_ReturnValue = i_APCI1710_GetInterruptUDLatchedStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+		break;
+
+	case APCI1710_INCCPT_READFREQUENCYMEASUREMENT:
+		i_ReturnValue = i_APCI1710_ReadFrequencyMeasurement(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(PBYTE) & data[0],
+			(PBYTE) & data[1], (PULONG) & data[2]);
+		break;
+
+	case APCI1710_INCCPT_READINTERRUPT:
+		data[0] = devpriv->s_InterruptParameters.
+			s_FIFOInterruptParameters[devpriv->
+			s_InterruptParameters.ui_Read].b_OldModuleMask;
+		data[1] = devpriv->s_InterruptParameters.
+			s_FIFOInterruptParameters[devpriv->
+			s_InterruptParameters.ui_Read].ul_OldInterruptMask;
+		data[2] = devpriv->s_InterruptParameters.
+			s_FIFOInterruptParameters[devpriv->
+			s_InterruptParameters.ui_Read].ul_OldCounterLatchValue;
+
 		/**************************/
 		/* Increment the read FIFO */
 		/***************************/
 
 		devpriv->
-		s_InterruptParameters.
-		ui_Read = (devpriv->s_InterruptParameters.
-					ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
- 
-         
-        	break;                      
-    
+			s_InterruptParameters.
+			ui_Read = (devpriv->s_InterruptParameters.
+			ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
+
+		break;
+
 	default:
 		printk("ReadType Parameter wrong\n");
 	}
 
-	if(i_ReturnValue>=0) i_ReturnValue =insn->n;
-	return (i_ReturnValue);	
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
+	return (i_ReturnValue);
 
 }
-
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -4241,76 +4193,63 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_ReadLatchRegisterStatus      (comedi_device *dev,
-						 BYTE   b_ModulNbr,
-						 BYTE   b_LatchReg,
-						 PBYTE pb_LatchStatus)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_ReadLatchRegisterStatus(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_LatchReg, PBYTE pb_LatchStatus)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_LatchReg;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*************************************/
-	      /* Test the latch register parameter */
+			/* Test the latch register parameter */
 	      /*************************************/
 
-	      if (b_LatchReg < 2)
-		 {
-			dw_LatchReg=inl(devpriv->s_BoardInfos.
-							ui_Address + (64 * b_ModulNbr));
+			if (b_LatchReg < 2) {
+				dw_LatchReg = inl(devpriv->s_BoardInfos.
+					ui_Address + (64 * b_ModulNbr));
 
-		 *pb_LatchStatus = (BYTE) ((dw_LatchReg >> (b_LatchReg * 4)) & 0x3);
-		 }
-	      else
-		 {
+				*pb_LatchStatus =
+					(BYTE) ((dw_LatchReg >> (b_LatchReg *
+							4)) & 0x3);
+			} else {
 		 /**************************************************/
-		 /* The selected latch register parameter is wrong */
+				/* The selected latch register parameter is wrong */
 		 /**************************************************/
 
-                DPRINTK("The selected latch register parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected latch register parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4341,73 +4280,60 @@ INT   i_APCI1710_ReadLatchRegisterStatus      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_ReadLatchRegisterValue       (comedi_device *dev,
-						 BYTE     b_ModulNbr,
-						 BYTE     b_LatchReg,
-						 PULONG pul_LatchValue)
-	{
+INT i_APCI1710_ReadLatchRegisterValue(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_LatchReg, PULONG pul_LatchValue)
+{
 	INT i_ReturnValue = 0;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*************************************/
-	      /* Test the latch register parameter */
+			/* Test the latch register parameter */
 	      /*************************************/
 
-	      if (b_LatchReg < 2)
-		 {
-			*pul_LatchValue=inl(devpriv->s_BoardInfos.
-			ui_Address + ((b_LatchReg + 1) * 4) + (64 * b_ModulNbr));
-                    
-		 }
-	      else
-		 {
+			if (b_LatchReg < 2) {
+				*pul_LatchValue = inl(devpriv->s_BoardInfos.
+					ui_Address + ((b_LatchReg + 1) * 4) +
+					(64 * b_ModulNbr));
+
+			} else {
 		 /**************************************************/
-		 /* The selected latch register parameter is wrong */
+				/* The selected latch register parameter is wrong */
 		 /**************************************************/
 
-		 DPRINTK("The selected latch register parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected latch register parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n"); 	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n"); 	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4438,85 +4364,75 @@ INT   i_APCI1710_ReadLatchRegisterValue       (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_Read16BitCounterValue        (comedi_device *dev,
-						 BYTE    b_ModulNbr,
-						 BYTE    b_SelectedCounter,
-						 PUINT pui_CounterValue)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_Read16BitCounterValue(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_SelectedCounter, PUINT pui_CounterValue)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_LathchValue = 0;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /******************************/
-	      /* Test the counter selection */
+			/* Test the counter selection */
 	      /******************************/
 
-	      if (b_SelectedCounter < 2)
-		 {
+			if (b_SelectedCounter < 2) {
 		 /*********************/
-		 /* Latch the counter */
+				/* Latch the counter */
 		 /*********************/
 
-			  outl(1,devpriv->s_BoardInfos.
-			 ui_Address + (64 * b_ModulNbr));
+				outl(1, devpriv->s_BoardInfos.
+					ui_Address + (64 * b_ModulNbr));
 
 		 /************************/
-		 /* Read the latch value */
+				/* Read the latch value */
 		 /************************/
 
-			dw_LathchValue=inl(devpriv->s_BoardInfos.
-			ui_Address + 4 + (64 * b_ModulNbr));
+				dw_LathchValue = inl(devpriv->s_BoardInfos.
+					ui_Address + 4 + (64 * b_ModulNbr));
 
-		 *pui_CounterValue = (UINT) ((dw_LathchValue >> (16 * b_SelectedCounter)) & 0xFFFFU);
-		 }
-	      else
-		 {
+				*pui_CounterValue =
+					(UINT) ((dw_LathchValue >> (16 *
+							b_SelectedCounter)) &
+					0xFFFFU);
+			} else {
 		 /**************************************************/
-		 /* The selected 16-Bit counter parameter is wrong */
+				/* The selected 16-Bit counter parameter is wrong */
 		 /**************************************************/
 
-		 DPRINTK("The selected 16-Bit counter parameter is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected 16-Bit counter parameter is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4543,67 +4459,56 @@ INT   i_APCI1710_Read16BitCounterValue        (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_Read32BitCounterValue        (comedi_device *dev,
-						 BYTE      b_ModulNbr,
-						 PULONG  pul_CounterValue)
-	{
-	INT    i_ReturnValue = 0;
-	
-	
+INT i_APCI1710_Read32BitCounterValue(comedi_device * dev,
+	BYTE b_ModulNbr, PULONG pul_CounterValue)
+{
+	INT i_ReturnValue = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*********************/
-	      /* Tatch the counter */
+			/* Tatch the counter */
 	      /*********************/
 
-		   outl(1,devpriv->s_BoardInfos.
-		      ui_Address + (64 * b_ModulNbr));
+			outl(1, devpriv->s_BoardInfos.
+				ui_Address + (64 * b_ModulNbr));
 
 	      /************************/
-	      /* Read the latch value */
+			/* Read the latch value */
 	      /************************/
 
-		   *pul_CounterValue=inl(devpriv->s_BoardInfos.
-		     ui_Address + 4 + (64 * b_ModulNbr));
-	      }
-	   else
-	      {
+			*pul_CounterValue = inl(devpriv->s_BoardInfos.
+				ui_Address + 4 + (64 * b_ModulNbr));
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4630,77 +4535,63 @@ INT   i_APCI1710_Read32BitCounterValue        (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetIndexStatus      (comedi_device *dev,
-					BYTE   b_ModulNbr,
-					PBYTE pb_IndexStatus)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
+INT i_APCI1710_GetIndexStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_IndexStatus)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*****************************/
-	      /* Test if index initialised */
+			/* Test if index initialised */
 	      /*****************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_IndexInit)
-		 {
-			 dw_StatusReg= inl(devpriv->s_BoardInfos.
-			 ui_Address + 12 + (64 * b_ModulNbr));
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.s_InitFlag.b_IndexInit) {
+				dw_StatusReg = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (64 * b_ModulNbr));
 
-		 *pb_IndexStatus = (BYTE) (dw_StatusReg & 1);
-		 }
-	      else
-		 {
+				*pb_IndexStatus = (BYTE) (dw_StatusReg & 1);
+			} else {
 		 /*************************************************************/
-		 /* Index not initialised see function "i_APCI1710_InitIndex" */
+				/* Index not initialised see function "i_APCI1710_InitIndex" */
 		 /*************************************************************/
 
-		 DPRINTK("Index not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Index not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4728,79 +4619,65 @@ INT   i_APCI1710_GetIndexStatus      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetReferenceStatus      (comedi_device *dev,
-					    BYTE   b_ModulNbr,
-					    PBYTE  pb_ReferenceStatus)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
+INT i_APCI1710_GetReferenceStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_ReferenceStatus)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*********************************/
-	      /* Test if reference initialised */
+			/* Test if reference initialised */
 	      /*********************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_ReferenceInit)
-		 {
-			dw_StatusReg=inl(devpriv->s_BoardInfos.
-			 ui_Address + 24 + (64 * b_ModulNbr));
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_ReferenceInit) {
+				dw_StatusReg = inl(devpriv->s_BoardInfos.
+					ui_Address + 24 + (64 * b_ModulNbr));
 
-		 *pb_ReferenceStatus = (BYTE) (~dw_StatusReg & 1);
-		 }
-	      else
-		 {
+				*pb_ReferenceStatus =
+					(BYTE) (~dw_StatusReg & 1);
+			} else {
 		 /*********************************************************************/
-		 /* Reference not initialised see function "i_APCI1710_InitReference" */
+				/* Reference not initialised see function "i_APCI1710_InitReference" */
 		 /*********************************************************************/
 
-		 DPRINTK("Reference not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Reference not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4826,59 +4703,49 @@ INT   i_APCI1710_GetReferenceStatus      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetUASStatus (comedi_device *dev,
-				 BYTE   b_ModulNbr,
-				 PBYTE pb_UASStatus)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
-	
+INT i_APCI1710_GetUASStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_UASStatus)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
-		   dw_StatusReg=inl(devpriv->s_BoardInfos.
-		      ui_Address + 24 + (64 * b_ModulNbr));
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
+			dw_StatusReg = inl(devpriv->s_BoardInfos.
+				ui_Address + 24 + (64 * b_ModulNbr));
 
-	      *pb_UASStatus = (BYTE) ((dw_StatusReg >> 1) & 1);
-	      }
-	   else
-	      {
+			*pb_UASStatus = (BYTE) ((dw_StatusReg >> 1) & 1);
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4904,61 +4771,49 @@ INT   i_APCI1710_GetUASStatus (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetCBStatus  (comedi_device *dev,
-				 BYTE   b_ModulNbr,
-				 PBYTE pb_CBStatus)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
+INT i_APCI1710_GetCBStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_CBStatus)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
 
-	
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
-			dw_StatusReg=inl(devpriv->s_BoardInfos.
-		      ui_Address + 16 + (64 * b_ModulNbr));
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
+			dw_StatusReg = inl(devpriv->s_BoardInfos.
+				ui_Address + 16 + (64 * b_ModulNbr));
 
-	      *pb_CBStatus = (BYTE) (dw_StatusReg & 1);
-	      	      	      
-	      }
-	   else
-	      {
+			*pb_CBStatus = (BYTE) (dw_StatusReg & 1);
+
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");  	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -4998,102 +4853,92 @@ INT   i_APCI1710_GetCBStatus  (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT 	i_APCI1710_Get16BitCBStatus	(comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 PBYTE pb_CBStatusCounter0,
-					 PBYTE pb_CBStatusCounter1)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
+INT i_APCI1710_Get16BitCBStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_CBStatusCounter0, PBYTE pb_CBStatusCounter1)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
 
-       
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /*************************/
-	      /* Test if 2*16-Bit mode */
+			/* Test if 2*16-Bit mode */
 	      /*************************/
 
-	      if ((devpriv->
-		   s_ModuleInfo [b_ModulNbr].
-		   s_SiemensCounterInfo.
-		   s_ModeRegister.
-		   s_ByteModeRegister.
-		   b_ModeRegister1 & 0x10) == 0x10)
-		 {
+			if ((devpriv->s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_ModeRegister.
+					s_ByteModeRegister.
+					b_ModeRegister1 & 0x10) == 0x10) {
 		 /*****************************/
-		 /* Test the Firmware version */
+				/* Test the Firmware version */
 		 /*****************************/
 
-		 if ((devpriv->
-		      s_BoardInfos.
-		      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
-		    {
-			 dw_StatusReg=inl(devpriv->s_BoardInfos.
-			    ui_Address + 16 + (64 * b_ModulNbr));
+				if ((devpriv->s_BoardInfos.
+						dw_MolduleConfiguration
+						[b_ModulNbr] & 0xFFFF) >=
+					0x3136) {
+					dw_StatusReg =
+						inl(devpriv->s_BoardInfos.
+						ui_Address + 16 +
+						(64 * b_ModulNbr));
 
-		    *pb_CBStatusCounter1 = (BYTE) ((dw_StatusReg >> 0) & 1);
-		    *pb_CBStatusCounter0 = (BYTE) ((dw_StatusReg >> 1) & 1);
-		    } // if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
-		 else
-		    {
+					*pb_CBStatusCounter1 =
+						(BYTE) ((dw_StatusReg >> 0) &
+						1);
+					*pb_CBStatusCounter0 =
+						(BYTE) ((dw_StatusReg >> 1) &
+						1);
+				}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
+				else {
 		    /****************************/
-		    /* Firmware revision error	*/
+					/* Firmware revision error  */
 		    /****************************/
 
-		    i_ReturnValue = -5;
-		    } // if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
-		 } // if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
-	      else
-		 {
+					i_ReturnValue = -5;
+				}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
+			}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
+			else {
 		 /********************************************/
-		 /* Counter not initialised to 2*16-bit mode */
-		 /* "i_APCI1710_InitCounter"                 */
+				/* Counter not initialised to 2*16-bit mode */
+				/* "i_APCI1710_InitCounter"                 */
 		 /********************************************/
 
-		 DPRINTK("Counter not initialised\n");
-		 i_ReturnValue = -4;
-		 } // if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
-	      } // if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
-	   else
-	      {
+				DPRINTK("Counter not initialised\n");
+				i_ReturnValue = -4;
+			}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
+		}		// if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
+		else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");		
-	      i_ReturnValue = -3;
-	      } // if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
-	   } // if (b_ModulNbr < 4)
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}		// if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
+	}			// if (b_ModulNbr < 4)
+	else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   } // if (b_ModulNbr < 4)
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}			// if (b_ModulNbr < 4)
 
 	return (i_ReturnValue);
-	}
-
-
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -5121,59 +4966,49 @@ INT 	i_APCI1710_Get16BitCBStatus	(comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetUDStatus  (comedi_device *dev,
-				 BYTE   b_ModulNbr,
-				 PBYTE pb_UDStatus)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
-	
+INT i_APCI1710_GetUDStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_UDStatus)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
-		   dw_StatusReg=inl(devpriv->s_BoardInfos.
-		      ui_Address + 24 + (64 * b_ModulNbr));
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
+			dw_StatusReg = inl(devpriv->s_BoardInfos.
+				ui_Address + 24 + (64 * b_ModulNbr));
 
-	      *pb_UDStatus = (BYTE) ((dw_StatusReg >> 2) & 1);
-               
-	      }
-	   else
-	      {
+			*pb_UDStatus = (BYTE) ((dw_StatusReg >> 2) & 1);
+
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -5205,313 +5040,324 @@ INT   i_APCI1710_GetUDStatus  (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetInterruptUDLatchedStatus  (comedi_device *dev,
-						 BYTE   b_ModulNbr,
-						 PBYTE pb_UDStatus)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD dw_StatusReg   = 0;
-	
+INT i_APCI1710_GetInterruptUDLatchedStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_UDStatus)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 		 /*********************************/
-		 /* Test if index interrupt occur */
+			/* Test if index interrupt occur */
 		 /*********************************/
 
-		 if (devpriv->
-		     s_ModuleInfo [b_ModulNbr].
-		     s_SiemensCounterInfo.
-		     s_InitFlag.
-		     b_IndexInterruptOccur == 1)
-		    {
-		    devpriv->
-		    s_ModuleInfo [b_ModulNbr].
-		    s_SiemensCounterInfo.
-		    s_InitFlag.
-		    b_IndexInterruptOccur = 0;
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_IndexInterruptOccur == 1) {
+				devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_InitFlag.b_IndexInterruptOccur = 0;
 
-			dw_StatusReg=inl(devpriv->s_BoardInfos.
-			    ui_Address + 12 + (64 * b_ModulNbr));
+				dw_StatusReg = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (64 * b_ModulNbr));
 
-		    *pb_UDStatus = (BYTE) ((dw_StatusReg >> 1) & 1);
-		    }
-		 else
-		    {
+				*pb_UDStatus = (BYTE) ((dw_StatusReg >> 1) & 1);
+			} else {
 		    /****************************/
-		    /* No index interrupt occur */
+				/* No index interrupt occur */
 		    /****************************/
 
-		    *pb_UDStatus = 2;
-		    }
-	      }
-	   else
-	      {
+				*pb_UDStatus = 2;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 	/*
-+----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_ReadFrequencyMeasurement              |
-|				(BYTE_		  b_BoardHandle,             |
-|				 BYTE_		  b_ModulNbr,                |
-|				 PBYTE_		 pb_Status,                  |
-|				 PULONG_	pul_ReadValue)               |
-+----------------------------------------------------------------------------+
-| Task              : Returns the status (pb_Status) and the number of       |
-|		      increments in the set time.                            |
-|		      See function " i_APCI1710_InitFrequencyMeasurement "   |
-+----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
-|						configured (0 to 3)          |
-+----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_	pb_Status     :	Returns the frequency        |
-|						measurement status           |
-|						0 : Counting cycle not       |
-|						    started.                 |
-|						1 : Counting cycle started.  |
-|						2 : Counting cycle stopped.  |
-|						    The measurement cycle is |
-|						    completed.               |
-|		      PBYTE_ pb_UDStatus      : 0 : Counter progress in the  |
-|                                                   selected mode down       |
-|                                               1 : Counter progress in the  |
-|                                                   selected mode up         |
-|		      PULONG_ pul_ReadValue   : Return the number of         |
-|						increments in the defined    |
-|						time base.                   |
-+----------------------------------------------------------------------------+
-| Return Value      :  0: No error                                           |
-|                     -1: The handle parameter of the board is wrong         |
-|                     -2: The selected module number is wrong                |
-|                     -3: Counter not initialised see function               |
-|			  "i_APCI1710_InitCounter"                           |
-|                     -4: Frequency measurement logic not initialised.       |
-|			  See function "i_APCI1710_InitFrequencyMeasurement" |
-+----------------------------------------------------------------------------+
-*/
+	   +----------------------------------------------------------------------------+
+	   | Function Name     : _INT_ i_APCI1710_ReadFrequencyMeasurement              |
+	   |                            (BYTE_            b_BoardHandle,             |
+	   |                             BYTE_            b_ModulNbr,                |
+	   |                             PBYTE_          pb_Status,                  |
+	   |                             PULONG_        pul_ReadValue)               |
+	   +----------------------------------------------------------------------------+
+	   | Task              : Returns the status (pb_Status) and the number of       |
+	   |                  increments in the set time.                            |
+	   |                  See function " i_APCI1710_InitFrequencyMeasurement "   |
+	   +----------------------------------------------------------------------------+
+	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                  BYTE_  b_ModulNbr       : Number of the module to be   |
+	   |                                            configured (0 to 3)          |
+	   +----------------------------------------------------------------------------+
+	   | Output Parameters : PBYTE_ pb_Status     : Returns the frequency        |
+	   |                                            measurement status           |
+	   |                                            0 : Counting cycle not       |
+	   |                                                started.                 |
+	   |                                            1 : Counting cycle started.  |
+	   |                                            2 : Counting cycle stopped.  |
+	   |                                                The measurement cycle is |
+	   |                                                completed.               |
+	   |                  PBYTE_ pb_UDStatus      : 0 : Counter progress in the  |
+	   |                                                   selected mode down       |
+	   |                                               1 : Counter progress in the  |
+	   |                                                   selected mode up         |
+	   |                  PULONG_ pul_ReadValue   : Return the number of         |
+	   |                                            increments in the defined    |
+	   |                                            time base.                   |
+	   +----------------------------------------------------------------------------+
+	   | Return Value      :  0: No error                                           |
+	   |                     -1: The handle parameter of the board is wrong         |
+	   |                     -2: The selected module number is wrong                |
+	   |                     -3: Counter not initialised see function               |
+	   |                      "i_APCI1710_InitCounter"                           |
+	   |                     -4: Frequency measurement logic not initialised.       |
+	   |                      See function "i_APCI1710_InitFrequencyMeasurement" |
+	   +----------------------------------------------------------------------------+
+	 */
 
-INT	i_APCI1710_ReadFrequencyMeasurement (comedi_device *dev,
-					     BYTE	 b_ModulNbr,
-					     PBYTE	 pb_Status,
-					     PBYTE	 pb_UDStatus,
-					     PULONG	 pul_ReadValue)
-	{
-	INT    i_ReturnValue = 0;
-	UINT  ui_16BitValue;
+INT i_APCI1710_ReadFrequencyMeasurement(comedi_device * dev,
+	BYTE b_ModulNbr,
+	PBYTE pb_Status, PBYTE pb_UDStatus, PULONG pul_ReadValue)
+{
+	INT i_ReturnValue = 0;
+	UINT ui_16BitValue;
 	DWORD dw_StatusReg;
-	
-
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /*******************************/
-	   /* Test if counter initialised */
+		/* Test if counter initialised */
 	   /*******************************/
 
-	   if (devpriv->
-	       s_ModuleInfo [b_ModulNbr].
-	       s_SiemensCounterInfo.
-	       s_InitFlag.
-	       b_CounterInit == 1)
-	      {
+		if (devpriv->
+			s_ModuleInfo[b_ModulNbr].
+			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-	      /* Test if frequency mesurement initialised */
+			/* Test if frequency mesurement initialised */
 	      /********************************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_SiemensCounterInfo.
-		  s_InitFlag.
-		  b_FrequencyMeasurementInit == 1)
-		 {
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_SiemensCounterInfo.
+				s_InitFlag.b_FrequencyMeasurementInit == 1) {
 		 /******************/
-		 /* Test if enable */
+				/* Test if enable */
 		 /******************/
 
-		 if (devpriv->
-		     s_ModuleInfo [b_ModulNbr].
-		     s_SiemensCounterInfo.
-		     s_InitFlag.
-		     b_FrequencyMeasurementEnable == 1)
-		    {
+				if (devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_SiemensCounterInfo.
+					s_InitFlag.
+					b_FrequencyMeasurementEnable == 1) {
 		    /*******************/
-		    /* Read the status */
+					/* Read the status */
 		    /*******************/
 
-			 dw_StatusReg=inl(devpriv->s_BoardInfos.
-			   ui_Address + 32 + (64 * b_ModulNbr));
+					dw_StatusReg =
+						inl(devpriv->s_BoardInfos.
+						ui_Address + 32 +
+						(64 * b_ModulNbr));
 
 		    /**************************/
-		    /* Test if frequency stop */
+					/* Test if frequency stop */
 		    /**************************/
 
-		    if (dw_StatusReg & 1)
-		       {
-		       *pb_Status   = 2;
-		       *pb_UDStatus = (BYTE) ((dw_StatusReg >> 1) & 3);
+					if (dw_StatusReg & 1) {
+						*pb_Status = 2;
+						*pb_UDStatus =
+							(BYTE) ((dw_StatusReg >>
+								1) & 3);
 
 		       /******************/
-		       /* Read the value */
+						/* Read the value */
 		       /******************/
 
-			   *pul_ReadValue=inl(devpriv->s_BoardInfos.
-			      ui_Address + 28 + (64 * b_ModulNbr));
-			    			     
+						*pul_ReadValue =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address + 28 +
+							(64 * b_ModulNbr));
 
-		       if (*pb_UDStatus == 0)
-			  {
+						if (*pb_UDStatus == 0) {
 			  /*************************/
-			  /* Test the counter mode */
+							/* Test the counter mode */
 			  /*************************/
 
-			  if ((devpriv->
-			       s_ModuleInfo [b_ModulNbr].
-			       s_SiemensCounterInfo.
-			       s_ModeRegister.
-			       s_ByteModeRegister.
-			       b_ModeRegister1 & APCI1710_16BIT_COUNTER) == APCI1710_16BIT_COUNTER)
-			     {
+							if ((devpriv->s_ModuleInfo[b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & APCI1710_16BIT_COUNTER) == APCI1710_16BIT_COUNTER) {
 			     /****************************************/
-			     /* Test if 16-bit counter 1 pulse occur */
+								/* Test if 16-bit counter 1 pulse occur */
 			     /****************************************/
 
-			     if ((*pul_ReadValue & 0xFFFFU) != 0)
-				{
-				ui_16BitValue  = (UINT) *pul_ReadValue & 0xFFFFU;
-				*pul_ReadValue = (*pul_ReadValue & 0xFFFF0000UL) | (0xFFFFU - ui_16BitValue);
-				}
+								if ((*pul_ReadValue & 0xFFFFU) != 0) {
+									ui_16BitValue
+										=
+										(UINT)
+										*
+										pul_ReadValue
+										&
+										0xFFFFU;
+									*pul_ReadValue
+										=
+										(*pul_ReadValue
+										&
+										0xFFFF0000UL)
+										|
+										(0xFFFFU
+										-
+										ui_16BitValue);
+								}
 
 			     /****************************************/
-			     /* Test if 16-bit counter 2 pulse occur */
+								/* Test if 16-bit counter 2 pulse occur */
 			     /****************************************/
 
-			     if ((*pul_ReadValue & 0xFFFF0000UL) != 0)
-				{
-				ui_16BitValue  = (UINT) ((*pul_ReadValue >> 16) & 0xFFFFU);
-				*pul_ReadValue = (*pul_ReadValue & 0xFFFFUL) | ((0xFFFFU - ui_16BitValue) << 16);
-				}
-			     }
-			  else
-			     {
-			     if (*pul_ReadValue != 0)
-				{
-				*pul_ReadValue = 0xFFFFFFFFUL - *pul_ReadValue;
-				}
-			     }
-			  }
-		       else
-			  {
-			  if (*pb_UDStatus == 1)
-			     {
+								if ((*pul_ReadValue & 0xFFFF0000UL) != 0) {
+									ui_16BitValue
+										=
+										(UINT)
+										(
+										(*pul_ReadValue
+											>>
+											16)
+										&
+										0xFFFFU);
+									*pul_ReadValue
+										=
+										(*pul_ReadValue
+										&
+										0xFFFFUL)
+										|
+										(
+										(0xFFFFU - ui_16BitValue) << 16);
+								}
+							} else {
+								if (*pul_ReadValue != 0) {
+									*pul_ReadValue
+										=
+										0xFFFFFFFFUL
+										-
+										*pul_ReadValue;
+								}
+							}
+						} else {
+							if (*pb_UDStatus == 1) {
 			     /****************************************/
-			     /* Test if 16-bit counter 2 pulse occur */
+								/* Test if 16-bit counter 2 pulse occur */
 			     /****************************************/
 
-			     if ((*pul_ReadValue & 0xFFFF0000UL) != 0)
-				{
-				ui_16BitValue  = (UINT) ((*pul_ReadValue >> 16) & 0xFFFFU);
-				*pul_ReadValue = (*pul_ReadValue & 0xFFFFUL) | ((0xFFFFU - ui_16BitValue) << 16);
-				}
-			     }
-			  else
-			     {
-			     if (*pb_UDStatus == 2)
-				{
+								if ((*pul_ReadValue & 0xFFFF0000UL) != 0) {
+									ui_16BitValue
+										=
+										(UINT)
+										(
+										(*pul_ReadValue
+											>>
+											16)
+										&
+										0xFFFFU);
+									*pul_ReadValue
+										=
+										(*pul_ReadValue
+										&
+										0xFFFFUL)
+										|
+										(
+										(0xFFFFU - ui_16BitValue) << 16);
+								}
+							} else {
+								if (*pb_UDStatus
+									== 2) {
 				/****************************************/
-				/* Test if 16-bit counter 1 pulse occur */
+									/* Test if 16-bit counter 1 pulse occur */
 				/****************************************/
 
-				if ((*pul_ReadValue & 0xFFFFU) != 0)
-				   {
-				   ui_16BitValue  = (UINT) *pul_ReadValue & 0xFFFFU;
-				   *pul_ReadValue = (*pul_ReadValue & 0xFFFF0000UL) | (0xFFFFU - ui_16BitValue);
-				   }
+									if ((*pul_ReadValue & 0xFFFFU) != 0) {
+										ui_16BitValue
+											=
+											(UINT)
+											*
+											pul_ReadValue
+											&
+											0xFFFFU;
+										*pul_ReadValue
+											=
+											(*pul_ReadValue
+											&
+											0xFFFF0000UL)
+											|
+											(0xFFFFU
+											-
+											ui_16BitValue);
+									}
+								}
+							}
+						}
+					} else {
+						*pb_Status = 1;
+						*pb_UDStatus = 0;
+					}
+				} else {
+					*pb_Status = 0;
+					*pb_UDStatus = 0;
 				}
-			     }
-			  }
-		       }
-		    else
-		       {
-		       *pb_Status   = 1;
-		       *pb_UDStatus = 0;
-		       }
-		    }
-		 else
-		    {
-		    *pb_Status   = 0;
-		    *pb_UDStatus = 0;
-		    }
-		 }
-	      else
-		 {
+			} else {
 		 /***********************************************/
-		 /* Frequency measurement logic not initialised */
+				/* Frequency measurement logic not initialised */
 		 /***********************************************/
 
-		 DPRINTK("Frequency measurement logic not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Frequency measurement logic not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /****************************************/
-	      /* Counter not initialised see function */
-	      /* "i_APCI1710_InitCounter"             */
+			/* Counter not initialised see function */
+			/* "i_APCI1710_InitCounter"             */
 	      /****************************************/
 
-	      DPRINTK("Counter not initialised\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("Counter not initialised\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /*************************************************/
-	   /* The selected module number parameter is wrong */
+		/* The selected module number parameter is wrong */
 	   /*************************************************/
 
-	   DPRINTK("The selected module number parameter is wrong\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("The selected module number parameter is wrong\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}

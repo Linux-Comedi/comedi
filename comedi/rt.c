@@ -54,7 +54,7 @@
 struct comedi_irq_struct {
 	int rt;
 	int irq;
-	irqreturn_t (*handler)(int irq,void *dev_id PT_REGS_ARG);
+	 irqreturn_t(*handler) (int irq, void *dev_id PT_REGS_ARG);
 	unsigned long flags;
 	const char *device;
 	comedi_device *dev_id;
@@ -65,54 +65,54 @@ static int comedi_rt_release_irq(struct comedi_irq_struct *it);
 
 static struct comedi_irq_struct *comedi_irqs[NR_IRQS];
 
-int comedi_request_irq(unsigned irq, irqreturn_t (*handler)(int, void *
-			PT_REGS_ARG),
-		unsigned long flags,const char *device,comedi_device *dev_id)
+int comedi_request_irq(unsigned irq, irqreturn_t(*handler) (int,
+		void *PT_REGS_ARG), unsigned long flags, const char *device,
+	comedi_device * dev_id)
 {
 	struct comedi_irq_struct *it;
 	int ret;
 	/* null shared interrupt flag, since rt interrupt handlers do not
-	* support it, and this version of comedi_request_irq() is only
-	* called for kernels with rt support */
+	 * support it, and this version of comedi_request_irq() is only
+	 * called for kernels with rt support */
 	unsigned long unshared_flags = flags & ~IRQF_SHARED;
-	
+
 	ret = request_irq(irq, handler, unshared_flags, device, dev_id);
-	if(ret<0){
+	if (ret < 0) {
 		// we failed, so fall back on allowing shared interrupt (which we won't ever make RT)
-		if(flags & IRQF_SHARED)
-		{
-			rt_printk("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
-			ret=request_irq(irq, handler, flags, device, dev_id);
+		if (flags & IRQF_SHARED) {
+			rt_printk
+				("comedi: cannot get unshared interrupt, will not use RT interrupts.\n");
+			ret = request_irq(irq, handler, flags, device, dev_id);
 		}
-		if(ret<0){
+		if (ret < 0) {
 			return ret;
 		}
-	}else
-	{
+	} else {
 		it = kzalloc(sizeof(struct comedi_irq_struct), GFP_KERNEL);
-		if(!it)
+		if (!it)
 			return -ENOMEM;
-	
-		it->handler=handler;
-		it->irq=irq;
-		it->dev_id=dev_id;
-		it->device=device;	
+
+		it->handler = handler;
+		it->irq = irq;
+		it->dev_id = dev_id;
+		it->device = device;
 		it->flags = unshared_flags;
 		comedi_irqs[irq] = it;
 	}
 	return 0;
 }
 
-void comedi_free_irq(unsigned int irq,comedi_device *dev_id)
+void comedi_free_irq(unsigned int irq, comedi_device * dev_id)
 {
 	struct comedi_irq_struct *it;
 
 	free_irq(irq, dev_id);
 
 	it = comedi_irqs[irq];
-	if( it == NULL ) return;
+	if (it == NULL)
+		return;
 
-	if(it->rt){
+	if (it->rt) {
 		printk("real-time IRQ allocated at board removal (ignore)\n");
 		comedi_rt_release_irq(it);
 	}
@@ -121,61 +121,59 @@ void comedi_free_irq(unsigned int irq,comedi_device *dev_id)
 	comedi_irqs[irq] = NULL;
 }
 
-
-
-int comedi_switch_to_rt(comedi_device *dev)
+int comedi_switch_to_rt(comedi_device * dev)
 {
 	struct comedi_irq_struct *it;
 	unsigned long flags;
 
 	it = comedi_irqs[dev->irq];
 	/* drivers might not be using an interrupt for commands,
-		or we might not have been able to get an unshared irq */
-	if( it == NULL ) return -1;
+	   or we might not have been able to get an unshared irq */
+	if (it == NULL)
+		return -1;
 
-	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 
-	if(!dev->rt)
+	if (!dev->rt)
 		comedi_rt_get_irq(it);
 
 	dev->rt++;
-	it->rt=1;
+	it->rt = 1;
 
-	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
 }
 
-void comedi_switch_to_non_rt(comedi_device *dev)
+void comedi_switch_to_non_rt(comedi_device * dev)
 {
 	struct comedi_irq_struct *it;
 	unsigned long flags;
 
 	it = comedi_irqs[dev->irq];
-	if(it == NULL)
+	if (it == NULL)
 		return;
 
-	comedi_spin_lock_irqsave( &dev->spinlock, flags );
+	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 
 	dev->rt--;
-	if(!dev->rt)
+	if (!dev->rt)
 		comedi_rt_release_irq(it);
 
-	it->rt=0;
+	it->rt = 0;
 
-	comedi_spin_unlock_irqrestore( &dev->spinlock, flags );
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
-void wake_up_int_handler(int arg1, void * arg2)
+void wake_up_int_handler(int arg1, void *arg2)
 {
-	wake_up_interruptible((wait_queue_head_t*)arg2);
+	wake_up_interruptible((wait_queue_head_t *) arg2);
 }
 
-void comedi_rt_pend_wakeup(wait_queue_head_t *q)
+void comedi_rt_pend_wakeup(wait_queue_head_t * q)
 {
-	rt_pend_call(wake_up_int_handler,0,q);
+	rt_pend_call(wake_up_int_handler, 0, q);
 }
-
 
 /* RTAI section */
 #ifdef CONFIG_COMEDI_RTAI
@@ -189,8 +187,7 @@ static void handle_void_irq(int irq)
 	struct comedi_irq_struct *it;
 
 	it = comedi_irqs[irq];
-	if(it == NULL) 
-	{
+	if (it == NULL) {
 		rt_printk("comedi: null irq struct?\n");
 		return;
 	}
@@ -223,8 +220,8 @@ DECLARE_VOID_IRQ(21);
 DECLARE_VOID_IRQ(22);
 DECLARE_VOID_IRQ(23);
 
-typedef void (*V_FP_V)(void);
-static V_FP_V handle_void_irq_ptrs[]={
+typedef void (*V_FP_V) (void);
+static V_FP_V handle_void_irq_ptrs[] = {
 	handle_void_irq_0,
 	handle_void_irq_1,
 	handle_void_irq_2,
@@ -271,10 +268,10 @@ static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	int ret;
 
-	ret = rt_request_global_irq_arg(it->irq,it->handler,it->flags,
-			it->device,it->dev_id);
-	if(ret<0){
-		rt_printk("rt_request_global_irq_arg() returned %d\n",ret);
+	ret = rt_request_global_irq_arg(it->irq, it->handler, it->flags,
+		it->device, it->dev_id);
+	if (ret < 0) {
+		rt_printk("rt_request_global_irq_arg() returned %d\n", ret);
 		return ret;
 	}
 	rt_startup_irq(it->irq);
@@ -289,7 +286,6 @@ static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 	return 0;
 }
 #endif
-
 
 void comedi_rt_init(void)
 {
@@ -340,7 +336,7 @@ void comedi_rt_cleanup(void)
 	rt_pend_tq_cleanup();
 }
 
-#endif	/*CONFIG_COMEDI_FUSION*/
+#endif /*CONFIG_COMEDI_FUSION */
 
 /* RTLinux section */
 #ifdef CONFIG_COMEDI_RTL
@@ -350,15 +346,16 @@ static unsigned int handle_rtl_irq(unsigned int irq PT_REGS_ARG)
 	struct comedi_irq_struct *it;
 
 	it = comedi_irqs[irq];
-	if( it == NULL ) return 0;
-	it->handler( irq, it->dev_id PT_REGS_NULL );
+	if (it == NULL)
+		return 0;
+	it->handler(irq, it->dev_id PT_REGS_NULL);
 	rtl_hard_enable_irq(irq);
 	return 0;
 }
 
 static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
-	rtl_request_global_irq(it->irq,handle_rtl_irq);
+	rtl_request_global_irq(it->irq, handle_rtl_irq);
 	return 0;
 }
 
@@ -385,9 +382,9 @@ static int comedi_rt_get_irq(struct comedi_irq_struct *it)
 {
 	int ret;
 
-	free_irq(it->irq,it->dev_id);
-	ret=request_irq(it->irq,it->handler,it->flags|SA_PRIORITY,
-		it->device,it->dev_id);
+	free_irq(it->irq, it->dev_id);
+	ret = request_irq(it->irq, it->handler, it->flags | SA_PRIORITY,
+		it->device, it->dev_id);
 
 	return ret;
 }
@@ -396,9 +393,9 @@ static int comedi_rt_release_irq(struct comedi_irq_struct *it)
 {
 	int ret;
 
-	free_irq(it->irq,it->dev_id);
-	ret=request_irq(it->irq,it->handler,it->flags,
-		it->device,it->dev_id);
+	free_irq(it->irq, it->dev_id);
+	ret = request_irq(it->irq, it->handler, it->flags,
+		it->device, it->dev_id);
 
 	return ret;
 }
@@ -413,4 +410,3 @@ void comedi_rt_cleanup(void)
 	//rt_pend_tq_cleanup();
 }
 #endif
-

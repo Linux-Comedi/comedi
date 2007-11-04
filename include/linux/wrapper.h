@@ -29,4 +29,3 @@
 #endif
 
 #endif /* __COMPAT_LINUX_WRAPPER_H_ */
-

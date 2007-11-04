@@ -21,7 +21,6 @@
 
 */
 
-
 #ifndef EXPORT_SYMTAB
 #define EXPORT_SYMTAB
 #endif
@@ -40,7 +39,6 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-
 
 #if LINUX_VERSION_CODE >= 0x020200
 
@@ -136,7 +134,6 @@ EXPORT_SYMBOL(comedi_mark_buffer_written);
 //EXPORT_SYMBOL(comedi_get_range);
 EXPORT_SYMBOL(comedi_get_len_chanlist);
 
-
 /* deprecated */
 //EXPORT_SYMBOL(comedi_get_timer);
 //EXPORT_SYMBOL(comedi_timed_1chan);
@@ -144,6 +141,4 @@ EXPORT_SYMBOL(comedi_get_len_chanlist);
 /* alpha */
 //EXPORT_SYMBOL(comedi_set_global_oor_behavior);
 
-
 #endif
-

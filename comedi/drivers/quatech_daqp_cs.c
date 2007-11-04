@@ -12,8 +12,6 @@
 
     quatech_daqp_cs.c 1.10
 
-
-
     Documentation for the DAQP PCMCIA cards can be found on Quatech's site:
 
                 ftp://ftp.quatech.com/Manuals/daqp-208.pdf
@@ -58,7 +56,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
    you do not define PCMCIA_DEBUG at all, all the debug code will be
@@ -71,8 +68,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
+static char *version = "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -82,23 +78,23 @@ static char *version =
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t		node;
-	int			stop;
-	int			table_index;
-	char			board_name[32];
+	dev_node_t node;
+	int stop;
+	int table_index;
+	char board_name[32];
 
-	enum {semaphore, buffer} interrupt_mode;
+	enum { semaphore, buffer } interrupt_mode;
 
-	struct semaphore	eos;
+	struct semaphore eos;
 
-	comedi_device		*dev;
-	comedi_subdevice	*s;
-	int			count;
+	comedi_device *dev;
+	comedi_subdevice *s;
+	int count;
 } local_info_t;
 
 /* A list of "instances" of the device. */
 
-static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */ };
+static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 
 /* The DAQP communicates with the system through a 16 byte I/O window. */
 
@@ -189,44 +185,45 @@ static local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */ };
  */
 
 static const comedi_lrange range_daqp_ai = { 4, {
-	BIP_RANGE( 10 ),
-	BIP_RANGE( 5 ),
-	BIP_RANGE( 2.5 ),
-	BIP_RANGE( 1.25 )
-}};
+			BIP_RANGE(10),
+			BIP_RANGE(5),
+			BIP_RANGE(2.5),
+			BIP_RANGE(1.25)
+	}
+};
 
-static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)}};
+static const comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 
 /*====================================================================*/
 
 /* comedi interface code */
 
-static int daqp_attach(comedi_device *dev,comedi_devconfig *it);
-static int daqp_detach(comedi_device *dev);
-static comedi_driver driver_daqp={
-	driver_name:	"quatech_daqp_cs",
-	module:		THIS_MODULE,
-	attach:		daqp_attach,
-	detach:		daqp_detach,
+static int daqp_attach(comedi_device * dev, comedi_devconfig * it);
+static int daqp_detach(comedi_device * dev);
+static comedi_driver driver_daqp = {
+      driver_name:"quatech_daqp_cs",
+      module:THIS_MODULE,
+      attach:daqp_attach,
+      detach:daqp_detach,
 };
 
 #ifdef DAQP_DEBUG
 
-static void daqp_dump(comedi_device *dev)
+static void daqp_dump(comedi_device * dev)
 {
 	printk("DAQP: status %02x; aux status %02x\n",
-	       inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
+		inb(dev->iobase + DAQP_STATUS), inb(dev->iobase + DAQP_AUX));
 }
 
 static void hex_dump(char *str, void *ptr, int len)
 {
-	unsigned char * cptr = ptr;
+	unsigned char *cptr = ptr;
 	int i;
 
 	printk(str);
 
-	for (i=0; i<len; i++) {
-		if (i%16 == 0) {
+	for (i = 0; i < len; i++) {
+		if (i % 16 == 0) {
 			printk("\n0x%08x:", (unsigned int)cptr);
 		}
 		printk(" %02x", *(cptr++));
@@ -238,15 +235,15 @@ static void hex_dump(char *str, void *ptr, int len)
 
 /* Cancel a running acquisition */
 
-static int daqp_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int daqp_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-	local_info_t *local = (local_info_t *)s->private;
+	local_info_t *local = (local_info_t *) s->private;
 
 	if (local->stop) {
 		return -EIO;
 	}
 
-	outb(DAQP_COMMAND_STOP, dev->iobase+DAQP_COMMAND);
+	outb(DAQP_COMMAND_STOP, dev->iobase + DAQP_COMMAND);
 
 	/* flush any linguring data in FIFO - superfluous here */
 	/* outb(DAQP_COMMAND_RSTF, dev->iobase+DAQP_COMMAND); */
@@ -266,9 +263,9 @@ static int daqp_ai_cancel(comedi_device *dev, comedi_subdevice *s)
  * which run pretty quick.
  */
 
-static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
+static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 {
-	local_info_t *local = (local_info_t *)dev_id;
+	local_info_t *local = (local_info_t *) dev_id;
 	comedi_device *dev;
 	comedi_subdevice *s;
 	int loop_limit = 10000;
@@ -276,33 +273,32 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 
 	if (local == NULL) {
 		printk(KERN_WARNING
-		       "daqp_interrupt(): irq %d for unknown device.\n", irq);
+			"daqp_interrupt(): irq %d for unknown device.\n", irq);
 		return;
 	}
 
 	dev = local->dev;
 	if (dev == NULL) {
-		printk(KERN_WARNING
-		       "daqp_interrupt(): NULL comedi_device.\n");
+		printk(KERN_WARNING "daqp_interrupt(): NULL comedi_device.\n");
 		return;
 	}
 
 	if (!dev->attached) {
 		printk(KERN_WARNING
-		       "daqp_interrupt(): comedi_device not yet attached.\n");
+			"daqp_interrupt(): comedi_device not yet attached.\n");
 		return;
 	}
 
 	s = local->s;
 	if (s == NULL) {
 		printk(KERN_WARNING
-		       "daqp_interrupt(): NULL comedi_subdevice.\n");
+			"daqp_interrupt(): NULL comedi_subdevice.\n");
 		return;
 	}
 
 	if ((local_info_t *) s->private != local) {
 		printk(KERN_WARNING
-		       "daqp_interrupt(): invalid comedi_subdevice.\n");
+			"daqp_interrupt(): invalid comedi_subdevice.\n");
 		return;
 	}
 
@@ -315,14 +311,14 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 
 	case buffer:
 
-		while ( ! ((status = inb(dev->iobase + DAQP_STATUS))
-			   & DAQP_STATUS_FIFO_EMPTY)) {
+		while (!((status = inb(dev->iobase + DAQP_STATUS))
+				& DAQP_STATUS_FIFO_EMPTY)) {
 
 			sampl_t data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
 				s->async->events |=
-				  COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
+					COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
 				printk("daqp: data lost\n");
 				daqp_ai_cancel(dev, s);
 				break;
@@ -339,7 +335,7 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 			 */
 
 			if (local->count > 0) {
-				local->count --;
+				local->count--;
 				if (local->count == 0) {
 					daqp_ai_cancel(dev, s);
 					s->async->events |= COMEDI_CB_EOA;
@@ -347,12 +343,13 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 				}
 			}
 
-			if ((loop_limit --) <= 0) break;
+			if ((loop_limit--) <= 0)
+				break;
 		}
 
 		if (loop_limit <= 0) {
 			printk(KERN_WARNING
-			       "loop_limit reached in daqp_interrupt()\n");
+				"loop_limit reached in daqp_interrupt()\n");
 			daqp_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		}
@@ -365,13 +362,13 @@ static void daqp_interrupt(int irq, void * dev_id PT_REGS_ARG)
 
 /* One-shot analog data acquisition routine */
 
-static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int daqp_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	local_info_t *local = (local_info_t *)s->private;
+	local_info_t *local = (local_info_t *) s->private;
 	int i;
 	int v;
-	int counter=10000;
+	int counter = 10000;
 
 	if (local->stop) {
 		return -EIO;
@@ -380,10 +377,10 @@ static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
 
-	outb(0, dev->iobase+DAQP_AUX);
+	outb(0, dev->iobase + DAQP_AUX);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ, dev->iobase+DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_COMMAND);
 
 	/* Program one scan list entry */
 
@@ -406,22 +403,20 @@ static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	/* Set trigger */
 
 	v = DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL
-	  | DAQP_CONTROL_PACER_100kHz | DAQP_CONTROL_EOS_INT_ENABLE;
+		| DAQP_CONTROL_PACER_100kHz | DAQP_CONTROL_EOS_INT_ENABLE;
 
 	outb(v, dev->iobase + DAQP_CONTROL);
-
 
 	/* Reset any pending interrupts (my card has a tendancy to require
 	 * require multiple reads on the status register to achieve this)
 	 */
 
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS));
+		&& (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
 	if (!counter) {
 		printk("daqp: couldn't clear interrupts in status register\n");
 		return -1;
 	}
-
 
 	/* Make sure semaphore is blocked */
 	sema_init(&local->eos, 0);
@@ -429,11 +424,11 @@ static int daqp_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
 	local->dev = dev;
 	local->s = s;
 
-	for (i=0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++) {
 
 		/* Start conversion */
 		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-		     dev->iobase + DAQP_COMMAND);
+			dev->iobase + DAQP_COMMAND);
 
 		/* Wait for interrupt service routine to unblock semaphore */
 		/* Maybe could use a timeout here, but it's interruptible */
@@ -458,12 +453,11 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
 {
 	int timer;
 
-	timer = *ns/200;
-	*ns = timer*200;
+	timer = *ns / 200;
+	*ns = timer * 200;
 
 	return timer;
 }
-
 
 /* cmdtest tests a particular command to see if it is valid.
  * Using the cmdtest ioctl, a user can create a valid cmd
@@ -473,61 +467,69 @@ static int daqp_ns_to_timer(unsigned int *ns, int round)
  * the command passes.
  */
 
-static int daqp_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd)
+static int daqp_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd)
 {
-	int err=0;
+	int err = 0;
 	int tmp;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp=cmd->start_src;
+	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+	if (!cmd->start_src || tmp != cmd->start_src)
+		err++;
 
-	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER|TRIG_FOLLOW;
-	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
 
-	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER|TRIG_NOW;
-	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER | TRIG_NOW;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
 
-	tmp=cmd->scan_end_src;
+	tmp = cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
 
-	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if (!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
 
-	if(err)return 1;
+	if (err)
+		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
-	if(cmd->scan_begin_src!=TRIG_TIMER &&
-	   cmd->scan_begin_src!=TRIG_FOLLOW) err++;
-	if(cmd->convert_src!=TRIG_NOW &&
-	   cmd->convert_src!=TRIG_TIMER) err++;
-	if(cmd->scan_begin_src==TRIG_FOLLOW &&
-	   cmd->convert_src==TRIG_NOW) err++;
-	if(cmd->stop_src!=TRIG_COUNT &&
-	   cmd->stop_src!=TRIG_NONE)err++;
+	if (cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_FOLLOW)
+		err++;
+	if (cmd->convert_src != TRIG_NOW && cmd->convert_src != TRIG_TIMER)
+		err++;
+	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
+		err++;
+	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
+		err++;
 
-	if(err)return 2;
+	if (err)
+		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg!=0){
-		cmd->start_arg=0;
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
 		err++;
 	}
+#define MAX_SPEED	10000	/* 100 kHz - in nanoseconds */
 
-#define MAX_SPEED	10000		/* 100 kHz - in nanoseconds */
-
-	if(cmd->scan_begin_src==TRIG_TIMER && cmd->scan_begin_arg<MAX_SPEED){
-		cmd->scan_begin_arg=MAX_SPEED;
+	if (cmd->scan_begin_src == TRIG_TIMER
+		&& cmd->scan_begin_arg < MAX_SPEED) {
+		cmd->scan_begin_arg = MAX_SPEED;
 		err++;
 	}
 
@@ -536,59 +538,64 @@ static int daqp_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 	 * conversions times the convert time
 	 */
 
-	if(cmd->scan_begin_src==TRIG_TIMER && cmd->convert_src==TRIG_TIMER
-	   && cmd->scan_begin_arg != cmd->convert_arg * cmd->scan_end_arg){
+	if (cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER
+		&& cmd->scan_begin_arg !=
+		cmd->convert_arg * cmd->scan_end_arg) {
 		err++;
 	}
 
-	if(cmd->convert_src==TRIG_TIMER && cmd->convert_arg<MAX_SPEED){
-		cmd->convert_arg=MAX_SPEED;
+	if (cmd->convert_src == TRIG_TIMER && cmd->convert_arg < MAX_SPEED) {
+		cmd->convert_arg = MAX_SPEED;
 		err++;
 	}
 
-	if(cmd->scan_end_arg!=cmd->chanlist_len){
-		cmd->scan_end_arg=cmd->chanlist_len;
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
+		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src==TRIG_COUNT){
-		if(cmd->stop_arg>0x00ffffff){
-			cmd->stop_arg=0x00ffffff;
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (cmd->stop_arg > 0x00ffffff) {
+			cmd->stop_arg = 0x00ffffff;
 			err++;
 		}
-	}else{
+	} else {
 		/* TRIG_NONE */
-		if(cmd->stop_arg!=0){
-			cmd->stop_arg=0;
+		if (cmd->stop_arg != 0) {
+			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
-	if(err)return 3;
+	if (err)
+		return 3;
 
 	/* step 4: fix up any arguments */
 
-	if(cmd->scan_begin_src==TRIG_TIMER){
-		tmp=cmd->scan_begin_arg;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		tmp = cmd->scan_begin_arg;
 		daqp_ns_to_timer(&cmd->scan_begin_arg,
-				 cmd->flags&TRIG_ROUND_MASK);
-		if(tmp!=cmd->scan_begin_arg)err++;
+			cmd->flags & TRIG_ROUND_MASK);
+		if (tmp != cmd->scan_begin_arg)
+			err++;
 	}
 
-	if(cmd->convert_src==TRIG_TIMER){
-		tmp=cmd->convert_arg;
+	if (cmd->convert_src == TRIG_TIMER) {
+		tmp = cmd->convert_arg;
 		daqp_ns_to_timer(&cmd->convert_arg,
-				 cmd->flags&TRIG_ROUND_MASK);
-		if(tmp!=cmd->convert_arg)err++;
+			cmd->flags & TRIG_ROUND_MASK);
+		if (tmp != cmd->convert_arg)
+			err++;
 	}
 
-	if(err)return 4;
+	if (err)
+		return 4;
 
 	return 0;
 }
 
-static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+static int daqp_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
-	local_info_t *local = (local_info_t *)s->private;
+	local_info_t *local = (local_info_t *) s->private;
 	comedi_cmd *cmd = &s->async->cmd;
 	int counter = 100;
 	int scanlist_start_on_every_entry;
@@ -604,10 +611,10 @@ static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
 
-	outb(0, dev->iobase+DAQP_AUX);
+	outb(0, dev->iobase + DAQP_AUX);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ, dev->iobase+DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_COMMAND);
 
 	/* Program pacer clock
 	 *
@@ -624,23 +631,23 @@ static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		int counter = daqp_ns_to_timer(&cmd->convert_arg,
-					       cmd->flags&TRIG_ROUND_MASK);
-		outb(counter&0xff, dev->iobase + DAQP_PACER_LOW);
-		outb((counter>>8)&0xff, dev->iobase + DAQP_PACER_MID);
-		outb((counter>>16)&0xff, dev->iobase + DAQP_PACER_HIGH);
+			cmd->flags & TRIG_ROUND_MASK);
+		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
+		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
+		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
 		scanlist_start_on_every_entry = 1;
 	} else {
 		int counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
-					       cmd->flags&TRIG_ROUND_MASK);
-		outb(counter&0xff, dev->iobase + DAQP_PACER_LOW);
-		outb((counter>>8)&0xff, dev->iobase + DAQP_PACER_MID);
-		outb((counter>>16)&0xff, dev->iobase + DAQP_PACER_HIGH);
+			cmd->flags & TRIG_ROUND_MASK);
+		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
+		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
+		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
 		scanlist_start_on_every_entry = 0;
 	}
 
 	/* Program scan list */
 
-	for (i=0; i < cmd->chanlist_len; i++) {
+	for (i = 0; i < cmd->chanlist_len; i++) {
 
 		int chanspec = cmd->chanlist[i];
 
@@ -730,10 +737,11 @@ static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	if (cmd->stop_src == TRIG_COUNT) {
 		local->count = cmd->stop_arg * cmd->scan_end_arg;
 		threshold = 2 * local->count;
-		while (threshold > DAQP_FIFO_SIZE*3/4) threshold /= 2;
+		while (threshold > DAQP_FIFO_SIZE * 3 / 4)
+			threshold /= 2;
 	} else {
 		local->count = -1;
-		threshold = DAQP_FIFO_SIZE/2;
+		threshold = DAQP_FIFO_SIZE / 2;
 	}
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
@@ -766,7 +774,7 @@ static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	 */
 
 	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS));
+		&& (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
 	if (!counter) {
 		printk("daqp: couldn't clear interrupts in status register\n");
 		return -1;
@@ -778,7 +786,7 @@ static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 
 	/* Start conversion */
 	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-	     dev->iobase + DAQP_COMMAND);
+		dev->iobase + DAQP_COMMAND);
 
 	return 0;
 }
@@ -786,9 +794,9 @@ static int daqp_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 /* Single-shot analog output routine */
 
 static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
-			      comedi_insn *insn, lsampl_t *data)
+	comedi_insn * insn, lsampl_t * data)
 {
-	local_info_t *local = (local_info_t *)s->private;
+	local_info_t *local = (local_info_t *) s->private;
 	int d;
 	unsigned int chan;
 
@@ -799,13 +807,13 @@ static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	chan = CR_CHAN(insn->chanspec);
 	d = data[0];
 	d &= 0x0fff;
-	d ^= 0x0800;	/* Flip the sign */
-	d |= chan<<12;
+	d ^= 0x0800;		/* Flip the sign */
+	d |= chan << 12;
 
 	/* Make sure D/A update mode is direct update */
-	outb(0, dev->iobase+DAQP_AUX);
+	outb(0, dev->iobase + DAQP_AUX);
 
-	outw(d, dev->iobase+DAQP_DA);
+	outw(d, dev->iobase + DAQP_DA);
 
 	return 1;
 }
@@ -813,15 +821,15 @@ static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 /* Digital input routine */
 
 static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
-			     comedi_insn *insn, lsampl_t *data)
+	comedi_insn * insn, lsampl_t * data)
 {
-	local_info_t *local = (local_info_t *)s->private;
+	local_info_t *local = (local_info_t *) s->private;
 
 	if (local->stop) {
 		return -EIO;
 	}
 
-	data[0] = inb(dev->iobase+DAQP_DIGITAL_IO);
+	data[0] = inb(dev->iobase + DAQP_DIGITAL_IO);
 
 	return 1;
 }
@@ -829,15 +837,15 @@ static int daqp_di_insn_read(comedi_device * dev, comedi_subdevice * s,
 /* Digital output routine */
 
 static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
-			      comedi_insn *insn, lsampl_t *data)
+	comedi_insn * insn, lsampl_t * data)
 {
-	local_info_t *local = (local_info_t *)s->private;
+	local_info_t *local = (local_info_t *) s->private;
 
 	if (local->stop) {
 		return -EIO;
 	}
 
-	outw(data[0] & 0xf, dev->iobase+DAQP_DIGITAL_IO);
+	outw(data[0] & 0xf, dev->iobase + DAQP_DIGITAL_IO);
 
 	return 1;
 }
@@ -848,7 +856,7 @@ static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
  * when it is inserted.
  */
 
-static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
+static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	local_info_t *local = dev_table[it->options[0]];
@@ -856,10 +864,10 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 	int i;
 	comedi_subdevice *s;
 
-	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || ! local) {
-	  printk("comedi%d: No such daqp device %d\n",
-		 dev->minor, it->options[0]);
-	  return -EIO;
+	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
+		printk("comedi%d: No such daqp device %d\n",
+			dev->minor, it->options[0]);
+		return -EIO;
 	}
 
 	/* Typically brittle code that I don't completely understand,
@@ -877,20 +885,22 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 	if (pcmcia_get_first_tuple(local->link, &tuple) == 0) {
 		u_char buf[128];
 
-		buf[0] = buf[sizeof(buf)-1] = 0;
+		buf[0] = buf[sizeof(buf) - 1] = 0;
 		tuple.TupleData = buf;
 		tuple.TupleDataMax = sizeof(buf);
 		tuple.TupleOffset = 2;
 		if (pcmcia_get_tuple_data(local->link, &tuple) == 0) {
 
-			for (i=0; i<tuple.TupleDataLen - 4; i++)
-				if (buf[i] == 0) break;
-			for (i++; i<tuple.TupleDataLen - 4; i++)
-				if (buf[i] == 0) break;
+			for (i = 0; i < tuple.TupleDataLen - 4; i++)
+				if (buf[i] == 0)
+					break;
+			for (i++; i < tuple.TupleDataLen - 4; i++)
+				if (buf[i] == 0)
+					break;
 			i++;
 			if ((i < tuple.TupleDataLen - 4)
-			    && (strncmp(buf+i, "DAQP", 4) == 0)) {
-				strncpy(local->board_name, buf+i,
+				&& (strncmp(buf + i, "DAQP", 4) == 0)) {
+				strncpy(local->board_name, buf + i,
 					sizeof(local->board_name));
 			}
 		}
@@ -898,64 +908,63 @@ static int daqp_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->iobase = local->link->io.BasePort1;
 
-	if((ret=alloc_subdevices(dev,4))<0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
 
 	printk("comedi%d: attaching daqp%d (io 0x%04lx)\n",
-	       dev->minor, it->options[0], dev->iobase);
+		dev->minor, it->options[0], dev->iobase);
 
-	s=dev->subdevices+0;
+	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	s->private = local;
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan=8;
-	s->len_chanlist=2048;
-	s->maxdata=0xffff;
-	s->range_table=&range_daqp_ai;
-	s->insn_read=daqp_ai_insn_read;
-	s->do_cmdtest=daqp_ai_cmdtest;
-	s->do_cmd=daqp_ai_cmd;
-	s->cancel=daqp_ai_cancel;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->n_chan = 8;
+	s->len_chanlist = 2048;
+	s->maxdata = 0xffff;
+	s->range_table = &range_daqp_ai;
+	s->insn_read = daqp_ai_insn_read;
+	s->do_cmdtest = daqp_ai_cmdtest;
+	s->do_cmd = daqp_ai_cmd;
+	s->cancel = daqp_ai_cancel;
 
-	s=dev->subdevices+1;
+	s = dev->subdevices + 1;
 	dev->write_subdev = s;
 	s->private = local;
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITEABLE;
-	s->n_chan=2;
-	s->len_chanlist=1;
-	s->maxdata=0x0fff;
-	s->range_table=&range_daqp_ao;
-	s->insn_write=daqp_ao_insn_write;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITEABLE;
+	s->n_chan = 2;
+	s->len_chanlist = 1;
+	s->maxdata = 0x0fff;
+	s->range_table = &range_daqp_ao;
+	s->insn_write = daqp_ao_insn_write;
 
-	s=dev->subdevices+2;
+	s = dev->subdevices + 2;
 	s->private = local;
-	s->type=COMEDI_SUBD_DI;
-	s->subdev_flags=SDF_READABLE;
-	s->n_chan=1;
-	s->len_chanlist=1;
-	s->insn_read=daqp_di_insn_read;
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = 1;
+	s->len_chanlist = 1;
+	s->insn_read = daqp_di_insn_read;
 
-	s=dev->subdevices+3;
+	s = dev->subdevices + 3;
 	s->private = local;
-	s->type=COMEDI_SUBD_DO;
-	s->subdev_flags=SDF_WRITEABLE;
-	s->n_chan=1;
-	s->len_chanlist=1;
-	s->insn_write=daqp_do_insn_write;
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITEABLE;
+	s->n_chan = 1;
+	s->len_chanlist = 1;
+	s->insn_write = daqp_do_insn_write;
 
 	return 1;
 }
-
 
 /* daqp_detach (called from comedi_comdig) does nothing. If the PCMCIA
  * card is removed, daqp_cs_detach() is called by the pcmcia subsystem.
  */
 
-static int daqp_detach(comedi_device *dev)
+static int daqp_detach(comedi_device * dev)
 {
-	printk("comedi%d: detaching daqp\n",dev->minor);
+	printk("comedi%d: detaching daqp\n", dev->minor);
 
 	return 0;
 }
@@ -1017,7 +1026,7 @@ static int daqp_cs_resume(struct pcmcia_device *p_dev);
    needed to manage one actual PCMCIA card.
 */
 
-static  int daqp_cs_attach(struct pcmcia_device *);
+static int daqp_cs_attach(struct pcmcia_device *);
 static void daqp_cs_detach(struct pcmcia_device *);
 
 /*
@@ -1027,7 +1036,6 @@ static void daqp_cs_detach(struct pcmcia_device *);
 */
 
 static const dev_info_t dev_info = "quatech_daqp_cs";
-
 
 /*======================================================================
 
@@ -1041,49 +1049,51 @@ static const dev_info_t dev_info = "quatech_daqp_cs";
 
 ======================================================================*/
 
-static  int daqp_cs_attach(struct pcmcia_device *link)
+static int daqp_cs_attach(struct pcmcia_device *link)
 {
-    local_info_t *local;
-    int i;
+	local_info_t *local;
+	int i;
 
-    DEBUG(0, "daqp_cs_attach()\n");
+	DEBUG(0, "daqp_cs_attach()\n");
 
-    for (i = 0; i < MAX_DEV; i++)
-      if (dev_table[i] == NULL) break;
-    if (i == MAX_DEV) {
-      printk(KERN_NOTICE "daqp_cs: no devices available\n");
-      return -ENODEV;
-    }
+	for (i = 0; i < MAX_DEV; i++)
+		if (dev_table[i] == NULL)
+			break;
+	if (i == MAX_DEV) {
+		printk(KERN_NOTICE "daqp_cs: no devices available\n");
+		return -ENODEV;
+	}
 
-    /* Allocate space for private device-specific data */
-    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
-    if (!local) return -ENOMEM;
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
 
-    local->table_index = i;
-    dev_table[i] = local;
-    local->link = link;
-    link->priv = local;
+	local->table_index = i;
+	dev_table[i] = local;
+	local->link = link;
+	link->priv = local;
 
 	/* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = daqp_interrupt;
-    link->irq.Instance = local;
+	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Handler = daqp_interrupt;
+	link->irq.Instance = local;
 
-    /*
-      General socket configuration defaults can go here.  In this
-      client, we assume very little, and rely on the CIS for almost
-      everything.  In most clients, many details (i.e., number, sizes,
-      and attributes of IO windows) are fixed by the nature of the
-      device, and can be hard-wired here.
-    */
-    link->conf.Attributes = 0;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+	/*
+	   General socket configuration defaults can go here.  In this
+	   client, we assume very little, and rely on the CIS for almost
+	   everything.  In most clients, many details (i.e., number, sizes,
+	   and attributes of IO windows) are fixed by the nature of the
+	   device, and can be hard-wired here.
+	 */
+	link->conf.Attributes = 0;
+	link->conf.IntType = INT_MEMORY_AND_IO;
 
-    daqp_cs_config(link);
+	daqp_cs_config(link);
 
-    return 0;
-} /* daqp_cs_attach */
+	return 0;
+}				/* daqp_cs_attach */
 
 /*======================================================================
 
@@ -1096,21 +1106,21 @@ static  int daqp_cs_attach(struct pcmcia_device *link)
 
 static void daqp_cs_detach(struct pcmcia_device *link)
 {
-    local_info_t *dev = link->priv;
+	local_info_t *dev = link->priv;
 
-    DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
+	DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
 
-    if (link->dev_node) {
+	if (link->dev_node) {
 		dev->stop = 1;
 		daqp_cs_release(link);
-    }
+	}
 
-    /* Unlink device structure, and free it */
-    dev_table[dev->table_index] = NULL;
-	if(dev)
+	/* Unlink device structure, and free it */
+	dev_table[dev->table_index] = NULL;
+	if (dev)
 		kfree(dev);
 
-} /* daqp_cs_detach */
+}				/* daqp_cs_detach */
 
 /*======================================================================
 
@@ -1122,167 +1132,165 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 static void daqp_cs_config(struct pcmcia_device *link)
 {
-    local_info_t *dev = link->priv;
-    tuple_t tuple;
-    cisparse_t parse;
-    int last_ret;
-    u_char buf[64];
+	local_info_t *dev = link->priv;
+	tuple_t tuple;
+	cisparse_t parse;
+	int last_ret;
+	u_char buf[64];
 
-    DEBUG(0, "daqp_cs_config(0x%p)\n", link);
+	DEBUG(0, "daqp_cs_config(0x%p)\n", link);
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
-	if((last_ret = pcmcia_get_first_tuple(link, &tuple)))
-	{
+	/*
+	   This reads the card's CONFIG tuple to find its configuration
+	   registers.
+	 */
+	tuple.DesiredTuple = CISTPL_CONFIG;
+	tuple.Attributes = 0;
+	tuple.TupleData = buf;
+	tuple.TupleDataMax = sizeof(buf);
+	tuple.TupleOffset = 0;
+	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if((last_ret = pcmcia_get_tuple_data(link, &tuple)))
-	{
+	if ((last_ret = pcmcia_get_tuple_data(link, &tuple))) {
 		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)))
-	{
+	if ((last_ret = pcmcia_parse_tuple(link, &tuple, &parse))) {
 		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
+	link->conf.ConfigBase = parse.config.base;
+	link->conf.Present = parse.config.rmask[0];
 
-    /*
-      In this loop, we scan the CIS for configuration table entries,
-      each of which describes a valid card configuration, including
-      voltage, IO window, memory window, and interrupt settings.
+	/*
+	   In this loop, we scan the CIS for configuration table entries,
+	   each of which describes a valid card configuration, including
+	   voltage, IO window, memory window, and interrupt settings.
 
-      We make no assumptions about the card to be configured: we use
-      just the information available in the CIS.  In an ideal world,
-      this would work for any PCMCIA card, but it requires a complete
-      and accurate CIS.  In practice, a driver usually "knows" most of
-      these things without consulting the CIS, and most client drivers
-      will only use the CIS to fill in implementation-defined details.
-    */
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if((last_ret = pcmcia_get_first_tuple(link, &tuple)))
-	{
+	   We make no assumptions about the card to be configured: we use
+	   just the information available in the CIS.  In an ideal world,
+	   this would work for any PCMCIA card, but it requires a complete
+	   and accurate CIS.  In practice, a driver usually "knows" most of
+	   these things without consulting the CIS, and most client drivers
+	   will only use the CIS to fill in implementation-defined details.
+	 */
+	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-    while (1) {
-	cistpl_cftable_entry_t dflt = { 0 };
-	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	if(pcmcia_get_tuple_data(link, &tuple)) goto next_entry;
-	if(pcmcia_parse_tuple(link, &tuple, &parse)) goto next_entry;
+	while (1) {
+		cistpl_cftable_entry_t dflt = { 0 };
+		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
+		if (pcmcia_get_tuple_data(link, &tuple))
+			goto next_entry;
+		if (pcmcia_parse_tuple(link, &tuple, &parse))
+			goto next_entry;
 
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-	if (cfg->index == 0) goto next_entry;
-	link->conf.ConfigIndex = cfg->index;
+		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+			dflt = *cfg;
+		if (cfg->index == 0)
+			goto next_entry;
+		link->conf.ConfigIndex = cfg->index;
 
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-	    link->conf.Attributes |= CONF_ENABLE_IRQ;
+		/* Do we need to allocate an interrupt? */
+		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
+			link->conf.Attributes |= CONF_ENABLE_IRQ;
 
-	/* IO window settings */
-	link->io.NumPorts1 = link->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-	    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	    if (!(io->flags & CISTPL_IO_8BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	    if (!(io->flags & CISTPL_IO_16BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	    link->io.BasePort1 = io->win[0].base;
-	    link->io.NumPorts1 = io->win[0].len;
-	    if (io->nwin > 1) {
-		link->io.Attributes2 = link->io.Attributes1;
-		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = io->win[1].len;
-	    }
+		/* IO window settings */
+		link->io.NumPorts1 = link->io.NumPorts2 = 0;
+		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
+			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
+			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+			if (!(io->flags & CISTPL_IO_8BIT))
+				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+			if (!(io->flags & CISTPL_IO_16BIT))
+				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+			link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+			link->io.BasePort1 = io->win[0].base;
+			link->io.NumPorts1 = io->win[0].len;
+			if (io->nwin > 1) {
+				link->io.Attributes2 = link->io.Attributes1;
+				link->io.BasePort2 = io->win[1].base;
+				link->io.NumPorts2 = io->win[1].len;
+			}
+		}
+
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(link, &link->io))
+			goto next_entry;
+
+		/* If we got this far, we're cool! */
+		break;
+
+	      next_entry:
+		if ((last_ret = pcmcia_get_next_tuple(link, &tuple))) {
+			cs_error(link, GetNextTuple, last_ret);
+			goto cs_failed;
+		}
 	}
 
-	/* This reserves IO space but doesn't actually enable it */
-	if(pcmcia_request_io(link, &link->io)) goto next_entry;
-
-	/* If we got this far, we're cool! */
-	break;
-
-next_entry:
-	if((last_ret = pcmcia_get_next_tuple(link, &tuple)))
-	{
-		cs_error(link, GetNextTuple, last_ret);
-		goto cs_failed;
-	}
-    }
-
-    /*
-       Allocate an interrupt line.  Note that this does not assign a
-       handler to the interrupt, unless the 'Handler' member of the
-       irq structure is initialized.
-    */
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if((last_ret = pcmcia_request_irq(link, &link->irq)))
-		{
+	/*
+	   Allocate an interrupt line.  Note that this does not assign a
+	   handler to the interrupt, unless the 'Handler' member of the
+	   irq structure is initialized.
+	 */
+	if (link->conf.Attributes & CONF_ENABLE_IRQ)
+		if ((last_ret = pcmcia_request_irq(link, &link->irq))) {
 			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
 
-    /*
-       This actually configures the PCMCIA socket -- setting up
-       the I/O windows and the interrupt mapping, and putting the
-       card and host interface into "Memory and IO" mode.
-    */
-	if((last_ret = pcmcia_request_configuration(link, &link->conf)))
-	{
+	/*
+	   This actually configures the PCMCIA socket -- setting up
+	   the I/O windows and the interrupt mapping, and putting the
+	   card and host interface into "Memory and IO" mode.
+	 */
+	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
 		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
 
-    /*
-      At this point, the dev_node_t structure(s) need to be
-      initialized and arranged in a linked list at link->dev.
-    */
-    /* Comedi's PCMCIA script uses this device name (extracted
-     * from /var/lib/pcmcia/stab) to pass to comedi_config
-     */
-    /* sprintf(dev->node.dev_name, "daqp%d", dev->table_index); */
-    sprintf(dev->node.dev_name, "quatech_daqp_cs");
-    dev->node.major = dev->node.minor = 0;
-    link->dev_node = &dev->node;
+	/*
+	   At this point, the dev_node_t structure(s) need to be
+	   initialized and arranged in a linked list at link->dev.
+	 */
+	/* Comedi's PCMCIA script uses this device name (extracted
+	 * from /var/lib/pcmcia/stab) to pass to comedi_config
+	 */
+	/* sprintf(dev->node.dev_name, "daqp%d", dev->table_index); */
+	sprintf(dev->node.dev_name, "quatech_daqp_cs");
+	dev->node.major = dev->node.minor = 0;
+	link->dev_node = &dev->node;
 
-    /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x",
-	   dev->node.dev_name, link->conf.ConfigIndex);
-    if (link->conf.Attributes & CONF_ENABLE_IRQ)
+	/* Finally, report what we've done */
+	printk(KERN_INFO "%s: index 0x%02x",
+		dev->node.dev_name, link->conf.ConfigIndex);
+	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq.AssignedIRQ);
-    if (link->io.NumPorts1)
+	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-	       link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
+			link->io.BasePort1 + link->io.NumPorts1 - 1);
+	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-	       link->io.BasePort2+link->io.NumPorts2-1);
-    printk("\n");
+			link->io.BasePort2 + link->io.NumPorts2 - 1);
+	printk("\n");
 
-    return;
+	return;
 
-cs_failed:
-    daqp_cs_release(link);
+      cs_failed:
+	daqp_cs_release(link);
 
-} /* daqp_cs_config */
+}				/* daqp_cs_config */
 
 static void daqp_cs_release(struct pcmcia_device *link)
 {
-    DEBUG(0, "daqp_cs_release(0x%p)\n", link);
+	DEBUG(0, "daqp_cs_release(0x%p)\n", link);
 
 	pcmcia_disable_device(link);
-} /* daqp_cs_release */
+}				/* daqp_cs_release */
 
 /*======================================================================
 
@@ -1298,35 +1306,34 @@ static void daqp_cs_release(struct pcmcia_device *link)
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
-    local_info_t *local = link->priv;
+	local_info_t *local = link->priv;
 
-    /* Mark the device as stopped, to block IO until later */
-    local->stop = 1;
-    return 0;
+	/* Mark the device as stopped, to block IO until later */
+	local->stop = 1;
+	return 0;
 }
 
 static int daqp_cs_resume(struct pcmcia_device *link)
 {
-    local_info_t *local = link->priv;
+	local_info_t *local = link->priv;
 
-    local->stop = 0;
+	local->stop = 0;
 
-    return 0;
+	return 0;
 }
 
 /*====================================================================*/
 
 #ifdef MODULE
 
-static struct pcmcia_device_id daqp_cs_id_table[] =
-{
+static struct pcmcia_device_id daqp_cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0137, 0x0027),
 	PCMCIA_DEVICE_NULL
 };
+
 MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
 
-struct pcmcia_driver daqp_cs_driver =
-{
+struct pcmcia_driver daqp_cs_driver = {
 	.probe = daqp_cs_attach,
 	.remove = daqp_cs_detach,
 	.suspend = daqp_cs_suspend,
@@ -1334,22 +1341,22 @@ struct pcmcia_driver daqp_cs_driver =
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = dev_info,
-	},
+			.name = dev_info,
+		},
 };
 
 int __init init_module(void)
 {
-    DEBUG(0, "%s\n", version);
+	DEBUG(0, "%s\n", version);
 	pcmcia_register_driver(&daqp_cs_driver);
-    comedi_driver_register(&driver_daqp);
-    return 0;
+	comedi_driver_register(&driver_daqp);
+	return 0;
 }
 
 void __exit cleanup_module(void)
 {
-    DEBUG(0, "daqp_cs: unloading\n");
-    comedi_driver_unregister(&driver_daqp);
+	DEBUG(0, "daqp_cs: unloading\n");
+	comedi_driver_unregister(&driver_daqp);
 	pcmcia_unregister_driver(&daqp_cs_driver);
 }
 

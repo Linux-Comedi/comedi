@@ -30,7 +30,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,10) \
 			  && LINUX_VERSION_CODE < KERNEL_VERSION(2,5,3)
 #include <asm/pgalloc.h>
-#include <asm/tlb.h>	/* look for tlb_vma() macro for "statm" patch */
+#include <asm/tlb.h>		/* look for tlb_vma() macro for "statm" patch */
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,3) && !defined(tlb_vma)
@@ -40,8 +40,9 @@
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-static inline int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
-	unsigned long pfn, unsigned long size, pgprot_t prot)
+static inline int remap_pfn_range(struct vm_area_struct *vma,
+	unsigned long from, unsigned long pfn, unsigned long size,
+	pgprot_t prot)
 {
 	return REMAP_PAGE_RANGE(vma, from, pfn << PAGE_SHIFT, size, prot);
 };
@@ -49,7 +50,3 @@ static inline int remap_pfn_range(struct vm_area_struct *vma, unsigned long from
 #endif
 
 #endif /* _COMPAT_MM_H */
-
-
-
-

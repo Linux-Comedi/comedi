@@ -18,4 +18,3 @@
 #include_next <asm/semaphore.h>
 
 #endif // __COMPAT_ASM_SEMAPHORE_H_
-

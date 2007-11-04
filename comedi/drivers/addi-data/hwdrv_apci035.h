@@ -26,32 +26,29 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI035_ADDRESS_RANGE                   255
 
 INT i_TW_Number;
-struct 
-{			 	
- INT i_Gain ;
- INT i_Polarity;
- INT i_OffsetRange;
- INT i_Coupling;
- INT i_SingleDiff;
- INT i_AutoCalibration;
- UINT ui_ReloadValue;
- UINT ui_TimeUnitReloadVal;
- INT i_Interrupt;
- INT i_ModuleSelection;
-}Config_Parameters_Main;
-
-
+struct {
+	INT i_Gain;
+	INT i_Polarity;
+	INT i_OffsetRange;
+	INT i_Coupling;
+	INT i_SingleDiff;
+	INT i_AutoCalibration;
+	UINT ui_ReloadValue;
+	UINT ui_TimeUnitReloadVal;
+	INT i_Interrupt;
+	INT i_ModuleSelection;
+} Config_Parameters_Main;
 
 //ANALOG INPUT RANGE 
-comedi_lrange range_apci035_ai={ 8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2),
-		BIP_RANGE(1),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1)
+comedi_lrange range_apci035_ai = { 8, {
+			BIP_RANGE(10),
+			BIP_RANGE(5),
+			BIP_RANGE(2),
+			BIP_RANGE(1),
+			UNI_RANGE(10),
+			UNI_RANGE(5),
+			UNI_RANGE(2),
+			UNI_RANGE(1)
 	}
 };
 
@@ -98,7 +95,6 @@ comedi_lrange range_apci035_ai={ 8, {
 #define ADDIDATA_GREATER_THAN_TEST               0
 #define ADDIDATA_LESS_THAN_TEST                  1
 
-
 #define APCI035_MAXVOLT                         2.5
 
 #define ADDIDATA_UNIPOLAR                        1
@@ -108,30 +104,26 @@ comedi_lrange range_apci035_ai={ 8, {
 #define ADDIDATA_ENABLE                            1
 #define ADDIDATA_DISABLE                           0
 
-
-
-
-
-
 // Hardware Layer  functions for Apci035
-
-
 
 // TIMER  
 // timer value is passed as u seconds
-INT i_APCI035_ConfigTimerWatchdog (comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI035_StartStopWriteTimerWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI035_ReadTimerWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
+INT i_APCI035_ConfigTimerWatchdog(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI035_StartStopWriteTimerWatchdog(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+INT i_APCI035_ReadTimerWatchdog(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //Temperature Related Defines (Analog Input Subdevice)
 
-INT i_APCI035_ConfigAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI035_ReadAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
+INT i_APCI035_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI035_ReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //Interrupt
-static void v_APCI035_Interrupt(int irq, void *d) ;
+static void v_APCI035_Interrupt(int irq, void *d);
 
 //Reset functions
-INT i_APCI035_Reset(comedi_device *dev);	
+INT i_APCI035_Reset(comedi_device * dev);

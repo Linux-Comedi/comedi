@@ -51,10 +51,9 @@ Configuration Options:
   [1] - Do Simultaneous Xfer (see description)
 */
 
-
 #include <linux/comedidev.h>
 
-#include <linux/pci.h> /* for PCI devices */
+#include <linux/pci.h>		/* for PCI devices */
 
 #define MIN(a,b) ( ((a) < (b)) ? (a) : (b) )
 #define SDEV_NO ((int)(s - dev->subdevices))
@@ -69,26 +68,23 @@ Configuration Options:
 /*
  * Bords
  */
-typedef struct pcmda12_board_struct
-{
+typedef struct pcmda12_board_struct {
 	const char *name;
 } pcmda12_board;
 
 /* note these have no effect and are merely here for reference..
    these are configured by jumpering the board! */
-static const comedi_lrange pcmda12_ranges =
-{
-  3,
-  {
-    UNI_RANGE( 5 ), UNI_RANGE( 10 ), BIP_RANGE( 5 )
-  }
+static const comedi_lrange pcmda12_ranges = {
+	3,
+	{
+			UNI_RANGE(5), UNI_RANGE(10), BIP_RANGE(5)
+		}
 };
 
-static const pcmda12_board pcmda12_boards[] =
-{
+static const pcmda12_board pcmda12_boards[] = {
 	{
-		name:                   "pcmda12",
-	},
+	      name:	"pcmda12",
+		},
 };
 
 /*
@@ -96,10 +92,9 @@ static const pcmda12_board pcmda12_boards[] =
  */
 #define thisboard ((const pcmda12_board *)dev->board_ptr)
 
-typedef struct
-{
-  lsampl_t ao_readback[CHANS];
-  int simultaneous_xfer_mode;
+typedef struct {
+	lsampl_t ao_readback[CHANS];
+	int simultaneous_xfer_mode;
 } pcmda12_private;
 
 #define devpriv ((pcmda12_private *)(dev->private))
@@ -110,17 +105,16 @@ typedef struct
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it);
-static int pcmda12_detach(comedi_device *dev);
+static int pcmda12_attach(comedi_device * dev, comedi_devconfig * it);
+static int pcmda12_detach(comedi_device * dev);
 
-static void zero_chans(comedi_device *dev);
+static void zero_chans(comedi_device * dev);
 
-static comedi_driver driver =
-{
-	driver_name:	"pcmda12",
-	module:		THIS_MODULE,
-	attach:		pcmda12_attach,
-	detach:		pcmda12_detach,
+static comedi_driver driver = {
+      driver_name:"pcmda12",
+      module:THIS_MODULE,
+      attach:pcmda12_attach,
+      detach:pcmda12_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -139,15 +133,15 @@ static comedi_driver driver =
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	&pcmda12_boards[0].name,
-	offset:		sizeof(pcmda12_board),
-	num_names:	sizeof(pcmda12_boards) / sizeof(pcmda12_board),
+      board_name:&pcmda12_boards[0].name,
+      offset:sizeof(pcmda12_board),
+      num_names:sizeof(pcmda12_boards) / sizeof(pcmda12_board),
 };
 
-static int ao_winsn(comedi_device *dev,comedi_subdevice *s,
-                    comedi_insn *insn,lsampl_t *data);
-static int ao_rinsn(comedi_device *dev,comedi_subdevice *s,
-                    comedi_insn *insn,lsampl_t *data);
+static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -155,22 +149,20 @@ static int ao_rinsn(comedi_device *dev,comedi_subdevice *s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
+static int pcmda12_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-    unsigned long iobase;
+	unsigned long iobase;
 
-    iobase = it->options[0];
-	printk("comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name, iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
+	iobase = it->options[0];
+	printk("comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
+		iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
-    if ( !request_region(iobase,
-                         IOSIZE,
-                         driver.driver_name) ) {
-      printk("I/O port conflict\n");
-      return -EIO;
-    }
-    dev->iobase = iobase;
-
+	if (!request_region(iobase, IOSIZE, driver.driver_name)) {
+		printk("I/O port conflict\n");
+		return -EIO;
+	}
+	dev->iobase = iobase;
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -183,41 +175,40 @@ static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(pcmda12_private)) < 0) {
-      printk("cannot allocate private data structure\n");
-      return -ENOMEM;
-    }
+		printk("cannot allocate private data structure\n");
+		return -ENOMEM;
+	}
 
-    devpriv->simultaneous_xfer_mode = it->options[1];
+	devpriv->simultaneous_xfer_mode = it->options[1];
 
-      /*
-       * Allocate the subdevice structures.  alloc_subdevice() is a
-       * convenient macro defined in comedidev.h.
-       *
-       * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
-       * 96-channel version of the board.
-       */
-	if ( alloc_subdevices(dev, 1) < 0 ) {
-        printk("cannot allocate subdevice data structures\n");
-        return -ENOMEM;
-    }
+	/*
+	 * Allocate the subdevice structures.  alloc_subdevice() is a
+	 * convenient macro defined in comedidev.h.
+	 *
+	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
+	 * 96-channel version of the board.
+	 */
+	if (alloc_subdevices(dev, 1) < 0) {
+		printk("cannot allocate subdevice data structures\n");
+		return -ENOMEM;
+	}
 
-    s = dev->subdevices;
-    s->private = NULL;
-    s->maxdata = (0x1<<BITS)-1;
-    s->range_table = &pcmda12_ranges;
-    s->type = COMEDI_SUBD_AO;
-    s->subdev_flags = SDF_READABLE|SDF_WRITABLE;
-    s->n_chan = CHANS;
-    s->insn_write = &ao_winsn;
-    s->insn_read = &ao_rinsn;
+	s = dev->subdevices;
+	s->private = NULL;
+	s->maxdata = (0x1 << BITS) - 1;
+	s->range_table = &pcmda12_ranges;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = CHANS;
+	s->insn_write = &ao_winsn;
+	s->insn_read = &ao_rinsn;
 
-	zero_chans(dev); /* clear out all the registers, basically */
+	zero_chans(dev);	/* clear out all the registers, basically */
 
 	printk("attached\n");
 
 	return 1;
 }
-
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
@@ -227,56 +218,55 @@ static int pcmda12_attach(comedi_device *dev, comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pcmda12_detach(comedi_device *dev)
+static int pcmda12_detach(comedi_device * dev)
 {
-    printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
+	printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
 	if (dev->iobase)
-      release_region(dev->iobase, IOSIZE);
+		release_region(dev->iobase, IOSIZE);
 	return 0;
 }
 
-static void zero_chans(comedi_device *dev) /* sets up an
-                                              ASIC chip to defaults */
-{
-  int i;
-  for (i = 0; i < CHANS; ++i) {
+static void zero_chans(comedi_device * dev)
+{				/* sets up an
+				   ASIC chip to defaults */
+	int i;
+	for (i = 0; i < CHANS; ++i) {
 /*      /\* do this as one instruction?? *\/ */
 /*      outw(0, LSB_PORT(chan)); */
-    outb(0, LSB_PORT(i));
-    outb(0, MSB_PORT(i));
-  }
-  inb(LSB_PORT(0)); /* update chans. */
+		outb(0, LSB_PORT(i));
+		outb(0, MSB_PORT(i));
+	}
+	inb(LSB_PORT(0));	/* update chans. */
 }
 
-
-static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
-                    lsampl_t *data)
+static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-   int i;
-   int chan = CR_CHAN(insn->chanspec);
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
-   for (i = 0; i < insn->n ; ++i) {
+	for (i = 0; i < insn->n; ++i) {
 
 /*      /\* do this as one instruction?? *\/ */
 /*      outw(data[i], LSB_PORT(chan)); */
 
-       /* Need to do this as two instructions due to 8-bit bus?? */
-       /*  first, load the low byte */
-       outb(LSB(data[i]), LSB_PORT(chan));
-       /*  next, write the high byte */
-       outb(MSB(data[i]), MSB_PORT(chan));
+		/* Need to do this as two instructions due to 8-bit bus?? */
+		/*  first, load the low byte */
+		outb(LSB(data[i]), LSB_PORT(chan));
+		/*  next, write the high byte */
+		outb(MSB(data[i]), MSB_PORT(chan));
 
-       /* save shadow register */
-       devpriv->ao_readback[chan] = data[i];
+		/* save shadow register */
+		devpriv->ao_readback[chan] = data[i];
 
-       if (!devpriv->simultaneous_xfer_mode)
-         inb(LSB_PORT(chan));
-   }
+		if (!devpriv->simultaneous_xfer_mode)
+			inb(LSB_PORT(chan));
+	}
 
-   /* return the number of samples written */
-   return i;
+	/* return the number of samples written */
+	return i;
 }
 
 /* AO subdevices should have a read insn as well as a write insn.
@@ -291,29 +281,24 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
    DAC outputs, which makes all AO channels update simultaneously.
    This is useful for some control applications, I would imagine.
 */
-static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
-                    lsampl_t *data)
+static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-    int i;
-    int chan = CR_CHAN(insn->chanspec);
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
+	for (i = 0; i < insn->n; i++) {
+		if (devpriv->simultaneous_xfer_mode)
+			inb(LSB_PORT(chan));
+		/* read back shadow register */
+		data[i] = devpriv->ao_readback[chan];
+	}
 
-    for (i = 0; i < insn->n; i++) {
-      if (devpriv->simultaneous_xfer_mode)
-        inb(LSB_PORT(chan));
-      /* read back shadow register */
-      data[i] = devpriv->ao_readback[chan];
-    }
-
-    return i;
+	return i;
 }
-
-
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver);
-
-

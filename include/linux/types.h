@@ -30,4 +30,3 @@ typedef unsigned long resource_size_t;
 #include_next <linux/types.h>
 
 #endif
-

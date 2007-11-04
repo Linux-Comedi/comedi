@@ -21,8 +21,6 @@
 
 */
 
-
-
 #define __NO_VERSION__
 #include <linux/module.h>
 
@@ -40,53 +38,50 @@
 #include <linux/comedi.h>
 #include <linux/comedilib.h>
 
-
 MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
-
-
 
 comedi_t *comedi_open(const char *filename)
 {
 	comedi_device *dev;
 	unsigned int minor;
 
-	if(strncmp(filename,"/dev/comedi",11) != 0)
+	if (strncmp(filename, "/dev/comedi", 11) != 0)
 		return NULL;
 
-	minor = simple_strtoul(filename+11,NULL,0);
+	minor = simple_strtoul(filename + 11, NULL, 0);
 
-	if(minor >= COMEDI_NDEVICES)
+	if (minor >= COMEDI_NDEVICES)
 		return NULL;
 
 	dev = comedi_get_device_by_minor(minor);
 
-	if(!dev->attached)
+	if (!dev->attached)
 		return NULL;
 
-	if(!try_module_get(dev->driver->module))
+	if (!try_module_get(dev->driver->module))
 		return NULL;
 
-	return (comedi_t *)dev;
+	return (comedi_t *) dev;
 }
 
 comedi_t *comedi_open_old(unsigned int minor)
 {
 	comedi_device *dev;
 
-	if(minor>=COMEDI_NDEVICES)
+	if (minor >= COMEDI_NDEVICES)
 		return NULL;
 
 	dev = comedi_get_device_by_minor(minor);
 
-	if(!dev->attached)
+	if (!dev->attached)
 		return NULL;
 
-	return (comedi_t *)dev;
+	return (comedi_t *) dev;
 }
 
-int comedi_close(comedi_t *d)
+int comedi_close(comedi_t * d)
 {
 	comedi_device *dev = (comedi_device *) d;
 
@@ -102,7 +97,7 @@ int comedi_loglevel(int newlevel)
 
 void comedi_perror(const char *message)
 {
-	rt_printk("%s: unknown error\n",message);
+	rt_printk("%s: unknown error\n", message);
 }
 
 char *comedi_strerror(int err)
@@ -110,180 +105,183 @@ char *comedi_strerror(int err)
 	return "unknown error";
 }
 
-int comedi_fileno(comedi_t *d)
+int comedi_fileno(comedi_t * d)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 
 	/* return something random */
 	return dev->minor;
 }
 
-int comedi_command(comedi_t *d,comedi_cmd *cmd)
+int comedi_command(comedi_t * d, comedi_cmd * cmd)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
 	comedi_async *async;
 
-	if(cmd->subdev>=dev->n_subdevices)
+	if (cmd->subdev >= dev->n_subdevices)
 		return -ENODEV;
 
-	s=dev->subdevices+cmd->subdev;
-	if(s->type==COMEDI_SUBD_UNUSED)
+	s = dev->subdevices + cmd->subdev;
+	if (s->type == COMEDI_SUBD_UNUSED)
 		return -EIO;
 
 	async = s->async;
-	if(async == NULL)
+	if (async == NULL)
 		return -ENODEV;
 
-	if(s->busy)
+	if (s->busy)
 		return -EBUSY;
 	s->busy = d;
 
-	if(async->cb_mask & COMEDI_CB_EOS)
+	if (async->cb_mask & COMEDI_CB_EOS)
 		cmd->flags |= TRIG_WAKE_EOS;
 
-	async->cmd=*cmd;
+	async->cmd = *cmd;
 
 	s->runflags |= SRF_RT;
 	comedi_switch_to_rt(dev);
 	comedi_set_subdevice_runflags(s, SRF_RUNNING, SRF_RUNNING);
 
-	comedi_reset_async_buf( async );
+	comedi_reset_async_buf(async);
 
-	return s->do_cmd(dev,s);
+	return s->do_cmd(dev, s);
 }
 
-int comedi_command_test(comedi_t *d,comedi_cmd *cmd)
+int comedi_command_test(comedi_t * d, comedi_cmd * cmd)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
 
-	if(cmd->subdev>=dev->n_subdevices)
+	if (cmd->subdev >= dev->n_subdevices)
 		return -ENODEV;
 
-	s=dev->subdevices+cmd->subdev;
-	if(s->type==COMEDI_SUBD_UNUSED)
+	s = dev->subdevices + cmd->subdev;
+	if (s->type == COMEDI_SUBD_UNUSED)
 		return -EIO;
 
-	if(s->async == NULL)
+	if (s->async == NULL)
 		return -ENODEV;
 
-	return s->do_cmdtest(dev,s,cmd);
+	return s->do_cmdtest(dev, s, cmd);
 }
 
 /*
  *	COMEDI_INSN
  *	perform an instruction
  */
-int comedi_do_insn(comedi_t *d,comedi_insn *insn)
+int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
-	int ret=0;
+	int ret = 0;
 
-	if(insn->insn&INSN_MASK_SPECIAL){
-		switch(insn->insn){
+	if (insn->insn & INSN_MASK_SPECIAL) {
+		switch (insn->insn) {
 		case INSN_GTOD:
-		{
-			struct timeval tv;
+			{
+				struct timeval tv;
 
-			do_gettimeofday(&tv);
-			insn->data[0] = tv.tv_sec;
-			insn->data[1] = tv.tv_usec;
-			ret = 2;
+				do_gettimeofday(&tv);
+				insn->data[0] = tv.tv_sec;
+				insn->data[1] = tv.tv_usec;
+				ret = 2;
 
-			break;
-		}
+				break;
+			}
 		case INSN_WAIT:
-			if(insn->n<1 || insn->data[0]>=100){
+			if (insn->n < 1 || insn->data[0] >= 100) {
 				ret = -EINVAL;
 				break;
 			}
 			comedi_udelay(insn->data[0]);
-			ret=1;
+			ret = 1;
 			break;
 		case INSN_INTTRIG:
-			if(insn->n!=1){
-				ret=-EINVAL;
+			if (insn->n != 1) {
+				ret = -EINVAL;
 				break;
 			}
-			if(insn->subdev>=dev->n_subdevices){
-				rt_printk("%d not usable subdevice\n",insn->subdev);
-				ret=-EINVAL;
+			if (insn->subdev >= dev->n_subdevices) {
+				rt_printk("%d not usable subdevice\n",
+					insn->subdev);
+				ret = -EINVAL;
 				break;
 			}
-			s=dev->subdevices+insn->subdev;
-			if(!s->async){
+			s = dev->subdevices + insn->subdev;
+			if (!s->async) {
 				rt_printk("no async\n");
-				ret=-EINVAL;
+				ret = -EINVAL;
 				break;
 			}
-			if(!s->async->inttrig){
+			if (!s->async->inttrig) {
 				rt_printk("no inttrig\n");
-				ret=-EAGAIN;
+				ret = -EAGAIN;
 				break;
 			}
-			ret = s->async->inttrig(dev,s,insn->data[0]);
-			if(ret>=0)ret = 1;
+			ret = s->async->inttrig(dev, s, insn->data[0]);
+			if (ret >= 0)
+				ret = 1;
 			break;
 		default:
 			ret = -EINVAL;
 		}
-	}else{
+	} else {
 		/* a subdevice instruction */
-		if(insn->subdev>=dev->n_subdevices){
+		if (insn->subdev >= dev->n_subdevices) {
 			ret = -EINVAL;
 			goto error;
 		}
-		s = dev->subdevices+insn->subdev;
+		s = dev->subdevices + insn->subdev;
 
-		if(s->type==COMEDI_SUBD_UNUSED){
-			rt_printk("%d not useable subdevice\n",insn->subdev);
+		if (s->type == COMEDI_SUBD_UNUSED) {
+			rt_printk("%d not useable subdevice\n", insn->subdev);
 			/* XXX no return value is set! ret = ? */
 			goto error;
 		}
 
 		/* XXX check lock */
 
-		if((ret=check_chanlist(s,1,&insn->chanspec))<0){
+		if ((ret = check_chanlist(s, 1, &insn->chanspec)) < 0) {
 			rt_printk("bad chanspec\n");
 			/* XXX no return value is set! ret = ? */
 			goto error;
 		}
 
-		if(s->busy){
+		if (s->busy) {
 			ret = -EBUSY;
 			goto error;
 		}
 		s->busy = d;
 
-		switch(insn->insn){
-			case INSN_READ:
-				ret = s->insn_read(dev,s,insn,insn->data);
-				break;
-			case INSN_WRITE:
-				ret = s->insn_write(dev,s,insn,insn->data);
-				break;
-			case INSN_BITS:
-				ret = s->insn_bits(dev,s,insn,insn->data);
-				break;
-			case INSN_CONFIG:
-				ret = s->insn_config(dev,s,insn,insn->data);
-				break;
-			default:
-				ret=-EINVAL;
-				break;
+		switch (insn->insn) {
+		case INSN_READ:
+			ret = s->insn_read(dev, s, insn, insn->data);
+			break;
+		case INSN_WRITE:
+			ret = s->insn_write(dev, s, insn, insn->data);
+			break;
+		case INSN_BITS:
+			ret = s->insn_bits(dev, s, insn, insn->data);
+			break;
+		case INSN_CONFIG:
+			ret = s->insn_config(dev, s, insn, insn->data);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
 		}
 
 		s->busy = NULL;
 	}
-	if(ret<0)goto error;
-	if(ret!=insn->n){
+	if (ret < 0)
+		goto error;
+	if (ret != insn->n) {
 		rt_printk("BUG: result of insn != insn.n\n");
 		ret = -EINVAL;
 		goto error;
 	}
-error:
+      error:
 
 	return ret;
 }
@@ -307,30 +305,29 @@ error:
 	- lock while subdevice being programmed
 
 */
-int comedi_lock(comedi_t *d,unsigned int subdevice)
+int comedi_lock(comedi_t * d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	unsigned long flags;
-	int ret=0;
+	int ret = 0;
 
-	comedi_spin_lock_irqsave(&big_comedi_lock,flags);
+	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
 
-	if(s->busy){
+	if (s->busy) {
 		ret = -EBUSY;
-	}else{
-		if(s->lock){
+	} else {
+		if (s->lock) {
 			ret = -EBUSY;
-		}else{
+		} else {
 			s->lock = d;
 		}
 	}
 
-	comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
+	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
 
 	return ret;
 }
-
 
 /*
 	COMEDI_UNLOCK
@@ -346,36 +343,36 @@ int comedi_lock(comedi_t *d,unsigned int subdevice)
 		none
 
 */
-int comedi_unlock(comedi_t *d,unsigned int subdevice)
+int comedi_unlock(comedi_t * d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	unsigned long flags;
 	comedi_async *async;
 
 	async = s->async;
 
-	comedi_spin_lock_irqsave(&big_comedi_lock,flags);
+	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
 
-	if(s->busy){
-		comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
+	if (s->busy) {
+		comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
 		return -EBUSY;
 	}
 
-	if(s->lock && s->lock!=(void *)d){
-		comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
+	if (s->lock && s->lock != (void *)d) {
+		comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
 		return -EACCES;
 	}
 
-	s->lock=NULL;
+	s->lock = NULL;
 
-	if(async){
-		async->cb_mask=0;
-		async->cb_func=NULL;
-		async->cb_arg=NULL;
+	if (async) {
+		async->cb_mask = 0;
+		async->cb_func = NULL;
+		async->cb_arg = NULL;
 	}
 
-	comedi_spin_unlock_irqrestore(&big_comedi_lock,flags);
+	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
 
 	return 0;
 }
@@ -394,36 +391,35 @@ int comedi_unlock(comedi_t *d,unsigned int subdevice)
 		nothing
 
 */
-int comedi_cancel(comedi_t *d,unsigned int subdevice)
+int comedi_cancel(comedi_t * d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
-	int ret=0;
+	int ret = 0;
 
-	if(s->lock && s->lock!=d)
+	if (s->lock && s->lock != d)
 		return -EACCES;
 
 #if 0
-	if(!s->busy)
+	if (!s->busy)
 		return 0;
 
-	if(s->busy!=d)
+	if (s->busy != d)
 		return -EBUSY;
 #endif
 
-	if(!s->cancel)
+	if (!s->cancel)
 		return -EINVAL;
 
-	if((ret=s->cancel(dev,s)))
+	if ((ret = s->cancel(dev, s)))
 		return ret;
 
-	if( s->runflags & SRF_RT )
-	{
+	if (s->runflags & SRF_RT) {
 		// XXX race
 		s->runflags &= ~SRF_RT;
 		comedi_switch_to_non_rt(dev);
 	}
-	s->busy=NULL;
+	s->busy = NULL;
 
 	return 0;
 }
@@ -431,73 +427,70 @@ int comedi_cancel(comedi_t *d,unsigned int subdevice)
 /*
    registration of callback functions
  */
-int comedi_register_callback(comedi_t *d,unsigned int subdevice,
-		unsigned int mask,int (*cb)(unsigned int,void *),void *arg)
+int comedi_register_callback(comedi_t * d, unsigned int subdevice,
+	unsigned int mask, int (*cb) (unsigned int, void *), void *arg)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
 	async = s->async;
-	if(s->type==COMEDI_SUBD_UNUSED)
+	if (s->type == COMEDI_SUBD_UNUSED)
 		return -EIO;
 
 	/* are we locked? (ioctl lock) */
-	if(s->lock && s->lock!=d)
+	if (s->lock && s->lock != d)
 		return -EACCES;
 
 	/* are we busy? */
-	if(s->busy)
+	if (s->busy)
 		return -EBUSY;
 
-	if(!mask){
-		async->cb_mask=0;
-		async->cb_func=NULL;
-		async->cb_arg=NULL;
-	}else{
-		async->cb_mask=mask;
-		async->cb_func=cb;
-		async->cb_arg=arg;
+	if (!mask) {
+		async->cb_mask = 0;
+		async->cb_func = NULL;
+		async->cb_arg = NULL;
+	} else {
+		async->cb_mask = mask;
+		async->cb_func = cb;
+		async->cb_arg = arg;
 	}
 
 	return 0;
 }
 
-
-int comedi_poll(comedi_t *d, unsigned int subdevice)
+int comedi_poll(comedi_t * d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	comedi_async *async;
 
 	async = s->async;
-	if(s->type==COMEDI_SUBD_UNUSED || !async)
+	if (s->type == COMEDI_SUBD_UNUSED || !async)
 		return -EIO;
 
 	/* are we locked? (ioctl lock) */
-	if(s->lock && s->lock!=d)
+	if (s->lock && s->lock != d)
 		return -EACCES;
 
 	/* are we running? XXX wrong? */
-	if(!s->busy)
+	if (!s->busy)
 		return -EIO;
 
-	return s->poll(dev,s);
+	return s->poll(dev, s);
 }
 
-
 /* WARNING: not portable */
-int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
+int comedi_map(comedi_t * d, unsigned int subdevice, void *ptr)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 
-	if(!s->async)
+	if (!s->async)
 		return -EINVAL;
 
-	if(ptr)
-	{
-		*((void **) ptr) = s->async->prealloc_buf;
+	if (ptr) {
+		*((void **)ptr) = s->async->prealloc_buf;
 	}
 
 	/* XXX no reference counting */
@@ -506,16 +499,15 @@ int comedi_map(comedi_t *d, unsigned int subdevice, void *ptr)
 }
 
 /* WARNING: not portable */
-int comedi_unmap(comedi_t *d, unsigned int subdevice)
+int comedi_unmap(comedi_t * d, unsigned int subdevice)
 {
-	comedi_device *dev = (comedi_device *)d;
+	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s = dev->subdevices + subdevice;
 
-	if(!s->async)
+	if (!s->async)
 		return -EINVAL;
 
 	/* XXX no reference counting */
 
 	return 0;
 }
-

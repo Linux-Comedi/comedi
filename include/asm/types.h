@@ -14,4 +14,3 @@ typedef unsigned long dma_addr_t;
 #include_next <asm/types.h>
 
 #endif // __COMPAT_ASM_TYPES_H_
-

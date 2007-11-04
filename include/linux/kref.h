@@ -37,7 +37,7 @@ struct kref {
 
 static inline void kref_init(struct kref *kref)
 {
-	atomic_set(&kref->refcount,1);
+	atomic_set(&kref->refcount, 1);
 }
 
 static inline void kref_get(struct kref *kref)
@@ -45,7 +45,8 @@ static inline void kref_get(struct kref *kref)
 	atomic_inc(&kref->refcount);
 }
 
-static inline int kref_put(struct kref *kref, void (*release) (struct kref *kref))
+static inline int kref_put(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 	if (atomic_dec_and_test(&kref->refcount)) {
 		release(kref);
@@ -54,12 +55,14 @@ static inline int kref_put(struct kref *kref, void (*release) (struct kref *kref
 	return 0;
 }
 
-static inline void KREF_INIT(struct kref *kref, void (*release) (struct kref *kref))
+static inline void KREF_INIT(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 	kref_init(kref);
 }
 
-static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref))
+static inline int KREF_PUT(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 	return kref_put(kref, release);
 }
@@ -70,19 +73,19 @@ static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 
-static inline void KREF_INIT(struct kref *kref, void (*release) (struct kref *kref))
+static inline void KREF_INIT(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 	kref_init(kref, release);
 }
 
-static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref))
+static inline int KREF_PUT(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 	int retval;
-	if(atomic_read(&kref->refcount) == 1)
-	{
+	if (atomic_read(&kref->refcount) == 1) {
 		retval = 1;
-	}else
-	{
+	} else {
 		retval = 0;
 	}
 	kref_put(kref);
@@ -91,31 +94,31 @@ static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref
 
 #else
 
-static inline void KREF_INIT(struct kref *kref, void (*release) (struct kref *kref))
+static inline void KREF_INIT(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 	kref_init(kref);
 }
 
-static inline int KREF_PUT(struct kref *kref, void (*release) (struct kref *kref))
+static inline int KREF_PUT(struct kref *kref,
+	void (*release) (struct kref * kref))
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
 	int retval;
-	if(atomic_read(&kref->refcount) == 1)
-	{
+	if (atomic_read(&kref->refcount) == 1) {
 		retval = 1;
-	}else
-	{
+	} else {
 		retval = 0;
 	}
 	kref_put(kref, release);
 	return retval;
 #else
 	return kref_put(kref, release);
-#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
 }
 
-#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 
-#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 
 #endif /* _KREF_COMPAT_H_ */

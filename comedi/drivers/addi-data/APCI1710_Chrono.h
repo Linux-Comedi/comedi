@@ -22,16 +22,12 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 @endverbatim
 */
 
-
-
 #define APCI1710_30MHZ           30
 #define APCI1710_33MHZ           33
 #define APCI1710_40MHZ           40
 
-
 #define APCI1710_SINGLE     0
 #define APCI1710_CONTINUOUS 1
-
 
 #define APCI1710_CHRONO_PROGRESS_STATUS		0
 #define APCI1710_CHRONO_READVALUE			1
@@ -49,12 +45,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
  */
 
-INT i_APCI1710_InsnConfigInitChrono(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
+INT i_APCI1710_InsnConfigInitChrono(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-
+INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 
 /*
 +----------------------------------------------------------------------------+
@@ -62,33 +57,23 @@ INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device *dev,comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_InsnReadChrono(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data);
+INT i_APCI1710_InsnReadChrono(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
+INT i_APCI1710_GetChronoProgressStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_ChronoStatus);
 
-INT   i_APCI1710_GetChronoProgressStatus      (comedi_device *dev,
-						 BYTE    b_ModulNbr,
-						 PBYTE  pb_ChronoStatus);
+INT i_APCI1710_ReadChronoValue(comedi_device * dev,
+	BYTE b_ModulNbr,
+	UINT ui_TimeOut, PBYTE pb_ChronoStatus, PULONG pul_ChronoValue);
 
-INT   i_APCI1710_ReadChronoValue      (comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 UINT    ui_TimeOut,
-					 PBYTE   pb_ChronoStatus,
-					 PULONG pul_ChronoValue);
-
-INT i_APCI1710_ConvertChronoValue     (comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 ULONG   ul_ChronoValue,
-					 PULONG pul_Hour,
-					 PBYTE   pb_Minute,
-					 PBYTE   pb_Second,
-					 PUINT  pui_MilliSecond,
-					 PUINT  pui_MicroSecond,
-					 PUINT  pui_NanoSecond);
-
-
-
-
+INT i_APCI1710_ConvertChronoValue(comedi_device * dev,
+	BYTE b_ModulNbr,
+	ULONG ul_ChronoValue,
+	PULONG pul_Hour,
+	PBYTE pb_Minute,
+	PBYTE pb_Second,
+	PUINT pui_MilliSecond, PUINT pui_MicroSecond, PUINT pui_NanoSecond);
 
 /*
 +----------------------------------------------------------------------------+
@@ -96,7 +81,5 @@ INT i_APCI1710_ConvertChronoValue     (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-
-
+INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);

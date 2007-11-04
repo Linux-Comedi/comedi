@@ -81,7 +81,6 @@ options for PCI-20341M:
 
 #include <linux/comedidev.h>
 
-
 #define PCI20000_ID			0x1d
 #define PCI20341_ID    			0x77
 #define PCI20006_ID      		0xe3
@@ -115,7 +114,7 @@ options for PCI-20341M:
 #define PCI20006_LCHAN1			0x15
 #define PCI20006_STROBE1		0x13
 
-#define PCI20341_INIT			0x04	
+#define PCI20341_INIT			0x04
 #define PCI20341_REPMODE		0x00	/* single shot mode */
 #define PCI20341_PACER			0x00	/* Hardware Pacer disabled */
 #define PCI20341_CHAN_NR		0x04	/* number of input channels */
@@ -134,21 +133,19 @@ options for PCI-20341M:
 #define PCI20341_MUX			0x04	/* Enable on-board MUX */
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
-
-
 typedef union {
 	void *iobase;
 	struct {
 		void *iobase;
 		const comedi_lrange *ao_range_list[2];	/* range of channels of ao module */
 		lsampl_t last_data[2];
-	}pci20006;
+	} pci20006;
 	struct {
 		void *iobase;
 		int timebase;
 		int settling_time;
 		int ai_gain;
-	}pci20341;
+	} pci20341;
 } pci20xxx_subdev_private;
 
 typedef struct {
@@ -163,17 +160,17 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it);
 static int pci20xxx_detach(comedi_device * dev);
 
 static comedi_driver driver_pci20xxx = {
-	driver_name:	"ii_pci20kc",
-	module:		THIS_MODULE,
-	attach:		pci20xxx_attach,
-	detach:		pci20xxx_detach,
+      driver_name:"ii_pci20kc",
+      module:THIS_MODULE,
+      attach:pci20xxx_attach,
+      detach:pci20xxx_detach,
 };
 
-static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
-	int opt0,int opt1);
-static int pci20341_init(comedi_device * dev,comedi_subdevice *s,
-	int opt0,int opt1);
-static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s);
+static int pci20006_init(comedi_device * dev, comedi_subdevice * s,
+	int opt0, int opt1);
+static int pci20341_init(comedi_device * dev, comedi_subdevice * s,
+	int opt0, int opt1);
+static int pci20xxx_dio_init(comedi_device * dev, comedi_subdevice * s);
 
 /*
   options[0]	Board base address
@@ -215,7 +212,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_private(dev, sizeof(pci20xxx_private))) < 0)
 		return ret;
 
-	devpriv->ioaddr = (void*) (unsigned long) it->options[0];
+	devpriv->ioaddr = (void *)(unsigned long)it->options[0];
 	dev->board_name = "pci20kc";
 
 	/* Check PCI-20001 C-2A Carrier Board ID */
@@ -229,25 +226,28 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 
 	for (i = 0; i < PCI20000_MODULES; i++) {
 		s = dev->subdevices + i;
-		id = readb(devpriv->ioaddr + (i+1) * PCI20000_OFFSET);
-		s->private = devpriv->subdev_private +i;
+		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
+		s->private = devpriv->subdev_private + i;
 		sdp = s->private;
-		switch(id){
+		switch (id) {
 		case PCI20006_ID:
-			sdp->pci20006.iobase = devpriv->ioaddr + (i+1) * PCI20000_OFFSET;
-			pci20006_init(dev,s,it->options[2*i+2],it->options[2*i+3]);
+			sdp->pci20006.iobase =
+				devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
+			pci20006_init(dev, s, it->options[2 * i + 2],
+				it->options[2 * i + 3]);
 			printk("comedi%d: ii_pci20kc", dev->minor);
-			printk(" PCI-20006 module in slot %d \n", i+1);
+			printk(" PCI-20006 module in slot %d \n", i + 1);
 			break;
 		case PCI20341_ID:
-			sdp->pci20341.iobase = devpriv->ioaddr + (i+1) * PCI20000_OFFSET;
-			pci20341_init(dev,s,it->options[2*i+2],it->options[2*i+3]);
+			sdp->pci20341.iobase =
+				devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
+			pci20341_init(dev, s, it->options[2 * i + 2],
+				it->options[2 * i + 3]);
 			printk("comedi%d: ii_pci20kc", dev->minor);
-			printk(" PCI-20341 module in slot %d \n", i+1);
+			printk(" PCI-20341 module in slot %d \n", i + 1);
 			break;
 		default:
-			printk("ii_pci20kc: unknown module code 0x%02x in slot %d: module disabled\n",
-				id,i);
+			printk("ii_pci20kc: unknown module code 0x%02x in slot %d: module disabled\n", id, i);
 			/* fall through */
 		case PCI20xxx_EMPTY_ID:
 			s->type = COMEDI_SUBD_UNUSED;
@@ -256,7 +256,7 @@ static int pci20xxx_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	/* initialize pci20xxx_private */
-	pci20xxx_dio_init(dev,dev->subdevices + PCI20000_MODULES);
+	pci20xxx_dio_init(dev, dev->subdevices + PCI20000_MODULES);
 
 	return 1;
 }
@@ -271,9 +271,9 @@ static int pci20xxx_detach(comedi_device * dev)
 /* pci20006m */
 
 static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn * insn, lsampl_t * data);
 static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn * insn, lsampl_t * data);
 
 static const comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar10,
@@ -281,13 +281,15 @@ static const comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar5,
 };
 
-static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
-	int opt0,int opt1)
+static int pci20006_init(comedi_device * dev, comedi_subdevice * s,
+	int opt0, int opt1)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 
-	if(opt0<0 || opt0>2) opt0=0;
-	if(opt1<0 || opt1>2) opt1=0;
+	if (opt0 < 0 || opt0 > 2)
+		opt0 = 0;
+	if (opt1 < 0 || opt1 > 2)
+		opt1 = 0;
 
 	sdp->pci20006.ao_range_list[0] = pci20006_range_list[opt0];
 	sdp->pci20006.ao_range_list[1] = pci20006_range_list[opt1];
@@ -305,7 +307,7 @@ static int pci20006_init(comedi_device * dev,comedi_subdevice *s,
 }
 
 static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn * insn, lsampl_t * data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 
@@ -315,18 +317,18 @@ static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
 }
 
 static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn * insn, lsampl_t * data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
 	unsigned int boarddata;
 
 	sdp->pci20006.last_data[CR_CHAN(insn->chanspec)] = data[0];
-	boarddata = (((unsigned int)data[0]+0x8000) & 0xffff);	/* comedi-data -> board-data */
+	boarddata = (((unsigned int)data[0] + 0x8000) & 0xffff);	/* comedi-data -> board-data */
 	lo = (boarddata & 0xff);
 	hi = ((boarddata >> 8) & 0xff);
 
-	switch ( CR_CHAN(insn->chanspec)) {
+	switch (CR_CHAN(insn->chanspec)) {
 	case 0:
 		writeb(lo, sdp->iobase + PCI20006_LCHAN0);
 		writeb(hi, sdp->iobase + PCI20006_LCHAN0 + 1);
@@ -348,30 +350,31 @@ static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
 /* PCI20341M */
 
 static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn *insn, lsampl_t *data);
+	comedi_insn * insn, lsampl_t * data);
 
 static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
-static const comedi_lrange range_bipolar0_5 = { 1, { BIP_RANGE(0.5) }};
-static const comedi_lrange range_bipolar0_05 = { 1, { BIP_RANGE(0.05) }};
-static const comedi_lrange range_bipolar0_025 = { 1, { BIP_RANGE(0.025) }};
+static const comedi_lrange range_bipolar0_5 = { 1, {BIP_RANGE(0.5)} };
+static const comedi_lrange range_bipolar0_05 = { 1, {BIP_RANGE(0.05)} };
+static const comedi_lrange range_bipolar0_025 = { 1, {BIP_RANGE(0.025)} };
 
-static const comedi_lrange * const pci20341_ranges[] = {
+static const comedi_lrange *const pci20341_ranges[] = {
 	&range_bipolar5,
 	&range_bipolar0_5,
 	&range_bipolar0_05,
 	&range_bipolar0_025,
-	};
+};
 
-static int pci20341_init(comedi_device * dev,comedi_subdevice *s,
-	int opt0,int opt1)
+static int pci20341_init(comedi_device * dev, comedi_subdevice * s,
+	int opt0, int opt1)
 {
 	pci20xxx_subdev_private *sdp = s->private;
-	int option;	
+	int option;
 
 	/* options handling */
-	if(opt0<0 || opt0>3)opt0=0;
+	if (opt0 < 0 || opt0 > 3)
+		opt0 = 0;
 	sdp->pci20341.timebase = pci20341_timebase[opt0];
 	sdp->pci20341.settling_time = pci20341_settling_time[opt0];
 
@@ -386,43 +389,41 @@ static int pci20341_init(comedi_device * dev,comedi_subdevice *s,
 
 	option = sdp->pci20341.timebase | PCI20341_REPMODE;	/* depends on gain, trigger, repetition mode */
 
-	writeb(PCI20341_INIT, sdp->iobase + PCI20341_CONFIG_REG);			/* initialize Module */
-	writeb(PCI20341_PACER, sdp->iobase + PCI20341_MOD_STATUS);			/* set Pacer */
-	writeb(option, sdp->iobase + PCI20341_OPT_REG);					/* option register */
+	writeb(PCI20341_INIT, sdp->iobase + PCI20341_CONFIG_REG);	/* initialize Module */
+	writeb(PCI20341_PACER, sdp->iobase + PCI20341_MOD_STATUS);	/* set Pacer */
+	writeb(option, sdp->iobase + PCI20341_OPT_REG);	/* option register */
 	writeb(sdp->pci20341.settling_time, sdp->iobase + PCI20341_SET_TIME_REG);	/* settling time counter */
 	/* trigger not implemented */
 	return 0;
 }
 
 static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn *insn, lsampl_t *data)
+	comedi_insn * insn, lsampl_t * data)
 {
 	pci20xxx_subdev_private *sdp = s->private;
 	unsigned int i = 0, j = 0;
 	int lo, hi;
-	unsigned char eoc;		/* end of conversion */
-	unsigned int clb;		/* channel list byte */
+	unsigned char eoc;	/* end of conversion */
+	unsigned int clb;	/* channel list byte */
 	unsigned int boarddata;
 
-	writeb(1, sdp->iobase + PCI20341_LCHAN_ADDR_REG);		/* write number of input channels */
-	clb	= PCI20341_DAISY_CHAIN
-		| PCI20341_MUX
-		| (sdp->pci20341.ai_gain << 3)
-		| CR_CHAN(insn->chanspec); 
+	writeb(1, sdp->iobase + PCI20341_LCHAN_ADDR_REG);	/* write number of input channels */
+	clb = PCI20341_DAISY_CHAIN | PCI20341_MUX | (sdp->pci20341.ai_gain << 3)
+		| CR_CHAN(insn->chanspec);
 	writeb(clb, sdp->iobase + PCI20341_CHAN_LIST);
-	writeb(0x00, sdp->iobase + PCI20341_CC_RESET);		/* reset settling time counter and trigger delay counter */
+	writeb(0x00, sdp->iobase + PCI20341_CC_RESET);	/* reset settling time counter and trigger delay counter */
 	writeb(0x00, sdp->iobase + PCI20341_CHAN_RESET);
 
 	/* generate Pacer */
 
-	for (i=0; i < insn->n; i++)	{ 
+	for (i = 0; i < insn->n; i++) {
 		/* data polling isn't the niciest way to get the data, I know,
 		 * but there are only 6 cycles (mean) and it is easier than
 		 * the whole interrupt stuff 
-	 	 */
-		j=0;
-		readb(sdp->iobase + PCI20341_SOFT_PACER);	/* generate Pacer */		
-		eoc = readb(sdp->iobase + PCI20341_STATUS_REG);		
+		 */
+		j = 0;
+		readb(sdp->iobase + PCI20341_SOFT_PACER);	/* generate Pacer */
+		eoc = readb(sdp->iobase + PCI20341_STATUS_REG);
 		while ((eoc < 0x80) && j < 100) {	/* poll Interrupt Flag */
 			j++;
 			eoc = readb(sdp->iobase + PCI20341_STATUS_REG);
@@ -433,8 +434,8 @@ static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
 		}
 		lo = readb(sdp->iobase + PCI20341_LDATA);
 		hi = readb(sdp->iobase + PCI20341_LDATA + 1);
-		boarddata = lo + 0x100 *  hi;
-		data[i] = (sampl_t)((boarddata + 0x8000) & 0xffff);	/* board-data -> comedi-data */
+		boarddata = lo + 0x100 * hi;
+		data[i] = (sampl_t) ((boarddata + 0x8000) & 0xffff);	/* board-data -> comedi-data */
 	}
 
 	return i;
@@ -442,14 +443,14 @@ static int pci20341_insn_read(comedi_device * dev, comedi_subdevice * s,
 
 /* native DIO */
 
-static void pci20xxx_dio_config(comedi_device * dev,comedi_subdevice *s);
-static int pci20xxx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
-static int pci20xxx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data);
+static void pci20xxx_dio_config(comedi_device * dev, comedi_subdevice * s);
+static int pci20xxx_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int pci20xxx_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 /* initialize pci20xxx_private */
-static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s)
+static int pci20xxx_dio_init(comedi_device * dev, comedi_subdevice * s)
 {
 
 	s->type = COMEDI_SUBD_DIO;
@@ -463,111 +464,119 @@ static int pci20xxx_dio_init(comedi_device * dev,comedi_subdevice *s)
 	s->io_bits = 0;
 
 	/* digital I/O lines default to input on board reset. */
-	pci20xxx_dio_config(dev,s);
+	pci20xxx_dio_config(dev, s);
 
 	return 0;
 }
 
-static int pci20xxx_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int pci20xxx_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int mask,bits;
+	int mask, bits;
 
-	mask = 1<<CR_CHAN(insn->chanspec);
-	if(mask&0x000000ff){
+	mask = 1 << CR_CHAN(insn->chanspec);
+	if (mask & 0x000000ff) {
 		bits = 0x000000ff;
-	}else if(mask & 0x0000ff00){
+	} else if (mask & 0x0000ff00) {
 		bits = 0x0000ff00;
-	}else if(mask & 0x00ff0000){
+	} else if (mask & 0x00ff0000) {
 		bits = 0x00ff0000;
-	}else {
+	} else {
 		bits = 0xff000000;
 	}
-	if(data[0]){
+	if (data[0]) {
 		s->io_bits |= bits;
-	}else{
+	} else {
 		s->io_bits &= ~bits;
 	}
-	pci20xxx_dio_config(dev,s);
+	pci20xxx_dio_config(dev, s);
 
 	return 1;
 }
 
-static int pci20xxx_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int pci20xxx_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	unsigned int mask = data[0];
 
 	s->state &= ~mask;
-	s->state |= (mask&data[1]);
+	s->state |= (mask & data[1]);
 
 	mask &= s->io_bits;
-	if(mask&0x000000ff)
-		writeb((s->state>>0)&0xff, devpriv->ioaddr + PCI20000_DIO_0 );
-	if(mask&0x0000ff00)
-		writeb((s->state>>8)&0xff, devpriv->ioaddr + PCI20000_DIO_1 );
-	if(mask&0x00ff0000)
-		writeb((s->state>>16)&0xff, devpriv->ioaddr + PCI20000_DIO_2 );
-	if(mask&0xff000000)
-		writeb((s->state>>24)&0xff, devpriv->ioaddr + PCI20000_DIO_3 );
+	if (mask & 0x000000ff)
+		writeb((s->state >> 0) & 0xff,
+			devpriv->ioaddr + PCI20000_DIO_0);
+	if (mask & 0x0000ff00)
+		writeb((s->state >> 8) & 0xff,
+			devpriv->ioaddr + PCI20000_DIO_1);
+	if (mask & 0x00ff0000)
+		writeb((s->state >> 16) & 0xff,
+			devpriv->ioaddr + PCI20000_DIO_2);
+	if (mask & 0xff000000)
+		writeb((s->state >> 24) & 0xff,
+			devpriv->ioaddr + PCI20000_DIO_3);
 
-	data[1] = readb(devpriv->ioaddr + PCI20000_DIO_0 );
-	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_1 )<<8;
-	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_2 )<<16;
-	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_3 )<<24;
+	data[1] = readb(devpriv->ioaddr + PCI20000_DIO_0);
+	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
+	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
+	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
 
 	return 2;
 }
 
-static void pci20xxx_dio_config(comedi_device * dev,comedi_subdevice *s)
+static void pci20xxx_dio_config(comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned char control_01;
 	unsigned char control_23;
 	unsigned char buffer;
 
 	control_01 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
-	control_23 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_23);	
-	buffer = readb(devpriv->ioaddr + PCI20000_DIO_BUFFER);		
+	control_23 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
+	buffer = readb(devpriv->ioaddr + PCI20000_DIO_BUFFER);
 
-	if(s->io_bits & 0x000000ff ){
+	if (s->io_bits & 0x000000ff) {
 		/* output port 0 */
 		control_01 &= PCI20000_DIO_EOC;
-		buffer = (buffer &(~(DIO_BE<<DIO_PS_0)))|(DIO_BO<<DIO_PS_0);
-	}else{
+		buffer = (buffer & (~(DIO_BE << DIO_PS_0))) | (DIO_BO <<
+			DIO_PS_0);
+	} else {
 		/* input port 0 */
 		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_EIC;
-		buffer = (buffer &(~(DIO_BI<<DIO_PS_0)));
+		buffer = (buffer & (~(DIO_BI << DIO_PS_0)));
 	}
-	if(s->io_bits & 0x0000ff00 ){
+	if (s->io_bits & 0x0000ff00) {
 		/* output port 1 */
 		control_01 &= PCI20000_DIO_OOC;
-		buffer = (buffer &(~(DIO_BE<<DIO_PS_1)))|(DIO_BO<<DIO_PS_1);
-	}else{
+		buffer = (buffer & (~(DIO_BE << DIO_PS_1))) | (DIO_BO <<
+			DIO_PS_1);
+	} else {
 		/* input port 1 */
-		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_OIC;		
-		buffer = (buffer &(~(DIO_BI<<DIO_PS_1)));
+		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_OIC;
+		buffer = (buffer & (~(DIO_BI << DIO_PS_1)));
 	}
-	if(s->io_bits & 0x00ff0000 ){
+	if (s->io_bits & 0x00ff0000) {
 		/* output port 2 */
 		control_23 &= PCI20000_DIO_EOC;
-		buffer = (buffer &(~(DIO_BE<<DIO_PS_2)))|(DIO_BO<<DIO_PS_2);
-	}else{
+		buffer = (buffer & (~(DIO_BE << DIO_PS_2))) | (DIO_BO <<
+			DIO_PS_2);
+	} else {
 		/* input port 2 */
 		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_EIC;
-		buffer = (buffer &(~(DIO_BI<<DIO_PS_2)));
+		buffer = (buffer & (~(DIO_BI << DIO_PS_2)));
 	}
-	if(s->io_bits & 0xff000000 ){
+	if (s->io_bits & 0xff000000) {
 		/* output port 3 */
 		control_23 &= PCI20000_DIO_OOC;
-		buffer = (buffer &(~(DIO_BE<<DIO_PS_3)))|(DIO_BO<<DIO_PS_3);
-	}else{
+		buffer = (buffer & (~(DIO_BE << DIO_PS_3))) | (DIO_BO <<
+			DIO_PS_3);
+	} else {
 		/* input port 3 */
 		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_OIC;
-		buffer = (buffer &(~(DIO_BI<<DIO_PS_3)));
+		buffer = (buffer & (~(DIO_BI << DIO_PS_3)));
 	}
 	writeb(control_01, devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
-	writeb(control_23, devpriv->ioaddr + PCI20000_DIO_CONTROL_23);	
-	writeb(buffer, devpriv->ioaddr + PCI20000_DIO_BUFFER);	
+	writeb(control_23, devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
+	writeb(buffer, devpriv->ioaddr + PCI20000_DIO_BUFFER);
 }
 
 #if 0
@@ -578,25 +587,24 @@ static void pci20xxx_do(comedi_device * dev, comedi_subdevice * s)
 	/* XXX it would be a good idea to only update the registers
 	   that _need_ to be updated.  This requires changes to
 	   comedi, however. */
-	writeb((s->state>>0)&0xff, devpriv->ioaddr + PCI20000_DIO_0 );
-	writeb((s->state>>8)&0xff, devpriv->ioaddr + PCI20000_DIO_1 );
-	writeb((s->state>>16)&0xff, devpriv->ioaddr + PCI20000_DIO_2 );
-	writeb((s->state>>24)&0xff, devpriv->ioaddr + PCI20000_DIO_3 );
+	writeb((s->state >> 0) & 0xff, devpriv->ioaddr + PCI20000_DIO_0);
+	writeb((s->state >> 8) & 0xff, devpriv->ioaddr + PCI20000_DIO_1);
+	writeb((s->state >> 16) & 0xff, devpriv->ioaddr + PCI20000_DIO_2);
+	writeb((s->state >> 24) & 0xff, devpriv->ioaddr + PCI20000_DIO_3);
 }
 
 static unsigned int pci20xxx_di(comedi_device * dev, comedi_subdevice * s)
 {
 	/* XXX same note as above */
 	unsigned int bits;
-	
-	bits = readb(devpriv->ioaddr + PCI20000_DIO_0 );
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1 )<<8;
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2 )<<16;
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_3 )<<24;
+
+	bits = readb(devpriv->ioaddr + PCI20000_DIO_0);
+	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
+	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
+	bits |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
 
 	return bits;
 }
 #endif
 
 COMEDI_INITCLEANUP(driver_pci20xxx);
-

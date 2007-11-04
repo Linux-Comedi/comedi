@@ -28,8 +28,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 #include <pcmcia/cs_types.h>
 
-struct device_driver
-{
+struct device_driver {
 	char *name;
 };
 
@@ -43,7 +42,8 @@ static inline struct class *class_create(struct module *owner, char *name)
 };
 
 static inline void class_destroy(struct class *cs)
-{};
+{
+};
 
 static inline struct class_device *COMEDI_CLASS_DEVICE_CREATE(struct class *cls,
 	struct class_device *parent, dev_t devt, struct device *device,
@@ -53,7 +53,8 @@ static inline struct class_device *COMEDI_CLASS_DEVICE_CREATE(struct class *cls,
 };
 
 static inline void class_device_destroy(struct class *cs, dev_t dev)
-{};
+{
+};
 
 #else
 
@@ -83,11 +84,10 @@ static inline void class_device_destroy(struct class *cs, dev_t dev)
 #define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
 	class_device_create(cs, parent, dev, device, fmt)
 
-#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
-#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
 
-#endif	// LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
 #endif // __COMPAT_LINUX_DEVICE_H_
-

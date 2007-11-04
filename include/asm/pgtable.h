@@ -33,4 +33,3 @@
 #endif
 
 #endif /* __COMPAT_ASM_PGTABLE_H_ */
-

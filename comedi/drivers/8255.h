@@ -28,27 +28,30 @@
 
 #if defined(CONFIG_COMEDI_8255) || defined(CONFIG_COMEDI_8255_MODULE)
 
-int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,
-		int (*cb)(int,int,int,unsigned long),unsigned long arg);
-int subdev_8255_init_irq(comedi_device *dev,comedi_subdevice *s,
-		int (*cb)(int,int,int,unsigned long),unsigned long arg);
-void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s);
-void subdev_8255_interrupt(comedi_device *dev,comedi_subdevice *s);
+int subdev_8255_init(comedi_device * dev, comedi_subdevice * s,
+	int (*cb) (int, int, int, unsigned long), unsigned long arg);
+int subdev_8255_init_irq(comedi_device * dev, comedi_subdevice * s,
+	int (*cb) (int, int, int, unsigned long), unsigned long arg);
+void subdev_8255_cleanup(comedi_device * dev, comedi_subdevice * s);
+void subdev_8255_interrupt(comedi_device * dev, comedi_subdevice * s);
 
 #else
 
-static inline int subdev_8255_init(comedi_device *dev,comedi_subdevice *s,void *x,unsigned long y)
+static inline int subdev_8255_init(comedi_device * dev, comedi_subdevice * s,
+	void *x, unsigned long y)
 {
 	printk("8255 support not configured -- disabling subdevice\n");
 
-	s->type=COMEDI_SUBD_UNUSED;
+	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
 }
 
-static inline void subdev_8255_cleanup(comedi_device *dev,comedi_subdevice *s){}
+static inline void subdev_8255_cleanup(comedi_device * dev,
+	comedi_subdevice * s)
+{
+}
 
 #endif
 
 #endif
-

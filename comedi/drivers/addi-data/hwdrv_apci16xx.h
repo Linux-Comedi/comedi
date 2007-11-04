@@ -22,21 +22,18 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 @endverbatim
 */
 
-
-
 #ifndef COMEDI_SUBD_TTLIO
-   #define COMEDI_SUBD_TTLIO   11  /* Digital Input Output But TTL */
+#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
 
 #ifndef ADDIDATA_ENABLE
-   #define ADDIDATA_ENABLE  1
-   #define ADDIDATA_DISABLE 0
+#define ADDIDATA_ENABLE  1
+#define ADDIDATA_DISABLE 0
 #endif
 
 #define APCI16XX_TTL_INIT           0
 #define APCI16XX_TTL_INITDIRECTION  1
 #define APCI16XX_TTL_OUTPUTMEMORY   2
-
 
 #define APCI16XX_TTL_READCHANNEL            0
 #define APCI16XX_TTL_READPORT               1
@@ -51,21 +48,20 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #ifdef __KERNEL__
 
-
-comedi_lrange range_apci16xx_ttl=
-              {12, 
-               {BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1),
-                BIP_RANGE(1)}};
+comedi_lrange range_apci16xx_ttl = { 12,
+	{BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+			BIP_RANGE(1),
+		BIP_RANGE(1)}
+};
 
 /*
 +----------------------------------------------------------------------------+
@@ -73,11 +69,8 @@ comedi_lrange range_apci16xx_ttl=
 +----------------------------------------------------------------------------+
 */
 
-int   i_APCI16XX_InsnConfigInitTTLIO(comedi_device    *dev,
-                                     comedi_subdevice *s,
-                                     comedi_insn      *insn,
-                                     lsampl_t         *data);
-
+int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 
 /*
 +----------------------------------------------------------------------------+
@@ -85,16 +78,11 @@ int   i_APCI16XX_InsnConfigInitTTLIO(comedi_device    *dev,
 +----------------------------------------------------------------------------+
 */
 
+int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 
-int  i_APCI16XX_InsnBitsReadTTLIO   (comedi_device    *dev,
-                                     comedi_subdevice *s,
-                                     comedi_insn      *insn,
-                                     lsampl_t         *data);
-
-int i_APCI16XX_InsnReadTTLIOAllPortValue (comedi_device    *dev,
-                                          comedi_subdevice *s,
-                                          comedi_insn      *insn,
-                                          lsampl_t         *data);
+int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 
 /*
 +----------------------------------------------------------------------------+
@@ -102,10 +90,8 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue (comedi_device    *dev,
 +----------------------------------------------------------------------------+
 */
 
-int  i_APCI16XX_InsnBitsWriteTTLIO   (comedi_device    *dev,
-                                      comedi_subdevice *s,
-                                      comedi_insn      *insn,
-                                      lsampl_t         *data);
-                                      
-int  i_APCI16XX_Reset(comedi_device *dev) ;                                      
+int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+
+int i_APCI16XX_Reset(comedi_device * dev);
 #endif

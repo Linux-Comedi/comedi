@@ -54,7 +54,7 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 /* Registers for the PCIM-DAS1602/16 */
 
 // sizes of io regions (bytes)
-#define BADR0_SIZE 2  //??
+#define BADR0_SIZE 2		//??
 #define BADR1_SIZE 4
 #define BADR2_SIZE 6
 #define BADR3_SIZE 16
@@ -83,53 +83,53 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 #define RESID_COUNT_L 14
 
 /* Board description */
-typedef struct cb_pcimdas_board_struct
-{
+typedef struct cb_pcimdas_board_struct {
 	const char *name;
 	unsigned short device_id;
 	int ai_se_chans;	// Inputs in single-ended mode
 	int ai_diff_chans;	// Inputs in differential mode
-	int ai_bits;	// analog input resolution
-	int ai_speed;	// fastest conversion period in ns
-	int ao_nchan;	// number of analog out channels
-	int ao_bits;	// analogue output resolution
+	int ai_bits;		// analog input resolution
+	int ai_speed;		// fastest conversion period in ns
+	int ao_nchan;		// number of analog out channels
+	int ao_bits;		// analogue output resolution
 	int has_ao_fifo;	// analog output has fifo
 	int ao_scan_speed;	// analog output speed for 1602 series (for a scan, not conversion)
-	int fifo_size;	// number of samples fifo can hold
-	int dio_bits;  // number of dio bits
-	int has_dio;	// has DIO
+	int fifo_size;		// number of samples fifo can hold
+	int dio_bits;		// number of dio bits
+	int has_dio;		// has DIO
 	const comedi_lrange *ranges;
 } cb_pcimdas_board;
 
-static const cb_pcimdas_board cb_pcimdas_boards[] =
-{
+static const cb_pcimdas_board cb_pcimdas_boards[] = {
 	{
-		name:		"PCIM-DAS1602/16",
-		device_id:	0x56,
-		ai_se_chans:	16,
-		ai_diff_chans:	8,
-		ai_bits:	16,
-		ai_speed:	10000, //??
-		ao_nchan: 	2,
-		ao_bits:	12,
-		has_ao_fifo:	0,     //??
-		ao_scan_speed:	10000, //??
-		fifo_size:	1024,
-		dio_bits:	24,
-		has_dio:	1,
-//		ranges:		&cb_pcimdas_ranges,
-	},
+	      name:	"PCIM-DAS1602/16",
+	      device_id:0x56,
+	      ai_se_chans:16,
+	      ai_diff_chans:8,
+	      ai_bits:	16,
+	      ai_speed:10000,	//??
+	      ao_nchan:2,
+	      ao_bits:	12,
+	      has_ao_fifo:0,	//??
+	      ao_scan_speed:10000,
+			//??
+	      fifo_size:1024,
+	      dio_bits:24,
+	      has_dio:	1,
+//              ranges:         &cb_pcimdas_ranges,
+		},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static struct pci_device_id cb_pcimdas_pci_table[] __devinitdata = {
-	{ PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0 }
+	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{0}
 };
+
 MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
 
-#define N_BOARDS 1 // Max number of boards supported
+#define N_BOARDS 1		// Max number of boards supported
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -139,7 +139,7 @@ MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
-typedef struct{
+typedef struct {
 	int data;
 
 	// would be useful for a PCI device
@@ -156,12 +156,12 @@ typedef struct{
 	lsampl_t ao_readback[2];
 
 	// Used for DIO
-	unsigned short int port_a;   // copy of BADR4+0
-	unsigned short int port_b;   // copy of BADR4+1
-	unsigned short int port_c;   // copy of BADR4+2
-	unsigned short int dio_mode; // copy of BADR4+3
+	unsigned short int port_a;	// copy of BADR4+0
+	unsigned short int port_b;	// copy of BADR4+1
+	unsigned short int port_c;	// copy of BADR4+2
+	unsigned short int dio_mode;	// copy of BADR4+3
 
-}cb_pcimdas_private;
+} cb_pcimdas_private;
 
 /*
  * most drivers define the following macro to make it easy to
@@ -175,18 +175,21 @@ typedef struct{
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it);
-static int cb_pcimdas_detach(comedi_device *dev);
-static comedi_driver driver_cb_pcimdas={
-	driver_name:	"cb_pcimdas",
-	module:		THIS_MODULE,
-	attach:		cb_pcimdas_attach,
-	detach:		cb_pcimdas_detach,
+static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it);
+static int cb_pcimdas_detach(comedi_device * dev);
+static comedi_driver driver_cb_pcimdas = {
+      driver_name:"cb_pcimdas",
+      module:THIS_MODULE,
+      attach:cb_pcimdas_attach,
+      detach:cb_pcimdas_detach,
 };
 
-static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int cb_pcimdas_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int cb_pcimdas_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int cb_pcimdas_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int cb_pcimdas_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -194,19 +197,19 @@ static int cb_pcimdas_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
+static int cb_pcimdas_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	struct pci_dev* pcidev;
+	struct pci_dev *pcidev;
 	int index;
 	//int i;
 
-	printk("comedi%d: cb_pcimdas: ",dev->minor);
+	printk("comedi%d: cb_pcimdas: ", dev->minor);
 
 /*
  * Allocate the private structure area.
  */
-	if(alloc_private(dev,sizeof(cb_pcimdas_private))<0)
+	if (alloc_private(dev, sizeof(cb_pcimdas_private)) < 0)
 		return -ENOMEM;
 
 /*
@@ -214,24 +217,23 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
  */
 	printk("\n");
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
-	{
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		// is it not a computer boards card?
-		if(pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 		// loop through cards supported by this driver
-		for(index = 0; index < N_BOARDS; index++)
-		{
-			if(cb_pcimdas_boards[index].device_id != pcidev->device)
+		for (index = 0; index < N_BOARDS; index++) {
+			if (cb_pcimdas_boards[index].device_id !=
+				pcidev->device)
 				continue;
 			// was a particular bus/slot requested?
-			if(it->options[0] || it->options[1])
-			{
+			if (it->options[0] || it->options[1]) {
 				// are we on the wrong bus/slot?
-				if(pcidev->bus->number != it->options[0] ||
-				   PCI_SLOT(pcidev->devfn) != it->options[1])
-				{
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
 					continue;
 				}
 			}
@@ -245,23 +247,21 @@ static int cb_pcimdas_attach(comedi_device *dev,comedi_devconfig *it)
 		"requested position\n");
 	return -EIO;
 
-found:
+      found:
 
 	printk("Found %s on bus %i, slot %i\n", cb_pcimdas_boards[index].name,
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
 
 	// Warn about non-tested features
-	switch(thisboard->device_id)
-	{
-		case 0x56:
-			break;
-		default:
-			printk( "THIS CARD IS UNSUPPORTED.\n"
-				"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
+	switch (thisboard->device_id) {
+	case 0x56:
+		break;
+	default:
+		printk("THIS CARD IS UNSUPPORTED.\n"
+			"PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
 	};
 
-	if(comedi_pci_enable(pcidev, "cb_pcimdas"))
-	{
+	if (comedi_pci_enable(pcidev, "cb_pcimdas")) {
 		printk(" Failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
@@ -273,61 +273,59 @@ found:
 	devpriv->BADR4 = pci_resource_start(devpriv->pci_dev, 4);
 
 #ifdef CBPCIMDAS_DEBUG
-	printk("devpriv->BADR0 = 0x%lx\n",devpriv->BADR0);
-	printk("devpriv->BADR1 = 0x%lx\n",devpriv->BADR1);
-	printk("devpriv->BADR2 = 0x%lx\n",devpriv->BADR2);
-	printk("devpriv->BADR3 = 0x%lx\n",devpriv->BADR3);
-	printk("devpriv->BADR4 = 0x%lx\n",devpriv->BADR4);
+	printk("devpriv->BADR0 = 0x%lx\n", devpriv->BADR0);
+	printk("devpriv->BADR1 = 0x%lx\n", devpriv->BADR1);
+	printk("devpriv->BADR2 = 0x%lx\n", devpriv->BADR2);
+	printk("devpriv->BADR3 = 0x%lx\n", devpriv->BADR3);
+	printk("devpriv->BADR4 = 0x%lx\n", devpriv->BADR4);
 #endif
 
-
 // Dont support IRQ yet
-//	// get irq
-//	if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev ))
-//	{
-//		printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq);
-//		return -EINVAL;
-//	}
-//	dev->irq = devpriv->pci_dev->irq;
+//      // get irq
+//      if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev ))
+//      {
+//              printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq);
+//              return -EINVAL;
+//      }
+//      dev->irq = devpriv->pci_dev->irq;
 
 	//Initialize dev->board_name
 	dev->board_name = thisboard->name;
-
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if(alloc_subdevices(dev, 3)<0)
+	if (alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
-	s=dev->subdevices+0;
+	s = dev->subdevices + 0;
 	//dev->read_subdev=s;
 	// analog input subdevice
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|SDF_GROUND;
-	s->n_chan=thisboard->ai_se_chans;
-	s->maxdata=(1<<thisboard->ai_bits)-1;
-	s->range_table=&range_unknown;
-	s->len_chanlist=1;  // This is the maximum chanlist length that
-			     //	the board can handle
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->n_chan = thisboard->ai_se_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &range_unknown;
+	s->len_chanlist = 1;	// This is the maximum chanlist length that
+	// the board can handle
 	s->insn_read = cb_pcimdas_ai_rinsn;
 
-	s=dev->subdevices+1;
+	s = dev->subdevices + 1;
 	// analog output subdevice
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITABLE;
-	s->n_chan=thisboard->ao_nchan;
-	s->maxdata=1<<thisboard->ao_bits;
-	s->range_table=&range_unknown; //ranges are hardware settable, but not software readable.
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = thisboard->ao_nchan;
+	s->maxdata = 1 << thisboard->ao_bits;
+	s->range_table = &range_unknown;	//ranges are hardware settable, but not software readable.
 	s->insn_write = &cb_pcimdas_ao_winsn;
 	s->insn_read = &cb_pcimdas_ao_rinsn;
 
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	if(thisboard->has_dio){
+	if (thisboard->has_dio) {
 		subdev_8255_init(dev, s, NULL, devpriv->BADR4);
-	}else{
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
@@ -335,7 +333,6 @@ found:
 
 	return 1;
 }
-
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
@@ -345,27 +342,23 @@ found:
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int cb_pcimdas_detach(comedi_device *dev)
+static int cb_pcimdas_detach(comedi_device * dev)
 {
 #ifdef CBPCIMDAS_DEBUG
-	if(devpriv)
-	{
-		printk("devpriv->BADR0 = 0x%lx\n",devpriv->BADR0);
-		printk("devpriv->BADR1 = 0x%lx\n",devpriv->BADR1);
-		printk("devpriv->BADR2 = 0x%lx\n",devpriv->BADR2);
-		printk("devpriv->BADR3 = 0x%lx\n",devpriv->BADR3);
-		printk("devpriv->BADR4 = 0x%lx\n",devpriv->BADR4);
+	if (devpriv) {
+		printk("devpriv->BADR0 = 0x%lx\n", devpriv->BADR0);
+		printk("devpriv->BADR1 = 0x%lx\n", devpriv->BADR1);
+		printk("devpriv->BADR2 = 0x%lx\n", devpriv->BADR2);
+		printk("devpriv->BADR3 = 0x%lx\n", devpriv->BADR3);
+		printk("devpriv->BADR4 = 0x%lx\n", devpriv->BADR4);
 	}
 #endif
-	printk("comedi%d: cb_pcimdas: remove\n",dev->minor);
-	if(dev->irq)
+	printk("comedi%d: cb_pcimdas: remove\n", dev->minor);
+	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
-	if(devpriv)
-	{
-		if(devpriv->pci_dev)
-		{
-			if(devpriv->BADR0)
-			{
+	if (devpriv) {
+		if (devpriv->pci_dev) {
+			if (devpriv->BADR0) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
@@ -379,9 +372,10 @@ static int cb_pcimdas_detach(comedi_device *dev)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int cb_pcimdas_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int n,i;
+	int n, i;
 	unsigned int d;
 	unsigned int busy;
 	int chan = CR_CHAN(insn->chanspec);
@@ -391,46 +385,47 @@ static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	// only support sw initiated reads from a single channel
 
 	//check channel number
-	if ((inb(devpriv->BADR3+2) & 0x20)==0) //differential mode
-		maxchans=thisboard->ai_diff_chans;
+	if ((inb(devpriv->BADR3 + 2) & 0x20) == 0)	//differential mode
+		maxchans = thisboard->ai_diff_chans;
 	else
-		maxchans=thisboard->ai_se_chans;
+		maxchans = thisboard->ai_se_chans;
 
-	if (chan>(maxchans-1))
-		return -ETIMEDOUT;  //*** Wrong error code. Fixme.
+	if (chan > (maxchans - 1))
+		return -ETIMEDOUT;	//*** Wrong error code. Fixme.
 
 	//configure for sw initiated read
-	d=inb(devpriv->BADR3+5);
-	if ((d & 0x03)>0) { 			//only reset if needed.
-		d=d & 0xfd;
-		outb(d,devpriv->BADR3+5);
+	d = inb(devpriv->BADR3 + 5);
+	if ((d & 0x03) > 0) {	//only reset if needed.
+		d = d & 0xfd;
+		outb(d, devpriv->BADR3 + 5);
 	}
-	outb(0x01,devpriv->BADR3+6); //set bursting off, conversions on
-	outb(0x00,devpriv->BADR3+7); //set range to 10V. UP/BP is controlled by a switch on the board
+	outb(0x01, devpriv->BADR3 + 6);	//set bursting off, conversions on
+	outb(0x00, devpriv->BADR3 + 7);	//set range to 10V. UP/BP is controlled by a switch on the board
 
 	// write channel limits to multiplexer, set Low (bits 0-3) and High (bits 4-7) channels to chan.
-	chanlims=chan | (chan<<4);
-	outb(chanlims,devpriv->BADR3+0);
+	chanlims = chan | (chan << 4);
+	outb(chanlims, devpriv->BADR3 + 0);
 
 	/* convert n samples */
-	for(n=0;n<insn->n;n++){
+	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0,devpriv->BADR2+0);
+		outw(0, devpriv->BADR2 + 0);
 
-#define TIMEOUT 1000 	//typically takes 5 loops on a lightly loaded Pentium 100MHz,
-			//this is likely to be 100 loops on a 2GHz machine, so set 1000 as the limit.
+#define TIMEOUT 1000		//typically takes 5 loops on a lightly loaded Pentium 100MHz,
+		//this is likely to be 100 loops on a 2GHz machine, so set 1000 as the limit.
 
 		/* wait for conversion to end */
-		for(i=0;i<TIMEOUT;i++){
-			busy = inb(devpriv->BADR3+2)&0x80;
-			if(!busy)break;
+		for (i = 0; i < TIMEOUT; i++) {
+			busy = inb(devpriv->BADR3 + 2) & 0x80;
+			if (!busy)
+				break;
 		}
-		if(i==TIMEOUT){
+		if (i == TIMEOUT) {
 			printk("timeout\n");
 			return -ETIMEDOUT;
 		}
 		/* read data */
-		d = inw(devpriv->BADR2+0);
+		d = inw(devpriv->BADR2 + 0);
 
 		/* mangle the data as necessary */
 		//d ^= 1<<(thisboard->ai_bits-1); // 16 bit data from ADC, so no mangle needed.
@@ -442,21 +437,21 @@ static int cb_pcimdas_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 	return n;
 }
 
-
-static int cb_pcimdas_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int cb_pcimdas_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
-	for(i=0;i<insn->n;i++){
-		switch ( chan ) {
+	for (i = 0; i < insn->n; i++) {
+		switch (chan) {
 		case 0:
-			outw(data[i] & 0x0FFF,devpriv->BADR2+DAC0_OFFSET);
+			outw(data[i] & 0x0FFF, devpriv->BADR2 + DAC0_OFFSET);
 			break;
 		case 1:
-			outw(data[i] & 0x0FFF,devpriv->BADR2+DAC1_OFFSET);
+			outw(data[i] & 0x0FFF, devpriv->BADR2 + DAC1_OFFSET);
 			break;
 		default:
 			return -1;
@@ -470,22 +465,20 @@ static int cb_pcimdas_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_ins
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int cb_pcimdas_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int cb_pcimdas_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for(i=0;i<insn->n;i++)
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
 
 	return i;
 }
-
 
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_cb_pcimdas);
-
-

@@ -16,10 +16,10 @@ static __inline__ unsigned long claim_dma_lock(void)
 	cli();
 	return flags;
 }
+
 #define release_dma_lock(x)	restore_flags(x)
 #endif
 
 #include_next <asm/dma.h>
 
 #endif
-

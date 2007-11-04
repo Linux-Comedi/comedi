@@ -86,8 +86,7 @@
 #define AI_Status_2_Register		5
 
 #define Interrupt_B_Ack_Register	3
-enum Interrupt_B_Ack_Bits
-{
+enum Interrupt_B_Ack_Bits {
 	G1_Gate_Error_Confirm = _bit1,
 	G1_TC_Error_Confirm = _bit2,
 	AO_BC_TC_Trigger_Error_Confirm = _bit3,
@@ -122,7 +121,6 @@ enum Interrupt_B_Ack_Bits
 #define G1_Gate_Interrupt_St			_bit2
 #define AO_FIFO_Request_St			_bit1
 #define Pass_Thru_1_Interrupt_St		_bit0
-
 
 #define AI_Command_2_Register		4
 #define AI_End_On_SC_TC				_bit15
@@ -194,7 +192,6 @@ enum Interrupt_B_Ack_Bits
 #define AO_LDAC0_Source_Select			_bit1
 #define AO_UPDATE_Pulse				_bit0
 
-
 #define DIO_Output_Register		10
 #define DIO_Parallel_Data_Out(a)                ((a)&0xff)
 #define DIO_Parallel_Data_Mask                  0xff
@@ -250,8 +247,7 @@ enum Interrupt_B_Ack_Bits
 
 #define DIO_Serial_Input_Register       28
 #define Joint_Status_2_Register         29
-enum Joint_Status_2_Bits
-{
+enum Joint_Status_2_Bits {
 	AO_TMRDACWRs_In_Progress_St = 0x20,
 };
 
@@ -267,12 +263,11 @@ enum Joint_Status_2_Bits
 
 #define AO_Mode_2_Register		39
 #define AO_FIFO_Mode_Mask ( 0x3 << 14 )
-enum AO_FIFO_Mode_Bits
-{
-	AO_FIFO_Mode_HF_to_F = (3<<14),
-	AO_FIFO_Mode_F = (2<<14),
-	AO_FIFO_Mode_HF = (1<<14),
-	AO_FIFO_Mode_E = (0<<14),
+enum AO_FIFO_Mode_Bits {
+	AO_FIFO_Mode_HF_to_F = (3 << 14),
+	AO_FIFO_Mode_F = (2 << 14),
+	AO_FIFO_Mode_HF = (1 << 14),
+	AO_FIFO_Mode_E = (0 << 14),
 };
 #define AO_FIFO_Retransmit_Enable		_bit13
 #define AO_START1_Disable			_bit12
@@ -306,8 +301,7 @@ enum AO_FIFO_Mode_Bits
 #define AO_UC_Save_Registers		20
 
 #define Clock_and_FOUT_Register		56
-enum Clock_and_FOUT_bits
-{
+enum Clock_and_FOUT_bits {
 	FOUT_Enable = _bit15,
 	FOUT_Timebase_Select = _bit14,
 	DIO_Serial_Out_Divide_By_2 = _bit13,
@@ -329,8 +323,7 @@ static inline unsigned FOUT_Divider(unsigned divider)
 
 #define IO_Bidirection_Pin_Register	57
 #define	RTSI_Trig_Direction_Register	58
-enum RTSI_Trig_Direction_Bits
-{
+enum RTSI_Trig_Direction_Bits {
 	Drive_RTSI_Clock_Bit = 0x1,
 	Use_RTSI_Clock_Bit = 0x2,
 };
@@ -338,18 +331,16 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 {
 	unsigned max_channel;
 	unsigned base_bit_shift;
-	if(is_mseries)
-	{
+	if (is_mseries) {
 		base_bit_shift = 8;
 		max_channel = 7;
-	}else
-	{
+	} else {
 		base_bit_shift = 9;
 		max_channel = 6;
 	}
-	if(channel > max_channel)
-	{
-		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__, channel);
+	if (channel > max_channel) {
+		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__,
+			channel);
 		return 0;
 	}
 	return 1 << (base_bit_shift + channel);
@@ -371,14 +362,14 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 #define AI_EXTMUX_CLK_Output_Select(x)		(((x) & 0x3) << 6)
 #define AI_LOCALMUX_CLK_Output_Select(x)	((x)<<4)
 #define AI_SC_TC_Output_Select(x)		((x)<<2)
-enum ai_convert_output_selection
-{
+enum ai_convert_output_selection {
 	AI_CONVERT_Output_High_Z = 0,
 	AI_CONVERT_Output_Ground = 1,
 	AI_CONVERT_Output_Enable_Low = 2,
 	AI_CONVERT_Output_Enable_High = 3
 };
-static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection selection)
+static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection
+	selection)
 {
 	return selection & 0x3;
 }
@@ -474,8 +465,7 @@ static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection select
 #define AO_BC_TC_Interrupt_Enable		_bit0
 
 #define Second_IRQ_A_Enable_Register	74
-enum Second_IRQ_A_Enable_Bits
-{
+enum Second_IRQ_A_Enable_Bits {
 	AI_SC_TC_Second_Irq_Enable = _bit0,
 	AI_START1_Second_Irq_Enable = _bit1,
 	AI_START2_Second_Irq_Enable = _bit2,
@@ -489,8 +479,7 @@ enum Second_IRQ_A_Enable_Bits
 };
 
 #define Second_IRQ_B_Enable_Register	76
-enum Second_IRQ_B_Enable_Bits
-{
+enum Second_IRQ_B_Enable_Bits {
 	AO_BC_TC_Second_Irq_Enable = _bit0,
 	AO_START1_Second_Irq_Enable = _bit1,
 	AO_UPDATE_Second_Irq_Enable = _bit2,
@@ -520,8 +509,7 @@ enum Second_IRQ_B_Enable_Bits
 #define AI_AIFREQ_Polarity			_bit4
 
 #define AO_Personal_Register		78
-enum AO_Personal_Bits
-{
+enum AO_Personal_Bits {
 	AO_Interval_Buffer_Mode = 1 << 3,
 	AO_BC_Source_Select = 1 << 4,
 	AO_UPDATE_Pulse_Width = 1 << 5,
@@ -538,11 +526,11 @@ enum AO_Personal_Bits
 };
 #define	RTSI_Trig_A_Output_Register	79
 #define	RTSI_Trig_B_Output_Register	80
-enum RTSI_Trig_B_Output_Bits
-{
+enum RTSI_Trig_B_Output_Bits {
 	RTSI_Sub_Selection_1_Bit = 0x8000	// not for m-series
 };
-static inline unsigned RTSI_Trig_Output_Bits(unsigned rtsi_channel, unsigned source)
+static inline unsigned RTSI_Trig_Output_Bits(unsigned rtsi_channel,
+	unsigned source)
 {
 	return (source & 0xf) << ((rtsi_channel % 4) * 4);
 };
@@ -550,8 +538,10 @@ static inline unsigned RTSI_Trig_Output_Mask(unsigned rtsi_channel)
 {
 	return 0xf << ((rtsi_channel % 4) * 4);
 };
+
 // inverse to RTSI_Trig_Output_Bits()
-static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel, unsigned bits)
+static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel,
+	unsigned bits)
 {
 	return (bits >> ((rtsi_channel % 4) * 4)) & 0xf;
 };
@@ -569,14 +559,14 @@ static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel, unsigned b
 #define AO_UPDATE2_Output_Select(x)		(((x)&0x3)<<4)
 #define AO_External_Gate_Polarity		_bit3
 #define AO_UPDATE2_Output_Toggle		_bit2
-enum ao_update_output_selection
-{
+enum ao_update_output_selection {
 	AO_Update_Output_High_Z = 0,
 	AO_Update_Output_Ground = 1,
 	AO_Update_Output_Enable_Low = 2,
 	AO_Update_Output_Enable_High = 3
 };
-static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selection)
+static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
+	selection)
 {
 	return selection & 0x3;
 }
@@ -617,23 +607,23 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selectio
 #define Analog_Trigger_Etc_Register	61
 
 /* command register */
-#define G_Disarm_Copy			_bit15		/* strobe */
+#define G_Disarm_Copy			_bit15	/* strobe */
 #define G_Save_Trace_Copy		_bit14
-#define G_Arm_Copy			_bit13		/* strobe */
-#define G_Bank_Switch_Start		_bit10		/* strobe */
+#define G_Arm_Copy			_bit13	/* strobe */
+#define G_Bank_Switch_Start		_bit10	/* strobe */
 #define G_Little_Big_Endian		_bit9
 #define G_Synchronized_Gate		_bit8
 #define G_Write_Switch			_bit7
 #define G_Up_Down(a)			(((a)&0x03)<<5)
-#define G_Disarm			_bit4		/* strobe */
-#define G_Analog_Trigger_Reset		_bit3		/* strobe */
+#define G_Disarm			_bit4	/* strobe */
+#define G_Analog_Trigger_Reset		_bit3	/* strobe */
 #define G_Save_Trace			_bit1
-#define G_Arm				_bit0		/* strobe */
+#define G_Arm				_bit0	/* strobe */
 
 /*channel agnostic names for the command register #defines */
 #define G_Bank_Switch_Enable		_bit12
 #define G_Bank_Switch_Mode		_bit11
-#define G_Load				_bit2		/* strobe */
+#define G_Load				_bit2	/* strobe */
 
 /* input select register */
 #define G_Gate_Select(a)		(((a)&0x1f)<<7)
@@ -707,8 +697,7 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection selectio
 
 /* 8 bit registers */
 #define XXX_Status			0x01
-enum XXX_Status_Bits
-{
+enum XXX_Status_Bits {
 	PROMOUT = 0x1,
 	AI_FIFO_LOWER_NOT_EMPTY = 0x8,
 };
@@ -723,8 +712,7 @@ enum XXX_Status_Bits
 #define Channel_B_Mode			0x05
 #define Channel_C_Mode			0x07
 #define AI_AO_Select			0x09
-enum AI_AO_Select_Bits
-{
+enum AI_AO_Select_Bits {
 	AI_DMA_Select_Shift = 0,
 	AI_DMA_Select_Mask = 0xf,
 	AO_DMA_Select_Shift = 4,
@@ -733,16 +721,21 @@ enum AI_AO_Select_Bits
 #define G0_G1_Select			0x0b
 static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 {
-	if(channel < 4) return 1 << channel;
-	if(channel == 4) return 0x3;
-	if(channel == 5) return 0x5;
+	if (channel < 4)
+		return 1 << channel;
+	if (channel == 4)
+		return 0x3;
+	if (channel == 5)
+		return 0x5;
 	BUG();
 	return 0;
 }
-static inline unsigned GPCT_DMA_Select_Bits(unsigned gpct_index, unsigned mite_channel)
+static inline unsigned GPCT_DMA_Select_Bits(unsigned gpct_index,
+	unsigned mite_channel)
 {
 	BUG_ON(gpct_index > 1);
-	return ni_stc_dma_channel_select_bitfield(mite_channel) << (4 * gpct_index);
+	return ni_stc_dma_channel_select_bitfield(mite_channel) << (4 *
+		gpct_index);
 }
 static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 {
@@ -750,26 +743,23 @@ static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 	return 0xf << (4 * gpct_index);
 }
 
-
 /* 16 bit registers */
 
 #define Configuration_Memory_Low	0x10
-enum Configuration_Memory_Low_Bits
-{
-	AI_DITHER	= 0x200,
-	AI_LAST_CHANNEL	= 0x8000,
+enum Configuration_Memory_Low_Bits {
+	AI_DITHER = 0x200,
+	AI_LAST_CHANNEL = 0x8000,
 };
 #define Configuration_Memory_High	0x12
-enum Configuration_Memory_High_Bits
-{
-	AI_AC_COUPLE	= 0x800,
+enum Configuration_Memory_High_Bits {
+	AI_AC_COUPLE = 0x800,
 	AI_DIFFERENTIAL = 0x1000,
 	AI_COMMON = 0x2000,
 	AI_GROUND = 0x3000,
 };
-static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
+static inline unsigned int AI_CONFIG_CHANNEL(unsigned int channel)
 {
-	return ( channel & 0x3f );
+	return (channel & 0x3f);
 }
 
 #define ADC_FIFO_Data_Register		0x1c
@@ -785,39 +775,38 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 #define DAC0_Direct_Data		0x18
 #define DAC1_Direct_Data		0x1a
 
-
 /* 611x registers (these boards differ from the e-series) */
 
-#define Magic_611x			0x19 /* w8 (new) */
-#define Calibration_Channel_Select_611x	0x1a /* w16 (new) */
-#define ADC_FIFO_Data_611x		0x1c /* r32 (incompatible) */
-#define AI_FIFO_Offset_Load_611x	0x05 /* r8 (new) */
-#define DAC_FIFO_Data_611x		0x14 /* w32 (incompatible) */
-#define Cal_Gain_Select_611x		0x05 /* w8 (new) */
+#define Magic_611x			0x19	/* w8 (new) */
+#define Calibration_Channel_Select_611x	0x1a	/* w16 (new) */
+#define ADC_FIFO_Data_611x		0x1c	/* r32 (incompatible) */
+#define AI_FIFO_Offset_Load_611x	0x05	/* r8 (new) */
+#define DAC_FIFO_Data_611x		0x14	/* w32 (incompatible) */
+#define Cal_Gain_Select_611x		0x05	/* w8 (new) */
 
 #define AO_Window_Address_611x		0x18
 #define AO_Window_Data_611x		0x1e
 
 /* 6143 registers */
-#define Magic_6143			0x19 /* w8 */
-#define G0G1_DMA_Select_6143		0x0B /* w8 */
-#define PipelineDelay_6143		0x1f /* w8 */
-#define EOC_Set_6143			0x1D /* w8 */
-#define AIDMA_Select_6143		0x09 /* w8 */
-#define AIFIFO_Data_6143		0x8C /* w32 */
-#define AIFIFO_Flag_6143		0x84 /* w32 */
-#define AIFIFO_Control_6143		0x88 /* w32 */
-#define AIFIFO_Status_6143		0x88 /* w32 */
-#define AIFIFO_DMAThreshold_6143	0x90 /* w32 */
-#define AIFIFO_Words_Available_6143	0x94 /* w32 */
+#define Magic_6143			0x19	/* w8 */
+#define G0G1_DMA_Select_6143		0x0B	/* w8 */
+#define PipelineDelay_6143		0x1f	/* w8 */
+#define EOC_Set_6143			0x1D	/* w8 */
+#define AIDMA_Select_6143		0x09	/* w8 */
+#define AIFIFO_Data_6143		0x8C	/* w32 */
+#define AIFIFO_Flag_6143		0x84	/* w32 */
+#define AIFIFO_Control_6143		0x88	/* w32 */
+#define AIFIFO_Status_6143		0x88	/* w32 */
+#define AIFIFO_DMAThreshold_6143	0x90	/* w32 */
+#define AIFIFO_Words_Available_6143	0x94	/* w32 */
 
-#define Calibration_Channel_6143	0x42 /* w16 */
-#define Calibration_LowTime_6143	0x20 /* w16 */
-#define Calibration_HighTime_6143	0x22 /* w16 */
-#define Relay_Counter_Load_Val__6143	0x4C /* w32 */
-#define Signature_6143			0x50 /* w32 */
-#define Release_Date_6143		0x54 /* w32 */
-#define Release_Oldest_Date_6143	0x58 /* w32 */
+#define Calibration_Channel_6143	0x42	/* w16 */
+#define Calibration_LowTime_6143	0x20	/* w16 */
+#define Calibration_HighTime_6143	0x22	/* w16 */
+#define Relay_Counter_Load_Val__6143	0x4C	/* w32 */
+#define Signature_6143			0x50	/* w32 */
+#define Release_Date_6143		0x54	/* w32 */
+#define Release_Oldest_Date_6143	0x58	/* w32 */
 
 #define Calibration_Channel_6143_RelayOn	0x8000	/* Calibration relay switch On */
 #define Calibration_Channel_6143_RelayOff	0x4000	/* Calibration relay switch Off */
@@ -831,32 +820,29 @@ static inline unsigned int AI_CONFIG_CHANNEL( unsigned int channel )
 /* 671x, 611x registers */
 
 /* 671xi, 611x windowed ao registers */
-enum windowed_regs_67xx_61xx
-{
-	AO_Immediate_671x = 0x11, /* W 16 */
-	AO_Timed_611x = 0x10, /* W 16 */
-	AO_FIFO_Offset_Load_611x = 0x13, /* W32 */
-	AO_Later_Single_Point_Updates = 0x14, /* W 16 */
-	AO_Waveform_Generation_611x = 0x15, /* W 16 */
-	AO_Misc_611x = 0x16, /* W 16 */
-	AO_Calibration_Channel_Select_67xx = 0x17, /* W 16 */
-	AO_Configuration_2_67xx = 0x18, /* W 16 */
-	CAL_ADC_Command_67xx = 0x19, /* W 8 */
-	CAL_ADC_Status_67xx = 0x1a, /* R 8 */
-	CAL_ADC_Data_67xx = 0x1b, /* R 16 */
-	CAL_ADC_Config_Data_High_Word_67xx = 0x1c, /* RW 16 */
-	CAL_ADC_Config_Data_Low_Word_67xx = 0x1d, /* RW 16 */
+enum windowed_regs_67xx_61xx {
+	AO_Immediate_671x = 0x11,	/* W 16 */
+	AO_Timed_611x = 0x10,	/* W 16 */
+	AO_FIFO_Offset_Load_611x = 0x13,	/* W32 */
+	AO_Later_Single_Point_Updates = 0x14,	/* W 16 */
+	AO_Waveform_Generation_611x = 0x15,	/* W 16 */
+	AO_Misc_611x = 0x16,	/* W 16 */
+	AO_Calibration_Channel_Select_67xx = 0x17,	/* W 16 */
+	AO_Configuration_2_67xx = 0x18,	/* W 16 */
+	CAL_ADC_Command_67xx = 0x19,	/* W 8 */
+	CAL_ADC_Status_67xx = 0x1a,	/* R 8 */
+	CAL_ADC_Data_67xx = 0x1b,	/* R 16 */
+	CAL_ADC_Config_Data_High_Word_67xx = 0x1c,	/* RW 16 */
+	CAL_ADC_Config_Data_Low_Word_67xx = 0x1d,	/* RW 16 */
 };
 static inline unsigned int DACx_Direct_Data_671x(int channel)
 {
 	return channel;
 }
-enum AO_Misc_611x_Bits
-{
+enum AO_Misc_611x_Bits {
 	CLEAR_WG = 1,
 };
-enum cs5529_configuration_bits
-{
+enum cs5529_configuration_bits {
 	CSCFG_CAL_CONTROL_MASK = 0x7,
 	CSCFG_SELF_CAL_OFFSET = 0x1,
 	CSCFG_SELF_CAL_GAIN = 0x2,
@@ -888,8 +874,7 @@ static inline unsigned int CS5529_CONFIG_AOUT(int output)
 {
 	return 1 << (22 + output);
 }
-enum cs5529_command_bits
-{
+enum cs5529_command_bits {
 	CSCMD_POWER_SAVE = 0x1,
 	CSCMD_REGISTER_SELECT_MASK = 0xe,
 	CSCMD_OFFSET_REGISTER = 0x0,
@@ -900,10 +885,9 @@ enum cs5529_command_bits
 	CSCMD_SINGLE_CONVERSION = 0x40,
 	CSCMD_COMMAND = 0x80,
 };
-enum cs5529_status_bits
-{
+enum cs5529_status_bits {
 	CSS_ADC_BUSY = 0x1,
-	CSS_OSC_DETECT = 0x2, /* indicates adc error */
+	CSS_OSC_DETECT = 0x2,	/* indicates adc error */
 	CSS_OVERRANGE = 0x4,
 };
 #define SerDacLd(x)			(0x08<<(x))
@@ -913,9 +897,12 @@ enum cs5529_status_bits
 	but I thought I'd put it here anyway.
 */
 
-enum{ ai_gain_16=0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x, ai_gain_628x,  ai_gain_6143};
-enum caldac_enum { caldac_none=0, mb88341, dac8800, dac8043, ad8522,
-	ad8804, ad8842, ad8804_debug };
+enum { ai_gain_16 =
+		0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x,
+		ai_gain_628x, ai_gain_6143 };
+enum caldac_enum { caldac_none = 0, mb88341, dac8800, dac8043, ad8522,
+	ad8804, ad8842, ad8804_debug
+};
 enum ni_reg_type {
 	ni_reg_normal = 0x0,
 	ni_reg_611x = 0x1,
@@ -932,8 +919,7 @@ enum ni_reg_type {
 
 static const comedi_lrange range_ni_E_ao_ext;
 
-enum m_series_register_offsets
-{
+enum m_series_register_offsets {
 	M_Offset_CDIO_DMA_Select = 0x7,	// write
 	M_Offset_SCXI_Status = 0x7,	// read
 	M_Offset_AI_AO_Select = 0x9,	// write, same offset as e-series
@@ -1092,15 +1078,13 @@ static inline int M_Offset_Gen_PWM(int channel)
 }
 static inline int M_Offset_Static_AI_Control(int i)
 {
-	int offset[] =
-	{
+	int offset[] = {
 		0x64,
 		0x261,
 		0x262,
 		0x263,
 	};
-	if(((unsigned)i) >= sizeof(offset) / sizeof(offset[0]))
-	{
+	if (((unsigned)i) >= sizeof(offset) / sizeof(offset[0])) {
 		rt_printk("%s: invalid channel=%i\n", __FUNCTION__, i);
 		return offset[0];
 	}
@@ -1108,15 +1092,13 @@ static inline int M_Offset_Static_AI_Control(int i)
 };
 static inline int M_Offset_AO_Reference_Attenuation(int channel)
 {
-	int offset[] =
-	{
+	int offset[] = {
 		0x264,
 		0x265,
 		0x266,
 		0x267
 	};
-	if(((unsigned)channel) >= sizeof(offset) / sizeof(offset[0]))
-	{
+	if (((unsigned)channel) >= sizeof(offset) / sizeof(offset[0])) {
 		rt_printk("%s: invalid channel=%i\n", __FUNCTION__, channel);
 		return offset[0];
 	}
@@ -1124,16 +1106,15 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 };
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
-	if(n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS)
-	{
-		rt_printk("%s: invalid pfi output select register=%i\n", __FUNCTION__, n);
+	if (n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS) {
+		rt_printk("%s: invalid pfi output select register=%i\n",
+			__FUNCTION__, n);
 		return M_Offset_PFI_Output_Select_1;
 	}
 	return M_Offset_PFI_Output_Select_1 + (n - 1) * 2;
 }
 
-enum MSeries_AI_Config_FIFO_Data_Bits
-{
+enum MSeries_AI_Config_FIFO_Data_Bits {
 	MSeries_AI_Config_Channel_Type_Mask = 0x7 << 6,
 	MSeries_AI_Config_Channel_Type_Calibration_Bits = 0x0,
 	MSeries_AI_Config_Channel_Type_Differential_Bits = 0x1 << 6,
@@ -1141,7 +1122,7 @@ enum MSeries_AI_Config_FIFO_Data_Bits
 	MSeries_AI_Config_Channel_Type_Ground_Ref_Bits = 0x3 << 6,
 	MSeries_AI_Config_Channel_Type_Aux_Bits = 0x5 << 6,
 	MSeries_AI_Config_Channel_Type_Ghost_Bits = 0x7 << 6,
-	MSeries_AI_Config_Polarity_Bit = 0x1000,  // 0 for 2's complement encoding
+	MSeries_AI_Config_Polarity_Bit = 0x1000,	// 0 for 2's complement encoding
 	MSeries_AI_Config_Dither_Bit = 0x2000,
 	MSeries_AI_Config_Last_Channel_Bit = 0x4000,
 };
@@ -1149,12 +1130,12 @@ static inline unsigned MSeries_AI_Config_Channel_Bits(unsigned channel)
 {
 	return channel & 0xf;
 }
-static inline unsigned MSeries_AI_Config_Bank_Bits(enum ni_reg_type reg_type, unsigned channel)
+static inline unsigned MSeries_AI_Config_Bank_Bits(enum ni_reg_type reg_type,
+	unsigned channel)
 {
 	unsigned bits = channel & 0x30;
-	if(reg_type == ni_reg_622x)
-	{
-		if(channel & 0x40)
+	if (reg_type == ni_reg_622x) {
+		if (channel & 0x40)
 			bits |= 0x400;
 	}
 	return bits;
@@ -1164,8 +1145,7 @@ static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
 	return (range & 0x7) << 9;
 }
 
-enum MSeries_Clock_and_Fout2_Bits
-{
+enum MSeries_Clock_and_Fout2_Bits {
 	MSeries_PLL_In_Source_Select_RTSI0_Bits = 0xb,
 	MSeries_PLL_In_Source_Select_Star_Trigger_Bits = 0x14,
 	MSeries_PLL_In_Source_Select_RTSI7_Bits = 0x1b,
@@ -1174,35 +1154,37 @@ enum MSeries_Clock_and_Fout2_Bits
 	MSeries_Timebase1_Select_Bit = 0x20,	// use PLL for timebase 1
 	MSeries_Timebase3_Select_Bit = 0x40,	// use PLL for timebase 3
 	/* use 10MHz instead of 20MHz for RTSI clock frequency.  Appears
-	 to have no effect, at least on pxi-6281, which always uses
-	 20MHz rtsi clock frequency */
+	   to have no effect, at least on pxi-6281, which always uses
+	   20MHz rtsi clock frequency */
 	MSeries_RTSI_10MHz_Bit = 0x80
 };
-static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned RTSI_channel)
+static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned
+	RTSI_channel)
 {
-	if(RTSI_channel > 7)
-	{
-		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__, RTSI_channel);
+	if (RTSI_channel > 7) {
+		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __FUNCTION__,
+			RTSI_channel);
 		return 0;
 	}
-	if(RTSI_channel == 7) return MSeries_PLL_In_Source_Select_RTSI7_Bits;
-	else return MSeries_PLL_In_Source_Select_RTSI0_Bits + RTSI_channel;
+	if (RTSI_channel == 7)
+		return MSeries_PLL_In_Source_Select_RTSI7_Bits;
+	else
+		return MSeries_PLL_In_Source_Select_RTSI0_Bits + RTSI_channel;
 }
 
-enum MSeries_PLL_Control_Bits
-{
+enum MSeries_PLL_Control_Bits {
 	MSeries_PLL_Enable_Bit = 0x1000,
 	MSeries_PLL_VCO_Mode_200_325MHz_Bits = 0x0,
-	MSeries_PLL_VCO_Mode_175_225MHz_Bits  = 0x2000,
-	MSeries_PLL_VCO_Mode_100_225MHz_Bits  = 0x4000,
-	MSeries_PLL_VCO_Mode_75_150MHz_Bits   = 0x6000,
+	MSeries_PLL_VCO_Mode_175_225MHz_Bits = 0x2000,
+	MSeries_PLL_VCO_Mode_100_225MHz_Bits = 0x4000,
+	MSeries_PLL_VCO_Mode_75_150MHz_Bits = 0x6000,
 };
 static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
 	static const unsigned max_divisor = 0x10;
-	if(divisor < 1 || divisor > max_divisor)
-	{
-		rt_printk("%s: bug, invalid divisor=%i\n", __FUNCTION__, divisor);
+	if (divisor < 1 || divisor > max_divisor) {
+		rt_printk("%s: bug, invalid divisor=%i\n", __FUNCTION__,
+			divisor);
 		return 0;
 	}
 	return (divisor & 0xf) << 8;
@@ -1210,21 +1192,19 @@ static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
 	static const unsigned max_multiplier = 0x100;
-	if(multiplier < 1 || multiplier > max_multiplier)
-	{
-		rt_printk("%s: bug, invalid multiplier=%i\n", __FUNCTION__, multiplier);
+	if (multiplier < 1 || multiplier > max_multiplier) {
+		rt_printk("%s: bug, invalid multiplier=%i\n", __FUNCTION__,
+			multiplier);
 		return 0;
 	}
 	return multiplier & 0xff;
 }
 
-enum MSeries_PLL_Status
-{
+enum MSeries_PLL_Status {
 	MSeries_PLL_Locked_Bit = 0x1
 };
 
-enum MSeries_AI_Config_FIFO_Bypass_Bits
-{
+enum MSeries_AI_Config_FIFO_Bypass_Bits {
 	MSeries_AI_Bypass_Channel_Mask = 0x7,
 	MSeries_AI_Bypass_Bank_Mask = 0x78,
 	MSeries_AI_Bypass_Cal_Sel_Pos_Mask = 0x380,
@@ -1233,14 +1213,16 @@ enum MSeries_AI_Config_FIFO_Bypass_Bits
 	MSeries_AO_Bypass_AO_Cal_Sel_Mask = 0x38000,
 	MSeries_AI_Bypass_Gain_Mask = 0x1c0000,
 	MSeries_AI_Bypass_Dither_Bit = 0x200000,
-	MSeries_AI_Bypass_Polarity_Bit = 0x400000, // 0 for 2's complement encoding
+	MSeries_AI_Bypass_Polarity_Bit = 0x400000,	// 0 for 2's complement encoding
 	MSeries_AI_Bypass_Config_FIFO_Bit = 0x80000000
 };
-static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int calibration_source)
+static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int
+	calibration_source)
 {
 	return (calibration_source << 7) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
 }
-static inline unsigned MSeries_AI_Bypass_Cal_Sel_Neg_Bits(int calibration_source)
+static inline unsigned MSeries_AI_Bypass_Cal_Sel_Neg_Bits(int
+	calibration_source)
 {
 	return (calibration_source << 10) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
 }
@@ -1249,8 +1231,7 @@ static inline unsigned MSeries_AI_Bypass_Gain_Bits(int gain)
 	return (gain << 18) & MSeries_AI_Bypass_Gain_Mask;
 }
 
-enum MSeries_AO_Config_Bank_Bits
-{
+enum MSeries_AO_Config_Bank_Bits {
 	MSeries_AO_DAC_Offset_Select_Mask = 0x7,
 	MSeries_AO_DAC_Offset_0V_Bits = 0x0,
 	MSeries_AO_DAC_Offset_5V_Bits = 0x1,
@@ -1261,8 +1242,7 @@ enum MSeries_AO_Config_Bank_Bits
 	MSeries_AO_Bipolar_Bit = 0x80	// turns on 2's complement encoding
 };
 
-enum MSeries_AO_Reference_Attenuation_Bits
-{
+enum MSeries_AO_Reference_Attenuation_Bits {
 	MSeries_Attenuate_x5_Bit = 0x1
 };
 
@@ -1280,18 +1260,20 @@ static inline unsigned MSeries_PFI_Output_Select_Mask(unsigned channel)
 {
 	return 0x1f << (channel % 3) * 5;
 };
-static inline unsigned MSeries_PFI_Output_Select_Bits(unsigned channel, unsigned source)
+static inline unsigned MSeries_PFI_Output_Select_Bits(unsigned channel,
+	unsigned source)
 {
 	return (source & 0x1f) << ((channel % 3) * 5);
 };
+
 // inverse to MSeries_PFI_Output_Select_Bits
-static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel, unsigned bits)
+static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel,
+	unsigned bits)
 {
 	return (bits >> ((channel % 3) * 5)) & 0x1f;
 };
 
-enum MSeries_Gi_DMA_Config_Bits
-{
+enum MSeries_Gi_DMA_Config_Bits {
 	Gi_DMA_BankSW_Error_Bit = 0x10,
 	Gi_DMA_Reset_Bit = 0x8,
 	Gi_DMA_Int_Enable_Bit = 0x4,
@@ -1303,21 +1285,21 @@ static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
 {
 	return 0x3 << (channel * 2);
 }
-static inline unsigned MSeries_PFI_Filter_Select_Bits(unsigned channel, unsigned filter)
+static inline unsigned MSeries_PFI_Filter_Select_Bits(unsigned channel,
+	unsigned filter)
 {
-	return (filter << (channel * 2)) & MSeries_PFI_Filter_Select_Mask(channel);
+	return (filter << (channel *
+			2)) & MSeries_PFI_Filter_Select_Mask(channel);
 }
 
-enum CDIO_DMA_Select_Bits
-{
+enum CDIO_DMA_Select_Bits {
 	CDI_DMA_Select_Shift = 0,
 	CDI_DMA_Select_Mask = 0xf,
 	CDO_DMA_Select_Shift = 4,
 	CDO_DMA_Select_Mask = 0xf << CDO_DMA_Select_Shift
 };
 
-enum CDIO_Status_Bits
-{
+enum CDIO_Status_Bits {
 	CDO_FIFO_Empty_Bit = 0x1,
 	CDO_FIFO_Full_Bit = 0x2,
 	CDO_FIFO_Request_Bit = 0x4,
@@ -1330,8 +1312,7 @@ enum CDIO_Status_Bits
 	CDI_Overflow_Bit = 0x100000
 };
 
-enum CDIO_Command_Bits
-{
+enum CDIO_Command_Bits {
 	CDO_Disarm_Bit = 0x1,
 	CDO_Arm_Bit = 0x2,
 	CDI_Disarm_Bit = 0x4,
@@ -1354,8 +1335,7 @@ enum CDIO_Command_Bits
 	CDI_SW_Update_Bit = 0x100000
 };
 
-enum CDI_Mode_Bits
-{
+enum CDI_Mode_Bits {
 	CDI_Sample_Source_Select_Mask = 0x3f,
 	CDI_Halt_On_Error_Bit = 0x200,
 	CDI_Polarity_Bit = 0x400,	// sample clock on falling edge
@@ -1369,14 +1349,13 @@ enum CDI_Mode_Bits
 	CDI_Data_Lane_24_31_Bits = 0x3000
 };
 
-enum CDO_Mode_Bits
-{
+enum CDO_Mode_Bits {
 	CDO_Sample_Source_Select_Mask = 0x3f,
 	CDO_Retransmit_Bit = 0x100,
 	CDO_Halt_On_Error_Bit = 0x200,
 	CDO_Polarity_Bit = 0x400,	// sample clock on falling edge
 	CDO_FIFO_Mode_Bit = 0x800,	// set for half full mode, clear for not full mode
-	CDO_Data_Lane_Mask = 0x3000, // data lanes specify which dio channels map to byte or word accesses to the dio fifos
+	CDO_Data_Lane_Mask = 0x3000,	// data lanes specify which dio channels map to byte or word accesses to the dio fifos
 	CDO_Data_Lane_0_15_Bits = 0x0,
 	CDO_Data_Lane_16_31_Bits = 0x1000,
 	CDO_Data_Lane_0_7_Bits = 0x0,
@@ -1385,19 +1364,17 @@ enum CDO_Mode_Bits
 	CDO_Data_Lane_24_31_Bits = 0x3000
 };
 
-enum Interrupt_C_Enable_Bits
-{
+enum Interrupt_C_Enable_Bits {
 	Interrupt_Group_C_Enable_Bit = 0x1
 };
 
-enum Interrupt_C_Status_Bits
-{
+enum Interrupt_C_Status_Bits {
 	Interrupt_Group_C_Status_Bit = 0x1
 };
 
 #define M_SERIES_EEPROM_SIZE 1024
 
-typedef struct ni_board_struct{
+typedef struct ni_board_struct {
 	int device_id;
 	int isapnp_id;
 	char *name;
@@ -1406,7 +1383,7 @@ typedef struct ni_board_struct{
 	int adbits;
 
 	int ai_fifo_depth;
-	unsigned int alwaysdither : 1;
+	unsigned int alwaysdither:1;
 	int gainlkup;
 	int ai_speed;
 
@@ -1419,12 +1396,12 @@ typedef struct ni_board_struct{
 	unsigned num_p0_dio_channels;
 
 	int reg_type;
-	unsigned int ao_unipolar : 1;
-	unsigned int has_8255 : 1;
-	unsigned int has_analog_trig : 1;
+	unsigned int ao_unipolar:1;
+	unsigned int has_8255:1;
+	unsigned int has_analog_trig:1;
 
 	enum caldac_enum caldac[3];
-}ni_board;
+} ni_board;
 
 #define n_ni_boards  (sizeof(ni_boards)/sizeof(ni_board))
 
@@ -1517,6 +1494,4 @@ typedef struct ni_board_struct{
 	struct mite_dma_descriptor_ring *cdo_mite_ring; \
 	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
 
-
 #endif /* _COMEDI_NI_STC_H */
-

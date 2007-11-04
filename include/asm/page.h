@@ -16,17 +16,16 @@
 /* Pure 2^n version of get_order */
 static __inline__ int get_order(unsigned long size)
 {
-        int order;
+	int order;
 
-        size = (size-1) >> (PAGE_SHIFT-1);
-        order = -1;
-        do {
-                size >>= 1;
-                order++;
-        } while (size);
-        return order;
+	size = (size - 1) >> (PAGE_SHIFT - 1);
+	order = -1;
+	do {
+		size >>= 1;
+		order++;
+	} while (size);
+	return order;
 }
 #endif
 
 #endif // __COMPAT_ASM_PAGE_H_
-

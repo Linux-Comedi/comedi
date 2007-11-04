@@ -26,43 +26,39 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI3200_BOARD_VENDOR_ID                 0x15B8
 //#define APCI3200_ADDRESS_RANGE                   264
 
-
-
-int MODULE_NO ;
- struct 
-{			 	
- INT i_Gain ;
- INT i_Polarity;
- INT i_OffsetRange;
- INT i_Coupling;
- INT i_SingleDiff;
- INT i_AutoCalibration;
- UINT ui_ReloadValue;
- UINT ui_TimeUnitReloadVal;
- INT i_Interrupt;
- INT i_ModuleSelection;
-}Config_Parameters_Module1,Config_Parameters_Module2,Config_Parameters_Module3,Config_Parameters_Module4;
-
-
+int MODULE_NO;
+struct {
+	INT i_Gain;
+	INT i_Polarity;
+	INT i_OffsetRange;
+	INT i_Coupling;
+	INT i_SingleDiff;
+	INT i_AutoCalibration;
+	UINT ui_ReloadValue;
+	UINT ui_TimeUnitReloadVal;
+	INT i_Interrupt;
+	INT i_ModuleSelection;
+} Config_Parameters_Module1, Config_Parameters_Module2,
+	Config_Parameters_Module3, Config_Parameters_Module4;
 
 //ANALOG INPUT RANGE 
-comedi_lrange range_apci3200_ai={ 8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2),
-		BIP_RANGE(1),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1)
+comedi_lrange range_apci3200_ai = { 8, {
+			BIP_RANGE(10),
+			BIP_RANGE(5),
+			BIP_RANGE(2),
+			BIP_RANGE(1),
+			UNI_RANGE(10),
+			UNI_RANGE(5),
+			UNI_RANGE(2),
+			UNI_RANGE(1)
 	}
 };
 
-comedi_lrange range_apci3300_ai={ 4, {
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1)
+comedi_lrange range_apci3300_ai = { 4, {
+			UNI_RANGE(10),
+			UNI_RANGE(5),
+			UNI_RANGE(2),
+			UNI_RANGE(1)
 	}
 };
 
@@ -93,7 +89,6 @@ comedi_lrange range_apci3300_ai={ 4, {
 #define ENABLE_EXT_GATE                          2
 #define ENABLE_EXT_TRIG_GATE                     3
 
-
 #define APCI3200_MAXVOLT                         2.5
 #define ADDIDATA_GREATER_THAN_TEST               0
 #define ADDIDATA_LESS_THAN_TEST                  1
@@ -105,90 +100,92 @@ comedi_lrange range_apci3300_ai={ 4, {
 #define MAX_MODULE				4
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
 
-typedef struct
-   {
-   ULONG ul_NumberOfValue;
-   ULONG *pul_ResistanceValue;
-   ULONG *pul_TemperatureValue;
-   }str_ADDIDATA_RTDStruct,*pstr_ADDIDATA_RTDStruct;
+typedef struct {
+	ULONG ul_NumberOfValue;
+	ULONG *pul_ResistanceValue;
+	ULONG *pul_TemperatureValue;
+} str_ADDIDATA_RTDStruct, *pstr_ADDIDATA_RTDStruct;
 
 //BEGIN JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-typedef struct
-   {
-   // Begin JK 05/08/2003 change for Linux    
-   unsigned long ul_CurrentSourceCJC;
-   unsigned long ul_CurrentSource [5];
-   // End JK 05/08/2003 change for Linux
+typedef struct {
+	// Begin JK 05/08/2003 change for Linux    
+	unsigned long ul_CurrentSourceCJC;
+	unsigned long ul_CurrentSource[5];
+	// End JK 05/08/2003 change for Linux
 
-   // Begin CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
-   unsigned long  ul_GainFactor [8]; // Gain Factor 
-   unsigned int w_GainValue [10];
-   // End CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
-   }str_Module;
+	// Begin CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
+	unsigned long ul_GainFactor[8];	// Gain Factor 
+	unsigned int w_GainValue[10];
+	// End CG 15/02/02 Rev 1.0 -> Rev 1.1 : Add Header Type 1
+} str_Module;
 //END JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-   
-//BEGIN JK 06.07.04: Management of sevrals boards
-typedef struct 
-   {
-   INT i_CJCAvailable; 
-   INT i_CJCPolarity;
-   INT i_CJCGain;
-   INT i_InterruptFlag;
-   INT i_ADDIDATAPolarity;
-   INT i_ADDIDATAGain;                  
-   INT i_AutoCalibration;
-   INT i_ADDIDATAConversionTime;
-   INT i_ADDIDATAConversionTimeUnit; 
-   INT i_ADDIDATAType;
-   INT i_ChannelNo;
-   INT i_ChannelCount;
-   INT i_ScanType;
-   INT i_FirstChannel;
-   INT i_LastChannel;
-   INT i_Sum;
-   INT i_Offset;
-   UINT ui_Channel_num;
-   INT i_Count;
-   INT i_Initialised;
-   //UINT ui_InterruptChannelValue[96]; //Buffer
-   UINT ui_InterruptChannelValue[144]; //Buffer
-   BYTE b_StructInitialized;
-   //Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-   lsampl_t ui_ScanValueArray [7+12]; // 7 is the maximal number of channels
-   //End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
-   
-   //Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values   
-   INT i_ConnectionType;
-   INT     i_NbrOfModule;
-   str_Module s_Module [MAX_MODULE];
-   //End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
-   } str_BoardInfos;
-//END JK 06.07.04: Management of sevrals boards
 
+//BEGIN JK 06.07.04: Management of sevrals boards
+typedef struct {
+	INT i_CJCAvailable;
+	INT i_CJCPolarity;
+	INT i_CJCGain;
+	INT i_InterruptFlag;
+	INT i_ADDIDATAPolarity;
+	INT i_ADDIDATAGain;
+	INT i_AutoCalibration;
+	INT i_ADDIDATAConversionTime;
+	INT i_ADDIDATAConversionTimeUnit;
+	INT i_ADDIDATAType;
+	INT i_ChannelNo;
+	INT i_ChannelCount;
+	INT i_ScanType;
+	INT i_FirstChannel;
+	INT i_LastChannel;
+	INT i_Sum;
+	INT i_Offset;
+	UINT ui_Channel_num;
+	INT i_Count;
+	INT i_Initialised;
+	//UINT ui_InterruptChannelValue[96]; //Buffer
+	UINT ui_InterruptChannelValue[144];	//Buffer
+	BYTE b_StructInitialized;
+	//Begin JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
+	lsampl_t ui_ScanValueArray[7 + 12];	// 7 is the maximal number of channels
+	//End JK 19.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68
+
+	//Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values   
+	INT i_ConnectionType;
+	INT i_NbrOfModule;
+	str_Module s_Module[MAX_MODULE];
+	//End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values
+} str_BoardInfos;
+//END JK 06.07.04: Management of sevrals boards
 
 // Hardware Layer  functions for Apci3200
 
 //AI
 
-INT i_APCI3200_ConfigAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI3200_ReadAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI3200_InsnWriteReleaseAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data); 
-INT i_APCI3200_StopCyclicAcquisition(comedi_device *dev,comedi_subdevice *s);
-INT i_APCI3200_InterruptHandleEos(comedi_device *dev);
-INT i_APCI3200_CommandTestAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd) ;
-INT i_APCI3200_CommandAnalogInput(comedi_device *dev,comedi_subdevice *s);
-INT i_APCI3200_ReadDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+INT i_APCI3200_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI3200_ReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI3200_InsnWriteReleaseAnalogInput(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+INT i_APCI3200_StopCyclicAcquisition(comedi_device * dev, comedi_subdevice * s);
+INT i_APCI3200_InterruptHandleEos(comedi_device * dev);
+INT i_APCI3200_CommandTestAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd);
+INT i_APCI3200_CommandAnalogInput(comedi_device * dev, comedi_subdevice * s);
+INT i_APCI3200_ReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 //Interrupt
-void v_APCI3200_Interrupt(int irq, void *d) ;
-int i_APCI3200_InterruptHandleEos(comedi_device *dev);
+void v_APCI3200_Interrupt(int irq, void *d);
+int i_APCI3200_InterruptHandleEos(comedi_device * dev);
 //Reset functions
-INT i_APCI3200_Reset(comedi_device *dev);	
+INT i_APCI3200_Reset(comedi_device * dev);
 
-
-int i_APCI3200_ReadCJCCalOffset(comedi_device *dev,lsampl_t *data);
-int i_APCI3200_ReadCJCValue(comedi_device *dev,lsampl_t *data);
-int i_APCI3200_ReadCalibrationGainValue(comedi_device *dev,UINT *data);
-int i_APCI3200_ReadCalibrationOffsetValue(comedi_device *dev,UINT *data);
-int i_APCI3200_Read1AnalogInputChannel(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI3200_ReadCJCCalGain(comedi_device *dev,lsampl_t *data);
+int i_APCI3200_ReadCJCCalOffset(comedi_device * dev, lsampl_t * data);
+int i_APCI3200_ReadCJCValue(comedi_device * dev, lsampl_t * data);
+int i_APCI3200_ReadCalibrationGainValue(comedi_device * dev, UINT * data);
+int i_APCI3200_ReadCalibrationOffsetValue(comedi_device * dev, UINT * data);
+int i_APCI3200_Read1AnalogInputChannel(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+int i_APCI3200_ReadCJCCalGain(comedi_device * dev, lsampl_t * data);

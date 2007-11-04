@@ -15,7 +15,6 @@
 #ifndef _AMCC_S5933_H_
 #define _AMCC_S5933_H_
 
-
 /****************************************************************************/
 /* AMCC Operation Register Offsets - PCI                                    */
 /****************************************************************************/
@@ -35,11 +34,11 @@
 #define AMCC_OP_REG_MRTC         0x30
 #define AMCC_OP_REG_MBEF         0x34
 #define AMCC_OP_REG_INTCSR       0x38
-#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2) /* INT source */
-#define  AMCC_OP_REG_INTCSR_FEC  (AMCC_OP_REG_INTCSR + 3) /* FIFO ctrl */
+#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2)	/* INT source */
+#define  AMCC_OP_REG_INTCSR_FEC  (AMCC_OP_REG_INTCSR + 3)	/* FIFO ctrl */
 #define AMCC_OP_REG_MCSR         0x3c
-#define  AMCC_OP_REG_MCSR_NVDATA (AMCC_OP_REG_MCSR + 2) /* Data in byte 2 */
-#define  AMCC_OP_REG_MCSR_NVCMD  (AMCC_OP_REG_MCSR + 3) /* Command in byte 3 */
+#define  AMCC_OP_REG_MCSR_NVDATA (AMCC_OP_REG_MCSR + 2)	/* Data in byte 2 */
+#define  AMCC_OP_REG_MCSR_NVCMD  (AMCC_OP_REG_MCSR + 3)	/* Command in byte 3 */
 
 #define AMCC_FIFO_DEPTH_DWORD	8
 #define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof (u32))
@@ -53,7 +52,7 @@
 #define INTCSR_INBOX_BYTE(x)	(((x) & 0x3) << 8)
 #define INTCSR_INBOX_SELECT(x)	(((x) & 0x3) << 10)
 #define INTCSR_INBOX_FULL_INT	0x1000	// enable inbox full interrupt
-#define INTCSR_INBOX_INTR_STATUS	0x20000 // read, or write clear inbox full interrupt
+#define INTCSR_INBOX_INTR_STATUS	0x20000	// read, or write clear inbox full interrupt
 #define INTCSR_INTR_ASSERTED	0x800000	// read only, interrupt asserted
 
 /****************************************************************************/

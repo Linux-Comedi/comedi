@@ -21,7 +21,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 @endverbatim
 */
-   
 
 #define APCI1710_PCI_BUS_CLOCK 					0
 #define APCI1710_FRONT_CONNECTOR_INPUT 			1
@@ -35,7 +34,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 // BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 #ifndef APCI1710_10MHZ
-   #define APCI1710_10MHZ           10
+#define APCI1710_10MHZ           10
 #endif
 // END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 
@@ -45,54 +44,41 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
+INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-
-INT i_APCI1710_InsnConfigInitTimer(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-
-
-
-INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
+INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 /*
 +----------------------------------------------------------------------------+
 |                       82X54 READ FUNCTION                                  |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
+INT i_APCI1710_InsnReadAllTimerValue(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-
-INT	i_APCI1710_InsnBitsTimer(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data);
+INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 /*
 +----------------------------------------------------------------------------+
 |                       82X54 READ & WRITE FUNCTION                          |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_ReadTimerValue       (comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 BYTE     b_TimerNbr,
-					 PULONG   pul_TimerValue);
+INT i_APCI1710_ReadTimerValue(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_TimerNbr, PULONG pul_TimerValue);
 
-INT   i_APCI1710_GetTimerOutputLevel  (comedi_device *dev,
-					 BYTE   b_ModulNbr,
-					 BYTE   b_TimerNbr,
-					 PBYTE  pb_OutputLevel);
+INT i_APCI1710_GetTimerOutputLevel(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_TimerNbr, PBYTE pb_OutputLevel);
 
-INT   i_APCI1710_GetTimerProgressStatus       (comedi_device *dev,
-						 BYTE   b_ModulNbr,
-						 BYTE   b_TimerNbr,
-						 PBYTE pb_TimerStatus);
+INT i_APCI1710_GetTimerProgressStatus(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_TimerNbr, PBYTE pb_TimerStatus);
 
 /*
 +----------------------------------------------------------------------------+
 |                       82X54 WRITE FUNCTION                                 |
 +----------------------------------------------------------------------------+
 */
-INT   i_APCI1710_WriteTimerValue      (comedi_device *dev,
-					 BYTE   b_ModulNbr,
-					 BYTE   b_TimerNbr,
-					 ULONG ul_WriteValue);
+INT i_APCI1710_WriteTimerValue(comedi_device * dev,
+	BYTE b_ModulNbr, BYTE b_TimerNbr, ULONG ul_WriteValue);

@@ -60,7 +60,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #include "APCI1710_Ttl.h"
 
-
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitTTLIODirection                    |
@@ -101,253 +100,254 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
+INT i_APCI1710_InsnConfigInitTTLIO(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	BYTE b_ModulNbr;
+	BYTE b_InitType;
+	BYTE b_PortAMode;
+	BYTE b_PortBMode;
+	BYTE b_PortCMode;
+	BYTE b_PortDMode;
 
-INT   i_APCI1710_InsnConfigInitTTLIO(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data) 
-	{
-		INT		i_ReturnValue = 0;
-		BYTE    b_ModulNbr;
-		BYTE    b_InitType;
-		BYTE    b_PortAMode;
-		BYTE    b_PortBMode;
-		BYTE    b_PortCMode;
-		BYTE    b_PortDMode;
-
-		b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-		b_InitType = (BYTE) data[0];
-		i_ReturnValue = insn->n;
+	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
+	b_InitType = (BYTE) data[0];
+	i_ReturnValue = insn->n;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
-                                                                                                                                                                          
-	if (b_ModulNbr < 4)
-	   {
+
+	if (b_ModulNbr < 4) {
 	   /**************************/
-	   /* Test if TTL I/O module */
+		/* Test if TTL I/O module */
 	   /**************************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_TTL_IO)
-	      {
-            switch(b_InitType)
-			{
-			case APCI1710_TTL_INIT :
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_TTL_IO) {
+			switch (b_InitType) {
+			case APCI1710_TTL_INIT:
 
-			devpriv->s_ModuleInfo [b_ModulNbr].
-	      s_TTLIOInfo.b_TTLInit = 1;
-
-	      /***************************/
-	      /* Set TTL port A to input */
-	      /***************************/
-
-	      devpriv->s_ModuleInfo [b_ModulNbr].
-	      s_TTLIOInfo.
-	      b_PortConfiguration [0] = 0;
+				devpriv->s_ModuleInfo[b_ModulNbr].
+					s_TTLIOInfo.b_TTLInit = 1;
 
 	      /***************************/
-	      /* Set TTL port B to input */
+				/* Set TTL port A to input */
 	      /***************************/
 
-	      devpriv->s_ModuleInfo [b_ModulNbr].
-	      s_TTLIOInfo.
-	      b_PortConfiguration [1] = 0;
+				devpriv->s_ModuleInfo[b_ModulNbr].
+					s_TTLIOInfo.b_PortConfiguration[0] = 0;
 
 	      /***************************/
-	      /* Set TTL port C to input */
+				/* Set TTL port B to input */
 	      /***************************/
 
-	      devpriv->s_ModuleInfo [b_ModulNbr].
-	      s_TTLIOInfo.
-	      b_PortConfiguration [2] = 0;
+				devpriv->s_ModuleInfo[b_ModulNbr].
+					s_TTLIOInfo.b_PortConfiguration[1] = 0;
+
+	      /***************************/
+				/* Set TTL port C to input */
+	      /***************************/
+
+				devpriv->s_ModuleInfo[b_ModulNbr].
+					s_TTLIOInfo.b_PortConfiguration[2] = 0;
 
 	      /****************************/
-	      /* Set TTL port D to output */
+				/* Set TTL port D to output */
 	      /****************************/
 
-	      devpriv->s_ModuleInfo [b_ModulNbr].
-	      s_TTLIOInfo.
-	      b_PortConfiguration [3] = 1;
+				devpriv->s_ModuleInfo[b_ModulNbr].
+					s_TTLIOInfo.b_PortConfiguration[3] = 1;
 
 	      /*************************/
-	      /* Set the configuration */
+				/* Set the configuration */
 	      /*************************/
-			
-		  outl(0x8,devpriv->s_BoardInfos.ui_Address + 20 + (64 * b_ModulNbr));
-			break;
 
+				outl(0x8,
+					devpriv->s_BoardInfos.ui_Address + 20 +
+					(64 * b_ModulNbr));
+				break;
 
-			case APCI1710_TTL_INITDIRECTION :
+			case APCI1710_TTL_INITDIRECTION:
 
-			b_PortAMode	= (BYTE) data[1];
-			b_PortBMode = (BYTE) data[2];
-			b_PortCMode = (BYTE) data[3];
-			b_PortDMode	= (BYTE) data[4];
+				b_PortAMode = (BYTE) data[1];
+				b_PortBMode = (BYTE) data[2];
+				b_PortCMode = (BYTE) data[3];
+				b_PortDMode = (BYTE) data[4];
 
 	      /********************/
-	      /* Test the version */
+				/* Test the version */
 	      /********************/
 
-	      if ((devpriv->s_BoardInfos.
-		   dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)
-		 {
+				if ((devpriv->s_BoardInfos.
+						dw_MolduleConfiguration
+						[b_ModulNbr] & 0xFFFF) >=
+					0x3230) {
 		 /************************/
-		 /* Test the port A mode */
+					/* Test the port A mode */
 		 /************************/
 
-		 if ((b_PortAMode == 0) || (b_PortAMode == 1))
-		    {
+					if ((b_PortAMode == 0)
+						|| (b_PortAMode == 1)) {
 		    /************************/
-		    /* Test the port B mode */
+						/* Test the port B mode */
 		    /************************/
 
-		    if ((b_PortBMode == 0) || (b_PortBMode == 1))
-		       {
+						if ((b_PortBMode == 0)
+							|| (b_PortBMode == 1)) {
 		       /************************/
-		       /* Test the port C mode */
+							/* Test the port C mode */
 		       /************************/
 
-		       if ((b_PortCMode == 0) || (b_PortCMode == 1))
-			  {
+							if ((b_PortCMode == 0)
+								|| (b_PortCMode
+									== 1)) {
 			  /************************/
-			  /* Test the port D mode */
+								/* Test the port D mode */
 			  /************************/
 
-			  if ((b_PortDMode == 0) || (b_PortDMode == 1))
-			     {
-			     devpriv->s_ModuleInfo [b_ModulNbr].
-			     s_TTLIOInfo.
-			     b_TTLInit = 1;
+								if ((b_PortDMode == 0) || (b_PortDMode == 1)) {
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_TTLIOInfo.
+										b_TTLInit
+										=
+										1;
 
 			     /***********************/
-			     /* Set TTL port A mode */
+									/* Set TTL port A mode */
 			     /***********************/
 
-			     devpriv->s_ModuleInfo [b_ModulNbr].
-			     s_TTLIOInfo.
-			     b_PortConfiguration [0] = b_PortAMode;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_TTLIOInfo.
+										b_PortConfiguration
+										[0]
+										=
+										b_PortAMode;
 
 			     /***********************/
-			     /* Set TTL port B mode */
+									/* Set TTL port B mode */
 			     /***********************/
 
-			     devpriv->s_ModuleInfo [b_ModulNbr].
-			     s_TTLIOInfo.
-			     b_PortConfiguration [1] = b_PortBMode;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_TTLIOInfo.
+										b_PortConfiguration
+										[1]
+										=
+										b_PortBMode;
 
 			     /***********************/
-			     /* Set TTL port C mode */
+									/* Set TTL port C mode */
 			     /***********************/
 
-			     devpriv->s_ModuleInfo [b_ModulNbr].
-			     s_TTLIOInfo.
-			     b_PortConfiguration [2] = b_PortCMode;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_TTLIOInfo.
+										b_PortConfiguration
+										[2]
+										=
+										b_PortCMode;
 
 			     /***********************/
-			     /* Set TTL port D mode */
+									/* Set TTL port D mode */
 			     /***********************/
 
-			     devpriv->s_ModuleInfo [b_ModulNbr].
-			     s_TTLIOInfo.
-			     b_PortConfiguration [3] = b_PortDMode;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_TTLIOInfo.
+										b_PortConfiguration
+										[3]
+										=
+										b_PortDMode;
 
 			     /*************************/
-			     /* Set the configuration */
+									/* Set the configuration */
 			     /*************************/
 
-			     
-				 outl((b_PortAMode << 0) |
-					  (b_PortBMode << 1) |
-					  (b_PortCMode << 2) |
-					  (b_PortDMode << 3),devpriv->s_BoardInfos.
-				     ui_Address + 20 + (64 * b_ModulNbr));
-			     }
-			  else
-			     {
+									outl((b_PortAMode << 0) | (b_PortBMode << 1) | (b_PortCMode << 2) | (b_PortDMode << 3), devpriv->s_BoardInfos.ui_Address + 20 + (64 * b_ModulNbr));
+								} else {
 			     /**********************************/
-			     /* Port D mode selection is wrong */
+									/* Port D mode selection is wrong */
 			     /**********************************/
 
-                        DPRINTK("Port D mode selection is wrong\n");
-			     i_ReturnValue = -8;
-			     }
-			  }
-		       else
-			  {
+									DPRINTK("Port D mode selection is wrong\n");
+									i_ReturnValue
+										=
+										-8;
+								}
+							} else {
 			  /**********************************/
-			  /* Port C mode selection is wrong */
+								/* Port C mode selection is wrong */
 			  /**********************************/
 
-			  DPRINTK("Port C mode selection is wrong\n");
-			  i_ReturnValue = -7;
-			  }
-		       }
-		    else
-		       {
+								DPRINTK("Port C mode selection is wrong\n");
+								i_ReturnValue =
+									-7;
+							}
+						} else {
 		       /**********************************/
-		       /* Port B mode selection is wrong */
+							/* Port B mode selection is wrong */
 		       /**********************************/
 
-			   DPRINTK("Port B mode selection is wrong\n");
-		       i_ReturnValue = -6;
-		       }
-		    }
-		 else
-		    {
+							DPRINTK("Port B mode selection is wrong\n");
+							i_ReturnValue = -6;
+						}
+					} else {
 		    /**********************************/
-		    /* Port A mode selection is wrong */
+						/* Port A mode selection is wrong */
 		    /**********************************/
 
-			DPRINTK("Port A mode selection is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+						DPRINTK("Port A mode selection is wrong\n");
+						i_ReturnValue = -5;
+					}
+				} else {
 		 /*******************************************/
-		 /* Function not available for this version */
+					/* Function not available for this version */
 		 /*******************************************/
 
-		 DPRINTK("Function not available for this version\n");
-		 i_ReturnValue = -4;
-		 }
-		  break;
+					DPRINTK("Function not available for this version\n");
+					i_ReturnValue = -4;
+				}
+				break;
 
-		  DPRINTK("\n");
-		  default:
-			  printk("Bad Config Type\n");
-		  }// switch end
-	      }
-	   else
-	      {
+				DPRINTK("\n");
+			default:
+				printk("Bad Config Type\n");
+			}	// switch end
+		} else {
 	      /**********************************/
-	      /* The module is not a TTL module */
+			/* The module is not a TTL module */
 	      /**********************************/
 
-	      DPRINTK("The module is not a TTL module\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a TTL module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-          DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
 |                            INPUT FUNCTIONS                                 |
 +----------------------------------------------------------------------------+
 */
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -406,232 +406,230 @@ APCI1710_TTL_READCHANNEL
 +----------------------------------------------------------------------------+
 */
 
-
-INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_InsnBitsReadTTLIO(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg;
-	BYTE    b_ModulNbr;
-	BYTE    b_SelectedPort;
-	BYTE    b_InputChannel;
-	BYTE    b_ReadType;
-	PBYTE   pb_ChannelStatus;
-	PBYTE  pb_PortValue;
-	
-		
-	i_ReturnValue = insn->n;
-	b_ReadType	  = (BYTE) data[0];
-	b_ModulNbr	  = CR_AREF(insn->chanspec);
-	b_SelectedPort= CR_RANGE(insn->chanspec);
-	b_InputChannel= CR_CHAN(insn->chanspec);
+	BYTE b_ModulNbr;
+	BYTE b_SelectedPort;
+	BYTE b_InputChannel;
+	BYTE b_ReadType;
+	PBYTE pb_ChannelStatus;
+	PBYTE pb_PortValue;
 
-	
-	
-	
+	i_ReturnValue = insn->n;
+	b_ReadType = (BYTE) data[0];
+	b_ModulNbr = CR_AREF(insn->chanspec);
+	b_SelectedPort = CR_RANGE(insn->chanspec);
+	b_InputChannel = CR_CHAN(insn->chanspec);
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /**************************/
-	   /* Test if TTL I/O module */
+		/* Test if TTL I/O module */
 	   /**************************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_TTL_IO)
-	      {
-		   switch(b_ReadType)
-		   {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_TTL_IO) {
+			switch (b_ReadType) {
 
-		   case APCI1710_TTL_READCHANNEL:
-			pb_ChannelStatus = (PBYTE) &data[0];
+			case APCI1710_TTL_READCHANNEL:
+				pb_ChannelStatus = (PBYTE) & data[0];
 	      /********************************/
-	      /* Test the TTL I/O port number */
+				/* Test the TTL I/O port number */
 	      /********************************/
 
-	      if (((b_SelectedPort <= 2) && ((devpriv->s_BoardInfos.
-					      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
-		  ((b_SelectedPort <= 3) && ((devpriv->s_BoardInfos.
-					     dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
-		 {
+				if (((b_SelectedPort <= 2)
+						&& ((devpriv->s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) ==
+							0x3130))
+					|| ((b_SelectedPort <= 3)
+						&& ((devpriv->s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) >=
+							0x3230))) {
 		 /******************************************/
-		 /* Test the digital imnput channel number */
+					/* Test the digital imnput channel number */
 		 /******************************************/
 
-		 if (((b_InputChannel <= 7) && (b_SelectedPort < 3)) ||
-		     ((b_InputChannel <= 1) && (b_SelectedPort == 3)))
-		    {
+					if (((b_InputChannel <= 7)
+							&& (b_SelectedPort < 3))
+						|| ((b_InputChannel <= 1)
+							&& (b_SelectedPort ==
+								3))) {
 		    /******************************************/
-		    /* Test if the TTL I/O module initialised */
+						/* Test if the TTL I/O module initialised */
 		    /******************************************/
 
-		    if (devpriv->s_ModuleInfo [b_ModulNbr].
-			s_TTLIOInfo.
-			b_TTLInit == 1)
-		       {
+						if (devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_TTLIOInfo.b_TTLInit ==
+							1) {
 		       /***********************************/
-		       /* Test if TTL port used for input */
+							/* Test if TTL port used for input */
 		       /***********************************/
 
-		       if (((devpriv->s_BoardInfos.
-			     dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130) ||
-			   (((devpriv->s_BoardInfos.
-			      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230) &&
-			    (devpriv->s_ModuleInfo [b_ModulNbr].
-			     s_TTLIOInfo.
-			     b_PortConfiguration [b_SelectedPort] == 0)))
-			  {
+							if (((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF) == 0x3130) || (((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF) >= 0x3230) && (devpriv->s_ModuleInfo[b_ModulNbr].s_TTLIOInfo.b_PortConfiguration[b_SelectedPort] == 0))) {
 			  /**************************/
-			  /* Read all digital input */
+								/* Read all digital input */
 			  /**************************/
-			
-				dw_StatusReg = inl(devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
 
-			  *pb_ChannelStatus = (BYTE) ((dw_StatusReg >> (8 * b_SelectedPort)) >>
- b_InputChannel) & 1;
-			  }
-		       else
-			  {
+								dw_StatusReg =
+									inl
+									(devpriv->
+									s_BoardInfos.
+									ui_Address
+									+
+									(64 * b_ModulNbr));
+
+								*pb_ChannelStatus
+									=
+									(BYTE) (
+									(dw_StatusReg
+										>>
+										(8 * b_SelectedPort)) >> b_InputChannel) & 1;
+							} else {
 			  /*******************************/
-			  /* Selected TTL I/O port error */
+								/* Selected TTL I/O port error */
 			  /*******************************/
 
-			  DPRINTK("Selected TTL I/O port error\n");
-			  i_ReturnValue = -4;
-			  }
-		       }
-		    else
-		       {
+								DPRINTK("Selected TTL I/O port error\n");
+								i_ReturnValue =
+									-4;
+							}
+						} else {
 		       /***************************/
-		       /* TTL I/O not initialised */
+							/* TTL I/O not initialised */
 		       /***************************/
 
-			   DPRINTK("TTL I/O not initialised\n");	
-		       i_ReturnValue = -6;
-		       }
-		    }
-		 else
-		    {
+							DPRINTK("TTL I/O not initialised\n");
+							i_ReturnValue = -6;
+						}
+					} else {
 		    /********************************/
-		    /* Selected digital input error */
+						/* Selected digital input error */
 		    /********************************/
 
-			DPRINTK("Selected digital input error\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+						DPRINTK("Selected digital input error\n");
+						i_ReturnValue = -5;
+					}
+				} else {
 		 /*******************************/
-		 /* Selected TTL I/O port error */
+					/* Selected TTL I/O port error */
 		 /*******************************/
 
-                DPRINTK("Selected TTL I/O port error\n");
-		 i_ReturnValue = -4;
-		 }
-		  break;
+					DPRINTK("Selected TTL I/O port error\n");
+					i_ReturnValue = -4;
+				}
+				break;
 
-		  case APCI1710_TTL_READPORT:
-			  pb_PortValue = (PBYTE) &data[0];
+			case APCI1710_TTL_READPORT:
+				pb_PortValue = (PBYTE) & data[0];
 			  /********************************/
-	      		  /* Test the TTL I/O port number */
-	      		  /********************************/
+				/* Test the TTL I/O port number */
+			  /********************************/
 
-	      if (((b_SelectedPort <= 2) && ((devpriv->s_BoardInfos.
-					      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
-		  ((b_SelectedPort <= 3) && ((devpriv->s_BoardInfos.
-					      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
-		 {
+				if (((b_SelectedPort <= 2)
+						&& ((devpriv->s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) ==
+							0x3130))
+					|| ((b_SelectedPort <= 3)
+						&& ((devpriv->s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) >=
+							0x3230))) {
 		 /******************************************/
-		 /* Test if the TTL I/O module initialised */
+					/* Test if the TTL I/O module initialised */
 		 /******************************************/
 
-		 if (devpriv->s_ModuleInfo [b_ModulNbr].
-		     s_TTLIOInfo.
-		     b_TTLInit == 1)
-		    {
+					if (devpriv->s_ModuleInfo[b_ModulNbr].
+						s_TTLIOInfo.b_TTLInit == 1) {
 		    /***********************************/
-		    /* Test if TTL port used for input */
+						/* Test if TTL port used for input */
 		    /***********************************/
 
-		    if (((devpriv->s_BoardInfos.
-			  dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130) ||
-			(((devpriv->s_BoardInfos.
-			   dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230) &&
-			 (devpriv->s_ModuleInfo [b_ModulNbr].
-			  s_TTLIOInfo.
-			  b_PortConfiguration [b_SelectedPort] == 0)))
-                       {
+						if (((devpriv->s_BoardInfos.
+									dw_MolduleConfiguration
+									[b_ModulNbr]
+									&
+									0xFFFF)
+								== 0x3130)
+							|| (((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF) >= 0x3230) && (devpriv->s_ModuleInfo[b_ModulNbr].s_TTLIOInfo.b_PortConfiguration[b_SelectedPort] == 0))) {
 		       /**************************/
-		       /* Read all digital input */
+							/* Read all digital input */
 		       /**************************/
-				
-				dw_StatusReg=inl(devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
 
-		       *pb_PortValue = (BYTE) ((dw_StatusReg >> (8 * b_SelectedPort)) & 0xFF);
-		       }
-		    else
-		       {
+							dw_StatusReg =
+								inl(devpriv->
+								s_BoardInfos.
+								ui_Address +
+								(64 * b_ModulNbr));
+
+							*pb_PortValue =
+								(BYTE) (
+								(dw_StatusReg >>
+									(8 * b_SelectedPort)) & 0xFF);
+						} else {
 		       /*******************************/
-		       /* Selected TTL I/O port error */
+							/* Selected TTL I/O port error */
 		       /*******************************/
 
-                      DPRINTK("Selected TTL I/O port error\n");
-		       i_ReturnValue = -4;
-		       }
-		    }
-		 else
-		    {
+							DPRINTK("Selected TTL I/O port error\n");
+							i_ReturnValue = -4;
+						}
+					} else {
 		    /***************************/
-		    /* TTL I/O not initialised */
+						/* TTL I/O not initialised */
 		    /***************************/
 
-			DPRINTK("TTL I/O not initialised\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+						DPRINTK("TTL I/O not initialised\n");
+						i_ReturnValue = -5;
+					}
+				} else {
 		 /*******************************/
-		 /* Selected TTL I/O port error */
+					/* Selected TTL I/O port error */
 		 /*******************************/
 
-		 DPRINTK("Selected TTL I/O port error\n");	
-		 i_ReturnValue = -4;
-		 }
-		  break;
+					DPRINTK("Selected TTL I/O port error\n");
+					i_ReturnValue = -4;
+				}
+				break;
 
-		  default:
-			   printk("Bad ReadType\n");
-		   
-		   }//End Switch
-	      }
-	   else
-	      {
+			default:
+				printk("Bad ReadType\n");
+
+			}	//End Switch
+		} else {
 	      /**********************************/
-	      /* The module is not a TTL module */
+			/* The module is not a TTL module */
 	      /**********************************/
 
-	      DPRINTK("The module is not a TTL module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a TTL module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -657,135 +655,130 @@ INT  i_APCI1710_InsnBitsReadTTLIO(comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_InsnReadTTLIOAllPortValue(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_StatusReg;
-	BYTE    b_ModulNbr;
-        PULONG pul_PortValue;
-      
-        b_ModulNbr=(BYTE) CR_AREF(insn->chanspec); 
-        i_ReturnValue=insn->n;
-        pul_PortValue=(PULONG) &data[0]; 
+	BYTE b_ModulNbr;
+	PULONG pul_PortValue;
+
+	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
+	i_ReturnValue = insn->n;
+	pul_PortValue = (PULONG) & data[0];
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /**************************/
-	   /* Test if TTL I/O module */
+		/* Test if TTL I/O module */
 	   /**************************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_TTL_IO)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_TTL_IO) {
 	      /******************************************/
-	      /* Test if the TTL I/O module initialised */
+			/* Test if the TTL I/O module initialised */
 	      /******************************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_TTLIOInfo.
-		  b_TTLInit == 1)
-		 {
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_TTLIOInfo.b_TTLInit == 1) {
 		 /**************************/
-		 /* Read all digital input */
+				/* Read all digital input */
 		 /**************************/
 
-
-			dw_StatusReg=inl(devpriv->s_BoardInfos.
-			ui_Address + (64 * b_ModulNbr));
+				dw_StatusReg = inl(devpriv->s_BoardInfos.
+					ui_Address + (64 * b_ModulNbr));
 
 		 /**********************/
-		 /* Test if TTL Rev1.0 */
+				/* Test if TTL Rev1.0 */
 		 /**********************/
 
-		 if ((devpriv->s_BoardInfos.
-		      dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)
-		    {
-		    *pul_PortValue = dw_StatusReg & 0xFFFFFFUL;
-		    }
-		 else
-		    {
+				if ((devpriv->s_BoardInfos.
+						dw_MolduleConfiguration
+						[b_ModulNbr] & 0xFFFF) ==
+					0x3130) {
+					*pul_PortValue =
+						dw_StatusReg & 0xFFFFFFUL;
+				} else {
 		    /**************************************/
-		    /* Test if port A not used for output */
-		    /**************************************/
-
-		    if (devpriv->s_ModuleInfo [b_ModulNbr].
-			s_TTLIOInfo.b_PortConfiguration [0] == 1)
-		       {
-		       *pul_PortValue = dw_StatusReg & 0x3FFFF00UL;
-		       }
-
-		    /**************************************/
-		    /* Test if port B not used for output */
+					/* Test if port A not used for output */
 		    /**************************************/
 
-		    if (devpriv->
-			s_ModuleInfo [b_ModulNbr].
-			s_TTLIOInfo.
-			b_PortConfiguration [1] == 1)
-		       {
-		       *pul_PortValue = dw_StatusReg & 0x3FF00FFUL;
-		       }
+					if (devpriv->s_ModuleInfo[b_ModulNbr].
+						s_TTLIOInfo.
+						b_PortConfiguration[0] == 1) {
+						*pul_PortValue =
+							dw_StatusReg &
+							0x3FFFF00UL;
+					}
 
 		    /**************************************/
-		    /* Test if port C not used for output */
+					/* Test if port B not used for output */
 		    /**************************************/
 
-		    if (devpriv->
-			s_ModuleInfo [b_ModulNbr].
-			s_TTLIOInfo.
-			b_PortConfiguration [2] == 1)
-		       {
-		       *pul_PortValue = dw_StatusReg & 0x300FFFFUL;
-		       }
+					if (devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_TTLIOInfo.
+						b_PortConfiguration[1] == 1) {
+						*pul_PortValue =
+							dw_StatusReg &
+							0x3FF00FFUL;
+					}
 
 		    /**************************************/
-		    /* Test if port D not used for output */
+					/* Test if port C not used for output */
 		    /**************************************/
 
-		    if (devpriv->
-			s_ModuleInfo [b_ModulNbr].
-			s_TTLIOInfo.
-			b_PortConfiguration [3] == 1)
-		       {
-		       *pul_PortValue = dw_StatusReg & 0xFFFFFFUL;
-		       }
-		    }
-		 }
-	      else
-		 {
+					if (devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_TTLIOInfo.
+						b_PortConfiguration[2] == 1) {
+						*pul_PortValue =
+							dw_StatusReg &
+							0x300FFFFUL;
+					}
+
+		    /**************************************/
+					/* Test if port D not used for output */
+		    /**************************************/
+
+					if (devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_TTLIOInfo.
+						b_PortConfiguration[3] == 1) {
+						*pul_PortValue =
+							dw_StatusReg &
+							0xFFFFFFUL;
+					}
+				}
+			} else {
 		 /***************************/
-		 /* TTL I/O not initialised */
+				/* TTL I/O not initialised */
 		 /***************************/
-		 DPRINTK("TTL I/O not initialised\n");
-		 i_ReturnValue = -5;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("TTL I/O not initialised\n");
+				i_ReturnValue = -5;
+			}
+		} else {
 	      /**********************************/
-	      /* The module is not a TTL module */
+			/* The module is not a TTL module */
 	      /**********************************/
-	      DPRINTK("The module is not a TTL module\n");  	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a TTL module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -832,173 +825,214 @@ INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;	
-	DWORD dw_StatusReg   = 0;
+INT i_APCI1710_InsnWriteSetTTLIOChlOnOff(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg = 0;
 	BYTE b_ModulNbr;
 	BYTE b_OutputChannel;
 	UINT ui_State;
 
-	i_ReturnValue  = insn->n;
-	b_ModulNbr	   = CR_AREF(insn->chanspec);
-	b_OutputChannel= CR_CHAN(insn->chanspec);
-	ui_State	   = data[0]; // ON or OFF
+	i_ReturnValue = insn->n;
+	b_ModulNbr = CR_AREF(insn->chanspec);
+	b_OutputChannel = CR_CHAN(insn->chanspec);
+	ui_State = data[0];	// ON or OFF
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /**************************/
-	   /* Test if TTL I/O module */
+		/* Test if TTL I/O module */
 	   /**************************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_TTL_IO)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_TTL_IO) {
 	      /******************************************/
-	      /* Test if the TTL I/O module initialised */
+			/* Test if the TTL I/O module initialised */
 	      /******************************************/
 
-	      if (devpriv->s_ModuleInfo [b_ModulNbr].
-		  s_TTLIOInfo.
-		  b_TTLInit == 1)
-		 {
+			if (devpriv->s_ModuleInfo[b_ModulNbr].
+				s_TTLIOInfo.b_TTLInit == 1) {
 		 /***********************************/
-		 /* Test the TTL I/O channel number */
+				/* Test the TTL I/O channel number */
 		 /***********************************/
 
-		 if (((b_OutputChannel <= 1) && ((devpriv->s_BoardInfos.
-						 dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) == 0x3130)) ||
-		     ((b_OutputChannel <= 25) && ((devpriv->s_BoardInfos.
-						  dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3230)))
-		    {
+				if (((b_OutputChannel <= 1)
+						&& ((devpriv->s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) ==
+							0x3130))
+					|| ((b_OutputChannel <= 25)
+						&& ((devpriv->s_BoardInfos.
+								dw_MolduleConfiguration
+								[b_ModulNbr] &
+								0xFFFF) >=
+							0x3230))) {
 		    /****************************************************/
-		    /* Test if the selected channel is a output channel */
+					/* Test if the selected channel is a output channel */
 		    /****************************************************/
 
-		    if (((b_OutputChannel <= 1) && (devpriv->
-			s_ModuleInfo [b_ModulNbr].
-									      s_TTLIOInfo.
-									      b_PortConfiguration [3] == 1)) ||
-			((b_OutputChannel >= 2) && (b_OutputChannel <= 9) && (devpriv->s_ModuleInfo [b_ModulNbr].
-									      s_TTLIOInfo.
-									      b_PortConfiguration [0] == 1)) ||
-			((b_OutputChannel >= 10) && (b_OutputChannel <= 17) && (devpriv->s_ModuleInfo [b_ModulNbr].
-										s_TTLIOInfo.
-										b_PortConfiguration [1] == 1)) ||
-			((b_OutputChannel >= 18) && (b_OutputChannel <= 25) && (devpriv->s_ModuleInfo [b_ModulNbr].
-										s_TTLIOInfo.
-										b_PortConfiguration [2] == 1)))
-		       {
+					if (((b_OutputChannel <= 1)
+							&& (devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_TTLIOInfo.
+								b_PortConfiguration
+								[3] == 1))
+						|| ((b_OutputChannel >= 2)
+							&& (b_OutputChannel <=
+								9)
+							&& (devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_TTLIOInfo.
+								b_PortConfiguration
+								[0] == 1))
+						|| ((b_OutputChannel >= 10)
+							&& (b_OutputChannel <=
+								17)
+							&& (devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_TTLIOInfo.
+								b_PortConfiguration
+								[1] == 1))
+						|| ((b_OutputChannel >= 18)
+							&& (b_OutputChannel <=
+								25)
+							&& (devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_TTLIOInfo.
+								b_PortConfiguration
+								[2] == 1))) {
 		       /************************/
-		       /* Test if PD0 selected */
+						/* Test if PD0 selected */
 		       /************************/
 
-		       if (b_OutputChannel == 0)
-			  {
+						if (b_OutputChannel == 0) {
 
-                outl(ui_State,devpriv->s_BoardInfos.
-				  ui_Address + (64 * b_ModulNbr));
-			  }
-		       else
-              {
+							outl(ui_State,
+								devpriv->
+								s_BoardInfos.
+								ui_Address +
+								(64 * b_ModulNbr));
+						} else {
 			  /************************/
-			  /* Test if PD1 selected */
+							/* Test if PD1 selected */
 			  /************************/
 
-			  if (b_OutputChannel == 1)
-			     {
+							if (b_OutputChannel ==
+								1) {
 
-				  outl(ui_State,devpriv->s_BoardInfos.
-				     ui_Address + 4 + (64 * b_ModulNbr));
-			     }
-			  else
-			     {
-			     b_OutputChannel = b_OutputChannel - 2;
+								outl(ui_State,
+									devpriv->
+									s_BoardInfos.
+									ui_Address
+									+ 4 +
+									(64 * b_ModulNbr));
+							} else {
+								b_OutputChannel
+									=
+									b_OutputChannel
+									- 2;
 
 			     /********************/
-			     /* Read all channel */
+								/* Read all channel */
 			     /********************/
 
-			    
-					dw_StatusReg =inl(devpriv->s_BoardInfos.
-				    ui_Address + (64 * b_ModulNbr));
-                 if(ui_State) // ON
-                 {
-			     dw_StatusReg = (dw_StatusReg >> ((b_OutputChannel / 8) * 8)) & 0xFF;
-			     dw_StatusReg = dw_StatusReg | (1 << (b_OutputChannel % 8));
-				 }else    // Off
-				 {
-                 dw_StatusReg = (dw_StatusReg >> ((b_OutputChannel / 8) * 8)) & 0xFF;
-			     dw_StatusReg = dw_StatusReg & (0xFF - (1 << (b_OutputChannel % 8)));
+								dw_StatusReg =
+									inl
+									(devpriv->
+									s_BoardInfos.
+									ui_Address
+									+
+									(64 * b_ModulNbr));
+								if (ui_State)	// ON
+								{
+									dw_StatusReg
+										=
+										(dw_StatusReg
+										>>
+										((b_OutputChannel / 8) * 8)) & 0xFF;
+									dw_StatusReg
+										=
+										dw_StatusReg
+										|
+										(1
+										<<
+										(b_OutputChannel
+											%
+											8));
+								} else	// Off
+								{
+									dw_StatusReg
+										=
+										(dw_StatusReg
+										>>
+										((b_OutputChannel / 8) * 8)) & 0xFF;
+									dw_StatusReg
+										=
+										dw_StatusReg
+										&
+										(0xFF
+										-
+										(1 << (b_OutputChannel % 8)));
 
-				 }
+								}
 
 			     /****************************/
-			     /* Set the new output value */
+								/* Set the new output value */
 			     /****************************/
 
-		
-				 outl(dw_StatusReg,devpriv->s_BoardInfos.
-				     ui_Address + 8 + ((b_OutputChannel / 8) * 4) + (64 * b_ModulNbr));
-			     }
-			  }
-		       }
-		    else
-		       {
+								outl(dw_StatusReg, devpriv->s_BoardInfos.ui_Address + 8 + ((b_OutputChannel / 8) * 4) + (64 * b_ModulNbr));
+							}
+						}
+					} else {
 		       /************************************/
-		       /* The selected TTL output is wrong */
+						/* The selected TTL output is wrong */
 		       /************************************/
 
-			   DPRINTK(" The selected TTL output is wrong\n");	
-		       i_ReturnValue = -4;
-		       }
-		    }
-		 else
-		    {
+						DPRINTK(" The selected TTL output is wrong\n");
+						i_ReturnValue = -4;
+					}
+				} else {
 		    /************************************/
-		    /* The selected TTL output is wrong */
+					/* The selected TTL output is wrong */
 		    /************************************/
 
-			DPRINTK("The selected TTL output is wrong\n");	
-		    i_ReturnValue = -4;
-		    }
-		 }
-	      else
-		 {
+					DPRINTK("The selected TTL output is wrong\n");
+					i_ReturnValue = -4;
+				}
+			} else {
 		 /***************************/
-		 /* TTL I/O not initialised */
+				/* TTL I/O not initialised */
 		 /***************************/
 
-		 DPRINTK("TTL I/O not initialised\n");	
-		 i_ReturnValue = -5;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("TTL I/O not initialised\n");
+				i_ReturnValue = -5;
+			}
+		} else {
 	      /**************************************/
-	      /* The module is not a TTL I/O module */
+			/* The module is not a TTL I/O module */
 	      /**************************************/
 
-	      DPRINTK("The module is not a TTL I/O module\n");		
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a TTL I/O module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}

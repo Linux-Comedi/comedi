@@ -41,61 +41,60 @@ Configuration Options:
 
 #include <linux/ioport.h>
 
-
 #define RTI802_SIZE 4
 
 #define RTI802_SELECT 0
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(comedi_device *dev,comedi_devconfig *it);
-static int rti802_detach(comedi_device *dev);
-static comedi_driver driver_rti802={
-	driver_name:	"rti802",
-	module:		THIS_MODULE,
-	attach:		rti802_attach,
-	detach:		rti802_detach,
+static int rti802_attach(comedi_device * dev, comedi_devconfig * it);
+static int rti802_detach(comedi_device * dev);
+static comedi_driver driver_rti802 = {
+      driver_name:"rti802",
+      module:THIS_MODULE,
+      attach:rti802_attach,
+      detach:rti802_detach,
 };
+
 COMEDI_INITCLEANUP(driver_rti802);
 
 typedef struct {
 	enum {
 		dac_2comp, dac_straight
 	} dac_coding[8];
-	const comedi_lrange * range_type_list[8];
+	const comedi_lrange *range_type_list[8];
 	lsampl_t ao_readback[8];
 } rti802_private;
 
 #define devpriv ((rti802_private *)dev->private)
 
-static int rti802_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int rti802_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 
-	for(i=0;i<insn->n;i++)
-		data[i]=devpriv->ao_readback[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 
 	return i;
 }
 
-static int rti802_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int rti802_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int i,d;
+	int i, d;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for(i=0;i<insn->n;i++){
+	for (i = 0; i < insn->n; i++) {
 		d = devpriv->ao_readback[chan] = data[i];
-		if (devpriv->dac_coding[chan] == dac_2comp) d ^= 0x800;
+		if (devpriv->dac_coding[chan] == dac_2comp)
+			d ^= 0x800;
 		outb(chan, dev->iobase + RTI802_SELECT);
 		outb(d & 0xff, dev->iobase + RTI802_DATALOW);
 		outb(d >> 8, dev->iobase + RTI802_DATAHIGH);
 	}
 	return i;
 }
-
-
 
 static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 {
@@ -113,27 +112,27 @@ static int rti802_attach(comedi_device * dev, comedi_devconfig * it)
 
 	dev->board_name = "rti802";
 
-	if(alloc_subdevices(dev, 1)<0 || alloc_private(dev,sizeof(rti802_private))){
+	if (alloc_subdevices(dev, 1) < 0
+		|| alloc_private(dev, sizeof(rti802_private))) {
 		return -ENOMEM;
 	}
 
-	s=dev->subdevices;
+	s = dev->subdevices;
 	/* ao subdevice */
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITABLE;
-	s->maxdata=0xfff;
-	s->n_chan=8;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->maxdata = 0xfff;
+	s->n_chan = 8;
 	s->insn_read = rti802_ao_insn_read;
 	s->insn_write = rti802_ao_insn_write;
-	s->range_table_list=devpriv->range_type_list;
+	s->range_table_list = devpriv->range_type_list;
 
 	for (i = 0; i < 8; i++) {
 		devpriv->dac_coding[i] = (it->options[3 + 2 * i])
-		    ? (dac_straight)
-		    : (dac_2comp);
+			? (dac_straight)
+			: (dac_2comp);
 		devpriv->range_type_list[i] = (it->options[2 + 2 * i])
-			? &range_unipolar10
-			: &range_bipolar10;
+			? &range_unipolar10 : &range_bipolar10;
 	}
 
 	printk("\n");
@@ -145,9 +144,8 @@ static int rti802_detach(comedi_device * dev)
 {
 	printk("comedi%d: rti802: remove\n", dev->minor);
 
-	if(dev->iobase)
+	if (dev->iobase)
 		release_region(dev->iobase, RTI802_SIZE);
 
 	return 0;
 }
-

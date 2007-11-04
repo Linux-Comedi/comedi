@@ -54,43 +54,43 @@ The state of the outputs can be read.
 #define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
 
-
 /* PC263 / PCI263 registers */
 #define PC263_IO_SIZE	2
-
 
 /*
  * Board descriptions for Amplicon PC263 / PCI263.
  */
 
-enum pc263_bustype {isa_bustype, pci_bustype};
-enum pc263_model {pc263_model, pci263_model};
+enum pc263_bustype { isa_bustype, pci_bustype };
+enum pc263_model { pc263_model, pci263_model };
 
-typedef struct pc263_board_struct{
+typedef struct pc263_board_struct {
 	const char *name;
 	const char *fancy_name;
 	enum pc263_bustype bustype;
 	enum pc263_model model;
-}pc263_board;
+} pc263_board;
 static const pc263_board pc263_boards[] = {
 	{
-	name:		"pc263",
-	fancy_name:	"PC263",
-	bustype:	isa_bustype,
-	model:		pc263_model,
-	},
+	      name:	"pc263",
+	      fancy_name:"PC263",
+	      bustype:	isa_bustype,
+	      model:	pc263_model,
+		},
 	{
-	name:		"pci263",
-	fancy_name:	"PCI263",
-	bustype:	pci_bustype,
-	model:		pci263_model,
-	},
+	      name:	"pci263",
+	      fancy_name:"PCI263",
+	      bustype:	pci_bustype,
+	      model:	pci263_model,
+		},
 };
 
 static struct pci_device_id pc263_pci_table[] __devinitdata = {
-	{ PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263, PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci263_model },
-	{ 0 }
+	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263, PCI_ANY_ID,
+		PCI_ANY_ID, 0, 0, pci263_model},
+	{0}
 };
+
 MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 
 /*
@@ -101,10 +101,10 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
-typedef struct{
+typedef struct {
 	/* PCI device. */
 	struct pci_dev *pci_dev;
-}pc263_private;
+} pc263_private;
 
 #define devpriv ((pc263_private *)dev->private)
 
@@ -114,23 +114,23 @@ typedef struct{
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pc263_attach(comedi_device *dev,comedi_devconfig *it);
-static int pc263_detach(comedi_device *dev);
-static comedi_driver driver_amplc_pc263={
-	driver_name:	PC263_DRIVER_NAME,
-	module:		THIS_MODULE,
-	attach:		pc263_attach,
-	detach:		pc263_detach,
-	board_name:	&pc263_boards[0].name,
-	offset:		sizeof(pc263_board),
-	num_names:	sizeof(pc263_boards) / sizeof(pc263_board),
+static int pc263_attach(comedi_device * dev, comedi_devconfig * it);
+static int pc263_detach(comedi_device * dev);
+static comedi_driver driver_amplc_pc263 = {
+      driver_name:PC263_DRIVER_NAME,
+      module:THIS_MODULE,
+      attach:pc263_attach,
+      detach:pc263_detach,
+      board_name:&pc263_boards[0].name,
+      offset:sizeof(pc263_board),
+      num_names:sizeof(pc263_boards) / sizeof(pc263_board),
 };
 
 static int pc263_request_region(unsigned long from, unsigned long extent);
-static int pc263_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int pc263_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
+static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -138,7 +138,7 @@ static int pc263_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
+static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	struct pci_dev *pci_dev = NULL;
@@ -147,12 +147,12 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 	struct pci_device_id *pci_id;
 	int ret;
 
-	printk("comedi%d: %s: ",dev->minor, PC263_DRIVER_NAME);
+	printk("comedi%d: %s: ", dev->minor, PC263_DRIVER_NAME);
 /*
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if ((ret=alloc_private(dev,sizeof(pc263_private))) < 0) {
+	if ((ret = alloc_private(dev, sizeof(pc263_private))) < 0) {
 		printk("out of memory!\n");
 		return ret;
 	}
@@ -176,27 +176,30 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 		}
 
 		/* Look for matching PCI device. */
-		for(pci_dev = pci_get_device(pci_id->vendor, pci_id->device,
-					NULL); pci_dev != NULL;
-				pci_dev = pci_get_device(pci_id->vendor,
-					pci_id->device, pci_dev)) {
+		for (pci_dev = pci_get_device(pci_id->vendor, pci_id->device,
+				NULL); pci_dev != NULL;
+			pci_dev = pci_get_device(pci_id->vendor,
+				pci_id->device, pci_dev)) {
 			/* If bus/slot specified, check them. */
 			if (bus || slot) {
 				if (bus != pci_dev->bus->number
-						|| slot != PCI_SLOT(pci_dev->devfn))
+					|| slot != PCI_SLOT(pci_dev->devfn))
 					continue;
 			}
 #if 0
 			if (pci_id->subvendor != PCI_ANY_ID) {
-				if (pci_dev->subsystem_vendor != pci_id->subvendor)
+				if (pci_dev->subsystem_vendor !=
+					pci_id->subvendor)
 					continue;
 			}
 			if (pci_id->subdevice != PCI_ANY_ID) {
-				if (pci_dev->subsystem_device != pci_id->subdevice)
+				if (pci_dev->subsystem_device !=
+					pci_id->subdevice)
 					continue;
 			}
 #endif
-			if (((pci_dev->class ^ pci_id->class) & pci_id->class_mask) != 0)
+			if (((pci_dev->class ^ pci_id->class) & pci_id->
+					class_mask) != 0)
 				continue;
 			/* Found a match. */
 			devpriv->pci_dev = pci_dev;
@@ -221,13 +224,13 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 
 	/* Enable device and reserve I/O spaces. */
 	if (pci_dev) {
-		if ((ret=comedi_pci_enable(pci_dev, PC263_DRIVER_NAME)) < 0) {
+		if ((ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME)) < 0) {
 			printk("error enabling PCI device and requesting regions!\n");
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
 	} else {
-		if ((ret=pc263_request_region(iobase, PC263_IO_SIZE)) < 0) {
+		if ((ret = pc263_request_region(iobase, PC263_IO_SIZE)) < 0) {
 			return ret;
 		}
 	}
@@ -237,15 +240,15 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if ((ret=alloc_subdevices(dev, 1)) < 0) {
+	if ((ret = alloc_subdevices(dev, 1)) < 0) {
 		printk("out of memory!\n");
 		return -ENOMEM;
 	}
 
-	s = dev->subdevices+0;
+	s = dev->subdevices + 0;
 	/* digital i/o subdevice */
 	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE|SDF_WRITABLE|SDF_RT;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_RT;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
@@ -268,7 +271,6 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
 	return 1;
 }
 
-
 /*
  * _detach is called to deconfigure a device.  It should deallocate
  * resources.
@@ -277,14 +279,13 @@ static int pc263_attach(comedi_device *dev,comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pc263_detach(comedi_device *dev)
+static int pc263_detach(comedi_device * dev)
 {
 	printk("comedi%d: %s: remove\n", dev->minor, PC263_DRIVER_NAME);
 
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if(dev->iobase)
-			{
+			if (dev->iobase) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
@@ -314,16 +315,17 @@ static int pc263_request_region(unsigned long from, unsigned long extent)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int pc263_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=2)return -EINVAL;
+	if (insn->n != 2)
+		return -EINVAL;
 
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
-	if(data[0]){
+	if (data[0]) {
 		s->state &= ~data[0];
-		s->state |= data[0]&data[1];
+		s->state |= data[0] & data[1];
 		/* Write out the new digital output lines */
 		outb(s->state & 0xFF, dev->iobase);
 		outb(s->state >> 8, dev->iobase + 1);
@@ -333,15 +335,16 @@ static int pc263_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	 * input and output lines. */
 	/* or we could just return the software copy of the output values if
 	 * it was a purely digital output subdevice */
-	data[1]=s->state;
+	data[1] = s->state;
 
 	return 2;
 }
 
-static int pc263_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=1)return -EINVAL;
+	if (insn->n != 1)
+		return -EINVAL;
 	return 1;
 }
 
@@ -350,4 +353,3 @@ static int pc263_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_amplc_pc263);
-

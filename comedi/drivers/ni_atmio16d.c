@@ -41,7 +41,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 
 #include "8255.h"
 
-
 /* Configuration and Status Registers */
 #define COM_REG_1	0x00	/* wo 16 */
 #define STAT_REG	0x00	/* ro 16 */
@@ -104,70 +103,73 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define devpriv ((atmio16d_private *)dev->private)
 #define ATMIO16D_TIMEOUT 10
 
-
-typedef struct{
+typedef struct {
 	const char *name;
 	int has_8255;
-}atmio16_board_t;
-static const atmio16_board_t atmio16_boards[]={
+} atmio16_board_t;
+static const atmio16_board_t atmio16_boards[] = {
 	{
-	name:		"atmio16",
-	has_8255:	0,
-	},
+	      name:	"atmio16",
+	      has_8255:0,
+		},
 	{
-	name:		"atmio16d",
-	has_8255:	1,
-	},
+	      name:	"atmio16d",
+	      has_8255:1,
+		},
 };
+
 #define n_atmio16_boards sizeof(atmio16_boards)/sizeof(atmio16_boards[0])
 
 #define boardtype ((const atmio16_board_t *)dev->board_ptr)
 
-
 /* function prototypes */
-static int atmio16d_attach(comedi_device *dev,comedi_devconfig *it);
-static int atmio16d_detach(comedi_device *dev);
+static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it);
+static int atmio16d_detach(comedi_device * dev);
 static irqreturn_t atmio16d_interrupt(int irq, void *d PT_REGS_ARG);
-static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd);
-static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s);
-static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s);
-static void reset_counters(comedi_device *dev);
-static void reset_atmio16d(comedi_device *dev);
+static int atmio16d_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd);
+static int atmio16d_ai_cmd(comedi_device * dev, comedi_subdevice * s);
+static int atmio16d_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static void reset_counters(comedi_device * dev);
+static void reset_atmio16d(comedi_device * dev);
 
 /* main driver struct */
-static comedi_driver driver_atmio16d={
-	driver_name:    "atmio16",
-	module:     THIS_MODULE,
-	attach:     atmio16d_attach,
-	detach:     atmio16d_detach,
-	board_name:	&atmio16_boards[0].name,
-	num_names:	n_atmio16_boards,
-	offset:		sizeof(atmio16_board_t),
+static comedi_driver driver_atmio16d = {
+      driver_name:"atmio16",
+      module:THIS_MODULE,
+      attach:atmio16d_attach,
+      detach:atmio16d_detach,
+      board_name:&atmio16_boards[0].name,
+      num_names:n_atmio16_boards,
+      offset:sizeof(atmio16_board_t),
 };
+
 COMEDI_INITCLEANUP(driver_atmio16d);
 
 /* range structs */
 static const comedi_lrange range_atmio16d_ai_10_bipolar = { 4, {
-	BIP_RANGE( 10 ),
-	BIP_RANGE( 1 ),
-	BIP_RANGE( 0.1 ),
-	BIP_RANGE( 0.02 )
-} };
+			BIP_RANGE(10),
+			BIP_RANGE(1),
+			BIP_RANGE(0.1),
+			BIP_RANGE(0.02)
+	}
+};
 
 static const comedi_lrange range_atmio16d_ai_5_bipolar = { 4, {
-	BIP_RANGE( 5 ),
-	BIP_RANGE( 0.5 ),
-	BIP_RANGE( 0.05 ),
-	BIP_RANGE( 0.01 )
-} };
+			BIP_RANGE(5),
+			BIP_RANGE(0.5),
+			BIP_RANGE(0.05),
+			BIP_RANGE(0.01)
+	}
+};
 
 static const comedi_lrange range_atmio16d_ai_unipolar = { 4, {
-	UNI_RANGE( 10 ),
-	UNI_RANGE( 1 ),
-	UNI_RANGE( 0.1 ),
-	UNI_RANGE( 0.02 )
-} };
-
+			UNI_RANGE(10),
+			UNI_RANGE(1),
+			UNI_RANGE(0.1),
+			UNI_RANGE(0.02)
+	}
+};
 
 /* private data struct */
 typedef struct {
@@ -183,75 +185,74 @@ typedef struct {
 	unsigned int com_reg_2_state;	/* current state of command register 2 */
 } atmio16d_private;
 
-
-static void reset_counters(comedi_device *dev)
+static void reset_counters(comedi_device * dev)
 {
 	/* Counter 2 */
-	outw(0xFFC2, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF02, dev->iobase+AM9513A_COM_REG);
-	outw(0x4, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF0A, dev->iobase+AM9513A_COM_REG);
-	outw(0x3, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF42, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF42, dev->iobase+AM9513A_COM_REG);
+	outw(0xFFC2, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF02, dev->iobase + AM9513A_COM_REG);
+	outw(0x4, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF0A, dev->iobase + AM9513A_COM_REG);
+	outw(0x3, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF42, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF42, dev->iobase + AM9513A_COM_REG);
 	/* Counter 3 */
-	outw(0xFFC4, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF03, dev->iobase+AM9513A_COM_REG);
-	outw(0x4, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF0B, dev->iobase+AM9513A_COM_REG);
-	outw(0x3, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF44, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF44, dev->iobase+AM9513A_COM_REG);
+	outw(0xFFC4, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF03, dev->iobase + AM9513A_COM_REG);
+	outw(0x4, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF0B, dev->iobase + AM9513A_COM_REG);
+	outw(0x3, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF44, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF44, dev->iobase + AM9513A_COM_REG);
 	/* Counter 4 */
-	outw(0xFFC8, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF04, dev->iobase+AM9513A_COM_REG);
-	outw(0x4, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF0C, dev->iobase+AM9513A_COM_REG);
-	outw(0x3, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF48, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF48, dev->iobase+AM9513A_COM_REG);
+	outw(0xFFC8, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF04, dev->iobase + AM9513A_COM_REG);
+	outw(0x4, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF0C, dev->iobase + AM9513A_COM_REG);
+	outw(0x3, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF48, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF48, dev->iobase + AM9513A_COM_REG);
 	/* Counter 5 */
-	outw(0xFFD0, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF05, dev->iobase+AM9513A_COM_REG);
-	outw(0x4, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF0D, dev->iobase+AM9513A_COM_REG);
-	outw(0x3, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF50, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF50, dev->iobase+AM9513A_COM_REG);
+	outw(0xFFD0, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF05, dev->iobase + AM9513A_COM_REG);
+	outw(0x4, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF0D, dev->iobase + AM9513A_COM_REG);
+	outw(0x3, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF50, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF50, dev->iobase + AM9513A_COM_REG);
 
-	outw(0, dev->iobase+AD_CLEAR_REG);
+	outw(0, dev->iobase + AD_CLEAR_REG);
 }
 
-static void reset_atmio16d(comedi_device *dev)
+static void reset_atmio16d(comedi_device * dev)
 {
 	int i;
 
 	/* now we need to initialize the board */
-	outw(0, dev->iobase+COM_REG_1);
-	outw(0, dev->iobase+COM_REG_2);
-	outw(0, dev->iobase+MUX_GAIN_REG);
+	outw(0, dev->iobase + COM_REG_1);
+	outw(0, dev->iobase + COM_REG_2);
+	outw(0, dev->iobase + MUX_GAIN_REG);
 	/* init AM9513A timer */
-	outw(0xFFFF, dev->iobase+AM9513A_COM_REG);
-	outw(0xFFEF, dev->iobase+AM9513A_COM_REG);
-	outw(0xFF17, dev->iobase+AM9513A_COM_REG);
-	outw(0xF000, dev->iobase+AM9513A_DATA_REG);
-	for(i=1; i<=5; ++i) {
-		outw(0xFF00+i, dev->iobase+AM9513A_COM_REG);
-		outw(0x0004, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF08+i, dev->iobase+AM9513A_COM_REG);
-		outw(0x3, dev->iobase+AM9513A_DATA_REG);
+	outw(0xFFFF, dev->iobase + AM9513A_COM_REG);
+	outw(0xFFEF, dev->iobase + AM9513A_COM_REG);
+	outw(0xFF17, dev->iobase + AM9513A_COM_REG);
+	outw(0xF000, dev->iobase + AM9513A_DATA_REG);
+	for (i = 1; i <= 5; ++i) {
+		outw(0xFF00 + i, dev->iobase + AM9513A_COM_REG);
+		outw(0x0004, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF08 + i, dev->iobase + AM9513A_COM_REG);
+		outw(0x3, dev->iobase + AM9513A_DATA_REG);
 	}
-	outw(0xFF5F, dev->iobase+AM9513A_COM_REG);
+	outw(0xFF5F, dev->iobase + AM9513A_COM_REG);
 	/* timer init done */
-	outw(0, dev->iobase+AD_CLEAR_REG);
-	outw(0, dev->iobase+INT2CLR_REG);
+	outw(0, dev->iobase + AD_CLEAR_REG);
+	outw(0, dev->iobase + INT2CLR_REG);
 	/* select straight binary mode for Analog Input */
 	devpriv->com_reg_1_state |= 1;
-	outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
+	outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	devpriv->adc_coding = adc_straight;
 	/* zero the analog outputs */
-	outw(2048, dev->iobase+DAC0_REG);
-	outw(2048, dev->iobase+DAC1_REG);
+	outw(2048, dev->iobase + DAC0_REG);
+	outw(2048, dev->iobase + DAC1_REG);
 }
 
 static irqreturn_t atmio16d_interrupt(int irq, void *d PT_REGS_ARG)
@@ -259,109 +260,116 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d PT_REGS_ARG)
 	comedi_device *dev = d;
 	comedi_subdevice *s = dev->subdevices + 0;
 
-//	printk("atmio16d_interrupt!\n");
+//      printk("atmio16d_interrupt!\n");
 
-	comedi_buf_put( s->async, inw(dev->iobase+AD_FIFO_REG) );
+	comedi_buf_put(s->async, inw(dev->iobase + AD_FIFO_REG));
 
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
-static int atmio16d_ai_cmdtest(comedi_device *dev, comedi_subdevice *s, comedi_cmd *cmd)
+static int atmio16d_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd)
 {
-	int err=0, tmp;
+	int err = 0, tmp;
 #ifdef DEBUG1
 	printk("atmio16d_ai_cmdtest\n");
 #endif
 	/* make sure triggers are valid */
-	tmp=cmd->start_src;
+	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+	if (!cmd->start_src || tmp != cmd->start_src)
+		err++;
 
-	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW|TRIG_TIMER;
-	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
 
-	tmp=cmd->convert_src;
+	tmp = cmd->convert_src;
 	cmd->convert_src &= TRIG_TIMER;
-	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
 
-	tmp=cmd->scan_end_src;
+	tmp = cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
 
-	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if (!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
 
-	if(err)return 1;
+	if (err)
+		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 	/* note that mutual compatiblity is not an issue here */
-	if(cmd->scan_begin_src!=TRIG_FOLLOW &&
-	   cmd->scan_begin_src!=TRIG_EXT &&
-	   cmd->scan_begin_src!=TRIG_TIMER)err++;
-	if(cmd->stop_src!=TRIG_COUNT &&
-	   cmd->stop_src!=TRIG_NONE)err++;
+	if (cmd->scan_begin_src != TRIG_FOLLOW &&
+		cmd->scan_begin_src != TRIG_EXT &&
+		cmd->scan_begin_src != TRIG_TIMER)
+		err++;
+	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
+		err++;
 
-	if(err)return 2;
-
+	if (err)
+		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg!=0){
-		cmd->start_arg=0;
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
 		err++;
 	}
-	if(cmd->scan_begin_src==TRIG_FOLLOW){
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		/* internal trigger */
-		if(cmd->scan_begin_arg!=0){
-			cmd->scan_begin_arg=0;
+		if (cmd->scan_begin_arg != 0) {
+			cmd->scan_begin_arg = 0;
 			err++;
 		}
-	}else{
+	} else {
 #if 0
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
-		if(cmd->scan_begin_arg!=0){
-			cmd->scan_begin_arg=0;
+		if (cmd->scan_begin_arg != 0) {
+			cmd->scan_begin_arg = 0;
 			err++;
 		}
 #endif
 	}
 
-	if(cmd->convert_arg<10000){
-		cmd->convert_arg=10000;
+	if (cmd->convert_arg < 10000) {
+		cmd->convert_arg = 10000;
 		err++;
 	}
-
-
 #if 0
-	if(cmd->convert_arg>SLOWEST_TIMER){
-		cmd->convert_arg=SLOWEST_TIMER;
+	if (cmd->convert_arg > SLOWEST_TIMER) {
+		cmd->convert_arg = SLOWEST_TIMER;
 		err++;
 	}
 #endif
-	if(cmd->scan_end_arg!=cmd->chanlist_len){
-		cmd->scan_end_arg=cmd->chanlist_len;
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
+		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src==TRIG_COUNT){
+	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
-	}else{
+	} else {
 		/* TRIG_NONE */
-		if(cmd->stop_arg!=0){
-			cmd->stop_arg=0;
+		if (cmd->stop_arg != 0) {
+			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
-	if(err)return 3;
+	if (err)
+		return 3;
 
 	return 0;
 }
 
-static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+static int atmio16d_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned int timer, base_clock;
@@ -374,141 +382,142 @@ static int atmio16d_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	 * It is still uber-experimental */
 
 	reset_counters(dev);
-	s->async->cur_chan	= 0;
+	s->async->cur_chan = 0;
 
 	/* check if scanning multiple channels */
-	if(cmd->chanlist_len < 2) {
+	if (cmd->chanlist_len < 2) {
 		devpriv->com_reg_1_state &= ~COMREG1_SCANEN;
-		outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
+		outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	} else {
 		devpriv->com_reg_1_state |= COMREG1_SCANEN;
 		devpriv->com_reg_2_state |= COMREG2_SCN2;
-		outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
-		outw(devpriv->com_reg_2_state, dev->iobase+COM_REG_2);
+		outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
+		outw(devpriv->com_reg_2_state, dev->iobase + COM_REG_2);
 	}
 
 	/* Setup the Mux-Gain Counter */
-	for(i=0; i < cmd->chanlist_len; ++i ) {
+	for (i = 0; i < cmd->chanlist_len; ++i) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		gain = CR_RANGE(cmd->chanlist[i]);
-		outw(i, dev->iobase+MUX_CNTR_REG);
-		tmp = chan|(gain<<6);
-		if( i == cmd->scan_end_arg-1 ) tmp |= 0x0010;	/* set LASTONE bit */
-		outw(tmp, dev->iobase+MUX_GAIN_REG);
+		outw(i, dev->iobase + MUX_CNTR_REG);
+		tmp = chan | (gain << 6);
+		if (i == cmd->scan_end_arg - 1)
+			tmp |= 0x0010;	/* set LASTONE bit */
+		outw(tmp, dev->iobase + MUX_GAIN_REG);
 	}
 
 	/* Now program the sample interval timer */
 	/* Figure out which clock to use then get an
 	 * appropriate timer value */
-	if(cmd->convert_arg<65536000) {
+	if (cmd->convert_arg < 65536000) {
 		base_clock = CLOCK_1_MHZ;
-		timer = cmd->convert_arg/1000;
-	} else if(cmd->convert_arg<655360000) {
+		timer = cmd->convert_arg / 1000;
+	} else if (cmd->convert_arg < 655360000) {
 		base_clock = CLOCK_100_KHZ;
-		timer = cmd->convert_arg/10000;
-	} else if(cmd->convert_arg<=0xffffffff /* 6553600000 */ ) {
+		timer = cmd->convert_arg / 10000;
+	} else if (cmd->convert_arg <= 0xffffffff /* 6553600000 */ ) {
 		base_clock = CLOCK_10_KHZ;
-		timer = cmd->convert_arg/100000;
-	} else if(cmd->convert_arg<=0xffffffff /* 65536000000 */ ) {
+		timer = cmd->convert_arg / 100000;
+	} else if (cmd->convert_arg <= 0xffffffff /* 65536000000 */ ) {
 		base_clock = CLOCK_1_KHZ;
-		timer = cmd->convert_arg/1000000;
+		timer = cmd->convert_arg / 1000000;
 	}
-	outw(0xFF03, dev->iobase+AM9513A_COM_REG);
-	outw(base_clock, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF0B, dev->iobase+AM9513A_COM_REG);
-	outw(0x2, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF44, dev->iobase+AM9513A_COM_REG);
-	outw(0xFFF3, dev->iobase+AM9513A_COM_REG);
-	outw(timer, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF24, dev->iobase+AM9513A_COM_REG);
-
-
+	outw(0xFF03, dev->iobase + AM9513A_COM_REG);
+	outw(base_clock, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF0B, dev->iobase + AM9513A_COM_REG);
+	outw(0x2, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF44, dev->iobase + AM9513A_COM_REG);
+	outw(0xFFF3, dev->iobase + AM9513A_COM_REG);
+	outw(timer, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF24, dev->iobase + AM9513A_COM_REG);
 
 	/* Now figure out how many samples to get */
 	/* and program the sample counter */
-	sample_count = cmd->stop_arg*cmd->scan_end_arg;
-	outw(0xFF04, dev->iobase+AM9513A_COM_REG);
-	outw(0x1025, dev->iobase+AM9513A_DATA_REG);
-	outw(0xFF0C, dev->iobase+AM9513A_COM_REG);
-	if(sample_count < 65536) {
+	sample_count = cmd->stop_arg * cmd->scan_end_arg;
+	outw(0xFF04, dev->iobase + AM9513A_COM_REG);
+	outw(0x1025, dev->iobase + AM9513A_DATA_REG);
+	outw(0xFF0C, dev->iobase + AM9513A_COM_REG);
+	if (sample_count < 65536) {
 		/* use only Counter 4 */
-		outw(sample_count, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF48, dev->iobase+AM9513A_COM_REG);
-		outw(0xFFF4, dev->iobase+AM9513A_COM_REG);
-		outw(0xFF28, dev->iobase+AM9513A_COM_REG);
+		outw(sample_count, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF48, dev->iobase + AM9513A_COM_REG);
+		outw(0xFFF4, dev->iobase + AM9513A_COM_REG);
+		outw(0xFF28, dev->iobase + AM9513A_COM_REG);
 		devpriv->com_reg_1_state &= ~COMREG1_1632CNT;
-		outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
+		outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	} else {
 		/* Counter 4 and 5 are needed */
-		if( (tmp=sample_count&0xFFFF) ) {
-			outw(tmp-1, dev->iobase+AM9513A_DATA_REG);
+		if ((tmp = sample_count & 0xFFFF)) {
+			outw(tmp - 1, dev->iobase + AM9513A_DATA_REG);
 		} else {
-			outw(0xFFFF, dev->iobase+AM9513A_DATA_REG);
+			outw(0xFFFF, dev->iobase + AM9513A_DATA_REG);
 		}
-		outw(0xFF48, dev->iobase+AM9513A_COM_REG);
-		outw(0, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF28, dev->iobase+AM9513A_COM_REG);
-		outw(0xFF05, dev->iobase+AM9513A_COM_REG);
-		outw(0x25, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF0D, dev->iobase+AM9513A_COM_REG);
-		tmp=sample_count&0xFFFF;
-		if( (tmp == 0) || (tmp == 1) ) {
-			outw( (sample_count>>16)&0xFFFF, dev->iobase+AM9513A_DATA_REG);
+		outw(0xFF48, dev->iobase + AM9513A_COM_REG);
+		outw(0, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF28, dev->iobase + AM9513A_COM_REG);
+		outw(0xFF05, dev->iobase + AM9513A_COM_REG);
+		outw(0x25, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF0D, dev->iobase + AM9513A_COM_REG);
+		tmp = sample_count & 0xFFFF;
+		if ((tmp == 0) || (tmp == 1)) {
+			outw((sample_count >> 16) & 0xFFFF,
+				dev->iobase + AM9513A_DATA_REG);
 		} else {
-			outw( ((sample_count>>16)&0xFFFF)+1, dev->iobase+AM9513A_DATA_REG);
+			outw(((sample_count >> 16) & 0xFFFF) + 1,
+				dev->iobase + AM9513A_DATA_REG);
 		}
-		outw(0xFF70, dev->iobase+AM9513A_COM_REG);
+		outw(0xFF70, dev->iobase + AM9513A_COM_REG);
 		devpriv->com_reg_1_state |= COMREG1_1632CNT;
-		outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
+		outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	}
 
 	/* Program the scan interval timer ONLY IF SCANNING IS ENABLED */
 	/* Figure out which clock to use then get an
 	 * appropriate timer value */
-	if(cmd->chanlist_len > 1) {
-		if(cmd->scan_begin_arg<65536000) {
+	if (cmd->chanlist_len > 1) {
+		if (cmd->scan_begin_arg < 65536000) {
 			base_clock = CLOCK_1_MHZ;
-			timer = cmd->scan_begin_arg/1000;
-		} else if(cmd->scan_begin_arg<655360000) {
+			timer = cmd->scan_begin_arg / 1000;
+		} else if (cmd->scan_begin_arg < 655360000) {
 			base_clock = CLOCK_100_KHZ;
-			timer = cmd->scan_begin_arg/10000;
-		} else if(cmd->scan_begin_arg<0xffffffff /* 6553600000 */ ) {
+			timer = cmd->scan_begin_arg / 10000;
+		} else if (cmd->scan_begin_arg < 0xffffffff /* 6553600000 */ ) {
 			base_clock = CLOCK_10_KHZ;
-			timer = cmd->scan_begin_arg/100000;
-		} else if(cmd->scan_begin_arg<0xffffffff /* 65536000000 */ ) {
+			timer = cmd->scan_begin_arg / 100000;
+		} else if (cmd->scan_begin_arg < 0xffffffff /* 65536000000 */ ) {
 			base_clock = CLOCK_1_KHZ;
-			timer = cmd->scan_begin_arg/1000000;
+			timer = cmd->scan_begin_arg / 1000000;
 		}
-		outw(0xFF02, dev->iobase+AM9513A_COM_REG);
-		outw(base_clock, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF0A, dev->iobase+AM9513A_COM_REG);
-		outw(0x2, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF42, dev->iobase+AM9513A_COM_REG);
-		outw(0xFFF2, dev->iobase+AM9513A_COM_REG);
-		outw(timer, dev->iobase+AM9513A_DATA_REG);
-		outw(0xFF22, dev->iobase+AM9513A_COM_REG);
+		outw(0xFF02, dev->iobase + AM9513A_COM_REG);
+		outw(base_clock, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF0A, dev->iobase + AM9513A_COM_REG);
+		outw(0x2, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF42, dev->iobase + AM9513A_COM_REG);
+		outw(0xFFF2, dev->iobase + AM9513A_COM_REG);
+		outw(timer, dev->iobase + AM9513A_DATA_REG);
+		outw(0xFF22, dev->iobase + AM9513A_COM_REG);
 	}
 
 	/* Clear the A/D FIFO and reset the MUX counter */
-	outw(0, dev->iobase+AD_CLEAR_REG);
-	outw(0, dev->iobase+MUX_CNTR_REG);
-	outw(0, dev->iobase+INT2CLR_REG);
+	outw(0, dev->iobase + AD_CLEAR_REG);
+	outw(0, dev->iobase + MUX_CNTR_REG);
+	outw(0, dev->iobase + INT2CLR_REG);
 	/* enable this acquisition operation */
 	devpriv->com_reg_1_state |= COMREG1_DAQEN;
-	outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
+	outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	/* enable interrupts for conversion completion */
 	devpriv->com_reg_1_state |= COMREG1_CONVINTEN;
 	devpriv->com_reg_2_state |= COMREG2_INTEN;
-	outw(devpriv->com_reg_1_state, dev->iobase+COM_REG_1);
-	outw(devpriv->com_reg_2_state, dev->iobase+COM_REG_2);
+	outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
+	outw(devpriv->com_reg_2_state, dev->iobase + COM_REG_2);
 	/* apply a trigger. this starts the counters! */
-	outw(0, dev->iobase+START_DAQ_REG);
+	outw(0, dev->iobase + START_DAQ_REG);
 
 	return 0;
 }
 
 /* This will cancel a running acquisition operation */
-static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int atmio16d_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	reset_atmio16d(dev);
 
@@ -516,8 +525,8 @@ static int atmio16d_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* Mode 0 is used to get a single conversion on demand */
-static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i, t;
 	int chan;
@@ -536,36 +545,36 @@ static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice *s,
 	//outw( 0, dev->iobase+MUX_CNTR_REG );
 
 	/* set the Input MUX gain */
-	outw( chan|(gain<<6), dev->iobase+MUX_GAIN_REG);
+	outw(chan | (gain << 6), dev->iobase + MUX_GAIN_REG);
 
-	for(i=0 ; i < insn->n ; i++) {
+	for (i = 0; i < insn->n; i++) {
 		/* start the conversion */
-		outw(0, dev->iobase+START_CONVERT_REG);
+		outw(0, dev->iobase + START_CONVERT_REG);
 		/* wait for it to finish */
-		for(t = 0; t < ATMIO16D_TIMEOUT; t++) {
+		for (t = 0; t < ATMIO16D_TIMEOUT; t++) {
 			/* check conversion status */
-			status=inw(dev->iobase+STAT_REG);
+			status = inw(dev->iobase + STAT_REG);
 #ifdef DEBUG1
-			printk("status=%x\n",status);
+			printk("status=%x\n", status);
 #endif
-			if( status&STAT_AD_CONVAVAIL ) {
+			if (status & STAT_AD_CONVAVAIL) {
 				/* read the data now */
-				data[i] = inw( dev->iobase+AD_FIFO_REG );
+				data[i] = inw(dev->iobase + AD_FIFO_REG);
 				/* change to two's complement if need be */
-				if( devpriv->adc_coding == adc_2comp ) {
+				if (devpriv->adc_coding == adc_2comp) {
 					data[i] ^= 0x800;
 				}
 				break;
 			}
-			if( status&STAT_AD_OVERFLOW ){
+			if (status & STAT_AD_OVERFLOW) {
 				printk("atmio16d: a/d FIFO overflow\n");
-				outw(0,dev->iobase+AD_CLEAR_REG);
+				outw(0, dev->iobase + AD_CLEAR_REG);
 
 				return -ETIME;
 			}
 		}
 		/* end waiting, now check if it timed out */
-		if( t == ATMIO16D_TIMEOUT ){
+		if (t == ATMIO16D_TIMEOUT) {
 			rt_printk("atmio16d: timeout\n");
 
 			return -ETIME;
@@ -575,23 +584,23 @@ static int atmio16d_ai_insn_read(comedi_device * dev, comedi_subdevice *s,
 	return i;
 }
 
-static int atmio16d_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int atmio16d_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 #ifdef DEBUG1
 	printk("atmio16d_ao_insn_read\n");
 #endif
 
-	for(i=0;i<insn->n;i++){
-		data[i]=devpriv->ao_readback[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++) {
+		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 	}
 
 	return i;
 }
 
-static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan;
@@ -600,11 +609,11 @@ static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice *s,
 	printk("atmio16d_ao_insn_write\n");
 #endif
 
-	chan=CR_CHAN(insn->chanspec);
+	chan = CR_CHAN(insn->chanspec);
 
-	for(i=0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++) {
 		d = data[i];
-		switch(chan){
+		switch (chan) {
 		case 0:
 			if (devpriv->dac0_coding == dac_2comp) {
 				d ^= 0x800;
@@ -625,43 +634,43 @@ static int atmio16d_ao_insn_write(comedi_device * dev, comedi_subdevice *s,
 	return i;
 }
 
-
-static int atmio16d_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int atmio16d_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=2)return -EINVAL;
+	if (insn->n != 2)
+		return -EINVAL;
 
-	if(data[0]){
+	if (data[0]) {
 		s->state &= ~data[0];
-		s->state |= (data[0]|data[1]);
-		outw(s->state, dev->iobase+MIO_16_DIG_OUT_REG );
+		s->state |= (data[0] | data[1]);
+		outw(s->state, dev->iobase + MIO_16_DIG_OUT_REG);
 	}
-	data[1] = inw(dev->iobase+MIO_16_DIG_IN_REG);
+	data[1] = inw(dev->iobase + MIO_16_DIG_IN_REG);
 
 	return 2;
 }
 
-static int atmio16d_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int atmio16d_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int mask;
 
-	for(i=0;i<insn->n;i++){
-		mask=(CR_CHAN(insn->chanspec)<4)?0x0f:0xf0;
+	for (i = 0; i < insn->n; i++) {
+		mask = (CR_CHAN(insn->chanspec) < 4) ? 0x0f : 0xf0;
 		s->io_bits &= ~mask;
-		if(data[i])s->io_bits |= mask;
+		if (data[i])
+			s->io_bits |= mask;
 	}
-	devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0|COMREG2_DOUTEN1);
-	if(s->io_bits&0x0f)
+	devpriv->com_reg_2_state &= ~(COMREG2_DOUTEN0 | COMREG2_DOUTEN1);
+	if (s->io_bits & 0x0f)
 		devpriv->com_reg_2_state |= COMREG2_DOUTEN0;
-	if(s->io_bits&0xf0)
+	if (s->io_bits & 0xf0)
 		devpriv->com_reg_2_state |= COMREG2_DOUTEN1;
-	outw(devpriv->com_reg_2_state, dev->iobase+COM_REG_2);
+	outw(devpriv->com_reg_2_state, dev->iobase + COM_REG_2);
 
 	return i;
 }
-
 
 /*
    options[0] - I/O port
@@ -712,34 +721,30 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	dev->iobase = iobase;
 
-
 	/* board name */
 	dev->board_name = boardtype->name;
 
-	if((ret=alloc_subdevices(dev, 4))<0)
+	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
-	if((ret=alloc_private(dev,sizeof(atmio16d_private)))<0)
+	if ((ret = alloc_private(dev, sizeof(atmio16d_private))) < 0)
 		return ret;
-
 
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);
 
 	/* check if our interrupt is available and get it */
-	irq=it->options[1];
-	if(irq){
-		if((ret=comedi_request_irq(irq,atmio16d_interrupt,
-			0, "atmio16d", dev))<0)
-		{
+	irq = it->options[1];
+	if (irq) {
+		if ((ret = comedi_request_irq(irq, atmio16d_interrupt,
+					0, "atmio16d", dev)) < 0) {
 			printk("failed to allocate irq %u\n", irq);
 			return ret;
 		}
-		dev->irq=irq;
-		printk("( irq = %u )\n",irq);
+		dev->irq = irq;
+		printk("( irq = %u )\n", irq);
 	} else {
 		printk("( no irq )");
 	}
-
 
 	/* set device options */
 	devpriv->adc_mux = it->options[5];
@@ -752,20 +757,19 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->dac1_reference = it->options[11];
 	devpriv->dac1_coding = it->options[12];
 
-
 	/* setup sub-devices */
-	s=dev->subdevices+0;
+	s = dev->subdevices + 0;
 	dev->read_subdev = s;
 	/* ai subdevice */
-	s->type=COMEDI_SUBD_AI;
+	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan=(devpriv->adc_mux? 16 : 8);
-	s->len_chanlist=16;
+	s->n_chan = (devpriv->adc_mux ? 16 : 8);
+	s->len_chanlist = 16;
 	s->insn_read = atmio16d_ai_insn_read;
-	s->do_cmdtest=atmio16d_ai_cmdtest;
-	s->do_cmd=atmio16d_ai_cmd;
-	s->cancel=atmio16d_ai_cancel;
-	s->maxdata=0xfff;	/* 4095 decimal */
+	s->do_cmdtest = atmio16d_ai_cmdtest;
+	s->do_cmd = atmio16d_ai_cmd;
+	s->cancel = atmio16d_ai_cancel;
+	s->maxdata = 0xfff;	/* 4095 decimal */
 	switch (devpriv->adc_range) {
 	case adc_bipolar10:
 		s->range_table = &range_atmio16d_ai_10_bipolar;
@@ -780,13 +784,13 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* ao subdevice */
 	s++;
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITABLE;
-	s->n_chan=2;
-	s->insn_read=atmio16d_ao_insn_read;
-	s->insn_write=atmio16d_ao_insn_write;
-	s->maxdata=0xfff;	/* 4095 decimal */
-	s->range_table_list=devpriv->ao_range_type_list;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = 2;
+	s->insn_read = atmio16d_ao_insn_read;
+	s->insn_write = atmio16d_ao_insn_write;
+	s->maxdata = 0xfff;	/* 4095 decimal */
+	s->range_table_list = devpriv->ao_range_type_list;
 	switch (devpriv->dac0_range) {
 	case dac_bipolar:
 		devpriv->ao_range_type_list[0] = &range_bipolar10;
@@ -804,56 +808,51 @@ static int atmio16d_attach(comedi_device * dev, comedi_devconfig * it)
 		break;
 	}
 
-
 	/* Digital I/O */
 	s++;
-	s->type=COMEDI_SUBD_DIO;
-	s->subdev_flags=SDF_WRITABLE|SDF_READABLE;
-	s->n_chan=8;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 8;
 	s->insn_bits = atmio16d_dio_insn_bits;
 	s->insn_config = atmio16d_dio_insn_config;
-	s->maxdata=1;
-	s->range_table=&range_digital;
-
+	s->maxdata = 1;
+	s->range_table = &range_digital;
 
 	/* 8255 subdevice */
 	s++;
-	if(boardtype->has_8255){
-		subdev_8255_init(dev,s,NULL,dev->iobase);
-	}else{
-		s->type=COMEDI_SUBD_UNUSED;
+	if (boardtype->has_8255) {
+		subdev_8255_init(dev, s, NULL, dev->iobase);
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 /* don't yet know how to deal with counter/timers */
 #if 0
 	s++;
 	/* do */
-	s->type=COMEDI_SUBD_TIMER;
-	s->n_chan=0;
-	s->maxdata=0
+	s->type = COMEDI_SUBD_TIMER;
+	s->n_chan = 0;
+	s->maxdata = 0
 #endif
-
-	printk("\n");
+		printk("\n");
 
 	return 0;
 }
-
 
 static int atmio16d_detach(comedi_device * dev)
 {
 	printk("comedi%d: atmio16d: remove\n", dev->minor);
 
-	if(dev->subdevices && boardtype->has_8255)
-		subdev_8255_cleanup(dev,dev->subdevices + 3);
+	if (dev->subdevices && boardtype->has_8255)
+		subdev_8255_cleanup(dev, dev->subdevices + 3);
 
-	if(dev->irq)
-		comedi_free_irq(dev->irq,dev);
+	if (dev->irq)
+		comedi_free_irq(dev->irq, dev);
 
 	reset_atmio16d(dev);
 
-	if(dev->iobase)
+	if (dev->iobase)
 		release_region(dev->iobase, ATMIO16D_SIZE);
 
 	return 0;
 }
-

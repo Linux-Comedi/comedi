@@ -24,7 +24,3 @@ static inline char *pci_name(struct pci_dev *pdev)
 #endif
 
 #endif /* _COMPAT_PCI_H */
-
-
-
-

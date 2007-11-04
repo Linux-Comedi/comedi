@@ -75,8 +75,8 @@ TRIG_WAKE_EOS
 #define A2150_SIZE           28
 #define A2150_DMA_BUFFER_SIZE	0xff00	// size in bytes of dma buffer
 
-//#define A2150_DEBUG	// enable debugging code
-#undef A2150_DEBUG	// disable debugging code
+//#define A2150_DEBUG   // enable debugging code
+#undef A2150_DEBUG		// disable debugging code
 
 /* Registers and bits */
 #define CONFIG_REG		0x0
@@ -119,72 +119,76 @@ TRIG_WAKE_EOS
 #define I8253_MODE_REG		0x17
 #define   HW_COUNT_DISABLE		0x30	// disable hardware counting of conversions
 
-typedef struct a2150_board_struct{
+typedef struct a2150_board_struct {
 	const char *name;
-	int clock[4];	// master clock periods, in nanoseconds
-	int num_clocks;	// number of available master clock speeds
-	int ai_speed;	// maximum conversion rate in nanoseconds
-}a2150_board;
+	int clock[4];		// master clock periods, in nanoseconds
+	int num_clocks;		// number of available master clock speeds
+	int ai_speed;		// maximum conversion rate in nanoseconds
+} a2150_board;
 
 //analog input range
 static const comedi_lrange range_a2150 = {
 	1,
 	{
-		RANGE( -2.828, 2.828 ),
-	}
+			RANGE(-2.828, 2.828),
+		}
 };
 
 // enum must match board indices
-enum{a2150_c, a2150_s};
-static const a2150_board a2150_boards[] =
-{
+enum { a2150_c, a2150_s };
+static const a2150_board a2150_boards[] = {
 	{
-		name:	"at-a2150c",
-		clock:	{31250,  22676, 20833, 19531},
-		num_clocks:	4,
-		ai_speed:	19531,
-	},
+	      name:	"at-a2150c",
+	      clock:	{31250, 22676, 20833, 19531},
+	      num_clocks:4,
+	      ai_speed:19531,
+		},
 	{
-		name:	"at-a2150s",
-		clock:	{62500, 50000, 41667, 0},
-		num_clocks:	3,
-		ai_speed:	41667,
-	},
+	      name:	"at-a2150s",
+	      clock:	{62500, 50000, 41667, 0},
+	      num_clocks:3,
+	      ai_speed:41667,
+		},
 };
+
 /*
  * Useful for shorthand access to the particular board structure
  */
 #define thisboard ((const a2150_board *)dev->board_ptr)
 
-typedef struct{
-	volatile unsigned int count;  /* number of data points left to be taken */
+typedef struct {
+	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int dma;	// dma channel
 	s16 *dma_buffer;	// dma buffer
 	unsigned int dma_transfer_size;	// size in bytes of dma transfers
 	int irq_dma_bits;	// irq/dma register bits
 	int config_bits;	// config register bits
-}a2150_private;
+} a2150_private;
 
 #define devpriv ((a2150_private *)dev->private)
 
-static int a2150_attach(comedi_device *dev,comedi_devconfig *it);
-static int a2150_detach(comedi_device *dev);
-static int a2150_cancel(comedi_device *dev, comedi_subdevice *s);
+static int a2150_attach(comedi_device * dev, comedi_devconfig * it);
+static int a2150_detach(comedi_device * dev);
+static int a2150_cancel(comedi_device * dev, comedi_subdevice * s);
 
-static comedi_driver driver_a2150={
-	driver_name:	"ni_at_a2150",
-	module:		THIS_MODULE,
-	attach:		a2150_attach,
-	detach:		a2150_detach,
+static comedi_driver driver_a2150 = {
+      driver_name:"ni_at_a2150",
+      module:THIS_MODULE,
+      attach:a2150_attach,
+      detach:a2150_detach,
 };
 
 static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG);
-static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd);
-static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s);
-static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data);
-static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags);
-static int a2150_probe(comedi_device *dev);
-static int a2150_set_chanlist(comedi_device *dev, unsigned int start_channel, unsigned int num_channels);
+static int a2150_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd);
+static int a2150_ai_cmd(comedi_device * dev, comedi_subdevice * s);
+static int a2150_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int a2150_get_timing(comedi_device * dev, unsigned int *period,
+	int flags);
+static int a2150_probe(comedi_device * dev);
+static int a2150_set_chanlist(comedi_device * dev, unsigned int start_channel,
+	unsigned int num_channels);
 /*
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
@@ -193,7 +197,7 @@ COMEDI_INITCLEANUP(driver_a2150);
 
 #ifdef A2150_DEBUG
 
-static void ni_dump_regs(comedi_device *dev)
+static void ni_dump_regs(comedi_device * dev)
 {
 	rt_printk("config bits 0x%x\n", devpriv->config_bits);
 	rt_printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
@@ -216,8 +220,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	sampl_t dpnt;
 	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
-	if(dev->attached == 0)
-	{
+	if (dev->attached == 0) {
 		comedi_error(dev, "premature interrupt");
 		return IRQ_HANDLED;
 	}
@@ -228,21 +231,18 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 
 	status = inw(dev->iobase + STATUS_REG);
 
-	if((status & INTR_BIT ) == 0)
-	{
+	if ((status & INTR_BIT) == 0) {
 		comedi_error(dev, "spurious interrupt");
 		return IRQ_NONE;
 	}
 
-	if(status & OVFL_BIT)
-	{
+	if (status & OVFL_BIT) {
 		comedi_error(dev, "fifo overflow");
 		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 	}
 
-	if((status & DMA_TC_BIT) == 0)
-	{
+	if ((status & DMA_TC_BIT) == 0) {
 		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
 		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
@@ -257,46 +257,40 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 	clear_dma_ff(devpriv->dma);
 
 	// figure out how many points to read
-	max_points = devpriv->dma_transfer_size  / sample_size;
+	max_points = devpriv->dma_transfer_size / sample_size;
 	/* residue is the number of points left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
 	residue = get_dma_residue(devpriv->dma) / sample_size;
 	num_points = max_points - residue;
-	if(devpriv->count < num_points &&
-		cmd->stop_src == TRIG_COUNT)
+	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
 
 	// figure out how many points will be stored next time
 	leftover = 0;
-	if(cmd->stop_src == TRIG_NONE)
-	{
+	if (cmd->stop_src == TRIG_NONE) {
 		leftover = devpriv->dma_transfer_size / sample_size;
-	}else if(devpriv->count > max_points)
-	{
+	} else if (devpriv->count > max_points) {
 		leftover = devpriv->count - max_points;
-		if(leftover > max_points)
+		if (leftover > max_points)
 			leftover = max_points;
 	}
 	/* there should only be a residue if collection was stopped by having
 	 * the stop_src set to an external trigger, in which case there
 	 * will be no more data
 	 */
-	if(residue)
+	if (residue)
 		leftover = 0;
 
-	for(i = 0; i < num_points; i++)
-	{
+	for (i = 0; i < num_points; i++) {
 		/* write data point to comedi buffer */
 		dpnt = devpriv->dma_buffer[i];
 		// convert from 2's complement to unsigned coding
 		dpnt ^= 0x8000;
-		cfc_write_to_buffer( s, dpnt );
-		if(cmd->stop_src == TRIG_COUNT)
-		{
-			if(--devpriv->count == 0)
-			{	/* end of acquisition */
+		cfc_write_to_buffer(s, dpnt);
+		if (cmd->stop_src == TRIG_COUNT) {
+			if (--devpriv->count == 0) {	/* end of acquisition */
 				a2150_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
@@ -304,8 +298,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 		}
 	}
 	// re-enable  dma
-	if(leftover)
-	{
+	if (leftover) {
 		set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
 		set_dma_count(devpriv->dma, leftover * sample_size);
 		enable_dma(devpriv->dma);
@@ -323,13 +316,13 @@ static irqreturn_t a2150_interrupt(int irq, void *d PT_REGS_ARG)
 }
 
 // probes board type, returns offset
-static int a2150_probe(comedi_device *dev)
+static int a2150_probe(comedi_device * dev)
 {
 	int status = inw(dev->iobase + STATUS_REG);
 	return ID_BITS(status);
 }
 
-static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
+static int a2150_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -338,75 +331,65 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	static const int timeout = 2000;
 	int i;
 
-	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name, iobase);
-	if(irq)
-	{
+	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_a2150.driver_name,
+		iobase);
+	if (irq) {
 		printk(", irq %u", irq);
-	}else
-	{
+	} else {
 		printk(", no irq");
 	}
-	if(dma)
-	{
+	if (dma) {
 		printk(", dma %u", dma);
-	}else
-	{
+	} else {
 		printk(", no dma");
 	}
 	printk("\n");
 
 	/* allocate and initialize dev->private */
-	if(alloc_private(dev, sizeof(a2150_private)) < 0)
+	if (alloc_private(dev, sizeof(a2150_private)) < 0)
 		return -ENOMEM;
 
-	if(iobase == 0)
-	{
+	if (iobase == 0) {
 		printk(" io base address required\n");
 		return -EINVAL;
 	}
 
 	/* check if io addresses are available */
-	if(!request_region(iobase, A2150_SIZE, driver_a2150.driver_name))
-	{
+	if (!request_region(iobase, A2150_SIZE, driver_a2150.driver_name)) {
 		printk(" I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 	/* grab our IRQ */
-	if(irq)
-	{
+	if (irq) {
 		// check that irq is supported
-		if(irq < 3 || irq == 8 || irq == 13 || irq > 15)
-		{
+		if (irq < 3 || irq == 8 || irq == 13 || irq > 15) {
 			printk(" invalid irq line %u\n", irq);
 			return -EINVAL;
 		}
-		if(comedi_request_irq( irq, a2150_interrupt, 0, driver_a2150.driver_name, dev ))
-		{
-			printk( "unable to allocate irq %u\n", irq);
+		if (comedi_request_irq(irq, a2150_interrupt, 0,
+				driver_a2150.driver_name, dev)) {
+			printk("unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		}
 		devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
 		dev->irq = irq;
 	}
-
 	// initialize dma
-	if(dma)
-	{
-		if(dma == 4 || dma > 7)
-		{
+	if (dma) {
+		if (dma == 4 || dma > 7) {
 			printk(" invalid dma channel %u\n", dma);
 			return -EINVAL;
 		}
-		if(request_dma(dma, driver_a2150.driver_name))
-		{
+		if (request_dma(dma, driver_a2150.driver_name)) {
 			printk(" failed to allocate dma channel %u\n", dma);
 			return -EINVAL;
 		}
 		devpriv->dma = dma;
-		devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
-		if(devpriv->dma_buffer == NULL)
+		devpriv->dma_buffer =
+			kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
+		if (devpriv->dma_buffer == NULL)
 			return -ENOMEM;
 
 		disable_dma(dma);
@@ -418,7 +401,7 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
 	dev->board_name = thisboard->name;
 
-	if(alloc_subdevices(dev, 1) < 0)
+	if (alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
 
 	/* analog input subdevice */
@@ -449,14 +432,12 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	devpriv->config_bits = 0;
 	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
 	// wait until offset calibration is done, then enable analog inputs
-	for(i = 0; i < timeout; i++)
-	{
-		if((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
+	for (i = 0; i < timeout; i++) {
+		if ((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
 			break;
 		comedi_udelay(1000);
 	}
-	if(i == timeout)
-	{
+	if (i == timeout) {
 		printk(" timed out waiting for offset calibration to complete\n");
 		return -ETIME;
 	}
@@ -466,32 +447,30 @@ static int a2150_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 };
 
-static int a2150_detach(comedi_device *dev)
+static int a2150_detach(comedi_device * dev)
 {
 	printk("comedi%d: %s: remove\n", dev->minor, driver_a2150.driver_name);
 
 	/* only free stuff if it has been allocated by _attach */
-	if(dev->iobase)
-	{
+	if (dev->iobase) {
 		// put board in power-down mode
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
 		release_region(dev->iobase, A2150_SIZE);
 	}
 
-	if(dev->irq)
+	if (dev->irq)
 		comedi_free_irq(dev->irq, dev);
-	if(devpriv)
-	{
-		if(devpriv->dma)
+	if (devpriv) {
+		if (devpriv->dma)
 			free_dma(devpriv->dma);
-		if(devpriv->dma_buffer)
+		if (devpriv->dma_buffer)
 			kfree(devpriv->dma_buffer);
 	}
 
 	return 0;
 };
 
-static int a2150_cancel(comedi_device *dev, comedi_subdevice *s)
+static int a2150_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	// disable dma on card
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
@@ -506,7 +485,8 @@ static int a2150_cancel(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd)
+static int a2150_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd)
 {
 	int err = 0;
 	int tmp;
@@ -517,125 +497,125 @@ static int a2150_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,comedi_cmd *c
 
 	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if(!cmd->start_src || tmp != cmd->start_src) err++;
+	if (!cmd->start_src || tmp != cmd->start_src)
+		err++;
 
 	tmp = cmd->scan_begin_src;
 	cmd->scan_begin_src &= TRIG_TIMER;
-	if(!cmd->scan_begin_src || tmp != cmd->scan_begin_src) err++;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
 
 	tmp = cmd->convert_src;
 	cmd->convert_src &= TRIG_NOW;
-	if(!cmd->convert_src || tmp != cmd->convert_src) err++;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
 
 	tmp = cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp != cmd->scan_end_src) err++;
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
 
-	tmp=cmd->stop_src;
+	tmp = cmd->stop_src;
 	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src) err++;
+	if (!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
 
-	if(err) return 1;
+	if (err)
+		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	if(cmd->start_src != TRIG_NOW &&
-		cmd->start_src != TRIG_EXT) err++;
-	if(cmd->stop_src != TRIG_COUNT &&
-		cmd->stop_src != TRIG_NONE) err++;
+	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
+		err++;
+	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
+		err++;
 
-	if(err)return 2;
+	if (err)
+		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg != 0)
-	{
+	if (cmd->start_arg != 0) {
 		cmd->start_arg = 0;
 		err++;
 	}
-	if(cmd->convert_src == TRIG_TIMER)
-	{
-		if(cmd->convert_arg < thisboard->ai_speed)
-		{
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (cmd->convert_arg < thisboard->ai_speed) {
 			cmd->convert_arg = thisboard->ai_speed;
 			err++;
 		}
 	}
-	if(!cmd->chanlist_len)
-	{
+	if (!cmd->chanlist_len) {
 		cmd->chanlist_len = 1;
 		err++;
 	}
-	if(cmd->scan_end_arg != cmd->chanlist_len)
-	{
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src == TRIG_COUNT)
-	{
-		if(!cmd->stop_arg)
-		{
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (!cmd->stop_arg) {
 			cmd->stop_arg = 1;
 			err++;
 		}
-	} else
-	{ /* TRIG_NONE */
-		if(cmd->stop_arg != 0)
-		{
+	} else {		/* TRIG_NONE */
+		if (cmd->stop_arg != 0) {
 			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
-	if(err)return 3;
+	if (err)
+		return 3;
 
 	/* step 4: fix up any arguments */
 
-	if(cmd->scan_begin_src == TRIG_TIMER)
-	{
+	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
 		a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
-		if(tmp != cmd->scan_begin_arg) err++;
+		if (tmp != cmd->scan_begin_arg)
+			err++;
 	}
 
-	if(err)return 4;
+	if (err)
+		return 4;
 
 	// check channel/gain list against card's limitations
-	if(cmd->chanlist)
-	{
+	if (cmd->chanlist) {
 		startChan = CR_CHAN(cmd->chanlist[0]);
-		for(i = 1; i < cmd->chanlist_len; i++)
-		{
-			if(CR_CHAN(cmd->chanlist[i]) != (startChan + i))
-			{
-				comedi_error(dev, "entries in chanlist must be consecutive channels, counting upwards\n");
+		for (i = 1; i < cmd->chanlist_len; i++) {
+			if (CR_CHAN(cmd->chanlist[i]) != (startChan + i)) {
+				comedi_error(dev,
+					"entries in chanlist must be consecutive channels, counting upwards\n");
 				err++;
 			}
 		}
-		if(cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1)
-		{
-			comedi_error(dev, "length 2 chanlist must be channels 0,1 or channels 2,3");
+		if (cmd->chanlist_len == 2 && CR_CHAN(cmd->chanlist[0]) == 1) {
+			comedi_error(dev,
+				"length 2 chanlist must be channels 0,1 or channels 2,3");
 			err++;
 		}
-		if(cmd->chanlist_len == 3)
-		{
-			comedi_error(dev, "chanlist must have 1,2 or 4 channels");
+		if (cmd->chanlist_len == 3) {
+			comedi_error(dev,
+				"chanlist must have 1,2 or 4 channels");
 			err++;
 		}
-		if(CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
+		if (CR_AREF(cmd->chanlist[0]) != CR_AREF(cmd->chanlist[1]) ||
 			CR_AREF(cmd->chanlist[2]) != CR_AREF(cmd->chanlist[3]))
 		{
-			comedi_error(dev, "channels 0/1 and 2/3 must have the same analog reference");
+			comedi_error(dev,
+				"channels 0/1 and 2/3 must have the same analog reference");
 			err++;
 		}
 	}
 
-	if(err)return 5;
+	if (err)
+		return 5;
 
 	return 0;
 }
 
-static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
+static int a2150_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
@@ -643,30 +623,30 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
-	if(!dev->irq || !devpriv->dma)
-	{
-		comedi_error(dev, " irq and dma required, cannot do hardware conversions");
+	if (!dev->irq || !devpriv->dma) {
+		comedi_error(dev,
+			" irq and dma required, cannot do hardware conversions");
 		return -1;
 	}
-	if(cmd->flags & TRIG_RT)
-	{
-		comedi_error(dev, " dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
+	if (cmd->flags & TRIG_RT) {
+		comedi_error(dev,
+			" dma incompatible with hard real-time interrupt (TRIG_RT), aborting");
 		return -1;
 	}
-
 	// clear fifo and reset triggering circuitry
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	/* setup chanlist */
-	if(a2150_set_chanlist(dev, CR_CHAN(cmd->chanlist[0]), cmd->chanlist_len) < 0)
+	if (a2150_set_chanlist(dev, CR_CHAN(cmd->chanlist[0]),
+			cmd->chanlist_len) < 0)
 		return -1;
 
 	// setup ac/dc coupling
-	if(CR_AREF(cmd->chanlist[0]) == AREF_OTHER)
+	if (CR_AREF(cmd->chanlist[0]) == AREF_OTHER)
 		devpriv->config_bits |= AC0_BIT;
 	else
 		devpriv->config_bits &= ~AC0_BIT;
-	if(CR_AREF(cmd->chanlist[2]) == AREF_OTHER)
+	if (CR_AREF(cmd->chanlist[2]) == AREF_OTHER)
 		devpriv->config_bits |= AC1_BIT;
 	else
 		devpriv->config_bits &= ~AC1_BIT;
@@ -689,18 +669,20 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
 	// set size of transfer to fill in 1/3 second
 #define ONE_THIRD_SECOND 333333333
-	devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
+	devpriv->dma_transfer_size =
+		sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
 		ONE_THIRD_SECOND / cmd->scan_begin_arg;
-	if(devpriv->dma_transfer_size > A2150_DMA_BUFFER_SIZE)
+	if (devpriv->dma_transfer_size > A2150_DMA_BUFFER_SIZE)
 		devpriv->dma_transfer_size = A2150_DMA_BUFFER_SIZE;
-	if(devpriv->dma_transfer_size < sizeof(devpriv->dma_buffer[0]))
+	if (devpriv->dma_transfer_size < sizeof(devpriv->dma_buffer[0]))
 		devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]);
-	devpriv->dma_transfer_size -= devpriv->dma_transfer_size % sizeof(devpriv->dma_buffer[0]);
+	devpriv->dma_transfer_size -=
+		devpriv->dma_transfer_size % sizeof(devpriv->dma_buffer[0]);
 	set_dma_count(devpriv->dma, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma);
 	release_dma_lock(lock_flags);
 
- 	/* clear dma interrupt before enabling it, to try and get rid of that
+	/* clear dma interrupt before enabling it, to try and get rid of that
 	 * one spurious interrupt that has been happening */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
 
@@ -714,22 +696,19 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	// setup start triggering
 	trigger_bits = 0;
 	// decide if we need to wait 72 periods for valid data
-	if(cmd->start_src == TRIG_NOW &&
-		(old_config_bits & CLOCK_MASK) != (devpriv->config_bits & CLOCK_MASK))
-	{
+	if (cmd->start_src == TRIG_NOW &&
+		(old_config_bits & CLOCK_MASK) !=
+		(devpriv->config_bits & CLOCK_MASK)) {
 		// set trigger source to delay trigger
 		trigger_bits |= DELAY_TRIGGER_BITS;
-	}else
-	{
+	} else {
 		// otherwise no delay
 		trigger_bits |= POST_TRIGGER_BITS;
 	}
 	// enable external hardware trigger
-	if(cmd->start_src == TRIG_EXT)
-	{
+	if (cmd->start_src == TRIG_EXT) {
 		trigger_bits |= HW_TRIG_EN;
-	}else if(cmd->start_src == TRIG_OTHER)
-	{
+	} else if (cmd->start_src == TRIG_OTHER) {
 		// XXX add support for level/slope start trigger using TRIG_OTHER
 		comedi_error(dev, "you shouldn't see this?");
 	}
@@ -737,11 +716,9 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	outw(trigger_bits, dev->iobase + TRIGGER_REG);
 
 	// start aquisition for soft trigger
-	if(cmd->start_src == TRIG_NOW)
-	{
+	if (cmd->start_src == TRIG_NOW) {
 		outw(0, dev->iobase + FIFO_START_REG);
 	}
-
 #ifdef A2150_DEBUG
 	ni_dump_regs(dev);
 #endif
@@ -749,7 +726,8 @@ static int a2150_ai_cmd(comedi_device *dev, comedi_subdevice *s)
 	return 0;
 }
 
-static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn, lsampl_t *data)
+static int a2150_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	unsigned int i, n;
 	static const int timeout = 100000;
@@ -759,7 +737,7 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	/* setup chanlist */
-	if(a2150_set_chanlist(dev, CR_CHAN(insn->chanspec), 1) < 0)
+	if (a2150_set_chanlist(dev, CR_CHAN(insn->chanspec), 1) < 0)
 		return -1;
 
 	// set dc coupling
@@ -780,16 +758,13 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	outw(0, dev->iobase + FIFO_START_REG);
 
 	/* there is a 35.6 sample delay for data to get through the antialias filter */
- 	for(n = 0; n < filter_delay; n++)
-	{
-		for(i = 0; i < timeout; i++)
-		{
-			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
+	for (n = 0; n < filter_delay; n++) {
+		for (i = 0; i < timeout; i++) {
+			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
 			comedi_udelay(1);
 		}
-		if(i == timeout)
-		{
+		if (i == timeout) {
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
@@ -797,26 +772,22 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 	}
 
 	// read data
- 	for(n = 0; n < insn->n; n++)
-	{
-		for(i = 0; i < timeout; i++)
-		{
-			if(inw(dev->iobase + STATUS_REG) & FNE_BIT)
+	for (n = 0; n < insn->n; n++) {
+		for (i = 0; i < timeout; i++) {
+			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
 			comedi_udelay(1);
 		}
-		if(i == timeout)
-		{
+		if (i == timeout) {
 			comedi_error(dev, "timeout");
 			return -ETIME;
 		}
-
 #ifdef A2150_DEBUG
-	ni_dump_regs(dev);
+		ni_dump_regs(dev);
 #endif
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
 #ifdef A2150_DEBUG
-	rt_printk(" data is %i\n", data[n]);
+		rt_printk(" data is %i\n", data[n]);
 #endif
 		data[n] ^= 0x8000;
 	}
@@ -829,7 +800,8 @@ static int a2150_ai_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *
 
 /* sets bits in devpriv->clock_bits to nearest approximation of requested period,
  * adjusts requested period to actual timing. */
-static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
+static int a2150_get_timing(comedi_device * dev, unsigned int *period,
+	int flags)
 {
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -844,28 +816,24 @@ static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
 	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
 
 	// make sure period is in available range
-	if(*period < glb)
+	if (*period < glb)
 		*period = glb;
-	if(*period > lub)
+	if (*period > lub)
 		*period = lub;
 
 	// we can multiply period by 1, 2, 4, or 8, using (1 << i)
-	for(i = 0; i < 4; i++)
-	{
+	for (i = 0; i < 4; i++) {
 		// there are a maximum of 4 master clocks
-		for(j = 0; j < thisboard->num_clocks; j++)
-		{
+		for (j = 0; j < thisboard->num_clocks; j++) {
 			// temp is the period in nanosec we are evaluating
 			temp = thisboard->clock[j] * (1 << i);
 			// if it is the best match yet
-			if(temp < lub && temp >= *period)
-			{
+			if (temp < lub && temp >= *period) {
 				lub_divisor_shift = i;
 				lub_index = j;
 				lub = temp;
 			}
-			if(temp > glb && temp <= *period)
-			{
+			if (temp > glb && temp <= *period) {
 				glb_divisor_shift = i;
 				glb_index = j;
 				glb = temp;
@@ -873,72 +841,67 @@ static int a2150_get_timing(comedi_device *dev, unsigned int *period, int flags)
 		}
 	}
 	flags &= TRIG_ROUND_MASK;
-	switch (flags)
-	{
-		case TRIG_ROUND_NEAREST:
-		default:
-			// if least upper bound is better approximation
-			if(lub - *period < *period - glb)
-			{
-				*period = lub;
-			}else
-			{
-				*period = glb;
-			}
-			break;
-		case TRIG_ROUND_UP:
-				*period = lub;
-			break;
-		case TRIG_ROUND_DOWN:
-				*period = glb;
-			break;
+	switch (flags) {
+	case TRIG_ROUND_NEAREST:
+	default:
+		// if least upper bound is better approximation
+		if (lub - *period < *period - glb) {
+			*period = lub;
+		} else {
+			*period = glb;
+		}
+		break;
+	case TRIG_ROUND_UP:
+		*period = lub;
+		break;
+	case TRIG_ROUND_DOWN:
+		*period = glb;
+		break;
 	}
 
 	// set clock bits for config register appropriately
 	devpriv->config_bits &= ~CLOCK_MASK;
-	if(*period == lub)
-	{
-		devpriv->config_bits |= CLOCK_SELECT_BITS(lub_index) | CLOCK_DIVISOR_BITS(lub_divisor_shift);
-	}else
-	{
-		devpriv->config_bits |= CLOCK_SELECT_BITS(glb_index) | CLOCK_DIVISOR_BITS(glb_divisor_shift);
+	if (*period == lub) {
+		devpriv->config_bits |=
+			CLOCK_SELECT_BITS(lub_index) |
+			CLOCK_DIVISOR_BITS(lub_divisor_shift);
+	} else {
+		devpriv->config_bits |=
+			CLOCK_SELECT_BITS(glb_index) |
+			CLOCK_DIVISOR_BITS(glb_divisor_shift);
 	}
 
 	return 0;
 }
 
-static int a2150_set_chanlist(comedi_device *dev, unsigned int start_channel, unsigned int num_channels)
+static int a2150_set_chanlist(comedi_device * dev, unsigned int start_channel,
+	unsigned int num_channels)
 {
-	if(start_channel + num_channels > 4)
+	if (start_channel + num_channels > 4)
 		return -1;
 
 	devpriv->config_bits &= ~CHANNEL_MASK;
 
-	switch(num_channels)
-	{
-		case 1:
-			devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
-			break;
-		case 2:
-			if(start_channel == 0)
-			{
-				devpriv->config_bits |= CHANNEL_BITS(0x2);
-			}else if(start_channel == 2)
-			{
-				devpriv->config_bits |= CHANNEL_BITS(0x3);
-			}else
-			{
-				return -1;
-			}
-			break;
-		case 4:
-			devpriv->config_bits |= CHANNEL_BITS(0x1);
-			break;
-		default:
+	switch (num_channels) {
+	case 1:
+		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
+		break;
+	case 2:
+		if (start_channel == 0) {
+			devpriv->config_bits |= CHANNEL_BITS(0x2);
+		} else if (start_channel == 2) {
+			devpriv->config_bits |= CHANNEL_BITS(0x3);
+		} else {
 			return -1;
-			break;
+		}
+		break;
+	case 4:
+		devpriv->config_bits |= CHANNEL_BITS(0x1);
+		break;
+	default:
+		return -1;
+		break;
 	}
 
 	return 0;
 }
-

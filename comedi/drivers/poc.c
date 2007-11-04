@@ -41,74 +41,79 @@ Configuration options:
 
 #include <linux/ioport.h>
 
-static int poc_attach(comedi_device *dev,comedi_devconfig *it);
-static int poc_detach(comedi_device *dev);
-static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+static int poc_attach(comedi_device * dev, comedi_devconfig * it);
+static int poc_detach(comedi_device * dev);
+static int readback_insn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int pcl733_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
+static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-struct boarddef_struct{
+struct boarddef_struct {
 	const char *name;
 	unsigned int iosize;
-	int (*setup)(comedi_device *);
+	int (*setup) (comedi_device *);
 	int type;
 	int n_chan;
 	int n_bits;
-	int (*winsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
-	int (*rinsn)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
-	int (*insnbits)(comedi_device *,comedi_subdevice *,comedi_insn *,lsampl_t *);
+	int (*winsn) (comedi_device *, comedi_subdevice *, comedi_insn *,
+		lsampl_t *);
+	int (*rinsn) (comedi_device *, comedi_subdevice *, comedi_insn *,
+		lsampl_t *);
+	int (*insnbits) (comedi_device *, comedi_subdevice *, comedi_insn *,
+		lsampl_t *);
 	const comedi_lrange *range;
 };
-static const struct boarddef_struct boards[]={
+static const struct boarddef_struct boards[] = {
 	{
-	name:		"dac02",
-	iosize:		8,
-	//setup:		dac02_setup,
-	type:		COMEDI_SUBD_AO,
-	n_chan:		2,
-	n_bits:		12,
-	winsn:		dac02_ao_winsn,
-	rinsn:		readback_insn,
-	range:		&range_unknown,
-	},
+	      name:	"dac02",
+	      iosize:	8,
+			//setup:                dac02_setup,
+	      type:	COMEDI_SUBD_AO,
+	      n_chan:	2,
+	      n_bits:	12,
+	      winsn:	dac02_ao_winsn,
+	      rinsn:	readback_insn,
+	      range:	&range_unknown,
+		},
 	{
-	name:		"pcl733",
-	iosize:		4,
-	type:		COMEDI_SUBD_DI,
-	n_chan:		32,
-	n_bits:		1,
-	insnbits:	pcl733_insn_bits,
-	range:		&range_digital,
-	},
+	      name:	"pcl733",
+	      iosize:	4,
+	      type:	COMEDI_SUBD_DI,
+	      n_chan:	32,
+	      n_bits:	1,
+	      insnbits:pcl733_insn_bits,
+	      range:	&range_digital,
+		},
 	{
-	name:		"pcl734",
-	iosize:		4,
-	type:		COMEDI_SUBD_DO,
-	n_chan:		32,
-	n_bits:		1,
-	insnbits:	pcl734_insn_bits,
-	range:		&range_digital,
-	},
+	      name:	"pcl734",
+	      iosize:	4,
+	      type:	COMEDI_SUBD_DO,
+	      n_chan:	32,
+	      n_bits:	1,
+	      insnbits:pcl734_insn_bits,
+	      range:	&range_digital,
+		},
 };
+
 #define n_boards (sizeof(boards)/sizeof(boards[0]))
 #define this_board ((const struct boarddef_struct *)dev->board_ptr)
 
-static comedi_driver driver_poc=
-{
-	driver_name:	"poc",
-	module:		THIS_MODULE,
-	attach:		poc_attach,
-	detach:		poc_detach,
-	board_name:	&boards[0].name,
-	num_names:	n_boards,
-	offset:		sizeof(boards[0]),
+static comedi_driver driver_poc = {
+      driver_name:"poc",
+      module:THIS_MODULE,
+      attach:poc_attach,
+      detach:poc_detach,
+      board_name:&boards[0].name,
+      num_names:n_boards,
+      offset:sizeof(boards[0]),
 };
 
-static int poc_attach(comedi_device *dev, comedi_devconfig *it)
+static int poc_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	unsigned long iobase;
@@ -120,47 +125,44 @@ static int poc_attach(comedi_device *dev, comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 
-	if(iobase == 0)
-	{
+	if (iobase == 0) {
 		printk("io base address required\n");
 		return -EINVAL;
 	}
 
 	iosize = this_board->iosize;
 	/* check if io addresses are available */
-	if(!request_region(iobase, iosize, "dac02"))
-	{
-		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-			iobase, iobase + iosize - 1);
+	if (!request_region(iobase, iosize, "dac02")) {
+		printk("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n", iobase, iobase + iosize - 1);
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
-	if(alloc_subdevices(dev, 1) < 0)
+	if (alloc_subdevices(dev, 1) < 0)
 		return -ENOMEM;
-	if(alloc_private(dev,sizeof(lsampl_t)*this_board->n_chan) < 0)
+	if (alloc_private(dev, sizeof(lsampl_t) * this_board->n_chan) < 0)
 		return -ENOMEM;
 
 	/* analog output subdevice */
-	s=dev->subdevices + 0;
+	s = dev->subdevices + 0;
 	s->type = this_board->type;
 	s->n_chan = this_board->n_chan;
-	s->maxdata = (1<<this_board->n_bits)-1;
+	s->maxdata = (1 << this_board->n_bits) - 1;
 	s->range_table = this_board->range;
 	s->insn_write = this_board->winsn;
 	s->insn_read = this_board->rinsn;
 	s->insn_bits = this_board->insnbits;
-	if(s->type==COMEDI_SUBD_AO || s->type==COMEDI_SUBD_DO){
+	if (s->type == COMEDI_SUBD_AO || s->type == COMEDI_SUBD_DO) {
 		s->subdev_flags = SDF_WRITABLE;
 	}
 
 	return 0;
 }
 
-static int poc_detach(comedi_device *dev)
+static int poc_detach(comedi_device * dev)
 {
 	/* only free stuff if it has been allocated by _attach */
-	if(dev->iobase)
+	if (dev->iobase)
 		release_region(dev->iobase, this_board->iosize);
 
 	printk("comedi%d: dac02: remove\n", dev->minor);
@@ -168,12 +170,13 @@ static int poc_detach(comedi_device *dev)
 	return 0;
 }
 
-static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int readback_insn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	data[0]=((lsampl_t *)dev->private)[chan];
+	data[0] = ((lsampl_t *) dev->private)[chan];
 
 	return 1;
 }
@@ -182,18 +185,19 @@ static int readback_insn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 #define DAC02_LSB(a)	(2 * a)
 #define DAC02_MSB(a)	(2 * a + 1)
 
-static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int temp;
 	int chan;
 	int output;
 
 	chan = CR_CHAN(insn->chanspec);
-	((lsampl_t *)dev->private)[chan] = data[0];
+	((lsampl_t *) dev->private)[chan] = data[0];
 	output = data[0];
 #ifdef wrong
 	// convert to complementary binary if range is bipolar
-	if((CR_RANGE(insn->chanspec) & 0x2) == 0)
+	if ((CR_RANGE(insn->chanspec) & 0x2) == 0)
 		output = ~output;
 #endif
 	temp = (output << 4) & 0xf0;
@@ -204,10 +208,11 @@ static int dac02_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *in
 	return 1;
 }
 
-static int pcl733_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int pcl733_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=2)return -EINVAL;
+	if (insn->n != 2)
+		return -EINVAL;
 
 	data[1] = inb(dev->iobase + 0);
 	data[1] |= (inb(dev->iobase + 1) << 8);
@@ -217,21 +222,22 @@ static int pcl733_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int pcl734_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=2)return -EINVAL;
-	if(data[0]){
+	if (insn->n != 2)
+		return -EINVAL;
+	if (data[0]) {
 		s->state &= ~data[0];
-		s->state |= (data[0]&data[1]);
-		if((data[0]>>0)&0xff)
-			outb((s->state>>0)&0xff, dev->iobase + 0);
-		if((data[0]>>8)&0xff)
-			outb((s->state>>8)&0xff, dev->iobase + 1);
-		if((data[0]>>16)&0xff)
-			outb((s->state>>16)&0xff, dev->iobase + 2);
-		if((data[0]>>24)&0xff)
-			outb((s->state>>24)&0xff, dev->iobase + 3);
+		s->state |= (data[0] & data[1]);
+		if ((data[0] >> 0) & 0xff)
+			outb((s->state >> 0) & 0xff, dev->iobase + 0);
+		if ((data[0] >> 8) & 0xff)
+			outb((s->state >> 8) & 0xff, dev->iobase + 1);
+		if ((data[0] >> 16) & 0xff)
+			outb((s->state >> 16) & 0xff, dev->iobase + 2);
+		if ((data[0] >> 24) & 0xff)
+			outb((s->state >> 24) & 0xff, dev->iobase + 3);
 	}
 	data[1] = s->state;
 
@@ -239,4 +245,3 @@ static int pcl734_insn_bits(comedi_device *dev,comedi_subdevice *s,
 }
 
 COMEDI_INITCLEANUP(driver_poc);
-

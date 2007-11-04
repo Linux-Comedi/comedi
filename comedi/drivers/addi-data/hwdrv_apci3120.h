@@ -1,5 +1,4 @@
 
-
 // hwdrv_apci3120.h
 
 /**
@@ -57,34 +56,29 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   +----------+-----------+------------------------------------------------+
 */
 
-
-
-
-
 // comedi related defines    
 
 //ANALOG INPUT RANGE 
-comedi_lrange range_apci3120_ai={ 8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2),
-		BIP_RANGE(1),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1)
+comedi_lrange range_apci3120_ai = { 8, {
+			BIP_RANGE(10),
+			BIP_RANGE(5),
+			BIP_RANGE(2),
+			BIP_RANGE(1),
+			UNI_RANGE(10),
+			UNI_RANGE(5),
+			UNI_RANGE(2),
+			UNI_RANGE(1)
 	}
 };
 
 // ANALOG OUTPUT RANGE
-comedi_lrange range_apci3120_ao= { 2, {
-       BIP_RANGE(10),
-       UNI_RANGE(10)
-       }
+comedi_lrange range_apci3120_ao = { 2, {
+			BIP_RANGE(10),
+			UNI_RANGE(10)
+	}
 };
 
-#define APCI3120_BIPOLAR_RANGES	4	// used for test on mixture of BIP/UNI ranges 
-
+#define APCI3120_BIPOLAR_RANGES	4	// used for test on mixture of BIP/UNI ranges
 
 #define APCI3120_BOARD_VENDOR_ID                 0x10E8
 #define APCI3120_ADDRESS_RANGE            			16
@@ -101,7 +95,7 @@ comedi_lrange range_apci3120_ao= { 2, {
 
 //DIGITAL INPUT-OUTPUT DEFINE   
 
-#define APCI3120_DIGITAL_OUTPUT                  	0x0D 
+#define APCI3120_DIGITAL_OUTPUT                  	0x0D
 #define APCI3120_RD_STATUS                       	0x02
 #define APCI3120_RD_FIFO                     		0x00
 
@@ -110,11 +104,11 @@ comedi_lrange range_apci3120_ao= { 2, {
 #define APCI3120_SET4DIGITALOUTPUTOFF				0
 
 // analog output SELECT BIT
-#define APCI3120_ANALOG_OP_CHANNEL_1   0x0000	
+#define APCI3120_ANALOG_OP_CHANNEL_1   0x0000
 #define APCI3120_ANALOG_OP_CHANNEL_2   0x4000
 #define APCI3120_ANALOG_OP_CHANNEL_3   0x8000
 #define APCI3120_ANALOG_OP_CHANNEL_4   0xC000
-#define APCI3120_ANALOG_OP_CHANNEL_5   0x0000	
+#define APCI3120_ANALOG_OP_CHANNEL_5   0x0000
 #define APCI3120_ANALOG_OP_CHANNEL_6   0x4000
 #define APCI3120_ANALOG_OP_CHANNEL_7   0x8000
 #define APCI3120_ANALOG_OP_CHANNEL_8   0xC000
@@ -123,28 +117,28 @@ comedi_lrange range_apci3120_ao= { 2, {
 #define APCI3120_ENABLE_EXT_TRIGGER    0x8000
 
 //ANALOG OUTPUT AND INPUT DEFINE
-#define APCI3120_UNIPOLAR 0x80         //$$ RAM sequence polarity BIT
-#define APCI3120_BIPOLAR  0x00          //$$ RAM sequence polarity BIT
-#define APCI3120_ANALOG_OUTPUT_1 0x08  // (ADDRESS ) 
-#define APCI3120_ANALOG_OUTPUT_2 0x0A  // (ADDRESS )
-#define APCI3120_1_GAIN              0x00 //$$ RAM sequence Gain Bits for gain 1 
-#define APCI3120_2_GAIN              0x10 //$$ RAM sequence Gain Bits for gain 2
-#define APCI3120_5_GAIN              0x20 //$$ RAM sequence Gain Bits for gain 5
-#define APCI3120_10_GAIN             0x30 //$$ RAM sequence Gain Bits for gain 10
-#define APCI3120_SEQ_RAM_ADDRESS        0x06 //$$ EARLIER NAMED APCI3120_FIFO_ADDRESS
-#define APCI3120_RESET_FIFO          0x0C //(ADDRESS)
-#define APCI3120_TIMER_0_MODE_2      0x01 //$$ Bits for timer mode
+#define APCI3120_UNIPOLAR 0x80	//$$ RAM sequence polarity BIT
+#define APCI3120_BIPOLAR  0x00	//$$ RAM sequence polarity BIT
+#define APCI3120_ANALOG_OUTPUT_1 0x08	// (ADDRESS )
+#define APCI3120_ANALOG_OUTPUT_2 0x0A	// (ADDRESS )
+#define APCI3120_1_GAIN              0x00	//$$ RAM sequence Gain Bits for gain 1
+#define APCI3120_2_GAIN              0x10	//$$ RAM sequence Gain Bits for gain 2
+#define APCI3120_5_GAIN              0x20	//$$ RAM sequence Gain Bits for gain 5
+#define APCI3120_10_GAIN             0x30	//$$ RAM sequence Gain Bits for gain 10
+#define APCI3120_SEQ_RAM_ADDRESS        0x06	//$$ EARLIER NAMED APCI3120_FIFO_ADDRESS
+#define APCI3120_RESET_FIFO          0x0C	//(ADDRESS)
+#define APCI3120_TIMER_0_MODE_2      0x01	//$$ Bits for timer mode
 #define APCI3120_TIMER_0_MODE_4       0x2
 #define APCI3120_SELECT_TIMER_0_WORD 0x00
-#define APCI3120_ENABLE_TIMER0     0x1000 //$$Gatebit 0 in nWrAddress
-#define APCI3120_CLEAR_PR          0xF0FF 
+#define APCI3120_ENABLE_TIMER0     0x1000	//$$Gatebit 0 in nWrAddress
+#define APCI3120_CLEAR_PR          0xF0FF
 #define APCI3120_CLEAR_PA          0xFFF0
 #define APCI3120_CLEAR_PA_PR       (APCI3120_CLEAR_PR & APCI3120_CLEAR_PA)
 
 // nWrMode_Select 
-#define APCI3120_ENABLE_SCAN          0x8 //$$ bit in nWrMode_Select 
+#define APCI3120_ENABLE_SCAN          0x8	//$$ bit in nWrMode_Select
 #define APCI3120_DISABLE_SCAN      (~APCI3120_ENABLE_SCAN)
-#define APCI3120_ENABLE_EOS_INT       0x2 //$$ bit in nWrMode_Select 
+#define APCI3120_ENABLE_EOS_INT       0x2	//$$ bit in nWrMode_Select
 
 #define APCI3120_DISABLE_EOS_INT   (~APCI3120_ENABLE_EOS_INT)
 #define APCI3120_ENABLE_EOC_INT       0x1
@@ -157,7 +151,7 @@ comedi_lrange range_apci3120_ao= { 2, {
 #define APCI3120_EOS                     0x2000
 
 // software trigger dummy register 
-#define APCI3120_START_CONVERSION        0x02 //(ADDRESS)
+#define APCI3120_START_CONVERSION        0x02	//(ADDRESS)
 
 //TIMER DEFINE
 #define APCI3120_QUARTZ_A				  70
@@ -166,120 +160,117 @@ comedi_lrange range_apci3120_ao= { 2, {
 #define APCI3120_WATCHDOG                         2
 #define APCI3120_TIMER_DISABLE                    0
 #define APCI3120_TIMER_ENABLE                     1
-#define APCI3120_ENABLE_TIMER2                    0x4000 //$$ gatebit 2 in nWrAddress
+#define APCI3120_ENABLE_TIMER2                    0x4000	//$$ gatebit 2 in nWrAddress
 #define APCI3120_DISABLE_TIMER2                   (~APCI3120_ENABLE_TIMER2)
-#define APCI3120_ENABLE_TIMER_INT                 0x04 //$$ ENAIRQ_FC_Bit in nWrModeSelect
+#define APCI3120_ENABLE_TIMER_INT                 0x04	//$$ ENAIRQ_FC_Bit in nWrModeSelect
 #define APCI3120_DISABLE_TIMER_INT                (~APCI3120_ENABLE_TIMER_INT)
-#define APCI3120_WRITE_MODE_SELECT                0x0E // (ADDRESS)
+#define APCI3120_WRITE_MODE_SELECT                0x0E	// (ADDRESS)
 #define APCI3120_SELECT_TIMER_0_WORD  0x00
 #define APCI3120_SELECT_TIMER_1_WORD  0x01
 #define APCI3120_TIMER_1_MODE_2       0x4
 
 //$$ BIT FOR MODE IN nCsTimerCtr1
-#define APCI3120_TIMER_2_MODE_0                   0x0 
-#define APCI3120_TIMER_2_MODE_2                   0x10 
+#define APCI3120_TIMER_2_MODE_0                   0x0
+#define APCI3120_TIMER_2_MODE_2                   0x10
 #define APCI3120_TIMER_2_MODE_5                   0x30
 
 //$$ BIT FOR MODE IN nCsTimerCtr0
 #define APCI3120_SELECT_TIMER_2_LOW_WORD          0x02
 #define APCI3120_SELECT_TIMER_2_HIGH_WORD         0x03
 
-#define APCI3120_TIMER_CRT0                       0x0D //(ADDRESS for cCsTimerCtr0)
-#define APCI3120_TIMER_CRT1                       0x0C //(ADDRESS for cCsTimerCtr1)
+#define APCI3120_TIMER_CRT0                       0x0D	//(ADDRESS for cCsTimerCtr0)
+#define APCI3120_TIMER_CRT1                       0x0C	//(ADDRESS for cCsTimerCtr1)
 
-#define APCI3120_TIMER_VALUE                      0x04 //ADDRESS for nCsTimerWert
-#define APCI3120_TIMER_STATUS_REGISTER            0x0D //ADDRESS for delete timer 2 interrupt
-#define APCI3120_RD_STATUS                        0x02 //ADDRESS
-#define APCI3120_WR_ADDRESS                       0x00 //ADDRESS
-#define APCI3120_ENABLE_WATCHDOG                  0x20 //$$BIT in nWrMode_Select
+#define APCI3120_TIMER_VALUE                      0x04	//ADDRESS for nCsTimerWert
+#define APCI3120_TIMER_STATUS_REGISTER            0x0D	//ADDRESS for delete timer 2 interrupt
+#define APCI3120_RD_STATUS                        0x02	//ADDRESS
+#define APCI3120_WR_ADDRESS                       0x00	//ADDRESS
+#define APCI3120_ENABLE_WATCHDOG                  0x20	//$$BIT in nWrMode_Select
 #define APCI3120_DISABLE_WATCHDOG                 (~APCI3120_ENABLE_WATCHDOG)
-#define APCI3120_ENABLE_TIMER_COUNTER    		  0x10 //$$BIT in nWrMode_Select
+#define APCI3120_ENABLE_TIMER_COUNTER    		  0x10	//$$BIT in nWrMode_Select
 #define APCI3120_DISABLE_TIMER_COUNTER            (~APCI3120_ENABLE_TIMER_COUNTER)
-#define APCI3120_FC_TIMER                         0x1000 //bit in  status register
+#define APCI3120_FC_TIMER                         0x1000	//bit in  status register
 #define APCI3120_ENABLE_TIMER0                    0x1000
 #define APCI3120_ENABLE_TIMER1                    0x2000
 #define APCI3120_ENABLE_TIMER2                    0x4000
 #define APCI3120_DISABLE_TIMER0			          (~APCI3120_ENABLE_TIMER0)
 #define APCI3120_DISABLE_TIMER1		              (~APCI3120_ENABLE_TIMER1)
 #define APCI3120_DISABLE_TIMER2	                  (~APCI3120_ENABLE_TIMER2)
-   
-#define APCI3120_TIMER2_SELECT_EOS                0xC0 // ADDED on 20-6 
-#define APCI3120_COUNTER                          3  // on 20-6
-#define APCI3120_DISABLE_ALL_TIMER                ( APCI3120_DISABLE_TIMER0 & APCI3120_DISABLE_TIMER1 & APCI3120_DISABLE_TIMER2 )// on 20-6
 
-
-
+#define APCI3120_TIMER2_SELECT_EOS                0xC0	// ADDED on 20-6
+#define APCI3120_COUNTER                          3	// on 20-6
+#define APCI3120_DISABLE_ALL_TIMER                ( APCI3120_DISABLE_TIMER0 & APCI3120_DISABLE_TIMER1 & APCI3120_DISABLE_TIMER2 )	// on 20-6
 
 #define MAX_ANALOGINPUT_CHANNELS    32
 
-typedef struct
-{        
-        BYTE b_Type                               ;        /* EOC or EOS */
-        BYTE b_InterruptFlag                      ;        /* Interrupt use or not                    */
-        UINT ui_ConvertTiming                     ;        /* Selection of the convertion time        */ 
-        BYTE b_NbrOfChannel                       ;        /* Number of channel to read               */
-        UINT  ui_ChannelList[MAX_ANALOGINPUT_CHANNELS] ;   /* Number of the channel to be read        */
-        UINT  ui_RangeList[MAX_ANALOGINPUT_CHANNELS] ;     /* Gain of each channel                    */
-      
-}str_AnalogReadInformation;	
+typedef struct {
+	BYTE b_Type;		/* EOC or EOS */
+	BYTE b_InterruptFlag;	/* Interrupt use or not                    */
+	UINT ui_ConvertTiming;	/* Selection of the convertion time        */
+	BYTE b_NbrOfChannel;	/* Number of channel to read               */
+	UINT ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];	/* Number of the channel to be read        */
+	UINT ui_RangeList[MAX_ANALOGINPUT_CHANNELS];	/* Gain of each channel                    */
 
-
-
-
-
+} str_AnalogReadInformation;
 
 // Function Declaration For APCI-3120
 
 // Internal functions
-int i_APCI3120_SetupChannelList(comedi_device * dev, comedi_subdevice * s, int n_chan, unsigned int *chanlist,char check);
+int i_APCI3120_SetupChannelList(comedi_device * dev, comedi_subdevice * s,
+	int n_chan, unsigned int *chanlist, char check);
 int i_APCI3120_ExttrigEnable(comedi_device * dev);
 int i_APCI3120_ExttrigDisable(comedi_device * dev);
-int i_APCI3120_StopCyclicAcquisition(comedi_device *dev,comedi_subdevice *s);
-int i_APCI3120_Reset(comedi_device *dev);
-int i_APCI3120_CyclicAnalogInput(int mode, comedi_device * dev,comedi_subdevice * s);
+int i_APCI3120_StopCyclicAcquisition(comedi_device * dev, comedi_subdevice * s);
+int i_APCI3120_Reset(comedi_device * dev);
+int i_APCI3120_CyclicAnalogInput(int mode, comedi_device * dev,
+	comedi_subdevice * s);
 // Interrupt functions
-void v_APCI3120_Interrupt(int irq, void *d) ;
-//UPDATE-0.7.57->0.7.68	void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n);
-void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma_buffer,unsigned int num_samples);
-int i_APCI3120_InterruptHandleEos(comedi_device *dev);
-void v_APCI3120_InterruptDma(int irq, void *d) ;
-
-
-
+void v_APCI3120_Interrupt(int irq, void *d);
+//UPDATE-0.7.57->0.7.68 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n);
+void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
+	comedi_subdevice * s, sampl_t * dma_buffer, unsigned int num_samples);
+int i_APCI3120_InterruptHandleEos(comedi_device * dev);
+void v_APCI3120_InterruptDma(int irq, void *d);
 
 // TIMER  
 
-int i_APCI3120_InsnConfigTimer(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI3120_InsnWriteTimer(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
-int i_APCI3120_InsnReadTimer(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn, lsampl_t *data);
-
+int i_APCI3120_InsnConfigTimer(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnWriteTimer(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnReadTimer(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //DI
 // for di read
 
-
-int i_APCI3120_InsnBitsDigitalInput(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
-int i_APCI3120_InsnReadDigitalInput(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
+int i_APCI3120_InsnBitsDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //DO
 //int i_APCI3120_WriteDigitalOutput(comedi_device *dev, BYTE data);
-int i_APCI3120_InsnConfigDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI3120_InsnBitsDigitalOutput(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
-int i_APCI3120_InsnWriteDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
-
+int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //AO
 //int i_APCI3120_Write1AnalogValue(comedi_device *dev,UINT ui_Range,UINT ui_Channel,UINT data );
-int i_APCI3120_InsnWriteAnalogOutput(comedi_device *dev,comedi_subdevice *s, comedi_insn *insn,lsampl_t *data);
-
+int i_APCI3120_InsnWriteAnalogOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //AI HArdware layer
 
-int i_APCI3120_InsnConfigAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI3120_InsnReadAnalogInput(comedi_device *dev, comedi_subdevice *s,comedi_insn *insn, lsampl_t *data);
-int i_APCI3120_CommandTestAnalogInput(comedi_device *dev,comedi_subdevice *s,comedi_cmd *cmd) ;
-int i_APCI3120_CommandAnalogInput(comedi_device *dev,comedi_subdevice *s);
+int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_CommandTestAnalogInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd);
+int i_APCI3120_CommandAnalogInput(comedi_device * dev, comedi_subdevice * s);
 //int i_APCI3120_CancelAnalogInput(comedi_device * dev, comedi_subdevice * s);
-int i_APCI3120_StopCyclicAcquisition(comedi_device *dev,comedi_subdevice *s);
-
+int i_APCI3120_StopCyclicAcquisition(comedi_device * dev, comedi_subdevice * s);

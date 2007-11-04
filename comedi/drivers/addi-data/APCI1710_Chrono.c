@@ -131,469 +131,657 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-
-
-INT i_APCI1710_InsnConfigInitChrono(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue        = 0;
-	ULONG ul_TimerValue         = 0;
-	ULONG ul_TimingInterval     = 0;
+INT i_APCI1710_InsnConfigInitChrono(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	ULONG ul_TimerValue = 0;
+	ULONG ul_TimingInterval = 0;
 	ULONG ul_RealTimingInterval = 0;
 	double d_RealTimingInterval = 0;
-	DWORD dw_ModeArray [8] = {0x01, 0x05, 0x00, 0x04, 0x02, 0x0E, 0x0A, 0x06};
-	BYTE   b_ModulNbr,b_ChronoMode,b_PCIInputClock,b_TimingUnit;
+	DWORD dw_ModeArray[8] =
+		{ 0x01, 0x05, 0x00, 0x04, 0x02, 0x0E, 0x0A, 0x06 };
+	BYTE b_ModulNbr, b_ChronoMode, b_PCIInputClock, b_TimingUnit;
 
-	b_ModulNbr        = CR_AREF(insn->chanspec);
-    	b_ChronoMode      = (BYTE)  data[0];
-	b_PCIInputClock   = (BYTE)  data[1];
-	b_TimingUnit	  = (BYTE)  data[2];
-	ul_TimingInterval =	(ULONG) data[3];  
-    	i_ReturnValue	  =  insn->n;
+	b_ModulNbr = CR_AREF(insn->chanspec);
+	b_ChronoMode = (BYTE) data[0];
+	b_PCIInputClock = (BYTE) data[1];
+	b_TimingUnit = (BYTE) data[2];
+	ul_TimingInterval = (ULONG) data[3];
+	i_ReturnValue = insn->n;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if chronometer */
+		/* Test if chronometer */
 	   /***********************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_CHRONOMETER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 	      /*****************************/
-	      /* Test the chronometer mode */
+			/* Test the chronometer mode */
 	      /*****************************/
 
-	      if (b_ChronoMode <= 7)
-		 {
+			if (b_ChronoMode <= 7) {
 		 /**************************/
-		 /* Test the PCI bus clock */
+				/* Test the PCI bus clock */
 		 /**************************/
 
-		 if ((b_PCIInputClock == APCI1710_30MHZ) ||
-		     (b_PCIInputClock == APCI1710_33MHZ) ||
-		     (b_PCIInputClock == APCI1710_40MHZ))
-		    {
+				if ((b_PCIInputClock == APCI1710_30MHZ) ||
+					(b_PCIInputClock == APCI1710_33MHZ) ||
+					(b_PCIInputClock == APCI1710_40MHZ)) {
 		    /*************************/
-		    /* Test the timing unity */
+					/* Test the timing unity */
 		    /*************************/
 
-		    if (b_TimingUnit <= 4)
-		       {
+					if (b_TimingUnit <= 4) {
 		       /**********************************/
-		       /* Test the base timing selection */
+						/* Test the base timing selection */
 		       /**********************************/
 
-		       if (((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_TimingInterval >= 66) && (ul_TimingInterval <= 0xFFFFFFFFUL)) ||
-			   ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 143165576UL))  ||
-			   ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 143165UL))     ||
-			   ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 143UL))        ||
-			   ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 2UL))          ||
-			   ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_TimingInterval >= 60) && (ul_TimingInterval <= 0xFFFFFFFFUL)) ||
-			   ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 130150240UL))  ||
-			   ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 130150UL))     ||
-			   ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 130UL))        ||
-			   ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 2UL))          ||
-			   ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_TimingInterval >= 50) && (ul_TimingInterval <= 0xFFFFFFFFUL)) ||
-			   ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 107374182UL))  ||
-			   ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 107374UL))     ||
-			   ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 107UL))        ||
-			   ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_TimingInterval >= 1)  && (ul_TimingInterval <= 1UL)))
-			  {
+						if (((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_TimingInterval >= 66) && (ul_TimingInterval <= 0xFFFFFFFFUL)) || ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 143165576UL)) || ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 143165UL)) || ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 143UL)) || ((b_PCIInputClock == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 2UL)) || ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_TimingInterval >= 60) && (ul_TimingInterval <= 0xFFFFFFFFUL)) || ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 130150240UL)) || ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 130150UL)) || ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 130UL)) || ((b_PCIInputClock == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 2UL)) || ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_TimingInterval >= 50) && (ul_TimingInterval <= 0xFFFFFFFFUL)) || ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 107374182UL)) || ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 107374UL)) || ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 107UL)) || ((b_PCIInputClock == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_TimingInterval >= 1) && (ul_TimingInterval <= 1UL))) {
 			  /**************************/
-			  /* Test the board version */
+							/* Test the board version */
 			  /**************************/
 
-			  if (((b_PCIInputClock == APCI1710_40MHZ) && (devpriv->s_BoardInfos.
-								      b_BoardVersion > 0)) ||
-			      (b_PCIInputClock != APCI1710_40MHZ))
-			     {
+							if (((b_PCIInputClock == APCI1710_40MHZ) && (devpriv->s_BoardInfos.b_BoardVersion > 0)) || (b_PCIInputClock != APCI1710_40MHZ)) {
 			     /************************/
-			     /* Test the TOR version */
+								/* Test the TOR version */
 			     /************************/
 
-			     if (((b_PCIInputClock == APCI1710_40MHZ) && ((devpriv->s_BoardInfos.
-									  dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3131)) ||
-				 (b_PCIInputClock != APCI1710_40MHZ))
-				{
-				fpu_begin ();
-				
+								if (((b_PCIInputClock == APCI1710_40MHZ) && ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF) >= 0x3131)) || (b_PCIInputClock != APCI1710_40MHZ)) {
+									fpu_begin
+										();
+
 				/****************************************/
-				/* Calculate the timer 0 division fator */
+									/* Calculate the timer 0 division fator */
 				/****************************************/
 
-				switch (b_TimingUnit)
-				   {
+									switch (b_TimingUnit) {
 				   /******/
-				   /* ns */
-				   /******/
-
-				   case 0:
-					
-					   /******************/
-					   /* Timer 0 factor */
-					   /******************/
-
-					   ul_TimerValue = (ULONG) (ul_TimingInterval * (0.001 * b_PCIInputClock));
-
-					   /*******************/
-					   /* Round the value */
-					   /*******************/
-
-					   if ((double) ((double) ul_TimingInterval * (0.001 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					      {
-					      ul_TimerValue = ul_TimerValue + 1;
-					      }
-
-					   /*****************************/
-					   /* Calculate the real timing */
-					   /*****************************/
-
-					   ul_RealTimingInterval = (ULONG) (ul_TimerValue / (0.001 * (double) b_PCIInputClock));
-					   d_RealTimingInterval = (double) ul_TimerValue / (0.001 * (double) b_PCIInputClock);
-
-					   if ((double) ((double) ul_TimerValue / (0.001 * (double) b_PCIInputClock)) >= (double) ((double) ul_RealTimingInterval + 0.5))
-					      {
-					      ul_RealTimingInterval = ul_RealTimingInterval + 1;
-					      }
-
-					   ul_TimingInterval = ul_TimingInterval - 1;
-					   ul_TimerValue     = ul_TimerValue - 2;
-					   if (b_PCIInputClock != APCI1710_40MHZ)
-					      {
-					      ul_TimerValue     = (ULONG) ((double) (ul_TimerValue) * 0.99392);
-					      }
-				
-					break;
-
-				   /******/
-				   /* æs */
+										/* ns */
 				   /******/
 
-				   case 1:
-					
+									case 0:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_TimerValue = (ULONG) (ul_TimingInterval * (1.0 * b_PCIInputClock));
+										ul_TimerValue
+											=
+											(ULONG)
+											(ul_TimingInterval
+											*
+											(0.001 * b_PCIInputClock));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_TimingInterval * (1.0 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					      {
-					      ul_TimerValue = ul_TimerValue + 1;
-					      }
+										if ((double)((double)ul_TimingInterval * (0.001 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+											ul_TimerValue
+												=
+												ul_TimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   ul_RealTimingInterval = (ULONG) (ul_TimerValue / (1.0 * (double) b_PCIInputClock));
-					   d_RealTimingInterval = (double) ul_TimerValue / ((double) 1.0 * (double) b_PCIInputClock);
+										ul_RealTimingInterval
+											=
+											(ULONG)
+											(ul_TimerValue
+											/
+											(0.001 * (double)b_PCIInputClock));
+										d_RealTimingInterval
+											=
+											(double)
+											ul_TimerValue
+											/
+											(0.001
+											*
+											(double)
+											b_PCIInputClock);
 
-					   if ((double) ((double) ul_TimerValue / (1.0 * (double) b_PCIInputClock)) >= (double) ((double) ul_RealTimingInterval + 0.5))
-					      {
-					      ul_RealTimingInterval = ul_RealTimingInterval + 1;
-					      }
+										if ((double)((double)ul_TimerValue / (0.001 * (double)b_PCIInputClock)) >= (double)((double)ul_RealTimingInterval + 0.5)) {
+											ul_RealTimingInterval
+												=
+												ul_RealTimingInterval
+												+
+												1;
+										}
 
-					   ul_TimingInterval = ul_TimingInterval - 1;
-					   ul_TimerValue     = ul_TimerValue - 2;
-					   if (b_PCIInputClock != APCI1710_40MHZ)
-					      {
-					      ul_TimerValue     = (ULONG) ((double) (ul_TimerValue) * 0.99392);
-					      }
-					
+										ul_TimingInterval
+											=
+											ul_TimingInterval
+											-
+											1;
+										ul_TimerValue
+											=
+											ul_TimerValue
+											-
+											2;
+										if (b_PCIInputClock != APCI1710_40MHZ) {
+											ul_TimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_TimerValue)
+												*
+												0.99392);
+										}
 
-					break;
+										break;
 
 				   /******/
-				   /* ms */
+										/* æs */
 				   /******/
 
-				   case 2:
-					
+									case 1:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_TimerValue = ul_TimingInterval * (1000 * b_PCIInputClock);
+										ul_TimerValue
+											=
+											(ULONG)
+											(ul_TimingInterval
+											*
+											(1.0 * b_PCIInputClock));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_TimingInterval * (1000.0 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					      {
-					      ul_TimerValue = ul_TimerValue + 1;
-					      }
+										if ((double)((double)ul_TimingInterval * (1.0 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+											ul_TimerValue
+												=
+												ul_TimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   ul_RealTimingInterval = (ULONG) (ul_TimerValue / (1000.0 * (double) b_PCIInputClock));
-					   d_RealTimingInterval = (double) ul_TimerValue / (1000.0 * (double) b_PCIInputClock);
+										ul_RealTimingInterval
+											=
+											(ULONG)
+											(ul_TimerValue
+											/
+											(1.0 * (double)b_PCIInputClock));
+										d_RealTimingInterval
+											=
+											(double)
+											ul_TimerValue
+											/
+											(
+											(double)
+											1.0
+											*
+											(double)
+											b_PCIInputClock);
 
-					   if ((double) ((double) ul_TimerValue / (1000.0 * (double) b_PCIInputClock)) >= (double) ((double) ul_RealTimingInterval + 0.5))
-					      {
-					      ul_RealTimingInterval = ul_RealTimingInterval + 1;
-					      }
+										if ((double)((double)ul_TimerValue / (1.0 * (double)b_PCIInputClock)) >= (double)((double)ul_RealTimingInterval + 0.5)) {
+											ul_RealTimingInterval
+												=
+												ul_RealTimingInterval
+												+
+												1;
+										}
 
-					   ul_TimingInterval = ul_TimingInterval - 1;
-					   ul_TimerValue     = ul_TimerValue - 2;
-					   if (b_PCIInputClock != APCI1710_40MHZ)
-					      {
-					      ul_TimerValue     = (ULONG) ((double) (ul_TimerValue) * 0.99392);
-					      }
-					
-					break;
+										ul_TimingInterval
+											=
+											ul_TimingInterval
+											-
+											1;
+										ul_TimerValue
+											=
+											ul_TimerValue
+											-
+											2;
+										if (b_PCIInputClock != APCI1710_40MHZ) {
+											ul_TimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_TimerValue)
+												*
+												0.99392);
+										}
+
+										break;
+
+				   /******/
+										/* ms */
+				   /******/
+
+									case 2:
+
+					   /******************/
+										/* Timer 0 factor */
+					   /******************/
+
+										ul_TimerValue
+											=
+											ul_TimingInterval
+											*
+											(1000
+											*
+											b_PCIInputClock);
+
+					   /*******************/
+										/* Round the value */
+					   /*******************/
+
+										if ((double)((double)ul_TimingInterval * (1000.0 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+											ul_TimerValue
+												=
+												ul_TimerValue
+												+
+												1;
+										}
+
+					   /*****************************/
+										/* Calculate the real timing */
+					   /*****************************/
+
+										ul_RealTimingInterval
+											=
+											(ULONG)
+											(ul_TimerValue
+											/
+											(1000.0 * (double)b_PCIInputClock));
+										d_RealTimingInterval
+											=
+											(double)
+											ul_TimerValue
+											/
+											(1000.0
+											*
+											(double)
+											b_PCIInputClock);
+
+										if ((double)((double)ul_TimerValue / (1000.0 * (double)b_PCIInputClock)) >= (double)((double)ul_RealTimingInterval + 0.5)) {
+											ul_RealTimingInterval
+												=
+												ul_RealTimingInterval
+												+
+												1;
+										}
+
+										ul_TimingInterval
+											=
+											ul_TimingInterval
+											-
+											1;
+										ul_TimerValue
+											=
+											ul_TimerValue
+											-
+											2;
+										if (b_PCIInputClock != APCI1710_40MHZ) {
+											ul_TimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_TimerValue)
+												*
+												0.99392);
+										}
+
+										break;
 
 				   /*****/
-				   /* s */
+										/* s */
 				   /*****/
 
-				   case 3:
-					
+									case 3:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_TimerValue = (ULONG) (ul_TimingInterval * (1000000.0 * b_PCIInputClock));
+										ul_TimerValue
+											=
+											(ULONG)
+											(ul_TimingInterval
+											*
+											(1000000.0
+												*
+												b_PCIInputClock));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_TimingInterval * (1000000.0 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					      {
-					      ul_TimerValue = ul_TimerValue + 1;
-					      }
+										if ((double)((double)ul_TimingInterval * (1000000.0 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+											ul_TimerValue
+												=
+												ul_TimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   ul_RealTimingInterval = (ULONG) (ul_TimerValue / (1000000.0 * (double) b_PCIInputClock));
-					   d_RealTimingInterval = (double) ul_TimerValue / (1000000.0 * (double) b_PCIInputClock);
+										ul_RealTimingInterval
+											=
+											(ULONG)
+											(ul_TimerValue
+											/
+											(1000000.0
+												*
+												(double)
+												b_PCIInputClock));
+										d_RealTimingInterval
+											=
+											(double)
+											ul_TimerValue
+											/
+											(1000000.0
+											*
+											(double)
+											b_PCIInputClock);
 
-					   if ((double) ((double) ul_TimerValue / (1000000.0 * (double) b_PCIInputClock)) >= (double) ((double) ul_RealTimingInterval + 0.5))
-					      {
-					      ul_RealTimingInterval = ul_RealTimingInterval + 1;
-					      }
+										if ((double)((double)ul_TimerValue / (1000000.0 * (double)b_PCIInputClock)) >= (double)((double)ul_RealTimingInterval + 0.5)) {
+											ul_RealTimingInterval
+												=
+												ul_RealTimingInterval
+												+
+												1;
+										}
 
-					   ul_TimingInterval = ul_TimingInterval - 1;
-					   ul_TimerValue     = ul_TimerValue - 2;
-					   if (b_PCIInputClock != APCI1710_40MHZ)
-					      {
-					      ul_TimerValue     = (ULONG) ((double) (ul_TimerValue) * 0.99392);
-					      }
-					
+										ul_TimingInterval
+											=
+											ul_TimingInterval
+											-
+											1;
+										ul_TimerValue
+											=
+											ul_TimerValue
+											-
+											2;
+										if (b_PCIInputClock != APCI1710_40MHZ) {
+											ul_TimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_TimerValue)
+												*
+												0.99392);
+										}
 
-					break;
+										break;
 
 				   /******/
-				   /* mn */
+										/* mn */
 				   /******/
 
-				   case 4:
-					
+									case 4:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_TimerValue = (ULONG) ((ul_TimingInterval * 60) * (1000000.0 * b_PCIInputClock));
+										ul_TimerValue
+											=
+											(ULONG)
+											(
+											(ul_TimingInterval
+												*
+												60)
+											*
+											(1000000.0
+												*
+												b_PCIInputClock));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) (ul_TimingInterval * 60.0) * (1000000.0 * (double) b_PCIInputClock)) >= ((double) ((double) ul_TimerValue + 0.5)))
-					      {
-					      ul_TimerValue = ul_TimerValue + 1;
-					      }
+										if ((double)((double)(ul_TimingInterval * 60.0) * (1000000.0 * (double)b_PCIInputClock)) >= ((double)((double)ul_TimerValue + 0.5))) {
+											ul_TimerValue
+												=
+												ul_TimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   ul_RealTimingInterval = (ULONG) (ul_TimerValue / (1000000.0 * (double) b_PCIInputClock)) / 60;
-					   d_RealTimingInterval = ((double) ul_TimerValue / (0.001 * (double) b_PCIInputClock)) / 60.0;
+										ul_RealTimingInterval
+											=
+											(ULONG)
+											(ul_TimerValue
+											/
+											(1000000.0
+												*
+												(double)
+												b_PCIInputClock))
+											/
+											60;
+										d_RealTimingInterval
+											=
+											(
+											(double)
+											ul_TimerValue
+											/
+											(0.001 * (double)b_PCIInputClock)) / 60.0;
 
-					   if ((double) (((double) ul_TimerValue / (1000000.0 * (double) b_PCIInputClock)) / 60.0) >= (double) ((double) ul_RealTimingInterval + 0.5))
-					      {
-					      ul_RealTimingInterval = ul_RealTimingInterval + 1;
-					      }
+										if ((double)(((double)ul_TimerValue / (1000000.0 * (double)b_PCIInputClock)) / 60.0) >= (double)((double)ul_RealTimingInterval + 0.5)) {
+											ul_RealTimingInterval
+												=
+												ul_RealTimingInterval
+												+
+												1;
+										}
 
-					   ul_TimingInterval = ul_TimingInterval - 1;
-					   ul_TimerValue     = ul_TimerValue - 2;
-					   if (b_PCIInputClock != APCI1710_40MHZ)
-					      {
-					      ul_TimerValue     = (ULONG) ((double) (ul_TimerValue) * 0.99392);
-					      }
-					
+										ul_TimingInterval
+											=
+											ul_TimingInterval
+											-
+											1;
+										ul_TimerValue
+											=
+											ul_TimerValue
+											-
+											2;
+										if (b_PCIInputClock != APCI1710_40MHZ) {
+											ul_TimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_TimerValue)
+												*
+												0.99392);
+										}
 
-					break;
-				   }
+										break;
+									}
 
-				fpu_end ();
-				
+									fpu_end();
+
 				/****************************/
-				/* Save the PCI input clock */
+									/* Save the PCI input clock */
 				/****************************/
 
-				devpriv->s_ModuleInfo [b_ModulNbr].
-				s_ChronoModuleInfo.
-				b_PCIInputClock = b_PCIInputClock;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_ChronoModuleInfo.
+										b_PCIInputClock
+										=
+										b_PCIInputClock;
 
 				/*************************/
-				/* Save the timing unity */
+									/* Save the timing unity */
 				/*************************/
 
-				devpriv->s_ModuleInfo [b_ModulNbr].
-				s_ChronoModuleInfo.
-				b_TimingUnit = b_TimingUnit;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_ChronoModuleInfo.
+										b_TimingUnit
+										=
+										b_TimingUnit;
 
 				/************************/
-				/* Save the base timing */
+									/* Save the base timing */
 				/************************/
 
-				devpriv->s_ModuleInfo [b_ModulNbr].
-				s_ChronoModuleInfo.
-				d_TimingInterval = d_RealTimingInterval;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_ChronoModuleInfo.
+										d_TimingInterval
+										=
+										d_RealTimingInterval;
 
 				/****************************/
-				/* Set the chronometer mode */
+									/* Set the chronometer mode */
 				/****************************/
 
-				devpriv->s_ModuleInfo [b_ModulNbr].
-				s_ChronoModuleInfo.
-				dw_ConfigReg = dw_ModeArray [b_ChronoMode];
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_ChronoModuleInfo.
+										dw_ConfigReg
+										=
+										dw_ModeArray
+										[b_ChronoMode];
 
 				/***********************/
-				/* Test if 40 MHz used */
+									/* Test if 40 MHz used */
 				/***********************/
 
-				if (b_PCIInputClock == APCI1710_40MHZ)
-				   {
-				   devpriv->s_ModuleInfo [b_ModulNbr].
-				   s_ChronoModuleInfo.
-				   dw_ConfigReg = devpriv->s_ModuleInfo [b_ModulNbr].
-						  s_ChronoModuleInfo.
-						  dw_ConfigReg | 0x80;
-				   }
+									if (b_PCIInputClock == APCI1710_40MHZ) {
+										devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_ChronoModuleInfo.
+											dw_ConfigReg
+											=
+											devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_ChronoModuleInfo.
+											dw_ConfigReg
+											|
+											0x80;
+									}
 
-				outl(devpriv->s_ModuleInfo [b_ModulNbr].s_ChronoModuleInfo.
-					dw_ConfigReg,devpriv->s_BoardInfos.
-					ui_Address + 16 + (64 * b_ModulNbr));
+									outl(devpriv->s_ModuleInfo[b_ModulNbr].s_ChronoModuleInfo.dw_ConfigReg, devpriv->s_BoardInfos.ui_Address + 16 + (64 * b_ModulNbr));
 
 				/***********************/
-				/* Write timer 0 value */
+									/* Write timer 0 value */
 				/***********************/
 
-				
-				outl(ul_TimerValue,devpriv->s_BoardInfos.
-					ui_Address + (64 * b_ModulNbr));
+									outl(ul_TimerValue, devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
 
 				/*********************/
-				/* Chronometer init. */
+									/* Chronometer init. */
 				/*********************/
 
-				devpriv->s_ModuleInfo [b_ModulNbr].
-				s_ChronoModuleInfo.
-				b_ChronoInit = 1;
-				}
-			     else
-				{
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_ChronoModuleInfo.
+										b_ChronoInit
+										=
+										1;
+								} else {
 				/***********************************************/
-				/* TOR version error for 40MHz clock selection */
+									/* TOR version error for 40MHz clock selection */
 				/***********************************************/
 
-                       DPRINTK("TOR version error for 40MHz clock selection\n");
-				i_ReturnValue = -9;
-				}
-			     }
-			  else
-			     {
+									DPRINTK("TOR version error for 40MHz clock selection\n");
+									i_ReturnValue
+										=
+										-9;
+								}
+							} else {
 			     /**************************************************************/
-			     /* You can not used the 40MHz clock selection wich this board */
+								/* You can not used the 40MHz clock selection wich this board */
 			     /**************************************************************/
 
-				 DPRINTK("You can not used the 40MHz clock selection wich this board\n");
-			     i_ReturnValue = -8;
-			     }
-			  }
-		       else
-			  {
+								DPRINTK("You can not used the 40MHz clock selection wich this board\n");
+								i_ReturnValue =
+									-8;
+							}
+						} else {
 			  /**********************************/
-			  /* Base timing selection is wrong */
+							/* Base timing selection is wrong */
 			  /**********************************/
 
-			  DPRINTK("Base timing selection is wrong\n");
-			  i_ReturnValue = -7;
-			  }
-		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-		    else
-		       {
+							DPRINTK("Base timing selection is wrong\n");
+							i_ReturnValue = -7;
+						}
+					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					else {
 		       /***********************************/
-		       /* Timing unity selection is wrong */
+						/* Timing unity selection is wrong */
 		       /***********************************/
 
-			   DPRINTK("Timing unity selection is wrong\n");
-		       i_ReturnValue = -6;
-		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
-		 else
-		    {
+						DPRINTK("Timing unity selection is wrong\n");
+						i_ReturnValue = -6;
+					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
+				else {
 		    /*****************************************/
-		    /* The selected PCI input clock is wrong */
+					/* The selected PCI input clock is wrong */
 		    /*****************************************/
 
-			DPRINTK("The selected PCI input clock is wrong\n");
-		    i_ReturnValue = -5;
-		    } // if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
-		 } // if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
-	      else
-		 {
+					DPRINTK("The selected PCI input clock is wrong\n");
+					i_ReturnValue = -5;
+				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ))
+			}	// if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
+			else {
 		 /***************************************/
-		 /* Chronometer mode selection is wrong */
+				/* Chronometer mode selection is wrong */
 		 /***************************************/
-		
-DPRINTK("Chronometer mode selection is wrong\n");
-		 i_ReturnValue = -4;
-		 } // if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
-	      }
-	   else
-	      {
+
+				DPRINTK("Chronometer mode selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_ChronoMode >= 0 && b_ChronoMode <= 7)
+		} else {
 	      /******************************************/
-	      /* The module is not a Chronometer module */
+			/* The module is not a Chronometer module */
 	      /******************************************/
 
-	      DPRINTK("The module is not a Chronometer module\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a Chronometer module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-          DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-    	data[0] = ul_RealTimingInterval;
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
-
-
-
+	data[0] = ul_RealTimingInterval;
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -652,221 +840,240 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)						 |
 +----------------------------------------------------------------------------+
 */
 
-
-INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
+INT i_APCI1710_InsnWriteEnableDisableChrono(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
 	INT i_ReturnValue = 0;
-	BYTE b_ModulNbr,b_CycleMode,b_InterruptEnable,b_Action;
-	b_ModulNbr			=	CR_AREF(insn->chanspec);
-        b_Action            =(BYTE) data[0];
-	b_CycleMode			=(BYTE)	data[1];
-	b_InterruptEnable	=(BYTE)	data[2];
-	i_ReturnValue		=   insn->n;
-	
+	BYTE b_ModulNbr, b_CycleMode, b_InterruptEnable, b_Action;
+	b_ModulNbr = CR_AREF(insn->chanspec);
+	b_Action = (BYTE) data[0];
+	b_CycleMode = (BYTE) data[1];
+	b_InterruptEnable = (BYTE) data[2];
+	i_ReturnValue = insn->n;
 
-	
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if chronometer */
+		/* Test if chronometer */
 	   /***********************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_CHRONOMETER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 	      /***********************************/
-	      /* Test if chronometer initialised */
+			/* Test if chronometer initialised */
 	      /***********************************/
 
-	      if (devpriv->s_ModuleInfo [b_ModulNbr].
-		  s_ChronoModuleInfo.
-		  b_ChronoInit == 1)
-		 {
+			if (devpriv->s_ModuleInfo[b_ModulNbr].
+				s_ChronoModuleInfo.b_ChronoInit == 1) {
 
+				switch (b_Action) {
 
-         switch(b_Action)
-         {
- 
-		 case APCI1710_ENABLE :
-                            
+				case APCI1710_ENABLE:
+
 		 /*********************************/
-		 /* Test the cycle mode parameter */
+					/* Test the cycle mode parameter */
 		 /*********************************/
 
-		 if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
-		    {
+					if ((b_CycleMode == APCI1710_SINGLE)
+						|| (b_CycleMode ==
+							APCI1710_CONTINUOUS)) {
 		    /***************************/
-		    /* Test the interrupt flag */
+						/* Test the interrupt flag */
 		    /***************************/
 
-		    if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
-		       {
-		    
-	
+						if ((b_InterruptEnable ==
+								APCI1710_ENABLE)
+							|| (b_InterruptEnable ==
+								APCI1710_DISABLE))
+						{
+
 			  /***************************/
-			  /* Save the interrupt flag */
+							/* Save the interrupt flag */
 			  /***************************/
 
-			  devpriv->s_ModuleInfo [b_ModulNbr].
-			  s_ChronoModuleInfo.
-			  b_InterruptMask = b_InterruptEnable;
+							devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_ChronoModuleInfo.
+								b_InterruptMask
+								=
+								b_InterruptEnable;
 
 			  /***********************/
-			  /* Save the cycle mode */
+							/* Save the cycle mode */
 			  /***********************/
 
-			  devpriv->s_ModuleInfo [b_ModulNbr].
-			  s_ChronoModuleInfo.
-			  b_CycleMode = b_CycleMode;
+							devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_ChronoModuleInfo.
+								b_CycleMode =
+								b_CycleMode;
 
-			  devpriv->s_ModuleInfo [b_ModulNbr].
-			  s_ChronoModuleInfo.
-			  dw_ConfigReg = (devpriv->s_ModuleInfo [b_ModulNbr].
-					  s_ChronoModuleInfo.
-					  dw_ConfigReg & 0x8F)           |
-					  ((1 & b_InterruptEnable) << 5) |
-					  ((1 & b_CycleMode) << 6)       |
-					  0x10 ;
+							devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_ChronoModuleInfo.
+								dw_ConfigReg =
+								(devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_ChronoModuleInfo.
+								dw_ConfigReg &
+								0x8F) | ((1 &
+									b_InterruptEnable)
+								<< 5) | ((1 &
+									b_CycleMode)
+								<< 6) | 0x10;
 
 			  /*****************************/
-			  /* Test if interrupt enabled */
+							/* Test if interrupt enabled */
 			  /*****************************/
 
-			  if (b_InterruptEnable == APCI1710_ENABLE)
-			     {
+							if (b_InterruptEnable ==
+								APCI1710_ENABLE)
+							{
 			     /****************************/
-			     /* Clear the interrupt flag */
+								/* Clear the interrupt flag */
 			     /****************************/
 
-			    
-				 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-				     s_ChronoModuleInfo.dw_ConfigReg, devpriv->s_BoardInfos.
-				     ui_Address + 32 + (64 * b_ModulNbr));
-                         devpriv->tsk_Current=current; // Save the current process task structure
-			     }
+								outl(devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_ChronoModuleInfo.
+									dw_ConfigReg,
+									devpriv->
+									s_BoardInfos.
+									ui_Address
+									+ 32 +
+									(64 * b_ModulNbr));
+								devpriv->tsk_Current = current;	// Save the current process task structure
+							}
 
 			  /***********************************/
-			  /* Enable or disable the interrupt */
-			  /* Enable the chronometer          */
+							/* Enable or disable the interrupt */
+							/* Enable the chronometer          */
 			  /***********************************/
-           
-			  outl(devpriv->s_ModuleInfo [b_ModulNbr].
-				  s_ChronoModuleInfo.dw_ConfigReg,devpriv->s_BoardInfos.
-				  ui_Address + 16 + (64 * b_ModulNbr));
+
+							outl(devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_ChronoModuleInfo.
+								dw_ConfigReg,
+								devpriv->
+								s_BoardInfos.
+								ui_Address +
+								16 +
+								(64 * b_ModulNbr));
 
 			  /*************************/
-			  /* Clear status register */
+							/* Clear status register */
 			  /*************************/
 
-			 
-			  outl(0,devpriv->s_BoardInfos.ui_Address + 36 + (64 * b_ModulNbr));
-			  
-		    } // if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
-		    else
-		       {
+							outl(0, devpriv->
+								s_BoardInfos.
+								ui_Address +
+								36 +
+								(64 * b_ModulNbr));
+
+						}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
+						else {
 		       /********************************/
-		       /* Interrupt parameter is wrong */
+							/* Interrupt parameter is wrong */
 		       /********************************/
 
-			   DPRINTK("Interrupt parameter is wrong\n");
-		       i_ReturnValue = -6;
-		       } // if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
-		    } // if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
-		 else
-		    {
+							DPRINTK("Interrupt parameter is wrong\n");
+							i_ReturnValue = -6;
+						}	// if ((b_InterruptEnable == APCI1710_ENABLE) || (b_InterruptEnable == APCI1710_DISABLE))
+					}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+					else {
 		    /***********************************************/
-		    /* Chronometer acquisition mode cycle is wrong */
+						/* Chronometer acquisition mode cycle is wrong */
 		    /***********************************************/
 
-			DPRINTK("Chronometer acquisition mode cycle is wrong\n");
-		    i_ReturnValue = -5;
-		    } // if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
-		 break;
+						DPRINTK("Chronometer acquisition mode cycle is wrong\n");
+						i_ReturnValue = -5;
+					}	// if ((b_CycleMode == APCI1710_SINGLE) || (b_CycleMode == APCI1710_CONTINUOUS))
+					break;
 
-		 case APCI1710_DISABLE :
+				case APCI1710_DISABLE:
 
-		 devpriv->s_ModuleInfo [b_ModulNbr].
-		 s_ChronoModuleInfo.
-		 b_InterruptMask = 0;
+					devpriv->s_ModuleInfo[b_ModulNbr].
+						s_ChronoModuleInfo.
+						b_InterruptMask = 0;
 
-		 devpriv->s_ModuleInfo [b_ModulNbr].
-		 s_ChronoModuleInfo.
-		 dw_ConfigReg = devpriv->s_ModuleInfo [b_ModulNbr].
-				s_ChronoModuleInfo.
-				dw_ConfigReg & 0x2F;
-
-		 /***************************/
-		 /* Disable the interrupt   */
-		 /* Disable the chronometer */
-		 /***************************/
-
-		 
-		 outl(devpriv->s_ModuleInfo [b_ModulNbr].
-			 s_ChronoModuleInfo.dw_ConfigReg, devpriv->s_BoardInfos.
-			 ui_Address + 16 + (64 * b_ModulNbr));
+					devpriv->s_ModuleInfo[b_ModulNbr].
+						s_ChronoModuleInfo.
+						dw_ConfigReg =
+						devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_ChronoModuleInfo.
+						dw_ConfigReg & 0x2F;
 
 		 /***************************/
-		 /* Test if continuous mode */
+					/* Disable the interrupt   */
+					/* Disable the chronometer */
 		 /***************************/
 
-		 if (devpriv->s_ModuleInfo [b_ModulNbr].
-		     s_ChronoModuleInfo.b_CycleMode == APCI1710_CONTINUOUS)
-		    {
+					outl(devpriv->s_ModuleInfo[b_ModulNbr].
+						s_ChronoModuleInfo.dw_ConfigReg,
+						devpriv->s_BoardInfos.
+						ui_Address + 16 +
+						(64 * b_ModulNbr));
+
+		 /***************************/
+					/* Test if continuous mode */
+		 /***************************/
+
+					if (devpriv->s_ModuleInfo[b_ModulNbr].
+						s_ChronoModuleInfo.
+						b_CycleMode ==
+						APCI1710_CONTINUOUS) {
 		    /*************************/
-		    /* Clear status register */
+						/* Clear status register */
 		    /*************************/
 
-		   
-			outl(0,devpriv->s_BoardInfos.ui_Address + 36 + (64 * b_ModulNbr));
-		    }
-		    break;
+						outl(0, devpriv->s_BoardInfos.
+							ui_Address + 36 +
+							(64 * b_ModulNbr));
+					}
+					break;
 
-		 default:
-			  DPRINTK("Inputs wrong! Enable or Disable chrono\n");
-              		  i_ReturnValue = -8;
-		  } // switch ENABLE/DISABLE
-		 }
-	      else
-		 {
+				default:
+					DPRINTK("Inputs wrong! Enable or Disable chrono\n");
+					i_ReturnValue = -8;
+				}	// switch ENABLE/DISABLE
+			} else {
 		 /*******************************/
-		 /* Chronometer not initialised */
+				/* Chronometer not initialised */
 		 /*******************************/
 
-                DPRINTK("Chronometer not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Chronometer not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /******************************************/
-	      /* The module is not a Chronometer module */
+			/* The module is not a Chronometer module */
 	      /******************************************/
 
-	      DPRINTK("The module is not a Chronometer module\n");  	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a Chronometer module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-          DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-
-      
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -883,80 +1090,71 @@ comedi_insn *insn,lsampl_t *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_InsnReadChrono(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+INT i_APCI1710_InsnReadChrono(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	BYTE b_ReadType;
-	INT  i_ReturnValue=insn->n;
-	 
-	b_ReadType=CR_CHAN(insn->chanspec);
+	INT i_ReturnValue = insn->n;
 
-	switch(b_ReadType)
-	{
+	b_ReadType = CR_CHAN(insn->chanspec);
+
+	switch (b_ReadType) {
 	case APCI1710_CHRONO_PROGRESS_STATUS:
-		i_ReturnValue=i_APCI1710_GetChronoProgressStatus  (dev,
-						 (BYTE)    CR_AREF(insn->chanspec),
-						 (PBYTE)  &data[0]);
-	break;
+		i_ReturnValue = i_APCI1710_GetChronoProgressStatus(dev,
+			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+		break;
 
 	case APCI1710_CHRONO_READVALUE:
-		i_ReturnValue=i_APCI1710_ReadChronoValue      (dev,
-					 (BYTE)    CR_AREF(insn->chanspec),
-					 (UINT)    insn->unused[0],
-					 (PBYTE)   &data[0],
-					 (PULONG) &data[1]);
-	break;
+		i_ReturnValue = i_APCI1710_ReadChronoValue(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(UINT) insn->unused[0],
+			(PBYTE) & data[0], (PULONG) & data[1]);
+		break;
 
 	case APCI1710_CHRONO_CONVERTVALUE:
-		i_ReturnValue=i_APCI1710_ConvertChronoValue     (dev,
-					 (BYTE)    CR_AREF(insn->chanspec),
-					 (ULONG)   insn->unused[0],
-					 (PULONG)  &data[0],
-					 (PBYTE)   &data[1],
-					 (PBYTE)   &data[2],
-					 (PUINT)  &data[3],
-					 (PUINT)  &data[4],
-					 (PUINT)  &data[5]);
-	break;
-        
-        case APCI1710_CHRONO_READINTERRUPT:
-                         printk("In Chrono Read Interrupt\n");
+		i_ReturnValue = i_APCI1710_ConvertChronoValue(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(ULONG) insn->unused[0],
+			(PULONG) & data[0],
+			(PBYTE) & data[1],
+			(PBYTE) & data[2],
+			(PUINT) & data[3],
+			(PUINT) & data[4], (PUINT) & data[5]);
+		break;
 
-                         data[0]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].b_OldModuleMask;
-                         data[1]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].ul_OldInterruptMask;
-                         data[2]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].ul_OldCounterLatchValue;
+	case APCI1710_CHRONO_READINTERRUPT:
+		printk("In Chrono Read Interrupt\n");
 
-			     
+		data[0] = devpriv->s_InterruptParameters.
+			s_FIFOInterruptParameters[devpriv->
+			s_InterruptParameters.ui_Read].b_OldModuleMask;
+		data[1] = devpriv->s_InterruptParameters.
+			s_FIFOInterruptParameters[devpriv->
+			s_InterruptParameters.ui_Read].ul_OldInterruptMask;
+		data[2] = devpriv->s_InterruptParameters.
+			s_FIFOInterruptParameters[devpriv->
+			s_InterruptParameters.ui_Read].ul_OldCounterLatchValue;
+
 			     /**************************/
-			     /* Increment the read FIFO */
+		/* Increment the read FIFO */
 			     /***************************/
 
-			     devpriv->
-			     s_InterruptParameters.
-			     ui_Read = (devpriv->
-					s_InterruptParameters.
-					ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
-        break;
-    
+		devpriv->
+			s_InterruptParameters.
+			ui_Read = (devpriv->
+			s_InterruptParameters.
+			ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
+		break;
+
 	default:
 		printk("ReadType Parameter wrong\n");
 	}
 
-	if(i_ReturnValue>=0) i_ReturnValue =insn->n;
-	return (i_ReturnValue);	
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
+	return (i_ReturnValue);
 
 }
-
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -996,121 +1194,103 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_GetChronoProgressStatus      (comedi_device *dev,
-						 BYTE    b_ModulNbr,
-						 PBYTE  pb_ChronoStatus)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_GetChronoProgressStatus(comedi_device * dev,
+	BYTE b_ModulNbr, PBYTE pb_ChronoStatus)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_Status;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if chronometer */
+		/* Test if chronometer */
 	   /***********************/
 
-	   if ((devpriv->
-		s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_CHRONOMETER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 	      /***********************************/
-	      /* Test if chronometer initialised */
+			/* Test if chronometer initialised */
 	      /***********************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_ChronoModuleInfo.
-		  b_ChronoInit == 1)
-		 {
-		
-		dw_Status=inl(devpriv->s_BoardInfos.
-			ui_Address + 8 + (64 * b_ModulNbr));
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_ChronoModuleInfo.b_ChronoInit == 1) {
+
+				dw_Status = inl(devpriv->s_BoardInfos.
+					ui_Address + 8 + (64 * b_ModulNbr));
 
 		 /********************/
-		 /* Test if overflow */
+				/* Test if overflow */
 		 /********************/
 
-		 if ((dw_Status & 8) == 8)
-		    {
+				if ((dw_Status & 8) == 8) {
 		    /******************/
-		    /* Overflow occur */
+					/* Overflow occur */
 		    /******************/
 
-		    *pb_ChronoStatus = 3;
-		    } // if ((dw_Status & 8) == 8)
-		 else
-		    {
+					*pb_ChronoStatus = 3;
+				}	// if ((dw_Status & 8) == 8)
+				else {
 		    /*******************************/
-		    /* Test if measurement stopped */
+					/* Test if measurement stopped */
 		    /*******************************/
 
-		    if ((dw_Status & 2) == 2)
-		       {
+					if ((dw_Status & 2) == 2) {
 		       /***********************/
-		       /* A stop signal occur */
+						/* A stop signal occur */
 		       /***********************/
 
-		       *pb_ChronoStatus = 2;
-		       } // if ((dw_Status & 2) == 2)
-		    else
-		       {
+						*pb_ChronoStatus = 2;
+					}	// if ((dw_Status & 2) == 2)
+					else {
 		       /*******************************/
-		       /* Test if measurement started */
+						/* Test if measurement started */
 		       /*******************************/
 
-		       if ((dw_Status & 1) == 1)
-			  {
+						if ((dw_Status & 1) == 1) {
 			  /************************/
-			  /* A start signal occur */
+							/* A start signal occur */
 			  /************************/
 
-			  *pb_ChronoStatus = 1;
-			  } // if ((dw_Status & 1) == 1)
-		       else
-			  {
+							*pb_ChronoStatus = 1;
+						}	// if ((dw_Status & 1) == 1)
+						else {
 			  /***************************/
-			  /* Measurement not started */
+							/* Measurement not started */
 			  /***************************/
 
-			  *pb_ChronoStatus = 0;
-			  } // if ((dw_Status & 1) == 1)
-		       } // if ((dw_Status & 2) == 2)
-		    } // if ((dw_Status & 8) == 8)
-		 }
-	      else
-		 {
+							*pb_ChronoStatus = 0;
+						}	// if ((dw_Status & 1) == 1)
+					}	// if ((dw_Status & 2) == 2)
+				}	// if ((dw_Status & 8) == 8)
+			} else {
 		 /*******************************/
-		 /* Chronometer not initialised */
+				/* Chronometer not initialised */
 		 /*******************************/
-		 DPRINTK("Chronometer not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Chronometer not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /******************************************/
-	      /* The module is not a Chronometer module */
+			/* The module is not a Chronometer module */
 	      /******************************************/
-              DPRINTK("The module is not a Chronometer module\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a Chronometer module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1175,241 +1355,228 @@ INT   i_APCI1710_GetChronoProgressStatus      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_ReadChronoValue      (comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 UINT    ui_TimeOut,
-					 PBYTE   pb_ChronoStatus,
-					 PULONG pul_ChronoValue)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_ReadChronoValue(comedi_device * dev,
+	BYTE b_ModulNbr,
+	UINT ui_TimeOut, PBYTE pb_ChronoStatus, PULONG pul_ChronoValue)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_TimeOut = 0;
-	
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if chronometer */
+		/* Test if chronometer */
 	   /***********************/
 
-	   if ((devpriv->
-		s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_CHRONOMETER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 	      /***********************************/
-	      /* Test if chronometer initialised */
+			/* Test if chronometer initialised */
 	      /***********************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_ChronoModuleInfo.
-		  b_ChronoInit == 1)
-		 {
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_ChronoModuleInfo.b_ChronoInit == 1) {
 		 /*****************************/
-		 /* Test the timout parameter */
+				/* Test the timout parameter */
 		 /*****************************/
 
-		 if ((ui_TimeOut >= 0) && (ui_TimeOut <= 65535UL))
-		    {
-		   
-		       for (;;)
-			  {
+				if ((ui_TimeOut >= 0)
+					&& (ui_TimeOut <= 65535UL)) {
+
+					for (;;) {
 			  /*******************/
-			  /* Read the status */
+						/* Read the status */
 			  /*******************/
 
-			 
-				dw_Status=inl(devpriv->s_BoardInfos.
-				 ui_Address + 8 + (64 * b_ModulNbr));
-
+						dw_Status =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address + 8 +
+							(64 * b_ModulNbr));
 
 			  /********************/
-			  /* Test if overflow */
+						/* Test if overflow */
 			  /********************/
 
-			  if ((dw_Status & 8) == 8)
-			     {
+						if ((dw_Status & 8) == 8) {
 			     /******************/
-			     /* Overflow occur */
+							/* Overflow occur */
 			     /******************/
 
-			     *pb_ChronoStatus = 3;
+							*pb_ChronoStatus = 3;
 
 			     /***************************/
-			     /* Test if continuous mode */
+							/* Test if continuous mode */
 			     /***************************/
 
-			     if (devpriv->s_ModuleInfo [b_ModulNbr].
-				 s_ChronoModuleInfo.
-				 b_CycleMode == APCI1710_CONTINUOUS)
-				{
+							if (devpriv->
+								s_ModuleInfo
+								[b_ModulNbr].
+								s_ChronoModuleInfo.
+								b_CycleMode ==
+								APCI1710_CONTINUOUS)
+							{
 				/*************************/
-				/* Clear status register */
+								/* Clear status register */
 				/*************************/
 
-				
-					 outl(0,devpriv->s_BoardInfos.
-					ui_Address + 36 + (64 * b_ModulNbr));
-				}
+								outl(0, devpriv->s_BoardInfos.ui_Address + 36 + (64 * b_ModulNbr));
+							}
 
-			     break;
-			     } // if ((dw_Status & 8) == 8)
-			  else
-			     {
+							break;
+						}	// if ((dw_Status & 8) == 8)
+						else {
 			     /*******************************/
-			     /* Test if measurement stopped */
+							/* Test if measurement stopped */
 			     /*******************************/
 
-			     if ((dw_Status & 2) == 2)
-				{
+							if ((dw_Status & 2) ==
+								2) {
 				/***********************/
-				/* A stop signal occur */
+								/* A stop signal occur */
 				/***********************/
 
-				*pb_ChronoStatus = 2;
+								*pb_ChronoStatus
+									= 2;
 
 				/***************************/
-				/* Test if continnous mode */
+								/* Test if continnous mode */
 				/***************************/
 
-				if (devpriv->
-				    s_ModuleInfo [b_ModulNbr].
-				    s_ChronoModuleInfo.
-				    b_CycleMode == APCI1710_CONTINUOUS)
-				   {
+								if (devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_ChronoModuleInfo.
+									b_CycleMode
+									==
+									APCI1710_CONTINUOUS)
+								{
 				   /*************************/
-				   /* Clear status register */
+									/* Clear status register */
 				   /*************************/
 
-				   
-					outl(0,devpriv->s_BoardInfos.
-					   ui_Address + 36 + (64 * b_ModulNbr));
-				   }
-				break;
-				} // if ((dw_Status & 2) == 2)
-			     else
-				{
+									outl(0, devpriv->s_BoardInfos.ui_Address + 36 + (64 * b_ModulNbr));
+								}
+								break;
+							}	// if ((dw_Status & 2) == 2)
+							else {
 				/*******************************/
-				/* Test if measurement started */
+								/* Test if measurement started */
 				/*******************************/
 
-				if ((dw_Status & 1) == 1)
-				   {
+								if ((dw_Status & 1) == 1) {
 				   /************************/
-				   /* A start signal occur */
+									/* A start signal occur */
 				   /************************/
 
-				   *pb_ChronoStatus = 1;
-				   } // if ((dw_Status & 1) == 1)
-				else
-				   {
+									*pb_ChronoStatus
+										=
+										1;
+								}	// if ((dw_Status & 1) == 1)
+								else {
 				   /***************************/
-				   /* Measurement not started */
+									/* Measurement not started */
 				   /***************************/
 
-				   *pb_ChronoStatus = 0;
-				   } // if ((dw_Status & 1) == 1)
-				} // if ((dw_Status & 2) == 2)
-			     } // if ((dw_Status & 8) == 8)
+									*pb_ChronoStatus
+										=
+										0;
+								}	// if ((dw_Status & 1) == 1)
+							}	// if ((dw_Status & 2) == 2)
+						}	// if ((dw_Status & 8) == 8)
 
-			  if (dw_TimeOut == ui_TimeOut)
-			     {
+						if (dw_TimeOut == ui_TimeOut) {
 			     /*****************/
-			     /* Timeout occur */
+							/* Timeout occur */
 			     /*****************/
 
-			     break;
-			     }
-			  else
-			     {
+							break;
+						} else {
 			     /*************************/
-			     /* Increment the timeout */
+							/* Increment the timeout */
 			     /*************************/
 
-			     dw_TimeOut = dw_TimeOut + 1;
-				 mdelay(1000);
-			    
+							dw_TimeOut =
+								dw_TimeOut + 1;
+							mdelay(1000);
+
+						}
+					}	// for (;;)
+
+		       /*****************************/
+					/* Test if stop signal occur */
+		       /*****************************/
+
+					if (*pb_ChronoStatus == 2) {
+			  /**********************************/
+						/* Read the measured timing value */
+			  /**********************************/
+
+						*pul_ChronoValue =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address + 4 +
+							(64 * b_ModulNbr));
+
+						if (*pul_ChronoValue != 0) {
+							*pul_ChronoValue =
+								*pul_ChronoValue
+								- 1;
+						}
+					} else {
+			  /*************************/
+						/* Test if timeout occur */
+			  /*************************/
+
+						if ((*pb_ChronoStatus != 3)
+							&& (dw_TimeOut ==
+								ui_TimeOut)
+							&& (ui_TimeOut != 0)) {
+			     /*****************/
+							/* Timeout occur */
+			     /*****************/
+
+							*pb_ChronoStatus = 4;
+						}
+					}
+
+				} else {
+		    /******************************/
+					/* Timeout parameter is wrong */
+		    /******************************/
+					DPRINTK("Timeout parameter is wrong\n");
+					i_ReturnValue = -5;
 				}
-			  } // for (;;)
-
-		       /*****************************/
-		       /* Test if stop signal occur */
-		       /*****************************/
-
-		       if (*pb_ChronoStatus == 2)
-			  {
-			  /**********************************/
-			  /* Read the measured timing value */
-			  /**********************************/
-
-			  
-				*pul_ChronoValue= inl(devpriv->s_BoardInfos.
-				 ui_Address + 4 + (64 * b_ModulNbr));
-
-			  if (*pul_ChronoValue != 0)
-			     {
-			     *pul_ChronoValue = *pul_ChronoValue - 1;
-			     }
-			  }
-		       else
-			  {
-			  /*************************/
-			  /* Test if timeout occur */
-			  /*************************/
-
-			  if ((*pb_ChronoStatus != 3) && (dw_TimeOut == ui_TimeOut) && (ui_TimeOut != 0))
-			     {
-			     /*****************/
-			     /* Timeout occur */
-			     /*****************/
-
-			     *pb_ChronoStatus = 4;
-			     }
-			  }
-		     
-		    }
-		 else
-		    {
-		    /******************************/
-		    /* Timeout parameter is wrong */
-		    /******************************/
-                    DPRINTK("Timeout parameter is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+			} else {
 		 /*******************************/
-		 /* Chronometer not initialised */
+				/* Chronometer not initialised */
 		 /*******************************/
-		 DPRINTK("Chronometer not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Chronometer not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /******************************************/
-	      /* The module is not a Chronometer module */
+			/* The module is not a Chronometer module */
 	      /******************************************/
-	      DPRINTK("The module is not a Chronometer module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a Chronometer module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1452,154 +1619,141 @@ INT   i_APCI1710_ReadChronoValue      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ConvertChronoValue     (comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 ULONG   ul_ChronoValue,
-					 PULONG pul_Hour,
-					 PBYTE   pb_Minute,
-					 PBYTE   pb_Second,
-					 PUINT  pui_MilliSecond,
-					 PUINT  pui_MicroSecond,
-					 PUINT  pui_NanoSecond)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_ConvertChronoValue(comedi_device * dev,
+	BYTE b_ModulNbr,
+	ULONG ul_ChronoValue,
+	PULONG pul_Hour,
+	PBYTE pb_Minute,
+	PBYTE pb_Second,
+	PUINT pui_MilliSecond, PUINT pui_MicroSecond, PUINT pui_NanoSecond)
+{
+	INT i_ReturnValue = 0;
 	double d_Hour;
 	double d_Minute;
 	double d_Second;
 	double d_MilliSecond;
 	double d_MicroSecond;
 	double d_NanoSecond;
-	
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if chronometer */
+		/* Test if chronometer */
 	   /***********************/
 
-	   if ((devpriv->
-		s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_CHRONOMETER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 	      /***********************************/
-	      /* Test if chronometer initialised */
+			/* Test if chronometer initialised */
 	      /***********************************/
 
-	      if (devpriv->
-		  s_ModuleInfo [b_ModulNbr].
-		  s_ChronoModuleInfo.
-		  b_ChronoInit == 1)
-		 {
-		 fpu_begin ();
-		 
-		    d_Hour = (double) ul_ChronoValue * (double) devpriv->
-								s_ModuleInfo [b_ModulNbr].
-								s_ChronoModuleInfo.
-								d_TimingInterval;
+			if (devpriv->
+				s_ModuleInfo[b_ModulNbr].
+				s_ChronoModuleInfo.b_ChronoInit == 1) {
+				fpu_begin();
 
-		    switch (devpriv->
-			    s_ModuleInfo [b_ModulNbr].
-			    s_ChronoModuleInfo.
-			    b_TimingUnit)
-		       {
-		       case 0:
-			    d_Hour = d_Hour / (double) 1000.0;
+				d_Hour = (double)ul_ChronoValue *(double)
+					devpriv->s_ModuleInfo[b_ModulNbr].
+					s_ChronoModuleInfo.d_TimingInterval;
 
-		       case 1:
-			    d_Hour = d_Hour / (double) 1000.0;
+				switch (devpriv->
+					s_ModuleInfo[b_ModulNbr].
+					s_ChronoModuleInfo.b_TimingUnit) {
+				case 0:
+					d_Hour = d_Hour / (double)1000.0;
 
-		       case 2:
-			    d_Hour = d_Hour / (double) 1000.0;
+				case 1:
+					d_Hour = d_Hour / (double)1000.0;
 
-		       case 3:
-			    d_Hour = d_Hour / (double) 60.0;
+				case 2:
+					d_Hour = d_Hour / (double)1000.0;
 
-		       case 4:
+				case 3:
+					d_Hour = d_Hour / (double)60.0;
+
+				case 4:
 			    /**********************/
-			    /* Calculate the hour */
+					/* Calculate the hour */
 			    /**********************/
 
-			    d_Hour    = d_Hour / (double) 60.0;
-			    *pul_Hour = (ULONG) d_Hour;
+					d_Hour = d_Hour / (double)60.0;
+					*pul_Hour = (ULONG) d_Hour;
 
 			    /************************/
-			    /* Calculate the minute */
+					/* Calculate the minute */
 			    /************************/
 
-			    d_Minute   = d_Hour - *pul_Hour;
-			    d_Minute   = d_Minute * 60;
-			    *pb_Minute = (BYTE) d_Minute;
+					d_Minute = d_Hour - *pul_Hour;
+					d_Minute = d_Minute * 60;
+					*pb_Minute = (BYTE) d_Minute;
 
 			    /************************/
-			    /* Calculate the second */
+					/* Calculate the second */
 			    /************************/
 
-			    d_Second   = d_Minute - *pb_Minute;
-			    d_Second   = d_Second * 60;
-			    *pb_Second = (BYTE) d_Second;
+					d_Second = d_Minute - *pb_Minute;
+					d_Second = d_Second * 60;
+					*pb_Second = (BYTE) d_Second;
 
 			    /*****************************/
-			    /* Calculate the mini second */
+					/* Calculate the mini second */
 			    /*****************************/
 
-			    d_MilliSecond    = d_Second - *pb_Second;
-			    d_MilliSecond    = d_MilliSecond * 1000;
-			    *pui_MilliSecond = (UINT) d_MilliSecond;
+					d_MilliSecond = d_Second - *pb_Second;
+					d_MilliSecond = d_MilliSecond * 1000;
+					*pui_MilliSecond = (UINT) d_MilliSecond;
 
 			    /******************************/
-			    /* Calculate the micro second */
+					/* Calculate the micro second */
 			    /******************************/
 
-			    d_MicroSecond    = d_MilliSecond - *pui_MilliSecond;
-			    d_MicroSecond    = d_MicroSecond * 1000;
-			    *pui_MicroSecond = (UINT) d_MicroSecond;
+					d_MicroSecond =
+						d_MilliSecond -
+						*pui_MilliSecond;
+					d_MicroSecond = d_MicroSecond * 1000;
+					*pui_MicroSecond = (UINT) d_MicroSecond;
 
 			    /******************************/
-			    /* Calculate the micro second */
+					/* Calculate the micro second */
 			    /******************************/
 
-			    d_NanoSecond    = d_MicroSecond - *pui_MicroSecond;
-			    d_NanoSecond    = d_NanoSecond * 1000;
-			    *pui_NanoSecond = (UINT) d_NanoSecond;
-			    break;
-		       }
-		    
-		 fpu_end ();
-		 }
-	      else
-		 {
+					d_NanoSecond =
+						d_MicroSecond -
+						*pui_MicroSecond;
+					d_NanoSecond = d_NanoSecond * 1000;
+					*pui_NanoSecond = (UINT) d_NanoSecond;
+					break;
+				}
+
+				fpu_end();
+			} else {
 		 /*******************************/
-		 /* Chronometer not initialised */
+				/* Chronometer not initialised */
 		 /*******************************/
-		 DPRINTK("Chronometer not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Chronometer not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /******************************************/
-	      /* The module is not a Chronometer module */
+			/* The module is not a Chronometer module */
 	      /******************************************/
-	      DPRINTK("The module is not a Chronometer module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a Chronometer module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1722,159 +1876,157 @@ INT i_APCI1710_ConvertChronoValue     (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-
-INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;
-	BYTE  b_ModulNbr,b_OutputChannel,b_InputChannel,b_IOType;
+INT i_APCI1710_InsnBitsChronoDigitalIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	BYTE b_ModulNbr, b_OutputChannel, b_InputChannel, b_IOType;
 	DWORD dw_Status;
 	PBYTE pb_ChannelStatus;
 	PBYTE pb_PortValue;
-	
-	b_ModulNbr	= CR_AREF(insn->chanspec);
-    	i_ReturnValue = insn->n;
-	b_IOType   = (BYTE) data[0];
-	   
 
-	
+	b_ModulNbr = CR_AREF(insn->chanspec);
+	i_ReturnValue = insn->n;
+	b_IOType = (BYTE) data[0];
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if chronometer */
+		/* Test if chronometer */
 	   /***********************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_CHRONOMETER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_CHRONOMETER) {
 	      /***********************************/
-	      /* Test if chronometer initialised */
+			/* Test if chronometer initialised */
 	      /***********************************/
 
-	      if (devpriv->s_ModuleInfo [b_ModulNbr].
-		  s_ChronoModuleInfo.
-		  b_ChronoInit == 1)
-		 {
+			if (devpriv->s_ModuleInfo[b_ModulNbr].
+				s_ChronoModuleInfo.b_ChronoInit == 1) {
 		 /***********************************/
-		 /* Test the digital output channel */
+				/* Test the digital output channel */
 		 /***********************************/
-          switch(b_IOType)
-          {
+				switch (b_IOType) {
 
-		 case APCI1710_CHRONO_SET_CHANNELOFF:
+				case APCI1710_CHRONO_SET_CHANNELOFF:
 
-               b_OutputChannel = (BYTE) CR_CHAN(insn->chanspec);
-			  if (b_OutputChannel <= 2)
-		    {
-		    
-             outl(0,devpriv->s_BoardInfos.ui_Address + 20 + (b_OutputChannel * 4) + (64 * b_ModulNbr));
-		    } // if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
-		 else
-		    {
+					b_OutputChannel =
+						(BYTE) CR_CHAN(insn->chanspec);
+					if (b_OutputChannel <= 2) {
+
+						outl(0, devpriv->s_BoardInfos.
+							ui_Address + 20 +
+							(b_OutputChannel * 4) +
+							(64 * b_ModulNbr));
+					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					else {
 		    /****************************************/
-		    /* The selected digital output is wrong */
-		    /****************************************/
-
-                   DPRINTK("The selected digital output is wrong\n"); 
-		    i_ReturnValue = -4;
-
-		    } // if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
-
-		  break;
-
-		  case APCI1710_CHRONO_SET_CHANNELON:
-
-		 b_OutputChannel = (BYTE) CR_CHAN(insn->chanspec);
-		 if (b_OutputChannel <= 2)
-		    {
-		    
-			 outl(1,devpriv->s_BoardInfos.ui_Address + 20 + (b_OutputChannel * 4) + (64 * b_ModulNbr));
-		    } // if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
-		 else
-		    {
-		    /****************************************/
-		    /* The selected digital output is wrong */
+						/* The selected digital output is wrong */
 		    /****************************************/
 
-			DPRINTK("The selected digital output is wrong\n");
-		    i_ReturnValue = -4;
+						DPRINTK("The selected digital output is wrong\n");
+						i_ReturnValue = -4;
 
-		    } // if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
 
-			break;
-		  
-		  case APCI1710_CHRONO_READ_CHANNEL :
+					break;
+
+				case APCI1710_CHRONO_SET_CHANNELON:
+
+					b_OutputChannel =
+						(BYTE) CR_CHAN(insn->chanspec);
+					if (b_OutputChannel <= 2) {
+
+						outl(1, devpriv->s_BoardInfos.
+							ui_Address + 20 +
+							(b_OutputChannel * 4) +
+							(64 * b_ModulNbr));
+					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+					else {
+		    /****************************************/
+						/* The selected digital output is wrong */
+		    /****************************************/
+
+						DPRINTK("The selected digital output is wrong\n");
+						i_ReturnValue = -4;
+
+					}	// if ((b_OutputChannel >= 0) && (b_OutputChannel <= 2))
+
+					break;
+
+				case APCI1710_CHRONO_READ_CHANNEL:
 		 /**********************************/
-		 /* Test the digital input channel */
+					/* Test the digital input channel */
 		 /**********************************/
-		 pb_ChannelStatus = (PBYTE) &data[0];
-		 b_InputChannel = (BYTE) CR_CHAN(insn->chanspec);
-		 
-		 if (b_InputChannel <= 2)
-		    {
-		    
-			 dw_Status = inl(devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
+					pb_ChannelStatus = (PBYTE) & data[0];
+					b_InputChannel =
+						(BYTE) CR_CHAN(insn->chanspec);
 
-		    *pb_ChannelStatus = (BYTE) (((dw_Status >> b_InputChannel) & 1) ^ 1);
-		    } // if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
-		 else
-		    {
+					if (b_InputChannel <= 2) {
+
+						dw_Status =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address + 12 +
+							(64 * b_ModulNbr));
+
+						*pb_ChannelStatus =
+							(BYTE) (((dw_Status >>
+									b_InputChannel)
+								& 1) ^ 1);
+					}	// if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+					else {
 		    /***************************************/
-		    /* The selected digital input is wrong */
+						/* The selected digital input is wrong */
 		    /***************************************/
 
-			DPRINTK("The selected digital input is wrong\n");
-		    i_ReturnValue = -4;
-		    } // if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
+						DPRINTK("The selected digital input is wrong\n");
+						i_ReturnValue = -4;
+					}	// if ((b_InputChannel >= 0) && (b_InputChannel <= 2))
 
-		  break;
+					break;
 
-		  case APCI1710_CHRONO_READ_PORT :
+				case APCI1710_CHRONO_READ_PORT:
 
-			pb_PortValue = (PBYTE) &data[0];
+					pb_PortValue = (PBYTE) & data[0];
 
-			
-			dw_Status = inl(devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
+					dw_Status =
+						inl(devpriv->s_BoardInfos.
+						ui_Address + 12 +
+						(64 * b_ModulNbr));
 
-		    *pb_PortValue = (BYTE) ((dw_Status & 0x7) ^ 7);
-			  break;
-		  }
-		 }
-	      else
-		 {
+					*pb_PortValue =
+						(BYTE) ((dw_Status & 0x7) ^ 7);
+					break;
+				}
+			} else {
 		 /*******************************/
-		 /* Chronometer not initialised */
+				/* Chronometer not initialised */
 		 /*******************************/
 
-		 DPRINTK("Chronometer not initialised\n");	
-		 i_ReturnValue = -5;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("Chronometer not initialised\n");
+				i_ReturnValue = -5;
+			}
+		} else {
 	      /******************************************/
-	      /* The module is not a Chronometer module */
+			/* The module is not a Chronometer module */
 	      /******************************************/
 
-             DPRINTK("The module is not a Chronometer module\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a Chronometer module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
 }
-

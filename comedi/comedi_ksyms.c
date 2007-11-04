@@ -21,16 +21,12 @@
 
 */
 
-
 #define __NO_VERSION__
 #ifndef EXPORT_SYMTAB
 #define EXPORT_SYMTAB
 #endif
 
 #include <linux/comedidev.h>
-
-
-
 
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
@@ -78,5 +74,3 @@ EXPORT_SYMBOL(comedi_buf_read_alloc);
 EXPORT_SYMBOL(comedi_buf_memcpy_to);
 EXPORT_SYMBOL(comedi_buf_memcpy_from);
 EXPORT_SYMBOL(comedi_reset_async_buf);
-
-

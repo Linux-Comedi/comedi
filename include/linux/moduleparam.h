@@ -28,7 +28,7 @@
 #define _MODULE_PARM_STRING_ulong	"l"
 #define _MODULE_PARM_STRING_bool	"i"
 
-#endif	/* LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25) */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25) */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
@@ -47,7 +47,7 @@
 /* Support charp parameters */
 #define _MODULE_PARM_STRING_charp	"s"
 
-#endif	/* LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0) */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0) */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)) && \
 			   (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
@@ -73,7 +73,7 @@
 #define module_param_array(name, type, nump, perm)		\
 	module_param_array_named(name, name, type, nump, perm)
 
-#endif	/* (L_V_C >= K_V(2,6,0)) && (L_V_C < K_V(2,6,10)) */
+#endif /* (L_V_C >= K_V(2,6,0)) && (L_V_C < K_V(2,6,10)) */
 
 /*
  * Define a Comedi-specific macro MODULE_PARAM_ARRAY(name,type,len,perm)
@@ -100,5 +100,4 @@
 	MODULE_PARM(name, "1-" __MODULE_STRING(len) _MODULE_PARM_STRING_##type)
 #endif /* module_param_array */
 
-#endif	/* _COMPAT_MODULEPARAM_H */
-
+#endif /* _COMPAT_MODULEPARAM_H */

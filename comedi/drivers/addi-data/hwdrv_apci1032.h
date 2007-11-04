@@ -28,7 +28,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI1032_ADDRESS_RANGE  20
 //DIGITAL INPUT DEFINE   
 
-#define APCI1032_DIGITAL_IP                     0  
+#define APCI1032_DIGITAL_IP                     0
 #define APCI1032_DIGITAL_IP_INTERRUPT_MODE1     4
 #define APCI1032_DIGITAL_IP_INTERRUPT_MODE2     8
 #define APCI1032_DIGITAL_IP_IRQ                 16
@@ -40,42 +40,31 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 //Digital Input Interrupt Status
 #define APCI1032_DIGITAL_IP_INTERRUPT_STATUS    12
 
-
-
 //Digital Input Interrupt Enable Disable. 
-#define APCI1032_DIGITAL_IP_INTERRUPT_ENABLE    0x4 
+#define APCI1032_DIGITAL_IP_INTERRUPT_ENABLE    0x4
 #define APCI1032_DIGITAL_IP_INTERRUPT_DISABLE   0xFFFFFFFB
-
-
 
 //ADDIDATA Enable Disable
 
 #define ADDIDATA_ENABLE                            1
 #define ADDIDATA_DISABLE                           0
 
-
-
-
 // Hardware Layer  functions for Apci1032
-
 
 //DI
 // for di read
 
-INT i_APCI1032_ConfigDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+INT i_APCI1032_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-INT i_APCI1032_Read1DigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+INT i_APCI1032_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-INT i_APCI1032_ReadMoreDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
-
-
-
-
-
+INT i_APCI1032_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 // Interrupt functions.....
 
-static VOID v_APCI1032_Interrupt(int irq, void *d) ;
+static VOID v_APCI1032_Interrupt(int irq, void *d);
 //Reset
-INT i_APCI1032_Reset(comedi_device *dev);
+INT i_APCI1032_Reset(comedi_device * dev);

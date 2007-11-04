@@ -27,27 +27,28 @@
 #define EEPROM_SIZE	256	// 256 byte eeprom
 #define NUM_AO_CHAN	2	// boards have two analog output channels
 
-enum labpc_bustype {isa_bustype, pci_bustype, pcmcia_bustype};
-enum labpc_register_layout {labpc_plus_layout, labpc_1200_layout};
-enum transfer_type {fifo_not_empty_transfer, fifo_half_full_transfer, isa_dma_transfer};
+enum labpc_bustype { isa_bustype, pci_bustype, pcmcia_bustype };
+enum labpc_register_layout { labpc_plus_layout, labpc_1200_layout };
+enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
+		isa_dma_transfer };
 
-typedef struct labpc_board_struct{
+typedef struct labpc_board_struct {
 	const char *name;
-	int device_id;	// device id for pci and pcmcia boards
-	int ai_speed;	// maximum input speed in nanoseconds
+	int device_id;		// device id for pci and pcmcia boards
+	int ai_speed;		// maximum input speed in nanoseconds
 	enum labpc_bustype bustype;	// ISA/PCI/etc.
 	enum labpc_register_layout register_layout;	// 1200 has extra registers compared to pc+
-	int has_ao;	// has analog output true/false
+	int has_ao;		// has analog output true/false
 	const comedi_lrange *ai_range_table;
 	const int *ai_range_code;
 	const int *ai_range_is_unipolar;
-	unsigned ai_scan_up : 1;	// board can auto scan up in ai channels, not just down
-	unsigned memory_mapped_io : 1; /* uses memory mapped io instead of ioports */
-}labpc_board;
+	unsigned ai_scan_up:1;	// board can auto scan up in ai channels, not just down
+	unsigned memory_mapped_io:1;	/* uses memory mapped io instead of ioports */
+} labpc_board;
 
-typedef struct{
+typedef struct {
 	struct mite_struct *mite;	// for mite chip on pci-1200
-	volatile unsigned long long count;  /* number of data points left to be taken */
+	volatile unsigned long long count;	/* number of data points left to be taken */
 	unsigned int ao_value[NUM_AO_CHAN];	// software copy of analog output values
 	// software copys of bits written to command registers
 	volatile unsigned int command1_bits;
@@ -60,8 +61,8 @@ typedef struct{
 	volatile unsigned int status1_bits;
 	volatile unsigned int status2_bits;
 	unsigned int divisor_a0;	/* value to load into board's counter a0 (conversion pacing) for timed conversions */
-	unsigned int divisor_b0; 	/* value to load into board's counter b0 (master) for timed conversions */
-	unsigned int divisor_b1; 	/* value to load into board's counter b1 (scan pacing) for timed conversions */
+	unsigned int divisor_b0;	/* value to load into board's counter b0 (master) for timed conversions */
+	unsigned int divisor_b1;	/* value to load into board's counter b1 (scan pacing) for timed conversions */
 	unsigned int dma_chan;	// dma channel to use
 	u16 *dma_buffer;	// buffer ai will dma into
 	unsigned int dma_transfer_size;	// transfer size in bytes for current transfer
@@ -69,16 +70,15 @@ typedef struct{
 	unsigned int eeprom_data[EEPROM_SIZE];	// stores contents of board's eeprom
 	unsigned int caldac[16];	// stores settings of calibration dacs
 	// function pointers so we can use inb/outb or readb/writeb as appropriate
-	unsigned int (*read_byte)(unsigned long address);
-	void (*write_byte)(unsigned int byte, unsigned long address);
-}labpc_private;
+	unsigned int (*read_byte) (unsigned long address);
+	void (*write_byte) (unsigned int byte, unsigned long address);
+} labpc_private;
 
 #define NUM_LABPC_CS_BOARDS 2
 extern const labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
 
-int labpc_common_attach( comedi_device *dev, unsigned long iobase,
-	unsigned int irq, unsigned int dma );
-int labpc_common_detach( comedi_device *dev );
+int labpc_common_attach(comedi_device * dev, unsigned long iobase,
+	unsigned int irq, unsigned int dma);
+int labpc_common_detach(comedi_device * dev);
 
-
-#endif	/* _NI_LABPC_H */
+#endif /* _NI_LABPC_H */

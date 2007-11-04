@@ -91,14 +91,13 @@ static inline int comedi_counter_trigger_bits(unsigned int input_num, int flags)
 	static const int bits_per_channel = 3;
 	int bits = valid_bit;
 
-	if(flags & CR_EDGE)
+	if (flags & CR_EDGE)
 		bits |= edge_bit;
-	if(flags & CR_INVERT)
+	if (flags & CR_INVERT)
 		bits |= low_bit;
 	return bits << (input_num * bits_per_channel);
 }
-enum comedi_counter_actions
-{
+enum comedi_counter_actions {
 	COMEDI_INC_ACCUMULATOR,
 	COMEDI_DEC_ACCUMULATOR,
 	COMEDI_RESET_ACCUMULATOR,

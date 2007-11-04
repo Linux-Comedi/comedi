@@ -57,16 +57,17 @@
 #define rt_printk printk
 #endif
 
-int comedi_request_irq(unsigned int irq,irqreturn_t (*handler)(int,void *
-	PT_REGS_ARG),unsigned long flags,const char *device,
-	comedi_device *dev_id);
-void comedi_free_irq(unsigned int irq,comedi_device *dev_id);
+int comedi_request_irq(unsigned int irq, irqreturn_t(*handler) (int,
+		void *PT_REGS_ARG), unsigned long flags, const char *device,
+	comedi_device * dev_id);
+void comedi_free_irq(unsigned int irq, comedi_device * dev_id);
 void comedi_rt_init(void);
 void comedi_rt_cleanup(void);
-int comedi_switch_to_rt(comedi_device *dev);
-void comedi_switch_to_non_rt(comedi_device *dev);
-void comedi_rt_pend_wakeup(wait_queue_head_t *q);
-extern int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * arg2);
+int comedi_switch_to_rt(comedi_device * dev);
+void comedi_switch_to_non_rt(comedi_device * dev);
+void comedi_rt_pend_wakeup(wait_queue_head_t * q);
+extern int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1,
+	void *arg2);
 
 #else
 
@@ -82,14 +83,13 @@ extern int rt_pend_call(void (*func)(int arg1, void * arg2), int arg1, void * ar
 
 #endif
 
-
 /* Define a spin_lock_irqsave function that will work with rt or without.
  * Use inline functions instead of just macros to enforce some type checking.
  */
 #define comedi_spin_lock_irqsave(lock_ptr, flags) \
 	(flags = __comedi_spin_lock_irqsave(lock_ptr))
 
-static inline unsigned long __comedi_spin_lock_irqsave(spinlock_t *lock_ptr)
+static inline unsigned long __comedi_spin_lock_irqsave(spinlock_t * lock_ptr)
 {
 	unsigned long flags;
 
@@ -112,7 +112,8 @@ static inline unsigned long __comedi_spin_lock_irqsave(spinlock_t *lock_ptr)
 	return flags;
 }
 
-static inline void comedi_spin_unlock_irqrestore(spinlock_t *lock_ptr, unsigned long flags)
+static inline void comedi_spin_unlock_irqrestore(spinlock_t * lock_ptr,
+	unsigned long flags)
 {
 
 #if defined(CONFIG_COMEDI_RTAI)
@@ -133,7 +134,7 @@ static inline void comedi_spin_unlock_irqrestore(spinlock_t *lock_ptr, unsigned 
 }
 
 /* define a RT safe udelay */
-static inline void comedi_udelay( unsigned int usec )
+static inline void comedi_udelay(unsigned int usec)
 {
 #if defined(CONFIG_COMEDI_RTAI)
 	static const int nanosec_per_usec = 1000;
@@ -142,7 +143,7 @@ static inline void comedi_udelay( unsigned int usec )
 	static const int nanosec_per_usec = 1000;
 	rtl_delay(usec * nanosec_per_usec);
 #else
-	udelay( usec );
+	udelay(usec);
 #endif
 }
 

@@ -17,4 +17,3 @@ static inline int need_resched(void)
 #endif
 
 #endif
-

@@ -37,4 +37,4 @@ struct pnp_device_id {
 #include_next <linux/mod_devicetable.h>
 #endif
 
-#endif	// _MOD_DEVICETABLE_COMPAT_H
+#endif // _MOD_DEVICETABLE_COMPAT_H

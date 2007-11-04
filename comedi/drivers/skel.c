@@ -74,8 +74,7 @@ Configuration Options:
 
 #include <linux/comedidev.h>
 
-#include <linux/pci.h> /* for PCI devices */
-
+#include <linux/pci.h>		/* for PCI devices */
 
 /* Imaginary registers for the imaginary board */
 
@@ -89,25 +88,25 @@ Configuration Options:
  * boards in this way is optional, and completely driver-dependent.
  * Some drivers use arrays such as this, other do not.
  */
-typedef struct skel_board_struct{
+typedef struct skel_board_struct {
 	const char *name;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
-}skel_board;
+} skel_board;
 static const skel_board skel_boards[] = {
 	{
-	name:		"skel-100",
-	ai_chans:	16,
-	ai_bits:	12,
-	have_dio:	1,
-	},
+	      name:	"skel-100",
+	      ai_chans:16,
+	      ai_bits:	12,
+	      have_dio:1,
+		},
 	{
-	name:		"skel-200",
-	ai_chans:	8,
-	ai_bits:	16,
-	have_dio:	0,
-	},
+	      name:	"skel-200",
+	      ai_chans:8,
+	      ai_bits:	16,
+	      have_dio:0,
+		},
 };
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
@@ -116,10 +115,11 @@ static const skel_board skel_boards[] = {
  * upstream. */
 #define PCI_VENDOR_ID_SKEL 0xdafe
 static struct pci_device_id skel_pci_table[] __devinitdata = {
-	{ PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0 }
+	{PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{0}
 };
+
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
 /*
@@ -130,7 +130,7 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
-typedef struct{
+typedef struct {
 	int data;
 
 	/* would be useful for a PCI device */
@@ -138,7 +138,7 @@ typedef struct{
 
 	/* Used for AO readback */
 	lsampl_t ao_readback[2];
-}skel_private;
+} skel_private;
 /*
  * most drivers define the following macro to make it easy to
  * access the private structure.
@@ -151,13 +151,13 @@ typedef struct{
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int skel_attach(comedi_device *dev,comedi_devconfig *it);
-static int skel_detach(comedi_device *dev);
-static comedi_driver driver_skel={
-	driver_name:	"dummy",
-	module:		THIS_MODULE,
-	attach:		skel_attach,
-	detach:		skel_detach,
+static int skel_attach(comedi_device * dev, comedi_devconfig * it);
+static int skel_detach(comedi_device * dev);
+static comedi_driver driver_skel = {
+      driver_name:"dummy",
+      module:THIS_MODULE,
+      attach:skel_attach,
+      detach:skel_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -176,21 +176,24 @@ static comedi_driver driver_skel={
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-	board_name:	&skel_boards[0].name,
-	offset:		sizeof(skel_board),
-	num_names:	sizeof(skel_boards) / sizeof(skel_board),
+      board_name:&skel_boards[0].name,
+      offset:sizeof(skel_board),
+      num_names:sizeof(skel_boards) / sizeof(skel_board),
 };
 
-static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int skel_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static int skel_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int skel_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd);
-static int skel_ns_to_timer(unsigned int *ns,int round);
+static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int skel_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd);
+static int skel_ns_to_timer(unsigned int *ns, int round);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -198,11 +201,11 @@ static int skel_ns_to_timer(unsigned int *ns,int round);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int skel_attach(comedi_device *dev,comedi_devconfig *it)
+static int skel_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 
-	printk("comedi%d: skel: ",dev->minor);
+	printk("comedi%d: skel: ", dev->minor);
 
 /*
  * If you can probe the device to determine what device in a series
@@ -221,53 +224,53 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if(alloc_private(dev,sizeof(skel_private))<0)
+	if (alloc_private(dev, sizeof(skel_private)) < 0)
 		return -ENOMEM;
 
 /*
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if(alloc_subdevices(dev, 3)<0)
+	if (alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
-	s=dev->subdevices+0;
+	s = dev->subdevices + 0;
 	//dev->read_subdev=s;
 	/* analog input subdevice */
-	s->type=COMEDI_SUBD_AI;
+	s->type = COMEDI_SUBD_AI;
 	/* we support single-ended (ground) and differential */
-	s->subdev_flags=SDF_READABLE|SDF_GROUND|SDF_DIFF;
-	s->n_chan=thisboard->ai_chans;
-	s->maxdata=(1<<thisboard->ai_bits)-1;
-	s->range_table=&range_bipolar10;
-	s->len_chanlist=16;  /* This is the maximum chanlist length that
-				the board can handle */
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	s->n_chan = thisboard->ai_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &range_bipolar10;
+	s->len_chanlist = 16;	/* This is the maximum chanlist length that
+				   the board can handle */
 	s->insn_read = skel_ai_rinsn;
-// 	s->subdev_flags |= SDF_CMD_READ;
-// 	s->do_cmd = skel_ai_cmd;
+//      s->subdev_flags |= SDF_CMD_READ;
+//      s->do_cmd = skel_ai_cmd;
 	s->do_cmdtest = skel_ai_cmdtest;
 
-	s=dev->subdevices+1;
+	s = dev->subdevices + 1;
 	/* analog output subdevice */
-	s->type=COMEDI_SUBD_AO;
-	s->subdev_flags=SDF_WRITABLE;
-	s->n_chan=1;
-	s->maxdata=0xffff;
-	s->range_table=&range_bipolar5;
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = 1;
+	s->maxdata = 0xffff;
+	s->range_table = &range_bipolar5;
 	s->insn_write = skel_ao_winsn;
 	s->insn_read = skel_ao_rinsn;
 
-	s=dev->subdevices+2;
+	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	if(thisboard->have_dio){
-		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
-		s->n_chan=16;
-		s->maxdata=1;
-		s->range_table=&range_digital;
+	if (thisboard->have_dio) {
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->n_chan = 16;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
 		s->insn_bits = skel_dio_insn_bits;
 		s->insn_config = skel_dio_insn_config;
-	}else{
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
@@ -275,7 +278,6 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
 
 	return 0;
 }
-
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
@@ -285,9 +287,9 @@ static int skel_attach(comedi_device *dev,comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int skel_detach(comedi_device *dev)
+static int skel_detach(comedi_device * dev)
 {
-	printk("comedi%d: skel: remove\n",dev->minor);
+	printk("comedi%d: skel: remove\n", dev->minor);
 
 	return 0;
 }
@@ -296,9 +298,10 @@ static int skel_detach(comedi_device *dev)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int skel_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int n,i;
+	int n, i;
 	unsigned int d;
 	unsigned int status;
 
@@ -310,18 +313,19 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	/* don't wait for mux to settle */
 
 	/* convert n samples */
-	for(n=0;n<insn->n;n++){
+	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		//outw(0,dev->iobase + SKEL_CONVERT);
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
-		for(i=0;i<TIMEOUT;i++){
+		for (i = 0; i < TIMEOUT; i++) {
 			status = 1;
 			//status = inb(dev->iobase + SKEL_STATUS);
-			if(status)break;
+			if (status)
+				break;
 		}
-		if(i==TIMEOUT){
+		if (i == TIMEOUT) {
 			/* rt_printk() should be used instead of printk()
 			 * whenever the code can be called from real-time. */
 			rt_printk("timeout\n");
@@ -333,7 +337,7 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 		d = 0;
 
 		/* mangle the data as necessary */
-		d ^= 1<<(thisboard->ai_bits-1);
+		d ^= 1 << (thisboard->ai_bits - 1);
 
 		data[n] = d;
 	}
@@ -342,10 +346,10 @@ static int skel_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
 	return n;
 }
 
-static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd)
+static int skel_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd)
 {
-	int err=0;
+	int err = 0;
 	int tmp;
 
 	/* cmdtest tests a particular command to see if it is valid.
@@ -357,124 +361,139 @@ static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp=cmd->start_src;
+	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+	if (!cmd->start_src || tmp != cmd->start_src)
+		err++;
 
-	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
-	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
 
-	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
-	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
 
-	tmp=cmd->scan_end_src;
+	tmp = cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
 
-	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if (!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
 
-	if(err)return 1;
+	if (err)
+		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
-	if(cmd->scan_begin_src!=TRIG_TIMER &&
-	   cmd->scan_begin_src!=TRIG_EXT)err++;
-	if(cmd->convert_src!=TRIG_TIMER &&
-	   cmd->convert_src!=TRIG_EXT)err++;
-	if(cmd->stop_src!=TRIG_COUNT &&
-	   cmd->stop_src!=TRIG_NONE)err++;
+	if (cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_EXT)
+		err++;
+	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
+		err++;
+	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
+		err++;
 
-	if(err)return 2;
+	if (err)
+		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg!=0){
-		cmd->start_arg=0;
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
 		err++;
 	}
-
-#define MAX_SPEED	10000		/* in nanoseconds */
+#define MAX_SPEED	10000	/* in nanoseconds */
 #define MIN_SPEED	1000000000	/* in nanoseconds */
 
-	if(cmd->scan_begin_src==TRIG_TIMER){
-		if(cmd->scan_begin_arg<MAX_SPEED){
-			cmd->scan_begin_arg=MAX_SPEED;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		if (cmd->scan_begin_arg < MAX_SPEED) {
+			cmd->scan_begin_arg = MAX_SPEED;
 			err++;
 		}
-		if(cmd->scan_begin_arg>MIN_SPEED){
-			cmd->scan_begin_arg=MIN_SPEED;
+		if (cmd->scan_begin_arg > MIN_SPEED) {
+			cmd->scan_begin_arg = MIN_SPEED;
 			err++;
 		}
-	}else{
+	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if(cmd->scan_begin_arg>9){
-			cmd->scan_begin_arg=9;
+		if (cmd->scan_begin_arg > 9) {
+			cmd->scan_begin_arg = 9;
 			err++;
 		}
 	}
-	if(cmd->convert_src==TRIG_TIMER){
-		if(cmd->convert_arg<MAX_SPEED){
-			cmd->convert_arg=MAX_SPEED;
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (cmd->convert_arg < MAX_SPEED) {
+			cmd->convert_arg = MAX_SPEED;
 			err++;
 		}
-		if(cmd->convert_arg>MIN_SPEED){
-			cmd->convert_arg=MIN_SPEED;
+		if (cmd->convert_arg > MIN_SPEED) {
+			cmd->convert_arg = MIN_SPEED;
 			err++;
 		}
-	}else{
+	} else {
 		/* external trigger */
 		/* see above */
-		if(cmd->convert_arg>9){
-			cmd->convert_arg=9;
+		if (cmd->convert_arg > 9) {
+			cmd->convert_arg = 9;
 			err++;
 		}
 	}
 
-	if(cmd->scan_end_arg!=cmd->chanlist_len){
-		cmd->scan_end_arg=cmd->chanlist_len;
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
+		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src==TRIG_COUNT){
-		if(cmd->stop_arg>0x00ffffff){
-			cmd->stop_arg=0x00ffffff;
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (cmd->stop_arg > 0x00ffffff) {
+			cmd->stop_arg = 0x00ffffff;
 			err++;
 		}
-	}else{
+	} else {
 		/* TRIG_NONE */
-		if(cmd->stop_arg!=0){
-			cmd->stop_arg=0;
+		if (cmd->stop_arg != 0) {
+			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
-	if(err)return 3;
+	if (err)
+		return 3;
 
 	/* step 4: fix up any arguments */
 
-	if(cmd->scan_begin_src==TRIG_TIMER){
-		tmp=cmd->scan_begin_arg;
-		skel_ns_to_timer(&cmd->scan_begin_arg,cmd->flags&TRIG_ROUND_MASK);
-		if(tmp!=cmd->scan_begin_arg)err++;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		tmp = cmd->scan_begin_arg;
+		skel_ns_to_timer(&cmd->scan_begin_arg,
+			cmd->flags & TRIG_ROUND_MASK);
+		if (tmp != cmd->scan_begin_arg)
+			err++;
 	}
-	if(cmd->convert_src==TRIG_TIMER){
-		tmp=cmd->convert_arg;
-		skel_ns_to_timer(&cmd->convert_arg,cmd->flags&TRIG_ROUND_MASK);
-		if(tmp!=cmd->convert_arg)err++;
-		if(cmd->scan_begin_src==TRIG_TIMER &&
-		  cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
-			cmd->scan_begin_arg=cmd->convert_arg*cmd->scan_end_arg;
+	if (cmd->convert_src == TRIG_TIMER) {
+		tmp = cmd->convert_arg;
+		skel_ns_to_timer(&cmd->convert_arg,
+			cmd->flags & TRIG_ROUND_MASK);
+		if (tmp != cmd->convert_arg)
+			err++;
+		if (cmd->scan_begin_src == TRIG_TIMER &&
+			cmd->scan_begin_arg <
+			cmd->convert_arg * cmd->scan_end_arg) {
+			cmd->scan_begin_arg =
+				cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
 
-	if(err)return 4;
+	if (err)
+		return 4;
 
 	return 0;
 }
@@ -484,7 +503,7 @@ static int skel_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
  * convert ns nanoseconds to a counter value suitable for programming
  * the device.  Also, it should adjust ns so that it cooresponds to
  * the actual time that the device will use. */
-static int skel_ns_to_timer(unsigned int *ns,int round)
+static int skel_ns_to_timer(unsigned int *ns, int round)
 {
 	/* trivial timer */
 	/* if your timing is done through two cascaded timers, the
@@ -496,16 +515,16 @@ static int skel_ns_to_timer(unsigned int *ns,int round)
 	return *ns;
 }
 
-
-static int skel_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int skel_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-printk("skel_ao_winsn\n");
+	printk("skel_ao_winsn\n");
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
-	for(i=0;i<insn->n;i++){
+	for (i = 0; i < insn->n; i++) {
 		/* a typical programming sequence */
 		//outw(data[i],dev->iobase + SKEL_DA0 + chan);
 		devpriv->ao_readback[chan] = data[i];
@@ -517,12 +536,13 @@ printk("skel_ao_winsn\n");
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int skel_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int skel_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for(i=0;i<insn->n;i++)
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
 
 	return i;
@@ -533,16 +553,17 @@ static int skel_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *ins
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int skel_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int skel_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=2)return -EINVAL;
+	if (insn->n != 2)
+		return -EINVAL;
 
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
-	if(data[0]){
+	if (data[0]) {
 		s->state &= ~data[0];
-		s->state |= data[0]&data[1];
+		s->state |= data[0] & data[1];
 		/* Write out the new digital output lines */
 		//outw(s->state,dev->iobase + SKEL_DIO);
 	}
@@ -557,25 +578,26 @@ static int skel_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
 	return 2;
 }
 
-static int skel_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int chan=CR_CHAN(insn->chanspec);
+	int chan = CR_CHAN(insn->chanspec);
 
 	/* The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
-	switch(data[0])
-	{
+	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1<<chan;
+		s->io_bits |= 1 << chan;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1<<chan);
+		s->io_bits &= ~(1 << chan);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] =
+			(s->
+			io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -592,4 +614,3 @@ static int skel_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_skel);
-

@@ -53,10 +53,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-
 #include "APCI1710_Pwm.h"
-
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -73,54 +70,49 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                        |
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_InsnConfigPWM(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+INT i_APCI1710_InsnConfigPWM(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	BYTE b_ConfigType;
-	INT i_ReturnValue=0;
-        b_ConfigType=CR_CHAN(insn->chanspec);
-	
+	INT i_ReturnValue = 0;
+	b_ConfigType = CR_CHAN(insn->chanspec);
 
-	switch(b_ConfigType)
-	{
-	case APCI1710_PWM_INIT :
-		i_ReturnValue=i_APCI1710_InitPWM      (dev,
-				 (BYTE)CR_AREF(insn->chanspec), //  b_ModulNbr
-				 (BYTE) data[0],   //b_PWM
-				 (BYTE) data[1],   // b_ClockSelection
-				 (BYTE) data[2],   // b_TimingUnit
-				 (ULONG)data[3],   //ul_LowTiming
-				 (ULONG)data[4],   //ul_HighTiming
-				 (PULONG)&data[0], //pul_RealLowTiming
-				 (PULONG)&data[1] //pul_RealHighTiming
-                          );
+	switch (b_ConfigType) {
+	case APCI1710_PWM_INIT:
+		i_ReturnValue = i_APCI1710_InitPWM(dev, (BYTE) CR_AREF(insn->chanspec),	//  b_ModulNbr
+			(BYTE) data[0],	//b_PWM
+			(BYTE) data[1],	// b_ClockSelection
+			(BYTE) data[2],	// b_TimingUnit
+			(ULONG) data[3],	//ul_LowTiming
+			(ULONG) data[4],	//ul_HighTiming
+			(PULONG) & data[0],	//pul_RealLowTiming
+			(PULONG) & data[1]	//pul_RealHighTiming
+			);
 		break;
 
-	case APCI1710_PWM_GETINITDATA :
-		i_ReturnValue=i_APCI1710_GetPWMInitialisation (dev,
-					 (BYTE)CR_AREF(insn->chanspec), // b_ModulNbr
-					 (BYTE) data[0],   //b_PWM
-					 (PBYTE)&data[0],    //pb_TimingUnit
-					 (PULONG)&data[1], //pul_LowTiming
-					 (PULONG)&data[2], //pul_HighTiming
-					 (PBYTE) &data[3],  // pb_StartLevel
-					 (PBYTE) &data[4], // pb_StopMode
-					 (PBYTE) &data[5], // pb_StopLevel
-					 (PBYTE) &data[6], // pb_ExternGate
-					 (PBYTE) &data[7], // pb_InterruptEnable
-					 (PBYTE) &data[8]  // pb_Enable
-                              );
+	case APCI1710_PWM_GETINITDATA:
+		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (BYTE) CR_AREF(insn->chanspec),	// b_ModulNbr
+			(BYTE) data[0],	//b_PWM
+			(PBYTE) & data[0],	//pb_TimingUnit
+			(PULONG) & data[1],	//pul_LowTiming
+			(PULONG) & data[2],	//pul_HighTiming
+			(PBYTE) & data[3],	// pb_StartLevel
+			(PBYTE) & data[4],	// pb_StopMode
+			(PBYTE) & data[5],	// pb_StopLevel
+			(PBYTE) & data[6],	// pb_ExternGate
+			(PBYTE) & data[7],	// pb_InterruptEnable
+			(PBYTE) & data[8]	// pb_Enable
+			);
 		break;
 
 	default:
 		printk(" Config Parameter Wrong\n");
 	}
 
-	if(i_ReturnValue>=0) i_ReturnValue =insn->n;
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
 	return (i_ReturnValue);
 }
-
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -187,733 +179,1265 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_InitPWM      (comedi_device *dev,
-				 BYTE     b_ModulNbr,
-				 BYTE    b_PWM,
-				 BYTE     b_ClockSelection,
-				 BYTE     b_TimingUnit,
-				 ULONG   ul_LowTiming,
-				 ULONG   ul_HighTiming,
-				 PULONG pul_RealLowTiming,
-				 PULONG pul_RealHighTiming)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_InitPWM(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_PWM,
+	BYTE b_ClockSelection,
+	BYTE b_TimingUnit,
+	ULONG ul_LowTiming,
+	ULONG ul_HighTiming,
+	PULONG pul_RealLowTiming, PULONG pul_RealHighTiming)
+{
+	INT i_ReturnValue = 0;
 	ULONG ul_LowTimerValue = 0;
 	ULONG ul_HighTimerValue = 0;
 	DWORD dw_Command;
 	double d_RealLowTiming = 0;
 	double d_RealHighTiming = 0;
-	
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***************/
-	   /* Test if PWM */
+		/* Test if PWM */
 	   /***************/
 
-	   if ((devpriv->
-		s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_PWM)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_PWM) {
 	      /**************************/
-	      /* Test the PWM selection */
+			/* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM <= 1)
-		 {
+			if (b_PWM <= 1) {
 		 /******************/
-		 /* Test the clock */
+				/* Test the clock */
 		 /******************/
 
-		 if ((b_ClockSelection == APCI1710_30MHZ) ||
-		     (b_ClockSelection == APCI1710_33MHZ) ||
-		     (b_ClockSelection == APCI1710_40MHZ))
-		    {
+				if ((b_ClockSelection == APCI1710_30MHZ) ||
+					(b_ClockSelection == APCI1710_33MHZ) ||
+					(b_ClockSelection == APCI1710_40MHZ)) {
 		    /************************/
-		    /* Test the timing unit */
+					/* Test the timing unit */
 		    /************************/
 
-		    if (b_TimingUnit <= 4)
-		       {
+					if (b_TimingUnit <= 4) {
 		       /*********************************/
-		       /* Test the low timing selection */
+						/* Test the low timing selection */
 		       /*********************************/
 
-		       if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_LowTiming >= 266) && (ul_LowTiming <= 0xFFFFFFFFUL)) ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 571230650UL))  ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 571230UL))     ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 571UL))        ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 9UL))          ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_LowTiming >= 242) && (ul_LowTiming <= 0xFFFFFFFFUL)) ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 519691043UL))  ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 519691UL))     ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 520UL))        ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 8UL))          ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_LowTiming >= 200) && (ul_LowTiming <= 0xFFFFFFFFUL)) ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 429496729UL))  ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 429496UL))     ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 429UL))        ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 7UL)))
-			  {
+						if (((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 0)
+								&& (ul_LowTiming
+									>= 266)
+								&& (ul_LowTiming
+									<=
+									0xFFFFFFFFUL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 1)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									571230650UL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 2)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									571230UL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 3)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									571UL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 4)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<= 9UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 0)
+								&& (ul_LowTiming
+									>= 242)
+								&& (ul_LowTiming
+									<=
+									0xFFFFFFFFUL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 1)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									519691043UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 2)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									519691UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 3)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									520UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 4)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<= 8UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 0)
+								&& (ul_LowTiming
+									>= 200)
+								&& (ul_LowTiming
+									<=
+									0xFFFFFFFFUL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 1)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									429496729UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 2)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									429496UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 3)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									429UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 4)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									7UL))) {
 			  /**********************************/
-			  /* Test the High timing selection */
+							/* Test the High timing selection */
 			  /**********************************/
 
-			  if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 266) && (ul_HighTiming <= 0xFFFFFFFFUL)) ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 571230650UL))  ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 571230UL))     ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 571UL))        ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 9UL))          ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 242) && (ul_HighTiming <= 0xFFFFFFFFUL)) ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 519691043UL))  ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 519691UL))     ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 520UL))        ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 8UL))          ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 200) && (ul_HighTiming <= 0xFFFFFFFFUL)) ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 429496729UL))  ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 429496UL))     ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 429UL))        ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 7UL)))
-			     {
+							if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 266) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230650UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 9UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 242) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691043UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 520UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 8UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 200) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496729UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 7UL))) {
 			     /**************************/
-			     /* Test the board version */
+								/* Test the board version */
 			     /**************************/
 
-			     if (((b_ClockSelection == APCI1710_40MHZ) && (devpriv->
-									   s_BoardInfos.
-									   b_BoardVersion > 0)) ||
-				 (b_ClockSelection != APCI1710_40MHZ))
-				{
+								if (((b_ClockSelection == APCI1710_40MHZ) && (devpriv->s_BoardInfos.b_BoardVersion > 0)) || (b_ClockSelection != APCI1710_40MHZ)) {
 
 				/************************************/
-				/* Calculate the low division fator */
+									/* Calculate the low division fator */
 				/************************************/
 
-				fpu_begin ();
-				
-				switch (b_TimingUnit)
-				   {
+									fpu_begin
+										();
+
+									switch (b_TimingUnit) {
 				   /******/
-				   /* ns */
-				   /******/
-
-				   case 0:
-					
-					   /******************/
-					   /* Timer 0 factor */
-					   /******************/
-
-					   ul_LowTimerValue = (ULONG) (ul_LowTiming * (0.00025 * b_ClockSelection));
-
-					   /*******************/
-					   /* Round the value */
-					   /*******************/
-
-					   if ((double) ((double) ul_LowTiming * (0.00025 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					      {
-					      ul_LowTimerValue = ul_LowTimerValue + 1;
-					      }
-
-					   /*****************************/
-					   /* Calculate the real timing */
-					   /*****************************/
-
-					   *pul_RealLowTiming = (ULONG) (ul_LowTimerValue / (0.00025 * (double) b_ClockSelection));
-					   d_RealLowTiming = (double) ul_LowTimerValue / (0.00025 * (double) b_ClockSelection);
-
-					   if ((double) ((double) ul_LowTimerValue / (0.00025 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealLowTiming + 0.5))
-					      {
-					      *pul_RealLowTiming = *pul_RealLowTiming + 1;
-					      }
-
-					   ul_LowTiming     = ul_LowTiming - 1;
-					   ul_LowTimerValue = ul_LowTimerValue - 2;
-
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					      }
-					
-
-					break;
-
-				   /******/
-				   /* æs */
+										/* ns */
 				   /******/
 
-				   case 1:
-					
+									case 0:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_LowTimerValue = (ULONG) (ul_LowTiming * (0.25 * b_ClockSelection));
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(ul_LowTiming
+											*
+											(0.00025 * b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_LowTiming * (0.25 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					      {
-					      ul_LowTimerValue = ul_LowTimerValue + 1;
-					      }
+										if ((double)((double)ul_LowTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+											ul_LowTimerValue
+												=
+												ul_LowTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealLowTiming = (ULONG) (ul_LowTimerValue / (0.25 * (double) b_ClockSelection));
-					   d_RealLowTiming    = (double) ul_LowTimerValue / ((double) 0.25 * (double) b_ClockSelection);
+										*pul_RealLowTiming
+											=
+											(ULONG)
+											(ul_LowTimerValue
+											/
+											(0.00025 * (double)b_ClockSelection));
+										d_RealLowTiming
+											=
+											(double)
+											ul_LowTimerValue
+											/
+											(0.00025
+											*
+											(double)
+											b_ClockSelection);
 
-					   if ((double) ((double) ul_LowTimerValue / (0.25 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealLowTiming + 0.5))
-					      {
-					      *pul_RealLowTiming = *pul_RealLowTiming + 1;
-					      }
+										if ((double)((double)ul_LowTimerValue / (0.00025 * (double)b_ClockSelection)) >= (double)((double)*pul_RealLowTiming + 0.5)) {
+											*pul_RealLowTiming
+												=
+												*pul_RealLowTiming
+												+
+												1;
+										}
 
-					   ul_LowTiming     = ul_LowTiming - 1;
-					   ul_LowTimerValue = ul_LowTimerValue - 2;
+										ul_LowTiming
+											=
+											ul_LowTiming
+											-
+											1;
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					      }
-					
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_LowTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_LowTimerValue)
+												*
+												1.007752288);
+										}
 
-					break;
+										break;
 
 				   /******/
-				   /* ms */
+										/* æs */
 				   /******/
 
-				   case 2:
-					
+									case 1:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_LowTimerValue = ul_LowTiming * (250.0 * b_ClockSelection);
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(ul_LowTiming
+											*
+											(0.25 * b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_LowTiming * (250.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					      {
-					      ul_LowTimerValue = ul_LowTimerValue + 1;
-					      }
+										if ((double)((double)ul_LowTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+											ul_LowTimerValue
+												=
+												ul_LowTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealLowTiming = (ULONG) (ul_LowTimerValue / (250.0 * (double) b_ClockSelection));
-					   d_RealLowTiming    = (double) ul_LowTimerValue / (250.0 * (double) b_ClockSelection);
+										*pul_RealLowTiming
+											=
+											(ULONG)
+											(ul_LowTimerValue
+											/
+											(0.25 * (double)b_ClockSelection));
+										d_RealLowTiming
+											=
+											(double)
+											ul_LowTimerValue
+											/
+											(
+											(double)
+											0.25
+											*
+											(double)
+											b_ClockSelection);
 
-					   if ((double) ((double) ul_LowTimerValue / (250.0 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealLowTiming + 0.5))
-					      {
-					      *pul_RealLowTiming = *pul_RealLowTiming + 1;
-					      }
+										if ((double)((double)ul_LowTimerValue / (0.25 * (double)b_ClockSelection)) >= (double)((double)*pul_RealLowTiming + 0.5)) {
+											*pul_RealLowTiming
+												=
+												*pul_RealLowTiming
+												+
+												1;
+										}
 
-					   ul_LowTiming     = ul_LowTiming - 1;
-					   ul_LowTimerValue = ul_LowTimerValue - 2;
+										ul_LowTiming
+											=
+											ul_LowTiming
+											-
+											1;
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					      }
-					
-					break;
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_LowTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_LowTimerValue)
+												*
+												1.007752288);
+										}
+
+										break;
+
+				   /******/
+										/* ms */
+				   /******/
+
+									case 2:
+
+					   /******************/
+										/* Timer 0 factor */
+					   /******************/
+
+										ul_LowTimerValue
+											=
+											ul_LowTiming
+											*
+											(250.0
+											*
+											b_ClockSelection);
+
+					   /*******************/
+										/* Round the value */
+					   /*******************/
+
+										if ((double)((double)ul_LowTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+											ul_LowTimerValue
+												=
+												ul_LowTimerValue
+												+
+												1;
+										}
+
+					   /*****************************/
+										/* Calculate the real timing */
+					   /*****************************/
+
+										*pul_RealLowTiming
+											=
+											(ULONG)
+											(ul_LowTimerValue
+											/
+											(250.0 * (double)b_ClockSelection));
+										d_RealLowTiming
+											=
+											(double)
+											ul_LowTimerValue
+											/
+											(250.0
+											*
+											(double)
+											b_ClockSelection);
+
+										if ((double)((double)ul_LowTimerValue / (250.0 * (double)b_ClockSelection)) >= (double)((double)*pul_RealLowTiming + 0.5)) {
+											*pul_RealLowTiming
+												=
+												*pul_RealLowTiming
+												+
+												1;
+										}
+
+										ul_LowTiming
+											=
+											ul_LowTiming
+											-
+											1;
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											-
+											2;
+
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_LowTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_LowTimerValue)
+												*
+												1.007752288);
+										}
+
+										break;
 
 				   /*****/
-				   /* s */
+										/* s */
 				   /*****/
 
-				   case 3:
+									case 3:
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_LowTimerValue = (ULONG) (ul_LowTiming * (250000.0 * b_ClockSelection));
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(ul_LowTiming
+											*
+											(250000.0
+												*
+												b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_LowTiming * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					      {
-					      ul_LowTimerValue = ul_LowTimerValue + 1;
-					      }
+										if ((double)((double)ul_LowTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+											ul_LowTimerValue
+												=
+												ul_LowTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealLowTiming = (ULONG) (ul_LowTimerValue / (250000.0 * (double) b_ClockSelection));
-					   d_RealLowTiming    = (double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection);
+										*pul_RealLowTiming
+											=
+											(ULONG)
+											(ul_LowTimerValue
+											/
+											(250000.0
+												*
+												(double)
+												b_ClockSelection));
+										d_RealLowTiming
+											=
+											(double)
+											ul_LowTimerValue
+											/
+											(250000.0
+											*
+											(double)
+											b_ClockSelection);
 
-					   if ((double) ((double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealLowTiming + 0.5))
-					      {
-					      *pul_RealLowTiming = *pul_RealLowTiming + 1;
-					      }
+										if ((double)((double)ul_LowTimerValue / (250000.0 * (double)b_ClockSelection)) >= (double)((double)*pul_RealLowTiming + 0.5)) {
+											*pul_RealLowTiming
+												=
+												*pul_RealLowTiming
+												+
+												1;
+										}
 
-					   ul_LowTiming     = ul_LowTiming - 1;
-					   ul_LowTimerValue = ul_LowTimerValue - 2;
+										ul_LowTiming
+											=
+											ul_LowTiming
+											-
+											1;
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					      }
-					
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_LowTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_LowTimerValue)
+												*
+												1.007752288);
+										}
 
-					break;
+										break;
 
 				   /******/
-				   /* mn */
+										/* mn */
 				   /******/
 
-				   case 4:
-					
+									case 4:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_LowTimerValue = (ULONG) ((ul_LowTiming * 60) * (250000.0 * b_ClockSelection));
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(
+											(ul_LowTiming
+												*
+												60)
+											*
+											(250000.0
+												*
+												b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) (ul_LowTiming * 60.0) * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					      {
-					      ul_LowTimerValue = ul_LowTimerValue + 1;
-					      }
+										if ((double)((double)(ul_LowTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+											ul_LowTimerValue
+												=
+												ul_LowTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealLowTiming = (ULONG) (ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) / 60;
-					   d_RealLowTiming    = ((double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0;
+										*pul_RealLowTiming
+											=
+											(ULONG)
+											(ul_LowTimerValue
+											/
+											(250000.0
+												*
+												(double)
+												b_ClockSelection))
+											/
+											60;
+										d_RealLowTiming
+											=
+											(
+											(double)
+											ul_LowTimerValue
+											/
+											(250000.0
+												*
+												(double)
+												b_ClockSelection))
+											/
+											60.0;
 
-					   if ((double) (((double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0) >= (double) ((double) *pul_RealLowTiming + 0.5))
-					      {
-					      *pul_RealLowTiming = *pul_RealLowTiming + 1;
-					      }
+										if ((double)(((double)ul_LowTimerValue / (250000.0 * (double)b_ClockSelection)) / 60.0) >= (double)((double)*pul_RealLowTiming + 0.5)) {
+											*pul_RealLowTiming
+												=
+												*pul_RealLowTiming
+												+
+												1;
+										}
 
-					   ul_LowTiming     = ul_LowTiming - 1;
-					   ul_LowTimerValue = ul_LowTimerValue - 2;
+										ul_LowTiming
+											=
+											ul_LowTiming
+											-
+											1;
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					      }
-					
-					break;
-				   }
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_LowTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_LowTimerValue)
+												*
+												1.007752288);
+										}
+
+										break;
+									}
 
 				/*************************************/
-				/* Calculate the high division fator */
+									/* Calculate the high division fator */
 				/*************************************/
 
-				switch (b_TimingUnit)
-				   {
+									switch (b_TimingUnit) {
 				   /******/
-				   /* ns */
-				   /******/
-
-				   case 0:
-					
-					   /******************/
-					   /* Timer 0 factor */
-					   /******************/
-
-					   ul_HighTimerValue = (ULONG) (ul_HighTiming * (0.00025 * b_ClockSelection));
-
-					   /*******************/
-					   /* Round the value */
-					   /*******************/
-
-					   if ((double) ((double) ul_HighTiming * (0.00025 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					      {
-					      ul_HighTimerValue = ul_HighTimerValue + 1;
-					      }
-
-					   /*****************************/
-					   /* Calculate the real timing */
-					   /*****************************/
-
-					   *pul_RealHighTiming = (ULONG) (ul_HighTimerValue / (0.00025 * (double) b_ClockSelection));
-					   d_RealHighTiming    = (double) ul_HighTimerValue / (0.00025 * (double) b_ClockSelection);
-
-					   if ((double) ((double) ul_HighTimerValue / (0.00025 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealHighTiming + 0.5))
-					      {
-					      *pul_RealHighTiming = *pul_RealHighTiming + 1;
-					      }
-
-					   ul_HighTiming     = ul_HighTiming - 1;
-					   ul_HighTimerValue = ul_HighTimerValue - 2;
-
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					      }
-					
-
-					break;
-
-				   /******/
-				   /* æs */
+										/* ns */
 				   /******/
 
-				   case 1:
-					
+									case 0:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_HighTimerValue = (ULONG) (ul_HighTiming * (0.25 * b_ClockSelection));
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(ul_HighTiming
+											*
+											(0.00025 * b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_HighTiming * (0.25 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					      {
-					      ul_HighTimerValue = ul_HighTimerValue + 1;
-					      }
+										if ((double)((double)ul_HighTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+											ul_HighTimerValue
+												=
+												ul_HighTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealHighTiming = (ULONG) (ul_HighTimerValue / (0.25 * (double) b_ClockSelection));
-					   d_RealHighTiming    = (double) ul_HighTimerValue / ((double) 0.25 * (double) b_ClockSelection);
+										*pul_RealHighTiming
+											=
+											(ULONG)
+											(ul_HighTimerValue
+											/
+											(0.00025 * (double)b_ClockSelection));
+										d_RealHighTiming
+											=
+											(double)
+											ul_HighTimerValue
+											/
+											(0.00025
+											*
+											(double)
+											b_ClockSelection);
 
-					   if ((double) ((double) ul_HighTimerValue / (0.25 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealHighTiming + 0.5))
-					      {
-					      *pul_RealHighTiming = *pul_RealHighTiming + 1;
-					      }
+										if ((double)((double)ul_HighTimerValue / (0.00025 * (double)b_ClockSelection)) >= (double)((double)*pul_RealHighTiming + 0.5)) {
+											*pul_RealHighTiming
+												=
+												*pul_RealHighTiming
+												+
+												1;
+										}
 
-					   ul_HighTiming     = ul_HighTiming - 1;
-					   ul_HighTimerValue = ul_HighTimerValue - 2;
+										ul_HighTiming
+											=
+											ul_HighTiming
+											-
+											1;
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					      }
-					
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_HighTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_HighTimerValue)
+												*
+												1.007752288);
+										}
 
-					break;
+										break;
 
 				   /******/
-				   /* ms */
+										/* æs */
 				   /******/
 
-				   case 2:
-					
+									case 1:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_HighTimerValue = ul_HighTiming * (250.0 * b_ClockSelection);
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(ul_HighTiming
+											*
+											(0.25 * b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_HighTiming * (250.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					      {
-					      ul_HighTimerValue = ul_HighTimerValue + 1;
-					      }
+										if ((double)((double)ul_HighTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+											ul_HighTimerValue
+												=
+												ul_HighTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealHighTiming = (ULONG) (ul_HighTimerValue / (250.0 * (double) b_ClockSelection));
-					   d_RealHighTiming    = (double) ul_HighTimerValue / (250.0 * (double) b_ClockSelection);
+										*pul_RealHighTiming
+											=
+											(ULONG)
+											(ul_HighTimerValue
+											/
+											(0.25 * (double)b_ClockSelection));
+										d_RealHighTiming
+											=
+											(double)
+											ul_HighTimerValue
+											/
+											(
+											(double)
+											0.25
+											*
+											(double)
+											b_ClockSelection);
 
-					   if ((double) ((double) ul_HighTimerValue / (250.0 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealHighTiming + 0.5))
-					      {
-					      *pul_RealHighTiming = *pul_RealHighTiming + 1;
-					      }
+										if ((double)((double)ul_HighTimerValue / (0.25 * (double)b_ClockSelection)) >= (double)((double)*pul_RealHighTiming + 0.5)) {
+											*pul_RealHighTiming
+												=
+												*pul_RealHighTiming
+												+
+												1;
+										}
 
-					   ul_HighTiming     = ul_HighTiming - 1;
-					   ul_HighTimerValue = ul_HighTimerValue - 2;
+										ul_HighTiming
+											=
+											ul_HighTiming
+											-
+											1;
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					      }
-					
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_HighTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_HighTimerValue)
+												*
+												1.007752288);
+										}
 
-					break;
+										break;
+
+				   /******/
+										/* ms */
+				   /******/
+
+									case 2:
+
+					   /******************/
+										/* Timer 0 factor */
+					   /******************/
+
+										ul_HighTimerValue
+											=
+											ul_HighTiming
+											*
+											(250.0
+											*
+											b_ClockSelection);
+
+					   /*******************/
+										/* Round the value */
+					   /*******************/
+
+										if ((double)((double)ul_HighTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+											ul_HighTimerValue
+												=
+												ul_HighTimerValue
+												+
+												1;
+										}
+
+					   /*****************************/
+										/* Calculate the real timing */
+					   /*****************************/
+
+										*pul_RealHighTiming
+											=
+											(ULONG)
+											(ul_HighTimerValue
+											/
+											(250.0 * (double)b_ClockSelection));
+										d_RealHighTiming
+											=
+											(double)
+											ul_HighTimerValue
+											/
+											(250.0
+											*
+											(double)
+											b_ClockSelection);
+
+										if ((double)((double)ul_HighTimerValue / (250.0 * (double)b_ClockSelection)) >= (double)((double)*pul_RealHighTiming + 0.5)) {
+											*pul_RealHighTiming
+												=
+												*pul_RealHighTiming
+												+
+												1;
+										}
+
+										ul_HighTiming
+											=
+											ul_HighTiming
+											-
+											1;
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											-
+											2;
+
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_HighTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_HighTimerValue)
+												*
+												1.007752288);
+										}
+
+										break;
 
 				   /*****/
-				   /* s */
+										/* s */
 				   /*****/
 
-				   case 3:
-					
+									case 3:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_HighTimerValue = (ULONG) (ul_HighTiming * (250000.0 * b_ClockSelection));
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(ul_HighTiming
+											*
+											(250000.0
+												*
+												b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) ul_HighTiming * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					      {
-					      ul_HighTimerValue = ul_HighTimerValue + 1;
-					      }
+										if ((double)((double)ul_HighTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+											ul_HighTimerValue
+												=
+												ul_HighTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealHighTiming = (ULONG) (ul_HighTimerValue / (250000.0 * (double) b_ClockSelection));
-					   d_RealHighTiming    = (double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection);
+										*pul_RealHighTiming
+											=
+											(ULONG)
+											(ul_HighTimerValue
+											/
+											(250000.0
+												*
+												(double)
+												b_ClockSelection));
+										d_RealHighTiming
+											=
+											(double)
+											ul_HighTimerValue
+											/
+											(250000.0
+											*
+											(double)
+											b_ClockSelection);
 
-					   if ((double) ((double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) >= (double) ((double) *pul_RealHighTiming + 0.5))
-					      {
-					      *pul_RealHighTiming = *pul_RealHighTiming + 1;
-					      }
+										if ((double)((double)ul_HighTimerValue / (250000.0 * (double)b_ClockSelection)) >= (double)((double)*pul_RealHighTiming + 0.5)) {
+											*pul_RealHighTiming
+												=
+												*pul_RealHighTiming
+												+
+												1;
+										}
 
-					   ul_HighTiming     = ul_HighTiming - 1;
-					   ul_HighTimerValue = ul_HighTimerValue - 2;
+										ul_HighTiming
+											=
+											ul_HighTiming
+											-
+											1;
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					      }
-					
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_HighTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_HighTimerValue)
+												*
+												1.007752288);
+										}
 
-					break;
+										break;
 
 				   /******/
-				   /* mn */
+										/* mn */
 				   /******/
 
-				   case 4:
-					
+									case 4:
+
 					   /******************/
-					   /* Timer 0 factor */
+										/* Timer 0 factor */
 					   /******************/
 
-					   ul_HighTimerValue = (ULONG) ((ul_HighTiming * 60) * (250000.0 * b_ClockSelection));
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(
+											(ul_HighTiming
+												*
+												60)
+											*
+											(250000.0
+												*
+												b_ClockSelection));
 
 					   /*******************/
-					   /* Round the value */
+										/* Round the value */
 					   /*******************/
 
-					   if ((double) ((double) (ul_HighTiming * 60.0) * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					      {
-					      ul_HighTimerValue = ul_HighTimerValue + 1;
-					      }
+										if ((double)((double)(ul_HighTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+											ul_HighTimerValue
+												=
+												ul_HighTimerValue
+												+
+												1;
+										}
 
 					   /*****************************/
-					   /* Calculate the real timing */
+										/* Calculate the real timing */
 					   /*****************************/
 
-					   *pul_RealHighTiming = (ULONG) (ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) / 60;
-					   d_RealHighTiming    = ((double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0;
+										*pul_RealHighTiming
+											=
+											(ULONG)
+											(ul_HighTimerValue
+											/
+											(250000.0
+												*
+												(double)
+												b_ClockSelection))
+											/
+											60;
+										d_RealHighTiming
+											=
+											(
+											(double)
+											ul_HighTimerValue
+											/
+											(250000.0
+												*
+												(double)
+												b_ClockSelection))
+											/
+											60.0;
 
-					   if ((double) (((double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0) >= (double) ((double) *pul_RealHighTiming + 0.5))
-					      {
-					      *pul_RealHighTiming = *pul_RealHighTiming + 1;
-					      }
+										if ((double)(((double)ul_HighTimerValue / (250000.0 * (double)b_ClockSelection)) / 60.0) >= (double)((double)*pul_RealHighTiming + 0.5)) {
+											*pul_RealHighTiming
+												=
+												*pul_RealHighTiming
+												+
+												1;
+										}
 
-					   ul_HighTiming     = ul_HighTiming - 1;
-					   ul_HighTimerValue = ul_HighTimerValue - 2;
+										ul_HighTiming
+											=
+											ul_HighTiming
+											-
+											1;
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											-
+											2;
 
-					   if (b_ClockSelection != APCI1710_40MHZ)
-					      {
-					      ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					      }
-					
-					break;
-				   }
+										if (b_ClockSelection != APCI1710_40MHZ) {
+											ul_HighTimerValue
+												=
+												(ULONG)
+												(
+												(double)
+												(ul_HighTimerValue)
+												*
+												1.007752288);
+										}
 
-				fpu_end ();
+										break;
+									}
+
+									fpu_end();
 				/****************************/
-				/* Save the clock selection */
+									/* Save the clock selection */
 				/****************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				b_ClockSelection = b_ClockSelection;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										b_ClockSelection
+										=
+										b_ClockSelection;
 
 				/************************/
-				/* Save the timing unit */
+									/* Save the timing unit */
 				/************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				s_PWMInfo [b_PWM].
-				b_TimingUnit = b_TimingUnit;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										s_PWMInfo
+										[b_PWM].
+										b_TimingUnit
+										=
+										b_TimingUnit;
 
 				/****************************/
-				/* Save the low base timing */
+									/* Save the low base timing */
 				/****************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				s_PWMInfo [b_PWM].
-				d_LowTiming = d_RealLowTiming;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										s_PWMInfo
+										[b_PWM].
+										d_LowTiming
+										=
+										d_RealLowTiming;
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				s_PWMInfo [b_PWM].
-				ul_RealLowTiming = *pul_RealLowTiming;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										s_PWMInfo
+										[b_PWM].
+										ul_RealLowTiming
+										=
+										*pul_RealLowTiming;
 
 				/****************************/
-				/* Save the high base timing */
+									/* Save the high base timing */
 				/****************************/
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				s_PWMInfo [b_PWM].
-				d_HighTiming = d_RealHighTiming;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										s_PWMInfo
+										[b_PWM].
+										d_HighTiming
+										=
+										d_RealHighTiming;
 
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				s_PWMInfo [b_PWM].
-				ul_RealHighTiming = *pul_RealHighTiming;
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										s_PWMInfo
+										[b_PWM].
+										ul_RealHighTiming
+										=
+										*pul_RealHighTiming;
 
 				/************************/
-				/* Write the low timing */
+									/* Write the low timing */
 				/************************/
 
-                         outl(ul_LowTimerValue,devpriv->s_BoardInfos.
-					ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
+									outl(ul_LowTimerValue, devpriv->s_BoardInfos.ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
 
 				/*************************/
-				/* Write the high timing */
+									/* Write the high timing */
 				/*************************/
 
-                        outl(ul_HighTimerValue,devpriv->s_BoardInfos.
-					ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
+									outl(ul_HighTimerValue, devpriv->s_BoardInfos.ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
 
 				/***************************/
-				/* Set the clock selection */
+									/* Set the clock selection */
 				/***************************/
 
-                         dw_Command=inl(devpriv->s_BoardInfos.
-				       ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+									dw_Command
+										=
+										inl
+										(devpriv->
+										s_BoardInfos.
+										ui_Address
+										+
+										8
+										+
+										(20 * b_PWM) + (64 * b_ModulNbr));
 
-				dw_Command = dw_Command & 0x7F;
+									dw_Command
+										=
+										dw_Command
+										&
+										0x7F;
 
-				if (b_ClockSelection == APCI1710_40MHZ)
-				   {
-				   dw_Command = dw_Command | 0x80;
-				   }
+									if (b_ClockSelection == APCI1710_40MHZ) {
+										dw_Command
+											=
+											dw_Command
+											|
+											0x80;
+									}
 
 				/***************************/
-				/* Set the clock selection */
+									/* Set the clock selection */
 				/***************************/
 
-				  outl(dw_Command,devpriv->s_BoardInfos.
-					ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+									outl(dw_Command, devpriv->s_BoardInfos.ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
 
 				/*************/
-				/* PWM init. */
+									/* PWM init. */
 				/*************/
-				devpriv->
-				s_ModuleInfo [b_ModulNbr].
-				s_PWMModuleInfo.
-				s_PWMInfo [b_PWM].
-				b_PWMInit = 1;
-				}
-			     else
-				{
+									devpriv->
+										s_ModuleInfo
+										[b_ModulNbr].
+										s_PWMModuleInfo.
+										s_PWMInfo
+										[b_PWM].
+										b_PWMInit
+										=
+										1;
+								} else {
 				/***************************************************/
-				/* You can not used the 40MHz clock selection with */
-				/* this board                                      */
+									/* You can not used the 40MHz clock selection with */
+									/* this board                                      */
 				/***************************************************/
-                        DPRINTK("You can not used the 40MHz clock selection with this board\n");
-				i_ReturnValue = -9;
-				}
-			     }
-			  else
-			     {
+									DPRINTK("You can not used the 40MHz clock selection with this board\n");
+									i_ReturnValue
+										=
+										-9;
+								}
+							} else {
 			     /***************************************/
-			     /* High base timing selection is wrong */
+								/* High base timing selection is wrong */
 			     /***************************************/
-				 DPRINTK("High base timing selection is wrong\n");
-			     i_ReturnValue = -8;
-			     }
-			  }
-		       else
-			  {
+								DPRINTK("High base timing selection is wrong\n");
+								i_ReturnValue =
+									-8;
+							}
+						} else {
 			  /**************************************/
-			  /* Low base timing selection is wrong */
+							/* Low base timing selection is wrong */
 			  /**************************************/
-			  DPRINTK("Low base timing selection is wrong\n");
-			  i_ReturnValue = -7;
-			  }
-		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-		    else
-		       {
+							DPRINTK("Low base timing selection is wrong\n");
+							i_ReturnValue = -7;
+						}
+					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					else {
 		       /**********************************/
-		       /* Timing unit selection is wrong */
+						/* Timing unit selection is wrong */
 		       /**********************************/
-			   DPRINTK("Timing unit selection is wrong\n");
-		       i_ReturnValue = -6;
-		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-		    } // if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ))
-		 else
-		    {
+						DPRINTK("Timing unit selection is wrong\n");
+						i_ReturnValue = -6;
+					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+				}	// if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ))
+				else {
 		    /*******************************/
-		    /* The selected clock is wrong */
+					/* The selected clock is wrong */
 		    /*******************************/
-			DPRINTK("The selected clock is wrong\n"); 
-		    i_ReturnValue = -5;
-		    } // if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ))
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      else
-		 {
+					DPRINTK("The selected clock is wrong\n");
+					i_ReturnValue = -5;
+				}	// if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ))
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			else {
 		 /******************************/
-		 /* Tor PWM selection is wrong */
+				/* Tor PWM selection is wrong */
 		 /******************************/
-		 DPRINTK("Tor PWM selection is wrong\n");	
-		 i_ReturnValue = -4;
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      }
-	   else
-	      {
+				DPRINTK("Tor PWM selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+		} else {
 	      /**********************************/
-	      /* The module is not a PWM module */
+			/* The module is not a PWM module */
 	      /**********************************/
-	      DPRINTK("The module is not a PWM module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a PWM module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1010,143 +1534,139 @@ INT   i_APCI1710_InitPWM      (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT  i_APCI1710_GetPWMInitialisation (comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 BYTE     b_PWM,
-					 PBYTE   pb_TimingUnit,
-					 PULONG pul_LowTiming,
-					 PULONG pul_HighTiming,
-					 PBYTE   pb_StartLevel,
-					 PBYTE   pb_StopMode,
-					 PBYTE   pb_StopLevel,
-					 PBYTE   pb_ExternGate,
-					 PBYTE   pb_InterruptEnable,
-					 PBYTE   pb_Enable)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_GetPWMInitialisation(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_PWM,
+	PBYTE pb_TimingUnit,
+	PULONG pul_LowTiming,
+	PULONG pul_HighTiming,
+	PBYTE pb_StartLevel,
+	PBYTE pb_StopMode,
+	PBYTE pb_StopLevel,
+	PBYTE pb_ExternGate, PBYTE pb_InterruptEnable, PBYTE pb_Enable)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_Command;
 
-		
-	
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***************/
-	   /* Test if PWM */
+		/* Test if PWM */
 	   /***************/
 
-	   if ((devpriv->
-		s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_PWM)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_PWM) {
 	      /**************************/
-	      /* Test the PWM selection */
+			/* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM <= 1)
-		 {
+			if (b_PWM <= 1) {
 		 /***************************/
-		 /* Test if PWM initialised */
+				/* Test if PWM initialised */
 		 /***************************/
 
-                  dw_Status=inl(devpriv->s_BoardInfos.
-			ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
+				dw_Status = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (20 * b_PWM) +
+					(64 * b_ModulNbr));
 
-		 if (dw_Status & 0x10)
-		    {
+				if (dw_Status & 0x10) {
 		    /***********************/
-		    /* Read the low timing */
+					/* Read the low timing */
 		    /***********************/
 
-			*pul_LowTiming = inl(devpriv->s_BoardInfos.
-			   ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
+					*pul_LowTiming =
+						inl(devpriv->s_BoardInfos.
+						ui_Address + 0 + (20 * b_PWM) +
+						(64 * b_ModulNbr));
 
 		    /************************/
-		    /* Read the high timing */
+					/* Read the high timing */
 		    /************************/
 
-                     *pul_HighTiming= inl(devpriv->s_BoardInfos.
-			   ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
+					*pul_HighTiming =
+						inl(devpriv->s_BoardInfos.
+						ui_Address + 4 + (20 * b_PWM) +
+						(64 * b_ModulNbr));
 
 		    /********************/
-		    /* Read the command */
+					/* Read the command */
 		    /********************/
 
-                     dw_Command = inl(devpriv->s_BoardInfos.
-			   ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+					dw_Command = inl(devpriv->s_BoardInfos.
+						ui_Address + 8 + (20 * b_PWM) +
+						(64 * b_ModulNbr));
 
-		    *pb_StartLevel      = (BYTE) ((dw_Command >> 5) & 1);
-		    *pb_StopMode        = (BYTE) ((dw_Command >> 0) & 1);
-		    *pb_StopLevel       = (BYTE) ((dw_Command >> 1) & 1);
-		    *pb_ExternGate      = (BYTE) ((dw_Command >> 4) & 1);
-		    *pb_InterruptEnable = (BYTE) ((dw_Command >> 3) & 1);
+					*pb_StartLevel =
+						(BYTE) ((dw_Command >> 5) & 1);
+					*pb_StopMode =
+						(BYTE) ((dw_Command >> 0) & 1);
+					*pb_StopLevel =
+						(BYTE) ((dw_Command >> 1) & 1);
+					*pb_ExternGate =
+						(BYTE) ((dw_Command >> 4) & 1);
+					*pb_InterruptEnable =
+						(BYTE) ((dw_Command >> 3) & 1);
 
-		    if (*pb_StopLevel)
-		       {
-		       *pb_StopLevel = *pb_StopLevel + (BYTE) ((dw_Command >> 2) & 1);
-		       }
+					if (*pb_StopLevel) {
+						*pb_StopLevel =
+							*pb_StopLevel +
+							(BYTE) ((dw_Command >>
+								2) & 1);
+					}
 
 		    /********************/
-		    /* Read the command */
+					/* Read the command */
 		    /********************/
 
-                     dw_Command=inl(devpriv->s_BoardInfos.
-			   ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+					dw_Command = inl(devpriv->s_BoardInfos.
+						ui_Address + 8 + (20 * b_PWM) +
+						(64 * b_ModulNbr));
 
-		    *pb_Enable = (BYTE) ((dw_Command >> 0) & 1);
+					*pb_Enable =
+						(BYTE) ((dw_Command >> 0) & 1);
 
-		    *pb_TimingUnit = devpriv->
-				     s_ModuleInfo [b_ModulNbr].
-				     s_PWMModuleInfo.
-				     s_PWMInfo [b_PWM].
-				     b_TimingUnit;
-		    } // if (dw_Status & 0x10)
-		 else
-		    {
+					*pb_TimingUnit = devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_PWMModuleInfo.
+						s_PWMInfo[b_PWM].b_TimingUnit;
+				}	// if (dw_Status & 0x10)
+				else {
 		    /***********************/
-		    /* PWM not initialised */
+					/* PWM not initialised */
 		    /***********************/
-                    DPRINTK("PWM not initialised\n");
-		    i_ReturnValue = -5;
-		    } // if (dw_Status & 0x10)
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      else
-		 {
+					DPRINTK("PWM not initialised\n");
+					i_ReturnValue = -5;
+				}	// if (dw_Status & 0x10)
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			else {
 		 /******************************/
-		 /* Tor PWM selection is wrong */
+				/* Tor PWM selection is wrong */
 		 /******************************/
-		 DPRINTK("Tor PWM selection is wrong\n");
-		 i_ReturnValue = -4;
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      }
-	   else
-	      {
+				DPRINTK("Tor PWM selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+		} else {
 	      /**********************************/
-	      /* The module is not a PWM module */
+			/* The module is not a PWM module */
 	      /**********************************/
-	      DPRINTK("The module is not a PWM module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a PWM module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
-
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1163,54 +1683,43 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                        |
 +----------------------------------------------------------------------------+
 */
 
-INT	i_APCI1710_InsnWritePWM(comedi_device *dev,comedi_subdevice *s,
-comedi_insn *insn,lsampl_t *data)
+INT i_APCI1710_InsnWritePWM(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	BYTE b_WriteType;
-	INT i_ReturnValue=0;
-    b_WriteType=CR_CHAN(insn->chanspec);
+	INT i_ReturnValue = 0;
+	b_WriteType = CR_CHAN(insn->chanspec);
 
-    
-	switch(b_WriteType)
-	{
-	case APCI1710_PWM_ENABLE :
-		i_ReturnValue=i_APCI1710_EnablePWM    (dev,
-				 (BYTE)  CR_AREF(insn->chanspec),
-				 (BYTE)  data[0],
-				 (BYTE)  data[1],
-				 (BYTE)  data[2],
-				 (BYTE)  data[3],
-				 (BYTE)  data[4],
-				 (BYTE)  data[5]);
+	switch (b_WriteType) {
+	case APCI1710_PWM_ENABLE:
+		i_ReturnValue = i_APCI1710_EnablePWM(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) data[0],
+			(BYTE) data[1],
+			(BYTE) data[2],
+			(BYTE) data[3], (BYTE) data[4], (BYTE) data[5]);
 		break;
 
-	case APCI1710_PWM_DISABLE :
-		i_ReturnValue=i_APCI1710_DisablePWM   (dev,
-				 (BYTE)  CR_AREF(insn->chanspec),
-				 (BYTE)  data[0]);
+	case APCI1710_PWM_DISABLE:
+		i_ReturnValue = i_APCI1710_DisablePWM(dev,
+			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
 		break;
 
 	case APCI1710_PWM_NEWTIMING:
-		i_ReturnValue=i_APCI1710_SetNewPWMTiming	(dev,
-					 (BYTE)  CR_AREF(insn->chanspec),
-					 (BYTE)  data[0],
-					 (BYTE)    data[1],
-					 (ULONG)   data[2],
-					 (ULONG)   data[3]);
+		i_ReturnValue = i_APCI1710_SetNewPWMTiming(dev,
+			(BYTE) CR_AREF(insn->chanspec),
+			(BYTE) data[0],
+			(BYTE) data[1], (ULONG) data[2], (ULONG) data[3]);
 		break;
 
-	
 	default:
 		printk("Write Config Parameter Wrong\n");
 	}
 
-	if(i_ReturnValue>=0) i_ReturnValue =insn->n;
+	if (i_ReturnValue >= 0)
+		i_ReturnValue = insn->n;
 	return (i_ReturnValue);
 }
-
-
-
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -1297,212 +1806,231 @@ comedi_insn *insn,lsampl_t *data)
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_EnablePWM    (comedi_device *dev,
-				 BYTE  b_ModulNbr,
-				 BYTE  b_PWM,
-				 BYTE  b_StartLevel,
-				 BYTE  b_StopMode,
-				 BYTE  b_StopLevel,
-				 BYTE  b_ExternGate,
-				 BYTE  b_InterruptEnable)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_EnablePWM(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_PWM,
+	BYTE b_StartLevel,
+	BYTE b_StopMode,
+	BYTE b_StopLevel, BYTE b_ExternGate, BYTE b_InterruptEnable)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_Status;
 	DWORD dw_Command;
 
-		
-        devpriv->tsk_Current=current; // Save the current process task structure
+	devpriv->tsk_Current = current;	// Save the current process task structure
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***************/
-	   /* Test if PWM */
+		/* Test if PWM */
 	   /***************/
 
-	   if ((devpriv->
-		s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_PWM)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_PWM) {
 	      /**************************/
-	      /* Test the PWM selection */
+			/* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM <= 1)
-		 {
+			if (b_PWM <= 1) {
 		 /***************************/
-		 /* Test if PWM initialised */
+				/* Test if PWM initialised */
 		 /***************************/
 
-		 dw_Status=	 inl(devpriv->s_BoardInfos.
-			ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
+				dw_Status = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (20 * b_PWM) +
+					(64 * b_ModulNbr));
 
-		 if (dw_Status & 0x10)
-		    {
+				if (dw_Status & 0x10) {
 		    /**********************************/
-		    /* Test the start level selection */
+					/* Test the start level selection */
 		    /**********************************/
 
-		    if (b_StartLevel <= 1)
-		       {
+					if (b_StartLevel <= 1) {
 		       /**********************/
-		       /* Test the stop mode */
+						/* Test the stop mode */
 		       /**********************/
 
-		       if (b_StopMode <= 1)
-			  {
+						if (b_StopMode <= 1) {
 			  /***********************/
-			  /* Test the stop level */
+							/* Test the stop level */
 			  /***********************/
 
-			  if (b_StopLevel <= 2)
-			     {
+							if (b_StopLevel <= 2) {
 			     /*****************************/
-			     /* Test the extern gate mode */
+								/* Test the extern gate mode */
 			     /*****************************/
 
-			     if (b_ExternGate <= 1)
-				{
+								if (b_ExternGate
+									<= 1) {
 				/*****************************/
-				/* Test the interrupt action */
+									/* Test the interrupt action */
 				/*****************************/
 
-				if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
-				   {
+									if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE) {
 				   /******************************************/
-				   /* Test if interrupt function initialised */
+										/* Test if interrupt function initialised */
 				   /******************************************/
 
 				      /********************/
-				      /* Read the command */
+										/* Read the command */
 				      /********************/
 
-					    dw_Command=inl(devpriv->s_BoardInfos.
-					     ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+										dw_Command
+											=
+											inl
+											(devpriv->
+											s_BoardInfos.
+											ui_Address
+											+
+											8
+											+
+											(20 * b_PWM) + (64 * b_ModulNbr));
 
-				      dw_Command = dw_Command & 0x80;
+										dw_Command
+											=
+											dw_Command
+											&
+											0x80;
 
 				      /********************/
-				      /* Make the command */
+										/* Make the command */
 				      /********************/
 
-				      dw_Command = dw_Command | b_StopMode | (b_InterruptEnable << 3) | (b_ExternGate << 4) | (b_StartLevel << 5);
+										dw_Command
+											=
+											dw_Command
+											|
+											b_StopMode
+											|
+											(b_InterruptEnable
+											<<
+											3)
+											|
+											(b_ExternGate
+											<<
+											4)
+											|
+											(b_StartLevel
+											<<
+											5);
 
-				      if (b_StopLevel & 3)
-					 {
-					 dw_Command = dw_Command | 2;
+										if (b_StopLevel & 3) {
+											dw_Command
+												=
+												dw_Command
+												|
+												2;
 
-					 if (b_StopLevel & 2)
-					    {
-					    dw_Command = dw_Command | 4;
-					    }
-					 }
+											if (b_StopLevel & 2) {
+												dw_Command
+													=
+													dw_Command
+													|
+													4;
+											}
+										}
 
-
-				      devpriv->
-				      s_ModuleInfo [b_ModulNbr].
-				      s_PWMModuleInfo.
-				      s_PWMInfo [b_PWM].
-				      b_InterruptEnable = b_InterruptEnable;
+										devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_PWMModuleInfo.
+											s_PWMInfo
+											[b_PWM].
+											b_InterruptEnable
+											=
+											b_InterruptEnable;
 
 				      /*******************/
-				      /* Set the command */
+										/* Set the command */
 				      /*******************/
 
-					  outl(dw_Command,devpriv->s_BoardInfos.
-					      ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+										outl(dw_Command, devpriv->s_BoardInfos.ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
 
 				      /******************/
-				      /* Enable the PWM */
+										/* Enable the PWM */
 				      /******************/
-					  outl(1,devpriv->s_BoardInfos.
-					      ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
-				   } // if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
-				else
-				   {
+										outl(1, devpriv->s_BoardInfos.ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
+									}	// if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
+									else {
 				   /********************************/
-				   /* Interrupt parameter is wrong */
+										/* Interrupt parameter is wrong */
 				   /********************************/
-                           DPRINTK("Interrupt parameter is wrong\n");
-				   i_ReturnValue = -10;
-				   } // if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
-				} // if (b_ExternGate >= 0 && b_ExternGate <= 1)
-			     else
-				{
+										DPRINTK("Interrupt parameter is wrong\n");
+										i_ReturnValue
+											=
+											-10;
+									}	// if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
+								}	// if (b_ExternGate >= 0 && b_ExternGate <= 1)
+								else {
 				/*****************************************/
-				/* Extern gate signal selection is wrong */
+									/* Extern gate signal selection is wrong */
 				/*****************************************/
-				DPRINTK("Extern gate signal selection is wrong\n");
-				i_ReturnValue = -9;
-				} // if (b_ExternGate >= 0 && b_ExternGate <= 1)
-			     } // if (b_StopLevel >= 0 && b_StopLevel <= 2)
-			  else
-			     {
+									DPRINTK("Extern gate signal selection is wrong\n");
+									i_ReturnValue
+										=
+										-9;
+								}	// if (b_ExternGate >= 0 && b_ExternGate <= 1)
+							}	// if (b_StopLevel >= 0 && b_StopLevel <= 2)
+							else {
 			     /*************************************/
-			     /* PWM stop level selection is wrong */
+								/* PWM stop level selection is wrong */
 			     /*************************************/
-				 DPRINTK("PWM stop level selection is wrong\n");
-			     i_ReturnValue = -8;
-			     } // if (b_StopLevel >= 0 && b_StopLevel <= 2)
-			  } // if (b_StopMode >= 0 && b_StopMode <= 1)
-		       else
-			  {
+								DPRINTK("PWM stop level selection is wrong\n");
+								i_ReturnValue =
+									-8;
+							}	// if (b_StopLevel >= 0 && b_StopLevel <= 2)
+						}	// if (b_StopMode >= 0 && b_StopMode <= 1)
+						else {
 			  /************************************/
-			  /* PWM stop mode selection is wrong */
+							/* PWM stop mode selection is wrong */
 			  /************************************/
-			  DPRINTK("PWM stop mode selection is wrong\n");	
-			  i_ReturnValue = -7;
-			  } // if (b_StopMode >= 0 && b_StopMode <= 1)
-		       } // if (b_StartLevel >= 0 && b_StartLevel <= 1)
-		    else
-		       {
+							DPRINTK("PWM stop mode selection is wrong\n");
+							i_ReturnValue = -7;
+						}	// if (b_StopMode >= 0 && b_StopMode <= 1)
+					}	// if (b_StartLevel >= 0 && b_StartLevel <= 1)
+					else {
 		       /**************************************/
-		       /* PWM start level selection is wrong */
+						/* PWM start level selection is wrong */
 		       /**************************************/
-			   DPRINTK("PWM start level selection is wrong\n");	  
-		       i_ReturnValue = -6;
-		       } // if (b_StartLevel >= 0 && b_StartLevel <= 1)
-		    } // if (dw_Status & 0x10)
-		 else
-		    {
+						DPRINTK("PWM start level selection is wrong\n");
+						i_ReturnValue = -6;
+					}	// if (b_StartLevel >= 0 && b_StartLevel <= 1)
+				}	// if (dw_Status & 0x10)
+				else {
 		    /***********************/
-		    /* PWM not initialised */
+					/* PWM not initialised */
 		    /***********************/
-			DPRINTK("PWM not initialised\n");
-		    i_ReturnValue = -5;
-		    } // if (dw_Status & 0x10)
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      else
-		 {
+					DPRINTK("PWM not initialised\n");
+					i_ReturnValue = -5;
+				}	// if (dw_Status & 0x10)
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			else {
 		 /******************************/
-		 /* Tor PWM selection is wrong */
+				/* Tor PWM selection is wrong */
 		 /******************************/
-		 DPRINTK("Tor PWM selection is wrong\n");
-		 i_ReturnValue = -4;
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      }
-	   else
-	      {
+				DPRINTK("Tor PWM selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+		} else {
 	      /**********************************/
-	      /* The module is not a PWM module */
+			/* The module is not a PWM module */
 	      /**********************************/
-	      DPRINTK("The module is not a PWM module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a PWM module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1534,100 +2062,90 @@ INT   i_APCI1710_EnablePWM    (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_DisablePWM   (comedi_device *dev,
-				 BYTE  b_ModulNbr,
-				 BYTE  b_PWM)
-	{
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_DisablePWM(comedi_device * dev, BYTE b_ModulNbr, BYTE b_PWM)
+{
+	INT i_ReturnValue = 0;
 	DWORD dw_Status;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***************/
-	   /* Test if PWM */
+		/* Test if PWM */
 	   /***************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_PWM)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_PWM) {
 	      /**************************/
-	      /* Test the PWM selection */
+			/* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM <= 1)
-		 {
+			if (b_PWM <= 1) {
 		 /***************************/
-		 /* Test if PWM initialised */
+				/* Test if PWM initialised */
 		 /***************************/
 
-           dw_Status=inl(devpriv->s_BoardInfos.
-			ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
+				dw_Status = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (20 * b_PWM) +
+					(64 * b_ModulNbr));
 
-		 if (dw_Status & 0x10)
-		    {
+				if (dw_Status & 0x10) {
 		    /***********************/
-		    /* Test if PWM enabled */
+					/* Test if PWM enabled */
 		    /***********************/
 
-		    if (dw_Status & 0x1)
-		       {
+					if (dw_Status & 0x1) {
 		       /*******************/
-		       /* Disable the PWM */
+						/* Disable the PWM */
 		       /*******************/
-				outl(0,devpriv->s_BoardInfos.
-			       ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
-		       } // if (dw_Status & 0x1)
-		    else
-		       {
+						outl(0, devpriv->s_BoardInfos.
+							ui_Address + 12 +
+							(20 * b_PWM) +
+							(64 * b_ModulNbr));
+					}	// if (dw_Status & 0x1)
+					else {
 		       /*******************/
-		       /* PWM not enabled */
+						/* PWM not enabled */
 		       /*******************/
-			   DPRINTK("PWM not enabled\n");	
-		       i_ReturnValue = -6;
-		       } // if (dw_Status & 0x1)
-		    } // if (dw_Status & 0x10)
-		 else
-		    {
+						DPRINTK("PWM not enabled\n");
+						i_ReturnValue = -6;
+					}	// if (dw_Status & 0x1)
+				}	// if (dw_Status & 0x10)
+				else {
 		    /***********************/
-		    /* PWM not initialised */
+					/* PWM not initialised */
 		    /***********************/
-			DPRINTK(" PWM not initialised\n");
-		    i_ReturnValue = -5;
-		    } // if (dw_Status & 0x10)
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      else
-		 {
+					DPRINTK(" PWM not initialised\n");
+					i_ReturnValue = -5;
+				}	// if (dw_Status & 0x10)
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			else {
 		 /******************************/
-		 /* Tor PWM selection is wrong */
+				/* Tor PWM selection is wrong */
 		 /******************************/
-		 DPRINTK("Tor PWM selection is wrong\n");	
-		 i_ReturnValue = -4;
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      }
-	   else
-	      {
+				DPRINTK("Tor PWM selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+		} else {
 	      /**********************************/
-	      /* The module is not a PWM module */
+			/* The module is not a PWM module */
 	      /**********************************/
-	      DPRINTK("The module is not a PWM module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a PWM module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -1671,15 +2189,12 @@ INT   i_APCI1710_DisablePWM   (comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
-					 BYTE     b_ModulNbr,
-					 BYTE     b_PWM,
-					 BYTE     b_TimingUnit,
-					 ULONG   ul_LowTiming,
-					 ULONG   ul_HighTiming)
-	{
-	BYTE   b_ClockSelection;
-	INT    i_ReturnValue = 0;
+INT i_APCI1710_SetNewPWMTiming(comedi_device * dev,
+	BYTE b_ModulNbr,
+	BYTE b_PWM, BYTE b_TimingUnit, ULONG ul_LowTiming, ULONG ul_HighTiming)
+{
+	BYTE b_ClockSelection;
+	INT i_ReturnValue = 0;
 	ULONG ul_LowTimerValue = 0;
 	ULONG ul_HighTimerValue = 0;
 	ULONG ul_RealLowTiming = 0;
@@ -1688,682 +2203,1216 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 	DWORD dw_Command;
 	double d_RealLowTiming = 0;
 	double d_RealHighTiming = 0;
-	
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***************/
-	   /* Test if PWM */
+		/* Test if PWM */
 	   /***************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_PWM)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_PWM) {
 	      /**************************/
-	      /* Test the PWM selection */
+			/* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM <= 1)
-		 {
+			if (b_PWM <= 1) {
 		 /***************************/
-		 /* Test if PWM initialised */
+				/* Test if PWM initialised */
 		 /***************************/
 
-			dw_Status=inl(devpriv->s_BoardInfos.
-			ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
+				dw_Status = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (20 * b_PWM) +
+					(64 * b_ModulNbr));
 
-		 if (dw_Status & 0x10)
-		    {
-		    b_ClockSelection = devpriv->
-				       s_ModuleInfo [b_ModulNbr].
-				       s_PWMModuleInfo.
-				       b_ClockSelection;
+				if (dw_Status & 0x10) {
+					b_ClockSelection = devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_PWMModuleInfo.
+						b_ClockSelection;
 
 		    /************************/
-		    /* Test the timing unit */
+					/* Test the timing unit */
 		    /************************/
 
-		    if (b_TimingUnit <= 4)
-		       {
+					if (b_TimingUnit <= 4) {
 		       /*********************************/
-		       /* Test the low timing selection */
+						/* Test the low timing selection */
 		       /*********************************/
 
-		       if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_LowTiming >= 266) && (ul_LowTiming <= 0xFFFFFFFFUL)) ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 571230650UL))  ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 571230UL))     ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 571UL))        ||
-			   ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 9UL))          ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_LowTiming >= 242) && (ul_LowTiming <= 0xFFFFFFFFUL)) ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 519691043UL))  ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 519691UL))     ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 520UL))        ||
-			   ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 8UL))          ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_LowTiming >= 200) && (ul_LowTiming <= 0xFFFFFFFFUL)) ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 429496729UL))  ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 429496UL))     ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 429UL))        ||
-			   ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_LowTiming >= 1)   && (ul_LowTiming <= 7UL)))
-			  {
+						if (((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 0)
+								&& (ul_LowTiming
+									>= 266)
+								&& (ul_LowTiming
+									<=
+									0xFFFFFFFFUL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 1)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									571230650UL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 2)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									571230UL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 3)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									571UL))
+							|| ((b_ClockSelection ==
+									APCI1710_30MHZ)
+								&& (b_TimingUnit
+									== 4)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<= 9UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 0)
+								&& (ul_LowTiming
+									>= 242)
+								&& (ul_LowTiming
+									<=
+									0xFFFFFFFFUL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 1)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									519691043UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 2)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									519691UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 3)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									520UL))
+							|| ((b_ClockSelection ==
+									APCI1710_33MHZ)
+								&& (b_TimingUnit
+									== 4)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<= 8UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 0)
+								&& (ul_LowTiming
+									>= 200)
+								&& (ul_LowTiming
+									<=
+									0xFFFFFFFFUL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 1)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									429496729UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 2)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									429496UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 3)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									429UL))
+							|| ((b_ClockSelection ==
+									APCI1710_40MHZ)
+								&& (b_TimingUnit
+									== 4)
+								&& (ul_LowTiming
+									>= 1)
+								&& (ul_LowTiming
+									<=
+									7UL))) {
 			  /**********************************/
-			  /* Test the High timing selection */
+							/* Test the High timing selection */
 			  /**********************************/
 
-			  if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 266) && (ul_HighTiming <= 0xFFFFFFFFUL)) ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 571230650UL))  ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 571230UL))     ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 571UL))        ||
-			      ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 9UL))          ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 242) && (ul_HighTiming <= 0xFFFFFFFFUL)) ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 519691043UL))  ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 519691UL))     ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 520UL))        ||
-			      ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 8UL))          ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 200) && (ul_HighTiming <= 0xFFFFFFFFUL)) ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 429496729UL))  ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 429496UL))     ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 429UL))        ||
-			      ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1)   && (ul_HighTiming <= 7UL)))
-			     {
+							if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 266) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230650UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 9UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 242) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691043UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 520UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 8UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 200) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496729UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 7UL))) {
 			     /************************************/
-			     /* Calculate the low division fator */
+								/* Calculate the low division fator */
 			     /************************************/
 
-			     fpu_begin ();
-			     switch (b_TimingUnit)
-				{
+								fpu_begin();
+								switch (b_TimingUnit) {
 				/******/
-				/* ns */
-				/******/
-
-				case 0:
-				     
-					/******************/
-					/* Timer 0 factor */
-					/******************/
-
-					ul_LowTimerValue = (ULONG) (ul_LowTiming * (0.00025 * b_ClockSelection));
-
-					/*******************/
-					/* Round the value */
-					/*******************/
-
-					if ((double) ((double) ul_LowTiming * (0.00025 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					   {
-					   ul_LowTimerValue = ul_LowTimerValue + 1;
-					   }
-
-					/*****************************/
-					/* Calculate the real timing */
-					/*****************************/
-
-					ul_RealLowTiming = (ULONG) (ul_LowTimerValue / (0.00025 * (double) b_ClockSelection));
-					d_RealLowTiming = (double) ul_LowTimerValue / (0.00025 * (double) b_ClockSelection);
-
-					if ((double) ((double) ul_LowTimerValue / (0.00025 * (double) b_ClockSelection)) >= (double) ((double) ul_RealLowTiming + 0.5))
-					   {
-					   ul_RealLowTiming = ul_RealLowTiming + 1;
-					   }
-
-					ul_LowTiming     = ul_LowTiming - 1;
-					ul_LowTimerValue = ul_LowTimerValue - 2;
-
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					   }
-				    
-
-				     break;
-
-				/******/
-				/* æs */
+									/* ns */
 				/******/
 
-				case 1:
-				    
+								case 0:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_LowTimerValue = (ULONG) (ul_LowTiming * (0.25 * b_ClockSelection));
+									ul_LowTimerValue
+										=
+										(ULONG)
+										(ul_LowTiming
+										*
+										(0.00025 * b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_LowTiming * (0.25 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					   {
-					   ul_LowTimerValue = ul_LowTimerValue + 1;
-					   }
+									if ((double)((double)ul_LowTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealLowTiming = (ULONG) (ul_LowTimerValue / (0.25 * (double) b_ClockSelection));
-					d_RealLowTiming    = (double) ul_LowTimerValue / ((double) 0.25 * (double) b_ClockSelection);
+									ul_RealLowTiming
+										=
+										(ULONG)
+										(ul_LowTimerValue
+										/
+										(0.00025 * (double)b_ClockSelection));
+									d_RealLowTiming
+										=
+										(double)
+										ul_LowTimerValue
+										/
+										(0.00025
+										*
+										(double)
+										b_ClockSelection);
 
-					if ((double) ((double) ul_LowTimerValue / (0.25 * (double) b_ClockSelection)) >= (double) ((double) ul_RealLowTiming + 0.5))
-					   {
-					   ul_RealLowTiming = ul_RealLowTiming + 1;
-					   }
+									if ((double)((double)ul_LowTimerValue / (0.00025 * (double)b_ClockSelection)) >= (double)((double)ul_RealLowTiming + 0.5)) {
+										ul_RealLowTiming
+											=
+											ul_RealLowTiming
+											+
+											1;
+									}
 
-					ul_LowTiming     = ul_LowTiming - 1;
-					ul_LowTimerValue = ul_LowTimerValue - 2;
+									ul_LowTiming
+										=
+										ul_LowTiming
+										-
+										1;
+									ul_LowTimerValue
+										=
+										ul_LowTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					   }
-				    
-				     break;
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_LowTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
 
 				/******/
-				/* ms */
+									/* æs */
 				/******/
 
-				case 2:
-				     
+								case 1:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_LowTimerValue = ul_LowTiming * (250.0 * b_ClockSelection);
+									ul_LowTimerValue
+										=
+										(ULONG)
+										(ul_LowTiming
+										*
+										(0.25 * b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_LowTiming * (250.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					   {
-					   ul_LowTimerValue = ul_LowTimerValue + 1;
-					   }
+									if ((double)((double)ul_LowTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealLowTiming = (ULONG) (ul_LowTimerValue / (250.0 * (double) b_ClockSelection));
-					d_RealLowTiming    = (double) ul_LowTimerValue / (250.0 * (double) b_ClockSelection);
+									ul_RealLowTiming
+										=
+										(ULONG)
+										(ul_LowTimerValue
+										/
+										(0.25 * (double)b_ClockSelection));
+									d_RealLowTiming
+										=
+										(double)
+										ul_LowTimerValue
+										/
+										(
+										(double)
+										0.25
+										*
+										(double)
+										b_ClockSelection);
 
-					if ((double) ((double) ul_LowTimerValue / (250.0 * (double) b_ClockSelection)) >= (double) ((double) ul_RealLowTiming + 0.5))
-					   {
-					   ul_RealLowTiming = ul_RealLowTiming + 1;
-					   }
+									if ((double)((double)ul_LowTimerValue / (0.25 * (double)b_ClockSelection)) >= (double)((double)ul_RealLowTiming + 0.5)) {
+										ul_RealLowTiming
+											=
+											ul_RealLowTiming
+											+
+											1;
+									}
 
-					ul_LowTiming     = ul_LowTiming - 1;
-					ul_LowTimerValue = ul_LowTimerValue - 2;
+									ul_LowTiming
+										=
+										ul_LowTiming
+										-
+										1;
+									ul_LowTimerValue
+										=
+										ul_LowTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					   }
-				     
-				     break;
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_LowTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
+
+				/******/
+									/* ms */
+				/******/
+
+								case 2:
+
+					/******************/
+									/* Timer 0 factor */
+					/******************/
+
+									ul_LowTimerValue
+										=
+										ul_LowTiming
+										*
+										(250.0
+										*
+										b_ClockSelection);
+
+					/*******************/
+									/* Round the value */
+					/*******************/
+
+									if ((double)((double)ul_LowTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											+
+											1;
+									}
+
+					/*****************************/
+									/* Calculate the real timing */
+					/*****************************/
+
+									ul_RealLowTiming
+										=
+										(ULONG)
+										(ul_LowTimerValue
+										/
+										(250.0 * (double)b_ClockSelection));
+									d_RealLowTiming
+										=
+										(double)
+										ul_LowTimerValue
+										/
+										(250.0
+										*
+										(double)
+										b_ClockSelection);
+
+									if ((double)((double)ul_LowTimerValue / (250.0 * (double)b_ClockSelection)) >= (double)((double)ul_RealLowTiming + 0.5)) {
+										ul_RealLowTiming
+											=
+											ul_RealLowTiming
+											+
+											1;
+									}
+
+									ul_LowTiming
+										=
+										ul_LowTiming
+										-
+										1;
+									ul_LowTimerValue
+										=
+										ul_LowTimerValue
+										-
+										2;
+
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_LowTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
 
 				/*****/
-				/* s */
+									/* s */
 				/*****/
 
-				case 3:
-				     
+								case 3:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_LowTimerValue = (ULONG) (ul_LowTiming * (250000.0 * b_ClockSelection));
+									ul_LowTimerValue
+										=
+										(ULONG)
+										(ul_LowTiming
+										*
+										(250000.0
+											*
+											b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_LowTiming * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					   {
-					   ul_LowTimerValue = ul_LowTimerValue + 1;
-					   }
+									if ((double)((double)ul_LowTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealLowTiming = (ULONG) (ul_LowTimerValue / (250000.0 * (double) b_ClockSelection));
-					d_RealLowTiming    = (double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection);
+									ul_RealLowTiming
+										=
+										(ULONG)
+										(ul_LowTimerValue
+										/
+										(250000.0
+											*
+											(double)
+											b_ClockSelection));
+									d_RealLowTiming
+										=
+										(double)
+										ul_LowTimerValue
+										/
+										(250000.0
+										*
+										(double)
+										b_ClockSelection);
 
-					if ((double) ((double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) >= (double) ((double) ul_RealLowTiming + 0.5))
-					   {
-					   ul_RealLowTiming = ul_RealLowTiming + 1;
-					   }
+									if ((double)((double)ul_LowTimerValue / (250000.0 * (double)b_ClockSelection)) >= (double)((double)ul_RealLowTiming + 0.5)) {
+										ul_RealLowTiming
+											=
+											ul_RealLowTiming
+											+
+											1;
+									}
 
-					ul_LowTiming     = ul_LowTiming - 1;
-					ul_LowTimerValue = ul_LowTimerValue - 2;
+									ul_LowTiming
+										=
+										ul_LowTiming
+										-
+										1;
+									ul_LowTimerValue
+										=
+										ul_LowTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					   }
-				    
-				     break;
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_LowTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
 
 				/******/
-				/* mn */
+									/* mn */
 				/******/
 
-				case 4:
-				     
+								case 4:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_LowTimerValue = (ULONG) ((ul_LowTiming * 60) * (250000.0 * b_ClockSelection));
+									ul_LowTimerValue
+										=
+										(ULONG)
+										(
+										(ul_LowTiming
+											*
+											60)
+										*
+										(250000.0
+											*
+											b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) (ul_LowTiming * 60.0) * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_LowTimerValue + 0.5)))
-					   {
-					   ul_LowTimerValue = ul_LowTimerValue + 1;
-					   }
+									if ((double)((double)(ul_LowTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
+										ul_LowTimerValue
+											=
+											ul_LowTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealLowTiming = (ULONG) (ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) / 60;
-					d_RealLowTiming    = ((double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0;
+									ul_RealLowTiming
+										=
+										(ULONG)
+										(ul_LowTimerValue
+										/
+										(250000.0
+											*
+											(double)
+											b_ClockSelection))
+										/
+										60;
+									d_RealLowTiming
+										=
+										(
+										(double)
+										ul_LowTimerValue
+										/
+										(250000.0
+											*
+											(double)
+											b_ClockSelection))
+										/
+										60.0;
 
-					if ((double) (((double) ul_LowTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0) >= (double) ((double) ul_RealLowTiming + 0.5))
-					   {
-					   ul_RealLowTiming = ul_RealLowTiming + 1;
-					   }
+									if ((double)(((double)ul_LowTimerValue / (250000.0 * (double)b_ClockSelection)) / 60.0) >= (double)((double)ul_RealLowTiming + 0.5)) {
+										ul_RealLowTiming
+											=
+											ul_RealLowTiming
+											+
+											1;
+									}
 
-					ul_LowTiming     = ul_LowTiming - 1;
-					ul_LowTimerValue = ul_LowTimerValue - 2;
+									ul_LowTiming
+										=
+										ul_LowTiming
+										-
+										1;
+									ul_LowTimerValue
+										=
+										ul_LowTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_LowTimerValue = (ULONG) ((double) (ul_LowTimerValue) * 1.007752288);
-					   }
-				     
-				     break;
-				}
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_LowTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_LowTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
+								}
 
 			     /*************************************/
-			     /* Calculate the high division fator */
+								/* Calculate the high division fator */
 			     /*************************************/
 
-			     switch (b_TimingUnit)
-				{
+								switch (b_TimingUnit) {
 				/******/
-				/* ns */
-				/******/
-
-				case 0:
-				    
-					/******************/
-					/* Timer 0 factor */
-					/******************/
-
-					ul_HighTimerValue = (ULONG) (ul_HighTiming * (0.00025 * b_ClockSelection));
-
-					/*******************/
-					/* Round the value */
-					/*******************/
-
-					if ((double) ((double) ul_HighTiming * (0.00025 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					   {
-					   ul_HighTimerValue = ul_HighTimerValue + 1;
-					   }
-
-					/*****************************/
-					/* Calculate the real timing */
-					/*****************************/
-
-					ul_RealHighTiming = (ULONG) (ul_HighTimerValue / (0.00025 * (double) b_ClockSelection));
-					d_RealHighTiming    = (double) ul_HighTimerValue / (0.00025 * (double) b_ClockSelection);
-
-					if ((double) ((double) ul_HighTimerValue / (0.00025 * (double) b_ClockSelection)) >= (double) ((double) ul_RealHighTiming + 0.5))
-					   {
-					   ul_RealHighTiming = ul_RealHighTiming + 1;
-					   }
-
-					ul_HighTiming     = ul_HighTiming - 1;
-					ul_HighTimerValue = ul_HighTimerValue - 2;
-
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					   }
-				     
-
-				     break;
-
-				/******/
-				/* æs */
+									/* ns */
 				/******/
 
-				case 1:
-				     
+								case 0:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_HighTimerValue = (ULONG) (ul_HighTiming * (0.25 * b_ClockSelection));
+									ul_HighTimerValue
+										=
+										(ULONG)
+										(ul_HighTiming
+										*
+										(0.00025 * b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_HighTiming * (0.25 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					   {
-					   ul_HighTimerValue = ul_HighTimerValue + 1;
-					   }
+									if ((double)((double)ul_HighTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealHighTiming = (ULONG) (ul_HighTimerValue / (0.25 * (double) b_ClockSelection));
-					d_RealHighTiming    = (double) ul_HighTimerValue / ((double) 0.25 * (double) b_ClockSelection);
+									ul_RealHighTiming
+										=
+										(ULONG)
+										(ul_HighTimerValue
+										/
+										(0.00025 * (double)b_ClockSelection));
+									d_RealHighTiming
+										=
+										(double)
+										ul_HighTimerValue
+										/
+										(0.00025
+										*
+										(double)
+										b_ClockSelection);
 
-					if ((double) ((double) ul_HighTimerValue / (0.25 * (double) b_ClockSelection)) >= (double) ((double) ul_RealHighTiming + 0.5))
-					   {
-					   ul_RealHighTiming = ul_RealHighTiming + 1;
-					   }
+									if ((double)((double)ul_HighTimerValue / (0.00025 * (double)b_ClockSelection)) >= (double)((double)ul_RealHighTiming + 0.5)) {
+										ul_RealHighTiming
+											=
+											ul_RealHighTiming
+											+
+											1;
+									}
 
-					ul_HighTiming     = ul_HighTiming - 1;
-					ul_HighTimerValue = ul_HighTimerValue - 2;
+									ul_HighTiming
+										=
+										ul_HighTiming
+										-
+										1;
+									ul_HighTimerValue
+										=
+										ul_HighTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					   }
-				    
-				     break;
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_HighTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
 
 				/******/
-				/* ms */
+									/* æs */
 				/******/
 
-				case 2:
-				     
+								case 1:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_HighTimerValue = ul_HighTiming * (250.0 * b_ClockSelection);
+									ul_HighTimerValue
+										=
+										(ULONG)
+										(ul_HighTiming
+										*
+										(0.25 * b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_HighTiming * (250.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					   {
-					   ul_HighTimerValue = ul_HighTimerValue + 1;
-					   }
+									if ((double)((double)ul_HighTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealHighTiming = (ULONG) (ul_HighTimerValue / (250.0 * (double) b_ClockSelection));
-					d_RealHighTiming    = (double) ul_HighTimerValue / (250.0 * (double) b_ClockSelection);
+									ul_RealHighTiming
+										=
+										(ULONG)
+										(ul_HighTimerValue
+										/
+										(0.25 * (double)b_ClockSelection));
+									d_RealHighTiming
+										=
+										(double)
+										ul_HighTimerValue
+										/
+										(
+										(double)
+										0.25
+										*
+										(double)
+										b_ClockSelection);
 
-					if ((double) ((double) ul_HighTimerValue / (250.0 * (double) b_ClockSelection)) >= (double) ((double) ul_RealHighTiming + 0.5))
-					   {
-					   ul_RealHighTiming = ul_RealHighTiming + 1;
-					   }
+									if ((double)((double)ul_HighTimerValue / (0.25 * (double)b_ClockSelection)) >= (double)((double)ul_RealHighTiming + 0.5)) {
+										ul_RealHighTiming
+											=
+											ul_RealHighTiming
+											+
+											1;
+									}
 
-					ul_HighTiming     = ul_HighTiming - 1;
-					ul_HighTimerValue = ul_HighTimerValue - 2;
+									ul_HighTiming
+										=
+										ul_HighTiming
+										-
+										1;
+									ul_HighTimerValue
+										=
+										ul_HighTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					   }
-				   
-				     break;
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_HighTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
+
+				/******/
+									/* ms */
+				/******/
+
+								case 2:
+
+					/******************/
+									/* Timer 0 factor */
+					/******************/
+
+									ul_HighTimerValue
+										=
+										ul_HighTiming
+										*
+										(250.0
+										*
+										b_ClockSelection);
+
+					/*******************/
+									/* Round the value */
+					/*******************/
+
+									if ((double)((double)ul_HighTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											+
+											1;
+									}
+
+					/*****************************/
+									/* Calculate the real timing */
+					/*****************************/
+
+									ul_RealHighTiming
+										=
+										(ULONG)
+										(ul_HighTimerValue
+										/
+										(250.0 * (double)b_ClockSelection));
+									d_RealHighTiming
+										=
+										(double)
+										ul_HighTimerValue
+										/
+										(250.0
+										*
+										(double)
+										b_ClockSelection);
+
+									if ((double)((double)ul_HighTimerValue / (250.0 * (double)b_ClockSelection)) >= (double)((double)ul_RealHighTiming + 0.5)) {
+										ul_RealHighTiming
+											=
+											ul_RealHighTiming
+											+
+											1;
+									}
+
+									ul_HighTiming
+										=
+										ul_HighTiming
+										-
+										1;
+									ul_HighTimerValue
+										=
+										ul_HighTimerValue
+										-
+										2;
+
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_HighTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
 
 				/*****/
-				/* s */
+									/* s */
 				/*****/
 
-				case 3:
-				    
+								case 3:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_HighTimerValue = (ULONG) (ul_HighTiming * (250000.0 * b_ClockSelection));
+									ul_HighTimerValue
+										=
+										(ULONG)
+										(ul_HighTiming
+										*
+										(250000.0
+											*
+											b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) ul_HighTiming * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					   {
-					   ul_HighTimerValue = ul_HighTimerValue + 1;
-					   }
+									if ((double)((double)ul_HighTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealHighTiming = (ULONG) (ul_HighTimerValue / (250000.0 * (double) b_ClockSelection));
-					d_RealHighTiming    = (double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection);
+									ul_RealHighTiming
+										=
+										(ULONG)
+										(ul_HighTimerValue
+										/
+										(250000.0
+											*
+											(double)
+											b_ClockSelection));
+									d_RealHighTiming
+										=
+										(double)
+										ul_HighTimerValue
+										/
+										(250000.0
+										*
+										(double)
+										b_ClockSelection);
 
-					if ((double) ((double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) >= (double) ((double) ul_RealHighTiming + 0.5))
-					   {
-					   ul_RealHighTiming = ul_RealHighTiming + 1;
-					   }
+									if ((double)((double)ul_HighTimerValue / (250000.0 * (double)b_ClockSelection)) >= (double)((double)ul_RealHighTiming + 0.5)) {
+										ul_RealHighTiming
+											=
+											ul_RealHighTiming
+											+
+											1;
+									}
 
-					ul_HighTiming     = ul_HighTiming - 1;
-					ul_HighTimerValue = ul_HighTimerValue - 2;
+									ul_HighTiming
+										=
+										ul_HighTiming
+										-
+										1;
+									ul_HighTimerValue
+										=
+										ul_HighTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					   }
-				    
-				     break;
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_HighTimerValue)
+											*
+											1.007752288);
+									}
+
+									break;
 
 				/******/
-				/* mn */
+									/* mn */
 				/******/
 
-				case 4:
-				    
+								case 4:
+
 					/******************/
-					/* Timer 0 factor */
+									/* Timer 0 factor */
 					/******************/
 
-					ul_HighTimerValue = (ULONG) ((ul_HighTiming * 60) * (250000.0 * b_ClockSelection));
+									ul_HighTimerValue
+										=
+										(ULONG)
+										(
+										(ul_HighTiming
+											*
+											60)
+										*
+										(250000.0
+											*
+											b_ClockSelection));
 
 					/*******************/
-					/* Round the value */
+									/* Round the value */
 					/*******************/
 
-					if ((double) ((double) (ul_HighTiming * 60.0) * (250000.0 * (double) b_ClockSelection)) >= ((double) ((double) ul_HighTimerValue + 0.5)))
-					   {
-					   ul_HighTimerValue = ul_HighTimerValue + 1;
-					   }
+									if ((double)((double)(ul_HighTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
+										ul_HighTimerValue
+											=
+											ul_HighTimerValue
+											+
+											1;
+									}
 
 					/*****************************/
-					/* Calculate the real timing */
+									/* Calculate the real timing */
 					/*****************************/
 
-					ul_RealHighTiming = (ULONG) (ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) / 60;
-					d_RealHighTiming    = ((double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0;
+									ul_RealHighTiming
+										=
+										(ULONG)
+										(ul_HighTimerValue
+										/
+										(250000.0
+											*
+											(double)
+											b_ClockSelection))
+										/
+										60;
+									d_RealHighTiming
+										=
+										(
+										(double)
+										ul_HighTimerValue
+										/
+										(250000.0
+											*
+											(double)
+											b_ClockSelection))
+										/
+										60.0;
 
-					if ((double) (((double) ul_HighTimerValue / (250000.0 * (double) b_ClockSelection)) / 60.0) >= (double) ((double) ul_RealHighTiming + 0.5))
-					   {
-					   ul_RealHighTiming = ul_RealHighTiming + 1;
-					   }
+									if ((double)(((double)ul_HighTimerValue / (250000.0 * (double)b_ClockSelection)) / 60.0) >= (double)((double)ul_RealHighTiming + 0.5)) {
+										ul_RealHighTiming
+											=
+											ul_RealHighTiming
+											+
+											1;
+									}
 
-					ul_HighTiming     = ul_HighTiming - 1;
-					ul_HighTimerValue = ul_HighTimerValue - 2;
+									ul_HighTiming
+										=
+										ul_HighTiming
+										-
+										1;
+									ul_HighTimerValue
+										=
+										ul_HighTimerValue
+										-
+										2;
 
-					if (b_ClockSelection != APCI1710_40MHZ)
-					   {
-					   ul_HighTimerValue = (ULONG) ((double) (ul_HighTimerValue) * 1.007752288);
-					   }
-				     
-				     break;
-				}
-				
-			     fpu_end ();
-			     
-			     /************************/
-			     /* Save the timing unit */
-			     /************************/
+									if (b_ClockSelection != APCI1710_40MHZ) {
+										ul_HighTimerValue
+											=
+											(ULONG)
+											(
+											(double)
+											(ul_HighTimerValue)
+											*
+											1.007752288);
+									}
 
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_PWMModuleInfo.
-			     s_PWMInfo [b_PWM].
-			     b_TimingUnit = b_TimingUnit;
+									break;
+								}
 
-			     /****************************/
-			     /* Save the low base timing */
-			     /****************************/
-
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_PWMModuleInfo.
-			     s_PWMInfo [b_PWM].
-			     d_LowTiming = d_RealLowTiming;
-
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_PWMModuleInfo.
-			     s_PWMInfo [b_PWM].
-			     ul_RealLowTiming = ul_RealLowTiming;
-
-			     /****************************/
-			     /* Save the high base timing */
-			     /****************************/
-
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_PWMModuleInfo.
-			     s_PWMInfo [b_PWM].
-			     d_HighTiming = d_RealHighTiming;
-
-			     devpriv->
-			     s_ModuleInfo [b_ModulNbr].
-			     s_PWMModuleInfo.
-			     s_PWMInfo [b_PWM].
-			     ul_RealHighTiming = ul_RealHighTiming;
+								fpu_end();
 
 			     /************************/
-			     /* Write the low timing */
+								/* Save the timing unit */
 			     /************************/
 
-				 outl(ul_LowTimerValue,devpriv->s_BoardInfos.
-				     ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_PWMModuleInfo.
+									s_PWMInfo
+									[b_PWM].
+									b_TimingUnit
+									=
+									b_TimingUnit;
+
+			     /****************************/
+								/* Save the low base timing */
+			     /****************************/
+
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_PWMModuleInfo.
+									s_PWMInfo
+									[b_PWM].
+									d_LowTiming
+									=
+									d_RealLowTiming;
+
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_PWMModuleInfo.
+									s_PWMInfo
+									[b_PWM].
+									ul_RealLowTiming
+									=
+									ul_RealLowTiming;
+
+			     /****************************/
+								/* Save the high base timing */
+			     /****************************/
+
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_PWMModuleInfo.
+									s_PWMInfo
+									[b_PWM].
+									d_HighTiming
+									=
+									d_RealHighTiming;
+
+								devpriv->
+									s_ModuleInfo
+									[b_ModulNbr].
+									s_PWMModuleInfo.
+									s_PWMInfo
+									[b_PWM].
+									ul_RealHighTiming
+									=
+									ul_RealHighTiming;
+
+			     /************************/
+								/* Write the low timing */
+			     /************************/
+
+								outl(ul_LowTimerValue, devpriv->s_BoardInfos.ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
 
 			     /*************************/
-			     /* Write the high timing */
+								/* Write the high timing */
 			     /*************************/
 
-				 outl(ul_HighTimerValue,devpriv->s_BoardInfos.
-				     ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
+								outl(ul_HighTimerValue, devpriv->s_BoardInfos.ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
 
 			     /***************************/
-			     /* Set the clock selection */
+								/* Set the clock selection */
 			     /***************************/
 
-				 dw_Command=inl(devpriv->s_BoardInfos.
-				    ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
+								dw_Command =
+									inl
+									(devpriv->
+									s_BoardInfos.
+									ui_Address
+									+ 8 +
+									(20 * b_PWM) + (64 * b_ModulNbr));
 
-			     dw_Command = dw_Command & 0x7F;
+								dw_Command =
+									dw_Command
+									& 0x7F;
 
-			     if (b_ClockSelection == APCI1710_40MHZ)
-				{
-				dw_Command = dw_Command | 0x80;
-				}
+								if (b_ClockSelection == APCI1710_40MHZ) {
+									dw_Command
+										=
+										dw_Command
+										|
+										0x80;
+								}
 
 			     /***************************/
-			     /* Set the clock selection */
+								/* Set the clock selection */
 			     /***************************/
 
-				 outl(dw_Command,devpriv->s_BoardInfos.
-				     ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
-			     }
-			  else
-			     {
+								outl(dw_Command,
+									devpriv->
+									s_BoardInfos.
+									ui_Address
+									+ 8 +
+									(20 * b_PWM) + (64 * b_ModulNbr));
+							} else {
 			     /***************************************/
-			     /* High base timing selection is wrong */
+								/* High base timing selection is wrong */
 			     /***************************************/
-                         DPRINTK("High base timing selection is wrong\n");
-			     i_ReturnValue = -8;
-			     }
-			  }
-		       else
-			  {
+								DPRINTK("High base timing selection is wrong\n");
+								i_ReturnValue =
+									-8;
+							}
+						} else {
 			  /**************************************/
-			  /* Low base timing selection is wrong */
+							/* Low base timing selection is wrong */
 			  /**************************************/
-			  DPRINTK("Low base timing selection is wrong\n");
-			  i_ReturnValue = -7;
-			  }
-		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-		    else
-		       {
+							DPRINTK("Low base timing selection is wrong\n");
+							i_ReturnValue = -7;
+						}
+					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					else {
 		       /**********************************/
-		       /* Timing unit selection is wrong */
+						/* Timing unit selection is wrong */
 		       /**********************************/
-			   DPRINTK("Timing unit selection is wrong\n");	
-		       i_ReturnValue = -6;
-		       } // if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-		    } // if (dw_Status & 0x10)
-		 else
-		    {
+						DPRINTK("Timing unit selection is wrong\n");
+						i_ReturnValue = -6;
+					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+				}	// if (dw_Status & 0x10)
+				else {
 		    /***********************/
-		    /* PWM not initialised */
+					/* PWM not initialised */
 		    /***********************/
-			DPRINTK("PWM not initialised\n");	
-		    i_ReturnValue = -5;
-		    } // if (dw_Status & 0x10)
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      else
-		 {
+					DPRINTK("PWM not initialised\n");
+					i_ReturnValue = -5;
+				}	// if (dw_Status & 0x10)
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			else {
 		 /******************************/
-		 /* Tor PWM selection is wrong */
+				/* Tor PWM selection is wrong */
 		 /******************************/
-		 DPRINTK("Tor PWM selection is wrong\n");
-		 i_ReturnValue = -4;
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      }
-	   else
-	      {
+				DPRINTK("Tor PWM selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+		} else {
 	      /**********************************/
-	      /* The module is not a PWM module */
+			/* The module is not a PWM module */
 	      /**********************************/
-	      DPRINTK("The module is not a PWM module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a PWM module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
-
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -2411,142 +3460,129 @@ INT   i_APCI1710_SetNewPWMTiming	(comedi_device *dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadGetPWMStatus(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;
-	DWORD  dw_Status;
+INT i_APCI1710_InsnReadGetPWMStatus(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_Status;
 
-	BYTE    b_ModulNbr;
-	BYTE    b_PWM;
-	PBYTE   pb_PWMOutputStatus;
-	PBYTE   pb_ExternGateStatus;
-	
-	i_ReturnValue		= insn->n;
-	b_ModulNbr			=(BYTE)  CR_AREF(insn->chanspec);
-	b_PWM				=(BYTE)  CR_CHAN(insn->chanspec);
-	pb_PWMOutputStatus	=(PBYTE) &data[0];
-	pb_ExternGateStatus =(PBYTE) &data[1];
+	BYTE b_ModulNbr;
+	BYTE b_PWM;
+	PBYTE pb_PWMOutputStatus;
+	PBYTE pb_ExternGateStatus;
+
+	i_ReturnValue = insn->n;
+	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
+	b_PWM = (BYTE) CR_CHAN(insn->chanspec);
+	pb_PWMOutputStatus = (PBYTE) & data[0];
+	pb_ExternGateStatus = (PBYTE) & data[1];
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***************/
-	   /* Test if PWM */
+		/* Test if PWM */
 	   /***************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_PWM)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_PWM) {
 	      /**************************/
-	      /* Test the PWM selection */
+			/* Test the PWM selection */
 	      /**************************/
 
-	      if (b_PWM <= 1)
-		 {
+			if (b_PWM <= 1) {
 		 /***************************/
-		 /* Test if PWM initialised */
+				/* Test if PWM initialised */
 		 /***************************/
 
-		 dw_Status=inl(devpriv->s_BoardInfos.
-			ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
+				dw_Status = inl(devpriv->s_BoardInfos.
+					ui_Address + 12 + (20 * b_PWM) +
+					(64 * b_ModulNbr));
 
-		 if (dw_Status & 0x10)
-		    {
+				if (dw_Status & 0x10) {
 		    /***********************/
-		    /* Test if PWM enabled */
+					/* Test if PWM enabled */
 		    /***********************/
 
-		    if (dw_Status & 0x1)
-		       {
-		       *pb_PWMOutputStatus  = (BYTE) ((dw_Status >> 7) & 1);
-		       *pb_ExternGateStatus = (BYTE) ((dw_Status >> 6) & 1);
-		       } // if (dw_Status & 0x1)
-		    else
-		       {
+					if (dw_Status & 0x1) {
+						*pb_PWMOutputStatus =
+							(BYTE) ((dw_Status >> 7)
+							& 1);
+						*pb_ExternGateStatus =
+							(BYTE) ((dw_Status >> 6)
+							& 1);
+					}	// if (dw_Status & 0x1)
+					else {
 		       /*******************/
-		       /* PWM not enabled */
+						/* PWM not enabled */
 		       /*******************/
 
-                      DPRINTK("PWM not enabled \n");
-		       i_ReturnValue = -6;
-		       } // if (dw_Status & 0x1)
-		    } // if (dw_Status & 0x10)
-		 else
-		    {
+						DPRINTK("PWM not enabled \n");
+						i_ReturnValue = -6;
+					}	// if (dw_Status & 0x1)
+				}	// if (dw_Status & 0x10)
+				else {
 		    /***********************/
-		    /* PWM not initialised */
+					/* PWM not initialised */
 		    /***********************/
 
-			DPRINTK("PWM not initialised\n");
-		    i_ReturnValue = -5;
-		    } // if (dw_Status & 0x10)
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      else
-		 {
+					DPRINTK("PWM not initialised\n");
+					i_ReturnValue = -5;
+				}	// if (dw_Status & 0x10)
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			else {
 		 /******************************/
-		 /* Tor PWM selection is wrong */
+				/* Tor PWM selection is wrong */
 		 /******************************/
 
-		 DPRINTK("Tor PWM selection is wrong\n");
-		 i_ReturnValue = -4;
-		 } // if (b_PWM >= 0 && b_PWM <= 1)
-	      }
-	   else
-	      {
+				DPRINTK("Tor PWM selection is wrong\n");
+				i_ReturnValue = -4;
+			}	// if (b_PWM >= 0 && b_PWM <= 1)
+		} else {
 	      /**********************************/
-	      /* The module is not a PWM module */
+			/* The module is not a PWM module */
 	      /**********************************/
 
-             DPRINTK("The module is not a PWM module\n");
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a PWM module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-          DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
+	return (i_ReturnValue);
+}
 
-INT i_APCI1710_InsnBitsReadPWMInterrupt(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-
+INT i_APCI1710_InsnBitsReadPWMInterrupt(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
-				data[0]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].b_OldModuleMask;
-                         data[1]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].ul_OldInterruptMask;
-                         data[2]=devpriv->s_InterruptParameters.
-						      s_FIFOInterruptParameters [devpriv->
-										 s_InterruptParameters.
-										 ui_Read].ul_OldCounterLatchValue;
+	data[0] = devpriv->s_InterruptParameters.
+		s_FIFOInterruptParameters[devpriv->
+		s_InterruptParameters.ui_Read].b_OldModuleMask;
+	data[1] = devpriv->s_InterruptParameters.
+		s_FIFOInterruptParameters[devpriv->
+		s_InterruptParameters.ui_Read].ul_OldInterruptMask;
+	data[2] = devpriv->s_InterruptParameters.
+		s_FIFOInterruptParameters[devpriv->
+		s_InterruptParameters.ui_Read].ul_OldCounterLatchValue;
 
-			     
 			     /**************************/
-			     /* Increment the read FIFO */
+	/* Increment the read FIFO */
 			     /***************************/
 
-			     devpriv->
-			     s_InterruptParameters.
-			     ui_Read = (devpriv->
-					s_InterruptParameters.
-					ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
+	devpriv->
+		s_InterruptParameters.
+		ui_Read = (devpriv->
+		s_InterruptParameters.ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
 
-   				return insn->n;
+	return insn->n;
 
 }

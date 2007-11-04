@@ -53,7 +53,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
   +----------+-----------+------------------------------------------------+
 */
 
-
 #ifndef _AMCC_S5933_H_
 #define _AMCC_S5933_H_
 
@@ -67,36 +66,36 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #define FIFO_ADVANCE_ON_BYTE_2     0x20000000	// written on base0
 
-#define AMWEN_ENABLE                     0x02   // added for step 6 dma written on base2
-#define A2P_FIFO_WRITE_ENABLE            0x01  
+#define AMWEN_ENABLE                     0x02	// added for step 6 dma written on base2
+#define A2P_FIFO_WRITE_ENABLE            0x01
 
-#define AGCSTS_TC_ENABLE		   0x10000000   // for transfer count enable bit
+#define AGCSTS_TC_ENABLE		   0x10000000	// for transfer count enable bit
 
 //  ADDON RELATED ADDITIONS
 // Constant
-   #define     APCI3120_ENABLE_TRANSFER_ADD_ON_LOW       0x00
-   #define     APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH      0x1200
-   #define     APCI3120_A2P_FIFO_MANAGEMENT              0x04000400L
-   #define     APCI3120_AMWEN_ENABLE                     0x02
-   #define     APCI3120_A2P_FIFO_WRITE_ENABLE            0x01
-   #define     APCI3120_FIFO_ADVANCE_ON_BYTE_2           0x20000000L
-   #define     APCI3120_ENABLE_WRITE_TC_INT              0x00004000L
-   #define     APCI3120_CLEAR_WRITE_TC_INT               0x00040000L
-   #define     APCI3120_DISABLE_AMWEN_AND_A2P_FIFO_WRITE 0x0
-   #define     APCI3120_DISABLE_BUS_MASTER_ADD_ON        0x0
-   #define     APCI3120_DISABLE_BUS_MASTER_PCI           0x0
+#define     APCI3120_ENABLE_TRANSFER_ADD_ON_LOW       0x00
+#define     APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH      0x1200
+#define     APCI3120_A2P_FIFO_MANAGEMENT              0x04000400L
+#define     APCI3120_AMWEN_ENABLE                     0x02
+#define     APCI3120_A2P_FIFO_WRITE_ENABLE            0x01
+#define     APCI3120_FIFO_ADVANCE_ON_BYTE_2           0x20000000L
+#define     APCI3120_ENABLE_WRITE_TC_INT              0x00004000L
+#define     APCI3120_CLEAR_WRITE_TC_INT               0x00040000L
+#define     APCI3120_DISABLE_AMWEN_AND_A2P_FIFO_WRITE 0x0
+#define     APCI3120_DISABLE_BUS_MASTER_ADD_ON        0x0
+#define     APCI3120_DISABLE_BUS_MASTER_PCI           0x0
 
  // ADD_ON ::: this needed since apci supports 16 bit interface to add on 
-   #define     APCI3120_ADD_ON_AGCSTS_LOW       0x3C
-   #define     APCI3120_ADD_ON_AGCSTS_HIGH      APCI3120_ADD_ON_AGCSTS_LOW + 2
-   #define     APCI3120_ADD_ON_MWAR_LOW         0x24
-   #define     APCI3120_ADD_ON_MWAR_HIGH        APCI3120_ADD_ON_MWAR_LOW + 2
-   #define     APCI3120_ADD_ON_MWTC_LOW         0x058
-   #define     APCI3120_ADD_ON_MWTC_HIGH        APCI3120_ADD_ON_MWTC_LOW + 2
+#define     APCI3120_ADD_ON_AGCSTS_LOW       0x3C
+#define     APCI3120_ADD_ON_AGCSTS_HIGH      APCI3120_ADD_ON_AGCSTS_LOW + 2
+#define     APCI3120_ADD_ON_MWAR_LOW         0x24
+#define     APCI3120_ADD_ON_MWAR_HIGH        APCI3120_ADD_ON_MWAR_LOW + 2
+#define     APCI3120_ADD_ON_MWTC_LOW         0x058
+#define     APCI3120_ADD_ON_MWTC_HIGH        APCI3120_ADD_ON_MWTC_LOW + 2
 
 // AMCC
-   #define     APCI3120_AMCC_OP_MCSR            0x3C
-   #define     APCI3120_AMCC_OP_REG_INTCSR      0x38
+#define     APCI3120_AMCC_OP_MCSR            0x3C
+#define     APCI3120_AMCC_OP_REG_INTCSR      0x38
 
 /****************************************************************************/
 /* AMCC Operation Register Offsets - PCI                                    */
@@ -117,11 +116,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define AMCC_OP_REG_MRTC         0x30
 #define AMCC_OP_REG_MBEF         0x34
 #define AMCC_OP_REG_INTCSR       0x38
-#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2) /* INT source */
-#define  AMCC_OP_REG_INTCSR_FEC  (AMCC_OP_REG_INTCSR + 3) /* FIFO ctrl */
+#define  AMCC_OP_REG_INTCSR_SRC  (AMCC_OP_REG_INTCSR + 2)	/* INT source */
+#define  AMCC_OP_REG_INTCSR_FEC  (AMCC_OP_REG_INTCSR + 3)	/* FIFO ctrl */
 #define AMCC_OP_REG_MCSR         0x3c
-#define  AMCC_OP_REG_MCSR_NVDATA (AMCC_OP_REG_MCSR + 2) /* Data in byte 2 */
-#define  AMCC_OP_REG_MCSR_NVCMD  (AMCC_OP_REG_MCSR + 3) /* Command in byte 3 */
+#define  AMCC_OP_REG_MCSR_NVDATA (AMCC_OP_REG_MCSR + 2)	/* Data in byte 2 */
+#define  AMCC_OP_REG_MCSR_NVCMD  (AMCC_OP_REG_MCSR + 3)	/* Command in byte 3 */
 
 #define AMCC_FIFO_DEPTH_DWORD	8
 #define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof (u32))
@@ -230,39 +229,42 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /****************************************************************************/
 
-struct pcilst_struct{
-	struct 		pcilst_struct *next;
-	int 		used;
-	struct pci_dev 	*pcidev;
-	unsigned short	vendor;
-	unsigned short	device;
-	unsigned char	pci_bus;
-	unsigned char	pci_slot;
-	unsigned char	pci_func;
-	resource_size_t	io_addr[5];
-	unsigned int	irq;
+struct pcilst_struct {
+	struct pcilst_struct *next;
+	int used;
+	struct pci_dev *pcidev;
+	unsigned short vendor;
+	unsigned short device;
+	unsigned char pci_bus;
+	unsigned char pci_slot;
+	unsigned char pci_func;
+	resource_size_t io_addr[5];
+	unsigned int irq;
 };
 
 struct pcilst_struct *amcc_devices;	// ptr to root list of all amcc devices
 
-
-int i_ADDIDATADeviceID[]={0x15B8,0x10E8};
-
+int i_ADDIDATADeviceID[] = { 0x15B8, 0x10E8 };
 
 /****************************************************************************/
 
 void v_pci_card_list_init(unsigned short pci_vendor, char display);
 void v_pci_card_list_cleanup(unsigned short pci_vendor);
-struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id);
-int i_find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card);
-struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, int i_Master);
+struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
+	unsigned short device_id);
+int i_find_free_pci_card_by_position(unsigned short vendor_id,
+	unsigned short device_id, unsigned short pci_bus,
+	unsigned short pci_slot, struct pcilst_struct **card);
+struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
+	unsigned short device_id, unsigned short pci_bus,
+	unsigned short pci_slot, int i_Master);
 
 int pci_card_alloc(struct pcilst_struct *amcc, int master);
 int i_pci_card_free(struct pcilst_struct *amcc);
 void v_pci_card_list_display(void);
 int i_pci_card_data(struct pcilst_struct *amcc,
-	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	resource_size_t *io_addr, unsigned int *irq);
+	unsigned char *pci_bus, unsigned char *pci_slot,
+	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq);
 
 /****************************************************************************/
 
@@ -270,70 +272,77 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 void v_pci_card_list_init(unsigned short pci_vendor, char display)
 {
 	struct pci_dev *pcidev;
-	struct pcilst_struct *amcc,*last;
+	struct pcilst_struct *amcc, *last;
 	int i;
-        int i_Count=0;
-	amcc_devices=NULL;
-	last=NULL;
-	
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); 
-	    pcidev != NULL ; 
-	    pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-             for(i_Count=0;i_Count<2;i_Count++)
-                {
-                 pci_vendor=i_ADDIDATADeviceID[i_Count];
-		if(pcidev->vendor==pci_vendor){
-			amcc=kmalloc(sizeof(*amcc),GFP_KERNEL);
-			memset(amcc,0,sizeof(*amcc));
+	int i_Count = 0;
+	amcc_devices = NULL;
+	last = NULL;
 
-			amcc->pcidev=pcidev;
-			if (last) { last->next=amcc; }
-			     else { amcc_devices=amcc; }
-			last=amcc;
-			
-			amcc->vendor=pcidev->vendor;		
-			amcc->device=pcidev->device;
-			amcc->pci_bus=pcidev->bus->number;
-			amcc->pci_slot=PCI_SLOT(pcidev->devfn);
-			amcc->pci_func=PCI_FUNC(pcidev->devfn);
-			/* Note: resources may be invalid if PCI device
-			 * not enabled, but they are corrected in
-			 * pci_card_alloc. */
-			for (i=0;i<5;i++)
-				amcc->io_addr[i]=pci_resource_start(pcidev, i);
-			amcc->irq=pcidev->irq;
-			
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+		for (i_Count = 0; i_Count < 2; i_Count++) {
+			pci_vendor = i_ADDIDATADeviceID[i_Count];
+			if (pcidev->vendor == pci_vendor) {
+				amcc = kmalloc(sizeof(*amcc), GFP_KERNEL);
+				memset(amcc, 0, sizeof(*amcc));
+
+				amcc->pcidev = pcidev;
+				if (last) {
+					last->next = amcc;
+				} else {
+					amcc_devices = amcc;
+				}
+				last = amcc;
+
+				amcc->vendor = pcidev->vendor;
+				amcc->device = pcidev->device;
+				amcc->pci_bus = pcidev->bus->number;
+				amcc->pci_slot = PCI_SLOT(pcidev->devfn);
+				amcc->pci_func = PCI_FUNC(pcidev->devfn);
+				/* Note: resources may be invalid if PCI device
+				 * not enabled, but they are corrected in
+				 * pci_card_alloc. */
+				for (i = 0; i < 5; i++)
+					amcc->io_addr[i] =
+						pci_resource_start(pcidev, i);
+				amcc->irq = pcidev->irq;
+
+			}
 		}
-            }
 	}
 
-	if (display) v_pci_card_list_display();
+	if (display)
+		v_pci_card_list_display();
 }
 
 /****************************************************************************/
 /* free up list of amcc cards in this system */
 void v_pci_card_list_cleanup(unsigned short pci_vendor)
 {
-	struct pcilst_struct *amcc,*next;
+	struct pcilst_struct *amcc, *next;
 
-	for(amcc=amcc_devices;amcc;amcc=next){
-		next=amcc->next;
+	for (amcc = amcc_devices; amcc; amcc = next) {
+		next = amcc->next;
 		kfree(amcc);
 	}
-	
-	amcc_devices=NULL;
+
+	amcc_devices = NULL;
 }
 
 /****************************************************************************/
 /* find first unused card with this device_id */
-struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id, unsigned short device_id)
+struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
+	unsigned short device_id)
 {
-	struct pcilst_struct *amcc,*next;
+	struct pcilst_struct *amcc, *next;
 
-	for (amcc=amcc_devices;amcc;amcc=next) {
-		next=amcc->next;
-		if ((!amcc->used)&&(amcc->device==device_id)&&(amcc->vendor==vendor_id)) return amcc;
-		
+	for (amcc = amcc_devices; amcc; amcc = next) {
+		next = amcc->next;
+		if ((!amcc->used) && (amcc->device == device_id)
+			&& (amcc->vendor == vendor_id))
+			return amcc;
+
 	}
 
 	return NULL;
@@ -341,25 +350,31 @@ struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
 
 /****************************************************************************/
 /* find card on requested position */
-int i_find_free_pci_card_by_position(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, struct pcilst_struct **card)
+int i_find_free_pci_card_by_position(unsigned short vendor_id,
+	unsigned short device_id, unsigned short pci_bus,
+	unsigned short pci_slot, struct pcilst_struct **card)
 {
-	struct pcilst_struct *amcc,*next;
+	struct pcilst_struct *amcc, *next;
 
-	*card=NULL;
-	for (amcc=amcc_devices;amcc;amcc=next) {
-		next=amcc->next;
-		if ((amcc->vendor==vendor_id)&&(amcc->device==device_id)&&(amcc->pci_bus==pci_bus)&&(amcc->pci_slot==pci_slot)) {
+	*card = NULL;
+	for (amcc = amcc_devices; amcc; amcc = next) {
+		next = amcc->next;
+		if ((amcc->vendor == vendor_id) && (amcc->device == device_id)
+			&& (amcc->pci_bus == pci_bus)
+			&& (amcc->pci_slot == pci_slot)) {
 			if (!(amcc->used)) {
-				*card=amcc;
+				*card = amcc;
 				return 0;	// ok, card is found
 			} else {
-			        rt_printk(" - \nCard on requested position is used b:s %d:%d!\n",pci_bus,pci_slot);
+				rt_printk
+					(" - \nCard on requested position is used b:s %d:%d!\n",
+					pci_bus, pci_slot);
 				return 2;	// card exist but is used
 			}
 		}
 	}
 
-        return 1; // no card found
+	return 1;		// no card found
 }
 
 /****************************************************************************/
@@ -368,15 +383,19 @@ int pci_card_alloc(struct pcilst_struct *amcc, int master)
 {
 	int i;
 
-	if (!amcc) return -1;
+	if (!amcc)
+		return -1;
 
-	if (amcc->used) return 1;
-	if (comedi_pci_enable(amcc->pcidev, "addi_amcc_s5933")) return -1;
+	if (amcc->used)
+		return 1;
+	if (comedi_pci_enable(amcc->pcidev, "addi_amcc_s5933"))
+		return -1;
 	/* Resources will be accurate now. */
-	for (i=0;i<5;i++)
-		amcc->io_addr[i]=pci_resource_start(amcc->pcidev, i);
-	if (master) pci_set_master(amcc->pcidev);
-	amcc->used=1;
+	for (i = 0; i < 5; i++)
+		amcc->io_addr[i] = pci_resource_start(amcc->pcidev, i);
+	if (master)
+		pci_set_master(amcc->pcidev);
+	amcc->used = 1;
 
 	return 0;
 }
@@ -385,10 +404,12 @@ int pci_card_alloc(struct pcilst_struct *amcc, int master)
 /* mark card as free */
 int i_pci_card_free(struct pcilst_struct *amcc)
 {
-	if (!amcc) return -1;
+	if (!amcc)
+		return -1;
 
-	if (!amcc->used) return 1;
-	amcc->used=0;
+	if (!amcc->used)
+		return 1;
+	amcc->used = 0;
 	comedi_pci_disable(amcc->pcidev);
 	return 0;
 }
@@ -397,66 +418,71 @@ int i_pci_card_free(struct pcilst_struct *amcc)
 /* display list of found cards */
 void v_pci_card_list_display(void)
 {
-	struct pcilst_struct *amcc,*next;
+	struct pcilst_struct *amcc, *next;
 
 	printk("List of pci cards\n");
 	printk("bus:slot:func vendor device io_amcc io_daq irq used\n");
 
-	for (amcc=amcc_devices;amcc;amcc=next) {
-		next=amcc->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   0x%8llx 0x%8llx  %2u  %2d\n",
-			amcc->pci_bus,amcc->pci_slot,amcc->pci_func,amcc->vendor,amcc->device,
-			(unsigned long long)amcc->io_addr[0],(unsigned long long)amcc->io_addr[2],amcc->irq,amcc->used);
-		
+	for (amcc = amcc_devices; amcc; amcc = next) {
+		next = amcc->next;
+		printk("%2d   %2d   %2d  0x%4x 0x%4x   0x%8llx 0x%8llx  %2u  %2d\n", amcc->pci_bus, amcc->pci_slot, amcc->pci_func, amcc->vendor, amcc->device, (unsigned long long)amcc->io_addr[0], (unsigned long long)amcc->io_addr[2], amcc->irq, amcc->used);
+
 	}
 }
 
 /****************************************************************************/
 /* return all card information for driver */
 int i_pci_card_data(struct pcilst_struct *amcc,
-	unsigned char *pci_bus, unsigned char *pci_slot, unsigned char *pci_func,
-	resource_size_t *io_addr, unsigned int *irq)
+	unsigned char *pci_bus, unsigned char *pci_slot,
+	unsigned char *pci_func, resource_size_t * io_addr, unsigned int *irq)
 {
-	int	i;
-	
-	if (!amcc) return -1;
-	*pci_bus=amcc->pci_bus;
-	*pci_slot=amcc->pci_slot;
-	*pci_func=amcc->pci_func;
-	for (i=0;i<5;i++)
-		io_addr[i]=amcc->io_addr[i];
-	*irq=amcc->irq;
+	int i;
+
+	if (!amcc)
+		return -1;
+	*pci_bus = amcc->pci_bus;
+	*pci_slot = amcc->pci_slot;
+	*pci_func = amcc->pci_func;
+	for (i = 0; i < 5; i++)
+		io_addr[i] = amcc->io_addr[i];
+	*irq = amcc->irq;
 	return 0;
 }
 
 /****************************************************************************/
 /* select and alloc card */
-struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id, unsigned short device_id, unsigned short pci_bus, unsigned short pci_slot, int i_Master)
+struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
+	unsigned short device_id, unsigned short pci_bus,
+	unsigned short pci_slot, int i_Master)
 {
 	struct pcilst_struct *card;
-	
-	if ((pci_bus<1)&(pci_slot<1)) { // use autodetection
-		if ((card=ptr_find_free_pci_card_by_device(vendor_id,device_id))==NULL) {
+
+	if ((pci_bus < 1) & (pci_slot < 1)) {	// use autodetection
+		if ((card = ptr_find_free_pci_card_by_device(vendor_id,
+					device_id)) == NULL) {
 			rt_printk(" - Unused card not found in system!\n");
 			return NULL;
 		}
 	} else {
-		switch (i_find_free_pci_card_by_position(vendor_id,device_id,pci_bus,pci_slot,&card)) {
+		switch (i_find_free_pci_card_by_position(vendor_id, device_id,
+				pci_bus, pci_slot, &card)) {
 		case 1:
-			rt_printk(" - Card not found on requested position b:s %d:%d!\n",pci_bus,pci_slot);
+			rt_printk
+				(" - Card not found on requested position b:s %d:%d!\n",
+				pci_bus, pci_slot);
 			return NULL;
 		case 2:
-			rt_printk(" - Card on requested position is used b:s %d:%d!\n",pci_bus,pci_slot);
+			rt_printk
+				(" - Card on requested position is used b:s %d:%d!\n",
+				pci_bus, pci_slot);
 			return NULL;
 		}
 	}
 
-
-	if (pci_card_alloc(card, i_Master)!=0) {
+	if (pci_card_alloc(card, i_Master) != 0) {
 		rt_printk(" - Can't allocate card!\n");
 		return NULL;
-	
-	
+
 	}
 
 	return card;

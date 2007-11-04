@@ -22,10 +22,9 @@
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-typedef enum
-{
-  false,
-  true
+typedef enum {
+	false,
+	true
 } bool;
 #endif
 

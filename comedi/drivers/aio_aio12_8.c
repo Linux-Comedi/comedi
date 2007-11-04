@@ -38,11 +38,9 @@ Notes:
 
 */
 
-
 #include <linux/comedidev.h>
 #include <linux/ioport.h>
 #include "8255.h"
-
 
 #define AIO12_8_STATUS			0x00
 #define AIO12_8_INTERRUPT		0x01
@@ -73,67 +71,59 @@ Notes:
 
 #define DAC_ENABLE			0x18
 
-typedef struct
-{
+typedef struct {
 	const char *name;
 } board_type;
 
-static const board_type board_types[] =
-{
+static const board_type board_types[] = {
 	{
-		name:	"aio_aio12_8"
-	},
+      name:	"aio_aio12_8"},
 };
 
 #define	thisboard	((const board_type *) dev->board_ptr)
 
-typedef struct
-{
+typedef struct {
 	lsampl_t ao_readback[4];
 } aio12_8_private;
 
 #define devpriv	((aio12_8_private *) dev->private)
 
-static int aio_aio12_8_ai_read (comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data)
+static int aio_aio12_8_ai_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int n;
 	unsigned char control =
 		ADC_MODE_NORMAL |
-		(CR_RANGE(insn->chanspec) << 3) |
-		CR_CHAN(insn->chanspec);
+		(CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
 
 	//read status to clear EOC latch
-	inb (dev->iobase + AIO12_8_STATUS);
+	inb(dev->iobase + AIO12_8_STATUS);
 
-	for (n = 0; n < insn->n; n++)
-	{
+	for (n = 0; n < insn->n; n++) {
 		int timeout = 5;
 
 		// Setup and start conversion
-		outb (control, dev->iobase + AIO12_8_ADC);
+		outb(control, dev->iobase + AIO12_8_ADC);
 
 		// Wait for conversion to complete
 		while (timeout &&
-		       ! (inb (dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC))
-		{
+			!(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
-			printk ("timeout %d\n", timeout);
-			comedi_udelay (1);
+			printk("timeout %d\n", timeout);
+			comedi_udelay(1);
 		}
-		if (timeout == 0)
-		{
-			comedi_error (dev, "ADC timeout");
+		if (timeout == 0) {
+			comedi_error(dev, "ADC timeout");
 			return -EIO;
 		}
 
-		data[n] = inw (dev->iobase + AIO12_8_ADC) & 0x0FFF;
+		data[n] = inw(dev->iobase + AIO12_8_ADC) & 0x0FFF;
 	}
 	return n;
 }
 
-static int aio_aio12_8_ao_read (comedi_device *dev, comedi_subdevice *s,
-				comedi_insn *insn, lsampl_t *data)
+static int aio_aio12_8_ao_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -143,8 +133,8 @@ static int aio_aio12_8_ao_read (comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_write (comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data)
+static int aio_aio12_8_ao_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -153,35 +143,32 @@ static int aio_aio12_8_ao_write (comedi_device *dev, comedi_subdevice *s,
 	//enable DACs
 	outb(0x01, dev->iobase + DAC_ENABLE);
 
-	for (i = 0; i < insn->n; i++)
-	{
-		outb (data[i] & 0xFF, port);			// LSB
-		outb ((data[i] >> 8) & 0x0F, port + 1);		// MSB
+	for (i = 0; i < insn->n; i++) {
+		outb(data[i] & 0xFF, port);	// LSB
+		outb((data[i] >> 8) & 0x0F, port + 1);	// MSB
 		devpriv->ao_readback[chan] = data[i];
 	}
 	return insn->n;
 }
 
-static const comedi_lrange range_aio_aio12_8 =
-{
+static const comedi_lrange range_aio_aio12_8 = {
 	4,
 	{
-		UNI_RANGE(5),
-		BIP_RANGE(5),
-		UNI_RANGE(10),
-		BIP_RANGE(10),
-	}
+			UNI_RANGE(5),
+			BIP_RANGE(5),
+			UNI_RANGE(10),
+			BIP_RANGE(10),
+		}
 };
 
-static int aio_aio12_8_attach (comedi_device *dev, comedi_devconfig *it)
+static int aio_aio12_8_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int iobase;
 	comedi_subdevice *s;
 
 	iobase = it->options[0];
-	if (! request_region (iobase, 24, "aio_aio12_8"))
-	{
-		printk ("I/O port conflict");
+	if (!request_region(iobase, 24, "aio_aio12_8")) {
+		printk("I/O port conflict");
 		return -EIO;
 	}
 
@@ -189,10 +176,10 @@ static int aio_aio12_8_attach (comedi_device *dev, comedi_devconfig *it)
 
 	dev->iobase = iobase;
 
-	if (alloc_private (dev, sizeof (aio12_8_private)) < 0)
+	if (alloc_private(dev, sizeof(aio12_8_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices (dev, 3) < 0)
+	if (alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
 	s = &dev->subdevices[0];
@@ -213,28 +200,27 @@ static int aio_aio12_8_attach (comedi_device *dev, comedi_devconfig *it)
 	s->insn_write = aio_aio12_8_ao_write;
 
 	s = &dev->subdevices[2];
-	subdev_8255_init (dev, s, NULL, dev->iobase + AIO12_8_DIO_0);
+	subdev_8255_init(dev, s, NULL, dev->iobase + AIO12_8_DIO_0);
 
 	return 0;
 }
 
-static int aio_aio12_8_detach (comedi_device *dev)
+static int aio_aio12_8_detach(comedi_device * dev)
 {
-	subdev_8255_cleanup (dev, &dev->subdevices[2]);
+	subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)
-		release_region (dev->iobase, 24);
+		release_region(dev->iobase, 24);
 	return 0;
 }
 
-static comedi_driver driver_aio_aio12_8 =
-{
-	driver_name:	"aio_aio12_8",
-	module:		THIS_MODULE,
-	attach:		aio_aio12_8_attach,
-	detach:		aio_aio12_8_detach,
-	board_name:	&board_types[0].name,
-	num_names:	1,
-	offset:		sizeof (board_type),
+static comedi_driver driver_aio_aio12_8 = {
+      driver_name:"aio_aio12_8",
+      module:THIS_MODULE,
+      attach:aio_aio12_8_attach,
+      detach:aio_aio12_8_detach,
+      board_name:&board_types[0].name,
+      num_names:1,
+      offset:sizeof(board_type),
 };
 
 COMEDI_INITCLEANUP(driver_aio_aio12_8);

@@ -27,4 +27,3 @@ static inline void *kcalloc(size_t n, size_t size, unsigned int flags)
 #endif
 
 #endif
-

@@ -64,7 +64,7 @@
 
 #ifdef _DEBUG_
 #define DEBUG(...);        rt_printk(__VA_ARGS__);
-#else 
+#else
 #define DEBUG(...)
 #endif
 
@@ -93,7 +93,7 @@
 
 #define S626_SIZE 0x0200
 #define SIZEOF_ADDRESS_SPACE		0x0200
-#define DMABUF_SIZE			4096       // 4k pages
+#define DMABUF_SIZE			4096	// 4k pages
 
 #define S626_ADC_CHANNELS       16
 #define S626_DAC_CHANNELS       4
@@ -106,7 +106,6 @@
 
 #define NUM_TRIMDACS	12	// Number of valid TrimDAC channels.
 
-
 // PCI bus interface types.
 #define INTEL				1	// Intel bus type.
 #define MOTOROLA			2	// Motorola bus type.
@@ -114,16 +113,15 @@
 //////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////
-#define PLATFORM		INTEL   // *** SELECT PLATFORM TYPE ***
+#define PLATFORM		INTEL	// *** SELECT PLATFORM TYPE ***
 //////////////////////////////////////////////////////////
 
-#define RANGE_5V                0x10            // +/-5V range
-#define RANGE_10V               0x00            // +/-10V range
+#define RANGE_5V                0x10	// +/-5V range
+#define RANGE_10V               0x00	// +/-10V range
 
-
-#define EOPL			0x80		// End of ADC poll list marker.
-#define GSEL_BIPOLAR5V		0x00F0	        // LP_GSEL setting for 5V bipolar range.
-#define GSEL_BIPOLAR10V		0x00A0	        // LP_GSEL setting for 10V bipolar range.
+#define EOPL			0x80	// End of ADC poll list marker.
+#define GSEL_BIPOLAR5V		0x00F0	// LP_GSEL setting for 5V bipolar range.
+#define GSEL_BIPOLAR10V		0x00A0	// LP_GSEL setting for 10V bipolar range.
 
 // Error codes that must be visible to this base class.
 #define ERR_ILLEGAL_PARM	0x00010000	// Illegal function parameter value was specified.
@@ -131,10 +129,9 @@
 #define ERR_COUNTERSETUP	0x00200000	// Illegal setup specified for counter channel.
 #define ERR_DEBI_TIMEOUT	0x00400000	// DEBI transfer timed out.
 
-
 // Organization (physical order) and size (in DWORDs) of logical DMA buffers contained by ANA_DMABUF.
-#define ADC_DMABUF_DWORDS	40	        // ADC DMA buffer must hold 16 samples, plus pre/post garbage samples.
-#define DAC_WDMABUF_DWORDS	1		// DAC output DMA buffer holds a single sample.
+#define ADC_DMABUF_DWORDS	40	// ADC DMA buffer must hold 16 samples, plus pre/post garbage samples.
+#define DAC_WDMABUF_DWORDS	1	// DAC output DMA buffer holds a single sample.
 
 // All remaining space in 4KB DMA buffer is available for the RPS1 program.
 
@@ -147,19 +144,18 @@
 #define ISR_AFOU		0x00000800	// Audio fifo
 						// under/overflow
 						// detected.
-#define IRQ_COINT1A             0x0400          // conter 1A overflow
+#define IRQ_COINT1A             0x0400	// conter 1A overflow
 						// interrupt mask
-#define IRQ_COINT1B             0x0800          // conter 1B overflow
+#define IRQ_COINT1B             0x0800	// conter 1B overflow
 						// interrupt mask
-#define IRQ_COINT2A             0x1000          // conter 2A overflow
+#define IRQ_COINT2A             0x1000	// conter 2A overflow
 						// interrupt mask
-#define IRQ_COINT2B             0x2000          // conter 2B overflow
+#define IRQ_COINT2B             0x2000	// conter 2B overflow
 						// interrupt mask
-#define IRQ_COINT3A             0x4000          // conter 3A overflow
+#define IRQ_COINT3A             0x4000	// conter 3A overflow
 						// interrupt mask
-#define IRQ_COINT3B             0x8000          // conter 3B overflow
+#define IRQ_COINT3B             0x8000	// conter 3B overflow
 						// interrupt mask
-
 
 // RPS command codes.
 #define RPS_CLRSIGNAL		0x00000000	// CLEAR SIGNAL
@@ -171,7 +167,7 @@
 #define RPS_LDREG		0x90000100	// LDREG (1 uint32_t only)
 #define RPS_STREG		0xA0000100	// STREG (1 uint32_t only)
 #define RPS_STOP		0x50000000	// STOP
-#define RPS_IRQ                 0x60000000      // IRQ 
+#define RPS_IRQ                 0x60000000	// IRQ
 
 #define RPS_LOGICAL_OR		0x08000000	// Logical OR conditionals.
 #define RPS_INVERT		0x04000000	// Test for negated semaphores.
@@ -199,8 +195,8 @@
 #define GPIO1_HI		0x00001000	// GPIO1 set to HIGH.
 
 // Primary Status Register (PSR) constants.
-#define PSR_DEBI_E		0x00040000      // DEBI event flag.
-#define PSR_DEBI_S		0x00080000      // DEBI status flag.
+#define PSR_DEBI_E		0x00040000	// DEBI event flag.
+#define PSR_DEBI_S		0x00080000	// DEBI status flag.
 #define PSR_A2_IN		0x00008000	// Audio output DMA2 protection address reached.
 #define PSR_AFOU		0x00000800	// Audio FIFO under/overflow detected.
 #define PSR_GPIO2		0x00000020	// GPIO2 input pin: 0=AdcBusy, 1=AdcIdle.
@@ -213,14 +209,14 @@
 #define MC1_SOFT_RESET		0x80000000	// Invoke 7146 soft reset.
 #define MC1_SHUTDOWN		0x3FFF0000	// Shut down all MC1-controlled enables.
 
-#define MC1_ERPS1		0x2000		// enab/disable RPS task 1.
-#define MC1_ERPS0		0x1000		// enab/disable RPS task 0.
-#define MC1_DEBI		0x0800		// enab/disable DEBI pins.
-#define MC1_AUDIO		0x0200		// enab/disable audio port pins.
-#define MC1_I2C			0x0100		// enab/disable I2C interface.
-#define MC1_A2OUT		0x0008		// enab/disable transfer on A2 out.
-#define MC1_A2IN		0x0004		// enab/disable transfer on A2 in.
-#define MC1_A1IN		0x0001		// enab/disable transfer on A1 in.
+#define MC1_ERPS1		0x2000	// enab/disable RPS task 1.
+#define MC1_ERPS0		0x1000	// enab/disable RPS task 0.
+#define MC1_DEBI		0x0800	// enab/disable DEBI pins.
+#define MC1_AUDIO		0x0200	// enab/disable audio port pins.
+#define MC1_I2C			0x0100	// enab/disable I2C interface.
+#define MC1_A2OUT		0x0008	// enab/disable transfer on A2 out.
+#define MC1_A2IN		0x0004	// enab/disable transfer on A2 in.
+#define MC1_A1IN		0x0001	// enab/disable transfer on A1 in.
 
 // Master Control Register 2 (MC2) constants.
 #define MC2_UPLD_DEBIq		0x00020002	// Upload DEBI registers.
@@ -240,12 +236,11 @@
 #define	MC2_DELAYTRIG_6USq	MC2_RPSSIG2_ON
 #define MC2_DELAYBUSY_6USq	MC2_RPSSIG2_MASK
 
-
-#define MC2_UPLD_DEBI		0x0002		// Upload DEBI.
-#define MC2_UPLD_IIC		0x0001		// Upload I2C.
-#define MC2_RPSSIG2		0x2000		// RPS signal 2 (not used).
-#define MC2_RPSSIG1		0x1000		// RPS signal 1 (DAC RPS busy).
-#define MC2_RPSSIG0		0x0800		// RPS signal 0 (ADC RPS busy).
+#define MC2_UPLD_DEBI		0x0002	// Upload DEBI.
+#define MC2_UPLD_IIC		0x0001	// Upload I2C.
+#define MC2_RPSSIG2		0x2000	// RPS signal 2 (not used).
+#define MC2_RPSSIG1		0x1000	// RPS signal 1 (DAC RPS busy).
+#define MC2_RPSSIG0		0x0800	// RPS signal 0 (ADC RPS busy).
 
 #define MC2_ADC_RPS		MC2_RPSSIG0	// ADC RPS busy.
 #define MC2_DAC_RPS		MC2_RPSSIG1	// DAC RPS busy.
@@ -255,160 +250,159 @@
 #define MC2_UPLD_IICQ		0x00010001	// Upload I2C registers.
 ////////////////////////////////////////
 
-
 // PCI BUS (SAA7146) REGISTER ADDRESS OFFSETS ////////////////////////
-#define P_PCI_BT_A		0x004C		// Audio DMA
+#define P_PCI_BT_A		0x004C	// Audio DMA
 						// burst/threshold
 						// control.
-#define P_DEBICFG               0x007C		// DEBI configuration.
-#define P_DEBICMD               0x0080		// DEBI command.
-#define P_DEBIPAGE              0x0084		// DEBI page.
-#define P_DEBIAD                0x0088		// DEBI target address.
-#define P_I2CCTRL               0x008C		// I2C control.
-#define P_I2CSTAT               0x0090		// I2C status.
-#define P_BASEA2_IN		0x00AC		// Audio input 2 base
+#define P_DEBICFG               0x007C	// DEBI configuration.
+#define P_DEBICMD               0x0080	// DEBI command.
+#define P_DEBIPAGE              0x0084	// DEBI page.
+#define P_DEBIAD                0x0088	// DEBI target address.
+#define P_I2CCTRL               0x008C	// I2C control.
+#define P_I2CSTAT               0x0090	// I2C status.
+#define P_BASEA2_IN		0x00AC	// Audio input 2 base
 						// physical DMAbuf
 						// address.
-#define P_PROTA2_IN		0x00B0		// Audio input 2
+#define P_PROTA2_IN		0x00B0	// Audio input 2
 						// physical DMAbuf
 						// protection address.
-#define P_PAGEA2_IN		0x00B4		// Audio input 2
+#define P_PAGEA2_IN		0x00B4	// Audio input 2
 						// paging attributes.
-#define P_BASEA2_OUT		0x00B8		// Audio output 2 base
+#define P_BASEA2_OUT		0x00B8	// Audio output 2 base
 						// physical DMAbuf
 						// address.
-#define P_PROTA2_OUT		0x00BC		// Audio output 2
+#define P_PROTA2_OUT		0x00BC	// Audio output 2
 						// physical DMAbuf
 						// protection address.
-#define P_PAGEA2_OUT		0x00C0		// Audio output 2
+#define P_PAGEA2_OUT		0x00C0	// Audio output 2
 						// paging attributes.
-#define P_RPSPAGE0              0x00C4		// RPS0 page.
-#define P_RPSPAGE1              0x00C8		// RPS1 page.
-#define P_RPS0_TOUT		0x00D4		// RPS0 time-out.
-#define P_RPS1_TOUT		0x00D8		// RPS1 time-out.
-#define P_IER                   0x00DC		// Interrupt enable.
-#define P_GPIO                  0x00E0		// General-purpose I/O.
-#define P_EC1SSR		0x00E4		// Event counter set 1
+#define P_RPSPAGE0              0x00C4	// RPS0 page.
+#define P_RPSPAGE1              0x00C8	// RPS1 page.
+#define P_RPS0_TOUT		0x00D4	// RPS0 time-out.
+#define P_RPS1_TOUT		0x00D8	// RPS1 time-out.
+#define P_IER                   0x00DC	// Interrupt enable.
+#define P_GPIO                  0x00E0	// General-purpose I/O.
+#define P_EC1SSR		0x00E4	// Event counter set 1
 						// source select.
-#define P_ECT1R			0x00EC		// Event counter
+#define P_ECT1R			0x00EC	// Event counter
 						// threshold set 1.
-#define P_ACON1                 0x00F4		// Audio control 1.
-#define P_ACON2                 0x00F8		// Audio control 2.
-#define P_MC1                   0x00FC		// Master control 1.
-#define P_MC2                   0x0100		// Master control 2.
-#define P_RPSADDR0              0x0104		// RPS0 instruction pointer.
-#define P_RPSADDR1              0x0108		// RPS1 instruction pointer.
-#define P_ISR                   0x010C		// Interrupt status.
-#define P_PSR                   0x0110		// Primary status.
-#define P_SSR                   0x0114		// Secondary status.
-#define P_EC1R			0x0118		// Event counter set 1.
-#define P_ADP4			0x0138		// Logical audio DMA
+#define P_ACON1                 0x00F4	// Audio control 1.
+#define P_ACON2                 0x00F8	// Audio control 2.
+#define P_MC1                   0x00FC	// Master control 1.
+#define P_MC2                   0x0100	// Master control 2.
+#define P_RPSADDR0              0x0104	// RPS0 instruction pointer.
+#define P_RPSADDR1              0x0108	// RPS1 instruction pointer.
+#define P_ISR                   0x010C	// Interrupt status.
+#define P_PSR                   0x0110	// Primary status.
+#define P_SSR                   0x0114	// Secondary status.
+#define P_EC1R			0x0118	// Event counter set 1.
+#define P_ADP4			0x0138	// Logical audio DMA
 						// pointer of audio
 						// input FIFO A2_IN.
-#define P_FB_BUFFER1            0x0144		// Audio feedback buffer 1.
-#define P_FB_BUFFER2            0x0148		// Audio feedback buffer 2.
-#define P_TSL1                  0x0180		// Audio time slot list 1.
-#define P_TSL2                  0x01C0		// Audio time slot list 2.
+#define P_FB_BUFFER1            0x0144	// Audio feedback buffer 1.
+#define P_FB_BUFFER2            0x0148	// Audio feedback buffer 2.
+#define P_TSL1                  0x0180	// Audio time slot list 1.
+#define P_TSL2                  0x01C0	// Audio time slot list 2.
 
 // LOCAL BUS (GATE ARRAY) REGISTER ADDRESS OFFSETS /////////////////
 // Analog I/O registers:
-#define LP_DACPOL		0x0082		//  Write DAC polarity.
-#define LP_GSEL			0x0084		//  Write ADC gain.
-#define LP_ISEL			0x0086		//  Write ADC channel select.
+#define LP_DACPOL		0x0082	//  Write DAC polarity.
+#define LP_GSEL			0x0084	//  Write ADC gain.
+#define LP_ISEL			0x0086	//  Write ADC channel select.
 // Digital I/O (write only):
-#define LP_WRINTSELA		0x0042		//  Write A interrupt enable.
-#define LP_WREDGSELA		0x0044		//  Write A edge selection.
-#define LP_WRCAPSELA		0x0046		//  Write A capture enable.
-#define LP_WRDOUTA		0x0048		//  Write A digital output.
-#define LP_WRINTSELB		0x0052		//  Write B interrupt enable.
-#define LP_WREDGSELB		0x0054		//  Write B edge selection.
-#define LP_WRCAPSELB		0x0056		//  Write B capture enable.
-#define LP_WRDOUTB		0x0058		//  Write B digital output.
-#define LP_WRINTSELC		0x0062		//  Write C interrupt enable.
-#define LP_WREDGSELC		0x0064		//  Write C edge selection.
-#define LP_WRCAPSELC		0x0066		//  Write C capture enable.
-#define LP_WRDOUTC		0x0068		//  Write C digital output.
-				
+#define LP_WRINTSELA		0x0042	//  Write A interrupt enable.
+#define LP_WREDGSELA		0x0044	//  Write A edge selection.
+#define LP_WRCAPSELA		0x0046	//  Write A capture enable.
+#define LP_WRDOUTA		0x0048	//  Write A digital output.
+#define LP_WRINTSELB		0x0052	//  Write B interrupt enable.
+#define LP_WREDGSELB		0x0054	//  Write B edge selection.
+#define LP_WRCAPSELB		0x0056	//  Write B capture enable.
+#define LP_WRDOUTB		0x0058	//  Write B digital output.
+#define LP_WRINTSELC		0x0062	//  Write C interrupt enable.
+#define LP_WREDGSELC		0x0064	//  Write C edge selection.
+#define LP_WRCAPSELC		0x0066	//  Write C capture enable.
+#define LP_WRDOUTC		0x0068	//  Write C digital output.
+
 // Digital I/O (read only):
-#define LP_RDDINA		0x0040		//  Read digital input.
-#define LP_RDCAPFLGA		0x0048		//  Read edges captured.
-#define LP_RDINTSELA		0x004A		//  Read interrupt
+#define LP_RDDINA		0x0040	//  Read digital input.
+#define LP_RDCAPFLGA		0x0048	//  Read edges captured.
+#define LP_RDINTSELA		0x004A	//  Read interrupt
 						//  enable register.
-#define LP_RDEDGSELA		0x004C		//  Read edge
+#define LP_RDEDGSELA		0x004C	//  Read edge
 						//  selection
 						//  register.
-#define LP_RDCAPSELA		0x004E		//  Read capture
+#define LP_RDCAPSELA		0x004E	//  Read capture
 						//  enable register.
-#define LP_RDDINB		0x0050		//  Read digital input.
-#define LP_RDCAPFLGB		0x0058		//  Read edges captured.
-#define LP_RDINTSELB		0x005A		//  Read interrupt
+#define LP_RDDINB		0x0050	//  Read digital input.
+#define LP_RDCAPFLGB		0x0058	//  Read edges captured.
+#define LP_RDINTSELB		0x005A	//  Read interrupt
 						//  enable register.
-#define LP_RDEDGSELB		0x005C		//  Read edge
+#define LP_RDEDGSELB		0x005C	//  Read edge
 						//  selection
 						//  register.
-#define LP_RDCAPSELB		0x005E		//  Read capture
+#define LP_RDCAPSELB		0x005E	//  Read capture
 						//  enable register.
-#define LP_RDDINC		0x0060		//  Read digital input.
-#define LP_RDCAPFLGC		0x0068		//  Read edges captured.
-#define LP_RDINTSELC		0x006A		//  Read interrupt
+#define LP_RDDINC		0x0060	//  Read digital input.
+#define LP_RDCAPFLGC		0x0068	//  Read edges captured.
+#define LP_RDINTSELC		0x006A	//  Read interrupt
 						//  enable register.
-#define LP_RDEDGSELC		0x006C		//  Read edge
+#define LP_RDEDGSELC		0x006C	//  Read edge
 						//  selection
 						//  register.
-#define LP_RDCAPSELC		0x006E		//  Read capture
+#define LP_RDCAPSELC		0x006E	//  Read capture
 						//  enable register.
 // Counter Registers (read/write):
-#define LP_CR0A			0x0000		//  0A setup register.
-#define LP_CR0B			0x0002		//  0B setup register.
-#define LP_CR1A			0x0004		//  1A setup register.
-#define LP_CR1B			0x0006		//  1B setup register.
-#define LP_CR2A			0x0008		//  2A setup register.
-#define LP_CR2B			0x000A		//  2B setup register.
+#define LP_CR0A			0x0000	//  0A setup register.
+#define LP_CR0B			0x0002	//  0B setup register.
+#define LP_CR1A			0x0004	//  1A setup register.
+#define LP_CR1B			0x0006	//  1B setup register.
+#define LP_CR2A			0x0008	//  2A setup register.
+#define LP_CR2B			0x000A	//  2B setup register.
 // Counter PreLoad (write) and Latch (read) Registers:
-#define	LP_CNTR0ALSW		0x000C		//  0A lsw.
-#define	LP_CNTR0AMSW		0x000E		//  0A msw.
-#define	LP_CNTR0BLSW		0x0010		//  0B lsw.
-#define	LP_CNTR0BMSW		0x0012		//  0B msw.
-#define	LP_CNTR1ALSW		0x0014		//  1A lsw.
-#define	LP_CNTR1AMSW		0x0016		//  1A msw.
-#define	LP_CNTR1BLSW		0x0018		//  1B lsw.
-#define	LP_CNTR1BMSW		0x001A		//  1B msw.
-#define	LP_CNTR2ALSW		0x001C		//  2A lsw.
-#define	LP_CNTR2AMSW		0x001E		//  2A msw.
-#define	LP_CNTR2BLSW		0x0020		//  2B lsw.
-#define	LP_CNTR2BMSW		0x0022		//  2B msw.
+#define	LP_CNTR0ALSW		0x000C	//  0A lsw.
+#define	LP_CNTR0AMSW		0x000E	//  0A msw.
+#define	LP_CNTR0BLSW		0x0010	//  0B lsw.
+#define	LP_CNTR0BMSW		0x0012	//  0B msw.
+#define	LP_CNTR1ALSW		0x0014	//  1A lsw.
+#define	LP_CNTR1AMSW		0x0016	//  1A msw.
+#define	LP_CNTR1BLSW		0x0018	//  1B lsw.
+#define	LP_CNTR1BMSW		0x001A	//  1B msw.
+#define	LP_CNTR2ALSW		0x001C	//  2A lsw.
+#define	LP_CNTR2AMSW		0x001E	//  2A msw.
+#define	LP_CNTR2BLSW		0x0020	//  2B lsw.
+#define	LP_CNTR2BMSW		0x0022	//  2B msw.
 // Miscellaneous Registers (read/write):
-#define LP_MISC1		0x0088		//  Read/write Misc1.
-#define LP_WRMISC2		0x0090		//  Write Misc2.
-#define LP_RDMISC2		0x0082		//  Read Misc2.
+#define LP_MISC1		0x0088	//  Read/write Misc1.
+#define LP_WRMISC2		0x0090	//  Write Misc2.
+#define LP_RDMISC2		0x0082	//  Read Misc2.
 
 // Bit masks for MISC1 register that are the same for reads and writes.
-#define MISC1_WENABLE		0x8000		// enab writes to
+#define MISC1_WENABLE		0x8000	// enab writes to
 						// MISC2 (except Clear
 						// Watchdog bit).
-#define MISC1_WDISABLE		0x0000		// Disable writes to MISC2.
-#define MISC1_EDCAP		0x1000		// enab edge capture
+#define MISC1_WDISABLE		0x0000	// Disable writes to MISC2.
+#define MISC1_EDCAP		0x1000	// enab edge capture
 						// on DIO chans
 						// specified by
 						// LP_WRCAPSELx.
-#define MISC1_NOEDCAP		0x0000		// Disable edge
+#define MISC1_NOEDCAP		0x0000	// Disable edge
 						// capture on
 						// specified DIO
 						// chans.
 
 // Bit masks for MISC1 register reads.
-#define RDMISC1_WDTIMEOUT	0x4000		// Watchdog timer timed out.
+#define RDMISC1_WDTIMEOUT	0x4000	// Watchdog timer timed out.
 
 // Bit masks for MISC2 register writes.
-#define WRMISC2_WDCLEAR		0x8000		// Reset watchdog
+#define WRMISC2_WDCLEAR		0x8000	// Reset watchdog
 						// timer to zero.
-#define WRMISC2_CHARGE_ENABLE	0x4000		// enab battery
+#define WRMISC2_CHARGE_ENABLE	0x4000	// enab battery
 						// trickle charging.
 
 // Bit masks for MISC2 register that are the same for reads and writes.
-#define MISC2_BATT_ENABLE	0x0008		// Backup battery enable.
-#define MISC2_WDENABLE		0x0004		// Watchdog timer enable.
-#define MISC2_WDPERIOD_MASK	0x0003		// Watchdog interval
+#define MISC2_BATT_ENABLE	0x0008	// Backup battery enable.
+#define MISC2_WDENABLE		0x0004	// Watchdog timer enable.
+#define MISC2_WDPERIOD_MASK	0x0003	// Watchdog interval
 						// select mask.
 
 // Bit masks for ACON1 register.
@@ -420,7 +414,7 @@
 						// input, WS1-WS4 =
 						// CS* outputs.
 
-#if PLATFORM == INTEL				// Base ACON1 config:
+#if PLATFORM == INTEL		// Base ACON1 config:
 						// always run A1 based
 						// on TSL1.
 #define ACON1_BASE		( WS_MODES | A1_RUN )
@@ -495,33 +489,32 @@
 						// tri-state.
 #define EOS		     	0x00000001	// End of superframe.
 
-
 //////////////////////
 
 // I2C configuration constants.
-#define I2C_CLKSEL		0x0400		// I2C bit rate =
+#define I2C_CLKSEL		0x0400	// I2C bit rate =
 						// PCIclk/480 = 68.75
 						// KHz.
-#define I2C_BITRATE		68.75		// I2C bus data bit
+#define I2C_BITRATE		68.75	// I2C bus data bit
 						// rate (determined by
 						// I2C_CLKSEL) in KHz.
-#define I2C_WRTIME		15.0		// Worst case time,in
+#define I2C_WRTIME		15.0	// Worst case time,in
 						// msec, for EEPROM
 						// internal write op.
 
 // I2C manifest constants.
 
 // Max retries to wait for EEPROM write.
-#define I2C_RETRIES		( I2C_WRTIME * I2C_BITRATE / 9.0 )	
-#define I2C_ERR			0x0002		// I2C control/status
+#define I2C_RETRIES		( I2C_WRTIME * I2C_BITRATE / 9.0 )
+#define I2C_ERR			0x0002	// I2C control/status
 						// flag ERROR.
-#define I2C_BUSY		0x0001		// I2C control/status
+#define I2C_BUSY		0x0001	// I2C control/status
 						// flag BUSY.
-#define I2C_ABORT		0x0080		// I2C status flag ABORT.
-#define I2C_ATTRSTART		0x3		// I2C attribute START.
-#define I2C_ATTRCONT		0x2		// I2C attribute CONT.
-#define I2C_ATTRSTOP		0x1		// I2C attribute STOP.
-#define I2C_ATTRNOP		0x0		// I2C attribute NOP.
+#define I2C_ABORT		0x0080	// I2C status flag ABORT.
+#define I2C_ATTRSTART		0x3	// I2C attribute START.
+#define I2C_ATTRCONT		0x2	// I2C attribute CONT.
+#define I2C_ATTRSTOP		0x1	// I2C attribute STOP.
+#define I2C_ATTRNOP		0x0	// I2C attribute NOP.
 
 // I2C read command  | EEPROM address.
 #define I2CR			( devpriv->I2CAdrs | 1 )
@@ -534,22 +527,21 @@
 #define I2C_B1(ATTR,VAL)	( ( (ATTR) << 4 ) | ( (VAL) << 16 ) )
 #define I2C_B0(ATTR,VAL)	( ( (ATTR) << 2 ) | ( (VAL) <<  8 ) )
 
-
 ////////////////////////////////////////////////////////
 //oldest
-#define P_DEBICFGq              0x007C		// DEBI configuration.
-#define P_DEBICMDq              0x0080		// DEBI command.
-#define P_DEBIPAGEq             0x0084		// DEBI page.
-#define P_DEBIADq               0x0088		// DEBI target address.
+#define P_DEBICFGq              0x007C	// DEBI configuration.
+#define P_DEBICMDq              0x0080	// DEBI command.
+#define P_DEBIPAGEq             0x0084	// DEBI page.
+#define P_DEBIADq               0x0088	// DEBI target address.
 
-#define DEBI_CFG_TOQ		0x03C00000      // timeout (15 PCI cycles)
-#define DEBI_CFG_FASTQ		0x10000000      // fast mode enable
-#define DEBI_CFG_16Q		0x00080000      // 16-bit access enable
-#define DEBI_CFG_INCQ		0x00040000      // enable address increment
-#define DEBI_CFG_TIMEROFFQ	0x00010000      // disable timer
-#define DEBI_CMD_RDQ		0x00050000      // read immediate 2 bytes
-#define DEBI_CMD_WRQ		0x00040000      // write immediate 2 bytes
-#define DEBI_PAGE_DISABLEQ	0x00000000      // paging disable
+#define DEBI_CFG_TOQ		0x03C00000	// timeout (15 PCI cycles)
+#define DEBI_CFG_FASTQ		0x10000000	// fast mode enable
+#define DEBI_CFG_16Q		0x00080000	// 16-bit access enable
+#define DEBI_CFG_INCQ		0x00040000	// enable address increment
+#define DEBI_CFG_TIMEROFFQ	0x00010000	// disable timer
+#define DEBI_CMD_RDQ		0x00050000	// read immediate 2 bytes
+#define DEBI_CMD_WRQ		0x00040000	// write immediate 2 bytes
+#define DEBI_PAGE_DISABLEQ	0x00000000	// paging disable
 
 ///////////////////////////////////////////
 // DEBI command constants.
@@ -597,12 +589,12 @@
 
 #if PLATFORM == INTEL
 
-#define DEBI_TOUT		7		// Wait 7 PCI clocks
+#define DEBI_TOUT		7	// Wait 7 PCI clocks
 						// (212 ns) before
 						// polling RDY.
 
 // Intel byte lane steering (pass through all byte lanes).
-#define DEBI_SWAP		DEBI_CFG_SWAP_NONE	
+#define DEBI_SWAP		DEBI_CFG_SWAP_NONE
 
 #elif PLATFORM == MOTOROLA
 
@@ -625,7 +617,6 @@
 #define LOADSRCB_OVERA		2	// Preload B core in response
 					// to A Overflow.
 #define LOADSRC_NONE		3	// Never preload core.
-
 
 // IntSrc values:
 #define INTSRC_NONE 		0	// Interrupts disabled.
@@ -804,11 +795,8 @@
 /*   unsigned int enc; */
 /* }CallCounter; */
 
-typedef struct bufferDMA
-{
-  dma_addr_t PhysicalBase;
-  void *LogicalBase;
-  uint32_t DMAHandle;
+typedef struct bufferDMA {
+	dma_addr_t PhysicalBase;
+	void *LogicalBase;
+	uint32_t DMAHandle;
 } DMABUF;
-
-

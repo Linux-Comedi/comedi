@@ -30,5 +30,3 @@
 #endif
 
 #endif /* _COMPAT_COMPILER_H */
-
-

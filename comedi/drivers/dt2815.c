@@ -61,92 +61,96 @@ Configuration options:
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
-
 static const comedi_lrange range_dt2815_ao_32_current = { 1, {
-	RANGE_mA( 0,	32 )
-}};
+			RANGE_mA(0, 32)
+	}
+};
 static const comedi_lrange range_dt2815_ao_20_current = { 1, {
-	RANGE_mA( 4,	20 )
-}};
+			RANGE_mA(4, 20)
+	}
+};
 
 #define DT2815_SIZE 2
 
 #define DT2815_DATA 0
 #define DT2815_STATUS 1
 
-static int dt2815_attach(comedi_device *dev,comedi_devconfig *it);
-static int dt2815_detach(comedi_device *dev);
-static comedi_driver driver_dt2815={
-	driver_name:	"dt2815",
-	module:		THIS_MODULE,
-	attach:		dt2815_attach,
-	detach:		dt2815_detach,
+static int dt2815_attach(comedi_device * dev, comedi_devconfig * it);
+static int dt2815_detach(comedi_device * dev);
+static comedi_driver driver_dt2815 = {
+      driver_name:"dt2815",
+      module:THIS_MODULE,
+      attach:dt2815_attach,
+      detach:dt2815_detach,
 };
+
 COMEDI_INITCLEANUP(driver_dt2815);
 
 static void dt2815_free_resources(comedi_device * dev);
 
 typedef struct {
-  const comedi_lrange * range_type_list[8];
-  lsampl_t ao_readback[8];
+	const comedi_lrange *range_type_list[8];
+	lsampl_t ao_readback[8];
 } dt2815_private;
 
 #define devpriv ((dt2815_private *)dev->private)
 
-static int dt2815_wait_for_status(comedi_device *dev,int status)
+static int dt2815_wait_for_status(comedi_device * dev, int status)
 {
 	int i;
 
-	for(i=0;i<100;i++){
-		if(inb(dev->iobase + DT2815_STATUS)==status)
+	for (i = 0; i < 100; i++) {
+		if (inb(dev->iobase + DT2815_STATUS) == status)
 			break;
 	}
 	return status;
 }
 
-static int dt2815_ao_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int dt2815_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for(i=0;i<insn->n;i++){
-		data[i]=devpriv->ao_readback[chan];
+	for (i = 0; i < insn->n; i++) {
+		data[i] = devpriv->ao_readback[chan];
 	}
 
 	return i;
 }
 
-static int dt2815_ao_insn(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int dt2815_ao_insn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-  int i;
-  int chan = CR_CHAN(insn->chanspec);
-  unsigned int status;
-  unsigned int lo, hi;
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
+	unsigned int status;
+	unsigned int lo, hi;
 
-  for(i=0;i<insn->n;i++){
-    lo = ((data[i] & 0x0f) << 4) | (chan << 1) | 0x01;
-    hi = (data[i] & 0xff0) >> 4;
+	for (i = 0; i < insn->n; i++) {
+		lo = ((data[i] & 0x0f) << 4) | (chan << 1) | 0x01;
+		hi = (data[i] & 0xff0) >> 4;
 
-    status = dt2815_wait_for_status(dev,0x00);
-    if(status!=0){
-      rt_printk("dt2815: failed to write low byte on %d reason %x\n",
-	     chan, status);
-      return -EBUSY;
-    }
+		status = dt2815_wait_for_status(dev, 0x00);
+		if (status != 0) {
+			rt_printk
+				("dt2815: failed to write low byte on %d reason %x\n",
+				chan, status);
+			return -EBUSY;
+		}
 
-    outb(lo, dev->iobase + DT2815_DATA);
+		outb(lo, dev->iobase + DT2815_DATA);
 
-    status = dt2815_wait_for_status(dev,0x10);
-    if(status!=0x10){
-      rt_printk("dt2815: failed to write high byte on %d reason %x\n",
-	     chan, status);
-      return -EBUSY;
-    }
-    devpriv->ao_readback[chan] = data[i];
-  }
-  return i;
+		status = dt2815_wait_for_status(dev, 0x10);
+		if (status != 0x10) {
+			rt_printk
+				("dt2815: failed to write high byte on %d reason %x\n",
+				chan, status);
+			return -EBUSY;
+		}
+		devpriv->ao_readback[chan] = data[i];
+	}
+	return i;
 }
 
 /*
@@ -175,88 +179,84 @@ static int dt2815_ao_insn(comedi_device *dev,comedi_subdevice *s,
 
 static int dt2815_attach(comedi_device * dev, comedi_devconfig * it)
 {
-  comedi_subdevice *s;
-  int i;
-  const comedi_lrange *current_range_type, *voltage_range_type;
-  unsigned long iobase;
+	comedi_subdevice *s;
+	int i;
+	const comedi_lrange *current_range_type, *voltage_range_type;
+	unsigned long iobase;
 
-  iobase = it->options[0];
-  printk("comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
-  if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
-    printk("I/O port conflict\n");
-    return -EIO;
-  }
+	iobase = it->options[0];
+	printk("comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
+	if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
+		printk("I/O port conflict\n");
+		return -EIO;
+	}
 
-  dev->iobase = iobase;
-  dev->board_name = "dt2815";
+	dev->iobase = iobase;
+	dev->board_name = "dt2815";
 
-  if(alloc_subdevices(dev, 1)<0)
-    return -ENOMEM;
-  if(alloc_private(dev,sizeof(dt2815_private))<0)
-    return -ENOMEM;
+	if (alloc_subdevices(dev, 1) < 0)
+		return -ENOMEM;
+	if (alloc_private(dev, sizeof(dt2815_private)) < 0)
+		return -ENOMEM;
 
-  s=dev->subdevices;
-  /* ao subdevice */
-  s->type=COMEDI_SUBD_AO;
-  s->subdev_flags=SDF_WRITABLE;
-  s->maxdata=0xfff;
-  s->n_chan=8;
-  s->insn_write = dt2815_ao_insn;
-  s->insn_read = dt2815_ao_insn_read;
-  s->range_table_list=devpriv->range_type_list;
+	s = dev->subdevices;
+	/* ao subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->maxdata = 0xfff;
+	s->n_chan = 8;
+	s->insn_write = dt2815_ao_insn;
+	s->insn_read = dt2815_ao_insn_read;
+	s->range_table_list = devpriv->range_type_list;
 
-  current_range_type = (it->options[3])
-	      ? &range_dt2815_ao_20_current
-	      : &range_dt2815_ao_32_current;
-  voltage_range_type = (it->options[2])
-	      ? &range_bipolar5
-	      : &range_unipolar5;
-  for (i = 0; i < 8; i++) {
-    devpriv->range_type_list[i] = (it->options[5+i])
-	    ? current_range_type
-	    : voltage_range_type;
-  }
+	current_range_type = (it->options[3])
+		? &range_dt2815_ao_20_current : &range_dt2815_ao_32_current;
+	voltage_range_type = (it->options[2])
+		? &range_bipolar5 : &range_unipolar5;
+	for (i = 0; i < 8; i++) {
+		devpriv->range_type_list[i] = (it->options[5 + i])
+			? current_range_type : voltage_range_type;
+	}
 
-  /* Init the 2815 */
-  outb(0x00, dev->iobase + DT2815_STATUS);
-  for (i = 0 ; i < 100 ; i++) {
-    /* This is incredibly slow (approx 20 ms) */
-    unsigned int status;
-
-    comedi_udelay(1000);
-    status = inb(dev->iobase + DT2815_STATUS);
-    if (status == 4) {
-      unsigned int program;
-      program = (it->options[4] & 0x3) << 3 | 0x7;
-      outb(program, dev->iobase + DT2815_DATA);
-      printk(", program: 0x%x (@t=%d)\n", program, i);
-      break;
-    } else if (status != 0x00) {
-      printk("dt2815: unexpected status 0x%x (@t=%d)\n", status, i);
-      if (status & 0x60) {
+	/* Init the 2815 */
 	outb(0x00, dev->iobase + DT2815_STATUS);
-      }
-    }
-  }
+	for (i = 0; i < 100; i++) {
+		/* This is incredibly slow (approx 20 ms) */
+		unsigned int status;
 
+		comedi_udelay(1000);
+		status = inb(dev->iobase + DT2815_STATUS);
+		if (status == 4) {
+			unsigned int program;
+			program = (it->options[4] & 0x3) << 3 | 0x7;
+			outb(program, dev->iobase + DT2815_DATA);
+			printk(", program: 0x%x (@t=%d)\n", program, i);
+			break;
+		} else if (status != 0x00) {
+			printk("dt2815: unexpected status 0x%x (@t=%d)\n",
+				status, i);
+			if (status & 0x60) {
+				outb(0x00, dev->iobase + DT2815_STATUS);
+			}
+		}
+	}
 
-  printk("\n");
+	printk("\n");
 
-  return 0;
+	return 0;
 }
 
 static void dt2815_free_resources(comedi_device * dev)
 {
-  if(dev->iobase)
-    release_region(dev->iobase, DT2815_SIZE);
+	if (dev->iobase)
+		release_region(dev->iobase, DT2815_SIZE);
 }
 
 static int dt2815_detach(comedi_device * dev)
 {
-  printk("comedi%d: dt2815: remove\n", dev->minor);
+	printk("comedi%d: dt2815: remove\n", dev->minor);
 
-  dt2815_free_resources(dev);
+	dt2815_free_resources(dev);
 
-  return 0;
+	return 0;
 }
-

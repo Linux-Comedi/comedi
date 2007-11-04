@@ -41,11 +41,9 @@ Configuration options:
           1 = two's complement
 */
 
-
 #include <linux/comedidev.h>
 
 #include <linux/ioport.h>
-
 
 #define PCMAD_SIZE		4
 
@@ -54,66 +52,67 @@ Configuration options:
 #define PCMAD_MSB		2
 #define PCMAD_CONVERT		1
 
-struct pcmad_board_struct{
+struct pcmad_board_struct {
 	const char *name;
 	int n_ai_bits;
 };
-static const struct pcmad_board_struct pcmad_boards[]={
+static const struct pcmad_board_struct pcmad_boards[] = {
 	{
-	name:		"pcmad12",
-	n_ai_bits:	12,
-	},
+	      name:	"pcmad12",
+	      n_ai_bits:12,
+		},
 	{
-	name:		"pcmad16",
-	n_ai_bits:	16,
-	},
+	      name:	"pcmad16",
+	      n_ai_bits:16,
+		},
 };
+
 #define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
 #define n_pcmad_boards (sizeof(pcmad_boards)/sizeof(pcmad_boards[0]))
 
-struct pcmad_priv_struct{
+struct pcmad_priv_struct {
 	int differential;
 	int twos_comp;
 };
 #define devpriv ((struct pcmad_priv_struct *)dev->private)
 
-static int pcmad_attach(comedi_device *dev,comedi_devconfig *it);
-static int pcmad_detach(comedi_device *dev);
-static comedi_driver driver_pcmad={
-	driver_name:	"pcmad",
-	module:		THIS_MODULE,
-	attach:		pcmad_attach,
-	detach:		pcmad_detach,
-	board_name:	&pcmad_boards[0].name,
-	num_names:	n_pcmad_boards,
-	offset:		sizeof(pcmad_boards[0]),
+static int pcmad_attach(comedi_device * dev, comedi_devconfig * it);
+static int pcmad_detach(comedi_device * dev);
+static comedi_driver driver_pcmad = {
+      driver_name:"pcmad",
+      module:THIS_MODULE,
+      attach:pcmad_attach,
+      detach:pcmad_detach,
+      board_name:&pcmad_boards[0].name,
+      num_names:n_pcmad_boards,
+      offset:sizeof(pcmad_boards[0]),
 };
-COMEDI_INITCLEANUP(driver_pcmad);
 
+COMEDI_INITCLEANUP(driver_pcmad);
 
 #define TIMEOUT	100
 
-static int pcmad_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn, lsampl_t *data)
+static int pcmad_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan;
 	int n;
 
-	chan=CR_CHAN(insn->chanspec);
+	chan = CR_CHAN(insn->chanspec);
 
-	for(n=0;n<insn->n;n++){
-		outb(chan,dev->iobase+PCMAD_CONVERT);
+	for (n = 0; n < insn->n; n++) {
+		outb(chan, dev->iobase + PCMAD_CONVERT);
 
-		for(i=0;i<TIMEOUT;i++){
-			if((inb(dev->iobase+PCMAD_STATUS)&0x3) == 0x3)
+		for (i = 0; i < TIMEOUT; i++) {
+			if ((inb(dev->iobase + PCMAD_STATUS) & 0x3) == 0x3)
 				break;
 		}
-		data[n]=inb(dev->iobase+PCMAD_LSB);
-		data[n]|=(inb(dev->iobase+PCMAD_MSB)<<8);
+		data[n] = inb(dev->iobase + PCMAD_LSB);
+		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
-		if(devpriv->twos_comp){
-			data[n] ^= (1<<(this_board->n_ai_bits-1));
+		if (devpriv->twos_comp) {
+			data[n] ^= (1 << (this_board->n_ai_bits - 1));
 		}
 	}
 
@@ -127,50 +126,48 @@ static int pcmad_ai_insn_read(comedi_device *dev,comedi_subdevice *s,
  * 2	0=single ended 1=differential
  * 3	0=straight binary 1=two's comp
  */
-static int pcmad_attach(comedi_device *dev,comedi_devconfig *it)
+static int pcmad_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	comedi_subdevice *s;
 	unsigned long iobase;
 
-	iobase=it->options[0];
-	printk("comedi%d: pcmad: 0x%04lx ",dev->minor,iobase);
-	if(!request_region(iobase,PCMAD_SIZE,"pcmad")){
+	iobase = it->options[0];
+	printk("comedi%d: pcmad: 0x%04lx ", dev->minor, iobase);
+	if (!request_region(iobase, PCMAD_SIZE, "pcmad")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	dev->iobase=iobase;
+	dev->iobase = iobase;
 
-	if((ret=alloc_subdevices(dev, 1))<0)
+	if ((ret = alloc_subdevices(dev, 1)) < 0)
 		return ret;
-	if((ret=alloc_private(dev,sizeof(struct pcmad_priv_struct)))<0)
+	if ((ret = alloc_private(dev, sizeof(struct pcmad_priv_struct))) < 0)
 		return ret;
 
 	dev->board_name = this_board->name;
 
-	s=dev->subdevices+0;
-	s->type=COMEDI_SUBD_AI;
-	s->subdev_flags=SDF_READABLE|AREF_GROUND;
-	s->n_chan=16;			/* XXX */
-	s->len_chanlist=1;
-	s->insn_read=pcmad_ai_insn_read;
-	s->maxdata=(1<<this_board->n_ai_bits)-1;
-	s->range_table=&range_unknown;
+	s = dev->subdevices + 0;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | AREF_GROUND;
+	s->n_chan = 16;		/* XXX */
+	s->len_chanlist = 1;
+	s->insn_read = pcmad_ai_insn_read;
+	s->maxdata = (1 << this_board->n_ai_bits) - 1;
+	s->range_table = &range_unknown;
 
 	return 0;
 }
 
-
-static int pcmad_detach(comedi_device *dev)
+static int pcmad_detach(comedi_device * dev)
 {
-	printk("comedi%d: pcmad: remove\n",dev->minor);
+	printk("comedi%d: pcmad: remove\n", dev->minor);
 
-	if(dev->irq){
-		free_irq(dev->irq,dev);
+	if (dev->irq) {
+		free_irq(dev->irq, dev);
 	}
-	if(dev->iobase)
-		release_region(dev->iobase,PCMAD_SIZE);
+	if (dev->iobase)
+		release_region(dev->iobase, PCMAD_SIZE);
 
 	return 0;
 }
-

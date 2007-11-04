@@ -23,4 +23,3 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 #endif
 
 #endif
-

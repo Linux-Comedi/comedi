@@ -29,17 +29,16 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 //DIGITAL INPUT-OUTPUT DEFINE  
 // Input defines
-#define APCI1564_DIGITAL_IP                     0x04  
+#define APCI1564_DIGITAL_IP                     0x04
 #define APCI1564_DIGITAL_IP_INTERRUPT_MODE1     4
 #define APCI1564_DIGITAL_IP_INTERRUPT_MODE2     8
 #define APCI1564_DIGITAL_IP_IRQ                 16
 
 // Output defines
 #define APCI1564_DIGITAL_OP                 	0x18
-#define APCI1564_DIGITAL_OP_RW               	0    
-#define APCI1564_DIGITAL_OP_INTERRUPT           4   
-#define APCI1564_DIGITAL_OP_IRQ                 12  
-
+#define APCI1564_DIGITAL_OP_RW               	0
+#define APCI1564_DIGITAL_OP_INTERRUPT           4
+#define APCI1564_DIGITAL_OP_IRQ                 12
 
 //Digital Input IRQ Function Selection
 #define ADDIDATA_OR                             0
@@ -49,10 +48,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI1564_DIGITAL_IP_INTERRUPT_STATUS    12
 
 //Digital Output Interrupt Status
-#define APCI1564_DIGITAL_OP_INTERRUPT_STATUS    8  
+#define APCI1564_DIGITAL_OP_INTERRUPT_STATUS    8
 
 //Digital Input Interrupt Enable Disable. 
-#define APCI1564_DIGITAL_IP_INTERRUPT_ENABLE    0x4 
+#define APCI1564_DIGITAL_IP_INTERRUPT_ENABLE    0x4
 #define APCI1564_DIGITAL_IP_INTERRUPT_DISABLE   0xFFFFFFFB
 
 //Digital Output Interrupt Enable Disable.
@@ -76,7 +75,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI1564_COUNTER1                          0x0
 #define APCI1564_COUNTER2                          0x20
 #define APCI1564_COUNTER3                          0x40
-#define APCI1564_COUNTER4                          0x60 
+#define APCI1564_COUNTER4                          0x60
 #define APCI1564_TCW_SYNC_ENABLEDISABLE            0
 #define APCI1564_TCW_RELOAD_VALUE                  4
 #define APCI1564_TCW_TIMEBASE                      8
@@ -86,31 +85,38 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI1564_TCW_WARN_TIMEVAL                  24
 #define APCI1564_TCW_WARN_TIMEBASE                 28
 
-
 // Hardware Layer  functions for Apci1564
-
 
 //DI
 // for di read
-INT i_APCI1564_ConfigDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI1564_Read1DigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI1564_ReadMoreDigitalInput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+INT i_APCI1564_ConfigDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI1564_Read1DigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI1564_ReadMoreDigitalInput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 //DO
-int i_APCI1564_ConfigDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI1564_WriteDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-INT i_APCI1564_ReadDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI1564_ReadInterruptStatus(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);  
-
+int i_APCI1564_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI1564_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+INT i_APCI1564_ReadDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+int i_APCI1564_ReadInterruptStatus(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 // TIMER  
 // timer value is passed as u seconds
-INT i_APCI1564_ConfigTimerCounterWatchdog (comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-int i_APCI1564_ReadTimerCounterWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
+INT i_APCI1564_ConfigTimerCounterWatchdog(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+int i_APCI1564_StartStopWriteTimerCounterWatchdog(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+int i_APCI1564_ReadTimerCounterWatchdog(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
 
 // INTERRUPT
-static VOID v_APCI1564_Interrupt(int irq, void *d) ;
+static VOID v_APCI1564_Interrupt(int irq, void *d);
 
 // RESET
-INT i_APCI1564_Reset(comedi_device *dev);
+INT i_APCI1564_Reset(comedi_device * dev);

@@ -26,11 +26,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI2016_BOARD_VENDOR_ID 0x15B8
 #define APCI2016_ADDRESS_RANGE   8
 
-
 //DIGITAL INPUT-OUTPUT DEFINE   
 
-#define APCI2016_DIGITAL_OP                 	0x04 
-#define APCI2016_DIGITAL_OP_RW                 	4 
+#define APCI2016_DIGITAL_OP                 	0x04
+#define APCI2016_DIGITAL_OP_RW                 	4
 
 //ADDIDATA Enable Disable
 
@@ -45,27 +44,29 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define APCI2016_WATCHDOG_RELOAD_VALUE             4
 #define APCI2016_WATCHDOG_STATUS                   16
 
-
 // Hardware Layer  functions for Apci2016
 
 //DO
-int i_APCI2016_ConfigDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) ;
+int i_APCI2016_ConfigDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-int i_APCI2016_WriteDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);  
+int i_APCI2016_WriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-int i_APCI2016_BitsDigitalOutput(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
+int i_APCI2016_BitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 // TIMER  
 // timer value is passed as u seconds
 
+int i_APCI2016_ConfigWatchdog(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-int i_APCI2016_ConfigWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data) ;
+int i_APCI2016_StartStopWriteWatchdog(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-int i_APCI2016_StartStopWriteWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
-int i_APCI2016_ReadWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-
+int i_APCI2016_ReadWatchdog(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 // Interrupt functions.....
 
@@ -73,4 +74,4 @@ int i_APCI2016_ReadWatchdog(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
  //VOID v_APCI2016_Interrupt(int irq, void *d);
 // RESET
-INT i_APCI2016_Reset(comedi_device *dev);
+INT i_APCI2016_Reset(comedi_device * dev);

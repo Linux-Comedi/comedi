@@ -57,7 +57,6 @@ output modes on the board:
     then issue one comedi_data_read() on any channel on the AO subdevice
     to initiate the simultaneous XFER.
 
-
 Configuration Options:
   [0] PCI bus (optional) (unimplemented)
   [1] PCI slot (optional) (unimplemented)
@@ -91,7 +90,6 @@ Configuration Options:
 
 #include "8255.h"
 
-
 /* device ids of the cards we support -- currently only 1 card supported */
 #define PCI_ID_PCIM_DDA06_16 0x0053
 
@@ -100,36 +98,36 @@ Configuration Options:
  * will someday support more than 1 board...
  */
 typedef struct board_struct {
-    const char *name;
-    unsigned short device_id;
-    int ao_chans;
-    int ao_bits;
+	const char *name;
+	unsigned short device_id;
+	int ao_chans;
+	int ao_bits;
 	int dio_chans;
-    int dio_method;
-    int dio_offset; /* how many bytes into the BADR are the DIO ports */
-    int regs_badrindex; /* IO Region for the control, analog output,
-                           and DIO registers */
-    int reg_sz;     /* number of bytes of registers in io region */
+	int dio_method;
+	int dio_offset;		/* how many bytes into the BADR are the DIO ports */
+	int regs_badrindex;	/* IO Region for the control, analog output,
+				   and DIO registers */
+	int reg_sz;		/* number of bytes of registers in io region */
 } board;
 
 enum DIO_METHODS {
-  DIO_NONE = 0,
-  DIO_8255,
-  DIO_INTERNAL /* unimplemented */
+	DIO_NONE = 0,
+	DIO_8255,
+	DIO_INTERNAL		/* unimplemented */
 };
 
 static const board boards[] = {
-    {
-        name:		"cb_pcimdda06-16",
-        device_id:       PCI_ID_PCIM_DDA06_16,
-        ao_chans:	 6,
-        ao_bits:         16,
-        dio_chans:	 24,
-        dio_method:      DIO_8255,
-        dio_offset:      12,
-        regs_badrindex:  3,
-        reg_sz:          16,
-    }
+	{
+	      name:	"cb_pcimdda06-16",
+	      device_id:PCI_ID_PCIM_DDA06_16,
+	      ao_chans:6,
+	      ao_bits:	16,
+	      dio_chans:24,
+	      dio_method:DIO_8255,
+	      dio_offset:12,
+	      regs_badrindex:3,
+	      reg_sz:	16,
+		}
 };
 
 /*
@@ -147,26 +145,27 @@ static const board boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static struct pci_device_id pci_table[] __devinitdata = {
-  { PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-  { 0 }
+	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16, PCI_ANY_ID,
+		PCI_ANY_ID, 0, 0, 0},
+	{0}
 };
-MODULE_DEVICE_TABLE(pci, pci_table);
 
+MODULE_DEVICE_TABLE(pci, pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
-        unsigned long registers; /* set by probe */
-        unsigned long dio_registers;
-        char  attached_to_8255; /* boolean */
-        char  attached_successfully; /* boolean */
-  /* would be useful for a PCI device */
-        struct pci_dev *pci_dev;
+	unsigned long registers;	/* set by probe */
+	unsigned long dio_registers;
+	char attached_to_8255;	/* boolean */
+	char attached_successfully;	/* boolean */
+	/* would be useful for a PCI device */
+	struct pci_dev *pci_dev;
 
 #define MAX_AO_READBACK_CHANNELS 6
-      /* Used for AO readback */
-       lsampl_t ao_readback[MAX_AO_READBACK_CHANNELS];
+	/* Used for AO readback */
+	lsampl_t ao_readback[MAX_AO_READBACK_CHANNELS];
 
 } private;
 
@@ -182,27 +181,26 @@ typedef struct {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int attach(comedi_device *dev,comedi_devconfig *it);
-static int detach(comedi_device *dev);
+static int attach(comedi_device * dev, comedi_devconfig * it);
+static int detach(comedi_device * dev);
 static comedi_driver cb_pcimdda_driver = {
-	driver_name:	"cb_pcimdda",
-	module:		THIS_MODULE,
-	attach:		attach,
-	detach:		detach,
+      driver_name:"cb_pcimdda",
+      module:THIS_MODULE,
+      attach:attach,
+      detach:detach,
 };
+
 MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");
 MODULE_DESCRIPTION("Comedi low-level driver for the Computerboards PCIM-DDA "
-                   "series.  Currently only supports PCIM-DDA06-16 (which "
-                   "also happens to be the only board in this series. :) ) ");
+	"series.  Currently only supports PCIM-DDA06-16 (which "
+	"also happens to be the only board in this series. :) ) ");
 MODULE_LICENSE("GPL");
 COMEDI_INITCLEANUP_NOMODULE(cb_pcimdda_driver);
 
-
-static int ao_winsn(comedi_device *dev, comedi_subdevice *s,
-                    comedi_insn *insn,lsampl_t *data);
-static int ao_rinsn(comedi_device *dev, comedi_subdevice *s,
-                    comedi_insn *insn,lsampl_t *data);
-
+static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
 /*---------------------------------------------------------------------------
   HELPER FUNCTION DECLARATIONS
@@ -211,7 +209,7 @@ static int ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 /* returns a maxdata value for a given n_bits */
 static inline lsampl_t figure_out_maxdata(int bits)
 {
-	return (((lsampl_t)1 << bits) - 1);
+	return (((lsampl_t) 1 << bits) - 1);
 }
 
 /*
@@ -228,8 +226,7 @@ static inline lsampl_t figure_out_maxdata(int bits)
  *
  *  Otherwise, returns a -errno on error
  */
-static int probe(comedi_device *dev, const comedi_devconfig *it);
-
+static int probe(comedi_device * dev, const comedi_devconfig * it);
 
 /*---------------------------------------------------------------------------
   FUNCTION DEFINITIONS
@@ -241,7 +238,7 @@ static int probe(comedi_device *dev, const comedi_devconfig *it);
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int attach(comedi_device *dev,comedi_devconfig *it)
+static int attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int err;
@@ -252,7 +249,7 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  * if this function fails (returns negative) then the private area is
  * kfree'd by comedi
  */
-	if (alloc_private(dev,sizeof(private))<0)
+	if (alloc_private(dev, sizeof(private)) < 0)
 		return -ENOMEM;
 
 /*
@@ -260,12 +257,11 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
  */
-	if ( (err = probe(dev, it)) ) return err;
-
+	if ((err = probe(dev, it)))
+		return err;
 
 /* Output some info */
-	printk("comedi%d: %s: ",dev->minor, thisboard->name);
-
+	printk("comedi%d: %s: ", dev->minor, thisboard->name);
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -277,10 +273,10 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if(alloc_subdevices(dev, 2)<0)
+	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
-	s = dev->subdevices+0;
+	s = dev->subdevices + 0;
 
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
@@ -288,40 +284,39 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = figure_out_maxdata(thisboard->ao_bits);
 	/* this is hard-coded here */
-	if(it->options[2]){
+	if (it->options[2]) {
 		s->range_table = &range_bipolar10;
-	}else{
+	} else {
 		s->range_table = &range_bipolar5;
 	}
 	s->insn_write = &ao_winsn;
 	s->insn_read = &ao_rinsn;
 
-	s = dev->subdevices+1;
+	s = dev->subdevices + 1;
 	/* digital i/o subdevice */
-    if(thisboard->dio_chans) {
-        switch(thisboard->dio_method) {
-        case DIO_8255:
-           /* this is a straight 8255, so register us with the 8255 driver */
-            subdev_8255_init(dev, s, NULL, devpriv->dio_registers);
-            devpriv->attached_to_8255 = 1;
-            break;
-        case DIO_INTERNAL:
-        default:
-            printk("DIO_INTERNAL not implemented yet!\n");
-            return -ENXIO;
-            break;
-        }
-    } else {
-      s->type = COMEDI_SUBD_UNUSED;
-    }
+	if (thisboard->dio_chans) {
+		switch (thisboard->dio_method) {
+		case DIO_8255:
+			/* this is a straight 8255, so register us with the 8255 driver */
+			subdev_8255_init(dev, s, NULL, devpriv->dio_registers);
+			devpriv->attached_to_8255 = 1;
+			break;
+		case DIO_INTERNAL:
+		default:
+			printk("DIO_INTERNAL not implemented yet!\n");
+			return -ENXIO;
+			break;
+		}
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
-    devpriv->attached_successfully = 1;
+	devpriv->attached_successfully = 1;
 
-    printk("attached\n");
+	printk("attached\n");
 
-    return 1;
+	return 1;
 }
-
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
@@ -331,60 +326,58 @@ static int attach(comedi_device *dev,comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int detach(comedi_device *dev)
+static int detach(comedi_device * dev)
 {
 	if (devpriv) {
 
 		if (dev->subdevices && devpriv->attached_to_8255) {
 			/* de-register us from the 8255 driver */
-			subdev_8255_cleanup(dev,dev->subdevices + 2);
+			subdev_8255_cleanup(dev, dev->subdevices + 2);
 			devpriv->attached_to_8255 = 0;
 		}
 
 		if (devpriv->pci_dev) {
-			if(devpriv->registers)
-			{
+			if (devpriv->registers) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 
 		if (devpriv->attached_successfully && thisboard)
-			printk("comedi%d: %s: detached\n", dev->minor, thisboard->name);
+			printk("comedi%d: %s: detached\n", dev->minor,
+				thisboard->name);
 
 	}
 
 	return 0;
 }
 
-
-
-static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
-		    lsampl_t *data)
+static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-   int i;
-   int chan = CR_CHAN(insn->chanspec);
-   unsigned long offset = devpriv->registers + chan*2;
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
+	unsigned long offset = devpriv->registers + chan * 2;
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
-   for(i=0;i<insn->n;i++) {
-       /*  first, load the low byte */
-       outb((char)(data[i] & 0x00ff), offset);
-       /*  next, write the high byte -- only after this is written is
-           the channel voltage updated in the DAC, unless
-           we're in simultaneous xfer mode (jumper on card)
-           then a rinsn is necessary to actually update the DAC --
-           see ao_rinsn() below... */
-       outb((char)(data[i]>>8 & 0x00ff), offset + 1);
+	for (i = 0; i < insn->n; i++) {
+		/*  first, load the low byte */
+		outb((char)(data[i] & 0x00ff), offset);
+		/*  next, write the high byte -- only after this is written is
+		   the channel voltage updated in the DAC, unless
+		   we're in simultaneous xfer mode (jumper on card)
+		   then a rinsn is necessary to actually update the DAC --
+		   see ao_rinsn() below... */
+		outb((char)(data[i] >> 8 & 0x00ff), offset + 1);
 
-       /* for testing only.. the actual rinsn SHOULD do an inw!
-          (see the stuff about simultaneous XFER mode on this board) */
-       devpriv->ao_readback[chan] = data[i];
-   }
+		/* for testing only.. the actual rinsn SHOULD do an inw!
+		   (see the stuff about simultaneous XFER mode on this board) */
+		devpriv->ao_readback[chan] = data[i];
+	}
 
-   /* return the number of samples read/written */
-   return i;
+	/* return the number of samples read/written */
+	return i;
 }
 
 /* AO subdevices should have a read insn as well as a write insn.
@@ -398,28 +391,25 @@ static int ao_winsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
    all AO channels update simultaneously.  This is useful for some control
    applications, I would imagine.
 */
-static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
-		    lsampl_t *data)
+static int ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-    int i;
-    int chan = CR_CHAN(insn->chanspec);
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
 
+	for (i = 0; i < insn->n; i++) {
+		inw(devpriv->registers + chan * 2);
+		/* should I set data[i] to the result of the actual read on the register
+		   or the cached lsampl_t in devpriv->ao_readback[]? */
+		data[i] = devpriv->ao_readback[chan];
+	}
 
-    for(i=0;i<insn->n;i++) {
-      inw(devpriv->registers + chan*2);
-      /* should I set data[i] to the result of the actual read on the register
-	 or the cached lsampl_t in devpriv->ao_readback[]? */
-      data[i] = devpriv->ao_readback[chan];
-    }
-
-    return i;
+	return i;
 }
-
 
 /*---------------------------------------------------------------------------
   HELPER FUNCTION DEFINITIONS
 -----------------------------------------------------------------------------*/
-
 
 /*
  *  Probes for a supported device.
@@ -435,30 +425,28 @@ static int ao_rinsn(comedi_device *dev, comedi_subdevice *s, comedi_insn *insn,
  *
  *  Otherwise, returns a -errno on error
  */
-static int probe(comedi_device *dev, const comedi_devconfig *it)
+static int probe(comedi_device * dev, const comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	int index;
 	unsigned long registers;
 
-	for(pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL); pcidev != NULL ;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev))
-	{
+	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+		pcidev != NULL;
+		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		// is it not a computer boards card?
-		if(pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 		// loop through cards supported by this driver
-		for(index = 0; index < N_BOARDS; index++)
-		{
-			if(boards[index].device_id != pcidev->device)
+		for (index = 0; index < N_BOARDS; index++) {
+			if (boards[index].device_id != pcidev->device)
 				continue;
 			// was a particular bus/slot requested?
-			if(it->options[0] || it->options[1])
-			{
+			if (it->options[0] || it->options[1]) {
 				// are we on the wrong bus/slot?
-				if(pcidev->bus->number != it->options[0] ||
-				   PCI_SLOT(pcidev->devfn) != it->options[1])
-				{
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
 					continue;
 				}
 			}
@@ -466,24 +454,21 @@ static int probe(comedi_device *dev, const comedi_devconfig *it)
 
 			devpriv->pci_dev = pcidev;
 			dev->board_ptr = boards + index;
-			if (comedi_pci_enable(pcidev, thisboard->name))
-			{
+			if (comedi_pci_enable(pcidev, thisboard->name)) {
 				printk("cb_pcimdda: Failed to enable PCI device and request regions\n");
 				return -EIO;
 			}
-			registers = pci_resource_start(devpriv->pci_dev, REGS_BADRINDEX);
+			registers =
+				pci_resource_start(devpriv->pci_dev,
+				REGS_BADRINDEX);
 			devpriv->registers = registers;
 			devpriv->dio_registers
-			  = devpriv->registers + thisboard->dio_offset;
+				= devpriv->registers + thisboard->dio_offset;
 			return 0;
 		}
 	}
 
-    printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
-           "card found at the requested position\n");
+	printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
+		"card found at the requested position\n");
 	return -ENODEV;
 }
-
-
-
-

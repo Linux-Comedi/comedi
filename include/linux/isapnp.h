@@ -30,4 +30,4 @@
 #define pnp_find_dev(...) NULL
 #endif
 
-#endif	// _ISAPNP_COMPAT_H
+#endif // _ISAPNP_COMPAT_H

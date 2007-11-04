@@ -1,5 +1,5 @@
 #define CONFIG_APCI_035  1
-#define CONFIG_APCI_1032 1  
+#define CONFIG_APCI_1032 1
 #define CONFIG_APCI_1500 1
 #define CONFIG_APCI_1516 1
 #define CONFIG_APCI_1564 1

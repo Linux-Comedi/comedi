@@ -55,7 +55,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #include "hwdrv_apci16xx.h"
 
-
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : INT   i_APCI16XX_InsnConfigInitTTLIO                   |
@@ -91,177 +90,163 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
+int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = insn->n;
+	BYTE b_Command = 0;
+	BYTE b_Cpt = 0;
+	BYTE b_NumberOfPort =
+		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
 
-int   i_APCI16XX_InsnConfigInitTTLIO(comedi_device    *dev,
-                                     comedi_subdevice *s,
-                                     comedi_insn      *insn,
-                                     lsampl_t         *data) 
-	{
-	INT        i_ReturnValue            = insn->n;
-	BYTE       b_Command                = 0;
-	BYTE       b_Cpt                    = 0;
-	BYTE       b_NumberOfPort           = (BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
-	
-	
 	/************************/
 	/* Test the buffer size */
 	/************************/
-	
-	if (insn->n >= 1)
-	   {
-	   /*******************/
-	   /* Get the command */
-	   /* *****************/
-	   
-	   b_Command = (BYTE) data[0];
-	   
-	   /********************/
-	   /* Test the command */
-	   /********************/
-	   
-	   if ((b_Command == APCI16XX_TTL_INIT)          || 
-	       (b_Command == APCI16XX_TTL_INITDIRECTION) || 
-	       (b_Command == APCI16XX_TTL_OUTPUTMEMORY))
-	      {
-	      /***************************************/
-	      /* Test the initialisation buffer size */
-	      /***************************************/
-	      
-	      if ((b_Command == APCI16XX_TTL_INITDIRECTION) && ((BYTE) (insn->n - 1) != b_NumberOfPort))
-	         {
-	         /*******************/
-	         /* Data size error */
-	         /*******************/
-	         
-                 printk("\nBuffer size error");
-	         i_ReturnValue = -101;
-	         }
 
-	      if ((b_Command == APCI16XX_TTL_OUTPUTMEMORY) && ((BYTE) (insn->n) != 2))
-	         {
-	         /*******************/
-	         /* Data size error */
-	         /*******************/
-	         
-                 printk("\nBuffer size error");
-	         i_ReturnValue = -101;
-	         }
-	      }
-	   else
-	      {
-	      /************************/
-	      /* Config command error */
-	      /************************/
-	      
-	      printk("\nCommand selection error");
-	      i_ReturnValue = -100;
-	      }
-	   }
-	else
-	   {
+	if (insn->n >= 1) {
 	   /*******************/
-	   /* Data size error */
+		/* Get the command */
+		/* **************** */
+
+		b_Command = (BYTE) data[0];
+
+	   /********************/
+		/* Test the command */
+	   /********************/
+
+		if ((b_Command == APCI16XX_TTL_INIT) ||
+			(b_Command == APCI16XX_TTL_INITDIRECTION) ||
+			(b_Command == APCI16XX_TTL_OUTPUTMEMORY)) {
+	      /***************************************/
+			/* Test the initialisation buffer size */
+	      /***************************************/
+
+			if ((b_Command == APCI16XX_TTL_INITDIRECTION)
+				&& ((BYTE) (insn->n - 1) != b_NumberOfPort)) {
+		 /*******************/
+				/* Data size error */
+		 /*******************/
+
+				printk("\nBuffer size error");
+				i_ReturnValue = -101;
+			}
+
+			if ((b_Command == APCI16XX_TTL_OUTPUTMEMORY)
+				&& ((BYTE) (insn->n) != 2)) {
+		 /*******************/
+				/* Data size error */
+		 /*******************/
+
+				printk("\nBuffer size error");
+				i_ReturnValue = -101;
+			}
+		} else {
+	      /************************/
+			/* Config command error */
+	      /************************/
+
+			printk("\nCommand selection error");
+			i_ReturnValue = -100;
+		}
+	} else {
 	   /*******************/
-	       
-	   printk("\nBuffer size error");
-	   i_ReturnValue = -101;
-	   }
-	   
-	   
+		/* Data size error */
+	   /*******************/
+
+		printk("\nBuffer size error");
+		i_ReturnValue = -101;
+	}
+
 	/**************************************************************************/
 	/* Test if no error occur and APCI16XX_TTL_INITDIRECTION command selected */
 	/**************************************************************************/
-	
-	if ((i_ReturnValue >= 0) && (b_Command == APCI16XX_TTL_INITDIRECTION))
-	   {
-	   memset (devpriv->ul_TTLPortConfiguration, 0, sizeof(devpriv->ul_TTLPortConfiguration));
+
+	if ((i_ReturnValue >= 0) && (b_Command == APCI16XX_TTL_INITDIRECTION)) {
+		memset(devpriv->ul_TTLPortConfiguration, 0,
+			sizeof(devpriv->ul_TTLPortConfiguration));
 
 	   /*************************************/
-	   /* Test the port direction selection */
+		/* Test the port direction selection */
 	   /*************************************/
-	   
-	   for (b_Cpt = 1; (b_Cpt <= b_NumberOfPort) && (i_ReturnValue >= 0); b_Cpt ++)
-	      {
-	      /**********************/
-	      /* Test the direction */
-	      /**********************/
-	      
-	      if ((data[b_Cpt] != 0) && (data[b_Cpt] != 0xFF))
-	         {
-	         /************************/
-                 /* Port direction error */
-                 /************************/
-                 
-	         printk("\nPort %d direction selection error", (INT) b_Cpt);
-	         i_ReturnValue = - (INT) b_Cpt;
-	         }
-	      
-              /**************************/
-              /* Save the configuration */
-              /**************************/
 
+		for (b_Cpt = 1;
+			(b_Cpt <= b_NumberOfPort) && (i_ReturnValue >= 0);
+			b_Cpt++) {
+	      /**********************/
+			/* Test the direction */
+	      /**********************/
 
-              devpriv->ul_TTLPortConfiguration[(b_Cpt - 1) / 4] = devpriv->ul_TTLPortConfiguration[(b_Cpt - 1) / 4] |
-                                                                  (data[b_Cpt] << (8 * ((b_Cpt - 1) % 4)));
-	      }
-	   }
-	   
+			if ((data[b_Cpt] != 0) && (data[b_Cpt] != 0xFF)) {
+		 /************************/
+				/* Port direction error */
+		 /************************/
+
+				printk("\nPort %d direction selection error",
+					(INT) b_Cpt);
+				i_ReturnValue = -(INT) b_Cpt;
+			}
+
+	      /**************************/
+			/* Save the configuration */
+	      /**************************/
+
+			devpriv->ul_TTLPortConfiguration[(b_Cpt - 1) / 4] =
+				devpriv->ul_TTLPortConfiguration[(b_Cpt -
+					1) / 4] | (data[b_Cpt] << (8 * ((b_Cpt -
+							1) % 4)));
+		}
+	}
+
 	/**************************/
 	/* Test if no error occur */
 	/**************************/
-	
-	if (i_ReturnValue >= 0)
-	   {
-	   /***********************************/
-	   /* Test if TTL port initilaisation */
-	   /***********************************/
-	   
-	   if ((b_Command == APCI16XX_TTL_INIT) || (b_Command == APCI16XX_TTL_INITDIRECTION))
-	      {
-	      /******************************/
-	      /* Set all port configuration */
-	      /******************************/
-	   
-	      for (b_Cpt = 0; b_Cpt <= b_NumberOfPort; b_Cpt ++)
-	         {
-	         if ((b_Cpt % 4) == 0)
-	            {
-	            /*************************/
-	            /* Set the configuration */
-	            /*************************/
 
-                    outl(devpriv->ul_TTLPortConfiguration[b_Cpt / 4],devpriv->iobase + 32 + b_Cpt);
-                    }
-                 }
-              }
-	   }
-	
+	if (i_ReturnValue >= 0) {
+	   /***********************************/
+		/* Test if TTL port initilaisation */
+	   /***********************************/
+
+		if ((b_Command == APCI16XX_TTL_INIT)
+			|| (b_Command == APCI16XX_TTL_INITDIRECTION)) {
+	      /******************************/
+			/* Set all port configuration */
+	      /******************************/
+
+			for (b_Cpt = 0; b_Cpt <= b_NumberOfPort; b_Cpt++) {
+				if ((b_Cpt % 4) == 0) {
+		    /*************************/
+					/* Set the configuration */
+		    /*************************/
+
+					outl(devpriv->
+						ul_TTLPortConfiguration[b_Cpt /
+							4],
+						devpriv->iobase + 32 + b_Cpt);
+				}
+			}
+		}
+	}
+
 	/************************************************/
 	/* Test if output memory initialisation command */
 	/************************************************/
-	   
-	if (b_Command == APCI16XX_TTL_OUTPUTMEMORY)
-	   {
-           if  (data[1])
-              {
-              devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE; 
-              }
-           else
-              {
-              devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-              }
-	   }
 
-	return (i_ReturnValue);
+	if (b_Command == APCI16XX_TTL_OUTPUTMEMORY) {
+		if (data[1]) {
+			devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
+		} else {
+			devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
+		}
 	}
 
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
 |                            INPUT FUNCTIONS                                 |
 +----------------------------------------------------------------------------+
 */
-
 
 /*
 +----------------------------------------------------------------------------+
@@ -298,140 +283,130 @@ int   i_APCI16XX_InsnConfigInitTTLIO(comedi_device    *dev,
 +----------------------------------------------------------------------------+
 */
 
+int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = insn->n;
+	BYTE b_Command = 0;
+	BYTE b_NumberOfPort =
+		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+	BYTE b_SelectedPort = CR_RANGE(insn->chanspec);
+	BYTE b_InputChannel = CR_CHAN(insn->chanspec);
+	BYTE *pb_Status;
+	DWORD dw_Status;
 
-int  i_APCI16XX_InsnBitsReadTTLIO   (comedi_device    *dev,
-                                     comedi_subdevice *s,
-	                             comedi_insn      *insn,
-	                             lsampl_t         *data)
-	{
-	INT        i_ReturnValue            = insn->n;
-	BYTE       b_Command                = 0;
-	BYTE       b_NumberOfPort           = (BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
-	BYTE       b_SelectedPort           = CR_RANGE(insn->chanspec);
-	BYTE       b_InputChannel           = CR_CHAN(insn->chanspec);
-	BYTE *    pb_Status;
-	DWORD     dw_Status;
-	
 	/************************/
 	/* Test the buffer size */
 	/************************/
-	
-	if (insn->n >= 1)
-	   {
-	   /*******************/
-	   /* Get the command */
-	   /* *****************/
-	   
-	   b_Command = (BYTE) data[0];
-	   
-	   /********************/
-	   /* Test the command */
-	   /********************/
-	   
-	   if ((b_Command == APCI16XX_TTL_READCHANNEL) || (b_Command == APCI16XX_TTL_READPORT))
-	      {
-	      /**************************/
-	      /* Test the selected port */
-	      /**************************/
-	      
-	      if (b_SelectedPort < b_NumberOfPort)
-	         {
-                 /**********************/
-                 /* Test if input port */
-                 /**********************/
 
-                 if (((devpriv->ul_TTLPortConfiguration[b_SelectedPort / 4] >> (8 * (b_SelectedPort % 4))) & 0xFF) == 0)
-                    {
-                    /***************************/
-                    /* Test the channel number */
-                    /***************************/
+	if (insn->n >= 1) {
+	   /*******************/
+		/* Get the command */
+		/* **************** */
 
-	            if ((b_Command == APCI16XX_TTL_READCHANNEL) && (b_InputChannel > 7))
-	               {
-	               /*******************************************/
-	               /* The selected TTL digital input is wrong */
-	               /*******************************************/
-	            
-                       printk("\nChannel selection error");
-	               i_ReturnValue = -103;
-	               }
-                    }
-                 else
-                    {
-	            /****************************************/
-                    /* The selected TTL input port is wrong */
-                    /****************************************/
-                 
-                    printk("\nPort selection error");
-                    i_ReturnValue = -102;
-                    }
-	         }
-	      else
-	         {
-	         /****************************************/
-                 /* The selected TTL input port is wrong */
-                 /****************************************/
-                 
-                 printk("\nPort selection error");
-                 i_ReturnValue = -102;
-                 }
-              }
-	   else
-	      {
+		b_Command = (BYTE) data[0];
+
+	   /********************/
+		/* Test the command */
+	   /********************/
+
+		if ((b_Command == APCI16XX_TTL_READCHANNEL)
+			|| (b_Command == APCI16XX_TTL_READPORT)) {
+	      /**************************/
+			/* Test the selected port */
+	      /**************************/
+
+			if (b_SelectedPort < b_NumberOfPort) {
+		 /**********************/
+				/* Test if input port */
+		 /**********************/
+
+				if (((devpriv->ul_TTLPortConfiguration
+							[b_SelectedPort /
+								4] >> (8 *
+								(b_SelectedPort
+									%
+									4))) &
+						0xFF) == 0) {
+		    /***************************/
+					/* Test the channel number */
+		    /***************************/
+
+					if ((b_Command ==
+							APCI16XX_TTL_READCHANNEL)
+						&& (b_InputChannel > 7)) {
+		       /*******************************************/
+						/* The selected TTL digital input is wrong */
+		       /*******************************************/
+
+						printk("\nChannel selection error");
+						i_ReturnValue = -103;
+					}
+				} else {
+		    /****************************************/
+					/* The selected TTL input port is wrong */
+		    /****************************************/
+
+					printk("\nPort selection error");
+					i_ReturnValue = -102;
+				}
+			} else {
+		 /****************************************/
+				/* The selected TTL input port is wrong */
+		 /****************************************/
+
+				printk("\nPort selection error");
+				i_ReturnValue = -102;
+			}
+		} else {
 	      /************************/
-	      /* Config command error */
+			/* Config command error */
 	      /************************/
-	      
-	      printk("\nCommand selection error");
-	      i_ReturnValue = -100;
-	      }
-	   }
-	else
-	   {
+
+			printk("\nCommand selection error");
+			i_ReturnValue = -100;
+		}
+	} else {
 	   /*******************/
-	   /* Data size error */
+		/* Data size error */
 	   /*******************/
-	       
-	   printk("\nBuffer size error");
-	   i_ReturnValue = -101;
-	   }
-	   
-	   
+
+		printk("\nBuffer size error");
+		i_ReturnValue = -101;
+	}
+
 	/**************************/
 	/* Test if no error occur */
 	/**************************/
-	
-	if (i_ReturnValue >= 0)
-	   {
-           pb_Status = (PBYTE) &data[0];
-           
-           /*******************************/
-	   /* Get the digital inpu status */
-           /*******************************/
-           
-	   dw_Status = inl(devpriv->iobase + 8 + ((b_SelectedPort / 4) * 4));
-	   dw_Status = (dw_Status >> (8 * (b_SelectedPort % 4))) & 0xFF;
-	   
-	   /***********************/
-	   /* Save the port value */
-	   /***********************/
-	   
-	   *pb_Status = (BYTE) dw_Status;
-	   
-	   /***************************************/
-	   /* Test if read channel status command */
-	   /***************************************/
-	   
-	   if (b_Command == APCI16XX_TTL_READCHANNEL)
-	      {
-	      *pb_Status = (*pb_Status >> b_InputChannel) & 1;
-	      }
-	   }
 
-	return (i_ReturnValue);
+	if (i_ReturnValue >= 0) {
+		pb_Status = (PBYTE) & data[0];
+
+	   /*******************************/
+		/* Get the digital inpu status */
+	   /*******************************/
+
+		dw_Status =
+			inl(devpriv->iobase + 8 + ((b_SelectedPort / 4) * 4));
+		dw_Status = (dw_Status >> (8 * (b_SelectedPort % 4))) & 0xFF;
+
+	   /***********************/
+		/* Save the port value */
+	   /***********************/
+
+		*pb_Status = (BYTE) dw_Status;
+
+	   /***************************************/
+		/* Test if read channel status command */
+	   /***************************************/
+
+		if (b_Command == APCI16XX_TTL_READCHANNEL) {
+			*pb_Status = (*pb_Status >> b_InputChannel) & 1;
+		}
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -455,104 +430,102 @@ int  i_APCI16XX_InsnBitsReadTTLIO   (comedi_device    *dev,
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI16XX_InsnReadTTLIOAllPortValue (comedi_device    *dev,
-                                          comedi_subdevice *s,
-                                          comedi_insn      *insn,
-                                          lsampl_t         *data)
-	{
-	BYTE         b_Command              = (BYTE) CR_AREF(insn->chanspec);
-	INT          i_ReturnValue          = insn->n;
-	BYTE         b_Cpt                  = 0;
-	BYTE         b_NumberOfPort         = 0;
-	lsampl_t * pls_ReadData             = data;
-	
+int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	BYTE b_Command = (BYTE) CR_AREF(insn->chanspec);
+	INT i_ReturnValue = insn->n;
+	BYTE b_Cpt = 0;
+	BYTE b_NumberOfPort = 0;
+	lsampl_t *pls_ReadData = data;
+
 	/********************/
 	/* Test the command */
 	/********************/
-	   
-	if ((b_Command == APCI16XX_TTL_READ_ALL_INPUTS) || (b_Command == APCI16XX_TTL_READ_ALL_OUTPUTS))
-	   {
+
+	if ((b_Command == APCI16XX_TTL_READ_ALL_INPUTS)
+		|| (b_Command == APCI16XX_TTL_READ_ALL_OUTPUTS)) {
 	   /**********************************/
-	   /* Get the number of 32-Bit ports */
+		/* Get the number of 32-Bit ports */
 	   /**********************************/
-	
-	   b_NumberOfPort = (BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 32);
-	   if ((b_NumberOfPort * 32) < devpriv->ps_BoardInfo->i_NbrTTLChannel)
-	      {
-	      b_NumberOfPort = b_NumberOfPort + 1;
-	      }
-	
+
+		b_NumberOfPort =
+			(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 32);
+		if ((b_NumberOfPort * 32) <
+			devpriv->ps_BoardInfo->i_NbrTTLChannel) {
+			b_NumberOfPort = b_NumberOfPort + 1;
+		}
+
 	   /************************/
-	   /* Test the buffer size */
+		/* Test the buffer size */
 	   /************************/
-	
-	   if (insn->n >= b_NumberOfPort)
-	      {
-              if (b_Command == APCI16XX_TTL_READ_ALL_INPUTS)
-                 {
-                 /**************************/
-                 /* Read all digital input */
-                 /**************************/
-	   
-	         for (b_Cpt = 0; b_Cpt < b_NumberOfPort; b_Cpt ++)
-	            {
-	            /************************/
-	            /* Read the 32-Bit port */
-	            /************************/
-	      
-	            pls_ReadData [b_Cpt]  = inl(devpriv->iobase + 8 + (b_Cpt * 4));
-	    
-	            /**************************************/
-	            /* Mask all channels used als outputs */
-	            /**************************************/
-	     
-	            pls_ReadData [b_Cpt]  = pls_ReadData [b_Cpt]  & (~devpriv->ul_TTLPortConfiguration[b_Cpt]);
-	            }
-	         }
-	      else
-                 {
-                 /****************************/
-                 /* Read all digital outputs */
-                 /****************************/
-	   
-	         for (b_Cpt = 0; b_Cpt < b_NumberOfPort; b_Cpt ++)
-	            {
-	            /************************/
-	            /* Read the 32-Bit port */
-	            /************************/
-	      
-	            pls_ReadData [b_Cpt] = inl(devpriv->iobase + 20 + (b_Cpt * 4));
-	     
-	            /**************************************/
-	            /* Mask all channels used als outputs */
-	            /**************************************/
-	      
-	            pls_ReadData [b_Cpt]  = pls_ReadData [b_Cpt]  & devpriv->ul_TTLPortConfiguration[b_Cpt];
-	            }
-	         }
-	      }
-	   else
-	      {
+
+		if (insn->n >= b_NumberOfPort) {
+			if (b_Command == APCI16XX_TTL_READ_ALL_INPUTS) {
+		 /**************************/
+				/* Read all digital input */
+		 /**************************/
+
+				for (b_Cpt = 0; b_Cpt < b_NumberOfPort; b_Cpt++) {
+		    /************************/
+					/* Read the 32-Bit port */
+		    /************************/
+
+					pls_ReadData[b_Cpt] =
+						inl(devpriv->iobase + 8 +
+						(b_Cpt * 4));
+
+		    /**************************************/
+					/* Mask all channels used als outputs */
+		    /**************************************/
+
+					pls_ReadData[b_Cpt] =
+						pls_ReadData[b_Cpt] &
+						(~devpriv->
+						ul_TTLPortConfiguration[b_Cpt]);
+				}
+			} else {
+		 /****************************/
+				/* Read all digital outputs */
+		 /****************************/
+
+				for (b_Cpt = 0; b_Cpt < b_NumberOfPort; b_Cpt++) {
+		    /************************/
+					/* Read the 32-Bit port */
+		    /************************/
+
+					pls_ReadData[b_Cpt] =
+						inl(devpriv->iobase + 20 +
+						(b_Cpt * 4));
+
+		    /**************************************/
+					/* Mask all channels used als outputs */
+		    /**************************************/
+
+					pls_ReadData[b_Cpt] =
+						pls_ReadData[b_Cpt] & devpriv->
+						ul_TTLPortConfiguration[b_Cpt];
+				}
+			}
+		} else {
 	      /*******************/
-	      /* Data size error */
+			/* Data size error */
 	      /*******************/
-	       
-	      printk("\nBuffer size error");
-	      i_ReturnValue = -101;
-	      }
-	   }
-	else
-	   {
+
+			printk("\nBuffer size error");
+			i_ReturnValue = -101;
+		}
+	} else {
 	   /*****************/
-	   /* Command error */
+		/* Command error */
 	   /*****************/
-	      
-	   printk("\nCommand selection error");
-	   i_ReturnValue = -100;
-	   }
+
+		printk("\nCommand selection error");
+		i_ReturnValue = -100;
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -597,202 +570,196 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue (comedi_device    *dev,
 +----------------------------------------------------------------------------+
 */
 
+int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
+	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = insn->n;
+	BYTE b_Command = 0;
+	BYTE b_NumberOfPort =
+		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+	BYTE b_SelectedPort = CR_RANGE(insn->chanspec);
+	BYTE b_OutputChannel = CR_CHAN(insn->chanspec);
+	DWORD dw_Status = 0;
 
-int  i_APCI16XX_InsnBitsWriteTTLIO   (comedi_device    *dev,
-                                      comedi_subdevice *s,
-                                      comedi_insn      *insn,
-                                      lsampl_t         *data)
-	{
-	INT          i_ReturnValue          = insn->n;
-	BYTE         b_Command              = 0;
-	BYTE         b_NumberOfPort         = (BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
-	BYTE         b_SelectedPort         = CR_RANGE(insn->chanspec);
-	BYTE         b_OutputChannel        = CR_CHAN(insn->chanspec);
-	DWORD       dw_Status               = 0;
-
-	
 	/************************/
 	/* Test the buffer size */
 	/************************/
-	
-	if (insn->n >= 1)
-	   {
+
+	if (insn->n >= 1) {
 	   /*******************/
-	   /* Get the command */
-	   /* *****************/
-	   
-	   b_Command = (BYTE) data[0];
-	   
+		/* Get the command */
+		/* **************** */
+
+		b_Command = (BYTE) data[0];
+
 	   /********************/
-	   /* Test the command */
+		/* Test the command */
 	   /********************/
-	   
-	   if ((b_Command == APCI16XX_TTL_WRITECHANNEL_ON)  || 
-	       (b_Command == APCI16XX_TTL_WRITEPORT_ON)     ||
-	       (b_Command == APCI16XX_TTL_WRITECHANNEL_OFF) ||
-	       (b_Command == APCI16XX_TTL_WRITEPORT_OFF))
-	      {
+
+		if ((b_Command == APCI16XX_TTL_WRITECHANNEL_ON) ||
+			(b_Command == APCI16XX_TTL_WRITEPORT_ON) ||
+			(b_Command == APCI16XX_TTL_WRITECHANNEL_OFF) ||
+			(b_Command == APCI16XX_TTL_WRITEPORT_OFF)) {
 	      /**************************/
-	      /* Test the selected port */
+			/* Test the selected port */
 	      /**************************/
-	      
-	      if (b_SelectedPort < b_NumberOfPort)
-	         {
-                 /***********************/
-                 /* Test if output port */
-                 /***********************/
 
-                 if (((devpriv->ul_TTLPortConfiguration[b_SelectedPort / 4] >> (8 * (b_SelectedPort % 4))) & 0xFF) == 0xFF)
-                    {
-                    /***************************/
-                    /* Test the channel number */
-                    /***************************/
+			if (b_SelectedPort < b_NumberOfPort) {
+		 /***********************/
+				/* Test if output port */
+		 /***********************/
 
-                    if (((b_Command == APCI16XX_TTL_WRITECHANNEL_ON) || 
-                         (b_Command == APCI16XX_TTL_WRITECHANNEL_OFF)) && (b_OutputChannel > 7))
-	               {
-	               /********************************************/
-	               /* The selected TTL digital output is wrong */
-	               /********************************************/
-	            
-                       printk("\nChannel selection error");
-	               i_ReturnValue = -103;
-	               }
-                    
-                    if (((b_Command == APCI16XX_TTL_WRITECHANNEL_OFF) ||
-	                 (b_Command == APCI16XX_TTL_WRITEPORT_OFF)) && (devpriv->b_OutputMemoryStatus == ADDIDATA_DISABLE))
-	               {
-	               /********************************************/
-	               /* The selected TTL digital output is wrong */
-	               /********************************************/
-	            
-                       printk("\nOutput memory disabled");
-	               i_ReturnValue = -104;
-	               }
+				if (((devpriv->ul_TTLPortConfiguration
+							[b_SelectedPort /
+								4] >> (8 *
+								(b_SelectedPort
+									%
+									4))) &
+						0xFF) == 0xFF) {
+		    /***************************/
+					/* Test the channel number */
+		    /***************************/
 
-	            /************************/
-	            /* Test the buffer size */
-	            /************************/
+					if (((b_Command == APCI16XX_TTL_WRITECHANNEL_ON) || (b_Command == APCI16XX_TTL_WRITECHANNEL_OFF)) && (b_OutputChannel > 7)) {
+		       /********************************************/
+						/* The selected TTL digital output is wrong */
+		       /********************************************/
 
-                    if (((b_Command == APCI16XX_TTL_WRITEPORT_ON) ||
-	                 (b_Command == APCI16XX_TTL_WRITEPORT_OFF)) && (insn->n < 2))
-	               {
-	               /*******************/
-	               /* Data size error */
-	               /*******************/
-	       
-	               printk("\nBuffer size error");
-	               i_ReturnValue = -101;
-	               }
-	            }
-                 else
-                    {
-	            /*****************************************/
-                    /* The selected TTL output port is wrong */
-                    /*****************************************/
-                 
-                    printk("\nPort selection error %lX", (unsigned long)devpriv->ul_TTLPortConfiguration[0]);
-                    i_ReturnValue = -102;
-                    }
-	         }
-	      else
-	         {
-	         /****************************************/
-                 /* The selected TTL output port is wrong */
-                 /****************************************/
-                 
-                 printk("\nPort selection error %d %d",b_SelectedPort , b_NumberOfPort);
-                 i_ReturnValue = -102;
-                 }
-              }
-	   else
-	      {
+						printk("\nChannel selection error");
+						i_ReturnValue = -103;
+					}
+
+					if (((b_Command == APCI16XX_TTL_WRITECHANNEL_OFF) || (b_Command == APCI16XX_TTL_WRITEPORT_OFF)) && (devpriv->b_OutputMemoryStatus == ADDIDATA_DISABLE)) {
+		       /********************************************/
+						/* The selected TTL digital output is wrong */
+		       /********************************************/
+
+						printk("\nOutput memory disabled");
+						i_ReturnValue = -104;
+					}
+
+		    /************************/
+					/* Test the buffer size */
+		    /************************/
+
+					if (((b_Command == APCI16XX_TTL_WRITEPORT_ON) || (b_Command == APCI16XX_TTL_WRITEPORT_OFF)) && (insn->n < 2)) {
+		       /*******************/
+						/* Data size error */
+		       /*******************/
+
+						printk("\nBuffer size error");
+						i_ReturnValue = -101;
+					}
+				} else {
+		    /*****************************************/
+					/* The selected TTL output port is wrong */
+		    /*****************************************/
+
+					printk("\nPort selection error %lX",
+						(unsigned long)devpriv->
+						ul_TTLPortConfiguration[0]);
+					i_ReturnValue = -102;
+				}
+			} else {
+		 /****************************************/
+				/* The selected TTL output port is wrong */
+		 /****************************************/
+
+				printk("\nPort selection error %d %d",
+					b_SelectedPort, b_NumberOfPort);
+				i_ReturnValue = -102;
+			}
+		} else {
 	      /************************/
-	      /* Config command error */
+			/* Config command error */
 	      /************************/
-	      
-	      printk("\nCommand selection error");
-	      i_ReturnValue = -100;
-	      }
-	   }
-	else
-	   {
+
+			printk("\nCommand selection error");
+			i_ReturnValue = -100;
+		}
+	} else {
 	   /*******************/
-	   /* Data size error */
+		/* Data size error */
 	   /*******************/
-	       
-	   printk("\nBuffer size error");
-	   i_ReturnValue = -101;
-	   }
-	   
-	   
+
+		printk("\nBuffer size error");
+		i_ReturnValue = -101;
+	}
+
 	/**************************/
 	/* Test if no error occur */
 	/**************************/
-	
-	if (i_ReturnValue >= 0)
-	   {
-           /********************************/
-	   /* Get the digital output state */
-           /********************************/
-	      
-	   dw_Status = inl(devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
+
+	if (i_ReturnValue >= 0) {
+	   /********************************/
+		/* Get the digital output state */
+	   /********************************/
+
+		dw_Status =
+			inl(devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
 
 	   /**********************************/
-	   /* Test if output memory not used */
+		/* Test if output memory not used */
 	   /**********************************/
-           
-	   if (devpriv->b_OutputMemoryStatus == ADDIDATA_DISABLE)
-	      {
+
+		if (devpriv->b_OutputMemoryStatus == ADDIDATA_DISABLE) {
 	      /*********************************/
-	      /* Clear the selected port value */
+			/* Clear the selected port value */
 	      /*********************************/
-	      
-	      dw_Status = dw_Status & (0xFFFFFFFFUL - (0xFFUL << (8 * (b_SelectedPort % 4))));
-	      }
-	     
+
+			dw_Status =
+				dw_Status & (0xFFFFFFFFUL -
+				(0xFFUL << (8 * (b_SelectedPort % 4))));
+		}
+
 	   /******************************/
-	   /* Test if setting channel ON */
-	   /******************************/ 
-	   
-	   if (b_Command == APCI16XX_TTL_WRITECHANNEL_ON)
-	      {
-	      dw_Status = dw_Status | (1UL << ((8 * (b_SelectedPort % 4)) + b_OutputChannel));
-	      }
+		/* Test if setting channel ON */
+	   /******************************/
+
+		if (b_Command == APCI16XX_TTL_WRITECHANNEL_ON) {
+			dw_Status =
+				dw_Status | (1UL << ((8 * (b_SelectedPort %
+							4)) + b_OutputChannel));
+		}
 
 	   /***************************/
-	   /* Test if setting port ON */
-	   /***************************/ 
-	      
-	   if (b_Command == APCI16XX_TTL_WRITEPORT_ON)
-	      {
-	      dw_Status = dw_Status | ((data[1] & 0xFF) << (8 * (b_SelectedPort % 4)));
-	      }
+		/* Test if setting port ON */
+	   /***************************/
+
+		if (b_Command == APCI16XX_TTL_WRITEPORT_ON) {
+			dw_Status =
+				dw_Status | ((data[1] & 0xFF) << (8 *
+					(b_SelectedPort % 4)));
+		}
 
 	   /*******************************/
-	   /* Test if setting channel OFF */
-	   /*******************************/ 
-	   
-	   if (b_Command == APCI16XX_TTL_WRITECHANNEL_OFF)
-	      {
-	      dw_Status = dw_Status & (0xFFFFFFFFUL - (1UL << ((8 * (b_SelectedPort % 4)) + b_OutputChannel)));
-	      }
-	            
+		/* Test if setting channel OFF */
+	   /*******************************/
+
+		if (b_Command == APCI16XX_TTL_WRITECHANNEL_OFF) {
+			dw_Status =
+				dw_Status & (0xFFFFFFFFUL -
+				(1UL << ((8 * (b_SelectedPort % 4)) +
+						b_OutputChannel)));
+		}
+
 	   /****************************/
-	   /* Test if setting port OFF */
-	   /****************************/ 
-	      
-	   if (b_Command == APCI16XX_TTL_WRITEPORT_OFF)
-	      {
-	      dw_Status = dw_Status & (0xFFFFFFFFUL - ((data[1] & 0xFF) << (8 * (b_SelectedPort % 4))));
-	      }
-	   
-	   
-           outl(dw_Status, devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
-	   }
+		/* Test if setting port OFF */
+	   /****************************/
+
+		if (b_Command == APCI16XX_TTL_WRITEPORT_OFF) {
+			dw_Status =
+				dw_Status & (0xFFFFFFFFUL -
+				((data[1] & 0xFF) << (8 * (b_SelectedPort %
+							4))));
+		}
+
+		outl(dw_Status,
+			devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
+	}
 
 	return (i_ReturnValue);
-	}
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -806,8 +773,8 @@ int  i_APCI16XX_InsnBitsWriteTTLIO   (comedi_device    *dev,
 | Return Value      : -                                                      |
 +----------------------------------------------------------------------------+
 */
-	  
-int  i_APCI16XX_Reset(comedi_device *dev) 
-	{
+
+int i_APCI16XX_Reset(comedi_device * dev)
+{
 	return 0;
-	}        
+}

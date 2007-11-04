@@ -60,7 +60,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
-
 #include "APCI1710_Ssi.h"
 
 /*
@@ -134,227 +133,226 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 
+INT i_APCI1710_InsnConfigInitSSI(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	UINT ui_TimerValue;
+	BYTE b_ModulNbr, b_SSIProfile, b_PositionTurnLength, b_TurnCptLength,
+		b_PCIInputClock, b_SSICountingMode;
+	ULONG ul_SSIOutputClock;
 
-INT   i_APCI1710_InsnConfigInitSSI(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;
-	UINT   ui_TimerValue;
-	BYTE   b_ModulNbr,b_SSIProfile,b_PositionTurnLength,b_TurnCptLength,b_PCIInputClock,b_SSICountingMode;
-	ULONG  ul_SSIOutputClock;
-			
-	b_ModulNbr			= CR_AREF(insn->chanspec);
-	b_SSIProfile		= (BYTE) data[0];  
-	b_PositionTurnLength= (BYTE) data[1];  
-	b_TurnCptLength		= (BYTE) data[2];
-	b_PCIInputClock		= (BYTE) data[3];
-	ul_SSIOutputClock	= (ULONG) data[4];
-	b_SSICountingMode	= (BYTE)  data[5];
+	b_ModulNbr = CR_AREF(insn->chanspec);
+	b_SSIProfile = (BYTE) data[0];
+	b_PositionTurnLength = (BYTE) data[1];
+	b_TurnCptLength = (BYTE) data[2];
+	b_PCIInputClock = (BYTE) data[3];
+	ul_SSIOutputClock = (ULONG) data[4];
+	b_SSICountingMode = (BYTE) data[5];
 
-	i_ReturnValue		= insn->n;
+	i_ReturnValue = insn->n;
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if SSI counter */
+		/* Test if SSI counter */
 	   /***********************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_SSI_COUNTER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_SSI_COUNTER) {
 	      /*******************************/
-	      /* Test the SSI profile length */
+			/* Test the SSI profile length */
 	      /*******************************/
 
-	      // CG 22/03/00 b_SSIProfile >= 2 anstatt b_SSIProfile > 2
-	      if (b_SSIProfile >= 2 && b_SSIProfile < 33)
-		 {
+			// CG 22/03/00 b_SSIProfile >= 2 anstatt b_SSIProfile > 2
+			if (b_SSIProfile >= 2 && b_SSIProfile < 33) {
 		 /*************************************/
-		 /* Test the SSI position data length */
+				/* Test the SSI position data length */
 		 /*************************************/
 
-		 if (b_PositionTurnLength > 0 && b_PositionTurnLength < 32)
-		    {
+				if (b_PositionTurnLength > 0
+					&& b_PositionTurnLength < 32) {
 		    /*****************************************/
-		    /* Test the SSI turn counter data length */
+					/* Test the SSI turn counter data length */
 		    /*****************************************/
 
-		    if (b_TurnCptLength > 0 && b_TurnCptLength < 32)
-		       {
+					if (b_TurnCptLength > 0
+						&& b_TurnCptLength < 32) {
 		       /***************************/
-		       /* Test the profile length */
+						/* Test the profile length */
 		       /***************************/
 
-		       if ((b_TurnCptLength + b_PositionTurnLength) <= b_SSIProfile)
-			  {
+						if ((b_TurnCptLength +
+								b_PositionTurnLength)
+							<= b_SSIProfile) {
 			  /****************************/
-			  /* Test the PCI input clock */
+							/* Test the PCI input clock */
 			  /****************************/
 
-			  if (b_PCIInputClock == APCI1710_30MHZ || b_PCIInputClock == APCI1710_33MHZ)
-			     {
+							if (b_PCIInputClock ==
+								APCI1710_30MHZ
+								||
+								b_PCIInputClock
+								==
+								APCI1710_33MHZ)
+							{
 			     /*************************/
-			     /* Test the output clock */
+								/* Test the output clock */
 			     /*************************/
 
-			     if ((b_PCIInputClock == APCI1710_30MHZ &&
-				  (ul_SSIOutputClock > 228 && ul_SSIOutputClock <= 5000000UL)) ||
-				 (b_PCIInputClock == APCI1710_33MHZ &&
-				  (ul_SSIOutputClock > 251 && ul_SSIOutputClock <= 5000000UL)))
-				{
-				if (b_SSICountingMode == APCI1710_BINARY_MODE ||
-				    b_SSICountingMode == APCI1710_GRAY_MODE)
-				   {
+								if ((b_PCIInputClock == APCI1710_30MHZ && (ul_SSIOutputClock > 228 && ul_SSIOutputClock <= 5000000UL)) || (b_PCIInputClock == APCI1710_33MHZ && (ul_SSIOutputClock > 251 && ul_SSIOutputClock <= 5000000UL))) {
+									if (b_SSICountingMode == APCI1710_BINARY_MODE || b_SSICountingMode == APCI1710_GRAY_MODE) {
 				   /**********************/
-				   /* Save configuration */
+										/* Save configuration */
 				   /**********************/
-				   devpriv->s_ModuleInfo [b_ModulNbr].
-				   s_SSICounterInfo.
-				   b_SSIProfile = b_SSIProfile;
+										devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_SSICounterInfo.
+											b_SSIProfile
+											=
+											b_SSIProfile;
 
-				   
-				   devpriv->s_ModuleInfo [b_ModulNbr].
-				   s_SSICounterInfo.
-				   b_PositionTurnLength = b_PositionTurnLength;
+										devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_SSICounterInfo.
+											b_PositionTurnLength
+											=
+											b_PositionTurnLength;
 
-				   devpriv->s_ModuleInfo [b_ModulNbr].
-				   s_SSICounterInfo.
-				   b_TurnCptLength = b_TurnCptLength;
+										devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_SSICounterInfo.
+											b_TurnCptLength
+											=
+											b_TurnCptLength;
 
 				   /*********************************/
-				   /* Initialise the profile length */
+										/* Initialise the profile length */
 				   /*********************************/
 
-				   if (b_SSICountingMode == APCI1710_BINARY_MODE)
-				      {
-				    
-					outl(b_SSIProfile + 1,devpriv->s_BoardInfos.ui_Address + 4 + (64 * b_ModulNbr));
-				      }
-				   else
-				      {
-						
-					   outl(b_SSIProfile,devpriv->s_BoardInfos.ui_Address + 4 + (64 * b_ModulNbr));
-				      }
+										if (b_SSICountingMode == APCI1710_BINARY_MODE) {
+
+											outl(b_SSIProfile + 1, devpriv->s_BoardInfos.ui_Address + 4 + (64 * b_ModulNbr));
+										} else {
+
+											outl(b_SSIProfile, devpriv->s_BoardInfos.ui_Address + 4 + (64 * b_ModulNbr));
+										}
 
 				   /******************************/
-				   /* Calculate the output clock */
+										/* Calculate the output clock */
 				   /******************************/
 
-				   ui_TimerValue = (UINT) (((ULONG) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
+										ui_TimerValue
+											=
+											(UINT)
+											(
+											((ULONG) (b_PCIInputClock) * 500000UL) / ul_SSIOutputClock);
 
 				   /************************/
-				   /* Initialise the timer */
+										/* Initialise the timer */
 				   /************************/
 
-				  
-				    outl(ui_TimerValue,devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
-
+										outl(ui_TimerValue, devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
 
 				   /********************************/
-				   /* Initialise the counting mode */
+										/* Initialise the counting mode */
 				   /********************************/
-					
-					outl(7 * b_SSICountingMode,devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
-				   
-					devpriv->s_ModuleInfo [b_ModulNbr].s_SSICounterInfo.b_SSIInit = 1;
-				   }
-				else
-				   {
+
+										outl(7 * b_SSICountingMode, devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
+
+										devpriv->
+											s_ModuleInfo
+											[b_ModulNbr].
+											s_SSICounterInfo.
+											b_SSIInit
+											=
+											1;
+									} else {
 				   /*****************************************************/
-				   /* The selected SSI counting mode parameter is wrong */
+										/* The selected SSI counting mode parameter is wrong */
 				   /*****************************************************/
 
-                          DPRINTK("The selected SSI counting mode parameter is wrong\n");
-				   i_ReturnValue = -9;
-				   }
-				}
-			     else
-				{
+										DPRINTK("The selected SSI counting mode parameter is wrong\n");
+										i_ReturnValue
+											=
+											-9;
+									}
+								} else {
 				/******************************************/
-				/* The selected SSI output clock is wrong */
+									/* The selected SSI output clock is wrong */
 				/******************************************/
 
-				DPRINTK("The selected SSI output clock is wrong\n");
-				i_ReturnValue = -8;
-				}
-			     }
-			  else
-			     {
+									DPRINTK("The selected SSI output clock is wrong\n");
+									i_ReturnValue
+										=
+										-8;
+								}
+							} else {
 			     /*****************************************/
-			     /* The selected PCI input clock is wrong */
+								/* The selected PCI input clock is wrong */
 			     /*****************************************/
 
-				 DPRINTK("The selected PCI input clock is wrong\n");
-			     i_ReturnValue = -7;
-			     }
-			  }
-		       else
-			  {
+								DPRINTK("The selected PCI input clock is wrong\n");
+								i_ReturnValue =
+									-7;
+							}
+						} else {
 			  /********************************************/
-			  /* The selected SSI profile length is wrong */
+							/* The selected SSI profile length is wrong */
 			  /********************************************/
 
-			  DPRINTK("The selected SSI profile length is wrong\n");	
-			  i_ReturnValue = -4;
-			  }
-		       }
-		    else
-		       {
+							DPRINTK("The selected SSI profile length is wrong\n");
+							i_ReturnValue = -4;
+						}
+					} else {
 		       /******************************************************/
-		       /* The selected SSI turn counter data length is wrong */
+						/* The selected SSI turn counter data length is wrong */
 		       /******************************************************/
 
-			   DPRINTK("The selected SSI turn counter data length is wrong\n");	
-		       i_ReturnValue = -6;
-		       }
-		    }
-		 else
-		    {
+						DPRINTK("The selected SSI turn counter data length is wrong\n");
+						i_ReturnValue = -6;
+					}
+				} else {
 		    /**************************************************/
-		    /* The selected SSI position data length is wrong */
+					/* The selected SSI position data length is wrong */
 		    /**************************************************/
 
-			DPRINTK("The selected SSI position data length is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-		 }
-	      else
-		 {
+					DPRINTK("The selected SSI position data length is wrong\n");
+					i_ReturnValue = -5;
+				}
+			} else {
 		 /********************************************/
-		 /* The selected SSI profile length is wrong */
+				/* The selected SSI profile length is wrong */
 		 /********************************************/
 
-		 DPRINTK("The selected SSI profile length is wrong\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("The selected SSI profile length is wrong\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /**********************************/
-	      /* The module is not a SSI module */
+			/* The module is not a SSI module */
 	      /**********************************/
 
-	      DPRINTK("The module is not a SSI module\n");	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a SSI module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -402,256 +400,303 @@ pul_Position	=	(PULONG) &data[0];
 +----------------------------------------------------------------------------+
 */
 
-   INT i_APCI1710_InsnReadSSIValue(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
-	{
-	INT    i_ReturnValue = 0;
-	BYTE   b_Cpt;
-	BYTE   b_Length;
-	BYTE   b_Schift;
-	BYTE   b_SSICpt;
+INT i_APCI1710_InsnReadSSIValue(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	BYTE b_Cpt;
+	BYTE b_Length;
+	BYTE b_Schift;
+	BYTE b_SSICpt;
 	DWORD dw_And;
 	DWORD dw_And1;
 	DWORD dw_And2;
 	DWORD dw_StatusReg;
 	DWORD dw_CounterValue;
-	BYTE  b_ModulNbr;
-	BYTE  b_SelectedSSI;
-	BYTE  b_ReadType;
+	BYTE b_ModulNbr;
+	BYTE b_SelectedSSI;
+	BYTE b_ReadType;
 	PULONG pul_Position;
 	PULONG pul_TurnCpt;
 	PULONG pul_Position1;
 	PULONG pul_TurnCpt1;
 
-
-	i_ReturnValue	=	insn->n;	 
-	pul_Position1	=	(PULONG) &data[0];
+	i_ReturnValue = insn->n;
+	pul_Position1 = (PULONG) & data[0];
 // For Read1
-	pul_TurnCpt1	=	(PULONG) &data[1];
+	pul_TurnCpt1 = (PULONG) & data[1];
 // For Read all
-       	pul_Position	=	(PULONG) &data[0];//0-2
-	pul_TurnCpt	=	(PULONG) &data[3];//3-5
-	b_ModulNbr		=   (BYTE) CR_AREF(insn->chanspec);
-	b_SelectedSSI	=	(BYTE) CR_CHAN(insn->chanspec);
-	b_ReadType		=	(BYTE) CR_RANGE(insn->chanspec);
+	pul_Position = (PULONG) & data[0];	//0-2
+	pul_TurnCpt = (PULONG) & data[3];	//3-5
+	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
+	b_SelectedSSI = (BYTE) CR_CHAN(insn->chanspec);
+	b_ReadType = (BYTE) CR_RANGE(insn->chanspec);
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if SSI counter */
+		/* Test if SSI counter */
 	   /***********************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_SSI_COUNTER)
-	      {
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_SSI_COUNTER) {
 	      /***************************/
-	      /* Test if SSI initialised */
+			/* Test if SSI initialised */
 	      /***************************/
 
-	      if (devpriv->s_ModuleInfo [b_ModulNbr].
-		  s_SSICounterInfo.
-		  b_SSIInit == 1)
-		 {
-          
-			switch(b_ReadType)
-			{
+			if (devpriv->s_ModuleInfo[b_ModulNbr].
+				s_SSICounterInfo.b_SSIInit == 1) {
 
-			case APCI1710_SSI_READ1VALUE :
+				switch (b_ReadType) {
+
+				case APCI1710_SSI_READ1VALUE:
 		 /****************************************/
-		 /* Test the selected SSI counter number */
+					/* Test the selected SSI counter number */
 		 /****************************************/
 
-		 if (b_SelectedSSI < 3)
-		    {
+					if (b_SelectedSSI < 3) {
 		    /************************/
-		    /* Start the conversion */
+						/* Start the conversion */
 		    /************************/
 
+						outl(0, devpriv->s_BoardInfos.
+							ui_Address + 8 +
+							(64 * b_ModulNbr));
 
-			outl(0,devpriv->s_BoardInfos.ui_Address + 8 + (64 * b_ModulNbr));
-			
+						do {
+		       /*******************/
+							/* Read the status */
+		       /*******************/
 
-		    do
-		       {
-		       /*******************/
-		       /* Read the status */
-		       /*******************/
-				
-				dw_StatusReg = inl(devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
-		       }
-		    while ((dw_StatusReg & 0x1) != 0);
+							dw_StatusReg =
+								inl(devpriv->
+								s_BoardInfos.
+								ui_Address +
+								(64 * b_ModulNbr));
+						}
+						while ((dw_StatusReg & 0x1) !=
+							0);
 
 		    /******************************/
-		    /* Read the SSI counter value */
+						/* Read the SSI counter value */
 		    /******************************/
-		
-			dw_CounterValue = inl(devpriv->s_BoardInfos.ui_Address + 4 + (b_SelectedSSI * 4) + (64 * b_ModulNbr));
 
-		    b_Length = devpriv->s_ModuleInfo [b_ModulNbr].s_SSICounterInfo.b_SSIProfile / 2;
+						dw_CounterValue =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address + 4 +
+							(b_SelectedSSI * 4) +
+							(64 * b_ModulNbr));
 
-		    if ((b_Length * 2) != devpriv->s_ModuleInfo [b_ModulNbr].s_SSICounterInfo.b_SSIProfile)
-		       {
-		       b_Length ++;
-		       }
+						b_Length =
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_SSIProfile / 2;
 
-		    b_Schift = b_Length - devpriv->s_ModuleInfo [b_ModulNbr].
-					  s_SSICounterInfo.
-					  b_PositionTurnLength;
+						if ((b_Length * 2) !=
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_SSIProfile) {
+							b_Length++;
+						}
 
+						b_Schift =
+							b_Length -
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_PositionTurnLength;
 
-		    *pul_Position1 = dw_CounterValue >> b_Schift;
+						*pul_Position1 =
+							dw_CounterValue >>
+							b_Schift;
 
-		    dw_And = 1;
+						dw_And = 1;
 
-		    for (b_Cpt = 0; b_Cpt < devpriv->s_ModuleInfo [b_ModulNbr].
-					    s_SSICounterInfo.
-					    b_PositionTurnLength; b_Cpt ++)
-		       {
-		       dw_And = dw_And * 2;
-		       }
+						for (b_Cpt = 0;
+							b_Cpt <
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_PositionTurnLength;
+							b_Cpt++) {
+							dw_And = dw_And * 2;
+						}
 
-		    *pul_Position1 = *pul_Position1 & ((dw_And) - 1);
+						*pul_Position1 =
+							*pul_Position1 &
+							((dw_And) - 1);
 
-		    *pul_TurnCpt1 = dw_CounterValue >> b_Length;
+						*pul_TurnCpt1 =
+							dw_CounterValue >>
+							b_Length;
 
-		    dw_And = 1;
+						dw_And = 1;
 
-		    for (b_Cpt = 0; b_Cpt < devpriv->s_ModuleInfo [b_ModulNbr].
-					    s_SSICounterInfo.
-					    b_TurnCptLength; b_Cpt ++)
-		       {
-		       dw_And = dw_And * 2;
-		       }
+						for (b_Cpt = 0;
+							b_Cpt <
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_TurnCptLength;
+							b_Cpt++) {
+							dw_And = dw_And * 2;
+						}
 
-		    *pul_TurnCpt1 = *pul_TurnCpt1 & ((dw_And) - 1);
-		    }
-		 else
-		    {
+						*pul_TurnCpt1 =
+							*pul_TurnCpt1 &
+							((dw_And) - 1);
+					} else {
 		    /*****************************/
-		    /* The selected SSI is wrong */
+						/* The selected SSI is wrong */
 		    /*****************************/
 
-                   DPRINTK("The selected SSI is wrong\n");
-		    i_ReturnValue = -5;
-		    }
-          	break;
+						DPRINTK("The selected SSI is wrong\n");
+						i_ReturnValue = -5;
+					}
+					break;
 
-		 case APCI1710_SSI_READALLVALUE :
-			 dw_And1 = 1;
+				case APCI1710_SSI_READALLVALUE:
+					dw_And1 = 1;
 
-		 for (b_Cpt = 0; b_Cpt < devpriv->s_ModuleInfo [b_ModulNbr].
-					 s_SSICounterInfo.
-					 b_PositionTurnLength; b_Cpt ++)
-		    {
-		    dw_And1 = dw_And1 * 2;
-		    }
+					for (b_Cpt = 0;
+						b_Cpt <
+						devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SSICounterInfo.
+						b_PositionTurnLength; b_Cpt++) {
+						dw_And1 = dw_And1 * 2;
+					}
 
-		 dw_And2 = 1;
+					dw_And2 = 1;
 
-		 for (b_Cpt = 0; b_Cpt < devpriv->s_ModuleInfo [b_ModulNbr].
-					 s_SSICounterInfo.
-					 b_TurnCptLength; b_Cpt ++)
-		    {
-		    dw_And2 = dw_And2 * 2;
-		    }
+					for (b_Cpt = 0;
+						b_Cpt <
+						devpriv->
+						s_ModuleInfo[b_ModulNbr].
+						s_SSICounterInfo.
+						b_TurnCptLength; b_Cpt++) {
+						dw_And2 = dw_And2 * 2;
+					}
 
 		 /************************/
-		 /* Start the conversion */
+					/* Start the conversion */
 		 /************************/
-		
-		 outl(0,devpriv->s_BoardInfos.ui_Address + 8 + (64 * b_ModulNbr));
 
-		 do
-		    {
+					outl(0, devpriv->s_BoardInfos.
+						ui_Address + 8 +
+						(64 * b_ModulNbr));
+
+					do {
 		    /*******************/
-		    /* Read the status */
+						/* Read the status */
 		    /*******************/
-			
-			dw_StatusReg = inl(devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
-		    }
-		 while ((dw_StatusReg & 0x1) != 0);
 
-		 for (b_SSICpt = 0; b_SSICpt < 3; b_SSICpt ++)
-		    {
+						dw_StatusReg =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address +
+							(64 * b_ModulNbr));
+					}
+					while ((dw_StatusReg & 0x1) != 0);
+
+					for (b_SSICpt = 0; b_SSICpt < 3;
+						b_SSICpt++) {
 		    /******************************/
-		    /* Read the SSI counter value */
+						/* Read the SSI counter value */
 		    /******************************/
 
-		  
-			 dw_CounterValue = inl(devpriv->s_BoardInfos.ui_Address + 4 + (b_SSICpt * 4) + (64 * b_ModulNbr));
+						dw_CounterValue =
+							inl(devpriv->
+							s_BoardInfos.
+							ui_Address + 4 +
+							(b_SSICpt * 4) +
+							(64 * b_ModulNbr));
 
-		    b_Length = devpriv->s_ModuleInfo [b_ModulNbr].
-			       s_SSICounterInfo.
-			       b_SSIProfile / 2;
+						b_Length =
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_SSIProfile / 2;
 
-		    if ((b_Length * 2) != devpriv->s_ModuleInfo [b_ModulNbr].
-					  s_SSICounterInfo.
-					  b_SSIProfile)
-		       {
-		       b_Length ++;
-		       }
+						if ((b_Length * 2) !=
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_SSIProfile) {
+							b_Length++;
+						}
 
-		    b_Schift = b_Length - devpriv->s_ModuleInfo [b_ModulNbr].
-					  s_SSICounterInfo.
-					  b_PositionTurnLength;
+						b_Schift =
+							b_Length -
+							devpriv->
+							s_ModuleInfo
+							[b_ModulNbr].
+							s_SSICounterInfo.
+							b_PositionTurnLength;
 
+						pul_Position[b_SSICpt] =
+							dw_CounterValue >>
+							b_Schift;
+						pul_Position[b_SSICpt] =
+							pul_Position[b_SSICpt] &
+							((dw_And1) - 1);
 
-		    pul_Position [b_SSICpt] = dw_CounterValue >> b_Schift;
-		    pul_Position [b_SSICpt] = pul_Position [b_SSICpt] & ((dw_And1) - 1);
+						pul_TurnCpt[b_SSICpt] =
+							dw_CounterValue >>
+							b_Length;
+						pul_TurnCpt[b_SSICpt] =
+							pul_TurnCpt[b_SSICpt] &
+							((dw_And2) - 1);
+					}
+					break;
 
-		    pul_TurnCpt [b_SSICpt] = dw_CounterValue >> b_Length;
-		    pul_TurnCpt [b_SSICpt] = pul_TurnCpt [b_SSICpt] & ((dw_And2) - 1);
-		    }
-		 break;
+				default:
+					printk("Read Type Inputs Wrong\n");
 
-		 default :
-			 printk("Read Type Inputs Wrong\n");
+				}	// switch  ending
 
-		 } // switch  ending
-
-		 }
-	      else
-		 {
+			} else {
 		 /***********************/
-		 /* SSI not initialised */
+				/* SSI not initialised */
 		 /***********************/
 
-                DPRINTK("SSI not initialised\n");
-		 i_ReturnValue = -4;
-		 }
-	      }
-	   else
-	      {
+				DPRINTK("SSI not initialised\n");
+				i_ReturnValue = -4;
+			}
+		} else {
 	      /**********************************/
-	      /* The module is not a SSI module */
+			/* The module is not a SSI module */
 	      /**********************************/
 
-             DPRINTK("The module is not a SSI module\n");
-	      i_ReturnValue = -3;
- 
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a SSI module\n");
+			i_ReturnValue = -3;
+
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-	   DPRINTK("Module number error\n");	
-	   i_ReturnValue = -2;
-	   }
-
-	return (i_ReturnValue);
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
 	}
 
-
-
-
-
+	return (i_ReturnValue);
+}
 
 /*
 +----------------------------------------------------------------------------+
@@ -690,121 +735,114 @@ pul_Position	=	(PULONG) &data[0];
 +----------------------------------------------------------------------------+
 */
 
-
-
-INT	i_APCI1710_InsnBitsSSIDigitalIO(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,
-lsampl_t *data)
-	{
-	INT     i_ReturnValue = 0;
-	DWORD   dw_StatusReg;
-	BYTE    b_ModulNbr;
-	BYTE    b_InputChannel;
-	PBYTE   pb_ChannelStatus;
-        PBYTE   pb_InputStatus;
-	BYTE    b_IOType;
+INT i_APCI1710_InsnBitsSSIDigitalIO(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	INT i_ReturnValue = 0;
+	DWORD dw_StatusReg;
+	BYTE b_ModulNbr;
+	BYTE b_InputChannel;
+	PBYTE pb_ChannelStatus;
+	PBYTE pb_InputStatus;
+	BYTE b_IOType;
 	i_ReturnValue = insn->n;
-        b_ModulNbr    = (BYTE) CR_AREF(insn->chanspec);
-        b_IOType      = (BYTE) data[0];
-	
+	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
+	b_IOType = (BYTE) data[0];
+
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
-	if (b_ModulNbr < 4)
-	   {
+	if (b_ModulNbr < 4) {
 	   /***********************/
-	   /* Test if SSI counter */
+		/* Test if SSI counter */
 	   /***********************/
 
-	   if ((devpriv->s_BoardInfos.
-		dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF0000UL) == APCI1710_SSI_COUNTER)
-	      {
-           switch(b_IOType)
-		   {
-		   case    APCI1710_SSI_SET_CHANNELON :
+		if ((devpriv->s_BoardInfos.
+				dw_MolduleConfiguration[b_ModulNbr] &
+				0xFFFF0000UL) == APCI1710_SSI_COUNTER) {
+			switch (b_IOType) {
+			case APCI1710_SSI_SET_CHANNELON:
 					/*****************************/
-					/* Set the digital output ON */
+				/* Set the digital output ON */
 					/*****************************/
 
-					
-                   outl(1,devpriv->s_BoardInfos.ui_Address + 16 + (64 * b_ModulNbr));
-			       break ;
+				outl(1, devpriv->s_BoardInfos.ui_Address + 16 +
+					(64 * b_ModulNbr));
+				break;
 
-		   case    APCI1710_SSI_SET_CHANNELOFF :
+			case APCI1710_SSI_SET_CHANNELOFF:
 					/******************************/
-					/* Set the digital output OFF */
+				/* Set the digital output OFF */
 					/******************************/
 
-				
-				   outl(0,devpriv->s_BoardInfos.ui_Address + 16 + (64 * b_ModulNbr));
-			       break ;
-		   
-		
+				outl(0, devpriv->s_BoardInfos.ui_Address + 16 +
+					(64 * b_ModulNbr));
+				break;
 
-		   case APCI1710_SSI_READ_1CHANNEL:
-	      			   /******************************************/
-	      			   /* Test the digital imnput channel number */
-	      			   /******************************************/
+			case APCI1710_SSI_READ_1CHANNEL:
+				   /******************************************/
+				/* Test the digital imnput channel number */
+				   /******************************************/
 
-           				b_InputChannel = (BYTE) CR_CHAN(insn->chanspec);
-		   			pb_ChannelStatus = (PBYTE) &data[0];
+				b_InputChannel = (BYTE) CR_CHAN(insn->chanspec);
+				pb_ChannelStatus = (PBYTE) & data[0];
 
-	      				if (b_InputChannel <= 2)
-		 			{
-		 			/**************************/
-		 			/* Read all digital input */
-		 			/**************************/
-       
-		 			
-					dw_StatusReg = inl(devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
-		 			*pb_ChannelStatus = (BYTE) (((~dw_StatusReg) >> (4 + b_InputChannel)) & 1);
-		 			}
-	      				else
-		 			{
-		 			/********************************/
-		 			/* Selected digital input error */
-		 			/********************************/
+				if (b_InputChannel <= 2) {
+					/**************************/
+					/* Read all digital input */
+					/**************************/
 
-                           DPRINTK("Selected digital input error\n");
-		 			i_ReturnValue = -4;
-		 			}
-		  			break;
+					dw_StatusReg =
+						inl(devpriv->s_BoardInfos.
+						ui_Address + (64 * b_ModulNbr));
+					*pb_ChannelStatus =
+						(BYTE) (((~dw_StatusReg) >> (4 +
+								b_InputChannel))
+						& 1);
+				} else {
+					/********************************/
+					/* Selected digital input error */
+					/********************************/
+
+					DPRINTK("Selected digital input error\n");
+					i_ReturnValue = -4;
+				}
+				break;
 
 			case APCI1710_SSI_READ_ALLCHANNEL:
-          				/**************************/
-	      				/* Read all digital input */
-	      				/**************************/
-					pb_InputStatus = (PBYTE) &data[0];
+					/**************************/
+				/* Read all digital input */
+					/**************************/
+				pb_InputStatus = (PBYTE) & data[0];
 
-	      			
-		  			dw_StatusReg	  = inl(devpriv->s_BoardInfos.ui_Address + (64 * b_ModulNbr));
-	      				*pb_InputStatus = (BYTE) (((~dw_StatusReg) >> 4) & 7);
-					break;
+				dw_StatusReg =
+					inl(devpriv->s_BoardInfos.ui_Address +
+					(64 * b_ModulNbr));
+				*pb_InputStatus =
+					(BYTE) (((~dw_StatusReg) >> 4) & 7);
+				break;
 
-        		default :
-					printk("IO type wrong\n");
+			default:
+				printk("IO type wrong\n");
 
-		 } //switch end
-	      }
-	   else
-	      {
+			}	//switch end
+		} else {
 	      /**********************************/
-	      /* The module is not a SSI module */
+			/* The module is not a SSI module */
 	      /**********************************/
 
-	      DPRINTK("The module is not a SSI module\n"); 	
-	      i_ReturnValue = -3;
-	      }
-	   }
-	else
-	   {
+			DPRINTK("The module is not a SSI module\n");
+			i_ReturnValue = -3;
+		}
+	} else {
 	   /***********************/
-	   /* Module number error */
+		/* Module number error */
 	   /***********************/
 
-	   DPRINTK("Module number error\n");
-	   i_ReturnValue = -2;
-	   }
+		DPRINTK("Module number error\n");
+		i_ReturnValue = -2;
+	}
 
 	return (i_ReturnValue);
-	}
+}

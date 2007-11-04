@@ -54,80 +54,80 @@ Status: experimental
 #define DAS16CS_CTR_CONTROL		14
 #define DAS16CS_DIO			16
 
-
-typedef struct das16cs_board_struct{
+typedef struct das16cs_board_struct {
 	const char *name;
 	int device_id;
 	int n_ao_chans;
-}das16cs_board;
+} das16cs_board;
 static const das16cs_board das16cs_boards[] = {
 	{
-		device_id:	0x0000, /* unknown */
-		name:		"PC-CARD DAS16/16",
-		n_ao_chans:	0,
-	},
+	      device_id:0x0000,/* unknown */
+	      name:	"PC-CARD DAS16/16",
+	      n_ao_chans:0,
+		},
 	{
-		device_id:	0x0039,
-		name:		"PC-CARD DAS16/16-AO",
-		n_ao_chans:	2,
-	},
+	      device_id:0x0039,
+	      name:	"PC-CARD DAS16/16-AO",
+	      n_ao_chans:2,
+		},
 	{
-		device_id:	0x4009,
-		name:		"PCM-DAS16s/16",
-		n_ao_chans:	0,
-	},
+	      device_id:0x4009,
+	      name:	"PCM-DAS16s/16",
+	      n_ao_chans:0,
+		},
 };
+
 #define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
 #define thisboard ((const das16cs_board *)dev->board_ptr)
 
-typedef struct{
+typedef struct {
 	struct pcmcia_device *link;
 
 	lsampl_t ao_readback[2];
 	unsigned short status1;
 	unsigned short status2;
-}das16cs_private;
+} das16cs_private;
 #define devpriv ((das16cs_private *)dev->private)
 
-static int das16cs_attach(comedi_device *dev,comedi_devconfig *it);
-static int das16cs_detach(comedi_device *dev);
-static comedi_driver driver_das16cs={
-	driver_name:	"cb_das16_cs",
-	module:		THIS_MODULE,
-	attach:		das16cs_attach,
-	detach:		das16cs_detach,
+static int das16cs_attach(comedi_device * dev, comedi_devconfig * it);
+static int das16cs_detach(comedi_device * dev);
+static comedi_driver driver_das16cs = {
+      driver_name:"cb_das16_cs",
+      module:THIS_MODULE,
+      attach:das16cs_attach,
+      detach:das16cs_detach,
 };
 
 static struct pcmcia_device *cur_dev = NULL;
 
 static const comedi_lrange das16cs_ai_range = { 4, {
-	RANGE( -10, 10 ),
-	RANGE( -5, 5 ),
-	RANGE( -2.5, 2.5 ),
-	RANGE( -1.25, 1.25 ),
-}};
-
+			RANGE(-10, 10),
+			RANGE(-5, 5),
+			RANGE(-2.5, 2.5),
+			RANGE(-1.25, 1.25),
+	}
+};
 
 static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG);
-static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int das16cs_ai_cmd(comedi_device *dev,comedi_subdevice *s);
-static int das16cs_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd);
-static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int das16cs_ao_rinsn(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int das16cs_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int das16cs_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int das16cs_timer_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int das16cs_timer_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
+static int das16cs_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int das16cs_ai_cmd(comedi_device * dev, comedi_subdevice * s);
+static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd);
+static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int das16cs_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int das16cs_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int das16cs_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int das16cs_timer_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int das16cs_timer_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
 
-static int get_prodid(comedi_device *dev, struct pcmcia_device *link)
+static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	u_short buf[128];
@@ -138,23 +138,24 @@ static int get_prodid(comedi_device *dev, struct pcmcia_device *link)
 	tuple.TupleDataMax = 255;
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
-	   (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)){
+	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+		(pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)) {
 		prodid = le16_to_cpu(buf[1]);
 	}
 
 	return prodid;
 }
 
-static const das16cs_board *das16cs_probe(comedi_device *dev, struct pcmcia_device *link)
+static const das16cs_board *das16cs_probe(comedi_device * dev,
+	struct pcmcia_device *link)
 {
 	int id;
 	int i;
 
-	id = get_prodid(dev,link);
+	id = get_prodid(dev, link);
 
-	for(i=0;i<n_boards;i++){
-		if(das16cs_boards[i].device_id==id){
+	for (i = 0; i < n_boards; i++) {
+		if (das16cs_boards[i].device_id == id) {
 			return das16cs_boards + i;
 		}
 	}
@@ -164,96 +165,98 @@ static const das16cs_board *das16cs_probe(comedi_device *dev, struct pcmcia_devi
 	return NULL;
 }
 
-static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
+static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	struct pcmcia_device *link;
 	comedi_subdevice *s;
 	int ret;
 	int i;
 
-	printk("comedi%d: cb_das16_cs: ",dev->minor);
+	printk("comedi%d: cb_das16_cs: ", dev->minor);
 
-	link = cur_dev; /* XXX hack */
-	if(!link)return -EIO;
+	link = cur_dev;		/* XXX hack */
+	if (!link)
+		return -EIO;
 
 	dev->iobase = link->io.BasePort1;
-	printk("I/O base=0x%04lx ",dev->iobase);
+	printk("I/O base=0x%04lx ", dev->iobase);
 
 	printk("fingerprint:\n");
-	for(i=0;i<48;i+=2){
-		printk("%04x ",inw(dev->iobase + i));
+	for (i = 0; i < 48; i += 2) {
+		printk("%04x ", inw(dev->iobase + i));
 	}
 	printk("\n");
 
 	ret = comedi_request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
 		IRQF_SHARED, "cb_das16_cs", dev);
-	if(ret<0){
+	if (ret < 0) {
 		return ret;
 	}
 	dev->irq = link->irq.AssignedIRQ;
-	printk("irq=%u ",dev->irq);
+	printk("irq=%u ", dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
-	if(!dev->board_ptr)return -EIO;
+	if (!dev->board_ptr)
+		return -EIO;
 
 	dev->board_name = thisboard->name;
 
-	if(alloc_private(dev,sizeof(das16cs_private))<0)
+	if (alloc_private(dev, sizeof(das16cs_private)) < 0)
 		return -ENOMEM;
 
-	if(alloc_subdevices(dev, 4)<0)
+	if (alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
-	s=dev->subdevices+0;
-	dev->read_subdev=s;
+	s = dev->subdevices + 0;
+	dev->read_subdev = s;
 	/* analog input subdevice */
-	s->type=COMEDI_SUBD_AI;
+	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
-	s->n_chan=16;
-	s->maxdata=0xffff;
-	s->range_table=&das16cs_ai_range;
-	s->len_chanlist=16;
+	s->n_chan = 16;
+	s->maxdata = 0xffff;
+	s->range_table = &das16cs_ai_range;
+	s->len_chanlist = 16;
 	s->insn_read = das16cs_ai_rinsn;
 	s->do_cmd = das16cs_ai_cmd;
 	s->do_cmdtest = das16cs_ai_cmdtest;
 
-	s=dev->subdevices+1;
+	s = dev->subdevices + 1;
 	/* analog output subdevice */
-	if(thisboard->n_ao_chans){
-		s->type=COMEDI_SUBD_AO;
-		s->subdev_flags=SDF_WRITABLE;
-		s->n_chan=thisboard->n_ao_chans;
-		s->maxdata=0xffff;
+	if (thisboard->n_ao_chans) {
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITABLE;
+		s->n_chan = thisboard->n_ao_chans;
+		s->maxdata = 0xffff;
 		s->range_table = &range_bipolar10;
 		s->insn_write = &das16cs_ao_winsn;
 		s->insn_read = &das16cs_ao_rinsn;
 	}
 
-	s=dev->subdevices+2;
+	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	if(1){
-		s->type=COMEDI_SUBD_DIO;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
-		s->n_chan=8;
-		s->maxdata=1;
-		s->range_table=&range_digital;
+	if (1) {
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->n_chan = 8;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
 		s->insn_bits = das16cs_dio_insn_bits;
 		s->insn_config = das16cs_dio_insn_config;
-	}else{
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s=dev->subdevices+3;
+	s = dev->subdevices + 3;
 	/* timer subdevice */
-	if(0){
-		s->type=COMEDI_SUBD_TIMER;
-		s->subdev_flags=SDF_READABLE|SDF_WRITABLE;
-		s->n_chan=1;
-		s->maxdata=0xff;
+	if (0) {
+		s->type = COMEDI_SUBD_TIMER;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->n_chan = 1;
+		s->maxdata = 0xff;
 		s->range_table = &range_unknown;
 		s->insn_read = das16cs_timer_insn_read;
 		s->insn_config = das16cs_timer_insn_config;
-	}else{
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
@@ -262,17 +265,16 @@ static int das16cs_attach(comedi_device *dev,comedi_devconfig *it)
 	return 1;
 }
 
-static int das16cs_detach(comedi_device *dev)
+static int das16cs_detach(comedi_device * dev)
 {
-	printk("comedi%d: das16cs: remove\n",dev->minor);
+	printk("comedi%d: das16cs: remove\n", dev->minor);
 
-	if(dev->irq){
+	if (dev->irq) {
 		comedi_free_irq(dev->irq, dev);
 	}
 
 	return 0;
 }
-
 
 static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
 {
@@ -284,7 +286,8 @@ static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int das16cs_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int to;
@@ -300,21 +303,22 @@ static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	outw(chan, dev->iobase + 2);
 
 	devpriv->status1 &= ~0xf320;
-	devpriv->status1 |= (aref==AREF_DIFF)?0:0x0020;
+	devpriv->status1 |= (aref == AREF_DIFF) ? 0 : 0x0020;
 	outw(devpriv->status1, dev->iobase + 4);
 
 	devpriv->status2 &= ~0xff00;
 	devpriv->status2 |= range_bits[range];
 	outw(devpriv->status2, dev->iobase + 6);
 
-	for(i=0;i<insn->n;i++){
+	for (i = 0; i < insn->n; i++) {
 		outw(0, dev->iobase);
 
 #define TIMEOUT 1000
-		for(to=0;to<TIMEOUT;to++){
-			if(inw(dev->iobase + 4) & 0x0080)break;
+		for (to = 0; to < TIMEOUT; to++) {
+			if (inw(dev->iobase + 4) & 0x0080)
+				break;
 		}
-		if(to==TIMEOUT){
+		if (to == TIMEOUT) {
 			printk("cb_das16_cs: ai timeout\n");
 			return -ETIME;
 		}
@@ -324,15 +328,15 @@ static int das16cs_ai_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	return i;
 }
 
-static int das16cs_ai_cmd(comedi_device *dev,comedi_subdevice *s)
+static int das16cs_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	return -EINVAL;
 }
 
-static int das16cs_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
-	comedi_cmd *cmd)
+static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
+	comedi_cmd * cmd)
 {
-	int err=0;
+	int err = 0;
 	int tmp;
 
 	/* cmdtest tests a particular command to see if it is valid.
@@ -344,135 +348,149 @@ static int das16cs_ai_cmdtest(comedi_device *dev,comedi_subdevice *s,
 
 	/* step 1: make sure trigger sources are trivially valid */
 
-	tmp=cmd->start_src;
+	tmp = cmd->start_src;
 	cmd->start_src &= TRIG_NOW;
-	if(!cmd->start_src || tmp!=cmd->start_src)err++;
+	if (!cmd->start_src || tmp != cmd->start_src)
+		err++;
 
-	tmp=cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER|TRIG_EXT;
-	if(!cmd->scan_begin_src || tmp!=cmd->scan_begin_src)err++;
+	tmp = cmd->scan_begin_src;
+	cmd->scan_begin_src &= TRIG_TIMER | TRIG_EXT;
+	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
+		err++;
 
-	tmp=cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER|TRIG_EXT;
-	if(!cmd->convert_src || tmp!=cmd->convert_src)err++;
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
+		err++;
 
-	tmp=cmd->scan_end_src;
+	tmp = cmd->scan_end_src;
 	cmd->scan_end_src &= TRIG_COUNT;
-	if(!cmd->scan_end_src || tmp!=cmd->scan_end_src)err++;
+	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
+		err++;
 
-	tmp=cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT|TRIG_NONE;
-	if(!cmd->stop_src || tmp!=cmd->stop_src)err++;
+	tmp = cmd->stop_src;
+	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
+	if (!cmd->stop_src || tmp != cmd->stop_src)
+		err++;
 
-	if(err)return 1;
+	if (err)
+		return 1;
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
 	/* note that mutual compatiblity is not an issue here */
-	if(cmd->scan_begin_src!=TRIG_TIMER &&
-	   cmd->scan_begin_src!=TRIG_EXT)err++;
-	if(cmd->convert_src!=TRIG_TIMER &&
-	   cmd->convert_src!=TRIG_EXT)err++;
-	if(cmd->stop_src!=TRIG_COUNT &&
-	   cmd->stop_src!=TRIG_NONE)err++;
+	if (cmd->scan_begin_src != TRIG_TIMER &&
+		cmd->scan_begin_src != TRIG_EXT)
+		err++;
+	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
+		err++;
+	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
+		err++;
 
-	if(err)return 2;
+	if (err)
+		return 2;
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if(cmd->start_arg!=0){
-		cmd->start_arg=0;
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
 		err++;
 	}
-
-#define MAX_SPEED	10000		/* in nanoseconds */
+#define MAX_SPEED	10000	/* in nanoseconds */
 #define MIN_SPEED	1000000000	/* in nanoseconds */
 
-	if(cmd->scan_begin_src==TRIG_TIMER){
-		if(cmd->scan_begin_arg<MAX_SPEED){
-			cmd->scan_begin_arg=MAX_SPEED;
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		if (cmd->scan_begin_arg < MAX_SPEED) {
+			cmd->scan_begin_arg = MAX_SPEED;
 			err++;
 		}
-		if(cmd->scan_begin_arg>MIN_SPEED){
-			cmd->scan_begin_arg=MIN_SPEED;
+		if (cmd->scan_begin_arg > MIN_SPEED) {
+			cmd->scan_begin_arg = MIN_SPEED;
 			err++;
 		}
-	}else{
+	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if(cmd->scan_begin_arg>9){
-			cmd->scan_begin_arg=9;
+		if (cmd->scan_begin_arg > 9) {
+			cmd->scan_begin_arg = 9;
 			err++;
 		}
 	}
-	if(cmd->convert_src==TRIG_TIMER){
-		if(cmd->convert_arg<MAX_SPEED){
-			cmd->convert_arg=MAX_SPEED;
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (cmd->convert_arg < MAX_SPEED) {
+			cmd->convert_arg = MAX_SPEED;
 			err++;
 		}
-		if(cmd->convert_arg>MIN_SPEED){
-			cmd->convert_arg=MIN_SPEED;
+		if (cmd->convert_arg > MIN_SPEED) {
+			cmd->convert_arg = MIN_SPEED;
 			err++;
 		}
-	}else{
+	} else {
 		/* external trigger */
 		/* see above */
-		if(cmd->convert_arg>9){
-			cmd->convert_arg=9;
+		if (cmd->convert_arg > 9) {
+			cmd->convert_arg = 9;
 			err++;
 		}
 	}
 
-	if(cmd->scan_end_arg!=cmd->chanlist_len){
-		cmd->scan_end_arg=cmd->chanlist_len;
+	if (cmd->scan_end_arg != cmd->chanlist_len) {
+		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	if(cmd->stop_src==TRIG_COUNT){
-		if(cmd->stop_arg>0x00ffffff){
-			cmd->stop_arg=0x00ffffff;
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (cmd->stop_arg > 0x00ffffff) {
+			cmd->stop_arg = 0x00ffffff;
 			err++;
 		}
-	}else{
+	} else {
 		/* TRIG_NONE */
-		if(cmd->stop_arg!=0){
-			cmd->stop_arg=0;
+		if (cmd->stop_arg != 0) {
+			cmd->stop_arg = 0;
 			err++;
 		}
 	}
 
-	if(err)return 3;
+	if (err)
+		return 3;
 
 	/* step 4: fix up any arguments */
 
-	if(cmd->scan_begin_src==TRIG_TIMER){
+	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int div1, div2;
 
-		tmp=cmd->scan_begin_arg;
+		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer(100, &div1, &div2,
-			&cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
-		if(tmp!=cmd->scan_begin_arg)err++;
+			&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+		if (tmp != cmd->scan_begin_arg)
+			err++;
 	}
-	if(cmd->convert_src==TRIG_TIMER){
+	if (cmd->convert_src == TRIG_TIMER) {
 		unsigned int div1, div2;
 
-		tmp=cmd->convert_arg;
+		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(100, &div1, &div2,
-			&cmd->scan_begin_arg, cmd->flags&TRIG_ROUND_MASK);
-		if(tmp!=cmd->convert_arg)err++;
-		if(cmd->scan_begin_src==TRIG_TIMER &&
-		  cmd->scan_begin_arg<cmd->convert_arg*cmd->scan_end_arg){
-			cmd->scan_begin_arg=cmd->convert_arg*cmd->scan_end_arg;
+			&cmd->scan_begin_arg, cmd->flags & TRIG_ROUND_MASK);
+		if (tmp != cmd->convert_arg)
+			err++;
+		if (cmd->scan_begin_src == TRIG_TIMER &&
+			cmd->scan_begin_arg <
+			cmd->convert_arg * cmd->scan_end_arg) {
+			cmd->scan_begin_arg =
+				cmd->convert_arg * cmd->scan_end_arg;
 			err++;
 		}
 	}
 
-	if(err)return 4;
+	if (err)
+		return 4;
 
 	return 0;
 }
 
-static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int das16cs_ao_winsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -480,7 +498,7 @@ static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 	unsigned short d;
 	int bit;
 
-	for(i=0;i<insn->n;i++){
+	for (i = 0; i < insn->n; i++) {
 		devpriv->ao_readback[chan] = data[i];
 		d = data[i];
 
@@ -488,14 +506,16 @@ static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 		comedi_udelay(1);
 
 		status1 = devpriv->status1 & ~0xf;
-		if(chan) status1 |= 0x0001;
-		else status1 |= 0x0008;
+		if (chan)
+			status1 |= 0x0001;
+		else
+			status1 |= 0x0008;
 
 /* 		printk("0x%04x\n",status1);*/
 		outw(status1, dev->iobase + 4);
 		comedi_udelay(1);
 
-		for(bit=15;bit>=0;bit--){
+		for (bit = 15; bit >= 0; bit--) {
 			int b = (d >> bit) & 0x1;
 			b <<= 1;
 /*			printk("0x%04x\n",status1 | b | 0x0000);*/
@@ -515,12 +535,13 @@ static int das16cs_ao_winsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int das16cs_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int das16cs_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for(i=0;i<insn->n;i++)
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
 
 	return i;
@@ -531,36 +552,38 @@ static int das16cs_ao_rinsn(comedi_device *dev,comedi_subdevice *s,comedi_insn *
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int das16cs_dio_insn_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int das16cs_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	if(insn->n!=2)return -EINVAL;
+	if (insn->n != 2)
+		return -EINVAL;
 
-	if(data[0]){
+	if (data[0]) {
 		s->state &= ~data[0];
-		s->state |= data[0]&data[1];
+		s->state |= data[0] & data[1];
 
-		outw(s->state,dev->iobase + 16);
+		outw(s->state, dev->iobase + 16);
 	}
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	data[1]=inw(dev->iobase + 16);
+	data[1] = inw(dev->iobase + 16);
 
 	return 2;
 }
 
-static int das16cs_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int das16cs_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
-	int chan=CR_CHAN(insn->chanspec);
+	int chan = CR_CHAN(insn->chanspec);
 	int bits;
 
-	if(chan<4)bits=0x0f;
-	else bits=0xf0;
+	if (chan < 4)
+		bits = 0x0f;
+	else
+		bits = 0xf0;
 
-	switch(data[0])
-	{
+	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
 		s->io_bits |= bits;
 		break;
@@ -568,7 +591,9 @@ static int das16cs_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 		s->io_bits &= bits;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] =
+			(s->
+			io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -577,28 +602,25 @@ static int das16cs_dio_insn_config(comedi_device *dev,comedi_subdevice *s,
 	}
 
 	devpriv->status2 &= ~0x00c0;
-	devpriv->status2 |= (s->io_bits&0xf0)?0x0080:0;
-	devpriv->status2 |= (s->io_bits&0x0f)?0x0040:0;
+	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
+	devpriv->status2 |= (s->io_bits & 0x0f) ? 0x0040 : 0;
 
-	outw(devpriv->status2,dev->iobase + 6);
+	outw(devpriv->status2, dev->iobase + 6);
 
 	return insn->n;
 }
 
-static int das16cs_timer_insn_read(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int das16cs_timer_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	return -EINVAL;
 }
 
-static int das16cs_timer_insn_config(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int das16cs_timer_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	return -EINVAL;
 }
-
-
-
 
 /* PCMCIA stuff */
 
@@ -627,7 +649,7 @@ static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0644);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
 static char *version =
-"cb_das16_cs.c pcmcia code (David Schleef), modified from dummy_cs.c 1.31 2001/08/24 12:13:13 (David Hinds)";
+	"cb_das16_cs.c pcmcia code (David Schleef), modified from dummy_cs.c 1.31 2001/08/24 12:13:13 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -664,10 +686,10 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *);
 static dev_info_t dev_info = "cb_das16_cs";
 
 typedef struct local_info_t {
-    struct pcmcia_device *link;
-    dev_node_t		node;
-    int			stop;
-    struct bus_operations *bus;
+	struct pcmcia_device *link;
+	dev_node_t node;
+	int stop;
+	struct bus_operations *bus;
 } local_info_t;
 
 /*======================================================================
@@ -684,45 +706,45 @@ typedef struct local_info_t {
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
-    local_info_t *local;
+	local_info_t *local;
 
-    DEBUG(0, "das16cs_pcmcia_attach()\n");
+	DEBUG(0, "das16cs_pcmcia_attach()\n");
 
-    /* Allocate space for private device-specific data */
-    local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
-    if (!local) return -ENOMEM;
-    local->link = link;
-    link->priv = local;
+	/* Allocate space for private device-specific data */
+	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	if (!local)
+		return -ENOMEM;
+	local->link = link;
+	link->priv = local;
 
-    /* Initialize the pcmcia_device structure */
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = NULL;
+	/* Initialize the pcmcia_device structure */
+	/* Interrupt setup */
+	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Handler = NULL;
 
-    link->conf.Attributes = 0;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+	link->conf.Attributes = 0;
+	link->conf.IntType = INT_MEMORY_AND_IO;
 
-    cur_dev = link;
+	cur_dev = link;
 
-    das16cs_pcmcia_config(link);
+	das16cs_pcmcia_config(link);
 
-    return 0;
-} /* das16cs_pcmcia_attach */
+	return 0;
+}				/* das16cs_pcmcia_attach */
 
 static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "das16cs_pcmcia_detach(0x%p)\n", link);
 
-	if(link->dev_node)
-	{
-		((local_info_t *)link->priv)->stop = 1;
+	if (link->dev_node) {
+		((local_info_t *) link->priv)->stop = 1;
 		das16cs_pcmcia_release(link);
 	}
 	/* This points to the parent local_info_t struct */
-	if(link->priv)
+	if (link->priv)
 		kfree(link->priv);
-} /* das16cs_pcmcia_detach */
+}				/* das16cs_pcmcia_detach */
 
 static void das16cs_pcmcia_config(struct pcmcia_device *link)
 {
@@ -736,108 +758,119 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	DEBUG(0, "das16cs_pcmcia_config(0x%p)\n", link);
 
 	/*
-		This reads the card's CONFIG tuple to find its configuration
-		registers.
-	*/
+	   This reads the card's CONFIG tuple to find its configuration
+	   registers.
+	 */
 	tuple.DesiredTuple = CISTPL_CONFIG;
 	tuple.Attributes = 0;
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	last_fn = GetFirstTuple;
-	if((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) goto cs_failed;
+	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+		goto cs_failed;
 	last_fn = GetTupleData;
-	if((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0) goto cs_failed;
+	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
+		goto cs_failed;
 	last_fn = ParseTuple;
-	if((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0) goto cs_failed;
+	if ((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0)
+		goto cs_failed;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
 	/*
-	In this loop, we scan the CIS for configuration table entries,
-	each of which describes a valid card configuration, including
-	voltage, IO window, memory window, and interrupt settings.
+	   In this loop, we scan the CIS for configuration table entries,
+	   each of which describes a valid card configuration, including
+	   voltage, IO window, memory window, and interrupt settings.
 
-	We make no assumptions about the card to be configured: we use
-	just the information available in the CIS.  In an ideal world,
-	this would work for any PCMCIA card, but it requires a complete
-	and accurate CIS.  In practice, a driver usually "knows" most of
-	these things without consulting the CIS, and most client drivers
-	will only use the CIS to fill in implementation-defined details.
-	*/
+	   We make no assumptions about the card to be configured: we use
+	   just the information available in the CIS.  In an ideal world,
+	   this would work for any PCMCIA card, but it requires a complete
+	   and accurate CIS.  In practice, a driver usually "knows" most of
+	   these things without consulting the CIS, and most client drivers
+	   will only use the CIS to fill in implementation-defined details.
+	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	last_fn = GetFirstTuple;
-	if((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) goto cs_failed;
+	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+		goto cs_failed;
 	while (1) {
-	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	if(pcmcia_get_tuple_data(link, &tuple)) goto next_entry;
-	if(pcmcia_parse_tuple(link, &tuple, &parse)) goto next_entry;
+		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
+		if (pcmcia_get_tuple_data(link, &tuple))
+			goto next_entry;
+		if (pcmcia_parse_tuple(link, &tuple, &parse))
+			goto next_entry;
 
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-	if (cfg->index == 0) goto next_entry;
-	link->conf.ConfigIndex = cfg->index;
+		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+			dflt = *cfg;
+		if (cfg->index == 0)
+			goto next_entry;
+		link->conf.ConfigIndex = cfg->index;
 
-	/* Does this card need audio output? */
+		/* Does this card need audio output? */
 /*	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
 		link->conf.Attributes |= CONF_ENABLE_SPKR;
 		link->conf.Status = CCSR_AUDIO_ENA;
 	}
 */
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-		link->conf.Attributes |= CONF_ENABLE_IRQ;
+		/* Do we need to allocate an interrupt? */
+		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
+			link->conf.Attributes |= CONF_ENABLE_IRQ;
 
-	/* IO window settings */
-	link->io.NumPorts1 = link->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		link->io.BasePort1 = io->win[0].base;
-		link->io.NumPorts1 = io->win[0].len;
-		if (io->nwin > 1) {
-		link->io.Attributes2 = link->io.Attributes1;
-		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = io->win[1].len;
+		/* IO window settings */
+		link->io.NumPorts1 = link->io.NumPorts2 = 0;
+		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
+			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
+			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+			if (!(io->flags & CISTPL_IO_8BIT))
+				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+			if (!(io->flags & CISTPL_IO_16BIT))
+				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+			link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+			link->io.BasePort1 = io->win[0].base;
+			link->io.NumPorts1 = io->win[0].len;
+			if (io->nwin > 1) {
+				link->io.Attributes2 = link->io.Attributes1;
+				link->io.BasePort2 = io->win[1].base;
+				link->io.NumPorts2 = io->win[1].len;
+			}
+			/* This reserves IO space but doesn't actually enable it */
+			if (pcmcia_request_io(link, &link->io))
+				goto next_entry;
 		}
-		/* This reserves IO space but doesn't actually enable it */
-		if(pcmcia_request_io(link, &link->io)) goto next_entry;
-	}
 
-	/* If we got this far, we're cool! */
-	break;
+		/* If we got this far, we're cool! */
+		break;
 
-	next_entry:
-	last_fn = GetNextTuple;
-	if((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0) goto cs_failed;
+	      next_entry:
+		last_fn = GetNextTuple;
+		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0)
+			goto cs_failed;
 	}
 
 	/*
-		Allocate an interrupt line.  Note that this does not assign a
-		handler to the interrupt, unless the 'Handler' member of the
-		irq structure is initialized.
-	*/
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	{
+	   Allocate an interrupt line.  Note that this does not assign a
+	   handler to the interrupt, unless the 'Handler' member of the
+	   irq structure is initialized.
+	 */
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
 		last_fn = RequestIRQ;
-		if((last_ret = pcmcia_request_irq(link, &link->irq)) != 0) goto cs_failed;
+		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
+			goto cs_failed;
 	}
 	/*
-		This actually configures the PCMCIA socket -- setting up
-		the I/O windows and the interrupt mapping, and putting the
-		card and host interface into "Memory and IO" mode.
-	*/
+	   This actually configures the PCMCIA socket -- setting up
+	   the I/O windows and the interrupt mapping, and putting the
+	   card and host interface into "Memory and IO" mode.
+	 */
 	last_fn = RequestConfiguration;
-	if((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0) goto cs_failed;
+	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
+		goto cs_failed;
 
 	/*
-		At this point, the dev_node_t structure(s) need to be
-		initialized and arranged in a linked list at link->dev.
-	*/
+	   At this point, the dev_node_t structure(s) need to be
+	   initialized and arranged in a linked list at link->dev.
+	 */
 	sprintf(dev->node.dev_name, "cb_das16_cs");
 	dev->node.major = dev->node.minor = 0;
 	link->dev_node = &dev->node;
@@ -849,24 +882,24 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		printk(", irq %u", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-			link->io.BasePort1+link->io.NumPorts1-1);
+			link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-			link->io.BasePort2+link->io.NumPorts2-1);
+			link->io.BasePort2 + link->io.NumPorts2 - 1);
 	printk("\n");
 
 	return;
 
-cs_failed:
+      cs_failed:
 	cs_error(link, last_fn, last_ret);
 	das16cs_pcmcia_release(link);
-} /* das16cs_pcmcia_config */
+}				/* das16cs_pcmcia_config */
 
 static void das16cs_pcmcia_release(struct pcmcia_device *link)
 {
 	DEBUG(0, "das16cs_pcmcia_release(0x%p)\n", link);
 	pcmcia_disable_device(link);
-} /* das16cs_pcmcia_release */
+}				/* das16cs_pcmcia_release */
 
 static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
 {
@@ -876,7 +909,7 @@ static int das16cs_pcmcia_suspend(struct pcmcia_device *link)
 	local->stop = 1;
 
 	return 0;
-} /* das16cs_pcmcia_suspend */
+}				/* das16cs_pcmcia_suspend */
 
 static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 {
@@ -884,20 +917,19 @@ static int das16cs_pcmcia_resume(struct pcmcia_device *link)
 
 	local->stop = 0;
 	return 0;
-} /* das16cs_pcmcia_resume */
+}				/* das16cs_pcmcia_resume */
 
 /*====================================================================*/
 
-static struct pcmcia_device_id das16cs_id_table[] =
-{
+static struct pcmcia_device_id das16cs_id_table[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x0039),
 	PCMCIA_DEVICE_MANF_CARD(0x01c5, 0x4009),
 	PCMCIA_DEVICE_NULL
 };
+
 MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
 
-struct pcmcia_driver das16cs_driver =
-{
+struct pcmcia_driver das16cs_driver = {
 	.probe = das16cs_pcmcia_attach,
 	.remove = das16cs_pcmcia_detach,
 	.suspend = das16cs_pcmcia_suspend,
@@ -905,8 +937,8 @@ struct pcmcia_driver das16cs_driver =
 	.id_table = das16cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = dev_info,
-	},
+			.name = dev_info,
+		},
 };
 
 static int __init init_das16cs_pcmcia_cs(void)
@@ -927,7 +959,7 @@ int __init init_module(void)
 	int ret;
 
 	ret = init_das16cs_pcmcia_cs();
-	if(ret < 0)
+	if (ret < 0)
 		return ret;
 
 	return comedi_driver_register(&driver_das16cs);

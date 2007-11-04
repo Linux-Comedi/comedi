@@ -2,7 +2,6 @@
                                   asm/div64.h
                              -------------------
 
-
     copyright            : (C) 2002 by Frank Mori Hess
     email                : fmhess@users.sourceforge.net
  ***************************************************************************/
@@ -32,22 +31,18 @@ static inline u64 my_ull_div(u64 numerator, unsigned long denominator)
 
 	remainder = numerator;
 
-	while(remainder >= denominator)
-	{
+	while (remainder >= denominator) {
 		shift = 0;
 		numerator = remainder;
 		// shift most significant bits into 32 bit variable
-		while( numerator > max_u32 )
-		{
+		while (numerator > max_u32) {
 			numerator >>= 1;
 			shift++;
 		}
-		if( numerator < denominator )
-		{
+		if (numerator < denominator) {
 			shift--;
 			value = 1;
-		}else
-		{
+		} else {
 			value = numerator;
 			value /= denominator;
 		}
@@ -67,4 +62,4 @@ static inline u64 my_ull_div(u64 numerator, unsigned long denominator)
 
 #endif
 
-#endif	// _DIV64_COMPAT_H
+#endif // _DIV64_COMPAT_H

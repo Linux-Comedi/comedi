@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/comedidev.h>
 #include <linux/wrapper.h>
-#include <linux/highmem.h>  /* for SuSE brokenness */
+#include <linux/highmem.h>	/* for SuSE brokenness */
 #include <linux/vmalloc.h>
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>
@@ -45,14 +45,15 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-static int postconfig(comedi_device *dev);
-static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data);
-static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data);
-static void *comedi_recognize(comedi_driver *driv, const char *name);
-static void comedi_report_boards(comedi_driver *driv);
-static int poll_invalid(comedi_device *dev,comedi_subdevice *s);
-int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
+static int postconfig(comedi_device * dev);
+static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static int insn_inval(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data);
+static void *comedi_recognize(comedi_driver * driv, const char *name);
+static void comedi_report_boards(comedi_driver * driv);
+static int poll_invalid(comedi_device * dev, comedi_subdevice * s);
+int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	unsigned long new_size);
 
 comedi_driver *comedi_drivers;
@@ -62,24 +63,22 @@ int comedi_modprobe(int minor)
 	return -EINVAL;
 }
 
-static void cleanup_device(comedi_device *dev)
+static void cleanup_device(comedi_device * dev)
 {
 	int i;
 	comedi_subdevice *s;
 
-	if(dev->subdevices)
-	{
-		for(i = 0; i < dev->n_subdevices; i++)
-		{
+	if (dev->subdevices) {
+		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
-			if(s->class_dev)
-			{
-				unsigned minor = comedi_construct_minor_for_subdevice(dev, i);
+			if (s->class_dev) {
+				unsigned minor =
+					comedi_construct_minor_for_subdevice
+					(dev, i);
 				dev_t devt = MKDEV(COMEDI_MAJOR, minor);
 				class_device_destroy(comedi_class, devt);
 			}
-			if(s->async)
-			{
+			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
 				kfree(s->async);
 			}
@@ -88,8 +87,7 @@ static void cleanup_device(comedi_device *dev)
 		dev->subdevices = NULL;
 		dev->n_subdevices = 0;
 	}
-	if(dev->private)
-	{
+	if (dev->private) {
 		kfree(dev->private);
 		dev->private = NULL;
 	}
@@ -106,55 +104,54 @@ static void cleanup_device(comedi_device *dev)
 	comedi_set_hw_dev(dev, NULL);
 }
 
-static int __comedi_device_detach(comedi_device *dev)
+static int __comedi_device_detach(comedi_device * dev)
 {
 	dev->attached = 0;
-	if(dev->driver){
+	if (dev->driver) {
 		dev->driver->detach(dev);
-	}else{
+	} else {
 		printk("BUG: dev->driver=NULL in comedi_device_detach()\n");
 	}
 	cleanup_device(dev);
 	return 0;
 }
 
-int comedi_device_detach(comedi_device *dev)
+int comedi_device_detach(comedi_device * dev)
 {
-	if(!dev->attached)
+	if (!dev->attached)
 		return 0;
 	return __comedi_device_detach(dev);
 }
 
-int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
+int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_driver *driv;
 	int ret;
 
-	if(dev->attached)
+	if (dev->attached)
 		return -EBUSY;
 
-	for(driv=comedi_drivers;driv;driv=driv->next){
-		if(!try_module_get( driv->module ))
-		{
-			printk( "comedi: failed to increment module count, skipping\n" );
+	for (driv = comedi_drivers; driv; driv = driv->next) {
+		if (!try_module_get(driv->module)) {
+			printk("comedi: failed to increment module count, skipping\n");
 			continue;
 		}
-		if(driv->num_names){
+		if (driv->num_names) {
 			dev->board_ptr = comedi_recognize(driv, it->board_name);
-			if(dev->board_ptr==NULL){
-				module_put( driv->module );
+			if (dev->board_ptr == NULL) {
+				module_put(driv->module);
 				continue;
 			}
-		}else{
-			if(strcmp(driv->driver_name,it->board_name)){
-				module_put( driv->module );
+		} else {
+			if (strcmp(driv->driver_name, it->board_name)) {
+				module_put(driv->module);
 				continue;
 			}
 		}
 		//initialize dev->driver here so comedi_error() can be called from attach
-		dev->driver=driv;
-		ret=driv->attach(dev,it);
-		if(ret<0){
+		dev->driver = driv;
+		ret = driv->attach(dev, it);
+		if (ret < 0) {
 			__comedi_device_detach(dev);
 			return ret;
 		}
@@ -163,111 +160,109 @@ int comedi_device_attach(comedi_device *dev,comedi_devconfig *it)
 
 	// recognize has failed if we get here
 	// report valid board names before returning error
-	for(driv=comedi_drivers;driv;driv=driv->next){
-		if(!try_module_get( driv->module ))
-		{
-			printk( "comedi: failed to increment module count\n" );
+	for (driv = comedi_drivers; driv; driv = driv->next) {
+		if (!try_module_get(driv->module)) {
+			printk("comedi: failed to increment module count\n");
 			continue;
 		}
 		comedi_report_boards(driv);
-		module_put( driv->module );
+		module_put(driv->module);
 	}
 	return -EIO;
 
-attached:
+      attached:
 	/* do a little post-config cleanup */
 	ret = postconfig(dev);
-	if(ret < 0)
-	{
+	if (ret < 0) {
 		__comedi_device_detach(dev);
 		return ret;
 	}
 
-	if(!dev->board_name){
-		printk("BUG: dev->board_name=<%p>\n",dev->board_name);
-		dev->board_name="BUG";
+	if (!dev->board_name) {
+		printk("BUG: dev->board_name=<%p>\n", dev->board_name);
+		dev->board_name = "BUG";
 	}
 	smp_wmb();
-	dev->attached=1;
+	dev->attached = 1;
 
 	return 0;
 }
 
-int comedi_driver_register(comedi_driver *driver)
+int comedi_driver_register(comedi_driver * driver)
 {
-	driver->next=comedi_drivers;
-	comedi_drivers=driver;
+	driver->next = comedi_drivers;
+	comedi_drivers = driver;
 
 	return 0;
 }
 
-int comedi_driver_unregister(comedi_driver *driver)
+int comedi_driver_unregister(comedi_driver * driver)
 {
 	comedi_driver *prev;
 	int i;
 
 	/* check for devices using this driver */
-	for(i=0;i<COMEDI_NDEVICES;i++){
+	for (i = 0; i < COMEDI_NDEVICES; i++) {
 		comedi_device *dev;
 
 		dev = comedi_devices + i;
-		if(dev->attached && dev->driver==driver){
-			if(dev->use_count)
-				printk("BUG! detaching device with use_count=%d\n",dev->use_count);
+		if (dev->attached && dev->driver == driver) {
+			if (dev->use_count)
+				printk("BUG! detaching device with use_count=%d\n", dev->use_count);
 			comedi_device_detach(dev);
 		}
 	}
 
-	if(comedi_drivers==driver){
-		comedi_drivers=driver->next;
+	if (comedi_drivers == driver) {
+		comedi_drivers = driver->next;
 		return 0;
 	}
 
-	for(prev=comedi_drivers;prev->next;prev=prev->next){
-		if(prev->next==driver){
-			prev->next=driver->next;
+	for (prev = comedi_drivers; prev->next; prev = prev->next) {
+		if (prev->next == driver) {
+			prev->next = driver->next;
 			return 0;
 		}
 	}
 	return -EINVAL;
 }
 
-comedi_device *comedi_allocate_dev(comedi_driver *driver)
+comedi_device *comedi_allocate_dev(comedi_driver * driver)
 {
 	return NULL;
 }
 
-void comedi_deallocate_dev(comedi_device *dev)
+void comedi_deallocate_dev(comedi_device * dev)
 {
 
 }
 
-static int postconfig(comedi_device *dev)
+static int postconfig(comedi_device * dev)
 {
 	int i;
 	comedi_subdevice *s;
 	comedi_async *async = NULL;
 	int ret;
 
-	for(i=0;i<dev->n_subdevices;i++){
-		s=dev->subdevices+i;
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = dev->subdevices + i;
 
-		if(s->type==COMEDI_SUBD_UNUSED)
+		if (s->type == COMEDI_SUBD_UNUSED)
 			continue;
 
-		if(s->len_chanlist==0)
-			s->len_chanlist=1;
+		if (s->len_chanlist == 0)
+			s->len_chanlist = 1;
 
-		if(s->do_cmd){
+		if (s->do_cmd) {
 			unsigned minor;
 			dev_t devt;
 
-			BUG_ON((s->subdev_flags & (SDF_CMD_READ | SDF_CMD_WRITE)) == 0);
+			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
+						SDF_CMD_WRITE)) == 0);
 			BUG_ON(!s->do_cmdtest);
 
 			async = kzalloc(sizeof(comedi_async), GFP_KERNEL);
-			if(async == NULL)
-			{
+			if (async == NULL) {
 				printk("failed to allocate async struct\n");
 				return -ENOMEM;
 			}
@@ -282,91 +277,102 @@ static int postconfig(comedi_device *dev)
 
 			async->prealloc_buf = NULL;
 			async->prealloc_bufsz = 0;
-			if(comedi_buf_alloc(dev,s,DEFAULT_BUF_SIZE) < 0){
+			if (comedi_buf_alloc(dev, s, DEFAULT_BUF_SIZE) < 0) {
 				printk("Buffer allocation failed\n");
 				return -ENOMEM;
 			}
-			if(s->buf_change){
-				ret = s->buf_change(dev,s,DEFAULT_BUF_SIZE);
-				if(ret < 0)return ret;
+			if (s->buf_change) {
+				ret = s->buf_change(dev, s, DEFAULT_BUF_SIZE);
+				if (ret < 0)
+					return ret;
 			}
 			minor = comedi_construct_minor_for_subdevice(dev, i);
 			devt = MKDEV(COMEDI_MAJOR, minor);
-			s->class_dev = COMEDI_CLASS_DEVICE_CREATE(comedi_class, dev->class_dev,
-				devt, NULL, "comedi%i_sub%i", dev->minor, i);
+			s->class_dev =
+				COMEDI_CLASS_DEVICE_CREATE(comedi_class,
+				dev->class_dev, devt, NULL, "comedi%i_sub%i",
+				dev->minor, i);
 		}
 
-		if(!s->range_table && !s->range_table_list)
-			s->range_table=&range_unknown;
+		if (!s->range_table && !s->range_table_list)
+			s->range_table = &range_unknown;
 
-		if(!s->insn_read && s->insn_bits)
+		if (!s->insn_read && s->insn_bits)
 			s->insn_read = insn_rw_emulate_bits;
-		if(!s->insn_write && s->insn_bits)
+		if (!s->insn_write && s->insn_bits)
 			s->insn_write = insn_rw_emulate_bits;
 
-		if(!s->insn_read)s->insn_read = insn_inval;
-		if(!s->insn_write)s->insn_write = insn_inval;
-		if(!s->insn_bits)s->insn_bits = insn_inval;
-		if(!s->insn_config)s->insn_config = insn_inval;
+		if (!s->insn_read)
+			s->insn_read = insn_inval;
+		if (!s->insn_write)
+			s->insn_write = insn_inval;
+		if (!s->insn_bits)
+			s->insn_bits = insn_inval;
+		if (!s->insn_config)
+			s->insn_config = insn_inval;
 
-		if(!s->poll)s->poll=poll_invalid;
+		if (!s->poll)
+			s->poll = poll_invalid;
 	}
 
 	return 0;
 }
 
 // generic recognize function for drivers that register their supported board names
-void *comedi_recognize(comedi_driver *driv, const char *name)
+void *comedi_recognize(comedi_driver * driv, const char *name)
 {
 	unsigned i;
-	const char * const *name_ptr = driv->board_name;
-	for(i = 0; i < driv->num_names; i++)
-	{
-		if(strcmp(*name_ptr, name) == 0)
-			return (void*)name_ptr;
-		name_ptr = (const char * const *)((const char *)name_ptr + driv->offset);
+	const char *const *name_ptr = driv->board_name;
+	for (i = 0; i < driv->num_names; i++) {
+		if (strcmp(*name_ptr, name) == 0)
+			return (void *)name_ptr;
+		name_ptr =
+			(const char *const *)((const char *)name_ptr +
+			driv->offset);
 	}
 
 	return NULL;
 }
 
-void comedi_report_boards(comedi_driver *driv)
+void comedi_report_boards(comedi_driver * driv)
 {
 	unsigned int i;
-	const char * const *name_ptr;
+	const char *const *name_ptr;
 
-	printk("comedi: valid board names for %s driver are:\n", driv->driver_name);
+	printk("comedi: valid board names for %s driver are:\n",
+		driv->driver_name);
 
 	name_ptr = driv->board_name;
-	for(i = 0; i < driv->num_names; i++)
-	{
+	for (i = 0; i < driv->num_names; i++) {
 		printk(" %s\n", *name_ptr);
 		name_ptr = (const char **)((char *)name_ptr + driv->offset);
 	}
 
-	if(driv->num_names == 0)
+	if (driv->num_names == 0)
 		printk(" %s\n", driv->driver_name);
 }
 
-static int poll_invalid(comedi_device *dev,comedi_subdevice *s)
+static int poll_invalid(comedi_device * dev, comedi_subdevice * s)
 {
 	return -EINVAL;
 }
 
-static int insn_inval(comedi_device *dev,comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)
+static int insn_inval(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	return -EINVAL;
 }
 
-static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
-	comedi_insn *insn,lsampl_t *data)
+static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
 {
 	comedi_insn new_insn;
 	int ret;
 	static const unsigned channels_per_bitfield = 32;
 
 	unsigned chan = CR_CHAN(insn->chanspec);
-	const unsigned base_bitfield_channel = (chan < channels_per_bitfield) ? 0 : chan;
+	const unsigned base_bitfield_channel =
+		(chan < channels_per_bitfield) ? 0 : chan;
 	lsampl_t new_data[2];
 	memset(new_data, 0, sizeof(new_data));
 	memset(&new_insn, 0, sizeof(new_insn));
@@ -376,40 +382,40 @@ static int insn_rw_emulate_bits(comedi_device *dev,comedi_subdevice *s,
 	new_insn.data = new_data;
 	new_insn.subdev = insn->subdev;
 
-	if(insn->insn == INSN_WRITE)
-	{
-		if(!(s->subdev_flags & SDF_WRITABLE))
+	if (insn->insn == INSN_WRITE) {
+		if (!(s->subdev_flags & SDF_WRITABLE))
 			return -EINVAL;
-		new_data[0] = 1 << (chan - base_bitfield_channel); /* mask */
-		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel)) : 0; /* bits */
+		new_data[0] = 1 << (chan - base_bitfield_channel);	/* mask */
+		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel)) : 0;	/* bits */
 	}
 
-	ret = s->insn_bits(dev,s,&new_insn,new_data);
-	if(ret < 0) return ret;
+	ret = s->insn_bits(dev, s, &new_insn, new_data);
+	if (ret < 0)
+		return ret;
 
-	if(insn->insn == INSN_READ){
+	if (insn->insn == INSN_READ) {
 		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
 	}
 
 	return 1;
 }
 
-
-static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
+static inline unsigned long uvirt_to_kva(pgd_t * pgd, unsigned long adr)
 {
 	unsigned long ret = 0UL;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 	pud_t *pud;
 
-	if(!pgd_none(*pgd)){
+	if (!pgd_none(*pgd)) {
 		pud = pud_offset(pgd, adr);
 		pmd = pmd_offset(pud, adr);
-		if(!pmd_none(*pmd)){
+		if (!pmd_none(*pmd)) {
 			ptep = pte_offset_kernel(pmd, adr);
 			pte = *ptep;
-			if(pte_present(pte)){
-				ret = (unsigned long) page_address(pte_page(pte));
+			if (pte_present(pte)) {
+				ret = (unsigned long)
+					page_address(pte_page(pte));
 				ret |= (adr & (PAGE_SIZE - 1));
 			}
 		}
@@ -427,8 +433,7 @@ static inline unsigned long kvirt_to_kva(unsigned long adr)
 	return kva;
 }
 
-
-int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
+int comedi_buf_alloc(comedi_device * dev, comedi_subdevice * s,
 	unsigned long new_size)
 {
 	comedi_async *async = s->async;
@@ -437,28 +442,31 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	/* if no change is required, do nothing */
-	if(async->prealloc_buf && async->prealloc_bufsz == new_size){
+	if (async->prealloc_buf && async->prealloc_bufsz == new_size) {
 		return 0;
 	}
 	// deallocate old buffer
-	if(async->prealloc_buf)
-	{
+	if (async->prealloc_buf) {
 		vunmap(async->prealloc_buf);
 		async->prealloc_buf = NULL;
 		async->prealloc_bufsz = 0;
 	}
-	if(async->buf_page_list)
-	{
+	if (async->buf_page_list) {
 		unsigned i;
-		for(i = 0; i < async->n_buf_pages; ++i)
-		{
-			if(async->buf_page_list[i].virt_addr){
-				mem_map_unreserve(virt_to_page(async->buf_page_list[i].virt_addr));
-				if(s->async_dma_dir != DMA_NONE){
-					dma_free_coherent(dev->hw_dev, PAGE_SIZE,
-						async->buf_page_list[i].virt_addr, async->buf_page_list[i].dma_addr);
-				}else{
-					free_page((unsigned long)async->buf_page_list[i].virt_addr);
+		for (i = 0; i < async->n_buf_pages; ++i) {
+			if (async->buf_page_list[i].virt_addr) {
+				mem_map_unreserve(virt_to_page(async->
+						buf_page_list[i].virt_addr));
+				if (s->async_dma_dir != DMA_NONE) {
+					dma_free_coherent(dev->hw_dev,
+						PAGE_SIZE,
+						async->buf_page_list[i].
+						virt_addr,
+						async->buf_page_list[i].
+						dma_addr);
+				} else {
+					free_page((unsigned long)async->
+						buf_page_list[i].virt_addr);
 				}
 			}
 		}
@@ -467,50 +475,72 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 		async->n_buf_pages = 0;
 	}
 	// allocate new buffer
-	if(new_size){
+	if (new_size) {
 		unsigned i = 0;
 		unsigned n_pages = new_size >> PAGE_SHIFT;
-		struct page** pages = NULL;
+		struct page **pages = NULL;
 
-		async->buf_page_list = vmalloc(sizeof(struct comedi_buf_page) * n_pages);
-		if(async->buf_page_list){
-			memset(async->buf_page_list, 0, sizeof(struct comedi_buf_page) * n_pages);
-			pages = vmalloc(sizeof(struct page*) * n_pages);
+		async->buf_page_list =
+			vmalloc(sizeof(struct comedi_buf_page) * n_pages);
+		if (async->buf_page_list) {
+			memset(async->buf_page_list, 0,
+				sizeof(struct comedi_buf_page) * n_pages);
+			pages = vmalloc(sizeof(struct page *) * n_pages);
 		}
-		if(pages){
-			for(i = 0; i < n_pages; i++){
-				if(s->async_dma_dir != DMA_NONE){
-					async->buf_page_list[i].virt_addr = dma_alloc_coherent(dev->hw_dev,
-						PAGE_SIZE, &async->buf_page_list[i].dma_addr, GFP_KERNEL | __GFP_COMP);
-				}else{
-					async->buf_page_list[i].virt_addr = (void*)get_zeroed_page(GFP_KERNEL);
+		if (pages) {
+			for (i = 0; i < n_pages; i++) {
+				if (s->async_dma_dir != DMA_NONE) {
+					async->buf_page_list[i].virt_addr =
+						dma_alloc_coherent(dev->hw_dev,
+						PAGE_SIZE,
+						&async->buf_page_list[i].
+						dma_addr,
+						GFP_KERNEL | __GFP_COMP);
+				} else {
+					async->buf_page_list[i].virt_addr =
+						(void *)
+						get_zeroed_page(GFP_KERNEL);
 				}
-				if(async->buf_page_list[i].virt_addr == NULL){
+				if (async->buf_page_list[i].virt_addr == NULL) {
 					break;
 				}
-				mem_map_reserve(virt_to_page(async->buf_page_list[i].virt_addr));
-				pages[i] = virt_to_page(async->buf_page_list[i].virt_addr);
+				mem_map_reserve(virt_to_page(async->
+						buf_page_list[i].virt_addr));
+				pages[i] =
+					virt_to_page(async->buf_page_list[i].
+					virt_addr);
 			}
 		}
-		if(i == n_pages){
-			async->prealloc_buf = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL_NOCACHE);
+		if (i == n_pages) {
+			async->prealloc_buf =
+				vmap(pages, n_pages, VM_MAP,
+				PAGE_KERNEL_NOCACHE);
 		}
-		if(pages){
+		if (pages) {
 			vfree(pages);
 		}
-		if(async->prealloc_buf == NULL){
+		if (async->prealloc_buf == NULL) {
 			/* Some allocation failed above. */
-			if(async->buf_page_list){
-				for(i = 0; i < n_pages; i++){
-					if(async->buf_page_list[i].virt_addr == NULL){
+			if (async->buf_page_list) {
+				for (i = 0; i < n_pages; i++) {
+					if (async->buf_page_list[i].virt_addr ==
+						NULL) {
 						break;
 					}
-					mem_map_unreserve(virt_to_page(async->buf_page_list[i].virt_addr));
-					if(s->async_dma_dir != DMA_NONE){
-						dma_free_coherent(dev->hw_dev, PAGE_SIZE,
-							async->buf_page_list[i].virt_addr, async->buf_page_list[i].dma_addr);
-					}else{
-						free_page((unsigned long)async->buf_page_list[i].virt_addr);
+					mem_map_unreserve(virt_to_page(async->
+							buf_page_list[i].
+							virt_addr));
+					if (s->async_dma_dir != DMA_NONE) {
+						dma_free_coherent(dev->hw_dev,
+							PAGE_SIZE,
+							async->buf_page_list[i].
+							virt_addr,
+							async->buf_page_list[i].
+							dma_addr);
+					} else {
+						free_page((unsigned long)async->
+							buf_page_list[i].
+							virt_addr);
 					}
 				}
 				vfree(async->buf_page_list);
@@ -527,38 +557,37 @@ int comedi_buf_alloc(comedi_device *dev, comedi_subdevice *s,
 
 /* munging is applied to data by core as it passes between user
  * and kernel space */
-unsigned int comedi_buf_munge(comedi_async *async,
-	unsigned int num_bytes)
+unsigned int comedi_buf_munge(comedi_async * async, unsigned int num_bytes)
 {
 	comedi_subdevice *s = async->subdevice;
 	unsigned int count = 0;
 	const unsigned num_sample_bytes = bytes_per_sample(s);
 
-	if( s->munge == NULL || ( async->cmd.flags & CMDF_RAWDATA ) )
-	{
+	if (s->munge == NULL || (async->cmd.flags & CMDF_RAWDATA)) {
 		async->munge_count += num_bytes;
-		if((int)(async->munge_count - async->buf_write_count) > 0) BUG();
+		if ((int)(async->munge_count - async->buf_write_count) > 0)
+			BUG();
 		return num_bytes;
 	}
 	/* don't munge partial samples */
 	num_bytes -= num_bytes % num_sample_bytes;
-	while( count < num_bytes )
-	{
+	while (count < num_bytes) {
 		int block_size;
 
 		block_size = num_bytes - count;
-		if(block_size < 0)
-		{
-			rt_printk("%s: %s: bug! block_size is negative\n", __FILE__, __FUNCTION__);
+		if (block_size < 0) {
+			rt_printk("%s: %s: bug! block_size is negative\n",
+				__FILE__, __FUNCTION__);
 			break;
 		}
-		if( (int)(async->munge_ptr + block_size - async->prealloc_bufsz) > 0 )
+		if ((int)(async->munge_ptr + block_size -
+				async->prealloc_bufsz) > 0)
 			block_size = async->prealloc_bufsz - async->munge_ptr;
 
 		s->munge(s->device, s, async->prealloc_buf + async->munge_ptr,
-			block_size, async->munge_chan );
+			block_size, async->munge_chan);
 
-		smp_wmb(); //barrier insures data is munged in buffer before munge_count is incremented
+		smp_wmb();	//barrier insures data is munged in buffer before munge_count is incremented
 
 		async->munge_chan += block_size / num_sample_bytes;
 		async->munge_chan %= async->cmd.chanlist_len;
@@ -567,98 +596,102 @@ unsigned int comedi_buf_munge(comedi_async *async,
 		async->munge_ptr %= async->prealloc_bufsz;
 		count += block_size;
 	}
-	if((int)(async->munge_count - async->buf_write_count) > 0) BUG();
+	if ((int)(async->munge_count - async->buf_write_count) > 0)
+		BUG();
 	return count;
 }
 
-unsigned int comedi_buf_write_n_available(comedi_async *async)
+unsigned int comedi_buf_write_n_available(comedi_async * async)
 {
 	unsigned int free_end;
 	unsigned int nbytes;
 
-	if(async == NULL) return 0;
+	if (async == NULL)
+		return 0;
 
 	free_end = async->buf_read_count + async->prealloc_bufsz;
 	nbytes = free_end - async->buf_write_alloc_count;
 	nbytes -= nbytes % bytes_per_sample(async->subdevice);
 	/* barrier insures the read of buf_read_count in this
-	query occurs before any following writes to the buffer which
-	might be based on the return value from this query.
-	*/
+	   query occurs before any following writes to the buffer which
+	   might be based on the return value from this query.
+	 */
 	smp_mb();
 	return nbytes;
 }
 
 /* allocates chunk for the writer from free buffer space */
-unsigned int comedi_buf_write_alloc(comedi_async *async, unsigned int nbytes)
+unsigned int comedi_buf_write_alloc(comedi_async * async, unsigned int nbytes)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if((int)(async->buf_write_alloc_count + nbytes - free_end) > 0){
+	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0) {
 		nbytes = free_end - async->buf_write_alloc_count;
 	}
 	async->buf_write_alloc_count += nbytes;
 	/* barrier insures the read of buf_read_count above occurs before
-	we write data to the write-alloc'ed buffer space */
+	   we write data to the write-alloc'ed buffer space */
 	smp_mb();
 	return nbytes;
 }
 
 /* allocates nothing unless it can completely fulfill the request */
-unsigned int comedi_buf_write_alloc_strict(comedi_async *async,
+unsigned int comedi_buf_write_alloc_strict(comedi_async * async,
 	unsigned int nbytes)
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if((int)(async->buf_write_alloc_count + nbytes - free_end) > 0){
+	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0) {
 		nbytes = 0;
 	}
 	async->buf_write_alloc_count += nbytes;
 	/* barrier insures the read of buf_read_count above occurs before
-	we write data to the write-alloc'ed buffer space */
+	   we write data to the write-alloc'ed buffer space */
 	smp_mb();
 	return nbytes;
 }
 
 /* transfers a chunk from writer to filled buffer space */
-unsigned comedi_buf_write_free(comedi_async *async, unsigned int nbytes)
+unsigned comedi_buf_write_free(comedi_async * async, unsigned int nbytes)
 {
-	if((int)(async->buf_write_count + nbytes - async->buf_write_alloc_count) > 0)
-	{
-		rt_printk("comedi: attempted to write-free more bytes than have been write-allocated.\n");
+	if ((int)(async->buf_write_count + nbytes -
+			async->buf_write_alloc_count) > 0) {
+		rt_printk
+			("comedi: attempted to write-free more bytes than have been write-allocated.\n");
 		nbytes = async->buf_write_alloc_count - async->buf_write_count;
 	}
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
 	comedi_buf_munge(async, async->buf_write_count - async->munge_count);
-	if(async->buf_write_ptr >= async->prealloc_bufsz){
+	if (async->buf_write_ptr >= async->prealloc_bufsz) {
 		async->buf_write_ptr %= async->prealloc_bufsz;
 	}
 	return nbytes;
 }
 
 /* allocates a chunk for the reader from filled (and munged) buffer space */
-unsigned comedi_buf_read_alloc(comedi_async *async, unsigned nbytes)
+unsigned comedi_buf_read_alloc(comedi_async * async, unsigned nbytes)
 {
-	if((int)(async->buf_read_alloc_count + nbytes - async->munge_count) > 0)
-	{
+	if ((int)(async->buf_read_alloc_count + nbytes - async->munge_count) >
+		0) {
 		nbytes = async->munge_count - async->buf_read_alloc_count;
 	}
 	async->buf_read_alloc_count += nbytes;
 	/* barrier insures read of munge_count occurs before we actually read
-	data out of buffer */
+	   data out of buffer */
 	smp_rmb();
 	return nbytes;
 }
 
 /* transfers control of a chunk from reader to free buffer space */
-unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
+unsigned comedi_buf_read_free(comedi_async * async, unsigned int nbytes)
 {
 	// barrier insures data has been read out of buffer before read count is incremented
 	smp_mb();
-	if((int)(async->buf_read_count + nbytes - async->buf_read_alloc_count) > 0)
-	{
-		rt_printk("comedi: attempted to read-free more bytes than have been read-allocated.\n");
+	if ((int)(async->buf_read_count + nbytes -
+			async->buf_read_alloc_count) > 0) {
+		rt_printk
+			("comedi: attempted to read-free more bytes than have been read-allocated.\n");
 		nbytes = async->buf_read_alloc_count - async->buf_read_count;
 	}
 	async->buf_read_count += nbytes;
@@ -667,24 +700,23 @@ unsigned comedi_buf_read_free(comedi_async *async, unsigned int nbytes)
 	return nbytes;
 }
 
-void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void *data,
-	unsigned int num_bytes )
+void comedi_buf_memcpy_to(comedi_async * async, unsigned int offset,
+	const void *data, unsigned int num_bytes)
 {
 	unsigned int write_ptr = async->buf_write_ptr + offset;
 
-	if( write_ptr >= async->prealloc_bufsz )
+	if (write_ptr >= async->prealloc_bufsz)
 		write_ptr %= async->prealloc_bufsz;
 
-	while( num_bytes )
-	{
+	while (num_bytes) {
 		unsigned int block_size;
 
-		if( write_ptr + num_bytes > async->prealloc_bufsz)
+		if (write_ptr + num_bytes > async->prealloc_bufsz)
 			block_size = async->prealloc_bufsz - write_ptr;
 		else
 			block_size = num_bytes;
 
-		memcpy( async->prealloc_buf + write_ptr, data, block_size );
+		memcpy(async->prealloc_buf + write_ptr, data, block_size);
 
 		data += block_size;
 		num_bytes -= block_size;
@@ -693,73 +725,73 @@ void comedi_buf_memcpy_to( comedi_async *async, unsigned int offset, const void 
 	}
 }
 
-void comedi_buf_memcpy_from(comedi_async *async, unsigned int offset,
+void comedi_buf_memcpy_from(comedi_async * async, unsigned int offset,
 	void *dest, unsigned int nbytes)
 {
 	void *src;
 	unsigned int read_ptr = async->buf_read_ptr + offset;
 
-	if( read_ptr >= async->prealloc_bufsz )
+	if (read_ptr >= async->prealloc_bufsz)
 		read_ptr %= async->prealloc_bufsz;
 
-	while( nbytes )
-	{
+	while (nbytes) {
 		unsigned int block_size;
 
 		src = async->prealloc_buf + read_ptr;
 
-		if( nbytes >= async->prealloc_bufsz - read_ptr )
+		if (nbytes >= async->prealloc_bufsz - read_ptr)
 			block_size = async->prealloc_bufsz - read_ptr;
 		else
 			block_size = nbytes;
 
-		memcpy(dest, src, block_size );
+		memcpy(dest, src, block_size);
 		nbytes -= block_size;
 		dest += block_size;
 		read_ptr = 0;
 	}
 }
 
-unsigned int comedi_buf_read_n_available(comedi_async *async)
+unsigned int comedi_buf_read_n_available(comedi_async * async)
 {
 	unsigned num_bytes;
 
-	if(async == NULL)
+	if (async == NULL)
 		return 0;
 	num_bytes = async->munge_count - async->buf_read_count;
 	/* barrier insures the read of munge_count in this
-	query occurs before any following reads of the buffer which
-	might be based on the return value from this query.
-	*/
+	   query occurs before any following reads of the buffer which
+	   might be based on the return value from this query.
+	 */
 	smp_rmb();
 	return num_bytes;
 }
 
-int comedi_buf_get(comedi_async *async, sampl_t *x)
+int comedi_buf_get(comedi_async * async, sampl_t * x)
 {
 	unsigned int n = comedi_buf_read_n_available(async);
 
-	if(n < sizeof(sampl_t)) return 0;
+	if (n < sizeof(sampl_t))
+		return 0;
 	comedi_buf_read_alloc(async, sizeof(sampl_t));
-	*x = *(sampl_t *)(async->prealloc_buf + async->buf_read_ptr);
+	*x = *(sampl_t *) (async->prealloc_buf + async->buf_read_ptr);
 	comedi_buf_read_free(async, sizeof(sampl_t));
 	return 1;
 }
 
-int comedi_buf_put(comedi_async *async, sampl_t x)
+int comedi_buf_put(comedi_async * async, sampl_t x)
 {
 	unsigned int n = comedi_buf_write_alloc_strict(async, sizeof(sampl_t));
 
-	if(n<sizeof(sampl_t)){
+	if (n < sizeof(sampl_t)) {
 		async->events |= COMEDI_CB_ERROR;
 		return 0;
 	}
-	*(sampl_t *)(async->prealloc_buf + async->buf_write_ptr) = x;
+	*(sampl_t *) (async->prealloc_buf + async->buf_write_ptr) = x;
 	comedi_buf_write_free(async, sizeof(sampl_t));
 	return 1;
 }
 
-void comedi_reset_async_buf(comedi_async *async)
+void comedi_reset_async_buf(comedi_async * async)
 {
 	async->buf_write_alloc_count = 0;
 	async->buf_write_count = 0;
@@ -777,4 +809,3 @@ void comedi_reset_async_buf(comedi_async *async)
 
 	async->events = 0;
 }
-
