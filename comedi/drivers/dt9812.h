@@ -171,7 +171,6 @@ typedef struct dt9812_usb_cmd {
       READ_DEV_MULTI_INFO       ReadDevMultiInfo;
       READ_SINGLE_VALUE_INFO    ReadSingleValueInfo;
       WRITE_SINGLE_VALUE_INFO   WriteSingleValueInfo;
-   } d;
 #endif
 } dt9812_usb_cmd_t;
 
