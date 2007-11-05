@@ -30,7 +30,7 @@ Description: Amplicon 200 Series Digital I/O
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
   PCI215 (pci215), PC218E (pc218e), PC272E (pc272e), PCI272 (pci272)
-Updated: Mon, 06 Aug 2007 11:06:10 +0100
+Updated: Mon, 05 Nov 2007 14:04:04 +0000
 Status: works
 
 Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
@@ -83,7 +83,7 @@ Some configuration instructions expect an additional parameter in
 data[1]; others return a value in data[1].  The following configuration
 instructions are supported:
 
-  INSN_CONFIG_8254_SET_MODE.  Sets the counter channel's mode and
+  INSN_CONFIG_SET_COUNTER_MODE.  Sets the counter channel's mode and
     BCD/binary setting specified in data[1].
 
   INSN_CONFIG_8254_READ_STATUS.  Reads the status register value for the
@@ -1126,7 +1126,7 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 	int chan = CR_CHAN(insn->chanspec);
 
 	switch (data[0]) {
-	case INSN_CONFIG_8254_SET_MODE:
+	case INSN_CONFIG_SET_COUNTER_MODE:
 		ret = i8254_set_mode(subpriv->iobase, 0, chan, data[1]);
 		if (ret < 0)
 			return -EINVAL;
