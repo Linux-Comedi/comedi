@@ -364,10 +364,54 @@ static void handle_b_interrupt(comedi_device * dev, unsigned short status,
 	unsigned ao_mite_status);
 static void get_last_sample_611x(comedi_device * dev);
 static void get_last_sample_6143(comedi_device * dev);
+
+static inline void ni_set_bitfield(comedi_device * dev, int reg,
+	unsigned bit_mask, unsigned bit_values)
+{
+	unsigned long flags;
+
+	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
+	switch (reg) {
+	case Interrupt_A_Enable_Register:
+		devpriv->int_a_enable_reg &= ~bit_mask;
+		devpriv->int_a_enable_reg |= bit_values & bit_mask;
+		devpriv->stc_writew(dev, devpriv->int_a_enable_reg,
+			Interrupt_A_Enable_Register);
+		break;
+	case Interrupt_B_Enable_Register:
+		devpriv->int_b_enable_reg &= ~bit_mask;
+		devpriv->int_b_enable_reg |= bit_values & bit_mask;
+		devpriv->stc_writew(dev, devpriv->int_b_enable_reg,
+			Interrupt_B_Enable_Register);
+		break;
+	case IO_Bidirection_Pin_Register:
+		devpriv->io_bidirection_pin_reg &= ~bit_mask;
+		devpriv->io_bidirection_pin_reg |= bit_values & bit_mask;
+		devpriv->stc_writew(dev, devpriv->io_bidirection_pin_reg,
+			IO_Bidirection_Pin_Register);
+		break;
+	case AI_AO_Select:
+		devpriv->ai_ao_select_reg &= ~bit_mask;
+		devpriv->ai_ao_select_reg |= bit_values & bit_mask;
+		ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
+		break;
+	case G0_G1_Select:
+		devpriv->g0_g1_select_reg &= ~bit_mask;
+		devpriv->g0_g1_select_reg |= bit_values & bit_mask;
+		ni_writeb(devpriv->g0_g1_select_reg, G0_G1_Select);
+		break;
+	default:
+		rt_printk("Warning %s() called with invalid register\n",
+			__FUNCTION__);
+		rt_printk("reg is %d\n", reg);
+		break;
+	}
+	mmiowb();
+	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
+}
+
 #ifdef PCIDMA
 static int ni_ai_drain_dma(comedi_device * dev);
-static inline void ni_set_bitfield(comedi_device * dev, int reg,
-	unsigned bit_mask, unsigned bit_values);
 
 /* DMA channel setup */
 
@@ -697,51 +741,6 @@ static inline unsigned short ni_ao_win_inw(comedi_device * dev, int addr)
 	data = ni_readw(AO_Window_Data_611x);
 	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
 	return data;
-}
-
-static inline void ni_set_bitfield(comedi_device * dev, int reg,
-	unsigned bit_mask, unsigned bit_values)
-{
-	unsigned long flags;
-
-	comedi_spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	switch (reg) {
-	case Interrupt_A_Enable_Register:
-		devpriv->int_a_enable_reg &= ~bit_mask;
-		devpriv->int_a_enable_reg |= bit_values & bit_mask;
-		devpriv->stc_writew(dev, devpriv->int_a_enable_reg,
-			Interrupt_A_Enable_Register);
-		break;
-	case Interrupt_B_Enable_Register:
-		devpriv->int_b_enable_reg &= ~bit_mask;
-		devpriv->int_b_enable_reg |= bit_values & bit_mask;
-		devpriv->stc_writew(dev, devpriv->int_b_enable_reg,
-			Interrupt_B_Enable_Register);
-		break;
-	case IO_Bidirection_Pin_Register:
-		devpriv->io_bidirection_pin_reg &= ~bit_mask;
-		devpriv->io_bidirection_pin_reg |= bit_values & bit_mask;
-		devpriv->stc_writew(dev, devpriv->io_bidirection_pin_reg,
-			IO_Bidirection_Pin_Register);
-		break;
-	case AI_AO_Select:
-		devpriv->ai_ao_select_reg &= ~bit_mask;
-		devpriv->ai_ao_select_reg |= bit_values & bit_mask;
-		ni_writeb(devpriv->ai_ao_select_reg, AI_AO_Select);
-		break;
-	case G0_G1_Select:
-		devpriv->g0_g1_select_reg &= ~bit_mask;
-		devpriv->g0_g1_select_reg |= bit_values & bit_mask;
-		ni_writeb(devpriv->g0_g1_select_reg, G0_G1_Select);
-		break;
-	default:
-		rt_printk("Warning %s() called with invalid register\n",
-			__FUNCTION__);
-		rt_printk("reg is %d\n", reg);
-		break;
-	}
-	mmiowb();
-	comedi_spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
 
 /* ni_set_bits( ) allows different parts of the ni_mio_common driver to

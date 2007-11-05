@@ -171,28 +171,22 @@ static int me4000_ao_insn_read(comedi_device * dev,
 /*-----------------------------------------------------------------------------
   Meilhaus inline functions
   ---------------------------------------------------------------------------*/
-static void inline me4000_outb(comedi_device * dev, unsigned char value,
-	unsigned long port);
-static void inline me4000_outl(comedi_device * dev, unsigned long value,
-	unsigned long port);
-static unsigned long inline me4000_inl(comedi_device * dev, unsigned long port);
-static unsigned char inline me4000_inb(comedi_device * dev, unsigned long port);
 
-static void me4000_outb(comedi_device * dev, unsigned char value,
+static inline void me4000_outb(comedi_device * dev, unsigned char value,
 	unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%02X port 0x%04lX\n", value, port);
 	outb(value, port);
 }
 
-static void me4000_outl(comedi_device * dev, unsigned long value,
+static inline void me4000_outl(comedi_device * dev, unsigned long value,
 	unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%08lX port 0x%04lX\n", value, port);
 	outl(value, port);
 }
 
-static unsigned long me4000_inl(comedi_device * dev, unsigned long port)
+static inline unsigned long me4000_inl(comedi_device * dev, unsigned long port)
 {
 	unsigned long value;
 	value = inl(port);
@@ -200,7 +194,7 @@ static unsigned long me4000_inl(comedi_device * dev, unsigned long port)
 	return value;
 }
 
-static unsigned char me4000_inb(comedi_device * dev, unsigned long port)
+static inline unsigned char me4000_inb(comedi_device * dev, unsigned long port)
 {
 	unsigned char value;
 	value = inb(port);
