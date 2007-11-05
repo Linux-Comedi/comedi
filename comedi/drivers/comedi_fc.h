@@ -51,7 +51,7 @@ extern unsigned int cfc_read_array_from_buffer(comedi_subdevice * subd,
 extern unsigned int cfc_handle_events(comedi_device * dev,
 	comedi_subdevice * subd);
 
-inline unsigned int cfc_bytes_per_scan(comedi_subdevice * subd)
+static inline unsigned int cfc_bytes_per_scan(comedi_subdevice * subd)
 {
 	int num_samples;
 	int bits_per_sample;
