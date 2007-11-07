@@ -43,7 +43,8 @@ endif
 EXTRA_DIST = \
  Kbuild \
  rt_pend_tq.h \
- comedi_fops.h
+ comedi_fops.h \
+ comedi_compat32.h
 
 if CONFIG_COMEDI_RT
 RT_SOURCES = rt_pend_tq.c rt.c
@@ -56,6 +57,7 @@ comedi_ko_SOURCES = \
  proc.c \
  range.c \
  drivers.c \
+ comedi_compat32.c \
  comedi_ksyms.c \
  $(RT_SOURCES)
 

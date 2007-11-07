@@ -25,6 +25,7 @@
 
 #define __NO_VERSION__
 #include "comedi_fops.h"
+#include "comedi_compat32.h"
 
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -1722,6 +1723,9 @@ static int comedi_fasync(int fd, struct file *file, int on)
 const struct file_operations comedi_fops = {
       owner:THIS_MODULE,
       ioctl:comedi_ioctl,
+#ifdef HAVE_COMPAT_IOCTL
+      compat_ioctl:comedi_compat_ioctl,
+#endif
       open:comedi_open,
       release:comedi_close,
       read:comedi_read,
@@ -1787,6 +1791,8 @@ static int __init comedi_init(void)
 
 	comedi_rt_init();
 
+	comedi_register_ioctl32();
+
 	return 0;
 }
 
@@ -1819,6 +1825,8 @@ static void __exit comedi_cleanup(void)
 	kfree(comedi_devices);
 
 	comedi_rt_cleanup();
+
+	comedi_unregister_ioctl32();
 }
 
 module_init(comedi_init);
