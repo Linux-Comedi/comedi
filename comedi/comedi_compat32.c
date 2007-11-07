@@ -493,11 +493,17 @@ long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int mapped_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
 		struct file *file)
 {
+	int rc;
+
 	/* Make sure we are dealing with a Comedi device. */
 	if (imajor(file->f_dentry->d_inode) != COMEDI_MAJOR) {
 		return -ENOTTY;
 	}
-	return (int)comedi_compat_ioctl(file, cmd, arg);
+	rc = (int)comedi_compat_ioctl(file, cmd, arg);
+	if (rc == -ENOIOCTLCMD) {
+		rc = -ENOTTY;
+	}
+	return rc;
 }
 
 struct ioctl32_map {
