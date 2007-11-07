@@ -428,7 +428,9 @@ static int compat_insn(struct file *file, unsigned long arg)
 	return translated_ioctl(file, COMEDI_INSN, (unsigned long)insn);
 }
 
-long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+/* compat_ioctl file operation. */
+long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
+		unsigned long arg)
 {
 	int rc;
 
@@ -495,7 +497,7 @@ static int mapped_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
 	if (imajor(file->f_dentry->d_inode) != COMEDI_MAJOR) {
 		return -ENOTTY;
 	}
-	rc = (int)comedi_compat_ioctl(file, cmd, arg);
+	rc = (int)comedi_compat_ioctl_(file, cmd, arg);
 	if (rc == -ENOIOCTLCMD) {
 		rc = -ENOTTY;
 	}
