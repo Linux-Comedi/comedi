@@ -238,10 +238,6 @@ static int get_compat_cmd(comedi_cmd __user *cmd,
 /* Copy native cmd structure to 32-bit cmd structure. */
 static int put_compat_cmd(comedi32_cmd __user *cmd32, comedi_cmd __user *cmd)
 {
-	/* N.B. Assume the pointer values in the 32-bit cmd structure are
-	 * still valid from when they were copied originally.
-	 * (Could use ptr_to_compat(), but it wasn't implemented until
-	 * kernel version 2.6.11.) */
 	int err;
 	unsigned int temp;
 
