@@ -354,10 +354,6 @@ static int pci230_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static int pci230_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
-static int pci230_ct_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int pci230_ct_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
 static void pci230_ns_to_single_timer(unsigned int *ns, int round);
 static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
 	unsigned int *d, unsigned int *nanosec, int round_mode);
@@ -567,7 +563,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	 * Allocate the subdevice structures.  alloc_subdevice() is a
 	 * convenient macro defined in comedidev.h.
 	 */
-	if (alloc_subdevices(dev, 4) < 0)
+	if (alloc_subdevices(dev, 3) < 0)
 		return -ENOMEM;
 
 	s = dev->subdevices + 0;
@@ -622,16 +618,6 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-
-	s = dev->subdevices + 3;
-	/* timer subdevice */
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 1;
-	s->maxdata = 0xffff;
-	s->range_table = &range_digital;
-	s->insn_config = pci230_ct_insn_config;
-	s->insn_read = &pci230_ct_rinsn;
 
 	printk("comedi%d: attached\n", dev->minor);
 
@@ -797,45 +783,6 @@ static int pci230_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 		data[i] = devpriv->ao_readback[chan];
 
 	return i;
-}
-
-/*
- *  COMEDI_SUBD_TIMER instructions;
- *
- *  insn_config allows user to start and stop counter/timer 2 (SK1 pin 21).
- *  Period specified in ns.
- *
- *  rinsn returns counter/timer's actual period in ns.
- */
-static int pci230_ct_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
-{
-	unsigned int ns;
-
-	if (insn->n != 1)
-		return -EINVAL;
-
-	ns = data[0];
-	if (ns == 0) {
-		//Stop counter/timer 2.
-		pci230_cancel_ct(dev, 2);
-	} else {
-		//Start conter/timer 2 with period ns.
-		pci230_setup_square_ct(dev, 2, &ns, TRIG_ROUND_MASK);
-	}
-
-	return 1;
-}
-
-static int pci230_ct_rinsn(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
-{
-	if (insn->n != 1)
-		return -EINVAL;
-
-	/* Return the actual period set in ns. */
-	data[0] = TIMEBASE_10MHZ; /* FIXME - broken */
-	return 1;
 }
 
 static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
