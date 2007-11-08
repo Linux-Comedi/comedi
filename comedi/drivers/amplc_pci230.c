@@ -362,7 +362,7 @@ static void pci230_ns_to_single_timer(unsigned int *ns, int round);
 static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
 	unsigned int *d, unsigned int *nanosec, int round_mode);
 static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
-	unsigned int ns);
+	uint64_t ns);
 static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
 	unsigned int *ns, int round);
 static void pci230_cancel_ct(comedi_device *dev, unsigned int ct);
@@ -1321,7 +1321,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 
 		pci230_setup_monostable_ct(dev, 0,
-			(cmd->convert_arg * cmd->chanlist_len));
+			((uint64_t)cmd->convert_arg * cmd->chanlist_len));
 
 		/* now set the gates up so that we can begin triggering */
 		zgat = GAT_CONFIG(0, GAT_EXT);
@@ -1378,24 +1378,21 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
  * identical clock inputs and divide ratios are required, so that the
  * correct number of channels are converted in each scan.
  * This is a very "noddy" way of doing this... apologies. (sds) */
-static unsigned int pci230_choose_clk_src(unsigned int ns)
+static unsigned int pci230_choose_clk_src(uint64_t ns)
 {
 	unsigned int clk_src = 0;
 
-	if (ns < 6553600)
+	if (ns <= 6553600u)
 		clk_src = CLK_10MHZ;
-	if (ns >= 6553600 && ns < 65536000)
+	else if (ns <= 65536000u)
 		clk_src = CLK_1MHZ;
-	if (ns >= 65536000 && ns < 655360000)
+	else if (ns <= 655360000u)
 		clk_src = CLK_100KHZ;
-	if (ns >= 655360000 && ns < 4294967295u)
-		/* maximum limited by comedi = 4.29s */
+	else if (ns <= 6553600000ul)
 		clk_src = CLK_10KHZ;
+	else
+		clk_src = CLK_1KHZ;
 
-	if (clk_src == 0) {
-		printk("comedi: dodgy clock source chosen, using 10MHz\n");
-		clk_src = CLK_10MHZ;
-	}
 	return clk_src;
 }
 
@@ -1448,7 +1445,7 @@ static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
  *  Set ZCLK_CTct to hardware retriggerable monostable mode with period of ns.
  */
 static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
-	unsigned int ns)
+	uint64_t ns)
 {
 	unsigned int clk_src;
 	unsigned int divisor;
@@ -1456,6 +1453,9 @@ static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
 	clk_src = pci230_choose_clk_src(ns);
 
 	divisor = ns / pci230_timebase[clk_src];
+	if (divisor > 65536) {
+		divisor = 65536;
+	}
 
 	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, divisor, 1);
 	/* Counter ct, divisor, mode 1 */
