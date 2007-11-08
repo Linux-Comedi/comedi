@@ -58,10 +58,12 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_IO2_SIZE 16	/* Size of I/O space 2 */
 
 /* PCI230 i/o space 1 registers. */
-#define PCI230_PPI_X_A   0x00	/* User PPI port A */
-#define PCI230_PPI_X_B   0x01	/* User PPI port B */
-#define PCI230_PPI_X_C   0x02	/* User PPI port C */
-#define PCI230_PPI_X_CMD 0x03	/* User PPI control word */
+#define PCI230_PPI_X_BASE 0x00	/* User PPI (82C55) base */
+#define PCI230_PPI_X_A   0x00	/* User PPI (82C55) port A */
+#define PCI230_PPI_X_B   0x01	/* User PPI (82C55) port B */
+#define PCI230_PPI_X_C   0x02	/* User PPI (82C55) port C */
+#define PCI230_PPI_X_CMD 0x03	/* User PPI (82C55) control word */
+#define PCI230_Z2_CT_BASE 0x14	/* 82C54 counter/timer base */
 #define PCI230_Z2_CT0    0x14	/* 82C54 counter/timer 0 */
 #define PCI230_Z2_CT1    0x15	/* 82C54 counter/timer 1 */
 #define PCI230_Z2_CT2    0x16	/* 82C54 counter/timer 2 */
@@ -614,7 +616,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL,
-			(devpriv->pci_iobase + PCI230_PPI_X_A));
+			(devpriv->pci_iobase + PCI230_PPI_X_BASE));
 		if (rc < 0)
 			return rc;
 	} else {
@@ -1455,7 +1457,7 @@ static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
 
 	divisor = ns / pci230_timebase[clk_src];
 
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, ct, divisor, 1);
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT_BASE, 0, ct, divisor, 1);
 	/* Counter ct, divisor, mode 1 */
 
 	/* PCI 230 specific - ties up counter clk input with correct clk source
@@ -1482,7 +1484,7 @@ static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
 		TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, ct, divisor, 3);
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT_BASE, 0, ct, divisor, 3);
 	/* Counter ct, divisor, square wave (8254 mode 3). */
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
@@ -1493,7 +1495,7 @@ static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
 
 static void pci230_cancel_ct(comedi_device *dev, unsigned int ct)
 {
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, ct, 0, 0);
+	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT_BASE, 0, ct, 0, 0);
 	/* Counter ct, divisor 0, 8254 mode 0. */
 }
 
