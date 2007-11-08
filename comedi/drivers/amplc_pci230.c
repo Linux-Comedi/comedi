@@ -276,7 +276,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
 struct pci230_private {
 	struct pci_dev *pci_dev;
 	lsampl_t ao_readback[2];	/* Used for AO readback */
-	unsigned long pci_iobase;	/* PCI230's I/O space 1 */
+	unsigned long iobase1;	/* PCI230's I/O space 1 */
 	unsigned int int_en;	/* Interrupt enables bits. */
 	unsigned int ai_count;	/* Number of analogue input samples remaining.
 				 */
@@ -428,7 +428,7 @@ static void pci230_ao_write(comedi_device * dev, sampl_t data, int chan)
 static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	unsigned long pci_iobase, iobase;
+	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
 	struct pci_dev *pci_dev;
 	int i = 0, irq_hdl, rc;
@@ -512,14 +512,14 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* Read base addresses of the PCI230's two I/O regions from PCI
 	 * configuration register. */
-	pci_iobase = pci_resource_start(pci_dev, 2);
-	iobase = pci_resource_start(pci_dev, 3);
+	iobase1 = pci_resource_start(pci_dev, 2);
+	iobase2 = pci_resource_start(pci_dev, 3);
 
 	printk("comedi%d: %s I/O region 1 0x%04lx I/O region 2 0x%04lx\n",
-		dev->minor, dev->board_name, pci_iobase, iobase);
+		dev->minor, dev->board_name, iobase1, iobase2);
 
-	devpriv->pci_iobase = pci_iobase;
-	dev->iobase = iobase;
+	devpriv->iobase1 = iobase1;
+	dev->iobase = iobase2;
 
 	/* Read hardware version register and set extended function register
 	 * if they exist. */
@@ -548,7 +548,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	/* Disable board's interrupts. */
-	outb(0, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(0, devpriv->iobase1 + PCI230_INT_SCE);
 
 	/* Register the interrupt handler. */
 	irq_hdl = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt,
@@ -616,7 +616,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	/* digital i/o subdevice */
 	if (thisboard->have_dio) {
 		rc = subdev_8255_init(dev, s, NULL,
-			(devpriv->pci_iobase + PCI230_PPI_X_BASE));
+			(devpriv->iobase1 + PCI230_PPI_X_BASE));
 		if (rc < 0)
 			return rc;
 	} else {
@@ -959,7 +959,7 @@ static int pci230_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 
 	/* Enable DAC interrupt. */
 	devpriv->ier |= PCI230_INT_ZCLK_CT1;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	s->async->inttrig = NULL;
 
@@ -985,7 +985,7 @@ static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	/* Disable DAC interrupt. */
 	devpriv->ier &= ~PCI230_INT_ZCLK_CT1;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
 	 * 1 => bipolar +/-10V range scale */
@@ -1203,7 +1203,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	/* Disable ADC interrupt. */
 	devpriv->ier &= ~PCI230_INT_ADC;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	if (CR_AREF(cmd->chanlist[0]) == AREF_DIFF) {
 		/* Differential - all channels must be differential. */
@@ -1276,7 +1276,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	/* Enable ADC (conversion complete) interrupt. */
 	devpriv->ier |= PCI230_INT_ADC;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	/* Set up the scan_begin_src (if it's NOT set to TRIG_FOLLOW) */
 	if (cmd->scan_begin_src == TRIG_EXT) {
@@ -1315,24 +1315,24 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		/* initialise the gates to sensible settings while we set
 		 * everything up */
 		zgat = GAT_CONFIG(0, GAT_GND);
-		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 
 		zgat = GAT_CONFIG(2, GAT_GND);
-		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 
 		pci230_setup_monostable_ct(dev, 0,
 			(cmd->convert_arg * cmd->chanlist_len));
 
 		/* now set the gates up so that we can begin triggering */
 		zgat = GAT_CONFIG(0, GAT_EXT);
-		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 
 		zgat = GAT_CONFIG(2, GAT_NOUTNM2);
-		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 	} else {
 		/* must be using "TRIG_FOLLOW", so need to "ungate" CT2 */
 		zgat = GAT_CONFIG(2, GAT_VCC);
-		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 	}
 
 	/* Set start conversion source. */
@@ -1457,13 +1457,13 @@ static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
 
 	divisor = ns / pci230_timebase[clk_src];
 
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT_BASE, 0, ct, divisor, 1);
+	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, divisor, 1);
 	/* Counter ct, divisor, mode 1 */
 
 	/* PCI 230 specific - ties up counter clk input with correct clk source
 	 */
 	/* Program counter ct's input clock source. */
-	outb(CLK_CONFIG(ct, clk_src), devpriv->pci_iobase + PCI230_ZCLK_SCE);
+	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
 
 	return;
 }
@@ -1484,18 +1484,18 @@ static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
 		TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT_BASE, 0, ct, divisor, 3);
+	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, divisor, 3);
 	/* Counter ct, divisor, square wave (8254 mode 3). */
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
 	/* Program counter ct's input clock source. */
-	outb(CLK_CONFIG(ct, clk_src), devpriv->pci_iobase + PCI230_ZCLK_SCE);
+	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
 	return;
 }
 
 static void pci230_cancel_ct(comedi_device *dev, unsigned int ct)
 {
-	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT_BASE, 0, ct, 0, 0);
+	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, 0, 0);
 	/* Counter ct, divisor 0, 8254 mode 0. */
 }
 
@@ -1507,7 +1507,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	comedi_subdevice *s;
 
 	/* Read interrupt status/enable register. */
-	status_int = inb(devpriv->pci_iobase + PCI230_INT_SCE);
+	status_int = inb(devpriv->iobase1 + PCI230_INT_SCE);
 
 	if (status_int == PCI230_INT_DISABLE) {
 		return IRQ_NONE;
@@ -1517,7 +1517,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	 * (Only those interrrupts that need re-enabling, are, later in the
 	 * handler).  */
 	devpriv->ier = PCI230_INT_DISABLE;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	/*
 	 * Check the source of interrupt and handle it.
@@ -1583,7 +1583,7 @@ static void pci230_handle_ao(comedi_device * dev, comedi_subdevice * s)
 		/* Enable DAC (conversion complete) interrupt (and leave any
 		 * other enabled interrupts as they are). */
 		devpriv->ier |= PCI230_INT_ZCLK_CT1;
-		outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 	}
 	return;
 }
@@ -1629,7 +1629,7 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 		/* Enable ADC (conversion complete) interrupt (and leave any
 		 * other enabled interrupts as they are). */
 		devpriv->ier |= PCI230_INT_ADC;
-		outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 	}
 	return;
 }
@@ -1683,7 +1683,7 @@ static int pci230_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 
 	/* Disable DAC interrupt. */
 	devpriv->ier &= ~PCI230_INT_ZCLK_CT1;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	return 0;
 }
@@ -1698,7 +1698,7 @@ static int pci230_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 	/* Disable ADC interrupt. */
 	devpriv->ier &= ~PCI230_INT_ADC;
-	outb(devpriv->ier, devpriv->pci_iobase + PCI230_INT_SCE);
+	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	/* Reset FIFO and set start conversion source to none. */
 	outw(PCI230_ADC_FIFO_RESET | PCI230_ADC_TRIG_NONE,
