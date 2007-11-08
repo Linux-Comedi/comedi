@@ -138,46 +138,47 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230P_EXTFUNC_GAT_EXTTRIG	(1<<0)
 			/* Route EXTTRIG pin to external gate inputs. */
 
-/* Group Z clock configuration register values. */
-#define PCI230_ZCLK_CT0			0
-#define PCI230_ZCLK_CT1			8
-#define PCI230_ZCLK_CT2			16
-#define PCI230_ZCLK_RES			24
-#define PCI230_ZCLK_SRC_PPCN	0
-			/* The counter/timer's CLK input from the SK1
-			 * connector. */
-#define PCI230_ZCLK_SRC_10MHZ	1	/* The internal 10MHz clock. */
-#define PCI230_ZCLK_SRC_1MHZ	2	/* The internal 1MHz clock. */
-#define PCI230_ZCLK_SRC_100KHZ	3	/* The internal 100kHz clock. */
-#define PCI230_ZCLK_SRC_10KHZ	4	/* The internal 10kHz clock. */
-#define PCI230_ZCLK_SRC_1KHZ	5	/* The internal 1kHz clock. */
-#define PCI230_ZCLK_SRC_OUTNM1	6
-			/* The output of the preceding counter/timer channel
-			 * (OUT n-1). */
-#define PCI230_ZCLK_SRC_EXTCLK	7
-			/* The dedicated external clock input for the group
-			 * (X1/X2, Y1/Y2, Z1/Z2). */
+/*
+ * Counter/timer clock input configuration sources.
+ */
+#define CLK_CLK		0	/* reserved (channel-specific clock) */
+#define CLK_10MHZ	1	/* internal 10 MHz clock */
+#define CLK_1MHZ	2	/* internal 1 MHz clock */
+#define CLK_100KHZ	3	/* internal 100 kHz clock */
+#define CLK_10KHZ	4	/* internal 10 kHz clock */
+#define CLK_1KHZ	5	/* internal 1 kHz clock */
+#define CLK_OUTNM1	6	/* output of channel-1 modulo total */
+#define CLK_EXT		7	/* external clock */
+/* Macro to construct clock input configuration register value. */
+#define CLK_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
+/* Timebases in ns. */
+#define TIMEBASE_10MHZ		100
+#define TIMEBASE_1MHZ		1000
+#define TIMEBASE_100KHZ		10000
+#define TIMEBASE_10KHZ		100000
+#define TIMEBASE_1KHZ		1000000
 
-/* Group Z gate configuration register values. */
-#define	PCI230_ZGAT_CT0			0
-#define	PCI230_ZGAT_CT1			8
-#define	PCI230_ZGAT_CT2			16
-#define	PCI230_ZGAT_RES			24
-#define	PCI230_ZGAT_SRC_VCC	0
-			/* The counter/timer's GAT input is VCC (ie enabled) */
-#define	PCI230_ZGAT_SRC_GND	1	/* GAT input is GND (ie disabled) */
-#define	PCI230_ZGAT_SRC_PPCN	2
-			/* GAT input is DIO port Cn, where n is the number of
-			 * the counter/timer */
-#define	PCI230_ZGAT_SRC_OUTNP1	3
-			/* GAT input is the output of the next counter/timer
-			 * channel (OUT n+1) */
+/*
+ * Counter/timer gate input configuration sources.
+ */
+#define GAT_VCC		0	/* VCC (i.e. enabled) */
+#define GAT_GND		1	/* GND (i.e. disabled) */
+#define GAT_EXT		2	/* external gate input (PPCn on PCI230) */
+#define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
+/* Macro to construct gate input configuration register value. */
+#define GAT_CONFIG(chan, src)	((((chan) & 3) << 3) | ((src) & 7))
 
-#define PCI230_TIMEBASE_10MHZ	100	/* 10MHz  =>     100ns. */
-#define PCI230_TIMEBASE_1MHZ	1000	/* 1MHz   =>    1000ns. */
-#define PCI230_TIMEBASE_100KHZ	10000	/* 100kHz =>   10000ns. */
-#define PCI230_TIMEBASE_10KHZ	100000	/* 10kHz  =>  100000ns. */
-#define PCI230_TIMEBASE_1KHZ	1000000	/* 1kHz   => 1000000ns. */
+/*
+ * Summary of CLK_OUTNM1 and GAT_NOUTNM2 connections for PCI230 and PCI260:
+ *
+ *              Channel's       Channel's
+ *              clock input     gate input
+ * Channel      CLK_OUTNM1      GAT_NOUTNM2
+ * -------      ----------      -----------
+ * Z2-CT0       Z2-CT2-OUT      /Z2-CT1-OUT
+ * Z2-CT1       Z2-CT0-OUT      /Z2-CT2-OUT
+ * Z2-CT2       Z2-CT1-OUT      /Z2-CT0-OUT
+ */
 
 /* Interrupt enables/status register values. */
 #define PCI230_INT_DISABLE		0
@@ -304,6 +305,15 @@ struct pci230_private {
 };
 
 #define devpriv ((struct pci230_private *)dev->private)
+
+/* PCI230 clock source periods in ns */
+static const unsigned int pci230_timebase[8] = {
+	[CLK_10MHZ] = TIMEBASE_10MHZ,
+	[CLK_1MHZ] = TIMEBASE_1MHZ,
+	[CLK_100KHZ] = TIMEBASE_100KHZ,
+	[CLK_10KHZ] = TIMEBASE_10KHZ,
+	[CLK_1KHZ] = TIMEBASE_1KHZ,
+};
 
 /* PCI230 analogue input range table */
 static const comedi_lrange pci230_ai_range = { 7, {
@@ -840,7 +850,7 @@ static int pci230_ct_rinsn(comedi_device * dev, comedi_subdevice * s,
 		return -EINVAL;
 
 	/* Return the actual period set in ns. */
-	data[0] = PCI230_TIMEBASE_10MHZ * devpriv->divisor1 * devpriv->divisor2;
+	data[0] = TIMEBASE_10MHZ * devpriv->divisor1 * devpriv->divisor2;
 	return 1;
 }
 
@@ -1319,24 +1329,24 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 		/* initialise the gates to sensible settings while we set
 		 * everything up */
-		zgat = PCI230_ZGAT_CT0 | PCI230_ZGAT_SRC_GND;
+		zgat = GAT_CONFIG(0, GAT_GND);
 		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
 
-		zgat = PCI230_ZGAT_CT2 | PCI230_ZGAT_SRC_GND;
+		zgat = GAT_CONFIG(2, GAT_GND);
 		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
 
 		pci230_setup_monostable_ct0(dev, cmd->convert_arg,
 			cmd->chanlist_len);
 
 		/* now set the gates up so that we can begin triggering */
-		zgat = PCI230_ZGAT_CT0 | PCI230_ZGAT_SRC_PPCN;
+		zgat = GAT_CONFIG(0, GAT_EXT);
 		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
 
-		zgat = PCI230_ZGAT_CT2 | PCI230_ZGAT_SRC_OUTNP1;
+		zgat = GAT_CONFIG(2, GAT_NOUTNM2);
 		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
 	} else {
 		/* must be using "TRIG_FOLLOW", so need to "ungate" CT2 */
-		zgat = PCI230_ZGAT_CT2 | PCI230_ZGAT_SRC_VCC;
+		zgat = GAT_CONFIG(2, GAT_VCC);
 		outb(zgat, devpriv->pci_iobase + PCI230_ZGAT_SCE);
 	}
 
@@ -1387,7 +1397,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 static void pci230_ns_to_timer(unsigned int *ns, int round)
 {
 	unsigned int divisor0, divisor1;
-	i8253_cascade_ns_to_timer_2div(PCI230_TIMEBASE_10MHZ, &divisor0,
+	i8253_cascade_ns_to_timer_2div(TIMEBASE_10MHZ, &divisor0,
 		&divisor1, ns, TRIG_ROUND_MASK);
 	return;
 }
@@ -1403,18 +1413,18 @@ static unsigned int pci230_choose_clk_src(unsigned int ns)
 	unsigned int clk_src = 0;
 
 	if (ns < 6553600)
-		clk_src = PCI230_TIMEBASE_10MHZ;
+		clk_src = CLK_10MHZ;
 	if (ns >= 6553600 && ns < 65536000)
-		clk_src = PCI230_TIMEBASE_1MHZ;
+		clk_src = CLK_1MHZ;
 	if (ns >= 65536000 && ns < 655360000)
-		clk_src = PCI230_TIMEBASE_100KHZ;
+		clk_src = CLK_100KHZ;
 	if (ns >= 655360000 && ns < 4294967295u)
 		/* maximum limited by comedi = 4.29s */
-		clk_src = PCI230_TIMEBASE_10KHZ;
+		clk_src = CLK_10KHZ;
 
 	if (clk_src == 0) {
 		printk("comedi: dodgy clock source chosen, using 10MHz\n");
-		clk_src = PCI230_TIMEBASE_10MHZ;
+		clk_src = CLK_10MHZ;
 	}
 	return clk_src;
 }
@@ -1423,9 +1433,11 @@ static void pci230_ns_to_single_timer(unsigned int *ns, int round)
 {
 	unsigned int divisor;
 	unsigned int clk_src;
+	unsigned int timebase;
 
 	clk_src = pci230_choose_clk_src(*ns);
-	i8253_single_ns_to_timer(clk_src, &divisor, ns, TRIG_ROUND_MASK);
+	timebase = pci230_timebase[clk_src];
+	i8253_single_ns_to_timer(timebase, &divisor, ns, TRIG_ROUND_MASK);
 	return;
 }
 
@@ -1476,36 +1488,15 @@ static void pci230_setup_monostable_ct0(comedi_device * dev, unsigned int ns,
 	/* let's hope that if devpriv->clk_src0 != devpriv->clk_src2, then one
 	 * is divided down from the other! */
 
-	devpriv->divisor0 = pulse_duration / devpriv->clk_src0;
+	devpriv->divisor0 = pulse_duration / pci230_timebase[devpriv->clk_src0];
 
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 0, devpriv->divisor0, 1);	/* Counter 1, mode 1 */
 
 	/* PCI 230 specific - ties up counter clk input with correct clk source
 	 */
 	/* Program counter 0's input clock source. */
-	switch (devpriv->clk_src0) {
-	case PCI230_TIMEBASE_10MHZ:
-	default:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1MHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_100KHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_100KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_10KHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1KHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	}
+	outb(CLK_CONFIG(0, devpriv->clk_src0),
+		devpriv->pci_iobase + PCI230_ZCLK_SCE);
 
 	return;
 }
@@ -1519,8 +1510,8 @@ static void pci230_z2_ct0(comedi_device * dev, unsigned int *ns, int round)
 	/* choose a suitable clock source from the range available, given the
 	 * desired period in ns */
 	devpriv->clk_src0 = pci230_choose_clk_src(*ns);
-	i8253_single_ns_to_timer(devpriv->clk_src0, &devpriv->divisor0, ns,
-		TRIG_ROUND_MASK);
+	i8253_single_ns_to_timer(pci230_timebase[devpriv->clk_src0],
+		&devpriv->divisor0, ns, TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0,
@@ -1529,29 +1520,8 @@ static void pci230_z2_ct0(comedi_device * dev, unsigned int *ns, int round)
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
 	/* Program counter 0's input clock source. */
-	switch (devpriv->clk_src0) {
-	case PCI230_TIMEBASE_10MHZ:
-	default:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1MHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_100KHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_100KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_10KHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_10KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1KHZ:
-		outb(PCI230_ZCLK_CT0 | PCI230_ZCLK_SRC_1KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	}
+	outb(CLK_CONFIG(0, devpriv->clk_src0),
+		devpriv->pci_iobase + PCI230_ZCLK_SCE);
 	return;
 }
 #endif
@@ -1575,8 +1545,8 @@ static void pci230_z2_ct1(comedi_device * dev, unsigned int *ns, int round)
 	/* choose a suitable clock source from the range available, given the
 	 * desired period in ns */
 	devpriv->clk_src1 = pci230_choose_clk_src(*ns);
-	i8253_single_ns_to_timer(devpriv->clk_src1, &devpriv->divisor1, ns,
-		TRIG_ROUND_MASK);
+	i8253_single_ns_to_timer(pci230_timebase[devpriv->clk_src1],
+		&devpriv->divisor1, ns, TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 1,
@@ -1585,29 +1555,8 @@ static void pci230_z2_ct1(comedi_device * dev, unsigned int *ns, int round)
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
 	/* Program counter 1's input clock source. */
-	switch (devpriv->clk_src1) {
-	case PCI230_TIMEBASE_10MHZ:
-	default:
-		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_10MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1MHZ:
-		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_1MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_100KHZ:
-		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_100KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_10KHZ:
-		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_10KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1KHZ:
-		outb(PCI230_ZCLK_CT1 | PCI230_ZCLK_SRC_1KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	}
+	outb(CLK_CONFIG(1, devpriv->clk_src1),
+		devpriv->pci_iobase + PCI230_ZCLK_SCE);
 	return;
 }
 
@@ -1628,8 +1577,8 @@ static void pci230_z2_ct2(comedi_device * dev, unsigned int *ns, int round)
 	/* choose a suitable clock source from the range available, given the
 	 * desired period in ns */
 	devpriv->clk_src2 = pci230_choose_clk_src(*ns);
-	i8253_single_ns_to_timer(devpriv->clk_src2, &devpriv->divisor2, ns,
-		TRIG_ROUND_MASK);
+	i8253_single_ns_to_timer(pci230_timebase[devpriv->clk_src2],
+		&devpriv->divisor2, ns, TRIG_ROUND_MASK);
 
 	/* Generic i8254_load calls; program counters' divide ratios. */
 	i8254_load(devpriv->pci_iobase + PCI230_Z2_CT0, 0, 2,
@@ -1638,29 +1587,8 @@ static void pci230_z2_ct2(comedi_device * dev, unsigned int *ns, int round)
 
 	/* PCI 230 specific - ties up counter clk input with clk source */
 	/* Program counter 2's input clock source. */
-	switch (devpriv->clk_src2) {
-	case PCI230_TIMEBASE_10MHZ:
-	default:
-		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_10MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1MHZ:
-		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_1MHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_100KHZ:
-		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_100KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_10KHZ:
-		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_10KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	case PCI230_TIMEBASE_1KHZ:
-		outb(PCI230_ZCLK_CT2 | PCI230_ZCLK_SRC_1KHZ,
-			devpriv->pci_iobase + PCI230_ZCLK_SCE);
-		break;
-	}
+	outb(CLK_CONFIG(2, devpriv->clk_src2),
+		devpriv->pci_iobase + PCI230_ZCLK_SCE);
 	return;
 }
 
