@@ -23,7 +23,7 @@
   */
 /*
 Driver: amplc_pci230
-Description: Amplicom PCI230, PCI260 Multifunction I/O boards
+Description: Amplicon PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>, Steve D Sharples <steve.sharples@nottingham.ac.uk>
 Updated: Wed, 31 Oct 2007 12:58:49 +0000
 Devices: [Amplicon] PCI230 (pci230 or amplc_pci230), PCI230+ (pci230+),
