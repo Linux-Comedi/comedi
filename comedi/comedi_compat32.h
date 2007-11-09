@@ -34,9 +34,8 @@
 
 #ifdef HAVE_COMPAT_IOCTL
 
-extern long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
+extern long comedi_compat_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg);
-#define comedi_compat_ioctl comedi_compat_ioctl_
 #define comedi_register_ioctl32() do{}while(0)
 #define comedi_unregister_ioctl32() do{}while(0)
 

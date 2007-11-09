@@ -428,8 +428,9 @@ static int compat_insn(struct file *file, unsigned long arg)
 	return translated_ioctl(file, COMEDI_INSN, (unsigned long)insn);
 }
 
-/* compat_ioctl file operation. */
-long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
+/* Process untranslated ioctl. */
+/* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
+static inline int raw_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg)
 {
 	int rc;
@@ -476,7 +477,17 @@ long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
 	return rc;
 }
 
-#ifndef HAVE_COMPAT_IOCTL	/* defined in <linux/fs.h> 2.6.11 onwards */
+#ifdef HAVE_COMPAT_IOCTL	/* defined in <linux/fs.h> 2.6.11 onwards */
+
+/* compat_ioctl file operation. */
+/* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
+long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	return raw_ioctl(file, cmd, arg);
+}
+
+#else /* HAVE_COMPAT_IOCTL */
 
 /*
  * Brain-dead ioctl compatibility for 2.6.10 and earlier.
@@ -488,6 +499,7 @@ long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
  * device because it registered the cmd code first.  Chaos ensues.
  */
 
+/* Handler for all 32-bit ioctl codes registered by this driver. */
 static int mapped_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
 		struct file *file)
 {
@@ -497,7 +509,8 @@ static int mapped_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
 	if (imajor(file->f_dentry->d_inode) != COMEDI_MAJOR) {
 		return -ENOTTY;
 	}
-	rc = (int)comedi_compat_ioctl_(file, cmd, arg);
+	rc = raw_ioctl(file, cmd, arg);
+	/* Do not return -ENOIOCTLCMD. */
 	if (rc == -ENOIOCTLCMD) {
 		rc = -ENOTTY;
 	}
