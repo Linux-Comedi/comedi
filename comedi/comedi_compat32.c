@@ -481,7 +481,7 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 
 /* compat_ioctl file operation. */
 /* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
-long comedi_compat_ioctl_(struct file *file, unsigned int cmd,
+long comedi_compat_ioctl(struct file *file, unsigned int cmd,
 		unsigned long arg)
 {
 	return raw_ioctl(file, cmd, arg);
