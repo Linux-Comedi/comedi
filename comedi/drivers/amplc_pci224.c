@@ -128,7 +128,8 @@ Caveats:
 #define PCI224_Z2_CTC	0x17	/* 82C54 counter/timer control word */
 #define PCI224_ZCLK_SCE	0x1A	/* Group Z Clock Configuration Register */
 #define PCI224_ZGAT_SCE	0x1D	/* Group Z Gate Configuration Register */
-#define PCI224_INT_SCE	0x1E	/* ISR Interrupt source mask register/Interrupt status */
+#define PCI224_INT_SCE	0x1E	/* ISR Interrupt source mask register */
+				/* /Interrupt status */
 
 /*
  * PCI224/234 i/o space 2 (PCIBAR3) 16-bit registers.
@@ -155,7 +156,7 @@ Caveats:
 /* (r/w) Polarity (PCI224 only, PCI234 always bipolar!). */
 #define PCI224_DACCON_POLAR_MASK	(1 << 3)
 #define PCI224_DACCON_POLAR_UNI		(0 << 3)	/* range [0,Vref] */
-#define PCI224_DACCON_POLAR_BI		(1 << 3)	/* range [-Vref,+Vref] */
+#define PCI224_DACCON_POLAR_BI		(1 << 3)	/* range [-Vref,Vref] */
 /* (r/w) Internal Vref (PCI224 only, when LK1 in position 1-2). */
 #define PCI224_DACCON_VREF_MASK		(3 << 4)
 #define PCI224_DACCON_VREF_1_25		(0 << 4)	/* Vref = 1.25V */
@@ -1357,8 +1358,8 @@ static int pci224_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if ((ret = comedi_pci_enable(pci_dev, DRIVER_NAME)) < 0) {
 		printk(KERN_ERR
-			"comedi%d: error! cannot enable PCI device and request regions!\n",
-			dev->minor);
+			"comedi%d: error! cannot enable PCI device "
+			"and request regions!\n", dev->minor);
 		return ret;
 	}
 	spin_lock_init(&devpriv->ao_spinlock);
