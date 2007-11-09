@@ -989,14 +989,16 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 		}
 		if (errors) {
 			if (errors & dupchan_err) {
-				comedi_error(dev,
+				DPRINTK("comedi%d: " DRIVER_NAME
+					": ao_cmdtest: "
 					"entries in chanlist must contain no "
-					"duplicate channels\n");
+					"duplicate channels\n", dev->minor);
 			}
 			if (errors & range_err) {
-				comedi_error(dev,
+				DPRINTK("comedi%d: " DRIVER_NAME
+					": ao_cmdtest: "
 					"entries in chanlist must all have "
-					"the same range index\n");
+					"the same range index\n", dev->minor);
 			}
 			err++;
 		}
