@@ -961,46 +961,53 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 
 	/* Step 5: check channel list. */
 
-	if (cmd->chanlist && cmd->chanlist_len > 0) {
-		unsigned int range;
-		enum { range_err = 1, dupchan_err = 2, };
-		unsigned errors;
-		unsigned int n;
-		unsigned int ch;
+	if (cmd->chanlist) {
+		if (cmd->chanlist_len > 0) {
+			unsigned int range;
+			enum { range_err = 1, dupchan_err = 2, };
+			unsigned errors;
+			unsigned int n;
+			unsigned int ch;
 
-		/*
-		 * Check all channels have the same range index.  Don't care
-		 * about analogue reference, as we can't configure it.
-		 *
-		 * Check the list has no duplicate channels.
-		 */
-		range = CR_RANGE(cmd->chanlist[0]);
-		errors = 0;
-		tmp = 0;
-		for (n = 0; n < cmd->chanlist_len; n++) {
-			ch = CR_CHAN(cmd->chanlist[n]);
-			if (tmp & (1U << ch)) {
-				errors |= dupchan_err;
+			/*
+			 * Check all channels have the same range index.  Don't
+			 * care about analogue reference, as we can't configure
+			 * it.
+			 *
+			 * Check the list has no duplicate channels.
+			 */
+			range = CR_RANGE(cmd->chanlist[0]);
+			errors = 0;
+			tmp = 0;
+			for (n = 0; n < cmd->chanlist_len; n++) {
+				ch = CR_CHAN(cmd->chanlist[n]);
+				if (tmp & (1U << ch)) {
+					errors |= dupchan_err;
+				}
+				tmp |= (1U << ch);
+				if (CR_RANGE(cmd->chanlist[n]) != range) {
+					errors |= range_err;
+				}
 			}
-			tmp |= (1U << ch);
-			if (CR_RANGE(cmd->chanlist[n]) != range) {
-				errors |= range_err;
+			if (errors) {
+				if (errors & dupchan_err) {
+					comedi_error(dev,
+						"entries in chanlist must "
+						"contain no duplicate "
+						"channels\n");
+				}
+				if (errors & range_err) {
+					comedi_error(dev,
+						"entries in chanlist must "
+						"all have the same range "
+						"index\n");
+				}
+				err++;
 			}
-		}
-		if (errors) {
-			if (errors & dupchan_err) {
-				comedi_error(dev, "entries in chanlist must "
-					"contain no duplicate " "channels\n");
-			}
-			if (errors & range_err) {
-				comedi_error(dev, "entries in chanlist must "
-					"all have the same range " "index\n");
-			}
+		} else {
+			/* cmd->chanlist_len == 0 */
 			err++;
 		}
-	} else {
-		/* cmd->chanlist == NULL || cmd->chanlist_len == 0 */
-		err++;
 	}
 
 	if (err)
