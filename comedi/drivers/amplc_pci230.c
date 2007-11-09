@@ -1490,7 +1490,7 @@ static unsigned int pci230_choose_clk_src(uint64_t ns)
 		clk_src = CLK_1MHZ;
 	else if (ns <= 655360000u)
 		clk_src = CLK_100KHZ;
-	else if (ns <= 6553600000ul)
+	else if (ns <= 6553600000ull)
 		clk_src = CLK_10KHZ;
 	else
 		clk_src = CLK_1KHZ;
