@@ -357,11 +357,11 @@ static int pci230_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 static void pci230_ns_to_single_timer(unsigned int *ns, int round);
 static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
 	unsigned int *d, unsigned int *nanosec, int round_mode);
-static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
+static void pci230_setup_monostable_ct(comedi_device * dev, unsigned int ct,
 	uint64_t ns);
-static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
+static void pci230_setup_square_ct(comedi_device * dev, unsigned int ct,
 	unsigned int *ns, int round);
-static void pci230_cancel_ct(comedi_device *dev, unsigned int ct);
+static void pci230_cancel_ct(comedi_device * dev, unsigned int ct);
 static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG);
 static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
@@ -588,7 +588,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	/* analog output subdevice */
 	if (thisboard->ao_chans > 0) {
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE;
+		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = thisboard->ao_chans;;
 		s->maxdata = (1 << thisboard->ao_bits) - 1;
 		s->range_table = &pci230_ao_range;
@@ -895,6 +895,52 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (err)
 		return 4;
 
+	/* Step 5: check channel list if it exists. */
+
+	if (cmd->chanlist && cmd->chanlist_len > 0) {
+		enum {
+			seq_err = (1 << 0),
+			range_err = (1 << 1)
+		};
+		unsigned int errors;
+		unsigned int n;
+		unsigned int chan, prev_chan;
+		unsigned int range, first_range;
+
+		prev_chan = CR_CHAN(cmd->chanlist[0]);
+		first_range = CR_RANGE(cmd->chanlist[0]);
+		errors = 0;
+		for (n = 1; n < cmd->chanlist_len; n++) {
+			chan = CR_CHAN(cmd->chanlist[n]);
+			range = CR_RANGE(cmd->chanlist[n]);
+			/* Channel numbers must strictly increase. */
+			if (chan < prev_chan) {
+				errors |= seq_err;
+			}
+			/* Ranges must be the same. */
+			if (range != first_range) {
+				errors |= range_err;
+			}
+			prev_chan = chan;
+		}
+		if (errors != 0) {
+			err++;
+			if ((errors & seq_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ao_cmdtest: "
+					"channel numbers must increase\n",
+					dev->minor);
+			}
+			if ((errors & range_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ao_cmdtest: "
+					"channels must have the same range\n",
+					dev->minor);
+			}
+		}
+	}
+
+	if (err)
+		return 5;
+
 	return 0;
 }
 
@@ -967,7 +1013,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * Using the cmdtest ioctl, a user can create a valid cmd
 	 * and then have it executes by the cmd ioctl.
 	 *
-	 * cmdtest returns 1,2,3,4 or 0, depending on which tests
+	 * cmdtest returns 1,2,3,4,5 or 0, depending on which tests
 	 * the command passes. */
 
 	/* Step 1: make sure trigger sources are trivially valid.
@@ -1110,6 +1156,115 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	if (err)
 		return 4;
+
+	/* Step 5: check channel list if it exists. */
+
+	if (cmd->chanlist && cmd->chanlist_len > 0) {
+		enum {
+			seq_err = 1 << 0,
+			rangepair_err = 1 << 1,
+			polarity_err = 1 << 2,
+			aref_err = 1 << 3,
+			diffchan_err = 1 << 4
+		};
+		unsigned int errors;
+		unsigned int chan, prev_chan;
+		unsigned int range, prev_range;
+		unsigned int polarity, prev_polarity;
+		unsigned int aref, prev_aref;
+		unsigned int subseq_len;
+		unsigned int n;
+
+		subseq_len = 0;
+		errors = 0;
+		prev_chan = prev_aref = prev_range = prev_polarity = 0;
+		for (n = 0; n < cmd->chanlist_len; n++) {
+			chan = CR_CHAN(cmd->chanlist[n]);
+			range = CR_RANGE(cmd->chanlist[n]);
+			aref = CR_AREF(cmd->chanlist[n]);
+			polarity = PCI230_TEST_BIT(range, 2);
+			/* Only the first half of the channels are available if
+			 * differential.  (These are remapped in software.  In
+			 * hardware, only the even channels are available.) */
+			if ((aref == AREF_DIFF)
+				&& (chan >= (s->n_chan / 2))) {
+				errors |= diffchan_err;
+			}
+			if (n > 0) {
+				/* Channel numbers must strictly increase or
+				 * subsequence must repeat exactly. */
+				if ((chan <= prev_chan)
+					&& (subseq_len == 0)) {
+					subseq_len = n;
+				}
+				if ((subseq_len > 0)
+					&& (cmd->chanlist[n] !=
+						cmd->chanlist[n %
+							subseq_len])) {
+					errors |= seq_err;
+				}
+				/* Channels must have same AREF. */
+				if (aref != prev_aref) {
+					errors |= aref_err;
+				}
+				/* Channel ranges must have same polarity. */
+				if (polarity != prev_polarity) {
+					errors |= polarity_err;
+				}
+				/* Single-ended channel pairs must have same
+				 * range.  */
+				if ((aref != AREF_DIFF)
+					&& (((chan ^ prev_chan) & ~1) == 0)
+					&& (range != prev_range)) {
+					errors |= rangepair_err;
+				}
+			}
+			prev_chan = chan;
+			prev_range = range;
+			prev_aref = aref;
+			prev_polarity = polarity;
+		}
+		/* If channel list is a repeating subsequence, need a whole
+		 * number of repeats. */
+		if ((subseq_len > 0) && ((n % subseq_len) != 0)) {
+			errors |= seq_err;
+		}
+		if (errors != 0) {
+			err++;
+			if ((errors & seq_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
+					"channel numbers must increase or "
+					"sequence must repeat exactly\n",
+					dev->minor);
+			}
+			if ((errors & rangepair_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
+					"single-ended channel pairs must "
+					"have the same range\n", dev->minor);
+			}
+			if ((errors & polarity_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
+					"channel sequence ranges must be all "
+					"bipolar or all unipolar\n",
+					dev->minor);
+			}
+			if ((errors & aref_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
+					"channel sequence analogue references "
+					"must be all the same (single-ended "
+					"or differential)\n", dev->minor);
+			}
+			if ((errors & diffchan_err) != 0) {
+				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
+					"differential channel number out of "
+					"range 0 to %u\n", dev->minor,
+					(s->n_chan / 2) - 1);
+			}
+		}
+	}
+
+	if (err)
+		return 5;
 
 	return 0;
 }
@@ -1268,7 +1423,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
 
 		pci230_setup_monostable_ct(dev, 0,
-			((uint64_t)cmd->convert_arg * cmd->chanlist_len));
+			((uint64_t) cmd->convert_arg * cmd->chanlist_len));
 
 		/* now set the gates up so that we can begin triggering */
 		zgat = GAT_CONFIG(0, GAT_EXT);
@@ -1391,7 +1546,7 @@ static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
 /*
  *  Set ZCLK_CTct to hardware retriggerable monostable mode with period of ns.
  */
-static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
+static void pci230_setup_monostable_ct(comedi_device * dev, unsigned int ct,
 	uint64_t ns)
 {
 	unsigned int clk_src;
@@ -1418,7 +1573,7 @@ static void pci230_setup_monostable_ct(comedi_device *dev, unsigned int ct,
 /*
  *  Set ZCLK_CTct to square wave mode with period of ns.
  */
-static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
+static void pci230_setup_square_ct(comedi_device * dev, unsigned int ct,
 	unsigned int *ns, int round)
 {
 	unsigned int clk_src;
@@ -1440,7 +1595,7 @@ static void pci230_setup_square_ct(comedi_device *dev, unsigned int ct,
 	return;
 }
 
-static void pci230_cancel_ct(comedi_device *dev, unsigned int ct)
+static void pci230_cancel_ct(comedi_device * dev, unsigned int ct)
 {
 	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, 0, 0);
 	/* Counter ct, divisor 0, 8254 mode 0. */
