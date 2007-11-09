@@ -942,8 +942,16 @@ static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file)
 
 	/* make sure channel/gain list isn't too long */
 	if (user_cmd.chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %d > %d\n",
+		DPRINTK("channel/gain list too long %u > %d\n",
 			user_cmd.chanlist_len, s->len_chanlist);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* make sure channel/gain list isn't too short */
+	if (user_cmd.chanlist_len < 1) {
+		DPRINTK("channel/gain list too short %u < 1\n",
+			user_cmd.chanlist_len);
 		ret = -EINVAL;
 		goto cleanup;
 	}
