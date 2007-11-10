@@ -117,6 +117,7 @@ module_PROGRAMS = \
  adl_pci8164.ko \
  adl_pci9111.ko \
  adl_pci9118.ko \
+ adq12b.ko \
  adv_pci1710.ko \
  adv_pci_dio.ko \
  amplc_pci224.ko \
@@ -226,6 +227,7 @@ adl_pci7432_ko_SOURCES = adl_pci7432.c
 adl_pci8164_ko_SOURCES = adl_pci8164.c
 adl_pci9111_ko_SOURCES = adl_pci9111.c
 adl_pci9118_ko_SOURCES = adl_pci9118.c
+adq12b_ko_SOURCES = adq12b.c
 adv_pci1710_ko_SOURCES = adv_pci1710.c
 adv_pci_dio_ko_SOURCES = adv_pci_dio.c
 aio_aio12_8_ko_SOURCES = aio_aio12_8.c
