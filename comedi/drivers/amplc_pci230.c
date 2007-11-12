@@ -677,6 +677,12 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	devpriv->ai_bipolar = !PCI230_TEST_BIT(range, 2);
 	if (aref == AREF_DIFF) {
 		/* Differential. */
+		if (chan >= s->n_chan / 2) {
+			DPRINTK("comedi%d: amplc_pci230: ai_rinsn: "
+				"differential channel number out of range "
+				"0 to %u\n", dev->minor, (s->n_chan / 2) - 1);
+			return -EINVAL;
+		}
 		adcen = 3 << 2 * chan;
 		adccon |= PCI230_ADC_IM_DIF;
 		if (devpriv->ai_bipolar) {
