@@ -136,6 +136,10 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADC_FIFO_FULL		(1<<13)
 #define PCI230_ADC_FIFO_HALF		(1<<14)
 
+/* PCI230 ADC FIFO levels. */
+#define PCI230_ADC_FIFOLEVEL_HALFFULL	2049
+#define PCI230_ADC_FIFOLEVEL_FULL	4096
+
 /* PCI230+ EXTFUNC values. */
 #define PCI230P_EXTFUNC_GAT_EXTTRIG	(1<<0)
 			/* Route EXTTRIG pin to external gate inputs. */
@@ -1451,7 +1455,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	/* Set FIFO interrupt trigger level. */
 	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->ai_count < 2048) {
+		if (devpriv->ai_count < PCI230_ADC_FIFOLEVEL_HALFFULL) {
 			adccon = adccon | PCI230_ADC_INT_FIFO_NEMPTY;
 		} else {
 			adccon = adccon | PCI230_ADC_INT_FIFO_HALF;
@@ -1733,7 +1737,7 @@ static void pci230_handle_fifo_half_full(comedi_device * dev,
 {
 	int i;
 
-	for (i = 0; i < 2048; i++) {
+	for (i = 0; i < PCI230_ADC_FIFOLEVEL_HALFFULL; i++) {
 		/* Read sample and store in Comedi's circular buffer. */
 		comedi_buf_put(s->async, pci230_ai_read(dev));
 
