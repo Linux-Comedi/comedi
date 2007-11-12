@@ -35,6 +35,8 @@
 
 #define COMEDI32_CHANINFO _IOR(CIO,3,comedi32_chaninfo)
 #define COMEDI32_RANGEINFO _IOR(CIO,8,comedi32_rangeinfo)
+/* N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
+ * It's too late to change it now, but it only affects the command number. */
 #define COMEDI32_CMD _IOR(CIO,9,comedi32_cmd)
 /* N.B. COMEDI32_CMDTEST and COMEDI_CMDTEST ought to use _IOWR, not _IOR.
  * It's too late to change it now, but it only affects the command number. */
