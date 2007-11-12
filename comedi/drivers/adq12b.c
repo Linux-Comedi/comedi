@@ -21,7 +21,7 @@
 
 */
 /*
-Driver: adq12b.o
+Driver: adq12b
 Description: driver for MicroAxial ADQ12-B data acquisition and control card
 Devices: (MicroAxial) ADQ12-B [adq12b]
 Author: jeremy theler <thelerg@ib.cnea.gov.ar>
