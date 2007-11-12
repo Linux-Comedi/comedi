@@ -197,6 +197,16 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 			/* Assumes bits numbered with zero offset, ie. 0-15 */
 
 /*
+ * Handy macros.
+ */
+
+/* Combine old and new bits. */
+#define COMBINE(old, new, mask)	(((old) & ~(mask)) | ((new) & (mask)))
+
+/* A generic null function pointer value.  */
+#define NULLFUNC	0
+
+/*
  * Board descriptions for the two boards supported.
  */
 
@@ -965,7 +975,7 @@ static int pci230_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	devpriv->ier |= PCI230_INT_ZCLK_CT1;
 	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
-	s->async->inttrig = NULL;
+	s->async->inttrig = NULLFUNC;
 
 	return 1;
 }
@@ -1117,11 +1127,20 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		}
 	} else {
 		/* external trigger */
-		/* convert_arg == 0 => trigger on -ve edge. */
-		/* convert_arg == 1 => trigger on +ve edge. */
-		if (cmd->convert_arg > 1) {
-			/* Default to trigger on +ve edge. */
-			cmd->convert_arg = 1;
+		/* convert_arg == 0 => trigger on +ve edge. */
+		/* convert_arg == CR_INVERT => trigger on -ve edge. */
+		if ((cmd->convert_arg & ~CR_FLAGS_MASK) != 0) {
+			cmd->convert_arg = COMBINE(cmd->convert_arg, 0,
+				~CR_FLAGS_MASK);
+			err++;
+		}
+		/* The only flags allowed are CR_INVERT and CR_EDGE.
+		 * CR_EDGE is ignored. */
+		if ((cmd->convert_arg & (CR_FLAGS_MASK & ~CR_EDGE & ~CR_INVERT))
+			!= 0) {
+			cmd->convert_arg =
+				COMBINE(cmd->start_arg, 0,
+				CR_FLAGS_MASK & ~CR_EDGE & ~CR_INVERT);
 			err++;
 		}
 	}
@@ -1142,10 +1161,14 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		/* external "trigger" to begin each scan
 		 * scan_begin_arg==0 => use PPC0 input -> gate of CT0 -> gate
 		 * of CT2 (sample convert trigger is CT2) */
-		if (cmd->scan_begin_arg != 0) {
-			/* default option, so you can monitor CT2 (only CT with
-			 * an external output) */
-			cmd->scan_begin_arg = 0;
+		if ((cmd->scan_begin_arg & ~CR_FLAGS_MASK) != 0) {
+			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
+				~CR_FLAGS_MASK);
+		}
+		/* The only flag allowed is CR_EDGE, which is ignored. */
+		if ((cmd->scan_begin_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
+			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
+				CR_FLAGS_MASK & ~CR_EDGE);
 			err++;
 		}
 	}
@@ -1444,7 +1467,7 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		/* cmd->convert_arg is sampling period in ns */
 	} else {
 		/* TRIG_EXT - external trigger. */
-		if (cmd->convert_arg) {
+		if ((cmd->convert_arg & CR_INVERT) == 0) {
 			/* Trigger on +ve edge. */
 			adccon = adccon | PCI230_ADC_TRIG_EXTP;
 		} else {
