@@ -321,12 +321,21 @@ static const comedi_lrange pci230_ai_range = { 7, {
 	}
 };
 
+/* PCI230 analogue gain bits for each input range. */
+static const unsigned char pci230_ai_gain[7] = { 0, 1, 2, 3, 1, 2, 3 };
+
+/* PCI230 adccon bipolar flag for each analogue input range. */
+static const unsigned char pci230_ai_bipolar[7] = { 1, 1, 1, 1, 0, 0, 0 };
+
 /* PCI230 analogue output range table */
 static const comedi_lrange pci230_ao_range = { 2, {
 			UNI_RANGE(10),
 			BIP_RANGE(10)
 	}
 };
+
+/* PCI230 daccon bipolar flag for each analogue output range. */
+static const unsigned char pci230_ao_bipolar[2] = { 0, 1 };
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -661,8 +670,9 @@ static int pci230_detach(comedi_device * dev)
 static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	int n, i;
-	int chan, range, aref;
+	unsigned int n, i;
+	unsigned int chan, range, aref;
+	unsigned int gainshift;
 	unsigned int status;
 	unsigned int adccon, adcen, adcg;
 
@@ -671,10 +681,8 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	range = CR_RANGE(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
 
-	/* If bit 2 of range unset, range is referring to bipolar element in
-	 * range table */
 	adccon = PCI230_ADC_TRIG_SW | PCI230_ADC_FIFO_RESET;
-	devpriv->ai_bipolar = !PCI230_TEST_BIT(range, 2);
+	devpriv->ai_bipolar = pci230_ai_bipolar[range];
 	if (aref == AREF_DIFF) {
 		/* Differential. */
 		if (chan >= s->n_chan / 2) {
@@ -683,27 +691,20 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 				"0 to %u\n", dev->minor, (s->n_chan / 2) - 1);
 			return -EINVAL;
 		}
-		adcen = 3 << 2 * chan;
+		gainshift = chan * 2;
+		adcen = 3 << gainshift;	/* Enable channel pair */
 		adccon |= PCI230_ADC_IM_DIF;
-		if (devpriv->ai_bipolar) {
-			adccon |= PCI230_ADC_IR_BIP;
-			adcg = range << (2 * chan - 2 * chan % 2);
-		} else {
-			adccon |= PCI230_ADC_IR_UNI;
-			adcg = ((range & (~4)) + 1) << (2 * chan -
-				2 * chan % 2);
-		}
 	} else {
 		/* Single ended. */
 		adcen = 1 << chan;
+		gainshift = chan & ~1;
 		adccon |= PCI230_ADC_IM_SE;
-		if (devpriv->ai_bipolar) {
-			adccon |= PCI230_ADC_IR_BIP;
-			adcg = range << (chan - chan % 2);
-		} else {
-			adccon |= PCI230_ADC_IR_UNI;
-			adcg = ((range & (~4)) + 1) << (chan - chan % 2);
-		}
+	}
+	adcg = pci230_ai_gain[range] << gainshift;
+	if (devpriv->ai_bipolar) {
+		adccon |= PCI230_ADC_IR_BIP;
+	} else {
+		adccon |= PCI230_ADC_IR_UNI;
 	}
 
 	/* Enable only this channel in the scan list - otherwise by default
@@ -759,7 +760,7 @@ static int pci230_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
 	 * 1 => bipolar +/-10V range scale */
-	devpriv->ao_bipolar = PCI230_TEST_BIT(range, PCI230_DAC_BIP_BIT);
+	devpriv->ao_bipolar = pci230_ao_bipolar[range];
 	outw(range, dev->iobase + PCI230_DACCON);
 
 	/* Writing a list of values to an AO channel is probably not
@@ -989,7 +990,7 @@ static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
 	 * 1 => bipolar +/-10V range scale */
 	range = CR_RANGE(cmd->chanlist[0]);
-	devpriv->ao_bipolar = PCI230_TEST_BIT(range, PCI230_DAC_BIP_BIT);
+	devpriv->ao_bipolar = pci230_ao_bipolar[range];
 	outw(range, dev->iobase + PCI230_DACCON);
 
 	/* Set the counter timers to the specified sampling frequency.
@@ -1188,7 +1189,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			chan = CR_CHAN(cmd->chanlist[n]);
 			range = CR_RANGE(cmd->chanlist[n]);
 			aref = CR_AREF(cmd->chanlist[n]);
-			polarity = PCI230_TEST_BIT(range, 2);
+			polarity = pci230_ai_bipolar[range];
 			/* Only the first half of the channels are available if
 			 * differential.  (These are remapped in software.  In
 			 * hardware, only the even channels are available.) */
@@ -1277,7 +1278,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
-	int i, chan, range, diff;
+	unsigned int i, chan, range, diff;
 	unsigned int adccon, adcen, adcg;
 	unsigned int zgat;
 
@@ -1328,37 +1329,22 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	adcg = 0;
 	adcen = 0;
 
-	/* If bit 2 of range unset, range is referring to bipolar element in
-	 * range table */
 	range = CR_RANGE(cmd->chanlist[0]);
-	devpriv->ai_bipolar = !PCI230_TEST_BIT(range, 2);
+	devpriv->ai_bipolar = pci230_ai_bipolar[range];
 	if (devpriv->ai_bipolar) {
 		adccon |= PCI230_ADC_IR_BIP;
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			chan = CR_CHAN(cmd->chanlist[i]);
-			range = CR_RANGE(cmd->chanlist[i]);
-			if (diff) {
-				adcg |= range << (2 * chan - 2 * chan % 2);
-				adcen |= 3 << 2 * chan;
-			} else {
-				adcg |= range << (chan - chan % 2);
-				adcen |= 1 << chan;
-			}
-		}
 	} else {
 		adccon |= PCI230_ADC_IR_UNI;
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			chan = CR_CHAN(cmd->chanlist[i]);
-			range = CR_RANGE(cmd->chanlist[i]);
-			if (diff) {
-				adcg |= ((range & (~4)) + 1) << (2 * chan -
-					2 * chan % 2);
-				adcen |= 3 << 2 * chan;
-			} else {
-				adcg |= ((range & (~4)) + 1) << (chan -
-					chan % 2);
-				adcen |= 1 << chan;
-			}
+	}
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		chan = CR_CHAN(cmd->chanlist[i]);
+		range = CR_RANGE(cmd->chanlist[i]);
+		if (diff) {
+			adcg |= pci230_ai_gain[range] << (2 * chan);
+			adcen |= 3 << (2 * chan);
+		} else {
+			adcg |= pci230_ai_gain[range] << (chan & ~1);
+			adcen |= 1 << chan;
 		}
 	}
 
