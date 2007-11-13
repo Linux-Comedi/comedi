@@ -1126,22 +1126,40 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			err++;
 		}
 	} else {
-		/* external trigger */
-		/* convert_arg == 0 => trigger on +ve edge. */
-		/* convert_arg == CR_INVERT => trigger on -ve edge. */
-		if ((cmd->convert_arg & ~CR_FLAGS_MASK) != 0) {
-			cmd->convert_arg = COMBINE(cmd->convert_arg, 0,
-				~CR_FLAGS_MASK);
-			err++;
-		}
-		/* The only flags allowed are CR_INVERT and CR_EDGE.
-		 * CR_EDGE is ignored. */
-		if ((cmd->convert_arg & (CR_FLAGS_MASK & ~CR_EDGE & ~CR_INVERT))
-			!= 0) {
-			cmd->convert_arg =
-				COMBINE(cmd->start_arg, 0,
-				CR_FLAGS_MASK & ~CR_EDGE & ~CR_INVERT);
-			err++;
+		/*
+		 * external trigger
+		 *
+		 * convert_arg == (CR_EDGE | 0)
+		 *                => trigger on +ve edge.
+		 * convert_arg == (CR_EDGE | CR_INVERT | 0)
+		 *                => trigger on -ve edge.
+		 */
+		if ((cmd->convert_arg & CR_FLAGS_MASK) != 0) {
+			/* Trigger number must be 0. */
+			if ((cmd->convert_arg & ~CR_FLAGS_MASK) != 0) {
+				cmd->convert_arg = COMBINE(cmd->convert_arg, 0,
+					~CR_FLAGS_MASK);
+				err++;
+			}
+			/* The only flags allowed are CR_INVERT and CR_EDGE.
+			 * CR_EDGE is required. */
+			if ((cmd->convert_arg & (CR_FLAGS_MASK & ~CR_INVERT))
+				!= CR_EDGE) {
+				/* Set CR_EDGE, preserve CR_INVERT. */
+				cmd->convert_arg =
+					COMBINE(cmd->start_arg, (CR_EDGE | 0),
+					CR_FLAGS_MASK & ~CR_INVERT);
+				err++;
+			}
+		} else {
+			/* Backwards compatibility with previous versions. */
+			/* convert_arg == 0 => trigger on -ve edge. */
+			/* convert_arg == 1 => trigger on +ve edge. */
+			if (cmd->convert_arg > 1) {
+				/* Default to trigger on +ve edge. */
+				cmd->convert_arg = 1;
+				err++;
+			}
 		}
 	}
 
@@ -1467,12 +1485,23 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		/* cmd->convert_arg is sampling period in ns */
 	} else {
 		/* TRIG_EXT - external trigger. */
-		if ((cmd->convert_arg & CR_INVERT) == 0) {
-			/* Trigger on +ve edge. */
-			adccon = adccon | PCI230_ADC_TRIG_EXTP;
+		if ((cmd->convert_arg & CR_EDGE) != 0) {
+			if ((cmd->convert_arg & CR_INVERT) == 0) {
+				/* Trigger on +ve edge. */
+				adccon |= PCI230_ADC_TRIG_EXTP;
+			} else {
+				/* Trigger on -ve edge. */
+				adccon |= PCI230_ADC_TRIG_EXTN;
+			}
 		} else {
-			/* Trigger on -ve edge. */
-			adccon = adccon | PCI230_ADC_TRIG_EXTN;
+			/* Backwards compatibility. */
+			if (cmd->convert_arg != 0) {
+				/* Trigger on +ve edge. */
+				adccon |= PCI230_ADC_TRIG_EXTP;
+			} else {
+				/* Trigger on -ve edge. */
+				adccon |= PCI230_ADC_TRIG_EXTN;
+			}
 		}
 	}
 
