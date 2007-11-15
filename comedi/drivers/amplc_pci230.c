@@ -706,7 +706,15 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 			return -EINVAL;
 		}
 		gainshift = chan * 2;
-		adcen = 3 << gainshift;	/* Enable channel pair */
+		if (devpriv->hwver == 0) {
+			/* Original PCI230/260 expects both inputs of the
+			 * differential channel to be enabled. */
+			adcen = 3 << gainshift;
+		} else {
+			/* PCI230+/260+ expects only one input of the
+			 * differential channel to be enabled. */
+			adcen = 1 << gainshift;
+		}
 		adccon |= PCI230_ADC_IM_DIF;
 	} else {
 		/* Single ended. */
@@ -1386,7 +1394,15 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		range = CR_RANGE(cmd->chanlist[i]);
 		if (diff) {
 			adcg |= pci230_ai_gain[range] << (2 * chan);
-			adcen |= 3 << (2 * chan);
+			if (devpriv->hwver == 0) {
+				/* Original PCI230/260 expects both inputs of
+				 * the differential channel to be enabled. */
+				adcen |= 3 << (2 * chan);
+			} else {
+				/* PCI230+/260+ expects only one input of the
+				 * differential channel to be enabled. */
+				adcen |= 1 << (2 * chan);
+			}
 		} else {
 			adcg |= pci230_ai_gain[range] << (chan & ~1);
 			adcen |= 1 << chan;
