@@ -1225,7 +1225,8 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			rangepair_err = 1 << 1,
 			polarity_err = 1 << 2,
 			aref_err = 1 << 3,
-			diffchan_err = 1 << 4
+			diffchan_err = 1 << 4,
+			buggy_chan0_err = 1 << 5
 		};
 		unsigned int errors;
 		unsigned int chan, prev_chan;
@@ -1284,10 +1285,34 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			prev_aref = aref;
 			prev_polarity = polarity;
 		}
+		if (subseq_len == 0) {
+			/* Subsequence is whole sequence. */
+			subseq_len = n;
+		}
 		/* If channel list is a repeating subsequence, need a whole
 		 * number of repeats. */
-		if ((subseq_len > 0) && ((n % subseq_len) != 0)) {
+		if ((n % subseq_len) != 0) {
 			errors |= seq_err;
+		}
+		if ((devpriv->hwver > 0) && (devpriv->hwver < 4)) {
+			/*
+			 * Buggy PCI230+ or PCI260+ requires channel 0 to be
+			 * (first) in the sequence if the sequence contains
+			 * more than one channel.  Hardware versions 1 and 2
+			 * have the bug.  There is no hardware version 3.
+			 *
+			 * Actually, there are two firmwares that report
+			 * themselves as hardware version 1 (the boards
+			 * have different ADC chips with slightly different
+			 * timing requirements, which was supposed to be
+			 * invisible to software).  The first one doesn't
+			 * seem to have the bug, but the second one
+			 * does, and we can't tell them apart!
+			 */
+			if ((subseq_len > 1)
+				&& (CR_CHAN(cmd->chanlist[0]) != 0)) {
+				errors |= buggy_chan0_err;
+			}
 		}
 		if (errors != 0) {
 			err++;
@@ -1319,6 +1344,15 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 					"differential channel number out of "
 					"range 0 to %u\n", dev->minor,
 					(s->n_chan / 2) - 1);
+			}
+			if ((errors & buggy_chan0_err) != 0) {
+				/* Use printk instead of DPRINTK here. */
+				printk("comedi: comedi%d: amplc_pci230: "
+					"ai_cmdtest: Buggy PCI230+/260+ "
+					"h/w version %u requires first channel "
+					"of multi-channel sequence to be 0 "
+					"(corrected in h/w version 4)\n",
+					dev->minor, devpriv->hwver);
 			}
 		}
 	}
