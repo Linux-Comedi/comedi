@@ -877,19 +877,19 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		cmd->start_arg = 0;
 		err++;
 	}
-#define MAX_SPEED	3200	/* 3200ns => 312.5kHz */
-#define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s */
+#define MAX_SPEED_AO	3200	/* 3200ns => 312.5kHz */
+#define MIN_SPEED_AO	4294967295u	/* 4294967295ns = 4.29s */
 			/*- Comedi limit due to unsigned int cmd.  Driver limit
 			 * = 2^16 (16bit * counter) * 1000000ns (1kHz onboard
 			 * clock) = 65.536s */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < MAX_SPEED) {
-			cmd->scan_begin_arg = MAX_SPEED;
+		if (cmd->scan_begin_arg < MAX_SPEED_AO) {
+			cmd->scan_begin_arg = MAX_SPEED_AO;
 			err++;
 		}
-		if (cmd->scan_begin_arg > MIN_SPEED) {
-			cmd->scan_begin_arg = MIN_SPEED;
+		if (cmd->scan_begin_arg > MIN_SPEED_AO) {
+			cmd->scan_begin_arg = MIN_SPEED_AO;
 			err++;
 		}
 	}
@@ -1118,19 +1118,42 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		cmd->start_arg = 0;
 		err++;
 	}
-#define MAX_SPEED	3200	/* 3200ns => 312.5kHz */
-#define MIN_SPEED	4294967295u	/* 4294967295ns = 4.29s */
+#define MAX_SPEED_AI_SE		3200	/* PCI230 SE:   3200 ns => 312.5 kHz */
+#define MAX_SPEED_AI_DIFF	8000	/* PCI230 DIFF: 8000 ns => 125 kHz */
+#define MAX_SPEED_AI_PLUS	4000	/* PCI230+:     4000 ns => 250 kHz */
+#define MIN_SPEED_AI	4294967295u	/* 4294967295ns = 4.29s */
 			/*- Comedi limit due to unsigned int cmd.  Driver limit
 			 * = 2^16 (16bit * counter) * 1000000ns (1kHz onboard
 			 * clock) = 65.536s */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < MAX_SPEED) {
-			cmd->convert_arg = MAX_SPEED;
+		unsigned int max_speed_ai;
+
+		if (devpriv->hwver == 0) {
+			/* PCI230 or PCI260.  Max speed depends whether
+			 * single-ended or pseudo-differential. */
+			if (cmd->chanlist && (cmd->chanlist_len > 0)) {
+				/* Peek analogue reference of first channel. */
+				if (CR_AREF(cmd->chanlist[0]) == AREF_DIFF) {
+					max_speed_ai = MAX_SPEED_AI_DIFF;
+				} else {
+					max_speed_ai = MAX_SPEED_AI_SE;
+				}
+			} else {
+				/* No channel list.  Assume single-ended. */
+				max_speed_ai = MAX_SPEED_AI_SE;
+			}
+		} else {
+			/* PCI230+ or PCI260+. */
+			max_speed_ai = MAX_SPEED_AI_PLUS;
+		}
+
+		if (cmd->convert_arg < max_speed_ai) {
+			cmd->convert_arg = max_speed_ai;
 			err++;
 		}
-		if (cmd->convert_arg > MIN_SPEED) {
-			cmd->convert_arg = MIN_SPEED;
+		if (cmd->convert_arg > MIN_SPEED_AI) {
+			cmd->convert_arg = MIN_SPEED_AI;
 			err++;
 		}
 	} else {
