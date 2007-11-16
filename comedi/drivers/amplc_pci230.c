@@ -877,7 +877,7 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		cmd->start_arg = 0;
 		err++;
 	}
-#define MAX_SPEED_AO	3200	/* 3200ns => 312.5kHz */
+#define MAX_SPEED_AO	8000	/* 8000 ns => 125 kHz */
 #define MIN_SPEED_AO	4294967295u	/* 4294967295ns = 4.29s */
 			/*- Comedi limit due to unsigned int cmd.  Driver limit
 			 * = 2^16 (16bit * counter) * 1000000ns (1kHz onboard
