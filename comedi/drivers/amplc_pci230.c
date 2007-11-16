@@ -1649,13 +1649,13 @@ static void pci230_setup_monostable_ct(comedi_device * dev, unsigned int ct,
 {
 	unsigned int clk_src;
 	unsigned int divisor;
+	uint64_t temp64;
 
 	clk_src = pci230_choose_clk_src(ns);
 
-	divisor = ns / pci230_timebase[clk_src];
-	if (divisor > 65536) {
-		divisor = 65536;
-	}
+	temp64 = ns;
+	do_div(temp64, pci230_timebase[clk_src]);
+	divisor = (temp64 > 65536) ? 65536 : temp64;
 
 	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, divisor, 1);
 	/* Counter ct, divisor, mode 1 */
