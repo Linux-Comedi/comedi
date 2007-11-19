@@ -289,27 +289,27 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
    feel free to suggest moving the variable to the comedi_device struct.  */
 struct pci230_private {
 	struct pci_dev *pci_dev;
-	lsampl_t ao_readback[2];	/* Used for AO readback */
 	unsigned long iobase1;	/* PCI230's I/O space 1 */
-	unsigned int int_en;	/* Interrupt enables bits. */
+	lsampl_t ao_readback[2];	/* Used for AO readback */
 	unsigned int ai_count;	/* Number of analogue input samples remaining.
 				 */
 	unsigned int ao_count;	/* Number of analogue output samples remaining.
 				 */
-	unsigned int ai_stop;	/* Flag set when cmd->stop_src == TRIG_NONE
-				 * - user chooses to stop continuous conversion
-				 *   by cancelation. */
-	unsigned int ao_stop;	/* Flag set when cmd->stop_src == TRIG_NONE
-				 * - user chooses to stop continuous conversion
-				 *   by cancelation. */
-	unsigned int ai_bipolar;
-	/* Set if bipolar input range so we know to
-	 * mangle it. */
-	unsigned int ao_bipolar;
-	/* Set if bipolar output range so we know to
-	 * mangle it. */
-	unsigned int ier;	/* Copy of interrupt enables/status register. */
-	unsigned int hwver;	/* Hardware version (for '+' models). */
+	unsigned short hwver;	/* Hardware version (for '+' models). */
+	unsigned char int_en;	/* Interrupt enables bits. */
+	unsigned char ai_continuous;	/* Flag set when cmd->stop_src ==
+					 * TRIG_NONE - user chooses to stop
+					 * continuous conversion by
+					 * cancelation. */
+	unsigned char ao_continuous;	/* Flag set when cmd->stop_src ==
+					 * TRIG_NONE - user chooses to stop
+					 * continuous conversion by
+					 * cancelation. */
+	unsigned char ai_bipolar;	/* Set if bipolar input range so we
+					 * know to mangle it. */
+	unsigned char ao_bipolar;	/* Set if bipolar output range so we
+					 * know to mangle it. */
+	unsigned char ier;	/* Copy of interrupt enables/status register. */
 };
 
 #define devpriv ((struct pci230_private *)dev->private)
@@ -998,11 +998,11 @@ static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	/* Calculate number of conversions required. */
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ao_count = cmd->stop_arg * cmd->chanlist_len;
-		devpriv->ao_stop = 0;
+		devpriv->ao_continuous = 0;
 	} else {
 		/* TRIG_NONE, user calls cancel. */
 		devpriv->ao_count = 0;
-		devpriv->ao_stop = 1;
+		devpriv->ao_continuous = 1;
 	}
 
 	/* Disable DAC interrupt. */
@@ -1399,11 +1399,11 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	/* Calculate number of conversions required. */
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
-		devpriv->ai_stop = 0;
+		devpriv->ai_continuous = 0;
 	} else {
 		/* TRIG_NONE, user calls cancel. */
 		devpriv->ai_count = 0;
-		devpriv->ai_stop = 1;
+		devpriv->ai_continuous = 1;
 	}
 
 	/* Steps;
@@ -1796,7 +1796,7 @@ static void pci230_handle_ao(comedi_device * dev, comedi_subdevice * s)
 		}
 	}
 
-	if (devpriv->ao_count == 0 && devpriv->ao_stop == 0) {
+	if (devpriv->ao_count == 0 && devpriv->ao_continuous == 0) {
 		/* End of DAC. */
 		async->events |= COMEDI_CB_EOA;
 		pci230_ao_cancel(dev, s);
@@ -1840,7 +1840,7 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 		/* Cancel sampled conversion. */
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		pci230_ai_cancel(dev, s);
-	} else if (devpriv->ai_count == 0 && devpriv->ai_stop == 0) {
+	} else if (devpriv->ai_count == 0 && devpriv->ai_continuous == 0) {
 		/* Acquisition complete. */
 		s->async->events |= COMEDI_CB_EOA;
 		/* disable hardware conversions */
@@ -1899,7 +1899,7 @@ static void pci230_handle_fifo_not_empty(comedi_device * dev,
 static int pci230_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->ao_count = 0;
-	devpriv->ao_stop = 0;
+	devpriv->ao_continuous = 0;
 
 	/* Stop counter/timers. */
 	pci230_cancel_ct(dev, 1);
@@ -1914,7 +1914,7 @@ static int pci230_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 static int pci230_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->ai_count = 0;
-	devpriv->ai_stop = 0;
+	devpriv->ai_continuous = 0;
 
 	/* Stop counter/timers. */
 	pci230_cancel_ct(dev, 2);
