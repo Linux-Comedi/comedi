@@ -119,7 +119,7 @@ typedef enum {
 
 // Advantech PCI-1762 registers
 #define PCI1762_RO	   0	/* R/W: Relays status/output */
-#define PCI1762_IDI	   0	/* R:   Isolated input status */
+#define PCI1762_IDI	   2	/* R:   Isolated input status */
 #define PCI1762_BOARDID	   4	/* R:   Board I/D switch */
 #define PCI1762_ICR	   6	/* W:   Interrupt control register */
 #define PCI1762_ISR	   6	/* R:   Interrupt status register */
