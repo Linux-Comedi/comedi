@@ -113,17 +113,21 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADC_TRIG_Z2CT0		4
 #define PCI230_ADC_TRIG_Z2CT1		5
 #define PCI230_ADC_TRIG_Z2CT2		6
+#define PCI230_ADC_TRIG_MASK		7
 #define PCI230_ADC_IR_UNI		(0<<3)	/* Input range unipolar */
 #define PCI230_ADC_IR_BIP		(1<<3)	/* Input range bipolar */
+#define PCI230_ADC_IR_MASK		(1<<3)
 #define PCI230_ADC_IM_SE		(0<<4)	/* Input mode single ended */
 #define PCI230_ADC_IM_DIF		(1<<4)	/* Input mode differential */
+#define PCI230_ADC_IM_MASK		(1<<4)
 #define PCI230_ADC_FIFO_EN		(1<<8)
-#define PCI230_ADC_INT_FIFO_EMPTY	0
+#define PCI230_ADC_INT_FIFO_EMPTY	(0<<9)
 #define PCI230_ADC_INT_FIFO_NEMPTY	(1<<9)
 #define PCI230_ADC_INT_FIFO_NHALF	(2<<9)
 #define PCI230_ADC_INT_FIFO_HALF	(3<<9)
 #define PCI230_ADC_INT_FIFO_NFULL	(4<<9)
 #define PCI230_ADC_INT_FIFO_FULL	(5<<9)
+#define PCI230_ADC_INT_FIFO_MASK	(7<<9)
 #define PCI230_ADC_FIFO_RESET		(1<<12)
 #define PCI230_ADC_GLOB_RESET		(1<<13)
 #define PCI230_ADC_CONV			0xffff
@@ -135,6 +139,7 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADC_FIFO_EMPTY		(1<<12)
 #define PCI230_ADC_FIFO_FULL		(1<<13)
 #define PCI230_ADC_FIFO_HALF		(1<<14)
+#define PCI230_ADC_FIFO_FULL_LATCHED	(1<<5)	/* Indicates overrun occurred */
 
 /* PCI230 ADC FIFO levels. */
 #define PCI230_ADC_FIFOLEVEL_HALFFULL	2049
@@ -205,6 +210,9 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 
 /* A generic null function pointer value.  */
 #define NULLFUNC	0
+
+/* Current CPU.  XXX should this be hard_smp_processor_id()? */
+#define THISCPU		smp_processor_id()
 
 /*
  * Board descriptions for the two boards supported.
@@ -289,13 +297,19 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
    feel free to suggest moving the variable to the comedi_device struct.  */
 struct pci230_private {
 	struct pci_dev *pci_dev;
+	spinlock_t spinlock;
 	unsigned long iobase1;	/* PCI230's I/O space 1 */
 	lsampl_t ao_readback[2];	/* Used for AO readback */
-	unsigned int ai_count;	/* Number of analogue input samples remaining.
-				 */
-	unsigned int ao_count;	/* Number of analogue output samples remaining.
-				 */
+	unsigned int ai_scan_count;	/* Number of analogue input scans
+					 * remaining.  */
+	unsigned int ai_scan_pos;	/* Current position within analogue
+					 * input scan */
+	unsigned int ao_scan_count;	/* Number of analogue output scans
+					 * remaining.  */
+	int intr_cpuid;		/* ID of CPU running interrupt routine. */
 	unsigned short hwver;	/* Hardware version (for '+' models). */
+	unsigned short adccon;	/* ADCCON register value. */
+	unsigned short adcg;	/* ADCG register value. */
 	unsigned char int_en;	/* Interrupt enables bits. */
 	unsigned char ai_continuous;	/* Flag set when cmd->stop_src ==
 					 * TRIG_NONE - user chooses to stop
@@ -310,6 +324,7 @@ struct pci230_private {
 	unsigned char ao_bipolar;	/* Set if bipolar output range so we
 					 * know to mangle it. */
 	unsigned char ier;	/* Copy of interrupt enables/status register. */
+	unsigned char intr_running;	/* Flag set in interrupt routine. */
 };
 
 #define devpriv ((struct pci230_private *)dev->private)
@@ -377,29 +392,23 @@ static int pci230_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static int pci230_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
-static void pci230_ns_to_single_timer(unsigned int *ns, int round);
-static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
-	unsigned int *d, unsigned int *nanosec, int round_mode);
-static void pci230_setup_monostable_ct(comedi_device * dev, unsigned int ct,
-	uint64_t ns);
-static void pci230_setup_square_ct(comedi_device * dev, unsigned int ct,
-	unsigned int *ns, int round);
+static void pci230_ct_setup_ns_mode(comedi_device * dev, unsigned int ct,
+	unsigned int mode, uint64_t ns, unsigned int round);
+static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round);
 static void pci230_cancel_ct(comedi_device * dev, unsigned int ct);
 static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG);
 static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s);
 static int pci230_ao_cancel(comedi_device * dev, comedi_subdevice * s);
+static void pci230_ao_stop(comedi_device * dev, comedi_subdevice * s);
 static void pci230_handle_ao(comedi_device * dev, comedi_subdevice * s);
 static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd);
 static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s);
 static int pci230_ai_cancel(comedi_device * dev, comedi_subdevice * s);
+static void pci230_ai_stop(comedi_device * dev, comedi_subdevice * s);
 static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s);
-static void pci230_handle_fifo_half_full(comedi_device * dev,
-	comedi_subdevice * s);
-static void pci230_handle_fifo_not_empty(comedi_device * dev,
-	comedi_subdevice * s);
 
 static sampl_t pci230_ai_read(comedi_device * dev)
 {
@@ -433,9 +442,8 @@ static void pci230_ao_write(comedi_device * dev, sampl_t data, int chan)
 	data = data << (16 - thisboard->ao_bits);
 
 	/* Write data. */
-	outw((unsigned int)data,
-		dev->iobase + (((chan) ==
-				0) ? PCI230_DACOUT1 : PCI230_DACOUT2));
+	outw((unsigned int)data, dev->iobase + (((chan) == 0)
+			? PCI230_DACOUT1 : PCI230_DACOUT2));
 }
 
 /*
@@ -460,6 +468,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((alloc_private(dev, sizeof(struct pci230_private))) < 0) {
 		return -ENOMEM;
 	}
+	spin_lock_init(&devpriv->spinlock);
 	/* Find card */
 	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pci_dev != NULL;
@@ -568,6 +577,15 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* Disable board's interrupts. */
 	outb(0, devpriv->iobase1 + PCI230_INT_SCE);
+
+	/* Set ADC to a reasonable state. */
+	devpriv->adcg = 0;
+	devpriv->adccon = PCI230_ADC_TRIG_NONE | PCI230_ADC_IM_SE
+		| PCI230_ADC_IR_BIP;
+	outw(1 << 0, dev->iobase + PCI230_ADCEN);
+	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
+	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
+		dev->iobase + PCI230_ADCCON);
 
 	/* Register the interrupt handler. */
 	irq_hdl = comedi_request_irq(devpriv->pci_dev->irq, pci230_interrupt,
@@ -688,14 +706,14 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	unsigned int chan, range, aref;
 	unsigned int gainshift;
 	unsigned int status;
-	unsigned int adccon, adcen, adcg;
+	unsigned short adccon, adcen;
 
 	/* Unpack channel and range. */
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
 
-	adccon = PCI230_ADC_TRIG_SW | PCI230_ADC_FIFO_RESET;
+	adccon = PCI230_ADC_TRIG_SW;
 	devpriv->ai_bipolar = pci230_ai_bipolar[range];
 	if (aref == AREF_DIFF) {
 		/* Differential. */
@@ -722,7 +740,8 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		gainshift = chan & ~1;
 		adccon |= PCI230_ADC_IM_SE;
 	}
-	adcg = pci230_ai_gain[range] << gainshift;
+	devpriv->adcg = (devpriv->adcg & ~(3 << gainshift))
+		| (pci230_ai_gain[range] << gainshift);
 	if (devpriv->ai_bipolar) {
 		adccon |= PCI230_ADC_IR_BIP;
 	} else {
@@ -731,19 +750,20 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 
 	/* Enable only this channel in the scan list - otherwise by default
 	 * we'll get one sample from each channel. */
-	outw_p(adcen, dev->iobase + PCI230_ADCEN);
+	outw(adcen, dev->iobase + PCI230_ADCEN);
 
 	/* Set gain for channel. */
-	outw_p(adcg, dev->iobase + PCI230_ADCG);
+	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
 
 	/* Specify uni/bip, se/diff, s/w conversion, and reset FIFO (even
 	 * though we're not using it - MEV says so). */
-	outw_p(adccon, dev->iobase + PCI230_ADCCON);
+	devpriv->adccon = adccon;
+	outw(adccon | PCI230_ADC_FIFO_RESET, dev->iobase + PCI230_ADCCON);
 
 	/* Convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw_p(PCI230_ADC_CONV, dev->iobase + PCI230_ADCDATA);
+		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCDATA);
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
@@ -973,41 +993,62 @@ static int pci230_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int pci230_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
+static void pci230_ao_start(comedi_device * dev, comedi_subdevice * s)
+{
+	unsigned long irqflags;
+
+	if (!devpriv->ao_continuous && (devpriv->ao_scan_count == 0)) {
+		/* An empty acquisition! */
+		s->async->events |= COMEDI_CB_EOA;
+		pci230_ao_stop(dev, s);
+		comedi_event(dev, s);
+	} else {
+		/* Enable DAC interrupt. */
+		comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+		devpriv->int_en |= PCI230_INT_ZCLK_CT1;
+		devpriv->ier |= PCI230_INT_ZCLK_CT1;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+	}
+}
+
+static int pci230_ao_inttrig_start(comedi_device * dev, comedi_subdevice * s,
 	unsigned int trig_num)
 {
+	unsigned long irqflags;
+
 	if (trig_num != 0)
 		return -EINVAL;
 
-	/* Enable DAC interrupt. */
-	devpriv->ier |= PCI230_INT_ZCLK_CT1;
-	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-
-	s->async->inttrig = NULLFUNC;
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	if (s->async->inttrig) {
+		s->async->inttrig = NULLFUNC;
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+		pci230_ao_start(dev, s);
+	} else {
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+	}
 
 	return 1;
 }
 
 static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 {
+	unsigned long irqflags;
 	int range;
 
 	/* Get the command. */
 	comedi_cmd *cmd = &s->async->cmd;
 
-	/* Calculate number of conversions required. */
+	/* Get number of scans required. */
 	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ao_count = cmd->stop_arg * cmd->chanlist_len;
+		devpriv->ao_scan_count = cmd->stop_arg;
 		devpriv->ao_continuous = 0;
 	} else {
 		/* TRIG_NONE, user calls cancel. */
-		devpriv->ao_count = 0;
+		devpriv->ao_scan_count = 0;
 		devpriv->ao_continuous = 1;
 	}
-
-	/* Disable DAC interrupt. */
-	devpriv->ier &= ~PCI230_INT_ZCLK_CT1;
-	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
 
 	/* Set range - see analogue output range table; 0 => unipolar 10V,
 	 * 1 => bipolar +/-10V range scale */
@@ -1015,19 +1056,15 @@ static int pci230_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	devpriv->ao_bipolar = pci230_ao_bipolar[range];
 	outw(range, dev->iobase + PCI230_DACCON);
 
-	/* Set the counter timers to the specified sampling frequency.
-	 * TODO - when Comedi supports concurrent commands, this must be
-	 * changed; using ct0 and ct1 for DAC will screw up ADC pacer
-	 * which uses ct2 and ct0.  Change to only use ct1 for DAC?
-	 *
-	 * <sds>: we may as well do this now, in the transition to using single
-	 * counters for the analogue input (to accommodate triggered scans).
-	 */
-	pci230_setup_square_ct(dev, 1, &cmd->scan_begin_arg,
-		cmd->flags & TRIG_ROUND_MASK);
+	/* Set the counter timer 1 to the specified scan frequency. */
 	/* cmd->scan_begin_arg is sampling period in ns */
+	pci230_ct_setup_ns_mode(dev, 1, I8254_MODE2, cmd->scan_begin_arg,
+		cmd->flags & TRIG_ROUND_MASK);
 
-	s->async->inttrig = pci230_ao_inttrig;
+	/* N.B. cmd->start_src == TRIG_INT */
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	s->async->inttrig = pci230_ao_inttrig_start;
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
 
 	return 0;
 }
@@ -1386,58 +1423,174 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
+static void pci230_ai_update_fifo_trigger_level(comedi_device * dev,
+	comedi_subdevice * s)
+{
+	comedi_cmd *cmd = &s->async->cmd;
+	unsigned int scanlen = cmd->scan_end_arg;
+	unsigned int wake;
+	unsigned short triglev;
+	unsigned short adccon;
+
+	if ((cmd->flags & TRIG_WAKE_EOS) != 0) {
+		/* Wake at end of scan. */
+		wake = scanlen - devpriv->ai_scan_pos;
+	} else {
+		if (devpriv->ai_continuous
+			|| (devpriv->ai_scan_count
+				>= PCI230_ADC_FIFOLEVEL_HALFFULL)
+			|| (scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL)) {
+			wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
+		} else {
+			wake = (devpriv->ai_scan_count * scanlen)
+				- devpriv->ai_scan_pos;
+		}
+	}
+	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
+		triglev = PCI230_ADC_INT_FIFO_HALF;
+	} else {
+		triglev = PCI230_ADC_INT_FIFO_NEMPTY;
+	}
+	adccon = (devpriv->adccon & ~PCI230_ADC_INT_FIFO_MASK) | triglev;
+	if (adccon != devpriv->adccon) {
+		devpriv->adccon = adccon;
+		outw(adccon, dev->iobase + PCI230_ADCCON);
+	}
+}
+
+static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
+{
+	unsigned long irqflags;
+	unsigned short conv;
+	comedi_async *async = s->async;
+	comedi_cmd *cmd = &async->cmd;
+
+	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+		/* An empty acquisition! */
+		async->events |= COMEDI_CB_EOA;
+		pci230_ai_stop(dev, s);
+		comedi_event(dev, s);
+	} else {
+		/* Enable ADC FIFO trigger level interrupt. */
+		comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+		devpriv->int_en |= PCI230_INT_ADC;
+		devpriv->ier |= PCI230_INT_ADC;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+
+		/* Update conversion trigger source which is currently set
+		 * to CT2 output, which is currently stuck high. */
+		if (cmd->convert_src == TRIG_TIMER) {
+			/* Using CT2 output. */
+			conv = PCI230_ADC_TRIG_Z2CT2;
+		} else {
+			/* cmd->convert_src == TRIG_EXT */
+			if ((cmd->convert_arg & CR_EDGE) != 0) {
+				if ((cmd->convert_arg & CR_INVERT) == 0) {
+					/* Trigger on +ve edge. */
+					conv = PCI230_ADC_TRIG_EXTP;
+				} else {
+					/* Trigger on -ve edge. */
+					conv = PCI230_ADC_TRIG_EXTN;
+				}
+			} else {
+				/* Backwards compatibility. */
+				if (cmd->convert_arg != 0) {
+					/* Trigger on +ve edge. */
+					conv = PCI230_ADC_TRIG_EXTP;
+				} else {
+					/* Trigger on -ve edge. */
+					conv = PCI230_ADC_TRIG_EXTN;
+				}
+			}
+		}
+		devpriv->adccon = (devpriv->adccon & ~PCI230_ADC_TRIG_MASK)
+			| conv;
+		outw(devpriv->adccon, dev->iobase + PCI230_ADCCON);
+		/* Update FIFO interrupt trigger level, which is currently
+		 * set to "full".  */
+		pci230_ai_update_fifo_trigger_level(dev, s);
+		if (cmd->convert_src == TRIG_TIMER) {
+			/* Update timer gates. */
+			unsigned char zgat;
+
+			if (cmd->scan_begin_src == TRIG_EXT) {
+				/* Conversion timer CT2 needs to be gated by
+				 * inverted output of monostable CT2. */
+				zgat = GAT_CONFIG(2, GAT_NOUTNM2);
+			} else {
+				/* Conversion timer CT2 needs to be gated on
+				 * continuously. */
+				zgat = GAT_CONFIG(2, GAT_VCC);
+			}
+			outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
+			if (cmd->scan_begin_src == TRIG_EXT) {
+				/* Set monostable CT0 trigger source. */
+				/*
+				 * For CT0 on PCI230, the external trigger
+				 * (gate) signal comes from PPC0, which is
+				 * channel 16 of the DIO subdevice.  The
+				 * application needs to configure this as an
+				 * input in order to use it as an external scan
+				 * trigger.
+				 */
+				zgat = GAT_CONFIG(0, GAT_EXT);
+				outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
+			}
+		}
+	}
+}
+
 static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned int i, chan, range, diff;
-	unsigned int adccon, adcen, adcg;
-	unsigned int zgat;
+	unsigned short adccon, adcen;
+	unsigned char zgat;
 
 	/* Get the command. */
 	comedi_async *async = s->async;
 	comedi_cmd *cmd = &async->cmd;
 
-	/* Calculate number of conversions required. */
+	/* Get number of scans required. */
 	if (cmd->stop_src == TRIG_COUNT) {
-		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
+		devpriv->ai_scan_count = cmd->stop_arg;
 		devpriv->ai_continuous = 0;
 	} else {
 		/* TRIG_NONE, user calls cancel. */
-		devpriv->ai_count = 0;
+		devpriv->ai_scan_count = 0;
 		devpriv->ai_continuous = 1;
 	}
+	devpriv->ai_scan_pos = 0;	/* Position within scan. */
 
 	/* Steps;
-	 * - Disable ADC interrupts.
 	 * - Set channel scan list.
 	 * - Set channel gains.
-	 * - Enable and reset FIFO, specify uni/bip, se/diff, and start
-	 *   conversion source to none.
-	 * - PAUSE (25us) - failure to do this leads to "dodgy data" for the
-	 *   first few channels at high convert rates.
-	 * - Enable conversion complete interrupt.
-	 * - Set the counter timers to the specified sampling frequency.
-	 * - Enable AND RESET FIFO (yes you do need to do this twice), set FIFO
-	 *   interrupt trigger level, set start conversion source to counter 2.
+	 * - Enable and reset FIFO, specify uni/bip, se/diff, and set
+	 *   start conversion source to point to something at a high logic
+	 *   level (we use the output of counter/timer 2 for this purpose.
+	 * - PAUSE to allow things to settle down.
+	 * - Reset the FIFO again because it needs resetting twice and there
+	 *   may have been a false conversion trigger on some versions of
+	 *   PCI230/260 due to the start conversion source being set to a
+	 *   high logic level.
+	 * - Enable ADC FIFO level interrupt.
+	 * - Set actual conversion trigger source and FIFO interrupt trigger
+	 *   level.
+	 * - If convert_src is TRIG_TIMER, set up the timers.
 	 */
 
-	/* Disable ADC interrupt. */
-	devpriv->ier &= ~PCI230_INT_ADC;
-	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	adccon = PCI230_ADC_FIFO_EN;
+	adcen = 0;
 
 	if (CR_AREF(cmd->chanlist[0]) == AREF_DIFF) {
 		/* Differential - all channels must be differential. */
 		diff = 1;
-		adccon = PCI230_ADC_IM_DIF;
+		adccon |= PCI230_ADC_IM_DIF;
 	} else {
 		/* Single ended - all channels must be single-ended. */
 		diff = 0;
-		adccon = PCI230_ADC_IM_SE;
+		adccon |= PCI230_ADC_IM_SE;
 	}
-
-	adccon |= PCI230_ADC_FIFO_RESET | PCI230_ADC_FIFO_EN;
-	//adccon |= PCI230_ADC_FIFO_RESET;
-	adcg = 0;
-	adcen = 0;
 
 	range = CR_RANGE(cmd->chanlist[0]);
 	devpriv->ai_bipolar = pci230_ai_bipolar[range];
@@ -1447,35 +1600,50 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		adccon |= PCI230_ADC_IR_UNI;
 	}
 	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int gainshift;
+
 		chan = CR_CHAN(cmd->chanlist[i]);
 		range = CR_RANGE(cmd->chanlist[i]);
 		if (diff) {
-			adcg |= pci230_ai_gain[range] << (2 * chan);
+			gainshift = 2 * chan;
 			if (devpriv->hwver == 0) {
 				/* Original PCI230/260 expects both inputs of
 				 * the differential channel to be enabled. */
-				adcen |= 3 << (2 * chan);
+				adcen |= 3 << gainshift;
 			} else {
 				/* PCI230+/260+ expects only one input of the
 				 * differential channel to be enabled. */
-				adcen |= 1 << (2 * chan);
+				adcen |= 1 << gainshift;
 			}
 		} else {
-			adcg |= pci230_ai_gain[range] << (chan & ~1);
+			gainshift = (chan & ~1);
 			adcen |= 1 << chan;
 		}
+		devpriv->adcg = (devpriv->adcg & ~(3 << gainshift))
+			| (pci230_ai_gain[range] << gainshift);
 	}
 
 	/* Set channel scan list. */
 	outw(adcen, dev->iobase + PCI230_ADCEN);
 
 	/* Set channel gains. */
-	outw(adcg, dev->iobase + PCI230_ADCG);
+	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
+
+	/* Set counter/timer 2 output high for use as the initial start
+	 * conversion source. */
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE1);
+
+	/* Temporarily use CT2 output as conversion trigger source and
+	 * temporarily set FIFO interrupt trigger level to 'full'. */
+	adccon |= PCI230_ADC_INT_FIFO_FULL | PCI230_ADC_TRIG_Z2CT2;
 
 	/* Enable and reset FIFO, specify FIFO trigger level full, specify
-	 * uni/bip, se/diff, and start conversion source to none. */
-	outw(adccon | PCI230_ADC_INT_FIFO_FULL | PCI230_ADC_TRIG_NONE,
-		dev->iobase + PCI230_ADCCON);
+	 * uni/bip, se/diff, and temporarily set the start conversion source
+	 * to CT2 output.  Note that CT2 output is currently high, and this
+	 * will produce a false conversion trigger on some versions of the
+	 * PCI230/260, but that will be dealt with later. */
+	devpriv->adccon = adccon;
+	outw(adccon | PCI230_ADC_FIFO_RESET, dev->iobase + PCI230_ADCCON);
 
 	/* Delay */
 	/* Failure to include this will result in the first few channels'-worth
@@ -1486,234 +1654,111 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	 * helps, though only slightly. */
 	comedi_udelay(25);
 
-	/* Enable ADC (conversion complete) interrupt. */
-	devpriv->ier |= PCI230_INT_ADC;
-	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	/* Reset FIFO again. */
+	outw(adccon | PCI230_ADC_FIFO_RESET, dev->iobase + PCI230_ADCCON);
 
-	/* Set up the scan_begin_src (if it's NOT set to TRIG_FOLLOW) */
-	if (cmd->scan_begin_src == TRIG_EXT) {
-		/* use PPC0 -> gate of CT0 (as monostable) -> gate of CT2
-		 *
-		 * Note that the PCI230 card does not support "native"
-		 * triggered scans, although the _hardware_ can be set up to
-		 * achieve this. This is _not_ software emulation within the
-		 * driver, it is merely using the on-board counters and one of
-		 * the digital inputs to achieve the same thing.  The idea is
-		 * to use a rising edge of a digital input (in this case PPC0)
-		 * to trigger a counter (set up as a monostable). This produces
-		 * a pulse of exactly the same length as the number of
-		 * conversion pulses in your scan.  This pulse is then used as
-		 * to gate the counter responsible for your convert source.
-		 *
-		 * So, if your conversion rate is set to 100kHz
-		 * (10us/conversion) and you have 8 channels in your channel
-		 * list, a positive edge on PPC0 will trigger a pulse of length
-		 * 80us (8 x 10us). Because the two counters involved have the
-		 * same clock source, the monostable pulse will always be
-		 * exactly the right length.
-		 *
-		 * Previous versions of this driver used two cascaded counters
-		 * to achieve different conversion rates (the output of the
-		 * first counter is the clock input of the second counter). The
-		 * use of the triggered scan functionality necessitated using
-		 * only one counter/timer for dividing the internal clock down
-		 * to the convert rate. In order to allow relatively low
-		 * convert rates (upto the comedi limit of 4.29s), the driver
-		 * now uses not only the 10MHz input clock, but also (depending
-		 * on the desired convert rate) a choice of 1MHz, 100kHz or
-		 * 10kHz clocks.
-		 *                                 - sds, 30 April 2004 */
-
-		/* initialise the gates to sensible settings while we set
-		 * everything up */
-		zgat = GAT_CONFIG(0, GAT_GND);
-		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
-
+	if (cmd->convert_src == TRIG_TIMER) {
+		/* Set up CT2 as conversion timer, but gate it off for now.
+		 * Note, counter/timer output 2 can be monitored on the
+		 * connector: PCI230 pin 21, PCI260 pin 18. */
 		zgat = GAT_CONFIG(2, GAT_GND);
 		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
-
-		pci230_setup_monostable_ct(dev, 0,
-			((uint64_t) cmd->convert_arg * cmd->chanlist_len));
-
-		/* now set the gates up so that we can begin triggering */
-		zgat = GAT_CONFIG(0, GAT_EXT);
-		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
-
-		zgat = GAT_CONFIG(2, GAT_NOUTNM2);
-		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
-	} else {
-		/* must be using "TRIG_FOLLOW", so need to "ungate" CT2 */
-		zgat = GAT_CONFIG(2, GAT_VCC);
-		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
-	}
-
-	/* Set start conversion source. */
-	if (cmd->convert_src == TRIG_TIMER) {
-		/* Onboard counter/timer 2. */
-		adccon = adccon | PCI230_ADC_TRIG_Z2CT2;
-
-		/* Set the counter timers to the specified sampling frequency. */
-		pci230_setup_square_ct(dev, 2, &cmd->convert_arg,
+		/* Set counter/timer 2 to the specified conversion period. */
+		pci230_ct_setup_ns_mode(dev, 2, I8254_MODE2, cmd->convert_arg,
 			cmd->flags & TRIG_ROUND_MASK);
-		/* cmd->convert_arg is sampling period in ns */
-	} else {
-		/* TRIG_EXT - external trigger. */
-		if ((cmd->convert_arg & CR_EDGE) != 0) {
-			if ((cmd->convert_arg & CR_INVERT) == 0) {
-				/* Trigger on +ve edge. */
-				adccon |= PCI230_ADC_TRIG_EXTP;
-			} else {
-				/* Trigger on -ve edge. */
-				adccon |= PCI230_ADC_TRIG_EXTN;
-			}
-		} else {
-			/* Backwards compatibility. */
-			if (cmd->convert_arg != 0) {
-				/* Trigger on +ve edge. */
-				adccon |= PCI230_ADC_TRIG_EXTP;
-			} else {
-				/* Trigger on -ve edge. */
-				adccon |= PCI230_ADC_TRIG_EXTN;
-			}
+		if (cmd->scan_begin_src == TRIG_EXT) {
+			/*
+			 * Set up monostable on CT0 output for scan timing.  A
+			 * rising edge on the trigger (gate) input of CT0 will
+			 * trigger the monostable, causing its output to go low
+			 * for the configured period.  The period depends on
+			 * the conversion period and the number of conversions
+			 * in the scan.
+			 *
+			 * Set the trigger high before setting up the
+			 * monostable to stop it triggering.  The trigger
+			 * source will be changed later.
+			 */
+			zgat = GAT_CONFIG(0, GAT_VCC);
+			outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
+			pci230_ct_setup_ns_mode(dev, 0, I8254_MODE1,
+				((uint64_t) cmd->convert_arg
+					* cmd->scan_end_arg), TRIG_ROUND_UP);
 		}
 	}
 
-	/* Set FIFO interrupt trigger level. */
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (devpriv->ai_count < PCI230_ADC_FIFOLEVEL_HALFFULL) {
-			adccon = adccon | PCI230_ADC_INT_FIFO_NEMPTY;
-		} else {
-			adccon = adccon | PCI230_ADC_INT_FIFO_HALF;
-		}
-	} else {
-		/* TRIG_NONE - trigger on half-full FIFO. */
-		adccon = adccon | PCI230_ADC_INT_FIFO_HALF;
-	}
-
-	//adccon = adccon | PCI230_ADC_FIFO_EN;
-	outw(adccon, dev->iobase + PCI230_ADCCON);
+	pci230_ai_start(dev, s);
 
 	return 0;
 }
 
-/* This function is used for analogue input. Only one counter/timer can be used,
- * because for the triggered scan functionality to work, 2 counters with
- * identical clock inputs and divide ratios are required, so that the
- * correct number of channels are converted in each scan.
- * This is a very "noddy" way of doing this... apologies. (sds) */
-static unsigned int pci230_choose_clk_src(uint64_t ns)
+static unsigned int divide_ns(uint64_t ns, unsigned int timebase,
+	unsigned int round_mode)
 {
-	unsigned int clk_src = 0;
+	uint64_t div;
+	unsigned int rem;
 
-	if (ns <= 6553600u)
-		clk_src = CLK_10MHZ;
-	else if (ns <= 65536000u)
-		clk_src = CLK_1MHZ;
-	else if (ns <= 655360000u)
-		clk_src = CLK_100KHZ;
-	else if (ns <= 6553600000ull)
-		clk_src = CLK_10KHZ;
-	else
-		clk_src = CLK_1KHZ;
+	div = ns;
+	rem = do_div(div, timebase);
+	round_mode &= TRIG_ROUND_MASK;
+	switch (round_mode) {
+	default:
+	case TRIG_ROUND_NEAREST:
+		div += (rem + (timebase / 2)) / timebase;
+		break;
+	case TRIG_ROUND_DOWN:
+		break;
+	case TRIG_ROUND_UP:
+		div += (rem + timebase - 1) / timebase;
+		break;
+	}
+	return div > UINT_MAX ? UINT_MAX : (unsigned int)div;
+}
 
+/* Given desired period in ns, returns the required internal clock source
+ * and gets the initial count. */
+static unsigned int pci230_choose_clk_count(uint64_t ns, unsigned int *count,
+	unsigned int round_mode)
+{
+	unsigned int clk_src, cnt;
+
+	for (clk_src = CLK_10MHZ;; clk_src++) {
+		cnt = divide_ns(ns, pci230_timebase[clk_src], round_mode);
+		if ((cnt <= 65536) || (clk_src == CLK_1KHZ)) {
+			break;
+		}
+	}
+	*count = cnt;
 	return clk_src;
 }
 
-static void pci230_ns_to_single_timer(unsigned int *ns, int round)
+static void pci230_ns_to_single_timer(unsigned int *ns, unsigned int round)
 {
-	unsigned int divisor;
+	unsigned int count;
 	unsigned int clk_src;
-	unsigned int timebase;
 
-	clk_src = pci230_choose_clk_src(*ns);
-	timebase = pci230_timebase[clk_src];
-	i8253_single_ns_to_timer(timebase, &divisor, ns, TRIG_ROUND_MASK);
+	clk_src = pci230_choose_clk_count(*ns, &count, round);
+	*ns = count * pci230_timebase[clk_src];
 	return;
 }
 
-static void i8253_single_ns_to_timer(unsigned int i8253_osc_base,
-	unsigned int *d, unsigned int *nanosec, int round_mode)
-{
-	unsigned int div;
-
-	/* exit early if everything is already correct (this can save time
-	 * since this function may be called repeatedly during command tests
-	 * and execution) */
-	if (*d * i8253_osc_base == *nanosec && *d > 1 && *d < 0x10000) {
-		return;
-	}
-
-	round_mode &= TRIG_ROUND_MASK;
-	switch (round_mode) {
-	case TRIG_ROUND_NEAREST:
-	default:
-		div = (*nanosec + i8253_osc_base / 2) / i8253_osc_base;
-		break;
-	case TRIG_ROUND_UP:
-		div = (*nanosec) / i8253_osc_base;
-		break;
-	case TRIG_ROUND_DOWN:
-		div = (*nanosec + i8253_osc_base + 1) / i8253_osc_base;
-		break;
-	}
-
-	*nanosec = div * i8253_osc_base;
-	*d = div & 0xffff;	/* masking is done since counter maps zero to
-				 * 0x10000 */
-
-	return;
-}
-
-/*
- *  Set ZCLK_CTct to hardware retriggerable monostable mode with period of ns.
- */
-static void pci230_setup_monostable_ct(comedi_device * dev, unsigned int ct,
-	uint64_t ns)
+static void pci230_ct_setup_ns_mode(comedi_device * dev, unsigned int ct,
+	unsigned int mode, uint64_t ns, unsigned int round)
 {
 	unsigned int clk_src;
-	unsigned int divisor;
-	uint64_t temp64;
+	unsigned int count;
 
-	clk_src = pci230_choose_clk_src(ns);
-
-	temp64 = ns;
-	do_div(temp64, pci230_timebase[clk_src]);
-	divisor = (temp64 > 65536) ? 65536 : temp64;
-
-	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, divisor, 1);
-	/* Counter ct, divisor, mode 1 */
-
-	/* PCI 230 specific - ties up counter clk input with correct clk source
-	 */
-	/* Program counter ct's input clock source. */
+	/* Set mode. */
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, mode);
+	/* Determine clock source and count. */
+	clk_src = pci230_choose_clk_count(ns, &count, round);
+	/* Program clock source. */
 	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
-
-	return;
-}
-
-/*
- *  Set ZCLK_CTct to square wave mode with period of ns.
- */
-static void pci230_setup_square_ct(comedi_device * dev, unsigned int ct,
-	unsigned int *ns, int round)
-{
-	unsigned int clk_src;
-	unsigned int divisor;
-
-	/* choose a suitable clock source from the range available, given the
-	 * desired period in ns */
-	clk_src = pci230_choose_clk_src(*ns);
-	i8253_single_ns_to_timer(pci230_timebase[clk_src], &divisor, ns,
-		TRIG_ROUND_MASK);
-
-	/* Generic i8254_load calls; program counters' divide ratios. */
-	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, divisor, 3);
-	/* Counter ct, divisor, square wave (8254 mode 3). */
-
-	/* PCI 230 specific - ties up counter clk input with clk source */
-	/* Program counter ct's input clock source. */
-	outb(CLK_CONFIG(ct, clk_src), devpriv->iobase1 + PCI230_ZCLK_SCE);
-	return;
+	/* Set initial count. */
+	if (count >= 65536) {
+		count = 0;
+	}
+	i8254_write(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, count);
 }
 
 static void pci230_cancel_ct(comedi_device * dev, unsigned int ct)
@@ -1725,9 +1770,10 @@ static void pci230_cancel_ct(comedi_device * dev, unsigned int ct)
 /* Interrupt handler */
 static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 {
-	int status_int;
+	unsigned char status_int, valid_status_int;
 	comedi_device *dev = (comedi_device *) d;
 	comedi_subdevice *s;
+	unsigned long irqflags;
 
 	/* Read interrupt status/enable register. */
 	status_int = inb(devpriv->iobase1 + PCI230_INT_SCE);
@@ -1736,11 +1782,16 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 		return IRQ_NONE;
 	}
 
-	/* Disable all of board's interrupts.
-	 * (Only those interrrupts that need re-enabling, are, later in the
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	valid_status_int = devpriv->int_en & status_int;
+	/* Disable triggered interrupts.
+	 * (Only those interrupts that need re-enabling, are, later in the
 	 * handler).  */
-	devpriv->ier = PCI230_INT_DISABLE;
+	devpriv->ier = devpriv->int_en & ~status_int;
 	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	devpriv->intr_running = 1;
+	devpriv->intr_cpuid = THISCPU;
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
 
 	/*
 	 * Check the source of interrupt and handle it.
@@ -1750,21 +1801,26 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	 * two.
 	 */
 
-	if (status_int & PCI230_INT_ZCLK_CT1) {
+	if ((valid_status_int & PCI230_INT_ZCLK_CT1) != 0) {
 		s = dev->write_subdev;
-		s->async->events = 0;
 		pci230_handle_ao(dev, s);
 		comedi_event(dev, s);
-		s->async->events = 0;
 	}
 
-	if (status_int & PCI230_INT_ADC) {
+	if ((valid_status_int & PCI230_INT_ADC) != 0) {
 		s = dev->read_subdev;
-		s->async->events = 0;
 		pci230_handle_ai(dev, s);
 		comedi_event(dev, s);
-		s->async->events = 0;
 	}
+
+	/* Reenable interrupts. */
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	if (devpriv->ier != devpriv->int_en) {
+		devpriv->ier = devpriv->int_en;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	}
+	devpriv->intr_running = 0;
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
 
 	return IRQ_HANDLED;
 }
@@ -1779,159 +1835,187 @@ static void pci230_handle_ao(comedi_device * dev, comedi_subdevice * s)
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		/* Read sample from Comedi's circular buffer. */
 		ret = comedi_buf_get(s->async, &data);
-		if (ret < 0) {
-			comedi_error(dev, "buffer underrun");
+		if (ret == 0) {
+			s->async->events |= COMEDI_CB_OVERFLOW;
+			pci230_ao_stop(dev, s);
+			comedi_error(dev, "AO buffer underrun");
 			return;
-			/* XXX does comedi_buf_get set s->async->events with
-			 * appropriate flags in this instance? */
 		}
 		/* Write value to DAC. */
-		pci230_ao_write(dev, data, cmd->chanlist[i]);
+		pci230_ao_write(dev, data, CR_CHAN(cmd->chanlist[i]));
+	}
 
-		if (async->cmd.stop_src == TRIG_COUNT) {
-			if (devpriv->ao_count > 0)
-				devpriv->ao_count--;
-			if (devpriv->ao_count == 0)
-				break;
+	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	if (!devpriv->ao_continuous) {
+		devpriv->ao_scan_count--;
+		if (devpriv->ao_scan_count == 0) {
+			/* End of acquisition. */
+			async->events |= COMEDI_CB_EOA;
+			pci230_ao_stop(dev, s);
 		}
 	}
-
-	if (devpriv->ao_count == 0 && devpriv->ao_continuous == 0) {
-		/* End of DAC. */
-		async->events |= COMEDI_CB_EOA;
-		pci230_ao_cancel(dev, s);
-	} else {
-		/* More samples required, tell Comedi to block. */
-		async->events |= COMEDI_CB_BLOCK;
-		/* Enable DAC (conversion complete) interrupt (and leave any
-		 * other enabled interrupts as they are). */
-		devpriv->ier |= PCI230_INT_ZCLK_CT1;
-		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-	}
-	return;
 }
 
 static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 {
-	int error = 0;
-	int status_fifo;
+	unsigned int events = 0;
+	unsigned int status_fifo;
+	unsigned int i;
+	unsigned int todo;
+	unsigned int fifoamount;
+	comedi_async *async = s->async;
+	unsigned int scanlen = async->cmd.scan_end_arg;
 
-	/* Read FIFO state. */
-	status_fifo = inw(dev->iobase + PCI230_ADCCON);
-
-	if (status_fifo & PCI230_ADC_FIFO_FULL) {
-		/* Report error otherwise FIFO overruns will go unnoticed by
-		 * the caller. */
-		comedi_error(dev, "FIFO overrun");
-		error++;
-	} else if (status_fifo & PCI230_ADC_FIFO_HALF) {
-		/* FIFO is at least half full. */
-		pci230_handle_fifo_half_full(dev, s);
-	} else if (status_fifo & PCI230_ADC_FIFO_EMPTY) {
-		/* FIFO empty but we got an interrupt. */
-		printk("comedi%d: amplc_pci230::pci230_handle_ai FIFO empty "
-			"- spurious interrupt\n", dev->minor);
+	/* Determine number of samples to read. */
+	if (devpriv->ai_continuous) {
+		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
+	} else if (devpriv->ai_scan_count == 0) {
+		todo = 0;
+	} else if ((devpriv->ai_scan_count > PCI230_ADC_FIFOLEVEL_HALFFULL)
+		|| (scanlen > PCI230_ADC_FIFOLEVEL_HALFFULL)) {
+		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
 	} else {
-		/* FIFO is less than half full, but not empty. */
-		pci230_handle_fifo_not_empty(dev, s);
+		todo = (devpriv->ai_scan_count * scanlen)
+			- devpriv->ai_scan_pos;
+		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL) {
+			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
+		}
 	}
 
-	if (error) {
-		/* Cancel sampled conversion. */
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		pci230_ai_cancel(dev, s);
-	} else if (devpriv->ai_count == 0 && devpriv->ai_continuous == 0) {
-		/* Acquisition complete. */
-		s->async->events |= COMEDI_CB_EOA;
-		/* disable hardware conversions */
-		pci230_ai_cancel(dev, s);
-	} else {
-		/* More samples required, tell Comedi to block. */
-		s->async->events |= COMEDI_CB_BLOCK;
+	fifoamount = 0;
+	for (i = 0; i < todo; i++) {
+		if (fifoamount == 0) {
+			/* Read FIFO state. */
+			status_fifo = inw(dev->iobase + PCI230_ADCCON);
 
-		/* Enable ADC (conversion complete) interrupt (and leave any
-		 * other enabled interrupts as they are). */
-		devpriv->ier |= PCI230_INT_ADC;
-		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-	}
-	return;
-}
-
-static void pci230_handle_fifo_half_full(comedi_device * dev,
-	comedi_subdevice * s)
-{
-	int i;
-
-	for (i = 0; i < PCI230_ADC_FIFOLEVEL_HALFFULL; i++) {
-		/* Read sample and store in Comedi's circular buffer. */
-		comedi_buf_put(s->async, pci230_ai_read(dev));
-
-		if (s->async->cmd.stop_src == TRIG_COUNT) {
-			if (--devpriv->ai_count == 0) {
-				/* Acquisition complete. */
-				return;
+			if ((status_fifo & PCI230_ADC_FIFO_FULL_LATCHED) != 0) {
+				/* Report error otherwise FIFO overruns will go
+				 * unnoticed by the caller. */
+				comedi_error(dev, "AI FIFO overrun");
+				events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
+				break;
+			} else if ((status_fifo & PCI230_ADC_FIFO_EMPTY) != 0) {
+				/* FIFO empty. */
+				break;
+			} else if ((status_fifo & PCI230_ADC_FIFO_HALF) != 0) {
+				/* FIFO half full. */
+				fifoamount = PCI230_ADC_FIFOLEVEL_HALFFULL;
+			} else {
+				/* FIFO not empty. */
+				fifoamount = 1;
 			}
 		}
+
+		/* Read sample and store in Comedi's circular buffer. */
+		if (comedi_buf_put(async, pci230_ai_read(dev)) == 0) {
+			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
+			comedi_error(dev, "AI buffer overflow");
+			break;
+		}
+		fifoamount--;
+		devpriv->ai_scan_pos++;
+		if (devpriv->ai_scan_pos == scanlen) {
+			/* End of scan. */
+			devpriv->ai_scan_pos = 0;
+			devpriv->ai_scan_count--;
+			async->events |= COMEDI_CB_EOS;
+		}
 	}
-	/* More samples required. */
-	return;
+
+	if (!devpriv->ai_continuous && (devpriv->ai_scan_count == 0)) {
+		/* End of acquisition. */
+		events |= COMEDI_CB_EOA;
+	} else {
+		/* More samples required, tell Comedi to block. */
+		events |= COMEDI_CB_BLOCK;
+	}
+	async->events |= events;
+
+	if ((async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
+				COMEDI_CB_OVERFLOW)) != 0) {
+		/* disable hardware conversions */
+		pci230_ai_stop(dev, s);
+	} else {
+		/* update FIFO interrupt trigger level */
+		pci230_ai_update_fifo_trigger_level(dev, s);
+	}
 }
 
-static void pci230_handle_fifo_not_empty(comedi_device * dev,
-	comedi_subdevice * s)
+static void pci230_ao_stop(comedi_device * dev, comedi_subdevice * s)
 {
-	while (devpriv->ai_count != 0) {
-		if (inw(dev->iobase + PCI230_ADCCON) & PCI230_ADC_FIFO_EMPTY) {
-			/* The FIFO is empty, block. */
-			return;
-		}
-		/* There are sample(s) to read from FIFO, read one and store in
-		 * Comedi's circular buffer. */
-		comedi_buf_put(s->async, pci230_ai_read(dev));
+	unsigned long irqflags;
 
-		if (devpriv->ai_count > 0)
-			devpriv->ai_count--;
+	/* Stop counter/timer. */
+	pci230_cancel_ct(dev, 1);
+
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	s->async->inttrig = NULLFUNC;	/* Disable internal trigger. */
+	/* Disable interrupt and wait for interrupt routine to finish running
+	 * unless we are called from the interrupt routine. */
+	devpriv->int_en &= ~PCI230_INT_ZCLK_CT1;	/* Disable interrupt. */
+	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+		comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
 	}
-	/* Acquisition complete. */
-	return;
+	if (devpriv->ier != devpriv->int_en) {
+		devpriv->ier = devpriv->int_en;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+
+	/* No longer running AO command. */
+	devpriv->ao_scan_count = 0;
+	devpriv->ao_continuous = 0;
 }
 
 static int pci230_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-	devpriv->ao_count = 0;
-	devpriv->ao_continuous = 0;
-
-	/* Stop counter/timers. */
-	pci230_cancel_ct(dev, 1);
-
-	/* Disable DAC interrupt. */
-	devpriv->ier &= ~PCI230_INT_ZCLK_CT1;
-	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-
+	pci230_ao_stop(dev, s);
 	return 0;
+}
+
+static void pci230_ai_stop(comedi_device * dev, comedi_subdevice * s)
+{
+	unsigned long irqflags;
+	comedi_cmd *cmd = &s->async->cmd;
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		/* Stop conversion rate generator. */
+		pci230_cancel_ct(dev, 2);
+	}
+	if (cmd->scan_begin_src == TRIG_EXT) {
+		/* Stop scan period monostable. */
+		pci230_cancel_ct(dev, 0);
+	}
+
+	comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	/* Disable ADC interrupt and wait for interrupt routine to finish
+	 * running unless we are called from the interrupt routine. */
+	devpriv->int_en &= ~PCI230_INT_ADC;
+	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
+		comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+		comedi_spin_lock_irqsave(&devpriv->spinlock, irqflags);
+	}
+	if (devpriv->ier != devpriv->int_en) {
+		devpriv->ier = devpriv->int_en;
+		outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
+	}
+	comedi_spin_unlock_irqrestore(&devpriv->spinlock, irqflags);
+
+	/* Reset FIFO, disable FIFO and set start conversion source to none.
+	 * Keep se/diff and bip/uni settings */
+	devpriv->adccon = (devpriv->adccon & (PCI230_ADC_IR_MASK
+			| PCI230_ADC_IM_MASK)) | PCI230_ADC_TRIG_NONE;
+	outw(devpriv->adccon | PCI230_ADC_FIFO_RESET,
+		dev->iobase + PCI230_ADCCON);
+
+	devpriv->ai_scan_count = 0;
+	devpriv->ai_scan_pos = 0;
+	devpriv->ai_continuous = 0;
 }
 
 static int pci230_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-	devpriv->ai_count = 0;
-	devpriv->ai_continuous = 0;
-
-	/* Stop counter/timers. */
-	pci230_cancel_ct(dev, 2);
-
-	/* Disable ADC interrupt. */
-	devpriv->ier &= ~PCI230_INT_ADC;
-	outb(devpriv->ier, devpriv->iobase1 + PCI230_INT_SCE);
-
-	/* Reset FIFO and set start conversion source to none. */
-	outw(PCI230_ADC_FIFO_RESET | PCI230_ADC_TRIG_NONE,
-		dev->iobase + PCI230_ADCCON);
-
-	/* Clear channel scan list. */
-	outw(0x0000, dev->iobase + PCI230_ADCEN);
-
-	/* Clear channel gains. */
-	outw(0x0000, dev->iobase + PCI230_ADCG);
-
+	pci230_ai_stop(dev, s);
 	return 0;
 }
