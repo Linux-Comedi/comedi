@@ -317,6 +317,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
 struct pci230_private {
 	struct pci_dev *pci_dev;
 	spinlock_t isr_spinlock;	/* Interrupt spin lock */
+	spinlock_t ai_inttrig_spinlock;	/* AI command inttrig spin lock */
 	spinlock_t ao_inttrig_spinlock;	/* AO command inttrig spin lock */
 	spinlock_t res_spinlock;	/* Shared resources spin lock */
 	unsigned long iobase1;	/* PCI230's I/O space 1 */
@@ -491,6 +492,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 		return -ENOMEM;
 	}
 	spin_lock_init(&devpriv->isr_spinlock);
+	spin_lock_init(&devpriv->ai_inttrig_spinlock);
 	spin_lock_init(&devpriv->ao_inttrig_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);
 	/* Find card */
@@ -1224,7 +1226,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * if this fails. */
 
 	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW;
+	cmd->start_src &= TRIG_NOW | TRIG_INT;
 	if (!cmd->start_src || tmp != cmd->start_src)
 		err++;
 
@@ -1233,15 +1235,16 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	 * on the PCI260 board, since it uses the PPI0 (DIO) input, which
 	 * isn't present on the PCI260 */
 	if (thisboard->have_dio) {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT;
+		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT
+			| TRIG_EXT;
 	} else {
-		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER;
+		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT;
 	}
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
 	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
+	cmd->convert_src &= TRIG_TIMER | TRIG_INT | TRIG_EXT;
 	if (!cmd->convert_src || tmp != cmd->convert_src)
 		err++;
 
@@ -1329,7 +1332,7 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			cmd->convert_arg = MIN_SPEED_AI;
 			err++;
 		}
-	} else {
+	} else if (cmd->convert_src == TRIG_EXT) {
 		/*
 		 * external trigger
 		 *
@@ -1365,11 +1368,9 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 				err++;
 			}
 		}
-	}
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* N.B. cmd->convert_arg is also TRIG_TIMER */
-		if (!pci230_ai_check_scan_period(cmd)) {
+	} else {
+		if (cmd->convert_arg != 0) {
+			cmd->convert_arg = 0;
 			err++;
 		}
 	}
@@ -1398,6 +1399,16 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		if ((cmd->scan_begin_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 				CR_FLAGS_MASK & ~CR_EDGE);
+			err++;
+		}
+	} else if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* N.B. cmd->convert_arg is also TRIG_TIMER */
+		if (!pci230_ai_check_scan_period(cmd)) {
+			err++;
+		}
+	} else {
+		if (cmd->scan_begin_arg != 0) {
+			cmd->scan_begin_arg = 0;
 			err++;
 		}
 	}
@@ -1616,6 +1627,54 @@ static void pci230_ai_update_fifo_trigger_level(comedi_device * dev,
 	}
 }
 
+static int pci230_ai_inttrig_convert(comedi_device * dev, comedi_subdevice * s,
+	unsigned int trig_num)
+{
+	unsigned long irqflags;
+
+	if (trig_num != 0)
+		return -EINVAL;
+
+	comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock, irqflags);
+	if (s->async->inttrig) {
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+		/* Trigger conversion. */
+		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCSWTRIG);
+	} else {
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+	}
+
+	return 1;
+}
+
+static int pci230_ai_inttrig_scan_begin(comedi_device * dev,
+	comedi_subdevice * s, unsigned int trig_num)
+{
+	unsigned long irqflags;
+	unsigned char zgat;
+
+	if (trig_num != 0)
+		return -EINVAL;
+
+	comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock, irqflags);
+	if (s->async->inttrig) {
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+		/* Trigger scan by waggling CT0 gate source. */
+		zgat = GAT_CONFIG(0, GAT_GND);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
+		zgat = GAT_CONFIG(0, GAT_VCC);
+		outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
+	} else {
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+	}
+
+	return 1;
+}
+
 static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned long irqflags;
@@ -1638,11 +1697,15 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 
 		/* Update conversion trigger source which is currently set
 		 * to CT2 output, which is currently stuck high. */
-		if (cmd->convert_src == TRIG_TIMER) {
+		switch (cmd->convert_src) {
+		default:
+			conv = PCI230_ADC_TRIG_NONE;
+			break;
+		case TRIG_TIMER:
 			/* Using CT2 output. */
 			conv = PCI230_ADC_TRIG_Z2CT2;
-		} else {
-			/* cmd->convert_src == TRIG_EXT */
+			break;
+		case TRIG_EXT:
 			if ((cmd->convert_arg & CR_EDGE) != 0) {
 				if ((cmd->convert_arg & CR_INVERT) == 0) {
 					/* Trigger on +ve edge. */
@@ -1661,10 +1724,23 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 					conv = PCI230_ADC_TRIG_EXTN;
 				}
 			}
+			break;
+		case TRIG_INT:
+			conv = PCI230_ADC_TRIG_SW;
+			comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock,
+				irqflags);
+			async->inttrig = pci230_ai_inttrig_convert;
+			/* ai_inttrig_spinlock is unlocked after ADCCON is
+			 * written below. */
+			break;
 		}
 		devpriv->adccon = (devpriv->adccon & ~PCI230_ADC_TRIG_MASK)
 			| conv;
 		outw(devpriv->adccon, dev->iobase + PCI230_ADCCON);
+		if (cmd->convert_src == TRIG_INT) {
+			comedi_spin_unlock_irqrestore(&devpriv->
+				ai_inttrig_spinlock, irqflags);
+		}
 		/* Update FIFO interrupt trigger level, which is currently
 		 * set to "full".  */
 		pci230_ai_update_fifo_trigger_level(dev, s);
@@ -1708,14 +1784,32 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 					 */
 					zgat = GAT_CONFIG(0, GAT_NOUTNM2);
 					break;
+				case TRIG_INT:
+					/*
+					 * Monostable CT0 is triggered by
+					 * inttrig function waggling the CT0
+					 * gate source.
+					 */
+					zgat = GAT_CONFIG(0, GAT_VCC);
+					break;
 				}
 				outb(zgat, devpriv->iobase1 + PCI230_ZGAT_SCE);
-				if (cmd->scan_begin_src == TRIG_TIMER) {
+				switch (cmd->scan_begin_src) {
+				case TRIG_TIMER:
 					/* Scan period timer CT1 needs to be
 					 * gated on to start counting. */
 					zgat = GAT_CONFIG(1, GAT_VCC);
 					outb(zgat, devpriv->iobase1
 						+ PCI230_ZGAT_SCE);
+					break;
+				case TRIG_INT:
+					comedi_spin_lock_irqsave(&devpriv->
+						ai_inttrig_spinlock, irqflags);
+					async->inttrig =
+						pci230_ai_inttrig_scan_begin;
+					comedi_spin_unlock_irqrestore(&devpriv->
+						ai_inttrig_spinlock, irqflags);
+					break;
 				}
 			}
 		} else {
@@ -1723,6 +1817,28 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 			put_one_resource(dev, RES_Z2CT2, OWNER_AICMD);
 		}
 	}
+}
+
+static int pci230_ai_inttrig_start(comedi_device * dev, comedi_subdevice * s,
+	unsigned int trig_num)
+{
+	unsigned long irqflags;
+
+	if (trig_num != 0)
+		return -EINVAL;
+
+	comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock, irqflags);
+	if (s->async->inttrig) {
+		s->async->inttrig = NULLFUNC;
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+		pci230_ai_start(dev, s);
+	} else {
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+	}
+
+	return 1;
 }
 
 static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
@@ -1905,7 +2021,19 @@ static int pci230_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		}
 	}
 
-	pci230_ai_start(dev, s);
+	if (cmd->start_src == TRIG_INT) {
+		unsigned long irqflags;
+
+		comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+		s->async->inttrig = pci230_ai_inttrig_start;
+		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
+			irqflags);
+
+	} else {
+		/* TRIG_NOW */
+		pci230_ai_start(dev, s);
+	}
 
 	return 0;
 }
@@ -2212,6 +2340,10 @@ static void pci230_ai_stop(comedi_device * dev, comedi_subdevice * s)
 		pci230_cancel_ct(dev, 0);
 	}
 
+	comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock, irqflags);
+	/* Disable internal trigger. */
+	s->async->inttrig = NULLFUNC;
+	comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock, irqflags);
 	comedi_spin_lock_irqsave(&devpriv->isr_spinlock, irqflags);
 	/* Disable ADC interrupt and wait for interrupt routine to finish
 	 * running unless we are called from the interrupt routine. */
