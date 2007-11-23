@@ -58,30 +58,31 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_IO2_SIZE 16	/* Size of I/O space 2 */
 
 /* PCI230 i/o space 1 registers. */
-#define PCI230_PPI_X_BASE 0x00	/* User PPI (82C55) base */
-#define PCI230_PPI_X_A   0x00	/* User PPI (82C55) port A */
-#define PCI230_PPI_X_B   0x01	/* User PPI (82C55) port B */
-#define PCI230_PPI_X_C   0x02	/* User PPI (82C55) port C */
-#define PCI230_PPI_X_CMD 0x03	/* User PPI (82C55) control word */
-#define PCI230_Z2_CT_BASE 0x14	/* 82C54 counter/timer base */
-#define PCI230_Z2_CT0    0x14	/* 82C54 counter/timer 0 */
-#define PCI230_Z2_CT1    0x15	/* 82C54 counter/timer 1 */
-#define PCI230_Z2_CT2    0x16	/* 82C54 counter/timer 2 */
-#define PCI230_Z2_CTC    0x17	/* 82C54 counter/timer control word */
-#define PCI230_ZCLK_SCE  0x1A	/* Group Z Clock Configuration Register */
-#define PCI230_ZGAT_SCE  0x1D	/* Group Z Gate Configuration Register */
-#define PCI230_INT_SCE   0x1E	/* ISR Interrupt source mask register */
-				/* /Interrupt status */
+#define PCI230_PPI_X_BASE	0x00	/* User PPI (82C55) base */
+#define PCI230_PPI_X_A		0x00	/* User PPI (82C55) port A */
+#define PCI230_PPI_X_B		0x01	/* User PPI (82C55) port B */
+#define PCI230_PPI_X_C		0x02	/* User PPI (82C55) port C */
+#define PCI230_PPI_X_CMD	0x03	/* User PPI (82C55) control word */
+#define PCI230_Z2_CT_BASE	0x14	/* 82C54 counter/timer base */
+#define PCI230_Z2_CT0		0x14	/* 82C54 counter/timer 0 */
+#define PCI230_Z2_CT1		0x15	/* 82C54 counter/timer 1 */
+#define PCI230_Z2_CT2		0x16	/* 82C54 counter/timer 2 */
+#define PCI230_Z2_CTC		0x17	/* 82C54 counter/timer control word */
+#define PCI230_ZCLK_SCE		0x1A	/* Group Z Clock Configuration */
+#define PCI230_ZGAT_SCE		0x1D	/* Group Z Gate Configuration */
+#define PCI230_INT_SCE		0x1E	/* Interrupt source mask (w) */
+#define PCI230_INT_STAT		0x1E	/* Interrupt status (r) */
 
 /* PCI230 i/o space 2 registers. */
-#define PCI230_DACCON  0x00
-#define PCI230_DACOUT1 0x02
-#define PCI230_DACOUT2 0x04
-#define PCI230_DACOUT3 0x06
-#define PCI230_ADCDATA 0x08
-#define PCI230_ADCCON  0x0A
-#define PCI230_ADCEN   0x0C
-#define PCI230_ADCG    0x0E
+#define PCI230_DACCON		0x00	/* DAC control */
+#define PCI230_DACOUT1		0x02	/* DAC channel 0 (w) */
+#define PCI230_DACOUT2		0x04	/* DAC channel 1 (w) */
+#define PCI230_DACOUT3		0x06	/* reserved */
+#define PCI230_ADCDATA		0x08	/* ADC data (r) */
+#define PCI230_ADCSWTRIG	0x08	/* ADC software trigger (w) */
+#define PCI230_ADCCON		0x0A	/* ADC control */
+#define PCI230_ADCEN		0x0C	/* ADC channel enable bits */
+#define PCI230_ADCG		0x0E	/* ADC gain control bits */
 /* PCI230+ i/o space 2 additional registers. */
 #define PCI230P_ADCTRIG		0x10	/* ADC start acquisition trigger */
 #define PCI230P_ADCTH		0x12	/* ADC analog trigger threshold */
@@ -101,49 +102,53 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_MUX_SETTLE 10	/* ADC MUX settling time in µS */
 				/* - 10µs for se, 20µs de. */
 
-/* DACCON values. */
-#define PCI230_DAC_BUSY_BIT		1
-#define PCI230_DAC_BIP_BIT		0
+/* DACCON write values. */
+#define PCI230_ADC_OR_UNI		(0<<0)	/* Output range unipolar */
+#define PCI230_ADC_OR_BIP		(1<<0)	/* Output range bipolar */
+#define PCI230_ADC_OR_MASK		(1<<0)
+
+/* DACCON read values. */
+#define PCI230_DAC_BUSY			(1<<1)	/* DAC busy. */
 
 /* ADCCON write values. */
-#define PCI230_ADC_TRIG_NONE		0
-#define PCI230_ADC_TRIG_SW 		1
-#define PCI230_ADC_TRIG_EXTP		2
-#define PCI230_ADC_TRIG_EXTN		3
-#define PCI230_ADC_TRIG_Z2CT0		4
-#define PCI230_ADC_TRIG_Z2CT1		5
-#define PCI230_ADC_TRIG_Z2CT2		6
-#define PCI230_ADC_TRIG_MASK		7
+#define PCI230_ADC_TRIG_NONE		(0<<0)	/* No trigger */
+#define PCI230_ADC_TRIG_SW 		(1<<0)	/* Software trigger trigger */
+#define PCI230_ADC_TRIG_EXTP		(2<<0)	/* EXTTRIG +ve edge trigger */
+#define PCI230_ADC_TRIG_EXTN		(3<<0)	/* EXTTRIG -ve edge trigger */
+#define PCI230_ADC_TRIG_Z2CT0		(4<<0)	/* CT0-OUT +ve edge trigger */
+#define PCI230_ADC_TRIG_Z2CT1		(5<<0)	/* CT1-OUT +ve edge trigger */
+#define PCI230_ADC_TRIG_Z2CT2		(6<<0)	/* CT2-OUT +ve edge trigger */
+#define PCI230_ADC_TRIG_MASK		(7<<0)
 #define PCI230_ADC_IR_UNI		(0<<3)	/* Input range unipolar */
 #define PCI230_ADC_IR_BIP		(1<<3)	/* Input range bipolar */
 #define PCI230_ADC_IR_MASK		(1<<3)
 #define PCI230_ADC_IM_SE		(0<<4)	/* Input mode single ended */
 #define PCI230_ADC_IM_DIF		(1<<4)	/* Input mode differential */
 #define PCI230_ADC_IM_MASK		(1<<4)
-#define PCI230_ADC_FIFO_EN		(1<<8)
+#define PCI230_ADC_FIFO_EN		(1<<8)	/* FIFO enable */
 #define PCI230_ADC_INT_FIFO_EMPTY	(0<<9)
-#define PCI230_ADC_INT_FIFO_NEMPTY	(1<<9)
+#define PCI230_ADC_INT_FIFO_NEMPTY	(1<<9)	/* FIFO interrupt not empty */
 #define PCI230_ADC_INT_FIFO_NHALF	(2<<9)
-#define PCI230_ADC_INT_FIFO_HALF	(3<<9)
+#define PCI230_ADC_INT_FIFO_HALF	(3<<9)	/* FIFO interrupt half full */
 #define PCI230_ADC_INT_FIFO_NFULL	(4<<9)
-#define PCI230_ADC_INT_FIFO_FULL	(5<<9)
+#define PCI230_ADC_INT_FIFO_FULL	(5<<9)	/* FIFO interrupt full */
 #define PCI230_ADC_INT_FIFO_MASK	(7<<9)
-#define PCI230_ADC_FIFO_RESET		(1<<12)
-#define PCI230_ADC_GLOB_RESET		(1<<13)
+#define PCI230_ADC_FIFO_RESET		(1<<12)	/* FIFO reset */
+#define PCI230_ADC_GLOB_RESET		(1<<13)	/* Global reset */
 #define PCI230_ADC_CONV			0xffff
-			/* Value to write to ADCDATA to trigger ADC conversion
-			 * in software trigger mode */
+			/* Value to write to ADCSWTRIG to trigger ADC conversion
+			 * in software trigger mode.  Can be anything.  */
 
 /* ADCCON read values. */
-#define PCI230_ADC_BUSY_BIT		15
-#define PCI230_ADC_FIFO_EMPTY		(1<<12)
-#define PCI230_ADC_FIFO_FULL		(1<<13)
-#define PCI230_ADC_FIFO_HALF		(1<<14)
+#define PCI230_ADC_BUSY			(1<<15)	/* ADC busy */
+#define PCI230_ADC_FIFO_EMPTY		(1<<12)	/* FIFO empty */
+#define PCI230_ADC_FIFO_FULL		(1<<13)	/* FIFO full */
+#define PCI230_ADC_FIFO_HALF		(1<<14)	/* FIFO half full */
 #define PCI230_ADC_FIFO_FULL_LATCHED	(1<<5)	/* Indicates overrun occurred */
 
 /* PCI230 ADC FIFO levels. */
-#define PCI230_ADC_FIFOLEVEL_HALFFULL	2049
-#define PCI230_ADC_FIFOLEVEL_FULL	4096
+#define PCI230_ADC_FIFOLEVEL_HALFFULL	2049	/* Value for FIFO half full */
+#define PCI230_ADC_FIFOLEVEL_FULL	4096	/* FIFO size */
 
 /* PCI230+ EXTFUNC values. */
 #define PCI230P_EXTFUNC_GAT_EXTTRIG	(1<<0)
@@ -763,13 +768,13 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	/* Convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCDATA);
+		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCSWTRIG);
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
 		for (i = 0; i < TIMEOUT; i++) {
 			status = inw(dev->iobase + PCI230_ADCCON);
-			if (!PCI230_TEST_BIT(status, PCI230_ADC_BUSY_BIT))
+			if (!(status & PCI230_ADC_BUSY))
 				break;
 		}
 		if (i == TIMEOUT) {
@@ -1776,7 +1781,7 @@ static irqreturn_t pci230_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned long irqflags;
 
 	/* Read interrupt status/enable register. */
-	status_int = inb(devpriv->iobase1 + PCI230_INT_SCE);
+	status_int = inb(devpriv->iobase1 + PCI230_INT_STAT);
 
 	if (status_int == PCI230_INT_DISABLE) {
 		return IRQ_NONE;
