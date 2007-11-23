@@ -1281,9 +1281,10 @@ static int pci230_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	tmp = cmd->scan_begin_src;
 	/* Unfortunately, we cannot trigger a scan off an external source
-	 * on the PCI260 board, since it uses the PPI0 (DIO) input, which
-	 * isn't present on the PCI260 */
-	if (thisboard->have_dio) {
+	 * on the PCI260 board, since it uses the PPIC0 (DIO) input, which
+	 * isn't present on the PCI260.  For PCI260+ we can use the
+	 * EXTTRIG/EXTCONVCLK input on pin 17 instead. */
+	if ((thisboard->have_dio) || (thisboard->min_hwver > 0)) {
 		cmd->scan_begin_src &= TRIG_FOLLOW | TRIG_TIMER | TRIG_INT
 			| TRIG_EXT;
 	} else {
