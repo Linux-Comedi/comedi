@@ -639,7 +639,7 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 	s->range_table = &pci230_ai_range;
 	s->insn_read = &pci230_ai_rinsn;
-	s->len_chanlist = thisboard->ai_chans;
+	s->len_chanlist = 256;	/* but there are restrictions. */
 	/* Only register commands if the interrupt handler is installed. */
 	if (irq_hdl == 0) {
 		dev->read_subdev = s;
