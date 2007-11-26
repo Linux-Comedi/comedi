@@ -132,6 +132,7 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 #define PCI230_ADC_INT_FIFO_HALF	(3<<9)	/* FIFO interrupt half full */
 #define PCI230_ADC_INT_FIFO_NFULL	(4<<9)
 #define PCI230_ADC_INT_FIFO_FULL	(5<<9)	/* FIFO interrupt full */
+#define PCI230P_ADC_INT_FIFO_THRESH	(7<<9)	/* FIFO interrupt threshold */
 #define PCI230_ADC_INT_FIFO_MASK	(7<<9)
 #define PCI230_ADC_FIFO_RESET		(1<<12)	/* FIFO reset */
 #define PCI230_ADC_GLOB_RESET		(1<<13)	/* Global reset */
@@ -331,6 +332,8 @@ struct pci230_private {
 	int intr_cpuid;		/* ID of CPU running interrupt routine. */
 	unsigned short hwver;	/* Hardware version (for '+' models). */
 	unsigned short adccon;	/* ADCCON register value. */
+	unsigned short adcfifothresh;	/* ADC FIFO programmable interrupt
+					 * level threshold (PCI230+/260+). */
 	unsigned short adcg;	/* ADCG register value. */
 	unsigned char int_en;	/* Interrupt enables bits. */
 	unsigned char ai_continuous;	/* Flag set when cmd->stop_src ==
@@ -1668,7 +1671,16 @@ static void pci230_ai_update_fifo_trigger_level(comedi_device * dev,
 	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		triglev = PCI230_ADC_INT_FIFO_HALF;
 	} else {
-		triglev = PCI230_ADC_INT_FIFO_NEMPTY;
+		if ((wake > 1) && (devpriv->hwver > 0)) {
+			/* PCI230+/260+ programmable FIFO interrupt level. */
+			if (devpriv->adcfifothresh != wake) {
+				devpriv->adcfifothresh = wake;
+				outw(wake, dev->iobase + PCI230P_ADCFFTH);
+			}
+			triglev = PCI230P_ADC_INT_FIFO_THRESH;
+		} else {
+			triglev = PCI230_ADC_INT_FIFO_NEMPTY;
+		}
 	}
 	adccon = (devpriv->adccon & ~PCI230_ADC_INT_FIFO_MASK) | triglev;
 	if (adccon != devpriv->adccon) {
@@ -2298,7 +2310,17 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 				fifoamount = PCI230_ADC_FIFOLEVEL_HALFFULL;
 			} else {
 				/* FIFO not empty. */
-				fifoamount = 1;
+				if (devpriv->hwver > 0) {
+					/* Read PCI230+/260+ ADC FIFO level. */
+					fifoamount = inw(dev->iobase
+						+ PCI230P_ADCFFLEV);
+					if (fifoamount == 0) {
+						/* Shouldn't happen. */
+						break;
+					}
+				} else {
+					fifoamount = 1;
+				}
 			}
 		}
 
