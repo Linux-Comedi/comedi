@@ -814,9 +814,6 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
-
-	adccon = PCI230_ADC_TRIG_SW;
-	devpriv->ai_bipolar = pci230_ai_bipolar[range];
 	if (aref == AREF_DIFF) {
 		/* Differential. */
 		if (chan >= s->n_chan / 2) {
@@ -825,6 +822,19 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 				"0 to %u\n", dev->minor, (s->n_chan / 2) - 1);
 			return -EINVAL;
 		}
+	}
+
+	/* Use Z2-CT2 as a conversion trigger instead of the built-in
+	 * software trigger, as otherwise triggering of differential channels
+	 * doesn't work properly for some versions of PCI230/260.  Also set
+	 * FIFO mode because the ADC busy bit only works for software triggers.
+	 */
+	adccon = PCI230_ADC_TRIG_Z2CT2 | PCI230_ADC_FIFO_EN;
+	/* Set Z2-CT2 output low to avoid any false triggers. */
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2, I8254_MODE0);
+	devpriv->ai_bipolar = pci230_ai_bipolar[range];
+	if (aref == AREF_DIFF) {
+		/* Differential. */
 		gainshift = chan * 2;
 		if (devpriv->hwver == 0) {
 			/* Original PCI230/260 expects both inputs of the
@@ -857,22 +867,26 @@ static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	/* Set gain for channel. */
 	outw(devpriv->adcg, dev->iobase + PCI230_ADCG);
 
-	/* Specify uni/bip, se/diff, s/w conversion, and reset FIFO (even
-	 * though we're not using it - MEV says so). */
+	/* Specify uni/bip, se/diff, conversion source, and reset FIFO. */
 	devpriv->adccon = adccon;
 	outw(adccon | PCI230_ADC_FIFO_RESET, dev->iobase + PCI230_ADCCON);
 
 	/* Convert n samples */
 	for (n = 0; n < insn->n; n++) {
-		/* trigger conversion */
-		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCSWTRIG);
+		/* Trigger conversion by toggling Z2-CT2 output (finish with
+		 * output high). */
+		i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2,
+			I8254_MODE0);
+		i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2,
+			I8254_MODE1);
 
 #define TIMEOUT 100
 		/* wait for conversion to end */
 		for (i = 0; i < TIMEOUT; i++) {
 			status = inw(dev->iobase + PCI230_ADCCON);
-			if (!(status & PCI230_ADC_BUSY))
+			if (!(status & PCI230_ADC_FIFO_EMPTY))
 				break;
+			comedi_udelay(1);
 		}
 		if (i == TIMEOUT) {
 			/* rt_printk() should be used instead of printk()
@@ -1703,12 +1717,17 @@ static int pci230_ai_inttrig_convert(comedi_device * dev, comedi_subdevice * s,
 
 		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
 			irqflags);
-		/* Trigger conversion. */
-		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCSWTRIG);
+		/* Trigger conversion by toggling Z2-CT2 output.  Finish
+		 * with output high. */
+		i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2,
+			I8254_MODE0);
+		i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, 2,
+			I8254_MODE1);
 		/* Delay.  Should driver be responsible for this?  An
 		 * alternative would be to wait until conversion is complete,
 		 * but we can't tell when it's complete because the ADC busy
-		 * bit has a different meaning when FIFO enabled. */
+		 * bit has a different meaning when FIFO enabled (and when
+		 * FIFO not enabled, it only works for software triggers). */
 		if (((devpriv->adccon & PCI230_ADC_IM_MASK)
 				== PCI230_ADC_IM_DIF)
 			&& (devpriv->hwver == 0)) {
@@ -1804,7 +1823,9 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 			}
 			break;
 		case TRIG_INT:
-			conv = PCI230_ADC_TRIG_SW;
+			/* Use CT2 output for software trigger due to problems
+			 * in differential mode on PCI230/260. */
+			conv = PCI230_ADC_TRIG_Z2CT2;
 			comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock,
 				irqflags);
 			async->inttrig = pci230_ai_inttrig_convert;
@@ -1890,9 +1911,6 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 					break;
 				}
 			}
-		} else {
-			/* No longer need Z2-CT2. */
-			put_one_resource(dev, RES_Z2CT2, OWNER_AICMD);
 		}
 	}
 }
@@ -2187,8 +2205,9 @@ static void pci230_ct_setup_ns_mode(comedi_device * dev, unsigned int ct,
 
 static void pci230_cancel_ct(comedi_device * dev, unsigned int ct)
 {
-	i8254_load(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct, 0, 0);
-	/* Counter ct, divisor 0, 8254 mode 0. */
+	i8254_set_mode(devpriv->iobase1 + PCI230_Z2_CT_BASE, 0, ct,
+		I8254_MODE1);
+	/* Counter ct, 8254 mode 1, initial count not written. */
 }
 
 /* Interrupt handler */
