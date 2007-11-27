@@ -1699,10 +1699,26 @@ static int pci230_ai_inttrig_convert(comedi_device * dev, comedi_subdevice * s,
 
 	comedi_spin_lock_irqsave(&devpriv->ai_inttrig_spinlock, irqflags);
 	if (s->async->inttrig) {
+		unsigned int delayus;
+
 		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
 			irqflags);
 		/* Trigger conversion. */
 		outw(PCI230_ADC_CONV, dev->iobase + PCI230_ADCSWTRIG);
+		/* Delay.  Should driver be responsible for this?  An
+		 * alternative would be to wait until conversion is complete,
+		 * but we can't tell when it's complete because the ADC busy
+		 * bit has a different meaning when FIFO enabled. */
+		if (((devpriv->adccon & PCI230_ADC_IM_MASK)
+				== PCI230_ADC_IM_DIF)
+			&& (devpriv->hwver == 0)) {
+			/* PCI230/260 in differential mode */
+			delayus = 8;
+		} else {
+			/* single-ended or PCI230+/260+ */
+			delayus = 4;
+		}
+		comedi_udelay(delayus);
 	} else {
 		comedi_spin_unlock_irqrestore(&devpriv->ai_inttrig_spinlock,
 			irqflags);
