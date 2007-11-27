@@ -41,6 +41,7 @@
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
 #include <rtai_sched.h>
+#include <rtai_version.h>
 #endif
 #ifdef CONFIG_COMEDI_RTL
 #include <rtl_core.h>
