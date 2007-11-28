@@ -103,9 +103,9 @@ extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
 				/* - 10µs for se, 20µs de. */
 
 /* DACCON write values. */
-#define PCI230_ADC_OR_UNI		(0<<0)	/* Output range unipolar */
-#define PCI230_ADC_OR_BIP		(1<<0)	/* Output range bipolar */
-#define PCI230_ADC_OR_MASK		(1<<0)
+#define PCI230_DAC_OR_UNI		(0<<0)	/* Output range unipolar */
+#define PCI230_DAC_OR_BIP		(1<<0)	/* Output range bipolar */
+#define PCI230_DAC_OR_MASK		(1<<0)
 
 /* DACCON read values. */
 #define PCI230_DAC_BUSY			(1<<1)	/* DAC busy. */
@@ -2400,9 +2400,12 @@ static void pci230_handle_ai(comedi_device * dev, comedi_subdevice * s)
 static void pci230_ao_stop(comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned long irqflags;
+	comedi_cmd *cmd = &s->async->cmd;
 
-	/* Stop counter/timer. */
-	pci230_cancel_ct(dev, 1);
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/* Stop scan rate generator. */
+		pci230_cancel_ct(dev, 1);
+	}
 
 	comedi_spin_lock_irqsave(&devpriv->ao_inttrig_spinlock, irqflags);
 	/* Disable internal trigger. */
@@ -2422,8 +2425,8 @@ static void pci230_ao_stop(comedi_device * dev, comedi_subdevice * s)
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->isr_spinlock, irqflags);
 
-	/* Release Z2-CT1. */
-	put_one_resource(dev, RES_Z2CT1, OWNER_AOCMD);
+	/* Release resources. */
+	put_all_resources(dev, OWNER_AOCMD);
 
 	/* No longer running AO command. */
 	devpriv->ao_scan_count = 0;
