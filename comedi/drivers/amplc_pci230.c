@@ -1911,6 +1911,9 @@ static void pci230_ai_start(comedi_device * dev, comedi_subdevice * s)
 					break;
 				}
 			}
+		} else if (cmd->convert_src != TRIG_INT) {
+			/* No longer need Z2-CT2. */
+			put_one_resource(dev, RES_Z2CT2, OWNER_AICMD);
 		}
 	}
 }
