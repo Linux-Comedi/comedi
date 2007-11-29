@@ -834,6 +834,7 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 		if ((cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 				CR_FLAGS_MASK & ~CR_EDGE);
+			err++;
 		}
 		break;
 	}
@@ -865,6 +866,7 @@ pci224_ao_cmdtest(comedi_device * dev, comedi_subdevice * s, comedi_cmd * cmd)
 				~(CR_EDGE | CR_INVERT)) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 				CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT));
+			err++;
 		}
 		break;
 	}
