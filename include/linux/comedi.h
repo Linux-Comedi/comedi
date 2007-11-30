@@ -811,6 +811,47 @@ CR_INVERT to change polarity. */
 		NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC	// 100 KHz
 	};
 
+/* Values for setting a clock source with INSN_CONFIG_SET_CLOCK_SRC for
+ * 8254 counter subdevices on Amplicon DIO boards (amplc_dio200 driver). */
+	enum amplc_dio_clock_source {
+		AMPLC_DIO_CLK_CLKN,	/* per channel external clock
+					   input/output pin (pin is only an
+					   input when clock source set to this
+					   value, otherwise it is an output) */
+		AMPLC_DIO_CLK_10MHZ,	/* 10 MHz internal clock */
+		AMPLC_DIO_CLK_1MHZ,	/* 1 MHz internal clock */
+		AMPLC_DIO_CLK_100KHZ,	/* 100 kHz internal clock */
+		AMPLC_DIO_CLK_10KHZ,	/* 10 kHz internal clock */
+		AMPLC_DIO_CLK_1KHZ,	/* 1 kHz internal clock */
+		AMPLC_DIO_CLK_OUTNM1,	/* output of preceding counter channel
+					   (for channel 0, preceding counter
+					   channel is channel 2 on preceding 
+					   counter subdevice, for first counter
+					   subdevice, preceding counter
+					   subdevice is the last counter
+					   subdevice) */
+		AMPLC_DIO_CLK_EXT	/* per chip external input pin */
+	};
+
+/* Values for setting a gate source with INSN_CONFIG_SET_GATE_SRC for
+ * 8254 counter subdevices on Amplicon DIO boards (amplc_dio200 driver). */
+	enum amplc_dio_gate_source {
+		AMPLC_DIO_GAT_VCC,	/* internal high logic level */
+		AMPLC_DIO_GAT_GND,	/* internal low logic level */
+		AMPLC_DIO_GAT_GATN,	/* per channel external gate input */
+		AMPLC_DIO_GAT_NOUTNM2,	/* negated output of counter channel
+					   minus 2 (for channels 0 or 1,
+					   channel minus 2 is channel 1 or 2 on
+					   the preceding counter subdevice, for
+					   the first counter subdevice the
+					   preceding counter subdevice is the
+					   last counter subdevice) */
+		AMPLC_DIO_GAT_RESERVED4,
+		AMPLC_DIO_GAT_RESERVED5,
+		AMPLC_DIO_GAT_RESERVED6,
+		AMPLC_DIO_GAT_RESERVED7
+	};
+
 #ifdef __cplusplus
 }
 #endif
