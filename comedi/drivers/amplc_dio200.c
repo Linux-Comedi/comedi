@@ -728,6 +728,9 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 				} else {
 					/* Error!  Stop acquisition.  */
 					dio200_stop_intr(dev, s);
+					s->async->events |= COMEDI_CB_ERROR
+						| COMEDI_CB_OVERFLOW;
+					comedi_error(dev, "buffer overflow");
 				}
 
 				/* Check for end of acquisition. */
