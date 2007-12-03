@@ -25,8 +25,9 @@
 Driver: amplc_pci230
 Description: Amplicon PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>,
-  Steve D Sharples <steve.sharples@nottingham.ac.uk>
-Updated: Wed, 31 Oct 2007 12:58:49 +0000
+  Steve D Sharples <steve.sharples@nottingham.ac.uk>,
+  Ian Abbott <abbotti@mev.co.uk>
+Updated: Mon, 03 Dec 2007 17:11:47 +0000
 Devices: [Amplicon] PCI230 (pci230 or amplc_pci230), PCI230+ (pci230+),
   PCI260 (pci260 or amplc_pci230), PCI260+ (pci260+)
 Status: works
@@ -36,9 +37,154 @@ Configuration options:
   [1] - PCI slot of device (optional).
           If bus/slot is not specified, the first available PCI device
           will be used.
+
+Configuring a "amplc_pci230" will match any supported card and it will
+be treated as "pci230" or "pci260".  Configuring a "pci230" will match a
+PCI230 or PCI230+ card and it will be treated as a PCI230.  Configuring
+a "pci260" will match a PCI260 or PCI260+ card and it will be treated as
+a PCI260.  Configuring a "pci230+" will match a PCI230+ card.
+Configuring a "pci260+" will match a PCI260+ card.
+
+Subdevices:
+
+                PCI230(+)    PCI260(+)
+                ---------    ---------
+  Subdevices       3            1
+        0          AI           AI 
+	1          AO
+	2          DIO
+
+AI Subdevice:
+
+  The AI subdevice has 16 single-ended channels or 8 differential
+  channels.
+  
+  The PCI230 and PCI260 cards have 12-bit resolution.  The PCI230+ and
+  PCI260+ cards have 16-bit resolution.
+  
+  For differential mode, use inputs 2N and 2N+1 for channel N (e.g. use
+  inputs 14 and 15 for channel 7).  If the card is physically a PCI230
+  or PCI260 then it actually uses a "pseudo-differential" mode where the
+  inputs are sampled a few microseconds apart.  The PCI230+ and PCI260+
+  use true differential sampling.  Another difference is that if the
+  card is physically a PCI230 or PCI260, the inverting input is 2N,
+  whereas for a PCI230+ or PCI260+ the inverting input is 2N+1.  So if a
+  PCI230 is physically replaced by a PCI230+ (or a PCI260 with a
+  PCI260+) and differential mode is used, the differential inputs need
+  to be physically swapped on the connector.
+
+  The following input ranges are supported:
+
+    0 => [-10, +10] V
+    1 => [-5, +5] V
+    2 => [-2.5, +2.5] V
+    3 => [-1.25, +1.25] V
+    4 => [0, 10] V
+    5 => [0, 5] V
+    6 => [0, 2.5] V
+
+AI Commands:
+
+  +=========+==============+===========+============+==========+
+  |start_src|scan_begin_src|convert_src|scan_end_src| stop_src |
+  +=========+==============+===========+============+==========+
+  |TRIG_NOW | TRIG_FOLLOW  |TRIG_TIMER | TRIG_COUNT |TRIG_NONE |
+  |TRIG_INT |              |TRIG_EXT(3)|            |TRIG_COUNT|
+  |         |              |TRIG_INT   |            |          |
+  |         |--------------|-----------|            |          |
+  |         | TRIG_TIMER(1)|TRIG_TIMER |            |          |
+  |         | TRIG_EXT(2)  |           |            |          |
+  |         | TRIG_INT     |           |            |          |
+  +---------+--------------+-----------+------------+----------+
+
+  Note 1: If AI command and AO command are used simultaneously, only
+          one may have scan_begin_src == TRIG_TIMER.
+
+  Note 2: For PCI230 and PCI230+, scan_begin_src == TRIG_EXT uses
+          DIO channel 16 (pin 49) which will need to be configured as
+          a digital input.  For PCI260+, the EXTTRIG/EXTCONVCLK input
+          (pin 17) is used instead.  For PCI230, scan_begin_src ==
+          TRIG_EXT is not supported.  The trigger is a rising edge
+          on the input.
+
+  Note 3: For convert_src == TRIG_EXT, the EXTTRIG/EXTCONVCLK input
+          (pin 25 on PCI230(+), pin 17 on PCI260(+)) is used.  The
+          convert_arg value is interpreted as follows:
+
+            convert_arg == (CR_EDGE | 0) => rising edge
+            convert_arg == (CR_EDGE | CR_INVERT | 0) => falling edge
+            convert_arg == 0 => falling edge (backwards compatibility)
+            convert_arg == 1 => rising edge (backwards compatibility)
+
+  All entries in the channel list must use the same analogue reference.
+  If the analogue reference is not AREF_DIFF (not differential) each
+  pair of channel numbers (0 and 1, 2 and 3, etc.) must use the same
+  input range.  The input ranges used in the sequence must be all
+  bipolar (ranges 0 to 3) or all unipolar (ranges 4 to 6).  The channel
+  sequence must consist of 1 or more identical subsequences.  Within the
+  subsequence, channels must be in ascending order with no repeated
+  channels.  For example, the following sequences are valid: 0 1 2 3
+  (single valid subsequence), 0 2 3 5 0 2 3 5 (repeated valid
+  subsequence), 1 1 1 1 (repeated valid subsequence).  The following
+  sequences are invalid: 0 3 2 1 (invalid subsequence), 0 2 3 5 0 2 3
+  (incompletely repeated subsequence).  Some versions of the PCI230+ and
+  PCI260+ have a bug that requires a subsequence longer than one entry
+  long to include channel 0.
+
+AO Subdevice:
+
+  The AO subdevice has 2 channels with 12-bit resolution.
+
+  The following output ranges are supported:
+
+    0 => [0, 10] V
+    1 => [-10, +10] V
+
+AO Commands:
+
+  +=========+==============+===========+============+==========+
+  |start_src|scan_begin_src|convert_src|scan_end_src| stop_src |
+  +=========+==============+===========+============+==========+
+  |TRIG_INT | TRIG_TIMER(1)| TRIG_NOW  | TRIG_COUNT |TRIG_NONE |
+  |         | TRIG_EXT(2)  |           |            |TRIG_COUNT|
+  |         | TRIG_INT     |           |            |          |
+  +---------+--------------+-----------+------------+----------+
+
+  Note 1: If AI command and AO command are used simultaneously, only
+          one may have scan_begin_src == TRIG_TIMER.
+
+  Note 2: scan_begin_src == TRIG_EXT is only supported if the card is
+          configured as a PCI230+ and is only supported on later
+          versions of the card.  As a card configured as a PCI230+ is
+          not guaranteed to support external triggering, please consider
+          this support to be a bonus.  It uses the EXTTRIG/ EXTCONVCLK
+          input (PCI230+ pin 25).  Triggering will be on the rising edge
+          unless the CR_INVERT flag is set in scan_begin_arg.
+
+  The channels in the channel sequence must be in ascending order with
+  no repeats.  All entries in the channel sequence must use the same
+  output range.
+
+DIO Subdevice:
+
+  The DIO subdevice is a 8255 chip providing 24 DIO channels.  The DIO
+  channels are configurable as inputs or outputs in four groups:
+
+    Port A  - channels  0 to  7
+    Port B  - channels  8 to 15
+    Port CL - channels 16 to 19
+    Port CH - channels 20 to 23
+
+  Only mode 0 of the 8255 chip is supported.
+
+  Bit 0 of port C (DIO channel 16) is also used as an external scan
+  trigger input for AI commands on PCI230 and PCI230+, so would need to
+  be configured as an input to use it for that purpose.
 */
 /*
-extra triggered scan functionality, interrupt bug-fix added by Steve Sharples
+Extra triggered scan functionality, interrupt bug-fix added by Steve Sharples.
+Support for PCI230+/260+, more triggered scan functionality, and workarounds
+for (or detection of) various hardware problems added by Ian Abbott.
 */
 #include <linux/comedidev.h>
 
