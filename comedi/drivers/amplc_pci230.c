@@ -1275,6 +1275,7 @@ static int pci230_ao_inttrig_scan_begin(comedi_device * dev,
 			comedi_spin_unlock_irqrestore(&devpriv->
 				ao_stop_spinlock, irqflags);
 			pci230_handle_ao_nofifo(dev, s);
+			comedi_event(dev, s);
 		} else {
 			/* Using DAC FIFO. */
 			/* Read DACSWTRIG register to trigger conversion. */
