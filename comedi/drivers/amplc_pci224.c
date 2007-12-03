@@ -268,6 +268,9 @@ Caveats:
 /* Current CPU.  XXX should this be hard_smp_processor_id()? */
 #define THISCPU		smp_processor_id()
 
+/* State bits for use with atomic bit operations. */
+#define AO_CMD_STARTED	0
+
 /*
  * Range tables.
  */
@@ -389,13 +392,13 @@ typedef struct {
 	struct pci_dev *pci_dev;	/* PCI device */
 	const unsigned short *hwrange;
 	unsigned long iobase1;
+	unsigned long state;
 	spinlock_t ao_spinlock;
 	lsampl_t *ao_readback;
 	sampl_t *ao_scan_vals;
 	unsigned char *ao_scan_order;
 	int intr_cpuid;
 	short intr_running;
-	short ao_cmd_running;
 	unsigned short daccon;
 	unsigned int cached_div1;
 	unsigned int cached_div2;
@@ -467,7 +470,6 @@ static int
 pci224_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	int retval;
 	int i;
 	int chan, range;
 
@@ -475,17 +477,12 @@ pci224_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	chan = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
 
-	if (devpriv->ao_cmd_running) {
-		retval = -EBUSY;
-	} else {
-		/* Writing a list of values to an AO channel is probably not
-		 * very useful, but that's how the interface is defined. */
-		for (i = 0; i < insn->n; i++) {
-			pci224_ao_set_data(dev, chan, range, data[i]);
-		}
-		retval = i;
+	/* Writing a list of values to an AO channel is probably not
+	 * very useful, but that's how the interface is defined. */
+	for (i = 0; i < insn->n; i++) {
+		pci224_ao_set_data(dev, chan, range, data[i]);
 	}
-	return retval;
+	return i;
 }
 
 /*
@@ -529,9 +526,11 @@ static void pci224_ao_stop(comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned long flags;
 
+	if (!test_and_clear_bit(AO_CMD_STARTED, &devpriv->state)) {
+		return;
+	}
+
 	comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
-	/* Turn off the internal trigger. */
-	s->async->inttrig = NULLFUNC;
 	/* Kill the interrupts. */
 	devpriv->intsce = 0;
 	outb(0, devpriv->iobase1 + PCI224_INT_SCE);
@@ -558,8 +557,6 @@ static void pci224_ao_stop(comedi_device * dev, comedi_subdevice * s)
 		PCI224_DACCON_TRIG_MASK | PCI224_DACCON_FIFOINTR_MASK);
 	outw(devpriv->daccon | PCI224_DACCON_FIFORESET,
 		dev->iobase + PCI224_DACCON);
-	/* No longer running AO command. */
-	devpriv->ao_cmd_running = 0;
 }
 
 /*
@@ -570,6 +567,7 @@ static void pci224_ao_start(comedi_device * dev, comedi_subdevice * s)
 	comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
 
+	set_bit(AO_CMD_STARTED, &devpriv->state);
 	if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
 		/* An empty acquisition! */
 		pci224_ao_stop(dev, s);
@@ -620,10 +618,13 @@ static void pci224_ao_handle_fifo(comedi_device * dev, comedi_subdevice * s)
 	switch (dacstat & PCI224_DACCON_FIFOFL_MASK) {
 	case PCI224_DACCON_FIFOFL_EMPTY:
 		room = PCI224_FIFO_ROOM_EMPTY;
-		if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
+		if (!devpriv->ao_stop_continuous
+			&& devpriv->ao_stop_count == 0) {
 			/* FIFO empty at end of counted acquisition. */
 			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_EOA;
+			comedi_event(dev, s);
+			return;
 		}
 		break;
 	case PCI224_DACCON_FIFOFL_ONETOHALF:
@@ -636,79 +637,77 @@ static void pci224_ao_handle_fifo(comedi_device * dev, comedi_subdevice * s)
 		room = PCI224_FIFO_ROOM_FULL;
 		break;
 	}
-	if (devpriv->ao_cmd_running) {
-		if (room >= PCI224_FIFO_ROOM_ONETOHALF) {
-			/* FIFO is less than half-full. */
-			if (num_scans == 0) {
-				/* Nothing left to put in the FIFO. */
-				pci224_ao_stop(dev, s);
-				s->async->events |= COMEDI_CB_OVERFLOW;
-				rt_printk(KERN_ERR "comedi%d: "
-					"AO buffer underrun\n", dev->minor);
-			}
+	if (room >= PCI224_FIFO_ROOM_ONETOHALF) {
+		/* FIFO is less than half-full. */
+		if (num_scans == 0) {
+			/* Nothing left to put in the FIFO. */
+			pci224_ao_stop(dev, s);
+			s->async->events |= COMEDI_CB_OVERFLOW;
+			rt_printk(KERN_ERR "comedi%d: "
+				"AO buffer underrun\n", dev->minor);
 		}
-		/* Determine how many new scans can be put in the FIFO. */
-		if (cmd->chanlist_len) {
-			room /= cmd->chanlist_len;
+	}
+	/* Determine how many new scans can be put in the FIFO. */
+	if (cmd->chanlist_len) {
+		room /= cmd->chanlist_len;
+	}
+	/* Determine how many scans to process. */
+	if (num_scans > room) {
+		num_scans = room;
+	}
+	/* Process scans. */
+	for (n = 0; n < num_scans; n++) {
+		cfc_read_array_from_buffer(s, &devpriv->ao_scan_vals[0],
+			bytes_per_scan);
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			outw(devpriv->ao_scan_vals[devpriv->
+					ao_scan_order[i]],
+				dev->iobase + PCI224_DACDATA);
 		}
-		/* Determine how many scans to process. */
-		if (num_scans > room) {
-			num_scans = room;
-		}
-		/* Process scans. */
-		for (n = 0; n < num_scans; n++) {
-			cfc_read_array_from_buffer(s, &devpriv->ao_scan_vals[0],
-				bytes_per_scan);
-			for (i = 0; i < cmd->chanlist_len; i++) {
-				outw(devpriv->ao_scan_vals[devpriv->
-						ao_scan_order[i]],
-					dev->iobase + PCI224_DACDATA);
-			}
-		}
-		if (!devpriv->ao_stop_continuous) {
-			devpriv->ao_stop_count -= num_scans;
-			if (devpriv->ao_stop_count == 0) {
-				/*
-				 * Change FIFO interrupt trigger level to wait
-				 * until FIFO is empty.
-				 */
-				devpriv->daccon = COMBINE(devpriv->daccon,
-					PCI224_DACCON_FIFOINTR_EMPTY,
-					PCI224_DACCON_FIFOINTR_MASK);
-				outw(devpriv->daccon,
-					dev->iobase + PCI224_DACCON);
-			}
-		}
-		if ((devpriv->daccon & PCI224_DACCON_TRIG_MASK) ==
-			PCI224_DACCON_TRIG_NONE) {
-			unsigned short trig;
-
+	}
+	if (!devpriv->ao_stop_continuous) {
+		devpriv->ao_stop_count -= num_scans;
+		if (devpriv->ao_stop_count == 0) {
 			/*
-			 * This is the initial DAC FIFO interrupt at the
-			 * start of the acquisition.  The DAC's scan trigger
-			 * has been set to 'none' up until now.
-			 *
-			 * Now that data has been written to the FIFO, the
-			 * DAC's scan trigger source can be set to the
-			 * correct value.
-			 *
-			 * BUG: The first scan will be triggered immediately
-			 * if the scan trigger source is at logic level 1.
+			 * Change FIFO interrupt trigger level to wait
+			 * until FIFO is empty.
 			 */
-			if (cmd->scan_begin_src == TRIG_TIMER) {
-				trig = PCI224_DACCON_TRIG_Z2CT0;
-			} else {
-				/* cmd->scan_begin_src == TRIG_EXT */
-				if (cmd->scan_begin_arg & CR_INVERT) {
-					trig = PCI224_DACCON_TRIG_EXTN;
-				} else {
-					trig = PCI224_DACCON_TRIG_EXTP;
-				}
-			}
-			devpriv->daccon = COMBINE(devpriv->daccon, trig,
-				PCI224_DACCON_TRIG_MASK);
-			outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
+			devpriv->daccon = COMBINE(devpriv->daccon,
+				PCI224_DACCON_FIFOINTR_EMPTY,
+				PCI224_DACCON_FIFOINTR_MASK);
+			outw(devpriv->daccon,
+				dev->iobase + PCI224_DACCON);
 		}
+	}
+	if ((devpriv->daccon & PCI224_DACCON_TRIG_MASK) ==
+		PCI224_DACCON_TRIG_NONE) {
+		unsigned short trig;
+
+		/*
+		 * This is the initial DAC FIFO interrupt at the
+		 * start of the acquisition.  The DAC's scan trigger
+		 * has been set to 'none' up until now.
+		 *
+		 * Now that data has been written to the FIFO, the
+		 * DAC's scan trigger source can be set to the
+		 * correct value.
+		 *
+		 * BUG: The first scan will be triggered immediately
+		 * if the scan trigger source is at logic level 1.
+		 */
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			trig = PCI224_DACCON_TRIG_Z2CT0;
+		} else {
+			/* cmd->scan_begin_src == TRIG_EXT */
+			if (cmd->scan_begin_arg & CR_INVERT) {
+				trig = PCI224_DACCON_TRIG_EXTN;
+			} else {
+				trig = PCI224_DACCON_TRIG_EXTP;
+			}
+		}
+		devpriv->daccon = COMBINE(devpriv->daccon, trig,
+			PCI224_DACCON_TRIG_MASK);
+		outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
 	}
 	if (s->async->events) {
 		comedi_event(dev, s);
@@ -722,21 +721,11 @@ static int
 pci224_ao_inttrig_start(comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
-	unsigned long flags;
-
 	if (trignum != 0)
 		return -EINVAL;
 
-	comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
-	if (s->async->inttrig) {
-		s->async->inttrig = NULLFUNC;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		if (devpriv->ao_cmd_running) {
-			pci224_ao_start(dev, s);
-		}
-	} else {
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-	}
+	s->async->inttrig = NULLFUNC;
+	pci224_ao_start(dev, s);
 
 	return 1;
 }
@@ -1030,8 +1019,6 @@ static int pci224_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		return -EINVAL;
 	}
 
-	devpriv->ao_cmd_running = 1;
-
 	/* Determine which channels are enabled and their load order.  */
 	devpriv->ao_enab = 0;
 
@@ -1177,9 +1164,7 @@ static int pci224_ao_cmd(comedi_device * dev, comedi_subdevice * s)
  */
 static int pci224_ao_cancel(comedi_device * dev, comedi_subdevice * s)
 {
-	if (devpriv->ao_cmd_running) {
-		pci224_ao_stop(dev, s);
-	}
+	pci224_ao_stop(dev, s);
 	return 0;
 }
 
@@ -1238,7 +1223,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
 		devpriv->intr_running = 1;
 		devpriv->intr_cpuid = THISCPU;
 		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		if (s->async && devpriv->ao_cmd_running) {
+		if (valid_intstat != 0) {
 			cmd = &s->async->cmd;
 			if (valid_intstat & PCI224_INTR_EXT) {
 				devpriv->intsce &= ~PCI224_INTR_EXT;
