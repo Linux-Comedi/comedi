@@ -573,7 +573,6 @@ static void dio200_stop_intr(comedi_device * dev, comedi_subdevice * s)
 {
 	dio200_subdev_intr *subpriv = s->private;
 
-	s->async->inttrig = 0;
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
 	if (subpriv->has_int_sce) {
