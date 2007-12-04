@@ -9,7 +9,11 @@
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
 
-static inline void *kzalloc(size_t size, unsigned int flags)
+/* Some RHEL4 2.6.9 kernels have kzalloc.  Redefine to avoid warnings
+   about static declaration following non-static declaration. */
+#undef kzalloc
+#define kzalloc comedi_kzalloc
+static inline void *comedi_kzalloc(size_t size, unsigned int flags)
 {
 	void *ret = kmalloc(size, flags);
 	if (ret)
@@ -17,7 +21,11 @@ static inline void *kzalloc(size_t size, unsigned int flags)
 	return ret;
 }
 
-static inline void *kcalloc(size_t n, size_t size, unsigned int flags)
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
+
+static inline void *kcalloc(size_t n, size_t size, int flags)
 {
 	if (n != 0 && size > INT_MAX / n)
 		return NULL;
@@ -27,3 +35,4 @@ static inline void *kcalloc(size_t n, size_t size, unsigned int flags)
 #endif
 
 #endif
+
