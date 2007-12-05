@@ -61,7 +61,6 @@ EXPORT_SYMBOL(comedi_debug);
 
 /* for kcomedilib */
 EXPORT_SYMBOL(comedi_devices);
-EXPORT_SYMBOL(big_comedi_lock);
 EXPORT_SYMBOL(check_chanlist);
 
 EXPORT_SYMBOL(comedi_buf_put);

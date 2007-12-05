@@ -106,7 +106,7 @@ struct comedi_subdevice_struct {
 	void *lock;
 	void *busy;
 	unsigned runflags;
-	spinlock_t runflags_lock;
+	spinlock_t spin_lock;
 
 	int io_bits;
 
@@ -256,7 +256,6 @@ struct comedi_inode_private {
 };
 
 extern comedi_device *comedi_devices;
-extern spinlock_t big_comedi_lock;
 
 #ifdef CONFIG_COMEDI_DEBUG
 extern int comedi_debug;
@@ -440,7 +439,7 @@ static inline int alloc_subdevices(comedi_device * dev,
 	for (i = 0; i < num_subdevices; ++i) {
 		dev->subdevices[i].device = dev;
 		dev->subdevices[i].async_dma_dir = DMA_NONE;
-		spin_lock_init(&dev->subdevices[i].runflags_lock);
+		spin_lock_init(&dev->subdevices[i].spin_lock);
 	}
 	return 0;
 }

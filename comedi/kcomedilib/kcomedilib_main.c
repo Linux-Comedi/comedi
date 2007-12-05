@@ -312,7 +312,7 @@ int comedi_lock(comedi_t * d, unsigned int subdevice)
 	unsigned long flags;
 	int ret = 0;
 
-	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 
 	if (s->busy) {
 		ret = -EBUSY;
@@ -324,7 +324,7 @@ int comedi_lock(comedi_t * d, unsigned int subdevice)
 		}
 	}
 
-	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 
 	return ret;
 }
@@ -349,32 +349,31 @@ int comedi_unlock(comedi_t * d, unsigned int subdevice)
 	comedi_subdevice *s = dev->subdevices + subdevice;
 	unsigned long flags;
 	comedi_async *async;
+	int ret;
 
 	async = s->async;
 
-	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 
 	if (s->busy) {
-		comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
-		return -EBUSY;
+		ret = -EBUSY;
+	} else if (s->lock && s->lock != (void *)d) {
+		ret = -EACCES;
+	} else {
+		s->lock = NULL;
+
+		if (async) {
+			async->cb_mask = 0;
+			async->cb_func = NULL;
+			async->cb_arg = NULL;
+		}
+
+		ret = 0;
 	}
 
-	if (s->lock && s->lock != (void *)d) {
-		comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
-		return -EACCES;
-	}
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 
-	s->lock = NULL;
-
-	if (async) {
-		async->cb_mask = 0;
-		async->cb_func = NULL;
-		async->cb_arg = NULL;
-	}
-
-	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
-
-	return 0;
+	return ret;
 }
 
 /*

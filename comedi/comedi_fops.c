@@ -60,7 +60,6 @@ module_param(comedi_debug, int, 0644);
 #endif
 
 comedi_device *comedi_devices;
-spinlock_t big_comedi_lock;	/* Dynamic initialization */
 
 static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg);
 static int do_bufconfig_ioctl(comedi_device * dev, void *arg);
@@ -1159,17 +1158,13 @@ static int do_lock_ioctl(comedi_device * dev, unsigned int arg, void *file)
 		return -EINVAL;
 	s = dev->subdevices + arg;
 
-	comedi_spin_lock_irqsave(&big_comedi_lock, flags);
-	if (s->busy) {
-		comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
-		return -EBUSY;
-	}
-	if (s->lock) {
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
+	if (s->busy || s->lock) {
 		ret = -EBUSY;
 	} else {
 		s->lock = file;
 	}
-	comedi_spin_unlock_irqrestore(&big_comedi_lock, flags);
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 
 	if (ret < 0)
 		return ret;
@@ -1753,7 +1748,6 @@ static int __init comedi_init(void)
 
 	printk("comedi: version " COMEDI_RELEASE
 		" - David Schleef <ds@schleef.org>\n");
-	spin_lock_init(&big_comedi_lock);
 	retval = register_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 		COMEDI_NUM_MINORS, "comedi");
 	if (retval)
@@ -1912,10 +1906,10 @@ void comedi_set_subdevice_runflags(comedi_subdevice * s, unsigned mask,
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&s->runflags_lock, flags);
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 	s->runflags &= ~mask;
 	s->runflags |= (bits & mask);
-	comedi_spin_unlock_irqrestore(&s->runflags_lock, flags);
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 }
 
 unsigned comedi_get_subdevice_runflags(comedi_subdevice * s)
@@ -1923,8 +1917,8 @@ unsigned comedi_get_subdevice_runflags(comedi_subdevice * s)
 	unsigned long flags;
 	unsigned runflags;
 
-	comedi_spin_lock_irqsave(&s->runflags_lock, flags);
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 	runflags = s->runflags;
-	comedi_spin_unlock_irqrestore(&s->runflags_lock, flags);
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 	return runflags;
 }
