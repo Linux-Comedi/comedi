@@ -76,7 +76,7 @@ extern int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1,
 #define comedi_free_irq(a,b) free_irq(a,b)
 #define comedi_rt_init() do{}while(0)
 #define comedi_rt_cleanup() do{}while(0)
-#define comedi_switch_to_rt(a) do{}while(0)
+#define comedi_switch_to_rt(a) (-1)
 #define comedi_switch_to_non_rt(a) do{}while(0)
 #define comedi_rt_pend_wakeup(a) do{}while(0)
 
