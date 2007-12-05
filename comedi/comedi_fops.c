@@ -1459,10 +1459,6 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 			n = m;
 
 		if (n == 0) {
-			if (file->f_flags & O_NONBLOCK) {
-				retval = -EAGAIN;
-				break;
-			}
 			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
 				if (comedi_get_subdevice_runflags(s) &
 					SRF_ERROR) {
@@ -1471,6 +1467,10 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 					retval = 0;
 				}
 				do_become_nonbusy(dev, s);
+				break;
+			}
+			if (file->f_flags & O_NONBLOCK) {
+				retval = -EAGAIN;
 				break;
 			}
 			if (signal_pending(current)) {
@@ -1545,10 +1545,6 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 			n = m;
 
 		if (n == 0) {
-			if (file->f_flags & O_NONBLOCK) {
-				retval = -EAGAIN;
-				break;
-			}
 			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
 				do_become_nonbusy(dev, s);
 				if (comedi_get_subdevice_runflags(s) &
@@ -1557,6 +1553,10 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 				} else {
 					retval = 0;
 				}
+				break;
+			}
+			if (file->f_flags & O_NONBLOCK) {
+				retval = -EAGAIN;
 				break;
 			}
 			if (signal_pending(current)) {
