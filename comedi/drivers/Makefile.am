@@ -36,6 +36,10 @@ EXTRA_DIST = \
  Kbuild \
  8253.h \
  8255.h \
+ addi_apci_all.c \
+ addi_apci_1710.c \
+ addi_apci_3200.c \
+ addi_apci_3300.c \
  am9513.h \
  amcc_s5933.h \
  comedi_fc.h \
@@ -100,17 +104,13 @@ module_PROGRAMS = \
  addi_apci_1516.ko \
  addi_apci_1564.ko \
  addi_apci_16xx.ko \
- addi_apci_1710.ko \
  addi_apci_2016.ko \
  addi_apci_2032.ko \
  addi_apci_2200.ko \
  addi_apci_3001.ko \
  addi_apci_3120.ko \
- addi_apci_3200.ko \
- addi_apci_3300.ko \
  addi_apci_3501.ko \
  addi_apci_3xxx.ko \
- addi_apci_all.ko \
  adl_pci6208.ko \
  adl_pci7296.ko \
  adl_pci7432.ko \
@@ -204,21 +204,21 @@ endif !CONFIG_KBUILD
 
 8255_ko_SOURCES = 8255.c
 acl7225b_ko_SOURCES = acl7225b.c
-addi_apci_all_ko_SOURCES = addi_apci_all.c
+#addi_apci_all_ko_SOURCES = addi_apci_all.c
 addi_apci_035_ko_SOURCES = addi_apci_035.c
 addi_apci_1032_ko_SOURCES = addi_apci_1032.c
 addi_apci_1500_ko_SOURCES = addi_apci_1500.c
 addi_apci_1516_ko_SOURCES = addi_apci_1516.c
 addi_apci_1564_ko_SOURCES = addi_apci_1564.c
 addi_apci_16xx_ko_SOURCES = addi_apci_16xx.c
-addi_apci_1710_ko_SOURCES = addi_apci_1710.c
+#addi_apci_1710_ko_SOURCES = addi_apci_1710.c
 addi_apci_2016_ko_SOURCES = addi_apci_2016.c
 addi_apci_2032_ko_SOURCES = addi_apci_2032.c
 addi_apci_2200_ko_SOURCES = addi_apci_2200.c
 addi_apci_3001_ko_SOURCES = addi_apci_3001.c
 addi_apci_3120_ko_SOURCES = addi_apci_3120.c
-addi_apci_3200_ko_SOURCES = addi_apci_3200.c
-addi_apci_3300_ko_SOURCES = addi_apci_3300.c
+#addi_apci_3200_ko_SOURCES = addi_apci_3200.c
+#addi_apci_3300_ko_SOURCES = addi_apci_3300.c
 addi_apci_3501_ko_SOURCES = addi_apci_3501.c
 addi_apci_3xxx_ko_SOURCES = addi_apci_3xxx.c
 adl_pci6208_ko_SOURCES = adl_pci6208.c
