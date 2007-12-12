@@ -83,55 +83,84 @@ static int do_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static int comedi_fasync(int fd, struct file *file, int on);
 
+#ifdef HAVE_UNLOCKED_IOCTL
+static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
+#else
 static int comedi_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
+#endif
 {
-	const unsigned minor = iminor(inode);
+	const unsigned minor = iminor(file->f_dentry->d_inode);
 	comedi_device *dev = comedi_get_device_by_minor(minor);
+	int rc;
+
+	mutex_lock(&dev->mutex);
 
 	/* Device config is special, because it must work on
 	 * an unconfigured device. */
 	if (cmd == COMEDI_DEVCONFIG) {
-		return do_devconfig_ioctl(dev, (void *)arg);
+		rc = do_devconfig_ioctl(dev, (void *)arg);
+		goto done;
 	}
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on /dev/comedi%i\n", dev->minor);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto done;
 	}
 
 	switch (cmd) {
 	case COMEDI_BUFCONFIG:
-		return do_bufconfig_ioctl(dev, (void *)arg);
+		rc = do_bufconfig_ioctl(dev, (void *)arg);
+		break;
 	case COMEDI_DEVINFO:
-		return do_devinfo_ioctl(dev, (void *)arg, file);
+		rc = do_devinfo_ioctl(dev, (void *)arg, file);
+		break;
 	case COMEDI_SUBDINFO:
-		return do_subdinfo_ioctl(dev, (void *)arg, file);
+		rc = do_subdinfo_ioctl(dev, (void *)arg, file);
+		break;
 	case COMEDI_CHANINFO:
-		return do_chaninfo_ioctl(dev, (void *)arg);
+		rc = do_chaninfo_ioctl(dev, (void *)arg);
+		break;
 	case COMEDI_RANGEINFO:
-		return do_rangeinfo_ioctl(dev, (void *)arg);
+		rc = do_rangeinfo_ioctl(dev, (void *)arg);
+		break;
 	case COMEDI_BUFINFO:
-		return do_bufinfo_ioctl(dev, (void *)arg);
+		rc = do_bufinfo_ioctl(dev, (void *)arg);
+		break;
 	case COMEDI_LOCK:
-		return do_lock_ioctl(dev, arg, file);
+		rc = do_lock_ioctl(dev, arg, file);
+		break;
 	case COMEDI_UNLOCK:
-		return do_unlock_ioctl(dev, arg, file);
+		rc = do_unlock_ioctl(dev, arg, file);
+		break;
 	case COMEDI_CANCEL:
-		return do_cancel_ioctl(dev, arg, file);
+		rc = do_cancel_ioctl(dev, arg, file);
+		break;
 	case COMEDI_CMD:
-		return do_cmd_ioctl(dev, (void *)arg, file);
+		rc = do_cmd_ioctl(dev, (void *)arg, file);
+		break;
 	case COMEDI_CMDTEST:
-		return do_cmdtest_ioctl(dev, (void *)arg, file);
+		rc = do_cmdtest_ioctl(dev, (void *)arg, file);
+		break;
 	case COMEDI_INSNLIST:
-		return do_insnlist_ioctl(dev, (void *)arg, file);
+		rc = do_insnlist_ioctl(dev, (void *)arg, file);
+		break;
 	case COMEDI_INSN:
-		return do_insn_ioctl(dev, (void *)arg, file);
+		rc = do_insn_ioctl(dev, (void *)arg, file);
+		break;
 	case COMEDI_POLL:
-		return do_poll_ioctl(dev, arg, file);
+		rc = do_poll_ioctl(dev, arg, file);
+		break;
 	default:
-		return -ENOTTY;
+		rc = -ENOTTY;
+		break;
 	}
+
+done:
+	mutex_unlock(&dev->mutex);
+	return rc;
 }
 
 /*
@@ -1639,10 +1668,12 @@ static int comedi_open(struct inode *inode, struct file *file)
 	 * The last could be changed to "-> ok", which would deny root
 	 * autoloading.
 	 */
+	mutex_lock(&dev->mutex);
 	if (dev->attached)
 		goto ok;
 	if (!capable(CAP_SYS_MODULE) && dev->in_request_module) {
 		DPRINTK("in request module\n");
+		mutex_unlock(&dev->mutex);
 		return -ENODEV;
 	}
 	if (capable(CAP_SYS_MODULE) && dev->in_request_module)
@@ -1652,21 +1683,30 @@ static int comedi_open(struct inode *inode, struct file *file)
 
 	sprintf(mod, "char-major-%i-%i", COMEDI_MAJOR, dev->minor);
 #ifdef CONFIG_KMOD
+	mutex_unlock(&dev->mutex);
 	request_module(mod);
+	mutex_lock(&dev->mutex);
 #endif
 
 	dev->in_request_module = 0;
 
 	if (!dev->attached && !capable(CAP_SYS_MODULE)) {
 		DPRINTK("not attached and not CAP_SYS_MODULE\n");
+		mutex_unlock(&dev->mutex);
 		return -ENODEV;
 	}
       ok:
-	if (!try_module_get(THIS_MODULE))
+	if (!try_module_get(THIS_MODULE)) {
+		mutex_unlock(&dev->mutex);
 		return -ENOSYS;
+	}
 
 	if (dev->attached) {
-		try_module_get(dev->driver->module);
+		if (!try_module_get(dev->driver->module)) {
+			module_put(THIS_MODULE);
+			mutex_unlock(&dev->mutex);
+			return -ENOSYS;
+		}
 	}
 
 	if (dev->attached && dev->use_count == 0 && dev->open) {
@@ -1674,6 +1714,8 @@ static int comedi_open(struct inode *inode, struct file *file)
 	}
 
 	dev->use_count++;
+
+	mutex_unlock(&dev->mutex);
 
 	return 0;
 }
@@ -1684,6 +1726,8 @@ static int comedi_close(struct inode *inode, struct file *file)
 	comedi_device *dev = comedi_get_device_by_minor(minor);
 	comedi_subdevice *s = NULL;
 	int i;
+
+	mutex_lock(&dev->mutex);
 
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
@@ -1708,6 +1752,8 @@ static int comedi_close(struct inode *inode, struct file *file)
 
 	dev->use_count--;
 
+	mutex_unlock(&dev->mutex);
+
 	if (file->f_flags & FASYNC) {
 		comedi_fasync(-1, file, 0);
 	}
@@ -1725,7 +1771,11 @@ static int comedi_fasync(int fd, struct file *file, int on)
 
 const struct file_operations comedi_fops = {
       owner:THIS_MODULE,
+#ifdef HAVE_UNLOCKED_IOCTL
+      unlocked_ioctl:comedi_unlocked_ioctl,
+#else
       ioctl:comedi_ioctl,
+#endif
 #ifdef HAVE_COMPAT_IOCTL
       compat_ioctl:comedi_compat_ioctl,
 #endif
@@ -1789,6 +1839,7 @@ static int __init comedi_init(void)
 			COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
 			MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 		spin_lock_init(&comedi_devices[i].spinlock);
+		mutex_init(&comedi_devices[i].mutex);
 	}
 
 	comedi_rt_init();
@@ -1809,14 +1860,12 @@ static void __exit comedi_cleanup(void)
 		comedi_device *dev;
 
 		dev = comedi_devices + i;
+		mutex_lock(&dev->mutex);
 		if (dev->attached)
 			comedi_device_detach(dev);
-	}
-
-	for (i = 0; i < COMEDI_NDEVICES; i++) {
-		char name[20];
+		mutex_unlock(&dev->mutex);
+		mutex_destroy(&dev->mutex);
 		class_device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, i));
-		sprintf(name, "comedi%d", i);
 	}
 	class_destroy(comedi_class);
 	cdev_del(&comedi_cdev);

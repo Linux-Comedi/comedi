@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -232,6 +233,7 @@ struct comedi_device_struct {
 	int attached;
 	int rt;
 	spinlock_t spinlock;
+	struct mutex mutex;
 	int in_request_module;
 
 	int n_subdevices;

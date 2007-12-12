@@ -206,11 +206,13 @@ int comedi_driver_unregister(comedi_driver * driver)
 		comedi_device *dev;
 
 		dev = comedi_devices + i;
+		mutex_lock(&dev->mutex);
 		if (dev->attached && dev->driver == driver) {
 			if (dev->use_count)
 				printk("BUG! detaching device with use_count=%d\n", dev->use_count);
 			comedi_device_detach(dev);
 		}
+		mutex_unlock(&dev->mutex);
 	}
 
 	if (comedi_drivers == driver) {
