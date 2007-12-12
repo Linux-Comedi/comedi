@@ -30,22 +30,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define COMEDI_SUBD_PULSEENCODER        16	/* Pulse Encoder INP CPT */
 #define COMEDI_SUBD_INCREMENTALCOUNTER  17	/* Incremental Counter */
 
-#define INT           int
-#define UINT          unsigned int
-#define BYTE          unsigned char
-#define CHAR          char
-#define LONG          long
-#define ULONG         unsigned long
-#define VOID          void
-#define PINT          int *
-#define PUINT         unsigned int *
-#define PBYTE         unsigned char *
-#define PCHAR         char *
-#define PLONG         long *
-#define PULONG        unsigned long *
-#define DWORD         unsigned long
-#define WORD          unsigned short
-
 #define      APCI1710_BOARD_NAME			  "apci1710"
 #define      APCI1710_BOARD_VENDOR_ID	  0x10E8
 #define      APCI1710_BOARD_DEVICE_ID	  0x818F
