@@ -33,6 +33,10 @@
 
 #ifdef CONFIG_COMPAT
 
+#ifndef HAVE_COMPAT_IOCTL
+#include <linux/ioctl32.h>	/* for (un)register_ioctl32_conversion */
+#endif
+
 #define COMEDI32_CHANINFO _IOR(CIO,3,comedi32_chaninfo)
 #define COMEDI32_RANGEINFO _IOR(CIO,8,comedi32_rangeinfo)
 /* N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
