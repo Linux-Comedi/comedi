@@ -64,29 +64,26 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 // variable type definition
 
-#define VOID void
-#define UINT unsigned int
-#define ULONG unsigned int	/* 32-bit */
-#define USHORT unsigned short
-#define PUSHORT unsigned short *
-#define INT int
-#define BYTE unsigned char
-#define PBYTE unsigned char *
-#define PINT int *
-#define PUINT unsigned int *
-#define CHAR char
-#define PCHAR char *
-#define PRANGE comedi_lrange	*
+typedef void VOID, *PVOID;
+typedef char CHAR, *PCHAR;
+typedef unsigned char BYTE, *PBYTE;
+typedef short SHORT, *PSHORT;
+typedef unsigned short USHORT, *PUSHORT;
+typedef unsigned short WORD, *PWORD;
+typedef int INT, *PINT;;
+typedef unsigned int UINT, *PUINT;
+typedef int LONG, *PLONG;	/* 32-bit */
+typedef unsigned int ULONG, *PULONG;	/* 32-bit */
+typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
+typedef unsigned long ULONG_PTR;
+
+typedef comedi_lrange *PRANGE;
 #define LOBYTE(W)								 (BYTE         )((W)&0xFF)
 #define HIBYTE(W)                                (BYTE         )(((W)>>8)&0xFF)
 #define MAKEWORD(H,L)                            (USHORT       )((L)|( (H)<<8) )
 #define LOWORD(W)								 (USHORT       )((W)&0xFFFF)
 #define HIWORD(W)                                (USHORT       )(((W)>>16)&0xFFFF)
 #define MAKEDWORD(H,L)  						(UINT         )((L)|( (H)<<16) )
-
-#define ULONG_PTR     unsigned long
-#define DWORD         unsigned int	/* 32-bit */
-#define WORD          unsigned short
 
 #define ADDI_ENABLE   1
 #define ADDI_DISABLE  0
