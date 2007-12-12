@@ -66,6 +66,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 typedef void VOID, *PVOID;
 typedef char CHAR, *PCHAR;
+typedef const CHAR *PCSTR;
 typedef unsigned char BYTE, *PBYTE;
 typedef short SHORT, *PSHORT;
 typedef unsigned short USHORT, *PUSHORT;
@@ -104,7 +105,7 @@ typedef comedi_lrange *PRANGE;
 // structure for the boardtype
 typedef struct {
 
-	const PCHAR pc_DriverName;	// driver name
+	PCSTR pc_DriverName;	// driver name
 	INT i_VendorId;		//PCI vendor a device ID of card
 	INT i_DeviceId;
 	INT i_IorangeBase0;
