@@ -90,6 +90,7 @@ COMEDI_CHECK_LINUX_KBUILD([$LINUX_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="n
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
 	[ENABLE_KBUILD=$enableval], [])
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
+COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H="no"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
 

@@ -709,3 +709,19 @@ AC_DEFUN([COMEDI_CHECK_PCMCIA_PROBE],
 		$2
 	fi
 ])
+
+# COMEDI_CHECK_HAVE_MUTEX_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel has <linux/mutex.h> file.
+AC_DEFUN([COMEDI_CHECK_HAVE_MUTEX_H],
+[
+	AC_MSG_CHECKING([$1 for include/linux/mutex.h])
+	if test -f "$1/include/linux/mutex.h"; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
