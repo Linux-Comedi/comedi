@@ -13,6 +13,7 @@ dnl AS_LINUX()
 dnl
 dnl this macro adds the options
 dnl --with-linuxdir        to specify a kernel build tree location
+dnl --with-linuxsrcdir     to specify a kernel source tree location
 dnl --with-linuxconfig     to specify a kernel .config file
 dnl --with-kernel-release  to specify an alternative uname -r
 dnl --with-machine         to specify an alternative uname -m
@@ -23,7 +24,9 @@ dnl --with-modulesdeveldir to specify the base install location of build stuff
 
 dnl this macro defines:
 dnl LINUX_DIR
-dnl   The directory where the Linux source resides.
+dnl   The directory where the Linux build tree resides.
+dnl LINUX_SRC_DIR
+dnl   The directory where the Linux source tree resides.
 dnl CONFIG_FILE
 dnl   The Linux config file
 dnl LINUX_ARCH
@@ -54,9 +57,9 @@ dnl LINUX_MODULE_EXT
 dnl   Module extension (.o or .ko)
 dnl LINUX_MODPOST
 dnl   path to modpost script
-dnl modulesdir
+dnl MODULESDIR
 dnl   base install path for kernel modules
-dnl modulesdeveldir
+dnl MODULESDEVELDIR
 dnl   base install path for kernel module development files
 dnl
 dnl End of search list.
@@ -73,8 +76,10 @@ AC_DEFUN([AS_LINUX],
 	dnl override the LINUX_MACHINE value if he did
 	AS_LINUX_RPM_TARGET()
 
-	dnl find the kernel source tree for the given uname -r
+	dnl find the kernel build tree for the given uname -r
 	AS_LINUX_DIR()
+	dnl find the kernel source tree from the build tree or --with-linuxsrcdir
+	AS_LINUX_SRC_DIR($LINUX_DIR)
 	dnl check if user supplied an EXTRAVERSION, and if not get from uname -r
 	AS_LINUX_EXTRAVERSION($LINUX_KERNEL_RELEASE)
 	dnl check if user supplied a config file; if not, guess a good one
@@ -106,18 +111,18 @@ AC_DEFUN([AS_LINUX],
 ])
 
 
-dnl check if we can find a source dir for the Linux kernel
-dnl defines LINUX_DIR to the absolute location of a usable kernel source tree
+dnl check if we can find a build dir for the Linux kernel
+dnl defines LINUX_DIR to the absolute location of a usable kernel build tree
 AC_DEFUN([AS_LINUX_DIR],
 [
 	AC_ARG_WITH([linuxdir],
 		[AC_HELP_STRING([--with-linuxdir=DIR],
-			[specify path to Linux source directory])],
+			[specify path to Linux build directory])],
 		[LINUX_DIR="${withval}"],
 		[LINUX_DIR=default])
 
 	if test "${LINUX_DIR}" != "default" ; then
-		AS_TRY_LINUX_DIR([${LINUX_DIR}], , AC_MSG_ERROR([Linux dir not found]) )
+		AS_TRY_LINUX_DIR([${LINUX_DIR}], , AC_MSG_ERROR([Linux build dir not found]) )
 	fi
 
 	if test "${LINUX_DIR}" = "default" ; then
@@ -134,15 +139,64 @@ AC_DEFUN([AS_LINUX_DIR],
 	fi
 
 	if test "${LINUX_DIR}" = "default" ; then
-		AC_MSG_ERROR([Linux source directory not found])
+		AC_MSG_ERROR([Linux build directory not found])
 	fi
 
 	AC_SUBST(LINUX_DIR)
 ])
 
-dnl check if the given candidate path for a linux source tree is usable
+dnl check if the given candidate path for a linux build tree is usable
 AC_DEFUN([AS_TRY_LINUX_DIR],
-	[AC_MSG_CHECKING(for Linux in $1)
+	[AC_MSG_CHECKING(for Linux build in $1)
+
+	if test -f "$1/Makefile" ; then
+		result=yes
+		$2
+	else
+		result="not found"
+		$3
+	fi
+
+	AC_MSG_RESULT($result)
+])
+
+dnl get the kernel source directory
+dnl $1 is the kernel build directory
+dnl defines LINUX_SRC_DIR to the absolute location of kernel source tree
+AC_DEFUN([AS_LINUX_SRC_DIR],
+[
+	AC_ARG_WITH([linuxsrcdir],
+		[AC_HELP_STRING([--with-linuxsrcdir=DIR],
+			[specify path to Linux source directory])],
+		[LINUX_SRC_DIR="${withval}"],
+		[LINUX_SRC_DIR=default])
+
+	if test "${LINUX_SRC_DIR}" != "default" ; then
+		AS_TRY_LINUX_SRC_DIR([${LINUX_SRC_DIR}], , AC_MSG_ERROR([Linux source dir not found]) )
+	fi
+
+	if test "${LINUX_SRC_DIR}" = "default" ; then
+		AC_MSG_CHECKING(for separate Linux source and build directory)
+		dir=`sed -n -e 's/^KERNELSRC *:= *\(.*\)/\1/p' "$1/Makefile"`
+		if test -z "$dir"; then
+			AC_MSG_RESULT([no])
+			LINUX_SRC_DIR="$1"
+		else
+			AC_MSG_RESULT([yes])
+			AS_TRY_LINUX_SRC_DIR([${dir}], [LINUX_SRC_DIR=${dir}], )
+		fi
+	fi
+
+	if test "${LINUX_SRC_DIR}" = "default" ; then
+		AC_MSG_ERROR([Linux source directory not found])
+	fi
+
+	AC_SUBST(LINUX_SRC_DIR)
+])
+
+dnl check if the given candidate path for a linux source tree is usable
+AC_DEFUN([AS_TRY_LINUX_SRC_DIR],
+	[AC_MSG_CHECKING(for Linux source in $1)
 
 	if test -f "$1/Makefile" ; then
 		result=yes
@@ -671,23 +725,14 @@ AC_DEFUN([AS_LINUX_VERSION_MAJOR_MINOR],
 AC_DEFUN([COMEDI_CHECK_LINUX_KBUILD],
 [
 	AC_MSG_CHECKING([for Kbuild support in $1])
-	dnl For combined kernel source and build directory,
-	dnl if $1/scripts/Makefile.build refers to $(<something>)/Kbuild
+	dnl If $1/scripts/Makefile.build refers to $(<something>)/Kbuild
 	dnl then we support Kbuild (2.6.10 onwards).
-	dnl For separate kernel source and build directory, if $1/Makefile
-	dnl contains KERNELOUTPUT variable then this is from a separate
-	dnl kernel build directory, so Kbuild is required
-	dnl (but it will not work prior to 2.6.10).
 	if grep -q '/Kbuild' "$1/scripts/Makefile.build" 2>/dev/null; then
-		AC_MSG_RESULT([yes])
-		$2
-	else if grep -q '^KERNELOUTPUT *:=' "$1/Makefile" 2>/dev/null; then
 		AC_MSG_RESULT([yes])
 		$2
 	else
 		AC_MSG_RESULT([no])
 		$3
-	fi
 	fi
 ])
 

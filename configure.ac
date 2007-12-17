@@ -67,7 +67,7 @@ CC=$LINUX_CC
  -DKBUILD_BASENAME=\$(shell basename \$< .c)"]
 AC_SUBST(COMEDI_CFLAGS)
 
-COMEDI_CHECK_PCMCIA_PROBE([$LINUX_DIR], [ENABLE_PCMCIA="yes"], [ENABLE_PCMCIA="no"])
+COMEDI_CHECK_PCMCIA_PROBE([$LINUX_SRC_DIR], [ENABLE_PCMCIA="yes"], [ENABLE_PCMCIA="no"])
 #disable pcmcia by default until someone updates it to current kernel api
 ENABLE_PCMCIA="no"
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
@@ -86,11 +86,11 @@ else
 	AC_MSG_NOTICE([USB support disabled])
 	AM_CONDITIONAL(CONFIG_USB,false)
 fi
-COMEDI_CHECK_LINUX_KBUILD([$LINUX_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
+COMEDI_CHECK_LINUX_KBUILD([$LINUX_SRC_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
 	[ENABLE_KBUILD=$enableval], [])
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
-COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H="no"])
+COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_SRC_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H="no"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
 
