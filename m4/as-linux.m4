@@ -78,6 +78,8 @@ AC_DEFUN([AS_LINUX],
 
 	dnl find the kernel build tree for the given uname -r
 	AS_LINUX_DIR()
+	dnl override kernel release uname -r value with info from build tree
+	AS_LINUX_OVERRIDE_KERNEL_RELEASE($LINUX_DIR)
 	dnl find the kernel source tree from the build tree or --with-linuxsrcdir
 	AS_LINUX_SRC_DIR($LINUX_DIR)
 	dnl check if user supplied an EXTRAVERSION, and if not get from uname -r
@@ -226,8 +228,30 @@ AC_DEFUN([AS_LINUX_KERNEL_RELEASE],
         AC_MSG_NOTICE([Using $LINUX_KERNEL_RELEASE as the uname -r value])
 ])
 
+dnl replaces LINUX_KERNEL_RELEASE once the Linux build directory is known
+dnl first argument is the Linux build directory
+AC_DEFUN([AS_LINUX_OVERRIDE_KERNEL_RELEASE],
+[
+	INCDIR="$1/include"
+	UTSINC="${INCDIR}/linux/utsrelease.h"
+	if ! test -f "${UTSINC}"; then
+		UTSINC="${INCDIR}/linux/version.h"
+	fi
+	if test -f "${UTSINC}"; then
+		RELEASE=`echo UTS_RELEASE | cat "${UTSINC}" - |
+			/lib/cpp -I "${INCDIR}" | tail -n 1 |
+			sed 's/^"\(.*\)"$/\1/'`
+		if test "${RELEASE}" != "UTS_RELEASE" -a "${RELEASE}" != "" \
+			-a "${RELEASE}" != "${LINUX_KERNEL_RELEASE}"; then
+			AC_MSG_NOTICE([Overriding uname -r value with ${RELEASE}])
+			LINUX_KERNEL_RELEASE="${RELEASE}"
+		fi
+
+	fi
+])
+
 dnl allow for specifying a machine (uname -m) to build for
-dnl use uname -, of running one if not specified
+dnl use uname -m, of running one if not specified
 dnl store result in LINUX_MACHINE
 AC_DEFUN([AS_LINUX_MACHINE],
 [
