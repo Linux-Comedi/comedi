@@ -1336,10 +1336,14 @@ static int do_cancel(comedi_device * dev, comedi_subdevice * s)
 void comedi_unmap(struct vm_area_struct *area)
 {
 	comedi_async *async;
+	comedi_device *dev;
 
 	async = area->vm_private_data;
+	dev = async->subdevice->device;
 
+	mutex_lock(&dev->mutex);
 	async->mmap_count--;
+	mutex_unlock(&dev->mutex);
 }
 
 static struct vm_operations_struct comedi_vm_ops = {
@@ -1355,34 +1359,45 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long size;
 	int n_pages;
 	int i;
+	int retval;
 	comedi_subdevice *s;
 
+	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto done;
 	}
 	if (vma->vm_flags & VM_WRITE) {
 		s = comedi_get_write_subdevice(dev, minor);
 	} else {
 		s = comedi_get_read_subdevice(dev, minor);
 	}
-	if (s == NULL)
-		return -EINVAL;
+	if (s == NULL) {
+		retval = -EINVAL;
+		goto done;
+	}
 	async = s->async;
 	if (async == NULL) {
-		return -EINVAL;
+		retval = -EINVAL;
+		goto done;
 	}
 
 	if (vma->vm_pgoff != 0) {
 		DPRINTK("comedi: mmap() offset must be 0.\n");
-		return -EINVAL;
+		retval = -EINVAL;
+		goto done;
 	}
 
 	size = vma->vm_end - vma->vm_start;
-	if (size > async->prealloc_bufsz)
-		return -EFAULT;
-	if (size & (~PAGE_MASK))
-		return -EFAULT;
+	if (size > async->prealloc_bufsz) {
+		retval = -EFAULT;
+		goto done;
+	}
+	if (size & (~PAGE_MASK)) {
+		retval = -EFAULT;
+		goto done;
+	}
 
 	n_pages = size >> PAGE_SHIFT;
 	for (i = 0; i < n_pages; ++i) {
@@ -1390,7 +1405,8 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 				page_to_pfn(virt_to_page(async->
 						buf_page_list[i].virt_addr)),
 				PAGE_SIZE, PAGE_SHARED)) {
-			return -EAGAIN;
+			retval = -EAGAIN;
+			goto done;
 		}
 		start += PAGE_SIZE;
 	}
@@ -1400,23 +1416,29 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 	async->mmap_count++;
 
-	return 0;
+	retval = 0;
+done:
+	mutex_unlock(&dev->mutex);
+	return retval;
 }
 
 static unsigned int comedi_poll(struct file *file, poll_table * wait)
 {
-	unsigned int mask;
+	unsigned int mask = 0;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	comedi_device *dev = comedi_get_device_by_minor(minor);
-	comedi_subdevice *read_subdev = comedi_get_read_subdevice(dev, minor);
-	comedi_subdevice *write_subdev = comedi_get_write_subdevice(dev, minor);
+	comedi_subdevice *read_subdev;
+	comedi_subdevice *write_subdev;
 
+	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		mutex_unlock(&dev->mutex);
+		return 0;
 	}
 
 	mask = 0;
+	read_subdev = comedi_get_read_subdevice(dev, minor);
 	if (read_subdev) {
 		poll_wait(file, &read_subdev->async->wait_head, wait);
 		if (!read_subdev->busy
@@ -1426,6 +1448,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 			mask |= POLLIN | POLLRDNORM;
 		}
 	}
+	write_subdev = comedi_get_write_subdevice(dev, minor);
 	if (write_subdev) {
 		poll_wait(file, &write_subdev->async->wait_head, wait);
 		if (!write_subdev->busy
@@ -1437,6 +1460,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		}
 	}
 
+	mutex_unlock(&dev->mutex);
 	return mask;
 }
 
@@ -1451,25 +1475,32 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 
 	dev = comedi_get_device_by_minor(minor);
+	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto done;
 	}
 
 	s = comedi_get_write_subdevice(dev, minor);
-	if (s == NULL)
-		return -EIO;
+	if (s == NULL) {
+		retval = -EIO;
+		goto done;
+	}
 	async = s->async;
 
-	if (!nbytes)
-		return 0;
-
-	if (!s->busy) {
-		return 0;
+	if (!nbytes) {
+		retval = 0;
+		goto done;
 	}
-
-	if (s->busy != file)
-		return -EACCES;
+	if (!s->busy) {
+		retval = 0;
+		goto done;
+	}
+	if (s->busy != file) {
+		retval = -EACCES;
+		goto done;
+	}
 	add_wait_queue(&async->wait_head, &wait);
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1506,7 +1537,16 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 				retval = -ERESTARTSYS;
 				break;
 			}
+			mutex_unlock(&dev->mutex);
 			schedule();
+			mutex_lock(&dev->mutex);
+			if (!s->busy) {
+				break;
+			}
+			if (s->busy != file) {
+				retval = -EACCES;
+				break;
+			}
 			continue;
 		}
 
@@ -1527,6 +1567,8 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
+done:
+	mutex_unlock(&dev->mutex);
 	return (count ? count : retval);
 }
 
@@ -1540,23 +1582,31 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	comedi_device *dev = comedi_get_device_by_minor(minor);
 
+	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto done;
 	}
 
 	s = comedi_get_read_subdevice(dev, minor);
-	if (s == NULL)
-		return -EIO;
+	if (s == NULL) {
+		retval = -EIO;
+		goto done;
+	}
 	async = s->async;
-	if (!nbytes)
-		return 0;
-
-	if (!s->busy)
-		return 0;
-
-	if (s->busy != file)
-		return -EACCES;
+	if (!nbytes) {
+		retval = 0;
+		goto done;
+	}
+	if (!s->busy) {
+		retval = 0;
+		goto done;
+	}
+	if (s->busy != file) {
+		retval = -EACCES;
+		goto done;
+	}
 
 	add_wait_queue(&async->wait_head, &wait);
 	while (nbytes > 0 && !retval) {
@@ -1592,7 +1642,17 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 				retval = -ERESTARTSYS;
 				break;
 			}
+			mutex_unlock(&dev->mutex);
 			schedule();
+			mutex_lock(&dev->mutex);
+			if (!s->busy) {
+				retval = 0;
+				break;
+			}
+			if (s->busy != file) {
+				retval = -EACCES;
+				break;
+			}
 			continue;
 		}
 		m = copy_to_user(buf, async->prealloc_buf +
@@ -1618,6 +1678,8 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
+done:
+	mutex_unlock(&dev->mutex);
 	return (count ? count : retval);
 }
 
