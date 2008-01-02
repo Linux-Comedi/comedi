@@ -83,6 +83,8 @@ static int do_cancel(comedi_device * dev, comedi_subdevice * s);
 
 static int comedi_fasync(int fd, struct file *file, int on);
 
+static int is_device_busy(comedi_device * dev);
+
 #ifdef HAVE_UNLOCKED_IOCTL
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
@@ -187,6 +189,8 @@ static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg)
 		return -EPERM;
 
 	if (arg == NULL) {
+		if (is_device_busy(dev))
+			return -EBUSY;
 		return comedi_device_detach(dev);
 	}
 
@@ -2032,4 +2036,23 @@ unsigned comedi_get_subdevice_runflags(comedi_subdevice * s)
 	runflags = s->runflags;
 	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 	return runflags;
+}
+
+static int is_device_busy(comedi_device * dev)
+{
+	comedi_subdevice *s;
+	int i;
+
+	if (!dev->attached)
+		return 0;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = dev->subdevices + i;
+		if (s->busy)
+			return 1;
+		if (s->async && s->async->mmap_count)
+			return 1;
+	}
+
+	return 0;
 }
