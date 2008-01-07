@@ -1051,8 +1051,8 @@ static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file)
 
 #ifdef CONFIG_COMEDI_RT
 	if (async->cmd.flags & TRIG_RT) {
-		comedi_switch_to_rt(dev);
-		comedi_set_subdevice_runflags(s, SRF_RT, SRF_RT);
+		if (comedi_switch_to_rt(dev) == 0)
+			comedi_set_subdevice_runflags(s, SRF_RT, SRF_RT);
 	}
 #endif
 
