@@ -685,6 +685,9 @@ static int check_insn_config_length(comedi_insn * insn, lsampl_t * data)
 	case INSN_CONFIG_8254_READ_STATUS:
 	case INSN_CONFIG_SET_ROUTING:
 	case INSN_CONFIG_GET_ROUTING:
+	case INSN_GET_PWM_STATUS:
+	case INSN_CONFIG_PWM_SET_PERIOD:
+	case INSN_CONFIG_PWM_GET_PERIOD:
 		if (insn->n == 2)
 			return 0;
 		break;
@@ -694,6 +697,8 @@ static int check_insn_config_length(comedi_insn * insn, lsampl_t * data)
 	case INSN_CONFIG_GET_CLOCK_SRC:
 	case INSN_CONFIG_SET_OTHER_SRC:
 	case INSN_CONFIG_GET_COUNTER_STATUS:
+	case INSN_CONFIG_PWM_SET_H_BRIDGE:
+	case INSN_CONFIG_PWM_GET_H_BRIDGE:
 		if (insn->n == 3)
 			return 0;
 		break;

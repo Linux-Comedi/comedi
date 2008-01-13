@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.0"
+#define DRIVER_VERSION "v2.1"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -74,6 +74,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 1.1:  moved EP4 transfers to EP1 to make space for a PWM output on EP4
  * 1.2:  added PWM suport via EP4
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
+ * 2.1:  changed PWM API
  *
  */
 
@@ -131,8 +132,11 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 // Output endpoint for PWM
 #define PWM_EP         4
 
-// 200Hz max frequ under PWM
-#define MAX_PWM_FREQ  200
+// 300Hz max frequ under PWM
+#define MIN_PWM_PERIOD  ((long)(1E9/300))
+
+// Default PWM frequency
+#define PWM_DEFAULT_PERIOD ((long)(1E9/100))
 
 // Number of channels
 #define NUMCHANNELS       8
@@ -190,7 +194,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define SUBDEV_COUNTER        3
 
 // timer aka pwm output
-#define SUBDEV_TIMER          4
+#define SUBDEV_PWM            4
 
 // number of retries to get the right dux command
 #define RETRIES 10
@@ -233,6 +237,11 @@ typedef struct {
 	struct urb **urbOut;
 	// pwm-transfer handling
 	struct urb *urbPwm;
+	// PWM period
+	lsampl_t pwmPeriod;
+	// PWM internal delay for the GPIF in the FX2
+	int pwmDelay;
+	// size of the PWM buffer which holds the bit pattern
 	int sizePwmBuf;
 	// input buffer for the ISO-transfer
 	int16_t *inBuffer;
@@ -2021,13 +2030,37 @@ int usbduxsub_submit_PwmURBs(usbduxsub_t * usbduxsub)
 	return 0;
 }
 
+static int usbdux_pwm_period(comedi_device * dev, comedi_subdevice * s,
+			     lsampl_t period) 
+{
+	usbduxsub_t *this_usbduxsub = dev->private;
+	int fx2delay=255;
+	// just because it's easier I'll do the calc in frequ
+	long frequ=((long)1E9)/((long)period);
+	if (period < MIN_PWM_PERIOD) 
+	{
+		printk("comedi%d: illegal period setting for pwm.\n", dev->minor);
+		return -EAGAIN;
+	} else {
+		fx2delay = (long)(((long)30E6 -
+				   2 * frequ * this_usbduxsub->sizePwmBuf)) /
+                        ((long)(6 * this_usbduxsub->sizePwmBuf * frequ)) + 1;		
+		if (fx2delay > 255) {
+			printk("comedi%d: period %d for pwm is too low.\n",
+			       dev->minor, period);
+			return -EAGAIN;
+		}
+	}
+	this_usbduxsub->pwmDelay=fx2delay;
+	this_usbduxsub->pwmPeriod=period;
+	return 0;
+}
+    
+
 // is called from insn so there's no need to do all the sanity checks
-// and it's probably called every time insn is called
-static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s,
-	int frequ)
+static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s)
 {
 	int ret, i;
-	long period;
 	usbduxsub_t *this_usbduxsub = dev->private;
 
 #ifdef NOISY_DUX_DEBUGBUG
@@ -2038,26 +2071,7 @@ static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s,
 		return 0;
 	}
 
-	if ((frequ == 0) || (frequ > MAX_PWM_FREQ)) {
-		printk("comedi%d: illegal frequency setting for pwm. Set data[2] (in Hz) properly.\n", dev->minor);
-		return -EINVAL;
-	} else {
-		period = (long)(((long)30E6 -
-				2 * frequ * this_usbduxsub->sizePwmBuf)) /
-			((long)(6 * this_usbduxsub->sizePwmBuf * frequ)) + 1;
-		if (period > 255) {
-			printk("comedi%d: frequency f=%d for pwm is too low.\n",
-				dev->minor, frequ);
-			return -EINVAL;
-		} else {
-			this_usbduxsub->dux_commands[1] = ((int8_t) period);
-		}
-	}
-
-#ifdef NOISY_DUX_DEBUGBUG
-	printk("comedi %d: sending pwm on command to the usb device. freq=%d, period=%ld\n", dev->minor, frequ, period);
-#endif
-
+	this_usbduxsub->dux_commands[1] = ((int8_t) this_usbduxsub->pwmPeriod);
 	if ((ret = send_dux_commands(this_usbduxsub, SENDPWMON)) < 0) {
 		return ret;
 	}
@@ -2065,7 +2079,7 @@ static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s,
 	for (i = 0; i < this_usbduxsub->sizePwmBuf; i++) {
 		((char *)(this_usbduxsub->urbPwm->transfer_buffer))[i] = 0;
 	}
-
+	
 	this_usbduxsub->pwm_cmd_running = 1;
 	ret = usbduxsub_submit_PwmURBs(this_usbduxsub);
 	if (ret < 0) {
@@ -2075,91 +2089,127 @@ static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s,
 	return 0;
 }
 
-static int usbdux_pwm_write(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+
+// generates the bit pattern for PWM with the optional sign bit
+static int usbdux_pwm_pattern(comedi_device * dev, comedi_subdevice * s, 
+			      int channel, lsampl_t value, lsampl_t sign)
 {
 	usbduxsub_t *this_usbduxsub = dev->private;
-	int i, chan, pwm_mask, sgn_mask, c, v, pos, szbuf;
+	int i, szbuf;
 	char *pBuf;
+	char pwm_mask,sgn_mask,c;
+
+	if (!this_usbduxsub) {
+		return -EFAULT;
+	}
+	// this is the DIO bit which carries the PWM data
+	pwm_mask = (1 << channel);
+	// this is the DIO bit which carries the optional direction bit
+	sgn_mask = (16 << channel);
+	// this is the buffer which will be filled with the with bit
+	// pattern for one period
+	szbuf = this_usbduxsub->sizePwmBuf;
+	pBuf = (char *)(this_usbduxsub->urbPwm->transfer_buffer);
+	for (i = 0; i < szbuf; i++) {
+		c = *pBuf;
+		// reset bits
+		c = c & (~pwm_mask);
+		// set the bit as long as the index is lower than the value
+		if (i < value)
+			c = c | pwm_mask;
+		// set the optional sign bit for a relay
+		if (!sign) {
+			// positive value
+			c = c & (~sgn_mask);
+		} else {
+			// negative value
+			c = c | sgn_mask;
+		}
+		*(pBuf++) = c;
+	}
+	return 1;
+}
+
+static int usbdux_pwm_write(comedi_device * dev, comedi_subdevice * s,
+			    comedi_insn * insn, lsampl_t * data)
+{	
+	usbduxsub_t *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub) {
 		return -EFAULT;
 	}
 
-	down(&this_usbduxsub->sem);
-
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
+	if ((insn->n)!=1) {
+		// doesn't make sense to have more than one value here
+		// because it would just overwrite the PWM buffer a couple of times
+		return -EINVAL;
 	}
 
-	chan = CR_CHAN(insn->chanspec);
-	pwm_mask = (1 << chan);
-	sgn_mask = (16 << chan);
-	szbuf = this_usbduxsub->sizePwmBuf;
-	for (i = 0; i < insn->n; i++) {
-		pos = data[i] > szbuf;
-		if (pos) {
-			// postive value
-			v = data[i] - szbuf;
-		} else {
-			// negative value
-			v = szbuf - data[i];
-		}
-		pBuf = (char *)(this_usbduxsub->urbPwm->transfer_buffer);
-		for (i = 0; i < szbuf; i++) {
-			c = *pBuf;
-			// reset bits
-			c = c & (~pwm_mask);
-			if (i < v)
-				c = c | pwm_mask;
-			if (pos) {
-				// positive value
-				c = c & (~sgn_mask);
-			} else {
-				// negative value
-				c = c | sgn_mask;
-			}
-			*pBuf = c;
-			pBuf++;
-		}
-	}
-
-	up(&this_usbduxsub->sem);
-
-	return 1;
+	// the sign is set via a special INSN only, this gives us 8 bits for
+	// normal operation
+	return usbdux_pwm_pattern(dev,s,
+				  CR_CHAN(insn->chanspec),
+				  data[0],
+				  0); // relay sign 0 by default
 }
+
 
 static int usbdux_pwm_read(comedi_device * x1, comedi_subdevice * x2,
 	comedi_insn * x3, lsampl_t * x4)
 {
-	// nothing to do here
-	return 0;
+	// not needed
+	return -EINVAL;
 };
 
- // switches on/off PWM
+// switches on/off PWM
 static int usbdux_pwm_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	// PWM configure byte
-	if (data[0] == INSN_CONFIG_PWM_OUTPUT) {
-		if (data[1] == 0) {
-			// switch it off
+	usbduxsub_t *this_usbduxsub = dev->private;	
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
 #ifdef NOISY_DUX_DEBUGBUG
-			printk("comedi%d: pwm_insn_config: pwm off\n",
-				dev->minor);
+		// switch it on
+		printk("comedi%d: pwm_insn_config: pwm on\n",
+		       dev->minor);
 #endif
-			usbdux_pwm_cancel(dev, s);
-		} else {
-#ifdef NOISY_DUX_DEBUGBUG
-			// switch it on
-			printk("comedi%d: pwm_insn_config: pwm on\n",
-				dev->minor);
-#endif
-			usbdux_pwm_start(dev, s, data[2]);
+		// if not zero the PWM is limited to a certain time which is
+		// not supported here
+		if (data[1]!=0) {
+			return -EINVAL;
 		}
+		return usbdux_pwm_start(dev, s);
+	case INSN_CONFIG_DISARM:
+#ifdef NOISY_DUX_DEBUGBUG
+		printk("comedi%d: pwm_insn_config: pwm off\n",
+		       dev->minor);
+#endif
+		return usbdux_pwm_cancel(dev, s);
+	case INSN_GET_PWM_STATUS:
+		// to check if the USB transmission has failed or in case
+		// PWM was limited to n cycles to check if it has terminated
+		data[1] = this_usbduxsub->pwm_cmd_running;
+		return 0;
+	case INSN_CONFIG_PWM_SET_PERIOD:
+#ifdef NOISY_DUX_DEBUGBUG
+		printk("comedi%d: pwm_insn_config: setting period\n",
+		       dev->minor);
+#endif
+		return usbdux_pwm_period(dev,s,data[1]);
+	case INSN_CONFIG_PWM_GET_PERIOD:
+		data[1] = this_usbduxsub->pwmPeriod;
+		return 0;
+	case INSN_CONFIG_PWM_SET_H_BRIDGE:
+		// value in the first byte and the sign in the second for a relay
+		return usbdux_pwm_pattern(dev, s, 
+					  CR_CHAN(insn->chanspec), // the channel number
+					  data[1], // actual PWM data
+					  (data[2]!=0)); // just a sign
+	case INSN_CONFIG_PWM_GET_H_BRIDGE:
+		// values are not kept in this driver, nothing to return here
+		return -EINVAL;
 	}
-	return 0;
+	return -EINVAL;
 }
 
 // end of PWM
@@ -2725,6 +2775,7 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 		dev->minor, index);
 	// private structure is also simply the usb-structure
 	dev->private = usbduxsub + index;
+
 	// the first subdevice is the A/D converter
 	s = dev->subdevices + SUBDEV_AD;
 	// the URBs get the comedi subdevice
@@ -2803,15 +2854,16 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (usbduxsub[index].high_speed) {
 		//timer / pwm
-		s = dev->subdevices + SUBDEV_TIMER;
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = 4;
-		// pos and neg
-		s->maxdata = usbduxsub[index].sizePwmBuf * 2;
+		s = dev->subdevices + SUBDEV_PWM;
+		s->type = COMEDI_SUBD_PWM;
+		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
+		s->n_chan = 8;
+		// this defines the max duty cycle resolution
+		s->maxdata = usbduxsub[index].sizePwmBuf;
 		s->insn_write = usbdux_pwm_write;
 		s->insn_read = usbdux_pwm_read;
 		s->insn_config = usbdux_pwm_config;
+		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
 	}
 	// finally decide that it's attached
 	usbduxsub[index].attached = 1;

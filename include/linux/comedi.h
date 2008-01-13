@@ -197,6 +197,11 @@ extern "C" {
 #define SDF_RUNNING	0x08000000	/* subdevice is acquiring data */
 #define SDF_LSAMPL	0x10000000	/* subdevice uses 32-bit samples */
 #define SDF_PACKED	0x20000000	/* subdevice can do packed DIO */
+/* re recyle these flags for PWM */
+#define SDF_PWM_COUNTER SDF_MODE0       /* PWM can automatically switch off */
+#define SDF_PWM_HBRIDGE SDF_MODE1       /* PWM is signed (H-bridge) */
+
+
 
 /* subdevice types */
 
@@ -212,7 +217,8 @@ extern "C" {
 		COMEDI_SUBD_MEMORY,	/* memory, EEPROM, DPRAM */
 		COMEDI_SUBD_CALIB,	/* calibration DACs */
 		COMEDI_SUBD_PROC,	/* processor, DSP */
-		COMEDI_SUBD_SERIAL	/* serial IO */
+		COMEDI_SUBD_SERIAL,	/* serial IO */
+		COMEDI_SUBD_PWM         /* PWM */
 	};
 
 /* configuration instructions */
@@ -255,6 +261,12 @@ extern "C" {
 		INSN_CONFIG_8254_READ_STATUS = 4098,
 		INSN_CONFIG_SET_ROUTING = 4099,
 		INSN_CONFIG_GET_ROUTING = 4109,
+/* PWM */
+		INSN_CONFIG_PWM_SET_PERIOD = 5000,   /* sets frequency */
+		INSN_CONFIG_PWM_GET_PERIOD = 5001,   /* gets frequency */
+		INSN_GET_PWM_STATUS = 5002,          /* is it running? */
+		INSN_CONFIG_PWM_SET_H_BRIDGE = 5003, /* sets H bridge: duty cycle and sign bit for a relay  at the same time*/
+		INSN_CONFIG_PWM_GET_H_BRIDGE = 5004  /* gets H bridge data: duty cycle and the sign bit */
 	};
 
 	enum comedi_io_direction {
