@@ -160,7 +160,7 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-done:
+      done:
 	mutex_unlock(&dev->mutex);
 	return rc;
 }
@@ -1426,7 +1426,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	async->mmap_count++;
 
 	retval = 0;
-done:
+      done:
 	mutex_unlock(&dev->mutex);
 	return retval;
 }
@@ -1576,7 +1576,7 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
-done:
+      done:
 	mutex_unlock(&dev->mutex);
 	return (count ? count : retval);
 }
@@ -1687,7 +1687,7 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
-done:
+      done:
 	mutex_unlock(&dev->mutex);
 	return (count ? count : retval);
 }
