@@ -195,6 +195,7 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 				break;
 			}
 		case INSN_WAIT:
+			/* XXX isn't the value supposed to be nanosecs? */
 			if (insn->n < 1 || insn->data[0] >= 100) {
 				ret = -EINVAL;
 				break;
@@ -270,6 +271,7 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 			ret = s->insn_bits(dev, s, insn, insn->data);
 			break;
 		case INSN_CONFIG:
+			/* XXX should check instruction length */
 			ret = s->insn_config(dev, s, insn, insn->data);
 			break;
 		default:
@@ -281,11 +283,14 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 	}
 	if (ret < 0)
 		goto error;
+#if 0
+	/* XXX do we want this? -- abbotti #if'ed it out for now. */
 	if (ret != insn->n) {
 		rt_printk("BUG: result of insn != insn.n\n");
 		ret = -EINVAL;
 		goto error;
 	}
+#endif
       error:
 
 	return ret;
