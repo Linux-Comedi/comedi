@@ -788,6 +788,8 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
 		}
 	} else {
 		/* a subdevice instruction */
+		lsampl_t maxdata;
+
 		if (insn->subdev >= dev->n_subdevices) {
 			DPRINTK("subdevice %d out of range\n", insn->subdev);
 			ret = -EINVAL;
@@ -825,9 +827,15 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
 			ret = s->insn_read(dev, s, insn, data);
 			break;
 		case INSN_WRITE:
+			maxdata = s->maxdata_list
+				? s->maxdata_list[CR_CHAN(insn->chanspec)]
+				: s->maxdata;
 			for (i = 0; i < insn->n; ++i) {
-				if (data[i] > s->maxdata)
+				if (data[i] > maxdata) {
 					ret = -EINVAL;
+					DPRINTK("bad data value(s)\n");
+					break;
+				}
 			}
 			if (ret == 0)
 				ret = s->insn_write(dev, s, insn, data);
