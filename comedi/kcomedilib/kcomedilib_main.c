@@ -196,7 +196,7 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 			}
 		case INSN_WAIT:
 			/* XXX isn't the value supposed to be nanosecs? */
-			if (insn->n < 1 || insn->data[0] >= 100) {
+			if (insn->n != 1 || insn->data[0] >= 100) {
 				ret = -EINVAL;
 				break;
 			}
@@ -242,7 +242,7 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 
 		if (s->type == COMEDI_SUBD_UNUSED) {
 			rt_printk("%d not useable subdevice\n", insn->subdev);
-			/* XXX no return value is set! ret = ? */
+			ret = -EIO;
 			goto error;
 		}
 
@@ -250,7 +250,7 @@ int comedi_do_insn(comedi_t * d, comedi_insn * insn)
 
 		if ((ret = check_chanlist(s, 1, &insn->chanspec)) < 0) {
 			rt_printk("bad chanspec\n");
-			/* XXX no return value is set! ret = ? */
+			ret = -EINVAL;
 			goto error;
 		}
 
