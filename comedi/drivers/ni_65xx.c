@@ -671,7 +671,7 @@ static int ni_65xx_attach(comedi_device * dev, comedi_devconfig * it)
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan =
-			board(dev)->num_di_ports * ni_65xx_channels_per_port;
+			board(dev)->num_do_ports * ni_65xx_channels_per_port;
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
