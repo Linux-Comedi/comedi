@@ -1,5 +1,5 @@
 
-AC_INIT([comedi],[0.7.75])
+AC_INIT([comedi],[0.7.76])
 AC_CONFIG_SRCDIR([comedi/comedi_fops.c])
 AC_CONFIG_HEADERS(config.h)
 
@@ -12,7 +12,7 @@ fi
 PACKAGE=comedi
 COMEDI_MAJORVERSION=0
 COMEDI_MINORVERSION=7
-COMEDI_MICROVERSION=75
+COMEDI_MICROVERSION=76
 # set the nanoversion to 0 for releases, 1 for CVS, >= 2 for prereleases
 COMEDI_NANOVERSION=0
 
