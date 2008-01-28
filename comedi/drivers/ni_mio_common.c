@@ -5743,13 +5743,13 @@ static int init_cs5529(comedi_device * dev)
 	if (cs5529_wait_for_idle(dev))
 		comedi_error(dev, "timeout or signal in init_cs5529()\n");
 #endif
-	if (0) {
-		rt_printk("config: 0x%x\n", cs5529_config_read(dev,
-				CSCMD_CONFIG_REGISTER));
-		rt_printk("gain: 0x%x\n", cs5529_config_read(dev,
-				CSCMD_GAIN_REGISTER));
-		rt_printk("offset: 0x%x\n", cs5529_config_read(dev,
-				CSCMD_OFFSET_REGISTER));
-	}
+#if 0
+	rt_printk("config: 0x%x\n", cs5529_config_read(dev,
+		CSCMD_CONFIG_REGISTER));
+	rt_printk("gain: 0x%x\n", cs5529_config_read(dev,
+		CSCMD_GAIN_REGISTER));
+	rt_printk("offset: 0x%x\n", cs5529_config_read(dev,
+		CSCMD_OFFSET_REGISTER));
+#endif
 	return 0;
 }
