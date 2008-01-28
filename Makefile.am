@@ -42,11 +42,11 @@ COMEDI_DRIVER_FILES := $(shell find $(srcdir)/comedi/drivers -name '*\.c' | grep
 
 Documentation/comedi/drivers.txt: $(COMEDI_DRIVER_FILES)
 	for each in $(COMEDI_DRIVER_FILES); do $(srcdir)/scripts/dump_doc $$each;\
-		done >Documentation/comedi/drivers.txt
+		done >$(srcdir)/Documentation/comedi/drivers.txt
 
 Documentation/comedi/devices.txt: Documentation/comedi/drivers.txt
-	$(srcdir)/scripts/doc_devlist Documentation/comedi/drivers.txt | sort >\
-		Documentation/comedi/devices.txt
+	$(srcdir)/scripts/doc_devlist $(srcdir)/Documentation/comedi/drivers.txt | sort >\
+		$(srcdir)/Documentation/comedi/devices.txt
 
 drivers.check: $(COMEDI_DRIVER_FILES)
 	for each in $(COMEDI_DRIVER_FILES);\
