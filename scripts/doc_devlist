@@ -81,13 +81,13 @@ sub parse_devices
 			#print "recognized dev $dev\n";
 		}elsif(m/^ *,(.*)/){
 			$devs = $1;
-			printf "%-28s %-18s %-17s %-10s\n", $mfr, $dev, $driver, $name;
+			printf "%s\t%s\t%s\t%s\n", $mfr, $dev, $driver, $name;
 		}else{
 			print "parse error $_\n";
 			$devs = "";
 		}
 	}
-	printf "%-28s %-18s %-17s %-10s\n", $mfr, $dev, $driver, $name;
+	printf "%s\t%s\t%s\t%s\n", $mfr, $dev, $driver, $name;
 }
 
 
