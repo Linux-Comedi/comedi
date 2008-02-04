@@ -185,6 +185,9 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 			LINUX_SRC_DIR="$1"
 		else
 			AC_MSG_RESULT([yes])
+			case "$dir" in
+			.*) dir="$1/$dir" ;;
+			esac
 			AS_TRY_LINUX_SRC_DIR([${dir}], [LINUX_SRC_DIR=${dir}], )
 		fi
 	fi
