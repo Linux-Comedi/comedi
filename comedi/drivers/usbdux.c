@@ -79,7 +79,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  */
 
 // generates loads of debug info
-#define NOISY_DUX_DEBUGBUG
+// #define NOISY_DUX_DEBUGBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
