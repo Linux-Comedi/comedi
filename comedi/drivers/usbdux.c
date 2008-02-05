@@ -79,7 +79,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  */
 
 // generates loads of debug info
-// #define NOISY_DUX_DEBUGBUG
+#define NOISY_DUX_DEBUGBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -240,7 +240,7 @@ typedef struct {
 	// PWM period
 	lsampl_t pwmPeriod;
 	// PWM internal delay for the GPIF in the FX2
-	int pwmDelay;
+	int8_t pwmDelay;
 	// size of the PWM buffer which holds the bit pattern
 	int sizePwmBuf;
 	// input buffer for the ISO-transfer
@@ -2035,16 +2035,12 @@ static int usbdux_pwm_period(comedi_device * dev, comedi_subdevice * s,
 {
 	usbduxsub_t *this_usbduxsub = dev->private;
 	int fx2delay=255;
-	// just because it's easier I'll do the calc in frequ
-	long frequ=((long)1E9)/((long)period);
 	if (period < MIN_PWM_PERIOD) 
 	{
 		printk("comedi%d: illegal period setting for pwm.\n", dev->minor);
 		return -EAGAIN;
 	} else {
-		fx2delay = (long)(((long)30E6 -
-				   2 * frequ * this_usbduxsub->sizePwmBuf)) /
-                        ((long)(6 * this_usbduxsub->sizePwmBuf * frequ)) + 1;		
+		fx2delay = period / ((int)(6*512*(1.0/0.033))) - 6;
 		if (fx2delay > 255) {
 			printk("comedi%d: period %d for pwm is too low.\n",
 			       dev->minor, period);
@@ -2053,6 +2049,9 @@ static int usbdux_pwm_period(comedi_device * dev, comedi_subdevice * s,
 	}
 	this_usbduxsub->pwmDelay=fx2delay;
 	this_usbduxsub->pwmPeriod=period;
+#ifdef NOISY_DUX_DEBUGBUG
+	printk("usbdux_pwm_period: frequ=%d, period=%d\n",period,fx2delay);
+#endif
 	return 0;
 }
     
@@ -2071,7 +2070,7 @@ static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s)
 		return 0;
 	}
 
-	this_usbduxsub->dux_commands[1] = ((int8_t) this_usbduxsub->pwmPeriod);
+	this_usbduxsub->dux_commands[1] = ((int8_t) this_usbduxsub->pwmDelay);
 	if ((ret = send_dux_commands(this_usbduxsub, SENDPWMON)) < 0) {
 		return ret;
 	}
