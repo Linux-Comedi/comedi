@@ -42,7 +42,7 @@ Only simple analog output writing is supported.
 
 So far it has only been tested with:
   - PCI-DDA08/12
-Please report sucess/failure with other different cards to
+Please report success/failure with other different cards to
 <comedi@comedi.org>.
 */
 
