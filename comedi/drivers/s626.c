@@ -29,10 +29,16 @@ Driver: s626
 Description: Sensoray 626 driver
 Devices: [Sensoray] 626 (s626)
 Authors: Gianluca Palli <gpalli@deis.unibo.it>,
-Updated: Thu, 12 Jul 2005
+Updated: Fri, 15 Feb 2008 10:28:42 +0000
 Status: experimental
 
-  Configuration Options:
+Configuration options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
+
+INSN_CONFIG instructions:
   analog input:
    none
 
@@ -507,11 +513,25 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 	if (alloc_private(dev, sizeof(s626_private)) < 0)
 		return -ENOMEM;
 
-	pdev = pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, NULL);
+	for (pdev = pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+			NULL); pdev != NULL;
+		pdev = pci_get_device(PCI_VENDOR_ID_S626,
+			PCI_DEVICE_ID_S626, pdev)) {
+		if (it->options[0] || it->options[1]) {
+			if (pdev->bus->number == it->options[0] &&
+				PCI_SLOT(pdev->devfn) == it->options[1]) {
+				/* matches requested bus/slot */
+				break;
+			}
+		} else {
+			/* no bus/slot specified */
+			break;
+		}
+	}
 	devpriv->pdev = pdev;
 
 	if (pdev == NULL) {
-		printk("s626_attach: Board not present!!!");
+		printk("s626_attach: Board not present!!!\n");
 		return -ENODEV;
 	}
 
@@ -590,7 +610,8 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 	}
 
-	DEBUG("s626_attach: -- it opts  %d -- \n", it->options[0]);
+	DEBUG("s626_attach: -- it opts  %d,%d -- \n",
+		it->options[0], it->options[1]);
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
