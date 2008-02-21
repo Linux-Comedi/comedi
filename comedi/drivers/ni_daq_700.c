@@ -166,7 +166,8 @@ static int subdev_700_insn(comedi_device * dev, comedi_subdevice * s,
 				CALLBACK_ARG);
 	}
 
-	data[1] = CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG) << 8;	/* shift bits to 8-15 */
+	data[1] = s->state & 0xff;
+	data[1] |= CALLBACK_FUNC(0, _700_DATA, 0, CALLBACK_ARG) << 8;
 
 	return 2;
 }
