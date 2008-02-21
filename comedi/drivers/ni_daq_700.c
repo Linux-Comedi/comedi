@@ -1,5 +1,5 @@
 /*
- *     comedi/drivers/.c
+ *     comedi/drivers/ni_daq_700.c
  *     Driver for DAQCard-700 DIO only
  *     copied from 8255
  *
@@ -20,27 +20,25 @@
  *     along with this program; if not, write to the Free Software
  *     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *                                                                     */
-/*
- * The daqcard-700 appears in Comedi as a single
- * digital I/O subdevice with 16 channels.  The channel 0 corresponds
- * to the daqcard-700's output port , bit 0; channel 8 corresponds to 
- * the input port , bit 0.
- * Direction configuration: channels 0-7 output, 8-15 input
- * (8225 device emu as port A output, port B input, port C N/A)
- * IRQ is assigned but not used.
- *
- *  */
+ */
 
 /*
 Driver: ni_daq_700
 Description: National Instruments PCMCIA DAQCard-700 DIO only
-Author: Daniel Vecino Castel <dvecino@able.es> (ni_daq_dio24),
-	Fred Brooks (daqcard-700 mods) <nsaspook@nsaspook.com>
+Author: Fred Brooks <nsaspook@nsaspook.com>,
+  based on ni_daq_dio24 by Daniel Vecino Castel <dvecino@able.es>
 Devices: [National Instruments] PCMCIA DAQ-Card-700 (ni_daq_700)
-Status: Works
-Updated: Wed, 20 Feb 2008 16:40:00 -0800
+Status: works
+Updated: Thu, 21 Feb 2008 12:07:20 +0000
 
+The daqcard-700 appears in Comedi as a single digital I/O subdevice with
+16 channels.  The channel 0 corresponds to the daqcard-700's output
+port, bit 0; channel 8 corresponds to the input port, bit 0.
+
+Direction configuration: channels 0-7 output, 8-15 input (8225 device
+emu as port A output, port B input, port C N/A).
+
+IRQ is assigned but not used.
 */
 
 #include <linux/comedidev.h>
