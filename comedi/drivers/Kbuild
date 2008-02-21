@@ -8,6 +8,7 @@ obj-$(CONFIG_COMEDI_RT_MODULES) += comedi_rt_timer.o
 
 obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += cb_das16_cs.o
 obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += das08_cs.o
+obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_daq_700.o
 obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_daq_dio24.o
 obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_mio_cs.o
 obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += ni_labpc_cs.o

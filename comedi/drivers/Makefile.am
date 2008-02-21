@@ -71,6 +71,7 @@ if CONFIG_PCMCIA
 pcmcia_modules= \
  cb_das16_cs.ko \
  das08_cs.ko \
+ ni_daq_700.ko \
  ni_daq_dio24.ko \
  ni_mio_cs.ko \
  ni_labpc_cs.ko \
@@ -288,6 +289,7 @@ ni_atmio16d_ko_SOURCES = ni_atmio16d.c
 ni_at_a2150_ko_SOURCES = ni_at_a2150.c
 ni_labpc_ko_SOURCES = ni_labpc.c
 ni_labpc_cs_ko_SOURCES = ni_labpc_cs.c
+ni_daq_700_ko_SOURCES = ni_daq_700.c
 ni_daq_dio24_ko_SOURCES = ni_daq_dio24.c
 ni_at_ao_ko_SOURCES = ni_at_ao.c
 ni_tio_ko_SOURCES = ni_tio.c
