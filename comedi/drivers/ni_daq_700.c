@@ -46,8 +46,6 @@ IRQ is assigned but not used.
 #include <linux/ioport.h>
 #include <linux/version.h>
 
-#define _700_H
-
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
