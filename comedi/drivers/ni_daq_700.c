@@ -80,7 +80,7 @@ static const dio700_board dio700_boards[] = {
 	      have_dio:1,
 		},
 	{
-	      name:	"dio700",
+	      name:	"ni_daq_700",
 	      device_id:0x4743,// 0x10b is manufacturer id, 0x4743 is device id
 	      bustype:	pcmcia_bustype,
 	      have_dio:1,
