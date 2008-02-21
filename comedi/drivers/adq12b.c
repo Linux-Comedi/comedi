@@ -23,12 +23,12 @@
 /*
 Driver: adq12b
 Description: driver for MicroAxial ADQ12-B data acquisition and control card
-Devices: (MicroAxial) ADQ12-B [adq12b]
+Devices: [MicroAxial] ADQ12-B (adq12b)
 Author: jeremy theler <thelerg@ib.cnea.gov.ar>
-Updated: Mon, 28 Oct 2007 14:58:02 -0300
-Status: experimental
+Updated: Thu, 21 Feb 2008 02:56:27 -0300
+Status: works
 
-Driver for the acquisition card ADQ12-B.
+Driver for the acquisition card ADQ12-B (without any add-on).
 
  - Analog input is subdevice 0 (16 channels single-ended or 8 differential)
  - Digital input is subdevice 1 (5 channels)
@@ -70,7 +70,10 @@ If you do not specify any options, they will default to
    universidad nacional de cuyo
    argentina
 
-   v0.1 13-oct-2007
+   21-feb-2008
+     + changed supported devices string (missused the [] and ())
+
+   13-oct-2007
      + first try
 
 
