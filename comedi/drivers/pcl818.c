@@ -1829,7 +1829,6 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 	if (!this_board->n_aichan_se) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
-		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_AI;
 		devpriv->sub_ai = s;
 		s->subdev_flags = SDF_READABLE;
@@ -1848,6 +1847,8 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 		s->cancel = pcl818_ai_cancel;
 		s->insn_read = pcl818_ai_insn_read;
 		if ((irq) || (devpriv->dma_rtc)) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
 			s->do_cmdtest = ai_cmdtest;
 			s->do_cmd = ai_cmd;
 		}
@@ -1894,7 +1895,6 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 	if (!this_board->n_aochan) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
-		dev->write_subdev = s;
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = this_board->n_aochan;
