@@ -783,6 +783,10 @@ static enum scan_mode labpc_ai_scan_mode(const comedi_cmd * cmd)
 	if (cmd->chanlist_len == 1)
 		return MODE_SINGLE_CHAN;
 
+	/* chanlist may be NULL during cmdtest. */
+	if (cmd->chanlist == NULL)
+		return MODE_MULT_CHAN_UP;
+
 	if (CR_CHAN(cmd->chanlist[0]) == CR_CHAN(cmd->chanlist[1]))
 		return MODE_SINGLE_CHAN_INTERVAL;
 
