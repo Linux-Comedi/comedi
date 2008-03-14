@@ -5429,7 +5429,7 @@ static int ni_set_master_clock(comedi_device * dev, unsigned source,
 				devpriv->stc_writew(dev,
 					devpriv->rtsi_trig_direction_reg,
 					RTSI_Trig_Direction_Register);
-				if (devpriv->clock_ns == 0) {
+				if (period_ns == 0) {
 					rt_printk
 						("%s: we don't handle an unspecified clock period correctly yet, returning error.\n",
 						__FUNCTION__);
