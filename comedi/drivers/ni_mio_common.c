@@ -1554,6 +1554,12 @@ static int ni_ai_setup_MITE_dma(comedi_device * dev)
 
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if(devpriv->ai_mite_chan == NULL)
+	{
+		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+		return -EIO;
+	}
+
 	switch (boardtype.reg_type) {
 	case ni_reg_611x:
 	case ni_reg_6143:
