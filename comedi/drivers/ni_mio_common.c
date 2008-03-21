@@ -1542,6 +1542,7 @@ static int ni_ai_setup_MITE_dma(comedi_device * dev)
 {
 	comedi_subdevice *s = dev->subdevices + NI_AI_SUBDEV;
 	int retval;
+	unsigned long flags;
 
 	retval = ni_request_ai_mite_channel(dev);
 	if (retval)
@@ -1551,6 +1552,8 @@ static int ni_ai_setup_MITE_dma(comedi_device * dev)
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
+
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	switch (boardtype.reg_type) {
 	case ni_reg_611x:
 	case ni_reg_6143:
@@ -1565,6 +1568,8 @@ static int ni_ai_setup_MITE_dma(comedi_device * dev)
 	};
 	/*start the MITE */
 	mite_dma_arm(devpriv->ai_mite_chan);
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
 	return 0;
 }
 
