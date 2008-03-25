@@ -20,15 +20,27 @@
 
 *******************************************************************************/
 /*
-Driver:       adv_pci1723
-Description:  the driver of adv pci-1723
-Devices:      pci-1723
-Author:       yonggang & Ian Abbott 
-Email:        rsmgnu@gmail.com
-Updated:      2008-03-20
-Status:       works
+Driver: adv_pci1723
+Description: Advantech PCI-1723
+Author: yonggang <rsmgnu@gmail.com>, Ian Abbott <abbotti@mev.co.uk>
+Devices: [Advantech] PCI-1723 (pci1723)
+Updated: Tue, 25 Mar 2008 12:14:40 +0000
+Status: works
 
 Configuration Options:  none
+
+Subdevice 0 is 8-channel AO, 16-bit, range +/- 10 V.
+
+Subdevice 1 is 16-channel DIO.  The channels are configurable as input or
+output in 2 groups (0 to 7, 8 to 15).  Configuring any channel implicitly
+configures all channels in the same group.
+
+TODO:
+
+1. Add the two milliamp ranges to the AO subdevice (0 to 20 mA, 4 to 20 mA).
+2. Read the initial ranges and values of the AO subdevice at start-up instead
+   of reinitializing them.
+3. Implement calibration.
 */
 
 #include <linux/comedidev.h>
