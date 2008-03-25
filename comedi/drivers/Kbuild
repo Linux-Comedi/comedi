@@ -49,6 +49,7 @@ obj-m += adl_pci9111.o
 obj-m += adl_pci9118.o
 obj-m += adq12b.o
 obj-m += adv_pci1710.o
+obj-m += adv_pci1723.o
 obj-m += adv_pci_dio.o
 obj-m += aio_aio12_8.o
 obj-m += aio_iiro_16.o
