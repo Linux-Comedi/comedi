@@ -296,14 +296,9 @@ static int pci1723_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
-	//unsigned short io_addr[5],master,irq;
-	//struct pcilst_struct *card=NULL;
 	struct pci_dev *pcidev;
 	unsigned int iobase;
 	unsigned char pci_bus, pci_slot, pci_func;
-	//int dma;
-	//unsigned long pages;
-	//unsigned long physLas0,physLas1,physLcfg;
 	int opt_bus, opt_slot;
 	const char *errstr;
 
