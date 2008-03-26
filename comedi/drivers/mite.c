@@ -268,14 +268,15 @@ void mite_release_channel(struct mite_channel *mite_chan)
 	// spin lock to prevent races with mite_request_channel
 	comedi_spin_lock_irqsave(&mite->lock, flags);
 	if (mite->channel_allocated[mite_chan->channel]) {
-		// disable all channel's interrupts
+		mite_dma_disarm(mite_chan);
+		mite_dma_reset(mite_chan);
+/* disable all channel's interrupts (do it after disarm/reset so
+MITE_CHCR reg isn't changed while dma is still active!) */
 		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE |
 			CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE |
 			CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
 			CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
 			mite->mite_io_addr + MITE_CHCR(mite_chan->channel));
-		mite_dma_disarm(mite_chan);
-		mite_dma_reset(mite_chan);
 		mite->channel_allocated[mite_chan->channel] = 0;
 		mite_chan->ring = NULL;
 		mmiowb();
