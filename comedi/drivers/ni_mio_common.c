@@ -1552,7 +1552,6 @@ static int ni_ai_setup_MITE_dma(comedi_device * dev)
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if(devpriv->ai_mite_chan == NULL)
 	{
@@ -2961,6 +2960,32 @@ static int ni_ao_insn_write_671x(comedi_device * dev, comedi_subdevice * s,
 	return 1;
 }
 
+static int ni_ao_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	switch (data[0]) {
+	case INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE:
+		switch(data[1])
+		{
+		case COMEDI_OUTPUT:
+			data[2] = 1 + boardtype.ao_fifo_depth;
+			if(devpriv->mite) data[2] += devpriv->mite->fifo_size;
+			break;
+		case COMEDI_INPUT:
+			data[2] = 0;
+			break;
+		default:
+			return -EINVAL;
+			break;
+		}
+		return 0;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
 static int ni_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
@@ -4269,6 +4294,7 @@ static int ni_E_init(comedi_device * dev, comedi_devconfig * it)
 		} else {
 			s->insn_write = &ni_ao_insn_write;
 		}
+		s->insn_config = &ni_ao_insn_config;
 #ifdef PCIDMA
 		if (boardtype.n_aochan) {
 			s->async_dma_dir = DMA_TO_DEVICE;

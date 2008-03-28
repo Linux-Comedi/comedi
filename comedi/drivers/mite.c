@@ -103,6 +103,15 @@ static void dump_chip_signature(u32 csigr_bits)
 	printk("mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n", mite_csigr_dmac(csigr_bits), mite_csigr_wpdep(csigr_bits), mite_csigr_wins(csigr_bits), mite_csigr_iowins(csigr_bits));
 }
 
+unsigned mite_fifo_size(struct mite_struct * mite, unsigned channel)
+{
+	unsigned fcr_bits = readl(mite->mite_io_addr +
+		MITE_FCR(channel));
+	unsigned empty_count = (fcr_bits >> 16) & 0xff;
+	unsigned full_count = fcr_bits & 0xff;
+	return empty_count + full_count;
+}
+
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 {
 	unsigned long length;
@@ -178,6 +187,8 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 			CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
 			mite->mite_io_addr + MITE_CHCR(i));
 	}
+	mite->fifo_size = mite_fifo_size(mite, 0);
+	printk("mite: fifo size is %i.\n", mite->fifo_size);
 	mite->used = 1;
 
 	return 0;

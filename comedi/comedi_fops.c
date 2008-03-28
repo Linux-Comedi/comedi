@@ -666,6 +666,8 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 
 static int check_insn_config_length(comedi_insn * insn, lsampl_t * data)
 {
+	if(insn->n < 1) return -EINVAL;
+
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
 	case INSN_CONFIG_DIO_INPUT:
@@ -685,7 +687,7 @@ static int check_insn_config_length(comedi_insn * insn, lsampl_t * data)
 	case INSN_CONFIG_8254_READ_STATUS:
 	case INSN_CONFIG_SET_ROUTING:
 	case INSN_CONFIG_GET_ROUTING:
-	case INSN_GET_PWM_STATUS:
+	case INSN_CONFIG_GET_PWM_STATUS:
 	case INSN_CONFIG_PWM_SET_PERIOD:
 	case INSN_CONFIG_PWM_GET_PERIOD:
 		if (insn->n == 2)
@@ -699,6 +701,7 @@ static int check_insn_config_length(comedi_insn * insn, lsampl_t * data)
 	case INSN_CONFIG_GET_COUNTER_STATUS:
 	case INSN_CONFIG_PWM_SET_H_BRIDGE:
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
+	case INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE:
 		if (insn->n == 3)
 			return 0;
 		break;
