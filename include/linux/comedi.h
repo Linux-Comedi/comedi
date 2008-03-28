@@ -264,7 +264,7 @@ extern "C" {
 /* PWM */
 		INSN_CONFIG_PWM_SET_PERIOD = 5000,   /* sets frequency */
 		INSN_CONFIG_PWM_GET_PERIOD = 5001,   /* gets frequency */
-		INSN_GET_PWM_STATUS = 5002,          /* is it running? */
+		INSN_CONFIG_GET_PWM_STATUS = 5002,          /* is it running? */
 		INSN_CONFIG_PWM_SET_H_BRIDGE = 5003, /* sets H bridge: duty cycle and sign bit for a relay  at the same time*/
 		INSN_CONFIG_PWM_GET_H_BRIDGE = 5004  /* gets H bridge data: duty cycle and the sign bit */
 	};
@@ -837,7 +837,7 @@ CR_INVERT to change polarity. */
 		AMPLC_DIO_CLK_1KHZ,	/* 1 kHz internal clock */
 		AMPLC_DIO_CLK_OUTNM1,	/* output of preceding counter channel
 					   (for channel 0, preceding counter
-					   channel is channel 2 on preceding 
+					   channel is channel 2 on preceding
 					   counter subdevice, for first counter
 					   subdevice, preceding counter
 					   subdevice is the last counter

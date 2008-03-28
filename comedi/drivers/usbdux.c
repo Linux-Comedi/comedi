@@ -2184,7 +2184,7 @@ static int usbdux_pwm_config(comedi_device * dev, comedi_subdevice * s,
 		       dev->minor);
 #endif
 		return usbdux_pwm_cancel(dev, s);
-	case INSN_GET_PWM_STATUS:
+	case INSN_CONFIG_GET_PWM_STATUS:
 		// to check if the USB transmission has failed or in case
 		// PWM was limited to n cycles to check if it has terminated
 		data[1] = this_usbduxsub->pwm_cmd_running;
