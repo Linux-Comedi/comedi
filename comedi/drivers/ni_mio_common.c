@@ -3183,7 +3183,7 @@ Frank Hess 2008-03-31. */
 			unsigned bits;
 			devpriv->ao_mode1 &= ~AO_Multiple_Channels;
 			bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
-			if (boardtype.reg_type & ni_reg_m_series_mask) {
+			if (boardtype.reg_type & (ni_reg_m_series_mask | ni_reg_6xxx_mask)) {
 				bits |= AO_Number_Of_Channels(0);
 			} else {
 				bits |= AO_Number_Of_Channels(CR_CHAN(cmd->
