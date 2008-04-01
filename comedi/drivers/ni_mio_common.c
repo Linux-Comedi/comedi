@@ -3164,7 +3164,13 @@ static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		~(AO_UI_Reload_Mode(3) | AO_UI_Initial_Load_Source);
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
 
-	if ((boardtype.reg_type & ni_reg_6xxx_mask) == 0) {
+/* The following if block was originally added to prevent the enclosed writes to
+the AO_Mode_1_Register and AO_Output_Control_Register, for the sake of 611x boards.
+However, the related pxi-6713 definitely needs this block of code for multiple channel
+ao commands to work properly, and I'm really not sure it ever should have
+been added for the 611x boards either, so I'm re-enabling it for all boards.
+Frank Hess 2008-03-31. */
+	if(1 /*(boardtype.reg_type & ni_reg_611x_mask) == 0*/){
 		if (cmd->scan_end_arg > 1) {
 			devpriv->ao_mode1 |= AO_Multiple_Channels;
 			devpriv->stc_writew(dev,
@@ -3379,7 +3385,13 @@ static int ni_ao_reset(comedi_device * dev, comedi_subdevice * s)
 	devpriv->stc_writew(dev, devpriv->ao_trigger_select,
 		AO_Trigger_Select_Register);
 	if (boardtype.reg_type & ni_reg_6xxx_mask) {
-		ao_win_out(0x3, AO_Immediate_671x);
+		unsigned immediate_bits = 0;
+		unsigned i;
+		for(i = 0; i < s->n_chan; ++i)
+		{
+			immediate_bits |= 1 << i;
+		}
+		ao_win_out(immediate_bits, AO_Immediate_671x);
 		ao_win_out(CLEAR_WG, AO_Misc_611x);
 	}
 	devpriv->stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
@@ -3954,8 +3966,11 @@ static void init_ao_67xx(comedi_device * dev, comedi_subdevice * s)
 	int i;
 
 	for (i = 0; i < s->n_chan; i++)
+	{
 		ni_ao_win_outw(dev, AO_Channel(i) | 0x0,
 			AO_Configuration_2_67xx);
+	}
+	ao_win_out(0x0, AO_Later_Single_Point_Updates);
 }
 
 static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
