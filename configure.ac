@@ -72,7 +72,7 @@ AM_CONDITIONAL([CONFIG_PCI],[test "$HAVE_PCI" = "yes"])
 AC_ARG_ENABLE([pci],[  --disable-pci		Disable support for PCI devices],
 	[ENABLE_PCI=$enableval],[ENABLE_PCI="maybe"])
 if test "$HAVE_PCI" = "yes" ; then
-	if test "ENABLE_PCI" = "no" ; then
+	if test "$ENABLE_PCI" = "no" ; then
 		AC_MSG_NOTICE([PCI support disabled])
 		USE_PCI="no"
 	else
@@ -80,7 +80,7 @@ if test "$HAVE_PCI" = "yes" ; then
 		USE_PCI="yes"
 	fi
 else
-	if test "ENABLE_PCI" = "yes" ; then
+	if test "$ENABLE_PCI" = "yes" ; then
 		AC_MSG_ERROR([Kernel does not support PCI])
 	fi
 	USE_PCI="no"
