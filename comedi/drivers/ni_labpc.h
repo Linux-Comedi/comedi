@@ -74,11 +74,12 @@ typedef struct {
 	void (*write_byte) (unsigned int byte, unsigned long address);
 } labpc_private;
 
-#define NUM_LABPC_CS_BOARDS 2
-extern const labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS];
-
 int labpc_common_attach(comedi_device * dev, unsigned long iobase,
 	unsigned int irq, unsigned int dma);
 int labpc_common_detach(comedi_device * dev);
+
+extern const int labpc_1200_is_unipolar[];
+extern const int labpc_1200_ai_gain_bits[];
+extern const comedi_lrange range_labpc_1200_ai;
 
 #endif /* _NI_LABPC_H */

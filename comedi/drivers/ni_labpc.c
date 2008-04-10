@@ -273,7 +273,7 @@ static const comedi_lrange range_labpc_plus_ai = {
 
 #define NUM_LABPC_1200_AI_RANGES 14
 // indicates unipolar ranges
-static const int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] = {
+const int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] = {
 	0,
 	0,
 	0,
@@ -291,7 +291,7 @@ static const int labpc_1200_is_unipolar[NUM_LABPC_1200_AI_RANGES] = {
 };
 
 // map range index to gain bits
-static const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] = {
+const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] = {
 	0x00,
 	0x20,
 	0x30,
@@ -307,7 +307,7 @@ static const int labpc_1200_ai_gain_bits[NUM_LABPC_1200_AI_RANGES] = {
 	0x60,
 	0x70,
 };
-static const comedi_lrange range_labpc_1200_ai = {
+const comedi_lrange range_labpc_1200_ai = {
 	NUM_LABPC_1200_AI_RANGES,
 	{
 			BIP_RANGE(5),
@@ -405,36 +405,6 @@ static const labpc_board labpc_boards[] = {
 	      ai_range_is_unipolar:labpc_1200_is_unipolar,
 	      ai_scan_up:1,
 	      memory_mapped_io:1,
-		},
-};
-
-const labpc_board labpc_cs_boards[NUM_LABPC_CS_BOARDS] = {
-	{
-	      name:	"daqcard-1200",
-	      device_id:0x103,	// 0x10b is manufacturer id, 0x103 is device id
-	      ai_speed:10000,
-	      bustype:	pcmcia_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:0,
-	      memory_mapped_io:0,
-		},
-	/* duplicate entry, to support using alternate name */
-	{
-	      name:	"ni_labpc_cs",
-	      device_id:0x103,
-	      ai_speed:10000,
-	      bustype:	pcmcia_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:0,
-	      memory_mapped_io:0,
 		},
 };
 
@@ -2004,4 +1974,6 @@ COMEDI_INITCLEANUP(driver_labpc);
 
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 EXPORT_SYMBOL_GPL(labpc_common_detach);
-EXPORT_SYMBOL_GPL(labpc_cs_boards);
+EXPORT_SYMBOL_GPL(range_labpc_1200_ai);
+EXPORT_SYMBOL_GPL(labpc_1200_ai_gain_bits);
+EXPORT_SYMBOL_GPL(labpc_1200_is_unipolar);
