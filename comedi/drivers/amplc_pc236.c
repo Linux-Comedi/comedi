@@ -452,6 +452,7 @@ static int pc236_intr_check(comedi_device * dev)
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
 		retval = 1;
+#ifdef CONFIG_COMEDI_PCI
 		if (devpriv->lcr_iobase) {
 			if ((inl(devpriv->lcr_iobase + PLX9052_INTCSR)
 					& PLX9052_INTCSR_LI1STAT_MASK)
@@ -463,6 +464,7 @@ static int pc236_intr_check(comedi_device * dev)
 					devpriv->lcr_iobase + PLX9052_INTCSR);
 			}
 		}
+#endif
 	}
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 
