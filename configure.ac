@@ -67,25 +67,46 @@ CC=$LINUX_CC
  -DKBUILD_BASENAME=\$(shell basename \$< .c)"]
 AC_SUBST(COMEDI_CFLAGS)
 
-COMEDI_CHECK_PCMCIA_PROBE([$LINUX_SRC_DIR], [ENABLE_PCMCIA="yes"], [ENABLE_PCMCIA="no"])
-#disable pcmcia by default until someone updates it to current kernel api
-ENABLE_PCMCIA="no"
+COMEDI_CHECK_PCMCIA_PROBE([$LINUX_SRC_DIR], [HAVE_PCMCIA="yes"], [HAVE_PCMCIA="no"])
+AM_CONDITIONAL([CONFIG_PCMCIA],[test "$HAVE_PCMCIA" = "yes"])
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
-	[ENABLE_PCMCIA=$enableval],[])
-if test "$ENABLE_PCMCIA" = "yes" ; then
-	AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCMCIA)
+	[ENABLE_PCMCIA=$enableval],[ENABLE_PCMCIA="maybe"])
+if test "$HAVE_PCMCIA" = "yes" ; then
+	if test "$ENABLE_PCMCIA" = "no" ; then
+		AC_MSG_NOTICE([PCMCIA support disabled])
+		USE_PCMCIA="no"
+	else
+		AC_DEFINE([CONFIG_COMEDI_PCMCIA],[true],[Define if using PCMCIA support])
+		USE_PCMCIA="yes"
+	fi
 else
-	AC_MSG_NOTICE([PCMCIA support disabled])
-	AM_CONDITIONAL(CONFIG_PCMCIA,false)
+	if test "$ENABLE_PCMCIA" = "yes" ; then
+		AC_MSG_ERROR([Kernel does not support PCMCIA or its API is not suported by Comedi])
+	fi
+	USE_PCMCIA="no"
 fi
+AM_CONDITIONAL([CONFIG_COMEDI_PCMCIA],[test "$USE_PCMCIA" = "yes"])
+
+AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
+AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
 AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],
-	[ENABLE_USB=$enableval],[ENABLE_USB="yes"])
-if test "$ENABLE_USB" = "yes" ; then
-	AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_USB)
+	[ENABLE_USB=$enableval],[ENABLE_USB="maybe"])
+if test "$HAVE_USB" = "yes" ; then
+	if test "$ENABLE_USB" = "no" ; then
+		AC_MSG_NOTICE([USB support disabled])
+		USE_USB="no"
+	else
+		AC_DEFINE([CONFIG_COMEDI_USB],[true],[Define if using USB support])
+		USE_USB="yes"
+	fi
 else
-	AC_MSG_NOTICE([USB support disabled])
-	AM_CONDITIONAL(CONFIG_USB,false)
+	if test "$ENABLE_USB" = "yes" ; then
+		AC_MSG_ERROR([Kernel does not support USB])
+	fi
+	USE_USB="no"
 fi
+AM_CONDITIONAL([CONFIG_COMEDI_USB],[test "$USE_USB" = "yes"])
+
 COMEDI_CHECK_LINUX_KBUILD([$LINUX_SRC_DIR], [ENABLE_KBUILD="yes"], [ENABLE_KBUILD="no"])
 AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild system to build modules (needs recent 2.6 kernel)],
 	[ENABLE_KBUILD=$enableval], [])

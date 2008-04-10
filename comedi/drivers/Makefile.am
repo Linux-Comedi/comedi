@@ -67,7 +67,7 @@ else
 rt_modules =
 endif
 
-if CONFIG_PCMCIA
+if CONFIG_COMEDI_PCMCIA
 pcmcia_modules= \
  cb_das16_cs.ko \
  das08_cs.ko \
@@ -80,7 +80,7 @@ else
 pcmcia_modules=
 endif
 
-if CONFIG_USB
+if CONFIG_COMEDI_USB
 usb_modules= \
  usbdux.ko \
  usbduxfast.ko \
