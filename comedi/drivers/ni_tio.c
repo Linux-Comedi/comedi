@@ -2420,6 +2420,7 @@ int ni_tio_winsn(struct ni_gpct *counter, comedi_insn * insn, lsampl_t * data)
 	return 0;
 }
 
+#ifdef CONFIG_COMEDI_PCI
 static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 	short read_not_write)
 {
@@ -2460,7 +2461,9 @@ static void ni_tio_configure_dma(struct ni_gpct *counter, short enable,
 		break;
 	}
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 static int ni_tio_input_inttrig(comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
@@ -2485,7 +2488,9 @@ static int ni_tio_input_inttrig(comedi_device * dev, comedi_subdevice * s,
 
 	return retval;
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async * async)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
@@ -2533,7 +2538,9 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, comedi_async * async)
 	}
 	return retval;
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async * async)
 {
 	rt_printk("ni_tio: output commands not yet implemented.\n");
@@ -2545,7 +2552,9 @@ static int ni_tio_output_cmd(struct ni_gpct *counter, comedi_async * async)
 	mite_dma_arm(counter->mite_chan);
 	return ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async * async)
 {
 	comedi_cmd *cmd = &async->cmd;
@@ -2571,7 +2580,9 @@ static int ni_tio_cmd_setup(struct ni_gpct *counter, comedi_async * async)
 	}
 	return retval;
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 int ni_tio_cmd(struct ni_gpct *counter, comedi_async * async)
 {
 	comedi_cmd *cmd = &async->cmd;
@@ -2596,7 +2607,9 @@ int ni_tio_cmd(struct ni_gpct *counter, comedi_async * async)
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 	return retval;
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd * cmd)
 {
 	int err = 0;
@@ -2701,7 +2714,9 @@ int ni_tio_cmdtest(struct ni_gpct *counter, comedi_cmd * cmd)
 
 	return 0;
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 int ni_tio_cancel(struct ni_gpct *counter)
 {
 	unsigned long flags;
@@ -2719,10 +2734,12 @@ int ni_tio_cancel(struct ni_gpct *counter)
 		Gi_Gate_Interrupt_Enable_Bit(counter->counter_index), 0x0);
 	return 0;
 }
+#endif
 
 	/* During buffered input counter operation for e-series, the gate interrupt is acked
 	   automatically by the dma controller, due to the Gi_Read/Write_Acknowledges_IRQ bits
 	   in the input select register.  */
+#ifdef CONFIG_COMEDI_PCI
 static int should_ack_gate(struct ni_gpct *counter)
 {
 	unsigned long flags;
@@ -2747,7 +2764,9 @@ static int should_ack_gate(struct ni_gpct *counter)
 	}
 	return retval;
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 	int *tc_error, int *perm_stale_data, int *stale_data)
 {
@@ -2811,7 +2830,9 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 		}
 	}
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice * s)
 {
 	unsigned gpct_mite_status;
@@ -2856,7 +2877,9 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter, comedi_subdevice * s)
 	mite_sync_input_dma(counter->mite_chan, s->async);
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 }
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 void ni_tio_set_mite_channel(struct ni_gpct *counter,
 	struct mite_channel *mite_chan)
 {
@@ -2866,16 +2889,21 @@ void ni_tio_set_mite_channel(struct ni_gpct *counter,
 	counter->mite_chan = mite_chan;
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 }
+#endif
 
 EXPORT_SYMBOL_GPL(ni_tio_rinsn);
 EXPORT_SYMBOL_GPL(ni_tio_winsn);
+#ifdef CONFIG_COMEDI_PCI
 EXPORT_SYMBOL_GPL(ni_tio_cmd);
 EXPORT_SYMBOL_GPL(ni_tio_cmdtest);
 EXPORT_SYMBOL_GPL(ni_tio_cancel);
+#endif
 EXPORT_SYMBOL_GPL(ni_tio_insn_config);
 EXPORT_SYMBOL_GPL(ni_tio_init_counter);
 EXPORT_SYMBOL_GPL(ni_gpct_device_construct);
 EXPORT_SYMBOL_GPL(ni_gpct_device_destroy);
+#ifdef CONFIG_COMEDI_PCI
 EXPORT_SYMBOL_GPL(ni_tio_handle_interrupt);
 EXPORT_SYMBOL_GPL(ni_tio_set_mite_channel);
 EXPORT_SYMBOL_GPL(ni_tio_acknowledge_and_confirm);
+#endif

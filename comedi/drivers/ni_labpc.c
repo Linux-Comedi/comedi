@@ -187,7 +187,9 @@ static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd);
+#ifdef CONFIG_COMEDI_PCI
 static struct mite_struct *labpc_find_device(int bus, int slot);
+#endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
 	unsigned long arg);
 static void labpc_serial_out(comedi_device * dev, unsigned int value,
@@ -393,6 +395,7 @@ static const labpc_board labpc_boards[] = {
 	      ai_scan_up:0,
 	      memory_mapped_io:0,
 		},
+#ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci-1200",
 	      device_id:0x161,
@@ -406,6 +409,7 @@ static const labpc_board labpc_boards[] = {
 	      ai_scan_up:1,
 	      memory_mapped_io:1,
 		},
+#endif
 };
 
 /*
@@ -428,12 +432,14 @@ static comedi_driver driver_labpc = {
       offset:sizeof(labpc_board),
 };
 
+#ifdef CONFIG_COMEDI_PCI
 static struct pci_device_id labpc_pci_table[] __devinitdata = {
 	{PCI_VENDOR_ID_NATINST, 0x161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
+#endif /* CONFIG_COMEDI_PCI */
 
 static inline int labpc_counter_load(comedi_device * dev,
 	unsigned long base_address, unsigned int counter_number,
@@ -635,7 +641,6 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
-	int ret;
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(labpc_private)) < 0)
@@ -649,6 +654,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 		dma_chan = it->options[2];
 		break;
 	case pci_bustype:
+#ifdef CONFIG_COMEDI_PCI
 		devpriv->mite =
 			labpc_find_device(it->options[0], it->options[1]);
 		if (devpriv->mite == NULL) {
@@ -658,11 +664,17 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 			printk("bug! mite device id does not match boardtype definition\n");
 			return -EINVAL;
 		}
-		ret = mite_setup(devpriv->mite);
-		if (ret < 0)
-			return ret;
+		{
+			int ret = mite_setup(devpriv->mite);
+			if (ret < 0)
+				return ret;
+		}
 		iobase = (unsigned long)devpriv->mite->daq_io_addr;
 		irq = mite_irq(devpriv->mite);
+#else
+		printk(" this driver has not been built with PCI support.\n");
+		return -EINVAL;
+#endif
 		break;
 	case pcmcia_bustype:
 		printk(" this driver does not support pcmcia cards, use ni_labpc_cs.o\n");
@@ -678,6 +690,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 }
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
+#ifdef CONFIG_COMEDI_PCI
 static struct mite_struct *labpc_find_device(int bus, int slot)
 {
 	struct mite_struct *mite;
@@ -703,6 +716,7 @@ static struct mite_struct *labpc_find_device(int bus, int slot)
 	mite_list_devices();
 	return NULL;
 }
+#endif
 
 int labpc_common_detach(comedi_device * dev)
 {
@@ -720,8 +734,10 @@ int labpc_common_detach(comedi_device * dev)
 		comedi_free_irq(dev->irq, dev);
 	if (thisboard->bustype == isa_bustype && dev->iobase)
 		release_region(dev->iobase, LABPC_SIZE);
+#ifdef CONFIG_COMEDI_PCI
 	if (devpriv->mite)
 		mite_unsetup(devpriv->mite);
+#endif
 
 	return 0;
 };

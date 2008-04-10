@@ -67,6 +67,62 @@ else
 rt_modules =
 endif
 
+if CONFIG_COMEDI_PCI
+pci_modules= \
+ mite.ko \
+ addi_apci_035.ko \
+ addi_apci_1032.ko \
+ addi_apci_1500.ko \
+ addi_apci_1516.ko \
+ addi_apci_1564.ko \
+ addi_apci_16xx.ko \
+ addi_apci_2016.ko \
+ addi_apci_2032.ko \
+ addi_apci_2200.ko \
+ addi_apci_3001.ko \
+ addi_apci_3120.ko \
+ addi_apci_3501.ko \
+ addi_apci_3xxx.ko \
+ adl_pci6208.ko \
+ adl_pci7296.ko \
+ adl_pci7432.ko \
+ adl_pci8164.ko \
+ adl_pci9111.ko \
+ adl_pci9118.ko \
+ adv_pci1710.ko \
+ adv_pci1723.ko \
+ adv_pci_dio.ko \
+ amplc_pci224.ko \
+ amplc_pci230.ko \
+ cb_pcidas.ko \
+ cb_pcidas64.ko \
+ cb_pcidda.ko \
+ cb_pcidio.ko \
+ cb_pcimdas.ko \
+ cb_pcimdda.ko \
+ contec_pci_dio.ko \
+ daqboard2000.ko \
+ dt3000.ko \
+ gsc_hpdi.ko \
+ icp_multi.ko \
+ ii_pci20kc.ko \
+ jr3_pci.ko \
+ ke_counter.ko \
+ me_daq.ko \
+ me4000.ko \
+ ni_6527.ko \
+ ni_65xx.ko \
+ ni_660x.ko \
+ ni_670x.ko \
+ ni_pcidio.ko \
+ ni_pcimio.ko \
+ rtd520.ko \
+ s626.ko
+else
+pci_modules=
+endif
+
+
 if CONFIG_COMEDI_PCMCIA
 pcmcia_modules= \
  cb_das16_cs.ko \
@@ -96,49 +152,16 @@ module_PROGRAMS = \
  8255.ko \
  comedi_fc.ko \
  das08.ko \
- mite.ko \
  ni_labpc.ko \
  acl7225b.ko \
- addi_apci_035.ko \
- addi_apci_1032.ko \
- addi_apci_1500.ko \
- addi_apci_1516.ko \
- addi_apci_1564.ko \
- addi_apci_16xx.ko \
- addi_apci_2016.ko \
- addi_apci_2032.ko \
- addi_apci_2200.ko \
- addi_apci_3001.ko \
- addi_apci_3120.ko \
- addi_apci_3501.ko \
- addi_apci_3xxx.ko \
- adl_pci6208.ko \
- adl_pci7296.ko \
- adl_pci7432.ko \
- adl_pci8164.ko \
- adl_pci9111.ko \
- adl_pci9118.ko \
  adq12b.ko \
- adv_pci1710.ko \
- adv_pci1723.ko \
- adv_pci_dio.ko \
- amplc_pci224.ko \
- amplc_pci230.ko \
  amplc_pc236.ko \
  amplc_pc263.ko \
  amplc_dio200.ko \
  aio_aio12_8.ko \
  aio_iiro_16.ko \
  c6xdigio.ko \
- cb_pcidas.ko \
- cb_pcidas64.ko \
- cb_pcidda.ko \
- cb_pcidio.ko \
- cb_pcimdas.ko \
- cb_pcimdda.ko \
  comedi_bond.ko \
- contec_pci_dio.ko \
- daqboard2000.ko \
  das16.ko \
  das16m1.ko \
  das6402.ko \
@@ -151,24 +174,10 @@ module_PROGRAMS = \
  dt2815.ko \
  dt2817.ko \
  dt282x.ko \
- dt3000.ko \
  fl512.ko \
- gsc_hpdi.ko \
- ii_pci20kc.ko \
- icp_multi.ko \
- jr3_pci.ko \
- ke_counter.ko \
- me_daq.ko \
- me4000.ko \
  mpc624.ko \
  multiq3.ko \
- ni_660x.ko \
- ni_670x.ko \
  ni_atmio.ko \
- ni_pcimio.ko \
- ni_pcidio.ko \
- ni_6527.ko \
- ni_65xx.ko \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
  ni_at_ao.ko \
@@ -189,16 +198,15 @@ module_PROGRAMS = \
  pcmuio.ko \
  pcmmio.ko \
  comedi_parport.ko \
- rtd520.ko \
  rti800.ko \
  rti802.ko \
  serial2002.ko \
  skel.ko \
  ssv_dnp.ko \
  s526.ko \
- s626.ko \
  comedi_test.ko \
  unioxx5.ko \
+ $(pci_modules) \
  $(pcmcia_modules) \
  $(usb_modules) \
  $(rt_modules)

@@ -301,12 +301,14 @@ static const dio200_board dio200_boards[] = {
 	      model:	pc215e_model,
 	      layout:	pc215_layout,
 		},
+#ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci215",
 	      bustype:	pci_bustype,
 	      model:	pci215_model,
 	      layout:	pc215_layout,
 		},
+#endif
 	{
 	      name:	"pc218e",
 	      bustype:	isa_bustype,
@@ -319,12 +321,14 @@ static const dio200_board dio200_boards[] = {
 	      model:	pc272e_model,
 	      layout:	pc272_layout,
 		},
+#ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci272",
 	      bustype:	pci_bustype,
 	      model:	pci272_model,
 	      layout:	pc272_layout,
 		},
+#endif
 };
 
 /*
@@ -398,6 +402,7 @@ static const dio200_layout dio200_layouts[] = {
  * PCI driver table.
  */
 
+#ifdef CONFIG_COMEDI_PCI
 static struct pci_device_id dio200_pci_table[] __devinitdata = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci215_model},
@@ -407,6 +412,7 @@ static struct pci_device_id dio200_pci_table[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, dio200_pci_table);
+#endif /* CONFIG_COMEDI_PCI */
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -418,7 +424,9 @@ MODULE_DEVICE_TABLE(pci, dio200_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
+#ifdef CONFIG_COMEDI_PCI
 	struct pci_dev *pci_dev;	/* PCI device */
+#endif
 	int intr_sd;
 } dio200_private;
 
@@ -469,6 +477,7 @@ COMEDI_INITCLEANUP(driver_amplc_dio200);
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
+#ifdef CONFIG_COMEDI_PCI
 static int
 dio200_find_pci(comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
@@ -530,6 +539,7 @@ dio200_find_pci(comedi_device * dev, int bus, int slot,
 	}
 	return -EIO;
 }
+#endif
 
 /*
  * This function checks and requests an I/O region, reporting an error
@@ -1243,10 +1253,12 @@ dio200_subdev_8254_cleanup(comedi_device * dev, comedi_subdevice * s)
 static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pci_dev = NULL;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
+#ifdef CONFIG_COMEDI_PCI
+	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
+#endif
 	const dio200_layout *layout;
 	int share_irq = 0;
 	int sdx;
@@ -1269,6 +1281,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = it->options[1];
 		share_irq = 0;
 		break;
+#ifdef CONFIG_COMEDI_PCI
 	case pci_bustype:
 		bus = it->options[0];
 		slot = it->options[1];
@@ -1278,6 +1291,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 			return ret;
 		devpriv->pci_dev = pci_dev;
 		break;
+#endif
 	default:
 		printk(KERN_ERR
 			"comedi%d: %s: BUG! cannot determine board type!\n",
@@ -1289,6 +1303,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->intr_sd = -1;
 
 	/* Enable device and reserve I/O spaces. */
+#ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
 		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 		if (ret < 0) {
@@ -1299,7 +1314,9 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 		iobase = pci_resource_start(pci_dev, 2);
 		irq = pci_dev->irq;
-	} else {
+	} else
+#endif
+	{
 		ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
 		if (ret < 0) {
 			return ret;
@@ -1377,7 +1394,9 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	if (thisboard->bustype == isa_bustype) {
 		printk("(base %#lx) ", iobase);
 	} else {
+#ifdef CONFIG_COMEDI_PCI
 		printk("(pci %s) ", pci_name(pci_dev));
+#endif
 	}
 	if (irq) {
 		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
@@ -1429,13 +1448,18 @@ static int dio200_detach(comedi_device * dev)
 		}
 	}
 	if (devpriv) {
+#ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
 			if (dev->iobase) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
-		} else if (dev->iobase) {
-			release_region(dev->iobase, DIO200_IO_SIZE);
+		} else
+#endif
+		{
+			if (dev->iobase) {
+				release_region(dev->iobase, DIO200_IO_SIZE);
+			}
 		}
 	}
 	if (dev->board_name) {

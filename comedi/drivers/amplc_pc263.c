@@ -77,14 +77,17 @@ static const pc263_board pc263_boards[] = {
 	      bustype:	isa_bustype,
 	      model:	pc263_model,
 		},
+#ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci263",
 	      fancy_name:"PCI263",
 	      bustype:	pci_bustype,
 	      model:	pci263_model,
 		},
+#endif
 };
 
+#ifdef CONFIG_COMEDI_PCI
 static struct pci_device_id pc263_pci_table[] __devinitdata = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, pci263_model},
@@ -92,6 +95,7 @@ static struct pci_device_id pc263_pci_table[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, pc263_pci_table);
+#endif /* CONFIG_COMEDI_PCI */
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -101,12 +105,14 @@ MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
+#ifdef CONFIG_COMEDI_PCI
 typedef struct {
 	/* PCI device. */
 	struct pci_dev *pci_dev;
 } pc263_private;
 
 #define devpriv ((pc263_private *)dev->private)
+#endif /* CONFIG_COMEDI_PCI */
 
 /*
  * The comedi_driver structure tells the Comedi core module
@@ -141,10 +147,12 @@ static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
 static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pci_dev = NULL;
 	unsigned long iobase = 0;
+#ifdef CONFIG_COMEDI_PCI
+	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
 	struct pci_device_id *pci_id;
+#endif
 	int ret;
 
 	printk("comedi%d: %s: ", dev->minor, PC263_DRIVER_NAME);
@@ -152,15 +160,18 @@ static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
+#ifdef CONFIG_COMEDI_PCI
 	if ((ret = alloc_private(dev, sizeof(pc263_private))) < 0) {
 		printk("out of memory!\n");
 		return ret;
 	}
+#endif
 	/* Process options. */
 	switch (thisboard->bustype) {
 	case isa_bustype:
 		iobase = it->options[0];
 		break;
+#ifdef CONFIG_COMEDI_PCI
 	case pci_bustype:
 		bus = it->options[0];
 		slot = it->options[1];
@@ -210,6 +221,7 @@ static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 			return -EIO;
 		}
 		break;
+#endif /* CONFIG_COMEDI_PCI */
 	default:
 		printk("bug! cannot determine board type!\n");
 		return -EINVAL;
@@ -223,13 +235,16 @@ static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("%s ", dev->board_name);
 
 	/* Enable device and reserve I/O spaces. */
+#ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
 		if ((ret = comedi_pci_enable(pci_dev, PC263_DRIVER_NAME)) < 0) {
 			printk("error enabling PCI device and requesting regions!\n");
 			return ret;
 		}
 		iobase = pci_resource_start(pci_dev, 2);
-	} else {
+	} else
+#endif
+	{
 		if ((ret = pc263_request_region(iobase, PC263_IO_SIZE)) < 0) {
 			return ret;
 		}
@@ -263,7 +278,9 @@ static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 	if (thisboard->bustype == isa_bustype) {
 		printk("(base %#lx) ", iobase);
 	} else {
+#ifdef CONFIG_COMEDI_PCI
 		printk("(pci %s) ", pci_name(pci_dev));
+#endif
 	}
 
 	printk("attached\n");
@@ -283,14 +300,22 @@ static int pc263_detach(comedi_device * dev)
 {
 	printk("comedi%d: %s: remove\n", dev->minor, PC263_DRIVER_NAME);
 
-	if (devpriv) {
+#ifdef CONFIG_COMEDI_PCI
+	if (devpriv)
+#endif
+	{
+#ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
 			if (dev->iobase) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
-		} else if (dev->iobase) {
-			release_region(dev->iobase, PC263_IO_SIZE);
+		} else 
+#endif
+		{
+			if (dev->iobase) {
+				release_region(dev->iobase, PC263_IO_SIZE);
+			}
 		}
 	}
 

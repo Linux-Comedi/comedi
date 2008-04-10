@@ -642,6 +642,7 @@ static void ni_release_cdo_mite_channel(comedi_device * dev)
 }
 
 // e-series boards use the second irq signals to generate dma requests for their counters
+#ifdef PCIDMA
 static void ni_e_series_enable_second_irq(comedi_device * dev,
 	unsigned gpct_index, short enable)
 {
@@ -671,6 +672,7 @@ static void ni_e_series_enable_second_irq(comedi_device * dev,
 		break;
 	}
 }
+#endif // PCIDMA
 
 static void ni_clear_ai_fifo(comedi_device * dev)
 {
@@ -775,7 +777,9 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 	unsigned int ai_mite_status = 0;
 	unsigned int ao_mite_status = 0;
 	unsigned long flags;
+#ifdef PCIDMA
 	struct mite_struct *mite = devpriv->mite;
+#endif
 
 	if (dev->attached == 0)
 		return IRQ_NONE;
@@ -785,6 +789,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	a_status = devpriv->stc_readw(dev, AI_Status_1_Register);
 	b_status = devpriv->stc_readw(dev, AO_Status_1_Register);
+#ifdef PCIDMA
 	if (mite) {
 		unsigned long flags_too;
 
@@ -809,6 +814,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d PT_REGS_ARG)
 		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock,
 			flags_too);
 	}
+#endif
 	ack_a_interrupt(dev, a_status);
 	ack_b_interrupt(dev, b_status);
 	if ((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
@@ -936,12 +942,14 @@ static void ni_event(comedi_device * dev, comedi_subdevice * s)
 static void handle_gpct_interrupt(comedi_device * dev,
 	unsigned short counter_index)
 {
+#ifdef PCIDMA
 	comedi_subdevice *s = dev->subdevices + NI_GPCT_SUBDEV(counter_index);
 
 	ni_tio_handle_interrupt(&devpriv->counter_dev->counters[counter_index],
 		s);
 	if (s->async->events)
 		ni_event(dev, s);
+#endif
 }
 
 static void ack_a_interrupt(comedi_device * dev, unsigned short a_status)
@@ -3658,7 +3666,9 @@ static int ni_cdio_cmd(comedi_device * dev, comedi_subdevice * s)
 static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
 	unsigned int trignum)
 {
+#ifdef PCIDMA
 	unsigned long flags;
+#endif
 	int retval = 0;
 	unsigned i;
 	const unsigned timeout = 100;
@@ -3668,6 +3678,7 @@ static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
 	/* read alloc the entire buffer */
 	comedi_buf_read_alloc(s->async, s->async->prealloc_bufsz);
 
+#ifdef PCIDMA
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
 		mite_prep_dma(devpriv->cdo_mite_chan, 32, 32);
@@ -3679,6 +3690,7 @@ static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	if (retval < 0)
 		return retval;
+#endif
 // XXX not sure what interrupt C group does
 //      ni_writeb(Interrupt_Group_C_Enable_Bit, M_Offset_Interrupt_C_Enable);
 	//wait for dma to fill output fifo
@@ -3694,7 +3706,7 @@ static int ni_cdo_inttrig(comedi_device * dev, comedi_subdevice * s,
 	}
 	ni_writel(CDO_Arm_Bit | CDO_Error_Interrupt_Enable_Set_Bit |
 		CDO_Empty_FIFO_Interrupt_Enable_Set_Bit, M_Offset_CDIO_Command);
-	return 0;
+	return retval;
 }
 
 static int ni_cdio_cancel(comedi_device * dev, comedi_subdevice * s)
@@ -3714,11 +3726,14 @@ static void handle_cdio_interrupt(comedi_device * dev)
 {
 	unsigned cdio_status;
 	comedi_subdevice *s = dev->subdevices + NI_DIO_SUBDEV;
+#ifdef PCIDMA
 	unsigned long flags;
+#endif
 
 	if ((boardtype.reg_type & ni_reg_m_series_mask) == 0) {
 		return;
 	}
+#ifdef PCIDMA
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->cdo_mite_chan) {
 		unsigned cdo_mite_status =
@@ -3731,6 +3746,7 @@ static void handle_cdio_interrupt(comedi_device * dev)
 		mite_sync_output_dma(devpriv->cdo_mite_chan, s->async);
 	}
 	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+#endif
 
 	cdio_status = ni_readl(M_Offset_CDIO_Status);
 	if (cdio_status & (CDO_Overrun_Bit | CDO_Underflow_Bit)) {
@@ -5074,13 +5090,18 @@ static int ni_gpct_cmd(comedi_device * dev, comedi_subdevice * s)
 static int ni_gpct_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
+#ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
 
 	return ni_tio_cmdtest(counter, cmd);
+#else
+	return -ENOTSUPP;
+#endif
 }
 
 static int ni_gpct_cancel(comedi_device * dev, comedi_subdevice * s)
 {
+#ifdef PCIDMA
 	struct ni_gpct *counter = s->private;
 	int retval;
 
@@ -5088,6 +5109,9 @@ static int ni_gpct_cancel(comedi_device * dev, comedi_subdevice * s)
 	ni_e_series_enable_second_irq(dev, counter->counter_index, 0);
 	ni_release_gpct_mite_channel(dev, counter->counter_index);
 	return retval;
+#else
+	return 0;
+#endif
 }
 
 /*

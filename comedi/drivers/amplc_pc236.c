@@ -108,14 +108,17 @@ static const pc236_board pc236_boards[] = {
 	      bustype:	isa_bustype,
 	      model:	pc36at_model,
 		},
+#ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci236",
 	      fancy_name:"PCI236",
 	      bustype:	pci_bustype,
 	      model:	pci236_model,
 		},
+#endif
 };
 
+#ifdef CONFIG_COMEDI_PCI
 static struct pci_device_id pc236_pci_table[] __devinitdata = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, pci236_model},
@@ -123,6 +126,7 @@ static struct pci_device_id pc236_pci_table[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, pc236_pci_table);
+#endif /* CONFIG_COMEDI_PCI */
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -133,9 +137,11 @@ MODULE_DEVICE_TABLE(pci, pc236_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the comedi_device struct.  */
 typedef struct {
+#ifdef CONFIG_COMEDI_PCI
 	/* PCI device */
 	struct pci_dev *pci_dev;
 	unsigned long lcr_iobase;	/* PLX PCI9052 config registers in PCIBAR1 */
+#endif
 	int enable_irq;
 } pc236_private;
 
@@ -182,11 +188,13 @@ static irqreturn_t pc236_interrupt(int irq, void *d PT_REGS_ARG);
 static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	struct pci_dev *pci_dev = NULL;
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
+#ifdef CONFIG_COMEDI_PCI
+	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
 	struct pci_device_id *pci_id;
+#endif
 	int share_irq = 0;
 	int ret;
 
@@ -206,6 +214,7 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 		irq = it->options[1];
 		share_irq = 0;
 		break;
+#ifdef CONFIG_COMEDI_PCI
 	case pci_bustype:
 		bus = it->options[0];
 		slot = it->options[1];
@@ -256,6 +265,7 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 			return -EIO;
 		}
 		break;
+#endif /* CONFIG_COMEDI_PCI */
 	default:
 		printk("bug! cannot determine board type!\n");
 		return -EINVAL;
@@ -269,6 +279,7 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("%s ", dev->board_name);
 
 	/* Enable device and reserve I/O spaces. */
+#ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
 		if ((ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME)) < 0) {
 			printk("error enabling PCI device and requesting regions!\n");
@@ -277,7 +288,9 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
 		iobase = pci_resource_start(pci_dev, 2);
 		irq = pci_dev->irq;
-	} else {
+	} else
+#endif
+	{
 		if ((ret = pc236_request_region(iobase, PC236_IO_SIZE)) < 0) {
 			return ret;
 		}
@@ -323,7 +336,9 @@ static int pc236_attach(comedi_device * dev, comedi_devconfig * it)
 	if (thisboard->bustype == isa_bustype) {
 		printk("(base %#lx) ", iobase);
 	} else {
+#ifdef CONFIG_COMEDI_PCI
 		printk("(pci %s) ", pci_name(pci_dev));
+#endif
 	}
 	if (irq) {
 		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
@@ -356,13 +371,18 @@ static int pc236_detach(comedi_device * dev)
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
 	}
 	if (devpriv) {
+#ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
 			if (dev->iobase) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
-		} else if (dev->iobase) {
-			release_region(dev->iobase, PC236_IO_SIZE);
+		} else
+#endif
+		{
+			if (dev->iobase) {
+				release_region(dev->iobase, PC236_IO_SIZE);
+			}
 		}
 	}
 	return 0;
@@ -392,8 +412,10 @@ static void pc236_intr_disable(comedi_device * dev)
 
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 0;
+#ifdef CONFIG_COMEDI_PCI
 	if (devpriv->lcr_iobase)
 		outl(PCI236_INTR_DISABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
+#endif
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -408,8 +430,10 @@ static void pc236_intr_enable(comedi_device * dev)
 
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 1;
+#ifdef CONFIG_COMEDI_PCI
 	if (devpriv->lcr_iobase)
 		outl(PCI236_INTR_ENABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
+#endif
 	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 

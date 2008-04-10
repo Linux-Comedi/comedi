@@ -67,6 +67,26 @@ CC=$LINUX_CC
  -DKBUILD_BASENAME=\$(shell basename \$< .c)"]
 AC_SUBST(COMEDI_CFLAGS)
 
+AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_PCI],[HAVE_PCI="yes"],[HAVE_PCI="yes"],[HAVE_PCI="no"])
+AM_CONDITIONAL([CONFIG_PCI],[test "$HAVE_PCI" = "yes"])
+AC_ARG_ENABLE([pci],[  --disable-pci		Disable support for PCI devices],
+	[ENABLE_PCI=$enableval],[ENABLE_PCI="maybe"])
+if test "$HAVE_PCI" = "yes" ; then
+	if test "ENABLE_PCI" = "no" ; then
+		AC_MSG_NOTICE([PCI support disabled])
+		USE_PCI="no"
+	else
+		AC_DEFINE([CONFIG_COMEDI_PCI],[true],[Define if PCI support is enabled])
+		USE_PCI="yes"
+	fi
+else
+	if test "ENABLE_PCI" = "yes" ; then
+		AC_MSG_ERROR([Kernel does not support PCI])
+	fi
+	USE_PCI="no"
+fi
+AM_CONDITIONAL([CONFIG_COMEDI_PCI],[test "$USE_PCI" = "yes"])
+
 COMEDI_CHECK_PCMCIA_PROBE([$LINUX_SRC_DIR], [HAVE_PCMCIA="yes"], [HAVE_PCMCIA="no"])
 AM_CONDITIONAL([CONFIG_PCMCIA],[test "$HAVE_PCMCIA" = "yes"])
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
@@ -113,7 +133,6 @@ AC_ARG_ENABLE([kbuild], [  --enable-kbuild	Force use (or not) of kernel's Kbuild
 AM_CONDITIONAL([CONFIG_KBUILD], [test ${ENABLE_KBUILD} = "yes"])
 COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_SRC_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H="no"])
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
-AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_PCI)
 
 AC_DEFINE(CONFIG_COMEDI_DEBUG, true, [Define if debugging is enabled])
 AC_DEFINE(CONFIG_COMEDI_8255, true, [Define if 8255 support is enabled])
