@@ -4,25 +4,41 @@ SUBDIRS = addi-data
 AM_CFLAGS = $(COMEDI_CFLAGS) $(LINUX_CFLAGS) $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)
 LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers \
+	-i ../kcomedilib/.mods/kcomedilib.o.symvers \
 	-i .mods/8255.o.symvers \
 	-i .mods/comedi_fc.o.symvers \
+	-i .mods/ni_tio.o.symvers \
 	-i .mods/das08.o.symvers \
+	-i .mods/ni_labpc.o.symvers
+if CONFIG_COMEDI_PCI
+LINK += \
 	-i .mods/mite.o.symvers \
-	-i .mods/ni_labpc.o.symvers \
-	-i .mods/ni_tio.o.symvers
+	-i .mods/ni_tiocmd.o.symvers
+endif
 
 8255_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 comedi_fc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 das08_ko_LINK = $(top_builddir)/modtool --link -o $@ \
-	-i ../.mods/comedi.o.symvers
+	-i ../.mods/comedi.o.symvers \
+	-i .mods/8255.o.symvers
 mite_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
 ni_labpc_ko_LINK = $(top_builddir)/modtool --link -o $@ \
-	-i ../.mods/comedi.o.symvers
+	-i ../.mods/comedi.o.symvers \
+	-i .mods/8255.o.symvers \
+	-i .mods/comedi_fc.o.symvers
+if CONFIG_COMEDI_PCI
+ni_labpc_ko_LINK += \
+	-i .mods/mite.o.symvers
+endif
 ni_tio_ko_LINK = $(top_builddir)/modtool --link -o $@ \
 	-i ../.mods/comedi.o.symvers
+ni_tiocmd_ko_LINK = $(top_builddir)/modtool --link -o $@ \
+	-i ../.mods/comedi.o.symvers \
+	-i .mods/ni_tio.o.symvers \
+	-i .mods/mite.o.symvers
 
 8255_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 comedi_fc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
@@ -30,6 +46,7 @@ das08_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 mite_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 ni_labpc_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 ni_tio_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
+ni_tiocmd_ko_CFLAGS = $(AM_CFLAGS) -DEXPORT_SYMTAB
 
 
 EXTRA_DIST = \
@@ -54,6 +71,7 @@ EXTRA_DIST = \
  ni_mio_common.c \
  ni_stc.h \
  ni_tio.h \
+ ni_tio_internal.h \
  plx9052.h \
  plx9080.h \
  rtd520.h \
@@ -68,8 +86,11 @@ rt_modules =
 endif
 
 if CONFIG_COMEDI_PCI
-pci_modules= \
+# split to build modules in correct order (for non-Kbuild builds)
+pci_modules1= \
  mite.ko \
+ ni_tiocmd.ko
+pci_modules2= \
  addi_apci_035.ko \
  addi_apci_1032.ko \
  addi_apci_1500.ko \
@@ -119,7 +140,8 @@ pci_modules= \
  rtd520.ko \
  s626.ko
 else
-pci_modules=
+pci_modules1=
+pci_modules2=
 endif
 
 
@@ -152,6 +174,8 @@ module_PROGRAMS = \
  8255.ko \
  comedi_fc.ko \
  das08.ko \
+ ni_tio.ko \
+ $(pci_modules1) \
  ni_labpc.ko \
  acl7225b.ko \
  adq12b.ko \
@@ -181,7 +205,6 @@ module_PROGRAMS = \
  ni_atmio16d.ko \
  ni_at_a2150.ko \
  ni_at_ao.ko \
- ni_tio.ko \
  pcm3724.ko \
  pcm3730.ko \
  pcmad.ko \
@@ -206,7 +229,7 @@ module_PROGRAMS = \
  s526.ko \
  comedi_test.ko \
  unioxx5.ko \
- $(pci_modules) \
+ $(pci_modules2) \
  $(pcmcia_modules) \
  $(usb_modules) \
  $(rt_modules)
@@ -303,6 +326,7 @@ ni_daq_700_ko_SOURCES = ni_daq_700.c
 ni_daq_dio24_ko_SOURCES = ni_daq_dio24.c
 ni_at_ao_ko_SOURCES = ni_at_ao.c
 ni_tio_ko_SOURCES = ni_tio.c
+ni_tiocmd_ko_SOURCES = ni_tiocmd.c
 pcm3724_ko_SOURCES = pcm3724.c
 pcm3730_ko_SOURCES = pcm3730.c
 pcmad_ko_SOURCES = pcmad.c

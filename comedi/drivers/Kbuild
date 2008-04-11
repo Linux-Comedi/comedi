@@ -57,6 +57,7 @@ obj-$(CONFIG_COMEDI_PCI_MODULES) += ni_660x.o
 obj-$(CONFIG_COMEDI_PCI_MODULES) += ni_670x.o
 obj-$(CONFIG_COMEDI_PCI_MODULES) += ni_pcidio.o
 obj-$(CONFIG_COMEDI_PCI_MODULES) += ni_pcimio.o
+obj-$(CONFIG_COMEDI_PCI_MODULES) += ni_tiocmd.o
 obj-$(CONFIG_COMEDI_PCI_MODULES) += rtd520.o
 obj-$(CONFIG_COMEDI_PCI_MODULES) += s626.o
 
