@@ -59,7 +59,7 @@ static inline int kref_put(struct kref *kref,
 
 #include_next <linux/kref.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 #include <asm/bug.h>
 #endif
 
