@@ -55,70 +55,49 @@ static inline int kref_put(struct kref *kref,
 	return 0;
 }
 
-static inline void KREF_INIT(struct kref *kref,
-	void (*release) (struct kref * kref))
-{
-	kref_init(kref);
-}
-
-static inline int KREF_PUT(struct kref *kref,
-	void (*release) (struct kref * kref))
-{
-	return kref_put(kref, release);
-}
-
 #else
 
 #include_next <linux/kref.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
+#include <asm/bug.h>
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
 
-static inline void KREF_INIT(struct kref *kref,
-	void (*release) (struct kref * kref))
+/* Dummy release function should never be called. */
+static void comedi_dummy_kref_release(struct kref *kref)
 {
-	kref_init(kref, release);
+	BUG();
 }
 
-static inline int KREF_PUT(struct kref *kref,
-	void (*release) (struct kref * kref))
+/* Redefine kref_init to remove 'release' parameter. */
+static inline void comedi_internal_kref_init(struct kref *kref)
 {
-	int retval;
-	if (atomic_read(&kref->refcount) == 1) {
-		retval = 1;
-	} else {
-		retval = 0;
-	}
-	kref_put(kref);
-	return retval;
+	kref_init(kref, comedi_dummy_kref_release);
 }
+#undef kref_init
+#define kref_init(kref) comedi_internal_kref_init(kref)
 
-#else
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9) */
 
-static inline void KREF_INIT(struct kref *kref,
-	void (*release) (struct kref * kref))
-{
-	kref_init(kref);
-}
-
-static inline int KREF_PUT(struct kref *kref,
-	void (*release) (struct kref * kref))
-{
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
-	int retval;
-	if (atomic_read(&kref->refcount) == 1) {
-		retval = 1;
-	} else {
-		retval = 0;
+
+/* Redefine kref_put to add 'release' parameter and return a result. */
+static inline int comedi_internal_kref_put(struct kref *kref,
+	void (*release) (struct kref * kref))
+{
+	if (atomic_dec_and_test(&kref->refcount)) {
+		release(kref);
+		return 1;
 	}
-	kref_put(kref, release);
-	return retval;
-#else
-	return kref_put(kref, release);
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12)
+	return 0;
 }
+#undef kref_put
+#define kref_put(kref, release) comedi_internal_kref_put(kref, release)
 
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12) */
 
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,5) */
 
 #endif /* _KREF_COMPAT_H_ */

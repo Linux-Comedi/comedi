@@ -486,7 +486,7 @@ static int dt9812_probe(struct usb_interface *interface,
 		err("Out of memory");
 		goto error;
 	}
-	KREF_INIT(&dev->kref, dt9812_delete);
+	kref_init(&dev->kref);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
@@ -644,7 +644,7 @@ static int dt9812_probe(struct usb_interface *interface,
 
       error:
 	if (dev) {
-		KREF_PUT(&dev->kref, dt9812_delete);
+		kref_put(&dev->kref, dt9812_delete);
 	}
 	return retval;
 }
@@ -666,7 +666,7 @@ static void dt9812_disconnect(struct usb_interface *interface)
 	up(&dt9812_mutex);
 
 	/* queue final destruction */
-	KREF_PUT(&dev->kref, dt9812_delete);
+	kref_put(&dev->kref, dt9812_delete);
 
 	info("USB Dt9812 #%d now disconnected", minor);
 }
