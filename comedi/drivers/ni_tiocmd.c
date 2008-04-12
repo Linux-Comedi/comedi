@@ -502,6 +502,19 @@ void ni_tio_set_mite_channel(struct ni_gpct *counter,
 	comedi_spin_unlock_irqrestore(&counter->lock, flags);
 }
 
+static int __init ni_tiocmd_init_module(void)
+{
+	return 0;
+}
+
+module_init(ni_tiocmd_init_module);
+
+static void __exit ni_tiocmd_cleanup_module(void)
+{
+}
+
+module_exit(ni_tiocmd_cleanup_module);
+
 EXPORT_SYMBOL_GPL(ni_tio_cmd);
 EXPORT_SYMBOL_GPL(ni_tio_cmdtest);
 EXPORT_SYMBOL_GPL(ni_tio_cancel);
