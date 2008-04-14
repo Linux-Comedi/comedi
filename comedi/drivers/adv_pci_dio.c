@@ -7,16 +7,17 @@
 */
 /*
 Driver: adv_pci_dio
-Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1750, PCI-1751,
-             PCI-1752, PCI-1753/E, PCI-1754, PCI-1756, PCI-1762
+Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1736UP,
+             PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754,
+             PCI-1756, PCI-1762
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1730 (pci1730), PCI-1733 (pci1733),
-  PCI-1734 (pci1734), PCI-1750 (pci1750), PCI-1751 (pci1751),
-  PCI-1752 (pci1752), PCI-1753 (pci1753), PCI-1753+PCI-1753E (pci1753e),
-  PCI-1754 (pci1754), PCI-1756 (pci1756), PCI-1760(pci1760),
-  PCI-1762 (pci1762)
+  PCI-1734 (pci1734), PCI-1736UP (pci1736), PCI-1750 (pci1750),
+  PCI-1751 (pci1751), PCI-1752 (pci1752), PCI-1753 (pci1753),
+  PCI-1753+PCI-1753E (pci1753e), PCI-1754 (pci1754), PCI-1756 (pci1756),
+  PCI-1760(pci1760), PCI-1762 (pci1762)
 Status: untested
-Updated: 2003-04-06
+Updated: Mon, 14 Apr 2008 10:43:08 +0100
 
 This driver supports now only insn interface for DI/DO/DIO.
 
@@ -46,7 +47,7 @@ Configuration options:
 
 // hardware types of the cards
 typedef enum {
-	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734,
+	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1736,
 	TYPE_PCI1750,
 	TYPE_PCI1751,
 	TYPE_PCI1752,
@@ -81,6 +82,15 @@ typedef enum {
 #define	PCI1730_3_INT_CLR	0x10	/* R/W: clear interrupts */
 #define PCI1734_IDO	   0	/* W:   Isolated digital output 0-31 */
 #define PCI173x_BOARDID	   4	/* R:   Board I/D switch for 1730/3/4 */
+
+// Advantech PCI-1736UP
+#define PCI1736_IDI        0    /* R:   Isolated digital input  0-15 */
+#define PCI1736_IDO        0    /* W:   Isolated digital output 0-15 */
+#define PCI1736_3_INT_EN        0x08    /* R/W: enable/disable interrupts */ 
+#define PCI1736_3_INT_RF        0x0c    /* R/W: set falling/raising edge for interrupts */
+#define PCI1736_3_INT_CLR       0x10    /* R/W: clear interrupts */
+#define PCI1736_BOARDID    4            /* R:   Board I/D switch for 1736UP */
+#define PCI1736_MAINREG    0            /* Normal register (2) doesn't work */
 
 // Advantech PCI-1750
 #define PCI1750_IDI	   0	/* R:   Isolated digital input  0-15 */
@@ -200,6 +210,7 @@ static struct pci_device_id pci_dio_pci_table[] = __devinitdata {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1730, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1733, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1734, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_ADVANTECH, 0x1736, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1750, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1751, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1752, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -236,6 +247,14 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI173x_BOARDID, 1, SDF_INTERNAL},
 		IO_8b},
+	{"pci1736", PCI_VENDOR_ID_ADVANTECH, 0x1736, PCI1736_MAINREG,
+			TYPE_PCI1736,
+			{{0, 0, 0, 0}, {16, PCI1736_IDI, 2, 0}},
+			{{0, 0, 0, 0}, {16, PCI1736_IDO, 2, 0}},
+			{{ 0, 0, 0, 0}, { 0, 0, 0, 0}},
+			{ 4, PCI1736_BOARDID, 1, SDF_INTERNAL},
+			IO_8b,
+        },
 	{"pci1750", PCI_VENDOR_ID_ADVANTECH, 0x1750, PCIDIO_MAINREG,
 			TYPE_PCI1750,
 			{{0, 0, 0, 0}, {16, PCI1750_IDI, 2, 0}},
@@ -673,6 +692,15 @@ static int pci_dio_reset(comedi_device * dev)
 		outb(0, dev->iobase + PCI1734_IDO + 2);
 		outb(0, dev->iobase + PCI1734_IDO + 3);
 		break;
+
+	case TYPE_PCI1736:
+		outb(0, dev->iobase+PCI1736_IDO);
+		outb(0, dev->iobase+PCI1736_IDO+1);
+		outb(0, dev->iobase+PCI1736_3_INT_EN);  // disable interrupts
+		outb(0x0f, dev->iobase+PCI1736_3_INT_CLR);// clear interrupts
+		outb(0, dev->iobase+PCI1736_3_INT_RF);  // set rising edge trigger
+		break;
+
 	case TYPE_PCI1750:
 	case TYPE_PCI1751:
 		outb(0x88, dev->iobase + PCI1750_ICR);	// disable & clear interrupts
