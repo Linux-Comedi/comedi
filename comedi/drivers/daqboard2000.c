@@ -25,6 +25,7 @@ Driver: daqboard2000
 Description: IOTech DAQBoard/2000
 Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
+Updated: Mon, 14 Apr 2008 15:28:52 +0100
 Devices: [IOTech] DAQBoard/2000 (daqboard2000)
 
 Much of the functionality of this driver was determined from reading
@@ -36,7 +37,10 @@ option.  The initialization code is available from http://www.comedi.org
 in the comedi_nonfree_firmware tarball.
 
 Configuration options:
-    none
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 */
 /*
    This card was obviously never intended to leave the Windows world, 
@@ -720,18 +724,34 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 	struct pci_dev *card = NULL;
 	void *aux_data;
 	unsigned int aux_len;
+	int bus, slot;
 
 	printk("comedi%d: daqboard2000:", dev->minor);
+
+	bus = it->options[0];
+	slot = it->options[1];
 
 	result = alloc_private(dev, sizeof(daqboard2000_private));
 	if (result < 0) {
 		return -ENOMEM;
 	}
-	/* FIXME: we should handle multiple cards, have to make David decide
-	   how, so we will be consistent among all PCI card drivers... */
-	card = pci_get_device(0x1616, 0x0409, NULL);
+	for (card = pci_get_device(0x1616, 0x0409, NULL);
+		card != NULL;
+		card = pci_get_device(0x1616, 0x0409, card)) {
+		if (bus || slot) {
+			/* requested particular bus/slot */
+			if (card->bus->number != bus ||
+				PCI_SLOT(card->devfn) != slot) {
+				continue;
+			}
+		}
+	}
 	if (!card) {
-		printk(" no daqboard2000 found\n");
+		if (bus || slot)
+			printk(" no daqboard2000 found at bus/slot: %d/%d\n",
+				bus, slot);
+		else
+			printk(" no daqboard2000 found\n");
 		return -EIO;
 	} else {
 		u32 id;

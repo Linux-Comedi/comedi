@@ -24,11 +24,14 @@ Driver: adl_pci7296
 Description: Driver for the Adlink PCI-7296 96 ch. digital io board
 Devices: [ADLink] PCI-7296 (pci7296)
 Author: Jon Grierson <jd@renko.co.uk>
-Updated: 2.8.2006
+Updated: Mon, 14 Apr 2008 15:05:56 +0100
 Status: testing
 
 Configuration Options:
-  none
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 */
 
 #include <linux/comedidev.h>
@@ -89,12 +92,16 @@ static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	struct pci_dev *pcidev;
 	comedi_subdevice *s;
+	int bus, slot;
+	int ret;
 
 	printk("comedi: attempt to attach...\n");
 	printk("comedi%d: adl_pci7432: board=%s\n", dev->minor,
 		thisboard->name);
 
 	dev->board_name = thisboard->name;
+	bus = it->options[0];
+	slot = it->options[1];
 
 	if (alloc_private(dev, sizeof(adl_pci7296_private)) < 0)
 		return -ENOMEM;
@@ -108,6 +115,13 @@ static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 
 		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 			pcidev->device == PCI_DEVICE_ID_PCI7296) {
+			if (bus || slot) {
+				/* requested particular bus/slot */
+				if (pcidev->bus->number != bus
+					|| PCI_SLOT(pcidev->devfn) != slot) {
+					continue;
+				}
+			}
 			devpriv->pci_dev = pcidev;
 			if (comedi_pci_enable(pcidev, "adl_pci7296") < 0) {
 				printk("comedi%d: Failed to enable PCI device and request regions\n", dev->minor);
@@ -125,24 +139,32 @@ static int adl_pci7296_attach(comedi_device * dev, comedi_devconfig * it)
 				(unsigned long)(dev->iobase));
 
 			s = dev->subdevices + 1;
-			subdev_8255_init(dev, s, NULL,
+			ret = subdev_8255_init(dev, s, NULL,
 				(unsigned long)(dev->iobase + PORT2A));
+			if (ret < 0)
+				return ret;
 
 			s = dev->subdevices + 2;
-			subdev_8255_init(dev, s, NULL,
+			ret = subdev_8255_init(dev, s, NULL,
 				(unsigned long)(dev->iobase + PORT3A));
+			if (ret < 0)
+				return ret;
 
 			s = dev->subdevices + 3;
-			subdev_8255_init(dev, s, NULL,
+			ret = subdev_8255_init(dev, s, NULL,
 				(unsigned long)(dev->iobase + PORT4A));
+			if (ret < 0)
+				return ret;
 
-			break;
+			printk("attached\n");
+
+			return 1;
 		}
 	}
 
-	printk("attached\n");
-
-	return 1;
+	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor, bus, slot);
+	return -EIO;
 }
 
 static int adl_pci7296_detach(comedi_device * dev)

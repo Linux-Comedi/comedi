@@ -26,7 +26,14 @@ Description: Data Translation DT3000 series
 Author: ds
 Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,
   DT3003-PGL, DT3004, DT3005, DT3004-200
+Updated: Mon, 14 Apr 2008 15:41:24 +0100
 Status: works
+
+Configuration Options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 
 There is code to support AI commands, but it may not work.
 
@@ -788,19 +795,22 @@ static int dt3k_mem_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return i;
 }
 
-static int dt_pci_probe(comedi_device * dev);
+static int dt_pci_probe(comedi_device * dev, int bus, int slot);
 
 static int dt3000_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
+	int bus, slot;
 	int ret = 0;
 
 	printk("dt3000:");
+	bus = it->options[0];
+	slot = it->options[1];
 
 	if ((ret = alloc_private(dev, sizeof(dt3k_private))) < 0)
 		return ret;
 
-	ret = dt_pci_probe(dev);
+	ret = dt_pci_probe(dev, bus, slot);
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
@@ -899,12 +909,22 @@ static int dt3000_detach(comedi_device * dev)
 static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board);
 static int setup_pci(comedi_device * dev);
 
-static int dt_pci_probe(comedi_device * dev)
+static int dt_pci_probe(comedi_device * dev, int bus, int slot)
 {
 	int board;
 	int ret;
+	struct pci_dev *pcidev;
 
-	devpriv->pci_dev = dt_pci_find_device(NULL, &board);
+	pcidev = NULL;
+	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
+		if ((bus == 0 && slot == 0) ||
+			(pcidev->bus->number == bus &&
+			 PCI_SLOT(pcidev->devfn == slot))) {
+			break;
+		}
+	}
+	devpriv->pci_dev = pcidev;
+
 	if (board >= 0)
 		dev->board_ptr = dt3k_boardtypes + board;
 
