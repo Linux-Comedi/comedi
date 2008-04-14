@@ -25,8 +25,14 @@ Driver: ke_counter
 Description: Driver for Kolter Electronic Counter Card
 Devices: [Kolter Electronic] PCI Counter Card (ke_counter)
 Author: Michael Hillmann
-Updated: 2002.4.11
+Updated: Mon, 14 Apr 2008 15:42:42 +0100
 Status: tested
+
+Configuration Options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 
 This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
