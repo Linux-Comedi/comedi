@@ -24,10 +24,15 @@ Driver: adv_pci1723
 Description: Advantech PCI-1723
 Author: yonggang <rsmgnu@gmail.com>, Ian Abbott <abbotti@mev.co.uk>
 Devices: [Advantech] PCI-1723 (pci1723)
-Updated: Tue, 25 Mar 2008 12:14:40 +0000
+Updated: Mon, 14 Apr 2008 15:12:56 +0100
 Status: works
 
-Configuration Options:  none
+Configuration Options:
+  [0] - PCI bus of device (optional)
+  [1] - PCI slot of device (optional)
+
+  If bus/slot is not specified, the first supported
+  PCI device found will be used.
 
 Subdevice 0 is 8-channel AO, 16-bit, range +/- 10 V.
 
