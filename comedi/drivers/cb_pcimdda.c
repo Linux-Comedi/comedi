@@ -26,7 +26,7 @@ Driver: cb_pcimdda
 Description: Measurement Computing PCIM-DDA06-16
 Devices: [Measurement Computing] PCIM-DDA06-16 (cb_pcimdda)
 Author: Calin Culianu <calin@ajvar.org>
-Updated: Thu, 20 Jun 2002 16:19:41 -0500
+Updated: Mon, 14 Apr 2008 15:15:51 +0100
 Status: works
 
 All features of the PCIM-DDA06-16 board are supported.  This board
@@ -58,8 +58,8 @@ output modes on the board:
     to initiate the simultaneous XFER.
 
 Configuration Options:
-  [0] PCI bus (optional) (unimplemented)
-  [1] PCI slot (optional) (unimplemented)
+  [0] PCI bus (optional)
+  [1] PCI slot (optional)
   [2] analog output range jumper setting
       0 == +/- 5 V
       1 == +/- 10 V
