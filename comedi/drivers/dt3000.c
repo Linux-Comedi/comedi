@@ -919,7 +919,7 @@ static int dt_pci_probe(comedi_device * dev, int bus, int slot)
 	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
 		if ((bus == 0 && slot == 0) ||
 			(pcidev->bus->number == bus &&
-			 PCI_SLOT(pcidev->devfn == slot))) {
+			 PCI_SLOT(pcidev->devfn) == slot)) {
 			break;
 		}
 	}
