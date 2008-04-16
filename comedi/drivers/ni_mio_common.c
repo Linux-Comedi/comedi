@@ -2976,7 +2976,7 @@ static int ni_ao_insn_config(comedi_device * dev, comedi_subdevice * s,
 		switch(data[1])
 		{
 		case COMEDI_OUTPUT:
-			data[2] = 1 + boardtype.ao_fifo_depth;
+			data[2] = 1 + boardtype.ao_fifo_depth * sizeof(sampl_t);
 			if(devpriv->mite) data[2] += devpriv->mite->fifo_size;
 			break;
 		case COMEDI_INPUT:
@@ -3172,36 +3172,28 @@ static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		~(AO_UI_Reload_Mode(3) | AO_UI_Initial_Load_Source);
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
 
-/* The following if block was originally added to prevent the enclosed writes to
-the AO_Mode_1_Register and AO_Output_Control_Register, for the sake of 611x boards.
-However, the related pxi-6713 definitely needs this block of code for multiple channel
-ao commands to work properly, and I'm really not sure it ever should have
-been added for the 611x boards either, so I'm re-enabling it for all boards.
-Frank Hess 2008-03-31. */
-	if(1 /*(boardtype.reg_type & ni_reg_611x_mask) == 0*/){
-		if (cmd->scan_end_arg > 1) {
-			devpriv->ao_mode1 |= AO_Multiple_Channels;
-			devpriv->stc_writew(dev,
-				AO_Number_Of_Channels(cmd->scan_end_arg -
-					1) |
-				AO_UPDATE_Output_Select
-				(AO_Update_Output_High_Z),
-				AO_Output_Control_Register);
+	if (cmd->scan_end_arg > 1) {
+		devpriv->ao_mode1 |= AO_Multiple_Channels;
+		devpriv->stc_writew(dev,
+			AO_Number_Of_Channels(cmd->scan_end_arg -
+				1) |
+			AO_UPDATE_Output_Select
+			(AO_Update_Output_High_Z),
+			AO_Output_Control_Register);
+	} else {
+		unsigned bits;
+		devpriv->ao_mode1 &= ~AO_Multiple_Channels;
+		bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
+		if (boardtype.reg_type & (ni_reg_m_series_mask | ni_reg_6xxx_mask)) {
+			bits |= AO_Number_Of_Channels(0);
 		} else {
-			unsigned bits;
-			devpriv->ao_mode1 &= ~AO_Multiple_Channels;
-			bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
-			if (boardtype.reg_type & (ni_reg_m_series_mask | ni_reg_6xxx_mask)) {
-				bits |= AO_Number_Of_Channels(0);
-			} else {
-				bits |= AO_Number_Of_Channels(CR_CHAN(cmd->
-						chanlist[0]));
-			}
-			devpriv->stc_writew(dev, bits,
-				AO_Output_Control_Register);
+			bits |= AO_Number_Of_Channels(CR_CHAN(cmd->
+					chanlist[0]));
 		}
-		devpriv->stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
+		devpriv->stc_writew(dev, bits,
+			AO_Output_Control_Register);
 	}
+	devpriv->stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
 
 	devpriv->stc_writew(dev, AO_DAC0_Update_Mode | AO_DAC1_Update_Mode,
 		AO_Command_1_Register);
