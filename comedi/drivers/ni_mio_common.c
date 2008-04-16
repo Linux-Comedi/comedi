@@ -75,24 +75,17 @@ static const unsigned old_RTSI_clock_channel = 7;
 
 /* Note: this table must match the ai_gain_* definitions */
 static const short ni_gainlkup[][16] = {
-	/* ai_gain_16 */
-	{0, 1, 2, 3, 4, 5, 6, 7, 0x100, 0x101, 0x102, 0x103, 0x104, 0x105,
-		0x106, 0x107},
-	/* ai_gain_8 */
-	{1, 2, 4, 7, 0x101, 0x102, 0x104, 0x107},
-	/* ai_gain_14 */
-	{1, 2, 3, 4, 5, 6, 7, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106,
-		0x107},
-	/* ai_gain_4 */
-	{0, 1, 4, 7},
-	/* ai_gain_611x */
-	{0x00a, 0x00b, 0x001, 0x002, 0x003, 0x004, 0x005, 0x006},
-	/* ai_gain_622x */
-	{0, 1, 4, 5},
-	/* ai_gain_628x */
-	{1, 2, 3, 4, 5, 6, 7},
-	/* ai_gain_6143 */
-	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+	[ai_gain_16] = {0, 1, 2, 3, 4, 5, 6, 7,
+		0x100, 0x101, 0x102, 0x103, 0x104, 0x105, 0x106, 0x107},
+	[ai_gain_8] = {1, 2, 4, 7, 0x101, 0x102, 0x104, 0x107},
+	[ai_gain_14] = {1, 2, 3, 4, 5, 6, 7,
+		0x101, 0x102, 0x103, 0x104, 0x105, 0x106, 0x107},
+	[ai_gain_4] = {0, 1, 4, 7},
+	[ai_gain_611x] = {0x00a, 0x00b, 0x001, 0x002,
+		0x003, 0x004, 0x005, 0x006},
+	[ai_gain_622x] = {0, 1, 4, 5},
+	[ai_gain_628x] = {1, 2, 3, 4, 5, 6, 7},
+	[ai_gain_6143] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 };
 
 static const comedi_lrange range_ni_E_ai = { 16, {
@@ -190,14 +183,14 @@ static const comedi_lrange range_ni_E_ao_ext = { 4, {
 };
 
 static const comedi_lrange *const ni_range_lkup[] = {
-	&range_ni_E_ai,
-	&range_ni_E_ai_limited,
-	&range_ni_E_ai_limited14,
-	&range_ni_E_ai_bipolar4,
-	&range_ni_E_ai_611x,
-	&range_ni_M_ai_622x,
-	&range_ni_M_ai_628x,
-	&range_ni_S_ai_6143
+	[ai_gain_16] = &range_ni_E_ai,
+	[ai_gain_8] = &range_ni_E_ai_limited,
+	[ai_gain_14] = &range_ni_E_ai_limited14,
+	[ai_gain_4] = &range_ni_E_ai_bipolar4,
+	[ai_gain_611x] = &range_ni_E_ai_611x,
+	[ai_gain_622x] = &range_ni_M_ai_622x,
+	[ai_gain_628x] = &range_ni_M_ai_628x,
+	[ai_gain_6143] = &range_ni_S_ai_6143
 };
 
 static int ni_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
