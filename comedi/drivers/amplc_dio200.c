@@ -403,7 +403,7 @@ static const dio200_layout dio200_layouts[] = {
  */
 
 #ifdef CONFIG_COMEDI_PCI
-static struct pci_device_id dio200_pci_table[] __devinitdata = {
+static struct pci_device_id dio200_pci_table[] = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci215_model},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272,

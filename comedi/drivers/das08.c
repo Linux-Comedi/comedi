@@ -492,7 +492,7 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 		},
 };
 
-static struct pci_device_id das08_pci_table[] __devinitdata = {
+static struct pci_device_id das08_pci_table[] = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_PCIDAS08, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, 0},
 	{0}

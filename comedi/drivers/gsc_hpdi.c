@@ -286,7 +286,7 @@ static inline unsigned int num_boards(void)
 	return sizeof(hpdi_boards) / sizeof(hpdi_board);
 }
 
-static struct pci_device_id hpdi_pci_table[] __devinitdata = {
+static struct pci_device_id hpdi_pci_table[] = {
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080, PCI_VENDOR_ID_PLX, 0x2400,
 		0, 0, 0},
 	{0}

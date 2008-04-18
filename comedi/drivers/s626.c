@@ -110,7 +110,7 @@ static const s626_board s626_boards[] = {
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
 
-static struct pci_device_id s626_pci_table[] __devinitdata = {
+static struct pci_device_id s626_pci_table[] = {
 	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		0},
 	{0}

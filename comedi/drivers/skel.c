@@ -114,7 +114,7 @@ static const skel_board skel_boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 #define PCI_VENDOR_ID_SKEL 0xdafe
-static struct pci_device_id skel_pci_table[] __devinitdata = {
+static struct pci_device_id skel_pci_table[] = {
 	{PCI_VENDOR_ID_SKEL, 0x0100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_SKEL, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}

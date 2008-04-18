@@ -69,7 +69,7 @@ broken.
   This is used by modprobe to translate PCI IDs to drivers.
   ===========================================================================*/
 
-static struct pci_device_id me4000_pci_table[] __devinitdata = {
+static struct pci_device_id me4000_pci_table[] = {
 	{PCI_VENDOR_ID_MEILHAUS, 0x4650, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 
 	{PCI_VENDOR_ID_MEILHAUS, 0x4660, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

@@ -144,7 +144,7 @@ static const board boards[] = {
  * only be used for PCI and ISA-PnP devices */
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
-static struct pci_device_id pci_table[] __devinitdata = {
+static struct pci_device_id pci_table[] = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_ID_PCIM_DDA06_16, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, 0},
 	{0}

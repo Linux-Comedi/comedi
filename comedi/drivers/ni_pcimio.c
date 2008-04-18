@@ -126,7 +126,7 @@ Bugs:
 #define MAX_N_CALDACS (16+16+2)
 
 /* The following two tables must be in the same order */
-static struct pci_device_id ni_pci_table[] __devinitdata = {
+static struct pci_device_id ni_pci_table[] = {
 	{PCI_VENDOR_ID_NATINST, 0x0162, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1170, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

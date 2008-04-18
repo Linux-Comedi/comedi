@@ -318,7 +318,7 @@ static const boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 #define this_board ((const boardtype *)dev->board_ptr)
 
-static struct pci_device_id daqboard2000_pci_table[] __devinitdata = {
+static struct pci_device_id daqboard2000_pci_table[] = {
 	{0x1616, 0x0409, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };

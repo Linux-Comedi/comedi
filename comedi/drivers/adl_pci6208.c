@@ -86,7 +86,7 @@ static const pci6208_board pci6208_boards[] = {
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
-static struct pci_device_id pci6208_pci_table[] __devinitdata = {
+static struct pci_device_id pci6208_pci_table[] = {
 	//{ PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	//{ PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

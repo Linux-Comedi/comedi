@@ -204,7 +204,7 @@ typedef struct {
 	unsigned int fifo_half_size;	// size of FIFO/2
 } boardtype;
 
-static struct pci_device_id pci1710_pci_table[] __devinitdata = {
+static struct pci_device_id pci1710_pci_table[] = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1711, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1713, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

@@ -1019,7 +1019,7 @@ static inline unsigned int num_boards(void)
 	return sizeof(pcidas64_boards) / sizeof(pcidas64_board);
 }
 
-static struct pci_device_id pcidas64_pci_table[] __devinitdata = {
+static struct pci_device_id pcidas64_pci_table[] = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

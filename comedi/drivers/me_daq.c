@@ -187,7 +187,7 @@ static const comedi_lrange me2600_ao_range = {
 		}
 };
 
-static struct pci_device_id me_pci_table[] __devinitdata = {
+static struct pci_device_id me_pci_table[] = {
 	{PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		0},
 	{PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,

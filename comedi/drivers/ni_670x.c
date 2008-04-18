@@ -87,7 +87,7 @@ static const ni_670x_board ni_670x_boards[] = {
 		},
 };
 
-static struct pci_device_id ni_670x_pci_table[] __devinitdata = {
+static struct pci_device_id ni_670x_pci_table[] = {
 	{PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	//{ PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },

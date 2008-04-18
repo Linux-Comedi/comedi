@@ -86,7 +86,7 @@ static const pcidio_board pcidio_boards[] = {
  * only be used for PCI and ISA-PnP devices */
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
-static struct pci_device_id pcidio_pci_table[] __devinitdata = {
+static struct pci_device_id pcidio_pci_table[] = {
 	{PCI_VENDOR_ID_CB, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_CB, 0x0014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_CB, 0x000b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

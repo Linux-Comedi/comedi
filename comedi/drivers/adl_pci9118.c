@@ -201,7 +201,7 @@ typedef struct {
 
 } boardtype;
 
-static struct pci_device_id pci9118_pci_table[] __devinitdata = {
+static struct pci_device_id pci9118_pci_table[] = {
 	{PCI_VENDOR_ID_AMCC, 0x80d9, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };

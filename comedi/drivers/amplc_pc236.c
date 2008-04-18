@@ -119,7 +119,7 @@ static const pc236_board pc236_boards[] = {
 };
 
 #ifdef CONFIG_COMEDI_PCI
-static struct pci_device_id pc236_pci_table[] __devinitdata = {
+static struct pci_device_id pc236_pci_table[] = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI236, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, pci236_model},
 	{0}

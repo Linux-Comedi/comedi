@@ -53,7 +53,7 @@ static const adl_pci7432_board adl_pci7432_boards[] = {
 	{"pci7432", PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432},
 };
 
-static struct pci_device_id adl_pci7432_pci_table[] __devinitdata = {
+static struct pci_device_id adl_pci7432_pci_table[] = {
 	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432, PCI_ANY_ID, PCI_ANY_ID, 0,
 		0, 0},
 	{0}

@@ -191,7 +191,7 @@ static const cb_pcidda_board cb_pcidda_boards[] = {
 		},
 };
 
-static struct pci_device_id cb_pcidda_pci_table[] __devinitdata = {
+static struct pci_device_id cb_pcidda_pci_table[] = {
 	{PCI_VENDOR_ID_CB, 0x0020, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_CB, 0x0021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_CB, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

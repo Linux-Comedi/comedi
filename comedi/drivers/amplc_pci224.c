@@ -370,7 +370,7 @@ static const pci224_board pci224_boards[] = {
  * PCI driver table.
  */
 
-static struct pci_device_id pci224_pci_table[] __devinitdata = {
+static struct pci_device_id pci224_pci_table[] = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci224_model},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234,
