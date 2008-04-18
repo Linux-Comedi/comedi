@@ -17,7 +17,7 @@
 
 #include_next <linux/module.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,48)
 static inline int try_module_get(struct module *module)
 {
 	if (!module)
@@ -31,7 +31,14 @@ static inline void module_put(struct module *module)
 		return;
 	__MOD_DEC_USE_COUNT(module);
 }
-#else
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,69)
+static inline void __module_get(struct module *module)
+{
+	(void)try_module_get(module);
+}
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,59)
 #define MOD_IN_USE (0)
 #endif
 
