@@ -1778,10 +1778,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
       ok:
-	if (!try_module_get(THIS_MODULE)) {
-		mutex_unlock(&dev->mutex);
-		return -ENOSYS;
-	}
+	__module_get(THIS_MODULE);
 
 	if (dev->attached) {
 		if (!try_module_get(dev->driver->module)) {
