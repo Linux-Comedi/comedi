@@ -130,7 +130,7 @@ static const boardtype boardtypes[] = {
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
-static struct pci_device_id pci1723_pci_table[] = __devinitdata {
+static struct pci_device_id pci1723_pci_table[] __devinitdata = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1723, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };

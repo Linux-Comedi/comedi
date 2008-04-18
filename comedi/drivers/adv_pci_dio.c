@@ -206,7 +206,7 @@ typedef struct {
 	hw_io_access io_access;	// {enum hw_io_access_enum}
 } boardtype;
 
-static struct pci_device_id pci_dio_pci_table[] = __devinitdata {
+static struct pci_device_id pci_dio_pci_table[] __devinitdata = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1730, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1733, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1734, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
