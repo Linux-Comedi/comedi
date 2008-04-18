@@ -1935,9 +1935,6 @@ static void __exit comedi_cleanup(void)
 {
 	int i;
 
-	if (MOD_IN_USE)
-		printk("comedi: module in use -- remove delayed\n");
-
 	for (i = 0; i < COMEDI_NDEVICES; i++) {
 		comedi_device *dev;
 
