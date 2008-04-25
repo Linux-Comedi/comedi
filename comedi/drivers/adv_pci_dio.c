@@ -197,7 +197,7 @@ typedef struct {
 	const char *name;	// board name
 	int vendor_id;		// vendor/device PCI ID
 	int device_id;
-	int main_pci_region;	// main I/O OCI region
+	int main_pci_region;	// main I/O PCI region
 	hw_cards_id cardtype;	// {enum hw_cards_id_enum}
 	diosubd_data sdi[MAX_DI_SUBDEVS];	// DI chans
 	diosubd_data sdo[MAX_DO_SUBDEVS];	// DO chans
