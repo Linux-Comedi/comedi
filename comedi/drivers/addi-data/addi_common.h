@@ -78,7 +78,7 @@ typedef unsigned int ULONG, *PULONG;	/* 32-bit */
 typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
 typedef unsigned long ULONG_PTR;
 
-typedef comedi_lrange *PRANGE;
+typedef const comedi_lrange *PCRANGE;
 #define LOBYTE(W)								 (BYTE         )((W)&0xFF)
 #define HIBYTE(W)                                (BYTE         )(((W)>>8)&0xFF)
 #define MAKEWORD(H,L)                            (USHORT       )((L)|( (H)<<8) )
@@ -120,15 +120,15 @@ typedef struct {
 	INT i_NbrAoChannel;	// num of D/A chans
 	INT i_AiMaxdata;	// resolution of A/D
 	INT i_AoMaxdata;	// resolution of D/A
-	PRANGE pr_AiRangelist;	// rangelist for A/D        
-	PRANGE pr_AoRangelist;	// rangelist for D/A 
+	PCRANGE pr_AiRangelist;	// rangelist for A/D        
+	PCRANGE pr_AoRangelist;	// rangelist for D/A 
 
 	INT i_NbrDiChannel;	// Number of DI channels
 	INT i_NbrDoChannel;	// Number of DO channels
 	INT i_DoMaxdata;	// data to set all chanels high
 
 	INT i_NbrTTLChannel;	// Number of TTL channels
-	PRANGE pr_TTLRangelist;	// rangelist for TTL
+	PCRANGE pr_TTLRangelist;	// rangelist for TTL
 
 	INT i_Dma;		// dma present or not
 	INT i_Timer;		//   timer subdevice present or not     

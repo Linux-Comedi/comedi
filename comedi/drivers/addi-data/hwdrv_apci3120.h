@@ -59,7 +59,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 // comedi related defines    
 
 //ANALOG INPUT RANGE 
-comedi_lrange range_apci3120_ai = { 8, {
+static const comedi_lrange range_apci3120_ai = { 8, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2),
@@ -72,7 +72,7 @@ comedi_lrange range_apci3120_ai = { 8, {
 };
 
 // ANALOG OUTPUT RANGE
-comedi_lrange range_apci3120_ao = { 2, {
+static const comedi_lrange range_apci3120_ao = { 2, {
 			BIP_RANGE(10),
 			UNI_RANGE(10)
 	}

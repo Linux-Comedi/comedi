@@ -139,7 +139,7 @@ void fpu_end(void)
 #define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
 #endif
 
-static boardtype boardtypes[] = {
+static const boardtype boardtypes[] = {
 #ifdef CONFIG_APCI_3120
 	{"apci3120",
 			APCI3120_BOARD_VENDOR_ID,

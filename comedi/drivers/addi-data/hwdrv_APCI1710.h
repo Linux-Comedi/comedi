@@ -53,7 +53,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 //MODULE INFO STRUCTURE
 
-comedi_lrange range_apci1710_ttl = { 4, {
+static const comedi_lrange range_apci1710_ttl = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2),
@@ -61,7 +61,7 @@ comedi_lrange range_apci1710_ttl = { 4, {
 	}
 };
 
-comedi_lrange range_apci1710_ssi = { 4, {
+static const comedi_lrange range_apci1710_ssi = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2),
@@ -69,7 +69,7 @@ comedi_lrange range_apci1710_ssi = { 4, {
 	}
 };
 
-comedi_lrange range_apci1710_inccpt = { 4, {
+static const comedi_lrange range_apci1710_inccpt = { 4, {
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2),

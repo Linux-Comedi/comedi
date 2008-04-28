@@ -39,7 +39,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #ifdef __KERNEL__
 
-comedi_lrange range_apci3XXX_ai = { 8, {BIP_RANGE(10),
+static const comedi_lrange range_apci3XXX_ai = { 8, {BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2),
 			BIP_RANGE(1),
@@ -49,7 +49,7 @@ comedi_lrange range_apci3XXX_ai = { 8, {BIP_RANGE(10),
 	UNI_RANGE(1)}
 };
 
-comedi_lrange range_apci3XXX_ttl = { 12, {BIP_RANGE(1),
+static const comedi_lrange range_apci3XXX_ttl = { 12, {BIP_RANGE(1),
 			BIP_RANGE(1),
 			BIP_RANGE(1),
 			BIP_RANGE(1),
@@ -63,7 +63,7 @@ comedi_lrange range_apci3XXX_ttl = { 12, {BIP_RANGE(1),
 	BIP_RANGE(1)}
 };
 
-comedi_lrange range_apci3XXX_ao = { 2, {BIP_RANGE(10),
+static const comedi_lrange range_apci3XXX_ao = { 2, {BIP_RANGE(10),
 	UNI_RANGE(10)}
 };
 #endif

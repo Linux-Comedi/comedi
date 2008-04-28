@@ -48,7 +48,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #ifdef __KERNEL__
 
-comedi_lrange range_apci16xx_ttl = { 12,
+static const comedi_lrange range_apci16xx_ttl = { 12,
 	{BIP_RANGE(1),
 			BIP_RANGE(1),
 			BIP_RANGE(1),
