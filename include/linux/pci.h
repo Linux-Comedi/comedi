@@ -23,4 +23,9 @@ static inline char *pci_name(struct pci_dev *pdev)
 }
 #endif
 
+#ifndef DEFINE_PCI_DEVICE_TABLE
+#define DEFINE_PCI_DEVICE_TABLE(_table) \
+	struct pci_device_id _table[]
+#endif
+
 #endif /* _COMPAT_PCI_H */
