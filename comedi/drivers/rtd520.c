@@ -318,7 +318,7 @@ static const rtdBoard rtd520Boards[] = {
 		},
 };
 
-static struct pci_device_id rtd520_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
 	{PCI_VENDOR_ID_RTD, 0x7520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_RTD, 0x4520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}

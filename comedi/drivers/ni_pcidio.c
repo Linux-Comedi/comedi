@@ -374,7 +374,7 @@ static const nidio_board nidio_boards[] = {
 #define n_nidio_boards (sizeof(nidio_boards)/sizeof(nidio_boards[0]))
 #define this_board ((const nidio_board *)dev->board_ptr)
 
-static struct pci_device_id ni_pcidio_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x1150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1320, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x12b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

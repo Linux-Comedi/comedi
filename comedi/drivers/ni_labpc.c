@@ -433,7 +433,7 @@ static comedi_driver driver_labpc = {
 };
 
 #ifdef CONFIG_COMEDI_PCI
-static struct pci_device_id labpc_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };

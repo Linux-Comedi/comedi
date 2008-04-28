@@ -403,7 +403,7 @@ static const dio200_layout dio200_layouts[] = {
  */
 
 #ifdef CONFIG_COMEDI_PCI
-static struct pci_device_id dio200_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci215_model},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272,
@@ -483,7 +483,7 @@ dio200_find_pci(comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
-	struct pci_device_id *pci_id;
+	const struct pci_device_id *pci_id;
 
 	*pci_dev_p = NULL;
 

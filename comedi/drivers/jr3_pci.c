@@ -114,7 +114,7 @@ static comedi_driver driver_jr3_pci = {
       detach:jr3_pci_detach,
 };
 
-static struct pci_device_id jr3_pci_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {
 	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_1_CHANNEL,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_JR3, PCI_DEVICE_ID_JR3_2_CHANNEL,

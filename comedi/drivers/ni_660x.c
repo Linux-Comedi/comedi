@@ -409,7 +409,7 @@ static const ni_660x_board ni_660x_boards[] = {
 #define NI_660X_MAX_NUM_CHIPS 2
 #define NI_660X_MAX_NUM_COUNTERS (NI_660X_MAX_NUM_CHIPS * counters_per_chip)
 
-static struct pci_device_id ni_660x_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x2c60, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

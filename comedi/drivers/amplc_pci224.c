@@ -370,7 +370,7 @@ static const pci224_board pci224_boards[] = {
  * PCI driver table.
  */
 
-static struct pci_device_id pci224_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci224_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci224_model},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234,
@@ -1258,7 +1258,7 @@ pci224_find_pci(comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
-	struct pci_device_id *pci_id;
+	const struct pci_device_id *pci_id;
 
 	*pci_dev_p = NULL;
 

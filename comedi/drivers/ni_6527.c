@@ -104,7 +104,7 @@ static const ni6527_board ni6527_boards[] = {
 #define n_ni6527_boards (sizeof(ni6527_boards)/sizeof(ni6527_boards[0]))
 #define this_board ((const ni6527_board *)dev->board_ptr)
 
-static struct pci_device_id ni6527_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x2b10, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x2b20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}

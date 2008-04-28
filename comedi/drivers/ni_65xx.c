@@ -254,7 +254,7 @@ static inline unsigned ni_65xx_total_num_ports(const ni_65xx_board * board)
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
 
-static struct pci_device_id ni_65xx_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x1710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x7085, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x7086, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

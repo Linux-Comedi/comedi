@@ -377,7 +377,7 @@ static const cb_pcidas_board cb_pcidas_boards[] = {
 // Number of boards in cb_pcidas_boards
 #define N_BOARDS	(sizeof(cb_pcidas_boards) / sizeof(cb_pcidas_board))
 
-static struct pci_device_id cb_pcidas_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
 	{PCI_VENDOR_ID_CB, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_CB, 0x000f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_CB, 0x0010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},

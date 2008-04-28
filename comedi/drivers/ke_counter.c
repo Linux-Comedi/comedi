@@ -51,7 +51,7 @@ Kolter Electronic PCI Counter Card.
 static int cnt_attach(comedi_device * dev, comedi_devconfig * it);
 static int cnt_detach(comedi_device * dev);
 
-static struct pci_device_id cnt_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
 	{PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		0},
 	{0}

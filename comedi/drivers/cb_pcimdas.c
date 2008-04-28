@@ -122,7 +122,7 @@ static const cb_pcimdas_board cb_pcimdas_boards[] = {
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
-static struct pci_device_id cb_pcimdas_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(cb_pcimdas_pci_table) = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x0056, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };

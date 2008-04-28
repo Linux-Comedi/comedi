@@ -88,7 +88,7 @@ static const pc263_board pc263_boards[] = {
 };
 
 #ifdef CONFIG_COMEDI_PCI
-static struct pci_device_id pc263_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, pci263_model},
 	{0}
@@ -151,7 +151,7 @@ static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 #ifdef CONFIG_COMEDI_PCI
 	struct pci_dev *pci_dev = NULL;
 	int bus = 0, slot = 0;
-	struct pci_device_id *pci_id;
+	const struct pci_device_id *pci_id;
 #endif
 	int ret;
 

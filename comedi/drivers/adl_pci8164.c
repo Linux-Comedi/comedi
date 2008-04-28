@@ -65,7 +65,7 @@ static const adl_pci8164_board adl_pci8164_boards[] = {
 	{"pci8164", PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164},
 };
 
-static struct pci_device_id adl_pci8164_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
 	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164, PCI_ANY_ID, PCI_ANY_ID, 0,
 		0, 0},
 	{0}

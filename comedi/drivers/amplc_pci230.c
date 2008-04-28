@@ -501,7 +501,7 @@ static const pci230_board pci230_boards[] = {
 		},
 };
 
-static struct pci_device_id pci230_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci230_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI230, PCI_ANY_ID, PCI_ANY_ID,
 		0, 0, 0},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_PCI260, PCI_ANY_ID, PCI_ANY_ID,
