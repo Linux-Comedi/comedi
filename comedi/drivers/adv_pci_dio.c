@@ -11,11 +11,11 @@ Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1736UP,
              PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754,
              PCI-1756, PCI-1762
 Author: Michal Dobes <dobes@tesnet.cz>
-Devices: [Advantech] PCI-1730 (pci1730), PCI-1733 (pci1733),
-  PCI-1734 (pci1734), PCI-1736UP (pci1736), PCI-1750 (pci1750),
-  PCI-1751 (pci1751), PCI-1752 (pci1752), PCI-1753 (pci1753),
-  PCI-1753+PCI-1753E (pci1753e), PCI-1754 (pci1754), PCI-1756 (pci1756),
-  PCI-1760(pci1760), PCI-1762 (pci1762)
+Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
+  PCI-1734, PCI-1736UP, PCI-1750,
+  PCI-1751, PCI-1752, PCI-1753,
+  PCI-1753+PCI-1753E, PCI-1754, PCI-1756,
+  PCI-1760, PCI-1762
 Status: untested
 Updated: Mon, 14 Apr 2008 10:43:08 +0100
 
@@ -326,10 +326,7 @@ static comedi_driver driver_pci_dio = {
       driver_name:"adv_pci_dio",
       module:THIS_MODULE,
       attach:pci_dio_attach,
-      detach:pci_dio_detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+      detach:pci_dio_detach
 };
 typedef struct pci_dio_private_st pci_dio_private;
 struct pci_dio_private_st {
@@ -867,15 +864,6 @@ static int CheckAndAllocCard(comedi_device * dev, comedi_devconfig * it,
 
 	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
 		if (pr->pcidev == pcidev) {
-			if (it->options[0] || it->options[1]) {
-				if ((pr->pcidev->bus->number == it->options[0])
-					&& (PCI_SLOT(pr->pcidev->devfn) ==
-						it->options[1])) {
-					rt_printk
-						(", Error: Card on requested position is used!\n");
-					return 2;
-				}
-			}
 			return 0;	// this card is used, look for another
 		}
 	}
@@ -898,12 +886,11 @@ static int CheckAndAllocCard(comedi_device * dev, comedi_devconfig * it,
 static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	comedi_subdevice *s;
-	int ret, subdev, n_subdevices, i, j, found = 0;
+	int ret, subdev, n_subdevices, i, j;
 	unsigned long iobase;
 	struct pci_dev *pcidev;
 
-	rt_printk("comedi%d: adv_pci_dio: board=%s",
-		dev->minor, this_board->name);
+	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
 
 	if ((ret = alloc_private(dev, sizeof(pci_dio_private))) < 0) {
 		rt_printk(", Error: Cann't allocate private memory!\n");
@@ -913,26 +900,31 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		if ((pcidev->vendor != this_board->vendor_id)
-			|| (pcidev->device != this_board->device_id))
-			continue;
-		if (it->options[0] || it->options[1]) {
-			if ((pcidev->bus->number != it->options[0]) ||
-				(PCI_SLOT(pcidev->devfn) != it->options[1])) {
+		// loop through cards supported by this driver
+		for (i = 0; i < n_boardtypes; ++i) {
+			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;
+			if (boardtypes[i].device_id != pcidev->device)
+				continue;
+			// was a particular bus/slot requested?
+			if (it->options[0] || it->options[1]) {
+				// are we on the wrong bus/slot?
+				if (pcidev->bus->number != it->options[0] ||
+					PCI_SLOT(pcidev->devfn) !=
+					it->options[1]) {
+					continue;
+				}
 			}
-		}
-		ret = CheckAndAllocCard(dev, it, pcidev);
-		if (ret == 1) {
-			found = 1;
+			ret = CheckAndAllocCard(dev, it, pcidev);
+			if (ret != 1) continue;
+			dev->board_ptr = boardtypes + i;
 			break;
 		}
-		if (ret > 1) {
-			return -EIO;
-		}
+		if (dev->board_ptr)
+			break;
 	}
 
-	if (!found) {
+	if (!dev->board_ptr) {
 		rt_printk
 			(", Error: Requested type of the card was not found!\n");
 		return -EIO;
