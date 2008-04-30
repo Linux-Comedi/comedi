@@ -971,10 +971,8 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 	enc_private *k;
 	unsigned long flags;
 	int32_t *readaddr;
-	uint32_t irqtype, irqstatus, datacount;
-	int kernel_transfer = 0;
+	uint32_t irqtype, irqstatus;
 	int i = 0;
-	sampl_t *databuf = NULL;
 	sampl_t tempdata;
 	uint8_t group;
 	uint16_t irqbit;
@@ -1010,13 +1008,6 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 		s = dev->subdevices;
 		cmd = &(s->async->cmd);
 
-		// verify if data buffer exists
-		if (s->async->cmd.data != NULL) {
-			DEBUG("s626_irq_handler: Kernel transfer asserted\n");
-			kernel_transfer = 1;
-			databuf = s->async->cmd.data;
-			datacount = s->async->cmd.data_len;
-		}
 		// Init ptr to DMA buffer that holds new ADC data.  We skip the
 		// first uint16_t in the buffer because it contains junk data from
 		// the final ADC of the previous poll list scan.
@@ -1029,17 +1020,6 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 			tempdata = s626_ai_reg_to_uint((int)*readaddr);
 			readaddr++;
 
-			if (kernel_transfer) {
-				//send buffer overflow event
-				DEBUG("s626_irq_handler: in kernel transfer...\n");
-				if (datacount < 0) {
-					s->async->events |= COMEDI_CB_OVERFLOW;
-				} else {
-					datacount--;
-					// transfer data
-					*databuf++ = tempdata;
-				}
-			}
 			//put data into read buffer
 			// comedi_buf_put(s->async, tempdata);
 			if (cfc_write_to_buffer(s, tempdata) == 0)
