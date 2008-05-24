@@ -25,7 +25,9 @@
 #ifndef __COMPAT_LINUX_MUTEX_H_
 #define __COMPAT_LINUX_MUTEX_H_
 
-#ifdef HAVE_MUTEX_H
+#include <linux/config.h>
+
+#ifdef CONFIG_COMEDI_HAVE_MUTEX_H
 
 #include_next <linux/mutex.h>
 
