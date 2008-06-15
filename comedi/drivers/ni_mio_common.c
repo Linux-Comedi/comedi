@@ -3119,10 +3119,18 @@ static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		devpriv->stc_writel(dev, cmd->stop_arg, AO_UC_Load_A_Register);
-		devpriv->stc_writew(dev, AO_UC_Load, AO_Command_1_Register);
-		devpriv->stc_writel(dev, cmd->stop_arg - 1,
-			AO_UC_Load_A_Register);
+		if(boardtype.reg_type & ni_reg_m_series_mask)
+		{
+			// this is how the NI example code does it for m-series boards, verified correct with 6259
+			devpriv->stc_writel(dev, cmd->stop_arg - 1, AO_UC_Load_A_Register);
+			devpriv->stc_writew(dev, AO_UC_Load, AO_Command_1_Register);
+		}else
+		{
+			devpriv->stc_writel(dev, cmd->stop_arg, AO_UC_Load_A_Register);
+			devpriv->stc_writew(dev, AO_UC_Load, AO_Command_1_Register);
+			devpriv->stc_writel(dev, cmd->stop_arg - 1,
+				AO_UC_Load_A_Register);
+		}
 		break;
 	case TRIG_NONE:
 		devpriv->stc_writel(dev, 0xffffff, AO_UC_Load_A_Register);
