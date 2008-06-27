@@ -1471,11 +1471,12 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 	write_subdev = comedi_get_write_subdevice(dev, minor);
 	if (write_subdev) {
 		poll_wait(file, &write_subdev->async->wait_head, wait);
+		comedi_buf_write_alloc(write_subdev->async, write_subdev->async->prealloc_bufsz);
 		if (!write_subdev->busy
 			|| !(comedi_get_subdevice_runflags(write_subdev) &
 				SRF_RUNNING)
-			|| comedi_buf_write_n_available(write_subdev->async) >
-			0) {
+			|| comedi_buf_write_n_allocated(write_subdev->async) >=
+			bytes_per_sample(write_subdev->async->subdevice)) {
 			mask |= POLLOUT | POLLWRNORM;
 		}
 	}
