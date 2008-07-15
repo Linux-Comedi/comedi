@@ -76,7 +76,7 @@ static void cleanup_device(comedi_device * dev)
 					comedi_construct_minor_for_subdevice
 					(dev, i);
 				dev_t devt = MKDEV(COMEDI_MAJOR, minor);
-				class_device_destroy(comedi_class, devt);
+				device_destroy(comedi_class, devt);
 			}
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
@@ -258,6 +258,7 @@ static int postconfig(comedi_device * dev)
 		if (s->do_cmd) {
 			unsigned minor;
 			dev_t devt;
+			struct device *csdev;
 
 			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
 						SDF_CMD_WRITE)) == 0);
@@ -290,10 +291,11 @@ static int postconfig(comedi_device * dev)
 			}
 			minor = comedi_construct_minor_for_subdevice(dev, i);
 			devt = MKDEV(COMEDI_MAJOR, minor);
-			s->class_dev =
-				COMEDI_CLASS_DEVICE_CREATE(comedi_class,
-				dev->class_dev, devt, NULL, "comedi%i_sub%i",
+			csdev = device_create(comedi_class,
+				dev->class_dev, devt, "comedi%i_sub%i",
 				dev->minor, i);
+			if (!IS_ERR(csdev))
+				s->class_dev = csdev;
 		}
 
 		if (!s->range_table && !s->range_table_list)

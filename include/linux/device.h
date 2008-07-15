@@ -33,28 +33,26 @@ struct device_driver {
 };
 
 struct class;
-struct class_device;
 struct device;
 
 static inline struct class *class_create(struct module *owner, char *name)
 {
 	return NULL;
-};
+}
 
 static inline void class_destroy(struct class *cs)
 {
-};
+}
 
-static inline struct class_device *COMEDI_CLASS_DEVICE_CREATE(struct class *cls,
-	struct class_device *parent, dev_t devt, struct device *device,
-	char *fmt, ...)
+static inline struct device *device_create(struct class *cls,
+	struct device *parent, dev_t devt, char *fmt, ...)
 {
 	return NULL;
-};
+}
 
-static inline void class_device_destroy(struct class *cs, dev_t dev)
+static inline void device_destroy(struct class *cs, dev_t devt)
 {
-};
+}
 
 #else
 
@@ -66,23 +64,32 @@ static inline void class_device_destroy(struct class *cs, dev_t dev)
 	(struct class *)class_simple_create(owner, name)
 #define class_destroy(cs) \
 	class_simple_destroy((struct class_simple *)(cs))
-#define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
-	class_simple_device_add((struct class_simple *)(cs), \
-		dev, device, fmt)
-#define class_device_destroy(cs, dev) \
-	class_simple_device_remove(dev)
+#define device_create(cs, parent, devt, fmt...) \
+	(struct device *)class_simple_device_add((struct class_simple *)(cs), \
+		devt, NULL, fmt)
+#define device_destroy(cs, devt) \
+	class_simple_device_remove(devt)
 
 #else
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
-#define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
-	class_device_create(cs, dev, device, fmt)
+#define device_create(cs, parent, devt, fmt...) \
+	(struct device *)class_device_create(cs, devt, NULL, fmt)
+#define device_destroy(cs, devt) \
+	class_device_destroy(cs, devt)
 
 #else
 
-#define COMEDI_CLASS_DEVICE_CREATE(cs, parent, dev, device, fmt...) \
-	class_device_create(cs, parent, dev, device, fmt)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+
+#define device_create(cs, parent, devt, fmt...) \
+	(struct device *)class_device_create( \
+			cs, (struct class_device *)parent, devt, NULL, fmt)
+#define device_destroy(cs, devt) \
+	class_device_destroy(cs, devt)
+
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 

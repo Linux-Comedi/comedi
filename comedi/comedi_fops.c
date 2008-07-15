@@ -1912,12 +1912,12 @@ static int __init comedi_init(void)
 	comedi_proc_init();
 
 	for (i = 0; i < COMEDI_NDEVICES; i++) {
-		char name[20];
-		sprintf(name, "comedi%d", i);
+		struct device *csdev;
 		comedi_devices[i].minor = i;
-		comedi_devices[i].class_dev =
-			COMEDI_CLASS_DEVICE_CREATE(comedi_class, 0,
-			MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
+		csdev = device_create(comedi_class, 0, MKDEV(COMEDI_MAJOR, i),
+				"comedi%i", i);
+		if (!IS_ERR(csdev))
+			comedi_devices[i].class_dev = csdev;
 		spin_lock_init(&comedi_devices[i].spinlock);
 		mutex_init(&comedi_devices[i].mutex);
 	}
@@ -1942,7 +1942,7 @@ static void __exit comedi_cleanup(void)
 			comedi_device_detach(dev);
 		mutex_unlock(&dev->mutex);
 		mutex_destroy(&dev->mutex);
-		class_device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, i));
+		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, i));
 	}
 	class_destroy(comedi_class);
 	cdev_del(&comedi_cdev);

@@ -150,7 +150,7 @@ struct comedi_subdevice_struct {
 
 	unsigned int state;
 
-	struct class_device *class_dev;
+	struct device *class_dev;
 };
 
 struct comedi_buf_page {
@@ -222,7 +222,7 @@ struct comedi_device_struct {
 	comedi_driver *driver;
 	void *private;
 
-	struct class_device *class_dev;
+	struct device *class_dev;
 	unsigned minor;
 	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers for subdevices
 	   that have async_dma_dir set to something other than DMA_NONE */
