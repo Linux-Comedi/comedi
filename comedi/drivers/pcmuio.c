@@ -268,8 +268,10 @@ static int pcmuio_cmdtest(comedi_device * dev, comedi_subdevice * s,
 /* some helper functions to deal with specifics of this device's registers */
 static void init_asics(comedi_device * dev);	/* sets up/clears ASIC chips to defaults */
 static void switch_page(comedi_device * dev, int asic, int page);
+#ifdef notused
 static void lock_port(comedi_device * dev, int asic, int port);
 static void unlock_port(comedi_device * dev, int asic, int port);
+#endif
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -659,6 +661,7 @@ static void switch_page(comedi_device * dev, int asic, int page)
 		dev->iobase + ASIC_IOSIZE * asic + REG_PAGELOCK);
 }
 
+#ifdef notused
 static void lock_port(comedi_device * dev, int asic, int port)
 {
 	if (asic < 0 || asic >= thisboard->num_asics)
@@ -670,8 +673,6 @@ static void lock_port(comedi_device * dev, int asic, int port)
 	/* now write out the shadow register */
 	outb(devpriv->asics[asic].pagelock,
 		dev->iobase + ASIC_IOSIZE * asic + REG_PAGELOCK);
-	return;
-	(void)lock_port(dev, asic, port);	/* not reached, suppress compiler warnings */
 }
 
 static void unlock_port(comedi_device * dev, int asic, int port)
@@ -684,8 +685,8 @@ static void unlock_port(comedi_device * dev, int asic, int port)
 	/* now write out the shadow register */
 	outb(devpriv->asics[asic].pagelock,
 		dev->iobase + ASIC_IOSIZE * asic + REG_PAGELOCK);
-	(void)unlock_port(dev, asic, port);	/* not reached, suppress compiler warnings */
 }
+#endif /* notused */
 
 static irqreturn_t interrupt_pcmuio(int irq, void *d PT_REGS_ARG)
 {
