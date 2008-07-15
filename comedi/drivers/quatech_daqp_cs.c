@@ -432,7 +432,8 @@ static int daqp_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 
 		/* Wait for interrupt service routine to unblock semaphore */
 		/* Maybe could use a timeout here, but it's interruptible */
-		down_interruptible(&local->eos);
+		if (down_interruptible(&local->eos))
+			return -EINTR;
 
 		data[i] = inb(dev->iobase + DAQP_FIFO);
 		data[i] |= inb(dev->iobase + DAQP_FIFO) << 8;
