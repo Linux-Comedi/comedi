@@ -89,7 +89,7 @@ AM_CONDITIONAL([CONFIG_COMEDI_PCI],[test "$USE_PCI" = "yes"])
 
 COMEDI_CHECK_PCMCIA_PROBE([$LINUX_SRC_DIR],
 	[AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_PCMCIA],
-		[HAVE_PCMCIA="yes"][HAVE_PCMCIA="yes"],[HAVE_PCMCIA="no"])],
+		[HAVE_PCMCIA="yes"],[HAVE_PCMCIA="yes"],[HAVE_PCMCIA="no"])],
 	[HAVE_PCMCIA="no"])
 AM_CONDITIONAL([CONFIG_PCMCIA],[test "$HAVE_PCMCIA" = "yes"])
 AC_ARG_ENABLE([pcmcia],[  --disable-pcmcia	Disable support for PCMCIA devices],
@@ -104,7 +104,7 @@ if test "$HAVE_PCMCIA" = "yes" ; then
 	fi
 else
 	if test "$ENABLE_PCMCIA" = "yes" ; then
-		AC_MSG_ERROR([Kernel does not support PCMCIA or its API is not suported by Comedi])
+		AC_MSG_ERROR([Kernel does not support PCMCIA or its API is not supported by Comedi])
 	fi
 	USE_PCMCIA="no"
 fi
