@@ -25,6 +25,22 @@
 
 #include <linux/version.h>
 
+/*
+ * Notes:
+ *
+ * The 'struct device *' returned by the device_create() compatibility
+ * functions (assuming the return value is not an error pointer for which
+ * 'IS_ERR(ptr)' is true) is not really a 'struct device *' and should not
+ * be treated as such.  For kernel versions 2.5.0 to 2.6.17, the return
+ * value is actually a 'struct class_device *' in disguise and we assume
+ * the 'parent' parameter of device_create() is also a 'struct class_device *'
+ * in disguise from a previous call to device_create().
+ *
+ * The main limitation is that we cannot use a *real* 'struct device *' as
+ * the parent parameter of device_create(), only a pointer from a previous
+ * call to device_create().
+ */
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 #include <pcmcia/cs_types.h>
 
