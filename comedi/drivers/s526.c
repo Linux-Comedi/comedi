@@ -340,10 +340,12 @@ static int s526_attach(comedi_device * dev, comedi_devconfig * it)
 	//dev->read_subdev=s;
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	/* we support single-ended (ground) and differential */
+	/* we support differential */
 	s->subdev_flags = SDF_READABLE | SDF_DIFF;
-	s->n_chan = 8;
-	s->maxdata = 0x3fff;
+	/* channels 0 to 7 are the regular differential inputs */
+	/* channel 8 is "reference 0" (+10V), channel 9 is "reference 1" (0V) */
+	s->n_chan = 10;
+	s->maxdata = 0xffff;
 	s->range_table = &range_bipolar10;
 	s->len_chanlist = 16;	/* This is the maximum chanlist length that
 				   the board can handle */
@@ -795,6 +797,9 @@ static int s526_ai_insn_config(comedi_device * dev, comedi_subdevice * s,
 	/* data[0] : channels was set in relevant bits.
 	   data[1] : delay
 	 */
+	/* COMMENT: abbotti 2008-07-24: I don't know why you'd want to
+	 * enable channels here.  The channel should be enabled in the
+	 * INSN_READ handler. */
 
 	// Enable ADC interrupt
 	outw(ISR_ADC_DONE, ADDR_REG(REG_IER));
@@ -821,13 +826,14 @@ static int s526_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	unsigned int d;
 	unsigned int status;
 
-	value = devpriv->s526_ai_config | (chan << 1);
-	// outw(value, ADDR_REG(REG_ADC)); do it with ADC start
+	/* Set configured delay, enable channel for this channel only,
+	 * select "ADC read" channel, set "ADC start" bit. */
+	value = (devpriv->s526_ai_config & 0x8000) |
+		((1 << 5) << chan) | (chan << 1) | 0x0001;
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		value |= 0x0001;	// ADC start
 		outw(value, ADDR_REG(REG_ADC));
 //              printk("s526: Wrote 0x%04x to ADC\n", value);
 //              printk("s526: ADC reg=0x%04x\n", inw(ADDR_REG(REG_ADC)));
@@ -853,7 +859,8 @@ static int s526_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 		d = inw(ADDR_REG(REG_ADD));
 //              printk("AI[%d]=0x%04x\n", n, (unsigned short)(d & 0xFFFF));
 
-		data[n] = d;
+		/* munge data */
+		data[n] = d ^ 0x8000;
 	}
 
 	/* return the number of samples read/written */
