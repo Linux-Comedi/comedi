@@ -2810,10 +2810,12 @@ static int ni_m_series_ao_config_chanlist(comedi_device * dev,
 	int i;
 	int invert = 0;
 
-	for (i = 0; i < boardtype.n_aochan; ++i) {
-		devpriv->ao_conf[i] &= ~MSeries_AO_Update_Timed_Bit;
-		ni_writeb(devpriv->ao_conf[i], M_Offset_AO_Config_Bank(i));
-		ni_writeb(0xf, M_Offset_AO_Waveform_Order(i));
+	if(timed) {
+		for (i = 0; i < boardtype.n_aochan; ++i) {
+			devpriv->ao_conf[i] &= ~MSeries_AO_Update_Timed_Bit;
+			ni_writeb(devpriv->ao_conf[i], M_Offset_AO_Config_Bank(i));
+			ni_writeb(0xf, M_Offset_AO_Waveform_Order(i));
+		}
 	}
 	for (i = 0; i < n_chans; i++) {
 		const comedi_krange *krange;
