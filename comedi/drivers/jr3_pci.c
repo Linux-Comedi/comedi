@@ -45,7 +45,6 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
-#include <linux/firmware.h>
 #include "comedi_pci.h"
 #include "jr3_pci.h"
 
@@ -62,7 +61,7 @@ static struct device comedi_fw_device = {
 };
 
 typedef int comedi_firmware_callback(comedi_device * dev,
-	u8 * data, size_t size);
+	const u8 * data, size_t size);
 
 static int comedi_load_firmware(comedi_device * dev,
 	char *name, comedi_firmware_callback cb)
@@ -403,7 +402,7 @@ static void jr3_pci_open(comedi_device * dev)
 	}
 }
 
-int read_idm_word(u8 * data, size_t size, int *pos, unsigned int *val)
+int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
 {
 	int result = 0;
 	if (pos != 0 && val != 0) {
@@ -425,7 +424,8 @@ int read_idm_word(u8 * data, size_t size, int *pos, unsigned int *val)
 	return result;
 }
 
-static int jr3_download_firmware(comedi_device * dev, u8 * data, size_t size)
+static int jr3_download_firmware(comedi_device * dev, const u8 * data,
+	size_t size)
 {
 	/*
 	 * IDM file format is:
