@@ -1914,8 +1914,8 @@ static int __init comedi_init(void)
 	for (i = 0; i < COMEDI_NDEVICES; i++) {
 		struct device *csdev;
 		comedi_devices[i].minor = i;
-		csdev = device_create(comedi_class, 0, MKDEV(COMEDI_MAJOR, i),
-				"comedi%i", i);
+		csdev = COMEDI_DEVICE_CREATE(comedi_class, 0,
+				MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 		if (!IS_ERR(csdev))
 			comedi_devices[i].class_dev = csdev;
 		spin_lock_init(&comedi_devices[i].spinlock);

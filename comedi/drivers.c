@@ -291,8 +291,8 @@ static int postconfig(comedi_device * dev)
 			}
 			minor = comedi_construct_minor_for_subdevice(dev, i);
 			devt = MKDEV(COMEDI_MAJOR, minor);
-			csdev = device_create(comedi_class,
-				dev->class_dev, devt, "comedi%i_sub%i",
+			csdev = COMEDI_DEVICE_CREATE(comedi_class,
+				dev->class_dev, devt, NULL, "comedi%i_sub%i",
 				dev->minor, i);
 			if (!IS_ERR(csdev))
 				s->class_dev = csdev;
