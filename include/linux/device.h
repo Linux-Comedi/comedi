@@ -103,8 +103,9 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 	class_device_destroy(cs, devt)
 
 #else
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
+/* device_create does not work for NULL parent with 2.6.18, not sure
+exactly which kernel version it was fixed in. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
 	(struct device *)class_device_create( \
