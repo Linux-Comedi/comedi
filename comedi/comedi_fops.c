@@ -1496,7 +1496,6 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 
 	dev = comedi_get_device_by_minor(minor);
-	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		retval = -ENODEV;
@@ -1558,9 +1557,7 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 				retval = -ERESTARTSYS;
 				break;
 			}
-			mutex_unlock(&dev->mutex);
 			schedule();
-			mutex_lock(&dev->mutex);
 			if (!s->busy) {
 				break;
 			}
@@ -1588,8 +1585,7 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
-      done:
-	mutex_unlock(&dev->mutex);
+done:
 	return (count ? count : retval);
 }
 
@@ -1603,7 +1599,6 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	comedi_device *dev = comedi_get_device_by_minor(minor);
 
-	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
 		retval = -ENODEV;
@@ -1663,9 +1658,7 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 				retval = -ERESTARTSYS;
 				break;
 			}
-			mutex_unlock(&dev->mutex);
 			schedule();
-			mutex_lock(&dev->mutex);
 			if (!s->busy) {
 				retval = 0;
 				break;
@@ -1699,8 +1692,7 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&async->wait_head, &wait);
 
-      done:
-	mutex_unlock(&dev->mutex);
+done:
 	return (count ? count : retval);
 }
 
