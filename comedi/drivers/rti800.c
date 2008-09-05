@@ -25,6 +25,7 @@ Driver: rti800
 Description: Analog Devices RTI-800/815
 Author: ds
 Status: unknown
+Updated: Fri, 05 Sep 2008 14:50:44 +0100
 Devices: [Analog Devices] RTI-800 (rti800), RTI-815 (rti815)
 
 Configuration options:
@@ -44,11 +45,11 @@ Configuration options:
   [5] - DAC 0 range
           0 = [-10,10]
           1 = [0,10]
-  [5] - DAC 0 encoding
+  [6] - DAC 0 encoding
           0 = two's complement
           1 = straight binary
-  [6] - DAC 1 range (same as DAC 0)
-  [7] - DAC 1 encoding (same as DAC 0)
+  [7] - DAC 1 range (same as DAC 0)
+  [8] - DAC 1 encoding (same as DAC 0)
 */
 
 #include <linux/comedidev.h>
