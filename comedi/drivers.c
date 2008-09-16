@@ -48,8 +48,6 @@
 static int postconfig(comedi_device * dev);
 static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
-static int insn_inval(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
 static void *comedi_recognize(comedi_driver * driv, const char *name);
 static void comedi_report_boards(comedi_driver * driv);
 static int poll_invalid(comedi_device * dev, comedi_subdevice * s);
@@ -361,7 +359,7 @@ static int poll_invalid(comedi_device * dev, comedi_subdevice * s)
 	return -EINVAL;
 }
 
-static int insn_inval(comedi_device * dev, comedi_subdevice * s,
+int insn_inval(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	return -EINVAL;
