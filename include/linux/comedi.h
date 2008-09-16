@@ -276,6 +276,13 @@ extern "C" {
 		COMEDI_OPENDRAIN = 2
 	};
 
+	enum comedi_support_level
+	{
+		COMEDI_UNKNOWN_SUPPORT = 0,
+		COMEDI_SUPPORTED,
+		COMEDI_UNSUPPORTED
+	};
+
 /* ioctls */
 
 #define CIO 'd'
@@ -385,6 +392,7 @@ extern "C" {
 		unsigned int flags;
 	};
 
+
 	struct comedi_subdinfo_struct {
 		unsigned int type;
 		unsigned int n_chan;
@@ -395,7 +403,8 @@ extern "C" {
 		unsigned int flags;	/* channel flags */
 		unsigned int range_type;	/* lookup in kernel */
 		unsigned int settling_time_0;
-		unsigned int unused[9];
+		unsigned insn_bits_support;	/* see support_level enum for values*/
+		unsigned int unused[8];
 	};
 
 	struct comedi_devinfo_struct {

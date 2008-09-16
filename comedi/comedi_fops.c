@@ -434,6 +434,11 @@ static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo * arg,
 		if (s->do_cmd)
 			us->subd_flags |= SDF_CMD;
 
+		if (s->insn_bits)
+			us->insn_bits_support = COMEDI_SUPPORTED;
+		else
+			us->insn_bits_support = COMEDI_UNSUPPORTED;
+
 		us->settling_time_0 = s->settling_time_0;
 	}
 
