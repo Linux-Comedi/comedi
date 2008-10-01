@@ -2581,6 +2581,10 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
 		this_board->pc_DriverName);
 
+	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
+	  	return -ENOMEM;
+	}
+
 	if (!pci_list_builded) {
 		v_pci_card_list_init(this_board->i_VendorId, 1);	//1 for displaying the list..
 		pci_list_builded = 1;
@@ -2597,6 +2601,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 				it->options[1], i_Dma)) == NULL) {
 		return -EIO;
 	}
+	devpriv->allocated = 1;
 
 	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
 				&irq)) < 0) {
@@ -2624,9 +2629,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		}
 
 		dev->board_name = this_board->pc_DriverName;
-		if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
-			return -ENOMEM;
-		}
 		devpriv->amcc = card;
 		devpriv->iobase = (INT) dev->iobase;
 		devpriv->i_IobaseAmcc = (INT) iobase_a;	//AMCC base address...
@@ -2634,10 +2636,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->i_IobaseReserved = (INT) iobase_reserved;
 		devpriv->ps_BoardInfo = this_board;
 	} else {
-		if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
-			return -ENOMEM;
-		}
-
 		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = (unsigned long)io_addr[2];
 		devpriv->amcc = card;
