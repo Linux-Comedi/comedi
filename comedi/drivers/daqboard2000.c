@@ -745,6 +745,7 @@ static int daqboard2000_attach(comedi_device * dev, comedi_devconfig * it)
 				continue;
 			}
 		}
+		break;  /* found one */
 	}
 	if (!card) {
 		if (bus || slot)
