@@ -114,6 +114,19 @@ struct serial_data {
 	unsigned long value;
 };
 
+static long tty_ioctl(struct file *f, unsigned op, unsigned long param) 
+{
+#ifdef HAVE_UNLOCKED_IOCTL
+  	if (f->f_op->unlocked_ioctl) {
+		return f->f_op->unlocked_ioctl(f, op, param);
+	}
+#endif    
+	if (f->f_op->ioctl) {
+	  	return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
+	}
+	return -ENOSYS;
+}
+
 static int tty_write(struct file *f, unsigned char *buf, int count)
 {
 	int result;
@@ -127,6 +140,11 @@ static int tty_write(struct file *f, unsigned char *buf, int count)
 	return result;
 }
 
+#if 0
+/* 
+ * On 2.6.26.3 this occaisonally gave me page faults, worked around by
+ * settings.c_cc[VMIN] = 0; settings.c_cc[VTIME] = 0
+ */
 static int tty_available(struct file *f)
 {
 	long result = 0;
@@ -134,11 +152,11 @@ static int tty_available(struct file *f)
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	f->f_op->ioctl(f->f_dentry->d_inode, f, FIONREAD,
-		(unsigned long)&result);
+	tty_ioctl(f, FIONREAD, (unsigned long)&result);
 	set_fs(oldfs);
 	return result;
 }
+#endif 
 
 static int tty_read(struct file *f, int timeout)
 {
@@ -177,26 +195,31 @@ static int tty_read(struct file *f, int timeout)
 							elapsed) * HZ) / 10000);
 			}
 			poll_freewait(&table);
+			{
+			  unsigned char ch;
+			  
+			  f->f_pos = 0;
+			  if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
+			    result = ch;
+			  }
+			}
 		} else {
 			/* Device does not support poll, busy wait */
 			int retries = 0;
 			while (1) {
+			  	unsigned char ch;
+				
 				retries++;
 				if (retries >= timeout) {
 					break;
 				}
-				if (tty_available(f) > 0) {
+			  
+				f->f_pos = 0;
+				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
+				  	result = ch;
 					break;
 				}
 				comedi_udelay(100);
-			}
-		}
-		if (tty_available(f) > 0) {
-			unsigned char ch;
-
-			f->f_pos = 0;
-			if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
-				result = ch;
 			}
 		}
 		set_fs(oldfs);
@@ -214,14 +237,13 @@ static void tty_setspeed(struct file *f, int speed)
 		// Set speed
 		struct termios settings;
 
-		f->f_op->ioctl(f->f_dentry->d_inode, f, TCGETS,
-			(unsigned long)&settings);
+		tty_ioctl(f, TCGETS, (unsigned long)&settings);
 //    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
 		settings.c_iflag = 0;
 		settings.c_oflag = 0;
 		settings.c_lflag = 0;
 		settings.c_cflag = CLOCAL | CS8 | CREAD;
-		settings.c_cc[VMIN] = 1;
+		settings.c_cc[VMIN] = 0;
 		settings.c_cc[VTIME] = 0;
 		switch (speed) {
 		case 2400:{
@@ -257,18 +279,16 @@ static void tty_setspeed(struct file *f, int speed)
 			}
 			break;
 		}
-		f->f_op->ioctl(f->f_dentry->d_inode, f, TCSETS,
-			(unsigned long)&settings);
+		tty_ioctl(f, TCSETS, (unsigned long)&settings);
 //    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
 	}
 	{
 		// Set low latency
 		struct serial_struct settings;
-		f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCGSERIAL,
-			(unsigned long)&settings);
+
+		tty_ioctl(f, TIOCGSERIAL, (unsigned long)&settings);
 		settings.flags |= ASYNC_LOW_LATENCY;
-		f->f_op->ioctl(f->f_dentry->d_inode, f, TIOCSSERIAL,
-			(unsigned long)&settings);
+		tty_ioctl(f, TIOCSSERIAL, (unsigned long)&settings);
 	}
 
 	set_fs(oldfs);
@@ -819,8 +839,6 @@ static int serial2002_attach(comedi_device * dev, comedi_devconfig * it)
 	s->maxdata = 1;
 	s->range_table = 0;
 	s->insn_read = &serial2002_ei_rinsn;
-
-	printk("attached\n");
 
 	return 1;
 }
