@@ -585,7 +585,6 @@ int i_APCI3XXX_InsnReadAnalogInput(comedi_device * dev,
 		printk("Operating mode not configured\n");
 		i_ReturnValue = -1;
 	}
-	printk("%x\n", i_ReturnValue);
 	return (i_ReturnValue);
 }
 
