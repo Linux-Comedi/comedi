@@ -3102,11 +3102,27 @@ static int ni_ao_cmd(comedi_device * dev, comedi_subdevice * s)
 		devpriv->ao_mode1 |= AO_Trigger_Once;
 	}
 	devpriv->stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
-	devpriv->ao_trigger_select &=
-		~(AO_START1_Polarity | AO_START1_Select(-1));
-	devpriv->ao_trigger_select |= AO_START1_Edge | AO_START1_Sync;
-	devpriv->stc_writew(dev, devpriv->ao_trigger_select,
-		AO_Trigger_Select_Register);
+	switch (cmd->start_src) {
+	case TRIG_INT:
+	case TRIG_NOW:
+		devpriv->ao_trigger_select &=
+			~(AO_START1_Polarity | AO_START1_Select(-1));
+		devpriv->ao_trigger_select |= AO_START1_Edge | AO_START1_Sync;
+		devpriv->stc_writew(dev, devpriv->ao_trigger_select,
+			AO_Trigger_Select_Register);
+		break;
+	case TRIG_EXT:
+                devpriv->ao_trigger_select = AO_START1_Select(CR_CHAN(cmd->start_arg)+1);
+		if (cmd->start_arg & CR_INVERT)
+			devpriv->ao_trigger_select |= AO_START1_Polarity;  // 0=active high, 1=active low. see daq-stc 3-24 (p186)
+		if (cmd->start_arg & CR_EDGE)
+			devpriv->ao_trigger_select |= AO_START1_Edge;      // 0=edge detection disabled, 1=enabled
+		devpriv->stc_writew(dev, devpriv->ao_trigger_select, AO_Trigger_Select_Register);
+		break;
+	default:
+		BUG();
+		break;	  
+	}
 	devpriv->ao_mode3 &= ~AO_Trigger_Length;
 	devpriv->stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
 
@@ -3258,7 +3274,7 @@ static int ni_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT;
+	cmd->start_src &= TRIG_INT | TRIG_EXT;
 	if (!cmd->start_src || tmp != cmd->start_src)
 		err++;
 
@@ -3295,9 +3311,23 @@ static int ni_ao_cmdtest(comedi_device * dev, comedi_subdevice * s,
 
 	/* step 3: make sure arguments are trivially compatible */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
+	if (cmd->start_src == TRIG_EXT) {
+		/* external trigger */
+		unsigned int tmp = CR_CHAN(cmd->start_arg);
+
+		if (tmp > 18)
+			tmp = 18;
+		tmp |= (cmd->start_arg & (CR_INVERT | CR_EDGE));
+		if (cmd->start_arg != tmp) {
+			cmd->start_arg = tmp;
+			err++;
+		}
+	} else {
+		if (cmd->start_arg != 0) {
+			/* true for both TRIG_NOW and TRIG_INT */
+			cmd->start_arg = 0;
+			err++;
+		}
 	}
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (cmd->scan_begin_arg < boardtype.ao_speed) {
