@@ -73,11 +73,13 @@ drivers in the comedi source tree the following things have to be done:
 
 - Put your new driver into 'comedi/drivers/mydriver.c'. 
 - Edit 'comedi/drivers/Makefile.am' and update 'module_PROGRAMS',
-  'pcmcia_modules', or 'usb_modules', depending on the type of driver.
-  Add a 'mydriver_KO_sources' macro set to your 'mydriver.c' file (look
-  at the other examples).  If your driver has its own include files, add
-  them to the EXTRA_DIST macro.
+  'pci_modules2', 'pcmcia_modules', or 'usb_modules', depending on the type
+  of driver. (There is also a 'pci_modules1' used by a few helper modules.)
+  Add a 'mydriver_ko_sources' macro set to your 'mydriver.c' file (look at
+  the other examples).  If your driver has its own include files, add them
+  to the EXTRA_DIST macro.
 - Edit 'comedi/drivers/Kbuild' and add a 'obj-m += mydriver.o',
+  'obj-$(COMEDI_CONFIG_PCI_MODULES) += mydriver.o',
   'obj-$(COMEDI_CONFIG_PCMCIA_MODULES) += mydriver.o', or
   'obj-$(COMEDI_CONFIG_USB_MODULES) += mydriver.o' line, depending on the
   type of driver.
@@ -155,7 +157,7 @@ Inside the initialization function, you should perform the following tasks:
 
    o  Set up each subdevice.
 
-   o  Return 0, indicating sucess.  If there were any errors along
+   o  Return 0, indicating success.  If there were any errors along
       the way, you should return the appropriate error number.  If
       an error is returned, the _detach function is called.  The
       _detach function should check any resources that may have been
