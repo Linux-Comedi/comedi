@@ -823,7 +823,6 @@ int comedi_pci_auto_config(const char *board_name, struct pci_dev *pcidev)
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 {
 	unsigned long minor = (unsigned long)pci_get_drvdata(pcidev);
-	struct comedi_device_file_info *dev_file_info;
 
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 

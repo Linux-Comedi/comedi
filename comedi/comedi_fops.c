@@ -2159,7 +2159,7 @@ void comedi_free_board_minor(unsigned minor)
 				sysfs_remove_link(&dev->class_dev->kobj, "device");
 				device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, dev->minor));
 			}
-			comedi_device_cleanup(dev)
+			comedi_device_cleanup(dev);
 			kfree(dev);
 		}
 		kfree(info);
