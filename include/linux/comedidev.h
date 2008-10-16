@@ -87,6 +87,11 @@
 #define PCI_VENDOR_ID_CONTEC		0x1221
 #define PCI_VENDOR_ID_MEILHAUS		0x1402
 
+#define COMEDI_NUM_MINORS 0x100
+#define COMEDI_NUM_LEGACY_MINORS 0x10
+#define COMEDI_NUM_BOARD_MINORS 0x30
+#define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
+
 typedef struct comedi_device_struct comedi_device;
 typedef struct comedi_subdevice_struct comedi_subdevice;
 typedef struct comedi_async_struct comedi_async;
@@ -150,7 +155,8 @@ struct comedi_subdevice_struct {
 
 	unsigned int state;
 
-	struct device *class_dev;
+	device_create_result_type *class_dev;
+	int minor;
 };
 
 struct comedi_buf_page {
@@ -222,8 +228,8 @@ struct comedi_device_struct {
 	comedi_driver *driver;
 	void *private;
 
-	struct device *class_dev;
-	unsigned minor;
+	device_create_result_type *class_dev;
+	int minor;
 	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers for subdevices
 	   that have async_dma_dir set to something other than DMA_NONE */
 	struct device *hw_dev;
@@ -252,12 +258,11 @@ struct comedi_device_struct {
 	void (*close) (comedi_device * dev);
 };
 
-struct comedi_inode_private {
+struct comedi_device_file_info {
 	comedi_device *device;
-	comedi_subdevice *subdevice;
+	comedi_subdevice *read_subdevice;
+	comedi_subdevice *write_subdevice;
 };
-
-extern comedi_device *comedi_devices;
 
 #ifdef CONFIG_COMEDI_DEBUG
 extern int comedi_debug;
@@ -281,82 +286,27 @@ enum comedi_minor_bits {
 };
 static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
 static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
-static const unsigned COMEDI_NUM_MINORS = 0x100;
 
-static inline comedi_device *comedi_get_device_by_minor(unsigned minor)
+struct comedi_device_file_info* comedi_get_device_file_info(unsigned minor);
+
+static inline comedi_subdevice* comedi_get_read_subdevice(const struct comedi_device_file_info *info)
 {
-	unsigned device_index;
-	if (minor >= COMEDI_NUM_MINORS)
-		return NULL;
-	device_index = minor & COMEDI_DEVICE_MINOR_MASK;
-	if (device_index >= COMEDI_NDEVICES)
-		return NULL;
-	return comedi_devices + device_index;
+	if(info->read_subdevice) return info->read_subdevice;
+	if(info->device == NULL) return NULL;
+	return info->device->read_subdev;
 }
 
-static inline comedi_subdevice *comedi_get_subdevice_by_minor(unsigned minor)
+static inline comedi_subdevice* comedi_get_write_subdevice(const struct comedi_device_file_info *info)
 {
-	unsigned subdevice_index;
-	comedi_device *dev;
-
-	if ((minor & COMEDI_SUBDEVICE_MINOR_MASK) == 0)
-		return NULL;
-	dev = comedi_get_device_by_minor(minor);
-	if (dev == NULL)
-		return NULL;
-	subdevice_index =
-		((minor & COMEDI_SUBDEVICE_MINOR_MASK) >>
-		COMEDI_SUBDEVICE_MINOR_SHIFT) - COMEDI_SUBDEVICE_MINOR_OFFSET;
-	if (subdevice_index >= dev->n_subdevices)
-		return NULL;
-	return dev->subdevices + subdevice_index;
+	if(info->write_subdevice) return info->write_subdevice;
+	if(info->device == NULL) return NULL;
+	return info->device->write_subdev;
 }
 
-static inline comedi_subdevice *comedi_get_read_subdevice(comedi_device * dev,
-	unsigned minor)
-{
-	comedi_subdevice *read_subdev = comedi_get_subdevice_by_minor(minor);
-	if (read_subdev == NULL) {
-		read_subdev = dev->read_subdev;
-	}
-	if (read_subdev == NULL || read_subdev->async == NULL
-		|| (read_subdev->subdev_flags & SDF_CMD_READ) == 0)
-		return NULL;
-	return read_subdev;
-}
-
-static inline comedi_subdevice *comedi_get_write_subdevice(comedi_device * dev,
-	unsigned minor)
-{
-	comedi_subdevice *write_subdev = comedi_get_subdevice_by_minor(minor);
-	if (write_subdev == NULL) {
-		write_subdev = dev->write_subdev;
-	}
-	if (write_subdev == NULL || write_subdev->async == NULL
-		|| (write_subdev->subdev_flags & SDF_CMD_WRITE) == 0)
-		return NULL;
-	return write_subdev;
-}
-
-static inline unsigned comedi_construct_minor_for_subdevice(comedi_device * dev,
-	unsigned subdevice_index)
-{
-	unsigned minor = 0;
-	minor |= dev->minor & COMEDI_DEVICE_MINOR_MASK;
-	minor |= ((subdevice_index +
-			COMEDI_SUBDEVICE_MINOR_OFFSET) <<
-		COMEDI_SUBDEVICE_MINOR_SHIFT) & COMEDI_SUBDEVICE_MINOR_MASK;
-	BUG_ON(minor >= COMEDI_NUM_MINORS);
-	return minor;
-}
-
-int comedi_device_detach(comedi_device * dev);
+void comedi_device_detach(comedi_device * dev);
 int comedi_device_attach(comedi_device * dev, comedi_devconfig * it);
 int comedi_driver_register(comedi_driver *);
 int comedi_driver_unregister(comedi_driver *);
-
-comedi_device *comedi_allocate_dev(comedi_driver *);
-void comedi_deallocate_dev(comedi_device *);
 
 void init_polling(void);
 void cleanup_polling(void);
@@ -444,6 +394,7 @@ static inline int alloc_subdevices(comedi_device * dev,
 		dev->subdevices[i].device = dev;
 		dev->subdevices[i].async_dma_dir = DMA_NONE;
 		spin_lock_init(&dev->subdevices[i].spin_lock);
+		dev->subdevices[i].minor = -1;
 	}
 	return 0;
 }
@@ -528,6 +479,13 @@ static inline void *comedi_aux_data(int options[], int n)
 	BUG_ON(n > 3);
 	return (void *)address;
 }
+
+int comedi_alloc_board_minor(struct device *hardware_device);
+void comedi_free_board_minor(unsigned minor);
+int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s);
+void comedi_free_subdevice_minor(comedi_subdevice *s);
+int comedi_pci_auto_config(const char *board_name, struct pci_dev *pcidev);
+void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 
 //#ifdef CONFIG_COMEDI_RT
 #include <linux/comedi_rt.h>

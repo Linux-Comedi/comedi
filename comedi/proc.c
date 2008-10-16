@@ -51,10 +51,13 @@ int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 		"format string: %s\n",
 		"\"%2d: %-20s %-20s %4d\",i,driver_name,board_name,n_subdevices");
 
-	for (i = 0; i < COMEDI_NDEVICES; i++) {
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
 		comedi_device *dev;
 
-		dev = comedi_devices + i;
+		if(dev_file_info == NULL) continue;
+		dev = dev_file_info->device;
+
 		if (dev->attached) {
 			devices_q = 1;
 			l += sprintf(buf + l, "%2d: %-20s %-20s %4d\n",

@@ -31,8 +31,6 @@
 /* for drivers */
 EXPORT_SYMBOL(comedi_driver_register);
 EXPORT_SYMBOL(comedi_driver_unregister);
-EXPORT_SYMBOL(comedi_allocate_dev);
-EXPORT_SYMBOL(comedi_deallocate_dev);
 //EXPORT_SYMBOL(comedi_bufcheck);
 //EXPORT_SYMBOL(comedi_done);
 //EXPORT_SYMBOL(comedi_error_done);
@@ -58,10 +56,14 @@ EXPORT_SYMBOL(rt_pend_call);
 #ifdef CONFIG_COMEDI_DEBUG
 EXPORT_SYMBOL(comedi_debug);
 #endif
+EXPORT_SYMBOL_GPL(comedi_alloc_board_minor);
+EXPORT_SYMBOL_GPL(comedi_free_board_minor);
+EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
+EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
 /* for kcomedilib */
-EXPORT_SYMBOL(comedi_devices);
 EXPORT_SYMBOL(check_chanlist);
+EXPORT_SYMBOL_GPL(comedi_get_device_file_info);
 
 EXPORT_SYMBOL(comedi_buf_put);
 EXPORT_SYMBOL(comedi_buf_get);

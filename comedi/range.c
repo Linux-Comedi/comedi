@@ -47,27 +47,20 @@ const comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg)
 {
 	comedi_rangeinfo it;
-	int minor, subd, chan;
+	int subd, chan;
 	const comedi_lrange *lr;
 	comedi_subdevice *s;
-	comedi_device *query_dev;
 
 	if (copy_from_user(&it, arg, sizeof(comedi_rangeinfo)))
 		return -EFAULT;
-	/* FIXME why do we have to support queries to devices that are different
-	 * than the one passed as the dev argument? */
-	minor = (it.range_type >> 28) & 0xf;
 	subd = (it.range_type >> 24) & 0xf;
 	chan = (it.range_type >> 16) & 0xff;
 
-	if (minor > COMEDI_NDEVICES)
+	if (!dev->attached)
 		return -EINVAL;
-	query_dev = comedi_devices + minor;
-	if (!query_dev->attached)
+	if (subd >= dev->n_subdevices)
 		return -EINVAL;
-	if (subd >= query_dev->n_subdevices)
-		return -EINVAL;
-	s = query_dev->subdevices + subd;
+	s = dev->subdevices + subd;
 	if (s->range_table) {
 		lr = s->range_table;
 	} else if (s->range_table_list) {

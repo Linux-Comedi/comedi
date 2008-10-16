@@ -125,6 +125,8 @@ Bugs:
 
 #define MAX_N_CALDACS (16+16+2)
 
+#define DRV_NAME "ni_pcimio"
+
 /* The following two tables must be in the same order */
 static DEFINE_PCI_DEVICE_TABLE(ni_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x0162, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -1190,13 +1192,41 @@ static const ni_board ni_boards[] = {
 static int pcimio_attach(comedi_device * dev, comedi_devconfig * it);
 static int pcimio_detach(comedi_device * dev);
 static comedi_driver driver_pcimio = {
-      driver_name:"ni_pcimio",
-      module:THIS_MODULE,
-      attach:pcimio_attach,
-      detach:pcimio_detach,
+	driver_name: DRV_NAME,
+	module:THIS_MODULE,
+	attach:pcimio_attach,
+	detach:pcimio_detach,
+};
+static int ni_pcimio_pci_probe(struct pci_dev *dev,
+	const struct pci_device_id *ent);
+static void ni_pcimio_pci_remove(struct pci_dev *dev);
+
+static struct pci_driver ni_pcimio_pci_driver =
+{
+	.name = DRV_NAME,
+	.id_table = ni_pci_table,
+	.probe = &ni_pcimio_pci_probe,
+	.remove = __devexit_p(&ni_pcimio_pci_remove)
 };
 
-COMEDI_INITCLEANUP(driver_pcimio);
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi driver for National Instruments E-series, M-series, and related boards");
+MODULE_LICENSE("GPL");
+static int __init driver_pcimio_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_pcimio);
+	if(retval < 0) return retval;
+	return pci_register_driver(&ni_pcimio_pci_driver);
+}
+static void __exit driver_pcimio_cleanup_module(void)
+{
+	pci_unregister_driver(&ni_pcimio_pci_driver);
+	comedi_driver_unregister(&driver_pcimio);
+}
+module_init(driver_pcimio_init_module);
+module_exit(driver_pcimio_cleanup_module);
 
 typedef struct {
 NI_PRIVATE_COMMON} ni_private;
@@ -1650,7 +1680,7 @@ static int pcimio_attach(comedi_device * dev, comedi_devconfig * it)
 	} else {
 		printk(" ( irq = %u )", dev->irq);
 		if ((ret = comedi_request_irq(dev->irq, ni_E_interrupt,
-					NI_E_IRQ_FLAGS, "ni_pcimio",
+					NI_E_IRQ_FLAGS, DRV_NAME,
 					dev)) < 0) {
 			printk(" irq not available\n");
 			dev->irq = 0;
@@ -1756,4 +1786,17 @@ static int pcimio_dio_change(comedi_device * dev, comedi_subdevice * s,
 		return ret;
 
 	return 0;
+}
+
+// pci_driver functions
+
+static int __devinit ni_pcimio_pci_probe(struct pci_dev *dev,
+	const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(DRV_NAME, dev);
+}
+
+static void __devexit ni_pcimio_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
 }

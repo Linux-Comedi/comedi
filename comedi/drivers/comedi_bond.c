@@ -389,7 +389,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 {
 	int i;
-	comedi_t *devs_opened[COMEDI_NDEVICES];
+	comedi_t *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
 	memset(devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;;
@@ -402,7 +402,7 @@ static int doDevConfig(comedi_device * dev, comedi_devconfig * it)
 		int sdev = -1, nchans, tmp;
 		BondedDevice *bdev = 0;
 
-		if (minor < 0 || minor > COMEDI_NDEVICES) {
+		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
 			return 0;
 		}

@@ -27,6 +27,7 @@
 #include "comedi_fops.h"
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -69,13 +70,7 @@ static void cleanup_device(comedi_device * dev)
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
-			if (s->class_dev) {
-				unsigned minor =
-					comedi_construct_minor_for_subdevice
-					(dev, i);
-				dev_t devt = MKDEV(COMEDI_MAJOR, minor);
-				device_destroy(comedi_class, devt);
-			}
+			comedi_free_subdevice_minor(s);
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
 				kfree(s->async);
@@ -89,7 +84,6 @@ static void cleanup_device(comedi_device * dev)
 		kfree(dev->private);
 		dev->private = NULL;
 	}
-	module_put(dev->driver->module);
 	dev->driver = 0;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
@@ -102,7 +96,7 @@ static void cleanup_device(comedi_device * dev)
 	comedi_set_hw_dev(dev, NULL);
 }
 
-static int __comedi_device_detach(comedi_device * dev)
+static void __comedi_device_detach(comedi_device * dev)
 {
 	dev->attached = 0;
 	if (dev->driver) {
@@ -111,14 +105,13 @@ static int __comedi_device_detach(comedi_device * dev)
 		printk("BUG: dev->driver=NULL in comedi_device_detach()\n");
 	}
 	cleanup_device(dev);
-	return 0;
 }
 
-int comedi_device_detach(comedi_device * dev)
+void comedi_device_detach(comedi_device * dev)
 {
 	if (!dev->attached)
-		return 0;
-	return __comedi_device_detach(dev);
+		return;
+	__comedi_device_detach(dev);
 }
 
 int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
@@ -168,7 +161,7 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	return -EIO;
 
-      attached:
+attached:
 	/* do a little post-config cleanup */
 	ret = postconfig(dev);
 	if (ret < 0) {
@@ -182,6 +175,7 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	smp_wmb();
 	dev->attached = 1;
+	module_put(dev->driver->module);
 
 	return 0;
 }
@@ -200,10 +194,13 @@ int comedi_driver_unregister(comedi_driver * driver)
 	int i;
 
 	/* check for devices using this driver */
-	for (i = 0; i < COMEDI_NDEVICES; i++) {
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
 		comedi_device *dev;
 
-		dev = comedi_devices + i;
+		if(dev_file_info == NULL) continue;
+		dev = dev_file_info->device;
+
 		mutex_lock(&dev->mutex);
 		if (dev->attached && dev->driver == driver) {
 			if (dev->use_count)
@@ -227,16 +224,6 @@ int comedi_driver_unregister(comedi_driver * driver)
 	return -EINVAL;
 }
 
-comedi_device *comedi_allocate_dev(comedi_driver * driver)
-{
-	return NULL;
-}
-
-void comedi_deallocate_dev(comedi_device * dev)
-{
-
-}
-
 static int postconfig(comedi_device * dev)
 {
 	int i;
@@ -254,12 +241,8 @@ static int postconfig(comedi_device * dev)
 			s->len_chanlist = 1;
 
 		if (s->do_cmd) {
-			unsigned minor;
-			dev_t devt;
-			struct device *csdev;
-
 			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
-						SDF_CMD_WRITE)) == 0);
+				SDF_CMD_WRITE)) == 0);
 			BUG_ON(!s->do_cmdtest);
 
 			async = kzalloc(sizeof(comedi_async), GFP_KERNEL);
@@ -287,13 +270,7 @@ static int postconfig(comedi_device * dev)
 				if (ret < 0)
 					return ret;
 			}
-			minor = comedi_construct_minor_for_subdevice(dev, i);
-			devt = MKDEV(COMEDI_MAJOR, minor);
-			csdev = COMEDI_DEVICE_CREATE(comedi_class,
-				dev->class_dev, devt, NULL, "comedi%i_sub%i",
-				dev->minor, i);
-			if (!IS_ERR(csdev))
-				s->class_dev = csdev;
+			comedi_alloc_subdevice_minor(dev, s);
 		}
 
 		if (!s->range_table && !s->range_table_list)
@@ -810,4 +787,45 @@ void comedi_reset_async_buf(comedi_async * async)
 	async->munge_ptr = 0;
 
 	async->events = 0;
+}
+
+int comedi_pci_auto_config(const char *board_name, struct pci_dev *pcidev)
+{
+	comedi_devconfig it;
+	int minor;
+	struct comedi_device_file_info *dev_file_info;
+	int retval;
+
+	minor = comedi_alloc_board_minor(&pcidev->dev);
+	if(minor < 0) return minor;
+	pci_set_drvdata(pcidev, (void*)minor);
+
+	dev_file_info = comedi_get_device_file_info(minor);
+
+	memset(&it, 0, sizeof(it));
+	strncpy(it.board_name, board_name, COMEDI_NAMELEN);
+	it.board_name[COMEDI_NAMELEN - 1] = '\0';
+	// pci bus
+	it.options[0] = pcidev->bus->number;
+	// pci slot
+	it.options[1] = PCI_SLOT(pcidev->devfn);
+
+	mutex_lock(&dev_file_info->device->mutex);
+	retval = comedi_device_attach(dev_file_info->device, &it);
+	mutex_unlock(&dev_file_info->device->mutex);
+	if(retval < 0)
+	{
+		comedi_free_board_minor(minor);
+	}
+	return retval;
+}
+
+void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
+{
+	unsigned long minor = (unsigned long)pci_get_drvdata(pcidev);
+	struct comedi_device_file_info *dev_file_info;
+
+	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
+
+	comedi_free_board_minor(minor);
 }
