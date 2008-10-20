@@ -193,7 +193,12 @@ static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg)
 	if (arg == NULL) {
 		if (is_device_busy(dev))
 			return -EBUSY;
-		comedi_device_detach(dev);
+		if(dev->attached)
+		{
+			struct module *driver_module = dev->driver->module;
+			comedi_device_detach(dev);
+			module_put(driver_module);
+		}
 		return 0;
 	}
 
@@ -229,6 +234,13 @@ static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg)
 	}
 
 	ret = comedi_device_attach(dev, &it);
+	if(ret == 0)
+	{
+		if(!try_module_get(dev->driver->module)) {
+			comedi_device_detach(dev);
+			return -ENOSYS;
+		}
+	}
 
 	if (aux_data)
 		vfree(aux_data);
@@ -1782,7 +1794,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 		mutex_unlock(&dev->mutex);
 		return -ENODEV;
 	}
-      ok:
+ok:
 	__module_get(THIS_MODULE);
 
 	if (dev->attached) {
@@ -2084,8 +2096,7 @@ void comedi_device_cleanup(comedi_device *dev)
 {
 	if(dev == NULL) return;
 	mutex_lock(&dev->mutex);
-	if (dev->attached)
-		comedi_device_detach(dev);
+	comedi_device_detach(dev);
 	mutex_unlock(&dev->mutex);
 	mutex_destroy(&dev->mutex);
 }

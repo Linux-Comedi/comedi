@@ -143,6 +143,7 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 		dev->driver = driv;
 		ret = driv->attach(dev, it);
 		if (ret < 0) {
+			module_put(dev->driver->module);
 			__comedi_device_detach(dev);
 			return ret;
 		}
@@ -164,6 +165,7 @@ int comedi_device_attach(comedi_device * dev, comedi_devconfig * it)
 attached:
 	/* do a little post-config cleanup */
 	ret = postconfig(dev);
+	module_put(dev->driver->module);
 	if (ret < 0) {
 		__comedi_device_detach(dev);
 		return ret;
@@ -175,7 +177,6 @@ attached:
 	}
 	smp_wmb();
 	dev->attached = 1;
-	module_put(dev->driver->module);
 
 	return 0;
 }
