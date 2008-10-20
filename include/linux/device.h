@@ -89,19 +89,19 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 	class_simple_destroy((struct class_simple *)(cs))
 
 typedef struct class_device device_create_result_type;
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
+#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	class_simple_device_add((struct class_simple *)(cs), \
-		devt, NULL, fmt)
+		devt, device, fmt)
 #define device_destroy(cs, devt) \
 	class_simple_device_remove(devt)
 
 #else
-/* versions earlier than 2.6.15 are currently broken as of 2008-10-16 FMH*/
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
 typedef struct class_device device_create_result_type;
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
-	class_device_create(cs, devt, NULL, fmt)
+#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
+	class_device_create(cs, devt, device, fmt)
 #define device_destroy(cs, devt) \
 	class_device_destroy(cs, devt)
 
@@ -111,9 +111,9 @@ exactly which kernel version it was fixed in. */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
 typedef struct class_device device_create_result_type;
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
+#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	class_device_create( \
-			cs, parent, devt, NULL, fmt)
+			cs, parent, devt, device, fmt)
 #define device_destroy(cs, devt) \
 	class_device_destroy(cs, devt)
 
@@ -122,21 +122,21 @@ typedef struct class_device device_create_result_type;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
 
 typedef struct device device_create_result_type;
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
-	device_create(cs, parent, devt, fmt)
+#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
+	device_create(cs, ((parent) ? (parent) : (device)), devt, fmt)
 
 #else
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 typedef struct device device_create_result_type;
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
-	device_create_drvdata(cs, parent, devt, drvdata, fmt)
+#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
+	device_create_drvdata(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
 
 #else
 
-#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, fmt...) \
-	device_create(cs, parent, devt, drvdata, fmt)
+#define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
+	device_create(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 

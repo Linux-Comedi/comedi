@@ -2126,14 +2126,9 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	}
 	info->device->minor = i;
 	csdev = COMEDI_DEVICE_CREATE(comedi_class, NULL,
-		MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
+		MKDEV(COMEDI_MAJOR, i), NULL, hardware_device, "comedi%i", i);
 	if(!IS_ERR(csdev)) {
 		info->device->class_dev = csdev;
-		if(hardware_device)
-		{
-			sysfs_create_link(&csdev->kobj,
-				&hardware_device->kobj, "device");
-		}
 	}
 	return i;
 }
@@ -2156,7 +2151,6 @@ void comedi_free_board_minor(unsigned minor)
 		{
 			if(dev->class_dev)
 			{
-				sysfs_remove_link(&dev->class_dev->kobj, "device");
 				device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, dev->minor));
 			}
 			comedi_device_cleanup(dev);
@@ -2196,7 +2190,7 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	}
 	s->minor = i;
 	csdev = COMEDI_DEVICE_CREATE(comedi_class, dev->class_dev,
-		MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i_subd%i", dev->minor, s - dev->subdevices);
+		MKDEV(COMEDI_MAJOR, i), NULL, NULL, "comedi%i_subd%i", dev->minor, s - dev->subdevices);
 	if(!IS_ERR(csdev))
 	{
 		s->class_dev = csdev;
