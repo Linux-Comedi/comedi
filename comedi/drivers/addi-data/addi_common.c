@@ -1,15 +1,15 @@
 /**
 @verbatim
 
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module. 
-        
-        ADDI-DATA GmbH 
-        Dieselstrasse 3 
-        D-77833 Ottersweier 
-        Tel: +19(0)7223/9493-0 
-        Fax: +49(0)7223/9493-92 
-        http://www.addi-data-com 
-        info@addi-data.com 
+Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+
+        ADDI-DATA GmbH
+        Dieselstrasse 3
+        D-77833 Ottersweier
+        Tel: +19(0)7223/9493-0
+        Fax: +49(0)7223/9493-92
+        http://www.addi-data-com
+        info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -22,7 +22,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 @endverbatim
 */
 /*
-    
+
   +-----------------------------------------------------------------------+
   | (C) ADDI-DATA GmbH          Dieselstrasse 3      D-77833 Ottersweier  |
   +-----------------------------------------------------------------------+
@@ -2537,13 +2537,7 @@ comedi_driver driver_addi = {
       offset:sizeof(boardtype),
 };
 
-//This macro is defined in comedidev.h
-/*	#define COMEDI_INITCLEANUP(x)						\
-	int init_module(void){return comedi_driver_register(&(x));}	\
-	void cleanup_module(void){comedi_driver_unregister(&(x));}
-*/
-
-COMEDI_INITCLEANUP(driver_addi);
+COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
 
 /*
 +----------------------------------------------------------------------------+
@@ -2553,7 +2547,7 @@ COMEDI_INITCLEANUP(driver_addi);
 +----------------------------------------------------------------------------+
 | Task              :Detects the card.                                       |
 |  			 Configure the driver for a particular board.            |
-|  			 This function does all the initializations and memory   | 
+|  			 This function does all the initializations and memory   |
 |			 allocation of data structures for the driver.	         |
 +----------------------------------------------------------------------------+
 | Input Parameters  :comedi_device *dev										 |
@@ -2673,13 +2667,13 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	if (this_board->i_PCIEeprom) {
 		printk("\nPCI Eeprom used");
 		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
-			// Set 3 wait stait 
+			// Set 3 wait stait
 			if (!(strcmp(this_board->pc_DriverName, "apci035"))) {
 				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
 			} else {
 				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
 			}
-			// Enable the interrupt for the controler 
+			// Enable the interrupt for the controler
 			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
 			printk("\nEnable the interrupt for the controler");
@@ -2810,7 +2804,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
-		// Allocate and Initialise DI Subdevice Structures  
+		// Allocate and Initialise DI Subdevice Structures
 		s = dev->subdevices + 2;
 		if (this_board->i_NbrDiChannel) {
 			s->type = COMEDI_SUBD_DI;
@@ -2830,7 +2824,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
-		// Allocate and Initialise DO Subdevice Structures  
+		// Allocate and Initialise DO Subdevice Structures
 		s = dev->subdevices + 3;
 		if (this_board->i_NbrDoChannel) {
 			s->type = COMEDI_SUBD_DO;
@@ -2843,7 +2837,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 			s->range_table = &range_digital;
 			s->io_bits = 0xf;	/* all bits output */
 
-			s->insn_config = this_board->i_hwdrv_InsnConfigDigitalOutput;	//for digital output memory.. 
+			s->insn_config = this_board->i_hwdrv_InsnConfigDigitalOutput;	//for digital output memory..
 			s->insn_write =
 				this_board->i_hwdrv_InsnWriteDigitalOutput;
 			s->insn_bits =
@@ -2854,7 +2848,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 
-		// Allocate and Initialise Timer Subdevice Structures               
+		// Allocate and Initialise Timer Subdevice Structures
 		s = dev->subdevices + 4;
 		if (this_board->i_Timer) {
 			s->type = COMEDI_SUBD_TIMER;
@@ -3057,7 +3051,7 @@ static int i_ADDIDATA_InsnReadEeprom(comedi_device * dev, comedi_subdevice * s,
 {
 	WORD w_Data;
 	WORD w_Address;
-	w_Address = CR_CHAN(insn->chanspec);	// address to be read as 0,1,2,3...255  
+	w_Address = CR_CHAN(insn->chanspec);	// address to be read as 0,1,2,3...255
 
 	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,
 		this_board->pc_EepromChip, 0x100 + (2 * w_Address));
