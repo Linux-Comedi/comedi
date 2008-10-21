@@ -23,7 +23,7 @@
 Driver: adv_pci1723
 Description: Advantech PCI-1723
 Author: yonggang <rsmgnu@gmail.com>, Ian Abbott <abbotti@mev.co.uk>
-Devices: [Advantech] PCI-1723 (pci1723)
+Devices: [Advantech] PCI-1723 (adv_pci1723)
 Updated: Mon, 14 Apr 2008 15:12:56 +0100
 Status: works
 
@@ -153,9 +153,6 @@ static comedi_driver driver_pci1723 = {
       module:THIS_MODULE,
       attach:pci1723_attach,
       detach:pci1723_detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
 };
 
 /* this structure is for data unique to this hardware driver. */
@@ -173,7 +170,7 @@ typedef struct {
 */
 #define devpriv ((pci1723_private *)dev->private)
 
-#define this_board ((const boardtype *)dev->board_ptr)
+#define this_board boardtypes
 
 /*
  *   the pci1723 card reset;

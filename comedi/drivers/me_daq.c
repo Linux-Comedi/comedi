@@ -253,9 +253,6 @@ static comedi_driver me_driver = {
       module:THIS_MODULE,
       attach:me_attach,
       detach:me_detach,
-      num_names:me_board_nbr,
-      board_name:&me_boards[0].name,
-      offset:sizeof(me_board_struct),
 };
 
 COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);

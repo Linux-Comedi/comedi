@@ -331,9 +331,6 @@ static comedi_driver pci9111_driver = {
       module:THIS_MODULE,
       attach:pci9111_attach,
       detach:pci9111_detach,
-      num_names:pci9111_board_nbr,
-      board_name:&pci9111_boards[0].name,
-      offset:sizeof(pci9111_board_struct),
 };
 
 COMEDI_PCI_INITCLEANUP(pci9111_driver, pci9111_pci_table);

@@ -22,7 +22,7 @@
 /*
 Driver: adl_pci8164
 Description: Driver for the Adlink PCI-8164 4 Axes Motion Control board
-Devices: [ADLink] PCI-8164 (pci8164)
+Devices: [ADLink] PCI-8164 (adl_pci8164)
 Author: Michel Lachaine <mike@mikelachaine.ca>
 Status: experimental
 Updated: Mon, 14 Apr 2008 15:10:32 +0100
@@ -55,16 +55,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI8164 0x8164
 
-typedef struct {
-	const char *name;
-	int vendor_id;
-	int device_id;
-} adl_pci8164_board;
-
-static const adl_pci8164_board adl_pci8164_boards[] = {
-	{"pci8164", PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164},
-};
-
 static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
 	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164, PCI_ANY_ID, PCI_ANY_ID, 0,
 		0, 0},
@@ -72,8 +62,6 @@ static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
 };
 
 MODULE_DEVICE_TABLE(pci, adl_pci8164_pci_table);
-
-#define thisboard ((const adl_pci8164_board *)dev->board_ptr)
 
 typedef struct {
 	int data;
@@ -89,9 +77,6 @@ static comedi_driver driver_adl_pci8164 = {
       module:THIS_MODULE,
       attach:adl_pci8164_attach,
       detach:adl_pci8164_detach,
-      num_names:1,
-      board_name:&adl_pci8164_boards[0].name,
-      offset:sizeof(adl_pci8164_board),
 };
 
 static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
@@ -125,10 +110,9 @@ static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it)
 	int bus, slot;
 
 	printk("comedi: attempt to attach...\n");
-	printk("comedi%d: adl_pci8164: board=%s\n", dev->minor,
-		thisboard->name);
+	printk("comedi%d: adl_pci8164\n", dev->minor);
 
-	dev->board_name = thisboard->name;
+	dev->board_name = "pci8164";
 	bus = it->options[0];
 	slot = it->options[1];
 
@@ -158,8 +142,6 @@ static int adl_pci8164_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 			dev->iobase = pci_resource_start(pcidev, 2);
 			printk("comedi: base addr %4lx\n", dev->iobase);
-
-			dev->board_ptr = adl_pci8164_boards + 0;
 
 			s = dev->subdevices + 0;
 			s->type = COMEDI_SUBD_PROC;

@@ -21,9 +21,9 @@ Driver: adv_pci1710
 Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
              Advantech PCI-1720, PCI-1731
 Author: Michal Dobes <dobes@tesnet.cz>
-Devices: [Advantech] PCI-1710 (pci1710), PCI-1710HG (pci1710hg),
-  PCI-1711 (pci1711), PCI-1713 (pci1713), PCI-1720 (pci1720),
-  PCI-1731 (pci1731)
+Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG (pci1710hg),
+  PCI-1711 (adv_pci1710), PCI-1713, PCI-1720,
+  PCI-1731
 Status: works
 
 This driver supports AI, AO, DI and DO subdevices.
@@ -51,6 +51,8 @@ Configuration options:
 #define PCI171x_PARANOIDCHECK	/* if defined, then is used code which control correct channel number on every 12 bit sample */
 
 #undef PCI171X_EXTDEBUG
+
+#define DRV_NAME "adv_pci1710"
 
 #undef DPRINTK
 #ifdef PCI171X_EXTDEBUG
@@ -217,49 +219,51 @@ MODULE_DEVICE_TABLE(pci, pci1710_pci_table);
 
 static const boardtype boardtypes[] = {
 	{"pci1710", 0x1710,
-			IORANGE_171x, 1, TYPE_PCI171X,
-			16, 8, 2, 16, 16, 1, 0x0fff, 0x0fff,
-			&range_pci1710_3, range_codes_pci1710_3,
-			&range_pci171x_da,
+		IORANGE_171x, 1, TYPE_PCI171X,
+		16, 8, 2, 16, 16, 1, 0x0fff, 0x0fff,
+		&range_pci1710_3, range_codes_pci1710_3,
+		&range_pci171x_da,
 		10000, 2048},
 	{"pci1710hg", 0x1710,
-			IORANGE_171x, 1, TYPE_PCI171X,
-			16, 8, 2, 16, 16, 1, 0x0fff, 0x0fff,
-			&range_pci1710hg, range_codes_pci1710hg,
-			&range_pci171x_da,
+		IORANGE_171x, 1, TYPE_PCI171X,
+		16, 8, 2, 16, 16, 1, 0x0fff, 0x0fff,
+		&range_pci1710hg, range_codes_pci1710hg,
+		&range_pci171x_da,
 		10000, 2048},
 	{"pci1711", 0x1711,
-			IORANGE_171x, 1, TYPE_PCI171X,
-			16, 0, 2, 16, 16, 1, 0x0fff, 0x0fff,
-			&range_pci17x1, range_codes_pci17x1, &range_pci171x_da,
+		IORANGE_171x, 1, TYPE_PCI171X,
+		16, 0, 2, 16, 16, 1, 0x0fff, 0x0fff,
+		&range_pci17x1, range_codes_pci17x1, &range_pci171x_da,
 		10000, 512},
 	{"pci1713", 0x1713,
-			IORANGE_171x, 1, TYPE_PCI1713,
-			32, 16, 0, 0, 0, 0, 0x0fff, 0x0000,
-			&range_pci1710_3, range_codes_pci1710_3, NULL,
+		IORANGE_171x, 1, TYPE_PCI1713,
+		32, 16, 0, 0, 0, 0, 0x0fff, 0x0000,
+		&range_pci1710_3, range_codes_pci1710_3, NULL,
 		10000, 2048},
 	{"pci1720", 0x1720,
-			IORANGE_1720, 0, TYPE_PCI1720,
-			0, 0, 4, 0, 0, 0, 0x0000, 0x0fff,
-			NULL, NULL, &range_pci1720,
+		IORANGE_1720, 0, TYPE_PCI1720,
+		0, 0, 4, 0, 0, 0, 0x0000, 0x0fff,
+		NULL, NULL, &range_pci1720,
 		0, 0},
 	{"pci1731", 0x1731,
-			IORANGE_171x, 1, TYPE_PCI171X,
-			16, 0, 0, 16, 16, 0, 0x0fff, 0x0000,
-			&range_pci17x1, range_codes_pci17x1, NULL,
+		IORANGE_171x, 1, TYPE_PCI171X,
+		16, 0, 0, 16, 16, 0, 0x0fff, 0x0000,
+		&range_pci17x1, range_codes_pci17x1, NULL,
 		10000, 512},
+	// dummy entry corresponding to driver name
+	{.name = DRV_NAME},
 };
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
 static comedi_driver driver_pci1710 = {
-      driver_name:"adv_pci1710",
-      module:THIS_MODULE,
-      attach:pci1710_attach,
-      detach:pci1710_detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].name,
-      offset:sizeof(boardtype),
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = pci1710_attach,
+	.detach = pci1710_detach,
+	.num_names = n_boardtypes,
+	.board_name = &boardtypes[0].name,
+	.offset = sizeof(boardtype),
 };
 
 typedef struct {
@@ -1322,9 +1326,10 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 	int opt_bus, opt_slot;
 	const char *errstr;
 	unsigned char pci_bus, pci_slot, pci_func;
+	int i;
+	int board_index;
 
-	rt_printk("comedi%d: adv_pci1710: board=%s", dev->minor,
-		this_board->name);
+	rt_printk("comedi%d: adv_pci1710: ", dev->minor);
 
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
@@ -1337,8 +1342,25 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 	/* Look for matching PCI device */
 	errstr = "not found!";
 	pcidev = NULL;
+	board_index = this_board - boardtypes;
 	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				this_board->device_id, pcidev))) {
+		PCI_ANY_ID, pcidev))) {
+		if(strcmp(this_board->name, DRV_NAME) == 0)
+		{
+			for(i = 0; i < n_boardtypes; ++i)
+			{
+				if(pcidev->device == boardtypes[i].device_id)
+				{
+					board_index = i;
+					break;
+				}
+			}
+			if(i == n_boardtypes) continue;
+		}else
+		{
+			if(pcidev->device != boardtypes[board_index].device_id) continue;
+		}
+
 		/* Found matching vendor/device. */
 		if (opt_bus || opt_slot) {
 			/* Check bus/slot. */
@@ -1347,13 +1369,15 @@ static int pci1710_attach(comedi_device * dev, comedi_devconfig * it)
 				continue;	/* no match */
 		}
 		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1710")) {
+		* Look for device that isn't in use.
+		* Enable PCI device and request regions.
+		*/
+		if (comedi_pci_enable(pcidev, DRV_NAME)) {
 			errstr = "failed to enable PCI device and request regions!";
 			continue;
 		}
+		// fixup board_ptr in case we were using the dummy entry with the driver name
+		dev->board_ptr = &boardtypes[board_index];
 		break;
 	}
 

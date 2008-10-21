@@ -22,7 +22,7 @@
 /*
 Driver: adl_pci7432
 Description: Driver for the Adlink PCI-7432 64 ch. isolated digital io board
-Devices: [ADLink] PCI-7432 (pci7432)
+Devices: [ADLink] PCI-7432 (adl_pci7432)
 Author: Michel Lachaine <mike@mikelachaine.ca>
 Status: experimental
 Updated: Mon, 14 Apr 2008 15:08:14 +0100
@@ -43,16 +43,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI7432 0x7432
 
-typedef struct {
-	const char *name;
-	int vendor_id;
-	int device_id;
-} adl_pci7432_board;
-
-static const adl_pci7432_board adl_pci7432_boards[] = {
-	{"pci7432", PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432},
-};
-
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7432_pci_table) = {
 	{PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432, PCI_ANY_ID, PCI_ANY_ID, 0,
 		0, 0},
@@ -60,8 +50,6 @@ static DEFINE_PCI_DEVICE_TABLE(adl_pci7432_pci_table) = {
 };
 
 MODULE_DEVICE_TABLE(pci, adl_pci7432_pci_table);
-
-#define thisboard ((const adl_pci7432_board *)dev->board_ptr)
 
 typedef struct {
 	int data;
@@ -77,9 +65,6 @@ static comedi_driver driver_adl_pci7432 = {
       module:THIS_MODULE,
       attach:adl_pci7432_attach,
       detach:adl_pci7432_detach,
-      num_names:1,
-      board_name:&adl_pci7432_boards[0].name,
-      offset:sizeof(adl_pci7432_board),
 };
 
 /* Digital IO */
@@ -99,10 +84,9 @@ static int adl_pci7432_attach(comedi_device * dev, comedi_devconfig * it)
 	int bus, slot;
 
 	printk("comedi: attempt to attach...\n");
-	printk("comedi%d: adl_pci7432: board=%s\n", dev->minor,
-		thisboard->name);
+	printk("comedi%d: adl_pci7432\n", dev->minor);
 
-	dev->board_name = thisboard->name;
+	dev->board_name = "pci7432";
 	bus = it->options[0];
 	slot = it->options[1];
 
@@ -132,8 +116,6 @@ static int adl_pci7432_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 			dev->iobase = pci_resource_start(pcidev, 2);
 			printk("comedi: base addr %4lx\n", dev->iobase);
-
-			dev->board_ptr = adl_pci7432_boards + 0;
 
 			s = dev->subdevices + 0;
 			s->type = COMEDI_SUBD_DI;

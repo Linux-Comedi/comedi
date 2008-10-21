@@ -24,7 +24,7 @@ Driver: ni_labpc
 Description: National Instruments Lab-PC (& compatibles)
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
 Devices: [National Instruments] Lab-PC-1200 (labpc-1200),
-  Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (pci-1200)
+  Lab-PC-1200AI (labpc-1200ai), Lab-PC+ (lab-pc+), PCI-1200 (ni_labpc)
 Status: works
 
 Tested with lab-pc-1200.  For the older Lab-PC+, not all input ranges
@@ -86,6 +86,8 @@ NI manuals:
 #include "mite.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
+
+#define DRV_NAME "ni_labpc"
 
 #define LABPC_SIZE           32	// size of io region used by board
 #define LABPC_TIMER_BASE            500	// 2 MHz master clock
@@ -188,7 +190,7 @@ static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
 static unsigned int labpc_suggest_transfer_size(comedi_cmd cmd);
 static void labpc_adc_timing(comedi_device * dev, comedi_cmd * cmd);
 #ifdef CONFIG_COMEDI_PCI
-static struct mite_struct *labpc_find_device(int bus, int slot);
+static int labpc_find_device(comedi_device *dev, int bus, int slot);
 #endif
 static int labpc_dio_mem_callback(int dir, int port, int data,
 	unsigned long arg);
@@ -397,17 +399,22 @@ static const labpc_board labpc_boards[] = {
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	"pci-1200",
-	      device_id:0x161,
-	      ai_speed:10000,
-	      bustype:	pci_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:1,
-	      memory_mapped_io:1,
+		name:	"pci-1200",
+		device_id:0x161,
+		ai_speed:10000,
+		bustype:	pci_bustype,
+		register_layout:labpc_1200_layout,
+		has_ao:	1,
+		ai_range_table:&range_labpc_1200_ai,
+		ai_range_code:labpc_1200_ai_gain_bits,
+		ai_range_is_unipolar:labpc_1200_is_unipolar,
+		ai_scan_up:1,
+		memory_mapped_io:1,
+		},
+	// dummy entry so pci board works when comedi_config is passed driver name
+	{
+		.name = DRV_NAME,
+		.bustype = pci_bustype,
 		},
 #endif
 };
@@ -423,13 +430,13 @@ static const int sample_size = 2;	// 2 bytes per sample
 #define devpriv ((labpc_private *)dev->private)
 
 static comedi_driver driver_labpc = {
-      driver_name:"ni_labpc",
-      module:THIS_MODULE,
-      attach:labpc_attach,
-      detach:labpc_common_detach,
-      num_names:sizeof(labpc_boards) / sizeof(labpc_board),
-      board_name:&labpc_boards[0].name,
-      offset:sizeof(labpc_board),
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = labpc_attach,
+	.detach = labpc_common_detach,
+	.num_names = sizeof(labpc_boards) / sizeof(labpc_board),
+	.board_name = &labpc_boards[0].name,
+	.offset = sizeof(labpc_board),
 };
 
 #ifdef CONFIG_COMEDI_PCI
@@ -641,6 +648,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
+	int retval;
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(labpc_private)) < 0)
@@ -655,20 +663,13 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 		break;
 	case pci_bustype:
 #ifdef CONFIG_COMEDI_PCI
-		devpriv->mite =
-			labpc_find_device(it->options[0], it->options[1]);
-		if (devpriv->mite == NULL) {
-			return -EIO;
+		retval = labpc_find_device(dev, it->options[0], it->options[1]);
+		if (retval < 0) {
+			return retval;
 		}
-		if (thisboard->device_id != mite_device_id(devpriv->mite)) {	// this should never happen since this driver only supports one type of pci board
-			printk("bug! mite device id does not match boardtype definition\n");
-			return -EINVAL;
-		}
-		{
-			int ret = mite_setup(devpriv->mite);
-			if (ret < 0)
-				return ret;
-		}
+		retval = mite_setup(devpriv->mite);
+		if (retval < 0)
+			return retval;
 		iobase = (unsigned long)devpriv->mite->daq_io_addr;
 		irq = mite_irq(devpriv->mite);
 #else
@@ -691,7 +692,7 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 
 // adapted from ni_pcimio for finding mite based boards (pc-1200)
 #ifdef CONFIG_COMEDI_PCI
-static struct mite_struct *labpc_find_device(int bus, int slot)
+static int labpc_find_device(comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;
@@ -708,13 +709,16 @@ static struct mite_struct *labpc_find_device(int bus, int slot)
 			if (labpc_boards[i].bustype != pci_bustype)
 				continue;
 			if (mite_device_id(mite) == labpc_boards[i].device_id) {
-				return mite;
+				devpriv->mite = mite;
+				// fixup board pointer, in case we were using the dummy "ni_labpc" entry
+				dev->board_ptr = &labpc_boards[i];
+				return 0;
 			}
 		}
 	}
 	printk("no device found\n");
 	mite_list_devices();
-	return NULL;
+	return -EIO;
 }
 #endif
 

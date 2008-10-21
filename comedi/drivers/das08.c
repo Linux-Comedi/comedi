@@ -28,11 +28,11 @@
 Driver: das08
 Description: DAS-08 compatible boards
 Author: Warren Jasper, ds, Frank Hess
-Devices: [Keithley Metrabyte] DAS08 (das08), [ComputerBoards] DAS08 (das08),
+Devices: [Keithley Metrabyte] DAS08 (isa-das08), [ComputerBoards] DAS08 (isa-das08),
   DAS08-PGM (das08-pgm),
   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
-  DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (pci-das08),
+  DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (das08),
   PC104-DAS08 (pc104-das08), DAS08/JR/16 (das08jr/16)
 Status: works
 
@@ -44,7 +44,6 @@ Options (for ISA cards):
 Options (for pci-das08):
         [0] - bus  (optional)
         [1] = slot (optional)
-Use the name 'pci-das08' for the pci-das08, NOT 'das08'.
 
 The das08 driver doesn't support asynchronous commands, since
 the cheap das08 hardware doesn't really support them.  The
@@ -59,6 +58,8 @@ driver.
 #include "comedi_pci.h"
 #include "8255.h"
 #include "das08.h"
+
+#define DRV_NAME "das08"
 
 #define PCI_VENDOR_ID_COMPUTERBOARDS 0x1307
 #define PCI_DEVICE_ID_PCIDAS08 0x29
@@ -77,7 +78,7 @@ driver.
 /*
     cio-das08.pdf
 
-  "das08"
+  "isa-das08"
 
   0	a/d bits 0-3		start 8 bit
   1	a/d bits 4-11		start 12 bit
@@ -247,7 +248,7 @@ static const int *const das08_gainlists[] = {
 
 static const struct das08_board_struct das08_boards[] = {
 	{
-	      name:	"das08",	// cio-das08.pdf
+	      name:	"isa-das08",	// cio-das08.pdf
 	      bustype:	isa,
 	      ai:	das08_ai_rinsn,
 	      ai_nbits:12,
@@ -388,7 +389,7 @@ static const struct das08_board_struct das08_boards[] = {
 	      iosize:	16,	// unchecked
 		},
 	{
-	      name:	"pci-das08",
+	      name:	"das08",	// pci-das08
 	      id:	PCI_DEVICE_ID_PCIDAS08,
 	      bustype:	pci,
 	      ai:	das08_ai_rinsn,
@@ -823,7 +824,7 @@ static int das08_counter_config(comedi_device * dev, comedi_subdevice * s,
 static int das08_attach(comedi_device * dev, comedi_devconfig * it);
 
 static comedi_driver driver_das08 = {
-      driver_name:"das08",
+      driver_name: DRV_NAME,
       module:THIS_MODULE,
       attach:das08_attach,
       detach:das08_common_detach,
@@ -841,7 +842,7 @@ int das08_common_attach(comedi_device * dev, unsigned long iobase)
 	// allocate ioports for non-pcmcia, non-pci boards
 	if ((thisboard->bustype != pcmcia) && (thisboard->bustype != pci)) {
 		printk(" iobase 0x%lx\n", iobase);
-		if (!request_region(iobase, thisboard->iosize, "das08")) {
+		if (!request_region(iobase, thisboard->iosize, DRV_NAME)) {
 			printk(" I/O port conflict\n");
 			return -EIO;
 		}
@@ -985,7 +986,7 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 		devpriv->pdev = pdev;
 		// enable PCI device and reserve I/O spaces
-		if (comedi_pci_enable(pdev, "das08")) {
+		if (comedi_pci_enable(pdev, DRV_NAME)) {
 			printk(" Error enabling PCI device and requesting regions\n");
 			return -EIO;
 		}
