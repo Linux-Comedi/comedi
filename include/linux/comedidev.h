@@ -63,10 +63,13 @@
 	module_init(x ## _init_module);					\
 	module_exit(x ## _cleanup_module);					\
 
-#define COMEDI_INITCLEANUP(x)						\
-	MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");		\
+#define COMEDI_MODULE_MACROS						\
+	MODULE_AUTHOR("Comedi http://www.comedi.org");		\
 	MODULE_DESCRIPTION("Comedi low-level driver");			\
 	MODULE_LICENSE("GPL");						\
+
+#define COMEDI_INITCLEANUP(x)						\
+	COMEDI_MODULE_MACROS		\
 	static int __init x ## _init_module(void)			\
 		{return comedi_driver_register(&(x));}			\
 	static void __exit x ## _cleanup_module(void)			\
@@ -74,6 +77,38 @@
 	module_init(x ## _init_module);					\
 	module_exit(x ## _cleanup_module);					\
 
+#define COMEDI_PCI_INITCLEANUP(comedi_driver, pci_id_table) \
+	COMEDI_MODULE_MACROS \
+	static int __devinit comedi_driver ## _pci_probe(struct pci_dev *dev, \
+		const struct pci_device_id *ent) \
+	{ \
+		return comedi_pci_auto_config(dev, comedi_driver.driver_name); \
+	} \
+	static void __devexit comedi_driver ## _pci_remove(struct pci_dev *dev) \
+	{ \
+		comedi_pci_auto_unconfig(dev); \
+	} \
+	static struct pci_driver comedi_driver ## _pci = \
+	{ \
+		.id_table = pci_id_table, \
+		.probe = & comedi_driver ## _pci_probe, \
+		.remove = __devexit_p(& comedi_driver ## _pci_remove) \
+	}; \
+	static int __init comedi_driver ## _init_module(void) \
+	{ \
+		int retval; \
+		retval = comedi_driver_register(& comedi_driver); \
+		if(retval < 0) return retval; \
+		comedi_driver ## _pci.name = (char*)comedi_driver.driver_name; \
+		return pci_register_driver(& comedi_driver ## _pci); \
+	} \
+	static void __exit comedi_driver ## _cleanup_module(void) \
+	{ \
+		pci_unregister_driver(& comedi_driver ## _pci); \
+		comedi_driver_unregister(& comedi_driver); \
+	} \
+	module_init(comedi_driver ## _init_module); \
+	module_exit(comedi_driver ## _cleanup_module);
 
 #define PCI_VENDOR_ID_INOVA		0x104c
 #define PCI_VENDOR_ID_NATINST		0x1093
@@ -484,7 +519,7 @@ int comedi_alloc_board_minor(struct device *hardware_device);
 void comedi_free_board_minor(unsigned minor);
 int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s);
 void comedi_free_subdevice_minor(comedi_subdevice *s);
-int comedi_pci_auto_config(const char *board_name, struct pci_dev *pcidev);
+int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 
 //#ifdef CONFIG_COMEDI_RT

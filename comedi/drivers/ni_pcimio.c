@@ -1197,36 +1197,8 @@ static comedi_driver driver_pcimio = {
 	attach:pcimio_attach,
 	detach:pcimio_detach,
 };
-static int ni_pcimio_pci_probe(struct pci_dev *dev,
-	const struct pci_device_id *ent);
-static void ni_pcimio_pci_remove(struct pci_dev *dev);
 
-static struct pci_driver ni_pcimio_pci_driver =
-{
-	.name = DRV_NAME,
-	.id_table = ni_pci_table,
-	.probe = &ni_pcimio_pci_probe,
-	.remove = __devexit_p(&ni_pcimio_pci_remove)
-};
-
-MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi driver for National Instruments E-series, M-series, and related boards");
-MODULE_LICENSE("GPL");
-static int __init driver_pcimio_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pcimio);
-	if(retval < 0) return retval;
-	return pci_register_driver(&ni_pcimio_pci_driver);
-}
-static void __exit driver_pcimio_cleanup_module(void)
-{
-	pci_unregister_driver(&ni_pcimio_pci_driver);
-	comedi_driver_unregister(&driver_pcimio);
-}
-module_init(driver_pcimio_init_module);
-module_exit(driver_pcimio_cleanup_module);
+COMEDI_PCI_INITCLEANUP(driver_pcimio, ni_pci_table)
 
 typedef struct {
 NI_PRIVATE_COMMON} ni_private;
@@ -1786,17 +1758,4 @@ static int pcimio_dio_change(comedi_device * dev, comedi_subdevice * s,
 		return ret;
 
 	return 0;
-}
-
-// pci_driver functions
-
-static int __devinit ni_pcimio_pci_probe(struct pci_dev *dev,
-	const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(DRV_NAME, dev);
-}
-
-static void __devexit ni_pcimio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
