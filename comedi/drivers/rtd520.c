@@ -99,6 +99,13 @@ Configuration options:
 
   Digital-IO and Analog-Out only support instruction mode.
 
+FIXME: This driver needs to be fixed to probe the fifo lengths, instead of
+relying on the user to pass the appropriate board_name to comedi config.
+Then the driver can simply accept the driver name as the board type
+and figure out the rest on its own.  The fifo sizes can be probed by
+clearing the fifo, then doing software-driven conversions one at a time
+until the fifo-half-empty status flag clears.
+
 */
 
 #include <linux/comedidev.h>
@@ -1253,7 +1260,7 @@ static int rtd_ai_rinsn(comedi_device * dev,
 
 		for (ii = 0; ii < RTD_ADC_TIMEOUT; ++ii) {
 			stat = RtdFifoStatus(dev);
-			if (stat & FS_ADC_EMPTY)	/* 1 -> not empty */
+			if (stat & FS_ADC_NOT_EMPTY)	/* 1 -> not empty */
 				break;
 			WAIT_QUIETLY;
 		}
@@ -1296,7 +1303,7 @@ static int ai_read_n(comedi_device * dev, comedi_subdevice * s, int count)
 			continue;
 		}
 #if 0
-		if (0 == (RtdFifoStatus(dev) & FS_ADC_EMPTY)) {	/* DEBUG */
+		if (0 == (RtdFifoStatus(dev) & FS_ADC_NOT_EMPTY)) {	/* DEBUG */
 			DPRINTK("comedi: READ OOPS on %d of %d\n", ii + 1,
 				count);
 			break;
@@ -1324,7 +1331,7 @@ static int ai_read_n(comedi_device * dev, comedi_subdevice * s, int count)
 */
 static int ai_read_dregs(comedi_device * dev, comedi_subdevice * s)
 {
-	while (RtdFifoStatus(dev) & FS_ADC_EMPTY) {	/* 1 -> not empty */
+	while (RtdFifoStatus(dev) & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
 		sampl_t sample;
 		s16 d = RtdAdcFifoGet(dev);	/* get 2s comp value */
 
@@ -1486,7 +1493,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 
 	fifoStatus = RtdFifoStatus(dev);
 	/* check for FIFO full, this automatically halts the ADC! */
-	if (!(fifoStatus & FS_ADC_FULL)) {	/* 0 -> full */
+	if (!(fifoStatus & FS_ADC_NOT_FULL)) {	/* 0 -> full */
 		DPRINTK("rtd520: FIFO full! fifo_status=0x%x\n", (fifoStatus ^ 0x6666) & 0x7777);	/* should be all 0s */
 		goto abortTransfer;
 	}
@@ -1547,7 +1554,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		} else if (devpriv->transCount > 0) {	/* read often */
 			/*DPRINTK("rtd520: Sample int, reading %d  fifo_status 0x%x\n",
 			   devpriv->transCount, (fifoStatus ^ 0x6666) & 0x7777); */
-			if (fifoStatus & FS_ADC_EMPTY) {	/* 1 -> not empty */
+			if (fifoStatus & FS_ADC_NOT_EMPTY) {	/* 1 -> not empty */
 				if (ai_read_n(dev, s, devpriv->transCount) < 0) {
 					DPRINTK("rtd520: comedi read buffer overflow (N) with %ld to go!\n", devpriv->aiCount);
 					goto abortTransfer;
@@ -2149,8 +2156,8 @@ static int rtd_ao_winsn(comedi_device * dev,
 		for (ii = 0; ii < RTD_DAC_TIMEOUT; ++ii) {
 			stat = RtdFifoStatus(dev);
 			/* 1 -> not empty */
-			if (stat & ((0 == chan) ? FS_DAC1_EMPTY :
-					FS_DAC2_EMPTY))
+			if (stat & ((0 == chan) ? FS_DAC1_NOT_EMPTY :
+					FS_DAC2_NOT_EMPTY))
 				break;
 			WAIT_QUIETLY;
 		}

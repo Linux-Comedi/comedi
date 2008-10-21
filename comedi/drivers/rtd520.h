@@ -1,7 +1,7 @@
 /*
     comedi/drivers/rtd520.h
     Comedi driver defines for Real Time Devices (RTD) PCI4520/DM7520
-    
+
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2001 David A. Schleef <ds@schleef.org>
 
@@ -27,7 +27,7 @@
 
 /*
   LAS0 Runtime Area
-  Local Address Space 0 Offset		Read Function	Write Function   
+  Local Address Space 0 Offset		Read Function	Write Function
 */
 #define LAS0_SPARE_00    0x0000	// -                               -
 #define LAS0_SPARE_04    0x0004	// -                               -
@@ -47,7 +47,7 @@
 #define LAS0_SPARE_3C    0x003C	// -                               -
 
 /*
-  LAS0 Runtime Area Timer/Counter,Dig.IO   
+  LAS0 Runtime Area Timer/Counter,Dig.IO
   Name			Local Address			Function
 */
 #define LAS0_PCLK        0x0040	// Pacer Clock value (24bit)             Pacer Clock load (24bit)
@@ -156,18 +156,18 @@
 ======================================================================*/
 
 // FIFO Status Word Bits (RtdFifoStatus)
-#define FS_DAC1_EMPTY    0x0001	// D0  - DAC1 FIFO not empty
-#define FS_DAC1_HEMPTY   0x0002	// D1  - DAC1 FIFO not half empty
-#define FS_DAC1_FULL     0x0004	// D2  - DAC1 FIFO not full
-#define FS_DAC2_EMPTY    0x0010	// D4  - DAC2 FIFO not empty
-#define FS_DAC2_HEMPTY   0x0020	// D5  - DAC2 FIFO not half empty
-#define FS_DAC2_FULL     0x0040	// D6  - DAC2 FIFO not full
-#define FS_ADC_EMPTY     0x0100	// D8  - ADC FIFO not empty
-#define FS_ADC_HEMPTY    0x0200	// D9  - ADC FIFO not half empty
-#define FS_ADC_FULL      0x0400	// D10 - ADC FIFO not full
-#define FS_DIN_EMPTY     0x1000	// D12 - DIN FIFO not empty
-#define FS_DIN_HEMPTY    0x2000	// D13 - DIN FIFO not half empty
-#define FS_DIN_FULL      0x4000	// D14 - DIN FIFO not full
+#define FS_DAC1_NOT_EMPTY    0x0001	// D0  - DAC1 FIFO not empty
+#define FS_DAC1_HEMPTY   0x0002	// D1  - DAC1 FIFO half empty
+#define FS_DAC1_NOT_FULL     0x0004	// D2  - DAC1 FIFO not full
+#define FS_DAC2_NOT_EMPTY    0x0010	// D4  - DAC2 FIFO not empty
+#define FS_DAC2_HEMPTY   0x0020	// D5  - DAC2 FIFO half empty
+#define FS_DAC2_NOT_FULL     0x0040	// D6  - DAC2 FIFO not full
+#define FS_ADC_NOT_EMPTY     0x0100	// D8  - ADC FIFO not empty
+#define FS_ADC_HEMPTY    0x0200	// D9  - ADC FIFO half empty
+#define FS_ADC_NOT_FULL      0x0400	// D10 - ADC FIFO not full
+#define FS_DIN_NOT_EMPTY     0x1000	// D12 - DIN FIFO not empty
+#define FS_DIN_HEMPTY    0x2000	// D13 - DIN FIFO half empty
+#define FS_DIN_NOT_FULL      0x4000	// D14 - DIN FIFO not full
 
 // Timer Status Word Bits (GetTimerStatus)
 #define TS_PCLK_GATE   0x0001
