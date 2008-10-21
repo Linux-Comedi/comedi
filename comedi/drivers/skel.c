@@ -212,7 +212,7 @@ static int skel_attach(comedi_device * dev, comedi_devconfig * it)
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
  */
-	//dev->board_ptr = skel_probe(dev);
+	//dev->board_ptr = skel_probe(dev, it);
 
 /*
  * Initialize dev->board_name.  Note that we can use the "thisboard"
@@ -614,3 +614,6 @@ static int skel_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_skel);
+/* If you are writing a PCI driver you should use COMEDI_PCI_INITCLEANUP instead.
+*/
+// COMEDI_PCI_INITCLEANUP(driver_skel, skel_pci_table)

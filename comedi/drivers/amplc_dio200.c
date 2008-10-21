@@ -471,7 +471,7 @@ static comedi_driver driver_amplc_dio200 = {
       num_names:sizeof(dio200_boards) / sizeof(dio200_board),
 };
 
-COMEDI_INITCLEANUP(driver_amplc_dio200);
+COMEDI_PCI_INITCLEANUP(driver_amplc_dio200, dio200_pci_table);
 
 /*
  * This function looks for a PCI device matching the requested board name,

@@ -336,7 +336,7 @@ static comedi_driver pci9111_driver = {
       offset:sizeof(pci9111_board_struct),
 };
 
-COMEDI_INITCLEANUP(pci9111_driver);
+COMEDI_PCI_INITCLEANUP(pci9111_driver, pci9111_pci_table);
 
 //
 // Private data structure

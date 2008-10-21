@@ -481,4 +481,4 @@ static int cb_pcimdas_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_cb_pcimdas);
+COMEDI_PCI_INITCLEANUP(driver_cb_pcimdas, cb_pcimdas_pci_table);

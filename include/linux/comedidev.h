@@ -70,15 +70,9 @@
 
 #define COMEDI_INITCLEANUP(x)						\
 	COMEDI_MODULE_MACROS		\
-	static int __init x ## _init_module(void)			\
-		{return comedi_driver_register(&(x));}			\
-	static void __exit x ## _cleanup_module(void)			\
-		{comedi_driver_unregister(&(x));} 			\
-	module_init(x ## _init_module);					\
-	module_exit(x ## _cleanup_module);					\
+	COMEDI_INITCLEANUP_NOMODULE(x)
 
-#define COMEDI_PCI_INITCLEANUP(comedi_driver, pci_id_table) \
-	COMEDI_MODULE_MACROS \
+#define COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table) \
 	static int __devinit comedi_driver ## _pci_probe(struct pci_dev *dev, \
 		const struct pci_device_id *ent) \
 	{ \
@@ -109,6 +103,10 @@
 	} \
 	module_init(comedi_driver ## _init_module); \
 	module_exit(comedi_driver ## _cleanup_module);
+
+#define COMEDI_PCI_INITCLEANUP(comedi_driver, pci_id_table) \
+	COMEDI_MODULE_MACROS \
+	COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table)
 
 #define PCI_VENDOR_ID_INOVA		0x104c
 #define PCI_VENDOR_ID_NATINST		0x1093

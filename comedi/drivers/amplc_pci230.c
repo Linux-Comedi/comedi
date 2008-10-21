@@ -50,7 +50,7 @@ Subdevices:
                 PCI230(+)    PCI260(+)
                 ---------    ---------
   Subdevices       3            1
-        0          AI           AI 
+        0          AI           AI
 	1          AO
 	2          DIO
 
@@ -58,10 +58,10 @@ AI Subdevice:
 
   The AI subdevice has 16 single-ended channels or 8 differential
   channels.
-  
+
   The PCI230 and PCI260 cards have 12-bit resolution.  The PCI230+ and
   PCI260+ cards have 16-bit resolution.
-  
+
   For differential mode, use inputs 2N and 2N+1 for channel N (e.g. use
   inputs 14 and 15 for channel 7).  If the card is physically a PCI230
   or PCI260 then it actually uses a "pseudo-differential" mode where the
@@ -616,7 +616,7 @@ static comedi_driver driver_amplc_pci230 = {
       num_names:sizeof(pci230_boards) / sizeof(pci230_boards[0]),
 };
 
-COMEDI_INITCLEANUP(driver_amplc_pci230);
+COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);
 
 static int pci230_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);

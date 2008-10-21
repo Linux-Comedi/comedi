@@ -1825,4 +1825,4 @@ static int nvram_read(comedi_device * dev, unsigned int address, uint8_t * data)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_cb_pcidas);
+COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, cb_pcidas_pci_table);

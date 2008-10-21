@@ -298,8 +298,6 @@ static comedi_driver driver_pcidio = {
       detach:nidio_detach,
 };
 
-COMEDI_INITCLEANUP(driver_pcidio);
-
 typedef struct {
 	int dev_id;
 	const char *name;
@@ -1298,3 +1296,5 @@ static int nidio_find_device(comedi_device * dev, int bus, int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+COMEDI_PCI_INITCLEANUP(driver_pcidio, ni_pcidio_pci_table);

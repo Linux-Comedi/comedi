@@ -238,7 +238,7 @@ static comedi_driver driver_pci9118 = {
       offset:sizeof(boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_pci9118);
+COMEDI_PCI_INITCLEANUP(driver_pci9118, pci9118_pci_table);
 
 typedef struct {
 	unsigned long iobase_a;	// base+size for AMCC chip

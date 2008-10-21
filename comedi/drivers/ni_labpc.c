@@ -1986,7 +1986,7 @@ static void write_caldac(comedi_device * dev, unsigned int channel,
 	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 
-COMEDI_INITCLEANUP(driver_labpc);
+COMEDI_PCI_INITCLEANUP(driver_labpc, labpc_pci_table);
 
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 EXPORT_SYMBOL_GPL(labpc_common_detach);

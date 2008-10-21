@@ -84,8 +84,6 @@ static comedi_driver driver_ni6527 = {
       detach:ni6527_detach,
 };
 
-COMEDI_INITCLEANUP(driver_ni6527);
-
 typedef struct {
 	int dev_id;
 	const char *name;
@@ -484,3 +482,5 @@ static int ni6527_find_device(comedi_device * dev, int bus, int slot)
 	mite_list_devices();
 	return -EIO;
 }
+
+COMEDI_PCI_INITCLEANUP(driver_ni6527, ni6527_pci_table);

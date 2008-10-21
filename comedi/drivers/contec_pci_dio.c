@@ -227,4 +227,4 @@ static int contec_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-COMEDI_INITCLEANUP(driver_contec);
+COMEDI_PCI_INITCLEANUP(driver_contec, contec_pci_table);

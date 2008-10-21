@@ -334,7 +334,7 @@ static comedi_driver driver_hpdi = {
       detach:hpdi_detach,
 };
 
-COMEDI_INITCLEANUP(driver_hpdi);
+COMEDI_PCI_INITCLEANUP(driver_hpdi, hpdi_pci_table);
 
 static int dio_config_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)

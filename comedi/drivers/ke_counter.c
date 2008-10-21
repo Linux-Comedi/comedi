@@ -93,7 +93,7 @@ static comedi_driver cnt_driver = {
       detach:cnt_detach,
 };
 
-COMEDI_INITCLEANUP(cnt_driver);
+COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);
 
 /*-- counter write ----------------------------------------------------------*/
 

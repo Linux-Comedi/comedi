@@ -527,4 +527,4 @@ static int adl_pci8164_insn_write_buf1(comedi_device * dev,
 	return 2;
 }
 
-COMEDI_INITCLEANUP(driver_adl_pci8164);
+COMEDI_PCI_INITCLEANUP(driver_adl_pci8164, adl_pci8164_pci_table);

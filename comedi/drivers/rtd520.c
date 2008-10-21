@@ -2259,4 +2259,4 @@ static int rtd_dio_insn_config(comedi_device * dev,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(rtd520Driver);
+COMEDI_PCI_INITCLEANUP(rtd520Driver, rtd520_pci_table);

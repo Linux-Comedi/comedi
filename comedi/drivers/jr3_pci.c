@@ -27,9 +27,9 @@ Author: Anders Blomdell <anders.blomdell@control.lth.se>
 Status: works
 Devices: [JR3] PCI force sensor board (jr3_pci)
 
-  The DSP on the board requires initialization code, which can 
-  be loaded by placing it in /lib/firmware/comedi.  
-  The initialization code should be somewhere on the media you got 
+  The DSP on the board requires initialization code, which can
+  be loaded by placing it in /lib/firmware/comedi.
+  The initialization code should be somewhere on the media you got
   with your card. One version is available from http://www.comedi.org
   in the comedi_nonfree_firmware tarball.
 
@@ -406,7 +406,7 @@ int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
 {
 	int result = 0;
 	if (pos != 0 && val != 0) {
-		// Skip over non hex 
+		// Skip over non hex
 		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++) {
 		}
 		// Collect value
@@ -491,7 +491,7 @@ static int jr3_download_firmware(comedi_device * dev, const u8 * data,
 						// printk("jr3_data, not tested\n");
 						//        jr3[addr + 0x20000 * pnum] = data1;
 					} else {
-						//  Download 24 bit program 
+						//  Download 24 bit program
 						unsigned int data1, data2;
 
 						more = more
@@ -547,7 +547,7 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 				u16 serial_no = get_u16(&channel->serial_no);
 				if ((errors & (watch_dog | watch_dog2)) ||
 					model_no == 0 || serial_no == 0) {
-					// Still no sensor, keep on polling. Since it takes up to 
+					// Still no sensor, keep on polling. Since it takes up to
 					// 10 seconds for offsets to stabilize, polling each
 					// second should suffice.
 					result = poll_delay_min_max(1000, 2000);
@@ -758,7 +758,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 			subdevpriv->next_time_max =
 				jiffies + msecs_to_jiffies(sub_delay.max);
 			if (sub_delay.max && sub_delay.max < delay) {
-				// Wake up as late as possible -> poll as many channels as 
+				// Wake up as late as possible -> poll as many channels as
 				// possible at once
 				delay = sub_delay.max;
 			}
@@ -911,7 +911,7 @@ static int jr3_pci_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 	// TODO: use firmware to load preferred offset tables. Suggested format:
 	// model serial Fx Fy Fz Mx My Mz\n
-	// 
+	//
 	// comedi_load_firmware(dev, "jr3_offsets_table", jr3_download_firmware);
 
 	// It takes a few milliseconds for software to settle
@@ -969,4 +969,4 @@ static int jr3_pci_detach(comedi_device * dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_jr3_pci);
+COMEDI_PCI_INITCLEANUP(driver_jr3_pci, jr3_pci_pci_table);

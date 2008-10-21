@@ -280,7 +280,7 @@ static comedi_driver driver_dt3000 = {
       detach:dt3000_detach,
 };
 
-COMEDI_INITCLEANUP(driver_dt3000);
+COMEDI_PCI_INITCLEANUP(driver_dt3000, dt3k_pci_table);
 
 static void dt3k_ai_empty_fifo(comedi_device * dev, comedi_subdevice * s);
 static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *arg,

@@ -118,7 +118,7 @@ static comedi_driver driver_ni_670x = {
       detach:ni_670x_detach,
 };
 
-COMEDI_INITCLEANUP(driver_ni_670x);
+COMEDI_PCI_INITCLEANUP(driver_ni_670x, ni_670x_pci_table);
 
 static comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 

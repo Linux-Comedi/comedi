@@ -165,7 +165,7 @@ static comedi_driver driver_amplc_pc236 = {
       num_names:sizeof(pc236_boards) / sizeof(pc236_board),
 };
 
-COMEDI_INITCLEANUP(driver_amplc_pc236);
+COMEDI_PCI_INITCLEANUP(driver_amplc_pc236, pc236_pci_table);
 
 static int pc236_request_region(unsigned long from, unsigned long extent);
 static void pc236_intr_disable(comedi_device * dev);

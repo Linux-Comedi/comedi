@@ -1038,7 +1038,7 @@ int das08_common_detach(comedi_device * dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_das08);
+COMEDI_PCI_INITCLEANUP(driver_das08, das08_pci_table);
 
 EXPORT_SYMBOL_GPL(das08_common_attach);
 EXPORT_SYMBOL_GPL(das08_common_detach);

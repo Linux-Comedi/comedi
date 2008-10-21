@@ -1538,7 +1538,7 @@ static int pci1710_detach(comedi_device * dev)
 /*
 ==============================================================================
 */
-COMEDI_INITCLEANUP(driver_pci1710);
+COMEDI_PCI_INITCLEANUP(driver_pci1710, pci1710_pci_table);
 /*
 ==============================================================================
 */

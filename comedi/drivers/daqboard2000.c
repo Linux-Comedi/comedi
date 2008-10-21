@@ -31,7 +31,7 @@ Devices: [IOTech] DAQBoard/2000 (daqboard2000)
 Much of the functionality of this driver was determined from reading
 the source code for the Windows driver.
 
-The FPGA on the board requires initialization code, which can 
+The FPGA on the board requires initialization code, which can
 be loaded by comedi_config using the -i
 option.  The initialization code is available from http://www.comedi.org
 in the comedi_nonfree_firmware tarball.
@@ -43,26 +43,26 @@ Configuration options:
   PCI device found will be used.
 */
 /*
-   This card was obviously never intended to leave the Windows world, 
-   since it lacked all kind of hardware documentation (except for cable 
-   pinouts, plug and pray has something to catch up with yet). 
+   This card was obviously never intended to leave the Windows world,
+   since it lacked all kind of hardware documentation (except for cable
+   pinouts, plug and pray has something to catch up with yet).
 
-   With some help from our swedish distributor, we got the Windows sourcecode 
+   With some help from our swedish distributor, we got the Windows sourcecode
    for the card, and here are the findings so far.
 
    1. A good document that describes the PCI interface chip is found at:
       http://plx.plxtech.com/download/9080/databook/9080db-106.pdf
-     
+
    2. The initialization done so far is:
         a. program the FPGA (windows code sans a lot of error messages)
-	b. 
+	b.
 
-   3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled, 
+   3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled,
       you have to output values to all enabled DAC's until result appears, I
-      guess that it has something to do with pacer clocks, but the source 
+      guess that it has something to do with pacer clocks, but the source
       gives me no clues. I'll keep it simple so far.
 
-   4. Analog in. 
+   4. Analog in.
         Each channel in the scanlist seems to be controlled by four
 	control words:
 
@@ -107,13 +107,13 @@ Configuration options:
 		  |    	   +---------------- Unipolar
 		  +------------------------- Correction gain high
 
-        
+
 
    999. The card seems to have an incredible amount of capabilities, but
         trying to reverse engineer them from the Windows source is beyond my
 	patience.
 
-   
+
  */
 
 #include <linux/comedidev.h>
@@ -485,7 +485,7 @@ static int daqboard2000_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 			//comedi_udelay(2);
 		}
 		devpriv->ao_readback[chan] = data[i];
-		/*  
+		/*
 		 * Since we never enabled the DAC's, we don't need to disable it...
 		 * fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; comedi_udelay(1000);
 		 */
@@ -874,4 +874,4 @@ static int daqboard2000_detach(comedi_device * dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_daqboard2000);
+COMEDI_PCI_INITCLEANUP(driver_daqboard2000, daqboard2000_pci_table);

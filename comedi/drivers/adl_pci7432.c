@@ -217,4 +217,4 @@ static int adl_pci7432_di_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	return 2;
 }
 
-COMEDI_INITCLEANUP(driver_adl_pci7432);
+COMEDI_PCI_INITCLEANUP(driver_adl_pci7432, adl_pci7432_pci_table);

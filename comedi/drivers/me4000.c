@@ -2359,4 +2359,4 @@ static int me4000_cnt_insn_write(comedi_device * dev,
 	return 1;
 }
 
-COMEDI_INITCLEANUP(driver_me4000);
+COMEDI_PCI_INITCLEANUP(driver_me4000, me4000_pci_table);

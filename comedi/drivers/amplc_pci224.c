@@ -428,7 +428,7 @@ static comedi_driver driver_amplc_pci224 = {
       num_names:sizeof(pci224_boards) / sizeof(pci224_board),
 };
 
-COMEDI_INITCLEANUP(driver_amplc_pci224);
+COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
 
 /*
  * Called from the 'insn_write' function to perform a single write.

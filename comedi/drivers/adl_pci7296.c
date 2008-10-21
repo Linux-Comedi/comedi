@@ -189,4 +189,4 @@ static int adl_pci7296_detach(comedi_device * dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_adl_pci7296);
+COMEDI_PCI_INITCLEANUP(driver_adl_pci7296, adl_pci7296_pci_table);

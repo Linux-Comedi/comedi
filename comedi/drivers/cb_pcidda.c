@@ -838,4 +838,4 @@ static void cb_pcidda_calibrate(comedi_device * dev, unsigned int channel,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_cb_pcidda);
+COMEDI_PCI_INITCLEANUP(driver_cb_pcidda, cb_pcidda_pci_table);

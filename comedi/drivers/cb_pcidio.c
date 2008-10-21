@@ -291,4 +291,4 @@ static int pcidio_detach(comedi_device * dev)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_cb_pcidio);
+COMEDI_PCI_INITCLEANUP(driver_cb_pcidio, pcidio_pci_table);

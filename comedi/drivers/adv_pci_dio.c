@@ -86,7 +86,7 @@ typedef enum {
 // Advantech PCI-1736UP
 #define PCI1736_IDI        0    /* R:   Isolated digital input  0-15 */
 #define PCI1736_IDO        0    /* W:   Isolated digital output 0-15 */
-#define PCI1736_3_INT_EN        0x08    /* R/W: enable/disable interrupts */ 
+#define PCI1736_3_INT_EN        0x08    /* R/W: enable/disable interrupts */
 #define PCI1736_3_INT_RF        0x0c    /* R/W: set falling/raising edge for interrupts */
 #define PCI1736_3_INT_CLR       0x10    /* R/W: clear interrupts */
 #define PCI1736_BOARDID    4            /* R:   Board I/D switch for 1736UP */
@@ -1071,7 +1071,7 @@ static int pci_dio_detach(comedi_device * dev)
 /*
 ==============================================================================
 */
-COMEDI_INITCLEANUP(driver_pci_dio);
+COMEDI_PCI_INITCLEANUP(driver_pci_dio, pci_dio_pci_table);
 /*
 ==============================================================================
 */

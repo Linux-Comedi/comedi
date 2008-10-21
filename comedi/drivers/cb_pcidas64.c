@@ -1198,7 +1198,7 @@ static void enable_ai_interrupts(comedi_device * dev, const comedi_cmd * cmd);
 static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 static void load_ao_dma(comedi_device * dev, const comedi_cmd * cmd);
 
-COMEDI_INITCLEANUP(driver_cb_pcidas);
+COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, pcidas64_pci_table);
 
 static unsigned int ai_range_bits_6xxx(const comedi_device * dev,
 	unsigned int range_index)

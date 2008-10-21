@@ -258,7 +258,7 @@ static comedi_driver me_driver = {
       offset:sizeof(me_board_struct),
 };
 
-COMEDI_INITCLEANUP(me_driver);
+COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
 
 //
 // Private data structure

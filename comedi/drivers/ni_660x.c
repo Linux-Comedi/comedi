@@ -457,7 +457,7 @@ static comedi_driver driver_ni_660x = {
       detach:ni_660x_detach,
 };
 
-COMEDI_INITCLEANUP(driver_ni_660x);
+COMEDI_PCI_INITCLEANUP(driver_ni_660x, ni_660x_pci_table);
 
 static int ni_660x_find_device(comedi_device * dev, int bus, int slot);
 static int ni_660x_set_pfi_routing(comedi_device * dev, unsigned chan,

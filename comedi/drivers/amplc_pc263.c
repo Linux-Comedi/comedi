@@ -310,7 +310,7 @@ static int pc263_detach(comedi_device * dev)
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
-		} else 
+		} else
 #endif
 		{
 			if (dev->iobase) {
@@ -377,4 +377,4 @@ static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_amplc_pc263);
+COMEDI_PCI_INITCLEANUP(driver_amplc_pc263, pc263_pci_table);

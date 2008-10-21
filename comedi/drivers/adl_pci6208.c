@@ -1,6 +1,6 @@
 /*
     comedi/drivers/adl_pci6208.c
-    
+
     Hardware driver for ADLink 6208 series cards:
 	card	     | voltage output    | current output
 	-------------+-------------------+---------------
@@ -37,9 +37,9 @@ Configuration Options:
   none
 
 References:
-	- ni_660x.c		
+	- ni_660x.c
 	- adl_pci9111.c		copied the entire pci setup section
-	- adl_pci9118.c		
+	- adl_pci9118.c
 */
 /*
  * These headers should be followed by a blank line, and any comments
@@ -119,7 +119,7 @@ static comedi_driver driver_pci6208 = {
       detach:pci6208_detach,
 };
 
-COMEDI_INITCLEANUP(driver_pci6208);
+COMEDI_PCI_INITCLEANUP(driver_pci6208, pci6208_pci_table);
 
 static int pci6208_find_device(comedi_device * dev, int bus, int slot);
 static int
@@ -199,7 +199,7 @@ static int pci6208_attach(comedi_device * dev, comedi_devconfig * it)
 
 /*
  * _detach is called to deconfigure a device.  It should deallocate
- * resources.  
+ * resources.
  * This function is also called when _attach() fails, so it should be
  * careful not to release resources that were not necessarily
  * allocated by _attach().  dev->private and dev->subdevices are
