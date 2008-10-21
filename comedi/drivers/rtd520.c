@@ -23,8 +23,8 @@
 Driver: rtd520
 Description: Real Time Devices PCI4520/DM7520
 Author: Dan Christian
-Devices: [Real Time Devices] DM7520HR-1 (DM7520), DM7520HR-8 (DM7520-8),
-  PCI4520 (PCI4520), PCI4520-8 (PCI4520-8)
+Devices: [Real Time Devices] DM7520HR-1 (rtd520), DM7520HR-8,
+  PCI4520, PCI4520-8
 Status: Works.  Only tested on DM7520-8.  Not SMP safe.
 
 Configuration options:
@@ -99,19 +99,14 @@ Configuration options:
 
   Digital-IO and Analog-Out only support instruction mode.
 
-FIXME: This driver needs to be fixed to probe the fifo lengths, instead of
-relying on the user to pass the appropriate board_name to comedi config.
-Then the driver can simply accept the driver name as the board type
-and figure out the rest on its own.  The fifo sizes can be probed by
-clearing the fifo, then doing software-driven conversions one at a time
-until the fifo-half-empty status flag clears.
-
 */
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
 
 #include "comedi_pci.h"
+
+#define DRV_NAME "rtd520"
 
 /*======================================================================
   Driver specific stuff (tunable)
@@ -277,7 +272,6 @@ typedef struct rtdBoard_struct {
 	int aiChans;
 	int aiBits;
 	int aiMaxGain;
-	int fifoLen;
 	int range10Start;	/* start of +-10V range */
 	int rangeUniStart;	/* start of +10V range */
 } rtdBoard;
@@ -289,17 +283,6 @@ static const rtdBoard rtd520Boards[] = {
 	      aiChans:	16,
 	      aiBits:	12,
 	      aiMaxGain:32,
-	      fifoLen:	1024,
-	      range10Start:6,
-	      rangeUniStart:12,
-		},
-	{
-	      name:	"DM7520-8",
-	      device_id:0x7520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:32,
-	      fifoLen:	8192,
 	      range10Start:6,
 	      rangeUniStart:12,
 		},
@@ -309,17 +292,6 @@ static const rtdBoard rtd520Boards[] = {
 	      aiChans:	16,
 	      aiBits:	12,
 	      aiMaxGain:128,
-	      fifoLen:	1024,
-	      range10Start:8,
-	      rangeUniStart:16,
-		},
-	{
-	      name:	"PCI4520-8",
-	      device_id:0x4520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:128,
-	      fifoLen:	8192,
 	      range10Start:8,
 	      rangeUniStart:16,
 		},
@@ -385,6 +357,7 @@ typedef struct {
 	u8 dma0Control;
 	u8 dma1Control;
 #endif				/* USE_DMA */
+	unsigned fifoLen;
 } rtdPrivate;
 
 /* bit defines for "flags" */
@@ -711,13 +684,10 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it);
 static int rtd_detach(comedi_device * dev);
 
 static comedi_driver rtd520Driver = {
-      driver_name:"rtd520",
+      driver_name: DRV_NAME,
       module:THIS_MODULE,
       attach:rtd_attach,
       detach:rtd_detach,
-      board_name:&rtd520Boards[0].name,
-      offset:sizeof(rtdBoard),
-      num_names:sizeof(rtd520Boards) / sizeof(rtdBoard),
 };
 
 static int rtd_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
@@ -737,6 +707,7 @@ static int rtd_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 //static int rtd_ai_poll (comedi_device *dev,comedi_subdevice *s);
 static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
 static irqreturn_t rtd_interrupt(int irq, void *d PT_REGS_ARG);
+static int rtd520_probe_fifo_depth(comedi_device *dev);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -774,19 +745,27 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	/*
 	 * Probe the device to determine what device in the series it is.
 	 */
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
+	for (pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, NULL);
 		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		if (pcidev->vendor == PCI_VENDOR_ID_RTD) {
-			if (it->options[0] || it->options[1]) {
-				if (pcidev->bus->number != it->options[0]
-					|| PCI_SLOT(pcidev->devfn) !=
-					it->options[1]) {
-					continue;
-				}
+		pcidev = pci_get_device(PCI_VENDOR_ID_RTD, PCI_ANY_ID, pcidev)) {
+		int i;
+
+		if (it->options[0] || it->options[1]) {
+			if (pcidev->bus->number != it->options[0]
+				|| PCI_SLOT(pcidev->devfn) !=
+				it->options[1]) {
+				continue;
 			}
-			break;	/* found one */
 		}
+		for(i = 0; i < sizeof(rtd520Boards) / sizeof(rtd520Boards[0]); ++i)
+		{
+			if(pcidev->device == rtd520Boards[i].device_id)
+			{
+				dev->board_ptr = &rtd520Boards[i];
+				break;
+			}
+		}
+		if(dev->board_ptr) break;	/* found one */
 	}
 	if (!pcidev) {
 		if (it->options[0] && it->options[1]) {
@@ -798,14 +777,9 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
 	}
 	devpriv->pci_dev = pcidev;
-	if (pcidev->device != thisboard->device_id) {
-		printk("Found an RTD card, but not the supported type (%x).\n",
-			pcidev->device);
-		return -EIO;
-	}
 	dev->board_name = thisboard->name;
 
-	if ((ret = comedi_pci_enable(pcidev, "rtd520")) < 0) {
+	if ((ret = comedi_pci_enable(pcidev, DRV_NAME)) < 0) {
 		printk("Failed to enable PCI device and request regions.\n");
 		return ret;
 	}
@@ -863,10 +837,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	/* Show board configuration */
-	/* It is critical that the FIFO length matches the board.  Otherwise,
-	   data transfers and DMA will either read 0s or overwrite memory!
-	   It is possible to probe for FIFO size. */
-	printk("%s: ( fifoLen=%d )", dev->board_name, thisboard->fifoLen);
+	printk("%s:", dev->board_name);
 
 	/*
 	 * Allocate the subdevice structures.  alloc_subdevice() is a
@@ -890,7 +861,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	} else {
 		s->range_table = &rtd_ai_4520_range;
 	}
-	s->len_chanlist = RTD_MAX_CHANLIST;	/* thisboard->fifoLen */
+	s->len_chanlist = RTD_MAX_CHANLIST;	/* devpriv->fifoLen */
 	s->insn_read = rtd_ai_rinsn;
 	s->do_cmd = rtd_ai_cmd;
 	s->do_cmdtest = rtd_ai_cmdtest;
@@ -948,13 +919,20 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 
 	/* check if our interrupt is available and get it */
 	if ((ret = comedi_request_irq(devpriv->pci_dev->irq, rtd_interrupt,
-				IRQF_SHARED, "rtd520", dev)) < 0) {
+				IRQF_SHARED, DRV_NAME, dev)) < 0) {
 		printk("Could not get interrupt! (%u)\n",
 			devpriv->pci_dev->irq);
 		return ret;
 	}
 	dev->irq = devpriv->pci_dev->irq;
 	printk("( irq=%u )", dev->irq);
+
+	ret = rtd520_probe_fifo_depth(dev);
+	if(ret < 0) {
+		return ret;
+	}
+	devpriv->fifoLen = ret;
+	printk("( fifoLen=%d )", devpriv->fifoLen);
 
 #ifdef USE_DMA
 	if (dev->irq > 0) {
@@ -967,7 +945,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			devpriv->dma0Buff[index] =
 				pci_alloc_consistent(devpriv->pci_dev,
-				sizeof(u16) * thisboard->fifoLen / 2,
+				sizeof(u16) * devpriv->fifoLen / 2,
 				&devpriv->dma0BuffPhysAddr[index]);
 			if (devpriv->dma0Buff[index] == NULL) {
 				ret = -ENOMEM;
@@ -989,7 +967,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->dma0Chain[index].local_start_addr =
 				DMALADDR_ADC;
 			devpriv->dma0Chain[index].transfer_size =
-				sizeof(u16) * thisboard->fifoLen / 2;
+				sizeof(u16) * devpriv->fifoLen / 2;
 			devpriv->dma0Chain[index].next =
 				(devpriv->dma0ChainPhysAddr + ((index +
 						1) % (DMA_CHAIN_COUNT))
@@ -1013,18 +991,15 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 		RtdDma0Mode(dev, DMA_MODE_BITS);
 		RtdDma0Source(dev, DMAS_ADFIFO_HALF_FULL);	/* set DMA trigger source */
 	} else {
-		printk("( no IRQ->no DMA )\n");
+		printk("( no IRQ->no DMA )");
 	}
-
-#else /* USE_DMA */
-	printk("\n");		/* end configuration line */
 #endif /* USE_DMA */
 
 	if (dev->irq) {		/* enable plx9080 interrupts */
 		RtdPlxInterruptWrite(dev, ICS_PIE | ICS_PLIE);
 	}
 
-	printk("comedi%d: rtd520 driver attached.\n", dev->minor);
+	printk("\ncomedi%d: rtd520 driver attached.\n", dev->minor);
 
 	return 1;
 
@@ -1035,7 +1010,7 @@ static int rtd_attach(comedi_device * dev, comedi_devconfig * it)
 	for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 		if (NULL != devpriv->dma0Buff[index]) {	/* free buffer memory */
 			pci_free_consistent(devpriv->pci_dev,
-				sizeof(u16) * thisboard->fifoLen / 2,
+				sizeof(u16) * devpriv->fifoLen / 2,
 				devpriv->dma0Buff[index],
 				devpriv->dma0BuffPhysAddr[index]);
 			devpriv->dma0Buff[index] = NULL;
@@ -1114,7 +1089,7 @@ static int rtd_detach(comedi_device * dev)
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
 			if (NULL != devpriv->dma0Buff[index]) {
 				pci_free_consistent(devpriv->pci_dev,
-					sizeof(u16) * thisboard->fifoLen / 2,
+					sizeof(u16) * devpriv->fifoLen / 2,
 					devpriv->dma0Buff[index],
 					devpriv->dma0BuffPhysAddr[index]);
 				devpriv->dma0Buff[index] = NULL;
@@ -1227,6 +1202,45 @@ static void rtd_load_channelgain_list(comedi_device * dev,
 		RtdEnableCGT(dev, 0);	/* disable table, enable latch */
 		RtdWriteCGLatch(dev, rtdConvertChanGain(dev, list[0], 0));
 	}
+}
+
+/* determine fifo size by doing adc conversions until the fifo half
+empty status flag clears */
+static int rtd520_probe_fifo_depth(comedi_device *dev)
+{
+	lsampl_t chanspec = CR_PACK(0, 0, AREF_GROUND);
+	unsigned i;
+	static const unsigned limit = 0x2000;
+	unsigned fifo_size = 0;
+
+	RtdAdcClearFifo(dev);
+	rtd_load_channelgain_list(dev, 1, &chanspec);
+	RtdAdcConversionSource(dev, 0);	/* software */
+	/* convert  samples */
+	for (i = 0; i < limit; ++i) {
+		unsigned fifo_status;
+		/* trigger conversion */
+		RtdAdcStart(dev);
+		comedi_udelay(1);
+		fifo_status = RtdFifoStatus(dev);
+		if((fifo_status & FS_ADC_HEMPTY) == 0) {
+			fifo_size = 2 * i;
+			break;
+		}
+	}
+	if(i == limit)
+	{
+		rt_printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
+		return -EIO;
+	}
+	RtdAdcClearFifo(dev);
+	if(fifo_size != 0x400 || fifo_size != 0x2000)
+	{
+		rt_printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
+			DRV_NAME, fifo_size);
+		return -EIO;
+	}
+	return fifo_size;
 }
 
 /*
@@ -1426,7 +1440,7 @@ static int ai_process_dma(comedi_device * dev, comedi_subdevice * s)
 		return 0;
 
 	dp = devpriv->dma0Buff[devpriv->dma0Offset];
-	for (ii = 0; ii < thisboard->fifoLen / 2;) {	/* convert samples */
+	for (ii = 0; ii < devpriv->fifoLen / 2;) {	/* convert samples */
 		sampl_t sample;
 
 		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
@@ -1542,7 +1556,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		if (!(fifoStatus & FS_ADC_HEMPTY)) {	/* 0 -> 1/2 full */
 			/*DPRINTK("rtd520: Sample int, reading 1/2FIFO.  fifo_status 0x%x\n",
 			   (fifoStatus ^ 0x6666) & 0x7777); */
-			if (ai_read_n(dev, s, thisboard->fifoLen / 2) < 0) {
+			if (ai_read_n(dev, s, devpriv->fifoLen / 2) < 0) {
 				DPRINTK("rtd520: comedi read buffer overflow (1/2FIFO) with %ld to go!\n", devpriv->aiCount);
 				goto abortTransfer;
 			}
@@ -1899,7 +1913,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		RtdPacerStartSource(dev, 0);	/* software triggers pacer */
 		RtdAdcConversionSource(dev, 1);	/* PACER triggers ADC */
 	}
-	RtdAboutCounter(dev, thisboard->fifoLen / 2 - 1);	/* 1/2 FIFO */
+	RtdAboutCounter(dev, devpriv->fifoLen / 2 - 1);	/* 1/2 FIFO */
 
 	if (TRIG_TIMER == cmd->scan_begin_src) {
 		/* scan_begin_arg is in nanoseconds */
@@ -1927,7 +1941,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			}
 			devpriv->flags |= SEND_EOS;
 		}
-		if (devpriv->transCount >= (thisboard->fifoLen / 2)) {
+		if (devpriv->transCount >= (devpriv->fifoLen / 2)) {
 			/* out of counter range, use 1/2 fifo instead */
 			devpriv->transCount = 0;
 			devpriv->flags &= ~SEND_EOS;
@@ -1936,7 +1950,7 @@ static int rtd_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			RtdAboutCounter(dev, devpriv->transCount - 1);
 		}
 
-		DPRINTK("rtd520: scanLen=%d tranferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n", cmd->chanlist_len, devpriv->transCount, thisboard->fifoLen, cmd->scan_begin_arg, devpriv->flags);
+		DPRINTK("rtd520: scanLen=%d tranferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n", cmd->chanlist_len, devpriv->transCount, devpriv->fifoLen, cmd->scan_begin_arg, devpriv->flags);
 	} else {		/* unknown timing, just use 1/2 FIFO */
 		devpriv->transCount = 0;
 		devpriv->flags &= ~SEND_EOS;
