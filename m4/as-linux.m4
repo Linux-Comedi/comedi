@@ -181,6 +181,10 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 		AC_MSG_CHECKING(for separate Linux source and build directory)
 		dir=`sed -n -e 's/^KERNELSRC *:= *\(.*\)/\1/p' "$1/Makefile"`
 		if test -z "$dir"; then
+			# 2.6.25
+			dir=`sed -n -e 's/^MAKEARGS *:= *-C *\(.*\)/\1/p' "$1/Makefile"`
+		fi
+		if test -z "$dir"; then
 			AC_MSG_RESULT([no])
 			LINUX_SRC_DIR="$1"
 		else
