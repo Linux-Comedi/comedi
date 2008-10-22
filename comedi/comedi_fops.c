@@ -2201,7 +2201,7 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	}
 	s->minor = i;
 	csdev = COMEDI_DEVICE_CREATE(comedi_class, dev->class_dev,
-		MKDEV(COMEDI_MAJOR, i), NULL, NULL, "comedi%i_subd%i", dev->minor, s - dev->subdevices);
+		MKDEV(COMEDI_MAJOR, i), NULL, NULL, "comedi%i_subd%i", dev->minor, (int)(s - dev->subdevices));
 	if(!IS_ERR(csdev))
 	{
 		s->class_dev = csdev;
