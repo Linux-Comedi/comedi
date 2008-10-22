@@ -799,7 +799,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 
 	minor = comedi_alloc_board_minor(hardware_device);
 	if(minor < 0) return minor;
-	dev_set_drvdata(hardware_device, (void*)minor);
+	dev_set_drvdata(hardware_device, (void*)(unsigned long)minor);
 
 	dev_file_info = comedi_get_device_file_info(minor);
 
