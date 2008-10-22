@@ -82,7 +82,7 @@
 	{ \
 		comedi_pci_auto_unconfig(dev); \
 	} \
-	static struct pci_driver comedi_driver ## _pci = \
+	static struct pci_driver comedi_driver ## _pci_driver = \
 	{ \
 		.id_table = pci_id_table, \
 		.probe = & comedi_driver ## _pci_probe, \
@@ -93,12 +93,12 @@
 		int retval; \
 		retval = comedi_driver_register(& comedi_driver); \
 		if(retval < 0) return retval; \
-		comedi_driver ## _pci.name = (char*)comedi_driver.driver_name; \
-		return pci_register_driver(& comedi_driver ## _pci); \
+		comedi_driver ## _pci_driver.name = (char*)comedi_driver.driver_name; \
+		return pci_register_driver(& comedi_driver ## _pci_driver); \
 	} \
 	static void __exit comedi_driver ## _cleanup_module(void) \
 	{ \
-		pci_unregister_driver(& comedi_driver ## _pci); \
+		pci_unregister_driver(& comedi_driver ## _pci_driver); \
 		comedi_driver_unregister(& comedi_driver); \
 	} \
 	module_init(comedi_driver ## _init_module); \
