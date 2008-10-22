@@ -26,8 +26,9 @@
 Driver: amplc_pci224
 Description: Amplicon PCI224, PCI234
 Author: Ian Abbott <abbotti@mev.co.uk>
-Devices: [Amplicon] PCI224 (pci224), PCI234 (pci234)
-Updated: Thu, 24 Feb 2005 12:29:26 +0000
+Devices: [Amplicon] PCI224 (amplc_pci224 or pci224),
+  PCI234 (amplc_pci224 or pci234)
+Updated: Wed, 22 Oct 2008 12:25:08 +0100
 Status: works, but see caveats
 
 Supports:
@@ -117,6 +118,7 @@ Caveats:
 /* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
 #define PCI_DEVICE_ID_AMPLICON_PCI224 0x0007
 #define PCI_DEVICE_ID_AMPLICON_PCI234 0x0008
+#define PCI_DEVICE_ID_INVALID 0xffff
 
 /*
  * PCI224/234 i/o space 1 (PCIBAR2) registers.
@@ -342,10 +344,11 @@ static const unsigned short hwrange_pci234[1] = {
  * Board descriptions.
  */
 
-enum pci224_model { pci224_model, pci234_model };
+enum pci224_model { any_model, pci224_model, pci234_model };
 
 typedef struct pci224_board_struct {
 	const char *name;
+	unsigned short devid;
 	enum pci224_model model;
 	unsigned int ao_chans;
 	unsigned int ao_bits;
@@ -354,15 +357,22 @@ typedef struct pci224_board_struct {
 static const pci224_board pci224_boards[] = {
 	{
 	      name:	"pci224",
+	      devid: PCI_DEVICE_ID_AMPLICON_PCI224,
 	      model:	pci224_model,
 	      ao_chans:16,
 	      ao_bits:	12,
 		},
 	{
 	      name:	"pci234",
+	      devid: PCI_DEVICE_ID_AMPLICON_PCI234,
 	      model:	pci234_model,
 	      ao_chans:4,
 	      ao_bits:	16,
+		},
+	{
+	      name:	DRIVER_NAME,
+	      devid: PCI_DEVICE_ID_INVALID,
+	      model:	any_model,	/* wildcard */
 		},
 };
 
@@ -372,9 +382,9 @@ static const pci224_board pci224_boards[] = {
 
 static DEFINE_PCI_DEVICE_TABLE(pci224_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci224_model},
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci234_model},
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
 
@@ -1258,46 +1268,38 @@ pci224_find_pci(comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
-	const struct pci_device_id *pci_id;
 
 	*pci_dev_p = NULL;
 
-	/* Look for PCI table entry for this model. */
-	for (pci_id = pci224_pci_table; pci_id->vendor != 0; pci_id++) {
-		if (pci_id->driver_data == thisboard->model)
-			break;
-	}
-	if (pci_id->vendor == 0) {
-		printk(KERN_ERR "comedi%d: %s: BUG! "
-			"cannot determine board type!\n",
-			dev->minor, DRIVER_NAME);
-		return -EINVAL;
-	}
-
 	/* Look for matching PCI device. */
-	for (pci_dev = pci_get_device(pci_id->vendor, pci_id->device, NULL);
+	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
 		pci_dev != NULL;
-		pci_dev = pci_get_device(pci_id->vendor,
-			pci_id->device, pci_dev)) {
+		pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID,
+			pci_dev)) {
 		/* If bus/slot specified, check them. */
 		if (bus || slot) {
 			if (bus != pci_dev->bus->number
 				|| slot != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
-#if 0
-		if (pci_id->subvendor != PCI_ANY_ID) {
-			if (pci_dev->subsystem_vendor != pci_id->subvendor)
+		if (thisboard->model == any_model) {
+			/* Match any supported model. */
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(pci224_boards); i++) {
+				if (pci_dev->device == pci224_boards[i].devid) {
+					/* Change board_ptr to matched board. */
+					dev->board_ptr = &pci224_boards[i];
+					break;
+				}
+			}
+			if (i == ARRAY_SIZE(pci224_boards))
+				continue;
+		} else {
+			/* Match specific model name. */
+			if (thisboard->devid != pci_dev->device)
 				continue;
 		}
-		if (pci_id->subdevice != PCI_ANY_ID) {
-			if (pci_dev->subsystem_device != pci_id->subdevice)
-				continue;
-		}
-#endif
-		if (((pci_dev->class ^ pci_id->class) & pci_id->class_mask) !=
-			0)
-			continue;
 
 		/* Found a match. */
 		*pci_dev_p = pci_dev;

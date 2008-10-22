@@ -29,8 +29,9 @@ Driver: amplc_dio200
 Description: Amplicon 200 Series Digital I/O
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
-  PCI215 (pci215), PC218E (pc218e), PC272E (pc272e), PCI272 (pci272)
-Updated: Mon, 05 Nov 2007 14:04:04 +0000
+  PCI215 (pci215 or amplc_dio200), PC218E (pc218e), PC272E (pc272e),
+  PCI272 (pci272 or amplc_dio200)
+Updated: Wed, 22 Oct 2008 13:36:02 +0100
 Status: works
 
 Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
@@ -217,6 +218,7 @@ order they appear in the channel list.
 /* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
 #define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
 #define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
+#define PCI_DEVICE_ID_INVALID 0xffff
 
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
@@ -264,7 +266,8 @@ enum dio200_model {
 	pc214e_model,
 	pc215e_model, pci215_model,
 	pc218e_model,
-	pc272e_model, pci272_model
+	pc272e_model, pci272_model,
+	anypci_model
 };
 
 enum dio200_layout {
@@ -277,6 +280,7 @@ enum dio200_layout {
 
 typedef struct dio200_board_struct {
 	const char *name;
+	unsigned short devid;
 	enum dio200_bustype bustype;
 	enum dio200_model model;
 	enum dio200_layout layout;
@@ -304,6 +308,7 @@ static const dio200_board dio200_boards[] = {
 #ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci215",
+	      devid:	PCI_DEVICE_ID_AMPLICON_PCI215,
 	      bustype:	pci_bustype,
 	      model:	pci215_model,
 	      layout:	pc215_layout,
@@ -324,9 +329,18 @@ static const dio200_board dio200_boards[] = {
 #ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"pci272",
+	      devid:	PCI_DEVICE_ID_AMPLICON_PCI272,
 	      bustype:	pci_bustype,
 	      model:	pci272_model,
 	      layout:	pc272_layout,
+		},
+#endif
+#ifdef CONFIG_COMEDI_PCI
+	{
+	      name:	DIO200_DRIVER_NAME,
+	      devid:	PCI_DEVICE_ID_INVALID,
+	      bustype:	pci_bustype,
+	      model:	anypci_model,	/* wildcard */
 		},
 #endif
 };
@@ -405,9 +419,9 @@ static const dio200_layout dio200_layouts[] = {
 #ifdef CONFIG_COMEDI_PCI
 static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci215_model},
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, pci272_model},
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
 
@@ -471,7 +485,11 @@ static comedi_driver driver_amplc_dio200 = {
       num_names:sizeof(dio200_boards) / sizeof(dio200_board),
 };
 
+#ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_amplc_dio200, dio200_pci_table);
+#else
+COMEDI_INITCLEANUP(driver_amplc_dio200);
+#endif
 
 /*
  * This function looks for a PCI device matching the requested board name,
@@ -483,46 +501,40 @@ dio200_find_pci(comedi_device * dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
-	const struct pci_device_id *pci_id;
 
 	*pci_dev_p = NULL;
 
-	/* Look for PCI table entry for this model. */
-	for (pci_id = dio200_pci_table; pci_id->vendor != 0; pci_id++) {
-		if (pci_id->driver_data == thisboard->model)
-			break;
-	}
-	if (pci_id->vendor == 0) {
-		printk(KERN_ERR
-			"comedi%d: %s: BUG! cannot determine board type!\n",
-			dev->minor, DIO200_DRIVER_NAME);
-		return -EINVAL;
-	}
-
 	/* Look for matching PCI device. */
-	for (pci_dev = pci_get_device(pci_id->vendor, pci_id->device, NULL);
+	for (pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON, PCI_ANY_ID, NULL);
 		pci_dev != NULL;
-		pci_dev = pci_get_device(pci_id->vendor,
-			pci_id->device, pci_dev)) {
+		pci_dev = pci_get_device(PCI_VENDOR_ID_AMPLICON,
+			PCI_ANY_ID, pci_dev)) {
 		/* If bus/slot specified, check them. */
 		if (bus || slot) {
 			if (bus != pci_dev->bus->number
 				|| slot != PCI_SLOT(pci_dev->devfn))
 				continue;
 		}
-#if 0
-		if (pci_id->subvendor != PCI_ANY_ID) {
-			if (pci_dev->subsystem_vendor != pci_id->subvendor)
+		if (thisboard->model == anypci_model) {
+			/* Match any supported model. */
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(dio200_boards); i++) {
+				if (dio200_boards[i].bustype != pci_bustype)
+					continue;
+				if (pci_dev->device == dio200_boards[i].devid) {
+					/* Change board_ptr to matched board. */
+					dev->board_ptr = &dio200_boards[i];
+					break;
+				}
+			}
+			if (i == ARRAY_SIZE(dio200_boards))
+				continue;
+		} else {
+			/* Match specific model name. */
+			if (pci_dev->device != thisboard->devid)
 				continue;
 		}
-		if (pci_id->subdevice != PCI_ANY_ID) {
-			if (pci_dev->subsystem_device != pci_id->subdevice)
-				continue;
-		}
-#endif
-		if (((pci_dev->class ^ pci_id->class) & pci_id->class_mask) !=
-			0)
-			continue;
 
 		/* Found a match. */
 		*pci_dev_p = pci_dev;
