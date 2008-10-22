@@ -127,9 +127,9 @@ typedef struct device device_create_result_type;
 
 #else
 
+typedef struct device device_create_result_type;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
-typedef struct device device_create_result_type;
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	device_create_drvdata(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
 
