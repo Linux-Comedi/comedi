@@ -265,7 +265,7 @@ AC_DEFUN([AS_LINUX_MACHINE],
 		[LINUX_MACHINE=`uname -m`])
         if test "x$LINUX_MACHINE" = "xyes";
         then
-		LINUX_MACHINE=`uname -r`
+		LINUX_MACHINE=`uname -m`
         fi
         AC_MSG_NOTICE([Using $LINUX_MACHINE as the uname -m value])
 ])
