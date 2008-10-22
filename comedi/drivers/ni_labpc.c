@@ -648,7 +648,9 @@ static int labpc_attach(comedi_device * dev, comedi_devconfig * it)
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
+#ifdef CONFIG_COMEDI_PCI
 	int retval;
+#endif
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(labpc_private)) < 0)
@@ -1990,7 +1992,11 @@ static void write_caldac(comedi_device * dev, unsigned int channel,
 	devpriv->write_byte(devpriv->command5_bits, dev->iobase + COMMAND5_REG);
 }
 
+#ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_labpc, labpc_pci_table);
+#else
+COMEDI_INITCLEANUP(driver_labpc);
+#endif
 
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 EXPORT_SYMBOL_GPL(labpc_common_detach);
