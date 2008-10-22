@@ -388,6 +388,7 @@ static const struct das08_board_struct das08_boards[] = {
 	      i8254_offset:0x04,
 	      iosize:	16,	// unchecked
 		},
+#ifdef CONFIG_COMEDI_PCI
 	{
 	      name:	"das08",	// pci-das08
 	      id:	PCI_DEVICE_ID_PCIDAS08,
@@ -405,6 +406,7 @@ static const struct das08_board_struct das08_boards[] = {
 	      i8254_offset:4,
 	      iosize:	8,
 		},
+#endif
 	{
 	      name:	"pc104-das08",
 	      bustype:	pc104,
@@ -455,6 +457,7 @@ static const struct das08_board_struct das08_boards[] = {
 #endif
 };
 
+#ifdef CONFIG_COMEDI_PCMCIA
 struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 	{
 	      name:	"pcm-das08",
@@ -492,7 +495,9 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 	      iosize:	16,
 		},
 };
+#endif
 
+#ifdef CONFIG_COMEDI_PCI
 static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_PCIDAS08, PCI_ANY_ID,
 		PCI_ANY_ID, 0, 0, 0},
@@ -500,6 +505,7 @@ static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
 };
 
 MODULE_DEVICE_TABLE(pci, das08_pci_table);
+#endif
 
 #define devpriv ((struct das08_private_struct *)dev->private)
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
@@ -949,8 +955,11 @@ int das08_common_attach(comedi_device * dev, unsigned long iobase)
 static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
-	unsigned long iobase, pci_iobase = 0;
+	unsigned long iobase;
+#ifdef CONFIG_COMEDI_PCI
+	unsigned long pci_iobase = 0;
 	struct pci_dev *pdev;
+#endif
 
 	if ((ret = alloc_private(dev, sizeof(struct das08_private_struct))) < 0)
 		return ret;
@@ -958,6 +967,7 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("comedi%d: das08: ", dev->minor);
 	// deal with a pci board
 	if (thisboard->bustype == pci) {
+#ifdef CONFIG_COMEDI_PCI
 		if (it->options[0] || it->options[1]) {
 			printk("bus %i slot %i ",
 				it->options[0], it->options[1]);
@@ -1006,6 +1016,10 @@ static int das08_attach(comedi_device * dev, comedi_devconfig * it)
 		/* Enable local interrupt 1 and pci interrupt */
 		outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
 #endif
+#else	/* CONFIG_COMEDI_PCI */
+		printk("this driver has not been built with PCI support.\n");
+		return -EINVAL;
+#endif	/* CONFIG_COMEDI_PCI */
 	} else {
 		iobase = it->options[0];
 	}
@@ -1027,6 +1041,7 @@ int das08_common_detach(comedi_device * dev)
 			release_region(dev->iobase, thisboard->iosize);
 	}
 
+#ifdef CONFIG_COMEDI_PCI
 	if (devpriv) {
 		if (devpriv->pdev) {
 			if (devpriv->pci_iobase) {
@@ -1035,12 +1050,19 @@ int das08_common_detach(comedi_device * dev)
 			pci_dev_put(devpriv->pdev);
 		}
 	}
+#endif
 
 	return 0;
 }
 
+#ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_das08, das08_pci_table);
+#else
+COMEDI_INITCLEANUP(driver_das08);
+#endif
 
 EXPORT_SYMBOL_GPL(das08_common_attach);
 EXPORT_SYMBOL_GPL(das08_common_detach);
+#ifdef CONFIG_COMEDI_PCMCIA
 EXPORT_SYMBOL_GPL(das08_cs_boards);
+#endif
