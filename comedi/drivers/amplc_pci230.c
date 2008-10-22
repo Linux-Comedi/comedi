@@ -27,9 +27,10 @@ Description: Amplicon PCI230, PCI260 Multifunction I/O boards
 Author: Allan Willcox <allanwillcox@ozemail.com.au>,
   Steve D Sharples <steve.sharples@nottingham.ac.uk>,
   Ian Abbott <abbotti@mev.co.uk>
-Updated: Mon, 03 Dec 2007 17:11:47 +0000
-Devices: [Amplicon] PCI230 (pci230 or amplc_pci230), PCI230+ (pci230+),
-  PCI260 (pci260 or amplc_pci230), PCI260+ (pci260+)
+Updated: Wed, 22 Oct 2008 12:34:49 +0100
+Devices: [Amplicon] PCI230 (pci230 or amplc_pci230),
+  PCI230+ (pci230+ or amplc_pci230),
+  PCI260 (pci260 or amplc_pci230), PCI260+ (pci260+ or amplc_pci230)
 Status: works
 
 Configuration options:
@@ -39,11 +40,11 @@ Configuration options:
           will be used.
 
 Configuring a "amplc_pci230" will match any supported card and it will
-be treated as "pci230" or "pci260".  Configuring a "pci230" will match a
-PCI230 or PCI230+ card and it will be treated as a PCI230.  Configuring
-a "pci260" will match a PCI260 or PCI260+ card and it will be treated as
-a PCI260.  Configuring a "pci230+" will match a PCI230+ card.
-Configuring a "pci260+" will match a PCI260+ card.
+choose the best match, picking the "+" models if possible.  Configuring
+a "pci230" will match a PCI230 or PCI230+ card and it will be treated as
+a PCI230.  Configuring a "pci260" will match a PCI260 or PCI260+ card
+and it will be treated as a PCI260.  Configuring a "pci230+" will match
+a PCI230+ card.  Configuring a "pci260+" will match a PCI260+ card.
 
 Subdevices:
 
@@ -454,32 +455,6 @@ typedef struct pci230_board_struct {
 } pci230_board;
 static const pci230_board pci230_boards[] = {
 	{
-	      name:	"pci230",
-	      id:	PCI_DEVICE_ID_PCI230,
-	      ai_chans:16,
-	      ai_bits:	12,
-	      ao_chans:2,
-	      ao_bits:	12,
-	      have_dio:1,
-		},
-	{
-	      name:	"pci260",
-	      id:	PCI_DEVICE_ID_PCI260,
-	      ai_chans:16,
-	      ai_bits:	12,
-	      ao_chans:0,
-	      ao_bits:	0,
-	      have_dio:0,
-		},
-	{
-	      name:	"amplc_pci230",	/* Legacy name matches any above */
-	      id:	PCI_DEVICE_ID_INVALID,
-		},
-	/*
-	 * The '+' versions of the above models have the same PCI device ID.
-	 * They are backwards compatible with the above models.
-	 */
-	{
 	      name:	"pci230+",
 	      id:	PCI_DEVICE_ID_PCI230,
 	      ai_chans:16,
@@ -498,6 +473,28 @@ static const pci230_board pci230_boards[] = {
 	      ao_bits:	0,
 	      have_dio:0,
 	      min_hwver:1,
+		},
+	{
+	      name:	"pci230",
+	      id:	PCI_DEVICE_ID_PCI230,
+	      ai_chans:16,
+	      ai_bits:	12,
+	      ao_chans:2,
+	      ao_bits:	12,
+	      have_dio:1,
+		},
+	{
+	      name:	"pci260",
+	      id:	PCI_DEVICE_ID_PCI260,
+	      ai_chans:16,
+	      ai_bits:	12,
+	      ao_chans:0,
+	      ao_bits:	0,
+	      have_dio:0,
+		},
+	{
+	      name:	"amplc_pci230",	/* Wildcard matches any above */
+	      id:	PCI_DEVICE_ID_INVALID,
 		},
 };
 
@@ -744,6 +741,20 @@ static int pci230_attach(comedi_device * dev, comedi_devconfig * it)
 			 * PCI device ID. */
 			for (i = 0; i < n_pci230_boards; i++) {
 				if (pci_dev->device == pci230_boards[i].id) {
+					if (pci230_boards[i].min_hwver > 0) {
+						/* Check for a '+' model.
+						 * First check length of
+						 * registers. */
+						if (pci_resource_len(pci_dev, 3)
+							< 32) {
+							/* Not a '+' model. */
+							continue;
+						}
+						/* TODO: temporarily enable the
+						 * PCI device and read the
+						 * hardware version register.
+						 * For now assume it's okay. */
+					}
 					/* Change board_ptr to matched board */
 					dev->board_ptr = &pci230_boards[i];
 					break;
