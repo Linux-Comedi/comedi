@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.99a"
+#define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
 /*
@@ -25,8 +25,8 @@ Driver: usbduxfast
 Description: ITL USB-DUXfast
 Devices: [ITL] USB-DUX (usbduxfast.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 04 Dec 2006
-Status: testing
+Updated: 08 Dec 2008
+Status: stable
 */
 
 /*
@@ -45,9 +45,12 @@ Status: testing
  *       Added insn command basically for testing. Sample rate is 1MHz/16ch=62.5kHz
  * 0.99: Ian Abbott pointed out a bug which has been corrected. Thanks!
  * 0.99a: added external trigger.
+ * 1.00: added firmware kernel request to the driver which fixed
+ *       udev coldplug problem
  */
 
 #include <linux/kernel.h>
+#include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -419,30 +422,28 @@ static int usbduxfastsub_start(usbduxfastsub_t * usbduxfastsub)
 	int errcode = 0;
 	unsigned char local_transfer_buffer[16];
 
-	if (usbduxfastsub->probed) {
-		// 7f92 to zero
-		local_transfer_buffer[0] = 0;
-		errcode = USB_CONTROL_MSG(usbduxfastsub->usbdev,
-			// create a pipe for a control transfer
-			usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
-			// bRequest, "Firmware"
-			USBDUXFASTSUB_FIRMWARE,
-			// bmRequestType
-			VENDOR_DIR_OUT,
-			// Value
-			USBDUXFASTSUB_CPUCS,
-			// Index
-			0x0000,
-			// address of the transfer buffer
-			local_transfer_buffer,
-			// Length
-			1,
-			// Timeout
-			EZTIMEOUT);
-		if (errcode < 0) {
-			printk("comedi_: usbduxfast_: control msg failed (start)\n");
-			return errcode;
-		}
+	// 7f92 to zero
+	local_transfer_buffer[0] = 0;
+	errcode = USB_CONTROL_MSG(usbduxfastsub->usbdev,
+				  // create a pipe for a control transfer
+				  usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
+				  // bRequest, "Firmware"
+				  USBDUXFASTSUB_FIRMWARE,
+				  // bmRequestType
+				  VENDOR_DIR_OUT,
+				  // Value
+				  USBDUXFASTSUB_CPUCS,
+				  // Index
+				  0x0000,
+				  // address of the transfer buffer
+				  local_transfer_buffer,
+				  // Length
+				  1,
+				  // Timeout
+				  EZTIMEOUT);
+	if (errcode < 0) {
+		printk("comedi_: usbduxfast_: control msg failed (start)\n");
+		return errcode;
 	}
 	return 0;
 }
@@ -452,28 +453,26 @@ static int usbduxfastsub_stop(usbduxfastsub_t * usbduxfastsub)
 	int errcode = 0;
 
 	unsigned char local_transfer_buffer[16];
-	if (usbduxfastsub->probed) {
-		// 7f92 to one
-		local_transfer_buffer[0] = 1;
-		errcode = USB_CONTROL_MSG
-			(usbduxfastsub->usbdev,
-			usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
-			// bRequest, "Firmware"
-			USBDUXFASTSUB_FIRMWARE,
-			// bmRequestType
-			VENDOR_DIR_OUT,
-			// Value
-			USBDUXFASTSUB_CPUCS,
-			// Index
-			0x0000, local_transfer_buffer,
-			// Length
-			1,
-			// Timeout
-			EZTIMEOUT);
-		if (errcode < 0) {
-			printk("comedi_: usbduxfast: control msg failed (stop)\n");
-			return errcode;
-		}
+	// 7f92 to one
+	local_transfer_buffer[0] = 1;
+	errcode = USB_CONTROL_MSG
+		(usbduxfastsub->usbdev,
+		 usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
+		 // bRequest, "Firmware"
+		 USBDUXFASTSUB_FIRMWARE,
+		 // bmRequestType
+		 VENDOR_DIR_OUT,
+		 // Value
+		 USBDUXFASTSUB_CPUCS,
+		 // Index
+		 0x0000, local_transfer_buffer,
+		 // Length
+		 1,
+		 // Timeout
+		 EZTIMEOUT);
+	if (errcode < 0) {
+		printk("comedi_: usbduxfast: control msg failed (stop)\n");
+		return errcode;
 	}
 	return 0;
 }
@@ -484,40 +483,26 @@ static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
 {
 	int errcode;
 
-	if (usbduxfastsub->probed) {
-#ifdef CONFIG_COMEDI_DEBUG
-		printk("comedi%d: usbduxfast: uploading %d bytes",
-			usbduxfastsub->comedidev->minor, len);
-		printk(" to addr %d, first byte=%d.\n",
-			startAddr, local_transfer_buffer[0]);
-#endif
-		errcode = USB_CONTROL_MSG
-			(usbduxfastsub->usbdev,
-			usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
-			// brequest, firmware
-			USBDUXFASTSUB_FIRMWARE,
-			// bmRequestType
-			VENDOR_DIR_OUT,
-			// value
-			startAddr,
-			// index
-			0x0000,
-			// our local safe buffer
-			local_transfer_buffer,
-			// length
-			len,
-			// timeout
-			EZTIMEOUT);
-#ifdef CONFIG_COMEDI_DEBUG
-		printk("comedi_: usbduxfast: result=%d\n", errcode);
-#endif
-		if (errcode < 0) {
-			printk("comedi_: usbduxfast: uppload failed\n");
-			return errcode;
-		}
-	} else {
-		// no device on the bus for this index
-		return -EFAULT;
+	errcode = USB_CONTROL_MSG
+		(usbduxfastsub->usbdev,
+		 usb_sndctrlpipe(usbduxfastsub->usbdev, 0),
+		 // brequest, firmware
+		 USBDUXFASTSUB_FIRMWARE,
+		 // bmRequestType
+		 VENDOR_DIR_OUT,
+		 // value
+		 startAddr,
+		 // index
+		 0x0000,
+		 // our local safe buffer
+		 local_transfer_buffer,
+		 // length
+		 len,
+		 // timeout
+		 EZTIMEOUT);
+	if (errcode < 0) {
+		printk("comedi_: usbduxfast: uppload failed\n");
+		return errcode;
 	}
 	return 0;
 }
@@ -1294,8 +1279,9 @@ static unsigned hex2unsigned(char *h)
 #define FIRMWARE_MAX_LEN 0x2000
 
 // taken from David Brownell's fxload and adjusted for this driver
-static int read_firmware(usbduxfastsub_t * usbduxfastsub, void *firmwarePtr,
-	long size)
+static int read_firmware(usbduxfastsub_t * usbduxfastsub, 
+			 void *firmwarePtr,
+			 long size)
 {
 	int i = 0;
 	unsigned char *fp = (char *)firmwarePtr;
@@ -1432,10 +1418,39 @@ static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 	usbduxfastsub_tmp->ai_cmd_running = 0;
 }
 
+static void usbduxfast_firmware_request_complete_handler(
+	const struct firmware *fw, 
+	void *context)
+{
+	usbduxfastsub_t * usbduxfastsub_tmp = (usbduxfastsub_t *)context;
+	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	int ret;
+
+	if(fw == NULL) {
+		return;
+	}
+
+	// we need to upload the firmware here because fw will be
+	// freed one we've left this function
+	ret=read_firmware(usbduxfastsub_tmp,
+			  fw->data,
+			  fw->size);
+
+	if (ret) {
+		dev_err(&usbdev->dev,
+			"Could not upload firmware (err=%d)\n",
+			ret);
+		return;
+	}
+
+	comedi_usb_auto_config(usbdev, BOARDNAME);
+}
+
 // allocate memory for the urbs and initialise them
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 static void *usbduxfastsub_probe(struct usb_device *udev,
-	unsigned int interfnum, const struct usb_device_id *id)
+				 unsigned int interfnum, 
+				 const struct usb_device_id *id)
 {
 #else
 static int usbduxfastsub_probe(struct usb_interface *uinterf,
@@ -1445,6 +1460,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 #endif
 	int i;
 	int index;
+	int ret;
 
 	if (udev->speed != USB_SPEED_HIGH) {
 		printk("comedi_: usbduxfast_: This driver needs USB 2.0 to operate. Aborting...\n");
@@ -1537,8 +1553,24 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	// we've reached the bottom of the function
 	usbduxfastsub[index].probed = 1;
 	up(&start_stop_sem);
+
+	ret = request_firmware_nowait(THIS_MODULE,
+				      FW_ACTION_HOTPLUG, 
+				      "usbduxfast_firmware.hex",
+				      &udev->dev,
+				      usbduxfastsub + index, 
+				      usbduxfast_firmware_request_complete_handler);
+
+	if (ret) {
+		dev_err(&udev->dev,
+			"could not load firmware (err=%d)\n",
+			ret);
+		return ret;
+	}
+ 
 	printk("comedi_: usbduxfast%d has been successfully initialized.\n",
-		index);
+	       index);
+	
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 	return (void *)(&usbduxfastsub[index]);
 #else
@@ -1565,6 +1597,9 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 		printk("comedi_: usbduxfast: BUG! called with wrong ptr!!!\n");
 		return;
 	}
+	
+	comedi_usb_auto_unconfig(udev);
+
 	down(&start_stop_sem);
 	down(&usbduxfastsub_tmp->sem);
 	tidy_up(usbduxfastsub_tmp);
@@ -1606,10 +1641,10 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 
 	// trying to upload the firmware into the chip
 	if (comedi_aux_data(it->options, 0) &&
-		it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
+	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
 		read_firmware(&usbduxfastsub[index],
-			comedi_aux_data(it->options, 0),
-			it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
+			      comedi_aux_data(it->options, 0),
+			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	}
 
 	dev->board_name = BOARDNAME;
