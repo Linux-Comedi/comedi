@@ -77,9 +77,19 @@ Install using 'make install' as root.  This installs the files:
   /lib/modules/<<kernel version>>/comedi/kcomedilib.o
   /lib/modules/<<kernel version>>/comedi/<<driver files>>.o
 
-You need to create device files to access the hardware from a
-user process.  These can be created using 'make dev'.  The following
-special files will be created:
+Comedi communicates with userspace via device files (/dev/comedi*).
+If you have devices which are able to auto-configure themselves and
+you've got udev support these devices are created automatically.  You
+can disable this mechanism by setting the module parameter
+comedi_autoconfig to zero of the module "comedi_fops". In case you
+have got an old ISA card or no udev support (embedded systems) you can
+create static devices with the module parameter
+comedi_num_legacy_minors by setting it to the number of desired static
+/dev/comedi* devices. You can then configure your device from the
+userspace with comedi_config. In this case you need to create device
+files to access the hardware by hand from a user process.  These can
+be created using 'make dev'.  The following special files will be
+created:
 
   /dev/comedi0
   /dev/comedi1
