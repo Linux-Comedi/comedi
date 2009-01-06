@@ -1,2 +1,2 @@
 
-noinst_HEADERS=ds.h
+noinst_HEADERS=ds.h cistpl.h

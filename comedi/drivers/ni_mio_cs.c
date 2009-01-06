@@ -326,20 +326,20 @@ static void mio_cs_config(struct pcmcia_device *link)
 	tuple.DesiredTuple = CISTPL_CONFIG;
 	ret = pcmcia_get_first_tuple(link, &tuple);
 	ret = pcmcia_get_tuple_data(link, &tuple);
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
 #if 0
 	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
 	tuple.Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
-	info->multi(first_tuple(link, &tuple, &parse) == CS_SUCCESS);
+	info->multi(first_tuple(link, &tuple, &parse) == 0);
 #endif
 
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
-		(pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)) {
+	if ((pcmcia_get_first_tuple(link, &tuple) == 0) &&
+		(pcmcia_get_tuple_data(link, &tuple) == 0)) {
 		manfid = le16_to_cpu(buf[0]);
 		prodid = le16_to_cpu(buf[1]);
 	}
@@ -349,7 +349,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	tuple.Attributes = 0;
 	ret = pcmcia_get_first_tuple(link, &tuple);
 	ret = pcmcia_get_tuple_data(link, &tuple);
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
 #if 0
 	printk(" index: 0x%x\n", parse.cftable_entry.index);
@@ -478,8 +478,8 @@ static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 	tuple.TupleDataMax = 255;
 	tuple.DesiredTuple = CISTPL_MANFID;
 	tuple.Attributes = TUPLE_RETURN_COMMON;
-	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
-		(pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)) {
+	if ((pcmcia_get_first_tuple(link, &tuple) == 0) &&
+		(pcmcia_get_tuple_data(link, &tuple) == 0)) {
 		prodid = le16_to_cpu(buf[1]);
 	}
 

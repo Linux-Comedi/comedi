@@ -358,7 +358,7 @@ static void dio24_config(struct pcmcia_device *link)
 		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0) {
+	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0) {
 		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
@@ -386,7 +386,7 @@ static void dio24_config(struct pcmcia_device *link)
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		if (pcmcia_get_tuple_data(link, &tuple) != 0)
 			goto next_entry;
-		if (pcmcia_parse_tuple(link, &tuple, &parse) != 0)
+		if (pcmcia_parse_tuple(&tuple, &parse) != 0)
 			goto next_entry;
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
