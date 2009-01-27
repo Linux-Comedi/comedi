@@ -73,9 +73,9 @@ log, it is impossible to find problems.
 
 Install using 'make install' as root.  This installs the files:
 
-  /lib/modules/<<kernel version>>/comedi/comedi.o
-  /lib/modules/<<kernel version>>/comedi/kcomedilib.o
-  /lib/modules/<<kernel version>>/comedi/<<driver files>>.o
+  /lib/modules/<<kernel version>>/comedi/comedi.ko
+  /lib/modules/<<kernel version>>/comedi/kcomedilib.ko
+  /lib/modules/<<kernel version>>/comedi/<<driver files>>.ko
 
 Comedi communicates with userspace via device files (/dev/comedi*).
 If you have devices which are able to auto-configure themselves and
@@ -111,7 +111,7 @@ be loaded into the kernel.  This is done by a command similar to
   /sbin/modprobe <<driver>>
 
 If your module dependencies are set up correctly, this will load
-both comedi.o and your driver.  If you get unresolved symbols, check
+both comedi.ko and your driver.  If you get unresolved symbols, check
 the FAQ or the mailing list archives.  Also look at the man pages
 for modprobe and insmod.
 
