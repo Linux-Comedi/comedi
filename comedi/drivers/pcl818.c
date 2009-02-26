@@ -1021,25 +1021,26 @@ static int pcl818_ai_cmd_mode(int mode, comedi_device * dev,
 		}
 #endif
 		break;
-	case 0:		// IRQ
-		// rt_printk("IRQ\n");
-		if (mode == 1) {
-			devpriv->ai_mode = INT_TYPE_AI1_INT;
-			outb(0x83 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Pacer+IRQ */
-		} else {
-			devpriv->ai_mode = INT_TYPE_AI3_INT;
-			outb(0x82 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Ext trig+IRQ */
-		};
-		break;
-	case -1:		// FIFO
-		outb(1, dev->iobase + PCL818_FI_ENABLE);	// enable FIFO
-		if (mode == 1) {
-			devpriv->ai_mode = INT_TYPE_AI1_FIFO;
-			outb(0x03, dev->iobase + PCL818_CONTROL);	/* Pacer */
-		} else {
-			devpriv->ai_mode = INT_TYPE_AI3_FIFO;
-			outb(0x02, dev->iobase + PCL818_CONTROL);
-		};		/* Ext trig */
+	case 0:
+		if (!devpriv->usefifo) {	// IRQ
+			// rt_printk("IRQ\n");
+			if (mode == 1) {
+				devpriv->ai_mode = INT_TYPE_AI1_INT;
+				outb(0x83 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Pacer+IRQ */
+			} else {
+				devpriv->ai_mode = INT_TYPE_AI3_INT;
+				outb(0x82 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Ext trig+IRQ */
+			};
+		} else {			// FIFO
+			outb(1, dev->iobase + PCL818_FI_ENABLE);	// enable FIFO
+			if (mode == 1) {
+				devpriv->ai_mode = INT_TYPE_AI1_FIFO;
+				outb(0x03, dev->iobase + PCL818_CONTROL);	/* Pacer */
+			} else {
+				devpriv->ai_mode = INT_TYPE_AI3_FIFO;
+				outb(0x02, dev->iobase + PCL818_CONTROL);
+			};		/* Ext trig */
+		}
 		break;
 	}
 
@@ -1679,7 +1680,8 @@ static int pcl818_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	unsigned long iobase;
-	unsigned int irq, dma;
+	unsigned int irq;
+	int dma;
 	unsigned long pages;
 	comedi_subdevice *s;
 
