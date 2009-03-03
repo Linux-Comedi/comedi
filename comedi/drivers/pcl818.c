@@ -816,6 +816,27 @@ static irqreturn_t interrupt_pcl818(int irq, void *d PT_REGS_ARG)
 	}
 	//rt_printk("I\n");
 
+	if (devpriv->irq_blocked && devpriv->irq_was_now_closed) {
+		if ((devpriv->neverending_ai || (!devpriv->neverending_ai &&
+						devpriv->ai_act_scan > 0)) &&
+				(devpriv->ai_mode == INT_TYPE_AI1_DMA ||
+				 devpriv->ai_mode == INT_TYPE_AI3_DMA)) {
+			/* The cleanup from ai_cancel() has been delayed
+			   until now because the card doesn't seem to like
+			   being reprogrammed while a DMA transfer is in
+			   progress.
+			 */
+			comedi_subdevice *s = dev->subdevices + 0;
+			devpriv->ai_act_scan = 0;
+			devpriv->neverending_ai = 0;
+			pcl818_ai_cancel(dev, s);
+		}
+
+		outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
+
+		return IRQ_HANDLED;
+	}
+
 	switch (devpriv->ai_mode) {
 	case INT_TYPE_AI1_DMA:
 	case INT_TYPE_AI3_DMA:
@@ -839,25 +860,6 @@ static irqreturn_t interrupt_pcl818(int irq, void *d PT_REGS_ARG)
 
 	if ((!dev->irq) || (!devpriv->irq_free) || (!devpriv->irq_blocked)
 		|| (!devpriv->ai_mode)) {
-		if (devpriv->irq_was_now_closed) {
-			if (devpriv->neverending_ai &&
-				(devpriv->ai_mode == INT_TYPE_AI1_DMA
-					|| devpriv->ai_mode ==
-					INT_TYPE_AI3_DMA)) {
-				/* we had neverending ai but ai_cancel() has been called
-				   the cleanup from ai_cancel() has been delayed until know
-				   because the card doesn't seem to like being reprogrammed
-				   while a DMA transfer is in progress
-				 */
-				comedi_subdevice *s = dev->subdevices + 0;
-				devpriv->ai_mode = devpriv->irq_was_now_closed;
-				devpriv->irq_was_now_closed = 0;
-				devpriv->neverending_ai = 0;
-				pcl818_ai_cancel(dev, s);
-			}
-			devpriv->irq_was_now_closed = 0;
-			return IRQ_HANDLED;
-		}
 		comedi_error(dev, "bad IRQ!");
 		return IRQ_NONE;
 	}
@@ -1440,10 +1442,9 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	if (devpriv->irq_blocked > 0) {
 		rt_printk("pcl818_ai_cancel()\n");
-		devpriv->irq_was_now_closed = devpriv->ai_mode;
-		devpriv->ai_mode = 0;
+		devpriv->irq_was_now_closed = 1;
 
-		switch (devpriv->irq_was_now_closed) {
+		switch (devpriv->ai_mode) {
 #ifdef unused
 		case INT_TYPE_AI1_DMA_RTC:
 		case INT_TYPE_AI3_DMA_RTC:
@@ -1452,7 +1453,9 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 #endif
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
-			if (devpriv->neverending_ai) {
+			if (devpriv->neverending_ai ||
+					(!devpriv->neverending_ai &&
+					 devpriv->ai_act_scan > 0)) {
 				/* wait for running dma transfer to end, do cleanup in interrupt */
 				goto end;
 			}
@@ -1481,6 +1484,8 @@ static int pcl818_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 			devpriv->irq_blocked = 0;
 			devpriv->last_int_sub = s;
 			devpriv->neverending_ai = 0;
+			devpriv->ai_mode = 0;
+			devpriv->irq_was_now_closed = 0;
 			break;
 		}
 	}
