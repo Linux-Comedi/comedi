@@ -609,7 +609,7 @@ static int dt9812_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	// let the user know what node this device is now attached to
-	info("USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x",
+	dev_info(&interface->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		dev->vendor, dev->product, dev->device, dev->serial);
 
 	down(&dt9812_mutex);
@@ -668,7 +668,7 @@ static void dt9812_disconnect(struct usb_interface *interface)
 	/* queue final destruction */
 	kref_put(&dev->kref, dt9812_delete);
 
-	info("USB Dt9812 #%d now disconnected", minor);
+	dev_info(&interface->dev, "USB Dt9812 #%d now disconnected\n", minor);
 }
 
 static struct usb_driver dt9812_usb_driver = {
