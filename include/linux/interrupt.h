@@ -23,7 +23,7 @@
 
 #include <linux/version.h>
 
-#ifndef IRQ_NONE
+#if !defined(IRQ_NONE) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 typedef void irqreturn_t;
 #define IRQ_NONE
 #define IRQ_HANDLED
