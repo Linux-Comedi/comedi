@@ -28,7 +28,7 @@
 
 #include_next <asm/pgtable.h>
 
-#ifndef pte_offset_kernel
+#if !defined(pte_offset_kernel) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
 #define pte_offset_kernel(dir,address) pte_offset(dir,address)
 #endif
 
