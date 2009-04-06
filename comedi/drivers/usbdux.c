@@ -851,7 +851,7 @@ static int usbduxsub_upload(usbduxsub_t * usbduxsub,
 }
 
 int firmwareUpload(usbduxsub_t * usbduxsub,
-		   uint8_t * firmwareBinary, 
+		   uint8_t * firmwareBinary,
 		   int sizeFirmware)
 {
 	int ret;
@@ -2017,11 +2017,11 @@ int usbduxsub_submit_PwmURBs(usbduxsub_t * usbduxsub)
 }
 
 static int usbdux_pwm_period(comedi_device * dev, comedi_subdevice * s,
-			     lsampl_t period) 
+			     lsampl_t period)
 {
 	usbduxsub_t *this_usbduxsub = dev->private;
 	int fx2delay=255;
-	if (period < MIN_PWM_PERIOD) 
+	if (period < MIN_PWM_PERIOD)
 	{
 		printk("comedi%d: illegal period setting for pwm.\n", dev->minor);
 		return -EAGAIN;
@@ -2040,7 +2040,7 @@ static int usbdux_pwm_period(comedi_device * dev, comedi_subdevice * s,
 #endif
 	return 0;
 }
-    
+
 
 // is called from insn so there's no need to do all the sanity checks
 static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s)
@@ -2064,7 +2064,7 @@ static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s)
 	for (i = 0; i < this_usbduxsub->sizePwmBuf; i++) {
 		((char *)(this_usbduxsub->urbPwm->transfer_buffer))[i] = 0;
 	}
-	
+
 	this_usbduxsub->pwm_cmd_running = 1;
 	ret = usbduxsub_submit_PwmURBs(this_usbduxsub);
 	if (ret < 0) {
@@ -2076,7 +2076,7 @@ static int usbdux_pwm_start(comedi_device * dev, comedi_subdevice * s)
 
 
 // generates the bit pattern for PWM with the optional sign bit
-static int usbdux_pwm_pattern(comedi_device * dev, comedi_subdevice * s, 
+static int usbdux_pwm_pattern(comedi_device * dev, comedi_subdevice * s,
 			      int channel, lsampl_t value, lsampl_t sign)
 {
 	usbduxsub_t *this_usbduxsub = dev->private;
@@ -2117,7 +2117,7 @@ static int usbdux_pwm_pattern(comedi_device * dev, comedi_subdevice * s,
 
 static int usbdux_pwm_write(comedi_device * dev, comedi_subdevice * s,
 			    comedi_insn * insn, lsampl_t * data)
-{	
+{
 	usbduxsub_t *this_usbduxsub = dev->private;
 
 	if (!this_usbduxsub) {
@@ -2150,7 +2150,7 @@ static int usbdux_pwm_read(comedi_device * x1, comedi_subdevice * x2,
 static int usbdux_pwm_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	usbduxsub_t *this_usbduxsub = dev->private;	
+	usbduxsub_t *this_usbduxsub = dev->private;
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
 #ifdef NOISY_DUX_DEBUGBUG
@@ -2186,7 +2186,7 @@ static int usbdux_pwm_config(comedi_device * dev, comedi_subdevice * s,
 		return 0;
 	case INSN_CONFIG_PWM_SET_H_BRIDGE:
 		// value in the first byte and the sign in the second for a relay
-		return usbdux_pwm_pattern(dev, s, 
+		return usbdux_pwm_pattern(dev, s,
 					  CR_CHAN(insn->chanspec), // the channel number
 					  data[1], // actual PWM data
 					  (data[2]!=0)); // just a sign
@@ -2323,7 +2323,7 @@ static unsigned hex2unsigned(char *h)
 #define FIRMWARE_MAX_LEN 0x2000
 
 // taken from David Brownell's fxload and adjusted for this driver
-static int read_firmware(usbduxsub_t * usbduxsub, void *firmwarePtr, long size)
+static int read_firmware(usbduxsub_t * usbduxsub, const void *firmwarePtr, long size)
 {
 	int i = 0;
 	unsigned char *fp = (char *)firmwarePtr;
@@ -2697,10 +2697,10 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	up(&start_stop_sem);
 
 	ret = request_firmware_nowait(THIS_MODULE,
-				      FW_ACTION_HOTPLUG, 
+				      FW_ACTION_HOTPLUG,
 				      "usbdux_firmware.hex",
 				      &udev->dev,
-				      usbduxsub + index, 
+				      usbduxsub + index,
 				      usbdux_firmware_request_complete_handler);
 
 	if (ret) {
@@ -2709,7 +2709,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 			ret);
 		return ret;
 	}
- 
+
 	printk("comedi_: usbdux%d has been successfully initialised.\n", index);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 	return (void *)(&usbduxsub[index]);
@@ -2784,7 +2784,7 @@ static int usbdux_attach(comedi_device * dev, comedi_devconfig * it)
 			      comedi_aux_data(it->options, 0),
 			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	}
-	
+
 	dev->board_name = BOARDNAME;
 
 	/* set number of subdevices */

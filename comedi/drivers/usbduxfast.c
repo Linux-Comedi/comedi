@@ -1279,8 +1279,8 @@ static unsigned hex2unsigned(char *h)
 #define FIRMWARE_MAX_LEN 0x2000
 
 // taken from David Brownell's fxload and adjusted for this driver
-static int read_firmware(usbduxfastsub_t * usbduxfastsub, 
-			 void *firmwarePtr,
+static int read_firmware(usbduxfastsub_t * usbduxfastsub,
+			 const void *firmwarePtr,
 			 long size)
 {
 	int i = 0;
@@ -1419,7 +1419,7 @@ static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 }
 
 static void usbduxfast_firmware_request_complete_handler(
-	const struct firmware *fw, 
+	const struct firmware *fw,
 	void *context)
 {
 	usbduxfastsub_t * usbduxfastsub_tmp = (usbduxfastsub_t *)context;
@@ -1449,7 +1449,7 @@ static void usbduxfast_firmware_request_complete_handler(
 // allocate memory for the urbs and initialise them
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 static void *usbduxfastsub_probe(struct usb_device *udev,
-				 unsigned int interfnum, 
+				 unsigned int interfnum,
 				 const struct usb_device_id *id)
 {
 #else
@@ -1555,10 +1555,10 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	up(&start_stop_sem);
 
 	ret = request_firmware_nowait(THIS_MODULE,
-				      FW_ACTION_HOTPLUG, 
+				      FW_ACTION_HOTPLUG,
 				      "usbduxfast_firmware.hex",
 				      &udev->dev,
-				      usbduxfastsub + index, 
+				      usbduxfastsub + index,
 				      usbduxfast_firmware_request_complete_handler);
 
 	if (ret) {
@@ -1567,10 +1567,10 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 			ret);
 		return ret;
 	}
- 
+
 	printk("comedi_: usbduxfast%d has been successfully initialized.\n",
 	       index);
-	
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
 	return (void *)(&usbduxfastsub[index]);
 #else
@@ -1597,7 +1597,7 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 		printk("comedi_: usbduxfast: BUG! called with wrong ptr!!!\n");
 		return;
 	}
-	
+
 	comedi_usb_auto_unconfig(udev);
 
 	down(&start_stop_sem);
