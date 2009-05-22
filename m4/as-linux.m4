@@ -182,7 +182,7 @@ AC_DEFUN([AS_LINUX_SRC_DIR],
 		dir=`sed -n -e 's/^KERNELSRC *:= *\(.*\)/\1/p' "$1/Makefile"`
 		if test -z "$dir"; then
 			# 2.6.25
-			dir=`sed -n -e 's/^MAKEARGS *:= *-C *\(.*\)/\1/p' "$1/Makefile"`
+			dir=`sed -n -e 's/^MAKEARGS *:= *-C *\([^[:space:]]*\).*/\1/p' "$LINUX_DIR/Makefile"`
 		fi
 		if test -z "$dir"; then
 			AC_MSG_RESULT([no])
