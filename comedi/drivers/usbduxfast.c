@@ -392,8 +392,14 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 			this_usbduxfastsub->ai_sample_count -= n;
 		}
 		// write the full buffer to comedi
-		cfc_write_array_to_buffer(s,
-			urb->transfer_buffer, urb->actual_length);
+		err = cfc_write_array_to_buffer(s,
+						urb->transfer_buffer, urb->actual_length);
+
+		if (unlikely(err == 0)) {
+			/* buffer overflow */
+			usbduxfast_ai_stop(this_usbduxfastsub, 0);
+			return;
+		}
 
 		// tell comedi that data is there
 		comedi_event(this_usbduxfastsub->comedidev, s);
