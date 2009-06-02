@@ -553,6 +553,7 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 					result = poll_delay_min_max(1000, 2000);
 				} else {
 					transform_t transf;
+					int i;
 
 					p->model_no =
 						get_u16(&channel->model_no);
@@ -566,18 +567,12 @@ static poll_delay_t jr3_pci_poll_subdevice(comedi_subdevice * s)
 						p->serial_no);
 
 					// Transformation all zeros
-					transf.link[0].link_type =
-						(enum link_types)0;
-					transf.link[0].link_amount = 0;
-					transf.link[1].link_type =
-						(enum link_types)0;
-					transf.link[1].link_amount = 0;
-					transf.link[2].link_type =
-						(enum link_types)0;
-					transf.link[2].link_amount = 0;
-					transf.link[3].link_type =
-						(enum link_types)0;
-					transf.link[3].link_amount = 0;
+					for (i = 0; i < ARRAY_SIZE(transf.link);
+							i++) {
+						transf.link[i].link_type =
+							(enum link_types)0;
+						transf.link[i].link_amount = 0;
+					}
 
 					set_transforms(channel, transf, 0);
 					use_transform(channel, 0);
