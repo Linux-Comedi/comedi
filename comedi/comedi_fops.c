@@ -95,11 +95,55 @@ static int is_device_busy(comedi_device * dev);
 static int resize_async_buffer(comedi_device *dev,
 	comedi_subdevice *s, comedi_async *async, unsigned new_size);
 
-//declarations for sysfs attribute files
-struct device_attribute dev_attr_max_read_buffer_kb;
-struct device_attribute dev_attr_read_buffer_kb;
-struct device_attribute dev_attr_max_write_buffer_kb;
-struct device_attribute dev_attr_write_buffer_kb;
+// sysfs attribute files
+
+static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count);
+static comedi_device_attribute_t dev_attr_max_read_buffer_kb =
+{
+	.attr = {
+			.name = "max_read_buffer_kb",
+			.mode = S_IRUGO | S_IWUSR
+		},
+	.show = &show_max_read_buffer_kb,
+	.store = &store_max_read_buffer_kb
+};
+
+static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, dev, buf, count);
+static comedi_device_attribute_t dev_attr_read_buffer_kb =
+{
+	.attr = {
+			.name = "read_buffer_kb",
+			.mode = S_IRUGO | S_IWUSR | S_IWGRP
+		},
+	.show = &show_read_buffer_kb,
+	.store = &store_read_buffer_kb
+};
+
+static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, dev, buf, count);
+static comedi_device_attribute_t dev_attr_max_write_buffer_kb =
+{
+	.attr = {
+			.name = "max_write_buffer_kb",
+			.mode = S_IRUGO | S_IWUSR
+		},
+	.show = &show_max_write_buffer_kb,
+	.store = &store_max_write_buffer_kb
+};
+
+static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, dev, buf);
+static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, dev, buf, count);
+static comedi_device_attribute_t dev_attr_write_buffer_kb =
+{
+	.attr = {
+			.name = "write_buffer_kb",
+			.mode = S_IRUGO | S_IWUSR | S_IWGRP
+		},
+	.show = &show_write_buffer_kb,
+	.store = &store_write_buffer_kb
+};
 
 #ifdef HAVE_UNLOCKED_IOCTL
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
@@ -2105,7 +2149,7 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 {
 	unsigned long flags;
 	struct comedi_device_file_info *info;
-	device_create_result_type *csdev;
+	comedi_device_create_t *csdev;
 	unsigned i;
 	int retval;
 
@@ -2142,29 +2186,29 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	if(!IS_ERR(csdev)) {
 		info->device->class_dev = csdev;
 	}
-	dev_set_drvdata(csdev, info);
-	retval = device_create_file(csdev, &dev_attr_max_read_buffer_kb);
+	COMEDI_DEV_SET_DRVDATA(csdev, info);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_read_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_read_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
 	}
-	retval = device_create_file(csdev, &dev_attr_read_buffer_kb);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_read_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_read_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
 	}
-	retval = device_create_file(csdev, &dev_attr_max_write_buffer_kb);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_write_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_write_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
 	}
-	retval = device_create_file(csdev, &dev_attr_write_buffer_kb);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_write_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_write_buffer_kb.attr.name);
@@ -2192,7 +2236,8 @@ void comedi_free_board_minor(unsigned minor)
 		{
 			if(dev->class_dev)
 			{
-				device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, dev->minor));
+				COMEDI_DEVICE_DESTROY(comedi_class,
+					MKDEV(COMEDI_MAJOR, dev->minor));
 			}
 			comedi_device_cleanup(dev);
 			kfree(dev);
@@ -2205,7 +2250,7 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 {
 	unsigned long flags;
 	struct comedi_device_file_info *info;
-	device_create_result_type *csdev;
+	comedi_device_create_t *csdev;
 	unsigned i;
 	int retval;
 
@@ -2237,29 +2282,29 @@ int comedi_alloc_subdevice_minor(comedi_device *dev, comedi_subdevice *s)
 	{
 		s->class_dev = csdev;
 	}
-	dev_set_drvdata(csdev, info);
-	retval = device_create_file(csdev, &dev_attr_max_read_buffer_kb);
+	COMEDI_DEV_SET_DRVDATA(csdev, info);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_read_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_read_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
 	}
-	retval = device_create_file(csdev, &dev_attr_read_buffer_kb);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_read_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_read_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
 	}
-	retval = device_create_file(csdev, &dev_attr_max_write_buffer_kb);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_max_write_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_max_write_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
 	}
-	retval = device_create_file(csdev, &dev_attr_write_buffer_kb);
+	retval = COMEDI_DEVICE_CREATE_FILE(csdev, &dev_attr_write_buffer_kb);
 	if(retval)
 	{
 		printk(KERN_ERR "comedi: failed to create sysfs attribute file \"%s\".\n", dev_attr_write_buffer_kb.attr.name);
@@ -2287,7 +2332,8 @@ void comedi_free_subdevice_minor(comedi_subdevice *s)
 
 	if(s->class_dev)
 	{
-		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, s->minor));
+		COMEDI_DEVICE_DESTROY(comedi_class,
+			MKDEV(COMEDI_MAJOR, s->minor));
 		s->class_dev = NULL;
 	}
 	kfree(info);
@@ -2344,15 +2390,14 @@ static int resize_async_buffer(comedi_device *dev,
 	return 0;
 }
 
-// sysfs attribute files
+// sysfs attribute file functions
 
 static const unsigned bytes_per_kibi = 1024;
 
-ssize_t show_max_read_buffer_kb(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_max_read_buffer_kb, dev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
@@ -2369,10 +2414,9 @@ ssize_t show_max_read_buffer_kb(struct device *dev,
 	return retval;
 }
 
-ssize_t store_max_read_buffer_kb(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static COMEDI_DECLARE_ATTR_STORE(store_max_read_buffer_kb, dev, buf, count)
 {
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
@@ -2399,21 +2443,10 @@ ssize_t store_max_read_buffer_kb(struct device *dev, struct device_attribute *at
 	return count;
 }
 
-struct device_attribute dev_attr_max_read_buffer_kb =
-{
-	.attr = {
-			.name = "max_read_buffer_kb",
-			.mode = S_IRUGO | S_IWUSR
-		},
-	.show = &show_max_read_buffer_kb,
-	.store = &store_max_read_buffer_kb
-};
-
-ssize_t show_read_buffer_kb(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_read_buffer_kb, dev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice * const read_subdevice = comedi_get_read_subdevice(info);
 
@@ -2430,10 +2463,9 @@ ssize_t show_read_buffer_kb(struct device *dev,
 	return retval;
 }
 
-ssize_t store_read_buffer_kb(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static COMEDI_DECLARE_ATTR_STORE(store_read_buffer_kb, dev, buf, count)
 {
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	int retval;
@@ -2463,21 +2495,10 @@ ssize_t store_read_buffer_kb(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-struct device_attribute dev_attr_read_buffer_kb =
-{
-	.attr = {
-			.name = "read_buffer_kb",
-			.mode = S_IRUGO | S_IWUSR | S_IWGRP
-		},
-	.show = &show_read_buffer_kb,
-	.store = &store_read_buffer_kb
-};
-
-ssize_t show_max_write_buffer_kb(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_max_write_buffer_kb, dev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned max_buffer_size_kb = 0;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
@@ -2494,10 +2515,9 @@ ssize_t show_max_write_buffer_kb(struct device *dev,
 	return retval;
 }
 
-ssize_t store_max_write_buffer_kb(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static COMEDI_DECLARE_ATTR_STORE(store_max_write_buffer_kb, dev, buf, count)
 {
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned long new_max_size_kb;
 	uint64_t new_max_size;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
@@ -2524,21 +2544,10 @@ ssize_t store_max_write_buffer_kb(struct device *dev, struct device_attribute *a
 	return count;
 }
 
-struct device_attribute dev_attr_max_write_buffer_kb =
-{
-	.attr = {
-			.name = "max_write_buffer_kb",
-			.mode = S_IRUGO | S_IWUSR
-		},
-	.show = &show_max_write_buffer_kb,
-	.store = &store_max_write_buffer_kb
-};
-
-ssize_t show_write_buffer_kb(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static COMEDI_DECLARE_ATTR_SHOW(show_write_buffer_kb, dev, buf)
 {
 	ssize_t retval;
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned buffer_size_kb = 0;
 	comedi_subdevice * const write_subdevice = comedi_get_write_subdevice(info);
 
@@ -2555,10 +2564,9 @@ ssize_t show_write_buffer_kb(struct device *dev,
 	return retval;
 }
 
-ssize_t store_write_buffer_kb(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static COMEDI_DECLARE_ATTR_STORE(store_write_buffer_kb, dev, buf, count)
 {
-	struct comedi_device_file_info *info = dev_get_drvdata(dev);
+	struct comedi_device_file_info *info = COMEDI_DEV_GET_DRVDATA(dev);
 	unsigned long new_size_kb;
 	uint64_t new_size;
 	int retval;
@@ -2587,13 +2595,3 @@ ssize_t store_write_buffer_kb(struct device *dev, struct device_attribute *attr,
 	if(retval < 0) return retval;
 	return count;
 }
-
-struct device_attribute dev_attr_write_buffer_kb =
-{
-	.attr = {
-			.name = "write_buffer_kb",
-			.mode = S_IRUGO | S_IWUSR | S_IWGRP
-		},
-	.show = &show_write_buffer_kb,
-	.store = &store_write_buffer_kb
-};

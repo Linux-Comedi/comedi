@@ -28,24 +28,26 @@
 /*
  * Notes:
  *
- * The 'struct device *' returned by the device_create() compatibility
- * functions (assuming the return value is not an error pointer for which
- * 'IS_ERR(ptr)' is true) is not really a 'struct device *' and should not
- * be treated as such.  For kernel versions 2.5.0 to 2.6.17, the return
- * value is actually a 'struct class_device *' in disguise and we assume
- * the 'parent' parameter of device_create() is also a 'struct class_device *'
- * in disguise from a previous call to device_create().
- *
- * The main limitation is that we cannot use a *real* 'struct device *' as
- * the parent parameter of device_create(), only a pointer from a previous
- * call to device_create().
- *
  * Call COMEDI_DEVICE_CREATE() instead of device_create() for compatibility
- * with kernel versions prior to 2.6.27.
+ * with kernel versions prior to 2.6.27.  This returns a PTR_ERR() value or a
+ * 'comedi_device_create_t *' which will be a 'struct class_device *' for
+ * kernel versions prior to 2.6.19, and a 'struct device *' for kernel version
+ * 2.6.19 onwards.  Call COMEDI_DEVICE_DESTROY() to destroy it.
  *
- * We do not currently support 'dev_get_drvdata()' and 'dev_set_drvdata()'
- * for kernel versions prior to 2.6.26, so the 'drvdata' parameter of
- * COMEDI_DEVICE_CREATE() is pretty useless.
+ * The result of COMEDI_DEVICE_CREATE() can be used to set or get a private
+ * data pointer, using COMEDI_DEV_SET_DRVDATA() and COMEDI_DEV_GET_DRVDATA().
+ *
+ * The result of COMEDI_DEVICE_CREATE() can be used to create or remove
+ * sysfs attributes, using COMEDI_DECLARE_ATTR_SHOW() to declare the "show
+ * attribute" function, COMEDI_DECLARE_ATTR_STORE() macro to declare the
+ * "store attribute" function, COMEDI_DEVICE_CREATE_FILE() to create the
+ * attribute, and COMEDI_DEVICE_REMOVE_FILE() to remove it.
+ *
+ * The 'drvdata' parameter of COMEDI_DEVICE_CREATE() doesn't work for kernel
+ * versions prior to 2.6.26, so please don't use it!
+ *
+ *
+ * None of the above is currently supported for 2.4 kernels!
  */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
@@ -81,6 +83,21 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 
 #include_next <linux/device.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
+
+/* Use 'struct class_device' before kernel 2.6.19. */
+
+typedef struct class_device comedi_device_create_t;
+typedef struct class_device_attribute comedi_device_attribute_t;
+#define COMEDI_DEV_SET_DRVDATA(csdev, data)	class_set_devdata(csdev, data)
+#define COMEDI_DEV_GET_DRVDATA(csdev)		class_get_devdata(csdev)
+#define COMEDI_DEVICE_CREATE_FILE(csdev, attr)	class_device_create_file(csdev, attr)
+#define COMEDI_DEVICE_REMOVE_FILE(csdev, attr)	class_device_remove_file(csdev, attr)
+#define COMEDI_DECLARE_ATTR_SHOW(func, dev, buf) \
+ssize_t func(struct class_device *dev, char *buf)
+#define COMEDI_DECLARE_ATTR_STORE(func, dev, buf, count) \
+ssize_t func(struct class_device *dev, const char *buf, size_t count)
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
 
 #define class_create(owner, name) \
@@ -88,65 +105,76 @@ static inline void device_destroy(struct class *cs, dev_t devt)
 #define class_destroy(cs) \
 	class_simple_destroy((struct class_simple *)(cs))
 
-typedef struct class_device device_create_result_type;
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	class_simple_device_add((struct class_simple *)(cs), \
 		devt, device, fmt)
-#define device_destroy(cs, devt) \
+#define COMEDI_DEVICE_DESTROY(cs, devt) \
 	class_simple_device_remove(devt)
 
 #else
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 
-typedef struct class_device device_create_result_type;
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	class_device_create(cs, devt, device, fmt)
-#define device_destroy(cs, devt) \
+#define COMEDI_DEVICE_DESTROY(cs, devt) \
 	class_device_destroy(cs, devt)
 
 #else
-/* device_create does not work for NULL parent with 2.6.18, not sure
-exactly which kernel version it was fixed in. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
-typedef struct class_device device_create_result_type;
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
-	class_device_create( \
-			cs, parent, devt, device, fmt)
-#define device_destroy(cs, devt) \
+	class_device_create(cs, parent, devt, device, fmt)
+#define COMEDI_DEVICE_DESTROY(cs, devt) \
 	class_device_destroy(cs, devt)
 
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
+
 #else
+
+/* Use 'struct device' from kernel 2.6.19 onwards. */
+
+typedef struct device comedi_device_create_t;
+typedef struct device_attribute comedi_device_attribute_t;
+#define COMEDI_DEV_SET_DRVDATA(csdev, data)	dev_set_drvdata(csdev, data)
+#define COMEDI_DEV_GET_DRVDATA(csdev)		dev_get_drvdata(csdev)
+#define COMEDI_DEVICE_CREATE_FILE(csdev, attr)	device_create_file(csdev, attr)
+#define COMEDI_DEVICE_REMOVE_FILE(csdev, attr)	device_remove_file(csdev, attr)
+#define COMEDI_DECLARE_ATTR_SHOW(func, dev, buf) \
+ssize_t func(struct device *dev, struct device_attribute *_attr, char *buf)
+#define COMEDI_DECLARE_ATTR_STORE(func, dev, buf, count) \
+ssize_t func(struct device *dev, struct device_attribute *_attr, \
+	const char *buf, size_t count)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
 
-typedef struct device device_create_result_type;
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	device_create(cs, ((parent) ? (parent) : (device)), devt, fmt)
+#define COMEDI_DEVICE_DESTROY(cs, devt) \
+	device_destroy(cs, devt)
 
 #else
 
-typedef struct device device_create_result_type;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	device_create_drvdata(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
+#define COMEDI_DEVICE_DESTROY(cs, devt) \
+	device_destroy(cs, devt)
 
 #else
 
 #define COMEDI_DEVICE_CREATE(cs, parent, devt, drvdata, device, fmt...) \
 	device_create(cs, ((parent) ? (parent) : (device)), devt, drvdata, fmt)
+#define COMEDI_DEVICE_DESTROY(cs, devt) \
+	device_destroy(cs, devt)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
 
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-
-#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
+#endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
 
 #endif // LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 
