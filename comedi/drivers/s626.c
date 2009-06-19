@@ -109,10 +109,12 @@ static const s626_board s626_boards[] = {
 #define thisboard ((const s626_board *)dev->board_ptr)
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
+#define PCI_SUBVENDOR_ID_S626 0x6000
+#define PCI_SUBDEVICE_ID_S626 0x0272
 
 static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
+	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+		PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0},
 	{0}
 };
 
@@ -513,10 +515,11 @@ static int s626_attach(comedi_device * dev, comedi_devconfig * it)
 	if (alloc_private(dev, sizeof(s626_private)) < 0)
 		return -ENOMEM;
 
-	for (pdev = pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
-			NULL); pdev != NULL;
-		pdev = pci_get_device(PCI_VENDOR_ID_S626,
-			PCI_DEVICE_ID_S626, pdev)) {
+	for (pdev = pci_get_subsys(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+			PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, NULL);
+		pdev != NULL;
+		pdev = pci_get_subsys(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+			PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, pdev)) {
 		if (it->options[0] || it->options[1]) {
 			if (pdev->bus->number == it->options[0] &&
 				PCI_SLOT(pdev->devfn) == it->options[1]) {
