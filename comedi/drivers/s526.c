@@ -558,19 +558,8 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 #if 1
 		// Set Counter Mode Register
-		cmReg.reg.coutSource = 0;	// out RCAP
-		cmReg.reg.coutPolarity = 0;	// Polarity inverted
-		cmReg.reg.autoLoadResetRcap = 0;	// Auto load disabled
-		cmReg.reg.hwCtEnableSource = 2;	// NOT RCAP
-		cmReg.reg.ctEnableCtrl = 1;	// 1: Software,  >1 : Hardware
-		cmReg.reg.clockSource = 3;	// x4
-		cmReg.reg.countDir = 0;	// up
-		cmReg.reg.countDirCtrl = 0;	// quadrature
-		cmReg.reg.outputRegLatchCtrl = 0;	// latch on read
-		cmReg.reg.preloadRegSel = 0;	// PR0
-		cmReg.reg.reserved = 0;
+		cmReg.value = insn->data[1] & 0xFFFF;
 
-		// Set Counter Mode Register
 //                      printk("s526: Counter Mode register=%x\n", cmReg.value);
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
@@ -665,8 +654,8 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
-		if (insn->data[3] != 0) {
-			value = (sampl_t) (insn->data[3] & 0xFFFF);
+		if (insn->data[4] != 0) {
+			value = (sampl_t) (insn->data[4] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		break;
@@ -710,8 +699,8 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
-		if (insn->data[3] != 0) {
-			value = (sampl_t) (insn->data[3] & 0xFFFF);
+		if (insn->data[4] != 0) {
+			value = (sampl_t) (insn->data[4] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		break;
@@ -764,8 +753,8 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 			(devpriv->s526_gpct_config[subdev_channel]).data[1] =
 				insn->data[1];
 		} else {
-			printk("%d \t %d\n", insn->data[1], insn->data[2]);
-			printk("s526: INSN_WRITE: PTG: Problem with Pulse params\n");
+			printk("s526: INSN_WRITE: PTG: Problem with Pulse params -> %d %d\n",
+				insn->data[0], insn->data[1]);
 			return -EINVAL;
 		}
 
