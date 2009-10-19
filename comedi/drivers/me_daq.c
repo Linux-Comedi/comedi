@@ -50,6 +50,7 @@ from http://www.comedi.org
 
 */
 
+#include <linux/sched.h>
 #include <linux/comedidev.h>
 
 #include "comedi_pci.h"
