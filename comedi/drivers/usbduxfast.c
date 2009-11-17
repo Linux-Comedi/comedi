@@ -70,7 +70,7 @@ Status: stable
 #define BOARDNAME "usbduxfast"
 
 // timeout for the USB-transfer
-#define EZTIMEOUT 30
+#define BULK_TIMEOUT 1000
 
 // constants for "firmware" upload and download
 #define USBDUXFASTSUB_FIRMWARE 0xA0
@@ -210,7 +210,7 @@ static int send_dux_commands(usbduxfastsub_t * this_usbduxfastsub, int cmd_type)
 		usb_sndbulkpipe(this_usbduxfastsub->usbdev,
 			CHANNELLISTEP),
 		this_usbduxfastsub->dux_commands,
-		SIZEOFDUXBUFFER, &nsent, 10000);
+		SIZEOFDUXBUFFER, &nsent, BULK_TIMEOUT);
 	if (result < 0) {
 		printk("comedi%d: could not transmit dux_commands to the usb-device, err=%d\n", this_usbduxfastsub->comedidev->minor, result);
 	}
@@ -446,7 +446,7 @@ static int usbduxfastsub_start(usbduxfastsub_t * usbduxfastsub)
 				  // Length
 				  1,
 				  // Timeout
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	if (errcode < 0) {
 		printk("comedi_: usbduxfast_: control msg failed (start)\n");
 		return errcode;
@@ -475,7 +475,7 @@ static int usbduxfastsub_stop(usbduxfastsub_t * usbduxfastsub)
 		 // Length
 		 1,
 		 // Timeout
-		 EZTIMEOUT);
+		 BULK_TIMEOUT);
 	if (errcode < 0) {
 		printk("comedi_: usbduxfast: control msg failed (stop)\n");
 		return errcode;
@@ -505,7 +505,7 @@ static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
 		 // length
 		 len,
 		 // timeout
-		 EZTIMEOUT);
+		 BULK_TIMEOUT);
 	if (errcode < 0) {
 		printk("comedi_: usbduxfast: uppload failed\n");
 		return errcode;
@@ -1227,7 +1227,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		err = USB_BULK_MSG(usbduxfastsub->usbdev,
 			usb_rcvbulkpipe(usbduxfastsub->usbdev, BULKINEP),
 			usbduxfastsub->transfer_buffer,
-			SIZEINBUF, &actual_length, 10000);
+			SIZEINBUF, &actual_length, BULK_TIMEOUT);
 		if (err < 0) {
 			printk("comedi%d: insn timeout. No data.\n",
 				dev->minor);
@@ -1240,7 +1240,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		err = USB_BULK_MSG(usbduxfastsub->usbdev,
 			usb_rcvbulkpipe(usbduxfastsub->usbdev, BULKINEP),
 			usbduxfastsub->transfer_buffer,
-			SIZEINBUF, &actual_length, 10000);
+			SIZEINBUF, &actual_length, BULK_TIMEOUT);
 		if (err < 0) {
 			printk("comedi%d: insn data error: %d\n",
 				dev->minor, err);
