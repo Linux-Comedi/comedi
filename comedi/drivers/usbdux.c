@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.2"
+#define DRIVER_VERSION "v2.3"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -76,7 +76,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
- *
+ * 2.3:  fixed a timeout bug with newer kernels (>2.6.30)
  */
 
 // generates loads of debug info
@@ -99,7 +99,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define BOARDNAME "usbdux"
 
 // timeout for the USB-transfer
-#define EZTIMEOUT 30
+#define BULK_TIMEOUT 1000 // ms
 
 // constants for "firmware" upload and download
 #define USBDUXSUB_FIRMWARE 0xA0
@@ -787,7 +787,7 @@ static int usbduxsub_start(usbduxsub_t * usbduxsub)
 				  // Length
 				  1,
 				  // Timeout
-				  EZTIMEOUT);
+				  BULK_TIMEOUT);
 	if (errcode < 0) {
 		printk("comedi_: usbdux_: control msg failed (start)\n");
 		return errcode;
@@ -817,7 +817,7 @@ static int usbduxsub_stop(usbduxsub_t * usbduxsub)
 		 // Length
 		 1,
 		 // Timeout
-		 EZTIMEOUT);
+		 BULK_TIMEOUT);
 	if (errcode < 0) {
 		printk("comedi_: usbdux: control msg failed (stop)\n");
 		return errcode;
@@ -847,7 +847,7 @@ static int usbduxsub_upload(usbduxsub_t * usbduxsub,
 		 // length
 		 len,
 		 // timeout
-		 EZTIMEOUT);
+		 BULK_TIMEOUT);
 	if (errcode < 0) {
 		printk("comedi_: usbdux: uppload failed\n");
 		return errcode;
@@ -1110,7 +1110,7 @@ static int send_dux_commands(usbduxsub_t * this_usbduxsub, int cmd_type)
 	result = USB_BULK_MSG(this_usbduxsub->usbdev,
 		usb_sndbulkpipe(this_usbduxsub->usbdev,
 			COMMAND_OUT_EP),
-		this_usbduxsub->dux_commands, SIZEOFDUXBUFFER, &nsent, 10 * HZ);
+		this_usbduxsub->dux_commands, SIZEOFDUXBUFFER, &nsent, BULK_TIMEOUT);
 	if (result < 0) {
 		printk("comedi%d: could not transmit dux_command to the usb-device, err=%d\n", this_usbduxsub->comedidev->minor, result);
 	}
@@ -1127,7 +1127,7 @@ static int receive_dux_commands(usbduxsub_t * this_usbduxsub, int command)
 		result = USB_BULK_MSG(this_usbduxsub->usbdev,
 			usb_rcvbulkpipe(this_usbduxsub->usbdev,
 				COMMAND_IN_EP),
-			this_usbduxsub->insnBuffer, SIZEINSNBUF, &nrec, 1 * HZ);
+			this_usbduxsub->insnBuffer, SIZEINSNBUF, &nrec, BULK_TIMEOUT);
 		if (result < 0) {
 			printk("comedi%d: insn: USB error %d while receiving DUX command\n", this_usbduxsub->comedidev->minor, result);
 			return result;
