@@ -804,7 +804,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d PT_REGS_ARG)
 static int pci171x_ai_docmd_and_mode(int mode, comedi_device * dev,
 	comedi_subdevice * s)
 {
-	unsigned int divisor1, divisor2;
+	unsigned int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_docmd_and_mode(%d,...)\n",
