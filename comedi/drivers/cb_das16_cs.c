@@ -458,7 +458,7 @@ static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		unsigned int div1, div2;
+		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer(100, &div1, &div2,
@@ -467,7 +467,7 @@ static int das16cs_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 			err++;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		unsigned int div1, div2;
+		unsigned int div1 = 0, div2 = 0;
 
 		tmp = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(100, &div1, &div2,
