@@ -754,7 +754,7 @@ static int pci9118_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
