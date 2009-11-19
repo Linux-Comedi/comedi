@@ -401,8 +401,8 @@ static void serial_2002_open(comedi_device * dev)
 			PTR_ERR(devpriv->tty));
 	} else {
 		typedef struct {
-			int kind;
-			int bits;
+			short int kind;
+			short int bits;
 			int min;
 			int max;
 		} config_t;
