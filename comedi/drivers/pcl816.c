@@ -478,7 +478,9 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
 		err++;
 
-	if (!cmd->convert_src & (TRIG_EXT | TRIG_TIMER))
+	tmp = cmd->convert_src;
+	cmd->convert_src &= TRIG_EXT | TRIG_TIMER;
+	if (!cmd->convert_src || tmp != cmd->convert_src)
 		err++;
 
 	tmp = cmd->scan_end_src;
