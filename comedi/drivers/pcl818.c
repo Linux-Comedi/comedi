@@ -958,7 +958,7 @@ static int pcl818_ai_cmd_mode(int mode, comedi_device * dev,
 	comedi_subdevice * s)
 {
 	comedi_cmd *cmd = &s->async->cmd;
-	int divisor1, divisor2;
+	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
 	rt_printk("pcl818_ai_cmd_mode()\n");
@@ -1069,7 +1069,7 @@ static int pcl818_ai_cmd_mode(int mode, comedi_device * dev,
 static int pcl818_ao_mode13(int mode, comedi_device * dev, comedi_subdevice * s,
 	comedi_trig * it)
 {
-	int divisor1, divisor2;
+	int divisor1 = 0, divisor2 = 0;
 
 	if (!dev->irq) {
 		comedi_error(dev, "IRQ not defined!");
@@ -1258,7 +1258,7 @@ static int ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	comedi_cmd * cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	/* step 1: make sure trigger sources are trivially valid */
 
