@@ -507,7 +507,7 @@ static int pcmmio_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (irq[0]) {
 		printk("irq: %u ", irq[0]);
-		if (irq[1] && thisboard->dio_num_asics == 2)
+		if (thisboard->dio_num_asics == 2 && irq[1])
 			printk("second ASIC irq: %u ", irq[1]);
 	} else {
 		printk("(IRQ mode disabled) ");
