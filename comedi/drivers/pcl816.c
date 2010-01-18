@@ -210,8 +210,10 @@ typedef struct {
 /*
 ==============================================================================
 */
-static int check_and_setup_channel_list(comedi_device * dev,
-	comedi_subdevice * s, unsigned int *chanlist, int chanlen);
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s,
+	unsigned int *chanlist, unsigned int chanlen);
+static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
+	unsigned int *chanlist, unsigned int seglen);
 static int pcl816_ai_cancel(comedi_device * dev, comedi_subdevice * s);
 static void start_pacer(comedi_device * dev, int mode, unsigned int divisor1,
 	unsigned int divisor2);
@@ -600,6 +602,14 @@ static int pcl816_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		return 4;
 	}
 
+	/* step 5: complain about special chanlist considerations */
+
+	if (cmd->chanlist) {
+		if (!check_channel_list(dev, s, cmd->chanlist,
+				cmd->chanlist_len))
+			return 5;	// incorrect channels list
+	}
+
 	return 0;
 }
 
@@ -607,6 +617,7 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	comedi_cmd *cmd = &s->async->cmd;
+	unsigned int seglen;
 
 	if (cmd->start_src != TRIG_NOW)
 		return -EINVAL;
@@ -639,9 +650,10 @@ static int pcl816_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 
 	start_pacer(dev, -1, 0, 0);	// stop pacer
 
-	if (!check_and_setup_channel_list(dev, s, cmd->chanlist,
-			cmd->chanlist_len))
+	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
+	if (seglen < 1)
 		return -EINVAL;
+	setup_channel_list(dev, s, cmd->chanlist, seglen);
 	comedi_udelay(1);
 
 	devpriv->ai_n_chan = cmd->chanlist_len;
@@ -869,11 +881,10 @@ start_pacer(comedi_device * dev, int mode, unsigned int divisor1,
 /*
 ==============================================================================
  Check if channel list from user is builded correctly
- If it's ok, then program scan/gain logic
+ If it's ok, return non-zero length of repeated segment of channel list
 */
-static int
-check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s,
-	unsigned int *chanlist, int chanlen)
+static int check_channel_list(comedi_device * dev, comedi_subdevice * s,
+	unsigned int *chanlist, unsigned int chanlen)
 {
 	unsigned int chansegment[16];
 	unsigned int i, nowmustbechan, seglen, segpos;
@@ -929,6 +940,18 @@ check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 		seglen = 1;
 	}
 
+	return seglen;
+}
+
+/*
+==============================================================================
+ Program scan/gain logic with channel list.
+*/
+static void setup_channel_list(comedi_device * dev, comedi_subdevice * s,
+	unsigned int *chanlist, unsigned int seglen)
+{
+	unsigned int i;
+
 	devpriv->ai_act_chanlist_len = seglen;
 	devpriv->ai_act_chanlist_pos = 0;
 
@@ -940,9 +963,9 @@ check_and_setup_channel_list(comedi_device * dev, comedi_subdevice * s,
 
 	comedi_udelay(1);
 
-	outb(devpriv->ai_act_chanlist[0] | (devpriv->ai_act_chanlist[seglen - 1] << 4), dev->iobase + PCL816_MUX);	/* select channel interval to scan */
-
-	return 1;		// we can serve this with MUX logic
+	/* select channel interval to scan */
+	outb(devpriv->ai_act_chanlist[0] | (devpriv->ai_act_chanlist[seglen -
+				1] << 4), dev->iobase + PCL816_MUX);
 }
 
 #ifdef unused
