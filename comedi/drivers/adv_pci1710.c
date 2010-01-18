@@ -1001,14 +1001,6 @@ static int pci171x_ai_cmdtest(comedi_device * dev, comedi_subdevice * s,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > this_board->n_aichan) {
-		cmd->chanlist_len = this_board->n_aichan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
