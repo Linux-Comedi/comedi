@@ -967,7 +967,6 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	s->async->cur_chan = next_chan;
 	if (next_chan == 0) {	/* one scan done */
-		s->async->cur_chan = 0;
 		devpriv->ai_act_scan++;
 		if (!(devpriv->ai_neverending))
 			if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
