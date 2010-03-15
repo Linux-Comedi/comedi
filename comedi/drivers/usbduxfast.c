@@ -1564,6 +1564,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 				      FW_ACTION_HOTPLUG,
 				      "usbduxfast_firmware.hex",
 				      &udev->dev,
+				      GFP_KERNEL,
 				      usbduxfastsub + index,
 				      usbduxfast_firmware_request_complete_handler);
 
