@@ -68,6 +68,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include "addi_common.h"
 #include "addi_amcc_s5933.h"
 
+#ifndef ADDIDATA_DRIVER_NAME
+#define ADDIDATA_DRIVER_NAME	"addi_common"
+#endif
+
 //Update-0.7.57->0.7.68MODULE_AUTHOR("ADDI-DATA GmbH <info@addi-data.com>");
 //Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module");
 //Update-0.7.57->0.7.68MODULE_LICENSE("GPL");
@@ -2528,7 +2532,7 @@ static const boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(boardtype))
 
 comedi_driver driver_addi = {
-      driver_name:"addi_common",
+      driver_name:ADDIDATA_DRIVER_NAME,
       module:THIS_MODULE,
       attach:i_ADDI_Attach,
       detach:i_ADDI_Detach,
@@ -2583,7 +2587,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		v_pci_card_list_init(this_board->i_VendorId, 1);	//1 for displaying the list..
 		pci_list_builded = 1;
 	}
-	//rt_printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName);
+	//rt_printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s",dev->minor,this_board->pc_DriverName);
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
