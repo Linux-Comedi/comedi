@@ -604,21 +604,24 @@ static int serial_2002_open(comedi_device * dev)
 				s = &dev->subdevices[i];
 				s->n_chan = chan;
 				s->maxdata = 0;
-				if (s->maxdata_list) {
-					kfree(s->maxdata_list);
-				}
+				kfree(s->maxdata_list);
 				s->maxdata_list = maxdata_list =
 					kmalloc(sizeof(lsampl_t) * s->n_chan,
 					GFP_KERNEL);
-				if (s->range_table_list) {
-					kfree(s->range_table_list);
+				if (!s->maxdata_list) {
+					break;	/* error handled below */
 				}
+				kfree(s->range_table_list);
+				s->range_table = 0;
+				s->range_table_list = 0;
 				if (range) {
-					s->range_table = 0;
 					s->range_table_list = range_table_list =
 						kmalloc(sizeof
 						(serial2002_range_table_t) *
 						s->n_chan, GFP_KERNEL);
+					if (!s->range_table_list) {
+						break;	/* error handled below */
+					}
 				}
 				for (chan = 0, j = 0; j < 32; j++) {
 					if (c[j].kind == kind) {
@@ -642,6 +645,19 @@ static int serial_2002_open(comedi_device * dev)
 						chan++;
 					}
 				}
+			}
+		}
+		if (i <= 4) {
+			/* Failed to allocate maxdata_list or range_table_list
+			 * for a subdevice that needed it. */
+			result = -ENOMEM;
+			for ( ; i >= 0; i--) {
+				comedi_subdevice *s = &dev->subdevices[i];
+
+				kfree(s->maxdata_list);
+				s->maxdata_list = NULL;
+				kfree(s->range_table_list);
+				s->range_table_list = NULL;
 			}
 		}
 err_alloc_configs:
