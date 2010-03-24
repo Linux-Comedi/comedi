@@ -454,6 +454,7 @@ typedef struct {
 	int has_clk_gat_sce;
 	unsigned clock_src[3];	/* Current clock sources */
 	unsigned gate_src[3];	/* Current gate sources */
+	spinlock_t spinlock;
 } dio200_subdev_8254;
 
 typedef struct {
@@ -1038,8 +1039,11 @@ dio200_subdev_8254_read(comedi_device * dev, comedi_subdevice * s,
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	data[0] = i8254_read(subpriv->iobase, 0, chan);
+	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
 }
@@ -1053,8 +1057,11 @@ dio200_subdev_8254_write(comedi_device * dev, comedi_subdevice * s,
 {
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	i8254_write(subpriv->iobase, 0, chan, data[0]);
+	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
 }
@@ -1146,14 +1153,16 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	dio200_subdev_8254 *subpriv = s->private;
-	int ret;
+	int ret = 0;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long flags;
 
+	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		ret = i8254_set_mode(subpriv->iobase, 0, chan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
 		data[1] = i8254_status(subpriv->iobase, 0, chan);
@@ -1161,30 +1170,35 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = dio200_set_gate_src(subpriv, chan, data[2]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
 		ret = dio200_get_gate_src(subpriv, chan);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		data[2] = ret;
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		ret = dio200_set_clock_src(subpriv, chan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
 		ret = dio200_get_clock_src(subpriv, chan, &data[2]);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		data[1] = ret;
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
-	return insn->n;
+	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	return ret < 0 ? ret : insn->n;
 }
 
 /*
@@ -1216,6 +1230,7 @@ dio200_subdev_8254_init(comedi_device * dev, comedi_subdevice * s,
 	s->insn_write = dio200_subdev_8254_write;
 	s->insn_config = dio200_subdev_8254_config;
 
+	spin_lock_init(&subpriv->spinlock);
 	subpriv->iobase = offset + iobase;
 	subpriv->has_clk_gat_sce = has_clk_gat_sce;
 	if (has_clk_gat_sce) {
