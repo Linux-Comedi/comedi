@@ -2574,10 +2574,6 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 	struct pcilst_struct *card = NULL;
 	unsigned char pci_bus, pci_slot, pci_func;
 	int i_Dma = 0;
-	static char c_Identifier[150];
-
-	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
-		this_board->pc_DriverName);
 
 	if ((ret = alloc_private(dev, sizeof(addi_private))) < 0) {
 	  	return -ENOMEM;
@@ -2651,7 +2647,7 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (irq > 0) {
 		if (comedi_request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
-				c_Identifier, dev) < 0) {
+				ADDIDATA_DRIVER_NAME, dev) < 0) {
 			printk(", unable to allocate IRQ %u, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
