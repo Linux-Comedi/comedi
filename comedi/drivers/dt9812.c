@@ -685,8 +685,10 @@ static struct usb_driver dt9812_usb_driver = {
  * Comedi functions
  */
 
-static void dt9812_comedi_open(comedi_device * dev)
+static int dt9812_comedi_open(comedi_device * dev)
 {
+	int result = -ENODEV;
+
 	down(&devpriv->slot->mutex);
 	if (devpriv->slot->usb) {
 		// We have an attached device, fill in current range info
@@ -729,8 +731,10 @@ static void dt9812_comedi_open(comedi_device * dev)
 			}
 			break;
 		}
+		result = 0;
 	}
 	up(&devpriv->slot->mutex);
+	return result;
 }
 
 static int dt9812_di_rinsn(comedi_device * dev, comedi_subdevice * s,

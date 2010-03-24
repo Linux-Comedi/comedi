@@ -372,7 +372,7 @@ static int jr3_pci_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return result;
 }
 
-static void jr3_pci_open(comedi_device * dev)
+static int jr3_pci_open(comedi_device * dev)
 {
 	int i;
 	jr3_pci_dev_private *devpriv = dev->private;
@@ -387,6 +387,7 @@ static void jr3_pci_open(comedi_device * dev)
 				p->channel_no);
 		}
 	}
+	return 0;
 }
 
 int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
