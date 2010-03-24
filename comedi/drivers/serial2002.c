@@ -651,7 +651,7 @@ static int serial_2002_open(comedi_device * dev)
 			/* Failed to allocate maxdata_list or range_table_list
 			 * for a subdevice that needed it. */
 			result = -ENOMEM;
-			for ( ; i >= 0; i--) {
+			for (i = 0; i <= 4; i++) {
 				comedi_subdevice *s = &dev->subdevices[i];
 
 				kfree(s->maxdata_list);
