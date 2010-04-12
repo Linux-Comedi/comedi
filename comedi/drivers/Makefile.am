@@ -105,6 +105,7 @@ pci_modules2= \
  addi_apci_3501.ko \
  addi_apci_3xxx.ko \
  adl_pci6208.ko \
+ adl_pci7230.ko \
  adl_pci7296.ko \
  adl_pci7432.ko \
  adl_pci8164.ko \
