@@ -7,12 +7,12 @@
 */
 /*
 Driver: adv_pci_dio
-Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1736UP,
-             PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754,
-             PCI-1756, PCI-1762
+Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1735U,
+             PCI-1736UP, PCI-1750, PCI-1751, PCI-1752, PCI-1753/E,
+             PCI-1754, PCI-1756, PCI-1762
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
-  PCI-1734, PCI-1736UP, PCI-1750,
+  PCI-1734, PCI-1735U, PCI-1736UP, PCI-1750,
   PCI-1751, PCI-1752, PCI-1753,
   PCI-1753+PCI-1753E, PCI-1754, PCI-1756,
   PCI-1760, PCI-1762
@@ -35,6 +35,7 @@ Configuration options:
 
 #include "comedi_pci.h"
 #include "8255.h"
+#include "8253.h"
 
 #undef PCI_DIO_EXTDEBUG		/* if defined, enable extensive debug logging */
 
@@ -47,7 +48,7 @@ Configuration options:
 
 // hardware types of the cards
 typedef enum {
-	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1736,
+	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1735, TYPE_PCI1736,
 	TYPE_PCI1750,
 	TYPE_PCI1751,
 	TYPE_PCI1752,
@@ -65,7 +66,10 @@ typedef enum {
 #define MAX_DI_SUBDEVS	2	/* max number of DI subdevices per card */
 #define MAX_DO_SUBDEVS	2	/* max number of DO subdevices per card */
 #define MAX_DIO_SUBDEVG	2	/* max number of DIO subdevices group per card */
+#define MAX_8254_SUBDEVS   1	/* max number of 8254 counter subdevices per card */
+				/* (could be more than one 8254 per subdevice) */
 
+#define SIZE_8254	   4	/* 8254 IO space length */
 #define SIZE_8255	   4	/* 8255 IO space length */
 
 #define PCIDIO_MAINREG	   2	/* main I/O region for all Advantech cards? */
@@ -82,6 +86,12 @@ typedef enum {
 #define	PCI1730_3_INT_CLR	0x10	/* R/W: clear interrupts */
 #define PCI1734_IDO	   0	/* W:   Isolated digital output 0-31 */
 #define PCI173x_BOARDID	   4	/* R:   Board I/D switch for 1730/3/4 */
+
+// Advantech PCI-1735U
+#define PCI1735_DI	   0	/* R:   Digital input  0-31 */
+#define PCI1735_DO	   0	/* W:   Digital output 0-31 */
+#define PCI1735_C8254	   4	/* R/W: 8254 counter */
+#define PCI1735_BOARDID	   8    /* R:   Board I/D switch for 1735U */
 
 // Advantech PCI-1736UP
 #define PCI1736_IDI        0    /* R:   Isolated digital input  0-15 */
@@ -190,6 +200,7 @@ typedef struct {
 	int chans;		// num of chans
 	int addr;		// PCI address ofset
 	int regs;		// number of registers to read or 8255 subdevices
+				// or 8254 chips
 	unsigned int specflags;	// addon subdevice flags
 } diosubd_data;
 
@@ -203,6 +214,7 @@ typedef struct {
 	diosubd_data sdo[MAX_DO_SUBDEVS];	// DO chans
 	diosubd_data sdio[MAX_DIO_SUBDEVG];	// DIO 8255 chans
 	diosubd_data boardid;	// card supports board ID switch
+	diosubd_data s8254[MAX_8254_SUBDEVS];	// 8254 counter subdevices
 	hw_io_access io_access;	// {enum hw_io_access_enum}
 } boardtype;
 
@@ -210,6 +222,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1730, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1733, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1734, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_ADVANTECH, 0x1735, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1736, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1750, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1751, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -231,6 +244,7 @@ static const boardtype boardtypes[] = {
 			{{16, PCI1730_DO, 2, 0}, {16, PCI1730_IDO, 2, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI173x_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 			IO_8b,
 		},
 	{"pci1733", PCI_VENDOR_ID_ADVANTECH, 0x1733, PCIDIO_MAINREG,
@@ -239,6 +253,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI173x_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1734", PCI_VENDOR_ID_ADVANTECH, 0x1734, PCIDIO_MAINREG,
 			TYPE_PCI1734,
@@ -246,6 +261,15 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {32, PCI1734_IDO, 4, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI173x_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
+		IO_8b},
+	{"pci1735", PCI_VENDOR_ID_ADVANTECH, 0x1735, PCIDIO_MAINREG,
+			TYPE_PCI1735,
+			{{32, PCI1735_DI, 4, 0}, {0, 0, 0, 0}},
+			{{32, PCI1735_DO, 4, 0}, {0, 0, 0, 0}},
+			{{0, 0, 0, 0}, {0, 0, 0, 0}},
+			{ 4, PCI1735_BOARDID, 1, SDF_INTERNAL},
+			{{3, PCI1735_C8254, 1, 0}},
 		IO_8b},
 	{"pci1736", PCI_VENDOR_ID_ADVANTECH, 0x1736, PCI1736_MAINREG,
 			TYPE_PCI1736,
@@ -253,6 +277,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {16, PCI1736_IDO, 2, 0}},
 			{{ 0, 0, 0, 0}, { 0, 0, 0, 0}},
 			{ 4, PCI1736_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 			IO_8b,
         },
 	{"pci1750", PCI_VENDOR_ID_ADVANTECH, 0x1750, PCIDIO_MAINREG,
@@ -261,6 +286,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {16, PCI1750_IDO, 2, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1751", PCI_VENDOR_ID_ADVANTECH, 0x1751, PCIDIO_MAINREG,
 			TYPE_PCI1751,
@@ -268,6 +294,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{48, PCI1751_DIO, 2, 0}, {0, 0, 0, 0}},
 			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1752", PCI_VENDOR_ID_ADVANTECH, 0x1752, PCIDIO_MAINREG,
 			TYPE_PCI1752,
@@ -275,6 +302,7 @@ static const boardtype boardtypes[] = {
 			{{32, PCI1752_IDO, 2, 0}, {32, PCI1752_IDO2, 2, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI175x_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 		IO_16b},
 	{"pci1753", PCI_VENDOR_ID_ADVANTECH, 0x1753, PCIDIO_MAINREG,
 			TYPE_PCI1753,
@@ -282,6 +310,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{96, PCI1753_DIO, 4, 0}, {0, 0, 0, 0}},
 			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1753e", PCI_VENDOR_ID_ADVANTECH, 0x1753, PCIDIO_MAINREG,
 			TYPE_PCI1753E,
@@ -289,6 +318,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{96, PCI1753_DIO, 4, 0}, {96, PCI1753E_DIO, 4, 0}},
 			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1754", PCI_VENDOR_ID_ADVANTECH, 0x1754, PCIDIO_MAINREG,
 			TYPE_PCI1754,
@@ -296,6 +326,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI175x_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 		IO_16b},
 	{"pci1756", PCI_VENDOR_ID_ADVANTECH, 0x1756, PCIDIO_MAINREG,
 			TYPE_PCI1756,
@@ -303,6 +334,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {32, PCI1756_IDO, 2, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI175x_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 		IO_16b},
 	{"pci1760", PCI_VENDOR_ID_ADVANTECH, 0x1760, 0,
 			TYPE_PCI1760,
@@ -310,6 +342,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
 		IO_8b},
 	{"pci1762", PCI_VENDOR_ID_ADVANTECH, 0x1762, PCIDIO_MAINREG,
 			TYPE_PCI1762,
@@ -317,6 +350,7 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}, {16, PCI1762_RO, 1, 0}},
 			{{0, 0, 0, 0}, {0, 0, 0, 0}},
 			{4, PCI1762_BOARDID, 1, SDF_INTERNAL},
+			{{0, 0, 0, 0}},
 		IO_16b}
 };
 
@@ -427,6 +461,71 @@ static int pci_dio_insn_bits_do_w(comedi_device * dev, comedi_subdevice * s,
 	data[1] = s->state;
 
 	return 2;
+}
+
+/*
+==============================================================================
+*/
+static int pci_8254_insn_read(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	const diosubd_data *d = (const diosubd_data *)s->private;
+	unsigned int chan, chip, chipchan;
+
+	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
+	chip = chan / 3;		/* chip on subdevice */
+	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
+	data[0] = i8254_read(dev->iobase + d->addr + (SIZE_8254 * chip),
+			0, chipchan);
+	return 1;
+}
+
+/*
+==============================================================================
+*/
+static int pci_8254_insn_write(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	const diosubd_data *d = (const diosubd_data *)s->private;
+	unsigned int chan, chip, chipchan;
+
+	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
+	chip = chan / 3;		/* chip on subdevice */
+	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
+	i8254_write(dev->iobase + d->addr + (SIZE_8254 * chip),
+			0, chipchan, data[0]);
+	return 1;
+}
+
+/*
+==============================================================================
+*/
+static int pci_8254_insn_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	const diosubd_data *d = (const diosubd_data *)s->private;
+	unsigned int chan, chip, chipchan;
+	unsigned long iobase;
+	int ret;
+
+	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
+	chip = chan / 3;		/* chip on subdevice */
+	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
+	iobase = dev->iobase + d->addr + (SIZE_8254 * chip);
+	switch (data[0]) {
+	case INSN_CONFIG_SET_COUNTER_MODE:
+		ret = i8254_set_mode(iobase, 0, chipchan, data[1]);
+		if (ret < 0)
+			return -EINVAL;
+		break;
+	case INSN_CONFIG_8254_READ_STATUS:
+		data[1] = i8254_status(iobase, 0, chipchan);
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	return insn->n;
 }
 
 /*
@@ -689,6 +788,15 @@ static int pci_dio_reset(comedi_device * dev)
 		outb(0, dev->iobase + PCI1734_IDO + 2);
 		outb(0, dev->iobase + PCI1734_IDO + 3);
 		break;
+	case TYPE_PCI1735:
+		outb(0, dev->iobase + PCI1735_DO);	// clear outputs
+		outb(0, dev->iobase + PCI1735_DO + 1);
+		outb(0, dev->iobase + PCI1735_DO + 2);
+		outb(0, dev->iobase + PCI1735_DO + 3);
+		i8254_set_mode(dev->iobase + PCI1735_C8254, 0, 0, I8254_MODE0);
+		i8254_set_mode(dev->iobase + PCI1735_C8254, 0, 1, I8254_MODE0);
+		i8254_set_mode(dev->iobase + PCI1735_C8254, 0, 2, I8254_MODE0);
+		break;
 
 	case TYPE_PCI1736:
 		outb(0, dev->iobase+PCI1736_IDO);
@@ -857,6 +965,25 @@ static int pci_dio_add_do(comedi_device * dev, comedi_subdevice * s,
 /*
 ==============================================================================
 */
+static int pci_dio_add_8254(comedi_device * dev, comedi_subdevice * s,
+	const diosubd_data * d, int subdev)
+{
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = d->chans;
+	s->maxdata = 65535;
+	s->len_chanlist = d->chans;
+	s->insn_read = pci_8254_insn_read;
+	s->insn_write = pci_8254_insn_write;
+	s->insn_config = pci_8254_insn_config;
+	s->private = (void *)d;
+
+	return 0;
+}
+
+/*
+==============================================================================
+*/
 static int CheckAndAllocCard(comedi_device * dev, comedi_devconfig * it,
 	struct pci_dev *pcidev)
 {
@@ -957,6 +1084,9 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 			n_subdevices += this_board->sdio[i].regs;
 		if (this_board->boardid.chans)
 			n_subdevices++;
+		for (i = 0; i < MAX_8254_SUBDEVS; i++)
+			if (this_board->s8254[i].chans)
+				n_subdevices++;
 	}
 
 	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
@@ -997,6 +1127,13 @@ static int pci_dio_attach(comedi_device * dev, comedi_devconfig * it)
 		pci_dio_add_di(dev, s, &this_board->boardid, subdev);
 		subdev++;
 	}
+
+	for (i = 0; i < MAX_8254_SUBDEVS; i++)
+		if (this_board->s8254[i].chans) {
+			s = dev->subdevices + subdev;
+			pci_dio_add_8254(dev, s, &this_board->s8254[i], subdev);
+			subdev++;
+		}
 
 	if (this_board->cardtype == TYPE_PCI1760)
 		pci1760_attach(dev, it);
@@ -1039,6 +1176,16 @@ static int pci_dio_detach(comedi_device * dev)
 			for (j = 0; j < this_board->sdio[i].regs; j++) {
 				s = dev->subdevices + subdev;
 				subdev_8255_cleanup(dev, s);
+				subdev++;
+			}
+		}
+
+		if (this_board->boardid.chans) {
+			subdev++;
+		}
+
+		for (i = 0; i < MAX_8254_SUBDEVS; i++) {
+			if (this_board->s8254[i].chans) {
 				subdev++;
 			}
 		}
