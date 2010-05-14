@@ -1580,6 +1580,19 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
+		if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+			if (count == 0) {
+				if (comedi_get_subdevice_runflags(s) &
+					SRF_ERROR) {
+					retval = -EPIPE;
+				} else {
+					retval = 0;
+				}
+				do_become_nonbusy(dev, s);
+			}
+			break;
+		}
+
 		n = nbytes;
 
 		m = n;
@@ -1594,16 +1607,6 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 			n = m;
 
 		if (n == 0) {
-			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
-				if (comedi_get_subdevice_runflags(s) &
-					SRF_ERROR) {
-					retval = -EPIPE;
-				} else {
-					retval = 0;
-				}
-				do_become_nonbusy(dev, s);
-				break;
-			}
 			if (file->f_flags & O_NONBLOCK) {
 				retval = -EAGAIN;
 				break;
