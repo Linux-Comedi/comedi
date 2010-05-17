@@ -76,7 +76,7 @@ static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo * arg,
 static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo * arg,
 	void *file);
 static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg);
-static int do_bufinfo_ioctl(comedi_device * dev, void *arg);
+static int do_bufinfo_ioctl(comedi_device * dev, void *arg, void *file);
 static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file);
 static int do_lock_ioctl(comedi_device * dev, unsigned int arg, void *file);
 static int do_unlock_ioctl(comedi_device * dev, unsigned int arg, void *file);
@@ -193,7 +193,7 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 		rc = do_rangeinfo_ioctl(dev, (void *)arg);
 		break;
 	case COMEDI_BUFINFO:
-		rc = do_bufinfo_ioctl(dev, (void *)arg);
+		rc = do_bufinfo_ioctl(dev, (void *)arg, file);
 		break;
 	case COMEDI_LOCK:
 		rc = do_lock_ioctl(dev, arg, file);
@@ -573,7 +573,7 @@ static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg)
     modified bufinfo at arg
 
   */
-static int do_bufinfo_ioctl(comedi_device * dev, void *arg)
+static int do_bufinfo_ioctl(comedi_device * dev, void *arg, void *file)
 {
 	comedi_bufinfo bi;
 	comedi_subdevice *s;
@@ -586,8 +586,11 @@ static int do_bufinfo_ioctl(comedi_device * dev, void *arg)
 		return -EINVAL;
 
 	s = dev->subdevices + bi.subdevice;
-	async = s->async;
 
+	if (s->lock && s->lock != file)
+		return -EACCES;
+
+	async = s->async;
 	if (!async) {
 		DPRINTK("subdevice does not have async capability\n");
 		bi.buf_write_ptr = 0;
@@ -598,6 +601,13 @@ static int do_bufinfo_ioctl(comedi_device * dev, void *arg)
 		bi.bytes_written = 0;
 		goto copyback;
 	}
+	if (!s->busy) {
+		bi.bytes_read = 0;
+		bi.bytes_written = 0;
+		goto copyback;
+	}
+	if (s->busy != file)
+		return -EACCES;
 
 	if (bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)) {
 		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
