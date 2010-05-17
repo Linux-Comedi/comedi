@@ -594,6 +594,8 @@ static int do_bufinfo_ioctl(comedi_device * dev, void *arg)
 		bi.buf_read_ptr = 0;
 		bi.buf_write_count = 0;
 		bi.buf_read_count = 0;
+		bi.bytes_read = 0;
+		bi.bytes_written = 0;
 		goto copyback;
 	}
 
