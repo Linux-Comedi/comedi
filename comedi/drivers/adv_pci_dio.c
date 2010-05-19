@@ -17,7 +17,7 @@ Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
   PCI-1753+PCI-1753E, PCI-1754, PCI-1756,
   PCI-1760, PCI-1762
 Status: untested
-Updated: Mon, 14 Apr 2008 10:43:08 +0100
+Updated: Tue, 04 May 2010 13:00:00 +0000
 
 This driver supports now only insn interface for DI/DO/DIO.
 
