@@ -578,6 +578,7 @@ static int do_bufinfo_ioctl(comedi_device * dev, void *arg, void *file)
 	comedi_bufinfo bi;
 	comedi_subdevice *s;
 	comedi_async *async;
+	int retval = 0;
 
 	if (copy_from_user(&bi, arg, sizeof(comedi_bufinfo)))
 		return -EFAULT;
@@ -604,28 +605,52 @@ static int do_bufinfo_ioctl(comedi_device * dev, void *arg, void *file)
 	if (!s->busy) {
 		bi.bytes_read = 0;
 		bi.bytes_written = 0;
-		goto copyback;
+		goto copyback_position;
 	}
 	if (s->busy != file)
 		return -EACCES;
 
-	if (bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)) {
-		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
-		comedi_buf_read_free(async, bi.bytes_read);
-
-		if (!(comedi_get_subdevice_runflags(s) & (SRF_ERROR |
-					SRF_RUNNING))
-			&& async->buf_write_count == async->buf_read_count) {
-			do_become_nonbusy(dev, s);
+	if ((s->subdev_flags & SDF_CMD_READ) != 0) {
+		if (bi.bytes_read) {
+			bi.bytes_read = comedi_buf_read_alloc(async,
+					bi.bytes_read);
+			comedi_buf_read_free(async, bi.bytes_read);
+		}
+		if (async->buf_write_count == async->buf_read_count) {
+			if (!(comedi_get_subdevice_runflags(s) & (SRF_RUNNING
+							| SRF_ERROR))) {
+				do_become_nonbusy(dev, s);
+			}
+			if (bi.bytes_read == 0) {
+				if ((comedi_get_subdevice_runflags(s)
+						& (SRF_RUNNING | SRF_ERROR))
+						== SRF_ERROR) {
+					retval = -EPIPE;
+				}
+			}
 		}
 	}
 
-	if (bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)) {
-		bi.bytes_written =
-			comedi_buf_write_alloc(async, bi.bytes_written);
-		comedi_buf_write_free(async, bi.bytes_written);
+	if ((s->subdev_flags & SDF_CMD_WRITE) != 0) {
+		if (bi.bytes_written) {
+			bi.bytes_written = comedi_buf_write_alloc(async,
+					bi.bytes_written);
+			comedi_buf_write_free(async, bi.bytes_written);
+		}
+		if (bi.bytes_written == 0) {
+			if (!(comedi_get_subdevice_runflags(s) & SRF_RUNNING)) {
+				if ((comedi_get_subdevice_runflags(s)
+						& SRF_ERROR) != 0) {
+					retval = -EPIPE;
+				}
+			}
+		}
 	}
 
+	if (retval)
+		return retval;
+
+      copyback_position:
 	bi.buf_write_count = async->buf_write_count;
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
