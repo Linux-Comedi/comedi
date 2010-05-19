@@ -471,12 +471,15 @@ static int pci_8254_insn_read(comedi_device * dev, comedi_subdevice * s,
 {
 	const diosubd_data *d = (const diosubd_data *)s->private;
 	unsigned int chan, chip, chipchan;
+	unsigned long flags;
 
 	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
 	chip = chan / 3;		/* chip on subdevice */
 	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 	data[0] = i8254_read(dev->iobase + d->addr + (SIZE_8254 * chip),
 			0, chipchan);
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 	return 1;
 }
 
@@ -488,12 +491,15 @@ static int pci_8254_insn_write(comedi_device * dev, comedi_subdevice * s,
 {
 	const diosubd_data *d = (const diosubd_data *)s->private;
 	unsigned int chan, chip, chipchan;
+	unsigned long flags;
 
 	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
 	chip = chan / 3;		/* chip on subdevice */
 	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 	i8254_write(dev->iobase + d->addr + (SIZE_8254 * chip),
 			0, chipchan, data[0]);
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
 	return 1;
 }
 
@@ -506,26 +512,29 @@ static int pci_8254_insn_config(comedi_device * dev, comedi_subdevice * s,
 	const diosubd_data *d = (const diosubd_data *)s->private;
 	unsigned int chan, chip, chipchan;
 	unsigned long iobase;
-	int ret;
+	int ret = 0;
+	unsigned long flags;
 
 	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
 	chip = chan / 3;		/* chip on subdevice */
 	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
 	iobase = dev->iobase + d->addr + (SIZE_8254 * chip);
+	comedi_spin_lock_irqsave(&s->spin_lock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		ret = i8254_set_mode(iobase, 0, chipchan, data[1]);
 		if (ret < 0)
-			return -EINVAL;
+			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
 		data[1] = i8254_status(iobase, 0, chipchan);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
-	return insn->n;
+	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
+	return ret < 0 ? ret : insn->n;
 }
 
 /*
