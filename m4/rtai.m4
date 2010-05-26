@@ -13,14 +13,14 @@ AC_DEFUN([DS_RTAI],
 	
 	if test "${ENABLE_RTAI}" = "yes" -a \( "${CONFIG_RTHAL}" != "no" -o "${CONFIG_ADEOS}" != "no" -o "${CONFIG_IPIPE}" != "no" \); then
 		AC_MSG_CHECKING([RTAI directory ${RTAI_DIR}])
-		if [[ -d ${RTAI_DIR}/include ]] ; then
+		if [[ -d ${RTAI_DIR}/include/rtai ]] ; then # for Debian
+			RTAI_CFLAGS="-I${RTAI_DIR}/include/rtai"
+		elif [[ -d ${RTAI_DIR}/include ]] ; then
 			RTAI_CFLAGS="-I${RTAI_DIR}/include"
+		elif [[ -d ${RTAI_DIR}/rtai-core/include ]] ; then
+			RTAI_CFLAGS=" -I${RTAI_DIR} -I${RTAI_DIR}/rtai-core/include"
 		else
-			if [[ -d ${RTAI_DIR}/rtai-core/include ]] ; then
-				RTAI_CFLAGS=" -I${RTAI_DIR} -I${RTAI_DIR}/rtai-core/include"
-			else
-				AC_MSG_ERROR([incorrect RTAI directory?])
-			fi
+			AC_MSG_ERROR([incorrect RTAI directory?])
 		fi
 		$1
 		AC_MSG_RESULT([found])
