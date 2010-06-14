@@ -14,9 +14,13 @@ if(!open(FILE,$ARGV)){
 
 my $nothing_found = 1;
 my $go=0;
+my $strip=0;
 while(<FILE>) {
-	if( m/^Driver: / ){
+	if( m/^( ?\* ?)?Driver: / ){
 		$go=1;
+		if( m/^ ?\*/ ){
+			$strip=1;
+		}
 	}
 	if( m/\*\// ){
 		if($go){
@@ -26,6 +30,9 @@ while(<FILE>) {
 	}
 	if( $go ){
 		#chomp;
+		if( $strip ){
+			s/^ ?\* ?//;
+		}
 		print $_;
 		$nothing_found = 0;
 	}
