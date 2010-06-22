@@ -786,6 +786,23 @@ AC_DEFUN([COMEDI_CHECK_PCMCIA_PROBE],
 	fi
 ])
 
+# COMEDI_CHECK_PCMCIA_LOOP_TUPLE([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is new enough to have the pcmcia_loop_tuple
+# function.
+AC_DEFUN([COMEDI_CHECK_PCMCIA_LOOP_TUPLE],
+[
+	AC_MSG_CHECKING([$1 for pcmcia_loop_tuple function])
+	if [grep -q 'int[[:space:]]\+pcmcia_loop_tuple[[:space:]]*(' "$1/include/pcmcia/ds.h"] 2>/dev/null ; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
 # COMEDI_CHECK_HAVE_MUTEX_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 # -------------------------------------------------------------
 #

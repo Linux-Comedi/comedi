@@ -262,8 +262,19 @@ static int daqp_ai_cancel(comedi_device * dev, comedi_subdevice * s)
  * comedi kernel module, and signal various comedi callback routines,
  * which run pretty quick.
  */
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+typedef irqreturn_t my_irqreturn_t;
+#define MY_IRQ_NONE	IRQ_NONE
+#define MY_IRQ_HANDLED	IRQ_HANDLED
+#define MY_IRQ_RETVAL(x) IRQ_RETVAL(x)
+#else
+typedef void my_irqreturn_t;
+#define MY_IRQ_NONE
+#define MY_IRQ_HANDLED
+#define MY_IRQ_RETVAL(x) ((void)(x))
+#endif
 
-static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
+static my_irqreturn_t daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 {
 	local_info_t *local = (local_info_t *) dev_id;
 	comedi_device *dev;
@@ -274,32 +285,32 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 	if (local == NULL) {
 		printk(KERN_WARNING
 			"daqp_interrupt(): irq %d for unknown device.\n", irq);
-		return;
+		return MY_IRQ_NONE;
 	}
 
 	dev = local->dev;
 	if (dev == NULL) {
 		printk(KERN_WARNING "daqp_interrupt(): NULL comedi_device.\n");
-		return;
+		return MY_IRQ_NONE;
 	}
 
 	if (!dev->attached) {
 		printk(KERN_WARNING
 			"daqp_interrupt(): comedi_device not yet attached.\n");
-		return;
+		return MY_IRQ_NONE;
 	}
 
 	s = local->s;
 	if (s == NULL) {
 		printk(KERN_WARNING
 			"daqp_interrupt(): NULL comedi_subdevice.\n");
-		return;
+		return MY_IRQ_NONE;
 	}
 
 	if ((local_info_t *) s->private != local) {
 		printk(KERN_WARNING
 			"daqp_interrupt(): invalid comedi_subdevice.\n");
-		return;
+		return MY_IRQ_NONE;
 	}
 
 	switch (local->interrupt_mode) {
@@ -358,6 +369,7 @@ static void daqp_interrupt(int irq, void *dev_id PT_REGS_ARG)
 
 		comedi_event(dev, s);
 	}
+	return MY_IRQ_HANDLED;
 }
 
 /* One-shot analog data acquisition routine */
@@ -861,8 +873,10 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 {
 	int ret;
 	local_info_t *local = dev_table[it->options[0]];
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	int i;
+#endif
 	comedi_subdevice *s;
 
 	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
@@ -882,6 +896,14 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 	strcpy(local->board_name, "DAQP");
 	dev->board_name = local->board_name;
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	if (local->link->prod_id[2]) {
+		if (strncmp(local->link->prod_id[2], "DAQP", 4) == 0) {
+			strncpy(local->board_name, local->link->prod_id[2],
+				sizeof(local->board_name));
+		}
+	}
+#else
 	tuple.DesiredTuple = CISTPL_VERS_1;
 	if (pcmcia_get_first_tuple(local->link, &tuple) == 0) {
 		u_char buf[128];
@@ -906,6 +928,7 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 			}
 		}
 	}
+#endif
 
 	dev->iobase = local->link->io.BasePort1;
 
@@ -1076,10 +1099,14 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+#endif
 	link->irq.Handler = daqp_interrupt;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.Instance = local;
+#endif
 
 	/*
 	   General socket configuration defaults can go here.  In this
@@ -1131,16 +1158,64 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	/* Do we need to allocate an interrupt? */
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+	}
+
+	/* This reserves IO space but doesn't actually enable it */
+	return pcmcia_request_io(p_dev, &p_dev->io);
+}
+#endif
+
 static void daqp_cs_config(struct pcmcia_device *link)
 {
 	local_info_t *dev = link->priv;
+	int last_ret;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
-	int last_ret;
+	int last_fn;
 	u_char buf[64];
+#endif
 
 	DEBUG(0, "daqp_cs_config(0x%p)\n", link);
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	last_ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
+	if (last_ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		goto cs_failed;
+	}
+#else
 	/*
 	   This reads the card's CONFIG tuple to find its configuration
 	   registers.
@@ -1150,16 +1225,16 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
+	last_fn = GetFirstTuple;
 	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
-		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
+	last_fn = GetTupleData;
 	if ((last_ret = pcmcia_get_tuple_data(link, &tuple))) {
-		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
+	last_fn = ParseTuple;
 	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse))) {
-		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
 	link->conf.ConfigBase = parse.config.base;
@@ -1178,8 +1253,8 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   will only use the CIS to fill in implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	last_fn = GetFirstTuple;
 	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
-		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
 	while (1) {
@@ -1227,11 +1302,12 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		break;
 
 	      next_entry:
+		last_fn = GetNextTuple;
 		if ((last_ret = pcmcia_get_next_tuple(link, &tuple))) {
-			cs_error(link, GetNextTuple, last_ret);
 			goto cs_failed;
 		}
 	}
+#endif
 
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
@@ -1239,8 +1315,10 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+		last_fn = RequestIRQ;
+#endif
 		if ((last_ret = pcmcia_request_irq(link, &link->irq))) {
-			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
 
@@ -1249,8 +1327,10 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	last_fn = RequestConfiguration;
+#endif
 	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
-		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
 
@@ -1282,6 +1362,9 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	return;
 
       cs_failed:
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	cs_error(link, last_fn, last_ret);
+#endif
 	daqp_cs_release(link);
 
 }				/* daqp_cs_config */

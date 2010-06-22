@@ -513,8 +513,10 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+#endif
 	link->irq.Handler = NULL;
 
 	/*
@@ -569,21 +571,98 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	win_req_t *req = priv_data;
+	memreq_t map;
+
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	/* Does this card need audio output? */
+	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
+		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->conf.Status = CCSR_AUDIO_ENA;
+	}
+
+	/* Do we need to allocate an interrupt? */
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+			return -ENODEV;
+	}
+
+	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
+		cistpl_mem_t *mem =
+			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
+		req->Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
+		req->Attributes |= WIN_ENABLE;
+		req->Base = mem->win[0].host_addr;
+		req->Size = mem->win[0].len;
+		if (req->Size < 0x1000)
+			req->Size = 0x1000;
+		req->AccessSpeed = 0;
+		if (pcmcia_request_window(p_dev, req, &p_dev->win))
+			return -ENODEV;
+		map.Page = 0;
+		map.CardOffset = mem->win[0].card_addr;
+		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
+			return -ENODEV;
+	}
+	/* If we got this far, we're cool! */
+	return 0;
+}
+#endif
+
 static void dio700_config(struct pcmcia_device *link)
 {
 	local_info_t *dev = link->priv;
+	int last_ret;
+	win_req_t req;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
-	int last_ret;
+	int last_fn;
 	u_char buf[64];
-	win_req_t req;
 	memreq_t map;
 	cistpl_cftable_entry_t dflt = { 0 };
+#endif
 
 	printk(KERN_INFO "ni_daq_700:  cs-config\n");
 
 	DEBUG(0, "dio700_config(0x%p)\n", link);
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	last_ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, &req);
+	if (last_ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		goto cs_failed;
+	}
+#else
 	/*
 	   This reads the card's CONFIG tuple to find its configuration
 	   registers.
@@ -593,16 +672,16 @@ static void dio700_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
+	last_fn = GetFirstTuple;
 	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) {
-		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
+	last_fn = GetTupleData;
 	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0) {
-		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
+	last_fn = ParseTuple;
 	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0) {
-		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
 	link->conf.ConfigBase = parse.config.base;
@@ -621,8 +700,8 @@ static void dio700_config(struct pcmcia_device *link)
 	   will only use the CIS to fill in implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	last_fn = GetFirstTuple;
 	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0) {
-		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
 	while (1) {
@@ -691,11 +770,12 @@ static void dio700_config(struct pcmcia_device *link)
 		break;
 
 	      next_entry:
+		last_fn = GetNextTuple;
 		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0) {
-			cs_error(link, GetNextTuple, last_ret);
 			goto cs_failed;
 		}
 	}
+#endif
 
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
@@ -703,8 +783,10 @@ static void dio700_config(struct pcmcia_device *link)
 	   irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+		last_fn = RequestIRQ;
+#endif
 		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0) {
-			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
 
@@ -713,8 +795,10 @@ static void dio700_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	last_fn = RequestConfiguration;
+#endif
 	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0) {
-		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
 
@@ -745,6 +829,9 @@ static void dio700_config(struct pcmcia_device *link)
 	return;
 
       cs_failed:
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	cs_error(link, last_fn, last_ret);
+#endif
 	printk(KERN_INFO "ni_daq_700 cs failed");
 	dio700_release(link);
 

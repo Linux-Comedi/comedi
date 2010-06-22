@@ -127,6 +127,7 @@ static int das16cs_timer_insn_read(comedi_device * dev, comedi_subdevice * s,
 static int das16cs_timer_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
@@ -145,6 +146,7 @@ static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 
 	return prodid;
 }
+#endif
 
 static const das16cs_board *das16cs_probe(comedi_device * dev,
 	struct pcmcia_device *link)
@@ -152,7 +154,11 @@ static const das16cs_board *das16cs_probe(comedi_device * dev,
 	int id;
 	int i;
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	id = link->card_id;
+#else
 	id = get_prodid(dev, link);
+#endif
 
 	for (i = 0; i < n_boards; i++) {
 		if (das16cs_boards[i].device_id == id) {
@@ -719,8 +725,10 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 
 	/* Initialize the pcmcia_device structure */
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+#endif
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;
@@ -746,17 +754,66 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 		kfree(link->priv);
 }				/* das16cs_pcmcia_detach */
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	if (cfg->index == 0)
+		return -EINVAL;
+
+	/* Do we need to allocate an interrupt? */
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+		/* This reserves IO space but doesn't actually enable it */
+		return pcmcia_request_io(p_dev, &p_dev->io);
+	}
+
+	return 0;
+}
+#endif
+
 static void das16cs_pcmcia_config(struct pcmcia_device *link)
 {
 	local_info_t *dev = link->priv;
+	int last_ret;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
-	int last_fn, last_ret;
+	int last_fn;
 	u_char buf[64];
 	cistpl_cftable_entry_t dflt = { 0 };
+#endif
 
 	DEBUG(0, "das16cs_pcmcia_config(0x%p)\n", link);
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	last_ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
+	if (last_ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		goto cs_failed;
+	}
+#else
 	/*
 	   This reads the card's CONFIG tuple to find its configuration
 	   registers.
@@ -847,6 +904,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0)
 			goto cs_failed;
 	}
+#endif
 
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
@@ -854,7 +912,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	   irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;
+#endif
 		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
 			goto cs_failed;
 	}
@@ -863,7 +923,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
+#endif
 	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
 		goto cs_failed;
 
@@ -891,7 +953,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	return;
 
       cs_failed:
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	cs_error(link, last_fn, last_ret);
+#endif
 	das16cs_pcmcia_release(link);
 }				/* das16cs_pcmcia_config */
 

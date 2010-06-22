@@ -110,6 +110,12 @@ else
 fi
 AM_CONDITIONAL([CONFIG_COMEDI_PCMCIA],[test "$USE_PCMCIA" = "yes"])
 
+COMEDI_CHECK_PCMCIA_LOOP_TUPLE([$LINUX_SRC_DIR],
+      [HAVE_PCMCIA_LOOP_TUPLE="yes"], [HAVE_PCMCIA_LOOP_TUPLE="no"])
+if test "$HAVE_PCMCIA_LOOP_TUPLE" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE],[true],[Define if Linux kernel source has pcmcia_loop_tuple function])
+fi
+
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
 AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
 AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],

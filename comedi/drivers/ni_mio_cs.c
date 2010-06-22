@@ -269,8 +269,10 @@ static int cs_attach(struct pcmcia_device *link)
 {
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+#endif
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -308,16 +310,48 @@ static int mio_cs_resume(struct pcmcia_device *link)
 	return 0;
 }
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	int base, ret;
+
+	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->io.NumPorts2 = 0;
+
+	for (base = 0x000; base < 0x400; base += 0x20) {
+		p_dev->io.BasePort1 = base;
+		ret = pcmcia_request_io(p_dev, &p_dev->io);
+		if (!ret)
+			return 0;
+	}
+	return -ENODEV;
+}
+#endif
+
 static void mio_cs_config(struct pcmcia_device *link)
 {
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	u_short buf[128];
 	cisparse_t parse;
 	int manfid = 0, prodid = 0;
+#endif
 	int ret;
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
+	if (ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		return;
+	}
+#else
 	tuple.TupleData = (cisdata_t *) buf;
 	tuple.TupleOffset = 0;
 	tuple.TupleDataMax = 255;
@@ -388,13 +422,16 @@ static void mio_cs_config(struct pcmcia_device *link)
 
 	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2 = parse.cftable_entry.irq.IRQInfo2;
+#endif
 	ret = pcmcia_request_irq(link, &link->irq);
 	if (ret) {
 		printk("pcmcia_request_irq() returned error: %i\n", ret);
 	}
 	//printk("RequestIRQ 0x%02x\n",ret);
 
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->conf.ConfigIndex = 1;
+#endif
 
 	ret = pcmcia_request_configuration(link, &link->conf);
 	//printk("RequestConfiguration %d\n",ret);
@@ -467,6 +504,7 @@ static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
 	return 0;
 }
 
+#ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
@@ -485,13 +523,18 @@ static int get_prodid(comedi_device * dev, struct pcmcia_device *link)
 
 	return prodid;
 }
+#endif
 
 static int ni_getboardtype(comedi_device * dev, struct pcmcia_device *link)
 {
 	int id;
 	int i;
 
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+	id = link->card_id;
+#else
 	id = get_prodid(dev, link);
+#endif
 
 	for (i = 0; i < n_ni_boards; i++) {
 		if (ni_boards[i].device_id == id) {
