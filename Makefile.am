@@ -3,6 +3,7 @@ SUBDIRS = comedi include
 
 EXTRA_DIST = autogen.sh \
 	AUTHORS \
+	dkms.conf \
 	m4/as-linux.m4 \
 	m4/as-modtool.m4 \
 	m4/rtai.m4 \
