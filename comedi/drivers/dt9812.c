@@ -60,7 +60,7 @@ for my needs.
 
 #define DT9812_NUM_SLOTS 16
 
-static DECLARE_MUTEX(dt9812_mutex);
+static DEFINE_MUTEX(dt9812_mutex);
 
 static struct usb_device_id dt9812_table[] = {
 	{USB_DEVICE(0x0867, 0x9812)},
@@ -92,7 +92,7 @@ typedef struct comedi_dt9812 {
 } comedi_dt9812_t;
 
 typedef struct slot_dt9812 {
-	struct semaphore mutex;
+	struct mutex mutex;
 	u32 serial;
 	usb_dt9812_t *usb;
 	comedi_dt9812_t *comedi;
@@ -217,7 +217,7 @@ static int dt9812_digital_in(slot_dt9812_t * slot, u8 * bits)
 {
 	int result = -ENODEV;
 
-	down(&slot->mutex);
+	mutex_lock(&slot->mutex);
 	if (slot->usb) {
 		u8 reg[2] = { F020_SFR_P3, F020_SFR_P1 };
 		u8 value[2];
@@ -231,7 +231,7 @@ static int dt9812_digital_in(slot_dt9812_t * slot, u8 * bits)
 //    printk("%2.2x, %2.2x -> %2.2x\n", value[0], value[1], *bits);
 		}
 	}
-	up(&slot->mutex);
+	mutex_unlock(&slot->mutex);
 
 	return result;
 }
@@ -240,7 +240,7 @@ static int dt9812_digital_out(slot_dt9812_t * slot, u8 bits)
 {
 	int result = -ENODEV;
 
-	down(&slot->mutex);
+	mutex_lock(&slot->mutex);
 	if (slot->usb) {
 		u8 reg[1];
 		u8 value[1];
@@ -251,7 +251,7 @@ static int dt9812_digital_out(slot_dt9812_t * slot, u8 bits)
 			value);
 		slot->usb->digital_out_shadow = bits;
 	}
-	up(&slot->mutex);
+	mutex_unlock(&slot->mutex);
 	return result;
 }
 
@@ -259,12 +259,12 @@ static int dt9812_digital_out_shadow(slot_dt9812_t * slot, u8 * bits)
 {
 	int result = -ENODEV;
 
-	down(&slot->mutex);
+	mutex_lock(&slot->mutex);
 	if (slot->usb) {
 		*bits = slot->usb->digital_out_shadow;
 		result = 0;
 	}
-	up(&slot->mutex);
+	mutex_unlock(&slot->mutex);
 	return result;
 }
 
@@ -340,7 +340,7 @@ static int dt9812_analog_in(slot_dt9812_t * slot,
 {
 	int result = -ENODEV;
 
-	down(&slot->mutex);
+	mutex_lock(&slot->mutex);
 	if (slot->usb) {
 		dt9812_rmw_byte_t rmw[3];
 
@@ -395,7 +395,7 @@ static int dt9812_analog_in(slot_dt9812_t * slot,
 			}
 		}
 	}
-	up(&slot->mutex);
+	mutex_unlock(&slot->mutex);
 	return result;
 }
 
@@ -404,12 +404,12 @@ static int dt9812_analog_out_shadow(slot_dt9812_t * slot, int channel,
 {
 	int result = -ENODEV;
 
-	down(&slot->mutex);
+	mutex_lock(&slot->mutex);
 	if (slot->usb) {
 		*value = slot->usb->analog_out_shadow[channel];
 		result = 0;
 	}
-	up(&slot->mutex);
+	mutex_unlock(&slot->mutex);
 
 	return result;
 }
@@ -418,7 +418,7 @@ static int dt9812_analog_out(slot_dt9812_t * slot, int channel, u16 value)
 {
 	int result = -ENODEV;
 
-	down(&slot->mutex);
+	mutex_lock(&slot->mutex);
 	if (slot->usb) {
 		dt9812_rmw_byte_t rmw[3];
 
@@ -461,7 +461,7 @@ static int dt9812_analog_out(slot_dt9812_t * slot, int channel, u16 value)
 		result = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
 		slot->usb->analog_out_shadow[channel] = value;
 	}
-	up(&slot->mutex);
+	mutex_unlock(&slot->mutex);
 
 	return result;
 }
@@ -612,7 +612,7 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		dev->vendor, dev->product, dev->device, dev->serial);
 
-	down(&dt9812_mutex);
+	mutex_lock(&dt9812_mutex);
 	{
 		// Find a slot for the USB device
 		slot_dt9812_t *first = NULL;
@@ -632,13 +632,13 @@ static int dt9812_probe(struct usb_interface *interface,
 		}
 
 		if (best) {
-			down(&best->mutex);
+			mutex_lock(&best->mutex);
 			best->usb = dev;
 			dev->slot = best;
-			up(&best->mutex);
+			mutex_unlock(&best->mutex);
 		}
 	}
-	up(&dt9812_mutex);
+	mutex_unlock(&dt9812_mutex);
 
 	return 0;
 
@@ -654,16 +654,16 @@ static void dt9812_disconnect(struct usb_interface *interface)
 	usb_dt9812_t *dev;
 	int minor = interface->minor;
 
-	down(&dt9812_mutex);
+	mutex_lock(&dt9812_mutex);
 	dev = usb_get_intfdata(interface);
 	if (dev->slot) {
-		down(&dev->slot->mutex);
+		mutex_lock(&dev->slot->mutex);
 		dev->slot->usb = NULL;
-		up(&dev->slot->mutex);
+		mutex_unlock(&dev->slot->mutex);
 		dev->slot = NULL;
 	}
 	usb_set_intfdata(interface, NULL);
-	up(&dt9812_mutex);
+	mutex_unlock(&dt9812_mutex);
 
 	/* queue final destruction */
 	kref_put(&dev->kref, dt9812_delete);
@@ -689,7 +689,7 @@ static int dt9812_comedi_open(comedi_device * dev)
 {
 	int result = -ENODEV;
 
-	down(&devpriv->slot->mutex);
+	mutex_lock(&devpriv->slot->mutex);
 	if (devpriv->slot->usb) {
 		// We have an attached device, fill in current range info
 		comedi_subdevice *s;
@@ -733,7 +733,7 @@ static int dt9812_comedi_open(comedi_device * dev)
 		}
 		result = 0;
 	}
-	up(&devpriv->slot->mutex);
+	mutex_unlock(&devpriv->slot->mutex);
 	return result;
 }
 
@@ -869,7 +869,7 @@ static int dt9812_attach(comedi_device * dev, comedi_devconfig * it)
 
 	printk("comedi%d: successfully attached to dt9812.\n", dev->minor);
 
-	down(&dt9812_mutex);
+	mutex_lock(&dt9812_mutex);
 	// Find a slot for the comedi device
 	{
 		slot_dt9812_t *first = NULL;
@@ -890,14 +890,14 @@ static int dt9812_attach(comedi_device * dev, comedi_devconfig * it)
 			best = first;
 		}
 		if (best) {
-			down(&best->mutex);
+			mutex_lock(&best->mutex);
 			best->comedi = devpriv;
 			best->serial = devpriv->serial;
 			devpriv->slot = best;
-			up(&best->mutex);
+			mutex_unlock(&best->mutex);
 		}
 	}
-	up(&dt9812_mutex);
+	mutex_unlock(&dt9812_mutex);
 
 	return 0;
 }
@@ -921,7 +921,7 @@ static int __init usb_dt9812_init(void)
 
 	// Initialize all driver slots
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-		init_MUTEX(&dt9812[i].mutex);
+		mutex_init(&dt9812[i].mutex);
 		dt9812[i].serial = 0;
 		dt9812[i].usb = NULL;
 		dt9812[i].comedi = NULL;
@@ -945,11 +945,18 @@ static int __init usb_dt9812_init(void)
 
 static void __exit usb_dt9812_exit(void)
 {
+	int i;
+
 	// unregister with comedi
 	comedi_driver_unregister(&dt9812_comedi_driver);
 
 	/* deregister this driver with the USB subsystem */
 	usb_deregister(&dt9812_usb_driver);
+
+	/* destroy mutexes (for mutex debugging) */
+	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
+		mutex_destroy(&dt9812[i].mutex);
+	}
 }
 
 module_init(usb_dt9812_init);

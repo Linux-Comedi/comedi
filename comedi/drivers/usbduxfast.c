@@ -174,7 +174,7 @@ typedef struct {
 	uint8_t *dux_commands;
 	// counter which ignores the first buffers
 	int ignore;
-	struct semaphore sem;
+	struct mutex mutex;
 } usbduxfastsub_t;
 
 // The pointer to the private usb-data of the driver
@@ -186,7 +186,7 @@ typedef struct {
 // initialised before comedi can access it.
 static usbduxfastsub_t usbduxfastsub[NUMUSBDUXFAST];
 
-static DECLARE_MUTEX(start_stop_sem);
+static DEFINE_MUTEX(start_stop_mutex);
 
 // bulk transfers to usbduxfast
 
@@ -286,14 +286,14 @@ static int usbduxfast_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 		printk("comedi: usbduxfast_ai_cancel: this_usbduxfastsub=NULL\n");
 		return -EFAULT;
 	}
-	down(&this_usbduxfastsub->sem);
+	mutex_lock(&this_usbduxfastsub->mutex);
 	if (!(this_usbduxfastsub->probed)) {
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -ENODEV;
 	}
 	// unlink
 	res = usbduxfast_ai_stop(this_usbduxfastsub, 1);
-	up(&this_usbduxfastsub->sem);
+	mutex_unlock(&this_usbduxfastsub->mutex);
 
 	return res;
 }
@@ -713,9 +713,9 @@ static int usbduxfast_ai_inttrig(comedi_device * dev,
 	if (!this_usbduxfastsub) {
 		return -EFAULT;
 	}
-	down(&this_usbduxfastsub->sem);
+	mutex_lock(&this_usbduxfastsub->mutex);
 	if (!(this_usbduxfastsub->probed)) {
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -ENODEV;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -725,7 +725,7 @@ static int usbduxfast_ai_inttrig(comedi_device * dev,
 	if (trignum != 0) {
 		printk("comedi%d: usbduxfast_ai_inttrig: invalid trignum\n",
 			dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EINVAL;
 	}
 	if (!(this_usbduxfastsub->ai_cmd_running)) {
@@ -734,7 +734,7 @@ static int usbduxfast_ai_inttrig(comedi_device * dev,
 		if (ret < 0) {
 			printk("comedi%d: usbduxfast_ai_inttrig: urbSubmit: err=%d\n", dev->minor, ret);
 			this_usbduxfastsub->ai_cmd_running = 0;
-			up(&this_usbduxfastsub->sem);
+			mutex_unlock(&this_usbduxfastsub->mutex);
 			return ret;
 		}
 		s->async->inttrig = NULL;
@@ -742,7 +742,7 @@ static int usbduxfast_ai_inttrig(comedi_device * dev,
 		printk("comedi%d: ai_inttrig but acqu is already running\n",
 			dev->minor);
 	}
-	up(&this_usbduxfastsub->sem);
+	mutex_unlock(&this_usbduxfastsub->mutex);
 	return 1;
 }
 
@@ -768,14 +768,14 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	if (!this_usbduxfastsub) {
 		return -EFAULT;
 	}
-	down(&this_usbduxfastsub->sem);
+	mutex_lock(&this_usbduxfastsub->mutex);
 	if (!(this_usbduxfastsub->probed)) {
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -ENODEV;
 	}
 	if (this_usbduxfastsub->ai_cmd_running) {
 		printk("comedi%d: ai_cmd not possible. Another ai_cmd is running.\n", dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EBUSY;
 	}
 	// set current channel of the running aquisition to zero
@@ -790,13 +790,13 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			chan = CR_CHAN(cmd->chanlist[i]);
 			if (chan != i) {
 				printk("comedi%d: cmd is accepting only consecutive channels.\n", dev->minor);
-				up(&this_usbduxfastsub->sem);
+				mutex_unlock(&this_usbduxfastsub->mutex);
 				return -EINVAL;
 			}
 			if ((gain != CR_RANGE(cmd->chanlist[i]))
 				&& (cmd->chanlist_len > 3)) {
 				printk("comedi%d: the gain must be the same for all channels.\n", dev->minor);
-				up(&this_usbduxfastsub->sem);
+				mutex_unlock(&this_usbduxfastsub->mutex);
 				return -EINVAL;
 			}
 			if (i >= NUMCHANNELS) {
@@ -809,7 +809,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	steps = 0;
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		printk("comedi%d: usbduxfast: scan_begin_src==TRIG_TIMER not valid.\n", dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EINVAL;
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -817,19 +817,19 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	}
 	if ((steps < MIN_SAMPLING_PERIOD) && (cmd->chanlist_len != 1)) {
 		printk("comedi%d: usbduxfast: ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n", dev->minor, steps, cmd->scan_begin_arg);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EINVAL;
 	}
 	if (steps > MAX_SAMPLING_PERIOD) {
 		printk("comedi%d: usbduxfast: ai_cmd: sampling rate too low.\n",
 			dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EINVAL;
 	}
 	if ((cmd->start_src == TRIG_EXT) && (cmd->chanlist_len != 1)
 		&& (cmd->chanlist_len != 16)) {
 		printk("comedi%d: usbduxfast: ai_cmd: TRIG_EXT only with 1 or 16 channels possible.\n", dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EINVAL;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -1082,7 +1082,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	default:
 		printk("comedi %d: unsupported combination of channels\n",
 			dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return -EFAULT;
 	}
 
@@ -1093,7 +1093,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	result = send_dux_commands(this_usbduxfastsub, SENDADCOMMANDS);
 	if (result < 0) {
 		printk("comedi%d: adc command could not be submitted. Aborting...\n", dev->minor);
-		up(&this_usbduxfastsub->sem);
+		mutex_unlock(&this_usbduxfastsub->mutex);
 		return result;
 	}
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -1101,7 +1101,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 			(cmd->stop_arg) * (cmd->scan_end_arg);
 		if (usbduxfastsub->ai_sample_count < 1) {
 			printk("comedi%d: (cmd->stop_arg)*(cmd->scan_end_arg)<1, aborting.\n", dev->minor);
-			up(&this_usbduxfastsub->sem);
+			mutex_unlock(&this_usbduxfastsub->mutex);
 			return -EFAULT;
 		}
 		this_usbduxfastsub->ai_continous = 0;
@@ -1118,7 +1118,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		if (ret < 0) {
 			this_usbduxfastsub->ai_cmd_running = 0;
 			// fixme: unlink here??
-			up(&this_usbduxfastsub->sem);
+			mutex_unlock(&this_usbduxfastsub->mutex);
 			return ret;
 		}
 		s->async->inttrig = NULL;
@@ -1128,7 +1128,7 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		// wait for an internal signal
 		s->async->inttrig = usbduxfast_ai_inttrig;
 	}
-	up(&this_usbduxfastsub->sem);
+	mutex_unlock(&this_usbduxfastsub->mutex);
 
 	return 0;
 }
@@ -1150,14 +1150,14 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	printk("comedi%d: ai_insn_read, insn->n=%d, insn->subdev=%d\n",
 		dev->minor, insn->n, insn->subdev);
 #endif
-	down(&usbduxfastsub->sem);
+	mutex_lock(&usbduxfastsub->mutex);
 	if (!(usbduxfastsub->probed)) {
-		up(&usbduxfastsub->sem);
+		mutex_unlock(&usbduxfastsub->mutex);
 		return -ENODEV;
 	}
 	if (usbduxfastsub->ai_cmd_running) {
 		printk("comedi%d: ai_insn_read not possible. Async Command is running.\n", dev->minor);
-		up(&usbduxfastsub->sem);
+		mutex_unlock(&usbduxfastsub->mutex);
 		return -EBUSY;
 	}
 	// sample one channel
@@ -1214,7 +1214,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 	err = send_dux_commands(usbduxfastsub, SENDADCOMMANDS);
 	if (err < 0) {
 		printk("comedi%d: adc command could not be submitted. Aborting...\n", dev->minor);
-		up(&usbduxfastsub->sem);
+		mutex_unlock(&usbduxfastsub->mutex);
 		return err;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -1231,7 +1231,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		if (err < 0) {
 			printk("comedi%d: insn timeout. No data.\n",
 				dev->minor);
-			up(&usbduxfastsub->sem);
+			mutex_unlock(&usbduxfastsub->mutex);
 			return err;
 		}
 	}
@@ -1244,14 +1244,14 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		if (err < 0) {
 			printk("comedi%d: insn data error: %d\n",
 				dev->minor, err);
-			up(&usbduxfastsub->sem);
+			mutex_unlock(&usbduxfastsub->mutex);
 			return err;
 		}
 		n = actual_length / sizeof(uint16_t);
 		if ((n % 16) != 0) {
 			printk("comedi%d: insn data packet corrupted.\n",
 				dev->minor);
-			up(&usbduxfastsub->sem);
+			mutex_unlock(&usbduxfastsub->mutex);
 			return -EINVAL;
 		}
 		for (j = chan; (j < n) && (i < insn->n); j = j + 16) {
@@ -1261,7 +1261,7 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 			i++;
 		}
 	}
-	up(&usbduxfastsub->sem);
+	mutex_unlock(&usbduxfastsub->mutex);
 	return i;
 }
 
@@ -1475,7 +1475,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbduxfast_: finding a free structure for the usb-device\n");
 #endif
-	down(&start_stop_sem);
+	mutex_lock(&start_stop_mutex);
 	// look for a free place in the usbduxfast array
 	index = -1;
 	for (i = 0; i < NUMUSBDUXFAST; i++) {
@@ -1488,14 +1488,14 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	// no more space
 	if (index == -1) {
 		printk("Too many usbduxfast-devices connected.\n");
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-EMFILE);
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbduxfast: usbduxfastsub[%d] is ready to connect to comedi.\n", index);
 #endif
 
-	init_MUTEX(&(usbduxfastsub[index].sem));
+	mutex_init(&(usbduxfastsub[index].mutex));
 	// save a pointer to the usb device
 	usbduxfastsub[index].usbdev = udev;
 
@@ -1521,7 +1521,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	if (!usbduxfastsub[index].dux_commands) {
 		printk("comedi_: usbduxfast: error alloc space for dac commands\n");
 		tidy_up(&(usbduxfastsub[index]));
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-ENOMEM);
 	}
 	// create space of the instruction buffer
@@ -1529,7 +1529,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	if (!(usbduxfastsub[index].insnBuffer)) {
 		printk("comedi_: usbduxfast: could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxfastsub[index]));
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-ENOMEM);
 	}
 	// setting to alternate setting 1: enabling bulk ep
@@ -1538,14 +1538,14 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	if (i < 0) {
 		printk("comedi_: usbduxfast%d: could not switch to alternate setting 1.\n", index);
 		tidy_up(&(usbduxfastsub[index]));
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-ENODEV);
 	}
 	usbduxfastsub[index].urbIn = USB_ALLOC_URB(0);
 	if (usbduxfastsub[index].urbIn == NULL) {
 		printk("comedi_: usbduxfast%d: Could not alloc. urb\n", index);
 		tidy_up(&(usbduxfastsub[index]));
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-ENOMEM);
 	}
 	usbduxfastsub[index].transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
@@ -1553,12 +1553,12 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 		printk("comedi_: usbduxfast%d: could not alloc. transb.\n",
 			index);
 		tidy_up(&(usbduxfastsub[index]));
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return PROBE_ERR_RETURN(-ENOMEM);
 	}
 	// we've reached the bottom of the function
 	usbduxfastsub[index].probed = 1;
-	up(&start_stop_sem);
+	mutex_unlock(&start_stop_mutex);
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
@@ -1607,11 +1607,11 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 
 	comedi_usb_auto_unconfig(udev);
 
-	down(&start_stop_sem);
-	down(&usbduxfastsub_tmp->sem);
+	mutex_lock(&start_stop_mutex);
+	mutex_lock(&usbduxfastsub_tmp->mutex);
 	tidy_up(usbduxfastsub_tmp);
-	up(&usbduxfastsub_tmp->sem);
-	up(&start_stop_sem);
+	mutex_unlock(&usbduxfastsub_tmp->mutex);
+	mutex_unlock(&start_stop_mutex);
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbduxfast: disconnected from the usb\n");
 #endif
@@ -1626,7 +1626,7 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	comedi_subdevice *s = NULL;
 	dev->private = NULL;
 
-	down(&start_stop_sem);
+	mutex_lock(&start_stop_mutex);
 	// find a valid device which has been detected by the probe function of the usb
 	index = -1;
 	for (i = 0; i < NUMUSBDUXFAST; i++) {
@@ -1638,11 +1638,11 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (index < 0) {
 		printk("comedi%d: usbduxfast: error: attach failed, no usbduxfast devs connected to the usb bus.\n", dev->minor);
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return -ENODEV;
 	}
 
-	down(&(usbduxfastsub[index].sem));
+	mutex_lock(&(usbduxfastsub[index].mutex));
 	// pointer back to the corresponding comedi device
 	usbduxfastsub[index].comedidev = dev;
 
@@ -1663,7 +1663,7 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	if ((ret = alloc_subdevices(dev, N_SUBDEVICES)) < 0) {
 		printk("comedi%d: usbduxfast: error alloc space for subdev\n",
 			dev->minor);
-		up(&start_stop_sem);
+		mutex_unlock(&start_stop_mutex);
 		return ret;
 	}
 
@@ -1701,9 +1701,9 @@ static int usbduxfast_attach(comedi_device * dev, comedi_devconfig * it)
 	// finally decide that it's attached
 	usbduxfastsub[index].attached = 1;
 
-	up(&(usbduxfastsub[index].sem));
+	mutex_unlock(&(usbduxfastsub[index].mutex));
 
-	up(&start_stop_sem);
+	mutex_unlock(&start_stop_mutex);
 
 	printk("comedi%d: successfully attached to usbduxfast.\n", dev->minor);
 
@@ -1729,8 +1729,8 @@ static int usbduxfast_detach(comedi_device * dev)
 		return -EFAULT;
 	}
 
-	down(&usbduxfastsub_tmp->sem);
-	down(&start_stop_sem);
+	mutex_lock(&usbduxfastsub_tmp->mutex);
+	mutex_lock(&start_stop_mutex);
 	// Don't allow detach to free the private structure
 	// It's one entry of of usbduxfastsub[]
 	dev->private = NULL;
@@ -1740,8 +1740,8 @@ static int usbduxfast_detach(comedi_device * dev)
 	printk("comedi%d: usbduxfast: detach: successfully removed\n",
 		dev->minor);
 #endif
-	up(&start_stop_sem);
-	up(&usbduxfastsub_tmp->sem);
+	mutex_unlock(&start_stop_mutex);
+	mutex_unlock(&usbduxfastsub_tmp->mutex);
 	return 0;
 }
 
@@ -1765,7 +1765,16 @@ static void init_usb_devices(void)
 	for (index = 0; index < NUMUSBDUXFAST; index++) {
 		memset(&(usbduxfastsub[index]), 0x00,
 			sizeof(usbduxfastsub[index]));
-		init_MUTEX(&(usbduxfastsub[index].sem));
+		mutex_init(&(usbduxfastsub[index].mutex));
+	}
+}
+
+static void uninit_usb_devices(void)
+{
+	int index;
+
+	for (index = 0; index < NUMUSBDUXFAST; index++) {
+		mutex_destroy(&(usbduxfastsub[index].mutex));
 	}
 }
 
@@ -1811,6 +1820,7 @@ static void exit_usbduxfast(void)
 {
 	comedi_driver_unregister(&driver_usbduxfast);
 	usb_deregister(&usbduxfastsub_driver);
+	uninit_usb_devices();
 }
 
 module_init(init_usbduxfast);
