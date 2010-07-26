@@ -50,6 +50,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <linux/comedidev.h>
 
 #include <linux/version.h>
+#include <linux/semaphore.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
