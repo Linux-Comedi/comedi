@@ -818,3 +818,19 @@ AC_DEFUN([COMEDI_CHECK_HAVE_MUTEX_H],
 		$3
 	fi
 ])
+
+# COMEDI_CHECK_HAVE_LINUX_SEMAPHORE_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel has <linux/semaphore.h> file.
+AC_DEFUN([COMEDI_CHECK_HAVE_LINUX_SEMAPHORE_H],
+[
+	AC_MSG_CHECKING([$1 for include/linux/semaphore.h])
+	if test -f "$1/include/linux/semaphore.h"; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])

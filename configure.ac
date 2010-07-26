@@ -144,6 +144,10 @@ COMEDI_CHECK_HAVE_MUTEX_H([$LINUX_SRC_DIR], [HAVE_MUTEX_H="yes"], [HAVE_MUTEX_H=
 if test ${HAVE_MUTEX_H} = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_HAVE_MUTEX_H], [true], [Define if Linux kernel has mutex.h header])
 fi
+COMEDI_CHECK_HAVE_LINUX_SEMAPHORE_H([$LINUX_SRC_DIR], [HAVE_LINUX_SEMAPHORE_H="yes"], [HAVE_LINUX_SEMAPHORE_H="no"])
+if test ${HAVE_LINUX_SEMAPHORE_H} = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_LINUX_SEMAPHORE_H], [true], [Define if Linux kernel has linux/semaphore.h header])
+fi
 AS_LINUX_CONFIG_OPTION_MODULE(CONFIG_ISA)
 
 AC_DEFINE(CONFIG_COMEDI_DEBUG, true, [Define if debugging is enabled])
