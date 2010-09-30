@@ -260,18 +260,22 @@ static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
 static const dev_info_t dev_info = "ni_mio_cs";
+#ifdef COMEDI_HAVE_DS_DEV_NODE_T
 static dev_node_t dev_node = {
 	"ni_mio_cs",
 	COMEDI_MAJOR, 0,
 	NULL
 };
+#endif
 static int cs_attach(struct pcmcia_device *link)
 {
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+#endif
 #endif
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -292,7 +296,10 @@ static void cs_detach(struct pcmcia_device *link)
 {
 	DPRINTK("cs_detach(link=%p)\n", link);
 
-	if (link->dev_node) {
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+	if (link->dev_node)
+#endif
+	{
 		cs_release(link);
 	}
 }
@@ -423,11 +430,16 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2 = parse.cftable_entry.irq.IRQInfo2;
 #endif
+#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
 	ret = pcmcia_request_irq(link, &link->irq);
 	if (ret) {
 		printk("pcmcia_request_irq() returned error: %i\n", ret);
 	}
 	//printk("RequestIRQ 0x%02x\n",ret);
+#else
+	if (!link->irq)
+		dev_info(&link->dev, "no IRQ available\n");
+#endif
 
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->conf.ConfigIndex = 1;
@@ -436,7 +448,9 @@ static void mio_cs_config(struct pcmcia_device *link)
 	ret = pcmcia_request_configuration(link, &link->conf);
 	//printk("RequestConfiguration %d\n",ret);
 
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	link->dev_node = &dev_node;
+#endif
 }
 
 static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
@@ -454,7 +468,11 @@ static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
 	dev->driver = &driver_ni_mio_cs;
 	dev->iobase = link->io.BasePort1;
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	irq = link->irq.AssignedIRQ;
+#else
+	irq = link->irq;
+#endif
 
 	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
 		dev->minor, dev->driver->driver_name, dev->iobase, irq);

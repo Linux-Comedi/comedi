@@ -803,6 +803,40 @@ AC_DEFUN([COMEDI_CHECK_PCMCIA_LOOP_TUPLE],
 	fi
 ])
 
+# COMEDI_CHECK_DS_DEV_NODE_T([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is old enough to have the dev_node_t type
+# in pcmcia/ds.h.
+AC_DEFUN([COMEDI_CHECK_DS_DEV_NODE_T],
+[
+	AC_MSG_CHECKING([$1 for dev_node_t in pcmcia/ds.h (removed in 2.6.35)])
+	if [grep -q dev_node_t "$1/include/pcmcia/ds.h"] 2>/dev/null ; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
+# COMEDI_CHECK_CS_IRQ_REQ_T([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is old enough to have the irq_req_t type
+# in pcmcia/cs.h.
+AC_DEFUN([COMEDI_CHECK_CS_IRQ_REQ_T],
+[
+	AC_MSG_CHECKING([$1 for irq_req_t in pcmcia/cs.h (removed in 2.6.35)])
+	if [grep -q irq_req_t "$1/include/pcmcia/cs.h"] 2>/dev/null ; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
 # COMEDI_CHECK_HAVE_MUTEX_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 # -------------------------------------------------------------
 #

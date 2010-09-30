@@ -79,7 +79,9 @@ static char *version = "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
+#ifdef COMEDI_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
+#endif
 	int stop;
 	int table_index;
 	char board_name[32];
@@ -1099,6 +1101,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
@@ -1107,6 +1110,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	link->irq.Handler = daqp_interrupt;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.Instance = local;
+#endif
 #endif
 
 	/*
@@ -1139,7 +1143,10 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 	DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
 
-	if (link->dev_node) {
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+	if (link->dev_node)
+#endif
+	{
 		dev->stop = 1;
 		daqp_cs_release(link);
 	}
@@ -1170,8 +1177,12 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+#endif
+	{
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	}
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -1199,7 +1210,9 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void daqp_cs_config(struct pcmcia_device *link)
 {
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	local_info_t *dev = link->priv;
+#endif
 	int last_ret;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
@@ -1273,8 +1286,12 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		link->conf.ConfigIndex = cfg->index;
 
 		/* Do we need to allocate an interrupt? */
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
+#endif
+		{
 			link->conf.Attributes |= CONF_ENABLE_IRQ;
+		}
 
 		/* IO window settings */
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
@@ -1315,13 +1332,21 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
+#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
+#endif
+	{
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;
 #endif
-		if ((last_ret = pcmcia_request_irq(link, &link->irq))) {
+#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+		last_ret = pcmcia_request_irq(link, &link->irq);
+#else
+		last_ret = pcmcia_request_irq(link, daqp_interrupt);
+#endif
+		if (last_ret)
 			goto cs_failed;
-		}
+	}
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -1335,6 +1360,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		goto cs_failed;
 	}
 
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	/*
 	   At this point, the dev_node_t structure(s) need to be
 	   initialized and arranged in a linked list at link->dev.
@@ -1346,12 +1372,23 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	sprintf(dev->node.dev_name, "quatech_daqp_cs");
 	dev->node.major = dev->node.minor = 0;
 	link->dev_node = &dev->node;
+#endif
 
 	/* Finally, report what we've done */
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
 		dev->node.dev_name, link->conf.ConfigIndex);
+#else
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
+#endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u",
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+			link->irq.AssignedIRQ
+#else
+			link->irq
+#endif
+			);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);

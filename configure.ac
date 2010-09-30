@@ -116,6 +116,18 @@ if test "$HAVE_PCMCIA_LOOP_TUPLE" = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE],[true],[Define if Linux kernel source has pcmcia_loop_tuple function])
 fi
 
+COMEDI_CHECK_DS_DEV_NODE_T([$LINUX_SRC_DIR],
+      [HAVE_DS_DEV_NODE_T="yes"], [HAVE_DS_DEV_NODE_T="no"])
+if test "$HAVE_DS_DEV_NODE_T" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_DS_DEV_NODE_T],[true],[Define if Linux kernel source has dev_node_t in pcmcia/ds.h (removed in 2.6.35)])
+fi
+
+COMEDI_CHECK_CS_IRQ_REQ_T([$LINUX_SRC_DIR],
+      [HAVE_CS_IRQ_REQ_T="yes"], [HAVE_CS_IRQ_REQ_T="no"])
+if test "$HAVE_CS_IRQ_REQ_T" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T],[true],[Define if Linux kernel source has irq_req_t in pcmcia/cs.h (removed in 2.6.35)])
+fi
+
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
 AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
 AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],

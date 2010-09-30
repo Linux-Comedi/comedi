@@ -372,7 +372,11 @@ static int dio700_attach(comedi_device * dev, comedi_devconfig * it)
 			return -EIO;
 		iobase = link->io.BasePort1;
 #ifdef incomplete
+#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
 		irq = link->irq.AssignedIRQ;
+#else
+		irq = link->irq;
+#endif
 #endif
 		break;
 	default:
@@ -480,7 +484,9 @@ static const dev_info_t dev_info = "ni_daq_700";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
+#ifdef COMEDI_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
+#endif
 	int stop;
 	struct bus_operations *bus;
 } local_info_t;
@@ -512,12 +518,14 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 #endif
 	link->irq.Handler = NULL;
+#endif
 
 	/*
 	   General socket configuration defaults can go here.  In this
@@ -552,7 +560,10 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 	DEBUG(0, "dio700_cs_detach(0x%p)\n", link);
 
-	if (link->dev_node) {
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
+	if (link->dev_node)
+#endif
+	{
 		((local_info_t *) link->priv)->stop = 1;
 		dio700_release(link);
 	}
@@ -591,8 +602,12 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* Do we need to allocate an interrupt? */
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+#endif
+	{
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	}
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -640,7 +655,9 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void dio700_config(struct pcmcia_device *link)
 {
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	local_info_t *dev = link->priv;
+#endif
 	int last_ret;
 	win_req_t req;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
@@ -724,8 +741,12 @@ static void dio700_config(struct pcmcia_device *link)
 		}
 
 		/* Do we need to allocate an interrupt? */
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
+#endif
+		{
 			link->conf.Attributes |= CONF_ENABLE_IRQ;
+		}
 
 		/* IO window settings */
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
@@ -777,6 +798,7 @@ static void dio700_config(struct pcmcia_device *link)
 	}
 #endif
 
+#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
 	   handler to the interrupt, unless the 'Handler' member of the
@@ -789,6 +811,11 @@ static void dio700_config(struct pcmcia_device *link)
 		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0) {
 			goto cs_failed;
 		}
+#else
+	/* Check an interrupt line has been allocated. */
+	if (!link->irq)
+		goto cs_failed;
+#endif
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -802,6 +829,7 @@ static void dio700_config(struct pcmcia_device *link)
 		goto cs_failed;
 	}
 
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	/*
 	   At this point, the dev_node_t structure(s) need to be
 	   initialized and arranged in a linked list at link->dev.
@@ -809,12 +837,23 @@ static void dio700_config(struct pcmcia_device *link)
 	sprintf(dev->node.dev_name, "ni_daq_700");
 	dev->node.major = dev->node.minor = 0;
 	link->dev_node = &dev->node;
+#endif
 
 	/* Finally, report what we've done */
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
 		dev->node.dev_name, link->conf.ConfigIndex);
+#else
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
+#endif
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
+		printk(", irq %u",
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+			link->irq.AssignedIRQ
+#else
+			link->irq
+#endif
+			);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
