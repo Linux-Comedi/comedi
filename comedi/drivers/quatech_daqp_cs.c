@@ -81,7 +81,7 @@ static char *version = "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -1333,14 +1333,14 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 #endif
 	{
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;
 #endif
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 		last_ret = pcmcia_request_irq(link, &link->irq);
 #else
 		last_ret = pcmcia_request_irq(link, daqp_interrupt);

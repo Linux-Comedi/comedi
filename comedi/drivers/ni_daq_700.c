@@ -372,7 +372,7 @@ static int dio700_attach(comedi_device * dev, comedi_devconfig * it)
 			return -EIO;
 		iobase = link->io.BasePort1;
 #ifdef incomplete
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 		irq = link->irq.AssignedIRQ;
 #else
 		irq = link->irq;
@@ -484,7 +484,7 @@ static const dev_info_t dev_info = "ni_daq_700";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -798,7 +798,7 @@ static void dio700_config(struct pcmcia_device *link)
 	}
 #endif
 
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
 	   handler to the interrupt, unless the 'Handler' member of the

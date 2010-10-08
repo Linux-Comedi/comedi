@@ -194,7 +194,7 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 	printk("\n");
 
 	ret = comedi_request_irq(
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 		link->irq.AssignedIRQ,
 #else
 		link->irq,
@@ -204,7 +204,7 @@ static int das16cs_attach(comedi_device * dev, comedi_devconfig * it)
 	if (ret < 0) {
 		return ret;
 	}
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	dev->irq = link->irq.AssignedIRQ;
 #else
 	dev->irq = link->irq;
@@ -703,7 +703,7 @@ static dev_info_t dev_info = "cb_das16_cs";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -933,7 +933,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	}
 #endif
 
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	/*
 	   Allocate an interrupt line.  Note that this does not assign a
 	   handler to the interrupt, unless the 'Handler' member of the

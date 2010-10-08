@@ -159,7 +159,7 @@ static const dev_info_t dev_info = "pcm-das08";
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
-#ifdef COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	dev_node_t node;
 #endif
 	int stop;
@@ -414,7 +414,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	}
 #endif
 
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 		last_fn = RequestIRQ;

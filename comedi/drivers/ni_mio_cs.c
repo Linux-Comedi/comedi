@@ -260,7 +260,7 @@ static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
 static const dev_info_t dev_info = "ni_mio_cs";
-#ifdef COMEDI_HAVE_DS_DEV_NODE_T
+#ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 static dev_node_t dev_node = {
 	"ni_mio_cs",
 	COMEDI_MAJOR, 0,
@@ -430,7 +430,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2 = parse.cftable_entry.irq.IRQInfo2;
 #endif
-#ifdef COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	ret = pcmcia_request_irq(link, &link->irq);
 	if (ret) {
 		printk("pcmcia_request_irq() returned error: %i\n", ret);
