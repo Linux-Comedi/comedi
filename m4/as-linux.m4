@@ -837,6 +837,56 @@ AC_DEFUN([COMEDI_CHECK_CS_IRQ_REQ_T],
 	fi
 ])
 
+# COMEDI_CHECK_CS_IO_REQ_T([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is old enough to have the io_req_t type
+# in pcmcia/cs.h.
+AC_DEFUN([COMEDI_CHECK_CS_IO_REQ_T],
+[
+	AC_MSG_CHECKING([$1 for io_req_t in pcmcia/cs.h (removed in 2.6.36)])
+	if [grep -q io_req_t "$1/include/pcmcia/cs.h"] 2>/dev/null ; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
+# COMEDI_CHECK_CS_MEMREQ_T([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is old enough to have the memreq_t type
+# in pcmcia/cs.h.
+AC_DEFUN([COMEDI_CHECK_CS_MEMREQ_T],
+[
+	AC_MSG_CHECKING([$1 for memreq_t in pcmcia/cs.h (removed in 2.6.36)])
+	if [grep -q memreq_t "$1/include/pcmcia/cs.h"] 2>/dev/null ; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
+# COMEDI_CHECK_HAVE_CS_TYPES_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel has <pcmcia/cs_types.h> file.
+AC_DEFUN([COMEDI_CHECK_HAVE_CS_TYPES_H],
+[
+	AC_MSG_CHECKING([$1 for include/pcmcia/cs_types.h (removed in 2.6.36)])
+	if test -f "$1/include/pcmcia/cs_types.h"; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
 # COMEDI_CHECK_HAVE_MUTEX_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 # -------------------------------------------------------------
 #

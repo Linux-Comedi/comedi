@@ -51,7 +51,9 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 
 #include <linux/version.h>
 #include <linux/semaphore.h>
+#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
+#endif
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -934,7 +936,11 @@ static int daqp_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	dev->iobase = local->link->io.BasePort1;
+#else
+	dev->iobase = local->link->resource[0]->start;
+#endif
 
 	if ((ret = alloc_subdevices(dev, 4)) < 0)
 		return ret;
@@ -1058,12 +1064,16 @@ static int daqp_cs_attach(struct pcmcia_device *);
 static void daqp_cs_detach(struct pcmcia_device *);
 
 /*
-   The dev_info variable is the "key" that is used to match up this
+   The devname variable is the "key" that is used to match up this
    device driver with appropriate cards, through the card configuration
    database.
 */
 
-static const dev_info_t dev_info = "quatech_daqp_cs";
+#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+static const dev_info_t devname = "quatech_daqp_cs";
+#else
+static const char devname[] = "quatech_daqp_cs";
+#endif
 
 /*======================================================================
 
@@ -1185,6 +1195,7 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 	}
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
@@ -1206,6 +1217,27 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	/* This reserves IO space but doesn't actually enable it */
 	return pcmcia_request_io(p_dev, &p_dev->io);
+#else
+	/* IO window settings */
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+			pcmcia_io_cfg_data_width(io->flags);
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
+		}
+	}
+
+	/* This reserves IO space but doesn't actually enable it */
+	return pcmcia_request_io(p_dev);
+#endif
 }
 #endif
 
@@ -1294,6 +1326,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 			link->conf.Attributes |= CONF_ENABLE_IRQ;
 		}
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 		/* IO window settings */
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
 		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
@@ -1316,6 +1349,28 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		/* This reserves IO space but doesn't actually enable it */
 		if (pcmcia_request_io(link, &link->io))
 			goto next_entry;
+#else
+		/* IO window settings */
+		link->resource[0]->end = link->resource[1]->end = 0;
+		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
+			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
+			link->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+			link->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+			link->resource[0]->flags |=
+				pcmcia_io_cfg_data_width(io->flags);
+			link->resource[0]->start = io->win[0].base;
+			link->resource[0]->end = io->win[0].len;
+			if (io->nwin > 1) {
+				link->resource[1]->flags = p_dev->resource[0]->flags;
+				link->resource[1]->start = io->win[1].base;
+				link->resource[1]->end = io->win[1].len;
+			}
+		}
+
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(link))
+			goto next_entry;
+#endif
 
 		/* If we got this far, we're cool! */
 		break;
@@ -1390,12 +1445,19 @@ static void daqp_cs_config(struct pcmcia_device *link)
 			link->irq
 #endif
 			);
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2 + link->io.NumPorts2 - 1);
+#else
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
+#endif
 	printk("\n");
 
 	return;
@@ -1464,7 +1526,7 @@ struct pcmcia_driver daqp_cs_driver = {
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+			.name = devname,
 		},
 };
 

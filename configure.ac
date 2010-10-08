@@ -128,6 +128,24 @@ if test "$HAVE_CS_IRQ_REQ_T" = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T],[true],[Define if Linux kernel source has irq_req_t in pcmcia/cs.h (removed in 2.6.35)])
 fi
 
+COMEDI_CHECK_CS_IO_REQ_T([$LINUX_SRC_DIR],
+      [HAVE_CS_IO_REQ_T="yes"], [HAVE_CS_IO_REQ_T="no"])
+if test "$HAVE_CS_IO_REQ_T" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_IO_REQ_T],[true],[Define if Linux kernel source has io_req_t in pcmcia/cs.h (removed in 2.6.36)])
+fi
+
+COMEDI_CHECK_CS_MEMREQ_T([$LINUX_SRC_DIR],
+      [HAVE_CS_MEMREQ_T="yes"], [HAVE_CS_MEMREQ_T="no"])
+if test "$HAVE_CS_MEMREQ_T" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_MEMREQ_T],[true],[Define if Linux kernel source has memreq_t in pcmcia/cs.h (removed in 2.6.36)])
+fi
+
+COMEDI_CHECK_HAVE_CS_TYPES_H([$LINUX_SRC_DIR],
+      [HAVE_CS_TYPES_H="yes"], [HAVE_CS_TYPES_H="no"])
+if test "$HAVE_CS_TYPES_H" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_TYPES_H],[true],[Define if Linux kernel source has pcmcia/cs_types.h (removed in 2.6.36)])
+fi
+
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
 AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
 AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],

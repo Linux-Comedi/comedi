@@ -46,7 +46,9 @@ IRQ is assigned but not used.
 #include <linux/ioport.h>
 #include <linux/version.h>
 
+#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
+#endif
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -370,7 +372,11 @@ static int dio700_attach(comedi_device * dev, comedi_devconfig * it)
 		link = pcmcia_cur_dev;	/* XXX hack */
 		if (!link)
 			return -EIO;
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 		iobase = link->io.BasePort1;
+#else
+		iobase = link->resource[0]->start;
+#endif
 #ifdef incomplete
 #ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 		irq = link->irq.AssignedIRQ;
@@ -475,12 +481,16 @@ static void dio700_cs_detach(struct pcmcia_device *);
 */
 
 /*
-   The dev_info variable is the "key" that is used to match up this
+   The devname variable is the "key" that is used to match up this
    device driver with appropriate cards, through the card configuration
    database.
 */
 
-static const dev_info_t dev_info = "ni_daq_700";
+#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+static const dev_info_t devname = "ni_daq_700";
+#else
+static const char devname[] = "ni_daq_700";
+#endif
 
 typedef struct local_info_t {
 	struct pcmcia_device *link;
@@ -590,7 +600,9 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
 	win_req_t *req = priv_data;
+#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
 	memreq_t map;
+#endif
 
 	if (cfg->index == 0)
 		return -ENODEV;
@@ -610,6 +622,7 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* IO window settings */
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
@@ -630,6 +643,26 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
 			return -ENODEV;
 	}
+#else
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+			pcmcia_io_cfg_data_width(io->flags);
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
+		}
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(p_dev) != 0)
+			return -ENODEV;
+	}
+#endif
 
 	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
 		cistpl_mem_t *mem =
@@ -643,9 +676,17 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		req->AccessSpeed = 0;
 		if (pcmcia_request_window(p_dev, req, &p_dev->win))
 			return -ENODEV;
+#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
+#endif
+		if (pcmcia_map_mem_page(p_dev, p_dev->win,
+#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+					&map
+#else
+					mem->win[0].card_addr
+#endif
+					))
 			return -ENODEV;
 	}
 	/* If we got this far, we're cool! */
@@ -665,7 +706,9 @@ static void dio700_config(struct pcmcia_device *link)
 	cisparse_t parse;
 	int last_fn;
 	u_char buf[64];
+#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
 	memreq_t map;
+#endif
 	cistpl_cftable_entry_t dflt = { 0 };
 #endif
 
@@ -749,6 +792,7 @@ static void dio700_config(struct pcmcia_device *link)
 		}
 
 		/* IO window settings */
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 		link->io.NumPorts1 = link->io.NumPorts2 = 0;
 		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
 			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
@@ -769,6 +813,26 @@ static void dio700_config(struct pcmcia_device *link)
 			if (pcmcia_request_io(link, &link->io) != 0)
 				goto next_entry;
 		}
+#else
+		link->resource[0]->end = link->resource[1]->end = 0;
+		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
+			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
+			link->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+			link->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+			link->resource[0]->flags |=
+				pcmcia_io_cfg_data_width(io->flags);
+			link->resource[0]->start = io->win[0].base;
+			link->resource[0]->end = io->win[0].len;
+			if (io->nwin > 1) {
+				link->resource[1]->flags = p_dev->resource[0]->flags;
+				link->resource[1]->start = io->win[1].base;
+				link->resource[1]->end = io->win[1].len;
+			}
+			/* This reserves IO space but doesn't actually enable it */
+			if (pcmcia_request_io(link) != 0)
+				goto next_entry;
+		}
+#endif
 
 		if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
 			cistpl_mem_t *mem =
@@ -782,9 +846,17 @@ static void dio700_config(struct pcmcia_device *link)
 			req.AccessSpeed = 0;
 			if (pcmcia_request_window(&link, &req, &link->win))
 				goto next_entry;
+#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
 			map.Page = 0;
 			map.CardOffset = mem->win[0].card_addr;
-			if (pcmcia_map_mem_page(link->win, &map))
+#endif
+			if (pcmcia_map_mem_page(link->win,
+#ifdef CONFIG_COMEDI_HAVE_CS_MEMREQ_T
+						&map
+#else
+						mem->win[0].card_addr
+#endif
+						))
 				goto next_entry;
 		}
 		/* If we got this far, we're cool! */
@@ -854,12 +926,19 @@ static void dio700_config(struct pcmcia_device *link)
 			link->irq
 #endif
 			);
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 			link->io.BasePort1 + link->io.NumPorts1 - 1);
 	if (link->io.NumPorts2)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 			link->io.BasePort2 + link->io.NumPorts2 - 1);
+#else
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
+#endif
 	if (link->win)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
 			req.Base + req.Size - 1);
@@ -931,7 +1010,7 @@ struct pcmcia_driver dio700_cs_driver = {
 	.id_table = dio700_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+			.name = devname,
 		},
 };
 

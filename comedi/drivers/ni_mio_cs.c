@@ -49,7 +49,9 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
+#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
+#endif
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -259,7 +261,11 @@ static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
 static struct pcmcia_device *cur_dev = NULL;
-static const dev_info_t dev_info = "ni_mio_cs";
+#ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
+static const dev_info_t devname = "ni_mio_cs";
+#else
+static const char devname[] = "ni_mio_cs";
+#endif
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 static dev_node_t dev_node = {
 	"ni_mio_cs",
@@ -269,8 +275,13 @@ static dev_node_t dev_node = {
 #endif
 static int cs_attach(struct pcmcia_device *link)
 {
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
+#else
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	link->resource[0]->end = 16;
+#endif
 #ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
@@ -326,13 +337,23 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 {
 	int base, ret;
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	p_dev->io.NumPorts1 = cfg->io.win[0].len;
 	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
 	p_dev->io.NumPorts2 = 0;
+#else
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+#endif
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 		p_dev->io.BasePort1 = base;
 		ret = pcmcia_request_io(p_dev, &p_dev->io);
+#else
+		p_dev->resource[0]->start = base;
+		ret = pcmcia_request_io(p_dev);
+#endif
 		if (!ret)
 			return 0;
 	}
@@ -411,24 +432,37 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->io.IOAddrLines = 5;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 #endif
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 	link->io.IOAddrLines =
 		parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
 	link->io.NumPorts2 = 0;
+#else
+	link->resource[0]->end = parse.cftable_entry.io.win[0].len;
+	link->io_lines =
+		parse.cftable_entry.io.flags & CISTPL_IO_LINES_MASK;
+#endif
 
 	{
 		int base;
 		for (base = 0x000; base < 0x400; base += 0x20) {
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 			link->io.BasePort1 = base;
 			ret = pcmcia_request_io(link, &link->io);
+#else
+			link->resource[0]->start = base;
+			ret = pcmcia_request_io(link);
+#endif
 			//printk("RequestIO 0x%02x\n",ret);
 			if (!ret)
 				break;
 		}
 	}
 
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	link->irq.IRQInfo1 = parse.cftable_entry.irq.IRQInfo1;
 	link->irq.IRQInfo2 = parse.cftable_entry.irq.IRQInfo2;
+#endif
 #endif
 #ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	ret = pcmcia_request_irq(link, &link->irq);
@@ -466,7 +500,11 @@ static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
+#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	dev->iobase = link->io.BasePort1;
+#else
+	dev->iobase = link->resource[0]->start;
+#endif
 
 #ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
 	irq = link->irq.AssignedIRQ;
@@ -588,7 +626,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
 	.drv = {
-			.name = dev_info,
+			.name = devname,
 		},
 };
 
