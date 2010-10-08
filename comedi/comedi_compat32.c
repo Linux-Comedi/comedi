@@ -110,6 +110,7 @@ static int translated_ioctl(struct file *file, unsigned int cmd,
 		return rc;
 	}
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	if (file->f_op->ioctl) {
 		int rc;
 		lock_kernel();
@@ -118,6 +119,7 @@ static int translated_ioctl(struct file *file, unsigned int cmd,
 		unlock_kernel();
 		return rc;
 	}
+#endif
 	return -ENOTTY;
 }
 
