@@ -122,9 +122,11 @@ static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 		return f->f_op->unlocked_ioctl(f, op, param);
 	}
 #endif    
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	if (f->f_op->ioctl) {
 	  	return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
 	}
+#endif
 	return -ENOSYS;
 }
 
