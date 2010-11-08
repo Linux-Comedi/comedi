@@ -52,7 +52,9 @@ See the notes in the ni_atmio.o driver.
 #ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 #include <pcmcia/cs.h>
+#endif
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -275,6 +277,7 @@ static dev_node_t dev_node = {
 #endif
 static int cs_attach(struct pcmcia_device *link)
 {
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 #ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
@@ -290,6 +293,7 @@ static int cs_attach(struct pcmcia_device *link)
 #endif
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
+#endif
 
 	cur_dev = link;
 
@@ -330,13 +334,16 @@ static int mio_cs_resume(struct pcmcia_device *link)
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
 				unsigned int vcc,
+#endif
 				void *priv_data)
 {
 	int base, ret;
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 #ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	p_dev->io.NumPorts1 = cfg->io.win[0].len;
 	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
@@ -344,6 +351,10 @@ static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
 #else
 	p_dev->resource[0]->end = cfg->io.win[0].len;
 	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+#endif
+#else
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 #endif
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
@@ -372,6 +383,10 @@ static void mio_cs_config(struct pcmcia_device *link)
 	int ret;
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
+
+#ifndef CONFIG_COMEDI_HAVE_CS_H
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+#endif
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
@@ -479,8 +494,12 @@ static void mio_cs_config(struct pcmcia_device *link)
 	link->conf.ConfigIndex = 1;
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	ret = pcmcia_request_configuration(link, &link->conf);
 	//printk("RequestConfiguration %d\n",ret);
+#else
+	ret = pcmcia_enable_device(link);
+#endif
 
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	link->dev_node = &dev_node;
@@ -625,9 +644,13 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.resume = &mio_cs_resume,
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+	.name = devname,
+#else
 	.drv = {
 			.name = devname,
 		},
+#endif
 };
 
 int init_module(void)

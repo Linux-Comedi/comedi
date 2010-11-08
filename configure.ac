@@ -87,7 +87,7 @@ else
 fi
 AM_CONDITIONAL([CONFIG_COMEDI_PCI],[test "$USE_PCI" = "yes"])
 
-COMEDI_CHECK_PCMCIA_PROBE([$LINUX_SRC_DIR],
+COMEDI_CHECK_PCMCIA_DRIVER_PROBE([$LINUX_SRC_DIR],
 	[AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_PCMCIA],
 		[HAVE_PCMCIA="yes"],[HAVE_PCMCIA="yes"],[HAVE_PCMCIA="no"])],
 	[HAVE_PCMCIA="no"])
@@ -109,6 +109,12 @@ else
 	USE_PCMCIA="no"
 fi
 AM_CONDITIONAL([CONFIG_COMEDI_PCMCIA],[test "$USE_PCMCIA" = "yes"])
+
+COMEDI_CHECK_PCMCIA_DRIVER_NAME([$LINUX_SRC_DIR],
+      [HAVE_PCMCIA_DRIVER_NAME="yes"], [HAVE_PCMCIA_DRIVER_NAME="no"])
+if test "$HAVE_PCMCIA_DRIVER_NAME" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME],[true],[Define if Linux kernel source has name member in struct pcmcia_driver])
+fi
 
 COMEDI_CHECK_PCMCIA_LOOP_TUPLE([$LINUX_SRC_DIR],
       [HAVE_PCMCIA_LOOP_TUPLE="yes"], [HAVE_PCMCIA_LOOP_TUPLE="no"])
@@ -144,6 +150,12 @@ COMEDI_CHECK_HAVE_CS_TYPES_H([$LINUX_SRC_DIR],
       [HAVE_CS_TYPES_H="yes"], [HAVE_CS_TYPES_H="no"])
 if test "$HAVE_CS_TYPES_H" = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_TYPES_H],[true],[Define if Linux kernel source has pcmcia/cs_types.h (removed in 2.6.36)])
+fi
+
+COMEDI_CHECK_HAVE_CS_H([$LINUX_SRC_DIR],
+      [HAVE_CS_H="yes"], [HAVE_CS_H="no"])
+if test "$HAVE_CS_TYPES_H" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_H],[true],[Define if Linux kernel source has pcmcia/cs.h (removed in 2.6.37)])
 fi
 
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])

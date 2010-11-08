@@ -772,11 +772,30 @@ AC_DEFUN([COMEDI_CHECK_LINUX_KBUILD],
 #
 # Check if kernel pcmcia support is new enough to have a probe member in the pcmcia_driver
 # struct.
-AC_DEFUN([COMEDI_CHECK_PCMCIA_PROBE],
+AC_DEFUN([COMEDI_CHECK_PCMCIA_DRIVER_PROBE],
 [
 	AC_REQUIRE([AC_PROG_EGREP])
 	AC_MSG_CHECKING([$1 for probe in pcmcia_driver struct])
 	cat "$1/include/pcmcia/ds.h" | tr \\n ' ' | [$EGREP "struct[[:space:]]+pcmcia_driver[[:space:]]*[{][^}]*probe"] > /dev/null
+	if (($?)); then
+		AC_MSG_RESULT([no])
+		$3
+	else
+		AC_MSG_RESULT([yes])
+		$2
+	fi
+])
+
+# COMEDI_CHECK_PCMCIA_DRIVER_NAME([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel pcmcia support is new enough to have a name member in the pcmcia_driver
+# struct.
+AC_DEFUN([COMEDI_CHECK_PCMCIA_DRIVER_NAME],
+[
+	AC_REQUIRE([AC_PROG_EGREP])
+	AC_MSG_CHECKING([$1 for name in pcmcia_driver struct])
+	cat "$1/include/pcmcia/ds.h" | tr \\n ' ' | [$EGREP "struct[[:space:]]+pcmcia_driver[[:space:]]*[{][^}]*name"] > /dev/null
 	if (($?)); then
 		AC_MSG_RESULT([no])
 		$3
@@ -879,6 +898,22 @@ AC_DEFUN([COMEDI_CHECK_HAVE_CS_TYPES_H],
 [
 	AC_MSG_CHECKING([$1 for include/pcmcia/cs_types.h (removed in 2.6.36)])
 	if test -f "$1/include/pcmcia/cs_types.h"; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])
+
+# COMEDI_CHECK_HAVE_CS_H([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+# -------------------------------------------------------------
+#
+# Check if kernel has <pcmcia/cs.h> file.
+AC_DEFUN([COMEDI_CHECK_HAVE_CS_H],
+[
+	AC_MSG_CHECKING([$1 for include/pcmcia/cs.h (removed in 2.6.37)])
+	if test -f "$1/include/pcmcia/cs.h"; then
 		AC_MSG_RESULT([yes])
 		$2
 	else

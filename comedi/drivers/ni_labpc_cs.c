@@ -3,7 +3,7 @@
     Driver for National Instruments daqcard-1200 boards
     Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
 
-    PCMCIA crap is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
+    PCMCIA stuff is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
     from the pcmcia package.
     The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
     <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -75,7 +75,9 @@ NI manuals:
 #ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 #include <pcmcia/cs.h>
+#endif
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -271,6 +273,7 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	link->irq.Handler = NULL;
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -280,6 +283,7 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	 */
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
+#endif
 
 	pcmcia_cur_dev = link;
 
@@ -330,6 +334,7 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 ======================================================================*/
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -429,7 +434,17 @@ static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	/* If we got this far, we're cool! */
 	return 0;
 }
-#endif
+#else	/* CONFIG_COMEDI_HAVE_CS_H */
+static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				void *priv_data)
+{
+	if (p_dev->config_index == 0)
+		return -EINVAL;
+
+	return pcmcia_request_io(p_dev);
+}
+#endif	/* CONFIG_COMEDI_HAVE_CS_H */
+#endif	/* CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE */
 
 static void labpc_config(struct pcmcia_device *link)
 {
@@ -437,7 +452,9 @@ static void labpc_config(struct pcmcia_device *link)
 	local_info_t *dev = link->priv;
 #endif
 	int last_ret;
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	win_req_t req;
+#endif
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	tuple_t tuple;
 	cisparse_t parse;
@@ -451,8 +468,19 @@ static void labpc_config(struct pcmcia_device *link)
 
 	DEBUG(0, "labpc_config(0x%p)\n", link);
 
+#ifndef CONFIG_COMEDI_HAVE_CS_H
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
+		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
+#endif
+
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
-	last_ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop, &req);
+	last_ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop,
+#ifdef CONFIG_COMEDI_HAVE_CS_H
+			&req
+#else
+			NULL
+#endif
+			);
 	if (last_ret) {
 		dev_warn(&link->dev, "no configuration found\n");
 		goto cs_failed;
@@ -629,9 +657,13 @@ static void labpc_config(struct pcmcia_device *link)
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
 #endif
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
+#ifdef CONFIG_COMEDI_HAVE_CS_H
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+#else
+	last_ret = pcmcia_enable_device(link);
+#endif
+	if (last_ret)
 		goto cs_failed;
-	}
 
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	/*
@@ -643,6 +675,7 @@ static void labpc_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	/* Finally, report what we've done */
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
@@ -675,6 +708,7 @@ static void labpc_config(struct pcmcia_device *link)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
 			req.Base + req.Size - 1);
 	printk("\n");
+#endif	/* CONFIG_COMEDI_HAVE_CS_H */
 
 	return;
 
@@ -739,9 +773,13 @@ struct pcmcia_driver labpc_cs_driver = {
 	.resume = labpc_cs_resume,
 	.id_table = labpc_cs_ids,
 	.owner = THIS_MODULE,
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+	.name = devname,
+#else
 	.drv = {
 			.name = devname,
 		},
+#endif
 };
 
 static int __init init_labpc_cs(void)

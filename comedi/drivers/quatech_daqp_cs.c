@@ -54,7 +54,9 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 #include <pcmcia/cs.h>
+#endif
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -1124,6 +1126,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 #endif
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -1133,6 +1136,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	 */
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
+#endif
 
 	daqp_cs_config(link);
 
@@ -1178,6 +1182,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 ======================================================================*/
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -1239,7 +1244,17 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	return pcmcia_request_io(p_dev);
 #endif
 }
-#endif
+#else	/* CONFIG_COMEDI_HAVE_CS_H */
+static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				void *priv_data)
+{
+	if (p_dev->config_index == 0)
+		return -EINVAL;
+
+	return pcmcia_request_io(p_dev);
+}
+#endif	/* CONFIG_COMEDI_HAVE_CS_H */
+#endif	/* CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE */
 
 static void daqp_cs_config(struct pcmcia_device *link)
 {
@@ -1255,6 +1270,11 @@ static void daqp_cs_config(struct pcmcia_device *link)
 #endif
 
 	DEBUG(0, "daqp_cs_config(0x%p)\n", link);
+
+#ifndef CONFIG_COMEDI_HAVE_CS_H
+	/* Do we need to allocate an interrupt? */
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+#endif
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	last_ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
@@ -1412,9 +1432,13 @@ static void daqp_cs_config(struct pcmcia_device *link)
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
 #endif
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
+#ifdef CONFIG_COMEDI_HAVE_CS_H
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+#else
+	last_ret = pcmcia_enable_device(link);
+#endif
+	if (last_ret)
 		goto cs_failed;
-	}
 
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	/*
@@ -1430,6 +1454,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	/* Finally, report what we've done */
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
@@ -1459,6 +1484,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		printk(" & %pR", link->resource[1]);
 #endif
 	printk("\n");
+#endif	/* CONFIG_COMEDI_HAVE_CS_H */
 
 	return;
 
@@ -1525,9 +1551,13 @@ struct pcmcia_driver daqp_cs_driver = {
 	.resume = daqp_cs_resume,
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+	.name = devname,
+#else
 	.drv = {
 			.name = devname,
 		},
+#endif
 };
 
 int __init init_module(void)

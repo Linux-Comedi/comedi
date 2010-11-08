@@ -38,7 +38,9 @@ Status: experimental
 #ifdef CONFIG_COMEDI_HAVE_CS_TYPES_H
 #include <pcmcia/cs_types.h>
 #endif
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 #include <pcmcia/cs.h>
+#endif
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -755,8 +757,10 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 	link->irq.Handler = NULL;
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
+#endif
 
 	cur_dev = link;
 
@@ -782,6 +786,7 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 }				/* das16cs_pcmcia_detach */
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
@@ -842,7 +847,17 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	return 0;
 }
-#endif
+#else	/* CONFIG_COMEDI_HAVE_CS_H */
+static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				void *priv_data)
+{
+	if (p_dev->config_index == 0)
+		return -EINVAL;
+
+	return pcmcia_request_io(p_dev);
+}
+#endif	/* CONFIG_COMEDI_HAVE_CS_H */
+#endif	/* CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE */
 
 static void das16cs_pcmcia_config(struct pcmcia_device *link)
 {
@@ -859,6 +874,11 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 #endif
 
 	DEBUG(0, "das16cs_pcmcia_config(0x%p)\n", link);
+
+#ifndef CONFIG_COMEDI_HAVE_CS_H
+	/* Do we need to allocate an interrupt? */
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+#endif
 
 #ifdef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	last_ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
@@ -1010,7 +1030,12 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 #ifndef CONFIG_COMEDI_HAVE_PCMCIA_LOOP_TUPLE
 	last_fn = RequestConfiguration;
 #endif
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
+#ifdef CONFIG_COMEDI_HAVE_CS_H
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+#else
+	last_ret = pcmcia_enable_device(link);
+#endif
+	if (last_ret)
 		goto cs_failed;
 
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
@@ -1023,6 +1048,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 #endif
 
+#ifdef CONFIG_COMEDI_HAVE_CS_H
 	/* Finally, report what we've done */
 #ifdef CONFIG_COMEDI_HAVE_DS_DEV_NODE_T
 	printk(KERN_INFO "%s: index 0x%02x",
@@ -1053,6 +1079,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		printk(" & %pR", link->resource[1]);
 #endif
 	printk("\n");
+#endif	/* CONFIG_COMEDI_HAVE_CS_H */
 
 	return;
 
@@ -1104,9 +1131,13 @@ struct pcmcia_driver das16cs_driver = {
 	.resume = das16cs_pcmcia_resume,
 	.id_table = das16cs_id_table,
 	.owner = THIS_MODULE,
+#ifdef CONFIG_COMEDI_HAVE_PCMCIA_DRIVER_NAME
+	.name = devname,
+#else
 	.drv = {
 			.name = devname,
 		},
+#endif
 };
 
 static int __init init_das16cs_pcmcia_cs(void)
