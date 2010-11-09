@@ -519,7 +519,7 @@ static int mio_cs_attach(comedi_device * dev, comedi_devconfig * it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
-#ifdef CONFIG_COMEDI_HAVE_CS_IRQ_REQ_T
+#ifdef CONFIG_COMEDI_HAVE_CS_IO_REQ_T
 	dev->iobase = link->io.BasePort1;
 #else
 	dev->iobase = link->resource[0]->start;
