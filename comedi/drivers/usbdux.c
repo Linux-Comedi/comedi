@@ -2294,9 +2294,9 @@ static void tidy_up(usbduxsub_t * usbduxsub_tmp)
 		kfree(usbduxsub_tmp->insnBuffer);
 		usbduxsub_tmp->insnBuffer = NULL;
 	}
-	if (usbduxsub_tmp->inBuffer) {
-		kfree(usbduxsub_tmp->inBuffer);
-		usbduxsub_tmp->inBuffer = NULL;
+	if (usbduxsub_tmp->outBuffer) {
+		kfree(usbduxsub_tmp->outBuffer);
+		usbduxsub_tmp->outBuffer = NULL;
 	}
 	if (usbduxsub_tmp->dac_commands) {
 		kfree(usbduxsub_tmp->dac_commands);
