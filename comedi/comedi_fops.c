@@ -936,9 +936,29 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
 		case INSN_BITS:
 			if (insn->n != 2) {
 				ret = -EINVAL;
-				break;
+			} else {
+				/* Most drivers ignore the base channel in
+				 * insn->chanspec.  Deal with it here if
+				 * the subdevice has <= 32 channels. */
+				unsigned int shift;
+				lsampl_t orig_mask;
+
+				orig_mask = data[0];
+				if (s->n_chan <= 32) {
+					shift = CR_CHAN(insn->chanspec);
+					if (shift > 0) {
+						insn->chanspec = 0;
+						data[0] <<= shift;
+						data[1] <<= shift;
+					}
+				} else {
+					shift = 0;
+				}
+				ret = s->insn_bits(dev, s, insn, data);
+				data[0] = orig_mask;
+				if (shift > 0)
+					data[1] >>= shift;
 			}
-			ret = s->insn_bits(dev, s, insn, data);
 			break;
 		case INSN_CONFIG:
 			ret = check_insn_config_length(insn, data);
