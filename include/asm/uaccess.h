@@ -2,6 +2,8 @@
 #ifndef __COMPAT_ASM_UACCESS_H
 #define __COMPAT_ASM_UACCESS_H
 
+#include <linux/version.h>
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,2,0)
 /* unknown, approx 2.1.4 */
 
