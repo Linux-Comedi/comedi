@@ -26,14 +26,21 @@ For installation instructions, look at the file INSTALL.
 * Mailing List:
 
 Questions about Comedi should be sent to the Comedi mailing list,
-<comedi@comedi.org>.  Mailing the maintainer directly is always
-acceptable, but since the mailing list is archived and questions
-are often answered more quickly by others, the mailing list is
-preferred.
+<comedi_list@googlegroups.com>.  It is necessary to join the group
+before posting (see below).  It is also possible to post to the list
+using the web interface (see below).  Mailing the maintainer
+directly is always acceptable, but since the mailing list is
+archived and questions are often answered more quickly by others,
+the mailing list is preferred.
 
-To subscribe to and unsubscribe from the mailing list, go to
-http://www.comedi.org/cgi-bin/mailman/listinfo/comedi.  Alternatively,
-you can send "subscribe comedi" to <comedi-request@comedi.org>
+To subscribe to and unsubscribe from the mailing list, or to read or
+post messages via the web interface, go to
+<http://groups.google.com/group/comedi_list>.  Alternatively, you
+can send a blank email to <comedi_list+subscribe@googlegroups.com>
+to subscribe, or to <comedi_list+unsubscribe@googlegroups.com> to
+unsubscribe (making sure the "From:" email address matches the
+address you originally subscribed with!).
+
 Traffic on the list is light, and mainly questions/answers about
 comedi installation, bugs, and programming.  General questions
 about data acquisition are also welcome.
