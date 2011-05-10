@@ -44,15 +44,11 @@ Comedi also has a web page, at http://www.comedi.org.  New versions
 of comedi can be found on the ftp site ftp://ftp.comedi.org/pub/comedi.
 
 Often bugfixes and new features that are not in the current release
-can be found in the CVS repository.  CVS snapshots can be created
-automatically at https://cvs.comedi.org/cgi-bin/viewcvs.cgi/comedi/
-The CVS repository can be
-accessed anonymously using:
+can be found in the Git repository.  Git snapshots can be created
+automatically at <http://comedi.org/git?p=comedi/comedi.git;a=tree>.
+The Git repository can be accessed anonymously using:
 
-  cvs -d :pserver:anonymous@cvs.comedi.org:/var/cvs login
-  (password is blank)
-  cvs -d :pserver:anonymous@cvs.comedi.org:/var/cvs co comedi
-
+  git clone git://comedi.org/git/comedi.git
 
 Comedi may be freely distributed and modified in accordance with the
 GNU General Public License.
