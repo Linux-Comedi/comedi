@@ -1,5 +1,5 @@
 
-Building Comedi from CVS is slightly different from the releases.
+Building Comedi from Git is slightly different from the releases.
 There is an additional step of creating the configure script and
 makefiles from the templates using automake, autoconf, etc.  This
 is all done automatically by running the script ./autogen.sh.
