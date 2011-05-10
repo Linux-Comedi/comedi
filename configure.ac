@@ -13,7 +13,7 @@ PACKAGE=comedi
 COMEDI_MAJORVERSION=0
 COMEDI_MINORVERSION=7
 COMEDI_MICROVERSION=76
-# set the nanoversion to 0 for releases, 1 for CVS, >= 2 for prereleases
+# set the nanoversion to 0 for releases, 1 for Git, >= 2 for prereleases
 COMEDI_NANOVERSION=0
 
 if test x$COMEDI_NANOVERSION = x0 ; then
