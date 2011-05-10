@@ -40,8 +40,8 @@ about data acquisition are also welcome.
 
 * More Information:
 
-Comedi also has a web page, at http://www.comedi.org.  New versions
-of comedi can be found on the ftp site ftp://ftp.comedi.org/pub/comedi.
+Comedi also has a web page at <http://www.comedi.org/> from where
+updated versions may be downloaded.
 
 Often bugfixes and new features that are not in the current release
 can be found in the Git repository.  Git snapshots can be created
