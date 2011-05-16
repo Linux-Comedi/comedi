@@ -90,7 +90,7 @@ int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
 		//Test the number of the channel
 		for (i = 0; i < data[3]; i++) {
 
-			if (CR_CHAN(data[4 + i]) >= this_board->i_NbrAiChannel) {
+			if (CR_CHAN(data[4 + i]) >= devpriv->s_EeParameters.i_NbrAiChannel) {
 				printk("bad channel list\n");
 				return -2;
 			}
@@ -545,8 +545,8 @@ int i_APCI3120_CommandTestAnalogInput(comedi_device * dev, comedi_subdevice * s,
 
 	if (cmd->scan_begin_src == TRIG_TIMER)	// Test Delay timing
 	{
-		if (cmd->scan_begin_arg < this_board->ui_MinDelaytimeNs) {
-			cmd->scan_begin_arg = this_board->ui_MinDelaytimeNs;
+		if (cmd->scan_begin_arg < devpriv->s_EeParameters.ui_MinDelaytimeNs) {
+			cmd->scan_begin_arg = devpriv->s_EeParameters.ui_MinDelaytimeNs;
 			err++;
 		}
 	}
@@ -556,16 +556,16 @@ int i_APCI3120_CommandTestAnalogInput(comedi_device * dev, comedi_subdevice * s,
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			if ((cmd->convert_arg)
 				&& (cmd->convert_arg <
-					this_board->ui_MinAcquisitiontimeNs)) {
+					devpriv->s_EeParameters.ui_MinAcquisitiontimeNs)) {
 				cmd->convert_arg =
-					this_board->ui_MinAcquisitiontimeNs;
+					devpriv->s_EeParameters.ui_MinAcquisitiontimeNs;
 				err++;
 			}
 		} else {
 			if (cmd->convert_arg <
-				this_board->ui_MinAcquisitiontimeNs) {
+				devpriv->s_EeParameters.ui_MinAcquisitiontimeNs) {
 				cmd->convert_arg =
-					this_board->ui_MinAcquisitiontimeNs;
+					devpriv->s_EeParameters.ui_MinAcquisitiontimeNs;
 				err++;
 
 			}
@@ -2508,7 +2508,7 @@ int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
 int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice
 	* s, comedi_insn * insn, lsampl_t * data)
 {
-	if ((data[0] > this_board->i_DoMaxdata) || (data[0] < 0)) {
+	if ((data[0] > devpriv->s_EeParameters.i_DoMaxdata) || (data[0] < 0)) {
 
 		comedi_error(dev, "Data is not valid !!! \n");
 		return -EINVAL;
@@ -2569,7 +2569,7 @@ int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
 	}
-	if ((ui_NoOfChannel > (this_board->i_NbrDoChannel - 1))
+	if ((ui_NoOfChannel > (devpriv->s_EeParameters.i_NbrDoChannel - 1))
 		|| (ui_NoOfChannel < 0)) {
 		comedi_error(dev,
 			"This board doesn't have specified channel !!! \n");

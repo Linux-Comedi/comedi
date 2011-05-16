@@ -435,7 +435,7 @@ typedef struct {
 	BYTE b_ExttrigEnable;	//  To enable or disable external trigger
 
 	struct task_struct *tsk_Current;	// Pointer to the current process
-	boardtype *ps_BoardInfo;
+	const boardtype *ps_BoardInfo;
 
 	// Hardware board infos for 1710
 
@@ -466,6 +466,22 @@ typedef struct {
 
 	str_ModuleInfo s_ModuleInfo[4];
 	ULONG ul_TTLPortConfiguration[10];
+
+	/* Parameters read from EEPROM overriding static board info */
+	struct {
+		INT i_NbrAiChannel;	/*  num of A/D chans */
+		INT i_NbrAoChannel;	/*  num of D/A chans */
+		INT i_AiMaxdata;	/*  resolution of A/D */
+		INT i_AoMaxdata;	/*  resolution of D/A */
+		INT i_NbrDiChannel;	/*  Number of DI channels */
+		INT i_NbrDoChannel;	/*  Number of DO channels */
+		INT i_DoMaxdata;	/*  data to set all channels high */
+		INT i_Dma;		/*  dma present or not */
+		INT i_Timer;		/*  timer subdevice present or not */
+		UINT ui_MinAcquisitiontimeNs;
+					/*  Minimum Acquisition in Nano secs */
+		UINT ui_MinDelaytimeNs;	/*  Minimum Delay in Nano secs */
+	} s_EeParameters;
 
 } addi_private;
 
