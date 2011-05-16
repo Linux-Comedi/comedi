@@ -2628,13 +2628,11 @@ static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it)
 		devpriv->i_IobaseAmcc = (INT) iobase_a;	//AMCC base address...
 		devpriv->i_IobaseAddon = (INT) iobase_addon;	//ADD ON base address....
 		devpriv->i_IobaseReserved = (INT) iobase_reserved;
-		devpriv->ps_BoardInfo = this_board;
 	} else {
 		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = (unsigned long)io_addr[2];
 		devpriv->amcc = card;
 		devpriv->iobase = (INT) io_addr[2];
-		devpriv->ps_BoardInfo = this_board;
 		devpriv->i_IobaseReserved = (INT) io_addr[3];
 		printk("\nioremap begin");
 		devpriv->dw_AiBase =
@@ -2953,8 +2951,8 @@ static int i_ADDI_Detach(comedi_device * dev)
 			comedi_free_irq(dev->irq, dev);
 		}
 
-		if ((devpriv->ps_BoardInfo->pc_EepromChip == NULL)
-			|| (strcmp(devpriv->ps_BoardInfo->pc_EepromChip,
+		if ((this_board->pc_EepromChip == NULL)
+			|| (strcmp(this_board->pc_EepromChip,
 					ADDIDATA_9054) != 0)) {
 			if (devpriv->allocated) {
 				i_pci_card_free(devpriv->amcc);

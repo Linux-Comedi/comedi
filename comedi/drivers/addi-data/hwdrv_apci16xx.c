@@ -97,7 +97,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(comedi_device * dev,
 	BYTE b_Command = 0;
 	BYTE b_Cpt = 0;
 	BYTE b_NumberOfPort =
-		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+		(BYTE) (this_board->i_NbrTTLChannel / 8);
 
 	/************************/
 	/* Test the buffer size */
@@ -289,7 +289,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(comedi_device * dev,
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
 	BYTE b_NumberOfPort =
-		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+		(BYTE) (this_board->i_NbrTTLChannel / 8);
 	BYTE b_SelectedPort = CR_RANGE(insn->chanspec);
 	BYTE b_InputChannel = CR_CHAN(insn->chanspec);
 	BYTE *pb_Status;
@@ -450,9 +450,9 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(comedi_device * dev,
 	   /**********************************/
 
 		b_NumberOfPort =
-			(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 32);
+			(BYTE) (this_board->i_NbrTTLChannel / 32);
 		if ((b_NumberOfPort * 32) <
-			devpriv->ps_BoardInfo->i_NbrTTLChannel) {
+			this_board->i_NbrTTLChannel) {
 			b_NumberOfPort = b_NumberOfPort + 1;
 		}
 
@@ -576,7 +576,7 @@ int i_APCI16XX_InsnBitsWriteTTLIO(comedi_device * dev,
 	INT i_ReturnValue = insn->n;
 	BYTE b_Command = 0;
 	BYTE b_NumberOfPort =
-		(BYTE) (devpriv->ps_BoardInfo->i_NbrTTLChannel / 8);
+		(BYTE) (this_board->i_NbrTTLChannel / 8);
 	BYTE b_SelectedPort = CR_RANGE(insn->chanspec);
 	BYTE b_OutputChannel = CR_CHAN(insn->chanspec);
 	DWORD dw_Status = 0;

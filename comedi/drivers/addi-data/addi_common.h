@@ -435,7 +435,6 @@ typedef struct {
 	BYTE b_ExttrigEnable;	//  To enable or disable external trigger
 
 	struct task_struct *tsk_Current;	// Pointer to the current process
-	const boardtype *ps_BoardInfo;
 
 	// Hardware board infos for 1710
 
