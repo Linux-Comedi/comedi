@@ -100,7 +100,7 @@ AC_DEFUN([AS_LINUX],
 	dnl the versioned AS_LINUX macros just use the global variables
 	dnl this could be cleaned up later on if we feel like it
 	case $LINUX_VERSION_MAJOR.$LINUX_VERSION_MINOR in
-		2.6)
+		2.6 | 3.[[0-9]]*)
 			AS_LINUX_2_6()
 			;;
 		2.[[01234]])
