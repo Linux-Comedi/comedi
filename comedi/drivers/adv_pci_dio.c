@@ -12,7 +12,7 @@ Description: Advantech PCI-1730, PCI-1733, PCI-1734, PCI-1735U,
              PCI-1754, PCI-1756, PCI-1762
 Author: Michal Dobes <dobes@tesnet.cz>
 Devices: [Advantech] PCI-1730 (adv_pci_dio), PCI-1733,
-  PCI-1734, PCI-1735U, PCI-1736UP, PCI-1750,
+  PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U, PCI-1750,
   PCI-1751, PCI-1752, PCI-1753,
   PCI-1753+PCI-1753E, PCI-1754, PCI-1756,
   PCI-1760, PCI-1762
@@ -49,6 +49,7 @@ Configuration options:
 // hardware types of the cards
 typedef enum {
 	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1735, TYPE_PCI1736,
+        TYPE_PCI1739,
 	TYPE_PCI1750,
 	TYPE_PCI1751,
 	TYPE_PCI1752,
@@ -101,6 +102,12 @@ typedef enum {
 #define PCI1736_3_INT_CLR       0x10    /* R/W: clear interrupts */
 #define PCI1736_BOARDID    4            /* R:   Board I/D switch for 1736UP */
 #define PCI1736_MAINREG    0            /* Normal register (2) doesn't work */
+
+// Advantech PCI-1739U
+#define PCI1739_DIO	   0	/* R/W: begin of 8255 registers block */
+#define PCI1739_ICR	  32	/* W:   Interrupt control register */
+#define PCI1739_ISR	  32	/* R:   Interrupt status register */
+#define PCI1739_BOARDID	   8    /* R:   Board I/D switch for 1739U */
 
 // Advantech PCI-1750
 #define PCI1750_IDI	   0	/* R:   Isolated digital input  0-15 */
@@ -225,6 +232,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_dio_pci_table) = {
 	{PCI_VENDOR_ID_ADVANTECH, 0x1734, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1735, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1736, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_ADVANTECH, 0x1739, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1750, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1751, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_ADVANTECH, 0x1752, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -281,6 +289,14 @@ static const boardtype boardtypes[] = {
 			{{0, 0, 0, 0}},
 			IO_8b,
         },
+	{"pci1739", PCI_VENDOR_ID_ADVANTECH, 0x1739, PCIDIO_MAINREG,
+			TYPE_PCI1739,
+			{{0, 0, 0, 0}, {0, 0, 0, 0}},
+			{{0, 0, 0, 0}, {0, 0, 0, 0}},
+			{{48, PCI1739_DIO, 2, 0}, {0, 0, 0, 0}},
+			{0, 0, 0, 0},
+			{{0, 0, 0, 0}},
+		IO_8b},
 	{"pci1750", PCI_VENDOR_ID_ADVANTECH, 0x1750, PCIDIO_MAINREG,
 			TYPE_PCI1750,
 			{{0, 0, 0, 0}, {16, PCI1750_IDI, 2, 0}},
@@ -814,6 +830,9 @@ static int pci_dio_reset(comedi_device * dev)
 		outb(0, dev->iobase+PCI1736_3_INT_EN);  // disable interrupts
 		outb(0x0f, dev->iobase+PCI1736_3_INT_CLR);// clear interrupts
 		outb(0, dev->iobase+PCI1736_3_INT_RF);  // set rising edge trigger
+		break;
+	case TYPE_PCI1739:
+		outb(0x88, dev->iobase + PCI1739_ICR);	// disable & clear interrupts
 		break;
 
 	case TYPE_PCI1750:
