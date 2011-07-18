@@ -997,6 +997,9 @@ static int setup_mite_dma(comedi_device * dev, comedi_subdevice * s)
 
 	devpriv->di_mite_chan->dir = COMEDI_INPUT;
 
+	/* write alloc the entire buffer */
+	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
+
 	mite_prep_dma(devpriv->di_mite_chan, 32, 32);
 
 	mite_dma_arm(devpriv->di_mite_chan);
