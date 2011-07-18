@@ -990,6 +990,7 @@ static int ni_pcidio_cmd(comedi_device * dev, comedi_subdevice * s)
 static int setup_mite_dma(comedi_device * dev, comedi_subdevice * s)
 {
 	int retval;
+	unsigned long flags;
 
 	retval = ni_pcidio_request_di_mite_channel(dev);
 	if (retval)
