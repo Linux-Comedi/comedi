@@ -1000,10 +1000,16 @@ static int setup_mite_dma(comedi_device * dev, comedi_subdevice * s)
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if (devpriv->di_mite_chan) {
+		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
 
-	mite_dma_arm(devpriv->di_mite_chan);
-	return 0;
+		mite_dma_arm(devpriv->di_mite_chan);
+	} else
+		retval = -EIO;
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+
+	return retval;
 }
 
 static int ni_pcidio_inttrig(comedi_device * dev, comedi_subdevice * s,
