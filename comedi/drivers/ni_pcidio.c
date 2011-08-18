@@ -478,6 +478,26 @@ void ni_pcidio_event(comedi_device * dev, comedi_subdevice * s)
 	comedi_event(dev, s);
 }
 
+static int ni_pcidio_poll(comedi_device * dev, comedi_subdevice * s)
+{
+	unsigned long flags_dev, flags_mite;
+	int count;
+
+	comedi_spin_lock_irqsave(&dev->spinlock, flags_dev);
+	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags_mite);
+
+	if (devpriv->di_mite_chan)
+		mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+
+	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock,
+					flags_mite);
+
+	count = s->async->buf_write_count - s->async->buf_read_count;
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags_dev);
+
+	return count;
+}
+
 static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 {
 	comedi_device *dev = d;
@@ -494,12 +514,16 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 	int work = 0;
 	unsigned int m_status = 0;
 	unsigned long irq_flags;
+	unsigned long flags_dev;
 
 	//interrupcions parasites
 	if (dev->attached == 0) {
 		// assume it's from another card
 		return IRQ_NONE;
 	}
+
+	/* Lock to avoid race with comedi_poll */
+	comedi_spin_lock_irqsave(&dev->spinlock, flags_dev);
 
 	status = readb(devpriv->mite->daq_io_addr +
 		Interrupt_And_Window_Status);
@@ -635,6 +659,9 @@ static irqreturn_t nidio_interrupt(int irq, void *d PT_REGS_ARG)
 			Master_DMA_And_Interrupt_Control);
 	}
 #endif
+
+	comedi_spin_unlock_irqrestore(&dev->spinlock, flags_dev);
+
 	return IRQ_HANDLED;
 }
 
@@ -1234,6 +1261,7 @@ static int nidio_attach(comedi_device * dev, comedi_devconfig * it)
 		s->len_chanlist = 32;	/* XXX */
 		s->buf_change = &ni_pcidio_change;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
+		s->poll = &ni_pcidio_poll;
 
 		writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
 		writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
