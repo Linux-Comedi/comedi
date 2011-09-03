@@ -72,6 +72,7 @@ obj-$(CONFIG_COMEDI_PCMCIA_MODULES) += quatech_daqp_cs.o
 
 obj-$(CONFIG_COMEDI_USB_MODULES) += usbdux.o
 obj-$(CONFIG_COMEDI_USB_MODULES) += usbduxfast.o
+obj-$(CONFIG_COMEDI_USB_MODULES) += usbduxsigma.o
 obj-$(CONFIG_COMEDI_USB_MODULES) += dt9812.o
 
 obj-m += 8255.o

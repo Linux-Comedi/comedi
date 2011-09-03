@@ -163,6 +163,7 @@ if CONFIG_COMEDI_USB
 usb_modules= \
  usbdux.ko \
  usbduxfast.ko \
+ usbduxsigma.ko \
  dt9812.ko
 else
 usb_modules=
@@ -358,6 +359,7 @@ comedi_test_ko_SOURCES = comedi_test.c
 unioxx5_ko_SOURCES = unioxx5.c
 usbdux_ko_SOURCES = usbdux.c
 usbduxfast_ko_SOURCES = usbduxfast.c
+usbduxsigma_ko_SOURCES = usbduxsigma.c
 
 clean-modulePROGRAMS:
 	-test -z "$(module_PROGRAMS)" || rm -f $(module_PROGRAMS)
