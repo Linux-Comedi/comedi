@@ -21,7 +21,7 @@
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
+#ifndef CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE
 typedef enum {
 	false,
 	true

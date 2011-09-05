@@ -953,3 +953,21 @@ AC_DEFUN([COMEDI_CHECK_HAVE_LINUX_SEMAPHORE_H],
 		$3
 	fi
 ])
+
+# COMEDI_CHECK_HAVE_GENERIC_BOOL_TYPE([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+#
+# -------------------------------------------------------------
+# Check if kernel is new enough to have generic 'bool' type in <linux/types.h>
+# and 'false' and 'true' enum constants in <linux/stddef.h>.  This was added
+# in vanilla 2.6.19, but backported to RHEL5 2.6.18.
+AC_DEFUN([COMEDI_CHECK_HAVE_GENERIC_BOOL_TYPE],
+[
+	AC_MSG_CHECKING([$1 for 'bool' in include/linux/types.h])
+	if grep -q 'bool;' "$1/include/linux/types.h" 2>/dev/null; then
+		AC_MSG_RESULT([yes])
+		$2
+	else
+		AC_MSG_RESULT([no])
+		$3
+	fi
+])

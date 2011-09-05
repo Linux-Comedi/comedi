@@ -158,6 +158,12 @@ if test "$HAVE_CS_TYPES_H" = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_HAVE_CS_H],[true],[Define if Linux kernel source has pcmcia/cs.h (removed in 2.6.37)])
 fi
 
+COMEDI_CHECK_HAVE_GENERIC_BOOL_TYPE([$LINUX_SRC_DIR],
+      [HAVE_GENERIC_BOOL_TYPE="yes"], [HAVE_GENERIC_BOOL_TYPE="no"])
+if test "$HAVE_GENERIC_BOOL_TYPE" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE],[true],[Define if Linux kernel source has generic 'bool' type in linux/types.h])
+fi
+
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
 AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
 AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],

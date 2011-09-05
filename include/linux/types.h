@@ -27,6 +27,10 @@ typedef unsigned long resource_size_t;
 /* resource_size_t is either u32 or u64, depending on CONFIG_RESOURCES_64BIT */
 #endif
 
+#ifndef CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE
+typedef _Bool bool;
+#endif
+
 #include_next <linux/types.h>
 
 #endif
