@@ -42,6 +42,11 @@ supports simple digital I/O; no handshaking is supported.
 
 DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
 
+The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
+scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
+scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
+trailing edge.
+
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
 
@@ -838,8 +843,8 @@ static int ni_pcidio_cmdtest(comedi_device * dev, comedi_subdevice * s,
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
+		if ((cmd->scan_begin_arg & ~(CR_EDGE | CR_INVERT)) != 0) {
+			cmd->scan_begin_arg &= (CR_EDGE | CR_INVERT);
 			err++;
 		}
 	}
@@ -954,7 +959,13 @@ static int ni_pcidio_cmd(comedi_device * dev, comedi_subdevice * s)
 		writeb(0, devpriv->mite->daq_io_addr + Sequence);
 		writeb(0x00, devpriv->mite->daq_io_addr + ReqReg);
 		writeb(4, devpriv->mite->daq_io_addr + BlockMode);
-		writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		if (!(cmd->scan_begin_arg & CR_INVERT)) {
+			/* Leading Edge pulse mode */
+			writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		} else {
+			/* Trailing Edge pulse mode */
+			writeb(0x02, devpriv->mite->daq_io_addr + LinePolarities);
+		}
 		writeb(0x00, devpriv->mite->daq_io_addr + AckSer);
 		writel(1, devpriv->mite->daq_io_addr + StartDelay);
 		writeb(1, devpriv->mite->daq_io_addr + ReqDelay);
