@@ -1411,10 +1411,10 @@ typedef struct ni_board_struct {
 #define NUM_GPCT 2
 
 #define NI_PRIVATE_COMMON					\
-	uint16_t (*stc_readw)(comedi_device *dev, int register);	\
-	uint32_t (*stc_readl)(comedi_device *dev, int register);	\
-	void (*stc_writew)(comedi_device *dev, uint16_t value, int register);	\
-	void (*stc_writel)(comedi_device *dev, uint32_t value, int register);	\
+	uint16_t (*stc_readw)(comedi_device *dev, int reg);	\
+	uint32_t (*stc_readl)(comedi_device *dev, int reg);	\
+	void (*stc_writew)(comedi_device *dev, uint16_t value, int reg);	\
+	void (*stc_writel)(comedi_device *dev, uint32_t value, int reg);	\
 	\
 	unsigned short dio_output;				\
 	unsigned short dio_control;				\
