@@ -2378,11 +2378,7 @@ static int usbduxsigma_probe(struct usb_interface *uinterf,
 	dev_dbg(dev, "comedi_: usbdux: "
 		"usbduxsub[%d] is ready to connect to comedi.\n", index);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,33)
-	sema_init(&(usbduxsub[index].sem), 1);
-#else
 	mutex_init(&(usbduxsub[index].sem));
-#endif
 
 	/* save a pointer to the usb device */
 	usbduxsub[index].usbdev = udev;
