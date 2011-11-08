@@ -158,8 +158,9 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 	comedi_device *dev;
 	int rc;
 
-	if(dev_file_info == NULL || dev_file_info->device == NULL) return -ENODEV;
+	if (dev_file_info == NULL) return -ENODEV;
 	dev = dev_file_info->device;
+	if (dev == NULL) return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -1503,8 +1504,6 @@ static struct vm_operations_struct comedi_vm_ops = {
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
 	comedi_async *async = NULL;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
@@ -1512,6 +1511,11 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	int i;
 	int retval;
 	comedi_subdevice *s;
+	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
+	comedi_device *dev;
+	if (dev_file_info==NULL) return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev==NULL) return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
@@ -1577,10 +1581,13 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 {
 	unsigned int mask = 0;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
-	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
 	comedi_subdevice *read_subdev;
 	comedi_subdevice *write_subdev;
+	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
+	comedi_device *dev;
+	if (dev_file_info==NULL) return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev==NULL) return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
@@ -1626,7 +1633,10 @@ static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
+	comedi_device *dev;
+	if (dev_file_info==NULL) return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev==NULL) return -ENODEV;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -1733,7 +1743,10 @@ static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
 	DECLARE_WAITQUEUE(wait, current);
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
+	comedi_device *dev;
+	if (dev_file_info==NULL) return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev==NULL) return -ENODEV;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -1937,10 +1950,13 @@ ok:
 static int comedi_close(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
-	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
 	comedi_subdevice *s = NULL;
 	int i;
+	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
+	comedi_device *dev;
+	if (dev_file_info==NULL) return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev==NULL) return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -1980,7 +1996,10 @@ static int comedi_fasync(int fd, struct file *file, int on)
 {
 	const unsigned minor = iminor(file->f_dentry->d_inode);
 	struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
+	comedi_device *dev;
+	if (dev_file_info==NULL) return -ENODEV;
+	dev = dev_file_info->device;
+	if (dev==NULL) return -ENODEV;
 
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
