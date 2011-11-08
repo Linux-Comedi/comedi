@@ -180,7 +180,7 @@ status: testing
 /* comedi constants */
 static const comedi_lrange range_usbdux_ai_range = { 1, {
 								BIP_RANGE
-								(2.65)
+								(2.65/2.0)
 								}
 };
 
