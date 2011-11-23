@@ -701,7 +701,9 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 		goto error;
 	}
 
-	insns = kmalloc(sizeof(comedi_insn) * insnlist.n_insns, GFP_KERNEL);
+	if (insnlist.n_insns <= ULONG_MAX / sizeof(comedi_insn))
+		insns = kmalloc(sizeof(comedi_insn) * insnlist.n_insns,
+				GFP_KERNEL);
 	if (!insns) {
 		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
