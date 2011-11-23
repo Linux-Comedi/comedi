@@ -701,12 +701,6 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 		goto error;
 	}
 
-	if (sizeof(comedi_insn) * insnlist.n_insns < insnlist.n_insns) {
-		DPRINTK("number of instructions too large\n");
-		ret = -EINVAL;
-		goto error;
-	}
-
 	insns = kmalloc(sizeof(comedi_insn) * insnlist.n_insns, GFP_KERNEL);
 	if (!insns) {
 		DPRINTK("kmalloc failed\n");
