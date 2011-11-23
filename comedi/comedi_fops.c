@@ -681,25 +681,17 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
  * 	writes:
  * 		data (for reads)
  */
-/* arbitrary limits */
-#define MAX_SAMPLES 256
 static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 {
 	comedi_insnlist insnlist;
 	comedi_insn *insns = NULL;
 	lsampl_t *data = NULL;
-	int i = 0;
+	unsigned int max_samples;
+	int i;
 	int ret = 0;
 
 	if (copy_from_user(&insnlist, arg, sizeof(comedi_insnlist)))
 		return -EFAULT;
-
-	data = kmalloc(sizeof(lsampl_t) * MAX_SAMPLES, GFP_KERNEL);
-	if (!data) {
-		DPRINTK("kmalloc failed\n");
-		ret = -ENOMEM;
-		goto error;
-	}
 
 	if (insnlist.n_insns <= ULONG_MAX / sizeof(comedi_insn))
 		insns = kmalloc(sizeof(comedi_insn) * insnlist.n_insns,
@@ -717,12 +709,24 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 		goto error;
 	}
 
+	max_samples = 0;
 	for (i = 0; i < insnlist.n_insns; i++) {
-		if (insns[i].n > MAX_SAMPLES) {
-			DPRINTK("number of samples too large\n");
-			ret = -EINVAL;
+		if (max_samples < insns[i].n)
+			max_samples = insns[i].n;
+	}
+
+	if (max_samples) {
+		if (max_samples <= ULONG_MAX / sizeof(lsampl_t))
+			data = kmalloc(sizeof(lsampl_t) * max_samples,
+					GFP_KERNEL);
+		if (!data) {
+			DPRINTK("kmalloc failed\n");
+			ret = -ENOMEM;
 			goto error;
 		}
+	}
+
+	for (i = 0; i < insnlist.n_insns; i++) {
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
 					insns[i].n * sizeof(lsampl_t))) {
@@ -1001,20 +1005,20 @@ static int do_insn_ioctl(comedi_device * dev, void *arg, void *file)
 	lsampl_t *data = NULL;
 	int ret = 0;
 
-	data = kmalloc(sizeof(lsampl_t) * MAX_SAMPLES, GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
 	if (copy_from_user(&insn, arg, sizeof(comedi_insn))) {
 		ret = -EFAULT;
 		goto error;
 	}
 
-	/* This is where the behavior of insn and insnlist deviate. */
-	if (insn.n > MAX_SAMPLES)
-		insn.n = MAX_SAMPLES;
+	if (insn.n) {
+		if (insn.n <= ULONG_MAX / sizeof(lsampl_t))
+			data = kmalloc(sizeof(lsampl_t) * insn.n, GFP_KERNEL);
+		if (!data) {
+			ret = -ENOMEM;
+			goto error;
+		}
+	}
+
 	if (insn.insn & INSN_MASK_WRITE) {
 		if (copy_from_user(data, insn.data, insn.n * sizeof(lsampl_t))) {
 			ret = -EFAULT;
