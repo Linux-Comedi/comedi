@@ -1437,6 +1437,7 @@ static int usbdux_ao_inttrig(comedi_device * dev, comedi_subdevice * s,
 	if (trignum != 0) {
 		printk("comedi%d: usbdux_ao_inttrig: invalid trignum\n",
 			dev->minor);
+		mutex_unlock(&this_usbduxsub->mutex);
 		return -EINVAL;
 	}
 	if (!(this_usbduxsub->ao_cmd_running)) {
