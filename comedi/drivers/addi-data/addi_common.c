@@ -3066,6 +3066,9 @@ static int i_ADDIDATA_InsnReadEeprom(comedi_device * dev, comedi_subdevice * s,
 	WORD w_Address;
 	w_Address = CR_CHAN(insn->chanspec);	// address to be read as 0,1,2,3...255
 
+	if (insn->n == 0)
+		return 0;
+
 	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,
 		this_board->pc_EepromChip, 0x100 + (2 * w_Address));
 	data[0] = w_Data;
