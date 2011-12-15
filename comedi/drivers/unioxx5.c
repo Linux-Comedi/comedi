@@ -162,6 +162,9 @@ static int unioxx5_subdev_read(comedi_device * dev, comedi_subdevice * subdev,
 	unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
 
+	if (insn->n == 0)
+		return 0;
+
 	channel = CR_CHAN(insn->chanspec);
 	type = usp->usp_module_type[channel / 2];	/* defining module type(analog or digital) */
 
@@ -181,6 +184,9 @@ static int unioxx5_subdev_write(comedi_device * dev, comedi_subdevice * subdev,
 {
 	unioxx5_subd_priv *usp = subdev->private;
 	int channel, type;
+
+	if (insn->n == 0)
+		return 0;
 
 	channel = CR_CHAN(insn->chanspec);
 	type = usp->usp_module_type[channel / 2];	/* defining module type(analog or digital) */
