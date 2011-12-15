@@ -1780,6 +1780,9 @@ static int usbdux_counter_read(comedi_device * dev, comedi_subdevice * s,
 		return -EFAULT;
 	}
 
+	if (insn->n == 0)
+		return 0;
+
 	mutex_lock(&this_usbduxsub->mutex);
 
 	if (!(this_usbduxsub->probed)) {
@@ -1812,6 +1815,9 @@ static int usbdux_counter_write(comedi_device * dev, comedi_subdevice * s,
 	if (!this_usbduxsub) {
 		return -EFAULT;
 	}
+
+	if (insn->n == 0)
+		return 0;
 
 	mutex_lock(&this_usbduxsub->mutex);
 
