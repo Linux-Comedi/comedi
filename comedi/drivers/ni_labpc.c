@@ -1594,6 +1594,9 @@ static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	unsigned long flags;
 	int lsb, msb;
 
+	if (insn->n == 0)
+		return 0;
+
 	channel = CR_CHAN(insn->chanspec);
 
 	// turn off pacing of analog output channel
@@ -1631,6 +1634,9 @@ static int labpc_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -1639,6 +1645,9 @@ static int labpc_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 static int labpc_calib_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->caldac[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -1649,6 +1658,9 @@ static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	int channel = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	write_caldac(dev, channel, data[0]);
 	return 1;
 }
@@ -1656,6 +1668,9 @@ static int labpc_calib_write_insn(comedi_device * dev, comedi_subdevice * s,
 static int labpc_eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->eeprom_data[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -1672,6 +1687,9 @@ static int labpc_eeprom_write_insn(comedi_device * dev, comedi_subdevice * s,
 		printk("eeprom writes are only allowed to channels 16 through 127 (the pointer and user areas)");
 		return -EINVAL;
 	}
+
+	if (insn->n == 0)
+		return 0;
 
 	ret = labpc_eeprom_write(dev, channel, data[0]);
 	if (ret < 0)
