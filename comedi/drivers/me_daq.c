@@ -379,6 +379,9 @@ static int me_ai_insn_read(comedi_device * dev,
 	int aref = CR_AREF((&insn->chanspec)[0]);
 	int i;
 
+	if (insn->n == 0)
+		return 0;
+
 	/* stop any running conversion */
 	dev_private->control_1 &= 0xFFFC;
 	writew(dev_private->control_1, dev_private->me_regbase + ME_CONTROL_1);
@@ -515,9 +518,9 @@ static int me_ao_insn_write(comedi_device * dev,
 	/* Set data register */
 	for (i = 0; i < insn->n; i++) {
 		chan = CR_CHAN((&insn->chanspec)[i]);
-		writew((data[0] & s->maxdata),
+		writew((data[i] & s->maxdata),
 			dev_private->me_regbase + ME_DAC_DATA_A + (chan << 1));
-		dev_private->ao_readback[chan] = (data[0] & s->maxdata);
+		dev_private->ao_readback[chan] = (data[i] & s->maxdata);
 	}
 
 	/* Update dac with data registers */
