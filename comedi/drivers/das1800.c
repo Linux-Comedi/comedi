@@ -1621,6 +1621,9 @@ static int das1800_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	short output;
 	unsigned long irq_flags;
 
+	if (insn->n == 0)
+		return 0;
+
 	//  card expects two's complement data
 	output = data[0] - (1 << (thisboard->resolution - 1));
 	// if the write is to the 'update' channel, we need to remember its value
