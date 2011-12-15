@@ -2925,6 +2925,9 @@ static int ni_ao_config_chanlist(comedi_device * dev, comedi_subdevice * s,
 static int ni_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -2935,6 +2938,9 @@ static int ni_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert;
+
+	if (insn->n == 0)
+		return 0;
 
 	invert = ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
 
@@ -2954,6 +2960,9 @@ static int ni_ao_insn_write_671x(comedi_device * dev, comedi_subdevice * s,
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert;
+
+	if (insn->n == 0)
+		return 0;
 
 	ao_win_out(1 << chan, AO_Immediate_671x);
 	invert = 1 << (boardtype.aobits - 1);
@@ -4212,6 +4221,9 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 static int ni_freq_out_insn_read(comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->clock_and_fout & FOUT_Divider_mask;
 	return 1;
 }
@@ -4219,6 +4231,9 @@ static int ni_freq_out_insn_read(comedi_device * dev,
 static int ni_freq_out_insn_write(comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	devpriv->clock_and_fout &= ~FOUT_Enable;
 	devpriv->stc_writew(dev, devpriv->clock_and_fout,
 		Clock_and_FOUT_Register);
@@ -4627,6 +4642,9 @@ static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 static int ni_eeprom_insn_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
 
 	return 1;
@@ -4663,6 +4681,9 @@ static int ni_read_eeprom(comedi_device * dev, int addr)
 static int ni_m_series_eeprom_insn_read(comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -4810,6 +4831,9 @@ static void ni_write_caldac(comedi_device * dev, int addr, int val);
 static int ni_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	ni_write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
 
 	return 1;
@@ -4818,6 +4842,9 @@ static int ni_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
 static int ni_calib_insn_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
 
 	return 1;
