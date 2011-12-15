@@ -825,6 +825,9 @@ static int daqp_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 		return -EIO;
 	}
 
+	if (insn->n == 0)
+		return 0;
+
 	chan = CR_CHAN(insn->chanspec);
 	d = data[0];
 	d &= 0x0fff;
@@ -865,6 +868,9 @@ static int daqp_do_insn_write(comedi_device * dev, comedi_subdevice * s,
 	if (local->stop) {
 		return -EIO;
 	}
+
+	if (insn->n == 0)
+		return 0;
 
 	outw(data[0] & 0xf, dev->iobase + DAQP_DIGITAL_IO);
 
