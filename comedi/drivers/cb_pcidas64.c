@@ -3200,6 +3200,9 @@ static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	// do some initializing
 	writew(0, priv(dev)->main_iobase + DAC_CONTROL0_REG);
 
@@ -3227,6 +3230,9 @@ static int ao_winsn(comedi_device * dev, comedi_subdevice * s,
 static int ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = priv(dev)->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -3699,6 +3705,9 @@ static int calib_write_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	int channel = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	/* return immediately if setting hasn't changed, since
 	 * programming these things is slow */
 	if (priv(dev)->caldac_state[channel] == data[0])
@@ -3713,6 +3722,9 @@ static int calib_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
+
+	if (insn->n == 0)
+		return 0;
 
 	data[0] = priv(dev)->caldac_state[channel];
 
@@ -3755,6 +3767,9 @@ static int ad8402_write_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	int channel = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	/* return immediately if setting hasn't changed, since
 	 * programming these things is slow */
 	if (priv(dev)->ad8402_state[channel] == data[0])
@@ -3771,6 +3786,9 @@ static int ad8402_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
+
+	if (insn->n == 0)
+		return 0;
 
 	data[0] = priv(dev)->ad8402_state[channel];
 
@@ -3842,6 +3860,9 @@ static uint16_t read_eeprom(comedi_device * dev, uint8_t address)
 static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = read_eeprom(dev, CR_CHAN(insn->chanspec));
 
 	return 1;
