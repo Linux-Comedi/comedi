@@ -743,6 +743,11 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 	printk("s526: GPCT_INSN_WRITE on channel %d\n", subdev_channel);
 	cmReg.value = inw(ADDR_CHAN_REG(REG_C0M, subdev_channel));
 	printk("s526: Counter Mode Register: %x\n", cmReg.value);
+	if (insn->n < 1) {
+		printk("S525: INSN_WRITE: Can't handle data length %u\n",
+				insn->n);
+		return -EINVAL;
+	}
 	// Check what Application of Counter this channel is configured for
 	switch (devpriv->s526_gpct_config[subdev_channel].app) {
 	case PositionMeasurement:
@@ -767,7 +772,11 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 		   pulse frequency on the selected source
 		 */
 		printk("S526: INSN_WRITE: PTG\n");
-		if ((insn->data[1] > insn->data[0]) && (insn->data[0] > 0)) {
+		if (insn->n < 2) {
+			printk("s526: INSN_WRITE: PTG: Problem with data length -> %u\n",
+					insn->n);
+			return -EINVAL;
+		} else if ((insn->data[1] > insn->data[0]) && (insn->data[0] > 0)) {
 			(devpriv->s526_gpct_config[subdev_channel]).data[0] =
 				insn->data[0];
 			(devpriv->s526_gpct_config[subdev_channel]).data[1] =
