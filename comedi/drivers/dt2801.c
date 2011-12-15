@@ -630,6 +630,9 @@ static int dt2801_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 static int dt2801_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -638,6 +641,9 @@ static int dt2801_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 static int dt2801_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
 	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
 	dt2801_writedata2(dev, data[0]);
