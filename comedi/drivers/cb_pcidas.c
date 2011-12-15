@@ -873,6 +873,9 @@ static int cb_pcidas_ao_nofifo_winsn(comedi_device * dev, comedi_subdevice * s,
 	int channel;
 	unsigned long flags;
 
+	if (insn->n == 0)
+		return 0;
+
 	// set channel and range
 	channel = CR_CHAN(insn->chanspec);
 	comedi_spin_lock_irqsave(&dev->spinlock, flags);
@@ -897,6 +900,9 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device * dev, comedi_subdevice * s,
 {
 	int channel;
 	unsigned long flags;
+
+	if (insn->n == 0)
+		return 0;
 
 	// clear dac fifo
 	outw(0, devpriv->ao_registers + DACFIFOCLR);
@@ -926,6 +932,9 @@ static int cb_pcidas_ao_fifo_winsn(comedi_device * dev, comedi_subdevice * s,
 static int cb_pcidas_ao_readback_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -936,6 +945,9 @@ static int eeprom_read_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	uint8_t nvram_data;
 	int retval;
+
+	if (insn->n == 0)
+		return 0;
 
 	retval = nvram_read(dev, CR_CHAN(insn->chanspec), &nvram_data);
 	if (retval < 0)
@@ -951,12 +963,18 @@ static int caldac_write_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	const unsigned int channel = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	return caldac_8800_write(dev, channel, data[0]);
 }
 
 static int caldac_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->caldac_value[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -986,12 +1004,18 @@ static int dac08_write(comedi_device * dev, lsampl_t value)
 static int dac08_write_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	return dac08_write(dev, data[0]);
 }
 
 static int dac08_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->dac08_value;
 
 	return 1;
@@ -1025,6 +1049,9 @@ static int trimpot_write_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	return cb_pcidas_trimpot_write(dev, channel, data[0]);
 }
 
@@ -1032,6 +1059,9 @@ static int trimpot_read_insn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	unsigned int channel = CR_CHAN(insn->chanspec);
+
+	if (insn->n == 0)
+		return 0;
 
 	data[0] = devpriv->trimpot_value[channel];
 
