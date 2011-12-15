@@ -1041,6 +1041,9 @@ dio200_subdev_8254_read(comedi_device * dev, comedi_subdevice * s,
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long flags;
 
+	if (insn->n == 0)
+		return 0;
+
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	data[0] = i8254_read(subpriv->iobase, 0, chan);
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
@@ -1058,6 +1061,9 @@ dio200_subdev_8254_write(comedi_device * dev, comedi_subdevice * s,
 	dio200_subdev_8254 *subpriv = s->private;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long flags;
+
+	if (insn->n == 0)
+		return 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	i8254_write(subpriv->iobase, 0, chan, data[0]);
