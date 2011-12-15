@@ -175,6 +175,9 @@ static int readback_insn(comedi_device * dev, comedi_subdevice * s,
 {
 	int chan;
 
+	if (insn->n == 0)
+		return 0;
+
 	chan = CR_CHAN(insn->chanspec);
 	data[0] = ((lsampl_t *) dev->private)[chan];
 
@@ -191,6 +194,9 @@ static int dac02_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	int temp;
 	int chan;
 	int output;
+
+	if (insn->n == 0)
+		return 0;
 
 	chan = CR_CHAN(insn->chanspec);
 	((lsampl_t *) dev->private)[chan] = data[0];
