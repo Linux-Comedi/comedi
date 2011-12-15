@@ -412,7 +412,8 @@ static int pci171x_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 	for (n = 0; n < insn->n; n++)
 		outw(data[n], dev->iobase + ofs);
 
-	devpriv->ao_data[chan] = data[n];
+	if (n > 0)
+		devpriv->ao_data[chan] = data[n - 1];
 
 	return n;
 
@@ -566,7 +567,8 @@ static int pci1720_insn_write_ao(comedi_device * dev, comedi_subdevice * s,
 		outb(0, dev->iobase + PCI1720_SYNCOUT);	// update outputs
 	}
 
-	devpriv->ao_data[chan] = data[n];
+	if (n > 0)
+		devpriv->ao_data[chan] = data[n - 1];
 
 	return n;
 }
