@@ -434,6 +434,9 @@ static int atao_calib_insn_write(comedi_device * dev, comedi_subdevice * s,
 	unsigned int bitstring, bit;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	bitstring = ((chan & 0x7) << 8) | (data[insn->n - 1] & 0xff);
 
 	for (bit = 1 << (11 - 1); bit; bit >>= 1) {
