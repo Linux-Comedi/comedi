@@ -641,12 +641,11 @@ static int das08jr_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	int lsb, msb;
 	int chan;
 
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xf;
-
 	chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
+		lsb = data[n] & 0xff;
+		msb = (data[n] >> 8) & 0xf;
 #if 0
 		outb(lsb, dev->iobase + devpriv->ao_offset_lsb[chan]);
 		outb(msb, dev->iobase + devpriv->ao_offset_msb[chan]);
@@ -675,12 +674,11 @@ static int das08ao_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	int lsb, msb;
 	int chan;
 
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xf;
-
 	chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
+		lsb = data[n] & 0xff;
+		msb = (data[n] >> 8) & 0xf;
 #if 0
 		outb(lsb, dev->iobase + devpriv->ao_offset_lsb[chan]);
 		outb(msb, dev->iobase + devpriv->ao_offset_msb[chan]);
@@ -787,6 +785,9 @@ static int das08_counter_read(comedi_device * dev, comedi_subdevice * s,
 {
 	int chan = insn->chanspec;
 
+	if (insn->n == 0)
+		return 0;
+
 	//printk("Reading counter channel %d ",chan);
 	data[0] = i8254_read_channel(&devpriv->i8254, chan);
 	//printk("=> 0x%08X\n",data[0]);
@@ -798,6 +799,9 @@ static int das08_counter_write(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int chan = insn->chanspec;
+
+	if (insn->n == 0)
+		return 0;
 
 	//printk("Writing counter channel %d with 0x%04X\n",chan,data[0]);
 	i8254_write_channel(&devpriv->i8254, chan, data[0]);
