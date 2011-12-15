@@ -940,6 +940,9 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
 static int dt282x_ao_insn_read(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -950,6 +953,9 @@ static int dt282x_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 {
 	sampl_t d;
 	unsigned int chan;
+
+	if (insn->n == 0)
+		return 0;
 
 	chan = CR_CHAN(insn->chanspec);
 	d = data[0];
