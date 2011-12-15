@@ -490,6 +490,9 @@ static int pci_8254_insn_read(comedi_device * dev, comedi_subdevice * s,
 	unsigned int chan, chip, chipchan;
 	unsigned long flags;
 
+	if (insn->n == 0)
+		return 0;
+
 	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
 	chip = chan / 3;		/* chip on subdevice */
 	chipchan = chan - (3 * chip);	/* channel on chip on subdevice */
@@ -509,6 +512,9 @@ static int pci_8254_insn_write(comedi_device * dev, comedi_subdevice * s,
 	const diosubd_data *d = (const diosubd_data *)s->private;
 	unsigned int chan, chip, chipchan;
 	unsigned long flags;
+
+	if (insn->n == 0)
+		return 0;
 
 	chan = CR_CHAN(insn->chanspec);	/* channel on subdevice */
 	chip = chan / 3;		/* chip on subdevice */
