@@ -214,6 +214,9 @@ static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
 	int axis, axis_reg;
 	char *axisname;
 
+	if (insn->n == 0)
+		return 0;
+
 	axis = CR_CHAN(insn->chanspec);
 
 	switch (axis) {
@@ -239,10 +242,10 @@ static int adl_pci8164_insn_read_msts(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_MSTS);
-	printk("comedi: pci8164 MSTS read -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 MSTS read -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
@@ -250,6 +253,9 @@ static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
 {
 	int axis, axis_reg;
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -276,10 +282,10 @@ static int adl_pci8164_insn_read_ssts(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_SSTS);
-	printk("comedi: pci8164 SSTS read -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 SSTS read -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
@@ -287,6 +293,9 @@ static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
 {
 	int axis, axis_reg;
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -313,18 +322,20 @@ static int adl_pci8164_insn_read_buf0(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_BUF0);
-	printk("comedi: pci8164 BUF0 read -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 BUF0 read -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_read_buf1(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int axis, axis_reg;
-
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -351,18 +362,20 @@ static int adl_pci8164_insn_read_buf1(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	data[0] = inw(dev->iobase + axis_reg + PCI8164_BUF1);
-	printk("comedi: pci8164 BUF1 read -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 BUF1 read -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_write_cmd(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	unsigned int axis, axis_reg;
-
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -389,18 +402,20 @@ static int adl_pci8164_insn_write_cmd(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_CMD);
-	printk("comedi: pci8164 CMD write -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 CMD write -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_write_otp(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int axis, axis_reg;
-
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -427,18 +442,20 @@ static int adl_pci8164_insn_write_otp(comedi_device * dev, comedi_subdevice * s,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_OTP);
-	printk("comedi: pci8164 OTP write -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 OTP write -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_write_buf0(comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
 	int axis, axis_reg;
-
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -465,18 +482,20 @@ static int adl_pci8164_insn_write_buf0(comedi_device * dev,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_BUF0);
-	printk("comedi: pci8164 BUF0 write -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 BUF0 write -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 static int adl_pci8164_insn_write_buf1(comedi_device * dev,
 	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
 {
 	int axis, axis_reg;
-
 	char *axisname;
+
+	if (insn->n == 0)
+		return 0;
 
 	axis = CR_CHAN(insn->chanspec);
 
@@ -503,10 +522,10 @@ static int adl_pci8164_insn_write_buf1(comedi_device * dev,
 	}
 
 	outw(data[0], dev->iobase + axis_reg + PCI8164_BUF1);
-	printk("comedi: pci8164 BUF1 write -> %04X:%04X on axis %s\n", data[0],
-		data[1], axisname);
+	printk("comedi: pci8164 BUF1 write -> %04X on axis %s\n", data[0],
+		axisname);
 
-	return 2;
+	return 1;
 }
 
 COMEDI_PCI_INITCLEANUP(driver_adl_pci8164, adl_pci8164_pci_table);
