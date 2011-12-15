@@ -604,6 +604,9 @@ static int cb_pcidda_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	unsigned int command;
 	unsigned int channel, range;
 
+	if (insn->n == 0)
+		return 0;
+
 	channel = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
 
