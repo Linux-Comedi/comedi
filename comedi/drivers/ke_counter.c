@@ -104,6 +104,9 @@ static int cnt_winsn(comedi_device * dev,
 {
 	int chan = CR_CHAN(insn->chanspec);
 
+	if (insn->n == 0)
+		return 0;
+
 	outb((unsigned char)((data[0] >> 24) & 0xff),
 		dev->iobase + chan * 0x20 + 0x10);
 	outb((unsigned char)((data[0] >> 16) & 0xff),
@@ -125,6 +128,9 @@ static int cnt_rinsn(comedi_device * dev,
 	unsigned char a0, a1, a2, a3, a4;
 	int chan = CR_CHAN(insn->chanspec);
 	int result;
+
+	if (insn->n == 0)
+		return 0;
 
 	a0 = inb(dev->iobase + chan * 0x20);
 	a1 = inb(dev->iobase + chan * 0x20 + 0x04);
