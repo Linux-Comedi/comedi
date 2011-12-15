@@ -311,6 +311,9 @@ static int pci20006_insn_read(comedi_device * dev, comedi_subdevice * s,
 {
 	pci20xxx_subdev_private *sdp = s->private;
 
+	if (insn->n == 0)
+		return 0;
+
 	data[0] = sdp->pci20006.last_data[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -322,6 +325,9 @@ static int pci20006_insn_write(comedi_device * dev, comedi_subdevice * s,
 	pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
 	unsigned int boarddata;
+
+	if (insn->n == 0)
+		return 0;
 
 	sdp->pci20006.last_data[CR_CHAN(insn->chanspec)] = data[0];
 	boarddata = (((unsigned int)data[0] + 0x8000) & 0xffff);	/* comedi-data -> board-data */
