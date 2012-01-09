@@ -2072,7 +2072,7 @@ static int me4000_dio_insn_config(comedi_device * dev,
 
 	tmp = me4000_inl(dev, info->dio_context.ctrl_reg);
 
-	if (data[0] == INSN_CONFIG_DIO_INPUT) {
+	if (data[0] == INSN_CONFIG_DIO_OUTPUT) {
 		if (chan < 8) {
 			s->io_bits |= 0xFF;
 			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_0 |
