@@ -1126,12 +1126,8 @@ static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file)
 	async->cmd = user_cmd;
 	async->cmd.data = NULL;
 	/* load channel/gain list */
-	if (async->cmd.chanlist_len <= ULONG_MAX / sizeof(int))
-		async->cmd.chanlist =
-			kmalloc(async->cmd.chanlist_len * sizeof(int),
-					GFP_KERNEL);
-	else
-		async->cmd.chanlist = NULL;
+	async->cmd.chanlist =
+		kmalloc(async->cmd.chanlist_len * sizeof(int), GFP_KERNEL);
 	if (!async->cmd.chanlist) {
 		DPRINTK("allocation failed\n");
 		ret = -ENOMEM;
@@ -1260,10 +1256,9 @@ static int do_cmdtest_ioctl(comedi_device * dev, void *arg, void *file)
 
 	/* load channel/gain list */
 	if (user_cmd.chanlist) {
-		if (user_cmd.chanlist_len <= ULONG_MAX / sizeof(int))
-			chanlist =
-				kmalloc(user_cmd.chanlist_len * sizeof(int),
-				GFP_KERNEL);
+		chanlist =
+			kmalloc(user_cmd.chanlist_len * sizeof(int),
+			GFP_KERNEL);
 		if (!chanlist) {
 			DPRINTK("allocation failed\n");
 			ret = -ENOMEM;
