@@ -1270,7 +1270,7 @@ dio200_subdev_8254_init(comedi_device * dev, comedi_subdevice * s,
 static void
 dio200_subdev_8254_cleanup(comedi_device * dev, comedi_subdevice * s)
 {
-	dio200_subdev_intr *subpriv = s->private;
+	dio200_subdev_8254 *subpriv = s->private;
 
 	if (subpriv) {
 		kfree(subpriv);
