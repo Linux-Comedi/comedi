@@ -305,7 +305,7 @@ static void dt9812_configure_gain(usb_dt9812_t * dev,
 		// 11x -> Gain =  0.5 
 	case DT9812_GAIN_0PT5:{
 			rmw->or_value = F020_MASK_ADC0CF_AMP0GN2
-				|| F020_MASK_ADC0CF_AMP0GN1;
+				| F020_MASK_ADC0CF_AMP0GN1;
 		}
 		break;
 	case DT9812_GAIN_1:{
@@ -322,7 +322,7 @@ static void dt9812_configure_gain(usb_dt9812_t * dev,
 		break;
 	case DT9812_GAIN_8:{
 			rmw->or_value = F020_MASK_ADC0CF_AMP0GN1
-				|| F020_MASK_ADC0CF_AMP0GN0;
+				| F020_MASK_ADC0CF_AMP0GN0;
 		}
 		break;
 	case DT9812_GAIN_16:{
