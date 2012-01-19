@@ -29,4 +29,12 @@
 #define unlikely(x)	__builtin_expect(!!(x),0)
 #endif
 
+#ifndef __user
+#define __user
+#endif
+
+#ifndef __iomem
+#define __iomem
+#endif
+
 #endif /* _COMPAT_COMPILER_H */
