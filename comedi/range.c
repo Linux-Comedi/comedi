@@ -44,7 +44,7 @@ const comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 	writes:
 		n comedi_krange structures to rangeinfo->range_ptr
 */
-int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg)
+int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo __user * arg)
 {
 	comedi_rangeinfo it;
 	int subd, chan;
@@ -77,7 +77,7 @@ int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg)
 		return -EINVAL;
 	}
 
-	if (copy_to_user(it.range_ptr, lr->range,
+	if (copy_to_user((void __user *)it.range_ptr, lr->range,
 			sizeof(comedi_krange) * lr->length))
 		return -EFAULT;
 

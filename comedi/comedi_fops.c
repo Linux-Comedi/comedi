@@ -69,21 +69,21 @@ module_param(comedi_num_legacy_minors, int, 0444);
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info* comedi_file_info_table[COMEDI_NUM_MINORS];
 
-static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg);
-static int do_bufconfig_ioctl(comedi_device * dev, void *arg);
-static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo * arg,
+static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig __user * arg);
+static int do_bufconfig_ioctl(comedi_device * dev, comedi_bufconfig __user *arg);
+static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo __user * arg,
 	struct file *file);
-static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo * arg,
+static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo __user * arg,
 	void *file);
-static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg);
-static int do_bufinfo_ioctl(comedi_device * dev, void *arg, void *file);
-static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file);
+static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo __user * arg);
+static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg, void *file);
+static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file);
 static int do_lock_ioctl(comedi_device * dev, unsigned int arg, void *file);
 static int do_unlock_ioctl(comedi_device * dev, unsigned int arg, void *file);
 static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file);
-static int do_cmdtest_ioctl(comedi_device * dev, void *arg, void *file);
-static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file);
-static int do_insn_ioctl(comedi_device * dev, void *arg, void *file);
+static int do_cmdtest_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file);
+static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg, void *file);
+static int do_insn_ioctl(comedi_device * dev, comedi_insn __user *arg, void *file);
 static int do_poll_ioctl(comedi_device * dev, unsigned int subd, void *file);
 
 void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s);
@@ -167,7 +167,7 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 	/* Device config is special, because it must work on
 	 * an unconfigured device. */
 	if (cmd == COMEDI_DEVCONFIG) {
-		rc = do_devconfig_ioctl(dev, (void *)arg);
+		rc = do_devconfig_ioctl(dev, (comedi_devconfig __user *)arg);
 		goto done;
 	}
 
@@ -179,22 +179,22 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case COMEDI_BUFCONFIG:
-		rc = do_bufconfig_ioctl(dev, (void *)arg);
+		rc = do_bufconfig_ioctl(dev, (comedi_bufconfig __user *)arg);
 		break;
 	case COMEDI_DEVINFO:
-		rc = do_devinfo_ioctl(dev, (void *)arg, file);
+		rc = do_devinfo_ioctl(dev, (comedi_devinfo __user *)arg, file);
 		break;
 	case COMEDI_SUBDINFO:
-		rc = do_subdinfo_ioctl(dev, (void *)arg, file);
+		rc = do_subdinfo_ioctl(dev, (comedi_subdinfo __user *)arg, file);
 		break;
 	case COMEDI_CHANINFO:
-		rc = do_chaninfo_ioctl(dev, (void *)arg);
+		rc = do_chaninfo_ioctl(dev, (comedi_chaninfo __user *)arg);
 		break;
 	case COMEDI_RANGEINFO:
-		rc = do_rangeinfo_ioctl(dev, (void *)arg);
+		rc = do_rangeinfo_ioctl(dev, (comedi_rangeinfo __user *)arg);
 		break;
 	case COMEDI_BUFINFO:
-		rc = do_bufinfo_ioctl(dev, (void *)arg, file);
+		rc = do_bufinfo_ioctl(dev, (comedi_bufinfo __user *)arg, file);
 		break;
 	case COMEDI_LOCK:
 		rc = do_lock_ioctl(dev, arg, file);
@@ -206,16 +206,16 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 		rc = do_cancel_ioctl(dev, arg, file);
 		break;
 	case COMEDI_CMD:
-		rc = do_cmd_ioctl(dev, (void *)arg, file);
+		rc = do_cmd_ioctl(dev, (comedi_cmd __user *)arg, file);
 		break;
 	case COMEDI_CMDTEST:
-		rc = do_cmdtest_ioctl(dev, (void *)arg, file);
+		rc = do_cmdtest_ioctl(dev, (comedi_cmd __user *)arg, file);
 		break;
 	case COMEDI_INSNLIST:
-		rc = do_insnlist_ioctl(dev, (void *)arg, file);
+		rc = do_insnlist_ioctl(dev, (comedi_insnlist __user *)arg, file);
 		break;
 	case COMEDI_INSN:
-		rc = do_insn_ioctl(dev, (void *)arg, file);
+		rc = do_insn_ioctl(dev, (comedi_insn __user *)arg, file);
 		break;
 	case COMEDI_POLL:
 		rc = do_poll_ioctl(dev, arg, file);
@@ -243,7 +243,8 @@ static int comedi_ioctl(struct inode *inode, struct file *file,
 	writes:
 		none
 */
-static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg)
+static int do_devconfig_ioctl(comedi_device * dev,
+	comedi_devconfig __user * arg)
 {
 	comedi_devconfig it;
 	int ret;
@@ -282,7 +283,8 @@ static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg)
 			return -ENOMEM;
 
 		if (copy_from_user(aux_data,
-				comedi_aux_data(it.options, 0), aux_len)) {
+				(void __user *)comedi_aux_data(it.options, 0),
+				aux_len)) {
 			vfree(aux_data);
 			return -EFAULT;
 		}
@@ -325,7 +327,7 @@ static int do_devconfig_ioctl(comedi_device * dev, comedi_devconfig * arg)
 		modified bufconfig at arg
 
 */
-static int do_bufconfig_ioctl(comedi_device * dev, void *arg)
+static int do_bufconfig_ioctl(comedi_device * dev, comedi_bufconfig __user *arg)
 {
 	comedi_bufconfig bc;
 	comedi_async *async;
@@ -384,7 +386,7 @@ static int do_bufconfig_ioctl(comedi_device * dev, void *arg)
 		devinfo structure
 
 */
-static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo * arg,
+static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo __user * arg,
 	struct file *file)
 {
 	comedi_devinfo devinfo;
@@ -432,7 +434,7 @@ static int do_devinfo_ioctl(comedi_device * dev, comedi_devinfo * arg,
 		array of subdevice info structures at arg
 
 */
-static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo * arg,
+static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo __user * arg,
 	void *file)
 {
 	int ret, i;
@@ -513,7 +515,7 @@ static int do_subdinfo_ioctl(comedi_device * dev, comedi_subdinfo * arg,
 		arrays at elements of chaninfo structure
 
 */
-static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg)
+static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo __user * arg)
 {
 	comedi_subdevice *s;
 	comedi_chaninfo it;
@@ -528,16 +530,16 @@ static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg)
 	if (it.maxdata_list) {
 		if (s->maxdata || !s->maxdata_list)
 			return -EINVAL;
-		if (copy_to_user(it.maxdata_list, s->maxdata_list,
-				s->n_chan * sizeof(lsampl_t)))
+		if (copy_to_user((lsampl_t __user *)it.maxdata_list,
+				s->maxdata_list, s->n_chan * sizeof(lsampl_t)))
 			return -EFAULT;
 	}
 
 	if (it.flaglist) {
 		if (!s->flaglist)
 			return -EINVAL;
-		if (copy_to_user(it.flaglist, s->flaglist,
-				s->n_chan * sizeof(unsigned int)))
+		if (copy_to_user((unsigned int __user *)it.flaglist,
+				s->flaglist, s->n_chan * sizeof(unsigned int)))
 			return -EFAULT;
 	}
 
@@ -551,9 +553,9 @@ static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg)
 
 			x = (dev->minor << 28) | (it.subdev << 24) | (i << 16) |
 				(s->range_table_list[i]->length);
-			put_user(x, it.rangelist + i);
+			put_user(x, (unsigned int __user *)it.rangelist + i);
 		}
-		//if(copy_to_user(it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
+		//if(copy_to_user((unsigned int __user *)it.rangelist,s->range_type_list,s->n_chan*sizeof(unsigned int)))
 		//      return -EFAULT;
 	}
 
@@ -574,7 +576,8 @@ static int do_chaninfo_ioctl(comedi_device * dev, comedi_chaninfo * arg)
     modified bufinfo at arg
 
   */
-static int do_bufinfo_ioctl(comedi_device * dev, void *arg, void *file)
+static int do_bufinfo_ioctl(comedi_device * dev, comedi_bufinfo __user *arg,
+	void *file)
 {
 	comedi_bufinfo bi;
 	comedi_subdevice *s;
@@ -681,7 +684,8 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
  * 	writes:
  * 		data (for reads)
  */
-static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
+static int do_insnlist_ioctl(comedi_device * dev, comedi_insnlist __user *arg,
+	void *file)
 {
 	comedi_insnlist insnlist;
 	comedi_insn *insns = NULL;
@@ -702,7 +706,7 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 		goto error;
 	}
 
-	if (copy_from_user(insns, insnlist.insns,
+	if (copy_from_user(insns, (comedi_insn __user *)insnlist.insns,
 			sizeof(comedi_insn) * insnlist.n_insns)) {
 		DPRINTK("copy_from_user failed\n");
 		ret = -EFAULT;
@@ -728,7 +732,8 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 
 	for (i = 0; i < insnlist.n_insns; i++) {
 		if (insns[i].insn & INSN_MASK_WRITE) {
-			if (copy_from_user(data, insns[i].data,
+			if (copy_from_user(data,
+					(lsampl_t __user *)insns[i].data,
 					insns[i].n * sizeof(lsampl_t))) {
 				DPRINTK("copy_from_user failed\n");
 				ret = -EFAULT;
@@ -739,7 +744,7 @@ static int do_insnlist_ioctl(comedi_device * dev, void *arg, void *file)
 		if (ret < 0)
 			goto error;
 		if (insns[i].insn & INSN_MASK_READ) {
-			if (copy_to_user(insns[i].data, data,
+			if (copy_to_user((lsampl_t __user *)insns[i].data, data,
 					insns[i].n * sizeof(lsampl_t))) {
 				DPRINTK("copy_to_user failed\n");
 				ret = -EFAULT;
@@ -999,7 +1004,8 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
  * 	writes:
  * 		data (for reads)
  */
-static int do_insn_ioctl(comedi_device * dev, void *arg, void *file)
+static int do_insn_ioctl(comedi_device * dev, comedi_insn __user *arg,
+	void *file)
 {
 	comedi_insn insn;
 	lsampl_t *data = NULL;
@@ -1020,7 +1026,8 @@ static int do_insn_ioctl(comedi_device * dev, void *arg, void *file)
 	}
 
 	if (insn.insn & INSN_MASK_WRITE) {
-		if (copy_from_user(data, insn.data, insn.n * sizeof(lsampl_t))) {
+		if (copy_from_user(data, (lsampl_t __user *)insn.data,
+				insn.n * sizeof(lsampl_t))) {
 			ret = -EFAULT;
 			goto error;
 		}
@@ -1029,7 +1036,8 @@ static int do_insn_ioctl(comedi_device * dev, void *arg, void *file)
 	if (ret < 0)
 		goto error;
 	if (insn.insn & INSN_MASK_READ) {
-		if (copy_to_user(insn.data, data, insn.n * sizeof(lsampl_t))) {
+		if (copy_to_user((lsampl_t __user *)insn.data, data,
+				insn.n * sizeof(lsampl_t))) {
 			ret = -EFAULT;
 			goto error;
 		}
@@ -1058,7 +1066,7 @@ static int do_insn_ioctl(comedi_device * dev, void *arg, void *file)
 		modified cmd structure at arg
 
 */
-static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file)
+static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 {
 	comedi_cmd user_cmd;
 	comedi_subdevice *s;
@@ -1134,7 +1142,8 @@ static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file)
 		goto cleanup;
 	}
 
-	if (copy_from_user(async->cmd.chanlist, user_cmd.chanlist,
+	if (copy_from_user(async->cmd.chanlist,
+			(unsigned int __user *)user_cmd.chanlist,
 			async->cmd.chanlist_len * sizeof(int))) {
 		DPRINTK("fault reading chanlist\n");
 		ret = -EFAULT;
@@ -1214,7 +1223,8 @@ static int do_cmd_ioctl(comedi_device * dev, void *arg, void *file)
 		modified cmd structure at arg
 
 */
-static int do_cmdtest_ioctl(comedi_device * dev, void *arg, void *file)
+static int do_cmdtest_ioctl(comedi_device * dev, comedi_cmd __user *arg,
+	void *file)
 {
 	comedi_cmd user_cmd;
 	comedi_subdevice *s;
@@ -1265,7 +1275,8 @@ static int do_cmdtest_ioctl(comedi_device * dev, void *arg, void *file)
 			goto cleanup;
 		}
 
-		if (copy_from_user(chanlist, user_cmd.chanlist,
+		if (copy_from_user(chanlist,
+				(unsigned int __user *)user_cmd.chanlist,
 				user_cmd.chanlist_len * sizeof(int))) {
 			DPRINTK("fault reading chanlist\n");
 			ret = -EFAULT;
@@ -1624,8 +1635,8 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
-static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
-	loff_t * offset)
+static ssize_t comedi_write(struct file *file, const char __user *buf,
+	size_t nbytes, loff_t * offset)
 {
 	comedi_subdevice *s;
 	comedi_async *async;
@@ -1734,7 +1745,7 @@ done:
 	return (count ? count : retval);
 }
 
-static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
+static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	loff_t * offset)
 {
 	comedi_subdevice *s;

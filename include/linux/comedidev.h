@@ -373,7 +373,7 @@ enum subdevice_runflags {
    various internal comedi functions
  */
 
-int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo * arg);
+int do_rangeinfo_ioctl(comedi_device * dev, comedi_rangeinfo __user * arg);
 int check_chanlist(comedi_subdevice * s, int n, unsigned int *chanlist);
 void comedi_set_subdevice_runflags(comedi_subdevice * s, unsigned mask,
 	unsigned bits);
