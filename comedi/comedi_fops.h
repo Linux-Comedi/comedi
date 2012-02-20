@@ -4,6 +4,6 @@
 
 extern struct class *comedi_class;
 extern const struct file_operations comedi_fops;
-extern int comedi_autoconfig;
+extern COMEDI_MODULE_PARAM_BOOL_T comedi_autoconfig;
 
 #endif //_COMEDI_FOPS_H

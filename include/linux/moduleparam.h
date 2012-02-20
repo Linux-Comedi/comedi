@@ -100,4 +100,17 @@
 	MODULE_PARM(name, "1-" __MODULE_STRING(len) _MODULE_PARM_STRING_##type)
 #endif /* module_param_array */
 
+/*
+ * Define a type for 'bool' parameters....
+ */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31))
+/* Need to use 'int' or 'unsigned int' for 'bool' module parameter. */
+typedef int COMEDI_MODULE_PARAM_BOOL_T;
+#else
+/* Can use 'int', 'unsigned int' or 'bool' for 'bool' module parameter, but
+ * only 'bool' will be allowed for kernel version 3.4 onwards.  Using 'int'
+ * or 'unsigned int' results in a warning for kernel version 3.3. */
+typedef bool COMEDI_MODULE_PARAM_BOOL_T;
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,31)) */
+
 #endif /* _COMPAT_MODULEPARAM_H */

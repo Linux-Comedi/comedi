@@ -24,9 +24,6 @@
 #undef DEBUG
 
 #define __NO_VERSION__
-#include "comedi_fops.h"
-#include "comedi_compat32.h"
-
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -49,6 +46,9 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
+#include "comedi_fops.h"
+#include "comedi_compat32.h"
+
 //#include "kvmem.h"
 
 MODULE_AUTHOR("http://www.comedi.org");
@@ -60,7 +60,7 @@ int comedi_debug;
 module_param(comedi_debug, int, 0644);
 #endif
 
-int comedi_autoconfig = 1;
+COMEDI_MODULE_PARAM_BOOL_T comedi_autoconfig = 1;
 module_param(comedi_autoconfig, bool, 0444);
 
 int comedi_num_legacy_minors = 0;

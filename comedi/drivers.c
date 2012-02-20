@@ -24,7 +24,6 @@
 #define _GNU_SOURCE
 
 #define __NO_VERSION__
-#include "comedi_fops.h"
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -46,6 +45,8 @@
 
 #include <asm/io.h>
 #include <asm/system.h>
+
+#include "comedi_fops.h"
 
 static int postconfig(comedi_device * dev);
 static int insn_rw_emulate_bits(comedi_device * dev, comedi_subdevice * s,
