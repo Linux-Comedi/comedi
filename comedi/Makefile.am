@@ -14,7 +14,7 @@ all-local:
 		for dir in . drivers kcomedilib drivers/addi-data; do \
 			for file in `ls @abs_srcdir@/$$dir/*\.[ch] @abs_srcdir@/$$dir/Kbuild | $(EGREP) -v \.mod\.c`; do \
 				LINK_NAME=$$dir/`basename "$$file"`; \
-				if test ! -e $$LINK_NAME; then ln -vs $$file $$LINK_NAME; fi; \
+				if test ! "$$file" -ef "$$LINK_NAME"; then ln -vsnf "$$file" "$$LINK_NAME"; fi; \
 			done; \
 		done; \
 	fi
