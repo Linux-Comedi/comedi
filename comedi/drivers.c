@@ -44,7 +44,7 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
+#include <asm/barrier.h>
 
 #include "comedi_fops.h"
 

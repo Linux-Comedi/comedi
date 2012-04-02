@@ -55,7 +55,7 @@
 #include "comedi_pci.h"
 #include <linux/comedidev.h>
 
-#include <asm/system.h>
+#include <asm/barrier.h>
 
 #define PCI_MITE_SIZE		4096
 #define PCI_DAQ_SIZE		4096

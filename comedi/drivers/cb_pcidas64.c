@@ -85,7 +85,7 @@ TODO:
 
 #include <linux/comedidev.h>
 #include <linux/delay.h>
-#include <asm/system.h>
+#include <asm/barrier.h>
 
 #include "comedi_pci.h"
 #include "8253.h"
