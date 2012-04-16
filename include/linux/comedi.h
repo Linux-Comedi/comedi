@@ -466,7 +466,7 @@ extern "C" {
 /* only relevant to kernel modules. */
 
 #define COMEDI_CB_EOS		1	/* end of scan */
-#define COMEDI_CB_EOA		2	/* end of acquisition */
+#define COMEDI_CB_EOA		2	/* end of acquisition/output */
 #define COMEDI_CB_BLOCK		4	/* new data has arrived: wakes up write()/read() */
 #define COMEDI_CB_EOBUF		8	/* DEPRECATED: end of buffer */
 #define COMEDI_CB_ERROR		16	/* card error during acquisition */
