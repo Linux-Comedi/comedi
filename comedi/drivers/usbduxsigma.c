@@ -26,7 +26,7 @@ Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbduxsigma.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
 Updated: 21 Jul 2011
-status: testing
+Status: testing
 */
 /*
  * I must give credit here to Chris Baugher who
