@@ -89,8 +89,9 @@ with any necessary command-line options to update the makefiles, and run
 'make' to rebuild comedi and be happy.
 
 If you want to have your driver included in the comedi distribution
-(you _definitely_ want to :) ) send it to David Schleef <ds@schleef.org> for
-review and integration.
+(you _definitely_ want to :) ) send it to the Comedi mailing list for
+review and integration.  (See the top-level README for details of the
+Comedi mailing list.)
 
 
 
