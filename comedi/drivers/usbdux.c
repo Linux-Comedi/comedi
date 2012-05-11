@@ -23,7 +23,7 @@
 /*
 Driver: usbdux
 Description: University of Stirling USB DAQ & INCITE Technology Limited
-Devices: [ITL] USB-DUX (usbdux.o)
+Devices: [ITL] USB-DUX (usbdux)
 Author: Bernd Porr <BerndPorr@f2s.com>
 Updated: 8 Dec 2008
 Status: Stable

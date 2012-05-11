@@ -23,7 +23,7 @@
 /*
 Driver: usbduxfast
 Description: ITL USB-DUXfast
-Devices: [ITL] USB-DUX (usbduxfast.o)
+Devices: [ITL] USB-DUX (usbduxfast)
 Author: Bernd Porr <BerndPorr@f2s.com>
 Updated: 08 Dec 2008
 Status: stable
