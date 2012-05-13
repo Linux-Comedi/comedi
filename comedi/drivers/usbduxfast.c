@@ -28,9 +28,8 @@ Author: Bernd Porr <tech@linux-usb-daq.co.uk>
 Updated: 13 May 2012
 Status: stable
 
-Supports:
-  - Analogue input
-    subdevice: 0
+The device has one subdevice for analogue input.
+  - subdevice: 0
     number of channels: 16
     max data value: 4096
     ranges:

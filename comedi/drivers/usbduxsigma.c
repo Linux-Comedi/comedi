@@ -28,7 +28,7 @@ Author: Bernd Porr <tech@linux-usb-daq.co.uk>
 Updated: 13 May 2012
 Status: Stable
 
-Supports:
+The following subdevices are available
   - Analog input
     subdevice: 0
     number of channels: 16

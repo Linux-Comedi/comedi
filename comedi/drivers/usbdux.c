@@ -28,7 +28,7 @@ Author: Bernd Porr <tech@linux-usb-daq.co.uk>
 Updated: 13 May 2012
 Status: Stable
 
-Supports:
+The following subdevices are available
   - Analog input
     subdevice: 0
     number of channels: 8
@@ -76,7 +76,7 @@ Supports:
                               second the polarity)
     max data value: 512
 
-Configuration options:
+Configuration options
   The device requires firmware which is usually
   uploaded automatically by udev/hotplug at the moment
   the driver module is loaded.
