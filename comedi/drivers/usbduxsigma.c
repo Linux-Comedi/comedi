@@ -22,11 +22,56 @@
  */
 /*
 Driver: usbduxsigma
-Description: University of Stirling USB DAQ & INCITE Technology Limited
-Devices: [ITL] USB-DUX (usbduxsigma)
-Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 21 Jul 2011
-Status: testing
+Description: Driver for USB-DUX-SIGMA of INCITE Technology Limited
+Devices: [ITL] USB-DUX-SIGMA (usbduxsigma)
+Author: Bernd Porr <tech@linux-usb-daq.co.uk>
+Updated: 13 May 2012
+Status: Stable
+
+Supports:
+  - Analog input
+    subdevice: 0
+    number of channels: 16
+    max data value: 16777215 (0xfffff, 24bits)
+    ranges:
+      all channels: [-1.325 V,1.325 V]
+    command:
+      start: now|int
+      scan_begin: timer (contains the sampling interval. min 250us)
+      convert: now
+      scan_end: count
+      stop: none|count
+  - Analog output
+    subdevice: 1
+    number of channels: 4
+    max data value: 255
+    ranges:
+      all channels: [0 V,2.5 V]
+    command:
+      start: now|int
+      scan_begin: timer (contains the sampling interval. min 1ms)
+      convert: now
+      scan_end: count
+      stop: none|count
+  - Digital I/O
+    subdevice: 2
+    number of channels: 24 (first 8 bits on the D connector, 16 bits int.)
+  - PWM
+    subdevice: 3
+    number of channels: 8 or 4 + polarity output for H-bridge
+                             (see INSN_CONFIG_PWM_SET_H_BRIDGE where
+                              the first byte is the value and the
+                              second the polarity)
+    max data value: 512
+
+Configuration options:
+  The device requires firmware which is usually
+  uploaded automatically by udev/hotplug at the moment
+  the driver module is loaded.
+  In case udev/hotplug is not enabled you need to upload 
+  the firmware with comedi_config -i usbdux_firmware.bin.
+  The firmware is usually installed under /lib/firmware
+  or can be downloaded form http://www.linux-usb-daq.co.uk.
 */
 /*
  * I must give credit here to Chris Baugher who

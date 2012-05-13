@@ -22,23 +22,68 @@
  */
 /*
 Driver: usbdux
-Description: University of Stirling USB DAQ & INCITE Technology Limited
-Devices: [ITL] USB-DUX (usbdux)
-Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 8 Dec 2008
+Description: Driver for USB-DUX-D of INCITE Technology Limited
+Devices: [ITL] USB-DUX-D (usbdux)
+Author: Bernd Porr <tech@linux-usb-daq.co.uk>
+Updated: 13 May 2012
 Status: Stable
+
+Supports:
+  - Analog input
+    subdevice: 0
+    number of channels: 8
+    max data value: 4095
+    ranges:
+      all channels: 
+        range = 0 : [-4.096 V,4.096 V] 
+        range = 1 : [-2.048 V,2.048 V] 
+        range = 2 : [0 V,4.096 V] 
+        range = 3 : [0 V,2.048 V]
+    command:
+      start: now|int
+      scan_begin: timer (contains the sampling interval. min is 125us / chan)
+      convert: now
+      scan_end: count
+      stop: none|count
+  - Analogue output:
+    subdevice: 1
+    number of channels: 4
+    max data value: 4095
+    ranges:
+      all channels: 
+        range = 0 : [-4.096 V,4.096 V] 
+        range = 1 : [0 V,4.096 V]
+    command:
+      start: now|int
+      scan_begin: timer (contains the sampling interval. min is 1ms.)
+      convert: now
+      scan_end: count
+      stop: none|count
+  - Digital I/O
+    subdevice: 2
+    number of channels: 8
+  - Counter
+    subdevice: 3
+    number of channels: 4
+    max data value: 65535
+    Pin assignments on the D-connector:
+      0=/CLK0, 1=UP/DOWN0, 2=RESET0, 4=/CLK1, 5=UP/DOWN1, 6=RESET1
+  - PWM
+    subdevice: 4
+    number of channels: 8 or 4 + polarity output for H-bridge
+                             (see INSN_CONFIG_PWM_SET_H_BRIDGE where
+                              the first byte is the value and the
+                              second the polarity)
+    max data value: 512
+
 Configuration options:
-  You have to upload firmware with the -i option. The
-  firmware is usually installed under /usr/share/usb or
-  /usr/local/share/usb or /lib/firmware.
-
-Connection scheme for the counter at the digital port:
-  0=/CLK0, 1=UP/DOWN0, 2=RESET0, 4=/CLK1, 5=UP/DOWN1, 6=RESET1.
-  The sampling rate of the counter is approximately 500Hz.
-
-Please note that under USB2.0 the length of the channel list determines
-the max sampling rate. If you sample only one channel you get 8kHz
-sampling rate. If you sample two channels you get 4kHz and so on.
+  The device requires firmware which is usually
+  uploaded automatically by udev/hotplug at the moment
+  the driver module is loaded.
+  In case udev/hotplug is not enabled you need to upload 
+  the firmware with comedi_config -i usbdux_firmware.bin.
+  The firmware is usually installed under /lib/firmware
+  or can be downloaded form http://www.linux-usb-daq.co.uk.
 */
 /*
  * I must give credit here to Chris Baugher who

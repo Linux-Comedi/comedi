@@ -22,11 +22,39 @@
 
 /*
 Driver: usbduxfast
-Description: ITL USB-DUXfast
+Description: Driver for USB-DUX-FAST of INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbduxfast)
-Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 08 Dec 2008
+Author: Bernd Porr <tech@linux-usb-daq.co.uk>
+Updated: 13 May 2012
 Status: stable
+
+Supports:
+  - Analogue input
+    subdevice: 0
+    number of channels: 16
+    max data value: 4096
+    ranges:
+      all channelss: 
+        range = 0 : [-0.75 V,0.75 V] 
+        range = 1 : [-0.5 V,0.5 V]
+    command:
+      The channel-list allows 1,2,3 and 16 channels.
+      start: now|ext|int (external trigger via pin at HD-D connector)
+      scan_begin: follow|timer|ext
+      convert: timer|ext (contains the sampling interval. Min interval
+                          for single channel acquisition is 33us 
+                          and for multiplexed acquisition 300us)
+      scan_end: count
+      stop: none|count
+
+Configuration options:
+  The device requires firmware which is usually
+  uploaded automatically by udev/hotplug at the moment
+  the driver module is being loaded.
+  In case udev/hotplug is not enabled you need to upload 
+  the firmware with comedi_config -i usbduxfast_firmware.bin
+  The firmware is usually installed under /lib/firmware
+  or can be downloaded form http://www.linux-usb-daq.co.uk.
 */
 
 /*
