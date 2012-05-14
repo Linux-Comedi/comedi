@@ -23,9 +23,9 @@
 /*
 Driver: usbduxfast
 Description: Driver for USB-DUX-FAST of INCITE Technology Limited
-Devices: [ITL] USB-DUX (usbduxfast)
+Devices: [ITL] USB-DUX-FAST (usbduxfast)
 Author: Bernd Porr <tech@linux-usb-daq.co.uk>
-Updated: 13 May 2012
+Updated: 14 May 2012
 Status: stable
 
 The device has one subdevice for analogue input.
