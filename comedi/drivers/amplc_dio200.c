@@ -682,6 +682,35 @@ static void dio200_write8(comedi_device * dev, unsigned int offset,
 }
 
 /*
+ * Read 32-bit register.
+ */
+#ifdef CONFIG_COMEDI_PCI
+static unsigned int dio200_read32(comedi_device * dev, unsigned int offset)
+{
+	offset <<= devpriv->io.regshift;
+	if (devpriv->io.regtype == io_regtype)
+		return inl(devpriv->io.u.iobase + offset);
+	else
+		return readl(devpriv->io.u.membase + offset);
+}
+#endif
+
+/*
+ * Write 32-bit register.
+ */
+#ifdef CONFIG_COMEDI_PCI
+static void dio200_write32(comedi_device * dev, unsigned int offset,
+		unsigned int val)
+{
+	offset <<= devpriv->io.regshift;
+	if (devpriv->io.regtype == io_regtype)
+		outl(val, devpriv->io.u.iobase + offset);
+	else
+		writel(val, devpriv->io.u.membase + offset);
+}
+#endif
+
+/*
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
