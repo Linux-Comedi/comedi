@@ -176,20 +176,20 @@ INTERRUPT SOURCES
   Sources              6              1              6
    0               PPI-X-C0       JUMPER-J5      PPI-X-C0
    1               PPI-X-C3                      PPI-X-C3
-   2              CTR-Y1-OUT                     PPI-Y-C0
-   3              CTR-Y2-OUT                     PPI-Y-C3
-   4              CTR-Z1-OUT                    CTR-Z1-OUT
-   5              CTR-Z2-OUT                    CTR-Z2-OUT
+   2              CTR-Y1-OUT1                    PPI-Y-C0
+   3              CTR-Y2-OUT1                    PPI-Y-C3
+   4              CTR-Z1-OUT1                   CTR-Z1-OUT1
+   5              CTR-Z2-OUT1                   CTR-Z2-OUT1
 
                     PCIe215        PC218E         PCIe236
                  -------------  -------------  -------------
   Sources              6              6              6
-   0               PPI-X-C0      CTR-X1-OUT      PPI-X-C0
-   1               PPI-X-C3      CTR-X2-OUT      PPI-X-C3
-   2               PPI-Y-C0      CTR-Y1-OUT       unused
-   3               PPI-Y-C3      CTR-Y2-OUT       unused
-   4              CTR-Z1-OUT     CTR-Z1-OUT     CTR-Z1-OUT
-   5              CTR-Z2-OUT     CTR-Z2-OUT     CTR-Z2-OUT
+   0               PPI-X-C0      CTR-X1-OUT1     PPI-X-C0
+   1               PPI-X-C3      CTR-X2-OUT1     PPI-X-C3
+   2               PPI-Y-C0      CTR-Y1-OUT1      unused
+   3               PPI-Y-C3      CTR-Y2-OUT1      unused
+   4              CTR-Z1-OUT1    CTR-Z1-OUT1    CTR-Z1-OUT1
+   5              CTR-Z2-OUT1    CTR-Z2-OUT1    CTR-Z2-OUT1
 
                  PC272E/PCI272     PCIe296
                  -------------  -------------
@@ -198,8 +198,8 @@ INTERRUPT SOURCES
    1               PPI-X-C3       PPI-X1-C3
    2               PPI-Y-C0       PPI-Y1-C0
    3               PPI-Y-C3       PPI-Y2-C3
-   4               PPI-Z-C0      CTR-Z1-OUT
-   5               PPI-Z-C3      CTR-Z2-OUT
+   4               PPI-Z-C0      CTR-Z1-OUT1
+   5               PPI-Z-C3      CTR-Z2-OUT1
 
 When an interrupt source is enabled in the interrupt source enable
 register, a rising edge on the source signal latches the corresponding
