@@ -1,10 +1,10 @@
 /*
     comedi/drivers/amplc_dio200.c
-    Driver for Amplicon PC272E and PCI272 DIO boards.
+    Driver for various Amplicon 200 series DIO boards.
     (Support for other boards in Amplicon 200 series may be added at
     a later date, e.g. PCI215.)
 
-    Copyright (C) 2005 MEV Ltd. <http://www.mev.co.uk/>
+    Copyright (C) 2005-2012 MEV Ltd. <http://www.mev.co.uk/>
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
@@ -29,16 +29,17 @@ Driver: amplc_dio200
 Description: Amplicon 200 Series Digital I/O
 Author: Ian Abbott <abbotti@mev.co.uk>
 Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
-  PCI215 (pci215 or amplc_dio200), PC218E (pc218e), PC272E (pc272e),
-  PCI272 (pci272 or amplc_dio200)
-Updated: Wed, 22 Oct 2008 13:36:02 +0100
+  PCI215 (pci215 or amplc_dio200), PCIe215 (pcie215 or amplc_dio200),
+  PC218E (pc218e), PCIe236 (pcie236 or amplc_dio200), PC272E (pc272e),
+  PCI272 (pci272 or amplc_dio200), PCIe296 (pcie296 or amplc_dio200)
+Updated: Wed, 16 May 2012 13:57:58 +0100
 Status: works
 
 Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
   [0] - I/O port base address
   [1] - IRQ (optional, but commands won't work without it)
 
-Configuration options - PCI215, PCI272:
+Configuration options - PCI215, PCIe215, PCIe236, PCI272, PCIe296:
   [0] - PCI bus of device (optional)
   [1] - PCI slot of device (optional)
   If bus/slot is not specified, the first available PCI device will
@@ -48,24 +49,39 @@ Passing a zero for an option is the same as leaving it unspecified.
 
 SUBDEVICES
 
-                    PC218E         PC212E      PC215E/PCI215
+                    PC212E         PC214E      PC215E/PCI215
                  -------------  -------------  -------------
-  Subdevices           7              6              5
-   0                 CTR-X1         PPI-X          PPI-X
-   1                 CTR-X2         CTR-Y1         PPI-Y
-   2                 CTR-Y1         CTR-Y2         CTR-Z1
-   3                 CTR-Y2         CTR-Z1         CTR-Z2
-   4                 CTR-Z1         CTR-Z2       INTERRUPT
-   5                 CTR-Z2       INTERRUPT
-   6               INTERRUPT
+  Subdevices           6              4              5
+   0                 PPI-X          PPI-X          PPI-X
+   1                 CTR-Y1         PPI-Y          PPI-Y
+   2                 CTR-Y2         CTR-Z1*        CTR-Z1
+   3                 CTR-Z1       INTERRUPT*       CTR-Z2
+   4                 CTR-Z2                      INTERRUPT
+   5               INTERRUPT
 
-                    PC214E      PC272E/PCI272
+                    PCIe215        PC218E         PCIe236
+                 -------------  -------------  -------------
+  Subdevices           8              7              8
+   0                 PPI-X          CTR-X1         PPI-X
+   1                 UNUSED         CTR-X2         UNUSED
+   2                 PPI-Y          CTR-Y1         UNUSED
+   3                 UNUSED         CTR-Y2         UNUSED
+   4                 CTR-Z1         CTR-Z1         CTR-Z1
+   5                 CTR-Z2         CTR-Z2         CTR-Z2
+   6                 TIMER        INTERRUPT        TIMER
+   7               INTERRUPT                     INTERRUPT
+
+                 PC272E/PCI272     PCIe296
                  -------------  -------------
-  Subdevices           4              4
-   0                 PPI-X          PPI-X
-   1                 PPI-Y          PPI-Y
-   2                 CTR-Z1*        PPI-Z
-   3               INTERRUPT*     INTERRUPT
+  Subdevices           4              8
+   0                 PPI-X          PPI-X1
+   1                 PPI-Y          PPI-X2
+   2                 PPI-Z          PPI-Y1
+   3               INTERRUPT        PPI-Y2
+   4                                CTR-Z1
+   5                                CTR-Z2
+   6                                TIMER
+   7                              INTERRUPT
 
 Each PPI is a 8255 chip providing 24 DIO channels.  The DIO channels
 are configurable as inputs or outputs in four groups:
@@ -145,6 +161,8 @@ Clock and gate interconnection notes:
   3.  The counter subdevices are connected in a ring, so the highest
   counter subdevice precedes the lowest.
 
+The 'TIMER' subdevice is a free-running 32-bit timer subdevice.
+
 The 'INTERRUPT' subdevice pretends to be a digital input subdevice.  The
 digital inputs come from the interrupt status register.  The number of
 channels matches the number of interrupt sources.  The PC214E does not
@@ -153,25 +171,35 @@ below.
 
 INTERRUPT SOURCES
 
-                    PC218E         PC212E      PC215E/PCI215
+                    PC212E         PC214E      PC215E/PCI215
+                 -------------  -------------  -------------
+  Sources              6              1              6
+   0               PPI-X-C0       JUMPER-J5      PPI-X-C0
+   1               PPI-X-C3                      PPI-X-C3
+   2              CTR-Y1-OUT                     PPI-Y-C0
+   3              CTR-Y2-OUT                     PPI-Y-C3
+   4              CTR-Z1-OUT                    CTR-Z1-OUT
+   5              CTR-Z2-OUT                    CTR-Z2-OUT
+
+                    PCIe215        PC218E         PCIe236
                  -------------  -------------  -------------
   Sources              6              6              6
-   0              CTR-X1-OUT      PPI-X-C0       PPI-X-C0
-   1              CTR-X2-OUT      PPI-X-C3       PPI-X-C3
-   2              CTR-Y1-OUT     CTR-Y1-OUT      PPI-Y-C0
-   3              CTR-Y2-OUT     CTR-Y2-OUT      PPI-Y-C3
+   0               PPI-X-C0      CTR-X1-OUT      PPI-X-C0
+   1               PPI-X-C3      CTR-X2-OUT      PPI-X-C3
+   2               PPI-Y-C0      CTR-Y1-OUT       unused
+   3               PPI-Y-C3      CTR-Y2-OUT       unused
    4              CTR-Z1-OUT     CTR-Z1-OUT     CTR-Z1-OUT
    5              CTR-Z2-OUT     CTR-Z2-OUT     CTR-Z2-OUT
 
-                    PC214E      PC272E/PCI272
+                 PC272E/PCI272     PCIe296
                  -------------  -------------
-  Sources              1              6
-   0               JUMPER-J5      PPI-X-C0
-   1                              PPI-X-C3
-   2                              PPI-Y-C0
-   3                              PPI-Y-C3
-   4                              PPI-Z-C0
-   5                              PPI-Z-C3
+  Sources              6              6
+   0               PPI-X-C0       PPI-X1-C0
+   1               PPI-X-C3       PPI-X1-C3
+   2               PPI-Y-C0       PPI-Y1-C0
+   3               PPI-Y-C3       PPI-Y2-C3
+   4               PPI-Z-C0      CTR-Z1-OUT
+   5               PPI-Z-C3      CTR-Z2-OUT
 
 When an interrupt source is enabled in the interrupt source enable
 register, a rising edge on the source signal latches the corresponding
@@ -218,6 +246,9 @@ order they appear in the channel list.
 /* #define PCI_VENDOR_ID_AMPLICON 0x14dc */
 #define PCI_DEVICE_ID_AMPLICON_PCI272 0x000a
 #define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
+#define PCI_DEVICE_ID_AMPLICON_PCIE236 0x0011
+#define PCI_DEVICE_ID_AMPLICON_PCIE215 0x0012
+#define PCI_DEVICE_ID_AMPLICON_PCIE296 0x0014
 #define PCI_DEVICE_ID_INVALID 0xffff
 
 /* 8255 control register bits */
@@ -231,6 +262,7 @@ order they appear in the channel list.
 
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
+#define DIO200_PCIE_IO_SIZE	0x4000
 #define DIO200_XCLK_SCE		0x18	/* Group X clock selection register */
 #define DIO200_YCLK_SCE		0x19	/* Group Y clock selection register */
 #define DIO200_ZCLK_SCE		0x1a	/* Group Z clock selection register */
@@ -274,6 +306,7 @@ struct dio200_region {
 		unsigned char __iomem *membase;	/* Mapped MMIO base address */
 	} u;
 	unsigned char regtype;
+	unsigned char regshift;
 };
 
 /*
@@ -285,9 +318,11 @@ enum dio200_bustype { isa_bustype, pci_bustype };
 enum dio200_model {
 	pc212e_model,
 	pc214e_model,
-	pc215e_model, pci215_model,
+	pc215e_model, pci215_model, pcie215_model,
 	pc218e_model,
+	pcie236_model,
 	pc272e_model, pci272_model,
+	pcie296_model,
 	anypci_model
 };
 
@@ -296,7 +331,13 @@ enum dio200_layout {
 	pc214_layout,
 	pc215_layout,
 	pc218_layout,
-	pc272_layout
+	pc272_layout,
+#ifdef CONFIG_COMEDI_PCI
+	pcie215_layout,
+	pcie236_layout,
+	pcie296_layout,
+#endif
+	num_layouts
 };
 
 typedef struct dio200_board_struct {
@@ -306,6 +347,7 @@ typedef struct dio200_board_struct {
 	enum dio200_model model;
 	enum dio200_layout layout;
 	unsigned char mainbar;
+	unsigned char mainshift;
 	unsigned int mainsize;
 } dio200_board;
 
@@ -342,6 +384,18 @@ static const dio200_board dio200_boards[] = {
 	      mainbar:	2,
 		},
 #endif
+#ifdef CONFIG_COMEDI_PCI
+	{
+	      name:	"pcie215",
+	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE215,
+	      bustype:	pci_bustype,
+	      model:	pcie215_model,
+	      layout:	pcie215_layout,
+	      mainsize:	DIO200_PCIE_IO_SIZE,
+	      mainbar:	1,
+	      mainshift: 3,
+		},
+#endif
 	{
 	      name:	"pc218e",
 	      bustype:	isa_bustype,
@@ -349,6 +403,18 @@ static const dio200_board dio200_boards[] = {
 	      layout:	pc218_layout,
 	      mainsize:	DIO200_IO_SIZE,
 		},
+#ifdef CONFIG_COMEDI_PCI
+	{
+	      name:	"pcie236",
+	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE236,
+	      bustype:	pci_bustype,
+	      model:	pcie236_model,
+	      layout:	pcie236_layout,
+	      mainsize:	DIO200_PCIE_IO_SIZE,
+	      mainbar:	1,
+	      mainshift: 3,
+		},
+#endif
 	{
 	      name:	"pc272e",
 	      bustype:	isa_bustype,
@@ -369,6 +435,18 @@ static const dio200_board dio200_boards[] = {
 #endif
 #ifdef CONFIG_COMEDI_PCI
 	{
+	      name:	"pcie296",
+	      devid:	PCI_DEVICE_ID_AMPLICON_PCIE296,
+	      bustype:	pci_bustype,
+	      model:	pcie296_model,
+	      layout:	pcie296_layout,
+	      mainsize:	DIO200_PCIE_IO_SIZE,
+	      mainbar:	1,
+	      mainshift: 3,
+		},
+#endif
+#ifdef CONFIG_COMEDI_PCI
+	{
 	      name:	DIO200_DRIVER_NAME,
 	      devid:	PCI_DEVICE_ID_INVALID,
 	      bustype:	pci_bustype,
@@ -382,9 +460,9 @@ static const dio200_board dio200_boards[] = {
  * layout.
  */
 
-enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254 };
+enum dio200_sdtype { sd_none, sd_intr, sd_8255, sd_8254, sd_timer };
 
-#define DIO200_MAX_SUBDEVS	7
+#define DIO200_MAX_SUBDEVS	8
 #define DIO200_MAX_ISNS		6
 
 typedef struct dio200_layout_struct {
@@ -442,6 +520,32 @@ static const dio200_layout dio200_layouts[] = {
 	      has_int_sce:1,
 	      has_clk_gat_sce:0,
 		},
+#ifdef CONFIG_COMEDI_PCI
+	[pcie215_layout] = {
+	      n_subdevs:8,
+	      sdtype:	{sd_8255, sd_none, sd_8255, sd_none, sd_8254, sd_8254,
+				sd_timer, sd_intr},
+	      sdinfo:	{0x00, 0x00, 0x08, 0x00, 0x10, 0x14, 0x00, 0x3F},
+	      has_int_sce:1,
+	      has_clk_gat_sce:1,
+		},
+	[pcie236_layout] = {
+	      n_subdevs:8,
+	      sdtype:	{sd_8255, sd_none, sd_none, sd_none, sd_8254, sd_8254,
+				sd_timer, sd_intr},
+	      sdinfo:	{0x00, 0x00, 0x00, 0x00, 0x10, 0x14, 0x00, 0x3F},
+	      has_int_sce:1,
+	      has_clk_gat_sce:1,
+		},
+	[pcie296_layout] = {
+	      n_subdevs:8,
+	      sdtype:	{sd_8255, sd_8255, sd_8255, sd_8255, sd_8254, sd_8254,
+				sd_timer, sd_intr},
+	      sdinfo:	{0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x00, 0x3F},
+	      has_int_sce:1,
+	      has_clk_gat_sce:1,
+		},
+#endif
 };
 
 /*
@@ -453,6 +557,12 @@ static DEFINE_PCI_DEVICE_TABLE(dio200_pci_table) = {
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI215,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI272,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE236,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE215,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCIE296,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
@@ -532,6 +642,7 @@ COMEDI_INITCLEANUP(driver_amplc_dio200);
  */
 static unsigned char dio200_read8(comedi_device * dev, unsigned int offset)
 {
+	offset <<= devpriv->io.regshift;
 	if (devpriv->io.regtype == io_regtype)
 		return inb(devpriv->io.u.iobase + offset);
 	else
@@ -544,6 +655,7 @@ static unsigned char dio200_read8(comedi_device * dev, unsigned int offset)
 static void dio200_write8(comedi_device * dev, unsigned int offset,
 		unsigned char val)
 {
+	offset <<= devpriv->io.regshift;
 	if (devpriv->io.regtype == io_regtype)
 		outb(val, devpriv->io.u.iobase + offset);
 	else
@@ -1613,6 +1725,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 
 	devpriv->intr_sd = -1;
 	devpriv->io.regtype = no_regtype;
+	devpriv->io.regshift = thisboard->mainshift;
 
 	/* Enable device and reserve I/O spaces. */
 #ifdef CONFIG_COMEDI_PCI
@@ -1701,6 +1814,8 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 				s->type = COMEDI_SUBD_UNUSED;
 			}
 			break;
+		case sd_timer:
+			/* TODO.  Fall-thru to default for now. */
 		default:
 			s->type = COMEDI_SUBD_UNUSED;
 			break;
