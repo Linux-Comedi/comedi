@@ -460,7 +460,6 @@ typedef struct {
 	unsigned long iobase;
 	spinlock_t spinlock;
 	int active;
-	int has_int_sce;
 	unsigned int valid_isns;
 	unsigned int enabled_isns;
 	unsigned int stopcount;
@@ -577,7 +576,7 @@ dio200_subdev_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
 {
 	dio200_subdev_intr *subpriv = s->private;
 
-	if (subpriv->has_int_sce) {
+	if (thislayout->has_int_sce) {
 		/* Just read the interrupt status register.  */
 		data[1] = inb(subpriv->iobase) & subpriv->valid_isns;
 	} else {
@@ -597,7 +596,7 @@ static void dio200_stop_intr(comedi_device * dev, comedi_subdevice * s)
 
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
-	if (subpriv->has_int_sce) {
+	if (thislayout->has_int_sce) {
 		outb(0, subpriv->iobase);
 	}
 }
@@ -629,7 +628,7 @@ static int dio200_start_intr(comedi_device * dev, comedi_subdevice * s)
 		isn_bits &= subpriv->valid_isns;
 		/* Enable interrupt sources. */
 		subpriv->enabled_isns = isn_bits;
-		if (subpriv->has_int_sce) {
+		if (thislayout->has_int_sce) {
 			outb(isn_bits, subpriv->iobase);
 		}
 	}
@@ -684,7 +683,7 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	oldevents = s->async->events;
-	if (subpriv->has_int_sce) {
+	if (thislayout->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
 		 * them temporarily.  Loop around until no extra interrupt
@@ -718,7 +717,7 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 		 * Reenable them NOW to minimize the time they are disabled.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		if (subpriv->has_int_sce) {
+		if (thislayout->has_int_sce) {
 			outb(cur_enabled, subpriv->iobase);
 		}
 
@@ -954,7 +953,7 @@ static int dio200_subdev_intr_cmd(comedi_device * dev, comedi_subdevice * s)
  */
 static int
 dio200_subdev_intr_init(comedi_device * dev, comedi_subdevice * s,
-	unsigned long iobase, unsigned valid_isns, int has_int_sce)
+	unsigned long iobase, unsigned valid_isns)
 {
 	dio200_subdev_intr *subpriv;
 
@@ -965,18 +964,17 @@ dio200_subdev_intr_init(comedi_device * dev, comedi_subdevice * s,
 		return -ENOMEM;
 	}
 	subpriv->iobase = iobase;
-	subpriv->has_int_sce = has_int_sce;
 	subpriv->valid_isns = valid_isns;
 	spin_lock_init(&subpriv->spinlock);
 
-	if (has_int_sce) {
+	if (thislayout->has_int_sce) {
 		outb(0, subpriv->iobase);	/* Disable interrupt sources. */
 	}
 
 	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-	if (has_int_sce) {
+	if (thislayout->has_int_sce) {
 		s->n_chan = DIO200_MAX_ISNS;
 		s->len_chanlist = DIO200_MAX_ISNS;
 	} else {
@@ -1392,7 +1390,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 			if (irq) {
 				ret = dio200_subdev_intr_init(dev, s,
 					iobase + DIO200_INT_SCE,
-					layout->sdinfo[n], layout->has_int_sce);
+					layout->sdinfo[n]);
 				if (ret < 0) {
 					return ret;
 				}
