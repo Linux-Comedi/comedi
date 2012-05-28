@@ -447,17 +447,17 @@ typedef struct {
 #define devpriv ((dio200_private *)dev->private)
 
 typedef struct {
-	unsigned long iobase;	/* Counter base address */
-	unsigned long clk_sce_iobase;	/* CLK_SCE base address */
-	unsigned long gat_sce_iobase;	/* GAT_SCE base address */
-	int which;		/* Bit 5 of CLK_SCE or GAT_SCE */
-	unsigned clock_src[3];	/* Current clock sources */
-	unsigned gate_src[3];	/* Current gate sources */
+	unsigned int ofs;		/* Counter base offset */
+	unsigned int clk_sce_ofs;	/* CLK_SCE base offset */
+	unsigned int gat_sce_ofs;	/* GAT_SCE base offset */
+	int which;			/* Bit 5 of CLK_SCE or GAT_SCE */
+	unsigned int clock_src[3];	/* Current clock sources */
+	unsigned int gate_src[3];	/* Current gate sources */
 	spinlock_t spinlock;
 } dio200_subdev_8254;
 
 typedef struct {
-	unsigned long iobase;
+	unsigned int ofs;
 	spinlock_t spinlock;
 	int active;
 	unsigned int valid_isns;
@@ -578,7 +578,7 @@ dio200_subdev_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
 
 	if (thislayout->has_int_sce) {
 		/* Just read the interrupt status register.  */
-		data[1] = inb(subpriv->iobase) & subpriv->valid_isns;
+		data[1] = inb(dev->iobase + subpriv->ofs) & subpriv->valid_isns;
 	} else {
 		/* No interrupt status register. */
 		data[0] = 0;
@@ -597,7 +597,7 @@ static void dio200_stop_intr(comedi_device * dev, comedi_subdevice * s)
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
 	if (thislayout->has_int_sce) {
-		outb(0, subpriv->iobase);
+		outb(0, dev->iobase + subpriv->ofs);
 	}
 }
 
@@ -629,7 +629,7 @@ static int dio200_start_intr(comedi_device * dev, comedi_subdevice * s)
 		/* Enable interrupt sources. */
 		subpriv->enabled_isns = isn_bits;
 		if (thislayout->has_int_sce) {
-			outb(isn_bits, subpriv->iobase);
+			outb(isn_bits, dev->iobase + subpriv->ofs);
 		}
 	}
 
@@ -678,7 +678,9 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 	unsigned cur_enabled;
 	unsigned int oldevents;
 	unsigned long flags;
+	unsigned long int_sce_reg;
 
+	int_sce_reg = dev->iobase + subpriv->ofs;
 	triggered = 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
@@ -695,11 +697,11 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 		 * loop in case of misconfiguration.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		while ((intstat = (inb(subpriv->iobase) & subpriv->valid_isns
+		while ((intstat = (inb(int_sce_reg) & subpriv->valid_isns
 					& ~triggered)) != 0) {
 			triggered |= intstat;
 			cur_enabled &= ~triggered;
-			outb(cur_enabled, subpriv->iobase);
+			outb(cur_enabled, int_sce_reg);
 		}
 	} else {
 		/*
@@ -718,7 +720,7 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 		 */
 		cur_enabled = subpriv->enabled_isns;
 		if (thislayout->has_int_sce) {
-			outb(cur_enabled, subpriv->iobase);
+			outb(cur_enabled, int_sce_reg);
 		}
 
 		if (subpriv->active) {
@@ -953,7 +955,7 @@ static int dio200_subdev_intr_cmd(comedi_device * dev, comedi_subdevice * s)
  */
 static int
 dio200_subdev_intr_init(comedi_device * dev, comedi_subdevice * s,
-	unsigned long iobase, unsigned valid_isns)
+	unsigned int offset, unsigned valid_isns)
 {
 	dio200_subdev_intr *subpriv;
 
@@ -963,12 +965,13 @@ dio200_subdev_intr_init(comedi_device * dev, comedi_subdevice * s,
 			dev->minor);
 		return -ENOMEM;
 	}
-	subpriv->iobase = iobase;
+	subpriv->ofs = offset;
 	subpriv->valid_isns = valid_isns;
 	spin_lock_init(&subpriv->spinlock);
 
 	if (thislayout->has_int_sce) {
-		outb(0, subpriv->iobase);	/* Disable interrupt sources. */
+		/* Disable interrupt sources. */
+		outb(0, dev->iobase + subpriv->ofs);
 	}
 
 	s->private = subpriv;
@@ -1042,7 +1045,7 @@ dio200_subdev_8254_read(comedi_device * dev, comedi_subdevice * s,
 		return 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
-	data[0] = i8254_read(subpriv->iobase, 0, chan);
+	data[0] = i8254_read(dev->iobase + subpriv->ofs, 0, chan);
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
@@ -1063,7 +1066,7 @@ dio200_subdev_8254_write(comedi_device * dev, comedi_subdevice * s,
 		return 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
-	i8254_write(subpriv->iobase, 0, chan, data[0]);
+	i8254_write(dev->iobase + subpriv->ofs, 0, chan, data[0]);
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
@@ -1088,7 +1091,7 @@ dio200_subdev_8254_set_gate_src(comedi_device * dev, comedi_subdevice *s,
 
 	subpriv->gate_src[counter_number] = gate_src;
 	byte = GAT_SCE(subpriv->which, counter_number, gate_src);
-	outb(byte, subpriv->gat_sce_iobase);
+	outb(byte, dev->iobase + subpriv->gat_sce_ofs);
 
 	return 0;
 }
@@ -1129,7 +1132,7 @@ dio200_subdev_8254_set_clock_src(comedi_device * dev, comedi_subdevice *s,
 
 	subpriv->clock_src[counter_number] = clock_src;
 	byte = CLK_SCE(subpriv->which, counter_number, clock_src);
-	outb(byte, subpriv->clk_sce_iobase);
+	outb(byte, dev->iobase + subpriv->clk_sce_ofs);
 
 	return 0;
 }
@@ -1169,12 +1172,13 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		ret = i8254_set_mode(subpriv->iobase, 0, chan, data[1]);
+		ret = i8254_set_mode(dev->iobase + subpriv->ofs, 0, chan,
+				data[1]);
 		if (ret < 0)
 			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(subpriv->iobase, 0, chan);
+		data[1] = i8254_status(dev->iobase + subpriv->ofs, 0, chan);
 		break;
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = dio200_subdev_8254_set_gate_src(dev, s, chan, data[2]);
@@ -1213,12 +1217,11 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 /*
  * This function initializes an '8254' counter subdevice.
  *
- * Note: iobase is the base address of the board, not the subdevice;
  * offset is the offset to the 8254 chip.
  */
 static int
 dio200_subdev_8254_init(comedi_device * dev, comedi_subdevice * s,
-	unsigned long iobase, unsigned offset)
+	unsigned int offset)
 {
 	dio200_subdev_8254 *subpriv;
 	unsigned int chan;
@@ -1240,20 +1243,20 @@ dio200_subdev_8254_init(comedi_device * dev, comedi_subdevice * s,
 	s->insn_config = dio200_subdev_8254_config;
 
 	spin_lock_init(&subpriv->spinlock);
-	subpriv->iobase = offset + iobase;
+	subpriv->ofs = offset;
 	if (thislayout->has_clk_gat_sce) {
 		/* Derive CLK_SCE and GAT_SCE register offsets from
 		 * 8254 offset. */
-		subpriv->clk_sce_iobase =
-			DIO200_XCLK_SCE + (offset >> 3) + iobase;
-		subpriv->gat_sce_iobase =
-			DIO200_XGAT_SCE + (offset >> 3) + iobase;
+		subpriv->clk_sce_ofs =
+			DIO200_XCLK_SCE + (offset >> 3);
+		subpriv->gat_sce_ofs =
+			DIO200_XGAT_SCE + (offset >> 3);
 		subpriv->which = (offset >> 2) & 1;
 	}
 
 	/* Initialize channels. */
 	for (chan = 0; chan < 3; chan++) {
-		i8254_set_mode(subpriv->iobase, 0, chan,
+		i8254_set_mode(dev->iobase + subpriv->ofs, 0, chan,
 			I8254_MODE0 | I8254_BINARY);
 		if (thislayout->has_clk_gat_sce) {
 			/* Gate source 0 is VCC (logic 1). */
@@ -1371,7 +1374,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		switch (layout->sdtype[n]) {
 		case sd_8254:
 			/* counter subdevice (8254) */
-			ret = dio200_subdev_8254_init(dev, s, iobase,
+			ret = dio200_subdev_8254_init(dev, s,
 				layout->sdinfo[n]);
 			if (ret < 0) {
 				return ret;
@@ -1389,8 +1392,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 			/* 'INTERRUPT' subdevice */
 			if (irq) {
 				ret = dio200_subdev_intr_init(dev, s,
-					iobase + DIO200_INT_SCE,
-					layout->sdinfo[n]);
+					DIO200_INT_SCE, layout->sdinfo[n]);
 				if (ret < 0) {
 					return ret;
 				}
