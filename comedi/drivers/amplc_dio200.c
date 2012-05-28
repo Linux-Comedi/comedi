@@ -1667,6 +1667,47 @@ dio200_subdev_8255_cleanup(comedi_device * dev, comedi_subdevice * s)
 	}
 }
 
+#ifdef CONFIG_COMEDI_PCI
+/*
+ * This function does some special set-up for the PCIe boards
+ * PCIe215, PCIe236, PCIe296.
+ */
+static int
+dio200_pcie_board_setup(comedi_device * dev)
+{
+	struct pci_dev *pci_dev = devpriv->pci_dev;
+	unsigned char __iomem *brbase;
+	resource_size_t brlen;
+
+	/*
+	 * The board uses Altera Cyclone IV with PCI-Express hard IP.
+	 * The FPGA configuration has the PCI-Express Avalon-MM Bridge
+	 * Control registers in PCI BAR 0, offset 0, and the length of
+	 * these registers is 0x4000.
+	 *
+	 * We need to write 0x80 to the "Avalon-MM to PCI-Express Interrupt
+	 * Enable" register at offset 0x50 to allow generation of PCIe
+	 * interrupts when RXmlrq_i is asserted in the SOPC Builder system.
+	 */
+	brlen = pci_resource_len(pci_dev, 0);
+	if (brlen < 0x4000 ||
+			!(pci_resource_flags(pci_dev, 0) & IORESOURCE_MEM)) {
+		printk(KERN_ERR "comedi%d: error! bad PCI region!\n",
+			dev->minor);
+		return -EINVAL;
+	}
+	brbase = ioremap_nocache(pci_resource_start(pci_dev, 0), brlen);
+	if (!brbase) {
+		printk(KERN_ERR "comedi%d: error! failed to map registers!\n",
+			dev->minor);
+		return -ENOMEM;
+	}
+	writel(0x80, brbase + 0x50);
+	iounmap(brbase);
+	return 0;
+}
+#endif
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
@@ -1773,6 +1814,21 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 		devpriv->io.u.iobase = iobase;
 		devpriv->io.regtype = io_regtype;
+	}
+
+	switch (thisboard->model) {
+#ifdef CONFIG_COMEDI_PCI
+	case pcie215_model:
+	case pcie236_model:
+	case pcie296_model:
+		ret = dio200_pcie_board_setup(dev);
+		if (ret < 0) {
+			return ret;
+		}
+		break;
+#endif
+	default:
+		break;
 	}
 
 	layout = thislayout;
