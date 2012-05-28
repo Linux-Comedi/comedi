@@ -265,6 +265,18 @@ static const unsigned clock_period[8] = {
 };
 
 /*
+ * Register region.
+ */
+enum dio200_regtype { no_regtype, io_regtype, mmio_regtype };
+struct dio200_region {
+	union {
+		unsigned long iobase;		/* I/O base address */
+		unsigned char __iomem *membase;	/* Mapped MMIO base address */
+	} u;
+	unsigned char regtype;
+};
+
+/*
  * Board descriptions.
  */
 
@@ -450,6 +462,7 @@ typedef struct {
 #ifdef CONFIG_COMEDI_PCI
 	struct pci_dev *pci_dev;	/* PCI device */
 #endif
+	struct dio200_region io;	/* Register region */
 	int intr_sd;
 } dio200_private;
 
@@ -508,7 +521,10 @@ COMEDI_INITCLEANUP(driver_amplc_dio200);
  */
 static unsigned char dio200_read8(comedi_device * dev, unsigned int offset)
 {
-	return inb(dev->iobase + offset);
+	if (devpriv->io.regtype == io_regtype)
+		return inb(devpriv->io.u.iobase + offset);
+	else
+		return readb(devpriv->io.u.membase + offset);
 }
 
 /*
@@ -517,7 +533,10 @@ static unsigned char dio200_read8(comedi_device * dev, unsigned int offset)
 static void dio200_write8(comedi_device * dev, unsigned int offset,
 		unsigned char val)
 {
-	outb(val, dev->iobase + offset);
+	if (devpriv->io.regtype == io_regtype)
+		outb(val, devpriv->io.u.iobase + offset);
+	else
+		writeb(val, devpriv->io.u.membase + offset);
 }
 
 /*
@@ -1582,10 +1601,13 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	devpriv->intr_sd = -1;
+	devpriv->io.regtype = no_regtype;
 
 	/* Enable device and reserve I/O spaces. */
 #ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
+		resource_size_t base;
+
 		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 		if (ret < 0) {
 			printk(KERN_ERR
@@ -1593,7 +1615,21 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 				dev->minor);
 			return ret;
 		}
-		iobase = pci_resource_start(pci_dev, 2);
+		base = pci_resource_start(pci_dev, 2);
+		if ((pci_resource_flags(pci_dev, 2) & IORESOURCE_MEM) != 0) {
+			resource_size_t len = pci_resource_len(pci_dev, 2);
+			devpriv->io.u.membase = ioremap_nocache(base, len);
+			if (!devpriv->io.u.membase) {
+				printk(KERN_ERR
+					"comedi%d: error! cannot remap registers!\n",
+					dev->minor);
+				return -ENOMEM;
+			}
+			devpriv->io.regtype = mmio_regtype;
+		} else {
+			devpriv->io.u.iobase = (unsigned long)base;
+			devpriv->io.regtype = io_regtype;
+		}
 		irq = pci_dev->irq;
 	} else
 #endif
@@ -1602,8 +1638,9 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		if (ret < 0) {
 			return ret;
 		}
+		devpriv->io.u.iobase = iobase;
+		devpriv->io.regtype = io_regtype;
 	}
-	dev->iobase = iobase;
 
 	layout = thislayout;
 	if ((ret = alloc_subdevices(dev, layout->n_subdevs)) < 0) {
@@ -1728,17 +1765,21 @@ static int dio200_detach(comedi_device * dev)
 		}
 	}
 	if (devpriv) {
+		if (devpriv->io.regtype == mmio_regtype) {
+			iounmap(devpriv->io.u.membase);
+		}
 #ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
-			if (dev->iobase) {
+			if (devpriv->io.regtype != no_regtype) {
 				comedi_pci_disable(devpriv->pci_dev);
 			}
 			pci_dev_put(devpriv->pci_dev);
 		} else
 #endif
 		{
-			if (dev->iobase) {
-				release_region(dev->iobase, DIO200_IO_SIZE);
+			if (devpriv->io.regtype == io_regtype) {
+				release_region(devpriv->io.u.iobase,
+					DIO200_IO_SIZE);
 			}
 		}
 	}
