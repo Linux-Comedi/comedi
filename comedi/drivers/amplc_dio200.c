@@ -306,6 +306,7 @@ typedef struct dio200_board_struct {
 	enum dio200_model model;
 	enum dio200_layout layout;
 	unsigned char mainbar;
+	unsigned int mainsize;
 } dio200_board;
 
 static const dio200_board dio200_boards[] = {
@@ -314,18 +315,21 @@ static const dio200_board dio200_boards[] = {
 	      bustype:	isa_bustype,
 	      model:	pc212e_model,
 	      layout:	pc212_layout,
+	      mainsize:	DIO200_IO_SIZE,
 		},
 	{
 	      name:	"pc214e",
 	      bustype:	isa_bustype,
 	      model:	pc214e_model,
 	      layout:	pc214_layout,
+	      mainsize:	DIO200_IO_SIZE,
 		},
 	{
 	      name:	"pc215e",
 	      bustype:	isa_bustype,
 	      model:	pc215e_model,
 	      layout:	pc215_layout,
+	      mainsize:	DIO200_IO_SIZE,
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
@@ -334,6 +338,7 @@ static const dio200_board dio200_boards[] = {
 	      bustype:	pci_bustype,
 	      model:	pci215_model,
 	      layout:	pc215_layout,
+	      mainsize:	DIO200_IO_SIZE,
 	      mainbar:	2,
 		},
 #endif
@@ -342,12 +347,14 @@ static const dio200_board dio200_boards[] = {
 	      bustype:	isa_bustype,
 	      model:	pc218e_model,
 	      layout:	pc218_layout,
+	      mainsize:	DIO200_IO_SIZE,
 		},
 	{
 	      name:	"pc272e",
 	      bustype:	isa_bustype,
 	      model:	pc272e_model,
 	      layout:	pc272_layout,
+	      mainsize:	DIO200_IO_SIZE,
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
@@ -356,6 +363,7 @@ static const dio200_board dio200_boards[] = {
 	      bustype:	pci_bustype,
 	      model:	pci272_model,
 	      layout:	pc272_layout,
+	      mainsize:	DIO200_IO_SIZE,
 	      mainbar:	2,
 		},
 #endif
@@ -1609,7 +1617,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	/* Enable device and reserve I/O spaces. */
 #ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
-		resource_size_t base;
+		resource_size_t base, len;
 		unsigned int bar;
 
 		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
@@ -1621,8 +1629,14 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 		}
 		bar = thisboard->mainbar;
 		base = pci_resource_start(pci_dev, bar);
+		len = pci_resource_len(pci_dev, bar);
+		if (len < thisboard->mainsize) {
+			printk(KERN_ERR
+				"comedi%d: error! PCI region size too small!\n",
+				dev->minor);
+			return -EINVAL;
+		}
 		if ((pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) != 0) {
-			resource_size_t len = pci_resource_len(pci_dev, bar);
 			devpriv->io.u.membase = ioremap_nocache(base, len);
 			if (!devpriv->io.u.membase) {
 				printk(KERN_ERR
@@ -1639,7 +1653,8 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 	} else
 #endif
 	{
-		ret = dio200_request_region(dev->minor, iobase, DIO200_IO_SIZE);
+		ret = dio200_request_region(dev->minor, iobase,
+			thisboard->mainsize);
 		if (ret < 0) {
 			return ret;
 		}
@@ -1784,7 +1799,7 @@ static int dio200_detach(comedi_device * dev)
 		{
 			if (devpriv->io.regtype == io_regtype) {
 				release_region(devpriv->io.u.iobase,
-					DIO200_IO_SIZE);
+					thisboard->mainsize);
 			}
 		}
 	}
