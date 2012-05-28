@@ -220,6 +220,15 @@ order they appear in the channel list.
 #define PCI_DEVICE_ID_AMPLICON_PCI215 0x000b
 #define PCI_DEVICE_ID_INVALID 0xffff
 
+/* 8255 control register bits */
+#define CR_C_LO_IO	0x01
+#define CR_B_IO		0x02
+#define CR_B_MODE	0x04
+#define CR_C_HI_IO	0x08
+#define CR_A_IO		0x10
+#define CR_A_MODE(a)	((a)<<5)
+#define CR_CW		0x80
+
 /* 200 series registers */
 #define DIO200_IO_SIZE		0x20
 #define DIO200_XCLK_SCE		0x18	/* Group X clock selection register */
@@ -455,6 +464,10 @@ typedef struct {
 	unsigned int gate_src[3];	/* Current gate sources */
 	spinlock_t spinlock;
 } dio200_subdev_8254;
+
+typedef struct {
+	unsigned int ofs;		/* DIO base offset */
+} dio200_subdev_8255;
 
 typedef struct {
 	unsigned int ofs;
@@ -1283,6 +1296,152 @@ dio200_subdev_8254_cleanup(comedi_device * dev, comedi_subdevice * s)
 }
 
 /*
+ * This function sets I/O directions for an '8255' DIO subdevice.
+ */
+static void
+dio200_subdev_8255_set_dir(comedi_device * dev, comedi_subdevice * s)
+{
+	dio200_subdev_8255 *subpriv = s->private;
+	int config;
+
+	config = CR_CW;
+	/* 1 in io_bits indicates output, 1 in config indicates input */
+	if (!(s->io_bits & 0x0000ff))
+		config |= CR_A_IO;
+	if (!(s->io_bits & 0x00ff00))
+		config |= CR_B_IO;
+	if (!(s->io_bits & 0x0f0000))
+		config |= CR_C_LO_IO;
+	if (!(s->io_bits & 0xf00000))
+		config |= CR_C_HI_IO;
+
+	outb(config, dev->iobase + (subpriv->ofs + 3));
+}
+
+/*
+ * Handle 'insn_bits' for an '8255' DIO subdevice.
+ */
+static int
+dio200_subdev_8255_bits(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	dio200_subdev_8255 *subpriv = s->private;
+
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+
+		if (data[0] & 0xff) {
+			outb(s->state & 0xff, dev->iobase + subpriv->ofs);
+		}
+		if (data[0] & 0xff00) {
+			outb((s->state >> 8) & 0xff,
+				dev->iobase + (subpriv->ofs + 1));
+		}
+		if (data[0] & 0xff0000) {
+			outb((s->state >> 16) & 0xff,
+				dev->iobase + (subpriv->ofs + 2));
+		}
+	}
+
+	data[1] = inb(dev->iobase + subpriv->ofs);
+	data[1] |= inb(dev->iobase + (subpriv->ofs + 1)) << 8;
+	data[1] |= inb(dev->iobase + (subpriv->ofs + 2)) << 16;
+
+	return 2;
+}
+
+/*
+ * Handle 'insn_config' for an '8255' DIO subdevice.
+ */
+static int
+dio200_subdev_8255_config(comedi_device * dev, comedi_subdevice * s,
+	comedi_insn * insn, lsampl_t * data)
+{
+	unsigned int mask;
+	unsigned int bits;
+
+	mask = 1 << CR_CHAN(insn->chanspec);
+	if (mask & 0x0000ff) {
+		bits = 0x0000ff;
+	} else if (mask & 0x00ff00) {
+		bits = 0x00ff00;
+	} else if (mask & 0x0f0000) {
+		bits = 0x0f0000;
+	} else {
+		bits = 0xf00000;
+	}
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~bits;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dio200_subdev_8255_set_dir(dev, s);
+
+	return 1;
+}
+
+/*
+ * This function initializes an '8255' DIO subdevice.
+ *
+ * offset is the offset to the 8255 chip.
+ */
+static int
+dio200_subdev_8255_init(comedi_device * dev, comedi_subdevice * s,
+	unsigned int offset)
+{
+	dio200_subdev_8255 *subpriv;
+
+	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	if (!subpriv) {
+		printk(KERN_ERR "comedi%d: error! out of memory!\n",
+			dev->minor);
+		return -ENOMEM;
+	}
+
+	subpriv->ofs = offset;
+
+	s->private = subpriv;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 24;
+	s->range_table = &range_digital;
+	s->maxdata = 1;
+	s->insn_bits = dio200_subdev_8255_bits;
+	s->insn_config = dio200_subdev_8255_config;
+
+	s->state = 0;
+	s->io_bits = 0;
+	dio200_subdev_8255_set_dir(dev, s);
+
+	return 0;
+}
+
+/*
+ * This function cleans up an '8255' DIO subdevice.
+ */
+static void
+dio200_subdev_8255_cleanup(comedi_device * dev, comedi_subdevice * s)
+{
+	dio200_subdev_8255 *subpriv = s->private;
+
+	if (subpriv) {
+		kfree(subpriv);
+	}
+}
+
+/*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.  If you specified a board_name array
  * in the driver structure, dev->board_ptr contains that
@@ -1382,8 +1541,8 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 			break;
 		case sd_8255:
 			/* digital i/o subdevice (8255) */
-			ret = subdev_8255_init(dev, s, 0,
-				iobase + layout->sdinfo[n]);
+			ret = dio200_subdev_8255_init(dev, s,
+				layout->sdinfo[n]);
 			if (ret < 0) {
 				return ret;
 			}
@@ -1474,7 +1633,7 @@ static int dio200_detach(comedi_device * dev)
 				dio200_subdev_8254_cleanup(dev, s);
 				break;
 			case sd_8255:
-				subdev_8255_cleanup(dev, s);
+				dio200_subdev_8255_cleanup(dev, s);
 				break;
 			case sd_intr:
 				dio200_subdev_intr_cleanup(dev, s);
