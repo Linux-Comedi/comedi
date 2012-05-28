@@ -1076,9 +1076,10 @@ dio200_subdev_8254_write(comedi_device * dev, comedi_subdevice * s,
  * Set gate source for an '8254' counter subdevice channel.
  */
 static int
-dio200_set_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
-	unsigned int gate_src)
+dio200_subdev_8254_set_gate_src(comedi_device * dev, comedi_subdevice *s,
+	unsigned int counter_number, unsigned int gate_src)
 {
+	dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
 	if (!subpriv->has_clk_gat_sce)
@@ -1099,8 +1100,11 @@ dio200_set_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  * Get gate source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number)
+dio200_subdev_8254_get_gate_src(comedi_device * dev, comedi_subdevice *s,
+	unsigned int counter_number)
 {
+	dio200_subdev_8254 *subpriv = s->private;
+
 	if (!subpriv->has_clk_gat_sce)
 		return -1;
 	if (counter_number > 2)
@@ -1113,9 +1117,10 @@ dio200_get_gate_src(dio200_subdev_8254 * subpriv, unsigned int counter_number)
  * Set clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_set_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
-	unsigned int clock_src)
+dio200_subdev_8254_set_clock_src(comedi_device * dev, comedi_subdevice *s,
+	unsigned int counter_number, unsigned int clock_src)
 {
+	dio200_subdev_8254 *subpriv = s->private;
 	unsigned char byte;
 
 	if (!subpriv->has_clk_gat_sce)
@@ -1136,9 +1141,10 @@ dio200_set_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
  * Get clock source for an '8254' counter subdevice channel.
  */
 static int
-dio200_get_clock_src(dio200_subdev_8254 * subpriv, unsigned int counter_number,
-	lsampl_t * period_ns)
+dio200_subdev_8254_get_clock_src(comedi_device * dev, comedi_subdevice *s,
+	unsigned int counter_number, lsampl_t * period_ns)
 {
+	dio200_subdev_8254 *subpriv = s->private;
 	unsigned clock_src;
 
 	if (!subpriv->has_clk_gat_sce)
@@ -1174,12 +1180,12 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 		data[1] = i8254_status(subpriv->iobase, 0, chan);
 		break;
 	case INSN_CONFIG_SET_GATE_SRC:
-		ret = dio200_set_gate_src(subpriv, chan, data[2]);
+		ret = dio200_subdev_8254_set_gate_src(dev, s, chan, data[2]);
 		if (ret < 0)
 			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_GATE_SRC:
-		ret = dio200_get_gate_src(subpriv, chan);
+		ret = dio200_subdev_8254_get_gate_src(dev, s, chan);
 		if (ret < 0) {
 			ret = -EINVAL;
 			break;
@@ -1187,12 +1193,12 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 		data[2] = ret;
 		break;
 	case INSN_CONFIG_SET_CLOCK_SRC:
-		ret = dio200_set_clock_src(subpriv, chan, data[1]);
+		ret = dio200_subdev_8254_set_clock_src(dev, s, chan, data[1]);
 		if (ret < 0)
 			ret = -EINVAL;
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		ret = dio200_get_clock_src(subpriv, chan, &data[2]);
+		ret = dio200_subdev_8254_get_clock_src(dev, s, chan, &data[2]);
 		if (ret < 0) {
 			ret = -EINVAL;
 			break;
@@ -1255,9 +1261,9 @@ dio200_subdev_8254_init(comedi_device * dev, comedi_subdevice * s,
 			I8254_MODE0 | I8254_BINARY);
 		if (subpriv->has_clk_gat_sce) {
 			/* Gate source 0 is VCC (logic 1). */
-			dio200_set_gate_src(subpriv, chan, 0);
+			dio200_subdev_8254_set_gate_src(dev, s, chan, 0);
 			/* Clock source 0 is the dedicated clock input. */
-			dio200_set_clock_src(subpriv, chan, 0);
+			dio200_subdev_8254_set_clock_src(dev, s, chan, 0);
 		}
 	}
 
