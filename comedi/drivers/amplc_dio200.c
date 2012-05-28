@@ -305,6 +305,7 @@ typedef struct dio200_board_struct {
 	enum dio200_bustype bustype;
 	enum dio200_model model;
 	enum dio200_layout layout;
+	unsigned char mainbar;
 } dio200_board;
 
 static const dio200_board dio200_boards[] = {
@@ -333,6 +334,7 @@ static const dio200_board dio200_boards[] = {
 	      bustype:	pci_bustype,
 	      model:	pci215_model,
 	      layout:	pc215_layout,
+	      mainbar:	2,
 		},
 #endif
 	{
@@ -354,6 +356,7 @@ static const dio200_board dio200_boards[] = {
 	      bustype:	pci_bustype,
 	      model:	pci272_model,
 	      layout:	pc272_layout,
+	      mainbar:	2,
 		},
 #endif
 #ifdef CONFIG_COMEDI_PCI
@@ -1607,6 +1610,7 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 #ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
 		resource_size_t base;
+		unsigned int bar;
 
 		ret = comedi_pci_enable(pci_dev, DIO200_DRIVER_NAME);
 		if (ret < 0) {
@@ -1615,9 +1619,10 @@ static int dio200_attach(comedi_device * dev, comedi_devconfig * it)
 				dev->minor);
 			return ret;
 		}
-		base = pci_resource_start(pci_dev, 2);
-		if ((pci_resource_flags(pci_dev, 2) & IORESOURCE_MEM) != 0) {
-			resource_size_t len = pci_resource_len(pci_dev, 2);
+		bar = thisboard->mainbar;
+		base = pci_resource_start(pci_dev, bar);
+		if ((pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) != 0) {
+			resource_size_t len = pci_resource_len(pci_dev, bar);
 			devpriv->io.u.membase = ioremap_nocache(base, len);
 			if (!devpriv->io.u.membase) {
 				printk(KERN_ERR
