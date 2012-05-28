@@ -504,6 +504,23 @@ COMEDI_INITCLEANUP(driver_amplc_dio200);
 #endif
 
 /*
+ * Read 8-bit register.
+ */
+static unsigned char dio200_read8(comedi_device * dev, unsigned int offset)
+{
+	return inb(dev->iobase + offset);
+}
+
+/*
+ * Write 8-bit register.
+ */
+static void dio200_write8(comedi_device * dev, unsigned int offset,
+		unsigned char val)
+{
+	outb(val, dev->iobase + offset);
+}
+
+/*
  * This function looks for a PCI device matching the requested board name,
  * bus and slot.
  */
@@ -591,7 +608,7 @@ dio200_subdev_intr_insn_bits(comedi_device * dev, comedi_subdevice * s,
 
 	if (thislayout->has_int_sce) {
 		/* Just read the interrupt status register.  */
-		data[1] = inb(dev->iobase + subpriv->ofs) & subpriv->valid_isns;
+		data[1] = dio200_read8(dev, subpriv->ofs) & subpriv->valid_isns;
 	} else {
 		/* No interrupt status register. */
 		data[0] = 0;
@@ -610,7 +627,7 @@ static void dio200_stop_intr(comedi_device * dev, comedi_subdevice * s)
 	subpriv->active = 0;
 	subpriv->enabled_isns = 0;
 	if (thislayout->has_int_sce) {
-		outb(0, dev->iobase + subpriv->ofs);
+		dio200_write8(dev, subpriv->ofs, 0);
 	}
 }
 
@@ -642,7 +659,7 @@ static int dio200_start_intr(comedi_device * dev, comedi_subdevice * s)
 		/* Enable interrupt sources. */
 		subpriv->enabled_isns = isn_bits;
 		if (thislayout->has_int_sce) {
-			outb(isn_bits, dev->iobase + subpriv->ofs);
+			dio200_write8(dev, subpriv->ofs, isn_bits);
 		}
 	}
 
@@ -691,9 +708,9 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 	unsigned cur_enabled;
 	unsigned int oldevents;
 	unsigned long flags;
-	unsigned long int_sce_reg;
+	unsigned int int_sce_ofs;
 
-	int_sce_reg = dev->iobase + subpriv->ofs;
+	int_sce_ofs = subpriv->ofs;
 	triggered = 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
@@ -710,11 +727,12 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 		 * loop in case of misconfiguration.
 		 */
 		cur_enabled = subpriv->enabled_isns;
-		while ((intstat = (inb(int_sce_reg) & subpriv->valid_isns
-					& ~triggered)) != 0) {
+		while ((intstat = (dio200_read8(dev, int_sce_ofs)
+					& subpriv->valid_isns & ~triggered))
+				!= 0) {
 			triggered |= intstat;
 			cur_enabled &= ~triggered;
-			outb(cur_enabled, int_sce_reg);
+			dio200_write8(dev, int_sce_ofs, cur_enabled);
 		}
 	} else {
 		/*
@@ -733,7 +751,7 @@ static int dio200_handle_read_intr(comedi_device * dev, comedi_subdevice * s)
 		 */
 		cur_enabled = subpriv->enabled_isns;
 		if (thislayout->has_int_sce) {
-			outb(cur_enabled, int_sce_reg);
+			dio200_write8(dev, int_sce_ofs, cur_enabled);
 		}
 
 		if (subpriv->active) {
@@ -984,7 +1002,7 @@ dio200_subdev_intr_init(comedi_device * dev, comedi_subdevice * s,
 
 	if (thislayout->has_int_sce) {
 		/* Disable interrupt sources. */
-		outb(0, dev->iobase + subpriv->ofs);
+		dio200_write8(dev, subpriv->ofs, 0);
 	}
 
 	s->private = subpriv;
@@ -1050,17 +1068,17 @@ static inline unsigned int
 dio200_subdev_8254_read_chan(comedi_device * dev, comedi_subdevice * s,
 	unsigned int chan)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	unsigned int i8254_ofs = ((dio200_subdev_8254 *)s->private)->ofs;
 	unsigned int val;
 
 	/* latch counter */
 	val = chan << 6;
-	outb(val, dev->iobase + (subpriv->ofs + i8254_control_reg));
+	dio200_write8(dev, i8254_ofs + i8254_control_reg, val);
 
 	/* read lsb */
-	val = inb(dev->iobase + (subpriv->ofs + chan));
+	val = dio200_read8(dev, i8254_ofs + chan);
 	/* read msb */
-	val += inb(dev->iobase + (subpriv->ofs + chan)) << 8;
+	val += dio200_read8(dev, i8254_ofs + chan) << 8;
 
 	return val;
 }
@@ -1072,12 +1090,12 @@ static inline void
 dio200_subdev_8254_write_chan(comedi_device * dev, comedi_subdevice * s,
 	unsigned int chan, unsigned int count)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	unsigned int i8254_ofs = ((dio200_subdev_8254 *)s->private)->ofs;
 
 	/* write lsb */
-	outb((count & 0xff), dev->iobase + (subpriv->ofs + chan));
+	dio200_write8(dev, i8254_ofs + chan, count & 0xff);
 	/* write msb */
-	outb(((count >> 8) & 0xff), dev->iobase + (subpriv->ofs + chan));
+	dio200_write8(dev, i8254_ofs + chan, (count >> 8) & 0xff);
 }
 
 /*
@@ -1087,13 +1105,13 @@ static inline void
 dio200_subdev_8254_set_mode(comedi_device * dev, comedi_subdevice * s,
 	unsigned int chan, unsigned int mode)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	unsigned int i8254_ofs = ((dio200_subdev_8254 *)s->private)->ofs;
 	unsigned int byte;
 
 	byte = chan << 6;
 	byte |= 0x30;		/* load lsb then msb */
 	byte |= (mode & 0xf);	/* set counter mode and BCD|binary */
-	outb(byte, dev->iobase + (subpriv->ofs + i8254_control_reg));
+	dio200_write8(dev, i8254_ofs + i8254_control_reg, byte);
 }
 
 /*
@@ -1103,11 +1121,10 @@ static inline unsigned int
 dio200_subdev_8254_status(comedi_device * dev, comedi_subdevice * s,
 	unsigned int chan)
 {
-	dio200_subdev_8254 *subpriv = s->private;
+	unsigned int i8254_ofs = ((dio200_subdev_8254 *)s->private)->ofs;
 
-	outb((0xE0 | (2 << chan)),
-		dev->iobase + (subpriv->ofs + i8254_control_reg));
-	return inb(dev->iobase + (subpriv->ofs + chan));
+	dio200_write8(dev, i8254_ofs + i8254_control_reg, (0xE0 | 2 << chan));
+	return dio200_read8(dev, i8254_ofs + chan);
 }
 
 /*
@@ -1171,7 +1188,7 @@ dio200_subdev_8254_set_gate_src(comedi_device * dev, comedi_subdevice *s,
 
 	subpriv->gate_src[counter_number] = gate_src;
 	byte = GAT_SCE(subpriv->which, counter_number, gate_src);
-	outb(byte, dev->iobase + subpriv->gat_sce_ofs);
+	dio200_write8(dev, subpriv->gat_sce_ofs, byte);
 
 	return 0;
 }
@@ -1212,7 +1229,7 @@ dio200_subdev_8254_set_clock_src(comedi_device * dev, comedi_subdevice *s,
 
 	subpriv->clock_src[counter_number] = clock_src;
 	byte = CLK_SCE(subpriv->which, counter_number, clock_src);
-	outb(byte, dev->iobase + subpriv->clk_sce_ofs);
+	dio200_write8(dev, subpriv->clk_sce_ofs, byte);
 
 	return 0;
 }
@@ -1382,7 +1399,7 @@ dio200_subdev_8255_set_dir(comedi_device * dev, comedi_subdevice * s)
 	if (!(s->io_bits & 0xf00000))
 		config |= CR_C_HI_IO;
 
-	outb(config, dev->iobase + (subpriv->ofs + 3));
+	dio200_write8(dev, subpriv->ofs + 3, config);
 }
 
 /*
@@ -1392,28 +1409,28 @@ static int
 dio200_subdev_8255_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
-	dio200_subdev_8255 *subpriv = s->private;
+	unsigned int i8255_ofs = ((dio200_subdev_8255 *)s->private)->ofs;
 
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
 
 		if (data[0] & 0xff) {
-			outb(s->state & 0xff, dev->iobase + subpriv->ofs);
+			dio200_write8(dev, i8255_ofs, s->state & 0xff);
 		}
 		if (data[0] & 0xff00) {
-			outb((s->state >> 8) & 0xff,
-				dev->iobase + (subpriv->ofs + 1));
+			dio200_write8(dev, i8255_ofs + 1,
+				(s->state >> 8) & 0xff);
 		}
 		if (data[0] & 0xff0000) {
-			outb((s->state >> 16) & 0xff,
-				dev->iobase + (subpriv->ofs + 2));
+			dio200_write8(dev, i8255_ofs + 2,
+				(s->state >> 16) & 0xff);
 		}
 	}
 
-	data[1] = inb(dev->iobase + subpriv->ofs);
-	data[1] |= inb(dev->iobase + (subpriv->ofs + 1)) << 8;
-	data[1] |= inb(dev->iobase + (subpriv->ofs + 2)) << 16;
+	data[1] = dio200_read8(dev, i8255_ofs);
+	data[1] |= dio200_read8(dev, i8255_ofs + 1) << 8;
+	data[1] |= dio200_read8(dev, i8255_ofs + 2) << 16;
 
 	return 2;
 }
