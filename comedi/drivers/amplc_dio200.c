@@ -280,15 +280,17 @@ order they appear in the channel list.
  *
  * 'which' is: 0 for CTR-X1, CTR-Y1, CTR-Z1; 1 for CTR-X2, CTR-Y2 or CTR-Z2.
  * 'chan' is the channel: 0, 1 or 2.
- * 'source' is the signal source: 0 to 7.
+ * 'source' is the signal source: 0 to 7, or 0 to 31 for "enhanced" boards.
  */
-#define CLK_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
-#define GAT_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | (source))
+#define CLK_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | \
+		(((source) & 030) << 3) | ((source) & 007))
+#define GAT_SCE(which, chan, source) (((which) << 5) | ((chan) << 3) | \
+		(((source) & 030) << 3) | ((source) & 007))
 
 /*
  * Periods of the internal clock sources in nanoseconds.
  */
-static const unsigned clock_period[8] = {
+static const unsigned clock_period[32] = {
 	0,			/* dedicated clock input/output pin */
 	100,			/* 10 MHz */
 	1000,			/* 1 MHz */
@@ -296,7 +298,12 @@ static const unsigned clock_period[8] = {
 	100000,			/* 10 kHz */
 	1000000,		/* 1 kHz */
 	0,			/* OUT N-1 */
-	0			/* group clock input pin */
+	0,			/* group clock input pin */
+	0,			/* HIGH (VCC) (enhanced) */
+	0,			/* LOW (GND) (enhanced) */
+	0,			/* pattern present (enhanced) */
+	50,			/* 20 MHz (enhanced) */
+	/* remaining clock sources reserved (enhanced) */
 };
 
 /*
@@ -1337,7 +1344,7 @@ dio200_subdev_8254_set_gate_src(comedi_device * dev, comedi_subdevice *s,
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (gate_src > 7)
+	if (gate_src > (thislayout->has_enhancements ? 31 : 7))
 		return -1;
 
 	subpriv->gate_src[counter_number] = gate_src;
@@ -1378,7 +1385,7 @@ dio200_subdev_8254_set_clock_src(comedi_device * dev, comedi_subdevice *s,
 		return -1;
 	if (counter_number > 2)
 		return -1;
-	if (clock_src > 7)
+	if (clock_src > (thislayout->has_enhancements ? 31 : 7))
 		return -1;
 
 	subpriv->clock_src[counter_number] = clock_src;
