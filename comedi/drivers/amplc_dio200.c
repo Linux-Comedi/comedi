@@ -1044,6 +1044,73 @@ static irqreturn_t dio200_interrupt(int irq, void *d PT_REGS_ARG)
 }
 
 /*
+ * Read an '8254' counter subdevice channel.
+ */
+static inline unsigned int
+dio200_subdev_8254_read_chan(comedi_device * dev, comedi_subdevice * s,
+	unsigned int chan)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+	unsigned int val;
+
+	/* latch counter */
+	val = chan << 6;
+	outb(val, dev->iobase + (subpriv->ofs + i8254_control_reg));
+
+	/* read lsb */
+	val = inb(dev->iobase + (subpriv->ofs + chan));
+	/* read msb */
+	val += inb(dev->iobase + (subpriv->ofs + chan)) << 8;
+
+	return val;
+}
+
+/*
+ * Write an '8254' counter subdevice channel.
+ */
+static inline void
+dio200_subdev_8254_write_chan(comedi_device * dev, comedi_subdevice * s,
+	unsigned int chan, unsigned int count)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+
+	/* write lsb */
+	outb((count & 0xff), dev->iobase + (subpriv->ofs + chan));
+	/* write msb */
+	outb(((count >> 8) & 0xff), dev->iobase + (subpriv->ofs + chan));
+}
+
+/*
+ * Set mode of an '8254' counter subdevice channel.
+ */
+static inline void
+dio200_subdev_8254_set_mode(comedi_device * dev, comedi_subdevice * s,
+	unsigned int chan, unsigned int mode)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+	unsigned int byte;
+
+	byte = chan << 6;
+	byte |= 0x30;		/* load lsb then msb */
+	byte |= (mode & 0xf);	/* set counter mode and BCD|binary */
+	outb(byte, dev->iobase + (subpriv->ofs + i8254_control_reg));
+}
+
+/*
+ * Read status byte of an '8254' counter subdevice channel.
+ */
+static inline unsigned int
+dio200_subdev_8254_status(comedi_device * dev, comedi_subdevice * s,
+	unsigned int chan)
+{
+	dio200_subdev_8254 *subpriv = s->private;
+
+	outb((0xE0 | (2 << chan)),
+		dev->iobase + (subpriv->ofs + i8254_control_reg));
+	return inb(dev->iobase + (subpriv->ofs + chan));
+}
+
+/*
  * Handle 'insn_read' for an '8254' counter subdevice.
  */
 static int
@@ -1058,7 +1125,7 @@ dio200_subdev_8254_read(comedi_device * dev, comedi_subdevice * s,
 		return 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
-	data[0] = i8254_read(dev->iobase + subpriv->ofs, 0, chan);
+	data[0] = dio200_subdev_8254_read_chan(dev, s, chan);
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
@@ -1079,7 +1146,7 @@ dio200_subdev_8254_write(comedi_device * dev, comedi_subdevice * s,
 		return 0;
 
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
-	i8254_write(dev->iobase + subpriv->ofs, 0, chan, data[0]);
+	dio200_subdev_8254_write_chan(dev, s, chan, data[0]);
 	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 1;
@@ -1185,13 +1252,13 @@ dio200_subdev_8254_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
-		ret = i8254_set_mode(dev->iobase + subpriv->ofs, 0, chan,
-				data[1]);
-		if (ret < 0)
+		if (data[1] > (I8254_MODE5 | I8254_BINARY))
 			ret = -EINVAL;
+		else
+			dio200_subdev_8254_set_mode(dev, s, chan, data[1]);
 		break;
 	case INSN_CONFIG_8254_READ_STATUS:
-		data[1] = i8254_status(dev->iobase + subpriv->ofs, 0, chan);
+		data[1] = dio200_subdev_8254_status(dev, s, chan);
 		break;
 	case INSN_CONFIG_SET_GATE_SRC:
 		ret = dio200_subdev_8254_set_gate_src(dev, s, chan, data[2]);
@@ -1269,8 +1336,8 @@ dio200_subdev_8254_init(comedi_device * dev, comedi_subdevice * s,
 
 	/* Initialize channels. */
 	for (chan = 0; chan < 3; chan++) {
-		i8254_set_mode(dev->iobase + subpriv->ofs, 0, chan,
-			I8254_MODE0 | I8254_BINARY);
+		dio200_subdev_8254_set_mode(dev, s, chan,
+			(I8254_MODE0 | I8254_BINARY));
 		if (thislayout->has_clk_gat_sce) {
 			/* Gate source 0 is VCC (logic 1). */
 			dio200_subdev_8254_set_gate_src(dev, s, chan, 0);
