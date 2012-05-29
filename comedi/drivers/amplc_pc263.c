@@ -146,9 +146,7 @@ static comedi_driver driver_amplc_pc263 = {
 
 static int pc263_request_region(unsigned minor, unsigned long from,
 	unsigned long extent);
-static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
+static int pc263_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data);
 
 /*
@@ -301,16 +299,13 @@ static int pc263_attach(comedi_device * dev, comedi_devconfig * it)
 	}
 
 	s = dev->subdevices + 0;
-	/* digital i/o subdevice */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_RT;
+	/* digital output subdevice */
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = pc263_dio_insn_bits;
-	s->insn_config = pc263_dio_insn_config;
-	/* all outputs */
-	s->io_bits = 0xffff;
+	s->insn_bits = pc263_do_insn_bits;
 	/* read initial relay state */
 	s->state = inb(dev->iobase) | (inb(dev->iobase + 1) << 8);
 
@@ -381,12 +376,12 @@ static int pc263_request_region(unsigned minor, unsigned long from,
 	return 0;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
+/* DI/DO/DIO subdevices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
+static int pc263_do_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	if (insn->n != 2)
@@ -409,14 +404,6 @@ static int pc263_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 	data[1] = s->state;
 
 	return 2;
-}
-
-static int pc263_dio_insn_config(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
-{
-	if (insn->n != 1)
-		return -EINVAL;
-	return 1;
 }
 
 /*
