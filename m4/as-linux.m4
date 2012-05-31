@@ -971,3 +971,23 @@ AC_DEFUN([COMEDI_CHECK_HAVE_GENERIC_BOOL_TYPE],
 		$3
 	fi
 ])
+
+# COMEDI_CHECK_REQUEST_FIRMWARE_NOWAIT_HAS_GFP([LINUX_SOURCE_PATH], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
+#
+# -------------------------------------------------------------
+# Check if the kernel's request_firmware_nowait() function has the gfp
+# parameter.  This was added in vanilla 2.6.33 but Red Hat backported it
+# to their 2.6.32 kernel.
+AC_DEFUN([COMEDI_CHECK_REQUEST_FIRMWARE_NOWAIT_HAS_GFP],
+[
+	AC_REQUIRE([AC_PROG_EGREP])
+	AC_MSG_CHECKING([$1 for gfp parameter in request_firmware_nowait()])
+	$EGREP -q gfp_t "$1/include/linux/firmware.h"
+	if (($?)); then
+		AC_MSG_RESULT([no])
+		$3
+	else
+		AC_MSG_RESULT([yes])
+		$2
+	fi
+])

@@ -164,6 +164,13 @@ if test "$HAVE_GENERIC_BOOL_TYPE" = "yes" ; then
 	AC_DEFINE([CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE],[true],[Define if Linux kernel source has generic 'bool' type in linux/types.h])
 fi
 
+COMEDI_CHECK_REQUEST_FIRMWARE_NOWAIT_HAS_GFP([$LINUX_SRC_DIR],
+	[REQUEST_FIRMWARE_NOWAIT_HAS_GFP="yes"],
+	[REQUEST_FIRMWARE_NOWAIT_HAS_GFP="no"])
+if test "$REQUEST_FIRMWARE_NOWAIT_HAS_GFP" = "yes" ; then
+	AC_DEFINE([CONFIG_COMEDI_REQUEST_FIRMWARE_NOWAIT_HAS_GFP],[true],[Define if Linux kernel 'request_firmware_nowait' function has 'gfp' parameter])
+fi
+
 AS_CHECK_LINUX_CONFIG_OPTION([CONFIG_USB],[HAVE_USB="yes"],[HAVE_USB="yes"],[HAVE_USB="no"])
 AM_CONDITIONAL([CONFIG_USB],[test "$HAVE_USB" = "yes"])
 AC_ARG_ENABLE([usb],[  --disable-usb		Disable support for USB devices],

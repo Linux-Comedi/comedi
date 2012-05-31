@@ -8,7 +8,14 @@
 
 #include_next <linux/firmware.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+#ifdef CONFIG_COMEDI_REQUEST_FIRMWARE_NOWAIT_HAS_GFP
+
+/* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
+ * of request_firmware_nowait().  This version just calls
+ * release_firmware(fw). */
+#define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	release_firmware(fw)
+
+#else
 
 /* Redefine request_firmware_nowait() to add gfp parameter.  This will be
  * ignored for kernel versions prior to 2.6.33. */
@@ -29,11 +36,6 @@ static inline int comedi_internal_request_firmware_nowait(
 /* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
  * of request_firmware_nowait().  This version does nothing. */
 #define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	do; while (0)
-#else
-/* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
- * of request_firmware_nowait().  This version just calls
- * release_firmware(fw). */
-#define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	release_firmware(fw)
 #endif
 
 #endif
