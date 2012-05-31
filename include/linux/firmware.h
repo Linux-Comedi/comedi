@@ -24,8 +24,13 @@ static inline int comedi_internal_request_firmware_nowait(
 	const char *name, struct device *device, unsigned gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context))
 {
+#ifdef FW_ACTION_HOTPLUG
 	return request_firmware_nowait(
 			module, uevent, name, device, context, cont);
+#else
+	return request_firmware_nowait(
+			module, name, device, context, cont);
+#endif
 }
 
 #undef request_firmware_nowait
@@ -36,6 +41,17 @@ static inline int comedi_internal_request_firmware_nowait(
 /* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
  * of request_firmware_nowait().  This version does nothing. */
 #define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	do; while (0)
+#endif
+
+/*
+ * FW_ACTION_HOTPLUG and FW_ACTION_NOHOTPLUG and the uevent/hotplug parameter
+ * of request_firmware_nowait() were added in vanilla kernel 2.6.14.  We've
+ * already dealt with the missing parameter above, but define the missing
+ * values below.  Comedi drivers would normally use FW_ACTION_HOTPLUG.
+ */
+#ifndef FW_ACTION_HOTPLUG
+#define FW_ACTION_NOHOTPLUG 0
+#define FW_ACTION_HOTPLUG 1
 #endif
 
 #endif
