@@ -2385,11 +2385,7 @@ out:
 	 * had to release the firmware whereas in older
 	 * versions this has been done by the caller
 	 */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
-	release_firmware(fw);
-#else
-	while (0);
-#endif
+	COMEDI_RELEASE_FIRMWARE_NOWAIT(fw);
 }
 
 /* allocate memory for the urbs and initialise them */

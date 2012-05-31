@@ -2503,9 +2503,16 @@ static void usbdux_firmware_request_complete_handler(
 		dev_err(&usbdev->dev,
 			"Could not upload firmware (err=%d)\n",
 			ret);
-		return;
+		goto out;
 	}
 	comedi_usb_auto_config(usbdev, BOARDNAME);
+out:
+	/*
+	 * in more recent versions the completion handler
+	 * had to release the firmware whereas in older
+	 * versions this has been done by the caller
+	 */
+	COMEDI_RELEASE_FIRMWARE_NOWAIT(fw);
 }
 
 

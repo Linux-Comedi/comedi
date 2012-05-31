@@ -26,6 +26,14 @@ static inline int comedi_internal_request_firmware_nowait(
 	comedi_internal_request_firmware_nowait( \
 			module, uevent, name, device, gfp, context, cont)
 
+/* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
+ * of request_firmware_nowait().  This version does nothing. */
+#define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	do; while (0)
+#else
+/* Define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw) for use in the callback function
+ * of request_firmware_nowait().  This version just calls
+ * release_firmware(fw). */
+#define COMEDI_RELEASE_FIRMWARE_NOWAIT(fw)	release_firmware(fw)
 #endif
 
 #endif
