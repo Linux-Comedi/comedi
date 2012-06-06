@@ -600,7 +600,8 @@ static void ni_release_ao_mite_channel(comedi_device * dev)
 #endif // PCIDMA
 }
 
-void ni_release_gpct_mite_channel(comedi_device * dev, unsigned gpct_index)
+static void ni_release_gpct_mite_channel(comedi_device * dev,
+		unsigned gpct_index)
 {
 #ifdef PCIDMA
 	unsigned long flags;
@@ -1815,7 +1816,7 @@ static int ni_ai_insn_read(comedi_device * dev, comedi_subdevice * s,
 	return insn->n;
 }
 
-void ni_prime_channelgain_list(comedi_device * dev)
+static void ni_prime_channelgain_list(comedi_device * dev)
 {
 	int i;
 	devpriv->stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
