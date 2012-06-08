@@ -1443,6 +1443,9 @@ static int pci230_ao_inttrig_scan_begin(comedi_device * dev,
 		/* Delay.  Should driver be responsible for this? */
 		/* XXX TODO: See if DAC busy bit can be used. */
 		comedi_udelay(8);
+	} else {
+		comedi_spin_unlock_irqrestore(&devpriv-> ao_stop_spinlock,
+			irqflags);
 	}
 
 	return 1;
