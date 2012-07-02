@@ -206,7 +206,7 @@ static int ni_670x_detach(comedi_device * dev)
 {
 	printk("comedi%d: ni_670x: remove\n", dev->minor);
 
-	if (dev->subdevices[0].range_table_list) {
+	if (dev->subdevices && dev->subdevices[0].range_table_list) {
 		kfree(dev->subdevices[0].range_table_list);
 	}
 	if (dev->private && devpriv->mite)
