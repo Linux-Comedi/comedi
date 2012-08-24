@@ -616,7 +616,9 @@ static int serial_2002_open(comedi_device * dev)
 				kfree(s->range_table_list);
 				s->range_table = 0;
 				s->range_table_list = 0;
-				if (range) {
+				if (kind == 1 || kind == 2) {
+					s->range_table = &range_digital;
+				} else if (range) {
 					s->range_table_list = range_table_list =
 						kmalloc(sizeof
 						(serial2002_range_table_t) *
