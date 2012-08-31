@@ -645,7 +645,7 @@ static int das08jr_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 
 	for (n = 0; n < insn->n; n++) {
 		lsb = data[n] & 0xff;
-		msb = (data[n] >> 8) & 0xf;
+		msb = (data[n] >> 8) & 0xff;
 #if 0
 		outb(lsb, dev->iobase + devpriv->ao_offset_lsb[chan]);
 		outb(msb, dev->iobase + devpriv->ao_offset_msb[chan]);
