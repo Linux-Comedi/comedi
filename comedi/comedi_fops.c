@@ -882,7 +882,7 @@ static int parse_insn(comedi_device * dev, comedi_insn * insn, lsampl_t * data,
 				ret = -EAGAIN;
 				break;
 			}
-			ret = s->async->inttrig(dev, s, insn->data[0]);
+			ret = s->async->inttrig(dev, s, data[0]);
 			if (ret >= 0)
 				ret = 1;
 			break;
