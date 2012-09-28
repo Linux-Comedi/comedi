@@ -529,14 +529,13 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 //        printk("s526: GPCT_INSN_CONFIG: Configuring Channel %d\n", subdev_channel);
 
 	for (i = 0; i < MAX_GPCT_CONFIG_DATA; i++) {
-		devpriv->s526_gpct_config[subdev_channel].data[i] =
-			insn->data[i];
-//              printk("data[%d]=%x\n", i, insn->data[i]);
+		devpriv->s526_gpct_config[subdev_channel].data[i] = data[i];
+//              printk("data[%d]=%x\n", i, data[i]);
 	}
 
 	// Check what type of Counter the user requested, data[0] contains
 	// the Application type
-	switch (insn->data[0]) {
+	switch (data[0]) {
 	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
 		/*
 		   data[0]: Application Type
@@ -577,7 +576,7 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 #if 1
 		// Set Counter Mode Register
-		cmReg.value = insn->data[1] & 0xFFFF;
+		cmReg.value = data[1] & 0xFFFF;
 
 //                      printk("s526: Counter Mode register=%x\n", cmReg.value);
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
@@ -591,39 +590,39 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 		cmReg.reg.countDirCtrl = 0;	// 0 quadrature, 1 software control
 
 		// data[1] contains GPCT_X1, GPCT_X2 or GPCT_X4
-		if (insn->data[1] == GPCT_X2) {
+		if (data[1] == GPCT_X2) {
 			cmReg.reg.clockSource = 1;
-		} else if (insn->data[1] == GPCT_X4) {
+		} else if (data[1] == GPCT_X4) {
 			cmReg.reg.clockSource = 2;
 		} else {
 			cmReg.reg.clockSource = 0;
 		}
 
 		// When to take into account the indexpulse:
-		if (insn->data[2] == GPCT_IndexPhaseLowLow) {
-		} else if (insn->data[2] == GPCT_IndexPhaseLowHigh) {
-		} else if (insn->data[2] == GPCT_IndexPhaseHighLow) {
-		} else if (insn->data[2] == GPCT_IndexPhaseHighHigh) {
+		if (data[2] == GPCT_IndexPhaseLowLow) {
+		} else if (data[2] == GPCT_IndexPhaseLowHigh) {
+		} else if (data[2] == GPCT_IndexPhaseHighLow) {
+		} else if (data[2] == GPCT_IndexPhaseHighHigh) {
 		}
 		// Take into account the index pulse?
-		if (insn->data[3] == GPCT_RESET_COUNTER_ON_INDEX)
+		if (data[3] == GPCT_RESET_COUNTER_ON_INDEX)
 			cmReg.reg.autoLoadResetRcap = 4;	// Auto load with INDEX^
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (sampl_t) (data[1] & 0xFFFF);
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register high word
-		value = (sampl_t) ((insn->data[2] >> 16) & 0xFFFF);
+		value = (sampl_t) ((data[2] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register low word
-		value = (sampl_t) (insn->data[2] & 0xFFFF);
+		value = (sampl_t) (data[2] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
-		if (insn->data[3] != 0) {
-			value = (sampl_t) (insn->data[3] & 0xFFFF);
+		if (data[3] != 0) {
+			value = (sampl_t) (data[3] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		// Reset the counter if it is software preload
@@ -647,34 +646,34 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 			SinglePulseGeneration;
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (sampl_t) (data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 0;	// PR0
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 0 high word
-		value = (sampl_t) ((insn->data[2] >> 16) & 0xFFFF);
+		value = (sampl_t) ((data[2] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 0 low word
-		value = (sampl_t) (insn->data[2] & 0xFFFF);
+		value = (sampl_t) (data[2] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (sampl_t) (data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 1;	// PR1
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 1 high word
-		value = (sampl_t) ((insn->data[3] >> 16) & 0xFFFF);
+		value = (sampl_t) ((data[3] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 1 low word
-		value = (sampl_t) (insn->data[3] & 0xFFFF);
+		value = (sampl_t) (data[3] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
-		if (insn->data[4] != 0) {
-			value = (sampl_t) (insn->data[4] & 0xFFFF);
+		if (data[4] != 0) {
+			value = (sampl_t) (data[4] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		break;
@@ -692,34 +691,34 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 			PulseTrainGeneration;
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (sampl_t) (data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 0;	// PR0
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 0 high word
-		value = (sampl_t) ((insn->data[2] >> 16) & 0xFFFF);
+		value = (sampl_t) ((data[2] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 0 low word
-		value = (sampl_t) (insn->data[2] & 0xFFFF);
+		value = (sampl_t) (data[2] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Set Counter Mode Register
-		cmReg.value = (sampl_t) (insn->data[1] & 0xFFFF);
+		cmReg.value = (sampl_t) (data[1] & 0xFFFF);
 		cmReg.reg.preloadRegSel = 1;	// PR1
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
 
 		// Load the pre-laod register 1 high word
-		value = (sampl_t) ((insn->data[3] >> 16) & 0xFFFF);
+		value = (sampl_t) ((data[3] >> 16) & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0H, subdev_channel));
 
 		// Load the pre-laod register 1 low word
-		value = (sampl_t) (insn->data[3] & 0xFFFF);
+		value = (sampl_t) (data[3] & 0xFFFF);
 		outw(value, ADDR_CHAN_REG(REG_C0L, subdev_channel));
 
 		// Write the Counter Control Register
-		if (insn->data[4] != 0) {
-			value = (sampl_t) (insn->data[4] & 0xFFFF);
+		if (data[4] != 0) {
+			value = (sampl_t) (data[4] & 0xFFFF);
 			outw(value, ADDR_CHAN_REG(REG_C0C, subdev_channel));
 		}
 		break;
@@ -776,14 +775,14 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 			printk("s526: INSN_WRITE: PTG: Problem with data length -> %u\n",
 					insn->n);
 			return -EINVAL;
-		} else if ((insn->data[1] > insn->data[0]) && (insn->data[0] > 0)) {
+		} else if ((data[1] > data[0]) && (data[0] > 0)) {
 			(devpriv->s526_gpct_config[subdev_channel]).data[0] =
-				insn->data[0];
+				data[0];
 			(devpriv->s526_gpct_config[subdev_channel]).data[1] =
-				insn->data[1];
+				data[1];
 		} else {
 			printk("s526: INSN_WRITE: PTG: Problem with Pulse params -> %d %d\n",
-				insn->data[0], insn->data[1]);
+				data[0], data[1]);
 			return -EINVAL;
 		}
 
