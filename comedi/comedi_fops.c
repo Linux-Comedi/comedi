@@ -1129,8 +1129,6 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 		goto cleanup;
 	}
 
-	if (async->cmd.chanlist)
-		kfree(async->cmd.chanlist);
 	async->cmd = user_cmd;
 	async->cmd.data = NULL;
 	/* load channel/gain list */
@@ -1873,6 +1871,8 @@ void do_become_nonbusy(comedi_device * dev, comedi_subdevice * s)
 	if (async) {
 		comedi_reset_async_buf(async);
 		async->inttrig = NULL;
+		kfree(async->cmd.chanlist);
+		async->cmd.chanlist = NULL;
 	} else {
 		printk("BUG: (?) do_become_nonbusy called with async=0\n");
 	}
