@@ -32,7 +32,7 @@ Devices: [Amplicon] PC212E (pc212e), PC214E (pc214e), PC215E (pc215e),
   PCI215 (pci215 or amplc_dio200), PCIe215 (pcie215 or amplc_dio200),
   PC218E (pc218e), PCIe236 (pcie236 or amplc_dio200), PC272E (pc272e),
   PCI272 (pci272 or amplc_dio200), PCIe296 (pcie296 or amplc_dio200)
-Updated: Wed, 16 May 2012 13:57:58 +0100
+Updated: Wed, 03 Oct 2012 17:54:05 +0100
 Status: works
 
 Configuration options - PC212E, PC214E, PC215E, PC218E, PC272E:
@@ -197,7 +197,7 @@ INTERRUPT SOURCES
    0               PPI-X-C0       PPI-X1-C0
    1               PPI-X-C3       PPI-X1-C3
    2               PPI-Y-C0       PPI-Y1-C0
-   3               PPI-Y-C3       PPI-Y2-C3
+   3               PPI-Y-C3       PPI-Y1-C3
    4               PPI-Z-C0      CTR-Z1-OUT1
    5               PPI-Z-C3      CTR-Z2-OUT1
 
