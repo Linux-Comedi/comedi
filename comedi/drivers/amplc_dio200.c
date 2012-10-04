@@ -1837,7 +1837,7 @@ dio200_subdev_timer_config(comedi_device * dev, comedi_subdevice * s,
 static int
 dio200_subdev_timer_init(comedi_device * dev, comedi_subdevice * s)
 {
-	s->type = COMEDI_SUBD_COUNTER;
+	s->type = COMEDI_SUBD_TIMER;
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
 	s->n_chan = 1;
 	s->maxdata = 0xFFFFFFFF;
