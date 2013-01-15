@@ -330,8 +330,9 @@ static void dt9812_configure_gain(usb_dt9812_t * dev,
 		}
 		break;
 	default:{
-			err("Illegal gain %d\n", gain);
+			dev_err(&dev->interface->dev, "Illegal gain %d\n", gain);
 		}
+		break;
 	}
 }
 
@@ -483,7 +484,7 @@ static int dt9812_probe(struct usb_interface *interface,
 	// allocate memory for our device state and initialize it
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		err("Out of memory");
+		dev_err(&interface->dev, "Out of memory");
 		goto error;
 	}
 	kref_init(&dev->kref);
@@ -495,7 +496,7 @@ static int dt9812_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 
 	if (iface_desc->desc.bNumEndpoints != 5) {
-		err("Wrong number of endpints.");
+		dev_err(&interface->dev, "Wrong number of endpoints.");
 		retval = -ENODEV;
 		goto error;
 	}
@@ -546,7 +547,7 @@ static int dt9812_probe(struct usb_interface *interface,
 			break;
 		}
 		if ((endpoint->bEndpointAddress & USB_DIR_IN) != direction) {
-			err("Endpoint has wrong direction.");
+			dev_err(&interface->dev, "Endpoint has wrong direction.");
 			retval = -ENODEV;
 			goto error;
 		}
@@ -567,22 +568,22 @@ static int dt9812_probe(struct usb_interface *interface,
 	}
 
 	if (dt9812_read_info(dev, 1, &dev->vendor, sizeof(dev->vendor)) != 0) {
-		err("Failed to read vendor.");
+		dev_err(&interface->dev, "Failed to read vendor.");
 		retval = -ENODEV;
 		goto error;
 	}
 	if (dt9812_read_info(dev, 3, &dev->product, sizeof(dev->product)) != 0) {
-		err("Failed to read product.");
+		dev_err(&interface->dev, "Failed to read product.");
 		retval = -ENODEV;
 		goto error;
 	}
 	if (dt9812_read_info(dev, 5, &dev->device, sizeof(dev->device)) != 0) {
-		err("Failed to read device.");
+		dev_err(&interface->dev, "Failed to read device.");
 		retval = -ENODEV;
 		goto error;
 	}
 	if (dt9812_read_info(dev, 7, &dev->serial, sizeof(dev->serial)) != 0) {
-		err("Failed to read serial.");
+		dev_err(&interface->dev, "Failed to read serial.");
 		retval = -ENODEV;
 		goto error;
 	}
@@ -931,13 +932,15 @@ static int __init usb_dt9812_init(void)
 	// register with the USB subsystem 
 	result = usb_register(&dt9812_usb_driver);
 	if (result) {
-		err("usb_register failed. Error number %d", result);
+		printk(KERN_ERR KBUILD_MODNAME
+			": usb_register failed. Error number %d", result);
 	}
 	// register with comedi
 	result = comedi_driver_register(&dt9812_comedi_driver);
 	if (result) {
 		usb_deregister(&dt9812_usb_driver);
-		err("comedi_driver_register failed. Error number %d", result);
+		printk(KERN_ERR KBUILD_MODNAME
+			": comedi_driver_register failed. Error number %d", result);
 	}
 
 	return result;
