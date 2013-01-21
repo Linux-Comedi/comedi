@@ -438,10 +438,10 @@ AC_DEFUN([AS_CHECK_REDHAT_PRE_FC2],
         HAVE_REDHAT_KERNEL=false
         ac_save_CFLAGS="$CFLAGS"
         CFLAGS="$CFLAGS -I${LINUX_DIR}/include/linux"
-        AC_COMPILE_IFELSE(AC_LANG_PROGRAM([
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include "rhconfig.h"
 int code = RED_HAT_LINUX_KERNEL;
-	]),
+	]])],
         AC_MSG_RESULT(found); HAVE_REDHAT_KERNEL=true,
         AC_MSG_RESULT(not found))
 	dnl restore CFLAGS
