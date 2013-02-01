@@ -431,7 +431,7 @@ static int waveform_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 static int waveform_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 {
 	devpriv->timer_running = 0;
-	del_timer(&devpriv->timer);
+	del_timer_sync(&devpriv->timer);
 	return 0;
 }
 
