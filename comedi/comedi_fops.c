@@ -1607,7 +1607,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 
 	mask = 0;
 	read_subdev = comedi_get_read_subdevice(dev_file_info);
-	if (read_subdev) {
+	if (read_subdev && read_subdev->async) {
 		poll_wait(file, &read_subdev->async->wait_head, wait);
 		if (!read_subdev->busy
 			|| comedi_buf_read_n_available(read_subdev->async) > 0
@@ -1617,7 +1617,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 		}
 	}
 	write_subdev = comedi_get_write_subdevice(dev_file_info);
-	if (write_subdev) {
+	if (write_subdev && write_subdev->async) {
 		poll_wait(file, &write_subdev->async->wait_head, wait);
 		comedi_buf_write_alloc(write_subdev->async, write_subdev->async->prealloc_bufsz);
 		if (!write_subdev->busy
@@ -1659,6 +1659,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		goto done;
 	}
 	async = s->async;
+	if (async == NULL) {
+		retval = -EIO;
+		goto done;
+	}
 
 	if (!nbytes) {
 		retval = 0;
@@ -1769,6 +1773,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		goto done;
 	}
 	async = s->async;
+	if (async == NULL) {
+		retval = -EIO;
+		goto done;
+	}
 	if (!nbytes) {
 		retval = 0;
 		goto done;
