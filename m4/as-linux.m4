@@ -240,7 +240,10 @@ dnl first argument is the Linux build directory
 AC_DEFUN([AS_LINUX_OVERRIDE_KERNEL_RELEASE],
 [
 	INCDIR="$1/include"
-	UTSINC="${INCDIR}/linux/utsrelease.h"
+	UTSINC="${INCDIR}/generated/utsrelease.h"
+	if ! test -f "${UTSINC}"; then
+		UTSINC="${INCDIR}/linux/utsrelease.h"
+	fi
 	if ! test -f "${UTSINC}"; then
 		UTSINC="${INCDIR}/linux/version.h"
 	fi
