@@ -814,7 +814,11 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb PT_REGS_ARG)
 static int usbduxsub_start(usbduxsub_t * usbduxsub)
 {
 	int errcode = 0;
-	uint8_t local_transfer_buffer[16];
+	uint8_t *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	// 7f92 to zero
 	local_transfer_buffer[0] = 0;
@@ -835,18 +839,21 @@ static int usbduxsub_start(usbduxsub_t * usbduxsub)
 				  1,
 				  // Timeout
 				  BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		printk("comedi_: usbdux_: control msg failed (start)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxsub_stop(usbduxsub_t * usbduxsub)
 {
 	int errcode = 0;
+	uint8_t *local_transfer_buffer;
 
-	uint8_t local_transfer_buffer[16];
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	// 7f92 to one
 	local_transfer_buffer[0] = 1;
@@ -865,11 +872,11 @@ static int usbduxsub_stop(usbduxsub_t * usbduxsub)
 		 1,
 		 // Timeout
 		 BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		printk("comedi_: usbdux: control msg failed (stop)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxsub_upload(usbduxsub_t * usbduxsub,

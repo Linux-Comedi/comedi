@@ -452,7 +452,11 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 static int usbduxfastsub_start(usbduxfastsub_t * usbduxfastsub)
 {
 	int errcode = 0;
-	unsigned char local_transfer_buffer[16];
+	unsigned char *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	// 7f92 to zero
 	local_transfer_buffer[0] = 0;
@@ -473,18 +477,22 @@ static int usbduxfastsub_start(usbduxfastsub_t * usbduxfastsub)
 				  1,
 				  // Timeout
 				  BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		printk("comedi_: usbduxfast_: control msg failed (start)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxfastsub_stop(usbduxfastsub_t * usbduxfastsub)
 {
 	int errcode = 0;
+	unsigned char *local_transfer_buffer;
 
-	unsigned char local_transfer_buffer[16];
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
+
 	// 7f92 to one
 	local_transfer_buffer[0] = 1;
 	errcode = USB_CONTROL_MSG
@@ -502,11 +510,11 @@ static int usbduxfastsub_stop(usbduxfastsub_t * usbduxfastsub)
 		 1,
 		 // Timeout
 		 BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		printk("comedi_: usbduxfast: control msg failed (stop)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxfastsub_upload(usbduxfastsub_t * usbduxfastsub,
