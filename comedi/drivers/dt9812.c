@@ -741,12 +741,13 @@ static int dt9812_comedi_open(comedi_device * dev)
 static int dt9812_di_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_in(devpriv->slot, &bits);
 	for (n = 0; n < insn->n; n++) {
-		data[n] = ((1 << insn->chanspec) & bits) != 0;
+		data[n] = ((1 << channel) & bits) != 0;
 	}
 	return n;
 }
@@ -754,12 +755,13 @@ static int dt9812_di_rinsn(comedi_device * dev, comedi_subdevice * s,
 static int dt9812_do_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_out_shadow(devpriv->slot, &bits);
 	for (n = 0; n < insn->n; n++) {
-		u8 mask = 1 << insn->chanspec;
+		u8 mask = 1 << channel;
 
 		bits &= ~mask;
 		if (data[n]) {
@@ -773,13 +775,13 @@ static int dt9812_do_winsn(comedi_device * dev, comedi_subdevice * s,
 static int dt9812_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
 		u16 value = 0;
 
-		dt9812_analog_in(devpriv->slot, insn->chanspec, &value,
-			DT9812_GAIN_1);
+		dt9812_analog_in(devpriv->slot, channel, &value, DT9812_GAIN_1);
 		data[n] = value;
 	}
 	return n;
@@ -788,12 +790,13 @@ static int dt9812_ai_rinsn(comedi_device * dev, comedi_subdevice * s,
 static int dt9812_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
 		u16 value = 0;
 
-		dt9812_analog_out_shadow(devpriv->slot, insn->chanspec, &value);
+		dt9812_analog_out_shadow(devpriv->slot, channel, &value);
 		data[n] = value;
 	}
 	return n;
@@ -802,10 +805,11 @@ static int dt9812_ao_rinsn(comedi_device * dev, comedi_subdevice * s,
 static int dt9812_ao_winsn(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		dt9812_analog_out(devpriv->slot, insn->chanspec, data[n]);
+		dt9812_analog_out(devpriv->slot, channel, data[n]);
 	}
 	return n;
 }
