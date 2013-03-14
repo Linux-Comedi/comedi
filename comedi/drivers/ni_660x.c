@@ -22,13 +22,13 @@ Driver: ni_660x
 Description: National Instruments 660x counter/timer boards
 Devices:
 [National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
-	PXI-6608
+	PXI-6608, PXI-6624
 Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
 	Herman.Bruyninckx@mech.kuleuven.ac.be,
 	Wim.Meeussen@mech.kuleuven.ac.be,
 	Klaas.Gadeyne@mech.kuleuven.ac.be,
 	Frank Mori Hess <fmhess@users.sourceforge.net>
-Updated: Thu Oct 18 12:56:06 EDT 2007
+Updated: Thu, 14 Mar 2013 10:57:02 +0000
 Status: experimental
 
 Encoders work.  PulseGeneration (both single pulse and pulse train)
@@ -404,6 +404,11 @@ static const ni_660x_board ni_660x_boards[] = {
 	      name:	"PXI-6608",
 	      n_chips:	2,
 		},
+	{
+	      dev_id:	0x1e40,
+	      name:	"PXI-6624",
+	      n_chips:	2,
+		},
 };
 
 #define NI_660X_MAX_NUM_CHIPS 2
@@ -414,6 +419,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni_660x_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x1310, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x2cc0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NATINST, 0x1e40, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0}
 };
 
