@@ -1768,7 +1768,7 @@ static int s626_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 	case TRIG_NONE:
 		// continous aquisition
 		devpriv->ai_continous = 1;
-		devpriv->ai_sample_count = 0;
+		devpriv->ai_sample_count = 1;
 		break;
 	}
 
