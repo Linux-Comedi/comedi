@@ -157,10 +157,10 @@ typedef struct {
 	} adc_coding;
 	enum {
 		dac_bipolar10, dac_unipolar10
-	} dac0_range, dac1_range;
+	} dac_range[2];
 	enum {
 		dac_2comp, dac_straight
-	} dac0_coding, dac1_coding;
+	} dac_coding[2];
 	const comedi_lrange *ao_range_type_list[2];
 	lsampl_t ao_readback[2];
 	int muxgain_bits;
@@ -252,7 +252,7 @@ static int rti800_ao_insn_write(comedi_device * dev, comedi_subdevice * s,
 
 	for (i = 0; i < insn->n; i++) {
 		devpriv->ao_readback[chan] = d = data[i];
-		if (devpriv->dac0_coding == dac_2comp) {
+		if (devpriv->dac_coding[chan] == dac_2comp) {
 			d ^= 0x800;
 		}
 		outb(d & 0xff,
@@ -357,10 +357,10 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 	devpriv->adc_mux = it->options[2];
 	devpriv->adc_range = it->options[3];
 	devpriv->adc_coding = it->options[4];
-	devpriv->dac0_range = it->options[5];
-	devpriv->dac0_coding = it->options[6];
-	devpriv->dac1_range = it->options[7];
-	devpriv->dac1_coding = it->options[8];
+	devpriv->dac_range[0] = it->options[5];
+	devpriv->dac_coding[0] = it->options[6];
+	devpriv->dac_range[1] = it->options[7];
+	devpriv->dac_coding[1] = it->options[8];
 	devpriv->muxgain_bits = -1;
 
 	s = dev->subdevices + 0;
@@ -392,7 +392,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 		s->insn_write = rti800_ao_insn_write;
 		s->maxdata = 0xfff;
 		s->range_table_list = devpriv->ao_range_type_list;
-		switch (devpriv->dac0_range) {
+		switch (devpriv->dac_range[0]) {
 		case dac_bipolar10:
 			devpriv->ao_range_type_list[0] = &range_bipolar10;
 			break;
@@ -400,7 +400,7 @@ static int rti800_attach(comedi_device * dev, comedi_devconfig * it)
 			devpriv->ao_range_type_list[0] = &range_unipolar10;
 			break;
 		}
-		switch (devpriv->dac1_range) {
+		switch (devpriv->dac_range[1]) {
 		case dac_bipolar10:
 			devpriv->ao_range_type_list[1] = &range_bipolar10;
 			break;
