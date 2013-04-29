@@ -567,7 +567,22 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 
 #if 1
 		// Set Counter Mode Register
-		cmReg.value = data[1] & 0xFFFF;
+		if (insn->n < 2) {
+			/* old configuration for backwards compatibility */
+			cmReg.reg.coutSource = 0;       // out RCAP
+			cmReg.reg.coutPolarity = 0;     // Polarity inverted
+			cmReg.reg.autoLoadResetRcap = 0;        // Auto load disabled
+			cmReg.reg.hwCtEnableSource = 2; // NOT RCAP
+			cmReg.reg.ctEnableCtrl = 1;     // 1: Software,  >1 : Hardware
+			cmReg.reg.clockSource = 3;      // x4
+			cmReg.reg.countDir = 0; // up
+			cmReg.reg.countDirCtrl = 0;     // quadrature
+			cmReg.reg.outputRegLatchCtrl = 0;       // latch on read
+			cmReg.reg.preloadRegSel = 0;    // PR0
+			cmReg.reg.reserved = 0;
+		} else {
+			cmReg.value = data[1] & 0xFFFF;
+		}
 
 //                      printk("s526: Counter Mode register=%x\n", cmReg.value);
 		outw(cmReg.value, ADDR_CHAN_REG(REG_C0M, subdev_channel));
@@ -633,6 +648,10 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 		   data[4]: Conter Control Register
 		 */
 		printk("s526: GPCT_INSN_CONFIG: Configuring SPG\n");
+		if (insn->n < 5) {
+			printk("s526: Error: SPG data too short\n");
+			return -EINVAL;
+		}
 		devpriv->s526_gpct_config[subdev_channel].app =
 			SinglePulseGeneration;
 
@@ -678,6 +697,10 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 		   data[4]: Conter Control Register
 		 */
 		printk("s526: GPCT_INSN_CONFIG: Configuring PTG\n");
+		if (insn->n < 5) {
+			printk("s526: Error: PTG data too short\n");
+			return -EINVAL;
+		}
 		devpriv->s526_gpct_config[subdev_channel].app =
 			PulseTrainGeneration;
 
