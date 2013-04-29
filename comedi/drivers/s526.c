@@ -148,8 +148,6 @@ union cmReg {
 	unsigned short value;
 };
 
-#define MAX_GPCT_CONFIG_DATA 6
-
 /* Different Application Classes for GPCT Subdevices */
 /* The list is not exhaustive and needs discussion! */
 typedef enum {
@@ -165,7 +163,6 @@ typedef enum {
 */
 typedef struct s526GPCTConfig {
 	S526_GPCT_APP_CLASS app;
-	int data[MAX_GPCT_CONFIG_DATA];
 } s526_gpct_config_t;
 
 /*
@@ -522,16 +519,10 @@ static int s526_gpct_insn_config(comedi_device * dev, comedi_subdevice * s,
 	comedi_insn * insn, lsampl_t * data)
 {
 	int subdev_channel = CR_CHAN(insn->chanspec);	// Unpack chanspec
-	int i;
 	sampl_t value;
 	union cmReg cmReg;
 
 //        printk("s526: GPCT_INSN_CONFIG: Configuring Channel %d\n", subdev_channel);
-
-	for (i = 0; i < MAX_GPCT_CONFIG_DATA; i++) {
-		devpriv->s526_gpct_config[subdev_channel].data[i] = data[i];
-//              printk("data[%d]=%x\n", i, data[i]);
-	}
 
 	// Check what type of Counter the user requested, data[0] contains
 	// the Application type
@@ -775,12 +766,7 @@ static int s526_gpct_winsn(comedi_device * dev, comedi_subdevice * s,
 			printk("s526: INSN_WRITE: PTG: Problem with data length -> %u\n",
 					insn->n);
 			return -EINVAL;
-		} else if ((data[1] > data[0]) && (data[0] > 0)) {
-			(devpriv->s526_gpct_config[subdev_channel]).data[0] =
-				data[0];
-			(devpriv->s526_gpct_config[subdev_channel]).data[1] =
-				data[1];
-		} else {
+		} else if ((data[1] <= data[0]) || (data[0] == 0)) {
 			printk("s526: INSN_WRITE: PTG: Problem with Pulse params -> %d %d\n",
 				data[0], data[1]);
 			return -EINVAL;
