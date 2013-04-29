@@ -813,12 +813,23 @@ AC_DEFUN([COMEDI_CHECK_PCMCIA_DRIVER_NAME],
 #
 # Check if kernel pcmcia support is new enough to have the pcmcia_loop_tuple
 # function.
+#
+# RedHat back-ported it to their 2.6.32 kernel but didn't change prototypes
+# of pcmcia_request_window() and pcmcia_map_mem_page() at the same time.
+# They kept the older mechanism using pcmcia_get_first_tuple() and
+# pcmcia_get_next_tuple(), so ignore backported pcmcia_loop_tuple() if
+# pcmcia_get_next_tuple() is defined.
 AC_DEFUN([COMEDI_CHECK_PCMCIA_LOOP_TUPLE],
 [
 	AC_MSG_CHECKING([$1 for pcmcia_loop_tuple function])
 	if [grep -q 'int[[:space:]]\+pcmcia_loop_tuple[[:space:]]*(' "$1/include/pcmcia/ds.h"] 2>/dev/null ; then
-		AC_MSG_RESULT([yes])
-		$2
+		if [grep -q '^[[:space:]]*#[[:space:]]*define[[:space:]]\+pcmcia_get_first_tuple(' "$1/include/pcmcia/ds.h"] 2>/dev/null ; then
+			AC_MSG_RESULT([yes but ignoring backport])
+			$3
+		else
+			AC_MSG_RESULT([yes])
+			$2
+		fi
 	else
 		AC_MSG_RESULT([no])
 		$3
