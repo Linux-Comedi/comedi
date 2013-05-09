@@ -514,39 +514,27 @@ int ni_tio_arm(struct ni_gpct *counter, int arm, unsigned start_trigger)
 	unsigned command_transient_bits = 0;
 
 	if (arm) {
-		switch (start_trigger) {
-		case NI_GPCT_ARM_IMMEDIATE:
-			command_transient_bits |= Gi_Arm_Bit;
-			break;
-		case NI_GPCT_ARM_PAIRED_IMMEDIATE:
-			command_transient_bits |= Gi_Arm_Bit | Gi_Arm_Copy_Bit;
-			break;
-		default:
-			break;
-		}
+		command_transient_bits |= Gi_Arm_Bit;
+
+		if ((start_trigger == NI_GPCT_ARM_PAIRED_IMMEDIATE))
+			command_transient_bits |= Gi_Arm_Copy_Bit;
+
 		if (ni_tio_counting_mode_registers_present(counter_dev)) {
 			unsigned counting_mode_bits = 0;
 
-			switch (start_trigger) {
-			case NI_GPCT_ARM_IMMEDIATE:
-			case NI_GPCT_ARM_PAIRED_IMMEDIATE:
-				break;
-			default:
-				if (start_trigger & NI_GPCT_ARM_UNKNOWN) {
-					/* pass-through the least significant bits so we can figure out what select later */
-					unsigned hw_arm_select_bits =
-						(start_trigger <<
-						Gi_HW_Arm_Select_Shift) &
-						Gi_HW_Arm_Select_Mask
-						(counter_dev->variant);
+			if (start_trigger & NI_GPCT_HW_ARM) {
+				unsigned hw_arm_select_bits =
+					(start_trigger ^ NI_GPCT_HW_ARM) <<
+					Gi_HW_Arm_Select_Shift;
 
-					counting_mode_bits |=
-						Gi_HW_Arm_Enable_Bit |
-						hw_arm_select_bits;
-				} else {
+				/* reject '1' bits outside HW Arm Select Mask */
+				if (hw_arm_select_bits &
+				    ~(unsigned)Gi_HW_Arm_Select_Mask(
+					    counter_dev->variant))
 					return -EINVAL;
-				}
-				break;
+
+				counting_mode_bits |= Gi_HW_Arm_Enable_Bit |
+					hw_arm_select_bits;
 			}
 			ni_tio_set_bits(counter,
 				NITIO_Gi_Counting_Mode_Reg(counter->
