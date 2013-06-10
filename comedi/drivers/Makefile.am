@@ -116,6 +116,7 @@ pci_modules2= \
  adv_pci_dio.ko \
  amplc_pci224.ko \
  amplc_pci230.ko \
+ cb_pcidac.ko \
  cb_pcidas.ko \
  cb_pcidas64.ko \
  cb_pcidda.ko \
@@ -274,6 +275,7 @@ amplc_pc236_ko_SOURCES = amplc_pc236.c
 amplc_pc263_ko_SOURCES = amplc_pc263.c
 amplc_dio200_ko_SOURCES = amplc_dio200.c
 c6xdigio_ko_SOURCES = c6xdigio.c
+cb_pcidac_ko_SOURCES = cb_pcidac.c
 cb_pcidas_ko_SOURCES = cb_pcidas.c
 cb_pcidas64_ko_SOURCES = cb_pcidas64.c
 cb_pcidda_ko_SOURCES = cb_pcidda.c
