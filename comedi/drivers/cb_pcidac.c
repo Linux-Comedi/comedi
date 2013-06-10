@@ -84,11 +84,8 @@ typedef struct cb_pcidac_board_struct {
   unsigned short device_id;
   int ao_nchan;		// number of analog out channels
   int ao_bits;		// analogue output resolution
-  int has_ao_fifo;	// analog output has fifo
-  int ao_scan_speed;	// analog output speed for 1602 series (for a scan, not conversion)
   int dio_bits;		// number of dio bits
   int dio_nchan;	// number of dio channels
-  int has_dio;		// has DIO
   const comedi_lrange *ranges;
 } cb_pcidac_board;
 
@@ -98,20 +95,16 @@ static const cb_pcidac_board cb_pcidac_boards[] = {
   device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
   ao_nchan:8,
   ao_bits:16,
-  has_ao_fifo:0,
   dio_bits:8,
   dio_nchan:8,
-  has_dio:1,
   },
   {
   name:	"PCI-DAC6703",
   device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
   ao_nchan:16,
   ao_bits:16,
-  has_ao_fifo:0,
   dio_bits:8,
   dio_nchan:8,
-  has_dio:1,
   },
 };
 
@@ -254,14 +247,6 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 
 
 
-  // Dont support IRQ yet
-  //      // get irq
-  //      if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcidac_interrupt, IRQF_SHARED, "cb_pcidac", dev ))
-  //      {
-  //              printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq);
-  //              return -EINVAL;
-  //      }
-  //      dev->irq = devpriv->pci_dev->irq;
 
   //Initialize dev->board_name
 	dev->board_name = thisboard->name;
@@ -314,18 +299,13 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 
   s = dev->subdevices + 1;
   /* digital i/o subdevice */
-	if (thisboard->has_dio) {
-	  s->type = COMEDI_SUBD_DIO;
-	  s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	  s->n_chan = thisboard->dio_nchan;
-	  s->maxdata = 1;
-	  s->range_table = &range_digital;
-	  s->insn_bits = cb_pcidac_dio_insn_bits;
-	  s->insn_config = cb_pcidac_dio_insn_config;
-	  }
-	  else {
-	  s->type = COMEDI_SUBD_UNUSED;
-	}
+  s->type = COMEDI_SUBD_DIO;
+  s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+  s->n_chan = thisboard->dio_nchan;
+  s->maxdata = 1;
+  s->range_table = &range_digital;
+  s->insn_bits = cb_pcidac_dio_insn_bits;
+  s->insn_config = cb_pcidac_dio_insn_config;
   
   printk("attached\n");
 #ifdef CBPCIDAC_DEBUG
