@@ -184,7 +184,7 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
   int index;
   //int i;
 
-  printk("comedi%d: cb_pcidac: ", dev->minor);
+  printk("comedi%d: cb_pcidac:\n", dev->minor);
 
   /*
    * Allocate the private structure area.
@@ -195,8 +195,6 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
   /*
    * Probe the device to determine what device in the series it is.
    */
-  printk("\n");
-
   for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
        pcidev != NULL;
        pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
@@ -239,10 +237,11 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
   default:
     printk("THIS CARD IS UNSUPPORTED.\n"
 	   "PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
+    break;
   };
 
   if (comedi_pci_enable(pcidev, "cb_pcidac")) {
-    printk(" Failed to enable PCI device and request regions\n");
+    printk("Failed to enable PCI device and request regions\n");
     return -EIO;
   }
 
@@ -283,7 +282,7 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 
 	if (!devpriv->plx9030_iobase || !devpriv->main_iobase
 		|| !devpriv->dio_counter_iobase) {
-		printk(" failed to remap io memory\n");
+		printk("Failed to remap io memory\n");
 		return -ENOMEM;
 	}
  
