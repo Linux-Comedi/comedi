@@ -28,13 +28,16 @@ Author: Oliver Gause
 Updated: Fr, 31 Aug 2012
 Status: works
 
-Written to support the PCI-DAC6702 on a 3 series kernel. Should be trivial to add support for the PCI-DAC6703, it has just 16 ao channels instead of 8.
+Written to support the PCI-DAC6702. Should be trivial to add support for
+the PCI-DAC6703, it has just 16 ao channels instead of 8.
 
 Configuration Options:
     [0] - PCI bus number
     [1] - PCI slot number
 
-Developed from cb_pcidas64, cb_pcimdas and skel. The register values are taken from the register map of Measurement Computing.
+Developed from cb_pcidas64, cb_pcimdas and skel. The register values are
+taken from the register map of Measurement Computing.
+
 Supports DIO, AO in its present form.
 
 */
