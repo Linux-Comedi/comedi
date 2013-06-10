@@ -303,6 +303,8 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
   s->range_table = &range_bipolar10;
   s->insn_write = &cb_pcidac_ao_winsn;
   s->insn_read = &cb_pcidac_ao_rinsn;
+  /* Put all DAC channels in immediate update mode. */
+  iowrite16(0, devpriv->main_iobase + DAC_UPDATE_MODE);
 
   s = dev->subdevices + 1;
   /* digital i/o subdevice */
