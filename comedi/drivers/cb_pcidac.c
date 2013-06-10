@@ -1,6 +1,6 @@
 /*
     comedi/drivers/cb_pcidac.c
-    Comedi driver for Computer Boards PCI-DAC6702
+    Comedi driver for Computer Boards PCI-DAC6702 and PCI-DAC6703
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -23,12 +23,12 @@
 /*
 Driver: cb_pcidac
 Description: Measurement Computing PCI Migration series boards
-Devices: [ComputerBoards] PCI-DAC6702 (cb_pcidac)
+Devices: [ComputerBoards] PCI-DAC6702 (cb_pcidac), PCI-DAC6703
 Author: Oliver Gause
-Updated: Fr, 31 Aug 2012
+Updated: Mon, 10 Jun 2013 11:56:44 +0100
 Status: works
 
-Written to support the PCI-DAC6702. Should be trivial to add support for
+Written to support the PCI-DAC6702. Trivially extended to support
 the PCI-DAC6703, it has just 16 ao channels instead of 8.
 
 Configuration Options:
@@ -47,6 +47,9 @@ Supports DIO, AO in its present form.
 #include <linux/delay.h>
 
 #include "comedi_pci.h"
+
+#define PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702	0x0070
+#define PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703	0x0071
 
 #define CBPCIDAC_DEBUG
 //#undef CBPCIDAC_DEBUG
@@ -92,8 +95,18 @@ typedef struct cb_pcidac_board_struct {
 static const cb_pcidac_board cb_pcidac_boards[] = {
   {
   name:	"PCI-DAC6702",
-  device_id:0x70,
+  device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
   ao_nchan:8,
+  ao_bits:16,
+  has_ao_fifo:0,
+  dio_bits:8,
+  dio_nchan:8,
+  has_dio:1,
+  },
+  {
+  name:	"PCI-DAC6703",
+  device_id:PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
+  ao_nchan:16,
   ao_bits:16,
   has_ao_fifo:0,
   dio_bits:8,
@@ -105,13 +118,16 @@ static const cb_pcidac_board cb_pcidac_boards[] = {
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidac_pci_table) = {
-  {PCI_VENDOR_ID_COMPUTERBOARDS, 0x0070 , PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+  {PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6702,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+  {PCI_VENDOR_ID_COMPUTERBOARDS, PCI_DEVICE_ID_COMPUTERBOARDS_PCI_DAC6703,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
   {0}
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcidac_pci_table);
 
-#define N_BOARDS 1		// Max number of boards supported
+#define N_BOARDS ARRAY_SIZE(cb_pcidac_boards)
 
 /*
  * Useful for shorthand access to the particular board structure
@@ -229,16 +245,6 @@ static int cb_pcidac_attach(comedi_device * dev, comedi_devconfig * it)
 
   printk("Found %s on bus %i, slot %i\n", cb_pcidac_boards[index].name,
 	 pcidev->bus->number, PCI_SLOT(pcidev->devfn));
-
-  // Warn about non-tested features
-  switch (thisboard->device_id) {
-  case 0x70:
-    break;
-  default:
-    printk("THIS CARD IS UNSUPPORTED.\n"
-	   "PLEASE REPORT USAGE TO <mocelet@sucs.org>\n");
-    break;
-  };
 
   if (comedi_pci_enable(pcidev, "cb_pcidac")) {
     printk("Failed to enable PCI device and request regions\n");
