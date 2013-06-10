@@ -432,10 +432,7 @@ static int cb_pcidac_dio_insn_bits(comedi_device * dev, comedi_subdevice * s,
 
 	/* on return, data[1] contains the value of the digital
 	 * input and output lines. */
-	//data[1]=inw(dev->iobase + SKEL_DIO);
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	//data[1]=s->state;
+	data[1]=ioread8(devpriv->dio_counter_iobase + DIO_DATA);
 
 	return 2;
 }
