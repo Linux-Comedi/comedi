@@ -128,7 +128,6 @@ pci_modules2= \
  dt3000.ko \
  gsc_hpdi.ko \
  icp_multi.ko \
- ii_pci20kc.ko \
  jr3_pci.ko \
  ke_counter.ko \
  me_daq.ko \
@@ -202,6 +201,7 @@ module_PROGRAMS = \
  dt2817.ko \
  dt282x.ko \
  fl512.ko \
+ ii_pci20kc.ko \
  mpc624.ko \
  multiq3.ko \
  ni_atmio.ko \
