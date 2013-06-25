@@ -262,8 +262,10 @@ static int unioxx5_detach(comedi_device * dev)
 	for (i = 0; i < dev->n_subdevices; i++) {
 		subdev = &dev->subdevices[i];
 		usp = subdev->private;
-		release_region(usp->usp_iobase, UNIOXX5_SIZE);
-		kfree(subdev->private);
+		if (usp) {
+			release_region(usp->usp_iobase, UNIOXX5_SIZE);
+			kfree(usp);
+		}
 	}
 
 	return 0;
@@ -276,17 +278,19 @@ static int __unioxx5_subdev_init(comedi_subdevice * subdev, int subdev_iobase,
 	unioxx5_subd_priv *usp;
 	int i, to, ndef_flag = 0;
 
-	if (!request_region(subdev_iobase, UNIOXX5_SIZE, DRIVER_NAME)) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", minor);
-		return -EIO;
-	}
-
 	if ((usp = (unioxx5_subd_priv *) kzalloc(sizeof(*usp),
 				GFP_KERNEL)) == NULL) {
-		printk(KERN_ERR "comedi%d: erorr! --> out of memory!\n", minor);
+		printk(KERN_ERR "comedi%d: error! --> out of memory!\n", minor);
 		return -1;
 	}
 
+	if (!request_region(subdev_iobase, UNIOXX5_SIZE, DRIVER_NAME)) {
+		printk(KERN_ERR "comedi%d: I/O port conflict\n", minor);
+		kfree(usp);
+		return -EIO;
+	}
+
+	subdev->private = usp;
 	usp->usp_iobase = subdev_iobase;
 	printk("comedi%d: |", minor);
 
@@ -322,7 +326,6 @@ static int __unioxx5_subdev_init(comedi_subdevice * subdev, int subdev_iobase,
 
 	/* initial subdevice for digital or analog i/o */
 	subdev->type = COMEDI_SUBD_DIO;
-	subdev->private = usp;
 	subdev->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	subdev->n_chan = UNIOXX5_NUM_OF_CHANS;
 	subdev->maxdata = 0xFFF;
