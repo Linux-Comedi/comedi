@@ -1115,7 +1115,6 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 		DPRINTK("subdevice busy\n");
 		return -EBUSY;
 	}
-	s->busy = file;
 
 	/* make sure channel/gain list isn't too long */
 	if (user_cmd.chanlist_len > s->len_chanlist) {
@@ -1200,6 +1199,7 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 	}
 #endif
 
+	s->busy = file;
 	ret = s->do_cmd(dev, s);
 	if (ret == 0)
 		return 0;
