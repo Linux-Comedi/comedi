@@ -1120,16 +1120,14 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 	if (user_cmd.chanlist_len > s->len_chanlist) {
 		DPRINTK("channel/gain list too long %u > %d\n",
 			user_cmd.chanlist_len, s->len_chanlist);
-		ret = -EINVAL;
-		goto cleanup;
+		return -EINVAL;
 	}
 
 	/* make sure channel/gain list isn't too short */
 	if (user_cmd.chanlist_len < 1) {
 		DPRINTK("channel/gain list too short %u < 1\n",
 			user_cmd.chanlist_len);
-		ret = -EINVAL;
-		goto cleanup;
+		return -EINVAL;
 	}
 
 	async->cmd = user_cmd;
@@ -1139,8 +1137,7 @@ static int do_cmd_ioctl(comedi_device * dev, comedi_cmd __user *arg, void *file)
 		kmalloc(async->cmd.chanlist_len * sizeof(int), GFP_KERNEL);
 	if (!async->cmd.chanlist) {
 		DPRINTK("allocation failed\n");
-		ret = -ENOMEM;
-		goto cleanup;
+		return -ENOMEM;
 	}
 
 	if (copy_from_user(async->cmd.chanlist,
