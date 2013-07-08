@@ -31,12 +31,11 @@
 #define __NO_VERSION__
 #include <linux/comedidev.h>
 #include <linux/proc_fs.h>
-//#include <linux/string.h>
-
-int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
-	int *eof, void *data);
 
 extern comedi_driver *comedi_drivers;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,25)
+/* Old version */
 
 int comedi_read_procmem(char *buf, char **start, off_t offset, int len,
 	int *eof, void *data)
@@ -93,6 +92,77 @@ void comedi_proc_init(void)
 	if (comedi_proc)
 		comedi_proc->read_proc = comedi_read_procmem;
 }
+
+#else
+/* New version, using proc_create() and the seq_file interface. */
+#include <linux/seq_file.h>
+
+static int comedi_read(struct seq_file *m, void *v)
+{
+	int i;
+	int devices_q = 0;
+	comedi_driver *driv;
+
+	seq_printf(m,
+		     "comedi version " COMEDI_RELEASE "\n"
+		     "format string: %s\n",
+		     "\"%2d: %-20s %-20s %4d\", i, "
+		     "driver_name, board_name, n_subdevices");
+
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
+		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
+		comedi_device *dev;
+
+		dev_file_info = comedi_get_device_file_info(i);
+		if (dev_file_info == NULL)
+			continue;
+		dev = dev_file_info->device;
+
+		if (dev->attached) {
+			devices_q = 1;
+			seq_printf(m, "%2d: %-20s %-20s %4d\n",
+				   i, dev->driver->driver_name,
+				   dev->board_name, dev->n_subdevices);
+		}
+	}
+	if (!devices_q)
+		seq_puts(m, "no devices\n");
+
+	for (driv = comedi_drivers; driv; driv = driv->next) {
+		seq_printf(m, "%s:\n", driv->driver_name);
+		for (i = 0; i < driv->num_names; i++)
+			seq_printf(m, " %s\n",
+				   *(char **)((char *)driv->board_name +
+					      i * driv->offset));
+
+		if (!driv->num_names)
+			seq_printf(m, " %s\n", driv->driver_name);
+	}
+
+	return 0;
+}
+
+/*
+ * seq_file wrappers for procfile show routines.
+ */
+static int comedi_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, comedi_read, NULL);
+}
+
+static const struct file_operations comedi_proc_fops = {
+	.open		= comedi_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+void comedi_proc_init(void)
+{
+	proc_create("comedi", S_IFREG | S_IRUGO, NULL, &comedi_proc_fops);
+}
+
+#endif
 
 void comedi_proc_cleanup(void)
 {
