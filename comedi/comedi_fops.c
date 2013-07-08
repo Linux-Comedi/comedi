@@ -1412,6 +1412,7 @@ static int do_unlock_ioctl(comedi_device * dev, unsigned int arg, void *file)
 static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file)
 {
 	comedi_subdevice *s;
+	int ret;
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
@@ -1428,7 +1429,25 @@ static int do_cancel_ioctl(comedi_device * dev, unsigned int arg, void *file)
 	if (s->busy != file)
 		return -EBUSY;
 
-	return do_cancel(dev, s);
+	ret = do_cancel(dev, s);
+
+	if (comedi_get_subdevice_runflags(s) & SRF_USER) {
+		/* wake up waiters */
+		comedi_async *async = s->async;
+
+		if (dev->rt) {
+#ifdef CONFIG_COMEDI_RT
+			// pend wake up
+			comedi_rt_pend_wakeup(&async->wait_head);
+#else
+			printk("BUG: do_cancel_ioctl() code unreachable\n");
+#endif
+		} else {
+			wake_up_interruptible(&async->wait_head);
+		}
+	}
+
+	return ret;
 }
 
 /*
