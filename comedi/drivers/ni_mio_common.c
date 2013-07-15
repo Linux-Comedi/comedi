@@ -1431,8 +1431,13 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 			dl = ni_readl(ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
+#ifdef PCIDMA
+			data[0] = cpu_to_le16(dl >> 16);
+			data[1] = cpu_to_le16(dl & 0xffff);
+#else
 			data[0] = (dl >> 16);
 			data[1] = (dl & 0xffff);
+#endif
 			cfc_write_array_to_buffer(s, data, sizeof(data));
 		}
 	} else if (boardtype.reg_type == ni_reg_6143) {
@@ -1441,8 +1446,13 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 			dl = ni_readl(AIFIFO_Data_6143);
 
 			/* This may get the hi/lo data in the wrong order */
+#ifdef PCIDMA
+			data[0] = cpu_to_le16(dl >> 16);
+			data[1] = cpu_to_le16(dl & 0xffff);
+#else
 			data[0] = (dl >> 16);
 			data[1] = (dl & 0xffff);
+#endif
 			cfc_write_array_to_buffer(s, data, sizeof(data));
 			i += 2;
 		}
@@ -1450,7 +1460,11 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 		if (ni_readl(AIFIFO_Status_6143) & 0x01) {
 			ni_writel(0x01, AIFIFO_Control_6143);	// Get stranded sample into FIFO
 			dl = ni_readl(AIFIFO_Data_6143);
-			data[0] = (dl >> 16) & 0xffff;
+#ifdef PCIDMA
+			data[0] = cpu_to_le16(dl >> 16);
+#else
+			data[0] = (dl >> 16);
+#endif
 			cfc_write_to_buffer(s, data[0]);
 		}
 
@@ -1469,8 +1483,13 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 					AI_FIFO_Empty_St;
 				if (fifo_empty)
 					break;
+#ifdef PCIDMA
+				devpriv->ai_fifo_buffer[i] =
+					cpu_to_le16(ni_readw(ADC_FIFO_Data_Register));
+#else
 				devpriv->ai_fifo_buffer[i] =
 					ni_readw(ADC_FIFO_Data_Register);
+#endif
 			}
 			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
 				i * sizeof(devpriv->ai_fifo_buffer[0]));
@@ -1490,7 +1509,11 @@ static void get_last_sample_611x(comedi_device * dev)
 	/* Check if there's a single sample stuck in the FIFO */
 	if (ni_readb(XXX_Status) & 0x80) {
 		dl = ni_readl(ADC_FIFO_Data_611x);
+#ifdef PCIDMA
+		data = cpu_to_le16(dl & 0xffff);
+#else
 		data = (dl & 0xffff);
+#endif
 		cfc_write_to_buffer(s, data);
 	}
 }
@@ -1510,7 +1533,11 @@ static void get_last_sample_6143(comedi_device * dev)
 		dl = ni_readl(AIFIFO_Data_6143);
 
 		/* This may get the hi/lo data in the wrong order */
-		data = (dl >> 16) & 0xffff;
+#ifdef PCIDMA
+		data = cpu_to_le16(dl >> 16);
+#else
+		data = (dl >> 16);
+#endif
 		cfc_write_to_buffer(s, data);
 	}
 }
