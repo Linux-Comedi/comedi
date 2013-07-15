@@ -1351,18 +1351,18 @@ static void ni_ai_fifo_read(comedi_device * dev, comedi_subdevice * s, int n)
 			cfc_write_to_buffer(s, data[0]);
 		}
 	} else {
-		if (n > sizeof(devpriv->ai_fifo_buffer) /
-			sizeof(devpriv->ai_fifo_buffer[0])) {
+		if (n > sizeof(devpriv->ai_fifo_buffer.s) /
+			sizeof(devpriv->ai_fifo_buffer.s[0])) {
 			comedi_error(dev, "bug! ai_fifo_buffer too small");
 			async->events |= COMEDI_CB_ERROR;
 			return;
 		}
 		for (i = 0; i < n; i++) {
-			devpriv->ai_fifo_buffer[i] =
+			devpriv->ai_fifo_buffer.s[i] =
 				ni_readw(ADC_FIFO_Data_Register);
 		}
-		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
-			n * sizeof(devpriv->ai_fifo_buffer[0]));
+		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer.s,
+			n * sizeof(devpriv->ai_fifo_buffer.s[0]));
 	}
 }
 
@@ -1469,30 +1469,53 @@ static void ni_handle_fifo_dregs(comedi_device * dev)
 		}
 
 	} else {
+		int buflen;
+		int sampsize;
+		unsigned int mask = (1 << boardtype.adbits) - 1;
+
+		if (s->subdev_flags & SDF_LSAMPL) {
+			buflen = sizeof(devpriv->ai_fifo_buffer.ls) /
+				 sizeof(devpriv->ai_fifo_buffer.ls[0]);
+			sampsize = sizeof(devpriv->ai_fifo_buffer.ls[0]);
+		} else {
+			buflen = sizeof(devpriv->ai_fifo_buffer.s) /
+				 sizeof(devpriv->ai_fifo_buffer.s[0]);
+			sampsize = sizeof(devpriv->ai_fifo_buffer.s[0]);
+		}
 		fifo_empty =
 			devpriv->stc_readw(dev,
 			AI_Status_1_Register) & AI_FIFO_Empty_St;
 		while (fifo_empty == 0) {
-			for (i = 0;
-				i <
-				sizeof(devpriv->ai_fifo_buffer) /
-				sizeof(devpriv->ai_fifo_buffer[0]); i++) {
+			for (i = 0; i < buflen; i++) {
 				fifo_empty =
 					devpriv->stc_readw(dev,
 					AI_Status_1_Register) &
 					AI_FIFO_Empty_St;
 				if (fifo_empty)
 					break;
+				if (boardtype.reg_type & ni_reg_m_series_mask)
+					dl = ni_readl(M_Offset_AI_FIFO_Data) & mask;
+				else
+					dl = ni_readw(ADC_FIFO_Data_Register);
+				if (sampsize == sizeof(devpriv->ai_fifo_buffer.ls[0])) {
 #ifdef PCIDMA
-				devpriv->ai_fifo_buffer[i] =
-					cpu_to_le16(ni_readw(ADC_FIFO_Data_Register));
+					devpriv->ai_fifo_buffer.ls[i] =
+						cpu_to_le32(dl);
 #else
-				devpriv->ai_fifo_buffer[i] =
-					ni_readw(ADC_FIFO_Data_Register);
+					devpriv->ai_fifo_buffer.ls[i] = dl;
 #endif
+
+				} else {
+#ifdef PCIDMA
+					devpriv->ai_fifo_buffer.s[i] =
+						cpu_to_le16(dl);
+#else
+					devpriv->ai_fifo_buffer.s[i] = dl;
+#endif
+				}
 			}
-			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
-				i * sizeof(devpriv->ai_fifo_buffer[0]));
+			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer.s,
+				i * sampsize);
 		}
 	}
 }
