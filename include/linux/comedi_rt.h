@@ -30,7 +30,9 @@
 
 #include <linux/version.h>
 #include <linux/kdev_t.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 #include <linux/config.h>
+#endif
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
