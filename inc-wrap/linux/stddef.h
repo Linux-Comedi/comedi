@@ -22,10 +22,10 @@
 #include <config.h>
 
 #ifndef CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE
-typedef enum {
+enum {
 	false,
 	true
-} bool;
+};
 #endif
 
 #include_next <linux/stddef.h>
