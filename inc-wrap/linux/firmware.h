@@ -4,7 +4,7 @@
 
 #ifndef __COMPAT_LINUX_FIRMWARE_H
 
-#include <linux/version.h>
+#include <config.h>
 
 #include_next <linux/firmware.h>
 

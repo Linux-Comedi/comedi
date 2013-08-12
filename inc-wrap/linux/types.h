@@ -20,6 +20,7 @@
 #define __COMPAT_LINUX_TYPES_H_
 
 #include <linux/version.h>
+#include <config.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 18)
 typedef unsigned long resource_size_t;

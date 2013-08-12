@@ -19,7 +19,7 @@
 #ifndef __COMPAT_LINUX_STDDEF_H_
 #define __COMPAT_LINUX_STDDEF_H_
 
-#include <linux/version.h>
+#include <config.h>
 
 #ifndef CONFIG_COMEDI_HAVE_GENERIC_BOOL_TYPE
 typedef enum {
