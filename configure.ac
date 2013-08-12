@@ -62,7 +62,8 @@ CC=$LINUX_CC
 
 #ERROR_CFLAGS="-Werror"
 
-[COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include/\
+[COMEDI_CFLAGS="$ERROR_CFLAGS -I\$(top_srcdir)/include \
+ -I\$(top_srcdir)/inc-wrap \
  -DKBUILD_MODNAME=\$(shell basename \$@ .o | sed 's/\(.*\)_ko.*/\1/g')\
  -DKBUILD_BASENAME=\$(shell basename \$< .c)"]
 AC_SUBST(COMEDI_CFLAGS)
@@ -219,9 +220,11 @@ comedi/drivers/Makefile
 comedi/drivers/addi-data/Makefile
 comedi/kcomedilib/Makefile
 include/Makefile
-include/asm/Makefile
 include/linux/Makefile
-include/pcmcia/Makefile
+inc-wrap/Makefile
+inc-wrap/linux/Makefile
+inc-wrap/asm/Makefile
+inc-wrap/pcmcia/Makefile
 ])
 AC_OUTPUT
 

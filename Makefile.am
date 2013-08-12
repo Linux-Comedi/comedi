@@ -1,5 +1,5 @@
 
-SUBDIRS = comedi include
+SUBDIRS = comedi include inc-wrap
 
 EXTRA_DIST = autogen.sh \
 	AUTHORS \

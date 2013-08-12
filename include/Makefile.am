@@ -1,2 +1,2 @@
 
-SUBDIRS = asm linux pcmcia
+SUBDIRS = linux

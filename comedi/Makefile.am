@@ -21,15 +21,22 @@ all-local:
 #invoke kernel's build system
 #ignore errors from kernel's make modules in all-local, to avoid failure of make install
 #on nfs filesystem with root_squash
-	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
-		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" modules
+	-$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
+		CC="$(LINUX_CC) -I@abs_top_builddir@ \
+			-I@abs_top_srcdir@/include -I@abs_top_srcdir@/inc-wrap \
+			$(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" modules
 install-data-local:
-	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
-		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
+		CC="$(LINUX_CC) -I@abs_top_builddir@ \
+			-I@abs_top_srcdir@/include -I@abs_top_srcdir@/inc-wrap \
+			$(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" \
+		INSTALL_MOD_DIR=$(COMEDI_MOD_DIR) \
 		INSTALL_MOD_PATH="$(DESTDIR)$(prefix)" modules_install
 clean-local:
-	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ CC="$(LINUX_CC) -I@abs_top_builddir@/ \
-		-I@abs_top_srcdir@/include $(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" clean
+	$(MAKE) -I@abs_builddir@ -C $(LINUX_DIR) M=@abs_builddir@ \
+		CC="$(LINUX_CC) -I@abs_top_builddir@ \
+			-I@abs_top_srcdir@/include -I@abs_top_srcdir@/inc-wrap \
+			$(RTAI_CFLAGS) $(RTLINUX_CFLAGS)" clean
 uninstall-local:
 	find $(DESTDIR)$(prefix)/$(LINUX_MODLIB)/$(COMEDI_MOD_DIR) -name '*.ko' -exec $(RM) {} \;
 else
