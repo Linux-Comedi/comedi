@@ -26,6 +26,7 @@
 #define __COMPAT_LINUX_MUTEX_H_
 
 #include <linux/config.h>
+#include <config.h>
 
 #ifdef CONFIG_COMEDI_HAVE_MUTEX_H
 

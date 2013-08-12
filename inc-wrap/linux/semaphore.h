@@ -5,7 +5,7 @@
 #ifndef __COMPAT_LINUX_SEMAPHORE_H_
 #define __COMPAT_LINUX_SEMAPHORE_H_
 
-#include <linux/config.h>
+#include <config.h>
 
 #ifdef CONFIG_COMEDI_HAVE_LINUX_SEMAPHORE_H
 
